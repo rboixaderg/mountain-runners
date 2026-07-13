@@ -1,0 +1,53 @@
+.agents/skills/project-context/SKILL.md
+  s_6c952b0f7a5eac::t_8e2718721a5685 1-20
+.env.example
+  s_6c952b0f7a5eac::t_af0f3cdbfdc5e8 1-2
+.gitignore
+  s_6c952b0f7a5eac::t_992c80120fbd1a 1-12
+.opencode/agents/security-reviewer.md
+  s_6c952b0f7a5eac::t_23f1b1334d8978 1-17
+AGENTS.md
+  s_6c952b0f7a5eac::t_f3772da483588b 1-54
+CONTRIBUTING.md
+  s_6c952b0f7a5eac::t_e465c1251b2994 1-45
+DESIGN.md
+  s_6c952b0f7a5eac::t_5c2c033e050adf 1-91
+LICENSE
+  s_6c952b0f7a5eac::t_9bd9f045b746ef 1-21
+README.md
+  s_6c952b0f7a5eac::t_851e4b4cf1c9ad 1-31
+SECURITY.md
+  s_6c952b0f7a5eac::t_d872908916fb18 1-33
+docs/ai-assistant.md
+  s_6c952b0f7a5eac::t_f26d82ab6a1922 1-28
+docs/architecture.md
+  s_6c952b0f7a5eac::t_0c9709e42e93a3 1-43
+docs/content-model.md
+  s_6c952b0f7a5eac::t_a13a14a8eca37a 1-26
+docs/decisions/0001-static-site-and-content-in-git.md
+  s_6c952b0f7a5eac::t_136dab41a98587 1-16
+docs/decisions/0002-public-chat-and-private-editor.md
+  s_6c952b0f7a5eac::t_f1adeab814ac6a 1-17
+docs/decisions/0003-agent-workflow-and-security.md
+  s_6c952b0f7a5eac::t_0fa890dc0b12d1 1-18
+docs/deployment.md
+  s_6c952b0f7a5eac::t_d12fb62e90e4bf 1-25
+opencode.json
+  s_6c952b0f7a5eac::t_1a21ff5f349fff 1-17
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.11",
+  "base_commit_sha": "ebe1986fbe8bf46969984461aa4b53080abeca89",
+  "prompts": {},
+  "sessions": {
+    "s_6c952b0f7a5eac": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "e23e260d-a70b-4454-8139-ecfa4ab0e10b",
+        "model": "unknown"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
