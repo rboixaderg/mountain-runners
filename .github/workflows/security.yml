@@ -57,4 +57,4 @@ jobs:
         with:
           persist-credentials: false
       - name: Review dependency changes
-        uses: actions/dependency-review-action@dcedce43c6f43de0b836d1fe38946645c9c638dc # v4
+        uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
