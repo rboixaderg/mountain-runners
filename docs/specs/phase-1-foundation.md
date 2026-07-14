@@ -35,6 +35,12 @@ La fase s'implementa en quatre pull requests seqüencials. Cada PR parteix de la
 branca principal després de fusionar l'anterior i s'obre com a draft des del
 primer commit.
 
+Cada PR s'implementa en un worktree dedicat associat a la seva branca de vida
+curta. El worktree principal es manté a `main` i es reserva per actualitzar el
+seguiment d'aquesta fase i afegir o concretar tasques sense interferir amb la
+implementació en curs. Aquesta separació no autoritza push directes a la branca
+principal ni evita la revisió i les comprovacions obligatòries.
+
 | PR                             | Estat   | Resultat                                                                      | Enllaç                                                         |
 | ------------------------------ | ------- | ----------------------------------------------------------------------------- | -------------------------------------------------------------- |
 | 1. Base executable i qualitat  | En curs | Monorepo, Astro, Tailwind, validacions locals, hooks i CI de seguretat        | [PR #1](https://github.com/rboixaderg/mountain-runners/pull/1) |

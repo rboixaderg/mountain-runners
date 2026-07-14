@@ -10,6 +10,14 @@ La checklist detallada de cada unitat de treball viu a la draft PR corresponent.
 Les issues es reserven per a errors, decisions o seguiments independents que no
 quedin resolts dins de la PR activa.
 
+Les necessitats i idees que encara no formen part de cap fase es registren al
+[`backlog de necessitats`](backlog.md), sense assignar-les a cap fase. Es pot
+revisar en definir una especificació, entre entregues si es detecta una omissió o
+després de completar les fases previstes. Una entrada acceptada es converteix en
+una entrega explícita amb especificació i pull request pròpies; no amplia
+silenciosament una pull request activa. Capturar una idea no altera per si sol el
+roadmap ni l'abast d'una fase.
+
 Una fase només passa a completada quan totes les PRs previstes estan fusionades,
 les comprovacions requerides han passat i els criteris d'acceptació s'han
 verificat.
@@ -23,6 +31,8 @@ verificat.
   `/en/`.
 - Git és la font de veritat del contingut i publicar equival a fusionar a la
   branca principal protegida.
+- El worktree principal es manté a `main` per planificar i seguir les fases;
+  cada tasca d'implementació es desenvolupa en un worktree i una branca propis.
 - El disseny segueix `DESIGN.md`; la navegació inicial és plana: Qui som, Socis,
   Escoles i Esdeveniments.
 - El xat públic és de només lectura i l'assistent editorial privat no pot

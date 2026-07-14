@@ -38,6 +38,13 @@
 
 ## Git And Review
 
+- Keep the primary worktree on `main` and reserve it for phase planning,
+  tracking documentation and adding or refining tasks.
+- Implement every task assigned to a development phase in a dedicated Git
+  worktree, on its own short-lived branch created from the latest `main`. Do not
+  make implementation changes in the primary worktree.
+- Worktree isolation does not bypass branch protection: implementation changes
+  still require validation and a reviewed pull request before merging.
 - Use Conventional Commits: `type(scope): summary`, with a concise imperative
   summary. Allowed types include `feat`, `fix`, `docs`, `refactor`, `test`,
   `build`, `ci`, `chore` and `security`.

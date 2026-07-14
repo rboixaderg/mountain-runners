@@ -39,6 +39,8 @@ l'arquitectura. Les normes generals per a persones i agents són a
 
 La planificació de producte i desenvolupament és a
 [docs/roadmap.md](docs/roadmap.md).
+Les necessitats encara no planificades es recullen al
+[backlog de necessitats](docs/backlog.md).
 
 ## Seguretat I Contribucions
 
