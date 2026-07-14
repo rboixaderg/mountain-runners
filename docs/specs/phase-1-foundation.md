@@ -35,12 +35,12 @@ La fase s'implementa en quatre pull requests seqüencials. Cada PR parteix de la
 branca principal després de fusionar l'anterior i s'obre com a draft des del
 primer commit.
 
-| PR | Estat | Resultat | Enllaç |
-| --- | --- | --- | --- |
-| 1. Base executable i qualitat | Pendent | Monorepo, Astro, Tailwind, validacions locals, hooks i CI de seguretat | - |
-| 2. Infraestructura multiidioma | Pendent | I18n natiu, prefixes, Paraglide i tests de routing | - |
-| 3. Nucli editorial segur | Pendent | YAML restringit, primitives Zod, Markdown, URL, slugs i recursos | - |
-| 4. Models i publicació | Pendent | Sis col·leccions, rutes editorials, publicació, fixtures i documentació final | - |
+| PR                             | Estat   | Resultat                                                                      | Enllaç                                      |
+| ------------------------------ | ------- | ----------------------------------------------------------------------------- | ------------------------------------------- |
+| 1. Base executable i qualitat  | En curs | Monorepo, Astro, Tailwind, validacions locals, hooks i CI de seguretat        | Branca `feat/phase-1-executable-foundation` |
+| 2. Infraestructura multiidioma | Pendent | I18n natiu, prefixes, Paraglide i tests de routing                            | -                                           |
+| 3. Nucli editorial segur       | Pendent | YAML restringit, primitives Zod, Markdown, URL, slugs i recursos              | -                                           |
+| 4. Models i publicació         | Pendent | Sis col·leccions, rutes editorials, publicació, fixtures i documentació final | -                                           |
 
 Els únics estats permesos són `Pendent`, `En curs`, `Bloquejada` i `Completada`.
 En començar una PR, s'actualitza la seva fila a `En curs` i s'hi afegeix
@@ -377,16 +377,16 @@ patrocinadors.
 
 El paquet arrel ha d'oferir una interfície única per executar com a mínim:
 
-| Ordre | Responsabilitat |
-| --- | --- |
-| `pnpm dev` | Iniciar la web en desenvolupament |
-| `pnpm format` | Aplicar formatació |
-| `pnpm format:check` | Verificar formatació sense modificar fitxers |
-| `pnpm lint` | Executar ESLint |
-| `pnpm typecheck` | Executar `astro check` i TypeScript |
-| `pnpm test` | Executar Vitest |
-| `pnpm build` | Generar la web estàtica |
-| `pnpm validate` | Executar totes les comprovacions obligatòries |
+| Ordre               | Responsabilitat                               |
+| ------------------- | --------------------------------------------- |
+| `pnpm dev`          | Iniciar la web en desenvolupament             |
+| `pnpm format`       | Aplicar formatació                            |
+| `pnpm format:check` | Verificar formatació sense modificar fitxers  |
+| `pnpm lint`         | Executar ESLint                               |
+| `pnpm typecheck`    | Executar `astro check` i TypeScript           |
+| `pnpm test`         | Executar Vitest                               |
+| `pnpm build`        | Generar la web estàtica                       |
+| `pnpm validate`     | Executar totes les comprovacions obligatòries |
 
 `pnpm validate` ha de ser la mateixa entrada utilitzada pel hook de pre-push i
 per la CI, evitant divergències entre entorns.

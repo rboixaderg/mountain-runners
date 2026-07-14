@@ -1,0 +1,11 @@
+@import "tailwindcss";
+
+@theme {
+  --color-club-red: #d71920;
+}
+
+html {
+  font-family: Arial, sans-serif;
+  color: #111;
+  background: #fff;
+}
