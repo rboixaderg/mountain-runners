@@ -1,0 +1,43 @@
+.github/dependabot.yml
+  s_0d4194cc54deb8::t_54368bd1b29f45 1-20
+.husky/commit-msg
+  s_0d4194cc54deb8::t_6329927de1c18b 1
+.husky/pre-push
+  s_0d4194cc54deb8::t_fd5478877d8908 1
+README.md
+  s_0d4194cc54deb8::t_48e4fe924d2098 7-24
+apps/web/astro.config.mjs
+  s_0d4194cc54deb8::t_fae9144e1aa86b 1-9
+apps/web/src/pages/index.astro
+  s_0d4194cc54deb8::t_1b5b4506ec6e0d 1-27
+apps/web/src/test/smoke.test.ts
+  s_0d4194cc54deb8::t_ae5f5bc243d72f 1-7
+commitlint.config.mjs
+  s_0d4194cc54deb8::t_fd2f9fb2665196 1-3
+docs/architecture.md
+  s_0d4194cc54deb8::t_4bf3aed3380823 5-7,21-27,38
+docs/specs/phase-1-foundation.md
+  s_0d4194cc54deb8::t_4e6a3cafa1eec9 38-43,380-389
+eslint.config.mjs
+  s_0d4194cc54deb8::t_91c9f2f39ee67d 1-18
+pnpm-lock.yaml
+  s_0d4194cc54deb8::t_cca21b9cdcab6b 1-6509
+prettier.config.mjs
+  s_0d4194cc54deb8::t_c2aba60bc12918 1-11
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.11",
+  "base_commit_sha": "be58c88e377e9ba4e82cae4d4596887bcacb3fa6",
+  "prompts": {},
+  "sessions": {
+    "s_0d4194cc54deb8": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_09dcf1a77ffeM3LpA8wK7UhTW8",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
