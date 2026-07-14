@@ -7,17 +7,26 @@ canvi prou acotat per poder-lo revisar de manera independent.
 
 ## Flux De Treball
 
-1. Crea una branca de vida curta a partir de la branca principal protegida.
-2. Fes el canvi complet més petit possible.
-3. Executa les comprovacions aplicables i actualitza la documentació quan canviï
+El worktree principal es manté a `main` i es reserva per planificar fases,
+actualitzar-ne el seguiment i afegir o concretar tasques. Qualsevol tasca
+d'implementació assignada a una fase es desenvolupa en un worktree dedicat, mai
+al worktree principal.
+
+1. Actualitza `main` i crea una branca de vida curta per a la tasca.
+2. Crea un worktree dedicat associat a aquesta branca.
+3. Fes el canvi complet més petit possible dins del worktree dedicat.
+4. Executa les comprovacions aplicables i actualitza la documentació quan canviï
    el comportament o un límit arquitectònic.
-4. Obre una pull request amb una descripció clara, evidència de validació i
+5. Obre una pull request amb una descripció clara, evidència de validació i
    qualsevol impacte operatiu.
-5. Fusiona-la només després de la revisió i de superar les comprovacions
+6. Fusiona-la només després de la revisió i de superar les comprovacions
    obligatòries.
+7. Elimina el worktree i la branca de vida curta quan la tasca estigui fusionada.
 
 Els canvis directes al servidor de producció i els push directes a la branca
-principal protegida no formen part del flux de treball normal.
+principal protegida no formen part del flux de treball normal. Reservar el
+worktree principal per a documentació de planificació no elimina aquestes
+proteccions.
 
 ## Missatges De Commit
 
