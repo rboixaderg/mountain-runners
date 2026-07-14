@@ -21,6 +21,9 @@ Llegeix [l'arquitectura tècnica](docs/architecture.md) abans de modificar
 l'arquitectura. Les normes generals per a persones i agents són a
 [AGENTS.md](AGENTS.md).
 
+La planificació de producte i desenvolupament és a
+[docs/roadmap.md](docs/roadmap.md).
+
 ## Seguretat I Contribucions
 
 - El projecte es publica sota la [llicència MIT](LICENSE).
