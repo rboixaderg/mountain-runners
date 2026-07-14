@@ -111,10 +111,18 @@ publicar contingut real en català i traduir-lo en el futur.
 **Objectiu:** validar conjuntament contingut, disseny, navegació i publicació
 amb el recorregut més representatiu de la web.
 
+**Especificació:**
+[`docs/specs/phase-2-public-vertical-slice.md`](specs/phase-2-public-vertical-slice.md).
+
 **Abast:**
 
 - Implementar layout global, capçalera, peu, navegació mòbil, pàgina 404,
   metadades i fonaments d'accessibilitat.
+- Detectar les skills aplicables a l'stack, revisar-ne pertinència, seguretat i
+  llicència, i versionar només les aprovades a `.agents/skills/` amb procedència
+  reproduïble.
+- Afegir una skill local petita que adapti les comprovacions de qualitat a les
+  ordres, rutes i llindars de Mountain Runners.
 - Aplicar la direcció de `DESIGN.md` mitjançant components i estils reutilitzables.
 - Implementar la pàgina d'inici amb hero, esdeveniments actius, escoles, socis i
   comunitat/territori.
@@ -128,7 +136,13 @@ amb el recorregut més representatiu de la web.
 - L'inici i els esdeveniments es generen exclusivament des del contingut
   estructurat.
 - Dates, estat i accions són clars en mòbil i no depenen només del color.
-- Les pàgines compleixen les decisions de disseny, SEO bàsic i contrast WCAG AA.
+- Les pàgines compleixen les decisions de disseny, el SEO complet del vertical
+  slice, els pressupostos de rendiment i les comprovacions automatitzades
+  d'accessibilitat acordades.
+- Les skills aprovades i el wrapper local documenten comprovacions reproduïbles
+  que es poden executar o seguir sense dependre d'un únic agent.
+- La fase documenta que l'automatització no equival a una auditoria manual ni a
+  una declaració completa de conformitat WCAG 2.2 AA.
 
 ## Fase 3: Cobertura De Contingut
 
