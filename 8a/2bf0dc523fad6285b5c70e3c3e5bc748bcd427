@@ -1,0 +1,19 @@
+docs/specs/phase-1-foundation.md
+  s_0d4194cc54deb8::t_dbfbb130160c64 38-43
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.11",
+  "base_commit_sha": "8a2bf0dc523fad6285b5c70e3c3e5bc748bcd427",
+  "prompts": {},
+  "sessions": {
+    "s_0d4194cc54deb8": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_09dcf1a77ffeM3LpA8wK7UhTW8",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
