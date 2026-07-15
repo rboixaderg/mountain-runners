@@ -2,6 +2,7 @@ import tailwindcss from "@tailwindcss/vite";
 import { paraglideVitePlugin } from "@inlang/paraglide-js";
 import { defineConfig } from "astro/config";
 import { defaultLocale, locales } from "./i18n.config.mjs";
+import { paraglideOptions } from "./paraglide.config.mjs";
 
 export default defineConfig({
   output: "static",
@@ -14,12 +15,6 @@ export default defineConfig({
     },
   },
   vite: {
-    plugins: [
-      tailwindcss(),
-      paraglideVitePlugin({
-        project: "./project.inlang",
-        outdir: "./src/paraglide",
-      }),
-    ],
+    plugins: [tailwindcss(), paraglideVitePlugin(paraglideOptions)],
   },
 });

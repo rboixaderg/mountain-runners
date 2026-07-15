@@ -4,10 +4,12 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "astro build && node scripts/verify-i18n-output.mjs",
+    "build": "pnpm paraglide:generate && astro build && node scripts/verify-i18n-output.mjs",
     "dev": "astro dev",
-    "test": "vitest run",
-    "typecheck": "astro check"
+    "paraglide:generate": "node scripts/generate-paraglide.mjs",
+    "paraglide:verify": "node scripts/verify-paraglide-generation.mjs",
+    "test": "pnpm paraglide:generate && pnpm paraglide:verify && vitest run",
+    "typecheck": "pnpm paraglide:generate && astro check"
   },
   "dependencies": {
     "@inlang/paraglide-js": "2.22.0",

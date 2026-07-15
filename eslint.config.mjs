@@ -5,12 +5,7 @@ import tseslint from "typescript-eslint";
 
 export default tseslint.config(
   {
-    ignores: [
-      "**/.astro/**",
-      "**/dist/**",
-      "**/node_modules/**",
-      "apps/web/src/paraglide/**",
-    ],
+    ignores: ["**/.astro/**", "**/dist/**", "**/node_modules/**"],
   },
   eslint.configs.recommended,
   ...tseslint.configs.recommended,
@@ -18,6 +13,15 @@ export default tseslint.config(
   {
     languageOptions: {
       globals: globals.node,
+    },
+  },
+  {
+    files: ["apps/web/src/paraglide/**/*.js"],
+    languageOptions: {
+      globals: {
+        ...globals.browser,
+        ...globals.node,
+      },
     },
   },
 );

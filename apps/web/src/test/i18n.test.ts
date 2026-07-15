@@ -2,6 +2,14 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { defaultLocale, locales } from "../../i18n.config.mjs";
+import { paraglideOptions, urlPatterns } from "../../paraglide.config.mjs";
+import {
+  assertIsLocale,
+  extractLocaleFromUrl,
+  localizeHref,
+  setLocale,
+  strategy,
+} from "../paraglide/runtime.js";
 
 const appDirectory = fileURLToPath(new URL("../..", import.meta.url));
 
@@ -27,6 +35,27 @@ describe("internationalization configuration", () => {
 
     expect(settings.baseLocale).toBe(defaultLocale);
     expect(settings.locales).toEqual(locales);
+    expect(paraglideOptions.strategy).toEqual(["url", "globalVariable"]);
+    expect(strategy).toEqual(paraglideOptions.strategy);
+    expect(urlPatterns[0]?.localized).toEqual(
+      locales.map((locale) => [locale, `/${locale}/`]),
+    );
+  });
+
+  it("uses mandatory locale prefixes in Paraglide URL helpers", () => {
+    setLocale(defaultLocale, { reload: false });
+
+    for (const configuredLocale of locales) {
+      const locale = assertIsLocale(configuredLocale);
+
+      expect(localizeHref("/", { locale })).toBe(`/${locale}/`);
+      expect(localizeHref("/activities", { locale })).toBe(
+        `/${locale}/activities`,
+      );
+      expect(
+        extractLocaleFromUrl(`https://example.com/${locale}/activities`),
+      ).toBe(locale);
+    }
   });
 
   it("requires the same non-empty messages in every catalog", () => {
