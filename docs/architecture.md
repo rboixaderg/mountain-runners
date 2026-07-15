@@ -3,9 +3,9 @@
 ## Estat Actual
 
 El repositori conté un workspace pnpm i una aplicació Astro estàtica mínima a
-`apps/web`, amb validacions locals i integració contínua. Encara no s'han
-implementat els esquemes de contingut, les pàgines públiques ni cap servei o
-automatització de desplegament.
+`apps/web`, amb validacions locals, integració contínua i un nucli segur de
+validació editorial. Encara no s'han implementat els esquemes dels models de
+domini, les pàgines públiques ni cap servei o automatització de desplegament.
 
 ## Direcció Acceptada
 
@@ -35,7 +35,7 @@ formen part del disseny inicial.
 
 ## Fora D'Abast Ara
 
-- Esquemes Zod i contingut editorial.
+- Col·leccions i esquemes Zod dels models de domini.
 - Servei de xat Hono i generador d'índex.
 - Integració amb Telegram, Discord o Hermes.
 - Implementació de CI/CD i provisió del VPS.
