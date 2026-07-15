@@ -50,9 +50,9 @@ describe("restricted Markdown", () => {
   });
 
   it("rejects oversized Markdown", () => {
-    expect(() => parseRestrictedMarkdown("a".repeat(100_001))).toThrow(
-      /100000 characters/u,
-    );
+    expect(() =>
+      parseRestrictedMarkdown("a".repeat(markdownLimits.maxCharacters + 1)),
+    ).toThrow(/100000 characters/u);
   });
 
   it("rejects excessive syntax complexity before parsing", () => {
@@ -72,6 +72,20 @@ describe("restricted Markdown", () => {
       );
     },
   );
+
+  it("rejects excessive AST depth after parsing", () => {
+    const markdown = `${"- ".repeat(markdownLimits.maxDepth)}x`;
+
+    expect(() => parseRestrictedMarkdown(markdown)).toThrow(/levels/u);
+  });
+
+  it("rejects excessive AST node counts after parsing", () => {
+    const markdown = "<https://e.co>".repeat(
+      Math.ceil(markdownLimits.maxNodes / 2),
+    );
+
+    expect(() => parseRestrictedMarkdown(markdown)).toThrow(/nodes/u);
+  });
 
   it("rejects excessive line complexity before parsing", () => {
     const paragraphs = "Text\n\n".repeat(markdownLimits.maxLines);

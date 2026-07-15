@@ -35,17 +35,11 @@ describe("restricted YAML", () => {
 
   it.each([
     ["duplicate keys", "title: { ca: Primer, ca: Segon }\norder: 1\n"],
-    [
-      "anchors and aliases",
-      "title: &title { ca: Text }\ncopy: *title\norder: 1\n",
-    ],
-    ["merge keys", "base: &base { ca: Text }\ntitle:\n  <<: *base\norder: 1\n"],
     ["custom tags", "title: !custom { ca: Text }\norder: 1\n"],
     [
       "multiple documents",
       "title: { ca: Text }\norder: 1\n---\ntitle: { ca: Altre }\norder: 2\n",
     ],
-    ["dangerous keys", "title: { ca: Text }\nconstructor: value\norder: 1\n"],
     ["complex keys", "? [complex, key]\n: value\n"],
     ["YAML 1.1 directives", "%YAML 1.1\n---\ntitle: { ca: Text }\norder: 1\n"],
     [
@@ -55,6 +49,36 @@ describe("restricted YAML", () => {
   ])("rejects %s", (_, yaml) => {
     expect(() => parseRestrictedYaml(yaml, z.unknown())).toThrow();
   });
+
+  it("rejects anchors independently", () => {
+    expect(() =>
+      parseRestrictedYaml(
+        "title: &title { ca: Text }\norder: 1\n",
+        z.unknown(),
+      ),
+    ).toThrow(/anchors/u);
+  });
+
+  it("rejects aliases independently", () => {
+    expect(() => parseRestrictedYaml("copy: *missing\n", z.unknown())).toThrow(
+      /aliases/u,
+    );
+  });
+
+  it("rejects merge keys independently", () => {
+    expect(() =>
+      parseRestrictedYaml("title:\n  <<: value\norder: 1\n", z.unknown()),
+    ).toThrow(/merge keys/u);
+  });
+
+  it.each(["__proto__", "prototype", "constructor"])(
+    "rejects the dangerous mapping key %s",
+    (key) => {
+      expect(() => parseRestrictedYaml(`${key}: value\n`, z.unknown())).toThrow(
+        /Dangerous YAML mapping key/u,
+      );
+    },
+  );
 
   it("rejects values outside the strict schema", () => {
     expect(() =>
@@ -93,7 +117,7 @@ describe("restricted YAML", () => {
     );
   });
 
-  it("rejects oversized scalars and files", () => {
+  it("rejects oversized string and numeric scalars", () => {
     expect(() =>
       parseRestrictedYaml(
         `value: ${"a".repeat(yamlLimits.maxScalarCharacters + 1)}\n`,
@@ -107,9 +131,13 @@ describe("restricted YAML", () => {
         z.unknown(),
       ),
     ).toThrow(/scalar/u);
+  });
 
-    expect(() =>
-      parseRestrictedYaml("a".repeat(yamlLimits.maxBytes + 1), z.unknown()),
-    ).toThrow(/bytes/u);
+  it("measures the file limit in UTF-8 bytes", () => {
+    const oversizedUtf8 = "é".repeat(Math.floor(yamlLimits.maxBytes / 2) + 1);
+
+    expect(() => parseRestrictedYaml(oversizedUtf8, z.unknown())).toThrow(
+      /bytes/u,
+    );
   });
 });

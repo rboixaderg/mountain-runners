@@ -36,6 +36,12 @@ describe("locale and translation primitives", () => {
     expect(hasCompleteTranslation(value, "en", Boolean)).toBe(false);
   });
 
+  it("rejects optional translations that are present but empty", () => {
+    expect(
+      translatedTextSchema.safeParse({ ca: "Text", es: "  " }).success,
+    ).toBe(false);
+  });
+
   it("supports nested completeness predicates", () => {
     const value = { ca: { blocks: ["Introduccio"] }, en: { blocks: [] } };
     const hasBlocks = (translation: { blocks: string[] }) =>
@@ -127,5 +133,15 @@ describe("URL primitives", () => {
     expect(
       mailtoUrlSchema.safeParse("mailto:club%250d@example.com").success,
     ).toBe(false);
+  });
+
+  it.each([
+    "tel:club",
+    "tel:+34 600 000 000?extension=1",
+    "tel:+34%0a600000000",
+    "https://example.com",
+    " tel:+34600000000",
+  ])("rejects invalid telephone URL %s", (url) => {
+    expect(telUrlSchema.safeParse(url).success).toBe(false);
   });
 });
