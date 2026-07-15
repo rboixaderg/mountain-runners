@@ -1,0 +1,19 @@
+docs/specs/phase-2-public-vertical-slice.md
+  s_2da560feded95f::t_49ec1b199482a7 70-77,492-502,574-579
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.11",
+  "base_commit_sha": "4db5ed3da749ed196efaac21f5cbea3aeee9b820",
+  "prompts": {},
+  "sessions": {
+    "s_2da560feded95f": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_099adda50ffeUobyd6z0um1Koc",
+        "model": "gpt-5.6-terra"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
