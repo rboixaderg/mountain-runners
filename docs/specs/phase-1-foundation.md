@@ -459,6 +459,29 @@ limitació s'ha de documentar: continuen sent obligatoris la pull request, els
 checks, la revisió final explícita del diff i la fusió manual; cap agent o
 workflow pot autoaprovar o fusionar.
 
+### Configuració Remota Aplicada
+
+La configuració remota aplicada mentre el projecte té una sola persona
+mantenidora és:
+
+- Dependency Graph, Dependabot Alerts, secret scanning i push protection actius.
+- Pull request obligatòria per modificar `main`, també per a administradors.
+- Branca actualitzada amb `main`, historial lineal i converses resoltes abans de
+  fusionar.
+- `Validate`, `Conventional commits`, `Conventional title`, `Gitleaks`,
+  `Dependency review`, `Analyze JavaScript and TypeScript` i `CodeQL` com a
+  checks obligatoris.
+- Cap aprovació independent obligatòria mentre només hi hagi una persona
+  mantenidora; la revisió final explícita i la fusió manual continuen sent
+  necessàries.
+- Force pushes i eliminació de `main` bloquejats.
+- Dependabot Security Updates desactivat fins que se'n revisi separadament el
+  comportament i l'abast.
+
+La variable d'Actions `DEPENDENCY_REVIEW_ENABLED=true` només manté compatible el
+workflow anterior. S'ha d'eliminar quan el workflow sense aquest gate arribi a
+`main`; no forma part de la configuració permanent.
+
 ## Estratègia De Tests
 
 La fase ha d'incloure com a mínim proves per demostrar que:
