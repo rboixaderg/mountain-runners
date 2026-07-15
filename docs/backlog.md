@@ -98,3 +98,29 @@ diferències com a artefactes de la CI.
 entorn Playwright reproduïble localment i a CI.
 
 **Seguiment:** pendent de triatge.
+
+### Auditoria Manual D'Accessibilitat
+
+**Estat:** Capturada.
+
+**Problema:** les comprovacions automatitzades poden detectar una part dels
+problemes d'accessibilitat, però no poden validar completament l'experiència amb
+teclat, lector de pantalla, zoom ni tecnologies d'assistència.
+
+**Resultat esperat:** revisar manualment recorreguts representatius de la web per
+identificar barreres que no cobreixen Lighthouse, axe ni les proves end-to-end,
+i documentar els resultats i les correccions necessàries.
+
+**Abans de planificar-ho cal definir:**
+
+- les pàgines, recorreguts i estats que formaran la mostra;
+- els navegadors, sistemes operatius i tecnologies d'assistència que es provaran;
+- les comprovacions mínimes de teclat, ordre i visibilitat del focus, lector de
+  pantalla, zoom i reflow;
+- com es registren, prioritzen i tornen a validar les incidències;
+- quan convé repetir l'auditoria a mesura que creixi la cobertura pública.
+
+**Dependències:** recorreguts públics representatius implementats i validacions
+automatitzades d'accessibilitat disponibles.
+
+**Seguiment:** pendent de triatge.
