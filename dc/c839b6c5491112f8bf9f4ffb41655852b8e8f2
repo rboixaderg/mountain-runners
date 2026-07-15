@@ -1,0 +1,23 @@
+apps/web/scripts/verify-i18n-output.mjs
+  s_9668762cd40307::t_c0d5902840f709 1-29
+apps/web/src/test/i18n.test.ts
+  s_9668762cd40307::t_01e4f835d72fda 1-2,4,6-45
+pnpm-lock.yaml
+  s_9668762cd40307::t_b45fe9583e12ef 65-67,773-791,808-814,973-979,1306-1308,1453-1456,1464-1467,1563-1570,1758-1762,1977-1980,2143-2145,2168-2172,2190-2193,2767-2771,2952-2955,3021-3023,3027-3030,3237-3239,3929-3957,3977-3990,4112-4115,4483-4484,4718-4722,4727-4728,4824-4825,5131-5132,5371-5372,5522-5523,5540-5541,5559-5560,6141-6145,6370-6376,6392-6393,6396-6397,6566-6567
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.11",
+  "base_commit_sha": "dcc839b6c5491112f8bf9f4ffb41655852b8e8f2",
+  "prompts": {},
+  "sessions": {
+    "s_9668762cd40307": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_0997d1329ffeUYLlopVZYLpq2S",
+        "model": "gpt-5.6-terra"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
