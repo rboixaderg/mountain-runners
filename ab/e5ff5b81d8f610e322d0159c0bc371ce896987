@@ -1,0 +1,29 @@
+apps/web/package.json
+  s_f528741fbb828a::t_f297f1ba4c3b38 19-23,27
+apps/web/src/lib/content/markdown.ts
+  s_f528741fbb828a::t_13887807dafdc7 1-127
+apps/web/src/lib/content/resources.ts
+  s_f528741fbb828a::t_5ad644346e1b81 1-107
+apps/web/src/lib/content/urls.ts
+  s_f528741fbb828a::t_1f45548601c463 1-109
+apps/web/src/test/content-markdown.test.ts
+  s_f528741fbb828a::t_1f33f32bfae2bf 1-56
+pnpm-lock.yaml
+  s_f528741fbb828a::t_fa610dff8ac301 38-40,65-67,83-85,89-97,102-104,615-618,855-858,1118-1120,1142-1144,1448-1450,1607-1609,1649-1652,1764-1767,1787-1792,2379-2381,2385-2387,2394-2411,2415-2429,2433-2441,2445-2447,2454-2456,2739-2741,3412-3415,3933-3937,4143-4144,4334-4337,4358-4359,4819-4820,4970-4973,5004-5005,5191-5192,5231-5241,5833-5849,5862-5865,5870-5920,5926-5951,5954-5963,5970-5976,5981-6002,6228-6236,6955-6959
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.11",
+  "base_commit_sha": "abe5ff5b81d8f610e322d0159c0bc371ce896987",
+  "prompts": {},
+  "sessions": {
+    "s_f528741fbb828a": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_098cf192affemQmjagX0aaw31q",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
