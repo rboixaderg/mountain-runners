@@ -1,0 +1,19 @@
+commitlint.config.mjs
+  s_2da560feded95f::t_abc4d0e8523d33 3-19
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.11",
+  "base_commit_sha": "15521021a6192d2aa417b96d88ef3bafae444120",
+  "prompts": {},
+  "sessions": {
+    "s_2da560feded95f": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_099adda50ffeUobyd6z0um1Koc",
+        "model": "gpt-5.6-terra"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
