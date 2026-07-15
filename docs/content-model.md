@@ -30,8 +30,20 @@ Els esdeveniments necessiten un estat de visibilitat editorial i una indicació
 separada de si continuen actius. Les edicions pertanyen al seu esdeveniment pare
 i no formen un recurs de primer nivell sense relació.
 
-## Validació Futura
+## Nucli De Validació
 
-Les Astro Content Collections i Zod validaran el frontmatter i les dades
-estructurades. Els camps exactes, els noms de fitxers i els scripts es definiran
-juntament amb la implementació d'Astro; encara no existeixen.
+El projecte disposa de primitives compartides per validar YAML editorial
+restringit, valors traduïbles, slugs, URL, recursos locals o externs i un
+subconjunt segur de Markdown. El parser limita la mida i complexitat dels
+documents i rebutja àncores, aliases, merges, tags personalitzats, claus
+duplicades o perilloses abans d'aplicar esquemes Zod estrictes.
+
+El Markdown editorial només admet paràgrafs, negreta, cursiva, llistes i enllaços
+HTTPS validats. Es converteix a HTML des d'un arbre de sintaxi amb una llista
+explícita de nodes permesos; no admet HTML cru, components ni codi executable.
+La longitud, la sintaxi, la profunditat i el nombre de nodes també estan limitats
+abans de renderitzar-lo.
+
+Les sis Astro Content Collections, els seus camps de domini, les referències i
+les regles de publicació es definiran en l'entrega següent. El nucli actual no
+decideix per si sol si una entrada editorial concreta es publica.
