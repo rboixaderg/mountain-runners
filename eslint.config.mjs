@@ -15,4 +15,13 @@ export default tseslint.config(
       globals: globals.node,
     },
   },
+  {
+    files: ["apps/web/src/paraglide/**/*.js"],
+    languageOptions: {
+      globals: {
+        ...globals.browser,
+        ...globals.node,
+      },
+    },
+  },
 );

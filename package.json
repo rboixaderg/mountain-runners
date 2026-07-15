@@ -12,7 +12,7 @@
     "dev": "pnpm --filter @mountain-runners/web dev",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "lint": "eslint .",
+    "lint": "pnpm --filter @mountain-runners/web paraglide:generate && eslint .",
     "prepare": "husky",
     "test": "pnpm --filter @mountain-runners/web test",
     "typecheck": "pnpm --filter @mountain-runners/web typecheck",
