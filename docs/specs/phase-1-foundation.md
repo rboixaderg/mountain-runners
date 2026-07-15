@@ -383,16 +383,16 @@ patrocinadors.
 
 El paquet arrel ha d'oferir una interfície única per executar com a mínim:
 
-| Ordre | Responsabilitat |
-| --- | --- |
-| `pnpm dev` | Iniciar la web en desenvolupament |
-| `pnpm format` | Aplicar formatació |
-| `pnpm format:check` | Verificar formatació sense modificar fitxers |
-| `pnpm lint` | Executar ESLint |
-| `pnpm typecheck` | Executar `astro check` i TypeScript |
-| `pnpm test` | Executar Vitest |
-| `pnpm build` | Generar la web estàtica |
-| `pnpm validate` | Executar totes les comprovacions obligatòries |
+| Ordre               | Responsabilitat                               |
+| ------------------- | --------------------------------------------- |
+| `pnpm dev`          | Iniciar la web en desenvolupament             |
+| `pnpm format`       | Aplicar formatació                            |
+| `pnpm format:check` | Verificar formatació sense modificar fitxers  |
+| `pnpm lint`         | Executar ESLint                               |
+| `pnpm typecheck`    | Executar `astro check` i TypeScript           |
+| `pnpm test`         | Executar Vitest                               |
+| `pnpm build`        | Generar la web estàtica                       |
+| `pnpm validate`     | Executar totes les comprovacions obligatòries |
 
 `pnpm validate` ha de ser la mateixa entrada utilitzada pel hook de pre-push i
 per la CI, evitant divergències entre entorns.
@@ -441,6 +441,8 @@ La fase 1 no necessita secrets de desplegament.
 ### Configuració Manual De GitHub
 
 - Activar secret scanning i push protection.
+- Activar el Dependency Graph i definir la variable d'Actions
+  `DEPENDENCY_REVIEW_ENABLED=true` abans d'exigir el check de Dependency Review.
 - Protegir la branca principal i exigir pull request.
 - Marcar els checks de qualitat i seguretat com a obligatoris.
 - Bloquejar push directe i force push a la branca principal.

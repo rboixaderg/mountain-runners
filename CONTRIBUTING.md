@@ -5,6 +5,29 @@
 Llegeix `AGENTS.md`, `docs/architecture.md` i els ADR pertinents. Mantén cada
 canvi prou acotat per poder-lo revisar de manera independent.
 
+## Eines Locals
+
+Cal tenir Node 24.11.0, pnpm 10.33.0 mitjançant Corepack i Gitleaks 8.30.1.
+Gitleaks és obligatori: el hook de pre-commit l'executa abans de crear cada
+commit per detectar secrets en els fitxers staged.
+
+Instal·la Gitleaks segons el sistema operatiu:
+
+- macOS amb Homebrew: `brew install gitleaks`
+- Linux amb Homebrew: `brew install gitleaks`; en altres distribucions, baixa
+  el binari corresponent des de la [release v8.30.1](https://github.com/gitleaks/gitleaks/releases/tag/v8.30.1)
+  oficial i afegeix-lo al `PATH`.
+- Windows amb WinGet: `winget install --id Gitleaks.Gitleaks --exact --version 8.30.1`
+
+Després de la instal·lació, comprova la versió:
+
+```sh
+gitleaks version
+```
+
+L'ordre ha de retornar `8.30.1`. Si l'instal·lador ofereix una versió diferent,
+instal·la la release fixada anterior abans de continuar.
+
 ## Flux De Treball
 
 El worktree principal es manté a `main` i es reserva per planificar fases,

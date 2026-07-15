@@ -2,8 +2,9 @@
 
 ## Estat Actual
 
-El repositori només conté documentació de projecte i direcció de disseny. No
-s'ha implementat cap aplicació, esquema de contingut, servei de producció ni
+El repositori conté un workspace pnpm i una aplicació Astro estàtica mínima a
+`apps/web`, amb validacions locals i integració contínua. Encara no s'han
+implementat els esquemes de contingut, les pàgines públiques ni cap servei o
 automatització de desplegament.
 
 ## Direcció Acceptada
@@ -17,13 +18,13 @@ d'aplicació renderitzat al servidor.
 
 ## Límits Planificats
 
-| Àrea | Responsabilitat | Límit |
-| --- | --- | --- |
-| Web estàtica | Renderitzar contingut editorial publicat | El build d'Astro no conté secrets |
-| Contingut | Pàgines estructurades i dades de l'associació | Versionat a Git i revisat per pull request |
-| Xat públic | Respondre preguntes sobre contingut publicat | API Hono separada, de només lectura i sense accés editorial |
-| Assistent editorial | Preparar canvis de contingut | Flux privat de branca, validació i pull request |
-| Allotjament | Servir la web estàtica i serveis aïllats | Caddy i CI/CD; sense desplegament des d'una sessió local d'agent |
+| Àrea                | Responsabilitat                               | Límit                                                            |
+| ------------------- | --------------------------------------------- | ---------------------------------------------------------------- |
+| Web estàtica        | Renderitzar contingut editorial publicat      | El build d'Astro no conté secrets                                |
+| Contingut           | Pàgines estructurades i dades de l'associació | Versionat a Git i revisat per pull request                       |
+| Xat públic          | Respondre preguntes sobre contingut publicat  | API Hono separada, de només lectura i sense accés editorial      |
+| Assistent editorial | Preparar canvis de contingut                  | Flux privat de branca, validació i pull request                  |
+| Allotjament         | Servir la web estàtica i serveis aïllats      | Caddy i CI/CD; sense desplegament des d'una sessió local d'agent |
 
 ## Xat Públic, Més Endavant
 
@@ -34,7 +35,7 @@ formen part del disseny inicial.
 
 ## Fora D'Abast Ara
 
-- Inicialització del projecte Astro i esquemes Zod.
+- Esquemes Zod i contingut editorial.
 - Servei de xat Hono i generador d'índex.
 - Integració amb Telegram, Discord o Hermes.
 - Implementació de CI/CD i provisió del VPS.

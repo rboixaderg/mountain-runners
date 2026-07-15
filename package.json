@@ -1,0 +1,54 @@
+{
+  "name": "mountain-runners",
+  "version": "0.0.0",
+  "private": true,
+  "packageManager": "pnpm@10.33.0",
+  "engines": {
+    "node": "24.11.0",
+    "pnpm": "10.33.0"
+  },
+  "scripts": {
+    "build": "pnpm --filter @mountain-runners/web build",
+    "dev": "pnpm --filter @mountain-runners/web dev",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "lint": "eslint .",
+    "prepare": "husky",
+    "test": "pnpm --filter @mountain-runners/web test",
+    "typecheck": "pnpm --filter @mountain-runners/web typecheck",
+    "validate": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm build"
+  },
+  "lint-staged": {
+    "*.{astro,css,js,mjs,ts}": [
+      "prettier --write",
+      "eslint --fix"
+    ],
+    "*.{json,md,yaml,yml}": "prettier --write"
+  },
+  "devDependencies": {
+    "@commitlint/cli": "21.2.1",
+    "@commitlint/config-conventional": "21.2.0",
+    "@eslint/js": "10.0.1",
+    "@emnapi/core": "1.11.2",
+    "@emnapi/runtime": "1.11.2",
+    "@types/node": "24.13.3",
+    "eslint": "10.0.1",
+    "eslint-plugin-astro": "3.0.0",
+    "eslint-plugin-jsx-a11y": "6.10.2",
+    "globals": "17.7.0",
+    "husky": "9.1.7",
+    "lint-staged": "17.0.8",
+    "prettier": "3.9.5",
+    "prettier-plugin-astro": "0.14.1",
+    "prettier-plugin-tailwindcss": "0.8.0",
+    "typescript": "6.0.3",
+    "typescript-eslint": "8.64.0"
+  },
+  "pnpm": {
+    "peerDependencyRules": {
+      "allowedVersions": {
+        "eslint-plugin-jsx-a11y>eslint": "10"
+      }
+    }
+  }
+}

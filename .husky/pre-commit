@@ -1,0 +1,15 @@
+if ! command -v gitleaks >/dev/null 2>&1; then
+  echo "Gitleaks is required. Install it from https://github.com/gitleaks/gitleaks#installing"
+  exit 1
+fi
+
+required_gitleaks_version=$(cat .gitleaks-version)
+installed_gitleaks_version=$(gitleaks version)
+
+if [ "$installed_gitleaks_version" != "$required_gitleaks_version" ]; then
+  echo "Gitleaks $required_gitleaks_version is required; found $installed_gitleaks_version"
+  exit 1
+fi
+
+gitleaks git --staged --redact --no-banner
+pnpm exec lint-staged

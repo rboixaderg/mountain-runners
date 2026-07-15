@@ -1,0 +1,8 @@
+.astro/
+dist/
+node_modules/
+pnpm-lock.yaml
+
+# Preserve established formatting in project and OpenCode configuration files.
+docs/roadmap.md
+opencode.json

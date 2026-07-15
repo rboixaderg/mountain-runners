@@ -4,8 +4,24 @@ Web de codi obert de l'associació esportiva Mountain Runners del Berguedà.
 
 ## Estat
 
-Aquest repositori conté actualment la base tècnica, la direcció de disseny i
-les normes de col·laboració amb agents. L'aplicació Astro encara no s'ha creat.
+Aquest repositori conté la base executable de l'aplicació Astro, la direcció de
+disseny i les normes de col·laboració. La web pública i el model editorial encara
+no s'han implementat.
+
+## Desenvolupament Local
+
+Cal utilitzar Node 24.11.0, pnpm 10.33.0 mitjançant Corepack i Gitleaks 8.30.1
+per als hooks locals. Consulta les [instruccions d'instal·lació de Gitleaks a
+cada sistema operatiu](CONTRIBUTING.md#eines-locals).
+
+```sh
+corepack enable
+pnpm install
+pnpm dev
+```
+
+`pnpm validate` executa format, lint, typecheck, tests i build amb les mateixes
+condicions que la integració contínua.
 
 ## Arquitectura
 
