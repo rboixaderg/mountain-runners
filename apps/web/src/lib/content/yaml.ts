@@ -1,6 +1,8 @@
 import { Buffer } from "node:buffer";
 import type { ZodType } from "zod";
 import {
+  CST,
+  Lexer,
   isAlias,
   isMap,
   isNode,
@@ -19,24 +21,92 @@ export const yamlLimits = {
 
 const dangerousKeys = new Set(["__proto__", "prototype", "constructor"]);
 
+function inspectYamlLexemes(source: string): void {
+  const blockIndents: number[] = [];
+  let atLineStart = true;
+  let flowDepth = 0;
+  let inlineSequenceDepth = 0;
+  let lineIndent = 0;
+  let potentialNodes = 0;
+
+  const inspectBlockDepth = (indent: number) => {
+    while (
+      blockIndents.length > 0 &&
+      blockIndents[blockIndents.length - 1]! > indent
+    ) {
+      blockIndents.pop();
+    }
+    if (blockIndents[blockIndents.length - 1] !== indent) {
+      blockIndents.push(indent);
+    }
+    if (blockIndents.length > yamlLimits.maxDepth) {
+      throw new Error(`YAML exceeds ${yamlLimits.maxDepth} levels`);
+    }
+  };
+
+  for (const lexeme of new Lexer().lex(source)) {
+    const type = CST.tokenType(lexeme);
+
+    if (type === "newline") {
+      atLineStart = true;
+      inlineSequenceDepth = 0;
+      lineIndent = 0;
+      continue;
+    }
+    if (type === "space" && atLineStart) {
+      lineIndent += lexeme.length;
+      continue;
+    }
+
+    if (type === "flow-map-start" || type === "flow-seq-start") {
+      flowDepth += 1;
+      potentialNodes += 1;
+      if (flowDepth > yamlLimits.maxDepth) {
+        throw new Error(`YAML exceeds ${yamlLimits.maxDepth} levels`);
+      }
+    } else if (type === "flow-map-end" || type === "flow-seq-end") {
+      flowDepth -= 1;
+    } else if (type === "scalar" || type === "alias") {
+      potentialNodes += 1;
+    } else if (type === "map-value-ind") {
+      potentialNodes += 1;
+      if (flowDepth === 0) {
+        inspectBlockDepth(lineIndent + inlineSequenceDepth);
+      }
+    } else if (type === "seq-item-ind") {
+      potentialNodes += 1;
+      if (flowDepth === 0) {
+        inlineSequenceDepth += 1;
+        inspectBlockDepth(lineIndent + inlineSequenceDepth);
+      }
+    }
+
+    if (type !== "doc-mode" && type !== "scalar") atLineStart = false;
+
+    if (potentialNodes > yamlLimits.maxNodes) {
+      throw new Error(`YAML exceeds ${yamlLimits.maxNodes} nodes`);
+    }
+  }
+}
+
 function inspectYamlNode(
   node: unknown,
   depth: number,
   state: { nodes: number },
   source: string,
 ): void {
-  if (node === null) return;
-
-  if (!isNode(node) && !isPair(node)) {
-    throw new Error("YAML contains an unsupported node");
-  }
-
   state.nodes += 1;
   if (state.nodes > yamlLimits.maxNodes) {
     throw new Error(`YAML exceeds ${yamlLimits.maxNodes} nodes`);
   }
   if (depth > yamlLimits.maxDepth) {
     throw new Error(`YAML exceeds ${yamlLimits.maxDepth} levels`);
+  }
+
+  if (node === null) return;
+
+  if (!isNode(node) && !isPair(node)) {
+    throw new Error("YAML contains an unsupported node");
   }
 
   if (isPair(node)) {
@@ -92,6 +162,8 @@ export function parseRestrictedYaml<T>(source: string, schema: ZodType<T>): T {
   if (Buffer.byteLength(source, "utf8") > yamlLimits.maxBytes) {
     throw new Error(`YAML exceeds ${yamlLimits.maxBytes} bytes`);
   }
+
+  inspectYamlLexemes(source);
 
   const document = parseDocument(source, {
     merge: false,

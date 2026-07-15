@@ -67,11 +67,12 @@ describe("slug primitives", () => {
     expect(slugSchema.safeParse(slug).success).toBe(false);
   });
 
-  it("allows route-specific reserved segments", () => {
+  it("adds route-specific reserved segments without disabling global ones", () => {
     const schema = createSlugSchema(new Set(["custom"]));
 
     expect(schema.safeParse("custom").success).toBe(false);
-    expect(schema.parse("api")).toBe("api");
+    expect(schema.safeParse("api").success).toBe(false);
+    expect(schema.parse("trail")).toBe("trail");
   });
 
   it("reports duplicate slugs independently by locale", () => {
@@ -103,6 +104,7 @@ describe("URL primitives", () => {
     "javascript&#x3a;alert(1)",
     "javascript%3Aalert(1)",
     "https://example.com/%0aheader",
+    "https://example.com/%2525250aheader",
     " https://example.com",
   ])("rejects unsafe web URL %s", (url) => {
     expect(httpsUrlSchema.safeParse(url).success).toBe(false);

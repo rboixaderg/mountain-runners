@@ -13,6 +13,16 @@ const approvedExtensions = new Set([
   ".webp",
 ]);
 
+function isPathContained(rootPath: string, candidatePath: string): boolean {
+  const relativePath = path.relative(rootPath, candidatePath);
+  return (
+    relativePath === "" ||
+    (!relativePath.startsWith(`..${path.sep}`) &&
+      relativePath !== ".." &&
+      !path.isAbsolute(relativePath))
+  );
+}
+
 function isSafeLocalResourcePath(value: string): boolean {
   if (
     value.length === 0 ||
@@ -74,13 +84,17 @@ export async function resolveLocalResourcePath(
   if (approvedRoot === undefined)
     throw new Error("Resource root is not approved");
 
-  const rootPath = path.resolve(appDirectory, approvedRoot);
+  const appPath = await realpath(appDirectory);
+  let rootPath = path.resolve(appDirectory);
+  for (const segment of approvedRoot.split("/").filter(Boolean)) {
+    rootPath = path.join(rootPath, segment);
+    if ((await lstat(rootPath)).isSymbolicLink()) {
+      throw new Error("Content resources cannot use symbolic links");
+    }
+  }
+
   const relativeResourcePath = path.posix.relative(approvedRoot, validatedPath);
   let currentPath = rootPath;
-
-  if ((await lstat(rootPath)).isSymbolicLink()) {
-    throw new Error("Content resources cannot use symbolic links");
-  }
 
   for (const segment of relativeResourcePath.split("/")) {
     currentPath = path.join(currentPath, segment);
@@ -93,13 +107,11 @@ export async function resolveLocalResourcePath(
     realpath(rootPath),
     realpath(currentPath),
   ]);
-  const realRelativePath = path.relative(realRoot, realResource);
 
-  if (
-    realRelativePath.startsWith(`..${path.sep}`) ||
-    realRelativePath === ".." ||
-    path.isAbsolute(realRelativePath)
-  ) {
+  if (!isPathContained(appPath, realRoot)) {
+    throw new Error("Content resource root resolves outside the application");
+  }
+  if (!isPathContained(realRoot, realResource)) {
     throw new Error("Content resource resolves outside its approved root");
   }
 

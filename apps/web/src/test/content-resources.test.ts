@@ -116,4 +116,22 @@ describe("content resource primitives", () => {
       ),
     ).rejects.toThrow(/symbolic links/u);
   });
+
+  it("rejects approved roots reached through ancestor symbolic links", async () => {
+    const appDirectory = await mkdtemp(
+      path.join(tmpdir(), "mountain-runners-assets-"),
+    );
+    temporaryDirectories.push(appDirectory);
+    const outsideDirectory = path.join(appDirectory, "outside");
+    await mkdir(path.join(outsideDirectory, "assets"), { recursive: true });
+    await writeFile(
+      path.join(outsideDirectory, "assets/private.pdf"),
+      "private fixture",
+    );
+    await symlink(outsideDirectory, path.join(appDirectory, "src"));
+
+    await expect(
+      resolveLocalResourcePath(appDirectory, "src/assets/private.pdf"),
+    ).rejects.toThrow(/symbolic links/u);
+  });
 });

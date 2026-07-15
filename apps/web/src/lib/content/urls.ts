@@ -11,7 +11,7 @@ function decodeObfuscatedUrl(value: string): string | undefined {
   try {
     let decoded = value;
 
-    for (let iteration = 0; iteration < 3; iteration += 1) {
+    for (let iteration = 0; iteration < 10; iteration += 1) {
       const withEntities = decoded.replace(
         /&#(?:x([\da-f]+)|(\d+));?/giu,
         (_, hexadecimal: string | undefined, decimal: string | undefined) =>
@@ -28,7 +28,7 @@ function decodeObfuscatedUrl(value: string): string | undefined {
       decoded = withPercentEncoding;
     }
 
-    return decoded;
+    return undefined;
   } catch {
     return undefined;
   }

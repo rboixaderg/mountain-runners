@@ -75,11 +75,22 @@ describe("restricted YAML", () => {
     }
 
     expect(() => parseRestrictedYaml(yaml, z.unknown())).toThrow(/levels/u);
+
+    const compactDepth = yamlLimits.maxDepth * 1_000;
+    const compactYaml = `${"[".repeat(compactDepth)}0${"]".repeat(compactDepth)}`;
+    expect(() => parseRestrictedYaml(compactYaml, z.unknown())).toThrow(
+      /levels/u,
+    );
   });
 
   it("rejects excessive node counts", () => {
     const yaml = `items:\n${Array.from({ length: yamlLimits.maxNodes }, (_, index) => `  - ${index}`).join("\n")}\n`;
     expect(() => parseRestrictedYaml(yaml, z.unknown())).toThrow(/nodes/u);
+
+    const emptyItems = `items:\n${"  -\n".repeat(yamlLimits.maxNodes + 1)}`;
+    expect(() => parseRestrictedYaml(emptyItems, z.unknown())).toThrow(
+      /nodes/u,
+    );
   });
 
   it("rejects oversized scalars and files", () => {

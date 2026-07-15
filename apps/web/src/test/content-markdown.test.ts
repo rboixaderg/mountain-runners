@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  markdownLimits,
   parseRestrictedMarkdown,
   renderRestrictedMarkdown,
 } from "../lib/content/markdown";
@@ -52,5 +53,23 @@ describe("restricted Markdown", () => {
     expect(() => parseRestrictedMarkdown("a".repeat(100_001))).toThrow(
       /100000 characters/u,
     );
+  });
+
+  it("rejects excessive syntax complexity before parsing", () => {
+    const repetitions = Math.floor(markdownLimits.maxSyntaxMarkers / 6) + 1;
+    const markdown = `${"_**".repeat(repetitions)}x${"**_".repeat(repetitions)}`;
+
+    expect(() => parseRestrictedMarkdown(markdown)).toThrow(/syntax markers/u);
+  });
+
+  it("rejects excessive line complexity before parsing", () => {
+    const paragraphs = "Text\n\n".repeat(markdownLimits.maxLines);
+    const list = "-\n".repeat(markdownLimits.maxLines);
+
+    expect(() => parseRestrictedMarkdown(paragraphs)).toThrow(/lines/u);
+    expect(() => parseRestrictedMarkdown(list)).toThrow(/lines/u);
+    expect(() =>
+      parseRestrictedMarkdown("-\r".repeat(markdownLimits.maxLines)),
+    ).toThrow(/lines/u);
   });
 });

@@ -45,16 +45,19 @@ export const reservedSlugSegments = new Set([
 ]);
 
 export function createSlugSchema(
-  reservedSegments: ReadonlySet<string> = reservedSlugSegments,
+  additionalReservedSegments: ReadonlySet<string> = new Set(),
 ) {
   return z
     .string()
     .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/u, {
       error: "Expected one lowercase ASCII kebab-case path segment",
     })
-    .refine((value) => !reservedSegments.has(value), {
-      error: "Slug is reserved",
-    });
+    .refine(
+      (value) =>
+        !reservedSlugSegments.has(value) &&
+        !additionalReservedSegments.has(value),
+      { error: "Slug is reserved" },
+    );
 }
 
 export const slugSchema = createSlugSchema();
