@@ -67,14 +67,14 @@ Una PR pot agrupar unitats adjacents només quan:
 - es poden revertir juntes sense afectar treball no relacionat;
 - la descripció de la PR pot demostrar-ne completament l'acceptació.
 
-| Unitat | Estat | Dependències | Resultat verificable | PR |
-| --- | --- | --- | --- | --- |
-| Referències visuals i inventari editorial | Pendent | Cap dependència de codi | Dissenys i contingut candidats revisats | - |
-| Skills externes portables | Pendent | Fase 1 fusionada | Conjunt pertinent, segur i reproduïble | - |
-| Fonaments visuals i shell global | Pendent | Fase 1 i referències aplicables | Shell responsive i accessible | - |
-| Portada content-driven | Pendent | Shell i contingut aprovat | Inici real generat des de col·leccions | - |
-| Hub i detall d'esdeveniments | Pendent | Shell, dissenys i contingut d'esdeveniments aprovats | Recorregut complet amb estats reals | - |
-| SEO, rendiment, wrapper local i qualitat E2E | Pendent | Pàgines representatives i skills externes implementades | Llindars, wrapper i recorreguts automatitzats | - |
+| Unitat                                       | Estat   | Dependències                                            | Resultat verificable                          | PR  |
+| -------------------------------------------- | ------- | ------------------------------------------------------- | --------------------------------------------- | --- |
+| Referències visuals i inventari editorial    | Pendent | Cap dependència de codi                                 | Dissenys i contingut candidats revisats       | -   |
+| Skills externes portables                    | Pendent | Fase 1 fusionada                                        | Conjunt pertinent, segur i reproduïble        | -   |
+| Fonaments visuals i shell global             | Pendent | Fase 1 i referències aplicables                         | Shell responsive i accessible                 | -   |
+| Portada content-driven                       | Pendent | Shell i contingut aprovat                               | Inici real generat des de col·leccions        | -   |
+| Hub i detall d'esdeveniments                 | Pendent | Shell, dissenys i contingut d'esdeveniments aprovats    | Recorregut complet amb estats reals           | -   |
+| SEO, rendiment, wrapper local i qualitat E2E | Pendent | Pàgines representatives i skills externes implementades | Llindars, wrapper i recorreguts automatitzats | -   |
 
 Els únics estats permesos són `Pendent`, `En curs`, `Bloquejada` i `Completada`.
 Quan una unitat entra en una PR, se n'afegeix l'enllaç i s'actualitza l'estat.
@@ -489,17 +489,17 @@ L'auditoria manual queda registrada com a necessitat separada a
 
 Les pàgines representatives en mòbil han de complir:
 
-| Mètrica | Llindar |
-| --- | --- |
-| Lighthouse Performance | 90 o superior |
-| Largest Contentful Paint de laboratori | 2,5 s o inferior |
-| Cumulative Layout Shift | 0,1 o inferior |
-| Total Blocking Time | 200 ms o inferior |
-| JavaScript inicial propi, comprimit | 30 KiB o inferior |
-| CSS inicial propi, comprimit | 50 KiB o inferior |
-| Fonts transferides inicialment | 200 KiB o inferior |
-| Imatge LCP en mòbil | 300 KiB o inferior |
-| Transferència inicial total | 1,5 MiB o inferior |
+| Mètrica                                | Llindar            |
+| -------------------------------------- | ------------------ |
+| Lighthouse Performance                 | 90 o superior      |
+| Largest Contentful Paint de laboratori | 2,5 s o inferior   |
+| Cumulative Layout Shift                | 0,1 o inferior     |
+| Total Blocking Time                    | 200 ms o inferior  |
+| JavaScript inicial propi, comprimit    | 30 KiB o inferior  |
+| CSS inicial propi, comprimit           | 50 KiB o inferior  |
+| Fonts transferides inicialment         | 200 KiB o inferior |
+| Imatge LCP en mòbil                    | 300 KiB o inferior |
+| Transferència inicial total            | 1,5 MiB o inferior |
 
 Els llindars es mesuren sobre un build de producció servit localment en un
 entorn de CI reproduïble. Si Lighthouse introdueix variabilitat, la configuració
@@ -571,12 +571,12 @@ La interfície arrel ha d'incorporar les comprovacions noves sense trencar les
 ordres de la fase 1. Els noms exactes poden adaptar-se a les convencions
 implementades, però han d'existir entrades equivalents per a:
 
-| Ordre | Responsabilitat |
-| --- | --- |
-| `pnpm test:e2e` | Executar els recorreguts Playwright |
-| `pnpm test:a11y` | Executar les comprovacions automatitzades d'accessibilitat |
-| `pnpm lighthouse` | Validar Lighthouse i pressupostos |
-| `pnpm validate` | Incloure totes les comprovacions obligatòries de la fase |
+| Ordre             | Responsabilitat                                            |
+| ----------------- | ---------------------------------------------------------- |
+| `pnpm test:e2e`   | Executar els recorreguts Playwright                        |
+| `pnpm test:a11y`  | Executar les comprovacions automatitzades d'accessibilitat |
+| `pnpm lighthouse` | Validar Lighthouse i pressupostos                          |
+| `pnpm validate`   | Incloure totes les comprovacions obligatòries de la fase   |
 
 Les comprovacions costoses es poden separar en jobs de CI paral·lels, però han
 de ser obligatòries abans de fusionar. La CI ha de conservar artefactes útils
