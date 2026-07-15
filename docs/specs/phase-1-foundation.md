@@ -41,12 +41,12 @@ seguiment d'aquesta fase i afegir o concretar tasques sense interferir amb la
 implementació en curs. Aquesta separació no autoritza push directes a la branca
 principal ni evita la revisió i les comprovacions obligatòries.
 
-| PR                             | Estat   | Resultat                                                                      | Enllaç                                                         |
-| ------------------------------ | ------- | ----------------------------------------------------------------------------- | -------------------------------------------------------------- |
-| 1. Base executable i qualitat  | En curs | Monorepo, Astro, Tailwind, validacions locals, hooks i CI de seguretat        | [PR #1](https://github.com/rboixaderg/mountain-runners/pull/1) |
-| 2. Infraestructura multiidioma | Pendent | I18n natiu, prefixes, Paraglide i tests de routing                            | -                                                              |
-| 3. Nucli editorial segur       | Pendent | YAML restringit, primitives Zod, Markdown, URL, slugs i recursos              | -                                                              |
-| 4. Models i publicació         | Pendent | Sis col·leccions, rutes editorials, publicació, fixtures i documentació final | -                                                              |
+| PR                             | Estat      | Resultat                                                                      | Enllaç                                                         |
+| ------------------------------ | ---------- | ----------------------------------------------------------------------------- | -------------------------------------------------------------- |
+| 1. Base executable i qualitat  | Completada | Monorepo, Astro, Tailwind, validacions locals, hooks i CI de seguretat        | [PR #1](https://github.com/rboixaderg/mountain-runners/pull/1) |
+| 2. Infraestructura multiidioma | En curs    | I18n natiu, prefixes, Paraglide i tests de routing                            | [PR #6](https://github.com/rboixaderg/mountain-runners/pull/6) |
+| 3. Nucli editorial segur       | Pendent    | YAML restringit, primitives Zod, Markdown, URL, slugs i recursos              | -                                                              |
+| 4. Models i publicació         | Pendent    | Sis col·leccions, rutes editorials, publicació, fixtures i documentació final | -                                                              |
 
 Els únics estats permesos són `Pendent`, `En curs`, `Bloquejada` i `Completada`.
 En començar una PR, s'actualitza la seva fila a `En curs` i s'hi afegeix
