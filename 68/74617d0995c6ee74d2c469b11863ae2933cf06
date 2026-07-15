@@ -1,0 +1,29 @@
+apps/web/astro.config.mjs
+  s_710b029a3fefb9::t_39ad05a413bfc3 5,18
+apps/web/paraglide.config.mjs
+  s_710b029a3fefb9::t_08e611fa80316b 1-20
+apps/web/scripts/verify-i18n-output.mjs
+  s_710b029a3fefb9::t_1b4e07a2ece001 1-3,11-12,14,30-62
+apps/web/scripts/verify-paraglide-generation.mjs
+  s_710b029a3fefb9::t_b288d10d97fab3 1-58
+docs/specs/phase-1-foundation.md
+  s_710b029a3fefb9::t_d4da32d72c53e3 44-49
+eslint.config.mjs
+  s_710b029a3fefb9::t_60e74fbeb6dc81 8,18-26
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.11",
+  "base_commit_sha": "6874617d0995c6ee74d2c469b11863ae2933cf06",
+  "prompts": {},
+  "sessions": {
+    "s_710b029a3fefb9": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_0991d0e2fffesRSWWiFSJ995nN",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
