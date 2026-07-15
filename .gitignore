@@ -4,6 +4,9 @@ node_modules/
 dist/
 .pnpm-store/
 
+# Generated localization runtime
+apps/web/src/paraglide/
+
 # Test output
 coverage/
 
