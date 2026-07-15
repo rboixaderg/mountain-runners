@@ -50,6 +50,8 @@
   `build`, `ci`, `chore` and `security`.
 - Do not create commits unless explicitly asked. When asked, inspect status and
   diff, stage only intended files and use a semantic commit message.
+- Agents must never merge a pull request or enable auto-merge. A human
+  maintainer always performs the final merge.
 - Changes reach production only through a reviewed pull request merged into the
   protected default branch and the configured CI/CD pipeline.
 
