@@ -1,0 +1,19 @@
+apps/web/src/test/content-yaml.test.ts
+  s_8527e08af98b60::t_5df52e3f81baeb 78-83,89-93
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.11",
+  "base_commit_sha": "ffcf6efca35c5e5b7f9eec2a3fe7a83f0f478b1a",
+  "prompts": {},
+  "sessions": {
+    "s_8527e08af98b60": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_098a815e5ffeD3fr7rA8eerL0v",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
