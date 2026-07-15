@@ -62,6 +62,17 @@ describe("restricted Markdown", () => {
     expect(() => parseRestrictedMarkdown(markdown)).toThrow(/syntax markers/u);
   });
 
+  it.each(["- ", "+ ", "> ", "1. "])(
+    "rejects excessive %scontainer nesting before parsing",
+    (marker) => {
+      const markdown = `${marker.repeat(markdownLimits.maxSyntaxMarkers + 1)}x`;
+
+      expect(() => parseRestrictedMarkdown(markdown)).toThrow(
+        /syntax markers/u,
+      );
+    },
+  );
+
   it("rejects excessive line complexity before parsing", () => {
     const paragraphs = "Text\n\n".repeat(markdownLimits.maxLines);
     const list = "-\n".repeat(markdownLimits.maxLines);

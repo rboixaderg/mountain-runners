@@ -103,6 +103,10 @@ export async function resolveLocalResourcePath(
     }
   }
 
+  if (!(await lstat(currentPath)).isFile()) {
+    throw new Error("Content resources must be regular files");
+  }
+
   const [realRoot, realResource] = await Promise.all([
     realpath(rootPath),
     realpath(currentPath),

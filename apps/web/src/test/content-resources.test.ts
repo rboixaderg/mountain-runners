@@ -87,6 +87,20 @@ describe("content resource primitives", () => {
     ).resolves.toBe(await realpath(path.join(assetsDirectory, "race.pdf")));
   });
 
+  it("rejects directories with approved file extensions", async () => {
+    const appDirectory = await mkdtemp(
+      path.join(tmpdir(), "mountain-runners-assets-"),
+    );
+    temporaryDirectories.push(appDirectory);
+    await mkdir(path.join(appDirectory, "src/assets/fake.pdf"), {
+      recursive: true,
+    });
+
+    await expect(
+      resolveLocalResourcePath(appDirectory, "src/assets/fake.pdf"),
+    ).rejects.toThrow(/regular files/u);
+  });
+
   it("rejects files and directories reached through symbolic links", async () => {
     const appDirectory = await mkdtemp(
       path.join(tmpdir(), "mountain-runners-assets-"),

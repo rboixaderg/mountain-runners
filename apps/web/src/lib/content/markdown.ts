@@ -124,7 +124,10 @@ export function parseRestrictedMarkdown(source: string): Root {
     throw new Error(`Markdown exceeds ${markdownLimits.maxLines} lines`);
   }
 
-  const syntaxMarkers = source.match(/[*_[\]()]/gu)?.length ?? 0;
+  const inlineSyntaxMarkers = source.match(/[*_[\]()]/gu)?.length ?? 0;
+  const containerMarkers =
+    source.match(/(?:^|(?<=[ \t]))(?:[-+>]|\d+\.)(?=[ \t])/gmu)?.length ?? 0;
+  const syntaxMarkers = inlineSyntaxMarkers + containerMarkers;
   if (syntaxMarkers > markdownLimits.maxSyntaxMarkers) {
     throw new Error(
       `Markdown exceeds ${markdownLimits.maxSyntaxMarkers} syntax markers`,
