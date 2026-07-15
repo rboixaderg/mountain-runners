@@ -427,7 +427,7 @@ recorreguts públics reals.
   no només l'estat final dels fitxers.
 - CodeQL per analitzar JavaScript i TypeScript.
 - Dependabot per a dependències pnpm i GitHub Actions.
-- Dependency review en pull requests quan estigui disponible.
+- Dependency review en pull requests per bloquejar vulnerabilitats noves.
 
 Totes les referències `uses:`, incloent-hi actions de GitHub, actions de tercers
 i workflows reutilitzables, s'han de fixar a un SHA complet i immutable, amb un
@@ -441,8 +441,8 @@ La fase 1 no necessita secrets de desplegament.
 ### Configuració Manual De GitHub
 
 - Activar secret scanning i push protection.
-- Activar el Dependency Graph i definir la variable d'Actions
-  `DEPENDENCY_REVIEW_ENABLED=true` abans d'exigir el check de Dependency Review.
+- Activar el Dependency Graph i Dependabot Alerts.
+- Exigir el check de Dependency Review després de validar-lo en una pull request.
 - Protegir la branca principal i exigir pull request.
 - Marcar els checks de qualitat i seguretat com a obligatoris.
 - Bloquejar push directe i force push a la branca principal.
@@ -530,7 +530,7 @@ La fase es considera completada quan:
 6. Els hooks locals validen commit, fitxers staged i push sense substituir els
    controls remots.
 7. GitHub té actius branch protection, checks obligatoris, secret scanning,
-   push protection, Dependabot i CodeQL.
+   push protection, Dependency Graph, Dependabot, Dependency Review i CodeQL.
 8. Totes les referències `uses:` estan fixades per SHA i utilitzen permisos
    mínims.
 9. No s'han introduït secrets, serveis de servidor, dades privades ni contingut
