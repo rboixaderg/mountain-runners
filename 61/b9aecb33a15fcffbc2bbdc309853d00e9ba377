@@ -1,0 +1,21 @@
+apps/web/src/test/content-markdown.test.ts
+  s_f4ef41dce720b9::t_b28842c9686a1e 53-55,76-89
+apps/web/src/test/content-yaml.test.ts
+  s_f4ef41dce720b9::t_f3886c14a0dfd7 53-82,120,134,136-141
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.11",
+  "base_commit_sha": "61b9aecb33a15fcffbc2bbdc309853d00e9ba377",
+  "prompts": {},
+  "sessions": {
+    "s_f4ef41dce720b9": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_0988cfc3dffeGS3vgeuSES020M",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
