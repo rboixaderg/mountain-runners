@@ -11,8 +11,8 @@ no s'han implementat.
 ## Desenvolupament Local
 
 Cal utilitzar Node 24.11.0, pnpm 10.33.0 mitjançant Corepack i Gitleaks 8.30.1
-per als hooks locals. Les instruccions oficials d'instal·lació de Gitleaks són
-al seu [repositori](https://github.com/gitleaks/gitleaks#installing).
+per als hooks locals. Consulta les [instruccions d'instal·lació de Gitleaks a
+cada sistema operatiu](CONTRIBUTING.md#eines-locals).
 
 ```sh
 corepack enable
