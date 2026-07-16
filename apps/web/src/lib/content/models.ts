@@ -3,12 +3,11 @@ import { parseRestrictedMarkdown } from "./markdown";
 import {
   localeSchema,
   nonEmptyStringSchema,
-  createSlugSchema,
   slugSchema,
   translatableSchema,
 } from "./primitives";
 import { safeResourceSchema } from "./resources";
-import { httpsUrlSchema, mailtoUrlSchema, telUrlSchema } from "./urls";
+import { httpsUrlSchema } from "./urls";
 
 const contentIdSchema = z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/u, {
   error: "Expected a stable lowercase kebab-case identifier",
@@ -45,9 +44,6 @@ const markdownSchema = nonEmptyStringSchema.superRefine((value, context) => {
 export const localizedTextSchema = translatableSchema(nonEmptyStringSchema);
 export const localizedMarkdownSchema = translatableSchema(markdownSchema);
 export const localizedSlugSchema = translatableSchema(slugSchema);
-const localizedPageSlugSchema = translatableSchema(
-  createSlugSchema(new Set(["documents", "events", "schools"])),
-);
 const localizedHttpsUrlSchema = translatableSchema(httpsUrlSchema);
 
 const imageSchema = z.strictObject({
@@ -57,87 +53,11 @@ const imageSchema = z.strictObject({
   sourceUrl: httpsUrlSchema.optional(),
 });
 
-const linkSchema = z.strictObject({
-  label: localizedTextSchema,
-  url: localizedHttpsUrlSchema,
-});
-
-const richTextBlockSchema = z.strictObject({
-  type: z.literal("rich-text"),
-  body: localizedMarkdownSchema,
-});
-
-const imageBlockSchema = z.strictObject({
-  type: z.literal("image"),
-  image: imageSchema,
-});
-
-const galleryBlockSchema = z.strictObject({
-  type: z.literal("gallery"),
-  images: z.array(imageSchema).min(1).max(20),
-});
-
-const linksBlockSchema = z.strictObject({
-  type: z.literal("links"),
-  links: z.array(linkSchema).min(1).max(20),
-});
-
-const documentsBlockSchema = z.strictObject({
-  type: z.literal("documents"),
-  documentIds: z.array(contentIdSchema).min(1).max(20),
-});
-
-export const pageBlockSchema = z.discriminatedUnion("type", [
-  richTextBlockSchema,
-  imageBlockSchema,
-  galleryBlockSchema,
-  linksBlockSchema,
-  documentsBlockSchema,
-]);
-
-const navigationItemSchema = z.strictObject({
-  id: contentIdSchema,
-  label: localizedTextSchema,
-  path: localizedSlugSchema,
-});
-
-const footerLinkSchema = z.strictObject({
-  label: localizedTextSchema,
-  url: localizedHttpsUrlSchema,
-});
-
-export const siteSchema = z.strictObject({
-  id: z.literal("site"),
-  name: localizedTextSchema,
-  defaultLocale: z.literal("ca"),
-  locales: z.tuple([z.literal("ca"), z.literal("es"), z.literal("en")]),
-  navigation: z.array(navigationItemSchema).min(1).max(12),
-  contact: z.strictObject({
-    email: mailtoUrlSchema,
-    phone: telUrlSchema.optional(),
-    address: localizedTextSchema,
-    openingHours: localizedTextSchema.optional(),
-  }),
-  socialLinks: z.array(httpsUrlSchema).max(12),
-  legalLinks: z.array(footerLinkSchema).max(12),
-  footerText: localizedTextSchema,
-});
-
 const publishableFields = {
   id: contentIdSchema,
   published: z.boolean(),
   slug: localizedSlugSchema,
 };
-
-export const pageSchema = z.strictObject({
-  ...publishableFields,
-  slug: localizedPageSlugSchema,
-  title: localizedTextSchema,
-  summary: localizedTextSchema,
-  seoTitle: localizedTextSchema,
-  seoDescription: localizedTextSchema,
-  blocks: z.array(pageBlockSchema).min(1).max(50),
-});
 
 const registrationStatusSchema = z.enum([
   "open",
@@ -242,17 +162,12 @@ export const documentSchema = z.strictObject({
   attribution: localizedTextSchema.optional(),
 });
 
-export type Site = z.infer<typeof siteSchema>;
-export type Page = z.infer<typeof pageSchema>;
 export type School = z.infer<typeof schoolSchema>;
 export type Event = z.infer<typeof eventSchema>;
 export type Entity = z.infer<typeof entitySchema>;
 export type Document = z.infer<typeof documentSchema>;
-export type PageBlock = z.infer<typeof pageBlockSchema>;
 
 export const collectionSchemas = {
-  site: siteSchema,
-  pages: pageSchema,
   schools: schoolSchema,
   events: eventSchema,
   entities: entitySchema,

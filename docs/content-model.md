@@ -3,14 +3,12 @@
 ## Principis
 
 - Git és el magatzem autoritatiu del contingut publicat.
-- El contingut ha d'estar estructurat i validat; no pot existir només dins del
-  codi de les pàgines.
-- L'estat de publicació ha de ser explícit perquè les previsualitzacions i el
-  futur índex del xat no exposin material no publicat.
-- El català és l'únic idioma publicat inicialment, però tot text traduïble s'ha
-  de modelar com un objecte per idioma, no com camps separats per llengua.
-- Els enllaços, CTAs, formularis i blocs de pàgina també han de poder variar per
-  idioma quan calgui.
+- El contingut editorial o operatiu que pugui canviar està estructurat i validat;
+  no pot existir només dins del codi de les pàgines.
+- L'estat de publicació és explícit perquè les previsualitzacions i el futur índex
+  del xat no exposin material no publicat.
+- El català és l'únic idioma publicat inicialment, però tot text traduïble es
+  modela com un objecte per idioma, no com camps separats per llengua.
 - Totes les rutes HTML públiques tenen prefix d'idioma, inclòs el català; els
   recursos tècnics globals en queden exceptuats.
 - Una variant d'idioma només es publica quan la traducció requerida és completa;
@@ -20,12 +18,23 @@
 - Els missatges curts d'interfície es gestionen separadament amb Paraglide JS 2;
   no formen part de les col·leccions editorials.
 
+## Límit Entre Codi I Contingut
+
+- El codi defineix l'estructura de navegació, les rutes, les locales conegudes,
+  el shell global, les plantilles i l'ordre de les seccions estables.
+- El YAML recull dades editorials o operatives que poden canviar sense modificar
+  components: dates, estats, inscripcions, preus, textos editorials, recursos,
+  entitats, documents i URL externes.
+- No es crea un constructor genèric de pàgines ni una configuració YAML del lloc
+  per anticipació. Una pàgina fixa només rep un esquema específic quan hi ha una
+  necessitat editorial concreta i recurrent que el justifiqui.
+- El xat públic indexarà contingut publicat renderitzat, per tant no requereix
+  que tota la informació d'origen visqui en YAML.
+
 ## Col·leccions
 
-Les sis Astro Content Collections registrades són:
+Les quatre Astro Content Collections registrades són:
 
-- `site`: configuració única de la identitat, navegació, contacte i peu.
-- `pages`: pàgines amb SEO i blocs de text, imatge, galeria, enllaços o documents.
 - `schools`: programes amb informació pràctica, recursos i estat d'inscripció.
 - `events`: esdeveniments amb entitats relacionades i edicions embegudes.
 - `entities`: organitzacions reutilitzables i avantatges opcionals per a socis.
@@ -60,7 +69,7 @@ simbòlics ni escapaments de directori.
 `apps/web/src/lib/content/publication.ts` és la capa de domini autoritativa per
 decidir les variants publicables. Comprova la unicitat dels slugs per idioma,
 l'existència de referències i la completesa transitiva dels camps renderitzats,
-blocs, entitats i documents.
+entitats i documents.
 
 Les rutes públiques no consulten directament les col·leccions. Utilitzen el
 repositori central, que exclou `published: false` i només retorna variants amb
@@ -68,10 +77,10 @@ una traducció completa. `active` no altera la visibilitat editorial d'un
 esdeveniment. Els camps opcionals sense traducció s'ometen i no fan fallback al
 català.
 
-Les rutes mínimes de la base són `/{locale}/{slug}/`,
-`/{locale}/schools/{slug}/` i `/{locale}/events/{slug}/`. Les variants canòniques
-i `hreflang` només inclouen idiomes realment publicats. Les plantilles visuals
-definitives i els hubs de domini corresponen a les fases posteriors.
+Les rutes mínimes de la base són `/{locale}/schools/{slug}/` i
+`/{locale}/events/{slug}/`. Les variants canòniques i `hreflang` només inclouen
+idiomes realment publicats. Les plantilles visuals definitives i els hubs de
+domini corresponen a les fases posteriors.
 
 El build verifica tant les rutes esperades com l'absència de marcadors i recursos
 exclusius d'entrades despublicades a `dist/`.

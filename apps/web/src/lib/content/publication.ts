@@ -1,12 +1,4 @@
-import type {
-  Document,
-  Entity,
-  Event,
-  Page,
-  PageBlock,
-  School,
-  Site,
-} from "./models";
+import type { Document, Entity, Event, School } from "./models";
 import {
   findDuplicateLocalizedSlugs,
   hasCompleteTranslation,
@@ -16,8 +8,6 @@ import {
 } from "./primitives";
 
 export type ContentSource = {
-  site: Site[];
-  pages: Page[];
   schools: School[];
   events: Event[];
   entities: Entity[];
@@ -25,12 +15,10 @@ export type ContentSource = {
 };
 
 export type PublishedVariant =
-  | { kind: "page"; locale: Locale; slug: string; entry: Page }
   | { kind: "school"; locale: Locale; slug: string; entry: School }
   | { kind: "event"; locale: Locale; slug: string; entry: Event };
 
 export type PublicationCatalog = {
-  site: Site;
   variants: PublishedVariant[];
   entities: Map<string, Entity>;
   documents: Map<string, Document>;
@@ -58,15 +46,6 @@ export function getPublishedLocalResources(
 
   for (const variant of catalog.variants) {
     collectLocalResourcePaths(variant.entry, resources);
-
-    if (variant.kind === "page") {
-      for (const block of variant.entry.blocks) {
-        if (block.type !== "documents") continue;
-        for (const id of block.documentIds) {
-          collectLocalResourcePaths(catalog.documents.get(id), resources);
-        }
-      }
-    }
 
     if (variant.kind === "event") {
       for (const id of [
@@ -118,47 +97,6 @@ function isDocumentComplete(document: Document, locale: Locale): boolean {
     document.published &&
     isTranslated(document.title, locale) &&
     isTranslated(document.description, locale)
-  );
-}
-
-function isBlockComplete(
-  block: PageBlock,
-  locale: Locale,
-  documents: ReadonlyMap<string, Document>,
-): boolean {
-  switch (block.type) {
-    case "rich-text":
-      return isTranslated(block.body, locale);
-    case "image":
-      return isImageComplete(block.image, locale);
-    case "gallery":
-      return block.images.every((image) => isImageComplete(image, locale));
-    case "links":
-      return block.links.every(
-        (link) =>
-          isTranslated(link.label, locale) && isTranslated(link.url, locale),
-      );
-    case "documents":
-      return block.documentIds.every((id) => {
-        const document = documents.get(id);
-        return document !== undefined && isDocumentComplete(document, locale);
-      });
-  }
-}
-
-function isPageComplete(
-  page: Page,
-  locale: Locale,
-  documents: ReadonlyMap<string, Document>,
-): boolean {
-  return (
-    page.published &&
-    isTranslated(page.slug, locale) &&
-    isTranslated(page.title, locale) &&
-    isTranslated(page.summary, locale) &&
-    isTranslated(page.seoTitle, locale) &&
-    isTranslated(page.seoDescription, locale) &&
-    page.blocks.every((block) => isBlockComplete(block, locale, documents))
   );
 }
 
@@ -262,15 +200,6 @@ function assertReferences(
     }
   };
 
-  for (const page of source.pages) {
-    for (const block of page.blocks) {
-      if (block.type !== "documents") continue;
-      for (const id of block.documentIds) {
-        requireReference("document", `page ${page.id}`, id, documents);
-      }
-    }
-  }
-
   for (const event of source.events) {
     for (const id of [...event.organizerIds, ...event.collaboratorIds]) {
       requireReference("entity", `event ${event.id}`, id, entities);
@@ -291,32 +220,16 @@ function assertReferences(
 export function createPublicationCatalog(
   source: ContentSource,
 ): PublicationCatalog {
-  if (source.site.length !== 1 || source.site[0]?.id !== "site") {
-    throw new Error("The site collection must contain exactly one site entry");
-  }
-
   const entities = indexById(source.entities, "entity");
   const documents = indexById(source.documents, "document");
-  indexById(source.pages, "page");
   indexById(source.schools, "school");
   indexById(source.events, "event");
-  assertUniqueSlugs("pages", source.pages);
   assertUniqueSlugs("schools", source.schools);
   assertUniqueSlugs("events", source.events);
   assertReferences(source, entities, documents);
 
   const variants: PublishedVariant[] = [];
   for (const locale of knownLocales) {
-    for (const page of source.pages) {
-      if (isPageComplete(page, locale, documents)) {
-        variants.push({
-          kind: "page",
-          locale,
-          slug: page.slug[locale]!,
-          entry: page,
-        });
-      }
-    }
     for (const school of source.schools) {
       if (isSchoolComplete(school, locale)) {
         variants.push({
@@ -347,7 +260,6 @@ export function createPublicationCatalog(
   );
 
   return {
-    site: source.site[0],
     variants,
     entities: publishedEntities,
     documents: publishedDocuments,

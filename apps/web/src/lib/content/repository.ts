@@ -33,19 +33,13 @@ async function validateLocalResources(source: ContentSource): Promise<void> {
 }
 
 export async function getPublicationCatalog(): Promise<PublicationCatalog> {
-  const [site, pages, schools, events, entities, documents] = await Promise.all(
-    [
-      getCollection("site"),
-      getCollection("pages"),
-      getCollection("schools"),
-      getCollection("events"),
-      getCollection("entities"),
-      getCollection("documents"),
-    ],
-  );
+  const [schools, events, entities, documents] = await Promise.all([
+    getCollection("schools"),
+    getCollection("events"),
+    getCollection("entities"),
+    getCollection("documents"),
+  ]);
   const source: ContentSource = {
-    site: site.map(({ data }) => data),
-    pages: pages.map(({ data }) => data),
     schools: schools.map(({ data }) => data),
     events: events.map(({ data }) => data),
     entities: entities.map(({ data }) => data),

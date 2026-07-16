@@ -2,16 +2,6 @@ import { defineCollection } from "astro:content";
 import { restrictedYamlLoader } from "./lib/content/loader";
 import { collectionSchemas } from "./lib/content/models";
 
-const site = defineCollection({
-  loader: restrictedYamlLoader("src/content/site/", collectionSchemas.site),
-  schema: collectionSchemas.site,
-});
-
-const pages = defineCollection({
-  loader: restrictedYamlLoader("src/content/pages/", collectionSchemas.pages),
-  schema: collectionSchemas.pages,
-});
-
 const schools = defineCollection({
   loader: restrictedYamlLoader(
     "src/content/schools/",
@@ -42,8 +32,6 @@ const documents = defineCollection({
 });
 
 export const collections = {
-  site,
-  pages,
   schools,
   events,
   entities,

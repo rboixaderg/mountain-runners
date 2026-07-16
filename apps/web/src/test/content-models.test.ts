@@ -5,8 +5,6 @@ import { collectionSchemas, eventSchema } from "../lib/content/models";
 import { parseRestrictedYaml } from "../lib/content/yaml";
 
 const fixturePaths = {
-  site: "../content/site/site.yaml",
-  pages: "../content/pages/club.yaml",
   schools: "../content/schools/trail-school.yaml",
   events: "../content/events/mountain-day.yaml",
   entities: "../content/entities/mountain-runners.yaml",
@@ -14,8 +12,6 @@ const fixturePaths = {
 } as const;
 
 const requiredFields = {
-  site: ["id", "name"],
-  pages: ["id", "blocks"],
   schools: ["id", "sections"],
   events: ["id", "editions"],
   entities: ["id", "logo"],

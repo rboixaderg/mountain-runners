@@ -9,14 +9,11 @@ const pages = [
 ];
 
 const expectedEditorialRoutes = [
-  "ca/qui-som/index.html",
-  "es/quienes-somos/index.html",
   "ca/schools/escola-trail/index.html",
   "ca/events/jornada-muntanya/index.html",
 ];
 
 const unpublishedEditorialRoutes = [
-  "en/qui-som/index.html",
   "es/schools/escola-trail/index.html",
   "en/schools/escola-trail/index.html",
   "es/events/jornada-muntanya/index.html",
@@ -98,37 +95,18 @@ for (const route of unpublishedEditorialRoutes) {
   }
 }
 
-const catalanPage = await readFile(
-  join(distPath, "ca/qui-som/index.html"),
-  "utf8",
-);
-for (const tag of [
-  '<link rel="canonical" href="/ca/qui-som/">',
-  '<link rel="alternate" hreflang="ca" href="/ca/qui-som/">',
-  '<link rel="alternate" hreflang="es" href="/es/quienes-somos/">',
-]) {
-  if (!catalanPage.includes(tag)) {
-    throw new Error(`Catalan page is missing expected metadata: ${tag}`);
-  }
-}
-if (catalanPage.includes('hreflang="en"')) {
-  throw new Error("Incomplete English variant reached hreflang metadata.");
-}
-if (
-  !catalanPage.includes("Guia del club") ||
-  !catalanPage.includes(
-    'href="/content-resources/content-assets/documents/club-guide.pdf"',
-  )
-) {
-  throw new Error("Published document is not linked from its public page.");
-}
-
 const catalanEvent = await readFile(
   join(distPath, "ca/events/jornada-muntanya/index.html"),
   "utf8",
 );
 if (!catalanEvent.includes(">Actiu<") || catalanEvent.includes(">Active<")) {
   throw new Error("The Catalan event status must use its Paraglide message.");
+}
+if (
+  catalanEvent.includes('hreflang="es"') ||
+  catalanEvent.includes('hreflang="en"')
+) {
+  throw new Error("Incomplete event variants reached hreflang metadata.");
 }
 
 await readFile(join(distPath, expectedPublishedResource));
