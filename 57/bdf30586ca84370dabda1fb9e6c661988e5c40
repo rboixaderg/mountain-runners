@@ -1,0 +1,23 @@
+apps/web/scripts/verify-i18n-output.mjs
+  s_e4bb361bdd9a25::t_94a76c6c150f6a 105-110
+apps/web/src/lib/content/publication.ts
+  s_e4bb361bdd9a25::t_ab422e3fbcd004 1
+apps/web/src/lib/content/repository.ts
+  s_e4bb361bdd9a25::t_606118aed2919b 36-41
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.11",
+  "base_commit_sha": "57bdf30586ca84370dabda1fb9e6c661988e5c40",
+  "prompts": {},
+  "sessions": {
+    "s_e4bb361bdd9a25": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_094572d2dffeZoxFqnMbVKOmTY",
+        "model": "gpt-5.6-terra"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
