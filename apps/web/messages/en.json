@@ -1,4 +1,6 @@
 {
+  "event_status_active": "Active",
+  "event_status_historical": "Historical",
   "intro": "We are preparing the association's new website with a fast, accessible and maintainable foundation.",
   "site_title": "Mountain Runners",
   "under_construction": "Website foundation under construction"

@@ -1,4 +1,6 @@
 {
+  "event_status_active": "Actiu",
+  "event_status_historical": "Històric",
   "intro": "Estem preparant la nova web de l'associació amb una base ràpida, accessible i mantenible.",
   "site_title": "Mountain Runners",
   "under_construction": "Base web en construcció"

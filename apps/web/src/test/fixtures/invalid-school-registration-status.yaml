@@ -1,0 +1,31 @@
+id: invalid-school
+published: true
+slug:
+  ca: escola-invalida
+name:
+  ca: Escola invàlida
+summary:
+  ca: Fixture amb un estat d'inscripció invàlid.
+description:
+  ca: Contingut de prova.
+cover:
+  resource:
+    kind: external
+    url: https://images.example.org/invalid-school.webp
+  alt:
+    ca: Imatge de prova
+gallery: []
+registrationStatus: pending
+sections:
+  since:
+    ca: Des de fa temps.
+  purpose:
+    ca: Provar l'esquema.
+  audience:
+    ca: Participants de prova.
+  schedule:
+    ca: Horari de prova.
+  location:
+    ca: Ubicació de prova.
+  prices:
+    ca: Preu de prova.

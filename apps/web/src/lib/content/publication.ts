@@ -336,5 +336,17 @@ export function createPublicationCatalog(
     }
   }
 
-  return { site: source.site[0], variants, entities, documents };
+  const publishedEntities = new Map(
+    [...entities].filter(([, entity]) => entity.published),
+  );
+  const publishedDocuments = new Map(
+    [...documents].filter(([, document]) => document.published),
+  );
+
+  return {
+    site: source.site[0],
+    variants,
+    entities: publishedEntities,
+    documents: publishedDocuments,
+  };
 }

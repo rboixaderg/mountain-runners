@@ -53,7 +53,10 @@ function variantKeys(source: ContentSource) {
 describe("publication catalog", () => {
   it("publishes only complete localized variants", async () => {
     const source = await loadSource();
-    const keys = variantKeys(source);
+    const catalog = createPublicationCatalog(source);
+    const keys = catalog.variants.map(
+      ({ kind, locale, slug }) => `${kind}:${locale}:${slug}`,
+    );
 
     expect(keys).toEqual([
       "page:ca:qui-som",
@@ -62,9 +65,10 @@ describe("publication catalog", () => {
       "page:es:quienes-somos",
     ]);
     expect(keys.join(" ")).not.toContain("internal-draft");
-    expect(
-      getPublishedLocalResources(createPublicationCatalog(source)),
-    ).toEqual(["src/content-assets/documents/club-guide.pdf"]);
+    expect(catalog.documents.has("private-draft")).toBe(false);
+    expect(getPublishedLocalResources(catalog)).toEqual([
+      "src/content-assets/documents/club-guide.pdf",
+    ]);
   });
 
   it("applies completeness transitively to nested blocks and documents", async () => {
@@ -80,9 +84,23 @@ describe("publication catalog", () => {
     sourceWithDraftDocument.documents.find(
       ({ id }) => id === "club-guide",
     )!.published = false;
-    const keys = variantKeys(sourceWithDraftDocument);
+    const catalog = createPublicationCatalog(sourceWithDraftDocument);
+    const keys = catalog.variants.map(
+      ({ kind, locale, slug }) => `${kind}:${locale}:${slug}`,
+    );
     expect(keys.some((key) => key.startsWith("page:"))).toBe(false);
     expect(keys.some((key) => key.startsWith("event:"))).toBe(false);
+    expect(catalog.documents.has("club-guide")).toBe(false);
+  });
+
+  it("excludes unpublished entities from public queries and variants", async () => {
+    const source = await loadSource();
+    source.entities[0]!.published = false;
+
+    const catalog = createPublicationCatalog(source);
+
+    expect(catalog.entities.has("mountain-runners")).toBe(false);
+    expect(catalog.variants.some(({ kind }) => kind === "event")).toBe(false);
   });
 
   it("rejects missing references and duplicate localized slugs", async () => {

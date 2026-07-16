@@ -192,6 +192,7 @@ export const eventSchema = z
     cover: imageSchema,
     gallery: z.array(imageSchema).max(20),
     videoUrls: z.array(httpsUrlSchema).max(10),
+    registrationUrl: localizedHttpsUrlSchema.optional(),
     informationUrl: localizedHttpsUrlSchema.optional(),
     organizerIds: z.array(contentIdSchema).min(1).max(20),
     collaboratorIds: z.array(contentIdSchema).max(20),

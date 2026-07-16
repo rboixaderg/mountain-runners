@@ -85,6 +85,14 @@ for (const route of expectedEditorialRoutes) {
   }
 }
 
+const catalanEvent = await readFile(
+  join(distPath, "ca/events/jornada-muntanya/index.html"),
+  "utf8",
+);
+if (!catalanEvent.includes(">Actiu<") || catalanEvent.includes(">Active<")) {
+  throw new Error("The Catalan event status must use its Paraglide message.");
+}
+
 await readFile(join(distPath, expectedPublishedResource));
 
 async function listFiles(directory) {

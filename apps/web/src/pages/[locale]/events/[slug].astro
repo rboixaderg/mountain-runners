@@ -1,5 +1,6 @@
 ---
 import "../../../styles/global.css";
+import * as m from "../../../paraglide/messages.js";
 import { renderRestrictedMarkdown } from "../../../lib/content/markdown";
 import type { PublishedVariant } from "../../../lib/content/publication";
 import { getPublicationCatalog } from "../../../lib/content/repository";
@@ -50,7 +51,13 @@ const { entry, locale } = variant;
   </head>
   <body>
     <main class="mx-auto max-w-3xl px-6 py-20">
-      <p>{entry.active ? "Active" : "Historical"}</p>
+      <p>
+        {
+          entry.active
+            ? m.event_status_active({}, { locale })
+            : m.event_status_historical({}, { locale })
+        }
+      </p>
       <h1 class="text-5xl font-black tracking-tight">{entry.title[locale]}</h1>
       <section
         class="mt-8"
