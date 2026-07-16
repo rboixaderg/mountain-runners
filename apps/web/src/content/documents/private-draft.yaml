@@ -1,0 +1,15 @@
+id: private-draft
+published: false
+title:
+  ca: Document privat
+  es: Documento privado
+  en: Private document
+description:
+  ca: No es pot publicar.
+  es: No se puede publicar.
+  en: Must not be published.
+resource:
+  kind: local
+  path: src/content-assets/documents/private-draft.pdf
+documentType: other
+availability: available

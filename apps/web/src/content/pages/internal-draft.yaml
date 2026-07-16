@@ -1,0 +1,26 @@
+id: internal-draft
+published: false
+slug:
+  ca: esborrany-intern
+  es: borrador-interno
+  en: internal-draft
+title:
+  ca: Esborrany intern no publicable
+  es: Borrador interno no publicable
+  en: Internal unpublished draft
+summary:
+  ca: DRAFT_ONLY_CONTENT_MARKER
+  es: DRAFT_ONLY_CONTENT_MARKER
+  en: DRAFT_ONLY_CONTENT_MARKER
+seoTitle:
+  ca: Esborrany
+  es: Borrador
+  en: Draft
+seoDescription:
+  ca: Contingut intern.
+  es: Contenido interno.
+  en: Internal content.
+blocks:
+  - type: documents
+    documentIds:
+      - private-draft

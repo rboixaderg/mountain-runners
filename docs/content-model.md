@@ -20,11 +20,16 @@
 - Els missatges curts d'interfície es gestionen separadament amb Paraglide JS 2;
   no formen part de les col·leccions editorials.
 
-## Dominis Planificats
+## Col·leccions
 
-S'espera que els primers esquemes cobreixin pàgines, esdeveniments i les seves
-edicions, escoles o programes, informació de socis, col·laboradors, documents i
-configuració del lloc.
+Les sis Astro Content Collections registrades són:
+
+- `site`: configuració única de la identitat, navegació, contacte i peu.
+- `pages`: pàgines amb SEO i blocs de text, imatge, galeria, enllaços o documents.
+- `schools`: programes amb informació pràctica, recursos i estat d'inscripció.
+- `events`: esdeveniments amb entitats relacionades i edicions embegudes.
+- `entities`: organitzacions reutilitzables i avantatges opcionals per a socis.
+- `documents`: recursos locals o externs amb tipus, idioma i disponibilitat.
 
 Els esdeveniments necessiten un estat de visibilitat editorial i una indicació
 separada de si continuen actius. Les edicions pertanyen al seu esdeveniment pare
@@ -44,6 +49,29 @@ explícita de nodes permesos; no admet HTML cru, components ni codi executable.
 La longitud, la sintaxi, la profunditat i el nombre de nodes també estan limitats
 abans de renderitzar-lo.
 
-Les sis Astro Content Collections, els seus camps de domini, les referències i
-les regles de publicació es definiran en l'entrega següent. El nucli actual no
-decideix per si sol si una entrada editorial concreta es publica.
+Cada fitxer de `apps/web/src/content/` passa pel loader YAML restringit abans de
+la validació de l'esquema de la col·lecció. L'identificador declarat ha de
+coincidir amb el nom del fitxer. Els recursos locals també s'han de resoldre com
+a fitxers regulars dins de `src/assets/` o `src/content-assets/`, sense enllaços
+simbòlics ni escapaments de directori.
+
+## Publicació
+
+`apps/web/src/lib/content/publication.ts` és la capa de domini autoritativa per
+decidir les variants publicables. Comprova la unicitat dels slugs per idioma,
+l'existència de referències i la completesa transitiva dels camps renderitzats,
+blocs, entitats i documents.
+
+Les rutes públiques no consulten directament les col·leccions. Utilitzen el
+repositori central, que exclou `published: false` i només retorna variants amb
+una traducció completa. `active` no altera la visibilitat editorial d'un
+esdeveniment. Els camps opcionals sense traducció s'ometen i no fan fallback al
+català.
+
+Les rutes mínimes de la base són `/{locale}/{slug}/`,
+`/{locale}/schools/{slug}/` i `/{locale}/events/{slug}/`. Les variants canòniques
+i `hreflang` només inclouen idiomes realment publicats. Les plantilles visuals
+definitives i els hubs de domini corresponen a les fases posteriors.
+
+El build verifica tant les rutes esperades com l'absència de marcadors i recursos
+exclusius d'entrades despublicades a `dist/`.

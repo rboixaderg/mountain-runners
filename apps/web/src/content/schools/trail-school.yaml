@@ -1,0 +1,32 @@
+id: trail-school
+published: true
+slug:
+  ca: escola-trail
+name:
+  ca: Escola de Trail
+summary:
+  ca: Iniciació progressiva al trail per a infants i joves.
+description:
+  ca: Aprenem a moure'ns per la muntanya amb seguretat i respecte.
+cover:
+  resource:
+    kind: external
+    url: https://images.example.org/trail-school.webp
+  alt:
+    ca: Grup de joves entrenant per un sender
+gallery: []
+promotionalVideoUrl: https://video.example.org/trail-school
+registrationStatus: coming-soon
+sections:
+  since:
+    ca: Un projecte consolidat al Berguedà.
+  purpose:
+    ca: Créixer amb autonomia i gaudir de l'esport.
+  audience:
+    ca: Infants i joves que volen descobrir el trail.
+  schedule:
+    ca: Entrenaments setmanals durant el curs.
+  location:
+    ca: Entorn natural del Berguedà.
+  prices:
+    ca: Informació disponible durant el període d'inscripció.

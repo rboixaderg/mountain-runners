@@ -4,8 +4,9 @@
 
 El repositori conté un workspace pnpm i una aplicació Astro estàtica mínima a
 `apps/web`, amb validacions locals, integració contínua i un nucli segur de
-validació editorial. Encara no s'han implementat els esquemes dels models de
-domini, les pàgines públiques ni cap servei o automatització de desplegament.
+validació editorial. Les sis Content Collections, les regles de publicació i les
+rutes editorials mínimes ja estan implementades. Encara no s'han implementat les
+plantilles públiques finals ni cap servei o automatització de desplegament.
 
 ## Direcció Acceptada
 
@@ -16,7 +17,7 @@ veritat. Caddy servirà la web des d'un VPS modest.
 La versió inicial no té base de dades, CMS, comptes d'usuari ni backend
 d'aplicació renderitzat al servidor.
 
-## Límits Planificats
+## Límits De L'Arquitectura
 
 | Àrea                | Responsabilitat                               | Límit                                                            |
 | ------------------- | --------------------------------------------- | ---------------------------------------------------------------- |
@@ -35,7 +36,7 @@ formen part del disseny inicial.
 
 ## Fora D'Abast Ara
 
-- Col·leccions i esquemes Zod dels models de domini.
+- Plantilles visuals i migració del contingut públic definitiu.
 - Servei de xat Hono i generador d'índex.
 - Integració amb Telegram, Discord o Hermes.
 - Implementació de CI/CD i provisió del VPS.

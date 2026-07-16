@@ -4,9 +4,10 @@ Web de codi obert de l'associació esportiva Mountain Runners del Berguedà.
 
 ## Estat
 
-Aquest repositori conté la base executable de l'aplicació Astro, la direcció de
-disseny i les normes de col·laboració. La web pública i el model editorial encara
-no s'han implementat.
+Aquest repositori conté la base executable de l'aplicació Astro, el model
+editorial validat, la infraestructura multiidioma, la direcció de disseny i les
+normes de col·laboració. Les plantilles visuals i el contingut públic definitiu
+encara no s'han implementat.
 
 ## Desenvolupament Local
 

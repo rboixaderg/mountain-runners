@@ -8,6 +8,23 @@ const pages = [
   ["en", "Website foundation under construction"],
 ];
 
+const expectedEditorialRoutes = [
+  "ca/qui-som/index.html",
+  "es/quienes-somos/index.html",
+  "ca/schools/escola-trail/index.html",
+  "ca/events/jornada-muntanya/index.html",
+];
+
+const forbiddenOutputMarkers = [
+  "DRAFT_ONLY_CONTENT_MARKER",
+  "DRAFT_ONLY_ASSET_MARKER",
+  "private-draft.pdf",
+  "internal-draft",
+];
+
+const expectedPublishedResource =
+  "content-resources/content-assets/documents/club-guide.pdf";
+
 const distDirectory = new URL("../dist/", import.meta.url);
 const root = await readFile(new URL("index.html", distDirectory), "utf8");
 
@@ -59,4 +76,36 @@ if (unexpectedRoutes.length > 0) {
   throw new Error(
     `Public HTML routes must use a locale prefix: ${unexpectedRoutes.join(", ")}`,
   );
+}
+
+for (const route of expectedEditorialRoutes) {
+  const output = await readFile(join(distPath, route), "utf8");
+  if (!output.includes('<link rel="canonical"')) {
+    throw new Error(`Editorial route is missing canonical metadata: ${route}`);
+  }
+}
+
+await readFile(join(distPath, expectedPublishedResource));
+
+async function listFiles(directory) {
+  const files = [];
+  const entries = await readdir(directory, { withFileTypes: true });
+  for (const entry of entries) {
+    const path = join(directory, entry.name);
+    if (entry.isDirectory()) files.push(...(await listFiles(path)));
+    else files.push(path);
+  }
+  return files;
+}
+
+for (const file of await listFiles(distPath)) {
+  const content = await readFile(file);
+  const searchable = `${relative(distPath, file)}\n${content.toString("utf8")}`;
+  for (const marker of forbiddenOutputMarkers) {
+    if (searchable.includes(marker)) {
+      throw new Error(
+        `Unpublished content reached the build output: ${marker}`,
+      );
+    }
+  }
 }
