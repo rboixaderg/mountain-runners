@@ -124,3 +124,30 @@ i documentar els resultats i les correccions necessàries.
 automatitzades d'accessibilitat disponibles.
 
 **Seguiment:** pendent de triatge.
+
+### Avaluació De TypeScript 7
+
+**Estat:** Capturada.
+
+**Problema:** abans de fixar la versió de TypeScript del projecte cal comprovar
+si TypeScript 7 és prou estable i compatible amb Astro i la resta d'eines
+previstes.
+
+**Resultat esperat:** determinar si el projecte pot adoptar TypeScript 7 des de
+l'inici o si convé mantenir temporalment una versió anterior, amb una decisió
+justificada i reproduïble.
+
+**Abans de planificar-ho cal definir:**
+
+- l'estat i la disponibilitat de TypeScript 7 en el moment d'inicialitzar el
+  projecte;
+- la compatibilitat amb Astro, `astro check`, ESLint, Vitest i l'editor;
+- les diferències de comportament o funcionalitats encara no disponibles;
+- l'impacte sobre la CI, els temps de compilació i l'experiència de
+  desenvolupament;
+- una prova mínima que validi la configuració estricta i els fluxos previstos.
+
+**Dependències:** inici de la fase d'inicialització de l'aplicació i versions
+compatibles de l'ecosistema disponibles.
+
+**Seguiment:** pendent de triatge.

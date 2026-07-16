@@ -14,6 +14,14 @@ La fase ha de produir una base fiable per construir les pàgines públiques, per
 no ha d'implementar encara el disseny final, migrar el contingut actual ni
 desplegar a producció.
 
+## Actualització De L'Abast Editorial
+
+Aquesta actualització substitueix les referències anteriors a sis col·leccions:
+la PR 4 implementa només `schools`, `events`, `entities` i `documents`. El codi
+manté la identitat estable, les locales, la navegació, les rutes i les
+plantilles; el YAML només modela dades editorials o operatives canviants. No
+s'implementen `site`, `pages` ni un constructor genèric de blocs en aquesta fase.
+
 ## Resultats Esperats
 
 - Monorepo pnpm reproduïble amb l'aplicació Astro a `apps/web`.

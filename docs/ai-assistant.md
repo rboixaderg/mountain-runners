@@ -17,6 +17,11 @@ Discord. El seu flux permès es limita a crear una branca, editar contingut
 autoritzat, executar scripts de validació aprovats, obrir una pull request i
 retornar una previsualització.
 
+El contingut autoritzat es defineix amb una allowlist explícita per fase. Per
+defecte només inclou els fitxers YAML de les col·leccions editorials aprovades i
+els recursos que aquestes referencien. No inclou components, estils, rutes,
+configuració d'Astro, catàlegs de missatges, esquemes, scripts ni la navegació.
+
 No pot fusionar pull requests, publicar contingut, desplegar serveis, accedir a
 camins del sistema de fitxers no relacionats ni rebre accés de shell o de
 producció sense restriccions.
