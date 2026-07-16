@@ -297,6 +297,9 @@ export function createPublicationCatalog(
 
   const entities = indexById(source.entities, "entity");
   const documents = indexById(source.documents, "document");
+  indexById(source.pages, "page");
+  indexById(source.schools, "school");
+  indexById(source.events, "event");
   assertUniqueSlugs("pages", source.pages);
   assertUniqueSlugs("schools", source.schools);
   assertUniqueSlugs("events", source.events);

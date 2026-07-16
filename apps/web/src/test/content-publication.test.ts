@@ -194,7 +194,7 @@ describe("publication catalog", () => {
     expect(catalog.variants.some(({ kind }) => kind === "event")).toBe(false);
   });
 
-  it("rejects missing references and duplicate localized slugs", async () => {
+  it("rejects missing references, duplicate ids, and duplicate localized slugs", async () => {
     const missingReferences = [
       {
         error: "page club references missing document: missing-document",
@@ -234,9 +234,37 @@ describe("publication catalog", () => {
       expect(() => createPublicationCatalog(source)).toThrow(error);
     }
 
+    const duplicateIdCases = [
+      {
+        error: "Duplicate page id: club",
+        apply: (source: ContentSource) => {
+          source.pages.push(structuredClone(source.pages[0]!));
+        },
+      },
+      {
+        error: "Duplicate school id: trail-school",
+        apply: (source: ContentSource) => {
+          source.schools.push(structuredClone(source.schools[0]!));
+        },
+      },
+      {
+        error: "Duplicate event id: mountain-day",
+        apply: (source: ContentSource) => {
+          source.events.push(structuredClone(source.events[0]!));
+        },
+      },
+    ];
+
+    for (const { error, apply } of duplicateIdCases) {
+      const source = await loadSource();
+      apply(source);
+      expect(() => createPublicationCatalog(source)).toThrow(error);
+    }
+
     const duplicateSource = await loadSource();
     duplicateSource.pages.push(structuredClone(duplicateSource.pages[0]!));
-    duplicateSource.pages[1]!.id = "duplicate-page";
+    duplicateSource.pages[duplicateSource.pages.length - 1]!.id =
+      "duplicate-page";
     expect(() => createPublicationCatalog(duplicateSource)).toThrow(
       "Duplicate localized slugs",
     );

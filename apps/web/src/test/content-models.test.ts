@@ -13,6 +13,15 @@ const fixturePaths = {
   documents: "../content/documents/club-guide.yaml",
 } as const;
 
+const requiredFields = {
+  site: ["id", "name"],
+  pages: ["id", "blocks"],
+  schools: ["id", "sections"],
+  events: ["id", "editions"],
+  entities: ["id", "logo"],
+  documents: ["id", "resource"],
+} as const;
+
 const invalidStateFixtures = [
   [
     "school registration status",
@@ -49,16 +58,18 @@ describe("editorial collection schemas", () => {
       expect(result).toBeDefined();
     });
 
-    it(`rejects missing and unknown fields in ${collectionName}`, async () => {
+    it(`rejects missing required and unknown fields in ${collectionName}`, async () => {
       const schema = collectionSchemas[collectionName] as z.ZodType;
       const data = (await parseFixture(
         fixturePaths[collectionName],
         schema,
       )) as Record<string, unknown>;
-      const missingId = { ...data };
-      delete missingId.id;
 
-      expect(schema.safeParse(missingId).success).toBe(false);
+      for (const field of requiredFields[collectionName]) {
+        const incomplete = { ...data };
+        delete incomplete[field];
+        expect(schema.safeParse(incomplete).success).toBe(false);
+      }
       expect(schema.safeParse({ ...data, unexpected: true }).success).toBe(
         false,
       );
