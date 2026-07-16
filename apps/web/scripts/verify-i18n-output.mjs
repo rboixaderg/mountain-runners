@@ -15,6 +15,14 @@ const expectedEditorialRoutes = [
   "ca/events/jornada-muntanya/index.html",
 ];
 
+const unpublishedEditorialRoutes = [
+  "en/qui-som/index.html",
+  "es/schools/escola-trail/index.html",
+  "en/schools/escola-trail/index.html",
+  "es/events/jornada-muntanya/index.html",
+  "en/events/jornada-muntanya/index.html",
+];
+
 const forbiddenOutputMarkers = [
   "DRAFT_ONLY_CONTENT_MARKER",
   "DRAFT_ONLY_ASSET_MARKER",
@@ -64,13 +72,12 @@ async function listHtmlFiles(directory) {
 
 const distPath = fileURLToPath(distDirectory);
 const htmlFiles = await listHtmlFiles(distPath);
-const unexpectedRoutes = htmlFiles
-  .map((path) => relative(distPath, path))
-  .filter(
-    (path) =>
-      path !== "index.html" &&
-      !pages.some(([locale]) => path.startsWith(`${locale}/`)),
-  );
+const outputRoutes = htmlFiles.map((path) => relative(distPath, path));
+const unexpectedRoutes = outputRoutes.filter(
+  (path) =>
+    path !== "index.html" &&
+    !pages.some(([locale]) => path.startsWith(`${locale}/`)),
+);
 
 if (unexpectedRoutes.length > 0) {
   throw new Error(
@@ -83,6 +90,29 @@ for (const route of expectedEditorialRoutes) {
   if (!output.includes('<link rel="canonical"')) {
     throw new Error(`Editorial route is missing canonical metadata: ${route}`);
   }
+}
+
+for (const route of unpublishedEditorialRoutes) {
+  if (outputRoutes.includes(route)) {
+    throw new Error(`Incomplete variant reached the build output: ${route}`);
+  }
+}
+
+const catalanPage = await readFile(
+  join(distPath, "ca/qui-som/index.html"),
+  "utf8",
+);
+for (const tag of [
+  '<link rel="canonical" href="/ca/qui-som/">',
+  '<link rel="alternate" hreflang="ca" href="/ca/qui-som/">',
+  '<link rel="alternate" hreflang="es" href="/es/quienes-somos/">',
+]) {
+  if (!catalanPage.includes(tag)) {
+    throw new Error(`Catalan page is missing expected metadata: ${tag}`);
+  }
+}
+if (catalanPage.includes('hreflang="en"')) {
+  throw new Error("Incomplete English variant reached hreflang metadata.");
 }
 
 const catalanEvent = await readFile(

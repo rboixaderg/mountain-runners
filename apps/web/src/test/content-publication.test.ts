@@ -93,6 +93,97 @@ describe("publication catalog", () => {
     expect(catalog.documents.has("club-guide")).toBe(false);
   });
 
+  it("requires translated rendered fields across publication models", async () => {
+    const mutations = [
+      {
+        expected: "page:es:quienes-somos",
+        apply: (source: ContentSource) => {
+          const page = source.pages[0]!;
+          const image = {
+            type: "image",
+            image: {
+              resource: { kind: "external", url: "https://example.org/image" },
+              alt: { ca: "Image", es: "Imagen" },
+            },
+          } as const;
+          delete (image.image.alt as { es?: string }).es;
+          page.blocks.unshift(image);
+        },
+      },
+      {
+        expected: "page:es:quienes-somos",
+        apply: (source: ContentSource) => {
+          const page = source.pages[0]!;
+          const links: Extract<Page["blocks"][number], { type: "links" }> = {
+            type: "links",
+            links: [
+              {
+                label: { ca: "Link", es: "Enlace" },
+                url: {
+                  ca: "https://example.org/ca",
+                  es: "https://example.org/es",
+                },
+              },
+            ],
+          };
+          delete (links.links[0]!.url as { es?: string }).es;
+          page.blocks.unshift(links);
+        },
+      },
+      {
+        expected: "school:ca:escola-trail",
+        apply: (source: ContentSource) => {
+          const school = source.schools[0]!;
+          school.registrationStatus = "open";
+          school.registrationUrl = { ca: "https://example.org/register" };
+          delete (school.registrationUrl as { ca?: string }).ca;
+        },
+      },
+      {
+        expected: "event:ca:jornada-muntanya",
+        apply: (source: ContentSource) => {
+          const event = source.events[0]!;
+          event.editions[0]!.registrationStatus = "open";
+          event.editions[0]!.registrationUrl = {
+            ca: "https://example.org/register",
+          };
+          delete (event.editions[0]!.registrationUrl as { ca?: string }).ca;
+        },
+      },
+      {
+        expected: "event:ca:jornada-muntanya",
+        apply: (source: ContentSource) => {
+          const event = source.events[0]!;
+          delete (event.editions[0]!.location as { ca?: string }).ca;
+        },
+      },
+      {
+        expected: "event:ca:jornada-muntanya",
+        apply: (source: ContentSource) => {
+          const event = source.events[0]!;
+          delete (event.editions[0]!.modalities[0]! as { ca?: string }).ca;
+        },
+      },
+      {
+        expected: "event:ca:jornada-muntanya",
+        apply: (source: ContentSource) => {
+          const entity = source.entities[0]!;
+          entity.membershipBenefit = {
+            title: { ca: "Benefit" },
+            description: { ca: "Description" },
+          };
+          delete (entity.membershipBenefit.description as { ca?: string }).ca;
+        },
+      },
+    ];
+
+    for (const { expected, apply } of mutations) {
+      const source = await loadSource();
+      apply(source);
+      expect(variantKeys(source)).not.toContain(expected);
+    }
+  });
+
   it("excludes unpublished entities from public queries and variants", async () => {
     const source = await loadSource();
     source.entities[0]!.published = false;
@@ -104,11 +195,44 @@ describe("publication catalog", () => {
   });
 
   it("rejects missing references and duplicate localized slugs", async () => {
-    const source = await loadSource();
-    source.events[0]!.organizerIds = ["missing-entity"];
-    expect(() => createPublicationCatalog(source)).toThrow(
-      "references missing entity",
-    );
+    const missingReferences = [
+      {
+        error: "page club references missing document: missing-document",
+        apply: (source: ContentSource) => {
+          const documents = source.pages[0]!.blocks.find(
+            (block) => block.type === "documents",
+          )!;
+          if (documents.type !== "documents")
+            throw new Error("Expected documents block");
+          documents.documentIds = ["missing-document"];
+        },
+      },
+      {
+        error: "event mountain-day references missing entity: missing-entity",
+        apply: (source: ContentSource) => {
+          source.events[0]!.organizerIds = ["missing-entity"];
+        },
+      },
+      {
+        error: "event mountain-day references missing entity: missing-entity",
+        apply: (source: ContentSource) => {
+          source.events[0]!.collaboratorIds = ["missing-entity"];
+        },
+      },
+      {
+        error:
+          "event mountain-day edition edition-2027 references missing document: missing-document",
+        apply: (source: ContentSource) => {
+          source.events[0]!.editions[0]!.documentIds = ["missing-document"];
+        },
+      },
+    ];
+
+    for (const { error, apply } of missingReferences) {
+      const source = await loadSource();
+      apply(source);
+      expect(() => createPublicationCatalog(source)).toThrow(error);
+    }
 
     const duplicateSource = await loadSource();
     duplicateSource.pages.push(structuredClone(duplicateSource.pages[0]!));
