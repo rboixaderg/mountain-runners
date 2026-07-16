@@ -2,7 +2,8 @@
 
 ## Estat
 
-Preparada per convertir-se en issues i implementar-se.
+En implementació. Les tres primeres entregues estan completades i la quarta es
+troba en revisió.
 
 ## Objectiu
 
@@ -45,8 +46,8 @@ principal ni evita la revisió i les comprovacions obligatòries.
 | ------------------------------ | ---------- | ----------------------------------------------------------------------------- | -------------------------------------------------------------- |
 | 1. Base executable i qualitat  | Completada | Monorepo, Astro, Tailwind, validacions locals, hooks i CI de seguretat        | [PR #1](https://github.com/rboixaderg/mountain-runners/pull/1) |
 | 2. Infraestructura multiidioma | Completada | I18n natiu, prefixes, Paraglide i tests de routing                            | [PR #6](https://github.com/rboixaderg/mountain-runners/pull/6) |
-| 3. Nucli editorial segur       | En curs    | YAML restringit, primitives Zod, Markdown, URL, slugs i recursos              | [PR #8](https://github.com/rboixaderg/mountain-runners/pull/8) |
-| 4. Models i publicació         | Pendent    | Sis col·leccions, rutes editorials, publicació, fixtures i documentació final | -                                                              |
+| 3. Nucli editorial segur       | Completada | YAML restringit, primitives Zod, Markdown, URL, slugs i recursos              | [PR #8](https://github.com/rboixaderg/mountain-runners/pull/8) |
+| 4. Models i publicació         | En curs    | Sis col·leccions, rutes editorials, publicació, fixtures i documentació final | [PR #9](https://github.com/rboixaderg/mountain-runners/pull/9) |
 
 Els únics estats permesos són `Pendent`, `En curs`, `Bloquejada` i `Completada`.
 En començar una PR, s'actualitza la seva fila a `En curs` i s'hi afegeix
