@@ -1,0 +1,23 @@
+apps/web/src/lib/content/repository.ts
+  s_8801c1b9b15cc2::t_04672995b81972 1-56
+apps/web/src/lib/content/routes.ts
+  s_8801c1b9b15cc2::t_89f77e5d0bbc3c 1-24
+apps/web/src/test/content-publication.test.ts
+  s_8801c1b9b15cc2::t_7ba967d3364017 1-119
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.11",
+  "base_commit_sha": "d5ecaf93ebff116e840157670c7f2b32ac59b9a1",
+  "prompts": {},
+  "sessions": {
+    "s_8801c1b9b15cc2": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_0986e68ecffeu1sLohxhLR7P6J",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
