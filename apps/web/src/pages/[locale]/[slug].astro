@@ -1,7 +1,10 @@
 ---
 import "../../styles/global.css";
 import { renderRestrictedMarkdown } from "../../lib/content/markdown";
-import type { PublishedVariant } from "../../lib/content/publication";
+import {
+  getPublicResourcePath,
+  type PublishedVariant,
+} from "../../lib/content/publication";
 import { getPublicationCatalog } from "../../lib/content/repository";
 import { getAlternateVariants, getVariantPath } from "../../lib/content/routes";
 
@@ -25,6 +28,7 @@ const { variant, alternates } = Astro.props as {
   alternates: PublishedVariant[];
 };
 const { entry, locale } = variant;
+const catalog = await getPublicationCatalog();
 ---
 
 <!doctype html>
@@ -82,7 +86,22 @@ const { entry, locale } = variant;
               </ul>
             );
           }
-          return null;
+          return (
+            <ul class="mt-8">
+              {block.documentIds.map((id) => {
+                const document = catalog.documents.get(id)!;
+                const href =
+                  document.resource.kind === "local"
+                    ? getPublicResourcePath(document.resource.path)
+                    : document.resource.url;
+                return (
+                  <li>
+                    <a href={href}>{document.title[locale]}</a>
+                  </li>
+                );
+              })}
+            </ul>
+          );
         })
       }
     </main>

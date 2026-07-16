@@ -114,6 +114,14 @@ for (const tag of [
 if (catalanPage.includes('hreflang="en"')) {
   throw new Error("Incomplete English variant reached hreflang metadata.");
 }
+if (
+  !catalanPage.includes("Guia del club") ||
+  !catalanPage.includes(
+    'href="/content-resources/content-assets/documents/club-guide.pdf"',
+  )
+) {
+  throw new Error("Published document is not linked from its public page.");
+}
 
 const catalanEvent = await readFile(
   join(distPath, "ca/events/jornada-muntanya/index.html"),
