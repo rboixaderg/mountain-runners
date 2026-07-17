@@ -1,0 +1,27 @@
+.agents/skills/spec-authoring/SKILL.md
+  s_b612be24a6b94a::t_ef25210863f838 1-60
+docs/specs/README.md
+  s_b612be24a6b94a::t_7a2c6cd5ae69fc 1-71
+docs/specs/phase-1-foundation.md
+  s_b612be24a6b94a::t_add2d79223c9a8 18,41-48,414-420
+docs/specs/phase-2-public-vertical-slice.md
+  s_b612be24a6b94a::t_4b028501c8826c 18,66,104-152
+docs/specs/phase-3-content-coverage.md
+  s_b612be24a6b94a::t_830a32d97e6869 1-454
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.11",
+  "base_commit_sha": "06dddf0414f1b530e9dee69b0f6920e2ccc76f92",
+  "prompts": {},
+  "sessions": {
+    "s_b612be24a6b94a": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_0919802a7ffeLsa6Qe5E1tOSCj",
+        "model": "gpt-5.6-terra"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
