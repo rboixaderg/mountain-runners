@@ -2,10 +2,7 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import type { APIRoute } from "astro";
-import {
-  getPublishedLocalResources,
-  getPublicResourcePath,
-} from "../../lib/content/publication";
+import { getPublishedLocalResources } from "../../lib/content/publication";
 import { getPublicationCatalog } from "../../lib/content/repository";
 import { resolveLocalResourcePath } from "../../lib/content/resources";
 
@@ -22,10 +19,7 @@ export async function getStaticPaths() {
   const catalog = await getPublicationCatalog();
   return getPublishedLocalResources(catalog).map((sourcePath) => ({
     params: {
-      resource: getPublicResourcePath(sourcePath).replace(
-        "/content-resources/",
-        "",
-      ),
+      resource: sourcePath.replace(/^src\//u, ""),
     },
     props: { sourcePath },
   }));

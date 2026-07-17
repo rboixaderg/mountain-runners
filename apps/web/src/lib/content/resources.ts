@@ -73,6 +73,24 @@ export const safeResourceSchema = z.discriminatedUnion("kind", [
   externalResourceSchema,
 ]);
 
+export function collectLocalResourcePaths(
+  value: unknown,
+  paths = new Set<string>(),
+): Set<string> {
+  if (Array.isArray(value)) {
+    for (const item of value) collectLocalResourcePaths(item, paths);
+  } else if (value !== null && typeof value === "object") {
+    const record = value as Record<string, unknown>;
+    if (record.kind === "local" && typeof record.path === "string") {
+      paths.add(record.path);
+    }
+    for (const item of Object.values(record)) {
+      collectLocalResourcePaths(item, paths);
+    }
+  }
+  return paths;
+}
+
 export async function resolveLocalResourcePath(
   appDirectory: string,
   resourcePath: string,

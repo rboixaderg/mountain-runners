@@ -5,22 +5,10 @@ import {
   type ContentSource,
   type PublicationCatalog,
 } from "./publication";
-import { resolveLocalResourcePath } from "./resources";
-
-function collectLocalResourcePaths(value: unknown, paths = new Set<string>()) {
-  if (Array.isArray(value)) {
-    for (const item of value) collectLocalResourcePaths(item, paths);
-  } else if (value !== null && typeof value === "object") {
-    const record = value as Record<string, unknown>;
-    if (record.kind === "local" && typeof record.path === "string") {
-      paths.add(record.path);
-    }
-    for (const item of Object.values(record)) {
-      collectLocalResourcePaths(item, paths);
-    }
-  }
-  return paths;
-}
+import {
+  collectLocalResourcePaths,
+  resolveLocalResourcePath,
+} from "./resources";
 
 async function validateLocalResources(source: ContentSource): Promise<void> {
   const appDirectory = fileURLToPath(new URL("../../../", import.meta.url));
