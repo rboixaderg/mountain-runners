@@ -1,0 +1,21 @@
+docs/phase-2-editorial-inventory.md
+  s_06f48266a45619::t_c31b4999de1102 1-78
+docs/specs/phase-2-public-vertical-slice.md
+  s_06f48266a45619::t_e095e0b77078e0 80-88,164
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.11",
+  "base_commit_sha": "beb011d99986d8f62894ab82ada64cc7f5f4f009",
+  "prompts": {},
+  "sessions": {
+    "s_06f48266a45619": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_091557f91ffeqBJMGLbs0sP1wR",
+        "model": "gpt-5.6-terra"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
