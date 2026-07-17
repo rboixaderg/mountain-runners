@@ -9,14 +9,14 @@ const pages = [
 ];
 
 const expectedEditorialRoutes = [
-  "ca/schools/escola-trail/index.html",
-  "ca/events/jornada-muntanya/index.html",
+  "ca/escoles/escola-trail/index.html",
+  "ca/esdeveniments/jornada-muntanya/index.html",
 ];
 
 const unpublishedEditorialRoutes = [
-  "es/schools/escola-trail/index.html",
+  "es/escuelas/escola-trail/index.html",
   "en/schools/escola-trail/index.html",
-  "es/events/jornada-muntanya/index.html",
+  "es/eventos/jornada-muntanya/index.html",
   "en/events/jornada-muntanya/index.html",
 ];
 
@@ -84,8 +84,9 @@ if (unexpectedRoutes.length > 0) {
 
 for (const route of expectedEditorialRoutes) {
   const output = await readFile(join(distPath, route), "utf8");
-  if (!output.includes('<link rel="canonical"')) {
-    throw new Error(`Editorial route is missing canonical metadata: ${route}`);
+  const canonical = `https://mountainrunners.cat/${route.replace("index.html", "")}`;
+  if (!output.includes(`<link rel="canonical" href="${canonical}"`)) {
+    throw new Error(`Editorial route has an invalid canonical URL: ${route}`);
   }
 }
 
@@ -96,11 +97,41 @@ for (const route of unpublishedEditorialRoutes) {
 }
 
 const catalanEvent = await readFile(
-  join(distPath, "ca/events/jornada-muntanya/index.html"),
+  join(distPath, "ca/esdeveniments/jornada-muntanya/index.html"),
   "utf8",
 );
 if (!catalanEvent.includes(">Actiu<") || catalanEvent.includes(">Active<")) {
   throw new Error("The Catalan event status must use its Paraglide message.");
+}
+
+for (const legacyRoute of [
+  "ca/schools/escola-trail/index.html",
+  "ca/events/jornada-muntanya/index.html",
+]) {
+  if (outputRoutes.includes(legacyRoute)) {
+    throw new Error(
+      `Legacy non-localized route reached the build output: ${legacyRoute}`,
+    );
+  }
+}
+
+const sitemap = await readFile(join(distPath, "sitemap.xml"), "utf8");
+for (const route of [
+  "https://mountainrunners.cat/ca/",
+  "https://mountainrunners.cat/ca/escoles/escola-trail/",
+  "https://mountainrunners.cat/ca/esdeveniments/jornada-muntanya/",
+]) {
+  if (!sitemap.includes(`<loc>${route}</loc>`)) {
+    throw new Error(`Sitemap is missing published route: ${route}`);
+  }
+}
+if (sitemap.includes("https://mountainrunners.cat/es/")) {
+  throw new Error("Sitemap includes an incomplete localized variant.");
+}
+
+const robots = await readFile(join(distPath, "robots.txt"), "utf8");
+if (!robots.includes("Sitemap: https://mountainrunners.cat/sitemap.xml")) {
+  throw new Error("Robots output does not declare the canonical sitemap URL.");
 }
 if (
   catalanEvent.includes('hreflang="es"') ||

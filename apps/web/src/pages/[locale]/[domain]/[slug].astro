@@ -1,0 +1,115 @@
+---
+import "../../../styles/global.css";
+import * as m from "../../../paraglide/messages.js";
+import { renderRestrictedMarkdown } from "../../../lib/content/markdown";
+import type { PublishedVariant } from "../../../lib/content/publication";
+import { getPublicationCatalog } from "../../../lib/content/repository";
+import {
+  getAlternateUrls,
+  getCanonicalUrl,
+  getRouteDomain,
+} from "../../../lib/content/routes";
+
+export async function getStaticPaths() {
+  const catalog = await getPublicationCatalog();
+  return catalog.variants.map((variant) => ({
+    params: {
+      locale: variant.locale,
+      domain: getRouteDomain(variant.kind, variant.locale),
+      slug: variant.slug,
+    },
+    props: {
+      variant,
+      alternates: getAlternateUrls(catalog, variant),
+    },
+  }));
+}
+
+const { variant, alternates } = Astro.props as {
+  variant: PublishedVariant;
+  alternates: { locale: string; href: string }[];
+};
+const { locale } = variant;
+---
+
+<!doctype html>
+<html lang={locale}>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width" />
+    <meta
+      name="description"
+      content={variant.kind === "event"
+        ? variant.entry.description[locale]
+        : variant.entry.summary[locale]}
+    />
+    <link rel="canonical" href={getCanonicalUrl(variant)} />
+    {
+      alternates.map((alternate) => (
+        <link
+          rel="alternate"
+          hreflang={alternate.locale}
+          href={alternate.href}
+        />
+      ))
+    }
+    <title>
+      {
+        variant.kind === "event"
+          ? variant.entry.title[locale]
+          : variant.entry.name[locale]
+      }
+    </title>
+  </head>
+  <body>
+    <main class="mx-auto max-w-3xl px-6 py-20">
+      {
+        variant.kind === "event" ? (
+          <>
+            <p>
+              {variant.entry.active
+                ? m.event_status_active({}, { locale })
+                : m.event_status_historical({}, { locale })}
+            </p>
+            <h1 class="text-5xl font-black tracking-tight">
+              {variant.entry.title[locale]}
+            </h1>
+            <section
+              class="mt-8"
+              set:html={renderRestrictedMarkdown(
+                variant.entry.description[locale]!,
+              )}
+            />
+            <ol class="mt-8">
+              {variant.entry.editions.map((edition) => (
+                <li>
+                  <time datetime={edition.startDate}>{edition.startDate}</time>
+                  {` · ${edition.location[locale]}`}
+                </li>
+              ))}
+            </ol>
+          </>
+        ) : (
+          <>
+            <h1 class="text-5xl font-black tracking-tight">
+              {variant.entry.name[locale]}
+            </h1>
+            <p class="mt-6 text-lg">{variant.entry.summary[locale]}</p>
+            <section
+              class="mt-8"
+              set:html={renderRestrictedMarkdown(
+                variant.entry.description[locale]!,
+              )}
+            />
+            {Object.values(variant.entry.sections).map((section) => (
+              <section
+                class="mt-8"
+                set:html={renderRestrictedMarkdown(section[locale]!)}
+              />
+            ))}
+          </>
+        )
+      }
+    </main>
+  </body>
+</html>

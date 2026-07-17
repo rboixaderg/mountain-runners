@@ -79,10 +79,14 @@ una traducció completa. `active` no altera la visibilitat editorial d'un
 esdeveniment. Els camps opcionals sense traducció s'ometen i no fan fallback al
 català.
 
-Les rutes mínimes de la base són `/{locale}/schools/{slug}/` i
-`/{locale}/events/{slug}/`. Les variants canòniques i `hreflang` només inclouen
-idiomes realment publicats. Les plantilles visuals definitives i els hubs de
-domini corresponen a les fases posteriors.
+El codi centralitza els dominis editorials localitzats: escoles són
+`/{locale}/escoles/{slug}/`, `/{locale}/escuelas/{slug}/` o
+`/{locale}/schools/{slug}/`; els esdeveniments són
+`/{locale}/esdeveniments/{slug}/`, `/{locale}/eventos/{slug}/` o
+`/{locale}/events/{slug}/`. Els segments reservats, tècnics i les col·lisions de
+domini es rebutgen abans de generar rutes. Les variants canòniques, `hreflang` i
+el sitemap només inclouen idiomes realment publicats i utilitzen l'origen públic
+fixat `https://mountainrunners.cat`.
 
 El build verifica tant les rutes esperades com l'absència de marcadors i recursos
 exclusius d'entrades despublicades a `dist/`.
