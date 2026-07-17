@@ -1,0 +1,41 @@
+{
+  "reviewedAt": "2026-07-17",
+  "skills": {
+    "typescript-advanced-types": {
+      "source": "https://github.com/wshobson/agents",
+      "commit": "87b81e9d642d7bb9602b33d1e2dadf1c2a619f2b",
+      "sourceSkillPath": "plugins/javascript-typescript/skills/typescript-advanced-types",
+      "license": "MIT",
+      "sourceLicensePath": "LICENSE",
+      "skillSha256": "c142f64de35a7c7518e62d4a5c5b18800bbe4391be14ba45a5d049adfcf01c57",
+      "licenseSha256": "f89abb55d9f073f38f1703e4518f0613c788c6174be7f13b8dfe48a1c076c746"
+    },
+    "vitest": {
+      "source": "https://github.com/antfu/skills",
+      "commit": "c35a5588a5158b5b404a14fb10469b2b6dc1952b",
+      "sourceSkillPath": "skills/vitest",
+      "license": "MIT",
+      "sourceLicensePath": "LICENSE.md",
+      "skillSha256": "87c8cf025987d1f1a0e9c0fd0b8605946a0ebd5478676471ce296d8f0adc0f07",
+      "licenseSha256": "2a596f697b619094b6f4067936e0f385027a393bce32211383db0478774c1cb2"
+    },
+    "accessibility": {
+      "source": "https://github.com/addyosmani/web-quality-skills",
+      "commit": "fed9617111260e19f4f54b72a2874a3f3de8ff94",
+      "sourceSkillPath": "skills/accessibility",
+      "license": "MIT",
+      "sourceLicensePath": "LICENSE",
+      "skillSha256": "65021e9ccab70165539db82070257d4e2e2c7d7b0f857825299da2e4a7a8704c",
+      "licenseSha256": "c122223ac43e86421958e18623979942c21b642951e2e3736dcb63eff13587c3"
+    },
+    "seo": {
+      "source": "https://github.com/addyosmani/web-quality-skills",
+      "commit": "fed9617111260e19f4f54b72a2874a3f3de8ff94",
+      "sourceSkillPath": "skills/seo",
+      "license": "MIT",
+      "sourceLicensePath": "LICENSE",
+      "skillSha256": "f3e546112a3168515486c533d13156a1d4dcd9402f3d116730cef573a20e2804",
+      "licenseSha256": "c122223ac43e86421958e18623979942c21b642951e2e3736dcb63eff13587c3"
+    }
+  }
+}

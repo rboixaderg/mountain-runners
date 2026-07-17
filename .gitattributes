@@ -1,0 +1,2 @@
+# Vendored skills retain their upstream formatting to preserve verified hashes.
+.agents/skills/** -whitespace

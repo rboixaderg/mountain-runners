@@ -26,6 +26,18 @@ No pot fusionar pull requests, publicar contingut, desplegar serveis, accedir a
 camins del sistema de fitxers no relacionats ni rebre accés de shell o de
 producció sense restriccions.
 
+## Agent De Desenvolupament
+
+El projecte inclou l'agent principal `development` a
+`.opencode/agent/development.md`. Pot delegar exploració, recerca, comprovacions
+independents i revisions de seguretat a subagents per mantenir el context
+principal acotat. L'agent principal conserva la responsabilitat de l'abast, les
+decisions, la integració i la validació final.
+
+La delegació no autoritza canvis de frontera: cap subagent no publica, desplega,
+fusiona, gestiona secrets ni pren decisions finals. Les normes d'`AGENTS.md`,
+els ADR i el flux de branques, worktrees i pull requests continuen prevalent.
+
 ## Traçabilitat
 
 Cada canvi editorial ha de ser revisable com a diff de Git i atribuïble a una
