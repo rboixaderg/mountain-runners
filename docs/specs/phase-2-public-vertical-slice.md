@@ -26,6 +26,8 @@ anterior a una configuració YAML global del lloc.
 ## Resultats Esperats
 
 - Shell global responsive amb capçalera, navegació mòbil, peu i pàgina 404.
+- Segments de ruta canònics per idioma, definits en codi i coberts per proves de
+  generació, col·lisions i variants publicades.
 - Fonaments visuals reutilitzables coherents amb `DESIGN.md`.
 - Portada en català basada de manera adaptable en la referència aprovada de
   Stitch.
@@ -79,6 +81,7 @@ Una PR pot agrupar unitats adjacents només quan:
 | -------------------------------------------- | ------- | ------------------------------------------------------- | --------------------------------------------- | --- |
 | Referències visuals i inventari editorial    | Pendent | Cap dependència de codi                                 | Dissenys i contingut candidats revisats       | -   |
 | Skills externes portables                    | Pendent | Fase 1 fusionada                                        | Conjunt pertinent, segur i reproduïble        | -   |
+| Contracte de rutes localitzades              | Pendent | Fase 1 fusionada                                        | Segments canònics, URLs i variants validades  | -   |
 | Fonaments visuals i shell global             | Pendent | Fase 1 i referències aplicables                         | Shell responsive i accessible                 | -   |
 | Portada content-driven                       | Pendent | Shell i contingut aprovat                               | Inici real generat des de col·leccions        | -   |
 | Hub i detall d'esdeveniments                 | Pendent | Shell, dissenys i contingut d'esdeveniments aprovats    | Recorregut complet amb estats reals           | -   |
@@ -173,6 +176,19 @@ un únic ús. No s'afegeix React, Vue ni cap altre runtime de components.
 
 ## Shell Global I Navegació
 
+Abans d'implementar el shell, la fase defineix en codi els segments de ruta
+canònics per cada idioma i domini editorial. Els segments no formen part del
+YAML: són estructura estable segons l'ADR 0004. La configuració ha de permetre,
+per exemple, `/ca/esdeveniments/{slug}/`,
+`/es/eventos/{slug}/` i `/en/events/{slug}/`, i ha de:
+
+- generar únicament URLs corresponents a variants publicades i completes;
+- rebutjar col·lisions amb rutes fixes, tècniques o altres dominis editorials;
+- alimentar de manera centralitzada els enllaços de navegació, canonical,
+  `hreflang` i sitemap;
+- cobrir amb proves les rutes generades per cada idioma, inclosos els segments
+  d'escoles que es faran servir a la fase 3.
+
 El shell inclou:
 
 - `lang` coherent amb la locale de la ruta;
@@ -203,8 +219,8 @@ document 404 generat i els seus enllaços.
 
 - Derivar les alternatives de les variants publicades i completes de l'entrada
   actual.
-- Enllaçar a l'slug traduït corresponent, no a la mateixa ruta sota un altre
-  prefix.
+- Enllaçar a la variant de ruta completa traduïda, incloent-hi el segment de
+  domini i l'slug, no a la mateixa ruta sota un altre prefix.
 - No oferir locales configurades que no tinguin una variant publicable.
 - Amagar completament el selector quan només existeixi la variant actual.
 - No mostrar castellà o anglès com a opcions desactivades o `Properament`.
@@ -655,23 +671,26 @@ La fase es considera completada quan:
    `Sense pròxima data anunciada` i no com a passat.
 10. El selector d'idioma només deriva variants completes publicades i queda
     amagat a les pàgines reals només disponibles en català.
-11. Canonical, Open Graph, `hreflang`, sitemap, robots i JSON-LD es generen només
+11. Els segments de ruta canònics per idioma no col·lideixen amb rutes fixes o
+    tècniques, i la navegació i les variants publicades els utilitzen de manera
+    coherent.
+12. Canonical, Open Graph, `hreflang`, sitemap, robots i JSON-LD es generen només
     amb URL i dades públiques vàlides.
-12. Els recursos tenen procedència i llicència revisades, les atribucions
+13. Els recursos tenen procedència i llicència revisades, les atribucions
     necessàries són visibles i no hi ha hotlinking editorial.
-13. Les skills incorporades tenen origen, revisió, hash i llicència documentats,
+14. Les skills incorporades tenen origen, revisió, hash i llicència documentats,
     i han superat la revisió de seguretat i compatibilitat.
-14. El wrapper local documenta ordres, rutes, llindars, evidències i precedència
+15. El wrapper local documenta ordres, rutes, llindars, evidències i precedència
     de les normes del projecte.
-15. Playwright passa en Chromium, Firefox i WebKit per a mòbil i escriptori.
-16. Les rutes representatives no tenen errors axe detectables i Lighthouse obté
+16. Playwright passa en Chromium, Firefox i WebKit per a mòbil i escriptori.
+17. Les rutes representatives no tenen errors axe detectables i Lighthouse obté
     100 en Accessibility, sense presentar-ho com una auditoria manual completa.
-17. Lighthouse mòbil obté com a mínim 90 en Performance i 100 en Best Practices
+18. Lighthouse mòbil obté com a mínim 90 en Performance i 100 en Best Practices
     i SEO, i es compleixen els pressupostos definits.
-18. `pnpm validate` i `pnpm build` passen localment i a CI des d'una instal·lació
+19. `pnpm validate` i `pnpm build` passen localment i a CI des d'una instal·lació
     neta amb les versions fixades.
-19. No s'han introduït secrets, serveis de servidor, analítica, scripts de
+20. No s'han introduït secrets, serveis de servidor, analítica, scripts de
     tercers ni contingut despublicat a la sortida pública.
-20. `README.md`, `docs/architecture.md`, `docs/content-model.md`, el roadmap i
+21. `README.md`, `docs/architecture.md`, `docs/content-model.md`, el roadmap i
     aquesta especificació descriuen fidelment l'estat implementat en tancar la
     fase.

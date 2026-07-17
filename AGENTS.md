@@ -19,7 +19,8 @@
 - Update the relevant documentation when a technical decision, boundary or
   workflow changes.
 - Use English for code, commit messages, `AGENTS.md` and `DESIGN.md`. Use
-  Catalan for project documentation and user-facing content.
+  Catalan for project documentation, user-facing content and pull-request
+  descriptions.
 
 ## Security
 
