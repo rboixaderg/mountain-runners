@@ -126,6 +126,8 @@ amb el recorregut més representatiu de la web.
 
 - Implementar layout global, capçalera, peu, navegació mòbil, pàgina 404,
   metadades i fonaments d'accessibilitat.
+- Definir i aplicar segments de ruta canònics per idioma abans de construir la
+  navegació, el hub d'esdeveniments i les metadades públiques.
 - Detectar les skills aplicables a l'stack, revisar-ne pertinència, seguretat i
   llicència, i versionar només les aprovades a `.agents/skills/` amb procedència
   reproduïble.

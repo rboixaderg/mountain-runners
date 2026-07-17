@@ -47,6 +47,34 @@ Cada entrada ha d'indicar:
 
 ## Necessitats Obertes
 
+### Segments De Ruta Localitzats
+
+**Estat:** Incorporada a la fase 2.
+
+**Problema:** actualment els slugs editorials es poden traduir, però els segments
+de domini de les URLs són fixos en anglès, com `/ca/schools/{slug}/` i
+`/ca/events/{slug}/`. Això produeix URLs parcialment localitzades.
+
+**Resultat esperat:** definir en codi els segments canònics per idioma i tipus de
+contingut, de manera que les rutes puguin ser, per exemple,
+`/ca/escoles/{slug}/`, `/es/escuelas/{slug}/` i
+`/en/schools/{slug}/`, mantenint els slugs editorials traduïbles.
+
+**Abans de planificar-ho cal definir:**
+
+- els segments canònics de cada domini i idioma, incloent-hi reserves i
+  col·lisions amb rutes tècniques o fixes;
+- la configuració tipada en codi que els representi, d'acord amb l'ADR 0004;
+- l'adaptació de les rutes estàtiques d'Astro, generació de URLs canòniques i
+  `hreflang`;
+- les proves de rutes, variants publicades i absència de col·lisions;
+- la política de redireccions si alguna URL ja publicada canvia.
+
+**Dependències:** decisió sobre els noms canònics i una fase que modifiqui la
+superfície pública de rutes.
+
+**Seguiment:** [especificació de la fase 2](specs/phase-2-public-vertical-slice.md).
+
 ### Analítica Web Respectuosa Amb La Privacitat
 
 **Estat:** Capturada.
