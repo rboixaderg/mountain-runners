@@ -9,3 +9,6 @@ apps/web/project.inlang/cache/
 # Preserve established formatting in project and OpenCode configuration files.
 docs/roadmap.md
 opencode.json
+
+# Preserve the verified upstream formatting of vendored portable skills.
+.agents/skills/
