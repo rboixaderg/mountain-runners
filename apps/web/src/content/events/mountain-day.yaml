@@ -1,0 +1,33 @@
+id: mountain-day
+published: true
+slug:
+  ca: jornada-muntanya
+active: true
+title:
+  ca: Jornada de muntanya
+description:
+  ca: Una trobada oberta per compartir esport i territori.
+clubRelationship: organizes
+cover:
+  resource:
+    kind: external
+    url: https://images.example.org/mountain-day.webp
+  alt:
+    ca: Corredors avançant per un camí de muntanya
+gallery: []
+videoUrls: []
+registrationUrl:
+  ca: https://example.org/inscripcions/jornada-muntanya
+organizerIds:
+  - mountain-runners
+collaboratorIds: []
+editions:
+  - id: edition-2027
+    startDate: 2027-05-16
+    location:
+      ca: Berga
+    modalities:
+      - ca: Cursa popular
+    registrationStatus: coming-soon
+    documentIds:
+      - club-guide

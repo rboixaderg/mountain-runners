@@ -1,0 +1,78 @@
+---
+import "../../../styles/global.css";
+import * as m from "../../../paraglide/messages.js";
+import { renderRestrictedMarkdown } from "../../../lib/content/markdown";
+import type { PublishedVariant } from "../../../lib/content/publication";
+import { getPublicationCatalog } from "../../../lib/content/repository";
+import {
+  getAlternateVariants,
+  getVariantPath,
+} from "../../../lib/content/routes";
+
+type EventVariant = Extract<PublishedVariant, { kind: "event" }>;
+
+export async function getStaticPaths() {
+  const catalog = await getPublicationCatalog();
+  return catalog.variants
+    .filter((variant): variant is EventVariant => variant.kind === "event")
+    .map((variant) => ({
+      params: { locale: variant.locale, slug: variant.slug },
+      props: {
+        variant,
+        alternates: getAlternateVariants(catalog, variant),
+      },
+    }));
+}
+
+const { variant, alternates } = Astro.props as {
+  variant: EventVariant;
+  alternates: PublishedVariant[];
+};
+const { entry, locale } = variant;
+---
+
+<!doctype html>
+<html lang={locale}>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width" />
+    <meta name="description" content={entry.description[locale]} />
+    <link rel="canonical" href={getVariantPath(variant)} />
+    {
+      alternates.map((alternate) => (
+        <link
+          rel="alternate"
+          hreflang={alternate.locale}
+          href={getVariantPath(alternate)}
+        />
+      ))
+    }
+    <title>{entry.title[locale]}</title>
+  </head>
+  <body>
+    <main class="mx-auto max-w-3xl px-6 py-20">
+      <p>
+        {
+          entry.active
+            ? m.event_status_active({}, { locale })
+            : m.event_status_historical({}, { locale })
+        }
+      </p>
+      <h1 class="text-5xl font-black tracking-tight">{entry.title[locale]}</h1>
+      <section
+        class="mt-8"
+        set:html={renderRestrictedMarkdown(entry.description[locale]!)}
+      />
+      <ol class="mt-8">
+        {
+          entry.editions.map((edition) => (
+            <li>
+              <time datetime={edition.startDate}>{edition.startDate}</time>
+              {` · ${edition.location[locale]}`}
+            </li>
+          ))
+        }
+      </ol>
+    </main>
+  </body>
+</html>

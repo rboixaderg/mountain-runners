@@ -1,0 +1,11 @@
+id: invalid-document
+published: true
+title:
+  ca: Document invàlid
+description:
+  ca: Fixture amb un estat de disponibilitat invàlid.
+resource:
+  kind: external
+  url: https://example.org/invalid-document.pdf
+documentType: guide
+availability: hidden

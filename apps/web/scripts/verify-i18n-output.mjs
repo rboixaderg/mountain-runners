@@ -8,6 +8,28 @@ const pages = [
   ["en", "Website foundation under construction"],
 ];
 
+const expectedEditorialRoutes = [
+  "ca/schools/escola-trail/index.html",
+  "ca/events/jornada-muntanya/index.html",
+];
+
+const unpublishedEditorialRoutes = [
+  "es/schools/escola-trail/index.html",
+  "en/schools/escola-trail/index.html",
+  "es/events/jornada-muntanya/index.html",
+  "en/events/jornada-muntanya/index.html",
+];
+
+const forbiddenOutputMarkers = [
+  "DRAFT_ONLY_CONTENT_MARKER",
+  "DRAFT_ONLY_ASSET_MARKER",
+  "private-draft.pdf",
+  "internal-draft",
+];
+
+const expectedPublishedResource =
+  "content-resources/content-assets/documents/club-guide.pdf";
+
 const distDirectory = new URL("../dist/", import.meta.url);
 const root = await readFile(new URL("index.html", distDirectory), "utf8");
 
@@ -47,16 +69,67 @@ async function listHtmlFiles(directory) {
 
 const distPath = fileURLToPath(distDirectory);
 const htmlFiles = await listHtmlFiles(distPath);
-const unexpectedRoutes = htmlFiles
-  .map((path) => relative(distPath, path))
-  .filter(
-    (path) =>
-      path !== "index.html" &&
-      !pages.some(([locale]) => path.startsWith(`${locale}/`)),
-  );
+const outputRoutes = htmlFiles.map((path) => relative(distPath, path));
+const unexpectedRoutes = outputRoutes.filter(
+  (path) =>
+    path !== "index.html" &&
+    !pages.some(([locale]) => path.startsWith(`${locale}/`)),
+);
 
 if (unexpectedRoutes.length > 0) {
   throw new Error(
     `Public HTML routes must use a locale prefix: ${unexpectedRoutes.join(", ")}`,
   );
+}
+
+for (const route of expectedEditorialRoutes) {
+  const output = await readFile(join(distPath, route), "utf8");
+  if (!output.includes('<link rel="canonical"')) {
+    throw new Error(`Editorial route is missing canonical metadata: ${route}`);
+  }
+}
+
+for (const route of unpublishedEditorialRoutes) {
+  if (outputRoutes.includes(route)) {
+    throw new Error(`Incomplete variant reached the build output: ${route}`);
+  }
+}
+
+const catalanEvent = await readFile(
+  join(distPath, "ca/events/jornada-muntanya/index.html"),
+  "utf8",
+);
+if (!catalanEvent.includes(">Actiu<") || catalanEvent.includes(">Active<")) {
+  throw new Error("The Catalan event status must use its Paraglide message.");
+}
+if (
+  catalanEvent.includes('hreflang="es"') ||
+  catalanEvent.includes('hreflang="en"')
+) {
+  throw new Error("Incomplete event variants reached hreflang metadata.");
+}
+
+await readFile(join(distPath, expectedPublishedResource));
+
+async function listFiles(directory) {
+  const files = [];
+  const entries = await readdir(directory, { withFileTypes: true });
+  for (const entry of entries) {
+    const path = join(directory, entry.name);
+    if (entry.isDirectory()) files.push(...(await listFiles(path)));
+    else files.push(path);
+  }
+  return files;
+}
+
+for (const file of await listFiles(distPath)) {
+  const content = await readFile(file);
+  const searchable = `${relative(distPath, file)}\n${content.toString("utf8")}`;
+  for (const marker of forbiddenOutputMarkers) {
+    if (searchable.includes(marker)) {
+      throw new Error(
+        `Unpublished content reached the build output: ${marker}`,
+      );
+    }
+  }
 }

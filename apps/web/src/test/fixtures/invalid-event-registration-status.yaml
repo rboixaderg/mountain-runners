@@ -1,0 +1,30 @@
+id: invalid-event
+published: true
+slug:
+  ca: esdeveniment-invalid
+active: true
+title:
+  ca: Esdeveniment invàlid
+description:
+  ca: Fixture amb un estat d'inscripció invàlid.
+clubRelationship: organizes
+cover:
+  resource:
+    kind: external
+    url: https://images.example.org/invalid-event.webp
+  alt:
+    ca: Imatge de prova
+gallery: []
+videoUrls: []
+organizerIds:
+  - mountain-runners
+collaboratorIds: []
+editions:
+  - id: invalid-edition
+    startDate: 2027-05-16
+    location:
+      ca: Berga
+    modalities:
+      - ca: Modalitat de prova
+    registrationStatus: pending
+    documentIds: []

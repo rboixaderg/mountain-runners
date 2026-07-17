@@ -1,0 +1,15 @@
+id: club-guide
+published: true
+title:
+  ca: Guia del club
+  es: Guía del club
+description:
+  ca: Informació pràctica de l'associació.
+  es: Información práctica de la asociación.
+resource:
+  kind: local
+  path: src/content-assets/documents/club-guide.pdf
+documentType: guide
+date: 2026-07-15
+resourceLocale: ca
+availability: available

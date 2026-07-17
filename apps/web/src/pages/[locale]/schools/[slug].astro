@@ -1,0 +1,69 @@
+---
+import "../../../styles/global.css";
+import { renderRestrictedMarkdown } from "../../../lib/content/markdown";
+import type { PublishedVariant } from "../../../lib/content/publication";
+import { getPublicationCatalog } from "../../../lib/content/repository";
+import {
+  getAlternateVariants,
+  getVariantPath,
+} from "../../../lib/content/routes";
+
+type SchoolVariant = Extract<PublishedVariant, { kind: "school" }>;
+
+export async function getStaticPaths() {
+  const catalog = await getPublicationCatalog();
+  return catalog.variants
+    .filter((variant): variant is SchoolVariant => variant.kind === "school")
+    .map((variant) => ({
+      params: { locale: variant.locale, slug: variant.slug },
+      props: {
+        variant,
+        alternates: getAlternateVariants(catalog, variant),
+      },
+    }));
+}
+
+const { variant, alternates } = Astro.props as {
+  variant: SchoolVariant;
+  alternates: PublishedVariant[];
+};
+const { entry, locale } = variant;
+---
+
+<!doctype html>
+<html lang={locale}>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width" />
+    <meta name="description" content={entry.summary[locale]} />
+    <link rel="canonical" href={getVariantPath(variant)} />
+    {
+      alternates.map((alternate) => (
+        <link
+          rel="alternate"
+          hreflang={alternate.locale}
+          href={getVariantPath(alternate)}
+        />
+      ))
+    }
+    <title>{entry.name[locale]}</title>
+  </head>
+  <body>
+    <main class="mx-auto max-w-3xl px-6 py-20">
+      <h1 class="text-5xl font-black tracking-tight">{entry.name[locale]}</h1>
+      <p class="mt-6 text-lg">{entry.summary[locale]}</p>
+      <section
+        class="mt-8"
+        set:html={renderRestrictedMarkdown(entry.description[locale]!)}
+      />
+      {
+        Object.values(entry.sections).map((section) => (
+          <section
+            class="mt-8"
+            set:html={renderRestrictedMarkdown(section[locale]!)}
+          />
+        ))
+      }
+    </main>
+  </body>
+</html>

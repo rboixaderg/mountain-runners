@@ -2,7 +2,8 @@
 
 ## Estat
 
-Preparada per convertir-se en issues i implementar-se.
+En implementació. Les tres primeres entregues estan completades i la quarta es
+troba en revisió.
 
 ## Objectiu
 
@@ -27,7 +28,7 @@ s'implementen `site`, `pages` ni un constructor genèric de blocs en aquesta fas
 - Monorepo pnpm reproduïble amb l'aplicació Astro a `apps/web`.
 - Web estàtica mínima que compila sense errors i no necessita secrets.
 - Content Collections tipades i validades amb Zod.
-- Models base per al lloc, pàgines, escoles, esdeveniments, entitats i documents.
+- Models base per a escoles, esdeveniments, entitats i documents.
 - Routing i18n natiu d'Astro amb prefix obligatori per a tots els idiomes.
 - Paraglide JS 2 per als missatges d'interfície tipats.
 - Contingut editorial en YAML restringit, amb català obligatori i castellà i
@@ -49,12 +50,12 @@ seguiment d'aquesta fase i afegir o concretar tasques sense interferir amb la
 implementació en curs. Aquesta separació no autoritza push directes a la branca
 principal ni evita la revisió i les comprovacions obligatòries.
 
-| PR                             | Estat      | Resultat                                                                      | Enllaç                                                         |
-| ------------------------------ | ---------- | ----------------------------------------------------------------------------- | -------------------------------------------------------------- |
-| 1. Base executable i qualitat  | Completada | Monorepo, Astro, Tailwind, validacions locals, hooks i CI de seguretat        | [PR #1](https://github.com/rboixaderg/mountain-runners/pull/1) |
-| 2. Infraestructura multiidioma | Completada | I18n natiu, prefixes, Paraglide i tests de routing                            | [PR #6](https://github.com/rboixaderg/mountain-runners/pull/6) |
-| 3. Nucli editorial segur       | En curs    | YAML restringit, primitives Zod, Markdown, URL, slugs i recursos              | [PR #8](https://github.com/rboixaderg/mountain-runners/pull/8) |
-| 4. Models i publicació         | Pendent    | Sis col·leccions, rutes editorials, publicació, fixtures i documentació final | -                                                              |
+| PR                             | Estat      | Resultat                                                                         | Enllaç                                                         |
+| ------------------------------ | ---------- | -------------------------------------------------------------------------------- | -------------------------------------------------------------- |
+| 1. Base executable i qualitat  | Completada | Monorepo, Astro, Tailwind, validacions locals, hooks i CI de seguretat           | [PR #1](https://github.com/rboixaderg/mountain-runners/pull/1) |
+| 2. Infraestructura multiidioma | Completada | I18n natiu, prefixes, Paraglide i tests de routing                               | [PR #6](https://github.com/rboixaderg/mountain-runners/pull/6) |
+| 3. Nucli editorial segur       | Completada | YAML restringit, primitives Zod, Markdown, URL, slugs i recursos                 | [PR #8](https://github.com/rboixaderg/mountain-runners/pull/8) |
+| 4. Models i publicació         | En curs    | Quatre col·leccions, rutes editorials, publicació, fixtures i documentació final | [PR #9](https://github.com/rboixaderg/mountain-runners/pull/9) |
 
 Els únics estats permesos són `Pendent`, `En curs`, `Bloquejada` i `Completada`.
 En començar una PR, s'actualitza la seva fila a `En curs` i s'hi afegeix
@@ -111,15 +112,15 @@ renderitzen els missatges correctes i la locale de la URL governa Paraglide.
   traduïble i la seguretat d'un recurs.
 - Cobrir els contractes i casos de seguretat amb Vitest.
 
-**Límit:** no registra les sis col·leccions, no resol referències entre models i
-no decideix si una pàgina editorial concreta es publica.
+**Límit:** no registra les quatre col·leccions, no resol referències entre models
+i no decideix si una entrada editorial concreta es publica.
 
 **Resultat verificable:** les primitives accepten casos vàlids i rebutgen YAML,
 Markdown, slugs, URL, recursos i traduccions insegurs o incomplets.
 
 ### PR 4: Models I Publicació
 
-- Implementar `site`, `pages`, `schools`, `events`, `entities` i `documents`.
+- Implementar `schools`, `events`, `entities` i `documents`.
 - Implementar edicions embegudes, referències i filtratge `published`.
 - Aplicar la completesa de traduccions de manera transitiva a blocs i referències.
 - Generar les rutes editorials localitzades a partir de les col·leccions.
@@ -131,9 +132,10 @@ Markdown, slugs, URL, recursos i traduccions insegurs o incomplets.
 **Límit:** no implementa les plantilles visuals finals ni migra contingut de la
 web actual.
 
-**Resultat verificable:** les sis col·leccions generen només variants publicades
-i traduïdes completament, amb referències vàlides i sense exposar esborranys ni
-recursos exclusius.
+**Resultat verificable:** les quatre col·leccions publiquen només dades vàlides;
+les variants de rutes d'escoles i esdeveniments són publicades i traduïdes
+completament, amb referències vàlides i sense exposar esborranys ni recursos
+exclusius.
 
 ## Estructura Del Repositori
 
@@ -288,31 +290,10 @@ title:
 
 ## Models Base
 
-Els noms finals dels helpers TypeScript poden variar, però els contractes
-següents han de quedar representats i validats.
-
-### Configuració Del Lloc
-
-- Identitat i nom públic del club.
-- Idioma per defecte i idiomes coneguts.
-- Navegació principal plana.
-- Dades de contacte, seu i horaris.
-- Xarxes socials, enllaços legals i configuració del peu.
-- Enllaços de formularis o serveis externs que puguin variar per idioma.
-
-La configuració ha de tenir una única entrada autoritativa.
-
-### Pàgines
-
-- Identificador i slug estables.
-- Estat `published`.
-- Títol, resum i metadades SEO traduïbles.
-- Blocs editorials ordenats i validats.
-- Conjunt inicial i acotat de blocs: text enriquit, imatge, galeria, enllaços i
-  referències a documents.
-
-Els llistats de domini, com esdeveniments o escoles, s'han de generar des de les
-seves col·leccions i no duplicar-se manualment dins dels blocs de pàgina.
+Els noms finals dels helpers TypeScript poden variar, però els contractes de les
+quatre col·leccions següents han de quedar representats i validats. La
+configuració estable del lloc i les pàgines fixes formen part del codi segons
+l'ADR 0004, i no es modelen en YAML en aquesta fase.
 
 ### Escoles
 
@@ -553,7 +534,7 @@ La fase es considera completada quan:
    i `pnpm build` correctament.
 2. La CI executa les mateixes validacions i bloqueja una pull request amb format,
    lint, tests, tipus, contingut, build, commits o secrets invàlids.
-3. Les sis col·leccions base estan registrades, tipades, documentades i tenen
+3. Les quatre col·leccions base estan registrades, tipades, documentades i tenen
    mostres mínimes vàlides.
 4. Totes les rutes HTML utilitzen prefix d'idioma, `/` redirigeix a `/ca/` i
    només es generen variants amb traducció completa.
