@@ -23,41 +23,50 @@ portada és:
 Projecte Stitch: `6497516597197145737`. Sistema visual aplicable:
 `assets/15875972618739072807`, _Associacio Esportiva Mountain Runners_.
 
-Falten les quatre referències necessàries abans d'implementar T2.6:
+Les quatre referències necessàries abans d'implementar T2.6 s'han generat a
+Stitch i han estat aprovades explícitament el 17 de juliol de 2026:
 
-| Pantalla              | Dispositiu | Estat      | Criteris que ha de mostrar                                   |
-| --------------------- | ---------- | ---------- | ------------------------------------------------------------ |
-| Hub d'esdeveniments   | Escriptori | Bloquejada | Agenda agrupada, sense filtres ni targetes repetides         |
-| Hub d'esdeveniments   | Mòbil      | Bloquejada | Lectura des de 320 CSS px i navegació operable               |
-| Detall d'esdeveniment | Escriptori | Bloquejada | Data, ubicació, modalitats, accions i atribució              |
-| Detall d'esdeveniment | Mòbil      | Bloquejada | Estats d'inscripció i recursos absents sense controls falsos |
+| Pantalla              | Dispositiu | Referència Stitch                  | Estat    |
+| --------------------- | ---------- | ---------------------------------- | -------- |
+| Hub d'esdeveniments   | Escriptori | `977c182181d249eca8b2910db984d728` | Aprovada |
+| Hub d'esdeveniments   | Mòbil      | `7bee765f9af44a8db566640abbcc6c4a` | Aprovada |
+| Detall d'esdeveniment | Escriptori | `9cdace22335d400bb32f59ab26df0937` | Aprovada |
+| Detall d'esdeveniment | Mòbil      | `01212091f0cd4008b902189823d5feab` | Aprovada |
 
-El 17 de juliol de 2026 es van sol·licitar les quatre pantalles amb el sistema
-visual aprovat. Stitch va excedir el temps de resposta i no va crear cap pantalla
-que es pogués revisar. Cal tornar-les a generar quan el servei estigui disponible
-i aprovar-les explícitament abans de T2.6. Els prompts exigeixen els estats
-d'inscripció oberta, tancada, recurs no disponible i l'esdeveniment vigent sense
-pròxima data anunciada.
+Les pantalles adopten el sistema visual aprovat i cobreixen els estats
+d'inscripció oberta, tancada, recurs no disponible i esdeveniment vigent sense
+pròxima data anunciada. Són referències adaptables; l'aprovació no valida les
+dades de mostra que puguin mostrar.
 
-## Casos D'Esdeveniment Candidats
+## Casos D'Esdeveniment Revisats
 
-| Cas                        | Font                                                      | Estat    | Cobertura potencial                                                                         | Revisió pendent                                                                                        |
-| -------------------------- | --------------------------------------------------------- | -------- | ------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
-| Berga Trail                | <https://mountainrunners.cat/berga-trail/>                | Candidat | Esdeveniment del club amb pròxima edició i inscripció oberta, si es confirmen dades actuals | Edició, data, ubicació, modalitats, URL d'inscripció, drets de fotografies i atribucions               |
-| Ultra Pirineu / Pirineu XS | <https://mountainrunners.cat/ultra-pirineu/>              | Candidat | Esdeveniment vigent sense pròxima data anunciada, si es confirma la col·laboració actual    | Relació actual del club, existència i data de l'edició, estat d'inscripció, drets del logotip i imatge |
-| Escalada Popular a Queralt | <https://mountainrunners.cat/escalada-popular-a-queralt/> | Candidat | Esdeveniment passat amb inscripció tancada i recurs no disponible                           | Si hi ha una nova edició, data i organització; si no, confirmació d'històric; drets del logotip        |
+| Cas                        | Estat editorial | Fets confirmats                                                                                                                                                                                                                                                     | Pendent abans de publicar   |
+| -------------------------- | --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------- |
+| Berga Trail                | Revisat         | Mountain Runners en va ser l'organitzador. És històric: l'última edició va ser el 2022 a Berga, amb distàncies de 12 km, 27 km i 42 km i inscripcions tancades. Descripció: "Cursa de muntanya entre Berga, Rasos de Peguera i Ensija."                             | Cap dada editorial pendent. |
+| Ultra Pirineu / Pirineu XS | Revisat         | Mountain Runners hi col·labora. L'edició de 2026 és el 2, 3 i 4 d'octubre a Bagà, amb les modalitats KV vertical, 100 km, 42 km i 21 km; les inscripcions estan tancades. Descripció: "És una cursa de muntanya que recorre part de la serralada del Cadí-Moixeró." | Cap dada editorial pendent. |
+| Escalada Popular a Queralt | Revisat         | Mountain Runners n'és l'organitzador. És activa i acumula tres edicions inclosa la de 2026. L'edició de 2026 va ser el 17 de març; les inscripcions estan tancades. Descripció: "Escalada popular de Berga a Queralt en bicicleta."                                 | Cap dada editorial pendent. |
+
+Fonts d'informació:
+
+- Berga Trail: <https://mountainrunners.cat/berga-trail/>.
+- Ultra Pirineu: <https://ultrapirineu.com/>.
+- Escalada Popular a Queralt: <https://escaladesbergueda.cat/escalades/queralt>.
+
+No hi ha ara cap cas real revisat amb inscripció oberta. Aquest comportament
+s'ha de cobrir amb una fixture sintètica no publicada fins que hi hagi un cas
+real aprovat.
 
 La font de la Marató de TV3, <https://mountainrunners.cat/marato-de-tv3/>, queda
 **descartada** per a aquest slice: la pàgina anuncia explícitament l'edició de
 2021 i no és una base suficient per publicar informació vigent.
 
-## Recursos Candidats
+## Recursos
 
-| Recurs                               | Font                                | Estat    | Observació                                                                                                                                                          |
-| ------------------------------------ | ----------------------------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Fotografies de Berga Trail           | Pàgina de Berga Trail               | Candidat | La font acredita Pablo Sala, Albert Codina, Marc Elias, Paula Gonfaus, Gabri Amorós i Anna E. Puig; cal confirmar llicència, consentiment i permís de reutilització |
-| Logotip d'Ultra Pirineu              | Pàgina d'Ultra Pirineu              | Candidat | Cap llicència o permís de reutilització demostrat                                                                                                                   |
-| Logotip d'Escalada Popular a Queralt | Pàgina d'Escalada Popular a Queralt | Candidat | Cap autoria, llicència o permís de reutilització demostrat                                                                                                          |
+| Recurs                              | Font                                                                                    | Estat    | Observació                                                                                                         |
+| ----------------------------------- | --------------------------------------------------------------------------------------- | -------- | ------------------------------------------------------------------------------------------------------------------ |
+| Coberta de Berga Trail              | `apps/web/src/assets/berga-trail-placeholder.svg`                                       | Aprovada | Placeholder local temporal creat per al projecte el 17 de juliol de 2026; no substitueix una fotografia autèntica. |
+| Logotip d'Ultra Pirineu             | <https://ultrapirineu.com/wp-content/uploads/2022/10/SUP_22_logo_black_transparent.svg> | Aprovada | Autorització d'ús confirmada el 17 de juliol de 2026.                                                              |
+| Imatge d'Escalada Popular a Queralt | <https://escaladesbergueda.cat/images/climbs/queralt.avif>                              | Aprovada | Autorització d'ús confirmada el 17 de juliol de 2026.                                                              |
 
 No es farà hotlinking. Qualsevol recurs aprovat es descarregarà, optimitzarà i
 versionarà localment amb dimensions, origen, autoria, llicència i atribució.
