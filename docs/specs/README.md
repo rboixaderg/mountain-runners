@@ -62,6 +62,10 @@ no amplia silenciosament una tasca activa.
   fusionada.
 - Cada draft PR enllaça l'especificació, identifica criteris coberts, registra
   comprovacions i evidencia els impactes aplicables.
+- El títol de cada draft PR identifica la unitat de l'especificació amb el format
+  `type(phase-N-tN.M): resum breu`, usant els identificadors exactes de fase i
+  tasca. Una PR que només defineix o modifica una especificació de fase utilitza
+  `docs(specs-phase-N): resum breu`.
 - Una decisió que canviï una frontera acceptada requereix primer un ADR. Una
   necessitat no prevista s'afegeix al backlog o crea una especificació pròpia;
   no amplia silenciosament una PR activa.
