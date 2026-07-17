@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" role="img" aria-labelledby="title description">
+  <title id="title">Temporary mountain placeholder for Berga Trail</title>
+  <desc id="description">Temporary geometric mountain illustration in black, red, and off-white.</desc>
+  <rect width="1600" height="900" fill="#f7f4ef" />
+  <circle cx="1240" cy="180" r="82" fill="#e30613" />
+  <path d="M0 700 350 360l220 220 220-330 340 450Z" fill="#111111" />
+  <path d="m520 430 270-180 340 450H690Z" fill="#e30613" />
+  <path d="M0 760 290 560l160 140 240-170 300 230v140H0Z" fill="#111111" />
+  <path d="M990 900V640l300-180 310 220v220Z" fill="#e30613" />
+</svg>
