@@ -15,7 +15,7 @@ La fase ha de convertir la base tècnica de la fase 1 en pàgines útils, ràpid
 accessibles generades des de contingut estructurat. No ha de completar encara
 totes les àrees del web ni desplegar a producció.
 
-## Límit De Codi I Contingut
+## Límits I Decisions Confirmades
 
 La fase aplica l'ADR 0004: el shell, les rutes, la navegació i l'ordre de les
 seccions són estructura estable implementada en components. Les col·leccions
@@ -63,7 +63,7 @@ Cada tasca d'implementació utilitza un worktree i una branca propis creats des 
 la `main` actualitzada, segons `AGENTS.md`. La fase 2 no es desenvolupa dins del
 worktree principal.
 
-## Entregues I Seguiment
+## Tasques, Entregues I Seguiment
 
 No es fixa anticipadament un nombre de pull requests. Les PRs es defineixen a
 partir d'unitats cohesionades, amb dependències clares i un resultat que es pugui
@@ -100,6 +100,55 @@ Cada draft PR ha d'incloure:
 - evidència visual o de contingut quan correspongui;
 - impacte d'accessibilitat, SEO, rendiment, seguretat i llicències;
 - decisions pendents i seguiments que quedin fora de la PR.
+
+### T2.1: Referències Visuals I Inventari Editorial
+
+**Abast:** referències aplicables, inventari i tres casos d'esdeveniment.
+**Depèn de:** cap codi. **Resultat:** material sanejat i aprovat o descartat.
+**Comprovació:** vigència, privacitat, drets, atribució i estats revisats.
+**PR:** pot agrupar-se amb la primera tasca de codi si el material és petit; no
+inclou components.
+
+### T2.2: Skills Externes Portables
+
+**Abast:** detectar, revisar i versionar skills pertinents. **Depèn de:** fase 1.
+**Resultat:** origen, revisió, hash i llicència documentats. **Comprovació:**
+revisió de cadena de subministrament. **PR:** pròpia; no afegeix runtime o CI.
+
+### T2.3: Contracte De Rutes Localitzades
+
+**Abast:** segments, reserves, col·lisions i helpers de ruta. **Depèn de:** fase
+
+1. **Resultat:** URLs, canonical, `hreflang` i sitemap centralitzats.
+   **Comprovació:** proves de variants i col·lisions. **PR:** pròpia; no implementa
+   el shell visual.
+
+### T2.4: Fonaments Visuals I Shell Global
+
+**Abast:** tokens, fonts, shell, navegació responsive, peu i 404. **Depèn de:**
+T2.3 i referències. **Resultat:** shell accessible. **Comprovació:** Playwright,
+axe i metadades. **PR:** pròpia; no construeix portada ni esdeveniments.
+
+### T2.5: Portada Generada Des De Contingut
+
+**Abast:** hero, esdeveniments, escoles, socis i comunitat. **Depèn de:** T2.4 i
+contingut aprovat. **Resultat:** `/ca/` sense dades editorials codificades.
+**Comprovació:** ordre, enllaços i destinacions absents. **PR:** pròpia; no
+completa Socis o Escoles.
+
+### T2.6: Hub I Detall D'Esdeveniments
+
+**Abast:** classificació, detalls i tres casos representatius. **Depèn de:**
+T2.3, T2.4 i contingut aprovat. **Resultat:** recorregut complet de llista a
+detall. **Comprovació:** ordenació, dates, inscripció i recursos absents. **PR:**
+pròpia; no introdueix filtres ni cerca.
+
+### T2.7: Qualitat Del Vertical Slice
+
+**Abast:** wrapper, E2E, axe, Lighthouse, SEO i pressupostos. **Depèn de:**
+T2.2, T2.5 i T2.6. **Resultat:** controls obligatoris en CI. **Comprovació:**
+ordres definides sobre rutes representatives. **PR:** pròpia; no declara una
+auditoria manual WCAG completa.
 
 ## Referències Visuals
 
