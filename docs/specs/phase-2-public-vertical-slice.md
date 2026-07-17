@@ -77,15 +77,15 @@ Una PR pot agrupar unitats adjacents només quan:
 - es poden revertir juntes sense afectar treball no relacionat;
 - la descripció de la PR pot demostrar-ne completament l'acceptació.
 
-| Unitat                                       | Estat   | Dependències                                            | Resultat verificable                          | PR  |
-| -------------------------------------------- | ------- | ------------------------------------------------------- | --------------------------------------------- | --- |
-| Referències visuals i inventari editorial    | Pendent | Cap dependència de codi                                 | Dissenys i contingut candidats revisats       | -   |
-| Skills externes portables                    | Pendent | Fase 1 fusionada                                        | Conjunt pertinent, segur i reproduïble        | -   |
-| Contracte de rutes localitzades              | Pendent | Fase 1 fusionada                                        | Segments canònics, URLs i variants validades  | -   |
-| Fonaments visuals i shell global             | Pendent | Fase 1 i referències aplicables                         | Shell responsive i accessible                 | -   |
-| Portada content-driven                       | Pendent | Shell i contingut aprovat                               | Inici real generat des de col·leccions        | -   |
-| Hub i detall d'esdeveniments                 | Pendent | Shell, dissenys i contingut d'esdeveniments aprovats    | Recorregut complet amb estats reals           | -   |
-| SEO, rendiment, wrapper local i qualitat E2E | Pendent | Pàgines representatives i skills externes implementades | Llindars, wrapper i recorreguts automatitzats | -   |
+| Unitat                                       | Estat      | Dependències                                            | Resultat verificable                             | PR  |
+| -------------------------------------------- | ---------- | ------------------------------------------------------- | ------------------------------------------------ | --- |
+| Referències visuals i inventari editorial    | Bloquejada | Cap dependència de codi                                 | Inventari candidat revisat; referències pendents | -   |
+| Skills externes portables                    | Pendent    | Fase 1 fusionada                                        | Conjunt pertinent, segur i reproduïble           | -   |
+| Contracte de rutes localitzades              | Pendent    | Fase 1 fusionada                                        | Segments canònics, URLs i variants validades     | -   |
+| Fonaments visuals i shell global             | Pendent    | Fase 1 i referències aplicables                         | Shell responsive i accessible                    | -   |
+| Portada content-driven                       | Pendent    | Shell i contingut aprovat                               | Inici real generat des de col·leccions           | -   |
+| Hub i detall d'esdeveniments                 | Pendent    | Shell, dissenys i contingut d'esdeveniments aprovats    | Recorregut complet amb estats reals              | -   |
+| SEO, rendiment, wrapper local i qualitat E2E | Pendent    | Pàgines representatives i skills externes implementades | Llindars, wrapper i recorreguts automatitzats    | -   |
 
 Els únics estats permesos són `Pendent`, `En curs`, `Bloquejada` i `Completada`.
 Quan una unitat entra en una PR, se n'afegeix l'enllaç i s'actualitza l'estat.
@@ -161,7 +161,7 @@ de píxel ni codi font autoritatiu.
 La portada parteix de la pantalla:
 
 - projecte Stitch `6497516597197145737`;
-- pantalla `53b4861b1b6b4b6aad6128a73aba617b`, **Mountain Runners - Inici
+- pantalla `366fda639a204009842619490b119fc1`, **Mountain Runners - Inici
   (Red Kit Energy)**.
 
 Abans d'implementar esdeveniments s'han de crear i aprovar a Stitch:
