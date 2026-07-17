@@ -51,6 +51,24 @@ principal protegida no formen part del flux de treball normal. Reservar el
 worktree principal per a documentació de planificació no elimina aquestes
 proteccions.
 
+## Revisió Independent Amb Agents
+
+Per contrastar una implementació amb la seva tasca de l'especificació, obre una
+sessió nova i demana explícitament la skill `spec-implementation-review`. Indica
+la pull request, branca o worktree que cal revisar i la ruta i secció de
+l'especificació aplicable. Aquest flux és només per a implementacions pròpies
+creades dins del procés de confiança del projecte, no per executar o revisar
+codi extern no fiable.
+
+```text
+Utilitza la skill spec-implementation-review per validar la PR #12 contra
+docs/specs/phase-1-foundation.md, tasca "Nucli editorial segur".
+```
+
+La skill coordina revisions independents de compliment, correcció i tests, i
+retorna un informe de només lectura. No modifica la implementació ni substitueix
+les comprovacions obligatòries de CI o la revisió humana final.
+
 ## Missatges De Commit
 
 Utilitza Conventional Commits:

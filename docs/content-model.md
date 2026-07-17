@@ -3,12 +3,14 @@
 ## Principis
 
 - Git és el magatzem autoritatiu del contingut publicat.
-- El contingut editorial o operatiu que pugui canviar està estructurat i validat;
-  no pot existir només dins del codi de les pàgines.
-- L'estat de publicació és explícit perquè les previsualitzacions i el futur índex
-  del xat no exposin material no publicat.
-- El català és l'únic idioma publicat inicialment, però tot text traduïble es
-  modela com un objecte per idioma, no com camps separats per llengua.
+- El contingut editorial o operatiu que pugui canviar ha d'estar estructurat i
+  validat; no pot existir només dins del codi de les pàgines.
+- L'estat de publicació ha de ser explícit perquè les previsualitzacions i el
+  futur índex del xat no exposin material no publicat.
+- El català és l'únic idioma publicat inicialment, però tot text traduïble s'ha
+  de modelar com un objecte per idioma, no com camps separats per llengua.
+- Els enllaços, CTAs i formularis que canviïn editorialment també han de poder
+  variar per idioma quan calgui.
 - Totes les rutes HTML públiques tenen prefix d'idioma, inclòs el català; els
   recursos tècnics globals en queden exceptuats.
 - Una variant d'idioma només es publica quan la traducció requerida és completa;
@@ -28,8 +30,8 @@
 - No es crea un constructor genèric de pàgines ni una configuració YAML del lloc
   per anticipació. Una pàgina fixa només rep un esquema específic quan hi ha una
   necessitat editorial concreta i recurrent que el justifiqui.
-- El xat públic indexarà contingut publicat renderitzat, per tant no requereix
-  que tota la informació d'origen visqui en YAML.
+- Que una dada visqui en codi no impedeix que el xat públic la indexi: el seu
+  índex es genera a partir del contingut publicat renderitzat.
 
 ## Col·leccions
 

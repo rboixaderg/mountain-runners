@@ -15,6 +15,14 @@ La fase ha de convertir la base tècnica de la fase 1 en pàgines útils, ràpid
 accessibles generades des de contingut estructurat. No ha de completar encara
 totes les àrees del web ni desplegar a producció.
 
+## Límit De Codi I Contingut
+
+La fase aplica l'ADR 0004: el shell, les rutes, la navegació i l'ordre de les
+seccions són estructura estable implementada en components. Les col·leccions
+editorials aporten només les dades canviants, com esdeveniments, escoles, dates,
+estats, textos, recursos i URL. Aquesta regla preval sobre qualsevol referència
+anterior a una configuració YAML global del lloc.
+
 ## Resultats Esperats
 
 - Shell global responsive amb capçalera, navegació mòbil, peu i pàgina 404.
