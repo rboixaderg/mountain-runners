@@ -15,7 +15,7 @@ La fase ha de produir una base fiable per construir les pàgines públiques, per
 no ha d'implementar encara el disseny final, migrar el contingut actual ni
 desplegar a producció.
 
-## Actualització De L'Abast Editorial
+## Límits I Decisions Confirmades
 
 Aquesta actualització substitueix les referències anteriors a sis col·leccions:
 la PR 4 implementa només `schools`, `events`, `entities` i `documents`. El codi
@@ -38,7 +38,14 @@ s'implementen `site`, `pages` ni un constructor genèric de blocs en aquesta fas
 - Hooks locals i proteccions remotes coherents amb Conventional Commits.
 - Controls inicials de secrets, dependències i anàlisi estàtica.
 
-## Pla D'Entrega I Seguiment
+## Dependències I Ordre D'Inici
+
+La fase parteix de la fundació completada: governança, ADRs, normes de seguretat
+i flux de pull requests. Abans de cada entrega, la seva predecessora ha d'estar
+fusionada a `main`; les quatre PRs es mantenen seqüencials segons el pla de
+seguiment.
+
+## Entregues I Seguiment
 
 La fase s'implementa en quatre pull requests seqüencials. Cada PR parteix de la
 branca principal després de fusionar l'anterior i s'obre com a draft des del
@@ -404,7 +411,13 @@ de repetir totes les comprovacions obligatòries.
 Playwright i les proves end-to-end queden per a la fase 2, quan existeixin
 recorreguts públics reals.
 
-## GitHub Actions I Protecció De Branca
+## Seguretat I Privacitat
+
+La fase no tracta dades personals ni introdueix serveis externs amb secrets. Les
+seves comprovacions de cadena de subministrament, secrets i permisos mínims es
+defineixen en l'apartat següent.
+
+### GitHub Actions I Protecció De Branca
 
 ### Workflows Versionats
 
