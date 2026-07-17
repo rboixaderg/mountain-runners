@@ -1,0 +1,75 @@
+.agents/skills/accessibility/LICENSE
+  s_fa8384f48ed5b0::t_1dbf552b0d2d57 1-21
+.agents/skills/accessibility/SKILL.md
+  s_fa8384f48ed5b0::t_848e4b14a8b225 1-440
+.agents/skills/accessibility/references/A11Y-PATTERNS.md
+  s_fa8384f48ed5b0::t_00644d1e82eee4 1-233
+.agents/skills/accessibility/references/WCAG.md
+  s_fa8384f48ed5b0::t_e473c0a714d111 1-191
+.agents/skills/seo/LICENSE
+  s_fa8384f48ed5b0::t_1f2f9f590065c2 1-21
+.agents/skills/seo/SKILL.md
+  s_fa8384f48ed5b0::t_4e4b16908643d6 1-513
+.agents/skills/typescript-advanced-types/LICENSE
+  s_fa8384f48ed5b0::t_272e2d6d234cbf 1-21
+.agents/skills/typescript-advanced-types/SKILL.md
+  s_fa8384f48ed5b0::t_d1d7197956abbc 1-717
+.agents/skills/vitest/GENERATION.md
+  s_fa8384f48ed5b0::t_24456b7e5ff984 1-5
+.agents/skills/vitest/LICENSE.md
+  s_fa8384f48ed5b0::t_23d9c1123610b4 1-21
+.agents/skills/vitest/SKILL.md
+  s_fa8384f48ed5b0::t_5bb0bd87d48056 1-52
+.agents/skills/vitest/references/advanced-environments.md
+  s_fa8384f48ed5b0::t_dec1f88721c356 1-264
+.agents/skills/vitest/references/advanced-projects.md
+  s_fa8384f48ed5b0::t_7dd63a5a9dd2fa 1-300
+.agents/skills/vitest/references/advanced-type-testing.md
+  s_fa8384f48ed5b0::t_73f0038f36dff4 1-237
+.agents/skills/vitest/references/advanced-vi.md
+  s_fa8384f48ed5b0::t_a88d178f90a66c 1-249
+.agents/skills/vitest/references/core-cli.md
+  s_fa8384f48ed5b0::t_72c45d81321fca 1-166
+.agents/skills/vitest/references/core-config.md
+  s_fa8384f48ed5b0::t_8a8db94cfc5908 1-174
+.agents/skills/vitest/references/core-describe.md
+  s_fa8384f48ed5b0::t_e18ab7302d2de5 1-193
+.agents/skills/vitest/references/core-expect.md
+  s_fa8384f48ed5b0::t_2b7fb85e3f84ec 1-219
+.agents/skills/vitest/references/core-hooks.md
+  s_fa8384f48ed5b0::t_54615a01378d39 1-244
+.agents/skills/vitest/references/core-test-api.md
+  s_fa8384f48ed5b0::t_7b535078c095b3 1-233
+.agents/skills/vitest/references/features-concurrency.md
+  s_fa8384f48ed5b0::t_e112d119eda7af 1-250
+.agents/skills/vitest/references/features-context.md
+  s_fa8384f48ed5b0::t_2a56af64cdb437 1-238
+.agents/skills/vitest/references/features-coverage.md
+  s_fa8384f48ed5b0::t_14773fa83e1eb0 1-207
+.agents/skills/vitest/references/features-filtering.md
+  s_fa8384f48ed5b0::t_03249e3d36175d 1-211
+.agents/skills/vitest/references/features-mocking.md
+  s_fa8384f48ed5b0::t_110db7b3526f35 1-265
+.agents/skills/vitest/references/features-snapshots.md
+  s_fa8384f48ed5b0::t_1c32ddc45a398d 1-207
+docs/phase-2-portable-skills-review.md
+  s_fa8384f48ed5b0::t_0b2f6d721d0933 1-68
+docs/specs/phase-2-public-vertical-slice.md
+  s_fa8384f48ed5b0::t_00c1841d9da8b1 80-88
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.11",
+  "base_commit_sha": "45cf65ed109c5a389c7518ee83bd2bce9ca36543",
+  "prompts": {},
+  "sessions": {
+    "s_fa8384f48ed5b0": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_08e884e31ffeaDufbX2qCHK9Zu",
+        "model": "gpt-5.6-terra"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
