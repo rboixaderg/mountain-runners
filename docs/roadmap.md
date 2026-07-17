@@ -40,6 +40,13 @@ verificat.
 - Cap fase pot introduir secrets al repositori ni evitar la revisió, la CI o les
   restriccions de desplegament definides a `AGENTS.md` i `SECURITY.md`.
 
+## Límit De Codi I Contingut
+
+Segons l'ADR 0004, el codi defineix l'estructura estable de la web i el YAML
+restringit només modela dades editorials o operatives canviants. Aquesta regla
+orienta totes les fases: no es crea una configuració global YAML ni un
+constructor genèric de pàgines sense una necessitat editorial concreta.
+
 ## Estat General
 
 | Fase | Estat | Objectiu |
