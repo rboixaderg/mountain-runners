@@ -40,8 +40,8 @@ al worktree principal.
 3. Fes el canvi complet més petit possible dins del worktree dedicat.
 4. Executa les comprovacions aplicables i actualitza la documentació quan canviï
    el comportament o un límit arquitectònic.
-5. Obre una pull request amb una descripció clara, evidència de validació i
-   qualsevol impacte operatiu.
+5. Obre una pull request amb un títol alineat amb la fase o especificació, una
+   descripció clara, evidència de validació i qualsevol impacte operatiu.
 6. Fusiona-la només després de la revisió i de superar les comprovacions
    obligatòries.
 7. Elimina el worktree i la branca de vida curta quan la tasca estigui fusionada.
@@ -93,3 +93,22 @@ Utilitza un únic propòsit lògic per commit. Els canvis incompatibles requerei
 Les pull requests no poden contenir secrets, credencials generades ni formatació
 no relacionada. Indica clarament si un canvi afecta contingut públic, models de
 dades, seguretat, desplegament o el futur servei de xat.
+
+El títol també segueix Conventional Commits i identifica una única unitat de
+treball:
+
+```text
+type(phase-N-tN.M): resum breu
+```
+
+`N` i `N.M` són els identificadors exactes de la fase i la tasca de
+`docs/specs/`; per exemple, `docs(phase-2-t2.2): incorpora skills portables
+revisades`. Si la PR només crea o modifica l'especificació d'una fase, utilitza:
+
+```text
+docs(specs-phase-N): resum breu
+```
+
+Per exemple: `docs(specs-phase-4): defineix la cobertura editorial`. No agrupis
+tasques diferents sota un títol genèric: si l'abast canvia, crea o actualitza la
+tasca de l'especificació abans d'obrir la PR.

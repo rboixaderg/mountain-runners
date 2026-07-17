@@ -49,6 +49,11 @@
 - Use Conventional Commits: `type(scope): summary`, with a concise imperative
   summary. Allowed types include `feat`, `fix`, `docs`, `refactor`, `test`,
   `build`, `ci`, `chore` and `security`.
+- Title a pull request for a specification task as
+  `type(phase-N-tN.M): summary`, using the exact phase and task identifiers from
+  the specification. A pull request that only defines or changes a phase
+  specification uses `docs(specs-phase-N): summary`. The title must describe
+  only the work covered by that pull request.
 - Do not create commits unless explicitly asked. When asked, inspect status and
   diff, stage only intended files and use a semantic commit message.
 - Agents must never merge a pull request or enable auto-merge. A human
