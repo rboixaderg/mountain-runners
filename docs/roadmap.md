@@ -95,8 +95,9 @@ publicar contingut real en català i traduir-lo en el futur.
   missatges curts d'interfície.
 - Modelar contingut traduïble com a objectes per idioma, incloent-hi textos,
   CTAs, formularis, enllaços i blocs editorials quan correspongui.
-- Definir les col·leccions inicials: configuració del lloc, pàgines, escoles,
-  esdeveniments, entitats reutilitzables i documents.
+- Definir les col·leccions inicials: escoles, esdeveniments, entitats
+  reutilitzables i documents. La configuració estable del lloc i les pàgines
+  fixes es mantenen en codi.
 - Modelar esdeveniments amb edicions embegudes, `published` per a visibilitat i
   `active` per distingir-los dels històrics.
 - Afegir contingut de mostra representatiu i sense dades privades.

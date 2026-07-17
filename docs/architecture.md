@@ -4,9 +4,10 @@
 
 El repositori conté un workspace pnpm i una aplicació Astro estàtica mínima a
 `apps/web`, amb validacions locals, integració contínua i un nucli segur de
-validació editorial. Les sis Content Collections, les regles de publicació i les
-rutes editorials mínimes ja estan implementades. Encara no s'han implementat les
-plantilles públiques finals ni cap servei o automatització de desplegament.
+validació editorial. Les quatre Content Collections (`schools`, `events`,
+`entities` i `documents`), les regles de publicació i les rutes editorials
+mínimes ja estan implementades. Encara no s'han implementat les plantilles
+públiques finals ni cap servei o automatització de desplegament.
 
 ## Direcció Acceptada
 
