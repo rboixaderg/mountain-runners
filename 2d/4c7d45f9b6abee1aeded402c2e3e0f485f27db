@@ -1,0 +1,35 @@
+.agents/skills/spec-implementation-review/SKILL.md
+  s_c92756092ebb34::t_0dd1b207fe4174 1-121
+.gitignore
+  s_c92756092ebb34::t_8627d40fea9d09 22
+CONTRIBUTING.md
+  s_c92756092ebb34::t_532d107576f4e7 54-71
+docs/ai-assistant.md
+  s_c92756092ebb34::t_aa7b41ac4c32e5 20-24
+docs/backlog.md
+  s_c92756092ebb34::t_90fc60a3024359 127-153
+docs/decisions/0004-code-and-editorial-content-boundary.md
+  s_c92756092ebb34::t_b86c9ebfe7d49b 1-28
+docs/roadmap.md
+  s_c92756092ebb34::t_fdcd00237c3cf8 43-49
+docs/specs/phase-1-foundation.md
+  s_c92756092ebb34::t_14746b6e902cb5 18-25
+docs/specs/phase-2-public-vertical-slice.md
+  s_c92756092ebb34::t_94c094b95208b0 18-25
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.11",
+  "base_commit_sha": "2d4c7d45f9b6abee1aeded402c2e3e0f485f27db",
+  "prompts": {},
+  "sessions": {
+    "s_c92756092ebb34": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_091b317d6ffeldMw5XTWfl26dl",
+        "model": "gpt-5.6-terra"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
