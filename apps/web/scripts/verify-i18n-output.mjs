@@ -1,9 +1,7 @@
 import { readFile, readdir } from "node:fs/promises";
 import { join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
-import { loadPublicSiteOrigin } from "./public-site-origin.mjs";
-
-const publicSiteOrigin = loadPublicSiteOrigin();
+import { publicSiteOrigin } from "../site.config.mjs";
 
 const pages = [
   ["ca", "Base web en construcció"],

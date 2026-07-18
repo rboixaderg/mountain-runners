@@ -3,11 +3,11 @@ import { paraglideVitePlugin } from "@inlang/paraglide-js";
 import { defineConfig } from "astro/config";
 import { defaultLocale, locales } from "./i18n.config.mjs";
 import { paraglideOptions } from "./paraglide.config.mjs";
-import { loadPublicSiteOrigin } from "./scripts/public-site-origin.mjs";
+import { publicSiteOrigin } from "./site.config.mjs";
 
 export default defineConfig({
   output: "static",
-  site: loadPublicSiteOrigin().toString(),
+  site: publicSiteOrigin,
   i18n: {
     defaultLocale,
     locales,

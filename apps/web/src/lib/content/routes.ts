@@ -1,9 +1,6 @@
 import type { PublishedVariant, PublicationCatalog } from "./publication";
 import { knownLocales, type Locale } from "./primitives";
-import {
-  createPublicSiteOrigin,
-  loadPublicSiteOrigin,
-} from "../../../scripts/public-site-origin.mjs";
+import { publicSiteOrigin } from "../../../site.config.mjs";
 
 export type RouteKind = PublishedVariant["kind"];
 
@@ -57,10 +54,8 @@ export function assertRouteDomains(domains: RouteDomains): void {
 
 assertRouteDomains(routeDomains);
 
-export { createPublicSiteOrigin };
-
-export function getPublicSiteOrigin(): URL {
-  return loadPublicSiteOrigin();
+export function getPublicSiteOrigin(): string {
+  return publicSiteOrigin;
 }
 
 export function getRouteDomain(kind: RouteKind, locale: Locale): string {

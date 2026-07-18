@@ -14,7 +14,6 @@ import {
 } from "../lib/content/publication";
 import {
   assertRouteDomains,
-  createPublicSiteOrigin,
   getAlternateUrls,
   getCanonicalUrl,
   getSitemapUrls,
@@ -22,8 +21,6 @@ import {
   routeDomains,
 } from "../lib/content/routes";
 import { parseRestrictedYaml } from "../lib/content/yaml";
-
-process.env.PUBLIC_SITE_ORIGIN ??= "https://mountainrunners.cat";
 
 async function loadCollection<T>(directory: string, schema: z.ZodType<T>) {
   const directoryUrl = new URL(`../content/${directory}/`, import.meta.url);
@@ -172,25 +169,5 @@ describe("localized route contract", () => {
     expect(() => assertRouteDomains(fixedRoute)).toThrow(
       "Reserved ca event route domain: ca",
     );
-  });
-
-  it("accepts only the approved HTTPS canonical origin", () => {
-    expect(
-      createPublicSiteOrigin("https://mountainrunners.cat").toString(),
-    ).toBe("https://mountainrunners.cat/");
-
-    for (const value of [
-      "http://mountainrunners.cat",
-      "https://www.mountainrunners.cat",
-      "https://user:pass@mountainrunners.cat",
-      "https://mountainrunners.cat/path",
-      "https://mountainrunners.cat?query=value",
-      "https://mountainrunners.cat#fragment",
-      "https://mountainrunners.cat/%0a",
-      " https://mountainrunners.cat",
-      "//mountainrunners.cat",
-    ]) {
-      expect(() => createPublicSiteOrigin(value)).toThrow();
-    }
   });
 });
