@@ -79,9 +79,9 @@ export function createPublicSiteOrigin(value: string): URL {
   return origin;
 }
 
-export const publicSiteOrigin = createPublicSiteOrigin(
-  process.env.PUBLIC_SITE_ORIGIN ?? "",
-);
+export function getPublicSiteOrigin(): URL {
+  return createPublicSiteOrigin(process.env.PUBLIC_SITE_ORIGIN ?? "");
+}
 
 export function getRouteDomain(kind: RouteKind, locale: Locale): string {
   return routeDomains[kind][locale];
@@ -96,7 +96,7 @@ export function getVariantPath(variant: PublishedVariant): string {
 }
 
 export function getCanonicalUrl(variant: PublishedVariant): string {
-  return new URL(getVariantPath(variant), publicSiteOrigin).toString();
+  return new URL(getVariantPath(variant), getPublicSiteOrigin()).toString();
 }
 
 export function getAlternateVariants(
@@ -122,7 +122,7 @@ export function getAlternateUrls(
 
 export function getSitemapUrls(catalog: PublicationCatalog): string[] {
   return [
-    new URL("/ca/", publicSiteOrigin).toString(),
+    new URL("/ca/", getPublicSiteOrigin()).toString(),
     ...catalog.variants.map(getCanonicalUrl),
   ].sort();
 }

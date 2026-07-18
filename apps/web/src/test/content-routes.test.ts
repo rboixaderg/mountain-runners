@@ -23,6 +23,8 @@ import {
 } from "../lib/content/routes";
 import { parseRestrictedYaml } from "../lib/content/yaml";
 
+process.env.PUBLIC_SITE_ORIGIN ??= "https://mountainrunners.cat";
+
 async function loadCollection<T>(directory: string, schema: z.ZodType<T>) {
   const directoryUrl = new URL(`../content/${directory}/`, import.meta.url);
   const files = (await readdir(directoryUrl))
