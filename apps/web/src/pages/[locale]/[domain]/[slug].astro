@@ -12,6 +12,7 @@ import {
 
 export async function getStaticPaths() {
   const catalog = await getPublicationCatalog();
+  const site = new URL(import.meta.env.SITE);
   return catalog.variants.map((variant) => ({
     params: {
       locale: variant.locale,
@@ -20,7 +21,7 @@ export async function getStaticPaths() {
     },
     props: {
       variant,
-      alternates: getAlternateUrls(catalog, variant),
+      alternates: getAlternateUrls(catalog, variant, site),
     },
   }));
 }
@@ -43,7 +44,7 @@ const { locale } = variant;
         ? variant.entry.description[locale]
         : variant.entry.summary[locale]}
     />
-    <link rel="canonical" href={getCanonicalUrl(variant)} />
+    <link rel="canonical" href={getCanonicalUrl(variant, Astro.site!)} />
     {
       alternates.map((alternate) => (
         <link

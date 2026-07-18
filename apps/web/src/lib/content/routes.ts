@@ -1,6 +1,5 @@
 import type { PublishedVariant, PublicationCatalog } from "./publication";
 import { knownLocales, type Locale } from "./primitives";
-import { publicSiteOrigin } from "../../../site.config.mjs";
 
 export type RouteKind = PublishedVariant["kind"];
 
@@ -54,10 +53,6 @@ export function assertRouteDomains(domains: RouteDomains): void {
 
 assertRouteDomains(routeDomains);
 
-export function getPublicSiteOrigin(): string {
-  return publicSiteOrigin;
-}
-
 export function getRouteDomain(kind: RouteKind, locale: Locale): string {
   return routeDomains[kind][locale];
 }
@@ -70,8 +65,8 @@ export function getVariantPath(variant: PublishedVariant): string {
   return `${getDomainPath(variant.kind, variant.locale)}${variant.slug}/`;
 }
 
-export function getCanonicalUrl(variant: PublishedVariant): string {
-  return new URL(getVariantPath(variant), getPublicSiteOrigin()).toString();
+export function getCanonicalUrl(variant: PublishedVariant, site: URL): string {
+  return new URL(getVariantPath(variant), site).toString();
 }
 
 export function getAlternateVariants(
@@ -88,17 +83,21 @@ export function getAlternateVariants(
 export function getAlternateUrls(
   catalog: PublicationCatalog,
   variant: PublishedVariant,
+  site: URL,
 ): { locale: Locale; href: string }[] {
   return getAlternateVariants(catalog, variant).map((alternate) => ({
     locale: alternate.locale,
-    href: getCanonicalUrl(alternate),
+    href: getCanonicalUrl(alternate, site),
   }));
 }
 
-export function getSitemapUrls(catalog: PublicationCatalog): string[] {
+export function getSitemapUrls(
+  catalog: PublicationCatalog,
+  site: URL,
+): string[] {
   return [
-    new URL("/ca/", getPublicSiteOrigin()).toString(),
-    ...catalog.variants.map(getCanonicalUrl),
+    new URL("/ca/", site).toString(),
+    ...catalog.variants.map((variant) => getCanonicalUrl(variant, site)),
   ].sort();
 }
 

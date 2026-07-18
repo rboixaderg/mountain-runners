@@ -17,9 +17,14 @@ cada sistema operatiu](CONTRIBUTING.md#eines-locals).
 
 ```sh
 corepack enable
+cp apps/web/.env.example apps/web/.env
 pnpm install
 pnpm dev
 ```
+
+`PUBLIC_SITE_ORIGIN` is the public build-time origin used for canonical URLs,
+`hreflang`, the sitemap and `robots.txt`. Preview and production deployments
+must provide their own value.
 
 `pnpm validate` executa format, lint, typecheck, tests i build amb les mateixes
 condicions que la integració contínua.

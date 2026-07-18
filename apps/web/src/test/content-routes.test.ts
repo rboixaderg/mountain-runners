@@ -22,6 +22,8 @@ import {
 } from "../lib/content/routes";
 import { parseRestrictedYaml } from "../lib/content/yaml";
 
+const publicSiteOrigin = new URL("https://mountainrunners.cat");
+
 async function loadCollection<T>(directory: string, schema: z.ZodType<T>) {
   const directoryUrl = new URL(`../content/${directory}/`, import.meta.url);
   const files = (await readdir(directoryUrl))
@@ -70,10 +72,10 @@ describe("localized route contract", () => {
 
     expect(getVariantPath(school)).toBe("/ca/escoles/escola-trail/");
     expect(getVariantPath(event)).toBe("/ca/esdeveniments/jornada-muntanya/");
-    expect(getCanonicalUrl(event)).toBe(
+    expect(getCanonicalUrl(event, publicSiteOrigin)).toBe(
       "https://mountainrunners.cat/ca/esdeveniments/jornada-muntanya/",
     );
-    expect(getAlternateUrls(catalog, event)).toEqual([
+    expect(getAlternateUrls(catalog, event, publicSiteOrigin)).toEqual([
       {
         locale: "ca",
         href: "https://mountainrunners.cat/ca/esdeveniments/jornada-muntanya/",
@@ -84,7 +86,7 @@ describe("localized route contract", () => {
   it("includes only published routes in the sitemap", async () => {
     const catalog = createPublicationCatalog(await loadSource());
 
-    expect(getSitemapUrls(catalog)).toEqual([
+    expect(getSitemapUrls(catalog, publicSiteOrigin)).toEqual([
       "https://mountainrunners.cat/ca/",
       "https://mountainrunners.cat/ca/escoles/escola-trail/",
       "https://mountainrunners.cat/ca/esdeveniments/jornada-muntanya/",
@@ -115,7 +117,9 @@ describe("localized route contract", () => {
     const spanishEvent = completeCatalog.variants.find(
       ({ kind, locale }) => kind === "event" && locale === "es",
     )!;
-    expect(getAlternateUrls(completeCatalog, spanishEvent)).toEqual([
+    expect(
+      getAlternateUrls(completeCatalog, spanishEvent, publicSiteOrigin),
+    ).toEqual([
       {
         locale: "ca",
         href: "https://mountainrunners.cat/ca/esdeveniments/jornada-muntanya/",
@@ -135,7 +139,7 @@ describe("localized route contract", () => {
     expect(
       incompleteCatalog.variants.map((variant) => getVariantPath(variant)),
     ).not.toContain("/en/events/mountain-day/");
-    expect(getSitemapUrls(incompleteCatalog)).not.toContain(
+    expect(getSitemapUrls(incompleteCatalog, publicSiteOrigin)).not.toContain(
       "https://mountainrunners.cat/en/events/mountain-day/",
     );
     expect(
@@ -144,6 +148,7 @@ describe("localized route contract", () => {
         incompleteCatalog.variants.find(
           ({ kind, locale }) => kind === "event" && locale === "es",
         )!,
+        publicSiteOrigin,
       ),
     ).not.toContainEqual({
       locale: "en",

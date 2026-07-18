@@ -1,7 +1,14 @@
 import { readFile, readdir } from "node:fs/promises";
 import { join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
-import { publicSiteOrigin } from "../site.config.mjs";
+import { loadEnv } from "vite";
+
+const { PUBLIC_SITE_ORIGIN } = loadEnv(
+  process.env.NODE_ENV ?? "development",
+  fileURLToPath(new URL("../", import.meta.url)),
+  "PUBLIC_SITE_ORIGIN",
+);
+const publicSiteOrigin = new URL(PUBLIC_SITE_ORIGIN);
 
 const pages = [
   ["ca", "Base web en construcció"],

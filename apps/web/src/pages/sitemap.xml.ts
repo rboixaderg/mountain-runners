@@ -14,9 +14,9 @@ function escapeXml(value: string): string {
   });
 }
 
-export const GET: APIRoute = async () => {
+export const GET: APIRoute = async ({ site }) => {
   const catalog = await getPublicationCatalog();
-  const urls = getSitemapUrls(catalog)
+  const urls = getSitemapUrls(catalog, site!)
     .map((url) => `  <url><loc>${escapeXml(url)}</loc></url>`)
     .join("\n");
 
