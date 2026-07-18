@@ -166,6 +166,12 @@ describe("localized route contract", () => {
     expect(() => assertRouteDomains(reserved)).toThrow(
       "Reserved ca event route domain: api",
     );
+
+    const fixedRoute = structuredClone(routeDomains);
+    fixedRoute.event.ca = "ca";
+    expect(() => assertRouteDomains(fixedRoute)).toThrow(
+      "Reserved ca event route domain: ca",
+    );
   });
 
   it("accepts only the approved HTTPS canonical origin", () => {

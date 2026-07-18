@@ -1,11 +1,9 @@
 import { readFile, readdir } from "node:fs/promises";
 import { join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
+import { loadPublicSiteOrigin } from "./public-site-origin.mjs";
 
-const publicSiteOrigin = new URL(process.env.PUBLIC_SITE_ORIGIN);
-if (publicSiteOrigin.origin !== process.env.PUBLIC_SITE_ORIGIN) {
-  throw new Error("PUBLIC_SITE_ORIGIN must be an origin without a path");
-}
+const publicSiteOrigin = loadPublicSiteOrigin();
 
 const pages = [
   ["ca", "Base web en construcció"],
@@ -163,6 +161,20 @@ if (
   catalanEvent.includes('hreflang="en"')
 ) {
   throw new Error("Incomplete event variants reached hreflang metadata.");
+}
+
+const catalanEventAlternate = new URL(
+  "/ca/esdeveniments/jornada-muntanya/",
+  publicSiteOrigin,
+).toString();
+if (
+  !catalanEvent.includes(
+    `<link rel="alternate" hreflang="ca" href="${catalanEventAlternate}"`,
+  )
+) {
+  throw new Error(
+    "Published event is missing its canonical hreflang metadata.",
+  );
 }
 
 await readFile(join(distPath, expectedPublishedResource));

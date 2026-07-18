@@ -1,5 +1,9 @@
 import type { PublishedVariant, PublicationCatalog } from "./publication";
 import { knownLocales, type Locale } from "./primitives";
+import {
+  createPublicSiteOrigin,
+  loadPublicSiteOrigin,
+} from "../../../scripts/public-site-origin.mjs";
 
 export type RouteKind = PublishedVariant["kind"];
 
@@ -12,6 +16,8 @@ const technicalRouteSegments = new Set([
   "api",
   "content-resources",
 ]);
+
+const fixedRouteSegments = new Set<string>(knownLocales);
 
 export const routeDomains: RouteDomains = {
   school: {
@@ -35,7 +41,10 @@ export function assertRouteDomains(domains: RouteDomains): void {
       if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/u.test(domain)) {
         throw new Error(`Invalid ${locale} ${kind} route domain: ${domain}`);
       }
-      if (technicalRouteSegments.has(domain) || domain === locale) {
+      if (
+        technicalRouteSegments.has(domain) ||
+        fixedRouteSegments.has(domain)
+      ) {
         throw new Error(`Reserved ${locale} ${kind} route domain: ${domain}`);
       }
       if (seen.has(domain)) {
@@ -48,39 +57,10 @@ export function assertRouteDomains(domains: RouteDomains): void {
 
 assertRouteDomains(routeDomains);
 
-export function createPublicSiteOrigin(value: string): URL {
-  if (value.trim() !== value) {
-    throw new Error(
-      "Public site origin must not contain surrounding whitespace",
-    );
-  }
-
-  let origin: URL;
-  try {
-    origin = new URL(value);
-  } catch {
-    throw new Error("Public site origin must be a valid URL");
-  }
-
-  if (
-    origin.protocol !== "https:" ||
-    origin.hostname !== "mountainrunners.cat" ||
-    origin.port !== "" ||
-    origin.username !== "" ||
-    origin.password !== "" ||
-    origin.pathname !== "/" ||
-    origin.search !== "" ||
-    origin.hash !== "" ||
-    origin.href !== `${value}/`
-  ) {
-    throw new Error("Public site origin must be https://mountainrunners.cat");
-  }
-
-  return origin;
-}
+export { createPublicSiteOrigin };
 
 export function getPublicSiteOrigin(): URL {
-  return createPublicSiteOrigin(process.env.PUBLIC_SITE_ORIGIN ?? "");
+  return loadPublicSiteOrigin();
 }
 
 export function getRouteDomain(kind: RouteKind, locale: Locale): string {
