@@ -3,9 +3,11 @@ import * as m from "../paraglide/messages.js";
 import PublicLayout from "../layouts/PublicLayout.astro";
 
 const locale = "ca";
+const canonical = new URL("/404.html", Astro.site).toString();
 ---
 
 <PublicLayout
+  canonical={canonical}
   description={m.not_found_description({}, { locale })}
   locale={locale}
   noindex={true}

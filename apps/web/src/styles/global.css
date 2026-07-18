@@ -64,6 +64,58 @@ a:hover {
   margin-inline: auto;
 }
 
+.editorial-grid {
+  display: grid;
+  gap: var(--space-6);
+}
+
+.editorial-grid > * {
+  min-width: 0;
+}
+
+figure {
+  margin: 0;
+}
+
+figcaption {
+  margin-top: var(--space-2);
+  color: var(--color-muted);
+  font-size: 0.875rem;
+}
+
+.event-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
+  align-items: center;
+}
+
+.event-date,
+.event-status {
+  font-size: 0.875rem;
+  font-weight: 700;
+}
+
+.event-status {
+  border: 0.125rem solid currentcolor;
+  padding: 0.125rem var(--space-2);
+  text-transform: uppercase;
+}
+
+.event-action {
+  display: inline-block;
+  border: 0.125rem solid currentcolor;
+  padding: var(--space-2) var(--space-4);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.event-action:hover {
+  background: var(--color-red);
+  border-color: var(--color-red);
+  color: var(--color-paper);
+}
+
 .skip-link {
   position: fixed;
   z-index: 10;
@@ -77,6 +129,12 @@ a:hover {
 
 .skip-link:focus {
   transform: translateY(0);
+}
+
+@media (min-width: 48rem) {
+  .editorial-grid {
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

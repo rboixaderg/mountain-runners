@@ -103,11 +103,16 @@ if (unexpectedRoutes.length > 0) {
 }
 
 const notFound = await readFile(join(distPath, "404.html"), "utf8");
+const notFoundCanonical = new URL("/404.html", publicSiteOrigin).toString();
 if (
   !notFound.includes('<html lang="ca">') ||
-  !notFound.includes('name="robots" content="noindex, nofollow"')
+  !notFound.includes('name="robots" content="noindex, nofollow"') ||
+  !notFound.includes(`<link rel="canonical" href="${notFoundCanonical}"`) ||
+  !notFound.includes(`property="og:url" content="${notFoundCanonical}"`)
 ) {
-  throw new Error("The technical 404 output must be Catalan and noindex.");
+  throw new Error(
+    "The technical 404 output must be Catalan, noindex, and canonical.",
+  );
 }
 if (
   outputRoutes.some((path) => /^(ca|es|en)\/404(?:\/index)?\.html$/u.test(path))
