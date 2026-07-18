@@ -80,7 +80,7 @@ export function createPublicSiteOrigin(value: string): URL {
 }
 
 export const publicSiteOrigin = createPublicSiteOrigin(
-  "https://mountainrunners.cat",
+  process.env.PUBLIC_SITE_ORIGIN ?? "",
 );
 
 export function getRouteDomain(kind: RouteKind, locale: Locale): string {

@@ -2,6 +2,11 @@ import { readFile, readdir } from "node:fs/promises";
 import { join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 
+const publicSiteOrigin = new URL(process.env.PUBLIC_SITE_ORIGIN);
+if (publicSiteOrigin.origin !== process.env.PUBLIC_SITE_ORIGIN) {
+  throw new Error("PUBLIC_SITE_ORIGIN must be an origin without a path");
+}
+
 const pages = [
   ["ca", "Base web en construcció"],
   ["es", "Base web en construcción"],
@@ -50,6 +55,17 @@ for (const [locale, message] of pages) {
   }
 }
 
+const catalanHome = await readFile(
+  new URL("../dist/ca/index.html", import.meta.url),
+  "utf8",
+);
+const catalanHomeCanonical = new URL("/ca/", publicSiteOrigin).toString();
+if (
+  !catalanHome.includes(`<link rel="canonical" href="${catalanHomeCanonical}"`)
+) {
+  throw new Error("The Catalan home output has an invalid canonical URL.");
+}
+
 async function listHtmlFiles(directory) {
   const files = [];
   const entries = await readdir(directory, { withFileTypes: true });
@@ -84,7 +100,10 @@ if (unexpectedRoutes.length > 0) {
 
 for (const route of expectedEditorialRoutes) {
   const output = await readFile(join(distPath, route), "utf8");
-  const canonical = `https://mountainrunners.cat/${route.replace("index.html", "")}`;
+  const canonical = new URL(
+    route.replace("index.html", ""),
+    publicSiteOrigin,
+  ).toString();
   if (!output.includes(`<link rel="canonical" href="${canonical}"`)) {
     throw new Error(`Editorial route has an invalid canonical URL: ${route}`);
   }
@@ -116,21 +135,27 @@ for (const legacyRoute of [
 }
 
 const sitemap = await readFile(join(distPath, "sitemap.xml"), "utf8");
-for (const route of [
-  "https://mountainrunners.cat/ca/",
-  "https://mountainrunners.cat/ca/escoles/escola-trail/",
-  "https://mountainrunners.cat/ca/esdeveniments/jornada-muntanya/",
-]) {
-  if (!sitemap.includes(`<loc>${route}</loc>`)) {
-    throw new Error(`Sitemap is missing published route: ${route}`);
-  }
+const sitemapUrls = new Set(
+  [...sitemap.matchAll(/<loc>([^<]+)<\/loc>/gu)].map(([, url]) => url),
+);
+const expectedSitemapUrls = new Set(
+  ["ca/", "ca/escoles/escola-trail/", "ca/esdeveniments/jornada-muntanya/"].map(
+    (path) => new URL(path, publicSiteOrigin).toString(),
+  ),
+);
+if (
+  sitemapUrls.size !== expectedSitemapUrls.size ||
+  [...expectedSitemapUrls].some((url) => !sitemapUrls.has(url))
+) {
+  throw new Error("Sitemap does not exactly match published canonical routes.");
 }
-if (sitemap.includes("https://mountainrunners.cat/es/")) {
+if ([...sitemapUrls].some((url) => new URL(url).pathname.startsWith("/es/"))) {
   throw new Error("Sitemap includes an incomplete localized variant.");
 }
 
 const robots = await readFile(join(distPath, "robots.txt"), "utf8");
-if (!robots.includes("Sitemap: https://mountainrunners.cat/sitemap.xml")) {
+const sitemapDirective = `Sitemap: ${new URL("/sitemap.xml", publicSiteOrigin)}`;
+if (!robots.split("\n").includes(sitemapDirective)) {
   throw new Error("Robots output does not declare the canonical sitemap URL.");
 }
 if (

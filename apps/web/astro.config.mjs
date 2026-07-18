@@ -6,7 +6,7 @@ import { paraglideOptions } from "./paraglide.config.mjs";
 
 export default defineConfig({
   output: "static",
-  site: "https://mountainrunners.cat",
+  site: process.env.PUBLIC_SITE_ORIGIN,
   i18n: {
     defaultLocale,
     locales,

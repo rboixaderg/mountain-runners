@@ -48,6 +48,21 @@ async function loadSource(): Promise<ContentSource> {
   return { schools, events, entities, documents };
 }
 
+function addTranslations(value: unknown, locale: "es" | "en"): void {
+  if (Array.isArray(value)) {
+    value.forEach((item) => addTranslations(item, locale));
+    return;
+  }
+
+  if (value === null || typeof value !== "object") return;
+
+  const record = value as Record<string, unknown>;
+  if (typeof record.ca === "string") {
+    record[locale] = `${locale} translation for ${record.ca}`;
+  }
+  Object.values(record).forEach((item) => addTranslations(item, locale));
+}
+
 describe("localized route contract", () => {
   it("uses localized domains and absolute canonical URLs", async () => {
     const catalog = createPublicationCatalog(await loadSource());
@@ -75,6 +90,66 @@ describe("localized route contract", () => {
       "https://mountainrunners.cat/ca/escoles/escola-trail/",
       "https://mountainrunners.cat/ca/esdeveniments/jornada-muntanya/",
     ]);
+  });
+
+  it("uses localized paths and alternates for complete translations only", async () => {
+    const source = await loadSource();
+    addTranslations(source, "es");
+    addTranslations(source, "en");
+    source.schools[0]!.slug.es = "escuela-trail";
+    source.schools[0]!.slug.en = "trail-school";
+    source.events[0]!.slug.es = "jornada-montana";
+    source.events[0]!.slug.en = "mountain-day";
+
+    const completeCatalog = createPublicationCatalog(source);
+    expect(
+      completeCatalog.variants.map((variant) => getVariantPath(variant)),
+    ).toEqual([
+      "/ca/escoles/escola-trail/",
+      "/ca/esdeveniments/jornada-muntanya/",
+      "/es/escuelas/escuela-trail/",
+      "/es/eventos/jornada-montana/",
+      "/en/schools/trail-school/",
+      "/en/events/mountain-day/",
+    ]);
+
+    const spanishEvent = completeCatalog.variants.find(
+      ({ kind, locale }) => kind === "event" && locale === "es",
+    )!;
+    expect(getAlternateUrls(completeCatalog, spanishEvent)).toEqual([
+      {
+        locale: "ca",
+        href: "https://mountainrunners.cat/ca/esdeveniments/jornada-muntanya/",
+      },
+      {
+        locale: "es",
+        href: "https://mountainrunners.cat/es/eventos/jornada-montana/",
+      },
+      {
+        locale: "en",
+        href: "https://mountainrunners.cat/en/events/mountain-day/",
+      },
+    ]);
+
+    delete (source.events[0]!.title as { en?: string }).en;
+    const incompleteCatalog = createPublicationCatalog(source);
+    expect(
+      incompleteCatalog.variants.map((variant) => getVariantPath(variant)),
+    ).not.toContain("/en/events/mountain-day/");
+    expect(getSitemapUrls(incompleteCatalog)).not.toContain(
+      "https://mountainrunners.cat/en/events/mountain-day/",
+    );
+    expect(
+      getAlternateUrls(
+        incompleteCatalog,
+        incompleteCatalog.variants.find(
+          ({ kind, locale }) => kind === "event" && locale === "es",
+        )!,
+      ),
+    ).not.toContainEqual({
+      locale: "en",
+      href: "https://mountainrunners.cat/en/events/mountain-day/",
+    });
   });
 
   it("rejects reserved and colliding route domains", () => {
