@@ -1,0 +1,60 @@
+---
+import SiteFooter from "../components/SiteFooter.astro";
+import SiteHeader from "../components/SiteHeader.astro";
+import type { Locale } from "../lib/content/primitives";
+import * as m from "../paraglide/messages.js";
+import "../styles/global.css";
+
+type Alternate = { locale: Locale; href: string };
+
+interface Props {
+  alternates?: Alternate[];
+  canonical?: string;
+  description: string;
+  locale: Locale;
+  noindex?: boolean;
+  title: string;
+}
+
+const {
+  alternates = [],
+  canonical,
+  description,
+  locale,
+  noindex = false,
+  title,
+} = Astro.props;
+---
+
+<!doctype html>
+<html lang={locale}>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width" />
+    <meta name="description" content={description} />
+    {noindex && <meta name="robots" content="noindex, nofollow" />}
+    {canonical && <link rel="canonical" href={canonical} />}
+    {
+      alternates.map((alternate) => (
+        <link
+          rel="alternate"
+          hreflang={alternate.locale}
+          href={alternate.href}
+        />
+      ))
+    }
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:type" content="website" />
+    {canonical && <meta property="og:url" content={canonical} />}
+    <title>{title}</title>
+  </head>
+  <body>
+    <a class="skip-link" href="#main-content"
+      >{m.skip_to_content({}, { locale })}</a
+    >
+    <SiteHeader alternates={alternates} locale={locale} />
+    <main id="main-content"><slot /></main>
+    <SiteFooter locale={locale} />
+  </body>
+</html>

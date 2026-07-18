@@ -80,9 +80,9 @@ Una PR pot agrupar unitats adjacents només quan:
 | Unitat                                       | Estat      | Dependències                                            | Resultat verificable                           | PR  |
 | -------------------------------------------- | ---------- | ------------------------------------------------------- | ---------------------------------------------- | --- |
 | Referències visuals i inventari editorial    | Completada | Cap dependència de codi                                 | Referències i inventari editorial revisats     | #14 |
-| Skills externes portables                    | En curs    | Fase 1 fusionada                                        | Quatre skills externes revisades i versionades | -   |
-| Contracte de rutes localitzades              | Pendent    | Fase 1 fusionada                                        | Segments canònics, URLs i variants validades   | -   |
-| Fonaments visuals i shell global             | Pendent    | Fase 1 i referències aplicables                         | Shell responsive i accessible                  | -   |
+| Skills externes portables                    | Completada | Fase 1 fusionada                                        | Quatre skills externes revisades i versionades | #15 |
+| Contracte de rutes localitzades              | Completada | Fase 1 fusionada                                        | Segments canònics, URLs i variants validades   | #17 |
+| Fonaments visuals i shell global             | En curs    | Fase 1 i referències aplicables                         | Shell responsive i accessible                  | -   |
 | Portada content-driven                       | Pendent    | Shell i contingut aprovat                               | Inici real generat des de col·leccions         | -   |
 | Hub i detall d'esdeveniments                 | Pendent    | Shell, dissenys i contingut d'esdeveniments aprovats    | Recorregut complet amb estats reals            | -   |
 | SEO, rendiment, wrapper local i qualitat E2E | Pendent    | Pàgines representatives i skills externes implementades | Llindars, wrapper i recorreguts automatitzats  | -   |

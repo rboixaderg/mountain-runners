@@ -1,0 +1,34 @@
+---
+import * as m from "../paraglide/messages.js";
+import PublicLayout from "../layouts/PublicLayout.astro";
+
+const locale = "ca";
+---
+
+<PublicLayout
+  description={m.not_found_description({}, { locale })}
+  locale={locale}
+  noindex={true}
+  title={`${m.not_found_title({}, { locale })} | ${m.site_title()}`}
+>
+  <section
+    class="page-frame max-w-[var(--reading-width)] py-[clamp(var(--space-12),10vw,7rem)]"
+  >
+    <p
+      class="m-0 font-[family-name:var(--font-display)] text-lg tracking-[0.06em] uppercase"
+    >
+      404
+    </p>
+    <h1
+      class="my-3 mb-6 max-w-[15ch] font-[family-name:var(--font-display)] text-[clamp(2.8rem,9vw,5.5rem)] leading-[0.95] tracking-[0.015em] uppercase"
+    >
+      {m.not_found_title({}, { locale })}
+    </h1>
+    <p class="text-[clamp(1.1rem,2vw,1.3rem)]">
+      {m.not_found_description({}, { locale })}
+    </p>
+    <a class="mt-6 inline-block font-bold" href="/ca/"
+      >{m.back_to_home({}, { locale })}</a
+    >
+  </section>
+</PublicLayout>

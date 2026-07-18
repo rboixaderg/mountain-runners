@@ -1,0 +1,48 @@
+---
+import { locales } from "../../../../i18n.config.mjs";
+import * as m from "../../../paraglide/messages.js";
+import { assertIsLocale } from "../../../paraglide/runtime.js";
+import PublicLayout from "../../../layouts/PublicLayout.astro";
+import { getDomainPath, getRouteDomain } from "../../../lib/content/routes";
+
+export function getStaticPaths() {
+  return locales.map((configuredLocale) => {
+    const locale = assertIsLocale(configuredLocale);
+    return {
+      params: { locale, domain: getRouteDomain("event", locale) },
+    };
+  });
+}
+
+const locale = assertIsLocale(Astro.currentLocale);
+const canonical = new URL(
+  getDomainPath("event", locale),
+  Astro.site,
+).toString();
+---
+
+<PublicLayout
+  canonical={canonical}
+  description={m.events_intro({}, { locale })}
+  locale={locale}
+  noindex={true}
+  title={`${m.navigation_events({}, { locale })} | ${m.site_title()}`}
+>
+  <section
+    class="page-frame max-w-[var(--reading-width)] py-[clamp(var(--space-12),10vw,7rem)]"
+  >
+    <p
+      class="m-0 font-[family-name:var(--font-display)] text-lg tracking-[0.06em] uppercase"
+    >
+      {m.site_title()}
+    </p>
+    <h1
+      class="my-3 mb-6 max-w-[15ch] font-[family-name:var(--font-display)] text-[clamp(2.8rem,9vw,5.5rem)] leading-[0.95] tracking-[0.015em] uppercase"
+    >
+      {m.navigation_events({}, { locale })}
+    </h1>
+    <p class="text-[clamp(1.1rem,2vw,1.3rem)]">
+      {m.events_intro({}, { locale })}
+    </p>
+  </section>
+</PublicLayout>

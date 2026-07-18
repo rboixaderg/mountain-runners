@@ -92,6 +92,7 @@ const outputRoutes = htmlFiles.map((path) => relative(distPath, path));
 const unexpectedRoutes = outputRoutes.filter(
   (path) =>
     path !== "index.html" &&
+    path !== "404.html" &&
     !pages.some(([locale]) => path.startsWith(`${locale}/`)),
 );
 
@@ -99,6 +100,19 @@ if (unexpectedRoutes.length > 0) {
   throw new Error(
     `Public HTML routes must use a locale prefix: ${unexpectedRoutes.join(", ")}`,
   );
+}
+
+const notFound = await readFile(join(distPath, "404.html"), "utf8");
+if (
+  !notFound.includes('<html lang="ca">') ||
+  !notFound.includes('name="robots" content="noindex, nofollow"')
+) {
+  throw new Error("The technical 404 output must be Catalan and noindex.");
+}
+if (
+  outputRoutes.some((path) => /^(ca|es|en)\/404(?:\/index)?\.html$/u.test(path))
+) {
+  throw new Error("Localized 404 variants reached the build output.");
 }
 
 for (const route of expectedEditorialRoutes) {

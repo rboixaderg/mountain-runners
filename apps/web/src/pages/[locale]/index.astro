@@ -1,8 +1,8 @@
 ---
-import "../../styles/global.css";
 import { locales } from "../../../i18n.config.mjs";
 import * as m from "../../paraglide/messages.js";
 import { assertIsLocale } from "../../paraglide/runtime.js";
+import PublicLayout from "../../layouts/PublicLayout.astro";
 
 const locale = assertIsLocale(Astro.currentLocale);
 const canonicalUrl = new URL(`/${locale}/`, Astro.site);
@@ -12,26 +12,25 @@ export function getStaticPaths() {
 }
 ---
 
-<!doctype html>
-<html lang={locale}>
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width" />
-    <meta name="description" content={m.intro()} />
-    <link rel="canonical" href={canonicalUrl} />
-    <title>{m.site_title()}</title>
-  </head>
-  <body>
-    <main class="mx-auto max-w-3xl px-6 py-20">
-      <p class="text-club-red mb-3 font-bold tracking-widest uppercase">
-        {m.site_title()}
-      </p>
-      <h1 class="text-5xl font-black tracking-tight">
-        {m.under_construction()}
-      </h1>
-      <p class="mt-6 max-w-xl text-lg leading-relaxed">
-        {m.intro()}
-      </p>
-    </main>
-  </body>
-</html>
+<PublicLayout
+  canonical={canonicalUrl.toString()}
+  description={m.intro({}, { locale })}
+  locale={locale}
+  title={m.site_title()}
+>
+  <section
+    class="page-frame max-w-[var(--reading-width)] py-[clamp(var(--space-12),10vw,7rem)]"
+  >
+    <p
+      class="m-0 font-[family-name:var(--font-display)] text-lg tracking-[0.06em] uppercase"
+    >
+      {m.site_title()}
+    </p>
+    <h1
+      class="my-3 mb-6 max-w-[15ch] font-[family-name:var(--font-display)] text-[clamp(2.8rem,9vw,5.5rem)] leading-[0.95] tracking-[0.015em] uppercase"
+    >
+      {m.under_construction({}, { locale })}
+    </h1>
+    <p class="text-[clamp(1.1rem,2vw,1.3rem)]">{m.intro({}, { locale })}</p>
+  </section>
+</PublicLayout>
