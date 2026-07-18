@@ -1,6 +1,14 @@
 import { readFile, readdir } from "node:fs/promises";
 import { join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
+import { loadEnv } from "vite";
+
+const { PUBLIC_SITE_ORIGIN } = loadEnv(
+  process.env.NODE_ENV ?? "development",
+  fileURLToPath(new URL("../", import.meta.url)),
+  "PUBLIC_SITE_ORIGIN",
+);
+const publicSiteOrigin = new URL(PUBLIC_SITE_ORIGIN);
 
 const pages = [
   ["ca", "Base web en construcció"],
@@ -9,14 +17,14 @@ const pages = [
 ];
 
 const expectedEditorialRoutes = [
-  "ca/schools/escola-trail/index.html",
-  "ca/events/jornada-muntanya/index.html",
+  "ca/escoles/escola-trail/index.html",
+  "ca/esdeveniments/jornada-muntanya/index.html",
 ];
 
 const unpublishedEditorialRoutes = [
-  "es/schools/escola-trail/index.html",
+  "es/escuelas/escola-trail/index.html",
   "en/schools/escola-trail/index.html",
-  "es/events/jornada-muntanya/index.html",
+  "es/eventos/jornada-muntanya/index.html",
   "en/events/jornada-muntanya/index.html",
 ];
 
@@ -48,6 +56,17 @@ for (const [locale, message] of pages) {
       `The /${locale}/ output does not use its configured locale.`,
     );
   }
+}
+
+const catalanHome = await readFile(
+  new URL("../dist/ca/index.html", import.meta.url),
+  "utf8",
+);
+const catalanHomeCanonical = new URL("/ca/", publicSiteOrigin).toString();
+if (
+  !catalanHome.includes(`<link rel="canonical" href="${catalanHomeCanonical}"`)
+) {
+  throw new Error("The Catalan home output has an invalid canonical URL.");
 }
 
 async function listHtmlFiles(directory) {
@@ -84,8 +103,12 @@ if (unexpectedRoutes.length > 0) {
 
 for (const route of expectedEditorialRoutes) {
   const output = await readFile(join(distPath, route), "utf8");
-  if (!output.includes('<link rel="canonical"')) {
-    throw new Error(`Editorial route is missing canonical metadata: ${route}`);
+  const canonical = new URL(
+    route.replace("index.html", ""),
+    publicSiteOrigin,
+  ).toString();
+  if (!output.includes(`<link rel="canonical" href="${canonical}"`)) {
+    throw new Error(`Editorial route has an invalid canonical URL: ${route}`);
   }
 }
 
@@ -96,17 +119,67 @@ for (const route of unpublishedEditorialRoutes) {
 }
 
 const catalanEvent = await readFile(
-  join(distPath, "ca/events/jornada-muntanya/index.html"),
+  join(distPath, "ca/esdeveniments/jornada-muntanya/index.html"),
   "utf8",
 );
 if (!catalanEvent.includes(">Actiu<") || catalanEvent.includes(">Active<")) {
   throw new Error("The Catalan event status must use its Paraglide message.");
+}
+
+for (const legacyRoute of [
+  "ca/schools/escola-trail/index.html",
+  "ca/events/jornada-muntanya/index.html",
+]) {
+  if (outputRoutes.includes(legacyRoute)) {
+    throw new Error(
+      `Legacy non-localized route reached the build output: ${legacyRoute}`,
+    );
+  }
+}
+
+const sitemap = await readFile(join(distPath, "sitemap.xml"), "utf8");
+const sitemapUrls = new Set(
+  [...sitemap.matchAll(/<loc>([^<]+)<\/loc>/gu)].map(([, url]) => url),
+);
+const expectedSitemapUrls = new Set(
+  ["ca/", "ca/escoles/escola-trail/", "ca/esdeveniments/jornada-muntanya/"].map(
+    (path) => new URL(path, publicSiteOrigin).toString(),
+  ),
+);
+if (
+  sitemapUrls.size !== expectedSitemapUrls.size ||
+  [...expectedSitemapUrls].some((url) => !sitemapUrls.has(url))
+) {
+  throw new Error("Sitemap does not exactly match published canonical routes.");
+}
+if ([...sitemapUrls].some((url) => new URL(url).pathname.startsWith("/es/"))) {
+  throw new Error("Sitemap includes an incomplete localized variant.");
+}
+
+const robots = await readFile(join(distPath, "robots.txt"), "utf8");
+const sitemapDirective = `Sitemap: ${new URL("/sitemap.xml", publicSiteOrigin)}`;
+if (!robots.split("\n").includes(sitemapDirective)) {
+  throw new Error("Robots output does not declare the canonical sitemap URL.");
 }
 if (
   catalanEvent.includes('hreflang="es"') ||
   catalanEvent.includes('hreflang="en"')
 ) {
   throw new Error("Incomplete event variants reached hreflang metadata.");
+}
+
+const catalanEventAlternate = new URL(
+  "/ca/esdeveniments/jornada-muntanya/",
+  publicSiteOrigin,
+).toString();
+if (
+  !catalanEvent.includes(
+    `<link rel="alternate" hreflang="ca" href="${catalanEventAlternate}"`,
+  )
+) {
+  throw new Error(
+    "Published event is missing its canonical hreflang metadata.",
+  );
 }
 
 await readFile(join(distPath, expectedPublishedResource));

@@ -9,6 +9,7 @@ import {
   collectLocalResourcePaths,
   resolveLocalResourcePath,
 } from "./resources";
+import { assertUniquePublishedPaths } from "./routes";
 
 async function validateLocalResources(source: ContentSource): Promise<void> {
   const appDirectory = fileURLToPath(new URL("../../../", import.meta.url));
@@ -34,5 +35,7 @@ export async function getPublicationCatalog(): Promise<PublicationCatalog> {
     documents: documents.map(({ data }) => data),
   };
   await validateLocalResources(source);
-  return createPublicationCatalog(source);
+  const catalog = createPublicationCatalog(source);
+  assertUniquePublishedPaths(catalog);
+  return catalog;
 }
