@@ -127,7 +127,9 @@ revisió de cadena de subministrament. **PR:** pròpia; no afegeix runtime o CI.
 
 **Abast:** tokens, fonts, shell, navegació responsive, peu i 404. **Depèn de:**
 T2.3 i referències. **Resultat:** shell accessible. **Comprovació:** Playwright,
-axe i metadades. **PR:** pròpia; no construeix portada ni esdeveniments.
+axe i metadades. **PR:** pròpia; no construeix portada ni el hub editorial
+d'esdeveniments. Pot afegir una destinació temporal no indexable, sense contingut
+editorial, perquè la navegació global tingui un enllaç vàlid.
 
 ### T2.5: Portada Generada Des De Contingut
 

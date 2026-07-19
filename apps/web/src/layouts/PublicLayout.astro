@@ -1,6 +1,7 @@
 ---
 import SiteFooter from "../components/SiteFooter.astro";
 import SiteHeader from "../components/SiteHeader.astro";
+import oswaldFont from "../assets/fonts/oswald-latin.woff2";
 import type { Locale } from "../lib/content/primitives";
 import * as m from "../paraglide/messages.js";
 import "../styles/global.css";
@@ -31,6 +32,13 @@ const {
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width" />
+    <link
+      rel="preload"
+      href={oswaldFont}
+      as="font"
+      type="font/woff2"
+      crossorigin
+    />
     <meta name="description" content={description} />
     {noindex && <meta name="robots" content="noindex, nofollow" />}
     {canonical && <link rel="canonical" href={canonical} />}

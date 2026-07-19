@@ -54,7 +54,7 @@ const { locale } = variant;
               ? m.event_status_active({}, { locale })
               : m.event_status_historical({}, { locale })}
           </p>
-          <h1 class="text-5xl font-black tracking-tight">
+          <h1 class="text-5xl font-bold tracking-tight">
             {variant.entry.title[locale]}
           </h1>
           <section
@@ -74,7 +74,7 @@ const { locale } = variant;
         </>
       ) : (
         <>
-          <h1 class="text-5xl font-black tracking-tight">
+          <h1 class="text-5xl font-bold tracking-tight">
             {variant.entry.name[locale]}
           </h1>
           <p class="mt-6 text-lg">{variant.entry.summary[locale]}</p>

@@ -4,14 +4,30 @@
   --color-club-red: #d71920;
 }
 
+@font-face {
+  font-family: "Inter";
+  font-style: normal;
+  font-weight: 400 700;
+  font-display: swap;
+  src: url("../assets/fonts/inter-latin.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "Oswald";
+  font-style: normal;
+  font-weight: 400 700;
+  font-display: swap;
+  src: url("../assets/fonts/oswald-latin.woff2") format("woff2");
+}
+
 :root {
   --color-red: #d71920;
   --color-ink: #171717;
   --color-paper: #fffdf8;
   --color-line: #c8c3ba;
   --color-muted: #615d57;
-  --font-body: Arial, Helvetica, sans-serif;
-  --font-display: Impact, "Arial Narrow Bold", sans-serif;
+  --font-body: "Inter", Arial, Helvetica, sans-serif;
+  --font-display: "Oswald", Impact, "Arial Narrow Bold", sans-serif;
   --page-width: 76rem;
   --reading-width: 44rem;
   --space-2: 0.5rem;
