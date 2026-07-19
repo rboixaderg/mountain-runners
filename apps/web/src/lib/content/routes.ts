@@ -80,7 +80,7 @@ export function getAlternateVariants(
   );
 }
 
-export function getAlternateUrls(
+export function getLocalizedAlternatives(
   catalog: PublicationCatalog,
   variant: PublishedVariant,
   site: URL,

@@ -19,6 +19,7 @@ cada sistema operatiu](CONTRIBUTING.md#eines-locals).
 corepack enable
 cp apps/web/.env.example apps/web/.env
 pnpm install
+pnpm exec playwright install chromium firefox webkit
 pnpm dev
 ```
 

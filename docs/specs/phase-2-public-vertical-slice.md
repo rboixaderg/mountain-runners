@@ -80,9 +80,9 @@ Una PR pot agrupar unitats adjacents només quan:
 | Unitat                                       | Estat      | Dependències                                            | Resultat verificable                           | PR  |
 | -------------------------------------------- | ---------- | ------------------------------------------------------- | ---------------------------------------------- | --- |
 | Referències visuals i inventari editorial    | Completada | Cap dependència de codi                                 | Referències i inventari editorial revisats     | #14 |
-| Skills externes portables                    | En curs    | Fase 1 fusionada                                        | Quatre skills externes revisades i versionades | -   |
-| Contracte de rutes localitzades              | Pendent    | Fase 1 fusionada                                        | Segments canònics, URLs i variants validades   | -   |
-| Fonaments visuals i shell global             | Pendent    | Fase 1 i referències aplicables                         | Shell responsive i accessible                  | -   |
+| Skills externes portables                    | Completada | Fase 1 fusionada                                        | Quatre skills externes revisades i versionades | #15 |
+| Contracte de rutes localitzades              | Completada | Fase 1 fusionada                                        | Segments canònics, URLs i variants validades   | #17 |
+| Fonaments visuals i shell global             | En curs    | Fase 1 i referències aplicables                         | Shell responsive i accessible                  | #19 |
 | Portada content-driven                       | Pendent    | Shell i contingut aprovat                               | Inici real generat des de col·leccions         | -   |
 | Hub i detall d'esdeveniments                 | Pendent    | Shell, dissenys i contingut d'esdeveniments aprovats    | Recorregut complet amb estats reals            | -   |
 | SEO, rendiment, wrapper local i qualitat E2E | Pendent    | Pàgines representatives i skills externes implementades | Llindars, wrapper i recorreguts automatitzats  | -   |
@@ -127,7 +127,9 @@ revisió de cadena de subministrament. **PR:** pròpia; no afegeix runtime o CI.
 
 **Abast:** tokens, fonts, shell, navegació responsive, peu i 404. **Depèn de:**
 T2.3 i referències. **Resultat:** shell accessible. **Comprovació:** Playwright,
-axe i metadades. **PR:** pròpia; no construeix portada ni esdeveniments.
+axe i metadades. **PR:** pròpia; no construeix portada ni el hub editorial
+d'esdeveniments. Pot afegir una destinació temporal no indexable, sense contingut
+editorial, perquè la navegació global tingui un enllaç vàlid.
 
 ### T2.5: Portada Generada Des De Contingut
 

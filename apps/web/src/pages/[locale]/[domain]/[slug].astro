@@ -1,11 +1,12 @@
 ---
-import "../../../styles/global.css";
 import * as m from "../../../paraglide/messages.js";
+import PublicLayout from "../../../layouts/PublicLayout.astro";
 import { renderRestrictedMarkdown } from "../../../lib/content/markdown";
 import type { PublishedVariant } from "../../../lib/content/publication";
+import type { Locale } from "../../../lib/content/primitives";
 import { getPublicationCatalog } from "../../../lib/content/repository";
 import {
-  getAlternateUrls,
+  getLocalizedAlternatives,
   getCanonicalUrl,
   getRouteDomain,
 } from "../../../lib/content/routes";
@@ -21,96 +22,76 @@ export async function getStaticPaths() {
     },
     props: {
       variant,
-      alternates: getAlternateUrls(catalog, variant, site),
+      localizedAlternatives: getLocalizedAlternatives(catalog, variant, site),
     },
   }));
 }
 
-const { variant, alternates } = Astro.props as {
+const { variant, localizedAlternatives } = Astro.props as {
   variant: PublishedVariant;
-  alternates: { locale: string; href: string }[];
+  localizedAlternatives: { locale: Locale; href: string }[];
 };
 const { locale } = variant;
 ---
 
-<!doctype html>
-<html lang={locale}>
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width" />
-    <meta
-      name="description"
-      content={variant.kind === "event"
-        ? variant.entry.description[locale]
-        : variant.entry.summary[locale]}
-    />
-    <link rel="canonical" href={getCanonicalUrl(variant, Astro.site!)} />
+<PublicLayout
+  localizedAlternatives={localizedAlternatives}
+  canonical={getCanonicalUrl(variant, Astro.site!)}
+  description={variant.kind === "event"
+    ? variant.entry.description[locale]!
+    : variant.entry.summary[locale]!}
+  locale={locale}
+  title={`${variant.kind === "event" ? variant.entry.title[locale] : variant.entry.name[locale]} | ${m.site_title({}, { locale })}`}
+>
+  <article
+    class="page-frame max-w-[var(--reading-width)] py-[clamp(var(--space-12),10vw,7rem)] [&_h1]:my-3 [&_h1]:mb-6 [&_h1]:max-w-[15ch] [&_h1]:font-[family-name:var(--font-display)] [&_h1]:text-[clamp(2.8rem,9vw,5.5rem)] [&_h1]:leading-[0.95] [&_h1]:tracking-[0.015em] [&_h1]:uppercase [&_ol]:mt-8 [&_section]:mt-8 [&_section]:text-[clamp(1.1rem,2vw,1.3rem)]"
+  >
     {
-      alternates.map((alternate) => (
-        <link
-          rel="alternate"
-          hreflang={alternate.locale}
-          href={alternate.href}
-        />
-      ))
-    }
-    <title>
-      {
-        variant.kind === "event"
-          ? variant.entry.title[locale]
-          : variant.entry.name[locale]
-      }
-    </title>
-  </head>
-  <body>
-    <main class="mx-auto max-w-3xl px-6 py-20">
-      {
-        variant.kind === "event" ? (
-          <>
-            <p>
-              {variant.entry.active
-                ? m.event_status_active({}, { locale })
-                : m.event_status_historical({}, { locale })}
-            </p>
-            <h1 class="text-5xl font-black tracking-tight">
-              {variant.entry.title[locale]}
-            </h1>
-            <section
-              class="mt-8"
-              set:html={renderRestrictedMarkdown(
-                variant.entry.description[locale]!,
-              )}
-            />
-            <ol class="mt-8">
-              {variant.entry.editions.map((edition) => (
-                <li>
-                  <time datetime={edition.startDate}>{edition.startDate}</time>
-                  {` · ${edition.location[locale]}`}
-                </li>
-              ))}
-            </ol>
-          </>
-        ) : (
-          <>
-            <h1 class="text-5xl font-black tracking-tight">
-              {variant.entry.name[locale]}
-            </h1>
-            <p class="mt-6 text-lg">{variant.entry.summary[locale]}</p>
-            <section
-              class="mt-8"
-              set:html={renderRestrictedMarkdown(
-                variant.entry.description[locale]!,
-              )}
-            />
-            {Object.values(variant.entry.sections).map((section) => (
-              <section
-                class="mt-8"
-                set:html={renderRestrictedMarkdown(section[locale]!)}
-              />
+      variant.kind === "event" ? (
+        <>
+          <p>
+            {variant.entry.active
+              ? m.event_status_active({}, { locale })
+              : m.event_status_historical({}, { locale })}
+          </p>
+          <h1 class="text-5xl font-bold tracking-tight">
+            {variant.entry.title[locale]}
+          </h1>
+          <section
+            class="mt-8"
+            set:html={renderRestrictedMarkdown(
+              variant.entry.description[locale]!,
+            )}
+          />
+          <ol class="mt-8">
+            {variant.entry.editions.map((edition) => (
+              <li>
+                <time datetime={edition.startDate}>{edition.startDate}</time>
+                {` · ${edition.location[locale]}`}
+              </li>
             ))}
-          </>
-        )
-      }
-    </main>
-  </body>
-</html>
+          </ol>
+        </>
+      ) : (
+        <>
+          <h1 class="text-5xl font-bold tracking-tight">
+            {variant.entry.name[locale]}
+          </h1>
+          <p class="mt-6 text-lg">{variant.entry.summary[locale]}</p>
+          <section
+            class="mt-8"
+            set:html={renderRestrictedMarkdown(
+              variant.entry.description[locale]!,
+            )}
+          />
+          {Object.values(variant.entry.sections).map((section) => (
+            <section
+              class="mt-8"
+              set:html={renderRestrictedMarkdown(section[locale]!)}
+            />
+          ))}
+        </>
+      )
+    }
+  </article>
+</PublicLayout>

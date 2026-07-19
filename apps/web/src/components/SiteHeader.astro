@@ -1,0 +1,115 @@
+---
+import * as m from "../paraglide/messages.js";
+import logo from "../assets/logo_mountain_runners.jpeg";
+import type { Locale } from "../lib/content/primitives";
+import { getDomainPath } from "../lib/content/routes";
+import LanguageSelector from "./LanguageSelector.astro";
+
+type LocalizedAlternative = { locale: Locale; href: string };
+
+interface Props {
+  localizedAlternatives: LocalizedAlternative[];
+  locale: Locale;
+}
+
+const { localizedAlternatives, locale } = Astro.props;
+const homePath = `/${locale}/`;
+const eventsPath = getDomainPath("event", locale);
+---
+
+<header class="border-b border-[var(--color-line)]">
+  <div class="page-frame flex min-h-18 items-center gap-6">
+    <a
+      class="shrink-0 no-underline"
+      href={homePath}
+      aria-label={m.site_title({}, { locale })}
+    >
+      <img
+        class="site-logo"
+        src={logo.src}
+        width={logo.width}
+        height={logo.height}
+        alt=""
+      />
+    </a>
+    <nav
+      class="ml-auto hidden items-center gap-4 text-sm md:flex"
+      aria-label={m.primary_navigation({}, { locale })}
+    >
+      <a class="font-bold" href={homePath}
+        >{m.navigation_home({}, { locale })}</a
+      >
+      <a class="font-bold" href={eventsPath}
+        >{m.navigation_events({}, { locale })}</a
+      >
+      <span
+        >{m.navigation_about({}, { locale })}
+        <small class="text-[0.7em] whitespace-nowrap text-[var(--color-muted)]"
+          >{m.coming_soon({}, { locale })}</small
+        ></span
+      >
+      <span
+        >{m.navigation_members({}, { locale })}
+        <small class="text-[0.7em] whitespace-nowrap text-[var(--color-muted)]"
+          >{m.coming_soon({}, { locale })}</small
+        ></span
+      >
+      <span
+        >{m.navigation_schools({}, { locale })}
+        <small class="text-[0.7em] whitespace-nowrap text-[var(--color-muted)]"
+          >{m.coming_soon({}, { locale })}</small
+        ></span
+      >
+    </nav>
+    <div class="hidden md:block">
+      <LanguageSelector
+        localizedAlternatives={localizedAlternatives}
+        locale={locale}
+      />
+    </div>
+    <details class="relative ml-auto md:hidden">
+      <summary class="cursor-pointer font-bold"
+        >{m.menu({}, { locale })}</summary
+      >
+      <div
+        class="absolute right-0 z-10 mt-4 min-w-60 border border-[var(--color-line)] bg-[var(--color-paper)] p-4 shadow-sm"
+      >
+        <nav
+          class="grid gap-3"
+          aria-label={m.primary_navigation({}, { locale })}
+        >
+          <a class="font-bold" href={homePath}
+            >{m.navigation_home({}, { locale })}</a
+          >
+          <a class="font-bold" href={eventsPath}
+            >{m.navigation_events({}, { locale })}</a
+          >
+          <span
+            >{m.navigation_about({}, { locale })}
+            <small class="text-[0.7em] text-[var(--color-muted)]"
+              >{m.coming_soon({}, { locale })}</small
+            ></span
+          >
+          <span
+            >{m.navigation_members({}, { locale })}
+            <small class="text-[0.7em] text-[var(--color-muted)]"
+              >{m.coming_soon({}, { locale })}</small
+            ></span
+          >
+          <span
+            >{m.navigation_schools({}, { locale })}
+            <small class="text-[0.7em] text-[var(--color-muted)]"
+              >{m.coming_soon({}, { locale })}</small
+            ></span
+          >
+        </nav>
+        <div class="mt-4">
+          <LanguageSelector
+            localizedAlternatives={localizedAlternatives}
+            locale={locale}
+          />
+        </div>
+      </div>
+    </details>
+  </div>
+</header>

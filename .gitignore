@@ -9,6 +9,8 @@ apps/web/src/paraglide/
 
 # Test output
 coverage/
+playwright-report/
+test-results/
 
 # Local environment and credentials
 .env
