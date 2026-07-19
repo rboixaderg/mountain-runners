@@ -14,7 +14,7 @@ import {
 } from "../lib/content/publication";
 import {
   assertRouteDomains,
-  getAlternateUrls,
+  getLocalizedAlternatives,
   getCanonicalUrl,
   getSitemapUrls,
   getVariantPath,
@@ -75,7 +75,7 @@ describe("localized route contract", () => {
     expect(getCanonicalUrl(event, publicSiteOrigin)).toBe(
       "https://mountainrunners.cat/ca/esdeveniments/jornada-muntanya/",
     );
-    expect(getAlternateUrls(catalog, event, publicSiteOrigin)).toEqual([
+    expect(getLocalizedAlternatives(catalog, event, publicSiteOrigin)).toEqual([
       {
         locale: "ca",
         href: "https://mountainrunners.cat/ca/esdeveniments/jornada-muntanya/",
@@ -118,7 +118,7 @@ describe("localized route contract", () => {
       ({ kind, locale }) => kind === "event" && locale === "es",
     )!;
     expect(
-      getAlternateUrls(completeCatalog, spanishEvent, publicSiteOrigin),
+      getLocalizedAlternatives(completeCatalog, spanishEvent, publicSiteOrigin),
     ).toEqual([
       {
         locale: "ca",
@@ -143,7 +143,7 @@ describe("localized route contract", () => {
       "https://mountainrunners.cat/en/events/mountain-day/",
     );
     expect(
-      getAlternateUrls(
+      getLocalizedAlternatives(
         incompleteCatalog,
         incompleteCatalog.variants.find(
           ({ kind, locale }) => kind === "event" && locale === "es",

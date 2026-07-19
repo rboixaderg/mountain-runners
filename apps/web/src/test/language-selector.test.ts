@@ -7,7 +7,7 @@ describe("LanguageSelector", () => {
     const container = await AstroContainer.create();
     const html = await container.renderToString(LanguageSelector, {
       props: {
-        alternates: [{ locale: "ca", href: "/ca/" }],
+        localizedAlternatives: [{ locale: "ca", href: "/ca/" }],
         locale: "ca",
       },
     });
@@ -19,7 +19,7 @@ describe("LanguageSelector", () => {
     const container = await AstroContainer.create();
     const html = await container.renderToString(LanguageSelector, {
       props: {
-        alternates: [
+        localizedAlternatives: [
           { locale: "ca", href: "/ca/" },
           { locale: "es", href: "/es/" },
         ],

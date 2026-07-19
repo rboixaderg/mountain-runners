@@ -2,14 +2,14 @@
 import * as m from "../paraglide/messages.js";
 import type { Locale } from "../lib/content/primitives";
 
-type Alternate = { locale: Locale; href: string };
+type LocalizedAlternative = { locale: Locale; href: string };
 
 interface Props {
-  alternates: Alternate[];
+  localizedAlternatives: LocalizedAlternative[];
   locale: Locale;
 }
 
-const { alternates, locale } = Astro.props;
+const { localizedAlternatives, locale } = Astro.props;
 const languageNames: Record<Locale, string> = {
   ca: m.language_ca({}, { locale }),
   es: m.language_es({}, { locale }),
@@ -18,25 +18,25 @@ const languageNames: Record<Locale, string> = {
 ---
 
 {
-  alternates.length > 1 && (
+  localizedAlternatives.length > 1 && (
     <nav aria-label={m.language_selector({}, { locale })}>
       <ul class="flex list-none items-center gap-4 p-0 text-sm">
-        {alternates.map((alternate) => (
+        {localizedAlternatives.map((alternative) => (
           <li>
-            {alternate.locale === locale ? (
+            {alternative.locale === locale ? (
               <span
                 class="font-bold text-[var(--color-muted)]"
                 aria-current="page"
               >
-                {languageNames[alternate.locale]}
+                {languageNames[alternative.locale]}
               </span>
             ) : (
               <a
                 class="font-bold"
-                href={alternate.href}
-                hreflang={alternate.locale}
+                href={alternative.href}
+                hreflang={alternative.locale}
               >
-                {languageNames[alternate.locale]}
+                {languageNames[alternative.locale]}
               </a>
             )}
           </li>

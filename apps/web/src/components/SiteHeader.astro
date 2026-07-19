@@ -5,14 +5,14 @@ import type { Locale } from "../lib/content/primitives";
 import { getDomainPath } from "../lib/content/routes";
 import LanguageSelector from "./LanguageSelector.astro";
 
-type Alternate = { locale: Locale; href: string };
+type LocalizedAlternative = { locale: Locale; href: string };
 
 interface Props {
-  alternates: Alternate[];
+  localizedAlternatives: LocalizedAlternative[];
   locale: Locale;
 }
 
-const { alternates, locale } = Astro.props;
+const { localizedAlternatives, locale } = Astro.props;
 const homePath = `/${locale}/`;
 const eventsPath = getDomainPath("event", locale);
 ---
@@ -62,7 +62,10 @@ const eventsPath = getDomainPath("event", locale);
       >
     </nav>
     <div class="hidden md:block">
-      <LanguageSelector alternates={alternates} locale={locale} />
+      <LanguageSelector
+        localizedAlternatives={localizedAlternatives}
+        locale={locale}
+      />
     </div>
     <details class="relative ml-auto md:hidden">
       <summary class="cursor-pointer font-bold"
@@ -101,7 +104,10 @@ const eventsPath = getDomainPath("event", locale);
           >
         </nav>
         <div class="mt-4">
-          <LanguageSelector alternates={alternates} locale={locale} />
+          <LanguageSelector
+            localizedAlternatives={localizedAlternatives}
+            locale={locale}
+          />
         </div>
       </div>
     </details>

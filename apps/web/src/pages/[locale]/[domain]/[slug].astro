@@ -6,7 +6,7 @@ import type { PublishedVariant } from "../../../lib/content/publication";
 import type { Locale } from "../../../lib/content/primitives";
 import { getPublicationCatalog } from "../../../lib/content/repository";
 import {
-  getAlternateUrls,
+  getLocalizedAlternatives,
   getCanonicalUrl,
   getRouteDomain,
 } from "../../../lib/content/routes";
@@ -22,20 +22,20 @@ export async function getStaticPaths() {
     },
     props: {
       variant,
-      alternates: getAlternateUrls(catalog, variant, site),
+      localizedAlternatives: getLocalizedAlternatives(catalog, variant, site),
     },
   }));
 }
 
-const { variant, alternates } = Astro.props as {
+const { variant, localizedAlternatives } = Astro.props as {
   variant: PublishedVariant;
-  alternates: { locale: Locale; href: string }[];
+  localizedAlternatives: { locale: Locale; href: string }[];
 };
 const { locale } = variant;
 ---
 
 <PublicLayout
-  alternates={alternates}
+  localizedAlternatives={localizedAlternatives}
   canonical={getCanonicalUrl(variant, Astro.site!)}
   description={variant.kind === "event"
     ? variant.entry.description[locale]!
