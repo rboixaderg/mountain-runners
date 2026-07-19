@@ -10,11 +10,8 @@ const { PUBLIC_SITE_ORIGIN } = loadEnv(
 );
 const publicSiteOrigin = new URL(PUBLIC_SITE_ORIGIN);
 
-const pages = [
-  ["ca", "Base web en construcció"],
-  ["es", "Base web en construcción"],
-  ["en", "Website foundation under construction"],
-];
+const publishedHomepages = [["ca", "Mountain Runners del Berguedà"]];
+const configuredLocales = ["ca", "es", "en"];
 
 const expectedEditorialRoutes = [
   "ca/escoles/escola-trail/index.html",
@@ -45,7 +42,7 @@ if (!root.includes('http-equiv="refresh"') || !root.includes('href="/ca/"')) {
   throw new Error("The root output must redirect to /ca/.");
 }
 
-for (const [locale, message] of pages) {
+for (const [locale, message] of publishedHomepages) {
   const page = await readFile(
     new URL(`../dist/${locale}/index.html`, import.meta.url),
     "utf8",
@@ -56,6 +53,17 @@ for (const [locale, message] of pages) {
       `The /${locale}/ output does not use its configured locale.`,
     );
   }
+}
+
+for (const locale of configuredLocales.filter((locale) => locale !== "ca")) {
+  try {
+    await readFile(new URL(`../dist/${locale}/index.html`, import.meta.url));
+  } catch {
+    continue;
+  }
+  throw new Error(
+    `Incomplete homepage variant reached the build output: /${locale}/`,
+  );
 }
 
 const catalanHome = await readFile(
@@ -93,7 +101,7 @@ const unexpectedRoutes = outputRoutes.filter(
   (path) =>
     path !== "index.html" &&
     path !== "404.html" &&
-    !pages.some(([locale]) => path.startsWith(`${locale}/`)),
+    !configuredLocales.some((locale) => path.startsWith(`${locale}/`)),
 );
 
 if (unexpectedRoutes.length > 0) {

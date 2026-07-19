@@ -8,6 +8,7 @@ const fixturePaths = {
   schools: "../content/schools/trail-school.yaml",
   events: "../content/events/mountain-day.yaml",
   entities: "../content/entities/mountain-runners.yaml",
+  pages: "../content/pages/homepage.yaml",
   documents: "../content/documents/club-guide.yaml",
 } as const;
 
@@ -15,6 +16,7 @@ const requiredFields = {
   schools: ["id", "sections"],
   events: ["id", "editions"],
   entities: ["id", "logo"],
+  pages: ["id", "hero"],
   documents: ["id", "resource"],
 } as const;
 

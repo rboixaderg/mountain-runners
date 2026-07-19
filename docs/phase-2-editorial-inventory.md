@@ -38,6 +38,17 @@ d'inscripció oberta, tancada, recurs no disponible i esdeveniment vigent sense
 pròxima data anunciada. Són referències adaptables; l'aprovació no valida les
 dades de mostra que puguin mostrar.
 
+### Contingut Textual De La Portada
+
+La portada actual és la font revisada dels textos de presentació de Mountain
+Runners, els esdeveniments, les escoles, els socis i el territori. El 19 de
+juliol de 2026, una persona mantenidora del projecte va autoritzar-ne la
+reutilització a la portada de la T2.5. Només s'incorporen fragments sans i
+vigents per a aquests blocs; s'exclouen HTML, dades de contacte, imatges,
+enllaços externs no verificats i qualsevol contingut aliè injectat a la pàgina.
+
+Font: <https://mountainrunners.cat/>.
+
 ## Casos D'Esdeveniment Revisats
 
 | Cas                        | Estat editorial | Fets confirmats                                                                                                                                                                                                                                                     | Pendent abans de publicar   |
