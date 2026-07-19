@@ -60,6 +60,10 @@ img {
   max-width: 100%;
 }
 
+.site-logo {
+  width: 3.5rem;
+}
+
 a {
   color: inherit;
   text-decoration-thickness: 0.125em;

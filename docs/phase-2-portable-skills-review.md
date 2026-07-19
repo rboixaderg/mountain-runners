@@ -43,8 +43,10 @@ proposar les vuit skills següents.
 | `accessibility`             | `addyosmani/web-quality-skills@fed9617111260e19f4f54b72a2874a3f3de8ff94`       | `65021e9ccab70165539db82070257d4e2e2c7d7b0f857825299da2e4a7a8704c` | Aprovada: MIT, hashes verificats i contingut compatible.         |
 | `seo`                       | `addyosmani/web-quality-skills@fed9617111260e19f4f54b72a2874a3f3de8ff94`       | `f3e546112a3168515486c533d13156a1d4dcd9402f3d116730cef573a20e2804` | Aprovada: MIT, hashes verificats i contingut compatible.         |
 
-La proposta no inclou Playwright perquè encara no forma part del manifest del
-projecte. S'avaluarà quan la dependència s'introdueixi per a la T2.7.
+La revisió inicial no va incloure cap skill de Playwright. La dependència s'ha
+introduït a la T2.4 per verificar el shell; la conveniència d'incorporar una
+skill específica es tornarà a avaluar a la T2.7, quan s'implementi la suite E2E
+completa del vertical slice.
 
 ## Criteri Aplicat
 

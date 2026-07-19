@@ -1,5 +1,6 @@
 ---
 import * as m from "../paraglide/messages.js";
+import logo from "../assets/logo_mountain_runners.jpeg";
 import type { Locale } from "../lib/content/primitives";
 import { getDomainPath } from "../lib/content/routes";
 import LanguageSelector from "./LanguageSelector.astro";
@@ -19,9 +20,18 @@ const eventsPath = getDomainPath("event", locale);
 <header class="border-b border-[var(--color-line)]">
   <div class="page-frame flex min-h-18 items-center gap-6">
     <a
-      class="font-[family-name:var(--font-display)] text-lg tracking-[0.06em] uppercase no-underline"
-      href={homePath}>{m.site_title()}</a
+      class="shrink-0 no-underline"
+      href={homePath}
+      aria-label={m.site_title({}, { locale })}
     >
+      <img
+        class="site-logo"
+        src={logo.src}
+        width={logo.width}
+        height={logo.height}
+        alt=""
+      />
+    </a>
     <nav
       class="ml-auto hidden items-center gap-4 text-sm md:flex"
       aria-label={m.primary_navigation({}, { locale })}
