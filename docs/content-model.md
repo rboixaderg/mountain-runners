@@ -35,11 +35,13 @@
 
 ## Col·leccions
 
-Les quatre Astro Content Collections registrades són:
+Les cinc Astro Content Collections registrades són:
 
 - `schools`: programes amb informació pràctica, recursos i estat d'inscripció.
 - `events`: esdeveniments amb entitats relacionades i edicions embegudes.
 - `entities`: organitzacions reutilitzables i avantatges opcionals per a socis.
+- `pages`: contingut editable de pàgines fixes amb un esquema específic per a
+  cada plantilla, començant per la portada.
 - `documents`: recursos locals o externs amb tipus, idioma i disponibilitat.
 
 Els esdeveniments necessiten un estat de visibilitat editorial i una indicació
@@ -78,6 +80,11 @@ repositori central, que exclou `published: false` i només retorna variants amb
 una traducció completa. `active` no altera la visibilitat editorial d'un
 esdeveniment. Els camps opcionals sense traducció s'ometen i no fan fallback al
 català.
+
+Una variant editorial publicable no habilita automàticament una fitxa pública.
+Els tipus de detall disponibles es defineixen centralment en codi segons les
+plantilles completades a cada fase. La portada pot reutilitzar contingut publicat
+sense avançar les fitxes d'esdeveniments de la T2.6 ni les d'escoles de la fase 3.
 
 El codi centralitza els dominis editorials localitzats: escoles són
 `/{locale}/escoles/{slug}/`, `/{locale}/escuelas/{slug}/` o

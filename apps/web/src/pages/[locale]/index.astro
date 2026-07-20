@@ -1,6 +1,5 @@
 ---
 import { locales } from "../../../i18n.config.mjs";
-import logo from "../../assets/logo_mountain_runners.jpeg";
 import * as m from "../../paraglide/messages.js";
 import { assertIsLocale } from "../../paraglide/runtime.js";
 import PublicLayout from "../../layouts/PublicLayout.astro";
@@ -20,6 +19,11 @@ import { getDomainPath } from "../../lib/content/routes";
 const locale = assertIsLocale(Astro.currentLocale);
 const canonicalUrl = new URL(`/${locale}/`, Astro.site);
 const homepage = await getPublishedHomepage();
+const heroImage = homepage.hero.image;
+const heroImageUrl =
+  heroImage.resource.kind === "local"
+    ? `/content-resources/${heroImage.resource.path.replace(/^src\//u, "")}`
+    : heroImage.resource.url;
 const catalog = await getPublicationCatalog();
 const today = getMadridDate(new Date());
 const eventVariants = catalog.variants.filter(
@@ -58,10 +62,10 @@ export function getStaticPaths() {
       <div class="homepage-hero__aside">
         <img
           class="homepage-hero__logo"
-          src={logo.src}
-          width={logo.width}
-          height={logo.height}
-          alt=""
+          src={heroImageUrl}
+          width={heroImage.width}
+          height={heroImage.height}
+          alt={heroImage.alt[locale]}
         />
         <div
           class="homepage-hero__copy"

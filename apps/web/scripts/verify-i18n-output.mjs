@@ -13,16 +13,13 @@ const publicSiteOrigin = new URL(PUBLIC_SITE_ORIGIN);
 const publishedHomepages = [["ca", "Mountain Runners del Berguedà"]];
 const configuredLocales = ["ca", "es", "en"];
 
-const expectedEditorialRoutes = [
+const unavailableDetailRoutes = [
   "ca/escoles/escola-btt/index.html",
   "ca/escoles/escola-skimo/index.html",
   "ca/escoles/escola-trail/index.html",
   "ca/esdeveniments/berga-trail/index.html",
   "ca/esdeveniments/escalada-queralt/index.html",
   "ca/esdeveniments/ultra-pirineu/index.html",
-];
-
-const unpublishedEditorialRoutes = [
   "ca/esdeveniments/jornada-muntanya/index.html",
   "es/escuelas/escola-trail/index.html",
   "en/schools/escola-trail/index.html",
@@ -133,20 +130,11 @@ if (
   throw new Error("Localized 404 variants reached the build output.");
 }
 
-for (const route of expectedEditorialRoutes) {
-  const output = await readFile(join(distPath, route), "utf8");
-  const canonical = new URL(
-    route.replace("index.html", ""),
-    publicSiteOrigin,
-  ).toString();
-  if (!output.includes(`<link rel="canonical" href="${canonical}"`)) {
-    throw new Error(`Editorial route has an invalid canonical URL: ${route}`);
-  }
-}
-
-for (const route of unpublishedEditorialRoutes) {
+for (const route of unavailableDetailRoutes) {
   if (outputRoutes.includes(route)) {
-    throw new Error(`Incomplete variant reached the build output: ${route}`);
+    throw new Error(
+      `Unavailable detail route reached the build output: ${route}`,
+    );
   }
 }
 
@@ -166,15 +154,7 @@ const sitemapUrls = new Set(
   [...sitemap.matchAll(/<loc>([^<]+)<\/loc>/gu)].map(([, url]) => url),
 );
 const expectedSitemapUrls = new Set(
-  [
-    "ca/",
-    "ca/escoles/escola-btt/",
-    "ca/escoles/escola-skimo/",
-    "ca/escoles/escola-trail/",
-    "ca/esdeveniments/berga-trail/",
-    "ca/esdeveniments/escalada-queralt/",
-    "ca/esdeveniments/ultra-pirineu/",
-  ].map((path) => new URL(path, publicSiteOrigin).toString()),
+  ["ca/"].map((path) => new URL(path, publicSiteOrigin).toString()),
 );
 if (
   sitemapUrls.size !== expectedSitemapUrls.size ||

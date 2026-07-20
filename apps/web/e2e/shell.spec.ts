@@ -66,6 +66,15 @@ test("renders the published homepage sections in order", async ({ page }) => {
       name: "Mountain Runners del Berguedà",
     }),
   ).toBeVisible();
+  const heroImage = page.getByRole("img", {
+    name: "Logotip de Mountain Runners del Berguedà",
+  });
+  await expect(heroImage).toHaveAttribute(
+    "src",
+    "/content-resources/assets/logo_mountain_runners.jpeg",
+  );
+  await expect(heroImage).toHaveAttribute("width", "450");
+  await expect(heroImage).toHaveAttribute("height", "444");
   await expect(
     page.locator("main h1, main h2").allTextContents(),
   ).resolves.toEqual([

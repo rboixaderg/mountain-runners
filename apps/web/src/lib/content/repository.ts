@@ -16,10 +16,11 @@ export async function getPublishedHomepage() {
   if (homepage === undefined || !homepage.data.published) {
     throw new Error("The published homepage is required");
   }
+  await validateLocalResources(homepage.data);
   return homepage.data;
 }
 
-async function validateLocalResources(source: ContentSource): Promise<void> {
+async function validateLocalResources(source: unknown): Promise<void> {
   const appDirectory = fileURLToPath(new URL("../../../", import.meta.url));
   const paths = collectLocalResourcePaths(source);
   await Promise.all(

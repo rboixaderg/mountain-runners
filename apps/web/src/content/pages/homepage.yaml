@@ -8,6 +8,14 @@ hero:
       Portem més de 15 anys creixent i treballant sobre un eix en comú, la
       muntanya, sempre amb els valors de l'esforç, la constància, el compromís,
       el treball en equip i el respecte a la natura.
+  image:
+    resource:
+      kind: local
+      path: src/assets/logo_mountain_runners.jpeg
+    alt:
+      ca: Logotip de Mountain Runners del Berguedà
+    width: 450
+    height: 444
 events:
   title:
     ca: Esdeveniments

@@ -16,6 +16,7 @@ import {
   assertRouteDomains,
   getLocalizedAlternatives,
   getCanonicalUrl,
+  getPublicDetailVariants,
   getSitemapUrls,
   getVariantPath,
   routeDomains,
@@ -88,15 +89,12 @@ describe("localized route contract", () => {
     ]);
   });
 
-  it("includes only published routes in the sitemap", async () => {
+  it("keeps published content out of unavailable detail routes", async () => {
     const catalog = createPublicationCatalog(await loadSource());
 
+    expect(getPublicDetailVariants(catalog)).toEqual([]);
     expect(getSitemapUrls(catalog, publicSiteOrigin)).toEqual([
       "https://mountainrunners.cat/ca/",
-      "https://mountainrunners.cat/ca/escoles/escola-btt/",
-      "https://mountainrunners.cat/ca/escoles/escola-skimo/",
-      "https://mountainrunners.cat/ca/escoles/escola-trail/",
-      "https://mountainrunners.cat/ca/esdeveniments/jornada-muntanya/",
     ]);
   });
 

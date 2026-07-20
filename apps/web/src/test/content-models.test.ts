@@ -92,6 +92,19 @@ describe("editorial collection schemas", () => {
     expect(eventSchema.safeParse(invalidDate).success).toBe(false);
   });
 
+  it("requires the homepage hero image", async () => {
+    const homepage = await parseFixture(
+      fixturePaths.pages,
+      collectionSchemas.pages,
+    );
+    const incompleteHomepage = structuredClone(homepage);
+    delete (incompleteHomepage.hero as { image?: unknown }).image;
+
+    expect(collectionSchemas.pages.safeParse(incompleteHomepage).success).toBe(
+      false,
+    );
+  });
+
   for (const [
     stateName,
     fixturePath,

@@ -78,15 +78,19 @@ Fonts:
 
 | Cas                        | Estat editorial | Fets confirmats                                                                                                                                                                                                                                                     | Pendent abans de publicar   |
 | -------------------------- | --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------- |
-| Berga Trail                | Revisat         | Mountain Runners en va ser l'organitzador. És històric: l'última edició va ser el 2022 a Berga, amb distàncies de 12 km, 27 km i 42 km i inscripcions tancades. Descripció editorial provisional disponible més avall.                                              | Cap dada editorial pendent. |
-| Ultra Pirineu / Pirineu XS | Revisat         | Mountain Runners hi col·labora. L'edició de 2026 és el 2, 3 i 4 d'octubre a Bagà, amb les modalitats KV vertical, 100 km, 42 km i 21 km; les inscripcions estan tancades. Descripció: "És una cursa de muntanya que recorre part de la serralada del Cadí-Moixeró." | Cap dada editorial pendent. |
-| Escalada Popular a Queralt | Revisat         | Mountain Runners n'és l'organitzador. És activa i acumula tres edicions inclosa la de 2026. L'edició de 2026 va ser el 17 de març; les inscripcions estan tancades. Descripció: "Escalada popular de Berga a Queralt en bicicleta."                                 | Cap dada editorial pendent. |
+| Berga Trail                | Aprovat         | Mountain Runners en va ser l'organitzador. És històric: l'última edició va ser el 2022 a Berga, amb distàncies de 12 km, 27 km i 42 km i inscripcions tancades. Descripció editorial provisional disponible més avall.                                              | Cap dada editorial pendent. |
+| Ultra Pirineu / Pirineu XS | Aprovat         | Mountain Runners hi col·labora. L'edició de 2026 és el 2, 3 i 4 d'octubre a Bagà, amb les modalitats KV vertical, 100 km, 42 km i 21 km; les inscripcions estan tancades. Descripció: "És una cursa de muntanya que recorre part de la serralada del Cadí-Moixeró." | Cap dada editorial pendent. |
+| Escalada Popular a Queralt | Aprovat         | Mountain Runners n'és l'organitzador. És activa i acumula tres edicions inclosa la de 2026. L'edició de 2026 va ser el 17 de març; les inscripcions estan tancades. Descripció: "Escalada popular de Berga a Queralt en bicicleta."                                 | Cap dada editorial pendent. |
 
 Fonts d'informació:
 
 - Berga Trail: <https://mountainrunners.cat/berga-trail/>.
 - Ultra Pirineu: <https://ultrapirineu.com/>.
 - Escalada Popular a Queralt: <https://escaladesbergueda.cat/escalades/queralt>.
+
+El 20 de juliol de 2026, la persona mantenidora del projecte va confirmar
+explícitament que aquests tres casos i les dades recollides són correctes i
+publicables per a aquest slice.
 
 No hi ha ara cap cas real revisat amb inscripció oberta. Aquest comportament
 s'ha de cobrir amb una fixture sintètica no publicada fins que hi hagi un cas
