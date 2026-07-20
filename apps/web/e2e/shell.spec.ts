@@ -78,6 +78,23 @@ test("renders the published homepage sections in order", async ({ page }) => {
   await expect(page.locator('main a[href="/ca/esdeveniments/"]')).toHaveCount(
     1,
   );
+  await expect(page.locator(".homepage-event")).toHaveCount(2);
+  await expect(
+    page.getByRole("heading", { level: 3, name: "Ultra Pirineu" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("heading", {
+      level: 3,
+      name: "Escalada Popular a Queralt",
+    }),
+  ).toBeVisible();
+  await expect(page.locator(".homepage-events")).not.toContainText(
+    "Berga Trail",
+  );
+  await expect(page.locator(".homepage-school-list small")).toHaveCount(3);
+  await expect(page.locator(".homepage-school-list")).toContainText(
+    "Properament",
+  );
   await expect(page.locator('main a[href=""], main a[href="#"]')).toHaveCount(
     0,
   );

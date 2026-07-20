@@ -54,8 +54,9 @@ Font: <https://mountainrunners.cat/>.
 El 20 de juliol de 2026, una persona mantenidora del projecte va confirmar que
 la informació visible a la pàgina actual de l'Escola Trail és vigent per a
 aquest slice. S'han incorporat només el nom, la descripció, l'edat orientativa,
-l'horari, la ubicació, l'avís de preus i la URL d'inscripció. No es reutilitzen
-fotografies externes: temporalment s'hi mostra el logotip local ja autoritzat.
+l'horari, la ubicació i l'avís de preus. Les inscripcions no són obertes i es
+mostren com a `Properament`. No es reutilitzen fotografies externes:
+temporalment s'hi mostra el logotip local ja autoritzat.
 
 Font: <https://mountainrunners.cat/escola-trail/>.
 
@@ -64,8 +65,9 @@ Font: <https://mountainrunners.cat/escola-trail/>.
 El 20 de juliol de 2026, una persona mantenidora del projecte va confirmar que
 la informació visible a les pàgines actuals de les escoles Skimo i BTT és vigent
 per a aquest slice. S'han incorporat les descripcions, públic orientatiu,
-horaris, ubicacions, avís de preus i URL d'inscripció. No es reutilitzen les
-fotografies externes: temporalment s'hi mostra el logotip local ja autoritzat.
+horaris, ubicacions i avís de preus. Les inscripcions no són obertes i es
+mostren com a `Properament`. No es reutilitzen les fotografies externes:
+temporalment s'hi mostra el logotip local ja autoritzat.
 
 Fonts:
 

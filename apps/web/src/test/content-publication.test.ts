@@ -55,6 +55,9 @@ describe("publication catalog", () => {
       "school:ca:escola-btt",
       "school:ca:escola-skimo",
       "school:ca:escola-trail",
+      "event:ca:berga-trail",
+      "event:ca:escalada-queralt",
+      "event:ca:ultra-pirineu",
     ]);
     expect(catalog.documents.has("private-draft")).toBe(false);
     expect(getPublishedLocalResources(catalog)).toEqual([
@@ -64,7 +67,8 @@ describe("publication catalog", () => {
 
   it("applies completeness transitively to event references", async () => {
     const source = await loadSource();
-    source.events[0]!.published = true;
+    const mountainDay = source.events.find(({ id }) => id === "mountain-day")!;
+    mountainDay.published = true;
     source.documents.find(({ id }) => id === "club-guide")!.published = false;
 
     const catalog = createPublicationCatalog(source);
@@ -83,24 +87,31 @@ describe("publication catalog", () => {
       {
         expected: "event:ca:jornada-muntanya",
         apply: (source: ContentSource) => {
-          source.events[0]!.published = true;
-          delete (source.events[0]!.editions[0]!.location as { ca?: string })
+          const mountainDay = source.events.find(
+            ({ id }) => id === "mountain-day",
+          )!;
+          mountainDay.published = true;
+          delete (mountainDay.editions[0]!.location as { ca?: string }).ca;
+        },
+      },
+      {
+        expected: "event:ca:jornada-muntanya",
+        apply: (source: ContentSource) => {
+          const mountainDay = source.events.find(
+            ({ id }) => id === "mountain-day",
+          )!;
+          mountainDay.published = true;
+          delete (mountainDay.editions[0]!.modalities[0]! as { ca?: string })
             .ca;
         },
       },
       {
         expected: "event:ca:jornada-muntanya",
         apply: (source: ContentSource) => {
-          source.events[0]!.published = true;
-          delete (
-            source.events[0]!.editions[0]!.modalities[0]! as { ca?: string }
-          ).ca;
-        },
-      },
-      {
-        expected: "event:ca:jornada-muntanya",
-        apply: (source: ContentSource) => {
-          source.events[0]!.published = true;
+          const mountainDay = source.events.find(
+            ({ id }) => id === "mountain-day",
+          )!;
+          mountainDay.published = true;
           source.entities[0]!.membershipBenefit = {
             title: { ca: "Benefit" },
             description: { ca: "Description" },
@@ -121,7 +132,8 @@ describe("publication catalog", () => {
 
   it("excludes unpublished entities from public queries and variants", async () => {
     const source = await loadSource();
-    source.events[0]!.published = true;
+    const mountainDay = source.events.find(({ id }) => id === "mountain-day")!;
+    mountainDay.published = true;
     source.entities[0]!.published = false;
 
     const catalog = createPublicationCatalog(source);
@@ -131,7 +143,10 @@ describe("publication catalog", () => {
 
   it("rejects missing references, duplicate ids, and duplicate localized slugs", async () => {
     const sourceWithMissingReference = await loadSource();
-    sourceWithMissingReference.events[0]!.organizerIds = ["missing-entity"];
+    const mountainDay = sourceWithMissingReference.events.find(
+      ({ id }) => id === "mountain-day",
+    )!;
+    mountainDay.organizerIds = ["missing-entity"];
     expect(() => createPublicationCatalog(sourceWithMissingReference)).toThrow(
       "event mountain-day references missing entity: missing-entity",
     );
@@ -156,11 +171,21 @@ describe("publication catalog", () => {
 
   it("keeps activity independent from editorial visibility", async () => {
     const source = await loadSource();
-    source.events[0]!.published = true;
-    source.events[0]!.active = false;
+    const mountainDay = source.events.find(({ id }) => id === "mountain-day")!;
+    mountainDay.published = true;
+    mountainDay.active = false;
     expect(variantKeys(source)).toContain("event:ca:jornada-muntanya");
 
-    source.events[0]!.published = false;
+    mountainDay.published = false;
+    expect(variantKeys(source)).not.toContain("event:ca:jornada-muntanya");
+  });
+
+  it("excludes a synthetic open-registration event without its URL", async () => {
+    const source = await loadSource();
+    const mountainDay = source.events.find(({ id }) => id === "mountain-day")!;
+    mountainDay.published = true;
+    mountainDay.editions[0]!.registrationStatus = "open";
+
     expect(variantKeys(source)).not.toContain("event:ca:jornada-muntanya");
   });
 });

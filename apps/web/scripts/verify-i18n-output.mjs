@@ -17,6 +17,9 @@ const expectedEditorialRoutes = [
   "ca/escoles/escola-btt/index.html",
   "ca/escoles/escola-skimo/index.html",
   "ca/escoles/escola-trail/index.html",
+  "ca/esdeveniments/berga-trail/index.html",
+  "ca/esdeveniments/escalada-queralt/index.html",
+  "ca/esdeveniments/ultra-pirineu/index.html",
 ];
 
 const unpublishedEditorialRoutes = [
@@ -168,6 +171,9 @@ const expectedSitemapUrls = new Set(
     "ca/escoles/escola-btt/",
     "ca/escoles/escola-skimo/",
     "ca/escoles/escola-trail/",
+    "ca/esdeveniments/berga-trail/",
+    "ca/esdeveniments/escalada-queralt/",
+    "ca/esdeveniments/ultra-pirineu/",
   ].map((path) => new URL(path, publicSiteOrigin).toString()),
 );
 if (

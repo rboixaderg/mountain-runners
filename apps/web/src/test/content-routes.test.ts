@@ -46,7 +46,9 @@ async function loadSource(): Promise<ContentSource> {
     loadCollection<Entity>("entities", collectionSchemas.entities),
     loadCollection<Document>("documents", collectionSchemas.documents),
   ]);
-  events[0]!.published = true;
+  for (const event of events) {
+    event.published = event.id === "mountain-day";
+  }
   return { schools, events, entities, documents };
 }
 
@@ -108,8 +110,9 @@ describe("localized route contract", () => {
     source.schools[1]!.slug.en = "skimo-school";
     source.schools[2]!.slug.es = "escuela-trail";
     source.schools[2]!.slug.en = "trail-school";
-    source.events[0]!.slug.es = "jornada-montana";
-    source.events[0]!.slug.en = "mountain-day";
+    const mountainDay = source.events.find(({ id }) => id === "mountain-day")!;
+    mountainDay.slug.es = "jornada-montana";
+    mountainDay.slug.en = "mountain-day";
 
     const completeCatalog = createPublicationCatalog(source);
     expect(
@@ -149,7 +152,7 @@ describe("localized route contract", () => {
       },
     ]);
 
-    delete (source.events[0]!.title as { en?: string }).en;
+    delete (mountainDay.title as { en?: string }).en;
     const incompleteCatalog = createPublicationCatalog(source);
     expect(
       incompleteCatalog.variants.map((variant) => getVariantPath(variant)),
