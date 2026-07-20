@@ -49,6 +49,29 @@ enllaços externs no verificats i qualsevol contingut aliè injectat a la pàgin
 
 Font: <https://mountainrunners.cat/>.
 
+### Escola Trail
+
+El 20 de juliol de 2026, una persona mantenidora del projecte va confirmar que
+la informació visible a la pàgina actual de l'Escola Trail és vigent per a
+aquest slice. S'han incorporat només el nom, la descripció, l'edat orientativa,
+l'horari, la ubicació, l'avís de preus i la URL d'inscripció. No es reutilitzen
+fotografies externes: temporalment s'hi mostra el logotip local ja autoritzat.
+
+Font: <https://mountainrunners.cat/escola-trail/>.
+
+### Escola Skimo I Escola BTT
+
+El 20 de juliol de 2026, una persona mantenidora del projecte va confirmar que
+la informació visible a les pàgines actuals de les escoles Skimo i BTT és vigent
+per a aquest slice. S'han incorporat les descripcions, públic orientatiu,
+horaris, ubicacions, avís de preus i URL d'inscripció. No es reutilitzen les
+fotografies externes: temporalment s'hi mostra el logotip local ja autoritzat.
+
+Fonts:
+
+- <https://mountainrunners.cat/escola-skimo/>.
+- <https://mountainrunners.cat/escola-btt/>.
+
 ## Casos D'Esdeveniment Revisats
 
 | Cas                        | Estat editorial | Fets confirmats                                                                                                                                                                                                                                                     | Pendent abans de publicar   |
@@ -66,6 +89,9 @@ Fonts d'informació:
 No hi ha ara cap cas real revisat amb inscripció oberta. Aquest comportament
 s'ha de cobrir amb una fixture sintètica no publicada fins que hi hagi un cas
 real aprovat.
+
+La fixture `Jornada de muntanya` no té un equivalent a la web actual i queda
+despublicada. No s'utilitza com a font editorial per a la portada.
 
 ### Descripció Editorial Provisional De Berga Trail
 

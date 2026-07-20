@@ -4,7 +4,11 @@ import logo from "../../assets/logo_mountain_runners.jpeg";
 import * as m from "../../paraglide/messages.js";
 import { assertIsLocale } from "../../paraglide/runtime.js";
 import PublicLayout from "../../layouts/PublicLayout.astro";
-import { getHomepageEvents } from "../../lib/content/events";
+import {
+  getHomepageEvents,
+  getMadridDate,
+  getNextEdition,
+} from "../../lib/content/events";
 import { renderRestrictedMarkdown } from "../../lib/content/markdown";
 import type { PublishedVariant } from "../../lib/content/publication";
 import {
@@ -17,7 +21,7 @@ const locale = assertIsLocale(Astro.currentLocale);
 const canonicalUrl = new URL(`/${locale}/`, Astro.site);
 const homepage = await getPublishedHomepage();
 const catalog = await getPublicationCatalog();
-const today = new Date().toISOString().slice(0, 10);
+const today = getMadridDate(new Date());
 const eventVariants = catalog.variants.filter(
   (variant): variant is Extract<PublishedVariant, { kind: "event" }> =>
     variant.kind === "event" && variant.locale === locale,
@@ -82,9 +86,7 @@ export function getStaticPaths() {
     <div class="homepage-events">
       {
         events.map((event) => {
-          const nextEdition = event.editions.find(
-            (edition) => edition.startDate >= today,
-          );
+          const nextEdition = getNextEdition(event, today);
           return (
             <article class="homepage-event">
               <p class="homepage-kicker">

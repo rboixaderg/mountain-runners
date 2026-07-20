@@ -1,5 +1,32 @@
 import type { Event } from "./models";
 
+export function getMadridDate(date: Date): string {
+  const parts = Object.fromEntries(
+    new Intl.DateTimeFormat("en-CA", {
+      day: "2-digit",
+      month: "2-digit",
+      timeZone: "Europe/Madrid",
+      year: "numeric",
+    })
+      .formatToParts(date)
+      .filter(({ type }) => type !== "literal")
+      .map(({ type, value }) => [type, value]),
+  );
+
+  return `${parts.year}-${parts.month}-${parts.day}`;
+}
+
+export function getNextEdition(event: Event, today: string) {
+  return event.editions.reduce<(typeof event.editions)[number] | undefined>(
+    (nextEdition, edition) =>
+      edition.startDate >= today &&
+      (nextEdition === undefined || edition.startDate < nextEdition.startDate)
+        ? edition
+        : nextEdition,
+    undefined,
+  );
+}
+
 export function getHomepageEvents(
   events: readonly Event[],
   today: string,
@@ -8,7 +35,7 @@ export function getHomepageEvents(
     .filter((event) => event.active)
     .map((event) => ({
       event,
-      nextEdition: event.editions.find((edition) => edition.startDate >= today),
+      nextEdition: getNextEdition(event, today),
     }))
     .sort((left, right) => {
       if (left.nextEdition && right.nextEdition) {

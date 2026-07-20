@@ -14,11 +14,13 @@ const publishedHomepages = [["ca", "Mountain Runners del Berguedà"]];
 const configuredLocales = ["ca", "es", "en"];
 
 const expectedEditorialRoutes = [
+  "ca/escoles/escola-btt/index.html",
+  "ca/escoles/escola-skimo/index.html",
   "ca/escoles/escola-trail/index.html",
-  "ca/esdeveniments/jornada-muntanya/index.html",
 ];
 
 const unpublishedEditorialRoutes = [
+  "ca/esdeveniments/jornada-muntanya/index.html",
   "es/escuelas/escola-trail/index.html",
   "en/schools/escola-trail/index.html",
   "es/eventos/jornada-muntanya/index.html",
@@ -33,7 +35,7 @@ const forbiddenOutputMarkers = [
 ];
 
 const expectedPublishedResource =
-  "content-resources/content-assets/documents/club-guide.pdf";
+  "content-resources/assets/logo_mountain_runners.jpeg";
 
 const distDirectory = new URL("../dist/", import.meta.url);
 const root = await readFile(new URL("index.html", distDirectory), "utf8");
@@ -145,14 +147,6 @@ for (const route of unpublishedEditorialRoutes) {
   }
 }
 
-const catalanEvent = await readFile(
-  join(distPath, "ca/esdeveniments/jornada-muntanya/index.html"),
-  "utf8",
-);
-if (!catalanEvent.includes(">Actiu<") || catalanEvent.includes(">Active<")) {
-  throw new Error("The Catalan event status must use its Paraglide message.");
-}
-
 for (const legacyRoute of [
   "ca/schools/escola-trail/index.html",
   "ca/events/jornada-muntanya/index.html",
@@ -169,9 +163,12 @@ const sitemapUrls = new Set(
   [...sitemap.matchAll(/<loc>([^<]+)<\/loc>/gu)].map(([, url]) => url),
 );
 const expectedSitemapUrls = new Set(
-  ["ca/", "ca/escoles/escola-trail/", "ca/esdeveniments/jornada-muntanya/"].map(
-    (path) => new URL(path, publicSiteOrigin).toString(),
-  ),
+  [
+    "ca/",
+    "ca/escoles/escola-btt/",
+    "ca/escoles/escola-skimo/",
+    "ca/escoles/escola-trail/",
+  ].map((path) => new URL(path, publicSiteOrigin).toString()),
 );
 if (
   sitemapUrls.size !== expectedSitemapUrls.size ||
@@ -188,27 +185,6 @@ const sitemapDirective = `Sitemap: ${new URL("/sitemap.xml", publicSiteOrigin)}`
 if (!robots.split("\n").includes(sitemapDirective)) {
   throw new Error("Robots output does not declare the canonical sitemap URL.");
 }
-if (
-  catalanEvent.includes('hreflang="es"') ||
-  catalanEvent.includes('hreflang="en"')
-) {
-  throw new Error("Incomplete event variants reached hreflang metadata.");
-}
-
-const catalanEventAlternate = new URL(
-  "/ca/esdeveniments/jornada-muntanya/",
-  publicSiteOrigin,
-).toString();
-if (
-  !catalanEvent.includes(
-    `<link rel="alternate" hreflang="ca" href="${catalanEventAlternate}"`,
-  )
-) {
-  throw new Error(
-    "Published event is missing its canonical hreflang metadata.",
-  );
-}
-
 await readFile(join(distPath, expectedPublishedResource));
 
 async function listFiles(directory) {

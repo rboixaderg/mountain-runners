@@ -1,0 +1,35 @@
+id: btt-school
+published: true
+slug:
+  ca: escola-btt
+name:
+  ca: Escola BTT
+summary:
+  ca: Activitats de BTT per a infants i joves de 6 a 16 anys al Berguedà.
+description:
+  ca: >-
+    L'Escola BTT, amb el CEB i Veloberga, ofereix activitats en horari no
+    lectiu per descobrir la comarca amb bicicleta.
+cover:
+  resource:
+    kind: local
+    path: src/assets/logo_mountain_runners.jpeg
+  alt:
+    ca: Logotip de Mountain Runners del Berguedà
+gallery: []
+registrationStatus: open
+registrationUrl:
+  ca: https://docs.google.com/forms/d/e/1FAIpQLSefjIoBCWv1xMzi4P6JMhjJWFCGApMQ05y0P3haPcChNOAg7g/viewform
+sections:
+  since:
+    ca: L'escola va néixer l'any 2020 com a projecte pilot.
+  purpose:
+    ca: Estar a la natura, aprendre'n i gaudir-ne amb bicicleta mentre s'aprèn tècnica.
+  audience:
+    ca: Infants i joves de 6 a 16 anys.
+  schedule:
+    ca: Dimarts de 17.30 h a 19.00 h a Avià i dissabtes de 10.00 h a 13.00 h al Berguedà.
+  location:
+    ca: Avià i itineraris variables per la comarca del Berguedà.
+  prices:
+    ca: Els preus es poden modificar a l'inici de curs.

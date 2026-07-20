@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { getHomepageEvents } from "../lib/content/events";
+import {
+  getHomepageEvents,
+  getMadridDate,
+  getNextEdition,
+} from "../lib/content/events";
 import type { Event } from "../lib/content/models";
 
 function createEvent(id: string, active: boolean, dates: string[]): Event {
@@ -36,7 +40,7 @@ describe("homepage events", () => {
       [
         createEvent("without-date", true, ["2025-01-01"]),
         createEvent("later", true, ["2027-06-01"]),
-        createEvent("soon", true, ["2027-05-01"]),
+        createEvent("soon", true, ["2027-06-01", "2027-05-01"]),
         createEvent("historical", false, ["2027-04-01"]),
       ],
       "2027-04-01",
@@ -47,5 +51,18 @@ describe("homepage events", () => {
       "later",
       "without-date",
     ]);
+  });
+
+  it("returns the nearest upcoming edition when dates are unordered", () => {
+    expect(
+      getNextEdition(
+        createEvent("multiple-dates", true, ["2027-06-01", "2027-05-01"]),
+        "2027-04-01",
+      )?.startDate,
+    ).toBe("2027-05-01");
+  });
+
+  it("uses the Europe/Madrid calendar date", () => {
+    expect(getMadridDate(new Date("2027-04-01T22:30:00Z"))).toBe("2027-04-02");
   });
 });

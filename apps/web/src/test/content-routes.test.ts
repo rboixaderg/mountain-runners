@@ -46,6 +46,7 @@ async function loadSource(): Promise<ContentSource> {
     loadCollection<Entity>("entities", collectionSchemas.entities),
     loadCollection<Document>("documents", collectionSchemas.documents),
   ]);
+  events[0]!.published = true;
   return { schools, events, entities, documents };
 }
 
@@ -67,7 +68,9 @@ function addTranslations(value: unknown, locale: "es" | "en"): void {
 describe("localized route contract", () => {
   it("uses localized domains and absolute canonical URLs", async () => {
     const catalog = createPublicationCatalog(await loadSource());
-    const school = catalog.variants.find(({ kind }) => kind === "school")!;
+    const school = catalog.variants.find(
+      ({ kind, entry }) => kind === "school" && entry.id === "trail-school",
+    )!;
     const event = catalog.variants.find(({ kind }) => kind === "event")!;
 
     expect(getVariantPath(school)).toBe("/ca/escoles/escola-trail/");
@@ -88,6 +91,8 @@ describe("localized route contract", () => {
 
     expect(getSitemapUrls(catalog, publicSiteOrigin)).toEqual([
       "https://mountainrunners.cat/ca/",
+      "https://mountainrunners.cat/ca/escoles/escola-btt/",
+      "https://mountainrunners.cat/ca/escoles/escola-skimo/",
       "https://mountainrunners.cat/ca/escoles/escola-trail/",
       "https://mountainrunners.cat/ca/esdeveniments/jornada-muntanya/",
     ]);
@@ -97,8 +102,12 @@ describe("localized route contract", () => {
     const source = await loadSource();
     addTranslations(source, "es");
     addTranslations(source, "en");
-    source.schools[0]!.slug.es = "escuela-trail";
-    source.schools[0]!.slug.en = "trail-school";
+    source.schools[0]!.slug.es = "escuela-btt";
+    source.schools[0]!.slug.en = "btt-school";
+    source.schools[1]!.slug.es = "escuela-skimo";
+    source.schools[1]!.slug.en = "skimo-school";
+    source.schools[2]!.slug.es = "escuela-trail";
+    source.schools[2]!.slug.en = "trail-school";
     source.events[0]!.slug.es = "jornada-montana";
     source.events[0]!.slug.en = "mountain-day";
 
@@ -106,10 +115,16 @@ describe("localized route contract", () => {
     expect(
       completeCatalog.variants.map((variant) => getVariantPath(variant)),
     ).toEqual([
+      "/ca/escoles/escola-btt/",
+      "/ca/escoles/escola-skimo/",
       "/ca/escoles/escola-trail/",
       "/ca/esdeveniments/jornada-muntanya/",
+      "/es/escuelas/escuela-btt/",
+      "/es/escuelas/escuela-skimo/",
       "/es/escuelas/escuela-trail/",
       "/es/eventos/jornada-montana/",
+      "/en/schools/btt-school/",
+      "/en/schools/skimo-school/",
       "/en/schools/trail-school/",
       "/en/events/mountain-day/",
     ]);

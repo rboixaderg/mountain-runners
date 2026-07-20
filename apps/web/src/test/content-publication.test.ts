@@ -52,17 +52,19 @@ describe("publication catalog", () => {
     const catalog = createPublicationCatalog(source);
 
     expect(variantKeys(source)).toEqual([
+      "school:ca:escola-btt",
+      "school:ca:escola-skimo",
       "school:ca:escola-trail",
-      "event:ca:jornada-muntanya",
     ]);
     expect(catalog.documents.has("private-draft")).toBe(false);
     expect(getPublishedLocalResources(catalog)).toEqual([
-      "src/content-assets/documents/club-guide.pdf",
+      "src/assets/logo_mountain_runners.jpeg",
     ]);
   });
 
   it("applies completeness transitively to event references", async () => {
     const source = await loadSource();
+    source.events[0]!.published = true;
     source.documents.find(({ id }) => id === "club-guide")!.published = false;
 
     const catalog = createPublicationCatalog(source);
@@ -73,7 +75,7 @@ describe("publication catalog", () => {
   it("requires translated fields across publication models", async () => {
     const mutations = [
       {
-        expected: "school:ca:escola-trail",
+        expected: "school:ca:escola-btt",
         apply: (source: ContentSource) => {
           delete (source.schools[0]!.sections.prices as { ca?: string }).ca;
         },
@@ -81,6 +83,7 @@ describe("publication catalog", () => {
       {
         expected: "event:ca:jornada-muntanya",
         apply: (source: ContentSource) => {
+          source.events[0]!.published = true;
           delete (source.events[0]!.editions[0]!.location as { ca?: string })
             .ca;
         },
@@ -88,6 +91,7 @@ describe("publication catalog", () => {
       {
         expected: "event:ca:jornada-muntanya",
         apply: (source: ContentSource) => {
+          source.events[0]!.published = true;
           delete (
             source.events[0]!.editions[0]!.modalities[0]! as { ca?: string }
           ).ca;
@@ -96,6 +100,7 @@ describe("publication catalog", () => {
       {
         expected: "event:ca:jornada-muntanya",
         apply: (source: ContentSource) => {
+          source.events[0]!.published = true;
           source.entities[0]!.membershipBenefit = {
             title: { ca: "Benefit" },
             description: { ca: "Description" },
@@ -116,6 +121,7 @@ describe("publication catalog", () => {
 
   it("excludes unpublished entities from public queries and variants", async () => {
     const source = await loadSource();
+    source.events[0]!.published = true;
     source.entities[0]!.published = false;
 
     const catalog = createPublicationCatalog(source);
@@ -135,14 +141,14 @@ describe("publication catalog", () => {
       structuredClone(sourceWithDuplicateId.schools[0]!),
     );
     expect(() => createPublicationCatalog(sourceWithDuplicateId)).toThrow(
-      "Duplicate school id: trail-school",
+      "Duplicate school id: btt-school",
     );
 
     const sourceWithDuplicateSlug = await loadSource();
     sourceWithDuplicateSlug.schools.push(
       structuredClone(sourceWithDuplicateSlug.schools[0]!),
     );
-    sourceWithDuplicateSlug.schools[1]!.id = "duplicate-school";
+    sourceWithDuplicateSlug.schools.at(-1)!.id = "duplicate-school";
     expect(() => createPublicationCatalog(sourceWithDuplicateSlug)).toThrow(
       "Duplicate localized slugs",
     );
@@ -150,6 +156,7 @@ describe("publication catalog", () => {
 
   it("keeps activity independent from editorial visibility", async () => {
     const source = await loadSource();
+    source.events[0]!.published = true;
     source.events[0]!.active = false;
     expect(variantKeys(source)).toContain("event:ca:jornada-muntanya");
 

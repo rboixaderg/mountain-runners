@@ -1,0 +1,35 @@
+id: skimo-school
+published: true
+slug:
+  ca: escola-skimo
+name:
+  ca: Escola Skimo
+summary:
+  ca: Formació en esquí de muntanya per a joves de 12 a 18 anys al Berguedà.
+description:
+  ca: >-
+    L'Escola Skimo ofereix formació en esquí de muntanya en horari no lectiu,
+    amb continuïtat per a qui vulgui iniciar-se en la competició.
+cover:
+  resource:
+    kind: local
+    path: src/assets/logo_mountain_runners.jpeg
+  alt:
+    ca: Logotip de Mountain Runners del Berguedà
+gallery: []
+registrationStatus: open
+registrationUrl:
+  ca: https://docs.google.com/forms/d/e/1FAIpQLSdY5Ww2Gi0B8q0zh9X9XxOCrGmstkHOt8vYztp7ydh_U3cuqA/viewform?usp=sf_link
+sections:
+  since:
+    ca: L'escola va néixer l'any 2014 a partir de l'experiència de l'Escola Trail.
+  purpose:
+    ca: Formar en esquí de muntanya i obrir la porta a la competició a qui ho vulgui.
+  audience:
+    ca: Joves de 12 a 18 anys amb ganes de millorar.
+  schedule:
+    ca: Entrenaments entre setmana i caps de setmana, adaptats a les temporades de tardor i neu.
+  location:
+    ca: Berga, Masella, Rasos i diferents indrets del Berguedà segons la temporada.
+  prices:
+    ca: Els preus es poden modificar a l'inici de curs.
