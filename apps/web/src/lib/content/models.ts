@@ -53,6 +53,11 @@ const imageSchema = z.strictObject({
   sourceUrl: httpsUrlSchema.optional(),
 });
 
+const homepageImageSchema = imageSchema.extend({
+  width: z.number().int().positive(),
+  height: z.number().int().positive(),
+});
+
 const publishableFields = {
   id: contentIdSchema,
   published: z.boolean(),
@@ -149,6 +154,32 @@ export const entitySchema = z.strictObject({
     .optional(),
 });
 
+export const homepageSchema = z.strictObject({
+  id: contentIdSchema,
+  published: z.boolean(),
+  hero: z.strictObject({
+    title: localizedTextSchema,
+    description: localizedMarkdownSchema,
+    image: homepageImageSchema,
+  }),
+  events: z.strictObject({
+    title: localizedTextSchema,
+    description: localizedMarkdownSchema,
+  }),
+  schools: z.strictObject({
+    title: localizedTextSchema,
+    description: localizedMarkdownSchema,
+  }),
+  members: z.strictObject({
+    title: localizedTextSchema,
+    description: localizedMarkdownSchema,
+  }),
+  community: z.strictObject({
+    title: localizedTextSchema,
+    description: localizedMarkdownSchema,
+  }),
+});
+
 export const documentSchema = z.strictObject({
   id: contentIdSchema,
   published: z.boolean(),
@@ -165,11 +196,13 @@ export const documentSchema = z.strictObject({
 export type School = z.infer<typeof schoolSchema>;
 export type Event = z.infer<typeof eventSchema>;
 export type Entity = z.infer<typeof entitySchema>;
+export type Homepage = z.infer<typeof homepageSchema>;
 export type Document = z.infer<typeof documentSchema>;
 
 export const collectionSchemas = {
   schools: schoolSchema,
   events: eventSchema,
   entities: entitySchema,
+  pages: homepageSchema,
   documents: documentSchema,
 } as const;

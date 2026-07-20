@@ -151,9 +151,167 @@ figcaption {
   transform: translateY(0);
 }
 
+.homepage-hero {
+  padding-block: clamp(4rem, 12vw, 9rem);
+  background: var(--color-red);
+  color: var(--color-paper);
+}
+
+.homepage-hero__grid,
+.homepage-school-section__grid,
+.homepage-two-column {
+  display: grid;
+  gap: var(--space-8);
+}
+
+.homepage-kicker {
+  margin: 0 0 var(--space-3);
+  font-family: var(--font-display);
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.homepage-hero h1,
+.homepage-section h2,
+.homepage-school-section h2 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(3.25rem, 10vw, 7rem);
+  font-weight: 700;
+  line-height: 0.9;
+  text-transform: uppercase;
+}
+
+.homepage-hero__copy,
+.homepage-section__heading > div,
+.homepage-two-column > div > div {
+  font-size: clamp(1.1rem, 2vw, 1.35rem);
+}
+
+.homepage-hero__aside {
+  display: grid;
+  gap: var(--space-6);
+}
+
+.homepage-hero__logo {
+  width: clamp(4rem, 10vw, 7rem);
+}
+
+.homepage-hero__copy > :first-child,
+.homepage-section__heading > div > :first-child,
+.homepage-two-column > div > div > :first-child {
+  margin-top: 0;
+}
+
+.homepage-hero__copy > :last-child,
+.homepage-section__heading > div > :last-child,
+.homepage-two-column > div > div > :last-child {
+  margin-bottom: 0;
+}
+
+.homepage-section {
+  padding-block: clamp(4rem, 10vw, 7rem);
+}
+
+.homepage-section h2,
+.homepage-school-section h2,
+.homepage-two-column h2 {
+  font-size: clamp(2.5rem, 7vw, 4.5rem);
+}
+
+.homepage-events {
+  display: grid;
+  margin-block: var(--space-8);
+  border-top: 0.125rem solid var(--color-ink);
+}
+
+.homepage-event {
+  padding-block: var(--space-6);
+  border-bottom: 1px solid var(--color-line);
+}
+
+.homepage-event h3 {
+  margin: 0 0 var(--space-2);
+  font-family: var(--font-display);
+  font-size: clamp(2rem, 5vw, 3.5rem);
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.homepage-event time {
+  font-weight: 700;
+}
+
+.homepage-link {
+  display: inline-block;
+  font-weight: 700;
+}
+
+.homepage-school-section {
+  padding-block: clamp(4rem, 10vw, 7rem);
+  background: var(--color-ink);
+  color: var(--color-paper);
+}
+
+.homepage-school-list {
+  display: grid;
+  gap: var(--space-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.homepage-school-list li {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-4) 0;
+  border-top: 1px solid color-mix(in srgb, var(--color-paper) 50%, transparent);
+}
+
+.homepage-school-list strong {
+  font-family: var(--font-display);
+  font-size: 1.6rem;
+  text-transform: uppercase;
+}
+
+.homepage-school-list small {
+  color: var(--color-paper);
+  font-weight: 700;
+}
+
+.homepage-coming-soon {
+  color: var(--color-muted);
+  font-weight: 700;
+}
+
+.homepage-two-column {
+  padding-block: clamp(4rem, 10vw, 7rem);
+  border-top: 1px solid var(--color-line);
+}
+
 @media (min-width: 48rem) {
   .editorial-grid {
     grid-template-columns: repeat(12, minmax(0, 1fr));
+  }
+
+  .homepage-hero__grid {
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+  }
+
+  .homepage-hero__grid > :first-child {
+    grid-column: span 8;
+  }
+
+  .homepage-hero__aside {
+    align-self: end;
+    grid-column: span 4;
+  }
+
+  .homepage-school-section__grid,
+  .homepage-two-column {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 

@@ -1,4 +1,4 @@
-import { getCollection } from "astro:content";
+import { getCollection, getEntry } from "astro:content";
 import { fileURLToPath } from "node:url";
 import {
   createPublicationCatalog,
@@ -11,7 +11,16 @@ import {
 } from "./resources";
 import { assertUniquePublishedPaths } from "./routes";
 
-async function validateLocalResources(source: ContentSource): Promise<void> {
+export async function getPublishedHomepage() {
+  const homepage = await getEntry("pages", "homepage");
+  if (homepage === undefined || !homepage.data.published) {
+    throw new Error("The published homepage is required");
+  }
+  await validateLocalResources(homepage.data);
+  return homepage.data;
+}
+
+async function validateLocalResources(source: unknown): Promise<void> {
   const appDirectory = fileURLToPath(new URL("../../../", import.meta.url));
   const paths = collectLocalResourcePaths(source);
   await Promise.all(

@@ -1,0 +1,44 @@
+id: homepage
+published: true
+hero:
+  title:
+    ca: Mountain Runners del Berguedà
+  description:
+    ca: >-
+      Portem més de 15 anys creixent i treballant sobre un eix en comú, la
+      muntanya, sempre amb els valors de l'esforç, la constància, el compromís,
+      el treball en equip i el respecte a la natura.
+  image:
+    resource:
+      kind: local
+      path: src/assets/logo_mountain_runners.jpeg
+    alt:
+      ca: Logotip de Mountain Runners del Berguedà
+    width: 450
+    height: 444
+events:
+  title:
+    ca: Esdeveniments
+  description:
+    ca: >-
+      Organitzem i col·laborem en propostes que apropen les persones als cims,
+      les planes i els corriols del Berguedà.
+schools:
+  title:
+    ca: Escoles
+  description:
+    ca: >-
+      Transmetem els valors de l'esport i el respecte a la muntanya als infants
+      i joves de la comarca.
+members:
+  title:
+    ca: Fes-te MRB
+  description:
+    ca: Fes-te soci o sòcia i forma part de Mountain Runners del Berguedà.
+community:
+  title:
+    ca: Muntanya, territori, comunitat
+  description:
+    ca: >-
+      Compartim la muntanya amb esforç, constància, compromís i respecte per la
+      natura.

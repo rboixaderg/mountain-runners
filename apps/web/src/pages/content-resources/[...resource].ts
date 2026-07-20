@@ -3,8 +3,14 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import type { APIRoute } from "astro";
 import { getPublishedLocalResources } from "../../lib/content/publication";
-import { getPublicationCatalog } from "../../lib/content/repository";
-import { resolveLocalResourcePath } from "../../lib/content/resources";
+import {
+  getPublicationCatalog,
+  getPublishedHomepage,
+} from "../../lib/content/repository";
+import {
+  collectLocalResourcePaths,
+  resolveLocalResourcePath,
+} from "../../lib/content/resources";
 
 const contentTypes = new Map([
   [".avif", "image/avif"],
@@ -16,8 +22,15 @@ const contentTypes = new Map([
 ]);
 
 export async function getStaticPaths() {
-  const catalog = await getPublicationCatalog();
-  return getPublishedLocalResources(catalog).map((sourcePath) => ({
+  const [catalog, homepage] = await Promise.all([
+    getPublicationCatalog(),
+    getPublishedHomepage(),
+  ]);
+  const resources = collectLocalResourcePaths(
+    homepage,
+    new Set(getPublishedLocalResources(catalog)),
+  );
+  return [...resources].sort().map((sourcePath) => ({
     params: {
       resource: sourcePath.replace(/^src\//u, ""),
     },

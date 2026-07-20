@@ -10,18 +10,17 @@ const { PUBLIC_SITE_ORIGIN } = loadEnv(
 );
 const publicSiteOrigin = new URL(PUBLIC_SITE_ORIGIN);
 
-const pages = [
-  ["ca", "Base web en construcció"],
-  ["es", "Base web en construcción"],
-  ["en", "Website foundation under construction"],
-];
+const publishedHomepages = [["ca", "Mountain Runners del Berguedà"]];
+const configuredLocales = ["ca", "es", "en"];
 
-const expectedEditorialRoutes = [
+const unavailableDetailRoutes = [
+  "ca/escoles/escola-btt/index.html",
+  "ca/escoles/escola-skimo/index.html",
   "ca/escoles/escola-trail/index.html",
+  "ca/esdeveniments/berga-trail/index.html",
+  "ca/esdeveniments/escalada-queralt/index.html",
+  "ca/esdeveniments/ultra-pirineu/index.html",
   "ca/esdeveniments/jornada-muntanya/index.html",
-];
-
-const unpublishedEditorialRoutes = [
   "es/escuelas/escola-trail/index.html",
   "en/schools/escola-trail/index.html",
   "es/eventos/jornada-muntanya/index.html",
@@ -36,7 +35,7 @@ const forbiddenOutputMarkers = [
 ];
 
 const expectedPublishedResource =
-  "content-resources/content-assets/documents/club-guide.pdf";
+  "content-resources/assets/logo_mountain_runners.jpeg";
 
 const distDirectory = new URL("../dist/", import.meta.url);
 const root = await readFile(new URL("index.html", distDirectory), "utf8");
@@ -45,7 +44,7 @@ if (!root.includes('http-equiv="refresh"') || !root.includes('href="/ca/"')) {
   throw new Error("The root output must redirect to /ca/.");
 }
 
-for (const [locale, message] of pages) {
+for (const [locale, message] of publishedHomepages) {
   const page = await readFile(
     new URL(`../dist/${locale}/index.html`, import.meta.url),
     "utf8",
@@ -56,6 +55,17 @@ for (const [locale, message] of pages) {
       `The /${locale}/ output does not use its configured locale.`,
     );
   }
+}
+
+for (const locale of configuredLocales.filter((locale) => locale !== "ca")) {
+  try {
+    await readFile(new URL(`../dist/${locale}/index.html`, import.meta.url));
+  } catch {
+    continue;
+  }
+  throw new Error(
+    `Incomplete homepage variant reached the build output: /${locale}/`,
+  );
 }
 
 const catalanHome = await readFile(
@@ -93,7 +103,7 @@ const unexpectedRoutes = outputRoutes.filter(
   (path) =>
     path !== "index.html" &&
     path !== "404.html" &&
-    !pages.some(([locale]) => path.startsWith(`${locale}/`)),
+    !configuredLocales.some((locale) => path.startsWith(`${locale}/`)),
 );
 
 if (unexpectedRoutes.length > 0) {
@@ -120,29 +130,12 @@ if (
   throw new Error("Localized 404 variants reached the build output.");
 }
 
-for (const route of expectedEditorialRoutes) {
-  const output = await readFile(join(distPath, route), "utf8");
-  const canonical = new URL(
-    route.replace("index.html", ""),
-    publicSiteOrigin,
-  ).toString();
-  if (!output.includes(`<link rel="canonical" href="${canonical}"`)) {
-    throw new Error(`Editorial route has an invalid canonical URL: ${route}`);
-  }
-}
-
-for (const route of unpublishedEditorialRoutes) {
+for (const route of unavailableDetailRoutes) {
   if (outputRoutes.includes(route)) {
-    throw new Error(`Incomplete variant reached the build output: ${route}`);
+    throw new Error(
+      `Unavailable detail route reached the build output: ${route}`,
+    );
   }
-}
-
-const catalanEvent = await readFile(
-  join(distPath, "ca/esdeveniments/jornada-muntanya/index.html"),
-  "utf8",
-);
-if (!catalanEvent.includes(">Actiu<") || catalanEvent.includes(">Active<")) {
-  throw new Error("The Catalan event status must use its Paraglide message.");
 }
 
 for (const legacyRoute of [
@@ -161,9 +154,7 @@ const sitemapUrls = new Set(
   [...sitemap.matchAll(/<loc>([^<]+)<\/loc>/gu)].map(([, url]) => url),
 );
 const expectedSitemapUrls = new Set(
-  ["ca/", "ca/escoles/escola-trail/", "ca/esdeveniments/jornada-muntanya/"].map(
-    (path) => new URL(path, publicSiteOrigin).toString(),
-  ),
+  ["ca/"].map((path) => new URL(path, publicSiteOrigin).toString()),
 );
 if (
   sitemapUrls.size !== expectedSitemapUrls.size ||
@@ -180,27 +171,6 @@ const sitemapDirective = `Sitemap: ${new URL("/sitemap.xml", publicSiteOrigin)}`
 if (!robots.split("\n").includes(sitemapDirective)) {
   throw new Error("Robots output does not declare the canonical sitemap URL.");
 }
-if (
-  catalanEvent.includes('hreflang="es"') ||
-  catalanEvent.includes('hreflang="en"')
-) {
-  throw new Error("Incomplete event variants reached hreflang metadata.");
-}
-
-const catalanEventAlternate = new URL(
-  "/ca/esdeveniments/jornada-muntanya/",
-  publicSiteOrigin,
-).toString();
-if (
-  !catalanEvent.includes(
-    `<link rel="alternate" hreflang="ca" href="${catalanEventAlternate}"`,
-  )
-) {
-  throw new Error(
-    "Published event is missing its canonical hreflang metadata.",
-  );
-}
-
 await readFile(join(distPath, expectedPublishedResource));
 
 async function listFiles(directory) {

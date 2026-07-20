@@ -8,6 +8,7 @@ const fixturePaths = {
   schools: "../content/schools/trail-school.yaml",
   events: "../content/events/mountain-day.yaml",
   entities: "../content/entities/mountain-runners.yaml",
+  pages: "../content/pages/homepage.yaml",
   documents: "../content/documents/club-guide.yaml",
 } as const;
 
@@ -15,6 +16,7 @@ const requiredFields = {
   schools: ["id", "sections"],
   events: ["id", "editions"],
   entities: ["id", "logo"],
+  pages: ["id", "hero"],
   documents: ["id", "resource"],
 } as const;
 
@@ -88,6 +90,19 @@ describe("editorial collection schemas", () => {
     const invalidDate = structuredClone(event);
     invalidDate.editions[0]!.startDate = "2027-02-30";
     expect(eventSchema.safeParse(invalidDate).success).toBe(false);
+  });
+
+  it("requires the homepage hero image", async () => {
+    const homepage = await parseFixture(
+      fixturePaths.pages,
+      collectionSchemas.pages,
+    );
+    const incompleteHomepage = structuredClone(homepage);
+    delete (incompleteHomepage.hero as { image?: unknown }).image;
+
+    expect(collectionSchemas.pages.safeParse(incompleteHomepage).success).toBe(
+      false,
+    );
   });
 
   for (const [
