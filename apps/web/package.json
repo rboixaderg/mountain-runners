@@ -23,10 +23,10 @@
     "zod": "4.4.3"
   },
   "devDependencies": {
-    "@astrojs/check": "0.9.9",
+    "@astrojs/check": "0.9.10",
     "@types/mdast": "4.0.4",
-    "typescript": "6.0.3",
-    "vite": "8.1.4",
+    "typescript": "7.0.2",
+    "vite": "8.2.0",
     "vitest": "4.1.10"
   }
 }
