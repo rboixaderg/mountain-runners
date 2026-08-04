@@ -20,10 +20,7 @@ const locale = assertIsLocale(Astro.currentLocale);
 const canonicalUrl = new URL(`/${locale}/`, Astro.site);
 const homepage = await getPublishedHomepage();
 const heroImage = homepage.hero.image;
-const heroImageUrl =
-  heroImage.resource.kind === "local"
-    ? `/content-resources/${heroImage.resource.path.replace(/^src\//u, "")}`
-    : heroImage.resource.url;
+const heroImageUrl = `/content-resources/${heroImage.resource.path.replace(/^src\//u, "")}`;
 const catalog = await getPublicationCatalog();
 const today = getMadridDate(new Date());
 const eventVariants = catalog.variants.filter(
@@ -95,8 +92,8 @@ export function getStaticPaths() {
             <article class="homepage-event">
               <p class="homepage-kicker">
                 {nextEdition
-                  ? "Pròxima edició"
-                  : "Sense pròxima data anunciada"}
+                  ? m.event_status_upcoming_edition({}, { locale })
+                  : m.event_status_no_upcoming_date({}, { locale })}
               </p>
               <h3>{event.title[locale]}</h3>
               {nextEdition && (

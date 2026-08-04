@@ -19,7 +19,7 @@ export function getMadridDate(date: Date): string {
 export function getNextEdition(event: Event, today: string) {
   return event.editions.reduce<(typeof event.editions)[number] | undefined>(
     (nextEdition, edition) =>
-      edition.startDate >= today &&
+      (edition.endDate ?? edition.startDate) >= today &&
       (nextEdition === undefined || edition.startDate < nextEdition.startDate)
         ? edition
         : nextEdition,

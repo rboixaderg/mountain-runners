@@ -6,7 +6,12 @@ import {
 } from "../lib/content/events";
 import type { Event } from "../lib/content/models";
 
-function createEvent(id: string, active: boolean, dates: string[]): Event {
+function createEvent(
+  id: string,
+  active: boolean,
+  dates: string[],
+  endDates?: (string | undefined)[],
+): Event {
   return {
     id,
     published: true,
@@ -26,6 +31,7 @@ function createEvent(id: string, active: boolean, dates: string[]): Event {
     editions: dates.map((startDate, index) => ({
       id: `${id}-${index}`,
       startDate,
+      ...(endDates?.[index] === undefined ? {} : { endDate: endDates[index] }),
       location: { ca: "Berga" },
       modalities: [{ ca: "Trail" }],
       registrationStatus: "closed",
@@ -60,6 +66,23 @@ describe("homepage events", () => {
         "2027-04-01",
       )?.startDate,
     ).toBe("2027-05-01");
+  });
+
+  it("includes an edition that is already in progress", () => {
+    const event = createEvent(
+      "in-progress",
+      true,
+      ["2027-04-01"],
+      ["2027-04-03"],
+    );
+
+    expect(getNextEdition(event, "2027-04-02")?.id).toBe("in-progress-0");
+    expect(
+      getHomepageEvents(
+        [createEvent("future", true, ["2027-04-04"]), event],
+        "2027-04-02",
+      ).map(({ id }) => id),
+    ).toEqual(["in-progress", "future"]);
   });
 
   it("uses the Europe/Madrid calendar date", () => {

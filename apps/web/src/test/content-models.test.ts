@@ -105,6 +105,29 @@ describe("editorial collection schemas", () => {
     );
   });
 
+  it("requires the homepage hero to use a local image resource", async () => {
+    const homepage = await parseFixture(
+      fixturePaths.pages,
+      collectionSchemas.pages,
+    );
+
+    const externalHero = structuredClone(homepage) as {
+      hero: { image: { resource: unknown } };
+    };
+    externalHero.hero.image.resource = {
+      kind: "external",
+      url: "https://example.org/hero.webp",
+    };
+    expect(collectionSchemas.pages.safeParse(externalHero).success).toBe(false);
+
+    const pdfHero = structuredClone(homepage);
+    pdfHero.hero.image.resource = {
+      kind: "local",
+      path: "src/assets/hero.pdf",
+    };
+    expect(collectionSchemas.pages.safeParse(pdfHero).success).toBe(false);
+  });
+
   for (const [
     stateName,
     fixturePath,

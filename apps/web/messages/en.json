@@ -3,6 +3,8 @@
   "coming_soon": "Coming soon",
   "event_status_active": "Active",
   "event_status_historical": "Historical",
+  "event_status_no_upcoming_date": "No upcoming date announced",
+  "event_status_upcoming_edition": "Upcoming edition",
   "events_intro": "We are preparing Mountain Runners' event calendar.",
   "footer_navigation": "Footer navigation",
   "intro": "We are preparing the association's new website with a fast, accessible and maintainable foundation.",

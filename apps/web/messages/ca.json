@@ -3,6 +3,8 @@
   "coming_soon": "Properament",
   "event_status_active": "Actiu",
   "event_status_historical": "Històric",
+  "event_status_no_upcoming_date": "Sense pròxima data anunciada",
+  "event_status_upcoming_edition": "Pròxima edició",
   "events_intro": "Estem preparant el calendari d'esdeveniments de Mountain Runners.",
   "footer_navigation": "Navegació del peu",
   "intro": "Estem preparant la nova web de l'associació amb una base ràpida, accessible i mantenible.",

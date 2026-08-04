@@ -6,7 +6,7 @@ import {
   slugSchema,
   translatableSchema,
 } from "./primitives";
-import { safeResourceSchema } from "./resources";
+import { localResourceSchema, safeResourceSchema } from "./resources";
 import { httpsUrlSchema } from "./urls";
 
 const contentIdSchema = z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/u, {
@@ -54,6 +54,10 @@ const imageSchema = z.strictObject({
 });
 
 const homepageImageSchema = imageSchema.extend({
+  resource: localResourceSchema.refine(
+    ({ path }) => /\.(?:avif|jpe?g|png|webp)$/u.test(path),
+    { error: "Expected a local image resource" },
+  ),
   width: z.number().int().positive(),
   height: z.number().int().positive(),
 });
