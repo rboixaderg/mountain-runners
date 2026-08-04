@@ -154,7 +154,8 @@ figcaption {
 .homepage-hero {
   position: relative;
   overflow: hidden;
-  padding-block: clamp(4rem, 12vw, 9rem);
+  min-height: clamp(38rem, 57vw, 51rem);
+  padding-block: clamp(6rem, 14vw, 10rem);
   background: var(--color-red);
   color: var(--color-paper);
 }
@@ -198,7 +199,7 @@ figcaption {
 .homepage-hero__grid {
   position: relative;
   z-index: 2;
-  align-items: end;
+  align-items: center;
 }
 
 .homepage-kicker {
@@ -231,38 +232,18 @@ figcaption {
 .homepage-hero__intro {
   display: grid;
   gap: var(--space-6);
-}
-
-.homepage-hero__media {
-  position: relative;
-  min-height: clamp(16rem, 35vw, 30rem);
-  overflow: hidden;
-  border: 0.2rem solid var(--color-paper);
-  background: var(--color-ink);
+  max-width: 58rem;
 }
 
 .homepage-hero__mountain {
+  position: absolute;
+  inset: 0;
   width: 100%;
   height: 100%;
   object-fit: cover;
+  opacity: 0.22;
   filter: grayscale(1) contrast(1.35);
-  mix-blend-mode: screen;
-}
-
-.homepage-hero__media::after {
-  position: absolute;
-  inset: 0;
-  background: color-mix(in srgb, var(--color-red) 72%, transparent);
-  content: "";
-}
-
-.homepage-hero__logo {
-  position: absolute;
-  z-index: 1;
-  right: var(--space-4);
-  bottom: var(--space-4);
-  width: clamp(5rem, 12vw, 8rem);
-  border: 0.2rem solid var(--color-paper);
+  mix-blend-mode: multiply;
 }
 
 .homepage-hero__copy > :first-child,
@@ -298,9 +279,44 @@ figcaption {
 
 .homepage-event {
   display: grid;
-  gap: var(--space-3);
-  padding-block: var(--space-6);
-  border-bottom: 1px solid var(--color-line);
+  border-bottom: 0.125rem solid var(--color-ink);
+}
+
+.homepage-event__date {
+  display: grid;
+  min-height: 8.75rem;
+  place-items: center;
+  padding: var(--space-4);
+  background: var(--color-red);
+  color: var(--color-paper);
+}
+
+.homepage-event__date time {
+  display: grid;
+  text-align: center;
+}
+
+.homepage-event__date span {
+  font-family: var(--font-display);
+  font-size: clamp(3rem, 7vw, 4.5rem);
+  font-weight: 700;
+  line-height: 0.85;
+}
+
+.homepage-event__date small {
+  margin-top: var(--space-2);
+  font-family: var(--font-display);
+  font-size: 1.1rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.homepage-event__body {
+  display: grid;
+  align-content: center;
+  gap: var(--space-2);
+  padding: var(--space-6);
 }
 
 .homepage-event__status {
@@ -313,15 +329,27 @@ figcaption {
 }
 
 .homepage-event h3 {
-  margin: 0 0 var(--space-2);
+  margin: 0;
   font-family: var(--font-display);
   font-size: clamp(2rem, 5vw, 3.5rem);
   line-height: 1;
   text-transform: uppercase;
 }
 
-.homepage-event time {
+.homepage-event__body > div > :first-child,
+.homepage-event__body > div > :last-child,
+.homepage-event__location {
+  margin-block: 0;
+}
+
+.homepage-event__body > div {
+  color: var(--color-muted);
+}
+
+.homepage-event__location {
+  font-size: 0.875rem;
   font-weight: 700;
+  text-transform: uppercase;
 }
 
 .homepage-link {
@@ -330,6 +358,8 @@ figcaption {
 }
 
 .homepage-school-section {
+  position: relative;
+  overflow: hidden;
   padding-block: clamp(4rem, 10vw, 7rem);
   background: var(--color-ink);
   color: var(--color-paper);
@@ -346,16 +376,25 @@ figcaption {
 
 .homepage-school-list li {
   display: grid;
-  gap: var(--space-2);
-  padding: var(--space-3);
-  border: 1px solid color-mix(in srgb, var(--color-paper) 50%, transparent);
+  align-content: start;
+  gap: var(--space-3);
+  padding: var(--space-6);
+  background: var(--color-paper);
+  color: var(--color-ink);
+  border: 0.25rem solid transparent;
 }
 
-.homepage-school-list img {
+.homepage-school-list__mark {
+  display: grid;
   width: 100%;
-  aspect-ratio: 4 / 3;
-  object-fit: cover;
-  filter: grayscale(1) contrast(1.2);
+  aspect-ratio: 4 / 2.25;
+  place-items: center;
+  background: var(--color-line);
+  color: var(--color-muted);
+  font-family: var(--font-display);
+  font-size: 2.25rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
 }
 
 .homepage-school-list strong {
@@ -365,8 +404,9 @@ figcaption {
 }
 
 .homepage-school-list small {
-  color: var(--color-paper);
+  color: var(--color-red);
   font-weight: 700;
+  text-transform: uppercase;
 }
 
 .homepage-coming-soon {
@@ -421,13 +461,8 @@ figcaption {
     grid-template-columns: repeat(12, minmax(0, 1fr));
   }
 
-  .homepage-hero__grid > :first-child {
+  .homepage-hero__intro {
     grid-column: span 8;
-  }
-
-  .homepage-hero__media {
-    align-self: end;
-    grid-column: span 4;
   }
 
   .homepage-school-section__grid,
@@ -435,18 +470,21 @@ figcaption {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  .homepage-club-section {
+    grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+  }
+
   .homepage-school-list {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
   .homepage-event {
-    grid-template-columns: minmax(10rem, 1fr) minmax(0, 2fr) auto;
-    align-items: baseline;
+    grid-template-columns: minmax(10rem, 12rem) minmax(0, 1fr);
   }
 
-  .homepage-event h3,
-  .homepage-event time {
-    margin: 0;
+  .homepage-event__date {
+    min-height: 100%;
+    border-right: 0.125rem solid var(--color-ink);
   }
 }
 
