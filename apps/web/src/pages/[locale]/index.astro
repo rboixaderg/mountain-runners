@@ -2,6 +2,7 @@
 import { locales } from "../../../i18n.config.mjs";
 import * as m from "../../paraglide/messages.js";
 import { assertIsLocale } from "../../paraglide/runtime.js";
+import logo from "../../assets/logo_mountain_runners.jpeg";
 import mountainPlaceholder from "../../assets/berga-trail-placeholder.svg";
 import PublicLayout from "../../layouts/PublicLayout.astro";
 import {
@@ -65,6 +66,13 @@ export function getStaticPaths() {
           )}
         />
       </div>
+      <img
+        class="homepage-hero__logo"
+        src={logo.src}
+        width={logo.width}
+        height={logo.height}
+        alt={m.homepage_hero_image_alt({}, { locale })}
+      />
     </div>
   </section>
 
@@ -151,9 +159,13 @@ export function getStaticPaths() {
         {
           schools.map((school) => (
             <li>
-              <span class="homepage-school-list__mark" aria-hidden="true">
-                MRB
-              </span>
+              <img
+                class="homepage-school-list__mark"
+                src={logo.src}
+                width={logo.width}
+                height={logo.height}
+                alt=""
+              />
               <strong>{school.name[locale]}</strong>
               <span>{school.summary[locale]}</span>
               <small>{m.coming_soon({}, { locale })}</small>
