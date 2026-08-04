@@ -17,11 +17,13 @@ totes les àrees del web ni desplegar a producció.
 
 ## Límits I Decisions Confirmades
 
-La fase aplica l'ADR 0004: el shell, les rutes, la navegació i l'ordre de les
-seccions són estructura estable implementada en components. Les col·leccions
-editorials aporten només les dades canviants, com esdeveniments, escoles, dates,
-estats, textos, recursos i URL. Aquesta regla preval sobre qualsevol referència
-anterior a una configuració YAML global del lloc.
+La fase aplica els ADR 0004 i 0005: el shell, les rutes, la navegació, l'ordre
+de les seccions i les pàgines fixes són estructura estable implementada en
+components. Els textos informatius de les pàgines fixes viuen als recursos de
+traducció. Les col·leccions editorials aporten només objectes de domini, com
+esdeveniments, escoles, entitats, documents, dates, estats, recursos i URL.
+Aquestes regles prevalen sobre qualsevol referència anterior a una configuració
+YAML global del lloc o a un esquema de pàgina fixa.
 
 ## Resultats Esperats
 
@@ -83,7 +85,7 @@ Una PR pot agrupar unitats adjacents només quan:
 | Skills externes portables                    | Completada | Fase 1 fusionada                                        | Quatre skills externes revisades i versionades | #15 |
 | Contracte de rutes localitzades              | Completada | Fase 1 fusionada                                        | Segments canònics, URLs i variants validades   | #17 |
 | Fonaments visuals i shell global             | En curs    | Fase 1 i referències aplicables                         | Shell responsive i accessible                  | #19 |
-| Portada content-driven                       | En curs    | Shell i contingut aprovat                               | Inici real generat des de col·leccions         | #20 |
+| Portada amb text traduïble i dades de domini | En curs    | Shell i contingut aprovat                               | Inici real amb textos i col·leccions separats  | #20 |
 | Hub i detall d'esdeveniments                 | Pendent    | Shell, dissenys i contingut d'esdeveniments aprovats    | Recorregut complet amb estats reals            | -   |
 | SEO, rendiment, wrapper local i qualitat E2E | Pendent    | Pàgines representatives i skills externes implementades | Llindars, wrapper i recorreguts automatitzats  | -   |
 
@@ -131,12 +133,13 @@ axe i metadades. **PR:** pròpia; no construeix portada ni el hub editorial
 d'esdeveniments. Pot afegir una destinació temporal no indexable, sense contingut
 editorial, perquè la navegació global tingui un enllaç vàlid.
 
-### T2.5: Portada Generada Des De Contingut
+### T2.5: Portada Amb Text Traduïble I Dades De Domini
 
 **Abast:** hero, esdeveniments, escoles, socis i comunitat. **Depèn de:** T2.4 i
-contingut aprovat. **Resultat:** `/ca/` sense dades editorials codificades.
-**Comprovació:** ordre, enllaços i destinacions absents. **PR:** pròpia; no
-completa Socis o Escoles.
+contingut aprovat. **Resultat:** `/ca/` amb estructura en components, textos de
+pàgina als recursos de traducció i dades d'objectes de domini provinents de les
+col·leccions. **Comprovació:** ordre, enllaços i destinacions absents. **PR:**
+pròpia; no completa Socis o Escoles.
 
 ### T2.6: Hub I Detall D'Esdeveniments
 
@@ -284,8 +287,10 @@ aquelles fixtures com a pàgines reals.
 
 ## Portada
 
-La portada `/ca/` ha de construir-se exclusivament des de la configuració del
-lloc i les col·leccions editorials. Ha d'incloure:
+La portada `/ca/` ha de mantenir la composició estable en components. Els textos
+informatius del hero i de les seccions han de provenir dels recursos de
+traducció; les dades d'esdeveniments i escoles han de provenir de les
+col·leccions editorials. Ha d'incloure:
 
 - hero d'identitat amb contingut i imatge aprovats;
 - selecció d'esdeveniments amb `active: true`, prioritzant els que tenen una
@@ -300,8 +305,9 @@ no implementen les plantilles completes de la fase 3. Quan una destinació encar
 no existeixi, el component ha de comunicar `Properament` sense generar un enllaç
 trencat.
 
-No es poden codificar dins dels components dates, estats, textos editorials,
-formularis ni URL que hagin de canviar sense desplegar codi.
+No es poden codificar dins dels components dates, estats, formularis ni URL
+d'objectes de domini. Els textos de pàgina fixa es mantenen als recursos de
+traducció, no en esquemes YAML de pàgina.
 
 ## Esdeveniments
 

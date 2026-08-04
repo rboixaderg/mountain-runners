@@ -23,11 +23,6 @@ const entities = defineCollection({
   schema: collectionSchemas.entities,
 });
 
-const pages = defineCollection({
-  loader: restrictedYamlLoader("src/content/pages/", collectionSchemas.pages),
-  schema: collectionSchemas.pages,
-});
-
 const documents = defineCollection({
   loader: restrictedYamlLoader(
     "src/content/documents/",
@@ -40,6 +35,5 @@ export const collections = {
   schools,
   events,
   entities,
-  pages,
   documents,
 };

@@ -6,7 +6,7 @@ import {
   slugSchema,
   translatableSchema,
 } from "./primitives";
-import { localResourceSchema, safeResourceSchema } from "./resources";
+import { safeResourceSchema } from "./resources";
 import { httpsUrlSchema } from "./urls";
 
 const contentIdSchema = z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/u, {
@@ -51,15 +51,6 @@ const imageSchema = z.strictObject({
   alt: localizedTextSchema,
   attribution: localizedTextSchema.optional(),
   sourceUrl: httpsUrlSchema.optional(),
-});
-
-const homepageImageSchema = imageSchema.extend({
-  resource: localResourceSchema.refine(
-    ({ path }) => /\.(?:avif|jpe?g|png|webp)$/u.test(path),
-    { error: "Expected a local image resource" },
-  ),
-  width: z.number().int().positive(),
-  height: z.number().int().positive(),
 });
 
 const publishableFields = {
@@ -158,32 +149,6 @@ export const entitySchema = z.strictObject({
     .optional(),
 });
 
-export const homepageSchema = z.strictObject({
-  id: contentIdSchema,
-  published: z.boolean(),
-  hero: z.strictObject({
-    title: localizedTextSchema,
-    description: localizedMarkdownSchema,
-    image: homepageImageSchema,
-  }),
-  events: z.strictObject({
-    title: localizedTextSchema,
-    description: localizedMarkdownSchema,
-  }),
-  schools: z.strictObject({
-    title: localizedTextSchema,
-    description: localizedMarkdownSchema,
-  }),
-  members: z.strictObject({
-    title: localizedTextSchema,
-    description: localizedMarkdownSchema,
-  }),
-  community: z.strictObject({
-    title: localizedTextSchema,
-    description: localizedMarkdownSchema,
-  }),
-});
-
 export const documentSchema = z.strictObject({
   id: contentIdSchema,
   published: z.boolean(),
@@ -200,13 +165,11 @@ export const documentSchema = z.strictObject({
 export type School = z.infer<typeof schoolSchema>;
 export type Event = z.infer<typeof eventSchema>;
 export type Entity = z.infer<typeof entitySchema>;
-export type Homepage = z.infer<typeof homepageSchema>;
 export type Document = z.infer<typeof documentSchema>;
 
 export const collectionSchemas = {
   schools: schoolSchema,
   events: eventSchema,
   entities: entitySchema,
-  pages: homepageSchema,
   documents: documentSchema,
 } as const;
