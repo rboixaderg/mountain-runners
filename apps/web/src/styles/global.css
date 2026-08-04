@@ -152,16 +152,53 @@ figcaption {
 }
 
 .homepage-hero {
+  position: relative;
+  overflow: hidden;
   padding-block: clamp(4rem, 12vw, 9rem);
   background: var(--color-red);
   color: var(--color-paper);
 }
 
+.homepage-hero::after {
+  position: absolute;
+  z-index: 1;
+  right: 0;
+  bottom: -1px;
+  left: 0;
+  height: clamp(1.75rem, 4vw, 4rem);
+  background: var(--color-ink);
+  clip-path: polygon(
+    0 52%,
+    6% 36%,
+    13% 58%,
+    20% 18%,
+    29% 63%,
+    36% 30%,
+    45% 55%,
+    53% 12%,
+    61% 61%,
+    68% 32%,
+    78% 57%,
+    87% 24%,
+    94% 48%,
+    100% 20%,
+    100% 100%,
+    0 100%
+  );
+  content: "";
+}
+
 .homepage-hero__grid,
 .homepage-school-section__grid,
-.homepage-two-column {
+.homepage-club-section {
   display: grid;
   gap: var(--space-8);
+}
+
+.homepage-hero__grid {
+  position: relative;
+  z-index: 2;
+  align-items: end;
 }
 
 .homepage-kicker {
@@ -186,28 +223,59 @@ figcaption {
 
 .homepage-hero__copy,
 .homepage-section__heading > div,
-.homepage-two-column > div > div {
+.homepage-members-card > div,
+.homepage-community-card > div {
   font-size: clamp(1.1rem, 2vw, 1.35rem);
 }
 
-.homepage-hero__aside {
+.homepage-hero__intro {
   display: grid;
   gap: var(--space-6);
 }
 
+.homepage-hero__media {
+  position: relative;
+  min-height: clamp(16rem, 35vw, 30rem);
+  overflow: hidden;
+  border: 0.2rem solid var(--color-paper);
+  background: var(--color-ink);
+}
+
+.homepage-hero__mountain {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  filter: grayscale(1) contrast(1.35);
+  mix-blend-mode: screen;
+}
+
+.homepage-hero__media::after {
+  position: absolute;
+  inset: 0;
+  background: color-mix(in srgb, var(--color-red) 72%, transparent);
+  content: "";
+}
+
 .homepage-hero__logo {
-  width: clamp(4rem, 10vw, 7rem);
+  position: absolute;
+  z-index: 1;
+  right: var(--space-4);
+  bottom: var(--space-4);
+  width: clamp(5rem, 12vw, 8rem);
+  border: 0.2rem solid var(--color-paper);
 }
 
 .homepage-hero__copy > :first-child,
 .homepage-section__heading > div > :first-child,
-.homepage-two-column > div > div > :first-child {
+.homepage-members-card > div > :first-child,
+.homepage-community-card > div > :first-child {
   margin-top: 0;
 }
 
 .homepage-hero__copy > :last-child,
 .homepage-section__heading > div > :last-child,
-.homepage-two-column > div > div > :last-child {
+.homepage-members-card > div > :last-child,
+.homepage-community-card > div > :last-child {
   margin-bottom: 0;
 }
 
@@ -217,7 +285,8 @@ figcaption {
 
 .homepage-section h2,
 .homepage-school-section h2,
-.homepage-two-column h2 {
+.homepage-members-card h2,
+.homepage-community-card h2 {
   font-size: clamp(2.5rem, 7vw, 4.5rem);
 }
 
@@ -228,8 +297,19 @@ figcaption {
 }
 
 .homepage-event {
+  display: grid;
+  gap: var(--space-3);
   padding-block: var(--space-6);
   border-bottom: 1px solid var(--color-line);
+}
+
+.homepage-event__status {
+  margin: 0;
+  color: var(--color-red);
+  font-family: var(--font-display);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
 .homepage-event h3 {
@@ -257,7 +337,8 @@ figcaption {
 
 .homepage-school-list {
   display: grid;
-  gap: var(--space-4);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-3);
   margin: 0;
   padding: 0;
   list-style: none;
@@ -266,8 +347,15 @@ figcaption {
 .homepage-school-list li {
   display: grid;
   gap: var(--space-2);
-  padding: var(--space-4) 0;
-  border-top: 1px solid color-mix(in srgb, var(--color-paper) 50%, transparent);
+  padding: var(--space-3);
+  border: 1px solid color-mix(in srgb, var(--color-paper) 50%, transparent);
+}
+
+.homepage-school-list img {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+  filter: grayscale(1) contrast(1.2);
 }
 
 .homepage-school-list strong {
@@ -286,9 +374,42 @@ figcaption {
   font-weight: 700;
 }
 
-.homepage-two-column {
+.homepage-club-section {
   padding-block: clamp(4rem, 10vw, 7rem);
   border-top: 1px solid var(--color-line);
+}
+
+.homepage-members-card,
+.homepage-community-card {
+  padding: clamp(1.5rem, 4vw, 3rem);
+}
+
+.homepage-members-card {
+  background: var(--color-red);
+  color: var(--color-paper);
+}
+
+.homepage-community-card {
+  border: 1px solid var(--color-ink);
+}
+
+.homepage-members-card h2,
+.homepage-community-card h2 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(2.5rem, 7vw, 4.5rem);
+  line-height: 0.9;
+  text-transform: uppercase;
+}
+
+.homepage-members-card > div,
+.homepage-community-card > div {
+  margin-top: var(--space-6);
+  font-size: clamp(1.1rem, 2vw, 1.35rem);
+}
+
+.homepage-members-card .homepage-coming-soon {
+  color: inherit;
 }
 
 @media (min-width: 48rem) {
@@ -304,14 +425,28 @@ figcaption {
     grid-column: span 8;
   }
 
-  .homepage-hero__aside {
+  .homepage-hero__media {
     align-self: end;
     grid-column: span 4;
   }
 
   .homepage-school-section__grid,
-  .homepage-two-column {
+  .homepage-club-section {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .homepage-school-list {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .homepage-event {
+    grid-template-columns: minmax(10rem, 1fr) minmax(0, 2fr) auto;
+    align-items: baseline;
+  }
+
+  .homepage-event h3,
+  .homepage-event time {
+    margin: 0;
   }
 }
 

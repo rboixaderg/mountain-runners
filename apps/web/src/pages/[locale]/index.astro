@@ -3,8 +3,10 @@ import { locales } from "../../../i18n.config.mjs";
 import * as m from "../../paraglide/messages.js";
 import { assertIsLocale } from "../../paraglide/runtime.js";
 import logo from "../../assets/logo_mountain_runners.jpeg";
+import mountainPlaceholder from "../../assets/berga-trail-placeholder.svg";
 import PublicLayout from "../../layouts/PublicLayout.astro";
 import {
+  getEditionTemporalStatus,
   getHomepageEvents,
   getMadridDate,
   getNextEdition,
@@ -47,23 +49,30 @@ export function getStaticPaths() {
 >
   <section class="homepage-hero">
     <div class="page-frame homepage-hero__grid">
-      <div>
+      <div class="homepage-hero__intro">
         <p class="homepage-kicker">MRB</p>
         <h1>{m.homepage_hero_title({}, { locale })}</h1>
+        <div
+          class="homepage-hero__copy"
+          set:html={renderRestrictedMarkdown(
+            m.homepage_hero_description({}, { locale }),
+          )}
+        />
       </div>
-      <div class="homepage-hero__aside">
+      <div class="homepage-hero__media">
+        <img
+          class="homepage-hero__mountain"
+          src={mountainPlaceholder.src}
+          width={mountainPlaceholder.width}
+          height={mountainPlaceholder.height}
+          alt=""
+        />
         <img
           class="homepage-hero__logo"
           src={logo.src}
           width={logo.width}
           height={logo.height}
           alt={m.homepage_hero_image_alt({}, { locale })}
-        />
-        <div
-          class="homepage-hero__copy"
-          set:html={renderRestrictedMarkdown(
-            m.homepage_hero_description({}, { locale }),
-          )}
         />
       </div>
     </div>
@@ -83,12 +92,15 @@ export function getStaticPaths() {
       {
         events.map((event) => {
           const nextEdition = getNextEdition(event, today);
+          const editionStatus = getEditionTemporalStatus(event, today);
           return (
             <article class="homepage-event">
-              <p class="homepage-kicker">
-                {nextEdition
+              <p class="homepage-event__status">
+                {editionStatus === "upcoming"
                   ? m.event_status_upcoming_edition({}, { locale })
-                  : m.event_status_no_upcoming_date({}, { locale })}
+                  : editionStatus === "in-progress"
+                    ? m.event_status_in_progress({}, { locale })
+                    : m.event_status_no_upcoming_date({}, { locale })}
               </p>
               <h3>{event.title[locale]}</h3>
               {nextEdition && (
@@ -126,6 +138,12 @@ export function getStaticPaths() {
         {
           schools.map((school) => (
             <li>
+              <img
+                src={logo.src}
+                width={logo.width}
+                height={logo.height}
+                alt=""
+              />
               <strong>{school.name[locale]}</strong>
               <span>{school.summary[locale]}</span>
               <small>{m.coming_soon({}, { locale })}</small>
@@ -136,8 +154,8 @@ export function getStaticPaths() {
     </div>
   </section>
 
-  <section class="page-frame homepage-section homepage-two-column">
-    <div>
+  <section class="page-frame homepage-club-section">
+    <div class="homepage-members-card">
       <p class="homepage-kicker">MRB</p>
       <h2>{m.homepage_members_title({}, { locale })}</h2>
       <div
@@ -147,7 +165,7 @@ export function getStaticPaths() {
       />
       <p class="homepage-coming-soon">{m.coming_soon({}, { locale })}</p>
     </div>
-    <div>
+    <div class="homepage-community-card">
       <p class="homepage-kicker">Berguedà</p>
       <h2>{m.homepage_community_title({}, { locale })}</h2>
       <div

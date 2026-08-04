@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   getHomepageEvents,
+  getEditionTemporalStatus,
   getMadridDate,
   getNextEdition,
 } from "../lib/content/events";
@@ -83,6 +84,22 @@ describe("homepage events", () => {
         "2027-04-02",
       ).map(({ id }) => id),
     ).toEqual(["in-progress", "future"]);
+    expect(getEditionTemporalStatus(event, "2027-04-02")).toBe("in-progress");
+  });
+
+  it("distinguishes upcoming editions from active events without a date", () => {
+    expect(
+      getEditionTemporalStatus(
+        createEvent("future", true, ["2027-04-04"]),
+        "2027-04-02",
+      ),
+    ).toBe("upcoming");
+    expect(
+      getEditionTemporalStatus(
+        createEvent("without-date", true, ["2027-04-01"]),
+        "2027-04-02",
+      ),
+    ).toBe("no-upcoming-date");
   });
 
   it("uses the Europe/Madrid calendar date", () => {
