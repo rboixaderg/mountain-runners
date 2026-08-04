@@ -4,6 +4,17 @@
 
 Acceptada.
 
+## Relació Amb ADR 0004
+
+L'ADR 0004 no es modifica: conserva el seu valor històric i continua governant
+l'estructura estable, la inexistència d'un constructor genèric de pàgines i els
+objectes editorials de domini. Aquest ADR substitueix únicament la seva excepció
+que permet afegir un esquema YAML específic a una pàgina fixa amb edició
+recurrent.
+
+Quan una regla de l'ADR 0004 i aquesta decisió difereixin sobre una pàgina fixa,
+preval l'ADR 0005. Per a la resta de casos, preval l'ADR 0004.
+
 ## Context
 
 L'ADR 0004 estableix que el codi conserva l'estructura estable i el YAML
@@ -17,21 +28,22 @@ s'aplica a partir de la fase 2.
 
 ## Decisió
 
-Les pàgines informatives fixes, com la portada, Qui som, Socis o Comunitat, no
-es modelen com a entrades YAML ni com a objectes editorials. La seva estructura,
-composició i recursos visuals controlats viuen en components. Els seus textos
-viuen en recursos de traducció per idioma.
+Una pàgina fixa té ruta, seccions i ordre estables; no conté blocs reordenables
+ni dades amb identitat pròpia. La portada, Qui som, Socis i Comunitat en són
+exemples. Si una necessitat no compleix aquesta definició, no s'hi afegeix YAML
+per excepció: requereix una decisió arquitectònica nova.
 
-El YAML restringit queda reservat a objectes de domini amb identitat pròpia que
-es representarien en una base de dades convencional: esdeveniments, escoles,
-entitats, documents i les seves relacions, dates, estats, recursos i URL
-associades. Els camps textuals d'aquests objectes continuen localitzats dins del
-model.
+| Element                                       | Pàgina fixa                                                                                           | Objecte de domini                               |
+| --------------------------------------------- | ----------------------------------------------------------------------------------------------------- | ----------------------------------------------- |
+| Estructura i composició                       | Component                                                                                             | Plantilla o component que en mostra el model    |
+| Text informatiu                               | Recursos de traducció                                                                                 | Camp localitzat del model YAML                  |
+| Recurs visual                                 | Import controlat del component                                                                        | Recurs YAML amb la seva procedència i atribució |
+| Data, estat, preu, inscripció o URL operativa | No s'afegeix com a dada de pàgina; ha de pertànyer a un objecte de domini o requerir una decisió nova | Camp validat del model YAML                     |
 
 Els recursos de traducció inclouen missatges d'interfície i textos informatius
-de pàgines fixes. Cada idioma ha de proporcionar el mateix conjunt de claus;
-una ruta pública només es genera quan les seves dependències editorials tenen la
-traducció necessària.
+de pàgines fixes. Cada idioma ha de proporcionar el mateix conjunt de claus. Els
+objectes de domini només generen una ruta pública quan tenen les traduccions i
+dependències editorials requerides.
 
 ## Conseqüències
 
@@ -42,5 +54,5 @@ traducció necessària.
   dades de pàgina.
 - Les col·leccions de domini mantenen la validació estricta, la publicació i les
   regles de variants localitzades.
-- Aquesta decisió concreta i substitueix l'excepció de l'ADR 0004 sobre esquemes
-  específics de pàgines fixes.
+- La classificació d'aquesta decisió és l'única font normativa per decidir on viu
+  un element de contingut de pàgina fixa.

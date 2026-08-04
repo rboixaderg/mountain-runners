@@ -4,33 +4,28 @@
 
 - Git és el magatzem autoritatiu del contingut publicat.
 - Les dades de domini o operatives que puguin canviar han d'estar estructurades i
-  validades; no poden existir només dins del codi de les pàgines.
+  validades.
 - L'estat de publicació ha de ser explícit perquè les previsualitzacions i el
   futur índex del xat no exposin material no publicat.
 - El català és l'únic idioma publicat inicialment. Els camps textuals d'objectes
   de domini es modelen com un objecte per idioma, no com camps separats per
-  llengua; els textos de pàgines fixes viuen als recursos de traducció.
-- Els enllaços, CTAs i formularis que canviïn editorialment també han de poder
-  variar per idioma quan calgui.
+  llengua.
 - Totes les rutes HTML públiques tenen prefix d'idioma, inclòs el català; els
   recursos tècnics globals en queden exceptuats.
 - Una variant d'idioma només es publica quan la traducció requerida és completa;
   no es mostra contingut català sota una ruta castellana o anglesa.
 - Les entrades editorials utilitzen YAML 1.2 restringit, sense àncores, aliases,
   tags personalitzats ni claus duplicades, i es validen estrictament amb Zod.
-- Els missatges d'interfície i els textos de pàgines fixes es gestionen amb
-  Paraglide JS 2; no formen part de les col·leccions editorials.
+- Els recursos de traducció gestionen els missatges d'interfície i els textos de
+  pàgines fixes; no formen part de les col·leccions editorials.
 
 ## Límit Entre Codi I Contingut
 
-- El codi defineix l'estructura de navegació, les rutes, les locales conegudes,
-  el shell global, les plantilles i l'ordre de les seccions estables.
-- El YAML recull dades de domini o operatives que poden canviar sense modificar
-  components: dates, estats, inscripcions, preus, recursos, entitats, documents
-  i URL externes. Els seus camps textuals editorials formen part de l'objecte de
-  domini localitzat.
-- Les pàgines fixes no reben esquemes YAML: els textos informatius es mantenen
-  als recursos de traducció i la seva composició en components, segons l'ADR 0005.
+- Els ADR 0004 i 0005 governen aquest límit. L'ADR 0005 preval només per a
+  pàgines fixes i defineix la classificació d'estructura, textos, recursos i
+  dades operatives; aquest document no la duplica.
+- El codi defineix l'estructura estable. El YAML valida objectes de domini i els
+  recursos de traducció aporten els textos de pàgines fixes.
 - Que una dada visqui en codi no impedeix que el xat públic la indexi: el seu
   índex es genera a partir del contingut publicat renderitzat.
 
