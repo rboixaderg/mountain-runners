@@ -329,31 +329,43 @@ test("@a11y has no detectable axe violations", async ({
 test("publishes structured data only on pages with reviewed data", async ({
   page,
 }) => {
-  const jsonLdScripts = (html: string) =>
-    (html.match(/<script type="application\/ld\+json">/gu) ?? []).length;
+  const jsonLd = async () =>
+    page
+      .locator('script[type="application/ld+json"]')
+      .evaluateAll((scripts) =>
+        scripts.map((script) => JSON.parse(script.textContent ?? "null")),
+      );
 
   await page.goto("/ca/");
-  const homeHtml = await page.content();
-  expect(jsonLdScripts(homeHtml)).toBe(2);
-  expect(homeHtml).toContain('"@type":"Organization"');
-  expect(homeHtml).toContain('"@type":"WebSite"');
-  expect(homeHtml).toContain("Mountain Runners del Berguedà");
-  expect(homeHtml).toContain("https://mountainrunners.cat/");
+  const homeData = await jsonLd();
+  expect(homeData).toHaveLength(2);
+  expect(homeData[0]).toMatchObject({
+    "@context": "https://schema.org",
+    "@type": "Organization",
+    name: "Mountain Runners del Berguedà",
+    url: "https://mountainrunners.cat/",
+  });
+  expect(homeData[1]).toMatchObject({
+    "@type": "WebSite",
+    url: "https://mountainrunners.cat/",
+  });
 
   await page.goto("/ca/esdeveniments/");
-  expect(jsonLdScripts(await page.content())).toBe(0);
+  expect(await jsonLd()).toEqual([]);
 
   await page.goto("/ca/esdeveniments/ultra-pirineu/");
-  const eventHtml = await page.content();
-  expect(jsonLdScripts(eventHtml)).toBe(1);
-  expect(eventHtml).toContain('"@type":"Event"');
-  expect(eventHtml).toContain('"name":"Ultra Pirineu"');
-  expect(eventHtml).toContain('"startDate":"2026-10-02"');
-  expect(eventHtml).toContain('"endDate":"2026-10-04"');
-  expect(eventHtml).toContain(
-    "https://mountainrunners.cat/ca/esdeveniments/ultra-pirineu/",
-  );
-  expect(eventHtml).not.toContain("offers");
+  const eventData = await jsonLd();
+  expect(eventData).toHaveLength(1);
+  expect(eventData[0]).toEqual({
+    "@context": "https://schema.org",
+    "@type": "Event",
+    name: "Ultra Pirineu",
+    url: "https://mountainrunners.cat/ca/esdeveniments/ultra-pirineu/",
+    startDate: "2026-10-02",
+    endDate: "2026-10-04",
+    eventStatus: "https://schema.org/EventScheduled",
+    location: { "@type": "Place", name: "Bagà" },
+  });
 
   for (const path of [
     "/ca/esdeveniments/berga-trail/",
@@ -361,8 +373,49 @@ test("publishes structured data only on pages with reviewed data", async ({
     "/404.html",
   ]) {
     await page.goto(path);
-    expect(jsonLdScripts(await page.content()), path).toBe(0);
+    expect(await jsonLd(), path).toEqual([]);
   }
+});
+
+test("emits canonical and social metadata for published pages", async ({
+  page,
+}) => {
+  await page.goto("/ca/");
+  await expect(page.locator('link[rel="canonical"]')).toHaveAttribute(
+    "href",
+    "https://mountainrunners.cat/ca/",
+  );
+  await expect(page.locator('meta[property="og:title"]')).toHaveAttribute(
+    "content",
+    "Mountain Runners del Berguedà",
+  );
+  await expect(
+    page.locator('meta[property="og:description"]'),
+  ).not.toHaveAttribute("content", "");
+  await expect(page.locator('meta[property="og:type"]')).toHaveAttribute(
+    "content",
+    "website",
+  );
+  await expect(page.locator('meta[property="og:url"]')).toHaveAttribute(
+    "content",
+    "https://mountainrunners.cat/ca/",
+  );
+  // Only Catalan is published: no hreflang alternatives may be advertised.
+  await expect(page.locator('link[rel="alternate"]')).toHaveCount(0);
+
+  await page.goto("/ca/esdeveniments/ultra-pirineu/");
+  await expect(page.locator('link[rel="canonical"]')).toHaveAttribute(
+    "href",
+    "https://mountainrunners.cat/ca/esdeveniments/ultra-pirineu/",
+  );
+  await expect(page.locator('meta[property="og:title"]')).toHaveAttribute(
+    "content",
+    "Ultra Pirineu | Mountain Runners",
+  );
+  await expect(page.locator('meta[property="og:url"]')).toHaveAttribute(
+    "content",
+    "https://mountainrunners.cat/ca/esdeveniments/ultra-pirineu/",
+  );
 });
 
 test("serves sitemap and robots aligned with the canonical origin", async ({

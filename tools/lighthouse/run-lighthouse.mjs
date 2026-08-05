@@ -45,6 +45,15 @@ function pickRepresentativeRoutes(sitemapPaths) {
   return [home, hub, detail];
 }
 
+// Failure artifacts are uploaded to a public repository, and the spec excludes
+// unreviewed DOM captures from them. The full-page screenshot that Lighthouse
+// embeds by default is dropped: scores and budgets do not depend on it.
+function stripUnreviewedFields(lhr) {
+  const report = { ...lhr };
+  delete report.fullPageScreenshot;
+  return report;
+}
+
 async function waitForPreview(url, timeoutMs) {
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
@@ -68,6 +77,11 @@ function assertScores(lhr, route, failures) {
   }
 }
 
+// Budgets are enforced conservatively: the astro preview server serves the
+// build uncompressed and every network request of a type is counted, not only
+// "initial" resources. Both make the measured figures an upper bound of the
+// spec's "initial, compressed" budgets, so a passing run never hides a
+// regression; a future relaxation must be documented, not silent.
 function assertBudgets(lhr, route, failures) {
   const items = lhr.audits["network-requests"]?.details?.items ?? [];
   const transferByType = (type) =>
@@ -200,7 +214,7 @@ try {
     };
     await writeFile(
       resolve(artifactsDir, `${routeName(route)}.report.json`),
-      JSON.stringify(lhr, null, 2),
+      JSON.stringify(stripUnreviewedFields(lhr), null, 2),
     );
 
     const failures = [];

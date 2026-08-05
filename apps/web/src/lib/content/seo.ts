@@ -42,6 +42,24 @@ export function getWebSiteJsonLd(params: {
   };
 }
 
+/**
+ * Structured data for the homepage. Emits nothing when the reviewed site
+ * entity is missing for the current locale: structured data must never be
+ * generated from placeholder or unreviewed data.
+ */
+export function getSiteJsonLd(params: {
+  name: string | undefined;
+  siteUrl: URL;
+}): StructuredData[] {
+  if (params.name === undefined) {
+    return [];
+  }
+  return [
+    getOrganizationJsonLd({ name: params.name, siteUrl: params.siteUrl }),
+    getWebSiteJsonLd({ name: params.name, siteUrl: params.siteUrl }),
+  ];
+}
+
 export function getEventJsonLd(params: {
   event: Event;
   edition: EventEdition;
@@ -50,6 +68,15 @@ export function getEventJsonLd(params: {
   today: string;
 }): StructuredData | undefined {
   const { event, edition, canonicalUrl, locale, today } = params;
+  // An edition is described as long as it has not fully ended. Editions that
+  // already ended are deliberately omitted: they are historical and would
+  // otherwise appear as upcoming in rich results.
+  //
+  // An edition already under way without a declared end date (endDate is
+  // undefined, so its start date falls before today) is also omitted: the
+  // start date alone would misrepresent it as upcoming and schema.org offers
+  // no reliable "in progress" status. The visible page still renders it as
+  // "en curs"; structured data simply stays silent about it.
   const editionEnd = edition.endDate ?? edition.startDate;
   if (editionEnd < today) {
     return undefined;

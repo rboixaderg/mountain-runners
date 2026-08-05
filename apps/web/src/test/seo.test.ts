@@ -3,6 +3,7 @@ import type { Event, EventEdition } from "../lib/content/models";
 import {
   getEventJsonLd,
   getOrganizationJsonLd,
+  getSiteJsonLd,
   getWebSiteJsonLd,
   renderJsonLdScript,
   serializeJsonLd,
@@ -129,6 +130,39 @@ describe("organization and website structured data", () => {
   });
 });
 
+describe("homepage structured data", () => {
+  it("emits Organization and WebSite from the reviewed entity name", () => {
+    const data = getSiteJsonLd({
+      name: "Mountain Runners del Berguedà",
+      siteUrl: new URL("https://mountainrunners.cat"),
+    });
+
+    expect(data).toEqual([
+      {
+        "@context": "https://schema.org",
+        "@type": "Organization",
+        name: "Mountain Runners del Berguedà",
+        url: "https://mountainrunners.cat/",
+      },
+      {
+        "@context": "https://schema.org",
+        "@type": "WebSite",
+        name: "Mountain Runners del Berguedà",
+        url: "https://mountainrunners.cat/",
+      },
+    ]);
+  });
+
+  it("emits nothing when the reviewed entity is missing for the locale", () => {
+    expect(
+      getSiteJsonLd({
+        name: undefined,
+        siteUrl: new URL("https://mountainrunners.cat"),
+      }),
+    ).toEqual([]);
+  });
+});
+
 describe("event structured data", () => {
   it("generates Event data that matches visible content for a future edition", () => {
     const data = getEventJsonLd({
@@ -184,6 +218,37 @@ describe("event structured data", () => {
     expect(data).toBeUndefined();
   });
 
+  it("keeps Event data when the edition ends exactly today", () => {
+    const data = getEventJsonLd({
+      event,
+      edition: edition({ startDate: "2026-08-02", endDate: "2026-08-04" }),
+      canonicalUrl: new URL(
+        "https://mountainrunners.cat/ca/esdeveniments/ultra-pirineu/",
+      ),
+      locale: "ca",
+      today: "2026-08-04",
+    });
+
+    expect(data).toBeDefined();
+  });
+
+  it("omits an edition under way without a declared end date", () => {
+    const data = getEventJsonLd({
+      event,
+      edition: edition({ startDate: "2026-08-01", endDate: undefined }),
+      canonicalUrl: new URL(
+        "https://mountainrunners.cat/ca/esdeveniments/ultra-pirineu/",
+      ),
+      locale: "ca",
+      today: "2026-08-04",
+    });
+
+    // The page renders the edition as "en curs", but the single start date
+    // would misrepresent it as upcoming and schema.org has no reliable
+    // "in progress" status, so structured data stays silent.
+    expect(data).toBeUndefined();
+  });
+
   it("keeps Event data for an edition in progress today", () => {
     const data = getEventJsonLd({
       event,
@@ -196,5 +261,20 @@ describe("event structured data", () => {
     });
 
     expect(data).toBeDefined();
+  });
+
+  it("keeps a single-day future edition with an explicit end date", () => {
+    const data = getEventJsonLd({
+      event,
+      edition: edition({ startDate: "2026-10-02", endDate: "2026-10-02" }),
+      canonicalUrl: new URL(
+        "https://mountainrunners.cat/ca/esdeveniments/ultra-pirineu/",
+      ),
+      locale: "ca",
+      today: "2026-08-04",
+    }) as StructuredData;
+
+    expect(data.startDate).toBe("2026-10-02");
+    expect(data.endDate).toBe("2026-10-02");
   });
 });

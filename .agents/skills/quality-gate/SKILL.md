@@ -33,9 +33,11 @@ Run the smallest relevant check before declaring work complete:
 | `pnpm lighthouse`      | Lighthouse scores and budgets on representative routes|
 | `pnpm validate`        | All mandatory checks of the phase                     |
 
-`pnpm check` and `pnpm test:e2e` run with
-`PUBLIC_SITE_ORIGIN=https://mountainrunners.cat` and
-`BUILD_TODAY=2026-08-04` to keep builds and assertions deterministic.
+`pnpm check` no construeix ni fixa el rellotge. Les ordres que construeixen i
+serveixen el build (`pnpm test:e2e`, `pnpm test:a11y`, `pnpm lighthouse`)
+executen amb `PUBLIC_SITE_ORIGIN=https://mountainrunners.cat` i
+`BUILD_TODAY=2026-08-04` per mantenir builds i assertions deterministes; la CI
+els defineix també a nivell de job.
 
 ## Representative Routes And Viewports
 
@@ -62,16 +64,19 @@ On mobile, for homepage, hub and one representative detail:
 | Largest Contentful Paint (lab)          | <= 2.5 s  |
 | Cumulative Layout Shift                 | <= 0.1    |
 | Total Blocking Time                     | <= 200 ms |
-| Initial JavaScript, compressed          | <= 30 KiB |
-| Initial CSS, compressed                 | <= 50 KiB |
-| Initial fonts                           | <= 200 KiB|
-| LCP image on mobile                     | <= 300 KiB|
-| Initial total transfer                  | <= 1.5 MiB|
+| JavaScript transfer (all requests)      | <= 30 KiB |
+| CSS transfer (all requests)             | <= 50 KiB |
+| Fonts transfer (all requests)           | <= 200 KiB|
+| Largest single image                    | <= 300 KiB|
+| Total transfer (all requests)           | <= 1.5 MiB|
 
 Budgets live in `tools/lighthouse/budgets.json` and are enforced by
 `tools/lighthouse/run-lighthouse.mjs`, which also writes JSON reports to
-`artifacts/lighthouse/`. Thresholds must never be relaxed silently; if
-Lighthouse is variable, use multiple runs and the median.
+`artifacts/lighthouse/`. Measurements are conservative upper bounds of the
+spec's "initial, compressed" budgets: the preview server serves the build
+uncompressed and every network request of a type is counted. Thresholds must
+never be relaxed silently; if Lighthouse is variable, use multiple runs and the
+median.
 
 ## Required Evidence
 
