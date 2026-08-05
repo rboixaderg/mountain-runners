@@ -1,5 +1,5 @@
 ---
-import * as m from "../paraglide/messages.js";
+import * as messages from "../paraglide/messages.js";
 import type { Locale } from "../lib/content/primitives";
 import { getDomainPath } from "../lib/content/routes";
 
@@ -17,17 +17,17 @@ const { locale } = Astro.props;
     <p
       class="m-0 font-[family-name:var(--font-display)] text-lg tracking-[0.06em] uppercase"
     >
-      {m.site_title()}
+      {messages.site_title()}
     </p>
     <nav
       class="flex items-center gap-4 text-sm"
-      aria-label={m.footer_navigation({}, { locale })}
+      aria-label={messages.footer_navigation({}, { locale })}
     >
       <a class="font-bold" href={`/${locale}/`}
-        >{m.navigation_home({}, { locale })}</a
+        >{messages.navigation_home({}, { locale })}</a
       >
       <a class="font-bold" href={getDomainPath("event", locale)}
-        >{m.navigation_events({}, { locale })}</a
+        >{messages.navigation_events({}, { locale })}</a
       >
     </nav>
   </div>

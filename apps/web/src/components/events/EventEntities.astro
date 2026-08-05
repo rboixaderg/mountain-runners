@@ -1,0 +1,39 @@
+---
+import * as messages from "../../paraglide/messages.js";
+import type { Entity } from "../../lib/content/models";
+import type { Locale } from "../../lib/content/primitives";
+import { getExternalHost } from "../../lib/presentation/urls";
+
+interface Props {
+  entities: Entity[];
+  locale: Locale;
+}
+
+const { entities, locale } = Astro.props;
+---
+
+{
+  entities.length > 0 && (
+    <section class="events-detail__entities">
+      <h2>{messages.event_entities_title({}, { locale })}</h2>
+      <ul>
+        {entities.map((entity) => (
+          <li>
+            <strong>{entity.name[locale]}</strong>
+            {entity.websiteUrl && (
+              <>
+                {" · "}
+                <a href={entity.websiteUrl} rel="noopener noreferrer">
+                  {getExternalHost(entity.websiteUrl)}
+                </a>
+              </>
+            )}
+            {entity.attribution?.[locale] && (
+              <p>{entity.attribution[locale]}</p>
+            )}
+          </li>
+        ))}
+      </ul>
+    </section>
+  )
+}

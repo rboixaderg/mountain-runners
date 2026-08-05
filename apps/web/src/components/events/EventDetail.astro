@@ -1,0 +1,127 @@
+---
+import * as messages from "../../paraglide/messages.js";
+import {
+  getMostRelevantEdition,
+  getPreviousEditions,
+  getRegistrationUrl,
+} from "../../lib/content/events";
+import { getLocalImageSize, getResourceHref } from "../../lib/content/images";
+import { renderRestrictedMarkdown } from "../../lib/content/markdown";
+import type { Locale } from "../../lib/content/primitives";
+import type {
+  PublishedVariant,
+  PublicationCatalog,
+} from "../../lib/content/publication";
+import {
+  getEventActivityMessageKey,
+  getRegistrationPresentation,
+} from "../../lib/presentation/status";
+import EventEntities from "./EventEntities.astro";
+import EventHistory from "./EventHistory.astro";
+import EventPracticalInfo from "./EventPracticalInfo.astro";
+import EventResources from "./EventResources.astro";
+import EventStatus from "../EventStatus.astro";
+import ExternalLink from "../ExternalLink.astro";
+
+interface Props {
+  catalog: PublicationCatalog;
+  locale: Locale;
+  today: string;
+  variant: Extract<PublishedVariant, { kind: "event" }>;
+}
+
+const { catalog, locale, today, variant } = Astro.props;
+const event = variant.entry;
+const featuredEdition = getMostRelevantEdition(event, today);
+const previousEditions = getPreviousEditions(event, today);
+const registrationUrl =
+  featuredEdition === undefined
+    ? undefined
+    : getRegistrationUrl(event, featuredEdition, locale);
+const registration = getRegistrationPresentation(
+  featuredEdition?.registrationStatus,
+  registrationUrl,
+);
+const registrationLabel = messages[registration.key]({}, { locale });
+const informationUrl = event.informationUrl?.[locale];
+const coverHref = getResourceHref(event.cover.resource);
+const coverSize =
+  event.cover.resource.kind === "local"
+    ? await getLocalImageSize(event.cover.resource.path)
+    : undefined;
+const relatedEntities = [
+  ...event.organizerIds.map((id) => catalog.entities.get(id)),
+  ...event.collaboratorIds.map((id) => catalog.entities.get(id)),
+].filter((entity) => entity !== undefined);
+const editionDocuments =
+  featuredEdition?.documentIds.map((id) => ({
+    id,
+    document: catalog.documents.get(id),
+  })) ?? [];
+---
+
+<article class="events-detail">
+  {
+    coverHref && (
+      <figure class="events-detail__hero">
+        <img
+          src={coverHref}
+          alt={event.cover.alt[locale]}
+          {...(coverSize === undefined
+            ? {}
+            : { width: coverSize.width, height: coverSize.height })}
+        />
+        {event.cover.attribution?.[locale] && (
+          <figcaption>{event.cover.attribution[locale]}</figcaption>
+        )}
+      </figure>
+    )
+  }
+  <div class="page-frame events-detail__content">
+    <p class="events-detail__badge">
+      {
+        event.clubRelationship === "organizes"
+          ? messages.event_club_badge_organizes({}, { locale })
+          : messages.event_club_badge_collaborates({}, { locale })
+      }
+    </p>
+    <h1 class="events-detail__title">{event.title[locale]}</h1>
+    <div class="events-detail__state">
+      <span class="events-detail__registration-label">
+        {registrationLabel}
+      </span>
+      <EventStatus
+        className="events-detail__editorial-status"
+        locale={locale}
+        statusKey={getEventActivityMessageKey(event.active)}
+      />
+    </div>
+    <section
+      class="events-detail__description"
+      set:html={renderRestrictedMarkdown(event.description[locale]!)}
+    />
+    {
+      informationUrl && (
+        <ExternalLink
+          className="events-detail__info-link"
+          href={informationUrl}
+          label={messages.event_more_information({}, { locale })}
+        />
+      )
+    }
+    <EventPracticalInfo
+      edition={featuredEdition}
+      event={event}
+      locale={locale}
+      registration={registration}
+      today={today}
+    />
+    <EventResources
+      documents={editionDocuments}
+      edition={featuredEdition}
+      locale={locale}
+    />
+    <EventHistory editions={previousEditions} locale={locale} />
+    <EventEntities entities={relatedEntities} locale={locale} />
+  </div>
+</article>

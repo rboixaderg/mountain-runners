@@ -1,0 +1,50 @@
+---
+import * as messages from "../../paraglide/messages.js";
+import { getNextEdition } from "../../lib/content/events";
+import { renderRestrictedMarkdown } from "../../lib/content/markdown";
+import type { Event } from "../../lib/content/models";
+import type { Locale } from "../../lib/content/primitives";
+import { getEditionDayMonth } from "../../lib/presentation/dates";
+import { getHomepageEventStatusMessageKey } from "../../lib/presentation/status";
+
+interface Props {
+  event: Event;
+  locale: Locale;
+  today: string;
+}
+
+const { event, locale, today } = Astro.props;
+const nextEdition = getNextEdition(event, today);
+const statusKey = getHomepageEventStatusMessageKey(nextEdition, today);
+const status = messages[statusKey]({}, { locale });
+const dateParts = getEditionDayMonth(nextEdition, locale);
+---
+
+<article class="homepage-event">
+  <div class="homepage-event__date">
+    {
+      nextEdition ? (
+        <time datetime={nextEdition.startDate}>
+          <span>{dateParts?.day}</span>
+          <small>{dateParts?.month}</small>
+        </time>
+      ) : (
+        <span aria-hidden="true">--</span>
+      )
+    }
+  </div>
+  <div class="homepage-event__body">
+    <p class="homepage-event__status">{status}</p>
+    <h3>{event.title[locale]}</h3>
+    {
+      event.description[locale] && (
+        <div set:html={renderRestrictedMarkdown(event.description[locale])} />
+      )
+    }
+    {
+      nextEdition && (
+        <p class="homepage-event__location">{nextEdition.location[locale]}</p>
+      )
+    }
+  </div>
+</article>

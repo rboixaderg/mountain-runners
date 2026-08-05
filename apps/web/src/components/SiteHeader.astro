@@ -1,5 +1,5 @@
 ---
-import * as m from "../paraglide/messages.js";
+import * as messages from "../paraglide/messages.js";
 import logo from "../assets/logo_mountain_runners.png";
 import type { Locale } from "../lib/content/primitives";
 import { getDomainPath } from "../lib/content/routes";
@@ -22,7 +22,7 @@ const eventsPath = getDomainPath("event", locale);
     <a
       class="shrink-0 no-underline"
       href={homePath}
-      aria-label={m.site_title({}, { locale })}
+      aria-label={messages.site_title({}, { locale })}
     >
       <img
         class="site-logo"
@@ -34,30 +34,30 @@ const eventsPath = getDomainPath("event", locale);
     </a>
     <nav
       class="ml-auto hidden items-center gap-4 text-sm md:flex"
-      aria-label={m.primary_navigation({}, { locale })}
+      aria-label={messages.primary_navigation({}, { locale })}
     >
       <a class="font-bold" href={homePath}
-        >{m.navigation_home({}, { locale })}</a
+        >{messages.navigation_home({}, { locale })}</a
       >
       <a class="font-bold" href={eventsPath}
-        >{m.navigation_events({}, { locale })}</a
+        >{messages.navigation_events({}, { locale })}</a
       >
       <span
-        >{m.navigation_about({}, { locale })}
+        >{messages.navigation_about({}, { locale })}
         <small class="text-[0.7em] whitespace-nowrap text-[var(--color-muted)]"
-          >{m.coming_soon({}, { locale })}</small
+          >{messages.coming_soon({}, { locale })}</small
         ></span
       >
       <span
-        >{m.navigation_members({}, { locale })}
+        >{messages.navigation_members({}, { locale })}
         <small class="text-[0.7em] whitespace-nowrap text-[var(--color-muted)]"
-          >{m.coming_soon({}, { locale })}</small
+          >{messages.coming_soon({}, { locale })}</small
         ></span
       >
       <span
-        >{m.navigation_schools({}, { locale })}
+        >{messages.navigation_schools({}, { locale })}
         <small class="text-[0.7em] whitespace-nowrap text-[var(--color-muted)]"
-          >{m.coming_soon({}, { locale })}</small
+          >{messages.coming_soon({}, { locale })}</small
         ></span
       >
     </nav>
@@ -69,37 +69,37 @@ const eventsPath = getDomainPath("event", locale);
     </div>
     <details class="relative ml-auto md:hidden">
       <summary class="cursor-pointer font-bold"
-        >{m.menu({}, { locale })}</summary
+        >{messages.menu({}, { locale })}</summary
       >
       <div
         class="absolute right-0 z-10 mt-4 min-w-60 border border-[var(--color-line)] bg-[var(--color-paper)] p-4 shadow-sm"
       >
         <nav
           class="grid gap-3"
-          aria-label={m.primary_navigation({}, { locale })}
+          aria-label={messages.primary_navigation({}, { locale })}
         >
           <a class="font-bold" href={homePath}
-            >{m.navigation_home({}, { locale })}</a
+            >{messages.navigation_home({}, { locale })}</a
           >
           <a class="font-bold" href={eventsPath}
-            >{m.navigation_events({}, { locale })}</a
+            >{messages.navigation_events({}, { locale })}</a
           >
           <span
-            >{m.navigation_about({}, { locale })}
+            >{messages.navigation_about({}, { locale })}
             <small class="text-[0.7em] text-[var(--color-muted)]"
-              >{m.coming_soon({}, { locale })}</small
+              >{messages.coming_soon({}, { locale })}</small
             ></span
           >
           <span
-            >{m.navigation_members({}, { locale })}
+            >{messages.navigation_members({}, { locale })}
             <small class="text-[0.7em] text-[var(--color-muted)]"
-              >{m.coming_soon({}, { locale })}</small
+              >{messages.coming_soon({}, { locale })}</small
             ></span
           >
           <span
-            >{m.navigation_schools({}, { locale })}
+            >{messages.navigation_schools({}, { locale })}
             <small class="text-[0.7em] text-[var(--color-muted)]"
-              >{m.coming_soon({}, { locale })}</small
+              >{messages.coming_soon({}, { locale })}</small
             ></span
           >
         </nav>
