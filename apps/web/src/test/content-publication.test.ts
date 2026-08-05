@@ -61,7 +61,7 @@ describe("publication catalog", () => {
     ]);
     expect(catalog.documents.has("private-draft")).toBe(false);
     expect(getPublishedLocalResources(catalog)).toEqual([
-      "src/assets/logo_mountain_runners.jpeg",
+      "src/assets/logo_mountain_runners.png",
     ]);
   });
 
@@ -185,7 +185,17 @@ describe("publication catalog", () => {
     const mountainDay = source.events.find(({ id }) => id === "mountain-day")!;
     mountainDay.published = true;
     mountainDay.editions[0]!.registrationStatus = "open";
+    delete mountainDay.registrationUrl;
 
     expect(variantKeys(source)).not.toContain("event:ca:jornada-muntanya");
+  });
+
+  it("accepts an event-level URL for an open edition", async () => {
+    const source = await loadSource();
+    const mountainDay = source.events.find(({ id }) => id === "mountain-day")!;
+    mountainDay.published = true;
+    mountainDay.editions[0]!.registrationStatus = "open";
+
+    expect(variantKeys(source)).toContain("event:ca:jornada-muntanya");
   });
 });

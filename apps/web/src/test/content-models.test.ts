@@ -90,6 +90,16 @@ describe("editorial collection schemas", () => {
     expect(eventSchema.safeParse(invalidDate).success).toBe(false);
   });
 
+  it("accepts an event without editions", async () => {
+    const event = await parseFixture(
+      fixturePaths.events,
+      collectionSchemas.events,
+    );
+    event.editions = [];
+
+    expect(eventSchema.safeParse(event).success).toBe(true);
+  });
+
   for (const [
     stateName,
     fixturePath,
