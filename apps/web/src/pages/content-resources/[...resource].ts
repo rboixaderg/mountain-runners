@@ -17,8 +17,7 @@ const contentTypes = new Map([
 
 export async function getStaticPaths() {
   const catalog = await getPublicationCatalog();
-  const resources = getPublishedLocalResources(catalog);
-  return [...resources].sort().map((sourcePath) => ({
+  return getPublishedLocalResources(catalog).map((sourcePath) => ({
     params: {
       resource: sourcePath.replace(/^src\//u, ""),
     },

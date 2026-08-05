@@ -6,7 +6,6 @@ import logo from "../../assets/logo_mountain_runners.jpeg";
 import mountainPlaceholder from "../../assets/berga-trail-placeholder.svg";
 import PublicLayout from "../../layouts/PublicLayout.astro";
 import {
-  getEditionTemporalStatus,
   getHomepageEvents,
   getMadridDate,
   getNextEdition,
@@ -19,7 +18,15 @@ import { getDomainPath } from "../../lib/content/routes";
 const locale = assertIsLocale(Astro.currentLocale);
 const canonicalUrl = new URL(`/${locale}/`, Astro.site);
 const catalog = await getPublicationCatalog();
-const today = getMadridDate(new Date());
+const today = process.env.BUILD_TODAY ?? getMadridDate(new Date());
+const getEditionStatus = (
+  nextEdition: ReturnType<typeof getNextEdition>,
+): "upcoming" | "in-progress" | "no-upcoming-date" =>
+  nextEdition === undefined
+    ? "no-upcoming-date"
+    : nextEdition.startDate <= today
+      ? "in-progress"
+      : "upcoming";
 const eventVariants = catalog.variants.filter(
   (variant): variant is Extract<PublishedVariant, { kind: "event" }> =>
     variant.kind === "event" && variant.locale === locale,
@@ -90,7 +97,7 @@ export function getStaticPaths() {
       {
         events.map((event) => {
           const nextEdition = getNextEdition(event, today);
-          const editionStatus = getEditionTemporalStatus(event, today);
+          const editionStatus = getEditionStatus(nextEdition);
           const dateParts = nextEdition
             ? new Intl.DateTimeFormat("ca-ES", {
                 day: "numeric",

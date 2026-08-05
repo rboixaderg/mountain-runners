@@ -123,6 +123,25 @@ test("renders the published homepage sections in order", async ({ page }) => {
   );
 });
 
+test("links the portada to the events hub placeholder without a broken destination", async ({
+  page,
+}) => {
+  await page.goto("/ca/");
+
+  const eventsLink = page
+    .locator(".homepage-section", { hasText: "Esdeveniments" })
+    .getByRole("link", { name: "Esdeveniments" });
+  await expect(eventsLink).toHaveAttribute("href", "/ca/esdeveniments/");
+
+  await eventsLink.click();
+  await expect(page).toHaveURL("/ca/esdeveniments/");
+  await expect(page.locator("html")).toHaveAttribute("lang", "ca");
+  await expect(page.locator('meta[name="robots"]')).toHaveAttribute(
+    "content",
+    "noindex, nofollow",
+  );
+});
+
 test("renders the useful Catalan 404 document", async ({ page }) => {
   await page.goto("/404.html");
 

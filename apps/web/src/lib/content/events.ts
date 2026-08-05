@@ -27,14 +27,6 @@ export function getNextEdition(event: Event, today: string) {
   );
 }
 
-export function getEditionTemporalStatus(event: Event, today: string) {
-  const edition = getNextEdition(event, today);
-
-  if (!edition) return "no-upcoming-date";
-
-  return edition.startDate <= today ? "in-progress" : "upcoming";
-}
-
 export function getHomepageEvents(
   events: readonly Event[],
   today: string,

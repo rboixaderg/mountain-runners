@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
   getHomepageEvents,
-  getEditionTemporalStatus,
   getMadridDate,
   getNextEdition,
 } from "../lib/content/events";
@@ -60,6 +59,30 @@ describe("homepage events", () => {
     ]);
   });
 
+  it("orders two active events without an upcoming edition by id", () => {
+    const events = getHomepageEvents(
+      [
+        createEvent("zeta", true, ["2025-02-01"]),
+        createEvent("alfa", true, ["2025-01-01"]),
+      ],
+      "2027-01-01",
+    );
+
+    expect(events.map(({ id }) => id)).toEqual(["alfa", "zeta"]);
+  });
+
+  it("orders two upcoming events on the same date by id", () => {
+    const events = getHomepageEvents(
+      [
+        createEvent("zebra", true, ["2027-05-01"]),
+        createEvent("alpha", true, ["2027-05-01"]),
+      ],
+      "2027-01-01",
+    );
+
+    expect(events.map(({ id }) => id)).toEqual(["alpha", "zebra"]);
+  });
+
   it("returns the nearest upcoming edition when dates are unordered", () => {
     expect(
       getNextEdition(
@@ -84,22 +107,25 @@ describe("homepage events", () => {
         "2027-04-02",
       ).map(({ id }) => id),
     ).toEqual(["in-progress", "future"]);
-    expect(getEditionTemporalStatus(event, "2027-04-02")).toBe("in-progress");
+  });
+
+  it("treats an edition starting today as in progress when it has no end date", () => {
+    const event = createEvent("starting-today", true, ["2027-04-01"]);
+
+    expect(getNextEdition(event, "2027-04-01")?.id).toBe("starting-today-0");
   });
 
   it("distinguishes upcoming editions from active events without a date", () => {
     expect(
-      getEditionTemporalStatus(
-        createEvent("future", true, ["2027-04-04"]),
-        "2027-04-02",
-      ),
-    ).toBe("upcoming");
+      getNextEdition(createEvent("future", true, ["2027-04-04"]), "2027-04-02")
+        ?.id,
+    ).toBe("future-0");
     expect(
-      getEditionTemporalStatus(
+      getNextEdition(
         createEvent("without-date", true, ["2027-04-01"]),
         "2027-04-02",
       ),
-    ).toBe("no-upcoming-date");
+    ).toBeUndefined();
   });
 
   it("uses the Europe/Madrid calendar date", () => {
