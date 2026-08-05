@@ -13,30 +13,11 @@ textos, imatges ni dades personals heretades als fitxers editorials.
 
 ## Referències Visuals
 
-`DESIGN.md` és la font de veritat visual. La pantalla Stitch aprovada per a la
-portada és:
-
-| Pantalla                                                                                                         | Dispositiu | Estat    | Ús previst                     |
-| ---------------------------------------------------------------------------------------------------------------- | ---------- | -------- | ------------------------------ |
-| [Mountain Runners - Inici (Red Kit Energy)](https://stitch.withgoogle.com/) (`366fda639a204009842619490b119fc1`) | Escriptori | Aprovada | Referència adaptable de `/ca/` |
-
-Projecte Stitch: `6497516597197145737`. Sistema visual aplicable:
-`assets/15875972618739072807`, _Associacio Esportiva Mountain Runners_.
-
-Les quatre referències necessàries abans d'implementar T2.6 s'han generat a
-Stitch i han estat aprovades explícitament el 17 de juliol de 2026:
-
-| Pantalla              | Dispositiu | Referència Stitch                  | Estat    |
-| --------------------- | ---------- | ---------------------------------- | -------- |
-| Hub d'esdeveniments   | Escriptori | `977c182181d249eca8b2910db984d728` | Aprovada |
-| Hub d'esdeveniments   | Mòbil      | `7bee765f9af44a8db566640abbcc6c4a` | Aprovada |
-| Detall d'esdeveniment | Escriptori | `9cdace22335d400bb32f59ab26df0937` | Aprovada |
-| Detall d'esdeveniment | Mòbil      | `01212091f0cd4008b902189823d5feab` | Aprovada |
-
-Les pantalles adopten el sistema visual aprovat i cobreixen els estats
-d'inscripció oberta, tancada, recurs no disponible i esdeveniment vigent sense
-pròxima data anunciada. Són referències adaptables; l'aprovació no valida les
-dades de mostra que puguin mostrar.
+Les pantalles Stitch aprovades, el seu sistema visual i les seves regles
+d'actualització es registren a les
+[referències de disseny](design-references.md). Aquest inventari només conserva
+l'aprovació editorial de textos, dades i recursos; una pantalla no valida les
+dades de mostra que pugui mostrar.
 
 ### Contingut Textual De La Portada
 

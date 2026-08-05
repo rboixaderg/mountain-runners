@@ -90,6 +90,40 @@ describe("editorial collection schemas", () => {
     expect(eventSchema.safeParse(invalidDate).success).toBe(false);
   });
 
+  it("accepts an event without editions", async () => {
+    const event = await parseFixture(
+      fixturePaths.events,
+      collectionSchemas.events,
+    );
+    event.editions = [];
+
+    expect(eventSchema.safeParse(event).success).toBe(true);
+  });
+
+  it("rejects a PDF as an event cover while documents may use PDFs", async () => {
+    const event = await parseFixture(
+      fixturePaths.events,
+      collectionSchemas.events,
+    );
+    event.cover.resource = {
+      kind: "local",
+      path: "src/content-assets/documents/club-guide.pdf",
+    };
+
+    expect(eventSchema.safeParse(event).success).toBe(false);
+
+    const document = await parseFixture(
+      fixturePaths.documents,
+      collectionSchemas.documents,
+    );
+    document.resource = {
+      kind: "local",
+      path: "src/content-assets/documents/club-guide.pdf",
+    };
+
+    expect(collectionSchemas.documents.safeParse(document).success).toBe(true);
+  });
+
   for (const [
     stateName,
     fixturePath,
