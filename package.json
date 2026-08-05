@@ -9,16 +9,18 @@
   },
   "scripts": {
     "build": "pnpm --filter @mountain-runners/web build",
+    "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test",
     "dev": "pnpm --filter @mountain-runners/web dev",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
+    "lighthouse": "PUBLIC_SITE_ORIGIN=https://mountainrunners.cat BUILD_TODAY=2026-08-04 pnpm build && node tools/lighthouse/run-lighthouse.mjs",
     "lint": "pnpm --filter @mountain-runners/web paraglide:generate && eslint .",
     "prepare": "husky",
     "test": "pnpm --filter @mountain-runners/web test",
     "test:a11y": "PUBLIC_SITE_ORIGIN=https://mountainrunners.cat BUILD_TODAY=2026-08-04 pnpm build && playwright test --grep @a11y",
     "test:e2e": "PUBLIC_SITE_ORIGIN=https://mountainrunners.cat BUILD_TODAY=2026-08-04 pnpm build && playwright test",
     "typecheck": "pnpm --filter @mountain-runners/web typecheck",
-    "validate": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm test:e2e"
+    "validate": "pnpm check && pnpm test:e2e && pnpm lighthouse"
   },
   "lint-staged": {
     "*.{astro,css,js,mjs,ts}": [
@@ -40,12 +42,14 @@
     "@eslint/js": "10.0.1",
     "@playwright/test": "1.61.1",
     "@types/node": "24.13.3",
+    "chrome-launcher": "^1.2.1",
     "eslint": "10.0.1",
     "eslint-plugin-astro": "3.0.0",
     "eslint-plugin-jsx-a11y": "6.10.2",
     "eslint-plugin-yml": "3.6.0",
     "globals": "17.7.0",
     "husky": "9.1.7",
+    "lighthouse": "^13.4.1",
     "lint-staged": "17.0.8",
     "prettier": "3.9.5",
     "prettier-plugin-astro": "0.14.1",

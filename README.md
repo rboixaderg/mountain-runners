@@ -27,8 +27,11 @@ pnpm dev
 `hreflang`, the sitemap and `robots.txt`. Preview and production deployments
 must provide their own value.
 
-`pnpm validate` executa format, lint, typecheck, tests i build amb les mateixes
-condicions que la integració contínua.
+`pnpm validate` executa format, lint, typecheck, tests unitaris, recorreguts
+Playwright, Lighthouse i pressupostos amb les mateixes condicions que la
+integració contínua. `pnpm check` ofereix les comprovacions ràpides (format,
+lint, typecheck i tests) i `pnpm lighthouse` valida punts de tall de rendiment i
+accessibilitat sobre les rutes representatives.
 
 ## Arquitectura
 
