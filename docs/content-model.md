@@ -40,7 +40,10 @@ Les quatre Astro Content Collections registrades són:
 
 Els esdeveniments necessiten un estat de visibilitat editorial i una indicació
 separada de si continuen actius. Les edicions pertanyen al seu esdeveniment pare
-i no formen un recurs de primer nivell sense relació.
+i no formen un recurs de primer nivell sense relació. La llista d'edicions pot
+estar buida quan encara no hi ha cap data anunciada. Quan una edició té la
+inscripció oberta, pot utilitzar la seva URL pròpia o la URL d'inscripció de
+l'esdeveniment pare.
 
 ## Nucli De Validació
 
@@ -74,11 +77,14 @@ repositori central, que exclou `published: false` i només retorna variants amb
 una traducció completa. `active` no altera la visibilitat editorial d'un
 esdeveniment. Els camps opcionals sense traducció s'ometen i no fan fallback al
 català.
+Els documents referenciats per una edició només generen un enllaç quan la seva
+disponibilitat és `available`; els documents arxivats o temporalment no
+disponibles es mostren com a recurs no disponible.
 
 Una variant editorial publicable no habilita automàticament una fitxa pública.
 Els tipus de detall disponibles es defineixen centralment en codi segons les
 plantilles completades a cada fase. La portada pot reutilitzar contingut publicat
-sense avançar les fitxes d'esdeveniments de la T2.6 ni les d'escoles de la fase 3.
+sense avançar les fitxes d'escoles de la fase 3.
 
 El codi centralitza els dominis editorials localitzats: escoles són
 `/{locale}/escoles/{slug}/`, `/{locale}/escuelas/{slug}/` o

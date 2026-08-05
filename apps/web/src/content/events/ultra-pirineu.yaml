@@ -11,7 +11,7 @@ clubRelationship: collaborates
 cover:
   resource:
     kind: local
-    path: src/assets/logo_mountain_runners.jpeg
+    path: src/assets/logo_mountain_runners.png
   alt:
     ca: Logotip de Mountain Runners del Berguedà
 gallery: []

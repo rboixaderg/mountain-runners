@@ -63,8 +63,8 @@ L'ADR 0004 continua governant la separació:
 - Galeries i vídeos amb imatges, atribucions i estats de disponibilitat
   accessibles; els placeholders aprovats permeten exercir la composició sense
   inventar contingut editorial.
-- Ruta Contacte, dades pràctiques de peu, accions externes de butlletí i
-  enllaços legals que només apareixen quan la destinació és real.
+- Ruta Contacte, dades pràctiques de peu, accions externes de butlletí i pàgines
+  d'avís legal, privacitat i cookies amb contingut aprovat.
 - Navegació principal actualitzada perquè Qui som, Socis i Escoles deixin de ser
   `Properament`; els enllaços secundaris es publiquen només si la ruta o recurs
   existeix.
@@ -95,16 +95,16 @@ seguiment i la documentació de planificació.
 No es fixa anticipadament un nombre de pull requests. Cada unitat s'implementa
 en una PR cohesionada, revisable i validable de manera independent.
 
-| Unitat                               | Estat   | Dependències                      | Resultat verificable                                          | PR  |
-| ------------------------------------ | ------- | --------------------------------- | ------------------------------------------------------------- | --- |
-| T3.1 Inventari i aprovació editorial | Pendent | Cap codi nou                      | Contingut i recursos candidats sanejats i classificats        | -   |
-| T3.2 Contractes de contingut         | Pendent | Fases 1 i 2                       | Esquemes singulars, publicació i referències validades        | -   |
-| T3.3 Qui som                         | Pendent | T3.2 i contingut aprovat          | Ruta institucional, junta i estatuts accessibles              | -   |
-| T3.4 Socis                           | Pendent | T3.2 i entitats aprovades         | Alta, federació, avantatges i col·laboradors amb estats reals | -   |
-| T3.5 Hub d'Escoles                   | Pendent | T3.1, shell i escoles aprovades   | Llistat estable d'escoles publicades                          | -   |
-| T3.6 Detall d'Escola                 | Pendent | T3.5 i recursos aprovats          | Informació pràctica, galeria, vídeo i inscripció              | -   |
-| T3.7 Documents, Contacte i peu       | Pendent | T3.2, documents i canals aprovats | Recursos, legals i canals externs amb disponibilitat clara    | -   |
-| T3.8 Qualitat de cobertura           | Pendent | T3.3 a T3.7                       | Tests, a11y, SEO i rendiment integrats a CI                   | -   |
+| Unitat                               | Estat   | Dependències                    | Resultat verificable                                          | PR  |
+| ------------------------------------ | ------- | ------------------------------- | ------------------------------------------------------------- | --- |
+| T3.1 Inventari i aprovació editorial | Pendent | Cap codi nou                    | Contingut i recursos candidats sanejats i classificats        | -   |
+| T3.2 Contractes de contingut         | Pendent | Fases 1 i 2                     | Esquemes singulars, publicació i referències validades        | -   |
+| T3.3 Qui som                         | Pendent | T3.2 i contingut aprovat        | Ruta institucional, junta i estatuts accessibles              | -   |
+| T3.4 Socis                           | Pendent | T3.2 i entitats aprovades       | Alta, federació, avantatges i col·laboradors amb estats reals | -   |
+| T3.5 Hub d'Escoles                   | Pendent | T3.1, shell i escoles aprovades | Llistat estable d'escoles publicades                          | -   |
+| T3.6 Detall d'Escola                 | Pendent | T3.5 i recursos aprovats        | Informació pràctica, galeria, vídeo i inscripció              | -   |
+| T3.7 Documents, Contacte i peu legal | Pendent | T3.2, documents i canals        | Recursos, legal i canals externs disponibles                  | -   |
+| T3.8 Qualitat de cobertura           | Pendent | T3.3 a T3.7                     | Tests, a11y, SEO i rendiment integrats a CI                   | -   |
 
 Els estats permesos són `Pendent`, `En curs`, `Bloquejada` i `Completada`.
 Una unitat només passa a `Completada` després de tenir una PR revisada, validada i
@@ -154,12 +154,15 @@ i recursos aprovats. **Resultat:** detall usable des de 320 CSS px.
 **Comprovació:** accions, estats, alternatives d'imatge i cap reproductor fals.
 **PR:** pròpia; no introdueix carrusel ni JavaScript essencial.
 
-### T3.7: Documents, Contacte I Peu
+### T3.7: Documents, Contacte, Legal I Peu
 
-**Abast:** directori, contacte institucional, butlletí extern i legals.
-**Depèn de:** T3.2, documents i canals aprovats. **Resultat:** recursos i canals
-amb disponibilitat explícita. **Comprovació:** URL, tipus, idioma, atribució i
-absència d'`href` buit. **PR:** pròpia; no crea serveis ni formularis.
+**Abast:** directori, contacte institucional, butlletí extern, avís legal,
+política de privacitat, política de cookies i peu. **Depèn de:** T3.2, documents,
+canals i textos legals aprovats. **Resultat:** recursos, pàgines legals i canals
+externs amb disponibilitat explícita. **Comprovació:** URL, tipus, idioma,
+atribució, enllaços de peu, absència d'`href` buit i coherència entre les
+polítiques publicades i els serveis reals. **PR:** pròpia; no crea serveis,
+formularis ni un banner de consentiment si no hi ha cookies no tècniques.
 
 ### T3.8: Qualitat De Cobertura
 
@@ -181,6 +184,9 @@ rutes. Per al català, la fase ha de publicar, quan el contingut és disponible:
 | `/ca/escoles/{slug}/` | Detall de cada escola publicada                    |
 | `/ca/documents/`      | Directori de documents i recursos disponibles      |
 | `/ca/contacte/`       | Contacte, seu, horaris, butlletí i enllaços legals |
+| `/ca/avis-legal/`     | Identificació de l'associació i condicions d'ús    |
+| `/ca/privacitat/`     | Tractament de dades personals i drets              |
+| `/ca/cookies/`        | Ús de cookies i mecanismes equivalents             |
 
 El codi centralitza les rutes, canonical, `hreflang`, sitemap, navegació i peu.
 Cap slug, URL ni segment es concatena directament en un component. Les futures
@@ -188,9 +194,9 @@ variants `es` i `en` utilitzaran el mateix contracte de rutes localitzades i
 només existiran si totes les dades renderitzades de la variant estan completes.
 
 La navegació principal continua plana: Qui som, Socis, Escoles i Esdeveniments.
-El peu incorpora Contacte i Documents quan les rutes estiguin publicades. Els
-enllaços legals només es renderitzen si apunten a un document disponible o a una
-URL externa validada.
+El peu incorpora Contacte, Documents i les tres pàgines legals quan les rutes
+estiguin publicades. Els enllaços institucionals externs i els documents només es
+renderitzen si apunten a un recurs disponible o a una URL externa validada.
 
 ## Contractes Editorials
 
@@ -242,15 +248,27 @@ estat d'acció i URL externa opcional. Els estats són explícits: `available`,
 - El directori pot incloure la web de cada entitat només si està validada i
   publicada.
 
-### Contacte, Butlletí I Peu
+### Contacte, Butlletí, Pàgines Legals I Peu
 
 L'entrada `contact` conté exclusivament dades institucionals aprovades: correu,
 telèfon, adreça o indicacions de seu, horaris, enllaç de butlletí i documents
-legals. Correu i telèfon són opcionals i s'ometen si no hi ha dada definitiva.
+institucionals disponibles. Correu i telèfon són opcionals i s'ometen si no hi
+ha dada definitiva.
 
 El butlletí és una acció externa amb el mateix estat explícit que Socis. No es
 recullen dades al web. Si falta el destí, s'explica la indisponibilitat sense
 simular un camp de formulari ni una subscripció activa.
+
+Les rutes d'avís legal, privacitat i cookies són pàgines fixes: la seva estructura
+viu en components i el text revisat en recursos de traducció, d'acord amb l'ADR 0005. Abans de publicar-les, una persona responsable aprova la identitat i les
+dades institucionals, les finalitats i canals de tractament aplicables, la gestió
+del butlletí extern i els mecanismes reals de cookies o tecnologies similars.
+
+La política de cookies descriu fidelment l'estat real. Mentre la web no utilitzi
+cookies no tècniques, analítica, embeds ni serveis de tercers que les estableixin,
+no mostra un banner de consentiment. Si se n'incorpora algun, el canvi requereix
+una tasca o especificació pròpia que defineixi abans les obligacions de
+consentiment, la implementació i la revisió legal corresponent.
 
 ### Escoles
 
@@ -369,6 +387,8 @@ escriptori:
 - lectura amb teclat de la junta, les accions disponibles i els estats no
   disponibles;
 - enllaços de Documents i Contacte, inclosa l'absència de controls falsos;
+- accés des del peu a l'avís legal, la privacitat i les cookies, amb contingut,
+  `lang`, títols i landmarks correctes;
 - selectors d'idioma absents mentre només es publiqui català;
 - galeria, imatge placeholder i targeta de vídeo placeholder sense regressions
   d'accessibilitat detectables.
@@ -406,8 +426,8 @@ continua registrada al backlog.
 - Reproductors de vídeo, iframes i integracions de plataformes de tercers.
 - Cerca, filtres, paginació, carrusels, modal de galeria o JavaScript client no
   essencial.
-- Analítica, cookies, consentiment o una auditoria manual completa
-  d'accessibilitat.
+- Analítica, cookies no tècniques, consentiment, banners o una auditoria manual
+  completa d'accessibilitat.
 - Previews, Caddy, VPS, desplegament, xat públic o assistent editorial.
 
 ## Criteris D'Acceptació
@@ -452,3 +472,6 @@ La fase es considera completada quan:
 17. `README.md`, `docs/architecture.md`, `docs/content-model.md`, el roadmap i
     aquesta especificació reflecteixen fidelment l'estat implementat en tancar la
     fase.
+18. L'avís legal, la política de privacitat i la política de cookies tenen rutes
+    accessibles, estan enllaçats des del peu, contenen només text i dades
+    institucionals aprovats i descriuen fidelment els serveis reals de la web.
