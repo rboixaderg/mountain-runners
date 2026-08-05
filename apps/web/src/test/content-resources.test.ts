@@ -11,6 +11,7 @@ import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import {
   localResourcePathSchema,
+  imageResourceSchema,
   resolveLocalResourcePath,
   safeResourceSchema,
 } from "../lib/content/resources";
@@ -71,6 +72,27 @@ describe("content resource primitives", () => {
         path: "src/assets/events/race.jpg",
       }).success,
     ).toBe(false);
+  });
+
+  it("restricts local image resources to image extensions", () => {
+    expect(
+      imageResourceSchema.safeParse({
+        kind: "local",
+        path: "src/assets/events/race.webp",
+      }).success,
+    ).toBe(true);
+    expect(
+      imageResourceSchema.safeParse({
+        kind: "local",
+        path: "src/content-assets/documents/rules.pdf",
+      }).success,
+    ).toBe(false);
+    expect(
+      imageResourceSchema.safeParse({
+        kind: "external",
+        url: "https://images.example.org/cover",
+      }).success,
+    ).toBe(true);
   });
 
   it("resolves regular files inside approved roots", async () => {

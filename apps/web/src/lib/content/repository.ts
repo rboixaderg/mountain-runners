@@ -5,6 +5,7 @@ import {
   type ContentSource,
   type PublicationCatalog,
 } from "./publication";
+import { assertEventDateConsistency, getMadridDate } from "./events";
 import {
   collectLocalResourcePaths,
   resolveLocalResourcePath,
@@ -34,6 +35,8 @@ export async function getPublicationCatalog(): Promise<PublicationCatalog> {
     entities: entities.map(({ data }) => data),
     documents: documents.map(({ data }) => data),
   };
+  const today = process.env.BUILD_TODAY ?? getMadridDate(new Date());
+  assertEventDateConsistency(source.events, today);
   await validateLocalResources(source);
   const catalog = createPublicationCatalog(source);
   assertUniquePublishedPaths(catalog);

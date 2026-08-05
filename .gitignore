@@ -22,3 +22,6 @@ test-results/
 .idea/
 .vscode/
 diari-de-treball.md
+
+# Playwright MCP local state
+.playwright-mcp/

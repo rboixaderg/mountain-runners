@@ -6,7 +6,7 @@ import {
   slugSchema,
   translatableSchema,
 } from "./primitives";
-import { safeResourceSchema } from "./resources";
+import { imageResourceSchema, safeResourceSchema } from "./resources";
 import { httpsUrlSchema } from "./urls";
 
 const contentIdSchema = z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/u, {
@@ -47,7 +47,7 @@ export const localizedSlugSchema = translatableSchema(slugSchema);
 const localizedHttpsUrlSchema = translatableSchema(httpsUrlSchema);
 
 const imageSchema = z.strictObject({
-  resource: safeResourceSchema,
+  resource: imageResourceSchema,
   alt: localizedTextSchema,
   attribution: localizedTextSchema.optional(),
   sourceUrl: httpsUrlSchema.optional(),
@@ -116,7 +116,7 @@ export const eventSchema = z
     informationUrl: localizedHttpsUrlSchema.optional(),
     organizerIds: z.array(contentIdSchema).min(1).max(20),
     collaboratorIds: z.array(contentIdSchema).max(20),
-    editions: z.array(eventEditionSchema).min(1).max(100),
+    editions: z.array(eventEditionSchema).max(100),
   })
   .superRefine(({ editions }, context) => {
     const ids = new Set<string>();
@@ -164,6 +164,7 @@ export const documentSchema = z.strictObject({
 
 export type School = z.infer<typeof schoolSchema>;
 export type Event = z.infer<typeof eventSchema>;
+export type EventEdition = z.infer<typeof eventEditionSchema>;
 export type Entity = z.infer<typeof entitySchema>;
 export type Document = z.infer<typeof documentSchema>;
 
