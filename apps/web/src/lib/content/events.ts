@@ -113,6 +113,16 @@ export function getMostRelevantEdition(event: Event, today: string) {
   return getNextEdition(event, today) ?? getLatestEdition(event);
 }
 
+export function getPreviousEditions(event: Event, today: string) {
+  return event.editions
+    .filter((edition) => (edition.endDate ?? edition.startDate) < today)
+    .sort((left, right) =>
+      (right.endDate ?? right.startDate).localeCompare(
+        left.endDate ?? left.startDate,
+      ),
+    );
+}
+
 export function getRegistrationUrl(
   event: Event,
   edition: (typeof event.editions)[number] | undefined,

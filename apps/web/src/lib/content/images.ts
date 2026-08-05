@@ -5,12 +5,13 @@ import { resolveLocalResourcePath } from "./resources";
 import type { Document, School } from "./models";
 
 export type ImageResource = School["cover"]["resource"];
+type Resource = ImageResource | Document["resource"];
 
 const defaultAppDirectory = fileURLToPath(
   new URL("../../../", import.meta.url),
 );
 
-export function getResourceHref(resource: ImageResource): string {
+export function getResourceHref(resource: Resource): string {
   return resource.kind === "local"
     ? `/content-resources/${resource.path.replace(/^src\//u, "")}`
     : resource.url;

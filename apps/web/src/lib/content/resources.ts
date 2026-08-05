@@ -12,6 +12,7 @@ const approvedExtensions = new Set([
   ".png",
   ".webp",
 ]);
+const imageExtensions = new Set([".avif", ".jpeg", ".jpg", ".png", ".webp"]);
 
 function isPathContained(rootPath: string, candidatePath: string): boolean {
   const relativePath = path.relative(rootPath, candidatePath);
@@ -63,6 +64,14 @@ export const localResourceSchema = z.strictObject({
   path: localResourcePathSchema,
 });
 
+const localImageResourceSchema = z.strictObject({
+  kind: z.literal("local"),
+  path: localResourcePathSchema.refine(
+    (value) => imageExtensions.has(path.posix.extname(value)),
+    { error: "Expected an approved local image resource" },
+  ),
+});
+
 export const externalResourceSchema = z.strictObject({
   kind: z.literal("external"),
   url: httpsUrlSchema,
@@ -70,6 +79,11 @@ export const externalResourceSchema = z.strictObject({
 
 export const safeResourceSchema = z.discriminatedUnion("kind", [
   localResourceSchema,
+  externalResourceSchema,
+]);
+
+export const imageResourceSchema = z.discriminatedUnion("kind", [
+  localImageResourceSchema,
   externalResourceSchema,
 ]);
 

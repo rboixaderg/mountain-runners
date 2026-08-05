@@ -184,17 +184,15 @@ describe("publication catalog", () => {
     const source = await loadSource();
     const mountainDay = source.events.find(({ id }) => id === "mountain-day")!;
     mountainDay.published = true;
-    mountainDay.editions[0]!.registrationStatus = "open";
     delete mountainDay.registrationUrl;
 
     expect(variantKeys(source)).not.toContain("event:ca:jornada-muntanya");
   });
 
-  it("accepts an event-level URL for an open edition", async () => {
+  it("accepts the synthetic open-registration event with its event-level URL", async () => {
     const source = await loadSource();
     const mountainDay = source.events.find(({ id }) => id === "mountain-day")!;
     mountainDay.published = true;
-    mountainDay.editions[0]!.registrationStatus = "open";
 
     expect(variantKeys(source)).toContain("event:ca:jornada-muntanya");
   });

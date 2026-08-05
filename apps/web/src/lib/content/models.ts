@@ -6,7 +6,7 @@ import {
   slugSchema,
   translatableSchema,
 } from "./primitives";
-import { safeResourceSchema } from "./resources";
+import { imageResourceSchema, safeResourceSchema } from "./resources";
 import { httpsUrlSchema } from "./urls";
 
 const contentIdSchema = z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/u, {
@@ -47,7 +47,7 @@ export const localizedSlugSchema = translatableSchema(slugSchema);
 const localizedHttpsUrlSchema = translatableSchema(httpsUrlSchema);
 
 const imageSchema = z.strictObject({
-  resource: safeResourceSchema,
+  resource: imageResourceSchema,
   alt: localizedTextSchema,
   attribution: localizedTextSchema.optional(),
   sourceUrl: httpsUrlSchema.optional(),

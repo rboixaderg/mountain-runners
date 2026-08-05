@@ -7,6 +7,7 @@ import {
   getMadridDate,
   getMostRelevantEdition,
   getNextEdition,
+  getPreviousEditions,
   getRegistrationUrl,
 } from "../lib/content/events";
 import type { Event } from "../lib/content/models";
@@ -282,6 +283,19 @@ describe("relevant edition", () => {
     );
 
     expect(getLatestEdition(event)?.id).toBe("multi-0");
+  });
+
+  it("lists only ended editions as previous editions", () => {
+    const event = createEvent("editions", true, [
+      "2025-06-01",
+      "2026-05-01",
+      "2026-10-01",
+      "2027-01-01",
+    ]);
+
+    expect(
+      getPreviousEditions(event, "2026-06-01").map(({ id }) => id),
+    ).toEqual(["editions-1", "editions-0"]);
   });
 });
 

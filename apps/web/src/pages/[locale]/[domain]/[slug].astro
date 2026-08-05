@@ -5,6 +5,7 @@ import {
   getMadridDate,
   getMostRelevantEdition,
   getNextEdition,
+  getPreviousEditions,
   getRegistrationUrl,
 } from "../../../lib/content/events";
 import {
@@ -99,15 +100,7 @@ const event =
 const featuredEdition = event
   ? getMostRelevantEdition(event, today)
   : undefined;
-const previousEditions = event
-  ? event.editions
-      .filter((edition) => edition.id !== featuredEdition?.id)
-      .sort((left, right) =>
-        (right.endDate ?? right.startDate).localeCompare(
-          left.endDate ?? left.startDate,
-        ),
-      )
-  : [];
+const previousEditions = event ? getPreviousEditions(event, today) : [];
 const registration =
   event && featuredEdition
     ? registrationState(featuredEdition, event, locale)
@@ -185,6 +178,16 @@ const editionDocuments: { id: string; document: Document | undefined }[] =
             class="events-detail__description"
             set:html={renderRestrictedMarkdown(event.description[locale]!)}
           />
+          {informationUrl && (
+            <a
+              class="events-detail__info-link"
+              href={informationUrl}
+              rel="noopener noreferrer"
+            >
+              {m.event_more_information({}, { locale })} ·{" "}
+              {externalLabel(informationUrl)} <span aria-hidden="true">→</span>
+            </a>
+          )}
           {featuredEdition && featuredDate && (
             <section
               class="events-detail__edition"
@@ -234,17 +237,6 @@ const editionDocuments: { id: string; document: Document | undefined }[] =
                 >
                   {m.event_register_action({}, { locale })} ·{" "}
                   {externalLabel(registration.url)}{" "}
-                  <span aria-hidden="true">→</span>
-                </a>
-              )}
-              {informationUrl && (
-                <a
-                  class="events-detail__info-link"
-                  href={informationUrl}
-                  rel="noopener noreferrer"
-                >
-                  {m.event_more_information({}, { locale })} ·{" "}
-                  {externalLabel(informationUrl)}{" "}
                   <span aria-hidden="true">→</span>
                 </a>
               )}
