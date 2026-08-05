@@ -15,8 +15,8 @@
     "lint": "pnpm --filter @mountain-runners/web paraglide:generate && eslint .",
     "prepare": "husky",
     "test": "pnpm --filter @mountain-runners/web test",
-    "test:a11y": "BUILD_TODAY=2026-08-04 pnpm build && playwright test --grep @a11y",
-    "test:e2e": "BUILD_TODAY=2026-08-04 pnpm build && playwright test",
+    "test:a11y": "PUBLIC_SITE_ORIGIN=https://mountainrunners.cat BUILD_TODAY=2026-08-04 pnpm build && playwright test --grep @a11y",
+    "test:e2e": "PUBLIC_SITE_ORIGIN=https://mountainrunners.cat BUILD_TODAY=2026-08-04 pnpm build && playwright test",
     "typecheck": "pnpm --filter @mountain-runners/web typecheck",
     "validate": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm test:e2e"
   },
