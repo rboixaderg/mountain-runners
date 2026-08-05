@@ -20,6 +20,9 @@ completa i revisada.
 ## Límits I Decisions Confirmades
 
 - La fase comença només amb la fase 2 tancada, validada i fusionada.
+- La fase comença amb la tasca d'estructura T3.1, que fixa la separació de capes
+  de les pàgines i les regles de manteniment per a agents abans d'afegir-hi
+  plantilles noves.
 - Tot contingut real passa per inventari, revisió i aprovació abans d'entrar a
   una col·lecció pública amb `published: true`.
 - L'alta de socis, la federació, el contacte i el butlletí només dirigeixen a
@@ -95,16 +98,17 @@ seguiment i la documentació de planificació.
 No es fixa anticipadament un nombre de pull requests. Cada unitat s'implementa
 en una PR cohesionada, revisable i validable de manera independent.
 
-| Unitat                               | Estat   | Dependències                    | Resultat verificable                                          | PR  |
-| ------------------------------------ | ------- | ------------------------------- | ------------------------------------------------------------- | --- |
-| T3.1 Inventari i aprovació editorial | Pendent | Cap codi nou                    | Contingut i recursos candidats sanejats i classificats        | -   |
-| T3.2 Contractes de contingut         | Pendent | Fases 1 i 2                     | Esquemes singulars, publicació i referències validades        | -   |
-| T3.3 Qui som                         | Pendent | T3.2 i contingut aprovat        | Ruta institucional, junta i estatuts accessibles              | -   |
-| T3.4 Socis                           | Pendent | T3.2 i entitats aprovades       | Alta, federació, avantatges i col·laboradors amb estats reals | -   |
-| T3.5 Hub d'Escoles                   | Pendent | T3.1, shell i escoles aprovades | Llistat estable d'escoles publicades                          | -   |
-| T3.6 Detall d'Escola                 | Pendent | T3.5 i recursos aprovats        | Informació pràctica, galeria, vídeo i inscripció              | -   |
-| T3.7 Documents, Contacte i peu legal | Pendent | T3.2, documents i canals        | Recursos, legal i canals externs disponibles                  | -   |
-| T3.8 Qualitat de cobertura           | Pendent | T3.3 a T3.7                     | Tests, a11y, SEO i rendiment integrats a CI                   | -   |
+| Unitat                                            | Estat   | Dependències                    | Resultat verificable                                                     | PR  |
+| ------------------------------------------------- | ------- | ------------------------------- | ------------------------------------------------------------------------ | --- |
+| T3.1 Estructura de pàgines i convencions d'agents | Pendent | Fases 1 i 2                     | Pàgines primes, helpers i components reutilitzables, regles documentades | -   |
+| T3.2 Inventari i aprovació editorial              | Pendent | Cap codi nou                    | Contingut i recursos candidats sanejats i classificats                   | -   |
+| T3.3 Contractes de contingut                      | Pendent | Fases 1 i 2                     | Esquemes singulars, publicació i referències validades                   | -   |
+| T3.4 Qui som                                      | Pendent | T3.3 i contingut aprovat        | Ruta institucional, junta i estatuts accessibles                         | -   |
+| T3.5 Socis                                        | Pendent | T3.3 i entitats aprovades       | Alta, federació, avantatges i col·laboradors amb estats reals            | -   |
+| T3.6 Hub d'Escoles                                | Pendent | T3.2, shell i escoles aprovades | Llistat estable d'escoles publicades                                     | -   |
+| T3.7 Detall d'Escola                              | Pendent | T3.6 i recursos aprovats        | Informació pràctica, galeria, vídeo i inscripció                         | -   |
+| T3.8 Documents, Contacte i peu legal              | Pendent | T3.3, documents i canals        | Recursos, legal i canals externs disponibles                             | -   |
+| T3.9 Qualitat de cobertura                        | Pendent | T3.4 a T3.8                     | Tests, a11y, SEO i rendiment integrats a CI                              | -   |
 
 Els estats permesos són `Pendent`, `En curs`, `Bloquejada` i `Completada`.
 Una unitat només passa a `Completada` després de tenir una PR revisada, validada i
@@ -112,61 +116,109 @@ fusionada. Cada draft PR inclou l'enllaç a aquesta especificació, l'abast,
 criteris d'acceptació, comprovacions, evidència de contingut o visual quan
 pertoqui, i l'impacte d'accessibilitat, SEO, rendiment, seguretat i llicències.
 
-### T3.1: Inventari I Aprovació Editorial
+### T3.1: Estructura De Pàgines I Convencions D'Agents
+
+**Abast:** fixar la separació de capes de les pàgines Astro abans que la fase hi
+afegeixi plantilles noves, refactoritzar les pàgines existents per aplicar-la i
+documentar les regles que agents i persones han de mantenir. **Depèn de:** fases
+1 i 2, incloent-hi la portada (T2.5) i el hub i detall d'esdeveniments (T2.6)
+que es refactoritzen. **Resultat:** pàgines primes sense lògica de presentació
+duplicada, helpers i components reutilitzables testats, i regles verificables a
+`docs/architecture.md`, un ADR a `docs/decisions/` i `AGENTS.md`; cap canvi
+visual, de ruta ni de comportament. **Comprovació:** `pnpm validate` i E2E
+existents sense canvis; absència d'`Intl.DateTimeFormat`, derivacions d'estat i
+extracció d'host dins de `src/pages/`; tests Vitest dels helpers nous. **PR:**
+pròpia; no introdueix rutes, contingut, estils ni comportaments nous.
+
+L'estructura que fixa la tasca és:
+
+- **Pàgines** (`src/pages/`): primes. Només `getStaticPaths`, càrrega de dades,
+  metadades i composició de components i layouts.
+- **Domini** (`src/lib/content/`): selecció, ordenació, publicació i rutes (ja
+  existent; no canvia de responsabilitat).
+- **Presentació** (`src/lib/presentation/`, nou): funcions pures per locale —
+  format de dates, derivació d'estat a clau de missatge i18n i host d'URLs
+  externes — sense imports d'Astro, cobertes per Vitest.
+- **Components** (`src/components/`): fragments de UI reutilitzables (targeta
+  d'esdeveniment, bloc de dates, estat, enllaç extern) i plantilles de detall
+  separades per tipus d'entrada (esdeveniment i escola).
+
+Regles de manteniment, que la tasca reflecteix a `AGENTS.md` i que la revisió
+de cada PR ha de comprovar:
+
+1. A la segona aparició d'un helper de format, estat o URL, s'extreu a
+   `src/lib/presentation/` i es reutilitza; no es duplica en pàgines ni
+   components.
+2. Les pàgines no contenen `Intl.DateTimeFormat`, derivacions d'estat ni
+   extracció d'host; composen components i criden helpers purs.
+3. Els helpers de presentació són purs, reben el locale i retornen dades o
+   claus de missatge; no importen Astro ni Paraglide, i la resolució de text es
+   fa a la capa de component amb el locale corresponent.
+4. Cada tipus d'entrada té un component de detall propi; els fragments repetits
+   són components reutilitzables, no codi copiat.
+5. El refactor no altera sortida visual, rutes, contingut ni els selectors dels
+   E2E existents.
+6. La llegibilitat humana prima sobre la brevetat: una funció pot ser més llarga
+   si així es llegeix més fàcilment. Les cadenes de ternaris niats i els
+   condicionals enrevessats es reescriuen amb branques explícites, retorns
+   primerencs o funcions petites amb nom propi, i la revisió de cada PR ho
+   comprova.
+
+### T3.2: Inventari I Aprovació Editorial
 
 **Abast:** classificar textos, dades, fotos, documents, logos i URLs. **Depèn de:**
 cap codi. **Resultat:** només material `Aprovat` alimenta contingut publicat.
 **Comprovació:** vigència, drets, atribució, consentiment i privacitat. **PR:**
-pot agrupar-se amb T3.2 només sense dades reals no aprovades.
+pot agrupar-se amb T3.3 només sense dades reals no aprovades.
 
-### T3.2: Contractes De Contingut
+### T3.3: Contractes De Contingut
 
 **Abast:** esquemes `about`, `membership` i `contact`, publicació i referències.
 **Depèn de:** fases 1 i 2. **Resultat:** dades canviants validades sense
 constructor genèric. **Comprovació:** Vitest de schemas, idiomes, URL, recursos i
 referències. **PR:** pròpia; no implementa plantilles.
 
-### T3.3: Qui Som
+### T3.4: Qui Som
 
-**Abast:** presidència, junta, història i estatuts. **Depèn de:** T3.2 i
+**Abast:** presidència, junta, història i estatuts. **Depèn de:** T3.3 i
 contingut aprovat. **Resultat:** informació institucional accessible.
 **Comprovació:** landmarks, ordre, documents disponibles i perfils publicats.
 **PR:** pròpia; no incorpora Socis ni Contacte.
 
-### T3.4: Socis
+### T3.5: Socis
 
-**Abast:** alta, federació, avantatges i col·laboradors. **Depèn de:** T3.2 i
+**Abast:** alta, federació, avantatges i col·laboradors. **Depèn de:** T3.3 i
 entitats aprovades. **Resultat:** accions externes i estats clars.
 **Comprovació:** URL requerida i exclusió d'entitats no publicades. **PR:**
 pròpia; no afegeix formularis.
 
-### T3.5: Hub D'Escoles
+### T3.6: Hub D'Escoles
 
-**Abast:** llistat publicat i ordre editorial estable. **Depèn de:** T3.1, shell
+**Abast:** llistat publicat i ordre editorial estable. **Depèn de:** T3.2, shell
 i escoles aprovades. **Resultat:** `/ca/escoles/` deriva de `schools`.
 **Comprovació:** ordenació, enllaços i contingut absent. **PR:** pròpia; no
 modifica el detall.
 
-### T3.6: Detall D'Escola
+### T3.7: Detall D'Escola
 
-**Abast:** seccions pràctiques, galeria, vídeo i inscripció. **Depèn de:** T3.5
+**Abast:** seccions pràctiques, galeria, vídeo i inscripció. **Depèn de:** T3.6
 i recursos aprovats. **Resultat:** detall usable des de 320 CSS px.
 **Comprovació:** accions, estats, alternatives d'imatge i cap reproductor fals.
 **PR:** pròpia; no introdueix carrusel ni JavaScript essencial.
 
-### T3.7: Documents, Contacte, Legal I Peu
+### T3.8: Documents, Contacte, Legal I Peu
 
 **Abast:** directori, contacte institucional, butlletí extern, avís legal,
-política de privacitat, política de cookies i peu. **Depèn de:** T3.2, documents,
+política de privacitat, política de cookies i peu. **Depèn de:** T3.3, documents,
 canals i textos legals aprovats. **Resultat:** recursos, pàgines legals i canals
 externs amb disponibilitat explícita. **Comprovació:** URL, tipus, idioma,
 atribució, enllaços de peu, absència d'`href` buit i coherència entre les
 polítiques publicades i els serveis reals. **PR:** pròpia; no crea serveis,
 formularis ni un banner de consentiment si no hi ha cookies no tècniques.
 
-### T3.8: Qualitat De Cobertura
+### T3.9: Qualitat De Cobertura
 
-**Abast:** E2E, axe, Lighthouse, SEO i pressupostos. **Depèn de:** T3.3 a T3.7.
+**Abast:** E2E, axe, Lighthouse, SEO i pressupostos. **Depèn de:** T3.4 a T3.8.
 **Resultat:** controls obligatoris a CI. **Comprovació:** `pnpm validate`,
 navegadors acordats i rutes representatives. **PR:** pròpia; no substitueix
 l'auditoria manual d'accessibilitat.
@@ -475,3 +527,7 @@ La fase es considera completada quan:
 18. L'avís legal, la política de privacitat i la política de cookies tenen rutes
     accessibles, estan enllaçats des del peu, contenen només text i dades
     institucionals aprovats i descriuen fidelment els serveis reals de la web.
+19. Les pàgines de la fase segueixen l'estructura de capes fixada a T3.1:
+    pàgines primes, presentació a `src/lib/presentation/`, fragments
+    reutilitzables a `src/components/` i cap duplicació amb les pàgines de la
+    fase 2.
