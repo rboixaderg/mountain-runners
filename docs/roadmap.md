@@ -49,15 +49,16 @@ constructor genèric de pàgines sense una necessitat editorial concreta.
 
 ## Estat General
 
-| Fase | Estat | Objectiu |
-| --- | --- | --- |
-| 0. Fundació del projecte | Completada | Governança, seguretat, ADRs i entorn d'agents |
-| 1. Base executable i qualitat | Planificada | Astro, validacions, CI, multiidioma i models de contingut |
-| 2. Vertical slice públic | Planificada | Shell global, inici i esdeveniments funcionals |
-| 3. Cobertura de contingut | Planificada | Resta de pàgines i plantilles de la web |
-| 4. Publicació i operació | Planificada | Previews, desplegament i operació segura |
-| 5. Xat públic | Planificada | Consultes de només lectura sobre contingut publicat |
-| 6. Assistència editorial | Planificada | Edició privada, auditada i basada en pull requests |
+| Fase                                         | Estat       | Objectiu                                                  |
+| -------------------------------------------- | ----------- | --------------------------------------------------------- |
+| 0. Fundació del projecte                     | Completada  | Governança, seguretat, ADRs i entorn d'agents             |
+| 1. Base executable i qualitat                | Planificada | Astro, validacions, CI, multiidioma i models de contingut |
+| 2. Vertical slice públic                     | Planificada | Shell global, inici i esdeveniments funcionals            |
+| 3. Cobertura de contingut                    | Planificada | Resta de pàgines i plantilles de la web                   |
+| 4. Validació integral de disseny i contingut | Planificada | Revisió pàgina a pàgina abans de publicar                 |
+| 5. Publicació i operació                     | Planificada | Previews, desplegament i operació segura                  |
+| 6. Xat públic                                | Planificada | Consultes de només lectura sobre contingut publicat       |
+| 7. Assistència editorial                     | Planificada | Edició privada, auditada i basada en pull requests        |
 
 ## Fase 0: Fundació Del Projecte
 
@@ -159,6 +160,9 @@ amb el recorregut més representatiu de la web.
 **Objectiu:** completar les àrees públiques previstes amb plantilles consistents
 i contingut editable.
 
+**Especificació:**
+[`docs/specs/phase-3-content-coverage.md`](specs/phase-3-content-coverage.md).
+
 **Abast:**
 
 - Pàgina Qui som: missatge de presidència, junta, història i estatuts.
@@ -166,7 +170,8 @@ i contingut editable.
 - Hub d'escoles i plantilla de detall per a Trail, Skimo, BTT i Trial.
 - Documents, recursos externs, galeries, vídeos i atribucions amb estats de
   disponibilitat explícits.
-- Contacte, butlletí, dades de peu i enllaços legals.
+- Contacte, butlletí extern, dades de peu i pàgines d'avís legal, privacitat i
+  cookies.
 - Afegir traduccions públiques quan el contingut corresponent estigui revisat i
   complet.
 
@@ -175,8 +180,41 @@ i contingut editable.
 - Totes les àrees acordades tenen una ruta i plantilla accessibles.
 - Les dades canviants viuen en contingut, no en components de pàgina.
 - Els enllaços externs, PDFs i recursos absents tenen un tractament útil.
+- L'avís legal, la política de privacitat i la política de cookies estan
+  publicats, enllaçats des del peu i revisats abans de publicar.
 
-## Fase 4: Publicació I Operació
+## Fase 4: Validació Integral De Disseny I Contingut
+
+**Objectiu:** validar, abans de preparar la publicació, que totes les rutes
+públiques implementades responen a la direcció de `DESIGN.md`, tenen una
+estructura coherent i accessible, i publiquen el text, les dades i els recursos
+visuals aprovats que els corresponen.
+
+**Especificació:**
+[`docs/specs/phase-4-design-content-validation.md`](specs/phase-4-design-content-validation.md).
+
+**Abast:**
+
+- Revisar pàgina a pàgina les rutes, la navegació, el peu, les variants mòbil i
+  escriptori i els estats de contingut disponibles.
+- Contrastar composició, jerarquia, tipografia, color, imatges i interaccions amb
+  `DESIGN.md`, sense introduir un sistema visual paral·lel.
+- Verificar que textos, dades pràctiques, enllaços, documents, imatges,
+  atribucions i alternatives textuals són correctes, vigents i corresponen a
+  cada context públic.
+- Documentar les evidències, les discrepàncies i les correccions necessàries en
+  entregues petites, revisables i validades abans de donar la fase per tancada.
+
+**Criteris de tancament:**
+
+- Totes les rutes públiques i els seus estats representatius han estat revisats
+  amb una evidència de validació traçable.
+- No resten discrepàncies obertes de disseny, estructura, contingut o recursos
+  visuals dins de l'abast publicable acordat.
+- Les correccions mantenen els límits de contingut, accessibilitat, seguretat i
+  qualitat de les fases anteriors.
+
+## Fase 5: Publicació I Operació
 
 **Objectiu:** portar una aplicació ja validada a producció mitjançant un flux
 segur, reproduïble i reversible.
@@ -197,7 +235,7 @@ segur, reproduïble i reversible.
 - La documentació operativa descriu desplegament, reversió i resposta bàsica a
   incidències.
 
-## Fase 5: Xat Públic
+## Fase 6: Xat Públic
 
 **Objectiu:** oferir un xat públic útil i verificable sobre Mountain Runners,
 basat exclusivament en el contingut publicat de la web, sense crear un backend
@@ -231,7 +269,7 @@ editorial ni exposar contingut privat.
 - El servei es pot desactivar sense afectar la disponibilitat ni la funcionalitat
   principal de la web.
 
-## Fase 6: Assistència Editorial Privada
+## Fase 7: Assistència Editorial Privada
 
 **Objectiu:** facilitar l'edició conversacional sense substituir la revisió
 humana ni el flux de Git.
