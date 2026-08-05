@@ -11,7 +11,7 @@ import {
 } from "./resources";
 import { assertUniquePublishedPaths } from "./routes";
 
-async function validateLocalResources(source: ContentSource): Promise<void> {
+async function validateLocalResources(source: unknown): Promise<void> {
   const appDirectory = fileURLToPath(new URL("../../../", import.meta.url));
   const paths = collectLocalResourcePaths(source);
   await Promise.all(

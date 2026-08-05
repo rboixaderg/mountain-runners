@@ -8,13 +8,14 @@ import { getPublicationCatalog } from "../../../lib/content/repository";
 import {
   getLocalizedAlternatives,
   getCanonicalUrl,
+  getPublicDetailVariants,
   getRouteDomain,
 } from "../../../lib/content/routes";
 
 export async function getStaticPaths() {
   const catalog = await getPublicationCatalog();
   const site = new URL(import.meta.env.SITE);
-  return catalog.variants.map((variant) => ({
+  return getPublicDetailVariants(catalog).map((variant) => ({
     params: {
       locale: variant.locale,
       domain: getRouteDomain(variant.kind, variant.locale),

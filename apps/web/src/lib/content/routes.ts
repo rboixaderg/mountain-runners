@@ -28,6 +28,9 @@ export const routeDomains: RouteDomains = {
   },
 };
 
+// Detail templates are enabled here as their specification task ships.
+const publicDetailRouteKinds = new Set<RouteKind>();
+
 export function assertRouteDomains(domains: RouteDomains): void {
   for (const locale of knownLocales) {
     const seen = new Set<string>();
@@ -69,6 +72,14 @@ export function getCanonicalUrl(variant: PublishedVariant, site: URL): string {
   return new URL(getVariantPath(variant), site).toString();
 }
 
+export function getPublicDetailVariants(
+  catalog: PublicationCatalog,
+): PublishedVariant[] {
+  return catalog.variants.filter(({ kind }) =>
+    publicDetailRouteKinds.has(kind),
+  );
+}
+
 export function getAlternateVariants(
   catalog: PublicationCatalog,
   variant: PublishedVariant,
@@ -97,7 +108,9 @@ export function getSitemapUrls(
 ): string[] {
   return [
     new URL("/ca/", site).toString(),
-    ...catalog.variants.map((variant) => getCanonicalUrl(variant, site)),
+    ...getPublicDetailVariants(catalog).map((variant) =>
+      getCanonicalUrl(variant, site),
+    ),
   ].sort();
 }
 

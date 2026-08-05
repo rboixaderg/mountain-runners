@@ -5,28 +5,29 @@ slug:
 name:
   ca: Escola de Trail
 summary:
-  ca: Iniciació progressiva al trail per a infants i joves.
+  ca: Classes de trail per a infants i joves de 3 a 18 anys al Berguedà.
 description:
-  ca: Aprenem a moure'ns per la muntanya amb seguretat i respecte.
+  ca: >-
+    L'Escola Trail ofereix classes en horari no lectiu per l'entorn de la
+    comarca del Berguedà.
 cover:
   resource:
-    kind: external
-    url: https://images.example.org/trail-school.webp
+    kind: local
+    path: src/assets/logo_mountain_runners.jpeg
   alt:
-    ca: Grup de joves entrenant per un sender
+    ca: Logotip de Mountain Runners del Berguedà
 gallery: []
-promotionalVideoUrl: https://video.example.org/trail-school
 registrationStatus: coming-soon
 sections:
   since:
-    ca: Un projecte consolidat al Berguedà.
+    ca: L'escola va néixer l'any 2012.
   purpose:
-    ca: Créixer amb autonomia i gaudir de l'esport.
+    ca: Oferir l'opció d'estar a la natura, aprendre d'ella i gaudir-la.
   audience:
-    ca: Infants i joves que volen descobrir el trail.
+    ca: Infants i joves de 3 a 18 anys.
   schedule:
-    ca: Entrenaments setmanals durant el curs.
+    ca: Durant el curs escolar, de dilluns a divendres de 17.30 h a 19.00 h.
   location:
-    ca: Entorn natural del Berguedà.
+    ca: Sortida des de la Font Negra de Berga, amb itineraris diferents a cada sessió.
   prices:
-    ca: Informació disponible durant el període d'inscripció.
+    ca: Els preus es poden modificar a l'inici de curs.

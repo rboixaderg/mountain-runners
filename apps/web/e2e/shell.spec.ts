@@ -57,6 +57,91 @@ test("renders the localized shell without horizontal overflow", async ({
   ).toBeLessThanOrEqual(layout.clientWidth);
 });
 
+test("renders the published homepage sections in order", async ({ page }) => {
+  await page.goto("/ca/");
+
+  await expect(
+    page.getByRole("heading", {
+      level: 1,
+      name: "Mountain Runners del Berguedà",
+    }),
+  ).toBeVisible();
+  const heroImage = page.getByRole("img", {
+    name: "Logotip de Mountain Runners del Berguedà",
+  });
+  await expect(heroImage).toHaveAttribute("src", /^\/_astro\//u);
+  await expect(heroImage).toHaveAttribute("width", "450");
+  await expect(heroImage).toHaveAttribute("height", "444");
+  await expect(page.locator(".homepage-hero__mountain")).toHaveAttribute(
+    "src",
+    /^\/_astro\//u,
+  );
+  await expect(
+    page.locator("main h1, main h2").allTextContents(),
+  ).resolves.toEqual([
+    "Mountain Runners del Berguedà",
+    "Esdeveniments",
+    "Escoles",
+    "Fes-te MRB",
+    "Muntanya, territori, comunitat",
+  ]);
+  await expect(page.locator('main a[href="/ca/esdeveniments/"]')).toHaveCount(
+    1,
+  );
+  await expect(page.locator(".homepage-event")).toHaveCount(2);
+  await expect(
+    page.locator(".homepage-event h3").allTextContents(),
+  ).resolves.toEqual(["Ultra Pirineu", "Escalada Popular a Queralt"]);
+  await expect(
+    page.locator(".homepage-event__status").allTextContents(),
+  ).resolves.toEqual(["Pròxima edició", "Sense pròxima data anunciada"]);
+  await expect(
+    page.getByRole("heading", { level: 3, name: "Ultra Pirineu" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("heading", {
+      level: 3,
+      name: "Escalada Popular a Queralt",
+    }),
+  ).toBeVisible();
+  await expect(page.locator(".homepage-events")).not.toContainText(
+    "Berga Trail",
+  );
+  await expect(page.locator(".homepage-school-list small")).toHaveCount(3);
+  await expect(page.locator(".homepage-school-list img")).toHaveCount(3);
+  await expect(page.locator(".homepage-school-list")).toContainText(
+    "Properament",
+  );
+  await expect(
+    page.locator(".homepage-school-list a, .homepage-members-card a"),
+  ).toHaveCount(0);
+  await expect(
+    page.locator(".homepage-members-card .homepage-coming-soon"),
+  ).toHaveText("Properament");
+  await expect(page.locator('main a[href=""], main a[href="#"]')).toHaveCount(
+    0,
+  );
+});
+
+test("links the portada to the events hub placeholder without a broken destination", async ({
+  page,
+}) => {
+  await page.goto("/ca/");
+
+  const eventsLink = page
+    .locator(".homepage-section", { hasText: "Esdeveniments" })
+    .getByRole("link", { name: "Esdeveniments" });
+  await expect(eventsLink).toHaveAttribute("href", "/ca/esdeveniments/");
+
+  await eventsLink.click();
+  await expect(page).toHaveURL("/ca/esdeveniments/");
+  await expect(page.locator("html")).toHaveAttribute("lang", "ca");
+  await expect(page.locator('meta[name="robots"]')).toHaveAttribute(
+    "content",
+    "noindex, nofollow",
+  );
+});
+
 test("renders the useful Catalan 404 document", async ({ page }) => {
   await page.goto("/404.html");
 

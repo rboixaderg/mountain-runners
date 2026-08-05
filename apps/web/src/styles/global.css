@@ -151,9 +151,343 @@ figcaption {
   transform: translateY(0);
 }
 
+.homepage-hero {
+  position: relative;
+  overflow: hidden;
+  min-height: clamp(38rem, 57vw, 51rem);
+  padding-block: clamp(6rem, 14vw, 10rem);
+  background: var(--color-red);
+  color: var(--color-paper);
+}
+
+.homepage-hero::after {
+  position: absolute;
+  z-index: 1;
+  right: 0;
+  bottom: -1px;
+  left: 0;
+  height: clamp(1.75rem, 4vw, 4rem);
+  background: var(--color-ink);
+  clip-path: polygon(
+    0 52%,
+    6% 36%,
+    13% 58%,
+    20% 18%,
+    29% 63%,
+    36% 30%,
+    45% 55%,
+    53% 12%,
+    61% 61%,
+    68% 32%,
+    78% 57%,
+    87% 24%,
+    94% 48%,
+    100% 20%,
+    100% 100%,
+    0 100%
+  );
+  content: "";
+}
+
+.homepage-hero__grid,
+.homepage-school-section__grid,
+.homepage-club-section {
+  display: grid;
+  gap: var(--space-8);
+}
+
+.homepage-hero__grid {
+  position: relative;
+  z-index: 2;
+  align-items: center;
+}
+
+.homepage-kicker {
+  margin: 0 0 var(--space-3);
+  font-family: var(--font-display);
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.homepage-hero h1,
+.homepage-section h2,
+.homepage-school-section h2 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(3.25rem, 10vw, 7rem);
+  font-weight: 700;
+  line-height: 0.9;
+  text-transform: uppercase;
+}
+
+.homepage-hero__copy,
+.homepage-section__heading > div,
+.homepage-members-card > div,
+.homepage-community-card > div {
+  font-size: clamp(1.1rem, 2vw, 1.35rem);
+}
+
+.homepage-hero__intro {
+  display: grid;
+  gap: var(--space-6);
+  max-width: 58rem;
+}
+
+.homepage-hero__mountain {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0.22;
+  filter: grayscale(1) contrast(1.35);
+  mix-blend-mode: multiply;
+}
+
+.homepage-hero__logo {
+  position: absolute;
+  right: var(--space-6);
+  bottom: var(--space-6);
+  width: clamp(4rem, 8vw, 6rem);
+  border: 0.2rem solid var(--color-paper);
+}
+
+.homepage-hero__copy > :first-child,
+.homepage-section__heading > div > :first-child,
+.homepage-members-card > div > :first-child,
+.homepage-community-card > div > :first-child {
+  margin-top: 0;
+}
+
+.homepage-hero__copy > :last-child,
+.homepage-section__heading > div > :last-child,
+.homepage-members-card > div > :last-child,
+.homepage-community-card > div > :last-child {
+  margin-bottom: 0;
+}
+
+.homepage-section {
+  padding-block: clamp(4rem, 10vw, 7rem);
+}
+
+.homepage-section h2,
+.homepage-school-section h2,
+.homepage-members-card h2,
+.homepage-community-card h2 {
+  font-size: clamp(2.5rem, 7vw, 4.5rem);
+}
+
+.homepage-events {
+  display: grid;
+  margin-block: var(--space-8);
+  border-top: 0.125rem solid var(--color-ink);
+}
+
+.homepage-event {
+  display: grid;
+  border-bottom: 0.125rem solid var(--color-ink);
+}
+
+.homepage-event__date {
+  display: grid;
+  min-height: 8.75rem;
+  place-items: center;
+  padding: var(--space-4);
+  background: var(--color-red);
+  color: var(--color-paper);
+}
+
+.homepage-event__date time {
+  display: grid;
+  text-align: center;
+}
+
+.homepage-event__date span {
+  font-family: var(--font-display);
+  font-size: clamp(3rem, 7vw, 4.5rem);
+  font-weight: 700;
+  line-height: 0.85;
+}
+
+.homepage-event__date small {
+  margin-top: var(--space-2);
+  font-family: var(--font-display);
+  font-size: 1.1rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.homepage-event__body {
+  display: grid;
+  align-content: center;
+  gap: var(--space-2);
+  padding: var(--space-6);
+}
+
+.homepage-event__status {
+  margin: 0;
+  color: var(--color-red);
+  font-family: var(--font-display);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.homepage-event h3 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(2rem, 5vw, 3.5rem);
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.homepage-event__body > div > :first-child,
+.homepage-event__body > div > :last-child,
+.homepage-event__location {
+  margin-block: 0;
+}
+
+.homepage-event__body > div {
+  color: var(--color-muted);
+}
+
+.homepage-event__location {
+  font-size: 0.875rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.homepage-link {
+  display: inline-block;
+  font-weight: 700;
+}
+
+.homepage-school-section {
+  position: relative;
+  overflow: hidden;
+  padding-block: clamp(4rem, 10vw, 7rem);
+  background: var(--color-ink);
+  color: var(--color-paper);
+}
+
+.homepage-school-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.homepage-school-list li {
+  display: grid;
+  align-content: start;
+  gap: var(--space-3);
+  padding: var(--space-6);
+  background: var(--color-paper);
+  color: var(--color-ink);
+  border: 0.25rem solid transparent;
+}
+
+.homepage-school-list__mark {
+  width: 100%;
+  aspect-ratio: 4 / 2.25;
+  background: var(--color-line);
+  object-fit: cover;
+  filter: grayscale(1) contrast(1.2);
+}
+
+.homepage-school-list strong {
+  font-family: var(--font-display);
+  font-size: 1.6rem;
+  text-transform: uppercase;
+}
+
+.homepage-school-list small {
+  color: var(--color-red);
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.homepage-coming-soon {
+  color: var(--color-muted);
+  font-weight: 700;
+}
+
+.homepage-club-section {
+  padding-block: clamp(4rem, 10vw, 7rem);
+  border-top: 1px solid var(--color-line);
+}
+
+.homepage-members-card,
+.homepage-community-card {
+  padding: clamp(1.5rem, 4vw, 3rem);
+}
+
+.homepage-members-card {
+  background: var(--color-red);
+  color: var(--color-paper);
+}
+
+.homepage-community-card {
+  border: 1px solid var(--color-ink);
+}
+
+.homepage-members-card h2,
+.homepage-community-card h2 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(2.5rem, 7vw, 4.5rem);
+  line-height: 0.9;
+  text-transform: uppercase;
+}
+
+.homepage-members-card > div,
+.homepage-community-card > div {
+  margin-top: var(--space-6);
+  font-size: clamp(1.1rem, 2vw, 1.35rem);
+}
+
+.homepage-members-card .homepage-coming-soon {
+  color: inherit;
+}
+
 @media (min-width: 48rem) {
   .editorial-grid {
     grid-template-columns: repeat(12, minmax(0, 1fr));
+  }
+
+  .homepage-hero__grid {
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+  }
+
+  .homepage-hero__intro {
+    grid-column: span 8;
+  }
+
+  .homepage-school-section__grid,
+  .homepage-club-section {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .homepage-club-section {
+    grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+  }
+
+  .homepage-school-list {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .homepage-event {
+    grid-template-columns: minmax(10rem, 12rem) minmax(0, 1fr);
+  }
+
+  .homepage-event__date {
+    min-height: 100%;
+    border-right: 0.125rem solid var(--color-ink);
   }
 }
 

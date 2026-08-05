@@ -38,13 +38,49 @@ d'inscripció oberta, tancada, recurs no disponible i esdeveniment vigent sense
 pròxima data anunciada. Són referències adaptables; l'aprovació no valida les
 dades de mostra que puguin mostrar.
 
+### Contingut Textual De La Portada
+
+La portada actual és la font revisada dels textos de presentació de Mountain
+Runners, els esdeveniments, les escoles, els socis i el territori. El 19 de
+juliol de 2026, una persona mantenidora del projecte va autoritzar-ne la
+reutilització a la portada de la T2.5. Només s'incorporen fragments sans i
+vigents per a aquests blocs; s'exclouen HTML, dades de contacte, imatges,
+enllaços externs no verificats i qualsevol contingut aliè injectat a la pàgina.
+
+Font: <https://mountainrunners.cat/>.
+
+### Escola Trail
+
+El 20 de juliol de 2026, una persona mantenidora del projecte va confirmar que
+la informació visible a la pàgina actual de l'Escola Trail és vigent per a
+aquest slice. S'han incorporat només el nom, la descripció, l'edat orientativa,
+l'horari, la ubicació i l'avís de preus. Les inscripcions no són obertes i es
+mostren com a `Properament`. No es reutilitzen fotografies externes:
+temporalment s'hi mostra el logotip local ja autoritzat.
+
+Font: <https://mountainrunners.cat/escola-trail/>.
+
+### Escola Skimo I Escola BTT
+
+El 20 de juliol de 2026, una persona mantenidora del projecte va confirmar que
+la informació visible a les pàgines actuals de les escoles Skimo i BTT és vigent
+per a aquest slice. S'han incorporat les descripcions, públic orientatiu,
+horaris, ubicacions i avís de preus. Les inscripcions no són obertes i es
+mostren com a `Properament`. No es reutilitzen les fotografies externes:
+temporalment s'hi mostra el logotip local ja autoritzat.
+
+Fonts:
+
+- <https://mountainrunners.cat/escola-skimo/>.
+- <https://mountainrunners.cat/escola-btt/>.
+
 ## Casos D'Esdeveniment Revisats
 
 | Cas                        | Estat editorial | Fets confirmats                                                                                                                                                                                                                                                     | Pendent abans de publicar   |
 | -------------------------- | --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------- |
-| Berga Trail                | Revisat         | Mountain Runners en va ser l'organitzador. És històric: l'última edició va ser el 2022 a Berga, amb distàncies de 12 km, 27 km i 42 km i inscripcions tancades. Descripció editorial provisional disponible més avall.                                              | Cap dada editorial pendent. |
-| Ultra Pirineu / Pirineu XS | Revisat         | Mountain Runners hi col·labora. L'edició de 2026 és el 2, 3 i 4 d'octubre a Bagà, amb les modalitats KV vertical, 100 km, 42 km i 21 km; les inscripcions estan tancades. Descripció: "És una cursa de muntanya que recorre part de la serralada del Cadí-Moixeró." | Cap dada editorial pendent. |
-| Escalada Popular a Queralt | Revisat         | Mountain Runners n'és l'organitzador. És activa i acumula tres edicions inclosa la de 2026. L'edició de 2026 va ser el 17 de març; les inscripcions estan tancades. Descripció: "Escalada popular de Berga a Queralt en bicicleta."                                 | Cap dada editorial pendent. |
+| Berga Trail                | Aprovat         | Mountain Runners en va ser l'organitzador. És històric: l'última edició va ser el 2022 a Berga, amb distàncies de 12 km, 27 km i 42 km i inscripcions tancades. Descripció editorial provisional disponible més avall.                                              | Cap dada editorial pendent. |
+| Ultra Pirineu / Pirineu XS | Aprovat         | Mountain Runners hi col·labora. L'edició de 2026 és el 2, 3 i 4 d'octubre a Bagà, amb les modalitats KV vertical, 100 km, 42 km i 21 km; les inscripcions estan tancades. Descripció: "És una cursa de muntanya que recorre part de la serralada del Cadí-Moixeró." | Cap dada editorial pendent. |
+| Escalada Popular a Queralt | Aprovat         | Mountain Runners n'és l'organitzador. És activa i acumula tres edicions inclosa la de 2026. L'edició de 2026 va ser el 17 de març; les inscripcions estan tancades. Descripció: "Escalada popular de Berga a Queralt en bicicleta."                                 | Cap dada editorial pendent. |
 
 Fonts d'informació:
 
@@ -52,9 +88,16 @@ Fonts d'informació:
 - Ultra Pirineu: <https://ultrapirineu.com/>.
 - Escalada Popular a Queralt: <https://escaladesbergueda.cat/escalades/queralt>.
 
+El 20 de juliol de 2026, la persona mantenidora del projecte va confirmar
+explícitament que aquests tres casos i les dades recollides són correctes i
+publicables per a aquest slice.
+
 No hi ha ara cap cas real revisat amb inscripció oberta. Aquest comportament
 s'ha de cobrir amb una fixture sintètica no publicada fins que hi hagi un cas
 real aprovat.
+
+La fixture `Jornada de muntanya` no té un equivalent a la web actual i queda
+despublicada. No s'utilitza com a font editorial per a la portada.
 
 ### Descripció Editorial Provisional De Berga Trail
 

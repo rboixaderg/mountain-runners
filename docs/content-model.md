@@ -3,33 +3,29 @@
 ## Principis
 
 - Git és el magatzem autoritatiu del contingut publicat.
-- El contingut editorial o operatiu que pugui canviar ha d'estar estructurat i
-  validat; no pot existir només dins del codi de les pàgines.
+- Les dades de domini o operatives que puguin canviar han d'estar estructurades i
+  validades.
 - L'estat de publicació ha de ser explícit perquè les previsualitzacions i el
   futur índex del xat no exposin material no publicat.
-- El català és l'únic idioma publicat inicialment, però tot text traduïble s'ha
-  de modelar com un objecte per idioma, no com camps separats per llengua.
-- Els enllaços, CTAs i formularis que canviïn editorialment també han de poder
-  variar per idioma quan calgui.
+- El català és l'únic idioma publicat inicialment. Els camps textuals d'objectes
+  de domini es modelen com un objecte per idioma, no com camps separats per
+  llengua.
 - Totes les rutes HTML públiques tenen prefix d'idioma, inclòs el català; els
   recursos tècnics globals en queden exceptuats.
 - Una variant d'idioma només es publica quan la traducció requerida és completa;
   no es mostra contingut català sota una ruta castellana o anglesa.
 - Les entrades editorials utilitzen YAML 1.2 restringit, sense àncores, aliases,
   tags personalitzats ni claus duplicades, i es validen estrictament amb Zod.
-- Els missatges curts d'interfície es gestionen separadament amb Paraglide JS 2;
-  no formen part de les col·leccions editorials.
+- Els recursos de traducció gestionen els missatges d'interfície i els textos de
+  pàgines fixes; no formen part de les col·leccions editorials.
 
 ## Límit Entre Codi I Contingut
 
-- El codi defineix l'estructura de navegació, les rutes, les locales conegudes,
-  el shell global, les plantilles i l'ordre de les seccions estables.
-- El YAML recull dades editorials o operatives que poden canviar sense modificar
-  components: dates, estats, inscripcions, preus, textos editorials, recursos,
-  entitats, documents i URL externes.
-- No es crea un constructor genèric de pàgines ni una configuració YAML del lloc
-  per anticipació. Una pàgina fixa només rep un esquema específic quan hi ha una
-  necessitat editorial concreta i recurrent que el justifiqui.
+- Els ADR 0004 i 0005 governen aquest límit. L'ADR 0005 preval només per a
+  pàgines fixes i defineix la classificació d'estructura, textos, recursos i
+  dades operatives; aquest document no la duplica.
+- El codi defineix l'estructura estable. El YAML valida objectes de domini i els
+  recursos de traducció aporten els textos de pàgines fixes.
 - Que una dada visqui en codi no impedeix que el xat públic la indexi: el seu
   índex es genera a partir del contingut publicat renderitzat.
 
@@ -78,6 +74,11 @@ repositori central, que exclou `published: false` i només retorna variants amb
 una traducció completa. `active` no altera la visibilitat editorial d'un
 esdeveniment. Els camps opcionals sense traducció s'ometen i no fan fallback al
 català.
+
+Una variant editorial publicable no habilita automàticament una fitxa pública.
+Els tipus de detall disponibles es defineixen centralment en codi segons les
+plantilles completades a cada fase. La portada pot reutilitzar contingut publicat
+sense avançar les fitxes d'esdeveniments de la T2.6 ni les d'escoles de la fase 3.
 
 El codi centralitza els dominis editorials localitzats: escoles són
 `/{locale}/escoles/{slug}/`, `/{locale}/escuelas/{slug}/` o

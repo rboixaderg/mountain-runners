@@ -2,35 +2,206 @@
 import { locales } from "../../../i18n.config.mjs";
 import * as m from "../../paraglide/messages.js";
 import { assertIsLocale } from "../../paraglide/runtime.js";
+import logo from "../../assets/logo_mountain_runners.jpeg";
+import mountainPlaceholder from "../../assets/berga-trail-placeholder.svg";
 import PublicLayout from "../../layouts/PublicLayout.astro";
+import {
+  getHomepageEvents,
+  getMadridDate,
+  getNextEdition,
+} from "../../lib/content/events";
+import { renderRestrictedMarkdown } from "../../lib/content/markdown";
+import type { PublishedVariant } from "../../lib/content/publication";
+import { getPublicationCatalog } from "../../lib/content/repository";
+import { getDomainPath } from "../../lib/content/routes";
 
 const locale = assertIsLocale(Astro.currentLocale);
 const canonicalUrl = new URL(`/${locale}/`, Astro.site);
+const catalog = await getPublicationCatalog();
+const today = process.env.BUILD_TODAY ?? getMadridDate(new Date());
+const getEditionStatus = (
+  nextEdition: ReturnType<typeof getNextEdition>,
+): "upcoming" | "in-progress" | "no-upcoming-date" =>
+  nextEdition === undefined
+    ? "no-upcoming-date"
+    : nextEdition.startDate <= today
+      ? "in-progress"
+      : "upcoming";
+const eventVariants = catalog.variants.filter(
+  (variant): variant is Extract<PublishedVariant, { kind: "event" }> =>
+    variant.kind === "event" && variant.locale === locale,
+);
+const schoolVariants = catalog.variants.filter(
+  (variant): variant is Extract<PublishedVariant, { kind: "school" }> =>
+    variant.kind === "school" && variant.locale === locale,
+);
+const events = getHomepageEvents(
+  eventVariants.map((variant) => variant.entry),
+  today,
+);
+const schools = schoolVariants.map((variant) => variant.entry);
 
 export function getStaticPaths() {
-  return locales.map((locale) => ({ params: { locale } }));
+  return locales
+    .filter((locale) => locale === "ca")
+    .map((locale) => ({ params: { locale } }));
 }
 ---
 
 <PublicLayout
   canonical={canonicalUrl.toString()}
-  description={m.intro({}, { locale })}
+  description={m.homepage_hero_description({}, { locale })}
   locale={locale}
-  title={m.site_title()}
+  title={m.homepage_hero_title({}, { locale })}
 >
-  <section
-    class="page-frame max-w-[var(--reading-width)] py-[clamp(var(--space-12),10vw,7rem)]"
-  >
-    <p
-      class="m-0 font-[family-name:var(--font-display)] text-lg tracking-[0.06em] uppercase"
-    >
-      {m.site_title()}
-    </p>
-    <h1
-      class="my-3 mb-6 max-w-[15ch] font-[family-name:var(--font-display)] text-[clamp(2.8rem,9vw,5.5rem)] leading-[0.95] tracking-[0.015em] uppercase"
-    >
-      {m.under_construction({}, { locale })}
-    </h1>
-    <p class="text-[clamp(1.1rem,2vw,1.3rem)]">{m.intro({}, { locale })}</p>
+  <section class="homepage-hero">
+    <img
+      class="homepage-hero__mountain"
+      src={mountainPlaceholder.src}
+      width={mountainPlaceholder.width}
+      height={mountainPlaceholder.height}
+      alt=""
+    />
+    <div class="page-frame homepage-hero__grid">
+      <div class="homepage-hero__intro">
+        <p class="homepage-kicker">MRB</p>
+        <h1>{m.homepage_hero_title({}, { locale })}</h1>
+        <div
+          class="homepage-hero__copy"
+          set:html={renderRestrictedMarkdown(
+            m.homepage_hero_description({}, { locale }),
+          )}
+        />
+      </div>
+      <img
+        class="homepage-hero__logo"
+        src={logo.src}
+        width={logo.width}
+        height={logo.height}
+        alt={m.homepage_hero_image_alt({}, { locale })}
+      />
+    </div>
+  </section>
+
+  <section class="page-frame homepage-section" aria-labelledby="events-title">
+    <div class="homepage-section__heading">
+      <p class="homepage-kicker">{m.site_title({}, { locale })}</p>
+      <h2 id="events-title">{m.homepage_events_title({}, { locale })}</h2>
+      <div
+        set:html={renderRestrictedMarkdown(
+          m.homepage_events_description({}, { locale }),
+        )}
+      />
+    </div>
+    <div class="homepage-events">
+      {
+        events.map((event) => {
+          const nextEdition = getNextEdition(event, today);
+          const editionStatus = getEditionStatus(nextEdition);
+          const dateParts = nextEdition
+            ? new Intl.DateTimeFormat("ca-ES", {
+                day: "numeric",
+                month: "short",
+                timeZone: "Europe/Madrid",
+              }).formatToParts(new Date(`${nextEdition.startDate}T12:00:00Z`))
+            : [];
+          const day = dateParts.find(({ type }) => type === "day")?.value;
+          const month = dateParts.find(({ type }) => type === "month")?.value;
+          return (
+            <article class="homepage-event">
+              <div class="homepage-event__date">
+                {nextEdition ? (
+                  <time datetime={nextEdition.startDate}>
+                    <span>{day}</span>
+                    <small>{month}</small>
+                  </time>
+                ) : (
+                  <span aria-hidden="true">--</span>
+                )}
+              </div>
+              <div class="homepage-event__body">
+                <p class="homepage-event__status">
+                  {editionStatus === "upcoming"
+                    ? m.event_status_upcoming_edition({}, { locale })
+                    : editionStatus === "in-progress"
+                      ? m.event_status_in_progress({}, { locale })
+                      : m.event_status_no_upcoming_date({}, { locale })}
+                </p>
+                <h3>{event.title[locale]}</h3>
+                {event.description[locale] && (
+                  <div
+                    set:html={renderRestrictedMarkdown(
+                      event.description[locale],
+                    )}
+                  />
+                )}
+                {nextEdition && (
+                  <p class="homepage-event__location">
+                    {nextEdition.location[locale]}
+                  </p>
+                )}
+              </div>
+            </article>
+          );
+        })
+      }
+    </div>
+    <a class="homepage-link" href={getDomainPath("event", locale)}>
+      {m.navigation_events({}, { locale })}
+    </a>
+  </section>
+
+  <section class="homepage-school-section">
+    <div class="page-frame homepage-school-section__grid">
+      <div class="homepage-section__heading">
+        <p class="homepage-kicker">MRB</p>
+        <h2>{m.homepage_schools_title({}, { locale })}</h2>
+        <div
+          set:html={renderRestrictedMarkdown(
+            m.homepage_schools_description({}, { locale }),
+          )}
+        />
+      </div>
+      <ul class="homepage-school-list">
+        {
+          schools.map((school) => (
+            <li>
+              <img
+                class="homepage-school-list__mark"
+                src={logo.src}
+                width={logo.width}
+                height={logo.height}
+                alt=""
+              />
+              <strong>{school.name[locale]}</strong>
+              <span>{school.summary[locale]}</span>
+              <small>{m.coming_soon({}, { locale })}</small>
+            </li>
+          ))
+        }
+      </ul>
+    </div>
+  </section>
+
+  <section class="page-frame homepage-club-section">
+    <div class="homepage-members-card">
+      <p class="homepage-kicker">MRB</p>
+      <h2>{m.homepage_members_title({}, { locale })}</h2>
+      <div
+        set:html={renderRestrictedMarkdown(
+          m.homepage_members_description({}, { locale }),
+        )}
+      />
+      <p class="homepage-coming-soon">{m.coming_soon({}, { locale })}</p>
+    </div>
+    <div class="homepage-community-card">
+      <p class="homepage-kicker">Berguedà</p>
+      <h2>{m.homepage_community_title({}, { locale })}</h2>
+      <div
+        set:html={renderRestrictedMarkdown(
+          m.homepage_community_description({}, { locale }),
+        )}
+      />
+    </div>
   </section>
 </PublicLayout>
