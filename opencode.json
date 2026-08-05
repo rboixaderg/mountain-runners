@@ -12,6 +12,19 @@
       "headers": {
         "X-Goog-Api-Key": "{env:STITCH_API_KEY}"
       }
+    },
+    "playwright": {
+      "type": "local",
+      "command": [
+        "pnpm",
+        "--dir",
+        "tools/playwright-mcp",
+        "--ignore-workspace",
+        "exec",
+        "playwright-mcp",
+        "--isolated"
+      ],
+      "enabled": true
     }
   }
 }

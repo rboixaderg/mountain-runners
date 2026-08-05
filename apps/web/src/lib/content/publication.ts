@@ -107,6 +107,13 @@ function isEventComplete(
   documents: ReadonlyMap<string, Document>,
 ): boolean {
   const referencedEntities = [...event.organizerIds, ...event.collaboratorIds];
+  const hasCompleteRegistrationUrl = (
+    edition: Event["editions"][number],
+  ): boolean =>
+    (edition.registrationUrl !== undefined &&
+      isTranslated(edition.registrationUrl, locale)) ||
+    (event.registrationUrl !== undefined &&
+      isTranslated(event.registrationUrl, locale));
 
   return (
     event.published &&
@@ -126,8 +133,7 @@ function isEventComplete(
           isTranslated(modality, locale),
         ) &&
         (edition.registrationStatus !== "open" ||
-          (edition.registrationUrl !== undefined &&
-            isTranslated(edition.registrationUrl, locale))) &&
+          hasCompleteRegistrationUrl(edition)) &&
         edition.documentIds.every((id) => {
           const document = documents.get(id);
           return document !== undefined && isDocumentComplete(document, locale);

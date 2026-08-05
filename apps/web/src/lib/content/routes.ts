@@ -29,7 +29,7 @@ export const routeDomains: RouteDomains = {
 };
 
 // Detail templates are enabled here as their specification task ships.
-const publicDetailRouteKinds = new Set<RouteKind>();
+const publicDetailRouteKinds = new Set<RouteKind>(["event"]);
 
 export function assertRouteDomains(domains: RouteDomains): void {
   for (const locale of knownLocales) {
@@ -106,8 +106,18 @@ export function getSitemapUrls(
   catalog: PublicationCatalog,
   site: URL,
 ): string[] {
+  const hubLocales = new Set(
+    catalog.variants
+      .filter(({ kind }) => kind === "event")
+      .map(({ locale }) => locale),
+  );
   return [
     new URL("/ca/", site).toString(),
+    ...[...hubLocales]
+      .sort()
+      .map((locale) =>
+        new URL(getDomainPath("event", locale), site).toString(),
+      ),
     ...getPublicDetailVariants(catalog).map((variant) =>
       getCanonicalUrl(variant, site),
     ),

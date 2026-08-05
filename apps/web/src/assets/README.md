@@ -1,6 +1,6 @@
 # Recursos Globals
 
-`logo_mountain_runners.jpeg` és el logotip oficial de l'Associació Esportiva
+`logo_mountain_runners.png` és el logotip oficial de l'Associació Esportiva
 Mountain Runners del Berguedà. Una persona mantenidora del projecte el va
 proporcionar i aprovar per a la publicació el 19 de juliol de 2026.
 
