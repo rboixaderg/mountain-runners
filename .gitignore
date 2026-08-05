@@ -8,6 +8,7 @@ dist/
 apps/web/src/paraglide/
 
 # Test output
+artifacts/
 coverage/
 playwright-report/
 test-results/

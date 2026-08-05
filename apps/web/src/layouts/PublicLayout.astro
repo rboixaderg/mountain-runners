@@ -1,8 +1,10 @@
 ---
 import SiteFooter from "../components/SiteFooter.astro";
 import SiteHeader from "../components/SiteHeader.astro";
+import logoFavicon from "../assets/logo_mountain_runners.png";
 import oswaldFont from "../assets/fonts/oswald-latin.woff2";
 import type { Locale } from "../lib/content/primitives";
+import { renderJsonLdScript, type StructuredData } from "../lib/content/seo";
 import * as m from "../paraglide/messages.js";
 import "../styles/global.css";
 
@@ -14,6 +16,7 @@ interface Props {
   description: string;
   locale: Locale;
   noindex?: boolean;
+  structuredData?: StructuredData[];
   title: string;
 }
 
@@ -23,6 +26,7 @@ const {
   description,
   locale,
   noindex = false,
+  structuredData = [],
   title,
 } = Astro.props;
 ---
@@ -32,6 +36,7 @@ const {
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width" />
+    <link rel="icon" type="image/png" href={logoFavicon.src} />
     <link
       rel="preload"
       href={oswaldFont}
@@ -55,6 +60,11 @@ const {
     <meta property="og:description" content={description} />
     <meta property="og:type" content="website" />
     {canonical && <meta property="og:url" content={canonical} />}
+    {
+      structuredData.map((data) => (
+        <Fragment set:html={renderJsonLdScript(data)} />
+      ))
+    }
     <title>{title}</title>
   </head>
   <body>

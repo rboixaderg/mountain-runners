@@ -14,6 +14,7 @@ import { renderRestrictedMarkdown } from "../../lib/content/markdown";
 import type { PublishedVariant } from "../../lib/content/publication";
 import { getPublicationCatalog } from "../../lib/content/repository";
 import { getDomainPath } from "../../lib/content/routes";
+import { getSiteJsonLd } from "../../lib/content/seo";
 
 const locale = assertIsLocale(Astro.currentLocale);
 const canonicalUrl = new URL(`/${locale}/`, Astro.site);
@@ -40,6 +41,12 @@ const events = getHomepageEvents(
   today,
 );
 const schools = schoolVariants.map((variant) => variant.entry);
+const siteUrl = new URL("/", Astro.site);
+const siteEntity = catalog.entities.get("mountain-runners");
+const structuredData = getSiteJsonLd({
+  name: siteEntity?.name[locale],
+  siteUrl,
+});
 
 export function getStaticPaths() {
   return locales
@@ -52,6 +59,7 @@ export function getStaticPaths() {
   canonical={canonicalUrl.toString()}
   description={m.homepage_hero_description({}, { locale })}
   locale={locale}
+  structuredData={structuredData}
   title={m.homepage_hero_title({}, { locale })}
 >
   <section class="homepage-hero">

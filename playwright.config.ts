@@ -6,7 +6,7 @@ const mobileViewport = { width: 320, height: 720 };
 export default defineConfig({
   testDir: "apps/web/e2e",
   forbidOnly: Boolean(process.env.CI),
-  reporter: "list",
+  reporter: [["list"], ["html", { open: "never" }]],
   retries: process.env.CI ? 1 : 0,
   workers: process.env.CI ? 2 : undefined,
   use: {
