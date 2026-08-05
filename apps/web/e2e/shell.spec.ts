@@ -325,3 +325,101 @@ test("@a11y has no detectable axe violations", async ({
     expect(results.violations, path).toEqual([]);
   }
 });
+
+test("publishes structured data only on pages with reviewed data", async ({
+  page,
+}) => {
+  const jsonLdScripts = (html: string) =>
+    (html.match(/<script type="application\/ld\+json">/gu) ?? []).length;
+
+  await page.goto("/ca/");
+  const homeHtml = await page.content();
+  expect(jsonLdScripts(homeHtml)).toBe(2);
+  expect(homeHtml).toContain('"@type":"Organization"');
+  expect(homeHtml).toContain('"@type":"WebSite"');
+  expect(homeHtml).toContain("Mountain Runners del Berguedà");
+  expect(homeHtml).toContain("https://mountainrunners.cat/");
+
+  await page.goto("/ca/esdeveniments/");
+  expect(jsonLdScripts(await page.content())).toBe(0);
+
+  await page.goto("/ca/esdeveniments/ultra-pirineu/");
+  const eventHtml = await page.content();
+  expect(jsonLdScripts(eventHtml)).toBe(1);
+  expect(eventHtml).toContain('"@type":"Event"');
+  expect(eventHtml).toContain('"name":"Ultra Pirineu"');
+  expect(eventHtml).toContain('"startDate":"2026-10-02"');
+  expect(eventHtml).toContain('"endDate":"2026-10-04"');
+  expect(eventHtml).toContain(
+    "https://mountainrunners.cat/ca/esdeveniments/ultra-pirineu/",
+  );
+  expect(eventHtml).not.toContain("offers");
+
+  for (const path of [
+    "/ca/esdeveniments/berga-trail/",
+    "/ca/esdeveniments/escalada-queralt/",
+    "/404.html",
+  ]) {
+    await page.goto(path);
+    expect(jsonLdScripts(await page.content()), path).toBe(0);
+  }
+});
+
+test("serves sitemap and robots aligned with the canonical origin", async ({
+  page,
+}) => {
+  const sitemapResponse = await page.request.get("/sitemap.xml");
+  expect(sitemapResponse.ok()).toBeTruthy();
+  const sitemapText = await sitemapResponse.text();
+  for (const url of [
+    "https://mountainrunners.cat/ca/",
+    "https://mountainrunners.cat/ca/esdeveniments/",
+    "https://mountainrunners.cat/ca/esdeveniments/berga-trail/",
+    "https://mountainrunners.cat/ca/esdeveniments/escalada-queralt/",
+    "https://mountainrunners.cat/ca/esdeveniments/ultra-pirineu/",
+  ]) {
+    expect(sitemapText).toContain(`<loc>${url}</loc>`);
+  }
+  expect(sitemapText).not.toContain("404");
+
+  const robotsResponse = await page.request.get("/robots.txt");
+  expect(robotsResponse.ok()).toBeTruthy();
+  expect(await robotsResponse.text()).toContain(
+    "Sitemap: https://mountainrunners.cat/sitemap.xml",
+  );
+});
+
+test("has no broken or falsely disabled links within the slice", async ({
+  page,
+}) => {
+  const slicePaths = [
+    "/ca/",
+    "/ca/esdeveniments/",
+    "/ca/esdeveniments/ultra-pirineu/",
+    "/ca/esdeveniments/berga-trail/",
+    "/ca/esdeveniments/escalada-queralt/",
+    "/404.html",
+  ];
+  const internalHrefs = new Set<string>();
+  for (const path of slicePaths) {
+    await page.goto(path);
+    const hrefs = await page
+      .locator("a[href]")
+      .evaluateAll((links) =>
+        links.map((link) => (link as HTMLAnchorElement).getAttribute("href")),
+      );
+    for (const href of hrefs) {
+      if (href !== null && href.startsWith("/") && !href.startsWith("//")) {
+        internalHrefs.add(href);
+      }
+    }
+  }
+
+  expect(internalHrefs.size).toBeGreaterThan(0);
+  for (const href of internalHrefs) {
+    const response = await page.request.get(
+      new URL(href, page.url()).toString(),
+    );
+    expect(response.ok(), `${href} should be reachable`).toBeTruthy();
+  }
+});

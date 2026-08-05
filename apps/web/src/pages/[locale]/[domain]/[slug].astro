@@ -28,6 +28,7 @@ import {
   getPublicDetailVariants,
   getRouteDomain,
 } from "../../../lib/content/routes";
+import { getEventJsonLd } from "../../../lib/content/seo";
 
 export async function getStaticPaths() {
   const catalog = await getPublicationCatalog();
@@ -129,15 +130,29 @@ const editionDocuments: { id: string; document: Document | undefined }[] =
     id,
     document: catalog.documents.get(id),
   })) ?? [];
+const canonicalUrl = new URL(getCanonicalUrl(variant, Astro.site!));
+const structuredData =
+  event !== null && featuredEdition !== undefined
+    ? [
+        getEventJsonLd({
+          event,
+          edition: featuredEdition,
+          canonicalUrl,
+          locale,
+          today,
+        }),
+      ].filter((data) => data !== undefined)
+    : [];
 ---
 
 <PublicLayout
   localizedAlternatives={localizedAlternatives}
-  canonical={getCanonicalUrl(variant, Astro.site!)}
+  canonical={canonicalUrl.toString()}
   description={variant.kind === "event"
     ? variant.entry.description[locale]!
     : variant.entry.summary[locale]!}
   locale={locale}
+  structuredData={structuredData}
   title={`${variant.kind === "event" ? variant.entry.title[locale] : variant.entry.name[locale]} | ${m.site_title({}, { locale })}`}
 >
   {
