@@ -123,7 +123,7 @@ test("renders the published homepage sections in order", async ({ page }) => {
   );
 });
 
-test("links the portada to the events hub placeholder without a broken destination", async ({
+test("links the portada to the events hub with published entries", async ({
   page,
 }) => {
   await page.goto("/ca/");
@@ -136,9 +136,156 @@ test("links the portada to the events hub placeholder without a broken destinati
   await eventsLink.click();
   await expect(page).toHaveURL("/ca/esdeveniments/");
   await expect(page.locator("html")).toHaveAttribute("lang", "ca");
-  await expect(page.locator('meta[name="robots"]')).toHaveAttribute(
-    "content",
-    "noindex, nofollow",
+  await expect(page.locator('meta[name="robots"]')).toHaveCount(0);
+});
+
+test("renders the events hub groups in order with links to details", async ({
+  page,
+}) => {
+  await page.goto("/ca/esdeveniments/");
+
+  await expect(
+    page.getByRole("heading", { level: 1, name: "Esdeveniments" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("heading", { level: 2, name: "Pròximes edicions" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("heading", {
+      level: 2,
+      name: "Vigents sense pròxima data",
+    }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("heading", { level: 2, name: "Esdeveniments passats" }),
+  ).toBeVisible();
+
+  const headings = await page
+    .locator(".events-hub-section h2")
+    .allTextContents();
+  expect(headings).toEqual([
+    "Pròximes edicions",
+    "Vigents sense pròxima data",
+    "Esdeveniments passats",
+  ]);
+
+  await expect(
+    page.locator(".events-hub-item strong").allTextContents(),
+  ).resolves.toEqual([
+    "Ultra Pirineu",
+    "Escalada Popular a Queralt",
+    "Berga Trail",
+  ]);
+  await expect(
+    page.locator('.events-hub-item a[href="/ca/esdeveniments/ultra-pirineu/"]'),
+  ).toHaveCount(1);
+  await expect(
+    page.locator(
+      '.events-hub-item a[href="/ca/esdeveniments/escalada-queralt/"]',
+    ),
+  ).toHaveCount(1);
+  await expect(
+    page.locator('.events-hub-item a[href="/ca/esdeveniments/berga-trail/"]'),
+  ).toHaveCount(1);
+  await expect(
+    page.locator(
+      ".events-hub-section--active-without-date .events-hub-item__date",
+    ),
+  ).toHaveAttribute("aria-hidden", "true");
+  await expect(
+    page.locator(
+      ".events-hub-section--active-without-date .events-hub-item__status",
+    ),
+  ).toHaveText("Sense pròxima data anunciada");
+  await expect(page.locator('main a[href=""], main a[href="#"]')).toHaveCount(
+    0,
+  );
+});
+
+test("navigates from the hub to an event detail with its states", async ({
+  page,
+}) => {
+  await page.goto("/ca/esdeveniments/");
+
+  await page.getByRole("link", { name: /Ultra Pirineu/u }).click();
+
+  await expect(page).toHaveURL("/ca/esdeveniments/ultra-pirineu/");
+  await expect(page.locator("html")).toHaveAttribute("lang", "ca");
+  await expect(
+    page.getByRole("heading", { level: 1, name: "Ultra Pirineu" }),
+  ).toBeVisible();
+  const coverImage = page.getByRole("img", {
+    name: "Logotip de Mountain Runners del Berguedà",
+  });
+  await expect(coverImage).toHaveAttribute(
+    "src",
+    "/content-resources/assets/logo_mountain_runners.png",
+  );
+  await expect(coverImage).toHaveAttribute("width", "450");
+  await expect(coverImage).toHaveAttribute("height", "444");
+  await expect(page.locator("time[datetime='2026-10-02']")).toBeVisible();
+  await expect(page.locator("time[datetime='2026-10-04']")).toBeVisible();
+  await expect(page.getByText("Bagà", { exact: true })).toBeVisible();
+  await expect(page.getByText("Inscripció tancada")).toBeVisible();
+  await expect(page.locator(".events-detail__resources")).toContainText(
+    "Recurs no disponible",
+  );
+  await expect(page.getByRole("link", { name: /Inscriu-t'hi/u })).toHaveCount(
+    0,
+  );
+  await expect(
+    page.locator('a[aria-disabled="true"], button[disabled]'),
+  ).toHaveCount(0);
+  await expect(page.locator('main a[href=""], main a[href="#"]')).toHaveCount(
+    0,
+  );
+});
+
+test("renders the historical event detail without an action", async ({
+  page,
+}) => {
+  await page.goto("/ca/esdeveniments/berga-trail/");
+
+  await expect(
+    page.getByRole("heading", { level: 1, name: "Berga Trail" }),
+  ).toBeVisible();
+  await expect(page.getByText("Esdeveniment oficial del club")).toBeVisible();
+  await expect(page.getByText("Històric", { exact: true })).toBeVisible();
+  await expect(page.getByText("Inscripció tancada")).toBeVisible();
+  await expect(page.locator(".events-detail__resources")).toContainText(
+    "Recurs no disponible",
+  );
+  await expect(page.getByRole("link", { name: /Inscriu-t'hi/u })).toHaveCount(
+    0,
+  );
+  await expect(
+    page.locator('a[aria-disabled="true"], button[disabled]'),
+  ).toHaveCount(0);
+});
+
+test("renders the active event detail without an announced date", async ({
+  page,
+}) => {
+  await page.goto("/ca/esdeveniments/escalada-queralt/");
+
+  await expect(
+    page.getByRole("heading", {
+      level: 1,
+      name: "Escalada Popular a Queralt",
+    }),
+  ).toBeVisible();
+  await expect(page.getByText("Esdeveniment oficial del club")).toBeVisible();
+  await expect(page.getByText("Actiu", { exact: true })).toBeVisible();
+  await expect(page.getByText("Sense pròxima data anunciada")).toBeVisible();
+  await expect(page.getByText("Inscripció tancada")).toBeVisible();
+  await expect(page.locator(".events-detail__resources")).toContainText(
+    "Recurs no disponible",
+  );
+  await expect(
+    page.locator('a[aria-disabled="true"], button[disabled]'),
+  ).toHaveCount(0);
+  await expect(page.locator('main a[href=""], main a[href="#"]')).toHaveCount(
+    0,
   );
 });
 
@@ -164,7 +311,14 @@ test("@a11y has no detectable axe violations", async ({
 }) => {
   test.skip(browserName !== "chromium", "axe runs once per viewport");
 
-  for (const path of ["/ca/", "/404.html"]) {
+  for (const path of [
+    "/ca/",
+    "/404.html",
+    "/ca/esdeveniments/",
+    "/ca/esdeveniments/ultra-pirineu/",
+    "/ca/esdeveniments/berga-trail/",
+    "/ca/esdeveniments/escalada-queralt/",
+  ]) {
     await page.goto(path);
 
     const results = await new AxeBuilder({ page }).analyze();

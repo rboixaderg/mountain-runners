@@ -17,9 +17,6 @@ const unavailableDetailRoutes = [
   "ca/escoles/escola-btt/index.html",
   "ca/escoles/escola-skimo/index.html",
   "ca/escoles/escola-trail/index.html",
-  "ca/esdeveniments/berga-trail/index.html",
-  "ca/esdeveniments/escalada-queralt/index.html",
-  "ca/esdeveniments/ultra-pirineu/index.html",
   "ca/esdeveniments/jornada-muntanya/index.html",
   "es/escuelas/escola-trail/index.html",
   "en/schools/escola-trail/index.html",
@@ -35,7 +32,7 @@ const forbiddenOutputMarkers = [
 ];
 
 const expectedPublishedResource =
-  "content-resources/assets/logo_mountain_runners.jpeg";
+  "content-resources/assets/logo_mountain_runners.png";
 
 const distDirectory = new URL("../dist/", import.meta.url);
 const root = await readFile(new URL("index.html", distDirectory), "utf8");
@@ -154,7 +151,13 @@ const sitemapUrls = new Set(
   [...sitemap.matchAll(/<loc>([^<]+)<\/loc>/gu)].map(([, url]) => url),
 );
 const expectedSitemapUrls = new Set(
-  ["ca/"].map((path) => new URL(path, publicSiteOrigin).toString()),
+  [
+    "ca/",
+    "ca/esdeveniments/",
+    "ca/esdeveniments/berga-trail/",
+    "ca/esdeveniments/escalada-queralt/",
+    "ca/esdeveniments/ultra-pirineu/",
+  ].map((path) => new URL(path, publicSiteOrigin).toString()),
 );
 if (
   sitemapUrls.size !== expectedSitemapUrls.size ||

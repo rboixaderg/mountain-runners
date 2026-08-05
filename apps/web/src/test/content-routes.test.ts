@@ -89,12 +89,18 @@ describe("localized route contract", () => {
     ]);
   });
 
-  it("keeps published content out of unavailable detail routes", async () => {
+  it("keeps unpublished and school content out of available detail routes", async () => {
     const catalog = createPublicationCatalog(await loadSource());
 
-    expect(getPublicDetailVariants(catalog)).toEqual([]);
+    expect(
+      getPublicDetailVariants(catalog).map((variant) =>
+        getVariantPath(variant),
+      ),
+    ).toEqual(["/ca/esdeveniments/jornada-muntanya/"]);
     expect(getSitemapUrls(catalog, publicSiteOrigin)).toEqual([
       "https://mountainrunners.cat/ca/",
+      "https://mountainrunners.cat/ca/esdeveniments/",
+      "https://mountainrunners.cat/ca/esdeveniments/jornada-muntanya/",
     ]);
   });
 
@@ -149,6 +155,14 @@ describe("localized route contract", () => {
         href: "https://mountainrunners.cat/en/events/mountain-day/",
       },
     ]);
+
+    expect(getSitemapUrls(completeCatalog, publicSiteOrigin)).toEqual(
+      expect.arrayContaining([
+        "https://mountainrunners.cat/ca/esdeveniments/",
+        "https://mountainrunners.cat/es/eventos/",
+        "https://mountainrunners.cat/en/events/",
+      ]),
+    );
 
     delete (mountainDay.title as { en?: string }).en;
     const incompleteCatalog = createPublicationCatalog(source);
