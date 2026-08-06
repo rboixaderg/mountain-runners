@@ -11,10 +11,12 @@ consentiment de publicació.
 La classificació inicial es va fer el 6 d'agost de 2026. El mateix dia, la
 persona mantenidora del projecte va resoldre els punts pendents següents, que
 queden incorporats a aquest document: nova seu a la plaça Sant Joan, 15 baixos;
-reformulació del missatge de presidència amb la junta actual; URL d'alta en
-HTTPS; manteniment de l'URL de llicències del 2025; redacció de les pàgines
-legals a partir de les pàgines de referència d'Escalades Berguedà; i Guia del
-club sense arxiu, pendent de revisió posterior.
+reutilització del missatge de presidència amb només el canvi de signatura;
+confirmació de la fotografia de junta i de la identitat legal; reutilització
+del text d'història actual; estatuts pendents de pujar, sense enllaç buit; URL
+d'alta en HTTPS; manteniment de l'URL de llicències del 2025; redacció de les
+pàgines legals a partir de les pàgines de referència d'Escalades Berguedà; i
+Guia del club sense arxiu, pendent de revisió posterior.
 
 Només es conserven metadades, URL de font i observacions que ja són
 publicables. No es copien textos complets, imatges ni dades personals no
@@ -34,13 +36,13 @@ Fonts: <https://mountainrunners.cat/el-club/> i
 
 | Element                       | Estat    | Observació i pendents                                                                                                                                                                                                                                                                                    |
 | ----------------------------- | -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Missatge de presidència       | Descartat | El text de la web actual està desactualitzat (el signava l'anterior presidència i contradiu la composició de la junta publicada). No es reutilitza com a text literal: la persona mantenidora va decidir el 6 d'agost de 2026 reformular el missatge amb el caire de la junta actual, signat pel president. |
+| Missatge de presidència       | Aprovat  | Decisió de la persona mantenidora del 6 d'agost de 2026: es reutilitza el mateix text que ja hi ha de l'anterior presidència, amb l'únic canvi que ara el signa el president (Ernest Garrido). En redactar la pàgina (T3.4) cal revisar la frase sobre la composició de la junta, que contradiu la junta actual. |
 | Junta directiva               | Revisat  | Presidència confirmada el 6 d'agost de 2026: Ernest Garrido. La resta de rols publicats (vicepresident, secretari, tresorer i vocals sense nom) queda pendent de confirmar-ne la vigència i el consentiment de publicació (nom, cognoms i rol; cap dada de contacte).                                      |
-| Fotografia de la junta        | Candidat | Imatge de la secció de junta. Pendent de revisar origen, autoria, consentiment de les persones retratades i atribució abans de versionar-la.                                                                                                                                                              |
-| Història de l'entitat         | Candidat | Fundació l'any 2004, oficialització a finals de 2005 i aprovació el juliol de 2006 per part del Consell Català de l'Esport amb el número 12637 del Registre d'entitats esportives; ingrés a la FEEC i a la FEDME; inclusió l'any 2011 en el Cens d'Organitzadors amb el número C177. Pendent de revisar el text i confirmar les dades. |
+| Fotografia de la junta        | Aprovat  | Imatge actual de la junta confirmada com a correcta i apta per a publicació el 6 d'agost de 2026. Pendent de descarregar-la, optimitzar-la i versionar-la localment quan es construeixi la pàgina (T3.4).                                                                                                  |
+| Història de l'entitat         | Aprovat  | Decisió de la persona mantenidora del 6 d'agost de 2026: es reutilitza el text d'història actual (fundació l'any 2004, oficialització a finals de 2005, aprovació el juliol de 2006 amb el número 12637 del Registre d'entitats esportives, ingrés a la FEEC i a la FEDME, i inclusió l'any 2011 en el Cens d'Organitzadors amb el número C177). Pendent només de la revisió de redacció en crear la pàgina. |
 | Fotografies històriques       | Candidat | Imatges de les seccions d'història i estatuts allotjades al domini antic (`mountainrunners.eu`). Pendent de revisar origen, autoria, consentiment i atribució.                                                                                                                                            |
-| Estatuts (PDF)                | Candidat | Únic document institucional trobat a la web actual. Allotjat al domini antic (`mountainrunners.eu`); es va verificar que és descarregable el 6 d'agost de 2026. Pendent de descarregar, revisar-ne la vigència i els drets, i versionar-lo localment abans de publicar-lo.                                  |
-| Identitat legal               | Candidat | CIF G63999817, número 12637 del Registre d'entitats esportives i C177 del Cens d'Organitzadors, publicats a la política de privadesa i al peu. Pendent de confirmació abans d'usar-los a les pàgines legals noves.                                                                                        |
+| Estatuts (PDF)                | Pendent  | Decisió de la persona mantenidora del 6 d'agost de 2026: el PDF es pujarà més endavant; per ara la secció es mostrarà sense enllaç, amb l'estat de disponibilitat expressat amb text útil (mai un enllaç buit), d'acord amb les regles de la fase.                                                          |
+| Identitat legal               | Aprovat  | CIF G63999817, número 12637 del Registre d'entitats esportives i C177 del Cens d'Organitzadors confirmats com a correctes per la persona mantenidora el 6 d'agost de 2026.                                                                                                                                |
 
 ## Socis
 
@@ -118,7 +120,7 @@ institucional trobat és el PDF dels estatuts (vegeu l'apartat Qui Som).
 
 | Document            | Estat    | Observació i pendents                                                                                                                                                                                                                                          |
 | ------------------- | -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Estatuts (PDF)      | Candidat | Vegeu l'apartat Qui Som. Primer candidat del futur directori de Documents.                                                                                                                                                                                     |
+| Estatuts (PDF)      | Pendent  | Vegeu l'apartat Qui Som: el PDF es pujarà més endavant i per ara la secció es mostra sense enllaç, amb l'estat de disponibilitat textual. Primer candidat del futur directori de Documents. |
 | Guia del club (PDF) | Pendent  | Decisió de la persona mantenidora del 6 d'agost de 2026: l'entrada es manté sense arxiu per ara i es revisarà més endavant. El recurs local `club-guide.pdf` és una fixture sintètica de validació («public fixture document»), no un document real, i no pot presentar-se com a Guia del club publicada. |
 
 ## Contacte, Peu I Pàgines Legals
@@ -148,7 +150,7 @@ referència de la mateixa entitat a
 | --------------------------------------- | ------------------------------------------------------------------------------------------------------------- | -------- | -------------------------------------------------------------------------------------------------------------------------------------- |
 | Logotip de Mountain Runners             | `apps/web/src/assets/logo_mountain_runners.png`                                                               | Aprovat  | Autoritzat i versionat a la fase 2; el README d'assets registra propietat i aprovació de publicació.                                    |
 | Placeholder de Berga Trail              | `apps/web/src/assets/berga-trail-placeholder.svg`                                                             | Aprovat  | Placeholder local creat a la fase 2.                                                                                                   |
-| Estatuts (PDF)                          | <http://mountainrunners.eu/mountainrunners/wp-content/uploads/2021/06/ESTATUTS-MRB.pdf>                       | Candidat | Vegeu l'apartat Qui Som.                                                                                                               |
+| Estatuts (PDF)                          | <http://mountainrunners.eu/mountainrunners/wp-content/uploads/2021/06/ESTATUTS-MRB.pdf>                       | Pendent  | Vegeu l'apartat Qui Som: es pujarà més endavant; per ara, sense enllaç, amb estat textual.                                            |
 | Fotografies de junta i història         | <https://mountainrunners.cat/el-club/>                                                                        | Candidat | Origen, autoria, consentiment i atribució pendents.                                                                                    |
 | Fotografies de les escoles              | Domini antic (`mountainrunners.eu`) a través del hub d'escoles                                                | Candidat | Origen, autoria, consentiment i atribució pendents.                                                                                    |
 | Logotips i imatges dels col·laboradors  | Instagram i webs dels establiments, enllaçades des de la pàgina d'avantatges                                   | Candidat | Drets i atribució pendents per a cada entitat que la fase incorpori.                                                                    |
