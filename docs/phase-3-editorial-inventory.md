@@ -16,7 +16,8 @@ confirmació de la fotografia de junta i de la identitat legal; reutilització
 del text d'història actual; estatuts pendents de pujar, sense enllaç buit; URL
 d'alta en HTTPS; manteniment de l'URL de llicències del 2025; redacció de les
 pàgines legals a partir de les pàgines de referència d'Escalades Berguedà; i
-Guia del club sense arxiu, pendent de revisió posterior.
+Guia del club sense arxiu, pendent de revisió posterior; i reutilització del
+mateix llistat d'avantatges i col·laboradors de la web actual.
 
 Només es conserven metadades, URL de font i observacions que ja són
 publicables. No es copien textos complets, imatges ni dades personals no
@@ -60,44 +61,47 @@ Fonts: <https://mountainrunners.cat/socis/> i
 
 ### Avantatges I Col·laboradors
 
-La llista de col·laboradors de la web actual és la font candidata de les
-entitats amb avantatge de soci. Cada entitat pendent de: confirmar la vigència
-del descompte i de les dades, obtenir el consentiment per republicar-ne les
-dades de contacte, revisar la privacitat dels telèfons mòbils i correus
-personals, i revisar els drets dels logotips (majoritàriament provinents
-d'Instagram o de les webs de cada establiment).
+Decisió de la persona mantenidora del 6 d'agost de 2026: per ara es
+reutilitzarà el mateix llistat i les mateixes dades de col·laboradors que
+publica la web actual. Les entitats de la taula queden `Aprovades` per a la
+fase. El treball pendent és d'extracció i de revisió final abans de publicar:
+modelar cada entitat amb el seu avantatge de soci (T3.5), descarregar i
+versionar els logotips amb origen, autoria i atribució, i revisar la privacitat
+i el consentiment de les dades de contacte personals (telèfons mòbils i correus
+d'autònoms) quan s'incorporin.
 
 Font: <https://mountainrunners.cat/avantatge-per-a-socis-i-socies/>.
 
 | Col·laborador                          | Avantatge publicat                                        | Estat    |
 | -------------------------------------- | --------------------------------------------------------- | -------- |
-| Visites al Berguedà                    | Avantatge cultural; enllaça a una pàgina pròpia           | Candidat |
-| ELIT                                   | 10% en massatge esportiu                                  | Candidat |
-| SNOWLOCKERS                            | Codis de descompte en lloguer de material d'hivern        | Candidat |
-| CIMETIR                                | 10% en proves d'esforç                                    | Candidat |
-| Podologia Ingrid Soca                  | Descomptes de podologia i plantilles                      | Candidat |
-| Clínica Jessica Genescà                | 15% en podologia                                          | Candidat |
-| Aina Vila                              | 15% en massatge esportiu i de descàrrega                  | Candidat |
-| Alexandra Bruy                         | 10% en psicologia esportiva                               | Candidat |
-| Farmàcia Cosp                          | 6% en articles de la farmàcia                             | Candidat |
-| Estètica Adela                         | 10-15% en depilació i massatge esportiu                   | Candidat |
-| Ortopèdia Álvarez Saz Cabra            | 10% en ortesis esportives                                 | Candidat |
-| Veloberga                              | 10% en articles i accessoris                              | Candidat |
-| Bicixtrem                              | 10% en productes                                          | Candidat |
-| 4 Riders Bike Park                     | 20% per a sòcies i socis                                  | Candidat |
-| Intersport Serra Martí                 | 10% en imports superiors a 20 €                           | Candidat |
-| Serrasports                            | 15% en tèxtil i calçat                                    | Candidat |
-| Ríos Running Berga                     | 15% en productes (excepte electrònica)                    | Candidat |
-| Ramir's Sabaters                       | 10% en resolatge de vambes                                | Candidat |
-| Joieria Climent                        | 15% de descompte                                          | Candidat |
-| Centre Òptic                           | 15% de descompte                                          | Candidat |
-| Pedratour                              | 5% en packs d'experiències                                | Candidat |
-| Peu de Via                             | Condicions de quota amb preus publicats                   | Candidat |
+| Visites al Berguedà                    | Avantatge cultural; enllaça a una pàgina pròpia           | Aprovat  |
+| ELIT                                   | 10% en massatge esportiu                                  | Aprovat  |
+| SNOWLOCKERS                            | Codis de descompte en lloguer de material d'hivern        | Aprovat  |
+| CIMETIR                                | 10% en proves d'esforç                                    | Aprovat  |
+| Podologia Ingrid Soca                  | Descomptes de podologia i plantilles                      | Aprovat  |
+| Clínica Jessica Genescà                | 15% en podologia                                          | Aprovat  |
+| Aina Vila                              | 15% en massatge esportiu i de descàrrega                  | Aprovat  |
+| Alexandra Bruy                         | 10% en psicologia esportiva                               | Aprovat  |
+| Farmàcia Cosp                          | 6% en articles de la farmàcia                             | Aprovat  |
+| Estètica Adela                         | 10-15% en depilació i massatge esportiu                   | Aprovat  |
+| Ortopèdia Álvarez Saz Cabra            | 10% en ortesis esportives                                 | Aprovat  |
+| Veloberga                              | 10% en articles i accessoris                              | Aprovat  |
+| Bicixtrem                              | 10% en productes                                          | Aprovat  |
+| 4 Riders Bike Park                     | 20% per a sòcies i socis                                  | Aprovat  |
+| Intersport Serra Martí                 | 10% en imports superiors a 20 €                           | Aprovat  |
+| Serrasports                            | 15% en tèxtil i calçat                                    | Aprovat  |
+| Ríos Running Berga                     | 15% en productes (excepte electrònica)                    | Aprovat  |
+| Ramir's Sabaters                       | 10% en resolatge de vambes                                | Aprovat  |
+| Joieria Climent                        | 15% de descompte                                          | Aprovat  |
+| Centre Òptic                           | 15% de descompte                                          | Aprovat  |
+| Pedratour                              | 5% en packs d'experiències                                | Aprovat  |
+| Peu de Via                             | Condicions de quota amb preus publicats                   | Aprovat  |
 
-La pàgina pròpia de Visites al Berguedà
-(<https://mountainrunners.eu/mountainrunners/visites-al-bergueda/>) viu al
-domini antic i no s'ha inventariat: només s'hi ha verificat que respon el 6
-d'agost de 2026 i queda pendent de revisió si la fase decideix incorporar-la.
+L'avantatge de Visites al Berguedà s'inclou com a la web actual. La pàgina de
+destinació viu al domini antic
+(<https://mountainrunners.eu/mountainrunners/visites-al-bergueda/>) i no s'ha
+inventariat; si la fase l'enllaça com a destinació externa, caldrà aprovar-ne
+l'URL i revisar-ne el contingut abans.
 
 ## Escoles
 
