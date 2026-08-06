@@ -113,9 +113,9 @@ l'URL i revisar-ne el contingut abans.
 Font: <https://mountainrunners.cat/escoles/>.
 
 Hi ha tres escoles clarament marcades a la web actual: Trail, Skimo i BTT.
-L'especificació enumera quatre disciplines (Trail, Skimo, BTT i Trial), però
-«Trial» no correspon a cap escola real: la fase no en publicarà cap de nova
-sense contingut aprovat.
+L'especificació de la fase 3 es va alinear a aquesta realitat i ja no enumera
+quatre disciplines: «Trial» no correspon a cap escola real i la fase no en
+publicarà cap de nova sense contingut aprovat.
 
 | Element                        | Estat    | Observació i pendents                                                                                                                                                                                              |
 | ------------------------------ | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
