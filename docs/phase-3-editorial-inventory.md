@@ -8,13 +8,24 @@ document és contingut publicable fins que una persona responsable n'hagi
 confirmat la vigència, l'exactitud, la relació amb el club, els drets i el
 consentiment de publicació.
 
-La classificació inicial es va fer el 6 d'agost de 2026. Només es conserven
-metadades, URL de font i observacions que ja són publicables. No es copien
-textos complets, imatges ni dades personals no aprovades als fitxers
-editorials, d'acord amb l'ADR 0004 i la convenció de la fase 2.
+La classificació inicial es va fer el 6 d'agost de 2026. El mateix dia, la
+persona mantenidora del projecte va resoldre els punts pendents següents, que
+queden incorporats a aquest document: nova seu a la plaça Sant Joan, 15 baixos;
+reformulació del missatge de presidència amb la junta actual; URL d'alta en
+HTTPS; manteniment de l'URL de llicències del 2025; redacció de les pàgines
+legals a partir de les pàgines de referència d'Escalades Berguedà; i Guia del
+club sense arxiu, pendent de revisió posterior.
+
+Només es conserven metadades, URL de font i observacions que ja són
+publicables. No es copien textos complets, imatges ni dades personals no
+aprovades als fitxers editorials, d'acord amb l'ADR 0004 i la convenció de la
+fase 2.
 
 Els estats permesos són `Candidat`, `Revisat`, `Aprovat` i `Descartat`. Només
 el material `Aprovat` pot passar a YAML publicat o a recursos versionats.
+L'estat `Absent` indica que no existeix cap font a la web actual ni a les webs
+de referència: la ruta o funció es crearà de nou amb contingut aprovat quan la
+fase la publiqui, mai copiant res inexistent.
 
 ## Qui Som
 
@@ -23,8 +34,8 @@ Fonts: <https://mountainrunners.cat/el-club/> i
 
 | Element                       | Estat    | Observació i pendents                                                                                                                                                                                                                                                                                    |
 | ----------------------------- | -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Missatge de presidència       | Candidat | Text publicat a la web actual, signat per la presidenta. Conté errades i contradiccions amb la secció de junta: el text diu que la junta està formada únicament per dones, mentre que la secció de junta directiva en publica una altra composició. Cal revisar el text, resoldre la contradicció i aprovar la versió final i la persona que la signa. |
-| Junta directiva               | Candidat | Noms i rols publicats: president, vicepresident, secretari i tresorer, amb vocals sense nom. Dades personals de membres de la junta: pendent de confirmar la vigència de la composició i el consentiment de publicació (nom, cognoms i rol; cap dada de contacte).                                        |
+| Missatge de presidència       | Descartat | El text de la web actual està desactualitzat (el signava l'anterior presidència i contradiu la composició de la junta publicada). No es reutilitza com a text literal: la persona mantenidora va decidir el 6 d'agost de 2026 reformular el missatge amb el caire de la junta actual, signat pel president. |
+| Junta directiva               | Revisat  | Presidència confirmada el 6 d'agost de 2026: Ernest Garrido. La resta de rols publicats (vicepresident, secretari, tresorer i vocals sense nom) queda pendent de confirmar-ne la vigència i el consentiment de publicació (nom, cognoms i rol; cap dada de contacte).                                      |
 | Fotografia de la junta        | Candidat | Imatge de la secció de junta. Pendent de revisar origen, autoria, consentiment de les persones retratades i atribució abans de versionar-la.                                                                                                                                                              |
 | Història de l'entitat         | Candidat | Fundació l'any 2004, oficialització a finals de 2005 i aprovació el juliol de 2006 per part del Consell Català de l'Esport amb el número 12637 del Registre d'entitats esportives; ingrés a la FEEC i a la FEDME; inclusió l'any 2011 en el Cens d'Organitzadors amb el número C177. Pendent de revisar el text i confirmar les dades. |
 | Fotografies històriques       | Candidat | Imatges de les seccions d'història i estatuts allotjades al domini antic (`mountainrunners.eu`). Pendent de revisar origen, autoria, consentiment i atribució.                                                                                                                                            |
@@ -38,8 +49,8 @@ Fonts: <https://mountainrunners.cat/socis/> i
 
 | Element                     | Estat    | Observació i pendents                                                                                                                                                                                                                                                                                        |
 | --------------------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Alta de socis               | Candidat | Acció externa a `mountainrunners.playoffinformatica.com`. L'URL publicada és HTTP, no HTTPS; la fase requereix URL HTTPS validada per a una acció `available`. Pendent de confirmar l'URL vigent i el servei extern aprovat. Es va verificar que respon el 6 d'agost de 2026.                                  |
-| Llicència federativa        | Candidat | Acció externa al mateix servei de PlayOff Informàtica. L'URL conté l'any 2025; pendent de confirmar la vigència i l'URL definitiva (HTTPS). Es va verificar que respon el 6 d'agost de 2026.                                                                                                                  |
+| Alta de socis               | Revisat  | Acció externa a `mountainrunners.playoffinformatica.com`. La persona mantenidora va decidir el 6 d'agost de 2026 usar l'URL en HTTPS, verificada i responent: <https://mountainrunners.playoffinformatica.com/Preinscripcio.php>. El servei extern s'aprovarà formalment abans de publicar (T3.5).           |
+| Llicència federativa        | Revisat  | Acció externa al mateix servei de PlayOff Informàtica. La persona mantenidora va decidir el 6 d'agost de 2026 mantenir l'URL actual amb l'any 2025: <https://mountainrunners.playoffinformatica.com/activitat/30/Llicencies-Federatives-2025/>. Verificada i responent; caldrà revisar-ne la vigència més endavant. |
 | Federació (accés directe)   | Candidat | Enllaç `Federa't!` al panell d'activitats del mateix servei extern. Pendent de confirmar vigència i aprovació del servei.                                                                                                                                                                                     |
 | Samarrera tècnica           | Candidat | Text de la secció «Vesteix-te de MRB»: la samarreta es regala en fer-se soci. Pendent de revisar el text i confirmar-ne la vigència.                                                                                                                                                                         |
 | Formulari de mitjons        | Descartat | Formulari extern de Google Forms per reservar mitjons. Fora de l'abast de la fase: no s'afegeixen formularis ni accions no previstes, i el servei no està entre les accions externes aprovades (alta, federació, contacte i butlletí).                                                                       |
@@ -108,25 +119,28 @@ institucional trobat és el PDF dels estatuts (vegeu l'apartat Qui Som).
 | Document            | Estat    | Observació i pendents                                                                                                                                                                                                                                          |
 | ------------------- | -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Estatuts (PDF)      | Candidat | Vegeu l'apartat Qui Som. Primer candidat del futur directori de Documents.                                                                                                                                                                                     |
-| Guia del club (PDF) | Descartat | El recurs local `club-guide.pdf` versionat al repositori és una fixture sintètica de validació («public fixture document»), no un document real. No pot presentar-se com a Guia del club publicada: cal substituir-lo per un document real aprovat o despublicar l'entrada abans de la fase de Documents. |
+| Guia del club (PDF) | Pendent  | Decisió de la persona mantenidora del 6 d'agost de 2026: l'entrada es manté sense arxiu per ara i es revisarà més endavant. El recurs local `club-guide.pdf` és una fixture sintètica de validació («public fixture document»), no un document real, i no pot presentar-se com a Guia del club publicada. |
 
 ## Contacte, Peu I Pàgines Legals
 
-Fonts: <https://mountainrunners.cat/contacteu/>, el peu de totes les pàgines i
-<https://mountainrunners.cat/politica-de-privadesa-2/>.
+Fonts: <https://mountainrunners.cat/contacteu/>, el peu de totes les pàgines,
+<https://mountainrunners.cat/politica-de-privadesa-2/> i les pàgines de
+referència de la mateixa entitat a
+<https://escaladesbergueda.cat/avis-legal> i
+<https://escaladesbergueda.cat/politica-de-privacitat>.
 
 | Element                      | Estat    | Observació i pendents                                                                                                                                                                                                                                                                                                              |
 | ---------------------------- | -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Correu electrònic            | Candidat | `info@mountainrunners.cat` publicat a la pàgina de contacte i a la política de privadesa. Pendent de confirmar-ne la vigència.                                                                                                                                                                                                     |
 | Telèfons                     | Candidat | Telèfon fix i mòbil publicats a la pàgina de contacte. Pendent de confirmar-ne la vigència i el consentiment de publicació.                                                                                                                                                                                                        |
-| Seu                          | Candidat | Dada inconsistent entre fonts: la pàgina de contacte i la política de privadesa publiquen «C/ Ciutat, 27, baixos», mentre que el peu publica «Carrer Major 27». Pendent de confirmar la seu definitiva abans de publicar.                                                                                                          |
+| Seu                          | Aprovat  | Dada definitiva proporcionada per la persona mantenidora el 6 d'agost de 2026: plaça Sant Joan, 15 baixos, 08600 Berga. Substituirà la incoherència anterior entre peu (carrer Major 27) i contacte i legal (carrer Ciutat 27).                                                                                                    |
 | Horari                       | Candidat | De dilluns a divendres, de 18 h a 20 h, publicat al peu. Pendent de confirmar-ne la vigència.                                                                                                                                                                                                                                      |
 | CIF                          | Candidat | G63999817, publicat al peu i a la política de privadesa. Pendent de confirmació.                                                                                                                                                                                                                                                   |
 | Formulari de contacte        | Descartat | El formulari de la web actual queda fora de l'abast de la fase: no s'afegeixen formularis propis. La ruta de Contacte publicarà les dades institucionals aprovades.                                                                                                                                                                 |
-| Política de privadesa actual | Descartat | Text obsolet: cita la LOPD 15/1999, conté una referència errònia a un altre domini i mostra dades inconsistents amb la resta del lloc. No es reutilitza com a font; la fase redacta pàgines legals noves amb text revisat (ADR 0005) i dades institucionals aprovades.                                                           |
-| Avís legal                  | Absent   | No existeix a la web actual. Es redactarà de nou amb la identitat i les dades institucionals aprovades.                                                                                                                                                                                                                            |
-| Política de cookies         | Absent   | No existeix a la web actual. El text descriurà l'estat real de la nova web (sense cookies no tècniques, sense banner, segons la fase).                                                                                                                                                                                              |
-| Butlletí                    | Absent   | No hi ha cap servei de butlletí a la web actual. L'acció externa de butlletí només es publicarà amb un servei extern aprovat i URL HTTPS; mentre no n'hi hagi, es mostrarà la indisponibilitat amb text útil.                                                                                                                      |
+| Política de privadesa actual | Descartat | El text actual no es reutilitza: és obsolet (cita la LOPD 15/1999), conté una referència errònia a un altre domini i dades inconsistents. La nova pàgina es redactarà amb l'estructura i el contingut de la política de referència d'Escalades Berguedà (RGPD: responsable, finalitats, base jurídica, destinataris, drets i reclamacions) i les dades institucionals aprovades, descrivint els serveis reals de la nova web. |
+| Avís legal                  | Candidat | No existeix a la web actual. Es redactarà a partir de la pàgina de referència d'Escalades Berguedà (mateixa entitat; titularitat, registres, condicions d'ús, propietat intel·lectual, responsabilitat, enllaços externs, protecció de dades i legislació aplicable), adaptada a la nova seu i al correu institucional aprovats. |
+| Política de cookies         | Absent   | No existeix a la web actual ni a les webs de referència (verificat: cap ruta de cookies a escaladesbergueda.cat). El text descriurà l'estat real de la nova web (sense cookies no tècniques, sense banner, segons la fase).                                                                                                         |
+| Butlletí                    | Absent   | La web actual no té cap servei de butlletí. La web germana d'Escalades Berguedà en té un de la mateixa entitat (via Listmonk) que pot servir de referència futura, però la fase només publicarà una acció de butlletí amb un servei extern aprovat i URL HTTPS; mentre no n'hi hagi, es mostrarà la indisponibilitat amb text útil. |
 
 ## Recursos
 
@@ -138,7 +152,7 @@ Fonts: <https://mountainrunners.cat/contacteu/>, el peu de totes les pàgines i
 | Fotografies de junta i història         | <https://mountainrunners.cat/el-club/>                                                                        | Candidat | Origen, autoria, consentiment i atribució pendents.                                                                                    |
 | Fotografies de les escoles              | Domini antic (`mountainrunners.eu`) a través del hub d'escoles                                                | Candidat | Origen, autoria, consentiment i atribució pendents.                                                                                    |
 | Logotips i imatges dels col·laboradors  | Instagram i webs dels establiments, enllaçades des de la pàgina d'avantatges                                   | Candidat | Drets i atribució pendents per a cada entitat que la fase incorpori.                                                                    |
-| Guia del club (PDF)                     | `apps/web/src/content-assets/documents/club-guide.pdf`                                                        | Descartat | Fixture sintètica; no es pot presentar com a document real (vegeu Documents).                                                          |
+| Guia del club (PDF)                     | `apps/web/src/content-assets/documents/club-guide.pdf`                                                        | Pendent  | Fixture sintètica; l'entrada es manté sense arxiu per ara (vegeu Documents).                                                                                                                            |
 | Placeholders de galeria i vídeo         | No creats                                                                                                     | Pendent  | La fase pot crear un o dos placeholders locals propis i genèrics quan les plantilles de detall ho requereixin, amb text alternatiu honest. |
 
 La portada actual conté contingut injectat per tercers aliè a l'associació
