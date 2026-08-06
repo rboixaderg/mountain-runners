@@ -1,0 +1,25 @@
+---
+import type { EventEdition } from "../lib/content/models";
+import type { Locale } from "../lib/content/primitives";
+import { formatEditionDate } from "../lib/presentation/dates";
+
+interface Props {
+  edition: Pick<EventEdition, "startDate" | "endDate">;
+  locale: Locale;
+}
+
+const { edition, locale } = Astro.props;
+const { startLabel, endLabel } = formatEditionDate(edition, locale);
+---
+
+<>
+  <time datetime={edition.startDate}>{startLabel}</time>
+  {
+    endLabel && (
+      <>
+        {" – "}
+        <time datetime={edition.endDate}>{endLabel}</time>
+      </>
+    )
+  }
+</>

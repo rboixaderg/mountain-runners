@@ -100,7 +100,7 @@ en una PR cohesionada, revisable i validable de manera independent.
 
 | Unitat                                            | Estat   | Dependències                    | Resultat verificable                                                     | PR  |
 | ------------------------------------------------- | ------- | ------------------------------- | ------------------------------------------------------------------------ | --- |
-| T3.1 Estructura de pàgines i convencions d'agents | Pendent | Fases 1 i 2                     | Pàgines primes, helpers i components reutilitzables, regles documentades | -   |
+| T3.1 Estructura de pàgines i convencions d'agents | En curs | Fases 1 i 2                     | Pàgines primes, helpers i components reutilitzables, regles documentades | #36 |
 | T3.2 Inventari i aprovació editorial              | Pendent | Cap codi nou                    | Contingut i recursos candidats sanejats i classificats                   | -   |
 | T3.3 Contractes de contingut                      | Pendent | Fases 1 i 2                     | Esquemes singulars, publicació i referències validades                   | -   |
 | T3.4 Qui som                                      | Pendent | T3.3 i contingut aprovat        | Ruta institucional, junta i estatuts accessibles                         | -   |

@@ -22,6 +22,33 @@
   Catalan for project documentation, user-facing content and pull-request
   descriptions.
 
+## Code Conventions
+
+Follow [`docs/code-conventions.md`](docs/code-conventions.md) when writing or
+reviewing `apps/web` code. The review of every PR checks these rules:
+
+- Keep pages (`src/pages/`) thin: only `getStaticPaths`, data loading, metadata
+  and composition. Pages never contain `Intl.DateTimeFormat`, status
+  derivations or host extraction.
+- Keep presentation helpers pure in `src/lib/presentation/`: they receive the
+  locale and return data or i18n message keys, and never import Astro or
+  Paraglide. Components resolve message keys with the corresponding locale.
+- Extract the second occurrence of a date, status or URL helper to
+  `src/lib/presentation/` and reuse it; never duplicate it in pages or
+  components.
+- Compose detail templates from section components; each section owns its data,
+  messages and visibility guard, so the template reads as an outline.
+- Define shared string values (message keys, statuses, time zones) as typed
+  constants and derive union types from those constants; do not scatter magic
+  strings through pages, components or helpers.
+- Never use single-letter variables or aliases: every identifier must describe
+  what it represents (e.g. `messages`, not `m`). Import bindings from external
+  libraries keep their documented names (`z` from Zod).
+- Prefer human readability over brevity: explicit branches, early returns and
+  small named functions over nested ternaries.
+- Never change visual output, routes, content or existing E2E selectors when
+  refactoring.
+
 ## Security
 
 - Never commit, print, paste or request secrets. Use environment variables and

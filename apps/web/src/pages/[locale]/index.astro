@@ -1,15 +1,12 @@
 ---
 import { locales } from "../../../i18n.config.mjs";
-import * as m from "../../paraglide/messages.js";
+import * as messages from "../../paraglide/messages.js";
 import { assertIsLocale } from "../../paraglide/runtime.js";
 import logo from "../../assets/logo_mountain_runners.png";
 import mountainPlaceholder from "../../assets/berga-trail-placeholder.svg";
+import HomepageEventCard from "../../components/events/HomepageEventCard.astro";
 import PublicLayout from "../../layouts/PublicLayout.astro";
-import {
-  getHomepageEvents,
-  getMadridDate,
-  getNextEdition,
-} from "../../lib/content/events";
+import { getHomepageEvents, getMadridDate } from "../../lib/content/events";
 import { renderRestrictedMarkdown } from "../../lib/content/markdown";
 import type { PublishedVariant } from "../../lib/content/publication";
 import { getPublicationCatalog } from "../../lib/content/repository";
@@ -20,14 +17,6 @@ const locale = assertIsLocale(Astro.currentLocale);
 const canonicalUrl = new URL(`/${locale}/`, Astro.site);
 const catalog = await getPublicationCatalog();
 const today = process.env.BUILD_TODAY ?? getMadridDate(new Date());
-const getEditionStatus = (
-  nextEdition: ReturnType<typeof getNextEdition>,
-): "upcoming" | "in-progress" | "no-upcoming-date" =>
-  nextEdition === undefined
-    ? "no-upcoming-date"
-    : nextEdition.startDate <= today
-      ? "in-progress"
-      : "upcoming";
 const eventVariants = catalog.variants.filter(
   (variant): variant is Extract<PublishedVariant, { kind: "event" }> =>
     variant.kind === "event" && variant.locale === locale,
@@ -57,10 +46,10 @@ export function getStaticPaths() {
 
 <PublicLayout
   canonical={canonicalUrl.toString()}
-  description={m.homepage_hero_description({}, { locale })}
+  description={messages.homepage_hero_description({}, { locale })}
   locale={locale}
   structuredData={structuredData}
-  title={m.homepage_hero_title({}, { locale })}
+  title={messages.homepage_hero_title({}, { locale })}
 >
   <section class="homepage-hero">
     <img
@@ -73,11 +62,11 @@ export function getStaticPaths() {
     <div class="page-frame homepage-hero__grid">
       <div class="homepage-hero__intro">
         <p class="homepage-kicker">MRB</p>
-        <h1>{m.homepage_hero_title({}, { locale })}</h1>
+        <h1>{messages.homepage_hero_title({}, { locale })}</h1>
         <div
           class="homepage-hero__copy"
           set:html={renderRestrictedMarkdown(
-            m.homepage_hero_description({}, { locale }),
+            messages.homepage_hero_description({}, { locale }),
           )}
         />
       </div>
@@ -86,76 +75,32 @@ export function getStaticPaths() {
         src={logo.src}
         width={logo.width}
         height={logo.height}
-        alt={m.homepage_hero_image_alt({}, { locale })}
+        alt={messages.homepage_hero_image_alt({}, { locale })}
       />
     </div>
   </section>
 
   <section class="page-frame homepage-section" aria-labelledby="events-title">
     <div class="homepage-section__heading">
-      <p class="homepage-kicker">{m.site_title({}, { locale })}</p>
-      <h2 id="events-title">{m.homepage_events_title({}, { locale })}</h2>
+      <p class="homepage-kicker">{messages.site_title({}, { locale })}</p>
+      <h2 id="events-title">
+        {messages.homepage_events_title({}, { locale })}
+      </h2>
       <div
         set:html={renderRestrictedMarkdown(
-          m.homepage_events_description({}, { locale }),
+          messages.homepage_events_description({}, { locale }),
         )}
       />
     </div>
     <div class="homepage-events">
       {
-        events.map((event) => {
-          const nextEdition = getNextEdition(event, today);
-          const editionStatus = getEditionStatus(nextEdition);
-          const dateParts = nextEdition
-            ? new Intl.DateTimeFormat("ca-ES", {
-                day: "numeric",
-                month: "short",
-                timeZone: "Europe/Madrid",
-              }).formatToParts(new Date(`${nextEdition.startDate}T12:00:00Z`))
-            : [];
-          const day = dateParts.find(({ type }) => type === "day")?.value;
-          const month = dateParts.find(({ type }) => type === "month")?.value;
-          return (
-            <article class="homepage-event">
-              <div class="homepage-event__date">
-                {nextEdition ? (
-                  <time datetime={nextEdition.startDate}>
-                    <span>{day}</span>
-                    <small>{month}</small>
-                  </time>
-                ) : (
-                  <span aria-hidden="true">--</span>
-                )}
-              </div>
-              <div class="homepage-event__body">
-                <p class="homepage-event__status">
-                  {editionStatus === "upcoming"
-                    ? m.event_status_upcoming_edition({}, { locale })
-                    : editionStatus === "in-progress"
-                      ? m.event_status_in_progress({}, { locale })
-                      : m.event_status_no_upcoming_date({}, { locale })}
-                </p>
-                <h3>{event.title[locale]}</h3>
-                {event.description[locale] && (
-                  <div
-                    set:html={renderRestrictedMarkdown(
-                      event.description[locale],
-                    )}
-                  />
-                )}
-                {nextEdition && (
-                  <p class="homepage-event__location">
-                    {nextEdition.location[locale]}
-                  </p>
-                )}
-              </div>
-            </article>
-          );
-        })
+        events.map((event) => (
+          <HomepageEventCard event={event} locale={locale} today={today} />
+        ))
       }
     </div>
     <a class="homepage-link" href={getDomainPath("event", locale)}>
-      {m.navigation_events({}, { locale })}
+      {messages.navigation_events({}, { locale })}
     </a>
   </section>
 
@@ -163,10 +108,10 @@ export function getStaticPaths() {
     <div class="page-frame homepage-school-section__grid">
       <div class="homepage-section__heading">
         <p class="homepage-kicker">MRB</p>
-        <h2>{m.homepage_schools_title({}, { locale })}</h2>
+        <h2>{messages.homepage_schools_title({}, { locale })}</h2>
         <div
           set:html={renderRestrictedMarkdown(
-            m.homepage_schools_description({}, { locale }),
+            messages.homepage_schools_description({}, { locale }),
           )}
         />
       </div>
@@ -183,7 +128,7 @@ export function getStaticPaths() {
               />
               <strong>{school.name[locale]}</strong>
               <span>{school.summary[locale]}</span>
-              <small>{m.coming_soon({}, { locale })}</small>
+              <small>{messages.coming_soon({}, { locale })}</small>
             </li>
           ))
         }
@@ -194,20 +139,20 @@ export function getStaticPaths() {
   <section class="page-frame homepage-club-section">
     <div class="homepage-members-card">
       <p class="homepage-kicker">MRB</p>
-      <h2>{m.homepage_members_title({}, { locale })}</h2>
+      <h2>{messages.homepage_members_title({}, { locale })}</h2>
       <div
         set:html={renderRestrictedMarkdown(
-          m.homepage_members_description({}, { locale }),
+          messages.homepage_members_description({}, { locale }),
         )}
       />
-      <p class="homepage-coming-soon">{m.coming_soon({}, { locale })}</p>
+      <p class="homepage-coming-soon">{messages.coming_soon({}, { locale })}</p>
     </div>
     <div class="homepage-community-card">
       <p class="homepage-kicker">Berguedà</p>
-      <h2>{m.homepage_community_title({}, { locale })}</h2>
+      <h2>{messages.homepage_community_title({}, { locale })}</h2>
       <div
         set:html={renderRestrictedMarkdown(
-          m.homepage_community_description({}, { locale }),
+          messages.homepage_community_description({}, { locale }),
         )}
       />
     </div>

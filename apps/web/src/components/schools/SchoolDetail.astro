@@ -1,0 +1,33 @@
+---
+import { renderRestrictedMarkdown } from "../../lib/content/markdown";
+import type { Locale } from "../../lib/content/primitives";
+import type { PublishedVariant } from "../../lib/content/publication";
+
+interface Props {
+  locale: Locale;
+  variant: Extract<PublishedVariant, { kind: "school" }>;
+}
+
+const { locale, variant } = Astro.props;
+---
+
+<article
+  class="page-frame max-w-[var(--reading-width)] py-[clamp(var(--space-12),10vw,7rem)] [&_h1]:my-3 [&_h1]:mb-6 [&_h1]:max-w-[15ch] [&_h1]:font-[family-name:var(--font-display)] [&_h1]:text-[clamp(2.8rem,9vw,5.5rem)] [&_h1]:leading-[0.95] [&_h1]:tracking-[0.015em] [&_h1]:uppercase [&_ol]:mt-8 [&_section]:mt-8 [&_section]:text-[clamp(1.1rem,2vw,1.3rem)]"
+>
+  <h1 class="text-5xl font-bold tracking-tight">
+    {variant.entry.name[locale]}
+  </h1>
+  <p class="mt-6 text-lg">{variant.entry.summary[locale]}</p>
+  <section
+    class="mt-8"
+    set:html={renderRestrictedMarkdown(variant.entry.description[locale]!)}
+  />
+  {
+    Object.values(variant.entry.sections).map((section) => (
+      <section
+        class="mt-8"
+        set:html={renderRestrictedMarkdown(section[locale]!)}
+      />
+    ))
+  }
+</article>

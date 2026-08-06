@@ -1,0 +1,62 @@
+---
+import * as messages from "../../paraglide/messages.js";
+import { getNextEdition } from "../../lib/content/events";
+import type { Event, EventEdition } from "../../lib/content/models";
+import type { Locale } from "../../lib/content/primitives";
+import type { RegistrationPresentation } from "../../lib/presentation/status";
+import EditionDates from "../EditionDates.astro";
+import ExternalLink from "../ExternalLink.astro";
+
+interface Props {
+  edition: EventEdition | undefined;
+  event: Event;
+  locale: Locale;
+  registration: RegistrationPresentation;
+  today: string;
+}
+
+const { edition, event, locale, registration, today } = Astro.props;
+---
+
+{
+  edition && (
+    <section
+      class="events-detail__edition"
+      aria-label={messages.event_practical_info({}, { locale })}
+    >
+      <h2>{messages.event_practical_info({}, { locale })}</h2>
+      {event.active && !getNextEdition(event, today) && (
+        <p class="events-detail__no-upcoming-date">
+          {messages.event_status_no_upcoming_date({}, { locale })}
+        </p>
+      )}
+      <dl>
+        <div>
+          <dt>{messages.event_dates_label({}, { locale })}</dt>
+          <dd class="events-detail__dates">
+            <EditionDates edition={edition} locale={locale} />
+          </dd>
+        </div>
+        <div>
+          <dt>{messages.event_location_label({}, { locale })}</dt>
+          <dd>{edition.location[locale]}</dd>
+        </div>
+      </dl>
+      <p class="events-detail__modalities-label">
+        {messages.event_modalities_label({}, { locale })}
+      </p>
+      <ul class="events-detail__modalities">
+        {edition.modalities.map((modality) => (
+          <li>{modality[locale]}</li>
+        ))}
+      </ul>
+      {registration.url && (
+        <ExternalLink
+          className="event-action"
+          href={registration.url}
+          label={messages.event_register_action({}, { locale })}
+        />
+      )}
+    </section>
+  )
+}

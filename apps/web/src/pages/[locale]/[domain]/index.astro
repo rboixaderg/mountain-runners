@@ -1,19 +1,16 @@
 ---
-import * as m from "../../../paraglide/messages.js";
+import * as messages from "../../../paraglide/messages.js";
 import { assertIsLocale } from "../../../paraglide/runtime.js";
+import EventCard from "../../../components/events/EventCard.astro";
 import PublicLayout from "../../../layouts/PublicLayout.astro";
 import {
   getEventHubGroups,
   getMadridDate,
-  getMostRelevantEdition,
+  type EventHubGroup,
 } from "../../../lib/content/events";
 import type { PublishedVariant } from "../../../lib/content/publication";
 import { getPublicationCatalog } from "../../../lib/content/repository";
-import {
-  getDomainPath,
-  getRouteDomain,
-  getVariantPath,
-} from "../../../lib/content/routes";
+import { getDomainPath, getRouteDomain } from "../../../lib/content/routes";
 
 export async function getStaticPaths() {
   const catalog = await getPublicationCatalog();
@@ -47,54 +44,24 @@ const groups = getEventHubGroups(
 );
 const getVariantFor = (id: string) =>
   eventVariants.find(({ entry }) => entry.id === id)!;
-const dateParts = (
-  eventId: string,
-  group: "upcoming" | "active-without-date" | "past",
-) => {
-  if (group === "active-without-date") return undefined;
-  const variant = getVariantFor(eventId);
-  const edition = getMostRelevantEdition(variant.entry, today);
-  if (edition === undefined) return undefined;
-  const parts = new Intl.DateTimeFormat(locale, {
-    day: "numeric",
-    month: "short",
-    timeZone: "Europe/Madrid",
-  }).formatToParts(new Date(`${edition.startDate}T12:00:00Z`));
-  return {
-    day: parts.find(({ type }) => type === "day")?.value,
-    month: parts.find(({ type }) => type === "month")?.value,
-  };
-};
-const getStatus = (
-  event: { active: boolean },
-  edition: ReturnType<typeof getMostRelevantEdition>,
-  group: "upcoming" | "active-without-date" | "past",
-) =>
-  !event.active
-    ? m.event_status_historical({}, { locale })
-    : group === "active-without-date" || edition === undefined
-      ? m.event_status_no_upcoming_date({}, { locale })
-      : edition.startDate <= today
-        ? m.event_status_in_progress({}, { locale })
-        : m.event_status_upcoming_edition({}, { locale });
 const hubSections: {
-  group: "upcoming" | "active-without-date" | "past";
+  group: EventHubGroup;
   title: string;
   id: string;
 }[] = [
   {
     group: "upcoming",
-    title: m.events_upcoming_title({}, { locale }),
+    title: messages.events_upcoming_title({}, { locale }),
     id: "upcoming",
   },
   {
     group: "active-without-date",
-    title: m.events_active_without_date_title({}, { locale }),
+    title: messages.events_active_without_date_title({}, { locale }),
     id: "active-without-date",
   },
   {
     group: "past",
-    title: m.events_past_title({}, { locale }),
+    title: messages.events_past_title({}, { locale }),
     id: "past",
   },
 ];
@@ -102,19 +69,21 @@ const hubSections: {
 
 <PublicLayout
   canonical={canonical}
-  description={m.events_intro({}, { locale })}
+  description={messages.events_intro({}, { locale })}
   locale={locale}
-  title={`${m.navigation_events({}, { locale })} | ${m.site_title({}, { locale })}`}
+  title={`${messages.navigation_events({}, { locale })} | ${messages.site_title({}, { locale })}`}
 >
   <section class="page-frame events-hub-intro">
-    <p class="events-hub-intro__kicker">{m.site_title({}, { locale })}</p>
+    <p class="events-hub-intro__kicker">
+      {messages.site_title({}, { locale })}
+    </p>
     <h1
       class="my-3 mb-6 max-w-[15ch] font-[family-name:var(--font-display)] text-[clamp(2.8rem,9vw,5.5rem)] leading-[0.95] tracking-[0.015em] uppercase"
     >
-      {m.navigation_events({}, { locale })}
+      {messages.navigation_events({}, { locale })}
     </h1>
     <p class="events-hub-intro__description">
-      {m.events_intro({}, { locale })}
+      {messages.events_intro({}, { locale })}
     </p>
   </section>
 
@@ -138,57 +107,14 @@ const hubSections: {
             </h2>
           </div>
           <ul class="events-hub-list">
-            {events.map((event) => {
-              const variant = getVariantFor(event.id);
-              const edition = getMostRelevantEdition(event, today);
-              const date = dateParts(event.id, section.group);
-              const status = getStatus(event, edition, section.group);
-              return (
-                <li class="events-hub-item">
-                  <a
-                    class="events-hub-item__link"
-                    href={getVariantPath(variant)}
-                  >
-                    <span
-                      class="events-hub-item__date"
-                      aria-hidden={date === undefined}
-                    >
-                      {date ? (
-                        <time datetime={edition?.startDate}>
-                          <span class="events-hub-item__day">{date.day}</span>
-                          <span class="events-hub-item__month">
-                            {date.month}
-                          </span>
-                        </time>
-                      ) : (
-                        <span aria-hidden="true">--</span>
-                      )}
-                    </span>
-                    <span class="events-hub-item__body">
-                      <span class="events-hub-item__status">{status}</span>
-                      <strong>{event.title[locale]}</strong>
-                      {edition && (
-                        <span class="events-hub-item__meta">
-                          <span class="events-hub-item__location">
-                            {edition.location[locale]}
-                          </span>
-                          <span aria-hidden="true">·</span>
-                          <span>
-                            {event.clubRelationship === "organizes"
-                              ? m.event_club_organizes({}, { locale })
-                              : m.event_club_collaborates({}, { locale })}
-                          </span>
-                        </span>
-                      )}
-                      <span class="events-hub-item__action">
-                        {m.event_more_information({}, { locale })}{" "}
-                        <span aria-hidden="true">→</span>
-                      </span>
-                    </span>
-                  </a>
-                </li>
-              );
-            })}
+            {events.map((event) => (
+              <EventCard
+                group={section.group}
+                locale={locale}
+                today={today}
+                variant={getVariantFor(event.id)}
+              />
+            ))}
           </ul>
         </section>
       );

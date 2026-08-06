@@ -1,0 +1,73 @@
+---
+import * as messages from "../../paraglide/messages.js";
+import type { EventHubGroup } from "../../lib/content/events";
+import { getMostRelevantEdition } from "../../lib/content/events";
+import type { Locale } from "../../lib/content/primitives";
+import type { PublishedVariant } from "../../lib/content/publication";
+import { getVariantPath } from "../../lib/content/routes";
+import { getEditionDayMonth } from "../../lib/presentation/dates";
+import { getEventHubStatusMessageKey } from "../../lib/presentation/status";
+import EventStatus from "../EventStatus.astro";
+
+interface Props {
+  group: EventHubGroup;
+  locale: Locale;
+  today: string;
+  variant: Extract<PublishedVariant, { kind: "event" }>;
+}
+
+const { group, locale, today, variant } = Astro.props;
+const { entry: event } = variant;
+const edition = getMostRelevantEdition(event, today);
+// The hub renders no date badge for events without a next edition, even when
+// a past edition exists: the section title already explains their state.
+const date =
+  group === "active-without-date"
+    ? undefined
+    : getEditionDayMonth(edition, locale);
+const statusKey = getEventHubStatusMessageKey(event, edition, group, today);
+---
+
+<li class="events-hub-item">
+  <a class="events-hub-item__link" href={getVariantPath(variant)}>
+    <span class="events-hub-item__date" aria-hidden={date === undefined}>
+      {
+        date ? (
+          <time datetime={edition?.startDate}>
+            <span class="events-hub-item__day">{date.day}</span>
+            <span class="events-hub-item__month">{date.month}</span>
+          </time>
+        ) : (
+          <span aria-hidden="true">--</span>
+        )
+      }
+    </span>
+    <span class="events-hub-item__body">
+      <EventStatus
+        className="events-hub-item__status"
+        locale={locale}
+        statusKey={statusKey}
+      />
+      <strong>{event.title[locale]}</strong>
+      {
+        edition && (
+          <span class="events-hub-item__meta">
+            <span class="events-hub-item__location">
+              {edition.location[locale]}
+            </span>
+            <span aria-hidden="true">·</span>
+            <span>
+              {event.clubRelationship === "organizes"
+                ? messages.event_club_organizes({}, { locale })
+                : messages.event_club_collaborates({}, { locale })}
+            </span>
+          </span>
+        )
+      }
+      <span class="events-hub-item__action">
+        {messages.event_more_information({}, { locale })}{" "}
+        <span aria-hidden="true">→</span>
+      </span>
+    </span>
+  </a>
+</li>
