@@ -11,6 +11,6 @@ const { className, href, label } = Astro.props;
 ---
 
 <a class={className} href={href} rel="noopener noreferrer">
-  {label} · {getExternalHost(href)}
+  {label} · {getExternalHost(href)}{" "}
   <span aria-hidden="true">→</span>
 </a>
