@@ -16,8 +16,10 @@ confirmació de la fotografia de junta i de la identitat legal; reutilització
 del text d'història actual; estatuts pendents de pujar, sense enllaç buit; URL
 d'alta en HTTPS; manteniment de l'URL de llicències del 2025; redacció de les
 pàgines legals a partir de les pàgines de referència d'Escalades Berguedà; i
-Guia del club sense arxiu, pendent de revisió posterior; i reutilització del
-mateix llistat d'avantatges i col·laboradors de la web actual.
+Guia del club sense arxiu, pendent de revisió posterior; reutilització del
+mateix llistat d'avantatges i col·laboradors de la web actual; i, per a la
+pàgina de Socis, manteniment dels enllaços de PlayOff Informàtica, descart de
+la samarreta tècnica i reutilització de les fotografies actuals.
 
 Només es conserven metadades, URL de font i observacions que ja són
 publicables. No es copien textos complets, imatges ni dades personals no
@@ -52,12 +54,12 @@ Fonts: <https://mountainrunners.cat/socis/> i
 
 | Element                     | Estat    | Observació i pendents                                                                                                                                                                                                                                                                                        |
 | --------------------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Alta de socis               | Revisat  | Acció externa a `mountainrunners.playoffinformatica.com`. La persona mantenidora va decidir el 6 d'agost de 2026 usar l'URL en HTTPS, verificada i responent: <https://mountainrunners.playoffinformatica.com/Preinscripcio.php>. El servei extern s'aprovarà formalment abans de publicar (T3.5).           |
-| Llicència federativa        | Revisat  | Acció externa al mateix servei de PlayOff Informàtica. La persona mantenidora va decidir el 6 d'agost de 2026 mantenir l'URL actual amb l'any 2025: <https://mountainrunners.playoffinformatica.com/activitat/30/Llicencies-Federatives-2025/>. Verificada i responent; caldrà revisar-ne la vigència més endavant. |
-| Federació (accés directe)   | Candidat | Enllaç `Federa't!` al panell d'activitats del mateix servei extern. Pendent de confirmar vigència i aprovació del servei.                                                                                                                                                                                     |
-| Samarrera tècnica           | Candidat | Text de la secció «Vesteix-te de MRB»: la samarreta es regala en fer-se soci. Pendent de revisar el text i confirmar-ne la vigència.                                                                                                                                                                         |
+| Alta de socis               | Aprovat  | Es manté l'enllaç de PlayOff Informàtica que té la web actual, en la versió HTTPS verificada i responent (decisió del 6 d'agost de 2026): <https://mountainrunners.playoffinformatica.com/Preinscripcio.php>. El servei extern s'aprovarà formalment abans de publicar (T3.5).                                   |
+| Llicència federativa        | Aprovat  | Es manté l'enllaç actual de PlayOff Informàtica amb l'any 2025 (decisió del 6 d'agost de 2026): <https://mountainrunners.playoffinformatica.com/activitat/30/Llicencies-Federatives-2025/>. Verificat i responent; caldrà revisar-ne la vigència més endavant.                                                   |
+| Federació (accés directe)   | Aprovat  | Es manté l'enllaç `Federa't!` al panell d'activitats de PlayOff Informàtica que té la web actual (decisió del 6 d'agost de 2026).                                                                                                                                                                             |
+| Samarrera tècnica           | Descartat | La secció «Vesteix-te de MRB» (samarreta tècnica regalada als socis) queda descartada per decisió de la persona mantenidora del 6 d'agost de 2026.                                                                                                                                                            |
 | Formulari de mitjons        | Descartat | Formulari extern de Google Forms per reservar mitjons. Fora de l'abast de la fase: no s'afegeixen formularis ni accions no previstes, i el servei no està entre les accions externes aprovades (alta, federació, contacte i butlletí).                                                                       |
-| Fotografies de la secció    | Candidat | Imatges de la pàgina de Socis allotjades al domini antic. Pendent de revisar origen, autoria, consentiment i atribució.                                                                                                                                                                                      |
+| Fotografies de la secció    | Aprovat  | Es reutilitzaran les fotografies de la pàgina de Socis de la web actual (decisió del 6 d'agost de 2026). Pendent de descarregar-les, optimitzar-les i versionar-les localment amb origen i atribució (T3.5).                                                                                                   |
 
 ### Avantatges I Col·laboradors
 
@@ -157,7 +159,8 @@ referència de la mateixa entitat a
 | Estatuts (PDF)                          | <http://mountainrunners.eu/mountainrunners/wp-content/uploads/2021/06/ESTATUTS-MRB.pdf>                       | Pendent  | Vegeu l'apartat Qui Som: es pujarà més endavant; per ara, sense enllaç, amb estat textual.                                            |
 | Fotografies de junta i història         | <https://mountainrunners.cat/el-club/>                                                                        | Candidat | Origen, autoria, consentiment i atribució pendents.                                                                                    |
 | Fotografies de les escoles              | Domini antic (`mountainrunners.eu`) a través del hub d'escoles                                                | Candidat | Origen, autoria, consentiment i atribució pendents.                                                                                    |
-| Logotips i imatges dels col·laboradors  | Instagram i webs dels establiments, enllaçades des de la pàgina d'avantatges                                   | Candidat | Drets i atribució pendents per a cada entitat que la fase incorpori.                                                                    |
+| Fotografies de la pàgina de Socis       | <https://mountainrunners.cat/socis/>                                                                          | Aprovat  | Es reutilitzaran les de la web actual (decisió del 6 d'agost de 2026); pendents de descàrrega i versió local amb atribució (T3.5).      |
+| Logotips i imatges dels col·laboradors  | Instagram i webs dels establiments, enllaçades des de la pàgina d'avantatges                                   | Aprovat  | Reutilització aprovada amb el llistat de la web actual; descàrrega, drets i atribució pendents per a cada entitat (T3.5).               |
 | Guia del club (PDF)                     | `apps/web/src/content-assets/documents/club-guide.pdf`                                                        | Pendent  | Fixture sintètica; l'entrada es manté sense arxiu per ara (vegeu Documents).                                                                                                                            |
 | Placeholders de galeria i vídeo         | No creats                                                                                                     | Pendent  | La fase pot crear un o dos placeholders locals propis i genèrics quan les plantilles de detall ho requereixin, amb text alternatiu honest. |
 
