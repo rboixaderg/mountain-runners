@@ -17,9 +17,10 @@ del text d'història actual; estatuts pendents de pujar, sense enllaç buit; URL
 d'alta en HTTPS; manteniment de l'URL de llicències del 2025; redacció de les
 pàgines legals a partir de les pàgines de referència d'Escalades Berguedà; i
 Guia del club sense arxiu, pendent de revisió posterior; reutilització del
-mateix llistat d'avantatges i col·laboradors de la web actual; i, per a la
-pàgina de Socis, manteniment dels enllaços de PlayOff Informàtica, descart de
-la samarreta tècnica i reutilització de les fotografies actuals.
+mateix llistat d'avantatges i col·laboradors de la web actual; per a la pàgina
+de Socis, manteniment dels enllaços de PlayOff Informàtica, descart de la
+samarreta tècnica i reutilització de les fotografies actuals; i reutilització
+de les fotografies de les escoles.
 
 Només es conserven metadades, URL de font i observacions que ja són
 publicables. No es copien textos complets, imatges ni dades personals no
@@ -109,14 +110,18 @@ l'URL i revisar-ne el contingut abans.
 
 Font: <https://mountainrunners.cat/escoles/>.
 
+Hi ha tres escoles clarament marcades a la web actual: Trail, Skimo i BTT.
+L'especificació enumera quatre disciplines (Trail, Skimo, BTT i Trial), però
+«Trial» no correspon a cap escola real: la fase no en publicarà cap de nova
+sense contingut aprovat.
+
 | Element                        | Estat    | Observació i pendents                                                                                                                                                                                              |
 | ------------------------------ | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | Escola Trail                   | Aprovat  | Escola històrica de Trail (la primera escola de trail del territori). Contingut de la web antiga ja publicat al repositori i confirmat a la fase 2 (inventari editorial de la fase 2).                             |
 | Escola Skimo                   | Aprovat  | Contingut ja publicat al repositori i confirmat a la fase 2 (inventari editorial de la fase 2).                                                                                                                     |
 | Escola BTT                     | Aprovat  | Contingut ja publicat al repositori i confirmat a la fase 2 (inventari editorial de la fase 2).                                                                                                                     |
 | Textos del hub d'escoles       | Candidat | Textos de presentació i valors (muntanya, respecte, club). Pendent de revisar i aprovar.                                                                                                                           |
-| Fotografies de les escoles     | Candidat | Imatges de les tres escoles allotjades al domini antic. Pendent de revisar origen, autoria, consentiment i atribució.                                                                                              |
-| Escola Trial                   | Absent   | No existeix cap escola «Trial»: l'especificació enumera Trail, Skimo, BTT i Trial, però «Trial» no correspon a cap escola real ni a cap font. La fase només publicaria una escola nova amb contingut aprovat.      |
+| Fotografies de les escoles     | Aprovat  | Es reutilitzaran les fotografies actuals de les tres escoles (decisió del 6 d'agost de 2026). Pendent de descarregar-les, optimitzar-les i versionar-les localment amb origen i atribució (T3.6 o T3.7).           |
 | Galeries i vídeo               | Absent   | No hi ha galeries ni vídeo inventariables a la web actual. La composició es podrà exercir amb un o dos placeholders locals propis quan les plantilles ho requereixin, segons les regles de la fase.                |
 
 ## Documents
@@ -158,7 +163,7 @@ referència de la mateixa entitat a
 | Placeholder de Berga Trail              | `apps/web/src/assets/berga-trail-placeholder.svg`                                                             | Aprovat  | Placeholder local creat a la fase 2.                                                                                                   |
 | Estatuts (PDF)                          | <http://mountainrunners.eu/mountainrunners/wp-content/uploads/2021/06/ESTATUTS-MRB.pdf>                       | Pendent  | Vegeu l'apartat Qui Som: es pujarà més endavant; per ara, sense enllaç, amb estat textual.                                            |
 | Fotografies de junta i història         | <https://mountainrunners.cat/el-club/>                                                                        | Candidat | Origen, autoria, consentiment i atribució pendents.                                                                                    |
-| Fotografies de les escoles              | Domini antic (`mountainrunners.eu`) a través del hub d'escoles                                                | Candidat | Origen, autoria, consentiment i atribució pendents.                                                                                    |
+| Fotografies de les escoles              | Domini antic (`mountainrunners.eu`) a través del hub d'escoles                                                | Aprovat  | Es reutilitzaran les actuals (decisió del 6 d'agost de 2026); descàrrega, drets i atribució pendents (T3.6 o T3.7).                     |
 | Fotografies de la pàgina de Socis       | <https://mountainrunners.cat/socis/>                                                                          | Aprovat  | Es reutilitzaran les de la web actual (decisió del 6 d'agost de 2026); pendents de descàrrega i versió local amb atribució (T3.5).      |
 | Logotips i imatges dels col·laboradors  | Instagram i webs dels establiments, enllaçades des de la pàgina d'avantatges                                   | Aprovat  | Reutilització aprovada amb el llistat de la web actual; descàrrega, drets i atribució pendents per a cada entitat (T3.5).               |
 | Guia del club (PDF)                     | `apps/web/src/content-assets/documents/club-guide.pdf`                                                        | Pendent  | Fixture sintètica; l'entrada es manté sense arxiu per ara (vegeu Documents).                                                                                                                            |
