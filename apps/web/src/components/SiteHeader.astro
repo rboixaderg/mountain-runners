@@ -2,7 +2,7 @@
 import * as messages from "../paraglide/messages.js";
 import logo from "../assets/logo_mountain_runners.png";
 import type { Locale } from "../lib/content/primitives";
-import { getDomainPath } from "../lib/content/routes";
+import { getDomainPath, getFixedPagePath } from "../lib/content/routes";
 import LanguageSelector from "./LanguageSelector.astro";
 
 type LocalizedAlternative = { locale: Locale; href: string };
@@ -15,6 +15,7 @@ interface Props {
 const { localizedAlternatives, locale } = Astro.props;
 const homePath = `/${locale}/`;
 const eventsPath = getDomainPath("event", locale);
+const aboutPath = getFixedPagePath("about", locale);
 ---
 
 <header class="border-b border-[var(--color-line)]">
@@ -42,11 +43,8 @@ const eventsPath = getDomainPath("event", locale);
       <a class="font-bold" href={eventsPath}
         >{messages.navigation_events({}, { locale })}</a
       >
-      <span
-        >{messages.navigation_about({}, { locale })}
-        <small class="text-[0.7em] whitespace-nowrap text-[var(--color-muted)]"
-          >{messages.coming_soon({}, { locale })}</small
-        ></span
+      <a class="font-bold" href={aboutPath}
+        >{messages.navigation_about({}, { locale })}</a
       >
       <span
         >{messages.navigation_members({}, { locale })}
@@ -84,11 +82,8 @@ const eventsPath = getDomainPath("event", locale);
           <a class="font-bold" href={eventsPath}
             >{messages.navigation_events({}, { locale })}</a
           >
-          <span
-            >{messages.navigation_about({}, { locale })}
-            <small class="text-[0.7em] text-[var(--color-muted)]"
-              >{messages.coming_soon({}, { locale })}</small
-            ></span
+          <a class="font-bold" href={aboutPath}
+            >{messages.navigation_about({}, { locale })}</a
           >
           <span
             >{messages.navigation_members({}, { locale })}

@@ -6,6 +6,7 @@ import type {
   ExternalAction,
   School,
 } from "./models";
+import { statutesDocumentId } from "./models";
 import {
   defaultLocale,
   findDuplicateLocalizedSlugs,
@@ -59,6 +60,13 @@ export function getPublishedLocalResources(
       }
     }
   }
+
+  // The About fixed page links the statutes document from the published
+  // collection, so its local resource is part of the public output.
+  collectLocalResourcePaths(
+    catalog.documents.get(statutesDocumentId),
+    resources,
+  );
 
   return [...resources].sort();
 }
@@ -244,6 +252,15 @@ function assertSingleContact(contactEntries: readonly Contact[]): void {
   }
 }
 
+function assertStatutesReference(documents: readonly Document[]): void {
+  const statutes = documents.find(({ id }) => id === statutesDocumentId);
+  if (statutes === undefined || !statutes.published) {
+    throw new Error(
+      `About page references missing or unpublished document: ${statutesDocumentId}`,
+    );
+  }
+}
+
 export function createPublicationCatalog(
   source: ContentSource,
 ): PublicationCatalog {
@@ -254,6 +271,7 @@ export function createPublicationCatalog(
   indexById(source.externalActions, "external action");
   indexById(source.contact, "contact");
   assertSingleContact(source.contact);
+  assertStatutesReference(source.documents);
   assertUniqueSlugs("schools", source.schools);
   assertUniqueSlugs("events", source.events);
   assertReferences(source, entities, documents);

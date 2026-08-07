@@ -96,6 +96,11 @@ Els documents referenciats per una edició només generen un enllaç quan la sev
 disponibilitat és `available`; els documents arxivats o temporalment no
 disponibles es mostren com a recurs no disponible.
 
+Les pàgines fixes poden referenciar documents de la col·lecció publicada per
+identificador estable. La pàgina Qui som referència l'`estatuts` (PDF local
+versionat a `src/content-assets/documents/estatuts-mrb.pdf`); una referència
+mancant o despublicada fa fallar la validació editorial.
+
 Una variant editorial publicable no habilita automàticament una fitxa pública.
 Els tipus de detall disponibles es defineixen centralment en codi segons les
 plantilles completades a cada fase. La portada pot reutilitzar contingut publicat

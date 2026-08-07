@@ -1008,6 +1008,127 @@ figcaption {
   }
 }
 
+.about-detail {
+  padding-bottom: var(--space-12);
+}
+
+.about-intro {
+  padding-block: var(--space-8);
+  border-bottom: 1px solid var(--color-line);
+}
+
+.about-intro__kicker {
+  margin: 0 0 var(--space-2);
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.about-intro h1 {
+  margin: 0 0 var(--space-3);
+  font-family: var(--font-display);
+  font-size: clamp(3rem, 8vw, 5.5rem);
+  line-height: 0.9;
+  letter-spacing: -0.015em;
+  text-transform: uppercase;
+}
+
+.about-intro__description {
+  max-width: 38rem;
+  margin: 0;
+  border-left: 0.25rem solid var(--color-red);
+  padding-left: var(--space-3);
+  color: var(--color-muted);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  line-height: 1.45;
+  text-transform: uppercase;
+}
+
+.about-section {
+  padding-block: var(--space-6);
+  border-bottom: 1px solid var(--color-line);
+}
+
+.about-section__heading {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+  margin-bottom: var(--space-4);
+}
+
+.about-section__marker {
+  width: 0.5rem;
+  height: 1.5rem;
+  flex: 0 0 auto;
+  background: var(--color-red);
+}
+
+.about-section__title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(1.15rem, 2.5vw, 1.7rem);
+  line-height: 1;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.about-section__body {
+  max-width: var(--reading-width);
+  font-size: 1rem;
+  line-height: 1.6;
+}
+
+.about-section__body p {
+  margin: 0 0 var(--space-4);
+}
+
+.about-section__body p:last-child {
+  margin-bottom: 0;
+}
+
+.about-section__body ul {
+  margin: var(--space-2) 0 0;
+  padding-left: 1.25rem;
+}
+
+.about-section__body li {
+  margin-block: var(--space-2);
+}
+
+.about-section__signature {
+  margin: var(--space-4) 0 0;
+  font-family: var(--font-display);
+  font-size: 1.1rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.about-board__photo {
+  max-width: var(--reading-width);
+  margin: 0 0 var(--space-4);
+}
+
+.about-board__photo img {
+  border-bottom: 0.25rem solid var(--color-ink);
+}
+
+@media (min-width: 48rem) {
+  .about-intro {
+    max-width: var(--reading-width);
+    margin-inline: auto;
+    padding-block: var(--space-12);
+  }
+
+  .about-section {
+    padding-block: var(--space-8);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

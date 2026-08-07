@@ -102,17 +102,17 @@ seguiment i la documentació de planificació.
 No es fixa anticipadament un nombre de pull requests. Cada unitat s'implementa
 en una PR cohesionada, revisable i validable de manera independent.
 
-| Unitat                                            | Estat      | Dependències                    | Resultat verificable                                                        | PR  |
-| ------------------------------------------------- | ---------- | ------------------------------- | --------------------------------------------------------------------------- | --- |
-| T3.1 Estructura de pàgines i convencions d'agents | Completada | Fases 1 i 2                     | Pàgines primes, helpers i components reutilitzables, regles documentades    | #36 |
-| T3.2 Inventari i aprovació editorial              | Completada | Cap codi nou                    | Contingut i recursos candidats sanejats i classificats                      | #37 |
-| T3.3 Contractes de contingut                      | En curs    | Fases 1 i 2                     | Text de pàgines fixes i dades operatives com a objectes de domini validades | #38 |
-| T3.4 Qui som                                      | Pendent    | T3.3 i contingut aprovat        | Ruta institucional, junta i estatuts accessibles                            | -   |
-| T3.5 Socis                                        | Pendent    | T3.3 i entitats aprovades       | Alta, federació, avantatges i col·laboradors amb estats reals               | -   |
-| T3.6 Hub d'Escoles                                | Pendent    | T3.2, shell i escoles aprovades | Llistat estable d'escoles publicades                                        | -   |
-| T3.7 Detall d'Escola                              | Pendent    | T3.6 i recursos aprovats        | Informació pràctica, galeria, vídeo i inscripció                            | -   |
-| T3.8 Documents, Contacte i peu legal              | Pendent    | T3.3, documents i canals        | Recursos, legal i canals externs disponibles                                | -   |
-| T3.9 Qualitat de cobertura                        | Pendent    | T3.4 a T3.8                     | Tests, a11y i SEO integrats a CI; Lighthouse com a auditoria manual         | -   |
+| Unitat                                            | Estat      | Dependències                    | Resultat verificable                                                        | PR       |
+| ------------------------------------------------- | ---------- | ------------------------------- | --------------------------------------------------------------------------- | -------- |
+| T3.1 Estructura de pàgines i convencions d'agents | Completada | Fases 1 i 2                     | Pàgines primes, helpers i components reutilitzables, regles documentades    | #36      |
+| T3.2 Inventari i aprovació editorial              | Completada | Cap codi nou                    | Contingut i recursos candidats sanejats i classificats                      | #37      |
+| T3.3 Contractes de contingut                      | Completada | Fases 1 i 2                     | Text de pàgines fixes i dades operatives com a objectes de domini validades | #38, #39 |
+| T3.4 Qui som                                      | En curs    | T3.3 i contingut aprovat        | Ruta institucional, junta i estatuts accessibles                            | -        |
+| T3.5 Socis                                        | Pendent    | T3.3 i entitats aprovades       | Alta, federació, avantatges i col·laboradors amb estats reals               | -        |
+| T3.6 Hub d'Escoles                                | Pendent    | T3.2, shell i escoles aprovades | Llistat estable d'escoles publicades                                        | -        |
+| T3.7 Detall d'Escola                              | Pendent    | T3.6 i recursos aprovats        | Informació pràctica, galeria, vídeo i inscripció                            | -        |
+| T3.8 Documents, Contacte i peu legal              | Pendent    | T3.3, documents i canals        | Recursos, legal i canals externs disponibles                                | -        |
+| T3.9 Qualitat de cobertura                        | Pendent    | T3.4 a T3.8                     | Tests, a11y i SEO integrats a CI; Lighthouse com a auditoria manual         | -        |
 
 Els estats permesos són `Pendent`, `En curs`, `Bloquejada` i `Completada`.
 Una unitat només passa a `Completada` després de tenir una PR revisada, validada i

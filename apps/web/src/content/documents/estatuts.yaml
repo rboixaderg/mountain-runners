@@ -1,0 +1,12 @@
+id: estatuts
+published: true
+title:
+  ca: Estatuts de l'associació
+description:
+  ca: Estatuts de l'Associació Esportiva Mountain Runners del Berguedà.
+resource:
+  kind: local
+  path: src/content-assets/documents/estatuts-mrb.pdf
+documentType: regulation
+resourceLocale: ca
+availability: available

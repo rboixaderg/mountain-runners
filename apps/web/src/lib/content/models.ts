@@ -162,6 +162,11 @@ export const documentSchema = z.strictObject({
   attribution: localizedTextSchema.optional(),
 });
 
+// Fixed identifier of the statutes document the About page references from the
+// published documents collection. The reference is validated editorially: it
+// must resolve to a published document or the build fails.
+export const statutesDocumentId = "estatuts";
+
 export const externalActionStatuses = [
   "available",
   "coming-soon",

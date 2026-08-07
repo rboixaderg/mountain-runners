@@ -33,6 +33,8 @@ const forbiddenOutputMarkers = [
 
 const expectedPublishedResource =
   "content-resources/assets/logo_mountain_runners.png";
+const expectedStatutesResource =
+  "content-resources/content-assets/documents/estatuts-mrb.pdf";
 
 const distDirectory = new URL("../dist/", import.meta.url);
 const root = await readFile(new URL("index.html", distDirectory), "utf8");
@@ -157,6 +159,7 @@ const expectedSitemapUrls = new Set(
     "ca/esdeveniments/berga-trail/",
     "ca/esdeveniments/escalada-queralt/",
     "ca/esdeveniments/ultra-pirineu/",
+    "ca/qui-som/",
   ].map((path) => new URL(path, publicSiteOrigin).toString()),
 );
 if (
@@ -175,6 +178,7 @@ if (!robots.split("\n").includes(sitemapDirective)) {
   throw new Error("Robots output does not declare the canonical sitemap URL.");
 }
 await readFile(join(distPath, expectedPublishedResource));
+await readFile(join(distPath, expectedStatutesResource));
 
 async function listFiles(directory) {
   const files = [];
