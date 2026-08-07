@@ -236,6 +236,14 @@ function assertReferences(
   }
 }
 
+function assertSingleContact(contactEntries: readonly Contact[]): void {
+  if (contactEntries.length !== 1) {
+    throw new Error(
+      `Expected exactly one contact entry, found ${contactEntries.length}`,
+    );
+  }
+}
+
 export function createPublicationCatalog(
   source: ContentSource,
 ): PublicationCatalog {
@@ -245,6 +253,7 @@ export function createPublicationCatalog(
   indexById(source.events, "event");
   indexById(source.externalActions, "external action");
   indexById(source.contact, "contact");
+  assertSingleContact(source.contact);
   assertUniqueSlugs("schools", source.schools);
   assertUniqueSlugs("events", source.events);
   assertReferences(source, entities, documents);

@@ -229,6 +229,24 @@ describe("publication catalog", () => {
     expect(catalog.contact).toBeUndefined();
   });
 
+  it("requires exactly one contact record", async () => {
+    const sourceWithoutContact = await loadSource();
+    sourceWithoutContact.contact = [];
+    expect(() => createPublicationCatalog(sourceWithoutContact)).toThrow(
+      "Expected exactly one contact entry, found 0",
+    );
+
+    const sourceWithMultipleContacts = await loadSource();
+    const secondContact = structuredClone(
+      sourceWithMultipleContacts.contact[0]!,
+    );
+    secondContact.id = "secondary-contact";
+    sourceWithMultipleContacts.contact.push(secondContact);
+    expect(() => createPublicationCatalog(sourceWithMultipleContacts)).toThrow(
+      "Expected exactly one contact entry, found 2",
+    );
+  });
+
   it("excludes external actions and contact data without a complete Catalan translation", async () => {
     const source = await loadSource();
     const memberSignup = source.externalActions.find(

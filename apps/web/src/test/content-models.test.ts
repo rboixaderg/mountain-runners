@@ -19,7 +19,7 @@ const requiredFields = {
   entities: ["id", "logo"],
   documents: ["id", "resource"],
   externalActions: ["id", "status"],
-  contact: ["id", "address", "cif"],
+  contact: ["id", "address", "hours", "cif"],
 } as const;
 
 const invalidStateFixtures = [
