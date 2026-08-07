@@ -1,0 +1,18 @@
+id: centre-optic
+published: true
+name:
+  ca: Centre Òptic
+logo:
+  resource:
+    kind: local
+    path: src/assets/collaborators/centre-optic.jpg
+  alt:
+    ca: Logotip del Centre Òptic
+  sourceUrl: https://mountainrunners.cat/wp-content/uploads/2021/07/logo_centreoptic.jpg
+description:
+  ca: Establiment col·laborador de Mountain Runners del Berguedà.
+membershipBenefit:
+  title:
+    ca: Òptica
+  description:
+    ca: 15% de descompte.

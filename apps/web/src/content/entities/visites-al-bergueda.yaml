@@ -1,0 +1,18 @@
+id: visites-al-bergueda
+published: true
+name:
+  ca: Visites al Berguedà
+logo:
+  resource:
+    kind: local
+    path: src/assets/collaborators/visites-al-bergueda.jpg
+  alt:
+    ca: Logotip de Visites al Berguedà
+  sourceUrl: https://mountainrunners.cat/wp-content/uploads/2021/08/BERGUEDA_LOGO_VERD.jpg
+description:
+  ca: Avantatges culturals al Berguedà per als socis i sòcies del club.
+membershipBenefit:
+  title:
+    ca: Avantatge cultural
+  description:
+    ca: Descobreix tots els avantatges que tens al Berguedà.

@@ -1,0 +1,19 @@
+id: four-riders-bike-park
+published: true
+name:
+  ca: 4 Riders Bike Park
+logo:
+  resource:
+    kind: local
+    path: src/assets/collaborators/four-riders-bike-park.png
+  alt:
+    ca: Logotip de 4 Riders Bike Park
+  sourceUrl: https://mountainrunners.cat/wp-content/uploads/2021/07/Captura-de-Pantalla-2021-07-29-a-les-10.59.52.png
+description:
+  ca: Establiment col·laborador de Mountain Runners del Berguedà.
+websiteUrl: https://www.4ridersbikepark.com/
+membershipBenefit:
+  title:
+    ca: Bike park
+  description:
+    ca: 20% de descompte per a sòcies i socis del club.

@@ -101,6 +101,14 @@ identificador estable. La pàgina Qui som referència l'`estatuts` (PDF local
 versionat a `src/content-assets/documents/estatuts-mrb.pdf`); una referència
 mancant o despublicada fa fallar la validació editorial.
 
+La pàgina Socis renderitza les accions externes d'alta i federació pels seus
+identificadors estables (`member-signup` i `federation`) i en mostra l'estat: una
+acció disponible enllaça a la URL traduïble i una acció no disponible s'explica
+amb text útil, mai amb un control fals. El directori de col·laboradors es deriva
+exclusivament de les entitats publicades amb avantatge de soci
+(`membershipBenefit`), ordenades alfabèticament pel nom en català; no es
+duplica cap llista editorial en els recursos de traducció.
+
 Una variant editorial publicable no habilita automàticament una fitxa pública.
 Els tipus de detall disponibles es defineixen centralment en codi segons les
 plantilles completades a cada fase. La portada pot reutilitzar contingut publicat

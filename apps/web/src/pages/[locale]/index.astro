@@ -10,7 +10,7 @@ import { getHomepageEvents, getMadridDate } from "../../lib/content/events";
 import { renderRestrictedMarkdown } from "../../lib/content/markdown";
 import type { PublishedVariant } from "../../lib/content/publication";
 import { getPublicationCatalog } from "../../lib/content/repository";
-import { getDomainPath } from "../../lib/content/routes";
+import { getDomainPath, getFixedPagePath } from "../../lib/content/routes";
 import { getSiteJsonLd } from "../../lib/content/seo";
 
 const locale = assertIsLocale(Astro.currentLocale);
@@ -145,7 +145,9 @@ export function getStaticPaths() {
           messages.homepage_members_description({}, { locale }),
         )}
       />
-      <p class="homepage-coming-soon">{messages.coming_soon({}, { locale })}</p>
+      <a class="homepage-link" href={getFixedPagePath("members", locale)}>
+        {messages.navigation_members({}, { locale })}
+      </a>
     </div>
     <div class="homepage-community-card">
       <p class="homepage-kicker">Berguedà</p>

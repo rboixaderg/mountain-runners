@@ -167,6 +167,16 @@ export const documentSchema = z.strictObject({
 // must resolve to a published document or the build fails.
 export const statutesDocumentId = "estatuts";
 
+// Stable fixed identifiers of the external actions the fixed pages reference
+// (membership sign-up, federation and newsletter). The Members page renders
+// the sign-up and federation actions; the newsletter action belongs to the
+// Contact page of a later task.
+export const externalActionIds = {
+  memberSignup: "member-signup",
+  federation: "federation",
+  newsletter: "newsletter",
+} as const;
+
 export const externalActionStatuses = [
   "available",
   "coming-soon",

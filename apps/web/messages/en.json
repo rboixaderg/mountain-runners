@@ -85,5 +85,15 @@
   "primary_navigation": "Primary navigation",
   "site_title": "Mountain Runners",
   "skip_to_content": "Skip to main content",
-  "under_construction": "Website foundation under construction"
+  "under_construction": "Website foundation under construction",
+  "members_page_description": "Everything you need to become a club member: sign-up, federation and benefits from collaborating businesses.",
+  "members_signup_intro": "New member sign-ups are processed through the club's external sign-up service.",
+  "members_signup_action": "Become a member",
+  "members_federation_intro": "Federation licences are managed through the club's external service.",
+  "members_federation_action": "Join the federation",
+  "members_benefits_intro": "Show your membership card and enjoy the benefits at collaborating businesses.",
+  "external_action_coming_soon": "Coming soon",
+  "members_intro_photo_alt": "Cover of the membership section of Mountain Runners del Berguedà",
+  "members_intro_photo_attribution": "Photo: @about_paulagnf",
+  "members_benefits_photo_alt": "Photograph of the membership section of Mountain Runners del Berguedà"
 }

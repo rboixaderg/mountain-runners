@@ -113,6 +113,7 @@ describe("localized route contract", () => {
       "https://mountainrunners.cat/ca/esdeveniments/",
       "https://mountainrunners.cat/ca/esdeveniments/jornada-muntanya/",
       "https://mountainrunners.cat/ca/qui-som/",
+      "https://mountainrunners.cat/ca/socis/",
     ]);
   });
 
@@ -224,9 +225,17 @@ describe("localized route contract", () => {
       es: "quienes-somos",
       en: "about",
     });
+    expect(fixedPageRouteSegments.members).toEqual({
+      ca: "socis",
+      es: "socios",
+      en: "members",
+    });
     expect(getFixedPagePath("about", "ca")).toBe("/ca/qui-som/");
     expect(getFixedPagePath("about", "es")).toBe("/es/quienes-somos/");
     expect(getFixedPagePath("about", "en")).toBe("/en/about/");
+    expect(getFixedPagePath("members", "ca")).toBe("/ca/socis/");
+    expect(getFixedPagePath("members", "es")).toBe("/es/socios/");
+    expect(getFixedPagePath("members", "en")).toBe("/en/members/");
   });
 
   it("rejects invalid fixed-page segments", () => {

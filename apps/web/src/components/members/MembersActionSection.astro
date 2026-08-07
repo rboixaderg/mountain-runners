@@ -1,0 +1,52 @@
+---
+import * as messages from "../../paraglide/messages.js";
+import type { ExternalAction } from "../../lib/content/models";
+import type { Locale } from "../../lib/content/primitives";
+import { getExternalActionStatusMessageKey } from "../../lib/presentation/status";
+import ExternalLink from "../ExternalLink.astro";
+
+interface Props {
+  action: ExternalAction | undefined;
+  actionLabelKey: "members_federation_action" | "members_signup_action";
+  introKey: "members_federation_intro" | "members_signup_intro";
+  locale: Locale;
+  sectionId: string;
+  titleKey: "members_federation_title" | "members_signup_title";
+}
+
+const { action, actionLabelKey, introKey, locale, sectionId, titleKey } =
+  Astro.props;
+const actionHref =
+  action === undefined || action.status !== "available"
+    ? undefined
+    : action.url?.[locale];
+const statusKey =
+  action === undefined
+    ? undefined
+    : getExternalActionStatusMessageKey(action.status);
+---
+
+<section class="page-frame members-section" aria-labelledby={sectionId}>
+  <div class="members-section__heading">
+    <span class="members-section__marker" aria-hidden="true"></span>
+    <h2 class="members-section__title" id={sectionId}>
+      {messages[titleKey]({}, { locale })}
+    </h2>
+  </div>
+  <div class="members-section__body">
+    <p>{messages[introKey]({}, { locale })}</p>
+    {
+      actionHref !== undefined ? (
+        <ExternalLink
+          className="members-action__link"
+          href={actionHref}
+          label={messages[actionLabelKey]({}, { locale })}
+        />
+      ) : (
+        <p class="members-action__state">
+          {statusKey !== undefined && messages[statusKey]({}, { locale })}
+        </p>
+      )
+    }
+  </div>
+</section>

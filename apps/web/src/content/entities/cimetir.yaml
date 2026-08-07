@@ -1,0 +1,19 @@
+id: cimetir
+published: true
+name:
+  ca: CIMETIR
+logo:
+  resource:
+    kind: local
+    path: src/assets/collaborators/cimetir.jpg
+  alt:
+    ca: Logotip de CIMETIR
+  sourceUrl: https://mountainrunners.cat/wp-content/uploads/2021/07/cimetir_logo.jpg
+description:
+  ca: Centre Integral de Medicina Esportiva, Traumatologia i Rehabilitació.
+websiteUrl: https://www.clinicasantjosep.cat/pagina-inicial
+membershipBenefit:
+  title:
+    ca: Proves d'esforç
+  description:
+    ca: 10% de descompte en proves d'esforç.

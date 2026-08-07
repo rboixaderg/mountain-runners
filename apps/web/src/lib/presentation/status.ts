@@ -1,5 +1,5 @@
 import type { EventHubGroup } from "../content/events";
-import type { EventEdition } from "../content/models";
+import type { EventEdition, ExternalActionStatus } from "../content/models";
 
 // Canonical message keys for event and registration statuses. The subset
 // constants below mirror the keys each presentation context can produce, so
@@ -56,6 +56,27 @@ export type RegistrationPresentation = {
   key: RegistrationStatusMessageKey;
   url?: string;
 };
+
+// An available external action renders its link, so only the unavailable
+// statuses map to a message key; the fixed pages explain each state with the
+// shared external-action contract prepared by the content-contracts task.
+export const externalActionStatusMessageKeys = {
+  "coming-soon": "external_action_coming_soon",
+  "temporarily-unavailable": "external_action_temporarily_unavailable",
+  unavailable: "external_action_unavailable",
+} as const satisfies Record<Exclude<ExternalActionStatus, "available">, string>;
+
+export type ExternalActionStatusMessageKey =
+  (typeof externalActionStatusMessageKeys)[keyof typeof externalActionStatusMessageKeys];
+
+export function getExternalActionStatusMessageKey(
+  status: ExternalActionStatus,
+): ExternalActionStatusMessageKey | undefined {
+  if (status === "available") {
+    return undefined;
+  }
+  return externalActionStatusMessageKeys[status];
+}
 
 export function getEventActivityMessageKey(
   active: boolean,

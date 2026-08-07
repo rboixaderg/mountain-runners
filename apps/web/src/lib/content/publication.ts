@@ -47,18 +47,19 @@ export function getPublishedLocalResources(
     collectLocalResourcePaths(variant.entry, resources);
 
     if (variant.kind === "event") {
-      for (const id of [
-        ...variant.entry.organizerIds,
-        ...variant.entry.collaboratorIds,
-      ]) {
-        collectLocalResourcePaths(catalog.entities.get(id), resources);
-      }
       for (const edition of variant.entry.editions) {
         for (const id of edition.documentIds) {
           collectLocalResourcePaths(catalog.documents.get(id), resources);
         }
       }
     }
+  }
+
+  // Published entities are public data: events render the ones they
+  // reference and the Members fixed page renders the directory logos, so
+  // their local resources belong to the public output.
+  for (const entity of catalog.entities.values()) {
+    collectLocalResourcePaths(entity, resources);
   }
 
   // The About fixed page links the statutes document from the published
