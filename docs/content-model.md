@@ -31,12 +31,23 @@
 
 ## Col·leccions
 
-Les quatre Astro Content Collections registrades són:
+Les col·leccions de contingut registrades són:
 
 - `schools`: programes amb informació pràctica, recursos i estat d'inscripció.
 - `events`: esdeveniments amb entitats relacionades i edicions embegudes.
 - `entities`: organitzacions reutilitzables i avantatges opcionals per a socis.
 - `documents`: recursos locals o externs amb tipus, idioma i disponibilitat.
+- `external-actions`: accions externes d'alta, federació i butlletí amb estat
+  explícit i URL externa opcional.
+- `contact`: dades institucionals de contacte (correu, telèfons, seu, horaris i
+  CIF) amb URL `mailto:` i `tel:` validades.
+
+Les accions externes tenen un identificador estable fix (per exemple
+`member-signup`, `federation` i `newsletter`) que el codi i les pàgines fixes
+reutilitzen. Una acció `available` requereix una URL HTTPS traduïble; una acció
+no disponible (`coming-soon`, `temporarily-unavailable` o `unavailable`) no
+porta URL i s'explica amb text útil, mai amb un control desactivat ni un enllaç
+buit.
 
 Els esdeveniments necessiten un estat de visibilitat editorial i una indicació
 separada de si continuen actius. Les edicions pertanyen al seu esdeveniment pare

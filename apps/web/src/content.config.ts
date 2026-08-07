@@ -31,9 +31,27 @@ const documents = defineCollection({
   schema: collectionSchemas.documents,
 });
 
+const externalActions = defineCollection({
+  loader: restrictedYamlLoader(
+    "src/content/external-actions/",
+    collectionSchemas.externalActions,
+  ),
+  schema: collectionSchemas.externalActions,
+});
+
+const contact = defineCollection({
+  loader: restrictedYamlLoader(
+    "src/content/contact/",
+    collectionSchemas.contact,
+  ),
+  schema: collectionSchemas.contact,
+});
+
 export const collections = {
   schools,
   events,
   entities,
   documents,
+  externalActions,
+  contact,
 };

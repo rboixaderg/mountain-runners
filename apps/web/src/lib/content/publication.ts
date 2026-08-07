@@ -1,5 +1,13 @@
-import type { Document, Entity, Event, School } from "./models";
+import type {
+  Contact,
+  Document,
+  Entity,
+  Event,
+  ExternalAction,
+  School,
+} from "./models";
 import {
+  defaultLocale,
   findDuplicateLocalizedSlugs,
   hasCompleteTranslation,
   knownLocales,
@@ -13,6 +21,8 @@ export type ContentSource = {
   events: Event[];
   entities: Entity[];
   documents: Document[];
+  externalActions: ExternalAction[];
+  contact: Contact[];
 };
 
 export type PublishedVariant =
@@ -23,6 +33,8 @@ export type PublicationCatalog = {
   variants: PublishedVariant[];
   entities: Map<string, Entity>;
   documents: Map<string, Document>;
+  externalActions: Map<string, ExternalAction>;
+  contact: Contact | undefined;
 };
 
 export function getPublishedLocalResources(
@@ -79,6 +91,25 @@ function isDocumentComplete(document: Document, locale: Locale): boolean {
     document.published &&
     isTranslated(document.title, locale) &&
     isTranslated(document.description, locale)
+  );
+}
+
+function isExternalActionComplete(
+  action: ExternalAction,
+  locale: Locale,
+): boolean {
+  return (
+    action.published &&
+    (action.status !== "available" ||
+      (action.url !== undefined && isTranslated(action.url, locale)))
+  );
+}
+
+function isContactComplete(contact: Contact, locale: Locale): boolean {
+  return (
+    contact.published &&
+    isTranslated(contact.address, locale) &&
+    isTranslated(contact.hours, locale)
   );
 }
 
@@ -212,6 +243,8 @@ export function createPublicationCatalog(
   const documents = indexById(source.documents, "document");
   indexById(source.schools, "school");
   indexById(source.events, "event");
+  indexById(source.externalActions, "external action");
+  indexById(source.contact, "contact");
   assertUniqueSlugs("schools", source.schools);
   assertUniqueSlugs("events", source.events);
   assertReferences(source, entities, documents);
@@ -246,10 +279,20 @@ export function createPublicationCatalog(
   const publishedDocuments = new Map(
     [...documents].filter(([, document]) => document.published),
   );
+  const publishedExternalActions = new Map(
+    source.externalActions
+      .filter((action) => isExternalActionComplete(action, defaultLocale))
+      .map((action) => [action.id, action]),
+  );
+  const publishedContact = source.contact.find((entry) =>
+    isContactComplete(entry, defaultLocale),
+  );
 
   return {
     variants,
     entities: publishedEntities,
     documents: publishedDocuments,
+    externalActions: publishedExternalActions,
+    contact: publishedContact,
   };
 }

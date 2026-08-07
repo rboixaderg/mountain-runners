@@ -3,9 +3,11 @@ import { describe, expect, it } from "vitest";
 import type { z } from "zod";
 import {
   collectionSchemas,
+  type Contact,
   type Document,
   type Entity,
   type Event,
+  type ExternalAction,
   type School,
 } from "../lib/content/models";
 import {
@@ -31,13 +33,19 @@ async function loadCollection<T>(directory: string, schema: z.ZodType<T>) {
 }
 
 async function loadSource(): Promise<ContentSource> {
-  const [schools, events, entities, documents] = await Promise.all([
-    loadCollection<School>("schools", collectionSchemas.schools),
-    loadCollection<Event>("events", collectionSchemas.events),
-    loadCollection<Entity>("entities", collectionSchemas.entities),
-    loadCollection<Document>("documents", collectionSchemas.documents),
-  ]);
-  return { schools, events, entities, documents };
+  const [schools, events, entities, documents, externalActions, contact] =
+    await Promise.all([
+      loadCollection<School>("schools", collectionSchemas.schools),
+      loadCollection<Event>("events", collectionSchemas.events),
+      loadCollection<Entity>("entities", collectionSchemas.entities),
+      loadCollection<Document>("documents", collectionSchemas.documents),
+      loadCollection<ExternalAction>(
+        "external-actions",
+        collectionSchemas.externalActions,
+      ),
+      loadCollection<Contact>("contact", collectionSchemas.contact),
+    ]);
+  return { schools, events, entities, documents, externalActions, contact };
 }
 
 function variantKeys(source: ContentSource) {
@@ -195,5 +203,44 @@ describe("publication catalog", () => {
     mountainDay.published = true;
 
     expect(variantKeys(source)).toContain("event:ca:jornada-muntanya");
+  });
+
+  it("publishes external actions and contact data for the default locale", async () => {
+    const source = await loadSource();
+    const catalog = createPublicationCatalog(source);
+
+    expect([...catalog.externalActions.keys()]).toEqual([
+      "federation",
+      "member-signup",
+      "newsletter",
+    ]);
+    expect(catalog.contact?.id).toBe("mountain-runners-contact");
+    expect(catalog.contact?.email).toBe("mailto:info@mountainrunners.cat");
+  });
+
+  it("excludes unpublished external actions and contact data", async () => {
+    const source = await loadSource();
+    source.externalActions.find(({ id }) => id === "newsletter")!.published =
+      false;
+    source.contact[0]!.published = false;
+
+    const catalog = createPublicationCatalog(source);
+    expect(catalog.externalActions.has("newsletter")).toBe(false);
+    expect(catalog.contact).toBeUndefined();
+  });
+
+  it("excludes external actions and contact data without a complete Catalan translation", async () => {
+    const source = await loadSource();
+    const memberSignup = source.externalActions.find(
+      ({ id }) => id === "member-signup",
+    )!;
+    delete (memberSignup.url as { ca?: string }).ca;
+    source.contact[0]!.address = {
+      es: "Dirección de prueba",
+    } as Contact["address"];
+
+    const catalog = createPublicationCatalog(source);
+    expect(catalog.externalActions.has("member-signup")).toBe(false);
+    expect(catalog.contact).toBeUndefined();
   });
 });

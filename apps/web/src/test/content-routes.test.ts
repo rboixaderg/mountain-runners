@@ -3,9 +3,11 @@ import { describe, expect, it } from "vitest";
 import type { z } from "zod";
 import {
   collectionSchemas,
+  type Contact,
   type Document,
   type Entity,
   type Event,
+  type ExternalAction,
   type School,
 } from "../lib/content/models";
 import {
@@ -41,16 +43,22 @@ async function loadCollection<T>(directory: string, schema: z.ZodType<T>) {
 }
 
 async function loadSource(): Promise<ContentSource> {
-  const [schools, events, entities, documents] = await Promise.all([
-    loadCollection<School>("schools", collectionSchemas.schools),
-    loadCollection<Event>("events", collectionSchemas.events),
-    loadCollection<Entity>("entities", collectionSchemas.entities),
-    loadCollection<Document>("documents", collectionSchemas.documents),
-  ]);
+  const [schools, events, entities, documents, externalActions, contact] =
+    await Promise.all([
+      loadCollection<School>("schools", collectionSchemas.schools),
+      loadCollection<Event>("events", collectionSchemas.events),
+      loadCollection<Entity>("entities", collectionSchemas.entities),
+      loadCollection<Document>("documents", collectionSchemas.documents),
+      loadCollection<ExternalAction>(
+        "external-actions",
+        collectionSchemas.externalActions,
+      ),
+      loadCollection<Contact>("contact", collectionSchemas.contact),
+    ]);
   for (const event of events) {
     event.published = event.id === "mountain-day";
   }
-  return { schools, events, entities, documents };
+  return { schools, events, entities, documents, externalActions, contact };
 }
 
 function addTranslations(value: unknown, locale: "es" | "en"): void {
