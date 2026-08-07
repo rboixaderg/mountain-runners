@@ -29,49 +29,51 @@ const collaboratorsWithImages = await Promise.all(
 );
 ---
 
-<section
-  class="page-frame members-section"
-  aria-labelledby="members-collaborators-title"
->
-  <div class="members-section__heading">
-    <span class="members-section__marker" aria-hidden="true"></span>
-    <h2 class="members-section__title" id="members-collaborators-title">
-      {messages.members_collaborators_title({}, { locale })}
-    </h2>
-  </div>
-  <ul class="members-directory">
-    {
-      collaboratorsWithImages.map(({ entity, href, size }) => (
-        <li class="members-directory__entry">
-          <img
-            class="members-directory__logo"
-            src={href}
-            alt={entity.logo.alt[locale]}
-            {...(size === undefined
-              ? {}
-              : { width: size.width, height: size.height })}
-          />
-          <div class="members-directory__content">
-            <h3 class="members-directory__name">{entity.name[locale]}</h3>
-            <p class="members-directory__benefit">
-              <strong>{entity.membershipBenefit!.title[locale]}</strong>
-            </p>
-            <div
-              class="members-directory__description"
-              set:html={renderRestrictedMarkdown(
-                entity.membershipBenefit!.description[locale]!,
-              )}
+{
+  collaboratorsWithImages.length > 0 && (
+    <section
+      class="page-frame members-section"
+      aria-labelledby="members-collaborators-title"
+    >
+      <div class="members-section__heading">
+        <span class="members-section__marker" aria-hidden="true" />
+        <h2 class="members-section__title" id="members-collaborators-title">
+          {messages.members_collaborators_title({}, { locale })}
+        </h2>
+      </div>
+      <ul class="members-directory">
+        {collaboratorsWithImages.map(({ entity, href, size }) => (
+          <li class="members-directory__entry">
+            <img
+              class="members-directory__logo"
+              src={href}
+              alt={entity.logo.alt[locale]}
+              {...(size === undefined
+                ? {}
+                : { width: size.width, height: size.height })}
             />
-            {entity.websiteUrl && (
-              <ExternalLink
-                className="members-directory__website"
-                href={entity.websiteUrl}
-                label={entity.name[locale]!}
+            <div class="members-directory__content">
+              <h3 class="members-directory__name">{entity.name[locale]}</h3>
+              <p class="members-directory__benefit">
+                <strong>{entity.membershipBenefit!.title[locale]}</strong>
+              </p>
+              <div
+                class="members-directory__description"
+                set:html={renderRestrictedMarkdown(
+                  entity.membershipBenefit!.description[locale]!,
+                )}
               />
-            )}
-          </div>
-        </li>
-      ))
-    }
-  </ul>
-</section>
+              {entity.websiteUrl && (
+                <ExternalLink
+                  className="members-directory__website"
+                  href={entity.websiteUrl}
+                  label={entity.name[locale]!}
+                />
+              )}
+            </div>
+          </li>
+        ))}
+      </ul>
+    </section>
+  )
+}

@@ -17,6 +17,7 @@ import {
 } from "../lib/content/publication";
 import {
   externalActionStatusMessageKeys,
+  getExternalActionPresentation,
   getExternalActionStatusMessageKey,
 } from "../lib/presentation/status";
 import { parseRestrictedYaml } from "../lib/content/yaml";
@@ -88,13 +89,13 @@ describe("members directory", () => {
 
   it("excludes entities without a benefit and the club itself", async () => {
     const catalog = createPublicationCatalog(await loadSource());
-    const collaboratorIds = getMembersDirectoryEntities(catalog, "ca").map(
-      (entity) => entity.id,
-    );
+    const collaborators = getMembersDirectoryEntities(catalog, "ca");
+    const collaboratorIds = collaborators.map((entity) => entity.id);
 
     expect(collaboratorIds).not.toContain("mountain-runners");
-    const benefitCount = catalog.entities.size;
-    expect(benefitCount).toBeGreaterThan(collaboratorIds.length);
+    for (const entity of collaborators) {
+      expect(entity.membershipBenefit).toBeDefined();
+    }
   });
 
   it("excludes unpublished entities from the directory", async () => {
@@ -132,6 +133,55 @@ describe("external action status message keys", () => {
       "coming-soon": "external_action_coming_soon",
       "temporarily-unavailable": "external_action_temporarily_unavailable",
       unavailable: "external_action_unavailable",
+    });
+  });
+});
+
+describe("external action presentation", () => {
+  function memberAction(
+    status: ExternalAction["status"],
+    url: ExternalAction["url"],
+  ): ExternalAction {
+    return { id: "member-signup", published: true, status, url };
+  }
+
+  it("explains a missing action as unavailable without a href", () => {
+    expect(getExternalActionPresentation(undefined, "ca")).toEqual({
+      href: undefined,
+      stateMessageKey: "external_action_unavailable",
+    });
+  });
+
+  it("resolves the locale href of an available action", () => {
+    const action = memberAction("available", {
+      ca: "https://example.com/alta",
+      es: "https://example.com/alta-es",
+    });
+    expect(getExternalActionPresentation(action, "es")).toEqual({
+      href: "https://example.com/alta-es",
+      stateMessageKey: undefined,
+    });
+  });
+
+  it("maps every unavailable status to its message key without a href", () => {
+    for (const status of [
+      "coming-soon",
+      "temporarily-unavailable",
+      "unavailable",
+    ] as const) {
+      const action = memberAction(status, undefined);
+      expect(getExternalActionPresentation(action, "ca")).toEqual({
+        href: undefined,
+        stateMessageKey: externalActionStatusMessageKeys[status],
+      });
+    }
+  });
+
+  it("renders no state message for an available action without a locale URL", () => {
+    const action = memberAction("available", undefined);
+    expect(getExternalActionPresentation(action, "ca")).toEqual({
+      href: undefined,
+      stateMessageKey: undefined,
     });
   });
 });

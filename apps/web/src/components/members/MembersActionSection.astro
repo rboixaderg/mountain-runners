@@ -2,7 +2,7 @@
 import * as messages from "../../paraglide/messages.js";
 import type { ExternalAction } from "../../lib/content/models";
 import type { Locale } from "../../lib/content/primitives";
-import { getExternalActionStatusMessageKey } from "../../lib/presentation/status";
+import { getExternalActionPresentation } from "../../lib/presentation/status";
 import ExternalLink from "../ExternalLink.astro";
 
 interface Props {
@@ -16,19 +16,10 @@ interface Props {
 
 const { action, actionLabelKey, introKey, locale, sectionId, titleKey } =
   Astro.props;
-const actionHref =
-  action === undefined || action.status !== "available"
-    ? undefined
-    : action.url?.[locale];
-let stateMessage: string | undefined;
-if (action === undefined) {
-  stateMessage = messages.external_action_unavailable({}, { locale });
-} else {
-  const statusKey = getExternalActionStatusMessageKey(action.status);
-  if (statusKey !== undefined) {
-    stateMessage = messages[statusKey]({}, { locale });
-  }
-}
+const { href: actionHref, stateMessageKey } = getExternalActionPresentation(
+  action,
+  locale,
+);
 ---
 
 <section class="page-frame members-section" aria-labelledby={sectionId}>
@@ -47,9 +38,11 @@ if (action === undefined) {
           href={actionHref}
           label={messages[actionLabelKey]({}, { locale })}
         />
-      ) : (
-        <p class="members-action__state">{stateMessage}</p>
-      )
+      ) : stateMessageKey !== undefined ? (
+        <p class="members-action__state">
+          {messages[stateMessageKey]({}, { locale })}
+        </p>
+      ) : null
     }
   </div>
 </section>

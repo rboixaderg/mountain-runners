@@ -416,6 +416,7 @@ test("renders the Members page sections in editorial order", async ({
     "Avantatges per a socis i sòcies",
     "Col·laboradors",
   ]);
+  await expect(page.locator("main")).not.toContainText("Properament");
 
   const signupLink = page.getByRole("link", { name: /Fes-te soci o sòcia/u });
   await expect(signupLink).toHaveCount(1);

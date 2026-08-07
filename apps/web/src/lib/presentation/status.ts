@@ -1,5 +1,7 @@
 import type { EventHubGroup } from "../content/events";
 import type { EventEdition, ExternalActionStatus } from "../content/models";
+import type { ExternalAction } from "../content/models";
+import type { Locale } from "../content/primitives";
 
 // Canonical message keys for event and registration statuses. The subset
 // constants below mirror the keys each presentation context can produce, so
@@ -76,6 +78,35 @@ export function getExternalActionStatusMessageKey(
     return undefined;
   }
   return externalActionStatusMessageKeys[status];
+}
+
+export type ExternalActionPresentation = {
+  href: string | undefined;
+  stateMessageKey: ExternalActionStatusMessageKey | undefined;
+};
+
+// The Members actions render an available action as a link and every other
+// state as explanatory text; a missing action is explained as unavailable.
+// The helper returns the locale href and the message key so the component
+// resolves them with the current locale and never emits an empty state
+// element when no text applies.
+export function getExternalActionPresentation(
+  action: ExternalAction | undefined,
+  locale: Locale,
+): ExternalActionPresentation {
+  if (action === undefined) {
+    return {
+      href: undefined,
+      stateMessageKey: externalActionStatusMessageKeys.unavailable,
+    };
+  }
+  if (action.status === "available") {
+    return { href: action.url?.[locale], stateMessageKey: undefined };
+  }
+  return {
+    href: undefined,
+    stateMessageKey: externalActionStatusMessageKeys[action.status],
+  };
 }
 
 export function getEventActivityMessageKey(
