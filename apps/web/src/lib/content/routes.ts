@@ -37,6 +37,31 @@ export const fixedPageRouteSegments = {
     es: "quienes-somos",
     en: "about",
   },
+  contact: {
+    ca: "contacte",
+    es: "contacto",
+    en: "contact",
+  },
+  documents: {
+    ca: "documents",
+    es: "documentos",
+    en: "documents",
+  },
+  "legal-notice": {
+    ca: "avis-legal",
+    es: "aviso-legal",
+    en: "legal-notice",
+  },
+  "legal-privacy": {
+    ca: "privacitat",
+    es: "privacidad",
+    en: "privacy",
+  },
+  "legal-cookies": {
+    ca: "cookies",
+    es: "cookies",
+    en: "cookies",
+  },
 } as const;
 
 export type FixedPageKind = keyof typeof fixedPageRouteSegments;
@@ -173,7 +198,14 @@ export function getSitemapUrls(
   // Fixed pages are published only in Catalan while single-locale, matching
   // the homepage entry below. A fixed page is added here once its variant is
   // complete and published.
-  const publishedFixedPagePaths = [getFixedPagePath("about", "ca")];
+  const publishedFixedPagePaths = [
+    getFixedPagePath("about", "ca"),
+    getFixedPagePath("contact", "ca"),
+    getFixedPagePath("documents", "ca"),
+    getFixedPagePath("legal-notice", "ca"),
+    getFixedPagePath("legal-privacy", "ca"),
+    getFixedPagePath("legal-cookies", "ca"),
+  ];
   return [
     new URL("/ca/", site).toString(),
     ...[...hubLocales]

@@ -1,0 +1,68 @@
+---
+import * as messages from "../../paraglide/messages.js";
+import { renderRestrictedMarkdown } from "../../lib/content/markdown";
+import type { Locale } from "../../lib/content/primitives";
+import PageIntro from "../PageIntro.astro";
+import PageSection from "../PageSection.astro";
+
+type LegalCookiesSection = {
+  id: string;
+  titleKey:
+    | "legal_cookies_usage_title"
+    | "legal_cookies_consent_title"
+    | "legal_cookies_equivalents_title"
+    | "legal_cookies_changes_title";
+  bodyKey:
+    | "legal_cookies_usage"
+    | "legal_cookies_consent"
+    | "legal_cookies_equivalents"
+    | "legal_cookies_changes";
+};
+
+const legalCookiesSections: LegalCookiesSection[] = [
+  {
+    id: "legal-cookies-usage",
+    titleKey: "legal_cookies_usage_title",
+    bodyKey: "legal_cookies_usage",
+  },
+  {
+    id: "legal-cookies-consent",
+    titleKey: "legal_cookies_consent_title",
+    bodyKey: "legal_cookies_consent",
+  },
+  {
+    id: "legal-cookies-equivalents",
+    titleKey: "legal_cookies_equivalents_title",
+    bodyKey: "legal_cookies_equivalents",
+  },
+  {
+    id: "legal-cookies-changes",
+    titleKey: "legal_cookies_changes_title",
+    bodyKey: "legal_cookies_changes",
+  },
+];
+
+interface Props {
+  locale: Locale;
+}
+
+const { locale } = Astro.props;
+---
+
+<article class="page-detail">
+  <PageIntro
+    kicker={messages.site_title({}, { locale })}
+    title={messages.legal_cookies_title({}, { locale })}
+    description={messages.legal_cookies_description({}, { locale })}
+  />
+  {
+    legalCookiesSections.map(({ bodyKey, id, titleKey }) => (
+      <PageSection id={id} title={messages[titleKey]({}, { locale })}>
+        <div
+          class="page-section__markdown"
+          set:html={renderRestrictedMarkdown(messages[bodyKey]({}, { locale }))}
+        />
+      </PageSection>
+    ))
+  }
+</article>

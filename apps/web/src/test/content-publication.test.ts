@@ -282,4 +282,19 @@ describe("publication catalog", () => {
     expect(catalog.externalActions.has("member-signup")).toBe(false);
     expect(catalog.contact).toBeUndefined();
   });
+
+  it("keeps unavailable document resources out of the public output", async () => {
+    const source = await loadSource();
+    const clubGuide = source.documents.find(({ id }) => id === "club-guide")!;
+    const guideResource = "src/content-assets/documents/club-guide.pdf";
+
+    const catalog = createPublicationCatalog(source);
+    expect(getPublishedLocalResources(catalog)).not.toContain(guideResource);
+
+    clubGuide.availability = "available";
+    const catalogWithAvailableGuide = createPublicationCatalog(source);
+    expect(getPublishedLocalResources(catalogWithAvailableGuide)).toContain(
+      guideResource,
+    );
+  });
 });

@@ -1,0 +1,77 @@
+---
+import * as messages from "../../paraglide/messages.js";
+import {
+  newsletterActionId,
+  type ExternalAction,
+} from "../../lib/content/models";
+import type { PublicationCatalog } from "../../lib/content/publication";
+import type { Locale } from "../../lib/content/primitives";
+import { getExternalActionStatusMessageKey } from "../../lib/presentation/status";
+import ExternalLink from "../ExternalLink.astro";
+import PageSection from "../PageSection.astro";
+
+type NewsletterPresentation =
+  | { kind: "link"; url: string; label: string }
+  | { kind: "text"; message: string };
+
+function resolveNewsletterPresentation(
+  action: ExternalAction | undefined,
+  locale: Locale,
+): NewsletterPresentation | undefined {
+  if (action === undefined) return undefined;
+  if (action.status === "available" && action.url !== undefined) {
+    return {
+      kind: "link",
+      url: action.url[locale]!,
+      label: messages.contact_newsletter_subscribe({}, { locale }),
+    };
+  }
+  if (action.status === "unavailable") {
+    return {
+      kind: "text",
+      message: messages.newsletter_unavailable({}, { locale }),
+    };
+  }
+  const statusMessageKey = getExternalActionStatusMessageKey(action.status);
+  if (statusMessageKey !== undefined) {
+    return {
+      kind: "text",
+      message: messages[statusMessageKey]({}, { locale }),
+    };
+  }
+  return undefined;
+}
+
+interface Props {
+  catalog: PublicationCatalog;
+  locale: Locale;
+}
+
+const { catalog, locale } = Astro.props;
+const newsletterPresentation = resolveNewsletterPresentation(
+  catalog.externalActions.get(newsletterActionId),
+  locale,
+);
+---
+
+<PageSection
+  id="contact-newsletter-title"
+  title={messages.contact_newsletter_title({}, { locale })}
+>
+  <p class="page-section__paragraph">
+    {messages.contact_newsletter_description({}, { locale })}
+  </p>
+  {
+    newsletterPresentation !== undefined &&
+      (newsletterPresentation.kind === "link" ? (
+        <p class="page-section__paragraph">
+          <ExternalLink
+            href={newsletterPresentation.url}
+            label={newsletterPresentation.label}
+          />
+        </p>
+      ) : (
+        <p class="page-section__paragraph">{newsletterPresentation.message}</p>
+      ))
+  }
+</PageSection>

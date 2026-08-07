@@ -68,6 +68,16 @@ export function getPublishedLocalResources(
     resources,
   );
 
+  // The Documents directory links every published document whose availability
+  // is `available`; only those resources belong to the public output. A
+  // published but unavailable document (temporarily-unavailable or archived)
+  // must not leak its resource into the build.
+  for (const document of catalog.documents.values()) {
+    if (document.availability === "available") {
+      collectLocalResourcePaths(document, resources);
+    }
+  }
+
   return [...resources].sort();
 }
 

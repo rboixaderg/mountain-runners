@@ -1,0 +1,118 @@
+---
+import * as messages from "../../paraglide/messages.js";
+import { renderRestrictedMarkdown } from "../../lib/content/markdown";
+import type { PublicationCatalog } from "../../lib/content/publication";
+import type { Locale } from "../../lib/content/primitives";
+import ContactDataList from "../ContactDataList.astro";
+import PageIntro from "../PageIntro.astro";
+import PageSection from "../PageSection.astro";
+
+type LegalNoticeSection = {
+  id: string;
+  titleKey:
+    | "legal_notice_use_title"
+    | "legal_notice_intellectual_property_title"
+    | "legal_notice_content_responsibility_title"
+    | "legal_notice_external_links_title"
+    | "legal_notice_data_protection_title"
+    | "legal_notice_applicable_law_title";
+  bodyKey:
+    | "legal_notice_use"
+    | "legal_notice_intellectual_property"
+    | "legal_notice_content_responsibility"
+    | "legal_notice_external_links"
+    | "legal_notice_data_protection"
+    | "legal_notice_applicable_law";
+};
+
+const legalNoticeSections: LegalNoticeSection[] = [
+  {
+    id: "legal-notice-use",
+    titleKey: "legal_notice_use_title",
+    bodyKey: "legal_notice_use",
+  },
+  {
+    id: "legal-notice-intellectual-property",
+    titleKey: "legal_notice_intellectual_property_title",
+    bodyKey: "legal_notice_intellectual_property",
+  },
+  {
+    id: "legal-notice-content-responsibility",
+    titleKey: "legal_notice_content_responsibility_title",
+    bodyKey: "legal_notice_content_responsibility",
+  },
+  {
+    id: "legal-notice-external-links",
+    titleKey: "legal_notice_external_links_title",
+    bodyKey: "legal_notice_external_links",
+  },
+  {
+    id: "legal-notice-data-protection",
+    titleKey: "legal_notice_data_protection_title",
+    bodyKey: "legal_notice_data_protection",
+  },
+  {
+    id: "legal-notice-applicable-law",
+    titleKey: "legal_notice_applicable_law_title",
+    bodyKey: "legal_notice_applicable_law",
+  },
+];
+
+interface Props {
+  catalog: PublicationCatalog;
+  locale: Locale;
+}
+
+const { catalog, locale } = Astro.props;
+const contact = catalog.contact;
+---
+
+<article class="page-detail">
+  <PageIntro
+    kicker={messages.site_title({}, { locale })}
+    title={messages.legal_notice_title({}, { locale })}
+    description={messages.legal_notice_description({}, { locale })}
+  />
+  <PageSection
+    id="legal-notice-entity"
+    title={messages.legal_notice_entity_title({}, { locale })}
+  >
+    <dl class="legal-data">
+      <div class="legal-data__row">
+        <dt>{messages.legal_notice_entity_name_label({}, { locale })}</dt>
+        <dd>{messages.legal_notice_entity_name({}, { locale })}</dd>
+      </div>
+      <div class="legal-data__row">
+        <dt>{messages.legal_notice_entity_type_label({}, { locale })}</dt>
+        <dd>{messages.legal_notice_entity_type({}, { locale })}</dd>
+      </div>
+      <div class="legal-data__row">
+        <dt>{messages.legal_notice_entity_register_label({}, { locale })}</dt>
+        <dd>{messages.legal_notice_entity_register({}, { locale })}</dd>
+      </div>
+      <div class="legal-data__row">
+        <dt>{messages.legal_notice_entity_census_label({}, { locale })}</dt>
+        <dd>{messages.legal_notice_entity_census({}, { locale })}</dd>
+      </div>
+    </dl>
+    {
+      contact && (
+        <ContactDataList
+          addressLabelKey="legal_entity_address_label"
+          contact={contact}
+          locale={locale}
+        />
+      )
+    }
+  </PageSection>
+  {
+    legalNoticeSections.map(({ bodyKey, id, titleKey }) => (
+      <PageSection id={id} title={messages[titleKey]({}, { locale })}>
+        <div
+          class="page-section__markdown"
+          set:html={renderRestrictedMarkdown(messages[bodyKey]({}, { locale }))}
+        />
+      </PageSection>
+    ))
+  }
+</article>
