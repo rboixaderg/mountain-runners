@@ -28,8 +28,10 @@ completa i revisada.
 - L'alta de socis, la federació, el contacte i el butlletí només dirigeixen a
   serveis externs aprovats. No s'afegeixen formularis, enviament de correu,
   cookies, analítica ni backend.
-- Qui som i Socis tenen esquemes editorials específics i petits; no s'introdueix
-  cap constructor genèric de pàgines o blocs.
+- Qui som, Socis i Contacte són pàgines fixes d'acord amb l'ADR 0005: la seva
+  estructura viu en components i el text informatiu en recursos de traducció;
+  no s'hi afegeix cap esquema YAML de pàgina. Les dades operatives (estats,
+  URL i dades institucionals) pertanyen a objectes de domini, no a la pàgina.
 - La junta pot publicar nom, cognoms, rol i foto opcional. La foto només es
   versiona si és apta per a publicació i té l'autorització necessària.
 - `DESIGN.md` és l'única font de direcció visual. No calen pantalles Stitch
@@ -46,9 +48,11 @@ L'ADR 0004 continua governant la separació:
 
 - El codi defineix rutes, plantilles, navegació, ordre de les seccions,
   agrupacions i comportament responsive.
-- El YAML restringit conté les dades editorials o operatives que canviaran:
-  missatges, noms i rols de junta, textos de pàgina, recursos, dades de
-  contacte, estats, documents, preus, avantatges i URL externes.
+- El YAML restringit conté les dades operatives dels objectes de domini que
+  canviaran: estats i URL d'accions externes, dades institucionals de contacte,
+  documents, preus, avantatges i recursos. El text informatiu de les pàgines
+  fixes (missatges, junta, història i textos de pàgina) viu en recursos de
+  traducció, d'acord amb l'ADR 0005.
 - No es crea una configuració YAML global del lloc, un CMS, una base de dades ni
   una API.
 - Els continguts no publicats, incomplets, no aprovats o les seves imatges no
@@ -60,7 +64,7 @@ L'ADR 0004 continua governant la separació:
   disponibles.
 - Ruta Socis amb alta, federació, avantatges i directori de col·laboradors.
 - Hub d'Escoles i detalls funcionals per a les escoles publicades de Trail,
-  Skimo, BTT i Trial, quan existeixi contingut aprovat per a cadascuna.
+  Skimo i BTT, quan existeixi contingut aprovat per a cadascuna.
 - Directori de Documents amb recursos locals i externs, data, idioma, tipus,
   atribució i disponibilitat expressats de manera útil.
 - Galeries i vídeos amb imatges, atribucions i estats de disponibilitat
@@ -98,17 +102,17 @@ seguiment i la documentació de planificació.
 No es fixa anticipadament un nombre de pull requests. Cada unitat s'implementa
 en una PR cohesionada, revisable i validable de manera independent.
 
-| Unitat                                            | Estat   | Dependències                    | Resultat verificable                                                     | PR  |
-| ------------------------------------------------- | ------- | ------------------------------- | ------------------------------------------------------------------------ | --- |
-| T3.1 Estructura de pàgines i convencions d'agents | En curs | Fases 1 i 2                     | Pàgines primes, helpers i components reutilitzables, regles documentades | #36 |
-| T3.2 Inventari i aprovació editorial              | Pendent | Cap codi nou                    | Contingut i recursos candidats sanejats i classificats                   | -   |
-| T3.3 Contractes de contingut                      | Pendent | Fases 1 i 2                     | Esquemes singulars, publicació i referències validades                   | -   |
-| T3.4 Qui som                                      | Pendent | T3.3 i contingut aprovat        | Ruta institucional, junta i estatuts accessibles                         | -   |
-| T3.5 Socis                                        | Pendent | T3.3 i entitats aprovades       | Alta, federació, avantatges i col·laboradors amb estats reals            | -   |
-| T3.6 Hub d'Escoles                                | Pendent | T3.2, shell i escoles aprovades | Llistat estable d'escoles publicades                                     | -   |
-| T3.7 Detall d'Escola                              | Pendent | T3.6 i recursos aprovats        | Informació pràctica, galeria, vídeo i inscripció                         | -   |
-| T3.8 Documents, Contacte i peu legal              | Pendent | T3.3, documents i canals        | Recursos, legal i canals externs disponibles                             | -   |
-| T3.9 Qualitat de cobertura                        | Pendent | T3.4 a T3.8                     | Tests, a11y, SEO i rendiment integrats a CI                              | -   |
+| Unitat                                            | Estat      | Dependències                    | Resultat verificable                                                        | PR  |
+| ------------------------------------------------- | ---------- | ------------------------------- | --------------------------------------------------------------------------- | --- |
+| T3.1 Estructura de pàgines i convencions d'agents | Completada | Fases 1 i 2                     | Pàgines primes, helpers i components reutilitzables, regles documentades    | #36 |
+| T3.2 Inventari i aprovació editorial              | En curs    | Cap codi nou                    | Contingut i recursos candidats sanejats i classificats                      | #37 |
+| T3.3 Contractes de contingut                      | Pendent    | Fases 1 i 2                     | Text de pàgines fixes i dades operatives com a objectes de domini validades | -   |
+| T3.4 Qui som                                      | Pendent    | T3.3 i contingut aprovat        | Ruta institucional, junta i estatuts accessibles                            | -   |
+| T3.5 Socis                                        | Pendent    | T3.3 i entitats aprovades       | Alta, federació, avantatges i col·laboradors amb estats reals               | -   |
+| T3.6 Hub d'Escoles                                | Pendent    | T3.2, shell i escoles aprovades | Llistat estable d'escoles publicades                                        | -   |
+| T3.7 Detall d'Escola                              | Pendent    | T3.6 i recursos aprovats        | Informació pràctica, galeria, vídeo i inscripció                            | -   |
+| T3.8 Documents, Contacte i peu legal              | Pendent    | T3.3, documents i canals        | Recursos, legal i canals externs disponibles                                | -   |
+| T3.9 Qualitat de cobertura                        | Pendent    | T3.4 a T3.8                     | Tests, a11y i SEO integrats a CI; Lighthouse com a auditoria manual         | -   |
 
 Els estats permesos són `Pendent`, `En curs`, `Bloquejada` i `Completada`.
 Una unitat només passa a `Completada` després de tenir una PR revisada, validada i
@@ -173,10 +177,14 @@ pot agrupar-se amb T3.3 només sense dades reals no aprovades.
 
 ### T3.3: Contractes De Contingut
 
-**Abast:** esquemes `about`, `membership` i `contact`, publicació i referències.
-**Depèn de:** fases 1 i 2. **Resultat:** dades canviants validades sense
-constructor genèric. **Comprovació:** Vitest de schemas, idiomes, URL, recursos i
-referències. **PR:** pròpia; no implementa plantilles.
+**Abast:** contracte de les pàgines fixes (text informatiu en recursos de
+traducció, d'acord amb l'ADR 0005) i objectes de domini per a les dades
+operatives: accions externes d'alta, federació i butlletí amb estat i URL, i
+dades institucionals de contacte. **Depèn de:** fases 1 i 2. **Resultat:** text
+informatiu en recursos de traducció i dades operatives validades en objectes de
+domini, sense constructor genèric. **Comprovació:** Vitest de recursos de
+traducció, objectes de domini, idiomes, URL, recursos i referències. **PR:**
+pròpia; no implementa plantilles.
 
 ### T3.4: Qui Som
 
@@ -218,10 +226,12 @@ formularis ni un banner de consentiment si no hi ha cookies no tècniques.
 
 ### T3.9: Qualitat De Cobertura
 
-**Abast:** E2E, axe, Lighthouse, SEO i pressupostos. **Depèn de:** T3.4 a T3.8.
+**Abast:** E2E, axe, SEO i pressupostos. **Depèn de:** T3.4 a T3.8.
 **Resultat:** controls obligatoris a CI. **Comprovació:** `pnpm validate`,
-navegadors acordats i rutes representatives. **PR:** pròpia; no substitueix
-l'auditoria manual d'accessibilitat.
+navegadors acordats i rutes representatives. Lighthouse i els pressupostos de
+rendiment queden com a auditoria manual (`pnpm lighthouse`), fora de CI, d'acord
+amb la decisió del 7 d'agost de 2026 sobre la variabilitat dels runners de
+GitHub. **PR:** pròpia; no substitueix l'auditoria manual d'accessibilitat.
 
 ## Rutes I Navegació
 
@@ -252,34 +262,42 @@ renderitzen si apunten a un recurs disponible o a una URL externa validada.
 
 ## Contractes Editorials
 
-### Esquemes Específics
+### Pàgines Fixes I Dades Operatives
 
-La fase afegeix tres entrades editorials singulars, cadascuna amb esquema Zod
-estricte, loader YAML restringit, identificador estable fix i validació de
-publicació. No són una col·lecció genèrica de pàgines:
+Qui som, Socis, Contacte i les pàgines legals són pàgines fixes d'acord amb
+l'ADR 0005: la seva estructura viu en components, el text informatiu en
+recursos de traducció i els recursos visuals en imports controlats dels
+components. Cap d'aquestes pàgines afegeix un esquema YAML propi.
 
-| Entrada      | Identificador únic | Camps canviants principals                                                   |
-| ------------ | ------------------ | ---------------------------------------------------------------------------- |
-| `about`      | `association`      | Missatge de presidència, junta, història i identificadors de documents       |
-| `membership` | `membership`       | Alta, federació, text pràctic i accions externes amb estat explícit          |
-| `contact`    | `contact`          | Correu, telèfon, seu, horaris, butlletí i identificadors de documents legals |
+Les dades operatives que aquestes pàgines mostren pertanyen a objectes de
+domini:
 
-Cada entrada inclou `published` i els seus camps traduïbles segueixen el
-contracte existent: `ca` obligatori, `es` i `en` opcionals, sense fallback en
-rutes públiques. Els esquemes reutilitzen les primitives segures de Markdown,
-recursos locals, imatges, URL HTTPS i, exclusivament en les dades de contacte,
-URL `mailto:` i `tel:` validades.
+- les accions externes d'alta, federació i butlletí, amb estat explícit i URL
+  validada;
+- les dades institucionals de contacte (correu, telèfon, seu, horaris i CIF);
+- els documents (estatuts i documents legals), a la col·lecció `documents`;
+- els col·laboradors i avantatges, a les `entities` publicades amb
+  `membershipBenefit`;
+- les escoles, a la col·lecció `schools`.
+
+Els objectes de domini nous de la fase (accions externes i dades de contacte)
+tenen esquema Zod estricte, loader YAML restringit, identificador estable fix i
+validació de publicació. Els seus camps traduïbles segueixen el contracte
+existent: `ca` obligatori, `es` i `en` opcionals, sense fallback en rutes
+públiques. Reutilitzen les primitives segures de Markdown, recursos locals,
+imatges, URL HTTPS i, exclusivament en les dades de contacte, URL `mailto:` i
+`tel:` validades.
 
 ### Qui Som
 
-L'entrada `about` conté:
+El text informatiu de la pàgina (missatge de presidència amb el nom de la
+persona que el signa, llista ordenada de membres de la junta amb nom, cognoms,
+rol i imatge opcional, i relat d'història) viu en recursos de traducció, en
+Markdown restringit.
 
-- missatge de presidència en Markdown restringit i, opcionalment, el nom de la
-  persona que el signa;
-- llista ordenada de membres de la junta amb nom, cognoms, rol i imatge opcional;
-- relat d'història en Markdown restringit;
-- identificadors de documents publicats per als estatuts i altres documents
-  institucionals que es vulguin destacar.
+Els estatuts i altres documents institucionals que es vulguin destacar es
+referencien des de la col·lecció `documents` publicada; una referència invàlida
+fa fallar la validació editorial.
 
 No s'hi modelen adreces, telèfons, correus, biografies, xarxes socials ni dades
 de contacte personals de membres de la junta. Un perfil sense foto es presenta
@@ -287,34 +305,38 @@ com a text, sense un retrat fictici.
 
 ### Socis I Col·laboradors
 
-L'entrada `membership` conté seccions fixes per a alta i federació, amb text,
-estat d'acció i URL externa opcional. Els estats són explícits: `available`,
-`coming-soon`, `temporarily-unavailable` o `unavailable`.
+El text informatiu de la pàgina (alta, federació i text pràctic) viu en
+recursos de traducció. Les accions d'alta i federació són objectes de domini
+amb estat d'acció i URL externa opcional. Els estats són explícits:
+`available`, `coming-soon`, `temporarily-unavailable` o `unavailable`.
 
 - Una acció `available` requereix URL HTTPS traduïble i mostra un enllaç
   descriptiu.
 - Una acció no disponible mostra una explicació útil, però no un botó desactivat,
   `href` buit ni `#`.
 - Els avantatges i col·laboradors es deriven de les `entities` publicades amb
-  `membershipBenefit`; no es duplicen dins de l'entrada de Socis.
+  `membershipBenefit`; no es dupliquen en recursos de traducció ni en YAML.
 - El directori pot incloure la web de cada entitat només si està validada i
   publicada.
 
 ### Contacte, Butlletí, Pàgines Legals I Peu
 
-L'entrada `contact` conté exclusivament dades institucionals aprovades: correu,
-telèfon, adreça o indicacions de seu, horaris, enllaç de butlletí i documents
-institucionals disponibles. Correu i telèfon són opcionals i s'ometen si no hi
-ha dada definitiva.
+Les dades institucionals de contacte (correu, telèfon, adreça o indicacions de
+seu, horaris i CIF) viuen en un objecte de domini amb exclusivament dades
+aprovades. Correu i telèfon són opcionals i s'ometen si no hi ha dada
+definitiva.
 
-El butlletí és una acció externa amb el mateix estat explícit que Socis. No es
-recullen dades al web. Si falta el destí, s'explica la indisponibilitat sense
-simular un camp de formulari ni una subscripció activa.
+El butlletí és una acció externa amb el mateix estat explícit que Socis,
+modelada com a objecte de domini. No es recullen dades al web. Si falta el
+destí, s'explica la indisponibilitat sense simular un camp de formulari ni una
+subscripció activa.
 
-Les rutes d'avís legal, privacitat i cookies són pàgines fixes: la seva estructura
-viu en components i el text revisat en recursos de traducció, d'acord amb l'ADR 0005. Abans de publicar-les, una persona responsable aprova la identitat i les
-dades institucionals, les finalitats i canals de tractament aplicables, la gestió
-del butlletí extern i els mecanismes reals de cookies o tecnologies similars.
+Les rutes d'avís legal, privacitat i cookies són pàgines fixes: la seva
+estructura viu en components i el text revisat en recursos de traducció, d'acord
+amb l'ADR 0005. Abans de publicar-les, una persona responsable aprova la
+identitat i les dades institucionals, les finalitats i canals de tractament
+aplicables, la gestió del butlletí extern i els mecanismes reals de cookies o
+tecnologies similars.
 
 La política de cookies descriu fidelment l'estat real. Mentre la web no utilitzi
 cookies no tècniques, analítica, embeds ni serveis de tercers que les estableixin,
@@ -329,8 +351,8 @@ La fase reutilitza i no duplica el contracte `schools` de la fase 1:
 - el hub deriva les entrades de les escoles publicades;
 - el detall prioritza resum, descripció, adequació, calendari, lloc, preus,
   galeria, vídeo i inscripció;
-- Trail, Skimo, BTT i Trial són contingut editorial, no quatre plantilles ni
-  rutes escrites a mà;
+- Trail, Skimo i BTT són contingut editorial, no plantilles ni rutes escrites
+  a mà;
 - una escola sense URL d'inscripció o amb inscripció no disponible manté l'estat
   textual sense acció falsa;
 - l'ordre del hub és editorialment explícit i estable, validat dins del model o
@@ -416,9 +438,9 @@ extern en temps d'execució.
 
 Vitest ha de cobrir com a mínim:
 
-- validació estricta de cada esquema singular, camps obligatoris, estats i
-  identificadors fixos;
-- exclusió de les entrades singulars no publicades, referències a documents no
+- validació estricta dels objectes de domini nous (accions externes i dades de
+  contacte), camps obligatoris, estats i identificadors fixos;
+- exclusió dels objectes de domini no publicats, referències a documents no
   publicats i recursos locals exclusius de la sortida pública;
 - completitud transitiva de la traducció, incloent-hi junta, accions, documents,
   imatges i referències;
@@ -445,10 +467,12 @@ escriptori:
 - galeria, imatge placeholder i targeta de vídeo placeholder sense regressions
   d'accessibilitat detectables.
 
-Les rutes representatives de la fase han de mantenir els llindars de Lighthouse,
-pressupostos de transferència i comprovacions SEO acordats a la fase 2. La
-validació automatitzada no substitueix l'auditoria manual d'accessibilitat que
-continua registrada al backlog.
+Les rutes representatives de la fase han de mantenir les comprovacions SEO
+acordades a la fase 2. Els llindars de Lighthouse i els pressupostos de
+transferència es validen manualment amb `pnpm lighthouse`, fora de CI (decisió
+del 7 d'agost de 2026: els runners de GitHub introdueixen variabilitat en la
+mètrica Performance). La validació automatitzada no substitueix l'auditoria
+manual d'accessibilitat que continua registrada al backlog.
 
 ## Seguretat I Privacitat
 
@@ -490,8 +514,9 @@ La fase es considera completada quan:
    revisada, validada i fusionada.
 2. Qui som, Socis, Escoles, Documents i Contacte tenen rutes accessibles,
    indexables quan pertoqui i integrades a navegació o peu sense enllaços trencats.
-3. El contingut canviant de les noves àrees viu en esquemes editorials específics
-   o col·leccions existents, no codificat dins de les plantilles.
+3. El text informatiu de les noves àrees viu en recursos de traducció i les
+   dades operatives en objectes de domini, no codificat dins de les plantilles
+   ni en esquemes de pàgina.
 4. No s'ha creat un constructor genèric de pàgines, una configuració global YAML
    ni un servei nou.
 5. Cada element publicat ha passat per inventari, revisió i aprovació editorial,
@@ -516,8 +541,9 @@ La fase es considera completada quan:
     contrast, responsive des de 320 CSS px i estats no dependents només del color.
 14. Canonical, `hreflang`, sitemap, robots, metadades socials i qualsevol JSON-LD
     es generen només amb dades públiques vàlides.
-15. Vitest, Playwright, axe, Lighthouse, `pnpm validate` i `pnpm build` passen
-    localment i a CI amb les versions fixades.
+15. Vitest, Playwright, axe, `pnpm validate` i `pnpm build` passen localment i a
+    CI amb les versions fixades; Lighthouse i els pressupostos es validen
+    manualment amb `pnpm lighthouse` (fora de CI).
 16. No s'han introduït secrets, dades privades, analítica, cookies, formularis,
     scripts de tercers, serveis de servidor ni recursos despublicats a la sortida
     pública.

@@ -20,7 +20,7 @@
     "test:a11y": "PUBLIC_SITE_ORIGIN=https://mountainrunners.cat BUILD_TODAY=2026-08-04 pnpm build && playwright test --grep @a11y",
     "test:e2e": "PUBLIC_SITE_ORIGIN=https://mountainrunners.cat BUILD_TODAY=2026-08-04 pnpm build && playwright test",
     "typecheck": "pnpm --filter @mountain-runners/web typecheck",
-    "validate": "pnpm check && pnpm test:e2e && pnpm lighthouse"
+    "validate": "pnpm check && pnpm test:e2e"
   },
   "lint-staged": {
     "*.{astro,css,js,mjs,ts}": [
