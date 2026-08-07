@@ -2,12 +2,14 @@
 import * as messages from "../../../paraglide/messages.js";
 import { assertIsLocale } from "../../../paraglide/runtime.js";
 import EventCard from "../../../components/events/EventCard.astro";
+import SchoolHub from "../../../components/schools/SchoolHub.astro";
 import PublicLayout from "../../../layouts/PublicLayout.astro";
 import {
   getEventHubGroups,
   getMadridDate,
   type EventHubGroup,
 } from "../../../lib/content/events";
+import { getOrderedSchoolVariants } from "../../../lib/content/schools";
 import type { PublishedVariant } from "../../../lib/content/publication";
 import { getPublicationCatalog } from "../../../lib/content/repository";
 import { getDomainPath, getRouteDomain } from "../../../lib/content/routes";
@@ -22,21 +24,40 @@ export async function getStaticPaths() {
       )
       .map(({ locale }) => locale),
   );
-  return [...eventLocales].map((locale) => ({
-    params: { locale, domain: getRouteDomain("event", locale) },
-  }));
+  const schoolLocales = new Set(
+    catalog.variants
+      .filter(
+        (variant): variant is Extract<PublishedVariant, { kind: "school" }> =>
+          variant.kind === "school",
+      )
+      .map(({ locale }) => locale),
+  );
+  return [
+    ...[...eventLocales].map((locale) => ({
+      params: { locale, domain: getRouteDomain("event", locale) },
+      props: { kind: "event" as const },
+    })),
+    ...[...schoolLocales].map((locale) => ({
+      params: { locale, domain: getRouteDomain("school", locale) },
+      props: { kind: "school" as const },
+    })),
+  ];
 }
 
+const { kind } = Astro.props;
 const locale = assertIsLocale(Astro.currentLocale);
-const canonical = new URL(
-  getDomainPath("event", locale),
-  Astro.site,
-).toString();
+const canonical = new URL(getDomainPath(kind, locale), Astro.site).toString();
 const catalog = await getPublicationCatalog();
 const today = process.env.BUILD_TODAY ?? getMadridDate(new Date());
 const eventVariants = catalog.variants.filter(
   (variant): variant is Extract<PublishedVariant, { kind: "event" }> =>
     variant.kind === "event" && variant.locale === locale,
+);
+const schoolVariants = getOrderedSchoolVariants(
+  catalog.variants.filter(
+    (variant): variant is Extract<PublishedVariant, { kind: "school" }> =>
+      variant.kind === "school" && variant.locale === locale,
+  ),
 );
 const groups = getEventHubGroups(
   eventVariants.map(({ entry }) => entry),
@@ -65,64 +86,76 @@ const hubSections: {
     id: "past",
   },
 ];
+const hubTitle =
+  kind === "school"
+    ? messages.navigation_schools({}, { locale })
+    : messages.navigation_events({}, { locale });
+const hubDescription =
+  kind === "school"
+    ? messages.schools_intro({}, { locale })
+    : messages.events_intro({}, { locale });
 ---
 
 <PublicLayout
   canonical={canonical}
-  description={messages.events_intro({}, { locale })}
+  description={hubDescription}
   locale={locale}
-  title={`${messages.navigation_events({}, { locale })} | ${messages.site_title({}, { locale })}`}
+  title={`${hubTitle} | ${messages.site_title({}, { locale })}`}
 >
-  <section class="page-frame events-hub-intro">
-    <p class="events-hub-intro__kicker">
-      {messages.site_title({}, { locale })}
-    </p>
-    <h1
-      class="my-3 mb-6 max-w-[15ch] font-[family-name:var(--font-display)] text-[clamp(2.8rem,9vw,5.5rem)] leading-[0.95] tracking-[0.015em] uppercase"
-    >
-      {messages.navigation_events({}, { locale })}
-    </h1>
-    <p class="events-hub-intro__description">
-      {messages.events_intro({}, { locale })}
-    </p>
-  </section>
-
   {
-    hubSections.map((section) => {
-      const events = groups[section.group];
-      if (events.length === 0) return null;
-      return (
-        <section
-          class:list={[
-            "page-frame",
-            "events-hub-section",
-            `events-hub-section--${section.group}`,
-          ]}
-          aria-labelledby={section.id}
-        >
-          <div class="events-hub-section__heading">
-            <span class="events-hub-section__marker" aria-hidden="true" />
-            <h2 id={section.id} class="events-hub-section__title">
-              {section.title}
-            </h2>
-          </div>
-          <ul class="events-hub-list">
-            {events.map((event) => (
-              <EventCard
-                group={section.group}
-                locale={locale}
-                today={today}
-                variant={getVariantFor(event.id)}
-              />
-            ))}
-          </ul>
+    kind === "school" ? (
+      <SchoolHub locale={locale} variants={schoolVariants} />
+    ) : (
+      <>
+        <section class="page-frame events-hub-intro">
+          <p class="events-hub-intro__kicker">
+            {messages.site_title({}, { locale })}
+          </p>
+          <h1 class="my-3 mb-6 max-w-[15ch] font-[family-name:var(--font-display)] text-[clamp(2.8rem,9vw,5.5rem)] leading-[0.95] tracking-[0.015em] uppercase">
+            {messages.navigation_events({}, { locale })}
+          </h1>
+          <p class="events-hub-intro__description">
+            {messages.events_intro({}, { locale })}
+          </p>
         </section>
-      );
-    })
+
+        {hubSections.map((section) => {
+          const events = groups[section.group];
+          if (events.length === 0) return null;
+          return (
+            <section
+              class:list={[
+                "page-frame",
+                "events-hub-section",
+                `events-hub-section--${section.group}`,
+              ]}
+              aria-labelledby={section.id}
+            >
+              <div class="events-hub-section__heading">
+                <span class="events-hub-section__marker" aria-hidden="true" />
+                <h2 id={section.id} class="events-hub-section__title">
+                  {section.title}
+                </h2>
+              </div>
+              <ul class="events-hub-list">
+                {events.map((event) => (
+                  <EventCard
+                    group={section.group}
+                    locale={locale}
+                    today={today}
+                    variant={getVariantFor(event.id)}
+                  />
+                ))}
+              </ul>
+            </section>
+          );
+        })}
+        <div class="events-hub-separator" aria-hidden="true">
+          <span />
+          <b>◆</b>
+          <span />
+        </div>
+      </>
+    )
   }
-  <div class="events-hub-separator" aria-hidden="true">
-    <span></span>
-    <b>◆</b>
-    <span></span>
-  </div>
 </PublicLayout>

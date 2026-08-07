@@ -14,9 +14,6 @@ const publishedHomepages = [["ca", "Mountain Runners del Berguedà"]];
 const configuredLocales = ["ca", "es", "en"];
 
 const unavailableDetailRoutes = [
-  "ca/escoles/escola-btt/index.html",
-  "ca/escoles/escola-skimo/index.html",
-  "ca/escoles/escola-trail/index.html",
   "ca/esdeveniments/jornada-muntanya/index.html",
   "es/escuelas/escola-trail/index.html",
   "en/schools/escola-trail/index.html",
@@ -155,6 +152,10 @@ const sitemapUrls = new Set(
 const expectedSitemapUrls = new Set(
   [
     "ca/",
+    "ca/escoles/",
+    "ca/escoles/escola-btt/",
+    "ca/escoles/escola-skimo/",
+    "ca/escoles/escola-trail/",
     "ca/esdeveniments/",
     "ca/esdeveniments/berga-trail/",
     "ca/esdeveniments/escalada-queralt/",

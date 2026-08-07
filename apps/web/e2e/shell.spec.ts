@@ -107,14 +107,12 @@ test("renders the published homepage sections in order", async ({ page }) => {
   await expect(page.locator(".homepage-events")).not.toContainText(
     "Berga Trail",
   );
-  await expect(page.locator(".homepage-school-list small")).toHaveCount(3);
   await expect(page.locator(".homepage-school-list img")).toHaveCount(3);
-  await expect(page.locator(".homepage-school-list")).toContainText(
-    "Properament",
-  );
   await expect(
-    page.locator(".homepage-school-list a, .homepage-members-card a"),
-  ).toHaveCount(0);
+    page.locator(".homepage-school-list strong").allTextContents(),
+  ).resolves.toEqual(["Escola de Trail", "Escola Skimo", "Escola BTT"]);
+  await expect(page.locator(".homepage-school-list small")).toHaveCount(0);
+  await expect(page.locator('main a[href="/ca/escoles/"]')).toHaveCount(1);
   await expect(
     page.locator(".homepage-members-card .homepage-coming-soon"),
   ).toHaveText("Properament");
@@ -312,6 +310,29 @@ test("navigates from the header to the About page", async ({
   await expect(page.locator("html")).toHaveAttribute("lang", "ca");
 });
 
+test("navigates from the header to the schools hub", async ({
+  page,
+}, testInfo) => {
+  const isMobile = testInfo.project.name.endsWith("-mobile");
+  await page.goto("/ca/");
+
+  if (isMobile) {
+    const menu = page.locator("header details");
+    await menu.locator("summary").focus();
+    await page.keyboard.press("Enter");
+  }
+
+  const schoolsLink = page
+    .locator('header nav a[href="/ca/escoles/"]')
+    .filter({ visible: true });
+  await expect(schoolsLink).toHaveCount(1);
+  await expect(schoolsLink).toHaveText("Escoles");
+
+  await schoolsLink.click();
+  await expect(page).toHaveURL("/ca/escoles/");
+  await expect(page.locator("html")).toHaveAttribute("lang", "ca");
+});
+
 test("renders the About page sections in editorial order", async ({ page }) => {
   await page.goto("/ca/qui-som/");
 
@@ -362,6 +383,60 @@ test("renders the About page sections in editorial order", async ({ page }) => {
   ).toHaveCount(0);
 });
 
+test("renders the schools hub in editorial order with links to details", async ({
+  page,
+}) => {
+  await page.goto("/ca/escoles/");
+
+  await expect(page.locator("html")).toHaveAttribute("lang", "ca");
+  await expect(
+    page.getByRole("heading", { level: 1, name: "Escoles" }),
+  ).toBeVisible();
+  await expect(
+    page.locator(".schools-hub-item strong").allTextContents(),
+  ).resolves.toEqual(["Escola de Trail", "Escola Skimo", "Escola BTT"]);
+  await expect(
+    page.locator(".schools-hub-item__status").allTextContents(),
+  ).resolves.toEqual([
+    "Inscripció properament",
+    "Inscripció properament",
+    "Inscripció properament",
+  ]);
+  await expect(
+    page.locator('.schools-hub-item a[href="/ca/escoles/escola-trail/"]'),
+  ).toHaveCount(1);
+  await expect(
+    page.locator('.schools-hub-item a[href="/ca/escoles/escola-skimo/"]'),
+  ).toHaveCount(1);
+  await expect(
+    page.locator('.schools-hub-item a[href="/ca/escoles/escola-btt/"]'),
+  ).toHaveCount(1);
+  await expect(page.locator('main a[href=""], main a[href="#"]')).toHaveCount(
+    0,
+  );
+});
+
+test("navigates from the schools hub to a published school detail", async ({
+  page,
+}) => {
+  await page.goto("/ca/escoles/");
+
+  await page.getByRole("link", { name: /Escola de Trail/u }).click();
+
+  await expect(page).toHaveURL("/ca/escoles/escola-trail/");
+  await expect(page.locator("html")).toHaveAttribute("lang", "ca");
+  await expect(
+    page.getByRole("heading", { level: 1, name: "Escola de Trail" }),
+  ).toBeVisible();
+  await expect(page.getByText("L'escola va néixer l'any 2012.")).toBeVisible();
+  await expect(page.locator('main a[href=""], main a[href="#"]')).toHaveCount(
+    0,
+  );
+  await expect(
+    page.locator('a[aria-disabled="true"], button[disabled]'),
+  ).toHaveCount(0);
+});
+
 test("renders the useful Catalan 404 document", async ({ page }) => {
   await page.goto("/404.html");
 
@@ -392,6 +467,8 @@ test("@a11y has no detectable axe violations", async ({
     "/ca/esdeveniments/berga-trail/",
     "/ca/esdeveniments/escalada-queralt/",
     "/ca/qui-som/",
+    "/ca/escoles/",
+    "/ca/escoles/escola-trail/",
   ]) {
     await page.goto(path);
 
@@ -425,6 +502,12 @@ test("publishes structured data only on pages with reviewed data", async ({
   });
 
   await page.goto("/ca/esdeveniments/");
+  expect(await jsonLd()).toEqual([]);
+
+  await page.goto("/ca/escoles/");
+  expect(await jsonLd()).toEqual([]);
+
+  await page.goto("/ca/escoles/escola-trail/");
   expect(await jsonLd()).toEqual([]);
 
   await page.goto("/ca/esdeveniments/ultra-pirineu/");
@@ -505,6 +588,10 @@ test("serves sitemap and robots aligned with the canonical origin", async ({
     "https://mountainrunners.cat/ca/esdeveniments/escalada-queralt/",
     "https://mountainrunners.cat/ca/esdeveniments/ultra-pirineu/",
     "https://mountainrunners.cat/ca/qui-som/",
+    "https://mountainrunners.cat/ca/escoles/",
+    "https://mountainrunners.cat/ca/escoles/escola-trail/",
+    "https://mountainrunners.cat/ca/escoles/escola-skimo/",
+    "https://mountainrunners.cat/ca/escoles/escola-btt/",
   ]) {
     expect(sitemapText).toContain(`<loc>${url}</loc>`);
   }
@@ -527,6 +614,8 @@ test("has no broken or falsely disabled links within the slice", async ({
     "/ca/esdeveniments/berga-trail/",
     "/ca/esdeveniments/escalada-queralt/",
     "/ca/qui-som/",
+    "/ca/escoles/",
+    "/ca/escoles/escola-trail/",
     "/404.html",
   ];
   const internalHrefs = new Set<string>();
