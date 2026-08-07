@@ -605,6 +605,21 @@ test("emits canonical and social metadata for published pages", async ({
     "content",
     "https://mountainrunners.cat/ca/esdeveniments/ultra-pirineu/",
   );
+
+  await page.goto("/ca/socis/");
+  await expect(page.locator('link[rel="canonical"]')).toHaveAttribute(
+    "href",
+    "https://mountainrunners.cat/ca/socis/",
+  );
+  await expect(page.locator('meta[property="og:title"]')).toHaveAttribute(
+    "content",
+    "Socis | Mountain Runners",
+  );
+  await expect(page.locator('meta[property="og:url"]')).toHaveAttribute(
+    "content",
+    "https://mountainrunners.cat/ca/socis/",
+  );
+  await expect(page.locator('link[rel="alternate"]')).toHaveCount(0);
 });
 
 test("serves sitemap and robots aligned with the canonical origin", async ({

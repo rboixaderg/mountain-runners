@@ -6,7 +6,7 @@ import type {
   ExternalAction,
   School,
 } from "./models";
-import { statutesDocumentId } from "./models";
+import { externalActionIds, statutesDocumentId } from "./models";
 import {
   defaultLocale,
   findDuplicateLocalizedSlugs,
@@ -262,6 +262,22 @@ function assertStatutesReference(documents: readonly Document[]): void {
   }
 }
 
+function assertExternalActionsReference(
+  externalActions: readonly ExternalAction[],
+): void {
+  for (const actionId of [
+    externalActionIds.memberSignup,
+    externalActionIds.federation,
+  ]) {
+    const action = externalActions.find(({ id }) => id === actionId);
+    if (action === undefined || !action.published) {
+      throw new Error(
+        `Members page references missing or unpublished external action: ${actionId}`,
+      );
+    }
+  }
+}
+
 export function createPublicationCatalog(
   source: ContentSource,
 ): PublicationCatalog {
@@ -273,6 +289,7 @@ export function createPublicationCatalog(
   indexById(source.contact, "contact");
   assertSingleContact(source.contact);
   assertStatutesReference(source.documents);
+  assertExternalActionsReference(source.externalActions);
   assertUniqueSlugs("schools", source.schools);
   assertUniqueSlugs("events", source.events);
   assertReferences(source, entities, documents);

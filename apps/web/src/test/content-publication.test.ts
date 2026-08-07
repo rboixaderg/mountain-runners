@@ -178,6 +178,19 @@ describe("publication catalog", () => {
     expect(catalog.variants.some(({ kind }) => kind === "event")).toBe(false);
   });
 
+  it("keeps unpublished entity logos out of the public resources", async () => {
+    const source = await loadSource();
+    source.entities.find(({ id }) => id === "elit")!.published = false;
+
+    const catalog = createPublicationCatalog(source);
+    expect(getPublishedLocalResources(catalog)).not.toContain(
+      "src/assets/collaborators/elit.png",
+    );
+    expect(getPublishedLocalResources(catalog)).toContain(
+      "src/assets/collaborators/visites-al-bergueda.jpg",
+    );
+  });
+
   it("rejects missing references, duplicate ids, and duplicate localized slugs", async () => {
     const sourceWithMissingReference = await loadSource();
     const mountainDay = sourceWithMissingReference.events.find(
@@ -293,6 +306,27 @@ describe("publication catalog", () => {
       createPublicationCatalog(sourceWithUnpublishedStatutes),
     ).toThrow(
       "About page references missing or unpublished document: estatuts",
+    );
+  });
+
+  it("rejects missing or unpublished external actions referenced by the Members page", async () => {
+    const sourceWithoutSignup = await loadSource();
+    sourceWithoutSignup.externalActions =
+      sourceWithoutSignup.externalActions.filter(
+        ({ id }) => id !== "member-signup",
+      );
+    expect(() => createPublicationCatalog(sourceWithoutSignup)).toThrow(
+      "Members page references missing or unpublished external action: member-signup",
+    );
+
+    const sourceWithUnpublishedFederation = await loadSource();
+    sourceWithUnpublishedFederation.externalActions.find(
+      ({ id }) => id === "federation",
+    )!.published = false;
+    expect(() =>
+      createPublicationCatalog(sourceWithUnpublishedFederation),
+    ).toThrow(
+      "Members page references missing or unpublished external action: federation",
     );
   });
 

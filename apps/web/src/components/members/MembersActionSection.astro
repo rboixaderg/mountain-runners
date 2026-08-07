@@ -20,10 +20,15 @@ const actionHref =
   action === undefined || action.status !== "available"
     ? undefined
     : action.url?.[locale];
-const statusKey =
-  action === undefined
-    ? undefined
-    : getExternalActionStatusMessageKey(action.status);
+let stateMessage: string | undefined;
+if (action === undefined) {
+  stateMessage = messages.external_action_unavailable({}, { locale });
+} else {
+  const statusKey = getExternalActionStatusMessageKey(action.status);
+  if (statusKey !== undefined) {
+    stateMessage = messages[statusKey]({}, { locale });
+  }
+}
 ---
 
 <section class="page-frame members-section" aria-labelledby={sectionId}>
@@ -43,9 +48,7 @@ const statusKey =
           label={messages[actionLabelKey]({}, { locale })}
         />
       ) : (
-        <p class="members-action__state">
-          {statusKey !== undefined && messages[statusKey]({}, { locale })}
-        </p>
+        <p class="members-action__state">{stateMessage}</p>
       )
     }
   </div>
