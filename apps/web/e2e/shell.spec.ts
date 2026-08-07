@@ -612,6 +612,10 @@ test("publishes documents, contact and legal routes from the footer", async ({
     "Temporalment no disponible",
   );
   await expect(page.locator('main a[href*="club-guide.pdf"]')).toHaveCount(0);
+  await expect(page.locator("main")).toContainText("Data");
+  await expect(page.locator("main")).toContainText("15 de juliol del 2026");
+  await expect(page.locator("main")).toContainText("Idioma");
+  await expect(page.locator("main")).toContainText("Català");
 
   await page.goto("/ca/avis-legal/");
   await expect(page.locator("main h1")).toHaveText("Avís legal");
@@ -632,4 +636,16 @@ test("publishes documents, contact and legal routes from the footer", async ({
     "Quines cookies utilitza aquest web",
   );
   await expect(page.locator("main")).toContainText("Consentiment i banner");
+
+  // None of the new fixed routes may emit empty anchors, placeholder hashes
+  // or disabled controls, mirroring the criteria of the other fixed pages.
+  for (const path of footerLinks) {
+    await page.goto(path);
+    await expect(page.locator('main a[href=""], main a[href="#"]')).toHaveCount(
+      0,
+    );
+    await expect(
+      page.locator('a[aria-disabled="true"], button[disabled]'),
+    ).toHaveCount(0);
+  }
 });

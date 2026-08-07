@@ -3,8 +3,8 @@ import * as messages from "../../paraglide/messages.js";
 import { getDocumentHref } from "../../lib/content/images";
 import type { Document } from "../../lib/content/models";
 import type { Locale } from "../../lib/content/primitives";
+import { formatCalendarDate } from "../../lib/presentation/dates";
 import {
-  formatDocumentDate,
   getDocumentAvailabilityMessageKey,
   resourceLocaleMessageKeys,
 } from "../../lib/presentation/documents";
@@ -61,7 +61,7 @@ const documentTitle = document.title[locale]!;
         {document.date !== undefined && (
           <div>
             <dt>{messages.document_date_label({}, { locale })}</dt>
-            <dd>{formatDocumentDate(document.date, locale)}</dd>
+            <dd>{formatCalendarDate(document.date, locale)}</dd>
           </div>
         )}
         {resourceLocaleMessageKey !== undefined && (

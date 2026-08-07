@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import type { Document } from "../lib/content/models";
+import { formatCalendarDate } from "../lib/presentation/dates";
 import {
   documentTypeMessageKeys,
-  formatDocumentDate,
   getDocumentAvailabilityMessageKey,
   getDocumentGroups,
   resourceLocaleMessageKeys,
@@ -98,15 +98,15 @@ describe("getDocumentGroups", () => {
   });
 });
 
-describe("formatDocumentDate", () => {
+describe("formatCalendarDate", () => {
   it("formats a calendar date for the Catalan locale", () => {
-    expect(formatDocumentDate("2026-07-15", "ca")).toBe(
+    expect(formatCalendarDate("2026-07-15", "ca")).toBe(
       "15 de juliol del 2026",
     );
   });
 
   it("formats a calendar date for the Spanish locale", () => {
-    expect(formatDocumentDate("2026-07-15", "es")).toBe("15 de julio de 2026");
+    expect(formatCalendarDate("2026-07-15", "es")).toBe("15 de julio de 2026");
   });
 });
 

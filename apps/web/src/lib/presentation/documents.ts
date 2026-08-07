@@ -75,17 +75,3 @@ export function getDocumentGroups(
     }))
     .filter((group) => group.documents.length > 0);
 }
-
-// Calendar dates are rendered at noon UTC so that the displayed day never
-// shifts when converted to the Europe/Madrid time zone, matching the edition
-// date helpers.
-const noonUtcDate = (value: string): Date => new Date(`${value}T12:00:00Z`);
-
-export function formatDocumentDate(date: string, locale: Locale): string {
-  return new Intl.DateTimeFormat(locale, {
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-    timeZone: "Europe/Madrid",
-  }).format(noonUtcDate(date));
-}

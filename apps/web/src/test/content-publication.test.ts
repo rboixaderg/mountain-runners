@@ -297,4 +297,21 @@ describe("publication catalog", () => {
       guideResource,
     );
   });
+
+  it("keeps unavailable document resources referenced by editions out of the public output", async () => {
+    const source = await loadSource();
+    const mountainDay = source.events.find(({ id }) => id === "mountain-day")!;
+    mountainDay.published = true;
+    const guideResource = "src/content-assets/documents/club-guide.pdf";
+
+    const catalog = createPublicationCatalog(source);
+    expect(getPublishedLocalResources(catalog)).not.toContain(guideResource);
+
+    source.documents.find(({ id }) => id === "club-guide")!.availability =
+      "available";
+    const catalogWithAvailableGuide = createPublicationCatalog(source);
+    expect(getPublishedLocalResources(catalogWithAvailableGuide)).toContain(
+      guideResource,
+    );
+  });
 });

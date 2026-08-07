@@ -1,46 +1,11 @@
 ---
 import * as messages from "../../paraglide/messages.js";
-import {
-  newsletterActionId,
-  type ExternalAction,
-} from "../../lib/content/models";
+import { newsletterActionId } from "../../lib/content/models";
 import type { PublicationCatalog } from "../../lib/content/publication";
+import { getNewsletterPresentation } from "../../lib/presentation/newsletter";
 import type { Locale } from "../../lib/content/primitives";
-import { getExternalActionStatusMessageKey } from "../../lib/presentation/status";
 import ExternalLink from "../ExternalLink.astro";
 import PageSection from "../PageSection.astro";
-
-type NewsletterPresentation =
-  | { kind: "link"; url: string; label: string }
-  | { kind: "text"; message: string };
-
-function resolveNewsletterPresentation(
-  action: ExternalAction | undefined,
-  locale: Locale,
-): NewsletterPresentation | undefined {
-  if (action === undefined) return undefined;
-  if (action.status === "available" && action.url !== undefined) {
-    return {
-      kind: "link",
-      url: action.url[locale]!,
-      label: messages.contact_newsletter_subscribe({}, { locale }),
-    };
-  }
-  if (action.status === "unavailable") {
-    return {
-      kind: "text",
-      message: messages.newsletter_unavailable({}, { locale }),
-    };
-  }
-  const statusMessageKey = getExternalActionStatusMessageKey(action.status);
-  if (statusMessageKey !== undefined) {
-    return {
-      kind: "text",
-      message: messages[statusMessageKey]({}, { locale }),
-    };
-  }
-  return undefined;
-}
 
 interface Props {
   catalog: PublicationCatalog;
@@ -48,7 +13,7 @@ interface Props {
 }
 
 const { catalog, locale } = Astro.props;
-const newsletterPresentation = resolveNewsletterPresentation(
+const newsletterPresentation = getNewsletterPresentation(
   catalog.externalActions.get(newsletterActionId),
   locale,
 );
@@ -67,11 +32,18 @@ const newsletterPresentation = resolveNewsletterPresentation(
         <p class="page-section__paragraph">
           <ExternalLink
             href={newsletterPresentation.url}
-            label={newsletterPresentation.label}
+            label={messages[newsletterPresentation.labelMessageKey](
+              {},
+              {
+                locale,
+              },
+            )}
           />
         </p>
       ) : (
-        <p class="page-section__paragraph">{newsletterPresentation.message}</p>
+        <p class="page-section__paragraph">
+          {messages[newsletterPresentation.messageKey]({}, { locale })}
+        </p>
       ))
   }
 </PageSection>
