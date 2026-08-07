@@ -112,7 +112,7 @@ en una PR cohesionada, revisable i validable de manera independent.
 | T3.6 Hub d'Escoles                                | Pendent    | T3.2, shell i escoles aprovades | Llistat estable d'escoles publicades                                        | -   |
 | T3.7 Detall d'Escola                              | Pendent    | T3.6 i recursos aprovats        | Informació pràctica, galeria, vídeo i inscripció                            | -   |
 | T3.8 Documents, Contacte i peu legal              | Pendent    | T3.3, documents i canals        | Recursos, legal i canals externs disponibles                                | -   |
-| T3.9 Qualitat de cobertura                        | Pendent    | T3.4 a T3.8                     | Tests, a11y, SEO i rendiment integrats a CI                                 | -   |
+| T3.9 Qualitat de cobertura                        | Pendent    | T3.4 a T3.8                     | Tests, a11y i SEO integrats a CI; Lighthouse com a auditoria manual         | -   |
 
 Els estats permesos són `Pendent`, `En curs`, `Bloquejada` i `Completada`.
 Una unitat només passa a `Completada` després de tenir una PR revisada, validada i
@@ -226,10 +226,12 @@ formularis ni un banner de consentiment si no hi ha cookies no tècniques.
 
 ### T3.9: Qualitat De Cobertura
 
-**Abast:** E2E, axe, Lighthouse, SEO i pressupostos. **Depèn de:** T3.4 a T3.8.
+**Abast:** E2E, axe, SEO i pressupostos. **Depèn de:** T3.4 a T3.8.
 **Resultat:** controls obligatoris a CI. **Comprovació:** `pnpm validate`,
-navegadors acordats i rutes representatives. **PR:** pròpia; no substitueix
-l'auditoria manual d'accessibilitat.
+navegadors acordats i rutes representatives. Lighthouse i els pressupostos de
+rendiment queden com a auditoria manual (`pnpm lighthouse`), fora de CI, d'acord
+amb la decisió del 7 d'agost de 2026 sobre la variabilitat dels runners de
+GitHub. **PR:** pròpia; no substitueix l'auditoria manual d'accessibilitat.
 
 ## Rutes I Navegació
 
@@ -465,10 +467,12 @@ escriptori:
 - galeria, imatge placeholder i targeta de vídeo placeholder sense regressions
   d'accessibilitat detectables.
 
-Les rutes representatives de la fase han de mantenir els llindars de Lighthouse,
-pressupostos de transferència i comprovacions SEO acordats a la fase 2. La
-validació automatitzada no substitueix l'auditoria manual d'accessibilitat que
-continua registrada al backlog.
+Les rutes representatives de la fase han de mantenir les comprovacions SEO
+acordades a la fase 2. Els llindars de Lighthouse i els pressupostos de
+transferència es validen manualment amb `pnpm lighthouse`, fora de CI (decisió
+del 7 d'agost de 2026: els runners de GitHub introdueixen variabilitat en la
+mètrica Performance). La validació automatitzada no substitueix l'auditoria
+manual d'accessibilitat que continua registrada al backlog.
 
 ## Seguretat I Privacitat
 
@@ -537,8 +541,9 @@ La fase es considera completada quan:
     contrast, responsive des de 320 CSS px i estats no dependents només del color.
 14. Canonical, `hreflang`, sitemap, robots, metadades socials i qualsevol JSON-LD
     es generen només amb dades públiques vàlides.
-15. Vitest, Playwright, axe, Lighthouse, `pnpm validate` i `pnpm build` passen
-    localment i a CI amb les versions fixades.
+15. Vitest, Playwright, axe, `pnpm validate` i `pnpm build` passen localment i a
+    CI amb les versions fixades; Lighthouse i els pressupostos es validen
+    manualment amb `pnpm lighthouse` (fora de CI).
 16. No s'han introduït secrets, dades privades, analítica, cookies, formularis,
     scripts de tercers, serveis de servidor ni recursos despublicats a la sortida
     pública.
