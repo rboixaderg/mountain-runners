@@ -3,7 +3,7 @@ import * as messages from "../../paraglide/messages.js";
 import type { Locale } from "../../lib/content/primitives";
 import type { PublishedVariant } from "../../lib/content/publication";
 import { getVariantPath } from "../../lib/content/routes";
-import { registrationStatusMessageKeys } from "../../lib/presentation/status";
+import { getRegistrationPresentation } from "../../lib/presentation/status";
 
 interface Props {
   locale: Locale;
@@ -31,8 +31,10 @@ const { locale, variants } = Astro.props;
   {
     variants.map((variant) => {
       const school = variant.entry;
-      const registrationStatusKey =
-        registrationStatusMessageKeys[school.registrationStatus];
+      const registrationStatusKey = getRegistrationPresentation(
+        school.registrationStatus,
+        undefined,
+      ).key;
       return (
         <li class="schools-hub-item">
           <a class="schools-hub-item__link" href={getVariantPath(variant)}>

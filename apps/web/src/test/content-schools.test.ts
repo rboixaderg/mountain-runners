@@ -95,4 +95,25 @@ describe("school hub ordering", () => {
       "escola-btt",
     ]);
   });
+
+  it("keeps one deterministic entry per school when variants duplicate an identifier", () => {
+    const variants = [
+      {
+        kind: "school" as const,
+        locale: "ca" as const,
+        slug: "escola-trail",
+        entry: createSchool("trail-school", 1),
+      },
+      {
+        kind: "school" as const,
+        locale: "ca" as const,
+        slug: "escola-trail-copy",
+        entry: createSchool("trail-school", 1),
+      },
+    ];
+
+    expect(
+      getOrderedSchoolVariants(variants).map(({ entry }) => entry.id),
+    ).toEqual(["trail-school"]);
+  });
 });
