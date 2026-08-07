@@ -7,7 +7,7 @@ import {
   translatableSchema,
 } from "./primitives";
 import { imageResourceSchema, safeResourceSchema } from "./resources";
-import { httpsUrlSchema } from "./urls";
+import { httpsUrlSchema, mailtoUrlSchema, telUrlSchema } from "./urls";
 
 const contentIdSchema = z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/u, {
   error: "Expected a stable lowercase kebab-case identifier",
@@ -162,15 +162,56 @@ export const documentSchema = z.strictObject({
   attribution: localizedTextSchema.optional(),
 });
 
+export const externalActionStatuses = [
+  "available",
+  "coming-soon",
+  "temporarily-unavailable",
+  "unavailable",
+] as const;
+
+export type ExternalActionStatus = (typeof externalActionStatuses)[number];
+
+const externalActionStatusSchema = z.enum(externalActionStatuses);
+
+export const externalActionSchema = z
+  .strictObject({
+    id: contentIdSchema,
+    published: z.boolean(),
+    status: externalActionStatusSchema,
+    url: localizedHttpsUrlSchema.optional(),
+  })
+  .refine(
+    ({ status, url }) => (status === "available") === (url !== undefined),
+    {
+      error:
+        "An available external action requires a URL and an unavailable one must not carry one",
+      path: ["url"],
+    },
+  );
+
+export const contactSchema = z.strictObject({
+  id: contentIdSchema,
+  published: z.boolean(),
+  email: mailtoUrlSchema.optional(),
+  phones: z.array(telUrlSchema).max(4).optional(),
+  address: localizedTextSchema,
+  hours: localizedTextSchema,
+  cif: nonEmptyStringSchema,
+});
+
 export type School = z.infer<typeof schoolSchema>;
 export type Event = z.infer<typeof eventSchema>;
 export type EventEdition = z.infer<typeof eventEditionSchema>;
 export type Entity = z.infer<typeof entitySchema>;
 export type Document = z.infer<typeof documentSchema>;
+export type ExternalAction = z.infer<typeof externalActionSchema>;
+export type Contact = z.infer<typeof contactSchema>;
 
 export const collectionSchemas = {
   schools: schoolSchema,
   events: eventSchema,
   entities: entitySchema,
   documents: documentSchema,
+  externalActions: externalActionSchema,
+  contact: contactSchema,
 } as const;

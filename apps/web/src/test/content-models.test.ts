@@ -9,6 +9,8 @@ const fixturePaths = {
   events: "../content/events/mountain-day.yaml",
   entities: "../content/entities/mountain-runners.yaml",
   documents: "../content/documents/club-guide.yaml",
+  externalActions: "../content/external-actions/member-signup.yaml",
+  contact: "../content/contact/mountain-runners-contact.yaml",
 } as const;
 
 const requiredFields = {
@@ -16,6 +18,8 @@ const requiredFields = {
   events: ["id", "editions"],
   entities: ["id", "logo"],
   documents: ["id", "resource"],
+  externalActions: ["id", "status"],
+  contact: ["id", "address", "cif"],
 } as const;
 
 const invalidStateFixtures = [
@@ -136,4 +140,51 @@ describe("editorial collection schemas", () => {
       ).rejects.toThrow(expectedField);
     });
   }
+
+  it("rejects an available external action without a URL", async () => {
+    const action = await parseFixture(
+      fixturePaths.externalActions,
+      collectionSchemas.externalActions,
+    );
+
+    expect(
+      collectionSchemas.externalActions.safeParse({
+        ...action,
+        url: undefined,
+      }).success,
+    ).toBe(false);
+  });
+
+  it("rejects an external action that is not available with a URL", async () => {
+    const action = await parseFixture(
+      fixturePaths.externalActions,
+      collectionSchemas.externalActions,
+    );
+    action.status = "coming-soon";
+
+    expect(collectionSchemas.externalActions.safeParse(action).success).toBe(
+      false,
+    );
+  });
+
+  it("rejects invalid mailto and tel URLs in contact data", async () => {
+    const contact = await parseFixture(
+      fixturePaths.contact,
+      collectionSchemas.contact,
+    );
+
+    expect(
+      collectionSchemas.contact.safeParse({
+        ...contact,
+        email: "mailto:not-an-email",
+      }).success,
+    ).toBe(false);
+
+    expect(
+      collectionSchemas.contact.safeParse({
+        ...contact,
+        phones: ["tel:+34a", "tel:+34938213747"],
+      }).success,
+    ).toBe(false);
+  });
 });
