@@ -177,14 +177,16 @@ pot agrupar-se amb T3.3 només sense dades reals no aprovades.
 
 ### T3.3: Contractes De Contingut
 
-**Abast:** contracte de les pàgines fixes (text informatiu en recursos de
-traducció, d'acord amb l'ADR 0005) i objectes de domini per a les dades
-operatives: accions externes d'alta, federació i butlletí amb estat i URL, i
-dades institucionals de contacte. **Depèn de:** fases 1 i 2. **Resultat:** text
-informatiu en recursos de traducció i dades operatives validades en objectes de
-domini, sense constructor genèric. **Comprovació:** Vitest de recursos de
-traducció, objectes de domini, idiomes, URL, recursos i referències. **PR:**
-pròpia; no implementa plantilles.
+**Abast:** contracte de les pàgines fixes —incloent-hi el conjunt de claus i les
+convencions dels recursos de traducció, d'acord amb l'ADR 0005— i objectes de
+domini per a les dades operatives: accions externes d'alta, federació i butlletí
+amb estat i URL, i dades institucionals de contacte. Els textos informatius
+concrets de Qui som, Socis i les pàgines legals s'incorporen a T3.4, T3.5 i T3.8
+amb el contingut aprovat corresponent. **Depèn de:** fases 1 i 2. **Resultat:**
+recursos de traducció preparats per a les pàgines fixes i dades operatives
+validades en objectes de domini, sense constructor genèric. **Comprovació:**
+Vitest de recursos de traducció, objectes de domini, idiomes, URL, recursos i
+referències. **PR:** pròpia; no implementa plantilles.
 
 ### T3.4: Qui Som
 
@@ -282,7 +284,8 @@ domini:
 
 Els objectes de domini nous de la fase (accions externes i dades de contacte)
 tenen esquema Zod estricte, loader YAML restringit, identificador estable fix i
-validació de publicació. Els seus camps traduïbles segueixen el contracte
+validació de publicació. La col·lecció de dades de contacte conté exactament una
+entrada institucional. Els seus camps traduïbles segueixen el contracte
 existent: `ca` obligatori, `es` i `en` opcionals, sense fallback en rutes
 públiques. Reutilitzen les primitives segures de Markdown, recursos locals,
 imatges, URL HTTPS i, exclusivament en les dades de contacte, URL `mailto:` i

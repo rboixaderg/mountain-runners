@@ -42,6 +42,10 @@ Les col·leccions de contingut registrades són:
 - `contact`: dades institucionals de contacte (correu, telèfons, seu, horaris i
   CIF) amb URL `mailto:` i `tel:` validades.
 
+La col·lecció `contact` conté exactament una entrada institucional. El catàleg
+falla si en falta o n'hi ha més d'una, i només exposa les dades si l'entrada està
+publicada i completa en català.
+
 Les accions externes tenen un identificador estable fix (per exemple
 `member-signup`, `federation` i `newsletter`) que el codi i les pàgines fixes
 reutilitzen. Una acció `available` requereix una URL HTTPS traduïble; una acció
