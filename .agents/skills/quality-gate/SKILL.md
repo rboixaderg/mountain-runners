@@ -1,6 +1,6 @@
 ---
 name: quality-gate
-description: Use when implementing or reviewing public pages of the Mountain Runners web app to load the local quality gate: governing documents, mandatory commands, representative routes and viewports, Lighthouse thresholds, budgets and required evidence.
+description: "Use when implementing or reviewing public pages of the Mountain Runners web app to load the local quality gate: governing documents, mandatory commands, representative routes and viewports, Lighthouse thresholds, budgets and required evidence."
 ---
 
 # Mountain Runners Quality Gate
