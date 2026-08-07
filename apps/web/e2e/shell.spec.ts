@@ -289,6 +289,79 @@ test("renders the active event detail without an announced date", async ({
   );
 });
 
+test("navigates from the header to the About page", async ({
+  page,
+}, testInfo) => {
+  const isMobile = testInfo.project.name.endsWith("-mobile");
+  await page.goto("/ca/");
+
+  if (isMobile) {
+    const menu = page.locator("header details");
+    await menu.locator("summary").focus();
+    await page.keyboard.press("Enter");
+  }
+
+  const aboutLink = page
+    .locator('header nav a[href="/ca/qui-som/"]')
+    .filter({ visible: true });
+  await expect(aboutLink).toHaveCount(1);
+  await expect(aboutLink).toHaveText("Qui som");
+
+  await aboutLink.click();
+  await expect(page).toHaveURL("/ca/qui-som/");
+  await expect(page.locator("html")).toHaveAttribute("lang", "ca");
+});
+
+test("renders the About page sections in editorial order", async ({ page }) => {
+  await page.goto("/ca/qui-som/");
+
+  await expect(page.locator("html")).toHaveAttribute("lang", "ca");
+  await expect(
+    page.getByRole("heading", { level: 1, name: "Qui som" }),
+  ).toBeVisible();
+  await expect(
+    page.locator("main h1, main h2").allTextContents(),
+  ).resolves.toEqual([
+    "Qui som",
+    "Missatge de presidència",
+    "Junta directiva",
+    "Història",
+    "Estatuts",
+  ]);
+
+  const boardPhoto = page.getByRole("img", {
+    name: "Junta directiva de Mountain Runners del Berguedà",
+  });
+  await expect(boardPhoto).toHaveAttribute("src", /^\/_astro\//u);
+  await expect(boardPhoto).toHaveAttribute("width", "1024");
+  await expect(boardPhoto).toHaveAttribute("height", "768");
+
+  await expect(
+    page.locator(
+      'section[aria-labelledby="about-president-title"] .about-section__body',
+    ),
+  ).toContainText("escola de trail");
+  await expect(page.getByText("Ernest Garrido", { exact: true })).toHaveCount(
+    2,
+  );
+  await expect(
+    page.locator(
+      'section[aria-labelledby="about-history-title"] .about-section__body',
+    ),
+  ).toContainText("número 12637");
+  await expect(
+    page.locator(
+      'main a[href="/content-resources/content-assets/documents/estatuts-mrb.pdf"]',
+    ),
+  ).toHaveCount(1);
+  await expect(page.locator('main a[href=""], main a[href="#"]')).toHaveCount(
+    0,
+  );
+  await expect(
+    page.locator('a[aria-disabled="true"], button[disabled]'),
+  ).toHaveCount(0);
+});
+
 test("renders the useful Catalan 404 document", async ({ page }) => {
   await page.goto("/404.html");
 
@@ -318,6 +391,7 @@ test("@a11y has no detectable axe violations", async ({
     "/ca/esdeveniments/ultra-pirineu/",
     "/ca/esdeveniments/berga-trail/",
     "/ca/esdeveniments/escalada-queralt/",
+    "/ca/qui-som/",
   ]) {
     await page.goto(path);
 
@@ -430,6 +504,7 @@ test("serves sitemap and robots aligned with the canonical origin", async ({
     "https://mountainrunners.cat/ca/esdeveniments/berga-trail/",
     "https://mountainrunners.cat/ca/esdeveniments/escalada-queralt/",
     "https://mountainrunners.cat/ca/esdeveniments/ultra-pirineu/",
+    "https://mountainrunners.cat/ca/qui-som/",
   ]) {
     expect(sitemapText).toContain(`<loc>${url}</loc>`);
   }
@@ -451,6 +526,7 @@ test("has no broken or falsely disabled links within the slice", async ({
     "/ca/esdeveniments/ultra-pirineu/",
     "/ca/esdeveniments/berga-trail/",
     "/ca/esdeveniments/escalada-queralt/",
+    "/ca/qui-som/",
     "/404.html",
   ];
   const internalHrefs = new Set<string>();

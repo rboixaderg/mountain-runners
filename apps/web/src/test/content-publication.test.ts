@@ -70,6 +70,7 @@ describe("publication catalog", () => {
     expect(catalog.documents.has("private-draft")).toBe(false);
     expect(getPublishedLocalResources(catalog)).toEqual([
       "src/assets/logo_mountain_runners.png",
+      "src/content-assets/documents/estatuts-mrb.pdf",
     ]);
   });
 
@@ -244,6 +245,26 @@ describe("publication catalog", () => {
     sourceWithMultipleContacts.contact.push(secondContact);
     expect(() => createPublicationCatalog(sourceWithMultipleContacts)).toThrow(
       "Expected exactly one contact entry, found 2",
+    );
+  });
+
+  it("rejects an invalid About page statutes reference", async () => {
+    const sourceWithoutStatutes = await loadSource();
+    sourceWithoutStatutes.documents = sourceWithoutStatutes.documents.filter(
+      ({ id }) => id !== "estatuts",
+    );
+    expect(() => createPublicationCatalog(sourceWithoutStatutes)).toThrow(
+      "About page references missing or unpublished document: estatuts",
+    );
+
+    const sourceWithUnpublishedStatutes = await loadSource();
+    sourceWithUnpublishedStatutes.documents.find(
+      ({ id }) => id === "estatuts",
+    )!.published = false;
+    expect(() =>
+      createPublicationCatalog(sourceWithUnpublishedStatutes),
+    ).toThrow(
+      "About page references missing or unpublished document: estatuts",
     );
   });
 

@@ -15,7 +15,10 @@ import {
   type ContentSource,
 } from "../lib/content/publication";
 import {
+  assertFixedPageRouteSegments,
   assertRouteDomains,
+  fixedPageRouteSegments,
+  getFixedPagePath,
   getLocalizedAlternatives,
   getCanonicalUrl,
   getPublicDetailVariants,
@@ -109,6 +112,7 @@ describe("localized route contract", () => {
       "https://mountainrunners.cat/ca/",
       "https://mountainrunners.cat/ca/esdeveniments/",
       "https://mountainrunners.cat/ca/esdeveniments/jornada-muntanya/",
+      "https://mountainrunners.cat/ca/qui-som/",
     ]);
   });
 
@@ -211,6 +215,42 @@ describe("localized route contract", () => {
     fixedRoute.event.ca = "ca";
     expect(() => assertRouteDomains(fixedRoute)).toThrow(
       "Reserved ca event route domain: ca",
+    );
+  });
+
+  it("uses localized fixed-page paths and keeps them out of content domains", () => {
+    expect(fixedPageRouteSegments.about).toEqual({
+      ca: "qui-som",
+      es: "quienes-somos",
+      en: "about",
+    });
+    expect(getFixedPagePath("about", "ca")).toBe("/ca/qui-som/");
+    expect(getFixedPagePath("about", "es")).toBe("/es/quienes-somos/");
+    expect(getFixedPagePath("about", "en")).toBe("/en/about/");
+  });
+
+  it("rejects invalid fixed-page segments", () => {
+    const mutableSegments = (
+      segments: typeof fixedPageRouteSegments,
+    ): Record<keyof typeof fixedPageRouteSegments, Record<string, string>> =>
+      structuredClone(segments);
+
+    const duplicate = mutableSegments(fixedPageRouteSegments);
+    duplicate.about.ca = "escoles";
+    expect(() => assertFixedPageRouteSegments(duplicate)).toThrow(
+      "Fixed page segment collides with a content domain: ca/escoles",
+    );
+
+    const reserved = mutableSegments(fixedPageRouteSegments);
+    reserved.about.ca = "api";
+    expect(() => assertFixedPageRouteSegments(reserved)).toThrow(
+      "Reserved ca about fixed page segment: api",
+    );
+
+    const invalid = mutableSegments(fixedPageRouteSegments);
+    invalid.about.ca = "QuiSom";
+    expect(() => assertFixedPageRouteSegments(invalid)).toThrow(
+      "Invalid ca about fixed page segment: QuiSom",
     );
   });
 });
