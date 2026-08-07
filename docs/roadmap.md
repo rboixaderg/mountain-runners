@@ -55,7 +55,7 @@ constructor genèric de pàgines sense una necessitat editorial concreta.
 | 1. Base executable i qualitat                | Planificada | Astro, validacions, CI, multiidioma i models de contingut |
 | 2. Vertical slice públic                     | Planificada | Shell global, inici i esdeveniments funcionals            |
 | 3. Cobertura de contingut                    | Planificada | Resta de pàgines i plantilles de la web                   |
-| 4. Validació integral de disseny i contingut | Planificada | Revisió pàgina a pàgina abans de publicar                 |
+| 4. Validació integral de disseny i contingut | Planificada | Revisió pàgina a pàgina i traducció a es/en               |
 | 5. Publicació i operació                     | Planificada | Previews, desplegament i operació segura                  |
 | 6. Xat públic                                | Planificada | Consultes de només lectura sobre contingut publicat       |
 | 7. Assistència editorial                     | Planificada | Edició privada, auditada i basada en pull requests        |
@@ -172,8 +172,6 @@ i contingut editable.
   disponibilitat explícits.
 - Contacte, butlletí extern, dades de peu i pàgines d'avís legal, privacitat i
   cookies.
-- Afegir traduccions públiques quan el contingut corresponent estigui revisat i
-  complet.
 
 **Criteris de tancament:**
 
@@ -204,6 +202,8 @@ visuals aprovats que els corresponen.
   cada context públic.
 - Documentar les evidències, les discrepàncies i les correccions necessàries en
   entregues petites, revisables i validades abans de donar la fase per tancada.
+- Afegir traduccions públiques en castellà i anglès del contingut revisat i
+  complet.
 
 **Criteris de tancament:**
 
@@ -213,6 +213,8 @@ visuals aprovats que els corresponen.
   visuals dins de l'abast publicable acordat.
 - Les correccions mantenen els límits de contingut, accessibilitat, seguretat i
   qualitat de les fases anteriors.
+- Les variants en castellà i anglès de tot el contingut publicat estan
+  completes, revisades i oferides pel selector d'idioma.
 
 ## Fase 5: Publicació I Operació
 
