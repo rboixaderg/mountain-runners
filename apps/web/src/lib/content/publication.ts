@@ -105,6 +105,15 @@ function isImageComplete(
   return isTranslated(image.alt, locale);
 }
 
+function isSchoolImageComplete(
+  image: School["cover"],
+  locale: Locale,
+): boolean {
+  // School photographs are versioned locally so the public detail never
+  // hotlinks an editorial image from a third-party host.
+  return image.resource.kind === "local" && isImageComplete(image, locale);
+}
+
 function isEntityComplete(entity: Entity, locale: Locale): boolean {
   return (
     entity.published &&
@@ -151,8 +160,8 @@ function isSchoolComplete(school: School, locale: Locale): boolean {
     isTranslated(school.name, locale) &&
     isTranslated(school.summary, locale) &&
     isTranslated(school.description, locale) &&
-    isImageComplete(school.cover, locale) &&
-    school.gallery.every((image) => isImageComplete(image, locale)) &&
+    isSchoolImageComplete(school.cover, locale) &&
+    school.gallery.every((image) => isSchoolImageComplete(image, locale)) &&
     Object.values(school.sections).every((section) =>
       isTranslated(section, locale),
     ) &&

@@ -59,12 +59,16 @@ const publishableFields = {
   slug: localizedSlugSchema,
 };
 
-const registrationStatusSchema = z.enum([
+export const registrationStatuses = [
   "open",
   "closed",
   "coming-soon",
   "unavailable",
-]);
+] as const;
+
+export type RegistrationStatus = (typeof registrationStatuses)[number];
+
+const registrationStatusSchema = z.enum(registrationStatuses);
 
 export const schoolSchema = z.strictObject({
   ...publishableFields,

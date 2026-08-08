@@ -543,13 +543,50 @@ test("navigates from the schools hub to a published school detail", async ({
   await expect(
     page.getByRole("heading", { level: 1, name: "Escola de Trail" }),
   ).toBeVisible();
+  await expect(
+    page.getByRole("img", { name: "Logotip de Mountain Runners del Berguedà" }),
+  ).toHaveAttribute("width", "450");
   await expect(page.getByText("L'escola va néixer l'any 2012.")).toBeVisible();
+  await expect(
+    page.getByRole("heading", { level: 2, name: "Informació pràctica" }),
+  ).toBeVisible();
+  await expect(
+    page.locator(".schools-detail__practical dt").allTextContents(),
+  ).resolves.toEqual([
+    "Des de",
+    "Objectiu",
+    "Per a qui",
+    "Horari",
+    "Lloc",
+    "Preus",
+  ]);
+  await expect(
+    page.getByRole("heading", { level: 2, name: "Galeria" }),
+  ).toBeVisible();
+  await expect(
+    page.getByText("Encara no hi ha fotografies disponibles."),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("heading", { level: 2, name: "Vídeo" }),
+  ).toBeVisible();
+  await expect(page.getByText("Vídeo properament")).toBeVisible();
+  await expect(
+    page.getByRole("heading", { level: 2, name: "Inscripció" }),
+  ).toBeVisible();
+  await expect(page.getByText("Inscripció properament")).toBeVisible();
+  await expect(page.locator("video, iframe")).toHaveCount(0);
   await expect(page.locator('main a[href=""], main a[href="#"]')).toHaveCount(
     0,
   );
   await expect(
     page.locator('a[aria-disabled="true"], button[disabled]'),
   ).toHaveCount(0);
+
+  const layout = await page.evaluate(() => ({
+    clientWidth: document.documentElement.clientWidth,
+    scrollWidth: document.documentElement.scrollWidth,
+  }));
+  expect(layout.scrollWidth).toBeLessThanOrEqual(layout.clientWidth);
 });
 
 test("renders the useful Catalan 404 document", async ({ page }) => {

@@ -1,0 +1,39 @@
+---
+import * as messages from "../../paraglide/messages.js";
+import type { School } from "../../lib/content/models";
+import type { Locale } from "../../lib/content/primitives";
+import ExternalLink from "../ExternalLink.astro";
+
+interface Props {
+  locale: Locale;
+  school: School;
+}
+
+const { locale, school } = Astro.props;
+const videoUrl = school.promotionalVideoUrl;
+---
+
+<section
+  class="schools-detail__section schools-detail__video"
+  aria-labelledby="school-video-title"
+>
+  <div class="schools-detail__section-heading">
+    <span class="schools-detail__section-marker" aria-hidden="true"></span>
+    <h2 id="school-video-title">
+      {messages.school_video_title({}, { locale })}
+    </h2>
+  </div>
+  {
+    videoUrl ? (
+      <ExternalLink
+        className="schools-detail__external-link"
+        href={videoUrl}
+        label={messages.school_video_action({}, { locale })}
+      />
+    ) : (
+      <p class="schools-detail__availability">
+        {messages.school_video_unavailable({}, { locale })}
+      </p>
+    )
+  }
+</section>
