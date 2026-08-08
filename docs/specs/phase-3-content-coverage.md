@@ -108,7 +108,7 @@ en una PR cohesionada, revisable i validable de manera independent.
 | T3.2 Inventari i aprovació editorial              | Completada | Cap codi nou                    | Contingut i recursos candidats sanejats i classificats                      | #37      |
 | T3.3 Contractes de contingut                      | Completada | Fases 1 i 2                     | Text de pàgines fixes i dades operatives com a objectes de domini validades | #38, #39 |
 | T3.4 Qui som                                      | Completada | T3.3 i contingut aprovat        | Ruta institucional, junta i estatuts accessibles                            | #40      |
-| T3.5 Socis                                        | En curs    | T3.3 i entitats aprovades       | Alta, federació, avantatges i col·laboradors amb estats reals               | #44      |
+| T3.5 Socis                                        | Completada | T3.3 i entitats aprovades       | Alta, federació, avantatges i col·laboradors amb estats reals               | #44      |
 | T3.6 Hub d'Escoles                                | Completada | T3.2, shell i escoles aprovades | Llistat estable d'escoles publicades                                        | #45      |
 | T3.7 Detall d'Escola                              | Pendent    | T3.6 i recursos aprovats        | Informació pràctica, galeria, vídeo i inscripció                            | -        |
 | T3.8 Documents, Contacte i peu legal              | Completada | T3.3, documents i canals        | Recursos, legal i canals externs disponibles                                | #43      |
