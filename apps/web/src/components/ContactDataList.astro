@@ -1,0 +1,59 @@
+---
+import * as messages from "../paraglide/messages.js";
+import type { Contact } from "../lib/content/models";
+import type { Locale } from "../lib/content/primitives";
+
+type ContactAddressLabelKey =
+  "contact_address_label" | "legal_entity_address_label";
+
+interface Props {
+  contact: Contact;
+  locale: Locale;
+  addressLabelKey?: ContactAddressLabelKey;
+}
+
+const { addressLabelKey, contact, locale } = Astro.props;
+const addressLabel = messages[addressLabelKey ?? "contact_address_label"](
+  {},
+  { locale },
+);
+const cifLabel = messages.contact_cif_label({}, { locale });
+const emailLabel = messages.contact_email_label({}, { locale });
+const hoursLabel = messages.contact_hours_label({}, { locale });
+const phoneLabel = messages.contact_phone_label({}, { locale });
+---
+
+<dl class="contact-data">
+  <div class="contact-data__row">
+    <dt>{cifLabel}</dt>
+    <dd>{contact.cif}</dd>
+  </div>
+  <div class="contact-data__row">
+    <dt>{addressLabel}</dt>
+    <dd>{contact.address[locale]}</dd>
+  </div>
+  {
+    contact.email !== undefined && (
+      <div class="contact-data__row">
+        <dt>{emailLabel}</dt>
+        <dd>
+          <a href={contact.email}>{contact.email.replace(/^mailto:/u, "")}</a>
+        </dd>
+      </div>
+    )
+  }
+  {
+    contact.phones?.map((phone) => (
+      <div class="contact-data__row">
+        <dt>{phoneLabel}</dt>
+        <dd>
+          <a href={phone}>{phone.replace(/^tel:/u, "")}</a>
+        </dd>
+      </div>
+    ))
+  }
+  <div class="contact-data__row">
+    <dt>{hoursLabel}</dt>
+    <dd>{contact.hours[locale]}</dd>
+  </div>
+</dl>

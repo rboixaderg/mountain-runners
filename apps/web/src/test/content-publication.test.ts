@@ -282,4 +282,36 @@ describe("publication catalog", () => {
     expect(catalog.externalActions.has("member-signup")).toBe(false);
     expect(catalog.contact).toBeUndefined();
   });
+
+  it("keeps unavailable document resources out of the public output", async () => {
+    const source = await loadSource();
+    const clubGuide = source.documents.find(({ id }) => id === "club-guide")!;
+    const guideResource = "src/content-assets/documents/club-guide.pdf";
+
+    const catalog = createPublicationCatalog(source);
+    expect(getPublishedLocalResources(catalog)).not.toContain(guideResource);
+
+    clubGuide.availability = "available";
+    const catalogWithAvailableGuide = createPublicationCatalog(source);
+    expect(getPublishedLocalResources(catalogWithAvailableGuide)).toContain(
+      guideResource,
+    );
+  });
+
+  it("keeps unavailable document resources referenced by editions out of the public output", async () => {
+    const source = await loadSource();
+    const mountainDay = source.events.find(({ id }) => id === "mountain-day")!;
+    mountainDay.published = true;
+    const guideResource = "src/content-assets/documents/club-guide.pdf";
+
+    const catalog = createPublicationCatalog(source);
+    expect(getPublishedLocalResources(catalog)).not.toContain(guideResource);
+
+    source.documents.find(({ id }) => id === "club-guide")!.availability =
+      "available";
+    const catalogWithAvailableGuide = createPublicationCatalog(source);
+    expect(getPublishedLocalResources(catalogWithAvailableGuide)).toContain(
+      guideResource,
+    );
+  });
 });

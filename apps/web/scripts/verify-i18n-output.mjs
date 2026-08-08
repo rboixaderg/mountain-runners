@@ -29,6 +29,9 @@ const forbiddenOutputMarkers = [
   "DRAFT_ONLY_ASSET_MARKER",
   "private-draft.pdf",
   "internal-draft",
+  // The club guide is a synthetic fixture: its document stays published but
+  // temporarily unavailable, so its PDF must never reach the public output.
+  "club-guide.pdf",
 ];
 
 const expectedPublishedResource =
@@ -160,6 +163,11 @@ const expectedSitemapUrls = new Set(
     "ca/esdeveniments/escalada-queralt/",
     "ca/esdeveniments/ultra-pirineu/",
     "ca/qui-som/",
+    "ca/contacte/",
+    "ca/documents/",
+    "ca/avis-legal/",
+    "ca/privacitat/",
+    "ca/cookies/",
   ].map((path) => new URL(path, publicSiteOrigin).toString()),
 );
 if (

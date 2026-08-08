@@ -167,6 +167,10 @@ export const documentSchema = z.strictObject({
 // must resolve to a published document or the build fails.
 export const statutesDocumentId = "estatuts";
 
+// Fixed identifier of the newsletter external action the Contact fixed page
+// references. The Contact page renders its status and URL, never a fake form.
+export const newsletterActionId = "newsletter";
+
 export const externalActionStatuses = [
   "available",
   "coming-soon",

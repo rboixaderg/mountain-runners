@@ -110,8 +110,13 @@ describe("localized route contract", () => {
     ).toEqual(["/ca/esdeveniments/jornada-muntanya/"]);
     expect(getSitemapUrls(catalog, publicSiteOrigin)).toEqual([
       "https://mountainrunners.cat/ca/",
+      "https://mountainrunners.cat/ca/avis-legal/",
+      "https://mountainrunners.cat/ca/contacte/",
+      "https://mountainrunners.cat/ca/cookies/",
+      "https://mountainrunners.cat/ca/documents/",
       "https://mountainrunners.cat/ca/esdeveniments/",
       "https://mountainrunners.cat/ca/esdeveniments/jornada-muntanya/",
+      "https://mountainrunners.cat/ca/privacitat/",
       "https://mountainrunners.cat/ca/qui-som/",
     ]);
   });
@@ -224,9 +229,37 @@ describe("localized route contract", () => {
       es: "quienes-somos",
       en: "about",
     });
+    expect(fixedPageRouteSegments.contact).toEqual({
+      ca: "contacte",
+      es: "contacto",
+      en: "contact",
+    });
+    expect(fixedPageRouteSegments.documents).toEqual({
+      ca: "documents",
+      es: "documentos",
+      en: "documents",
+    });
+    expect(fixedPageRouteSegments["legal-notice"]).toEqual({
+      ca: "avis-legal",
+      es: "aviso-legal",
+      en: "legal-notice",
+    });
+    expect(fixedPageRouteSegments["legal-privacy"]).toEqual({
+      ca: "privacitat",
+      es: "privacidad",
+      en: "privacy",
+    });
+    expect(fixedPageRouteSegments["legal-cookies"]).toEqual({
+      ca: "cookies",
+      es: "cookies",
+      en: "cookies",
+    });
     expect(getFixedPagePath("about", "ca")).toBe("/ca/qui-som/");
-    expect(getFixedPagePath("about", "es")).toBe("/es/quienes-somos/");
-    expect(getFixedPagePath("about", "en")).toBe("/en/about/");
+    expect(getFixedPagePath("contact", "ca")).toBe("/ca/contacte/");
+    expect(getFixedPagePath("documents", "ca")).toBe("/ca/documents/");
+    expect(getFixedPagePath("legal-notice", "ca")).toBe("/ca/avis-legal/");
+    expect(getFixedPagePath("legal-privacy", "ca")).toBe("/ca/privacitat/");
+    expect(getFixedPagePath("legal-cookies", "ca")).toBe("/ca/cookies/");
   });
 
   it("rejects invalid fixed-page segments", () => {

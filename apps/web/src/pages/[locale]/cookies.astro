@@ -1,0 +1,29 @@
+---
+import { locales } from "../../../i18n.config.mjs";
+import * as messages from "../../paraglide/messages.js";
+import { assertIsLocale } from "../../paraglide/runtime.js";
+import LegalCookiesDetail from "../../components/legal/LegalCookiesDetail.astro";
+import PublicLayout from "../../layouts/PublicLayout.astro";
+import { getFixedPagePath } from "../../lib/content/routes";
+
+export function getStaticPaths() {
+  return locales
+    .filter((locale) => locale === "ca")
+    .map((locale) => ({ params: { locale } }));
+}
+
+const locale = assertIsLocale(Astro.currentLocale);
+const canonical = new URL(
+  getFixedPagePath("legal-cookies", locale),
+  Astro.site,
+).toString();
+---
+
+<PublicLayout
+  canonical={canonical}
+  description={messages.legal_cookies_description({}, { locale })}
+  locale={locale}
+  title={`${messages.legal_cookies_title({}, { locale })} | ${messages.site_title({}, { locale })}`}
+>
+  <LegalCookiesDetail locale={locale} />
+</PublicLayout>

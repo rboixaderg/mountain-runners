@@ -111,7 +111,7 @@ en una PR cohesionada, revisable i validable de manera independent.
 | T3.5 Socis                                        | Pendent    | T3.3 i entitats aprovades       | Alta, federació, avantatges i col·laboradors amb estats reals               | -        |
 | T3.6 Hub d'Escoles                                | Pendent    | T3.2, shell i escoles aprovades | Llistat estable d'escoles publicades                                        | -        |
 | T3.7 Detall d'Escola                              | Pendent    | T3.6 i recursos aprovats        | Informació pràctica, galeria, vídeo i inscripció                            | -        |
-| T3.8 Documents, Contacte i peu legal              | Pendent    | T3.3, documents i canals        | Recursos, legal i canals externs disponibles                                | -        |
+| T3.8 Documents, Contacte i peu legal              | En curs    | T3.3, documents i canals        | Recursos, legal i canals externs disponibles                                | #43      |
 | T3.9 Qualitat de cobertura                        | Pendent    | T3.4 a T3.8                     | Tests, a11y i SEO integrats a CI; Lighthouse com a auditoria manual         | -        |
 
 Els estats permesos són `Pendent`, `En curs`, `Bloquejada` i `Completada`.

@@ -6,8 +6,13 @@ El repositori conté un workspace pnpm i una aplicació Astro estàtica mínima 
 `apps/web`, amb validacions locals, integració contínua i un nucli segur de
 validació editorial. Les Content Collections (`schools`, `events`, `entities`,
 `documents`, `external-actions` i `contact`), les regles de publicació i les
-rutes editorials mínimes ja estan implementades. Encara no s'han implementat
-les plantilles públiques finals ni cap servei o automatització de desplegament.
+rutes editorials mínimes ja estan implementades. La fase 3 ha publicat les
+pàgines fixes de Qui som, Documents, Contacte i les tres pàgines legals (avís
+legal, privacitat i cookies), totes en català, amb el text informatiu en
+recursos de traducció i les dades operatives en objectes de domini; el peu
+enllaça aquestes rutes i mostra les dades institucionals de contacte. Encara no
+s'han implementat les plantilles públiques finals de Socis i Escoles ni cap
+servei o automatització de desplegament.
 
 ## Direcció Acceptada
 

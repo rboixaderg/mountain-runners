@@ -7,21 +7,25 @@ const madridTimeZone = "Europe/Madrid";
 // never shifts when converted to the Europe/Madrid time zone.
 const noonUtcDate = (value: string): Date => new Date(`${value}T12:00:00Z`);
 
-export function formatEditionDate(
-  edition: Pick<EventEdition, "startDate" | "endDate">,
-  locale: Locale,
-): { startLabel: string; endLabel?: string } {
-  const formatter = new Intl.DateTimeFormat(locale, {
+export function formatCalendarDate(date: string, locale: Locale): string {
+  return new Intl.DateTimeFormat(locale, {
     day: "numeric",
     month: "long",
     year: "numeric",
     timeZone: madridTimeZone,
-  });
-  const format = (value: string) => formatter.format(noonUtcDate(value));
+  }).format(noonUtcDate(date));
+}
+
+export function formatEditionDate(
+  edition: Pick<EventEdition, "startDate" | "endDate">,
+  locale: Locale,
+): { startLabel: string; endLabel?: string } {
   return {
-    startLabel: format(edition.startDate),
+    startLabel: formatCalendarDate(edition.startDate, locale),
     endLabel:
-      edition.endDate === undefined ? undefined : format(edition.endDate),
+      edition.endDate === undefined
+        ? undefined
+        : formatCalendarDate(edition.endDate, locale),
   };
 }
 
