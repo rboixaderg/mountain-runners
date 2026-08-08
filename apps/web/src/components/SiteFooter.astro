@@ -21,24 +21,24 @@ const legalCookiesPath = getFixedPagePath("legal-cookies", locale);
 const contact = catalog.contact;
 ---
 
-<footer class="site-footer border-t border-[var(--color-line)]">
-  <div class="page-frame grid gap-8 py-10 sm:grid-cols-2 lg:grid-cols-4">
-    <p
-      class="m-0 font-[family-name:var(--font-display)] text-lg tracking-[0.06em] uppercase"
+<footer class="site-footer">
+  <div class="page-frame site-footer__grid">
+    <div class="site-footer__identity">
+      <p class="site-footer__brand">{messages.site_title({}, { locale })}</p>
+      <p class="site-footer__tagline">
+        {messages.homepage_community_description({}, { locale })}
+      </p>
+    </div>
+    <nav
+      class="site-footer__nav"
+      aria-label={messages.footer_navigation({}, { locale })}
     >
-      {messages.site_title({}, { locale })}
-    </p>
-    <nav aria-label={messages.footer_navigation({}, { locale })}>
       <ul class="footer-links">
         <li>
-          <a class="font-bold" href={homePath}
-            >{messages.navigation_home({}, { locale })}</a
-          >
+          <a href={homePath}>{messages.navigation_home({}, { locale })}</a>
         </li>
         <li>
-          <a class="font-bold" href={eventsPath}
-            >{messages.navigation_events({}, { locale })}</a
-          >
+          <a href={eventsPath}>{messages.navigation_events({}, { locale })}</a>
         </li>
         <li>
           <a href={contactPath}>{messages.contact_page_title({}, { locale })}</a
@@ -51,14 +51,13 @@ const contact = catalog.contact;
         </li>
       </ul>
     </nav>
-    {
-      contact && (
-        <div class="footer-contact">
-          <ContactDataList contact={contact} locale={locale} />
-        </div>
-      )
-    }
-    <nav aria-label={messages.legal_navigation({}, { locale })}>
+    <div class="footer-contact">
+      {contact && <ContactDataList contact={contact} locale={locale} />}
+    </div>
+    <nav
+      class="site-footer__legal"
+      aria-label={messages.legal_navigation({}, { locale })}
+    >
       <ul class="footer-links">
         <li>
           <a href={legalNoticePath}
@@ -77,5 +76,10 @@ const contact = catalog.contact;
         </li>
       </ul>
     </nav>
+  </div>
+  <div class="page-frame site-footer__bottom">
+    <span>{messages.site_title({}, { locale })}</span>
+    <span aria-hidden="true">©</span>
+    <span>{messages.legal_notice_title({}, { locale })}</span>
   </div>
 </footer>

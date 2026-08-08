@@ -1,0 +1,1126 @@
+/* Phase 4 visual layer. The earlier global stylesheet keeps the stable
+   primitives and selectors used by the content components; this file groups
+   the approved Stitch composition by shell, homepage, hubs and details. */
+
+:root {
+  --color-red: #d71920;
+  --color-red-on-dark: #ff7378;
+  --color-ink: #111111;
+  --color-paper: #fafaf8;
+  --color-stone: #f1f1ee;
+  --color-line: #d7d7d2;
+  --color-muted: #5d5d58;
+  --page-width: 80rem;
+  --page-gutter: clamp(1.25rem, 4vw, 2rem);
+  --section-space: clamp(3.5rem, 7vw, 6rem);
+}
+
+body {
+  background: var(--color-paper);
+  -webkit-font-smoothing: antialiased;
+}
+
+main {
+  overflow: clip;
+}
+
+.page-frame {
+  width: min(calc(100% - 2 * var(--page-gutter)), var(--page-width));
+}
+
+.site-header {
+  position: sticky;
+  z-index: 30;
+  top: 0;
+  border-bottom: 0.25rem solid var(--color-ink);
+  background: white;
+}
+
+.site-header__inner {
+  display: flex;
+  min-height: 5.25rem;
+  align-items: center;
+  gap: clamp(0.75rem, 1.5vw, 1.5rem);
+}
+
+.site-header__brand {
+  flex: 0 0 auto;
+  text-decoration: none;
+}
+
+.site-header .site-logo {
+  width: 4.25rem;
+}
+
+.site-header__navigation {
+  display: none;
+}
+
+.site-header__link,
+.site-header__cta,
+.site-header__mobile-menu summary {
+  font-family: var(--font-display);
+  font-size: 0.95rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.site-header__link {
+  border-bottom: 0.15rem solid transparent;
+  padding-block: 0.25rem;
+  text-decoration: none;
+}
+
+.site-header__link:hover,
+.site-header__link--active {
+  border-color: var(--color-red);
+  color: var(--color-red);
+}
+
+.site-header__language {
+  display: none;
+}
+
+.site-header__cta {
+  display: none;
+  margin-left: auto;
+  border: 0.125rem solid var(--color-red);
+  padding: 0.7rem 1.1rem;
+  background: var(--color-red);
+  color: white;
+  text-decoration: none;
+}
+
+.site-header__cta:hover {
+  border-color: var(--color-ink);
+  background: var(--color-ink);
+  color: white;
+}
+
+.site-header__mobile-menu {
+  position: relative;
+  margin-left: auto;
+}
+
+.site-header__mobile-menu summary {
+  min-height: 2.75rem;
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  cursor: pointer;
+  border: 0.125rem solid var(--color-ink);
+  padding: 0.55rem 0.75rem;
+  list-style: none;
+}
+
+.site-header__mobile-menu[open] summary {
+  border-color: var(--color-red);
+  background: var(--color-red);
+  color: white;
+}
+
+.site-header__mobile-menu summary::-webkit-details-marker {
+  display: none;
+}
+
+.site-header__menu-icon {
+  position: relative;
+  width: 1.1rem;
+  height: 0.75rem;
+  display: block;
+  border-block: 0.125rem solid currentcolor;
+}
+
+.site-header__menu-icon::before,
+.site-header__menu-icon::after {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 100%;
+  border-top: 0.125rem solid currentcolor;
+  content: "";
+  transform: translateY(-50%);
+}
+
+.site-header__mobile-menu[open] .site-header__menu-icon {
+  border-color: transparent;
+}
+
+.site-header__mobile-menu[open] .site-header__menu-icon::before {
+  transform: translateY(-50%) rotate(45deg);
+}
+
+.site-header__mobile-menu[open] .site-header__menu-icon::after {
+  transform: translateY(-50%) rotate(-45deg);
+}
+
+.site-header__mobile-panel {
+  position: absolute;
+  top: calc(100% + 1.25rem);
+  right: 0;
+  width: min(20rem, calc(100vw - 2 * var(--page-gutter)));
+  max-height: calc(100dvh - 6.5rem);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  border: 0.125rem solid var(--color-ink);
+  padding: 1.25rem;
+  background: white;
+  box-shadow: 0.5rem 0.5rem 0 var(--color-red);
+}
+
+.site-header__mobile-navigation {
+  display: grid;
+  gap: 0.9rem;
+}
+
+.site-header__mobile-navigation a {
+  font-family: var(--font-display);
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.site-header__mobile-link {
+  min-height: 2.75rem;
+  display: flex;
+  align-items: center;
+  border-left: 0.25rem solid transparent;
+  padding: 0.55rem 0.75rem;
+  text-decoration: none;
+}
+
+.site-header__mobile-link:hover,
+.site-header__mobile-link--active {
+  border-left-color: var(--color-red);
+  background: var(--color-stone);
+  color: var(--color-red);
+}
+
+.site-header__mobile-language {
+  margin-top: 1.25rem;
+  border-top: 1px solid var(--color-line);
+  padding-top: 1rem;
+}
+
+.site-prefooter {
+  border-top: 1px solid var(--color-line);
+  background: var(--color-stone);
+}
+
+.site-prefooter__grid {
+  display: grid;
+  gap: 2rem;
+  padding-block: clamp(3rem, 7vw, 5rem);
+}
+
+.site-prefooter__contact,
+.site-prefooter__newsletter {
+  border: 0.125rem solid var(--color-ink);
+  padding: clamp(1.5rem, 4vw, 2.5rem);
+}
+
+.site-prefooter__contact {
+  border-color: transparent;
+  background: transparent;
+}
+
+.site-prefooter__newsletter {
+  background: white;
+  box-shadow: 0.5rem 0.5rem 0 var(--color-ink);
+}
+
+.site-prefooter__eyebrow {
+  margin: 0 0 0.75rem;
+  color: var(--color-red);
+  font-family: var(--font-display);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.site-prefooter h2 {
+  margin: 0 0 1rem;
+  font-family: var(--font-display);
+  font-size: clamp(2rem, 5vw, 3.25rem);
+  line-height: 0.95;
+  text-transform: uppercase;
+}
+
+.site-prefooter p:not(.site-prefooter__eyebrow) {
+  max-width: 35rem;
+  margin: 0 0 1.5rem;
+}
+
+.site-prefooter__email,
+.site-prefooter__link,
+.site-prefooter__action {
+  display: inline-flex;
+  gap: 0.4rem;
+  align-items: center;
+  color: var(--color-ink);
+  font-weight: 700;
+  text-decoration-thickness: 0.15rem;
+  text-underline-offset: 0.25rem;
+}
+
+.site-prefooter__link,
+.site-prefooter__action {
+  color: var(--color-red);
+  text-transform: uppercase;
+}
+
+.site-prefooter__availability {
+  color: var(--color-muted);
+  font-weight: 700;
+}
+
+.site-footer {
+  border-top: 0.5rem solid var(--color-red);
+  background: var(--color-ink);
+  color: white;
+}
+
+.site-footer__grid {
+  display: grid;
+  gap: 2.5rem;
+  padding-block: clamp(3rem, 7vw, 5rem);
+}
+
+.site-footer__identity,
+.site-footer__nav,
+.site-footer__legal,
+.site-footer .footer-contact {
+  min-width: 0;
+}
+
+.site-footer__brand {
+  margin: 0 0 1rem;
+  color: var(--color-red-on-dark);
+  font-family: var(--font-display);
+  font-size: 2rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.site-footer__tagline {
+  max-width: 22rem;
+  margin: 0;
+  color: rgb(255 255 255 / 0.68);
+}
+
+.site-footer .footer-links {
+  gap: 0.7rem;
+}
+
+.site-footer .footer-links a,
+.site-footer .contact-data a,
+.site-footer .contact-data dd {
+  color: rgb(255 255 255 / 0.82);
+}
+
+.site-footer .footer-links a:hover,
+.site-footer .contact-data a:hover {
+  color: white;
+}
+
+.site-footer .contact-data {
+  gap: 0.8rem;
+}
+
+.site-footer .contact-data__row {
+  display: block;
+}
+
+.site-footer .contact-data dt {
+  margin-bottom: 0.15rem;
+  color: var(--color-red-on-dark);
+}
+
+.site-footer .contact-data dd {
+  font-size: 0.9rem;
+}
+
+.site-footer__bottom {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  border-top: 1px solid rgb(255 255 255 / 0.18);
+  padding-block: 1.25rem;
+  color: rgb(255 255 255 / 0.58);
+  font-size: 0.75rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.homepage-hero {
+  min-height: clamp(36rem, 58vw, 50rem);
+  display: flex;
+  align-items: center;
+  padding-block: clamp(5rem, 12vw, 9rem);
+  background: var(--color-red);
+}
+
+.homepage-hero::after {
+  height: clamp(2rem, 5vw, 5rem);
+  background: var(--color-ink);
+}
+
+.homepage-hero__mountain {
+  opacity: 0.38;
+  filter: grayscale(1) contrast(1.2);
+  mix-blend-mode: multiply;
+}
+
+.homepage-hero__intro {
+  max-width: 52rem;
+}
+
+.homepage-hero h1 {
+  max-width: 9ch;
+  font-size: clamp(4rem, 11vw, 9rem);
+  letter-spacing: -0.035em;
+}
+
+.homepage-hero__copy {
+  max-width: 42rem;
+  font-size: clamp(1.1rem, 2vw, 1.45rem);
+  font-weight: 500;
+}
+
+.homepage-hero__logo {
+  width: clamp(5rem, 10vw, 8rem);
+  border: 0.25rem solid white;
+}
+
+.homepage-section,
+.homepage-club-section {
+  padding-block: var(--section-space);
+}
+
+.homepage-section__heading {
+  max-width: 46rem;
+}
+
+.homepage-section h2,
+.homepage-school-section h2,
+.homepage-members-card h2,
+.homepage-community-card h2 {
+  font-size: clamp(3rem, 7vw, 5.5rem);
+  letter-spacing: -0.025em;
+}
+
+.homepage-events {
+  margin-block: 3rem;
+}
+
+.homepage-event {
+  border-bottom: 1px solid var(--color-line);
+}
+
+.homepage-event__date {
+  background: var(--color-red);
+}
+
+.homepage-event__body {
+  padding: clamp(1.25rem, 3vw, 2.25rem);
+}
+
+.homepage-event h3 {
+  font-size: clamp(2rem, 5vw, 3.75rem);
+}
+
+.homepage-school-section {
+  padding-block: var(--section-space);
+  background: var(--color-ink);
+}
+
+.homepage-school-list li {
+  border: 0;
+  box-shadow: 0.35rem 0.35rem 0 var(--color-red);
+}
+
+.homepage-school-list__mark {
+  min-height: 5rem;
+  object-fit: contain;
+}
+
+.homepage-club-section {
+  gap: 0;
+  border-top: 0;
+}
+
+.homepage-members-card,
+.homepage-community-card {
+  min-height: 22rem;
+  padding: clamp(1.5rem, 5vw, 4rem);
+}
+
+.homepage-members-card {
+  background: var(--color-red);
+}
+
+.homepage-community-card {
+  border: 0;
+  background: var(--color-stone);
+}
+
+.events-hub-intro,
+.schools-hub-intro,
+.about-intro,
+.page-intro {
+  position: relative;
+  width: 100%;
+  max-width: none;
+  min-height: clamp(24rem, 42vw, 38rem);
+  display: flex;
+  flex-direction: column;
+  justify-content: end;
+  margin: 0;
+  overflow: hidden;
+  border: 0;
+  padding-inline: max(var(--page-gutter), calc((100% - var(--page-width)) / 2));
+  padding-block: clamp(4rem, 9vw, 8rem);
+  background: var(--color-red);
+  color: white;
+}
+
+.schools-hub-intro::before,
+.about-intro::before,
+.page-intro::before {
+  position: absolute;
+  inset: 0;
+  background: url("../assets/members/socis-portada.jpg") center / cover;
+  content: "";
+  filter: grayscale(1) contrast(1.15);
+  mix-blend-mode: multiply;
+  opacity: 0.38;
+}
+
+.page-intro {
+  min-height: clamp(18rem, 28vw, 26rem);
+  border-bottom: 0.25rem solid var(--color-ink);
+  background: var(--color-stone);
+  color: var(--color-ink);
+}
+
+.page-intro::before {
+  display: none;
+}
+
+.events-hub-intro::before {
+  position: absolute;
+  inset: 0;
+  background: var(--color-red);
+  content: "";
+  opacity: 0.35;
+}
+
+.events-hub-intro__image {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  filter: grayscale(1) contrast(1.15);
+  mix-blend-mode: multiply;
+  opacity: 0.38;
+}
+
+.events-hub-intro__media {
+  position: absolute;
+  z-index: 0;
+  inset: 0;
+  display: block;
+}
+
+.events-hub-intro > :not(.events-hub-intro__media),
+.schools-hub-intro > *,
+.about-intro > *,
+.page-intro > * {
+  position: relative;
+  z-index: 1;
+}
+
+.events-hub-intro__kicker,
+.schools-hub-intro__kicker,
+.about-intro__kicker,
+.page-intro__kicker {
+  color: white;
+}
+
+.events-hub-intro h1,
+.schools-hub-intro h1,
+.about-intro h1,
+.page-intro__title {
+  max-width: 10ch;
+  margin: 0 0 1.5rem;
+  font-size: clamp(4rem, 10vw, 8.5rem);
+  letter-spacing: -0.035em;
+}
+
+.events-hub-intro__description,
+.schools-hub-intro__description,
+.about-intro__description,
+.page-intro__description {
+  max-width: 44rem;
+  border-left-color: white;
+  color: white;
+  font-size: clamp(1rem, 2vw, 1.35rem);
+  font-weight: 500;
+  letter-spacing: 0;
+  line-height: 1.35;
+  text-transform: none;
+}
+
+.page-intro__kicker {
+  color: var(--color-red);
+}
+
+.page-intro__description {
+  border-left-color: var(--color-red);
+  color: var(--color-ink);
+}
+
+.events-hub-section,
+.schools-hub-list,
+.events-hub-separator,
+.schools-hub-separator {
+  width: min(calc(100% - 2 * var(--page-gutter)), var(--page-width));
+  margin-inline: auto;
+}
+
+.events-hub-section {
+  padding-block: clamp(3rem, 6vw, 5rem);
+}
+
+.events-hub-section__heading {
+  margin-bottom: 1.75rem;
+}
+
+.events-hub-section__title {
+  font-size: clamp(1.7rem, 3vw, 2.6rem);
+}
+
+.events-hub-item {
+  background: transparent;
+}
+
+.events-hub-item__link {
+  grid-template-columns: 9rem minmax(0, 1fr);
+  align-items: center;
+  padding: 1.5rem 1rem;
+}
+
+.events-hub-item__link:hover {
+  background: rgb(227 6 19 / 0.035);
+}
+
+.events-hub-item__date {
+  min-height: 5rem;
+  background: var(--color-red);
+}
+
+.events-hub-item__body strong {
+  font-size: clamp(1.8rem, 4vw, 3rem);
+}
+
+.schools-hub-list {
+  display: grid;
+  grid-template-columns: repeat(1, minmax(0, 1fr));
+  gap: 1rem;
+  padding-block: clamp(3rem, 6vw, 5rem);
+}
+
+.schools-hub-item {
+  border: 0.125rem solid var(--color-ink);
+  background: white;
+}
+
+.schools-hub-item__link {
+  min-height: 13rem;
+  padding: 1.5rem;
+}
+
+.schools-hub-item__body strong {
+  font-size: clamp(1.8rem, 4vw, 3rem);
+}
+
+.schools-detail__intro {
+  position: relative;
+  overflow: hidden;
+  background: var(--color-ink);
+}
+
+.schools-detail__intro-grid {
+  position: relative;
+  min-height: clamp(34rem, 58vw, 46rem);
+  max-width: none;
+  margin-inline: auto;
+}
+
+.schools-detail__cover {
+  position: absolute;
+  inset: 0;
+  border: 0;
+  background: var(--color-red);
+}
+
+.schools-detail__cover img {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  object-fit: contain;
+  filter: grayscale(1) contrast(1.15);
+  mix-blend-mode: multiply;
+  opacity: 0.65;
+}
+
+.schools-detail__intro-copy {
+  position: relative;
+  z-index: 1;
+  width: min(
+    100%,
+    calc(48rem + max(var(--page-gutter), (100vw - var(--page-width)) / 2))
+  );
+  min-height: inherit;
+  justify-content: end;
+  padding-inline: max(var(--page-gutter), calc((100vw - var(--page-width)) / 2))
+    var(--page-gutter);
+  padding-block: clamp(3rem, 8vw, 7rem);
+  background: rgb(17 17 17 / 0.86);
+}
+
+.schools-detail__title {
+  font-size: clamp(3.75rem, 10vw, 8rem);
+  letter-spacing: -0.035em;
+}
+
+.schools-detail__body {
+  max-width: var(--page-width);
+  padding-block: 0;
+}
+
+.schools-detail__section {
+  border-bottom: 0;
+  padding-block: clamp(3rem, 7vw, 6rem);
+}
+
+.schools-detail__section-heading {
+  margin-bottom: 2rem;
+}
+
+.schools-detail__section h2 {
+  font-size: clamp(1.8rem, 4vw, 3rem);
+}
+
+.schools-detail__practical {
+  background: var(--color-stone);
+}
+
+.schools-detail__practical dl {
+  gap: 1rem;
+}
+
+.schools-detail__practical dl > div {
+  border: 0.125rem solid var(--color-ink);
+  padding: 1.5rem;
+  background: white;
+}
+
+.schools-detail__practical dt {
+  color: var(--color-ink);
+}
+
+.schools-detail__practical dd {
+  font-weight: 600;
+}
+
+.schools-detail__gallery-list {
+  gap: 1rem;
+}
+
+.schools-detail__gallery-list figure {
+  border: 0.125rem solid var(--color-ink);
+}
+
+.schools-detail__gallery-list img {
+  min-height: 12rem;
+}
+
+.schools-detail__registration {
+  margin-inline: calc(var(--page-gutter) * -1);
+  padding: clamp(2rem, 6vw, 5rem) var(--page-gutter);
+  background: var(--color-ink);
+  color: white;
+}
+
+.schools-detail__registration .schools-detail__section-marker {
+  background: var(--color-red);
+}
+
+.schools-detail__registration-status {
+  color: white;
+}
+
+.schools-detail__registration .schools-detail__external-link {
+  border: 0.125rem solid var(--color-red);
+  padding: 0.8rem 1rem;
+  background: var(--color-red);
+  color: white;
+}
+
+.events-detail__hero {
+  max-width: none;
+  aspect-ratio: 2.2 / 1;
+  border: 0;
+  background: var(--color-red);
+}
+
+.events-detail__hero img {
+  object-fit: contain;
+  filter: grayscale(1) contrast(1.15);
+  mix-blend-mode: multiply;
+  opacity: 0.75;
+}
+
+.events-detail__content {
+  max-width: var(--page-width);
+  padding-block: clamp(3rem, 7vw, 6rem);
+}
+
+.events-detail__title {
+  max-width: 10ch;
+  font-size: clamp(4rem, 10vw, 9rem);
+  letter-spacing: -0.035em;
+}
+
+.events-detail__description {
+  max-width: 50rem;
+  font-size: clamp(1.1rem, 2vw, 1.35rem);
+}
+
+.events-detail__edition {
+  border: 0.125rem solid var(--color-ink);
+  border-left: 0.5rem solid var(--color-red);
+  padding: clamp(1.5rem, 4vw, 3rem);
+  background: white;
+  box-shadow: none;
+}
+
+.events-detail__edition dl {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.events-detail__edition dl > div {
+  display: block;
+  border-top: 1px solid var(--color-line);
+  padding-top: 0.75rem;
+}
+
+.events-detail__edition dt {
+  margin-bottom: 0.4rem;
+  color: var(--color-red);
+}
+
+.events-detail .event-action {
+  border: 0.125rem solid var(--color-red);
+  padding: 0.8rem 1rem;
+  background: var(--color-red);
+  color: white;
+}
+
+.about-section,
+.members-section,
+.page-section {
+  padding-block: var(--section-space);
+  border-bottom: 1px solid var(--color-line);
+}
+
+.about-section__heading,
+.members-section__heading,
+.page-section__heading {
+  margin-bottom: 2rem;
+}
+
+.about-section__title,
+.members-section__title,
+.page-section__title {
+  font-size: clamp(1.8rem, 4vw, 3rem);
+}
+
+.about-section:first-of-type {
+  background: var(--color-stone);
+}
+
+.about-president__grid {
+  display: grid;
+  gap: clamp(2rem, 6vw, 5rem);
+  align-items: center;
+}
+
+.about-president__photo {
+  max-width: 28rem;
+}
+
+.about-president__photo img {
+  width: 100%;
+  border: 0.125rem solid var(--color-ink);
+  filter: grayscale(1) contrast(1.1);
+}
+
+.about-president__photo figcaption {
+  color: var(--color-red);
+  font-family: var(--font-display);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.about-section--dark {
+  max-width: none;
+  padding-inline: max(var(--page-gutter), calc((100% - var(--page-width)) / 2));
+  background: var(--color-ink);
+  color: white;
+}
+
+.about-board__photo {
+  max-width: 44rem;
+}
+
+.about-board__photo img,
+.members-intro__photo img,
+.members-benefits__photo img {
+  border: 0.125rem solid var(--color-ink);
+}
+
+.page-detail,
+.about-detail,
+.members-detail {
+  padding-bottom: 0;
+}
+
+.members-intro {
+  position: relative;
+  width: 100%;
+  max-width: none;
+  min-height: clamp(28rem, 48vw, 42rem);
+  display: flex;
+  flex-direction: column;
+  justify-content: end;
+  margin: 0;
+  overflow: hidden;
+  border: 0;
+  padding-inline: max(var(--page-gutter), calc((100% - var(--page-width)) / 2));
+  padding-block: clamp(4rem, 9vw, 8rem);
+  background: white;
+}
+
+.members-intro__photo {
+  position: absolute;
+  inset: 0;
+  max-width: none;
+  margin: 0;
+}
+
+.members-intro__photo img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  filter: grayscale(1);
+  mix-blend-mode: multiply;
+  opacity: 0.18;
+}
+
+.members-intro__photo figcaption {
+  position: absolute;
+  right: 1rem;
+  bottom: 1rem;
+}
+
+.members-intro__kicker,
+.members-intro h1,
+.members-intro__description {
+  position: relative;
+  z-index: 1;
+}
+
+.members-intro h1 {
+  max-width: 10ch;
+  color: var(--color-ink);
+  font-size: clamp(4rem, 10vw, 8.5rem);
+}
+
+.members-intro__description {
+  max-width: 44rem;
+  border-left-color: var(--color-red);
+  color: var(--color-ink);
+  font-size: clamp(1rem, 2vw, 1.35rem);
+  font-weight: 500;
+  letter-spacing: 0;
+  line-height: 1.35;
+  text-transform: none;
+}
+
+.members-detail > [aria-labelledby="members-signup-title"] {
+  border: 0;
+  background: var(--color-red);
+  color: white;
+}
+
+.members-detail > [aria-labelledby="members-federation-title"] {
+  background: white;
+}
+
+.members-action__link {
+  max-width: 100%;
+  border: 0.125rem solid currentcolor;
+  padding: 0.8rem 1rem;
+  color: inherit;
+  overflow-wrap: anywhere;
+  text-align: left;
+}
+
+.members-action__link:hover {
+  background: var(--color-ink);
+  color: white;
+}
+
+.members-detail > [aria-labelledby="members-benefits-title"] {
+  width: 100%;
+  max-width: none;
+  padding-inline: max(var(--page-gutter), calc((100% - var(--page-width)) / 2));
+  background: var(--color-ink);
+  color: white;
+}
+
+.members-detail > [aria-labelledby="members-collaborators-title"] {
+  width: min(calc(100% - 2 * var(--page-gutter)), var(--page-width));
+  margin-inline: auto;
+}
+
+.members-directory {
+  display: grid;
+  max-width: none;
+  grid-template-columns: repeat(1, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.members-directory__entry {
+  min-height: 9rem;
+  border: 1px solid var(--color-line);
+  padding: 1rem;
+}
+
+.members-directory__logo {
+  max-width: 7rem;
+  max-height: 5rem;
+  object-fit: contain;
+}
+
+.members-directory__website {
+  max-width: 100%;
+  flex-wrap: wrap;
+  overflow-wrap: anywhere;
+}
+
+@media (min-width: 48rem) {
+  .site-prefooter__grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: center;
+  }
+
+  .site-footer__grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: start;
+  }
+
+  .homepage-hero__intro {
+    grid-column: span 9;
+  }
+
+  .homepage-event {
+    grid-template-columns: 12rem minmax(0, 1fr);
+  }
+
+  .homepage-school-section__grid,
+  .homepage-club-section {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .homepage-club-section {
+    grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+  }
+
+  .schools-hub-list {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .schools-detail__practical dl {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .schools-detail__gallery-list {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .schools-detail__registration {
+    margin-inline: 0;
+    padding-inline: clamp(2rem, 6vw, 5rem);
+  }
+
+  .about-president__grid {
+    grid-template-columns: minmax(14rem, 0.8fr) minmax(0, 1.2fr);
+  }
+
+  .members-directory {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 64rem) {
+  .site-header__navigation,
+  .site-header__language,
+  .site-header__cta {
+    display: flex;
+  }
+
+  .site-header__navigation {
+    margin-left: auto;
+    align-items: center;
+    gap: clamp(1rem, 2vw, 2rem);
+  }
+
+  .site-header__mobile-menu {
+    display: none;
+  }
+
+  .site-footer__grid {
+    grid-template-columns: 1.5fr 1fr 1.25fr 1fr;
+  }
+}
+
+@media (max-width: 47.99rem) {
+  .homepage-school-list {
+    grid-template-columns: 1fr;
+  }
+
+  .homepage-school-list li {
+    max-width: 28rem;
+  }
+
+  .events-hub-item__link {
+    grid-template-columns: 6.5rem minmax(0, 1fr);
+  }
+
+  .events-detail__edition dl {
+    grid-template-columns: 1fr;
+  }
+
+  .site-footer__bottom {
+    width: calc(100% - 2 * var(--page-gutter));
+  }
+}

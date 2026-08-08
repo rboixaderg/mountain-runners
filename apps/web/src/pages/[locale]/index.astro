@@ -3,7 +3,8 @@ import { locales } from "../../../i18n.config.mjs";
 import * as messages from "../../paraglide/messages.js";
 import { assertIsLocale } from "../../paraglide/runtime.js";
 import logo from "../../assets/logo_mountain_runners.png";
-import mountainPlaceholder from "../../assets/berga-trail-placeholder.svg";
+import homepageImage from "../../assets/members/socis-portada.jpg";
+import homepageImageSmall from "../../assets/members/socis-portada-hero.jpg";
 import HomepageEventCard from "../../components/events/HomepageEventCard.astro";
 import PublicLayout from "../../layouts/PublicLayout.astro";
 import { getHomepageEvents, getMadridDate } from "../../lib/content/events";
@@ -55,13 +56,18 @@ export function getStaticPaths() {
   title={messages.homepage_hero_title({}, { locale })}
 >
   <section class="homepage-hero">
-    <img
-      class="homepage-hero__mountain"
-      src={mountainPlaceholder.src}
-      width={mountainPlaceholder.width}
-      height={mountainPlaceholder.height}
-      alt=""
-    />
+    <picture>
+      <source media="(min-width: 48rem)" srcset={homepageImage.src} />
+      <img
+        class="homepage-hero__mountain"
+        src={homepageImageSmall.src}
+        width={homepageImageSmall.width}
+        height={homepageImageSmall.height}
+        loading="eager"
+        fetchpriority="high"
+        alt=""
+      />
+    </picture>
     <div class="page-frame homepage-hero__grid">
       <div class="homepage-hero__intro">
         <p class="homepage-kicker">MRB</p>

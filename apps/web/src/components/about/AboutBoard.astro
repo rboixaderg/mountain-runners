@@ -1,6 +1,5 @@
 ---
 import * as messages from "../../paraglide/messages.js";
-import juntaPhoto from "../../assets/junta-directiva.jpg";
 import { renderRestrictedMarkdown } from "../../lib/content/markdown";
 import type { Locale } from "../../lib/content/primitives";
 
@@ -11,21 +10,16 @@ interface Props {
 const { locale } = Astro.props;
 ---
 
-<section class="page-frame about-section" aria-labelledby="about-board-title">
+<section
+  class="page-frame about-section about-section--dark"
+  aria-labelledby="about-board-title"
+>
   <div class="about-section__heading">
     <span class="about-section__marker" aria-hidden="true"></span>
     <h2 class="about-section__title" id="about-board-title">
       {messages.about_board_title({}, { locale })}
     </h2>
   </div>
-  <figure class="about-board__photo">
-    <img
-      src={juntaPhoto.src}
-      width={juntaPhoto.width}
-      height={juntaPhoto.height}
-      alt={messages.about_board_photo_alt({}, { locale })}
-    />
-  </figure>
   <div
     class="about-section__body"
     set:html={renderRestrictedMarkdown(

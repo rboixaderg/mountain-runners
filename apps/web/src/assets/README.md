@@ -28,6 +28,10 @@ l'atribució que publica la web actual (`@about_paulagnf`). Les fotografies
 conserven els drets d'imatge de les persones que hi apareixen i no queden
 cobertes per la llicència MIT del programari.
 
+`members/socis-portada-hero.jpg` és una derivació optimitzada de la portada
+aprovada, amb la mateixa procedència i autorització. Es carrega als herois en
+pantalles petites; la imatge original es reserva per a amplades més grans.
+
 El logotip, la fotografia, les fotografies i els logotips de col·laboradors
 són recursos de marca i d'imatge de l'associació i de les entitats. Qualsevol
 reutilització fora d'aquest projecte requereix autorització de l'associació.

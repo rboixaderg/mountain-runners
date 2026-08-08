@@ -1,6 +1,8 @@
 ---
 import * as messages from "../../../paraglide/messages.js";
 import { assertIsLocale } from "../../../paraglide/runtime.js";
+import hubHeroImage from "../../../assets/members/socis-portada.jpg";
+import hubHeroImageSmall from "../../../assets/members/socis-portada-hero.jpg";
 import EventCard from "../../../components/events/EventCard.astro";
 import SchoolHub from "../../../components/schools/SchoolHub.astro";
 import PublicLayout from "../../../layouts/PublicLayout.astro";
@@ -108,6 +110,18 @@ const hubDescription =
     ) : (
       <>
         <section class="page-frame events-hub-intro">
+          <picture class="events-hub-intro__media">
+            <source media="(min-width: 48rem)" srcset={hubHeroImage.src} />
+            <img
+              class="events-hub-intro__image"
+              src={hubHeroImageSmall.src}
+              width={hubHeroImageSmall.width}
+              height={hubHeroImageSmall.height}
+              loading="eager"
+              fetchpriority="high"
+              alt=""
+            />
+          </picture>
           <p class="events-hub-intro__kicker">
             {messages.site_title({}, { locale })}
           </p>

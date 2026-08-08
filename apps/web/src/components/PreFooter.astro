@@ -1,0 +1,73 @@
+---
+import * as messages from "../paraglide/messages.js";
+import { getFixedPagePath } from "../lib/content/routes";
+import { newsletterActionId } from "../lib/content/models";
+import type { Locale } from "../lib/content/primitives";
+import type { PublicationCatalog } from "../lib/content/publication";
+import { getNewsletterPresentation } from "../lib/presentation/newsletter";
+import ExternalLink from "./ExternalLink.astro";
+
+interface Props {
+  catalog: PublicationCatalog;
+  locale: Locale;
+}
+
+const { catalog, locale } = Astro.props;
+const contact = catalog.contact;
+const newsletterPresentation = getNewsletterPresentation(
+  catalog.externalActions.get(newsletterActionId),
+  locale,
+);
+const contactPath = getFixedPagePath("contact", locale);
+---
+
+<section
+  class="site-prefooter"
+  aria-label={messages.site_title({}, { locale })}
+>
+  <div class="page-frame site-prefooter__grid">
+    <div class="site-prefooter__contact">
+      <p class="site-prefooter__eyebrow">
+        {messages.site_title({}, { locale })}
+      </p>
+      <h2 id="site-prefooter-title">
+        {messages.contact_information_title({}, { locale })}
+      </h2>
+      <p>{messages.contact_page_description({}, { locale })}</p>
+      {
+        contact?.email && (
+          <a class="site-prefooter__email" href={contact.email}>
+            {contact.email.replace(/^mailto:/u, "")}
+          </a>
+        )
+      }
+      <a class="site-prefooter__link" href={contactPath}>
+        {messages.contact_page_title({}, { locale })}
+        <span aria-hidden="true">→</span>
+      </a>
+    </div>
+    <div class="site-prefooter__newsletter">
+      <p class="site-prefooter__eyebrow">
+        {messages.site_title({}, { locale })}
+      </p>
+      <h2>{messages.contact_newsletter_title({}, { locale })}</h2>
+      <p>{messages.contact_newsletter_description({}, { locale })}</p>
+      {
+        newsletterPresentation?.kind === "link" ? (
+          <ExternalLink
+            className="site-prefooter__action"
+            href={newsletterPresentation.url}
+            label={messages[newsletterPresentation.labelMessageKey](
+              {},
+              { locale },
+            )}
+          />
+        ) : (
+          <p class="site-prefooter__availability">
+            {messages.newsletter_unavailable({}, { locale })}
+          </p>
+        )
+      }
+    </div>
+  </div>
+</section>

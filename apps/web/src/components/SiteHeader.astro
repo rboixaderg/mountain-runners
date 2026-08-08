@@ -14,16 +14,31 @@ interface Props {
 
 const { localizedAlternatives, locale } = Astro.props;
 const homePath = `/${locale}/`;
-const eventsPath = getDomainPath("event", locale);
-const schoolsPath = getDomainPath("school", locale);
 const aboutPath = getFixedPagePath("about", locale);
+const schoolsPath = getDomainPath("school", locale);
+const eventsPath = getDomainPath("event", locale);
 const membersPath = getFixedPagePath("members", locale);
+const contactPath = getFixedPagePath("contact", locale);
+const currentPath = Astro.url.pathname;
+const navigationItems = [
+  { href: aboutPath, label: messages.navigation_about({}, { locale }) },
+  { href: schoolsPath, label: messages.navigation_schools({}, { locale }) },
+  { href: eventsPath, label: messages.navigation_events({}, { locale }) },
+  { href: membersPath, label: messages.navigation_members({}, { locale }) },
+  { href: contactPath, label: messages.contact_page_title({}, { locale }) },
+];
+
+function isCurrentPath(path: string): boolean {
+  return (
+    currentPath === path || (path !== homePath && currentPath.startsWith(path))
+  );
+}
 ---
 
-<header class="border-b border-[var(--color-line)]">
-  <div class="page-frame flex min-h-18 items-center gap-6">
+<header class="site-header">
+  <div class="page-frame site-header__inner">
     <a
-      class="shrink-0 no-underline"
+      class="site-header__brand"
       href={homePath}
       aria-label={messages.site_title({}, { locale })}
     >
@@ -36,59 +51,60 @@ const membersPath = getFixedPagePath("members", locale);
       />
     </a>
     <nav
-      class="ml-auto hidden items-center gap-4 text-sm md:flex"
+      class="site-header__navigation"
       aria-label={messages.primary_navigation({}, { locale })}
     >
-      <a class="font-bold" href={homePath}
-        >{messages.navigation_home({}, { locale })}</a
-      >
-      <a class="font-bold" href={eventsPath}
-        >{messages.navigation_events({}, { locale })}</a
-      >
-      <a class="font-bold" href={aboutPath}
-        >{messages.navigation_about({}, { locale })}</a
-      >
-      <a class="font-bold" href={membersPath}
-        >{messages.navigation_members({}, { locale })}</a
-      >
-      <a class="font-bold" href={schoolsPath}
-        >{messages.navigation_schools({}, { locale })}</a
-      >
+      {
+        navigationItems.map((item) => (
+          <a
+            class:list={[
+              "site-header__link",
+              isCurrentPath(item.href) && "site-header__link--active",
+            ]}
+            href={item.href}
+            aria-current={isCurrentPath(item.href) ? "page" : undefined}
+          >
+            {item.label}
+          </a>
+        ))
+      }
     </nav>
-    <div class="hidden md:block">
+    <div class="site-header__language">
       <LanguageSelector
         localizedAlternatives={localizedAlternatives}
         locale={locale}
       />
     </div>
-    <details class="relative ml-auto md:hidden">
-      <summary class="cursor-pointer font-bold"
-        >{messages.menu({}, { locale })}</summary
-      >
-      <div
-        class="absolute right-0 z-10 mt-4 min-w-60 border border-[var(--color-line)] bg-[var(--color-paper)] p-4 shadow-sm"
-      >
+    <a class="site-header__cta" href={membersPath}>
+      {messages.navigation_members({}, { locale })}
+    </a>
+    <details class="site-header__mobile-menu">
+      <summary>
+        <span>{messages.menu({}, { locale })}</span>
+        <span class="site-header__menu-icon" aria-hidden="true"></span>
+      </summary>
+      <div class="site-header__mobile-panel">
         <nav
-          class="grid gap-3"
+          class="site-header__mobile-navigation"
           aria-label={messages.primary_navigation({}, { locale })}
         >
-          <a class="font-bold" href={homePath}
-            >{messages.navigation_home({}, { locale })}</a
-          >
-          <a class="font-bold" href={eventsPath}
-            >{messages.navigation_events({}, { locale })}</a
-          >
-          <a class="font-bold" href={aboutPath}
-            >{messages.navigation_about({}, { locale })}</a
-          >
-          <a class="font-bold" href={membersPath}
-            >{messages.navigation_members({}, { locale })}</a
-          >
-          <a class="font-bold" href={schoolsPath}
-            >{messages.navigation_schools({}, { locale })}</a
-          >
+          {
+            navigationItems.map((item) => (
+              <a
+                class:list={[
+                  "site-header__mobile-link",
+                  isCurrentPath(item.href) &&
+                    "site-header__mobile-link--active",
+                ]}
+                href={item.href}
+                aria-current={isCurrentPath(item.href) ? "page" : undefined}
+              >
+                {item.label}
+              </a>
+            ))
+          }
         </nav>
-        <div class="mt-4">
+        <div class="site-header__mobile-language">
           <LanguageSelector
             localizedAlternatives={localizedAlternatives}
             locale={locale}

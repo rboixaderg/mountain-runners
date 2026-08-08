@@ -1,6 +1,7 @@
 ---
 import SiteFooter from "../components/SiteFooter.astro";
 import SiteHeader from "../components/SiteHeader.astro";
+import PreFooter from "../components/PreFooter.astro";
 import logoFavicon from "../assets/logo_mountain_runners.png";
 import oswaldFont from "../assets/fonts/oswald-latin.woff2";
 import { getPublicationCatalog } from "../lib/content/repository";
@@ -8,6 +9,7 @@ import type { Locale } from "../lib/content/primitives";
 import { renderJsonLdScript, type StructuredData } from "../lib/content/seo";
 import * as messages from "../paraglide/messages.js";
 import "../styles/global.css";
+import "../styles/phase4-design.css";
 
 type LocalizedAlternative = { locale: Locale; href: string };
 
@@ -76,6 +78,7 @@ const catalog = await getPublicationCatalog();
     >
     <SiteHeader localizedAlternatives={localizedAlternatives} locale={locale} />
     <main id="main-content"><slot /></main>
+    <PreFooter catalog={catalog} locale={locale} />
     <SiteFooter catalog={catalog} locale={locale} />
   </body>
 </html>
