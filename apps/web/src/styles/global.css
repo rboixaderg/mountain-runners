@@ -414,6 +414,12 @@ figcaption {
   text-transform: uppercase;
 }
 
+.homepage-school-list small {
+  color: var(--color-red);
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
 .homepage-coming-soon {
   color: var(--color-muted);
   font-weight: 700;
@@ -453,8 +459,8 @@ figcaption {
   font-size: clamp(1.1rem, 2vw, 1.35rem);
 }
 
-.homepage-members-card .homepage-coming-soon {
-  color: inherit;
+.homepage-members-card a:hover {
+  color: var(--color-ink);
 }
 
 @media (min-width: 48rem) {
@@ -1443,6 +1449,215 @@ figcaption {
   font-size: 0.7rem;
 }
 
+/* The Members fixed page renders its external actions, benefits and the
+   collaborator directory with the same editorial rhythm: an intro block and
+   red-marker sections. */
+
+.members-detail {
+  padding-bottom: var(--space-12);
+}
+
+.members-intro {
+  padding-block: var(--space-8);
+  border-bottom: 1px solid var(--color-line);
+}
+
+.members-intro__photo {
+  max-width: var(--reading-width);
+  margin: 0 0 var(--space-6);
+}
+
+.members-intro__photo img,
+.members-benefits__photo img {
+  border-bottom: 0.25rem solid var(--color-ink);
+}
+
+.members-intro__photo figcaption {
+  margin-top: var(--space-2);
+  color: var(--color-muted);
+  font-size: 0.75rem;
+}
+
+.members-intro__kicker {
+  margin: 0 0 var(--space-2);
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.members-intro h1 {
+  margin: 0 0 var(--space-3);
+  font-family: var(--font-display);
+  font-size: clamp(3rem, 8vw, 5.5rem);
+  line-height: 0.9;
+  letter-spacing: -0.015em;
+  text-transform: uppercase;
+}
+
+.members-intro__description {
+  max-width: 38rem;
+  margin: 0;
+  border-left: 0.25rem solid var(--color-red);
+  padding-left: var(--space-3);
+  color: var(--color-muted);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  line-height: 1.45;
+  text-transform: uppercase;
+}
+
+.members-section {
+  padding-block: var(--space-6);
+  border-bottom: 1px solid var(--color-line);
+}
+
+.members-section__heading {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+  margin-bottom: var(--space-4);
+}
+
+.members-section__marker {
+  width: 0.5rem;
+  height: 1.5rem;
+  flex: 0 0 auto;
+  background: var(--color-red);
+}
+
+.members-section__title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(1.15rem, 2.5vw, 1.7rem);
+  line-height: 1;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.members-section__body {
+  max-width: var(--reading-width);
+  font-size: 1rem;
+  line-height: 1.6;
+}
+
+.members-section__body p {
+  margin: 0 0 var(--space-4);
+}
+
+.members-section__body p:last-child {
+  margin-bottom: 0;
+}
+
+.members-action__link {
+  display: inline-flex;
+  gap: 0.35rem;
+  align-items: center;
+  margin: 0.25rem 0 0;
+  border: 0;
+  padding: 0;
+  color: var(--color-red);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  text-decoration: none;
+}
+
+.members-action__link:hover {
+  background: transparent;
+  color: var(--color-ink);
+}
+
+.members-action__state {
+  margin: var(--space-4) 0 0;
+  color: var(--color-muted);
+}
+
+.members-benefits__photo {
+  max-width: var(--reading-width);
+  margin: var(--space-6) 0 0;
+}
+
+.members-directory {
+  max-width: var(--reading-width);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.members-directory__entry {
+  display: flex;
+  gap: var(--space-4);
+  align-items: flex-start;
+  padding-block: var(--space-4);
+  border-bottom: 1px solid var(--color-line);
+}
+
+.members-directory__entry:first-child {
+  padding-top: 0;
+}
+
+.members-directory__entry:last-child {
+  border-bottom: 0;
+}
+
+.members-directory__logo {
+  max-width: 5.5rem;
+  flex: 0 0 auto;
+}
+
+.members-directory__content {
+  min-width: 0;
+}
+
+.members-directory__name {
+  margin: 0 0 var(--space-2);
+  font-family: var(--font-display);
+  font-size: 1.1rem;
+  line-height: 1.1;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.members-directory__benefit {
+  margin: 0 0 var(--space-2);
+}
+
+.members-directory__description {
+  color: var(--color-muted);
+  font-size: 0.9375rem;
+  line-height: 1.5;
+}
+
+.members-directory__description p {
+  margin: 0 0 var(--space-2);
+}
+
+.members-directory__description p:last-child {
+  margin-bottom: 0;
+}
+
+.members-directory__website {
+  display: inline-flex;
+  gap: 0.35rem;
+  align-items: center;
+  margin-top: var(--space-2);
+  color: var(--color-red);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-decoration: none;
+  text-transform: uppercase;
+}
+
+.members-directory__website:hover {
+  background: transparent;
+  color: var(--color-ink);
+}
+
 @media (min-width: 48rem) {
   .page-intro {
     max-width: var(--reading-width);
@@ -1451,6 +1666,16 @@ figcaption {
   }
 
   .page-section {
+    padding-block: var(--space-8);
+  }
+
+  .members-intro {
+    max-width: var(--reading-width);
+    margin-inline: auto;
+    padding-block: var(--space-12);
+  }
+
+  .members-section {
     padding-block: var(--space-8);
   }
 }

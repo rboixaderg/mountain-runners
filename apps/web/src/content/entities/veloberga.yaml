@@ -1,0 +1,18 @@
+id: veloberga
+published: true
+name:
+  ca: Veloberga
+logo:
+  resource:
+    kind: local
+    path: src/assets/collaborators/veloberga.jpg
+  alt:
+    ca: Logotip de Veloberga
+  sourceUrl: https://mountainrunners.cat/wp-content/uploads/2021/07/IMG-4458-1.jpg
+description:
+  ca: Establiment col·laborador de Mountain Runners del Berguedà.
+membershipBenefit:
+  title:
+    ca: Articles i accessoris
+  description:
+    ca: 10% de descompte en articles i accessoris de la botiga.

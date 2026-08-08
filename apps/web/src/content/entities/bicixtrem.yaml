@@ -1,0 +1,18 @@
+id: bicixtrem
+published: true
+name:
+  ca: Bicixtrem
+logo:
+  resource:
+    kind: local
+    path: src/assets/collaborators/bicixtrem.jpg
+  alt:
+    ca: Logotip de Bicixtrem
+  sourceUrl: https://mountainrunners.cat/wp-content/uploads/2021/07/img-20140603-wa0009.jpg
+description:
+  ca: Establiment col·laborador de Mountain Runners del Berguedà.
+membershipBenefit:
+  title:
+    ca: Productes
+  description:
+    ca: 10% de descompte als socis en la compra de productes.

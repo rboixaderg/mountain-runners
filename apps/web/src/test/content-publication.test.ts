@@ -69,6 +69,28 @@ describe("publication catalog", () => {
     ]);
     expect(catalog.documents.has("private-draft")).toBe(false);
     expect(getPublishedLocalResources(catalog)).toEqual([
+      "src/assets/collaborators/aina-vila.png",
+      "src/assets/collaborators/alexandra-bruy.png",
+      "src/assets/collaborators/bicixtrem.jpg",
+      "src/assets/collaborators/centre-optic.jpg",
+      "src/assets/collaborators/cimetir.jpg",
+      "src/assets/collaborators/clinica-jessica-genesca.png",
+      "src/assets/collaborators/elit.png",
+      "src/assets/collaborators/estetica-adela.png",
+      "src/assets/collaborators/farmacia-cosp.png",
+      "src/assets/collaborators/four-riders-bike-park.png",
+      "src/assets/collaborators/intersport-serramarti.png",
+      "src/assets/collaborators/joieria-climent.png",
+      "src/assets/collaborators/ortopedia-alvarez-saz-cabra.jpg",
+      "src/assets/collaborators/pedratour.png",
+      "src/assets/collaborators/peu-de-via.webp",
+      "src/assets/collaborators/podologia-ingrid-soca.jpg",
+      "src/assets/collaborators/ramirs-sabaters.png",
+      "src/assets/collaborators/rios-running-berga.jpeg",
+      "src/assets/collaborators/serrasports.png",
+      "src/assets/collaborators/snowlockers.png",
+      "src/assets/collaborators/veloberga.jpg",
+      "src/assets/collaborators/visites-al-bergueda.jpg",
       "src/assets/logo_mountain_runners.png",
       "src/content-assets/documents/estatuts-mrb.pdf",
     ]);
@@ -121,12 +143,15 @@ describe("publication catalog", () => {
             ({ id }) => id === "mountain-day",
           )!;
           mountainDay.published = true;
-          source.entities[0]!.membershipBenefit = {
+          const mountainRunners = source.entities.find(
+            ({ id }) => id === "mountain-runners",
+          )!;
+          mountainRunners.membershipBenefit = {
             title: { ca: "Benefit" },
             description: { ca: "Description" },
           };
           delete (
-            source.entities[0]!.membershipBenefit.description as { ca?: string }
+            mountainRunners.membershipBenefit.description as { ca?: string }
           ).ca;
         },
       },
@@ -143,11 +168,27 @@ describe("publication catalog", () => {
     const source = await loadSource();
     const mountainDay = source.events.find(({ id }) => id === "mountain-day")!;
     mountainDay.published = true;
-    source.entities[0]!.published = false;
+    const mountainRunners = source.entities.find(
+      ({ id }) => id === "mountain-runners",
+    )!;
+    mountainRunners.published = false;
 
     const catalog = createPublicationCatalog(source);
     expect(catalog.entities.has("mountain-runners")).toBe(false);
     expect(catalog.variants.some(({ kind }) => kind === "event")).toBe(false);
+  });
+
+  it("keeps unpublished entity logos out of the public resources", async () => {
+    const source = await loadSource();
+    source.entities.find(({ id }) => id === "elit")!.published = false;
+
+    const catalog = createPublicationCatalog(source);
+    expect(getPublishedLocalResources(catalog)).not.toContain(
+      "src/assets/collaborators/elit.png",
+    );
+    expect(getPublishedLocalResources(catalog)).toContain(
+      "src/assets/collaborators/visites-al-bergueda.jpg",
+    );
   });
 
   it("rejects missing references, duplicate ids, and duplicate localized slugs", async () => {
@@ -265,6 +306,27 @@ describe("publication catalog", () => {
       createPublicationCatalog(sourceWithUnpublishedStatutes),
     ).toThrow(
       "About page references missing or unpublished document: estatuts",
+    );
+  });
+
+  it("rejects missing or unpublished external actions referenced by the Members page", async () => {
+    const sourceWithoutSignup = await loadSource();
+    sourceWithoutSignup.externalActions =
+      sourceWithoutSignup.externalActions.filter(
+        ({ id }) => id !== "member-signup",
+      );
+    expect(() => createPublicationCatalog(sourceWithoutSignup)).toThrow(
+      "Members page references missing or unpublished external action: member-signup",
+    );
+
+    const sourceWithUnpublishedFederation = await loadSource();
+    sourceWithUnpublishedFederation.externalActions.find(
+      ({ id }) => id === "federation",
+    )!.published = false;
+    expect(() =>
+      createPublicationCatalog(sourceWithUnpublishedFederation),
+    ).toThrow(
+      "Members page references missing or unpublished external action: federation",
     );
   });
 

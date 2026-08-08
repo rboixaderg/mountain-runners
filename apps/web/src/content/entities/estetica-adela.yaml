@@ -1,0 +1,18 @@
+id: estetica-adela
+published: true
+name:
+  ca: Estètica Adela
+logo:
+  resource:
+    kind: local
+    path: src/assets/collaborators/estetica-adela.png
+  alt:
+    ca: Logotip de l'Estètica Adela
+  sourceUrl: https://mountainrunners.cat/wp-content/uploads/2021/07/Captura-de-Pantalla-2021-07-29-a-les-10.35.56.png
+description:
+  ca: Centre d'Estètica i Thalassoteràpia.
+membershipBenefit:
+  title:
+    ca: Depilació i massatge esportiu
+  description:
+    ca: 10% de descompte en depilació i 15% en el pack de depilació i massatge esportiu.

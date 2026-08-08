@@ -17,6 +17,7 @@ const homePath = `/${locale}/`;
 const eventsPath = getDomainPath("event", locale);
 const schoolsPath = getDomainPath("school", locale);
 const aboutPath = getFixedPagePath("about", locale);
+const membersPath = getFixedPagePath("members", locale);
 ---
 
 <header class="border-b border-[var(--color-line)]">
@@ -47,11 +48,8 @@ const aboutPath = getFixedPagePath("about", locale);
       <a class="font-bold" href={aboutPath}
         >{messages.navigation_about({}, { locale })}</a
       >
-      <span
-        >{messages.navigation_members({}, { locale })}
-        <small class="text-[0.7em] whitespace-nowrap text-[var(--color-muted)]"
-          >{messages.coming_soon({}, { locale })}</small
-        ></span
+      <a class="font-bold" href={membersPath}
+        >{messages.navigation_members({}, { locale })}</a
       >
       <a class="font-bold" href={schoolsPath}
         >{messages.navigation_schools({}, { locale })}</a
@@ -83,11 +81,8 @@ const aboutPath = getFixedPagePath("about", locale);
           <a class="font-bold" href={aboutPath}
             >{messages.navigation_about({}, { locale })}</a
           >
-          <span
-            >{messages.navigation_members({}, { locale })}
-            <small class="text-[0.7em] text-[var(--color-muted)]"
-              >{messages.coming_soon({}, { locale })}</small
-            ></span
+          <a class="font-bold" href={membersPath}
+            >{messages.navigation_members({}, { locale })}</a
           >
           <a class="font-bold" href={schoolsPath}
             >{messages.navigation_schools({}, { locale })}</a

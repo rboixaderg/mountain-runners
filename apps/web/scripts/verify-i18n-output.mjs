@@ -164,6 +164,7 @@ const expectedSitemapUrls = new Set(
     "ca/esdeveniments/escalada-queralt/",
     "ca/esdeveniments/ultra-pirineu/",
     "ca/qui-som/",
+    "ca/socis/",
     "ca/contacte/",
     "ca/documents/",
     "ca/avis-legal/",
@@ -188,6 +189,12 @@ if (!robots.split("\n").includes(sitemapDirective)) {
 }
 await readFile(join(distPath, expectedPublishedResource));
 await readFile(join(distPath, expectedStatutesResource));
+await readFile(
+  join(
+    distPath,
+    "content-resources/assets/collaborators/visites-al-bergueda.jpg",
+  ),
+);
 
 async function listFiles(directory) {
   const files = [];

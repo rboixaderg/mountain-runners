@@ -114,8 +114,8 @@ test("renders the published homepage sections in order", async ({ page }) => {
   await expect(page.locator(".homepage-school-list small")).toHaveCount(0);
   await expect(page.locator('main a[href="/ca/escoles/"]')).toHaveCount(1);
   await expect(
-    page.locator(".homepage-members-card .homepage-coming-soon"),
-  ).toHaveText("Properament");
+    page.locator('.homepage-members-card a[href="/ca/socis/"]'),
+  ).toHaveCount(1);
   await expect(page.locator('main a[href=""], main a[href="#"]')).toHaveCount(
     0,
   );
@@ -383,6 +383,121 @@ test("renders the About page sections in editorial order", async ({ page }) => {
   ).toHaveCount(0);
 });
 
+test("navigates from the header to the Members page", async ({
+  page,
+}, testInfo) => {
+  const isMobile = testInfo.project.name.endsWith("-mobile");
+  await page.goto("/ca/");
+
+  if (isMobile) {
+    const menu = page.locator("header details");
+    await menu.locator("summary").focus();
+    await page.keyboard.press("Enter");
+  }
+
+  const membersLink = page
+    .locator('header nav a[href="/ca/socis/"]')
+    .filter({ visible: true });
+  await expect(membersLink).toHaveCount(1);
+  await expect(membersLink).toHaveText("Socis");
+
+  await membersLink.click();
+  await expect(page).toHaveURL("/ca/socis/");
+  await expect(page.locator("html")).toHaveAttribute("lang", "ca");
+});
+
+test("renders the Members page sections in editorial order", async ({
+  page,
+}) => {
+  await page.goto("/ca/socis/");
+
+  await expect(page.locator("html")).toHaveAttribute("lang", "ca");
+  await expect(
+    page.getByRole("heading", { level: 1, name: "Socis" }),
+  ).toBeVisible();
+  const introPhoto = page.getByRole("img", {
+    name: "Portada de la secció de socis de Mountain Runners del Berguedà",
+  });
+  await expect(introPhoto).toHaveAttribute("src", /^\/_astro\//u);
+  await expect(introPhoto).toHaveAttribute("width", "1024");
+  await expect(introPhoto).toHaveAttribute("height", "381");
+  await expect(
+    page.getByText("Fotografia: @about_paulagnf", { exact: true }),
+  ).toBeVisible();
+  const benefitsPhoto = page.getByRole("img", {
+    name: "Fotografia de la secció de socis de Mountain Runners del Berguedà",
+  });
+  await expect(benefitsPhoto).toHaveAttribute("src", /^\/_astro\//u);
+  await expect(benefitsPhoto).toHaveAttribute("width", "1024");
+  await expect(benefitsPhoto).toHaveAttribute("height", "768");
+  await expect(
+    page.locator("main h1, main h2").allTextContents(),
+  ).resolves.toEqual([
+    "Socis",
+    "Alta de socis",
+    "Federació",
+    "Avantatges per a socis i sòcies",
+    "Col·laboradors",
+  ]);
+  await expect(page.locator("main")).not.toContainText("Properament");
+
+  const signupLink = page.getByRole("link", { name: /Fes-te soci o sòcia/u });
+  await expect(signupLink).toHaveCount(1);
+  await expect(signupLink).toHaveAttribute(
+    "href",
+    "https://mountainrunners.playoffinformatica.com/Preinscripcio.php",
+  );
+  const federationLink = page.getByRole("link", { name: /Federa't/u });
+  await expect(federationLink).toHaveCount(1);
+  await expect(federationLink).toHaveAttribute(
+    "href",
+    "https://mountainrunners.playoffinformatica.com/activitat/30/Llicencies-Federatives-2025/",
+  );
+
+  await expect(page.locator(".members-directory__entry")).toHaveCount(22);
+  await expect(
+    page.locator(".members-directory__name").allTextContents(),
+  ).resolves.toEqual([
+    "4 Riders Bike Park",
+    "Aina Vila",
+    "Alexandra Bruy",
+    "Bicixtrem",
+    "Centre Òptic",
+    "CIMETIR",
+    "Clínica Jessica Genescà",
+    "ELIT",
+    "Estètica Adela",
+    "Farmàcia Cosp",
+    "Intersport Serra Martí",
+    "Joieria Climent",
+    "Ortopèdia Álvarez Saz Cabra",
+    "Pedratour",
+    "Peu de Via",
+    "Podologia Ingrid Soca",
+    "Ramir's Sabaters",
+    "Ríos Running Berga",
+    "Serrasports",
+    "SNOWLOCKERS",
+    "Veloberga",
+    "Visites al Berguedà",
+  ]);
+  await expect(
+    page.getByRole("img", { name: "Logotip de 4 Riders Bike Park" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: /snowlockers\.com/u }),
+  ).toHaveAttribute("href", "https://www.snowlockers.com/");
+  await expect(page.locator(".members-directory")).toContainText(
+    "20% de descompte",
+  );
+  await expect(page.locator('main a[href=""], main a[href="#"]')).toHaveCount(
+    0,
+  );
+  await expect(
+    page.locator('a[aria-disabled="true"], button[disabled]'),
+  ).toHaveCount(0);
+});
+
 test("renders the schools hub in editorial order with links to details", async ({
   page,
 }) => {
@@ -467,6 +582,7 @@ test("@a11y has no detectable axe violations", async ({
     "/ca/esdeveniments/berga-trail/",
     "/ca/esdeveniments/escalada-queralt/",
     "/ca/qui-som/",
+    "/ca/socis/",
     "/ca/escoles/",
     "/ca/escoles/escola-trail/",
     "/ca/contacte/",
@@ -532,6 +648,8 @@ test("publishes structured data only on pages with reviewed data", async ({
   for (const path of [
     "/ca/esdeveniments/berga-trail/",
     "/ca/esdeveniments/escalada-queralt/",
+    "/ca/qui-som/",
+    "/ca/socis/",
     "/404.html",
   ]) {
     await page.goto(path);
@@ -579,6 +697,21 @@ test("emits canonical and social metadata for published pages", async ({
     "https://mountainrunners.cat/ca/esdeveniments/ultra-pirineu/",
   );
 
+  await page.goto("/ca/socis/");
+  await expect(page.locator('link[rel="canonical"]')).toHaveAttribute(
+    "href",
+    "https://mountainrunners.cat/ca/socis/",
+  );
+  await expect(page.locator('meta[property="og:title"]')).toHaveAttribute(
+    "content",
+    "Socis | Mountain Runners",
+  );
+  await expect(page.locator('meta[property="og:url"]')).toHaveAttribute(
+    "content",
+    "https://mountainrunners.cat/ca/socis/",
+  );
+  await expect(page.locator('link[rel="alternate"]')).toHaveCount(0);
+
   await page.goto("/ca/escoles/");
   await expect(page.locator('link[rel="canonical"]')).toHaveAttribute(
     "href",
@@ -621,6 +754,7 @@ test("serves sitemap and robots aligned with the canonical origin", async ({
     "https://mountainrunners.cat/ca/esdeveniments/escalada-queralt/",
     "https://mountainrunners.cat/ca/esdeveniments/ultra-pirineu/",
     "https://mountainrunners.cat/ca/qui-som/",
+    "https://mountainrunners.cat/ca/socis/",
     "https://mountainrunners.cat/ca/escoles/",
     "https://mountainrunners.cat/ca/escoles/escola-trail/",
     "https://mountainrunners.cat/ca/escoles/escola-skimo/",
@@ -652,6 +786,7 @@ test("has no broken or falsely disabled links within the slice", async ({
     "/ca/esdeveniments/berga-trail/",
     "/ca/esdeveniments/escalada-queralt/",
     "/ca/qui-som/",
+    "/ca/socis/",
     "/ca/escoles/",
     "/ca/escoles/escola-trail/",
     "/ca/contacte/",

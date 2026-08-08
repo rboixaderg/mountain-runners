@@ -1,5 +1,10 @@
 import type { EventHubGroup } from "../content/events";
-import type { EventEdition, ExternalAction } from "../content/models";
+import type {
+  EventEdition,
+  ExternalAction,
+  ExternalActionStatus,
+} from "../content/models";
+import type { Locale } from "../content/primitives";
 
 // Canonical message keys for event and registration statuses. The subset
 // constants below mirror the keys each presentation context can produce, so
@@ -57,25 +62,54 @@ export type RegistrationPresentation = {
   url?: string;
 };
 
-// Message keys for unavailable external actions. An `available` action
-// renders its URL instead, so it has no message key here.
+// An available external action renders its link, so only the unavailable
+// statuses map to a message key; the fixed pages explain each state with the
+// shared external-action contract prepared by the content-contracts task.
 export const externalActionStatusMessageKeys = {
   "coming-soon": "external_action_coming_soon",
   "temporarily-unavailable": "external_action_temporarily_unavailable",
   unavailable: "external_action_unavailable",
-} as const satisfies Record<
-  Exclude<ExternalAction["status"], "available">,
-  string
->;
+} as const satisfies Record<Exclude<ExternalActionStatus, "available">, string>;
 
 export type ExternalActionStatusMessageKey =
   (typeof externalActionStatusMessageKeys)[keyof typeof externalActionStatusMessageKeys];
 
 export function getExternalActionStatusMessageKey(
-  status: ExternalAction["status"] | undefined,
+  status: ExternalActionStatus | undefined,
 ): ExternalActionStatusMessageKey | undefined {
-  if (status === undefined || status === "available") return undefined;
+  if (status === undefined || status === "available") {
+    return undefined;
+  }
   return externalActionStatusMessageKeys[status];
+}
+
+export type ExternalActionPresentation = {
+  href: string | undefined;
+  stateMessageKey: ExternalActionStatusMessageKey | undefined;
+};
+
+// The Members actions render an available action as a link and every other
+// state as explanatory text; a missing action is explained as unavailable.
+// The helper returns the locale href and the message key so the component
+// resolves them with the current locale and never emits an empty state
+// element when no text applies.
+export function getExternalActionPresentation(
+  action: ExternalAction | undefined,
+  locale: Locale,
+): ExternalActionPresentation {
+  if (action === undefined) {
+    return {
+      href: undefined,
+      stateMessageKey: externalActionStatusMessageKeys.unavailable,
+    };
+  }
+  if (action.status === "available") {
+    return { href: action.url?.[locale], stateMessageKey: undefined };
+  }
+  return {
+    href: undefined,
+    stateMessageKey: externalActionStatusMessageKeys[action.status],
+  };
 }
 
 export function getEventActivityMessageKey(
