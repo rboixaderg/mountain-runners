@@ -1,6 +1,9 @@
 import type { EventHubGroup } from "../content/events";
-import type { EventEdition, ExternalActionStatus } from "../content/models";
-import type { ExternalAction } from "../content/models";
+import type {
+  EventEdition,
+  ExternalAction,
+  ExternalActionStatus,
+} from "../content/models";
 import type { Locale } from "../content/primitives";
 
 // Canonical message keys for event and registration statuses. The subset
@@ -72,9 +75,9 @@ export type ExternalActionStatusMessageKey =
   (typeof externalActionStatusMessageKeys)[keyof typeof externalActionStatusMessageKeys];
 
 export function getExternalActionStatusMessageKey(
-  status: ExternalActionStatus,
+  status: ExternalActionStatus | undefined,
 ): ExternalActionStatusMessageKey | undefined {
-  if (status === "available") {
+  if (status === undefined || status === "available") {
     return undefined;
   }
   return externalActionStatusMessageKeys[status];

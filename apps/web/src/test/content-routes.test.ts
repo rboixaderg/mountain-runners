@@ -100,18 +100,32 @@ describe("localized route contract", () => {
     ]);
   });
 
-  it("keeps unpublished and school content out of available detail routes", async () => {
+  it("keeps unpublished content out of available detail routes and sitemap", async () => {
     const catalog = createPublicationCatalog(await loadSource());
 
     expect(
       getPublicDetailVariants(catalog).map((variant) =>
         getVariantPath(variant),
       ),
-    ).toEqual(["/ca/esdeveniments/jornada-muntanya/"]);
+    ).toEqual([
+      "/ca/escoles/escola-btt/",
+      "/ca/escoles/escola-skimo/",
+      "/ca/escoles/escola-trail/",
+      "/ca/esdeveniments/jornada-muntanya/",
+    ]);
     expect(getSitemapUrls(catalog, publicSiteOrigin)).toEqual([
       "https://mountainrunners.cat/ca/",
+      "https://mountainrunners.cat/ca/avis-legal/",
+      "https://mountainrunners.cat/ca/contacte/",
+      "https://mountainrunners.cat/ca/cookies/",
+      "https://mountainrunners.cat/ca/documents/",
+      "https://mountainrunners.cat/ca/escoles/",
+      "https://mountainrunners.cat/ca/escoles/escola-btt/",
+      "https://mountainrunners.cat/ca/escoles/escola-skimo/",
+      "https://mountainrunners.cat/ca/escoles/escola-trail/",
       "https://mountainrunners.cat/ca/esdeveniments/",
       "https://mountainrunners.cat/ca/esdeveniments/jornada-muntanya/",
+      "https://mountainrunners.cat/ca/privacitat/",
       "https://mountainrunners.cat/ca/qui-som/",
       "https://mountainrunners.cat/ca/socis/",
     ]);
@@ -236,6 +250,36 @@ describe("localized route contract", () => {
     expect(getFixedPagePath("members", "ca")).toBe("/ca/socis/");
     expect(getFixedPagePath("members", "es")).toBe("/es/socios/");
     expect(getFixedPagePath("members", "en")).toBe("/en/members/");
+    expect(fixedPageRouteSegments.contact).toEqual({
+      ca: "contacte",
+      es: "contacto",
+      en: "contact",
+    });
+    expect(fixedPageRouteSegments.documents).toEqual({
+      ca: "documents",
+      es: "documentos",
+      en: "documents",
+    });
+    expect(fixedPageRouteSegments["legal-notice"]).toEqual({
+      ca: "avis-legal",
+      es: "aviso-legal",
+      en: "legal-notice",
+    });
+    expect(fixedPageRouteSegments["legal-privacy"]).toEqual({
+      ca: "privacitat",
+      es: "privacidad",
+      en: "privacy",
+    });
+    expect(fixedPageRouteSegments["legal-cookies"]).toEqual({
+      ca: "cookies",
+      es: "cookies",
+      en: "cookies",
+    });
+    expect(getFixedPagePath("contact", "ca")).toBe("/ca/contacte/");
+    expect(getFixedPagePath("documents", "ca")).toBe("/ca/documents/");
+    expect(getFixedPagePath("legal-notice", "ca")).toBe("/ca/avis-legal/");
+    expect(getFixedPagePath("legal-privacy", "ca")).toBe("/ca/privacitat/");
+    expect(getFixedPagePath("legal-cookies", "ca")).toBe("/ca/cookies/");
   });
 
   it("rejects invalid fixed-page segments", () => {

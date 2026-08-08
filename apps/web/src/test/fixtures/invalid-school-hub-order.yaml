@@ -1,12 +1,12 @@
 id: invalid-school
 published: true
-hubOrder: 99
+hubOrder: 0
 slug:
   ca: escola-invalida
 name:
   ca: Escola invàlida
 summary:
-  ca: Fixture amb un estat d'inscripció invàlid.
+  ca: Fixture amb un ordre editorial invàlid.
 description:
   ca: Contingut de prova.
 cover:
@@ -16,7 +16,7 @@ cover:
   alt:
     ca: Imatge de prova
 gallery: []
-registrationStatus: pending
+registrationStatus: coming-soon
 sections:
   since:
     ca: Des de fa temps.

@@ -68,6 +68,9 @@ const registrationStatusSchema = z.enum([
 
 export const schoolSchema = z.strictObject({
   ...publishableFields,
+  // Editorial order of the school hub: explicit, stable and validated in the
+  // model, never derived from the order of the source files.
+  hubOrder: z.number().int().positive(),
   name: localizedTextSchema,
   summary: localizedTextSchema,
   description: localizedMarkdownSchema,
@@ -170,12 +173,16 @@ export const statutesDocumentId = "estatuts";
 // Stable fixed identifiers of the external actions the fixed pages reference
 // (membership sign-up, federation and newsletter). The Members page renders
 // the sign-up and federation actions; the newsletter action belongs to the
-// Contact page of a later task.
+// Contact page.
 export const externalActionIds = {
   memberSignup: "member-signup",
   federation: "federation",
   newsletter: "newsletter",
 } as const;
+
+// Fixed identifier of the newsletter external action the Contact fixed page
+// references. The Contact page renders its status and URL, never a fake form.
+export const newsletterActionId = "newsletter";
 
 export const externalActionStatuses = [
   "available",

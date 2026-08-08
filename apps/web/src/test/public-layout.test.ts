@@ -1,7 +1,20 @@
 import { experimental_AstroContainer as AstroContainer } from "astro/container";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import PublicLayout from "../layouts/PublicLayout.astro";
 import { setLocale } from "../paraglide/runtime.js";
+
+// The layout resolves the publication catalog for the site footer; the
+// AstroContainer test environment has no content collections, so the catalog
+// is stubbed with the minimal shape the footer needs.
+vi.mock("../lib/content/repository", () => ({
+  getPublicationCatalog: vi.fn().mockResolvedValue({
+    variants: [],
+    entities: new Map(),
+    documents: new Map(),
+    externalActions: new Map(),
+    contact: undefined,
+  }),
+}));
 
 describe("PublicLayout structured data", () => {
   it("renders escaped JSON-LD in the final HTML", async () => {

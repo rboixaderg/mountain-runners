@@ -1,0 +1,93 @@
+---
+import * as messages from "../../paraglide/messages.js";
+import { renderRestrictedMarkdown } from "../../lib/content/markdown";
+import type { PublicationCatalog } from "../../lib/content/publication";
+import type { Locale } from "../../lib/content/primitives";
+import ContactDataList from "../ContactDataList.astro";
+import PageIntro from "../PageIntro.astro";
+import PageSection from "../PageSection.astro";
+
+type LegalPrivacySection = {
+  id: string;
+  titleKey:
+    | "legal_privacy_purposes_title"
+    | "legal_privacy_legal_basis_title"
+    | "legal_privacy_recipients_title"
+    | "legal_privacy_rights_title"
+    | "legal_privacy_updates_title";
+  bodyKey:
+    | "legal_privacy_purposes"
+    | "legal_privacy_legal_basis"
+    | "legal_privacy_recipients"
+    | "legal_privacy_rights"
+    | "legal_privacy_updates";
+};
+
+const legalPrivacySections: LegalPrivacySection[] = [
+  {
+    id: "legal-privacy-purposes",
+    titleKey: "legal_privacy_purposes_title",
+    bodyKey: "legal_privacy_purposes",
+  },
+  {
+    id: "legal-privacy-legal-basis",
+    titleKey: "legal_privacy_legal_basis_title",
+    bodyKey: "legal_privacy_legal_basis",
+  },
+  {
+    id: "legal-privacy-recipients",
+    titleKey: "legal_privacy_recipients_title",
+    bodyKey: "legal_privacy_recipients",
+  },
+  {
+    id: "legal-privacy-rights",
+    titleKey: "legal_privacy_rights_title",
+    bodyKey: "legal_privacy_rights",
+  },
+  {
+    id: "legal-privacy-updates",
+    titleKey: "legal_privacy_updates_title",
+    bodyKey: "legal_privacy_updates",
+  },
+];
+
+interface Props {
+  catalog: PublicationCatalog;
+  locale: Locale;
+}
+
+const { catalog, locale } = Astro.props;
+const contact = catalog.contact;
+---
+
+<article class="page-detail">
+  <PageIntro
+    kicker={messages.site_title({}, { locale })}
+    title={messages.legal_privacy_title({}, { locale })}
+    description={messages.legal_privacy_description({}, { locale })}
+  />
+  <PageSection
+    id="legal-privacy-responsible"
+    title={messages.legal_privacy_responsible_title({}, { locale })}
+  >
+    {
+      contact && (
+        <ContactDataList
+          addressLabelKey="legal_entity_address_label"
+          contact={contact}
+          locale={locale}
+        />
+      )
+    }
+  </PageSection>
+  {
+    legalPrivacySections.map(({ bodyKey, id, titleKey }) => (
+      <PageSection id={id} title={messages[titleKey]({}, { locale })}>
+        <div
+          class="page-section__markdown"
+          set:html={renderRestrictedMarkdown(messages[bodyKey]({}, { locale }))}
+        />
+      </PageSection>
+    ))
+  }
+</article>

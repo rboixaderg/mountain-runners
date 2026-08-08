@@ -33,7 +33,8 @@
 
 Les col·leccions de contingut registrades són:
 
-- `schools`: programes amb informació pràctica, recursos i estat d'inscripció.
+- `schools`: programes amb informació pràctica, recursos, estat d'inscripció i
+  un ordre editorial explícit (`hubOrder`) per al hub.
 - `events`: esdeveniments amb entitats relacionades i edicions embegudes.
 - `entities`: organitzacions reutilitzables i avantatges opcionals per a socis.
 - `documents`: recursos locals o externs amb tipus, idioma i disponibilitat.
@@ -109,10 +110,27 @@ exclusivament de les entitats publicades amb avantatge de soci
 (`membershipBenefit`), ordenades alfabèticament pel nom en català; no es
 duplica cap llista editorial en els recursos de traducció.
 
+El directori de Documents agrupa per tipus els documents publicats: només els
+documents amb disponibilitat `available` mostren enllaç i només els seus
+recursos locals entren a la sortida pública. Un document publicat però no
+disponible (`temporarily-unavailable` o `archived`) s'explica amb text útil i
+no genera cap enllaç ni recurs a `dist/`.
+
+Les pàgines fixes de Contacte i les legals (avís legal, privacitat i cookies)
+resolen les dades institucionals (CIF, seu, correu i telèfons) des de la
+col·lecció `contact`, i el butlletí des de l'acció externa `newsletter`. Si una
+dada no està aprovada, la secció corresponent s'omet o mostra la
+indisponibilitat; mai no es simula un formulari ni una subscripció activa.
+
 Una variant editorial publicable no habilita automàticament una fitxa pública.
 Els tipus de detall disponibles es defineixen centralment en codi segons les
-plantilles completades a cada fase. La portada pot reutilitzar contingut publicat
-sense avançar les fitxes d'escoles de la fase 3.
+plantilles completades a cada fase: esdeveniments des de la fase 2 i escoles des
+de la fase 3 (T3.6). La portada reutilitza contingut publicat i enllaça al hub
+d'escoles.
+
+El hub d'escoles llista les escoles publicades en un ordre editorial explícit i
+estable: el camp `hubOrder` de cada entrada (`apps/web/src/lib/content/schools.ts`),
+amb l'identificador com a desempat. L'ordre mai depèn de l'ordre dels fitxers.
 
 El codi centralitza els dominis editorials localitzats: escoles són
 `/{locale}/escoles/{slug}/`, `/{locale}/escuelas/{slug}/` o

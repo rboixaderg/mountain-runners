@@ -7,6 +7,7 @@ import mountainPlaceholder from "../../assets/berga-trail-placeholder.svg";
 import HomepageEventCard from "../../components/events/HomepageEventCard.astro";
 import PublicLayout from "../../layouts/PublicLayout.astro";
 import { getHomepageEvents, getMadridDate } from "../../lib/content/events";
+import { getOrderedSchoolVariants } from "../../lib/content/schools";
 import { renderRestrictedMarkdown } from "../../lib/content/markdown";
 import type { PublishedVariant } from "../../lib/content/publication";
 import { getPublicationCatalog } from "../../lib/content/repository";
@@ -29,7 +30,9 @@ const events = getHomepageEvents(
   eventVariants.map((variant) => variant.entry),
   today,
 );
-const schools = schoolVariants.map((variant) => variant.entry);
+const schools = getOrderedSchoolVariants(schoolVariants).map(
+  (variant) => variant.entry,
+);
 const siteUrl = new URL("/", Astro.site);
 const siteEntity = catalog.entities.get("mountain-runners");
 const structuredData = getSiteJsonLd({
@@ -128,11 +131,16 @@ export function getStaticPaths() {
               />
               <strong>{school.name[locale]}</strong>
               <span>{school.summary[locale]}</span>
-              <small>{messages.coming_soon({}, { locale })}</small>
             </li>
           ))
         }
       </ul>
+      <a
+        class="homepage-link homepage-school-section__link"
+        href={getDomainPath("school", locale)}
+      >
+        {messages.navigation_schools({}, { locale })}
+      </a>
     </div>
   </section>
 
