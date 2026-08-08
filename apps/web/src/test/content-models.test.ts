@@ -14,7 +14,7 @@ const fixturePaths = {
 } as const;
 
 const requiredFields = {
-  schools: ["id", "sections"],
+  schools: ["id", "hubOrder", "sections"],
   events: ["id", "editions"],
   entities: ["id", "logo"],
   documents: ["id", "resource"],
@@ -28,6 +28,12 @@ const invalidStateFixtures = [
     "./fixtures/invalid-school-registration-status.yaml",
     collectionSchemas.schools,
     "registrationStatus",
+  ],
+  [
+    "school hub order",
+    "./fixtures/invalid-school-hub-order.yaml",
+    collectionSchemas.schools,
+    "hubOrder",
   ],
   [
     "event registration status",

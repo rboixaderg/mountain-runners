@@ -68,6 +68,9 @@ const registrationStatusSchema = z.enum([
 
 export const schoolSchema = z.strictObject({
   ...publishableFields,
+  // Editorial order of the school hub: explicit, stable and validated in the
+  // model, never derived from the order of the source files.
+  hubOrder: z.number().int().positive(),
   name: localizedTextSchema,
   summary: localizedTextSchema,
   description: localizedMarkdownSchema,

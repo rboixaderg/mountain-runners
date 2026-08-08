@@ -15,6 +15,7 @@ interface Props {
 const { localizedAlternatives, locale } = Astro.props;
 const homePath = `/${locale}/`;
 const eventsPath = getDomainPath("event", locale);
+const schoolsPath = getDomainPath("school", locale);
 const aboutPath = getFixedPagePath("about", locale);
 ---
 
@@ -52,11 +53,8 @@ const aboutPath = getFixedPagePath("about", locale);
           >{messages.coming_soon({}, { locale })}</small
         ></span
       >
-      <span
-        >{messages.navigation_schools({}, { locale })}
-        <small class="text-[0.7em] whitespace-nowrap text-[var(--color-muted)]"
-          >{messages.coming_soon({}, { locale })}</small
-        ></span
+      <a class="font-bold" href={schoolsPath}
+        >{messages.navigation_schools({}, { locale })}</a
       >
     </nav>
     <div class="hidden md:block">
@@ -91,11 +89,8 @@ const aboutPath = getFixedPagePath("about", locale);
               >{messages.coming_soon({}, { locale })}</small
             ></span
           >
-          <span
-            >{messages.navigation_schools({}, { locale })}
-            <small class="text-[0.7em] text-[var(--color-muted)]"
-              >{messages.coming_soon({}, { locale })}</small
-            ></span
+          <a class="font-bold" href={schoolsPath}
+            >{messages.navigation_schools({}, { locale })}</a
           >
         </nav>
         <div class="mt-4">

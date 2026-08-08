@@ -33,7 +33,8 @@
 
 Les col·leccions de contingut registrades són:
 
-- `schools`: programes amb informació pràctica, recursos i estat d'inscripció.
+- `schools`: programes amb informació pràctica, recursos, estat d'inscripció i
+  un ordre editorial explícit (`hubOrder`) per al hub.
 - `events`: esdeveniments amb entitats relacionades i edicions embegudes.
 - `entities`: organitzacions reutilitzables i avantatges opcionals per a socis.
 - `documents`: recursos locals o externs amb tipus, idioma i disponibilitat.
@@ -115,8 +116,13 @@ indisponibilitat; mai no es simula un formulari ni una subscripció activa.
 
 Una variant editorial publicable no habilita automàticament una fitxa pública.
 Els tipus de detall disponibles es defineixen centralment en codi segons les
-plantilles completades a cada fase. La portada pot reutilitzar contingut publicat
-sense avançar les fitxes d'escoles de la fase 3.
+plantilles completades a cada fase: esdeveniments des de la fase 2 i escoles des
+de la fase 3 (T3.6). La portada reutilitza contingut publicat i enllaça al hub
+d'escoles.
+
+El hub d'escoles llista les escoles publicades en un ordre editorial explícit i
+estable: el camp `hubOrder` de cada entrada (`apps/web/src/lib/content/schools.ts`),
+amb l'identificador com a desempat. L'ordre mai depèn de l'ordre dels fitxers.
 
 El codi centralitza els dominis editorials localitzats: escoles són
 `/{locale}/escoles/{slug}/`, `/{locale}/escuelas/{slug}/` o

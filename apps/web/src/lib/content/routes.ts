@@ -112,8 +112,10 @@ export function getFixedPagePath(kind: FixedPageKind, locale: Locale): string {
   return `/${locale}/${fixedPageRouteSegments[kind][locale]}/`;
 }
 
-// Detail templates are enabled here as their specification task ships.
-const publicDetailRouteKinds = new Set<RouteKind>(["event"]);
+// Detail templates are enabled here as their specification task ships: events
+// in T2.6 and schools in T3.6 (the hub links every published school to its
+// detail route).
+const publicDetailRouteKinds = new Set<RouteKind>(["event", "school"]);
 
 export function assertRouteDomains(domains: RouteDomains): void {
   for (const locale of knownLocales) {
@@ -195,6 +197,11 @@ export function getSitemapUrls(
       .filter(({ kind }) => kind === "event")
       .map(({ locale }) => locale),
   );
+  const schoolHubLocales = new Set(
+    catalog.variants
+      .filter(({ kind }) => kind === "school")
+      .map(({ locale }) => locale),
+  );
   // Fixed pages are published only in Catalan while single-locale, matching
   // the homepage entry below. A fixed page is added here once its variant is
   // complete and published.
@@ -212,6 +219,11 @@ export function getSitemapUrls(
       .sort()
       .map((locale) =>
         new URL(getDomainPath("event", locale), site).toString(),
+      ),
+    ...[...schoolHubLocales]
+      .sort()
+      .map((locale) =>
+        new URL(getDomainPath("school", locale), site).toString(),
       ),
     ...getPublicDetailVariants(catalog).map((variant) =>
       getCanonicalUrl(variant, site),

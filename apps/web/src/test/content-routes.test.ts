@@ -100,20 +100,29 @@ describe("localized route contract", () => {
     ]);
   });
 
-  it("keeps unpublished and school content out of available detail routes", async () => {
+  it("keeps unpublished content out of available detail routes and sitemap", async () => {
     const catalog = createPublicationCatalog(await loadSource());
 
     expect(
       getPublicDetailVariants(catalog).map((variant) =>
         getVariantPath(variant),
       ),
-    ).toEqual(["/ca/esdeveniments/jornada-muntanya/"]);
+    ).toEqual([
+      "/ca/escoles/escola-btt/",
+      "/ca/escoles/escola-skimo/",
+      "/ca/escoles/escola-trail/",
+      "/ca/esdeveniments/jornada-muntanya/",
+    ]);
     expect(getSitemapUrls(catalog, publicSiteOrigin)).toEqual([
       "https://mountainrunners.cat/ca/",
       "https://mountainrunners.cat/ca/avis-legal/",
       "https://mountainrunners.cat/ca/contacte/",
       "https://mountainrunners.cat/ca/cookies/",
       "https://mountainrunners.cat/ca/documents/",
+      "https://mountainrunners.cat/ca/escoles/",
+      "https://mountainrunners.cat/ca/escoles/escola-btt/",
+      "https://mountainrunners.cat/ca/escoles/escola-skimo/",
+      "https://mountainrunners.cat/ca/escoles/escola-trail/",
       "https://mountainrunners.cat/ca/esdeveniments/",
       "https://mountainrunners.cat/ca/esdeveniments/jornada-muntanya/",
       "https://mountainrunners.cat/ca/privacitat/",
