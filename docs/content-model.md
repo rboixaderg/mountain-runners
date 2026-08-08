@@ -132,6 +132,12 @@ El hub d'escoles llista les escoles publicades en un ordre editorial explícit i
 estable: el camp `hubOrder` de cada entrada (`apps/web/src/lib/content/schools.ts`),
 amb l'identificador com a desempat. L'ordre mai depèn de l'ordre dels fitxers.
 
+Les imatges de les escoles han de ser recursos locals versionats. Encara que la
+primitiva general d'imatges accepti una URL HTTPS externa per a altres models, la
+publicació d'una escola exclou cobertes o fotografies externes per evitar
+hotlinking i garantir que el detall conserva dimensions, procedència i control
+editorial del recurs.
+
 El codi centralitza els dominis editorials localitzats: escoles són
 `/{locale}/escoles/{slug}/`, `/{locale}/escuelas/{slug}/` o
 `/{locale}/schools/{slug}/`; els esdeveniments són

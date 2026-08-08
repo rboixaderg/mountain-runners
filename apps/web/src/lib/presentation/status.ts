@@ -3,6 +3,7 @@ import type {
   EventEdition,
   ExternalAction,
   ExternalActionStatus,
+  RegistrationStatus,
 } from "../content/models";
 import type { Locale } from "../content/primitives";
 
@@ -52,7 +53,7 @@ export const registrationStatusMessageKeys = {
   closed: "event_registration_closed",
   "coming-soon": "event_registration_coming_soon",
   unavailable: "event_registration_unavailable",
-} as const satisfies Record<EventEdition["registrationStatus"], string>;
+} as const satisfies Record<RegistrationStatus, string>;
 
 export type RegistrationStatusMessageKey =
   (typeof registrationStatusMessageKeys)[keyof typeof registrationStatusMessageKeys];
@@ -148,7 +149,7 @@ export function getHomepageEventStatusMessageKey(
 }
 
 export function getRegistrationPresentation(
-  status: EventEdition["registrationStatus"] | undefined,
+  status: RegistrationStatus | undefined,
   url: string | undefined,
 ): RegistrationPresentation {
   const resolvedStatus = status ?? "unavailable";

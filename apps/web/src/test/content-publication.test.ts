@@ -247,6 +247,37 @@ describe("publication catalog", () => {
     expect(variantKeys(source)).toContain("event:ca:jornada-muntanya");
   });
 
+  it("excludes a synthetic open-registration school without its URL", async () => {
+    const source = await loadSource();
+    const trailSchool = source.schools.find(({ id }) => id === "trail-school")!;
+    trailSchool.registrationStatus = "open";
+    delete trailSchool.registrationUrl;
+
+    expect(variantKeys(source)).not.toContain("school:ca:escola-trail");
+  });
+
+  it("publishes an open-registration school when its URL is translated", async () => {
+    const source = await loadSource();
+    const trailSchool = source.schools.find(({ id }) => id === "trail-school")!;
+    trailSchool.registrationStatus = "open";
+    trailSchool.registrationUrl = {
+      ca: "https://example.org/escola-trail/inscripcio",
+    };
+
+    expect(variantKeys(source)).toContain("school:ca:escola-trail");
+  });
+
+  it("does not publish a school with an external image resource", async () => {
+    const source = await loadSource();
+    const trailSchool = source.schools.find(({ id }) => id === "trail-school")!;
+    trailSchool.cover.resource = {
+      kind: "external",
+      url: "https://images.example.org/trail-cover.webp",
+    };
+
+    expect(variantKeys(source)).not.toContain("school:ca:escola-trail");
+  });
+
   it("publishes external actions and contact data for the default locale", async () => {
     const source = await loadSource();
     const catalog = createPublicationCatalog(source);

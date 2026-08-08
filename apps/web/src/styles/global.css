@@ -831,6 +831,250 @@ figcaption {
   font-size: 0.8rem;
 }
 
+.schools-detail {
+  padding-bottom: var(--space-12);
+}
+
+.schools-detail__intro {
+  background: var(--color-ink);
+  color: var(--color-paper);
+}
+
+.schools-detail__intro-grid {
+  display: grid;
+}
+
+.schools-detail__intro-copy {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  align-items: flex-start;
+  padding-block: var(--space-8);
+}
+
+.schools-detail__back-link {
+  display: inline-flex;
+  gap: 0.4rem;
+  align-items: center;
+  margin-bottom: var(--space-8);
+  color: var(--color-paper);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.schools-detail__back-link:hover {
+  color: var(--color-paper);
+  text-decoration-color: var(--color-red);
+}
+
+.schools-detail__kicker {
+  margin: 0 0 var(--space-2);
+  border-left: 0.25rem solid var(--color-red);
+  padding-left: var(--space-2);
+  color: var(--color-paper);
+  font-family: var(--font-display);
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.schools-detail__title {
+  max-width: 12ch;
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(3rem, 10vw, 7rem);
+  line-height: 0.88;
+  overflow-wrap: anywhere;
+  text-transform: uppercase;
+}
+
+.schools-detail__summary {
+  max-width: 36rem;
+  margin: var(--space-6) 0 0;
+  color: var(--color-paper);
+  font-size: clamp(1.1rem, 2vw, 1.35rem);
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.schools-detail__description {
+  max-width: 38rem;
+  margin-top: var(--space-6);
+  border-top: 1px solid rgb(255 253 248 / 0.45);
+  padding-top: var(--space-4);
+  color: rgb(255 253 248 / 0.82);
+}
+
+.schools-detail__description > :first-child {
+  margin-top: 0;
+}
+
+.schools-detail__description > :last-child {
+  margin-bottom: 0;
+}
+
+.schools-detail__cover {
+  position: relative;
+  min-width: 0;
+  overflow: hidden;
+  border-top: 0.25rem solid var(--color-red);
+  background: var(--color-paper);
+}
+
+.schools-detail__cover img {
+  width: 100%;
+  min-height: 16rem;
+  aspect-ratio: 4 / 3;
+  object-fit: contain;
+}
+
+.schools-detail__cover figcaption {
+  position: absolute;
+  right: var(--space-3);
+  bottom: var(--space-3);
+  margin: 0;
+  padding: 0.25rem var(--space-2);
+  background: rgb(23 23 23 / 0.78);
+  color: var(--color-paper);
+  font-size: 0.7rem;
+}
+
+.schools-detail__body {
+  padding-block: var(--space-4);
+}
+
+.schools-detail__section {
+  border-bottom: 1px solid var(--color-line);
+  padding-block: var(--space-6);
+}
+
+.schools-detail__section-heading {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+  margin-bottom: var(--space-4);
+}
+
+.schools-detail__section-marker {
+  width: 0.5rem;
+  height: 1.5rem;
+  flex: 0 0 auto;
+  background: var(--color-red);
+}
+
+.schools-detail__section h2 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(1.35rem, 3vw, 2rem);
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.schools-detail__practical dl {
+  display: grid;
+  gap: var(--space-4);
+  margin: 0;
+}
+
+.schools-detail__practical dl > div {
+  min-width: 0;
+  border-top: 1px solid var(--color-line);
+  padding-top: var(--space-3);
+}
+
+.schools-detail__practical dt {
+  color: var(--color-red);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.schools-detail__practical dd {
+  margin: var(--space-2) 0 0;
+  max-width: 42rem;
+}
+
+.schools-detail__practical dd > :first-child {
+  margin-top: 0;
+}
+
+.schools-detail__practical dd > :last-child {
+  margin-bottom: 0;
+}
+
+.schools-detail__gallery-list {
+  display: grid;
+  gap: var(--space-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.schools-detail__gallery-list figure {
+  border-top: 0.25rem solid var(--color-ink);
+  background: white;
+}
+
+.schools-detail__gallery-list img {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+}
+
+.schools-detail__gallery-list figcaption {
+  padding: 0 var(--space-3) var(--space-3);
+}
+
+.schools-detail__availability {
+  margin: 0;
+  border-left: 0.25rem solid var(--color-line);
+  padding: var(--space-3) var(--space-4);
+  color: var(--color-muted);
+  font-size: 0.85rem;
+  font-style: italic;
+}
+
+.schools-detail__video,
+.schools-detail__registration {
+  display: grid;
+  align-items: start;
+}
+
+.schools-detail__video .schools-detail__section-heading,
+.schools-detail__registration .schools-detail__section-heading {
+  margin-bottom: var(--space-3);
+}
+
+.schools-detail__external-link {
+  display: inline-flex;
+  width: fit-content;
+  max-width: 100%;
+  gap: 0.35rem;
+  align-items: center;
+  color: var(--color-red);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.schools-detail__external-link:hover {
+  color: var(--color-ink);
+}
+
+.schools-detail__registration-status {
+  margin: 0 0 var(--space-3);
+  color: var(--color-red);
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
 .events-detail {
   padding-bottom: var(--space-12);
 }
@@ -1130,6 +1374,41 @@ figcaption {
 
   .schools-hub-item__summary {
     font-size: 0.9rem;
+  }
+
+  .schools-detail__intro-grid {
+    grid-template-columns: minmax(0, 1.1fr) minmax(18rem, 0.9fr);
+    max-width: var(--page-width);
+    margin-inline: auto;
+  }
+
+  .schools-detail__intro-copy {
+    padding-block: var(--space-12);
+  }
+
+  .schools-detail__cover {
+    order: 2;
+    border-top: 0;
+    border-left: 0.25rem solid var(--color-red);
+  }
+
+  .schools-detail__cover img {
+    height: 100%;
+    min-height: 24rem;
+  }
+
+  .schools-detail__body {
+    max-width: var(--reading-width);
+    padding-block: var(--space-8);
+  }
+
+  .schools-detail__practical dl {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: var(--space-6);
+  }
+
+  .schools-detail__gallery-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .events-detail__content {
