@@ -469,6 +469,11 @@ test("@a11y has no detectable axe violations", async ({
     "/ca/qui-som/",
     "/ca/escoles/",
     "/ca/escoles/escola-trail/",
+    "/ca/contacte/",
+    "/ca/documents/",
+    "/ca/avis-legal/",
+    "/ca/privacitat/",
+    "/ca/cookies/",
   ]) {
     await page.goto(path);
 
@@ -620,6 +625,11 @@ test("serves sitemap and robots aligned with the canonical origin", async ({
     "https://mountainrunners.cat/ca/escoles/escola-trail/",
     "https://mountainrunners.cat/ca/escoles/escola-skimo/",
     "https://mountainrunners.cat/ca/escoles/escola-btt/",
+    "https://mountainrunners.cat/ca/contacte/",
+    "https://mountainrunners.cat/ca/documents/",
+    "https://mountainrunners.cat/ca/avis-legal/",
+    "https://mountainrunners.cat/ca/privacitat/",
+    "https://mountainrunners.cat/ca/cookies/",
   ]) {
     expect(sitemapText).toContain(`<loc>${url}</loc>`);
   }
@@ -644,6 +654,11 @@ test("has no broken or falsely disabled links within the slice", async ({
     "/ca/qui-som/",
     "/ca/escoles/",
     "/ca/escoles/escola-trail/",
+    "/ca/contacte/",
+    "/ca/documents/",
+    "/ca/avis-legal/",
+    "/ca/privacitat/",
+    "/ca/cookies/",
     "/404.html",
   ];
   const internalHrefs = new Set<string>();
@@ -667,5 +682,87 @@ test("has no broken or falsely disabled links within the slice", async ({
       new URL(href, page.url()).toString(),
     );
     expect(response.ok(), `${href} should be reachable`).toBeTruthy();
+  }
+});
+
+test("publishes documents, contact and legal routes from the footer", async ({
+  page,
+}) => {
+  const footerLinks = [
+    "/ca/contacte/",
+    "/ca/documents/",
+    "/ca/avis-legal/",
+    "/ca/privacitat/",
+    "/ca/cookies/",
+  ];
+
+  await page.goto("/ca/");
+  for (const path of footerLinks) {
+    await expect(page.locator(`footer a[href="${path}"]`)).toHaveCount(1);
+  }
+
+  await page.goto("/ca/contacte/");
+  await expect(page.locator("main h1")).toHaveText("Contacte");
+  await expect(page.locator("main")).toContainText(
+    "Plaça Sant Joan, 15 baixos, 08600 Berga",
+  );
+  await expect(page.locator("main")).toContainText(
+    "De dilluns a divendres, de 18 h a 20 h",
+  );
+  await expect(page.locator("main")).toContainText("G63999817");
+  await expect(
+    page.locator('main a[href="mailto:info@mountainrunners.cat"]'),
+  ).toHaveCount(1);
+  await expect(page.locator('main a[href="tel:+34938213747"]')).toHaveCount(1);
+  await expect(page.locator('main a[href="tel:+34691910774"]')).toHaveCount(1);
+  await expect(page.locator("main")).toContainText(
+    "El servei de butlletí encara no està disponible.",
+  );
+  await expect(page.locator("main input")).toHaveCount(0);
+
+  await page.goto("/ca/documents/");
+  await expect(page.locator("main h1")).toHaveText("Documents");
+  await expect(page.locator("main")).toContainText("Normativa");
+  await expect(page.locator('main a[href*="estatuts-mrb.pdf"]')).toHaveCount(1);
+  await expect(page.locator("main")).toContainText("Guia del club");
+  await expect(page.locator("main")).toContainText(
+    "Temporalment no disponible",
+  );
+  await expect(page.locator('main a[href*="club-guide.pdf"]')).toHaveCount(0);
+  await expect(page.locator("main")).toContainText("Data");
+  await expect(page.locator("main")).toContainText("15 de juliol del 2026");
+  await expect(page.locator("main")).toContainText("Idioma");
+  await expect(page.locator("main")).toContainText("Català");
+
+  await page.goto("/ca/avis-legal/");
+  await expect(page.locator("main h1")).toHaveText("Avís legal");
+  await expect(page.locator("main")).toContainText(
+    "Associació Esportiva Mountain Runners del Berguedà",
+  );
+  await expect(page.locator("main")).toContainText("Cens d'organitzadors");
+
+  await page.goto("/ca/privacitat/");
+  await expect(page.locator("main h1")).toHaveText("Política de privacitat");
+  await expect(page.locator("main")).toContainText(
+    "Responsable del tractament",
+  );
+
+  await page.goto("/ca/cookies/");
+  await expect(page.locator("main h1")).toHaveText("Política de cookies");
+  await expect(page.locator("main")).toContainText(
+    "Quines cookies utilitza aquest web",
+  );
+  await expect(page.locator("main")).toContainText("Consentiment i banner");
+
+  // None of the new fixed routes may emit empty anchors, placeholder hashes
+  // or disabled controls, mirroring the criteria of the other fixed pages.
+  for (const path of footerLinks) {
+    await page.goto(path);
+    await expect(page.locator('main a[href=""], main a[href="#"]')).toHaveCount(
+      0,
+    );
+    await expect(
+      page.locator('a[aria-disabled="true"], button[disabled]'),
+    ).toHaveCount(0);
   }
 });

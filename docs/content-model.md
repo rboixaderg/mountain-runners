@@ -102,6 +102,18 @@ identificador estable. La pàgina Qui som referència l'`estatuts` (PDF local
 versionat a `src/content-assets/documents/estatuts-mrb.pdf`); una referència
 mancant o despublicada fa fallar la validació editorial.
 
+El directori de Documents agrupa per tipus els documents publicats: només els
+documents amb disponibilitat `available` mostren enllaç i només els seus
+recursos locals entren a la sortida pública. Un document publicat però no
+disponible (`temporarily-unavailable` o `archived`) s'explica amb text útil i
+no genera cap enllaç ni recurs a `dist/`.
+
+Les pàgines fixes de Contacte i les legals (avís legal, privacitat i cookies)
+resolen les dades institucionals (CIF, seu, correu i telèfons) des de la
+col·lecció `contact`, i el butlletí des de l'acció externa `newsletter`. Si una
+dada no està aprovada, la secció corresponent s'omet o mostra la
+indisponibilitat; mai no es simula un formulari ni una subscripció activa.
+
 Una variant editorial publicable no habilita automàticament una fitxa pública.
 Els tipus de detall disponibles es defineixen centralment en codi segons les
 plantilles completades a cada fase: esdeveniments des de la fase 2 i escoles des

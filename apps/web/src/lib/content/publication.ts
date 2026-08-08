@@ -53,9 +53,15 @@ export function getPublishedLocalResources(
       ]) {
         collectLocalResourcePaths(catalog.entities.get(id), resources);
       }
+      // Documents referenced by a published event edition follow the same
+      // availability rule as the directory: an unavailable document never
+      // leaks its local resource into the public output.
       for (const edition of variant.entry.editions) {
         for (const id of edition.documentIds) {
-          collectLocalResourcePaths(catalog.documents.get(id), resources);
+          const document = catalog.documents.get(id);
+          if (document?.availability === "available") {
+            collectLocalResourcePaths(document, resources);
+          }
         }
       }
     }
@@ -67,6 +73,16 @@ export function getPublishedLocalResources(
     catalog.documents.get(statutesDocumentId),
     resources,
   );
+
+  // The Documents directory links every published document whose availability
+  // is `available`; only those resources belong to the public output. A
+  // published but unavailable document (temporarily-unavailable or archived)
+  // must not leak its resource into the build.
+  for (const document of catalog.documents.values()) {
+    if (document.availability === "available") {
+      collectLocalResourcePaths(document, resources);
+    }
+  }
 
   return [...resources].sort();
 }
