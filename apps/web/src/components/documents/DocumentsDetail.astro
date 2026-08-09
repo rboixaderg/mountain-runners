@@ -1,4 +1,6 @@
 ---
+import homepageHero from "../../assets/home/homepage-hero.jpeg";
+import homepageHeroSmall from "../../assets/home/homepage-hero-mobile.jpeg";
 import * as messages from "../../paraglide/messages.js";
 import type { PublicationCatalog } from "../../lib/content/publication";
 import type { Locale } from "../../lib/content/primitives";
@@ -21,9 +23,11 @@ const documentGroups = getDocumentGroups(
 
 <article class="page-detail pb-0">
   <PageIntro
+    description={messages.documents_page_description({}, { locale })}
+    heroImage={homepageHeroSmall}
+    heroImageLarge={homepageHero}
     kicker={messages.site_title({}, { locale })}
     title={messages.documents_page_title({}, { locale })}
-    description={messages.documents_page_description({}, { locale })}
   />
   {
     documentGroups.length > 0 ? (

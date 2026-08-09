@@ -2,50 +2,6 @@
   padding-bottom: 0;
 }
 
-.members-intro__photo figcaption {
-  position: absolute;
-  right: 1rem;
-  bottom: 1rem;
-  font-size: 0.75rem;
-  line-height: 1.5;
-}
-
-.members-intro__kicker,
-.members-intro h1,
-.members-intro__description {
-  position: relative;
-  z-index: 2;
-}
-
-.members-intro__kicker {
-  margin: 0 0 var(--space-2);
-  font-family: var(--font-display);
-  font-size: 1.25rem;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-}
-
-.members-intro h1 {
-  max-width: 10ch;
-  margin: 0 0 var(--space-3);
-  font-family: var(--font-display);
-  font-size: clamp(4rem, 10vw, 8.5rem);
-  line-height: 0.9;
-  letter-spacing: -0.015em;
-  text-transform: uppercase;
-}
-
-.members-intro__description {
-  max-width: 44rem;
-  margin: 0;
-  border-left: 0.25rem solid var(--color-red);
-  padding-left: var(--space-3);
-  font-size: clamp(1rem, 2vw, 1.35rem);
-  font-weight: 500;
-  line-height: 1.35;
-}
-
 .members-section {
   padding-block: var(--section-space);
   border-bottom: 1px solid var(--color-line);
@@ -175,7 +131,6 @@
   margin: 2rem 0 0;
 }
 
-.members-intro__photo img,
 .members-benefits__photo img {
   border: 0.125rem solid var(--color-ink);
 }

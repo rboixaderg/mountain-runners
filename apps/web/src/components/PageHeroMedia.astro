@@ -1,0 +1,39 @@
+---
+import type { ImageMetadata } from "astro";
+
+interface Props {
+  className?: string;
+  fetchpriority?: "high" | "low" | "auto";
+  image: ImageMetadata;
+  imageClassName?: string;
+  imageLarge?: ImageMetadata;
+  loading?: "eager" | "lazy";
+}
+
+const {
+  className,
+  fetchpriority,
+  image,
+  imageClassName,
+  imageLarge = image,
+  loading = "lazy",
+} = Astro.props;
+const usesResponsiveSource = imageLarge.src !== image.src;
+---
+
+<picture slot="media" class:list={["page-hero__media", className]}>
+  {
+    usesResponsiveSource && (
+      <source media="(min-width: 48rem)" srcset={imageLarge.src} />
+    )
+  }
+  <img
+    class:list={["page-hero__image", imageClassName]}
+    src={image.src}
+    width={image.width}
+    height={image.height}
+    loading={loading}
+    fetchpriority={fetchpriority}
+    alt=""
+  />
+</picture>

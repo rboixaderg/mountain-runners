@@ -1,12 +1,12 @@
 ---
 import * as messages from "../../../paraglide/messages.js";
 import { assertIsLocale } from "../../../paraglide/runtime.js";
-import hubHeroImage from "../../../assets/members/socis-portada.jpg";
-import hubHeroImageSmall from "../../../assets/members/socis-portada-hero.jpg";
 import EventCard from "../../../components/events/EventCard.astro";
 import SchoolHub from "../../../components/schools/SchoolHub.astro";
 import PublicLayout from "../../../layouts/PublicLayout.astro";
-import PageHero from "../../../components/PageHero.astro";
+import hubHeroImage from "../../../assets/members/socis-portada.jpg";
+import hubHeroImageSmall from "../../../assets/members/socis-portada-hero.jpg";
+import PageIntro from "../../../components/PageIntro.astro";
 import {
   getEventHubGroups,
   getMadridDate,
@@ -111,29 +111,13 @@ const hubDescription =
       <SchoolHub locale={locale} variants={schoolVariants} />
     ) : (
       <>
-        <PageHero className="events-hub-intro">
-          <picture slot="media" class="events-hub-intro__media">
-            <source media="(min-width: 48rem)" srcset={hubHeroImage.src} />
-            <img
-              class="events-hub-intro__image"
-              src={hubHeroImageSmall.src}
-              width={hubHeroImageSmall.width}
-              height={hubHeroImageSmall.height}
-              loading="eager"
-              fetchpriority="high"
-              alt=""
-            />
-          </picture>
-          <p class="events-hub-intro__kicker">
-            {messages.site_title({}, { locale })}
-          </p>
-          <h1 class="font-display m-0 mb-6 max-w-[min(100%,14ch)] text-[clamp(3.5rem,9vw,7.5rem)] leading-[0.9] tracking-[-0.035em] [overflow-wrap:break-word] uppercase">
-            {messages.navigation_events({}, { locale })}
-          </h1>
-          <p class="events-hub-intro__description">
-            {messages.events_intro({}, { locale })}
-          </p>
-        </PageHero>
+        <PageIntro
+          description={messages.events_intro({}, { locale })}
+          heroImage={hubHeroImageSmall}
+          heroImageLarge={hubHeroImage}
+          kicker={messages.site_title({}, { locale })}
+          title={messages.navigation_events({}, { locale })}
+        />
 
         {hubSections.map((section) => {
           const events = groups[section.group];

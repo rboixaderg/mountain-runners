@@ -6,6 +6,7 @@ import homepageImage from "../../assets/home/homepage-hero.jpeg";
 import homepageImageSmall from "../../assets/home/homepage-hero-mobile.jpeg";
 import HomepageEventCard from "../../components/events/HomepageEventCard.astro";
 import PageHero from "../../components/PageHero.astro";
+import PageHeroMedia from "../../components/PageHeroMedia.astro";
 import PublicLayout from "../../layouts/PublicLayout.astro";
 import { getHomepageEvents, getMadridDate } from "../../lib/content/events";
 import { getLocalImageSize, getResourceHref } from "../../lib/content/images";
@@ -86,18 +87,14 @@ export function getStaticPaths() {
     className="homepage-hero"
     contentClassName="homepage-hero__grid grid items-center md:grid-cols-12"
   >
-    <picture slot="media">
-      <source media="(min-width: 48rem)" srcset={homepageImage.src} />
-      <img
-        class="homepage-hero__mountain"
-        src={homepageImageSmall.src}
-        width={homepageImageSmall.width}
-        height={homepageImageSmall.height}
-        loading="eager"
-        fetchpriority="high"
-        alt=""
-      />
-    </picture>
+    <PageHeroMedia
+      slot="media"
+      fetchpriority="high"
+      image={homepageImageSmall}
+      imageClassName="homepage-hero__mountain"
+      imageLarge={homepageImage}
+      loading="eager"
+    />
     <div
       class="homepage-hero__intro relative z-[2] grid max-w-[42rem] gap-6 md:col-span-9"
     >

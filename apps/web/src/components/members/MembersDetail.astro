@@ -1,11 +1,12 @@
 ---
 import * as messages from "../../paraglide/messages.js";
 import socisPortada from "../../assets/members/socis-portada.jpg";
+import socisPortadaHero from "../../assets/members/socis-portada-hero.jpg";
 import socisServeis from "../../assets/members/socis-serveis.jpg";
 import { externalActionIds } from "../../lib/content/models";
 import type { Locale } from "../../lib/content/primitives";
 import type { PublicationCatalog } from "../../lib/content/publication";
-import PageHero from "../PageHero.astro";
+import PageIntro from "../PageIntro.astro";
 import MembersActionSection from "./MembersActionSection.astro";
 import MembersDirectory from "./MembersDirectory.astro";
 import "../../styles/members.css";
@@ -25,24 +26,13 @@ const federationAction = catalog.externalActions.get(
 ---
 
 <article class="members-detail">
-  <PageHero className="members-intro">
-    <figure slot="media" class="members-intro__photo">
-      <img
-        src={socisPortada.src}
-        width={socisPortada.width}
-        height={socisPortada.height}
-        alt={messages.members_intro_photo_alt({}, { locale })}
-      />
-      <figcaption>
-        {messages.members_intro_photo_attribution({}, { locale })}
-      </figcaption>
-    </figure>
-    <p class="members-intro__kicker">{messages.site_title({}, { locale })}</p>
-    <h1>{messages.navigation_members({}, { locale })}</h1>
-    <p class="members-intro__description">
-      {messages.members_page_description({}, { locale })}
-    </p>
-  </PageHero>
+  <PageIntro
+    description={messages.members_page_description({}, { locale })}
+    heroImage={socisPortadaHero}
+    heroImageLarge={socisPortada}
+    kicker={messages.site_title({}, { locale })}
+    title={messages.navigation_members({}, { locale })}
+  />
 
   <div
     class="page-frame members-actions grid gap-6 py-[var(--section-space)] md:grid-cols-2 md:gap-12"

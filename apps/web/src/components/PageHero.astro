@@ -2,7 +2,7 @@
 import "../styles/page-hero.css";
 
 interface Props {
-  className: string;
+  className?: string;
   contentClassName?: string;
 }
 
@@ -11,7 +11,7 @@ const { className, contentClassName } = Astro.props;
 
 <section
   class:list={[
-    "page-hero border-ink relative isolate m-0 flex min-h-[clamp(26rem,44vw,38rem)] w-full max-w-none items-center overflow-hidden border-y-[0.25rem] bg-[rgb(215_25_32_/_0.75)] py-[clamp(3.5rem,7vw,5.5rem)] text-white",
+    "page-hero border-ink relative isolate m-0 flex min-h-[clamp(26rem,44vw,38rem)] w-full max-w-none items-center overflow-hidden border-y-[0.25rem] py-[clamp(3.5rem,7vw,5.5rem)]",
     className,
   ]}
 >
@@ -19,7 +19,7 @@ const { className, contentClassName } = Astro.props;
   <div
     class:list={[
       "page-frame",
-      "page-hero__content relative z-[2] text-white",
+      "page-hero__content relative z-[2]",
       contentClassName,
     ]}
   >

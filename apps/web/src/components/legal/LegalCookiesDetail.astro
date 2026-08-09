@@ -1,4 +1,6 @@
 ---
+import homepageHero from "../../assets/home/homepage-hero.jpeg";
+import homepageHeroSmall from "../../assets/home/homepage-hero-mobile.jpeg";
 import * as messages from "../../paraglide/messages.js";
 import { renderRestrictedMarkdown } from "../../lib/content/markdown";
 import type { Locale } from "../../lib/content/primitives";
@@ -51,9 +53,11 @@ const { locale } = Astro.props;
 
 <article class="page-detail pb-0">
   <PageIntro
+    description={messages.legal_cookies_description({}, { locale })}
+    heroImage={homepageHeroSmall}
+    heroImageLarge={homepageHero}
     kicker={messages.site_title({}, { locale })}
     title={messages.legal_cookies_title({}, { locale })}
-    description={messages.legal_cookies_description({}, { locale })}
   />
   {
     legalCookiesSections.map(({ bodyKey, id, titleKey }) => (

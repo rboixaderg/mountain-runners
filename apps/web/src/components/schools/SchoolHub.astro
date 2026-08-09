@@ -1,11 +1,12 @@
 ---
+import escolaTrail from "../../assets/schools/escola-trail.jpg";
 import * as messages from "../../paraglide/messages.js";
 import { getLocalImageSize, getResourceHref } from "../../lib/content/images";
 import type { Locale } from "../../lib/content/primitives";
 import type { PublishedVariant } from "../../lib/content/publication";
 import { getVariantPath } from "../../lib/content/routes";
 import { getRegistrationPresentation } from "../../lib/presentation/status";
-import PageHero from "../PageHero.astro";
+import PageIntro from "../PageIntro.astro";
 import "../../styles/schools-hub.css";
 
 interface Props {
@@ -29,19 +30,12 @@ const schoolsWithCovers = await Promise.all(
 );
 ---
 
-<PageHero className="schools-hub-intro">
-  <p class="schools-hub-intro__kicker">
-    {messages.site_title({}, { locale })}
-  </p>
-  <h1
-    class="font-display m-0 mb-6 max-w-[min(100%,14ch)] text-[clamp(3.5rem,9vw,7.5rem)] leading-[0.9] tracking-[-0.035em] [overflow-wrap:break-word] uppercase"
-  >
-    {messages.navigation_schools({}, { locale })}
-  </h1>
-  <p class="schools-hub-intro__description">
-    {messages.schools_intro({}, { locale })}
-  </p>
-</PageHero>
+<PageIntro
+  description={messages.schools_intro({}, { locale })}
+  heroImage={escolaTrail}
+  kicker={messages.site_title({}, { locale })}
+  title={messages.navigation_schools({}, { locale })}
+/>
 
 <ul class="schools-hub-list">
   {
