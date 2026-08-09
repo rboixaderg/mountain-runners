@@ -235,7 +235,7 @@ test("navigates from the hub to an event detail with its states", async ({
     0,
   );
   await expect(
-    page.locator('a[aria-disabled="true"], button[disabled]'),
+    page.locator('main a[aria-disabled="true"], main button[disabled]'),
   ).toHaveCount(0);
   await expect(page.locator('main a[href=""], main a[href="#"]')).toHaveCount(
     0,
@@ -258,7 +258,7 @@ test("renders the historical event detail without an action", async ({
     0,
   );
   await expect(
-    page.locator('a[aria-disabled="true"], button[disabled]'),
+    page.locator('main a[aria-disabled="true"], main button[disabled]'),
   ).toHaveCount(0);
 });
 
@@ -279,7 +279,7 @@ test("renders the active event detail without an announced date", async ({
   await expect(page.getByText("Inscripció tancada")).toBeVisible();
   await expect(page.locator(".events-detail__resources")).toHaveCount(0);
   await expect(
-    page.locator('a[aria-disabled="true"], button[disabled]'),
+    page.locator('main a[aria-disabled="true"], main button[disabled]'),
   ).toHaveCount(0);
   await expect(page.locator('main a[href=""], main a[href="#"]')).toHaveCount(
     0,
@@ -378,7 +378,7 @@ test("renders the About page sections in editorial order", async ({ page }) => {
     0,
   );
   await expect(
-    page.locator('a[aria-disabled="true"], button[disabled]'),
+    page.locator('main a[aria-disabled="true"], main button[disabled]'),
   ).toHaveCount(0);
 });
 
@@ -487,7 +487,7 @@ test("renders the Members page sections in editorial order", async ({
     0,
   );
   await expect(
-    page.locator('a[aria-disabled="true"], button[disabled]'),
+    page.locator('main a[aria-disabled="true"], main button[disabled]'),
   ).toHaveCount(0);
 });
 
@@ -542,47 +542,84 @@ test("navigates from the schools hub to a published school detail", async ({
 
   await expect(page).toHaveURL("/ca/escoles/escola-trail/");
   await expect(page.locator("html")).toHaveAttribute("lang", "ca");
+  const schoolDetail = page.locator(".schools-detail");
   await expect(
-    page.getByRole("heading", { level: 1, name: "Escola de Trail" }),
+    schoolDetail.getByRole("heading", { level: 1, name: "Escola de Trail" }),
   ).toBeVisible();
   await expect(
-    page.getByRole("img", {
+    schoolDetail.getByRole("img", {
       name: "Dos joves corrent per un camí de bosc en una sessió de l'escola de trail",
     }),
+  ).toBeVisible();
+  await expect(
+    schoolDetail.locator(".schools-detail-preview__about-media-frame img"),
   ).toHaveAttribute("width", "389");
-  await expect(page.getByText("L'escola pren vida l'any 2012")).toBeVisible();
-  await expect(page.getByText("30 € al mes")).toBeVisible();
   await expect(
-    page.getByRole("heading", { level: 2, name: "Informació pràctica" }),
+    schoolDetail.getByRole("heading", { level: 2, name: "Què oferim" }),
   ).toBeVisible();
   await expect(
-    page.locator(".schools-detail__practical-card-title").allTextContents(),
-  ).resolves.toEqual([
-    "Des de",
-    "Objectiu",
-    "Per a qui",
-    "Horari",
-    "Lloc",
-    "Preus",
-  ]);
-  await expect(page.locator(".schools-detail__practical-icon")).toHaveCount(6);
+    schoolDetail.getByText("L'escola pren vida l'any 2012"),
+  ).toBeVisible();
   await expect(
-    page.getByRole("heading", { level: 2, name: "Galeria" }),
+    schoolDetail.getByRole("heading", {
+      level: 2,
+      name: "Informació pràctica",
+    }),
+  ).toBeVisible();
+  await expect(
+    schoolDetail.getByText(
+      "Horaris, ubicació, preus i requisits per planificar la temporada amb tranquil·litat.",
+    ),
+  ).toBeVisible();
+  await expect(
+    schoolDetail.locator(".schools-detail-preview__practical-card"),
+  ).toHaveCount(5);
+  await expect(
+    schoolDetail.locator(".schools-detail-preview__prices"),
+  ).toHaveCount(1);
+  await expect(
+    schoolDetail
+      .locator(
+        ".schools-detail-preview__practical-grid--essentials .schools-detail-preview__practical-card-title",
+      )
+      .allTextContents(),
+  ).resolves.toEqual(["Horari", "Lloc", "Per a qui"]);
+  await expect(
+    schoolDetail
+      .locator(
+        ".schools-detail-preview__practical-grid--context .schools-detail-preview__practical-card-title",
+      )
+      .allTextContents(),
+  ).resolves.toEqual(["Des de", "Objectiu"]);
+  await expect(
+    schoolDetail.getByRole("heading", { level: 3, name: "Preus" }),
+  ).toBeVisible();
+  await expect(
+    schoolDetail.getByText("dilluns, dimecres i/o divendres"),
+  ).toBeVisible();
+  await expect(schoolDetail.getByText("17.30 h a 19.00 h")).toBeVisible();
+  await expect(
+    schoolDetail.getByRole("heading", { level: 4, name: "Matrícula" }),
+  ).toBeVisible();
+  await expect(schoolDetail.getByText("30 €")).toBeVisible();
+  await expect(schoolDetail.getByText("al mes").first()).toBeVisible();
+  await expect(
+    schoolDetail.getByRole("heading", { level: 2, name: "Galeria" }),
   ).toHaveCount(0);
-  await expect(page.getByText("Vídeo properament")).toHaveCount(0);
+  await expect(schoolDetail.getByText("Vídeo properament")).toHaveCount(0);
   await expect(
-    page.getByRole("heading", { level: 2, name: "Inscripció" }),
+    schoolDetail.getByRole("heading", { level: 2, name: "Inscripció" }),
   ).toBeVisible();
-  await expect(page.getByText("Inscripció properament")).toBeVisible();
+  await expect(schoolDetail.getByText("Inscripció properament")).toBeVisible();
   await expect(
-    page.getByText("Uneix-te a la família Mountain Runners."),
+    schoolDetail.getByText("Uneix-te a la família Mountain Runners."),
   ).toBeVisible();
-  await expect(page.locator("video, iframe")).toHaveCount(0);
+  await expect(schoolDetail.locator("video, iframe")).toHaveCount(0);
   await expect(page.locator('main a[href=""], main a[href="#"]')).toHaveCount(
     0,
   );
   await expect(
-    page.locator('a[aria-disabled="true"], button[disabled]'),
+    page.locator('main a[aria-disabled="true"], main button[disabled]'),
   ).toHaveCount(0);
 
   const layout = await page.evaluate(() => ({
@@ -875,6 +912,31 @@ test("publishes documents, contact and legal routes from the footer", async ({
   for (const path of footerLinks) {
     await expect(page.locator(`footer a[href="${path}"]`)).toHaveCount(1);
   }
+  await expect(
+    page.locator('footer a[href="https://www.instagram.com/infomountain/"]'),
+  ).toHaveCount(1);
+  await expect(
+    page.getByRole("navigation", { name: "Xarxes socials" }),
+  ).toBeVisible();
+  await expect(
+    page.locator('.site-prefooter a[href="mailto:info@mountainrunners.cat"]'),
+  ).toHaveCount(1);
+  await expect(
+    page.locator('.site-prefooter a[href="tel:+34938213747"]'),
+  ).toHaveCount(1);
+  await expect(
+    page.locator('.site-prefooter a[href="tel:+34691910774"]'),
+  ).toHaveCount(1);
+  await expect(page.locator(".site-prefooter")).toContainText(
+    "De dilluns a divendres, de 18 h a 20 h",
+  );
+  await expect(page.locator(".site-prefooter")).toContainText(
+    "Plaça Sant Joan, 15 baixos, 08600 Berga",
+  );
+  await expect(page.locator('footer a[href^="tel:"]')).toHaveCount(0);
+  await expect(
+    page.locator('footer a[href="mailto:info@mountainrunners.cat"]'),
+  ).toHaveCount(0);
 
   await page.goto("/ca/contacte/");
   await expect(page.locator("main h1")).toHaveText("Contacte");
@@ -937,7 +999,7 @@ test("publishes documents, contact and legal routes from the footer", async ({
       0,
     );
     await expect(
-      page.locator('a[aria-disabled="true"], button[disabled]'),
+      page.locator('main a[aria-disabled="true"], main button[disabled]'),
     ).toHaveCount(0);
   }
 });

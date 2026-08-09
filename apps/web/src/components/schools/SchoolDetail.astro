@@ -1,10 +1,12 @@
 ---
 import type { Locale } from "../../lib/content/primitives";
 import type { PublishedVariant } from "../../lib/content/publication";
-import SchoolIntroduction from "./SchoolIntroduction.astro";
-import SchoolPracticalInfo from "./SchoolPracticalInfo.astro";
+import SchoolPreviewAbout from "./SchoolPreviewAbout.astro";
+import SchoolPreviewHero from "./SchoolPreviewHero.astro";
+import SchoolPreviewPracticalInfo from "./SchoolPreviewPracticalInfo.astro";
 import SchoolRegistration from "./SchoolRegistration.astro";
 import "../../styles/school-detail.css";
+import "../../styles/school-detail-preview.css";
 
 interface Props {
   locale: Locale;
@@ -15,10 +17,11 @@ const { locale, variant } = Astro.props;
 const school = variant.entry;
 ---
 
-<article class="schools-detail">
-  <SchoolIntroduction locale={locale} school={school} />
-  <div class="page-frame schools-detail__body">
-    <SchoolPracticalInfo locale={locale} school={school} />
+<div class="schools-detail">
+  <SchoolPreviewHero locale={locale} school={school} />
+  <SchoolPreviewAbout locale={locale} school={school} />
+  <SchoolPreviewPracticalInfo locale={locale} school={school} />
+  <div class="schools-detail-preview__registration">
+    <SchoolRegistration locale={locale} school={school} />
   </div>
-  <SchoolRegistration locale={locale} school={school} />
-</article>
+</div>

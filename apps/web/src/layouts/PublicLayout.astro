@@ -78,6 +78,6 @@ const catalog = await getPublicationCatalog();
     <SiteHeader localizedAlternatives={localizedAlternatives} locale={locale} />
     <main id="main-content"><slot /></main>
     <PreFooter catalog={catalog} locale={locale} />
-    <SiteFooter catalog={catalog} locale={locale} />
+    <SiteFooter locale={locale} />
   </body>
 </html>
