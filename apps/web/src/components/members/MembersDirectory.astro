@@ -77,3 +77,13 @@ const collaboratorsWithImages = await Promise.all(
     </section>
   )
 }
+
+<style>
+  .members-directory__description :global(p) {
+    margin: 0 0 var(--space-2);
+  }
+
+  .members-directory__description :global(p:last-child) {
+    margin-bottom: 0;
+  }
+</style>

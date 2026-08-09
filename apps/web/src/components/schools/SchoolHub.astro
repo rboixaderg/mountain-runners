@@ -6,6 +6,7 @@ import type { PublishedVariant } from "../../lib/content/publication";
 import { getVariantPath } from "../../lib/content/routes";
 import { getRegistrationPresentation } from "../../lib/presentation/status";
 import PageHero from "../PageHero.astro";
+import "../../styles/schools-hub.css";
 
 interface Props {
   locale: Locale;
@@ -33,7 +34,7 @@ const schoolsWithCovers = await Promise.all(
     {messages.site_title({}, { locale })}
   </p>
   <h1
-    class="my-3 mb-6 max-w-[15ch] font-[family-name:var(--font-display)] text-[clamp(2.8rem,9vw,5.5rem)] leading-[0.95] tracking-[0.015em] uppercase"
+    class="font-display m-0 mb-6 max-w-[min(100%,14ch)] text-[clamp(3.5rem,9vw,7.5rem)] leading-[0.9] tracking-[-0.035em] [overflow-wrap:break-word] uppercase"
   >
     {messages.navigation_schools({}, { locale })}
   </h1>

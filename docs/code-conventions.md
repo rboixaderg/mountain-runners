@@ -56,6 +56,35 @@ inline. A la segona aparició d'un helper, s'extreu i es reutilitza.
 - La resolució de text es fa al component amb `messages[clau]({}, { locale })`.
 - Els helpers estan coberts per Vitest a `src/test/presentation-*.test.ts`.
 
+## Estils
+
+- Les utilitats de Tailwind són la primera opció per a composició, espaiat,
+  tipografia i color ordinaris, i conviuen amb les classes semàntiques o E2E
+  existents: aquestes classes formen part del contracte públic i no s'eliminen.
+- `src/styles/global.css` és l'únic fonament global: importa Tailwind, defineix
+  els tokens de color i tipografia amb `@theme`, manté les variables estructurals
+  compartides a `:root`, declara les tipografies i conserva només els valors per
+  defecte d'elements, focus, salt al contingut i moviment reduït.
+- El CSS que una utilitat no expressa de manera clara —pseudo-elements,
+  decoració, estats de pare complexos o cascades responsive pròpies— viu amb el
+  component propietari o en un full petit importat per la plantilla que coordina
+  diversos components fills. `@apply` no és l'arquitectura principal.
+- Un component que només necessita declaracions ordinàries no crea un full CSS:
+  manté la classe BEM o E2E i hi afegeix les utilitats. Els fulls específics
+  s'importen des del component o la plantilla propietaris, mai des del layout
+  públic.
+- Els selectors `:global(...)` per a markdown es declaren al component que
+  posseeix el contenidor que rep l'HTML (`set:html`), mai des d'una plantilla o
+  d'un component pare cap a classes de components fills. L'àncora local es manté
+  fora de `:global(...)`.
+- Si la mateixa regla de markdown afecta una classe compartida entre diverses
+  seccions d'una pàgina, viu al full CSS sense scoping importat per la plantilla
+  (`about.css`, `members.css`) com a selector normal, sense `:global(...)`.
+- `:global(...)` mínim s'aplica a la quantitat de regles i a l'abast del
+  selector: dins dels parèntesis només hi entra allò que no pot rebre l'atribut
+  de scoping. El contingut editorial no genera classes, estils ni URLs
+  decoratives.
+
 ## Noms Explícits
 
 - Cap variable ni alias d'una sola lletra: tot identificador descriu el que

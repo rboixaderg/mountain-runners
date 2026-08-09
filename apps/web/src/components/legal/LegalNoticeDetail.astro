@@ -3,6 +3,7 @@ import * as messages from "../../paraglide/messages.js";
 import { renderRestrictedMarkdown } from "../../lib/content/markdown";
 import type { PublicationCatalog } from "../../lib/content/publication";
 import type { Locale } from "../../lib/content/primitives";
+import "../../styles/legal-data.css";
 import ContactDataList from "../ContactDataList.astro";
 import PageIntro from "../PageIntro.astro";
 import PageSection from "../PageSection.astro";
@@ -67,7 +68,7 @@ const { catalog, locale } = Astro.props;
 const contact = catalog.contact;
 ---
 
-<article class="page-detail">
+<article class="page-detail pb-0">
   <PageIntro
     kicker={messages.site_title({}, { locale })}
     title={messages.legal_notice_title({}, { locale })}

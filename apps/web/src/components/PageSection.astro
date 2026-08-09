@@ -1,4 +1,6 @@
 ---
+import "../styles/page-section.css";
+
 interface Props {
   id: string;
   title: string;
@@ -14,3 +16,16 @@ const { id, title } = Astro.props;
   </div>
   <div class="page-section__body"><slot /></div>
 </section>
+
+<style>
+  .page-section__body :global(.page-section__markdown p) {
+    max-width: var(--reading-width);
+    margin: 0 0 var(--space-4);
+    font-size: 1rem;
+    line-height: 1.6;
+  }
+
+  .page-section__body :global(.page-section__markdown p:last-child) {
+    margin-bottom: 0;
+  }
+</style>

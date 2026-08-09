@@ -1,0 +1,298 @@
+.schools-detail {
+  padding-bottom: 0;
+}
+
+.schools-detail__hero {
+  position: relative;
+  min-height: clamp(20rem, 32vw, 28rem);
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border-block: 0.25rem solid var(--color-ink);
+  background: var(--color-ink);
+  color: white;
+  border-inline-color: currentcolor;
+}
+
+.schools-detail__hero .schools-detail__cover {
+  position: absolute;
+  inset: 0;
+  display: block;
+  overflow: hidden;
+  border: 0;
+  background: var(--color-red);
+}
+
+.schools-detail__hero .schools-detail__cover::after {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to top, rgb(0 0 0 / 0.7), rgb(215 25 32 / 0.78));
+  content: "";
+}
+
+.schools-detail__hero .schools-detail__cover img {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+  filter: grayscale(1) contrast(1.12);
+  mix-blend-mode: multiply;
+  opacity: 0.72;
+}
+
+.schools-detail__hero-copy {
+  z-index: 1;
+}
+
+.schools-detail__cover figcaption {
+  position: absolute;
+  right: var(--space-3);
+  bottom: var(--space-3);
+  margin: 0;
+  padding: 0.25rem var(--space-2);
+  background: rgb(23 23 23 / 0.78);
+  color: var(--color-paper);
+  font-size: 0.7rem;
+}
+
+.schools-detail__hero .schools-detail__kicker {
+  margin: 0 0 1rem;
+  border: 0;
+  padding: 0.35rem 0.65rem;
+  background: var(--color-ink);
+  color: white;
+  font-family: var(--font-display);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.schools-detail__hero .schools-detail__title {
+  max-width: 14ch;
+  margin: 0;
+  color: white;
+  font-family: var(--font-display);
+  font-size: clamp(3.1rem, 8vw, 7.5rem);
+  font-style: italic;
+  line-height: 0.88;
+  letter-spacing: -0.035em;
+  overflow-wrap: anywhere;
+  text-transform: uppercase;
+}
+
+.schools-detail__intro {
+  position: relative;
+  overflow: hidden;
+}
+
+.schools-detail__intro-copy {
+  position: static;
+  width: auto;
+  min-width: 0;
+  min-height: 0;
+  display: block;
+  z-index: 1;
+  align-items: flex-start;
+  justify-content: end;
+  padding: 0;
+  background: transparent;
+}
+
+.schools-detail__intro .schools-detail__summary {
+  max-width: 13ch;
+  margin: 0;
+  color: var(--color-ink);
+  font-family: var(--font-display);
+  font-size: clamp(2.2rem, 5vw, 4.25rem);
+  font-weight: 700;
+  line-height: 0.94;
+  text-transform: uppercase;
+}
+
+.schools-detail__intro .schools-detail__description {
+  max-width: 38rem;
+  margin-top: 1.5rem;
+  border: 0;
+  padding: 0;
+  color: var(--color-ink);
+}
+
+.schools-detail__intro-image {
+  position: relative;
+  margin: 0;
+  border: 0.2rem solid var(--color-ink);
+  padding: 0.45rem;
+  background: white;
+  transform: rotate(1.5deg);
+}
+
+.schools-detail__intro-image::after {
+  position: absolute;
+  z-index: -1;
+  top: 1rem;
+  right: -1rem;
+  bottom: -1rem;
+  left: -1rem;
+  background: var(--color-red);
+  content: "";
+}
+
+.schools-detail__intro-image img {
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  object-fit: cover;
+}
+
+.schools-detail__body {
+  max-width: none;
+  padding: 0;
+}
+
+.schools-detail__section-heading {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+  margin-bottom: 2rem;
+}
+
+.schools-detail__section-marker {
+  width: 0.5rem;
+  height: 1.5rem;
+  flex: 0 0 auto;
+  background: var(--color-red);
+}
+
+.schools-detail__section h2 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(1.8rem, 4vw, 3rem);
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.schools-detail__practical {
+  width: 100vw;
+  margin-inline: calc(50% - 50vw);
+  padding: clamp(3rem, 7vw, 6rem)
+    max(var(--page-gutter), calc((100vw - var(--page-width)) / 2));
+  border-block: 0.125rem solid var(--color-ink);
+  background: var(--color-stone);
+}
+
+.schools-detail__practical .schools-detail__section-heading,
+.schools-detail__practical dl {
+  width: min(100%, var(--page-width));
+  margin-inline: auto;
+}
+
+.schools-detail__practical .schools-detail__section-heading {
+  margin-bottom: 2rem;
+}
+
+.schools-detail__practical dl {
+  display: grid;
+  grid-template-columns: repeat(1, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.schools-detail__practical dl > div {
+  min-width: 0;
+  min-height: 11rem;
+  border: 0.125rem solid var(--color-ink);
+  padding: 1.5rem;
+  background: white;
+}
+
+.schools-detail__practical dl > div:nth-child(2) {
+  box-shadow: 0.4rem 0.4rem 0 var(--color-red);
+}
+
+.schools-detail__practical dt {
+  color: var(--color-ink);
+  font-family: var(--font-display);
+  font-size: 0.85rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.schools-detail__practical dd {
+  max-width: 42rem;
+  margin: var(--space-2) 0 0;
+  color: var(--color-ink);
+  font-size: 1rem;
+  font-weight: 500;
+}
+
+.schools-detail__registration {
+  min-height: clamp(18rem, 26vw, 24rem);
+  display: grid;
+  align-items: start;
+  margin-inline: calc(var(--page-gutter) * -1);
+  justify-items: center;
+  padding: clamp(3rem, 7vw, 6rem) var(--page-gutter);
+  background-color: var(--color-ink);
+  background-image: radial-gradient(rgb(215 25 32 / 0.42) 1px, transparent 1px);
+  background-size: 1rem 1rem;
+  color: white;
+  text-align: center;
+}
+
+.schools-detail__registration .schools-detail__section-heading,
+.schools-detail__registration-status,
+.schools-detail__registration .schools-detail__external-link {
+  width: min(100%, 48rem);
+}
+
+.schools-detail__registration .schools-detail__section-heading {
+  margin-bottom: var(--space-3);
+  justify-content: center;
+}
+
+.schools-detail__registration h2 {
+  color: white;
+  font-size: clamp(2.35rem, 5vw, 4.5rem);
+  font-style: italic;
+}
+
+.schools-detail__registration-status {
+  margin: 0 0 1.5rem;
+  color: white;
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.schools-detail__external-link {
+  display: inline-flex;
+  max-width: 100%;
+  gap: 0.35rem;
+  align-items: center;
+  color: var(--color-red);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.schools-detail__registration .schools-detail__external-link {
+  justify-content: center;
+  border: 0.125rem solid var(--color-red);
+  padding: 0.8rem 1rem;
+  background: var(--color-red);
+  color: white;
+  box-shadow: 0.25rem 0.25rem 0 white;
+}
+
+@media (min-width: 48rem) {
+  .schools-detail__practical dl {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .schools-detail__registration {
+    margin-inline: 0;
+  }
+}

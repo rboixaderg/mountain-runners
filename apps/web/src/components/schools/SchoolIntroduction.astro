@@ -43,8 +43,18 @@ const coverSize =
   </div>
 </section>
 
+<style>
+  .schools-detail__description :global(:first-child) {
+    margin-top: 0;
+  }
+
+  .schools-detail__description :global(:last-child) {
+    margin-bottom: 0;
+  }
+</style>
+
 <section
-  class="page-frame schools-detail__intro grid items-center gap-10 bg-white py-[var(--section-space)] text-[var(--color-ink)] md:grid-cols-[minmax(0,0.9fr)_minmax(18rem,1.1fr)] md:gap-16"
+  class="page-frame schools-detail__intro bg-ink text-paper grid items-center gap-10 py-[var(--section-space)] md:grid-cols-[minmax(0,0.9fr)_minmax(18rem,1.1fr)] md:gap-16"
 >
   <div class="schools-detail__intro-copy">
     <h2 class="schools-detail__summary">{school.summary[locale]}</h2>

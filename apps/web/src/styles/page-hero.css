@@ -1,0 +1,30 @@
+.page-hero {
+  border-inline-color: currentcolor;
+}
+
+.page-hero > :is(picture, figure, img) {
+  position: absolute;
+  z-index: 0;
+  inset: 0;
+  width: 100%;
+  max-width: none;
+  height: 100%;
+  display: block;
+  margin: 0;
+}
+
+.page-hero > :is(picture, figure) img,
+.page-hero > img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  filter: grayscale(1) contrast(1.15);
+  mix-blend-mode: multiply;
+  opacity: 0.25;
+}
+
+.page-hero__content h1,
+.page-hero__content .homepage-hero__title-region,
+.page-hero__content .members-intro__description {
+  color: inherit;
+}

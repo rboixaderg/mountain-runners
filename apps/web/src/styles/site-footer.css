@@ -1,0 +1,98 @@
+.site-footer {
+  border-top: 0.1875rem solid var(--color-red);
+  background: var(--color-ink);
+  color: white;
+}
+
+.site-footer__grid {
+  display: grid;
+  gap: 2.5rem;
+  align-items: normal;
+  padding-block: clamp(3rem, 7vw, 5rem);
+}
+
+.site-footer__identity,
+.site-footer__nav,
+.site-footer__legal,
+.site-footer .footer-contact {
+  min-width: 0;
+}
+
+.site-footer__brand {
+  margin: 0 0 1rem;
+  font-family: var(--font-display);
+  font-size: 1.35rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.site-footer__tagline {
+  max-width: 22rem;
+  margin: 0;
+  color: rgb(255 255 255 / 0.68);
+}
+
+.site-footer .footer-links {
+  display: grid;
+  gap: 0.7rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.site-footer .footer-links a,
+.site-footer .contact-data a,
+.site-footer .contact-data dd {
+  color: rgb(255 255 255 / 0.82);
+}
+
+.site-footer .footer-links a:hover,
+.site-footer .contact-data a:hover {
+  color: white;
+}
+
+.site-footer .contact-data {
+  gap: 0.8rem;
+}
+
+.site-footer .contact-data__row {
+  display: block;
+}
+
+.site-footer .contact-data dt {
+  margin-bottom: 0.15rem;
+  color: var(--color-red-on-dark);
+  font-size: 0.7rem;
+}
+
+.site-footer .contact-data dd {
+  font-size: 0.9rem;
+}
+
+.site-footer__bottom {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  justify-content: center;
+  border-top: 1px solid rgb(255 255 255 / 0.18);
+  padding-block: 1.5rem;
+  color: rgb(255 255 255 / 0.58);
+  font-size: 0.75rem;
+  line-height: 1.5;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+@media (min-width: 48rem) {
+  .site-footer__grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: start;
+  }
+}
+
+@media (min-width: 64rem) {
+  .site-footer__grid {
+    grid-template-columns: 1.5fr 1fr 1.25fr 1fr;
+  }
+}
