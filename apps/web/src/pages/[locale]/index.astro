@@ -12,7 +12,11 @@ import { getOrderedSchoolVariants } from "../../lib/content/schools";
 import { renderRestrictedMarkdown } from "../../lib/content/markdown";
 import type { PublishedVariant } from "../../lib/content/publication";
 import { getPublicationCatalog } from "../../lib/content/repository";
-import { getDomainPath, getFixedPagePath } from "../../lib/content/routes";
+import {
+  getDomainPath,
+  getFixedPagePath,
+  getVariantPath,
+} from "../../lib/content/routes";
 import { getSiteJsonLd } from "../../lib/content/seo";
 
 const locale = assertIsLocale(Astro.currentLocale);
@@ -30,10 +34,16 @@ const schoolVariants = catalog.variants.filter(
 const events = getHomepageEvents(
   eventVariants.map((variant) => variant.entry),
   today,
-);
-const schools = getOrderedSchoolVariants(schoolVariants).map(
-  (variant) => variant.entry,
-);
+).map((event) => {
+  const variant = eventVariants.find(
+    (candidate) => candidate.entry.id === event.id,
+  );
+  if (variant === undefined) {
+    throw new Error(`Missing published variant for homepage event ${event.id}`);
+  }
+  return { event, href: getVariantPath(variant) };
+});
+const schools = getOrderedSchoolVariants(schoolVariants);
 const siteUrl = new URL("/", Astro.site);
 const siteEntity = catalog.entities.get("mountain-runners");
 const structuredData = getSiteJsonLd({
@@ -103,8 +113,13 @@ export function getStaticPaths() {
     </div>
     <div class="homepage-events">
       {
-        events.map((event) => (
-          <HomepageEventCard event={event} locale={locale} today={today} />
+        events.map(({ event, href }) => (
+          <HomepageEventCard
+            event={event}
+            href={href}
+            locale={locale}
+            today={today}
+          />
         ))
       }
     </div>
@@ -126,17 +141,22 @@ export function getStaticPaths() {
       </div>
       <ul class="homepage-school-list">
         {
-          schools.map((school) => (
+          schools.map((variant) => (
             <li>
-              <img
-                class="homepage-school-list__mark"
-                src={logo.src}
-                width={logo.width}
-                height={logo.height}
-                alt=""
-              />
-              <strong>{school.name[locale]}</strong>
-              <span>{school.summary[locale]}</span>
+              <a
+                class="homepage-school-list__link"
+                href={getVariantPath(variant)}
+              >
+                <img
+                  class="homepage-school-list__mark"
+                  src={logo.src}
+                  width={logo.width}
+                  height={logo.height}
+                  alt=""
+                />
+                <strong>{variant.entry.name[locale]}</strong>
+                <span>{variant.entry.summary[locale]}</span>
+              </a>
             </li>
           ))
         }
