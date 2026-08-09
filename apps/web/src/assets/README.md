@@ -58,6 +58,16 @@ localment com a portades de trail, skimo i BTT. Les fotografies conserven els
 drets d'imatge de les persones que hi apareixen i no queden cobertes per la
 llicència MIT del programari.
 
+`schools/schools-hub-hero.jpg` és el muntatge complet de les tres escoles
+publicat a la web actual (`mountainrunners.cat/escoles/`). Es carrega al hero
+del hub en pantalles grans.
+
+`schools/schools-hub-hero-mobile.jpg` prové d'una fotografia de l'Escola Trail
+publicada a la web actual
+(`mountainrunners.cat/wp-content/uploads/2021/07/ESCOLA-TRAIL-2020_21.jpg`).
+Es carrega al hero del hub en pantalles petites. Conserva els drets d'imatge
+corresponents i no queda coberta per la llicència MIT del programari.
+
 El logotip, la fotografia, les fotografies i els logotips de col·laboradors
 són recursos de marca i d'imatge de l'associació i de les entitats. Qualsevol
 reutilització fora d'aquest projecte requereix autorització de l'associació.

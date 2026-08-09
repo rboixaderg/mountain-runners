@@ -9,8 +9,13 @@ summary:
   ca: Formació en esquí de muntanya per a joves de 12 a 18 anys al Berguedà.
 description:
   ca: >-
-    L'Escola Skimo ofereix formació en esquí de muntanya en horari no lectiu,
-    amb continuïtat per a qui vulgui iniciar-se en la competició.
+    L'Escola Skimo és una de les branques dels MRB: un projecte de formació de
+    joves esportistes de 12 a 18 anys, en horari no lectiu, per l'entorn de la
+    comarca del Berguedà.
+
+
+    Oferim continuïtat per a qui vulgui iniciar-se o progressar en esquí de
+    muntanya, amb possibilitat d'obrir la porta a la competició.
 cover:
   resource:
     kind: local
@@ -21,14 +26,61 @@ gallery: []
 registrationStatus: coming-soon
 sections:
   since:
-    ca: L'escola va néixer l'any 2014 a partir de l'experiència de l'Escola Trail.
+    ca: >-
+      Va néixer l'any 2014, aprofitant l'experiència de l'Escola Trail — escola
+      pionera de curses de muntanya — per aplicar-la a l'esquí de muntanya.
   purpose:
-    ca: Formar en esquí de muntanya i obrir la porta a la competició a qui ho vulgui.
+    ca: >-
+      Oferir una formació en esquí de muntanya, donar continuïtat i obrir les
+      portes a la competició a qui ho vulgui.
   audience:
     ca: Joves de 12 a 18 anys amb ganes de millorar.
   schedule:
-    ca: Entrenaments entre setmana i caps de setmana, adaptats a les temporades de tardor i neu.
+    ca: >-
+      **Caps de setmana**
+
+
+      - Temporada de tardor: dissabte cada 15 dies de 9.00 h a 13.00 h
+        (diferents llocs del Berguedà; sessions amb rollers i caminar amb
+        bastons).
+
+      - Temporada de neu: dissabte de 9.00 h a 13.00 h (campionats de
+        Catalunya i Espanya i sortides amb esquí de muntanya).
+
+
+      **Entre setmana**
+
+
+      - Fora de temporada de neu: dimarts i dijous de 17.00 h a 19.00 h a
+        Berga (caminar amb bastons, trail i rollers).
+
+      - Temporada de neu (Masella nit tancada): dimarts i dijous de 17.00 h a
+        19.00 h a Masella (possibilitat d'entrenar als Rasos).
+
+      - Temporada de neu (Masella nit oberta): dimarts de 17.00 h a 19.00 h i
+        dijous de 17.00 h a 20.00 h a Masella.
   location:
     ca: Berga, Masella, Rasos i diferents indrets del Berguedà segons la temporada.
+  requirements:
+    ca: >-
+      - Ser soci o sòcia dels Mountain Runners.
+
+      - Llicència federativa D habilitada per la FEDME.
+
+      - Bon nivell d'esquí alpí (capacitat de baixar per tot tipus de pista).
+
+      - Material d'esquí de muntanya i de rollers.
   prices:
-    ca: Els preus es poden modificar a l'inici de curs.
+    ca: >-
+      No varia en funció de l'edat, sinó dels dies que voleu venir:
+
+
+      - Quota anual escola: 550 €
+
+      - Entre setmana: 60 € al mes si venen dimarts i dijous; 30 € al mes si
+        només venen un dia
+
+      - Matrícula: 80 € (inclou tràmits d'inscripció i la jaqueta de l'escola)
+
+
+      Els preus poden quedar subjectes a modificació a l'inici de curs.

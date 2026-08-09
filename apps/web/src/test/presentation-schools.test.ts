@@ -12,6 +12,7 @@ describe("school practical presentation contract", () => {
       "audience",
       "schedule",
       "location",
+      "requirements",
       "prices",
     ]);
   });

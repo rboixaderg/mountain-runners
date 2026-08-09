@@ -1,17 +1,5 @@
-.events-detail__hero > figure::after {
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(to top, rgb(0 0 0 / 0.94), rgb(215 25 32 / 0.55));
-  content: "";
-}
-
-.events-detail__hero .events-detail__editorial-status,
 .events-detail__edition .events-detail__no-upcoming-date {
   color: rgb(255 255 255 / 0.8);
-}
-
-.events-detail__editorial-status {
-  line-height: 1.5;
 }
 
 .events-detail__edition {
@@ -250,7 +238,4 @@
   .events-detail__edition dl {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
-}
-.events-detail__hero {
-  border-inline-color: currentcolor;
 }

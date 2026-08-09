@@ -1,5 +1,6 @@
 ---
-import escolaTrail from "../../assets/schools/escola-trail.jpg";
+import schoolsHubHero from "../../assets/schools/schools-hub-hero.jpg";
+import schoolsHubHeroMobile from "../../assets/schools/schools-hub-hero-mobile.jpg";
 import * as messages from "../../paraglide/messages.js";
 import { getLocalImageSize, getResourceHref } from "../../lib/content/images";
 import type { Locale } from "../../lib/content/primitives";
@@ -28,14 +29,61 @@ const schoolsWithCovers = await Promise.all(
     };
   }),
 );
+const valueItems = [
+  {
+    descriptionKey: "schools_values_mountain_description" as const,
+    titleKey: "schools_values_mountain_title" as const,
+  },
+  {
+    descriptionKey: "schools_values_respect_description" as const,
+    titleKey: "schools_values_respect_title" as const,
+  },
+  {
+    descriptionKey: "schools_values_club_description" as const,
+    titleKey: "schools_values_club_title" as const,
+  },
+];
 ---
 
 <PageIntro
   description={messages.schools_intro({}, { locale })}
-  heroImage={escolaTrail}
+  heroImage={schoolsHubHeroMobile}
+  heroImageLarge={schoolsHubHero}
   kicker={messages.site_title({}, { locale })}
   title={messages.navigation_schools({}, { locale })}
 />
+
+<section class="page-frame schools-hub-values">
+  <ul class="schools-hub-values__list">
+    {
+      valueItems.map(({ descriptionKey, titleKey }) => (
+        <li class="schools-hub-values__item">
+          <p class="schools-hub-values__title">
+            {messages[titleKey]({}, { locale })}
+          </p>
+          <p class="schools-hub-values__description">
+            {messages[descriptionKey]({}, { locale })}
+          </p>
+        </li>
+      ))
+    }
+  </ul>
+</section>
+
+<section
+  class="page-frame schools-hub-programs"
+  aria-labelledby="schools-programs-title"
+>
+  <div class="schools-hub-programs__heading">
+    <span class="schools-hub-programs__marker" aria-hidden="true"></span>
+    <h2 class="schools-hub-programs__title" id="schools-programs-title">
+      {messages.schools_programs_title({}, { locale })}
+    </h2>
+  </div>
+  <p class="schools-hub-programs__intro">
+    {messages.schools_programs_intro({}, { locale })}
+  </p>
+</section>
 
 <ul class="schools-hub-list">
   {

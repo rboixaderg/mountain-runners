@@ -9,8 +9,13 @@ summary:
   ca: Activitats de BTT per a infants i joves de 6 a 16 anys al Berguedà.
 description:
   ca: >-
-    L'Escola BTT, amb el CEB i Veloberga, ofereix activitats en horari no
-    lectiu per descobrir la comarca amb bicicleta.
+    L'Escola BTT és una de les branques dels MRB, juntament amb el CEB i
+    Veloberga, per a grups d'infants i joves de 6 a 16 anys, en horari no
+    lectiu, per l'entorn de la comarca del Berguedà.
+
+
+    És un espai per descobrir la comarca amb bicicleta, aprendre tècnica i
+    gaudir de la natura sense ser una escola d'alt rendiment.
 cover:
   resource:
     kind: local
@@ -21,14 +26,40 @@ gallery: []
 registrationStatus: coming-soon
 sections:
   since:
-    ca: L'escola va néixer l'any 2020 com a projecte pilot.
+    ca: >-
+      L'escola pren vida l'any 2020 com a projecte pilot, creant sinergies amb
+      altres entitats de Berga perquè infants i joves puguin descobrir nous
+      racons de la comarca.
   purpose:
-    ca: Estar a la natura, aprendre'n i gaudir-ne amb bicicleta mentre s'aprèn tècnica.
+    ca: >-
+      Donar l'opció d'estar a la natura, aprendre'n i gaudir-ne amb bicicleta
+      mentre s'aprèn tècnica.
   audience:
     ca: Infants i joves de 6 a 16 anys.
   schedule:
-    ca: Dimarts de 17.30 h a 19.00 h a Avià i dissabtes de 10.00 h a 13.00 h al Berguedà.
+    ca: >-
+      **Entre setmana**
+
+
+      Dimarts de 17.30 h a 19.00 h a Avià.
+
+
+      **Cap de setmana**
+
+
+      Dissabte de 10.00 h a 13.00 h, itinerant per la comarca del Berguedà.
   location:
     ca: Avià i itineraris variables per la comarca del Berguedà.
+  requirements:
+    ca: >-
+      - Ser soci o sòcia del club MRB o del CEB.
+
+      - Bicicleta amb canvis i en bon estat.
+
+      - Casc, guants, bidó i motxilla.
   prices:
-    ca: Els preus es poden modificar a l'inici de curs.
+    ca: >-
+      No varia en funció de l'edat, sinó dels dies que voleu venir.
+
+
+      Els preus poden quedar subjectes a modificació a l'inici de curs.

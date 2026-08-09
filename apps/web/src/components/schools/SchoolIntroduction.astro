@@ -4,6 +4,7 @@ import { getLocalImageSize, getResourceHref } from "../../lib/content/images";
 import type { School } from "../../lib/content/models";
 import type { Locale } from "../../lib/content/primitives";
 import { renderRestrictedMarkdown } from "../../lib/content/markdown";
+import DetailHero from "../DetailHero.astro";
 
 interface Props {
   locale: Locale;
@@ -18,30 +19,15 @@ const coverSize =
     : undefined;
 ---
 
-<section class="schools-detail__hero">
-  <figure class="schools-detail__cover">
-    <img
-      src={coverHref}
-      alt={school.cover.alt[locale]}
-      {...coverSize === undefined
-        ? {}
-        : { width: coverSize.width, height: coverSize.height }}
-    />
-    {
-      school.cover.attribution?.[locale] && (
-        <figcaption>{school.cover.attribution[locale]}</figcaption>
-      )
-    }
-  </figure>
-  <div
-    class="page-frame schools-detail__hero-copy relative z-10 grid justify-items-center text-center"
-  >
-    <p class="schools-detail__kicker">
-      {messages.navigation_schools({}, { locale })}
-    </p>
-    <h1 class="schools-detail__title">{school.name[locale]}</h1>
-  </div>
-</section>
+<DetailHero
+  coverAlt={school.cover.alt[locale]!}
+  coverAttribution={school.cover.attribution?.[locale]}
+  coverHeight={coverSize?.height}
+  coverHref={coverHref}
+  coverWidth={coverSize?.width}
+  kicker={messages.navigation_schools({}, { locale })}
+  title={school.name[locale]!}
+/>
 
 <style>
   .schools-detail__description :global(:first-child) {

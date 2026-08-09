@@ -9,8 +9,14 @@ summary:
   ca: Classes de trail per a infants i joves de 3 a 18 anys al Berguedà.
 description:
   ca: >-
-    L'Escola Trail ofereix classes en horari no lectiu per l'entorn de la
-    comarca del Berguedà.
+    L'Escola Trail és una de les branques dels MRB i ofereix classes de trail
+    per a grups d'infants i joves de 3 a 18 anys, en horari no lectiu, per
+    l'entorn de la comarca del Berguedà.
+
+
+    Els monitors transmeten l'esforç, el treball en equip, el respecte a la
+    natura i la constància mentre els infants i joves descobreixen nous racons
+    del Berguedà.
 cover:
   resource:
     kind: local
@@ -21,14 +27,37 @@ gallery: []
 registrationStatus: coming-soon
 sections:
   since:
-    ca: L'escola va néixer l'any 2012.
+    ca: >-
+      L'escola pren vida l'any 2012 i des de llavors els infants i joves de la
+      comarca no han parat de descobrir nous racons del Berguedà.
   purpose:
-    ca: Oferir l'opció d'estar a la natura, aprendre d'ella i gaudir-la.
+    ca: >-
+      L'objectiu no és una escola d'alt rendiment sinó donar l'opció d'estar a
+      la natura, aprendre d'ella i gaudir-la.
   audience:
     ca: Infants i joves de 3 a 18 anys.
   schedule:
-    ca: Durant el curs escolar, de dilluns a divendres de 17.30 h a 19.00 h.
+    ca: >-
+      **Berga:** dilluns, dimecres i/o divendres de 17.30 h a 19.00 h.
+
+
+      Durant el curs escolar.
   location:
-    ca: Sortida des de la Font Negra de Berga, amb itineraris diferents a cada sessió.
+    ca: >-
+      Sortida des de la Font Negra de Berga, amb itineraris diferents a cada
+      sessió.
   prices:
-    ca: Els preus es poden modificar a l'inici de curs.
+    ca: >-
+      No varia en funció de l'edat, sinó dels dies que voleu venir:
+
+
+      - 1 dia: 30 € al mes
+
+      - 2 dies: 40 € al mes
+
+      - 3 dies: 45 € al mes
+
+      - Matrícula primer any: 50 €; matrícula de continuïtat: 25 €
+
+
+      Els preus poden quedar subjectes a modificació a l'inici de curs.

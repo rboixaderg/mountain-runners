@@ -1,0 +1,41 @@
+---
+import "../styles/detail-hero.css";
+
+interface Props {
+  coverAlt: string;
+  coverAttribution?: string;
+  coverHeight?: number;
+  coverHref: string;
+  coverWidth?: number;
+  kicker: string;
+  title: string;
+}
+
+const {
+  coverAlt,
+  coverAttribution,
+  coverHeight,
+  coverHref,
+  coverWidth,
+  kicker,
+  title,
+} = Astro.props;
+---
+
+<section class="detail-hero">
+  <figure class="detail-hero__cover">
+    <img
+      src={coverHref}
+      alt={coverAlt}
+      {...coverWidth === undefined || coverHeight === undefined
+        ? {}
+        : { width: coverWidth, height: coverHeight }}
+    />
+    {coverAttribution && <figcaption>{coverAttribution}</figcaption>}
+  </figure>
+  <div class="page-frame detail-hero__copy">
+    <p class="detail-hero__kicker">{kicker}</p>
+    <slot name="meta" />
+    <h1 class="detail-hero__title">{title}</h1>
+  </div>
+</section>

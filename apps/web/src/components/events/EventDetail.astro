@@ -20,6 +20,7 @@ import EventEntities from "./EventEntities.astro";
 import EventHistory from "./EventHistory.astro";
 import EventPracticalInfo from "./EventPracticalInfo.astro";
 import EventResources from "./EventResources.astro";
+import DetailHero from "../DetailHero.astro";
 import EventStatus from "../EventStatus.astro";
 import ExternalLink from "../ExternalLink.astro";
 import "../../styles/event-detail.css";
@@ -61,52 +62,30 @@ const editionDocuments =
 ---
 
 <article class="events-detail pb-0">
-  <section
-    class="events-detail__hero border-ink bg-ink relative grid aspect-[2.2/1] min-h-[clamp(20rem,32vw,28rem)] max-w-none place-items-center overflow-hidden border-y-[0.25rem] text-white"
-  >
-    {
-      coverHref && (
-        <figure class="bg-red absolute inset-0 grid place-items-center">
-          <img
-            class="h-auto max-h-[60%] w-[min(55%,28rem)] border-0 bg-transparent object-contain p-0 opacity-35"
-            src={coverHref}
-            alt={event.cover.alt[locale]}
-            {...(coverSize === undefined
-              ? {}
-              : { width: coverSize.width, height: coverSize.height })}
-          />
-          {event.cover.attribution?.[locale] && (
-            <figcaption class="text-paper absolute right-3 bottom-3 m-0 bg-[rgb(23_23_23_/_0.78)] px-2 py-1 text-[0.7rem]">
-              {event.cover.attribution[locale]}
-            </figcaption>
-          )}
-        </figure>
-      )
-    }
-    <div
-      class="page-frame events-detail__hero-copy relative z-[1] grid justify-items-center text-center"
-    >
-      <p
-        class="events-detail__badge bg-ink font-display text-paper m-0 mb-4 inline-block px-2 py-1 text-[0.7rem] leading-tight font-bold tracking-[0.08em] uppercase"
-      >
-        {
+  {
+    coverHref && (
+      <DetailHero
+        coverAlt={event.cover.alt[locale]!}
+        coverAttribution={event.cover.attribution?.[locale]}
+        coverHeight={coverSize?.height}
+        coverHref={coverHref}
+        coverWidth={coverSize?.width}
+        kicker={
           event.clubRelationship === "organizes"
             ? messages.event_club_badge_organizes({}, { locale })
             : messages.event_club_badge_collaborates({}, { locale })
         }
-      </p>
-      <EventStatus
-        className="events-detail__editorial-status text-xs font-bold tracking-[0.08em] uppercase"
-        locale={locale}
-        statusKey={getEventActivityMessageKey(event.active)}
-      />
-      <h1
-        class="events-detail__title font-display m-0 max-w-[13ch] text-[clamp(3.5rem,9vw,8.5rem)] leading-[0.88] tracking-[-0.035em] text-white uppercase italic"
+        title={event.title[locale]!}
       >
-        {event.title[locale]}
-      </h1>
-    </div>
-  </section>
+        <EventStatus
+          slot="meta"
+          className="detail-hero__meta"
+          locale={locale}
+          statusKey={getEventActivityMessageKey(event.active)}
+        />
+      </DetailHero>
+    )
+  }
   <EventPracticalInfo
     edition={featuredEdition}
     event={event}

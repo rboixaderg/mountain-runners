@@ -68,6 +68,7 @@ const structuredData = getSiteJsonLd({
 });
 const eventsPath = getDomainPath("event", locale);
 const membersPath = getFixedPagePath("members", locale);
+const schoolsPath = getDomainPath("school", locale);
 
 export function getStaticPaths() {
   return locales
@@ -118,9 +119,16 @@ export function getStaticPaths() {
       >
         <a
           class="homepage-hero__cta border-ink bg-paper font-display text-ink inline-flex min-h-11 items-center gap-3 border-2 px-6 py-[0.85rem] text-[0.8rem] leading-[1.2] font-bold tracking-[0.12em] uppercase no-underline"
-          href={eventsPath}
+          href={membersPath}
         >
-          {messages.homepage_hero_cta({}, { locale })}
+          {messages.cta_join_members({}, { locale })}
+          <span aria-hidden="true">&rarr;</span>
+        </a>
+        <a
+          class="homepage-hero__cta homepage-hero__cta--secondary border-paper font-display text-paper inline-flex min-h-11 items-center gap-3 border-2 bg-transparent px-6 py-[0.85rem] text-[0.8rem] leading-[1.2] font-bold tracking-[0.12em] uppercase no-underline"
+          href={schoolsPath}
+        >
+          {messages.homepage_schools_title({}, { locale })}
           <span aria-hidden="true">&rarr;</span>
         </a>
       </div>

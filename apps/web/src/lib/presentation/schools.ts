@@ -6,6 +6,7 @@ export const schoolPracticalSectionOrder = [
   "audience",
   "schedule",
   "location",
+  "requirements",
   "prices",
 ] as const satisfies readonly (keyof School["sections"])[];
 
@@ -18,6 +19,7 @@ export const schoolPracticalSectionMessageKeys = {
   audience: "school_audience_label",
   schedule: "school_schedule_label",
   location: "school_location_label",
+  requirements: "school_requirements_label",
   prices: "school_prices_label",
 } as const satisfies Record<SchoolPracticalSectionKey, string>;
 

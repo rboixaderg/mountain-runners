@@ -89,6 +89,7 @@ export const schoolSchema = z.strictObject({
     audience: localizedMarkdownSchema,
     schedule: localizedMarkdownSchema,
     location: localizedMarkdownSchema,
+    requirements: localizedMarkdownSchema.optional(),
     prices: localizedMarkdownSchema,
   }),
 });
