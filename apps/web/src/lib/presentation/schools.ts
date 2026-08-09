@@ -1,4 +1,8 @@
+import { getOrderedSchoolVariants } from "../content/schools";
+import { getVariantPath } from "../content/routes";
+import type { PublicationCatalog } from "../content/publication";
 import type { School } from "../content/models";
+import type { Locale } from "../content/primitives";
 
 export const schoolPracticalSectionOrder = [
   "since",
@@ -370,3 +374,31 @@ export const schoolPracticalPreviewLayoutClasses: Record<
   requirements: "schools-detail-preview__practical-card--requirements",
   prices: "schools-detail-preview__practical-card--prices",
 };
+
+export type SchoolNavigationItem = {
+  href: string;
+  label: string;
+};
+
+export function getSchoolNavigationItems(
+  catalog: PublicationCatalog,
+  locale: Locale,
+): SchoolNavigationItem[] {
+  const schoolVariants = catalog.variants.filter(
+    (
+      variant,
+    ): variant is Extract<
+      PublicationCatalog["variants"][number],
+      { kind: "school" }
+    > => variant.kind === "school" && variant.locale === locale,
+  );
+
+  return getOrderedSchoolVariants(schoolVariants).flatMap((variant) => {
+    const label = variant.entry.name[locale];
+    if (label === undefined) {
+      return [];
+    }
+
+    return [{ href: getVariantPath(variant), label }];
+  });
+}

@@ -21,8 +21,56 @@ cover:
     kind: local
     path: src/assets/schools/escola-btt.jpg
   alt:
-    ca: Grup de ciclistes pedalant per un camí de bosc del Berguedà
-gallery: []
+    ca: Infants i joves en una sortida de BTT per camins del Berguedà
+gallery:
+  - resource:
+      kind: local
+      path: src/assets/schools/gallery/btt/btt-session-0239.jpg
+    alt:
+      ca: Infants i joves en una sortida de BTT per camins del Berguedà
+    attribution:
+      ca: "Foto: Anna Aguilar Porta"
+    sourceUrl: https://mountainrunners.cat/wp-content/uploads/2021/07/DSC_0239-1024x680.jpg
+  - resource:
+      kind: local
+      path: src/assets/schools/gallery/btt/btt-session-0009.jpg
+    alt:
+      ca: Grup de ciclistes joves en una sessió de l'escola BTT
+    attribution:
+      ca: "Foto: Anna Aguilar Porta"
+    sourceUrl: https://mountainrunners.cat/wp-content/uploads/2021/07/DSC_0009-1024x680.jpg
+  - resource:
+      kind: local
+      path: src/assets/schools/gallery/btt/btt-session-0139.jpg
+    alt:
+      ca: Participants de l'escola BTT en un corriol de muntanya
+    attribution:
+      ca: "Foto: Anna Aguilar Porta"
+    sourceUrl: https://mountainrunners.cat/wp-content/uploads/2021/07/DSC_0139-1024x680.jpg
+  - resource:
+      kind: local
+      path: src/assets/schools/gallery/btt/btt-session-0031.jpg
+    alt:
+      ca: Joves ciclistes en formació durant una activitat de BTT
+    attribution:
+      ca: "Foto: Anna Aguilar Porta"
+    sourceUrl: https://mountainrunners.cat/wp-content/uploads/2021/07/DSC_0031-scaled-e1627667084334-1024x948.jpg
+  - resource:
+      kind: local
+      path: src/assets/schools/gallery/btt/btt-session-0123.jpg
+    alt:
+      ca: Grup d'infants amb bicicleta en una sortida de l'escola BTT
+    attribution:
+      ca: "Foto: Anna Aguilar Porta"
+    sourceUrl: https://mountainrunners.cat/wp-content/uploads/2021/07/DSC_0123-scaled-e1627667532714-1024x701.jpg
+  - resource:
+      kind: local
+      path: src/assets/schools/gallery/btt/btt-session-0203.jpg
+    alt:
+      ca: Ciclistes joves en una activitat grupal de l'escola BTT al Berguedà
+    attribution:
+      ca: "Foto: Anna Aguilar Porta"
+    sourceUrl: https://mountainrunners.cat/wp-content/uploads/2021/07/DSC_0203-1024x680.jpg
 registrationStatus: coming-soon
 sections:
   since:

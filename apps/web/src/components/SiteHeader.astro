@@ -2,27 +2,31 @@
 import * as messages from "../paraglide/messages.js";
 import logo from "../assets/logo_mountain_runners.png";
 import type { Locale } from "../lib/content/primitives";
+import type { PublicationCatalog } from "../lib/content/publication";
 import { getDomainPath, getFixedPagePath } from "../lib/content/routes";
+import { getSchoolNavigationItems } from "../lib/presentation/schools";
 import LanguageSelector from "./LanguageSelector.astro";
 import "../styles/site-header.css";
 
 type LocalizedAlternative = { locale: Locale; href: string };
 
 interface Props {
+  catalog: PublicationCatalog;
   localizedAlternatives: LocalizedAlternative[];
   locale: Locale;
 }
 
-const { localizedAlternatives, locale } = Astro.props;
+const { catalog, localizedAlternatives, locale } = Astro.props;
 const homePath = `/${locale}/`;
 const aboutPath = getFixedPagePath("about", locale);
 const schoolsPath = getDomainPath("school", locale);
 const eventsPath = getDomainPath("event", locale);
 const membersPath = getFixedPagePath("members", locale);
 const currentPath = Astro.url.pathname;
+const schoolNavigationItems = getSchoolNavigationItems(catalog, locale);
+const schoolsNavigationActive = isCurrentPath(schoolsPath);
+const schoolsHubActive = currentPath === schoolsPath;
 const navigationItems = [
-  { href: aboutPath, label: messages.navigation_about({}, { locale }) },
-  { href: schoolsPath, label: messages.navigation_schools({}, { locale }) },
   { href: eventsPath, label: messages.navigation_events({}, { locale }) },
   { href: membersPath, label: messages.navigation_members({}, { locale }) },
 ];
@@ -31,6 +35,10 @@ function isCurrentPath(path: string): boolean {
   return (
     currentPath === path || (path !== homePath && currentPath.startsWith(path))
   );
+}
+
+function isSchoolDetailPath(path: string): boolean {
+  return currentPath === path;
 }
 ---
 
@@ -53,6 +61,62 @@ function isCurrentPath(path: string): boolean {
       class="site-header__navigation"
       aria-label={messages.primary_navigation({}, { locale })}
     >
+      <a
+        class:list={[
+          "site-header__link",
+          isCurrentPath(aboutPath) && "site-header__link--active",
+        ]}
+        href={aboutPath}
+        aria-current={isCurrentPath(aboutPath) ? "page" : undefined}
+      >
+        {messages.navigation_about({}, { locale })}
+      </a>
+      {
+        schoolNavigationItems.length > 0 ? (
+          <div class="site-header__dropdown">
+            <a
+              class:list={[
+                "site-header__link",
+                schoolsNavigationActive && "site-header__link--active",
+              ]}
+              href={schoolsPath}
+              aria-current={schoolsHubActive ? "page" : undefined}
+            >
+              {messages.navigation_schools({}, { locale })}
+            </a>
+            <ul class="site-header__dropdown-panel">
+              {schoolNavigationItems.map((item) => (
+                <li>
+                  <a
+                    class:list={[
+                      "site-header__dropdown-link",
+                      isSchoolDetailPath(item.href) &&
+                        "site-header__dropdown-link--active",
+                    ]}
+                    href={item.href}
+                    aria-current={
+                      isSchoolDetailPath(item.href) ? "page" : undefined
+                    }
+                  >
+                    {item.label}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : (
+          <a
+            class:list={[
+              "site-header__link",
+              schoolsNavigationActive && "site-header__link--active",
+            ]}
+            href={schoolsPath}
+            aria-current={schoolsNavigationActive ? "page" : undefined}
+          >
+            {messages.navigation_schools({}, { locale })}
+          </a>
+        )
+      }
       {
         navigationItems.map((item) => (
           <a
@@ -87,6 +151,63 @@ function isCurrentPath(path: string): boolean {
           class="site-header__mobile-navigation"
           aria-label={messages.primary_navigation({}, { locale })}
         >
+          <a
+            class:list={[
+              "site-header__mobile-link",
+              isCurrentPath(aboutPath) && "site-header__mobile-link--active",
+            ]}
+            href={aboutPath}
+            aria-current={isCurrentPath(aboutPath) ? "page" : undefined}
+          >
+            {messages.navigation_about({}, { locale })}
+          </a>
+          {
+            schoolNavigationItems.length > 0 ? (
+              <div class="site-header__mobile-group">
+                <a
+                  class:list={[
+                    "site-header__mobile-link",
+                    schoolsNavigationActive &&
+                      "site-header__mobile-link--active",
+                  ]}
+                  href={schoolsPath}
+                  aria-current={schoolsHubActive ? "page" : undefined}
+                >
+                  {messages.navigation_schools({}, { locale })}
+                </a>
+                <ul class="site-header__mobile-submenu">
+                  {schoolNavigationItems.map((item) => (
+                    <li>
+                      <a
+                        class:list={[
+                          "site-header__mobile-submenu-link",
+                          isSchoolDetailPath(item.href) &&
+                            "site-header__mobile-submenu-link--active",
+                        ]}
+                        href={item.href}
+                        aria-current={
+                          isSchoolDetailPath(item.href) ? "page" : undefined
+                        }
+                      >
+                        {item.label}
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : (
+              <a
+                class:list={[
+                  "site-header__mobile-link",
+                  schoolsNavigationActive && "site-header__mobile-link--active",
+                ]}
+                href={schoolsPath}
+                aria-current={schoolsHubActive ? "page" : undefined}
+              >
+                {messages.navigation_schools({}, { locale })}
+              </a>
+            )
+          }
           {
             navigationItems.map((item) => (
               <a

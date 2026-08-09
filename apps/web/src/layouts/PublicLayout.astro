@@ -75,7 +75,11 @@ const catalog = await getPublicationCatalog();
     <a class="skip-link" href="#main-content"
       >{messages.skip_to_content({}, { locale })}</a
     >
-    <SiteHeader localizedAlternatives={localizedAlternatives} locale={locale} />
+    <SiteHeader
+      catalog={catalog}
+      localizedAlternatives={localizedAlternatives}
+      locale={locale}
+    />
     <main id="main-content"><slot /></main>
     <PreFooter catalog={catalog} locale={locale} />
     <SiteFooter locale={locale} />

@@ -118,7 +118,7 @@ export function getStaticPaths() {
         class="homepage-hero__actions mt-4 flex flex-wrap items-center gap-x-4 gap-y-3"
       >
         <a
-          class="homepage-hero__cta border-ink bg-paper font-display text-ink inline-flex min-h-11 items-center gap-3 border-2 px-6 py-[0.85rem] text-[0.8rem] leading-[1.2] font-bold tracking-[0.12em] uppercase no-underline"
+          class="homepage-join-cta border-ink font-display text-ink inline-flex min-h-11 items-center gap-3 border-2 bg-white px-6 py-[0.85rem] text-[0.8rem] leading-[1.2] font-bold tracking-[0.12em] uppercase no-underline"
           href={membersPath}
         >
           {messages.cta_join_members({}, { locale })}
@@ -134,41 +134,6 @@ export function getStaticPaths() {
       </div>
     </div>
   </PageHero>
-
-  <section
-    class="page-frame homepage-section py-[clamp(3.5rem,7vw,5.5rem)]"
-    aria-labelledby="events-title"
-  >
-    <div
-      class="homepage-section__header mb-8 flex flex-wrap items-baseline justify-between gap-x-6 gap-y-3"
-    >
-      <h2
-        id="events-title"
-        class="font-display m-0 text-[clamp(2.25rem,5.5vw,3.75rem)] font-bold tracking-[-0.02em] uppercase"
-      >
-        {messages.homepage_events_title({}, { locale })}
-      </h2>
-      <a
-        class="homepage-section__view-all font-display text-red text-[0.8rem] font-bold tracking-[0.12em] uppercase underline decoration-[0.1rem] underline-offset-[0.3rem]"
-        href={eventsPath}
-      >
-        {messages.homepage_events_view_all({}, { locale })}
-      </a>
-    </div>
-    <div class="homepage-events border-line grid border-t">
-      {
-        events.map(({ event, href }, index) => (
-          <HomepageEventCard
-            event={event}
-            featured={index === 0}
-            href={href}
-            locale={locale}
-            today={today}
-          />
-        ))
-      }
-    </div>
-  </section>
 
   <section
     class="homepage-school-section bg-ink text-paper relative overflow-hidden py-[clamp(4rem,8vw,6rem)]"
@@ -246,7 +211,7 @@ export function getStaticPaths() {
             )}
           />
           <a
-            class="homepage-members-banner__cta border-ink font-display text-ink mt-2 inline-flex min-h-11 items-center gap-3 border-2 bg-white px-6 py-[0.85rem] text-[0.8rem] leading-[1.2] font-bold tracking-[0.12em] uppercase no-underline"
+            class="homepage-join-cta border-ink font-display text-ink mt-2 inline-flex min-h-11 items-center gap-3 border-2 bg-white px-6 py-[0.85rem] text-[0.8rem] leading-[1.2] font-bold tracking-[0.12em] uppercase no-underline"
             href={membersPath}
           >
             {messages.cta_join_members({}, { locale })}
@@ -254,6 +219,41 @@ export function getStaticPaths() {
           </a>
         </div>
       </div>
+    </div>
+  </section>
+
+  <section
+    class="page-frame homepage-section py-[clamp(3.5rem,7vw,5.5rem)]"
+    aria-labelledby="events-title"
+  >
+    <div
+      class="homepage-section__header mb-8 flex flex-wrap items-baseline justify-between gap-x-6 gap-y-3"
+    >
+      <h2
+        id="events-title"
+        class="font-display m-0 text-[clamp(2.25rem,5.5vw,3.75rem)] font-bold tracking-[-0.02em] uppercase"
+      >
+        {messages.homepage_events_title({}, { locale })}
+      </h2>
+      <a
+        class="homepage-section__view-all font-display text-red text-[0.8rem] font-bold tracking-[0.12em] uppercase underline decoration-[0.1rem] underline-offset-[0.3rem]"
+        href={eventsPath}
+      >
+        {messages.homepage_events_view_all({}, { locale })}
+      </a>
+    </div>
+    <div class="homepage-events border-line grid border-t">
+      {
+        events.map(({ event, href }, index) => (
+          <HomepageEventCard
+            event={event}
+            featured={index === 0}
+            href={href}
+            locale={locale}
+            today={today}
+          />
+        ))
+      }
     </div>
   </section>
 </PublicLayout>

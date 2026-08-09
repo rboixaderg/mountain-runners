@@ -21,8 +21,33 @@ cover:
     kind: local
     path: src/assets/schools/escola-skimo.jpg
   alt:
-    ca: Jove esquiant de muntanya en una pista de neu amb el Pirineu al fons
-gallery: []
+    ca: Esquiador de muntanya en ascens durant una sessió de l'escola skimo
+gallery:
+  - resource:
+      kind: local
+      path: src/assets/schools/gallery/skimo/skimo-session-4221.jpg
+    alt:
+      ca: Jove esquiant de muntanya en una sortida de l'escola skimo
+    sourceUrl: https://mountainrunners.cat/wp-content/uploads/2021/07/IMG_4221-1024x768.jpg
+  - resource:
+      kind: local
+      path: src/assets/schools/gallery/skimo/skimo-session-0295.jpg
+    alt:
+      ca: Grup de joves entrenant esquí de muntanya en entorn nevado
+    sourceUrl: https://mountainrunners.cat/wp-content/uploads/2021/07/IMG_0295-1-1024x768.jpg
+  - resource:
+      kind: local
+      path: src/assets/schools/gallery/skimo/skimo-session-4284.jpg
+    alt:
+      ca: Esquiador de muntanya en ascens durant una sessió de l'escola
+    sourceUrl: https://mountainrunners.cat/wp-content/uploads/2021/07/IMG_4284-1024x768.jpg
+  - resource:
+      kind: local
+      path: src/assets/schools/gallery/skimo/skimo-session-2385.jpg
+    alt:
+      ca: Joves de l'escola skimo preparats per a una sortida a la neu
+    sourceUrl: https://mountainrunners.cat/wp-content/uploads/2021/07/IMG_2385-scaled-e1627665594164-1024x815.jpg
+promotionalVideoUrl: https://www.youtube.com/watch?v=dqCRDy4jpQA
 registrationStatus: coming-soon
 sections:
   since:

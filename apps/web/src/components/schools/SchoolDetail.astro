@@ -1,10 +1,12 @@
 ---
 import type { Locale } from "../../lib/content/primitives";
 import type { PublishedVariant } from "../../lib/content/publication";
+import SchoolGallery from "./SchoolGallery.astro";
 import SchoolPreviewAbout from "./SchoolPreviewAbout.astro";
 import SchoolPreviewHero from "./SchoolPreviewHero.astro";
 import SchoolPreviewPracticalInfo from "./SchoolPreviewPracticalInfo.astro";
 import SchoolRegistration from "./SchoolRegistration.astro";
+import SchoolVideo from "./SchoolVideo.astro";
 import "../../styles/school-detail.css";
 import "../../styles/school-detail-preview.css";
 
@@ -24,4 +26,6 @@ const school = variant.entry;
   <div class="schools-detail-preview__registration">
     <SchoolRegistration locale={locale} school={school} />
   </div>
+  <SchoolGallery locale={locale} school={school} />
+  <SchoolVideo locale={locale} school={school} />
 </div>

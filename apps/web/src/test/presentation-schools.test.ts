@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
+import type { PublicationCatalog } from "../lib/content/publication";
 import {
   extractLocationParts,
   extractScheduleParts,
   formatPriceAmount,
+  getSchoolNavigationItems,
   hasPreviewPriceContent,
   hasPreviewPracticalCardContent,
   hasSchoolSectionContent,
@@ -214,5 +216,45 @@ describe("school practical presentation contract", () => {
         compactSectionContentByKey,
       ),
     ).toEqual(["schedule", "location", "audience"]);
+  });
+});
+
+describe("getSchoolNavigationItems", () => {
+  it("returns published schools for the locale in hub order", () => {
+    const catalog = {
+      variants: [
+        {
+          kind: "school",
+          locale: "ca",
+          slug: "escola-btt",
+          entry: {
+            id: "btt-school",
+            hubOrder: 3,
+            name: { ca: "Escola BTT" },
+          },
+        },
+        {
+          kind: "school",
+          locale: "ca",
+          slug: "escola-trail",
+          entry: {
+            id: "trail-school",
+            hubOrder: 1,
+            name: { ca: "Escola de Trail" },
+          },
+        },
+      ],
+    } as PublicationCatalog;
+
+    expect(getSchoolNavigationItems(catalog, "ca")).toEqual([
+      {
+        href: "/ca/escoles/escola-trail/",
+        label: "Escola de Trail",
+      },
+      {
+        href: "/ca/escoles/escola-btt/",
+        label: "Escola BTT",
+      },
+    ]);
   });
 });

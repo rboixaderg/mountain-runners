@@ -74,16 +74,17 @@ test("renders the published homepage sections in order", async ({ page }) => {
     page.locator("main h1, main h2").allTextContents(),
   ).resolves.toEqual([
     "A.E. Mountain Runners del Berguedà",
-    "Agenda d'activitats",
     "Les nostres escoles",
     "Forma part del club",
+    "Agenda d'activitats",
   ]);
   await expect(page.locator('main a[href="/ca/esdeveniments/"]')).toHaveCount(
     1,
   );
-  await expect(page.locator(".homepage-hero__cta")).toHaveCount(2);
+  await expect(page.locator(".homepage-hero__cta")).toHaveCount(1);
+  await expect(page.locator(".homepage-join-cta")).toHaveCount(2);
   await expect(
-    page.locator('.homepage-hero__cta[href="/ca/socis/"]'),
+    page.locator('.homepage-join-cta[href="/ca/socis/"]').first(),
   ).toContainText("Fes-te soci");
   await expect(
     page.locator('.homepage-hero__cta[href="/ca/escoles/"]'),
@@ -118,9 +119,9 @@ test("renders the published homepage sections in order", async ({ page }) => {
     page.locator(".homepage-school-list__action").allTextContents(),
   ).resolves.toEqual(["Informació", "Informació", "Informació"]);
   await expect(
-    page.locator('.homepage-members-banner__cta[href="/ca/socis/"]'),
-  ).toHaveCount(1);
-  await expect(page.locator(".homepage-members-banner__cta")).toContainText(
+    page.locator('.homepage-join-cta[href="/ca/socis/"]'),
+  ).toHaveCount(2);
+  await expect(page.locator(".homepage-join-cta").last()).toContainText(
     "Fes-te soci",
   );
   await expect(page.locator(".site-header__cta")).toHaveText("Fes-te soci");
@@ -546,12 +547,12 @@ test("navigates from the schools hub to a published school detail", async ({
   ).toBeVisible();
   await expect(
     schoolDetail.getByRole("img", {
-      name: "Dos joves corrent per un camí de bosc en una sessió de l'escola de trail",
+      name: "Participants de l'escola de trail en una sessió a l'entorn de Berga",
     }),
   ).toBeVisible();
   await expect(
     schoolDetail.locator(".schools-detail-preview__about-media-frame img"),
-  ).toHaveAttribute("width", "389");
+  ).toHaveAttribute("width", "1600");
   await expect(
     schoolDetail.getByRole("heading", { level: 2, name: "Què oferim" }),
   ).toBeVisible();
@@ -603,8 +604,14 @@ test("navigates from the schools hub to a published school detail", async ({
   await expect(schoolDetail.getByText("al mes").first()).toBeVisible();
   await expect(
     schoolDetail.getByRole("heading", { level: 2, name: "Galeria" }),
-  ).toHaveCount(0);
-  await expect(schoolDetail.getByText("Vídeo properament")).toHaveCount(0);
+  ).toBeVisible();
+  await expect(
+    schoolDetail.locator(".schools-detail-preview__gallery-item img"),
+  ).toHaveCount(6);
+  await expect(
+    schoolDetail.getByRole("heading", { level: 2, name: "Vídeo" }),
+  ).toBeVisible();
+  await expect(schoolDetail.locator("iframe")).toHaveCount(1);
   await expect(
     schoolDetail.getByRole("heading", { level: 2, name: "Inscripció" }),
   ).toBeVisible();
@@ -612,7 +619,6 @@ test("navigates from the schools hub to a published school detail", async ({
   await expect(
     schoolDetail.getByText("Uneix-te a la família Mountain Runners."),
   ).toBeVisible();
-  await expect(schoolDetail.locator("video, iframe")).toHaveCount(0);
   await expect(page.locator('main a[href=""], main a[href="#"]')).toHaveCount(
     0,
   );

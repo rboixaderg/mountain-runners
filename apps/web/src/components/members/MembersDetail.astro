@@ -2,13 +2,14 @@
 import * as messages from "../../paraglide/messages.js";
 import socisPortada from "../../assets/members/socis-portada.jpg";
 import socisPortadaHero from "../../assets/members/socis-portada-hero.jpg";
-import socisServeis from "../../assets/members/socis-serveis.jpg";
 import { externalActionIds } from "../../lib/content/models";
 import type { Locale } from "../../lib/content/primitives";
 import type { PublicationCatalog } from "../../lib/content/publication";
 import PageIntro from "../PageIntro.astro";
 import MembersActionSection from "./MembersActionSection.astro";
+import MembersBenefits from "./MembersBenefits.astro";
 import MembersDirectory from "./MembersDirectory.astro";
+import MembersVideo from "./MembersVideo.astro";
 import "../../styles/members.css";
 
 interface Props {
@@ -48,35 +49,16 @@ const federationAction = catalog.externalActions.get(
     <MembersActionSection
       action={federationAction}
       actionLabelKey="members_federation_action"
-      introKey="members_federation_intro"
       locale={locale}
       sectionId="members-federation-title"
       titleKey="members_federation_title"
+      variant="federation"
     />
   </div>
 
-  <section
-    class="page-frame members-section"
-    aria-labelledby="members-benefits-title"
-  >
-    <div class="members-section__heading">
-      <span class="members-section__marker" aria-hidden="true"></span>
-      <h2 class="members-section__title" id="members-benefits-title">
-        {messages.members_benefits_title({}, { locale })}
-      </h2>
-    </div>
-    <p class="members-section__body">
-      {messages.members_benefits_intro({}, { locale })}
-    </p>
-    <figure class="members-benefits__photo">
-      <img
-        src={socisServeis.src}
-        width={socisServeis.width}
-        height={socisServeis.height}
-        alt={messages.members_benefits_photo_alt({}, { locale })}
-      />
-    </figure>
-  </section>
+  <MembersVideo locale={locale} />
+
+  <MembersBenefits locale={locale} />
 
   <MembersDirectory catalog={catalog} locale={locale} />
 </article>

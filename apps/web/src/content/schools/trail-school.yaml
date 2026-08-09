@@ -22,8 +22,57 @@ cover:
     kind: local
     path: src/assets/schools/escola-trail.jpg
   alt:
-    ca: Dos joves corrent per un camí de bosc en una sessió de l'escola de trail
-gallery: []
+    ca: Participants de l'escola de trail en una sessió a l'entorn de Berga
+gallery:
+  - resource:
+      kind: local
+      path: src/assets/schools/gallery/trail/trail-friday-pics-26.jpg
+    alt:
+      ca: Grup d'infants i joves en una sortida de trail per camins del Berguedà
+    attribution:
+      ca: "Foto: David Acedo"
+    sourceUrl: https://mountainrunners.cat/wp-content/uploads/2021/07/FRIDAY-PICS-OK26-1024x654.jpg
+  - resource:
+      kind: local
+      path: src/assets/schools/gallery/trail/trail-session-21.jpg
+    alt:
+      ca: Participants de l'escola de trail en una sessió a l'entorn de Berga
+    attribution:
+      ca: "Foto: Anna E. Puig"
+    sourceUrl: https://mountainrunners.cat/wp-content/uploads/2021/07/ESCOLA-TRAIL-2020_21-1024x768.jpg
+  - resource:
+      kind: local
+      path: src/assets/schools/gallery/trail/trail-session-29.jpg
+    alt:
+      ca: Infants corrent per un sender durant una activitat de l'escola de trail
+    attribution:
+      ca: "Foto: Anna E. Puig"
+    sourceUrl: https://mountainrunners.cat/wp-content/uploads/2021/07/ESCOLA-TRAIL-2020_29-1024x768.jpg
+  - resource:
+      kind: local
+      path: src/assets/schools/gallery/trail/trail-session-23.jpg
+    alt:
+      ca: Joves en formació de trail per la muntanya del Berguedà
+    attribution:
+      ca: "Foto: Anna E. Puig"
+    sourceUrl: https://mountainrunners.cat/wp-content/uploads/2021/07/ESCOLA-TRAIL-2020_23-1024x768.jpg
+  - resource:
+      kind: local
+      path: src/assets/schools/gallery/trail/trail-session-08.jpg
+    alt:
+      ca: Monitors i infants en una sessió de trail a l'aire lliure
+    attribution:
+      ca: "Foto: Anna E. Puig"
+    sourceUrl: https://mountainrunners.cat/wp-content/uploads/2021/07/ESCOLA-TRAIL-2020_8-1024x768.jpg
+  - resource:
+      kind: local
+      path: src/assets/schools/gallery/trail/trail-friday-pics-07.jpg
+    alt:
+      ca: Corredors joves en una activitat grupal de l'escola de trail
+    attribution:
+      ca: "Foto: David Acedo"
+    sourceUrl: https://mountainrunners.cat/wp-content/uploads/2021/07/FRIDAY-PICS-OK7-1024x690.jpg
+promotionalVideoUrl: https://www.youtube.com/watch?v=SSaismIBl_8
 registrationStatus: coming-soon
 sections:
   since:

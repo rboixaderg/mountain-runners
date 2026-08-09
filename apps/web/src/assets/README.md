@@ -49,14 +49,14 @@ al hero i la secció d'història de la pàgina del club. Les fotografies conserv
 els drets d'imatge corresponents i no queden cobertes per la llicència MIT del
 programari.
 
-Els fitxers de `schools/` són retalls de la imatge de les escoles que publica
-la web actual de l'associació
-(`mountainrunners.cat/wp-content/uploads/2021/06/escoles.png`). La persona
-mantenidora va indicar-ne la reutilització a la T4.4 de la fase 4; el muntatge
-original s'ha dividit en tres fotografies, una per escola, i s'han versionat
-localment com a portades de trail, skimo i BTT. Les fotografies conserven els
-drets d'imatge de les persones que hi apareixen i no queden cobertes per la
-llicència MIT del programari.
+Els fitxers `escola-trail.jpg`, `escola-skimo.jpg` i `escola-btt.jpg` són les
+portades de cada escola publicades a les pàgines de detall de la web actual
+(`mountainrunners.cat/escola-trail/`, `mountainrunners.cat/escola-skimo/` i
+`mountainrunners.cat/escola-btt/`). Provenen respectivament de
+`ESCOLA-TRAIL-2020_21.jpg`, `IMG_4284.jpg` i `DSC_0239.jpg`. Es reutilitzen
+al hero, a la secció «Què oferim» i a les targetes del hub d'escoles. Les
+fotografies conserven els drets d'imatge corresponents i no queden cobertes
+per la llicència MIT del programari.
 
 `schools/schools-hub-hero.jpg` és el muntatge complet de les tres escoles
 publicat a la web actual (`mountainrunners.cat/escoles/`). Es carrega al hero
@@ -67,6 +67,15 @@ publicada a la web actual
 (`mountainrunners.cat/wp-content/uploads/2021/07/ESCOLA-TRAIL-2020_21.jpg`).
 Es carrega al hero del hub en pantalles petites. Conserva els drets d'imatge
 corresponents i no queda coberta per la llicència MIT del programari.
+
+Els fitxers de `schools/gallery/` són fotografies de les pàgines de detall
+de cada escola publicades a la web actual de l'associació
+(`mountainrunners.cat/escola-trail/`, `mountainrunners.cat/escola-skimo/` i
+`mountainrunners.cat/escola-btt/`). Es van descarregar i versionar localment a
+la T4.4 de la fase 4 amb l'URL d'origen registrat al camp `sourceUrl` de cada
+imatge i l'atribució del fotògraf quan la publicava la web actual. Les
+fotografies conserven els drets d'imatge corresponents i no queden cobertes
+per la llicència MIT del programari.
 
 El logotip, la fotografia, les fotografies i els logotips de col·laboradors
 són recursos de marca i d'imatge de l'associació i de les entitats. Qualsevol

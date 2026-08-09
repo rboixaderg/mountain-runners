@@ -6,12 +6,12 @@
   display: block;
 }
 
-.homepage-hero__cta,
-.homepage-members-banner__cta {
+.homepage-join-cta {
   box-shadow: 0.2rem 0.2rem 0 var(--color-ink);
 }
 
 .homepage-hero__cta {
+  box-shadow: 0.2rem 0.2rem 0 var(--color-ink);
   transform: rotate(-1deg);
 }
 
@@ -34,10 +34,10 @@
   border-inline-color: currentcolor;
 }
 
-.homepage-hero__cta:hover {
-  border-color: var(--color-ink);
+.homepage-join-cta:hover {
+  border-color: white;
   background: var(--color-ink);
-  color: var(--color-paper);
+  color: white;
 }
 
 .homepage-hero__cta--secondary:hover {
@@ -112,12 +112,6 @@
 
 .homepage-school-list__link:hover .homepage-school-list__action {
   color: var(--color-ink);
-}
-
-.homepage-members-banner__cta:hover {
-  border-color: white;
-  background: var(--color-ink);
-  color: white;
 }
 
 @media (min-width: 48rem) {
