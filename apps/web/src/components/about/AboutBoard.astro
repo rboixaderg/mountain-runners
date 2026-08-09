@@ -1,13 +1,17 @@
 ---
 import * as messages from "../../paraglide/messages.js";
-import { renderRestrictedMarkdown } from "../../lib/content/markdown";
+import boardPhoto from "../../assets/junta-directiva.jpg";
 import type { Locale } from "../../lib/content/primitives";
+import { parseBoardMembers } from "../../lib/presentation/about";
 
 interface Props {
   locale: Locale;
 }
 
 const { locale } = Astro.props;
+const boardMembers = parseBoardMembers(
+  messages.about_board_members({}, { locale }),
+);
 ---
 
 <section
@@ -20,10 +24,33 @@ const { locale } = Astro.props;
       {messages.about_board_title({}, { locale })}
     </h2>
   </div>
-  <div
-    class="about-section__body"
-    set:html={renderRestrictedMarkdown(
-      messages.about_board_members({}, { locale }),
-    )}
-  />
+
+  <div class="about-board__layout">
+    <figure class="about-board__photo">
+      <img
+        src={boardPhoto.src}
+        width={boardPhoto.width}
+        height={boardPhoto.height}
+        alt={messages.about_board_photo_alt({}, { locale })}
+        loading="lazy"
+        decoding="async"
+      />
+    </figure>
+
+    <ul class="about-board__list">
+      {
+        boardMembers.map((member) => (
+          <li class="about-board__member">
+            <span class="about-board__member-name">{member.name}</span>
+            <span class="about-board__member-role">
+              <span class="about-board__role-label">
+                {messages.about_board_role_label({}, { locale })}
+              </span>
+              <span>{member.role}</span>
+            </span>
+          </li>
+        ))
+      }
+    </ul>
+  </div>
 </section>

@@ -26,8 +26,8 @@ const { catalog, locale } = Astro.props;
     title={messages.navigation_about({}, { locale })}
   />
 
+  <AboutHistory locale={locale} />
   <AboutPresident locale={locale} />
   <AboutBoard locale={locale} />
-  <AboutHistory locale={locale} />
   <AboutStatutes catalog={catalog} locale={locale} />
 </article>

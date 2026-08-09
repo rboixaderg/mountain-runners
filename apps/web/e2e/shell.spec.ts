@@ -341,9 +341,9 @@ test("renders the About page sections in editorial order", async ({ page }) => {
     page.locator("main h1, main h2").allTextContents(),
   ).resolves.toEqual([
     "Qui som",
+    "Història",
     "Missatge de presidència",
     "Junta directiva",
-    "Història",
     "Estatuts",
   ]);
 
