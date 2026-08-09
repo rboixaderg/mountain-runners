@@ -416,15 +416,9 @@ test("renders the Members page sections in editorial order", async ({
   await expect(
     page.getByRole("heading", { level: 1, name: "Socis" }),
   ).toBeVisible();
-  const introPhoto = page.getByRole("img", {
-    name: "Portada de la secció de socis de Mountain Runners del Berguedà",
-  });
-  await expect(introPhoto).toHaveAttribute("src", /^\/_astro\//u);
-  await expect(introPhoto).toHaveAttribute("width", "1024");
-  await expect(introPhoto).toHaveAttribute("height", "381");
-  await expect(
-    page.getByText("Fotografia: @about_paulagnf", { exact: true }),
-  ).toBeVisible();
+  const heroImage = page.locator(".page-hero__image");
+  await expect(heroImage).toHaveAttribute("src", /^\/_astro\//u);
+  await expect(heroImage).toHaveAttribute("alt", "");
   const benefitsPhoto = page.getByRole("img", {
     name: "Fotografia de la secció de socis de Mountain Runners del Berguedà",
   });
