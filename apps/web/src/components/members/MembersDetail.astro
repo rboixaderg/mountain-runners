@@ -42,22 +42,26 @@ const federationAction = catalog.externalActions.get(
     </p>
   </section>
 
-  <MembersActionSection
-    action={signupAction}
-    actionLabelKey="members_signup_action"
-    introKey="members_signup_intro"
-    locale={locale}
-    sectionId="members-signup-title"
-    titleKey="members_signup_title"
-  />
-  <MembersActionSection
-    action={federationAction}
-    actionLabelKey="members_federation_action"
-    introKey="members_federation_intro"
-    locale={locale}
-    sectionId="members-federation-title"
-    titleKey="members_federation_title"
-  />
+  <div
+    class="page-frame members-actions grid gap-6 py-[var(--section-space)] md:grid-cols-2 md:gap-12"
+  >
+    <MembersActionSection
+      action={signupAction}
+      actionLabelKey="members_signup_action"
+      introKey="members_signup_intro"
+      locale={locale}
+      sectionId="members-signup-title"
+      titleKey="members_signup_title"
+    />
+    <MembersActionSection
+      action={federationAction}
+      actionLabelKey="members_federation_action"
+      introKey="members_federation_intro"
+      locale={locale}
+      sectionId="members-federation-title"
+      titleKey="members_federation_title"
+    />
+  </div>
 
   <section
     class="page-frame members-section"

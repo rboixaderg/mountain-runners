@@ -22,7 +22,10 @@ const { href: actionHref, stateMessageKey } = getExternalActionPresentation(
 );
 ---
 
-<section class="page-frame members-section" aria-labelledby={sectionId}>
+<section
+  class="members-action-card min-h-80 p-6 md:p-12"
+  aria-labelledby={sectionId}
+>
   <div class="members-section__heading">
     <span class="members-section__marker" aria-hidden="true"></span>
     <h2 class="members-section__title" id={sectionId}>

@@ -14,39 +14,35 @@ const { documents, edition, locale } = Astro.props;
 ---
 
 {
-  edition && (
+  edition && documents.length > 0 && (
     <section class="events-detail__resources">
       <h2>{messages.event_resources_title({}, { locale })}</h2>
-      {documents.length > 0 ? (
-        <ul>
-          {documents.map(({ id, document }) => {
-            const documentHref = getDocumentHref(document);
-            return (
-              <li>
-                {documentHref && document ? (
-                  <a
-                    href={documentHref}
-                    rel={
-                      document.resource.kind === "external"
-                        ? "noopener noreferrer"
-                        : undefined
-                    }
-                  >
-                    {document.title[locale]}
-                  </a>
-                ) : (
-                  <span>
-                    {document?.title[locale] ?? id} —{" "}
-                    {messages.event_resource_unavailable({}, { locale })}
-                  </span>
-                )}
-              </li>
-            );
-          })}
-        </ul>
-      ) : (
-        <p>{messages.event_resource_unavailable({}, { locale })}.</p>
-      )}
+      <ul>
+        {documents.map(({ id, document }) => {
+          const documentHref = getDocumentHref(document);
+          return (
+            <li>
+              {documentHref && document ? (
+                <a
+                  href={documentHref}
+                  rel={
+                    document.resource.kind === "external"
+                      ? "noopener noreferrer"
+                      : undefined
+                  }
+                >
+                  {document.title[locale]}
+                </a>
+              ) : (
+                <span>
+                  {document?.title[locale] ?? id} —{" "}
+                  {messages.event_resource_unavailable({}, { locale })}
+                </span>
+              )}
+            </li>
+          );
+        })}
+      </ul>
     </section>
   )
 }

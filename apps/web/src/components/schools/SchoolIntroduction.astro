@@ -2,7 +2,6 @@
 import * as messages from "../../paraglide/messages.js";
 import { getLocalImageSize, getResourceHref } from "../../lib/content/images";
 import type { School } from "../../lib/content/models";
-import { getDomainPath } from "../../lib/content/routes";
 import type { Locale } from "../../lib/content/primitives";
 import { renderRestrictedMarkdown } from "../../lib/content/markdown";
 
@@ -19,39 +18,50 @@ const coverSize =
     : undefined;
 ---
 
-<section class="schools-detail__intro">
-  <div class="schools-detail__intro-grid">
-    <div class="page-frame schools-detail__intro-copy">
-      <a
-        class="schools-detail__back-link"
-        href={getDomainPath("school", locale)}
-      >
-        <span aria-hidden="true">←</span>
-        {messages.school_back_to_hub({}, { locale })}
-      </a>
-      <p class="schools-detail__kicker">
-        {messages.navigation_schools({}, { locale })}
-      </p>
-      <h1 class="schools-detail__title">{school.name[locale]}</h1>
-      <p class="schools-detail__summary">{school.summary[locale]}</p>
-      <div
-        class="schools-detail__description"
-        set:html={renderRestrictedMarkdown(school.description[locale]!)}
-      />
-    </div>
-    <figure class="schools-detail__cover">
-      <img
-        src={coverHref}
-        alt={school.cover.alt[locale]}
-        {...coverSize === undefined
-          ? {}
-          : { width: coverSize.width, height: coverSize.height }}
-      />
-      {
-        school.cover.attribution?.[locale] && (
-          <figcaption>{school.cover.attribution[locale]}</figcaption>
-        )
-      }
-    </figure>
+<section class="schools-detail__hero">
+  <figure class="schools-detail__cover">
+    <img
+      src={coverHref}
+      alt={school.cover.alt[locale]}
+      {...coverSize === undefined
+        ? {}
+        : { width: coverSize.width, height: coverSize.height }}
+    />
+    {
+      school.cover.attribution?.[locale] && (
+        <figcaption>{school.cover.attribution[locale]}</figcaption>
+      )
+    }
+  </figure>
+  <div
+    class="page-frame schools-detail__hero-copy relative z-10 grid justify-items-center text-center"
+  >
+    <p class="schools-detail__kicker">
+      {messages.navigation_schools({}, { locale })}
+    </p>
+    <h1 class="schools-detail__title">{school.name[locale]}</h1>
   </div>
+</section>
+
+<section
+  class="page-frame schools-detail__intro grid items-center gap-10 bg-white py-[var(--section-space)] text-[var(--color-ink)] md:grid-cols-[minmax(0,0.9fr)_minmax(18rem,1.1fr)] md:gap-16"
+>
+  <div class="schools-detail__intro-copy">
+    <h2 class="schools-detail__summary">{school.summary[locale]}</h2>
+    <div
+      class="schools-detail__description"
+      set:html={renderRestrictedMarkdown(school.description[locale]!)}
+    />
+  </div>
+  <figure class="schools-detail__intro-image">
+    <img
+      src={coverHref}
+      alt=""
+      loading="lazy"
+      decoding="async"
+      {...coverSize === undefined
+        ? {}
+        : { width: coverSize.width, height: coverSize.height }}
+    />
+  </figure>
 </section>

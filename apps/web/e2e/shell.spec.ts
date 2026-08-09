@@ -232,9 +232,7 @@ test("navigates from the hub to an event detail with its states", async ({
   await expect(page.locator("time[datetime='2026-10-04']")).toBeVisible();
   await expect(page.getByText("Bagà", { exact: true })).toBeVisible();
   await expect(page.getByText("Inscripció tancada")).toBeVisible();
-  await expect(page.locator(".events-detail__resources")).toContainText(
-    "Recurs no disponible",
-  );
+  await expect(page.locator(".events-detail__resources")).toHaveCount(0);
   await expect(page.getByRole("link", { name: /Inscriu-t'hi/u })).toHaveCount(
     0,
   );
@@ -257,9 +255,7 @@ test("renders the historical event detail without an action", async ({
   await expect(page.getByText("Esdeveniment oficial del club")).toBeVisible();
   await expect(page.getByText("Històric", { exact: true })).toBeVisible();
   await expect(page.getByText("Inscripció tancada")).toBeVisible();
-  await expect(page.locator(".events-detail__resources")).toContainText(
-    "Recurs no disponible",
-  );
+  await expect(page.locator(".events-detail__resources")).toHaveCount(0);
   await expect(page.getByRole("link", { name: /Inscriu-t'hi/u })).toHaveCount(
     0,
   );
@@ -283,9 +279,7 @@ test("renders the active event detail without an announced date", async ({
   await expect(page.getByText("Actiu", { exact: true })).toBeVisible();
   await expect(page.getByText("Sense pròxima data anunciada")).toBeVisible();
   await expect(page.getByText("Inscripció tancada")).toBeVisible();
-  await expect(page.locator(".events-detail__resources")).toContainText(
-    "Recurs no disponible",
-  );
+  await expect(page.locator(".events-detail__resources")).toHaveCount(0);
   await expect(
     page.locator('a[aria-disabled="true"], button[disabled]'),
   ).toHaveCount(0);
@@ -571,14 +565,8 @@ test("navigates from the schools hub to a published school detail", async ({
   ]);
   await expect(
     page.getByRole("heading", { level: 2, name: "Galeria" }),
-  ).toBeVisible();
-  await expect(
-    page.getByText("Encara no hi ha fotografies disponibles."),
-  ).toBeVisible();
-  await expect(
-    page.getByRole("heading", { level: 2, name: "Vídeo" }),
-  ).toBeVisible();
-  await expect(page.getByText("Vídeo properament")).toBeVisible();
+  ).toHaveCount(0);
+  await expect(page.getByText("Vídeo properament")).toHaveCount(0);
   await expect(
     page.getByRole("heading", { level: 2, name: "Inscripció" }),
   ).toBeVisible();

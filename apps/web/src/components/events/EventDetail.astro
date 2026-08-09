@@ -42,7 +42,6 @@ const registration = getRegistrationPresentation(
   featuredEdition?.registrationStatus,
   registrationUrl,
 );
-const registrationLabel = messages[registration.key]({}, { locale });
 const informationUrl = event.informationUrl?.[locale];
 const coverHref = getResourceHref(event.cover.resource);
 const coverSize =
@@ -61,41 +60,47 @@ const editionDocuments =
 ---
 
 <article class="events-detail">
-  {
-    coverHref && (
-      <figure class="events-detail__hero">
-        <img
-          src={coverHref}
-          alt={event.cover.alt[locale]}
-          {...(coverSize === undefined
-            ? {}
-            : { width: coverSize.width, height: coverSize.height })}
-        />
-        {event.cover.attribution?.[locale] && (
-          <figcaption>{event.cover.attribution[locale]}</figcaption>
-        )}
-      </figure>
-    )
-  }
-  <div class="page-frame events-detail__content">
-    <p class="events-detail__badge">
-      {
-        event.clubRelationship === "organizes"
-          ? messages.event_club_badge_organizes({}, { locale })
-          : messages.event_club_badge_collaborates({}, { locale })
-      }
-    </p>
-    <h1 class="events-detail__title">{event.title[locale]}</h1>
-    <div class="events-detail__state">
-      <span class="events-detail__registration-label">
-        {registrationLabel}
-      </span>
+  <section class="events-detail__hero">
+    {
+      coverHref && (
+        <figure>
+          <img
+            src={coverHref}
+            alt={event.cover.alt[locale]}
+            {...(coverSize === undefined
+              ? {}
+              : { width: coverSize.width, height: coverSize.height })}
+          />
+          {event.cover.attribution?.[locale] && (
+            <figcaption>{event.cover.attribution[locale]}</figcaption>
+          )}
+        </figure>
+      )
+    }
+    <div class="page-frame events-detail__hero-copy">
+      <p class="events-detail__badge">
+        {
+          event.clubRelationship === "organizes"
+            ? messages.event_club_badge_organizes({}, { locale })
+            : messages.event_club_badge_collaborates({}, { locale })
+        }
+      </p>
       <EventStatus
         className="events-detail__editorial-status"
         locale={locale}
         statusKey={getEventActivityMessageKey(event.active)}
       />
+      <h1 class="events-detail__title">{event.title[locale]}</h1>
     </div>
+  </section>
+  <EventPracticalInfo
+    edition={featuredEdition}
+    event={event}
+    locale={locale}
+    registration={registration}
+    today={today}
+  />
+  <div class="page-frame events-detail__content">
     <section
       class="events-detail__description"
       set:html={renderRestrictedMarkdown(event.description[locale]!)}
@@ -109,13 +114,6 @@ const editionDocuments =
         />
       )
     }
-    <EventPracticalInfo
-      edition={featuredEdition}
-      event={event}
-      locale={locale}
-      registration={registration}
-      today={today}
-    />
     <EventResources
       documents={editionDocuments}
       edition={featuredEdition}
