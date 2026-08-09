@@ -1,0 +1,58 @@
+---
+import * as messages from "../../paraglide/messages.js";
+import { renderRestrictedMarkdown } from "../../lib/content/markdown";
+import type { Event } from "../../lib/content/models";
+import type { Locale } from "../../lib/content/primitives";
+import type { PublishedVariant } from "../../lib/content/publication";
+import { getVariantPath } from "../../lib/content/routes";
+import { getEventHubStatusMessageKey } from "../../lib/presentation/status";
+import EventStatus from "../EventStatus.astro";
+
+interface Props {
+  event: Event;
+  locale: Locale;
+  today: string;
+  variant: Extract<PublishedVariant, { kind: "event" }>;
+}
+
+const { event, locale, today, variant } = Astro.props;
+const statusKey = getEventHubStatusMessageKey(
+  event,
+  undefined,
+  "active-without-date",
+  today,
+);
+const description = event.description[locale];
+---
+
+<li class="events-hub-active-item">
+  <a class="events-hub-active-item__link" href={getVariantPath(variant)}>
+    <span class="events-hub-active-item__body">
+      <strong>{event.title[locale]}</strong>
+      {
+        description && (
+          <span
+            class="events-hub-active-item__description"
+            set:html={renderRestrictedMarkdown(description)}
+          />
+        )
+      }
+    </span>
+    <span class="events-hub-active-item__status">
+      <span class="events-hub-active-item__status-label">
+        {messages.events_active_status_label({}, { locale })}
+      </span>
+      <EventStatus
+        className="events-hub-active-item__status-value"
+        locale={locale}
+        statusKey={statusKey}
+      />
+    </span>
+  </a>
+</li>
+
+<style>
+  .events-hub-active-item__description :global(p) {
+    margin: 0;
+  }
+</style>

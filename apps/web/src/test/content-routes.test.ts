@@ -116,7 +116,6 @@ describe("localized route contract", () => {
     expect(getSitemapUrls(catalog, publicSiteOrigin)).toEqual([
       "https://mountainrunners.cat/ca/",
       "https://mountainrunners.cat/ca/avis-legal/",
-      "https://mountainrunners.cat/ca/contacte/",
       "https://mountainrunners.cat/ca/cookies/",
       "https://mountainrunners.cat/ca/documents/",
       "https://mountainrunners.cat/ca/escoles/",
@@ -250,11 +249,6 @@ describe("localized route contract", () => {
     expect(getFixedPagePath("members", "ca")).toBe("/ca/socis/");
     expect(getFixedPagePath("members", "es")).toBe("/es/socios/");
     expect(getFixedPagePath("members", "en")).toBe("/en/members/");
-    expect(fixedPageRouteSegments.contact).toEqual({
-      ca: "contacte",
-      es: "contacto",
-      en: "contact",
-    });
     expect(fixedPageRouteSegments.documents).toEqual({
       ca: "documents",
       es: "documentos",
@@ -275,7 +269,6 @@ describe("localized route contract", () => {
       es: "cookies",
       en: "cookies",
     });
-    expect(getFixedPagePath("contact", "ca")).toBe("/ca/contacte/");
     expect(getFixedPagePath("documents", "ca")).toBe("/ca/documents/");
     expect(getFixedPagePath("legal-notice", "ca")).toBe("/ca/avis-legal/");
     expect(getFixedPagePath("legal-privacy", "ca")).toBe("/ca/privacitat/");

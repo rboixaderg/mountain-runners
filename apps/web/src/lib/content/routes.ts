@@ -42,11 +42,6 @@ export const fixedPageRouteSegments = {
     es: "socios",
     en: "members",
   },
-  contact: {
-    ca: "contacte",
-    es: "contacto",
-    en: "contact",
-  },
   documents: {
     ca: "documents",
     es: "documentos",
@@ -213,7 +208,6 @@ export function getSitemapUrls(
   const publishedFixedPagePaths = [
     getFixedPagePath("about", "ca"),
     getFixedPagePath("members", "ca"),
-    getFixedPagePath("contact", "ca"),
     getFixedPagePath("documents", "ca"),
     getFixedPagePath("legal-notice", "ca"),
     getFixedPagePath("legal-privacy", "ca"),

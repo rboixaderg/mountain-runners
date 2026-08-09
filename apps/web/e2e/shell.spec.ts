@@ -153,6 +153,9 @@ test("renders the events hub groups in order with links to details", async ({
     page.getByRole("heading", { level: 1, name: "Esdeveniments" }),
   ).toBeVisible();
   await expect(
+    page.getByRole("heading", { level: 2, name: "Calendari mensual" }),
+  ).toBeVisible();
+  await expect(
     page.getByRole("heading", { level: 2, name: "Pròximes edicions" }),
   ).toBeVisible();
   await expect(
@@ -166,42 +169,37 @@ test("renders the events hub groups in order with links to details", async ({
   ).toBeVisible();
 
   const headings = await page
-    .locator(".events-hub-section h2")
+    .locator(".events-hub-section h2, .events-calendar h2")
     .allTextContents();
   expect(headings).toEqual([
+    "Calendari mensual",
     "Pròximes edicions",
     "Vigents sense pròxima data",
     "Esdeveniments passats",
   ]);
 
   await expect(
-    page.locator(".events-hub-item strong").allTextContents(),
-  ).resolves.toEqual([
-    "Ultra Pirineu",
-    "Escalada Popular a Queralt",
-    "Berga Trail",
-  ]);
+    page.locator(".homepage-event h3").allTextContents(),
+  ).resolves.toEqual(["Ultra Pirineu"]);
   await expect(
-    page.locator('.events-hub-item a[href="/ca/esdeveniments/ultra-pirineu/"]'),
+    page.locator('.homepage-event a[href="/ca/esdeveniments/ultra-pirineu/"]'),
   ).toHaveCount(1);
   await expect(
     page.locator(
-      '.events-hub-item a[href="/ca/esdeveniments/escalada-queralt/"]',
+      '.events-hub-active-item a[href="/ca/esdeveniments/escalada-queralt/"]',
     ),
   ).toHaveCount(1);
   await expect(
-    page.locator('.events-hub-item a[href="/ca/esdeveniments/berga-trail/"]'),
+    page.locator(
+      '.events-hub-history__title[href="/ca/esdeveniments/berga-trail/"]',
+    ),
   ).toHaveCount(1);
   await expect(
-    page.locator(
-      ".events-hub-section--active-without-date .events-hub-item__date",
-    ),
-  ).toHaveAttribute("aria-hidden", "true");
-  await expect(
-    page.locator(
-      ".events-hub-section--active-without-date .events-hub-item__status",
-    ),
+    page.locator(".events-hub-active-item__status-value"),
   ).toHaveText("Sense pròxima data anunciada");
+  await expect(
+    page.locator(".events-calendar__day--has-events"),
+  ).not.toHaveCount(0);
   await expect(page.locator('main a[href=""], main a[href="#"]')).toHaveCount(
     0,
   );
@@ -662,7 +660,6 @@ test("@a11y has no detectable axe violations", async ({
     "/ca/socis/",
     "/ca/escoles/",
     "/ca/escoles/escola-trail/",
-    "/ca/contacte/",
     "/ca/documents/",
     "/ca/avis-legal/",
     "/ca/privacitat/",
@@ -836,7 +833,6 @@ test("serves sitemap and robots aligned with the canonical origin", async ({
     "https://mountainrunners.cat/ca/escoles/escola-trail/",
     "https://mountainrunners.cat/ca/escoles/escola-skimo/",
     "https://mountainrunners.cat/ca/escoles/escola-btt/",
-    "https://mountainrunners.cat/ca/contacte/",
     "https://mountainrunners.cat/ca/documents/",
     "https://mountainrunners.cat/ca/avis-legal/",
     "https://mountainrunners.cat/ca/privacitat/",
@@ -866,7 +862,6 @@ test("has no broken or falsely disabled links within the slice", async ({
     "/ca/socis/",
     "/ca/escoles/",
     "/ca/escoles/escola-trail/",
-    "/ca/contacte/",
     "/ca/documents/",
     "/ca/avis-legal/",
     "/ca/privacitat/",
@@ -897,11 +892,10 @@ test("has no broken or falsely disabled links within the slice", async ({
   }
 });
 
-test("publishes documents, contact and legal routes from the footer", async ({
+test("publishes documents and legal routes from the footer", async ({
   page,
 }) => {
   const footerLinks = [
-    "/ca/contacte/",
     "/ca/documents/",
     "/ca/avis-legal/",
     "/ca/privacitat/",
@@ -912,6 +906,7 @@ test("publishes documents, contact and legal routes from the footer", async ({
   for (const path of footerLinks) {
     await expect(page.locator(`footer a[href="${path}"]`)).toHaveCount(1);
   }
+  await expect(page.locator('footer a[href="/ca/contacte/"]')).toHaveCount(0);
   await expect(
     page.locator('footer a[href="https://www.instagram.com/infomountain/"]'),
   ).toHaveCount(1);
@@ -933,29 +928,13 @@ test("publishes documents, contact and legal routes from the footer", async ({
   await expect(page.locator(".site-prefooter")).toContainText(
     "Plaça Sant Joan, 15 baixos, 08600 Berga",
   );
+  await expect(page.locator(".site-prefooter")).toContainText(
+    "El servei de butlletí encara no està disponible.",
+  );
   await expect(page.locator('footer a[href^="tel:"]')).toHaveCount(0);
   await expect(
     page.locator('footer a[href="mailto:info@mountainrunners.cat"]'),
   ).toHaveCount(0);
-
-  await page.goto("/ca/contacte/");
-  await expect(page.locator("main h1")).toHaveText("Contacte");
-  await expect(page.locator("main")).toContainText(
-    "Plaça Sant Joan, 15 baixos, 08600 Berga",
-  );
-  await expect(page.locator("main")).toContainText(
-    "De dilluns a divendres, de 18 h a 20 h",
-  );
-  await expect(page.locator("main")).toContainText("G63999817");
-  await expect(
-    page.locator('main a[href="mailto:info@mountainrunners.cat"]'),
-  ).toHaveCount(1);
-  await expect(page.locator('main a[href="tel:+34938213747"]')).toHaveCount(1);
-  await expect(page.locator('main a[href="tel:+34691910774"]')).toHaveCount(1);
-  await expect(page.locator("main")).toContainText(
-    "El servei de butlletí encara no està disponible.",
-  );
-  await expect(page.locator("main input")).toHaveCount(0);
 
   await page.goto("/ca/documents/");
   await expect(page.locator("main h1")).toHaveText("Documents");

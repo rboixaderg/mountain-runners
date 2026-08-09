@@ -12,7 +12,6 @@ interface Props {
 const { locale } = Astro.props;
 const homePath = `/${locale}/`;
 const eventsPath = getDomainPath("event", locale);
-const contactPath = getFixedPagePath("contact", locale);
 const documentsPath = getFixedPagePath("documents", locale);
 const legalNoticePath = getFixedPagePath("legal-notice", locale);
 const legalPrivacyPath = getFixedPagePath("legal-privacy", locale);
@@ -75,10 +74,6 @@ const legalCookiesPath = getFixedPagePath("legal-cookies", locale);
         </li>
         <li>
           <a href={eventsPath}>{messages.navigation_events({}, { locale })}</a>
-        </li>
-        <li>
-          <a href={contactPath}>{messages.contact_page_title({}, { locale })}</a
-          >
         </li>
         <li>
           <a href={documentsPath}

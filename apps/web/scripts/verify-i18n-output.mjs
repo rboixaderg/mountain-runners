@@ -165,7 +165,6 @@ const expectedSitemapUrls = new Set(
     "ca/esdeveniments/ultra-pirineu/",
     "ca/qui-som/",
     "ca/socis/",
-    "ca/contacte/",
     "ca/documents/",
     "ca/avis-legal/",
     "ca/privacitat/",

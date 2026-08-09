@@ -1,7 +1,10 @@
 ---
 import * as messages from "../../../paraglide/messages.js";
 import { assertIsLocale } from "../../../paraglide/runtime.js";
-import EventCard from "../../../components/events/EventCard.astro";
+import EventMonthlyCalendar from "../../../components/events/EventMonthlyCalendar.astro";
+import EventsHubActiveCard from "../../../components/events/EventsHubActiveCard.astro";
+import EventsHubHistoryTable from "../../../components/events/EventsHubHistoryTable.astro";
+import HomepageEventCard from "../../../components/events/HomepageEventCard.astro";
 import SchoolHub from "../../../components/schools/SchoolHub.astro";
 import PublicLayout from "../../../layouts/PublicLayout.astro";
 import hubHeroImage from "../../../assets/members/socis-portada.jpg";
@@ -15,8 +18,14 @@ import {
 import { getOrderedSchoolVariants } from "../../../lib/content/schools";
 import type { PublishedVariant } from "../../../lib/content/publication";
 import { getPublicationCatalog } from "../../../lib/content/repository";
-import { getDomainPath, getRouteDomain } from "../../../lib/content/routes";
+import {
+  getDomainPath,
+  getRouteDomain,
+  getVariantPath,
+} from "../../../lib/content/routes";
+import { getEventHistoryRows } from "../../../lib/presentation/events";
 import "../../../styles/events-hub.css";
+import "../../../styles/homepage.css";
 
 export async function getStaticPaths() {
   const catalog = await getPublicationCatalog();
@@ -63,12 +72,13 @@ const schoolVariants = getOrderedSchoolVariants(
       variant.kind === "school" && variant.locale === locale,
   ),
 );
-const groups = getEventHubGroups(
-  eventVariants.map(({ entry }) => entry),
-  today,
-);
+const publishedEvents = eventVariants.map(({ entry }) => entry);
+const groups = getEventHubGroups(publishedEvents, today);
 const getVariantFor = (id: string) =>
   eventVariants.find(({ entry }) => entry.id === id)!;
+const historyRows = getEventHistoryRows(groups.past, locale, (event) =>
+  getVariantPath(getVariantFor(event.id)),
+);
 const hubSections: {
   group: EventHubGroup;
   title: string;
@@ -119,9 +129,39 @@ const hubDescription =
           title={messages.navigation_events({}, { locale })}
         />
 
+        <EventMonthlyCalendar
+          events={publishedEvents}
+          locale={locale}
+          resolveEventHref={(event) => getVariantPath(getVariantFor(event.id))}
+          today={today}
+        />
+
         {hubSections.map((section) => {
           const events = groups[section.group];
+          if (section.group === "past") {
+            if (historyRows.length === 0) return null;
+            return (
+              <section
+                class:list={[
+                  "page-frame",
+                  "events-hub-section",
+                  "events-hub-section--past",
+                ]}
+                aria-labelledby={section.id}
+              >
+                <div class="events-hub-section__heading">
+                  <span class="events-hub-section__marker" aria-hidden="true" />
+                  <h2 id={section.id} class="events-hub-section__title">
+                    {section.title}
+                  </h2>
+                </div>
+                <EventsHubHistoryTable locale={locale} rows={historyRows} />
+              </section>
+            );
+          }
+
           if (events.length === 0) return null;
+
           return (
             <section
               class:list={[
@@ -137,24 +177,34 @@ const hubDescription =
                   {section.title}
                 </h2>
               </div>
-              <ul class="events-hub-list">
-                {events.map((event) => (
-                  <EventCard
-                    group={section.group}
-                    locale={locale}
-                    today={today}
-                    variant={getVariantFor(event.id)}
-                  />
-                ))}
-              </ul>
+
+              {section.group === "upcoming" ? (
+                <div class="homepage-events border-line grid border-t">
+                  {events.map((event, index) => (
+                    <HomepageEventCard
+                      event={event}
+                      featured={index === 0}
+                      href={getVariantPath(getVariantFor(event.id))}
+                      locale={locale}
+                      today={today}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <ul class="events-hub-active-list">
+                  {events.map((event) => (
+                    <EventsHubActiveCard
+                      event={event}
+                      locale={locale}
+                      today={today}
+                      variant={getVariantFor(event.id)}
+                    />
+                  ))}
+                </ul>
+              )}
             </section>
           );
         })}
-        <div class="events-hub-separator" aria-hidden="true">
-          <span />
-          <b>◆</b>
-          <span />
-        </div>
       </>
     )
   }

@@ -19,14 +19,12 @@ const aboutPath = getFixedPagePath("about", locale);
 const schoolsPath = getDomainPath("school", locale);
 const eventsPath = getDomainPath("event", locale);
 const membersPath = getFixedPagePath("members", locale);
-const contactPath = getFixedPagePath("contact", locale);
 const currentPath = Astro.url.pathname;
 const navigationItems = [
   { href: aboutPath, label: messages.navigation_about({}, { locale }) },
   { href: schoolsPath, label: messages.navigation_schools({}, { locale }) },
   { href: eventsPath, label: messages.navigation_events({}, { locale }) },
   { href: membersPath, label: messages.navigation_members({}, { locale }) },
-  { href: contactPath, label: messages.contact_page_title({}, { locale }) },
 ];
 
 function isCurrentPath(path: string): boolean {
