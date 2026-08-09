@@ -46,3 +46,13 @@ const { locale, school } = Astro.props;
     }
   </dl>
 </section>
+
+<style>
+  .schools-detail__practical dd :global(:first-child) {
+    margin-top: 0;
+  }
+
+  .schools-detail__practical dd :global(:last-child) {
+    margin-bottom: 0;
+  }
+</style>

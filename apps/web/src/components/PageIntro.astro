@@ -1,5 +1,6 @@
 ---
 import PageHero from "./PageHero.astro";
+import "../styles/page-intro.css";
 
 interface Props {
   kicker: string;
@@ -11,7 +12,19 @@ const { description, kicker, title } = Astro.props;
 ---
 
 <PageHero className="page-intro">
-  <p class="page-intro__kicker">{kicker}</p>
-  <h1 class="page-intro__title">{title}</h1>
-  <p class="page-intro__description">{description}</p>
+  <p
+    class="page-intro__kicker font-display m-0 mb-2 text-xl font-bold tracking-[0.06em] text-white uppercase"
+  >
+    {kicker}
+  </p>
+  <h1
+    class="page-intro__title font-display m-0 mb-6 max-w-[min(100%,14ch)] text-[clamp(3.5rem,9vw,7.5rem)] leading-[0.9] tracking-[-0.035em] [overflow-wrap:break-word] text-white uppercase"
+  >
+    {title}
+  </h1>
+  <p
+    class="page-intro__description m-0 max-w-[44rem] border-l-[0.25rem] border-white pl-3 text-[clamp(1rem,2vw,1.35rem)] leading-[1.35] font-medium text-white"
+  >
+    {description}
+  </p>
 </PageHero>

@@ -55,9 +55,21 @@ publicades a 320 i 390 píxels i no s'hi ha detectat overflow horitzontal.
   clara i més curta en lloc de repetir un hero fotogràfic.
 - Els herois de portada i esdeveniments carreguen una derivació lleugera en
   mòbil i la imatge de més resolució en pantalles grans.
-- S'ha separat la capa visual de fase 4 a
-  `apps/web/src/styles/phase4-design.css`; `global.css` conserva els fonaments i
-  els selectors existents per evitar regressions de les proves E2E.
+- S'ha substituït la pila de dos fulls globals per una arquitectura Tailwind
+  first: `global.css` conserva només els tokens i fonaments globals, les
+  utilitats viuen al markup al costat de les classes BEM/E2E estables i el CSS
+  específic queda en fulls cohesionats importats pel component o la plantilla
+  que n'és propietària. `phase4-design.css` s'ha eliminat; els 3.800 rengles
+  inicials han quedat en 2.207 rengles de CSS font, amb 123 a `global.css` i 298
+  al full específic més llarg.
+- S'han retirat els selectors morts sense cap classe corresponent al codi font:
+  `about-board__photo`, `editorial-grid`, `event-date`, `event-meta`,
+  `event-status`, `events-detail__modalities-label`,
+  `events-detail__registration-label`, `events-detail__state`,
+  `schools-detail__back-link` i `schools-detail__intro-grid`.
+- També s'han eliminat pseudo-elements anul·lats amb `display: none`, propietats
+  de graella aplicades a elements `display: block`, tokens sense consumidors i
+  colors de vores laterals amb amplada zero.
 - S'ha afegit una derivació optimitzada de la fotografia aprovada per als herois
   de càrrega prioritària, documentada a `apps/web/src/assets/README.md`.
 - S'ha mantingut el contingut editorial existent, les rutes, els estats de
@@ -103,6 +115,27 @@ mantenidora:
   viewport comprovats a 320, 390 i 768 píxels. En orientació horitzontal
   (`568×320`), el panell limita l'alçada i desplaça internament l'enllaç que rep
   el focus.
+- Refactor d'estils: `pnpm format`, `pnpm check` (252 tests) i el build
+  determinista amb `PUBLIC_SITE_ORIGIN=https://mountainrunners.cat` i
+  `BUILD_TODAY=2026-08-04` passats. S'han comparat captures de pantalla completa
+  de la base `08df668` i del refactor amb Playwright 1.61.1/Chromium, després de
+  `networkidle` i `document.fonts.ready`, amb les animacions desactivades. Les 13
+  rutes a `1280×720` i `320×720` conserven exactament les mateixes dimensions;
+  25 de les 26 captures són idèntiques píxel a píxel. L'única diferència queda
+  limitada al rectangle de la fotografia mandrosa d'història de Qui som, que la
+  captura base va registrar abans de carregar.
+- `pnpm validate` ha passat amb 122 proves E2E i 4 proves axe no aplicables fora
+  de Chromium; `pnpm test:a11y` ha passat les dues vistes Chromium. La repetició
+  local de `pnpm lighthouse` manté 100 en accessibilitat, bones pràctiques i SEO,
+  i rendiment 96/98/99, però la portada registra un LCP de 2,705 s i no supera el
+  límit de 2,5 s. La mateixa execució sobre la branca base registra 2,780 s, de
+  manera que no és una regressió del refactor, però la comprovació no es declara
+  passada.
+- La correcció d'ownership de `:global(...)` manté les mateixes declaracions
+  compilades per a About i Members: les regles compartides viuen als fulls de
+  plantilla i el markdown del directori queda ancorat al seu component. `pnpm
+check` i el build determinista han passat; les captures d'About i Members a
+  `1280×720` i `320×720` són idèntiques píxel a píxel abans i després del canvi.
 
 La validació automatitzada no equival a una auditoria manual completa WCAG 2.2
 AA. Encara cal completar la revisió editorial de recursos, textos i traduccions

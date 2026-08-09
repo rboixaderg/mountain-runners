@@ -16,6 +16,7 @@ import { getOrderedSchoolVariants } from "../../../lib/content/schools";
 import type { PublishedVariant } from "../../../lib/content/publication";
 import { getPublicationCatalog } from "../../../lib/content/repository";
 import { getDomainPath, getRouteDomain } from "../../../lib/content/routes";
+import "../../../styles/events-hub.css";
 
 export async function getStaticPaths() {
   const catalog = await getPublicationCatalog();
@@ -126,7 +127,7 @@ const hubDescription =
           <p class="events-hub-intro__kicker">
             {messages.site_title({}, { locale })}
           </p>
-          <h1 class="my-3 mb-6 max-w-[15ch] font-[family-name:var(--font-display)] text-[clamp(2.8rem,9vw,5.5rem)] leading-[0.95] tracking-[0.015em] uppercase">
+          <h1 class="font-display m-0 mb-6 max-w-[min(100%,14ch)] text-[clamp(3.5rem,9vw,7.5rem)] leading-[0.9] tracking-[-0.035em] [overflow-wrap:break-word] uppercase">
             {messages.navigation_events({}, { locale })}
           </h1>
           <p class="events-hub-intro__description">

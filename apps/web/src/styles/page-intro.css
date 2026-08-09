@@ -1,0 +1,14 @@
+.page-intro::before {
+  position: absolute;
+  inset: 0;
+  display: block;
+  background: url("../assets/home/homepage-hero.jpeg") center / cover;
+  content: "";
+  filter: grayscale(1) contrast(1.15);
+  mix-blend-mode: multiply;
+  opacity: 0.25;
+}
+
+.page-intro__kicker {
+  line-height: 1.5;
+}

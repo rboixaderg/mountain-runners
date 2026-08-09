@@ -5,6 +5,7 @@ import type { Locale } from "../../lib/content/primitives";
 import { getDocumentGroups } from "../../lib/presentation/documents";
 import PageIntro from "../PageIntro.astro";
 import DocumentGroup from "./DocumentGroup.astro";
+import "../../styles/documents.css";
 
 interface Props {
   catalog: PublicationCatalog;
@@ -18,7 +19,7 @@ const documentGroups = getDocumentGroups(
 );
 ---
 
-<article class="page-detail">
+<article class="page-detail pb-0">
   <PageIntro
     kicker={messages.site_title({}, { locale })}
     title={messages.documents_page_title({}, { locale })}
