@@ -92,6 +92,9 @@ describe("publication catalog", () => {
       "src/assets/collaborators/veloberga.jpg",
       "src/assets/collaborators/visites-al-bergueda.jpg",
       "src/assets/logo_mountain_runners.png",
+      "src/assets/schools/escola-btt.jpg",
+      "src/assets/schools/escola-skimo.jpg",
+      "src/assets/schools/escola-trail.jpg",
       "src/content-assets/documents/estatuts-mrb.pdf",
     ]);
   });

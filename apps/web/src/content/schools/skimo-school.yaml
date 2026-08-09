@@ -14,9 +14,9 @@ description:
 cover:
   resource:
     kind: local
-    path: src/assets/logo_mountain_runners.png
+    path: src/assets/schools/escola-skimo.jpg
   alt:
-    ca: Logotip de Mountain Runners del Berguedà
+    ca: Jove esquiant de muntanya en una pista de neu amb el Pirineu al fons
 gallery: []
 registrationStatus: coming-soon
 sections:

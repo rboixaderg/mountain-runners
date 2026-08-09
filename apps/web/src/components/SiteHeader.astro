@@ -76,7 +76,7 @@ function isCurrentPath(path: string): boolean {
       />
     </div>
     <a class="site-header__cta" href={membersPath}>
-      {messages.navigation_members({}, { locale })}
+      {messages.cta_join_members({}, { locale })}
     </a>
     <details class="site-header__mobile-menu">
       <summary>
@@ -104,6 +104,9 @@ function isCurrentPath(path: string): boolean {
             ))
           }
         </nav>
+        <a class="site-header__mobile-cta" href={membersPath}>
+          {messages.cta_join_members({}, { locale })}
+        </a>
         <div class="site-header__mobile-language">
           <LanguageSelector
             localizedAlternatives={localizedAlternatives}

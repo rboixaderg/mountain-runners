@@ -63,15 +63,9 @@ test("renders the published homepage sections in order", async ({ page }) => {
   await expect(
     page.getByRole("heading", {
       level: 1,
-      name: "Mountain Runners del Berguedà",
+      name: "A.E. Mountain Runners del Berguedà",
     }),
   ).toBeVisible();
-  const heroImage = page.getByRole("img", {
-    name: "Logotip de Mountain Runners del Berguedà",
-  });
-  await expect(heroImage).toHaveAttribute("src", /^\/_astro\//u);
-  await expect(heroImage).toHaveAttribute("width", "450");
-  await expect(heroImage).toHaveAttribute("height", "444");
   await expect(page.locator(".homepage-hero__mountain")).toHaveAttribute(
     "src",
     /^\/_astro\//u,
@@ -79,14 +73,23 @@ test("renders the published homepage sections in order", async ({ page }) => {
   await expect(
     page.locator("main h1, main h2").allTextContents(),
   ).resolves.toEqual([
-    "Mountain Runners del Berguedà",
-    "Esdeveniments",
-    "Escoles",
-    "Fes-te MRB",
-    "Muntanya, territori, comunitat",
+    "A.E. Mountain Runners del Berguedà",
+    "Agenda d'activitats",
+    "Les nostres escoles",
+    "Forma part del club",
   ]);
   await expect(page.locator('main a[href="/ca/esdeveniments/"]')).toHaveCount(
-    1,
+    2,
+  );
+  await expect(page.locator(".homepage-hero__cta")).toHaveAttribute(
+    "href",
+    "/ca/esdeveniments/",
+  );
+  await expect(page.locator(".homepage-hero__cta")).toContainText(
+    "Descobreix l'agenda",
+  );
+  await expect(page.locator(".homepage-section__view-all")).toHaveText(
+    "Veure tot l'any",
   );
   await expect(page.locator(".homepage-event")).toHaveCount(2);
   await expect(
@@ -111,11 +114,16 @@ test("renders the published homepage sections in order", async ({ page }) => {
   await expect(
     page.locator(".homepage-school-list strong").allTextContents(),
   ).resolves.toEqual(["Escola de Trail", "Escola Skimo", "Escola BTT"]);
-  await expect(page.locator(".homepage-school-list small")).toHaveCount(0);
-  await expect(page.locator('main a[href="/ca/escoles/"]')).toHaveCount(1);
   await expect(
-    page.locator('.homepage-members-card a[href="/ca/socis/"]'),
+    page.locator(".homepage-school-list__action").allTextContents(),
+  ).resolves.toEqual(["Informació", "Informació", "Informació"]);
+  await expect(
+    page.locator('.homepage-members-banner__cta[href="/ca/socis/"]'),
   ).toHaveCount(1);
+  await expect(page.locator(".homepage-members-banner__cta")).toContainText(
+    "Fes-te soci",
+  );
+  await expect(page.locator(".site-header__cta")).toHaveText("Fes-te soci");
   await expect(page.locator('main a[href=""], main a[href="#"]')).toHaveCount(
     0,
   );
@@ -126,10 +134,9 @@ test("links the portada to the events hub with published entries", async ({
 }) => {
   await page.goto("/ca/");
 
-  const eventsLink = page
-    .locator(".homepage-section", { hasText: "Esdeveniments" })
-    .getByRole("link", { name: "Esdeveniments" });
+  const eventsLink = page.locator(".homepage-section__view-all");
   await expect(eventsLink).toHaveAttribute("href", "/ca/esdeveniments/");
+  await expect(eventsLink).toHaveText("Veure tot l'any");
 
   await eventsLink.click();
   await expect(page).toHaveURL("/ca/esdeveniments/");
@@ -544,8 +551,10 @@ test("navigates from the schools hub to a published school detail", async ({
     page.getByRole("heading", { level: 1, name: "Escola de Trail" }),
   ).toBeVisible();
   await expect(
-    page.getByRole("img", { name: "Logotip de Mountain Runners del Berguedà" }),
-  ).toHaveAttribute("width", "450");
+    page.getByRole("img", {
+      name: "Dos joves corrent per un camí de bosc en una sessió de l'escola de trail",
+    }),
+  ).toHaveAttribute("width", "389");
   await expect(page.getByText("L'escola va néixer l'any 2012.")).toBeVisible();
   await expect(
     page.getByRole("heading", { level: 2, name: "Informació pràctica" }),
@@ -704,7 +713,7 @@ test("emits canonical and social metadata for published pages", async ({
   );
   await expect(page.locator('meta[property="og:title"]')).toHaveAttribute(
     "content",
-    "Mountain Runners del Berguedà",
+    "A.E. Mountain Runners del Berguedà",
   );
   await expect(
     page.locator('meta[property="og:description"]'),

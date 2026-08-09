@@ -14,9 +14,9 @@ description:
 cover:
   resource:
     kind: local
-    path: src/assets/logo_mountain_runners.png
+    path: src/assets/schools/escola-trail.jpg
   alt:
-    ca: Logotip de Mountain Runners del Berguedà
+    ca: Dos joves corrent per un camí de bosc en una sessió de l'escola de trail
 gallery: []
 registrationStatus: coming-soon
 sections:

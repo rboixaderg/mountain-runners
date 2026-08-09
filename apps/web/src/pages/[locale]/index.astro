@@ -2,12 +2,12 @@
 import { locales } from "../../../i18n.config.mjs";
 import * as messages from "../../paraglide/messages.js";
 import { assertIsLocale } from "../../paraglide/runtime.js";
-import logo from "../../assets/logo_mountain_runners.png";
 import homepageImage from "../../assets/members/socis-portada.jpg";
 import homepageImageSmall from "../../assets/members/socis-portada-hero.jpg";
 import HomepageEventCard from "../../components/events/HomepageEventCard.astro";
 import PublicLayout from "../../layouts/PublicLayout.astro";
 import { getHomepageEvents, getMadridDate } from "../../lib/content/events";
+import { getLocalImageSize, getResourceHref } from "../../lib/content/images";
 import { getOrderedSchoolVariants } from "../../lib/content/schools";
 import { renderRestrictedMarkdown } from "../../lib/content/markdown";
 import type { PublishedVariant } from "../../lib/content/publication";
@@ -44,12 +44,27 @@ const events = getHomepageEvents(
   return { event, href: getVariantPath(variant) };
 });
 const schools = getOrderedSchoolVariants(schoolVariants);
+const schoolCards = await Promise.all(
+  schools.map(async (variant) => {
+    const resource = variant.entry.cover.resource;
+    return {
+      variant,
+      coverHref: getResourceHref(resource),
+      coverSize:
+        resource.kind === "local"
+          ? await getLocalImageSize(resource.path)
+          : undefined,
+    };
+  }),
+);
 const siteUrl = new URL("/", Astro.site);
 const siteEntity = catalog.entities.get("mountain-runners");
 const structuredData = getSiteJsonLd({
   name: siteEntity?.name[locale],
   siteUrl,
 });
+const eventsPath = getDomainPath("event", locale);
+const membersPath = getFixedPagePath("members", locale);
 
 export function getStaticPaths() {
   return locales
@@ -80,42 +95,44 @@ export function getStaticPaths() {
     </picture>
     <div class="page-frame homepage-hero__grid">
       <div class="homepage-hero__intro">
-        <p class="homepage-kicker">MRB</p>
-        <h1>{messages.homepage_hero_title({}, { locale })}</h1>
+        <h1>
+          <span class="homepage-hero__title-club"
+            >{messages.homepage_hero_title_club({}, { locale })}</span
+          >{" "}<span class="homepage-hero__title-region"
+            >{messages.homepage_hero_title_region({}, { locale })}</span
+          >
+        </h1>
         <div
           class="homepage-hero__copy"
           set:html={renderRestrictedMarkdown(
             messages.homepage_hero_description({}, { locale }),
           )}
         />
+        <div class="homepage-hero__actions">
+          <a class="homepage-hero__cta" href={eventsPath}>
+            {messages.homepage_hero_cta({}, { locale })}
+            <span aria-hidden="true">&rarr;</span>
+          </a>
+        </div>
       </div>
-      <img
-        class="homepage-hero__logo"
-        src={logo.src}
-        width={logo.width}
-        height={logo.height}
-        alt={messages.homepage_hero_image_alt({}, { locale })}
-      />
     </div>
   </section>
 
   <section class="page-frame homepage-section" aria-labelledby="events-title">
-    <div class="homepage-section__heading">
-      <p class="homepage-kicker">{messages.site_title({}, { locale })}</p>
+    <div class="homepage-section__header">
       <h2 id="events-title">
         {messages.homepage_events_title({}, { locale })}
       </h2>
-      <div
-        set:html={renderRestrictedMarkdown(
-          messages.homepage_events_description({}, { locale }),
-        )}
-      />
+      <a class="homepage-section__view-all" href={eventsPath}>
+        {messages.homepage_events_view_all({}, { locale })}
+      </a>
     </div>
     <div class="homepage-events">
       {
-        events.map(({ event, href }) => (
+        events.map(({ event, href }, index) => (
           <HomepageEventCard
             event={event}
+            featured={index === 0}
             href={href}
             locale={locale}
             today={today}
@@ -123,15 +140,11 @@ export function getStaticPaths() {
         ))
       }
     </div>
-    <a class="homepage-link" href={getDomainPath("event", locale)}>
-      {messages.navigation_events({}, { locale })}
-    </a>
   </section>
 
   <section class="homepage-school-section">
-    <div class="page-frame homepage-school-section__grid">
-      <div class="homepage-section__heading">
-        <p class="homepage-kicker">MRB</p>
+    <div class="page-frame homepage-school-section__inner">
+      <div class="homepage-school-section__heading">
         <h2>{messages.homepage_schools_title({}, { locale })}</h2>
         <div
           set:html={renderRestrictedMarkdown(
@@ -141,7 +154,7 @@ export function getStaticPaths() {
       </div>
       <ul class="homepage-school-list">
         {
-          schools.map((variant) => (
+          schoolCards.map(({ variant, coverHref, coverSize }) => (
             <li>
               <a
                 class="homepage-school-list__link"
@@ -149,48 +162,43 @@ export function getStaticPaths() {
               >
                 <img
                   class="homepage-school-list__mark"
-                  src={logo.src}
-                  width={logo.width}
-                  height={logo.height}
+                  src={coverHref}
+                  width={coverSize?.width}
+                  height={coverSize?.height}
+                  loading="lazy"
                   alt=""
                 />
                 <strong>{variant.entry.name[locale]}</strong>
-                <span>{variant.entry.summary[locale]}</span>
+                <span class="homepage-school-list__summary">
+                  {variant.entry.summary[locale]}
+                </span>
+                <span class="homepage-school-list__action">
+                  {messages.homepage_school_action({}, { locale })}
+                </span>
               </a>
             </li>
           ))
         }
       </ul>
-      <a
-        class="homepage-link homepage-school-section__link"
-        href={getDomainPath("school", locale)}
-      >
-        {messages.navigation_schools({}, { locale })}
-      </a>
     </div>
   </section>
 
-  <section class="page-frame homepage-club-section">
-    <div class="homepage-members-card">
-      <p class="homepage-kicker">MRB</p>
-      <h2>{messages.homepage_members_title({}, { locale })}</h2>
-      <div
-        set:html={renderRestrictedMarkdown(
-          messages.homepage_members_description({}, { locale }),
-        )}
-      />
-      <a class="homepage-link" href={getFixedPagePath("members", locale)}>
-        {messages.navigation_members({}, { locale })}
-      </a>
-    </div>
-    <div class="homepage-community-card">
-      <p class="homepage-kicker">Berguedà</p>
-      <h2>{messages.homepage_community_title({}, { locale })}</h2>
-      <div
-        set:html={renderRestrictedMarkdown(
-          messages.homepage_community_description({}, { locale }),
-        )}
-      />
+  <section class="homepage-members-banner">
+    <div class="page-frame">
+      <div class="homepage-members-banner__inner">
+        <div class="homepage-members-banner__copy">
+          <h2>{messages.homepage_members_title({}, { locale })}</h2>
+          <div
+            set:html={renderRestrictedMarkdown(
+              messages.homepage_members_description({}, { locale }),
+            )}
+          />
+          <a class="homepage-members-banner__cta" href={membersPath}>
+            {messages.cta_join_members({}, { locale })}
+            <span aria-hidden="true">&rarr;</span>
+          </a>
+        </div>
+      </div>
     </div>
   </section>
 </PublicLayout>

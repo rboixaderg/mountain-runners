@@ -63,6 +63,27 @@ publicades a 320 i 390 píxels i no s'hi ha detectat overflow horitzontal.
 - S'ha mantingut el contingut editorial existent, les rutes, els estats de
   disponibilitat i els selectors E2E.
 
+## Segona Passada Sobre La Portada
+
+Comparació directa amb la maqueta de portada aprovada per la persona
+mantenidora:
+
+- L'heroi separa el nom del club i el territori en dos colors, i la crida a
+  l'acció passa a un botó compacte amb fletxa i interlletratge ampli.
+- Les files de l'agenda passen a tres columnes (data, contingut i acció), amb
+  la data destacada només a la pròxima activitat, l'estat com a etiqueta fosca,
+  la localitat en vermell i separadors fins.
+- La secció d'escoles centra el títol i la introducció, i les targetes mostren
+  la fotografia de l'escola, el resum i l'acció alineada a la base.
+- El bloc de socis passa a ser una caixa vermella dins del marc de pàgina amb
+  el botó fosc, en lloc d'una franja a tota amplada.
+- La capçalera, el prepeu i el peu redueixen els pesos tipogràfics
+  desproporcionats i eliminen les ombres dures que la maqueta no recull.
+- Les escoles deixen d'utilitzar el logotip com a portada i passen a tenir la
+  seva fotografia, també al hub i al detall.
+- S'ha corregit un `padding` de les targetes d'escola que referenciava un token
+  d'espaiat inexistent i, per tant, no s'aplicava.
+
 ## Verificació Executada
 
 - `pnpm check`: passat — 252 tests unitaris, typecheck i lint sense errors.

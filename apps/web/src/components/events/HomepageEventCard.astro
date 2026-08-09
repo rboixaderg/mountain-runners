@@ -9,19 +9,22 @@ import { getHomepageEventStatusMessageKey } from "../../lib/presentation/status"
 
 interface Props {
   event: Event;
+  featured?: boolean;
   href: string;
   locale: Locale;
   today: string;
 }
 
-const { event, href, locale, today } = Astro.props;
+const { event, featured = false, href, locale, today } = Astro.props;
 const nextEdition = getNextEdition(event, today);
 const statusKey = getHomepageEventStatusMessageKey(nextEdition, today);
 const status = messages[statusKey]({}, { locale });
 const dateParts = getEditionDayMonth(nextEdition, locale);
 ---
 
-<article class="homepage-event">
+<article
+  class:list={["homepage-event", featured && "homepage-event--featured"]}
+>
   <a class="homepage-event__link" href={href}>
     <div class="homepage-event__date">
       {
@@ -36,18 +39,30 @@ const dateParts = getEditionDayMonth(nextEdition, locale);
       }
     </div>
     <div class="homepage-event__body">
-      <p class="homepage-event__status">{status}</p>
+      <p class="homepage-event__meta">
+        <span class="homepage-event__status">{status}</span>
+        {
+          nextEdition && (
+            <span class="homepage-event__location">
+              {nextEdition.location[locale]}
+            </span>
+          )
+        }
+      </p>
       <h3>{event.title[locale]}</h3>
       {
         event.description[locale] && (
-          <div set:html={renderRestrictedMarkdown(event.description[locale])} />
+          <div
+            class="homepage-event__description"
+            set:html={renderRestrictedMarkdown(event.description[locale])}
+          />
         )
       }
-      {
-        nextEdition && (
-          <p class="homepage-event__location">{nextEdition.location[locale]}</p>
-        )
-      }
+    </div>
+    <div class="homepage-event__aside">
+      <span class="homepage-event__action">
+        {messages.homepage_event_action({}, { locale })}
+      </span>
     </div>
   </a>
 </article>

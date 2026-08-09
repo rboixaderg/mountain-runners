@@ -14,9 +14,9 @@ description:
 cover:
   resource:
     kind: local
-    path: src/assets/logo_mountain_runners.png
+    path: src/assets/schools/escola-btt.jpg
   alt:
-    ca: Logotip de Mountain Runners del Berguedà
+    ca: Grup de ciclistes pedalant per un camí de bosc del Berguedà
 gallery: []
 registrationStatus: coming-soon
 sections:

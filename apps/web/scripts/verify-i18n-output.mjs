@@ -10,7 +10,7 @@ const { PUBLIC_SITE_ORIGIN } = loadEnv(
 );
 const publicSiteOrigin = new URL(PUBLIC_SITE_ORIGIN);
 
-const publishedHomepages = [["ca", "Mountain Runners del Berguedà"]];
+const publishedHomepages = [["ca", "A.E. Mountain Runners del Berguedà"]];
 const configuredLocales = ["ca", "es", "en"];
 
 const unavailableDetailRoutes = [

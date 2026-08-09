@@ -32,6 +32,15 @@ cobertes per la llicència MIT del programari.
 aprovada, amb la mateixa procedència i autorització. Es carrega als herois en
 pantalles petites; la imatge original es reserva per a amplades més grans.
 
+Els fitxers de `schools/` són retalls de la imatge de les escoles que publica
+la web actual de l'associació
+(`mountainrunners.cat/wp-content/uploads/2021/06/escoles.png`). La persona
+mantenidora va indicar-ne la reutilització a la T4.4 de la fase 4; el muntatge
+original s'ha dividit en tres fotografies, una per escola, i s'han versionat
+localment com a portades de trail, skimo i BTT. Les fotografies conserven els
+drets d'imatge de les persones que hi apareixen i no queden cobertes per la
+llicència MIT del programari.
+
 El logotip, la fotografia, les fotografies i els logotips de col·laboradors
 són recursos de marca i d'imatge de l'associació i de les entitats. Qualsevol
 reutilització fora d'aquest projecte requereix autorització de l'associació.
