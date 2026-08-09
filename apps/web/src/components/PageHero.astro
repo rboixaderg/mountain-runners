@@ -1,0 +1,15 @@
+---
+interface Props {
+  className: string;
+  contentClassName?: string;
+}
+
+const { className, contentClassName } = Astro.props;
+---
+
+<section class:list={["page-hero", className]}>
+  <slot name="media" />
+  <div class:list={["page-frame", "page-hero__content", contentClassName]}>
+    <slot />
+  </div>
+</section>

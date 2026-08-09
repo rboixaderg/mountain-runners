@@ -32,6 +32,23 @@ cobertes per la llicència MIT del programari.
 aprovada, amb la mateixa procedència i autorització. Es carrega als herois en
 pantalles petites; la imatge original es reserva per a amplades més grans.
 
+`home/homepage-hero.jpeg` i `home/homepage-hero-mobile.jpeg` provenen de la
+fotografia publicada a la web actual de l'associació
+(`https://mountainrunners.cat/wp-content/uploads/2021/06/cropped-62023144_10216441767708245_7770723954573967360_n-1.jpeg`).
+La persona mantenidora en va indicar la reutilització el 9 d'agost de 2026; la
+segona és una derivació optimitzada per a pantalles petites. Les fotografies
+conserven els drets d'imatge corresponents i no queden cobertes per la llicència
+MIT del programari.
+
+`about/about-hero.jpg` i `about/about-history.jpg` provenen respectivament de
+les fotografies publicades a la web actual de l'associació
+(`https://mountainrunners.cat/wp-content/uploads/2021/06/DSC_0071-scaled.jpg` i
+`https://mountainrunners.cat/wp-content/uploads/2021/06/DSC_0083-1360x2048.jpg`).
+La persona mantenidora en va indicar la reutilització el 9 d'agost de 2026 per
+al hero i la secció d'història de la pàgina del club. Les fotografies conserven
+els drets d'imatge corresponents i no queden cobertes per la llicència MIT del
+programari.
+
 Els fitxers de `schools/` són retalls de la imatge de les escoles que publica
 la web actual de l'associació
 (`mountainrunners.cat/wp-content/uploads/2021/06/escoles.png`). La persona

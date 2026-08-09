@@ -1,4 +1,6 @@
 ---
+import PageHero from "./PageHero.astro";
+
 interface Props {
   kicker: string;
   title: string;
@@ -8,8 +10,8 @@ interface Props {
 const { description, kicker, title } = Astro.props;
 ---
 
-<section class="page-frame page-intro">
+<PageHero className="page-intro">
   <p class="page-intro__kicker">{kicker}</p>
   <h1 class="page-intro__title">{title}</h1>
   <p class="page-intro__description">{description}</p>
-</section>
+</PageHero>

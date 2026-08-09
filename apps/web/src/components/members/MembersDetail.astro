@@ -5,6 +5,7 @@ import socisServeis from "../../assets/members/socis-serveis.jpg";
 import { externalActionIds } from "../../lib/content/models";
 import type { Locale } from "../../lib/content/primitives";
 import type { PublicationCatalog } from "../../lib/content/publication";
+import PageHero from "../PageHero.astro";
 import MembersActionSection from "./MembersActionSection.astro";
 import MembersDirectory from "./MembersDirectory.astro";
 
@@ -23,8 +24,8 @@ const federationAction = catalog.externalActions.get(
 ---
 
 <article class="members-detail">
-  <section class="page-frame members-intro">
-    <figure class="members-intro__photo">
+  <PageHero className="members-intro">
+    <figure slot="media" class="members-intro__photo">
       <img
         src={socisPortada.src}
         width={socisPortada.width}
@@ -40,7 +41,7 @@ const federationAction = catalog.externalActions.get(
     <p class="members-intro__description">
       {messages.members_page_description({}, { locale })}
     </p>
-  </section>
+  </PageHero>
 
   <div
     class="page-frame members-actions grid gap-6 py-[var(--section-space)] md:grid-cols-2 md:gap-12"

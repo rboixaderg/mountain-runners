@@ -1,9 +1,11 @@
 ---
 import * as messages from "../../paraglide/messages.js";
+import { getLocalImageSize, getResourceHref } from "../../lib/content/images";
 import type { Locale } from "../../lib/content/primitives";
 import type { PublishedVariant } from "../../lib/content/publication";
 import { getVariantPath } from "../../lib/content/routes";
 import { getRegistrationPresentation } from "../../lib/presentation/status";
+import PageHero from "../PageHero.astro";
 
 interface Props {
   locale: Locale;
@@ -11,9 +13,22 @@ interface Props {
 }
 
 const { locale, variants } = Astro.props;
+const schoolsWithCovers = await Promise.all(
+  variants.map(async (variant) => {
+    const resource = variant.entry.cover.resource;
+    return {
+      coverHref: getResourceHref(resource),
+      coverSize:
+        resource.kind === "local"
+          ? await getLocalImageSize(resource.path)
+          : undefined,
+      variant,
+    };
+  }),
+);
 ---
 
-<section class="page-frame schools-hub-intro">
+<PageHero className="schools-hub-intro">
   <p class="schools-hub-intro__kicker">
     {messages.site_title({}, { locale })}
   </p>
@@ -25,11 +40,11 @@ const { locale, variants } = Astro.props;
   <p class="schools-hub-intro__description">
     {messages.schools_intro({}, { locale })}
   </p>
-</section>
+</PageHero>
 
 <ul class="schools-hub-list">
   {
-    variants.map((variant) => {
+    schoolsWithCovers.map(({ coverHref, coverSize, variant }) => {
       const school = variant.entry;
       const registrationStatusKey = getRegistrationPresentation(
         school.registrationStatus,
@@ -38,6 +53,15 @@ const { locale, variants } = Astro.props;
       return (
         <li class="schools-hub-item">
           <a class="schools-hub-item__link" href={getVariantPath(variant)}>
+            <img
+              class="schools-hub-item__image"
+              src={coverHref}
+              width={coverSize?.width}
+              height={coverSize?.height}
+              alt=""
+              loading="lazy"
+              decoding="async"
+            />
             <span class="schools-hub-item__body">
               <span class="schools-hub-item__status">
                 {messages[registrationStatusKey]({}, { locale })}

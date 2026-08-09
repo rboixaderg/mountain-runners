@@ -1,7 +1,9 @@
 ---
 import * as messages from "../../paraglide/messages.js";
+import aboutHero from "../../assets/about/about-hero.jpg";
 import type { Locale } from "../../lib/content/primitives";
 import type { PublicationCatalog } from "../../lib/content/publication";
+import PageHero from "../PageHero.astro";
 import AboutBoard from "./AboutBoard.astro";
 import AboutHistory from "./AboutHistory.astro";
 import AboutPresident from "./AboutPresident.astro";
@@ -16,13 +18,21 @@ const { catalog, locale } = Astro.props;
 ---
 
 <article class="about-detail">
-  <section class="page-frame about-intro">
+  <PageHero className="about-intro">
+    <img
+      slot="media"
+      class="about-intro__image"
+      src={aboutHero.src}
+      width={aboutHero.width}
+      height={aboutHero.height}
+      alt=""
+    />
     <p class="about-intro__kicker">{messages.site_title({}, { locale })}</p>
     <h1>{messages.navigation_about({}, { locale })}</h1>
     <p class="about-intro__description">
       {messages.about_page_description({}, { locale })}
     </p>
-  </section>
+  </PageHero>
 
   <AboutPresident locale={locale} />
   <AboutBoard locale={locale} />

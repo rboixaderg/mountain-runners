@@ -384,28 +384,19 @@ main {
   text-transform: uppercase;
 }
 
-.homepage-hero {
-  min-height: clamp(26rem, 44vw, 38rem);
-  display: flex;
-  align-items: center;
-  padding-block: clamp(3.5rem, 7vw, 5.5rem);
-  padding-bottom: clamp(5rem, 10vw, 8rem);
-  background: var(--color-red);
-}
-
 .homepage-hero::after {
-  height: clamp(1.25rem, 2.5vw, 2.25rem);
-  background: var(--color-ink);
-}
-
-.homepage-hero__mountain {
-  opacity: 0.34;
-  filter: grayscale(1) contrast(1.2);
-  mix-blend-mode: multiply;
+  display: none;
 }
 
 .homepage-hero__intro {
+  position: relative;
+  z-index: 2;
   max-width: 42rem;
+}
+
+.page-hero__content {
+  position: relative;
+  z-index: 2;
 }
 
 .homepage-hero h1 {
@@ -447,28 +438,7 @@ main {
   color: rgb(255 255 255 / 0.78);
 }
 
-.events-hub-intro,
-.schools-hub-intro,
-.about-intro,
-.page-intro {
-  position: relative;
-  width: 100%;
-  max-width: none;
-  min-height: clamp(24rem, 42vw, 38rem);
-  display: flex;
-  flex-direction: column;
-  justify-content: end;
-  margin: 0;
-  overflow: hidden;
-  border: 0;
-  padding-inline: max(var(--page-gutter), calc((100% - var(--page-width)) / 2));
-  padding-block: clamp(4rem, 9vw, 8rem);
-  background: var(--color-red);
-  color: white;
-}
-
 .schools-hub-intro::before,
-.about-intro::before,
 .page-intro::before {
   position: absolute;
   inset: 0;
@@ -476,53 +446,26 @@ main {
   content: "";
   filter: grayscale(1) contrast(1.15);
   mix-blend-mode: multiply;
-  opacity: 0.38;
-}
-
-.page-intro {
-  min-height: clamp(18rem, 28vw, 26rem);
-  border-bottom: 0.25rem solid var(--color-ink);
-  background: var(--color-stone);
-  color: var(--color-ink);
+  opacity: 0.25;
 }
 
 .page-intro::before {
-  display: none;
-}
-
-.events-hub-intro::before {
-  position: absolute;
-  inset: 0;
-  background: var(--color-red);
-  content: "";
-  opacity: 0.35;
-}
-
-.events-hub-intro__image {
-  position: absolute;
-  inset: 0;
-  z-index: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  filter: grayscale(1) contrast(1.15);
-  mix-blend-mode: multiply;
-  opacity: 0.38;
-}
-
-.events-hub-intro__media {
-  position: absolute;
-  z-index: 0;
-  inset: 0;
+  background-image: url("../assets/home/homepage-hero.jpeg");
   display: block;
+}
+
+.schools-hub-intro::after,
+.about-intro::after,
+.members-intro::before {
+  display: none;
 }
 
 .events-hub-intro > :not(.events-hub-intro__media),
 .schools-hub-intro > *,
-.about-intro > *,
+.about-intro > :not(.about-intro__image),
 .page-intro > * {
   position: relative;
-  z-index: 1;
+  z-index: 2;
 }
 
 .events-hub-intro__kicker,
@@ -558,12 +501,12 @@ main {
 }
 
 .page-intro__kicker {
-  color: var(--color-red);
+  color: white;
 }
 
 .page-intro__description {
-  border-left-color: var(--color-red);
-  color: var(--color-ink);
+  border-left-color: white;
+  color: white;
 }
 
 .events-hub-section,
@@ -612,18 +555,75 @@ main {
 .schools-hub-list {
   display: grid;
   grid-template-columns: repeat(1, minmax(0, 1fr));
-  gap: 1rem;
+  gap: clamp(1.25rem, 3vw, 2rem);
   padding-block: clamp(3rem, 6vw, 5rem);
 }
 
 .schools-hub-item {
+  overflow: hidden;
   border: 0.125rem solid var(--color-ink);
   background: white;
 }
 
 .schools-hub-item__link {
-  min-height: 13rem;
-  padding: 1.5rem;
+  min-height: 22rem;
+  display: grid;
+  grid-template-rows: minmax(14rem, 20rem) auto;
+  padding: 0;
+  color: var(--color-ink);
+  text-decoration: none;
+}
+
+.schools-hub-item__image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  filter: grayscale(1) contrast(1.1);
+  transition: filter 180ms ease;
+}
+
+.schools-hub-item__body {
+  position: relative;
+  display: grid;
+  gap: 0.85rem;
+  padding: clamp(1.5rem, 3vw, 2.25rem);
+  background: white;
+}
+
+.schools-hub-item__body::before {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 3.5rem;
+  height: 0.3rem;
+  background: var(--color-red);
+  content: "";
+}
+
+.schools-hub-item__status {
+  width: fit-content;
+  margin: 0;
+  background: var(--color-ink);
+  color: white;
+}
+
+.schools-hub-item__summary {
+  min-height: 0;
+  color: var(--color-muted);
+  font-size: 0.95rem;
+}
+
+.schools-hub-item__action {
+  margin-top: 0.5rem;
+  color: var(--color-red);
+}
+
+.schools-hub-item__link:hover .schools-hub-item__image {
+  filter: grayscale(0) contrast(1);
+}
+
+.schools-hub-item__link:hover .schools-hub-item__body {
+  background: rgb(215 25 32 / 0.04);
 }
 
 .schools-hub-item__body strong {
@@ -773,7 +773,7 @@ main {
   background: white;
   filter: none;
   mix-blend-mode: normal;
-  opacity: 1;
+  opacity: 0.75;
 }
 
 .events-detail__content {
@@ -870,6 +870,16 @@ main {
   text-transform: uppercase;
 }
 
+.about-history__photo {
+  max-width: 32rem;
+  margin: clamp(2rem, 5vw, 4rem) 0 0;
+}
+
+.about-history__photo img {
+  width: 100%;
+  border: 0.125rem solid var(--color-ink);
+}
+
 .about-section--dark {
   max-width: none;
   padding-inline: max(var(--page-gutter), calc((100% - var(--page-width)) / 2));
@@ -893,38 +903,6 @@ main {
   padding-bottom: 0;
 }
 
-.members-intro {
-  position: relative;
-  width: 100%;
-  max-width: none;
-  min-height: clamp(28rem, 48vw, 42rem);
-  display: flex;
-  flex-direction: column;
-  justify-content: end;
-  margin: 0;
-  overflow: hidden;
-  border: 0;
-  padding-inline: max(var(--page-gutter), calc((100% - var(--page-width)) / 2));
-  padding-block: clamp(4rem, 9vw, 8rem);
-  background: white;
-}
-
-.members-intro__photo {
-  position: absolute;
-  inset: 0;
-  max-width: none;
-  margin: 0;
-}
-
-.members-intro__photo img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  filter: grayscale(1);
-  mix-blend-mode: multiply;
-  opacity: 0.18;
-}
-
 .members-intro__photo figcaption {
   position: absolute;
   right: 1rem;
@@ -935,7 +913,7 @@ main {
 .members-intro h1,
 .members-intro__description {
   position: relative;
-  z-index: 1;
+  z-index: 2;
 }
 
 .members-intro h1 {
@@ -1062,6 +1040,56 @@ main {
   }
 }
 
+/* Shared public-page hero: detail pages intentionally use their own heroes. */
+.page-hero {
+  position: relative;
+  isolation: isolate;
+  width: 100%;
+  max-width: none;
+  min-height: clamp(26rem, 44vw, 38rem);
+  display: flex;
+  align-items: center;
+  margin: 0;
+  overflow: hidden;
+  border-block: 0.25rem solid var(--color-ink);
+  padding-block: clamp(3.5rem, 7vw, 5.5rem);
+  background: rgb(215 25 32 / 0.75);
+  color: white;
+}
+
+.page-hero > :is(picture, figure, img) {
+  position: absolute;
+  z-index: 0;
+  inset: 0;
+  width: 100%;
+  max-width: none;
+  height: 100%;
+  display: block;
+  margin: 0;
+}
+
+.page-hero > :is(picture, figure) img,
+.page-hero > img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  filter: grayscale(1) contrast(1.15);
+  mix-blend-mode: multiply;
+  opacity: 0.25;
+}
+
+.page-hero__content {
+  position: relative;
+  z-index: 2;
+  color: white;
+}
+
+.page-hero__content h1,
+.page-hero__content .homepage-hero__title-region,
+.page-hero__content .members-intro__description {
+  color: inherit;
+}
+
 @media (min-width: 64rem) {
   .site-header__navigation,
   .site-header__language {
@@ -1173,10 +1201,11 @@ main {
 
 .schools-detail__hero {
   position: relative;
-  min-height: clamp(26rem, 46vw, 38rem);
+  min-height: clamp(20rem, 32vw, 28rem);
   display: grid;
   place-items: center;
   overflow: hidden;
+  border-block: 0.25rem solid var(--color-ink);
   background: var(--color-ink);
   color: white;
 }
@@ -1380,12 +1409,12 @@ main {
 
 .events-detail__hero {
   position: relative;
-  min-height: clamp(27rem, 46vw, 38rem);
+  min-height: clamp(20rem, 32vw, 28rem);
   display: grid;
   max-width: none;
   place-items: center;
   overflow: hidden;
-  border: 0;
+  border-block: 0.25rem solid var(--color-ink);
   background: var(--color-ink);
   color: white;
 }

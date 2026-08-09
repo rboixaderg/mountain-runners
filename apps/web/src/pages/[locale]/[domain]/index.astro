@@ -6,6 +6,7 @@ import hubHeroImageSmall from "../../../assets/members/socis-portada-hero.jpg";
 import EventCard from "../../../components/events/EventCard.astro";
 import SchoolHub from "../../../components/schools/SchoolHub.astro";
 import PublicLayout from "../../../layouts/PublicLayout.astro";
+import PageHero from "../../../components/PageHero.astro";
 import {
   getEventHubGroups,
   getMadridDate,
@@ -109,8 +110,8 @@ const hubDescription =
       <SchoolHub locale={locale} variants={schoolVariants} />
     ) : (
       <>
-        <section class="page-frame events-hub-intro">
-          <picture class="events-hub-intro__media">
+        <PageHero className="events-hub-intro">
+          <picture slot="media" class="events-hub-intro__media">
             <source media="(min-width: 48rem)" srcset={hubHeroImage.src} />
             <img
               class="events-hub-intro__image"
@@ -131,7 +132,7 @@ const hubDescription =
           <p class="events-hub-intro__description">
             {messages.events_intro({}, { locale })}
           </p>
-        </section>
+        </PageHero>
 
         {hubSections.map((section) => {
           const events = groups[section.group];

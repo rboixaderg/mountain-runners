@@ -2,9 +2,10 @@
 import { locales } from "../../../i18n.config.mjs";
 import * as messages from "../../paraglide/messages.js";
 import { assertIsLocale } from "../../paraglide/runtime.js";
-import homepageImage from "../../assets/members/socis-portada.jpg";
-import homepageImageSmall from "../../assets/members/socis-portada-hero.jpg";
+import homepageImage from "../../assets/home/homepage-hero.jpeg";
+import homepageImageSmall from "../../assets/home/homepage-hero-mobile.jpeg";
 import HomepageEventCard from "../../components/events/HomepageEventCard.astro";
+import PageHero from "../../components/PageHero.astro";
 import PublicLayout from "../../layouts/PublicLayout.astro";
 import { getHomepageEvents, getMadridDate } from "../../lib/content/events";
 import { getLocalImageSize, getResourceHref } from "../../lib/content/images";
@@ -80,8 +81,8 @@ export function getStaticPaths() {
   structuredData={structuredData}
   title={messages.homepage_hero_title({}, { locale })}
 >
-  <section class="homepage-hero">
-    <picture>
+  <PageHero className="homepage-hero" contentClassName="homepage-hero__grid">
+    <picture slot="media">
       <source media="(min-width: 48rem)" srcset={homepageImage.src} />
       <img
         class="homepage-hero__mountain"
@@ -93,30 +94,28 @@ export function getStaticPaths() {
         alt=""
       />
     </picture>
-    <div class="page-frame homepage-hero__grid">
-      <div class="homepage-hero__intro">
-        <h1>
-          <span class="homepage-hero__title-club"
-            >{messages.homepage_hero_title_club({}, { locale })}</span
-          >{" "}<span class="homepage-hero__title-region"
-            >{messages.homepage_hero_title_region({}, { locale })}</span
-          >
-        </h1>
-        <div
-          class="homepage-hero__copy"
-          set:html={renderRestrictedMarkdown(
-            messages.homepage_hero_description({}, { locale }),
-          )}
-        />
-        <div class="homepage-hero__actions">
-          <a class="homepage-hero__cta" href={eventsPath}>
-            {messages.homepage_hero_cta({}, { locale })}
-            <span aria-hidden="true">&rarr;</span>
-          </a>
-        </div>
+    <div class="homepage-hero__intro">
+      <h1>
+        <span class="homepage-hero__title-club"
+          >{messages.homepage_hero_title_club({}, { locale })}</span
+        >{" "}<span class="homepage-hero__title-region"
+          >{messages.homepage_hero_title_region({}, { locale })}</span
+        >
+      </h1>
+      <div
+        class="homepage-hero__copy"
+        set:html={renderRestrictedMarkdown(
+          messages.homepage_hero_description({}, { locale }),
+        )}
+      />
+      <div class="homepage-hero__actions">
+        <a class="homepage-hero__cta" href={eventsPath}>
+          {messages.homepage_hero_cta({}, { locale })}
+          <span aria-hidden="true">&rarr;</span>
+        </a>
       </div>
     </div>
-  </section>
+  </PageHero>
 
   <section class="page-frame homepage-section" aria-labelledby="events-title">
     <div class="homepage-section__header">
