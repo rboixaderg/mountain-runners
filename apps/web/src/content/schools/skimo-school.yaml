@@ -22,6 +22,9 @@ cover:
     path: src/assets/schools/escola-skimo.jpg
   alt:
     ca: Esquiador de muntanya en ascens durant una sessió de l'escola skimo
+coverCard:
+  kind: local
+  path: src/assets/schools/escola-skimo-card.jpg
 gallery:
   - resource:
       kind: local

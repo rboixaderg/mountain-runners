@@ -79,6 +79,9 @@ export const schoolSchema = z.strictObject({
   summary: localizedTextSchema,
   description: localizedMarkdownSchema,
   cover: imageSchema,
+  // Smaller derivative of the approved cover for cards: the full-resolution
+  // photograph stays on the detail hero, the card keeps the transfer small.
+  coverCard: imageResourceSchema.optional(),
   gallery: z.array(imageSchema).max(20),
   promotionalVideoUrl: httpsUrlSchema.optional(),
   registrationStatus: registrationStatusSchema,

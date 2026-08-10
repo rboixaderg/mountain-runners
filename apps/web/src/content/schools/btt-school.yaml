@@ -22,6 +22,9 @@ cover:
     path: src/assets/schools/escola-btt.jpg
   alt:
     ca: Infants i joves en una sortida de BTT per camins del Berguedà
+coverCard:
+  kind: local
+  path: src/assets/schools/escola-btt-card.jpg
 gallery:
   - resource:
       kind: local

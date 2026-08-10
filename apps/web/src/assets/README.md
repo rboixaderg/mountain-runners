@@ -4,6 +4,11 @@
 Mountain Runners del Berguedà. Una persona mantenidora del projecte el va
 proporcionar i aprovar per a la publicació el 19 de juliol de 2026.
 
+`logo-160.png` és una derivació a 160 píxels d'amplada del logotip per a la
+capçalera del lloc, amb la mateixa procedència i autorització. La derivació
+redueix el transfer del logotip de capçalera de 66 KiB a 13 KiB; el fitxer
+original es reserva per al contingut de domini (portades d'esdeveniments).
+
 `junta-directiva.jpg` és la fotografia de la junta directiva publicada a la
 pàgina actual de l'associació (`mountainrunners.cat/el-club/`). La persona
 mantenidora la va confirmar com a correcta i apta per a publicació el 6
@@ -40,6 +45,13 @@ segona és una derivació optimitzada per a pantalles petites. Les fotografies
 conserven els drets d'imatge corresponents i no queden cobertes per la llicència
 MIT del programari.
 
+`home/homepage-hero.avif` i `home/homepage-hero-mobile.avif` són derivacions
+codificades en AVIF dels JPEG anteriors, amb la mateixa procedència i
+autorització. Són les imatges que es carreguen als herois de càrrega
+prioritària; la codificació redueix el transfer de la imatge hero un 62 %. Els
+JPEG es conserven com a còpies mestres de la fotografia aprovada, de les quals
+es poden tornar a derivar imatges si el paisatge de formats canvia.
+
 `about/about-hero.jpg` i `about/about-history.jpg` provenen respectivament de
 les fotografies publicades a la web actual de l'associació
 (`https://mountainrunners.cat/wp-content/uploads/2021/06/DSC_0071-scaled.jpg` i
@@ -68,6 +80,11 @@ publicada a la web actual
 Es carrega al hero del hub en pantalles petites. Conserva els drets d'imatge
 corresponents i no queda coberta per la llicència MIT del programari.
 
+`schools/escola-*-card.jpg` són derivacions a 640 píxels de les portades
+d'escola anteriors, amb la mateixa procedència i autorització. Es serveixen a
+les targetes de la portada i del hub d'escoles per mantenir el transfer petit;
+les fotografies originals es reserven per a l'hero del detall d'escola.
+
 Els fitxers de `schools/gallery/` són fotografies de les pàgines de detall
 de cada escola publicades a la web actual de l'associació
 (`mountainrunners.cat/escola-trail/`, `mountainrunners.cat/escola-skimo/` i
@@ -80,3 +97,7 @@ per la llicència MIT del programari.
 El logotip, la fotografia, les fotografies i els logotips de col·laboradors
 són recursos de marca i d'imatge de l'associació i de les entitats. Qualsevol
 reutilització fora d'aquest projecte requereix autorització de l'associació.
+
+`favicon-32.png` és una derivació a 32×32 píxels de `logo_mountain_runners.png`
+per a la icona del lloc, amb la mateixa procedència i autorització. La
+derivació redueix el transfer de la icona de 66 KiB a 1,3 KiB.

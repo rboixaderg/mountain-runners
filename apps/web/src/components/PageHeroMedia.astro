@@ -10,6 +10,8 @@ interface Props {
   loading?: "eager" | "lazy";
 }
 
+const largeViewportQuery = "(min-width: 48rem)";
+
 const {
   className,
   fetchpriority,
@@ -24,7 +26,7 @@ const usesResponsiveSource = imageLarge.src !== image.src;
 <picture slot="media" class:list={["page-hero__media", className]}>
   {
     usesResponsiveSource && (
-      <source media="(min-width: 48rem)" srcset={imageLarge.src} />
+      <source media={largeViewportQuery} srcset={imageLarge.src} />
     )
   }
   <img

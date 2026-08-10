@@ -23,6 +23,9 @@ cover:
     path: src/assets/schools/escola-trail.jpg
   alt:
     ca: Participants de l'escola de trail en una sessió a l'entorn de Berga
+coverCard:
+  kind: local
+  path: src/assets/schools/escola-trail-card.jpg
 gallery:
   - resource:
       kind: local

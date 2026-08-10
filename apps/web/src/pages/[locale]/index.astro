@@ -2,8 +2,8 @@
 import { locales } from "../../../i18n.config.mjs";
 import * as messages from "../../paraglide/messages.js";
 import { assertIsLocale } from "../../paraglide/runtime.js";
-import homepageImage from "../../assets/home/homepage-hero.jpeg";
-import homepageImageSmall from "../../assets/home/homepage-hero-mobile.jpeg";
+import homepageImageAvif from "../../assets/home/homepage-hero.avif";
+import homepageImageSmallAvif from "../../assets/home/homepage-hero-mobile.avif";
 import HomepageEventCard from "../../components/events/HomepageEventCard.astro";
 import PageHero from "../../components/PageHero.astro";
 import PageHeroMedia from "../../components/PageHeroMedia.astro";
@@ -49,7 +49,7 @@ const events = getHomepageEvents(
 const schools = getOrderedSchoolVariants(schoolVariants);
 const schoolCards = await Promise.all(
   schools.map(async (variant) => {
-    const resource = variant.entry.cover.resource;
+    const resource = variant.entry.coverCard ?? variant.entry.cover.resource;
     return {
       variant,
       coverHref: getResourceHref(resource),
@@ -91,9 +91,9 @@ export function getStaticPaths() {
     <PageHeroMedia
       slot="media"
       fetchpriority="high"
-      image={homepageImageSmall}
+      image={homepageImageSmallAvif}
       imageClassName="homepage-hero__mountain"
-      imageLarge={homepageImage}
+      imageLarge={homepageImageAvif}
       loading="eager"
     />
     <div

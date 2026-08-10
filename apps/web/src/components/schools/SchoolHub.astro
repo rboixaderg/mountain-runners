@@ -18,7 +18,7 @@ interface Props {
 const { locale, variants } = Astro.props;
 const schoolsWithCovers = await Promise.all(
   variants.map(async (variant) => {
-    const resource = variant.entry.cover.resource;
+    const resource = variant.entry.coverCard ?? variant.entry.cover.resource;
     return {
       coverHref: getResourceHref(resource),
       coverSize:
