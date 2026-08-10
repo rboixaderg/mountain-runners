@@ -9,28 +9,30 @@ substitueix la revisió editorial T4.3 o les traduccions T4.5.
 ## Fonts I Criteris
 
 - `DESIGN.md` continua sent la font de veritat de la direcció visual.
-- Les sis pantalles Stitch visibles i aprovades de
-  [`docs/design-references.md`](../design-references.md) s'han utilitzat com a
-  referència de composició.
+- Les sis pantalles Stitch aprovades i llavors vigents a
+  [`docs/design-references.md`](../design-references.md) es van utilitzar com a
+  referència de composició. Aquest document ja no és una referència activa: el
+  disseny s'itera sobre la implementació actual i `DESIGN.md`.
 - La portada fixa la jerarquia del menú, el prepeu i el peu compartits. El menú
-  manté les àrees Qui som, Escoles, Esdeveniments, Socis i Contacte, amb la
-  portada i la crida a Socis resoltes mitjançant el logotip i l'acció destacada.
+  manté les àrees Qui som, Escoles, Esdeveniments i Socis, amb la portada i la
+  crida a Socis resoltes mitjançant el logotip i l'acció destacada; les dades
+  de contacte viuen al prepeu compartit.
 - No s'ha modificat `DESIGN.md`: les correccions concreten la direcció ja
   aprovada i no introdueixen un sistema visual paral·lel.
 
 ## Matriu De Cobertura Visual
 
-| Àrea                  | Ruta representativa              | Referència Stitch                   | Escriptori | Mòbil    | Resultat                                                                      |
-| --------------------- | -------------------------------- | ----------------------------------- | ---------- | -------- | ----------------------------------------------------------------------------- |
-| Portada               | `/ca/`                           | Inici — Updated Footer              | Revisada   | Revisada | Shell vermell, transició negra, agenda, blocs de territori i prepeu compartit |
-| Hub d'esdeveniments   | `/ca/esdeveniments/`             | Esdeveniments — Hero Unificat       | Revisada   | Revisada | Hero unificat, files d'agenda i estats visibles                               |
-| Detall d'esdeveniment | `/ca/esdeveniments/berga-trail/` | Detall d'esdeveniment — Berga Trail | Revisada   | Revisada | Hero, badge de relació, informació pràctica i acció                           |
-| Qui som               | `/ca/qui-som/`                   | Qui som — Hero Unificat             | Revisada   | Revisada | Hero, missatge amb fotografia, junta, història i estatuts                     |
-| Socis                 | `/ca/socis/`                     | Socis — Red Kit Energy              | Revisada   | Revisada | Hero lleuger, accions, bloc fosc d'avantatges i directori                     |
-| Hub d'escoles         | `/ca/escoles/`                   | Adaptació del sistema aprovat       | Revisada   | Revisada | Hero compartit i graella de programes                                         |
-| Detall d'escola       | `/ca/escoles/escola-trail/`      | Detall d'Escola — Trail             | Revisada   | Revisada | Hero d'imatge, informació pràctica, galeria/absència i inscripció             |
-| Pàgines fixes         | Documents, Contacte i legals     | Sistema compartit                   | Revisada   | Revisada | Intro editorial, seccions i shell coherent                                    |
-| 404                   | `/404.html`                      | Sistema compartit                   | Revisada   | Revisada | Document útil, sense enllaços falsos                                          |
+| Àrea                  | Ruta representativa              | Referència Stitch                   | Escriptori | Mòbil    | Resultat                                                                        |
+| --------------------- | -------------------------------- | ----------------------------------- | ---------- | -------- | ------------------------------------------------------------------------------- |
+| Portada               | `/ca/`                           | Inici — Updated Footer              | Revisada   | Revisada | Shell vermell, transició negra, agenda, blocs de territori i prepeu compartit   |
+| Hub d'esdeveniments   | `/ca/esdeveniments/`             | Esdeveniments — Hero Unificat       | Revisada   | Revisada | Hero unificat, calendari mensual amb popovers, llista activa i taula d'històric |
+| Detall d'esdeveniment | `/ca/esdeveniments/berga-trail/` | Detall d'esdeveniment — Berga Trail | Revisada   | Revisada | Hero, badge de relació, informació pràctica i acció                             |
+| Qui som               | `/ca/qui-som/`                   | Qui som — Hero Unificat             | Revisada   | Revisada | Hero, missatge amb fotografia, junta completa, història i estatuts              |
+| Socis                 | `/ca/socis/`                     | Socis — Red Kit Energy              | Revisada   | Revisada | Hero lleuger, accions, bloc fosc d'avantatges i directori                       |
+| Hub d'escoles         | `/ca/escoles/`                   | Adaptació del sistema aprovat       | Revisada   | Revisada | Hero compartit i graella de programes amb fotografia real                       |
+| Detall d'escola       | `/ca/escoles/escola-trail/`      | Detall d'Escola — Trail             | Revisada   | Revisada | Hero d'imatge, informació pràctica, galeria/absència i inscripció               |
+| Pàgines fixes         | Documents i legals               | Sistema compartit                   | Revisada   | Revisada | Intro editorial, seccions i shell coherent                                      |
+| 404                   | `/404.html`                      | Sistema compartit                   | Revisada   | Revisada | Document útil, sense enllaços falsos                                            |
 
 La revisió s'ha fet amb Playwright a `320×720`, `390×844`, `768×900`,
 `1280×720` i `1440×900`. S'han recorregut individualment totes les rutes
@@ -44,7 +46,8 @@ publicades a 320 i 390 píxels i no s'hi ha detectat overflow horitzontal.
   de 44 píxels amb indicador d'obertura, enllaços amb estat actiu i navegació
   completa amb teclat sense sortir del viewport.
 - S'ha creat el prepeu compartit amb contacte i butlletí, respectant l'estat de
-  disponibilitat de l'acció externa i sense inventar cap formulari.
+  disponibilitat de l'acció externa: quan el butlletí no està disponible es
+  mostra una previsualització desactivada, mai un formulari que reculli dades.
 - S'ha refet el peu com a bloc fosc de marca amb navegació, contacte i enllaços
   legals reals.
 - S'han apropat els herois, separadors, files d'agenda, blocs pràctics, CTA,
@@ -59,21 +62,52 @@ publicades a 320 i 390 píxels i no s'hi ha detectat overflow horitzontal.
   first: `global.css` conserva només els tokens i fonaments globals, les
   utilitats viuen al markup al costat de les classes BEM/E2E estables i el CSS
   específic queda en fulls cohesionats importats pel component o la plantilla
-  que n'és propietària. `phase4-design.css` s'ha eliminat; els 3.800 rengles
-  inicials han quedat en 2.207 rengles de CSS font, amb 123 a `global.css` i 298
-  al full específic més llarg.
+  que n'és propietària. `phase4-design.css` s'ha eliminat; els ~3.800 rengles
+  inicials han quedat en 2.207 rengles de CSS font, amb 123 a `global.css` i 668
+  al full específic més llarg (`school-detail-preview.css`).
 - S'han retirat els selectors morts sense cap classe corresponent al codi font:
-  `about-board__photo`, `editorial-grid`, `event-date`, `event-meta`,
-  `event-status`, `events-detail__modalities-label`,
-  `events-detail__registration-label`, `events-detail__state`,
-  `schools-detail__back-link` i `schools-detail__intro-grid`.
+  `editorial-grid`, `event-date`, `event-meta`, `event-status`,
+  `events-detail__modalities-label`, `events-detail__registration-label`,
+  `events-detail__state`, `schools-detail__back-link` i
+  `schools-detail__intro-grid`. (`about-board__photo` es manté viu: es va
+  reubicar de `global.css` a `about.css` i es va reestilitzar.)
 - També s'han eliminat pseudo-elements anul·lats amb `display: none`, propietats
   de graella aplicades a elements `display: block`, tokens sense consumidors i
   colors de vores laterals amb amplada zero.
 - S'ha afegit una derivació optimitzada de la fotografia aprovada per als herois
   de càrrega prioritària, documentada a `apps/web/src/assets/README.md`.
-- S'ha mantingut el contingut editorial existent, les rutes, els estats de
-  disponibilitat i els selectors E2E.
+- S'ha retirat la pàgina de contacte: les seves dades passen al prepeu compartit
+  i no queda cap enllaç a la ruta retirada (menú, peu, sitemap, proves i pàgina
+  404). La resta de rutes publicades, el contingut editorial existent i els
+  estats de disponibilitat es mantenen; els selectors E2E s'han actualitzat allà
+  on el redisseny ho requeria i les noves estructures tenen selectors estables
+  propis.
+
+## Confirmacions De La Persona Mantenidora
+
+El 10 d'agost de 2026 la persona mantenidora va confirmar que tot el que
+aquesta entrega afegeix o modifica és consentit i controlat:
+
+- **Junta directiva**: consentiment de publicació de noms, cognoms i rols de
+  la junta completa (Albert Penyaranda Riu, Joel Brià Cabestany i David Torres
+  Altarriba, amb Ernest Garrido a la presidència); cap dada de contacte. Es
+  registra també a `docs/phase-3-editorial-inventory.md`.
+- **Contingut i rutes noves**: l'esdeveniment `anella-verda` (ruta i imatge
+  pròpies), el contingut afegit o corregit a esdeveniments, escoles i entitats,
+  i les extensions del model (`summary` a esdeveniments, `coverCard` i
+  `requirements` a escoles) són decisions volgudes d'aquesta fase, no peticions
+  fora de l'abast.
+- **Recursos externs**: els vídeos incrustats de YouTube (Socis i escoles,
+  domini `youtube-nocookie`) i l'enllaç d'Instagram del peu
+  (`instagram.com/infomountain`) són aprovats i es consideren part del disseny
+  de la T4.4.
+- **Prepeu**: el bloc de butlletí mostra una previsualització desactivada
+  (input i botó `disabled`, sense recollida ni enviament de dades) quan l'acció
+  externa `newsletter` no està disponible; no és un formulari.
+
+Aquestes confirmacions resolen les discrepàncies pendents de consentiment o
+procedència que la revisió editorial (T4.3) hagués d'haver registrat abans de
+tancar la fase.
 
 ## Segona Passada Sobre La Portada
 
@@ -98,15 +132,17 @@ mantenidora:
 
 ## Verificació Executada
 
-- `pnpm check`: passat — 252 tests unitaris, typecheck i lint sense errors.
+- `pnpm check`: passat — 213 casos `it`/`test` directes i 11 taules
+  parametritzades (`it.each`), typecheck i lint sense errors.
 - `pnpm test:e2e`: passat — 122 proves, 4 omeses pels navegadors no coberts per
   l'escenari axe.
 - `pnpm test:a11y`: passat — comprovacions axe de Chromium en escriptori i
   mòbil.
-- `pnpm lighthouse`: passat — puntuacions de rendiment, accessibilitat, bones
-  pràctiques i SEO dins dels llindars i pressupostos configurats; rendiment 98,
-  98 i 99 a portada, hub i detall representatius, i 100 a la resta de
-  categories.
+- `pnpm lighthouse`: executat — puntuacions de rendiment, accessibilitat, bones
+  pràctiques i SEO dins dels llindars i pressupostos configurats en una
+  execució; rendiment 98, 98 i 99 a portada, hub i detall representatius, i 100
+  a la resta de categories. La repetició local és més lenta (vegeu la nota de
+  LCP més avall).
 - Revisió responsive manual: totes les rutes publicades revisades a 320 i 390
   píxels; shell i rutes representatives comprovats també a 768, 1280 i 1440
   píxels.
@@ -115,8 +151,8 @@ mantenidora:
   viewport comprovats a 320, 390 i 768 píxels. En orientació horitzontal
   (`568×320`), el panell limita l'alçada i desplaça internament l'enllaç que rep
   el focus.
-- Refactor d'estils: `pnpm format`, `pnpm check` (252 tests) i el build
-  determinista amb `PUBLIC_SITE_ORIGIN=https://mountainrunners.cat` i
+- Refactor d'estils: `pnpm format`, `pnpm check` (213 casos directes i 11 taules
+  `it.each`) i el build determinista amb `PUBLIC_SITE_ORIGIN=https://mountainrunners.cat` i
   `BUILD_TODAY=2026-08-04` passats. S'han comparat captures de pantalla completa
   de la base `08df668` i del refactor amb Playwright 1.61.1/Chromium, després de
   `networkidle` i `document.fonts.ready`, amb les animacions desactivades. Les 13

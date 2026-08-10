@@ -52,7 +52,10 @@ Les accions externes tenen un identificador estable fix (per exemple
 reutilitzen. Una acció `available` requereix una URL HTTPS traduïble; una acció
 no disponible (`coming-soon`, `temporarily-unavailable` o `unavailable`) no
 porta URL i s'explica amb text útil, mai amb un control desactivat ni un enllaç
-buit.
+buit. L'única excepció aprovada és el bloc de butlletí del prepeu: quan l'acció
+`newsletter` no està disponible, mostra una previsualització desactivada
+(input i botó `disabled`, sense recollida ni enviament de dades) en lloc d'un
+formulari actiu.
 
 Els esdeveniments necessiten un estat de visibilitat editorial i una indicació
 separada de si continuen actius. Les edicions pertanyen al seu esdeveniment pare
@@ -116,11 +119,14 @@ recursos locals entren a la sortida pública. Un document publicat però no
 disponible (`temporarily-unavailable` o `archived`) s'explica amb text útil i
 no genera cap enllaç ni recurs a `dist/`.
 
-Les pàgines fixes de Contacte i les legals (avís legal, privacitat i cookies)
-resolen les dades institucionals (CIF, seu, correu i telèfons) des de la
-col·lecció `contact`, i el butlletí des de l'acció externa `newsletter`. Si una
-dada no està aprovada, la secció corresponent s'omet o mostra la
-indisponibilitat; mai no es simula un formulari ni una subscripció activa.
+Les pàgines fixes i legals (avís legal, privacitat i cookies) resolen les dades
+institucionals (CIF, seu, correu i telèfons) des de la col·lecció `contact`, i
+el butlletí des de l'acció externa `newsletter`. Si una dada no està aprovada,
+la secció corresponent s'omet o mostra la indisponibilitat; mai no es simula un
+formulari ni una subscripció activa. El prepeu compartit (que reuneix les dades
+de contacte abans disperses a la pàgina de contacte, retirada a la T4.4)
+segueix aquest contracte: el butlletí no disponible es mostra com a
+previsualització desactivada, mai com un formulari que recull o envia dades.
 
 Una variant editorial publicable no habilita automàticament una fitxa pública.
 Els tipus de detall disponibles es defineixen centralment en codi segons les
