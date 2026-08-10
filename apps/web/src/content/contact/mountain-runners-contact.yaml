@@ -6,6 +6,10 @@ phones:
   - tel:+34691910774
 address:
   ca: Plaça Sant Joan, 15 baixos, 08600 Berga
+  es: Plaça Sant Joan, 15 bajos, 08600 Berga
+  en: Plaça Sant Joan, 15 ground floor, 08600 Berga
 hours:
   ca: De dilluns a divendres, de 18 h a 20 h
+  es: De lunes a viernes, de 18:00 a 20:00
+  en: Monday to Friday, from 6:00 pm to 8:00 pm
 cif: G63999817

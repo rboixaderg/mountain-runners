@@ -1,0 +1,28 @@
+---
+import "../styles/page-hero.css";
+
+interface Props {
+  className?: string;
+  contentClassName?: string;
+}
+
+const { className, contentClassName } = Astro.props;
+---
+
+<section
+  class:list={[
+    "page-hero border-ink relative isolate m-0 flex min-h-[clamp(26rem,44vw,38rem)] w-full max-w-none items-center overflow-hidden border-y-[0.25rem] py-[clamp(3.5rem,7vw,5.5rem)]",
+    className,
+  ]}
+>
+  <slot name="media" />
+  <div
+    class:list={[
+      "page-frame",
+      "page-hero__content relative z-[2]",
+      contentClassName,
+    ]}
+  >
+    <slot />
+  </div>
+</section>

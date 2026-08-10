@@ -1,0 +1,61 @@
+---
+import * as messages from "../../paraglide/messages.js";
+import { getLocalImageSize, getResourceHref } from "../../lib/content/images";
+import { renderRestrictedMarkdown } from "../../lib/content/markdown";
+import type { Event } from "../../lib/content/models";
+import type { Locale } from "../../lib/content/primitives";
+
+interface Props {
+  event: Event;
+  locale: Locale;
+}
+
+const { event, locale } = Astro.props;
+const description = event.description[locale];
+const coverHref = getResourceHref(event.cover.resource);
+const coverSize =
+  event.cover.resource.kind === "local"
+    ? await getLocalImageSize(event.cover.resource.path)
+    : undefined;
+---
+
+{
+  description !== undefined && description.trim().length > 0 && (
+    <section
+      class="page-frame events-detail__description"
+      aria-labelledby="event-description-title"
+    >
+      <div class="events-detail__description-copy">
+        <h2
+          id="event-description-title"
+          class="events-detail__description-title"
+        >
+          {messages.event_description_title({}, { locale })}
+        </h2>
+        <div
+          class="events-detail__description-body"
+          set:html={renderRestrictedMarkdown(description)}
+        />
+      </div>
+      {coverHref && (
+        <figure class="events-detail__description-media">
+          <div
+            class="events-detail__description-media-accent"
+            aria-hidden="true"
+          />
+          <div class="events-detail__description-media-frame">
+            <img
+              src={coverHref}
+              alt={event.cover.alt[locale]!}
+              loading="lazy"
+              decoding="async"
+              {...(coverSize === undefined
+                ? {}
+                : { width: coverSize.width, height: coverSize.height })}
+            />
+          </div>
+        </figure>
+      )}
+    </section>
+  )
+}

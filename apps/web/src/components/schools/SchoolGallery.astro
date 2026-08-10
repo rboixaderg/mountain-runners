@@ -22,42 +22,43 @@ const galleryImages = await Promise.all(
 );
 ---
 
-<section
-  class="schools-detail__section schools-detail__gallery"
-  aria-labelledby="school-gallery-title"
->
-  <div class="schools-detail__section-heading">
-    <span class="schools-detail__section-marker" aria-hidden="true"></span>
-    <h2 id="school-gallery-title">
-      {messages.school_gallery_title({}, { locale })}
-    </h2>
-  </div>
-  {
-    galleryImages.length > 0 ? (
-      <ul class="schools-detail__gallery-list">
-        {galleryImages.map(({ image, href, size }) => (
-          <li>
-            <figure>
-              <img
-                src={href}
-                alt={image.alt[locale]}
-                loading="lazy"
-                decoding="async"
-                {...(size === undefined
-                  ? {}
-                  : { width: size.width, height: size.height })}
-              />
-              {image.attribution?.[locale] && (
-                <figcaption>{image.attribution[locale]}</figcaption>
-              )}
-            </figure>
-          </li>
-        ))}
-      </ul>
-    ) : (
-      <p class="schools-detail__availability">
-        {messages.school_gallery_unavailable({}, { locale })}
-      </p>
-    )
-  }
-</section>
+{
+  galleryImages.length > 0 && (
+    <section
+      class="schools-detail-preview__gallery"
+      aria-labelledby="school-gallery-title"
+    >
+      <div class="page-frame">
+        <div class="schools-detail-preview__gallery-heading">
+          <span
+            class="schools-detail-preview__gallery-marker"
+            aria-hidden="true"
+          />
+          <h2 id="school-gallery-title">
+            {messages.school_gallery_title({}, { locale })}
+          </h2>
+        </div>
+        <ul class="schools-detail-preview__gallery-list">
+          {galleryImages.map(({ image, href, size }) => (
+            <li class="schools-detail-preview__gallery-item">
+              <figure>
+                <img
+                  src={href}
+                  alt={image.alt[locale]}
+                  loading="lazy"
+                  decoding="async"
+                  {...(size === undefined
+                    ? {}
+                    : { width: size.width, height: size.height })}
+                />
+                {image.attribution?.[locale] && (
+                  <figcaption>{image.attribution[locale]}</figcaption>
+                )}
+              </figure>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </section>
+  )
+}

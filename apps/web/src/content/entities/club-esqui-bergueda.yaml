@@ -1,0 +1,20 @@
+id: club-esqui-bergueda
+published: true
+name:
+  ca: Club Esquí Berguedà
+  es: Club Esquí Berguedà
+  en: Club Esquí Berguedà
+logo:
+  resource:
+    kind: local
+    path: src/assets/entities/club-esqui-bergueda.png
+  alt:
+    ca: Logotip del Club Esquí Berguedà
+    es: Logotipo del Club Esquí Berguedà
+    en: Club Esquí Berguedà logo
+  sourceUrl: https://escaladesbergueda.cat/logo192.png
+description:
+  ca: Entitat esportiva del Berguedà. Coorganitza la Lliga d'escalades del Berguedà amb Mountain Runners del Berguedà.
+  es: Entidad deportiva del Berguedà. Coorganiza la Liga de escaladas del Berguedà con Mountain Runners del Berguedà.
+  en: Sports organisation from Berguedà. It co-organises the Berguedà Climb League with Mountain Runners del Berguedà.
+websiteUrl: https://www.clubesquibergueda.cat

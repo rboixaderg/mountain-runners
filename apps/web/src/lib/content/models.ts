@@ -79,6 +79,9 @@ export const schoolSchema = z.strictObject({
   summary: localizedTextSchema,
   description: localizedMarkdownSchema,
   cover: imageSchema,
+  // Smaller derivative of the approved cover for cards: the full-resolution
+  // photograph stays on the detail hero, the card keeps the transfer small.
+  coverCard: imageResourceSchema.optional(),
   gallery: z.array(imageSchema).max(20),
   promotionalVideoUrl: httpsUrlSchema.optional(),
   registrationStatus: registrationStatusSchema,
@@ -89,6 +92,7 @@ export const schoolSchema = z.strictObject({
     audience: localizedMarkdownSchema,
     schedule: localizedMarkdownSchema,
     location: localizedMarkdownSchema,
+    requirements: localizedMarkdownSchema.optional(),
     prices: localizedMarkdownSchema,
   }),
 });
@@ -114,6 +118,7 @@ export const eventSchema = z
     ...publishableFields,
     active: z.boolean(),
     title: localizedTextSchema,
+    summary: localizedTextSchema,
     description: localizedMarkdownSchema,
     clubRelationship: z.enum(["organizes", "collaborates"]),
     cover: imageSchema,

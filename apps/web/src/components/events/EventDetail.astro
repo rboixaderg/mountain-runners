@@ -6,7 +6,6 @@ import {
   getRegistrationUrl,
 } from "../../lib/content/events";
 import { getLocalImageSize, getResourceHref } from "../../lib/content/images";
-import { renderRestrictedMarkdown } from "../../lib/content/markdown";
 import type { Locale } from "../../lib/content/primitives";
 import type {
   PublishedVariant,
@@ -16,12 +15,14 @@ import {
   getEventActivityMessageKey,
   getRegistrationPresentation,
 } from "../../lib/presentation/status";
+import EventDescription from "./EventDescription.astro";
 import EventEntities from "./EventEntities.astro";
 import EventHistory from "./EventHistory.astro";
 import EventPracticalInfo from "./EventPracticalInfo.astro";
-import EventResources from "./EventResources.astro";
+import EventRegistrationPanel from "./EventRegistrationPanel.astro";
+import DetailHero from "../DetailHero.astro";
 import EventStatus from "../EventStatus.astro";
-import ExternalLink from "../ExternalLink.astro";
+import "../../styles/event-detail.css";
 
 interface Props {
   catalog: PublicationCatalog;
@@ -42,7 +43,6 @@ const registration = getRegistrationPresentation(
   featuredEdition?.registrationStatus,
   registrationUrl,
 );
-const registrationLabel = messages[registration.key]({}, { locale });
 const informationUrl = event.informationUrl?.[locale];
 const coverHref = getResourceHref(event.cover.resource);
 const coverSize =
@@ -60,67 +60,46 @@ const editionDocuments =
   })) ?? [];
 ---
 
-<article class="events-detail">
+<article class="events-detail pb-0">
   {
     coverHref && (
-      <figure class="events-detail__hero">
-        <img
-          src={coverHref}
-          alt={event.cover.alt[locale]}
-          {...(coverSize === undefined
-            ? {}
-            : { width: coverSize.width, height: coverSize.height })}
+      <DetailHero
+        coverAlt={event.cover.alt[locale]!}
+        coverAttribution={event.cover.attribution?.[locale]}
+        coverHeight={coverSize?.height}
+        coverHref={coverHref}
+        coverWidth={coverSize?.width}
+        kicker={
+          event.clubRelationship === "organizes"
+            ? messages.event_club_badge_organizes({}, { locale })
+            : messages.event_club_badge_collaborates({}, { locale })
+        }
+        title={event.title[locale]!}
+      >
+        <EventStatus
+          slot="meta"
+          className="detail-hero__meta"
+          locale={locale}
+          statusKey={getEventActivityMessageKey(event.active)}
         />
-        {event.cover.attribution?.[locale] && (
-          <figcaption>{event.cover.attribution[locale]}</figcaption>
-        )}
-      </figure>
+      </DetailHero>
     )
   }
+  <EventPracticalInfo
+    edition={featuredEdition}
+    event={event}
+    locale={locale}
+    today={today}
+  />
+  <EventDescription event={event} locale={locale} />
+  <EventRegistrationPanel
+    documents={editionDocuments}
+    edition={featuredEdition}
+    informationUrl={informationUrl}
+    locale={locale}
+    registration={registration}
+  />
   <div class="page-frame events-detail__content">
-    <p class="events-detail__badge">
-      {
-        event.clubRelationship === "organizes"
-          ? messages.event_club_badge_organizes({}, { locale })
-          : messages.event_club_badge_collaborates({}, { locale })
-      }
-    </p>
-    <h1 class="events-detail__title">{event.title[locale]}</h1>
-    <div class="events-detail__state">
-      <span class="events-detail__registration-label">
-        {registrationLabel}
-      </span>
-      <EventStatus
-        className="events-detail__editorial-status"
-        locale={locale}
-        statusKey={getEventActivityMessageKey(event.active)}
-      />
-    </div>
-    <section
-      class="events-detail__description"
-      set:html={renderRestrictedMarkdown(event.description[locale]!)}
-    />
-    {
-      informationUrl && (
-        <ExternalLink
-          className="events-detail__info-link"
-          href={informationUrl}
-          label={messages.event_more_information({}, { locale })}
-        />
-      )
-    }
-    <EventPracticalInfo
-      edition={featuredEdition}
-      event={event}
-      locale={locale}
-      registration={registration}
-      today={today}
-    />
-    <EventResources
-      documents={editionDocuments}
-      edition={featuredEdition}
-      locale={locale}
-    />
     <EventHistory editions={previousEditions} locale={locale} />
     <EventEntities entities={relatedEntities} locale={locale} />
   </div>

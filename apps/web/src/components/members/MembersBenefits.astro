@@ -1,0 +1,47 @@
+---
+import * as messages from "../../paraglide/messages.js";
+import socisServeis from "../../assets/members/socis-serveis.jpg";
+import type { Locale } from "../../lib/content/primitives";
+
+interface Props {
+  locale: Locale;
+}
+
+const { locale } = Astro.props;
+---
+
+<section class="members-benefits" aria-labelledby="members-benefits-title">
+  <div class="page-frame members-benefits__inner">
+    <div class="members-section__heading">
+      <span class="members-section__marker" aria-hidden="true"></span>
+      <h2 class="members-section__title" id="members-benefits-title">
+        {messages.members_benefits_title({}, { locale })}
+      </h2>
+    </div>
+
+    <div class="members-benefits__layout">
+      <div class="members-benefits__copy">
+        <p class="members-benefits__intro">
+          {messages.members_benefits_intro({}, { locale })}
+        </p>
+        <a
+          class="members-benefits__collaborators-link"
+          href="#members-collaborators-title"
+        >
+          {messages.members_benefits_collaborators_link({}, { locale })}
+        </a>
+      </div>
+
+      <figure class="members-benefits__photo">
+        <img
+          src={socisServeis.src}
+          width={socisServeis.width}
+          height={socisServeis.height}
+          alt={messages.members_benefits_photo_alt({}, { locale })}
+          loading="lazy"
+          decoding="async"
+        />
+      </figure>
+    </div>
+  </div>
+</section>

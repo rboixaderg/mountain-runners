@@ -1,4 +1,6 @@
 ---
+import homepageHero from "../../assets/home/homepage-hero.jpeg";
+import homepageHeroSmall from "../../assets/home/homepage-hero-mobile.jpeg";
 import * as messages from "../../paraglide/messages.js";
 import { renderRestrictedMarkdown } from "../../lib/content/markdown";
 import type { PublicationCatalog } from "../../lib/content/publication";
@@ -60,11 +62,13 @@ const { catalog, locale } = Astro.props;
 const contact = catalog.contact;
 ---
 
-<article class="page-detail">
+<article class="page-detail pb-0">
   <PageIntro
+    description={messages.legal_privacy_description({}, { locale })}
+    heroImage={homepageHeroSmall}
+    heroImageLarge={homepageHero}
     kicker={messages.site_title({}, { locale })}
     title={messages.legal_privacy_title({}, { locale })}
-    description={messages.legal_privacy_description({}, { locale })}
   />
   <PageSection
     id="legal-privacy-responsible"

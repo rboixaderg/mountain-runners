@@ -13,10 +13,11 @@ interface Props {
 const { catalog, locale } = Astro.props;
 const statutesDocument = catalog.documents.get(statutesDocumentId);
 const statutesHref = getDocumentHref(statutesDocument);
+const statutesTitle = statutesDocument?.title[locale];
 ---
 
 <section
-  class="page-frame about-section"
+  class="page-frame about-section about-section--statutes"
   aria-labelledby="about-statutes-title"
 >
   <div class="about-section__heading">
@@ -25,11 +26,17 @@ const statutesHref = getDocumentHref(statutesDocument);
       {messages.about_statutes_title({}, { locale })}
     </h2>
   </div>
+
   {
-    statutesHref && statutesDocument ? (
-      <p class="about-section__body">
-        <a href={statutesHref}>{statutesDocument.title[locale]}</a>
-      </p>
+    statutesHref && statutesDocument && statutesTitle ? (
+      <div class="about-statutes__card">
+        <p class="about-statutes__description">
+          {messages.about_statutes_description({}, { locale })}
+        </p>
+        <a class="about-statutes__link" href={statutesHref}>
+          {statutesTitle}
+        </a>
+      </div>
     ) : (
       <p class="about-section__body">
         {messages.about_statutes_unavailable({}, { locale })}

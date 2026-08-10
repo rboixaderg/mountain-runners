@@ -2,17 +2,27 @@ id: peu-de-via
 published: true
 name:
   ca: Peu de Via
+  es: Peu de Via
+  en: Peu de Via
 logo:
   resource:
     kind: local
     path: src/assets/collaborators/peu-de-via.webp
   alt:
     ca: Logotip de Peu de Via
+    es: Logotipo de Peu de Via
+    en: Peu de Via logo
   sourceUrl: https://mountainrunners.cat/wp-content/uploads/2024/02/1_Logo_Peu-de-Via_v-pdf.webp
 description:
   ca: Establiment col·laborador de Mountain Runners del Berguedà.
+  es: Establecimiento colaborador de Mountain Runners del Berguedà.
+  en: Mountain Runners del Berguedà partner business.
 membershipBenefit:
   title:
     ca: Condicions de quota
+    es: Condiciones de cuota
+    en: Membership terms
   description:
     ca: "Condicions de quota amb preus publicats: 39 €/mes (30 €/mes infants), 210 €/semestre, 400 €/any i packs de 10 sessions a 69 € (50 € infants)."
+    es: "Condiciones de cuota con precios publicados: 39 €/mes (30 €/mes niños), 210 €/semestre, 400 €/año y packs de 10 sesiones a 69 € (50 € niños)."
+    en: "Membership terms with published prices: €39/month (€30/month for children), €210/semester, €400/year and packs of 10 sessions at €69 (€50 for children)."

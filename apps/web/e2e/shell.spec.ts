@@ -13,7 +13,7 @@ test("renders the localized shell without horizontal overflow", async ({
   await expect(
     page.locator('header a[aria-label="Mountain Runners"] img'),
   ).toBeVisible();
-  await expect(page.locator('nav[aria-label="Idioma"]')).toHaveCount(0);
+  await expect(page.locator('nav[aria-label="Idioma"]')).toHaveCount(2);
 
   const skipLink = page.getByRole("link", {
     name: "Vés al contingut principal",
@@ -23,8 +23,8 @@ test("renders the localized shell without horizontal overflow", async ({
   await expect(skipLink).toBeVisible();
 
   if (isMobile) {
-    const menu = page.locator("header details");
-    const summary = menu.locator("summary");
+    const menu = page.locator("header details.site-header__mobile-menu");
+    const summary = menu.locator(":scope > summary");
     await summary.focus();
     await page.keyboard.press("Enter");
     await expect(menu).toHaveAttribute("open", "");
@@ -63,15 +63,9 @@ test("renders the published homepage sections in order", async ({ page }) => {
   await expect(
     page.getByRole("heading", {
       level: 1,
-      name: "Mountain Runners del Berguedà",
+      name: "A.E. Mountain Runners del Berguedà",
     }),
   ).toBeVisible();
-  const heroImage = page.getByRole("img", {
-    name: "Logotip de Mountain Runners del Berguedà",
-  });
-  await expect(heroImage).toHaveAttribute("src", /^\/_astro\//u);
-  await expect(heroImage).toHaveAttribute("width", "450");
-  await expect(heroImage).toHaveAttribute("height", "444");
   await expect(page.locator(".homepage-hero__mountain")).toHaveAttribute(
     "src",
     /^\/_astro\//u,
@@ -79,14 +73,36 @@ test("renders the published homepage sections in order", async ({ page }) => {
   await expect(
     page.locator("main h1, main h2").allTextContents(),
   ).resolves.toEqual([
-    "Mountain Runners del Berguedà",
-    "Esdeveniments",
-    "Escoles",
-    "Fes-te MRB",
-    "Muntanya, territori, comunitat",
+    "A.E. Mountain Runners del Berguedà",
+    "Les nostres escoles",
+    "Forma part del club",
+    "Agenda d'activitats",
   ]);
   await expect(page.locator('main a[href="/ca/esdeveniments/"]')).toHaveCount(
     1,
+  );
+  await expect(page.locator(".homepage-hero__cta")).toHaveCount(1);
+  await expect(page.locator(".homepage-join-cta")).toHaveCount(1);
+  await expect(
+    page.locator(".homepage-hero__actions .homepage-join-cta"),
+  ).toHaveAttribute(
+    "href",
+    "https://mountainrunners.playoffinformatica.com/Preinscripcio.php",
+  );
+  await expect(
+    page.locator(".homepage-hero__actions .homepage-join-cta"),
+  ).toHaveAttribute("target", "_blank");
+  await expect(
+    page.locator(".homepage-members-banner__action"),
+  ).toHaveAttribute("href", "/ca/socis/");
+  await expect(page.locator(".homepage-members-banner__action")).toContainText(
+    "Veure més informació",
+  );
+  await expect(
+    page.locator('.homepage-hero__cta[href="/ca/escoles/"]'),
+  ).toContainText("Les nostres escoles");
+  await expect(page.locator(".homepage-section__view-all")).toHaveText(
+    "Veure tot l'any",
   );
   await expect(page.locator(".homepage-event")).toHaveCount(2);
   await expect(
@@ -111,11 +127,18 @@ test("renders the published homepage sections in order", async ({ page }) => {
   await expect(
     page.locator(".homepage-school-list strong").allTextContents(),
   ).resolves.toEqual(["Escola de Trail", "Escola Skimo", "Escola BTT"]);
-  await expect(page.locator(".homepage-school-list small")).toHaveCount(0);
-  await expect(page.locator('main a[href="/ca/escoles/"]')).toHaveCount(1);
   await expect(
-    page.locator('.homepage-members-card a[href="/ca/socis/"]'),
-  ).toHaveCount(1);
+    page.locator(".homepage-school-list__action").allTextContents(),
+  ).resolves.toEqual(["Informació", "Informació", "Informació"]);
+  await expect(page.locator(".site-header__cta")).toHaveText("Fes-te soci");
+  await expect(page.locator(".site-header__cta")).toHaveAttribute(
+    "href",
+    "https://mountainrunners.playoffinformatica.com/Preinscripcio.php",
+  );
+  await expect(page.locator(".site-header__cta")).toHaveAttribute(
+    "target",
+    "_blank",
+  );
   await expect(page.locator('main a[href=""], main a[href="#"]')).toHaveCount(
     0,
   );
@@ -126,10 +149,9 @@ test("links the portada to the events hub with published entries", async ({
 }) => {
   await page.goto("/ca/");
 
-  const eventsLink = page
-    .locator(".homepage-section", { hasText: "Esdeveniments" })
-    .getByRole("link", { name: "Esdeveniments" });
+  const eventsLink = page.locator(".homepage-section__view-all");
   await expect(eventsLink).toHaveAttribute("href", "/ca/esdeveniments/");
+  await expect(eventsLink).toHaveText("Veure tot l'any");
 
   await eventsLink.click();
   await expect(page).toHaveURL("/ca/esdeveniments/");
@@ -146,6 +168,9 @@ test("renders the events hub groups in order with links to details", async ({
     page.getByRole("heading", { level: 1, name: "Esdeveniments" }),
   ).toBeVisible();
   await expect(
+    page.getByRole("heading", { level: 2, name: "Calendari mensual" }),
+  ).toBeVisible();
+  await expect(
     page.getByRole("heading", { level: 2, name: "Pròximes edicions" }),
   ).toBeVisible();
   await expect(
@@ -159,42 +184,37 @@ test("renders the events hub groups in order with links to details", async ({
   ).toBeVisible();
 
   const headings = await page
-    .locator(".events-hub-section h2")
+    .locator(".events-hub-section h2, .events-calendar h2")
     .allTextContents();
   expect(headings).toEqual([
+    "Calendari mensual",
     "Pròximes edicions",
     "Vigents sense pròxima data",
     "Esdeveniments passats",
   ]);
 
   await expect(
-    page.locator(".events-hub-item strong").allTextContents(),
-  ).resolves.toEqual([
-    "Ultra Pirineu",
-    "Escalada Popular a Queralt",
-    "Berga Trail",
-  ]);
+    page.locator(".homepage-event h3").allTextContents(),
+  ).resolves.toEqual(["Ultra Pirineu"]);
   await expect(
-    page.locator('.events-hub-item a[href="/ca/esdeveniments/ultra-pirineu/"]'),
+    page.locator('.homepage-event a[href="/ca/esdeveniments/ultra-pirineu/"]'),
   ).toHaveCount(1);
   await expect(
     page.locator(
-      '.events-hub-item a[href="/ca/esdeveniments/escalada-queralt/"]',
+      '.events-hub-active-item a[href="/ca/esdeveniments/escalada-queralt/"]',
     ),
   ).toHaveCount(1);
   await expect(
-    page.locator('.events-hub-item a[href="/ca/esdeveniments/berga-trail/"]'),
+    page.locator(
+      '.events-hub-history__title[href="/ca/esdeveniments/berga-trail/"]',
+    ),
   ).toHaveCount(1);
   await expect(
-    page.locator(
-      ".events-hub-section--active-without-date .events-hub-item__date",
-    ),
-  ).toHaveAttribute("aria-hidden", "true");
-  await expect(
-    page.locator(
-      ".events-hub-section--active-without-date .events-hub-item__status",
-    ),
+    page.locator(".events-hub-active-item__status-value"),
   ).toHaveText("Sense pròxima data anunciada");
+  await expect(
+    page.locator(".events-calendar__day--has-events"),
+  ).not.toHaveCount(0);
   await expect(page.locator('main a[href=""], main a[href="#"]')).toHaveCount(
     0,
   );
@@ -212,9 +232,7 @@ test("navigates from the hub to an event detail with its states", async ({
   await expect(
     page.getByRole("heading", { level: 1, name: "Ultra Pirineu" }),
   ).toBeVisible();
-  const coverImage = page.getByRole("img", {
-    name: "Logotip de Mountain Runners del Berguedà",
-  });
+  const coverImage = page.locator(".detail-hero__cover img");
   await expect(coverImage).toHaveAttribute(
     "src",
     "/content-resources/assets/logo_mountain_runners.png",
@@ -225,14 +243,12 @@ test("navigates from the hub to an event detail with its states", async ({
   await expect(page.locator("time[datetime='2026-10-04']")).toBeVisible();
   await expect(page.getByText("Bagà", { exact: true })).toBeVisible();
   await expect(page.getByText("Inscripció tancada")).toBeVisible();
-  await expect(page.locator(".events-detail__resources")).toContainText(
-    "Recurs no disponible",
-  );
+  await expect(page.locator(".events-detail__resources")).toHaveCount(0);
   await expect(page.getByRole("link", { name: /Inscriu-t'hi/u })).toHaveCount(
     0,
   );
   await expect(
-    page.locator('a[aria-disabled="true"], button[disabled]'),
+    page.locator('main a[aria-disabled="true"], main button[disabled]'),
   ).toHaveCount(0);
   await expect(page.locator('main a[href=""], main a[href="#"]')).toHaveCount(
     0,
@@ -250,14 +266,12 @@ test("renders the historical event detail without an action", async ({
   await expect(page.getByText("Esdeveniment oficial del club")).toBeVisible();
   await expect(page.getByText("Històric", { exact: true })).toBeVisible();
   await expect(page.getByText("Inscripció tancada")).toBeVisible();
-  await expect(page.locator(".events-detail__resources")).toContainText(
-    "Recurs no disponible",
-  );
+  await expect(page.locator(".events-detail__resources")).toHaveCount(0);
   await expect(page.getByRole("link", { name: /Inscriu-t'hi/u })).toHaveCount(
     0,
   );
   await expect(
-    page.locator('a[aria-disabled="true"], button[disabled]'),
+    page.locator('main a[aria-disabled="true"], main button[disabled]'),
   ).toHaveCount(0);
 });
 
@@ -276,11 +290,9 @@ test("renders the active event detail without an announced date", async ({
   await expect(page.getByText("Actiu", { exact: true })).toBeVisible();
   await expect(page.getByText("Sense pròxima data anunciada")).toBeVisible();
   await expect(page.getByText("Inscripció tancada")).toBeVisible();
-  await expect(page.locator(".events-detail__resources")).toContainText(
-    "Recurs no disponible",
-  );
+  await expect(page.locator(".events-detail__resources")).toHaveCount(0);
   await expect(
-    page.locator('a[aria-disabled="true"], button[disabled]'),
+    page.locator('main a[aria-disabled="true"], main button[disabled]'),
   ).toHaveCount(0);
   await expect(page.locator('main a[href=""], main a[href="#"]')).toHaveCount(
     0,
@@ -294,8 +306,8 @@ test("navigates from the header to the About page", async ({
   await page.goto("/ca/");
 
   if (isMobile) {
-    const menu = page.locator("header details");
-    await menu.locator("summary").focus();
+    const menu = page.locator("header details.site-header__mobile-menu");
+    await menu.locator(":scope > summary").focus();
     await page.keyboard.press("Enter");
   }
 
@@ -317,8 +329,8 @@ test("navigates from the header to the schools hub", async ({
   await page.goto("/ca/");
 
   if (isMobile) {
-    const menu = page.locator("header details");
-    await menu.locator("summary").focus();
+    const menu = page.locator("header details.site-header__mobile-menu");
+    await menu.locator(":scope > summary").focus();
     await page.keyboard.press("Enter");
   }
 
@@ -344,9 +356,9 @@ test("renders the About page sections in editorial order", async ({ page }) => {
     page.locator("main h1, main h2").allTextContents(),
   ).resolves.toEqual([
     "Qui som",
+    "Història",
     "Missatge de presidència",
     "Junta directiva",
-    "Història",
     "Estatuts",
   ]);
 
@@ -379,7 +391,7 @@ test("renders the About page sections in editorial order", async ({ page }) => {
     0,
   );
   await expect(
-    page.locator('a[aria-disabled="true"], button[disabled]'),
+    page.locator('main a[aria-disabled="true"], main button[disabled]'),
   ).toHaveCount(0);
 });
 
@@ -390,8 +402,8 @@ test("navigates from the header to the Members page", async ({
   await page.goto("/ca/");
 
   if (isMobile) {
-    const menu = page.locator("header details");
-    await menu.locator("summary").focus();
+    const menu = page.locator("header details.site-header__mobile-menu");
+    await menu.locator(":scope > summary").focus();
     await page.keyboard.press("Enter");
   }
 
@@ -415,15 +427,9 @@ test("renders the Members page sections in editorial order", async ({
   await expect(
     page.getByRole("heading", { level: 1, name: "Socis" }),
   ).toBeVisible();
-  const introPhoto = page.getByRole("img", {
-    name: "Portada de la secció de socis de Mountain Runners del Berguedà",
-  });
-  await expect(introPhoto).toHaveAttribute("src", /^\/_astro\//u);
-  await expect(introPhoto).toHaveAttribute("width", "1024");
-  await expect(introPhoto).toHaveAttribute("height", "381");
-  await expect(
-    page.getByText("Fotografia: @about_paulagnf", { exact: true }),
-  ).toBeVisible();
+  const heroImage = page.locator(".page-hero__image");
+  await expect(heroImage).toHaveAttribute("src", /^\/_astro\//u);
+  await expect(heroImage).toHaveAttribute("alt", "");
   const benefitsPhoto = page.getByRole("img", {
     name: "Fotografia de la secció de socis de Mountain Runners del Berguedà",
   });
@@ -494,7 +500,7 @@ test("renders the Members page sections in editorial order", async ({
     0,
   );
   await expect(
-    page.locator('a[aria-disabled="true"], button[disabled]'),
+    page.locator('main a[aria-disabled="true"], main button[disabled]'),
   ).toHaveCount(0);
 });
 
@@ -506,6 +512,15 @@ test("renders the schools hub in editorial order with links to details", async (
   await expect(page.locator("html")).toHaveAttribute("lang", "ca");
   await expect(
     page.getByRole("heading", { level: 1, name: "Escoles" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("heading", {
+      level: 2,
+      name: "Tria l'escola que més s'encaixa a tu!",
+    }),
+  ).toBeVisible();
+  await expect(
+    page.getByText("Compartim un eix comú, la muntanya."),
   ).toBeVisible();
   await expect(
     page.locator(".schools-hub-item strong").allTextContents(),
@@ -540,46 +555,87 @@ test("navigates from the schools hub to a published school detail", async ({
 
   await expect(page).toHaveURL("/ca/escoles/escola-trail/");
   await expect(page.locator("html")).toHaveAttribute("lang", "ca");
+  const schoolDetail = page.locator(".schools-detail");
   await expect(
-    page.getByRole("heading", { level: 1, name: "Escola de Trail" }),
+    schoolDetail.getByRole("heading", { level: 1, name: "Escola de Trail" }),
   ).toBeVisible();
   await expect(
-    page.getByRole("img", { name: "Logotip de Mountain Runners del Berguedà" }),
-  ).toHaveAttribute("width", "450");
-  await expect(page.getByText("L'escola va néixer l'any 2012.")).toBeVisible();
-  await expect(
-    page.getByRole("heading", { level: 2, name: "Informació pràctica" }),
+    schoolDetail.locator(".schools-detail-preview__about-media-frame img"),
   ).toBeVisible();
   await expect(
-    page.locator(".schools-detail__practical dt").allTextContents(),
-  ).resolves.toEqual([
-    "Des de",
-    "Objectiu",
-    "Per a qui",
-    "Horari",
-    "Lloc",
-    "Preus",
-  ]);
+    schoolDetail.locator(".schools-detail-preview__about-media-frame img"),
+  ).toHaveAttribute("width", "1600");
   await expect(
-    page.getByRole("heading", { level: 2, name: "Galeria" }),
+    schoolDetail.getByRole("heading", { level: 2, name: "Què oferim" }),
   ).toBeVisible();
   await expect(
-    page.getByText("Encara no hi ha fotografies disponibles."),
+    schoolDetail.getByText("L'escola pren vida l'any 2012"),
   ).toBeVisible();
   await expect(
-    page.getByRole("heading", { level: 2, name: "Vídeo" }),
+    schoolDetail.getByRole("heading", {
+      level: 2,
+      name: "Informació pràctica",
+    }),
   ).toBeVisible();
-  await expect(page.getByText("Vídeo properament")).toBeVisible();
   await expect(
-    page.getByRole("heading", { level: 2, name: "Inscripció" }),
+    schoolDetail.getByText(
+      "Horaris, ubicació, preus i requisits per planificar la temporada amb tranquil·litat.",
+    ),
   ).toBeVisible();
-  await expect(page.getByText("Inscripció properament")).toBeVisible();
-  await expect(page.locator("video, iframe")).toHaveCount(0);
+  await expect(
+    schoolDetail.locator(".schools-detail-preview__practical-card"),
+  ).toHaveCount(5);
+  await expect(
+    schoolDetail.locator(".schools-detail-preview__prices"),
+  ).toHaveCount(1);
+  await expect(
+    schoolDetail
+      .locator(
+        ".schools-detail-preview__practical-grid--essentials .schools-detail-preview__practical-card-title",
+      )
+      .allTextContents(),
+  ).resolves.toEqual(["Horari", "Lloc", "Per a qui"]);
+  await expect(
+    schoolDetail
+      .locator(
+        ".schools-detail-preview__practical-grid--context .schools-detail-preview__practical-card-title",
+      )
+      .allTextContents(),
+  ).resolves.toEqual(["Des de", "Objectiu"]);
+  await expect(
+    schoolDetail.getByRole("heading", { level: 3, name: "Preus" }),
+  ).toBeVisible();
+  await expect(
+    schoolDetail.getByText("dilluns, dimecres i/o divendres"),
+  ).toBeVisible();
+  await expect(schoolDetail.getByText("17.30 h a 19.00 h")).toBeVisible();
+  await expect(
+    schoolDetail.getByRole("heading", { level: 4, name: "Matrícula" }),
+  ).toBeVisible();
+  await expect(schoolDetail.getByText("30 €")).toBeVisible();
+  await expect(schoolDetail.getByText("al mes").first()).toBeVisible();
+  await expect(
+    schoolDetail.getByRole("heading", { level: 2, name: "Galeria" }),
+  ).toBeVisible();
+  await expect(
+    schoolDetail.locator(".schools-detail-preview__gallery-item img"),
+  ).toHaveCount(6);
+  await expect(
+    schoolDetail.getByRole("heading", { level: 2, name: "Vídeo" }),
+  ).toBeVisible();
+  await expect(schoolDetail.locator("iframe")).toHaveCount(1);
+  await expect(
+    schoolDetail.getByRole("heading", { level: 2, name: "Inscripció" }),
+  ).toBeVisible();
+  await expect(schoolDetail.getByText("Inscripció properament")).toBeVisible();
+  await expect(
+    schoolDetail.getByText("Uneix-te a la família Mountain Runners."),
+  ).toBeVisible();
   await expect(page.locator('main a[href=""], main a[href="#"]')).toHaveCount(
     0,
   );
   await expect(
-    page.locator('a[aria-disabled="true"], button[disabled]'),
+    page.locator('main a[aria-disabled="true"], main button[disabled]'),
   ).toHaveCount(0);
 
   const layout = await page.evaluate(() => ({
@@ -618,20 +674,9 @@ test("renders the board and the unavailable states without fake controls", async
   await expect(board).toContainText("Ernest Garrido");
   await expect(board.getByRole("link")).toHaveCount(0);
 
-  // The unavailable newsletter and school registration states are textual:
-  // they explain the state without adding anything to the focus order, so
-  // the keyboard can never land on a fake control.
-  await page.goto("/ca/contacte/");
-  const newsletter = page.locator(
-    'section[aria-labelledby="contact-newsletter-title"]',
-  );
-  await expect(newsletter).toContainText(
-    "El servei de butlletí encara no està disponible.",
-  );
-  await expect(newsletter.locator("a, button, input, [tabindex]")).toHaveCount(
-    0,
-  );
-
+  // The unavailable school registration state is textual: it explains the
+  // state without adding anything to the focus order, so the keyboard can
+  // never land on a fake control.
   await page.goto("/ca/escoles/escola-trail/");
   const registration = page.locator(
     'section[aria-labelledby="school-registration-title"]',
@@ -714,13 +759,13 @@ test("@a11y has no detectable axe violations", async ({
     "/404.html",
     "/ca/esdeveniments/",
     "/ca/esdeveniments/ultra-pirineu/",
+    "/ca/esdeveniments/anella-verda/",
     "/ca/esdeveniments/berga-trail/",
     "/ca/esdeveniments/escalada-queralt/",
     "/ca/qui-som/",
     "/ca/socis/",
     "/ca/escoles/",
     "/ca/escoles/escola-trail/",
-    "/ca/contacte/",
     "/ca/documents/",
     "/ca/avis-legal/",
     "/ca/privacitat/",
@@ -728,7 +773,7 @@ test("@a11y has no detectable axe violations", async ({
   ]) {
     await page.goto(path);
 
-    const results = await new AxeBuilder({ page }).analyze();
+    const results = await new AxeBuilder({ page }).exclude("iframe").analyze();
     expect(results.violations, path).toEqual([]);
   }
 });
@@ -781,6 +826,7 @@ test("publishes structured data only on pages with reviewed data", async ({
   });
 
   for (const path of [
+    "/ca/esdeveniments/anella-verda/",
     "/ca/esdeveniments/berga-trail/",
     "/ca/esdeveniments/escalada-queralt/",
     "/ca/qui-som/",
@@ -802,7 +848,7 @@ test("emits canonical and social metadata for published pages", async ({
   );
   await expect(page.locator('meta[property="og:title"]')).toHaveAttribute(
     "content",
-    "Mountain Runners del Berguedà",
+    "A.E. Mountain Runners del Berguedà",
   );
   await expect(
     page.locator('meta[property="og:description"]'),
@@ -815,8 +861,7 @@ test("emits canonical and social metadata for published pages", async ({
     "content",
     "https://mountainrunners.cat/ca/",
   );
-  // Only Catalan is published: no hreflang alternatives may be advertised.
-  await expect(page.locator('link[rel="alternate"]')).toHaveCount(0);
+  await expect(page.locator('link[rel="alternate"]')).toHaveCount(3);
 
   await page.goto("/ca/esdeveniments/ultra-pirineu/");
   await expect(page.locator('link[rel="canonical"]')).toHaveAttribute(
@@ -845,7 +890,7 @@ test("emits canonical and social metadata for published pages", async ({
     "content",
     "https://mountainrunners.cat/ca/socis/",
   );
-  await expect(page.locator('link[rel="alternate"]')).toHaveCount(0);
+  await expect(page.locator('link[rel="alternate"]')).toHaveCount(3);
 
   await page.goto("/ca/escoles/");
   await expect(page.locator('link[rel="canonical"]')).toHaveAttribute(
@@ -885,6 +930,7 @@ test("serves sitemap and robots aligned with the canonical origin", async ({
   for (const url of [
     "https://mountainrunners.cat/ca/",
     "https://mountainrunners.cat/ca/esdeveniments/",
+    "https://mountainrunners.cat/ca/esdeveniments/anella-verda/",
     "https://mountainrunners.cat/ca/esdeveniments/berga-trail/",
     "https://mountainrunners.cat/ca/esdeveniments/escalada-queralt/",
     "https://mountainrunners.cat/ca/esdeveniments/ultra-pirineu/",
@@ -894,7 +940,6 @@ test("serves sitemap and robots aligned with the canonical origin", async ({
     "https://mountainrunners.cat/ca/escoles/escola-trail/",
     "https://mountainrunners.cat/ca/escoles/escola-skimo/",
     "https://mountainrunners.cat/ca/escoles/escola-btt/",
-    "https://mountainrunners.cat/ca/contacte/",
     "https://mountainrunners.cat/ca/documents/",
     "https://mountainrunners.cat/ca/avis-legal/",
     "https://mountainrunners.cat/ca/privacitat/",
@@ -918,13 +963,13 @@ test("has no broken or falsely disabled links within the slice", async ({
     "/ca/",
     "/ca/esdeveniments/",
     "/ca/esdeveniments/ultra-pirineu/",
+    "/ca/esdeveniments/anella-verda/",
     "/ca/esdeveniments/berga-trail/",
     "/ca/esdeveniments/escalada-queralt/",
     "/ca/qui-som/",
     "/ca/socis/",
     "/ca/escoles/",
     "/ca/escoles/escola-trail/",
-    "/ca/contacte/",
     "/ca/documents/",
     "/ca/avis-legal/",
     "/ca/privacitat/",
@@ -955,11 +1000,10 @@ test("has no broken or falsely disabled links within the slice", async ({
   }
 });
 
-test("publishes documents, contact and legal routes from the footer", async ({
+test("publishes documents and legal routes from the footer", async ({
   page,
 }) => {
   const footerLinks = [
-    "/ca/contacte/",
     "/ca/documents/",
     "/ca/avis-legal/",
     "/ca/privacitat/",
@@ -970,25 +1014,35 @@ test("publishes documents, contact and legal routes from the footer", async ({
   for (const path of footerLinks) {
     await expect(page.locator(`footer a[href="${path}"]`)).toHaveCount(1);
   }
-
-  await page.goto("/ca/contacte/");
-  await expect(page.locator("main h1")).toHaveText("Contacte");
-  await expect(page.locator("main")).toContainText(
-    "Plaça Sant Joan, 15 baixos, 08600 Berga",
-  );
-  await expect(page.locator("main")).toContainText(
+  await expect(page.locator('footer a[href="/ca/contacte/"]')).toHaveCount(0);
+  await expect(
+    page.locator('footer a[href="https://www.instagram.com/infomountain/"]'),
+  ).toHaveCount(1);
+  await expect(
+    page.getByRole("navigation", { name: "Xarxes socials" }),
+  ).toBeVisible();
+  await expect(
+    page.locator('.site-prefooter a[href="mailto:info@mountainrunners.cat"]'),
+  ).toHaveCount(1);
+  await expect(
+    page.locator('.site-prefooter a[href="tel:+34938213747"]'),
+  ).toHaveCount(1);
+  await expect(
+    page.locator('.site-prefooter a[href="tel:+34691910774"]'),
+  ).toHaveCount(1);
+  await expect(page.locator(".site-prefooter")).toContainText(
     "De dilluns a divendres, de 18 h a 20 h",
   );
-  await expect(page.locator("main")).toContainText("G63999817");
-  await expect(
-    page.locator('main a[href="mailto:info@mountainrunners.cat"]'),
-  ).toHaveCount(1);
-  await expect(page.locator('main a[href="tel:+34938213747"]')).toHaveCount(1);
-  await expect(page.locator('main a[href="tel:+34691910774"]')).toHaveCount(1);
-  await expect(page.locator("main")).toContainText(
+  await expect(page.locator(".site-prefooter")).toContainText(
+    "Plaça Sant Joan, 15 baixos, 08600 Berga",
+  );
+  await expect(page.locator(".site-prefooter")).toContainText(
     "El servei de butlletí encara no està disponible.",
   );
-  await expect(page.locator("main input")).toHaveCount(0);
+  await expect(page.locator('footer a[href^="tel:"]')).toHaveCount(0);
+  await expect(
+    page.locator('footer a[href="mailto:info@mountainrunners.cat"]'),
+  ).toHaveCount(0);
 
   await page.goto("/ca/documents/");
   await expect(page.locator("main h1")).toHaveText("Documents");
@@ -1032,7 +1086,7 @@ test("publishes documents, contact and legal routes from the footer", async ({
       0,
     );
     await expect(
-      page.locator('a[aria-disabled="true"], button[disabled]'),
+      page.locator('main a[aria-disabled="true"], main button[disabled]'),
     ).toHaveCount(0);
   }
 });

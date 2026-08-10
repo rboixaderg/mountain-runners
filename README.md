@@ -6,9 +6,9 @@ Web de codi obert de l'associació esportiva Mountain Runners del Berguedà.
 
 Aquest repositori conté la base executable de l'aplicació Astro, el model
 editorial validat, la infraestructura multiidioma, la direcció de disseny i les
-normes de col·laboració. Totes les rutes públiques previstes es publiquen en
-català: el shell de la fase 2 (portada i esdeveniments) i les àrees de la fase 3
-(qui som, socis, escoles, documents, contacte i pàgines legals).
+normes de col·laboració. Les rutes públiques de la fase 4 i el contingut de
+domini publicat es publiquen en català, castellà i anglès; la resta de rutes
+s'incorporen a mesura que es completen les tasques de la fase.
 
 ## Desenvolupament Local
 

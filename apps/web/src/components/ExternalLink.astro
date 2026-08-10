@@ -1,5 +1,8 @@
 ---
-import { getExternalHost } from "../lib/presentation/urls";
+import {
+  externalLinkAttributes,
+  getExternalHost,
+} from "../lib/presentation/urls";
 
 interface Props {
   className?: string;
@@ -10,7 +13,7 @@ interface Props {
 const { className, href, label } = Astro.props;
 ---
 
-<a class={className} href={href} rel="noopener noreferrer">
+<a class={className} href={href} {...externalLinkAttributes}>
   {label} · {getExternalHost(href)}{" "}
   <span aria-hidden="true">→</span>
 </a>

@@ -1,5 +1,6 @@
 ---
 import * as messages from "../../paraglide/messages.js";
+import aboutHistory from "../../assets/about/about-history.jpg";
 import { renderRestrictedMarkdown } from "../../lib/content/markdown";
 import type { Locale } from "../../lib/content/primitives";
 
@@ -17,8 +18,23 @@ const { locale } = Astro.props;
       {messages.about_history_title({}, { locale })}
     </h2>
   </div>
-  <div
-    class="about-section__body"
-    set:html={renderRestrictedMarkdown(messages.about_history({}, { locale }))}
-  />
+
+  <div class="about-history__grid">
+    <div
+      class="about-section__body"
+      set:html={renderRestrictedMarkdown(
+        messages.about_history({}, { locale }),
+      )}
+    />
+    <figure class="about-history__photo">
+      <img
+        src={aboutHistory.src}
+        width={aboutHistory.width}
+        height={aboutHistory.height}
+        alt={messages.about_history_photo_alt({}, { locale })}
+        loading="lazy"
+        decoding="async"
+      />
+    </figure>
+  </div>
 </section>

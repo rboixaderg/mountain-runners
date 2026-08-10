@@ -1,0 +1,20 @@
+id: club-atletic-berga
+published: true
+name:
+  ca: Club Atlètic Berga
+  es: Club Atlètic Berga
+  en: Club Atlètic Berga
+logo:
+  resource:
+    kind: local
+    path: src/assets/entities/club-atletic-berga.png
+  alt:
+    ca: Logotip del Club Atlètic Berga
+    es: Logotipo del Club Atlètic Berga
+    en: Club Atlètic Berga logo
+  sourceUrl: https://mountainrunners.cat/wp-content/uploads/2024/09/Diseno-sin-titulo-2-600x143.png
+description:
+  ca: Entitat esportiva de Berga. Coorganitza curses i marxes al municipi.
+  es: Entidad deportiva de Berga. Coorganiza carreras y marchas en el municipio.
+  en: Sports organisation from Berga. It co-organises races and walks in the municipality.
+websiteUrl: https://www.clubatleticberga.com

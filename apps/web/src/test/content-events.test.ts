@@ -24,6 +24,7 @@ function createEvent(
     slug: { ca: id },
     active,
     title: { ca: id },
+    summary: { ca: id },
     description: { ca: id },
     clubRelationship: "organizes",
     cover: {

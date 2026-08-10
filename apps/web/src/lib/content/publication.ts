@@ -190,6 +190,7 @@ function isEventComplete(
     event.published &&
     isTranslated(event.slug, locale) &&
     isTranslated(event.title, locale) &&
+    isTranslated(event.summary, locale) &&
     isTranslated(event.description, locale) &&
     isImageComplete(event.cover, locale) &&
     event.gallery.every((image) => isImageComplete(image, locale)) &&

@@ -1,0 +1,242 @@
+---
+import * as messages from "../../paraglide/messages.js";
+import type { Event } from "../../lib/content/models";
+import type { Locale } from "../../lib/content/primitives";
+import {
+  buildCalendarMonthGrid,
+  getCalendarFocusMonth,
+} from "../../lib/presentation/events";
+import "../../styles/events-calendar.css";
+
+interface Props {
+  events: readonly Event[];
+  locale: Locale;
+  resolveEventHref: (event: Event) => string;
+  today: string;
+}
+
+const { events, locale, resolveEventHref, today } = Astro.props;
+const focusMonth = getCalendarFocusMonth(events, today);
+const calendar = buildCalendarMonthGrid(
+  events,
+  focusMonth.year,
+  focusMonth.month,
+  locale,
+  today,
+  resolveEventHref,
+);
+---
+
+<section
+  class="events-calendar page-frame"
+  aria-labelledby="events-calendar-title"
+  data-events-calendar
+>
+  <div class="events-hub-section__heading">
+    <span class="events-hub-section__marker" aria-hidden="true"></span>
+    <h2 id="events-calendar-title" class="events-hub-section__title">
+      {messages.events_calendar_title({}, { locale })}
+    </h2>
+  </div>
+
+  <div class="events-calendar__panel">
+    <table class="events-calendar__table">
+      <caption class="events-calendar__caption">{calendar.monthLabel}</caption>
+      <thead>
+        <tr>
+          {
+            calendar.weekdayLabels.map((weekdayLabel) => (
+              <th scope="col" class="events-calendar__weekday">
+                {weekdayLabel}
+              </th>
+            ))
+          }
+        </tr>
+      </thead>
+      <tbody>
+        {
+          calendar.weeks.map((week) => (
+            <tr>
+              {week.map((day) => {
+                const hasEvents = day.events.length > 0;
+                const dayLabel =
+                  day.dayNumber === null
+                    ? undefined
+                    : hasEvents
+                      ? messages.events_calendar_day_with_events(
+                          {
+                            day: day.dayNumber,
+                            events: day.events
+                              .map((event) => event.title)
+                              .join(", "),
+                          },
+                          { locale },
+                        )
+                      : String(day.dayNumber);
+                const popoverId =
+                  day.date === null
+                    ? undefined
+                    : `events-calendar-popover-${day.date}`;
+
+                return (
+                  <td
+                    class:list={[
+                      "events-calendar__day",
+                      !day.isCurrentMonth && "events-calendar__day--outside",
+                      day.isToday && "events-calendar__day--today",
+                      hasEvents && "events-calendar__day--has-events",
+                      day.isMultiDay && "events-calendar__day--multi-day",
+                      day.isRangeStart && "events-calendar__day--range-start",
+                      day.isRangeMiddle && "events-calendar__day--range-middle",
+                      day.isRangeEnd && "events-calendar__day--range-end",
+                    ]}
+                  >
+                    {day.dayNumber !== null && hasEvents ? (
+                      <>
+                        <button
+                          type="button"
+                          class="events-calendar__day-button"
+                          aria-controls={popoverId}
+                          aria-expanded="false"
+                          aria-label={dayLabel}
+                        >
+                          <span class="events-calendar__day-number">
+                            {day.dayNumber}
+                          </span>
+                          <span
+                            class="events-calendar__day-mark"
+                            aria-hidden="true"
+                          />
+                        </button>
+                        <div
+                          id={popoverId}
+                          class="events-calendar__popover"
+                          role="region"
+                          aria-label={messages.events_calendar_popover_label(
+                            {},
+                            { locale },
+                          )}
+                        >
+                          {day.events.map((event) => (
+                            <article class="events-calendar__event">
+                              <h3 class="events-calendar__event-title">
+                                {event.title}
+                              </h3>
+                              <dl class="events-calendar__event-meta">
+                                <div>
+                                  <dt>
+                                    {messages.event_dates_label({}, { locale })}
+                                  </dt>
+                                  <dd>{event.dateLabel}</dd>
+                                </div>
+                                <div>
+                                  <dt>
+                                    {messages.event_location_label(
+                                      {},
+                                      { locale },
+                                    )}
+                                  </dt>
+                                  <dd>{event.location}</dd>
+                                </div>
+                              </dl>
+                              <a
+                                class="events-calendar__event-link"
+                                href={event.href}
+                              >
+                                {messages.event_more_information(
+                                  {},
+                                  { locale },
+                                )}
+                              </a>
+                            </article>
+                          ))}
+                        </div>
+                      </>
+                    ) : (
+                      day.dayNumber !== null && (
+                        <span class="events-calendar__day-number">
+                          {day.dayNumber}
+                        </span>
+                      )
+                    )}
+                  </td>
+                );
+              })}
+            </tr>
+          ))
+        }
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<script>
+  function closeCalendarPopovers(calendar: HTMLElement) {
+    for (const day of calendar.querySelectorAll(
+      ".events-calendar__day--open",
+    )) {
+      day.classList.remove("events-calendar__day--open");
+      const button = day.querySelector(".events-calendar__day-button");
+      button?.setAttribute("aria-expanded", "false");
+    }
+  }
+
+  function openCalendarDay(day: HTMLElement) {
+    const button = day.querySelector(".events-calendar__day-button");
+    if (button === null) return;
+
+    day.classList.add("events-calendar__day--open");
+    button.setAttribute("aria-expanded", "true");
+  }
+
+  for (const calendarElement of document.querySelectorAll(
+    "[data-events-calendar]",
+  )) {
+    if (!(calendarElement instanceof HTMLElement)) continue;
+    const calendar = calendarElement;
+
+    calendar.addEventListener("click", (event) => {
+      const target = event.target;
+      if (!(target instanceof Element)) return;
+
+      const button = target.closest(".events-calendar__day-button");
+      if (button === null) return;
+
+      const day = button.closest(".events-calendar__day--has-events");
+      if (day === null || !(day instanceof HTMLElement)) return;
+
+      event.stopPropagation();
+      const isOpen = day.classList.contains("events-calendar__day--open");
+      closeCalendarPopovers(calendar);
+      if (!isOpen) {
+        openCalendarDay(day);
+      }
+    });
+  }
+
+  document.addEventListener("click", (event) => {
+    const target = event.target;
+    if (!(target instanceof Element)) return;
+    if (target.closest("[data-events-calendar]") !== null) return;
+
+    for (const calendar of document.querySelectorAll(
+      "[data-events-calendar]",
+    )) {
+      if (calendar instanceof HTMLElement) {
+        closeCalendarPopovers(calendar);
+      }
+    }
+  });
+
+  document.addEventListener("keydown", (event) => {
+    if (event.key !== "Escape") return;
+
+    for (const calendar of document.querySelectorAll(
+      "[data-events-calendar]",
+    )) {
+      if (calendar instanceof HTMLElement) {
+        closeCalendarPopovers(calendar);
+      }
+    }
+  });
+</script>
