@@ -23,7 +23,7 @@ test("renders the localized shell without horizontal overflow", async ({
   await expect(skipLink).toBeVisible();
 
   if (isMobile) {
-    const menu = page.locator("header details");
+    const menu = page.locator("header details.site-header__mobile-menu");
     const summary = menu.locator("summary");
     await summary.focus();
     await page.keyboard.press("Enter");
@@ -306,7 +306,7 @@ test("navigates from the header to the About page", async ({
   await page.goto("/ca/");
 
   if (isMobile) {
-    const menu = page.locator("header details");
+    const menu = page.locator("header details.site-header__mobile-menu");
     await menu.locator("summary").focus();
     await page.keyboard.press("Enter");
   }
@@ -329,7 +329,7 @@ test("navigates from the header to the schools hub", async ({
   await page.goto("/ca/");
 
   if (isMobile) {
-    const menu = page.locator("header details");
+    const menu = page.locator("header details.site-header__mobile-menu");
     await menu.locator("summary").focus();
     await page.keyboard.press("Enter");
   }
@@ -402,7 +402,7 @@ test("navigates from the header to the Members page", async ({
   await page.goto("/ca/");
 
   if (isMobile) {
-    const menu = page.locator("header details");
+    const menu = page.locator("header details.site-header__mobile-menu");
     await menu.locator("summary").focus();
     await page.keyboard.press("Enter");
   }
