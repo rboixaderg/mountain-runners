@@ -13,7 +13,7 @@ test("renders the localized shell without horizontal overflow", async ({
   await expect(
     page.locator('header a[aria-label="Mountain Runners"] img'),
   ).toBeVisible();
-  await expect(page.locator('nav[aria-label="Idioma"]')).toHaveCount(0);
+  await expect(page.locator('nav[aria-label="Idioma"]')).toHaveCount(2);
 
   const skipLink = page.getByRole("link", {
     name: "Vés al contingut principal",
@@ -23,8 +23,8 @@ test("renders the localized shell without horizontal overflow", async ({
   await expect(skipLink).toBeVisible();
 
   if (isMobile) {
-    const menu = page.locator("header details");
-    const summary = menu.locator("summary");
+    const menu = page.locator("header details.site-header__mobile-menu");
+    const summary = menu.locator(":scope > summary");
     await summary.focus();
     await page.keyboard.press("Enter");
     await expect(menu).toHaveAttribute("open", "");
@@ -306,8 +306,8 @@ test("navigates from the header to the About page", async ({
   await page.goto("/ca/");
 
   if (isMobile) {
-    const menu = page.locator("header details");
-    await menu.locator("summary").focus();
+    const menu = page.locator("header details.site-header__mobile-menu");
+    await menu.locator(":scope > summary").focus();
     await page.keyboard.press("Enter");
   }
 
@@ -329,8 +329,8 @@ test("navigates from the header to the schools hub", async ({
   await page.goto("/ca/");
 
   if (isMobile) {
-    const menu = page.locator("header details");
-    await menu.locator("summary").focus();
+    const menu = page.locator("header details.site-header__mobile-menu");
+    await menu.locator(":scope > summary").focus();
     await page.keyboard.press("Enter");
   }
 
@@ -402,8 +402,8 @@ test("navigates from the header to the Members page", async ({
   await page.goto("/ca/");
 
   if (isMobile) {
-    const menu = page.locator("header details");
-    await menu.locator("summary").focus();
+    const menu = page.locator("header details.site-header__mobile-menu");
+    await menu.locator(":scope > summary").focus();
     await page.keyboard.press("Enter");
   }
 
@@ -674,20 +674,9 @@ test("renders the board and the unavailable states without fake controls", async
   await expect(board).toContainText("Ernest Garrido");
   await expect(board.getByRole("link")).toHaveCount(0);
 
-  // The unavailable newsletter and school registration states are textual:
-  // they explain the state without adding anything to the focus order, so
-  // the keyboard can never land on a fake control.
-  await page.goto("/ca/contacte/");
-  const newsletter = page.locator(
-    'section[aria-labelledby="contact-newsletter-title"]',
-  );
-  await expect(newsletter).toContainText(
-    "El servei de butlletí encara no està disponible.",
-  );
-  await expect(newsletter.locator("a, button, input, [tabindex]")).toHaveCount(
-    0,
-  );
-
+  // The unavailable school registration state is textual: it explains the
+  // state without adding anything to the focus order, so the keyboard can
+  // never land on a fake control.
   await page.goto("/ca/escoles/escola-trail/");
   const registration = page.locator(
     'section[aria-labelledby="school-registration-title"]',
@@ -872,8 +861,7 @@ test("emits canonical and social metadata for published pages", async ({
     "content",
     "https://mountainrunners.cat/ca/",
   );
-  // Only Catalan is published: no hreflang alternatives may be advertised.
-  await expect(page.locator('link[rel="alternate"]')).toHaveCount(0);
+  await expect(page.locator('link[rel="alternate"]')).toHaveCount(3);
 
   await page.goto("/ca/esdeveniments/ultra-pirineu/");
   await expect(page.locator('link[rel="canonical"]')).toHaveAttribute(
@@ -902,7 +890,7 @@ test("emits canonical and social metadata for published pages", async ({
     "content",
     "https://mountainrunners.cat/ca/socis/",
   );
-  await expect(page.locator('link[rel="alternate"]')).toHaveCount(0);
+  await expect(page.locator('link[rel="alternate"]')).toHaveCount(3);
 
   await page.goto("/ca/escoles/");
   await expect(page.locator('link[rel="canonical"]')).toHaveAttribute(

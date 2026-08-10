@@ -29,6 +29,103 @@
   display: none;
 }
 
+.language-selector__details {
+  position: relative;
+}
+
+.language-selector__summary {
+  display: inline-flex;
+  min-height: 2.5rem;
+  align-items: center;
+  gap: 0.45rem;
+  cursor: pointer;
+  border: 0.125rem solid var(--color-ink);
+  padding: 0.45rem 0.65rem;
+  color: var(--color-ink);
+  font-family: var(--font-display);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  line-height: 1;
+  list-style: none;
+}
+
+.language-selector__summary::-webkit-details-marker {
+  display: none;
+}
+
+.language-selector__summary:hover,
+.language-selector__details[open] .language-selector__summary {
+  border-color: var(--color-red);
+  background: var(--color-red);
+  color: white;
+}
+
+.language-selector__icon {
+  width: 1rem;
+  height: 1rem;
+  fill: none;
+  stroke: currentcolor;
+  stroke-width: 1.75;
+}
+
+.language-selector__chevron {
+  width: 0.45rem;
+  height: 0.45rem;
+  margin-left: 0.15rem;
+  border-right: 0.125rem solid currentcolor;
+  border-bottom: 0.125rem solid currentcolor;
+  transform: translateY(-0.12rem) rotate(45deg);
+}
+
+.language-selector__details[open] .language-selector__chevron {
+  transform: translateY(0.12rem) rotate(225deg);
+}
+
+.language-selector__panel {
+  position: absolute;
+  top: calc(100% + 0.75rem);
+  right: 0;
+  z-index: 2;
+  min-width: 11rem;
+  margin: 0;
+  padding: 0.5rem 0;
+  list-style: none;
+  border: 0.125rem solid var(--color-ink);
+  background: white;
+  box-shadow: 0.35rem 0.35rem 0 var(--color-red);
+}
+
+.language-selector__option {
+  display: block;
+  width: 100%;
+  border: 0;
+  padding: 0.65rem 1rem;
+  background: transparent;
+  color: var(--color-ink);
+  font-family: var(--font-display);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  line-height: 1.2;
+  text-align: left;
+  text-decoration: none;
+  text-transform: uppercase;
+}
+
+.language-selector__option:hover,
+.language-selector__option--active {
+  background: var(--color-stone);
+  color: var(--color-red);
+}
+
+.site-header__mobile-language .language-selector__panel {
+  position: static;
+  min-width: 0;
+  margin-top: 0.5rem;
+  box-shadow: none;
+}
+
 .site-header__link,
 .site-header__cta,
 .site-header__mobile-menu summary {
@@ -289,8 +386,13 @@
   }
 
   .site-header__cta {
+    margin-left: auto;
     padding: 0.7rem 1.25rem;
     font-size: 0.8rem;
+  }
+
+  .site-header__language {
+    margin-left: 0;
   }
 
   .site-header__mobile-menu {

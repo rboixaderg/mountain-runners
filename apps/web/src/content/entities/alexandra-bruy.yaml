@@ -2,17 +2,27 @@ id: alexandra-bruy
 published: true
 name:
   ca: Alexandra Bruy
+  es: Alexandra Bruy
+  en: Alexandra Bruy
 logo:
   resource:
     kind: local
     path: src/assets/collaborators/alexandra-bruy.png
   alt:
     ca: Logotip d'Alexandra Bruy
+    es: Logotipo de Alexandra Bruy
+    en: Alexandra Bruy logo
   sourceUrl: https://mountainrunners.cat/wp-content/uploads/2021/10/ABruy_Logo_H_Color-1024x435.png
 description:
   ca: Establiment col·laborador de Mountain Runners del Berguedà.
+  es: Establecimiento colaborador de Mountain Runners del Berguedà.
+  en: Mountain Runners del Berguedà partner business.
 membershipBenefit:
   title:
     ca: Psicologia esportiva
+    es: Psicología deportiva
+    en: Sports psychology
   description:
     ca: 10% de descompte en sessions de psicologia esportiva.
+    es: 10% de descuento en sesiones de psicología deportiva.
+    en: 10% off sports psychology sessions.

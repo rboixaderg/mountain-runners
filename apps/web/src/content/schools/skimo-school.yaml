@@ -3,10 +3,16 @@ published: true
 hubOrder: 2
 slug:
   ca: escola-skimo
+  es: escuela-esqui-montana
+  en: ski-mountaineering-school
 name:
   ca: Escola Skimo
+  es: Escuela de Esquí de Montaña
+  en: Ski Mountaineering School
 summary:
   ca: Formació en esquí de muntanya per a joves de 12 a 18 anys al Berguedà.
+  es: Formación en esquí de montaña para jóvenes de 12 a 18 años en el Berguedà.
+  en: Ski mountaineering training for young people aged 12 to 18 in Berguedà.
 description:
   ca: >-
     L'Escola Skimo és una de les branques dels MRB: un projecte de formació de
@@ -16,12 +22,16 @@ description:
 
     Oferim continuïtat per a qui vulgui iniciar-se o progressar en esquí de
     muntanya, amb possibilitat d'obrir la porta a la competició.
+  es: La Escuela de Esquí de Montaña ofrece formación fuera del horario lectivo a jóvenes de 12 a 18 años y continuidad para quienes quieran progresar o iniciarse en la competición.
+  en: The Ski Mountaineering School offers training outside school hours for young people aged 12 to 18, with a pathway for those who want to progress or start competing.
 cover:
   resource:
     kind: local
     path: src/assets/schools/escola-skimo.jpg
   alt:
     ca: Esquiador de muntanya en ascens durant una sessió de l'escola skimo
+    es: Esquiador de montaña ascendiendo durante una sesión de la Escuela Skimo
+    en: Ski mountaineer climbing during a Ski Mountaineering School session
 coverCard:
   kind: local
   path: src/assets/schools/escola-skimo-card.jpg
@@ -31,24 +41,32 @@ gallery:
       path: src/assets/schools/gallery/skimo/skimo-session-4221.jpg
     alt:
       ca: Jove esquiant de muntanya en una sortida de l'escola skimo
+      es: Joven practicando esquí de montaña en una salida de la Escuela Skimo
+      en: Young person ski mountaineering on a Ski School outing
     sourceUrl: https://mountainrunners.cat/wp-content/uploads/2021/07/IMG_4221-1024x768.jpg
   - resource:
       kind: local
       path: src/assets/schools/gallery/skimo/skimo-session-0295.jpg
     alt:
       ca: Grup de joves entrenant esquí de muntanya en entorn nevado
+      es: Grupo de jóvenes entrenando esquí de montaña en un entorno nevado
+      en: Group of young people training ski mountaineering in a snowy setting
     sourceUrl: https://mountainrunners.cat/wp-content/uploads/2021/07/IMG_0295-1-1024x768.jpg
   - resource:
       kind: local
       path: src/assets/schools/gallery/skimo/skimo-session-4284.jpg
     alt:
       ca: Esquiador de muntanya en ascens durant una sessió de l'escola
+      es: Esquiador de montaña ascendiendo durante una sesión de la escuela
+      en: Ski mountaineer climbing during a school session
     sourceUrl: https://mountainrunners.cat/wp-content/uploads/2021/07/IMG_4284-1024x768.jpg
   - resource:
       kind: local
       path: src/assets/schools/gallery/skimo/skimo-session-2385.jpg
     alt:
       ca: Joves de l'escola skimo preparats per a una sortida a la neu
+      es: Jóvenes de la Escuela Skimo preparados para una salida en la nieve
+      en: Ski School young people ready for a snow outing
     sourceUrl: https://mountainrunners.cat/wp-content/uploads/2021/07/IMG_2385-scaled-e1627665594164-1024x815.jpg
 promotionalVideoUrl: https://www.youtube.com/watch?v=dqCRDy4jpQA
 registrationStatus: coming-soon
@@ -57,12 +75,18 @@ sections:
     ca: >-
       Va néixer l'any 2014, aprofitant l'experiència de l'Escola Trail — escola
       pionera de curses de muntanya — per aplicar-la a l'esquí de muntanya.
+    es: Nació en 2014, aprovechando la experiencia de la Escuela de Trail —pionera en carreras de montaña— para aplicarla al esquí de montaña.
+    en: It began in 2014, building on the experience of the Trail School —a pioneer in mountain races— and applying it to ski mountaineering.
   purpose:
     ca: >-
       Oferir una formació en esquí de muntanya, donar continuïtat i obrir les
       portes a la competició a qui ho vulgui.
+    es: Ofrecer formación en esquí de montaña, dar continuidad y abrir las puertas a la competición a quien lo desee.
+    en: To provide ski mountaineering training, continuity and a path to competition for those who want it.
   audience:
     ca: Joves de 12 a 18 anys amb ganes de millorar.
+    es: Jóvenes de 12 a 18 años con ganas de mejorar.
+    en: Young people aged 12 to 18 who want to improve.
   schedule:
     ca: >-
       **Caps de setmana**
@@ -86,9 +110,13 @@ sections:
         19.00 h a Masella (possibilitat d'entrenar als Rasos).
 
       - Temporada de neu (Masella nit oberta): dimarts de 17.00 h a 19.00 h i
-        dijous de 17.00 h a 20.00 h a Masella.
+      dijous de 17.00 h a 20.00 h a Masella.
+    es: Entrenamientos de otoño y nieve entre semana y fines de semana, adaptados a Berga, Masella, Rasos y otros lugares del Berguedà.
+    en: Autumn and snow-season training on weekdays and weekends, adapted to Berga, Masella, Rasos and other places in Berguedà.
   location:
     ca: Berga, Masella, Rasos i diferents indrets del Berguedà segons la temporada.
+    es: Berga, Masella, Rasos y diferentes lugares del Berguedà según la temporada.
+    en: Berga, Masella, Rasos and different places in Berguedà depending on the season.
   requirements:
     ca: >-
       - Ser soci o sòcia dels Mountain Runners.
@@ -98,6 +126,16 @@ sections:
       - Bon nivell d'esquí alpí (capacitat de baixar per tot tipus de pista).
 
       - Material d'esquí de muntanya i de rollers.
+    es: >-
+      - Ser socio o socia de Mountain Runners.
+      - Licencia federativa D habilitada por la FEDME.
+      - Buen nivel de esquí alpino.
+      - Material de esquí de montaña y rollers.
+    en: >-
+      - Be a Mountain Runners member.
+      - FEDME-enabled category D federation licence.
+      - Good alpine skiing level.
+      - Ski mountaineering and roller-ski equipment.
   prices:
     ca: >-
       No varia en funció de l'edat, sinó dels dies que voleu venir:
@@ -112,3 +150,5 @@ sections:
 
 
       Els preus poden quedar subjectes a modificació a l'inici de curs.
+    es: Los precios pueden modificarse al inicio del curso.
+    en: Prices may change at the start of the school year.

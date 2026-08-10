@@ -28,6 +28,9 @@ describe("LanguageSelector", () => {
     });
 
     expect(html).toContain('aria-label="Idioma"');
+    expect(html).toContain('class="language-selector__details"');
+    expect(html).toContain('class="language-selector__icon"');
+    expect(html).toContain(">CA</span>");
     expect(html).toContain('aria-current="page"');
     expect(html).toContain('href="/es/"');
     expect(html).toContain('hreflang="es"');

@@ -2,11 +2,17 @@ id: ultra-pirineu
 published: true
 slug:
   ca: ultra-pirineu
+  es: ultra-pirineu
+  en: ultra-pirineu
 active: true
 title:
   ca: Ultra Pirineu
+  es: Ultra Pirineu
+  en: Ultra Pirineu
 summary:
   ca: És una cursa de muntanya que recorre part de la serralada del Cadí-Moixeró.
+  es: Es una carrera de montaña que recorre parte de la cordillera del Cadí-Moixeró.
+  en: A mountain race that crosses part of the Cadí-Moixeró mountain range.
 description:
   ca: >-
     Des dels Mountain Runners col·laboram en la Salomon Ultra Pirineu des de les
@@ -19,6 +25,16 @@ description:
     treballem conjuntament perquè any rere any es pugui gaudir d'aquest gran
     esdeveniment al Parc Natural del Cadí-Moixeró, amb sortida i arribada a
     Bagà.
+  es: >-
+    Mountain Runners colabora con la Salomon Ultra Pirineu desde las primeras
+    ediciones de Cavalls del Vent en 2009. Desde 2015, la organización y MRB
+    trabajan conjuntamente para disfrutar año tras año de este gran evento en
+    el Parque Natural del Cadí-Moixeró, con salida y llegada en Bagà.
+  en: >-
+    Mountain Runners has collaborated with Salomon Ultra Pirineu since the first
+    Cavalls del Vent editions in 2009. Since 2015, the organisation and MRB have
+    worked together so that this great event can be enjoyed year after year in
+    Cadí-Moixeró Natural Park, starting and finishing in Bagà.
 clubRelationship: collaborates
 cover:
   resource:
@@ -26,12 +42,18 @@ cover:
     path: src/assets/logo_mountain_runners.png
   alt:
     ca: Logotip de Mountain Runners del Berguedà
+    es: Logotipo de Mountain Runners del Berguedà
+    en: Mountain Runners del Berguedà logo
 gallery: []
 videoUrls: []
 informationUrl:
   ca: https://ultrapirineu.com/es/
+  es: https://ultrapirineu.com/es/
+  en: https://ultrapirineu.com/es/
 registrationUrl:
   ca: https://ultrapirineu.com/es/
+  es: https://ultrapirineu.com/es/
+  en: https://ultrapirineu.com/es/
 organizerIds:
   - mountain-runners
 collaboratorIds: []
@@ -41,11 +63,23 @@ editions:
     endDate: 2026-10-04
     location:
       ca: Bagà
+      es: Bagà
+      en: Bagà
     modalities:
       - ca: 100 km
+        es: 100 km
+        en: 100 km
       - ca: 42 km
+        es: 42 km
+        en: 42 km
       - ca: 21 km
+        es: 21 km
+        en: 21 km
       - ca: KV Nit
+        es: KV Nit
+        en: Night KV
       - ca: Pirineu XS
+        es: Pirineu XS
+        en: Pirineu XS
     registrationStatus: closed
     documentIds: []

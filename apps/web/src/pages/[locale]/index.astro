@@ -79,9 +79,7 @@ const memberSignupLink = getMemberSignupLink(
 const schoolsPath = getDomainPath("school", locale);
 
 export function getStaticPaths() {
-  return locales
-    .filter((locale) => locale === "ca")
-    .map((locale) => ({ params: { locale } }));
+  return locales.map((locale) => ({ params: { locale } }));
 }
 ---
 
@@ -89,6 +87,10 @@ export function getStaticPaths() {
   canonical={canonicalUrl.toString()}
   description={messages.homepage_hero_description({}, { locale })}
   locale={locale}
+  localizedAlternatives={locales.map((alternativeLocale) => ({
+    locale: assertIsLocale(alternativeLocale),
+    href: new URL(`/${alternativeLocale}/`, Astro.site).toString(),
+  }))}
   structuredData={structuredData}
   title={messages.homepage_hero_title({}, { locale })}
 >

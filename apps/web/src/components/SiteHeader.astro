@@ -140,12 +140,6 @@ function isSchoolDetailPath(path: string): boolean {
         ))
       }
     </nav>
-    <div class="site-header__language">
-      <LanguageSelector
-        localizedAlternatives={localizedAlternatives}
-        locale={locale}
-      />
-    </div>
     <a
       class="site-header__cta"
       href={memberSignupLink.href}
@@ -153,6 +147,12 @@ function isSchoolDetailPath(path: string): boolean {
     >
       {messages.cta_join_members({}, { locale })}
     </a>
+    <div class="site-header__language">
+      <LanguageSelector
+        localizedAlternatives={localizedAlternatives}
+        locale={locale}
+      />
+    </div>
     <details class="site-header__mobile-menu">
       <summary>
         <span>{messages.menu({}, { locale })}</span>
