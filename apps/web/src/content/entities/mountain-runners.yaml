@@ -2,12 +2,16 @@ id: mountain-runners
 published: true
 name:
   ca: Mountain Runners del Berguedà
+  es: Mountain Runners del Berguedà
+  en: Mountain Runners del Berguedà
 logo:
   resource:
     kind: local
     path: src/assets/logo_mountain_runners.png
   alt:
     ca: Logotip de Mountain Runners del Berguedà
+    es: Logotipo de Mountain Runners del Berguedà
+    en: Mountain Runners del Berguedà logo
 description:
   ca: Associació esportiva del Berguedà.
   es: Asociación deportiva del Berguedà.
