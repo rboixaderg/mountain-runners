@@ -658,6 +658,7 @@ test("@a11y has no detectable axe violations", async ({
     "/404.html",
     "/ca/esdeveniments/",
     "/ca/esdeveniments/ultra-pirineu/",
+    "/ca/esdeveniments/anella-verda/",
     "/ca/esdeveniments/berga-trail/",
     "/ca/esdeveniments/escalada-queralt/",
     "/ca/qui-som/",
@@ -724,6 +725,7 @@ test("publishes structured data only on pages with reviewed data", async ({
   });
 
   for (const path of [
+    "/ca/esdeveniments/anella-verda/",
     "/ca/esdeveniments/berga-trail/",
     "/ca/esdeveniments/escalada-queralt/",
     "/ca/qui-som/",
@@ -828,6 +830,7 @@ test("serves sitemap and robots aligned with the canonical origin", async ({
   for (const url of [
     "https://mountainrunners.cat/ca/",
     "https://mountainrunners.cat/ca/esdeveniments/",
+    "https://mountainrunners.cat/ca/esdeveniments/anella-verda/",
     "https://mountainrunners.cat/ca/esdeveniments/berga-trail/",
     "https://mountainrunners.cat/ca/esdeveniments/escalada-queralt/",
     "https://mountainrunners.cat/ca/esdeveniments/ultra-pirineu/",
@@ -860,6 +863,7 @@ test("has no broken or falsely disabled links within the slice", async ({
     "/ca/",
     "/ca/esdeveniments/",
     "/ca/esdeveniments/ultra-pirineu/",
+    "/ca/esdeveniments/anella-verda/",
     "/ca/esdeveniments/berga-trail/",
     "/ca/esdeveniments/escalada-queralt/",
     "/ca/qui-som/",

@@ -1,5 +1,6 @@
 ---
 import * as messages from "../../paraglide/messages.js";
+import { externalLinkAttributes } from "../../lib/presentation/urls";
 import { getDocumentHref } from "../../lib/content/images";
 import type { Document, EventEdition } from "../../lib/content/models";
 import type { Locale } from "../../lib/content/primitives";
@@ -25,11 +26,9 @@ const { documents, edition, locale } = Astro.props;
               {documentHref && document ? (
                 <a
                   href={documentHref}
-                  rel={
-                    document.resource.kind === "external"
-                      ? "noopener noreferrer"
-                      : undefined
-                  }
+                  {...(document.resource.kind === "external"
+                    ? externalLinkAttributes
+                    : {})}
                 >
                   {document.title[locale]}
                 </a>

@@ -160,6 +160,7 @@ const expectedSitemapUrls = new Set(
     "ca/escoles/escola-skimo/",
     "ca/escoles/escola-trail/",
     "ca/esdeveniments/",
+    "ca/esdeveniments/anella-verda/",
     "ca/esdeveniments/berga-trail/",
     "ca/esdeveniments/escalada-queralt/",
     "ca/esdeveniments/ultra-pirineu/",

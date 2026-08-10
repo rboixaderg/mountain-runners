@@ -1,6 +1,5 @@
 ---
 import * as messages from "../../paraglide/messages.js";
-import { renderRestrictedMarkdown } from "../../lib/content/markdown";
 import type { Event } from "../../lib/content/models";
 import type { Locale } from "../../lib/content/primitives";
 import type { PublishedVariant } from "../../lib/content/publication";
@@ -22,7 +21,7 @@ const statusKey = getEventHubStatusMessageKey(
   "active-without-date",
   today,
 );
-const description = event.description[locale];
+const summary = event.summary[locale];
 ---
 
 <li class="events-hub-active-item">
@@ -30,11 +29,8 @@ const description = event.description[locale];
     <span class="events-hub-active-item__body">
       <strong>{event.title[locale]}</strong>
       {
-        description && (
-          <span
-            class="events-hub-active-item__description"
-            set:html={renderRestrictedMarkdown(description)}
-          />
+        summary && (
+          <span class="events-hub-active-item__description">{summary}</span>
         )
       }
     </span>
@@ -50,9 +46,3 @@ const description = event.description[locale];
     </span>
   </a>
 </li>
-
-<style>
-  .events-hub-active-item__description :global(p) {
-    margin: 0;
-  }
-</style>

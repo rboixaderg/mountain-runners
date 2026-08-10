@@ -3,19 +3,17 @@ import * as messages from "../../paraglide/messages.js";
 import { getNextEdition } from "../../lib/content/events";
 import type { Event, EventEdition } from "../../lib/content/models";
 import type { Locale } from "../../lib/content/primitives";
-import type { RegistrationPresentation } from "../../lib/presentation/status";
 import EditionDates from "../EditionDates.astro";
-import ExternalLink from "../ExternalLink.astro";
+import EventPracticalIcon from "./EventPracticalIcon.astro";
 
 interface Props {
   edition: EventEdition | undefined;
   event: Event;
   locale: Locale;
-  registration: RegistrationPresentation;
   today: string;
 }
 
-const { edition, event, locale, registration, today } = Astro.props;
+const { edition, event, locale, today } = Astro.props;
 ---
 
 {
@@ -24,7 +22,7 @@ const { edition, event, locale, registration, today } = Astro.props;
       class="events-detail__edition"
       aria-label={messages.event_practical_info({}, { locale })}
     >
-      <div class="page-frame events-detail__edition-inner py-[clamp(3.5rem,7vw,6rem)]">
+      <div class="page-frame events-detail__edition-inner">
         <h2>{messages.event_practical_info({}, { locale })}</h2>
         {event.active && !getNextEdition(event, today) && (
           <p class="events-detail__no-upcoming-date">
@@ -33,17 +31,32 @@ const { edition, event, locale, registration, today } = Astro.props;
         )}
         <dl>
           <div>
-            <dt>{messages.event_dates_label({}, { locale })}</dt>
+            <dt>
+              <span class="events-detail__practical-icon" aria-hidden="true">
+                <EventPracticalIcon field="dates" />
+              </span>
+              {messages.event_dates_label({}, { locale })}
+            </dt>
             <dd class="events-detail__dates">
               <EditionDates edition={edition} locale={locale} />
             </dd>
           </div>
           <div>
-            <dt>{messages.event_location_label({}, { locale })}</dt>
+            <dt>
+              <span class="events-detail__practical-icon" aria-hidden="true">
+                <EventPracticalIcon field="location" />
+              </span>
+              {messages.event_location_label({}, { locale })}
+            </dt>
             <dd>{edition.location[locale]}</dd>
           </div>
           <div>
-            <dt>{messages.event_modalities_label({}, { locale })}</dt>
+            <dt>
+              <span class="events-detail__practical-icon" aria-hidden="true">
+                <EventPracticalIcon field="modalities" />
+              </span>
+              {messages.event_modalities_label({}, { locale })}
+            </dt>
             <dd>
               <ul class="events-detail__modalities">
                 {edition.modalities.map((modality) => (
@@ -53,16 +66,6 @@ const { edition, event, locale, registration, today } = Astro.props;
             </dd>
           </div>
         </dl>
-        <div class="events-detail__registration">
-          <span>{messages[registration.key]({}, { locale })}</span>
-          {registration.url && (
-            <ExternalLink
-              className="event-action"
-              href={registration.url}
-              label={messages.event_register_action({}, { locale })}
-            />
-          )}
-        </div>
       </div>
     </section>
   )

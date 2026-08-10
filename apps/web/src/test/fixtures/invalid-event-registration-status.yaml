@@ -5,6 +5,8 @@ slug:
 active: true
 title:
   ca: Esdeveniment invàlid
+summary:
+  ca: Fixture amb un estat d'inscripció invàlid.
 description:
   ca: Fixture amb un estat d'inscripció invàlid.
 clubRelationship: organizes

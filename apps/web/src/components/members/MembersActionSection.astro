@@ -3,6 +3,7 @@ import * as messages from "../../paraglide/messages.js";
 import type { ExternalAction } from "../../lib/content/models";
 import type { Locale } from "../../lib/content/primitives";
 import { getExternalActionPresentation } from "../../lib/presentation/status";
+import { externalLinkAttributes } from "../../lib/presentation/urls";
 
 interface Props {
   action: ExternalAction | undefined;
@@ -59,7 +60,7 @@ const { href: actionHref, stateMessageKey } = getExternalActionPresentation(
             variant === "federation" && "members-action__link--federation",
           ]}
           href={actionHref}
-          rel="noopener noreferrer"
+          {...externalLinkAttributes}
         >
           {messages[actionLabelKey]({}, { locale })}
         </a>

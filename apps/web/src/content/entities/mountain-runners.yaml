@@ -4,10 +4,10 @@ name:
   ca: Mountain Runners del Berguedà
 logo:
   resource:
-    kind: external
-    url: https://images.example.org/mountain-runners-logo.webp
+    kind: local
+    path: src/assets/logo_mountain_runners.png
   alt:
     ca: Logotip de Mountain Runners del Berguedà
 description:
   ca: Associació esportiva del Berguedà.
-websiteUrl: https://example.org
+websiteUrl: https://mountainrunners.cat

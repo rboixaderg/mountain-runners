@@ -5,26 +5,65 @@ slug:
 active: true
 title:
   ca: Escalada Popular a Queralt
+summary:
+  ca: Cronoescalada de la Lliga d'escalades del Berguedà, de Berga al Santuari de Queralt.
 description:
-  ca: Escalada popular de Berga a Queralt en bicicleta.
+  ca: >-
+    Primera prova de la [Lliga d'escalades del
+    Berguedà](https://escaladesbergueda.cat/). Cronoescalada oberta a tothom
+    des de la plaça dels Països Catalans fins a l'aparcament del Santuari de
+    Queralt, el «Balcó de Catalunya».
+
+
+    El recorregut inclou 0,65 km neutralitzats i 6,54 km cronometrats amb 420
+    metres de desnivell positiu. Es pot participar amb qualsevol tipus de
+    bicicleta: carretera, BTT, gravel, ciclocròs o clàssica.
+
+
+    Mountain Runners del Berguedà i el Club Esquí Berguedà coorganitzen la
+    prova dins el calendari de la lliga, que promou el ciclisme de muntanya al
+    territori.
 clubRelationship: organizes
 cover:
   resource:
     kind: local
-    path: src/assets/logo_mountain_runners.png
+    path: src/assets/events/escalada-queralt-cover.jpg
   alt:
-    ca: Logotip de Mountain Runners del Berguedà
+    ca: Cronoescalada a Queralt amb vistes sobre Berga i el Berguedà
+  sourceUrl: https://escaladesbergueda.cat/images/climbs/queralt-og.jpg
 gallery: []
 videoUrls: []
+informationUrl:
+  ca: https://escaladesbergueda.cat/escalades/queralt
+registrationUrl:
+  ca: https://escaladesbergueda.cat/
 organizerIds:
   - mountain-runners
+  - club-esqui-bergueda
 collaboratorIds: []
 editions:
   - id: edition-2026
-    startDate: 2026-03-17
+    startDate: 2026-03-22
     location:
-      ca: Berga
+      ca: Plaça dels Països Catalans, Berga
     modalities:
-      - ca: Bicicleta de muntanya
+      - ca: 6,54 km · 420 m D+
+      - ca: Carretera, BTT, gravel o clàssica
+    registrationStatus: closed
+    documentIds: []
+  - id: edition-2025
+    startDate: 2025-03-23
+    location:
+      ca: Plaça dels Països Catalans, Berga
+    modalities:
+      - ca: 6,54 km · 420 m D+
+    registrationStatus: closed
+    documentIds: []
+  - id: edition-2024
+    startDate: 2024-03-17
+    location:
+      ca: Plaça de la Creu, Berga
+    modalities:
+      - ca: 7 km · 500 m D+
     registrationStatus: closed
     documentIds: []

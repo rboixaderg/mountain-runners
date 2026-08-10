@@ -3,6 +3,7 @@ import * as messages from "../paraglide/messages.js";
 import type { Locale } from "../lib/content/primitives";
 import { getDomainPath, getFixedPagePath } from "../lib/content/routes";
 import { siteSocialLinks } from "../lib/presentation/social";
+import { externalLinkAttributes } from "../lib/presentation/urls";
 import "../styles/site-footer.css";
 
 interface Props {
@@ -40,7 +41,7 @@ const legalCookiesPath = getFixedPagePath("legal-cookies", locale);
               <a
                 class="site-footer__social-link"
                 href={socialLink.url}
-                rel="noopener noreferrer"
+                {...externalLinkAttributes}
               >
                 {socialLink.id === "instagram" && (
                   <svg

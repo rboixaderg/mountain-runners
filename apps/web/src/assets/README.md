@@ -94,6 +94,32 @@ imatge i l'atribució del fotògraf quan la publicava la web actual. Les
 fotografies conserven els drets d'imatge corresponents i no queden cobertes
 per la llicència MIT del programari.
 
+Els fitxers de `events/` són les portades d'esdeveniments descarregades i
+versionades localment amb l'URL d'origen registrat al camp `sourceUrl` de cada
+imatge:
+
+- `escalada-queralt-cover.jpg` prové de
+  `https://escaladesbergueda.cat/images/climbs/queralt-og.jpg` (Lliga
+  d'escalades del Berguedà).
+- `anella-verda-cover.png` prové de
+  `https://mountainrunners.cat/wp-content/uploads/2024/08/Foto-Marc-Elias-2-819x1024.png`,
+  amb l'atribució «Foto Marc Elias» que publicava la web actual de
+  l'associació.
+
+Els fitxers de `entities/` són logotips d'entitats coorganitzadores
+descarregats i versionats localment amb l'URL d'origen registrat al camp
+`sourceUrl` de cada logotip:
+
+- `club-esqui-bergueda.png` prové de
+  `https://escaladesbergueda.cat/logo192.png`.
+- `club-atletic-berga.png` prové de
+  `https://mountainrunners.cat/wp-content/uploads/2024/09/Diseno-sin-titulo-2-600x143.png`,
+  publicat a la pàgina de l'Anella Verda 2024 de la web actual de
+  l'associació.
+
+Aquests recursos conserven els drets de les entitats i persones respectives i
+no queden coberts per la llicència MIT del programari.
+
 El logotip, la fotografia, les fotografies i els logotips de col·laboradors
 són recursos de marca i d'imatge de l'associació i de les entitats. Qualsevol
 reutilització fora d'aquest projecte requereix autorització de l'associació.

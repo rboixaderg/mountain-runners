@@ -1,7 +1,6 @@
 ---
 import * as messages from "../../paraglide/messages.js";
 import { getNextEdition } from "../../lib/content/events";
-import { renderRestrictedMarkdown } from "../../lib/content/markdown";
 import type { Event } from "../../lib/content/models";
 import type { Locale } from "../../lib/content/primitives";
 import { getEditionDayMonth } from "../../lib/presentation/dates";
@@ -67,11 +66,10 @@ const dateParts = getEditionDayMonth(nextEdition, locale);
         {event.title[locale]}
       </h3>
       {
-        event.description[locale] && (
-          <div
-            class="homepage-event__description text-muted mt-3 max-w-[46rem] text-[0.95rem] leading-[1.6]"
-            set:html={renderRestrictedMarkdown(event.description[locale])}
-          />
+        event.summary[locale] && (
+          <p class="homepage-event__description text-muted mt-3 max-w-[46rem] text-[0.95rem] leading-[1.6]">
+            {event.summary[locale]}
+          </p>
         )
       }
     </div>

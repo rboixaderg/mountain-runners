@@ -118,6 +118,7 @@ export const eventSchema = z
     ...publishableFields,
     active: z.boolean(),
     title: localizedTextSchema,
+    summary: localizedTextSchema,
     description: localizedMarkdownSchema,
     clubRelationship: z.enum(["organizes", "collaborates"]),
     cover: imageSchema,

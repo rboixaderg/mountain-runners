@@ -5,10 +5,22 @@ slug:
 active: false
 title:
   ca: Berga Trail
-description:
+summary:
   ca: >-
     Cursa de muntanya organitzada per Mountain Runners que recorre l'entorn de
     Queralt, els Rasos de Peguera i la Serra d'Ensija.
+description:
+  ca: >-
+    La Marató de Muntanya de Berga va néixer el 2004, el mateix any que
+    l'Associació Esportiva Mountain Runners del Berguedà. La cursa recorria
+    Queralt, els Rasos de Peguera i la Serra d'Ensija, i va arribar a ser prova
+    de la Copa del Món en les seves quarta i cinquena edició.
+
+
+    Atletes com Tòfol Castanyer, Núria Picas, Corinne Favre, Pau Bartoló o
+    Jessed Hernández hi han pres la sortida en edicions històriques. L'esdeveniment
+    ja no es celebra, però forma part de la història del club i del trail
+    running al Berguedà.
 clubRelationship: organizes
 cover:
   resource:
