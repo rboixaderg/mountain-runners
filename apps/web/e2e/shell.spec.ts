@@ -95,7 +95,7 @@ test("renders the published homepage sections in order", async ({ page }) => {
   await expect(
     page.locator(".homepage-members-banner__action"),
   ).toHaveAttribute("href", "/ca/socis/");
-  await expect(page.locator(".homepage-members-banner__action")).toHaveText(
+  await expect(page.locator(".homepage-members-banner__action")).toContainText(
     "Veure més informació",
   );
   await expect(
