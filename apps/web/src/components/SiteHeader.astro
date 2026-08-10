@@ -1,10 +1,13 @@
 ---
 import * as messages from "../paraglide/messages.js";
 import logo from "../assets/logo-160.png";
+import { externalActionIds } from "../lib/content/models";
 import type { Locale } from "../lib/content/primitives";
 import type { PublicationCatalog } from "../lib/content/publication";
 import { getDomainPath, getFixedPagePath } from "../lib/content/routes";
 import { getSchoolNavigationItems } from "../lib/presentation/schools";
+import { getMemberSignupLink } from "../lib/presentation/status";
+import { externalLinkAttributes } from "../lib/presentation/urls";
 import LanguageSelector from "./LanguageSelector.astro";
 import "../styles/site-header.css";
 
@@ -22,6 +25,11 @@ const aboutPath = getFixedPagePath("about", locale);
 const schoolsPath = getDomainPath("school", locale);
 const eventsPath = getDomainPath("event", locale);
 const membersPath = getFixedPagePath("members", locale);
+const memberSignupLink = getMemberSignupLink(
+  catalog.externalActions.get(externalActionIds.memberSignup),
+  locale,
+  membersPath,
+);
 const currentPath = Astro.url.pathname;
 const schoolNavigationItems = getSchoolNavigationItems(catalog, locale);
 const schoolsNavigationActive = isCurrentPath(schoolsPath);
@@ -138,7 +146,11 @@ function isSchoolDetailPath(path: string): boolean {
         locale={locale}
       />
     </div>
-    <a class="site-header__cta" href={membersPath}>
+    <a
+      class="site-header__cta"
+      href={memberSignupLink.href}
+      {...memberSignupLink.isExternal ? externalLinkAttributes : {}}
+    >
       {messages.cta_join_members({}, { locale })}
     </a>
     <details class="site-header__mobile-menu">
@@ -224,7 +236,11 @@ function isSchoolDetailPath(path: string): boolean {
             ))
           }
         </nav>
-        <a class="site-header__mobile-cta" href={membersPath}>
+        <a
+          class="site-header__mobile-cta"
+          href={memberSignupLink.href}
+          {...memberSignupLink.isExternal ? externalLinkAttributes : {}}
+        >
           {messages.cta_join_members({}, { locale })}
         </a>
         <div class="site-header__mobile-language">

@@ -24,6 +24,16 @@
   font-weight: 400;
 }
 
+.homepage-members-banner__action {
+  box-shadow: 0.2rem 0.2rem 0 var(--color-ink);
+}
+
+.homepage-members-banner__action:hover {
+  border-color: white;
+  background: var(--color-ink);
+  color: white;
+}
+
 .homepage-events {
   border-inline-color: currentcolor;
   border-bottom-color: currentcolor;

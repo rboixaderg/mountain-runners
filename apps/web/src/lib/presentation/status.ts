@@ -113,6 +113,26 @@ export function getExternalActionPresentation(
   };
 }
 
+export type MemberSignupLink = {
+  href: string;
+  isExternal: boolean;
+};
+
+export function getMemberSignupLink(
+  memberSignupAction: ExternalAction | undefined,
+  locale: Locale,
+  membersPagePath: string,
+): MemberSignupLink {
+  const presentation = getExternalActionPresentation(
+    memberSignupAction,
+    locale,
+  );
+  return {
+    href: presentation.href ?? membersPagePath,
+    isExternal: presentation.href !== undefined,
+  };
+}
+
 export function getEventActivityMessageKey(
   active: boolean,
 ): EventActivityMessageKey {

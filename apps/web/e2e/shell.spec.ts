@@ -82,10 +82,22 @@ test("renders the published homepage sections in order", async ({ page }) => {
     1,
   );
   await expect(page.locator(".homepage-hero__cta")).toHaveCount(1);
-  await expect(page.locator(".homepage-join-cta")).toHaveCount(2);
+  await expect(page.locator(".homepage-join-cta")).toHaveCount(1);
   await expect(
-    page.locator('.homepage-join-cta[href="/ca/socis/"]').first(),
-  ).toContainText("Fes-te soci");
+    page.locator(".homepage-hero__actions .homepage-join-cta"),
+  ).toHaveAttribute(
+    "href",
+    "https://mountainrunners.playoffinformatica.com/Preinscripcio.php",
+  );
+  await expect(
+    page.locator(".homepage-hero__actions .homepage-join-cta"),
+  ).toHaveAttribute("target", "_blank");
+  await expect(
+    page.locator(".homepage-members-banner__action"),
+  ).toHaveAttribute("href", "/ca/socis/");
+  await expect(page.locator(".homepage-members-banner__action")).toHaveText(
+    "Veure més informació",
+  );
   await expect(
     page.locator('.homepage-hero__cta[href="/ca/escoles/"]'),
   ).toContainText("Les nostres escoles");
@@ -118,13 +130,15 @@ test("renders the published homepage sections in order", async ({ page }) => {
   await expect(
     page.locator(".homepage-school-list__action").allTextContents(),
   ).resolves.toEqual(["Informació", "Informació", "Informació"]);
-  await expect(
-    page.locator('.homepage-join-cta[href="/ca/socis/"]'),
-  ).toHaveCount(2);
-  await expect(page.locator(".homepage-join-cta").last()).toContainText(
-    "Fes-te soci",
-  );
   await expect(page.locator(".site-header__cta")).toHaveText("Fes-te soci");
+  await expect(page.locator(".site-header__cta")).toHaveAttribute(
+    "href",
+    "https://mountainrunners.playoffinformatica.com/Preinscripcio.php",
+  );
+  await expect(page.locator(".site-header__cta")).toHaveAttribute(
+    "target",
+    "_blank",
+  );
   await expect(page.locator('main a[href=""], main a[href="#"]')).toHaveCount(
     0,
   );

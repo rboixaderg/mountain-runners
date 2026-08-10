@@ -20,6 +20,9 @@ import {
   getVariantPath,
 } from "../../lib/content/routes";
 import { getSiteJsonLd } from "../../lib/content/seo";
+import { externalActionIds } from "../../lib/content/models";
+import { getMemberSignupLink } from "../../lib/presentation/status";
+import { externalLinkAttributes } from "../../lib/presentation/urls";
 import "../../styles/homepage.css";
 
 const locale = assertIsLocale(Astro.currentLocale);
@@ -68,6 +71,11 @@ const structuredData = getSiteJsonLd({
 });
 const eventsPath = getDomainPath("event", locale);
 const membersPath = getFixedPagePath("members", locale);
+const memberSignupLink = getMemberSignupLink(
+  catalog.externalActions.get(externalActionIds.memberSignup),
+  locale,
+  membersPath,
+);
 const schoolsPath = getDomainPath("school", locale);
 
 export function getStaticPaths() {
@@ -119,7 +127,8 @@ export function getStaticPaths() {
       >
         <a
           class="homepage-join-cta border-ink font-display text-ink inline-flex min-h-11 items-center gap-3 border-2 bg-white px-6 py-[0.85rem] text-[0.8rem] leading-[1.2] font-bold tracking-[0.12em] uppercase no-underline"
-          href={membersPath}
+          href={memberSignupLink.href}
+          {...memberSignupLink.isExternal ? externalLinkAttributes : {}}
         >
           {messages.cta_join_members({}, { locale })}
           <span aria-hidden="true">&rarr;</span>
@@ -211,10 +220,10 @@ export function getStaticPaths() {
             )}
           />
           <a
-            class="homepage-join-cta border-ink font-display text-ink mt-2 inline-flex min-h-11 items-center gap-3 border-2 bg-white px-6 py-[0.85rem] text-[0.8rem] leading-[1.2] font-bold tracking-[0.12em] uppercase no-underline"
+            class="homepage-members-banner__action border-ink font-display text-ink mt-2 inline-flex min-h-11 items-center gap-3 border-2 bg-white px-6 py-[0.85rem] text-[0.8rem] leading-[1.2] font-bold tracking-[0.12em] uppercase no-underline"
             href={membersPath}
           >
-            {messages.cta_join_members({}, { locale })}
+            {messages.homepage_members_action({}, { locale })}
             <span aria-hidden="true">&rarr;</span>
           </a>
         </div>
@@ -263,6 +272,15 @@ export function getStaticPaths() {
   .homepage-school-section__heading > div :global(:first-child),
   .homepage-members-banner__copy > div :global(:first-child) {
     margin-top: 0;
+  }
+
+  .homepage-members-banner__copy > div :global(ul) {
+    margin: 1rem 0 0;
+    padding-left: 1.25rem;
+  }
+
+  .homepage-members-banner__copy > div :global(li + li) {
+    margin-top: 0.5rem;
   }
 
   .homepage-hero__copy :global(:last-child),
