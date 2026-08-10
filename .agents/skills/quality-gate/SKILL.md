@@ -16,7 +16,6 @@ modify or review public pages.
   `docs/content-model.md` and `docs/decisions/` (ADRs).
 - Product requirements and security: `docs/roadmap.md`, `docs/backlog.md`,
   `SECURITY.md`.
-- This phase: `docs/specs/phase-2-public-vertical-slice.md`.
 
 Local instructions and accepted ADRs always take precedence over external
 recommendations (skills, blogs, checklists).
@@ -31,7 +30,7 @@ Run the smallest relevant check before declaring work complete:
 | `pnpm test:e2e`        | Playwright journeys in Chromium, Firefox and WebKit   |
 | `pnpm test:a11y`       | axe automated accessibility checks                    |
 | `pnpm lighthouse`      | Lighthouse scores and budgets on representative routes|
-| `pnpm validate`        | All mandatory checks of the phase                     |
+| `pnpm validate`        | CI gate: format, lint, typecheck, unit tests and E2E  |
 
 `pnpm check` no construeix ni fixa el rellotge. Les ordres que construeixen i
 serveixen el build (`pnpm test:e2e`, `pnpm test:a11y`, `pnpm lighthouse`)
