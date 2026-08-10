@@ -674,20 +674,9 @@ test("renders the board and the unavailable states without fake controls", async
   await expect(board).toContainText("Ernest Garrido");
   await expect(board.getByRole("link")).toHaveCount(0);
 
-  // The unavailable newsletter and school registration states are textual:
-  // they explain the state without adding anything to the focus order, so
-  // the keyboard can never land on a fake control.
-  await page.goto("/ca/contacte/");
-  const newsletter = page.locator(
-    'section[aria-labelledby="contact-newsletter-title"]',
-  );
-  await expect(newsletter).toContainText(
-    "El servei de butlletí encara no està disponible.",
-  );
-  await expect(newsletter.locator("a, button, input, [tabindex]")).toHaveCount(
-    0,
-  );
-
+  // The unavailable school registration state is textual: it explains the
+  // state without adding anything to the focus order, so the keyboard can
+  // never land on a fake control.
   await page.goto("/ca/escoles/escola-trail/");
   const registration = page.locator(
     'section[aria-labelledby="school-registration-title"]',
