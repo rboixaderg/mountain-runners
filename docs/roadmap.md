@@ -167,7 +167,7 @@ i contingut editable.
 
 - Pàgina Qui som: missatge de presidència, junta, història i estatuts.
 - Socis: alta, federació, avantatges i directori de col·laboradors.
-- Hub d'escoles i plantilla de detall per a Trail, Skimo, BTT i Trial.
+- Hub d'escoles i plantilla de detall per a Trail, Skimo i BTT.
 - Documents, recursos externs, galeries, vídeos i atribucions amb estats de
   disponibilitat explícits.
 - Contacte, butlletí extern, dades de peu i pàgines d'avís legal, privacitat i
@@ -180,6 +180,8 @@ i contingut editable.
 - Els enllaços externs, PDFs i recursos absents tenen un tractament útil.
 - L'avís legal, la política de privacitat i la política de cookies estan
   publicats, enllaçats des del peu i revisats abans de publicar.
+- La cobertura automatitzada (Vitest, Playwright, axe i SEO) està integrada a
+  CI; Lighthouse i els pressupostos es validen manualment.
 
 ## Fase 4: Validació Integral De Disseny I Contingut
 
