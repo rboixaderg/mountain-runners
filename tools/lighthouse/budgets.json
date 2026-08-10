@@ -2,7 +2,7 @@
   "timings": {
     "largest-contentful-paint": 2500,
     "cumulative-layout-shift": 0.1,
-    "total-blocking-time": 500
+    "total-blocking-time": 200
   },
   "resourceSizes": {
     "script": 30,

@@ -6,7 +6,12 @@ import tseslint from "typescript-eslint";
 
 export default tseslint.config(
   {
-    ignores: ["**/.astro/**", "**/dist/**", "**/node_modules/**"],
+    ignores: [
+      "**/.astro/**",
+      "**/dist/**",
+      "**/node_modules/**",
+      "**/.playwright-mcp/**",
+    ],
   },
   eslint.configs.recommended,
   ...tseslint.configs.recommended,
