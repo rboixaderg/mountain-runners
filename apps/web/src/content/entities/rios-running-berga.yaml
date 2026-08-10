@@ -2,17 +2,27 @@ id: rios-running-berga
 published: true
 name:
   ca: Ríos Running Berga
+  es: Ríos Running Berga
+  en: Ríos Running Berga
 logo:
   resource:
     kind: local
     path: src/assets/collaborators/rios-running-berga.jpeg
   alt:
     ca: Logotip de Ríos Running Berga
+    es: Logotipo de Ríos Running Berga
+    en: Ríos Running Berga logo
   sourceUrl: https://mountainrunners.cat/wp-content/uploads/2021/07/baixa-1.jpeg
 description:
   ca: Establiment col·laborador de Mountain Runners del Berguedà.
+  es: Establecimiento colaborador de Mountain Runners del Berguedà.
+  en: Mountain Runners del Berguedà partner business.
 membershipBenefit:
   title:
     ca: Productes
+    es: Productos
+    en: Products
   description:
     ca: 15% de descompte en qualsevol producte, excepte electrònica.
+    es: 15% de descuento en cualquier producto, excepto electrónica.
+    en: 15% off any product, excluding electronics.

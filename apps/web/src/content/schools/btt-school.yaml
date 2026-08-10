@@ -3,32 +3,58 @@ published: true
 hubOrder: 3
 slug:
   ca: escola-btt
+  es: escuela-btt
+  en: mtb-school
 name:
   ca: Escola BTT
+  es: Escuela BTT
+  en: MTB School
 summary:
   ca: Activitats de BTT per a infants i joves de 6 a 16 anys al Berguedà.
+  es: Actividades de BTT para niños y jóvenes de 6 a 16 años en el Berguedà.
+  en: MTB activities for children and young people aged 6 to 16 in Berguedà.
 description:
   ca: >-
     L'Escola BTT, amb el CEB i Veloberga, ofereix activitats en horari no
     lectiu per descobrir la comarca amb bicicleta.
+  es: >-
+    La Escuela BTT, con el CEB y Veloberga, ofrece actividades fuera del
+    horario lectivo para descubrir la comarca en bicicleta.
+  en: >-
+    The MTB School, with CEB and Veloberga, offers activities outside school
+    hours to discover the region by bike.
 cover:
   resource:
     kind: local
     path: src/assets/logo_mountain_runners.png
   alt:
     ca: Logotip de Mountain Runners del Berguedà
+    es: Logotipo de Mountain Runners del Berguedà
+    en: Mountain Runners del Berguedà logo
 gallery: []
 registrationStatus: coming-soon
 sections:
   since:
     ca: L'escola va néixer l'any 2020 com a projecte pilot.
+    es: La escuela nació en 2020 como proyecto piloto.
+    en: The school was founded in 2020 as a pilot project.
   purpose:
     ca: Estar a la natura, aprendre'n i gaudir-ne amb bicicleta mentre s'aprèn tècnica.
+    es: Estar en la naturaleza, aprender de ella y disfrutarla en bicicleta mientras se aprende técnica.
+    en: To spend time in nature, learn from it and enjoy it by bike while learning technique.
   audience:
     ca: Infants i joves de 6 a 16 anys.
+    es: Niños y jóvenes de 6 a 16 años.
+    en: Children and young people aged 6 to 16.
   schedule:
     ca: Dimarts de 17.30 h a 19.00 h a Avià i dissabtes de 10.00 h a 13.00 h al Berguedà.
+    es: Martes de 17:30 a 19:00 en Avià y sábados de 10:00 a 13:00 en el Berguedà.
+    en: Tuesdays from 5:30 pm to 7:00 pm in Avià and Saturdays from 10:00 am to 1:00 pm in Berguedà.
   location:
     ca: Avià i itineraris variables per la comarca del Berguedà.
+    es: Avià e itinerarios variables por la comarca del Berguedà.
+    en: Avià and changing routes around the Berguedà region.
   prices:
     ca: Els preus es poden modificar a l'inici de curs.
+    es: Los precios pueden modificarse al inicio del curso.
+    en: Prices may change at the start of the school year.

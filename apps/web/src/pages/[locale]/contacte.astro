@@ -5,7 +5,10 @@ import { assertIsLocale } from "../../paraglide/runtime.js";
 import ContactDetail from "../../components/contact/ContactDetail.astro";
 import PublicLayout from "../../layouts/PublicLayout.astro";
 import { getPublicationCatalog } from "../../lib/content/repository";
-import { getFixedPagePath } from "../../lib/content/routes";
+import {
+  getFixedPagePath,
+  getLocalizedFixedPageAlternatives,
+} from "../../lib/content/routes";
 
 export function getStaticPaths() {
   return locales
@@ -25,6 +28,10 @@ const canonical = new URL(
   canonical={canonical}
   description={messages.contact_page_description({}, { locale })}
   locale={locale}
+  localizedAlternatives={getLocalizedFixedPageAlternatives(
+    "contact",
+    Astro.site!,
+  )}
   title={`${messages.contact_page_title({}, { locale })} | ${messages.site_title({}, { locale })}`}
 >
   <ContactDetail catalog={catalog} locale={locale} />

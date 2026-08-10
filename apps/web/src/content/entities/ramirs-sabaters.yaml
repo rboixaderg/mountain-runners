@@ -2,17 +2,27 @@ id: ramirs-sabaters
 published: true
 name:
   ca: Ramir's Sabaters
+  es: Ramir's Sabaters
+  en: Ramir's Sabaters
 logo:
   resource:
     kind: local
     path: src/assets/collaborators/ramirs-sabaters.png
   alt:
     ca: Logotip de Ramir's Sabaters
+    es: Logotipo de Ramir's Sabaters
+    en: Ramir's Sabaters logo
   sourceUrl: https://mountainrunners.cat/wp-content/uploads/2021/07/bcc2d553650b4da99e7a13b7e372ad16.png
 description:
   ca: Establiment col·laborador de Mountain Runners del Berguedà.
+  es: Establecimiento colaborador de Mountain Runners del Berguedà.
+  en: Mountain Runners del Berguedà partner business.
 membershipBenefit:
   title:
     ca: Resolatge de vambes
+    es: Reparación de suelas de zapatillas
+    en: Shoe resoling
   description:
     ca: 10% de descompte en el resolatge de vambes.
+    es: 10% de descuento en la reparación de suelas de zapatillas.
+    en: 10% off shoe resoling.

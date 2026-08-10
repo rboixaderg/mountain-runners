@@ -1,5 +1,4 @@
 ---
-import { locales } from "../../../i18n.config.mjs";
 import * as messages from "../../paraglide/messages.js";
 import { assertIsLocale } from "../../paraglide/runtime.js";
 import LegalNoticeDetail from "../../components/legal/LegalNoticeDetail.astro";
@@ -11,9 +10,7 @@ import {
 } from "../../lib/content/routes";
 
 export function getStaticPaths() {
-  return locales
-    .filter((locale) => locale === "ca")
-    .map((locale) => ({ params: { locale } }));
+  return [{ params: { locale: "en" } }];
 }
 
 const locale = assertIsLocale(Astro.currentLocale);

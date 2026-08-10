@@ -3,32 +3,58 @@ published: true
 hubOrder: 2
 slug:
   ca: escola-skimo
+  es: escuela-esqui-montana
+  en: ski-mountaineering-school
 name:
   ca: Escola Skimo
+  es: Escuela de Esquí de Montaña
+  en: Ski Mountaineering School
 summary:
   ca: Formació en esquí de muntanya per a joves de 12 a 18 anys al Berguedà.
+  es: Formación en esquí de montaña para jóvenes de 12 a 18 años en el Berguedà.
+  en: Ski mountaineering training for young people aged 12 to 18 in Berguedà.
 description:
   ca: >-
     L'Escola Skimo ofereix formació en esquí de muntanya en horari no lectiu,
     amb continuïtat per a qui vulgui iniciar-se en la competició.
+  es: >-
+    La Escuela de Esquí de Montaña ofrece formación fuera del horario lectivo,
+    con continuidad para quienes quieran iniciarse en la competición.
+  en: >-
+    The Ski Mountaineering School offers training outside school hours,
+    with a pathway for those who want to start competing.
 cover:
   resource:
     kind: local
     path: src/assets/logo_mountain_runners.png
   alt:
     ca: Logotip de Mountain Runners del Berguedà
+    es: Logotipo de Mountain Runners del Berguedà
+    en: Mountain Runners del Berguedà logo
 gallery: []
 registrationStatus: coming-soon
 sections:
   since:
     ca: L'escola va néixer l'any 2014 a partir de l'experiència de l'Escola Trail.
+    es: La escuela nació en 2014 a partir de la experiencia de la Escuela de Trail.
+    en: The school was founded in 2014, building on the experience of the Trail School.
   purpose:
     ca: Formar en esquí de muntanya i obrir la porta a la competició a qui ho vulgui.
+    es: Formar en esquí de montaña y abrir la puerta a la competición a quien lo desee.
+    en: To provide ski mountaineering training and open the door to competition for those who want it.
   audience:
     ca: Joves de 12 a 18 anys amb ganes de millorar.
+    es: Jóvenes de 12 a 18 años con ganas de mejorar.
+    en: Young people aged 12 to 18 who want to improve.
   schedule:
     ca: Entrenaments entre setmana i caps de setmana, adaptats a les temporades de tardor i neu.
+    es: Entrenamientos entre semana y fines de semana, adaptados a las temporadas de otoño y nieve.
+    en: Training on weekdays and weekends, adapted to the autumn and snow seasons.
   location:
     ca: Berga, Masella, Rasos i diferents indrets del Berguedà segons la temporada.
+    es: Berga, Masella, Rasos y diferentes lugares del Berguedà según la temporada.
+    en: Berga, Masella, Rasos and different places in Berguedà depending on the season.
   prices:
     ca: Els preus es poden modificar a l'inici de curs.
+    es: Los precios pueden modificarse al inicio del curso.
+    en: Prices may change at the start of the school year.

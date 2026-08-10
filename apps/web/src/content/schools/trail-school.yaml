@@ -3,32 +3,58 @@ published: true
 hubOrder: 1
 slug:
   ca: escola-trail
+  es: escuela-trail
+  en: trail-school
 name:
   ca: Escola de Trail
+  es: Escuela de Trail
+  en: Trail School
 summary:
   ca: Classes de trail per a infants i joves de 3 a 18 anys al Berguedà.
+  es: Clases de trail para niños y jóvenes de 3 a 18 años en el Berguedà.
+  en: Trail classes for children and young people aged 3 to 18 in Berguedà.
 description:
   ca: >-
     L'Escola Trail ofereix classes en horari no lectiu per l'entorn de la
     comarca del Berguedà.
+  es: >-
+    La Escuela de Trail ofrece clases fuera del horario lectivo por el entorno
+    de la comarca del Berguedà.
+  en: >-
+    The Trail School offers classes outside school hours around the Berguedà
+    region.
 cover:
   resource:
     kind: local
     path: src/assets/logo_mountain_runners.png
   alt:
     ca: Logotip de Mountain Runners del Berguedà
+    es: Logotipo de Mountain Runners del Berguedà
+    en: Mountain Runners del Berguedà logo
 gallery: []
 registrationStatus: coming-soon
 sections:
   since:
     ca: L'escola va néixer l'any 2012.
+    es: La escuela nació en 2012.
+    en: The school was founded in 2012.
   purpose:
     ca: Oferir l'opció d'estar a la natura, aprendre d'ella i gaudir-la.
+    es: Ofrecer la posibilidad de estar en la naturaleza, aprender de ella y disfrutarla.
+    en: To offer the chance to spend time in nature, learn from it and enjoy it.
   audience:
     ca: Infants i joves de 3 a 18 anys.
+    es: Niños y jóvenes de 3 a 18 años.
+    en: Children and young people aged 3 to 18.
   schedule:
     ca: Durant el curs escolar, de dilluns a divendres de 17.30 h a 19.00 h.
+    es: Durante el curso escolar, de lunes a viernes de 17:30 a 19:00.
+    en: During the school year, Monday to Friday from 5:30 pm to 7:00 pm.
   location:
     ca: Sortida des de la Font Negra de Berga, amb itineraris diferents a cada sessió.
+    es: Salida desde la Font Negra de Berga, con itinerarios diferentes en cada sesión.
+    en: Departing from Font Negra in Berga, with a different route each session.
   prices:
     ca: Els preus es poden modificar a l'inici de curs.
+    es: Los precios pueden modificarse al inicio del curso.
+    en: Prices may change at the start of the school year.

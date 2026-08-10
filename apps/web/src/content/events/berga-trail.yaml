@@ -2,13 +2,23 @@ id: berga-trail
 published: true
 slug:
   ca: berga-trail
+  es: berga-trail
+  en: berga-trail
 active: false
 title:
   ca: Berga Trail
+  es: Berga Trail
+  en: Berga Trail
 description:
   ca: >-
     Cursa de muntanya organitzada per Mountain Runners que recorre l'entorn de
     Queralt, els Rasos de Peguera i la Serra d'Ensija.
+  es: >-
+    Carrera de montaña organizada por Mountain Runners que recorre el entorno
+    de Queralt, los Rasos de Peguera y la sierra de Ensija.
+  en: >-
+    A mountain race organised by Mountain Runners through the Queralt area,
+    Rasos de Peguera and the Ensija range.
 clubRelationship: organizes
 cover:
   resource:
@@ -16,6 +26,8 @@ cover:
     path: src/assets/logo_mountain_runners.png
   alt:
     ca: Logotip de Mountain Runners del Berguedà
+    es: Logotipo de Mountain Runners del Berguedà
+    en: Mountain Runners del Berguedà logo
 gallery: []
 videoUrls: []
 organizerIds:
@@ -26,9 +38,17 @@ editions:
     startDate: 2022-05-21
     location:
       ca: Berga
+      es: Berga
+      en: Berga
     modalities:
       - ca: 12 km
+        es: 12 km
+        en: 12 km
       - ca: 27 km
+        es: 27 km
+        en: 27 km
       - ca: 42 km
+        es: 42 km
+        en: 42 km
     registrationStatus: closed
     documentIds: []

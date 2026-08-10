@@ -2,11 +2,17 @@ id: escalada-queralt
 published: true
 slug:
   ca: escalada-queralt
+  es: escalada-queralt
+  en: escalada-queralt
 active: true
 title:
   ca: Escalada Popular a Queralt
+  es: Escalada Popular a Queralt
+  en: Popular Ride to Queralt
 description:
   ca: Escalada popular de Berga a Queralt en bicicleta.
+  es: Subida popular de Berga a Queralt en bicicleta.
+  en: A popular cycle ride from Berga to Queralt.
 clubRelationship: organizes
 cover:
   resource:
@@ -14,6 +20,8 @@ cover:
     path: src/assets/logo_mountain_runners.png
   alt:
     ca: Logotip de Mountain Runners del Berguedà
+    es: Logotipo de Mountain Runners del Berguedà
+    en: Mountain Runners del Berguedà logo
 gallery: []
 videoUrls: []
 organizerIds:
@@ -24,7 +32,11 @@ editions:
     startDate: 2026-03-17
     location:
       ca: Berga
+      es: Berga
+      en: Berga
     modalities:
       - ca: Bicicleta de muntanya
+        es: Bicicleta de montaña
+        en: Mountain bike
     registrationStatus: closed
     documentIds: []

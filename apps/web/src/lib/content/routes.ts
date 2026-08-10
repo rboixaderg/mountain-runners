@@ -29,8 +29,7 @@ export const routeDomains: RouteDomains = {
 };
 
 // Fixed pages follow the same localized route contract as content domains.
-// Only the Catalan variant is published until every rendered datum of a
-// variant is complete and reviewed, so the page files use the Catalan segment.
+// Each locale uses its own stable, translated path segment.
 export const fixedPageRouteSegments = {
   about: {
     ca: "qui-som",
@@ -115,6 +114,16 @@ assertFixedPageRouteSegments(fixedPageRouteSegments);
 
 export function getFixedPagePath(kind: FixedPageKind, locale: Locale): string {
   return `/${locale}/${fixedPageRouteSegments[kind][locale]}/`;
+}
+
+export function getLocalizedFixedPageAlternatives(
+  kind: FixedPageKind,
+  site: URL,
+): { locale: Locale; href: string }[] {
+  return knownLocales.map((locale) => ({
+    locale,
+    href: new URL(getFixedPagePath(kind, locale), site).toString(),
+  }));
 }
 
 // Detail templates are enabled here as their specification task ships: events
@@ -207,20 +216,13 @@ export function getSitemapUrls(
       .filter(({ kind }) => kind === "school")
       .map(({ locale }) => locale),
   );
-  // Fixed pages are published only in Catalan while single-locale, matching
-  // the homepage entry below. A fixed page is added here once its variant is
-  // complete and published.
-  const publishedFixedPagePaths = [
-    getFixedPagePath("about", "ca"),
-    getFixedPagePath("members", "ca"),
-    getFixedPagePath("contact", "ca"),
-    getFixedPagePath("documents", "ca"),
-    getFixedPagePath("legal-notice", "ca"),
-    getFixedPagePath("legal-privacy", "ca"),
-    getFixedPagePath("legal-cookies", "ca"),
-  ];
+  const publishedFixedPagePaths = knownLocales.flatMap((locale) =>
+    (Object.keys(fixedPageRouteSegments) as FixedPageKind[]).map((kind) =>
+      getFixedPagePath(kind, locale),
+    ),
+  );
   return [
-    new URL("/ca/", site).toString(),
+    ...knownLocales.map((locale) => new URL(`/${locale}/`, site).toString()),
     ...[...hubLocales]
       .sort()
       .map((locale) =>

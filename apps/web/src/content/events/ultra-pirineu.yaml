@@ -2,11 +2,17 @@ id: ultra-pirineu
 published: true
 slug:
   ca: ultra-pirineu
+  es: ultra-pirineu
+  en: ultra-pirineu
 active: true
 title:
   ca: Ultra Pirineu
+  es: Ultra Pirineu
+  en: Ultra Pirineu
 description:
   ca: És una cursa de muntanya que recorre part de la serralada del Cadí-Moixeró.
+  es: Es una carrera de montaña que recorre parte de la cordillera del Cadí-Moixeró.
+  en: A mountain race that crosses part of the Cadí-Moixeró mountain range.
 clubRelationship: collaborates
 cover:
   resource:
@@ -14,6 +20,8 @@ cover:
     path: src/assets/logo_mountain_runners.png
   alt:
     ca: Logotip de Mountain Runners del Berguedà
+    es: Logotipo de Mountain Runners del Berguedà
+    en: Mountain Runners del Berguedà logo
 gallery: []
 videoUrls: []
 organizerIds:
@@ -25,10 +33,20 @@ editions:
     endDate: 2026-10-04
     location:
       ca: Bagà
+      es: Bagà
+      en: Bagà
     modalities:
       - ca: KV vertical
+        es: KV vertical
+        en: Vertical KV
       - ca: 100 km
+        es: 100 km
+        en: 100 km
       - ca: 42 km
+        es: 42 km
+        en: 42 km
       - ca: 21 km
+        es: 21 km
+        en: 21 km
     registrationStatus: closed
     documentIds: []
