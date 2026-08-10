@@ -2,13 +2,19 @@ id: berga-trail
 published: true
 slug:
   ca: berga-trail
+  es: berga-trail
+  en: berga-trail
 active: false
 title:
   ca: Berga Trail
+  es: Berga Trail
+  en: Berga Trail
 summary:
   ca: >-
     Cursa de muntanya organitzada per Mountain Runners que recorre l'entorn de
     Queralt, els Rasos de Peguera i la Serra d'Ensija.
+  es: Carrera de montaña organizada por Mountain Runners que recorre el entorno de Queralt, los Rasos de Peguera y la sierra de Ensija.
+  en: A mountain race organised by Mountain Runners through the Queralt area, Rasos de Peguera and the Ensija range.
 description:
   ca: >-
     La Marató de Muntanya de Berga va néixer el 2004, el mateix any que
@@ -21,6 +27,18 @@ description:
     Jessed Hernández hi han pres la sortida en edicions històriques. L'esdeveniment
     ja no es celebra, però forma part de la història del club i del trail
     running al Berguedà.
+  es: >-
+    La Maratón de Montaña de Berga nació en 2004, el mismo año que la Asociación
+    Deportiva Mountain Runners del Berguedà. La carrera recorría Queralt, los
+    Rasos de Peguera y la sierra de Ensija, y llegó a formar parte de la Copa del
+    Mundo. Ya no se celebra, pero forma parte de la historia del club y del trail
+    running en el Berguedà.
+  en: >-
+    The Berga Mountain Marathon began in 2004, the same year as the Mountain
+    Runners del Berguedà Sports Association. The race crossed Queralt, Rasos de
+    Peguera and the Ensija range, and became part of the World Cup. It is no
+    longer held, but remains part of the club's history and trail running in
+    Berguedà.
 clubRelationship: organizes
 cover:
   resource:
@@ -28,6 +46,8 @@ cover:
     path: src/assets/logo_mountain_runners.png
   alt:
     ca: Logotip de Mountain Runners del Berguedà
+    es: Logotipo de Mountain Runners del Berguedà
+    en: Mountain Runners del Berguedà logo
 gallery: []
 videoUrls: []
 organizerIds:
@@ -38,9 +58,17 @@ editions:
     startDate: 2022-05-21
     location:
       ca: Berga
+      es: Berga
+      en: Berga
     modalities:
       - ca: 12 km
+        es: 12 km
+        en: 12 km
       - ca: 27 km
+        es: 27 km
+        en: 27 km
       - ca: 42 km
+        es: 42 km
+        en: 42 km
     registrationStatus: closed
     documentIds: []

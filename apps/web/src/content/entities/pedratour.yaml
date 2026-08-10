@@ -2,18 +2,28 @@ id: pedratour
 published: true
 name:
   ca: Pedratour
+  es: Pedratour
+  en: Pedratour
 logo:
   resource:
     kind: local
     path: src/assets/collaborators/pedratour.png
   alt:
     ca: Logotip de Pedratour
+    es: Logotipo de Pedratour
+    en: Pedratour logo
   sourceUrl: https://mountainrunners.cat/wp-content/uploads/2021/07/pedratour.png
 description:
   ca: Establiment col·laborador de Mountain Runners del Berguedà.
+  es: Establecimiento colaborador de Mountain Runners del Berguedà.
+  en: Mountain Runners del Berguedà partner business.
 websiteUrl: https://pedratour.com/
 membershipBenefit:
   title:
     ca: Packs d'experiències
+    es: Packs de experiencias
+    en: Experience packages
   description:
     ca: 5% de descompte en els packs d'experiències.
+    es: 5% de descuento en los packs de experiencias.
+    en: 5% off experience packages.

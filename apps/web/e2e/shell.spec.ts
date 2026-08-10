@@ -13,7 +13,7 @@ test("renders the localized shell without horizontal overflow", async ({
   await expect(
     page.locator('header a[aria-label="Mountain Runners"] img'),
   ).toBeVisible();
-  await expect(page.locator('nav[aria-label="Idioma"]')).toHaveCount(0);
+  await expect(page.locator('nav[aria-label="Idioma"]')).toHaveCount(2);
 
   const skipLink = page.getByRole("link", {
     name: "Vés al contingut principal",
@@ -774,8 +774,7 @@ test("emits canonical and social metadata for published pages", async ({
     "content",
     "https://mountainrunners.cat/ca/",
   );
-  // Only Catalan is published: no hreflang alternatives may be advertised.
-  await expect(page.locator('link[rel="alternate"]')).toHaveCount(0);
+  await expect(page.locator('link[rel="alternate"]')).toHaveCount(3);
 
   await page.goto("/ca/esdeveniments/ultra-pirineu/");
   await expect(page.locator('link[rel="canonical"]')).toHaveAttribute(
@@ -804,7 +803,7 @@ test("emits canonical and social metadata for published pages", async ({
     "content",
     "https://mountainrunners.cat/ca/socis/",
   );
-  await expect(page.locator('link[rel="alternate"]')).toHaveCount(0);
+  await expect(page.locator('link[rel="alternate"]')).toHaveCount(3);
 
   await page.goto("/ca/escoles/");
   await expect(page.locator('link[rel="canonical"]')).toHaveAttribute(

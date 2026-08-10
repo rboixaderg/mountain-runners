@@ -8,8 +8,8 @@ validació editorial. Les Content Collections (`schools`, `events`, `entities`,
 `documents`, `external-actions` i `contact`), les regles de publicació i les
 rutes editorials mínimes ja estan implementades. La fase 3 ha publicat les
 pàgines fixes de Qui som, Documents, Contacte i les tres pàgines legals (avís
-legal, privacitat i cookies), totes en català, amb el text informatiu en
-recursos de traducció i les dades operatives en objectes de domini; el peu
+legal, privacitat i cookies), i la fase 4 n'ha completat les variants en català,
+castellà i anglès, juntament amb les traduccions del contingut de domini; el peu
 enllaça aquestes rutes i mostra les dades institucionals de contacte. Encara no
 s'han implementat les plantilles públiques finals de Socis i Escoles ni cap
 servei o automatització de desplegament.

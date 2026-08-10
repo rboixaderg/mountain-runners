@@ -2,18 +2,28 @@ id: snowlockers
 published: true
 name:
   ca: SNOWLOCKERS
+  es: SNOWLOCKERS
+  en: SNOWLOCKERS
 logo:
   resource:
     kind: local
     path: src/assets/collaborators/snowlockers.png
   alt:
     ca: Logotip de SNOWLOCKERS
+    es: Logotipo de SNOWLOCKERS
+    en: SNOWLOCKERS logo
   sourceUrl: https://mountainrunners.cat/wp-content/uploads/2021/12/Captura-de-pantalla-2021-12-10-a-les-9.46.48.png
 description:
   ca: Lloguer de material d'hivern d'aventura.
+  es: Alquiler de material de invierno para actividades de aventura.
+  en: Adventure winter equipment rental.
 websiteUrl: https://www.snowlockers.com/
 membershipBenefit:
   title:
     ca: Material d'hivern
+    es: Material de invierno
+    en: Winter equipment
   description:
     ca: Codis de descompte en el lloguer de material d'hivern.
+    es: Códigos de descuento en el alquiler de material de invierno.
+    en: Discount codes for winter equipment rental.

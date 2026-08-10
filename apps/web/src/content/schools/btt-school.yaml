@@ -3,10 +3,16 @@ published: true
 hubOrder: 3
 slug:
   ca: escola-btt
+  es: escuela-btt
+  en: mtb-school
 name:
   ca: Escola BTT
+  es: Escuela BTT
+  en: MTB School
 summary:
   ca: Activitats de BTT per a infants i joves de 6 a 16 anys al Berguedà.
+  es: Actividades de BTT para niños y jóvenes de 6 a 16 años en el Berguedà.
+  en: MTB activities for children and young people aged 6 to 16 in Berguedà.
 description:
   ca: >-
     L'Escola BTT és una de les branques dels MRB, juntament amb el CEB i
@@ -16,12 +22,16 @@ description:
 
     És un espai per descobrir la comarca amb bicicleta, aprendre tècnica i
     gaudir de la natura sense ser una escola d'alt rendiment.
+  es: La Escuela BTT es una de las ramas de MRB, junto con el CEB y Veloberga, para grupos de niños y jóvenes de 6 a 16 años. Es un espacio para descubrir la comarca en bicicleta, aprender técnica y disfrutar de la naturaleza.
+  en: The MTB School is one of MRB's branches, together with CEB and Veloberga, for groups of children and young people aged 6 to 16. It is a place to discover the region by bike, learn technique and enjoy nature.
 cover:
   resource:
     kind: local
     path: src/assets/schools/escola-btt.jpg
   alt:
     ca: Infants i joves en una sortida de BTT per camins del Berguedà
+    es: Niños y jóvenes en una salida de BTT por caminos del Berguedà
+    en: Children and young people on an MTB outing along Berguedà paths
 coverCard:
   kind: local
   path: src/assets/schools/escola-btt-card.jpg
@@ -31,6 +41,8 @@ gallery:
       path: src/assets/schools/gallery/btt/btt-session-0239.jpg
     alt:
       ca: Infants i joves en una sortida de BTT per camins del Berguedà
+      es: Niños y jóvenes en una salida de BTT por caminos del Berguedà
+      en: Children and young people on an MTB outing along Berguedà paths
     attribution:
       ca: "Foto: Anna Aguilar Porta"
     sourceUrl: https://mountainrunners.cat/wp-content/uploads/2021/07/DSC_0239-1024x680.jpg
@@ -39,6 +51,8 @@ gallery:
       path: src/assets/schools/gallery/btt/btt-session-0009.jpg
     alt:
       ca: Grup de ciclistes joves en una sessió de l'escola BTT
+      es: Grupo de jóvenes ciclistas durante una sesión de la Escuela BTT
+      en: Group of young cyclists during an MTB School session
     attribution:
       ca: "Foto: Anna Aguilar Porta"
     sourceUrl: https://mountainrunners.cat/wp-content/uploads/2021/07/DSC_0009-1024x680.jpg
@@ -47,6 +61,8 @@ gallery:
       path: src/assets/schools/gallery/btt/btt-session-0139.jpg
     alt:
       ca: Participants de l'escola BTT en un corriol de muntanya
+      es: Participantes de la Escuela BTT en un sendero de montaña
+      en: MTB School participants on a mountain trail
     attribution:
       ca: "Foto: Anna Aguilar Porta"
     sourceUrl: https://mountainrunners.cat/wp-content/uploads/2021/07/DSC_0139-1024x680.jpg
@@ -55,6 +71,8 @@ gallery:
       path: src/assets/schools/gallery/btt/btt-session-0031.jpg
     alt:
       ca: Joves ciclistes en formació durant una activitat de BTT
+      es: Jóvenes ciclistas formándose durante una actividad de BTT
+      en: Young cyclists training during an MTB activity
     attribution:
       ca: "Foto: Anna Aguilar Porta"
     sourceUrl: https://mountainrunners.cat/wp-content/uploads/2021/07/DSC_0031-scaled-e1627667084334-1024x948.jpg
@@ -63,6 +81,8 @@ gallery:
       path: src/assets/schools/gallery/btt/btt-session-0123.jpg
     alt:
       ca: Grup d'infants amb bicicleta en una sortida de l'escola BTT
+      es: Grupo de niños con bicicleta en una salida de la Escuela BTT
+      en: Group of children on bikes during an MTB School outing
     attribution:
       ca: "Foto: Anna Aguilar Porta"
     sourceUrl: https://mountainrunners.cat/wp-content/uploads/2021/07/DSC_0123-scaled-e1627667532714-1024x701.jpg
@@ -71,6 +91,8 @@ gallery:
       path: src/assets/schools/gallery/btt/btt-session-0203.jpg
     alt:
       ca: Ciclistes joves en una activitat grupal de l'escola BTT al Berguedà
+      es: Jóvenes ciclistas en una actividad grupal de la Escuela BTT en el Berguedà
+      en: Young cyclists during an MTB School group activity in Berguedà
     attribution:
       ca: "Foto: Anna Aguilar Porta"
     sourceUrl: https://mountainrunners.cat/wp-content/uploads/2021/07/DSC_0203-1024x680.jpg
@@ -81,12 +103,18 @@ sections:
       L'escola pren vida l'any 2020 com a projecte pilot, creant sinergies amb
       altres entitats de Berga perquè infants i joves puguin descobrir nous
       racons de la comarca.
+    es: La escuela nació en 2020 como proyecto piloto, creando sinergias con otras entidades de Berga para que los niños y jóvenes descubran nuevos rincones de la comarca.
+    en: The school began in 2020 as a pilot project, creating synergies with other organisations in Berga so children and young people can discover new parts of the region.
   purpose:
     ca: >-
       Donar l'opció d'estar a la natura, aprendre'n i gaudir-ne amb bicicleta
       mentre s'aprèn tècnica.
+    es: Ofrecer la posibilidad de estar en la naturaleza, aprender de ella y disfrutarla en bicicleta mientras se aprende técnica.
+    en: To offer the chance to spend time in nature, learn from it and enjoy it by bike while learning technique.
   audience:
     ca: Infants i joves de 6 a 16 anys.
+    es: Niños y jóvenes de 6 a 16 años.
+    en: Children and young people aged 6 to 16.
   schedule:
     ca: >-
       **Entre setmana**
@@ -99,8 +127,26 @@ sections:
 
 
       Dissabte de 10.00 h a 13.00 h, itinerant per la comarca del Berguedà.
+    es: >-
+      **Entre semana**
+
+      Martes de 17:30 a 19:00 en Avià.
+
+      **Fin de semana**
+
+      Sábados de 10:00 a 13:00, itinerante por el Berguedà.
+    en: >-
+      **Weekdays**
+
+      Tuesdays from 5:30 pm to 7:00 pm in Avià.
+
+      **Weekend**
+
+      Saturdays from 10:00 am to 1:00 pm, travelling around Berguedà.
   location:
     ca: Avià i itineraris variables per la comarca del Berguedà.
+    es: Avià e itinerarios variables por la comarca del Berguedà.
+    en: Avià and changing routes around the Berguedà region.
   requirements:
     ca: >-
       - Ser soci o sòcia del club MRB o del CEB.
@@ -108,9 +154,19 @@ sections:
       - Bicicleta amb canvis i en bon estat.
 
       - Casc, guants, bidó i motxilla.
+    es: >-
+      - Ser socio o socia del club MRB o del CEB.
+      - Bicicleta con cambios y en buen estado.
+      - Casco, guantes, bidón y mochila.
+    en: >-
+      - Be a member of the MRB or CEB club.
+      - A bike with gears in good condition.
+      - Helmet, gloves, bottle and backpack.
   prices:
     ca: >-
       No varia en funció de l'edat, sinó dels dies que voleu venir.
 
 
       Els preus poden quedar subjectes a modificació a l'inici de curs.
+    es: Los precios pueden modificarse al inicio del curso.
+    en: Prices may change at the start of the school year.

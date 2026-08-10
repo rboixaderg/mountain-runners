@@ -67,6 +67,18 @@ describe("publication catalog", () => {
       "event:ca:berga-trail",
       "event:ca:escalada-queralt",
       "event:ca:ultra-pirineu",
+      "school:es:escuela-btt",
+      "school:es:escuela-esqui-montana",
+      "school:es:escuela-trail",
+      "event:es:berga-trail",
+      "event:es:escalada-queralt",
+      "event:es:ultra-pirineu",
+      "school:en:mtb-school",
+      "school:en:ski-mountaineering-school",
+      "school:en:trail-school",
+      "event:en:berga-trail",
+      "event:en:escalada-queralt",
+      "event:en:ultra-pirineu",
     ]);
     expect(catalog.documents.has("private-draft")).toBe(false);
     expect(getPublishedLocalResources(catalog)).toEqual([

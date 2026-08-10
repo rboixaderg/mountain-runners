@@ -5,7 +5,10 @@ import { assertIsLocale } from "../../paraglide/runtime.js";
 import LegalPrivacyDetail from "../../components/legal/LegalPrivacyDetail.astro";
 import PublicLayout from "../../layouts/PublicLayout.astro";
 import { getPublicationCatalog } from "../../lib/content/repository";
-import { getFixedPagePath } from "../../lib/content/routes";
+import {
+  getFixedPagePath,
+  getLocalizedFixedPageAlternatives,
+} from "../../lib/content/routes";
 
 export function getStaticPaths() {
   return locales
@@ -25,6 +28,10 @@ const canonical = new URL(
   canonical={canonical}
   description={messages.legal_privacy_description({}, { locale })}
   locale={locale}
+  localizedAlternatives={getLocalizedFixedPageAlternatives(
+    "legal-privacy",
+    Astro.site!,
+  )}
   title={`${messages.legal_privacy_title({}, { locale })} | ${messages.site_title({}, { locale })}`}
 >
   <LegalPrivacyDetail catalog={catalog} locale={locale} />

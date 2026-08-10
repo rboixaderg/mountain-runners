@@ -2,13 +2,19 @@ id: anella-verda
 published: true
 slug:
   ca: anella-verda
+  es: anella-verde
+  en: green-ring
 active: false
 title:
   ca: Anella Verda
+  es: Anella Verda
+  en: Anella Verda
 summary:
   ca: >-
     Curses i marxes pel municipi de Berga, organitzades amb el Club Atlètic
     Berga i la col·laboració de l'Ajuntament de Berga.
+  es: Carreras y marchas por el municipio de Berga, organizadas con el Club Atlètic Berga y la colaboración del Ayuntamiento de Berga.
+  en: Races and walks across the municipality of Berga, organised with Club Atlètic Berga and the support of Berga Town Council.
 description:
   ca: >-
     L'Anella Verda és un conjunt de curses i marxes organitzades pels Mountain
@@ -25,6 +31,18 @@ description:
 
     De moment només s'ha celebrat l'edició del 2024. No hi ha una nova data
     anunciada.
+  es: >-
+    La Anella Verda reúne carreras y marchas organizadas por Mountain Runners del
+    Berguedà y el Club Atlètic Berga, con la colaboración del Ayuntamiento de
+    Berga. Sus recorridos atraviesan el municipio y ofrecen opciones para
+    corredores experimentados y familias. De momento solo se ha celebrado la
+    edición de 2024 y no hay una nueva fecha anunciada.
+  en: >-
+    Anella Verda brings together races and walks organised by Mountain Runners
+    del Berguedà and Club Atlètic Berga, with support from Berga Town Council.
+    Its routes cross the municipality and offer options for experienced runners
+    and families. So far only the 2024 edition has taken place, and no new date
+    has been announced.
 clubRelationship: organizes
 cover:
   resource:
@@ -32,6 +50,8 @@ cover:
     path: src/assets/events/anella-verda-cover.png
   alt:
     ca: Corredors durant l'Anella Verda al municipi de Berga
+    es: Corredores durante la Anella Verda en el municipio de Berga
+    en: Runners during Anella Verda in the municipality of Berga
   attribution:
     ca: Foto Marc Elias
   sourceUrl: https://mountainrunners.cat/wp-content/uploads/2024/08/Foto-Marc-Elias-2-819x1024.png
@@ -39,6 +59,8 @@ gallery: []
 videoUrls: []
 informationUrl:
   ca: https://mountainrunners.cat/anella-verda-2024/
+  es: https://mountainrunners.cat/anella-verda-2024/
+  en: https://mountainrunners.cat/anella-verda-2024/
 organizerIds:
   - mountain-runners
   - club-atletic-berga
@@ -48,9 +70,17 @@ editions:
     startDate: 2024-09-29
     location:
       ca: Parc del Lledó, Berga
+      es: Parc del Lledó, Berga
+      en: Parc del Lledó, Berga
     modalities:
       - ca: Cursa — 21,75 km
+        es: Carrera — 21,75 km
+        en: Race — 21.75 km
       - ca: Marxa esportiva — 21,75 km
+        es: Marcha deportiva — 21,75 km
+        en: Sports walk — 21.75 km
       - ca: Marxa familiar — 6,63 km
+        es: Marcha familiar — 6,63 km
+        en: Family walk — 6.63 km
     registrationStatus: closed
     documentIds: []
