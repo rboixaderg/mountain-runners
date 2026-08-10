@@ -1,5 +1,5 @@
 import AxeBuilder from "@axe-core/playwright";
-import { expect, test } from "@playwright/test";
+import { expect, test, type Locator, type Page } from "@playwright/test";
 
 test("renders the localized shell without horizontal overflow", async ({
   page,
@@ -587,6 +587,104 @@ test("navigates from the schools hub to a published school detail", async ({
     scrollWidth: document.documentElement.scrollWidth,
   }));
   expect(layout.scrollWidth).toBeLessThanOrEqual(layout.clientWidth);
+});
+
+// Presses Tab until the target element receives keyboard focus, proving the
+// element sits on the sequential focus order and is reachable with the
+// keyboard alone. Bounded so a regression that removes the target from the
+// tab order fails fast instead of looping forever.
+async function tabUntilFocused(page: Page, target: Locator) {
+  await expect(target).toHaveCount(1);
+  for (let attempt = 0; attempt < 50; attempt += 1) {
+    await page.keyboard.press("Tab");
+    const reached = await target.evaluate(
+      (element) => element === document.activeElement,
+    );
+    if (reached) return;
+  }
+  throw new Error("Keyboard focus never reached the target element");
+}
+
+test("renders the board and the unavailable states without fake controls", async ({
+  page,
+}) => {
+  // The board is a labelled region read in document order: its heading and
+  // its members are reachable without any interaction, and it adds no link.
+  await page.goto("/ca/qui-som/");
+  const board = page.locator('section[aria-labelledby="about-board-title"]');
+  await expect(
+    board.getByRole("heading", { name: "Junta directiva" }),
+  ).toBeVisible();
+  await expect(board).toContainText("Ernest Garrido");
+  await expect(board.getByRole("link")).toHaveCount(0);
+
+  // The unavailable newsletter and school registration states are textual:
+  // they explain the state without adding anything to the focus order, so
+  // the keyboard can never land on a fake control.
+  await page.goto("/ca/contacte/");
+  const newsletter = page.locator(
+    'section[aria-labelledby="contact-newsletter-title"]',
+  );
+  await expect(newsletter).toContainText(
+    "El servei de butlletí encara no està disponible.",
+  );
+  await expect(newsletter.locator("a, button, input, [tabindex]")).toHaveCount(
+    0,
+  );
+
+  await page.goto("/ca/escoles/escola-trail/");
+  const registration = page.locator(
+    'section[aria-labelledby="school-registration-title"]',
+  );
+  await expect(registration).toContainText("Inscripció properament");
+  await expect(
+    registration.locator("a, button, input, [tabindex]"),
+  ).toHaveCount(0);
+});
+
+test("reaches and activates the available actions with the keyboard", async ({
+  browserName,
+  page,
+}) => {
+  // WebKit only tabs between text fields unless Full Keyboard Access is
+  // enabled in the operating system, so the sequential focus order cannot be
+  // exercised there. The DOM structure it checks is covered in every browser
+  // by the sibling "without fake controls" test.
+  test.skip(
+    browserName === "webkit",
+    "Safari Full Keyboard Access is an OS setting",
+  );
+
+  // The statutes document link is reached with Tab alone.
+  await page.goto("/ca/qui-som/");
+  const statutesLink = page.locator(
+    'section[aria-labelledby="about-statutes-title"] a[href*="estatuts-mrb.pdf"]',
+  );
+  await tabUntilFocused(page, statutesLink);
+  await expect(statutesLink).toBeFocused();
+
+  // A published entry link is activated with Enter from the keyboard.
+  await page.goto("/ca/esdeveniments/");
+  const eventLink = page.getByRole("link", { name: /Ultra Pirineu/u });
+  await tabUntilFocused(page, eventLink);
+  await page.keyboard.press("Enter");
+  await expect(page).toHaveURL("/ca/esdeveniments/ultra-pirineu/");
+
+  // The available members actions stay on the focus order with their
+  // reviewed hrefs, so the keyboard can reach both of them.
+  await page.goto("/ca/socis/");
+  const signupLink = page.getByRole("link", { name: /Fes-te soci o sòcia/u });
+  await tabUntilFocused(page, signupLink);
+  await expect(signupLink).toHaveAttribute(
+    "href",
+    "https://mountainrunners.playoffinformatica.com/Preinscripcio.php",
+  );
+  const federationLink = page.getByRole("link", { name: /Federa't/u });
+  await tabUntilFocused(page, federationLink);
+  await expect(federationLink).toHaveAttribute(
+    "href",
+    "https://mountainrunners.playoffinformatica.com/activitat/30/Llicencies-Federatives-2025/",
+  );
 });
 
 test("renders the useful Catalan 404 document", async ({ page }) => {
