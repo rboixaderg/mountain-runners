@@ -16,6 +16,10 @@ les fases 2 i 3, el contingut publicat i els límits dels ADR vigents. Les
 discrepàncies es resolen en canvis petits i revisables; la fase no dona per bona
 una pàgina només perquè el build o les proves automatitzades passin.
 
+La fase incorpora també la traducció al castellà i a l'anglès del contingut
+final aprovat, de manera que totes les variants d'idioma publicades siguin
+completes i revisades abans de la fase 5.
+
 ## Límits I Decisions Confirmades
 
 - La fase comença només amb les fases 1, 2 i 3 tancades, validades i fusionades.
@@ -32,6 +36,9 @@ una pàgina només perquè el build o les proves automatitzades passin.
   Els recursos no aprovats continuen fora del repositori i del build públic.
 - Les correccions no poden ampliar funcionalitats, afegir serveis de tercers,
   formularis, analítica, cookies ni mecanismes de publicació.
+- La traducció al castellà i a l'anglès del contingut aprovat és una tasca pròpia
+  de la fase (T4.5), sempre sobre el contingut català revisat i corregit. Una
+  variant incompleta no genera ruta pública ni fa fallback al català.
 
 ## Resultats Esperats
 
@@ -45,6 +52,8 @@ una pàgina només perquè el build o les proves automatitzades passin.
   verificades sense deixar defectes publicables pendents.
 - Evidència final que separa explícitament la validació manual de les proves
   automatitzades ja existents.
+- Variants completes i publicades en castellà i anglès de totes les rutes amb
+  contingut català aprovat, oferides pel selector d'idioma.
 
 ## Dependències I Ordre D'Inici
 
@@ -65,6 +74,7 @@ tancades.
 | T4.2 Disseny i estructura | Pendent | T4.1         | Revisió registrada   | -   |
 | T4.3 Editorial i recursos | Pendent | T4.1         | Recursos validats    | -   |
 | T4.4 Correccions          | Pendent | T4.2 i T4.3  | Correccions tancades | -   |
+| T4.5 Traducció            | Pendent | T4.4         | Traducció publicada  | -   |
 
 Els estats permesos són `Pendent`, `En curs`, `Bloquejada` i `Completada`. Una
 unitat només passa a `Completada` després de tenir una PR revisada, validada i
@@ -112,6 +122,20 @@ la regressió i comprovacions d'accessibilitat pertinents. **PR:** una o més PR
 petites, una per correcció cohesionada; el tancament només arriba després que
 totes estiguin fusionades.
 
+### T4.5: Traducció A Castellà I Anglès
+
+**Abast:** traduir al castellà i a l'anglès els textos de pàgines fixes
+(recursos de traducció, ADR 0005) i el contingut de domini publicat (YAML
+restringit, ADR 0004), a partir del contingut català revisat i corregit a T4.4.
+**Exclusió:** no tradueix contingut no aprovat, ni afegeix fallbacks,
+estructures, rutes o funcionalitats noves. **Depèn de:** T4.4. **Resultat:**
+totes les rutes públiques amb contingut aprovat tenen variants completes en
+castellà i anglès, revisades i oferides pel selector d'idioma. **Comprovació:**
+`pnpm validate`, comprovacions de completesa transitiva de la fase 1, revisió
+editorial de cada traducció i verificació que cap variant incompleta es publica
+ni fa fallback al català. **PR:** pròpia; les correccions de traducció
+detectades en la revisió es tanquen en PRs petites dins d'aquesta unitat.
+
 ## Cobertura De Validació
 
 La matriu cobreix, per a cada ruta pública implementada i per a cada estat
@@ -129,6 +153,9 @@ representatiu disponible:
   text alternatiu, atribució, disponibilitat i procedència aprovada;
 - rutes i estats de contingut de domini, incloent-hi esdeveniments, escoles,
   documents, col·laboradors i recursos absents o temporalment no disponibles.
+- completesa i correcció de les traduccions en castellà i anglès: textos de
+  pàgines fixes i contingut de domini, sense fallback al català ni variants
+  incompletes publicades.
 
 La matriu identifica el dispositiu, navegador quan sigui rellevant, evidència,
 resultat, discrepància, PR correctora i estat de resolució. No copia contingut
@@ -165,6 +192,7 @@ presenta com una declaració completa de conformitat WCAG 2.2 AA.
   no siguin necessaris per corregir una discrepància validada.
 - Aprovació editorial inicial de contingut no inventariat o de recursos sense
   drets, procedència o autorització suficient.
+- Traduccions de contingut que no hagi estat revisat ni aprovat en català.
 - Una auditoria legal, de llicències o d'accessibilitat completa, o una
   certificació de conformitat WCAG.
 - Previews permanents, configuració de Caddy, VPS, desplegament, xat públic o
@@ -174,7 +202,7 @@ presenta com una declaració completa de conformitat WCAG 2.2 AA.
 
 La fase es considera completada quan:
 
-1. Les fases 1, 2 i 3 estan fusionades i les quatre unitats tenen les seves PR
+1. Les fases 1, 2 i 3 estan fusionades i les cinc unitats tenen les seves PR
    revisades, validades i fusionades.
 2. La matriu inclou totes les rutes públiques, estats representatius, variants
    d'idioma publicades, navegació, peu i pàgina 404 implementats.
@@ -193,3 +221,6 @@ La fase es considera completada quan:
    anteriors.
 8. La documentació de validació identifica què s'ha revisat, quina evidència
    manual existeix, quines correccions s'han fusionat i els seus resultats.
+9. Totes les rutes públiques amb contingut aprovat tenen variants completes,
+   revisades i publicades en castellà i anglès, sense fallback al català ni
+   variants incompletes.

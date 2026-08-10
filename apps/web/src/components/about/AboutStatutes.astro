@@ -1,0 +1,39 @@
+---
+import * as messages from "../../paraglide/messages.js";
+import { getDocumentHref } from "../../lib/content/images";
+import { statutesDocumentId } from "../../lib/content/models";
+import type { Locale } from "../../lib/content/primitives";
+import type { PublicationCatalog } from "../../lib/content/publication";
+
+interface Props {
+  catalog: PublicationCatalog;
+  locale: Locale;
+}
+
+const { catalog, locale } = Astro.props;
+const statutesDocument = catalog.documents.get(statutesDocumentId);
+const statutesHref = getDocumentHref(statutesDocument);
+---
+
+<section
+  class="page-frame about-section"
+  aria-labelledby="about-statutes-title"
+>
+  <div class="about-section__heading">
+    <span class="about-section__marker" aria-hidden="true"></span>
+    <h2 class="about-section__title" id="about-statutes-title">
+      {messages.about_statutes_title({}, { locale })}
+    </h2>
+  </div>
+  {
+    statutesHref && statutesDocument ? (
+      <p class="about-section__body">
+        <a href={statutesHref}>{statutesDocument.title[locale]}</a>
+      </p>
+    ) : (
+      <p class="about-section__body">
+        {messages.about_statutes_unavailable({}, { locale })}
+      </p>
+    )
+  }
+</section>

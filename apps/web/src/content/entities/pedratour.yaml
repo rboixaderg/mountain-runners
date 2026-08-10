@@ -1,0 +1,19 @@
+id: pedratour
+published: true
+name:
+  ca: Pedratour
+logo:
+  resource:
+    kind: local
+    path: src/assets/collaborators/pedratour.png
+  alt:
+    ca: Logotip de Pedratour
+  sourceUrl: https://mountainrunners.cat/wp-content/uploads/2021/07/pedratour.png
+description:
+  ca: Establiment col·laborador de Mountain Runners del Berguedà.
+websiteUrl: https://pedratour.com/
+membershipBenefit:
+  title:
+    ca: Packs d'experiències
+  description:
+    ca: 5% de descompte en els packs d'experiències.

@@ -1,0 +1,18 @@
+id: elit
+published: true
+name:
+  ca: ELIT
+logo:
+  resource:
+    kind: local
+    path: src/assets/collaborators/elit.png
+  alt:
+    ca: Logotip d'ELIT
+  sourceUrl: https://mountainrunners.cat/wp-content/uploads/2021/07/Captura-de-Pantalla-2021-07-29-a-les-10.47.16-e1627572735726.png
+description:
+  ca: Fisioteràpia, medicina i rendiment.
+membershipBenefit:
+  title:
+    ca: Massatge esportiu
+  description:
+    ca: 10% de descompte en massatge esportiu.

@@ -1,0 +1,46 @@
+---
+import * as messages from "../../paraglide/messages.js";
+import type { School } from "../../lib/content/models";
+import type { Locale } from "../../lib/content/primitives";
+import {
+  getRegistrationPresentation,
+  type RegistrationPresentation,
+} from "../../lib/presentation/status";
+import ExternalLink from "../ExternalLink.astro";
+
+interface Props {
+  locale: Locale;
+  school: School;
+}
+
+const { locale, school } = Astro.props;
+const registration: RegistrationPresentation = getRegistrationPresentation(
+  school.registrationStatus,
+  school.registrationUrl?.[locale],
+);
+const registrationLabel = messages[registration.key]({}, { locale });
+---
+
+<section
+  class="schools-detail__section schools-detail__registration"
+  aria-labelledby="school-registration-title"
+>
+  <div class="schools-detail__section-heading">
+    <span class="schools-detail__section-marker" aria-hidden="true"></span>
+    <h2 id="school-registration-title">
+      {messages.school_registration_title({}, { locale })}
+    </h2>
+  </div>
+  <p class="schools-detail__registration-status">
+    <span>{registrationLabel}</span>
+  </p>
+  {
+    registration.url && (
+      <ExternalLink
+        className="schools-detail__external-link"
+        href={registration.url}
+        label={messages.school_registration_action({}, { locale })}
+      />
+    )
+  }
+</section>

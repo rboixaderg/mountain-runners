@@ -1,5 +1,5 @@
 ---
-import * as m from "../paraglide/messages.js";
+import * as messages from "../paraglide/messages.js";
 import type { Locale } from "../lib/content/primitives";
 
 type LocalizedAlternative = { locale: Locale; href: string };
@@ -11,15 +11,15 @@ interface Props {
 
 const { localizedAlternatives, locale } = Astro.props;
 const languageNames: Record<Locale, string> = {
-  ca: m.language_ca({}, { locale }),
-  es: m.language_es({}, { locale }),
-  en: m.language_en({}, { locale }),
+  ca: messages.language_ca({}, { locale }),
+  es: messages.language_es({}, { locale }),
+  en: messages.language_en({}, { locale }),
 };
 ---
 
 {
   localizedAlternatives.length > 1 && (
-    <nav aria-label={m.language_selector({}, { locale })}>
+    <nav aria-label={messages.language_selector({}, { locale })}>
       <ul class="flex list-none items-center gap-4 p-0 text-sm">
         {localizedAlternatives.map((alternative) => (
           <li>

@@ -14,9 +14,6 @@ const publishedHomepages = [["ca", "Mountain Runners del Berguedà"]];
 const configuredLocales = ["ca", "es", "en"];
 
 const unavailableDetailRoutes = [
-  "ca/escoles/escola-btt/index.html",
-  "ca/escoles/escola-skimo/index.html",
-  "ca/escoles/escola-trail/index.html",
   "ca/esdeveniments/jornada-muntanya/index.html",
   "es/escuelas/escola-trail/index.html",
   "en/schools/escola-trail/index.html",
@@ -29,10 +26,15 @@ const forbiddenOutputMarkers = [
   "DRAFT_ONLY_ASSET_MARKER",
   "private-draft.pdf",
   "internal-draft",
+  // The club guide is a synthetic fixture: its document stays published but
+  // temporarily unavailable, so its PDF must never reach the public output.
+  "club-guide.pdf",
 ];
 
 const expectedPublishedResource =
   "content-resources/assets/logo_mountain_runners.png";
+const expectedStatutesResource =
+  "content-resources/content-assets/documents/estatuts-mrb.pdf";
 
 const distDirectory = new URL("../dist/", import.meta.url);
 const root = await readFile(new URL("index.html", distDirectory), "utf8");
@@ -153,10 +155,21 @@ const sitemapUrls = new Set(
 const expectedSitemapUrls = new Set(
   [
     "ca/",
+    "ca/escoles/",
+    "ca/escoles/escola-btt/",
+    "ca/escoles/escola-skimo/",
+    "ca/escoles/escola-trail/",
     "ca/esdeveniments/",
     "ca/esdeveniments/berga-trail/",
     "ca/esdeveniments/escalada-queralt/",
     "ca/esdeveniments/ultra-pirineu/",
+    "ca/qui-som/",
+    "ca/socis/",
+    "ca/contacte/",
+    "ca/documents/",
+    "ca/avis-legal/",
+    "ca/privacitat/",
+    "ca/cookies/",
   ].map((path) => new URL(path, publicSiteOrigin).toString()),
 );
 if (
@@ -175,6 +188,13 @@ if (!robots.split("\n").includes(sitemapDirective)) {
   throw new Error("Robots output does not declare the canonical sitemap URL.");
 }
 await readFile(join(distPath, expectedPublishedResource));
+await readFile(join(distPath, expectedStatutesResource));
+await readFile(
+  join(
+    distPath,
+    "content-resources/assets/collaborators/visites-al-bergueda.jpg",
+  ),
+);
 
 async function listFiles(directory) {
   const files = [];

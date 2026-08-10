@@ -28,8 +28,99 @@ export const routeDomains: RouteDomains = {
   },
 };
 
-// Detail templates are enabled here as their specification task ships.
-const publicDetailRouteKinds = new Set<RouteKind>(["event"]);
+// Fixed pages follow the same localized route contract as content domains.
+// Only the Catalan variant is published until every rendered datum of a
+// variant is complete and reviewed, so the page files use the Catalan segment.
+export const fixedPageRouteSegments = {
+  about: {
+    ca: "qui-som",
+    es: "quienes-somos",
+    en: "about",
+  },
+  members: {
+    ca: "socis",
+    es: "socios",
+    en: "members",
+  },
+  contact: {
+    ca: "contacte",
+    es: "contacto",
+    en: "contact",
+  },
+  documents: {
+    ca: "documents",
+    es: "documentos",
+    en: "documents",
+  },
+  "legal-notice": {
+    ca: "avis-legal",
+    es: "aviso-legal",
+    en: "legal-notice",
+  },
+  "legal-privacy": {
+    ca: "privacitat",
+    es: "privacidad",
+    en: "privacy",
+  },
+  "legal-cookies": {
+    ca: "cookies",
+    es: "cookies",
+    en: "cookies",
+  },
+} as const;
+
+export type FixedPageKind = keyof typeof fixedPageRouteSegments;
+
+export function assertFixedPageRouteSegments(
+  segments: Record<FixedPageKind, Record<Locale, string>>,
+): void {
+  for (const locale of knownLocales) {
+    const seen = new Set<string>();
+
+    for (const [kind, localizedSegments] of Object.entries(segments)) {
+      const segment = localizedSegments[locale];
+      if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/u.test(segment)) {
+        throw new Error(
+          `Invalid ${locale} ${kind} fixed page segment: ${segment}`,
+        );
+      }
+      if (
+        technicalRouteSegments.has(segment) ||
+        fixedRouteSegments.has(segment)
+      ) {
+        throw new Error(
+          `Reserved ${locale} ${kind} fixed page segment: ${segment}`,
+        );
+      }
+      if (seen.has(segment)) {
+        throw new Error(`Duplicate ${locale} fixed page segment: ${segment}`);
+      }
+      seen.add(segment);
+    }
+
+    const contentDomainSegments = new Set(
+      Object.values(routeDomains).map((domain) => domain[locale]),
+    );
+    for (const segment of seen) {
+      if (contentDomainSegments.has(segment)) {
+        throw new Error(
+          `Fixed page segment collides with a content domain: ${locale}/${segment}`,
+        );
+      }
+    }
+  }
+}
+
+assertFixedPageRouteSegments(fixedPageRouteSegments);
+
+export function getFixedPagePath(kind: FixedPageKind, locale: Locale): string {
+  return `/${locale}/${fixedPageRouteSegments[kind][locale]}/`;
+}
+
+// Detail templates are enabled here as their specification task ships: events
+// in T2.6 and schools in T3.6 (the hub links every published school to its
+// detail route).
+const publicDetailRouteKinds = new Set<RouteKind>(["event", "school"]);
 
 export function assertRouteDomains(domains: RouteDomains): void {
   for (const locale of knownLocales) {
@@ -111,6 +202,23 @@ export function getSitemapUrls(
       .filter(({ kind }) => kind === "event")
       .map(({ locale }) => locale),
   );
+  const schoolHubLocales = new Set(
+    catalog.variants
+      .filter(({ kind }) => kind === "school")
+      .map(({ locale }) => locale),
+  );
+  // Fixed pages are published only in Catalan while single-locale, matching
+  // the homepage entry below. A fixed page is added here once its variant is
+  // complete and published.
+  const publishedFixedPagePaths = [
+    getFixedPagePath("about", "ca"),
+    getFixedPagePath("members", "ca"),
+    getFixedPagePath("contact", "ca"),
+    getFixedPagePath("documents", "ca"),
+    getFixedPagePath("legal-notice", "ca"),
+    getFixedPagePath("legal-privacy", "ca"),
+    getFixedPagePath("legal-cookies", "ca"),
+  ];
   return [
     new URL("/ca/", site).toString(),
     ...[...hubLocales]
@@ -118,9 +226,15 @@ export function getSitemapUrls(
       .map((locale) =>
         new URL(getDomainPath("event", locale), site).toString(),
       ),
+    ...[...schoolHubLocales]
+      .sort()
+      .map((locale) =>
+        new URL(getDomainPath("school", locale), site).toString(),
+      ),
     ...getPublicDetailVariants(catalog).map((variant) =>
       getCanonicalUrl(variant, site),
     ),
+    ...publishedFixedPagePaths.map((path) => new URL(path, site).toString()),
   ].sort();
 }
 

@@ -1,0 +1,18 @@
+id: joieria-climent
+published: true
+name:
+  ca: Joieria Climent
+logo:
+  resource:
+    kind: local
+    path: src/assets/collaborators/joieria-climent.png
+  alt:
+    ca: Logotip de la Joieria Climent
+  sourceUrl: https://mountainrunners.cat/wp-content/uploads/2021/07/climent-logo-1472636915.png
+description:
+  ca: Establiment col·laborador de Mountain Runners del Berguedà.
+membershipBenefit:
+  title:
+    ca: Joieria i complements
+  description:
+    ca: 15% de descompte.

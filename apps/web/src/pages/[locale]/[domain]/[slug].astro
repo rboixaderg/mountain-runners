@@ -1,33 +1,22 @@
 ---
-import * as m from "../../../paraglide/messages.js";
+import * as messages from "../../../paraglide/messages.js";
+import EventDetail from "../../../components/events/EventDetail.astro";
+import SchoolDetail from "../../../components/schools/SchoolDetail.astro";
 import PublicLayout from "../../../layouts/PublicLayout.astro";
 import {
   getMadridDate,
   getMostRelevantEdition,
-  getNextEdition,
-  getPreviousEditions,
-  getRegistrationUrl,
 } from "../../../lib/content/events";
-import {
-  getDocumentHref,
-  getLocalImageSize,
-  getResourceHref,
-} from "../../../lib/content/images";
-import { renderRestrictedMarkdown } from "../../../lib/content/markdown";
-import type {
-  Document,
-  Event,
-  EventEdition,
-} from "../../../lib/content/models";
-import type { PublishedVariant } from "../../../lib/content/publication";
 import type { Locale } from "../../../lib/content/primitives";
+import type { PublishedVariant } from "../../../lib/content/publication";
 import { getPublicationCatalog } from "../../../lib/content/repository";
 import {
-  getLocalizedAlternatives,
   getCanonicalUrl,
+  getLocalizedAlternatives,
   getPublicDetailVariants,
   getRouteDomain,
 } from "../../../lib/content/routes";
+import { getEventJsonLd } from "../../../lib/content/seo";
 
 export async function getStaticPaths() {
   const catalog = await getPublicationCatalog();
@@ -52,47 +41,6 @@ const { variant, localizedAlternatives } = Astro.props as {
 const { locale } = variant;
 const catalog = await getPublicationCatalog();
 const today = process.env.BUILD_TODAY ?? getMadridDate(new Date());
-
-const formatEditionDate = (
-  edition: EventEdition,
-  pageLocale: Locale,
-): { startLabel: string; endLabel?: string } => {
-  const formatter = new Intl.DateTimeFormat(pageLocale, {
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-    timeZone: "Europe/Madrid",
-  });
-  const format = (value: string) =>
-    formatter.format(new Date(`${value}T12:00:00Z`));
-  return {
-    startLabel: format(edition.startDate),
-    endLabel:
-      edition.endDate === undefined ? undefined : format(edition.endDate),
-  };
-};
-
-const registrationState = (
-  edition: EventEdition | undefined,
-  event: Event,
-  pageLocale: Locale,
-): { label: string; url?: string } => {
-  const status = edition?.registrationStatus ?? "unavailable";
-  const url = getRegistrationUrl(event, edition, pageLocale);
-  const label =
-    status === "open"
-      ? m.event_registration_open({}, { locale: pageLocale })
-      : status === "closed"
-        ? m.event_registration_closed({}, { locale: pageLocale })
-        : status === "coming-soon"
-          ? m.event_registration_coming_soon({}, { locale: pageLocale })
-          : m.event_registration_unavailable({}, { locale: pageLocale });
-  return status === "open" && url !== undefined ? { label, url } : { label };
-};
-
-const externalLabel = (url: string): string =>
-  new URL(url).hostname.replace(/^www\./u, "");
-
 const event =
   variant.kind === "event"
     ? (variant as Extract<PublishedVariant, { kind: "event" }>).entry
@@ -100,262 +48,41 @@ const event =
 const featuredEdition = event
   ? getMostRelevantEdition(event, today)
   : undefined;
-const previousEditions = event ? getPreviousEditions(event, today) : [];
-const registration =
-  event && featuredEdition
-    ? registrationState(featuredEdition, event, locale)
-    : { label: m.event_registration_unavailable({}, { locale }) };
-const informationUrl = event?.informationUrl?.[locale];
-const coverHref = event ? getResourceHref(event.cover.resource) : undefined;
-const coverSize =
-  event && event.cover.resource.kind === "local"
-    ? await getLocalImageSize(event.cover.resource.path)
-    : undefined;
-const organizerEntities = event
-  ? event.organizerIds
-      .map((id) => catalog.entities.get(id))
-      .filter((entity) => entity !== undefined)
-  : [];
-const collaboratorEntities = event
-  ? event.collaboratorIds
-      .map((id) => catalog.entities.get(id))
-      .filter((entity) => entity !== undefined)
-  : [];
-const featuredDate = featuredEdition
-  ? formatEditionDate(featuredEdition, locale)
-  : undefined;
-const editionDocuments: { id: string; document: Document | undefined }[] =
-  featuredEdition?.documentIds.map((id) => ({
-    id,
-    document: catalog.documents.get(id),
-  })) ?? [];
+const canonicalUrl = new URL(getCanonicalUrl(variant, Astro.site!));
+const structuredData =
+  event !== null && featuredEdition !== undefined
+    ? [
+        getEventJsonLd({
+          event,
+          edition: featuredEdition,
+          canonicalUrl,
+          locale,
+          today,
+        }),
+      ].filter((data) => data !== undefined)
+    : [];
 ---
 
 <PublicLayout
   localizedAlternatives={localizedAlternatives}
-  canonical={getCanonicalUrl(variant, Astro.site!)}
+  canonical={canonicalUrl.toString()}
   description={variant.kind === "event"
     ? variant.entry.description[locale]!
     : variant.entry.summary[locale]!}
   locale={locale}
-  title={`${variant.kind === "event" ? variant.entry.title[locale] : variant.entry.name[locale]} | ${m.site_title({}, { locale })}`}
+  structuredData={structuredData}
+  title={`${variant.kind === "event" ? variant.entry.title[locale] : variant.entry.name[locale]} | ${messages.site_title({}, { locale })}`}
 >
   {
-    event && (
-      <article class="events-detail">
-        {coverHref && (
-          <figure class="events-detail__hero">
-            <img
-              src={coverHref}
-              alt={event.cover.alt[locale]}
-              {...(coverSize === undefined
-                ? {}
-                : { width: coverSize.width, height: coverSize.height })}
-            />
-            {event.cover.attribution?.[locale] && (
-              <figcaption>{event.cover.attribution[locale]}</figcaption>
-            )}
-          </figure>
-        )}
-        <div class="page-frame events-detail__content">
-          <p class="events-detail__badge">
-            {event.clubRelationship === "organizes"
-              ? m.event_club_badge_organizes({}, { locale })
-              : m.event_club_badge_collaborates({}, { locale })}
-          </p>
-          <h1 class="events-detail__title">{event.title[locale]}</h1>
-          <div class="events-detail__state">
-            <span class="events-detail__registration-label">
-              {registration.label}
-            </span>
-            <span class="events-detail__editorial-status">
-              {event.active
-                ? m.event_status_active({}, { locale })
-                : m.event_status_historical({}, { locale })}
-            </span>
-          </div>
-          <section
-            class="events-detail__description"
-            set:html={renderRestrictedMarkdown(event.description[locale]!)}
-          />
-          {informationUrl && (
-            <a
-              class="events-detail__info-link"
-              href={informationUrl}
-              rel="noopener noreferrer"
-            >
-              {m.event_more_information({}, { locale })} ·{" "}
-              {externalLabel(informationUrl)} <span aria-hidden="true">→</span>
-            </a>
-          )}
-          {featuredEdition && featuredDate && (
-            <section
-              class="events-detail__edition"
-              aria-label={m.event_practical_info({}, { locale })}
-            >
-              <h2>{m.event_practical_info({}, { locale })}</h2>
-              {event.active && !getNextEdition(event, today) && (
-                <p class="events-detail__no-upcoming-date">
-                  {m.event_status_no_upcoming_date({}, { locale })}
-                </p>
-              )}
-              <dl>
-                <div>
-                  <dt>{m.event_dates_label({}, { locale })}</dt>
-                  <dd class="events-detail__dates">
-                    <time datetime={featuredEdition.startDate}>
-                      {featuredDate.startLabel}
-                    </time>
-                    {featuredDate.endLabel && (
-                      <>
-                        {" – "}
-                        <time datetime={featuredEdition.endDate}>
-                          {featuredDate.endLabel}
-                        </time>
-                      </>
-                    )}
-                  </dd>
-                </div>
-                <div>
-                  <dt>{m.event_location_label({}, { locale })}</dt>
-                  <dd>{featuredEdition.location[locale]}</dd>
-                </div>
-              </dl>
-              <p class="events-detail__modalities-label">
-                {m.event_modalities_label({}, { locale })}
-              </p>
-              <ul class="events-detail__modalities">
-                {featuredEdition.modalities.map((modality) => (
-                  <li>{modality[locale]}</li>
-                ))}
-              </ul>
-              {registration.url && (
-                <a
-                  class="event-action"
-                  href={registration.url}
-                  rel="noopener noreferrer"
-                >
-                  {m.event_register_action({}, { locale })} ·{" "}
-                  {externalLabel(registration.url)}{" "}
-                  <span aria-hidden="true">→</span>
-                </a>
-              )}
-            </section>
-          )}
-          {featuredEdition && (
-            <section class="events-detail__resources">
-              <h2>{m.event_resources_title({}, { locale })}</h2>
-              {editionDocuments.length > 0 ? (
-                <ul>
-                  {editionDocuments.map(({ id, document }) => {
-                    const documentHref = getDocumentHref(document);
-                    return (
-                      <li>
-                        {documentHref && document ? (
-                          <a
-                            href={documentHref}
-                            rel={
-                              document.resource.kind === "external"
-                                ? "noopener noreferrer"
-                                : undefined
-                            }
-                          >
-                            {document.title[locale]}
-                          </a>
-                        ) : (
-                          <span>
-                            {document?.title[locale] ?? id} —{" "}
-                            {m.event_resource_unavailable({}, { locale })}
-                          </span>
-                        )}
-                      </li>
-                    );
-                  })}
-                </ul>
-              ) : (
-                <p>{m.event_resource_unavailable({}, { locale })}.</p>
-              )}
-            </section>
-          )}
-          {previousEditions.length > 0 && (
-            <section class="events-detail__history">
-              <h2>{m.event_previous_editions({}, { locale })}</h2>
-              <ol>
-                {previousEditions.map((edition) => {
-                  const dates = formatEditionDate(edition, locale);
-                  return (
-                    <li>
-                      <time datetime={edition.startDate}>
-                        {dates.startLabel}
-                      </time>
-                      {edition.endDate && (
-                        <>
-                          {" – "}
-                          <time datetime={edition.endDate}>
-                            {dates.endLabel}
-                          </time>
-                        </>
-                      )}
-                      {` · ${edition.location[locale]}`}
-                    </li>
-                  );
-                })}
-              </ol>
-            </section>
-          )}
-          {organizerEntities.length + collaboratorEntities.length > 0 && (
-            <section class="events-detail__entities">
-              <h2>{m.event_entities_title({}, { locale })}</h2>
-              <ul>
-                {[...organizerEntities, ...collaboratorEntities].map(
-                  (entity) => (
-                    <li>
-                      <strong>{entity.name[locale]}</strong>
-                      {entity.websiteUrl && (
-                        <>
-                          {" · "}
-                          <a href={entity.websiteUrl} rel="noopener noreferrer">
-                            {externalLabel(entity.websiteUrl)}
-                          </a>
-                        </>
-                      )}
-                      {entity.attribution?.[locale] && (
-                        <p>{entity.attribution[locale]}</p>
-                      )}
-                    </li>
-                  ),
-                )}
-              </ul>
-            </section>
-          )}
-        </div>
-      </article>
-    )
-  }
-  {
-    !event && (
-      <article class="page-frame max-w-[var(--reading-width)] py-[clamp(var(--space-12),10vw,7rem)] [&_h1]:my-3 [&_h1]:mb-6 [&_h1]:max-w-[15ch] [&_h1]:font-[family-name:var(--font-display)] [&_h1]:text-[clamp(2.8rem,9vw,5.5rem)] [&_h1]:leading-[0.95] [&_h1]:tracking-[0.015em] [&_h1]:uppercase [&_ol]:mt-8 [&_section]:mt-8 [&_section]:text-[clamp(1.1rem,2vw,1.3rem)]">
-        {variant.kind === "school" && (
-          <>
-            <h1 class="text-5xl font-bold tracking-tight">
-              {variant.entry.name[locale]}
-            </h1>
-            <p class="mt-6 text-lg">{variant.entry.summary[locale]}</p>
-            <section
-              class="mt-8"
-              set:html={renderRestrictedMarkdown(
-                variant.entry.description[locale]!,
-              )}
-            />
-            {Object.values(variant.entry.sections).map((section) => (
-              <section
-                class="mt-8"
-                set:html={renderRestrictedMarkdown(section[locale]!)}
-              />
-            ))}
-          </>
-        )}
-      </article>
+    variant.kind === "event" ? (
+      <EventDetail
+        catalog={catalog}
+        locale={locale}
+        today={today}
+        variant={variant}
+      />
+    ) : (
+      <SchoolDetail locale={locale} variant={variant} />
     )
   }
 </PublicLayout>

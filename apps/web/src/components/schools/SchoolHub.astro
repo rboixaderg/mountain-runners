@@ -1,0 +1,65 @@
+---
+import * as messages from "../../paraglide/messages.js";
+import type { Locale } from "../../lib/content/primitives";
+import type { PublishedVariant } from "../../lib/content/publication";
+import { getVariantPath } from "../../lib/content/routes";
+import { getRegistrationPresentation } from "../../lib/presentation/status";
+
+interface Props {
+  locale: Locale;
+  variants: Extract<PublishedVariant, { kind: "school" }>[];
+}
+
+const { locale, variants } = Astro.props;
+---
+
+<section class="page-frame schools-hub-intro">
+  <p class="schools-hub-intro__kicker">
+    {messages.site_title({}, { locale })}
+  </p>
+  <h1
+    class="my-3 mb-6 max-w-[15ch] font-[family-name:var(--font-display)] text-[clamp(2.8rem,9vw,5.5rem)] leading-[0.95] tracking-[0.015em] uppercase"
+  >
+    {messages.navigation_schools({}, { locale })}
+  </h1>
+  <p class="schools-hub-intro__description">
+    {messages.schools_intro({}, { locale })}
+  </p>
+</section>
+
+<ul class="schools-hub-list">
+  {
+    variants.map((variant) => {
+      const school = variant.entry;
+      const registrationStatusKey = getRegistrationPresentation(
+        school.registrationStatus,
+        undefined,
+      ).key;
+      return (
+        <li class="schools-hub-item">
+          <a class="schools-hub-item__link" href={getVariantPath(variant)}>
+            <span class="schools-hub-item__body">
+              <span class="schools-hub-item__status">
+                {messages[registrationStatusKey]({}, { locale })}
+              </span>
+              <strong>{school.name[locale]}</strong>
+              <span class="schools-hub-item__summary">
+                {school.summary[locale]}
+              </span>
+              <span class="schools-hub-item__action">
+                {messages.school_more_information({}, { locale })}{" "}
+                <span aria-hidden="true">→</span>
+              </span>
+            </span>
+          </a>
+        </li>
+      );
+    })
+  }
+</ul>
+
+<div class="schools-hub-separator" aria-hidden="true">
+  <span></span>
+  <b>◆</b>
+  <span></span>
+</div>

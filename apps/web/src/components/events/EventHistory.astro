@@ -1,0 +1,29 @@
+---
+import * as messages from "../../paraglide/messages.js";
+import type { EventEdition } from "../../lib/content/models";
+import type { Locale } from "../../lib/content/primitives";
+import EditionDates from "../EditionDates.astro";
+
+interface Props {
+  editions: EventEdition[];
+  locale: Locale;
+}
+
+const { editions, locale } = Astro.props;
+---
+
+{
+  editions.length > 0 && (
+    <section class="events-detail__history">
+      <h2>{messages.event_previous_editions({}, { locale })}</h2>
+      <ol>
+        {editions.map((edition) => (
+          <li>
+            <EditionDates edition={edition} locale={locale} />
+            {` · ${edition.location[locale]}`}
+          </li>
+        ))}
+      </ol>
+    </section>
+  )
+}

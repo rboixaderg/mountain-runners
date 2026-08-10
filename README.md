@@ -6,8 +6,9 @@ Web de codi obert de l'associació esportiva Mountain Runners del Berguedà.
 
 Aquest repositori conté la base executable de l'aplicació Astro, el model
 editorial validat, la infraestructura multiidioma, la direcció de disseny i les
-normes de col·laboració. Les plantilles visuals i el contingut públic definitiu
-encara no s'han implementat.
+normes de col·laboració. Les pàgines fixes de la fase 3 (portada, esdeveniments,
+qui som, documents, contacte i pàgines legals) ja es publiquen en català; la
+resta de rutes s'incorporen a mesura que es completen les tasques de la fase.
 
 ## Desenvolupament Local
 
@@ -27,8 +28,11 @@ pnpm dev
 `hreflang`, the sitemap and `robots.txt`. Preview and production deployments
 must provide their own value.
 
-`pnpm validate` executa format, lint, typecheck, tests i build amb les mateixes
-condicions que la integració contínua.
+`pnpm validate` executa format, lint, typecheck, tests unitaris, recorreguts
+Playwright, Lighthouse i pressupostos amb les mateixes condicions que la
+integració contínua. `pnpm check` ofereix les comprovacions ràpides (format,
+lint, typecheck i tests) i `pnpm lighthouse` valida punts de tall de rendiment i
+accessibilitat sobre les rutes representatives.
 
 ## Arquitectura
 

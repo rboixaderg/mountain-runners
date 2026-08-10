@@ -1,0 +1,31 @@
+---
+import * as messages from "../../paraglide/messages.js";
+import type { Locale } from "../../lib/content/primitives";
+import type { PublicationCatalog } from "../../lib/content/publication";
+import AboutBoard from "./AboutBoard.astro";
+import AboutHistory from "./AboutHistory.astro";
+import AboutPresident from "./AboutPresident.astro";
+import AboutStatutes from "./AboutStatutes.astro";
+
+interface Props {
+  catalog: PublicationCatalog;
+  locale: Locale;
+}
+
+const { catalog, locale } = Astro.props;
+---
+
+<article class="about-detail">
+  <section class="page-frame about-intro">
+    <p class="about-intro__kicker">{messages.site_title({}, { locale })}</p>
+    <h1>{messages.navigation_about({}, { locale })}</h1>
+    <p class="about-intro__description">
+      {messages.about_page_description({}, { locale })}
+    </p>
+  </section>
+
+  <AboutPresident locale={locale} />
+  <AboutBoard locale={locale} />
+  <AboutHistory locale={locale} />
+  <AboutStatutes catalog={catalog} locale={locale} />
+</article>

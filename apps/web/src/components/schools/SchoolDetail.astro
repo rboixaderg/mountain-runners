@@ -1,0 +1,27 @@
+---
+import type { Locale } from "../../lib/content/primitives";
+import type { PublishedVariant } from "../../lib/content/publication";
+import SchoolGallery from "./SchoolGallery.astro";
+import SchoolIntroduction from "./SchoolIntroduction.astro";
+import SchoolPracticalInfo from "./SchoolPracticalInfo.astro";
+import SchoolRegistration from "./SchoolRegistration.astro";
+import SchoolVideo from "./SchoolVideo.astro";
+
+interface Props {
+  locale: Locale;
+  variant: Extract<PublishedVariant, { kind: "school" }>;
+}
+
+const { locale, variant } = Astro.props;
+const school = variant.entry;
+---
+
+<article class="schools-detail">
+  <SchoolIntroduction locale={locale} school={school} />
+  <div class="page-frame schools-detail__body">
+    <SchoolPracticalInfo locale={locale} school={school} />
+    <SchoolGallery locale={locale} school={school} />
+    <SchoolVideo locale={locale} school={school} />
+    <SchoolRegistration locale={locale} school={school} />
+  </div>
+</article>

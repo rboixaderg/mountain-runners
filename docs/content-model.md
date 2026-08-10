@@ -31,12 +31,28 @@
 
 ## Col·leccions
 
-Les quatre Astro Content Collections registrades són:
+Les col·leccions de contingut registrades són:
 
-- `schools`: programes amb informació pràctica, recursos i estat d'inscripció.
+- `schools`: programes amb informació pràctica, recursos, estat d'inscripció i
+  un ordre editorial explícit (`hubOrder`) per al hub.
 - `events`: esdeveniments amb entitats relacionades i edicions embegudes.
 - `entities`: organitzacions reutilitzables i avantatges opcionals per a socis.
 - `documents`: recursos locals o externs amb tipus, idioma i disponibilitat.
+- `external-actions`: accions externes d'alta, federació i butlletí amb estat
+  explícit i URL externa opcional.
+- `contact`: dades institucionals de contacte (correu, telèfons, seu, horaris i
+  CIF) amb URL `mailto:` i `tel:` validades.
+
+La col·lecció `contact` conté exactament una entrada institucional. El catàleg
+falla si en falta o n'hi ha més d'una, i només exposa les dades si l'entrada està
+publicada i completa en català.
+
+Les accions externes tenen un identificador estable fix (per exemple
+`member-signup`, `federation` i `newsletter`) que el codi i les pàgines fixes
+reutilitzen. Una acció `available` requereix una URL HTTPS traduïble; una acció
+no disponible (`coming-soon`, `temporarily-unavailable` o `unavailable`) no
+porta URL i s'explica amb text útil, mai amb un control desactivat ni un enllaç
+buit.
 
 Els esdeveniments necessiten un estat de visibilitat editorial i una indicació
 separada de si continuen actius. Les edicions pertanyen al seu esdeveniment pare
@@ -81,10 +97,46 @@ Els documents referenciats per una edició només generen un enllaç quan la sev
 disponibilitat és `available`; els documents arxivats o temporalment no
 disponibles es mostren com a recurs no disponible.
 
+Les pàgines fixes poden referenciar documents de la col·lecció publicada per
+identificador estable. La pàgina Qui som referència l'`estatuts` (PDF local
+versionat a `src/content-assets/documents/estatuts-mrb.pdf`); una referència
+mancant o despublicada fa fallar la validació editorial.
+
+La pàgina Socis renderitza les accions externes d'alta i federació pels seus
+identificadors estables (`member-signup` i `federation`) i en mostra l'estat: una
+acció disponible enllaça a la URL traduïble i una acció no disponible s'explica
+amb text útil, mai amb un control fals. El directori de col·laboradors es deriva
+exclusivament de les entitats publicades amb avantatge de soci
+(`membershipBenefit`), ordenades alfabèticament pel nom en català; no es
+duplica cap llista editorial en els recursos de traducció.
+
+El directori de Documents agrupa per tipus els documents publicats: només els
+documents amb disponibilitat `available` mostren enllaç i només els seus
+recursos locals entren a la sortida pública. Un document publicat però no
+disponible (`temporarily-unavailable` o `archived`) s'explica amb text útil i
+no genera cap enllaç ni recurs a `dist/`.
+
+Les pàgines fixes de Contacte i les legals (avís legal, privacitat i cookies)
+resolen les dades institucionals (CIF, seu, correu i telèfons) des de la
+col·lecció `contact`, i el butlletí des de l'acció externa `newsletter`. Si una
+dada no està aprovada, la secció corresponent s'omet o mostra la
+indisponibilitat; mai no es simula un formulari ni una subscripció activa.
+
 Una variant editorial publicable no habilita automàticament una fitxa pública.
 Els tipus de detall disponibles es defineixen centralment en codi segons les
-plantilles completades a cada fase. La portada pot reutilitzar contingut publicat
-sense avançar les fitxes d'escoles de la fase 3.
+plantilles completades a cada fase: esdeveniments des de la fase 2 i escoles des
+de la fase 3 (T3.6). La portada reutilitza contingut publicat i enllaça al hub
+d'escoles.
+
+El hub d'escoles llista les escoles publicades en un ordre editorial explícit i
+estable: el camp `hubOrder` de cada entrada (`apps/web/src/lib/content/schools.ts`),
+amb l'identificador com a desempat. L'ordre mai depèn de l'ordre dels fitxers.
+
+Les imatges de les escoles han de ser recursos locals versionats. Encara que la
+primitiva general d'imatges accepti una URL HTTPS externa per a altres models, la
+publicació d'una escola exclou cobertes o fotografies externes per evitar
+hotlinking i garantir que el detall conserva dimensions, procedència i control
+editorial del recurs.
 
 El codi centralitza els dominis editorials localitzats: escoles són
 `/{locale}/escoles/{slug}/`, `/{locale}/escuelas/{slug}/` o

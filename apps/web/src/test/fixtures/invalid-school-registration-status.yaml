@@ -1,5 +1,6 @@
 id: invalid-school
 published: true
+hubOrder: 99
 slug:
   ca: escola-invalida
 name:

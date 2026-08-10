@@ -1,34 +1,81 @@
 ---
-import * as m from "../paraglide/messages.js";
+import * as messages from "../paraglide/messages.js";
+import type { PublicationCatalog } from "../lib/content/publication";
 import type { Locale } from "../lib/content/primitives";
-import { getDomainPath } from "../lib/content/routes";
+import { getDomainPath, getFixedPagePath } from "../lib/content/routes";
+import ContactDataList from "./ContactDataList.astro";
 
 interface Props {
+  catalog: PublicationCatalog;
   locale: Locale;
 }
 
-const { locale } = Astro.props;
+const { catalog, locale } = Astro.props;
+const homePath = `/${locale}/`;
+const eventsPath = getDomainPath("event", locale);
+const contactPath = getFixedPagePath("contact", locale);
+const documentsPath = getFixedPagePath("documents", locale);
+const legalNoticePath = getFixedPagePath("legal-notice", locale);
+const legalPrivacyPath = getFixedPagePath("legal-privacy", locale);
+const legalCookiesPath = getFixedPagePath("legal-cookies", locale);
+const contact = catalog.contact;
 ---
 
-<footer class="border-t border-[var(--color-line)]">
-  <div
-    class="page-frame flex min-h-18 flex-col items-start justify-between gap-3 py-4 sm:flex-row sm:items-center sm:py-0"
-  >
+<footer class="site-footer border-t border-[var(--color-line)]">
+  <div class="page-frame grid gap-8 py-10 sm:grid-cols-2 lg:grid-cols-4">
     <p
       class="m-0 font-[family-name:var(--font-display)] text-lg tracking-[0.06em] uppercase"
     >
-      {m.site_title()}
+      {messages.site_title({}, { locale })}
     </p>
-    <nav
-      class="flex items-center gap-4 text-sm"
-      aria-label={m.footer_navigation({}, { locale })}
-    >
-      <a class="font-bold" href={`/${locale}/`}
-        >{m.navigation_home({}, { locale })}</a
-      >
-      <a class="font-bold" href={getDomainPath("event", locale)}
-        >{m.navigation_events({}, { locale })}</a
-      >
+    <nav aria-label={messages.footer_navigation({}, { locale })}>
+      <ul class="footer-links">
+        <li>
+          <a class="font-bold" href={homePath}
+            >{messages.navigation_home({}, { locale })}</a
+          >
+        </li>
+        <li>
+          <a class="font-bold" href={eventsPath}
+            >{messages.navigation_events({}, { locale })}</a
+          >
+        </li>
+        <li>
+          <a href={contactPath}>{messages.contact_page_title({}, { locale })}</a
+          >
+        </li>
+        <li>
+          <a href={documentsPath}
+            >{messages.documents_page_title({}, { locale })}</a
+          >
+        </li>
+      </ul>
+    </nav>
+    {
+      contact && (
+        <div class="footer-contact">
+          <ContactDataList contact={contact} locale={locale} />
+        </div>
+      )
+    }
+    <nav aria-label={messages.legal_navigation({}, { locale })}>
+      <ul class="footer-links">
+        <li>
+          <a href={legalNoticePath}
+            >{messages.legal_notice_title({}, { locale })}</a
+          >
+        </li>
+        <li>
+          <a href={legalPrivacyPath}
+            >{messages.legal_privacy_title({}, { locale })}</a
+          >
+        </li>
+        <li>
+          <a href={legalCookiesPath}
+            >{messages.legal_cookies_title({}, { locale })}</a
+          >
+        </li>
+      </ul>
     </nav>
   </div>
 </footer>

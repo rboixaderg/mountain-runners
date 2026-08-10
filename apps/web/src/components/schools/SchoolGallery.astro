@@ -1,0 +1,63 @@
+---
+import * as messages from "../../paraglide/messages.js";
+import { getLocalImageSize, getResourceHref } from "../../lib/content/images";
+import type { School } from "../../lib/content/models";
+import type { Locale } from "../../lib/content/primitives";
+
+interface Props {
+  locale: Locale;
+  school: School;
+}
+
+const { locale, school } = Astro.props;
+const galleryImages = await Promise.all(
+  school.gallery.map(async (image) => ({
+    image,
+    href: getResourceHref(image.resource),
+    size:
+      image.resource.kind === "local"
+        ? await getLocalImageSize(image.resource.path)
+        : undefined,
+  })),
+);
+---
+
+<section
+  class="schools-detail__section schools-detail__gallery"
+  aria-labelledby="school-gallery-title"
+>
+  <div class="schools-detail__section-heading">
+    <span class="schools-detail__section-marker" aria-hidden="true"></span>
+    <h2 id="school-gallery-title">
+      {messages.school_gallery_title({}, { locale })}
+    </h2>
+  </div>
+  {
+    galleryImages.length > 0 ? (
+      <ul class="schools-detail__gallery-list">
+        {galleryImages.map(({ image, href, size }) => (
+          <li>
+            <figure>
+              <img
+                src={href}
+                alt={image.alt[locale]}
+                loading="lazy"
+                decoding="async"
+                {...(size === undefined
+                  ? {}
+                  : { width: size.width, height: size.height })}
+              />
+              {image.attribution?.[locale] && (
+                <figcaption>{image.attribution[locale]}</figcaption>
+              )}
+            </figure>
+          </li>
+        ))}
+      </ul>
+    ) : (
+      <p class="schools-detail__availability">
+        {messages.school_gallery_unavailable({}, { locale })}
+      </p>
+    )
+  }
+</section>

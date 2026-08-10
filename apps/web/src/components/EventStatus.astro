@@ -1,0 +1,16 @@
+---
+import * as messages from "../paraglide/messages.js";
+import type { Locale } from "../lib/content/primitives";
+import type { EventStatusMessageKey } from "../lib/presentation/status";
+
+interface Props {
+  className?: string;
+  locale: Locale;
+  statusKey: EventStatusMessageKey;
+}
+
+const { className, locale, statusKey } = Astro.props;
+const label = messages[statusKey]({}, { locale });
+---
+
+<span class={className}>{label}</span>

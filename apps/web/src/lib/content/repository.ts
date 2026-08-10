@@ -23,17 +23,22 @@ async function validateLocalResources(source: unknown): Promise<void> {
 }
 
 export async function getPublicationCatalog(): Promise<PublicationCatalog> {
-  const [schools, events, entities, documents] = await Promise.all([
-    getCollection("schools"),
-    getCollection("events"),
-    getCollection("entities"),
-    getCollection("documents"),
-  ]);
+  const [schools, events, entities, documents, externalActions, contact] =
+    await Promise.all([
+      getCollection("schools"),
+      getCollection("events"),
+      getCollection("entities"),
+      getCollection("documents"),
+      getCollection("externalActions"),
+      getCollection("contact"),
+    ]);
   const source: ContentSource = {
     schools: schools.map(({ data }) => data),
     events: events.map(({ data }) => data),
     entities: entities.map(({ data }) => data),
     documents: documents.map(({ data }) => data),
+    externalActions: externalActions.map(({ data }) => data),
+    contact: contact.map(({ data }) => data),
   };
   const today = process.env.BUILD_TODAY ?? getMadridDate(new Date());
   assertEventDateConsistency(source.events, today);

@@ -1,5 +1,14 @@
-import type { Document, Entity, Event, School } from "./models";
+import type {
+  Contact,
+  Document,
+  Entity,
+  Event,
+  ExternalAction,
+  School,
+} from "./models";
+import { externalActionIds, statutesDocumentId } from "./models";
 import {
+  defaultLocale,
   findDuplicateLocalizedSlugs,
   hasCompleteTranslation,
   knownLocales,
@@ -13,6 +22,8 @@ export type ContentSource = {
   events: Event[];
   entities: Entity[];
   documents: Document[];
+  externalActions: ExternalAction[];
+  contact: Contact[];
 };
 
 export type PublishedVariant =
@@ -23,6 +34,8 @@ export type PublicationCatalog = {
   variants: PublishedVariant[];
   entities: Map<string, Entity>;
   documents: Map<string, Document>;
+  externalActions: Map<string, ExternalAction>;
+  contact: Contact | undefined;
 };
 
 export function getPublishedLocalResources(
@@ -40,11 +53,41 @@ export function getPublishedLocalResources(
       ]) {
         collectLocalResourcePaths(catalog.entities.get(id), resources);
       }
+      // Documents referenced by a published event edition follow the same
+      // availability rule as the directory: an unavailable document never
+      // leaks its local resource into the public output.
       for (const edition of variant.entry.editions) {
         for (const id of edition.documentIds) {
-          collectLocalResourcePaths(catalog.documents.get(id), resources);
+          const document = catalog.documents.get(id);
+          if (document?.availability === "available") {
+            collectLocalResourcePaths(document, resources);
+          }
         }
       }
+    }
+  }
+
+  // Published entities are public data: events render the ones they
+  // reference and the Members fixed page renders the directory logos, so
+  // their local resources belong to the public output.
+  for (const entity of catalog.entities.values()) {
+    collectLocalResourcePaths(entity, resources);
+  }
+
+  // The About fixed page links the statutes document from the published
+  // collection, so its local resource is part of the public output.
+  collectLocalResourcePaths(
+    catalog.documents.get(statutesDocumentId),
+    resources,
+  );
+
+  // The Documents directory links every published document whose availability
+  // is `available`; only those resources belong to the public output. A
+  // published but unavailable document (temporarily-unavailable or archived)
+  // must not leak its resource into the build.
+  for (const document of catalog.documents.values()) {
+    if (document.availability === "available") {
+      collectLocalResourcePaths(document, resources);
     }
   }
 
@@ -60,6 +103,15 @@ function isImageComplete(
   locale: Locale,
 ): boolean {
   return isTranslated(image.alt, locale);
+}
+
+function isSchoolImageComplete(
+  image: School["cover"],
+  locale: Locale,
+): boolean {
+  // School photographs are versioned locally so the public detail never
+  // hotlinks an editorial image from a third-party host.
+  return image.resource.kind === "local" && isImageComplete(image, locale);
 }
 
 function isEntityComplete(entity: Entity, locale: Locale): boolean {
@@ -82,6 +134,25 @@ function isDocumentComplete(document: Document, locale: Locale): boolean {
   );
 }
 
+function isExternalActionComplete(
+  action: ExternalAction,
+  locale: Locale,
+): boolean {
+  return (
+    action.published &&
+    (action.status !== "available" ||
+      (action.url !== undefined && isTranslated(action.url, locale)))
+  );
+}
+
+function isContactComplete(contact: Contact, locale: Locale): boolean {
+  return (
+    contact.published &&
+    isTranslated(contact.address, locale) &&
+    isTranslated(contact.hours, locale)
+  );
+}
+
 function isSchoolComplete(school: School, locale: Locale): boolean {
   return (
     school.published &&
@@ -89,8 +160,8 @@ function isSchoolComplete(school: School, locale: Locale): boolean {
     isTranslated(school.name, locale) &&
     isTranslated(school.summary, locale) &&
     isTranslated(school.description, locale) &&
-    isImageComplete(school.cover, locale) &&
-    school.gallery.every((image) => isImageComplete(image, locale)) &&
+    isSchoolImageComplete(school.cover, locale) &&
+    school.gallery.every((image) => isSchoolImageComplete(image, locale)) &&
     Object.values(school.sections).every((section) =>
       isTranslated(section, locale),
     ) &&
@@ -205,6 +276,39 @@ function assertReferences(
   }
 }
 
+function assertSingleContact(contactEntries: readonly Contact[]): void {
+  if (contactEntries.length !== 1) {
+    throw new Error(
+      `Expected exactly one contact entry, found ${contactEntries.length}`,
+    );
+  }
+}
+
+function assertStatutesReference(documents: readonly Document[]): void {
+  const statutes = documents.find(({ id }) => id === statutesDocumentId);
+  if (statutes === undefined || !statutes.published) {
+    throw new Error(
+      `About page references missing or unpublished document: ${statutesDocumentId}`,
+    );
+  }
+}
+
+function assertExternalActionsReference(
+  externalActions: readonly ExternalAction[],
+): void {
+  for (const actionId of [
+    externalActionIds.memberSignup,
+    externalActionIds.federation,
+  ]) {
+    const action = externalActions.find(({ id }) => id === actionId);
+    if (action === undefined || !action.published) {
+      throw new Error(
+        `Members page references missing or unpublished external action: ${actionId}`,
+      );
+    }
+  }
+}
+
 export function createPublicationCatalog(
   source: ContentSource,
 ): PublicationCatalog {
@@ -212,6 +316,11 @@ export function createPublicationCatalog(
   const documents = indexById(source.documents, "document");
   indexById(source.schools, "school");
   indexById(source.events, "event");
+  indexById(source.externalActions, "external action");
+  indexById(source.contact, "contact");
+  assertSingleContact(source.contact);
+  assertStatutesReference(source.documents);
+  assertExternalActionsReference(source.externalActions);
   assertUniqueSlugs("schools", source.schools);
   assertUniqueSlugs("events", source.events);
   assertReferences(source, entities, documents);
@@ -246,10 +355,20 @@ export function createPublicationCatalog(
   const publishedDocuments = new Map(
     [...documents].filter(([, document]) => document.published),
   );
+  const publishedExternalActions = new Map(
+    source.externalActions
+      .filter((action) => isExternalActionComplete(action, defaultLocale))
+      .map((action) => [action.id, action]),
+  );
+  const publishedContact = source.contact.find((entry) =>
+    isContactComplete(entry, defaultLocale),
+  );
 
   return {
     variants,
     entities: publishedEntities,
     documents: publishedDocuments,
+    externalActions: publishedExternalActions,
+    contact: publishedContact,
   };
 }

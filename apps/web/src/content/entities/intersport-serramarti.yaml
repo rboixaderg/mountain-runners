@@ -1,0 +1,18 @@
+id: intersport-serramarti
+published: true
+name:
+  ca: Intersport Serra Martí
+logo:
+  resource:
+    kind: local
+    path: src/assets/collaborators/intersport-serramarti.png
+  alt:
+    ca: Logotip d'Intersport Serra Martí
+  sourceUrl: https://mountainrunners.cat/wp-content/uploads/2021/07/baixa.png
+description:
+  ca: Establiment col·laborador de Mountain Runners del Berguedà.
+membershipBenefit:
+  title:
+    ca: Articles d'esport
+  description:
+    ca: 10% de descompte per a imports superiors a 20 €, excepte ofertes, promocions i rebaixes.

@@ -3,9 +3,11 @@ import { describe, expect, it } from "vitest";
 import type { z } from "zod";
 import {
   collectionSchemas,
+  type Contact,
   type Document,
   type Entity,
   type Event,
+  type ExternalAction,
   type School,
 } from "../lib/content/models";
 import {
@@ -13,7 +15,10 @@ import {
   type ContentSource,
 } from "../lib/content/publication";
 import {
+  assertFixedPageRouteSegments,
   assertRouteDomains,
+  fixedPageRouteSegments,
+  getFixedPagePath,
   getLocalizedAlternatives,
   getCanonicalUrl,
   getPublicDetailVariants,
@@ -41,16 +46,22 @@ async function loadCollection<T>(directory: string, schema: z.ZodType<T>) {
 }
 
 async function loadSource(): Promise<ContentSource> {
-  const [schools, events, entities, documents] = await Promise.all([
-    loadCollection<School>("schools", collectionSchemas.schools),
-    loadCollection<Event>("events", collectionSchemas.events),
-    loadCollection<Entity>("entities", collectionSchemas.entities),
-    loadCollection<Document>("documents", collectionSchemas.documents),
-  ]);
+  const [schools, events, entities, documents, externalActions, contact] =
+    await Promise.all([
+      loadCollection<School>("schools", collectionSchemas.schools),
+      loadCollection<Event>("events", collectionSchemas.events),
+      loadCollection<Entity>("entities", collectionSchemas.entities),
+      loadCollection<Document>("documents", collectionSchemas.documents),
+      loadCollection<ExternalAction>(
+        "external-actions",
+        collectionSchemas.externalActions,
+      ),
+      loadCollection<Contact>("contact", collectionSchemas.contact),
+    ]);
   for (const event of events) {
     event.published = event.id === "mountain-day";
   }
-  return { schools, events, entities, documents };
+  return { schools, events, entities, documents, externalActions, contact };
 }
 
 function addTranslations(value: unknown, locale: "es" | "en"): void {
@@ -89,18 +100,34 @@ describe("localized route contract", () => {
     ]);
   });
 
-  it("keeps unpublished and school content out of available detail routes", async () => {
+  it("keeps unpublished content out of available detail routes and sitemap", async () => {
     const catalog = createPublicationCatalog(await loadSource());
 
     expect(
       getPublicDetailVariants(catalog).map((variant) =>
         getVariantPath(variant),
       ),
-    ).toEqual(["/ca/esdeveniments/jornada-muntanya/"]);
+    ).toEqual([
+      "/ca/escoles/escola-btt/",
+      "/ca/escoles/escola-skimo/",
+      "/ca/escoles/escola-trail/",
+      "/ca/esdeveniments/jornada-muntanya/",
+    ]);
     expect(getSitemapUrls(catalog, publicSiteOrigin)).toEqual([
       "https://mountainrunners.cat/ca/",
+      "https://mountainrunners.cat/ca/avis-legal/",
+      "https://mountainrunners.cat/ca/contacte/",
+      "https://mountainrunners.cat/ca/cookies/",
+      "https://mountainrunners.cat/ca/documents/",
+      "https://mountainrunners.cat/ca/escoles/",
+      "https://mountainrunners.cat/ca/escoles/escola-btt/",
+      "https://mountainrunners.cat/ca/escoles/escola-skimo/",
+      "https://mountainrunners.cat/ca/escoles/escola-trail/",
       "https://mountainrunners.cat/ca/esdeveniments/",
       "https://mountainrunners.cat/ca/esdeveniments/jornada-muntanya/",
+      "https://mountainrunners.cat/ca/privacitat/",
+      "https://mountainrunners.cat/ca/qui-som/",
+      "https://mountainrunners.cat/ca/socis/",
     ]);
   });
 
@@ -203,6 +230,80 @@ describe("localized route contract", () => {
     fixedRoute.event.ca = "ca";
     expect(() => assertRouteDomains(fixedRoute)).toThrow(
       "Reserved ca event route domain: ca",
+    );
+  });
+
+  it("uses localized fixed-page paths and keeps them out of content domains", () => {
+    expect(fixedPageRouteSegments.about).toEqual({
+      ca: "qui-som",
+      es: "quienes-somos",
+      en: "about",
+    });
+    expect(fixedPageRouteSegments.members).toEqual({
+      ca: "socis",
+      es: "socios",
+      en: "members",
+    });
+    expect(getFixedPagePath("about", "ca")).toBe("/ca/qui-som/");
+    expect(getFixedPagePath("about", "es")).toBe("/es/quienes-somos/");
+    expect(getFixedPagePath("about", "en")).toBe("/en/about/");
+    expect(getFixedPagePath("members", "ca")).toBe("/ca/socis/");
+    expect(getFixedPagePath("members", "es")).toBe("/es/socios/");
+    expect(getFixedPagePath("members", "en")).toBe("/en/members/");
+    expect(fixedPageRouteSegments.contact).toEqual({
+      ca: "contacte",
+      es: "contacto",
+      en: "contact",
+    });
+    expect(fixedPageRouteSegments.documents).toEqual({
+      ca: "documents",
+      es: "documentos",
+      en: "documents",
+    });
+    expect(fixedPageRouteSegments["legal-notice"]).toEqual({
+      ca: "avis-legal",
+      es: "aviso-legal",
+      en: "legal-notice",
+    });
+    expect(fixedPageRouteSegments["legal-privacy"]).toEqual({
+      ca: "privacitat",
+      es: "privacidad",
+      en: "privacy",
+    });
+    expect(fixedPageRouteSegments["legal-cookies"]).toEqual({
+      ca: "cookies",
+      es: "cookies",
+      en: "cookies",
+    });
+    expect(getFixedPagePath("contact", "ca")).toBe("/ca/contacte/");
+    expect(getFixedPagePath("documents", "ca")).toBe("/ca/documents/");
+    expect(getFixedPagePath("legal-notice", "ca")).toBe("/ca/avis-legal/");
+    expect(getFixedPagePath("legal-privacy", "ca")).toBe("/ca/privacitat/");
+    expect(getFixedPagePath("legal-cookies", "ca")).toBe("/ca/cookies/");
+  });
+
+  it("rejects invalid fixed-page segments", () => {
+    const mutableSegments = (
+      segments: typeof fixedPageRouteSegments,
+    ): Record<keyof typeof fixedPageRouteSegments, Record<string, string>> =>
+      structuredClone(segments);
+
+    const duplicate = mutableSegments(fixedPageRouteSegments);
+    duplicate.about.ca = "escoles";
+    expect(() => assertFixedPageRouteSegments(duplicate)).toThrow(
+      "Fixed page segment collides with a content domain: ca/escoles",
+    );
+
+    const reserved = mutableSegments(fixedPageRouteSegments);
+    reserved.about.ca = "api";
+    expect(() => assertFixedPageRouteSegments(reserved)).toThrow(
+      "Reserved ca about fixed page segment: api",
+    );
+
+    const invalid = mutableSegments(fixedPageRouteSegments);
+    invalid.about.ca = "QuiSom";
+    expect(() => assertFixedPageRouteSegments(invalid)).toThrow(
+      "Invalid ca about fixed page segment: QuiSom",
     );
   });
 });

@@ -7,7 +7,7 @@ import {
   translatableSchema,
 } from "./primitives";
 import { imageResourceSchema, safeResourceSchema } from "./resources";
-import { httpsUrlSchema } from "./urls";
+import { httpsUrlSchema, mailtoUrlSchema, telUrlSchema } from "./urls";
 
 const contentIdSchema = z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/u, {
   error: "Expected a stable lowercase kebab-case identifier",
@@ -59,15 +59,22 @@ const publishableFields = {
   slug: localizedSlugSchema,
 };
 
-const registrationStatusSchema = z.enum([
+export const registrationStatuses = [
   "open",
   "closed",
   "coming-soon",
   "unavailable",
-]);
+] as const;
+
+export type RegistrationStatus = (typeof registrationStatuses)[number];
+
+const registrationStatusSchema = z.enum(registrationStatuses);
 
 export const schoolSchema = z.strictObject({
   ...publishableFields,
+  // Editorial order of the school hub: explicit, stable and validated in the
+  // model, never derived from the order of the source files.
+  hubOrder: z.number().int().positive(),
   name: localizedTextSchema,
   summary: localizedTextSchema,
   description: localizedMarkdownSchema,
@@ -162,15 +169,75 @@ export const documentSchema = z.strictObject({
   attribution: localizedTextSchema.optional(),
 });
 
+// Fixed identifier of the statutes document the About page references from the
+// published documents collection. The reference is validated editorially: it
+// must resolve to a published document or the build fails.
+export const statutesDocumentId = "estatuts";
+
+// Stable fixed identifiers of the external actions the fixed pages reference
+// (membership sign-up, federation and newsletter). The Members page renders
+// the sign-up and federation actions; the newsletter action belongs to the
+// Contact page.
+export const externalActionIds = {
+  memberSignup: "member-signup",
+  federation: "federation",
+  newsletter: "newsletter",
+} as const;
+
+// Fixed identifier of the newsletter external action the Contact fixed page
+// references. The Contact page renders its status and URL, never a fake form.
+export const newsletterActionId = "newsletter";
+
+export const externalActionStatuses = [
+  "available",
+  "coming-soon",
+  "temporarily-unavailable",
+  "unavailable",
+] as const;
+
+export type ExternalActionStatus = (typeof externalActionStatuses)[number];
+
+const externalActionStatusSchema = z.enum(externalActionStatuses);
+
+export const externalActionSchema = z
+  .strictObject({
+    id: contentIdSchema,
+    published: z.boolean(),
+    status: externalActionStatusSchema,
+    url: localizedHttpsUrlSchema.optional(),
+  })
+  .refine(
+    ({ status, url }) => (status === "available") === (url !== undefined),
+    {
+      error:
+        "An available external action requires a URL and an unavailable one must not carry one",
+      path: ["url"],
+    },
+  );
+
+export const contactSchema = z.strictObject({
+  id: contentIdSchema,
+  published: z.boolean(),
+  email: mailtoUrlSchema.optional(),
+  phones: z.array(telUrlSchema).max(4).optional(),
+  address: localizedTextSchema,
+  hours: localizedTextSchema,
+  cif: nonEmptyStringSchema,
+});
+
 export type School = z.infer<typeof schoolSchema>;
 export type Event = z.infer<typeof eventSchema>;
 export type EventEdition = z.infer<typeof eventEditionSchema>;
 export type Entity = z.infer<typeof entitySchema>;
 export type Document = z.infer<typeof documentSchema>;
+export type ExternalAction = z.infer<typeof externalActionSchema>;
+export type Contact = z.infer<typeof contactSchema>;
 
 export const collectionSchemas = {
   schools: schoolSchema,
   events: eventSchema,
   entities: entitySchema,
   documents: documentSchema,
+  externalActions: externalActionSchema,
+  contact: contactSchema,
 } as const;

@@ -1,0 +1,31 @@
+---
+import { locales } from "../../../i18n.config.mjs";
+import * as messages from "../../paraglide/messages.js";
+import { assertIsLocale } from "../../paraglide/runtime.js";
+import ContactDetail from "../../components/contact/ContactDetail.astro";
+import PublicLayout from "../../layouts/PublicLayout.astro";
+import { getPublicationCatalog } from "../../lib/content/repository";
+import { getFixedPagePath } from "../../lib/content/routes";
+
+export function getStaticPaths() {
+  return locales
+    .filter((locale) => locale === "ca")
+    .map((locale) => ({ params: { locale } }));
+}
+
+const locale = assertIsLocale(Astro.currentLocale);
+const catalog = await getPublicationCatalog();
+const canonical = new URL(
+  getFixedPagePath("contact", locale),
+  Astro.site,
+).toString();
+---
+
+<PublicLayout
+  canonical={canonical}
+  description={messages.contact_page_description({}, { locale })}
+  locale={locale}
+  title={`${messages.contact_page_title({}, { locale })} | ${messages.site_title({}, { locale })}`}
+>
+  <ContactDetail catalog={catalog} locale={locale} />
+</PublicLayout>

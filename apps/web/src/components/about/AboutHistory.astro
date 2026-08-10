@@ -1,0 +1,24 @@
+---
+import * as messages from "../../paraglide/messages.js";
+import { renderRestrictedMarkdown } from "../../lib/content/markdown";
+import type { Locale } from "../../lib/content/primitives";
+
+interface Props {
+  locale: Locale;
+}
+
+const { locale } = Astro.props;
+---
+
+<section class="page-frame about-section" aria-labelledby="about-history-title">
+  <div class="about-section__heading">
+    <span class="about-section__marker" aria-hidden="true"></span>
+    <h2 class="about-section__title" id="about-history-title">
+      {messages.about_history_title({}, { locale })}
+    </h2>
+  </div>
+  <div
+    class="about-section__body"
+    set:html={renderRestrictedMarkdown(messages.about_history({}, { locale }))}
+  />
+</section>
