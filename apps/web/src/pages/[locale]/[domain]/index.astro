@@ -7,8 +7,8 @@ import EventsHubHistoryTable from "../../../components/events/EventsHubHistoryTa
 import HomepageEventCard from "../../../components/events/HomepageEventCard.astro";
 import SchoolHub from "../../../components/schools/SchoolHub.astro";
 import PublicLayout from "../../../layouts/PublicLayout.astro";
-import hubHeroImage from "../../../assets/members/socis-portada.jpg";
-import hubHeroImageSmall from "../../../assets/members/socis-portada-hero.jpg";
+import hubHeroImage from "../../../assets/events/events-hub-hero.webp";
+import hubHeroImageSmall from "../../../assets/events/events-hub-hero-mobile.webp";
 import PageIntro from "../../../components/PageIntro.astro";
 import {
   getEventHubGroups,
@@ -123,6 +123,7 @@ const hubDescription =
       <>
         <PageIntro
           description={messages.events_intro({}, { locale })}
+          heroAttribution={messages.events_hero_attribution({}, { locale })}
           heroImage={hubHeroImageSmall}
           heroImageLarge={hubHeroImage}
           kicker={messages.site_title({}, { locale })}

@@ -118,11 +118,12 @@ La font de la Marató de TV3, <https://mountainrunners.cat/marato-de-tv3/>, qued
 
 ## Recursos
 
-| Recurs                              | Font                                                                                    | Estat    | Observació                                                                                                         |
-| ----------------------------------- | --------------------------------------------------------------------------------------- | -------- | ------------------------------------------------------------------------------------------------------------------ |
-| Coberta de Berga Trail              | `apps/web/src/assets/berga-trail-placeholder.svg`                                       | Aprovada | Placeholder local temporal creat per al projecte el 17 de juliol de 2026; no substitueix una fotografia autèntica. |
-| Logotip d'Ultra Pirineu             | <https://ultrapirineu.com/wp-content/uploads/2022/10/SUP_22_logo_black_transparent.svg> | Aprovada | Autorització d'ús confirmada el 17 de juliol de 2026.                                                              |
-| Imatge d'Escalada Popular a Queralt | <https://escaladesbergueda.cat/images/climbs/queralt.avif>                              | Aprovada | Autorització d'ús confirmada el 17 de juliol de 2026.                                                              |
+| Recurs                              | Font                                                                                             | Estat    | Observació                                                                                                          |
+| ----------------------------------- | ------------------------------------------------------------------------------------------------ | -------- | ------------------------------------------------------------------------------------------------------------------- |
+| Coberta de Berga Trail              | `apps/web/src/assets/berga-trail-placeholder.svg`                                                | Aprovada | Placeholder local temporal creat per al projecte el 17 de juliol de 2026; no substitueix una fotografia autèntica.  |
+| Logotip d'Ultra Pirineu             | <https://ultrapirineu.com/wp-content/uploads/2022/10/SUP_22_logo_black_transparent.svg>          | Aprovada | Autorització d'ús confirmada el 17 de juliol de 2026.                                                               |
+| Imatge d'Escalada Popular a Queralt | <https://escaladesbergueda.cat/images/climbs/queralt.avif>                                       | Aprovada | Autorització d'ús confirmada el 17 de juliol de 2026.                                                               |
+| Hero del hub d'esdeveniments        | <https://mountainrunners.cat/wp-content/uploads/2021/07/cropped-DSC08693-scaled-1-1800x1201.jpg> | Aprovada | Reutilització local aprovada l'11 d'agost de 2026; fotògraf no identificat, amb crèdit temporal a l'arxiu del club. |
 
 No es farà hotlinking. Qualsevol recurs aprovat es descarregarà, optimitzarà i
 versionarà localment amb dimensions, origen, autoria, llicència i atribució.
