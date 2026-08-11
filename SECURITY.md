@@ -17,8 +17,8 @@ de producció.
 ## Abast Admès
 
 S'accepten informes de seguretat sobre la configuració del repositori, les
-dependències, la configuració de desplegament, la futura web estàtica, l'API de
-xat públic i el flux editorial privat.
+dependències, la web estàtica, la futura configuració de desplegament, la futura
+API de xat públic i el futur flux editorial privat.
 
 ## Requisits De Seguretat
 

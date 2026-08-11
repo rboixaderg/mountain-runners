@@ -8,8 +8,9 @@
   proposing or making a non-trivial change.
 - `docs/decisions/` records accepted architectural decisions. Do not silently
   reverse them; propose an ADR when a decision must change.
-- The application and planned services do not exist yet. Do not scaffold Astro,
-  Hono, deployment tooling or content schemas unless explicitly requested.
+- The Astro application and its content schemas are implemented in `apps/web`.
+  Do not scaffold the planned Hono services or deployment tooling unless
+  explicitly requested by an approved specification.
 
 ## Collaboration
 
@@ -57,7 +58,7 @@ reviewing `apps/web` code. The review of every PR checks these rules:
 - Do not weaken authentication, authorization, validation, TLS, security
   headers or dependency integrity checks for convenience.
 - Prefer minimal dependencies. Pin dependencies through the project lockfile
-  once the application exists and review new third-party services or telemetry.
+  and review new third-party services or telemetry.
 - Treat public-chat input as untrusted and keep the future editorial assistant
   restricted to allowed content paths and explicit scripts.
 - Do not run destructive commands or commands that publish, deploy, push,
@@ -85,8 +86,9 @@ reviewing `apps/web` code. The review of every PR checks these rules:
   diff, stage only intended files and use a semantic commit message.
 - Agents must never merge a pull request or enable auto-merge. A human
   maintainer always performs the final merge.
-- Changes reach production only through a reviewed pull request merged into the
-  protected default branch and the configured CI/CD pipeline.
+- Changes may reach production only through a reviewed pull request merged into
+  the protected default branch and, once phase 5 implements it, the approved
+  deployment pipeline. Local agent sessions never deploy.
 
 ## Verification
 

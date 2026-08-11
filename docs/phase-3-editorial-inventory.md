@@ -1,5 +1,12 @@
 # Inventari Editorial De La Fase 3
 
+> **Registre històric.** Aquest document conserva decisions, procedència i
+> consentiments de la T3.2. Les mencions a recursos pendents, placeholders,
+> absències o a la ruta de Contacte reflecteixen aquell moment i no descriuen la
+> web actual. El catàleg, els recursos i les rutes implementades a `apps/web`
+> són la referència vigent; la T4.4 va retirar la ruta de Contacte i va afegir
+> recursos, galeries i vídeos aprovats.
+
 ## Propòsit
 
 Aquest inventari cobreix la T3.2 de la fase 3 de cobertura de contingut. La web

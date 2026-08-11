@@ -1,5 +1,11 @@
 # Direcció De Desplegament
 
+## Estat Actual
+
+El repositori disposa de CI de qualitat i seguretat, però no de desplegament.
+La fase 5 ha d'implementar la resta d'aquest document segons
+[`docs/specs/phase-5-publication-operation.md`](specs/phase-5-publication-operation.md).
+
 ## Destí
 
 El projecte s'adreça a un VPS modest, amb Caddy com a proxy invers públic i
@@ -18,8 +24,28 @@ de desplegament separades.
   primer desplegament a producció.
 - Cap agent, sessió local de shell ni flux editorial pot desplegar directament.
 
+## Contracte De Build Actual
+
+- `pnpm build` genera una sortida Astro estàtica a `apps/web/dist/`.
+- `PUBLIC_SITE_ORIGIN` és obligatori per generar canonical, `hreflang`, sitemap
+  i `robots.txt`; producció ha d'utilitzar `https://mountainrunners.cat`.
+- `BUILD_TODAY` permet fixar la data editorial del build. Les proves i la CI la
+  fixen per obtenir resultats deterministes; un build sense aquesta variable
+  utilitza la data actual de Madrid.
+- `dist/` és un artefacte generat i no una font de veritat. Producció no pot
+  reutilitzar una sortida local existent: ha de desplegar un artefacte net creat
+  per CI des del commit aprovat.
+
+## CI Implementada
+
+GitHub Actions executa qualitat, E2E, Conventional Commits, detecció de secrets,
+revisió de dependències i CodeQL. `pnpm validate` no executa Lighthouse;
+`pnpm lighthouse` és una auditoria manual separada.
+
 ## No Implementat
 
-Encara no hi ha cap pipeline de CI, configuració Caddy, definició de contenidor,
-provisió de servidor ni script de desplegament. Afegeix-los mitjançant un ADR i
-una pull request revisada quan comenci el desenvolupament de l'aplicació.
+Encara no hi ha previews, workflow de desplegament, configuració Caddy,
+provisió de servidor, releases atòmiques, reversió, comprovacions de salut ni
+runbook d'incidències. S'han d'afegir mitjançant les tasques revisades de la fase 5. Només cal un ADR nou quan la implementació introdueixi o canviï una decisió
+arquitectònica; els detalls que apliquin la direcció acceptada continuen
+requerint una pull request revisada.

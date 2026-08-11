@@ -6,16 +6,17 @@ Aquest document operacionalitza l'[ADR 0006](decisions/0006-presentation-layer-s
 i fixa com s'escriu el codi de `apps/web` perquè agents i persones el mantinguin
 de manera coherent. `AGENTS.md` resumeix les obligacions; aquest document aporta
 el detall, les regles de decisió i els exemples del propi codi. La revisió de
-cada PR comprova aquestes regles.
+cada PR comprova aquestes regles manualment i amb les eines automatitzades que
+les poden expressar; no totes disposen encara d'una regla de lint pròpia.
 
 ## Capes
 
-| Capa        | Ubicació                | Responsabilitat                                                                                              | No hi viu                                                    |
-| ----------- | ----------------------- | ------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------ |
-| Pàgines     | `src/pages/`            | `getStaticPaths`, càrrega de dades, metadades i composició de components i layouts                           | `Intl.DateTimeFormat`, derivacions d'estat, extracció d'host |
-| Domini      | `src/lib/content/`      | Selecció, ordenació, publicació i rutes del contingut editorial                                              | Presentació, text resolt                                     |
-| Presentació | `src/lib/presentation/` | Funcions pures per locale: format de dates, derivació d'estat a clau de missatge i18n i host d'URLs externes | Imports d'Astro o Paraglide                                  |
-| Components  | `src/components/`       | Fragments de UI reutilitzables i plantilles de detall separades per tipus d'entrada                          | Selecció i ordenació de dades (domini)                       |
+| Capa        | Ubicació                | Responsabilitat                                                                     | No hi viu                                                    |
+| ----------- | ----------------------- | ----------------------------------------------------------------------------------- | ------------------------------------------------------------ |
+| Pàgines     | `src/pages/`            | `getStaticPaths`, càrrega de dades, metadades i composició de components i layouts  | `Intl.DateTimeFormat`, derivacions d'estat, extracció d'host |
+| Domini      | `src/lib/content/`      | Selecció, ordenació, publicació i rutes del contingut editorial                     | Presentació, text resolt                                     |
+| Presentació | `src/lib/presentation/` | Funcions pures per locale: format de dates, estat, URL i dades de vista             | Imports d'Astro o Paraglide                                  |
+| Components  | `src/components/`       | Fragments de UI reutilitzables i plantilles de detall separades per tipus d'entrada | Selecció i ordenació de dades (domini)                       |
 
 Regla pràctica: si una pàgina necessita formatar, derivar un estat o treure el
 host d'una URL, crida un helper de `src/lib/presentation/`; no ho escriu
@@ -120,3 +121,12 @@ inline. A la segona aparició d'un helper, s'extreu i es reutilitza.
 El refactor no altera sortida visual, rutes, contingut ni selectors E2E. Quan
 un refactor toca plantilles, la validació inclou comparar el `dist/` generat amb
 el de `main`.
+
+## Desviacions Conegudes
+
+La implementació fusionada a la fase 4 encara conté desviacions respecte de
+l'ADR 0006: la portada i el hub de domini assumeixen més presentació de la
+prevista, alguns components tornen a seleccionar dades de domini i diversos
+helpers independents de l'idioma ometen el `locale`. Aquest fet no modifica la
+convenció ni l'ADR; s'ha de resoldre amb tasques acotades o, si la frontera
+canvia intencionadament, amb un ADR que substitueixi la decisió vigent.

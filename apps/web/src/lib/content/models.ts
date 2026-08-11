@@ -7,7 +7,13 @@ import {
   translatableSchema,
 } from "./primitives";
 import { imageResourceSchema, safeResourceSchema } from "./resources";
-import { httpsUrlSchema, mailtoUrlSchema, telUrlSchema } from "./urls";
+import {
+  httpsUrlSchema,
+  instagramProfileUrlSchema,
+  mailtoUrlSchema,
+  telUrlSchema,
+  youtubeVideoUrlSchema,
+} from "./urls";
 
 const contentIdSchema = z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/u, {
   error: "Expected a stable lowercase kebab-case identifier",
@@ -83,7 +89,7 @@ export const schoolSchema = z.strictObject({
   // photograph stays on the detail hero, the card keeps the transfer small.
   coverCard: imageResourceSchema.optional(),
   gallery: z.array(imageSchema).max(20),
-  promotionalVideoUrl: httpsUrlSchema.optional(),
+  promotionalVideoUrl: youtubeVideoUrlSchema.optional(),
   registrationStatus: registrationStatusSchema,
   registrationUrl: localizedHttpsUrlSchema.optional(),
   sections: z.strictObject({
@@ -151,6 +157,8 @@ export const entitySchema = z.strictObject({
   logo: imageSchema,
   description: localizedMarkdownSchema,
   websiteUrl: httpsUrlSchema.optional(),
+  instagramUrl: instagramProfileUrlSchema.optional(),
+  promotionalVideoUrl: youtubeVideoUrlSchema.optional(),
   attribution: localizedTextSchema.optional(),
   membershipBenefit: z
     .strictObject({

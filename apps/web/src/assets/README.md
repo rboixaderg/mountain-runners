@@ -61,8 +61,8 @@ al hero i la secció d'història de la pàgina del club. Les fotografies conserv
 els drets d'imatge corresponents i no queden cobertes per la llicència MIT del
 programari.
 
-Els fitxers `escola-trail.jpg`, `escola-skimo.jpg` i `escola-btt.jpg` són les
-portades de cada escola publicades a les pàgines de detall de la web actual
+Els fitxers `schools/escola-trail.jpg`, `schools/escola-skimo.jpg` i
+`schools/escola-btt.jpg` són les portades de cada escola publicades a les pàgines de detall de la web actual
 (`mountainrunners.cat/escola-trail/`, `mountainrunners.cat/escola-skimo/` i
 `mountainrunners.cat/escola-btt/`). Provenen respectivament de
 `ESCOLA-TRAIL-2020_21.jpg`, `IMG_4284.jpg` i `DSC_0239.jpg`. Es reutilitzen
@@ -98,13 +98,27 @@ Els fitxers de `events/` són les portades d'esdeveniments descarregades i
 versionades localment amb l'URL d'origen registrat al camp `sourceUrl` de cada
 imatge:
 
+- `events-hub-hero.webp` i `events-hub-hero-mobile.webp` són derivacions sense
+  metadades de la fotografia
+  `https://mountainrunners.cat/wp-content/uploads/2021/07/cropped-DSC08693-scaled-1-1800x1201.jpg`,
+  publicada al web oficial i aprovada per la persona mantenidora l'11 d'agost de
+  2026 per al hub d'esdeveniments. El fotògraf no està identificat a la font
+  revisada; seguint el criteri temporal de la persona mantenidora, es publica
+  amb el crèdit d'arxiu de Mountain Runners del Berguedà. Les derivacions mesuren
+  respectivament `1600×1068` i `960×641`, i no queden cobertes per la llicència
+  MIT del programari.
 - `escalada-queralt-cover.jpg` prové de
   `https://escaladesbergueda.cat/images/climbs/queralt-og.jpg` (Lliga
   d'escalades del Berguedà).
-- `anella-verda-cover.png` prové de
+- `anella-verda-cover.webp` és una derivació WebP optimitzada per al web que
+  prové de
   `https://mountainrunners.cat/wp-content/uploads/2024/08/Foto-Marc-Elias-2-819x1024.png`,
   amb l'atribució «Foto Marc Elias» que publicava la web actual de
   l'associació.
+
+Les fotografies de la galeria de l'Escola Skimo són recursos del mateix club. La
+persona mantenidora va confirmar-ne l'autoria de Mountain Runners del Berguedà
+l'11 d'agost de 2026; el crèdit es publica en els tres idiomes.
 
 Els fitxers de `entities/` són logotips d'entitats coorganitzadores
 descarregats i versionats localment amb l'URL d'origen registrat al camp

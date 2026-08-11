@@ -2,8 +2,33 @@
 
 ## Estat
 
-Preparada per desglossar-se en entregues de validació i correcció quan la fase 3
-estigui fusionada a `main`.
+En tancament. La PR #49 (`9c86b2b`) va fusionar el redisseny, correccions,
+contingut addicional i les variants públiques en castellà i anglès. La fase no
+es declara completada perquè encara falten evidències i revisions exigides per
+aquesta especificació, detallades a
+[`docs/validation/phase-4-design-review.md`](../validation/phase-4-design-review.md).
+
+### Resultat Real I Desviacions
+
+L'execució no va seguir la separació prevista en cinc entregues: la PR #49 va
+consolidar treball de T4.1 a T4.5 i va absorbir l'arbre final preparat per a la
+traducció. També va incorporar canvis que l'abast original excloïa: calendari
+mensual, l'esdeveniment Anella Verda, extensions dels esquemes, vídeos de
+YouTube, l'enllaç d'Instagram i la retirada de la ruta de Contacte. La persona
+mantenidora va acceptar aquests canvis durant la revisió, però aquesta acceptació
+no converteix automàticament en completes les evidències ni els criteris
+editorials pendents.
+
+Abans de completar la fase cal:
+
+- tancar la matriu de totes les rutes, estats i variants `ca`, `es` i `en`;
+- revisar semànticament les traduccions i les atribucions, no només la seva
+  presència estructural;
+- alinear les polítiques de privacitat i cookies amb els embeds reals de
+  YouTube, o canviar-ne la implementació mitjançant una tasca aprovada;
+- obtenir un resultat final no contradictori dels pressupostos de Lighthouse;
+- registrar o corregir les desviacions detectades respecte dels ADR 0004, 0005
+  i 0006.
 
 ## Objectiu
 
@@ -68,19 +93,24 @@ tancades.
 
 ## Tasques, Entregues I Seguiment
 
-| Unitat                    | Estat   | Dependències | Resultat verificable | PR  |
-| ------------------------- | ------- | ------------ | -------------------- | --- |
-| T4.1 Matriu               | Pendent | Fases 1 a 3  | Matriu de cobertura  | -   |
-| T4.2 Disseny i estructura | Pendent | T4.1         | Revisió registrada   | -   |
-| T4.3 Editorial i recursos | Pendent | T4.1         | Recursos validats    | -   |
-| T4.4 Correccions          | Pendent | T4.2 i T4.3  | Correccions tancades | -   |
-| T4.5 Traducció            | Pendent | T4.4         | Traducció publicada  | -   |
+| Unitat                    | Estat   | Dependències | Resultat verificable                              | PR  |
+| ------------------------- | ------- | ------------ | ------------------------------------------------- | --- |
+| T4.1 Matriu               | En curs | Fases 1 a 3  | Cobertura parcial; falta tancament integral       | #49 |
+| T4.2 Disseny i estructura | En curs | T4.1         | Revisió fusionada; falta acceptar-ne el tancament | #49 |
+| T4.3 Editorial i recursos | En curs | T4.1         | Confirmacions parcials; falta evidència integral  | #49 |
+| T4.4 Correccions          | En curs | T4.2 i T4.3  | Correccions fusionades; tancament pendent         | #49 |
+| T4.5 Traducció            | En curs | T4.4         | Rutes publicades; falta revisió semàntica         | #49 |
 
 Els estats permesos són `Pendent`, `En curs`, `Bloquejada` i `Completada`. Una
 unitat només passa a `Completada` després de tenir una PR revisada, validada i
 fusionada. Cada draft PR enllaça aquesta especificació, identifica les rutes i
 els criteris coberts, registra comprovacions i adjunta l'evidència visual o
 editorial mínima necessària.
+
+La consolidació a la PR #49 és una desviació de la traçabilitat prevista. Abans
+de completar la fase, la persona mantenidora ha d'acceptar explícitament aquesta
+consolidació o crear les entregues de tancament que faltin; no es reescriu el
+criteri històric per presentar-la com si hagués estat el pla original.
 
 ### T4.1: Matriu I Abast De Validació
 

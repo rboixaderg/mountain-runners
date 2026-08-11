@@ -146,16 +146,6 @@
   box-shadow: 0.5rem 0.5rem 0 var(--color-red);
 }
 
-.members-video__attribution {
-  margin: 0.85rem 0 0;
-  color: var(--color-muted);
-  font-size: 0.72rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-align: center;
-  text-transform: uppercase;
-}
-
 .members-benefits {
   width: 100%;
   max-width: none;

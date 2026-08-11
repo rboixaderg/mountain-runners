@@ -2,9 +2,10 @@
 
 ## Estat
 
-Revisió T4.4 en curs sobre la branca de validació del disseny. Aquesta nota
-registra la primera entrega de correccions visuals; no tanca la fase 4 ni
-substitueix la revisió editorial T4.3 o les traduccions T4.5.
+Registre de la revisió i les correccions fusionades a la PR #49 (`9c86b2b`).
+L'entrega ja és a `main`, però aquesta nota no tanca la fase 4: la matriu és
+representativa i encara falten el tancament editorial de T4.3 i la revisió
+semàntica de T4.5.
 
 ## Fonts I Criteris
 
@@ -17,8 +18,9 @@ substitueix la revisió editorial T4.3 o les traduccions T4.5.
   manté les àrees Qui som, Escoles, Esdeveniments i Socis, amb la portada i la
   crida a Socis resoltes mitjançant el logotip i l'acció destacada; les dades
   de contacte viuen al prepeu compartit.
-- No s'ha modificat `DESIGN.md`: les correccions concreten la direcció ja
-  aprovada i no introdueixen un sistema visual paral·lel.
+- Durant la PR #49 no es va modificar `DESIGN.md`. L'auditoria documental
+  posterior n'ha aclarit l'ús admès d'overlays i targetes d'escola perquè el text
+  descrigui la implementació aprovada sense introduir un sistema paral·lel.
 
 ## Matriu De Cobertura Visual
 
@@ -38,6 +40,10 @@ La revisió s'ha fet amb Playwright a `320×720`, `390×844`, `768×900`,
 `1280×720` i `1440×900`. S'han recorregut individualment totes les rutes
 publicades a 320 i 390 píxels i no s'hi ha detectat overflow horitzontal.
 
+La sortida actual conté 48 rutes canòniques (16 per idioma). La taula anterior
+només conserva evidència visual representativa en català i, per tant, no és la
+matriu exhaustiva de rutes, estats i idiomes exigida per T4.1.
+
 ## Correccions Aplicades
 
 - S'ha convertit el menú en un shell editorial amb estat actiu, CTA de Socis,
@@ -48,11 +54,12 @@ publicades a 320 i 390 píxels i no s'hi ha detectat overflow horitzontal.
 - S'ha creat el prepeu compartit amb contacte i butlletí, respectant l'estat de
   disponibilitat de l'acció externa: quan el butlletí no està disponible es
   mostra una previsualització desactivada, mai un formulari que reculli dades.
-- S'ha refet el peu com a bloc fosc de marca amb navegació, contacte i enllaços
-  legals reals.
+- S'ha refet el peu com a bloc fosc de marca amb navegació, xarxes socials i
+  enllaços legals reals; el contacte viu al prepeu.
 - S'han apropat els herois, separadors, files d'agenda, blocs pràctics, CTA,
   galeries i directoris a la composició de Stitch sense repetir targetes
-  comercials ni introduir gradients.
+  comercials ni introduir gradients decoratius aliens a la marca. Es mantenen
+  overlays i textures controlats per a llegibilitat i transicions editorials.
 - S'ha unificat el marge lateral fluid entre capçalera, herois, contingut,
   prepeu i peu; les pàgines pràctiques i legals utilitzen una entrada editorial
   clara i més curta en lloc de repetir un hero fotogràfic.
@@ -62,9 +69,10 @@ publicades a 320 i 390 píxels i no s'hi ha detectat overflow horitzontal.
   first: `global.css` conserva només els tokens i fonaments globals, les
   utilitats viuen al markup al costat de les classes BEM/E2E estables i el CSS
   específic queda en fulls cohesionats importats pel component o la plantilla
-  que n'és propietària. `phase4-design.css` s'ha eliminat; els ~3.800 rengles
-  inicials han quedat en 2.207 rengles de CSS font, amb 123 a `global.css` i 668
-  al full específic més llarg (`school-detail-preview.css`).
+  que n'és propietària. `phase4-design.css` s'ha eliminat. L'arbre final conté
+  3.894 rengles als fulls de `src/styles/`, amb 123 a `global.css` i 668 al full
+  específic més llarg (`school-detail-preview.css`); la xifra és descriptiva i
+  no un criteri de qualitat per si sola.
 - S'han retirat els selectors morts sense cap classe corresponent al codi font:
   `editorial-grid`, `event-date`, `event-meta`, `event-status`,
   `events-detail__modalities-label`, `events-detail__registration-label`,
@@ -101,6 +109,12 @@ aquesta entrega afegeix o modifica és consentit i controlat:
   domini `youtube-nocookie`) i l'enllaç d'Instagram del peu
   (`instagram.com/infomountain`) són aprovats i es consideren part del disseny
   de la T4.4.
+- **Recursos editorials**: la fotografia del hub d'esdeveniments prové del web
+  oficial, queda aprovada per a reutilització local i substitueix la fotografia
+  de Socis que s'hi havia reutilitzat fora de context. Com que el fotògraf no
+  està identificat, mostra temporalment el crèdit d'arxiu de Mountain Runners del
+  Berguedà. L'autoria de les quatre fotografies de la galeria Skimo correspon al
+  mateix club.
 - **Prepeu**: el bloc de butlletí mostra una previsualització desactivada
   (input i botó `disabled`, sense recollida ni enviament de dades) quan l'acció
   externa `newsletter` no està disponible; no és un formulari.
@@ -124,7 +138,8 @@ mantenidora:
 - El bloc de socis passa a ser una caixa vermella dins del marc de pàgina amb
   el botó fosc, en lloc d'una franja a tota amplada.
 - La capçalera, el prepeu i el peu redueixen els pesos tipogràfics
-  desproporcionats i eliminen les ombres dures que la maqueta no recull.
+  desproporcionats i les ombres que la maqueta no recull. La capçalera conserva
+  ombres d'offset controlades en controls i panells com a decisió visual final.
 - Les escoles deixen d'utilitzar el logotip com a portada i passen a tenir la
   seva fotografia, també al hub i al detall.
 - S'ha corregit un `padding` de les targetes d'escola que referenciava un token
@@ -138,11 +153,11 @@ mantenidora:
   l'escenari axe.
 - `pnpm test:a11y`: passat — comprovacions axe de Chromium en escriptori i
   mòbil.
-- `pnpm lighthouse`: executat — puntuacions de rendiment, accessibilitat, bones
-  pràctiques i SEO dins dels llindars i pressupostos configurats en una
-  execució; rendiment 98, 98 i 99 a portada, hub i detall representatius, i 100
-  a la resta de categories. La repetició local és més lenta (vegeu la nota de
-  LCP més avall).
+- `pnpm lighthouse`: la repetició final consta de cinc execucions sobre el mateix
+  commit i entorn, i utilitza la mediana d'acord amb la quality gate. Portada,
+  hub d'esdeveniments i detall d'Anella Verda obtenen respectivament rendiment
+  98/99/99 i LCP de 2,333 s, 1,954 s i 1,810 s; accessibilitat, bones pràctiques
+  i SEO obtenen 100 a totes les mostres i no se supera cap pressupost.
 - Revisió responsive manual: totes les rutes publicades revisades a 320 i 390
   píxels; shell i rutes representatives comprovats també a 768, 1280 i 1440
   píxels.
@@ -161,18 +176,39 @@ mantenidora:
   limitada al rectangle de la fotografia mandrosa d'història de Qui som, que la
   captura base va registrar abans de carregar.
 - `pnpm validate` ha passat amb 122 proves E2E i 4 proves axe no aplicables fora
-  de Chromium; `pnpm test:a11y` ha passat les dues vistes Chromium. La repetició
-  local de `pnpm lighthouse` manté 100 en accessibilitat, bones pràctiques i SEO,
-  i rendiment 96/98/99, però la portada registra un LCP de 2,705 s i no supera el
-  límit de 2,5 s. La mateixa execució sobre la branca base registra 2,780 s, de
-  manera que no és una regressió del refactor, però la comprovació no es declara
-  passada.
+  de Chromium; `pnpm test:a11y` ha passat les dues vistes Chromium. Una primera
+  sèrie controlada de cinc execucions Lighthouse va confirmar que la portada ja
+  complia amb una mediana de 2,330 s, però va detectar que el detall d'Anella
+  Verda transferia una coberta PNG de 983 KiB, superava el pressupost d'imatge i
+  registrava una mediana LCP de 6,606 s. La derivació WebP conserva les dimensions
+  `819×1024`, redueix el fitxer font a 53 KiB i resol el pressupost en les cinc
+  repeticions finals.
 - La correcció d'ownership de `:global(...)` manté les mateixes declaracions
   compilades per a About i Members: les regles compartides viuen als fulls de
   plantilla i el markdown del directori queda ancorat al seu component. `pnpm
 check` i el build determinista han passat; les captures d'About i Members a
   `1280×720` i `320×720` són idèntiques píxel a píxel abans i després del canvi.
 
+## Punts Pendents De Tancament
+
+- Completar la matriu de les 48 rutes canòniques, els estats representatius, la
+  redirecció arrel i la 404, amb cobertura de `ca`, `es` i `en`.
+- Revisar semànticament les traduccions i conservar totes les dades pràctiques i
+  atribucions exigibles en cada idioma.
+- Resoldre la contradicció entre els iframes de `youtube-nocookie.com` i els
+  textos de cookies i privacitat que afirmen que no hi ha embeds ni serveis de
+  tercers. La confirmació d'ús del recurs no substitueix aquesta revisió.
+- Tancar o acceptar explícitament el pressupost Lighthouse: l'última execució
+  registrada té un LCP de portada de 2,705 s davant del límit de 2,5 s.
+- Corregir o especificar separadament les desviacions dels ADR 0004, 0005 i 0006
+  recollides a `docs/content-model.md` i `docs/code-conventions.md`.
+
+L'11 d'agost de 2026 la persona mantenidora va decidir ajornar la resolució dels
+embeds de YouTube i avançar amb la resta de punts. La discrepància queda
+documentada, però no es considera resolta ni permet declarar completada la fase
+4 o iniciar la publicació mentre el comportament i els textos legals continuïn
+sent contradictoris.
+
 La validació automatitzada no equival a una auditoria manual completa WCAG 2.2
-AA. Encara cal completar la revisió editorial de recursos, textos i traduccions
-segons T4.3 i T4.5.
+AA. La fase 5 continua bloquejada fins que els punts publicables anteriors
+tinguin una resolució traçable.

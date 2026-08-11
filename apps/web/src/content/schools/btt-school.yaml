@@ -22,8 +22,22 @@ description:
 
     És un espai per descobrir la comarca amb bicicleta, aprendre tècnica i
     gaudir de la natura sense ser una escola d'alt rendiment.
-  es: La Escuela BTT es una de las ramas de MRB, junto con el CEB y Veloberga, para grupos de niños y jóvenes de 6 a 16 años. Es un espacio para descubrir la comarca en bicicleta, aprender técnica y disfrutar de la naturaleza.
-  en: The MTB School is one of MRB's branches, together with CEB and Veloberga, for groups of children and young people aged 6 to 16. It is a place to discover the region by bike, learn technique and enjoy nature.
+  es: >-
+    La Escuela BTT es una de las ramas de MRB, junto con el CEB y Veloberga, para
+    grupos de niños y jóvenes de 6 a 16 años, fuera del horario lectivo, por el
+    entorno de la comarca del Berguedà.
+
+
+    Es un espacio para descubrir la comarca en bicicleta, aprender técnica y
+    disfrutar de la naturaleza sin ser una escuela de alto rendimiento.
+  en: >-
+    The MTB School is one of MRB's branches, together with CEB and Veloberga, for
+    groups of children and young people aged 6 to 16, held outside school hours
+    around Berguedà.
+
+
+    It is a place to discover the region by bike, learn technique and enjoy
+    nature, rather than a high-performance school.
 cover:
   resource:
     kind: local
@@ -45,6 +59,8 @@ gallery:
       en: Children and young people on an MTB outing along Berguedà paths
     attribution:
       ca: "Foto: Anna Aguilar Porta"
+      es: "Foto: Anna Aguilar Porta"
+      en: "Photo: Anna Aguilar Porta"
     sourceUrl: https://mountainrunners.cat/wp-content/uploads/2021/07/DSC_0239-1024x680.jpg
   - resource:
       kind: local
@@ -55,6 +71,8 @@ gallery:
       en: Group of young cyclists during an MTB School session
     attribution:
       ca: "Foto: Anna Aguilar Porta"
+      es: "Foto: Anna Aguilar Porta"
+      en: "Photo: Anna Aguilar Porta"
     sourceUrl: https://mountainrunners.cat/wp-content/uploads/2021/07/DSC_0009-1024x680.jpg
   - resource:
       kind: local
@@ -65,6 +83,8 @@ gallery:
       en: MTB School participants on a mountain trail
     attribution:
       ca: "Foto: Anna Aguilar Porta"
+      es: "Foto: Anna Aguilar Porta"
+      en: "Photo: Anna Aguilar Porta"
     sourceUrl: https://mountainrunners.cat/wp-content/uploads/2021/07/DSC_0139-1024x680.jpg
   - resource:
       kind: local
@@ -75,6 +95,8 @@ gallery:
       en: Young cyclists training during an MTB activity
     attribution:
       ca: "Foto: Anna Aguilar Porta"
+      es: "Foto: Anna Aguilar Porta"
+      en: "Photo: Anna Aguilar Porta"
     sourceUrl: https://mountainrunners.cat/wp-content/uploads/2021/07/DSC_0031-scaled-e1627667084334-1024x948.jpg
   - resource:
       kind: local
@@ -85,6 +107,8 @@ gallery:
       en: Group of children on bikes during an MTB School outing
     attribution:
       ca: "Foto: Anna Aguilar Porta"
+      es: "Foto: Anna Aguilar Porta"
+      en: "Photo: Anna Aguilar Porta"
     sourceUrl: https://mountainrunners.cat/wp-content/uploads/2021/07/DSC_0123-scaled-e1627667532714-1024x701.jpg
   - resource:
       kind: local
@@ -95,6 +119,8 @@ gallery:
       en: Young cyclists during an MTB School group activity in Berguedà
     attribution:
       ca: "Foto: Anna Aguilar Porta"
+      es: "Foto: Anna Aguilar Porta"
+      en: "Photo: Anna Aguilar Porta"
     sourceUrl: https://mountainrunners.cat/wp-content/uploads/2021/07/DSC_0203-1024x680.jpg
 registrationStatus: coming-soon
 sections:
@@ -168,5 +194,13 @@ sections:
 
 
       Els preus poden quedar subjectes a modificació a l'inici de curs.
-    es: Los precios pueden modificarse al inicio del curso.
-    en: Prices may change at the start of the school year.
+    es: >-
+      No varía en función de la edad, sino de los días que queráis venir.
+
+
+      Los precios pueden quedar sujetos a modificaciones al inicio del curso.
+    en: >-
+      Prices do not vary by age, but by the number of days participants attend.
+
+
+      Prices may change at the start of the school year.

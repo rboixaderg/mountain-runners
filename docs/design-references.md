@@ -17,8 +17,9 @@ referència activa d'implementació.
   (`6497516597197145737`), amb el sistema visual
   `assets/15875972618739072807`.
 - Les sis pantalles aprovades (portada, hub i detall d'esdeveniment, Qui som,
-  Socis i detall d'escola) es van registrar a les seves fases corresponents i
-  es van implementar íntegrament a la fase 4 (T4.4, PR #49).
+  Socis i detall d'escola) es van registrar a les seves fases corresponents i es
+  van incorporar al redisseny de la fase 4 (T4.4, PR #49). El grau de validació
+  final es registra a `docs/validation/phase-4-design-review.md`.
 
 ## Regla A Partir D'Ara
 
