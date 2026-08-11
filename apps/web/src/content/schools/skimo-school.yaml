@@ -43,6 +43,10 @@ gallery:
       ca: Jove esquiant de muntanya en una sortida de l'escola skimo
       es: Joven practicando esquí de montaña en una salida de la Escuela Skimo
       en: Young person ski mountaineering on a Ski School outing
+    attribution:
+      ca: "Foto: Mountain Runners del Berguedà"
+      es: "Foto: Mountain Runners del Berguedà"
+      en: "Photo: Mountain Runners del Berguedà"
     sourceUrl: https://mountainrunners.cat/wp-content/uploads/2021/07/IMG_4221-1024x768.jpg
   - resource:
       kind: local
@@ -51,6 +55,10 @@ gallery:
       ca: Grup de joves entrenant esquí de muntanya en entorn nevado
       es: Grupo de jóvenes entrenando esquí de montaña en un entorno nevado
       en: Group of young people training ski mountaineering in a snowy setting
+    attribution:
+      ca: "Foto: Mountain Runners del Berguedà"
+      es: "Foto: Mountain Runners del Berguedà"
+      en: "Photo: Mountain Runners del Berguedà"
     sourceUrl: https://mountainrunners.cat/wp-content/uploads/2021/07/IMG_0295-1-1024x768.jpg
   - resource:
       kind: local
@@ -59,6 +67,10 @@ gallery:
       ca: Esquiador de muntanya en ascens durant una sessió de l'escola
       es: Esquiador de montaña ascendiendo durante una sesión de la escuela
       en: Ski mountaineer climbing during a school session
+    attribution:
+      ca: "Foto: Mountain Runners del Berguedà"
+      es: "Foto: Mountain Runners del Berguedà"
+      en: "Photo: Mountain Runners del Berguedà"
     sourceUrl: https://mountainrunners.cat/wp-content/uploads/2021/07/IMG_4284-1024x768.jpg
   - resource:
       kind: local
@@ -67,6 +79,10 @@ gallery:
       ca: Joves de l'escola skimo preparats per a una sortida a la neu
       es: Jóvenes de la Escuela Skimo preparados para una salida en la nieve
       en: Ski School young people ready for a snow outing
+    attribution:
+      ca: "Foto: Mountain Runners del Berguedà"
+      es: "Foto: Mountain Runners del Berguedà"
+      en: "Photo: Mountain Runners del Berguedà"
     sourceUrl: https://mountainrunners.cat/wp-content/uploads/2021/07/IMG_2385-scaled-e1627665594164-1024x815.jpg
 promotionalVideoUrl: https://www.youtube.com/watch?v=dqCRDy4jpQA
 registrationStatus: coming-soon

@@ -7,11 +7,19 @@ interface Props {
   description: string;
   heroImage?: ImageMetadata;
   heroImageLarge?: ImageMetadata;
+  heroAttribution?: string;
   kicker: string;
   title: string;
 }
 
-const { description, heroImage, heroImageLarge, kicker, title } = Astro.props;
+const {
+  description,
+  heroAttribution,
+  heroImage,
+  heroImageLarge,
+  kicker,
+  title,
+} = Astro.props;
 const hasHeroImage = heroImage !== undefined || heroImageLarge !== undefined;
 const resolvedHeroImage = heroImage ?? heroImageLarge;
 ---
@@ -23,6 +31,7 @@ const resolvedHeroImage = heroImage ?? heroImageLarge;
         slot="media"
         image={resolvedHeroImage}
         imageLarge={heroImageLarge ?? heroImage}
+        attribution={heroAttribution}
       />
     )
   }

@@ -167,6 +167,14 @@ test("renders the events hub groups in order with links to details", async ({
   await expect(
     page.getByRole("heading", { level: 1, name: "Esdeveniments" }),
   ).toBeVisible();
+  const heroImage = page.locator(".page-hero__image");
+  await expect(heroImage).toHaveAttribute("src", /^\/_astro\//u);
+  await expect(heroImage).toHaveAttribute("width", "960");
+  await expect(heroImage).toHaveAttribute("height", "641");
+  await expect(heroImage).toHaveAttribute("alt", "");
+  await expect(page.locator(".page-hero__attribution")).toHaveText(
+    "Arxiu: Mountain Runners del Berguedà",
+  );
   await expect(
     page.getByRole("heading", { level: 2, name: "Calendari mensual" }),
   ).toBeVisible();
@@ -218,6 +226,27 @@ test("renders the events hub groups in order with links to details", async ({
   await expect(page.locator('main a[href=""], main a[href="#"]')).toHaveCount(
     0,
   );
+});
+
+test("renders the club attribution for every Skimo gallery photo", async ({
+  page,
+}) => {
+  const localizedRoutes = [
+    "/ca/escoles/escola-skimo/",
+    "/es/escuelas/escuela-esqui-montana/",
+    "/en/schools/ski-mountaineering-school/",
+  ];
+
+  for (const localizedRoute of localizedRoutes) {
+    await page.goto(localizedRoute);
+    const attributions = page.locator(
+      ".schools-detail-preview__gallery-list figcaption",
+    );
+    await expect(attributions).toHaveCount(4);
+    for (const attribution of await attributions.all()) {
+      await expect(attribution).toContainText("Mountain Runners del Berguedà");
+    }
+  }
 });
 
 test("navigates from the hub to an event detail with its states", async ({
@@ -430,6 +459,12 @@ test("renders the Members page sections in editorial order", async ({
   const heroImage = page.locator(".page-hero__image");
   await expect(heroImage).toHaveAttribute("src", /^\/_astro\//u);
   await expect(heroImage).toHaveAttribute("alt", "");
+  await expect(page.locator(".page-hero__attribution")).toContainText(
+    "@about_paulagnf",
+  );
+  await expect(page.locator(".members-video")).not.toContainText(
+    "@about_paulagnf",
+  );
   const benefitsPhoto = page.getByRole("img", {
     name: "Fotografia de la secció de socis de Mountain Runners del Berguedà",
   });

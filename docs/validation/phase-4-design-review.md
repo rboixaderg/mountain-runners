@@ -109,6 +109,12 @@ aquesta entrega afegeix o modifica és consentit i controlat:
   domini `youtube-nocookie`) i l'enllaç d'Instagram del peu
   (`instagram.com/infomountain`) són aprovats i es consideren part del disseny
   de la T4.4.
+- **Recursos editorials**: la fotografia del hub d'esdeveniments prové del web
+  oficial, queda aprovada per a reutilització local i substitueix la fotografia
+  de Socis que s'hi havia reutilitzat fora de context. Com que el fotògraf no
+  està identificat, mostra temporalment el crèdit d'arxiu de Mountain Runners del
+  Berguedà. L'autoria de les quatre fotografies de la galeria Skimo correspon al
+  mateix club.
 - **Prepeu**: el bloc de butlletí mostra una previsualització desactivada
   (input i botó `disabled`, sense recollida ni enviament de dades) quan l'acció
   externa `newsletter` no està disponible; no és un formulari.
