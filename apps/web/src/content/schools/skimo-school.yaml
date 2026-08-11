@@ -22,8 +22,21 @@ description:
 
     Oferim continuïtat per a qui vulgui iniciar-se o progressar en esquí de
     muntanya, amb possibilitat d'obrir la porta a la competició.
-  es: La Escuela de Esquí de Montaña ofrece formación fuera del horario lectivo a jóvenes de 12 a 18 años y continuidad para quienes quieran progresar o iniciarse en la competición.
-  en: The Ski Mountaineering School offers training outside school hours for young people aged 12 to 18, with a pathway for those who want to progress or start competing.
+  es: >-
+    La Escuela Skimo es una de las ramas de MRB: un proyecto de formación de
+    jóvenes deportistas de 12 a 18 años, fuera del horario lectivo, por el
+    entorno de la comarca del Berguedà.
+
+
+    Acompañamos a quienes quieran iniciarse o progresar en el esquí de montaña,
+    con la posibilidad de abrir la puerta a la competición.
+  en: >-
+    The Ski Mountaineering School is one of MRB's branches: a training project
+    for young athletes aged 12 to 18, held outside school hours around Berguedà.
+
+
+    We support young people who want to get started or progress in ski
+    mountaineering, with the possibility of opening the door to competition.
 cover:
   resource:
     kind: local
@@ -127,8 +140,51 @@ sections:
 
       - Temporada de neu (Masella nit oberta): dimarts de 17.00 h a 19.00 h i
       dijous de 17.00 h a 20.00 h a Masella.
-    es: Entrenamientos de otoño y nieve entre semana y fines de semana, adaptados a Berga, Masella, Rasos y otros lugares del Berguedà.
-    en: Autumn and snow-season training on weekdays and weekends, adapted to Berga, Masella, Rasos and other places in Berguedà.
+    es: >-
+      **Fines de semana**
+
+
+      - Temporada de otoño: sábado cada 15 días de 9:00 a 13:00 (diferentes
+        lugares del Berguedà; sesiones con rollers y marcha con bastones).
+
+      - Temporada de nieve: sábado de 9:00 a 13:00 (campeonatos de Cataluña y
+        España y salidas de esquí de montaña).
+
+
+      **Entre semana**
+
+
+      - Fuera de la temporada de nieve: martes y jueves de 17:00 a 19:00 en
+        Berga (marcha con bastones, trail y rollers).
+
+      - Temporada de nieve (esquí nocturno de Masella cerrado): martes y jueves
+        de 17:00 a 19:00 en Masella (posibilidad de entrenar en los Rasos).
+
+      - Temporada de nieve (esquí nocturno de Masella abierto): martes de 17:00
+        a 19:00 y jueves de 17:00 a 20:00 en Masella.
+    en: >-
+      **Weekends**
+
+
+      - Autumn season: every other Saturday from 9:00 am to 1:00 pm at different
+        locations in Berguedà, with roller-skiing and pole-walking sessions.
+
+      - Snow season: Saturdays from 9:00 am to 1:00 pm, including Catalan and
+        Spanish championships and ski mountaineering outings.
+
+
+      **Weekdays**
+
+
+      - Outside the snow season: Tuesdays and Thursdays from 5:00 pm to 7:00 pm
+        in Berga, with pole walking, trail running and roller-skiing.
+
+      - Snow season, when Masella night skiing is unavailable: Tuesdays and
+        Thursdays from 5:00 pm to 7:00 pm in Masella, with the possibility of
+        training at Rasos.
+
+      - Snow season, when Masella night skiing is available: Tuesdays from 5:00
+        pm to 7:00 pm and Thursdays from 5:00 pm to 8:00 pm in Masella.
   location:
     ca: Berga, Masella, Rasos i diferents indrets del Berguedà segons la temporada.
     es: Berga, Masella, Rasos y diferentes lugares del Berguedà según la temporada.
@@ -144,14 +200,21 @@ sections:
       - Material d'esquí de muntanya i de rollers.
     es: >-
       - Ser socio o socia de Mountain Runners.
+
       - Licencia federativa D habilitada por la FEDME.
-      - Buen nivel de esquí alpino.
+
+      - Buen nivel de esquí alpino (capacidad para bajar por todo tipo de pistas).
+
       - Material de esquí de montaña y rollers.
     en: >-
       - Be a Mountain Runners member.
-      - FEDME-enabled category D federation licence.
-      - Good alpine skiing level.
-      - Ski mountaineering and roller-ski equipment.
+
+      - Hold a category D federation licence enabled by FEDME.
+
+      - Have a good alpine skiing level, with the ability to descend every type
+        of piste.
+
+      - Have ski mountaineering and roller-ski equipment.
   prices:
     ca: >-
       No varia en funció de l'edat, sinó dels dies que voleu venir:
@@ -166,5 +229,31 @@ sections:
 
 
       Els preus poden quedar subjectes a modificació a l'inici de curs.
-    es: Los precios pueden modificarse al inicio del curso.
-    en: Prices may change at the start of the school year.
+    es: >-
+      No varía en función de la edad, sino de los días que queráis venir:
+
+
+      - Cuota anual de la escuela: 550 €
+
+      - Entre semana: 60 € al mes si vienen martes y jueves; 30 € al mes si solo
+        vienen un día
+
+      - Matrícula: 80 € (incluye los trámites de inscripción y la chaqueta de la
+        escuela)
+
+
+      Los precios pueden quedar sujetos a modificaciones al inicio del curso.
+    en: >-
+      Prices do not vary by age, but by the number of days participants attend:
+
+
+      - Annual school fee: €550
+
+      - Weekdays: €60 per month for Tuesdays and Thursdays; €30 per month for one
+        day only
+
+      - Registration fee: €80, including registration administration and the
+        school jacket
+
+
+      Prices may change at the start of the school year.

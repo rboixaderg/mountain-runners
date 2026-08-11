@@ -3,7 +3,7 @@ published: true
 name:
   ca: Estètica Adela
   es: Estética Adela
-  en: Adela Beauty Centre
+  en: Estètica Adela
 logo:
   resource:
     kind: local
@@ -11,7 +11,7 @@ logo:
   alt:
     ca: Logotip de l'Estètica Adela
     es: Logotipo de Estética Adela
-    en: Adela Beauty Centre logo
+    en: Estètica Adela logo
   sourceUrl: https://mountainrunners.cat/wp-content/uploads/2021/07/Captura-de-Pantalla-2021-07-29-a-les-10.35.56.png
 description:
   ca: Centre d'Estètica i Thalassoteràpia.
