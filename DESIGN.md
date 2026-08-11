@@ -20,7 +20,9 @@ campaign, a SaaS product or a dark sports-tech interface.
   occasional dark sections; it must not become the default page background.
 - Red is an identity colour, not a generic button colour. Use it deliberately
   for emphasis, dates, active states and significant actions.
-- Do not introduce unrelated brand colours, gradients or lifestyle palettes.
+- Do not introduce unrelated brand colours, generic decorative gradients or
+  lifestyle palettes. Controlled brand-colour overlays and subtle textures may
+  support image legibility or a deliberate editorial transition.
 
 ## Typography
 
@@ -39,7 +41,9 @@ campaign, a SaaS product or a dark sports-tech interface.
 - On mobile, content must be fast to scan and practical information or actions
   must remain easy to find.
 - Create rhythm with rules, dividers, varied column spans and image crops.
-- Avoid building pages from repeated rounded cards.
+- Avoid building pages from repeated generic rounded cards. A small repeated
+  set of structured programme cards is acceptable when it makes practical
+  choices easier to scan, as on the school hub.
 - Dark and red fields are deliberate moments of contrast, not page shells.
 
 ## Content Patterns
@@ -82,7 +86,8 @@ campaign, a SaaS product or a dark sports-tech interface.
 ## Never Use
 
 - Dark-first page layouts.
-- Generic image-on-top cards repeated across a page.
+- Generic commercial image-on-top cards repeated across a page; structured
+  school programme cards are the documented exception.
 - Carousels, sliders or sponsor marquees.
 - Dashboard-like controls unless essential for scanning events.
 - Generic SaaS panels, glass effects, large shadows or pill-heavy interfaces.

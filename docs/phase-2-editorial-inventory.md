@@ -1,5 +1,11 @@
 # Inventari Editorial De La Fase 2
 
+> **Registre històric.** Aquest document conserva la procedència i les
+> aprovacions disponibles durant la fase 2. No descriu el catàleg actual i no és
+> una font de veritat de dates, rutes, recursos ni estats publicats. Per a l'estat
+> vigent cal consultar `apps/web/src/content/`, `apps/web/src/assets/` i les
+> regles de publicació.
+
 ## Propòsit
 
 Aquest inventari cobreix la T2.1 del vertical slice públic. La web actual és una

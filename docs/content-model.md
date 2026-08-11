@@ -7,9 +7,9 @@
   validades.
 - L'estat de publicació ha de ser explícit perquè les previsualitzacions i el
   futur índex del xat no exposin material no publicat.
-- El català és l'únic idioma publicat inicialment. Els camps textuals d'objectes
-  de domini es modelen com un objecte per idioma, no com camps separats per
-  llengua.
+- El català va ser l'idioma inicial. La sortida actual publica català, castellà
+  i anglès; els camps textuals d'objectes de domini es modelen com un objecte per
+  idioma, no com camps separats per llengua.
 - Totes les rutes HTML públiques tenen prefix d'idioma, inclòs el català; els
   recursos tècnics globals en queden exceptuats.
 - Una variant d'idioma només es publica quan la traducció requerida és completa;
@@ -33,12 +33,14 @@
 
 Les col·leccions de contingut registrades són:
 
-- `schools`: programes amb informació pràctica, recursos, estat d'inscripció i
-  un ordre editorial explícit (`hubOrder`) per al hub.
-- `events`: esdeveniments amb entitats relacionades i edicions embegudes.
+- `schools`: programes amb informació pràctica, recursos, cobertes de fitxa i de
+  targeta, galeries, vídeo, requisits opcionals, estat d'inscripció i un ordre
+  editorial explícit (`hubOrder`) per al hub.
+- `events`: esdeveniments amb resum, entitats relacionades, recursos i edicions
+  embegudes.
 - `entities`: organitzacions reutilitzables i avantatges opcionals per a socis.
 - `documents`: recursos locals o externs amb tipus, idioma i disponibilitat.
-- `external-actions`: accions externes d'alta, federació i butlletí amb estat
+- `externalActions`: accions externes d'alta, federació i butlletí amb estat
   explícit i URL externa opcional.
 - `contact`: dades institucionals de contacte (correu, telèfons, seu, horaris i
   CIF) amb URL `mailto:` i `tel:` validades.
@@ -150,8 +152,24 @@ El codi centralitza els dominis editorials localitzats: escoles són
 `/{locale}/esdeveniments/{slug}/`, `/{locale}/eventos/{slug}/` o
 `/{locale}/events/{slug}/`. Els segments reservats, tècnics i les col·lisions de
 domini es rebutgen abans de generar rutes. Les variants canòniques, `hreflang` i
-el sitemap només inclouen idiomes realment publicats i utilitzen l'origen públic
-fixat `https://mountainrunners.cat`.
+el sitemap només inclouen idiomes realment publicats i utilitzen
+`PUBLIC_SITE_ORIGIN`, l'origen públic obligatori en temps de build. Producció
+n'ha de definir el valor com `https://mountainrunners.cat`.
 
 El build verifica tant les rutes esperades com l'absència de marcadors i recursos
 exclusius d'entrades despublicades a `dist/`.
+
+## Desviacions I Límits Coneguts
+
+- Les rutes fixes es generen per als tres idiomes configurats. El contingut
+  actual és complet, però el contracte encara no impedeix per si sol publicar en
+  el futur una pàgina fixa amb una dada operativa incompleta en `es` o `en`.
+- La validació comprova presència estructural de les traduccions, no equivalència
+  semàntica. La revisió editorial de castellà i anglès continua sent necessària.
+- L'URL d'Instagram i l'identificador del vídeo de Socis viuen avui en helpers de
+  presentació, i el correu institucional també apareix en missatges legals.
+  Aquestes excepcions no substitueixen els ADR 0004 i 0005: cal moure les dades
+  operatives al contracte de domini o aprovar una decisió que canviï el límit.
+
+Aquestes desviacions es tracten com a tasques petites independents; no es
+normalitzen modificant silenciosament els ADR vigents.

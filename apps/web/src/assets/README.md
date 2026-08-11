@@ -61,8 +61,8 @@ al hero i la secció d'història de la pàgina del club. Les fotografies conserv
 els drets d'imatge corresponents i no queden cobertes per la llicència MIT del
 programari.
 
-Els fitxers `escola-trail.jpg`, `escola-skimo.jpg` i `escola-btt.jpg` són les
-portades de cada escola publicades a les pàgines de detall de la web actual
+Els fitxers `schools/escola-trail.jpg`, `schools/escola-skimo.jpg` i
+`schools/escola-btt.jpg` són les portades de cada escola publicades a les pàgines de detall de la web actual
 (`mountainrunners.cat/escola-trail/`, `mountainrunners.cat/escola-skimo/` i
 `mountainrunners.cat/escola-btt/`). Provenen respectivament de
 `ESCOLA-TRAIL-2020_21.jpg`, `IMG_4284.jpg` i `DSC_0239.jpg`. Es reutilitzen

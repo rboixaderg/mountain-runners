@@ -4,11 +4,15 @@ Web de codi obert de l'associació esportiva Mountain Runners del Berguedà.
 
 ## Estat
 
-Aquest repositori conté la base executable de l'aplicació Astro, el model
-editorial validat, la infraestructura multiidioma, la direcció de disseny i les
-normes de col·laboració. Les rutes públiques de la fase 4 i el contingut de
-domini publicat es publiquen en català, castellà i anglès; la resta de rutes
-s'incorporen a mesura que es completen les tasques de la fase.
+Aquest repositori conté l'aplicació Astro estàtica implementada fins a la fase 4,
+el model editorial validat, la infraestructura multiidioma, el sistema visual i
+les normes de col·laboració. La sortida actual genera 48 rutes canòniques: 16 en
+català, 16 en castellà i 16 en anglès, a més dels recursos tècnics globals.
+
+La implementació de la fase 4 és a `main`, però el seu tancament documental i
+editorial encara té comprovacions pendents registrades a
+[`docs/validation/phase-4-design-review.md`](docs/validation/phase-4-design-review.md).
+La fase 5 no ha implementat encara previews, Caddy ni desplegament.
 
 ## Desenvolupament Local
 
@@ -28,25 +32,30 @@ pnpm dev
 `hreflang`, the sitemap and `robots.txt`. Preview and production deployments
 must provide their own value.
 
-`pnpm validate` executa format, lint, typecheck, tests unitaris, recorreguts
-Playwright, Lighthouse i pressupostos amb les mateixes condicions que la
-integració contínua. `pnpm check` ofereix les comprovacions ràpides (format,
-lint, typecheck i tests) i `pnpm lighthouse` valida punts de tall de rendiment i
-accessibilitat sobre les rutes representatives.
+`pnpm validate` executa format, lint, typecheck, tests unitaris i recorreguts
+Playwright, incloses les comprovacions axe aplicables, amb les mateixes
+condicions que la integració contínua. `pnpm check` ofereix les comprovacions
+ràpides (format, lint, typecheck i tests). `pnpm lighthouse` és una auditoria
+manual separada, fora de `pnpm validate` i de la CI, que valida les rutes
+representatives contra els llindars i pressupostos configurats.
 
 ## Arquitectura
 
 - Web estàtica: Astro, TypeScript i Content Collections amb Zod.
 - Font de veritat: contingut estructurat i versionat a Git.
-- Allotjament: un VPS modest darrere de Caddy.
+- Allotjament acceptat però encara no implementat: un VPS modest darrere de
+  Caddy.
 - Xat públic: servei Hono separat, de només lectura, previst per a una fase
   posterior.
-- Assistent editorial: flux privat i controlat que crea branques, valida canvis
-  i obre pull requests. No desplega directament.
+- Assistent editorial futur: flux privat i controlat que crea branques, valida
+  canvis i obre pull requests. No desplega directament.
 
 Llegeix [l'arquitectura tècnica](docs/architecture.md) abans de modificar
 l'arquitectura. Les normes generals per a persones i agents són a
 [AGENTS.md](AGENTS.md).
+
+El [mapa de documentació](docs/README.md) diferencia les fonts vigents dels
+inventaris, referències i registres històrics.
 
 La planificació de producte i desenvolupament és a
 [docs/roadmap.md](docs/roadmap.md).

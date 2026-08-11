@@ -24,13 +24,15 @@ verificat.
 
 ## Principis Transversals
 
-- El català és l'idioma inicial de publicació.
+- El català va ser l'idioma inicial de publicació; des de la fase 4 la superfície
+  pública completa es genera també en castellà i anglès.
 - El model de contingut ha de ser multiidioma des del principi: tot text
   traduïble serà un objecte indexat per idioma, sense camps duplicats per llengua.
 - Totes les rutes HTML públiques utilitzen prefix d'idioma: `/ca/`, `/es/` o
   `/en/`.
-- Git és la font de veritat del contingut i publicar equival a fusionar a la
-  branca principal protegida.
+- Git és la font de veritat del contingut: fusionar a la branca principal
+  protegida fa una variant editorialment publicable i la incorpora al build. La
+  publicació efectiva a producció dependrà del flux de desplegament de la fase 5.
 - El worktree principal es manté a `main` per planificar i seguir les fases;
   cada tasca d'implementació es desenvolupa en un worktree i una branca propis.
 - El disseny segueix `DESIGN.md`; la navegació inicial és plana: Qui som, Socis,
@@ -52,11 +54,11 @@ constructor genèric de pàgines sense una necessitat editorial concreta.
 | Fase                                         | Estat       | Objectiu                                                  |
 | -------------------------------------------- | ----------- | --------------------------------------------------------- |
 | 0. Fundació del projecte                     | Completada  | Governança, seguretat, ADRs i entorn d'agents             |
-| 1. Base executable i qualitat                | Planificada | Astro, validacions, CI, multiidioma i models de contingut |
-| 2. Vertical slice públic                     | Planificada | Shell global, inici i esdeveniments funcionals            |
-| 3. Cobertura de contingut                    | Planificada | Resta de pàgines i plantilles de la web                   |
-| 4. Validació integral de disseny i contingut | Planificada | Revisió pàgina a pàgina i traducció a es/en               |
-| 5. Publicació i operació                     | Planificada | Previews, desplegament i operació segura                  |
+| 1. Base executable i qualitat                | Completada  | Astro, validacions, CI, multiidioma i models de contingut |
+| 2. Vertical slice públic                     | Completada  | Shell global, inici i esdeveniments funcionals            |
+| 3. Cobertura de contingut                    | Completada  | Resta de pàgines i plantilles de la web                   |
+| 4. Validació integral de disseny i contingut | En tancament | Revisió pàgina a pàgina i traducció a es/en              |
+| 5. Publicació i operació                     | Bloquejada  | Previews, desplegament i operació segura                  |
 | 6. Xat públic                                | Planificada | Consultes de només lectura sobre contingut publicat       |
 | 7. Assistència editorial                     | Planificada | Edició privada, auditada i basada en pull requests        |
 
@@ -69,6 +71,8 @@ constructor genèric de pàgines sense una necessitat editorial concreta.
 - Skill portable a `.agents/skills/` i configuració d'OpenCode.
 
 ## Fase 1: Base Executable I Qualitat
+
+**Estat:** Completada.
 
 **Objectiu:** crear una base Astro estàtica, tipada i segura, amb les
 validacions automàtiques actives des del primer canvi de codi i preparada per
@@ -117,6 +121,8 @@ publicar contingut real en català i traduir-lo en el futur.
 
 ## Fase 2: Vertical Slice Públic
 
+**Estat:** Completada.
+
 **Objectiu:** validar conjuntament contingut, disseny, navegació i publicació
 amb el recorregut més representatiu de la web.
 
@@ -157,6 +163,10 @@ amb el recorregut més representatiu de la web.
 
 ## Fase 3: Cobertura De Contingut
 
+**Estat:** Completada. La T4.4 va retirar posteriorment la ruta de Contacte i va
+traslladar les dades institucionals al prepeu compartit; l'especificació de fase
+3 es conserva com a registre del resultat que es va lliurar llavors.
+
 **Objectiu:** completar les àrees públiques previstes amb plantilles consistents
 i contingut editable.
 
@@ -184,6 +194,13 @@ i contingut editable.
   CI; Lighthouse i els pressupostos es validen manualment.
 
 ## Fase 4: Validació Integral De Disseny I Contingut
+
+**Estat:** En tancament. La implementació visual i les variants `ca`, `es` i
+`en` són a `main` mitjançant la PR #49, però la fase no es declara completada
+fins que es tanquin els punts de la
+[`revisió de fase 4`](validation/phase-4-design-review.md): evidència integral de
+rutes i idiomes, revisió semàntica de traduccions, coherència legal dels embeds
+i resultat final de Lighthouse.
 
 **Objectiu:** validar, abans de preparar la publicació, que totes les rutes
 públiques implementades responen a la direcció de `DESIGN.md`, tenen una
@@ -220,13 +237,20 @@ visuals aprovats que els corresponen.
 
 ## Fase 5: Publicació I Operació
 
+**Estat:** Bloquejada fins al tancament de la fase 4 i les decisions operatives
+de la T5.1.
+
+**Especificació:**
+[`docs/specs/phase-5-publication-operation.md`](specs/phase-5-publication-operation.md).
+
 **Objectiu:** portar una aplicació ja validada a producció mitjançant un flux
 segur, reproduïble i reversible.
 
 **Abast:**
 
-- Ampliar la CI amb comprovació d'enllaços, accessibilitat i altres controls que
-  requereixin la web completa.
+- Ampliar la CI amb comprovació d'enllaços i controls de producció que
+  requereixin la web completa, mantenint les proves axe i Playwright existents i
+  afegint la revisió manual d'accessibilitat acordada per al llançament.
 - Configurar previews de pull request i el flux de desplegament protegit.
 - Preparar Caddy, TLS, logs, salut de serveis i reversió abans de producció.
 - Confirmar la comunicació privada de vulnerabilitats abans de l'obertura
@@ -294,6 +318,9 @@ humana ni el flux de Git.
 
 ## Decisions Pendents Abans De Les Fases Posteriors
 
-- Proveïdor d'allotjament Git, configuració de branques protegides i CI.
-- Font definitiva de dades de contacte, seu, horaris, formulari i butlletí.
+- Proveïdor i accés del VPS, estratègia de previews i entorn d'aprovació de
+  producció.
+- Política de minimització, accés i conservació dels logs de Caddy, coherent amb
+  els textos de privacitat.
+- Tractament de privacitat dels vídeos de YouTube abans del primer desplegament.
 - Política de conservació de logs i límits d'ús del futur xat públic.
