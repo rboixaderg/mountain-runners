@@ -2,12 +2,15 @@ import { describe, expect, it } from "vitest";
 import {
   buildYoutubeEmbedUrl,
   extractYoutubeVideoId,
-  youtubeVideoIds,
 } from "../lib/presentation/youtube";
 
 describe("presentation/youtube", () => {
   it("builds a privacy-enhanced embed URL", () => {
-    expect(buildYoutubeEmbedUrl(youtubeVideoIds.trailSchool)).toBe(
+    const videoId = extractYoutubeVideoId(
+      "https://www.youtube.com/watch?v=SSaismIBl_8",
+    );
+
+    expect(videoId && buildYoutubeEmbedUrl(videoId)).toBe(
       "https://www.youtube-nocookie.com/embed/SSaismIBl_8",
     );
   });
@@ -16,11 +19,13 @@ describe("presentation/youtube", () => {
     expect(
       extractYoutubeVideoId("https://www.youtube.com/watch?v=dqCRDy4jpQA"),
     ).toBe("dqCRDy4jpQA");
-    expect(
-      extractYoutubeVideoId("https://www.youtube.com/embed/SSaismIBl_8"),
-    ).toBe("SSaismIBl_8");
     expect(extractYoutubeVideoId("https://youtu.be/SSaismIBl_8")).toBe(
       "SSaismIBl_8",
     );
+    expect(
+      extractYoutubeVideoId(
+        "https://example.com/youtube.com/watch?v=SSaismIBl_8",
+      ),
+    ).toBeUndefined();
   });
 });

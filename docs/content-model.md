@@ -38,7 +38,9 @@ Les col·leccions de contingut registrades són:
   editorial explícit (`hubOrder`) per al hub.
 - `events`: esdeveniments amb resum, entitats relacionades, recursos i edicions
   embegudes.
-- `entities`: organitzacions reutilitzables i avantatges opcionals per a socis.
+- `entities`: organitzacions reutilitzables, avantatges opcionals per a socis i,
+  per a l'entitat institucional, perfils socials i recursos promocionals externs
+  validats.
 - `documents`: recursos locals o externs amb tipus, idioma i disponibilitat.
 - `externalActions`: accions externes d'alta, federació i butlletí amb estat
   explícit i URL externa opcional.
@@ -48,6 +50,12 @@ Les col·leccions de contingut registrades són:
 La col·lecció `contact` conté exactament una entrada institucional. El catàleg
 falla si en falta o n'hi ha més d'una, i només exposa les dades si l'entrada està
 publicada i completa en català.
+
+L'entitat `mountain-runners` és la propietària dels perfils socials i recursos
+promocionals externs aprovats del club. El contacte institucional continua sent
+l'única font del correu, els telèfons, la seu, els horaris i el CIF; els textos
+fixos que mostren aquestes dades les reben del catàleg i no les dupliquen als
+recursos de traducció.
 
 Les accions externes tenen un identificador estable fix (per exemple
 `member-signup`, `federation` i `newsletter`) que el codi i les pàgines fixes

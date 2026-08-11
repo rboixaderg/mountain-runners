@@ -330,6 +330,12 @@ describe("publication catalog", () => {
     ]);
     expect(catalog.contact?.id).toBe("mountain-runners-contact");
     expect(catalog.contact?.email).toBe("mailto:info@mountainrunners.cat");
+    expect(catalog.entities.get("mountain-runners")?.instagramUrl).toBe(
+      "https://www.instagram.com/infomountain/",
+    );
+    expect(catalog.entities.get("mountain-runners")?.promotionalVideoUrl).toBe(
+      "https://www.youtube.com/watch?v=EUV5uETCjeo",
+    );
   });
 
   it("excludes unpublished external actions and contact data", async () => {
