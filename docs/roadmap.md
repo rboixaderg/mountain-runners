@@ -199,8 +199,8 @@ i contingut editable.
 `en` són a `main` mitjançant la PR #49, però la fase no es declara completada
 fins que es tanquin els punts de la
 [`revisió de fase 4`](validation/phase-4-design-review.md): evidència integral de
-rutes i idiomes, revisió semàntica de traduccions, coherència legal dels embeds
-i resultat final de Lighthouse.
+rutes i idiomes, revisió semàntica de traduccions i resultat final de
+Lighthouse.
 
 **Objectiu:** validar, abans de preparar la publicació, que totes les rutes
 públiques implementades responen a la direcció de `DESIGN.md`, tenen una

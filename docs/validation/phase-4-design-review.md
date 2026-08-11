@@ -195,9 +195,6 @@ check` i el build determinista han passat; les captures d'About i Members a
   redirecció arrel i la 404, amb cobertura de `ca`, `es` i `en`.
 - Revisar semànticament les traduccions i conservar totes les dades pràctiques i
   atribucions exigibles en cada idioma.
-- Resoldre la contradicció entre els iframes de `youtube-nocookie.com` i els
-  textos de cookies i privacitat que afirmen que no hi ha embeds ni serveis de
-  tercers. La confirmació d'ús del recurs no substitueix aquesta revisió.
 - Tancar o acceptar explícitament el pressupost Lighthouse: l'última execució
   registrada té un LCP de portada de 2,705 s davant del límit de 2,5 s.
 - Corregir o especificar separadament les desviacions dels ADR 0004, 0005 i 0006
@@ -205,9 +202,14 @@ check` i el build determinista han passat; les captures d'About i Members a
 
 L'11 d'agost de 2026 la persona mantenidora va decidir ajornar la resolució dels
 embeds de YouTube i avançar amb la resta de punts. La discrepància queda
-documentada, però no es considera resolta ni permet declarar completada la fase
-4 o iniciar la publicació mentre el comportament i els textos legals continuïn
-sent contradictoris.
+documentada com a context de la revisió. Posteriorment, el mateix dia, va aprovar
+mantenir per ara els reproductors existents en mode de privacitat millorada i
+actualitzar-ne els textos legals. Les polítiques de cookies i privacitat
+descriuen ara que els iframes de `youtube-nocookie.com` es carreguen de manera
+diferida segons els criteris del navegador, que la connexió es pot establir abans
+de prémer el botó de reproducció i que Google o YouTube poden rebre dades
+tècniques. Aquesta actualització resol la contradicció de fase 4; una càrrega
+estrictament iniciada per clic queda fora d'aquesta correcció.
 
 La validació automatitzada no equival a una auditoria manual completa WCAG 2.2
 AA. La fase 5 continua bloquejada fins que els punts publicables anteriors
