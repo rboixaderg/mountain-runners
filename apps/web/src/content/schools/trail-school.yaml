@@ -23,8 +23,24 @@ description:
     Els monitors transmeten l'esforç, el treball en equip, el respecte a la
     natura i la constància mentre els infants i joves descobreixen nous racons
     del Berguedà.
-  es: La Escuela de Trail ofrece clases para grupos de niños y jóvenes de 3 a 18 años fuera del horario lectivo por el entorno del Berguedà. Los monitores transmiten esfuerzo, trabajo en equipo, respeto por la naturaleza y constancia.
-  en: The Trail School offers classes for groups of children and young people aged 3 to 18 outside school hours around Berguedà. Coaches pass on effort, teamwork, respect for nature and consistency.
+  es: >-
+    La Escuela de Trail es una de las ramas de MRB y ofrece clases de trail para
+    grupos de niños y jóvenes de 3 a 18 años, fuera del horario lectivo, por el
+    entorno de la comarca del Berguedà.
+
+
+    Los monitores transmiten el esfuerzo, el trabajo en equipo, el respeto por
+    la naturaleza y la constancia mientras los niños y jóvenes descubren nuevos
+    rincones del Berguedà.
+  en: >-
+    The Trail School is one of MRB's branches and offers trail running classes
+    for groups of children and young people aged 3 to 18, held outside school
+    hours around Berguedà.
+
+
+    The coaches pass on the values of effort, teamwork, respect for nature and
+    perseverance while the children and young people discover new parts of
+    Berguedà.
 cover:
   resource:
     kind: local
@@ -46,6 +62,8 @@ gallery:
       en: Children and young people on a trail outing along Berguedà paths
     attribution:
       ca: "Foto: David Acedo"
+      es: "Foto: David Acedo"
+      en: "Photo: David Acedo"
     sourceUrl: https://mountainrunners.cat/wp-content/uploads/2021/07/FRIDAY-PICS-OK26-1024x654.jpg
   - resource:
       kind: local
@@ -56,6 +74,8 @@ gallery:
       en: Trail School participants during a session near Berga
     attribution:
       ca: "Foto: Anna E. Puig"
+      es: "Foto: Anna E. Puig"
+      en: "Photo: Anna E. Puig"
     sourceUrl: https://mountainrunners.cat/wp-content/uploads/2021/07/ESCOLA-TRAIL-2020_21-1024x768.jpg
   - resource:
       kind: local
@@ -66,6 +86,8 @@ gallery:
       en: Children running along a trail during a Trail School activity
     attribution:
       ca: "Foto: Anna E. Puig"
+      es: "Foto: Anna E. Puig"
+      en: "Photo: Anna E. Puig"
     sourceUrl: https://mountainrunners.cat/wp-content/uploads/2021/07/ESCOLA-TRAIL-2020_29-1024x768.jpg
   - resource:
       kind: local
@@ -76,6 +98,8 @@ gallery:
       en: Young people training in trail running in the Berguedà mountains
     attribution:
       ca: "Foto: Anna E. Puig"
+      es: "Foto: Anna E. Puig"
+      en: "Photo: Anna E. Puig"
     sourceUrl: https://mountainrunners.cat/wp-content/uploads/2021/07/ESCOLA-TRAIL-2020_23-1024x768.jpg
   - resource:
       kind: local
@@ -86,6 +110,8 @@ gallery:
       en: Coaches and children during an outdoor trail session
     attribution:
       ca: "Foto: Anna E. Puig"
+      es: "Foto: Anna E. Puig"
+      en: "Photo: Anna E. Puig"
     sourceUrl: https://mountainrunners.cat/wp-content/uploads/2021/07/ESCOLA-TRAIL-2020_8-1024x768.jpg
   - resource:
       kind: local
@@ -96,6 +122,8 @@ gallery:
       en: Young runners during a Trail School group activity
     attribution:
       ca: "Foto: David Acedo"
+      es: "Foto: David Acedo"
+      en: "Photo: David Acedo"
     sourceUrl: https://mountainrunners.cat/wp-content/uploads/2021/07/FRIDAY-PICS-OK7-1024x690.jpg
 promotionalVideoUrl: https://www.youtube.com/watch?v=SSaismIBl_8
 registrationStatus: coming-soon

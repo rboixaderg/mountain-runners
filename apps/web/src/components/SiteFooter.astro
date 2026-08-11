@@ -2,15 +2,17 @@
 import * as messages from "../paraglide/messages.js";
 import type { Locale } from "../lib/content/primitives";
 import { getDomainPath, getFixedPagePath } from "../lib/content/routes";
-import { siteSocialLinks } from "../lib/presentation/social";
+import { getSiteSocialLinks } from "../lib/presentation/social";
 import { externalLinkAttributes } from "../lib/presentation/urls";
 import "../styles/site-footer.css";
 
 interface Props {
+  instagramUrl?: string;
   locale: Locale;
 }
 
-const { locale } = Astro.props;
+const { instagramUrl, locale } = Astro.props;
+const siteSocialLinks = getSiteSocialLinks(instagramUrl);
 const homePath = `/${locale}/`;
 const eventsPath = getDomainPath("event", locale);
 const documentsPath = getFixedPagePath("documents", locale);

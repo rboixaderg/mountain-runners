@@ -108,7 +108,7 @@ describe("publication catalog", () => {
       "src/assets/collaborators/visites-al-bergueda.jpg",
       "src/assets/entities/club-atletic-berga.png",
       "src/assets/entities/club-esqui-bergueda.png",
-      "src/assets/events/anella-verda-cover.png",
+      "src/assets/events/anella-verda-cover.webp",
       "src/assets/events/escalada-queralt-cover.jpg",
       "src/assets/logo_mountain_runners.png",
       "src/assets/schools/escola-btt-card.jpg",
@@ -203,6 +203,60 @@ describe("publication catalog", () => {
       apply(source);
       expect(variantKeys(source)).not.toContain(expected);
     }
+  });
+
+  it("requires every published image attribution in the variant locale", async () => {
+    const source = await loadSource();
+    const bttSchool = source.schools.find(({ id }) => id === "btt-school")!;
+    delete (bttSchool.gallery[0]!.attribution as { es?: string }).es;
+
+    const publishedVariants = variantKeys(source);
+
+    expect(publishedVariants).toContain("school:ca:escola-btt");
+    expect(publishedVariants).not.toContain("school:es:escuela-btt");
+    expect(publishedVariants).toContain("school:en:mtb-school");
+  });
+
+  it("requires referenced entity attributions in the variant locale", async () => {
+    const source = await loadSource();
+    const mountainRunners = source.entities.find(
+      ({ id }) => id === "mountain-runners",
+    )!;
+
+    mountainRunners.attribution = {
+      ca: "Atribució",
+      es: "Atribución",
+      en: "Attribution",
+    };
+    delete (mountainRunners.attribution as { es?: string }).es;
+
+    const publishedVariants = variantKeys(source);
+
+    expect(publishedVariants).toContain("event:ca:ultra-pirineu");
+    expect(publishedVariants).not.toContain("event:es:ultra-pirineu");
+    expect(publishedVariants).toContain("event:en:ultra-pirineu");
+  });
+
+  it("requires referenced document attributions in the variant locale", async () => {
+    const source = await loadSource();
+    const ultraPirineu = source.events.find(
+      ({ id }) => id === "ultra-pirineu",
+    )!;
+    const clubGuide = source.documents.find(({ id }) => id === "club-guide")!;
+
+    ultraPirineu.editions[0]!.documentIds = ["club-guide"];
+    clubGuide.attribution = {
+      ca: "Atribució",
+      es: "Atribución",
+      en: "Attribution",
+    };
+    delete (clubGuide.attribution as { es?: string }).es;
+
+    const publishedVariants = variantKeys(source);
+
+    expect(publishedVariants).toContain("event:ca:ultra-pirineu");
+    expect(publishedVariants).not.toContain("event:es:ultra-pirineu");
+    expect(publishedVariants).toContain("event:en:ultra-pirineu");
   });
 
   it("excludes unpublished entities from public queries and variants", async () => {
@@ -330,6 +384,12 @@ describe("publication catalog", () => {
     ]);
     expect(catalog.contact?.id).toBe("mountain-runners-contact");
     expect(catalog.contact?.email).toBe("mailto:info@mountainrunners.cat");
+    expect(catalog.entities.get("mountain-runners")?.instagramUrl).toBe(
+      "https://www.instagram.com/infomountain/",
+    );
+    expect(catalog.entities.get("mountain-runners")?.promotionalVideoUrl).toBe(
+      "https://www.youtube.com/watch?v=EUV5uETCjeo",
+    );
   });
 
   it("excludes unpublished external actions and contact data", async () => {

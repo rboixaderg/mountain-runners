@@ -1,30 +1,33 @@
 ---
 import * as messages from "../../paraglide/messages.js";
 import type { Locale } from "../../lib/content/primitives";
-import { youtubeVideoIds } from "../../lib/presentation/youtube";
+import { extractYoutubeVideoId } from "../../lib/presentation/youtube";
 import YoutubeEmbed from "../YoutubeEmbed.astro";
 
 interface Props {
   locale: Locale;
+  videoUrl?: string;
 }
 
-const { locale } = Astro.props;
+const { locale, videoUrl } = Astro.props;
+const videoId = videoUrl ? extractYoutubeVideoId(videoUrl) : undefined;
 ---
 
-<section
-  class="members-video"
-  aria-label={messages.members_video_title({}, { locale })}
->
-  <div class="page-frame members-video__inner">
-    <figure class="members-video__figure">
-      <YoutubeEmbed
-        className="members-video__embed"
-        title={messages.members_video_title({}, { locale })}
-        videoId={youtubeVideoIds.membersPromotional}
-      />
-      <figcaption class="members-video__attribution">
-        {messages.members_intro_photo_attribution({}, { locale })}
-      </figcaption>
-    </figure>
-  </div>
-</section>
+{
+  videoId !== undefined && (
+    <section
+      class="members-video"
+      aria-label={messages.members_video_title({}, { locale })}
+    >
+      <div class="page-frame members-video__inner">
+        <figure class="members-video__figure">
+          <YoutubeEmbed
+            className="members-video__embed"
+            title={messages.members_video_title({}, { locale })}
+            videoId={videoId}
+          />
+        </figure>
+      </div>
+    </section>
+  )
+}

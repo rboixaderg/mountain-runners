@@ -109,6 +109,12 @@ aquesta entrega afegeix o modifica és consentit i controlat:
   domini `youtube-nocookie`) i l'enllaç d'Instagram del peu
   (`instagram.com/infomountain`) són aprovats i es consideren part del disseny
   de la T4.4.
+- **Recursos editorials**: la fotografia del hub d'esdeveniments prové del web
+  oficial, queda aprovada per a reutilització local i substitueix la fotografia
+  de Socis que s'hi havia reutilitzat fora de context. Com que el fotògraf no
+  està identificat, mostra temporalment el crèdit d'arxiu de Mountain Runners del
+  Berguedà. L'autoria de les quatre fotografies de la galeria Skimo correspon al
+  mateix club.
 - **Prepeu**: el bloc de butlletí mostra una previsualització desactivada
   (input i botó `disabled`, sense recollida ni enviament de dades) quan l'acció
   externa `newsletter` no està disponible; no és un formulari.
@@ -147,11 +153,11 @@ mantenidora:
   l'escenari axe.
 - `pnpm test:a11y`: passat — comprovacions axe de Chromium en escriptori i
   mòbil.
-- `pnpm lighthouse`: executat — una primera execució va quedar dins dels
-  llindars, amb rendiment 98, 98 i 99 a portada, hub i detall representatius, i
-  100 a la resta de categories. La darrera repetició és el resultat autoritatiu
-  del tancament i no va superar el pressupost de LCP de portada (vegeu més
-  avall).
+- `pnpm lighthouse`: la repetició final consta de cinc execucions sobre el mateix
+  commit i entorn, i utilitza la mediana d'acord amb la quality gate. Portada,
+  hub d'esdeveniments i detall d'Anella Verda obtenen respectivament rendiment
+  98/99/99 i LCP de 2,333 s, 1,954 s i 1,810 s; accessibilitat, bones pràctiques
+  i SEO obtenen 100 a totes les mostres i no se supera cap pressupost.
 - Revisió responsive manual: totes les rutes publicades revisades a 320 i 390
   píxels; shell i rutes representatives comprovats també a 768, 1280 i 1440
   píxels.
@@ -170,12 +176,13 @@ mantenidora:
   limitada al rectangle de la fotografia mandrosa d'història de Qui som, que la
   captura base va registrar abans de carregar.
 - `pnpm validate` ha passat amb 122 proves E2E i 4 proves axe no aplicables fora
-  de Chromium; `pnpm test:a11y` ha passat les dues vistes Chromium. La repetició
-  local de `pnpm lighthouse` manté 100 en accessibilitat, bones pràctiques i SEO,
-  i rendiment 96/98/99, però la portada registra un LCP de 2,705 s i no supera el
-  límit de 2,5 s. La mateixa execució sobre la branca base registra 2,780 s, de
-  manera que no és una regressió del refactor, però la comprovació no es declara
-  passada.
+  de Chromium; `pnpm test:a11y` ha passat les dues vistes Chromium. Una primera
+  sèrie controlada de cinc execucions Lighthouse va confirmar que la portada ja
+  complia amb una mediana de 2,330 s, però va detectar que el detall d'Anella
+  Verda transferia una coberta PNG de 983 KiB, superava el pressupost d'imatge i
+  registrava una mediana LCP de 6,606 s. La derivació WebP conserva les dimensions
+  `819×1024`, redueix el fitxer font a 53 KiB i resol el pressupost en les cinc
+  repeticions finals.
 - La correcció d'ownership de `:global(...)` manté les mateixes declaracions
   compilades per a About i Members: les regles compartides viuen als fulls de
   plantilla i el markdown del directori queda ancorat al seu component. `pnpm

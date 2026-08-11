@@ -15,10 +15,16 @@ export interface SiteSocialLink {
   url: string;
 }
 
-export const siteSocialLinks = [
-  {
-    id: siteSocialLinkIds.instagram,
-    labelMessageKey: siteSocialLinkMessageKeys.instagram,
-    url: "https://www.instagram.com/infomountain/",
-  },
-] as const satisfies readonly SiteSocialLink[];
+export function getSiteSocialLinks(
+  instagramUrl: string | undefined,
+): SiteSocialLink[] {
+  if (instagramUrl === undefined) return [];
+
+  return [
+    {
+      id: siteSocialLinkIds.instagram,
+      labelMessageKey: siteSocialLinkMessageKeys.instagram,
+      url: instagramUrl,
+    },
+  ];
+}
