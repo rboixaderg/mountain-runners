@@ -3,7 +3,7 @@ published: true
 name:
   ca: Joieria Climent
   es: Joyería Climent
-  en: Climent Jewellers
+  en: Joieria Climent
 logo:
   resource:
     kind: local
@@ -11,7 +11,7 @@ logo:
   alt:
     ca: Logotip de la Joieria Climent
     es: Logotipo de Joyería Climent
-    en: Climent Jewellers logo
+    en: Joieria Climent logo
   sourceUrl: https://mountainrunners.cat/wp-content/uploads/2021/07/climent-logo-1472636915.png
 description:
   ca: Establiment col·laborador de Mountain Runners del Berguedà.

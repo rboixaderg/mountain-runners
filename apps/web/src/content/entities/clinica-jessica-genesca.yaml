@@ -3,7 +3,7 @@ published: true
 name:
   ca: Clínica Jessica Genescà
   es: Clínica Jessica Genescà
-  en: Jessica Genescà Clinic
+  en: Clínica Jessica Genescà
 logo:
   resource:
     kind: local
@@ -11,7 +11,7 @@ logo:
   alt:
     ca: Logotip de la Clínica Jessica Genescà
     es: Logotipo de la Clínica Jessica Genescà
-    en: Jessica Genescà Clinic logo
+    en: Clínica Jessica Genescà logo
   sourceUrl: https://mountainrunners.cat/wp-content/uploads/2021/07/Captura-de-Pantalla-2021-07-29-a-les-20.24.12.png
 description:
   ca: Establiment col·laborador de Mountain Runners del Berguedà.

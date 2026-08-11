@@ -3,7 +3,7 @@ published: true
 name:
   ca: Ortopèdia Álvarez Saz Cabra
   es: Ortopedia Álvarez Saz Cabra
-  en: Álvarez Saz Cabra Orthopaedics
+  en: Ortopèdia Álvarez Saz Cabra
 logo:
   resource:
     kind: local
@@ -11,12 +11,12 @@ logo:
   alt:
     ca: Logotip de l'Ortopèdia Álvarez Saz Cabra
     es: Logotipo de Ortopedia Álvarez Saz Cabra
-    en: Álvarez Saz Cabra Orthopaedics logo
+    en: Ortopèdia Álvarez Saz Cabra logo
   sourceUrl: https://mountainrunners.cat/wp-content/uploads/2021/07/27067199_1366703566774723_1773801516492124906_n.jpg
 description:
   ca: Ortopèdia Álvarez Saz Cabra, secció esports.
   es: Ortopedia Álvarez Saz Cabra, sección de deportes.
-  en: Álvarez Saz Cabra Orthopaedics, sports department.
+  en: Ortopèdia Álvarez Saz Cabra, sports department.
 membershipBenefit:
   title:
     ca: Ortesis esportives
@@ -24,5 +24,5 @@ membershipBenefit:
     en: Sports orthoses
   description:
     ca: 10% de descompte en la compra de qualsevol article d'ortesis esportiva.
-    es: 10% de descuento en la compra de cualquier artículo de ortopedia deportiva.
-    en: 10% off any sports orthopaedic product.
+    es: 10% de descuento en la compra de cualquier artículo de ortesis deportiva.
+    en: 10% off any sports orthosis product.

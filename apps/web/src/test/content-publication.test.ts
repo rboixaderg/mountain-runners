@@ -205,6 +205,60 @@ describe("publication catalog", () => {
     }
   });
 
+  it("requires every published image attribution in the variant locale", async () => {
+    const source = await loadSource();
+    const bttSchool = source.schools.find(({ id }) => id === "btt-school")!;
+    delete (bttSchool.gallery[0]!.attribution as { es?: string }).es;
+
+    const publishedVariants = variantKeys(source);
+
+    expect(publishedVariants).toContain("school:ca:escola-btt");
+    expect(publishedVariants).not.toContain("school:es:escuela-btt");
+    expect(publishedVariants).toContain("school:en:mtb-school");
+  });
+
+  it("requires referenced entity attributions in the variant locale", async () => {
+    const source = await loadSource();
+    const mountainRunners = source.entities.find(
+      ({ id }) => id === "mountain-runners",
+    )!;
+
+    mountainRunners.attribution = {
+      ca: "Atribució",
+      es: "Atribución",
+      en: "Attribution",
+    };
+    delete (mountainRunners.attribution as { es?: string }).es;
+
+    const publishedVariants = variantKeys(source);
+
+    expect(publishedVariants).toContain("event:ca:ultra-pirineu");
+    expect(publishedVariants).not.toContain("event:es:ultra-pirineu");
+    expect(publishedVariants).toContain("event:en:ultra-pirineu");
+  });
+
+  it("requires referenced document attributions in the variant locale", async () => {
+    const source = await loadSource();
+    const ultraPirineu = source.events.find(
+      ({ id }) => id === "ultra-pirineu",
+    )!;
+    const clubGuide = source.documents.find(({ id }) => id === "club-guide")!;
+
+    ultraPirineu.editions[0]!.documentIds = ["club-guide"];
+    clubGuide.attribution = {
+      ca: "Atribució",
+      es: "Atribución",
+      en: "Attribution",
+    };
+    delete (clubGuide.attribution as { es?: string }).es;
+
+    const publishedVariants = variantKeys(source);
+
+    expect(publishedVariants).toContain("event:ca:ultra-pirineu");
+    expect(publishedVariants).not.toContain("event:es:ultra-pirineu");
+    expect(publishedVariants).toContain("event:en:ultra-pirineu");
+  });
+
   it("excludes unpublished entities from public queries and variants", async () => {
     const source = await loadSource();
     const mountainDay = source.events.find(({ id }) => id === "mountain-day")!;
