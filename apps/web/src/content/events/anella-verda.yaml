@@ -63,7 +63,7 @@ clubRelationship: organizes
 cover:
   resource:
     kind: local
-    path: src/assets/events/anella-verda-cover.png
+    path: src/assets/events/anella-verda-cover.webp
   alt:
     ca: Corredors durant l'Anella Verda al municipi de Berga
     es: Corredores durante la Anella Verda en el municipio de Berga

@@ -108,7 +108,7 @@ describe("publication catalog", () => {
       "src/assets/collaborators/visites-al-bergueda.jpg",
       "src/assets/entities/club-atletic-berga.png",
       "src/assets/entities/club-esqui-bergueda.png",
-      "src/assets/events/anella-verda-cover.png",
+      "src/assets/events/anella-verda-cover.webp",
       "src/assets/events/escalada-queralt-cover.jpg",
       "src/assets/logo_mountain_runners.png",
       "src/assets/schools/escola-btt-card.jpg",
