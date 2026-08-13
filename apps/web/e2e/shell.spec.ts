@@ -924,10 +924,22 @@ test("publishes structured data only on pages with reviewed data", async ({
     location: { "@type": "Place", name: "Bagà" },
   });
 
+  await page.goto("/ca/esdeveniments/escalada-castell-areny/");
+  const castellArenyData = await jsonLd();
+  expect(castellArenyData).toHaveLength(1);
+  expect(castellArenyData[0]).toEqual({
+    "@context": "https://schema.org",
+    "@type": "Event",
+    name: "Escalada de Vilada a Castell de l'Areny",
+    url: "https://mountainrunners.cat/ca/esdeveniments/escalada-castell-areny/",
+    startDate: "2026-08-16",
+    eventStatus: "https://schema.org/EventScheduled",
+    location: { "@type": "Place", name: "Zona Esportiva de Vilada" },
+  });
+
   for (const path of [
     "/ca/esdeveniments/anella-verda/",
     "/ca/esdeveniments/berga-trail/",
-    "/ca/esdeveniments/escalada-castell-areny/",
     "/ca/esdeveniments/escalada-queralt/",
     "/ca/qui-som/",
     "/ca/socis/",
