@@ -93,6 +93,22 @@ export const instagramProfileUrlSchema = httpsUrlSchema.refine(
   { error: "Expected an Instagram profile URL" },
 );
 
+export const stravaClubUrlSchema = httpsUrlSchema.refine(
+  (value) => {
+    const url = new URL(value);
+    const pathSegments = url.pathname.split("/").filter(Boolean);
+    return (
+      ["strava.com", "www.strava.com"].includes(url.hostname) &&
+      pathSegments.length === 2 &&
+      pathSegments[0] === "clubs" &&
+      /^\d+$/u.test(pathSegments[1]!) &&
+      url.search.length === 0 &&
+      url.hash.length === 0
+    );
+  },
+  { error: "Expected a Strava club URL" },
+);
+
 export const youtubeVideoUrlSchema = httpsUrlSchema.refine(
   (value) => {
     const url = new URL(value);

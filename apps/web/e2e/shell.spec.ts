@@ -81,7 +81,7 @@ test("renders the published homepage sections in order", async ({ page }) => {
   await expect(page.locator('main a[href="/ca/esdeveniments/"]')).toHaveCount(
     1,
   );
-  await expect(page.locator(".homepage-hero__cta")).toHaveCount(1);
+  await expect(page.locator(".homepage-hero__cta")).toHaveCount(2);
   await expect(page.locator(".homepage-join-cta")).toHaveCount(1);
   await expect(
     page.locator(".homepage-hero__actions .homepage-join-cta"),
@@ -101,16 +101,42 @@ test("renders the published homepage sections in order", async ({ page }) => {
   await expect(
     page.locator('.homepage-hero__cta[href="/ca/escoles/"]'),
   ).toContainText("Les nostres escoles");
+  await expect(
+    page.locator(".homepage-hero__actions .homepage-hero__cta").last(),
+  ).toContainText("Federa't amb nosaltres");
+  await expect(
+    page.locator(".homepage-hero__actions .homepage-hero__cta").last(),
+  ).toHaveAttribute(
+    "href",
+    "https://mountainrunners.playoffinformatica.com/activitat/30/Llicencies-Federatives-2025/",
+  );
+  await expect(
+    page.locator(".homepage-hero__actions .homepage-hero__cta").last(),
+  ).toHaveAttribute("target", "_blank");
   await expect(page.locator(".homepage-section__view-all")).toHaveText(
     "Veure tot l'any",
   );
-  await expect(page.locator(".homepage-event")).toHaveCount(2);
+  await expect(page.locator(".homepage-event")).toHaveCount(3);
   await expect(
     page.locator(".homepage-event h3").allTextContents(),
-  ).resolves.toEqual(["Ultra Pirineu", "Escalada Popular a Queralt"]);
+  ).resolves.toEqual([
+    "Escalada de Vilada a Castell de l'Areny",
+    "Ultra Pirineu",
+    "Escalada Popular a Queralt",
+  ]);
   await expect(
     page.locator(".homepage-event__status").allTextContents(),
-  ).resolves.toEqual(["Pròxima edició", "Sense pròxima data anunciada"]);
+  ).resolves.toEqual([
+    "Pròxima edició",
+    "Pròxima edició",
+    "Sense pròxima data anunciada",
+  ]);
+  await expect(
+    page.getByRole("heading", {
+      level: 3,
+      name: "Escalada de Vilada a Castell de l'Areny",
+    }),
+  ).toBeVisible();
   await expect(
     page.getByRole("heading", { level: 3, name: "Ultra Pirineu" }),
   ).toBeVisible();
@@ -203,7 +229,15 @@ test("renders the events hub groups in order with links to details", async ({
 
   await expect(
     page.locator(".homepage-event h3").allTextContents(),
-  ).resolves.toEqual(["Ultra Pirineu"]);
+  ).resolves.toEqual([
+    "Escalada de Vilada a Castell de l'Areny",
+    "Ultra Pirineu",
+  ]);
+  await expect(
+    page.locator(
+      '.homepage-event a[href="/ca/esdeveniments/escalada-castell-areny/"]',
+    ),
+  ).toHaveCount(1);
   await expect(
     page.locator('.homepage-event a[href="/ca/esdeveniments/ultra-pirineu/"]'),
   ).toHaveCount(1);
@@ -403,9 +437,9 @@ test("renders the About page sections in editorial order", async ({ page }) => {
       'section[aria-labelledby="about-president-title"] .about-section__body',
     ),
   ).toContainText("escola de trail");
-  await expect(page.getByText("Ernest Garrido", { exact: true })).toHaveCount(
-    2,
-  );
+  await expect(
+    page.getByText("Ernest Garrido Ferrer", { exact: true }),
+  ).toHaveCount(2);
   await expect(
     page.locator(
       'section[aria-labelledby="about-history-title"] .about-section__body',
@@ -495,7 +529,7 @@ test("renders the Members page sections in editorial order", async ({
     "https://mountainrunners.playoffinformatica.com/activitat/30/Llicencies-Federatives-2025/",
   );
 
-  await expect(page.locator(".members-directory__entry")).toHaveCount(22);
+  await expect(page.locator(".members-directory__entry")).toHaveCount(21);
   await expect(
     page.locator(".members-directory__name").allTextContents(),
   ).resolves.toEqual([
@@ -517,7 +551,6 @@ test("renders the Members page sections in editorial order", async ({
     "Podologia Ingrid Soca",
     "Ramir's Sabaters",
     "Ríos Running Berga",
-    "Serrasports",
     "SNOWLOCKERS",
     "Veloberga",
     "Visites al Berguedà",
@@ -563,7 +596,7 @@ test("renders the schools hub in editorial order with links to details", async (
   await expect(
     page.locator(".schools-hub-item__status").allTextContents(),
   ).resolves.toEqual([
-    "Inscripció properament",
+    "Inscripció oberta",
     "Inscripció properament",
     "Inscripció properament",
   ]);
@@ -641,7 +674,7 @@ test("navigates from the schools hub to a published school detail", async ({
     schoolDetail.getByRole("heading", { level: 3, name: "Preus" }),
   ).toBeVisible();
   await expect(
-    schoolDetail.getByText("dilluns, dimecres i/o divendres"),
+    schoolDetail.getByText("dilluns, dimecres i divendres"),
   ).toBeVisible();
   await expect(schoolDetail.getByText("17.30 h a 19.00 h")).toBeVisible();
   await expect(
@@ -662,7 +695,16 @@ test("navigates from the schools hub to a published school detail", async ({
   await expect(
     schoolDetail.getByRole("heading", { level: 2, name: "Inscripció" }),
   ).toBeVisible();
-  await expect(schoolDetail.getByText("Inscripció properament")).toBeVisible();
+  await expect(schoolDetail.getByText("Inscripció oberta")).toBeVisible();
+  await expect(
+    schoolDetail.getByRole("link", { name: /Consulta la inscripció/u }),
+  ).toHaveAttribute(
+    "href",
+    "https://mountainrunners.playoffinformatica.com/preinscripcio/5/Alta-Escola-Trail/",
+  );
+  await expect(
+    schoolDetail.getByRole("link", { name: /Consulta la inscripció/u }),
+  ).toHaveAttribute("target", "_blank");
   await expect(
     schoolDetail.getByText("Uneix-te a la família Mountain Runners."),
   ).toBeVisible();
@@ -706,13 +748,13 @@ test("renders the board and the unavailable states without fake controls", async
   await expect(
     board.getByRole("heading", { name: "Junta directiva" }),
   ).toBeVisible();
-  await expect(board).toContainText("Ernest Garrido");
+  await expect(board).toContainText("Ernest Garrido Ferrer");
   await expect(board.getByRole("link")).toHaveCount(0);
 
   // The unavailable school registration state is textual: it explains the
   // state without adding anything to the focus order, so the keyboard can
   // never land on a fake control.
-  await page.goto("/ca/escoles/escola-trail/");
+  await page.goto("/ca/escoles/escola-skimo/");
   const registration = page.locator(
     'section[aria-labelledby="school-registration-title"]',
   );
@@ -720,6 +762,27 @@ test("renders the board and the unavailable states without fake controls", async
   await expect(
     registration.locator("a, button, input, [tabindex]"),
   ).toHaveCount(0);
+
+  await expect(
+    page.getByRole("heading", { level: 3, name: "Preus" }),
+  ).toBeVisible();
+  await expect(page.getByText("550 €")).toBeVisible();
+  await expect(page.getByText("60 €")).toBeVisible();
+  await expect(page.getByText("30 €")).toBeVisible();
+  await expect(
+    page.getByText("80 € (inclou tràmits d'inscripció"),
+  ).toBeVisible();
+
+  await page.goto("/ca/escoles/escola-btt/");
+  await expect(
+    page.getByRole("heading", { level: 3, name: "Preus" }),
+  ).toBeVisible();
+  await expect(page.getByText("640 €")).toBeVisible();
+  await expect(page.getByText("336 €")).toBeVisible();
+  await expect(page.getByText("392 €")).toBeVisible();
+  await expect(
+    page.getByText("També hi ha la possibilitat d'inscriure't per trimestres"),
+  ).toBeVisible();
 });
 
 test("reaches and activates the available actions with the keyboard", async ({
@@ -796,6 +859,7 @@ test("@a11y has no detectable axe violations", async ({
     "/ca/esdeveniments/ultra-pirineu/",
     "/ca/esdeveniments/anella-verda/",
     "/ca/esdeveniments/berga-trail/",
+    "/ca/esdeveniments/escalada-castell-areny/",
     "/ca/esdeveniments/escalada-queralt/",
     "/ca/qui-som/",
     "/ca/socis/",
@@ -863,6 +927,7 @@ test("publishes structured data only on pages with reviewed data", async ({
   for (const path of [
     "/ca/esdeveniments/anella-verda/",
     "/ca/esdeveniments/berga-trail/",
+    "/ca/esdeveniments/escalada-castell-areny/",
     "/ca/esdeveniments/escalada-queralt/",
     "/ca/qui-som/",
     "/ca/socis/",
@@ -967,6 +1032,7 @@ test("serves sitemap and robots aligned with the canonical origin", async ({
     "https://mountainrunners.cat/ca/esdeveniments/",
     "https://mountainrunners.cat/ca/esdeveniments/anella-verda/",
     "https://mountainrunners.cat/ca/esdeveniments/berga-trail/",
+    "https://mountainrunners.cat/ca/esdeveniments/escalada-castell-areny/",
     "https://mountainrunners.cat/ca/esdeveniments/escalada-queralt/",
     "https://mountainrunners.cat/ca/esdeveniments/ultra-pirineu/",
     "https://mountainrunners.cat/ca/qui-som/",
@@ -1000,6 +1066,7 @@ test("has no broken or falsely disabled links within the slice", async ({
     "/ca/esdeveniments/ultra-pirineu/",
     "/ca/esdeveniments/anella-verda/",
     "/ca/esdeveniments/berga-trail/",
+    "/ca/esdeveniments/escalada-castell-areny/",
     "/ca/esdeveniments/escalada-queralt/",
     "/ca/qui-som/",
     "/ca/socis/",
@@ -1052,6 +1119,9 @@ test("publishes documents and legal routes from the footer", async ({
   await expect(page.locator('footer a[href="/ca/contacte/"]')).toHaveCount(0);
   await expect(
     page.locator('footer a[href="https://www.instagram.com/infomountain/"]'),
+  ).toHaveCount(1);
+  await expect(
+    page.locator('footer a[href="https://www.strava.com/clubs/156769"]'),
   ).toHaveCount(1);
   await expect(
     page.getByRole("navigation", { name: "Xarxes socials" }),

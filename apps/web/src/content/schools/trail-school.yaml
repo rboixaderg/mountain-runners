@@ -126,7 +126,11 @@ gallery:
       en: "Photo: David Acedo"
     sourceUrl: https://mountainrunners.cat/wp-content/uploads/2021/07/FRIDAY-PICS-OK7-1024x690.jpg
 promotionalVideoUrl: https://www.youtube.com/watch?v=SSaismIBl_8
-registrationStatus: coming-soon
+registrationStatus: open
+registrationUrl:
+  ca: https://mountainrunners.playoffinformatica.com/preinscripcio/5/Alta-Escola-Trail/
+  es: https://mountainrunners.playoffinformatica.com/preinscripcio/5/Alta-Escola-Trail/
+  en: https://mountainrunners.playoffinformatica.com/preinscripcio/5/Alta-Escola-Trail/
 sections:
   since:
     ca: >-
@@ -146,18 +150,25 @@ sections:
     en: Children and young people aged 3 to 18.
   schedule:
     ca: >-
-      **Berga:** dilluns, dimecres i/o divendres de 17.30 h a 19.00 h.
+      **Berga:** dilluns, dimecres i divendres de 17.30 h a 19.00 h.
 
 
       Durant el curs escolar.
-    es: "**Berga:** lunes, miércoles y/o viernes de 17:30 a 19:00. Durante el curso escolar."
-    en: "**Berga:** Monday, Wednesday and/or Friday from 5:30 pm to 7:00 pm. During the school year."
+    es: "**Berga:** lunes, miércoles y viernes de 17:30 a 19:00. Durante el curso escolar."
+    en: "**Berga:** Monday, Wednesday and Friday from 5:30 pm to 7:00 pm. During the school year."
   location:
     ca: >-
-      Sortida des de la Font Negra de Berga, amb itineraris diferents a cada
+      Sortida a la Font Negra de Berga en horari d'estiu, sortida a l'Escola
+      Sant Joan de Berga en horari d'hivern, amb itineraris diferents a cada
       sessió.
-    es: Salida desde la Font Negra de Berga, con itinerarios diferentes en cada sesión.
-    en: Departing from Font Negra in Berga, with a different route each session.
+    es: >-
+      Salida en la Font Negra de Berga en horario de verano, salida en la
+      Escola Sant Joan de Berga en horario de invierno, con itinerarios
+      diferentes en cada sesión.
+    en: >-
+      Depart from Font Negra in Berga during the summer schedule, depart from
+      Escola Sant Joan in Berga during the winter schedule, with a different
+      route each session.
   prices:
     ca: >-
       No varia en funció de l'edat, sinó dels dies que voleu venir:

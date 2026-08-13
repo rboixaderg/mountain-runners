@@ -17,6 +17,7 @@ interface Props {
 const { locale, pricesMarkdown } = Astro.props;
 const parsedSection = parseSchoolPracticalSection(pricesMarkdown);
 const priceSection = parsePreviewPriceSection(parsedSection.body);
+const priceTiers = [...priceSection.listedFees, ...priceSection.monthlyTiers];
 
 if (!hasPreviewPriceContent(pricesMarkdown)) {
   return null;
@@ -44,9 +45,9 @@ if (!hasPreviewPriceContent(pricesMarkdown)) {
 
   <div class="schools-detail-preview__prices-body">
     {
-      priceSection.monthlyTiers.length > 0 && (
+      priceTiers.length > 0 && (
         <ul class="schools-detail-preview__price-tiers">
-          {priceSection.monthlyTiers.map((priceTier) => {
+          {priceTiers.map((priceTier) => {
             const formattedAmount = formatPriceAmount(priceTier.amount);
 
             return (
@@ -76,20 +77,16 @@ if (!hasPreviewPriceContent(pricesMarkdown)) {
             {messages.school_prices_registration_label({}, { locale })}
           </h4>
           <ul class="schools-detail-preview__price-registration-list">
-            {priceSection.registrationFees.map((registrationFee) => {
-              const formattedAmount = formatPriceAmount(registrationFee.amount);
-
-              return (
-                <li class="schools-detail-preview__price-registration-item">
-                  <span class="schools-detail-preview__price-registration-label">
-                    {registrationFee.label}
-                  </span>
-                  <span class="schools-detail-preview__price-registration-amount">
-                    {formattedAmount.value}
-                  </span>
-                </li>
-              );
-            })}
+            {priceSection.registrationFees.map((registrationFee) => (
+              <li class="schools-detail-preview__price-registration-item">
+                <span class="schools-detail-preview__price-registration-label">
+                  {registrationFee.label}
+                </span>
+                <span class="schools-detail-preview__price-registration-amount">
+                  {registrationFee.amount}
+                </span>
+              </li>
+            ))}
           </ul>
         </div>
       )

@@ -5,10 +5,10 @@ describe("parseBoardMembers", () => {
   it("parses localized board member lines", () => {
     expect(
       parseBoardMembers(
-        "- **Ernest Garrido** — President\n- **Albert Penyaranda Riu** — Vicepresident",
+        "- **Ernest Garrido Ferrer** — President\n- **Albert Penyaranda Riu** — Vicepresident",
       ),
     ).toEqual([
-      { name: "Ernest Garrido", role: "President" },
+      { name: "Ernest Garrido Ferrer", role: "President" },
       { name: "Albert Penyaranda Riu", role: "Vicepresident" },
     ]);
   });

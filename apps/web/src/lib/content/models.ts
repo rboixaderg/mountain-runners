@@ -11,6 +11,7 @@ import {
   httpsUrlSchema,
   instagramProfileUrlSchema,
   mailtoUrlSchema,
+  stravaClubUrlSchema,
   telUrlSchema,
   youtubeVideoUrlSchema,
 } from "./urls";
@@ -158,6 +159,7 @@ export const entitySchema = z.strictObject({
   description: localizedMarkdownSchema,
   websiteUrl: httpsUrlSchema.optional(),
   instagramUrl: instagramProfileUrlSchema.optional(),
+  stravaClubUrl: stravaClubUrlSchema.optional(),
   promotionalVideoUrl: youtubeVideoUrlSchema.optional(),
   attribution: localizedTextSchema.optional(),
   membershipBenefit: z

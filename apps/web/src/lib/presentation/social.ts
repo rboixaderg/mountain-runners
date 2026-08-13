@@ -1,5 +1,6 @@
 export const siteSocialLinkIds = {
   instagram: "instagram",
+  strava: "strava",
 } as const;
 
 export type SiteSocialLinkId =
@@ -7,6 +8,7 @@ export type SiteSocialLinkId =
 
 export const siteSocialLinkMessageKeys = {
   instagram: "footer_social_instagram",
+  strava: "footer_social_strava",
 } as const satisfies Record<SiteSocialLinkId, string>;
 
 export interface SiteSocialLink {
@@ -15,16 +17,31 @@ export interface SiteSocialLink {
   url: string;
 }
 
-export function getSiteSocialLinks(
-  instagramUrl: string | undefined,
-): SiteSocialLink[] {
-  if (instagramUrl === undefined) return [];
+export interface SiteSocialProfiles {
+  instagramUrl?: string;
+  stravaClubUrl?: string;
+}
 
-  return [
-    {
+export function getSiteSocialLinks(
+  profiles: SiteSocialProfiles,
+): SiteSocialLink[] {
+  const links: SiteSocialLink[] = [];
+
+  if (profiles.instagramUrl !== undefined) {
+    links.push({
       id: siteSocialLinkIds.instagram,
       labelMessageKey: siteSocialLinkMessageKeys.instagram,
-      url: instagramUrl,
-    },
-  ];
+      url: profiles.instagramUrl,
+    });
+  }
+
+  if (profiles.stravaClubUrl !== undefined) {
+    links.push({
+      id: siteSocialLinkIds.strava,
+      labelMessageKey: siteSocialLinkMessageKeys.strava,
+      url: profiles.stravaClubUrl,
+    });
+  }
+
+  return links;
 }
