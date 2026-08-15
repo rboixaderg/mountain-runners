@@ -1,0 +1,108 @@
+id: cros-de-queralt
+published: false
+slug:
+  ca: cros-de-queralt
+  es: cros-de-queralt
+  en: cros-de-queralt
+active: true
+title:
+  ca: Cros de Queralt
+  es: Cros de Queralt
+  en: Cros de Queralt
+summary:
+  ca: >-
+    La prova de Berga del Cros Escolar del Berguedà, a l'entorn del Santuari de
+    Queralt, amb la col·laboració de Mountain Runners.
+  es: >-
+    La prueba de Berga del Cros Escolar del Berguedà, en el entorno del Santuario
+    de Queralt, con la colaboración de Mountain Runners.
+  en: >-
+    The Berga round of the Berguedà school cross-country circuit, around the
+    Queralt Sanctuary, with the collaboration of Mountain Runners.
+description:
+  ca: >-
+    El Cros de Queralt és la prova de Berga del Cros Escolar del Berguedà, el
+    circuit de cros dels Jocs Esportius Escolars organitzat pel [Consell Esportiu
+    del Berguedà](https://www.cebergueda.cat/cros/).
+
+
+    La prova es disputa a l'entorn del Santuari de Queralt i està oberta a
+    l'alumnat dels centres educatius, d'Educació Infantil a Cadet, amb distàncies
+    adaptades a cada categoria.
+
+
+    Mountain Runners del Berguedà hi col·labora amb l'Ajuntament de Berga.
+  es: >-
+    El Cros de Queralt es la prueba de Berga del Cros Escolar del Berguedà, el
+    circuito de cross de los Juegos Deportivos Escolares organizado por el
+    [Consell Esportiu del
+    Berguedà](https://www.cebergueda.cat/cros/).
+
+
+    La prueba se disputa en el entorno del Santuario de Queralt y está abierta
+    al alumnado de los centros educativos, de Educación Infantil a Cadete, con
+    distancias adaptadas a cada categoría.
+
+
+    Mountain Runners del Berguedà colabora junto con el Ayuntamiento de Berga.
+  en: >-
+    The Cros de Queralt is the Berga round of the Cros Escolar del Berguedà, the
+    cross-country series of the county school games organised by the [Consell
+    Esportiu del Berguedà](https://www.cebergueda.cat/cros/).
+
+
+    The race takes place around the Queralt Sanctuary and is open to pupils from
+    pre-school to cadet age, with distances adapted to each age group.
+
+
+    Mountain Runners del Berguedà collaborates together with Berga Town
+    Council.
+clubRelationship: collaborates
+cover:
+  resource:
+    kind: local
+    path: src/assets/logo_mountain_runners.png
+  alt:
+    ca: Logotip de Mountain Runners del Berguedà
+    es: Logotipo de Mountain Runners del Berguedà
+    en: Mountain Runners del Berguedà logo
+gallery: []
+videoUrls: []
+informationUrl:
+  ca: https://www.cebergueda.cat/cros/
+  es: https://www.cebergueda.cat/cros/
+  en: https://www.cebergueda.cat/cros/
+organizerIds:
+  - mountain-runners
+collaboratorIds: []
+editions:
+  - id: edition-2025
+    startDate: 2025-12-14
+    location:
+      ca: Santuari de Queralt, Berga
+      es: Santuario de Queralt, Berga
+      en: Queralt Sanctuary, Berga
+    modalities:
+      - ca: Categories d'Educació Infantil a Cadet
+        es: Categorías de Educación Infantil a Cadete
+        en: Categories from pre-school to cadet
+      - ca: Distàncies adaptades a cada categoria
+        es: Distancias adaptadas a cada categoría
+        en: Distances adapted to each category
+    registrationStatus: closed
+    documentIds: []
+  - id: edition-2016
+    startDate: 2016-10-22
+    location:
+      ca: Santuari de Queralt, Berga
+      es: Santuario de Queralt, Berga
+      en: Queralt Sanctuary, Berga
+    modalities:
+      - ca: Categories d'Educació Infantil a Cadet
+        es: Categorías de Educación Infantil a Cadete
+        en: Categories from pre-school to cadet
+      - ca: Distàncies adaptades a cada categoria
+        es: Distancias adaptadas a cada categoría
+        en: Distances adapted to each category
+    registrationStatus: closed
+    documentIds: []

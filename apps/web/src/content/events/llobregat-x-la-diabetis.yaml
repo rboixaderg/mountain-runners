@@ -1,0 +1,113 @@
+id: llobregat-x-la-diabetis
+published: false
+slug:
+  ca: llobregat-x-la-diabetis
+  es: llobregat-x-la-diabetis
+  en: llobregat-x-la-diabetis
+active: true
+title:
+  ca: Llobregat x la Diabetis
+  es: Llobregat x la Diabetis
+  en: Llobregat x la Diabetis
+summary:
+  ca: >-
+    Repte solidari de 180 km pel riu Llobregat, de Castellar de n'Hug al Prat,
+    a favor de la recerca en diabetis tipus 1.
+  es: >-
+    Reto solidario de 180 km por el río Llobregat, de Castellar de n'Hug al
+    Prat, a favor de la investigación en diabetes tipo 1.
+  en: >-
+    A 180 km charity challenge along the Llobregat river, from Castellar de
+    n'Hug to El Prat, supporting type 1 diabetes research.
+description:
+  ca: >-
+    Llobregat x la Diabetis és un repte solidari de 180 km que ressegueix el riu
+    Llobregat pels 28 municipis riberencs, des del naixement a Castellar de
+    n'Hug, al Berguedà, fins a la desembocadura al Prat de Llobregat.
+
+
+    Durant tres dies, els participants cobreixen tres etapes i hi poden prendre
+    part corrent, caminant o en bicicleta, fent el recorregut sencer o només un
+    tram. La primera etapa passa per Berga.
+
+
+    L'objectiu és donar visibilitat a la diabetis tipus 1 i recaptar fons per a
+    AREDI, l'associació que finança la recerca en diabetis: el 100% de les
+    donacions es destinen a la recerca.
+
+
+    Mountain Runners del Berguedà hi col·labora.
+  es: >-
+    Llobregat x la Diabetis es un reto solidario de 180 km que sigue el río
+    Llobregat por los 28 municipios ribereños, desde su nacimiento en Castellar
+    de n'Hug, en el Berguedà, hasta la desembocadura en El Prat de Llobregat.
+
+
+    Durante tres días, los participantes cubren tres etapas y pueden participar
+    corriendo, caminando o en bicicleta, completando el recorrido entero o solo
+    un tramo. La primera etapa pasa por Berga.
+
+
+    El objetivo es dar visibilidad a la diabetes tipo 1 y recaudar fondos para
+    AREDI, la asociación que financia la investigación en diabetes: el 100% de
+    las donaciones se destinan a la investigación.
+
+
+    Mountain Runners del Berguedà colabora.
+  en: >-
+    Llobregat x la Diabetis is a 180 km charity challenge following the
+    Llobregat river through the 28 riverside towns, from its source in Castellar
+    de n'Hug, in Berguedà, to its mouth in El Prat de Llobregat.
+
+
+    Over three days, participants cover three stages and can take part running,
+    walking or cycling, completing the full route or just a stretch. The first
+    stage passes through Berga.
+
+
+    The goal is to raise awareness of type 1 diabetes and funds for AREDI, the
+    association that finances diabetes research: 100% of donations go to
+    research.
+
+
+    Mountain Runners del Berguedà collaborates with the event.
+clubRelationship: collaborates
+cover:
+  resource:
+    kind: local
+    path: src/assets/events/llobregat-x-la-diabetis-cover.png
+  alt:
+    ca: Logotip de Llobregat x la Diabetis
+    es: Logotipo de Llobregat x la Diabetis
+    en: Llobregat x la Diabetis logo
+  sourceUrl: https://llobregat.org/img/logo-small.png
+gallery: []
+videoUrls: []
+informationUrl:
+  ca: https://llobregat.org/
+  es: https://llobregat.org/
+  en: https://llobregat.org/
+registrationUrl:
+  ca: https://llobregat.org/inscripcio
+  es: https://llobregat.org/inscripcio
+  en: https://llobregat.org/inscripcio
+organizerIds:
+  - mountain-runners
+collaboratorIds: []
+editions:
+  - id: edition-2026
+    startDate: 2026-10-16
+    endDate: 2026-10-18
+    location:
+      ca: Castellar de n'Hug — El Prat de Llobregat
+      es: Castellar de n'Hug — El Prat de Llobregat
+      en: Castellar de n'Hug — El Prat de Llobregat
+    modalities:
+      - ca: Repte de 180 km pel riu Llobregat en 3 etapes
+        es: Reto de 180 km por el río Llobregat en 3 etapas
+        en: 180 km challenge along the Llobregat river in 3 stages
+      - ca: Corrent, caminant o en bicicleta
+        es: Corriendo, caminando o en bicicleta
+        en: Running, walking or cycling
+    registrationStatus: coming-soon
+    documentIds: []

@@ -1,0 +1,23 @@
+id: basquet-berga
+published: false
+name:
+  ca: Associació Esportiva Bàsquet Berga
+  es: Associació Esportiva Bàsquet Berga
+  en: Associació Esportiva Bàsquet Berga
+logo:
+  resource:
+    kind: external
+    url: https://www.basquetberga.cat/wp-content/uploads/2025/02/logo-basquet-berga.png
+  alt:
+    ca: Logotip de l'Associació Esportiva Bàsquet Berga
+    es: Logotipo de la Associació Esportiva Bàsquet Berga
+    en: Associació Esportiva Bàsquet Berga logo
+description:
+  ca: Club de bàsquet de Berga. Coorganitza la Quina Berguedana.
+  es: Club de baloncesto de Berga. Coorganiza la Quina Berguedana.
+  en: Berga basketball club. It co-organises the Quina Berguedana.
+links:
+  - kind: website
+    url: https://www.basquetberga.cat/
+  - kind: instagram
+    url: https://www.instagram.com/basquetberga/
