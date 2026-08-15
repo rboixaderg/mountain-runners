@@ -1,0 +1,25 @@
+apps/web/messages/ca.json
+  s_698ba8cbd1c1fe::t_a93649625017bf 44-46
+apps/web/messages/en.json
+  s_698ba8cbd1c1fe::t_2f21f51e9ce68b 44-46
+apps/web/messages/es.json
+  s_698ba8cbd1c1fe::t_9c5addb954e457 44-46
+apps/web/src/styles/event-detail.css
+  s_698ba8cbd1c1fe::t_3e222626c1e9b4 441-463
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "f5c28c66cebadedc7c50bcc89e174ee1a06ff633",
+  "prompts": {},
+  "sessions": {
+    "s_698ba8cbd1c1fe": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_ffa2dd8d6ffeEKKkZNlkri6qkd",
+        "model": "deepseek-v4-flash"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
