@@ -1,0 +1,19 @@
+apps/web/src/content/events/quina-berguedana.yaml
+  s_698ba8cbd1c1fe::t_e48001fcd196ec 66-68
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "773f6fcc14abe19ff06e76d523fcb01c9ff771e6",
+  "prompts": {},
+  "sessions": {
+    "s_698ba8cbd1c1fe": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_ffa2dd8d6ffeEKKkZNlkri6qkd",
+        "model": "deepseek-v4-flash"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
