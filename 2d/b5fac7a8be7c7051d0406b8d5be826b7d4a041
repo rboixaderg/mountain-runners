@@ -1,0 +1,33 @@
+apps/web/src/components/events/EventEntities.astro
+  s_abf2112d0e1d9f::t_3eee7dc09821b7 5,27-28,30-31,33-34
+apps/web/src/components/members/MembersDirectory.astro
+  s_abf2112d0e1d9f::t_e3f5db69166871 8,24,47,68,71
+apps/web/src/content/entities/cimetir.yaml
+  s_abf2112d0e1d9f::t_ff872fe6142439 20-22
+apps/web/src/content/entities/club-atletic-berga.yaml
+  s_abf2112d0e1d9f::t_f9b4c0d0d1113f 20-22
+apps/web/src/content/entities/club-esqui-bergueda.yaml
+  s_abf2112d0e1d9f::t_74ac303a72574d 20-22
+apps/web/src/content/entities/four-riders-bike-park.yaml
+  s_abf2112d0e1d9f::t_15f4b8eabd29a7 20-22
+apps/web/src/content/entities/pedratour.yaml
+  s_abf2112d0e1d9f::t_fb454b7c686342 20-22
+apps/web/src/content/entities/snowlockers.yaml
+  s_abf2112d0e1d9f::t_9b67a784d3dbc1 20-22
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "2db5fac7a8be7c7051d0406b8d5be826b7d4a041",
+  "prompts": {},
+  "sessions": {
+    "s_abf2112d0e1d9f": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_ffc0ca839ffeFzhDQEzMW4INgG",
+        "model": "deepseek-v4-pro"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
