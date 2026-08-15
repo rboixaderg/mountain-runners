@@ -1,0 +1,25 @@
+apps/web/src/components/PreFooter.astro
+  s_3c64543fbe4c95::t_a8aa20dfabe8db 9-10,55-58,70,76-79,91
+apps/web/src/lib/content/urls.ts
+  s_3c64543fbe4c95::t_ae2e6999066428 139,152,154,157,162,164
+apps/web/src/test/content-primitives.test.ts
+  s_3c64543fbe4c95::t_dab8907b385887 12,15,119-121,126,129,131-136,140-142,144-146
+apps/web/src/test/content-publication.test.ts
+  s_3c64543fbe4c95::t_be8a9a00f88916 411-412
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "59ae42b7e7b1141b5b267e1fffaefe501290716f",
+  "prompts": {},
+  "sessions": {
+    "s_3c64543fbe4c95": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_ff9b63204ffegxh39k2Bj41O96",
+        "model": "deepseek-v4-flash"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
