@@ -1,0 +1,14 @@
+apps/web/src/content/external-actions/federation.yaml
+  h_1727aeeb492b30 5-7
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "4f07c56420803ccf0c4e584f2d759f2df68dc20e",
+  "prompts": {},
+  "humans": {
+    "h_1727aeeb492b30": {
+      "author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
