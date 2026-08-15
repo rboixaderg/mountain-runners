@@ -2,17 +2,27 @@ id: clinica-jessica-genesca
 published: true
 name:
   ca: Clínica Jessica Genescà
+  es: Clínica Jessica Genescà
+  en: Clínica Jessica Genescà
 logo:
   resource:
     kind: local
     path: src/assets/collaborators/clinica-jessica-genesca.png
   alt:
     ca: Logotip de la Clínica Jessica Genescà
+    es: Logotipo de la Clínica Jessica Genescà
+    en: Clínica Jessica Genescà logo
   sourceUrl: https://mountainrunners.cat/wp-content/uploads/2021/07/Captura-de-Pantalla-2021-07-29-a-les-20.24.12.png
 description:
   ca: Establiment col·laborador de Mountain Runners del Berguedà.
+  es: Establecimiento colaborador de Mountain Runners del Berguedà.
+  en: Mountain Runners del Berguedà partner business.
 membershipBenefit:
   title:
     ca: Podologia
+    es: Podología
+    en: Podiatry
   description:
     ca: 15% de descompte en podologia.
+    es: 15% de descuento en podología.
+    en: 15% off podiatry services.

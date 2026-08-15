@@ -1,0 +1,40 @@
+---
+import { buildYoutubeEmbedUrl } from "../lib/presentation/youtube";
+
+interface Props {
+  className?: string;
+  title: string;
+  videoId: string;
+}
+
+const { className, title, videoId } = Astro.props;
+const embedUrl = buildYoutubeEmbedUrl(videoId);
+---
+
+<div class:list={["youtube-embed", className]}>
+  <iframe
+    class="youtube-embed__frame"
+    src={embedUrl}
+    title={title}
+    loading="lazy"
+    referrerpolicy="strict-origin-when-cross-origin"
+    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+    allowfullscreen></iframe>
+</div>
+
+<style>
+  .youtube-embed {
+    position: relative;
+    overflow: hidden;
+    border: 0.125rem solid var(--color-ink);
+    background: var(--color-ink);
+    aspect-ratio: 16 / 9;
+  }
+
+  .youtube-embed__frame {
+    display: block;
+    width: 100%;
+    height: 100%;
+    border: 0;
+  }
+</style>

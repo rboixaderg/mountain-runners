@@ -193,4 +193,36 @@ describe("editorial collection schemas", () => {
       }).success,
     ).toBe(false);
   });
+
+  it("validates institutional social and promotional media URLs", async () => {
+    const entity = await parseFixture(
+      fixturePaths.entities,
+      collectionSchemas.entities,
+    );
+
+    expect(entity.instagramUrl).toBe("https://www.instagram.com/infomountain/");
+    expect(entity.stravaClubUrl).toBe("https://www.strava.com/clubs/156769");
+    expect(entity.promotionalVideoUrl).toBe(
+      "https://www.youtube.com/watch?v=EUV5uETCjeo",
+    );
+    expect(
+      collectionSchemas.entities.safeParse({
+        ...entity,
+        instagramUrl: "https://example.com/infomountain/",
+      }).success,
+    ).toBe(false);
+    expect(
+      collectionSchemas.entities.safeParse({
+        ...entity,
+        stravaClubUrl: "https://example.com/clubs/156769",
+      }).success,
+    ).toBe(false);
+    expect(
+      collectionSchemas.entities.safeParse({
+        ...entity,
+        promotionalVideoUrl:
+          "https://example.com/youtube.com/watch?v=EUV5uETCjeo",
+      }).success,
+    ).toBe(false);
+  });
 });

@@ -1,0 +1,183 @@
+---
+import * as messages from "../paraglide/messages.js";
+import { newsletterActionId } from "../lib/content/models";
+import type { Locale } from "../lib/content/primitives";
+import type { PublicationCatalog } from "../lib/content/publication";
+import { getNewsletterPresentation } from "../lib/presentation/newsletter";
+import {
+  externalLinkAttributes,
+  getMailtoAddress,
+} from "../lib/presentation/urls";
+import "../styles/prefooter.css";
+
+interface Props {
+  catalog: PublicationCatalog;
+  locale: Locale;
+}
+
+const { catalog, locale } = Astro.props;
+const contact = catalog.contact;
+const newsletterPresentation = getNewsletterPresentation(
+  catalog.externalActions.get(newsletterActionId),
+  locale,
+);
+const emailInputId = "site-prefooter-newsletter-email";
+const newsletterStatusMessage =
+  newsletterPresentation === undefined
+    ? messages.newsletter_unavailable({}, { locale })
+    : newsletterPresentation.kind === "text"
+      ? messages[newsletterPresentation.messageKey]({}, { locale })
+      : null;
+const newsletterStatusId =
+  newsletterStatusMessage === null
+    ? undefined
+    : "site-prefooter-newsletter-status";
+const officeHours = contact?.hours[locale]?.trim() ?? "";
+const officeAddress = contact?.address[locale]?.trim() ?? "";
+const showOfficeDetails = officeHours.length > 0;
+---
+
+<section class="site-prefooter" aria-labelledby="site-prefooter-title">
+  <div class="page-frame site-prefooter__grid">
+    <div class="site-prefooter__questions">
+      <h2 id="site-prefooter-title">
+        {messages.prefooter_questions_title({}, { locale })}
+      </h2>
+      <p class="site-prefooter__questions-description">
+        {messages.prefooter_questions_description({}, { locale })}
+      </p>
+      {
+        contact && (
+          <ul class="site-prefooter__contact-list">
+            {contact.email && (
+              <li>
+                <a class="site-prefooter__contact-item" href={contact.email}>
+                  <svg
+                    class="site-prefooter__contact-icon"
+                    viewBox="0 0 24 24"
+                    aria-hidden="true"
+                    focusable="false"
+                  >
+                    <path
+                      fill="currentColor"
+                      d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4-8 5-8-5V6l8 5 8-5v2z"
+                    />
+                  </svg>
+                  <span>{getMailtoAddress(contact.email)}</span>
+                </a>
+              </li>
+            )}
+            {contact.phones?.map((phone) => (
+              <li>
+                <a class="site-prefooter__contact-item" href={phone}>
+                  <svg
+                    class="site-prefooter__contact-icon"
+                    viewBox="0 0 24 24"
+                    aria-hidden="true"
+                    focusable="false"
+                  >
+                    <path
+                      fill="currentColor"
+                      d="M6.62 10.79a15.05 15.05 0 0 0 6.59 6.59l2.2-2.2a1 1 0 0 1 1.01-.24c1.12.37 2.33.57 3.58.57a1 1 0 0 1 1 1V20a1 1 0 0 1-1 1A17 17 0 0 1 3 4a1 1 0 0 1 1-1h3.5a1 1 0 0 1 1 1c0 1.25.2 2.46.57 3.58a1 1 0 0 1-.25 1.01l-2.2 2.2z"
+                    />
+                  </svg>
+                  <span>{phone.replace(/^tel:/u, "")}</span>
+                </a>
+              </li>
+            ))}
+            {showOfficeDetails && officeAddress.length > 0 && (
+              <li>
+                <p class="site-prefooter__contact-item site-prefooter__contact-item--static">
+                  <svg
+                    class="site-prefooter__contact-icon"
+                    viewBox="0 0 24 24"
+                    aria-hidden="true"
+                    focusable="false"
+                  >
+                    <path
+                      fill="currentColor"
+                      d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5S10.62 6.5 12 6.5s2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"
+                    />
+                  </svg>
+                  <span>{officeAddress}</span>
+                </p>
+              </li>
+            )}
+            {showOfficeDetails && (
+              <li>
+                <p class="site-prefooter__contact-item site-prefooter__contact-item--static">
+                  <svg
+                    class="site-prefooter__contact-icon"
+                    viewBox="0 0 24 24"
+                    aria-hidden="true"
+                    focusable="false"
+                  >
+                    <path
+                      fill="currentColor"
+                      d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67V7z"
+                    />
+                  </svg>
+                  <span>{officeHours}</span>
+                </p>
+              </li>
+            )}
+          </ul>
+        )
+      }
+    </div>
+
+    <div class="site-prefooter__newsletter">
+      <h3 class="site-prefooter__newsletter-title">
+        {messages.prefooter_newsletter_title({}, { locale })}
+      </h3>
+      <p class="site-prefooter__newsletter-description">
+        {messages.prefooter_newsletter_description({}, { locale })}
+      </p>
+      <div class="site-prefooter__newsletter-form">
+        <label class="site-prefooter__sr-only" for={emailInputId}>
+          {messages.prefooter_newsletter_email_label({}, { locale })}
+        </label>
+        <input
+          id={emailInputId}
+          class="site-prefooter__newsletter-input"
+          type="email"
+          autocomplete="email"
+          placeholder={messages.prefooter_newsletter_email_placeholder(
+            {},
+            { locale },
+          )}
+          disabled
+          {...newsletterStatusId === undefined
+            ? {}
+            : { "aria-describedby": newsletterStatusId }}
+        />
+        {
+          newsletterPresentation?.kind === "link" ? (
+            <a
+              class="site-prefooter__newsletter-submit"
+              href={newsletterPresentation.url}
+              {...externalLinkAttributes}
+            >
+              {messages.prefooter_newsletter_submit({}, { locale })}
+            </a>
+          ) : (
+            <button
+              class="site-prefooter__newsletter-submit"
+              type="button"
+              disabled
+            >
+              {messages.prefooter_newsletter_submit({}, { locale })}
+            </button>
+          )
+        }
+      </div>
+      {
+        newsletterStatusMessage !== null && (
+          <p class="site-prefooter__newsletter-status" id={newsletterStatusId}>
+            {newsletterStatusMessage}
+          </p>
+        )
+      }
+    </div>
+  </div>
+</section>

@@ -2,7 +2,9 @@
 import * as messages from "../../paraglide/messages.js";
 import type { School } from "../../lib/content/models";
 import type { Locale } from "../../lib/content/primitives";
+import { extractYoutubeVideoId } from "../../lib/presentation/youtube";
 import ExternalLink from "../ExternalLink.astro";
+import YoutubeEmbed from "../YoutubeEmbed.astro";
 
 interface Props {
   locale: Locale;
@@ -11,29 +13,39 @@ interface Props {
 
 const { locale, school } = Astro.props;
 const videoUrl = school.promotionalVideoUrl;
+const videoId =
+  videoUrl === undefined ? undefined : extractYoutubeVideoId(videoUrl);
 ---
 
-<section
-  class="schools-detail__section schools-detail__video"
-  aria-labelledby="school-video-title"
->
-  <div class="schools-detail__section-heading">
-    <span class="schools-detail__section-marker" aria-hidden="true"></span>
-    <h2 id="school-video-title">
-      {messages.school_video_title({}, { locale })}
-    </h2>
-  </div>
-  {
-    videoUrl ? (
-      <ExternalLink
-        className="schools-detail__external-link"
-        href={videoUrl}
-        label={messages.school_video_action({}, { locale })}
-      />
-    ) : (
-      <p class="schools-detail__availability">
-        {messages.school_video_unavailable({}, { locale })}
-      </p>
-    )
-  }
-</section>
+{
+  videoId !== undefined && (
+    <section
+      class="schools-detail-preview__video"
+      aria-labelledby="school-video-title"
+    >
+      <div class="page-frame">
+        <div class="schools-detail-preview__video-heading">
+          <span
+            class="schools-detail-preview__video-marker"
+            aria-hidden="true"
+          />
+          <h2 id="school-video-title">
+            {messages.school_video_title({}, { locale })}
+          </h2>
+        </div>
+        <YoutubeEmbed
+          className="schools-detail-preview__video-embed"
+          title={messages.school_video_title({}, { locale })}
+          videoId={videoId}
+        />
+        {videoUrl && (
+          <ExternalLink
+            className="schools-detail-preview__video-link"
+            href={videoUrl}
+            label={messages.school_video_action({}, { locale })}
+          />
+        )}
+      </div>
+    </section>
+  )
+}

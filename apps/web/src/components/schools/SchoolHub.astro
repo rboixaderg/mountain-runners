@@ -1,9 +1,14 @@
 ---
+import schoolsHubHero from "../../assets/schools/schools-hub-hero.jpg";
+import schoolsHubHeroMobile from "../../assets/schools/schools-hub-hero-mobile.jpg";
 import * as messages from "../../paraglide/messages.js";
+import { getLocalImageSize, getResourceHref } from "../../lib/content/images";
 import type { Locale } from "../../lib/content/primitives";
 import type { PublishedVariant } from "../../lib/content/publication";
 import { getVariantPath } from "../../lib/content/routes";
 import { getRegistrationPresentation } from "../../lib/presentation/status";
+import PageIntro from "../PageIntro.astro";
+import "../../styles/schools-hub.css";
 
 interface Props {
   locale: Locale;
@@ -11,25 +16,78 @@ interface Props {
 }
 
 const { locale, variants } = Astro.props;
+const schoolsWithCovers = await Promise.all(
+  variants.map(async (variant) => {
+    const resource = variant.entry.coverCard ?? variant.entry.cover.resource;
+    return {
+      coverHref: getResourceHref(resource),
+      coverSize:
+        resource.kind === "local"
+          ? await getLocalImageSize(resource.path)
+          : undefined,
+      variant,
+    };
+  }),
+);
+const valueItems = [
+  {
+    descriptionKey: "schools_values_mountain_description" as const,
+    titleKey: "schools_values_mountain_title" as const,
+  },
+  {
+    descriptionKey: "schools_values_respect_description" as const,
+    titleKey: "schools_values_respect_title" as const,
+  },
+  {
+    descriptionKey: "schools_values_club_description" as const,
+    titleKey: "schools_values_club_title" as const,
+  },
+];
 ---
 
-<section class="page-frame schools-hub-intro">
-  <p class="schools-hub-intro__kicker">
-    {messages.site_title({}, { locale })}
-  </p>
-  <h1
-    class="my-3 mb-6 max-w-[15ch] font-[family-name:var(--font-display)] text-[clamp(2.8rem,9vw,5.5rem)] leading-[0.95] tracking-[0.015em] uppercase"
-  >
-    {messages.navigation_schools({}, { locale })}
-  </h1>
-  <p class="schools-hub-intro__description">
-    {messages.schools_intro({}, { locale })}
+<PageIntro
+  description={messages.schools_intro({}, { locale })}
+  heroImage={schoolsHubHeroMobile}
+  heroImageLarge={schoolsHubHero}
+  kicker={messages.site_title({}, { locale })}
+  title={messages.navigation_schools({}, { locale })}
+/>
+
+<section class="page-frame schools-hub-values">
+  <ul class="schools-hub-values__list">
+    {
+      valueItems.map(({ descriptionKey, titleKey }) => (
+        <li class="schools-hub-values__item">
+          <p class="schools-hub-values__title">
+            {messages[titleKey]({}, { locale })}
+          </p>
+          <p class="schools-hub-values__description">
+            {messages[descriptionKey]({}, { locale })}
+          </p>
+        </li>
+      ))
+    }
+  </ul>
+</section>
+
+<section
+  class="page-frame schools-hub-programs"
+  aria-labelledby="schools-programs-title"
+>
+  <div class="schools-hub-programs__heading">
+    <span class="schools-hub-programs__marker" aria-hidden="true"></span>
+    <h2 class="schools-hub-programs__title" id="schools-programs-title">
+      {messages.schools_programs_title({}, { locale })}
+    </h2>
+  </div>
+  <p class="schools-hub-programs__intro">
+    {messages.schools_programs_intro({}, { locale })}
   </p>
 </section>
 
 <ul class="schools-hub-list">
   {
-    variants.map((variant) => {
+    schoolsWithCovers.map(({ coverHref, coverSize, variant }) => {
       const school = variant.entry;
       const registrationStatusKey = getRegistrationPresentation(
         school.registrationStatus,
@@ -38,6 +96,15 @@ const { locale, variants } = Astro.props;
       return (
         <li class="schools-hub-item">
           <a class="schools-hub-item__link" href={getVariantPath(variant)}>
+            <img
+              class="schools-hub-item__image"
+              src={coverHref}
+              width={coverSize?.width}
+              height={coverSize?.height}
+              alt=""
+              loading="lazy"
+              decoding="async"
+            />
             <span class="schools-hub-item__body">
               <span class="schools-hub-item__status">
                 {messages[registrationStatusKey]({}, { locale })}

@@ -78,6 +78,64 @@ export const httpsUrlSchema = z.string().transform((value, context) => {
   return normalizedUrl;
 });
 
+export const instagramProfileUrlSchema = httpsUrlSchema.refine(
+  (value) => {
+    const url = new URL(value);
+    const pathSegments = url.pathname.split("/").filter(Boolean);
+    return (
+      ["instagram.com", "www.instagram.com"].includes(url.hostname) &&
+      pathSegments.length === 1 &&
+      /^[a-z0-9._]+$/iu.test(pathSegments[0]!) &&
+      url.search.length === 0 &&
+      url.hash.length === 0
+    );
+  },
+  { error: "Expected an Instagram profile URL" },
+);
+
+export const stravaClubUrlSchema = httpsUrlSchema.refine(
+  (value) => {
+    const url = new URL(value);
+    const pathSegments = url.pathname.split("/").filter(Boolean);
+    return (
+      ["strava.com", "www.strava.com"].includes(url.hostname) &&
+      pathSegments.length === 2 &&
+      pathSegments[0] === "clubs" &&
+      /^\d+$/u.test(pathSegments[1]!) &&
+      url.search.length === 0 &&
+      url.hash.length === 0
+    );
+  },
+  { error: "Expected a Strava club URL" },
+);
+
+export const youtubeVideoUrlSchema = httpsUrlSchema.refine(
+  (value) => {
+    const url = new URL(value);
+    const videoIdPattern = /^[A-Za-z0-9_-]{11}$/u;
+
+    if (["youtube.com", "www.youtube.com"].includes(url.hostname)) {
+      return (
+        url.pathname === "/watch" &&
+        videoIdPattern.test(url.searchParams.get("v") ?? "") &&
+        [...url.searchParams.keys()].every((key) => key === "v") &&
+        url.hash.length === 0
+      );
+    }
+
+    if (url.hostname === "youtu.be") {
+      return (
+        videoIdPattern.test(url.pathname.replace(/^\//u, "")) &&
+        url.search.length === 0 &&
+        url.hash.length === 0
+      );
+    }
+
+    return false;
+  },
+  { error: "Expected a supported YouTube video URL" },
+);
+
 export const mailtoUrlSchema = z.string().refine(
   (value) => {
     const decoded = decodeObfuscatedUrl(value);

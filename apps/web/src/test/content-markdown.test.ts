@@ -12,7 +12,7 @@ describe("restricted Markdown", () => {
         "Text with **strength**, *emphasis* and [a link](https://example.com).\n\n- One\n- Two",
       ),
     ).toBe(
-      '<p>Text with <strong>strength</strong>, <em>emphasis</em> and <a href="https://example.com/">a link</a>.</p>\n<ul><li><p>One</p></li><li><p>Two</p></li></ul>',
+      '<p>Text with <strong>strength</strong>, <em>emphasis</em> and <a href="https://example.com/" target="_blank" rel="noopener noreferrer">a link</a>.</p>\n<ul><li><p>One</p></li><li><p>Two</p></li></ul>',
     );
   });
 
@@ -22,7 +22,7 @@ describe("restricted Markdown", () => {
         '[A & B](https://example.com "A &quot;title&quot;")',
       ),
     ).toBe(
-      '<p><a href="https://example.com/" title="A &quot;title&quot;">A &amp; B</a></p>',
+      '<p><a href="https://example.com/" target="_blank" rel="noopener noreferrer" title="A &quot;title&quot;">A &amp; B</a></p>',
     );
   });
 

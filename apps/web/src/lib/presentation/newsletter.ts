@@ -5,7 +5,7 @@ import {
   type ExternalActionStatusMessageKey,
 } from "./status";
 
-// Canonical message keys of the newsletter section of the Contact page. The
+// Canonical message keys of the newsletter section of the prefooter. The
 // subscribe label and the section unavailable message belong to the section
 // itself, so they are not part of the shared external-action status keys.
 export const newsletterSubscribeMessageKey = "contact_newsletter_subscribe";
@@ -24,8 +24,10 @@ export type NewsletterPresentation =
     };
 
 // The newsletter section renders the external `newsletter` action as a link
-// when it is available, and as explanatory text for every other state; it
-// never simulates a subscription form or control.
+// when it is available, and as explanatory text for every other state. The
+// prefooter additionally renders the approved disabled preview (input and
+// button, no data collection or submission) when the action is not available;
+// it never renders a working subscription form.
 export function getNewsletterPresentation(
   action: ExternalAction | undefined,
   locale: Locale,

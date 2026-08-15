@@ -73,3 +73,16 @@ no amplia silenciosament una tasca activa.
 Les especificacions existents es mantenen com a registre de les decisions ja
 preses. S'adapten a aquesta convenció quan es revisin substancialment; les noves
 especificacions l'han de seguir des de la seva primera versió.
+
+Quan una fase ja s'ha implementat, l'especificació conserva els requisits
+històrics i afegeix el resultat real sense reescriure el pla com si sempre hagués
+estat diferent. El registre de tancament ha d'indicar:
+
+- l'estat final i les PR o commits efectivament fusionats;
+- les tasques consolidades en una mateixa entrega;
+- els requisits substituïts posteriorment i la fase que els va canviar;
+- les desviacions d'abast acceptades i els criteris que encara impedeixen
+  declarar la fase completada.
+
+El codi i les proves descriuen el comportament implementat; l'especificació
+continua governant si aquest comportament satisfà o no l'acceptació acordada.

@@ -1,9 +1,11 @@
 ---
 import SiteFooter from "../components/SiteFooter.astro";
 import SiteHeader from "../components/SiteHeader.astro";
-import logoFavicon from "../assets/logo_mountain_runners.png";
+import PreFooter from "../components/PreFooter.astro";
+import logoFavicon from "../assets/favicon-32.png";
 import oswaldFont from "../assets/fonts/oswald-latin.woff2";
 import { getPublicationCatalog } from "../lib/content/repository";
+import { institutionalEntityId } from "../lib/content/members";
 import type { Locale } from "../lib/content/primitives";
 import { renderJsonLdScript, type StructuredData } from "../lib/content/seo";
 import * as messages from "../paraglide/messages.js";
@@ -32,6 +34,7 @@ const {
 } = Astro.props;
 
 const catalog = await getPublicationCatalog();
+const institutionalEntity = catalog.entities.get(institutionalEntityId);
 ---
 
 <!doctype html>
@@ -74,8 +77,17 @@ const catalog = await getPublicationCatalog();
     <a class="skip-link" href="#main-content"
       >{messages.skip_to_content({}, { locale })}</a
     >
-    <SiteHeader localizedAlternatives={localizedAlternatives} locale={locale} />
+    <SiteHeader
+      catalog={catalog}
+      localizedAlternatives={localizedAlternatives}
+      locale={locale}
+    />
     <main id="main-content"><slot /></main>
-    <SiteFooter catalog={catalog} locale={locale} />
+    <PreFooter catalog={catalog} locale={locale} />
+    <SiteFooter
+      instagramUrl={institutionalEntity?.instagramUrl}
+      locale={locale}
+      stravaClubUrl={institutionalEntity?.stravaClubUrl}
+    />
   </body>
 </html>

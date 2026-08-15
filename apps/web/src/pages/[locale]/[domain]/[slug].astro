@@ -66,9 +66,7 @@ const structuredData =
 <PublicLayout
   localizedAlternatives={localizedAlternatives}
   canonical={canonicalUrl.toString()}
-  description={variant.kind === "event"
-    ? variant.entry.description[locale]!
-    : variant.entry.summary[locale]!}
+  description={variant.entry.summary[locale]!}
   locale={locale}
   structuredData={structuredData}
   title={`${variant.kind === "event" ? variant.entry.title[locale] : variant.entry.name[locale]} | ${messages.site_title({}, { locale })}`}

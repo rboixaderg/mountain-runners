@@ -2,17 +2,27 @@ id: farmacia-cosp
 published: true
 name:
   ca: Farmàcia Cosp
+  es: Farmacia Cosp
+  en: Farmàcia Cosp
 logo:
   resource:
     kind: local
     path: src/assets/collaborators/farmacia-cosp.png
   alt:
     ca: Logotip de la Farmàcia Cosp
+    es: Logotipo de la Farmacia Cosp
+    en: Farmàcia Cosp logo
   sourceUrl: https://mountainrunners.cat/wp-content/uploads/2021/07/cropped-Captura-de-pantalla-2020-07-01-a-las-21.47.59.png
 description:
   ca: Farmàcia Maria Cosp Boixader.
+  es: Farmacia Maria Cosp Boixader.
+  en: Farmàcia Maria Cosp Boixader.
 membershipBenefit:
   title:
     ca: Articles de farmàcia
+    es: Artículos de farmacia
+    en: Pharmacy products
   description:
     ca: 6% de descompte en la compra de qualsevol article de la farmàcia.
+    es: 6% de descuento en la compra de cualquier artículo de la farmacia.
+    en: 6% off any pharmacy product.

@@ -1,0 +1,103 @@
+---
+import * as messages from "../../paraglide/messages.js";
+import type { Locale } from "../../lib/content/primitives";
+import {
+  hasPreviewPriceContent,
+  formatPriceAmount,
+  parsePreviewPriceSection,
+  parseSchoolPracticalSection,
+} from "../../lib/presentation/schools";
+import SchoolPracticalIcon from "./SchoolPracticalIcon.astro";
+
+interface Props {
+  locale: Locale;
+  pricesMarkdown: string;
+}
+
+const { locale, pricesMarkdown } = Astro.props;
+const parsedSection = parseSchoolPracticalSection(pricesMarkdown);
+const priceSection = parsePreviewPriceSection(parsedSection.body);
+const priceTiers = [...priceSection.listedFees, ...priceSection.monthlyTiers];
+
+if (!hasPreviewPriceContent(pricesMarkdown)) {
+  return null;
+}
+---
+
+<article class="schools-detail-preview__prices">
+  <div class="schools-detail-preview__prices-header">
+    <div class="schools-detail-preview__practical-icon" aria-hidden="true">
+      <SchoolPracticalIcon sectionKey="prices" />
+    </div>
+    <div class="schools-detail-preview__prices-heading">
+      <h3 class="schools-detail-preview__practical-card-title">
+        {messages.school_prices_label({}, { locale })}
+      </h3>
+      {
+        parsedSection.lead && (
+          <p class="schools-detail-preview__prices-intro">
+            {parsedSection.lead}
+          </p>
+        )
+      }
+    </div>
+  </div>
+
+  <div class="schools-detail-preview__prices-body">
+    {
+      priceTiers.length > 0 && (
+        <ul class="schools-detail-preview__price-tiers">
+          {priceTiers.map((priceTier) => {
+            const formattedAmount = formatPriceAmount(priceTier.amount);
+
+            return (
+              <li class="schools-detail-preview__price-tier">
+                <span class="schools-detail-preview__price-tier-label">
+                  {priceTier.label}
+                </span>
+                <span class="schools-detail-preview__price-tier-value">
+                  {formattedAmount.value}
+                </span>
+                {formattedAmount.unit.length > 0 && (
+                  <span class="schools-detail-preview__price-tier-unit">
+                    {formattedAmount.unit}
+                  </span>
+                )}
+              </li>
+            );
+          })}
+        </ul>
+      )
+    }
+
+    {
+      priceSection.registrationFees.length > 0 && (
+        <div class="schools-detail-preview__price-registration">
+          <h4 class="schools-detail-preview__price-registration-title">
+            {messages.school_prices_registration_label({}, { locale })}
+          </h4>
+          <ul class="schools-detail-preview__price-registration-list">
+            {priceSection.registrationFees.map((registrationFee) => (
+              <li class="schools-detail-preview__price-registration-item">
+                <span class="schools-detail-preview__price-registration-label">
+                  {registrationFee.label}
+                </span>
+                <span class="schools-detail-preview__price-registration-amount">
+                  {registrationFee.amount}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )
+    }
+
+    {
+      priceSection.footnote && (
+        <p class="schools-detail-preview__prices-footnote">
+          {priceSection.footnote}
+        </p>
+      )
+    }
+  </div>
+</article>

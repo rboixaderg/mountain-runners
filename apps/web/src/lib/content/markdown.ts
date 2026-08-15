@@ -157,7 +157,7 @@ function renderPhrasingContent(node: PhrasingContent): string {
 
 function renderLink(node: Link): string {
   const title = node.title ? ` title="${escapeHtml(node.title)}"` : "";
-  return `<a href="${escapeHtml(node.url)}"${title}>${node.children.map(renderPhrasingContent).join("")}</a>`;
+  return `<a href="${escapeHtml(node.url)}" target="_blank" rel="noopener noreferrer"${title}>${node.children.map(renderPhrasingContent).join("")}</a>`;
 }
 
 function renderListItem(node: ListItem): string {

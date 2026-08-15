@@ -3,32 +3,262 @@ published: true
 hubOrder: 2
 slug:
   ca: escola-skimo
+  es: escuela-esqui-montana
+  en: ski-mountaineering-school
 name:
   ca: Escola Skimo
+  es: Escuela de Esquí de Montaña
+  en: Ski Mountaineering School
 summary:
   ca: Formació en esquí de muntanya per a joves de 12 a 18 anys al Berguedà.
+  es: Formación en esquí de montaña para jóvenes de 12 a 18 años en el Berguedà.
+  en: Ski mountaineering training for young people aged 12 to 18 in Berguedà.
 description:
   ca: >-
-    L'Escola Skimo ofereix formació en esquí de muntanya en horari no lectiu,
-    amb continuïtat per a qui vulgui iniciar-se en la competició.
+    L'Escola Skimo és una de les branques dels MRB: un projecte de formació de
+    joves esportistes de 12 a 18 anys, en horari no lectiu, per l'entorn de la
+    comarca del Berguedà.
+
+
+    Oferim continuïtat per a qui vulgui iniciar-se o progressar en esquí de
+    muntanya, amb possibilitat d'obrir la porta a la competició.
+  es: >-
+    La Escuela Skimo es una de las ramas de MRB: un proyecto de formación de
+    jóvenes deportistas de 12 a 18 años, fuera del horario lectivo, por el
+    entorno de la comarca del Berguedà.
+
+
+    Acompañamos a quienes quieran iniciarse o progresar en el esquí de montaña,
+    con la posibilidad de abrir la puerta a la competición.
+  en: >-
+    The Ski Mountaineering School is one of MRB's branches: a training project
+    for young athletes aged 12 to 18, held outside school hours around Berguedà.
+
+
+    We support young people who want to get started or progress in ski
+    mountaineering, with the possibility of opening the door to competition.
 cover:
   resource:
     kind: local
-    path: src/assets/logo_mountain_runners.png
+    path: src/assets/schools/escola-skimo.jpg
   alt:
-    ca: Logotip de Mountain Runners del Berguedà
-gallery: []
+    ca: Esquiador de muntanya en ascens durant una sessió de l'escola skimo
+    es: Esquiador de montaña ascendiendo durante una sesión de la Escuela Skimo
+    en: Ski mountaineer climbing during a Ski Mountaineering School session
+coverCard:
+  kind: local
+  path: src/assets/schools/escola-skimo-card.jpg
+gallery:
+  - resource:
+      kind: local
+      path: src/assets/schools/gallery/skimo/skimo-session-4221.jpg
+    alt:
+      ca: Jove esquiant de muntanya en una sortida de l'escola skimo
+      es: Joven practicando esquí de montaña en una salida de la Escuela Skimo
+      en: Young person ski mountaineering on a Ski School outing
+    attribution:
+      ca: "Foto: Mountain Runners del Berguedà"
+      es: "Foto: Mountain Runners del Berguedà"
+      en: "Photo: Mountain Runners del Berguedà"
+    sourceUrl: https://mountainrunners.cat/wp-content/uploads/2021/07/IMG_4221-1024x768.jpg
+  - resource:
+      kind: local
+      path: src/assets/schools/gallery/skimo/skimo-session-0295.jpg
+    alt:
+      ca: Grup de joves entrenant esquí de muntanya en entorn nevado
+      es: Grupo de jóvenes entrenando esquí de montaña en un entorno nevado
+      en: Group of young people training ski mountaineering in a snowy setting
+    attribution:
+      ca: "Foto: Mountain Runners del Berguedà"
+      es: "Foto: Mountain Runners del Berguedà"
+      en: "Photo: Mountain Runners del Berguedà"
+    sourceUrl: https://mountainrunners.cat/wp-content/uploads/2021/07/IMG_0295-1-1024x768.jpg
+  - resource:
+      kind: local
+      path: src/assets/schools/gallery/skimo/skimo-session-4284.jpg
+    alt:
+      ca: Esquiador de muntanya en ascens durant una sessió de l'escola
+      es: Esquiador de montaña ascendiendo durante una sesión de la escuela
+      en: Ski mountaineer climbing during a school session
+    attribution:
+      ca: "Foto: Mountain Runners del Berguedà"
+      es: "Foto: Mountain Runners del Berguedà"
+      en: "Photo: Mountain Runners del Berguedà"
+    sourceUrl: https://mountainrunners.cat/wp-content/uploads/2021/07/IMG_4284-1024x768.jpg
+  - resource:
+      kind: local
+      path: src/assets/schools/gallery/skimo/skimo-session-2385.jpg
+    alt:
+      ca: Joves de l'escola skimo preparats per a una sortida a la neu
+      es: Jóvenes de la Escuela Skimo preparados para una salida en la nieve
+      en: Ski School young people ready for a snow outing
+    attribution:
+      ca: "Foto: Mountain Runners del Berguedà"
+      es: "Foto: Mountain Runners del Berguedà"
+      en: "Photo: Mountain Runners del Berguedà"
+    sourceUrl: https://mountainrunners.cat/wp-content/uploads/2021/07/IMG_2385-scaled-e1627665594164-1024x815.jpg
+promotionalVideoUrl: https://www.youtube.com/watch?v=dqCRDy4jpQA
 registrationStatus: coming-soon
 sections:
   since:
-    ca: L'escola va néixer l'any 2014 a partir de l'experiència de l'Escola Trail.
+    ca: >-
+      Va néixer l'any 2014, aprofitant l'experiència de l'Escola Trail — escola
+      pionera de curses de muntanya — per aplicar-la a l'esquí de muntanya.
+    es: Nació en 2014, aprovechando la experiencia de la Escuela de Trail —pionera en carreras de montaña— para aplicarla al esquí de montaña.
+    en: It began in 2014, building on the experience of the Trail School —a pioneer in mountain races— and applying it to ski mountaineering.
   purpose:
-    ca: Formar en esquí de muntanya i obrir la porta a la competició a qui ho vulgui.
+    ca: >-
+      Oferir una formació en esquí de muntanya, donar continuïtat i obrir les
+      portes a la competició a qui ho vulgui.
+    es: Ofrecer formación en esquí de montaña, dar continuidad y abrir las puertas a la competición a quien lo desee.
+    en: To provide ski mountaineering training, continuity and a path to competition for those who want it.
   audience:
     ca: Joves de 12 a 18 anys amb ganes de millorar.
+    es: Jóvenes de 12 a 18 años con ganas de mejorar.
+    en: Young people aged 12 to 18 who want to improve.
   schedule:
-    ca: Entrenaments entre setmana i caps de setmana, adaptats a les temporades de tardor i neu.
+    ca: >-
+      **Caps de setmana**
+
+
+      - Temporada de tardor: dissabte cada 15 dies de 9.00 h a 13.00 h
+        (diferents llocs del Berguedà; sessions amb rollers i caminar amb
+        bastons).
+
+      - Temporada de neu: dissabte de 9.00 h a 13.00 h (campionats de
+        Catalunya i Espanya i sortides amb esquí de muntanya).
+
+
+      **Entre setmana**
+
+
+      - Fora de temporada de neu: dimarts i dijous de 17.00 h a 19.00 h a
+        Berga (caminar amb bastons, trail i rollers).
+
+      - Temporada de neu (Masella nit tancada): dimarts i dijous de 17.00 h a
+        19.00 h a Masella (possibilitat d'entrenar als Rasos).
+
+      - Temporada de neu (Masella nit oberta): dimarts de 17.00 h a 19.00 h i
+      dijous de 17.00 h a 20.00 h a Masella.
+    es: >-
+      **Fines de semana**
+
+
+      - Temporada de otoño: sábado cada 15 días de 9:00 a 13:00 (diferentes
+        lugares del Berguedà; sesiones con rollers y marcha con bastones).
+
+      - Temporada de nieve: sábado de 9:00 a 13:00 (campeonatos de Cataluña y
+        España y salidas de esquí de montaña).
+
+
+      **Entre semana**
+
+
+      - Fuera de la temporada de nieve: martes y jueves de 17:00 a 19:00 en
+        Berga (marcha con bastones, trail y rollers).
+
+      - Temporada de nieve (esquí nocturno de Masella cerrado): martes y jueves
+        de 17:00 a 19:00 en Masella (posibilidad de entrenar en los Rasos).
+
+      - Temporada de nieve (esquí nocturno de Masella abierto): martes de 17:00
+        a 19:00 y jueves de 17:00 a 20:00 en Masella.
+    en: >-
+      **Weekends**
+
+
+      - Autumn season: every other Saturday from 9:00 am to 1:00 pm at different
+        locations in Berguedà, with roller-skiing and pole-walking sessions.
+
+      - Snow season: Saturdays from 9:00 am to 1:00 pm, including Catalan and
+        Spanish championships and ski mountaineering outings.
+
+
+      **Weekdays**
+
+
+      - Outside the snow season: Tuesdays and Thursdays from 5:00 pm to 7:00 pm
+        in Berga, with pole walking, trail running and roller-skiing.
+
+      - Snow season, when Masella night skiing is unavailable: Tuesdays and
+        Thursdays from 5:00 pm to 7:00 pm in Masella, with the possibility of
+        training at Rasos.
+
+      - Snow season, when Masella night skiing is available: Tuesdays from 5:00
+        pm to 7:00 pm and Thursdays from 5:00 pm to 8:00 pm in Masella.
   location:
     ca: Berga, Masella, Rasos i diferents indrets del Berguedà segons la temporada.
+    es: Berga, Masella, Rasos y diferentes lugares del Berguedà según la temporada.
+    en: Berga, Masella, Rasos and different places in Berguedà depending on the season.
+  requirements:
+    ca: >-
+      - Ser soci o sòcia dels Mountain Runners.
+
+      - Llicència federativa D habilitada per la FEDME.
+
+      - Bon nivell d'esquí alpí (capacitat de baixar per tot tipus de pista).
+
+      - Material d'esquí de muntanya i de rollers.
+    es: >-
+      - Ser socio o socia de Mountain Runners.
+
+      - Licencia federativa D habilitada por la FEDME.
+
+      - Buen nivel de esquí alpino (capacidad para bajar por todo tipo de pistas).
+
+      - Material de esquí de montaña y rollers.
+    en: >-
+      - Be a Mountain Runners member.
+
+      - Hold a category D federation licence enabled by FEDME.
+
+      - Have a good alpine skiing level, with the ability to descend every type
+        of piste.
+
+      - Have ski mountaineering and roller-ski equipment.
   prices:
-    ca: Els preus es poden modificar a l'inici de curs.
+    ca: >-
+      No varia en funció de l'edat, sinó dels dies que voleu venir:
+
+
+      - Caps de setmana, quota anual escola: 550 €
+
+      - Entre setmana, dimarts i dijous: 60 € al mes
+
+      - Entre setmana, un dia: 30 € al mes
+
+      - Matrícula: 80 € (inclou tràmits d'inscripció i la jaqueta de l'escola)
+
+
+      Els preus poden quedar subjectes a modificació a l'inici de curs.
+    es: >-
+      No varía en función de la edad, sino de los días que queráis venir:
+
+
+      - Fines de semana, cuota anual de la escuela: 550 €
+
+      - Entre semana, martes y jueves: 60 € al mes
+
+      - Entre semana, un día: 30 € al mes
+
+
+      - Matrícula: 80 € (incluye los trámites de inscripción y la chaqueta de
+        la escuela)
+
+
+      Los precios pueden quedar sujetos a modificaciones al inicio del curso.
+    en: >-
+      Prices do not vary by age, but by the number of days participants attend:
+
+
+      - Weekends, annual school fee: €550
+
+      - Weekdays, Tuesdays and Thursdays: €60 per month
+
+      - Weekdays, one day only: €30 per month
+
+
+      - Registration fee: €80, including registration administration and the
+        school jacket
+
+
+      Prices may change at the start of the school year.

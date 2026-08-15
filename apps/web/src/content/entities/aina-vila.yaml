@@ -2,17 +2,27 @@ id: aina-vila
 published: true
 name:
   ca: Aina Vila
+  es: Aina Vila
+  en: Aina Vila
 logo:
   resource:
     kind: local
     path: src/assets/collaborators/aina-vila.png
   alt:
     ca: Logotip d'Aina Vila
+    es: Logotipo de Aina Vila
+    en: Aina Vila logo
   sourceUrl: https://mountainrunners.cat/wp-content/uploads/2021/07/Captura-de-Pantalla-2021-07-29-a-les-20.31.54.png
 description:
   ca: Establiment col·laborador de Mountain Runners del Berguedà.
+  es: Establecimiento colaborador de Mountain Runners del Berguedà.
+  en: Mountain Runners del Berguedà partner business.
 membershipBenefit:
   title:
     ca: Massatge esportiu i de descàrrega
+    es: Masaje deportivo y de descarga
+    en: Sports and recovery massage
   description:
     ca: 15% de descompte en massatge esportiu i de descàrrega.
+    es: 15% de descuento en masaje deportivo y de descarga.
+    en: 15% off sports and recovery massage.

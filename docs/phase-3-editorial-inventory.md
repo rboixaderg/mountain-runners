@@ -1,5 +1,12 @@
 # Inventari Editorial De La Fase 3
 
+> **Registre històric.** Aquest document conserva decisions, procedència i
+> consentiments de la T3.2. Les mencions a recursos pendents, placeholders,
+> absències o a la ruta de Contacte reflecteixen aquell moment i no descriuen la
+> web actual. El catàleg, els recursos i les rutes implementades a `apps/web`
+> són la referència vigent; la T4.4 va retirar la ruta de Contacte i va afegir
+> recursos, galeries i vídeos aprovats.
+
 ## Propòsit
 
 Aquest inventari cobreix la T3.2 de la fase 3 de cobertura de contingut. La web
@@ -43,7 +50,7 @@ Fonts: <https://mountainrunners.cat/el-club/> i
 | Element                 | Estat    | Observació i pendents                                                                                                                                                                                                                                                                                                                                                                                        |
 | ----------------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | Missatge de presidència | Aprovat  | Decisió de la persona mantenidora del 6 d'agost de 2026: es reutilitza el mateix text que ja hi ha de l'anterior presidència, amb l'únic canvi que ara el signa el president (Ernest Garrido). En redactar la pàgina (T3.4) cal revisar la frase sobre la composició de la junta, que contradiu la junta actual.                                                                                             |
-| Junta directiva         | Revisat  | Presidència confirmada el 6 d'agost de 2026: Ernest Garrido. La resta de rols publicats (vicepresident, secretari, tresorer i vocals sense nom) queda pendent de confirmar-ne la vigència i el consentiment de publicació (nom, cognoms i rol; cap dada de contacte).                                                                                                                                        |
+| Junta directiva         | Aprovat  | Presidència confirmada el 6 d'agost de 2026: Ernest Garrido. El 10 d'agost de 2026 la persona mantenidora va confirmar la vigència i el consentiment de publicació de la junta completa (noms, cognoms i rols; cap dada de contacte): Albert Penyaranda Riu (vicepresident), Joel Brià Cabestany (secretari) i David Torres Altarriba (tresorer). Publicada a la T4.4 (PR #49).                              |
 | Fotografia de la junta  | Aprovat  | Imatge actual de la junta confirmada com a correcta i apta per a publicació el 6 d'agost de 2026. Versionada localment com a `apps/web/src/assets/junta-directiva.jpg` a la T3.4 (font: pàgina de contacte actual de mountainrunners.cat).                                                                                                                                                                   |
 | Història de l'entitat   | Aprovat  | Decisió de la persona mantenidora del 6 d'agost de 2026: es reutilitza el text d'història actual (fundació l'any 2004, oficialització a finals de 2005, aprovació el juliol de 2006 amb el número 12637 del Registre d'entitats esportives, ingrés a la FEEC i a la FEDME, i inclusió l'any 2011 en el Cens d'Organitzadors amb el número C177). Pendent només de la revisió de redacció en crear la pàgina. |
 | Fotografies històriques | Candidat | Imatges de les seccions d'història i estatuts allotjades al domini antic (`mountainrunners.eu`). Pendent de revisar origen, autoria, consentiment i atribució.                                                                                                                                                                                                                                               |

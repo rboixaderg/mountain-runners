@@ -2,8 +2,10 @@
 
 ## Estat
 
-Preparada per desglossar-se en entregues implementables quan les fases 1 i 2
-estiguin fusionades a `main`.
+Completada. Les nou unitats estan revisades i fusionades a `main`; la darrera es
+va tancar amb la PR #48 (`4b4f661`). La fase 4 va retirar posteriorment la ruta
+de Contacte i va concentrar les dades institucionals al prepeu compartit. Les
+referències següents a la ruta descriuen el resultat històric de la fase 3.
 
 ## Objectiu
 
@@ -261,6 +263,10 @@ La navegació principal continua plana: Qui som, Socis, Escoles i Esdeveniments.
 El peu incorpora Contacte, Documents i les tres pàgines legals quan les rutes
 estiguin publicades. Els enllaços institucionals externs i els documents només es
 renderitzen si apunten a un recurs disponible o a una URL externa validada.
+
+**Resultat posterior:** la T4.4 va retirar `/ca/contacte/` i les seves variants;
+les dades de contacte continuen publicades al prepeu i a les pàgines legals.
+Aquest canvi no reescriu l'acceptació històrica de la fase 3.
 
 ## Contractes Editorials
 

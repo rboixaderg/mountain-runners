@@ -2,38 +2,41 @@
 
 ## Estat Actual
 
-El repositori conté un workspace pnpm i una aplicació Astro estàtica mínima a
-`apps/web`, amb validacions locals, integració contínua i un nucli segur de
-validació editorial. Les Content Collections (`schools`, `events`, `entities`,
-`documents`, `external-actions` i `contact`), les regles de publicació i les
-rutes editorials mínimes ja estan implementades. La fase 3 ha publicat les
-pàgines fixes de Qui som, Documents, Contacte i les tres pàgines legals (avís
-legal, privacitat i cookies), la pàgina de Socis i el hub i els detalls
-d'Escoles, totes en català, amb el text informatiu en recursos de traducció i
-les dades operatives en objectes de domini; el peu enllaça les rutes legals i
-mostra les dades institucionals de contacte. Les accions d'alta, federació i
-inscripció són enllaços externs amb estat explícit, i els estats no disponibles
-s'expliquen sense controls falsos. Encara no existeix cap servei ni
-automatització de desplegament.
+El repositori conté un workspace pnpm i una aplicació Astro estàtica a
+`apps/web`, implementada fins a la fase 4. Integra TypeScript estricte,
+Tailwind, Paraglide, Content Collections amb Zod, SEO tècnic, proves Vitest i
+Playwright i workflows de qualitat i seguretat.
+
+Les col·leccions registrades (`schools`, `events`, `entities`, `documents`,
+`externalActions` i `contact`) passen per YAML restringit i una capa central de
+publicació. La sortida actual inclou 48 rutes canòniques —16 per idioma—, més la
+redirecció arrel, la 404 global, `robots.txt`, el sitemap i els recursos públics
+validats. Les dades de contacte es mostren al prepeu compartit i a les pàgines
+legals; la pàgina de Contacte creada a la fase 3 es va retirar a la T4.4.
+
+La CI valida qualitat, E2E, commits, secrets, dependències i anàlisi estàtica.
+Lighthouse continua sent una auditoria manual. Encara no existeixen previews de
+pull request, configuració Caddy, provisió del VPS ni automatització de
+desplegament, i tampoc cap servei Hono.
 
 ## Direcció Acceptada
 
-La web serà un lloc estàtic amb Astro i TypeScript. Les Content Collections
-validades amb Zod modelaran el contingut editorial, i Git en serà la font de
-veritat. Caddy servirà la web des d'un VPS modest.
+La web és un lloc estàtic amb Astro i TypeScript. Les Content Collections
+validades amb Zod modelen el contingut editorial, i Git n'és la font de veritat.
+La direcció acceptada per a la fase 5 és servir-la amb Caddy des d'un VPS modest.
 
 La versió inicial no té base de dades, CMS, comptes d'usuari ni backend
 d'aplicació renderitzat al servidor.
 
 ## Límits De L'Arquitectura
 
-| Àrea                | Responsabilitat                               | Límit                                                            |
-| ------------------- | --------------------------------------------- | ---------------------------------------------------------------- |
-| Web estàtica        | Renderitzar contingut editorial publicat      | El build d'Astro no conté secrets                                |
-| Contingut           | Pàgines estructurades i dades de l'associació | Versionat a Git i revisat per pull request                       |
-| Xat públic          | Respondre preguntes sobre contingut publicat  | API Hono separada, de només lectura i sense accés editorial      |
-| Assistent editorial | Preparar canvis de contingut                  | Flux privat de branca, validació i pull request                  |
-| Allotjament         | Servir la web estàtica i serveis aïllats      | Caddy i CI/CD; sense desplegament des d'una sessió local d'agent |
+| Àrea                | Responsabilitat                               | Límit                                                               |
+| ------------------- | --------------------------------------------- | ------------------------------------------------------------------- |
+| Web estàtica        | Renderitzar contingut editorial publicat      | El build d'Astro no conté secrets                                   |
+| Contingut           | Pàgines estructurades i dades de l'associació | Versionat a Git i revisat per pull request                          |
+| Xat públic          | Respondre preguntes sobre contingut publicat  | API Hono separada, de només lectura i sense accés editorial         |
+| Assistent editorial | Preparar canvis de contingut                  | Flux privat de branca, validació i pull request                     |
+| Allotjament         | Servir la web estàtica i serveis aïllats      | Futur Caddy i CD; sense desplegament des d'una sessió local d'agent |
 
 ## Estructura De Pàgines I Presentació
 
@@ -42,35 +45,19 @@ registrada a l'[ADR 0006](decisions/0006-presentation-layer-structure.md). El
 detall operatiu —tipus de components, guards, constants tipades i regles de
 decisió— viu a [`docs/code-conventions.md`](code-conventions.md):
 
-| Capa        | Ubicació                | Responsabilitat                                                                                              |
-| ----------- | ----------------------- | ------------------------------------------------------------------------------------------------------------ |
-| Pàgines     | `src/pages/`            | Primes: `getStaticPaths`, càrrega de dades, metadades i composició de components i layouts                   |
-| Domini      | `src/lib/content/`      | Selecció, ordenació, publicació i rutes del contingut editorial                                              |
-| Presentació | `src/lib/presentation/` | Funcions pures per locale: format de dates, derivació d'estat a clau de missatge i18n i host d'URLs externes |
-| Components  | `src/components/`       | Fragments de UI reutilitzables i plantilles de detall separades per tipus d'entrada                          |
+| Capa        | Ubicació                | Responsabilitat                                                                            |
+| ----------- | ----------------------- | ------------------------------------------------------------------------------------------ |
+| Pàgines     | `src/pages/`            | Primes: `getStaticPaths`, càrrega de dades, metadades i composició de components i layouts |
+| Domini      | `src/lib/content/`      | Selecció, ordenació, publicació i rutes del contingut editorial                            |
+| Presentació | `src/lib/presentation/` | Funcions pures per locale: format de dates, estat, URL i dades de vista                    |
+| Components  | `src/components/`       | Fragments de UI reutilitzables i plantilles de detall separades per tipus d'entrada        |
 
-Regles de manteniment (detallades a `AGENTS.md` i comprovades a la revisió de
-cada PR):
-
-1. A la segona aparició d'un helper de format, estat o URL, s'extreu a
-   `src/lib/presentation/` i es reutilitza; no es duplica en pàgines ni
-   components.
-2. Les pàgines no contenen `Intl.DateTimeFormat`, derivacions d'estat ni
-   extracció d'host; composen components i criden helpers purs.
-3. Els helpers de presentació són purs, reben el locale i retornen dades o
-   claus de missatge; no importen Astro ni Paraglide, i la resolució de text es
-   fa a la capa de component amb el locale corresponent.
-4. Cada tipus d'entrada té un component de detall propi; els fragments repetits
-   són components reutilitzables, no codi copiat.
-5. El refactor no altera sortida visual, rutes, contingut ni els selectors dels
-   E2E existents.
-6. La llegibilitat humana prima sobre la brevetat: les cadenes de ternaris
-   niats i els condicionals enrevessats es reescriuen amb branques explícites,
-   retorns primerencs o funcions petites amb nom propi.
-7. Els valors de cadena compartits (claus de missatge, estats, zones horàries i
-   similars) es defineixen com a constants tipades, i els tipus que els
-   representen es deriven d'aquestes constants; no s'escampen strings literals
-   per pàgines, components ni helpers.
+`docs/code-conventions.md` és la font normativa del detall. La implementació de
+la fase 4 conserva algunes desviacions conegudes: la portada i el hub de domini
+encara assumeixen més presentació de la prevista, alguns components fan selecció
+de domini i diversos helpers independents de l'idioma ometen el `locale` exigit
+per l'ADR. Aquest deute no modifica l'ADR 0006; s'ha de corregir en tasques
+separades o justificar mitjançant un ADR que el substitueixi.
 
 ## Xat Públic, Més Endavant
 
@@ -81,10 +68,9 @@ formen part del disseny inicial.
 
 ## Fora D'Abast Ara
 
-- Plantilles visuals i migració del contingut públic definitiu.
 - Servei de xat Hono i generador d'índex.
 - Integració amb Telegram, Discord o Hermes.
-- Implementació de CI/CD i provisió del VPS.
+- Previews, Caddy, desplegament continu i provisió del VPS.
 
 Consulta els ADR de `docs/decisions/` per conèixer les decisions darrere
 d'aquests límits.

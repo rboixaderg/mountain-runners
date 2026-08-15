@@ -2,7 +2,10 @@
 import * as messages from "../../paraglide/messages.js";
 import type { Entity } from "../../lib/content/models";
 import type { Locale } from "../../lib/content/primitives";
-import { getExternalHost } from "../../lib/presentation/urls";
+import {
+  externalLinkAttributes,
+  getExternalHost,
+} from "../../lib/presentation/urls";
 
 interface Props {
   entities: Entity[];
@@ -23,7 +26,7 @@ const { entities, locale } = Astro.props;
             {entity.websiteUrl && (
               <>
                 {" · "}
-                <a href={entity.websiteUrl} rel="noopener noreferrer">
+                <a href={entity.websiteUrl} {...externalLinkAttributes}>
                   {getExternalHost(entity.websiteUrl)}
                 </a>
               </>

@@ -5,11 +5,14 @@ import { assertIsLocale } from "../../paraglide/runtime.js";
 import DocumentsDetail from "../../components/documents/DocumentsDetail.astro";
 import PublicLayout from "../../layouts/PublicLayout.astro";
 import { getPublicationCatalog } from "../../lib/content/repository";
-import { getFixedPagePath } from "../../lib/content/routes";
+import {
+  getFixedPagePath,
+  getLocalizedFixedPageAlternatives,
+} from "../../lib/content/routes";
 
 export function getStaticPaths() {
   return locales
-    .filter((locale) => locale === "ca")
+    .filter((locale) => locale === "ca" || locale === "en")
     .map((locale) => ({ params: { locale } }));
 }
 
@@ -25,6 +28,10 @@ const canonical = new URL(
   canonical={canonical}
   description={messages.documents_page_description({}, { locale })}
   locale={locale}
+  localizedAlternatives={getLocalizedFixedPageAlternatives(
+    "documents",
+    Astro.site!,
+  )}
   title={`${messages.documents_page_title({}, { locale })} | ${messages.site_title({}, { locale })}`}
 >
   <DocumentsDetail catalog={catalog} locale={locale} />

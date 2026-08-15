@@ -1,0 +1,51 @@
+---
+import * as messages from "../../paraglide/messages.js";
+import type { EventHistoryRow } from "../../lib/presentation/events";
+import type { Locale } from "../../lib/content/primitives";
+import EventStatus from "../EventStatus.astro";
+import { eventStatusMessageKeys } from "../../lib/presentation/status";
+
+interface Props {
+  locale: Locale;
+  rows: readonly EventHistoryRow[];
+}
+
+const { locale, rows } = Astro.props;
+---
+
+<div class="events-hub-history">
+  <table class="events-hub-history__table">
+    <thead>
+      <tr>
+        <th scope="col">{messages.events_history_year({}, { locale })}</th>
+        <th scope="col">{messages.events_history_event({}, { locale })}</th>
+        <th scope="col">{messages.events_history_location({}, { locale })}</th>
+        <th scope="col" class="events-hub-history__status-heading">
+          {messages.events_history_status({}, { locale })}
+        </th>
+      </tr>
+    </thead>
+    <tbody>
+      {
+        rows.map((row) => (
+          <tr>
+            <td class="events-hub-history__year">{row.year}</td>
+            <td>
+              <a class="events-hub-history__title" href={row.href}>
+                {row.title}
+              </a>
+            </td>
+            <td>{row.location}</td>
+            <td class="events-hub-history__status-cell">
+              <EventStatus
+                className="events-hub-history__status"
+                locale={locale}
+                statusKey={eventStatusMessageKeys.historical}
+              />
+            </td>
+          </tr>
+        ))
+      }
+    </tbody>
+  </table>
+</div>

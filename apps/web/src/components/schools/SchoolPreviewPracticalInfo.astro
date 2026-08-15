@@ -1,0 +1,239 @@
+---
+import * as messages from "../../paraglide/messages.js";
+import type { School } from "../../lib/content/models";
+import type { Locale } from "../../lib/content/primitives";
+import { renderRestrictedMarkdown } from "../../lib/content/markdown";
+import {
+  extractLocationParts,
+  extractScheduleParts,
+  hasPreviewPriceContent,
+  hasPreviewPracticalCardContent,
+  isCompactSchedulePreview,
+  orderPreviewEssentialSections,
+  parseSchoolPracticalSection,
+  schoolPracticalPreviewContextOrder,
+  schoolPracticalPreviewEssentialOrder,
+  schoolPracticalPreviewLayoutClasses,
+  schoolPracticalSectionMessageKeys,
+  type SchoolPracticalSectionKey,
+} from "../../lib/presentation/schools";
+import SchoolPreviewPrices from "./SchoolPreviewPrices.astro";
+import SchoolPracticalIcon from "./SchoolPracticalIcon.astro";
+
+interface Props {
+  locale: Locale;
+  school: School;
+}
+
+const { locale, school } = Astro.props;
+
+function sectionContent(
+  sectionKey: SchoolPracticalSectionKey,
+): string | undefined {
+  return school.sections[sectionKey]?.[locale];
+}
+
+const essentialSections = orderPreviewEssentialSections(
+  schoolPracticalPreviewEssentialOrder.filter((sectionKey) =>
+    hasPreviewPracticalCardContent(sectionKey, sectionContent(sectionKey)),
+  ),
+  sectionContent,
+);
+const contextSections = schoolPracticalPreviewContextOrder.filter(
+  (sectionKey) =>
+    hasPreviewPracticalCardContent(sectionKey, sectionContent(sectionKey)),
+);
+const pricesMarkdown = sectionContent("prices");
+const hasPrices =
+  pricesMarkdown !== undefined && hasPreviewPriceContent(pricesMarkdown);
+const hasPracticalContent =
+  essentialSections.length > 0 || contextSections.length > 0 || hasPrices;
+---
+
+{
+  hasPracticalContent && (
+    <section
+      class="schools-detail-preview__practical"
+      aria-labelledby="school-preview-practical-title"
+    >
+      <div class="page-frame schools-detail-preview__practical-header">
+        <h2
+          class="schools-detail-preview__practical-title"
+          id="school-preview-practical-title"
+        >
+          {messages.school_practical_info_title({}, { locale })}
+        </h2>
+        <p class="schools-detail-preview__practical-intro">
+          {messages.school_practical_info_intro({}, { locale })}
+        </p>
+      </div>
+
+      <div class="page-frame schools-detail-preview__practical-layout">
+        {essentialSections.length > 0 && (
+          <ul class="schools-detail-preview__practical-grid schools-detail-preview__practical-grid--essentials">
+            {essentialSections.map((sectionKey) => {
+              const parsedSection = parseSchoolPracticalSection(
+                sectionContent(sectionKey)!,
+              );
+              const scheduleParts =
+                sectionKey === "schedule" &&
+                isCompactSchedulePreview(parsedSection)
+                  ? extractScheduleParts(parsedSection.lead!)
+                  : null;
+              const locationParts =
+                sectionKey === "location" && parsedSection.lead
+                  ? extractLocationParts(parsedSection.lead)
+                  : null;
+
+              const isDetailedSchedule =
+                sectionKey === "schedule" &&
+                !isCompactSchedulePreview(parsedSection);
+
+              return (
+                <li
+                  class:list={[
+                    "schools-detail-preview__practical-card",
+                    schoolPracticalPreviewLayoutClasses[sectionKey],
+                    isDetailedSchedule &&
+                      "schools-detail-preview__practical-card--schedule-detailed",
+                  ]}
+                >
+                  <div class="schools-detail-preview__practical-card-top">
+                    <div
+                      class="schools-detail-preview__practical-icon"
+                      aria-hidden="true"
+                    >
+                      <SchoolPracticalIcon sectionKey={sectionKey} />
+                    </div>
+                    <h3 class="schools-detail-preview__practical-card-title">
+                      {messages[schoolPracticalSectionMessageKeys[sectionKey]](
+                        {},
+                        { locale },
+                      )}
+                    </h3>
+                  </div>
+                  <div class="schools-detail-preview__practical-card-content">
+                    {sectionKey === "schedule" && scheduleParts ? (
+                      <>
+                        {parsedSection.label && (
+                          <p class="schools-detail-preview__practical-card-label">
+                            {parsedSection.label}
+                          </p>
+                        )}
+                        <p class="schools-detail-preview__practical-card-primary">
+                          {scheduleParts.days}
+                        </p>
+                        {scheduleParts.time && (
+                          <p class="schools-detail-preview__practical-card-highlight">
+                            {scheduleParts.time}
+                          </p>
+                        )}
+                        {parsedSection.body.length > 0 && (
+                          <p class="schools-detail-preview__practical-card-note">
+                            {parsedSection.body}
+                          </p>
+                        )}
+                      </>
+                    ) : sectionKey === "schedule" && isDetailedSchedule ? (
+                      <div
+                        class="schools-detail-preview__practical-card-body"
+                        set:html={renderRestrictedMarkdown(
+                          sectionContent(sectionKey)!,
+                        )}
+                      />
+                    ) : sectionKey === "location" && locationParts ? (
+                      <>
+                        <p class="schools-detail-preview__practical-card-primary">
+                          {locationParts.primary}
+                        </p>
+                        {locationParts.secondary && (
+                          <p class="schools-detail-preview__practical-card-note">
+                            {locationParts.secondary}
+                          </p>
+                        )}
+                      </>
+                    ) : (
+                      parsedSection.lead && (
+                        <p class="schools-detail-preview__practical-card-highlight">
+                          {parsedSection.lead}
+                        </p>
+                      )
+                    )}
+                  </div>
+                  {sectionKey === "location" && (
+                    <svg
+                      class="schools-detail-preview__practical-watermark"
+                      viewBox="0 0 24 24"
+                      aria-hidden="true"
+                      focusable="false"
+                    >
+                      <path
+                        fill="currentColor"
+                        d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5S10.62 6.5 12 6.5s2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"
+                      />
+                    </svg>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        )}
+
+        {hasPrices && pricesMarkdown && (
+          <SchoolPreviewPrices
+            locale={locale}
+            pricesMarkdown={pricesMarkdown}
+          />
+        )}
+
+        {contextSections.length > 0 && (
+          <ul class="schools-detail-preview__practical-grid schools-detail-preview__practical-grid--context">
+            {contextSections.map((sectionKey) => {
+              const parsedSection = parseSchoolPracticalSection(
+                sectionContent(sectionKey)!,
+              );
+
+              return (
+                <li
+                  class:list={[
+                    "schools-detail-preview__practical-card",
+                    "schools-detail-preview__practical-card--context",
+                    schoolPracticalPreviewLayoutClasses[sectionKey],
+                  ]}
+                >
+                  <div class="schools-detail-preview__practical-card-top">
+                    <div
+                      class="schools-detail-preview__practical-icon"
+                      aria-hidden="true"
+                    >
+                      <SchoolPracticalIcon sectionKey={sectionKey} />
+                    </div>
+                    <h3 class="schools-detail-preview__practical-card-title">
+                      {messages[schoolPracticalSectionMessageKeys[sectionKey]](
+                        {},
+                        { locale },
+                      )}
+                    </h3>
+                  </div>
+                  <div class="schools-detail-preview__practical-card-content">
+                    {parsedSection.lead && (
+                      <p class="schools-detail-preview__practical-card-primary">
+                        {parsedSection.lead}
+                      </p>
+                    )}
+                    {parsedSection.body.length > 0 && (
+                      <div
+                        class="schools-detail-preview__practical-card-body"
+                        set:html={renderRestrictedMarkdown(parsedSection.body)}
+                      />
+                    )}
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </div>
+    </section>
+  )
+}

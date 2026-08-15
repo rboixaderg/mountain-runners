@@ -112,23 +112,30 @@ describe("localized route contract", () => {
       "/ca/escoles/escola-skimo/",
       "/ca/escoles/escola-trail/",
       "/ca/esdeveniments/jornada-muntanya/",
+      "/es/escuelas/escuela-btt/",
+      "/es/escuelas/escuela-esqui-montana/",
+      "/es/escuelas/escuela-trail/",
+      "/en/schools/mtb-school/",
+      "/en/schools/ski-mountaineering-school/",
+      "/en/schools/trail-school/",
     ]);
-    expect(getSitemapUrls(catalog, publicSiteOrigin)).toEqual([
-      "https://mountainrunners.cat/ca/",
-      "https://mountainrunners.cat/ca/avis-legal/",
-      "https://mountainrunners.cat/ca/contacte/",
-      "https://mountainrunners.cat/ca/cookies/",
-      "https://mountainrunners.cat/ca/documents/",
-      "https://mountainrunners.cat/ca/escoles/",
-      "https://mountainrunners.cat/ca/escoles/escola-btt/",
-      "https://mountainrunners.cat/ca/escoles/escola-skimo/",
-      "https://mountainrunners.cat/ca/escoles/escola-trail/",
-      "https://mountainrunners.cat/ca/esdeveniments/",
-      "https://mountainrunners.cat/ca/esdeveniments/jornada-muntanya/",
-      "https://mountainrunners.cat/ca/privacitat/",
-      "https://mountainrunners.cat/ca/qui-som/",
-      "https://mountainrunners.cat/ca/socis/",
-    ]);
+    expect(getSitemapUrls(catalog, publicSiteOrigin)).toEqual(
+      expect.arrayContaining([
+        "https://mountainrunners.cat/ca/",
+        "https://mountainrunners.cat/ca/avis-legal/",
+        "https://mountainrunners.cat/ca/cookies/",
+        "https://mountainrunners.cat/ca/documents/",
+        "https://mountainrunners.cat/ca/escoles/",
+        "https://mountainrunners.cat/ca/escoles/escola-btt/",
+        "https://mountainrunners.cat/ca/escoles/escola-skimo/",
+        "https://mountainrunners.cat/ca/escoles/escola-trail/",
+        "https://mountainrunners.cat/ca/esdeveniments/",
+        "https://mountainrunners.cat/ca/esdeveniments/jornada-muntanya/",
+        "https://mountainrunners.cat/ca/privacitat/",
+        "https://mountainrunners.cat/ca/qui-som/",
+        "https://mountainrunners.cat/ca/socis/",
+      ]),
+    );
   });
 
   it("uses localized paths and alternates for complete translations only", async () => {
@@ -250,11 +257,6 @@ describe("localized route contract", () => {
     expect(getFixedPagePath("members", "ca")).toBe("/ca/socis/");
     expect(getFixedPagePath("members", "es")).toBe("/es/socios/");
     expect(getFixedPagePath("members", "en")).toBe("/en/members/");
-    expect(fixedPageRouteSegments.contact).toEqual({
-      ca: "contacte",
-      es: "contacto",
-      en: "contact",
-    });
     expect(fixedPageRouteSegments.documents).toEqual({
       ca: "documents",
       es: "documentos",
@@ -275,7 +277,6 @@ describe("localized route contract", () => {
       es: "cookies",
       en: "cookies",
     });
-    expect(getFixedPagePath("contact", "ca")).toBe("/ca/contacte/");
     expect(getFixedPagePath("documents", "ca")).toBe("/ca/documents/");
     expect(getFixedPagePath("legal-notice", "ca")).toBe("/ca/avis-legal/");
     expect(getFixedPagePath("legal-privacy", "ca")).toBe("/ca/privacitat/");

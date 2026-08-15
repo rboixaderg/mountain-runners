@@ -2,6 +2,8 @@
 import * as messages from "../paraglide/messages.js";
 import type { Contact } from "../lib/content/models";
 import type { Locale } from "../lib/content/primitives";
+import { getMailtoAddress } from "../lib/presentation/urls";
+import "../styles/contact-data.css";
 
 type ContactAddressLabelKey =
   "contact_address_label" | "legal_entity_address_label";
@@ -37,7 +39,7 @@ const phoneLabel = messages.contact_phone_label({}, { locale });
       <div class="contact-data__row">
         <dt>{emailLabel}</dt>
         <dd>
-          <a href={contact.email}>{contact.email.replace(/^mailto:/u, "")}</a>
+          <a href={contact.email}>{getMailtoAddress(contact.email)}</a>
         </dd>
       </div>
     )

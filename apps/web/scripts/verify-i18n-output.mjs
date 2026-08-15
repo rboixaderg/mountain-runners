@@ -10,8 +10,11 @@ const { PUBLIC_SITE_ORIGIN } = loadEnv(
 );
 const publicSiteOrigin = new URL(PUBLIC_SITE_ORIGIN);
 
-const publishedHomepages = [["ca", "Mountain Runners del Berguedà"]];
 const configuredLocales = ["ca", "es", "en"];
+const publishedHomepages = configuredLocales.map((locale) => [
+  locale,
+  "Mountain Runners del Berguedà",
+]);
 
 const unavailableDetailRoutes = [
   "ca/esdeveniments/jornada-muntanya/index.html",
@@ -54,17 +57,6 @@ for (const [locale, message] of publishedHomepages) {
       `The /${locale}/ output does not use its configured locale.`,
     );
   }
-}
-
-for (const locale of configuredLocales.filter((locale) => locale !== "ca")) {
-  try {
-    await readFile(new URL(`../dist/${locale}/index.html`, import.meta.url));
-  } catch {
-    continue;
-  }
-  throw new Error(
-    `Incomplete homepage variant reached the build output: /${locale}/`,
-  );
 }
 
 const catalanHome = await readFile(
@@ -155,21 +147,56 @@ const sitemapUrls = new Set(
 const expectedSitemapUrls = new Set(
   [
     "ca/",
+    "es/",
+    "en/",
     "ca/escoles/",
     "ca/escoles/escola-btt/",
     "ca/escoles/escola-skimo/",
     "ca/escoles/escola-trail/",
     "ca/esdeveniments/",
+    "ca/esdeveniments/anella-verda/",
     "ca/esdeveniments/berga-trail/",
+    "ca/esdeveniments/escalada-castell-areny/",
     "ca/esdeveniments/escalada-queralt/",
     "ca/esdeveniments/ultra-pirineu/",
     "ca/qui-som/",
     "ca/socis/",
-    "ca/contacte/",
     "ca/documents/",
     "ca/avis-legal/",
     "ca/privacitat/",
     "ca/cookies/",
+    "es/escuelas/",
+    "es/escuelas/escuela-btt/",
+    "es/escuelas/escuela-esqui-montana/",
+    "es/escuelas/escuela-trail/",
+    "es/eventos/",
+    "es/eventos/anella-verde/",
+    "es/eventos/berga-trail/",
+    "es/eventos/escalada-castell-areny/",
+    "es/eventos/escalada-queralt/",
+    "es/eventos/ultra-pirineu/",
+    "es/quienes-somos/",
+    "es/socios/",
+    "es/documentos/",
+    "es/aviso-legal/",
+    "es/privacidad/",
+    "es/cookies/",
+    "en/schools/",
+    "en/schools/mtb-school/",
+    "en/schools/ski-mountaineering-school/",
+    "en/schools/trail-school/",
+    "en/events/",
+    "en/events/green-ring/",
+    "en/events/berga-trail/",
+    "en/events/escalada-castell-areny/",
+    "en/events/escalada-queralt/",
+    "en/events/ultra-pirineu/",
+    "en/about/",
+    "en/members/",
+    "en/documents/",
+    "en/legal-notice/",
+    "en/privacy/",
+    "en/cookies/",
   ].map((path) => new URL(path, publicSiteOrigin).toString()),
 );
 if (
@@ -178,10 +205,6 @@ if (
 ) {
   throw new Error("Sitemap does not exactly match published canonical routes.");
 }
-if ([...sitemapUrls].some((url) => new URL(url).pathname.startsWith("/es/"))) {
-  throw new Error("Sitemap includes an incomplete localized variant.");
-}
-
 const robots = await readFile(join(distPath, "robots.txt"), "utf8");
 const sitemapDirective = `Sitemap: ${new URL("/sitemap.xml", publicSiteOrigin)}`;
 if (!robots.split("\n").includes(sitemapDirective)) {

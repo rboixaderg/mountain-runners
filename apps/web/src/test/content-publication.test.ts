@@ -63,9 +63,27 @@ describe("publication catalog", () => {
       "school:ca:escola-btt",
       "school:ca:escola-skimo",
       "school:ca:escola-trail",
+      "event:ca:anella-verda",
       "event:ca:berga-trail",
+      "event:ca:escalada-castell-areny",
       "event:ca:escalada-queralt",
       "event:ca:ultra-pirineu",
+      "school:es:escuela-btt",
+      "school:es:escuela-esqui-montana",
+      "school:es:escuela-trail",
+      "event:es:anella-verde",
+      "event:es:berga-trail",
+      "event:es:escalada-castell-areny",
+      "event:es:escalada-queralt",
+      "event:es:ultra-pirineu",
+      "school:en:mtb-school",
+      "school:en:ski-mountaineering-school",
+      "school:en:trail-school",
+      "event:en:green-ring",
+      "event:en:berga-trail",
+      "event:en:escalada-castell-areny",
+      "event:en:escalada-queralt",
+      "event:en:ultra-pirineu",
     ]);
     expect(catalog.documents.has("private-draft")).toBe(false);
     expect(getPublishedLocalResources(catalog)).toEqual([
@@ -87,11 +105,37 @@ describe("publication catalog", () => {
       "src/assets/collaborators/podologia-ingrid-soca.jpg",
       "src/assets/collaborators/ramirs-sabaters.png",
       "src/assets/collaborators/rios-running-berga.jpeg",
-      "src/assets/collaborators/serrasports.png",
       "src/assets/collaborators/snowlockers.png",
       "src/assets/collaborators/veloberga.jpg",
       "src/assets/collaborators/visites-al-bergueda.jpg",
+      "src/assets/entities/club-atletic-berga.png",
+      "src/assets/entities/club-esqui-bergueda.png",
+      "src/assets/events/anella-verda-cover.webp",
+      "src/assets/events/escalada-castell-areny-cover.jpg",
+      "src/assets/events/escalada-queralt-cover.jpg",
       "src/assets/logo_mountain_runners.png",
+      "src/assets/schools/escola-btt-card.jpg",
+      "src/assets/schools/escola-btt.jpg",
+      "src/assets/schools/escola-skimo-card.jpg",
+      "src/assets/schools/escola-skimo.jpg",
+      "src/assets/schools/escola-trail-card.jpg",
+      "src/assets/schools/escola-trail.jpg",
+      "src/assets/schools/gallery/btt/btt-session-0009.jpg",
+      "src/assets/schools/gallery/btt/btt-session-0031.jpg",
+      "src/assets/schools/gallery/btt/btt-session-0123.jpg",
+      "src/assets/schools/gallery/btt/btt-session-0139.jpg",
+      "src/assets/schools/gallery/btt/btt-session-0203.jpg",
+      "src/assets/schools/gallery/btt/btt-session-0239.jpg",
+      "src/assets/schools/gallery/skimo/skimo-session-0295.jpg",
+      "src/assets/schools/gallery/skimo/skimo-session-2385.jpg",
+      "src/assets/schools/gallery/skimo/skimo-session-4221.jpg",
+      "src/assets/schools/gallery/skimo/skimo-session-4284.jpg",
+      "src/assets/schools/gallery/trail/trail-friday-pics-07.jpg",
+      "src/assets/schools/gallery/trail/trail-friday-pics-26.jpg",
+      "src/assets/schools/gallery/trail/trail-session-08.jpg",
+      "src/assets/schools/gallery/trail/trail-session-21.jpg",
+      "src/assets/schools/gallery/trail/trail-session-23.jpg",
+      "src/assets/schools/gallery/trail/trail-session-29.jpg",
       "src/content-assets/documents/estatuts-mrb.pdf",
     ]);
   });
@@ -162,6 +206,60 @@ describe("publication catalog", () => {
       apply(source);
       expect(variantKeys(source)).not.toContain(expected);
     }
+  });
+
+  it("requires every published image attribution in the variant locale", async () => {
+    const source = await loadSource();
+    const bttSchool = source.schools.find(({ id }) => id === "btt-school")!;
+    delete (bttSchool.gallery[0]!.attribution as { es?: string }).es;
+
+    const publishedVariants = variantKeys(source);
+
+    expect(publishedVariants).toContain("school:ca:escola-btt");
+    expect(publishedVariants).not.toContain("school:es:escuela-btt");
+    expect(publishedVariants).toContain("school:en:mtb-school");
+  });
+
+  it("requires referenced entity attributions in the variant locale", async () => {
+    const source = await loadSource();
+    const mountainRunners = source.entities.find(
+      ({ id }) => id === "mountain-runners",
+    )!;
+
+    mountainRunners.attribution = {
+      ca: "Atribució",
+      es: "Atribución",
+      en: "Attribution",
+    };
+    delete (mountainRunners.attribution as { es?: string }).es;
+
+    const publishedVariants = variantKeys(source);
+
+    expect(publishedVariants).toContain("event:ca:ultra-pirineu");
+    expect(publishedVariants).not.toContain("event:es:ultra-pirineu");
+    expect(publishedVariants).toContain("event:en:ultra-pirineu");
+  });
+
+  it("requires referenced document attributions in the variant locale", async () => {
+    const source = await loadSource();
+    const ultraPirineu = source.events.find(
+      ({ id }) => id === "ultra-pirineu",
+    )!;
+    const clubGuide = source.documents.find(({ id }) => id === "club-guide")!;
+
+    ultraPirineu.editions[0]!.documentIds = ["club-guide"];
+    clubGuide.attribution = {
+      ca: "Atribució",
+      es: "Atribución",
+      en: "Attribution",
+    };
+    delete (clubGuide.attribution as { es?: string }).es;
+
+    const publishedVariants = variantKeys(source);
+
+    expect(publishedVariants).toContain("event:ca:ultra-pirineu");
+    expect(publishedVariants).not.toContain("event:es:ultra-pirineu");
+    expect(publishedVariants).toContain("event:en:ultra-pirineu");
   });
 
   it("excludes unpublished entities from public queries and variants", async () => {
@@ -289,6 +387,15 @@ describe("publication catalog", () => {
     ]);
     expect(catalog.contact?.id).toBe("mountain-runners-contact");
     expect(catalog.contact?.email).toBe("mailto:info@mountainrunners.cat");
+    expect(catalog.entities.get("mountain-runners")?.instagramUrl).toBe(
+      "https://www.instagram.com/infomountain/",
+    );
+    expect(catalog.entities.get("mountain-runners")?.stravaClubUrl).toBe(
+      "https://www.strava.com/clubs/156769",
+    );
+    expect(catalog.entities.get("mountain-runners")?.promotionalVideoUrl).toBe(
+      "https://www.youtube.com/watch?v=EUV5uETCjeo",
+    );
   });
 
   it("excludes unpublished external actions and contact data", async () => {

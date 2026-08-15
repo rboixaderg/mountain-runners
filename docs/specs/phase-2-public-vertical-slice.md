@@ -2,8 +2,11 @@
 
 ## Estat
 
-Preparada per desglossar-se en tasques implementables quan les dependències de
-la fase 1 estiguin fusionades.
+Completada. Les set unitats estan revisades i fusionades; la darrera es va
+tancar amb la PR #34 (`fcb7fec`). Les referències a publicació només en català
+descriuen l'abast històric de la fase 2, ampliat a tres idiomes a la fase 4.
+Les mencions següents a Caddy a la fase 4 també conserven el pla original; el
+roadmap posterior va traslladar el desplegament a la fase 5.
 
 ## Objectiu
 
@@ -87,7 +90,7 @@ Una PR pot agrupar unitats adjacents només quan:
 | Fonaments visuals i shell global             | Completada | Fase 1 i referències aplicables                         | Shell responsive i accessible                  | #19 |
 | Portada amb text traduïble i dades de domini | Completada | Shell i contingut aprovat                               | Inici real amb textos i col·leccions separats  | #20 |
 | Hub i detall d'esdeveniments                 | Completada | Shell, dissenys i contingut d'esdeveniments aprovats    | Recorregut complet amb estats reals            | #32 |
-| SEO, rendiment, wrapper local i qualitat E2E | En curs    | Pàgines representatives i skills externes implementades | Llindars, wrapper i recorreguts automatitzats  | #34 |
+| SEO, rendiment, wrapper local i qualitat E2E | Completada | Pàgines representatives i skills externes implementades | Llindars, wrapper i recorreguts automatitzats  | #34 |
 
 Els únics estats permesos són `Pendent`, `En curs`, `Bloquejada` i `Completada`.
 Quan una unitat entra en una PR, se n'afegeix l'enllaç i s'actualitza l'estat.

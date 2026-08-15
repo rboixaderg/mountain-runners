@@ -99,10 +99,16 @@ function isTranslated<T>(value: Translatable<T>, locale: Locale): boolean {
 }
 
 function isImageComplete(
-  image: { alt: Translatable<string> },
+  image: {
+    alt: Translatable<string>;
+    attribution?: Translatable<string>;
+  },
   locale: Locale,
 ): boolean {
-  return isTranslated(image.alt, locale);
+  return (
+    isTranslated(image.alt, locale) &&
+    (image.attribution === undefined || isTranslated(image.attribution, locale))
+  );
 }
 
 function isSchoolImageComplete(
@@ -120,6 +126,8 @@ function isEntityComplete(entity: Entity, locale: Locale): boolean {
     isTranslated(entity.name, locale) &&
     isTranslated(entity.description, locale) &&
     isImageComplete(entity.logo, locale) &&
+    (entity.attribution === undefined ||
+      isTranslated(entity.attribution, locale)) &&
     (entity.membershipBenefit === undefined ||
       (isTranslated(entity.membershipBenefit.title, locale) &&
         isTranslated(entity.membershipBenefit.description, locale)))
@@ -130,7 +138,9 @@ function isDocumentComplete(document: Document, locale: Locale): boolean {
   return (
     document.published &&
     isTranslated(document.title, locale) &&
-    isTranslated(document.description, locale)
+    isTranslated(document.description, locale) &&
+    (document.attribution === undefined ||
+      isTranslated(document.attribution, locale))
   );
 }
 
@@ -190,6 +200,7 @@ function isEventComplete(
     event.published &&
     isTranslated(event.slug, locale) &&
     isTranslated(event.title, locale) &&
+    isTranslated(event.summary, locale) &&
     isTranslated(event.description, locale) &&
     isImageComplete(event.cover, locale) &&
     event.gallery.every((image) => isImageComplete(image, locale)) &&

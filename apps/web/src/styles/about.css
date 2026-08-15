@@ -1,0 +1,210 @@
+.about-detail {
+  padding-bottom: 0;
+}
+
+.about-section {
+  padding-block: var(--section-space);
+  border-bottom: 1px solid var(--color-line);
+}
+
+.about-section--statutes {
+  border-bottom: 0;
+}
+
+.about-section__heading {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+  margin-bottom: 2rem;
+}
+
+.about-section__marker {
+  width: 0.5rem;
+  height: 1.5rem;
+  flex: 0 0 auto;
+  background: var(--color-red);
+}
+
+.about-section__title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(1.8rem, 4vw, 3rem);
+  line-height: 1;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.about-section__body {
+  max-width: var(--reading-width);
+  font-size: 1rem;
+  line-height: 1.6;
+}
+
+.about-section__body p {
+  margin: 0 0 var(--space-4);
+}
+
+.about-section__body p:last-child {
+  margin-bottom: 0;
+}
+
+.about-section__body ul {
+  margin: var(--space-2) 0 0;
+  padding-left: 1.25rem;
+}
+
+.about-section__body li {
+  margin-block: var(--space-2);
+}
+
+.about-section__signature {
+  margin: var(--space-4) 0 0;
+  font-family: var(--font-display);
+  font-size: 1.1rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.about-history__grid {
+  display: grid;
+  gap: clamp(1.5rem, 4vw, 3rem);
+  align-items: start;
+}
+
+.about-history__photo {
+  max-width: min(100%, 16rem);
+  margin: 0;
+}
+
+.about-history__photo img {
+  display: block;
+  width: 100%;
+  max-height: 20rem;
+  border: 0.125rem solid var(--color-ink);
+  object-fit: cover;
+  object-position: center;
+}
+
+.about-board__layout {
+  display: grid;
+  gap: clamp(1.5rem, 4vw, 3rem);
+  align-items: start;
+}
+
+.about-board__photo {
+  max-width: min(100%, 16rem);
+  margin: 0;
+}
+
+.about-board__photo img {
+  display: block;
+  width: 100%;
+  border: 0.125rem solid rgb(255 255 255 / 0.35);
+  filter: grayscale(1) contrast(1.1);
+}
+
+.about-board__list {
+  display: grid;
+  gap: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid rgb(255 255 255 / 0.25);
+}
+
+.about-board__member {
+  display: flex;
+  gap: var(--space-4);
+  align-items: center;
+  justify-content: space-between;
+  padding: 1.35rem 0;
+  border-bottom: 1px solid rgb(255 255 255 / 0.18);
+}
+
+.about-board__member-name {
+  font-family: var(--font-display);
+  font-size: clamp(1.05rem, 2.2vw, 1.35rem);
+  font-weight: 700;
+  line-height: 1.1;
+  text-transform: uppercase;
+}
+
+.about-board__member-role {
+  display: grid;
+  gap: 0.2rem;
+  flex: 0 0 auto;
+  text-align: right;
+}
+
+.about-board__role-label {
+  color: rgb(255 255 255 / 0.55);
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.about-statutes__card {
+  display: grid;
+  gap: var(--space-4);
+  max-width: var(--reading-width);
+  padding: clamp(1.5rem, 4vw, 2rem);
+  border: 1px solid var(--color-line);
+  background: color-mix(in srgb, var(--color-line) 8%, var(--color-paper));
+}
+
+.about-statutes__description {
+  margin: 0;
+  font-size: 1rem;
+  line-height: 1.6;
+}
+
+.about-statutes__link {
+  color: var(--color-ink);
+  font-family: var(--font-display);
+  font-size: 0.85rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-decoration: underline;
+  text-decoration-thickness: 0.1rem;
+  text-transform: uppercase;
+  text-underline-offset: 0.2rem;
+}
+
+.about-statutes__link:hover {
+  color: var(--color-red);
+}
+
+.about-section--dark {
+  max-width: none;
+  padding-inline: max(var(--page-gutter), calc((100% - var(--page-width)) / 2));
+  background: var(--color-ink);
+  color: white;
+}
+
+.about-section--dark .about-section__marker {
+  background: var(--color-red);
+}
+
+@media (min-width: 48rem) {
+  .about-history__grid {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 16rem);
+  }
+
+  .about-board__layout {
+    grid-template-columns: minmax(0, 16rem) minmax(0, 1fr);
+    align-items: center;
+  }
+}
+
+@media (max-width: 47.99rem) {
+  .about-board__member {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .about-board__member-role {
+    text-align: left;
+  }
+}

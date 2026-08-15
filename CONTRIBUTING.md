@@ -38,6 +38,14 @@ gitleaks version
 L'ordre ha de retornar `8.30.1`. Si l'instal·lador ofereix una versió diferent,
 instal·la la release fixada anterior abans de continuar.
 
+Els hooks locals vigents són:
+
+| Hook         | Comprovació                                         |
+| ------------ | --------------------------------------------------- |
+| `pre-commit` | Gitleaks sobre staged i `lint-staged`               |
+| `commit-msg` | Conventional Commits amb Commitlint                 |
+| `pre-push`   | `pnpm validate` (checks ràpids, build i Playwright) |
+
 ## Flux De Treball
 
 El worktree principal es manté a `main` i es reserva per planificar fases,
@@ -52,8 +60,8 @@ al worktree principal.
    el comportament o un límit arquitectònic.
 5. Obre una pull request amb un títol alineat amb la fase o especificació, una
    descripció clara, evidència de validació i qualsevol impacte operatiu.
-6. Fusiona-la només després de la revisió i de superar les comprovacions
-   obligatòries.
+6. Una persona mantenidora la fusiona només després de la revisió i de superar
+   les comprovacions obligatòries. Els agents no fusionen ni activen auto-merge.
 7. Elimina el worktree i la branca de vida curta quan la tasca estigui fusionada.
 
 Els canvis directes al servidor de producció i els push directes a la branca
@@ -122,3 +130,7 @@ docs(specs-phase-N): resum breu
 Per exemple: `docs(specs-phase-4): defineix la cobertura editorial`. No agrupis
 tasques diferents sota un títol genèric: si l'abast canvia, crea o actualitza la
 tasca de l'especificació abans d'obrir la PR.
+
+La CI valida que el títol sigui compatible amb Conventional Commits. L'abast
+exacte `phase-N-tN.M` o `specs-phase-N` és una política de revisió humana i no
+està validat automàticament en tots els casos.

@@ -1,0 +1,59 @@
+---
+import * as messages from "../../paraglide/messages.js";
+import { getLocalImageSize, getResourceHref } from "../../lib/content/images";
+import { renderRestrictedMarkdown } from "../../lib/content/markdown";
+import type { School } from "../../lib/content/models";
+import type { Locale } from "../../lib/content/primitives";
+import { hasSchoolSectionContent } from "../../lib/presentation/schools";
+
+interface Props {
+  locale: Locale;
+  school: School;
+}
+
+const { locale, school } = Astro.props;
+const description = school.description[locale];
+
+if (!hasSchoolSectionContent(description)) {
+  return null;
+}
+
+const coverHref = getResourceHref(school.cover.resource);
+const coverSize =
+  school.cover.resource.kind === "local"
+    ? await getLocalImageSize(school.cover.resource.path)
+    : undefined;
+---
+
+<section
+  class="page-frame schools-detail-preview__about"
+  aria-labelledby="school-preview-about-title"
+>
+  <div class="schools-detail-preview__about-copy">
+    <h2
+      class="schools-detail-preview__about-title"
+      id="school-preview-about-title"
+    >
+      {messages.school_preview_about_title({}, { locale })}
+    </h2>
+    <div
+      class="schools-detail-preview__about-body"
+      set:html={renderRestrictedMarkdown(description!)}
+    />
+  </div>
+  <figure class="schools-detail-preview__about-media">
+    <div class="schools-detail-preview__about-media-accent" aria-hidden="true">
+    </div>
+    <div class="schools-detail-preview__about-media-frame">
+      <img
+        src={coverHref}
+        alt={school.cover.alt[locale]!}
+        loading="lazy"
+        decoding="async"
+        {...coverSize === undefined
+          ? {}
+          : { width: coverSize.width, height: coverSize.height }}
+      />
+    </div>
+  </figure>
+</section>

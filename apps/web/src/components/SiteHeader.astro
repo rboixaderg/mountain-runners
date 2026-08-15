@@ -1,29 +1,59 @@
 ---
 import * as messages from "../paraglide/messages.js";
-import logo from "../assets/logo_mountain_runners.png";
+import logo from "../assets/logo-160.png";
+import { externalActionIds } from "../lib/content/models";
 import type { Locale } from "../lib/content/primitives";
+import type { PublicationCatalog } from "../lib/content/publication";
 import { getDomainPath, getFixedPagePath } from "../lib/content/routes";
+import { getSchoolNavigationItems } from "../lib/presentation/schools";
+import { getMemberSignupLink } from "../lib/presentation/status";
+import { externalLinkAttributes } from "../lib/presentation/urls";
 import LanguageSelector from "./LanguageSelector.astro";
+import "../styles/site-header.css";
 
 type LocalizedAlternative = { locale: Locale; href: string };
 
 interface Props {
+  catalog: PublicationCatalog;
   localizedAlternatives: LocalizedAlternative[];
   locale: Locale;
 }
 
-const { localizedAlternatives, locale } = Astro.props;
+const { catalog, localizedAlternatives, locale } = Astro.props;
 const homePath = `/${locale}/`;
-const eventsPath = getDomainPath("event", locale);
-const schoolsPath = getDomainPath("school", locale);
 const aboutPath = getFixedPagePath("about", locale);
+const schoolsPath = getDomainPath("school", locale);
+const eventsPath = getDomainPath("event", locale);
 const membersPath = getFixedPagePath("members", locale);
+const memberSignupLink = getMemberSignupLink(
+  catalog.externalActions.get(externalActionIds.memberSignup),
+  locale,
+  membersPath,
+);
+const currentPath = Astro.url.pathname;
+const schoolNavigationItems = getSchoolNavigationItems(catalog, locale);
+const schoolsNavigationActive = isCurrentPath(schoolsPath);
+const schoolsHubActive = currentPath === schoolsPath;
+const navigationItems = [
+  { href: eventsPath, label: messages.navigation_events({}, { locale }) },
+  { href: membersPath, label: messages.navigation_members({}, { locale }) },
+];
+
+function isCurrentPath(path: string): boolean {
+  return (
+    currentPath === path || (path !== homePath && currentPath.startsWith(path))
+  );
+}
+
+function isSchoolDetailPath(path: string): boolean {
+  return currentPath === path;
+}
 ---
 
-<header class="border-b border-[var(--color-line)]">
-  <div class="page-frame flex min-h-18 items-center gap-6">
+<header class="site-header">
+  <div class="page-frame site-header__inner">
     <a
-      class="shrink-0 no-underline"
+      class="site-header__brand"
       href={homePath}
       aria-label={messages.site_title({}, { locale })}
     >
@@ -36,59 +66,184 @@ const membersPath = getFixedPagePath("members", locale);
       />
     </a>
     <nav
-      class="ml-auto hidden items-center gap-4 text-sm md:flex"
+      class="site-header__navigation"
       aria-label={messages.primary_navigation({}, { locale })}
     >
-      <a class="font-bold" href={homePath}
-        >{messages.navigation_home({}, { locale })}</a
+      <a
+        class:list={[
+          "site-header__link",
+          isCurrentPath(aboutPath) && "site-header__link--active",
+        ]}
+        href={aboutPath}
+        aria-current={isCurrentPath(aboutPath) ? "page" : undefined}
       >
-      <a class="font-bold" href={eventsPath}
-        >{messages.navigation_events({}, { locale })}</a
-      >
-      <a class="font-bold" href={aboutPath}
-        >{messages.navigation_about({}, { locale })}</a
-      >
-      <a class="font-bold" href={membersPath}
-        >{messages.navigation_members({}, { locale })}</a
-      >
-      <a class="font-bold" href={schoolsPath}
-        >{messages.navigation_schools({}, { locale })}</a
-      >
+        {messages.navigation_about({}, { locale })}
+      </a>
+      {
+        schoolNavigationItems.length > 0 ? (
+          <div class="site-header__dropdown">
+            <a
+              class:list={[
+                "site-header__link",
+                schoolsNavigationActive && "site-header__link--active",
+              ]}
+              href={schoolsPath}
+              aria-current={schoolsHubActive ? "page" : undefined}
+            >
+              {messages.navigation_schools({}, { locale })}
+            </a>
+            <ul class="site-header__dropdown-panel">
+              {schoolNavigationItems.map((item) => (
+                <li>
+                  <a
+                    class:list={[
+                      "site-header__dropdown-link",
+                      isSchoolDetailPath(item.href) &&
+                        "site-header__dropdown-link--active",
+                    ]}
+                    href={item.href}
+                    aria-current={
+                      isSchoolDetailPath(item.href) ? "page" : undefined
+                    }
+                  >
+                    {item.label}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : (
+          <a
+            class:list={[
+              "site-header__link",
+              schoolsNavigationActive && "site-header__link--active",
+            ]}
+            href={schoolsPath}
+            aria-current={schoolsNavigationActive ? "page" : undefined}
+          >
+            {messages.navigation_schools({}, { locale })}
+          </a>
+        )
+      }
+      {
+        navigationItems.map((item) => (
+          <a
+            class:list={[
+              "site-header__link",
+              isCurrentPath(item.href) && "site-header__link--active",
+            ]}
+            href={item.href}
+            aria-current={isCurrentPath(item.href) ? "page" : undefined}
+          >
+            {item.label}
+          </a>
+        ))
+      }
     </nav>
-    <div class="hidden md:block">
+    <a
+      class="site-header__cta"
+      href={memberSignupLink.href}
+      {...memberSignupLink.isExternal ? externalLinkAttributes : {}}
+    >
+      {messages.cta_join_members({}, { locale })}
+    </a>
+    <div class="site-header__language">
       <LanguageSelector
         localizedAlternatives={localizedAlternatives}
         locale={locale}
       />
     </div>
-    <details class="relative ml-auto md:hidden">
-      <summary class="cursor-pointer font-bold"
-        >{messages.menu({}, { locale })}</summary
-      >
-      <div
-        class="absolute right-0 z-10 mt-4 min-w-60 border border-[var(--color-line)] bg-[var(--color-paper)] p-4 shadow-sm"
-      >
+    <details class="site-header__mobile-menu">
+      <summary>
+        <span>{messages.menu({}, { locale })}</span>
+        <span class="site-header__menu-icon" aria-hidden="true"></span>
+      </summary>
+      <div class="site-header__mobile-panel">
         <nav
-          class="grid gap-3"
+          class="site-header__mobile-navigation"
           aria-label={messages.primary_navigation({}, { locale })}
         >
-          <a class="font-bold" href={homePath}
-            >{messages.navigation_home({}, { locale })}</a
+          <a
+            class:list={[
+              "site-header__mobile-link",
+              isCurrentPath(aboutPath) && "site-header__mobile-link--active",
+            ]}
+            href={aboutPath}
+            aria-current={isCurrentPath(aboutPath) ? "page" : undefined}
           >
-          <a class="font-bold" href={eventsPath}
-            >{messages.navigation_events({}, { locale })}</a
-          >
-          <a class="font-bold" href={aboutPath}
-            >{messages.navigation_about({}, { locale })}</a
-          >
-          <a class="font-bold" href={membersPath}
-            >{messages.navigation_members({}, { locale })}</a
-          >
-          <a class="font-bold" href={schoolsPath}
-            >{messages.navigation_schools({}, { locale })}</a
-          >
+            {messages.navigation_about({}, { locale })}
+          </a>
+          {
+            schoolNavigationItems.length > 0 ? (
+              <div class="site-header__mobile-group">
+                <a
+                  class:list={[
+                    "site-header__mobile-link",
+                    schoolsNavigationActive &&
+                      "site-header__mobile-link--active",
+                  ]}
+                  href={schoolsPath}
+                  aria-current={schoolsHubActive ? "page" : undefined}
+                >
+                  {messages.navigation_schools({}, { locale })}
+                </a>
+                <ul class="site-header__mobile-submenu">
+                  {schoolNavigationItems.map((item) => (
+                    <li>
+                      <a
+                        class:list={[
+                          "site-header__mobile-submenu-link",
+                          isSchoolDetailPath(item.href) &&
+                            "site-header__mobile-submenu-link--active",
+                        ]}
+                        href={item.href}
+                        aria-current={
+                          isSchoolDetailPath(item.href) ? "page" : undefined
+                        }
+                      >
+                        {item.label}
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : (
+              <a
+                class:list={[
+                  "site-header__mobile-link",
+                  schoolsNavigationActive && "site-header__mobile-link--active",
+                ]}
+                href={schoolsPath}
+                aria-current={schoolsHubActive ? "page" : undefined}
+              >
+                {messages.navigation_schools({}, { locale })}
+              </a>
+            )
+          }
+          {
+            navigationItems.map((item) => (
+              <a
+                class:list={[
+                  "site-header__mobile-link",
+                  isCurrentPath(item.href) &&
+                    "site-header__mobile-link--active",
+                ]}
+                href={item.href}
+                aria-current={isCurrentPath(item.href) ? "page" : undefined}
+              >
+                {item.label}
+              </a>
+            ))
+          }
         </nav>
-        <div class="mt-4">
+        <a
+          class="site-header__mobile-cta"
+          href={memberSignupLink.href}
+          {...memberSignupLink.isExternal ? externalLinkAttributes : {}}
+        >
+          {messages.cta_join_members({}, { locale })}
+        </a>
+        <div class="site-header__mobile-language">
           <LanguageSelector
             localizedAlternatives={localizedAlternatives}
             locale={locale}

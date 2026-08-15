@@ -1,0 +1,43 @@
+---
+import * as messages from "../../paraglide/messages.js";
+import { getLocalImageSize, getResourceHref } from "../../lib/content/images";
+import type { School } from "../../lib/content/models";
+import type { Locale } from "../../lib/content/primitives";
+
+interface Props {
+  locale: Locale;
+  school: School;
+}
+
+const { locale, school } = Astro.props;
+const coverHref = getResourceHref(school.cover.resource);
+const coverSize =
+  school.cover.resource.kind === "local"
+    ? await getLocalImageSize(school.cover.resource.path)
+    : undefined;
+---
+
+<header class="schools-detail-preview__hero">
+  <figure class="schools-detail-preview__hero-cover">
+    <img
+      src={coverHref}
+      alt=""
+      loading="eager"
+      decoding="async"
+      {...coverSize === undefined
+        ? {}
+        : { width: coverSize.width, height: coverSize.height }}
+    />
+  </figure>
+  <div class="schools-detail-preview__hero-overlay" aria-hidden="true"></div>
+  <div class="page-frame schools-detail-preview__hero-content">
+    <p class="schools-detail-preview__hero-kicker">
+      {messages.navigation_schools({}, { locale })}
+    </p>
+    <h1 class="schools-detail-preview__hero-title">{school.name[locale]!}</h1>
+    <p class="schools-detail-preview__hero-summary">
+      {school.summary[locale]}
+    </p>
+  </div>
+  <div class="schools-detail-preview__hero-edge" aria-hidden="true"></div>
+</header>

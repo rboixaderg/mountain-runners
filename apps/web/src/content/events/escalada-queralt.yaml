@@ -2,29 +2,123 @@ id: escalada-queralt
 published: true
 slug:
   ca: escalada-queralt
+  es: escalada-queralt
+  en: escalada-queralt
 active: true
 title:
   ca: Escalada Popular a Queralt
+  es: Escalada Popular a Queralt
+  en: Popular Climb to Queralt
+summary:
+  ca: Cronoescalada de la Lliga d'escalades del Berguedà, de Berga al Santuari de Queralt.
+  es: Cronoescalada de la Liga de escaladas del Berguedà, de Berga al Santuario de Queralt.
+  en: Time trial climb in the Berguedà Climb League, from Berga to Queralt Sanctuary.
 description:
-  ca: Escalada popular de Berga a Queralt en bicicleta.
+  ca: >-
+    Primera prova de la [Lliga d'escalades del
+    Berguedà](https://escaladesbergueda.cat/). Cronoescalada oberta a tothom
+    des de la plaça dels Països Catalans fins a l'aparcament del Santuari de
+    Queralt, el «Balcó de Catalunya».
+
+
+    El recorregut inclou 0,65 km neutralitzats i 6,54 km cronometrats amb 420
+    metres de desnivell positiu. Es pot participar amb qualsevol tipus de
+    bicicleta: carretera, BTT, gravel, ciclocròs o clàssica.
+
+
+    Mountain Runners del Berguedà i el Club Esquí Berguedà coorganitzen la
+    prova dins el calendari de la lliga, que promou el ciclisme de muntanya al
+    territori.
+  es: >-
+    Primera prueba de la [Liga de escaladas del
+    Berguedà](https://escaladesbergueda.cat/). Cronoescalada abierta a todo el
+    mundo desde la plaza dels Països Catalans hasta el aparcamiento del Santuario
+    de Queralt, el «Balcón de Cataluña».
+
+
+    El recorrido incluye 0,65 km neutralizados y 6,54 km cronometrados con 420
+    metros de desnivel positivo. Se puede participar con cualquier tipo de
+    bicicleta: carretera, BTT, gravel, ciclocross o clásica.
+
+
+    Mountain Runners del Berguedà y el Club Esquí Berguedà coorganizan la prueba
+    dentro del calendario de la liga, que promueve el ciclismo de montaña en el
+    territorio.
+  en: >-
+    The first event in the [Berguedà Climb
+    League](https://escaladesbergueda.cat/). A hill-climb time trial open to
+    everyone, from Plaça dels Països Catalans to the Queralt Sanctuary car park,
+    the “Balcony of Catalonia”.
+
+
+    The route includes 0.65 neutralised kilometres and 6.54 timed kilometres
+    with 420 metres of elevation gain. Participants may use any type of bicycle:
+    road, MTB, gravel, cyclocross or classic.
+
+
+    Mountain Runners del Berguedà and Club Esquí Berguedà co-organise the event
+    as part of the league calendar, which promotes mountain cycling in the region.
 clubRelationship: organizes
 cover:
   resource:
     kind: local
-    path: src/assets/logo_mountain_runners.png
+    path: src/assets/events/escalada-queralt-cover.jpg
   alt:
-    ca: Logotip de Mountain Runners del Berguedà
+    ca: Cronoescalada a Queralt amb vistes sobre Berga i el Berguedà
+    es: Cronoescalada a Queralt con vistas sobre Berga y el Berguedà
+    en: Time trial climb to Queralt with views over Berga and Berguedà
+  sourceUrl: https://escaladesbergueda.cat/images/climbs/queralt-og.jpg
 gallery: []
 videoUrls: []
+informationUrl:
+  ca: https://escaladesbergueda.cat/escalades/queralt
+  es: https://escaladesbergueda.cat/escalades/queralt
+  en: https://escaladesbergueda.cat/escalades/queralt
+registrationUrl:
+  ca: https://escaladesbergueda.cat/
+  es: https://escaladesbergueda.cat/
+  en: https://escaladesbergueda.cat/
 organizerIds:
   - mountain-runners
+  - club-esqui-bergueda
 collaboratorIds: []
 editions:
   - id: edition-2026
-    startDate: 2026-03-17
+    startDate: 2026-03-22
     location:
-      ca: Berga
+      ca: Plaça dels Països Catalans, Berga
+      es: Plaça dels Països Catalans, Berga
+      en: Plaça dels Països Catalans, Berga
     modalities:
-      - ca: Bicicleta de muntanya
+      - ca: 6,54 km · 420 m D+
+        es: 6,54 km · 420 m D+
+        en: 6.54 km · 420 m ascent
+      - ca: Carretera, BTT, gravel o clàssica
+        es: Carretera, BTT, gravel o clásica
+        en: Road, MTB, gravel or classic bike
+    registrationStatus: closed
+    documentIds: []
+  - id: edition-2025
+    startDate: 2025-03-23
+    location:
+      ca: Plaça dels Països Catalans, Berga
+      es: Plaça dels Països Catalans, Berga
+      en: Plaça dels Països Catalans, Berga
+    modalities:
+      - ca: 6,54 km · 420 m D+
+        es: 6,54 km · 420 m D+
+        en: 6.54 km · 420 m ascent
+    registrationStatus: closed
+    documentIds: []
+  - id: edition-2024
+    startDate: 2024-03-17
+    location:
+      ca: Plaça de la Creu, Berga
+      es: Plaça de la Creu, Berga
+      en: Plaça de la Creu, Berga
+    modalities:
+      - ca: 7 km · 500 m D+
+        es: 7 km · 500 m D+
+        en: 7 km · 500 m ascent
     registrationStatus: closed
     documentIds: []

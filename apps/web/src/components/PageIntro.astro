@@ -1,15 +1,41 @@
 ---
+import type { ImageMetadata } from "astro";
+import PageHero from "./PageHero.astro";
+import PageHeroMedia from "./PageHeroMedia.astro";
+
 interface Props {
+  description: string;
+  heroImage?: ImageMetadata;
+  heroImageLarge?: ImageMetadata;
+  heroAttribution?: string;
   kicker: string;
   title: string;
-  description: string;
 }
 
-const { description, kicker, title } = Astro.props;
+const {
+  description,
+  heroAttribution,
+  heroImage,
+  heroImageLarge,
+  kicker,
+  title,
+} = Astro.props;
+const hasHeroImage = heroImage !== undefined || heroImageLarge !== undefined;
+const resolvedHeroImage = heroImage ?? heroImageLarge;
 ---
 
-<section class="page-frame page-intro">
-  <p class="page-intro__kicker">{kicker}</p>
-  <h1 class="page-intro__title">{title}</h1>
-  <p class="page-intro__description">{description}</p>
-</section>
+<PageHero>
+  {
+    hasHeroImage && resolvedHeroImage !== undefined && (
+      <PageHeroMedia
+        slot="media"
+        image={resolvedHeroImage}
+        imageLarge={heroImageLarge ?? heroImage}
+        attribution={heroAttribution}
+      />
+    )
+  }
+  <p class="page-hero__kicker">{kicker}</p>
+  <h1 class="page-hero__title">{title}</h1>
+  <p class="page-hero__description">{description}</p>
+</PageHero>

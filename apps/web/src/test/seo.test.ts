@@ -20,6 +20,7 @@ const event: Event = {
   slug: { ca: "ultra-pirineu" },
   active: true,
   title: { ca: "Ultra Pirineu" },
+  summary: { ca: "Cursa de muntanya." },
   description: { ca: "Cursa de muntanya." },
   clubRelationship: "collaborates",
   cover: {

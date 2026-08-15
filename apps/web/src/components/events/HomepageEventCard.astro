@@ -1,7 +1,6 @@
 ---
 import * as messages from "../../paraglide/messages.js";
 import { getNextEdition } from "../../lib/content/events";
-import { renderRestrictedMarkdown } from "../../lib/content/markdown";
 import type { Event } from "../../lib/content/models";
 import type { Locale } from "../../lib/content/primitives";
 import { getEditionDayMonth } from "../../lib/presentation/dates";
@@ -9,42 +8,79 @@ import { getHomepageEventStatusMessageKey } from "../../lib/presentation/status"
 
 interface Props {
   event: Event;
+  featured?: boolean;
+  href: string;
   locale: Locale;
   today: string;
 }
 
-const { event, locale, today } = Astro.props;
+const { event, featured = false, href, locale, today } = Astro.props;
 const nextEdition = getNextEdition(event, today);
 const statusKey = getHomepageEventStatusMessageKey(nextEdition, today);
 const status = messages[statusKey]({}, { locale });
 const dateParts = getEditionDayMonth(nextEdition, locale);
 ---
 
-<article class="homepage-event">
-  <div class="homepage-event__date">
-    {
-      nextEdition ? (
-        <time datetime={nextEdition.startDate}>
-          <span>{dateParts?.day}</span>
-          <small>{dateParts?.month}</small>
-        </time>
-      ) : (
-        <span aria-hidden="true">--</span>
-      )
-    }
-  </div>
-  <div class="homepage-event__body">
-    <p class="homepage-event__status">{status}</p>
-    <h3>{event.title[locale]}</h3>
-    {
-      event.description[locale] && (
-        <div set:html={renderRestrictedMarkdown(event.description[locale])} />
-      )
-    }
-    {
-      nextEdition && (
-        <p class="homepage-event__location">{nextEdition.location[locale]}</p>
-      )
-    }
-  </div>
+<article
+  class:list={[
+    "homepage-event border-line border-b",
+    featured && "homepage-event--featured",
+  ]}
+>
+  <a class="homepage-event__link grid text-inherit no-underline" href={href}>
+    <div
+      class="homepage-event__date max-md:border-line grid place-items-center px-4 py-6 text-center max-md:row-span-2 max-md:border-r"
+    >
+      {
+        nextEdition ? (
+          <time datetime={nextEdition.startDate}>
+            <span>{dateParts?.day}</span>
+            <small>{dateParts?.month}</small>
+          </time>
+        ) : (
+          <span aria-hidden="true">--</span>
+        )
+      }
+    </div>
+    <div
+      class="homepage-event__body grid content-center p-[clamp(1.5rem,3vw,2.25rem)]"
+    >
+      <p
+        class="homepage-event__meta m-0 mb-3 flex flex-wrap items-center gap-x-3 gap-y-2"
+      >
+        <span
+          class="homepage-event__status bg-ink font-display text-paper px-2 py-[0.2rem] text-[0.7rem] leading-[1.4] font-bold tracking-[0.1em] uppercase"
+          >{status}</span
+        >
+        {
+          nextEdition && (
+            <span class="homepage-event__location font-display text-red text-[0.7rem] leading-[1.4] font-bold tracking-[0.1em] uppercase">
+              {nextEdition.location[locale]}
+            </span>
+          )
+        }
+      </p>
+      <h3
+        class="font-display m-0 text-[clamp(1.75rem,3.4vw,2.75rem)] leading-none uppercase"
+      >
+        {event.title[locale]}
+      </h3>
+      {
+        event.summary[locale] && (
+          <p class="homepage-event__description text-muted mt-3 max-w-[46rem] text-[0.95rem] leading-[1.6]">
+            {event.summary[locale]}
+          </p>
+        )
+      }
+    </div>
+    <div
+      class="homepage-event__aside md:border-line grid place-items-center px-6 py-4 max-md:justify-items-start max-md:px-[clamp(1.5rem,3vw,2.25rem)] max-md:pt-0 max-md:pb-[clamp(1.5rem,3vw,2.25rem)] md:border-l"
+    >
+      <span
+        class="homepage-event__action font-display text-ink text-center text-xs font-bold tracking-[0.12em] uppercase underline decoration-[0.1rem] underline-offset-[0.3rem]"
+      >
+        {messages.homepage_event_action({}, { locale })}
+      </span>
+    </div>
+  </a>
 </article>

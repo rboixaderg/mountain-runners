@@ -2,17 +2,27 @@ id: podologia-ingrid-soca
 published: true
 name:
   ca: Podologia Ingrid Soca
+  es: Podología Ingrid Soca
+  en: Podologia Ingrid Soca
 logo:
   resource:
     kind: local
     path: src/assets/collaborators/podologia-ingrid-soca.jpg
   alt:
     ca: Logotip de Podologia Ingrid Soca
+    es: Logotipo de Podología Ingrid Soca
+    en: Podologia Ingrid Soca logo
   sourceUrl: https://mountainrunners.cat/wp-content/uploads/2021/07/778764_497136226999926_1398420210_o-1024x372.jpg
 description:
   ca: Establiment col·laborador de Mountain Runners del Berguedà.
+  es: Establecimiento colaborador de Mountain Runners del Berguedà.
+  en: Mountain Runners del Berguedà partner business.
 membershipBenefit:
   title:
     ca: Podologia i plantilles
+    es: Podología y plantillas
+    en: Podiatry and insoles
   description:
     ca: Descomptes de podologia i plantilles.
+    es: Descuentos en podología y plantillas.
+    en: Discounts on podiatry services and insoles.
