@@ -7,11 +7,12 @@ name:
 logo:
   resource:
     kind: local
-    path: src/assets/logo_mountain_runners.png
+    path: src/assets/entities/handbol-berga.jpg
   alt:
-    ca: Logotip temporal de Mountain Runners del Berguedà
-    es: Logotipo temporal de Mountain Runners del Berguedà
-    en: Temporary Mountain Runners del Berguedà logo
+    ca: Logotip del Handbol Berga
+    es: Logotipo del Handbol Berga
+    en: Handbol Berga logo
+  sourceUrl: https://www.instagram.com/handbolberga/
 description:
   ca: Club d'handbol de Berga. Coorganitza la Quina Berguedana.
   es: Club de balonmano de Berga. Coorganiza la Quina Berguedana.

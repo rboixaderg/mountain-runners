@@ -128,6 +128,7 @@ describe("publication catalog", () => {
       "src/assets/entities/club-esportiu-berga.png",
       "src/assets/entities/club-esqui-bergueda.png",
       "src/assets/entities/club-voleibol-berga.jpg",
+      "src/assets/entities/handbol-berga.jpg",
       "src/assets/events/anella-verda-cover.webp",
       "src/assets/events/escalada-castell-areny-cover.jpg",
       "src/assets/events/escalada-queralt-cover.jpg",

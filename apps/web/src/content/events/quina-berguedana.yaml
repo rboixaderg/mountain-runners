@@ -63,9 +63,9 @@ cover:
     kind: local
     path: src/assets/events/quina-berguedana-cover.jpg
   alt:
-    ca: Imatge promocional de la Quina Berguedana
-    es: Imagen promocional de la Quina Berguedana
-    en: Quina Berguedana promotional image
+    ca: Cartell de la Quina Berguedana amb el text i les inicials QB
+    es: Cartel de la Quina Berguedana con el texto y las iniciales QB
+    en: Quina Berguedana poster with the text and the QB initials
   sourceUrl: https://www.instagram.com/p/DRz6beeDZEk/
 gallery: []
 videoUrls: []
