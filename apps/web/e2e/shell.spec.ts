@@ -116,19 +116,29 @@ test("renders the published homepage sections in order", async ({ page }) => {
   await expect(page.locator(".homepage-section__view-all")).toHaveText(
     "Veure tot l'any",
   );
-  await expect(page.locator(".homepage-event")).toHaveCount(3);
+  await expect(page.locator(".homepage-event")).toHaveCount(8);
   await expect(
     page.locator(".homepage-event h3").allTextContents(),
   ).resolves.toEqual([
     "Escalada de Vilada a Castell de l'Areny",
     "Ultra Pirineu",
+    "Llobregat x la Diabetis",
+    "Cros de Queralt",
     "Escalada Popular a Queralt",
+    "Les Clàssiques de Berga",
+    "Minivolta a la Maria",
+    "Quina Berguedana",
   ]);
   await expect(
     page.locator(".homepage-event__status").allTextContents(),
   ).resolves.toEqual([
     "Pròxima edició",
     "Pròxima edició",
+    "Pròxima edició",
+    "Sense pròxima data anunciada",
+    "Sense pròxima data anunciada",
+    "Sense pròxima data anunciada",
+    "Sense pròxima data anunciada",
     "Sense pròxima data anunciada",
   ]);
   await expect(
@@ -232,6 +242,7 @@ test("renders the events hub groups in order with links to details", async ({
   ).resolves.toEqual([
     "Escalada de Vilada a Castell de l'Areny",
     "Ultra Pirineu",
+    "Llobregat x la Diabetis",
   ]);
   await expect(
     page.locator(
@@ -243,6 +254,11 @@ test("renders the events hub groups in order with links to details", async ({
   ).toHaveCount(1);
   await expect(
     page.locator(
+      '.homepage-event a[href="/ca/esdeveniments/llobregat-x-la-diabetis/"]',
+    ),
+  ).toHaveCount(1);
+  await expect(
+    page.locator(
       '.events-hub-active-item a[href="/ca/esdeveniments/escalada-queralt/"]',
     ),
   ).toHaveCount(1);
@@ -251,8 +267,9 @@ test("renders the events hub groups in order with links to details", async ({
       '.events-hub-history__title[href="/ca/esdeveniments/berga-trail/"]',
     ),
   ).toHaveCount(1);
+  await expect(page.locator(".events-hub-active-item")).toHaveCount(5);
   await expect(
-    page.locator(".events-hub-active-item__status-value"),
+    page.locator(".events-hub-active-item__status-value").first(),
   ).toHaveText("Sense pròxima data anunciada");
   await expect(
     page.locator(".events-calendar__day--has-events"),
@@ -859,8 +876,13 @@ test("@a11y has no detectable axe violations", async ({
     "/ca/esdeveniments/ultra-pirineu/",
     "/ca/esdeveniments/anella-verda/",
     "/ca/esdeveniments/berga-trail/",
+    "/ca/esdeveniments/cros-de-queralt/",
     "/ca/esdeveniments/escalada-castell-areny/",
     "/ca/esdeveniments/escalada-queralt/",
+    "/ca/esdeveniments/les-classiques-de-berga/",
+    "/ca/esdeveniments/llobregat-x-la-diabetis/",
+    "/ca/esdeveniments/minivolta-a-la-maria/",
+    "/ca/esdeveniments/quina-berguedana/",
     "/ca/qui-som/",
     "/ca/socis/",
     "/ca/escoles/",
@@ -937,10 +959,31 @@ test("publishes structured data only on pages with reviewed data", async ({
     location: { "@type": "Place", name: "Zona Esportiva de Vilada" },
   });
 
+  await page.goto("/ca/esdeveniments/llobregat-x-la-diabetis/");
+  const llobregatData = await jsonLd();
+  expect(llobregatData).toHaveLength(1);
+  expect(llobregatData[0]).toEqual({
+    "@context": "https://schema.org",
+    "@type": "Event",
+    name: "Llobregat x la Diabetis",
+    url: "https://mountainrunners.cat/ca/esdeveniments/llobregat-x-la-diabetis/",
+    startDate: "2026-10-16",
+    endDate: "2026-10-18",
+    eventStatus: "https://schema.org/EventScheduled",
+    location: {
+      "@type": "Place",
+      name: "Castellar de n'Hug — El Prat de Llobregat",
+    },
+  });
+
   for (const path of [
     "/ca/esdeveniments/anella-verda/",
     "/ca/esdeveniments/berga-trail/",
+    "/ca/esdeveniments/cros-de-queralt/",
     "/ca/esdeveniments/escalada-queralt/",
+    "/ca/esdeveniments/les-classiques-de-berga/",
+    "/ca/esdeveniments/minivolta-a-la-maria/",
+    "/ca/esdeveniments/quina-berguedana/",
     "/ca/qui-som/",
     "/ca/socis/",
     "/404.html",
@@ -1078,8 +1121,13 @@ test("has no broken or falsely disabled links within the slice", async ({
     "/ca/esdeveniments/ultra-pirineu/",
     "/ca/esdeveniments/anella-verda/",
     "/ca/esdeveniments/berga-trail/",
+    "/ca/esdeveniments/cros-de-queralt/",
     "/ca/esdeveniments/escalada-castell-areny/",
     "/ca/esdeveniments/escalada-queralt/",
+    "/ca/esdeveniments/les-classiques-de-berga/",
+    "/ca/esdeveniments/llobregat-x-la-diabetis/",
+    "/ca/esdeveniments/minivolta-a-la-maria/",
+    "/ca/esdeveniments/quina-berguedana/",
     "/ca/qui-som/",
     "/ca/socis/",
     "/ca/escoles/",
