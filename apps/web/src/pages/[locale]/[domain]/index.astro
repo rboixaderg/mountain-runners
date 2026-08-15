@@ -1,21 +1,18 @@
 ---
-import * as messages from "../../../paraglide/messages.js";
-import { assertIsLocale } from "../../../paraglide/runtime.js";
+import hubHeroImage from "../../../assets/events/events-hub-hero.webp";
+import hubHeroImageSmall from "../../../assets/events/events-hub-hero-mobile.webp";
 import EventMonthlyCalendar from "../../../components/events/EventMonthlyCalendar.astro";
 import EventsHubActiveCard from "../../../components/events/EventsHubActiveCard.astro";
 import EventsHubHistoryTable from "../../../components/events/EventsHubHistoryTable.astro";
 import HomepageEventCard from "../../../components/events/HomepageEventCard.astro";
+import PageIntro from "../../../components/PageIntro.astro";
 import SchoolHub from "../../../components/schools/SchoolHub.astro";
 import PublicLayout from "../../../layouts/PublicLayout.astro";
-import hubHeroImage from "../../../assets/events/events-hub-hero.webp";
-import hubHeroImageSmall from "../../../assets/events/events-hub-hero-mobile.webp";
-import PageIntro from "../../../components/PageIntro.astro";
 import {
+  type EventHubGroup,
   getEventHubGroups,
   getMadridDate,
-  type EventHubGroup,
 } from "../../../lib/content/events";
-import { getOrderedSchoolVariants } from "../../../lib/content/schools";
 import type { PublishedVariant } from "../../../lib/content/publication";
 import { getPublicationCatalog } from "../../../lib/content/repository";
 import {
@@ -23,7 +20,10 @@ import {
   getRouteDomain,
   getVariantPath,
 } from "../../../lib/content/routes";
+import { getOrderedSchoolVariants } from "../../../lib/content/schools";
 import { getEventHistoryRows } from "../../../lib/presentation/events";
+import * as messages from "../../../paraglide/messages.js";
+import { assertIsLocale } from "../../../paraglide/runtime.js";
 import "../../../styles/events-hub.css";
 import "../../../styles/homepage.css";
 

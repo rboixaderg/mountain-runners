@@ -1,24 +1,24 @@
 ---
-import * as messages from "../../paraglide/messages.js";
+import { renderRestrictedMarkdown } from "../../lib/content/markdown";
 import type { School } from "../../lib/content/models";
 import type { Locale } from "../../lib/content/primitives";
-import { renderRestrictedMarkdown } from "../../lib/content/markdown";
 import {
   extractLocationParts,
   extractScheduleParts,
-  hasPreviewPriceContent,
   hasPreviewPracticalCardContent,
+  hasPreviewPriceContent,
   isCompactSchedulePreview,
   orderPreviewEssentialSections,
   parseSchoolPracticalSection,
+  type SchoolPracticalSectionKey,
   schoolPracticalPreviewContextOrder,
   schoolPracticalPreviewEssentialOrder,
   schoolPracticalPreviewLayoutClasses,
   schoolPracticalSectionMessageKeys,
-  type SchoolPracticalSectionKey,
 } from "../../lib/presentation/schools";
-import SchoolPreviewPrices from "./SchoolPreviewPrices.astro";
+import * as messages from "../../paraglide/messages.js";
 import SchoolPracticalIcon from "./SchoolPracticalIcon.astro";
+import SchoolPreviewPrices from "./SchoolPreviewPrices.astro";
 
 interface Props {
   locale: Locale;

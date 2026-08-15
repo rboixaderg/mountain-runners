@@ -1,8 +1,8 @@
 import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { imageMetadata } from "astro/assets/utils";
-import { resolveLocalResourcePath } from "./resources";
 import type { Document, School } from "./models";
+import { resolveLocalResourcePath } from "./resources";
 
 export type ImageResource = School["cover"]["resource"];
 type Resource = ImageResource | Document["resource"];

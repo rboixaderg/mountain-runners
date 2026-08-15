@@ -1,26 +1,26 @@
-import { readFile, readdir } from "node:fs/promises";
+import { readdir, readFile } from "node:fs/promises";
 import { describe, expect, it } from "vitest";
 import type { z } from "zod";
+import { getMembersDirectoryEntities } from "../lib/content/members";
 import {
-  collectionSchemas,
   type Contact,
+  collectionSchemas,
   type Document,
   type Entity,
   type Event,
   type ExternalAction,
   type School,
 } from "../lib/content/models";
-import { getMembersDirectoryEntities } from "../lib/content/members";
 import {
-  createPublicationCatalog,
   type ContentSource,
+  createPublicationCatalog,
 } from "../lib/content/publication";
+import { parseRestrictedYaml } from "../lib/content/yaml";
 import {
   externalActionStatusMessageKeys,
   getExternalActionPresentation,
   getExternalActionStatusMessageKey,
 } from "../lib/presentation/status";
-import { parseRestrictedYaml } from "../lib/content/yaml";
 
 async function loadCollection<T>(directory: string, schema: z.ZodType<T>) {
   const directoryUrl = new URL(`../content/${directory}/`, import.meta.url);

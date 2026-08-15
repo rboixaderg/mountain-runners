@@ -1,8 +1,8 @@
 import type { ExternalAction } from "../content/models";
 import type { Locale } from "../content/primitives";
 import {
-  getExternalActionStatusMessageKey,
   type ExternalActionStatusMessageKey,
+  getExternalActionStatusMessageKey,
 } from "./status";
 
 // Canonical message keys of the newsletter section of the prefooter. The
@@ -20,7 +20,8 @@ export type NewsletterPresentation =
   | {
       kind: "text";
       messageKey:
-        ExternalActionStatusMessageKey | typeof newsletterUnavailableMessageKey;
+        | ExternalActionStatusMessageKey
+        | typeof newsletterUnavailableMessageKey;
     };
 
 // The newsletter section renders the external `newsletter` action as a link

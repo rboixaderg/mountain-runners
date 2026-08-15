@@ -8,6 +8,16 @@ updates:
     groups:
       development-dependencies:
         dependency-type: development
+        update-types:
+          - minor
+          - patch
+      development-major:
+        dependency-type: development
+        update-types:
+          - major
+    ignore:
+      - dependency-name: "@types/node"
+        update-types: ["version-update:semver-major"]
     open-pull-requests-limit: 10
   - package-ecosystem: github-actions
     directory: /

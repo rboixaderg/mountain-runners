@@ -6,8 +6,8 @@ import {
   getSiteJsonLd,
   getWebSiteJsonLd,
   renderJsonLdScript,
-  serializeJsonLd,
   type StructuredData,
+  serializeJsonLd,
 } from "../lib/content/seo";
 
 function unescapeJsonLd(serialized: string): string {

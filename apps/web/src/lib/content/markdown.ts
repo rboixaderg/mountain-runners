@@ -51,9 +51,9 @@ function assertPhrasingContent(
       return;
     case "strong":
     case "emphasis":
-      node.children.forEach((child) =>
-        assertPhrasingContent(child, depth + 1, state),
-      );
+      node.children.forEach((child) => {
+        assertPhrasingContent(child, depth + 1, state);
+      });
       return;
     case "link": {
       const normalizedUrl = normalizeHttpsUrl(node.url);
@@ -61,9 +61,9 @@ function assertPhrasingContent(
         throw new Error(`Unsafe Markdown link: ${node.url}`);
       }
       node.url = normalizedUrl;
-      node.children.forEach((child) =>
-        assertPhrasingContent(child, depth + 1, state),
-      );
+      node.children.forEach((child) => {
+        assertPhrasingContent(child, depth + 1, state);
+      });
       return;
     }
     default:
@@ -85,9 +85,9 @@ function assertListItem(
   for (const child of node.children) {
     if (child.type === "paragraph") {
       inspectMarkdownNode(depth + 1, state);
-      child.children.forEach((item) =>
-        assertPhrasingContent(item, depth + 2, state),
-      );
+      child.children.forEach((item) => {
+        assertPhrasingContent(item, depth + 2, state);
+      });
     } else if (child.type === "list") assertList(child, depth + 1, state);
     else throw new Error(`Unsupported Markdown node in list: ${child.type}`);
   }
@@ -105,9 +105,9 @@ function assertRootContent(
 ): void {
   if (node.type === "paragraph") {
     inspectMarkdownNode(depth, state);
-    node.children.forEach((child) =>
-      assertPhrasingContent(child, depth + 1, state),
-    );
+    node.children.forEach((child) => {
+      assertPhrasingContent(child, depth + 1, state);
+    });
   } else if (node.type === "list") assertList(node, depth, state);
   else throw new Error(`Unsupported Markdown node: ${node.type}`);
 }
@@ -136,7 +136,9 @@ export function parseRestrictedMarkdown(source: string): Root {
 
   const tree = unified().use(remarkParse).parse(source) as Root;
   const state = { nodes: 1 };
-  tree.children.forEach((node) => assertRootContent(node, 2, state));
+  tree.children.forEach((node) => {
+    assertRootContent(node, 2, state);
+  });
   return tree;
 }
 

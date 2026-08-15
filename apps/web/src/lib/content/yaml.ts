@@ -1,16 +1,16 @@
 import { Buffer } from "node:buffer";
-import type { ZodType } from "zod";
 import {
   CST,
-  Lexer,
   isAlias,
   isMap,
   isNode,
   isPair,
   isScalar,
   isSeq,
+  Lexer,
   parseDocument,
 } from "yaml";
+import type { ZodType } from "zod";
 
 export const yamlLimits = {
   maxBytes: 1024 * 1024,

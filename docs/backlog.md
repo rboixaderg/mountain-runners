@@ -79,6 +79,19 @@ Implementada i fusionada a la T2.3 (PR #17). Es conserva aquí només com a
 registre del triatge; les rutes actuals viuen al contracte tipat de
 `apps/web/src/lib/content/routes.ts`.
 
+### Cadena D'Eines Biome
+
+**Estat:** Incorporada.
+
+**Problema:** ESLint amb `typescript-eslint` i els connectors de Prettier per a
+Astro fan fallar els bumps agrupats de Dependabot i no desbloquegen TypeScript 7.
+
+**Resultat esperat:** lint i format amb Biome, TypeScript 6, Node 24 i Prettier
+restringit a Markdown i YAML.
+
+**Seguiment:** [especificació de la cadena d'eines](specs/toolchain-biome-typescript-7.md)
+i [ADR 0007](decisions/0007-biome-and-typescript-7.md).
+
 ## Necessitats Obertes
 
 ### Analítica Web Respectuosa Amb La Privacitat
@@ -165,9 +178,10 @@ cobertura recurrent posterior continua pendent de triatge.
 
 **Estat:** Capturada.
 
-**Problema:** el projecte ja està inicialitzat i fixa TypeScript 6.0.3. Quan
-TypeScript 7 sigui estable caldrà comprovar si l'ecosistema actual permet
-actualitzar-lo sense degradar el typecheck, l'editor ni les proves.
+**Problema:** TypeScript 7.0 és estable, però no exposa l'API programàtica que
+`astro check` necessita. La prova d'agost de 2026 amb TypeScript 7.0.2 va fer
+fallar `@astrojs/language-server`. Microsoft recomana que Astro, Vue i Svelte
+continuïn amb TypeScript 6 fins a l'API de 7.1. Biome ja no és un bloqueig.
 
 **Resultat esperat:** decidir si es pot actualitzar de TypeScript 6 a 7 amb una
 prova reproduïble i un canvi de dependències acotat, o documentar per què es
@@ -175,18 +189,17 @@ manté temporalment la versió actual.
 
 **Abans de planificar-ho cal definir:**
 
-- l'estat i la disponibilitat estable de TypeScript 7 en el moment d'avaluar
-  l'actualització;
-- la compatibilitat amb Astro, `astro check`, ESLint, Vitest i l'editor;
-- les diferències de comportament o funcionalitats encara no disponibles;
-- l'impacte sobre la CI, els temps de compilació i l'experiència de
-  desenvolupament;
-- una prova mínima que validi la configuració estricta i els fluxos previstos.
+- la disponibilitat de l'API de TypeScript 7.1 i el suport a `astro check`;
+- la compatibilitat amb Astro, Vitest i l'editor;
+- les diferències de comportament encara no disponibles;
+- l'impacte sobre la CI i l'experiència de desenvolupament;
+- una prova mínima que validi la configuració estricta.
 
-**Dependències:** release estable de TypeScript 7 i versions compatibles d'Astro,
-`astro check`, ESLint, Vitest i les eines d'editor.
+**Dependències:** TypeScript 7.1 amb API estable i una versió d'`@astrojs/check`
+que la consumeixi.
 
-**Seguiment:** pendent de triatge.
+**Seguiment:** pendent de l'API 7.1; l'avaluació de 7.0 està registrada a
+l'[ADR 0007](decisions/0007-biome-and-typescript-7.md).
 
 ### Esdeveniments Recurrents Només Al Calendari
 

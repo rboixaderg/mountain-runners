@@ -1,5 +1,4 @@
 ---
-import * as messages from "../../paraglide/messages.js";
 import {
   getMostRelevantEdition,
   getPreviousEditions,
@@ -9,20 +8,21 @@ import { getLocalImageSize, getResourceHref } from "../../lib/content/images";
 import { institutionalEntityId } from "../../lib/content/members";
 import type { Locale } from "../../lib/content/primitives";
 import type {
-  PublishedVariant,
   PublicationCatalog,
+  PublishedVariant,
 } from "../../lib/content/publication";
 import {
   getEventActivityMessageKey,
   getRegistrationPresentation,
 } from "../../lib/presentation/status";
+import * as messages from "../../paraglide/messages.js";
+import DetailHero from "../DetailHero.astro";
+import EventStatus from "../EventStatus.astro";
 import EventDescription from "./EventDescription.astro";
 import EventEntities from "./EventEntities.astro";
 import EventHistory from "./EventHistory.astro";
 import EventPracticalInfo from "./EventPracticalInfo.astro";
 import EventRegistrationPanel from "./EventRegistrationPanel.astro";
-import DetailHero from "../DetailHero.astro";
-import EventStatus from "../EventStatus.astro";
 import "../../styles/event-detail.css";
 
 interface Props {

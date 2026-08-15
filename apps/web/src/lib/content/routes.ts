@@ -1,5 +1,5 @@
-import type { PublishedVariant, PublicationCatalog } from "./publication";
 import { knownLocales, type Locale } from "./primitives";
+import type { PublicationCatalog, PublishedVariant } from "./publication";
 
 export type RouteKind = PublishedVariant["kind"];
 

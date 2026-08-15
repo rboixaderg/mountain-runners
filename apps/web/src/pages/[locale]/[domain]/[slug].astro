@@ -1,5 +1,4 @@
 ---
-import * as messages from "../../../paraglide/messages.js";
 import EventDetail from "../../../components/events/EventDetail.astro";
 import SchoolDetail from "../../../components/schools/SchoolDetail.astro";
 import PublicLayout from "../../../layouts/PublicLayout.astro";
@@ -17,6 +16,7 @@ import {
   getRouteDomain,
 } from "../../../lib/content/routes";
 import { getEventJsonLd } from "../../../lib/content/seo";
+import * as messages from "../../../paraglide/messages.js";
 
 export async function getStaticPaths() {
   const catalog = await getPublicationCatalog();

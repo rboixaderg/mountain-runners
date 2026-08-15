@@ -1,6 +1,6 @@
 import {
-  mkdtemp,
   mkdir,
+  mkdtemp,
   realpath,
   rm,
   symlink,
@@ -10,8 +10,8 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import {
-  localResourcePathSchema,
   imageResourceSchema,
+  localResourcePathSchema,
   resolveLocalResourcePath,
   safeResourceSchema,
 } from "../lib/content/resources";

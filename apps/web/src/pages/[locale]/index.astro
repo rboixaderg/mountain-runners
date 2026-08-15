@@ -1,7 +1,5 @@
 ---
 import { locales } from "../../../i18n.config.mjs";
-import * as messages from "../../paraglide/messages.js";
-import { assertIsLocale } from "../../paraglide/runtime.js";
 import homepageImageAvif from "../../assets/home/homepage-hero.avif";
 import homepageImageSmallAvif from "../../assets/home/homepage-hero-mobile.avif";
 import HomepageEventCard from "../../components/events/HomepageEventCard.astro";
@@ -10,8 +8,8 @@ import PageHeroMedia from "../../components/PageHeroMedia.astro";
 import PublicLayout from "../../layouts/PublicLayout.astro";
 import { getHomepageEvents, getMadridDate } from "../../lib/content/events";
 import { getLocalImageSize, getResourceHref } from "../../lib/content/images";
-import { getOrderedSchoolVariants } from "../../lib/content/schools";
 import { renderRestrictedMarkdown } from "../../lib/content/markdown";
+import { externalActionIds } from "../../lib/content/models";
 import type { PublishedVariant } from "../../lib/content/publication";
 import { getPublicationCatalog } from "../../lib/content/repository";
 import {
@@ -19,13 +17,15 @@ import {
   getFixedPagePath,
   getVariantPath,
 } from "../../lib/content/routes";
+import { getOrderedSchoolVariants } from "../../lib/content/schools";
 import { getSiteJsonLd } from "../../lib/content/seo";
-import { externalActionIds } from "../../lib/content/models";
 import {
   getFederationLink,
   getMemberSignupLink,
 } from "../../lib/presentation/status";
 import { externalLinkAttributes } from "../../lib/presentation/urls";
+import * as messages from "../../paraglide/messages.js";
+import { assertIsLocale } from "../../paraglide/runtime.js";
 import "../../styles/homepage.css";
 
 const locale = assertIsLocale(Astro.currentLocale);

@@ -1,9 +1,9 @@
-import { readFile, readdir } from "node:fs/promises";
+import { readdir, readFile } from "node:fs/promises";
 import { describe, expect, it } from "vitest";
 import type { z } from "zod";
 import {
-  collectionSchemas,
   type Contact,
+  collectionSchemas,
   type Document,
   type Entity,
   type Event,
@@ -11,9 +11,9 @@ import {
   type School,
 } from "../lib/content/models";
 import {
+  type ContentSource,
   createPublicationCatalog,
   getPublishedLocalResources,
-  type ContentSource,
 } from "../lib/content/publication";
 import { parseRestrictedYaml } from "../lib/content/yaml";
 

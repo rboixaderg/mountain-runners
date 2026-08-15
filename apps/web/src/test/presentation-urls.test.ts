@@ -2,8 +2,8 @@ import { describe, expect, it } from "vitest";
 import { renderRestrictedMarkdown } from "../lib/content/markdown";
 import {
   getExternalHost,
-  getMarkdownSafeMailtoAddress,
   getMailtoAddress,
+  getMarkdownSafeMailtoAddress,
 } from "../lib/presentation/urls";
 
 describe("getExternalHost", () => {

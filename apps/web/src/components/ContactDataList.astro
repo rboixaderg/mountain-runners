@@ -1,12 +1,13 @@
 ---
-import * as messages from "../paraglide/messages.js";
 import type { Contact } from "../lib/content/models";
 import type { Locale } from "../lib/content/primitives";
 import { getMailtoAddress } from "../lib/presentation/urls";
+import * as messages from "../paraglide/messages.js";
 import "../styles/contact-data.css";
 
 type ContactAddressLabelKey =
-  "contact_address_label" | "legal_entity_address_label";
+  | "contact_address_label"
+  | "legal_entity_address_label";
 
 interface Props {
   contact: Contact;
