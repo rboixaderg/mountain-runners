@@ -10,14 +10,23 @@ import {
 
 interface Props {
   entities: Entity[];
+  // Identifies the club itself so the section can hide when the club is the
+  // only related entity of one of its own events.
+  institutionalEntityId: string;
   locale: Locale;
 }
 
-const { entities, locale } = Astro.props;
+const { entities, institutionalEntityId, locale } = Astro.props;
+
+// The club always relates to its own events, so the list only adds value when
+// another entity is involved.
+const hasOtherEntities = entities.some(
+  (entity) => entity.id !== institutionalEntityId,
+);
 ---
 
 {
-  entities.length > 0 && (
+  hasOtherEntities && (
     <section class="events-detail__entities">
       <h2>{messages.event_entities_title({}, { locale })}</h2>
       <ul>

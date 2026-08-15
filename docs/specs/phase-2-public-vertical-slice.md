@@ -349,7 +349,8 @@ El detall ha de prioritzar:
 - data, ubicació, modalitats i estat d'inscripció;
 - accions d'inscripció i més informació quan existeixin;
 - edicions anteriors disponibles;
-- entitats referenciades i atribucions publicables.
+- entitats referenciades i atribucions publicables; la llista s'amaga quan
+  l'única entitat relacionada és el mateix club;
 
 Les dates es renderitzen en català, amb elements `<time>` i valors `datetime`
 vàlids. La zona temporal del lloc és `Europe/Madrid`; els tests que depenguin de

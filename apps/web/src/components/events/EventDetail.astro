@@ -6,6 +6,7 @@ import {
   getRegistrationUrl,
 } from "../../lib/content/events";
 import { getLocalImageSize, getResourceHref } from "../../lib/content/images";
+import { institutionalEntityId } from "../../lib/content/members";
 import type { Locale } from "../../lib/content/primitives";
 import type {
   PublishedVariant,
@@ -101,6 +102,10 @@ const editionDocuments =
   />
   <div class="page-frame events-detail__content">
     <EventHistory editions={previousEditions} locale={locale} />
-    <EventEntities entities={relatedEntities} locale={locale} />
+    <EventEntities
+      entities={relatedEntities}
+      institutionalEntityId={institutionalEntityId}
+      locale={locale}
+    />
   </div>
 </article>
