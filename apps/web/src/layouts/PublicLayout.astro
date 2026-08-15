@@ -7,6 +7,7 @@ import oswaldFont from "../assets/fonts/oswald-latin.woff2";
 import { getPublicationCatalog } from "../lib/content/repository";
 import { institutionalEntityId } from "../lib/content/members";
 import type { Locale } from "../lib/content/primitives";
+import { getEntityLinkUrl } from "../lib/presentation/entities";
 import { renderJsonLdScript, type StructuredData } from "../lib/content/seo";
 import * as messages from "../paraglide/messages.js";
 import "../styles/global.css";
@@ -35,6 +36,7 @@ const {
 
 const catalog = await getPublicationCatalog();
 const institutionalEntity = catalog.entities.get(institutionalEntityId);
+const institutionalLinks = institutionalEntity?.links ?? [];
 ---
 
 <!doctype html>
@@ -85,9 +87,9 @@ const institutionalEntity = catalog.entities.get(institutionalEntityId);
     <main id="main-content"><slot /></main>
     <PreFooter catalog={catalog} locale={locale} />
     <SiteFooter
-      instagramUrl={institutionalEntity?.instagramUrl}
+      instagramUrl={getEntityLinkUrl(institutionalLinks, "instagram")}
       locale={locale}
-      stravaClubUrl={institutionalEntity?.stravaClubUrl}
+      stravaClubUrl={getEntityLinkUrl(institutionalLinks, "strava")}
     />
   </body>
 </html>

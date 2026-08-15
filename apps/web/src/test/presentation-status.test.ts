@@ -104,7 +104,7 @@ describe("getRegistrationPresentation", () => {
     });
   });
 
-  it("maps each registration status to its message key", () => {
+  it("maps each registration status to its message key without a URL", () => {
     expect(getRegistrationPresentation("open", undefined)).toEqual({
       key: "event_registration_open",
     });
@@ -114,19 +114,42 @@ describe("getRegistrationPresentation", () => {
     expect(getRegistrationPresentation("coming-soon", undefined)).toEqual({
       key: "event_registration_coming_soon",
     });
-    expect(
-      getRegistrationPresentation("unavailable", "https://example.org"),
-    ).toEqual({
+    expect(getRegistrationPresentation("unavailable", undefined)).toEqual({
       key: "event_registration_unavailable",
     });
   });
 
-  it("includes the URL only for an open registration that has one", () => {
+  it("links the registration form when the registration is open", () => {
     expect(
       getRegistrationPresentation("open", "https://example.org/register"),
     ).toEqual({
       key: "event_registration_open",
       url: "https://example.org/register",
+      actionKey: "event_register_action",
+    });
+  });
+
+  it("links the official website for any non-open status with a URL", () => {
+    expect(
+      getRegistrationPresentation("closed", "https://example.org/event"),
+    ).toEqual({
+      key: "event_registration_closed",
+      url: "https://example.org/event",
+      actionKey: "event_registration_website_action",
+    });
+    expect(
+      getRegistrationPresentation("coming-soon", "https://example.org/event"),
+    ).toEqual({
+      key: "event_registration_coming_soon",
+      url: "https://example.org/event",
+      actionKey: "event_registration_website_action",
+    });
+    expect(
+      getRegistrationPresentation("unavailable", "https://example.org/event"),
+    ).toEqual({
+      key: "event_registration_unavailable",
+      url: "https://example.org/event",
+      actionKey: "event_registration_website_action",
     });
   });
 });

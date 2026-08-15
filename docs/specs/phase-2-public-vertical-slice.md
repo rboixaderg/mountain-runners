@@ -346,10 +346,12 @@ El detall ha de prioritzar:
 - títol, relació del club i estat vigent o històric;
 - descripció i imatge aprovades;
 - pròxima edició o edició més rellevant;
-- data, ubicació, modalitats i estat d'inscripció;
+- data, ubicació, modalitats (només quan l'esdeveniment n'ha declarat) i estat
+  d'inscripció;
 - accions d'inscripció i més informació quan existeixin;
 - edicions anteriors disponibles;
-- entitats referenciades i atribucions publicables.
+- entitats referenciades i atribucions publicables; la llista s'amaga quan
+  l'única entitat relacionada és el mateix club;
 
 Les dates es renderitzen en català, amb elements `<time>` i valors `datetime`
 vàlids. La zona temporal del lloc és `Europe/Madrid`; els tests que depenguin de
@@ -360,8 +362,11 @@ la data han de fixar el rellotge per ser deterministes.
 - `active` i `published` mantenen els significats definits a la fase 1.
 - L'estat d'inscripció és explícit al contingut i no es dedueix de l'existència
   d'una URL.
-- Una inscripció oberta amb URL ofereix una acció descriptiva.
-- Una inscripció tancada mostra l'estat, però no un botó desactivat.
+- Una inscripció oberta amb URL ofereix una acció d'inscripció descriptiva.
+- Qualsevol altre estat amb URL ofereix l'enllaç «Més informació a la seva web»
+  a l'espai oficial de l'esdeveniment, perquè l'acció no depengui del
+  manteniment de l'estat.
+- Una inscripció sense URL mostra l'estat amb text útil, mai un botó desactivat.
 - Un recurs no disponible mostra text útil i no genera `href` buit, `#` ni una
   àncora amb `aria-disabled`.
 - Els enllaços externs han d'indicar clarament el destí quan el context no sigui

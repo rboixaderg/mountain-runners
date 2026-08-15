@@ -1,0 +1,164 @@
+id: les-classiques-de-berga
+published: true
+slug:
+  ca: les-classiques-de-berga
+  es: les-classiques-de-berga
+  en: les-classiques-de-berga
+active: true
+title:
+  ca: Les Clàssiques de Berga
+  es: Les Clàssiques de Berga
+  en: Les Clàssiques de Berga
+summary:
+  ca: >-
+    Cap de setmana de curses de muntanya a Berga, organitzat amb el Club Esquí
+    Berguedà: la Marató de Muntanya de Berga, la Berga–Rasos–Berga, la
+    Berga–Queralt–Berga i els Correxics infantils.
+  es: >-
+    Fin de semana de carreras de montaña en Berga, organizado con el Club Esquí
+    Berguedà: la Marató de Muntanya de Berga, la Berga–Rasos–Berga, la
+    Berga–Queralt–Berga y los Correxics infantiles.
+  en: >-
+    A weekend of mountain races in Berga, organised with Club Esquí Berguedà:
+    the Berga Mountain Marathon, Berga–Rasos–Berga, Berga–Queralt–Berga and the
+    Correxics children's races.
+description:
+  ca: >-
+    Les Clàssiques de Berga van néixer el 2024 de la unió de la Berga–Rasos–Berga
+    del Club Esquí Berguedà i la Berga Trail de Mountain Runners, i van recuperar
+    la mítica [Marató de Muntanya de
+    Berga](https://www.lesclassiquesberga.com/maratodemuntanya).
+
+
+    El cap de setmana concentra a Berga i al Pla de Corbera (Castellar del Riu)
+    tres curses per a adults i els Correxics per a les categories infantils.
+    L'esdeveniment és un referent en les curses de muntanya.
+
+
+    L'esdeveniment està organitzat pel Club Esquí Berguedà i Mountain Runners del
+    Berguedà, amb la col·laboració de l'Ajuntament de Berga i el suport del
+    Consell Comarcal del Berguedà.
+  es: >-
+    Les Clàssiques de Berga nacieron en 2024 de la unión de la Berga–Rasos–Berga
+    del Club Esquí Berguedà y la Berga Trail de Mountain Runners, y recuperaron
+    la mítica [Marató de Muntanya de
+    Berga](https://www.lesclassiquesberga.com/maratodemuntanya).
+
+
+    El fin de semana reúne en Berga y en el Pla de Corbera (Castellar del Riu)
+    tres carreras para adultos y los Correxics para las categorías infantiles.
+    El evento es un referente en las carreras de montaña.
+
+
+    El evento está organizado por el Club Esquí Berguedà y Mountain Runners del
+    Berguedà, con la colaboración del Ayuntamiento de Berga y el apoyo del
+    Consell Comarcal del Berguedà.
+  en: >-
+    Les Clàssiques de Berga was born in 2024 from the union of the Club Esquí
+    Berguedà's Berga–Rasos–Berga and Mountain Runners' Berga Trail, reviving the
+    legendary [Berga Mountain
+    Marathon](https://www.lesclassiquesberga.com/maratodemuntanya).
+
+
+    The weekend brings together three adult races and the Correxics children's
+    races in Berga and at Pla de Corbera (Castellar del Riu). The event is a
+    benchmark in mountain races.
+
+
+    The event is organised by Club Esquí Berguedà and Mountain Runners del
+    Berguedà, with the support of Berga Town Council and Consell Comarcal del
+    Berguedà.
+clubRelationship: organizes
+cover:
+  resource:
+    kind: local
+    path: src/assets/events/les-classiques-de-berga-cover.png
+  alt:
+    ca: Logotip de Les Clàssiques de Berga
+    es: Logotipo de Les Clàssiques de Berga
+    en: Les Clàssiques de Berga logo
+  sourceUrl: https://www.lesclassiquesberga.com/
+gallery: []
+videoUrls: []
+informationUrl:
+  ca: https://www.lesclassiquesberga.com/
+  es: https://www.lesclassiquesberga.com/
+  en: https://www.lesclassiquesberga.com/
+registrationUrl:
+  ca: https://www.9hsports.cat/ca/informacio_cursa/1042
+  es: https://www.9hsports.cat/ca/informacio_cursa/1042
+  en: https://www.9hsports.cat/ca/informacio_cursa/1042
+organizerIds:
+  - mountain-runners
+  - club-esqui-bergueda
+collaboratorIds: []
+editions:
+  - id: edition-2026
+    startDate: 2026-05-09
+    endDate: 2026-05-10
+    location:
+      ca: Berga
+      es: Berga
+      en: Berga
+    modalities:
+      - ca: Marató de Muntanya de Berga — 44,5 km · 2.800 m D+
+        es: Marató de Muntanya de Berga — 44,5 km · 2.800 m D+
+        en: Berga Mountain Marathon — 44.5 km · 2,800 m ascent
+      - ca: Berga–Rasos–Berga — 27,3 km · 1.750 m D+
+        es: Berga–Rasos–Berga — 27,3 km · 1.750 m D+
+        en: Berga–Rasos–Berga — 27.3 km · 1,750 m ascent
+      - ca: Berga–Queralt–Berga — 12,4 km · 780 m D+
+        es: Berga–Queralt–Berga — 12,4 km · 780 m D+
+        en: Berga–Queralt–Berga — 12.4 km · 780 m ascent
+      - ca: Correxics infantils — Pla de Corbera
+        es: Correxics infantiles — Pla de Corbera
+        en: Correxics children's races — Pla de Corbera
+    registrationStatus: closed
+    documentIds: []
+  - id: edition-2025
+    startDate: 2025-05-10
+    endDate: 2025-05-11
+    location:
+      ca: Berga
+      es: Berga
+      en: Berga
+    modalities:
+      - ca: Marató de Muntanya de Berga
+        es: Maratón de Montaña de Berga
+        en: Berga Mountain Marathon
+      - ca: Berga–Rasos–Berga
+        es: Berga–Rasos–Berga
+        en: Berga–Rasos–Berga
+      - ca: Berga–Queralt–Berga
+        es: Berga–Queralt–Berga
+        en: Berga–Queralt–Berga
+      - ca: Correxics infantils
+        es: Correxics infantiles
+        en: Correxics children's races
+    registrationStatus: closed
+    documentIds: []
+  - id: edition-2024
+    startDate: 2024-04-27
+    endDate: 2024-04-28
+    location:
+      ca: Berga
+      es: Berga
+      en: Berga
+    modalities:
+      - ca: Marató de Muntanya de Berga (recuperada)
+        es: Maratón de Montaña de Berga (recuperada)
+        en: Berga Mountain Marathon (revived)
+      - ca: 26a Berga–Rasos–Berga
+        es: 26.ª Berga–Rasos–Berga
+        en: 26th Berga–Rasos–Berga
+      - ca: Berga–Queralt–Berga
+        es: Berga–Queralt–Berga
+        en: Berga–Queralt–Berga
+      - ca: Vertical Figuerassa
+        es: Vertical Figuerassa
+        en: Figuerassa Vertical
+      - ca: Correxics infantils
+        es: Correxics infantiles
+        en: Correxics children's races
+    registrationStatus: closed
+    documentIds: []

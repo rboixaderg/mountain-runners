@@ -17,7 +17,9 @@ description:
   ca: Establiment col·laborador de Mountain Runners del Berguedà.
   es: Establecimiento colaborador de Mountain Runners del Berguedà.
   en: Mountain Runners del Berguedà partner business.
-websiteUrl: https://www.4ridersbikepark.com/
+links:
+  - kind: website
+    url: https://www.4ridersbikepark.com/
 membershipBenefit:
   title:
     ca: Bike park

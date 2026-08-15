@@ -1,0 +1,139 @@
+id: quina-berguedana
+published: true
+slug:
+  ca: quina-berguedana
+  es: quina-berguedana
+  en: quina-berguedana
+active: true
+title:
+  ca: Quina Berguedana
+  es: Quina Berguedana
+  en: Quina Berguedana
+summary:
+  ca: >-
+    La quina popular de Nadal de Berga, organitzada per les entitats esportives
+    locals al Pavelló Vell, amb lots de comerços i un gran bingo final.
+  es: >-
+    La quina popular de Navidad de Berga, organizada por las entidades
+    deportivas locales en el Pavelló Vell, con lotes de comercios y un gran
+    bingo final.
+  en: >-
+    Berga's popular Christmas raffle night, organised by the local sports clubs
+    at the Pavelló Vell, with shop lots and a grand final bingo.
+description:
+  ca: >-
+    La Quina Berguedana és la quina popular de Nadal de Berga, organitzada per
+    cinc clubs de la ciutat: Mountain Runners del Berguedà, Club Esportiu
+    Berga, Bàsquet Berga, Vòlei Berga i Handbol Berga, amb la col·laboració de
+    l'Ajuntament de Berga. Se celebra des del 2018, amb un parèntesi el 2020
+    per la pandèmia.
+
+
+    No és una prova esportiva: és una vetllada festiva al Pavelló Vell, el
+    dissabte abans de Nadal, amb línies, números directes i bingos, lots de
+    comerços locals i un gran bingo final. Els beneficis són una font
+    d'ingressos per a les entitats organitzadores.
+  es: >-
+    La Quina Berguedana es la quina popular de Navidad de Berga, organizada por
+    cinco clubes de la ciudad: Mountain Runners del Berguedà, Club Esportiu
+    Berga, Bàsquet Berga, Vòlei Berga y Handbol Berga, con la colaboración del
+    Ayuntamiento de Berga. Se celebra desde 2018, con un paréntesis en 2020 por
+    la pandemia.
+
+
+    No es una prueba deportiva: es una velada festiva en el Pavelló Vell, el
+    sábado antes de Navidad, con líneas, números directos y bingos, lotes de
+    comercios locales y un gran bingo final. Los beneficios son una fuente de
+    ingresos para las entidades organizadoras.
+  en: >-
+    The Quina Berguedana is Berga's popular Christmas raffle night, organised by
+    five city clubs: Mountain Runners del Berguedà, Club Esportiu Berga, Bàsquet
+    Berga, Vòlei Berga and Handbol Berga, with the support of Berga Town
+    Council. It has been held since 2018, with a break in 2020 due to the
+    pandemic.
+
+
+    It is not a sporting event: it is a festive evening at the Pavelló Vell on
+    the Saturday before Christmas, with lines, direct numbers and bingos, lots
+    from local shops and a grand final bingo. The proceeds are a source of
+    income for the organising clubs.
+clubRelationship: organizes
+cover:
+  resource:
+    kind: local
+    path: src/assets/events/quina-berguedana-cover.jpg
+  alt:
+    ca: Logotip de la Quina Berguedana
+    es: Logotipo de la Quina Berguedana
+    en: Quina Berguedana logo
+  sourceUrl: https://www.instagram.com/p/DRz6beeDZEk/
+gallery: []
+videoUrls: []
+informationUrl:
+  ca: https://www.instagram.com/qberguedana/
+  es: https://www.instagram.com/qberguedana/
+  en: https://www.instagram.com/qberguedana/
+organizerIds:
+  - mountain-runners
+  - club-esportiu-berga
+  - basquet-berga
+  - club-voleibol-berga
+  - handbol-berga
+collaboratorIds: []
+editions:
+  - id: edition-2025
+    startDate: 2025-12-20
+    location:
+      ca: Pavelló Vell, Berga
+      es: Pavelló Vell, Berga
+      en: Pavelló Vell, Berga
+    registrationStatus: closed
+    documentIds: []
+  - id: edition-2024
+    startDate: 2024-12-21
+    location:
+      ca: Pavelló Vell, Berga
+      es: Pavelló Vell, Berga
+      en: Pavelló Vell, Berga
+    registrationStatus: closed
+    documentIds: []
+  - id: edition-2023
+    startDate: 2023-12-16
+    location:
+      ca: Pavelló Vell, Berga
+      es: Pavelló Vell, Berga
+      en: Pavelló Vell, Berga
+    registrationStatus: closed
+    documentIds: []
+  - id: edition-2022
+    startDate: 2022-12-17
+    location:
+      ca: Pavelló Vell, Berga
+      es: Pavelló Vell, Berga
+      en: Pavelló Vell, Berga
+    registrationStatus: closed
+    documentIds: []
+  - id: edition-2021
+    startDate: 2021-12-18
+    location:
+      ca: Pavelló Vell, Berga
+      es: Pavelló Vell, Berga
+      en: Pavelló Vell, Berga
+    registrationStatus: closed
+    documentIds: []
+  - id: edition-2019
+    startDate: 2019-12-21
+    location:
+      ca: Pavelló Vell, Berga
+      es: Pavelló Vell, Berga
+      en: Pavelló Vell, Berga
+    registrationStatus: closed
+    documentIds: []
+  - id: edition-2018
+    startDate: 2018-12-22
+    location:
+      ca: Pavelló Vell, Berga
+      es: Pavelló Vell, Berga
+      en: Pavelló Vell, Berga
+    registrationStatus: closed
+    documentIds: []

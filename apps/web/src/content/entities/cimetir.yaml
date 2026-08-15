@@ -17,7 +17,9 @@ description:
   ca: Centre Integral de Medicina Esportiva, Traumatologia i Rehabilitació.
   es: Centro Integral de Medicina Deportiva, Traumatología y Rehabilitación.
   en: Comprehensive centre for sports medicine, traumatology and rehabilitation.
-websiteUrl: https://www.clinicasantjosep.cat/pagina-inicial
+links:
+  - kind: website
+    url: https://www.clinicasantjosep.cat/pagina-inicial
 membershipBenefit:
   title:
     ca: Proves d'esforç

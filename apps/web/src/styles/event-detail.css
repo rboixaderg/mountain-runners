@@ -2,6 +2,12 @@
   border-bottom: 0;
 }
 
+/* The event cover always shows in full: object-fit contain keeps the whole
+   image visible in both the hero banner and the description frame. */
+.events-detail .detail-hero__cover img {
+  object-fit: contain;
+}
+
 .events-detail .detail-hero::after {
   position: absolute;
   right: 0;
@@ -42,10 +48,6 @@
   content: "";
 }
 
-.events-detail__edition .events-detail__no-upcoming-date {
-  color: rgb(255 255 255 / 0.8);
-}
-
 .events-detail__edition {
   width: 100%;
   margin: 0;
@@ -81,14 +83,6 @@
   transform: skewX(-14deg);
 }
 
-.events-detail__no-upcoming-date {
-  margin: calc(var(--space-3) * -1) 0 var(--space-4);
-  font-size: 0.75rem;
-  font-style: italic;
-  font-weight: 700;
-  text-transform: uppercase;
-}
-
 .events-detail__edition dl {
   display: grid;
   grid-template-columns: repeat(1, minmax(0, 1fr));
@@ -111,8 +105,8 @@
 }
 
 .events-detail__practical-icon {
-  display: inline-flex;
-  margin-bottom: 1rem;
+  display: flex;
+  flex: 0 0 auto;
   color: var(--color-red);
 }
 
@@ -122,6 +116,9 @@
 }
 
 .events-detail__edition dt {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
   margin-bottom: 0.5rem;
   color: white;
   font-family: var(--font-display);
@@ -246,7 +243,7 @@
   display: block;
   width: 100%;
   aspect-ratio: 1;
-  object-fit: cover;
+  object-fit: contain;
 }
 
 .events-detail__actions {
@@ -442,6 +439,29 @@
   margin: var(--space-2) 0 0;
   color: var(--color-muted);
   font-size: 0.8rem;
+}
+
+.events-detail__entity-links {
+  display: inline-flex;
+  gap: 0.5rem;
+  align-items: center;
+  margin-inline-start: 0.5rem;
+  vertical-align: middle;
+}
+
+.events-detail__entity-link {
+  display: inline-flex;
+  align-items: center;
+  color: var(--color-red);
+}
+
+.events-detail__entity-link:hover {
+  color: var(--color-ink);
+}
+
+.events-detail__entity-icon {
+  width: 1.1rem;
+  height: 1.1rem;
 }
 
 @media (min-width: 48rem) {

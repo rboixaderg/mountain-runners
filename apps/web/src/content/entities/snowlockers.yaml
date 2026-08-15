@@ -17,7 +17,9 @@ description:
   ca: Lloguer de material d'hivern d'aventura.
   es: Alquiler de material de invierno para actividades de aventura.
   en: Adventure winter equipment rental.
-websiteUrl: https://www.snowlockers.com/
+links:
+  - kind: website
+    url: https://www.snowlockers.com/
 membershipBenefit:
   title:
     ca: Material d'hivern

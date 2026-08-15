@@ -1,0 +1,22 @@
+id: club-voleibol-berga
+published: true
+name:
+  ca: Club Voleibol Berga
+  es: Club Voleibol Berga
+  en: Club Voleibol Berga
+logo:
+  resource:
+    kind: local
+    path: src/assets/entities/club-voleibol-berga.jpg
+  alt:
+    ca: Logotip del Club Voleibol Berga
+    es: Logotipo del Club Voleibol Berga
+    en: Club Voleibol Berga logo
+  sourceUrl: https://www.instagram.com/voleiberga/
+description:
+  ca: Club de voleibol de Berga. Coorganitza la Quina Berguedana.
+  es: Club de voleibol de Berga. Coorganiza la Quina Berguedana.
+  en: Berga volleyball club. It co-organises the Quina Berguedana.
+links:
+  - kind: instagram
+    url: https://www.instagram.com/voleiberga/

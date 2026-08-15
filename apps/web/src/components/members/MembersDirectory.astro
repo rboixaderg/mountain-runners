@@ -5,6 +5,7 @@ import { renderRestrictedMarkdown } from "../../lib/content/markdown";
 import { getMembersDirectoryEntities } from "../../lib/content/members";
 import type { Locale } from "../../lib/content/primitives";
 import type { PublicationCatalog } from "../../lib/content/publication";
+import { getOrderedEntityLinks } from "../../lib/presentation/entities";
 import ExternalLink from "../ExternalLink.astro";
 
 interface Props {
@@ -20,6 +21,7 @@ const collaboratorsWithImages = await Promise.all(
     return {
       entity,
       href: getResourceHref(resource),
+      primaryLink: getOrderedEntityLinks(entity.links ?? [])[0],
       size:
         resource.kind === "local"
           ? await getLocalImageSize(resource.path)
@@ -42,7 +44,7 @@ const collaboratorsWithImages = await Promise.all(
         </h2>
       </div>
       <ul class="members-directory">
-        {collaboratorsWithImages.map(({ entity, href, size }) => (
+        {collaboratorsWithImages.map(({ entity, href, primaryLink, size }) => (
           <li class="members-directory__entry">
             <img
               class="members-directory__logo"
@@ -63,10 +65,10 @@ const collaboratorsWithImages = await Promise.all(
                   entity.membershipBenefit!.description[locale]!,
                 )}
               />
-              {entity.websiteUrl && (
+              {primaryLink && (
                 <ExternalLink
                   className="members-directory__website"
-                  href={entity.websiteUrl}
+                  href={primaryLink.url}
                   label={entity.name[locale]!}
                 />
               )}

@@ -1,0 +1,111 @@
+id: minivolta-a-la-maria
+published: true
+slug:
+  ca: minivolta-a-la-maria
+  es: minivolta-a-la-maria
+  en: minivolta-a-la-maria
+active: true
+title:
+  ca: Minivolta a la Maria
+  es: Minivolta a la Maria
+  en: Minivolta a la Maria
+summary:
+  ca: >-
+    La cursa infantil de la Volta a la Maria, la cursa de muntanya d'Avià,
+    organitzada per Mountain Runners del Berguedà.
+  es: >-
+    La carrera infantil de la Volta a la Maria, la carrera de montaña de Avià,
+    organizada por Mountain Runners del Berguedà.
+  en: >-
+    The children's race of the Volta a la Maria, Avià's mountain race,
+    organised by Mountain Runners del Berguedà.
+description:
+  ca: >-
+    La Minivolta a la Maria és la cursa infantil de la [Volta a la
+    Maria](https://voltaalamaria.wixsite.com/misitio), la cursa de muntanya
+    d'Avià, i està organitzada per Mountain Runners del Berguedà.
+
+
+    Amb sortida i arribada al nucli d'Avià, la cursa recorre els carrers del
+    poble amb distàncies adaptades a cada edat: des dels 400 m per a les
+    categories més petites fins als 2 km per als infantils.
+
+
+    Es disputa el cap de setmana de la Volta a la Maria, juntament amb la
+    Clàssica, la Nocturna i l'Amunt Maria.
+  es: >-
+    La Minivolta a la Maria es la carrera infantil de la [Volta a la
+    Maria](https://voltaalamaria.wixsite.com/misitio), la carrera de montaña de
+    Avià, y está organizada por Mountain Runners del Berguedà.
+
+
+    Con salida y llegada en el núcleo de Avià, la carrera recorre las calles
+    del pueblo con distancias adaptadas a cada edad: desde los 400 m para las
+    categorías más pequeñas hasta los 2 km para los infantiles.
+
+
+    Se disputa el fin de semana de la Volta a la Maria, junto con la Clàssica,
+    la Nocturna y el Amunt Maria.
+  en: >-
+    The Minivolta a la Maria is the children's race of the [Volta a la
+    Maria](https://voltaalamaria.wixsite.com/misitio), Avià's mountain race, and
+    is organised by Mountain Runners del Berguedà.
+
+
+    With start and finish in the village of Avià, the race runs through the
+    village streets with distances adapted to each age: from 400 m for the
+    youngest categories to 2 km for the infantiles.
+
+
+    It is held on the Volta a la Maria weekend, together with the Clàssica, the
+    Nocturna and the Amunt Maria.
+clubRelationship: organizes
+cover:
+  resource:
+    kind: local
+    path: src/assets/logo_mountain_runners.png
+  alt:
+    ca: Logotip de Mountain Runners del Berguedà
+    es: Logotipo de Mountain Runners del Berguedà
+    en: Mountain Runners del Berguedà logo
+gallery: []
+videoUrls: []
+informationUrl:
+  ca: https://voltaalamaria.wixsite.com/misitio/mini
+  es: https://voltaalamaria.wixsite.com/misitio/mini
+  en: https://voltaalamaria.wixsite.com/misitio/mini
+registrationUrl:
+  ca: https://mountainrunners.playoffinformatica.com/activitat/37/Mini-Volta-a-la-Maria/
+  es: https://mountainrunners.playoffinformatica.com/activitat/37/Mini-Volta-a-la-Maria/
+  en: https://mountainrunners.playoffinformatica.com/activitat/37/Mini-Volta-a-la-Maria/
+organizerIds:
+  - mountain-runners
+collaboratorIds: []
+editions:
+  - id: edition-2025
+    startDate: 2025-11-16
+    location:
+      ca: Avià
+      es: Avià
+      en: Avià
+    modalities:
+      - ca: Cursa infantil pels carrers d'Avià
+        es: Carrera infantil por las calles de Avià
+        en: Children's race through the streets of Avià
+      - ca: Minis i xics — 400 m
+        es: Minis y xics — 400 m
+        en: Minis and xics — 400 m
+      - ca: Pre-benjamí — 800 m
+        es: Pre-benjamín — 800 m
+        en: Pre-benjamí — 800 m
+      - ca: Benjamí — 1,15 km
+        es: Benjamín — 1,15 km
+        en: Benjamí — 1.15 km
+      - ca: Aleví — 1,56 km
+        es: Alevín — 1,56 km
+        en: Aleví — 1.56 km
+      - ca: Infantil — 2 km
+        es: Infantil — 2 km
+        en: Infantil — 2 km
+    registrationStatus: closed
+    documentIds: []

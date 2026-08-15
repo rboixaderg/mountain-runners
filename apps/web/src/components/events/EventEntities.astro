@@ -3,34 +3,51 @@ import * as messages from "../../paraglide/messages.js";
 import type { Entity } from "../../lib/content/models";
 import type { Locale } from "../../lib/content/primitives";
 import {
-  externalLinkAttributes,
-  getExternalHost,
-} from "../../lib/presentation/urls";
+  entityLinkLabelMessageKeys,
+  getOrderedEntityLinks,
+} from "../../lib/presentation/entities";
+import { externalLinkAttributes } from "../../lib/presentation/urls";
+import EntityLinkIcon from "./EntityLinkIcon.astro";
 
 interface Props {
   entities: Entity[];
+  // Identifies the club itself so the section can hide when the club is the
+  // only related entity of one of its own events.
+  institutionalEntityId: string;
   locale: Locale;
 }
 
-const { entities, locale } = Astro.props;
+const { entities, institutionalEntityId, locale } = Astro.props;
+
+// The club always relates to its own events, so the list only adds value when
+// another entity is involved.
+const hasOtherEntities = entities.some(
+  (entity) => entity.id !== institutionalEntityId,
+);
 ---
 
 {
-  entities.length > 0 && (
+  hasOtherEntities && (
     <section class="events-detail__entities">
       <h2>{messages.event_entities_title({}, { locale })}</h2>
       <ul>
         {entities.map((entity) => (
           <li>
             <strong>{entity.name[locale]}</strong>
-            {entity.websiteUrl && (
-              <>
-                {" · "}
-                <a href={entity.websiteUrl} {...externalLinkAttributes}>
-                  {getExternalHost(entity.websiteUrl)}
+            <span class="events-detail__entity-links">
+              {getOrderedEntityLinks(entity.links ?? []).map((link) => (
+                <a
+                  class="events-detail__entity-link"
+                  href={link.url}
+                  aria-label={`${messages[
+                    entityLinkLabelMessageKeys[link.kind]
+                  ]({}, { locale })} · ${entity.name[locale]}`}
+                  {...externalLinkAttributes}
+                >
+                  <EntityLinkIcon kind={link.kind} />
                 </a>
-              </>
-            )}
+              ))}
+            </span>
             {entity.attribution?.[locale] && (
               <p>{entity.attribution[locale]}</p>
             )}

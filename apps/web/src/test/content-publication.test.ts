@@ -65,24 +65,39 @@ describe("publication catalog", () => {
       "school:ca:escola-trail",
       "event:ca:anella-verda",
       "event:ca:berga-trail",
+      "event:ca:cros-de-queralt",
       "event:ca:escalada-castell-areny",
       "event:ca:escalada-queralt",
+      "event:ca:les-classiques-de-berga",
+      "event:ca:llobregat-x-la-diabetis",
+      "event:ca:minivolta-a-la-maria",
+      "event:ca:quina-berguedana",
       "event:ca:ultra-pirineu",
       "school:es:escuela-btt",
       "school:es:escuela-esqui-montana",
       "school:es:escuela-trail",
       "event:es:anella-verde",
       "event:es:berga-trail",
+      "event:es:cros-de-queralt",
       "event:es:escalada-castell-areny",
       "event:es:escalada-queralt",
+      "event:es:les-classiques-de-berga",
+      "event:es:llobregat-x-la-diabetis",
+      "event:es:minivolta-a-la-maria",
+      "event:es:quina-berguedana",
       "event:es:ultra-pirineu",
       "school:en:mtb-school",
       "school:en:ski-mountaineering-school",
       "school:en:trail-school",
       "event:en:green-ring",
       "event:en:berga-trail",
+      "event:en:cros-de-queralt",
       "event:en:escalada-castell-areny",
       "event:en:escalada-queralt",
+      "event:en:les-classiques-de-berga",
+      "event:en:llobregat-x-la-diabetis",
+      "event:en:minivolta-a-la-maria",
+      "event:en:quina-berguedana",
       "event:en:ultra-pirineu",
     ]);
     expect(catalog.documents.has("private-draft")).toBe(false);
@@ -108,11 +123,18 @@ describe("publication catalog", () => {
       "src/assets/collaborators/snowlockers.png",
       "src/assets/collaborators/veloberga.jpg",
       "src/assets/collaborators/visites-al-bergueda.jpg",
+      "src/assets/entities/basquet-berga.jpg",
       "src/assets/entities/club-atletic-berga.png",
+      "src/assets/entities/club-esportiu-berga.png",
       "src/assets/entities/club-esqui-bergueda.png",
+      "src/assets/entities/club-voleibol-berga.jpg",
+      "src/assets/entities/handbol-berga.jpg",
       "src/assets/events/anella-verda-cover.webp",
       "src/assets/events/escalada-castell-areny-cover.jpg",
       "src/assets/events/escalada-queralt-cover.jpg",
+      "src/assets/events/les-classiques-de-berga-cover.png",
+      "src/assets/events/llobregat-x-la-diabetis-cover.png",
+      "src/assets/events/quina-berguedana-cover.jpg",
       "src/assets/logo_mountain_runners.png",
       "src/assets/schools/escola-btt-card.jpg",
       "src/assets/schools/escola-btt.jpg",
@@ -176,7 +198,7 @@ describe("publication catalog", () => {
             ({ id }) => id === "mountain-day",
           )!;
           mountainDay.published = true;
-          delete (mountainDay.editions[0]!.modalities[0]! as { ca?: string })
+          delete (mountainDay.editions[0]!.modalities![0]! as { ca?: string })
             .ca;
         },
       },
@@ -387,12 +409,11 @@ describe("publication catalog", () => {
     ]);
     expect(catalog.contact?.id).toBe("mountain-runners-contact");
     expect(catalog.contact?.email).toBe("mailto:info@mountainrunners.cat");
-    expect(catalog.entities.get("mountain-runners")?.instagramUrl).toBe(
-      "https://www.instagram.com/infomountain/",
-    );
-    expect(catalog.entities.get("mountain-runners")?.stravaClubUrl).toBe(
-      "https://www.strava.com/clubs/156769",
-    );
+    expect(catalog.entities.get("mountain-runners")?.links).toEqual([
+      { kind: "website", url: "https://mountainrunners.cat/" },
+      { kind: "instagram", url: "https://www.instagram.com/infomountain/" },
+      { kind: "strava", url: "https://www.strava.com/clubs/156769" },
+    ]);
     expect(catalog.entities.get("mountain-runners")?.promotionalVideoUrl).toBe(
       "https://www.youtube.com/watch?v=EUV5uETCjeo",
     );

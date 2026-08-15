@@ -59,11 +59,11 @@ const showPanel = edition !== undefined;
           <p class="events-detail__registration-status">
             <span>{messages[registration.key]({}, { locale })}</span>
           </p>
-          {registration.url && (
+          {registration.url && registration.actionKey && (
             <ExternalLink
               className="event-action event-action--registration"
               href={registration.url}
-              label={messages.event_register_action({}, { locale })}
+              label={messages[registration.actionKey]({}, { locale })}
             />
           )}
         </article>

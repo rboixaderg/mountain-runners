@@ -110,7 +110,9 @@ const eventEditionSchema = z
     startDate: dateSchema,
     endDate: dateSchema.optional(),
     location: localizedTextSchema,
-    modalities: z.array(localizedTextSchema).min(1).max(20),
+    // Modalities only apply to sporting events; non-sporting events such as
+    // the Quina leave the list empty and the section unrendered.
+    modalities: z.array(localizedTextSchema).max(20).optional(),
     registrationStatus: registrationStatusSchema,
     registrationUrl: localizedHttpsUrlSchema.optional(),
     documentIds: z.array(contentIdSchema).max(20),
@@ -151,15 +153,52 @@ export const eventSchema = z
     }
   });
 
+// The public links of an entity: its website, an Instagram, Strava or X
+// profile, or any other public address. Content declares the full set of links
+// and the presentation layer orders them by kind when rendering.
+export const entityLinkKinds = [
+  "website",
+  "instagram",
+  "strava",
+  "other",
+] as const;
+
+export type EntityLinkKind = (typeof entityLinkKinds)[number];
+
+const entityLinkSchema = z
+  .strictObject({
+    kind: z.enum(entityLinkKinds),
+    url: httpsUrlSchema,
+  })
+  .superRefine(({ kind, url }, context) => {
+    if (
+      kind === "instagram" &&
+      !instagramProfileUrlSchema.safeParse(url).success
+    ) {
+      context.addIssue({
+        code: "custom",
+        message: "Expected an Instagram profile URL for an instagram link",
+        path: ["url"],
+      });
+    }
+    if (kind === "strava" && !stravaClubUrlSchema.safeParse(url).success) {
+      context.addIssue({
+        code: "custom",
+        message: "Expected a Strava club URL for a strava link",
+        path: ["url"],
+      });
+    }
+  });
+
+export type EntityLink = z.infer<typeof entityLinkSchema>;
+
 export const entitySchema = z.strictObject({
   id: contentIdSchema,
   published: z.boolean(),
   name: localizedTextSchema,
   logo: imageSchema,
   description: localizedMarkdownSchema,
-  websiteUrl: httpsUrlSchema.optional(),
-  instagramUrl: instagramProfileUrlSchema.optional(),
-  stravaClubUrl: stravaClubUrlSchema.optional(),
+  links: z.array(entityLinkSchema).max(8).optional(),
   promotionalVideoUrl: youtubeVideoUrlSchema.optional(),
   attribution: localizedTextSchema.optional(),
   membershipBenefit: z

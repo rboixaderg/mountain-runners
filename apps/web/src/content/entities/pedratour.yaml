@@ -17,7 +17,9 @@ description:
   ca: Establiment col·laborador de Mountain Runners del Berguedà.
   es: Establecimiento colaborador de Mountain Runners del Berguedà.
   en: Mountain Runners del Berguedà partner business.
-websiteUrl: https://pedratour.com/
+links:
+  - kind: website
+    url: https://pedratour.com/
 membershipBenefit:
   title:
     ca: Packs d'experiències

@@ -211,7 +211,7 @@ function isEventComplete(
     event.editions.every(
       (edition) =>
         isTranslated(edition.location, locale) &&
-        edition.modalities.every((modality) =>
+        (edition.modalities ?? []).every((modality) =>
           isTranslated(modality, locale),
         ) &&
         (edition.registrationStatus !== "open" ||
