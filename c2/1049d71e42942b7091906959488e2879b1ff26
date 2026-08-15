@@ -1,0 +1,14 @@
+apps/web/src/styles/event-detail.css
+  h_1727aeeb492b30 108-109,119-121
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "c21049d71e42942b7091906959488e2879b1ff26",
+  "prompts": {},
+  "humans": {
+    "h_1727aeeb492b30": {
+      "author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
