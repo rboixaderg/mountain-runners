@@ -1,0 +1,23 @@
+apps/web/src/components/events/EventDetail.astro
+  s_698ba8cbd1c1fe::t_09f7ccefcd7ff7 9,105-109
+apps/web/src/components/events/EventEntities.astro
+  s_698ba8cbd1c1fe::t_45720c39d46f2b 13-15,19-25,29
+docs/specs/phase-2-public-vertical-slice.md
+  s_698ba8cbd1c1fe::t_5f146007e4833c 352-353
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "821db77b5840448d7c1b20a4730c7a255c93cbac",
+  "prompts": {},
+  "sessions": {
+    "s_698ba8cbd1c1fe": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_ffa2dd8d6ffeEKKkZNlkri6qkd",
+        "model": "deepseek-v4-flash"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
