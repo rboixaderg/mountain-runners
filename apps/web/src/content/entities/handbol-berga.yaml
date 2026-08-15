@@ -1,17 +1,17 @@
 id: handbol-berga
-published: false
+published: true
 name:
   ca: Handbol Berga
   es: Handbol Berga
   en: Handbol Berga
 logo:
   resource:
-    kind: external
-    url: https://handbolberga.cat/wp-content/uploads/2022/02/escut-sense-llac.png
+    kind: local
+    path: src/assets/logo_mountain_runners.png
   alt:
-    ca: Logotip del Handbol Berga
-    es: Logotipo del Handbol Berga
-    en: Handbol Berga logo
+    ca: Logotip temporal de Mountain Runners del Berguedà
+    es: Logotipo temporal de Mountain Runners del Berguedà
+    en: Temporary Mountain Runners del Berguedà logo
 description:
   ca: Club d'handbol de Berga. Coorganitza la Quina Berguedana.
   es: Club de balonmano de Berga. Coorganiza la Quina Berguedana.

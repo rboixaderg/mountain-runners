@@ -1,5 +1,5 @@
 id: cros-de-queralt
-published: false
+published: true
 slug:
   ca: cros-de-queralt
   es: cros-de-queralt
@@ -78,21 +78,6 @@ collaboratorIds: []
 editions:
   - id: edition-2025
     startDate: 2025-12-14
-    location:
-      ca: Santuari de Queralt, Berga
-      es: Santuario de Queralt, Berga
-      en: Queralt Sanctuary, Berga
-    modalities:
-      - ca: Categories d'Educació Infantil a Cadet
-        es: Categorías de Educación Infantil a Cadete
-        en: Categories from pre-school to cadet
-      - ca: Distàncies adaptades a cada categoria
-        es: Distancias adaptadas a cada categoría
-        en: Distances adapted to each category
-    registrationStatus: closed
-    documentIds: []
-  - id: edition-2016
-    startDate: 2016-10-22
     location:
       ca: Santuari de Queralt, Berga
       es: Santuario de Queralt, Berga

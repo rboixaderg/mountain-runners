@@ -1,5 +1,5 @@
 id: les-classiques-de-berga
-published: false
+published: true
 slug:
   ca: les-classiques-de-berga
   es: les-classiques-de-berga
@@ -7,7 +7,7 @@ slug:
 active: true
 title:
   ca: Les Clàssiques de Berga
-  es: Las Clásicas de Berga
+  es: Les Clàssiques de Berga
   en: Les Clàssiques de Berga
 summary:
   ca: >-

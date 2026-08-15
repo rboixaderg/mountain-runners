@@ -1,5 +1,5 @@
 id: quina-berguedana
-published: false
+published: true
 slug:
   ca: quina-berguedana
   es: quina-berguedana
@@ -69,6 +69,10 @@ cover:
   sourceUrl: https://www.instagram.com/p/DRz6beeDZEk/
 gallery: []
 videoUrls: []
+informationUrl:
+  ca: https://www.instagram.com/qberguedana/
+  es: https://www.instagram.com/qberguedana/
+  en: https://www.instagram.com/qberguedana/
 organizerIds:
   - mountain-runners
   - club-esportiu-berga
@@ -154,6 +158,21 @@ editions:
     documentIds: []
   - id: edition-2019
     startDate: 2019-12-21
+    location:
+      ca: Pavelló Vell, Berga
+      es: Pavelló Vell, Berga
+      en: Pavelló Vell, Berga
+    modalities:
+      - ca: Quina popular amb línies, números directes i bingos
+        es: Quina popular con líneas, números directos y bingos
+        en: Popular raffle with lines, direct numbers and bingos
+      - ca: Lots de comerços locals i gran bingo final
+        es: Lotes de comercios locales y gran bingo final
+        en: Lots from local shops and grand final bingo
+    registrationStatus: closed
+    documentIds: []
+  - id: edition-2018
+    startDate: 2018-12-22
     location:
       ca: Pavelló Vell, Berga
       es: Pavelló Vell, Berga

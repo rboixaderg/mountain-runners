@@ -1,17 +1,18 @@
 id: club-esportiu-berga
-published: false
+published: true
 name:
   ca: Club Esportiu Berga
   es: Club Esportiu Berga
   en: Club Esportiu Berga
 logo:
   resource:
-    kind: external
-    url: https://ceberga.cat/wp-content/uploads/2021/06/cropped-Mesa-de-trabajo-1.png
+    kind: local
+    path: src/assets/entities/club-esportiu-berga.png
   alt:
     ca: Logotip del Club Esportiu Berga
     es: Logotipo del Club Esportiu Berga
     en: Club Esportiu Berga logo
+  sourceUrl: https://ceberga.cat/
 description:
   ca: Club de futbol de Berga, fundat l'any 1913. Coorganitza la Quina Berguedana.
   es: Club de fútbol de Berga, fundado en 1913. Coorganiza la Quina Berguedana.
