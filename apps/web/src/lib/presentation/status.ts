@@ -58,9 +58,23 @@ export const registrationStatusMessageKeys = {
 export type RegistrationStatusMessageKey =
   (typeof registrationStatusMessageKeys)[keyof typeof registrationStatusMessageKeys];
 
+// Canonical message keys for the registration action link. An open
+// registration points to the registration form; any other status with a URL
+// points to the official event website, so the panel never depends on the
+// maintained status to offer a path to register.
+export const registrationActionMessageKeys = {
+  register: "event_register_action",
+  website: "event_registration_website_action",
+} as const;
+
+export type RegistrationActionMessageKey =
+  (typeof registrationActionMessageKeys)[keyof typeof registrationActionMessageKeys];
+
 export type RegistrationPresentation = {
   key: RegistrationStatusMessageKey;
   url?: string;
+  // Message key for the action link label; present only when a URL exists.
+  actionKey?: RegistrationActionMessageKey;
 };
 
 // An available external action renders its link, so only the unavailable
@@ -195,8 +209,15 @@ export function getRegistrationPresentation(
 ): RegistrationPresentation {
   const resolvedStatus = status ?? "unavailable";
   const key = registrationStatusMessageKeys[resolvedStatus];
-  if (resolvedStatus === "open" && url !== undefined) {
-    return { key, url };
+  if (url === undefined) {
+    return { key };
   }
-  return { key };
+  return {
+    key,
+    url,
+    actionKey:
+      resolvedStatus === "open"
+        ? registrationActionMessageKeys.register
+        : registrationActionMessageKeys.website,
+  };
 }

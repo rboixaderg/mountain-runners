@@ -360,8 +360,11 @@ la data han de fixar el rellotge per ser deterministes.
 - `active` i `published` mantenen els significats definits a la fase 1.
 - L'estat d'inscripció és explícit al contingut i no es dedueix de l'existència
   d'una URL.
-- Una inscripció oberta amb URL ofereix una acció descriptiva.
-- Una inscripció tancada mostra l'estat, però no un botó desactivat.
+- Una inscripció oberta amb URL ofereix una acció d'inscripció descriptiva.
+- Qualsevol altre estat amb URL ofereix l'enllaç «Més informació a la seva web»
+  a l'espai oficial de l'esdeveniment, perquè l'acció no depengui del
+  manteniment de l'estat.
+- Una inscripció sense URL mostra l'estat amb text útil, mai un botó desactivat.
 - Un recurs no disponible mostra text útil i no genera `href` buit, `#` ni una
   àncora amb `aria-disabled`.
 - Els enllaços externs han d'indicar clarament el destí quan el context no sigui
