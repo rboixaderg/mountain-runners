@@ -2,6 +2,7 @@
 import * as messages from "../../paraglide/messages.js";
 import type { Entity } from "../../lib/content/models";
 import type { Locale } from "../../lib/content/primitives";
+import { getOrderedEntityLinks } from "../../lib/presentation/entities";
 import {
   externalLinkAttributes,
   getExternalHost,
@@ -23,14 +24,14 @@ const { entities, locale } = Astro.props;
         {entities.map((entity) => (
           <li>
             <strong>{entity.name[locale]}</strong>
-            {entity.websiteUrl && (
-              <>
+            {getOrderedEntityLinks(entity.links ?? []).map((link) => (
+              <Fragment>
                 {" · "}
-                <a href={entity.websiteUrl} {...externalLinkAttributes}>
-                  {getExternalHost(entity.websiteUrl)}
+                <a href={link.url} {...externalLinkAttributes}>
+                  {getExternalHost(link.url)}
                 </a>
-              </>
-            )}
+              </Fragment>
+            ))}
             {entity.attribution?.[locale] && (
               <p>{entity.attribution[locale]}</p>
             )}

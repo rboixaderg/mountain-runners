@@ -387,12 +387,11 @@ describe("publication catalog", () => {
     ]);
     expect(catalog.contact?.id).toBe("mountain-runners-contact");
     expect(catalog.contact?.email).toBe("mailto:info@mountainrunners.cat");
-    expect(catalog.entities.get("mountain-runners")?.instagramUrl).toBe(
-      "https://www.instagram.com/infomountain/",
-    );
-    expect(catalog.entities.get("mountain-runners")?.stravaClubUrl).toBe(
-      "https://www.strava.com/clubs/156769",
-    );
+    expect(catalog.entities.get("mountain-runners")?.links).toEqual([
+      { kind: "website", url: "https://mountainrunners.cat/" },
+      { kind: "instagram", url: "https://www.instagram.com/infomountain/" },
+      { kind: "strava", url: "https://www.strava.com/clubs/156769" },
+    ]);
     expect(catalog.entities.get("mountain-runners")?.promotionalVideoUrl).toBe(
       "https://www.youtube.com/watch?v=EUV5uETCjeo",
     );

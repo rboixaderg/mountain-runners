@@ -17,4 +17,6 @@ description:
   ca: Entitat esportiva del Berguedà. Coorganitza la Lliga d'escalades del Berguedà amb Mountain Runners del Berguedà.
   es: Entidad deportiva del Berguedà. Coorganiza la Liga de escaladas del Berguedà con Mountain Runners del Berguedà.
   en: Sports organisation from Berguedà. It co-organises the Berguedà Climb League with Mountain Runners del Berguedà.
-websiteUrl: https://www.clubesquibergueda.cat
+links:
+  - kind: website
+    url: https://www.clubesquibergueda.cat
