@@ -108,7 +108,7 @@ test("renders the published homepage sections in order", async ({ page }) => {
     page.locator(".homepage-hero__actions .homepage-hero__cta").last(),
   ).toHaveAttribute(
     "href",
-    "https://mountainrunners.playoffinformatica.com/activitat/30/Llicencies-Federatives-2025/",
+    "https://mountainrunners.playoffinformatica.com/PanellActivitatsWebNou.php?SELECCIO_NIVELL=4",
   );
   await expect(
     page.locator(".homepage-hero__actions .homepage-hero__cta").last(),
@@ -543,7 +543,7 @@ test("renders the Members page sections in editorial order", async ({
   await expect(federationLink).toHaveCount(1);
   await expect(federationLink).toHaveAttribute(
     "href",
-    "https://mountainrunners.playoffinformatica.com/activitat/30/Llicencies-Federatives-2025/",
+    "https://mountainrunners.playoffinformatica.com/PanellActivitatsWebNou.php?SELECCIO_NIVELL=4",
   );
 
   await expect(page.locator(".members-directory__entry")).toHaveCount(21);
@@ -843,7 +843,7 @@ test("reaches and activates the available actions with the keyboard", async ({
   await tabUntilFocused(page, federationLink);
   await expect(federationLink).toHaveAttribute(
     "href",
-    "https://mountainrunners.playoffinformatica.com/activitat/30/Llicencies-Federatives-2025/",
+    "https://mountainrunners.playoffinformatica.com/PanellActivitatsWebNou.php?SELECCIO_NIVELL=4",
   );
 });
 
