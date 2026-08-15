@@ -110,7 +110,9 @@ const eventEditionSchema = z
     startDate: dateSchema,
     endDate: dateSchema.optional(),
     location: localizedTextSchema,
-    modalities: z.array(localizedTextSchema).min(1).max(20),
+    // Modalities only apply to sporting events; non-sporting events such as
+    // the Quina leave the list empty and the section unrendered.
+    modalities: z.array(localizedTextSchema).max(20).optional(),
     registrationStatus: registrationStatusSchema,
     registrationUrl: localizedHttpsUrlSchema.optional(),
     documentIds: z.array(contentIdSchema).max(20),

@@ -368,7 +368,7 @@ test("renders the active event detail without an announced date", async ({
   ).toBeVisible();
   await expect(page.getByText("Esdeveniment oficial del club")).toBeVisible();
   await expect(page.getByText("Actiu", { exact: true })).toBeVisible();
-  await expect(page.getByText("Sense pròxima data anunciada")).toBeVisible();
+  await expect(page.getByText("Sense data anunciada")).toBeVisible();
   await expect(page.getByText("Inscripció tancada")).toBeVisible();
   await expect(page.locator(".events-detail__resources")).toHaveCount(0);
   await expect(

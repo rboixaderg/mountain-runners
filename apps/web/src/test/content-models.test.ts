@@ -110,6 +110,16 @@ describe("editorial collection schemas", () => {
     expect(eventSchema.safeParse(event).success).toBe(true);
   });
 
+  it("accepts an edition without modalities for non-sporting events", async () => {
+    const event = await parseFixture(
+      fixturePaths.events,
+      collectionSchemas.events,
+    );
+    delete event.editions[0]!.modalities;
+
+    expect(eventSchema.safeParse(event).success).toBe(true);
+  });
+
   it("rejects a PDF as an event cover while documents may use PDFs", async () => {
     const event = await parseFixture(
       fixturePaths.events,

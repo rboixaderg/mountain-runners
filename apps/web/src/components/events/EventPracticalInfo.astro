@@ -14,6 +14,13 @@ interface Props {
 }
 
 const { edition, event, locale, today } = Astro.props;
+
+// An active event without a next edition shows "no date announced" instead of
+// the previous edition's dates, so the practical info never looks stale.
+const nextEdition = getNextEdition(event, today);
+const hasAnnouncedDate = nextEdition !== undefined;
+const modalities = edition?.modalities ?? [];
+const hasModalities = modalities.length > 0;
 ---
 
 {
@@ -24,11 +31,6 @@ const { edition, event, locale, today } = Astro.props;
     >
       <div class="page-frame events-detail__edition-inner">
         <h2>{messages.event_practical_info({}, { locale })}</h2>
-        {event.active && !getNextEdition(event, today) && (
-          <p class="events-detail__no-upcoming-date">
-            {messages.event_status_no_upcoming_date({}, { locale })}
-          </p>
-        )}
         <dl>
           <div>
             <dt>
@@ -38,7 +40,11 @@ const { edition, event, locale, today } = Astro.props;
               {messages.event_dates_label({}, { locale })}
             </dt>
             <dd class="events-detail__dates">
-              <EditionDates edition={edition} locale={locale} />
+              {event.active && !hasAnnouncedDate ? (
+                <span>{messages.event_no_date_announced({}, { locale })}</span>
+              ) : (
+                <EditionDates edition={edition} locale={locale} />
+              )}
             </dd>
           </div>
           <div>
@@ -50,21 +56,23 @@ const { edition, event, locale, today } = Astro.props;
             </dt>
             <dd>{edition.location[locale]}</dd>
           </div>
-          <div>
-            <dt>
-              <span class="events-detail__practical-icon" aria-hidden="true">
-                <EventPracticalIcon field="modalities" />
-              </span>
-              {messages.event_modalities_label({}, { locale })}
-            </dt>
-            <dd>
-              <ul class="events-detail__modalities">
-                {edition.modalities.map((modality) => (
-                  <li>{modality[locale]}</li>
-                ))}
-              </ul>
-            </dd>
-          </div>
+          {hasModalities && (
+            <div>
+              <dt>
+                <span class="events-detail__practical-icon" aria-hidden="true">
+                  <EventPracticalIcon field="modalities" />
+                </span>
+                {messages.event_modalities_label({}, { locale })}
+              </dt>
+              <dd>
+                <ul class="events-detail__modalities">
+                  {modalities.map((modality) => (
+                    <li>{modality[locale]}</li>
+                  ))}
+                </ul>
+              </dd>
+            </div>
+          )}
         </dl>
       </div>
     </section>

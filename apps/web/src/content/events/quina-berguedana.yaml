@@ -87,13 +87,6 @@ editions:
       ca: Pavelló Vell, Berga
       es: Pavelló Vell, Berga
       en: Pavelló Vell, Berga
-    modalities:
-      - ca: Quina popular amb línies, números directes i bingos
-        es: Quina popular con líneas, números directos y bingos
-        en: Popular raffle with lines, direct numbers and bingos
-      - ca: Lots de comerços locals i gran bingo final
-        es: Lotes de comercios locales y gran bingo final
-        en: Lots from local shops and grand final bingo
     registrationStatus: closed
     documentIds: []
   - id: edition-2024
@@ -102,13 +95,6 @@ editions:
       ca: Pavelló Vell, Berga
       es: Pavelló Vell, Berga
       en: Pavelló Vell, Berga
-    modalities:
-      - ca: Quina popular amb línies, números directes i bingos
-        es: Quina popular con líneas, números directos y bingos
-        en: Popular raffle with lines, direct numbers and bingos
-      - ca: Lots de comerços locals i gran bingo final
-        es: Lotes de comercios locales y gran bingo final
-        en: Lots from local shops and grand final bingo
     registrationStatus: closed
     documentIds: []
   - id: edition-2023
@@ -117,13 +103,6 @@ editions:
       ca: Pavelló Vell, Berga
       es: Pavelló Vell, Berga
       en: Pavelló Vell, Berga
-    modalities:
-      - ca: Quina popular amb línies, números directes i bingos
-        es: Quina popular con líneas, números directos y bingos
-        en: Popular raffle with lines, direct numbers and bingos
-      - ca: Lots de comerços locals i gran bingo final
-        es: Lotes de comercios locales y gran bingo final
-        en: Lots from local shops and grand final bingo
     registrationStatus: closed
     documentIds: []
   - id: edition-2022
@@ -132,13 +111,6 @@ editions:
       ca: Pavelló Vell, Berga
       es: Pavelló Vell, Berga
       en: Pavelló Vell, Berga
-    modalities:
-      - ca: Quina popular amb línies, números directes i bingos
-        es: Quina popular con líneas, números directos y bingos
-        en: Popular raffle with lines, direct numbers and bingos
-      - ca: Lots de comerços locals i gran bingo final
-        es: Lotes de comercios locales y gran bingo final
-        en: Lots from local shops and grand final bingo
     registrationStatus: closed
     documentIds: []
   - id: edition-2021
@@ -147,13 +119,6 @@ editions:
       ca: Pavelló Vell, Berga
       es: Pavelló Vell, Berga
       en: Pavelló Vell, Berga
-    modalities:
-      - ca: Quina popular amb línies, números directes i bingos
-        es: Quina popular con líneas, números directos y bingos
-        en: Popular raffle with lines, direct numbers and bingos
-      - ca: Lots de comerços locals i gran bingo final
-        es: Lotes de comercios locales y gran bingo final
-        en: Lots from local shops and grand final bingo
     registrationStatus: closed
     documentIds: []
   - id: edition-2019
@@ -162,13 +127,6 @@ editions:
       ca: Pavelló Vell, Berga
       es: Pavelló Vell, Berga
       en: Pavelló Vell, Berga
-    modalities:
-      - ca: Quina popular amb línies, números directes i bingos
-        es: Quina popular con líneas, números directos y bingos
-        en: Popular raffle with lines, direct numbers and bingos
-      - ca: Lots de comerços locals i gran bingo final
-        es: Lotes de comercios locales y gran bingo final
-        en: Lots from local shops and grand final bingo
     registrationStatus: closed
     documentIds: []
   - id: edition-2018
@@ -177,12 +135,5 @@ editions:
       ca: Pavelló Vell, Berga
       es: Pavelló Vell, Berga
       en: Pavelló Vell, Berga
-    modalities:
-      - ca: Quina popular amb línies, números directes i bingos
-        es: Quina popular con líneas, números directos y bingos
-        en: Popular raffle with lines, direct numbers and bingos
-      - ca: Lots de comerços locals i gran bingo final
-        es: Lotes de comercios locales y gran bingo final
-        en: Lots from local shops and grand final bingo
     registrationStatus: closed
     documentIds: []

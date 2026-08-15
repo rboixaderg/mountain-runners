@@ -346,7 +346,8 @@ El detall ha de prioritzar:
 - títol, relació del club i estat vigent o històric;
 - descripció i imatge aprovades;
 - pròxima edició o edició més rellevant;
-- data, ubicació, modalitats i estat d'inscripció;
+- data, ubicació, modalitats (només quan l'esdeveniment n'ha declarat) i estat
+  d'inscripció;
 - accions d'inscripció i més informació quan existeixin;
 - edicions anteriors disponibles;
 - entitats referenciades i atribucions publicables; la llista s'amaga quan

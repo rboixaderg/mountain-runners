@@ -198,7 +198,7 @@ describe("publication catalog", () => {
             ({ id }) => id === "mountain-day",
           )!;
           mountainDay.published = true;
-          delete (mountainDay.editions[0]!.modalities[0]! as { ca?: string })
+          delete (mountainDay.editions[0]!.modalities![0]! as { ca?: string })
             .ca;
         },
       },
