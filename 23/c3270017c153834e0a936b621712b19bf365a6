@@ -1,0 +1,34 @@
+apps/web/scripts/verify-i18n-output.mjs
+  h_1727aeeb492b30 159,162-165,180,183-186,201,204-207
+apps/web/src/content/entities/basquet-berga.yaml
+  h_1727aeeb492b30 2,9-10,15
+apps/web/src/content/entities/club-esportiu-berga.yaml
+  h_1727aeeb492b30 2,9-10,15
+apps/web/src/content/entities/club-voleibol-berga.yaml
+  h_1727aeeb492b30 2,9-10,15
+apps/web/src/content/entities/handbol-berga.yaml
+  h_1727aeeb492b30 2,9-10,12-14
+apps/web/src/content/events/berga-trail.yaml
+  h_1727aeeb492b30 30-34,46-50,62-66
+apps/web/src/content/events/cros-de-queralt.yaml
+  h_1727aeeb492b30 2
+apps/web/src/content/events/les-classiques-de-berga.yaml
+  h_1727aeeb492b30 2,10
+apps/web/src/content/events/llobregat-x-la-diabetis.yaml
+  h_1727aeeb492b30 2
+apps/web/src/content/events/minivolta-a-la-maria.yaml
+  h_1727aeeb492b30 2
+apps/web/src/content/events/quina-berguedana.yaml
+  h_1727aeeb492b30 2,72-75,174-188
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "23c3270017c153834e0a936b621712b19bf365a6",
+  "prompts": {},
+  "humans": {
+    "h_1727aeeb492b30": {
+      "author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
