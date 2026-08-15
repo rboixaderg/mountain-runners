@@ -1,0 +1,14 @@
+apps/web/e2e/shell.spec.ts
+  h_1727aeeb492b30 111,546,846
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "ef0330d7869559e7dde1b71fd1e31dc4ee3039a3",
+  "prompts": {},
+  "humans": {
+    "h_1727aeeb492b30": {
+      "author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
