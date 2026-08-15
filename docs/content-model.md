@@ -45,7 +45,8 @@ Les col·leccions de contingut registrades són:
 - `externalActions`: accions externes d'alta, federació i butlletí amb estat
   explícit i URL externa opcional.
 - `contact`: dades institucionals de contacte (correu, telèfons, seu, horaris i
-  CIF) amb URL `mailto:` i `tel:` validades.
+  CIF) amb correu i telèfon com a valors semàntics validats; el render
+  construeix els enllaços `mailto:` i `tel:` a partir d'aquests valors.
 
 La col·lecció `contact` conté exactament una entrada institucional. El catàleg
 falla si en falta o n'hi ha més d'una, i només exposa les dades si l'entrada està

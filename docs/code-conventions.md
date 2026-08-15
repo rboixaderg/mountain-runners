@@ -57,6 +57,21 @@ inline. A la segona aparició d'un helper, s'extreu i es reutilitza.
 - La resolució de text es fa al component amb `messages[clau]({}, { locale })`.
 - Els helpers estan coberts per Vitest a `src/test/presentation-*.test.ts`.
 
+## Validació I Fronteres
+
+- El contingut editorial desa valors semàntics, sense protocols ni atributs del
+  render (`mailto:`, `tel:`...). Els components o els helpers de
+  `src/lib/presentation/` construeixen els `href` i els atributs HTML a partir
+  dels valors emmagatzemats; el render no ha de treure ni tornar a derivar
+  prefixes emmagatzemats.
+- Cada validació cobreix només el contracte de la seva frontera: el model
+  garanteix un valor segur i semàntic —format, caràcters perillosos o
+  ofuscació— i no replica decisions de presentació (protocols, query strings o
+  extensions) ni restriccions que només pertanyen al render.
+- Si construir un atribut afegeix superfície d'injecció (per exemple un prefix
+  de URL), la validació del model rebutja els caràcters que el render podria
+  interpretar (`%`, `?`, `#`, espais i caràcters de control).
+
 ## Estils
 
 - Les utilitats de Tailwind són la primera opció per a composició, espaiat,

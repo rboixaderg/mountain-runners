@@ -136,7 +136,7 @@ export const youtubeVideoUrlSchema = httpsUrlSchema.refine(
   { error: "Expected a supported YouTube video URL" },
 );
 
-export const mailtoUrlSchema = z.string().refine(
+export const emailAddressSchema = z.string().refine(
   (value) => {
     const decoded = decodeObfuscatedUrl(value);
     if (
@@ -149,19 +149,17 @@ export const mailtoUrlSchema = z.string().refine(
       return false;
     }
 
-    return /^mailto:[a-z0-9.!#$&'*+/=^_`{|}~-]+@[a-z0-9.-]+\.[a-z]{2,}$/iu.test(
-      value,
-    );
+    return /^[a-z0-9.!#$&'*+/=^_`{|}~-]+@[a-z0-9.-]+\.[a-z]{2,}$/iu.test(value);
   },
-  { error: "Expected a simple mailto URL" },
+  { error: "Expected a simple email address" },
 );
 
-export const telUrlSchema = z
+export const phoneNumberSchema = z
   .string()
   .refine(
     (value) =>
       value === value.trim() &&
-      /^tel:\+?[0-9](?:[0-9(). -]*[0-9])?$/u.test(value) &&
+      /^\+?[0-9](?:[0-9(). -]*[0-9])?$/u.test(value) &&
       !hasControlOrWhitespace(value.replaceAll(" ", "")),
-    { error: "Expected a telephone URL" },
+    { error: "Expected a telephone number" },
   );

@@ -8,11 +8,11 @@ import {
 } from "./primitives";
 import { imageResourceSchema, safeResourceSchema } from "./resources";
 import {
+  emailAddressSchema,
   httpsUrlSchema,
   instagramProfileUrlSchema,
-  mailtoUrlSchema,
+  phoneNumberSchema,
   stravaClubUrlSchema,
-  telUrlSchema,
   youtubeVideoUrlSchema,
 } from "./urls";
 
@@ -272,8 +272,8 @@ export const externalActionSchema = z
 export const contactSchema = z.strictObject({
   id: contentIdSchema,
   published: z.boolean(),
-  email: mailtoUrlSchema.optional(),
-  phones: z.array(telUrlSchema).max(4).optional(),
+  email: emailAddressSchema.optional(),
+  phones: z.array(phoneNumberSchema).max(4).optional(),
   address: localizedTextSchema,
   hours: localizedTextSchema,
   cif: nonEmptyStringSchema,

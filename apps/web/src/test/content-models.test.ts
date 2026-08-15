@@ -183,7 +183,7 @@ describe("editorial collection schemas", () => {
     );
   });
 
-  it("rejects invalid mailto and tel URLs in contact data", async () => {
+  it("rejects invalid email and phone values in contact data", async () => {
     const contact = await parseFixture(
       fixturePaths.contact,
       collectionSchemas.contact,
@@ -192,14 +192,14 @@ describe("editorial collection schemas", () => {
     expect(
       collectionSchemas.contact.safeParse({
         ...contact,
-        email: "mailto:not-an-email",
+        email: "not-an-email",
       }).success,
     ).toBe(false);
 
     expect(
       collectionSchemas.contact.safeParse({
         ...contact,
-        phones: ["tel:+34a", "tel:+34938213747"],
+        phones: ["+34a", "+34938213747"],
       }).success,
     ).toBe(false);
   });

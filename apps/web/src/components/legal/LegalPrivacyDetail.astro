@@ -5,7 +5,7 @@ import * as messages from "../../paraglide/messages.js";
 import { renderRestrictedMarkdown } from "../../lib/content/markdown";
 import type { PublicationCatalog } from "../../lib/content/publication";
 import type { Locale } from "../../lib/content/primitives";
-import { getMarkdownSafeMailtoAddress } from "../../lib/presentation/urls";
+import { getMarkdownSafeEmailAddress } from "../../lib/presentation/urls";
 import ContactDataList from "../ContactDataList.astro";
 import PageIntro from "../PageIntro.astro";
 import PageSection from "../PageSection.astro";
@@ -62,7 +62,7 @@ interface Props {
 const { catalog, locale } = Astro.props;
 const contact = catalog.contact;
 const institutionalEmail = contact?.email
-  ? getMarkdownSafeMailtoAddress(contact.email)
+  ? getMarkdownSafeEmailAddress(contact.email)
   : undefined;
 
 const visibleLegalPrivacySections = legalPrivacySections.flatMap((section) => {

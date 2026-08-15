@@ -1,9 +1,9 @@
 id: mountain-runners-contact
 published: true
-email: mailto:info@mountainrunners.cat
+email: info@mountainrunners.cat
 phones:
-  - tel:+34938213747
-  - tel:+34691910774
+  - "+34938213747"
+  - "+34691910774"
 address:
   ca: Plaça Sant Joan, 15 baixos, 08600 Berga
   es: Plaça Sant Joan, 15 bajos, 08600 Berga

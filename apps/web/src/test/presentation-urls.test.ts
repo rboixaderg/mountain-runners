@@ -2,8 +2,9 @@ import { describe, expect, it } from "vitest";
 import { renderRestrictedMarkdown } from "../lib/content/markdown";
 import {
   getExternalHost,
-  getMarkdownSafeMailtoAddress,
-  getMailtoAddress,
+  getMailtoHref,
+  getMarkdownSafeEmailAddress,
+  getTelHref,
 } from "../lib/presentation/urls";
 
 describe("getExternalHost", () => {
@@ -20,16 +21,22 @@ describe("getExternalHost", () => {
   });
 });
 
-describe("getMailtoAddress", () => {
-  it("removes the validated mailto scheme", () => {
-    expect(getMailtoAddress("mailto:club@example.com")).toBe(
-      "club@example.com",
-    );
+describe("getMailtoHref", () => {
+  it("builds the mailto href from the semantic address", () => {
+    expect(getMailtoHref("club@example.com")).toBe("mailto:club@example.com");
   });
+});
 
+describe("getTelHref", () => {
+  it("builds the tel href from the semantic phone number", () => {
+    expect(getTelHref("+34 600 000 000")).toBe("tel:+34 600 000 000");
+  });
+});
+
+describe("getMarkdownSafeEmailAddress", () => {
   it("escapes Markdown syntax in a displayed email address", () => {
-    const safeAddress = getMarkdownSafeMailtoAddress(
-      "MAILTO:club_name`test@example.com",
+    const safeAddress = getMarkdownSafeEmailAddress(
+      "club_name`test@example.com",
     );
 
     expect(renderRestrictedMarkdown(`Contact ${safeAddress}.`)).toBe(
