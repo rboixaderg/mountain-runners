@@ -1,0 +1,19 @@
+apps/web/src/components/events/EventEntities.astro
+  s_698ba8cbd1c1fe::t_f2f06d04a36984 6-10,37-47,49-50
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "4b9a29d93979f0cb92b18276a8cee3078e9260af",
+  "prompts": {},
+  "sessions": {
+    "s_698ba8cbd1c1fe": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_ffa2dd8d6ffeEKKkZNlkri6qkd",
+        "model": "deepseek-v4-flash"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
