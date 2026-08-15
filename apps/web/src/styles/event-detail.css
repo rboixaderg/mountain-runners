@@ -105,8 +105,8 @@
 }
 
 .events-detail__practical-icon {
-  display: inline-flex;
-  margin-bottom: 1rem;
+  display: flex;
+  flex: 0 0 auto;
   color: var(--color-red);
 }
 
@@ -116,6 +116,9 @@
 }
 
 .events-detail__edition dt {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
   margin-bottom: 0.5rem;
   color: white;
   font-family: var(--font-display);
