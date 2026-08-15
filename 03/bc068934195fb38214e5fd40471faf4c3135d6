@@ -1,0 +1,16 @@
+apps/web/e2e/shell.spec.ts
+  h_1727aeeb492b30 119,125-126,128-130,137-141,245,255-259,270,272,879,882-885,962-978,982,984-986,1124,1127-1130
+apps/web/src/test/content-publication.test.ts
+  h_1727aeeb492b30 68,71-74,81,84-87,94,97-100,126,128,130,134-136
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "03bc068934195fb38214e5fd40471faf4c3135d6",
+  "prompts": {},
+  "humans": {
+    "h_1727aeeb492b30": {
+      "author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
