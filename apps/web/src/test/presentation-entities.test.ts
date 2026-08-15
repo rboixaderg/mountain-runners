@@ -1,9 +1,21 @@
 import { describe, expect, it } from "vitest";
 import type { EntityLink } from "../lib/content/models";
 import {
+  entityLinkLabelMessageKeys,
   getEntityLinkUrl,
   getOrderedEntityLinks,
 } from "../lib/presentation/entities";
+
+describe("entity link labels", () => {
+  it("maps every link kind to a message key", () => {
+    expect(entityLinkLabelMessageKeys).toEqual({
+      website: "entity_link_website",
+      instagram: "footer_social_instagram",
+      strava: "footer_social_strava",
+      other: "entity_link_other",
+    });
+  });
+});
 
 describe("entity link ordering", () => {
   it("orders website, instagram, strava and other links by kind", () => {

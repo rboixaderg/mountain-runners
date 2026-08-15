@@ -1,5 +1,17 @@
 import type { EntityLink, EntityLinkKind } from "../content/models";
 
+// Canonical message keys for the entity link labels, keyed by link kind so
+// the entities section renders an accessible name for every icon.
+export const entityLinkLabelMessageKeys = {
+  website: "entity_link_website",
+  instagram: "footer_social_instagram",
+  strava: "footer_social_strava",
+  other: "entity_link_other",
+} as const satisfies Record<EntityLinkKind, string>;
+
+export type EntityLinkLabelMessageKey =
+  (typeof entityLinkLabelMessageKeys)[keyof typeof entityLinkLabelMessageKeys];
+
 const entityLinkKindOrder: Record<EntityLinkKind, number> = {
   website: 0,
   instagram: 1,

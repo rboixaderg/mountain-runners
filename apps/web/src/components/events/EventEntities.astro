@@ -2,11 +2,12 @@
 import * as messages from "../../paraglide/messages.js";
 import type { Entity } from "../../lib/content/models";
 import type { Locale } from "../../lib/content/primitives";
-import { getOrderedEntityLinks } from "../../lib/presentation/entities";
 import {
-  externalLinkAttributes,
-  getExternalHost,
-} from "../../lib/presentation/urls";
+  entityLinkLabelMessageKeys,
+  getOrderedEntityLinks,
+} from "../../lib/presentation/entities";
+import { externalLinkAttributes } from "../../lib/presentation/urls";
+import EntityLinkIcon from "./EntityLinkIcon.astro";
 
 interface Props {
   entities: Entity[];
@@ -33,14 +34,20 @@ const hasOtherEntities = entities.some(
         {entities.map((entity) => (
           <li>
             <strong>{entity.name[locale]}</strong>
-            {getOrderedEntityLinks(entity.links ?? []).map((link) => (
-              <Fragment>
-                {" · "}
-                <a href={link.url} {...externalLinkAttributes}>
-                  {getExternalHost(link.url)}
+            <span class="events-detail__entity-links">
+              {getOrderedEntityLinks(entity.links ?? []).map((link) => (
+                <a
+                  class="events-detail__entity-link"
+                  href={link.url}
+                  aria-label={`${messages[
+                    entityLinkLabelMessageKeys[link.kind]
+                  ]({}, { locale })} · ${entity.name[locale]}`}
+                  {...externalLinkAttributes}
+                >
+                  <EntityLinkIcon kind={link.kind} />
                 </a>
-              </Fragment>
-            ))}
+              ))}
+            </span>
             {entity.attribution?.[locale] && (
               <p>{entity.attribution[locale]}</p>
             )}
