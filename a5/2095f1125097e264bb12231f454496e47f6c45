@@ -1,0 +1,201 @@
+apps/web/astro.config.mjs
+  s_5961b18c994745::t_5df04825fe4f68 2
+apps/web/e2e/shell.spec.ts
+  s_5961b18c994745::t_a7c115ee8204c3 2
+apps/web/package.json
+  s_5961b18c994745::t_76f64fa8e10de1 16,18,26,29
+apps/web/scripts/verify-i18n-output.mjs
+  s_5961b18c994745::t_087956b3e4362d 1
+apps/web/scripts/verify-paraglide-generation.mjs
+  s_5961b18c994745::t_220ec4808b50eb 1
+apps/web/src/components/ContactDataList.astro
+  s_5961b18c994745::t_24046a2bd2a82e 5,9-10
+apps/web/src/components/EventStatus.astro
+  s_5961b18c994745::t_6a7363618aeb4d 4
+apps/web/src/components/LanguageSelector.astro
+  s_5961b18c994745::t_499d12c27e5814 3
+apps/web/src/components/PreFooter.astro
+  s_5961b18c994745::t_42323f1b9bc9bc 10
+apps/web/src/components/SiteFooter.astro
+  s_5961b18c994745::t_8ed42fc29aad0d 6
+apps/web/src/components/SiteHeader.astro
+  s_5961b18c994745::t_99f8de65fba7a1 10
+apps/web/src/components/about/AboutBoard.astro
+  s_5961b18c994745::t_9a41f6931abd0e 5
+apps/web/src/components/about/AboutDetail.astro
+  s_5961b18c994745::t_294a4dee57aa3a 5
+apps/web/src/components/about/AboutHistory.astro
+  s_5961b18c994745::t_b39e4aad794bbc 5
+apps/web/src/components/about/AboutPresident.astro
+  s_5961b18c994745::t_4a1b2bebda19c1 4
+apps/web/src/components/about/AboutStatutes.astro
+  s_5961b18c994745::t_f59e3918c425bc 6
+apps/web/src/components/documents/DocumentEntry.astro
+  s_5961b18c994745::t_eff098e0463958 10
+apps/web/src/components/documents/DocumentGroup.astro
+  s_5961b18c994745::t_c8c93c7427fa6a 5
+apps/web/src/components/documents/DocumentsDetail.astro
+  s_5961b18c994745::t_bc2aab2235c8db 5,7
+apps/web/src/components/events/EventDescription.astro
+  s_5961b18c994745::t_9170dba9df963d 6
+apps/web/src/components/events/EventDetail.astro
+  s_5961b18c994745::t_2ed8f753a917cf 12,18-20
+apps/web/src/components/events/EventEntities.astro
+  s_5961b18c994745::t_ab86894685e0bf 9
+apps/web/src/components/events/EventHistory.astro
+  s_5961b18c994745::t_b06b0342105c8e 4
+apps/web/src/components/events/EventMonthlyCalendar.astro
+  s_5961b18c994745::t_ed9ae46c6f01c2 8
+apps/web/src/components/events/EventPracticalInfo.astro
+  s_5961b18c994745::t_367a83fd960671 5
+apps/web/src/components/events/EventRegistrationPanel.astro
+  s_5961b18c994745::t_6fe3932cfb5ae9 5,7
+apps/web/src/components/events/EventResources.astro
+  s_5961b18c994745::t_f1e8016264e0e7 5-6
+apps/web/src/components/events/EventsHubActiveCard.astro
+  s_5961b18c994745::t_745206b01d7de0 7
+apps/web/src/components/events/EventsHubHistoryTable.astro
+  s_5961b18c994745::t_b47a3cad4385e2 3,5-6
+apps/web/src/components/events/HomepageEventCard.astro
+  s_5961b18c994745::t_b5972d600a959c 7
+apps/web/src/components/legal/LegalCookiesDetail.astro
+  s_5961b18c994745::t_222c773ee5b2eb 6
+apps/web/src/components/legal/LegalNoticeDetail.astro
+  s_5961b18c994745::t_b5c02fd5c6cde3 6-7
+apps/web/src/components/legal/LegalPrivacyDetail.astro
+  s_5961b18c994745::t_2d9e6077524147 6,8
+apps/web/src/components/members/MembersActionSection.astro
+  s_5961b18c994745::t_fb5e2b5ca6be0c 6
+apps/web/src/components/members/MembersBenefits.astro
+  s_5961b18c994745::t_a306da7501cd8a 4
+apps/web/src/components/members/MembersDetail.astro
+  s_5961b18c994745::t_ead939eae49937 5,8
+apps/web/src/components/members/MembersDirectory.astro
+  s_5961b18c994745::t_2f78ba94a88da6 8
+apps/web/src/components/members/MembersVideo.astro
+  s_5961b18c994745::t_35684d752e55d1 4
+apps/web/src/components/schools/SchoolGallery.astro
+  s_5961b18c994745::t_e214e053f148d5 5
+apps/web/src/components/schools/SchoolHub.astro
+  s_5961b18c994745::t_e6dcd8b59ac435 9
+apps/web/src/components/schools/SchoolPreviewAbout.astro
+  s_5961b18c994745::t_8710ef5bd8c786 7
+apps/web/src/components/schools/SchoolPreviewHero.astro
+  s_5961b18c994745::t_97f071f31d321e 5
+apps/web/src/components/schools/SchoolPreviewPracticalInfo.astro
+  s_5961b18c994745::t_44baac4425d7e7 2,9,13,19,21
+apps/web/src/components/schools/SchoolPreviewPrices.astro
+  s_5961b18c994745::t_123b17099ec8bc 5,9
+apps/web/src/components/schools/SchoolRegistration.astro
+  s_5961b18c994745::t_47fc4589980ce1 8
+apps/web/src/components/schools/SchoolVideo.astro
+  s_5961b18c994745::t_7d11c07eb73aa0 5
+apps/web/src/layouts/PublicLayout.astro
+  s_5961b18c994745::t_a578aa4fccc002 4-6,9,11
+apps/web/src/lib/content/images.ts
+  s_5961b18c994745::t_bf862bc23f13a4 5
+apps/web/src/lib/content/loader.ts
+  s_5961b18c994745::t_1422f1b28a018b 1
+apps/web/src/lib/content/markdown.ts
+  s_5961b18c994745::t_1958f9678a086b 54-56,64-66,88-90,108-110,139-141
+apps/web/src/lib/content/repository.ts
+  s_5961b18c994745::t_7e45f91b38362f 3,6
+apps/web/src/lib/content/routes.ts
+  s_5961b18c994745::t_6bff1ee464070e 2
+apps/web/src/lib/content/yaml.ts
+  s_5961b18c994745::t_a9c45caf075803 10,13
+apps/web/src/lib/presentation/newsletter.ts
+  s_5961b18c994745::t_360a7047acd894 5,23-24
+apps/web/src/lib/presentation/schools.ts
+  s_5961b18c994745::t_bced18fbef21e0 3-5
+apps/web/src/pages/404.astro
+  s_5961b18c994745::t_63170b03483201 3
+apps/web/src/pages/[locale]/[domain]/[slug].astro
+  s_5961b18c994745::t_4fe5072ff8b7c3 19
+apps/web/src/pages/[locale]/[domain]/index.astro
+  s_5961b18c994745::t_6081788c8a1805 2-3,8,12,23,25-26
+apps/web/src/pages/[locale]/about.astro
+  s_5961b18c994745::t_bc24d7fbb619fc 9-10
+apps/web/src/pages/[locale]/avis-legal.astro
+  s_5961b18c994745::t_8ca4373cb75ea3 10-11
+apps/web/src/pages/[locale]/aviso-legal.astro
+  s_5961b18c994745::t_b4c5a99ea40aef 9-10
+apps/web/src/pages/[locale]/cookies.astro
+  s_5961b18c994745::t_ba4785a0819457 9-10
+apps/web/src/pages/[locale]/documentos.astro
+  s_5961b18c994745::t_4eb7cfb49ae5d7 9-10
+apps/web/src/pages/[locale]/documents.astro
+  s_5961b18c994745::t_a3b6e93596322b 10-11
+apps/web/src/pages/[locale]/index.astro
+  s_5961b18c994745::t_83e8d634e709a9 12,20,27-28
+apps/web/src/pages/[locale]/legal-notice.astro
+  s_5961b18c994745::t_7da352c5700528 9-10
+apps/web/src/pages/[locale]/members.astro
+  s_5961b18c994745::t_d41e60b269ca10 9-10
+apps/web/src/pages/[locale]/privacidad.astro
+  s_5961b18c994745::t_baed43f0f96441 9-10
+apps/web/src/pages/[locale]/privacitat.astro
+  s_5961b18c994745::t_32994dd838c3a8 10-11
+apps/web/src/pages/[locale]/privacy.astro
+  s_5961b18c994745::t_71728a12fd03f2 9-10
+apps/web/src/pages/[locale]/qui-som.astro
+  s_5961b18c994745::t_4ee872b60ed2f1 10-11
+apps/web/src/pages/[locale]/quienes-somos.astro
+  s_5961b18c994745::t_c3b15b30a07f90 9-10
+apps/web/src/pages/[locale]/socios.astro
+  s_5961b18c994745::t_8208d2d24eadd2 9-10
+apps/web/src/pages/[locale]/socis.astro
+  s_5961b18c994745::t_49397334492974 10-11
+apps/web/src/test/content-publication.test.ts
+  s_5961b18c994745::t_5d98e11deeb951 1,6,14
+apps/web/src/test/content-resources.test.ts
+  s_5961b18c994745::t_4a72b1da91f0c1 3,14
+apps/web/src/test/content-routes.test.ts
+  s_5961b18c994745::t_37b925e89eb345 1,6,15,21,69-71,81-83
+apps/web/src/test/content-schools.test.ts
+  s_5961b18c994745::t_a61fe42d493adb 2
+apps/web/src/test/members.test.ts
+  s_5961b18c994745::t_65ecb395407d88 1,4,7,16,18
+apps/web/src/test/presentation-schools.test.ts
+  s_5961b18c994745::t_1216deca987d19 9
+apps/web/src/test/presentation-urls.test.ts
+  s_5961b18c994745::t_2145a7f2544242 6
+apps/web/src/test/seo.test.ts
+  s_5961b18c994745::t_a7b36329624fad 10
+biome.json
+  s_5961b18c994745::t_8f8e987fe75487 1-6,8-21,23-39,41-45,47-52,54-81,83-89
+docs/specs/toolchain-biome-typescript-7.md
+  s_5961b18c994745::t_65f7e75ba3d3e9 1-93
+package.json
+  s_5961b18c994745::t_cb8474e5d0cabd 14-15,17,26-27,30-36,41-43
+pnpm-lock.yaml
+  s_5961b18c994745::t_fc8cc46827f1a1 12-16,18-19,21-22,24-25,27-28,30-31,45-46,48-49,58,60-61,64,66-67,85-86,94-95,98,113-114,216-217,242-298,360-361,365-366,381-382,385-386,389-390,393-394,401-402,409-410,413-414,469-470,481-483,829-830,914-915,920-922,938-939,944-945,950-951,956-957,962-963,968-969,975-976,982-983,989-990,996-997,1003-1004,1010-1011,1016-1017,1022-1023,1384-1385,1401-1404,1426-1429,1491-1494,1755-1757,1810-1812,1970-1975,1982-1987,1994-1999,2006-2011,2018-2023,2031-2037,2045-2051,2059-2065,2073-2079,2086-2091,2098-2103,2108-2111,2115-2116,2123-2125,2248-2249,2343-2345,2348-2350,2353-2354,2361-2362,2440-2441,2547-2550,2740-2741,2746,3066,3068,3072,3095,3097,3107,3109,3117,3124,3126,3144,3158,3165,3193,3195-3196,3217-3251,3299,3301-3304,3307,3315,3332,3337,3342,3344-3346,3349,3353,3366,3377,3382,3390,3447,3449,3457,3461,3466,3664,3681,3692,3696,3754,3756,3806,3813,3815,3822,3825,3828,3831,3834,3837,3840,3843,3846,3849,3852,3855,3858,3861,4031,4036,4091,4097,4223,4225,4244,4273-4274,4321-4322,4335-4339,4397-4398,4640,4642-4644,4659,4661-4662,4692,4875-4877,4881-4883,4887-4889,4893-4895,4899-4901,4905-4907,4911-4913,4917-4919,4923-4925,4929-4931,4935-4937,4954-4969,4972,4976,4982,5188,5272,5274,5276,5280,5282,5289,5291,5293,5369,5371,5374-5390,5395,5528-5532,5675,5677,5679-5680,5689,5691,5693,5696,5713,5746,5751,5870
+tools/playwright-mcp/package.json
+  s_5961b18c994745::t_fb61086bae8964 7
+.github/dependabot.yml
+  s_5961b18c994745::t_592c51a679e0c0 11-20
+docs/architecture.md
+  s_5961b18c994745::t_3b7959a9faadfa 18-23
+docs/backlog.md
+  s_5961b18c994745::t_7bf66ea8a291c2 82-94,181-184,192-196,198-199,201-202
+docs/decisions/0007-biome-and-typescript-7.md
+  s_5961b18c994745::t_5b5603ab95f8b7 1-51
+docs/specs/phase-1-foundation.md
+  s_5961b18c994745::t_d5777e351a78a0 6-10
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "a52095f1125097e264bb12231f454496e47f6c45",
+  "prompts": {},
+  "sessions": {
+    "s_5961b18c994745": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "fff2049c-173f-4994-8eb2-b537e5162e53",
+        "model": "grok-4.6"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
