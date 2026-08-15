@@ -1,0 +1,16 @@
+apps/web/src/content/entities/club-esqui-bergueda.yaml
+  h_1727aeeb492b30 23-24
+apps/web/src/content/events/escalada-castell-areny.yaml
+  h_1727aeeb492b30 100
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "0f9cd055e1d9e6d1f9d7181e998f44655e4ea9ea",
+  "prompts": {},
+  "humans": {
+    "h_1727aeeb492b30": {
+      "author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
