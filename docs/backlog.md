@@ -79,7 +79,181 @@ Implementada i fusionada a la T2.3 (PR #17). Es conserva aquí només com a
 registre del triatge; les rutes actuals viuen al contracte tipat de
 `apps/web/src/lib/content/routes.ts`.
 
+### Revisar La Informació De Berga Trail I La Marató De Muntanya De Berga
+
+**Estat:** Incorporada a la PR #65 (esdeveniments del Berguedà).
+
+**Problema:** cal revisar la informació publicada de Berga Trail i la seva
+relació amb la Marató de Muntanya de Berga per assegurar que la denominació,
+la història, les edicions, les distàncies i l'estat actual de l'esdeveniment són
+correctes i no barregen etapes diferents de la cursa.
+
+**Resultat esperat:** disposar d'una fitxa de Berga Trail contrastada amb fonts
+fiables i validada pel club, amb una explicació clara de la relació i l'evolució
+entre la Marató de Muntanya de Berga i Berga Trail.
+
+**Abans de planificar-ho cal definir:**
+
+- les fonts i les persones del club que poden validar la informació històrica;
+- la cronologia, els canvis de nom i les modalitats de cada edició;
+- quines dades i traduccions de la fitxa publicada s'han de corregir;
+- si cal recuperar fotografies, documents o enllaços històrics addicionals.
+
+**Dependències:** validació editorial del club i accés a fonts històriques
+fiables de l'esdeveniment.
+
+**Seguiment:** la fitxa publicada de Berga Trail, creada i fusionada a la PR
+#65, ja recull la cronologia, la relació amb la Marató de Muntanya de Berga, la
+creació de Les Clàssiques de Berga, les distàncies de l'edició registrada i
+l'estat actual de la cursa. Es conserva aquí com a registre del triatge; queda
+pendent només la validació formal del club sobre aquestes dades.
+
+### Revisió Dels Estils Globals I De Les Instruccions D'Ús De Tailwind
+
+**Estat:** Incorporada a la fase 4.
+
+> **Nota d'auditoria (15 d'agost de 2026):** el triatge d'aquesta entrada es
+> tanca: la revisió dels estils globals i de les instruccions es va completar
+> dins la fase 4 (PR #49 i l'actualització de `docs/code-conventions.md`).
+> `global.css` té 123 rengles, el CSS està distribuït per propietari i les
+> instruccions fixen les utilities de Tailwind com a primera opció. Si més
+> endavant apareixen duplicacions concretes, es capturarà una necessitat nova
+> amb aquell abast.
+
+**Problema:** els estils globals de l'aplicació
+(`apps/web/src/styles/global.css`) acumulen prop de dos milers de línies amb
+classes CSS pròpies (homepage, events-hub, schools, about, page, members...),
+mentre que Tailwind forma part de l'stack però gairebé no s'utilitza. A més, les
+instruccions que reben els agents per estilitzar no delimiten quan cal fer
+servir utilities de Tailwind i quan cal crear una classe CSS pròpia, cosa que
+afavoreix que el CSS global continuï creixent i que cada pàgina reprodueixi
+patrons semblants per separat.
+
+**Resultat esperat:** revisar els estils globals i les directrius d'estil per
+determinar quins estils es poden expressar amb utilities de Tailwind (amb
+`@theme` per als tokens) i quins han de continuar com a CSS propi, i actualitzar
+les instruccions als agents perquè l'ús de Tailwind sigui la norma, sense
+canviar la sortida visual actual.
+
+**Abans de planificar-ho cal definir:**
+
+- el criteri per decidir entre utilities de Tailwind i classes CSS pròpies:
+  composició de patrons repetits (kickers, marcs, seccions, enllaços d'acció),
+  estats, selectors o `clamp()` que les utilities no cobreixen, i si convé
+  `@apply` només per als patrons que es repeteixen de veritat;
+- la migració dels tokens actuals (`--color-*`, `--font-*`, `--space-*`,
+  `--page-width`, `--reading-width`) al `@theme` de Tailwind 4 i la
+  correspondència amb les utilities generades;
+- com es redueix el CSS global aprofitant les classes existents per detectar
+  patrons duplicats entre pàgines (events-hub i schools-hub, intro i seccions
+  editorials, about i fixed pages) sense alterar el resultat visual;
+- quines instruccions s'han d'actualitzar (`AGENTS.md`,
+  `docs/code-conventions.md` i els skills de la UI) i com es revisa el seu
+  compliment a les PR;
+- les comprovacions que garanteixin que el refactor no canvia la sortida:
+  regressió visual, selectors E2E existents i els llindars de Lighthouse.
+
+**Dependències:** revisió de les convencions i de les instruccions als agents,
+i una fase que toqui la capa de presentació de l'aplicació.
+
+**Seguiment:** coberta per la fase 4 (T4.4, PR #49).
+
 ## Necessitats Obertes
+
+### Equipa't Amb Nosaltres
+
+**Estat:** Capturada.
+
+**Problema:** la web no disposa d'un espai on les persones sòcies i seguidores
+puguin consultar tota la roba disponible amb la marca de Mountain Runners.
+
+**Resultat esperat:** crear una nova secció pública «Equipa't amb nosaltres» que
+presenti de manera clara el catàleg complet de roba del club, amb la informació
+i les imatges necessàries per conèixer cada peça i saber com adquirir-la.
+
+**Abans de planificar-ho cal definir:**
+
+- quines dades tindrà cada peça, com ara nom, descripció, fotografies, talles,
+  preu, disponibilitat i instruccions de compra;
+- qui mantindrà el catàleg i com es gestionaran els canvis d'estoc, preu o
+  temporada;
+- si la secció serà només informativa, enllaçarà a un canal extern o requerirà
+  un procés propi de reserva, comanda o pagament;
+- l'estructura de contingut, les traduccions i la integració amb la navegació i
+  el sistema visual actuals;
+- els drets d'ús de les fotografies i les necessitats d'accessibilitat, proves i
+  seguiment de les accions de compra.
+
+**Dependències:** inventari validat de peces, fotografies i informació
+comercial; decisió sobre el procés d'adquisició i la persona responsable de
+mantenir el catàleg actualitzat.
+
+**Seguiment:** pendent de triatge.
+
+### Revisar El Directori De Col·laboradors
+
+**Estat:** Capturada.
+
+**Problema:** cal comprovar que el directori actual de col·laboradors representa
+les entitats que continuen col·laborant amb Mountain Runners, retirar o marcar
+les que ja no estan actives i detectar nous col·laboradors que encara no hi
+apareixen.
+
+**Resultat esperat:** disposar d'un directori complet, vigent i validat pel club,
+amb l'estat i la informació correcta de cada col·laborador.
+
+**Abans de planificar-ho cal definir:**
+
+- la persona del club que validarà les altes, baixes i continuïtats;
+- la llista completa de col·laboradors actuals i les noves incorporacions;
+- quina informació cal actualitzar de cada entitat, incloent-hi nom, logotip,
+  enllaç, descripció i avantatge per a les persones sòcies;
+- com es representaran els col·laboradors inactius i si s'han de conservar com a
+  informació històrica o retirar de la publicació;
+- la procedència, els drets d'ús i l'accessibilitat dels logotips i les imatges.
+
+**Dependències:** inventari actual contrastat i validació de la junta o de la
+persona responsable de les relacions amb els col·laboradors.
+
+**Seguiment:** pendent de triatge.
+
+### Separar La Presentació Del Contacte I Simplificar Les Validacions
+
+**Estat:** Capturada.
+
+**Problema:** el contingut de contacte desa informació pròpia del render HTML,
+com els protocols `mailto:` i `tel:`, en lloc de representar només les dades
+editorials. Això barreja el model de contingut amb la responsabilitat de la
+interfície. A més, el model actual aplica més validacions de les necessàries en
+alguns camps, cosa que pot fer que el catàleg estigui sobrevalidat i sigui més
+difícil d'editar sense aportar una garantia real per a la sortida publicada.
+
+**Resultat esperat:** modificar el model i el render del contacte perquè les
+dades emmagatzemin valors semàntics i el component construeixi els atributs i
+protocols HTML necessaris. Revisar les validacions del contingut i conservar
+només les que siguin necessàries per al contracte editorial, la seguretat o la
+correctesa de la sortida. Documentar aquesta regla com a convenció de codi:
+validar a la frontera corresponent, sense duplicar ni anticipar al model de
+dades restriccions que pertanyen al render.
+
+**Abans de planificar-ho cal definir:**
+
+- la representació canònica de correus i telèfons al contingut i la forma
+  segura de convertir-la en `href` i text visible;
+- quines validacions del contacte i dels primitives de contingut són garanties
+  necessàries i quines només repliquen decisions de presentació;
+- la compatibilitat amb les dades publicades, les traduccions i els selectors o
+  contractes de proves existents;
+- l'actualització de `docs/code-conventions.md` i, si escau, de les instruccions
+  resumides a `AGENTS.md`;
+- les proves de model, render i seguretat que demostrin que es manté la sortida
+  correcta sense conservar validacions redundants.
+
+**Dependències:** revisió del model de contingut de contacte i dels components
+que el renderitzen; no cal canviar cap frontera arquitectònica acceptada si la
+separació es manté dins del model i la capa de presentació existents.
+
+**Seguiment:** pendent de triatge.
 
 ### Analítica Web Respectuosa Amb La Privacitat
 
@@ -229,63 +403,19 @@ decisió sobre el model de contingut de la recurrència.
 
 **Seguiment:** pendent de triatge.
 
-### Revisió Dels Estils Globals I De Les Instruccions D'Ús De Tailwind
-
-**Estat:** Capturada.
-
-> **Nota d'auditoria (10 d'agost de 2026):** la premissa d'aquesta entrada va
-> quedar superada per la PR #49: `global.css` té 123 rengles, el CSS està
-> distribuït per propietari i `docs/code-conventions.md` ja fixa Tailwind com a
-> primera opció. No s'ha de triar aquesta necessitat amb l'abast actual; només es
-> conserva fins que la persona autora decideixi descartar-la o redefinir-la al
-> voltant de duplicacions concretes encara existents.
-
-**Problema:** els estils globals de l'aplicació
-(`apps/web/src/styles/global.css`) acumulen prop de dos milers de línies amb
-classes CSS pròpies (homepage, events-hub, schools, about, page, members...),
-mentre que Tailwind forma part de l'stack però gairebé no s'utilitza. A més, les
-instruccions que reben els agents per estilitzar no delimiten quan cal fer
-servir utilities de Tailwind i quan cal crear una classe CSS pròpia, cosa que
-afavoreix que el CSS global continuï creixent i que cada pàgina reprodueixi
-patrons semblants per separat.
-
-**Resultat esperat:** revisar els estils globals i les directrius d'estil per
-determinar quins estils es poden expressar amb utilities de Tailwind (amb
-`@theme` per als tokens) i quins han de continuar com a CSS propi, i actualitzar
-les instruccions als agents perquè l'ús de Tailwind sigui la norma, sense
-canviar la sortida visual actual.
-
-**Abans de planificar-ho cal definir:**
-
-- el criteri per decidir entre utilities de Tailwind i classes CSS pròpies:
-  composició de patrons repetits (kickers, marcs, seccions, enllaços d'acció),
-  estats, selectors o `clamp()` que les utilities no cobreixen, i si convé
-  `@apply` només per als patrons que es repeteixen de veritat;
-- la migració dels tokens actuals (`--color-*`, `--font-*`, `--space-*`,
-  `--page-width`, `--reading-width`) al `@theme` de Tailwind 4 i la
-  correspondència amb les utilities generades;
-- com es redueix el CSS global aprofitant les classes existents per detectar
-  patrons duplicats entre pàgines (events-hub i schools-hub, intro i seccions
-  editorials, about i fixed pages) sense alterar el resultat visual;
-- quines instruccions s'han d'actualitzar (`AGENTS.md`,
-  `docs/code-conventions.md` i els skills de la UI) i com es revisa el seu
-  compliment a les PR;
-- les comprovacions que garanteixin que el refactor no canvia la sortida:
-  regressió visual, selectors E2E existents i els llindars de Lighthouse.
-
-**Dependències:** revisió de les convencions i de les instruccions als agents,
-i una fase que toqui la capa de presentació de l'aplicació.
-
-**Seguiment:** pendent de triatge.
-
 ### Revisió Del Prop Drilling Del Locale Entre Components
 
 **Estat:** Capturada.
 
-> **Nota d'auditoria (10 d'agost de 2026):** el problema general continua sent
-> vàlid, però alguns exemples de la cadena de props ja no coincideixen amb els
-> components finals de la fase 4. Cal actualitzar l'inventari de consumidors
-> abans de convertir l'entrada en una especificació.
+> **Nota d'auditoria (15 d'agost de 2026):** el problema continua sent vàlid i
+> l'inventari actual de consumidors de la prop `locale` afegeix els components
+> d'escoles de la fase 4 (`SchoolDetail`, `SchoolHub`, `SchoolPreview*`,
+> `SchoolGallery`, `SchoolRegistration`, `SchoolVideo`), a més de la cadena
+> d'esdeveniments (`EventDetail`, `EventPracticalInfo`, `EventResources`,
+> `EventHistory`, `EventEntities`, `EventStatus`) i de `ContactDataList`,
+> `SiteFooter` i `PreFooter`. Les pàgines ja llegeixen `Astro.currentLocale`;
+> els components fulla encara reben el locale com a prop. Cal mantenir aquest
+> inventari quan es converteixi l'entrada en una especificació.
 
 **Problema:** el locale es transmet com a prop per tota l'arbre de components:
 cada pàgina el passa als templates de detall, cada template a les seves seccions
