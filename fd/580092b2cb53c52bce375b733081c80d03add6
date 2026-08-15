@@ -1,0 +1,31 @@
+apps/web/messages/ca.json
+  s_698ba8cbd1c1fe::t_ec701dc721a668 53-54
+apps/web/messages/en.json
+  s_698ba8cbd1c1fe::t_9c01f0582f1f40 53-54
+apps/web/messages/es.json
+  s_698ba8cbd1c1fe::t_39e13e29ade3e2 53-54
+apps/web/src/components/events/EventRegistrationPanel.astro
+  s_698ba8cbd1c1fe::t_66a43914c0e633 62,66
+apps/web/src/lib/presentation/status.ts
+  s_698ba8cbd1c1fe::t_3cb13f0581d356 61-72,76-77,212-213,215-222
+apps/web/src/test/presentation-status.test.ts
+  s_698ba8cbd1c1fe::t_63028a3ea80d8c 107,117,122,128-152
+docs/specs/phase-2-public-vertical-slice.md
+  s_698ba8cbd1c1fe::t_9ff7b06291f2ea 363-367
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "fd580092b2cb53c52bce375b733081c80d03add6",
+  "prompts": {},
+  "sessions": {
+    "s_698ba8cbd1c1fe": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_ffa2dd8d6ffeEKKkZNlkri6qkd",
+        "model": "deepseek-v4-flash"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
