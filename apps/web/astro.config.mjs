@@ -1,5 +1,5 @@
-import tailwindcss from "@tailwindcss/vite";
 import { paraglideVitePlugin } from "@inlang/paraglide-js";
+import tailwindcss from "@tailwindcss/vite";
 import { defineConfig } from "astro/config";
 import { loadEnv } from "vite";
 import { defaultLocale, locales } from "./i18n.config.mjs";

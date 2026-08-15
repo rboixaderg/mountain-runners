@@ -1,8 +1,8 @@
-import { getOrderedSchoolVariants } from "../content/schools";
-import { getVariantPath } from "../content/routes";
-import type { PublicationCatalog } from "../content/publication";
 import type { School } from "../content/models";
 import type { Locale } from "../content/primitives";
+import type { PublicationCatalog } from "../content/publication";
+import { getVariantPath } from "../content/routes";
+import { getOrderedSchoolVariants } from "../content/schools";
 
 export const schoolPracticalSectionOrder = [
   "since",

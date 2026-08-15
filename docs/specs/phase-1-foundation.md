@@ -3,7 +3,11 @@
 ## Estat
 
 Completada. Les quatre entregues estan revisades i fusionades a `main`; la quarta
-es va tancar amb la PR #9 (`43e0a53`).
+es va tancar amb la PR #9 (`43e0a53`). La cadena de lint i format descrita més
+avall (ESLint i Prettier per a JS, TS i Astro) és el requisit històric de la
+fase; l'[ADR 0007](../decisions/0007-biome-and-typescript-7.md) la substitueix
+per Biome i TypeScript 6, i conserva Prettier només per a Markdown i YAML.
+TypeScript 7 queda fora d'abast mentre `astro check` necessiti l'API de 6.
 
 ## Objectiu
 

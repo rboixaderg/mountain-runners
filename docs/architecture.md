@@ -15,9 +15,12 @@ validats. Les dades de contacte es mostren al prepeu compartit i a les pàgines
 legals; la pàgina de Contacte creada a la fase 3 es va retirar a la T4.4.
 
 La CI valida qualitat, E2E, commits, secrets, dependències i anàlisi estàtica.
-Lighthouse continua sent una auditoria manual. Encara no existeixen previews de
-pull request, configuració Caddy, provisió del VPS ni automatització de
-desplegament, i tampoc cap servei Hono.
+El lint i el format de JS, TS, JSON, CSS i Astro els fa Biome; Prettier es
+conserva per a Markdown i YAML, d'acord amb
+l'[ADR 0007](decisions/0007-biome-and-typescript-7.md). Lighthouse continua
+sent una auditoria manual. Encara no existeixen previews de pull request,
+configuració Caddy, provisió del VPS ni automatització de desplegament, i
+tampoc cap servei Hono.
 
 ## Direcció Acceptada
 

@@ -1,10 +1,10 @@
 ---
-import * as messages from "../../paraglide/messages.js";
 import type { Document, EventEdition } from "../../lib/content/models";
 import type { Locale } from "../../lib/content/primitives";
 import type { RegistrationPresentation } from "../../lib/presentation/status";
-import EventResources from "./EventResources.astro";
+import * as messages from "../../paraglide/messages.js";
 import ExternalLink from "../ExternalLink.astro";
+import EventResources from "./EventResources.astro";
 
 interface Props {
   documents: { id: string; document: Document | undefined }[];

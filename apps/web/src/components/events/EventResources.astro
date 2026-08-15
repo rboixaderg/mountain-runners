@@ -1,9 +1,9 @@
 ---
-import * as messages from "../../paraglide/messages.js";
-import { externalLinkAttributes } from "../../lib/presentation/urls";
 import { getDocumentHref } from "../../lib/content/images";
 import type { Document, EventEdition } from "../../lib/content/models";
 import type { Locale } from "../../lib/content/primitives";
+import { externalLinkAttributes } from "../../lib/presentation/urls";
+import * as messages from "../../paraglide/messages.js";
 
 interface Props {
   documents: { id: string; document: Document | undefined }[];

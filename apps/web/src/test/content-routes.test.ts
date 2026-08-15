@@ -1,9 +1,9 @@
-import { readFile, readdir } from "node:fs/promises";
+import { readdir, readFile } from "node:fs/promises";
 import { describe, expect, it } from "vitest";
 import type { z } from "zod";
 import {
-  collectionSchemas,
   type Contact,
+  collectionSchemas,
   type Document,
   type Entity,
   type Event,
@@ -11,16 +11,16 @@ import {
   type School,
 } from "../lib/content/models";
 import {
-  createPublicationCatalog,
   type ContentSource,
+  createPublicationCatalog,
 } from "../lib/content/publication";
 import {
   assertFixedPageRouteSegments,
   assertRouteDomains,
   fixedPageRouteSegments,
+  getCanonicalUrl,
   getFixedPagePath,
   getLocalizedAlternatives,
-  getCanonicalUrl,
   getPublicDetailVariants,
   getSitemapUrls,
   getVariantPath,
@@ -66,7 +66,9 @@ async function loadSource(): Promise<ContentSource> {
 
 function addTranslations(value: unknown, locale: "es" | "en"): void {
   if (Array.isArray(value)) {
-    value.forEach((item) => addTranslations(item, locale));
+    value.forEach((item) => {
+      addTranslations(item, locale);
+    });
     return;
   }
 
@@ -76,7 +78,9 @@ function addTranslations(value: unknown, locale: "es" | "en"): void {
   if (typeof record.ca === "string") {
     record[locale] = `${locale} translation for ${record.ca}`;
   }
-  Object.values(record).forEach((item) => addTranslations(item, locale));
+  Object.values(record).forEach((item) => {
+    addTranslations(item, locale);
+  });
 }
 
 describe("localized route contract", () => {

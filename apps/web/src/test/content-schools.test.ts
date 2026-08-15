@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
+import type { School } from "../lib/content/models";
 import {
   getOrderedSchools,
   getOrderedSchoolVariants,
 } from "../lib/content/schools";
-import type { School } from "../lib/content/models";
 
 function createSchool(id: string, hubOrder: number): School {
   return {

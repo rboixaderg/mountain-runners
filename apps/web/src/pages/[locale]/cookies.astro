@@ -1,13 +1,13 @@
 ---
 import { locales } from "../../../i18n.config.mjs";
-import * as messages from "../../paraglide/messages.js";
-import { assertIsLocale } from "../../paraglide/runtime.js";
 import LegalCookiesDetail from "../../components/legal/LegalCookiesDetail.astro";
 import PublicLayout from "../../layouts/PublicLayout.astro";
 import {
   getFixedPagePath,
   getLocalizedFixedPageAlternatives,
 } from "../../lib/content/routes";
+import * as messages from "../../paraglide/messages.js";
+import { assertIsLocale } from "../../paraglide/runtime.js";
 
 export function getStaticPaths() {
   return locales.map((locale) => ({ params: { locale } }));

@@ -1,11 +1,11 @@
 import { getCollection } from "astro:content";
 import { fileURLToPath } from "node:url";
+import { assertEventDateConsistency, getMadridDate } from "./events";
 import {
-  createPublicationCatalog,
   type ContentSource,
+  createPublicationCatalog,
   type PublicationCatalog,
 } from "./publication";
-import { assertEventDateConsistency, getMadridDate } from "./events";
 import {
   collectLocalResourcePaths,
   resolveLocalResourcePath,
