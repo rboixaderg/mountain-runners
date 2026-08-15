@@ -201,6 +201,7 @@ describe("editorial collection schemas", () => {
     );
 
     expect(entity.instagramUrl).toBe("https://www.instagram.com/infomountain/");
+    expect(entity.stravaClubUrl).toBe("https://www.strava.com/clubs/156769");
     expect(entity.promotionalVideoUrl).toBe(
       "https://www.youtube.com/watch?v=EUV5uETCjeo",
     );
@@ -208,6 +209,12 @@ describe("editorial collection schemas", () => {
       collectionSchemas.entities.safeParse({
         ...entity,
         instagramUrl: "https://example.com/infomountain/",
+      }).success,
+    ).toBe(false);
+    expect(
+      collectionSchemas.entities.safeParse({
+        ...entity,
+        stravaClubUrl: "https://example.com/clubs/156769",
       }).success,
     ).toBe(false);
     expect(

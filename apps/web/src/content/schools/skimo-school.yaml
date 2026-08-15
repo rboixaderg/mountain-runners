@@ -220,10 +220,11 @@ sections:
       No varia en funció de l'edat, sinó dels dies que voleu venir:
 
 
-      - Quota anual escola: 550 €
+      - Caps de setmana, quota anual escola: 550 €
 
-      - Entre setmana: 60 € al mes si venen dimarts i dijous; 30 € al mes si
-        només venen un dia
+      - Entre setmana, dimarts i dijous: 60 € al mes
+
+      - Entre setmana, un dia: 30 € al mes
 
       - Matrícula: 80 € (inclou tràmits d'inscripció i la jaqueta de l'escola)
 
@@ -233,13 +234,15 @@ sections:
       No varía en función de la edad, sino de los días que queráis venir:
 
 
-      - Cuota anual de la escuela: 550 €
+      - Fines de semana, cuota anual de la escuela: 550 €
 
-      - Entre semana: 60 € al mes si vienen martes y jueves; 30 € al mes si solo
-        vienen un día
+      - Entre semana, martes y jueves: 60 € al mes
 
-      - Matrícula: 80 € (incluye los trámites de inscripción y la chaqueta de la
-        escuela)
+      - Entre semana, un día: 30 € al mes
+
+
+      - Matrícula: 80 € (incluye los trámites de inscripción y la chaqueta de
+        la escuela)
 
 
       Los precios pueden quedar sujetos a modificaciones al inicio del curso.
@@ -247,10 +250,12 @@ sections:
       Prices do not vary by age, but by the number of days participants attend:
 
 
-      - Annual school fee: €550
+      - Weekends, annual school fee: €550
 
-      - Weekdays: €60 per month for Tuesdays and Thursdays; €30 per month for one
-        day only
+      - Weekdays, Tuesdays and Thursdays: €60 per month
+
+      - Weekdays, one day only: €30 per month
+
 
       - Registration fee: €80, including registration administration and the
         school jacket

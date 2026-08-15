@@ -110,6 +110,9 @@ imatge:
 - `escalada-queralt-cover.jpg` prové de
   `https://escaladesbergueda.cat/images/climbs/queralt-og.jpg` (Lliga
   d'escalades del Berguedà).
+- `escalada-castell-areny-cover.jpg` prové de
+  `https://escaladesbergueda.cat/images/climbs/castell-areny-og.jpg` (Lliga
+  d'escalades del Berguedà).
 - `anella-verda-cover.webp` és una derivació WebP optimitzada per al web que
   prové de
   `https://mountainrunners.cat/wp-content/uploads/2024/08/Foto-Marc-Elias-2-819x1024.png`,

@@ -157,8 +157,17 @@ export function parsePriceSectionBody(body: string): {
 
 export interface ParsedPreviewPriceSection {
   footnote: string | null;
+  listedFees: ParsedPriceListItem[];
   monthlyTiers: ParsedPriceListItem[];
   registrationFees: ParsedPriceListItem[];
+}
+
+function isMonthlyTierLabel(label: string): boolean {
+  return /^\d+\s+(dia|dies)\b/i.test(label);
+}
+
+function isRegistrationFeeLabel(label: string): boolean {
+  return /matr[ií]cula/i.test(label);
 }
 
 export function formatPriceAmount(amount: string): {
@@ -216,16 +225,21 @@ export function parsePreviewPriceSection(
       : [item],
   );
   const monthlyTiers = expandedItems.filter((item) =>
-    /^\d+\s+(dia|dies)\b/i.test(item.label),
+    isMonthlyTierLabel(item.label),
   );
   const registrationFees = expandedItems.filter((item) =>
-    /matr[ií]cula/i.test(item.label),
+    isRegistrationFeeLabel(item.label),
+  );
+  const listedFees = expandedItems.filter(
+    (item) =>
+      !isMonthlyTierLabel(item.label) && !isRegistrationFeeLabel(item.label),
   );
 
   return {
+    footnote,
+    listedFees,
     monthlyTiers,
     registrationFees,
-    footnote,
   };
 }
 
@@ -239,6 +253,7 @@ export function hasPreviewPriceContent(pricesMarkdown: string): boolean {
 
   return (
     hasSchoolSectionContent(parsedSection.lead) ||
+    priceSection.listedFees.length > 0 ||
     priceSection.monthlyTiers.length > 0 ||
     priceSection.registrationFees.length > 0 ||
     hasSchoolSectionContent(priceSection.footnote)

@@ -1,0 +1,101 @@
+id: escalada-castell-areny
+published: true
+slug:
+  ca: escalada-castell-areny
+  es: escalada-castell-areny
+  en: escalada-castell-areny
+active: true
+title:
+  ca: Escalada de Vilada a Castell de l'Areny
+  es: Escalada de Vilada a Castell de l'Areny
+  en: Vilada to Castell de l'Areny Climb
+summary:
+  ca: Cronoescalada de la Lliga d'escalades del Berguedà, de Vilada a Castell de l'Areny.
+  es: Cronoescalada de la Liga de escaladas del Berguedà, de Vilada a Castell de l'Areny.
+  en: Time trial climb in the Berguedà Climb League, from Vilada to Castell de l'Areny.
+description:
+  ca: >-
+    Tercera prova de la [Lliga d'escalades del
+    Berguedà](https://escaladesbergueda.cat/). Cronoescalada oberta a tothom
+    des de la Zona Esportiva de Vilada fins al cartell del poble de Castell de
+    l'Areny, al cor de l'alt Berguedà.
+
+
+    El recorregut inclou 0,3 km neutralitzats i 5,38 km cronometrats amb 275
+    metres de desnivell positiu. Es pot participar amb qualsevol tipus de
+    bicicleta: carretera, BTT, gravel, ciclocròs o clàssica.
+
+
+    L'Ajuntament de Vilada n'és l'organitzador principal i Mountain Runners del
+    Berguedà hi participa com a coorganitzador de la lliga, que promou el
+    ciclisme de muntanya al territori.
+  es: >-
+    Tercera prueba de la [Liga de escaladas del
+    Berguedà](https://escaladesbergueda.cat/). Cronoescalada abierta a todo el
+    mundo desde la Zona Deportiva de Vilada hasta el cartel del pueblo de
+    Castell de l'Areny, en el corazón del alto Berguedà.
+
+
+    El recorrido incluye 0,3 km neutralizados y 5,38 km cronometrados con 275
+    metros de desnivel positivo. Se puede participar con cualquier tipo de
+    bicicleta: carretera, BTT, gravel, ciclocross o clásica.
+
+
+    El Ayuntamiento de Vilada es el organizador principal y Mountain Runners del
+    Berguedà participa como coorganizador de la liga, que promueve el ciclismo
+    de montaña en el territorio.
+  en: >-
+    The third event in the [Berguedà Climb
+    League](https://escaladesbergueda.cat/). A hill-climb time trial open to
+    everyone, from Vilada Sports Zone to the Castell de l'Areny village sign,
+    in the heart of upper Berguedà.
+
+
+    The route includes 0.3 neutralised kilometres and 5.38 timed kilometres
+    with 275 metres of elevation gain. Participants may use any type of bicycle:
+    road, MTB, gravel, cyclocross or classic.
+
+
+    Vilada Town Council is the main organiser and Mountain Runners del Berguedà
+    co-organises the event as part of the league calendar, which promotes
+    mountain cycling in the region.
+clubRelationship: organizes
+cover:
+  resource:
+    kind: local
+    path: src/assets/events/escalada-castell-areny-cover.jpg
+  alt:
+    ca: Cronoescalada a Castell de l'Areny amb el paisatge de l'alt Berguedà
+    es: Cronoescalada a Castell de l'Areny con el paisaje del alto Berguedà
+    en: Time trial climb to Castell de l'Areny in upper Berguedà scenery
+  sourceUrl: https://escaladesbergueda.cat/images/climbs/castell-areny-og.jpg
+gallery: []
+videoUrls: []
+informationUrl:
+  ca: https://escaladesbergueda.cat/escalades/castell-areny
+  es: https://escaladesbergueda.cat/escalades/castell-areny
+  en: https://escaladesbergueda.cat/escalades/castell-areny
+registrationUrl:
+  ca: https://escaladesbergueda.cat/
+  es: https://escaladesbergueda.cat/
+  en: https://escaladesbergueda.cat/
+organizerIds:
+  - mountain-runners
+  - club-esqui-bergueda
+collaboratorIds: []
+editions:
+  - id: edition-2026
+    startDate: 2026-08-16
+    location:
+      ca: Zona Esportiva de Vilada
+      es: Zona Deportiva de Vilada
+      en: Vilada Sports Zone
+    modalities:
+      - ca: 5,38 km · 275 m D+
+        es: 5,38 km · 275 m D+
+        en: 5.38 km · 275 m ascent
+      - ca: Carretera, BTT, gravel o clàssica
+        es: Carretera, BTT, gravel o clásica
+        en: Road, MTB, gravel or classic bike
+    registrationStatus: open
+    documentIds: []

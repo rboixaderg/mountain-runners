@@ -65,6 +65,7 @@ describe("publication catalog", () => {
       "school:ca:escola-trail",
       "event:ca:anella-verda",
       "event:ca:berga-trail",
+      "event:ca:escalada-castell-areny",
       "event:ca:escalada-queralt",
       "event:ca:ultra-pirineu",
       "school:es:escuela-btt",
@@ -72,6 +73,7 @@ describe("publication catalog", () => {
       "school:es:escuela-trail",
       "event:es:anella-verde",
       "event:es:berga-trail",
+      "event:es:escalada-castell-areny",
       "event:es:escalada-queralt",
       "event:es:ultra-pirineu",
       "school:en:mtb-school",
@@ -79,6 +81,7 @@ describe("publication catalog", () => {
       "school:en:trail-school",
       "event:en:green-ring",
       "event:en:berga-trail",
+      "event:en:escalada-castell-areny",
       "event:en:escalada-queralt",
       "event:en:ultra-pirineu",
     ]);
@@ -102,13 +105,13 @@ describe("publication catalog", () => {
       "src/assets/collaborators/podologia-ingrid-soca.jpg",
       "src/assets/collaborators/ramirs-sabaters.png",
       "src/assets/collaborators/rios-running-berga.jpeg",
-      "src/assets/collaborators/serrasports.png",
       "src/assets/collaborators/snowlockers.png",
       "src/assets/collaborators/veloberga.jpg",
       "src/assets/collaborators/visites-al-bergueda.jpg",
       "src/assets/entities/club-atletic-berga.png",
       "src/assets/entities/club-esqui-bergueda.png",
       "src/assets/events/anella-verda-cover.webp",
+      "src/assets/events/escalada-castell-areny-cover.jpg",
       "src/assets/events/escalada-queralt-cover.jpg",
       "src/assets/logo_mountain_runners.png",
       "src/assets/schools/escola-btt-card.jpg",
@@ -386,6 +389,9 @@ describe("publication catalog", () => {
     expect(catalog.contact?.email).toBe("mailto:info@mountainrunners.cat");
     expect(catalog.entities.get("mountain-runners")?.instagramUrl).toBe(
       "https://www.instagram.com/infomountain/",
+    );
+    expect(catalog.entities.get("mountain-runners")?.stravaClubUrl).toBe(
+      "https://www.strava.com/clubs/156769",
     );
     expect(catalog.entities.get("mountain-runners")?.promotionalVideoUrl).toBe(
       "https://www.youtube.com/watch?v=EUV5uETCjeo",

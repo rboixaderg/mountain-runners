@@ -41,11 +41,11 @@ describe("school practical presentation contract", () => {
   it("splits labeled schedule content into label, lead and body", () => {
     expect(
       parseSchoolPracticalSection(
-        "**Berga:** dilluns, dimecres i/o divendres de 17.30 h a 19.00 h.\n\nDurant el curs escolar.",
+        "**Berga:** dilluns, dimecres i divendres de 17.30 h a 19.00 h.\n\nDurant el curs escolar.",
       ),
     ).toEqual({
       label: "Berga",
-      lead: "dilluns, dimecres i/o divendres de 17.30 h a 19.00 h.",
+      lead: "dilluns, dimecres i divendres de 17.30 h a 19.00 h.",
       body: "Durant el curs escolar.",
     });
   });
@@ -65,10 +65,10 @@ describe("school practical presentation contract", () => {
   it("extracts schedule days and time for highlight rendering", () => {
     expect(
       extractScheduleParts(
-        "dilluns, dimecres i/o divendres de 17.30 h a 19.00 h.",
+        "dilluns, dimecres i divendres de 17.30 h a 19.00 h.",
       ),
     ).toEqual({
-      days: "dilluns, dimecres i/o divendres",
+      days: "dilluns, dimecres i divendres",
       time: "17.30 h a 19.00 h",
     });
   });
@@ -76,11 +76,12 @@ describe("school practical presentation contract", () => {
   it("extracts location primary and secondary lines", () => {
     expect(
       extractLocationParts(
-        "Sortida des de la Font Negra de Berga, amb itineraris diferents a cada sessió.",
+        "Sortida a la Font Negra de Berga en horari d'estiu, sortida a l'Escola Sant Joan de Berga en horari d'hivern, amb itineraris diferents a cada sessió.",
       ),
     ).toEqual({
-      primary: "Sortida des de la Font Negra de Berga",
-      secondary: "amb itineraris diferents a cada sessió.",
+      primary: "Sortida a la Font Negra de Berga en horari d'estiu",
+      secondary:
+        "sortida a l'Escola Sant Joan de Berga en horari d'hivern, amb itineraris diferents a cada sessió.",
     });
   });
 
@@ -104,6 +105,7 @@ describe("school practical presentation contract", () => {
         "- 1 dia: 30 € al mes\n- 2 dies: 40 € al mes\n- 3 dies: 45 € al mes\n- Matrícula primer any: 50 €; matrícula de continuïtat: 25 €\n\nEls preus poden quedar subjectes a modificació.",
       ),
     ).toEqual({
+      listedFees: [],
       monthlyTiers: [
         { label: "1 dia", amount: "30 € al mes" },
         { label: "2 dies", amount: "40 € al mes" },
@@ -114,6 +116,53 @@ describe("school practical presentation contract", () => {
         { label: "matrícula de continuïtat", amount: "25 €" },
       ],
       footnote: "Els preus poden quedar subjectes a modificació.",
+    });
+  });
+
+  it("parses non-tier school fees such as the skimo price list", () => {
+    expect(
+      parsePreviewPriceSection(
+        "- Caps de setmana, quota anual escola: 550 €\n- Entre setmana, dimarts i dijous: 60 € al mes\n- Entre setmana, un dia: 30 € al mes\n- Matrícula: 80 € (inclou tràmits d'inscripció i la jaqueta de l'escola)\n\nEls preus poden quedar subjectes a modificació a l'inici de curs.",
+      ),
+    ).toEqual({
+      listedFees: [
+        {
+          label: "Caps de setmana, quota anual escola",
+          amount: "550 €",
+        },
+        {
+          label: "Entre setmana, dimarts i dijous",
+          amount: "60 € al mes",
+        },
+        { label: "Entre setmana, un dia", amount: "30 € al mes" },
+      ],
+      monthlyTiers: [],
+      registrationFees: [
+        {
+          label: "Matrícula",
+          amount: "80 € (inclou tràmits d'inscripció i la jaqueta de l'escola)",
+        },
+      ],
+      footnote:
+        "Els preus poden quedar subjectes a modificació a l'inici de curs.",
+    });
+  });
+
+  it("parses the BTT annual fee options and quarterly note", () => {
+    expect(
+      parsePreviewPriceSection(
+        "- Inscripció anual, complet: 640 €\n- Inscripció anual, només dimarts: 336 €\n- Inscripció anual, només dissabte: 392 €\n\nTambé hi ha la possibilitat d'inscriure't per trimestres. Si vols més informació, posa't en contacte amb nosaltres.\n\nEls preus poden quedar subjectes a modificació a l'inici de curs.",
+      ),
+    ).toEqual({
+      listedFees: [
+        { label: "Inscripció anual, complet", amount: "640 €" },
+        { label: "Inscripció anual, només dimarts", amount: "336 €" },
+        { label: "Inscripció anual, només dissabte", amount: "392 €" },
+      ],
+      monthlyTiers: [],
+      registrationFees: [],
+      footnote:
+        "També hi ha la possibilitat d'inscriure't per trimestres. Si vols més informació, posa't en contacte amb nosaltres.\n\nEls preus poden quedar subjectes a modificació a l'inici de curs.",
     });
   });
 
@@ -136,7 +185,7 @@ describe("school practical presentation contract", () => {
 
   it("detects compact and detailed preview schedule formats", () => {
     const trailSchedule =
-      "**Berga:** dilluns, dimecres i/o divendres de 17.30 h a 19.00 h.\n\nDurant el curs escolar.";
+      "**Berga:** dilluns, dimecres i divendres de 17.30 h a 19.00 h.\n\nDurant el curs escolar.";
     const skimoSchedule =
       "**Caps de setmana**\n\n- Temporada de tardor: dissabte cada 15 dies de 9.00 h a 13.00 h";
 
@@ -169,7 +218,7 @@ describe("school practical presentation contract", () => {
     const skimoSchedule =
       "**Caps de setmana**\n\n- Temporada de tardor: dissabte cada 15 dies de 9.00 h a 13.00 h";
     const trailSchedule =
-      "**Berga:** dilluns, dimecres i/o divendres de 17.30 h a 19.00 h.";
+      "**Berga:** dilluns, dimecres i divendres de 17.30 h a 19.00 h.";
 
     const sectionContentByKey = (sectionKey: string) => {
       if (sectionKey === "schedule") {

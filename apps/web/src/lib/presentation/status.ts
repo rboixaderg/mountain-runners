@@ -113,22 +113,43 @@ export function getExternalActionPresentation(
   };
 }
 
-export type MemberSignupLink = {
+export type ExternalActionLink = {
   href: string;
   isExternal: boolean;
 };
+
+export type MemberSignupLink = ExternalActionLink;
 
 export function getMemberSignupLink(
   memberSignupAction: ExternalAction | undefined,
   locale: Locale,
   membersPagePath: string,
 ): MemberSignupLink {
-  const presentation = getExternalActionPresentation(
-    memberSignupAction,
+  return getExternalActionLink(memberSignupAction, locale, membersPagePath);
+}
+
+export type FederationLink = ExternalActionLink;
+
+export function getFederationLink(
+  federationAction: ExternalAction | undefined,
+  locale: Locale,
+  membersPagePath: string,
+): FederationLink {
+  return getExternalActionLink(
+    federationAction,
     locale,
+    `${membersPagePath}#members-federation-title`,
   );
+}
+
+function getExternalActionLink(
+  action: ExternalAction | undefined,
+  locale: Locale,
+  fallbackPath: string,
+): ExternalActionLink {
+  const presentation = getExternalActionPresentation(action, locale);
   return {
-    href: presentation.href ?? membersPagePath,
+    href: presentation.href ?? fallbackPath,
     isExternal: presentation.href !== undefined,
   };
 }

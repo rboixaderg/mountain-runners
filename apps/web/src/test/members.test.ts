@@ -58,7 +58,7 @@ describe("members directory", () => {
     const catalog = createPublicationCatalog(await loadSource());
     const collaborators = getMembersDirectoryEntities(catalog, "ca");
 
-    expect(collaborators).toHaveLength(22);
+    expect(collaborators).toHaveLength(21);
     expect(collaborators.map((entity) => entity.id)).toEqual([
       "four-riders-bike-park",
       "aina-vila",
@@ -78,7 +78,6 @@ describe("members directory", () => {
       "podologia-ingrid-soca",
       "ramirs-sabaters",
       "rios-running-berga",
-      "serrasports",
       "snowlockers",
       "veloberga",
       "visites-al-bergueda",
@@ -107,7 +106,7 @@ describe("members directory", () => {
       (entity) => entity.id,
     );
     expect(collaboratorIds).not.toContain("elit");
-    expect(collaboratorIds).toHaveLength(21);
+    expect(collaboratorIds).toHaveLength(20);
   });
 });
 
