@@ -1,0 +1,16 @@
+docs/roadmap.md
+  h_1727aeeb492b30 244-247
+docs/specs/phase-5-publication-operation.md
+  h_1727aeeb492b30 99
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "ccd5b099baef7a7f2a73c95c99cf619f92373a7b",
+  "prompts": {},
+  "humans": {
+    "h_1727aeeb492b30": {
+      "author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
