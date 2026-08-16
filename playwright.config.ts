@@ -47,6 +47,10 @@ export default defineConfig({
     env: {
       PUBLIC_SITE_ORIGIN:
         process.env.PUBLIC_SITE_ORIGIN ?? "https://mountainrunners.cat",
+      // Astro 7.2 daemonizes `astro preview` when it detects an agentic
+      // environment, which makes Playwright report "exited early". Keep the
+      // preview in the foreground so Playwright owns its lifecycle.
+      ASTRO_PREVIEW_BACKGROUND: "1",
     },
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,

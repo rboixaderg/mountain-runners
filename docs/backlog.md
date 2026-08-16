@@ -219,7 +219,7 @@ persona responsable de les relacions amb els col·laboradors.
 
 ### Separar La Presentació Del Contacte I Simplificar Les Validacions
 
-**Estat:** Capturada.
+**Estat:** Incorporada (entrega en curs).
 
 **Problema:** el contingut de contacte desa informació pròpia del render HTML,
 com els protocols `mailto:` i `tel:`, en lloc de representar només les dades
@@ -253,7 +253,8 @@ dades restriccions que pertanyen al render.
 que el renderitzen; no cal canviar cap frontera arquitectònica acceptada si la
 separació es manté dins del model i la capa de presentació existents.
 
-**Seguiment:** pendent de triatge.
+**Seguiment:** entrega en curs a la branca `refactor/contact-semantic-values`;
+PR pendent de revisió.
 
 ### Analítica Web Respectuosa Amb La Privacitat
 

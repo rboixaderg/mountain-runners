@@ -408,7 +408,8 @@ describe("publication catalog", () => {
       "newsletter",
     ]);
     expect(catalog.contact?.id).toBe("mountain-runners-contact");
-    expect(catalog.contact?.email).toBe("mailto:info@mountainrunners.cat");
+    expect(catalog.contact?.email).toBe("info@mountainrunners.cat");
+    expect(catalog.contact?.phones).toEqual(["+34938213747", "+34691910774"]);
     expect(catalog.entities.get("mountain-runners")?.links).toEqual([
       { kind: "website", url: "https://mountainrunners.cat/" },
       { kind: "instagram", url: "https://www.instagram.com/infomountain/" },

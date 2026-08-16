@@ -34,6 +34,11 @@ reviewing `apps/web` code. The review of every PR checks these rules:
 - Keep presentation helpers pure in `src/lib/presentation/`: they receive the
   locale and return data or i18n message keys, and never import Astro or
   Paraglide. Components resolve message keys with the corresponding locale.
+- Content stores semantic values, never render protocols or HTML attributes
+  (`mailto:`, `tel:`...): components or `src/lib/presentation/` helpers build
+  the `href` and attributes. Model validations reject anything the render could
+  interpret (`%`, `?`, `#`, whitespace or control characters) without
+  replicating presentation decisions.
 - Extract the second occurrence of a date, status or URL helper to
   `src/lib/presentation/` and reuse it; never duplicate it in pages or
   components.

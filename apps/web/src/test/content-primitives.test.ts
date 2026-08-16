@@ -9,10 +9,10 @@ import {
   translatableSchema,
 } from "../lib/content/primitives";
 import {
+  emailAddressSchema,
   httpsUrlSchema,
-  mailtoUrlSchema,
   normalizeHttpsUrl,
-  telUrlSchema,
+  phoneNumberSchema,
 } from "../lib/content/urls";
 
 describe("locale and translation primitives", () => {
@@ -116,32 +116,33 @@ describe("URL primitives", () => {
     expect(httpsUrlSchema.safeParse(url).success).toBe(false);
   });
 
-  it("only enables contact protocols through explicit schemas", () => {
-    expect(mailtoUrlSchema.safeParse("mailto:club@example.com").success).toBe(
-      true,
-    );
-    expect(telUrlSchema.safeParse("tel:+34 600 000 000").success).toBe(true);
+  it("accepts semantic email and phone values only through explicit schemas", () => {
+    expect(emailAddressSchema.safeParse("club@example.com").success).toBe(true);
+    expect(phoneNumberSchema.safeParse("+34 600 000 000").success).toBe(true);
     expect(httpsUrlSchema.safeParse("mailto:club@example.com").success).toBe(
       false,
     );
     expect(
-      mailtoUrlSchema.safeParse("mailto:club@example.com?body=x").success,
+      emailAddressSchema.safeParse("mailto:club@example.com").success,
     ).toBe(false);
     expect(
-      mailtoUrlSchema.safeParse("mailto:club%0d%0a@example.com").success,
+      emailAddressSchema.safeParse("club@example.com?body=x").success,
     ).toBe(false);
-    expect(
-      mailtoUrlSchema.safeParse("mailto:club%250d@example.com").success,
-    ).toBe(false);
+    expect(emailAddressSchema.safeParse("club%0d%0a@example.com").success).toBe(
+      false,
+    );
+    expect(emailAddressSchema.safeParse("club%250d@example.com").success).toBe(
+      false,
+    );
   });
 
   it.each([
-    "tel:club",
-    "tel:+34 600 000 000?extension=1",
-    "tel:+34%0a600000000",
+    "club",
+    "+34 600 000 000?extension=1",
+    "+34%0a600000000",
     "https://example.com",
-    " tel:+34600000000",
-  ])("rejects invalid telephone URL %s", (url) => {
-    expect(telUrlSchema.safeParse(url).success).toBe(false);
+    " +34600000000",
+  ])("rejects invalid telephone number %s", (phone) => {
+    expect(phoneNumberSchema.safeParse(phone).success).toBe(false);
   });
 });

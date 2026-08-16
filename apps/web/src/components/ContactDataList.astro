@@ -2,7 +2,7 @@
 import * as messages from "../paraglide/messages.js";
 import type { Contact } from "../lib/content/models";
 import type { Locale } from "../lib/content/primitives";
-import { getMailtoAddress } from "../lib/presentation/urls";
+import { getMailtoHref, getTelHref } from "../lib/presentation/urls";
 import "../styles/contact-data.css";
 
 type ContactAddressLabelKey =
@@ -39,7 +39,7 @@ const phoneLabel = messages.contact_phone_label({}, { locale });
       <div class="contact-data__row">
         <dt>{emailLabel}</dt>
         <dd>
-          <a href={contact.email}>{getMailtoAddress(contact.email)}</a>
+          <a href={getMailtoHref(contact.email)}>{contact.email}</a>
         </dd>
       </div>
     )
@@ -49,7 +49,7 @@ const phoneLabel = messages.contact_phone_label({}, { locale });
       <div class="contact-data__row">
         <dt>{phoneLabel}</dt>
         <dd>
-          <a href={phone}>{phone.replace(/^tel:/u, "")}</a>
+          <a href={getTelHref(phone)}>{phone}</a>
         </dd>
       </div>
     ))

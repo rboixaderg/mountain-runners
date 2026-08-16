@@ -7,10 +7,14 @@ export function getExternalHost(url: string): string {
   return new URL(url).hostname.replace(/^www\./u, "");
 }
 
-export function getMailtoAddress(mailtoUrl: string): string {
-  return mailtoUrl.replace(/^mailto:/iu, "");
+export function getMailtoHref(emailAddress: string): string {
+  return `mailto:${emailAddress}`;
 }
 
-export function getMarkdownSafeMailtoAddress(mailtoUrl: string): string {
-  return getMailtoAddress(mailtoUrl).replace(/[\\`*_[\]<>]/gu, "\\$&");
+export function getTelHref(phoneNumber: string): string {
+  return `tel:${phoneNumber}`;
+}
+
+export function getMarkdownSafeEmailAddress(emailAddress: string): string {
+  return emailAddress.replace(/[\\`*_[\]<>]/gu, "\\$&");
 }
