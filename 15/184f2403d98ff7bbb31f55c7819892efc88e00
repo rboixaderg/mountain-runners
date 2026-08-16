@@ -1,0 +1,37 @@
+docs/architecture.md
+  s_f8e9a5d00a080c::t_8f6f3a82437a28 21-27,43-49,83
+tools/server/README.md
+  s_f8e9a5d00a080c::t_8666e7b4cee13c 1-59
+tools/server/caddy/Caddyfile
+  s_f8e9a5d00a080c::t_69666b73484c0d 1-101
+tools/server/caddy/Caddyfile.production
+  s_f8e9a5d00a080c::t_9f60f5ea96599b 1-27
+tools/server/release/archive.mjs
+  s_f8e9a5d00a080c::t_2475dd837ac9b0 1-261
+tools/server/release/cli.mjs
+  s_f8e9a5d00a080c::t_fd788657f7a7c7 1-122
+tools/server/release/fsutil.mjs
+  s_f8e9a5d00a080c::t_770a03d921da24 1-34
+tools/server/release/operations.mjs
+  s_f8e9a5d00a080c::t_3016f9feb08c21 1-271
+tools/server/release/validate.mjs
+  s_f8e9a5d00a080c::t_e9ff53bae65135 1-89
+tools/server/verify/verify-site.mjs
+  s_f8e9a5d00a080c::t_4f739be3e3e456 1-140
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "15184f2403d98ff7bbb31f55c7819892efc88e00",
+  "prompts": {},
+  "sessions": {
+    "s_f8e9a5d00a080c": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_ff508302affeGojfEW1c3kPWCA",
+        "model": "deepseek-v4-flash"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
