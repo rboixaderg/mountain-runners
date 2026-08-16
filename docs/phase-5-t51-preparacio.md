@@ -37,7 +37,9 @@ explícita de la persona mantenidora en el moment corresponent.
 
 ## Preguntes Obertes Per A La T5.1
 
-Aquestes decisions s'han de tancar amb evidència traçable i revisió humana:
+Aquestes decisions s'han de tancar amb evidència traçable i revisió humana. Les
+respostes confirmades es registren a
+[`docs/phase-5-t51-decisions.md`](phase-5-t51-decisions.md):
 
 1. **Administració del VPS**: mida del servidor de Hetzner, responsable,
    hardening, actualitzacions, còpies de configuració i forma d'accés aprovada.

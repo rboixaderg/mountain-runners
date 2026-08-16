@@ -2,9 +2,10 @@
 
 ## Estat
 
-Pendent d'iniciar T5.1. La fase 4 es va completar el 16 d'agost de 2026 i ja no
-bloqueja la publicació. No es provisiona ni s'activa producció fins a completar
-les decisions i controls de T5.1.
+T5.1 completada el 16 d'agost de 2026, amb les decisions registrades a
+[`docs/phase-5-t51-decisions.md`](../phase-5-t51-decisions.md). La fase 4 es va
+completar el 16 d'agost de 2026 i ja no bloqueja la publicació. No es provisiona
+ni s'activa producció fins a completar les decisions i controls de T5.1.
 
 ## Objectiu
 
@@ -33,9 +34,12 @@ negoci.
   aprovació explícita de la persona mantenidora. Després d'acceptar aquesta
   primera release, cada merge posterior a `main` pot desplegar-se automàticament
   si passen tots els gates del workflow protegit.
-- La reversió de producció continua sent una acció protegida i aprovada. La
-  primera release conserva temporalment l'allotjament anterior com a opció de
-  reversió DNS perquè encara no existeix una release prèvia elegible a Hetzner.
+- La reversió de producció continua sent una acció protegida i aprovada. No es
+  manté l'allotjament anterior com a servei de reversió: la reversió rutinària
+  activa una release anterior elegible a Hetzner sense tocar DNS i, si no queda
+  cap release elegible, s'aplica la resposta d'emergència del runbook. Els
+  registres web anteriors queden exportats i restaurables manualment com a via
+  extraordinària, però no és la via prevista (decisió de T5.1).
 - Cap agent, sessió local ni assistent editorial pot desplegar, fusionar,
   habilitar auto-merge o obtenir accés persistent a producció.
 - Els secrets viuen exclusivament a l'entorn de producció o al magatzem de
@@ -88,13 +92,13 @@ conversa o procediment corresponent.
 
 ## Tasques, Entregues I Seguiment
 
-| Unitat                                       | Estat   | Dependències      | Resultat verificable                        | PR  |
-| -------------------------------------------- | ------- | ----------------- | ------------------------------------------- | --- |
-| T5.1 Decisions i porta de llançament         | Pendent | Fase 4 completada | Decisions, riscos i responsables confirmats | -   |
-| T5.2 Artefacte i controls de publicació      | Pendent | T5.1              | Artefacte CI complet i verificat            | -   |
-| T5.3 VPS, Caddy, releases i reversió         | Pendent | T5.2              | Servidor TLS preparat i reversió comprovada | -   |
-| T5.4 Desplegament continu des de `main`      | Pendent | T5.2 i T5.3       | Workflow protegit amb smoke tests           | -   |
-| T5.5 Tall, validació i operació de producció | Pendent | T5.4              | Web pública i runbook verificats            | -   |
+| Unitat                                       | Estat      | Dependències      | Resultat verificable                        | PR     |
+| -------------------------------------------- | ---------- | ----------------- | ------------------------------------------- | ------ |
+| T5.1 Decisions i porta de llançament         | Completada | Fase 4 completada | Decisions, riscos i responsables confirmats | PR #76 |
+| T5.2 Artefacte i controls de publicació      | Pendent    | T5.1              | Artefacte CI complet i verificat            | -      |
+| T5.3 VPS, Caddy, releases i reversió         | Pendent    | T5.2              | Servidor TLS preparat i reversió comprovada | -      |
+| T5.4 Desplegament continu des de `main`      | Pendent    | T5.2 i T5.3       | Workflow protegit amb smoke tests           | -      |
+| T5.5 Tall, validació i operació de producció | Pendent    | T5.4              | Web pública i runbook verificats            | -      |
 
 ### T5.1: Decisions I Porta De Llançament
 
@@ -267,10 +271,13 @@ qualsevol altre servei existent es preserven i es verifiquen abans i després de
 tall. També es confirma una URL de webmail independent de l'apex abans de moure
 la web. El canvi de nameservers, Cloudflare i DNSSEC queden fora d'abast.
 
-Durant el període acordat, la configuració anterior de Hostinger es manté
-recuperable. La reversió inicial restaura els registres web anteriors; després
-que existeixi una release estable a Hetzner, la reversió rutinària canvia el
-punter atòmic a una release elegible sense tocar DNS.
+L'inventari i els valors anteriors dels registres s'exporten i es conserven
+abans del tall, però no es manté l'allotjament anterior com a servei de
+reversió (decisió de T5.1). La reversió rutinària canvia el punter atòmic a una
+release anterior elegible a Hetzner sense tocar DNS; si no queda cap release
+elegible, s'aplica la resposta d'emergència del runbook. La restauració manual
+dels registres web anteriors queda només com a via extraordinària, amb aprovació
+explícita.
 
 ## Estratègia De Tests I Qualitat
 
@@ -353,9 +360,10 @@ La fase es considera completada quan:
    headers i caché aprovats, amb logs mínims i sense exposar directoris, fitxers
    interns ni credencials; el host temporal declara `X-Robots-Tag: noindex,
 nofollow, noarchive`.
-6. La primera activació i el tall DNS han estat aprovats, el correu continua
-   operatiu i existeix una reversió provada cap a Hostinger fins que hi ha una
-   release anterior elegible a Hetzner.
+6. La primera activació i el tall DNS han estat aprovats i el correu continua
+   operatiu; la reversió provada és interna (release anterior elegible a
+   Hetzner) i l'export dels registres anteriors permet una restauració manual
+   extraordinària amb aprovació explícita.
 7. Després del primer llançament acceptat, cada merge a `main` pot desplegar-se
    automàticament només si passen els gates, sense donar accés de producció al
    job de build, a agents, forks o sessions locals; una execució obsoleta no pot
