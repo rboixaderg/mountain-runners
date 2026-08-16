@@ -1,0 +1,19 @@
+apps/web/e2e/route-matrix.spec.ts
+  s_4d7a07b909d5e1::t_8d1b26cfa4572c 1-180
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "f50e0c91e635e903002765565932f3aa55726fca",
+  "prompts": {},
+  "sessions": {
+    "s_4d7a07b909d5e1": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_ff65a00fdffe7mdJWQrlabGQvP",
+        "model": "deepseek-v4-pro"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
