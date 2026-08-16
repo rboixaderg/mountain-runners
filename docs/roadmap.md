@@ -57,8 +57,8 @@ constructor genèric de pàgines sense una necessitat editorial concreta.
 | 1. Base executable i qualitat                | Completada  | Astro, validacions, CI, multiidioma i models de contingut |
 | 2. Vertical slice públic                     | Completada  | Shell global, inici i esdeveniments funcionals            |
 | 3. Cobertura de contingut                    | Completada  | Resta de pàgines i plantilles de la web                   |
-| 4. Validació integral de disseny i contingut | En tancament | Revisió pàgina a pàgina i traducció a es/en              |
-| 5. Publicació a producció i operació         | Bloquejada  | Desplegament continu segur sobre Hetzner                  |
+| 4. Validació integral de disseny i contingut | Completada  | Revisió pàgina a pàgina i traducció a es/en              |
+| 5. Publicació a producció i operació         | Pendent     | Desplegament continu segur sobre Hetzner                  |
 | 6. Previews de PR i estratègia DNS/edge      | Planificada | Previews aïllades i decisió informada sobre Cloudflare    |
 | 7. Xat públic                                | Planificada | Consultes de només lectura sobre contingut publicat       |
 | 8. Assistència editorial                     | Planificada | Edició privada, auditada i basada en pull requests        |
@@ -196,12 +196,15 @@ i contingut editable.
 
 ## Fase 4: Validació Integral De Disseny I Contingut
 
-**Estat:** En tancament. La implementació visual i les variants `ca`, `es` i
-`en` són a `main` mitjançant la PR #49, i la PR #73 va lliurar la matriu integral
-de rutes, estats i idiomes. La fase no es declara completada fins que es tanquin
-els punts restants de la
-[`revisió de fase 4`](validation/phase-4-design-review.md), incloses la revisió
-semàntica de traduccions i la decisió final de Lighthouse.
+**Estat:** Completada el 16 d'agost de 2026. La implementació visual i les
+variants `ca`, `es` i `en` es van fusionar amb la PR #49 i les entregues de
+tancament posteriors (#50, #58, #60, #61, #62, #63, #70 i #73) van resoldre
+els punts de la [`revisió de fase 4`](validation/phase-4-design-review.md): la
+matriu exhaustiva viu a
+[`validation/phase-4-route-matrix.md`](validation/phase-4-route-matrix.md), la
+revisió semàntica de les traduccions va quedar confirmada, el pressupost de
+Lighthouse es va tancar amb la sèrie final (mediana d'LCP de portada de
+2,330 s) i les desviacions dels ADR es van corregir.
 
 **Objectiu:** validar, abans de preparar la publicació, que totes les rutes
 públiques implementades responen a la direcció de `DESIGN.md`, tenen una
@@ -238,8 +241,8 @@ visuals aprovats que els corresponen.
 
 ## Fase 5: Publicació A Producció I Operació
 
-**Estat:** Bloquejada fins al tancament de la fase 4 i les decisions operatives
-de la T5.1.
+**Estat:** Pendent d'iniciar la T5.1. La fase 4 està completada i ja no bloqueja
+la publicació.
 
 **Especificació:**
 [`docs/specs/phase-5-publication-operation.md`](specs/phase-5-publication-operation.md).

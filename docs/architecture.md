@@ -55,11 +55,12 @@ decisió— viu a [`docs/code-conventions.md`](code-conventions.md):
 | Presentació | `src/lib/presentation/` | Funcions pures per locale: format de dates, estat, URL i dades de vista                    |
 | Components  | `src/components/`       | Fragments de UI reutilitzables i plantilles de detall separades per tipus d'entrada        |
 
-`docs/code-conventions.md` és la font normativa del detall. El seguiment de la
-T4.4 fusionat a la PR #73 va alinear pàgines, components i helpers amb l'ADR 0006
-esmenat: els helpers només reben `locale` quan llegeixen dades indexades per
-idioma o produeixen sortida localitzada. Qualsevol desviació futura continua
-requerint una correcció separada o un ADR que substitueixi aquesta frontera.
+`docs/code-conventions.md` és la font normativa del detall. Les desviacions que
+la fase 4 va registrar respecte de l'ADR 0006 van quedar corregides amb la PR
+#73: els components reben la selecció de domini resolta i el contracte del
+`locale` dels helpers es deriva de les estructures de dades (regla 3 esmenada
+de l'ADR 0006). Qualsevol desviació futura continua requerint una correcció
+separada o un ADR que substitueixi aquesta frontera.
 
 ## Xat Públic, Més Endavant
 

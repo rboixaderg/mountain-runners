@@ -2,10 +2,12 @@
 
 ## Estat
 
-Registre de la revisió i les correccions fusionades a la PR #49 (`9c86b2b`).
-L'entrega ja és a `main`, però aquesta nota no tanca la fase 4: la matriu és
-representativa i encara falten el tancament editorial de T4.3 i la revisió
-semàntica de T4.5.
+Registre de la revisió i les correccions fusionades a la PR #49 (`9c86b2b`),
+tancat el 16 d'agost de 2026 amb les entregues posteriors: la matriu
+exhaustiva viu a [`phase-4-route-matrix.md`](phase-4-route-matrix.md), el
+tancament editorial de T4.3 i la revisió semàntica de T4.5 van quedar
+confirmats, i els punts pendents es resolen a la secció
+«Punts Pendents De Tancament».
 
 ## Fonts I Criteris
 
@@ -200,12 +202,23 @@ check` i el build determinista han passat; les captures d'About i Members a
   estats representatius, arrel i 404 coberts per l'escombrat automatitzat i la
   revisió manual. L'escombrat va detectar i corregir la manca de `hreflang`
   als hubs.
-- Revisar semànticament les traduccions i conservar totes les dades pràctiques i
-  atribucions exigibles en cada idioma.
-- Tancar o acceptar explícitament el pressupost Lighthouse: l'última execució
-  registrada té un LCP de portada de 2,705 s davant del límit de 2,5 s.
-- Corregir o especificar separadament les desviacions dels ADR 0004, 0005 i 0006
-  recollides a `docs/content-model.md` i `docs/code-conventions.md`.
+- ~~Revisar semànticament les traduccions i conservar totes les dades pràctiques
+  i atribucions exigibles en cada idioma.~~ Completada amb les PR #58 i #61, i
+  donada per tancada per la persona mantenidora el 16 d'agost de 2026.
+- ~~Tancar o acceptar explícitament el pressupost Lighthouse: l'última execució
+  registrada té un LCP de portada de 2,705 s davant del límit de 2,5 s.~~
+  Tancat amb la sèrie final del 16 d'agost de 2026: cinc execucions de la
+  portada amb LCP entre 2,329 s i 2,331 s i mediana de 2,330 s, dins del límit
+  de 2,5 s; la mostra aïllada de 2,705 s no es va reproduir. Hub
+  d'esdeveniments i detall d'Anella Verda amb 1,804 s i 1,806 s a l'última
+  execució, dins dels pressupostos (les sèries anteriors registren medianes de
+  1,954 s i 1,810 s).
+- ~~Corregir o especificar separadament les desviacions dels ADR 0004, 0005 i
+  0006 recollides a `docs/content-model.md` i `docs/code-conventions.md`.~~
+  Corregides: ADR 0004 i 0005 amb les PR #62 (dades operatives al contingut) i
+  #70 (contacte amb valors semàntics); ADR 0006 amb la PR #73 (selecció de
+  domini fora dels components i contracte del `locale` derivat de les dades,
+  amb l'esmena datada de la regla 3).
 
 L'11 d'agost de 2026 la persona mantenidora va decidir ajornar la resolució dels
 embeds de YouTube i avançar amb la resta de punts. La discrepància queda
@@ -219,5 +232,7 @@ tècniques. Aquesta actualització resol la contradicció de fase 4; una càrreg
 estrictament iniciada per clic queda fora d'aquesta correcció.
 
 La validació automatitzada no equival a una auditoria manual completa WCAG 2.2
-AA. La fase 5 continua bloquejada fins que els punts publicables anteriors
-tinguin una resolució traçable.
+AA. El 16 d'agost de 2026 tots els punts publicables de la fase 4 tenen una
+resolució traçable, la matriu queda lliurada i la fase 4 es declara
+completada; la fase 5 deixa d'estar bloquejada per la fase 4 i queda pendent
+de les decisions operatives de la T5.1.

@@ -2,9 +2,9 @@
 
 ## Estat
 
-Bloquejada fins que la fase 4 tanqui les discrepàncies publicables registrades a
-`docs/validation/phase-4-design-review.md`. La planificació es pot revisar, però
-no es provisiona ni s'activa producció fins a completar T5.1.
+Pendent d'iniciar T5.1. La fase 4 es va completar el 16 d'agost de 2026 i ja no
+bloqueja la publicació. No es provisiona ni s'activa producció fins a completar
+les decisions i controls de T5.1.
 
 ## Objectiu
 
@@ -71,9 +71,9 @@ negoci.
 
 ## Dependències I Ordre D'Inici
 
-La fase 4 resol les discrepàncies publicables abans de tancar. T5.1 en verifica
-el resultat i requereix una persona mantenidora disponible per confirmar les
-decisions operatives. T5.2 comença després de T5.1. T5.3 depèn del contracte
+La fase 4 està completada. T5.1 en verifica el resultat i requereix una persona
+mantenidora disponible per confirmar les decisions operatives. T5.2 comença
+després de T5.1. T5.3 depèn del contracte
 d'artefacte de T5.2; T5.4 integra l'artefacte i el servidor preparats; T5.5 fa el
 primer tall públic i valida el sistema complet.
 
@@ -88,13 +88,13 @@ conversa o procediment corresponent.
 
 ## Tasques, Entregues I Seguiment
 
-| Unitat                                       | Estat      | Dependències           | Resultat verificable                        | PR  |
-| -------------------------------------------- | ---------- | ---------------------- | ------------------------------------------- | --- |
-| T5.1 Decisions i porta de llançament         | Bloquejada | Tancament de la fase 4 | Decisions, riscos i responsables confirmats | -   |
-| T5.2 Artefacte i controls de publicació      | Pendent    | T5.1                   | Artefacte CI complet i verificat            | -   |
-| T5.3 VPS, Caddy, releases i reversió         | Pendent    | T5.2                   | Servidor TLS preparat i reversió comprovada | -   |
-| T5.4 Desplegament continu des de `main`      | Pendent    | T5.2 i T5.3            | Workflow protegit amb smoke tests           | -   |
-| T5.5 Tall, validació i operació de producció | Pendent    | T5.4                   | Web pública i runbook verificats            | -   |
+| Unitat                                       | Estat   | Dependències      | Resultat verificable                        | PR  |
+| -------------------------------------------- | ------- | ----------------- | ------------------------------------------- | --- |
+| T5.1 Decisions i porta de llançament         | Pendent | Fase 4 completada | Decisions, riscos i responsables confirmats | -   |
+| T5.2 Artefacte i controls de publicació      | Pendent | T5.1              | Artefacte CI complet i verificat            | -   |
+| T5.3 VPS, Caddy, releases i reversió         | Pendent | T5.2              | Servidor TLS preparat i reversió comprovada | -   |
+| T5.4 Desplegament continu des de `main`      | Pendent | T5.2 i T5.3       | Workflow protegit amb smoke tests           | -   |
+| T5.5 Tall, validació i operació de producció | Pendent | T5.4              | Web pública i runbook verificats            | -   |
 
 ### T5.1: Decisions I Porta De Llançament
 

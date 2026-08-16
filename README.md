@@ -9,11 +9,10 @@ el model editorial validat, la infraestructura multiidioma, el sistema visual i
 les normes de col·laboració. La sortida actual genera 66 rutes canòniques: 22 en
 català, 22 en castellà i 22 en anglès, a més dels recursos tècnics globals.
 
-La implementació de la fase 4 és a `main`, però el seu tancament documental i
-editorial encara té comprovacions pendents registrades a
-[`docs/validation/phase-4-design-review.md`](docs/validation/phase-4-design-review.md).
-La fase 5 no ha implementat encara Caddy ni desplegament a producció. Els
-previews i la decisió sobre Cloudflare s'han separat a la fase 6.
+La fase 4 es va completar el 16 d'agost de 2026 i el seu tancament és a `main`.
+La fase 5 queda pendent d'iniciar T5.1 i no ha implementat encara Caddy ni
+desplegament a producció. Els previews i la decisió sobre Cloudflare s'han
+separat a la fase 6.
 
 ## Desenvolupament Local
 

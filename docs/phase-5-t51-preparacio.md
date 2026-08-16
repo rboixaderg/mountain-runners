@@ -14,11 +14,10 @@ decisió posterior: la fase 5 manté Hostinger com a DNS autoritatiu i la fase 6
 reinvestiga Cloudflare, DNS, TLS i domini de previews sense donar cap proveïdor
 per aprovat.
 
-La T5.1 continua bloquejada fins que la fase 4 tanqui les discrepàncies
-publicables. Aquesta nota no substitueix la ratificació formal de la T5.1: cap
-acció remota sobre DNS, VPS, entorns o secrets s'executa abans, i qualsevol canvi
-requerirà l'aprovació explícita de la persona mantenidora en el moment
-corresponent.
+La fase 4 es va completar el 16 d'agost de 2026 i ja no bloqueja T5.1. Aquesta
+nota no substitueix la ratificació formal de T5.1: cap acció remota sobre DNS,
+VPS, entorns o secrets s'executa abans, i qualsevol canvi requerirà l'aprovació
+explícita de la persona mantenidora en el moment corresponent.
 
 ## Decisions Preliminars Confirmades
 
@@ -55,8 +54,6 @@ Aquestes decisions s'han de tancar amb evidència traçable i revisió humana:
    per a HTML, sitemap i robots.
 7. **Reversió inicial**: temps de conservació de l'allotjament anterior, TTL,
    responsable i procediment per restaurar els registres web de Hostinger.
-8. **Tancament de fase 4**: verificació de totes les discrepàncies publicables
-   que encara bloquegen l'inici formal.
 
 ## Comprovacions Abans Del Tall Web
 
@@ -95,7 +92,7 @@ tall. Abans cal:
 
 ## Ordre Previst
 
-Quan la fase 4 estigui tancada: T5.1 (decisions i gate) → T5.2 (artefacte
+Amb la fase 4 completada, l'ordre és: T5.1 (decisions i gate) → T5.2 (artefacte
 immutable) → T5.3 (Hetzner, Caddy, releases i reversió) → T5.4 (desplegament
 continu des de `main`) → T5.5 (tall, validació i operació).
 
@@ -128,4 +125,4 @@ No cal crear ara cap compte o zona a Cloudflare per completar la fase 5.
 - ADR 0001 (web estàtica i contingut en Git) i ADR 0003 (flux d'agents i
   seguretat).
 - [`docs/validation/phase-4-design-review.md`](validation/phase-4-design-review.md):
-  discrepàncies que bloquegen el tancament de la fase 4.
+  registre final del tancament de la fase 4.
