@@ -30,18 +30,16 @@ function makeDocument(
 
 describe("getDocumentAvailabilityMessageKey", () => {
   it("maps unavailable document states to their message keys", () => {
-    expect(
-      getDocumentAvailabilityMessageKey("temporarily-unavailable", "ca"),
-    ).toBe("document_temporarily_unavailable");
-    expect(getDocumentAvailabilityMessageKey("archived", "ca")).toBe(
+    expect(getDocumentAvailabilityMessageKey("temporarily-unavailable")).toBe(
+      "document_temporarily_unavailable",
+    );
+    expect(getDocumentAvailabilityMessageKey("archived")).toBe(
       "document_archived",
     );
   });
 
   it("returns no key for an available document", () => {
-    expect(
-      getDocumentAvailabilityMessageKey("available", "ca"),
-    ).toBeUndefined();
+    expect(getDocumentAvailabilityMessageKey("available")).toBeUndefined();
   });
 });
 
@@ -114,20 +112,18 @@ describe("formatCalendarDate", () => {
 
 describe("getExternalActionStatusMessageKey", () => {
   it("returns no key for an available action or a missing one", () => {
-    expect(
-      getExternalActionStatusMessageKey("available", "ca"),
-    ).toBeUndefined();
-    expect(getExternalActionStatusMessageKey(undefined, "ca")).toBeUndefined();
+    expect(getExternalActionStatusMessageKey("available")).toBeUndefined();
+    expect(getExternalActionStatusMessageKey(undefined)).toBeUndefined();
   });
 
   it("maps every unavailable status to its message key", () => {
-    expect(getExternalActionStatusMessageKey("coming-soon", "ca")).toBe(
+    expect(getExternalActionStatusMessageKey("coming-soon")).toBe(
       "external_action_coming_soon",
     );
-    expect(
-      getExternalActionStatusMessageKey("temporarily-unavailable", "ca"),
-    ).toBe("external_action_temporarily_unavailable");
-    expect(getExternalActionStatusMessageKey("unavailable", "ca")).toBe(
+    expect(getExternalActionStatusMessageKey("temporarily-unavailable")).toBe(
+      "external_action_temporarily_unavailable",
+    );
+    expect(getExternalActionStatusMessageKey("unavailable")).toBe(
       "external_action_unavailable",
     );
   });

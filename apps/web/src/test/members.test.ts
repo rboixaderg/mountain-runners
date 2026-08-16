@@ -112,21 +112,19 @@ describe("members directory", () => {
 
 describe("external action status message keys", () => {
   it("maps every unavailable status to a shared message key", () => {
-    expect(getExternalActionStatusMessageKey("coming-soon", "ca")).toBe(
+    expect(getExternalActionStatusMessageKey("coming-soon")).toBe(
       "external_action_coming_soon",
     );
-    expect(
-      getExternalActionStatusMessageKey("temporarily-unavailable", "ca"),
-    ).toBe("external_action_temporarily_unavailable");
-    expect(getExternalActionStatusMessageKey("unavailable", "ca")).toBe(
+    expect(getExternalActionStatusMessageKey("temporarily-unavailable")).toBe(
+      "external_action_temporarily_unavailable",
+    );
+    expect(getExternalActionStatusMessageKey("unavailable")).toBe(
       "external_action_unavailable",
     );
   });
 
   it("has no message key for an available action", () => {
-    expect(
-      getExternalActionStatusMessageKey("available", "ca"),
-    ).toBeUndefined();
+    expect(getExternalActionStatusMessageKey("available")).toBeUndefined();
   });
 
   it("keeps the key set aligned with the translation contract", () => {

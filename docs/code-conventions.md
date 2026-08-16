@@ -52,14 +52,14 @@ inline. A la segona aparició d'un helper, s'extreu i es reutilitza.
 
 ## Presentació
 
-- Els helpers de `src/lib/presentation/` són purs: reben el `locale` i retornen
-  dades o **claus de missatge**; mai importen Astro ni Paraglide.
-- L'excepció acotada de l'ADR 0006: un helper estrictament independent de
-  l'idioma —construcció d'URLs o `href` a partir de valors semàntics, extracció
-  d'identificadors, ordenació per tipus o parseig de markdown— no rep el
-  `locale` perquè no produeix cap sortida localitzada. Els helpers que retornen
-  claus de missatge el reben sempre, encara que avui la clau no canviï per
-  idioma.
+- Els helpers de `src/lib/presentation/` són purs i retornen dades o **claus de
+  missatge**; mai importen Astro ni Paraglide.
+- Segons l'ADR 0007, un helper rep el `locale` només quan la seva sortida
+  depèn de l'idioma (dates i rangs, selecció de dades localitzades com noms o
+  URLs per idioma). Els helpers que deriven claus de missatge o dades
+  estrictament independents de l'idioma (estats, construcció d'URLs o `href` a
+  partir de valors semàntics, extracció d'identificadors, ordenació per tipus,
+  parseig de markdown) no el reben; no se'ls afegeix cap paràmetre inert.
 - La resolució de text es fa al component amb `messages[clau]({}, { locale })`.
 - Els helpers estan coberts per Vitest a `src/test/presentation-*.test.ts`.
 
@@ -148,8 +148,6 @@ el de `main`.
 La PR `refactor(phase-4-t4.4): alinea components i helpers amb l'ADR 0006` va
 corregir les desviacions registrades durant la fase 4: els components no tornen
 a seleccionar dades de domini —les pàgines i les plantilles de detall els
-passen la selecció resolta— i tots els helpers que retornen claus de missatge
-reben el `locale`. Els helpers estrictament independents de l'idioma (URLs,
-identificadors, ordenació per tipus i parseig de markdown) queden coberts per
-l'excepció acotada descrita a la secció «Presentació», que no modifica l'ADR
-0006 ni la resta de convencions.
+passen la selecció resolta— i el contracte del `locale` als helpers queda
+definit per l'ADR 0007, que substitueix únicament aquella clàusula de l'ADR 0006. La portada i el hub de domini mantenen només la composició pròpia de
+pàgines primes, sense `Intl`, derivacions d'estat ni extracció d'host.
