@@ -8,6 +8,8 @@
     "pnpm": "10.33.0"
   },
   "scripts": {
+    "artifact": "BUILD_TODAY=\"${BUILD_TODAY:-$(TZ=Europe/Madrid date +%F)}\" PUBLIC_SITE_ORIGIN=https://mountainrunners.cat node tools/release/build-artifact.mjs",
+    "artifact:reproducibility": "BUILD_TODAY=\"${BUILD_TODAY:-$(TZ=Europe/Madrid date +%F)}\" PUBLIC_SITE_ORIGIN=https://mountainrunners.cat node tools/release/verify-reproducibility.mjs",
     "build": "pnpm --filter @mountain-runners/web build",
     "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test",
     "dev": "pnpm --filter @mountain-runners/web dev",

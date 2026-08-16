@@ -15,9 +15,12 @@ validats. Les dades de contacte es mostren al prepeu compartit i a les pàgines
 legals; la pàgina de Contacte creada a la fase 3 es va retirar a la T4.4.
 
 La CI valida qualitat, E2E, commits, secrets, dependències i anàlisi estàtica.
-Lighthouse continua sent una auditoria manual. Encara no existeixen previews de
-pull request, configuració Caddy, provisió del VPS ni automatització de
-desplegament, i tampoc cap servei Hono.
+El workflow `Artifact` (T5.2) construeix i verifica l'artefacte de producció
+(manifest amb SHA-256, empaquetat de fitxers regulars i reproductibilitat) a
+cada push a `main` i el puja com a artifact del run, sense secrets ni
+desplegament. Lighthouse continua sent una auditoria manual. Encara no
+existeixen previews de pull request, configuració Caddy, provisió del VPS ni
+automatització de desplegament, i tampoc cap servei Hono.
 
 ## Direcció Acceptada
 
