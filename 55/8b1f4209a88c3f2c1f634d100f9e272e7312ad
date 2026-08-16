@@ -1,0 +1,25 @@
+docs/content-model.md
+  s_53caa94843da7e::t_1a39109bdcffdf 176-182
+docs/specs/phase-4-design-content-validation.md
+  s_53caa94843da7e::t_7ba7eef9e34d51 5-24,34,37-40,105-111,119-122
+docs/specs/phase-5-publication-operation.md
+  s_53caa94843da7e::t_c6fcab42dac8bf 5-7,74-76,91-97
+docs/validation/phase-4-design-review.md
+  s_53caa94843da7e::t_84825d7b55636c 5-10,205-221,235-238
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "558b1f4209a88c3f2c1f634d100f9e272e7312ad",
+  "prompts": {},
+  "sessions": {
+    "s_53caa94843da7e": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_ff6212322ffeJdBiQtGOoOID9q",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
