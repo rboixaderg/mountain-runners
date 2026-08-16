@@ -9,7 +9,7 @@ Playwright i workflows de qualitat i seguretat.
 
 Les col·leccions registrades (`schools`, `events`, `entities`, `documents`,
 `externalActions` i `contact`) passen per YAML restringit i una capa central de
-publicació. La sortida actual inclou 48 rutes canòniques —16 per idioma—, més la
+publicació. La sortida actual inclou 66 rutes canòniques —22 per idioma—, més la
 redirecció arrel, la 404 global, `robots.txt`, el sitemap i els recursos públics
 validats. Les dades de contacte es mostren al prepeu compartit i a les pàgines
 legals; la pàgina de Contacte creada a la fase 3 es va retirar a la T4.4.
@@ -23,7 +23,10 @@ desplegament, i tampoc cap servei Hono.
 
 La web és un lloc estàtic amb Astro i TypeScript. Les Content Collections
 validades amb Zod modelen el contingut editorial, i Git n'és la font de veritat.
-La direcció acceptada per a la fase 5 és servir-la amb Caddy des d'un VPS modest.
+La direcció acceptada per a la fase 5 és servir-la amb Caddy des d'un VPS modest
+de Hetzner, mantenint inicialment Hostinger com a DNS autoritatiu. La fase 6
+avaluarà separadament l'arquitectura de previews i la necessitat real de
+Cloudflare o de dominis wildcard.
 
 La versió inicial no té base de dades, CMS, comptes d'usuari ni backend
 d'aplicació renderitzat al servidor.
@@ -52,12 +55,11 @@ decisió— viu a [`docs/code-conventions.md`](code-conventions.md):
 | Presentació | `src/lib/presentation/` | Funcions pures per locale: format de dates, estat, URL i dades de vista                    |
 | Components  | `src/components/`       | Fragments de UI reutilitzables i plantilles de detall separades per tipus d'entrada        |
 
-`docs/code-conventions.md` és la font normativa del detall. La implementació de
-la fase 4 conserva algunes desviacions conegudes: la portada i el hub de domini
-encara assumeixen més presentació de la prevista, alguns components fan selecció
-de domini i diversos helpers independents de l'idioma ometen el `locale` exigit
-per l'ADR. Aquest deute no modifica l'ADR 0006; s'ha de corregir en tasques
-separades o justificar mitjançant un ADR que el substitueixi.
+`docs/code-conventions.md` és la font normativa del detall. El seguiment de la
+T4.4 fusionat a la PR #73 va alinear pàgines, components i helpers amb l'ADR 0006
+esmenat: els helpers només reben `locale` quan llegeixen dades indexades per
+idioma o produeixen sortida localitzada. Qualsevol desviació futura continua
+requerint una correcció separada o un ADR que substitueixi aquesta frontera.
 
 ## Xat Públic, Més Endavant
 
@@ -70,7 +72,9 @@ formen part del disseny inicial.
 
 - Servei de xat Hono i generador d'índex.
 - Integració amb Telegram, Discord o Hermes.
-- Previews, Caddy, desplegament continu i provisió del VPS.
+- Caddy, desplegament continu i provisió del VPS fins a implementar la fase 5.
+- Previews, dominis efímers i possible integració amb Cloudflare fins a definir
+  i implementar la fase 6.
 
 Consulta els ADR de `docs/decisions/` per conèixer les decisions darrere
 d'aquests límits.

@@ -6,13 +6,14 @@ Web de codi obert de l'associació esportiva Mountain Runners del Berguedà.
 
 Aquest repositori conté l'aplicació Astro estàtica implementada fins a la fase 4,
 el model editorial validat, la infraestructura multiidioma, el sistema visual i
-les normes de col·laboració. La sortida actual genera 48 rutes canòniques: 16 en
-català, 16 en castellà i 16 en anglès, a més dels recursos tècnics globals.
+les normes de col·laboració. La sortida actual genera 66 rutes canòniques: 22 en
+català, 22 en castellà i 22 en anglès, a més dels recursos tècnics globals.
 
 La implementació de la fase 4 és a `main`, però el seu tancament documental i
 editorial encara té comprovacions pendents registrades a
 [`docs/validation/phase-4-design-review.md`](docs/validation/phase-4-design-review.md).
-La fase 5 no ha implementat encara previews, Caddy ni desplegament.
+La fase 5 no ha implementat encara Caddy ni desplegament a producció. Els
+previews i la decisió sobre Cloudflare s'han separat a la fase 6.
 
 ## Desenvolupament Local
 

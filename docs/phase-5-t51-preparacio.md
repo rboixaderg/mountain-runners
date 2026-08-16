@@ -3,106 +3,129 @@
 ## Estat
 
 Nota de planificació (agost de 2026) que recull les decisions de desplegament
-confirmades amb la persona mantenidora en conversa i les preguntes que queden
-obertes per a la T5.1 de
+confirmades amb la persona mantenidora i les preguntes que queden obertes per a
+la T5.1 de
 [`docs/specs/phase-5-publication-operation.md`](specs/phase-5-publication-operation.md).
 
-La T5.1 continua bloquejada fins que la fase 4 tanqui les discrepàncies de la
-revisió de disseny i el tractament d'embeds i textos legals. Aquesta nota no
-substitueix la ratificació formal de la T5.1: cap acció remota (DNS, VPS,
-secrets) s'executa abans, i qualsevol canvi de DNS, entorn o servidor requerirà
-l'aprovació explícita de la persona mantenidora en el moment corresponent.
+La nota es va revisar després de separar el desplegament de producció i els
+previews en les fases 5 i 6. Les propostes inicials de migrar els nameservers a
+Cloudflare i utilitzar `*.preview.mountainrunners.cat` queden substituïdes per la
+decisió posterior: la fase 5 manté Hostinger com a DNS autoritatiu i la fase 6
+reinvestiga Cloudflare, DNS, TLS i domini de previews sense donar cap proveïdor
+per aprovat.
+
+La T5.1 continua bloquejada fins que la fase 4 tanqui les discrepàncies
+publicables. Aquesta nota no substitueix la ratificació formal de la T5.1: cap
+acció remota sobre DNS, VPS, entorns o secrets s'executa abans, i qualsevol canvi
+requerirà l'aprovació explícita de la persona mantenidora en el moment
+corresponent.
 
 ## Decisions Preliminars Confirmades
 
-| Àmbit               | Decisió                                                                            | Què comporta                                                                                                                                                                                                                                                        |
-| ------------------- | ---------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Correu              | El correu continua a Hostinger i ha de seguir funcionant com fins ara.             | Replicar 1:1 els registres MX, SPF, DKIM, DMARC i qualsevol CNAME de correu (`autodiscover`, `autoconfig`) en delegar el DNS. Els hostnames de correu no es proxifiquen mai (DNS-only).                                                                             |
-| Registre del domini | `mountainrunners.cat` es queda registrat a Hostinger.                              | Només es deleguen els nameservers a Cloudflare, sense transferència del registre ni del correu. La renovació continua a Hostinger.                                                                                                                                  |
-| DNS i wildcards     | Cloudflare com a proveïdor de DNS, pla Free.                                       | La recerca prèvia (agost de 2026) el situa com la millor opció per a `.cat`: DNS hosting per a qualsevol TLD, registres wildcard DNS-only a tots els plans, TTL mínim de 60 s i tokens d'API limitats a la zona.                                                    |
-| Host de validació   | Primer desplegament a `new.mountainrunners.cat` per validar la web abans del tall. | Coincideix amb l'host de validació previst a la T5.4. Registre A DNS-only cap al VPS, TLS amb Caddy i `X-Robots-Tag: noindex` per evitar contingut duplicat indexat.                                                                                                |
-| TLS                 | Caddy és sempre el terminador TLS.                                                 | Producció i validació: certificats Let's Encrypt amb challenge HTTP-01. Previews: certificat wildcard `*.preview.mountainrunners.cat` amb challenge DNS-01 (mòdul `caddy-dns/cloudflare` i token limitat a la zona) o TLS on-demand per hostname amb llista blanca. |
-| Previews            | Wildcard `*.preview.mountainrunners.cat`, DNS-only, mai proxied.                   | El SSL universal del pla Free no cobreix hostnames multi-nivell (`*.preview.*`); mantenir els previews DNS-only evita certificats de pagament i manté Caddy com a únic terminador TLS. Crear una preview equival a publicar fitxers, sense crides DNS per PR.       |
-| CDN de Cloudflare   | Postergat; es pot afegir després davant d'apex i `www` sense cost.                 | Si s'activa, implica doble TLS (mode Full strict) i actualitzar les polítiques públiques de privacitat i la política de logs, perquè el trànsit passaria per Cloudflare. No s'activa d'entrada.                                                                     |
-| Identitats al VPS   | Identitats separades de desplegament i de Caddy.                                   | La identitat de desplegament no és `root` i no pot escriure la configuració de Caddy, les claus TLS ni l'estat ACME; només carrega releases, verifica digests i activa atòmicament.                                                                                 |
-| HSTS                | S'activa al final, després de validar TLS a tot l'arbre de subdominis.             | HSTS és irreversible per al navegador; amb `includeSubDomains` afectaria `new.` i tots els previews efímers. Primer `max-age` curt, verificació i després allargament.                                                                                              |
+| Àmbit               | Decisió                                                                | Què comporta                                                                                                                    |
+| ------------------- | ---------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| Destí de producció  | VPS de Hetzner amb Caddy.                                              | Cal confirmar mida, administració i accés a T5.1; la web continua sent una compilació Astro estàtica d'acord amb l'ADR 0001.    |
+| Correu              | El correu continua a Hostinger i ha de seguir funcionant com fins ara. | Preservar MX, SPF, DKIM, DMARC, `mail`, `autodiscover`, `autoconfig` i qualsevol altre registre de correu durant el tall web.   |
+| Registre del domini | Hostinger continua sent la interfície de gestió del domini.            | Openprovider consta com a registrador al registre de `.cat`; la renovació i la gestió continuen a través de Hostinger.          |
+| DNS de producció    | Hostinger continua sent el DNS autoritatiu durant la fase 5.           | Només es modifiquen l'apex i `www` per apuntar a Hetzner; no es canvien nameservers, DNSSEC ni registres de serveis no migrats. |
+| Host de validació   | La release es valida abans del tall en un host temporal aprovat.       | Pot utilitzar un subdomini creat a Hostinger o resolució local controlada, amb TLS de Caddy i `X-Robots-Tag: noindex`.          |
+| Desplegament        | Primer tall supervisat i autodeploy posterior des de `main` protegida. | La primera activació requereix aprovació; després, cada merge validat pot activar-se automàticament amb smoke tests i rollback. |
+| TLS                 | Caddy és el terminador TLS de producció i del host de validació.       | Certificats públics amb el challenge aprovat; les decisions TLS de previews queden íntegrament a la fase 6.                     |
+| Previews            | S'han separat de producció i corresponen a la fase 6.                  | No bloquegen el llançament. La fase 6 exigeix un domini registrable separat i reavalua Cloudflare, wildcards i proveïdors.      |
+| Cloudflare          | No s'adopta ni es configura a la fase 5.                               | Pot ser una opció de la fase 6, però necessita comparativa, revisió de seguretat, privacitat, cost i pla de sortida.            |
+| Identitats al VPS   | Identitats separades de desplegament i de Caddy.                       | Deploy no és `root`, no gestiona TLS ni Caddy i només carrega, verifica i activa releases; Caddy només llegeix la release.      |
+| HSTS                | S'activa només després de validar TLS i els subdominis afectats.       | Començar amb una política prudent; no usar `includeSubDomains` fins que l'inventari i els serveis siguin compatibles.           |
 
 ## Preguntes Obertes Per A La T5.1
 
-Aquestes decisions no s'han confirmat encara i la T5.1 les ha de tancar amb
-evidència traçable i revisió humana:
+Aquestes decisions s'han de tancar amb evidència traçable i revisió humana:
 
-1. **Proveïdor i administració del VPS**: proveïdor, mida, responsable
-   d'administració i forma d'accés aprovada.
-2. **Política de previews**: públiques, autenticades o restringides; retenció,
-   expiració i neteja.
+1. **Administració del VPS**: mida del servidor de Hetzner, responsable,
+   hardening, actualitzacions, còpies de configuració i forma d'accés aprovada.
+2. **Entorn de producció**: persona que aprova el primer tall, restricció a
+   `main`, secret de desplegament i criteri per retirar el gate manual després de
+   la primera release estable.
 3. **Canal privat de vulnerabilitats**: mecanisme, persona responsable i prova
-   privada del canal abans de publicar cap preview.
-4. **Política de logs**: camps aprovats, accés, retenció i esborrat, coherent
-   amb les polítiques públiques de privacitat.
-5. **Headers mínims i CSP**: la T5.1 aprova una CSP sense comodins ni
-   `unsafe-eval`; `frame-src` limitat als orígens aprovats si es mantenen els
-   vídeos.
-6. **Caché**: política curta per als recursos editorials sense hash, i
-   confirmació de la política de revalidació per a HTML, sitemap i robots.
-7. **Verificació de la resolució de fase 4** sobre embeds i textos legals,
-   precondició per iniciar cap preview o desplegament.
+   privada abans del primer desplegament públic.
+4. **Política de logs**: camps aprovats, accés, retenció i esborrat, coherent amb
+   les polítiques públiques de privacitat.
+5. **Headers mínims i CSP**: CSP sense comodins ni `unsafe-eval`; `frame-src`
+   limitat als orígens aprovats si es mantenen els vídeos.
+6. **Caché**: política curta per als recursos editorials sense hash i revalidació
+   per a HTML, sitemap i robots.
+7. **Reversió inicial**: temps de conservació de l'allotjament anterior, TTL,
+   responsable i procediment per restaurar els registres web de Hostinger.
+8. **Tancament de fase 4**: verificació de totes les discrepàncies publicables
+   que encara bloquegen l'inici formal.
 
-## Comprovacions Tècniques Abans Del Canvi De Nameservers
+## Comprovacions Abans Del Tall Web
 
-Quan la T5.4 prepari el canvi de DNS, caldrà:
+La T5.3 prepara la infraestructura sense canviar producció i la T5.5 aplica el
+tall. Abans cal:
 
-- Exportar l'inventari actual de registres DNS des de Hostinger i comparar-lo
-  amb els registres importats per Cloudflare, especialment MX, SPF, DKIM,
-  DMARC i CNAME de correu.
-- Comprovar l'estat de DNSSEC a Hostinger: desactivar-lo en fer la delegació i
-  reactivar-lo amb els registres DS de Cloudflare.
-- Deixar la zona de Cloudflare en estat pendent fins al canvi de nameservers i
-  verificar la continuïtat del mirall actual de `mountainrunners.cat` fins al
-  tall de DNS de la T5.5.
-- Validar que cap hostname de correu queda proxied després de la migració.
+- exportar l'inventari i els TTL actuals des de Hostinger;
+- identificar exactament els registres de l'apex i `www` que es substituiran;
+- preservar i tornar a verificar MX, SPF, DKIM, DMARC, `mail`, `autodiscover`,
+  `autoconfig` i la resta de serveis no migrats;
+- obtenir i provar una URL directa de webmail de Hostinger que no depengui de
+  `https://mountainrunners.cat/webmail`;
+- reduir els TTL només amb el marge temporal aprovat i conservar els valors
+  anteriors per a la reversió;
+- no publicar un registre `AAAA` fins que IPv6, el tallafoc, Caddy i els smoke
+  tests funcionin per IPv6;
+- validar al host temporal TLS, 404, headers, caché, logs, rutes, idiomes i
+  reversió abans d'apuntar el domini públic.
 
 ## Condicionants Tècnics Registrats
 
-- El registre wildcard DNS-only només encamina trànsit cap al VPS; no intervé
-  en TLS ni en el contingut servit.
-- Amb un wildcard actiu, qui controli la configuració de Caddy controla el que
-  es serveix sota tot l'arbre de subdominis: d'aquí la separació estricta
-  d'identitats al servidor.
-- Cap agent ni sessió local toca DNS directament; les credencials de Cloudflare
-  viuen al servei de desplegament revisat, d'acord amb els ADR 0001 i 0003.
-- Les decisions d'aquesta nota apliquen la direcció acceptada (VPS + Caddy,
-  web estàtica); si una decisió futura canviés una frontera arquitectònica
-  (per exemple, proxificar el trànsit de producció), caldria un ADR abans
-  d'implementar-la.
+- El primer rollback pot requerir restaurar DNS cap a Hostinger perquè encara no
+  existeix una release anterior elegible a Hetzner. Els rollbacks posteriors
+  canvien atòmicament la release activa sense tocar DNS.
+- Una execució de deploy retardada no pot activar un commit més antic que el
+  commit desitjat actual de `main`; només el workflow protegit de rollback pot
+  activar una release anterior.
+- El runner de CI és efímer i allotjat per GitHub. No s'instal·la cap runner
+  d'Actions al VPS de producció.
+- Cap agent ni sessió local toca DNS o producció directament. Les credencials
+  viuen al job mínim de l'entorn protegit i no arriben al build.
+- Els previews són contingut actiu no fiable. La fase 6 no pot reutilitzar la
+  zona DNS editable, les cookies, caches, credencials ni namespaces de producció.
+- Si una decisió futura canvia una frontera arquitectònica —per exemple,
+  proxificar producció amb Cloudflare—, cal l'ADR i la revisió corresponents.
 
 ## Ordre Previst
 
-La T5.1 ratifica aquestes decisions i tanca les preguntes obertes quan la fase
-4 estigui tancada. Després: T5.2 (artefacte immutable) → T5.3 (previews) i
-T5.4 (VPS, Caddy i canvis de DNS, inclòs el host de validació `new.`) en
-paral·lel → T5.5 (tall de DNS i desplegament protegit) → T5.6 (gate final).
-Cada tasca s'implementa en un worktree propi amb PR revisada.
+Quan la fase 4 estigui tancada: T5.1 (decisions i gate) → T5.2 (artefacte
+immutable) → T5.3 (Hetzner, Caddy, releases i reversió) → T5.4 (desplegament
+continu des de `main`) → T5.5 (tall, validació i operació).
+
+La fase 6 comença després amb T6.1 (requisits i amenaces), T6.2 (decisió de
+domini, DNS, TLS i proveïdor) i les tasques d'implementació dels previews. Cada
+tasca té worktree, branca i PR propis.
 
 ## Preparatius Que La Persona Mantenidora Pot Fer Ara
 
-Passos sense impacte en el funcionament actual, que la persona mantenidora pot
-executar abans de la T5.1:
+Passos sense impacte en el funcionament actual:
 
-- Crear el compte de Cloudflare i afegir la zona `mountainrunners.cat` en
-  estat pendent, sense canviar els nameservers.
-- Exportar els registres DNS actuals de Hostinger i verificar els registres de
-  correu.
-- Comprovar l'estat de DNSSEC a Hostinger.
+- confirmar el compte, la regió, la mida prevista i la persona administradora
+  del VPS de Hetzner sense provisionar-lo encara des d'una sessió d'agent;
+- exportar els registres DNS actuals de Hostinger i verificar qui administra el
+  correu;
+- obtenir i provar l'URL directa de webmail de Hostinger;
+- confirmar la persona responsable del primer tall, rollback, logs i incidències;
+- activar i provar el canal privat de vulnerabilitats pel procediment aprovat.
+
+No cal crear ara cap compte o zona a Cloudflare per completar la fase 5.
 
 ## Fonts
 
-- [`docs/deployment.md`](deployment.md): direcció i límits operatius de la
-  fase 5.
+- [`docs/deployment.md`](deployment.md): direcció i límits operatius de
+  producció.
 - [`docs/specs/phase-5-publication-operation.md`](specs/phase-5-publication-operation.md):
-  tasques T5.1 a T5.6, especialment les seccions de previews, Caddy, TLS,
-  seguretat i privacitat.
-- ADR 0001 (web estàtica i contingut en git) i ADR 0003 (flux d'agents i
+  tasques T5.1 a T5.5 de publicació i operació.
+- [`docs/specs/phase-6-pull-request-previews.md`](specs/phase-6-pull-request-previews.md):
+  recerca i implementació posterior dels previews.
+- ADR 0001 (web estàtica i contingut en Git) i ADR 0003 (flux d'agents i
   seguretat).
 - [`docs/validation/phase-4-design-review.md`](validation/phase-4-design-review.md):
   discrepàncies que bloquegen el tancament de la fase 4.
