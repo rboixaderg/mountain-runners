@@ -1,0 +1,27 @@
+apps/web/src/test/members.test.ts
+  s_4d7a07b909d5e1::t_cde95003852045 115,118-121,127
+apps/web/src/test/presentation-documents.test.ts
+  s_4d7a07b909d5e1::t_982bec11caccad 33-36,42,115-116,120,123-126
+apps/web/src/test/presentation-social.test.ts
+  s_4d7a07b909d5e1::t_5d5a19751d72fc 7-10,26
+apps/web/src/test/presentation-status.test.ts
+  s_4d7a07b909d5e1::t_d00c73de0c5581 11-12,40,82,88-90,95,102,108,111,114,117,124,134,141,148
+docs/code-conventions.md
+  s_4d7a07b909d5e1::t_bab57132b76e45 55-62,151-153
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "dca84c9ad6af4159a775ed3a082a7aa085579215",
+  "prompts": {},
+  "sessions": {
+    "s_4d7a07b909d5e1": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_ff65a00fdffe7mdJWQrlabGQvP",
+        "model": "deepseek-v4-pro"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
