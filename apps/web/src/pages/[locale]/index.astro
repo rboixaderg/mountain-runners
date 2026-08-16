@@ -8,7 +8,11 @@ import HomepageEventCard from "../../components/events/HomepageEventCard.astro";
 import PageHero from "../../components/PageHero.astro";
 import PageHeroMedia from "../../components/PageHeroMedia.astro";
 import PublicLayout from "../../layouts/PublicLayout.astro";
-import { getHomepageEvents, getMadridDate } from "../../lib/content/events";
+import {
+  getHomepageEvents,
+  getMadridDate,
+  getNextEdition,
+} from "../../lib/content/events";
 import { getLocalImageSize, getResourceHref } from "../../lib/content/images";
 import { getOrderedSchoolVariants } from "../../lib/content/schools";
 import { renderRestrictedMarkdown } from "../../lib/content/markdown";
@@ -50,7 +54,11 @@ const events = getHomepageEvents(
   if (variant === undefined) {
     throw new Error(`Missing published variant for homepage event ${event.id}`);
   }
-  return { event, href: getVariantPath(variant) };
+  return {
+    edition: getNextEdition(event, today),
+    event,
+    href: getVariantPath(variant),
+  };
 });
 const schools = getOrderedSchoolVariants(schoolVariants);
 const schoolCards = await Promise.all(
@@ -271,8 +279,9 @@ export function getStaticPaths() {
     </div>
     <div class="homepage-events border-line grid border-t">
       {
-        events.map(({ event, href }, index) => (
+        events.map(({ edition, event, href }, index) => (
           <HomepageEventCard
+            edition={edition}
             event={event}
             featured={index === 0}
             href={href}

@@ -2,6 +2,7 @@
 import * as messages from "../../paraglide/messages.js";
 import {
   getMostRelevantEdition,
+  getNextEdition,
   getPreviousEditions,
   getRegistrationUrl,
 } from "../../lib/content/events";
@@ -89,8 +90,8 @@ const editionDocuments =
   <EventPracticalInfo
     edition={featuredEdition}
     event={event}
+    hasAnnouncedDate={getNextEdition(event, today) !== undefined}
     locale={locale}
-    today={today}
   />
   <EventDescription event={event} locale={locale} />
   <EventRegistrationPanel

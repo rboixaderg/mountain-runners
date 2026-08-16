@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { getOrderedPublishedSchoolVariants } from "../lib/content/schools";
 import type { PublicationCatalog } from "../lib/content/publication";
 import {
   extractLocationParts,
@@ -292,10 +293,25 @@ describe("getSchoolNavigationItems", () => {
             name: { ca: "Escola de Trail" },
           },
         },
+        {
+          kind: "school",
+          locale: "es",
+          slug: "escuela-trail",
+          entry: {
+            id: "trail-school",
+            hubOrder: 1,
+            name: { es: "Escuela de Trail" },
+          },
+        },
       ],
     } as PublicationCatalog;
 
-    expect(getSchoolNavigationItems(catalog, "ca")).toEqual([
+    expect(
+      getSchoolNavigationItems(
+        getOrderedPublishedSchoolVariants(catalog, "ca"),
+        "ca",
+      ),
+    ).toEqual([
       {
         href: "/ca/escoles/escola-trail/",
         label: "Escola de Trail",

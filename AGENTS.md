@@ -31,9 +31,14 @@ reviewing `apps/web` code. The review of every PR checks these rules:
 - Keep pages (`src/pages/`) thin: only `getStaticPaths`, data loading, metadata
   and composition. Pages never contain `Intl.DateTimeFormat`, status
   derivations or host extraction.
-- Keep presentation helpers pure in `src/lib/presentation/`: they receive the
-  locale and return data or i18n message keys, and never import Astro or
-  Paraglide. Components resolve message keys with the corresponding locale.
+- Keep presentation helpers pure in `src/lib/presentation/`: they return data or
+  i18n message keys, and never import Astro or Paraglide. The locale contract
+  follows the data (ADR 0004 and the amended rule 3 of ADR 0006): a helper
+  receives the locale exactly when it reads locale-indexed fields
+  (`Record<Locale, ...>`) or produces localized output; helpers over
+  locale-free data (typed status keys, URL building, identifier extraction,
+  type ordering, markdown parsing) omit it and never take an inert parameter.
+  Components resolve message keys with the corresponding locale.
 - Content stores semantic values, never render protocols or HTML attributes
   (`mailto:`, `tel:`...): components or `src/lib/presentation/` helpers build
   the `href` and attributes. Model validations reject anything the render could

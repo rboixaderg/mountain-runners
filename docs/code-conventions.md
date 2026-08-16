@@ -52,8 +52,14 @@ inline. A la segona aparició d'un helper, s'extreu i es reutilitza.
 
 ## Presentació
 
-- Els helpers de `src/lib/presentation/` són purs: reben el `locale` i retornen
-  dades o **claus de missatge**; mai importen Astro ni Paraglide.
+- Els helpers de `src/lib/presentation/` són purs i retornen dades o **claus de
+  missatge**; mai importen Astro ni Paraglide.
+- El contracte del `locale` es deriva de les estructures de dades (ADR 0004 i
+  la regla 3 esmenada de l'ADR 0006): un helper rep el `locale` exactament quan
+  llegeix camps indexats per idioma (`Record<Locale, …>`) o produeix sortida
+  localitzada; si processa només dades sense camps localitzats (claus tipades,
+  URLs, identificadors, ordenació per tipus, parseig), no el rep i no se li
+  afegeix cap paràmetre inert.
 - La resolució de text es fa al component amb `messages[clau]({}, { locale })`.
 - Els helpers estan coberts per Vitest a `src/test/presentation-*.test.ts`.
 
@@ -139,9 +145,11 @@ el de `main`.
 
 ## Desviacions Conegudes
 
-La implementació fusionada a la fase 4 encara conté desviacions respecte de
-l'ADR 0006: la portada i el hub de domini assumeixen més presentació de la
-prevista, alguns components tornen a seleccionar dades de domini i diversos
-helpers independents de l'idioma ometen el `locale`. Aquest fet no modifica la
-convenció ni l'ADR; s'ha de resoldre amb tasques acotades o, si la frontera
-canvia intencionadament, amb un ADR que substitueixi la decisió vigent.
+La PR `refactor(phase-4-t4.4): alinea components i helpers amb l'ADR 0006` va
+corregir les desviacions registrades durant la fase 4: els components no tornen
+a seleccionar dades de domini —les pàgines i les plantilles de detall els
+passen la selecció resolta— i el contracte del `locale` als helpers queda
+derivat de les estructures de dades mitjançant l'esmena de la regla 3 de l'ADR
+0006 (16 d'agost de 2026). La portada i el hub de domini mantenen només la
+composició pròpia de pàgines primes, sense `Intl`, derivacions d'estat ni
+extracció d'host.
