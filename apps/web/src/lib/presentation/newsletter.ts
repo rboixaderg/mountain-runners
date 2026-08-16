@@ -46,10 +46,7 @@ export function getNewsletterPresentation(
       messageKey: newsletterUnavailableMessageKey,
     };
   }
-  const statusMessageKey = getExternalActionStatusMessageKey(
-    action.status,
-    locale,
-  );
+  const statusMessageKey = getExternalActionStatusMessageKey(action.status);
   if (statusMessageKey !== undefined) {
     return { kind: "text", messageKey: statusMessageKey };
   }

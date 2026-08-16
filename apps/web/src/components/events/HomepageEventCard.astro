@@ -15,7 +15,7 @@ interface Props {
 }
 
 const { edition, event, featured = false, href, locale, today } = Astro.props;
-const statusKey = getHomepageEventStatusMessageKey(edition, today, locale);
+const statusKey = getHomepageEventStatusMessageKey(edition, today);
 const status = messages[statusKey]({}, { locale });
 const dateParts = getEditionDayMonth(edition, locale);
 ---

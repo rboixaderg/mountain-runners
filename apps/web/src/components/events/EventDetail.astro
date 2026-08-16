@@ -44,7 +44,6 @@ const registrationUrl =
 const registration = getRegistrationPresentation(
   featuredEdition?.registrationStatus,
   registrationUrl,
-  locale,
 );
 const informationUrl = event.informationUrl?.[locale];
 const coverHref = getResourceHref(event.cover.resource);
@@ -83,7 +82,7 @@ const editionDocuments =
           slot="meta"
           className="detail-hero__meta"
           locale={locale}
-          statusKey={getEventActivityMessageKey(event.active, locale)}
+          statusKey={getEventActivityMessageKey(event.active)}
         />
       </DetailHero>
     )

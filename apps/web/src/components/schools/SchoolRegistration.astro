@@ -17,7 +17,6 @@ const { locale, school } = Astro.props;
 const registration: RegistrationPresentation = getRegistrationPresentation(
   school.registrationStatus,
   school.registrationUrl?.[locale],
-  locale,
 );
 const registrationLabel = messages[registration.key]({}, { locale });
 ---

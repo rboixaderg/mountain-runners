@@ -19,7 +19,6 @@ const { document, locale } = Astro.props;
 const documentHref = getDocumentHref(document);
 const availabilityMessageKey = getDocumentAvailabilityMessageKey(
   document.availability,
-  locale,
 );
 const resourceLocaleMessageKey =
   document.resourceLocale === undefined
