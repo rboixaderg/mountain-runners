@@ -16,13 +16,10 @@ respostes a les preguntes obertes amb la seva evidència.
 
 ### VPS
 
-- El VPS de Hetzner ja existeix: 2 vCPU, 4 GB de RAM i 80 GB de disc.
-- L'administra la persona mantenidora per SSH amb clau des de la seva màquina
-  local, amb un usuari administratiu no `root` i `sudo`.
-- Les còpies de seguretat diàries de tot el VPS són el producte de còpies
-  automàtiques de Hetzner. La restauració es prova dins del runbook de la T5.3.
-- Regió i sistema operatiu concrets: es registren a la T5.3 amb la provisió de
-  l'estructura del servidor.
+- VPS de Hetzner administrat per la persona mantenidora, amb accés per SSH amb
+  clau i usuari administratiu no `root` amb `sudo`.
+- La restauració de les còpies de seguretat es prova dins del runbook de la
+  T5.3.
 
 ### Desplegament I Entorn De Producció
 
