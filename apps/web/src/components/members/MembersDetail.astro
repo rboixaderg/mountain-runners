@@ -3,7 +3,10 @@ import * as messages from "../../paraglide/messages.js";
 import socisPortada from "../../assets/members/socis-portada.jpg";
 import socisPortadaHero from "../../assets/members/socis-portada-hero.jpg";
 import { externalActionIds } from "../../lib/content/models";
-import { institutionalEntityId } from "../../lib/content/members";
+import {
+  getMembersDirectoryEntities,
+  institutionalEntityId,
+} from "../../lib/content/members";
 import type { Locale } from "../../lib/content/primitives";
 import type { PublicationCatalog } from "../../lib/content/publication";
 import PageIntro from "../PageIntro.astro";
@@ -26,6 +29,7 @@ const federationAction = catalog.externalActions.get(
   externalActionIds.federation,
 );
 const institutionalEntity = catalog.entities.get(institutionalEntityId);
+const collaborators = getMembersDirectoryEntities(catalog, locale);
 ---
 
 <article class="members-detail">
@@ -66,5 +70,5 @@ const institutionalEntity = catalog.entities.get(institutionalEntityId);
 
   <MembersBenefits locale={locale} />
 
-  <MembersDirectory catalog={catalog} locale={locale} />
+  <MembersDirectory collaborators={collaborators} locale={locale} />
 </article>

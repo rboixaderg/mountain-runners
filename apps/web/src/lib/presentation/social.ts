@@ -1,3 +1,5 @@
+import type { Locale } from "../content/primitives";
+
 export const siteSocialLinkIds = {
   instagram: "instagram",
   strava: "strava",
@@ -22,9 +24,14 @@ export interface SiteSocialProfiles {
   stravaClubUrl?: string;
 }
 
+// The link labels are identical in every language and the footer resolves
+// them with its own locale. The locale parameter keeps the ADR 0006 contract
+// that every presentation helper accepts the locale.
 export function getSiteSocialLinks(
   profiles: SiteSocialProfiles,
+  locale: Locale,
 ): SiteSocialLink[] {
+  void locale;
   const links: SiteSocialLink[] = [];
 
   if (profiles.instagramUrl !== undefined) {

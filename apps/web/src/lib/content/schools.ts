@@ -1,4 +1,25 @@
+import type { Locale } from "./primitives";
+import type { PublicationCatalog, PublishedVariant } from "./publication";
 import type { School } from "./models";
+
+export type PublishedSchoolVariant = Extract<
+  PublishedVariant,
+  { kind: "school" }
+>;
+
+// Selects the published school variants of one locale in hub order. This
+// belongs to the domain layer: components and presentation helpers receive
+// the selected variants and never filter the catalog themselves.
+export function getOrderedPublishedSchoolVariants(
+  catalog: PublicationCatalog,
+  locale: Locale,
+): PublishedSchoolVariant[] {
+  const schoolVariants = catalog.variants.filter(
+    (variant): variant is PublishedSchoolVariant =>
+      variant.kind === "school" && variant.locale === locale,
+  );
+  return getOrderedSchoolVariants(schoolVariants);
+}
 
 // The hub lists published schools in the explicit editorial order declared by
 // the `hubOrder` field of each entry, never in the order of the source files.

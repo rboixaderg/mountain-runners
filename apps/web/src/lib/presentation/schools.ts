@@ -1,6 +1,5 @@
-import { getOrderedSchoolVariants } from "../content/schools";
 import { getVariantPath } from "../content/routes";
-import type { PublicationCatalog } from "../content/publication";
+import type { PublishedSchoolVariant } from "../content/schools";
 import type { School } from "../content/models";
 import type { Locale } from "../content/primitives";
 
@@ -395,20 +394,14 @@ export type SchoolNavigationItem = {
   label: string;
 };
 
+// Builds the navigation entries from variants already selected and ordered by
+// the domain layer (`getOrderedPublishedSchoolVariants`). The presentation
+// helper never reads the catalog.
 export function getSchoolNavigationItems(
-  catalog: PublicationCatalog,
+  schoolVariants: readonly PublishedSchoolVariant[],
   locale: Locale,
 ): SchoolNavigationItem[] {
-  const schoolVariants = catalog.variants.filter(
-    (
-      variant,
-    ): variant is Extract<
-      PublicationCatalog["variants"][number],
-      { kind: "school" }
-    > => variant.kind === "school" && variant.locale === locale,
-  );
-
-  return getOrderedSchoolVariants(schoolVariants).flatMap((variant) => {
+  return schoolVariants.flatMap((variant) => {
     const label = variant.entry.name[locale];
     if (label === undefined) {
       return [];

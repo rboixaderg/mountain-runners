@@ -34,6 +34,9 @@ reviewing `apps/web` code. The review of every PR checks these rules:
 - Keep presentation helpers pure in `src/lib/presentation/`: they receive the
   locale and return data or i18n message keys, and never import Astro or
   Paraglide. Components resolve message keys with the corresponding locale.
+  Helpers that return message keys always receive the locale; strictly
+  language-independent helpers (URL building, identifier extraction, type
+  ordering, markdown parsing) omit it, as bounded in `docs/code-conventions.md`.
 - Content stores semantic values, never render protocols or HTML attributes
   (`mailto:`, `tel:`...): components or `src/lib/presentation/` helpers build
   the `href` and attributes. Model validations reject anything the render could

@@ -13,7 +13,10 @@ interface Props {
 }
 
 const { instagramUrl, locale, stravaClubUrl } = Astro.props;
-const siteSocialLinks = getSiteSocialLinks({ instagramUrl, stravaClubUrl });
+const siteSocialLinks = getSiteSocialLinks(
+  { instagramUrl, stravaClubUrl },
+  locale,
+);
 const homePath = `/${locale}/`;
 const eventsPath = getDomainPath("event", locale);
 const documentsPath = getFixedPagePath("documents", locale);

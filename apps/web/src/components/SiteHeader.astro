@@ -1,12 +1,11 @@
 ---
 import * as messages from "../paraglide/messages.js";
 import logo from "../assets/logo-160.png";
-import { externalActionIds } from "../lib/content/models";
+import type { PublishedSchoolVariant } from "../lib/content/schools";
 import type { Locale } from "../lib/content/primitives";
-import type { PublicationCatalog } from "../lib/content/publication";
 import { getDomainPath, getFixedPagePath } from "../lib/content/routes";
 import { getSchoolNavigationItems } from "../lib/presentation/schools";
-import { getMemberSignupLink } from "../lib/presentation/status";
+import type { MemberSignupLink } from "../lib/presentation/status";
 import { externalLinkAttributes } from "../lib/presentation/urls";
 import LanguageSelector from "./LanguageSelector.astro";
 import "../styles/site-header.css";
@@ -14,24 +13,21 @@ import "../styles/site-header.css";
 type LocalizedAlternative = { locale: Locale; href: string };
 
 interface Props {
-  catalog: PublicationCatalog;
   localizedAlternatives: LocalizedAlternative[];
   locale: Locale;
+  memberSignupLink: MemberSignupLink;
+  schoolVariants: PublishedSchoolVariant[];
 }
 
-const { catalog, localizedAlternatives, locale } = Astro.props;
+const { localizedAlternatives, locale, memberSignupLink, schoolVariants } =
+  Astro.props;
 const homePath = `/${locale}/`;
 const aboutPath = getFixedPagePath("about", locale);
 const schoolsPath = getDomainPath("school", locale);
 const eventsPath = getDomainPath("event", locale);
 const membersPath = getFixedPagePath("members", locale);
-const memberSignupLink = getMemberSignupLink(
-  catalog.externalActions.get(externalActionIds.memberSignup),
-  locale,
-  membersPath,
-);
 const currentPath = Astro.url.pathname;
-const schoolNavigationItems = getSchoolNavigationItems(catalog, locale);
+const schoolNavigationItems = getSchoolNavigationItems(schoolVariants, locale);
 const schoolsNavigationActive = isCurrentPath(schoolsPath);
 const schoolsHubActive = currentPath === schoolsPath;
 const navigationItems = [

@@ -1,6 +1,5 @@
 ---
 import * as messages from "../../paraglide/messages.js";
-import { getNextEdition } from "../../lib/content/events";
 import type { Event, EventEdition } from "../../lib/content/models";
 import type { Locale } from "../../lib/content/primitives";
 import EditionDates from "../EditionDates.astro";
@@ -9,16 +8,14 @@ import EventPracticalIcon from "./EventPracticalIcon.astro";
 interface Props {
   edition: EventEdition | undefined;
   event: Event;
+  hasAnnouncedDate: boolean;
   locale: Locale;
-  today: string;
 }
 
-const { edition, event, locale, today } = Astro.props;
+const { edition, event, hasAnnouncedDate, locale } = Astro.props;
 
-// An active event without a next edition shows "no date announced" instead of
-// the previous edition's dates, so the practical info never looks stale.
-const nextEdition = getNextEdition(event, today);
-const hasAnnouncedDate = nextEdition !== undefined;
+// The page derives whether the active event has an announced next edition;
+// this section only decides how to present the data it receives.
 const modalities = edition?.modalities ?? [];
 const hasModalities = modalities.length > 0;
 ---

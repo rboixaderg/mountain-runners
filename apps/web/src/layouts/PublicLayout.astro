@@ -6,8 +6,12 @@ import logoFavicon from "../assets/favicon-32.png";
 import oswaldFont from "../assets/fonts/oswald-latin.woff2";
 import { getPublicationCatalog } from "../lib/content/repository";
 import { institutionalEntityId } from "../lib/content/members";
+import { externalActionIds } from "../lib/content/models";
+import { getOrderedPublishedSchoolVariants } from "../lib/content/schools";
+import { getFixedPagePath } from "../lib/content/routes";
 import type { Locale } from "../lib/content/primitives";
 import { getEntityLinkUrl } from "../lib/presentation/entities";
+import { getMemberSignupLink } from "../lib/presentation/status";
 import { renderJsonLdScript, type StructuredData } from "../lib/content/seo";
 import * as messages from "../paraglide/messages.js";
 import "../styles/global.css";
@@ -37,6 +41,14 @@ const {
 const catalog = await getPublicationCatalog();
 const institutionalEntity = catalog.entities.get(institutionalEntityId);
 const institutionalLinks = institutionalEntity?.links ?? [];
+// The layout prepares the domain data the shell consumes, so the header and
+// footer stay presentation-only components.
+const schoolVariants = getOrderedPublishedSchoolVariants(catalog, locale);
+const memberSignupLink = getMemberSignupLink(
+  catalog.externalActions.get(externalActionIds.memberSignup),
+  locale,
+  getFixedPagePath("members", locale),
+);
 ---
 
 <!doctype html>
@@ -80,9 +92,10 @@ const institutionalLinks = institutionalEntity?.links ?? [];
       >{messages.skip_to_content({}, { locale })}</a
     >
     <SiteHeader
-      catalog={catalog}
       localizedAlternatives={localizedAlternatives}
       locale={locale}
+      memberSignupLink={memberSignupLink}
+      schoolVariants={schoolVariants}
     />
     <main id="main-content"><slot /></main>
     <PreFooter catalog={catalog} locale={locale} />

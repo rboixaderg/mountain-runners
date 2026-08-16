@@ -2,19 +2,17 @@
 import * as messages from "../../paraglide/messages.js";
 import { getLocalImageSize, getResourceHref } from "../../lib/content/images";
 import { renderRestrictedMarkdown } from "../../lib/content/markdown";
-import { getMembersDirectoryEntities } from "../../lib/content/members";
+import type { Entity } from "../../lib/content/models";
 import type { Locale } from "../../lib/content/primitives";
-import type { PublicationCatalog } from "../../lib/content/publication";
 import { getOrderedEntityLinks } from "../../lib/presentation/entities";
 import ExternalLink from "../ExternalLink.astro";
 
 interface Props {
-  catalog: PublicationCatalog;
+  collaborators: Entity[];
   locale: Locale;
 }
 
-const { catalog, locale } = Astro.props;
-const collaborators = getMembersDirectoryEntities(catalog, locale);
+const { collaborators, locale } = Astro.props;
 const collaboratorsWithImages = await Promise.all(
   collaborators.map(async (entity) => {
     const resource = entity.logo.resource;

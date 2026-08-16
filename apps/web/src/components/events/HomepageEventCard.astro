@@ -1,12 +1,12 @@
 ---
 import * as messages from "../../paraglide/messages.js";
-import { getNextEdition } from "../../lib/content/events";
-import type { Event } from "../../lib/content/models";
+import type { Event, EventEdition } from "../../lib/content/models";
 import type { Locale } from "../../lib/content/primitives";
 import { getEditionDayMonth } from "../../lib/presentation/dates";
 import { getHomepageEventStatusMessageKey } from "../../lib/presentation/status";
 
 interface Props {
+  edition: EventEdition | undefined;
   event: Event;
   featured?: boolean;
   href: string;
@@ -14,11 +14,10 @@ interface Props {
   today: string;
 }
 
-const { event, featured = false, href, locale, today } = Astro.props;
-const nextEdition = getNextEdition(event, today);
-const statusKey = getHomepageEventStatusMessageKey(nextEdition, today);
+const { edition, event, featured = false, href, locale, today } = Astro.props;
+const statusKey = getHomepageEventStatusMessageKey(edition, today, locale);
 const status = messages[statusKey]({}, { locale });
-const dateParts = getEditionDayMonth(nextEdition, locale);
+const dateParts = getEditionDayMonth(edition, locale);
 ---
 
 <article
@@ -32,8 +31,8 @@ const dateParts = getEditionDayMonth(nextEdition, locale);
       class="homepage-event__date max-md:border-line grid place-items-center px-4 py-6 text-center max-md:row-span-2 max-md:border-r"
     >
       {
-        nextEdition ? (
-          <time datetime={nextEdition.startDate}>
+        edition ? (
+          <time datetime={edition.startDate}>
             <span>{dateParts?.day}</span>
             <small>{dateParts?.month}</small>
           </time>
@@ -53,9 +52,9 @@ const dateParts = getEditionDayMonth(nextEdition, locale);
           >{status}</span
         >
         {
-          nextEdition && (
+          edition && (
             <span class="homepage-event__location font-display text-red text-[0.7rem] leading-[1.4] font-bold tracking-[0.1em] uppercase">
-              {nextEdition.location[locale]}
+              {edition.location[locale]}
             </span>
           )
         }

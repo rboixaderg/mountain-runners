@@ -2,6 +2,7 @@
 import * as messages from "../../paraglide/messages.js";
 import {
   getMostRelevantEdition,
+  getNextEdition,
   getPreviousEditions,
   getRegistrationUrl,
 } from "../../lib/content/events";
@@ -43,6 +44,7 @@ const registrationUrl =
 const registration = getRegistrationPresentation(
   featuredEdition?.registrationStatus,
   registrationUrl,
+  locale,
 );
 const informationUrl = event.informationUrl?.[locale];
 const coverHref = getResourceHref(event.cover.resource);
@@ -81,7 +83,7 @@ const editionDocuments =
           slot="meta"
           className="detail-hero__meta"
           locale={locale}
-          statusKey={getEventActivityMessageKey(event.active)}
+          statusKey={getEventActivityMessageKey(event.active, locale)}
         />
       </DetailHero>
     )
@@ -89,8 +91,8 @@ const editionDocuments =
   <EventPracticalInfo
     edition={featuredEdition}
     event={event}
+    hasAnnouncedDate={getNextEdition(event, today) !== undefined}
     locale={locale}
-    today={today}
   />
   <EventDescription event={event} locale={locale} />
   <EventRegistrationPanel

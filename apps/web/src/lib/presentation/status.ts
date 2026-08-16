@@ -89,9 +89,16 @@ export const externalActionStatusMessageKeys = {
 export type ExternalActionStatusMessageKey =
   (typeof externalActionStatusMessageKeys)[keyof typeof externalActionStatusMessageKeys];
 
+// The key helpers below map statuses to message keys that are identical in
+// every language; the component resolves the text with its own locale. They
+// still receive the locale because the ADR 0006 contract requires every
+// presentation helper to accept it, so the signatures stay uniform when a
+// future status needs language-dependent output.
 export function getExternalActionStatusMessageKey(
   status: ExternalActionStatus | undefined,
+  locale: Locale,
 ): ExternalActionStatusMessageKey | undefined {
+  void locale;
   if (status === undefined || status === "available") {
     return undefined;
   }
@@ -170,7 +177,9 @@ function getExternalActionLink(
 
 export function getEventActivityMessageKey(
   active: boolean,
+  locale: Locale,
 ): EventActivityMessageKey {
+  void locale;
   return active
     ? eventActivityMessageKeys.active
     : eventActivityMessageKeys.historical;
@@ -181,7 +190,9 @@ export function getEventHubStatusMessageKey(
   edition: Pick<EventEdition, "startDate"> | undefined,
   group: EventHubGroup,
   today: string,
+  locale: Locale,
 ): EventHubStatusMessageKey {
+  void locale;
   if (!event.active) return eventHubStatusMessageKeys.historical;
   if (group === "active-without-date" || edition === undefined) {
     return eventHubStatusMessageKeys.noUpcomingDate;
@@ -194,7 +205,9 @@ export function getEventHubStatusMessageKey(
 export function getHomepageEventStatusMessageKey(
   nextEdition: Pick<EventEdition, "startDate"> | undefined,
   today: string,
+  locale: Locale,
 ): HomepageEventStatusMessageKey {
+  void locale;
   if (nextEdition === undefined) {
     return homepageEventStatusMessageKeys.noUpcomingDate;
   }
@@ -206,7 +219,9 @@ export function getHomepageEventStatusMessageKey(
 export function getRegistrationPresentation(
   status: RegistrationStatus | undefined,
   url: string | undefined,
+  locale: Locale,
 ): RegistrationPresentation {
+  void locale;
   const resolvedStatus = status ?? "unavailable";
   const key = registrationStatusMessageKeys[resolvedStatus];
   if (url === undefined) {

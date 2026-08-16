@@ -54,6 +54,12 @@ inline. A la segona aparició d'un helper, s'extreu i es reutilitza.
 
 - Els helpers de `src/lib/presentation/` són purs: reben el `locale` i retornen
   dades o **claus de missatge**; mai importen Astro ni Paraglide.
+- L'excepció acotada de l'ADR 0006: un helper estrictament independent de
+  l'idioma —construcció d'URLs o `href` a partir de valors semàntics, extracció
+  d'identificadors, ordenació per tipus o parseig de markdown— no rep el
+  `locale` perquè no produeix cap sortida localitzada. Els helpers que retornen
+  claus de missatge el reben sempre, encara que avui la clau no canviï per
+  idioma.
 - La resolució de text es fa al component amb `messages[clau]({}, { locale })`.
 - Els helpers estan coberts per Vitest a `src/test/presentation-*.test.ts`.
 
@@ -139,9 +145,11 @@ el de `main`.
 
 ## Desviacions Conegudes
 
-La implementació fusionada a la fase 4 encara conté desviacions respecte de
-l'ADR 0006: la portada i el hub de domini assumeixen més presentació de la
-prevista, alguns components tornen a seleccionar dades de domini i diversos
-helpers independents de l'idioma ometen el `locale`. Aquest fet no modifica la
-convenció ni l'ADR; s'ha de resoldre amb tasques acotades o, si la frontera
-canvia intencionadament, amb un ADR que substitueixi la decisió vigent.
+La PR `refactor(phase-4-t4.4): alinea components i helpers amb l'ADR 0006` va
+corregir les desviacions registrades durant la fase 4: els components no tornen
+a seleccionar dades de domini —les pàgines i les plantilles de detall els
+passen la selecció resolta— i tots els helpers que retornen claus de missatge
+reben el `locale`. Els helpers estrictament independents de l'idioma (URLs,
+identificadors, ordenació per tipus i parseig de markdown) queden coberts per
+l'excepció acotada descrita a la secció «Presentació», que no modifica l'ADR
+0006 ni la resta de convencions.

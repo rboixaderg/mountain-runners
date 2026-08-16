@@ -45,9 +45,14 @@ export const resourceLocaleMessageKeys = {
 export type ResourceLocaleMessageKey =
   (typeof resourceLocaleMessageKeys)[keyof typeof resourceLocaleMessageKeys];
 
+// The availability key is identical in every language and the component
+// resolves the text with its own locale. The locale parameter keeps the
+// ADR 0006 contract that every presentation helper accepts the locale.
 export function getDocumentAvailabilityMessageKey(
   availability: Document["availability"],
+  locale: Locale,
 ): DocumentAvailabilityMessageKey | undefined {
+  void locale;
   if (availability === "available") return undefined;
   return documentAvailabilityMessageKeys[availability];
 }

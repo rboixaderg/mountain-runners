@@ -13,6 +13,7 @@ import PageIntro from "../../../components/PageIntro.astro";
 import {
   getEventHubGroups,
   getMadridDate,
+  getNextEdition,
   type EventHubGroup,
 } from "../../../lib/content/events";
 import { getOrderedSchoolVariants } from "../../../lib/content/schools";
@@ -183,6 +184,7 @@ const hubDescription =
                 <div class="homepage-events border-line grid border-t">
                   {events.map((event, index) => (
                     <HomepageEventCard
+                      edition={getNextEdition(event, today)}
                       event={event}
                       featured={index === 0}
                       href={getVariantPath(getVariantFor(event.id))}

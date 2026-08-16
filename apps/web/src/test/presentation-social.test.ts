@@ -4,10 +4,13 @@ import { getSiteSocialLinks } from "../lib/presentation/social";
 describe("site social links", () => {
   it("publishes the Instagram and Strava profiles for the club office", () => {
     expect(
-      getSiteSocialLinks({
-        instagramUrl: "https://www.instagram.com/infomountain/",
-        stravaClubUrl: "https://www.strava.com/clubs/156769",
-      }),
+      getSiteSocialLinks(
+        {
+          instagramUrl: "https://www.instagram.com/infomountain/",
+          stravaClubUrl: "https://www.strava.com/clubs/156769",
+        },
+        "ca",
+      ),
     ).toEqual([
       {
         id: "instagram",
@@ -23,6 +26,6 @@ describe("site social links", () => {
   });
 
   it("omits social links without a published profile URL", () => {
-    expect(getSiteSocialLinks({})).toEqual([]);
+    expect(getSiteSocialLinks({}, "ca")).toEqual([]);
   });
 });

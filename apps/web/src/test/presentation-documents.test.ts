@@ -30,16 +30,18 @@ function makeDocument(
 
 describe("getDocumentAvailabilityMessageKey", () => {
   it("maps unavailable document states to their message keys", () => {
-    expect(getDocumentAvailabilityMessageKey("temporarily-unavailable")).toBe(
-      "document_temporarily_unavailable",
-    );
-    expect(getDocumentAvailabilityMessageKey("archived")).toBe(
+    expect(
+      getDocumentAvailabilityMessageKey("temporarily-unavailable", "ca"),
+    ).toBe("document_temporarily_unavailable");
+    expect(getDocumentAvailabilityMessageKey("archived", "ca")).toBe(
       "document_archived",
     );
   });
 
   it("returns no key for an available document", () => {
-    expect(getDocumentAvailabilityMessageKey("available")).toBeUndefined();
+    expect(
+      getDocumentAvailabilityMessageKey("available", "ca"),
+    ).toBeUndefined();
   });
 });
 
@@ -112,18 +114,20 @@ describe("formatCalendarDate", () => {
 
 describe("getExternalActionStatusMessageKey", () => {
   it("returns no key for an available action or a missing one", () => {
-    expect(getExternalActionStatusMessageKey("available")).toBeUndefined();
-    expect(getExternalActionStatusMessageKey(undefined)).toBeUndefined();
+    expect(
+      getExternalActionStatusMessageKey("available", "ca"),
+    ).toBeUndefined();
+    expect(getExternalActionStatusMessageKey(undefined, "ca")).toBeUndefined();
   });
 
   it("maps every unavailable status to its message key", () => {
-    expect(getExternalActionStatusMessageKey("coming-soon")).toBe(
+    expect(getExternalActionStatusMessageKey("coming-soon", "ca")).toBe(
       "external_action_coming_soon",
     );
-    expect(getExternalActionStatusMessageKey("temporarily-unavailable")).toBe(
-      "external_action_temporarily_unavailable",
-    );
-    expect(getExternalActionStatusMessageKey("unavailable")).toBe(
+    expect(
+      getExternalActionStatusMessageKey("temporarily-unavailable", "ca"),
+    ).toBe("external_action_temporarily_unavailable");
+    expect(getExternalActionStatusMessageKey("unavailable", "ca")).toBe(
       "external_action_unavailable",
     );
   });
