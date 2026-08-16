@@ -1,0 +1,57 @@
+apps/web/src/components/SiteFooter.astro
+  s_9dfbfa90349310::t_0a25f6ecf8b541 16-19
+apps/web/src/components/documents/DocumentEntry.astro
+  s_9dfbfa90349310::t_080c734b19ad97 22
+apps/web/src/components/events/EventDetail.astro
+  s_9dfbfa90349310::t_29d40b215ca6ad 5,47,86,94
+apps/web/src/components/events/EventsHubActiveCard.astro
+  s_9dfbfa90349310::t_0a7216c32f9deb 23
+apps/web/src/components/events/HomepageEventCard.astro
+  s_4d7a07b909d5e1::t_37e30c3b1d96e3 3,9,17-18,20,34-35,55,57
+apps/web/src/components/members/MembersDirectory.astro
+  s_9dfbfa90349310::t_e4fee2ad3a4a4f 5,11,15
+apps/web/src/components/schools/SchoolHub.astro
+  s_9dfbfa90349310::t_399c3d3c708d0d 95
+apps/web/src/components/schools/SchoolRegistration.astro
+  s_9dfbfa90349310::t_9f4671974375e2 20
+apps/web/src/test/members.test.ts
+  s_4d7a07b909d5e1::t_ecb904b01eb59a 115,118-121,127-129
+apps/web/src/test/presentation-documents.test.ts
+  s_4d7a07b909d5e1::t_a534515d1d7b9e 33-36,42-44,117-120,124,127-130
+apps/web/src/test/presentation-status.test.ts
+  s_4d7a07b909d5e1::t_0c75defc5d4f06 9-10,13-18,32,44,48-54,65,77,89,99,105-107,112-116,123,129,132,135-137,140-142,149-153,163-167,174-178,185-189
+docs/code-conventions.md
+  s_554bd646555780::t_80ee115f30b764 57-62,148-155
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "20d7bfceb5eb174551612ceb6383a8a353d1238c",
+  "prompts": {},
+  "sessions": {
+    "s_4d7a07b909d5e1": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_ff65a00fdffe7mdJWQrlabGQvP",
+        "model": "deepseek-v4-pro"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    },
+    "s_554bd646555780": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_ff62d75feffewE4zAudVou6Z2u",
+        "model": "deepseek-v4-pro"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    },
+    "s_9dfbfa90349310": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_ff9b48c3fffek5vHpzQmaxlFZk",
+        "model": "deepseek-v4-pro"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
