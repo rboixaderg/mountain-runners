@@ -1,0 +1,18 @@
+AGENTS.md
+  h_1727aeeb492b30 35-41
+docs/code-conventions.md
+  h_1727aeeb492b30 57-62,152-155
+docs/decisions/0006-presentation-layer-structure.md
+  h_1727aeeb492b30 50-57,76-85
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "e2f5b1ad3a490bebac4be16ea07a0377122ba3af",
+  "prompts": {},
+  "humans": {
+    "h_1727aeeb492b30": {
+      "author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
