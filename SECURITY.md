@@ -4,7 +4,8 @@
 
 No comuniquis possibles vulnerabilitats en issues, discussions o pull requests
 públiques. Utilitza el canal privat de comunicació de vulnerabilitats del
-proveïdor del repositori.
+proveïdor del repositori (**Private Vulnerability Reporting** de GitHub, a la
+pestanya **Security** del repositori).
 
 Abans d'anunciar públicament el repositori, una persona mantenidora ha d'activar
 aquest canal privat i assumir-ne la responsabilitat. No es pot començar a
