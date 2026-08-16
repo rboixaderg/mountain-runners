@@ -38,8 +38,9 @@ respostes a les preguntes obertes amb la seva evidència.
 - Mecanisme: Private Vulnerability Reporting de GitHub, amb un `SECURITY.md`
   públic que descriu com reportar.
 - Persona responsable: la persona mantenidora.
-- Prova privada: enviar un informe de prova pel canal privat i confirmar-ne la
-  recepció. Passos i registre a l'apartat final d'aquest document.
+- Activat el 16 d'agost de 2026 per la persona mantenidora. La prova privada
+  (informe de prova i confirmació de recepció) queda registrada a l'apartat
+  final d'aquest document.
 
 ### Logs
 
@@ -127,13 +128,10 @@ afectats, sense `includeSubDomains`.
 
 ## Comprovació Del Canal Privat De Vulnerabilitats
 
-Acció humana pendent de la persona mantenidora:
+- [x] Canal activat el 16 d'agost de 2026 per la persona mantenidora
+      (Settings → Security → Private vulnerability reporting → Enable).
+- [ ] Prova privada rebuda el: ________________
 
-1. GitHub → **Settings → Security → Private vulnerability reporting → Enable**.
-2. Enviar un informe de prova pel canal privat (per exemple, des d'un compte
-   aliè) i confirmar-ne la recepció.
-3. Registrar aquí la data i el resultat de la prova:
-
-   - [ ] Canal activat i prova rebuda el: ________________
-
-Cap desplegament públic no s'inicia fins que aquesta casella està marcada.
+La prova consisteix a enviar un informe pel canal privat des d'un compte aliè o
+una finestra d'incògnit i confirmar-ne la recepció. Cap desplegament públic no
+s'inicia fins que la prova està registrada.
