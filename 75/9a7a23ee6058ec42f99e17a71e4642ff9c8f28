@@ -1,0 +1,14 @@
+docs/phase-5-t51-decisions.md
+  h_1727aeeb492b30 19-22
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "759a7a23ee6058ec42f99e17a71e4642ff9c8f28",
+  "prompts": {},
+  "humans": {
+    "h_1727aeeb492b30": {
+      "author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
