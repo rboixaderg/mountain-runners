@@ -3,8 +3,10 @@
 ## Estat Actual
 
 El repositori disposa de CI de qualitat i seguretat, però no de desplegament.
-La fase 5 ha d'implementar la resta d'aquest document segons
+La fase 5 ha d'implementar la publicació a producció d'aquest document segons
 [`docs/specs/phase-5-publication-operation.md`](specs/phase-5-publication-operation.md).
+Els previews de pull request i la decisió sobre Cloudflare corresponen a la
+[`fase 6`](specs/phase-6-pull-request-previews.md) i no bloquegen producció.
 
 ## Destí
 
@@ -44,8 +46,9 @@ revisió de dependències i CodeQL. `pnpm validate` no executa Lighthouse;
 
 ## No Implementat
 
-Encara no hi ha previews, workflow de desplegament, configuració Caddy,
-provisió de servidor, releases atòmiques, reversió, comprovacions de salut ni
-runbook d'incidències. S'han d'afegir mitjançant les tasques revisades de la fase 5. Només cal un ADR nou quan la implementació introdueixi o canviï una decisió
-arquitectònica; els detalls que apliquin la direcció acceptada continuen
-requerint una pull request revisada.
+Encara no hi ha workflow de desplegament, configuració Caddy, provisió de
+servidor, releases atòmiques, reversió, comprovacions de salut, runbook
+d'incidències ni previews. La fase 5 implementa producció i la fase 6 avalua i
+implementa els previews de manera separada. Només cal un ADR nou quan la
+implementació introdueixi o canviï una decisió arquitectònica; els detalls que
+apliquin la direcció acceptada continuen requerint una pull request revisada.

@@ -23,7 +23,10 @@ desplegament, i tampoc cap servei Hono.
 
 La web és un lloc estàtic amb Astro i TypeScript. Les Content Collections
 validades amb Zod modelen el contingut editorial, i Git n'és la font de veritat.
-La direcció acceptada per a la fase 5 és servir-la amb Caddy des d'un VPS modest.
+La direcció acceptada per a la fase 5 és servir-la amb Caddy des d'un VPS modest
+de Hetzner, mantenint inicialment Hostinger com a DNS autoritatiu. La fase 6
+avaluarà separadament l'arquitectura de previews i la necessitat real de
+Cloudflare o de dominis wildcard.
 
 La versió inicial no té base de dades, CMS, comptes d'usuari ni backend
 d'aplicació renderitzat al servidor.
@@ -56,7 +59,8 @@ decisió— viu a [`docs/code-conventions.md`](code-conventions.md):
 la fase 4 va registrar respecte de l'ADR 0006 van quedar corregides amb la PR
 #73: els components reben la selecció de domini resolta i el contracte del
 `locale` dels helpers es deriva de les estructures de dades (regla 3 esmenada
-de l'ADR 0006).
+de l'ADR 0006). Qualsevol desviació futura continua requerint una correcció
+separada o un ADR que substitueixi aquesta frontera.
 
 ## Xat Públic, Més Endavant
 
@@ -69,7 +73,9 @@ formen part del disseny inicial.
 
 - Servei de xat Hono i generador d'índex.
 - Integració amb Telegram, Discord o Hermes.
-- Previews, Caddy, desplegament continu i provisió del VPS.
+- Caddy, desplegament continu i provisió del VPS fins a implementar la fase 5.
+- Previews, dominis efímers i possible integració amb Cloudflare fins a definir
+  i implementar la fase 6.
 
 Consulta els ADR de `docs/decisions/` per conèixer les decisions darrere
 d'aquests límits.

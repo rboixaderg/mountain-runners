@@ -58,9 +58,10 @@ constructor genèric de pàgines sense una necessitat editorial concreta.
 | 2. Vertical slice públic                     | Completada  | Shell global, inici i esdeveniments funcionals            |
 | 3. Cobertura de contingut                    | Completada  | Resta de pàgines i plantilles de la web                   |
 | 4. Validació integral de disseny i contingut | Completada  | Revisió pàgina a pàgina i traducció a es/en              |
-| 5. Publicació i operació                     | Bloquejada  | Previews, desplegament i operació segura                  |
-| 6. Xat públic                                | Planificada | Consultes de només lectura sobre contingut publicat       |
-| 7. Assistència editorial                     | Planificada | Edició privada, auditada i basada en pull requests        |
+| 5. Publicació a producció i operació         | Pendent     | Desplegament continu segur sobre Hetzner                  |
+| 6. Previews de PR i estratègia DNS/edge      | Planificada | Previews aïllades i decisió informada sobre Cloudflare    |
+| 7. Xat públic                                | Planificada | Consultes de només lectura sobre contingut publicat       |
+| 8. Assistència editorial                     | Planificada | Edició privada, auditada i basada en pull requests        |
 
 ## Fase 0: Fundació Del Projecte
 
@@ -238,35 +239,82 @@ visuals aprovats que els corresponen.
 - Les variants en castellà i anglès de tot el contingut publicat estan
   completes, revisades i oferides pel selector d'idioma.
 
-## Fase 5: Publicació I Operació
+## Fase 5: Publicació A Producció I Operació
 
-**Estat:** Bloquejada fins a les decisions operatives de la T5.1; el tancament
-de la fase 4 ja no la bloqueja.
+**Estat:** Pendent d'iniciar la T5.1. La fase 4 està completada i ja no bloqueja
+la publicació.
 
 **Especificació:**
 [`docs/specs/phase-5-publication-operation.md`](specs/phase-5-publication-operation.md).
 
 **Objectiu:** portar una aplicació ja validada a producció mitjançant un flux
-segur, reproduïble i reversible.
+segur, reproduïble i reversible que, després del primer tall supervisat, desplega
+automàticament els commits fusionats a `main`.
 
 **Abast:**
 
-- Ampliar la CI amb comprovació d'enllaços i controls de producció que
-  requereixin la web completa, mantenint les proves axe i Playwright existents i
-  afegint la revisió manual d'accessibilitat acordada per al llançament.
-- Configurar previews de pull request i el flux de desplegament protegit.
-- Preparar Caddy, TLS, logs, salut de serveis i reversió abans de producció.
+- Generar i verificar a CI un artefacte immutable del commit fusionat a `main`.
+- Preparar el VPS de Hetzner, Caddy, TLS, logs, salut, releases atòmiques i
+  reversió abans de producció.
+- Configurar el flux protegit de desplegament continu i separar les credencials
+  del job de build.
+- Mantenir Hostinger com a DNS autoritatiu, modificar només els registres web i
+  preservar el correu durant el primer tall.
+- Executar la revisió manual d'accessibilitat i el gate integral de llançament.
 - Confirmar la comunicació privada de vulnerabilitats abans de l'obertura
   pública o del primer desplegament.
+- Deixar els previews i qualsevol decisió sobre Cloudflare fora del camí crític
+  de producció.
 
 **Criteris de tancament:**
 
 - Les comprovacions específiques de la web completa passen abans de publicar.
 - Producció només rep artefactes generats per CI des de la branca protegida.
+- La primera activació i el tall DNS són supervisats; després, els merges a
+  `main` poden desplegar-se automàticament si passen tots els gates.
+- El correu i els serveis DNS no migrats continuen operatius.
 - La documentació operativa descriu desplegament, reversió i resposta bàsica a
   incidències.
 
-## Fase 6: Xat Públic
+## Fase 6: Previews De PR I Estratègia DNS/Edge
+
+**Estat:** Planificada després de completar la fase 5.
+
+**Especificació:**
+[`docs/specs/phase-6-pull-request-previews.md`](specs/phase-6-pull-request-previews.md).
+
+**Objectiu:** decidir i implementar previews de pull request aïllades, efímeres
+i segures, revisant si Cloudflare, un wildcard DNS o una alternativa més simple
+són realment necessaris.
+
+**Abast:**
+
+- Definir requisits, visibilitat, cicle de vida, costos, responsables i model
+  d'amenaces abans d'adoptar cap proveïdor.
+- Comparar Hostinger DNS, Hetzner i Caddy, Cloudflare DNS-only, proxy o Access,
+  un domini registrable separat amb certificats individuals o wildcard i serveis
+  externs de preview.
+- Separar el build no fiable de PR del publicador de confiança, sense secrets de
+  producció ni execució de codi de la PR en el context privilegiat.
+- Publicar cada preview en un origen aïllat, amb `noindex`, expiració, revocació
+  i neteja d'orfes.
+- Garantir que una fallada dels previews o del proveïdor escollit no afecta
+  producció.
+
+**Criteris de tancament:**
+
+- La decisió de DNS, TLS, domini, hosting i proveïdor està justificada i disposa
+  d'ADR si canvia una frontera arquitectònica.
+- Una PR pròpia o de fork no exposa secrets ni permisos de producció, utilitza un
+  runner efímer i requereix autorització abans de publicar-se.
+- El publicador verifica manifest, digests i paths sense executar codi no fiable.
+- Les previews utilitzen un domini registrable separat, queden identificades com
+  a no-producció, declaren `noindex, nofollow, noarchive` i no comparteixen
+  cookies, caches ni zona DNS editable amb producció.
+- La creació, actualització, caducitat, tancament, revocació i neteja són
+  idempotents i estan documentades.
+
+## Fase 7: Xat Públic
 
 **Objectiu:** oferir un xat públic útil i verificable sobre Mountain Runners,
 basat exclusivament en el contingut publicat de la web, sense crear un backend
@@ -300,7 +348,7 @@ editorial ni exposar contingut privat.
 - El servei es pot desactivar sense afectar la disponibilitat ni la funcionalitat
   principal de la web.
 
-## Fase 7: Assistència Editorial Privada
+## Fase 8: Assistència Editorial Privada
 
 **Objectiu:** facilitar l'edició conversacional sense substituir la revisió
 humana ni el flux de Git.
@@ -321,8 +369,10 @@ humana ni el flux de Git.
 
 ## Decisions Pendents Abans De Les Fases Posteriors
 
-- Proveïdor i accés del VPS, estratègia de previews i entorn d'aprovació de
-  producció.
+- Accés del VPS de Hetzner, responsables, entorn de producció i política de logs
+  per completar la fase 5.
+- Necessitat real de Cloudflare, wildcard DNS o TLS, visibilitat i retenció dels
+  previews per a la fase 6.
 - Política de minimització, accés i conservació dels logs de Caddy, coherent amb
   els textos de privacitat.
 - Tractament de privacitat dels vídeos de YouTube abans del primer desplegament.

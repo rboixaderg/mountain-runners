@@ -333,7 +333,7 @@ i documentar els resultats i les correccions necessàries.
 **Dependències:** recorreguts públics representatius implementats i validacions
 automatitzades d'accessibilitat disponibles.
 
-**Seguiment:** la revisió manual de llançament s'ha incorporat a T5.6; una
+**Seguiment:** la revisió manual de llançament s'ha incorporat a T5.5; una
 cobertura recurrent posterior continua pendent de triatge.
 
 ### Avaluació De TypeScript 7
