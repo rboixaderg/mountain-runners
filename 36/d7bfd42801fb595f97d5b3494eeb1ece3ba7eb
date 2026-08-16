@@ -1,0 +1,19 @@
+docs/specs/phase-4-design-content-validation.md
+  s_4d7a07b909d5e1::t_d3edd00663b1b9 5-24,34,37-40,105-111,119-122
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "36d7bfd42801fb595f97d5b3494eeb1ece3ba7eb",
+  "prompts": {},
+  "sessions": {
+    "s_4d7a07b909d5e1": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_ff65a00fdffe7mdJWQrlabGQvP",
+        "model": "deepseek-v4-pro"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
