@@ -1,0 +1,19 @@
+docs/phase-5-t51-dns-migracio.md
+  s_9dfbfa90349310::t_3f4bd5b13c6067 1-97
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "e56d2c96e790a72302555aa5dfb133af50658af7",
+  "prompts": {},
+  "sessions": {
+    "s_9dfbfa90349310": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_ff9b48c3fffek5vHpzQmaxlFZk",
+        "model": "deepseek-v4-pro"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
