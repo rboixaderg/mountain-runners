@@ -18,9 +18,13 @@ La CI valida qualitat, E2E, commits, secrets, dependències i anàlisi estàtica
 El workflow `Artifact` (T5.2) construeix i verifica l'artefacte de producció
 (manifest amb SHA-256, empaquetat de fitxers regulars i reproductibilitat) a
 cada push a `main` i el puja com a artifact del run, sense secrets ni
-desplegament. Lighthouse continua sent una auditoria manual. Encara no
-existeixen previews de pull request, configuració Caddy, provisió del VPS ni
-automatització de desplegament, i tampoc cap servei Hono.
+desplegament. La T5.3 ha preparat la configuració i les eines del servidor —
+`tools/server/` — (Caddyfile validat amb headers, caché, 404 i logs mínims,
+bootstrap reproduïble i CLI de releases amb extracció segura, activació
+atòmica, revocació i reversió), documentades al runbook. Lighthouse continua
+sent una auditoria manual. Encara no existeixen previews de pull request ni
+automatització de desplegament, i tampoc cap servei Hono; el VPS encara no s'ha
+provisionat.
 
 ## Direcció Acceptada
 
@@ -36,13 +40,13 @@ d'aplicació renderitzat al servidor.
 
 ## Límits De L'Arquitectura
 
-| Àrea                | Responsabilitat                               | Límit                                                               |
-| ------------------- | --------------------------------------------- | ------------------------------------------------------------------- |
-| Web estàtica        | Renderitzar contingut editorial publicat      | El build d'Astro no conté secrets                                   |
-| Contingut           | Pàgines estructurades i dades de l'associació | Versionat a Git i revisat per pull request                          |
-| Xat públic          | Respondre preguntes sobre contingut publicat  | API Hono separada, de només lectura i sense accés editorial         |
-| Assistent editorial | Preparar canvis de contingut                  | Flux privat de branca, validació i pull request                     |
-| Allotjament         | Servir la web estàtica i serveis aïllats      | Futur Caddy i CD; sense desplegament des d'una sessió local d'agent |
+| Àrea                | Responsabilitat                               | Límit                                                                                                                 |
+| ------------------- | --------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| Web estàtica        | Renderitzar contingut editorial publicat      | El build d'Astro no conté secrets                                                                                     |
+| Contingut           | Pàgines estructurades i dades de l'associació | Versionat a Git i revisat per pull request                                                                            |
+| Xat públic          | Respondre preguntes sobre contingut publicat  | API Hono separada, de només lectura i sense accés editorial                                                           |
+| Assistent editorial | Preparar canvis de contingut                  | Flux privat de branca, validació i pull request                                                                       |
+| Allotjament         | Servir la web estàtica i serveis aïllats      | Caddy i releases preparats (T5.3); desplegament i tall a T5.4/T5.5; sense desplegament des d'una sessió local d'agent |
 
 ## Estructura De Pàgines I Presentació
 
@@ -76,7 +80,7 @@ formen part del disseny inicial.
 
 - Servei de xat Hono i generador d'índex.
 - Integració amb Telegram, Discord o Hermes.
-- Caddy, desplegament continu i provisió del VPS fins a implementar la fase 5.
+- Desplegament continu i tall de producció (T5.4/T5.5) sobre el VPS preparat.
 - Previews, dominis efímers i possible integració amb Cloudflare fins a definir
   i implementar la fase 6.
 

@@ -1,0 +1,22 @@
+[Unit]
+Description=Mountain Runners release daemon
+Documentation=docs/runbook.md
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/mountain-release daemon
+Environment=MOUNTAIN_RELEASE_DAEMON_SOCKET=/run/mountain-release.sock
+Restart=on-failure
+RestartSec=5
+# The daemon performs privileged release operations as root; the bootstrap
+# resolves the mountain-runners group id and injects it here.
+Environment=MOUNTAIN_RELEASE_DAEMON_GID=0
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/var/lib/mountain-runners /run
+
+[Install]
+WantedBy=multi-user.target

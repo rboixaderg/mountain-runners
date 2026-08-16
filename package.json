@@ -11,7 +11,7 @@
     "artifact": "BUILD_TODAY=\"${BUILD_TODAY:-$(TZ=Europe/Madrid date +%F)}\" PUBLIC_SITE_ORIGIN=https://mountainrunners.cat node tools/release/build-artifact.mjs",
     "artifact:reproducibility": "BUILD_TODAY=\"${BUILD_TODAY:-$(TZ=Europe/Madrid date +%F)}\" PUBLIC_SITE_ORIGIN=https://mountainrunners.cat node tools/release/verify-reproducibility.mjs",
     "build": "pnpm --filter @mountain-runners/web build",
-    "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test",
+    "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm test:server",
     "dev": "pnpm --filter @mountain-runners/web dev",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
@@ -21,6 +21,7 @@
     "test": "pnpm --filter @mountain-runners/web test",
     "test:a11y": "PUBLIC_SITE_ORIGIN=https://mountainrunners.cat BUILD_TODAY=2026-08-04 pnpm build && playwright test --grep @a11y",
     "test:e2e": "PUBLIC_SITE_ORIGIN=https://mountainrunners.cat BUILD_TODAY=2026-08-04 pnpm build && playwright test",
+    "test:server": "node --test \"tools/server/release/*.test.mjs\"",
     "typecheck": "pnpm --filter @mountain-runners/web typecheck",
     "validate": "pnpm check && pnpm test:e2e"
   },

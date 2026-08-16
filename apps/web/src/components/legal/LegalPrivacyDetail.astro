@@ -16,12 +16,14 @@ type LegalPrivacySection = {
     | "legal_privacy_purposes_title"
     | "legal_privacy_legal_basis_title"
     | "legal_privacy_recipients_title"
+    | "legal_privacy_hosting_title"
     | "legal_privacy_rights_title"
     | "legal_privacy_updates_title";
   bodyKey:
     | "legal_privacy_purposes"
     | "legal_privacy_legal_basis"
     | "legal_privacy_recipients"
+    | "legal_privacy_hosting"
     | "legal_privacy_rights"
     | "legal_privacy_updates";
 };
@@ -41,6 +43,11 @@ const legalPrivacySections: LegalPrivacySection[] = [
     id: "legal-privacy-recipients",
     titleKey: "legal_privacy_recipients_title",
     bodyKey: "legal_privacy_recipients",
+  },
+  {
+    id: "legal-privacy-hosting",
+    titleKey: "legal_privacy_hosting_title",
+    bodyKey: "legal_privacy_hosting",
   },
   {
     id: "legal-privacy-rights",

@@ -241,9 +241,9 @@ visuals aprovats que els corresponen.
 
 ## Fase 5: Publicació A Producció I Operació
 
-**Estat:** T5.1 completada (decisions i porta de llançament). T5.2 en curs
-(contracte d'artefacte). La fase 4 està completada i ja no bloqueja la
-publicació.
+**Estat:** T5.1 i T5.2 completades (decisions i artefacte). T5.3 en curs
+(servidor, Caddy, releases i reversió). La fase 4 està completada i ja no
+bloqueja la publicació.
 
 **Especificació:**
 [`docs/specs/phase-5-publication-operation.md`](specs/phase-5-publication-operation.md).
