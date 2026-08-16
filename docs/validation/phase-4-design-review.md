@@ -40,9 +40,11 @@ La revisió s'ha fet amb Playwright a `320×720`, `390×844`, `768×900`,
 `1280×720` i `1440×900`. S'han recorregut individualment totes les rutes
 publicades a 320 i 390 píxels i no s'hi ha detectat overflow horitzontal.
 
-La sortida actual conté 48 rutes canòniques (16 per idioma). La taula anterior
-només conserva evidència visual representativa en català i, per tant, no és la
-matriu exhaustiva de rutes, estats i idiomes exigida per T4.1.
+La sortida actual conté 66 rutes canòniques (22 per idioma). La taula anterior
+només conserva evidència visual representativa en català; la matriu exhaustiva
+de rutes, estats i idiomes exigida per T4.1 viu a
+[`phase-4-route-matrix.md`](phase-4-route-matrix.md) i es verifica amb
+l'escombrat automatitzat `apps/web/e2e/route-matrix.spec.ts`.
 
 ## Correccions Aplicades
 
@@ -191,8 +193,13 @@ check` i el build determinista han passat; les captures d'About i Members a
 
 ## Punts Pendents De Tancament
 
-- Completar la matriu de les 48 rutes canòniques, els estats representatius, la
-  redirecció arrel i la 404, amb cobertura de `ca`, `es` i `en`.
+- ~~Completar la matriu de les 48 rutes canòniques, els estats representatius,
+  la redirecció arrel i la 404, amb cobertura de `ca`, `es` i `en`.~~ Lliurada
+  el 16 d'agost de 2026 a
+  [`phase-4-route-matrix.md`](phase-4-route-matrix.md): 66 rutes canòniques,
+  estats representatius, arrel i 404 coberts per l'escombrat automatitzat i la
+  revisió manual. L'escombrat va detectar i corregir la manca de `hreflang`
+  als hubs.
 - Revisar semànticament les traduccions i conservar totes les dades pràctiques i
   atribucions exigibles en cada idioma.
 - Tancar o acceptar explícitament el pressupost Lighthouse: l'última execució
