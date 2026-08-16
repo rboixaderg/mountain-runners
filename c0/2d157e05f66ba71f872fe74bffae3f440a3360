@@ -1,0 +1,21 @@
+docs/phase-5-t51-decisions.md
+  s_c275b6affc8ee3::t_12f25c6897ef2b 46-50,88
+docs/specs/phase-5-publication-operation.md
+  s_c275b6affc8ee3::t_6ad04936af5c1c 95-96,98-101
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "c02d157e05f66ba71f872fe74bffae3f440a3360",
+  "prompts": {},
+  "sessions": {
+    "s_c275b6affc8ee3": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_ff5c68b7effe9sHu7adNZukiFx",
+        "model": "deepseek-v4-flash"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
