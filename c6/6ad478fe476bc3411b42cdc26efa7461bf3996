@@ -1,0 +1,14 @@
+docs/specs/phase-5-publication-operation.md
+  h_1727aeeb492b30 98
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "c66ad478fe476bc3411b42cdc26efa7461bf3996",
+  "prompts": {},
+  "humans": {
+    "h_1727aeeb492b30": {
+      "author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
