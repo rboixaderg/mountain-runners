@@ -130,8 +130,7 @@ afectats, sense `includeSubDomains`.
 
 - [x] Canal activat el 16 d'agost de 2026 per la persona mantenidora
       (Settings → Security → Private vulnerability reporting → Enable).
-- [ ] Prova privada rebuda el: ________________
+- [x] Prova privada rebuda i tancada el 16 d'agost de 2026.
 
-La prova consisteix a enviar un informe pel canal privat des d'un compte aliè o
-una finestra d'incògnit i confirmar-ne la recepció. Cap desplegament públic no
-s'inicia fins que la prova està registrada.
+El canal és operatiu i comprovat; cap desplegament públic no s'inicia fins que
+aquesta comprovació està registrada, i ja ho està.
