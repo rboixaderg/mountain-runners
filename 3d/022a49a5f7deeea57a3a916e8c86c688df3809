@@ -1,0 +1,16 @@
+docs/README.md
+  h_1727aeeb492b30 28-29
+docs/phase-5-t51-preparacio.md
+  h_1727aeeb492b30 1-108
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "3d022a49a5f7deeea57a3a916e8c86c688df3809",
+  "prompts": {},
+  "humans": {
+    "h_1727aeeb492b30": {
+      "author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
