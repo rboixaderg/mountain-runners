@@ -9,7 +9,7 @@ Playwright i workflows de qualitat i seguretat.
 
 Les col·leccions registrades (`schools`, `events`, `entities`, `documents`,
 `externalActions` i `contact`) passen per YAML restringit i una capa central de
-publicació. La sortida actual inclou 48 rutes canòniques —16 per idioma—, més la
+publicació. La sortida actual inclou 66 rutes canòniques —22 per idioma—, més la
 redirecció arrel, la 404 global, `robots.txt`, el sitemap i els recursos públics
 validats. Les dades de contacte es mostren al prepeu compartit i a les pàgines
 legals; la pàgina de Contacte creada a la fase 3 es va retirar a la T4.4.
@@ -52,12 +52,11 @@ decisió— viu a [`docs/code-conventions.md`](code-conventions.md):
 | Presentació | `src/lib/presentation/` | Funcions pures per locale: format de dates, estat, URL i dades de vista                    |
 | Components  | `src/components/`       | Fragments de UI reutilitzables i plantilles de detall separades per tipus d'entrada        |
 
-`docs/code-conventions.md` és la font normativa del detall. La implementació de
-la fase 4 conserva algunes desviacions conegudes: la portada i el hub de domini
-encara assumeixen més presentació de la prevista, alguns components fan selecció
-de domini i diversos helpers independents de l'idioma ometen el `locale` exigit
-per l'ADR. Aquest deute no modifica l'ADR 0006; s'ha de corregir en tasques
-separades o justificar mitjançant un ADR que el substitueixi.
+`docs/code-conventions.md` és la font normativa del detall. Les desviacions que
+la fase 4 va registrar respecte de l'ADR 0006 van quedar corregides amb la PR
+#73: els components reben la selecció de domini resolta i el contracte del
+`locale` dels helpers es deriva de les estructures de dades (regla 3 esmenada
+de l'ADR 0006).
 
 ## Xat Públic, Més Endavant
 
