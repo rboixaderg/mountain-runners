@@ -1,0 +1,19 @@
+tools/release/verify-internal-links.mjs
+  s_ce754b70cdad6a::t_8c83c28c1cc515 1-178
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "447c039775c2bb704459e4c6b4ebd93952dc0498",
+  "prompts": {},
+  "sessions": {
+    "s_ce754b70cdad6a": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_ff54e6962ffeiqX0J1ZuWxHN7E",
+        "model": "deepseek-v4-flash"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
