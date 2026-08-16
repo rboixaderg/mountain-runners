@@ -2,11 +2,26 @@
 
 ## Estat
 
-En tancament. La PR #49 (`9c86b2b`) va fusionar el redisseny, correccions,
-contingut addicional i les variants públiques en castellà i anglès. La fase no
-es declara completada perquè encara falten evidències i revisions exigides per
-aquesta especificació, detallades a
-[`docs/validation/phase-4-design-review.md`](../validation/phase-4-design-review.md).
+Completada el 16 d'agost de 2026. La implementació i les traduccions es van
+fusionar amb la PR #49 (`9c86b2b`) i les entregues de tancament posteriors. La
+fase es declara completada un cop tancats tots els punts pendents que
+registrava
+[`docs/validation/phase-4-design-review.md`](../validation/phase-4-design-review.md):
+
+- la matriu exhaustiva de rutes, estats i idiomes es va lliurar amb la PR #73 i
+  viu a
+  [`docs/validation/phase-4-route-matrix.md`](../validation/phase-4-route-matrix.md);
+- la revisió semàntica de les traduccions i les atribucions es va completar amb
+  les PR #58 i #61, i la persona mantenidora la va donar per tancada el 16
+  d'agost de 2026;
+- la contradicció entre els textos legals i els embeds de YouTube es va
+  resoldre amb la PR #63;
+- el pressupost de Lighthouse es va tancar amb la sèrie final del 16 d'agost de
+  2026: cinc execucions de la portada amb mediana d'LCP de 2,330 s, dins del
+  límit de 2,5 s;
+- les desviacions dels ADR es van corregir: ADR 0004 i 0005 amb les PR #62 i
+  #70, i ADR 0006 amb la PR #73, que a més esmena la regla 3 per derivar el
+  contracte del `locale` de les estructures de dades.
 
 ### Resultat Real I Desviacions
 
@@ -16,19 +31,13 @@ traducció. També va incorporar canvis que l'abast original excloïa: calendari
 mensual, l'esdeveniment Anella Verda, extensions dels esquemes, vídeos de
 YouTube, l'enllaç d'Instagram i la retirada de la ruta de Contacte. La persona
 mantenidora va acceptar aquests canvis durant la revisió, però aquesta acceptació
-no converteix automàticament en completes les evidències ni els criteris
+no convertia automàticament en completes les evidències ni els criteris
 editorials pendents.
 
-Abans de completar la fase cal:
-
-- tancar la matriu de totes les rutes, estats i variants `ca`, `es` i `en`;
-- revisar semànticament les traduccions i les atribucions, no només la seva
-  presència estructural;
-- alinear les polítiques de privacitat i cookies amb els embeds reals de
-  YouTube, o canviar-ne la implementació mitjançant una tasca aprovada;
-- obtenir un resultat final no contradictori dels pressupostos de Lighthouse;
-- registrar o corregir les desviacions detectades respecte dels ADR 0004, 0005
-  i 0006.
+El 16 d'agost de 2026 la persona mantenidora va acceptar explícitament la
+consolidació de la PR #49 i va donar per tancada la revisió semàntica; aquestes
+acceptacions queden registrades aquí i a la nota de revisió, i la fase queda
+completada amb el mateix conjunt d'entregues fusionades que les resol.
 
 ## Objectiu
 
@@ -93,13 +102,13 @@ tancades.
 
 ## Tasques, Entregues I Seguiment
 
-| Unitat                    | Estat   | Dependències | Resultat verificable                              | PR  |
-| ------------------------- | ------- | ------------ | ------------------------------------------------- | --- |
-| T4.1 Matriu               | En curs | Fases 1 a 3  | Cobertura parcial; falta tancament integral       | #49 |
-| T4.2 Disseny i estructura | En curs | T4.1         | Revisió fusionada; falta acceptar-ne el tancament | #49 |
-| T4.3 Editorial i recursos | En curs | T4.1         | Confirmacions parcials; falta evidència integral  | #49 |
-| T4.4 Correccions          | En curs | T4.2 i T4.3  | Correccions fusionades; tancament pendent         | #49 |
-| T4.5 Traducció            | En curs | T4.4         | Rutes publicades; falta revisió semàntica         | #49 |
+| Unitat                    | Estat      | Dependències | Resultat verificable                                                | PR                                |
+| ------------------------- | ---------- | ------------ | ------------------------------------------------------------------- | --------------------------------- |
+| T4.1 Matriu               | Completada | Fases 1 a 3  | Matriu exhaustiva de 66 rutes × `ca`/`es`/`en`, estats, arrel i 404 | #49, #73                          |
+| T4.2 Disseny i estructura | Completada | T4.1         | Revisió mòbil i escriptori fusionada i acceptada                    | #49, #73                          |
+| T4.3 Editorial i recursos | Completada | T4.1         | Recursos, atribucions i confirmacions tancades                      | #49, #58, #63, #70                |
+| T4.4 Correccions          | Completada | T4.2 i T4.3  | Correccions fusionades i verificades sense discrepàncies obertes    | #49, #50, #60, #62, #63, #70, #73 |
+| T4.5 Traducció            | Completada | T4.4         | Variants `es`/`en` publicades i revisades semànticament             | #49, #57, #61                     |
 
 Els estats permesos són `Pendent`, `En curs`, `Bloquejada` i `Completada`. Una
 unitat només passa a `Completada` després de tenir una PR revisada, validada i
@@ -107,10 +116,10 @@ fusionada. Cada draft PR enllaça aquesta especificació, identifica les rutes i
 els criteris coberts, registra comprovacions i adjunta l'evidència visual o
 editorial mínima necessària.
 
-La consolidació a la PR #49 és una desviació de la traçabilitat prevista. Abans
-de completar la fase, la persona mantenidora ha d'acceptar explícitament aquesta
-consolidació o crear les entregues de tancament que faltin; no es reescriu el
-criteri històric per presentar-la com si hagués estat el pla original.
+La consolidació a la PR #49 és una desviació de la traçabilitat prevista. La
+persona mantenidora la va acceptar explícitament el 16 d'agost de 2026, abans
+de completar la fase; el criteri històric no es reescriu per presentar-la com
+si hagués estat el pla original.
 
 ### T4.1: Matriu I Abast De Validació
 

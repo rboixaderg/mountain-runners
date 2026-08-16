@@ -94,7 +94,7 @@ canvi remot al repositori requereix aprovació explícita.
 ### T5.2: Artefacte I Controls De Publicació
 
 **Abast:** definir un contracte reutilitzable que construeixi amb lockfile
-immutable, origen explícit i data editorial registrada; verificar les 48 rutes
+immutable, origen explícit i data editorial registrada; verificar les 66 rutes
 canòniques, `/`, 404, sitemap, robots, recursos publicats, absència d'esborranys
 i enllaços interns. Generar un manifest amb commit, origen, `BUILD_TODAY`, llista
 de fitxers i digest SHA-256. **Exclusió:** no desplega ni comprova remotament
@@ -293,7 +293,7 @@ La fase es considera completada quan:
 3. Producció rep exactament l'artefacte immutable construït i validat per CI des
    de `main`, vinculat a commit, origen, data i SHA-256, sense reconstrucció al
    servidor; cap artefacte de preview es promociona.
-4. Les 48 rutes canòniques, els recursos globals, els enllaços interns i
+4. Les 66 rutes canòniques, els recursos globals, els enllaços interns i
    l'exclusió de contingut despublicat s'han verificat sobre l'artefacte.
 5. Les previews compleixen la política aprovada, utilitzen origen aïllat,
    `noindex, noarchive`, expiren i no exposen secrets, permisos de producció ni

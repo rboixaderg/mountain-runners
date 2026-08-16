@@ -173,12 +173,13 @@ exclusius d'entrades despublicades a `dist/`.
 - Les rutes fixes es generen per als tres idiomes configurats. El contingut
   actual és complet, però el contracte encara no impedeix per si sol publicar en
   el futur una pàgina fixa amb una dada operativa incompleta en `es` o `en`.
-- La validació comprova presència estructural de les traduccions, no equivalència
-  semàntica. La revisió editorial de castellà i anglès continua sent necessària.
-- L'URL d'Instagram i l'identificador del vídeo de Socis viuen avui en helpers de
-  presentació, i el correu institucional també apareix en missatges legals.
-  Aquestes excepcions no substitueixen els ADR 0004 i 0005: cal moure les dades
-  operatives al contracte de domini o aprovar una decisió que canviï el límit.
+- La validació comprova presència estructural de les traduccions; l'equivalència
+  semàntica es va revisar editorialment durant la fase 4 (PR #58 i #61) i la
+  persona mantenidora la va donar per tancada el 16 d'agost de 2026.
+- L'URL d'Instagram i l'URL del vídeo de Socis viuen al contingut
+  (`entities/mountain-runners.yaml`, camp `promotionalVideoUrl`), i el correu
+  institucional ja no es duplica en missatges legals: les PR #62 i #70 van
+  tancar aquestes desviacions dels ADR 0004 i 0005.
 
 Aquestes desviacions es tracten com a tasques petites independents; no es
 normalitzen modificant silenciosament els ADR vigents.
