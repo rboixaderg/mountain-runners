@@ -1,0 +1,20 @@
+apps/web/src/components/SiteFooter.astro
+  h_1727aeeb492b30 16
+apps/web/src/components/events/EventDetail.astro
+  h_1727aeeb492b30 85
+apps/web/src/components/events/HomepageEventCard.astro
+  h_1727aeeb492b30 18
+apps/web/src/lib/presentation/newsletter.ts
+  h_1727aeeb492b30 49
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "1a76f54cbe5faafe232c51b1d31085d8252aca80",
+  "prompts": {},
+  "humans": {
+    "h_1727aeeb492b30": {
+      "author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
