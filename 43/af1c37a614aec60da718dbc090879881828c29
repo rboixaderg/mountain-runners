@@ -1,0 +1,22 @@
+README.md
+  h_1727aeeb492b30 13-16
+docs/architecture.md
+  h_1727aeeb492b30 18-23
+docs/deployment.md
+  h_1727aeeb492b30 41-93,97-99
+docs/roadmap.md
+  h_1727aeeb492b30 244-246
+docs/specs/phase-5-publication-operation.md
+  h_1727aeeb492b30 98
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "43af1c37a614aec60da718dbc090879881828c29",
+  "prompts": {},
+  "humans": {
+    "h_1727aeeb492b30": {
+      "author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
