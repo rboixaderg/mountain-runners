@@ -43,11 +43,11 @@ respostes a les preguntes obertes amb la seva evidència.
 
 Només tres registres, tots allotjats al VPS:
 
-| Registre      | Contingut                                                        | Ubicació                                     | Retenció     |
-| ------------- | ---------------------------------------------------------------- | -------------------------------------------- | ------------ |
-| Access        | Temps, IP, mètode, path sense query string, status, bytes, durada | `/var/log/mountain-runners/access.log`       | 7 dies, rotació diària |
-| Error         | Fallades TLS/ACME i errors del servidor                          | `/var/log/mountain-runners/error.log`        | 30 dies      |
-| Releases      | Commit, digest SHA-256, data i estat de cada release             | `/var/lib/mountain-runners/releases.json`    | Permanent    |
+| Registre | Contingut                                                         | Ubicació                                  | Retenció               |
+| -------- | ----------------------------------------------------------------- | ----------------------------------------- | ---------------------- |
+| Access   | Temps, IP, mètode, path sense query string, status, bytes, durada | `/var/log/mountain-runners/access.log`    | 7 dies, rotació diària |
+| Error    | Fallades TLS/ACME i errors del servidor                           | `/var/log/mountain-runners/error.log`     | 30 dies                |
+| Releases | Commit, digest SHA-256, data i estat de cada release              | `/var/lib/mountain-runners/releases.json` | Permanent              |
 
 - Accés només per `root` via sudo; cap credencial ni query sensible als logs.
 - La política pública de privacitat s'actualitza a la T5.3 amb el hosting i els
@@ -85,7 +85,7 @@ afectats, sense `includeSubDomains`.
 
 - Assets amb nom versionat (`/_astro/*`): caché immutable llarga (1 any).
 - Recursos editorials sense hash (`/content-resources/**`): `max-age=3600,
-  must-revalidate`.
+must-revalidate`.
 - HTML, `sitemap.xml`, `robots.txt` i 404: `no-cache, must-revalidate`.
 
 ### Reversió I Tall

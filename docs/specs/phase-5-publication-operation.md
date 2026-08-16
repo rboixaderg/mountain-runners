@@ -92,13 +92,13 @@ conversa o procediment corresponent.
 
 ## Tasques, Entregues I Seguiment
 
-| Unitat                                       | Estat   | Dependències      | Resultat verificable                        | PR  |
-| -------------------------------------------- | ------- | ----------------- | ------------------------------------------- | --- |
+| Unitat                                       | Estat      | Dependències      | Resultat verificable                        | PR     |
+| -------------------------------------------- | ---------- | ----------------- | ------------------------------------------- | ------ |
 | T5.1 Decisions i porta de llançament         | Completada | Fase 4 completada | Decisions, riscos i responsables confirmats | PR #76 |
-| T5.2 Artefacte i controls de publicació      | Pendent | T5.1              | Artefacte CI complet i verificat            | -   |
-| T5.3 VPS, Caddy, releases i reversió         | Pendent | T5.2              | Servidor TLS preparat i reversió comprovada | -   |
-| T5.4 Desplegament continu des de `main`      | Pendent | T5.2 i T5.3       | Workflow protegit amb smoke tests           | -   |
-| T5.5 Tall, validació i operació de producció | Pendent | T5.4              | Web pública i runbook verificats            | -   |
+| T5.2 Artefacte i controls de publicació      | Pendent    | T5.1              | Artefacte CI complet i verificat            | -      |
+| T5.3 VPS, Caddy, releases i reversió         | Pendent    | T5.2              | Servidor TLS preparat i reversió comprovada | -      |
+| T5.4 Desplegament continu des de `main`      | Pendent    | T5.2 i T5.3       | Workflow protegit amb smoke tests           | -      |
+| T5.5 Tall, validació i operació de producció | Pendent    | T5.4              | Web pública i runbook verificats            | -      |
 
 ### T5.1: Decisions I Porta De Llançament
 
