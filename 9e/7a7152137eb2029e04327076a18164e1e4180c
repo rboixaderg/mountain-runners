@@ -1,0 +1,14 @@
+.github/workflows/artifact.yml
+  h_1727aeeb492b30 1-71
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "9e7a7152137eb2029e04327076a18164e1e4180c",
+  "prompts": {},
+  "humans": {
+    "h_1727aeeb492b30": {
+      "author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
