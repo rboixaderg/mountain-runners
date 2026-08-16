@@ -63,6 +63,17 @@ const locale = assertIsLocale(Astro.currentLocale);
 const canonical = new URL(getDomainPath(kind, locale), Astro.site).toString();
 const catalog = await getPublicationCatalog();
 const today = process.env.BUILD_TODAY ?? getMadridDate(new Date());
+// The hub publishes one route per locale that has variants of this domain;
+// the hreflang alternatives mirror exactly those published hubs.
+const hubLocales = new Set(
+  catalog.variants
+    .filter((variant) => variant.kind === kind)
+    .map(({ locale: variantLocale }) => variantLocale),
+);
+const localizedAlternatives = [...hubLocales].map((alternativeLocale) => ({
+  locale: alternativeLocale,
+  href: new URL(getDomainPath(kind, alternativeLocale), Astro.site).toString(),
+}));
 const eventVariants = catalog.variants.filter(
   (variant): variant is Extract<PublishedVariant, { kind: "event" }> =>
     variant.kind === "event" && variant.locale === locale,
@@ -115,6 +126,7 @@ const hubDescription =
   canonical={canonical}
   description={hubDescription}
   locale={locale}
+  localizedAlternatives={localizedAlternatives}
   title={`${hubTitle} | ${messages.site_title({}, { locale })}`}
 >
   {
