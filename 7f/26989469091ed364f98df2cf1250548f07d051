@@ -1,0 +1,22 @@
+SECURITY.md
+  h_1727aeeb492b30 7-8
+docs/phase-5-t51-decisions.md
+  h_1727aeeb492b30 1-139
+docs/phase-5-t51-preparacio.md
+  h_1727aeeb492b30 40-42
+docs/roadmap.md
+  h_1727aeeb492b30 244-245
+docs/specs/phase-5-publication-operation.md
+  h_1727aeeb492b30 5-8,37-42,97,274-280,363-366
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "7f26989469091ed364f98df2cf1250548f07d051",
+  "prompts": {},
+  "humans": {
+    "h_1727aeeb492b30": {
+      "author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
