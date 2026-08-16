@@ -27,6 +27,8 @@ acceptada:
 - [`deployment.md`](deployment.md): estat i límits operatius de la fase 5.
 - [`phase-5-t51-preparacio.md`](phase-5-t51-preparacio.md): decisions
   preliminars de desplegament que la T5.1 ha de ratificar.
+- [`phase-5-t51-dns-migracio.md`](phase-5-t51-dns-migracio.md): inventari de
+  registres DNS actuals i guia de migració a Cloudflare.
 - [`ai-assistant.md`](ai-assistant.md): límits dels futurs xat públic i assistent
   editorial.
 - [`specs/`](specs/): requisits i acceptació de fases i tasques.
