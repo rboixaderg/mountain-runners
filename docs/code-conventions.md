@@ -54,12 +54,12 @@ inline. A la segona aparició d'un helper, s'extreu i es reutilitza.
 
 - Els helpers de `src/lib/presentation/` són purs i retornen dades o **claus de
   missatge**; mai importen Astro ni Paraglide.
-- Segons l'ADR 0007, un helper rep el `locale` només quan la seva sortida
-  depèn de l'idioma (dates i rangs, selecció de dades localitzades com noms o
-  URLs per idioma). Els helpers que deriven claus de missatge o dades
-  estrictament independents de l'idioma (estats, construcció d'URLs o `href` a
-  partir de valors semàntics, extracció d'identificadors, ordenació per tipus,
-  parseig de markdown) no el reben; no se'ls afegeix cap paràmetre inert.
+- El contracte del `locale` es deriva de les estructures de dades (ADR 0004 i
+  la regla 3 esmenada de l'ADR 0006): un helper rep el `locale` exactament quan
+  llegeix camps indexats per idioma (`Record<Locale, …>`) o produeix sortida
+  localitzada; si processa només dades sense camps localitzats (claus tipades,
+  URLs, identificadors, ordenació per tipus, parseig), no el rep i no se li
+  afegeix cap paràmetre inert.
 - La resolució de text es fa al component amb `messages[clau]({}, { locale })`.
 - Els helpers estan coberts per Vitest a `src/test/presentation-*.test.ts`.
 
@@ -149,5 +149,7 @@ La PR `refactor(phase-4-t4.4): alinea components i helpers amb l'ADR 0006` va
 corregir les desviacions registrades durant la fase 4: els components no tornen
 a seleccionar dades de domini —les pàgines i les plantilles de detall els
 passen la selecció resolta— i el contracte del `locale` als helpers queda
-definit per l'ADR 0007, que substitueix únicament aquella clàusula de l'ADR 0006. La portada i el hub de domini mantenen només la composició pròpia de
-pàgines primes, sense `Intl`, derivacions d'estat ni extracció d'host.
+derivat de les estructures de dades mitjançant l'esmena de la regla 3 de l'ADR
+0006 (16 d'agost de 2026). La portada i el hub de domini mantenen només la
+composició pròpia de pàgines primes, sense `Intl`, derivacions d'estat ni
+extracció d'host.

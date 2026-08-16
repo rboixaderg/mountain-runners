@@ -47,9 +47,14 @@ Regles de manteniment:
    components.
 2. Les pàgines no contenen `Intl.DateTimeFormat`, derivacions d'estat ni
    extracció d'host; composen components i criden helpers purs.
-3. Els helpers de presentació són purs, reben el locale i retornen dades o
-   claus de missatge; no importen Astro ni Paraglide, i la resolució de text es
-   fa a la capa de component amb el locale corresponent.
+3. Els helpers de presentació són purs i retornen dades o claus de missatge;
+   no importen Astro ni Paraglide, i la resolució de text es fa a la capa de
+   component amb el locale corresponent. Un helper rep el `locale` exactament
+   quan llegeix dades indexades per idioma o produeix sortida localitzada
+   (dates, rangs); si processa exclusivament dades sense camps localitzats
+   (claus de missatge tipades, URLs, identificadors, ordenació per tipus,
+   parseig), no el rep: la presència de camps `Record<Locale, …>` a
+   l'estructura de dades és el senyal que l'obliga.
 4. Cada tipus d'entrada té un component de detall propi; els fragments repetits
    són components reutilitzables, no codi copiat.
 5. El refactor no altera sortida visual, rutes, contingut ni els selectors dels
@@ -67,6 +72,16 @@ Regles de manteniment:
 El detall operatiu d'aquestes regles —tipus de components, guards de visibilitat,
 exemples i criteris de decisió— es manté a
 [`docs/code-conventions.md`](../code-conventions.md).
+
+## Esmenes
+
+- 16 d'agost de 2026: la regla 3 queda reformulada perquè el contracte del
+  `locale` es derivi de les estructures de dades. L'ADR 0004 estableix que tot
+  text o dada traduïble és un objecte indexat per idioma; per tant, un helper
+  rep el `locale` exactament quan llegeix camps indexats per idioma o produeix
+  sortida localitzada, i mai no se li afegeix un paràmetre de `locale` inert.
+  Aquesta esmena substitueix la redacció original de la regla 3 i no afecta la
+  resta de regles.
 
 ## Conseqüències
 
