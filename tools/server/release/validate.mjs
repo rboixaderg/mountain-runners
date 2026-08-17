@@ -1,6 +1,7 @@
-// Argument validation shared by the SSH gate and the release daemon
-// (phase 5, task 5.3). The gate validates before sending; the daemon validates
-// again before executing, so a compromised gate cannot bypass the rules.
+// Argument validation for the release daemon (phase 5, task 5.3). The SSH
+// gate tokenizes without a shell and rejects metacharacters; the daemon
+// validates every argument again before executing, so a compromised gate
+// cannot bypass the rules.
 
 import { resolve } from "node:path";
 import { releasePaths } from "./config.mjs";
@@ -63,7 +64,7 @@ export function validateArgs(command, tokens) {
         "revoke requires --reason with letters, digits and basic punctuation (max 200 characters).",
       );
     }
-    return ["revoke", commit, "--reason", reason];
+    return ["revoke", commit, reason];
   }
 
   if (command === "list" || command === "health") {

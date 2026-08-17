@@ -2,10 +2,11 @@
 // Mountain Runners release daemon (phase 5, task 5.3).
 //
 // A root-owned systemd service that performs the privileged release
-// operations on behalf of the deploy SSH identity. The SSH gate validates the
-// request and sends it over a Unix socket; the daemon re-validates the
-// arguments, executes the operation and returns the result. This keeps the
-// deploy identity free of any privileged filesystem access ("sense sudo").
+// operations on behalf of the deploy SSH identity. The SSH gate tokenizes
+// without a shell and sends the request over a Unix socket; the daemon
+// validates the arguments, executes the operation and returns the result.
+// This keeps the deploy identity free of any privileged filesystem access
+// ("sense sudo").
 //
 // The daemon is the only writer of the release registry, the release trees
 // and the `current` symlink; it listens on /run/mountain-release.sock (owned
@@ -81,7 +82,11 @@ async function serve() {
   const server = createServer((socket) => {
     let received = "";
     let handled = false;
-    socket.setTimeout(30_000, () => socket.destroy());
+    socket.setTimeout(30_000, () => {
+      if (!handled) {
+        socket.destroy();
+      }
+    });
     socket.on("data", (chunk) => {
       if (handled) {
         return;
@@ -89,6 +94,7 @@ async function serve() {
       received += chunk.toString("utf8");
       if (received.length > maxRequestBytes) {
         handled = true;
+        socket.setTimeout(0);
         socket.end('{"ok":false,"message":"Request too large."}\n');
         socket.destroy();
         return;
@@ -96,6 +102,9 @@ async function serve() {
       const newlineIndex = received.indexOf("\n");
       if (newlineIndex !== -1) {
         handled = true;
+        // The request is complete: keep the socket open while the operation
+        // runs (install can take longer than the idle timeout).
+        socket.setTimeout(0);
         const requestLine = received.slice(0, newlineIndex).trim();
         void handleRequest(requestLine).then((response) => {
           socket.end(`${JSON.stringify(response)}\n`);

@@ -97,49 +97,27 @@ export async function performInstall(archivePath, manifestPath) {
 }
 
 export async function performActivate(commit) {
-  return withRegistryLock(async () => {
-    const registry = loadRegistry();
-    const entry = requireEligibleRelease(registry, commit);
-    await verifyReleaseDigests(
-      join(releasePaths().releasesDirectory, commit),
-      entry.files,
-    );
-
-    await swapCurrentLink(join(releasePaths().releasesDirectory, commit));
-
-    for (const candidate of registry.releases) {
-      if (candidate.status === "active") {
-        candidate.status = "eligible";
-        break;
-      }
-    }
-    entry.status = "active";
-    entry.activatedAt = new Date().toISOString();
-    saveRegistry(registry);
-    return `Activated release ${commit}.`;
-  });
+  return withRegistryLock(() => activateLocked(commit));
 }
 
 export async function performRollback(commit) {
-  const selectedCommit = await withRegistryLock(() => {
+  return withRegistryLock(async () => {
     const registry = loadRegistry();
-    if (commit !== undefined) {
-      requireEligibleRelease(registry, commit);
-      return commit;
-    }
-    const candidates = eligibleReleases(registry).sort((first, second) =>
-      second.installedAt.localeCompare(first.installedAt),
-    );
-    if (candidates.length === 0) {
-      throw new NoEligibleReleaseError(
-        "No eligible release remains; apply the emergency response defined in the runbook.",
+    let selectedCommit = commit;
+    if (selectedCommit === undefined) {
+      const candidates = eligibleReleases(registry).sort((first, second) =>
+        second.installedAt.localeCompare(first.installedAt),
       );
+      if (candidates.length === 0) {
+        throw new NoEligibleReleaseError(
+          "No eligible release remains; apply the emergency response defined in the runbook.",
+        );
+      }
+      selectedCommit = candidates[0].commit;
     }
-    return candidates[0].commit;
+    const message = await activateLocked(selectedCommit);
+    return `${message}\nRolled back to release ${selectedCommit}.`;
   });
-
-  const message = await performActivate(selectedCommit);
-  return `${message}\nRolled back to release ${selectedCommit}.`;
 }
 
 export async function performRevoke(commit, reason) {
@@ -229,6 +207,28 @@ function formatHealth(findings) {
     return "Health: OK";
   }
   return `Health: DEGRADED\n${findings.map((finding) => `- ${finding}`).join("\n")}`;
+}
+
+async function activateLocked(commit) {
+  const registry = loadRegistry();
+  const entry = requireEligibleRelease(registry, commit);
+  await verifyReleaseDigests(
+    join(releasePaths().releasesDirectory, commit),
+    entry.files,
+  );
+
+  await swapCurrentLink(join(releasePaths().releasesDirectory, commit));
+
+  for (const candidate of registry.releases) {
+    if (candidate.status === "active") {
+      candidate.status = "eligible";
+      break;
+    }
+  }
+  entry.status = "active";
+  entry.activatedAt = new Date().toISOString();
+  saveRegistry(registry);
+  return `Activated release ${commit}.`;
 }
 
 function requireEligibleRelease(registry, commit) {

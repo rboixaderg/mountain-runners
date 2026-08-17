@@ -41,7 +41,8 @@ Tota l'operació està documentada al
   gate); la seva clau SSH està restringida a
   `command="/usr/local/bin/mountain-ssh-gate"` amb `restrict`, sense PTY ni
   forwarding. No té cap accés privilegiat al filesystem ni `sudo`: el gate
-  valida els arguments i el daemon executa les operacions com a `root`.
+  tokenitza sense shell i el daemon valida els arguments i executa les
+  operacions com a `root`.
 - **Daemon de releases**: servei systemd com a `root`; únic escriptor de les
   release trees, el registre i el symlink `current`.
 - **`caddy`**: usuari del paquet; només llegeix la release activa i escriu els

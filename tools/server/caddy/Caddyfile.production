@@ -15,7 +15,7 @@ https://__PRODUCTION_DOMAIN__ {
 	import common_site
 	import common_access_log
 
-	# Strict-Transport-Security "max-age=31536000"
+	# header Strict-Transport-Security "max-age=31536000"
 }
 
 # The www host redirects to the apex (canonical URLs use the apex; see

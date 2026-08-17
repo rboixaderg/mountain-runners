@@ -36,8 +36,10 @@ readonly RELEASE_ROOT="/var/lib/mountain-runners"
 readonly LOG_ROOT="/var/log/mountain-runners"
 
 readonly CADDY_VERSION="v2.11.4"
-readonly CADDY_AMD64_SHA256="1c6f5404f3622e46d401d81f4af59677d46b886229c6694d60fd936b87c72d3bb5d1fcf42b55c8d555769fa75acf434ab618fc7e0df2c79cf8512ee580d38d06"
-readonly CADDY_ARM64_SHA256="c43c62b7b583b31c682b3c3e1a31cf03759fbab01dcb0fc7d7fc3a5ce1bef43403583e26133920634a730a9fe31dae1386af4d3f9f3fc19fcc2c29ebf19de235"
+# Official SHA-512 pins from caddy_2.11.4_checksums.txt (Caddy does not
+# publish SHA-256 in that file).
+readonly CADDY_AMD64_SHA512="1c6f5404f3622e46d401d81f4af59677d46b886229c6694d60fd936b87c72d3bb5d1fcf42b55c8d555769fa75acf434ab618fc7e0df2c79cf8512ee580d38d06"
+readonly CADDY_ARM64_SHA512="c43c62b7b583b31c682b3c3e1a31cf03759fbab01dcb0fc7d7fc3a5ce1bef43403583e26133920634a730a9fe31dae1386af4d3f9f3fc19fcc2c29ebf19de235"
 
 log() { printf '[bootstrap] %s\n' "$*"; }
 fail() { printf '[bootstrap] ERROR: %s\n' "$*" >&2; exit 1; }
@@ -75,9 +77,9 @@ install_caddy() {
 
   local expected_sha
   if [[ "${ARCH}" == "amd64" ]]; then
-    expected_sha="${CADDY_AMD64_SHA256}"
+    expected_sha="${CADDY_AMD64_SHA512}"
   else
-    expected_sha="${CADDY_ARM64_SHA256}"
+    expected_sha="${CADDY_ARM64_SHA512}"
   fi
 
   local package="caddy_${CADDY_VERSION#v}_linux_${ARCH}.deb"
@@ -85,7 +87,7 @@ install_caddy() {
   log "Downloading pinned ${package}."
   curl -fsSL -o "${destination}" "https://github.com/caddyserver/caddy/releases/download/${CADDY_VERSION}/${package}"
   local actual_sha
-  actual_sha="$(sha256sum "${destination}" | awk '{print $1}')"
+  actual_sha="$(sha512sum "${destination}" | awk '{print $1}')"
   [[ "${actual_sha}" == "${expected_sha}" ]] || fail "Caddy checksum mismatch (got ${actual_sha})."
   dpkg -i "${destination}"
   rm -f "${destination}"
@@ -131,6 +133,7 @@ log "Installing the release tooling to ${RELEASE_LIB}."
 mkdir -p "${RELEASE_LIB}"
 install -m 0644 -o root -g root \
   "${TOOL_ROOT}/release/config.mjs" \
+  "${TOOL_ROOT}/release/fsutil.mjs" \
   "${TOOL_ROOT}/release/manifest.mjs" \
   "${TOOL_ROOT}/release/archive.mjs" \
   "${TOOL_ROOT}/release/registry.mjs" \
@@ -216,7 +219,14 @@ PermitRootLogin prohibit-password
 EOF
 chown root:root /etc/ssh/sshd_config.d/99-mountain-runners.conf
 chmod 0644 /etc/ssh/sshd_config.d/99-mountain-runners.conf
-sshd -t && systemctl reload ssh 2>/dev/null || systemctl reload sshd 2>/dev/null || true
+sshd -t || fail "sshd configuration is invalid."
+if systemctl is-active --quiet ssh 2>/dev/null; then
+  systemctl reload ssh || fail "could not reload ssh after hardening."
+elif systemctl is-active --quiet sshd 2>/dev/null; then
+  systemctl reload sshd || fail "could not reload sshd after hardening."
+else
+  log "sshd is not running; key-only config is installed and will apply on start."
+fi
 
 # --- Caddy service ------------------------------------------------------------
 

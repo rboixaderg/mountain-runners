@@ -60,6 +60,9 @@
 	# missing-file 404) serves /404.html preserving the error status.
 	file_server
 	handle_errors {
+		# Error responses (including 404) must never inherit the long cache
+		# of hashed or editorial paths.
+		header Cache-Control "no-cache, must-revalidate"
 		rewrite /404.html
 		file_server
 	}
@@ -68,6 +71,7 @@
 # Access log with only the approved fields (T5.1): time, IP, method, path
 # without query string, status, bytes, duration. The query string is never
 # logged: request>uri is dropped and the path is appended separately.
+# Caddy always emits ts, level, logger and msg; those cannot be filtered.
 (common_access_log) {
 	log {
 		output file /var/log/mountain-runners/access.log {
@@ -83,6 +87,10 @@
 			request>host delete
 			request>uri delete
 			request>headers delete
+			request>tls delete
+			resp_headers delete
+			bytes_read delete
+			user_id delete
 		}
 	}
 	log_append path {http.request.uri.path}

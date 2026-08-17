@@ -101,6 +101,10 @@ function runGate(root, socketPath, originalCommand) {
   });
 }
 
+function gateOutput(result) {
+  return `${result.stdout}\n${result.stderr}`;
+}
+
 function requestDaemon(socketPath, payload) {
   return new Promise((resolveDone, rejectDone) => {
     const socket = connect(socketPath);
@@ -185,13 +189,17 @@ function craftTarGz(entries) {
   return gzipSync(Buffer.concat(blocks));
 }
 
-function tarHeader({ name, type = "0", linkname = "" }, size) {
+function tarHeader(
+  { name, type = "0", linkname = "", size: sizeOverride },
+  contentLength,
+) {
+  const recordedSize = sizeOverride ?? contentLength;
   const header = Buffer.alloc(512);
   Buffer.from(name, "utf8").copy(header, 0);
   writeOctal(header, 100, 0o644);
   writeOctal(header, 108, 0);
   writeOctal(header, 116, 0);
-  writeOctal(header, 124, size);
+  writeTarSize(header, recordedSize);
   writeOctal(header, 136, 0);
   header[156] = type.charCodeAt(0);
   Buffer.from(linkname, "utf8").copy(header, 157);
@@ -209,6 +217,12 @@ function tarHeader({ name, type = "0", linkname = "" }, size) {
   header[154] = 0;
   header[155] = 0x20;
   return header;
+}
+
+function writeTarSize(header, size) {
+  const encoded = size.toString(8).padStart(11, "0");
+  header.write(encoded, 124, 11, "ascii");
+  header[135] = 0;
 }
 
 function writeOctal(header, offset, value) {
@@ -403,6 +417,47 @@ test("rejects a digest mismatch and removes the incomplete release", async () =>
       false,
       "registry must not exist after a failed install",
     );
+  });
+});
+
+test("a failed install does not move an existing current pointer", async () => {
+  await withReleaseRoot(async (root) => {
+    const firstArchive = join(root, "incoming", "first.tar.gz");
+    const firstManifest = join(root, "incoming", "first.json");
+    await makeNormalArchive(firstArchive, simpleFiles);
+    await writeFile(
+      firstManifest,
+      JSON.stringify(makeManifest({ files: simpleFiles })),
+    );
+    assert.equal(
+      runCli(root, ["install", firstArchive, firstManifest]).status,
+      0,
+    );
+    assert.equal(runCli(root, ["activate", testCommit]).status, 0);
+    const currentBefore = await readlink(join(root, "current"));
+
+    const secondCommit = "a".repeat(40);
+    const secondArchive = join(root, "incoming", "second.tar.gz");
+    const secondManifest = join(root, "incoming", "second.json");
+    await makeNormalArchive(secondArchive, simpleFiles);
+    await writeFile(
+      secondManifest,
+      JSON.stringify(
+        makeManifest({
+          commit: secondCommit,
+          files: [
+            { path: "index.html", content: "<html>home</html>" },
+            { path: "ca/index.html", content: "<html>tampered</html>" },
+          ],
+        }),
+      ),
+    );
+
+    const result = runCli(root, ["install", secondArchive, secondManifest]);
+    assert.equal(result.status, 1);
+    assert.match(result.stderr, /Digest mismatch/);
+    assert.equal(await pathExists(join(root, "releases", secondCommit)), false);
+    assert.equal(await readlink(join(root, "current")), currentBefore);
   });
 });
 
@@ -603,6 +658,22 @@ test("the SSH gate reaches the daemon and performs validated operations", async 
         runGate(root, socketPath, "mountain-release health").status,
         0,
       );
+
+      const revokeActive = runGate(
+        root,
+        socketPath,
+        `mountain-release revoke ${testCommit} --reason auditoria`,
+      );
+      assert.equal(revokeActive.status, 1, gateOutput(revokeActive));
+      assert.match(gateOutput(revokeActive), /is active/);
+
+      const emptyRollback = runGate(
+        root,
+        socketPath,
+        "mountain-release rollback",
+      );
+      assert.equal(emptyRollback.status, 3, gateOutput(emptyRollback));
+      assert.match(gateOutput(emptyRollback), /emergency response/);
     });
   });
 });
@@ -610,26 +681,54 @@ test("the SSH gate reaches the daemon and performs validated operations", async 
 test("the SSH gate rejects metacharacters and the daemon rejects bad arguments", async () => {
   await withReleaseRoot(async (root) => {
     await withDaemon(root, async (socketPath) => {
-      const rejected = [
-        "mountain-release install ../outside.tar.gz manifest.json",
-        "mountain-release install /etc/passwd manifest.json",
+      const metacharacterCommands = [
         "mountain-release install release.tar.gz; rm -rf /",
         "mountain-release install $(reboot) manifest.json",
-        "mountain-release activate",
-        "mountain-release activate short",
-        "mountain-release revoke abc --reason fine",
-        "mountain-release unknown-command",
-        "mountain-release install release.tar.gz manifest.json --extra",
-        "",
       ];
-      for (const command of rejected) {
+      for (const command of metacharacterCommands) {
         const result = runGate(root, socketPath, command);
         assert.equal(
           result.status,
           1,
-          `must reject: ${JSON.stringify(command)} (${result.stderr})`,
+          `must reject: ${JSON.stringify(command)}`,
         );
+        assert.match(result.stderr, /metacharacters/);
       }
+
+      const daemonRejected = [
+        [
+          "mountain-release install ../outside.tar.gz manifest.json",
+          /incoming directory/,
+        ],
+        [
+          "mountain-release install /etc/passwd manifest.json",
+          /incoming directory/,
+        ],
+        ["mountain-release activate", /requires a commit/],
+        ["mountain-release activate short", /40-character hex/],
+        ["mountain-release revoke abc --reason fine", /valid commit/],
+        [
+          "mountain-release unknown-command",
+          /Unknown command|Only the release tool/,
+        ],
+        [
+          "mountain-release install release.tar.gz manifest.json --extra",
+          /exactly an archive/,
+        ],
+      ];
+      for (const [command, pattern] of daemonRejected) {
+        const result = runGate(root, socketPath, command);
+        assert.equal(
+          result.status,
+          1,
+          `must reject: ${JSON.stringify(command)}`,
+        );
+        assert.match(gateOutput(result), pattern);
+      }
+
+      const emptyCommand = runGate(root, socketPath, "");
+      assert.equal(emptyCommand.status, 1);
+      assert.match(emptyCommand.stderr, /No command was provided/);
     });
   });
 });
@@ -722,6 +821,81 @@ test("rejects a directory bomb over the approved entry count", async () => {
     assert.equal(result.status, 1);
     assert.match(result.stderr, /file count limit/);
   });
+});
+
+test("rejects an archive whose listed expanded size exceeds the limit", async () => {
+  await withReleaseRoot(async (root) => {
+    const archivePath = join(root, "incoming", "release.tar.gz");
+    const manifestPath = join(root, "incoming", "manifest.json");
+    await writeCraftedArchive(archivePath, [
+      { name: "index.html", type: "0", content: "x", size: 134_217_729 },
+    ]);
+    await writeFile(
+      manifestPath,
+      JSON.stringify(makeManifest({ files: simpleFiles })),
+    );
+
+    const result = runCli(root, ["install", archivePath, manifestPath]);
+    assert.equal(result.status, 1);
+    assert.match(result.stderr, /expanded size limit|tar failed/);
+    assert.equal(await pathExists(join(root, "releases", testCommit)), false);
+  });
+});
+
+test("the daemon stores the revocation reason supplied through the gate", async () => {
+  await withReleaseRoot(async (root) => {
+    await withDaemon(root, async (socketPath) => {
+      const archiveName = "release.tar.gz";
+      await makeNormalArchive(join(root, "incoming", archiveName), simpleFiles);
+      await writeFile(
+        join(root, "incoming", "manifest.json"),
+        JSON.stringify(makeManifest({ files: simpleFiles })),
+      );
+      assert.equal(
+        runGate(
+          root,
+          socketPath,
+          `mountain-release install ${archiveName} manifest.json`,
+        ).status,
+        0,
+      );
+
+      const revoke = runGate(
+        root,
+        socketPath,
+        `mountain-release revoke ${testCommit} --reason vulnerabilitat`,
+      );
+      assert.equal(revoke.status, 0, revoke.stderr);
+      const registry = JSON.parse(
+        await readFile(join(root, "releases.json"), "utf8"),
+      );
+      assert.equal(registry.releases[0].revokedReason, "vulnerabilitat");
+    });
+  });
+});
+
+test("bootstrap installs every release module and verifies Caddy with SHA-512", async () => {
+  const bootstrap = await readFile(
+    join(toolDirectory, "../bootstrap/bootstrap.sh"),
+    "utf8",
+  );
+  const requiredModules = [
+    "config.mjs",
+    "fsutil.mjs",
+    "manifest.mjs",
+    "archive.mjs",
+    "registry.mjs",
+    "validate.mjs",
+    "operations.mjs",
+    "daemon.mjs",
+    "cli.mjs",
+    "ssh-gate.mjs",
+  ];
+  for (const moduleName of requiredModules) {
+    assert.match(bootstrap, new RegExp(moduleName.replaceAll(".", "\\.")));
+  }
+  assert.match(bootstrap, /sha512sum/);
+  assert.doesNotMatch(bootstrap, /sha256sum/);
 });
 
 async function pathExists(path) {

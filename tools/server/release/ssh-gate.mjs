@@ -4,9 +4,9 @@
 // The deploy SSH key is installed with `command="/usr/local/bin/mountain-ssh-gate"`
 // in authorized_keys, so the holder can only reach the release daemon through
 // this gate. The gate tokenizes SSH_ORIGINAL_COMMAND without a shell, rejects
-// any token containing shell metacharacters, validates every argument against
-// its subcommand and forwards the validated request to the daemon socket. The
-// daemon (root) re-validates and executes the operation.
+// any token containing shell metacharacters and forwards the request to the
+// daemon socket. The daemon (root) validates every argument and executes the
+// operation.
 
 import { connect } from "node:net";
 
@@ -37,7 +37,6 @@ function main() {
       `Only the release tool can run over the deploy identity; got ${JSON.stringify(toolName)}.`,
     );
   }
-  // The daemon re-validates; the gate only separates tokens safely.
   request(args);
 }
 

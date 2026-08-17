@@ -97,7 +97,8 @@ Les eines de la T5.3 viuen a `tools/server/` i l'operació completa al
 [`docs/runbook.md`](runbook.md):
 
 - **Bootstrap reproduïble** (`tools/server/bootstrap/bootstrap.sh`): provisiona
-  el VPS de Hetzner amb Caddy 2.11.4 pinjat (checksum SHA-256 verificat),
+  el VPS de Hetzner amb Caddy 2.11.4 pinjat (checksum SHA-512 del
+  `checksums.txt` oficial de Caddy),
   identitats separades de desplegament i Caddy, el layout de releases, els
   directoris de logs, la configuració de Caddy validada i el daemon de releases
   (systemd, root). Cap acció remota s'executa sense l'aprovació de la persona

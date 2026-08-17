@@ -25,7 +25,7 @@ sessió local ni assistent editorial no pot desplegar ni operar producció.
 ### Destí
 
 VPS de Hetzner administrat per la persona mantenidora, Debian 12 (o compatible),
-amb Caddy 2.11.4 (versió pinjada i xifratge verificat al bootstrap) com a
+amb Caddy 2.11.4 (versió pinjada i checksum SHA-512 verificat al bootstrap) com a
 terminador TLS i servidor de la release activa. L'accés SSH és només amb clau
 (el bootstrap desactiva l'autenticació per contrasenya); el tallafoc extern de
 Hetzner només ha d'obrir 22, 80 i 443.
@@ -42,7 +42,7 @@ Hetzner només ha d'obrir 22, 80 i 443.
 La clau de desplegament es fixa a
 `/var/lib/mountain-runners/.ssh/authorized_keys` amb `restrict`, sense PTY ni
 forwarding. La identitat de desplegament no té cap accés privilegiat al
-filesystem ni `sudo`: el gate valida els arguments i envia la petició al daemon
+filesystem ni `sudo`: el gate tokenitza sense shell i envia la petició al daemon
 per `/run/mountain-release.sock` (grup `mountain-runners`, mode 0660), que la
 revalida i l'executa com a `root`. El daemon tampoc pot escriure la
 configuració de Caddy, les claus TLS ni l'estat ACME.
@@ -73,7 +73,7 @@ DEPLOY_PUBLIC_KEY="ssh-ed25519 AAAA... deploy@ci" \
 ```
 
 El bootstrap és reproduïble i idempotent: instal·la Caddy pinjat amb checksum
-verificat, crea les identitats, el layout, els directoris de logs, la
+SHA-512 verificat (`checksums.txt` oficial), crea les identitats, el layout, els directoris de logs, la
 configuració de Caddy validada, el servei del daemon de releases i les eines.
 Si no es passa `DEPLOY_PUBLIC_KEY`, la clau de desplegament s'afegeix després
 manualment amb les mateixes opcions de forced command.
@@ -90,6 +90,32 @@ manualment amb les mateixes opcions de forced command.
    `current`. El daemon de releases ha d'estar actiu
    (`systemctl status mountain-release`).
 
+### Còpies De Seguretat I Restauració
+
+Hetzner fa còpies automàtiques del disc del VPS (Backups al Cloud Console).
+Aquesta és la via de recuperació si es perd el servidor; no substitueix la
+reversió interna de releases.
+
+**Abans de servir el host de validació:** activar els backups automàtics del
+VPS al Cloud Console de Hetzner (retenció la que ofereixi el producte, com a
+mínim una còpia diària).
+
+**Restauració** (aprovació explícita de la persona mantenidora):
+
+1. Al Cloud Console, crear un servidor nou a partir de l'últim backup (o
+   reconstruir el VPS des del backup si Hetzner ho ofereix per a aquella
+   instància). No s'editen fitxers a mà dins de les releases.
+2. Verificar el fingerprint SSH nou o restablert i actualitzar `known_hosts`.
+3. Comprovar `systemctl is-active caddy mountain-release`,
+   `sudo mountain-release health` i
+   `node tools/server/verify/verify-site.mjs --base-url https://<host> --expect-noindex`.
+4. Si el backup és anterior a l'última release activa, instal·lar i activar
+   l'artefacte aprovat més recent pel canal de T5.4; no reconstruir al
+   servidor.
+
+La primera restauració de prova es fa després del bootstrap del VPS, abans del
+tall de producció, amb un servidor de prova o un rebuild controlat.
+
 ## 2. TLS
 
 - Caddy emet i renova certificats automàticament (Let's Encrypt) per al host de
@@ -98,8 +124,10 @@ manualment amb les mateixes opcions de forced command.
   al VPS; fins llavors l'error log pot mostrar intents ACME fallits (esperat).
 - **HSTS**: s'activa únicament després que el tall hagi validat TLS i tots els
   subdominis afectats, sense `includeSubDomains` (decisió T5.1). La directiva
-  està comentada a `Caddyfile.production`; s'activa descomentant-la, reiniciant
-  Caddy i revalidant.
+  està comentada a `Caddyfile.production` com
+  `# header Strict-Transport-Security "max-age=31536000"`; s'activa
+  descomentant-la, validant amb `caddy validate`, reiniciant Caddy i
+  revalidant.
 - Verificació de TLS: `curl --fail https://<host>/` i comprovació de la data de
   caducitat amb `openssl s_client -servername <host> -connect <host>:443`.
 - Els canvis de configuració de Caddy requereixen `systemctl restart caddy`
@@ -117,7 +145,9 @@ Tres registres, tots al VPS (T5.1):
 
 - La rotació és diària a mitjanit (integració de Caddy) amb compressió gzip.
 - Accés exclusivament per `root` via `sudo`; cap credencial ni query string
-  sensible no es registra.
+  sensible no es registra. Caddy sempre afegeix `ts`, `level`, `logger` i
+  `msg` als JSON; no es poden filtrar. La resta de camps no aprovats
+  (`resp_headers`, `uri`, capçaleres, TLS, etc.) s'esborren.
 - Esborrat: eliminar els fitxers de `/var/log/mountain-runners/` (la rotació
   ja n'elimina els antics segons la retenció).
 
@@ -159,14 +189,14 @@ sudo mountain-release activate <commit>
 ```
 
 La identitat de desplegament executa les mateixes operacions a través del gate
-SSH (forçat al daemon), que valida tots els arguments i no permet cap altra
-ordena. `install` rebutja paths absoluts, `..`, symlinks, hardlinks,
-dispositius, fitxers duplicats, qualsevol tipus inesperat i qualsevol arxiu que
-superi els límits aprovats (128 MiB expandits, 5.000 entrades, arxiu comprimit
-màxim 256 MiB); verifica tots els digests contra el manifest i, en cas de
-fallada, elimina la release incompleta sense tocar el punter actiu. `activate`
-canvia el symlink `current` de manera atòmica (rename) després de verificar
-digests i elegibilitat.
+SSH (forçat al daemon), que tokenitza sense shell. El daemon valida tots els
+arguments i no permet cap altra ordena. `install` rebutja paths absoluts,
+`..`, symlinks, hardlinks, dispositius, fitxers duplicats, qualsevol tipus
+inesperat i qualsevol arxiu que superi els límits aprovats (128 MiB expandits,
+5.000 entrades, arxiu comprimit màxim 256 MiB); verifica tots els digests
+contra el manifest i, en cas de fallada, elimina la release incompleta sense
+tocar el punter actiu. `activate` canvia el symlink `current` de manera
+atòmica (rename) després de verificar digests i elegibilitat.
 
 ### Reversió Rutinària (Interna)
 
