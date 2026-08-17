@@ -94,7 +94,10 @@ CSS, no atributs JS dinàmics.
 ## Servidor I Releases (T5.3)
 
 Les eines de la T5.3 viuen a `tools/server/` i l'operació completa al
-[`docs/runbook.md`](runbook.md):
+[`docs/runbook.md`](runbook.md). El diagrama Mermaid de la configuració del
+servidor (identitats, Caddy, gate, daemon i layout) és a
+[`docs/runbook.md`](runbook.md#arquitectura-del-servidor); s'actualitza amb
+cada canvi d'aquesta arquitectura.
 
 - **Bootstrap reproduïble** (`tools/server/bootstrap/bootstrap.sh`): provisiona
   el VPS de Hetzner amb Caddy 2.11.4 pinjat (checksum SHA-512 del

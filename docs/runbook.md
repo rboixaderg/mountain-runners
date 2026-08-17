@@ -47,6 +47,74 @@ per `/run/mountain-release.sock` (grup `mountain-runners`, mode 0660), que la
 revalida i l'executa com a `root`. El daemon tampoc pot escriure la
 configuració de Caddy, les claus TLS ni l'estat ACME.
 
+### Arquitectura Del Servidor
+
+Aquest diagrama és la font viva de la configuració del VPS. Actualitza'l al
+mateix canvi que toqui identitats, ports, paths, Caddy, el gate, el daemon o el
+flux de releases (T5.4 i T5.5 incloses).
+
+El tallafoc de Hetzner només obre 22, 80 i 443. Caddy escolta 80/443, termina
+TLS amb ACME i serveix el symlink `current`. El host de validació és el bloc
+actiu del `Caddyfile`; el d'apex (`Caddyfile.production`) s'importa al tall
+(T5.5). El daemon de releases no escriu Caddy, claus TLS ni estat ACME.
+
+```mermaid
+flowchart TB
+  subgraph Fora["Fora del VPS"]
+    Visitant["Visitant HTTPS"]
+    Mantenidora["Persona mantenidora"]
+    DeployKey["Clau mountain-deploy"]
+  end
+
+  subgraph VPS["VPS Hetzner"]
+    sshd["sshd :22, només clau"]
+    Caddy["Caddy 2.11.4 :80 / :443"]
+    Gate["mountain-ssh-gate"]
+    Daemon["mountain-release.service root"]
+    Sock["/run/mountain-release.sock"]
+    Current["symlink current"]
+    Releases["releases/commit"]
+    Incoming["incoming/"]
+    Registry["releases.json"]
+    Logs["/var/log/mountain-runners"]
+    Caddyfile["/etc/caddy/Caddyfile"]
+  end
+
+  Visitant -->|"TLS ACME"| Caddy
+  Caddy -->|"només lectura"| Current
+  Current --> Releases
+  Caddy --> Logs
+  Caddyfile -.->|"config; el daemon no hi escriu"| Caddy
+  Mantenidora -->|"SSH admin + sudo"| sshd
+  DeployKey -->|"SSH forced command"| sshd
+  sshd --> Gate
+  Gate --> Sock
+  Sock --> Daemon
+  Daemon --> Incoming
+  Daemon --> Releases
+  Daemon --> Current
+  Daemon --> Registry
+```
+
+Operació d'una release (instal·lar o activar) des de la identitat de
+desplegament:
+
+```mermaid
+sequenceDiagram
+  participant Deploy as Clau mountain-deploy
+  participant Gate as mountain-ssh-gate
+  participant Daemon as mountain-release
+  participant FS as /var/lib/mountain-runners
+  participant Caddy as Caddy
+
+  Deploy->>Gate: SSH command restringit
+  Note over Gate: tokenitza sense shell
+  Gate->>Daemon: Unix socket
+  Note over Daemon: revalida arguments com a root
+  Daemon->>FS: install / activate / rollback / revoke
+  Caddy->>FS: serveix current
+```
+
 ### Estructura
 
 ```text

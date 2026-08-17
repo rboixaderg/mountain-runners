@@ -21,10 +21,12 @@ cada push a `main` i el puja com a artifact del run, sense secrets ni
 desplegament. La T5.3 ha preparat la configuració i les eines del servidor —
 `tools/server/` — (Caddyfile validat amb headers, caché, 404 i logs mínims,
 bootstrap reproduïble i CLI de releases amb extracció segura, activació
-atòmica, revocació i reversió), documentades al runbook. Lighthouse continua
+atòmica, revocació i reversió). El diagrama viu de la configuració del VPS
+(identitats, Caddy, gate, daemon i layout) és a
+[`docs/runbook.md`](runbook.md#arquitectura-del-servidor). Lighthouse continua
 sent una auditoria manual. Encara no existeixen previews de pull request ni
-automatització de desplegament, i tampoc cap servei Hono; el VPS encara no s'ha
-provisionat.
+automatització de desplegament (T5.4), ni cap servei Hono; el tall de l'apex
+és la T5.5.
 
 ## Direcció Acceptada
 
