@@ -7,18 +7,19 @@ Tota l'operació està documentada al
 
 ## Estructura
 
-| Path                               | Contingut                                                                            |
-| ---------------------------------- | ------------------------------------------------------------------------------------ |
-| `bootstrap/bootstrap.sh`           | Provisió reproduïble i idempotent del VPS (Caddy pinjat, identitats, layout, daemon) |
-| `caddy/Caddyfile`                  | Configuració del host de validació (headers, caché, 404, logs mínims)                |
-| `caddy/Caddyfile.production`       | Host de producció, importat al tall (T5.5)                                           |
-| `release/`                         | CLI `mountain-release` i mòduls (instal·lació, activació, reversió)                  |
-| `release/daemon.mjs`               | Daemon root (systemd) que executa les operacions per la identitat de desplegament    |
-| `release/ssh-gate.mjs`             | Forced command de la identitat de desplegament (tokenitza sense shell)               |
-| `release/validate.mjs`             | Validació d'arguments compartida entre el gate i el daemon                           |
-| `release/cli.test.mjs`             | Tests `node --test` amb arxius tar adversos i el daemon en marxa                     |
-| `systemd/mountain-release.service` | Unitat del daemon (root, socket `/run/mountain-release.sock`)                        |
-| `verify/verify-site.mjs`           | Verificació del contracte del host: TLS, headers, 404, caché, noindex                |
+| Path                                  | Contingut                                                                            |
+| ------------------------------------- | ------------------------------------------------------------------------------------ |
+| `bootstrap/bootstrap.sh`              | Provisió reproduïble i idempotent del VPS (Caddy pinjat, identitats, layout, daemon) |
+| `caddy/Caddyfile`                     | Configuració del host de validació (headers, caché, 404, logs mínims)                |
+| `caddy/Caddyfile.production`          | Host de producció, importat al tall (T5.5)                                           |
+| `release/`                            | CLI `mountain-release` i mòduls (instal·lació, activació, reversió)                  |
+| `release/daemon.mjs`                  | Daemon root (systemd) que executa les operacions per la identitat de desplegament    |
+| `release/ssh-gate.mjs`                | Forced command de la identitat de desplegament (tokenitza sense shell)               |
+| `release/validate.mjs`                | Validació d'arguments compartida entre el gate i el daemon                           |
+| `release/cli.test.mjs`                | Tests `node --test` amb arxius tar adversos i el daemon en marxa                     |
+| `systemd/mountain-release.service`    | Unitat del daemon (root, socket `/run/mountain-release.sock`)                        |
+| `systemd/caddy-mountain-runners.conf` | Drop-in de Caddy: `ReadWritePaths` de logs i releases                                |
+| `verify/verify-site.mjs`              | Verificació del contracte del host: TLS, headers, 404, caché, noindex                |
 
 ## Layout Al Servidor
 

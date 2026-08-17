@@ -73,8 +73,10 @@ DEPLOY_PUBLIC_KEY="ssh-ed25519 AAAA... deploy@ci" \
 ```
 
 El bootstrap és reproduïble i idempotent: instal·la Caddy pinjat amb checksum
-SHA-512 verificat (`checksums.txt` oficial), crea les identitats, el layout, els directoris de logs, la
-configuració de Caddy validada, el servei del daemon de releases i les eines.
+SHA-512 verificat (`checksums.txt` oficial), crea les identitats, el layout,
+els directoris de logs, un drop-in systemd perquè Caddy pugui escriure
+`/var/log/mountain-runners`, la configuració de Caddy validada, el servei del
+daemon de releases i les eines.
 Si no es passa `DEPLOY_PUBLIC_KEY`, la clau de desplegament s'afegeix després
 manualment amb les mateixes opcions de forced command.
 

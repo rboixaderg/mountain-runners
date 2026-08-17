@@ -178,6 +178,10 @@ install_caddyfile "${TOOL_ROOT}/caddy/Caddyfile.production" /etc/caddy/Caddyfile
 if ! caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile >/dev/null 2>&1; then
   fail "the generated Caddyfile does not validate; refusing to proceed."
 fi
+# `caddy validate` runs as root and may create log files; Caddy itself runs
+# as the caddy user.
+chown -R caddy:caddy "${LOG_ROOT}"
+chmod 700 "${LOG_ROOT}"
 
 # --- release daemon (systemd, root) ------------------------------------------
 
@@ -194,9 +198,15 @@ systemctl restart mountain-release
 # --- deploy identity SSH key --------------------------------------------------
 
 if [[ -n "${DEPLOY_PUBLIC_KEY}" ]]; then
-  if ! grep -Eq '^(ssh-ed25519|ssh-rsa|ecdsa-sha2-nistp256|sk-ssh-ed25519) ' <<<"${DEPLOY_PUBLIC_KEY}" || grep -q $'\n' <<<"${DEPLOY_PUBLIC_KEY}"; then
+  # Do not use `grep` on a here-string to detect newlines: `<<<` always
+  # appends one, so a valid single-line key would be rejected.
+  if [[ "${DEPLOY_PUBLIC_KEY}" == *$'\n'* ]]; then
     fail "DEPLOY_PUBLIC_KEY does not look like a single public key line."
   fi
+  case "${DEPLOY_PUBLIC_KEY}" in
+    ssh-ed25519\ * | ssh-rsa\ * | ecdsa-sha2-nistp256\ * | sk-ssh-ed25519\ *) ;;
+    *) fail "DEPLOY_PUBLIC_KEY does not look like a single public key line." ;;
+  esac
   log "Installing the deploy identity key (forced command, no shell)."
   mkdir -p "${RELEASE_ROOT}/.ssh"
   printf 'restrict,no-pty,no-port-forwarding,no-agent-forwarding,no-X11-forwarding,command="/usr/local/bin/mountain-ssh-gate" %s\n' \
@@ -230,7 +240,13 @@ fi
 
 # --- Caddy service ------------------------------------------------------------
 
+mkdir -p /etc/systemd/system/caddy.service.d
+install -m 0644 -o root -g root \
+  "${TOOL_ROOT}/systemd/caddy-mountain-runners.conf" \
+  /etc/systemd/system/caddy.service.d/mountain-runners.conf
+
 if command -v systemctl >/dev/null 2>&1; then
+  systemctl daemon-reload
   systemctl enable caddy >/dev/null 2>&1 || true
   systemctl restart caddy
   log "Caddy service restarted."

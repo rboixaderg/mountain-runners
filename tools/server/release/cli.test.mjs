@@ -896,6 +896,12 @@ test("bootstrap installs every release module and verifies Caddy with SHA-512", 
   }
   assert.match(bootstrap, /sha512sum/);
   assert.doesNotMatch(bootstrap, /sha256sum/);
+  assert.match(bootstrap, /caddy-mountain-runners\.conf/);
+  assert.doesNotMatch(bootstrap, /grep -q/);
+  const bootstrapMode = (
+    await stat(join(toolDirectory, "../bootstrap/bootstrap.sh"))
+  ).mode;
+  assert.equal(bootstrapMode & 0o111, 0o111, "bootstrap.sh must be executable");
 });
 
 async function pathExists(path) {
