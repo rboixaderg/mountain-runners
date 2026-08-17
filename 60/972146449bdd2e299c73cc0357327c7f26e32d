@@ -1,0 +1,29 @@
+tools/server/README.md
+  s_0ca8407516a8ea::t_1144f00abc68df 10-22
+tools/server/bootstrap/bootstrap.sh
+  s_0ca8407516a8ea::t_3da4866add48a9 181-184,201-203,206-209,243-247,249
+tools/server/release/cli.test.mjs
+  s_0ca8407516a8ea::t_d665cbc79fcf87 899-904
+docs/runbook.md
+  s_0ca8407516a8ea::t_82885173440e94 76-79
+tools/server/caddy/Caddyfile
+  s_0ca8407516a8ea::t_257ff95823d1c6 43-44,48-51,53
+tools/server/systemd/caddy-mountain-runners.conf
+  s_0ca8407516a8ea::t_be621b62b38a94 1-6
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "60972146449bdd2e299c73cc0357327c7f26e32d",
+  "prompts": {},
+  "sessions": {
+    "s_0ca8407516a8ea": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "aa62ee4c-759e-401d-8b4f-7d868907787a",
+        "model": "grok-4.6"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
