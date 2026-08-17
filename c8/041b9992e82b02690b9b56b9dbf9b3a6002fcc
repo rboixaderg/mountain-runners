@@ -1,0 +1,47 @@
+apps/web/messages/ca.json
+  s_0ca8407516a8ea::t_9bad8a2d8e92f0 160
+apps/web/messages/en.json
+  s_0ca8407516a8ea::t_b0154bca3d8391 160
+apps/web/messages/es.json
+  s_0ca8407516a8ea::t_74eef3314ae718 160
+docs/deployment.md
+  s_0ca8407516a8ea::t_fe1adacf2b2cbf 100-101
+docs/runbook.md
+  s_0ca8407516a8ea::t_66f85221c327ff 28,45,76,93-118,127-130,148-150,192-199
+tools/server/README.md
+  s_0ca8407516a8ea::t_ac45730dfea262 44-45
+tools/server/bootstrap/bootstrap.sh
+  s_0ca8407516a8ea::t_3610fa89dcc620 39-42,80,82,90,136,222-229
+tools/server/caddy/Caddyfile
+  s_0ca8407516a8ea::t_4c250135d9a5a6 63-65,74,90-93
+tools/server/caddy/Caddyfile.production
+  s_0ca8407516a8ea::t_28b1263f8580d4 18
+tools/server/release/cli.test.mjs
+  s_0ca8407516a8ea::t_f8bf3cc413cf94 104-107,192-196,202,222-227,423-463,661-676,684,688,693,695,697-731,826-900
+tools/server/release/daemon.mjs
+  s_0ca8407516a8ea::t_ef3350431f8ddc 5-9,85-89,97,105-107
+tools/server/release/operations.mjs
+  s_0ca8407516a8ea::t_07e7be52bb6b1f 100,104,106-109,111-116,118-119,212-233
+tools/server/release/ssh-gate.mjs
+  s_0ca8407516a8ea::t_bd8d9c4730b612 7-9
+tools/server/release/validate.mjs
+  s_0ca8407516a8ea::t_628a6a6c0e24f7 1-4,67
+tools/server/verify/verify-site.mjs
+  s_0ca8407516a8ea::t_81d84ca583e0c1 5-9,26,38-46,58-62,65-66,71-74,80,85,107-139,147-149,151,156-174,176-184,188,190
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "c8041b9992e82b02690b9b56b9dbf9b3a6002fcc",
+  "prompts": {},
+  "sessions": {
+    "s_0ca8407516a8ea": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "aa62ee4c-759e-401d-8b4f-7d868907787a",
+        "model": "unknown"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
