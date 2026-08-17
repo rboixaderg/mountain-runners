@@ -1,0 +1,25 @@
+docs/README.md
+  s_0ca8407516a8ea::t_4490bc926d53a4 30
+docs/architecture.md
+  s_0ca8407516a8ea::t_08efce229dcd9e 24-26,28-29
+docs/deployment.md
+  s_0ca8407516a8ea::t_8bfceedbe29965 97-100
+docs/runbook.md
+  s_0ca8407516a8ea::t_6b057064c4395c 50-117
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "444b1d6ec2428e2faafc22f9eebfc898fa2ad105",
+  "prompts": {},
+  "sessions": {
+    "s_0ca8407516a8ea": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "aa62ee4c-759e-401d-8b4f-7d868907787a",
+        "model": "unknown"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
