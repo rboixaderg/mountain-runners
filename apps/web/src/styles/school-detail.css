@@ -244,6 +244,7 @@
 .schools-detail__registration-intro,
 .schools-detail__registration-status,
 .schools-detail__registration .schools-detail__external-link {
+  min-width: 0;
   width: min(100%, 48rem);
 }
 
@@ -277,17 +278,20 @@
 .schools-detail__external-link {
   display: inline-flex;
   max-width: 100%;
+  min-width: 0;
+  flex-wrap: wrap;
   gap: 0.35rem;
   align-items: center;
+  justify-content: center;
   color: var(--color-red);
   font-size: 0.75rem;
   font-weight: 700;
   letter-spacing: 0.06em;
+  overflow-wrap: anywhere;
   text-transform: uppercase;
 }
 
 .schools-detail__registration .schools-detail__external-link {
-  justify-content: center;
   border: 0.125rem solid var(--color-red);
   padding: 0.8rem 1rem;
   background: var(--color-red);
