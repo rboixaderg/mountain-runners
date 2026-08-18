@@ -1,0 +1,22 @@
+.agents/skills/spec-authoring/SKILL.md
+  h_1727aeeb492b30 39-41
+.agents/skills/spec-implementation-review/SKILL.md
+  h_1727aeeb492b30 69-71
+.opencode/agent/development.md
+  h_1727aeeb492b30 11-15
+AGENTS.md
+  h_1727aeeb492b30 60-63
+docs/code-conventions.md
+  h_1727aeeb492b30 134,140-156
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "d75ed1c2d38a0a0636c66a7b1eda963981562238",
+  "prompts": {},
+  "humans": {
+    "h_1727aeeb492b30": {
+      "author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
