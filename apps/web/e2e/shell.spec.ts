@@ -709,7 +709,7 @@ test("navigates from the schools hub to a published school detail", async ({
   await expect(
     schoolDetail.getByRole("heading", { level: 4, name: "Matrícula" }),
   ).toBeVisible();
-  await expect(schoolDetail.getByText("30 €")).toBeVisible();
+  await expect(schoolDetail.getByText("35 €")).toBeVisible();
   await expect(schoolDetail.getByText("al mes").first()).toBeVisible();
   await expect(
     schoolDetail.getByRole("heading", { level: 2, name: "Galeria" }),
