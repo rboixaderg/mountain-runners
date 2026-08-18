@@ -1,0 +1,29 @@
+tools/deploy/deploy.test.mjs
+  s_0722057f538051::t_464a28fd17ec42 27-31,519-546
+tools/server/release/cli.test.mjs
+  s_0722057f538051::t_46bc7bf3eca5f7 901-906
+docs/runbook.md
+  s_0722057f538051::t_3353024319029a 128
+tools/deploy/ssh.mjs
+  s_0722057f538051::t_8d22c34fd8fa63 158-169,178,181,184,191-199,205
+tools/server/README.md
+  s_0722057f538051::t_253a6c70f395be 33
+tools/server/bootstrap/bootstrap.sh
+  s_0722057f538051::t_c2960c14a4dd24 113-115,164-166,221-225,227-230
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "960601ecd268f9cc055d323208f0d17fc6ebacdc",
+  "prompts": {},
+  "sessions": {
+    "s_0722057f538051": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "51921d96-1347-4290-bc84-2c41a0b983aa",
+        "model": "grok-4.6"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
