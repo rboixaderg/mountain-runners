@@ -898,6 +898,12 @@ test("bootstrap installs every release module and verifies Caddy with SHA-512", 
   assert.match(bootstrap, /sha512sum/);
   assert.doesNotMatch(bootstrap, /sha256sum/);
   assert.match(bootstrap, /caddy-mountain-runners\.conf/);
+  assert.match(bootstrap, /usermod -p '\*'/);
+  assert.match(bootstrap, /chmod 755 "\$\{RELEASE_ROOT\}\/\.ssh"/);
+  assert.match(
+    bootstrap,
+    /chmod 644 "\$\{RELEASE_ROOT\}\/\.ssh\/authorized_keys"/,
+  );
   assert.doesNotMatch(bootstrap, /grep -q/);
   const bootstrapMode = (
     await stat(join(toolDirectory, "../bootstrap/bootstrap.sh"))

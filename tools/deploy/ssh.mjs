@@ -155,6 +155,18 @@ function runSsh({
 
     let stdout = "";
     let stderr = "";
+    let settled = false;
+    const finish = (error, result) => {
+      if (settled) {
+        return;
+      }
+      settled = true;
+      if (error === undefined) {
+        resolveStdout(result);
+        return;
+      }
+      rejectRun(error);
+    };
     child.stdout.setEncoding("utf8");
     child.stderr.setEncoding("utf8");
     child.stdout.on("data", (chunk) => {
@@ -163,24 +175,33 @@ function runSsh({
     child.stderr.on("data", (chunk) => {
       stderr += chunk;
     });
-    child.on("error", rejectRun);
+    child.on("error", finish);
     child.on("close", (status) => {
       if (status === 0) {
-        resolveStdout(stdout.trim());
+        finish(undefined, stdout.trim());
         return;
       }
-      rejectRun(
+      finish(
         new RemoteCommandError(
           stderr.trim() || stdout.trim() || `ssh exited with status ${status}.`,
           { status: status ?? 1, stdout, stderr },
         ),
       );
     });
+    // A remote close during upload (auth failure, host-key mismatch, gate
+    // reject) would otherwise crash the process with an unhandled EPIPE and
+    // hide stderr.
+    child.stdin.on("error", (error) => {
+      if (error.code === "EPIPE") {
+        return;
+      }
+      finish(error);
+    });
 
     if (stdin === undefined) {
       child.stdin.end();
       return;
     }
-    Readable.from(stdin).pipe(child.stdin);
+    Readable.from(stdin).pipe(child.stdin, { end: true });
   });
 }

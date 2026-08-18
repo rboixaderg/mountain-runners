@@ -30,7 +30,7 @@ Tota l'operació està documentada al
 ├── incoming/                      2770 root:mountain-runners (uploads)
 ├── current                        symlink atòmic a la release activa (root)
 ├── releases.json                  600  root:root (registre permanent)
-└── .ssh/authorized_keys           600  clau de desplegament (forced command)
+└── .ssh/authorized_keys           644  clau de desplegament (forced command)
 /var/log/mountain-runners/         700  caddy:caddy (accés només via sudo)
 /run/mountain-release.sock         660  root:mountain-runners (socket del daemon)
 /usr/local/lib/mountain-runners/        eines instal·lades pel bootstrap
