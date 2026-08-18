@@ -1,0 +1,39 @@
+apps/web/e2e/route-matrix.spec.ts
+  s_3744ef2fc8891a::t_43950dfe15dc2c 76-85
+apps/web/src/test/presentation-urls.test.ts
+  s_3744ef2fc8891a::t_688a6f7452a289 7,25-39
+README.md
+  s_3744ef2fc8891a::t_2c845f36abc604 36-38
+apps/web/e2e/shell.spec.ts
+  s_3744ef2fc8891a::t_f12911db47a6f1 28,33-46,72-100
+apps/web/src/components/LanguageSelector.astro
+  s_3744ef2fc8891a::t_9fc11674f0aea0 4,32-44,59
+apps/web/src/components/SiteHeader.astro
+  s_3744ef2fc8891a::t_d8fe17cb7270bc 154-157
+apps/web/src/lib/presentation/urls.ts
+  s_3744ef2fc8891a::t_a9838d3369b71b 10-18
+apps/web/src/styles/site-header.css
+  s_3744ef2fc8891a::t_87a3adffa2b2f4 5,37,40,50-57,265-272,274,386-399
+apps/web/src/test/language-selector.test.ts
+  s_3744ef2fc8891a::t_b76b187fa2ddea 39-60
+docs/content-model.md
+  s_3744ef2fc8891a::t_165c9259d36f30 166-168
+docs/deployment.md
+  s_3744ef2fc8891a::t_f5bffdaa796d03 33-35
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "81b1ca39cf166fa4916fe64584cba71fe6ef80d7",
+  "prompts": {},
+  "sessions": {
+    "s_3744ef2fc8891a": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "8a842d9d-ffc1-4433-88d1-7a6bcf3021a3",
+        "model": "grok-4.6"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
