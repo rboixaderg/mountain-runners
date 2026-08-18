@@ -25,6 +25,9 @@ acceptada:
 - [`roadmap.md`](roadmap.md): fases, dependències i estat general.
 - [`backlog.md`](backlog.md): necessitats obertes i registre del seu triatge.
 - [`deployment.md`](deployment.md): estat i límits operatius de la fase 5.
+- [`runbook.md`](runbook.md): operació de producció (servidor, TLS, logs, salut,
+  releases i reversió; les seccions de desplegament i tall arriben amb la T5.4
+  i la T5.5). Inclou el diagrama Mermaid viu de l'arquitectura del VPS.
 - [`phase-5-t51-preparacio.md`](phase-5-t51-preparacio.md): decisions
   preliminars de desplegament que la T5.1 ha de ratificar.
 - [`ai-assistant.md`](ai-assistant.md): límits dels futurs xat públic i assistent

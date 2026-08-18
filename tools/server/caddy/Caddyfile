@@ -1,0 +1,111 @@
+# Mountain Runners Caddyfile (phase 5, task 5.3)
+#
+# Serves the active release from /var/lib/mountain-runners/current (a symlink
+# managed by `mountain-release`) on the validation host. The production host
+# block lives in Caddyfile.production and is imported at the DNS cut (T5.5).
+#
+# The bootstrap (tools/server/bootstrap/bootstrap.sh) substitutes
+# __VALIDATION_HOST__ and installs this file at /etc/caddy/Caddyfile.
+#
+# TLS is handled by Caddy's automatic HTTPS (Let's Encrypt via HTTP-01/TLS-ALPN).
+# HSTS stays disabled until the cut has validated TLS and every affected
+# subdomain (see docs/runbook.md); it is enabled in Caddyfile.production.
+{
+	# No runtime config API: configuration changes require a Caddy restart.
+	admin off
+
+	# Runtime/TLS/ACME errors only (access logs use the per-site logger). The
+	# request URI and headers are dropped: the query string must never be
+	# logged, not even for error-path requests.
+	log {
+		output file /var/log/mountain-runners/error.log {
+			roll_at 00:00
+			roll_local_time
+			roll_keep 30
+			roll_keep_for 720h
+		}
+		format filter {
+			request>uri delete
+			request>headers delete
+		}
+	}
+}
+
+# Headers approved in T5.1: CSP without wildcards or unsafe-eval, plus the
+# minimum header set. X-Robots-Tag is applied per host (validation only).
+(common_headers) {
+	header X-Content-Type-Options nosniff
+	header Referrer-Policy strict-origin-when-cross-origin
+	header Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=(), usb=()"
+	header Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self'; font-src 'self'; frame-src https://www.youtube-nocookie.com; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; object-src 'none'"
+}
+
+# Cache policy approved in T5.1. Matchers are mutually exclusive so the
+# default revalidate header cannot overwrite hashed or editorial assets.
+(common_cache) {
+	@hashed path /_astro/*
+	@editorial path /content-resources/*
+	@revalidate {
+		not path /_astro/* /content-resources/*
+	}
+	header @hashed Cache-Control "public, max-age=31536000, immutable"
+	header @editorial Cache-Control "public, max-age=3600, must-revalidate"
+	header @revalidate Cache-Control "no-cache, must-revalidate"
+}
+
+(common_site) {
+	import common_headers
+	import common_cache
+	root * /var/lib/mountain-runners/current
+	# No directory listings; trailing-slash routes keep their slash and
+	# directory indexes are served from index.html. Any error (including the
+	# missing-file 404) serves /404.html preserving the error status.
+	file_server
+	handle_errors {
+		# Error responses (including 404) must never inherit the long cache
+		# of hashed or editorial paths.
+		header Cache-Control "no-cache, must-revalidate"
+		rewrite /404.html
+		file_server
+	}
+}
+
+# Access log with only the approved fields (T5.1): time, IP, method, path
+# without query string, status, bytes, duration. The query string is never
+# logged: request>uri is dropped and the path is appended separately.
+# Caddy always emits ts, level, logger and msg; those cannot be filtered.
+(common_access_log) {
+	log {
+		output file /var/log/mountain-runners/access.log {
+			roll_at 00:00
+			roll_local_time
+			roll_keep 7
+			roll_keep_for 168h
+		}
+		format filter {
+			request>remote_port delete
+			request>client_ip delete
+			request>proto delete
+			request>host delete
+			request>uri delete
+			request>headers delete
+			request>tls delete
+			resp_headers delete
+			bytes_read delete
+			user_id delete
+		}
+	}
+	log_append path {http.request.uri.path}
+}
+
+https://__VALIDATION_HOST__ {
+	import common_site
+
+	# The validation host must never be indexed (spec: declared before serving).
+	header X-Robots-Tag "noindex, nofollow, noarchive"
+
+	import common_access_log
+}
+
+# Host de producció: s'activa al tall (T5.5) descomentant la línia següent.
+# import Caddyfile.production

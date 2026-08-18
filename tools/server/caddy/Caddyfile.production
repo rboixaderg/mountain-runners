@@ -1,0 +1,27 @@
+# Mountain Runners production host (phase 5, task 5.3).
+#
+# Imported from the main Caddyfile at the DNS cut (T5.5): uncomment the
+# `import Caddyfile.production` line in /etc/caddy/Caddyfile and restart Caddy
+# (`systemctl restart caddy`; admin is off, so a restart is required).
+#
+# ACME certificates for __PRODUCTION_DOMAIN__ and www only complete once the
+# apex and www records point at the VPS; retries are expected in the error log
+# until then.
+#
+# HSTS: activate after the cut has validated TLS and every affected subdomain,
+# without includeSubDomains (T5.1 decision). Uncomment once validated.
+
+https://__PRODUCTION_DOMAIN__ {
+	import common_site
+	import common_access_log
+
+	# header Strict-Transport-Security "max-age=31536000"
+}
+
+# The www host redirects to the apex (canonical URLs use the apex; see
+# docs/runbook.md). A certificate for www is issued automatically once the
+# record points at the VPS.
+https://www.__PRODUCTION_DOMAIN__ {
+	redir https://__PRODUCTION_DOMAIN__{http.request.uri} permanent
+	import common_access_log
+}

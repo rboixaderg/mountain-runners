@@ -91,18 +91,60 @@ estructuralment, amb qualsevol protocol, i es revisen remotament al gate de
 llançament; i la cobertura d'enllaços és `href`, `src`, `srcset` i `url()` de
 CSS, no atributs JS dinàmics.
 
+## Servidor I Releases (T5.3)
+
+Les eines de la T5.3 viuen a `tools/server/` i l'operació completa al
+[`docs/runbook.md`](runbook.md). El diagrama Mermaid de la configuració del
+servidor (identitats, Caddy, gate, daemon i layout) és a
+[`docs/runbook.md`](runbook.md#arquitectura-del-servidor); s'actualitza amb
+cada canvi d'aquesta arquitectura.
+
+- **Bootstrap reproduïble** (`tools/server/bootstrap/bootstrap.sh`): provisiona
+  el VPS de Hetzner amb Caddy 2.11.4 pinjat (checksum SHA-512 del
+  `checksums.txt` oficial de Caddy),
+  identitats separades de desplegament i Caddy, el layout de releases, els
+  directoris de logs, la configuració de Caddy validada i el daemon de releases
+  (systemd, root). Cap acció remota s'executa sense l'aprovació de la persona
+  mantenidora.
+- **Configuració Caddy** (`tools/server/caddy/`): host de validació amb
+  `X-Robots-Tag: noindex, nofollow, noarchive`, headers mínims i CSP aprovades a
+  T5.1, 404 global, rutes amb barra final preservades, caché immutable per a
+  `/_astro/*` i curta per a `/content-resources/*`, i logs minimitzats amb els
+  camps aprovats (la query string mai no es registra). El host de producció
+  s'activa al tall (T5.5) important `Caddyfile.production`.
+- **CLI de releases** (`tools/server/release/`): `install` (extracció segura:
+  rebutja paths absoluts, `..`, symlinks, hardlinks, dispositius, duplicats i
+  límits de mida/fitxers, i verifica tots els digests contra el manifest),
+  `activate` (symlink `current` atòmic), `rollback` (release anterior elegible,
+  codi 3 quan no n'hi ha cap), `revoke` i `health`. La persona mantenidora les
+  executa amb `sudo`; la identitat de desplegament només pot arribar-hi a
+  través del forced command `ssh-gate.mjs` (tokenitza sense shell i valida tots
+  els arguments) i el daemon root (`mountain-release.service`), que revalida
+  cada petició per `/run/mountain-release.sock` i és l'únic escriptor de les
+  releases, del registre i del symlink actiu.
+- **Registre de releases** (`/var/lib/mountain-runners/releases.json`):
+  permanent, amb commit, digests, dates i estat (`eligible`/`active`/`revoked`);
+  les releases revocades mai no es reactiven.
+- **Polítiques públiques**: la política de privacitat descriu l'allotjament a
+  Hetzner i els registres del servidor (7 dies d'accés, 30 d'error).
+
+La reversió rutinària és interna (canvia el punter atòmic sense tocar DNS); la
+restauració dels registres web anteriors de Hostinger queda com a via
+extraordinària amb aprovació explícita, i la resposta d'emergència del runbook
+s'aplica quan no queda cap release elegible.
+
 ## CI Implementada
 
 GitHub Actions executa qualitat, E2E, Conventional Commits, detecció de secrets,
-revisió de dependències, CodeQL i el contracte d'artefacte de la T5.2. `pnpm
-validate` no executa Lighthouse; `pnpm lighthouse` és una auditoria manual
-separada.
+revisió de dependències, CodeQL, el contracte d'artefacte de la T5.2 i els
+tests de les eines del servidor (`pnpm test:server`). `pnpm validate` no
+executa Lighthouse; `pnpm lighthouse` és una auditoria manual separada.
 
 ## No Implementat
 
-Encara no hi ha workflow de desplegament, configuració Caddy, provisió de
-servidor, releases atòmiques, reversió, comprovacions de salut, runbook
-d'incidències ni previews. La fase 5 implementa producció i la fase 6 avalua i
-implementa els previews de manera separada. Només cal un ADR nou quan la
-implementació introdueixi o canviï una decisió arquitectònica; els detalls que
-apliquin la direcció acceptada continuen requerint una pull request revisada.
+Encara no hi ha workflow de desplegament ni tall de producció: el VPS no s'ha
+provisionat i el host de validació no s'ha posat en servei (accions remotes de
+la T5.3 pendents d'aprovació). Tampoc hi ha previews, que la fase 6 avalua i
+implementa de manera separada. Només cal un ADR nou quan la implementació
+introdueixi o canviï una decisió arquitectònica; els detalls que apliquin la
+direcció acceptada continuen requerint una pull request revisada.

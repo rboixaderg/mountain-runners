@@ -10,10 +10,12 @@ les normes de col·laboració. La sortida actual genera 66 rutes canòniques: 22
 català, 22 en castellà i 22 en anglès, a més dels recursos tècnics globals.
 
 La fase 4 es va completar el 16 d'agost de 2026 i el seu tancament és a `main`.
-La fase 5 ha completat la T5.1 (decisions i porta de llançament) i està
-implementant la T5.2 (contracte d'artefacte i controls de publicació); Caddy i
-el desplegament a producció encara no estan implementats. Els previews i la
-decisió sobre Cloudflare s'han separat a la fase 6.
+La fase 5 ha completat la T5.1 (decisions i porta de llançament) i la T5.2
+(contracte d'artefacte i controls de publicació), i està implementant la T5.3
+(servidor, Caddy, releases i reversió: configuració i eines a `tools/server/`,
+operació al [`runbook`](docs/runbook.md)). El VPS encara no està provisionat i
+el desplegament a producció no està actiu. Els previews i la decisió sobre
+Cloudflare s'han separat a la fase 6.
 
 ## Desenvolupament Local
 
