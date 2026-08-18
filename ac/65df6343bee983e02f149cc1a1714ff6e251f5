@@ -1,0 +1,31 @@
+apps/web/e2e/shell.spec.ts
+  s_d504453304c15f::t_1978d7e49dc002 728-731,735-750
+apps/web/messages/ca.json
+  s_d504453304c15f::t_e416886e4f1e6d 210
+apps/web/messages/en.json
+  s_d504453304c15f::t_523daf05f78e2d 210
+apps/web/messages/es.json
+  s_d504453304c15f::t_9d2d6e2e27ac1f 210
+apps/web/src/components/ExternalLink.astro
+  s_d504453304c15f::t_d82519e263363e 11,14-18,22
+apps/web/src/components/schools/SchoolRegistration.astro
+  s_d504453304c15f::t_98c0fe78d478fd 46
+apps/web/src/styles/school-detail.css
+  s_d504453304c15f::t_8d65884e58c4d0 247,281-282,285,290
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "ac65df6343bee983e02f149cc1a1714ff6e251f5",
+  "prompts": {},
+  "sessions": {
+    "s_d504453304c15f": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "0ccb5375-43b1-4d9b-a829-b7adbe961ef5",
+        "model": "unknown"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
