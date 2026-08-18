@@ -393,7 +393,23 @@
   }
 
   .site-header__cta {
-    padding-inline: 0.75rem 0.9rem;
+    padding-inline: 0.65rem 0.75rem;
+    font-size: 0.68rem;
+    letter-spacing: 0.08em;
+  }
+
+  .site-header__menu-toggle {
+    position: relative;
+    padding: 0.55rem;
+  }
+
+  .site-header__menu-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
   }
 }
 
