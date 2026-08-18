@@ -725,15 +725,29 @@ test("navigates from the schools hub to a published school detail", async ({
     schoolDetail.getByRole("heading", { level: 2, name: "Inscripció" }),
   ).toBeVisible();
   await expect(schoolDetail.getByText("Inscripció oberta")).toBeVisible();
-  await expect(
-    schoolDetail.getByRole("link", { name: /Consulta la inscripció/u }),
-  ).toHaveAttribute(
+  const registrationLink = schoolDetail.getByRole("link", {
+    name: "Inscriu-t'hi",
+  });
+  await expect(registrationLink).toHaveAttribute(
     "href",
     "https://mountainrunners.playoffinformatica.com/preinscripcio/5/Alta-Escola-Trail/",
   );
-  await expect(
-    schoolDetail.getByRole("link", { name: /Consulta la inscripció/u }),
-  ).toHaveAttribute("target", "_blank");
+  await expect(registrationLink).toHaveAttribute("target", "_blank");
+  await expect(registrationLink).not.toContainText("playoffinformatica");
+  const registrationLinkOverflow = await registrationLink.evaluate(
+    (element) => ({
+      clientWidth: element.clientWidth,
+      scrollWidth: element.scrollWidth,
+      right: element.getBoundingClientRect().right,
+      viewportWidth: document.documentElement.clientWidth,
+    }),
+  );
+  expect(registrationLinkOverflow.scrollWidth).toBeLessThanOrEqual(
+    registrationLinkOverflow.clientWidth,
+  );
+  expect(registrationLinkOverflow.right).toBeLessThanOrEqual(
+    registrationLinkOverflow.viewportWidth,
+  );
   await expect(
     schoolDetail.getByText("Uneix-te a la família Mountain Runners."),
   ).toBeVisible();

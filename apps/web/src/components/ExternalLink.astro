@@ -8,12 +8,17 @@ interface Props {
   className?: string;
   href: string;
   label: string;
+  showHost?: boolean;
 }
 
-const { className, href, label } = Astro.props;
+const { className, href, label, showHost = true } = Astro.props;
+let linkText = label;
+if (showHost) {
+  linkText = `${label} · ${getExternalHost(href)}`;
+}
 ---
 
 <a class={className} href={href} {...externalLinkAttributes}>
-  {label} · {getExternalHost(href)}{" "}
+  {linkText}{" "}
   <span aria-hidden="true">→</span>
 </a>
