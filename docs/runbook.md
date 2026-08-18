@@ -385,12 +385,13 @@ n'aprova el desplegament.
    per SSH; `restrict` impedeix scp/sftp) i comprova el SHA-256 retornat.
 6. `install` (extracció segura al servidor) i, immediatament abans d'activar,
    torna a comprovar el HEAD de `main`.
-7. `activate` (symlink atòmic). Una fallada abans d'aquest pas no mou el
-   punter actiu.
-8. `health` i smoke tests (`tools/server/verify/verify-site.mjs` amb
-   `--expect-noindex` mentre el host de validació és el destí). Si fallen,
-   el job executa `rollback` a la release elegible anterior; si no n'hi ha
-   cap, registra la resposta d'emergència (secció 6) i falla.
+7. Llegeix el commit actiu actual i fa `activate` (symlink atòmic). Una
+   fallada abans d'aquest pas no mou el punter actiu.
+8. Torna a comprovar el HEAD de `main`, després `health` i smoke tests
+   (`tools/server/verify/verify-site.mjs` amb `--expect-noindex` mentre el
+   host de validació és el destí). Si fallen, restaura el commit que era
+   actiu abans d'aquest `activate` (no un `rollback` genèric). Si no n'hi
+   havia cap, registra la resposta d'emergència (secció 6) i falla.
 
 Reexecutar el mateix commit és idempotent: si la release ja és activa, el job
 només revalida salut i smoke.
@@ -419,7 +420,8 @@ Una execució retardada del workflow `Artifact` d'un commit antic **no** és una
 reversió: es rebutja al pas 3 de la secció 7. Només aquest workflow (o
 `sudo mountain-release rollback` al servidor) pot moure el punter enrere.
 
-Després d'activar, executa els mateixos smoke tests. Una release revocada és
+Després d'activar, executa els mateixos smoke tests. Si fallen, restaura el
+commit que era actiu abans d'aquest rollback. Una release revocada és
 rebutjada pel daemon.
 
 ## 9. Seccions Pendents

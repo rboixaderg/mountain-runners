@@ -3,7 +3,8 @@
 // Verifies the local artifact, rejects a stale protected-branch head, stages
 // the archive through the deploy identity, installs, activates atomically and
 // runs smoke tests. A failure before activation leaves the live pointer
-// untouched. A failure after activation attempts the documented rollback.
+// untouched. A failure after activation restores the commit that was active
+// before this job, never an unrelated eligible release.
 
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
@@ -49,6 +50,7 @@ export async function deployRelease({
   await installRelease(transport, artifact.archiveFileName, candidateCommit);
   await rejectIfStale(candidateCommit, resolveHead);
 
+  const displacedCommit = await readActiveCommit(transport);
   const activated = await activateRelease(transport, candidateCommit);
   if (!activated.changedPointer) {
     await verifyLiveRelease(transport, smoke);
@@ -56,11 +58,16 @@ export async function deployRelease({
   }
 
   try {
+    await rejectIfStale(candidateCommit, resolveHead);
     await verifyLiveRelease(transport, smoke);
+    await rejectIfStale(candidateCommit, resolveHead);
   } catch (error) {
-    const rollbackSummary = await rollbackAfterFailure(transport);
+    const restoreSummary = await restoreDisplacedRelease(
+      transport,
+      displacedCommit,
+    );
     throw new Error(
-      `Activation succeeded but verification failed; ${rollbackSummary} ${error.message}`,
+      `Activation succeeded but verification failed; ${restoreSummary} ${error.message}`,
       { cause: error },
     );
   }
@@ -70,8 +77,11 @@ export async function deployRelease({
 
 export async function rollbackRelease({ commit, transport, smoke }) {
   const argument = commit === undefined ? "" : ` ${commit}`;
+  const displacedCommit = await readActiveCommit(transport);
+  let changedPointer = false;
   try {
     const message = await transport.run(`mountain-release rollback${argument}`);
+    changedPointer = true;
     await verifyLiveRelease(transport, smoke);
     return message;
   } catch (error) {
@@ -81,7 +91,17 @@ export async function rollbackRelease({ commit, transport, smoke }) {
         { cause: error },
       );
     }
-    throw error;
+    if (!changedPointer) {
+      throw error;
+    }
+    const restoreSummary = await restoreDisplacedRelease(
+      transport,
+      displacedCommit,
+    );
+    throw new Error(
+      `Rollback verification failed; ${restoreSummary} ${error.message}`,
+      { cause: error },
+    );
   }
 }
 
@@ -180,14 +200,22 @@ async function verifyLiveRelease(transport, smoke) {
   await smoke();
 }
 
-async function rollbackAfterFailure(transport) {
+async function readActiveCommit(transport) {
+  const listing = await transport.run("mountain-release list");
+  const match = /^active\s+([0-9a-f]{40})\b/mu.exec(listing);
+  return match?.[1];
+}
+
+async function restoreDisplacedRelease(transport, displacedCommit) {
+  if (displacedCommit === undefined) {
+    return "no previous release to restore; apply the emergency response defined in the runbook.";
+  }
   try {
-    const message = await transport.run("mountain-release rollback");
-    return `rolled back (${message}).`;
+    const message = await transport.run(
+      `mountain-release activate ${displacedCommit}`,
+    );
+    return `restored ${displacedCommit} (${message}).`;
   } catch (error) {
-    if (error instanceof RemoteCommandError && error.noEligible) {
-      return "rollback has no eligible release; apply the emergency response defined in the runbook.";
-    }
-    return `rollback failed: ${error.message}`;
+    return `restore of ${displacedCommit} failed: ${error.message}`;
   }
 }

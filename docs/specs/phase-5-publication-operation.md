@@ -220,12 +220,15 @@ continua protegit i no reconstrueix l'artefacte.
 El deploy i el rollback comparteixen exclusió mútua local i remota, amb
 `cancel-in-progress: false`, per impedir dues activacions parcials. Una fallada
 abans de canviar la release activa no altera producció; una fallada posterior
-executa o habilita la reversió documentada i registra l'estat.
+restaura el commit que era actiu abans d'activar, no una release elegible
+triada implícitament. Si no n'hi ha cap, registra la resposta d'emergència.
 
 Immediatament abans d'activar, el workflow comprova que el candidat continua
 sent el commit desitjat més recent de la branca protegida. Una execució retardada
 d'un commit anterior es rebutja i no es pot convertir implícitament en una
-reversió. Només el workflow protegit de rollback pot activar una release anterior.
+reversió. La comprovació es repeteix després d'activar; si el HEAD ha canviat,
+restaura el commit desplaçat. Només el workflow protegit de rollback pot
+activar una release anterior.
 
 ## Caddy, TLS, Logs I Reversió
 

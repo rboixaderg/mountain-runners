@@ -146,7 +146,8 @@ s'aplica quan no queda cap release elegible.
 
 - `deploy.mjs` verifica manifest i digests, rebutja un commit que ja no és el
   HEAD de `main`, transfereix amb `receive`, instal·la, activa i executa smoke
-  tests. Una fallada després d'activar executa `rollback`.
+  tests. Una fallada després d'activar restaura el commit que era actiu, no un
+  `rollback` genèric. La comprovació de HEAD es repeteix després d'activar.
 - `rollback.mjs` és l'única via automatitzada per activar una release anterior
   elegible, sense reconstruir.
 - L'entorn GitHub `production` (restringit a `main`, amb aprovació humana fins

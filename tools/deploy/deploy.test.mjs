@@ -1,8 +1,9 @@
 // Deploy and rollback orchestration (phase 5, task 5.4).
 //
 // Covers stale-head rejection, digest verification, failure before and after
-// activation, revoked releases, smoke tests and the protected workflow
-// contract without any production credentials.
+// activation, exact restoration of the displaced commit, revoked releases,
+// smoke tests and the protected workflow contract without any production
+// credentials.
 
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
@@ -114,11 +115,14 @@ function createMemoryTransport({ receiveSha256, commands: scripted } = {}) {
       if (typeof scriptedResult === "string") {
         return scriptedResult;
       }
+      if (command === "mountain-release list") {
+        return `active   ${previousCommit} build 2026-08-18 installed 2026-08-18T00:00:00.000Z`;
+      }
       if (command.startsWith("mountain-release install")) {
         return `Installed release ${testCommit} (1 files).`;
       }
-      if (command.startsWith("mountain-release activate")) {
-        return `Activated release ${testCommit}.`;
+      if (command.startsWith("mountain-release activate ")) {
+        return `Activated release ${command.slice("mountain-release activate ".length)}.`;
       }
       if (command === "mountain-release health") {
         return "Health: OK";
@@ -276,7 +280,7 @@ test("install failure leaves the live pointer unchanged", async () => {
   });
 });
 
-test("smoke failure after activation executes rollback", async () => {
+test("smoke failure after activation restores the displaced commit", async () => {
   await withArtifact(async (directory) => {
     const transport = createMemoryTransport();
     await assert.rejects(
@@ -290,20 +294,24 @@ test("smoke failure after activation executes rollback", async () => {
             throw new Error("smoke failed");
           },
         }),
-      /verification failed; rolled back/,
+      /verification failed; restored/,
     );
-    assert.equal(transport.commands.at(-1), "mountain-release rollback");
+    assert.equal(
+      transport.commands.at(-1),
+      `mountain-release activate ${previousCommit}`,
+    );
+    assert.equal(
+      transport.commands.includes("mountain-release rollback"),
+      false,
+    );
   });
 });
 
-test("smoke failure with no eligible release records the emergency response", async () => {
+test("smoke failure on a first release records the emergency response", async () => {
   await withArtifact(async (directory) => {
     const transport = createMemoryTransport({
       commands: {
-        "mountain-release rollback": new RemoteCommandError(
-          "No eligible release remains; apply the emergency response defined in the runbook.",
-          { status: 3, stdout: "", stderr: "No eligible release remains" },
-        ),
+        "mountain-release list": "No releases registered.",
       },
     });
     await assert.rejects(
@@ -317,7 +325,17 @@ test("smoke failure with no eligible release records the emergency response", as
             throw new Error("smoke failed");
           },
         }),
-      /no eligible release; apply the emergency response/,
+      /no previous release to restore; apply the emergency response/,
+    );
+    assert.equal(
+      transport.commands.includes("mountain-release rollback"),
+      false,
+    );
+    assert.equal(
+      transport.commands.filter((command) =>
+        command.startsWith("mountain-release activate"),
+      ).length,
+      1,
     );
   });
 });
@@ -342,6 +360,12 @@ test("an already-active candidate is verified and not rolled back", async () => 
     assert.match(message, /already active/);
     assert.equal(
       transport.commands.includes("mountain-release rollback"),
+      false,
+    );
+    assert.equal(
+      transport.commands.includes(
+        `mountain-release activate ${previousCommit}`,
+      ),
       false,
     );
     assert.equal(transport.commands.includes("mountain-release health"), true);
@@ -401,8 +425,52 @@ test("rollback rejects a revoked target and rolls back an eligible one", async (
     smoke: async () => {},
   });
   assert.match(message, /Rolled back/);
-  assert.equal(eligible.commands[0], "mountain-release rollback");
-  assert.equal(eligible.commands[1], "mountain-release health");
+  assert.equal(eligible.commands[0], "mountain-release list");
+  assert.equal(eligible.commands[1], "mountain-release rollback");
+  assert.equal(eligible.commands[2], "mountain-release health");
+});
+
+test("a head change after activation restores the displaced commit", async () => {
+  await withArtifact(async (directory) => {
+    const transport = createMemoryTransport();
+    await assert.rejects(
+      () =>
+        deployRelease({
+          artifactDirectory: directory,
+          candidateCommit: testCommit,
+          resolveHead: headSequence([testCommit, testCommit, newerCommit]),
+          transport,
+          smoke: async () => {},
+        }),
+      /stale commit/,
+    );
+    assert.equal(
+      transport.commands.at(-1),
+      `mountain-release activate ${previousCommit}`,
+    );
+  });
+});
+
+test("rollback smoke failure restores the displaced commit", async () => {
+  const transport = createMemoryTransport({
+    commands: {
+      "mountain-release list": `active   ${testCommit} build 2026-08-18 installed 2026-08-18T00:00:00.000Z`,
+    },
+  });
+  await assert.rejects(
+    () =>
+      rollbackRelease({
+        transport,
+        smoke: async () => {
+          throw new Error("rollback smoke failed");
+        },
+      }),
+    /Rollback verification failed; restored/,
+  );
+  assert.equal(
+    transport.commands.at(-1),
+    `mountain-release activate ${testCommit}`,
+  );
 });
 
 test("resolveProtectedHead uses the GitHub API and never puts the token in the URL", async () => {
