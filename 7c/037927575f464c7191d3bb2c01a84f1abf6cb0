@@ -1,0 +1,25 @@
+README.md
+  s_3744ef2fc8891a::t_3fad180142bea3 36
+apps/web/src/components/LanguageSelector.astro
+  s_3744ef2fc8891a::t_8c143b1a4fea7e 58
+docs/content-model.md
+  s_3744ef2fc8891a::t_d733b068fa335d 166
+docs/deployment.md
+  s_3744ef2fc8891a::t_3dc2bb6aca77b1 33
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "7c037927575f464c7191d3bb2c01a84f1abf6cb0",
+  "prompts": {},
+  "sessions": {
+    "s_3744ef2fc8891a": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "8a842d9d-ffc1-4433-88d1-7a6bcf3021a3",
+        "model": "unknown"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
