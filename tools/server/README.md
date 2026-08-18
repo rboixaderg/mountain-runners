@@ -1,4 +1,4 @@
-# Eines De Servidor (T5.3)
+# Eines De Servidor (T5.3 / T5.4)
 
 Aquest directori conté la provisió i les eines operatives de la T5.3 de
 [`docs/specs/phase-5-publication-operation.md`](../../docs/specs/phase-5-publication-operation.md).
@@ -14,7 +14,8 @@ Tota l'operació està documentada al
 | `caddy/Caddyfile.production`          | Host de producció, importat al tall (T5.5)                                           |
 | `release/`                            | CLI `mountain-release` i mòduls (instal·lació, activació, reversió)                  |
 | `release/daemon.mjs`                  | Daemon root (systemd) que executa les operacions per la identitat de desplegament    |
-| `release/ssh-gate.mjs`                | Forced command de la identitat de desplegament (tokenitza sense shell)               |
+| `release/ssh-gate.mjs`                | Forced command: tokenitza sense shell; `receive` escriu `incoming/`                  |
+| `release/receive.mjs`                 | Escriptura limitada i hashed de uploads a `incoming/`                                |
 | `release/validate.mjs`                | Validació d'arguments compartida entre el gate i el daemon                           |
 | `release/cli.test.mjs`                | Tests `node --test` amb arxius tar adversos i el daemon en marxa                     |
 | `systemd/mountain-release.service`    | Unitat del daemon (root, socket `/run/mountain-release.sock`)                        |
@@ -41,9 +42,9 @@ Tota l'operació està documentada al
 - **`mountain-deploy`**: usuari de sistema amb shell restringit (només el
   gate); la seva clau SSH està restringida a
   `command="/usr/local/bin/mountain-ssh-gate"` amb `restrict`, sense PTY ni
-  forwarding. No té cap accés privilegiat al filesystem ni `sudo`: el gate
-  tokenitza sense shell i el daemon valida els arguments i executa les
-  operacions com a `root`.
+  forwarding. No té cap accés privilegiat al filesystem ni `sudo`. El gate
+  accepta `receive` (escriu stdin a `incoming/`) i reenvia la resta d'ordres
+  al daemon, que valida els arguments i executa les operacions com a `root`.
 - **Daemon de releases**: servei systemd com a `root`; únic escriptor de les
   release trees, el registre i el symlink `current`.
 - **`caddy`**: usuari del paquet; només llegeix la release activa i escriu els

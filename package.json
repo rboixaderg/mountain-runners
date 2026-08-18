@@ -21,7 +21,7 @@
     "test": "pnpm --filter @mountain-runners/web test",
     "test:a11y": "PUBLIC_SITE_ORIGIN=https://mountainrunners.cat BUILD_TODAY=2026-08-04 pnpm build && playwright test --grep @a11y",
     "test:e2e": "PUBLIC_SITE_ORIGIN=https://mountainrunners.cat BUILD_TODAY=2026-08-04 pnpm build && playwright test",
-    "test:server": "node --test \"tools/server/release/*.test.mjs\"",
+    "test:server": "node --test \"tools/server/release/*.test.mjs\" \"tools/deploy/*.test.mjs\"",
     "typecheck": "pnpm --filter @mountain-runners/web typecheck",
     "validate": "pnpm check && pnpm test:e2e"
   },

@@ -40,7 +40,7 @@ export async function performInstall(archivePath, manifestPath) {
   const manifest = await loadAndValidateManifest(manifestPath);
   const archiveBuffer = readFileBounded(
     archivePath,
-    2 * approvedLimits.maxExpandedBytes,
+    approvedLimits.maxArchiveBytes,
   );
   const archiveSha256 = sha256OfBuffer(archiveBuffer);
   const archiveEntries = listArchiveEntries(archiveBuffer);
@@ -158,7 +158,7 @@ export function performList() {
     .map((entry) => {
       const reason =
         entry.status === "revoked" ? ` (${entry.revokedReason})` : "";
-      return `${entry.status.padEnd(8)} ${entry.commit.slice(0, 12)} build ${entry.buildToday} installed ${entry.installedAt}${reason}`;
+      return `${entry.status.padEnd(8)} ${entry.commit} build ${entry.buildToday} installed ${entry.installedAt}${reason}`;
     })
     .join("\n");
 }

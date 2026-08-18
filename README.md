@@ -10,12 +10,11 @@ les normes de col·laboració. La sortida actual genera 66 rutes canòniques: 22
 català, 22 en castellà i 22 en anglès, a més dels recursos tècnics globals.
 
 La fase 4 es va completar el 16 d'agost de 2026 i el seu tancament és a `main`.
-La fase 5 ha completat la T5.1 (decisions i porta de llançament) i la T5.2
-(contracte d'artefacte i controls de publicació), i està implementant la T5.3
-(servidor, Caddy, releases i reversió: configuració i eines a `tools/server/`,
-operació al [`runbook`](docs/runbook.md)). El VPS encara no està provisionat i
-el desplegament a producció no està actiu. Els previews i la decisió sobre
-Cloudflare s'han separat a la fase 6.
+La fase 5 ha completat la T5.1 (decisions i porta de llançament), la T5.2
+(contracte d'artefacte) i la T5.3 (servidor, Caddy, releases i reversió), i
+està implementant la T5.4 (desplegament continu des de `main`). El VPS encara
+no està provisionat i el primer tall públic és la T5.5. Els previews i la
+decisió sobre Cloudflare s'han separat a la fase 6.
 
 ## Desenvolupament Local
 
@@ -46,8 +45,8 @@ representatives contra els llindars i pressupostos configurats.
 
 - Web estàtica: Astro, TypeScript i Content Collections amb Zod.
 - Font de veritat: contingut estructurat i versionat a Git.
-- Allotjament acceptat però encara no implementat: un VPS modest darrere de
-  Caddy.
+- Allotjament: VPS de Hetzner darrere de Caddy, amb desplegament continu des
+  de `main` (T5.4); el tall públic és la T5.5.
 - Xat públic: servei Hono separat, de només lectura, previst per a una fase
   posterior.
 - Assistent editorial futur: flux privat i controlat que crea branques, valida

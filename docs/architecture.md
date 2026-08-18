@@ -15,18 +15,15 @@ validats. Les dades de contacte es mostren al prepeu compartit i a les pàgines
 legals; la pàgina de Contacte creada a la fase 3 es va retirar a la T4.4.
 
 La CI valida qualitat, E2E, commits, secrets, dependències i anàlisi estàtica.
-El workflow `Artifact` (T5.2) construeix i verifica l'artefacte de producció
-(manifest amb SHA-256, empaquetat de fitxers regulars i reproductibilitat) a
-cada push a `main` i el puja com a artifact del run, sense secrets ni
-desplegament. La T5.3 ha preparat la configuració i les eines del servidor —
-`tools/server/` — (Caddyfile validat amb headers, caché, 404 i logs mínims,
-bootstrap reproduïble i CLI de releases amb extracció segura, activació
-atòmica, revocació i reversió). El diagrama viu de la configuració del VPS
-(identitats, Caddy, gate, daemon i layout) és a
+El workflow `Artifact` (T5.2/T5.4) construeix i verifica l'artefacte de
+producció a cada push a `main` i el job de desplegament, en el mateix run,
+transfereix aquest artefacte a l'entorn GitHub `production` (restringit a
+`main`, sense secrets al job de build). La T5.3 ha preparat la configuració i
+les eines del servidor — `tools/server/` — (Caddyfile, bootstrap, CLI de
+releases i gate SSH). El diagrama viu de la configuració del VPS és a
 [`docs/runbook.md`](runbook.md#arquitectura-del-servidor). Lighthouse continua
-sent una auditoria manual. Encara no existeixen previews de pull request ni
-automatització de desplegament (T5.4), ni cap servei Hono; el tall de l'apex
-és la T5.5.
+sent una auditoria manual. Encara no existeixen previews de pull request ni el
+tall de l'apex (T5.5), ni cap servei Hono.
 
 ## Direcció Acceptada
 
@@ -42,13 +39,13 @@ d'aplicació renderitzat al servidor.
 
 ## Límits De L'Arquitectura
 
-| Àrea                | Responsabilitat                               | Límit                                                                                                                 |
-| ------------------- | --------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
-| Web estàtica        | Renderitzar contingut editorial publicat      | El build d'Astro no conté secrets                                                                                     |
-| Contingut           | Pàgines estructurades i dades de l'associació | Versionat a Git i revisat per pull request                                                                            |
-| Xat públic          | Respondre preguntes sobre contingut publicat  | API Hono separada, de només lectura i sense accés editorial                                                           |
-| Assistent editorial | Preparar canvis de contingut                  | Flux privat de branca, validació i pull request                                                                       |
-| Allotjament         | Servir la web estàtica i serveis aïllats      | Caddy i releases preparats (T5.3); desplegament i tall a T5.4/T5.5; sense desplegament des d'una sessió local d'agent |
+| Àrea                | Responsabilitat                               | Límit                                                                                                                              |
+| ------------------- | --------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| Web estàtica        | Renderitzar contingut editorial publicat      | El build d'Astro no conté secrets                                                                                                  |
+| Contingut           | Pàgines estructurades i dades de l'associació | Versionat a Git i revisat per pull request                                                                                         |
+| Xat públic          | Respondre preguntes sobre contingut publicat  | API Hono separada, de només lectura i sense accés editorial                                                                        |
+| Assistent editorial | Preparar canvis de contingut                  | Flux privat de branca, validació i pull request                                                                                    |
+| Allotjament         | Servir la web estàtica i serveis aïllats      | Caddy i releases (T5.3); desplegament continu des de `main` (T5.4); tall a T5.5; sense desplegament des d'una sessió local d'agent |
 
 ## Estructura De Pàgines I Presentació
 
@@ -82,7 +79,7 @@ formen part del disseny inicial.
 
 - Servei de xat Hono i generador d'índex.
 - Integració amb Telegram, Discord o Hermes.
-- Desplegament continu i tall de producció (T5.4/T5.5) sobre el VPS preparat.
+- Tall de l'apex i retirada del gate d'aprovació (T5.5).
 - Previews, dominis efímers i possible integració amb Cloudflare fins a definir
   i implementar la fase 6.
 

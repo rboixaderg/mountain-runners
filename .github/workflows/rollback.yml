@@ -1,0 +1,48 @@
+name: Rollback production
+
+on:
+  workflow_dispatch:
+    inputs:
+      commit:
+        description: Eligible release commit (40-character SHA-1). Empty selects the previous eligible release.
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production-release
+  cancel-in-progress: false
+
+jobs:
+  rollback:
+    name: Roll back production
+    if: github.ref == 'refs/heads/main' && github.event.repository.fork == false
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment:
+      name: production
+      url: ${{ vars.SMOKE_BASE_URL }}
+    permissions:
+      contents: read
+      deployments: write
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .node-version
+      - name: Activate the previous eligible release
+        env:
+          ROLLBACK_COMMIT: ${{ inputs.commit }}
+          DEPLOY_HOST: ${{ vars.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ vars.DEPLOY_USER }}
+          DEPLOY_SSH_PRIVATE_KEY: ${{ secrets.DEPLOY_SSH_PRIVATE_KEY }}
+          DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+          SMOKE_BASE_URL: ${{ vars.SMOKE_BASE_URL }}
+          SMOKE_EXPECT_NOINDEX: "true"
+        run: node tools/deploy/rollback.mjs

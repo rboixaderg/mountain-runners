@@ -6,8 +6,8 @@ Aquest runbook descriu l'operació mínima de producció de Mountain Runners:
 servidor, TLS, logs, salut, desplegament, reversió i resposta a incidències.
 Les seccions de servidor, TLS, logs, salut i reversió corresponen a la T5.3 de
 [`docs/specs/phase-5-publication-operation.md`](specs/phase-5-publication-operation.md).
-La T5.4 afegeix les seccions del workflow de desplegament i la T5.5 consolida el
-document amb el tall i el període d'observació.
+Les seccions de desplegament continu i workflow de rollback corresponen a la
+T5.4. La T5.5 consolida el document amb el tall i el període d'observació.
 
 Cap acció remota (crear el VPS, registres DNS, claus SSH, secrets o activacions)
 no s'executa sense l'aprovació explícita de la persona mantenidora. Cap agent,
@@ -32,12 +32,12 @@ Hetzner només ha d'obrir 22, 80 i 443.
 
 ### Identitats
 
-| Identitat           | Rol                                                                                                             |
-| ------------------- | --------------------------------------------------------------------------------------------------------------- |
-| Persona mantenidora | Usuari administratiu no `root` amb `sudo` (accés per SSH amb clau; host key verificat)                          |
-| `mountain-deploy`   | Usuari de sistema amb shell restringit (només el gate); clau SSH amb `command="mountain-ssh-gate"` i `restrict` |
-| Daemon de releases  | Servei systemd com a `root` (`mountain-release.service`); únic escriptor de releases, registre i `current`      |
-| `caddy`             | Usuari del paquet; només llegeix la release activa i escriu els logs                                            |
+| Identitat           | Rol                                                                                                                              |
+| ------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| Persona mantenidora | Usuari administratiu no `root` amb `sudo` (accés per SSH amb clau; host key verificat)                                           |
+| `mountain-deploy`   | Usuari de sistema amb shell restringit (gate + `receive` a `incoming/`); clau SSH amb `command="mountain-ssh-gate"` i `restrict` |
+| Daemon de releases  | Servei systemd com a `root` (`mountain-release.service`); únic escriptor de releases, registre i `current`                       |
+| `caddy`             | Usuari del paquet; només llegeix la release activa i escriu els logs                                                             |
 
 La clau de desplegament es fixa a
 `/var/lib/mountain-runners/.ssh/authorized_keys` amb `restrict`, sense PTY ni
@@ -63,6 +63,7 @@ flowchart TB
   subgraph Fora["Fora del VPS"]
     Visitant["Visitant HTTPS"]
     Mantenidora["Persona mantenidora"]
+    Actions["GitHub Actions (main)"]
     DeployKey["Clau mountain-deploy"]
   end
 
@@ -86,6 +87,7 @@ flowchart TB
   Caddy --> Logs
   Caddyfile -.->|"config; el daemon no hi escriu"| Caddy
   Mantenidora -->|"SSH admin + sudo"| sshd
+  Actions -->|"SSH receive + mountain-release"| DeployKey
   DeployKey -->|"SSH forced command"| sshd
   sshd --> Gate
   Gate --> Sock
@@ -107,8 +109,8 @@ sequenceDiagram
   participant FS as /var/lib/mountain-runners
   participant Caddy as Caddy
 
-  Deploy->>Gate: SSH command restringit
-  Note over Gate: tokenitza sense shell
+  Deploy->>Gate: SSH receive (stdin) / mountain-release
+  Note over Gate: tokenitza sense shell; receive escriu incoming/
   Gate->>Daemon: Unix socket
   Note over Daemon: revalida arguments com a root
   Daemon->>FS: install / activate / rollback / revoke
@@ -250,8 +252,9 @@ immediata: no s'activa cap release nova fins a resoldre'l.
 
 ### Instal·lació I Activació
 
-L'artefacte i el manifest els genera el workflow d'artefacte (T5.2). Es pugen a
-`/var/lib/mountain-runners/incoming/` i s'instal·len:
+L'artefacte i el manifest els genera el workflow `Artifact` (T5.2). El job de
+desplegament (T5.4) els transfereix amb `mountain-release receive` a
+`incoming/` i els instal·la. La persona mantenidora pot fer el mateix a mà:
 
 ```sh
 sudo mountain-release install <arxiu.tar.gz> <manifest.json>
@@ -323,9 +326,104 @@ Quan `mountain-release rollback` informa que no queda cap release elegible
 Prohibicions permanents: reconstruir al servidor, editar fitxers de la release
 a mà, reactivar una release revocada i editar `releases.json` manualment.
 
-## 7. Seccions Pendents
+## 7. Desplegament Continu Des De `main`
 
-- **Desplegament continu des de `main`** (T5.4): workflow protegit, secret de
-  mínim privilegi, smoke tests i workflow de rollback.
-- **Tall i operació de producció** (T5.5): canvis DNS, primer tall, període
-  d'observació i consolidació d'aquest runbook.
+El workflow `Artifact` construeix i valida l'artefacte (T5.2) i, al mateix run,
+el job `Deploy to production` transfereix **el mateix** paquet al VPS. El job
+de build no té `environment` ni secrets de producció. Només el job de
+desplegament llegeix els secrets de l'entorn `production`.
+
+### Entorn GitHub `production`
+
+La persona mantenidora crea l'entorn (Settings → Environments) **abans** de la
+primera activació. Configuració requerida, sense valors secrets en aquest
+document:
+
+| Control             | Valor                                                       |
+| ------------------- | ----------------------------------------------------------- |
+| Nom                 | `production`                                                |
+| Deployment branches | només `main`                                                |
+| Required reviewers  | la persona mantenidora, fins que la T5.5 retiri aquest gate |
+| Wait timer          | 0                                                           |
+
+Variables d'entorn (Settings → Environments → `production` → Environment
+variables):
+
+| Nom              | Contingut                                                    |
+| ---------------- | ------------------------------------------------------------ |
+| `DEPLOY_HOST`    | hostname SSH del VPS (host de validació fins a T5.5)         |
+| `DEPLOY_USER`    | `mountain-deploy` (opcional; aquest és el valor per defecte) |
+| `SMOKE_BASE_URL` | `https://<host de validació>`                                |
+
+Secrets d'entorn:
+
+| Nom                      | Contingut                                            |
+| ------------------------ | ---------------------------------------------------- |
+| `DEPLOY_SSH_PRIVATE_KEY` | clau privada de la identitat `mountain-deploy`       |
+| `DEPLOY_KNOWN_HOSTS`     | línia `known_hosts` amb el fingerprint SSH verificat |
+
+Aquests secrets no es comparteixen amb previews (fase 6) ni amb el job de
+build. El workflow no desplega des de forks ni des de branques diferents de
+`main`.
+
+La primera execució queda a l'espera de l'aprovació de l'entorn. No s'aprova
+fins que el VPS estigui bootstrapjat, la clau de desplegament instal·lada i el
+host de validació resolgui. Cap agent ni sessió local no configura l'entorn ni
+n'aprova el desplegament.
+
+### Flux
+
+1. Push (o `workflow_dispatch`) a `main` → jobs `build` i `reproducibility`
+   sense secrets.
+2. El job `deploy` espera l'aprovació de `production` i ocupa el grup de
+   concurrència `production-release` (`cancel-in-progress: false`).
+3. `tools/deploy/deploy.mjs` comprova que `github.sha` encara és el HEAD de
+   `main`; si no, rebutja l'execució (no és una reversió).
+4. Verifica el manifest i l'arxiu localment (commit, origen, llista de
+   fitxers).
+5. Transfereix l'arxiu i el manifest amb `mountain-release receive` (stdin
+   per SSH; `restrict` impedeix scp/sftp) i comprova el SHA-256 retornat.
+6. `install` (extracció segura al servidor) i, immediatament abans d'activar,
+   torna a comprovar el HEAD de `main`.
+7. `activate` (symlink atòmic). Una fallada abans d'aquest pas no mou el
+   punter actiu.
+8. `health` i smoke tests (`tools/server/verify/verify-site.mjs` amb
+   `--expect-noindex` mentre el host de validació és el destí). Si fallen,
+   el job executa `rollback` a la release elegible anterior; si no n'hi ha
+   cap, registra la resposta d'emergència (secció 6) i falla.
+
+Reexecutar el mateix commit és idempotent: si la release ja és activa, el job
+només revalida salut i smoke.
+
+### Smoke Tests
+
+Fins al tall (T5.5) els smoke tests es fan contra el host de validació, amb
+`--expect-noindex`. La T5.5 canviarà `SMOKE_BASE_URL` i retirarà
+`SMOKE_EXPECT_NOINDEX` quan l'apex sigui el destí.
+
+```sh
+node tools/server/verify/verify-site.mjs \
+  --base-url "$SMOKE_BASE_URL" \
+  --expect-noindex
+```
+
+## 8. Reversió Des Del Workflow
+
+El workflow `Rollback production` (`.github/workflows/rollback.yml`) és
+`workflow_dispatch` sobre `main`, amb el mateix entorn `production` i el
+mateix grup de concurrència. No reconstrueix. L'input opcional `commit` ha de
+ser un SHA-1 de 40 caràcters d'una release **elegible**; buit selecciona la
+release elegible anterior.
+
+Una execució retardada del workflow `Artifact` d'un commit antic **no** és una
+reversió: es rebutja al pas 3 de la secció 7. Només aquest workflow (o
+`sudo mountain-release rollback` al servidor) pot moure el punter enrere.
+
+Després d'activar, executa els mateixos smoke tests. Una release revocada és
+rebutjada pel daemon.
+
+## 9. Seccions Pendents
+
+- **Tall i operació de producció** (T5.5): canvis DNS, primer tall, retirada
+  del gate d'aprovació de l'entorn `production` un cop superat el període
+  d'observació, i consolidació d'aquest runbook.
