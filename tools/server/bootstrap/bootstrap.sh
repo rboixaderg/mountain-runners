@@ -139,6 +139,7 @@ install -m 0644 -o root -g root \
   "${TOOL_ROOT}/release/registry.mjs" \
   "${TOOL_ROOT}/release/validate.mjs" \
   "${TOOL_ROOT}/release/operations.mjs" \
+  "${TOOL_ROOT}/release/receive.mjs" \
   "${TOOL_ROOT}/release/daemon.mjs" \
   "${TOOL_ROOT}/release/cli.mjs" \
   "${TOOL_ROOT}/release/ssh-gate.mjs" \
@@ -261,8 +262,8 @@ Bootstrap completed.
 Next steps (all require maintainer approval; see docs/runbook.md):
 1. Confirm the validation record ${VALIDATION_HOST} resolves to this VPS and
    that HTTP/HTTPS reach Caddy through the firewall.
-2. Obtain the release artifact and manifest from the Artifact workflow
-   (T5.2), upload them to ${RELEASE_ROOT}/incoming/ and run:
+2. Create the GitHub `production` environment (T5.4) and approve the Artifact
+   deploy job, or install a release by hand:
      sudo mountain-release install <archive> <manifest>
      sudo mountain-release activate <commit>
 3. Run the verification script against https://${VALIDATION_HOST}:

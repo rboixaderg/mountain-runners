@@ -2,10 +2,10 @@
 
 ## Estat Actual
 
-El repositori disposa de CI de qualitat i seguretat, però no de desplegament.
-La fase 5 ha d'implementar la publicació a producció d'aquest document segons
-[`docs/specs/phase-5-publication-operation.md`](specs/phase-5-publication-operation.md).
-Els previews de pull request i la decisió sobre Cloudflare corresponen a la
+El repositori disposa de CI de qualitat, seguretat, contracte d'artefacte i
+desplegament continu protegit des de `main`. El VPS i l'entorn GitHub
+`production` encara no s'han activat; el tall de l'apex és la T5.5. Els
+previews de pull request i la decisió sobre Cloudflare corresponen a la
 [`fase 6`](specs/phase-6-pull-request-previews.md) i no bloquegen producció.
 
 ## Destí
@@ -42,8 +42,9 @@ de desplegament separades.
 
 `tools/release/build-artifact.mjs` és el contracte reutilitzable de la T5.2:
 construeix la web, verifica la superfície canònica de sortida, registra un
-manifest immutable i empaqueta només fitxers regulars amb paths relatius. No
-desplega res: la transferència i l'activació són de la T5.3/T5.4.
+manifest immutable i empaqueta només fitxers regulars amb paths relatius. El
+job de desplegament de la T5.4 transfereix aquest paquet; no es reconstrueix
+al servidor.
 
 Ordre d'execució (a CI o manualment):
 
@@ -79,17 +80,23 @@ sobreescriure amb qualsevol `YYYY-MM-DD` per reproduir un manifest anterior;
 El workflow `Artifact` (`.github/workflows/artifact.yml`) executa el contracte
 a cada push a `main` i de forma manual, amb `BUILD_TODAY` resolt a la data de
 Madrid, i puja el paquet i el manifest com a artefacte del run (retenció de 30
-dies) sense accedir a cap secret. El job de reproductibilitat valida la
-determinisme del build.
+dies). El job de build no accedeix a cap secret. El job `Deploy to production`
+del mateix workflow, darrere de l'entorn GitHub `production` restringit a
+`main`, descarrega aquest artefacte, en verifica manifest i digests, el
+transfereix amb `mountain-release receive`, l'instal·la i l'activa, i executa
+els smoke tests. El workflow `Rollback production` reverteix sense reconstruir.
+Tots dos comparteixen el grup de concurrència `production-release` amb
+`cancel-in-progress: false`. L'operació completa és a
+[`docs/runbook.md`](runbook.md).
 
 Límits coneguts del contracte (no bloquejants a la T5.2): l'arxiu es verifica
-per llista de noms, no re-digestint el contingut extret (la verificació de
-digests després de transferir és del job de desplegament de la T5.4); la
-reproductibilitat s'executa sobre dos builds calents del mateix runner (el
-store de pnpm persisteix); els enllaços absoluts es validen només
-estructuralment, amb qualsevol protocol, i es revisen remotament al gate de
-llançament; i la cobertura d'enllaços és `href`, `src`, `srcset` i `url()` de
-CSS, no atributs JS dinàmics.
+per llista de noms al build; el job de desplegament re-verifica el digest de
+l'arxiu després de `receive` i el daemon re-verifica cada fitxer extret contra
+el manifest. La reproductibilitat s'executa sobre dos builds calents del
+mateix runner (el store de pnpm persisteix); els enllaços absoluts es validen
+només estructuralment, amb qualsevol protocol, i es revisen remotament al gate
+de llançament; i la cobertura d'enllaços és `href`, `src`, `srcset` i `url()`
+de CSS, no atributs JS dinàmics.
 
 ## Servidor I Releases (T5.3)
 
@@ -133,18 +140,37 @@ restauració dels registres web anteriors de Hostinger queda com a via
 extraordinària amb aprovació explícita, i la resposta d'emergència del runbook
 s'aplica quan no queda cap release elegible.
 
+## Desplegament Continu (T5.4)
+
+`tools/deploy/` orquestra el pas de l'artefacte de CI al VPS:
+
+- `deploy.mjs` verifica manifest i digests, rebutja un commit que ja no és el
+  HEAD de `main`, transfereix amb `receive`, instal·la, activa i executa smoke
+  tests. Una fallada després d'activar restaura el commit que era actiu, no un
+  `rollback` genèric. La comprovació de HEAD es repeteix després d'activar.
+- `rollback.mjs` és l'única via automatitzada per activar una release anterior
+  elegible, sense reconstruir.
+- L'entorn GitHub `production` (restringit a `main`, amb aprovació humana fins
+  a la T5.5) és l'únic lloc on viuen `DEPLOY_SSH_PRIVATE_KEY` i
+  `DEPLOY_KNOWN_HOSTS`. El job de build no els llegeix i no es comparteixen amb
+  la futura infraestructura de previews.
+
+L'operació, els noms de secrets i el procediment d'aprovació són a
+[`docs/runbook.md`](runbook.md).
+
 ## CI Implementada
 
 GitHub Actions executa qualitat, E2E, Conventional Commits, detecció de secrets,
-revisió de dependències, CodeQL, el contracte d'artefacte de la T5.2 i els
-tests de les eines del servidor (`pnpm test:server`). `pnpm validate` no
-executa Lighthouse; `pnpm lighthouse` és una auditoria manual separada.
+revisió de dependències, CodeQL, el contracte d'artefacte de la T5.2, el
+desplegament continu i el rollback de la T5.4, i els tests de les eines del
+servidor (`pnpm test:server`). `pnpm validate` no executa Lighthouse;
+`pnpm lighthouse` és una auditoria manual separada.
 
 ## No Implementat
 
-Encara no hi ha workflow de desplegament ni tall de producció: el VPS no s'ha
-provisionat i el host de validació no s'ha posat en servei (accions remotes de
-la T5.3 pendents d'aprovació). Tampoc hi ha previews, que la fase 6 avalua i
-implementa de manera separada. Només cal un ADR nou quan la implementació
-introdueixi o canviï una decisió arquitectònica; els detalls que apliquin la
-direcció acceptada continuen requerint una pull request revisada.
+El VPS i el host de validació encara no s'han posat en servei (accions remotes
+de la T5.3 pendents d'aprovació) i l'entorn GitHub `production` encara no està
+creat. El tall de l'apex és la T5.5. Tampoc hi ha previews, que la fase 6
+avalua i implementa de manera separada. Només cal un ADR nou quan la
+implementació introdueixi o canviï una decisió arquitectònica; els detalls que
+apliquin la direcció acceptada continuen requerint una pull request revisada.

@@ -16,6 +16,8 @@ export const approvedLimits = Object.freeze({
   // Approved in T5.2: measured build is 149 files and ~21 MB expanded.
   maxExpandedBytes: 134_217_728, // 128 MiB
   maxFileCount: 5_000,
+  // Compressed archive ceiling used by install and by the SSH receive path.
+  maxArchiveBytes: 268_435_456, // 256 MiB
 });
 
 export function releaseRoot() {

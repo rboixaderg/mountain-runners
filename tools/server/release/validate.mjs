@@ -8,6 +8,8 @@ import { releasePaths } from "./config.mjs";
 
 export const commitPattern = /^[0-9a-f]{40}$/u;
 export const reasonPattern = /^[\p{L}\p{N} ,._:/-]{1,200}$/u;
+export const incomingFileNamePattern =
+  /^[A-Za-z0-9][A-Za-z0-9._-]*\.(?:tar\.gz|json)$/u;
 
 const allowedCommands = new Set([
   "install",
@@ -77,7 +79,21 @@ export function validateArgs(command, tokens) {
   throw new Error(`Unknown command: ${command}.`);
 }
 
+export function assertIncomingFileName(fileName) {
+  if (
+    fileName.includes("/") ||
+    fileName.includes("\\") ||
+    fileName.includes("..") ||
+    !incomingFileNamePattern.test(fileName)
+  ) {
+    throw new Error(
+      `The upload path must live inside the incoming directory: ${fileName}.`,
+    );
+  }
+}
+
 export function incomingPath(argument) {
+  assertIncomingFileName(argument);
   const { incomingDirectory } = releasePaths();
   const resolved = resolve(incomingDirectory, argument);
   const incomingPrefix = `${resolve(incomingDirectory)}${"/"}`;

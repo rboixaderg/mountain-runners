@@ -96,8 +96,8 @@ conversa o procediment corresponent.
 | -------------------------------------------- | ---------- | ----------------- | ------------------------------------------- | ------ |
 | T5.1 Decisions i porta de llançament         | Completada | Fase 4 completada | Decisions, riscos i responsables confirmats | PR #76 |
 | T5.2 Artefacte i controls de publicació      | Completada | T5.1              | Artefacte CI complet i verificat            | PR #77 |
-| T5.3 VPS, Caddy, releases i reversió         | Pendent    | T5.2              | Servidor TLS preparat i reversió comprovada | PR #79 |
-| T5.4 Desplegament continu des de `main`      | Pendent    | T5.2 i T5.3       | Workflow protegit amb smoke tests           | -      |
+| T5.3 VPS, Caddy, releases i reversió         | Completada | T5.2              | Servidor TLS preparat i reversió comprovada | PR #79 |
+| T5.4 Desplegament continu des de `main`      | En curs    | T5.2 i T5.3       | Workflow protegit amb smoke tests           | PR #84 |
 | T5.5 Tall, validació i operació de producció | Pendent    | T5.4              | Web pública i runbook verificats            | -      |
 
 ### T5.1: Decisions I Porta De Llançament
@@ -220,12 +220,15 @@ continua protegit i no reconstrueix l'artefacte.
 El deploy i el rollback comparteixen exclusió mútua local i remota, amb
 `cancel-in-progress: false`, per impedir dues activacions parcials. Una fallada
 abans de canviar la release activa no altera producció; una fallada posterior
-executa o habilita la reversió documentada i registra l'estat.
+restaura el commit que era actiu abans d'activar, no una release elegible
+triada implícitament. Si no n'hi ha cap, registra la resposta d'emergència.
 
 Immediatament abans d'activar, el workflow comprova que el candidat continua
 sent el commit desitjat més recent de la branca protegida. Una execució retardada
 d'un commit anterior es rebutja i no es pot convertir implícitament en una
-reversió. Només el workflow protegit de rollback pot activar una release anterior.
+reversió. La comprovació es repeteix després d'activar; si el HEAD ha canviat,
+restaura el commit desplaçat. Només el workflow protegit de rollback pot
+activar una release anterior.
 
 ## Caddy, TLS, Logs I Reversió
 
