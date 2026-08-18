@@ -110,6 +110,9 @@ if ! id mountain-deploy >/dev/null 2>&1; then
     --shell "${RELEASE_LIB}/deploy-shell" mountain-deploy
   log "Created system user mountain-deploy (gate-only shell)."
 fi
+# useradd --system locks the password with '!'; Ubuntu sshd then rejects
+# publickey. '*' disables password login without locking the account.
+usermod -p '*' mountain-deploy
 
 # --- release layout ---------------------------------------------------------
 # The root daemon owns everything under the release root; the deploy identity
@@ -158,6 +161,9 @@ exec /usr/local/bin/mountain-ssh-gate
 EOF
 chown root:root "${RELEASE_LIB}/deploy-shell"
 chmod 0755 "${RELEASE_LIB}/deploy-shell"
+if ! grep -Fx "${RELEASE_LIB}/deploy-shell" /etc/shells >/dev/null 2>&1; then
+  echo "${RELEASE_LIB}/deploy-shell" >> /etc/shells
+fi
 
 # --- Caddyfile ---------------------------------------------------------------
 
@@ -212,10 +218,16 @@ if [[ -n "${DEPLOY_PUBLIC_KEY}" ]]; then
   mkdir -p "${RELEASE_ROOT}/.ssh"
   printf 'restrict,no-pty,no-port-forwarding,no-agent-forwarding,no-X11-forwarding,command="/usr/local/bin/mountain-ssh-gate" %s\n' \
     "${DEPLOY_PUBLIC_KEY}" > "${RELEASE_ROOT}/.ssh/authorized_keys"
-  # Root-owned so the deploy identity cannot alter its own key or command.
+fi
+# Root-owned so the deploy identity cannot replace the forced command.
+# Traversable/readable by the user: Ubuntu 26 sshd-session reads
+# authorized_keys as mountain-deploy, not as root.
+if [[ -d "${RELEASE_ROOT}/.ssh" ]]; then
   chown -R root:root "${RELEASE_ROOT}/.ssh"
-  chmod 700 "${RELEASE_ROOT}/.ssh"
-  chmod 600 "${RELEASE_ROOT}/.ssh/authorized_keys"
+  chmod 755 "${RELEASE_ROOT}/.ssh"
+  if [[ -f "${RELEASE_ROOT}/.ssh/authorized_keys" ]]; then
+    chmod 644 "${RELEASE_ROOT}/.ssh/authorized_keys"
+  fi
 fi
 
 # --- sshd hardening (key-only authentication) --------------------------------

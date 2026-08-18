@@ -24,7 +24,11 @@ import {
   resolveProtectedHead,
   StaleCommitError,
 } from "./protected-branch.mjs";
-import { parseReceiveMessage, RemoteCommandError } from "./ssh.mjs";
+import {
+  parseReceiveMessage,
+  RemoteCommandError,
+  createSshTransport,
+} from "./ssh.mjs";
 
 const toolDirectory = dirname(fileURLToPath(import.meta.url));
 const repositoryRoot = join(toolDirectory, "../..");
@@ -510,6 +514,34 @@ test("parseReceiveMessage requires the reported digest", () => {
     () => parseReceiveMessage("ok", "manifest.json"),
     /did not return a digest/,
   );
+});
+
+test("receive reports ssh stderr when the remote closes during upload", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "mountain-ssh-epipe-"));
+  const fakeSsh = join(directory, "ssh");
+  try {
+    await writeFile(
+      fakeSsh,
+      `#!/bin/sh\nprintf '%s\\n' "Host key verification failed." >&2\nexit 255\n`,
+      { mode: 0o755 },
+    );
+    const transport = createSshTransport({
+      host: "203.0.113.10",
+      privateKey: "test-key\n",
+      knownHosts: "203.0.113.10 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAItest\n",
+      sshCommand: fakeSsh,
+    });
+    await assert.rejects(
+      () => transport.receive("manifest.json", Buffer.alloc(64 * 1024, 1)),
+      (error) => {
+        assert.equal(error instanceof RemoteCommandError, true);
+        assert.match(error.message, /Host key verification failed/);
+        return true;
+      },
+    );
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
 });
 
 test("the production workflows pin actions, restrict main and keep secrets off the build jobs", async () => {
