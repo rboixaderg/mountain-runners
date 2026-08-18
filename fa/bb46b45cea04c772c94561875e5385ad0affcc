@@ -1,0 +1,21 @@
+apps/web/e2e/shell.spec.ts
+  s_d504453304c15f::t_4c04ee5b8b2ebc 712
+apps/web/src/content/schools/trail-school.yaml
+  s_d504453304c15f::t_d21ef33281c9be 177,179,181,187-188
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "fabb46b45cea04c772c94561875e5385ad0affcc",
+  "prompts": {},
+  "sessions": {
+    "s_d504453304c15f": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "0ccb5375-43b1-4d9b-a829-b7adbe961ef5",
+        "model": "unknown"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
