@@ -25,13 +25,25 @@ test("renders the localized shell without horizontal overflow", async ({
   if (isMobile) {
     const menu = page.locator("header details.site-header__mobile-menu");
     const summary = menu.locator(":scope > summary");
-    await summary.focus();
-    await page.keyboard.press("Enter");
+    await summary.click();
     await expect(menu).toHaveAttribute("open", "");
     await expect(
       menu.getByRole("navigation", { name: "Navegació principal" }),
     ).toBeVisible();
-    await page.keyboard.press("Enter");
+    const panelIsHittable = await page.evaluate(() => {
+      const panel = document.querySelector(".site-header__mobile-panel");
+      if (!(panel instanceof HTMLElement)) {
+        return false;
+      }
+      const rect = panel.getBoundingClientRect();
+      const hit = document.elementFromPoint(
+        rect.left + rect.width / 2,
+        rect.top + 24,
+      );
+      return Boolean(hit?.closest(".site-header__mobile-panel"));
+    });
+    expect(panelIsHittable).toBe(true);
+    await summary.click();
     await expect(menu).not.toHaveAttribute("open", "");
   } else {
     await expect(
@@ -55,6 +67,35 @@ test("renders the localized shell without horizontal overflow", async ({
     layout.scrollWidth,
     JSON.stringify(layout.overflow),
   ).toBeLessThanOrEqual(layout.clientWidth);
+});
+
+test("switches language without leaving the current origin", async ({
+  page,
+}, testInfo) => {
+  const isMobile = testInfo.project.name.endsWith("-mobile");
+  await page.goto("/ca/");
+
+  if (isMobile) {
+    const menu = page.locator("header details.site-header__mobile-menu");
+    await menu.locator(":scope > summary").click();
+    await expect(menu).toHaveAttribute("open", "");
+  }
+
+  const languageSelector = page
+    .locator("nav.language-selector")
+    .filter({ visible: true });
+  await expect(languageSelector).toHaveCount(1);
+  await languageSelector.locator(".language-selector__summary").click();
+  const spanishLink = languageSelector.locator('a[hreflang="es"]');
+  await expect(spanishLink).toHaveAttribute("href", "/es/");
+  await spanishLink.click();
+
+  await expect(page).toHaveURL("/es/");
+  await expect(page.locator("html")).toHaveAttribute("lang", "es");
+  await expect(page.locator('link[rel="canonical"]')).toHaveAttribute(
+    "href",
+    "https://mountainrunners.cat/es/",
+  );
 });
 
 test("renders the published homepage sections in order", async ({ page }) => {

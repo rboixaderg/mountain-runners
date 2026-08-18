@@ -163,7 +163,9 @@ El codi centralitza els dominis editorials localitzats: escoles són
 domini es rebutgen abans de generar rutes. Les variants canòniques, `hreflang` i
 el sitemap només inclouen idiomes realment publicats i utilitzen
 `PUBLIC_SITE_ORIGIN`, l'origen públic obligatori en temps de build. Producció
-n'ha de definir el valor com `https://mountainrunners.cat`.
+n'ha de definir el valor com `https://mountainrunners.cat`. El selector d'idioma
+navega amb el camí de cada alternativa, sense l'origen canònic, perquè els
+hosts de staging i els previews es quedin al seu origen.
 
 El build verifica tant les rutes esperades com l'absència de marcadors i recursos
 exclusius d'entrades despublicades a `dist/`.

@@ -73,6 +73,16 @@ for (const path of publishedPaths) {
       page.locator("nav.language-selector"),
       `${path} offers the language selector in the header and the mobile menu`,
     ).toHaveCount(2);
+    const languageHrefs = await page
+      .locator("nav.language-selector a.language-selector__option")
+      .evaluateAll((links) => links.map((link) => link.getAttribute("href")));
+    expect(
+      languageHrefs.every(
+        (href) =>
+          href?.startsWith("/") === true && href.startsWith("//") === false,
+      ),
+      `${path} language links stay on the current origin: ${languageHrefs.join(", ")}`,
+    ).toBe(true);
 
     const skipLink = page.locator("a.skip-link");
     await skipLink.focus();

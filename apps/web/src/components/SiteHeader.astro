@@ -151,8 +151,10 @@ function isSchoolDetailPath(path: string): boolean {
     </div>
     <details class="site-header__mobile-menu">
       <summary>
-        <span>{messages.menu({}, { locale })}</span>
-        <span class="site-header__menu-icon" aria-hidden="true"></span>
+        <span class="site-header__menu-toggle">
+          <span>{messages.menu({}, { locale })}</span>
+          <span class="site-header__menu-icon" aria-hidden="true"></span>
+        </span>
       </summary>
       <div class="site-header__mobile-panel">
         <nav

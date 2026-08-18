@@ -33,7 +33,9 @@ pnpm dev
 
 `PUBLIC_SITE_ORIGIN` is the public build-time origin used for canonical URLs,
 `hreflang`, the sitemap and `robots.txt`. Preview and production deployments
-must provide their own value.
+must provide their own value. Language switching uses same-origin paths so a
+preview or staging host does not send visitors to the canonical production
+origin.
 
 `pnpm validate` executa format, lint, typecheck, tests unitaris i recorreguts
 Playwright, incloses les comprovacions axe aplicables, amb les mateixes
