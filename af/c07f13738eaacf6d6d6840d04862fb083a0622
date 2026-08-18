@@ -1,0 +1,19 @@
+docs/specs/phase-5-publication-operation.md
+  s_0722057f538051::t_f6377e24275f79 100
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "afc07f13738eaacf6d6d6840d04862fb083a0622",
+  "prompts": {},
+  "sessions": {
+    "s_0722057f538051": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "51921d96-1347-4290-bc84-2c41a0b983aa",
+        "model": "unknown"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
