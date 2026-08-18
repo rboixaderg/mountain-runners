@@ -1,0 +1,67 @@
+.github/workflows/artifact.yml
+  s_07f8fb1b4da939::t_17fb34d830e5e7 72-115
+.github/workflows/rollback.yml
+  s_07f8fb1b4da939::t_7dd663211800f2 1-48
+README.md
+  s_07f8fb1b4da939::t_cc78945c3245d9 13-17,48-49
+docs/README.md
+  s_07f8fb1b4da939::t_ea05b8d10f4276 29-30
+docs/architecture.md
+  s_07f8fb1b4da939::t_1c82c7f39ccee5 18-23,25-26,42-48,82
+docs/deployment.md
+  s_07f8fb1b4da939::t_26ba40f2c3246c 5-8,45-47,83-90,93-99,143-159,163-166,170-175
+docs/runbook.md
+  s_07f8fb1b4da939::t_0036118e58497f 9-10,35-40,66,90,112-113,255-257,329-402,404-429
+docs/specs/phase-5-publication-operation.md
+  s_07f8fb1b4da939::t_377bdd95bfdb1d 99-100
+package.json
+  s_07f8fb1b4da939::t_fb78745fa5cd0e 24
+tools/deploy/artifact.mjs
+  s_07f8fb1b4da939::t_ed964670872307 1-78
+tools/deploy/deploy.mjs
+  s_07f8fb1b4da939::t_bef4f7c7feec13 1-46
+tools/deploy/deploy.test.mjs
+  s_07f8fb1b4da939::t_c09057f7e61f9b 1-485
+tools/deploy/operations.mjs
+  s_07f8fb1b4da939::t_53d7d514f9fb5d 1-193
+tools/deploy/protected-branch.mjs
+  s_07f8fb1b4da939::t_fb528d91153a10 1-54
+tools/deploy/rollback.mjs
+  s_07f8fb1b4da939::t_dbe03a681d0bab 1-51
+tools/deploy/ssh.mjs
+  s_07f8fb1b4da939::t_d4b5909a42c88f 1-182
+tools/server/README.md
+  s_07f8fb1b4da939::t_7956375051bc2b 1,17-18,45-47
+tools/server/bootstrap/bootstrap.sh
+  s_07f8fb1b4da939::t_1d89cbedc34fce 142,265-266
+tools/server/release/cli.test.mjs
+  s_07f8fb1b4da939::t_be0e33e438a3da 890
+tools/server/release/config.mjs
+  s_07f8fb1b4da939::t_22d654b24ca3e7 19-20
+tools/server/release/operations.mjs
+  s_07f8fb1b4da939::t_e925503d4e5e83 43,161
+tools/server/release/receive.mjs
+  s_07f8fb1b4da939::t_916fde5fc10b0c 1-69
+tools/server/release/receive.test.mjs
+  s_07f8fb1b4da939::t_9790ce4316f3dd 1-278
+tools/server/release/ssh-gate.mjs
+  s_07f8fb1b4da939::t_3775401dbc4392 2,6-10,13,34,42-54,58-61,63-65,67-83,85-95,99-102
+tools/server/release/validate.mjs
+  s_07f8fb1b4da939::t_4238e7e1678b5b 11-12,82-94,96
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "a9b2eccbb9fbbafcea1dd0e148eb576419081ffa",
+  "prompts": {},
+  "sessions": {
+    "s_07f8fb1b4da939": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "6fe14865-5165-45d7-9fef-4df3325be126",
+        "model": "unknown"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
