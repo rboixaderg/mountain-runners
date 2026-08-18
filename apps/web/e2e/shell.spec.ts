@@ -25,13 +25,25 @@ test("renders the localized shell without horizontal overflow", async ({
   if (isMobile) {
     const menu = page.locator("header details.site-header__mobile-menu");
     const summary = menu.locator(":scope > summary");
-    await summary.focus();
-    await page.keyboard.press("Enter");
+    await summary.click();
     await expect(menu).toHaveAttribute("open", "");
     await expect(
       menu.getByRole("navigation", { name: "Navegació principal" }),
     ).toBeVisible();
-    await page.keyboard.press("Enter");
+    const panelIsHittable = await page.evaluate(() => {
+      const panel = document.querySelector(".site-header__mobile-panel");
+      if (!(panel instanceof HTMLElement)) {
+        return false;
+      }
+      const rect = panel.getBoundingClientRect();
+      const hit = document.elementFromPoint(
+        rect.left + rect.width / 2,
+        rect.top + 24,
+      );
+      return Boolean(hit?.closest(".site-header__mobile-panel"));
+    });
+    expect(panelIsHittable).toBe(true);
+    await summary.click();
     await expect(menu).not.toHaveAttribute("open", "");
   } else {
     await expect(
