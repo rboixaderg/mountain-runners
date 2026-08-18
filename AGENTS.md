@@ -57,6 +57,10 @@ reviewing `apps/web` code. The review of every PR checks these rules:
   libraries keep their documented names (`z` from Zod).
 - Prefer human readability over brevity: explicit branches, early returns and
   small named functions over nested ternaries.
+- Write the smallest correct change: no speculative generality, no "just in
+  case" guards, branches, props or defaults, and no checks the type system
+  already guarantees. Extract helpers and components at the second real
+  occurrence, never in advance.
 - Never change visual output, routes, content or existing E2E selectors when
   refactoring.
 

@@ -131,11 +131,28 @@ inline. A la segona aparició d'un helper, s'extreu i es reutilitza.
 ## Llegibilitat
 
 - Branques explícites i retorns primerencs abans que ternaris niats; una funció
-  pot ser més llarga si així es llegeix més fàcilment.
+  pot ser més llarga només si així es llegeix més fàcilment.
 - Funcions petites amb nom propi; un comentari breu explica convencions no
   òbvies (ex: el `--` de la data a la targeta del hub).
 - La reutilització no ha de forçar composicions artificials: si dos llocs són
   visualment diferents, no s'unifiquen amb props de variants.
+
+## Simplicitat
+
+- El codi mínim correcte és l'objectiu: cada línia, variable, paràmetre,
+  component, helper i test ha de justificar la seva existència. Si es pot
+  eliminar sense canviar comportament ni llegibilitat, s'elimina.
+- No s'escriu codi «per si de cas»: cap guarda, valor per defecte, branca,
+  prop ni cas de prova sense un requisit real del moment (YAGNI).
+- No es generalitza abans d'hora: un helper o component s'extreu a la segona
+  aparició real, mai per anticipació.
+- Si el sistema de tipus ja exclou un cas, no s'hi afegeix cap comprovació
+  que el torni a excloure.
+- Els comentaris expliquen el perquè, no el què; el codi que s'explica sol no
+  porta comentari.
+- Llegibilitat no vol dir verbositat: les branques explícites i els noms
+  descriptius s'apliquen quan afegeixen claredat, no com a plantilla per a
+  cada funció.
 
 ## Estabilitat Pública
 
