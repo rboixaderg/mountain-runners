@@ -1,7 +1,6 @@
 ---
 import * as messages from "../paraglide/messages.js";
 import type { Locale } from "../lib/content/primitives";
-import { getSameOriginHref } from "../lib/presentation/urls";
 
 type LocalizedAlternative = { locale: Locale; href: string };
 
@@ -56,7 +55,7 @@ const languageNames: Record<Locale, string> = {
               ) : (
                 <a
                   class="language-selector__option"
-                  href={getSameOriginHref(alternative.href)}
+                  href={alternative.href}
                   hreflang={alternative.locale}
                 >
                   {languageNames[alternative.locale]}

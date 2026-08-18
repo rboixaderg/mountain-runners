@@ -36,26 +36,4 @@ describe("LanguageSelector", () => {
     expect(html).toContain('hreflang="es"');
     expect(html).not.toMatch(/<a[^>]*\slang=/u);
   });
-
-  it("turns canonical language URLs into same-origin paths", async () => {
-    const container = await AstroContainer.create();
-    const html = await container.renderToString(LanguageSelector, {
-      props: {
-        localizedAlternatives: [
-          { locale: "ca", href: "https://mountainrunners.cat/ca/" },
-          { locale: "es", href: "https://mountainrunners.cat/es/" },
-          {
-            locale: "en",
-            href: "https://new.mountainrunners.cat/en/",
-          },
-        ],
-        locale: "ca",
-      },
-    });
-
-    expect(html).toContain('href="/es/"');
-    expect(html).toContain('href="/en/"');
-    expect(html).not.toContain('href="https://mountainrunners.cat/');
-    expect(html).not.toContain('href="https://new.mountainrunners.cat/');
-  });
 });

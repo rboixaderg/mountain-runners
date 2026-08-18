@@ -4,7 +4,6 @@ import {
   getExternalHost,
   getMailtoHref,
   getMarkdownSafeEmailAddress,
-  getSameOriginHref,
   getTelHref,
 } from "../lib/presentation/urls";
 
@@ -19,21 +18,6 @@ describe("getExternalHost", () => {
     expect(getExternalHost("https://inscripcions.mountainrunners.cat/x")).toBe(
       "inscripcions.mountainrunners.cat",
     );
-  });
-});
-
-describe("getSameOriginHref", () => {
-  it("keeps a root-relative path unchanged", () => {
-    expect(getSameOriginHref("/es/escoles/")).toBe("/es/escoles/");
-  });
-
-  it("strips a canonical origin so navigation stays on the current host", () => {
-    expect(getSameOriginHref("https://mountainrunners.cat/es/escuelas/")).toBe(
-      "/es/escuelas/",
-    );
-    expect(
-      getSameOriginHref("https://new.mountainrunners.cat/en/schools/"),
-    ).toBe("/en/schools/");
   });
 });
 

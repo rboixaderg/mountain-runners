@@ -30,9 +30,7 @@ de desplegament separades.
 
 - `pnpm build` genera una sortida Astro estàtica a `apps/web/dist/`.
 - `PUBLIC_SITE_ORIGIN` és obligatori per generar canonical, `hreflang`, sitemap
-  i `robots.txt`; producció ha d'utilitzar `https://mountainrunners.cat`. El
-  selector d'idioma navega amb camins de mateix origen, no amb l'URL canònica,
-  perquè un host de staging o un futur preview no enviï visitants a producció.
+  i `robots.txt`; producció ha d'utilitzar `https://mountainrunners.cat`.
 - `BUILD_TODAY` permet fixar la data editorial del build. Les proves i la CI la
   fixen per obtenir resultats deterministes; un build sense aquesta variable
   utilitza la data actual de Madrid.

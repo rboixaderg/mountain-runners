@@ -69,35 +69,6 @@ test("renders the localized shell without horizontal overflow", async ({
   ).toBeLessThanOrEqual(layout.clientWidth);
 });
 
-test("switches language without leaving the current origin", async ({
-  page,
-}, testInfo) => {
-  const isMobile = testInfo.project.name.endsWith("-mobile");
-  await page.goto("/ca/");
-
-  if (isMobile) {
-    const menu = page.locator("header details.site-header__mobile-menu");
-    await menu.locator(":scope > summary").click();
-    await expect(menu).toHaveAttribute("open", "");
-  }
-
-  const languageSelector = page
-    .locator("nav.language-selector")
-    .filter({ visible: true });
-  await expect(languageSelector).toHaveCount(1);
-  await languageSelector.locator(".language-selector__summary").click();
-  const spanishLink = languageSelector.locator('a[hreflang="es"]');
-  await expect(spanishLink).toHaveAttribute("href", "/es/");
-  await spanishLink.click();
-
-  await expect(page).toHaveURL("/es/");
-  await expect(page.locator("html")).toHaveAttribute("lang", "es");
-  await expect(page.locator('link[rel="canonical"]')).toHaveAttribute(
-    "href",
-    "https://mountainrunners.cat/es/",
-  );
-});
-
 test("renders the published homepage sections in order", async ({ page }) => {
   await page.goto("/ca/");
 
