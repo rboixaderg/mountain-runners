@@ -1,0 +1,21 @@
+apps/web/src/components/SiteHeader.astro
+  s_3744ef2fc8891a::t_3e3d5ed618f984 155-157
+apps/web/src/styles/site-header.css
+  s_3744ef2fc8891a::t_004c66b926c00b 396-412
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "ba6d29a555633de7eea1ee1589a2d20d83c8b937",
+  "prompts": {},
+  "sessions": {
+    "s_3744ef2fc8891a": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "8a842d9d-ffc1-4433-88d1-7a6bcf3021a3",
+        "model": "unknown"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
