@@ -1,5 +1,13 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Locator, type Page } from "@playwright/test";
+import { plausibleScriptSrc } from "../src/lib/analytics/plausible";
+
+test.beforeEach(async ({ page }) => {
+  // Keep the shell suite independent from the remote analytics host.
+  await page.route("https://analytics.rogerbg.cat/**", async (route) => {
+    await route.abort();
+  });
+});
 
 test("renders the localized shell without horizontal overflow", async ({
   page,
@@ -67,6 +75,32 @@ test("renders the localized shell without horizontal overflow", async ({
     layout.scrollWidth,
     JSON.stringify(layout.overflow),
   ).toBeLessThanOrEqual(layout.clientWidth);
+});
+
+test("loads the Plausible analytics script asynchronously", async ({
+  page,
+}) => {
+  await page.goto("/ca/");
+  const plausibleScript = page.locator(`script[src="${plausibleScriptSrc}"]`);
+  await expect(plausibleScript).toHaveCount(1);
+  await expect(plausibleScript).toHaveAttribute("async", "");
+  await expect(page.locator('script[src="/js/plausible-init.js"]')).toHaveCount(
+    1,
+  );
+});
+
+test("keeps rendering and navigating when Plausible is blocked", async ({
+  page,
+}) => {
+  await page.goto("/ca/");
+  await expect(page.locator("main#main-content")).toBeVisible();
+
+  await page
+    .getByRole("link", { name: "Veure més informació" })
+    .first()
+    .click();
+  await expect(page).toHaveURL(/\/ca\/socis\/$/u);
+  await expect(page.locator("main h1")).toHaveText("Socis");
 });
 
 test("renders the published homepage sections in order", async ({ page }) => {
@@ -1346,6 +1380,7 @@ test("publishes documents and legal routes from the footer", async ({
   await expect(page.locator("main")).toContainText(
     "Responsable del tractament",
   );
+  await expect(page.locator("main")).toContainText("Plausible");
 
   await page.goto("/ca/cookies/");
   await expect(page.locator("main h1")).toHaveText("Política de cookies");
@@ -1353,6 +1388,7 @@ test("publishes documents and legal routes from the footer", async ({
     "Quines cookies utilitza aquest web",
   );
   await expect(page.locator("main")).toContainText("Consentiment i banner");
+  await expect(page.locator("main")).toContainText("Plausible");
 
   // None of the new fixed routes may emit empty anchors, placeholder hashes
   // or disabled controls, mirroring the criteria of the other fixed pages.

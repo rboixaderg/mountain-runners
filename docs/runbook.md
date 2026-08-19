@@ -206,6 +206,27 @@ tall de producció, amb un servidor de prova o un rebuild controlat.
 - Els canvis de configuració de Caddy requereixen `systemctl restart caddy`
   (`admin off` desactiva l'API de configuració en temps d'execució).
 
+### CSP I Analítica
+
+La CSP vigent (T5.1 esmenada per l'[ADR 0007](decisions/0007-self-hosted-plausible-analytics.md))
+viu a `tools/server/caddy/Caddyfile` dins de `(common_headers)` i s'aplica tant
+al host de validació com al de producció. El desplegament de l'artefacte no
+actualitza Caddy.
+
+Per aplicar una esmena de CSP al VPS, una persona mantenidora actualitza
+**només** la línia `header Content-Security-Policy` d'`/etc/caddy/Caddyfile`
+perquè coincideixi amb el repositori, sense reexecutar el bootstrap (que
+tornaria a comentar `import Caddyfile.production`). Després:
+
+```sh
+caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
+systemctl restart caddy
+node tools/server/verify/verify-site.mjs --base-url https://mountainrunners.cat --expect-indexable
+```
+
+Si l'artefacte amb l'script de Plausible es publica abans d'aquesta esmena, la
+CSP anterior bloqueja l'script i les pàgines continuen navegables.
+
 ## 3. Logs
 
 Tres registres, tots al VPS (T5.1):

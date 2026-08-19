@@ -1,5 +1,6 @@
 import { experimental_AstroContainer as AstroContainer } from "astro/container";
 import { describe, expect, it, vi } from "vitest";
+import { plausibleScriptSrc } from "../lib/analytics/plausible";
 import PublicLayout from "../layouts/PublicLayout.astro";
 import { setLocale } from "../paraglide/runtime.js";
 
@@ -43,5 +44,30 @@ describe("PublicLayout structured data", () => {
     expect(scriptContent).not.toContain("<script>");
     expect(scriptContent).not.toContain("</script>");
     expect(scriptContent).toContain("\\u003c/script\\u003e");
+  });
+
+  it("loads the Plausible script asynchronously from the trusted origin", async () => {
+    setLocale("ca", { reload: false });
+    const container = await AstroContainer.create();
+    const html = await container.renderToString(PublicLayout, {
+      props: {
+        title: "Inici",
+        description: "Descripció",
+        locale: "ca",
+      },
+    });
+
+    expect(html).toContain(`src="${plausibleScriptSrc}"`);
+    const escapedScriptSrc = plausibleScriptSrc.replaceAll(
+      /[.*+?^${}()|[\]\\]/gu,
+      "\\$&",
+    );
+    const plausibleScriptTag = html.match(
+      new RegExp(`<script[^>]*src="${escapedScriptSrc}"[^>]*>`),
+    )?.[0];
+    expect(plausibleScriptTag).toBeDefined();
+    expect(plausibleScriptTag).toContain("async");
+    expect(html).toContain('src="/js/plausible-init.js"');
+    expect(html).not.toContain("plausible.init()");
   });
 });

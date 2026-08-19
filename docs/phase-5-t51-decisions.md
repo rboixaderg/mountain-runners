@@ -70,11 +70,18 @@ frame-ancestors 'none';
 object-src 'none';
 ```
 
-Justificació verificada sobre el build actual: la web no conté JavaScript
-executable propi (només JSON-LD, que no s'executa) i els vídeos s'incrusten
-exclusivament des de `www.youtube-nocookie.com`, per això `frame-src` es limita
-a aquest orígen. `style-src 'unsafe-inline'` és necessari perquè Astro emet
-`<style>` inline; no es fa servir `unsafe-eval` en cap directiva.
+Justificació verificada sobre el build actual de la T5.1: la web no contenia
+JavaScript executable propi (només JSON-LD, que no s'executa) i els vídeos
+s'incrusten exclusivament des de `www.youtube-nocookie.com`, per això
+`frame-src` es limita a aquest orígen. `style-src 'unsafe-inline'` és necessari
+perquè Astro emet `<style>` inline; no es fa servir `unsafe-eval` en cap
+directiva.
+
+Esmena posterior ([ADR 0007](decisions/0007-self-hosted-plausible-analytics.md),
+[especificació d'analítica](specs/plausible-analytics.md)): `script-src` i
+`connect-src` permeten també l'origen explícit
+`https://analytics.rogerbg.cat`. El bloc anterior és el contracte original de
+la T5.1; la CSP vigent viu a `tools/server/caddy/Caddyfile`.
 
 Headers mínims addicionals: `X-Content-Type-Options: nosniff`, una
 `Referrer-Policy` restrictiva i una `Permissions-Policy` que desactiva
