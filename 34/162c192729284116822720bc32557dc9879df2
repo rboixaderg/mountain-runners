@@ -1,0 +1,27 @@
+apps/web/e2e/shell.spec.ts
+  s_d6677fbc2069cf::t_e35b411bc93769 5-11,92-105
+apps/web/messages/ca.json
+  s_d6677fbc2069cf::t_6c4aa22ca05f13 126,158
+apps/web/messages/en.json
+  s_d6677fbc2069cf::t_3527c051ea91a8 126,158
+apps/web/messages/es.json
+  s_d6677fbc2069cf::t_3863fc2c54a43a 126,158
+docs/specs/plausible-analytics.md
+  s_d6677fbc2069cf::t_99d8c17a795a9a 9-14,87-89,123-124,135-137
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "34162c192729284116822720bc32557dc9879df2",
+  "prompts": {},
+  "sessions": {
+    "s_d6677fbc2069cf": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "07c78139-5818-4336-80b2-b66936848e9a",
+        "model": "default"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
