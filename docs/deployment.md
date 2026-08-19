@@ -3,11 +3,13 @@
 ## Estat Actual
 
 El repositori disposa de CI de qualitat, seguretat, contracte d'artefacte i
-desplegament continu protegit des de `main`. El procediment de tall de l'apex,
-el gate de llançament i el període d'observació són la T5.5
-([runbook](runbook.md#9-tall-dns-i-primera-activació-pública)); cap canvi DNS
-ni retirada del gate d'aprovació no s'executa sense la persona mantenidora.
-Els previews de pull request i la decisió sobre Cloudflare corresponen a la
+desplegament continu protegit des de `main`. L'apex i `www` ja serveixen des
+del VPS (19 d'agost de 2026). Resten el gate de llançament, HSTS, l'entorn
+`production-rollback` i el període d'observació
+([runbook](runbook.md#9-tall-dns-i-primera-activació-pública)). Cap canvi DNS
+addicional ni retirada del gate de `production` no s'executa sense la persona
+mantenidora. Els previews de pull request i la decisió sobre Cloudflare
+corresponen a la
 [`fase 6`](specs/phase-6-pull-request-previews.md) i no bloquegen producció.
 
 ## Destí
@@ -152,26 +154,27 @@ s'aplica quan no queda cap release elegible.
   `rollback` genèric. La comprovació de HEAD es repeteix després d'activar.
 - `rollback.mjs` és l'única via automatitzada per activar una release anterior
   elegible, sense reconstruir.
-- L'entorn GitHub `production` (restringit a `main`, amb aprovació humana fins
-  que el període d'observació de la T5.5 quedi registrat) és l'únic lloc on
-  viuen `DEPLOY_SSH_PRIVATE_KEY` i `DEPLOY_KNOWN_HOSTS`. El job de build no els
-  llegeix i no es comparteixen amb la futura infraestructura de previews.
+- L'entorn GitHub `production` (restringit a `main`) allotja els secrets de
+  deploy. L'entorn `production-rollback` en té una còpia amb els mateixos
+  noms i required reviewers permanents, perquè retirar el gate de deploy no
+  desprotegeixi la reversió. El job de build no llegeix cap dels dos i no es
+  comparteixen amb la futura infraestructura de previews.
 
 L'operació, els noms de secrets i el procediment d'aprovació són a
 [`docs/runbook.md`](runbook.md).
 
 ## Tall I Operació (T5.5)
 
-El procediment (DNS a Hostinger, import de Caddy, smoke de l'apex, HSTS i
-observació) és al [`docs/runbook.md`](runbook.md). `verify-site.mjs
---expect-indexable` comprova el contracte de l'apex un cop el DNS ja apunta
-al VPS; `--expect-hsts` s'afegeix després d'activar HSTS.
+El procediment (Caddy de producció **abans** del DNS, Hostinger, smoke de
+l'apex, HSTS i observació) és al [`docs/runbook.md`](runbook.md).
+`verify-site.mjs --expect-indexable` comprova el contracte de l'apex;
+`--expect-hsts` exigeix `max-age=31536000` sense `includeSubDomains`.
 
 L'inventari previ al tall és a
 [`docs/phase-5-t55-dns-inventory.md`](phase-5-t55-dns-inventory.md). La
 checklist d'evidència és a
 [`docs/validation/phase-5-t55-launch-gate.md`](validation/phase-5-t55-launch-gate.md).
-Cap canvi DNS, de Caddy o de l'entorn GitHub no s'executa sense la persona
+Cap canvi DNS, de Caddy o dels entorns GitHub no s'executa sense la persona
 mantenidora.
 
 ## CI Implementada
@@ -184,10 +187,10 @@ servidor (`pnpm test:server`). `pnpm validate` no executa Lighthouse;
 
 ## No Implementat
 
-Les accions remotes del tall (canvis DNS a Hostinger, import de producció a
-Caddy, primera activació pública, HSTS i retirada dels required reviewers)
-requereixen aprovació explícita i queden registrades a la checklist de la
-T5.5. Tampoc hi ha previews, que la fase 6 avalua i implementa de manera
-separada. Només cal un ADR nou quan la implementació introdueixi o canviï una
-decisió arquitectònica; els detalls que apliquin la direcció acceptada
-continuen requerint una pull request revisada.
+Les accions remotes que resten (HSTS, entorn `production-rollback`, retirada
+dels required reviewers només de `production` després de 48 h) requereixen
+aprovació explícita i queden registrades a la checklist de la T5.5. Tampoc hi
+ha previews, que la fase 6 avalua i implementa de manera separada. Només cal
+un ADR nou quan la implementació introdueixi o canviï una decisió
+arquitectònica; els detalls que apliquin la direcció acceptada continuen
+requerint una pull request revisada.

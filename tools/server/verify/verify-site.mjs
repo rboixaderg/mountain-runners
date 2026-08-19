@@ -12,6 +12,12 @@
 //   node tools/server/verify/verify-site.mjs --base-url https://host --expect-noindex
 //   node tools/server/verify/verify-site.mjs --base-url https://mountainrunners.cat --expect-indexable
 
+import {
+  hstsPresentFinding,
+  indexableFinding,
+  wwwRedirectFinding,
+} from "./site-contract.mjs";
+
 const expectNoIndex = process.argv.includes("--expect-noindex");
 const expectIndexable = process.argv.includes("--expect-indexable");
 const expectHsts = process.argv.includes("--expect-hsts");
@@ -70,10 +76,10 @@ async function check() {
       assertHstsAbsent(route, response.headers);
     }
     if (expectIndexable) {
-      assertIndexable(route, response.headers);
+      pushFinding(indexableFinding(route, response.headers));
     }
     if (expectHsts) {
-      assertHstsPresent(route, response.headers);
+      pushFinding(hstsPresentFinding(route, response.headers));
     }
   }
 
@@ -92,7 +98,7 @@ async function check() {
     assertNoIndex("404", missing.headers);
   }
   if (expectIndexable) {
-    assertIndexable("404", missing.headers);
+    pushFinding(indexableFinding("404", missing.headers));
   }
 
   const robots = await fetchText(`${baseUrl}/robots.txt`);
@@ -194,17 +200,9 @@ function assertHstsAbsent(label, headers) {
   }
 }
 
-function assertIndexable(label, headers) {
-  const robotsTag = headers.get("x-robots-tag") ?? "";
-  if (/\bnoindex\b/iu.test(robotsTag)) {
-    findings.push(`${label} must not send X-Robots-Tag noindex: ${robotsTag}.`);
-  }
-}
-
-function assertHstsPresent(label, headers) {
-  const hsts = headers.get("strict-transport-security");
-  if (hsts === null || hsts === "") {
-    findings.push(`${label} is missing Strict-Transport-Security.`);
+function pushFinding(finding) {
+  if (finding !== undefined) {
+    findings.push(finding);
   }
 }
 
@@ -214,21 +212,14 @@ async function checkWwwRedirect(parsedBase) {
   }
   const wwwUrl = `https://www.${parsedBase.hostname}/ca/`;
   const response = await fetchRaw(wwwUrl);
-  const location = response.headers.get("location") ?? "";
-  let redirectsToApex = false;
-  if ((response.status === 301 || response.status === 308) && location !== "") {
-    try {
-      redirectsToApex =
-        new URL(location, parsedBase.origin).origin === parsedBase.origin;
-    } catch {
-      redirectsToApex = false;
-    }
-  }
-  if (!redirectsToApex) {
-    findings.push(
-      `www ${wwwUrl} returned ${response.status} Location ${location || "absent"}, expected a redirect to ${parsedBase.origin}.`,
-    );
-  }
+  pushFinding(
+    wwwRedirectFinding({
+      status: response.status,
+      location: response.headers.get("location") ?? "",
+      apexOrigin: parsedBase.origin,
+      wwwUrl,
+    }),
+  );
 }
 
 async function fetchText(url) {

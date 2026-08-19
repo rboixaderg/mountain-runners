@@ -11,11 +11,10 @@ català, 22 en castellà i 22 en anglès, a més dels recursos tècnics globals.
 
 La fase 4 es va completar el 16 d'agost de 2026 i el seu tancament és a `main`.
 La fase 5 ha completat la T5.1 (decisions), la T5.2 (artefacte), la T5.3
-(servidor i releases) i la T5.4 (desplegament continu des de `main`). La T5.5
-documenta el tall DNS, el gate de llançament i el període d'observació; cap
-canvi DNS ni activació pública no s'executa sense aprovació explícita de la
-persona mantenidora. Els previews i la decisió sobre Cloudflare s'han separat
-a la fase 6.
+(servidor i releases) i la T5.4 (desplegament continu des de `main`). L'apex
+ja serveix des del VPS (T5.5); resten el gate de llançament, HSTS, l'entorn
+`production-rollback` i el període d'observació. Els previews i la decisió
+sobre Cloudflare s'han separat a la fase 6.
 
 ## Desenvolupament Local
 

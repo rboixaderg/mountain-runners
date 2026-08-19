@@ -105,6 +105,10 @@ export async function rollbackRelease({ commit, transport, smoke }) {
   }
 }
 
+export function smokeExpectsNoIndex(value) {
+  return value !== "false";
+}
+
 export function createSmokeRunner({
   baseUrl,
   expectNoIndex = true,

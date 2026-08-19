@@ -283,7 +283,7 @@ Next steps (all require maintainer approval; see docs/runbook.md):
 4. The production host activates at the DNS cut (T5.5): see docs/runbook.md.
    Uncomment `import Caddyfile.production` in /etc/caddy/Caddyfile, run
    `caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile`,
-   and restart Caddy.
+   and restart Caddy *before* moving apex/www DNS to this VPS.
 
 Deploy identity: ${RELEASE_ROOT}/.ssh/authorized_keys (${DEPLOY_PUBLIC_KEY:+installed}${DEPLOY_PUBLIC_KEY:-not installed})
 Release daemon:   systemctl status mountain-release (socket /run/mountain-release.sock)

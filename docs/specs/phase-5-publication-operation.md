@@ -100,7 +100,7 @@ conversa o procediment corresponent.
 | T5.2 Artefacte i controls de publicació      | Completada | T5.1              | Artefacte CI complet i verificat            | PR #77 |
 | T5.3 VPS, Caddy, releases i reversió         | Completada | T5.2              | Servidor TLS preparat i reversió comprovada | PR #79 |
 | T5.4 Desplegament continu des de `main`      | Completada | T5.2 i T5.3       | Workflow protegit amb smoke tests           | PR #84 |
-| T5.5 Tall, validació i operació de producció | En curs    | T5.4              | Web pública i runbook verificats            | -      |
+| T5.5 Tall, validació i operació de producció | En curs    | T5.4              | Web pública i runbook verificats            | PR #88 |
 
 ### T5.1: Decisions I Porta De Llançament
 

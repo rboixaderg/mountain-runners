@@ -19,6 +19,7 @@ import {
   createSmokeRunner,
   deployRelease,
   rollbackRelease,
+  smokeExpectsNoIndex,
 } from "./operations.mjs";
 import {
   assertCurrentHead,
@@ -582,7 +583,8 @@ test("the production workflows pin actions, restrict main and keep secrets off t
   assert.doesNotMatch(rollbackWorkflow, /\n {2}push:/);
   assert.match(rollbackWorkflow, /group: production-release/);
   assert.match(rollbackWorkflow, /cancel-in-progress: false/);
-  assert.match(rollbackWorkflow, /name: production/);
+  assert.match(rollbackWorkflow, /environment:\n {6}name: production-rollback/);
+  assert.doesNotMatch(rollbackWorkflow, /environment:\n {6}name: production\n/);
   assert.match(
     rollbackWorkflow,
     /SMOKE_EXPECT_NOINDEX: "\$\{\{ vars\.SMOKE_EXPECT_NOINDEX \}\}"/,
@@ -622,4 +624,11 @@ test("createSmokeRunner uses --expect-indexable after the apex cut", () => {
   assert.equal(calls.length, 1);
   assert.equal(calls[0][1].includes("--expect-indexable"), true);
   assert.equal(calls[0][1].includes("--expect-noindex"), false);
+});
+
+test("smokeExpectsNoIndex is true unless the env value is exactly false", () => {
+  assert.equal(smokeExpectsNoIndex(undefined), true);
+  assert.equal(smokeExpectsNoIndex(""), true);
+  assert.equal(smokeExpectsNoIndex("true"), true);
+  assert.equal(smokeExpectsNoIndex("false"), false);
 });

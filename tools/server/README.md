@@ -11,8 +11,9 @@ Tota l'operació està documentada al
 | ------------------------------------- | ------------------------------------------------------------------------------------ |
 | `bootstrap/bootstrap.sh`              | Provisió reproduïble i idempotent del VPS (Caddy pinjat, identitats, layout, daemon) |
 | `caddy/Caddyfile`                     | Configuració del host de validació (headers, caché, 404, logs mínims)                |
-| `caddy/Caddyfile.production`          | Host de producció, importat al tall (T5.5)                                           |
+| `caddy/Caddyfile.production`          | Host de producció, importat **abans** del canvi DNS (T5.5)                           |
 | `verify/verify-site.mjs`              | Verificació del contracte del host: TLS, headers, 404, caché, noindex o indexable    |
+| `verify/site-contract.mjs`            | Comprovacions pures: indexable, HSTS T5.1 i redirect `www` → apex                    |
 | `release/`                            | CLI `mountain-release` i mòduls (instal·lació, activació, reversió)                  |
 | `release/daemon.mjs`                  | Daemon root (systemd) que executa les operacions per la identitat de desplegament    |
 | `release/ssh-gate.mjs`                | Forced command: tokenitza sense shell; `receive` escriu `incoming/`                  |
@@ -58,6 +59,5 @@ bash -n tools/server/bootstrap/bootstrap.sh
 caddy validate --config <Caddyfile generat> --adapter caddyfile
 ```
 
-Les accions remotes (crear el VPS, registres DNS, claus SSH, import de
-producció a Caddy i retirada del gate d'aprovació) requereixen aprovació
-explícita de la persona mantenidora.
+Les accions remotes (HSTS, entorn `production-rollback` i retirada del gate
+de `production`) requereixen aprovació explícita de la persona mantenidora.

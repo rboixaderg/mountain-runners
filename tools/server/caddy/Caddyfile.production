@@ -2,7 +2,8 @@
 #
 # Imported from the main Caddyfile at the DNS cut (T5.5): uncomment the
 # `import Caddyfile.production` line in /etc/caddy/Caddyfile and restart Caddy
-# (`systemctl restart caddy`; admin is off, so a restart is required).
+# (`systemctl restart caddy`; admin is off, so a restart is required) *before*
+# moving apex and www DNS to this VPS.
 #
 # ACME certificates for __PRODUCTION_DOMAIN__ and www only complete once the
 # apex and www records point at the VPS; retries are expected in the error log

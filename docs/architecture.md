@@ -22,8 +22,8 @@ transfereix aquest artefacte a l'entorn GitHub `production` (restringit a
 les eines del servidor — `tools/server/` — (Caddyfile, bootstrap, CLI de
 releases i gate SSH). El diagrama viu de la configuració del VPS és a
 [`docs/runbook.md`](runbook.md#arquitectura-del-servidor). Lighthouse continua
-sent una auditoria manual. El procediment de tall de l'apex és la T5.5
-([runbook](runbook.md#9-tall-dns-i-primera-activació-pública)); encara no
+sent una auditoria manual. L'apex ja serveix des del VPS (T5.5,
+[runbook](runbook.md#9-tall-dns-i-primera-activació-pública)); encara no
 existeixen previews de pull request ni cap servei Hono.
 
 ## Direcció Acceptada
@@ -40,13 +40,13 @@ d'aplicació renderitzat al servidor.
 
 ## Límits De L'Arquitectura
 
-| Àrea                | Responsabilitat                               | Límit                                                                                                                                         |
-| ------------------- | --------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
-| Web estàtica        | Renderitzar contingut editorial publicat      | El build d'Astro no conté secrets                                                                                                             |
-| Contingut           | Pàgines estructurades i dades de l'associació | Versionat a Git i revisat per pull request                                                                                                    |
-| Xat públic          | Respondre preguntes sobre contingut publicat  | API Hono separada, de només lectura i sense accés editorial                                                                                   |
-| Assistent editorial | Preparar canvis de contingut                  | Flux privat de branca, validació i pull request                                                                                               |
-| Allotjament         | Servir la web estàtica i serveis aïllats      | Caddy i releases (T5.3); desplegament continu des de `main` (T5.4); tall documentat a T5.5; sense desplegament des d'una sessió local d'agent |
+| Àrea                | Responsabilitat                               | Límit                                                                                                                                                                       |
+| ------------------- | --------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Web estàtica        | Renderitzar contingut editorial publicat      | El build d'Astro no conté secrets                                                                                                                                           |
+| Contingut           | Pàgines estructurades i dades de l'associació | Versionat a Git i revisat per pull request                                                                                                                                  |
+| Xat públic          | Respondre preguntes sobre contingut publicat  | API Hono separada, de només lectura i sense accés editorial                                                                                                                 |
+| Assistent editorial | Preparar canvis de contingut                  | Flux privat de branca, validació i pull request                                                                                                                             |
+| Allotjament         | Servir la web estàtica i serveis aïllats      | Caddy i releases (T5.3); desplegament continu des de `main` (T5.4); apex al VPS (T5.5); rollback a `production-rollback`; sense desplegament des d'una sessió local d'agent |
 
 ## Estructura De Pàgines I Presentació
 
@@ -80,7 +80,7 @@ formen part del disseny inicial.
 
 - Servei de xat Hono i generador d'índex.
 - Integració amb Telegram, Discord o Hermes.
-- Execució remota del tall DNS i retirada del gate d'aprovació, que resten
+- HSTS, període d'observació i retirada del gate de `production`, que resten
   accions supervisades de la T5.5.
 - Previews, dominis efímers i possible integració amb Cloudflare fins a definir
   i implementar la fase 6.

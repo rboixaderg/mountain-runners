@@ -3,13 +3,14 @@
 ## Estat
 
 Consulta pública de `mountainrunners.cat` el 18 d'agost de 2026, abans del
-tall web. Serveix per preservar el correu i la resta de serveis no migrats
-mentre només es canvien l'apex i `www`. Hostinger continua sent el DNS
-autoritatiu; els nameservers no es mouen.
+tall web. El 19 d'agost de 2026 l'apex i `www` ja serveixen des del VPS;
+aquest document conserva els valors **pre-tall** per contrastar el correu i
+la resta de serveis no migrats. Hostinger continua sent el DNS autoritatiu;
+els nameservers no es mouen.
 
 Aquest document no substitueix l'export immediatament anterior al tall des
 del hPanel i els `dig` del [runbook](runbook.md#9-tall-dns-i-primera-activació-pública).
-Els valors d'allotjament web canviaran; els de correu no.
+Els valors d'allotjament web ja han canviat; els de correu no.
 
 ## Delegació
 

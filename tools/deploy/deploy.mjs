@@ -9,6 +9,7 @@ import {
   createGithubHeadResolver,
   createSmokeRunner,
   deployRelease,
+  smokeExpectsNoIndex,
 } from "./operations.mjs";
 import { createSshTransport } from "./ssh.mjs";
 
@@ -34,7 +35,7 @@ async function main() {
     }),
     smoke: createSmokeRunner({
       baseUrl: requireEnvironment("SMOKE_BASE_URL"),
-      expectNoIndex: process.env.SMOKE_EXPECT_NOINDEX !== "false",
+      expectNoIndex: smokeExpectsNoIndex(process.env.SMOKE_EXPECT_NOINDEX),
     }),
   });
   console.log(message);
