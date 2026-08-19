@@ -241,9 +241,11 @@ visuals aprovats que els corresponen.
 
 ## Fase 5: Publicació A Producció I Operació
 
-**Estat:** T5.1 i T5.2 completades (decisions i artefacte). T5.3 implementada a
-la PR #79 (servidor, Caddy, releases i reversió); falten les accions remotes
-aprovades (VPS, DNS del host de validació, claus) per donar-la per completada.
+**Estat:** T5.1 a T5.4 completades a `main` (decisions, artefacte, servidor i
+desplegament continu). L'apex ja serveix des del VPS (T5.5, 19 d'agost de
+2026). Resten el gate de llançament, HSTS, l'entorn `production-rollback` i
+el període d'observació; HSTS i la retirada del gate de `production`
+requereixen la persona mantenidora.
 La fase 4 està completada i ja no bloqueja la publicació.
 
 **Especificació:**

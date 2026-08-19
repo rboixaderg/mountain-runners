@@ -280,8 +280,10 @@ Next steps (all require maintainer approval; see docs/runbook.md):
      sudo mountain-release activate <commit>
 3. Run the verification script against https://${VALIDATION_HOST}:
      node tools/server/verify/verify-site.mjs --base-url https://${VALIDATION_HOST} --expect-noindex
-4. The production host activates at the DNS cut (T5.5): uncomment the import in
-   /etc/caddy/Caddyfile and restart Caddy.
+4. The production host activates at the DNS cut (T5.5): see docs/runbook.md.
+   Uncomment `import Caddyfile.production` in /etc/caddy/Caddyfile, run
+   `caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile`,
+   and restart Caddy *before* moving apex/www DNS to this VPS.
 
 Deploy identity: ${RELEASE_ROOT}/.ssh/authorized_keys (${DEPLOY_PUBLIC_KEY:+installed}${DEPLOY_PUBLIC_KEY:-not installed})
 Release daemon:   systemctl status mountain-release (socket /run/mountain-release.sock)

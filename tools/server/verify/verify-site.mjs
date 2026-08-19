@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Site verification for the validation host and, at the cut, for production
-// (phase 5, task 5.3).
+// (phase 5, tasks 5.3 and 5.5).
 //
 // Checks the live host contract approved in T5.1: HTTP→HTTPS, TLS, trailing
 // slash, global 404, security headers (nosniff, Referrer-Policy,
@@ -10,8 +10,23 @@
 //
 // Usage:
 //   node tools/server/verify/verify-site.mjs --base-url https://host --expect-noindex
+//   node tools/server/verify/verify-site.mjs --base-url https://mountainrunners.cat --expect-indexable
+
+import {
+  hstsPresentFinding,
+  indexableFinding,
+  wwwRedirectFinding,
+} from "./site-contract.mjs";
 
 const expectNoIndex = process.argv.includes("--expect-noindex");
+const expectIndexable = process.argv.includes("--expect-indexable");
+const expectHsts = process.argv.includes("--expect-hsts");
+
+if (expectNoIndex && expectIndexable) {
+  throw new Error(
+    "Pass either --expect-noindex (validation host) or --expect-indexable (apex), not both.",
+  );
+}
 
 function requireFlag(name) {
   const index = process.argv.indexOf(name);
@@ -60,6 +75,16 @@ async function check() {
       assertNoIndex(route, response.headers);
       assertHstsAbsent(route, response.headers);
     }
+    if (expectIndexable) {
+      pushFinding(indexableFinding(route, response.headers));
+    }
+    if (expectHsts) {
+      pushFinding(hstsPresentFinding(route, response.headers));
+    }
+  }
+
+  if (expectIndexable) {
+    await checkWwwRedirect(parsedBase);
   }
 
   await checkTrailingSlash(`${baseUrl}/ca`);
@@ -71,6 +96,9 @@ async function check() {
   assertNoCache("404", missing.headers);
   if (expectNoIndex) {
     assertNoIndex("404", missing.headers);
+  }
+  if (expectIndexable) {
+    pushFinding(indexableFinding("404", missing.headers));
   }
 
   const robots = await fetchText(`${baseUrl}/robots.txt`);
@@ -170,6 +198,28 @@ function assertHstsAbsent(label, headers) {
       `${label} must not send HSTS before the production cut: ${hsts}.`,
     );
   }
+}
+
+function pushFinding(finding) {
+  if (finding !== undefined) {
+    findings.push(finding);
+  }
+}
+
+async function checkWwwRedirect(parsedBase) {
+  if (parsedBase.hostname.startsWith("www.")) {
+    return;
+  }
+  const wwwUrl = `https://www.${parsedBase.hostname}/ca/`;
+  const response = await fetchRaw(wwwUrl);
+  pushFinding(
+    wwwRedirectFinding({
+      status: response.status,
+      location: response.headers.get("location") ?? "",
+      apexOrigin: parsedBase.origin,
+      wwwUrl,
+    }),
+  );
 }
 
 async function fetchText(url) {

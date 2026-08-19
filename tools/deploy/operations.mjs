@@ -105,6 +105,10 @@ export async function rollbackRelease({ commit, transport, smoke }) {
   }
 }
 
+export function smokeExpectsNoIndex(value) {
+  return value !== "false";
+}
+
 export function createSmokeRunner({
   baseUrl,
   expectNoIndex = true,
@@ -117,6 +121,8 @@ export function createSmokeRunner({
     const args = [verifySitePath, "--base-url", baseUrl];
     if (expectNoIndex) {
       args.push("--expect-noindex");
+    } else {
+      args.push("--expect-indexable");
     }
     const result = spawnSyncImpl(process.execPath, args, { encoding: "utf8" });
     if (result.status !== 0) {
