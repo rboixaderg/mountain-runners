@@ -30,7 +30,7 @@ DNS és a [`docs/phase-5-t55-dns-inventory.md`](../phase-5-t55-dns-inventory.md)
 ## Tall I Smoke
 
 - [ ] `import Caddyfile.production` actiu **abans** del canvi DNS, `caddy
-  validate` i Caddy reiniciat.
+validate` i Caddy reiniciat.
 - [ ] Registres web de l'apex i `www` apuntant a la IPv4 del VPS; AAAA d'apex
       i `www` esborrats; CNAME de `www` retirat.
 - [ ] `dig` de MX/TXT/DKIM/`mail`/autodiscover/autoconfig igual que abans del
