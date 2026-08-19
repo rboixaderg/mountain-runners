@@ -9,6 +9,7 @@ import SchoolHub from "../../../components/schools/SchoolHub.astro";
 import PublicLayout from "../../../layouts/PublicLayout.astro";
 import hubHeroImage from "../../../assets/events/events-hub-hero.webp";
 import hubHeroImageSmall from "../../../assets/events/events-hub-hero-mobile.webp";
+import schoolsHubHero from "../../../assets/schools/schools-hub-hero.jpg";
 import PageIntro from "../../../components/PageIntro.astro";
 import {
   getEventHubGroups,
@@ -118,8 +119,18 @@ const hubTitle =
     : messages.navigation_events({}, { locale });
 const hubDescription =
   kind === "school"
-    ? messages.schools_intro({}, { locale })
-    : messages.events_intro({}, { locale });
+    ? messages.schools_page_description({}, { locale })
+    : messages.events_page_description({}, { locale });
+const socialImage =
+  kind === "school"
+    ? {
+        alt: hubTitle,
+        url: new URL(schoolsHubHero.src, Astro.site).toString(),
+      }
+    : {
+        alt: hubTitle,
+        url: new URL(hubHeroImage.src, Astro.site).toString(),
+      };
 ---
 
 <PublicLayout
@@ -127,6 +138,7 @@ const hubDescription =
   description={hubDescription}
   locale={locale}
   localizedAlternatives={localizedAlternatives}
+  socialImage={socialImage}
   title={`${hubTitle} | ${messages.site_title({}, { locale })}`}
 >
   {

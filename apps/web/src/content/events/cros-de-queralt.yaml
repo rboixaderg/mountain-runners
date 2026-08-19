@@ -91,3 +91,18 @@ editions:
         en: Distances adapted to each category
     registrationStatus: closed
     documentIds: []
+  - id: edition-2026
+    startDate: 2026-10-18
+    location:
+      ca: Santuari de Queralt, Berga
+      es: Santuario de Queralt, Berga
+      en: Queralt Sanctuary, Berga
+    modalities:
+      - ca: Categories d'Educació Infantil a Cadet
+        es: Categorías de Educación Infantil a Cadete
+        en: Categories from pre-school to cadet
+      - ca: Distàncies adaptades a cada categoria
+        es: Distancias adaptadas a cada categoría
+        en: Distances adapted to each category
+    registrationStatus: coming-soon
+    documentIds: []
