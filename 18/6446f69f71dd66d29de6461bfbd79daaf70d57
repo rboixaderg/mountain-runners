@@ -1,0 +1,63 @@
+apps/web/public/js/plausible-init.js
+  s_7797c571574848::t_ab7d72668a9ef8 1-11
+docs/architecture.md
+  s_7797c571574848::t_49d5ad71e8de3b 23-25,45-52
+docs/decisions/0007-self-hosted-plausible-analytics.md
+  s_7797c571574848::t_45b23335733909 1-31
+docs/specs/plausible-analytics.md
+  s_7797c571574848::t_006645aee085ff 1-165
+apps/web/e2e/shell.spec.ts
+  s_7797c571574848::t_cd03f1fd4e997c 3,73-84,1362,1370
+apps/web/messages/ca.json
+  s_7797c571574848::t_6b5beb48d70d51 117,119,122,126,156,158,160
+apps/web/messages/en.json
+  s_7797c571574848::t_882cf8eee80b2b 117,119,122,126,156,158,160
+apps/web/messages/es.json
+  s_7797c571574848::t_579d542cb9c3f9 117,119,122,126,156,158,160
+apps/web/src/components/PlausibleAnalytics.astro
+  s_7797c571574848::t_27cf9d91583bc1 1-6
+apps/web/src/layouts/PublicLayout.astro
+  s_7797c571574848::t_1ec1744efe8c67 5,119
+apps/web/src/lib/analytics/plausible.ts
+  s_7797c571574848::t_f8b6f391ace74d 1-6
+apps/web/src/test/plausible.test.ts
+  s_7797c571574848::t_13643621347378 1-14
+apps/web/src/test/public-layout.test.ts
+  s_7797c571574848::t_39eb520f28292d 3,48-72
+docs/backlog.md
+  s_7797c571574848::t_51371883d9cf99 161-179
+docs/phase-5-t51-decisions.md
+  s_7797c571574848::t_7886921cd2e162 73-84
+docs/runbook.md
+  s_7797c571574848::t_f199e56e8ce5ce 209-229
+eslint.config.mjs
+  s_7797c571574848::t_99145f17f91597 49-54
+package.json
+  s_7797c571574848::t_6fc974eab0ba5b 24
+tools/server/README.md
+  s_7797c571574848::t_9c5544d8d766fb 15
+tools/server/caddy/Caddyfile
+  s_7797c571574848::t_e0af732d9cc7ab 34-37,42
+tools/server/caddy/caddyfile.test.mjs
+  s_7797c571574848::t_6a88a96452d29e 1-20
+tools/server/caddy/content-security-policy.mjs
+  s_7797c571574848::t_42f5bdc40ae94b 1-2
+tools/server/verify/verify-site.mjs
+  s_7797c571574848::t_cebb9823bd293e 15,48,172-174
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "186446f69f71dd66d29de6461bfbd79daaf70d57",
+  "prompts": {},
+  "sessions": {
+    "s_7797c571574848": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "e03318e9-9338-450d-9110-f647043194bb",
+        "model": "grok-4.6"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
