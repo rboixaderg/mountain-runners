@@ -12,6 +12,7 @@ Tota l'operació està documentada al
 | `bootstrap/bootstrap.sh`              | Provisió reproduïble i idempotent del VPS (Caddy pinjat, identitats, layout, daemon) |
 | `caddy/Caddyfile`                     | Configuració del host de validació (headers, caché, 404, logs mínims)                |
 | `caddy/Caddyfile.production`          | Host de producció, importat **abans** del canvi DNS (T5.5)                           |
+| `caddy/content-security-policy.mjs`   | CSP vigent compartida pel `Caddyfile` i `verify-site`                                |
 | `verify/verify-site.mjs`              | Verificació del contracte del host: TLS, headers, 404, caché, noindex o indexable    |
 | `verify/site-contract.mjs`            | Comprovacions pures: indexable, HSTS T5.1 i redirect `www` → apex                    |
 | `release/`                            | CLI `mountain-release` i mòduls (instal·lació, activació, reversió)                  |

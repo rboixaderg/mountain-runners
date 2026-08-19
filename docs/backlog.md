@@ -158,6 +158,25 @@ i una fase que toqui la capa de presentació de l'aplicació.
 
 **Seguiment:** coberta per la fase 4 (T4.4, PR #49).
 
+### Analítica Web Respectuosa Amb La Privacitat
+
+**Estat:** Incorporada com a entrega autònoma.
+
+**Problema:** després de publicar la nova web caldrà entendre quines pàgines i
+continguts són útils, sense introduir analítica publicitària ni un seguiment
+invasiu de les persones visitants.
+
+**Resultat esperat:** disposar de mètriques mínimes i accionables de la web
+pública mitjançant Plausible autoallotjat, mantenint-lo com un servei operatiu
+separat de la compilació estàtica.
+
+**Dependències:** web pública funcional, destí de producció definit i instància
+Plausible existent a `analytics.rogerbg.cat`.
+
+**Seguiment:** [especificació d'analítica Plausible](specs/plausible-analytics.md)
+i [ADR 0007](decisions/0007-self-hosted-plausible-analytics.md). Entrega en curs
+a la branca `feat/plausible-analytics`.
+
 ## Necessitats Obertes
 
 ### Equipa't Amb Nosaltres
@@ -255,34 +274,6 @@ separació es manté dins del model i la capa de presentació existents.
 
 **Seguiment:** entrega en curs a la branca `refactor/contact-semantic-values`;
 PR pendent de revisió.
-
-### Analítica Web Respectuosa Amb La Privacitat
-
-**Estat:** Capturada.
-
-**Problema:** després de publicar la nova web caldrà entendre quines pàgines i
-continguts són útils, sense introduir analítica publicitària ni un seguiment
-invasiu de les persones visitants.
-
-**Resultat esperat:** disposar de mètriques mínimes i accionables de la web
-pública mitjançant Plausible autoallotjat al VPS, mantenint-lo com un servei
-operatiu separat de la compilació estàtica.
-
-**Abans de planificar-ho cal definir:**
-
-- les preguntes que han de respondre les mètriques i els esdeveniments realment
-  necessaris;
-- els requisits legals i de consentiment aplicables a la configuració escollida;
-- el cost de CPU, memòria i disc al VPS compartit;
-- actualitzacions, còpies de seguretat, restauració, salut i retenció de dades;
-- l'aïllament, TLS i accés al tauler d'administració;
-- si una fallada de l'analítica pot quedar completament desacoblada de la web;
-- els criteris d'acceptació i la documentació operativa necessària.
-
-**Dependències:** web pública funcional, destí de producció definit i operació
-del VPS preparada.
-
-**Seguiment:** pendent de triatge.
 
 ### Regressió Visual De Les Pantalles Principals
 
