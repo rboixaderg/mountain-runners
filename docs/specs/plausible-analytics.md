@@ -6,10 +6,12 @@ En curs.
 
 ## Objectiu
 
-Disposar de mètriques mínimes i accionables de la web pública —visites de pàgina
-i referències agregades— mitjançant Plausible Community Edition autoallotjat a
-`analytics.rogerbg.cat`, sense analítica publicitària, sense cookies pròpies no
-tècniques i sense que una fallada del servei trenqui la navegació.
+Disposar de mètriques mínimes i accionables de la web pública —visites de pàgina,
+referències agregades, clics sortints, baixades de fitxers i enviaments de
+formularis vàlids de manera agregada— mitjançant Plausible Community Edition
+autoallotjat a `analytics.rogerbg.cat`, sense analítica publicitària, sense
+cookies pròpies no tècniques i sense que una fallada del servei trenqui la
+navegació.
 
 ## Límits I Decisions Confirmades
 
@@ -82,8 +84,9 @@ perquè és una funcionalitat d'una tasca.
   carregat amb `async`.
 - La cua oficial (`window.plausible` i `plausible.init()`) s'executa des de
   `/js/plausible-init.js`, servit per `'self'`.
-- No s'afegeixen esdeveniments més enllà de la visita de pàgina que envia
-  Plausible per defecte.
+- A més de la visita de pàgina, l'snippet públic activa els comptadors agregats
+  de clics a enllaços sortints, baixades de fitxers i enviaments de formularis
+  vàlids. No s'hi afegeixen esdeveniments personalitzats propis del projecte.
 - El host de validació i l'entorn local poden carregar l'script; el filtre de
   nom d'amfitrió de Plausible descarta visites que no siguin de
   `mountainrunners.cat`.
@@ -117,7 +120,8 @@ tornaria a comentar l'import de producció). El procediment és al runbook.
 Les pàgines de cookies i de privacitat, en ca/es/en, han de descriure:
 
 - analítica agregada autoallotjada amb Plausible, sense cookies pròpies no
-  tècniques i sense publicitat;
+  tècniques ni publicitat, que mesura visites de pàgina, referències, clics
+  sortints, baixades de fitxers i enviaments de formularis vàlids;
 - absència de banner general, i el paper continuat de YouTube;
 - interès legítim, retenció màxima de 25 mesos de les mètriques i l'host
   `analytics.rogerbg.cat` com a encarregat d'aquest tractament.
@@ -128,7 +132,9 @@ Les pàgines de cookies i de privacitat, en ca/es/en, han de descriure:
   l'snippet com a `script` inline executable.
 - `node --test`: el `Caddyfile` i el verifier comparteixen la CSP esperada.
 - Playwright: el shell públic carrega l'script; cookies i privacitat esmenten
-  Plausible. No es comprova que l'host remot respongui.
+  Plausible. Els recorreguts intercepten i bloquegen `analytics.rogerbg.cat`
+  perquè la suite no depengui de la resposta remota i verifiqui que la
+  navegació continua funcionant.
 - No s'executa Lighthouse per aquesta entrega: l'script és asíncron i no canvia
   el disseny; una regressió de pressupost es tractaria a part.
 
