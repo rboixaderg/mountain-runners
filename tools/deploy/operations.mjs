@@ -117,6 +117,8 @@ export function createSmokeRunner({
     const args = [verifySitePath, "--base-url", baseUrl];
     if (expectNoIndex) {
       args.push("--expect-noindex");
+    } else {
+      args.push("--expect-indexable");
     }
     const result = spawnSyncImpl(process.execPath, args, { encoding: "utf8" });
     if (result.status !== 0) {

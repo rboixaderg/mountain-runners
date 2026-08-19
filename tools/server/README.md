@@ -1,6 +1,6 @@
-# Eines De Servidor (T5.3 / T5.4)
+# Eines De Servidor (T5.3 / T5.4 / T5.5)
 
-Aquest directori conté la provisió i les eines operatives de la T5.3 de
+Aquest directori conté la provisió i les eines operatives de la fase 5 de
 [`docs/specs/phase-5-publication-operation.md`](../../docs/specs/phase-5-publication-operation.md).
 Tota l'operació està documentada al
 [`docs/runbook.md`](../../docs/runbook.md); aquí només es descriu la disposició.
@@ -12,6 +12,7 @@ Tota l'operació està documentada al
 | `bootstrap/bootstrap.sh`              | Provisió reproduïble i idempotent del VPS (Caddy pinjat, identitats, layout, daemon) |
 | `caddy/Caddyfile`                     | Configuració del host de validació (headers, caché, 404, logs mínims)                |
 | `caddy/Caddyfile.production`          | Host de producció, importat al tall (T5.5)                                           |
+| `verify/verify-site.mjs`              | Verificació del contracte del host: TLS, headers, 404, caché, noindex o indexable    |
 | `release/`                            | CLI `mountain-release` i mòduls (instal·lació, activació, reversió)                  |
 | `release/daemon.mjs`                  | Daemon root (systemd) que executa les operacions per la identitat de desplegament    |
 | `release/ssh-gate.mjs`                | Forced command: tokenitza sense shell; `receive` escriu `incoming/`                  |
@@ -20,7 +21,6 @@ Tota l'operació està documentada al
 | `release/cli.test.mjs`                | Tests `node --test` amb arxius tar adversos i el daemon en marxa                     |
 | `systemd/mountain-release.service`    | Unitat del daemon (root, socket `/run/mountain-release.sock`)                        |
 | `systemd/caddy-mountain-runners.conf` | Drop-in de Caddy: `ReadWritePaths` de logs i releases                                |
-| `verify/verify-site.mjs`              | Verificació del contracte del host: TLS, headers, 404, caché, noindex                |
 
 ## Layout Al Servidor
 
@@ -58,5 +58,6 @@ bash -n tools/server/bootstrap/bootstrap.sh
 caddy validate --config <Caddyfile generat> --adapter caddyfile
 ```
 
-Les accions remotes (crear el VPS, el registre DNS del host de validació i les
-claus SSH) requereixen aprovació explícita de la persona mantenidora.
+Les accions remotes (crear el VPS, registres DNS, claus SSH, import de
+producció a Caddy i retirada del gate d'aprovació) requereixen aprovació
+explícita de la persona mantenidora.

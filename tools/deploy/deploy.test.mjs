@@ -16,6 +16,7 @@ import test from "node:test";
 import { loadVerifiedArtifact, productionOrigin } from "./artifact.mjs";
 import {
   createGithubHeadResolver,
+  createSmokeRunner,
   deployRelease,
   rollbackRelease,
 } from "./operations.mjs";
@@ -570,6 +571,10 @@ test("the production workflows pin actions, restrict main and keep secrets off t
     deployJob,
     /uses: actions\/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131/,
   );
+  assert.match(
+    deployJob,
+    /SMOKE_EXPECT_NOINDEX: "\$\{\{ vars\.SMOKE_EXPECT_NOINDEX \}\}"/,
+  );
   assert.doesNotMatch(artifactWorkflow, /uses: [^\s]+@v\d/);
 
   assert.match(rollbackWorkflow, /^on:\n {2}workflow_dispatch:/m);
@@ -580,6 +585,41 @@ test("the production workflows pin actions, restrict main and keep secrets off t
   assert.match(rollbackWorkflow, /name: production/);
   assert.match(
     rollbackWorkflow,
+    /SMOKE_EXPECT_NOINDEX: "\$\{\{ vars\.SMOKE_EXPECT_NOINDEX \}\}"/,
+  );
+  assert.match(
+    rollbackWorkflow,
     /github.ref == 'refs\/heads\/main' && github.event.repository.fork == false/,
   );
+});
+
+test("createSmokeRunner uses --expect-noindex until the apex cut", () => {
+  const calls = [];
+  const smoke = createSmokeRunner({
+    baseUrl: "https://validate.mountainrunners.cat",
+    spawnSyncImpl: (...args) => {
+      calls.push(args);
+      return { status: 0, stdout: "ok", stderr: "" };
+    },
+  });
+  smoke();
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0][1].includes("--expect-noindex"), true);
+  assert.equal(calls[0][1].includes("--expect-indexable"), false);
+});
+
+test("createSmokeRunner uses --expect-indexable after the apex cut", () => {
+  const calls = [];
+  const smoke = createSmokeRunner({
+    baseUrl: "https://mountainrunners.cat",
+    expectNoIndex: false,
+    spawnSyncImpl: (...args) => {
+      calls.push(args);
+      return { status: 0, stdout: "ok", stderr: "" };
+    },
+  });
+  smoke();
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0][1].includes("--expect-indexable"), true);
+  assert.equal(calls[0][1].includes("--expect-noindex"), false);
 });

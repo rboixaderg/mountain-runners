@@ -7,7 +7,8 @@ servidor, TLS, logs, salut, desplegament, reversió i resposta a incidències.
 Les seccions de servidor, TLS, logs, salut i reversió corresponen a la T5.3 de
 [`docs/specs/phase-5-publication-operation.md`](specs/phase-5-publication-operation.md).
 Les seccions de desplegament continu i workflow de rollback corresponen a la
-T5.4. La T5.5 consolida el document amb el tall i el període d'observació.
+T5.4. Les seccions de tall DNS, gate de llançament, HSTS i període
+d'observació corresponen a la T5.5.
 
 Cap acció remota (crear el VPS, registres DNS, claus SSH, secrets o activacions)
 no s'executa sense l'aprovació explícita de la persona mantenidora. Cap agent,
@@ -55,8 +56,9 @@ flux de releases (T5.4 i T5.5 incloses).
 
 El tallafoc de Hetzner només obre 22, 80 i 443. Caddy escolta 80/443, termina
 TLS amb ACME i serveix el symlink `current`. El host de validació és el bloc
-actiu del `Caddyfile`; el d'apex (`Caddyfile.production`) s'importa al tall
-(T5.5). El daemon de releases no escriu Caddy, claus TLS ni estat ACME.
+actiu del `Caddyfile` fins al tall; després del tall s'importa
+`Caddyfile.production` (apex i `www`). El daemon de releases no escriu Caddy,
+claus TLS ni estat ACME.
 
 ```mermaid
 flowchart TB
@@ -339,21 +341,22 @@ La persona mantenidora crea l'entorn (Settings → Environments) **abans** de la
 primera activació. Configuració requerida, sense valors secrets en aquest
 document:
 
-| Control             | Valor                                                       |
-| ------------------- | ----------------------------------------------------------- |
-| Nom                 | `production`                                                |
-| Deployment branches | només `main`                                                |
-| Required reviewers  | la persona mantenidora, fins que la T5.5 retiri aquest gate |
-| Wait timer          | 0                                                           |
+| Control             | Valor                                                                          |
+| ------------------- | ------------------------------------------------------------------------------ |
+| Nom                 | `production`                                                                   |
+| Deployment branches | només `main`                                                                   |
+| Required reviewers  | la persona mantenidora, fins que la secció 12 registri el període d'observació |
+| Wait timer          | 0                                                                              |
 
 Variables d'entorn (Settings → Environments → `production` → Environment
 variables):
 
-| Nom              | Contingut                                                    |
-| ---------------- | ------------------------------------------------------------ |
-| `DEPLOY_HOST`    | hostname SSH del VPS (host de validació fins a T5.5)         |
-| `DEPLOY_USER`    | `mountain-deploy` (opcional; aquest és el valor per defecte) |
-| `SMOKE_BASE_URL` | `https://<host de validació>`                                |
+| Nom                    | Contingut                                                                                         |
+| ---------------------- | ------------------------------------------------------------------------------------------------- |
+| `DEPLOY_HOST`          | hostname SSH del VPS (host de validació fins al tall; després pot continuar sent la IP o el host) |
+| `DEPLOY_USER`          | `mountain-deploy` (opcional; aquest és el valor per defecte)                                      |
+| `SMOKE_BASE_URL`       | `https://<host de validació>` fins al tall; `https://mountainrunners.cat` després                 |
+| `SMOKE_EXPECT_NOINDEX` | buit o qualsevol valor distint de `false` al host de validació; `false` després del tall          |
 
 Secrets d'entorn:
 
@@ -389,7 +392,8 @@ n'aprova el desplegament.
    fallada abans d'aquest pas no mou el punter actiu.
 8. Torna a comprovar el HEAD de `main`, després `health` i smoke tests
    (`tools/server/verify/verify-site.mjs` amb `--expect-noindex` mentre el
-   host de validació és el destí). Si fallen, restaura el commit que era
+   host de validació és el destí, o `--expect-indexable` quan
+   `SMOKE_EXPECT_NOINDEX` és `false`). Si fallen, restaura el commit que era
    actiu abans d'aquest `activate` (no un `rollback` genèric). Si no n'hi
    havia cap, registra la resposta d'emergència (secció 6) i falla.
 
@@ -398,14 +402,22 @@ només revalida salut i smoke.
 
 ### Smoke Tests
 
-Fins al tall (T5.5) els smoke tests es fan contra el host de validació, amb
-`--expect-noindex`. La T5.5 canviarà `SMOKE_BASE_URL` i retirarà
-`SMOKE_EXPECT_NOINDEX` quan l'apex sigui el destí.
+Fins al tall els smoke tests es fan contra el host de validació. El valor
+buit o distint de `false` de `SMOKE_EXPECT_NOINDEX` afegeix `--expect-noindex`.
+Després del tall, la persona mantenidora posa `SMOKE_BASE_URL` a
+`https://mountainrunners.cat` i `SMOKE_EXPECT_NOINDEX` a `false` (secció 9);
+això passa `--expect-indexable` i comprova la redirecció `www` → apex.
 
 ```sh
+# Host de validació
 node tools/server/verify/verify-site.mjs \
   --base-url "$SMOKE_BASE_URL" \
   --expect-noindex
+
+# Apex, després del tall
+node tools/server/verify/verify-site.mjs \
+  --base-url https://mountainrunners.cat \
+  --expect-indexable
 ```
 
 ## 8. Reversió Des Del Workflow
@@ -424,8 +436,170 @@ Després d'activar, executa els mateixos smoke tests. Si fallen, restaura el
 commit que era actiu abans d'aquest rollback. Una release revocada és
 rebutjada pel daemon.
 
-## 9. Seccions Pendents
+## 9. Tall DNS I Primera Activació Pública
 
-- **Tall i operació de producció** (T5.5): canvis DNS, primer tall, retirada
-  del gate d'aprovació de l'entorn `production` un cop superat el període
-  d'observació, i consolidació d'aquest runbook.
+Cap pas d'aquesta secció s'executa des d'una sessió d'agent ni sense aprovació
+explícita de la persona mantenidora. El tall no migra nameservers, no activa
+DNSSEC i no publica IPv6.
+
+L'inventari públic vigent és a
+[`docs/phase-5-t55-dns-inventory.md`](phase-5-t55-dns-inventory.md). La
+checklist d'evidència del gate és a
+[`docs/validation/phase-5-t55-launch-gate.md`](validation/phase-5-t55-launch-gate.md).
+
+### Condicions Prèvies
+
+- Canal privat de vulnerabilitats operatiu (T5.1).
+- Polítiques públiques de privacitat i cookies coherents amb Hetzner, YouTube
+  i els logs (T5.3).
+- VPS bootstrapjat, host de validació amb TLS i `X-Robots-Tag: noindex`,
+  identitat `mountain-deploy` instal·lada.
+- Entorn GitHub `production` creat, amb required reviewers, i almenys una
+  release elegible activada al host de validació (T5.4).
+- Correu a Hostinger: iniciar sessió a
+  [`https://mail.hostinger.com`](https://mail.hostinger.com) amb l'adreça
+  institucional completa (no amb la contrasenya del hPanel). A l'allotjament
+  actual `https://mountainrunners.cat/webmail` ja respon 404; el tall no hi
+  canvia res.
+- Còpia de seguretat del VPS activa al Cloud Console de Hetzner.
+
+### Export I TTL
+
+1. Exportar l'inventari des de hPanel (captures o CSV) i anotar els valors
+   públics amb `dig`:
+
+   ```sh
+   dig +short NS mountainrunners.cat
+   dig +short MX mountainrunners.cat
+   dig +short TXT mountainrunners.cat
+   dig +short TXT _dmarc.mountainrunners.cat
+   dig +short CNAME autodiscover.mountainrunners.cat
+   dig +short CNAME autoconfig.mountainrunners.cat
+   dig +short A ftp.mountainrunners.cat
+   dig +short A mountainrunners.cat
+   dig +short AAAA mountainrunners.cat
+   dig +short CNAME www.mountainrunners.cat
+   dig +short A www.mountainrunners.cat
+   ```
+
+   Conservar l'export de hPanel fora del repositori fins que acabi el període
+   d'observació. És la base de la via extraordinària de restauració DNS.
+
+2. Reduir el TTL de l'apex i `www` al mínim que permeti Hostinger (el SOA
+   actual té mínim 600 s) i esperar com a mínim aquest TTL abans del canvi.
+3. No tocar MX, SPF, DMARC, `autodiscover`, `autoconfig`, `ftp`, NS ni cap
+   altre registre que no sigui l'A/AAAA/CNAME de l'apex i `www`.
+
+### Canvis Web A Hostinger
+
+Només aquests registres, amb la IPv4 pública del VPS (`APEX_IPV4`):
+
+| Nom         | Abans (Hostinger)                       | Després             |
+| ----------- | --------------------------------------- | ------------------- |
+| A `@`       | les dues IPv4 de Hostinger              | una A a `APEX_IPV4` |
+| AAAA `@`    | les IPv6 de Hostinger                   | **esborrar**        |
+| CNAME `www` | `www.mountainrunners.cat.cdn.hstgr.net` | **esborrar**        |
+| A `www`     | (via CNAME)                             | una A a `APEX_IPV4` |
+| AAAA `www`  | (via CNAME)                             | **esborrar**        |
+
+No es publica cap `AAAA` fins que IPv6, el tallafoc, Caddy i els smoke tests
+funcionin també per IPv6. Llavors es torna a comprovar amb `dig +short AAAA`.
+
+### Activar El Host De Producció A Caddy
+
+Quan els registres nous resolen cap al VPS, al servidor (com a `root`):
+descomentar `import Caddyfile.production` a `/etc/caddy/Caddyfile` i:
+
+```sh
+caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
+systemctl restart caddy
+```
+
+Caddy emetrà certificats per a `mountainrunners.cat` i `www` via ACME. Els
+intents fallits a `error.log` abans que el DNS hagi propagat són esperats.
+
+### Verificar El Tall
+
+Repetir els `dig` de correu (MX, TXT, autodiscover, autoconfig) i comprovar
+que coincideixen amb l'export previ. Els A d'apex i `www` han de ser només
+`$APEX_IPV4`; no ha de quedar CNAME de `www` ni AAAA web.
+
+```sh
+node tools/server/verify/verify-site.mjs \
+  --base-url https://mountainrunners.cat \
+  --expect-indexable
+```
+
+Comprovar el correu: enviar i rebre un missatge a l'adreça institucional, i
+obrir [`https://mail.hostinger.com`](https://mail.hostinger.com) amb la
+mateixa bústia. MX, SPF i DMARC no han d'haver canviat.
+
+### Variables De L'Entorn Després Del Tall
+
+A Settings → Environments → `production`:
+
+| Nom                    | Valor nou                     |
+| ---------------------- | ----------------------------- |
+| `SMOKE_BASE_URL`       | `https://mountainrunners.cat` |
+| `SMOKE_EXPECT_NOINDEX` | `false`                       |
+
+Els required reviewers es mantenen fins a la secció 12. El job de desplegament
+continua exigint aprovació humana durant l'observació.
+
+## 10. Gate De Llançament
+
+Abans de donar el tall per acceptat, la persona mantenidora completa
+[`docs/validation/phase-5-t55-launch-gate.md`](validation/phase-5-t55-launch-gate.md):
+
+- `pnpm validate` sobre el commit desplegat (ja és gate de CI a `main`).
+- `pnpm lighthouse` contra el build local, dins dels llindars aprovats.
+- Navegació representativa `ca` / `es` / `en` (portada, hub, un detall, 404).
+- Revisió manual d'accessibilitat de llançament; axe no equival a WCAG 2.2 AA.
+- TLS a l'apex i `www`, redirecció HTTP→HTTPS, smoke `--expect-indexable`.
+- Correu i webmail a `https://mail.hostinger.com`.
+- Reversió interna: `Rollback production` (o `sudo mountain-release rollback`)
+  cap a una release anterior elegible, smoke, i reactivació de la release
+  desitjada.
+
+## 11. HSTS
+
+HSTS no s'activa al mateix moment que el tall. Després que TLS, apex, `www` i
+els smoke tests siguin estables, descomentar a
+`/etc/caddy/Caddyfile.production`:
+
+```text
+header Strict-Transport-Security "max-age=31536000"
+```
+
+sense `includeSubDomains` (T5.1). Validar, `systemctl restart caddy` i
+reexecutar:
+
+```sh
+node tools/server/verify/verify-site.mjs \
+  --base-url https://mountainrunners.cat \
+  --expect-indexable \
+  --expect-hsts
+```
+
+## 12. Període D'Observació I Retirada Del Gate
+
+El període d'observació aprovat és **48 hores** després d'un tall amb smoke,
+correu i TLS estables.
+
+Durant aquest període:
+
+- Cada merge a `main` continua desplegant-se només amb aprovació de l'entorn
+  `production`.
+- El workflow `Rollback production` continua protegit.
+- No es rebaixa la protecció de `main` ni els checks obligatoris.
+
+Quan la persona mantenidora confirma les 48 hores sense incidència de tall,
+correu o TLS:
+
+1. Retira **Required reviewers** de l'entorn GitHub `production`. Els merges
+   posteriors a `main` poden activar-se automàticament si passen els gates.
+2. Deixa el workflow de rollback amb aprovació humana.
+3. Registra la data a
+   [`docs/validation/phase-5-t55-launch-gate.md`](validation/phase-5-t55-launch-gate.md).
+
+Cap agent no configura l'entorn ni n'elimina els reviewers.
