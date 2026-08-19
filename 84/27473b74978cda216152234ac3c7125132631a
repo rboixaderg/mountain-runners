@@ -1,0 +1,14 @@
+.agents/skills/unslop/SKILL.md
+  h_1727aeeb492b30 1-98
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "8427473b74978cda216152234ac3c7125132631a",
+  "prompts": {},
+  "humans": {
+    "h_1727aeeb492b30": {
+      "author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
