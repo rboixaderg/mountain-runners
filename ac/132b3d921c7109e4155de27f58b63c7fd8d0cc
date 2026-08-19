@@ -1,0 +1,57 @@
+docs/validation/phase-5-t55-launch-gate.md
+  s_2bbeb25732239e::t_0346c25996f701 5-8,21-23,32-38,44,55-59,66-67,69-70
+.github/workflows/rollback.yml
+  s_2bbeb25732239e::t_bc4926df610ebc 25
+README.md
+  s_2bbeb25732239e::t_a5f68e88fffac2 14-17
+docs/architecture.md
+  s_2bbeb25732239e::t_ca335122e75632 25-26,43-49,83
+docs/deployment.md
+  s_2bbeb25732239e::t_f3e5d35a8cdd13 6-12,157-161,168-171,177,190-196
+docs/phase-5-t55-dns-inventory.md
+  s_2bbeb25732239e::t_90aa251d2d74c2 6-9,13
+docs/roadmap.md
+  s_2bbeb25732239e::t_27694c852c35dc 245-248
+docs/runbook.md
+  s_2bbeb25732239e::t_8850eca788508e 58-60,334-336,372-396,430-433,450-453,465-470,503-506,514,522-538,542-543,558-561,571,575-576,583-585,597-598,602,627-628,634-635,638-642,644-647,651
+docs/specs/phase-5-publication-operation.md
+  s_2bbeb25732239e::t_a698dc6fb964a9 103
+package.json
+  s_2bbeb25732239e::t_7f44e79e86d8a7 24
+tools/deploy/deploy.mjs
+  s_2bbeb25732239e::t_87793f498ed2ef 12,38
+tools/deploy/deploy.test.mjs
+  s_2bbeb25732239e::t_67a4e5b8146678 22,586-587,628-634
+tools/deploy/operations.mjs
+  s_2bbeb25732239e::t_464857169eaaff 108-111
+tools/deploy/rollback.mjs
+  s_2bbeb25732239e::t_a1aa56d2062cd5 8-12,46
+tools/server/README.md
+  s_2bbeb25732239e::t_84185ab9c9938d 14,16,62-63
+tools/server/bootstrap/bootstrap.sh
+  s_2bbeb25732239e::t_8fb6a71cf09776 286
+tools/server/caddy/Caddyfile.production
+  s_2bbeb25732239e::t_bff06376190db2 5-6
+tools/server/verify/site-contract.mjs
+  s_2bbeb25732239e::t_09b9d4caa425b6 1-43
+tools/server/verify/site-contract.test.mjs
+  s_2bbeb25732239e::t_989737184703c6 1-73
+tools/server/verify/verify-site.mjs
+  s_2bbeb25732239e::t_dfdf09083e60bf 15-20,79,82,101,203-205,215-222
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "ac132b3d921c7109e4155de27f58b63c7fd8d0cc",
+  "prompts": {},
+  "sessions": {
+    "s_2bbeb25732239e": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "8f9a4670-b2ea-4c5c-9fa1-5f86c1c94bd9",
+        "model": "grok-4.6"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
