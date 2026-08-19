@@ -109,3 +109,30 @@ editions:
         en: Infantil — 2 km
     registrationStatus: closed
     documentIds: []
+  - id: edition-2026
+    startDate: 2026-11-15
+    location:
+      ca: Avià
+      es: Avià
+      en: Avià
+    modalities:
+      - ca: Cursa infantil pels carrers d'Avià
+        es: Carrera infantil por las calles de Avià
+        en: Children's race through the streets of Avià
+      - ca: Minis i xics — 400 m
+        es: Minis y xics — 400 m
+        en: Minis and xics — 400 m
+      - ca: Pre-benjamí — 800 m
+        es: Pre-benjamín — 800 m
+        en: Pre-benjamí — 800 m
+      - ca: Benjamí — 1,15 km
+        es: Benjamín — 1,15 km
+        en: Benjamí — 1.15 km
+      - ca: Aleví — 1,56 km
+        es: Alevín — 1,56 km
+        en: Aleví — 1.56 km
+      - ca: Infantil — 2 km
+        es: Infantil — 2 km
+        en: Infantil — 2 km
+    registrationStatus: coming-soon
+    documentIds: []
