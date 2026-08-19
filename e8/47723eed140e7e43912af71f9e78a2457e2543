@@ -1,0 +1,41 @@
+apps/web/e2e/shell.spec.ts
+  s_d011de60f9a81c::t_d118b4b8a2ecdb 139,150-151,258-259,274-283,294,953,958-962,990-993,1007-1010,1028-1065,1095-1102,1111-1122,1151,1162-1169
+apps/web/messages/ca.json
+  s_d011de60f9a81c::t_0c3ecd9c28666b 81,100,192
+apps/web/messages/en.json
+  s_d011de60f9a81c::t_92f795ffd62d9d 81,100,192
+apps/web/messages/es.json
+  s_d011de60f9a81c::t_e7c3f0dbc4fd4e 81,100,192
+apps/web/src/content/events/cros-de-queralt.yaml
+  s_d011de60f9a81c::t_fd8d6781d80605 94-108
+apps/web/src/content/events/minivolta-a-la-maria.yaml
+  s_d011de60f9a81c::t_58ddaa90dcde11 112-138
+apps/web/src/layouts/PublicLayout.astro
+  s_d011de60f9a81c::t_817bdc468be171 12,15-20,32,43,47-49,89-97,101,103-111
+apps/web/src/lib/content/seo.ts
+  s_d011de60f9a81c::t_050286780da475 6-16,33,35,38,44-50,71,73,80-85,92-95,99-100,127-132
+apps/web/src/pages/[locale]/[domain]/[slug].astro
+  s_d011de60f9a81c::t_4bd2ab77bda4a1 13,53-56,62-65,71-74,82-85,87
+apps/web/src/pages/[locale]/[domain]/index.astro
+  s_d011de60f9a81c::t_c565bd9fe149c1 12,122-133,141
+apps/web/src/pages/[locale]/index.astro
+  s_d011de60f9a81c::t_4a030cc4843628 6,80-86,88,90,114,120-123
+apps/web/src/test/seo.test.ts
+  s_d011de60f9a81c::t_803341b59df1d0 117-143,220-240
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "e847723eed140e7e43912af71f9e78a2457e2543",
+  "prompts": {},
+  "sessions": {
+    "s_d011de60f9a81c": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "8a2e5efb-58cc-4f46-9d38-65894a5613c6",
+        "model": "grok-4.6"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
