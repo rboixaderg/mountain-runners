@@ -46,4 +46,10 @@ export default tseslint.config(
       },
     },
   },
+  {
+    files: ["apps/web/public/**/*.js"],
+    languageOptions: {
+      globals: globals.browser,
+    },
+  },
 );

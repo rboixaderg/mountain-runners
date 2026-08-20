@@ -31,13 +31,15 @@
 	}
 }
 
-# Headers approved in T5.1: CSP without wildcards or unsafe-eval, plus the
-# minimum header set. X-Robots-Tag is applied per host (validation only).
+# Headers approved in T5.1 and amended by ADR 0007: CSP without wildcards or
+# unsafe-eval, plus the minimum header set. script-src and connect-src allow
+# the self-hosted Plausible origin. X-Robots-Tag is applied per host
+# (validation only).
 (common_headers) {
 	header X-Content-Type-Options nosniff
 	header Referrer-Policy strict-origin-when-cross-origin
 	header Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=(), usb=()"
-	header Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self'; font-src 'self'; frame-src https://www.youtube-nocookie.com; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; object-src 'none'"
+	header Content-Security-Policy "default-src 'self'; script-src 'self' https://analytics.rogerbg.cat; connect-src 'self' https://analytics.rogerbg.cat; style-src 'self' 'unsafe-inline'; img-src 'self'; font-src 'self'; frame-src https://www.youtube-nocookie.com; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; object-src 'none'"
 }
 
 # Cache policy approved in T5.1. Matchers are mutually exclusive so the

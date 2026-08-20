@@ -12,6 +12,7 @@
 //   node tools/server/verify/verify-site.mjs --base-url https://host --expect-noindex
 //   node tools/server/verify/verify-site.mjs --base-url https://mountainrunners.cat --expect-indexable
 
+import { contentSecurityPolicy } from "../caddy/content-security-policy.mjs";
 import {
   hstsPresentFinding,
   indexableFinding,
@@ -44,7 +45,7 @@ const headersPatterns = {
   "X-Content-Type-Options": /nosniff/u,
   "Referrer-Policy": /strict-origin-when-cross-origin/u,
   "Permissions-Policy": /camera=\(\), microphone=\(\)/u,
-  "Content-Security-Policy": /default-src 'self'/u,
+  "Content-Security-Policy": contentSecurityPolicy,
 };
 
 const findings = [];
@@ -168,7 +169,9 @@ async function checkTrailingSlash(urlWithoutSlash) {
 function assertHeaders(label, headers) {
   for (const [name, pattern] of Object.entries(headersPatterns)) {
     const value = headers.get(name.toLowerCase()) ?? "";
-    if (!pattern.test(value)) {
+    const matches =
+      typeof pattern === "string" ? value === pattern : pattern.test(value);
+    if (!matches) {
       findings.push(`${label} is missing ${name}: ${value || "absent"}.`);
     }
   }
