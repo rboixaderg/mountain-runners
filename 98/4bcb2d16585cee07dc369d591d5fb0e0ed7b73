@@ -1,0 +1,19 @@
+docs/backlog.md
+  s_1c53c0b93dc5d4::t_1ae01e0d2abe14 177-179,183-234
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "984bcb2d16585cee07dc369d591d5fb0e0ed7b73",
+  "prompts": {},
+  "sessions": {
+    "s_1c53c0b93dc5d4": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "f7a98f05-91e8-4896-9520-f10a85030a61",
+        "model": "unknown"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
