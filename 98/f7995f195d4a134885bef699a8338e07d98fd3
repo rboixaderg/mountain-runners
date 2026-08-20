@@ -1,0 +1,23 @@
+apps/web/e2e/shell.spec.ts
+  s_abdf8efda7ddb1::t_2b9a12174b7cae 676,869-874,876
+apps/web/src/content/schools/btt-school.yaml
+  s_abdf8efda7ddb1::t_c8999a7216c977 13-21,25-26,30-31,33-35,39-40,42-44,48-49,134-138,150-152,154-156,159-162,165-166,169,172-180,182-183,185,188-202,204-205,207,210-224,226-234,237-249,251,253-262,264-289,291-316,319-320,322,324,326-327,329,331,333-334,337-339,341,344,346,348-349,351,353,355-356,358-361,363-365,367,369,371-372,374,376,378-379,382-384
+apps/web/src/test/presentation-schools.test.ts
+  s_abdf8efda7ddb1::t_ee059459ca0ef1 152,155,159-179,184
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "98f7995f195d4a134885bef699a8338e07d98fd3",
+  "prompts": {},
+  "sessions": {
+    "s_abdf8efda7ddb1": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_fe0329432ffePa7NcG3ZHieRYm",
+        "model": "gpt-5.6-terra"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
