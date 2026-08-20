@@ -174,10 +174,63 @@ separat de la compilació estàtica.
 Plausible existent a `analytics.rogerbg.cat`.
 
 **Seguiment:** [especificació d'analítica Plausible](specs/plausible-analytics.md)
-i [ADR 0007](decisions/0007-self-hosted-plausible-analytics.md). Entrega en curs
-a la branca `feat/plausible-analytics`.
+i [ADR 0007](decisions/0007-self-hosted-plausible-analytics.md). La T1 està
+fusionada a la PR #90. Els esdeveniments d'acció i el temps d'estada es recullen
+a l'entrada oberta corresponent; no s'amplien silenciosament aquesta entrega.
 
 ## Necessitats Obertes
+
+### Esdeveniments D'Acció I Temps D'Estada
+
+**Estat:** Capturada.
+
+**Problema:** les visites de pàgina i els comptadors automàtics de clics sortints,
+baixades i formularis no expliquen quines accions de la web pública són útils
+(inscripció, alta de soci, butlletí, documents, navegació, selector d'idioma) ni
+quant de temps visible passen les persones visitants a cada pàgina o a la visita.
+Sense aquestes mètriques agregades el club no pot prioritzar contingut ni
+detectar recorreguts que acaben en una acció.
+
+**Resultat esperat:** emetre esdeveniments personalitzats agregats a Plausible
+per a les accions rellevants de la interfície i mesurar l'estona visible
+d'estada, amb llindars reproduïbles, sense cookies pròpies no tècniques, sense
+identificadors persistents i sense que una fallada de l'analítica trenqui la
+navegació. Els textos de privacitat i de cookies han de descriure aquests
+esdeveniments reals.
+
+**Abans de planificar-ho cal definir:**
+
+- el catàleg tancat d'esdeveniments i propietats (noms estables, àrea de la
+  pàgina, locale, ruta, tipus de pàgina) per a accions com la navegació de la
+  capçalera i el peu, el selector d'idioma, les inscripcions i informació
+  d'esdeveniments i escoles, l'alta de soci i la federació, el butlletí, els
+  documents i estatuts, els enllaços de contacte i xarxes, els col·laboradors i
+  els recorreguts del calendari;
+- com s'evita duplicar els comptadors automàtics de clics sortints, baixades i
+  enviaments de formulari que ja pugui emetre l'snippet, i quines accions
+  internes o amb nom de negoci calen igualment;
+- el mesurament del temps: només temps visible (pausa amb la pestanya oculta),
+  llindars per pàgina (per exemple 15, 30, 60 i 120 segons) i si cal una
+  agregació de l'estona total de la visita sense emmagatzemar identificadors
+  persistents; opcionalment, profunditat de scroll si respon una pregunta
+  concreta;
+- el contracte de privacitat: etiquetes sanititzades i truncades, cap adreça de
+  correu, telèfon, query string ni text lliure que pugui identificar una
+  persona; propietats només agregables;
+- com s'executa el client a un lloc estàtic multipàgina: script servit per
+  `'self'`, sense `unsafe-inline` a `script-src`, i reinici del temps a cada
+  càrrega de pàgina;
+- l'actualització de privacitat i cookies en ca/es/en, i si cal ampliar l'ADR
+  0007 o l'especificació d'analítica ja acceptada;
+- les comprovacions: el catàleg d'esdeveniments està cobert per proves, el
+  recorregut E2E continua funcionant amb l'origen de Plausible bloquejat i no es
+  canvien rutes, contingut editorial ni selectors E2E existents.
+
+**Dependències:** snippet de Plausible al `PublicLayout`, cua `window.plausible`
+a l'origen propi, CSP que permet `connect-src` cap a l'origen d'analítica i
+textos legals de la primera entrega d'analítica. No forma part de la fase 5.
+
+**Seguiment:** pendent de triatge.
 
 ### Equipa't Amb Nosaltres
 
