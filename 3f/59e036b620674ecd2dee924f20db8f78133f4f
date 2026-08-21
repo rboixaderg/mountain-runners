@@ -1,0 +1,31 @@
+tools/server/caddy/Caddyfile
+  s_70de755c4c59e4::t_808197b55d9c3b 61-64
+tools/server/caddy/caddyfile.test.mjs
+  s_70de755c4c59e4::t_1545f6254d81f1 21-33
+docs/backlog.md
+  s_70de755c4c59e4::t_a67aa776ecf5aa 237,271-277
+docs/runbook.md
+  s_70de755c4c59e4::t_82f6ceb708f52a 209-235
+tools/server/verify/site-contract.mjs
+  s_70de755c4c59e4::t_1dfb568d37528a 26-46
+tools/server/verify/site-contract.test.mjs
+  s_70de755c4c59e4::t_03e4b01da51d9c 6,37-62
+tools/server/verify/verify-site.mjs
+  s_70de755c4c59e4::t_40a2bb0390b71d 5-7,20,43,64,156-167
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "3f59e036b620674ecd2dee924f20db8f78133f4f",
+  "prompts": {},
+  "sessions": {
+    "s_70de755c4c59e4": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "5811daa2-6fcc-4c50-a72b-cc735721304b",
+        "model": "composer-2.5-fast"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
