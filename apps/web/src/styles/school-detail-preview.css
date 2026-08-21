@@ -210,6 +210,11 @@
 .schools-detail-preview__practical-layout {
   display: grid;
   gap: clamp(1rem, 2vw, 1.25rem);
+  min-width: 0;
+}
+
+.schools-detail-preview__practical-layout > * {
+  min-width: 0;
 }
 
 .schools-detail-preview__practical-header {
@@ -257,6 +262,7 @@
   display: flex;
   overflow: hidden;
   height: 100%;
+  min-width: 0;
   flex-direction: column;
   align-items: flex-start;
   border: 0.125rem solid var(--color-ink);
@@ -312,6 +318,7 @@
 
 .schools-detail-preview__prices {
   display: flex;
+  min-width: 0;
   flex-direction: column;
   border: 0.125rem solid var(--color-ink);
   padding: clamp(1.5rem, 3vw, 2rem);
@@ -422,16 +429,22 @@
 }
 
 .schools-detail-preview__price-registration-label {
+  flex: 0 1 auto;
+  min-width: 0;
   font-size: 0.95rem;
   font-weight: 600;
 }
 
 .schools-detail-preview__price-registration-amount {
+  flex: 1 1 12rem;
+  min-width: 0;
   color: var(--color-red);
   font-family: var(--font-display);
   font-size: 1.05rem;
   font-weight: 700;
-  white-space: nowrap;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+  text-align: end;
 }
 
 .schools-detail-preview__prices-footnote {
