@@ -1,0 +1,27 @@
+.agents/skills/spec-authoring/SKILL.md
+  s_879ce1aabc20d9::t_827ec4f7316d58 40-41
+.agents/skills/spec-implementation-review/SKILL.md
+  s_879ce1aabc20d9::t_638cde89e894b4 70-72
+AGENTS.md
+  s_879ce1aabc20d9::t_503147ef5a90a4 61-65
+docs/code-conventions.md
+  s_879ce1aabc20d9::t_df490d550a1ba9 144-145,147-154
+docs/specs/README.md
+  s_879ce1aabc20d9::t_13701d98b51ab7 53-56
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "89f40637e1b9b3ea56275d5e6be4c2e5e8abc5eb",
+  "prompts": {},
+  "sessions": {
+    "s_879ce1aabc20d9": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "a1e7eec5-f89c-4761-8d60-427a994912b6",
+        "model": "unknown"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
