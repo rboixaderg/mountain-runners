@@ -66,7 +66,10 @@ Follow the affected execution and data paths. Look for:
 - inconsistencies between callers, consumers, and related modules;
 - regressions or edge cases introduced by the change;
 - unnecessary abstractions, dependencies, compatibility code, or duplicated
-  sources of truth that add concrete risk without serving the task.
+  sources of truth that add concrete risk without serving the task;
+- provable unnecessary code: lines, files, or concepts whose removal preserves
+  required behavior, correctness, security, accessibility, readability and
+  governing project constraints, even when they add no concrete risk.
 
 Do not report subjective style preferences.
 
