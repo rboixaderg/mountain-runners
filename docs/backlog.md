@@ -275,6 +275,7 @@ branca `fix/root-locale-redirect` incorpora una redirecció HTTP permanent i
 exacta de `/` a `/ca/` a Caddy, la comprovació del contracte viu i les
 instruccions d'activació. El criteri d'èxit és que l'arrel respongui directament
 amb `301` o `308` i `Location: /ca/`, sense servir el document intermedi.
+Entrega a la [PR #95](https://github.com/rboixaderg/mountain-runners/pull/95).
 
 ### Equipa't Amb Nosaltres
 
