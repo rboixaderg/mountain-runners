@@ -232,6 +232,44 @@ textos legals de la primera entrega d'analítica. No forma part de la fase 5.
 
 **Seguiment:** pendent de triatge.
 
+### Entrada Sense Idioma Més Ràpida
+
+**Estat:** Capturada.
+
+**Problema:** quan una persona visita l'origen sense prefix d'idioma (per
+exemple `https://mountainrunners.cat/`), la web redirigeix al català
+(`/ca/`). Avui aquesta resposta es percep lenta: l'arrel emet un document
+mínim amb `meta refresh` cap a `/ca/` en lloc de servir ja el contingut
+català o una redirecció HTTP immediata. Això afegeix un salt perceptible
+abans de veure la pàgina d'inici.
+
+**Resultat esperat:** analitzar i triar una estratègia perquè l'entrada sense
+idioma mostri el català amb menys latència —servir el català per defecte a
+l'arrel, una redirecció HTTP ràpida a la vora o al servidor, o una altra
+opció compatible amb el contracte d'i18n— sense perdre URLs canòniques,
+`hreflang`, SEO ni el selector d'idioma.
+
+**Abans de planificar-ho cal definir:**
+
+- la causa mesurable de la lentitud (document intermedi amb `meta refresh`,
+  cadena de redireccions Astro/`redirectToDefaultLocale`, o latència de
+  xarxa) i un criteri d'èxit (temps fins al primer contingut útil);
+- si es pot servir el català a `/` sense prefix, mantenint `/ca/`, `/es/` i
+  `/en/` com a rutes publicades, o si cal conservar sempre el prefix i només
+  accelerar la redirecció (HTTP 301/302 a Caddy o a l'artefacte);
+- l'impacte sobre `prefixDefaultLocale`, canòniques, `hreflang`, sitemap,
+  robots i proves que avui exigeixen que l'arrel redirigeixi a `/ca/`;
+- la coherència amb l'entrada de declaració de rutes per idioma i amb el
+  contracte tipat de rutes;
+- les comprovacions de regressió: arrel, variants localitzades, E2E del shell
+  i matriu de rutes.
+
+**Dependències:** configuració i18n d'Astro (`prefixDefaultLocale` i
+`redirectToDefaultLocale`), pàgina arrel i, si s'opta per redirecció al
+servidor, el `Caddyfile` de producció.
+
+**Seguiment:** pendent de triatge.
+
 ### Equipa't Amb Nosaltres
 
 **Estat:** Capturada.
