@@ -10,34 +10,43 @@ name:
   es: Escuela BTT
   en: MTB School
 summary:
-  ca: Activitats de BTT per a infants i joves de 6 a 16 anys al Berguedà.
-  es: Actividades de BTT para niños y jóvenes de 6 a 16 años en el Berguedà.
-  en: MTB activities for children and young people aged 6 to 16 in Berguedà.
+  ca: >-
+    Activitats de BTT i Enduro per a infants i joves de 5 a 16 anys al
+    Berguedà.
+  es: >-
+    Actividades de BTT y Enduro para niños y jóvenes de 5 a 16 años en el
+    Berguedà.
+  en: >-
+    MTB and Enduro activities for children and young people aged 5 to 16 in
+    Berguedà.
 description:
   ca: >-
     L'Escola BTT és una de les branques dels MRB, juntament amb el CEB i
-    Veloberga, per a grups d'infants i joves de 6 a 16 anys, en horari no
-    lectiu, per l'entorn de la comarca del Berguedà.
+    Veloberga. Ofereix dues modalitats, BTT i Enduro, per a infants i joves de
+    5 a 16 anys, en horari no lectiu, per l'entorn de la comarca del Berguedà.
 
 
     És un espai per descobrir la comarca amb bicicleta, aprendre tècnica i
-    gaudir de la natura sense ser una escola d'alt rendiment.
+    gaudir de la natura sense ser una escola d'alt rendiment. Els grups
+    s'organitzen per nivell, no per edat.
   es: >-
-    La Escuela BTT es una de las ramas de MRB, junto con el CEB y Veloberga, para
-    grupos de niños y jóvenes de 6 a 16 años, fuera del horario lectivo, por el
-    entorno de la comarca del Berguedà.
+    La Escuela BTT es una de las ramas de MRB, junto con el CEB y Veloberga.
+    Ofrece dos modalidades, BTT y Enduro, para niños y jóvenes de 5 a 16 años,
+    fuera del horario lectivo, por el entorno de la comarca del Berguedà.
 
 
     Es un espacio para descubrir la comarca en bicicleta, aprender técnica y
-    disfrutar de la naturaleza sin ser una escuela de alto rendimiento.
+    disfrutar de la naturaleza sin ser una escuela de alto rendimiento. Los
+    grupos se organizan por nivel, no por edad.
   en: >-
-    The MTB School is one of MRB's branches, together with CEB and Veloberga, for
-    groups of children and young people aged 6 to 16, held outside school hours
-    around Berguedà.
+    The MTB School is one of MRB's branches, together with CEB and Veloberga. It
+    offers two modalities, MTB and Enduro, for children and young people aged 5
+    to 16, held outside school hours around Berguedà.
 
 
     It is a place to discover the region by bike, learn technique and enjoy
-    nature, rather than a high-performance school.
+    nature, rather than a high-performance school. Groups are organised by
+    level, not by age.
 cover:
   resource:
     kind: local
@@ -122,7 +131,11 @@ gallery:
       es: "Foto: Anna Aguilar Porta"
       en: "Photo: Anna Aguilar Porta"
     sourceUrl: https://mountainrunners.cat/wp-content/uploads/2021/07/DSC_0203-1024x680.jpg
-registrationStatus: coming-soon
+registrationStatus: open
+registrationUrl:
+  ca: https://docs.google.com/forms/d/e/1FAIpQLSfzsIxQG7cUkho_urM6mrMRCio-4aarsnKPB-GlLJCOg8au7Q/viewform
+  es: https://docs.google.com/forms/d/e/1FAIpQLSfzsIxQG7cUkho_urM6mrMRCio-4aarsnKPB-GlLJCOg8au7Q/viewform
+  en: https://docs.google.com/forms/d/e/1FAIpQLSfzsIxQG7cUkho_urM6mrMRCio-4aarsnKPB-GlLJCOg8au7Q/viewform
 sections:
   since:
     ca: >-
@@ -134,106 +147,238 @@ sections:
   purpose:
     ca: >-
       Donar l'opció d'estar a la natura, aprendre'n i gaudir-ne amb bicicleta
-      mentre s'aprèn tècnica.
-    es: Ofrecer la posibilidad de estar en la naturaleza, aprender de ella y disfrutarla en bicicleta mientras se aprende técnica.
-    en: To offer the chance to spend time in nature, learn from it and enjoy it by bike while learning technique.
+      mentre s'aprèn tècnica, amb BTT o amb Enduro segons el nivell.
+    es: Ofrecer la posibilidad de estar en la naturaleza, aprender de ella y disfrutarla en bicicleta mientras se aprende técnica, con BTT o Enduro según el nivel.
+    en: To offer the chance to spend time in nature, learn from it and enjoy it by bike while learning technique, with MTB or Enduro according to level.
   audience:
-    ca: Infants i joves de 6 a 16 anys.
-    es: Niños y jóvenes de 6 a 16 años.
-    en: Children and young people aged 6 to 16.
+    ca: Infants i joves de 5 a 16 anys. Grups per nivell, no per edat.
+    es: Niños y jóvenes de 5 a 16 años. Grupos por nivel, no por edad.
+    en: Children and young people aged 5 to 16. Groups by level, not by age.
   schedule:
     ca: >-
-      **Entre setmana**
+      **BTT**
 
 
-      Dimarts de 17.30 h a 19.00 h a Avià.
+      Dimarts de 17.30 h a 19.00 h a Avià (tècnica i habilitats).
 
 
-      **Cap de setmana**
+      Dissabte de 10.00 h a 13.00 h, itinerant per la comarca (ruta i
+      perfeccionament).
 
 
-      Dissabte de 10.00 h a 13.00 h, itinerant per la comarca del Berguedà.
+      **Enduro**
+
+
+      Dimarts de 17.30 h a 19.00 h al 4Riders Bike Park o altres espais (dia
+      base obligatori).
+
+
+      Dijous de 17.30 h a 19.00 h, localització variable (sessió
+      complementària).
+
+
+      Curs 2026/2027. Inici: 15 de setembre de 2026.
     es: >-
-      **Entre semana**
+      **BTT**
 
-      Martes de 17:30 a 19:00 en Avià.
 
-      **Fin de semana**
+      Martes de 17:30 a 19:00 en Avià (técnica y habilidades).
 
-      Sábados de 10:00 a 13:00, itinerante por el Berguedà.
+
+      Sábados de 10:00 a 13:00, itinerante por la comarca (ruta y
+      perfeccionamiento).
+
+
+      **Enduro**
+
+
+      Martes de 17:30 a 19:00 en el 4Riders Bike Park u otros espacios (día base
+      obligatorio).
+
+
+      Jueves de 17:30 a 19:00, localización variable (sesión complementaria).
+
+
+      Curso 2026/2027. Inicio: 15 de septiembre de 2026.
     en: >-
-      **Weekdays**
+      **MTB**
 
-      Tuesdays from 5:30 pm to 7:00 pm in Avià.
 
-      **Weekend**
+      Tuesdays from 5:30 pm to 7:00 pm in Avià (technique and skills).
 
-      Saturdays from 10:00 am to 1:00 pm, travelling around Berguedà.
+
+      Saturdays from 10:00 am to 1:00 pm, travelling around the region (route and
+      technical work).
+
+
+      **Enduro**
+
+
+      Tuesdays from 5:30 pm to 7:00 pm at 4Riders Bike Park or other venues
+      (mandatory base day).
+
+
+      Thursdays from 5:30 pm to 7:00 pm, venue varies (complementary session).
+
+
+      2026/2027 school year. Start: 15 September 2026.
   location:
-    ca: Avià i itineraris variables per la comarca del Berguedà.
-    es: Avià e itinerarios variables por la comarca del Berguedà.
-    en: Avià and changing routes around the Berguedà region.
+    ca: >-
+      Avià (BTT entre setmana), itineraris variables pel Berguedà els dissabtes,
+      i 4Riders Bike Park o altres espais per a l'Enduro.
+    es: >-
+      Avià (BTT entre semana), itinerarios variables por el Berguedà los
+      sábados, y 4Riders Bike Park u otros espacios para el Enduro.
+    en: >-
+      Avià (weekday MTB), changing routes around Berguedà on Saturdays, and
+      4Riders Bike Park or other venues for Enduro.
   requirements:
     ca: >-
-      - Ser soci o sòcia del club MRB o del CEB.
+      Cal ser soci o sòcia del club MRB o del CEB.
 
-      - Bicicleta amb canvis i en bon estat.
 
-      - Casc, guants, bidó i motxilla.
+      **BTT**
+
+
+      - Bicicleta amb canvis, revisada i en bon estat.
+
+      - Casc i guants.
+
+      - Aigua; berenar els dissabtes.
+
+      - Càmera i eines per a punxades.
+
+      - Llums quan les condicions de llum ho requereixin.
+
+
+      **Enduro**
+
+
+      - Casc integral, guants, ulleres, genolleres, colzeres i protecció
+      d'esquena.
+
+      - Bicicleta adequada a la disciplina.
+
+      - Llicència de la Federació Catalana de Ciclisme.
     es: >-
-      - Ser socio o socia del club MRB o del CEB.
-      - Bicicleta con cambios y en buen estado.
-      - Casco, guantes, bidón y mochila.
+      Hay que ser socio o socia del club MRB o del CEB.
+
+
+      **BTT**
+
+
+      - Bicicleta con cambios, revisada y en buen estado.
+
+      - Casco y guantes.
+
+      - Agua; tentempié los sábados.
+
+      - Cámara y herramientas para pinchazos.
+
+      - Luces cuando las condiciones de luz lo requieran.
+
+
+      **Enduro**
+
+
+      - Casco integral, guantes, gafas, rodilleras, coderas y protección de
+      espalda.
+
+      - Bicicleta adecuada a la disciplina.
+
+      - Licencia de la Federación Catalana de Ciclismo.
     en: >-
-      - Be a member of the MRB or CEB club.
-      - A bike with gears in good condition.
-      - Helmet, gloves, bottle and backpack.
+      Participants must be members of the MRB or CEB club.
+
+
+      **MTB**
+
+
+      - Geared bike, serviced and in good condition.
+
+      - Helmet and gloves.
+
+      - Water; a snack on Saturdays.
+
+      - Inner tube and tools for punctures.
+
+      - Lights when lighting conditions require them.
+
+
+      **Enduro**
+
+
+      - Full-face helmet, gloves, goggles, knee pads, elbow pads and back
+      protection.
+
+      - A bike suited to the discipline.
+
+      - Catalan Cycling Federation licence.
   prices:
     ca: >-
-      No varia en funció de l'edat, sinó dels dies que voleu venir:
+      Curs 2026/2027. El preu no varia per edat, sinó per modalitat i dies:
 
 
-      - Inscripció anual, complet: 640 €
+      - BTT dimarts: 354 € el curs (142 € / 101 € / 111 € per trimestre)
 
-      - Inscripció anual, només dimarts: 336 €
+      - BTT dissabte: 450 € el curs (186 € / 93 € / 171 € per trimestre)
 
-      - Inscripció anual, només dissabte: 392 €
+      - BTT dimarts + dissabte: 582 € el curs (237 € / 134 € / 211 € per
+      trimestre)
+
+      - Pack de 5 dissabtes: 94 €
+
+      - Enduro dimarts: 440 € el curs (173 € / 105 € / 162 € per trimestre)
+
+      - Enduro dimarts + dijous: 683 € el curs (268 € / 163 € / 252 € per
+      trimestre)
 
 
-      També hi ha la possibilitat d'inscriure't per trimestres. Si vols més
-      informació, posa't en contacte amb nosaltres.
-
-
-      Els preus poden quedar subjectes a modificació a l'inici de curs.
+      BTT: inscripció trimestral. Enduro: inscripció anual (els imports per
+      trimestre són el desglossament del pagament). El pack de 5 dissabtes
+      prioritza qui ve els dimarts. Combinacions entre modalitats: a consultar.
     es: >-
-      No varía en función de la edad, sino de los días que queráis venir:
+      Curso 2026/2027. El precio no varía por edad, sino por modalidad y días:
 
 
-      - Inscripción anual, completo: 640 €
+      - BTT martes: 354 € el curso (142 € / 101 € / 111 € por trimestre)
 
-      - Inscripción anual, solo martes: 336 €
+      - BTT sábado: 450 € el curso (186 € / 93 € / 171 € por trimestre)
 
-      - Inscripción anual, solo sábado: 392 €
+      - BTT martes + sábado: 582 € el curso (237 € / 134 € / 211 € por
+      trimestre)
+
+      - Pack de 5 sábados: 94 €
+
+      - Enduro martes: 440 € el curso (173 € / 105 € / 162 € por trimestre)
+
+      - Enduro martes + jueves: 683 € el curso (268 € / 163 € / 252 € por
+      trimestre)
 
 
-      También existe la posibilidad de inscribirse por trimestres. Si quieres
-      más información, ponte en contacto con nosotros.
-
-
-      Los precios pueden quedar sujetos a modificaciones al inicio del curso.
+      BTT: inscripción trimestral. Enduro: inscripción anual (los importes por
+      trimestre son el desglose del pago). El pack de 5 sábados prioriza a quien
+      viene los martes. Combinaciones entre modalidades: a consultar.
     en: >-
-      Prices do not vary by age, but by the number of days participants attend:
+      2026/2027 school year. Prices do not vary by age, but by modality and days
+      attended:
 
 
-      - Annual registration, full schedule: €640
+      - MTB Tuesdays: 354 € for the year (142 € / 101 € / 111 € per term)
 
-      - Annual registration, Tuesdays only: €336
+      - MTB Saturdays: 450 € for the year (186 € / 93 € / 171 € per term)
 
-      - Annual registration, Saturdays only: €392
+      - MTB Tuesdays + Saturdays: 582 € for the year (237 € / 134 € / 211 € per
+      term)
+
+      - Pack of 5 Saturdays: 94 €
+
+      - Enduro Tuesdays: 440 € for the year (173 € / 105 € / 162 € per term)
+
+      - Enduro Tuesdays + Thursdays: 683 € for the year (268 € / 163 € / 252 €
+      per term)
 
 
-      Quarterly registration is also available. Contact us if you would like
-      more information.
-
-
-      Prices may change at the start of the school year.
+      MTB: term-by-term registration. Enduro: annual registration (term amounts
+      are the payment breakdown). The pack of 5 Saturdays prioritises Tuesday
+      participants. Cross-modality combinations: ask the school.
