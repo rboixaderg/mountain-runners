@@ -1,0 +1,19 @@
+apps/web/src/styles/school-detail-preview.css
+  s_683e49fe8355fa::t_fc4216921c5c96 213-217,265,321,432-433,439-440,445-447
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "ad3b47b2030141147b35b405dc71be1fc9bdf281",
+  "prompts": {},
+  "sessions": {
+    "s_683e49fe8355fa": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "6bc2ea7a-13ec-4057-9fd6-8356a0732350",
+        "model": "unknown"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
