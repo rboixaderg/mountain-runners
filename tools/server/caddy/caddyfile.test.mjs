@@ -18,3 +18,16 @@ test("Caddyfile CSP matches the shared policy string", () => {
   );
   assert.doesNotMatch(contentSecurityPolicy, /unsafe-eval/u);
 });
+
+test("Caddyfile redirects only the unprefixed root before serving files", () => {
+  const rootMatcher = "\t@unprefixed_root path /";
+  const rootRedirect = "\tredir @unprefixed_root /ca/ permanent";
+  const rootMatcherIndex = caddyfile.indexOf(rootMatcher);
+  const rootRedirectIndex = caddyfile.indexOf(rootRedirect);
+  const fileServerIndex = caddyfile.indexOf("\tfile_server");
+
+  assert.notEqual(rootMatcherIndex, -1);
+  assert.equal(caddyfile.indexOf(rootMatcher, rootMatcherIndex + 1), -1);
+  assert.equal(rootRedirectIndex, rootMatcherIndex + rootMatcher.length + 1);
+  assert.ok(rootRedirectIndex < fileServerIndex);
+});

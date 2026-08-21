@@ -206,6 +206,33 @@ tall de producció, amb un servidor de prova o un rebuild controlat.
 - Els canvis de configuració de Caddy requereixen `systemctl restart caddy`
   (`admin off` desactiva l'API de configuració en temps d'execució).
 
+### Redirecció De L'Arrel
+
+El matcher `@unprefixed_root` de `(common_site)` respon a `GET /` amb una
+redirecció HTTP permanent a `/ca/` abans que `file_server` serveixi
+`index.html`. Només coincideix amb l'arrel, de manera que `/ca/`, `/es/`,
+`/en/` i la resta de rutes publicades no canvien. L'`index.html` amb
+`meta refresh` es conserva a l'artefacte com a fallback si se serveix sense
+Caddy.
+
+El desplegament de l'artefacte no actualitza Caddy. Després de fusionar el canvi,
+una persona mantenidora ha d'afegir aquestes directives dins de
+`(common_site)`, després dels imports de capçaleres i memòria cau, a
+`/etc/caddy/Caddyfile`:
+
+```caddyfile
+@unprefixed_root path /
+redir @unprefixed_root /ca/ permanent
+```
+
+Tot seguit cal validar, reiniciar i comprovar el contracte:
+
+```sh
+caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
+systemctl restart caddy
+node tools/server/verify/verify-site.mjs --base-url https://mountainrunners.cat --expect-indexable
+```
+
 ### CSP I Analítica
 
 La CSP vigent (T5.1 esmenada per l'[ADR 0007](decisions/0007-self-hosted-plausible-analytics.md))

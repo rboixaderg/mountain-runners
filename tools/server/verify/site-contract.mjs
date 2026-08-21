@@ -23,6 +23,27 @@ export function hstsPresentFinding(label, headers) {
   return undefined;
 }
 
+export function rootLocaleRedirectFinding({ status, location, rootUrl }) {
+  const expected = new URL("/ca/", rootUrl);
+  let redirectsToCatalan = false;
+  if ((status === 301 || status === 308) && location !== "") {
+    try {
+      const resolved = new URL(location, rootUrl);
+      redirectsToCatalan =
+        resolved.origin === expected.origin &&
+        resolved.pathname === expected.pathname &&
+        resolved.search === "" &&
+        resolved.hash === "";
+    } catch {
+      redirectsToCatalan = false;
+    }
+  }
+  if (!redirectsToCatalan) {
+    return `Root ${rootUrl} returned ${status} Location ${location || "absent"}, expected a redirect to ${expected.origin}${expected.pathname}.`;
+  }
+  return undefined;
+}
+
 export function wwwRedirectFinding({ status, location, apexOrigin, wwwUrl }) {
   const expected = new URL("/ca/", apexOrigin);
   let redirectsToApex = false;
