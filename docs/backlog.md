@@ -269,13 +269,14 @@ opció compatible amb el contracte d'i18n— sense perdre URLs canòniques,
 servidor, el `Caddyfile` de producció.
 
 **Seguiment:** la causa és el `200` de l'arrel que serveix l'`index.html` amb
-`meta refresh`; una mesura des de desenvolupament el 21 d'agost de 2026 va
-registrar 225 ms fins al primer byte abans d'aquest segon salt al navegador. La
-branca `fix/root-locale-redirect` incorpora una redirecció HTTP permanent i
-exacta de `/` a `/ca/` a Caddy, la comprovació del contracte viu i les
-instruccions d'activació. El criteri d'èxit és que l'arrel respongui directament
-amb `301` o `308` i `Location: /ca/`, sense servir el document intermedi.
-Entrega a la [PR #95](https://github.com/rboixaderg/mountain-runners/pull/95).
+`meta refresh` al cap de 2 segons; una mesura des de desenvolupament el 21
+d'agost de 2026 va registrar, a més, 225 ms fins al primer byte d'aquest
+document intermedi. La branca `fix/root-locale-redirect` incorpora una
+redirecció HTTP permanent i exacta de `/` a `/ca/` a Caddy, la comprovació del
+contracte viu i les instruccions d'activació. El criteri d'èxit és que l'arrel
+respongui directament amb `301` o `308` i `Location: /ca/`, sense servir el
+document intermedi. Entrega a la
+[PR #95](https://github.com/rboixaderg/mountain-runners/pull/95).
 
 ### Equipa't Amb Nosaltres
 
