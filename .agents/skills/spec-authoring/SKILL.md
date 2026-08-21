@@ -37,8 +37,8 @@ tests proportional, but retain every required section from the convention.
 2. Follow the ordered sections in `docs/specs/README.md` exactly.
 3. State concrete, observable outcomes and exclusions. Do not write vague goals
    such as “improve UX” without a verifiable result. Acceptance criteria define
-   the smallest implementation that satisfies them, excluding speculative
-   generality and unrequested features.
+   the smallest set of observable outcomes, not the implementation. Exclude
+   speculative generality and unrequested features.
 4. Define one or more implementation tasks before implementation starts. For
    each, state scope, exclusions, dependencies, observable result, minimum
    checks and a dedicated PR or justified grouping. A single-task specification

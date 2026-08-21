@@ -141,13 +141,17 @@ inline. A la segona aparició d'un helper, s'extreu i es reutilitza.
 
 - El codi mínim correcte és l'objectiu: cada línia, variable, paràmetre,
   component, helper i test ha de justificar la seva existència. Si es pot
-  eliminar sense canviar comportament ni llegibilitat, s'elimina.
+  eliminar sense canviar comportament, garanties de regressió, límits
+  arquitectònics ni llegibilitat, s'elimina.
 - No s'escriu codi «per si de cas»: cap guarda, valor per defecte, branca,
-  prop ni cas de prova sense un requisit real del moment (YAGNI).
-- No es generalitza abans d'hora: un helper o component s'extreu a la segona
-  aparició real, mai per anticipació.
-- Si el sistema de tipus ja exclou un cas, no s'hi afegeix cap comprovació
-  que el torni a excloure.
+  prop ni cas de prova sense un comportament o risc de regressió real del moment
+  (YAGNI).
+- No es generalitza abans d'hora: un helper o fragment reutilitzable s'extreu a
+  la segona aparició real, mai per anticipació. Les plantilles de detall i els
+  components de secció exigits per l'arquitectura poden tenir un sol ús.
+- En dades internes que ja han travessat la validació d'execució, no es repeteix
+  una comprovació que el sistema de tipus ja garanteix. Els tipus no
+  substitueixen la validació del contingut ni de cap altra frontera de confiança.
 - Els comentaris expliquen el perquè, no el què; el codi que s'explica sol no
   porta comentari.
 - Llegibilitat no vol dir verbositat: les branques explícites i els noms
