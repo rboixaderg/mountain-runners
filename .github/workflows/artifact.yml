@@ -108,7 +108,7 @@ jobs:
           DEPLOY_SSH_PRIVATE_KEY: ${{ secrets.DEPLOY_SSH_PRIVATE_KEY }}
           DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
           SMOKE_BASE_URL: ${{ vars.SMOKE_BASE_URL }}
-          SMOKE_EXPECT_NOINDEX: "true"
+          SMOKE_EXPECT_NOINDEX: "${{ vars.SMOKE_EXPECT_NOINDEX }}"
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_REPOSITORY: ${{ github.repository }}
           GITHUB_API_URL: ${{ github.api_url }}

@@ -1,5 +1,13 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Locator, type Page } from "@playwright/test";
+import { plausibleScriptSrc } from "../src/lib/analytics/plausible";
+
+test.beforeEach(async ({ page }) => {
+  // Keep the shell suite independent from the remote analytics host.
+  await page.route("https://analytics.rogerbg.cat/**", async (route) => {
+    await route.abort();
+  });
+});
 
 test("renders the localized shell without horizontal overflow", async ({
   page,
@@ -69,6 +77,32 @@ test("renders the localized shell without horizontal overflow", async ({
   ).toBeLessThanOrEqual(layout.clientWidth);
 });
 
+test("loads the Plausible analytics script asynchronously", async ({
+  page,
+}) => {
+  await page.goto("/ca/");
+  const plausibleScript = page.locator(`script[src="${plausibleScriptSrc}"]`);
+  await expect(plausibleScript).toHaveCount(1);
+  await expect(plausibleScript).toHaveAttribute("async", "");
+  await expect(page.locator('script[src="/js/plausible-init.js"]')).toHaveCount(
+    1,
+  );
+});
+
+test("keeps rendering and navigating when Plausible is blocked", async ({
+  page,
+}) => {
+  await page.goto("/ca/");
+  await expect(page.locator("main#main-content")).toBeVisible();
+
+  await page
+    .getByRole("link", { name: "Veure més informació" })
+    .first()
+    .click();
+  await expect(page).toHaveURL(/\/ca\/socis\/$/u);
+  await expect(page.locator("main h1")).toHaveText("Socis");
+});
+
 test("renders the published homepage sections in order", async ({ page }) => {
   await page.goto("/ca/");
 
@@ -136,9 +170,9 @@ test("renders the published homepage sections in order", async ({ page }) => {
     "Ultra Pirineu",
     "Llobregat x la Diabetis",
     "Cros de Queralt",
+    "Minivolta a la Maria",
     "Escalada Popular a Queralt",
     "Les Clàssiques de Berga",
-    "Minivolta a la Maria",
     "Quina Berguedana",
   ]);
   await expect(
@@ -147,8 +181,8 @@ test("renders the published homepage sections in order", async ({ page }) => {
     "Pròxima edició",
     "Pròxima edició",
     "Pròxima edició",
-    "Sense pròxima data anunciada",
-    "Sense pròxima data anunciada",
+    "Pròxima edició",
+    "Pròxima edició",
     "Sense pròxima data anunciada",
     "Sense pròxima data anunciada",
     "Sense pròxima data anunciada",
@@ -255,6 +289,8 @@ test("renders the events hub groups in order with links to details", async ({
     "Escalada de Vilada a Castell de l'Areny",
     "Ultra Pirineu",
     "Llobregat x la Diabetis",
+    "Cros de Queralt",
+    "Minivolta a la Maria",
   ]);
   await expect(
     page.locator(
@@ -271,6 +307,16 @@ test("renders the events hub groups in order with links to details", async ({
   ).toHaveCount(1);
   await expect(
     page.locator(
+      '.homepage-event a[href="/ca/esdeveniments/cros-de-queralt/"]',
+    ),
+  ).toHaveCount(1);
+  await expect(
+    page.locator(
+      '.homepage-event a[href="/ca/esdeveniments/minivolta-a-la-maria/"]',
+    ),
+  ).toHaveCount(1);
+  await expect(
+    page.locator(
       '.events-hub-active-item a[href="/ca/esdeveniments/escalada-queralt/"]',
     ),
   ).toHaveCount(1);
@@ -279,7 +325,7 @@ test("renders the events hub groups in order with links to details", async ({
       '.events-hub-history__title[href="/ca/esdeveniments/berga-trail/"]',
     ),
   ).toHaveCount(1);
-  await expect(page.locator(".events-hub-active-item")).toHaveCount(5);
+  await expect(page.locator(".events-hub-active-item")).toHaveCount(3);
   await expect(
     page.locator(".events-hub-active-item__status-value").first(),
   ).toHaveText("Sense pròxima data anunciada");
@@ -627,7 +673,7 @@ test("renders the schools hub in editorial order with links to details", async (
   ).resolves.toEqual([
     "Inscripció oberta",
     "Inscripció properament",
-    "Inscripció properament",
+    "Inscripció oberta",
   ]);
   await expect(
     page.locator('.schools-hub-item a[href="/ca/escoles/escola-trail/"]'),
@@ -820,11 +866,14 @@ test("renders the board and the unavailable states without fake controls", async
   await expect(
     page.getByRole("heading", { level: 3, name: "Preus" }),
   ).toBeVisible();
-  await expect(page.getByText("640 €")).toBeVisible();
-  await expect(page.getByText("336 €")).toBeVisible();
-  await expect(page.getByText("392 €")).toBeVisible();
+  await expect(page.getByText("354 €")).toBeVisible();
+  await expect(page.getByText("450 €")).toBeVisible();
+  await expect(page.getByText("582 €")).toBeVisible();
+  await expect(page.getByText("94 €")).toBeVisible();
+  await expect(page.getByText("440 €")).toBeVisible();
+  await expect(page.getByText("683 €")).toBeVisible();
   await expect(
-    page.getByText("També hi ha la possibilitat d'inscriure't per trimestres"),
+    page.getByText("BTT: inscripció trimestral. Enduro: inscripció anual"),
   ).toBeVisible();
 });
 
@@ -938,11 +987,16 @@ test("publishes structured data only on pages with reviewed data", async ({
   await page.goto("/ca/");
   const homeData = await jsonLd();
   expect(homeData).toHaveLength(2);
-  expect(homeData[0]).toMatchObject({
+  expect(homeData[0]).toEqual({
     "@context": "https://schema.org",
     "@type": "Organization",
     name: "Mountain Runners del Berguedà",
     url: "https://mountainrunners.cat/",
+    logo: "https://mountainrunners.cat/content-resources/assets/logo_mountain_runners.png",
+    sameAs: [
+      "https://www.instagram.com/infomountain/",
+      "https://www.strava.com/clubs/156769",
+    ],
   });
   expect(homeData[1]).toMatchObject({
     "@type": "WebSite",
@@ -970,6 +1024,10 @@ test("publishes structured data only on pages with reviewed data", async ({
     endDate: "2026-10-04",
     eventStatus: "https://schema.org/EventScheduled",
     location: { "@type": "Place", name: "Bagà" },
+    description:
+      "És una cursa de muntanya que recorre part de la serralada del Cadí-Moixeró.",
+    image:
+      "https://mountainrunners.cat/content-resources/assets/logo_mountain_runners.png",
   });
 
   await page.goto("/ca/esdeveniments/escalada-castell-areny/");
@@ -983,6 +1041,10 @@ test("publishes structured data only on pages with reviewed data", async ({
     startDate: "2026-08-16",
     eventStatus: "https://schema.org/EventScheduled",
     location: { "@type": "Place", name: "Zona Esportiva de Vilada" },
+    description:
+      "Cronoescalada de la Lliga d'escalades del Berguedà, de Vilada a Castell de l'Areny.",
+    image:
+      "https://mountainrunners.cat/content-resources/assets/events/escalada-castell-areny-cover.jpg",
   });
 
   await page.goto("/ca/esdeveniments/llobregat-x-la-diabetis/");
@@ -1000,15 +1062,51 @@ test("publishes structured data only on pages with reviewed data", async ({
       "@type": "Place",
       name: "Castellar de n'Hug — El Prat de Llobregat",
     },
+    description:
+      "Repte solidari de 180 km pel riu Llobregat, de Castellar de n'Hug al Prat, a favor de la recerca en diabetis tipus 1.",
+    image:
+      "https://mountainrunners.cat/content-resources/assets/events/llobregat-x-la-diabetis-cover.png",
+  });
+
+  await page.goto("/ca/esdeveniments/cros-de-queralt/");
+  const crosData = await jsonLd();
+  expect(crosData).toHaveLength(1);
+  expect(crosData[0]).toEqual({
+    "@context": "https://schema.org",
+    "@type": "Event",
+    name: "Cros de Queralt",
+    url: "https://mountainrunners.cat/ca/esdeveniments/cros-de-queralt/",
+    startDate: "2026-10-18",
+    eventStatus: "https://schema.org/EventScheduled",
+    location: { "@type": "Place", name: "Santuari de Queralt, Berga" },
+    description:
+      "La prova de Berga del Cros Escolar del Berguedà, a l'entorn del Santuari de Queralt, amb la col·laboració de Mountain Runners.",
+    image:
+      "https://mountainrunners.cat/content-resources/assets/logo_mountain_runners.png",
+  });
+
+  await page.goto("/ca/esdeveniments/minivolta-a-la-maria/");
+  const minivoltaData = await jsonLd();
+  expect(minivoltaData).toHaveLength(1);
+  expect(minivoltaData[0]).toEqual({
+    "@context": "https://schema.org",
+    "@type": "Event",
+    name: "Minivolta a la Maria",
+    url: "https://mountainrunners.cat/ca/esdeveniments/minivolta-a-la-maria/",
+    startDate: "2026-11-15",
+    eventStatus: "https://schema.org/EventScheduled",
+    location: { "@type": "Place", name: "Avià" },
+    description:
+      "La cursa infantil de la Volta a la Maria, la cursa de muntanya d'Avià, organitzada per Mountain Runners del Berguedà.",
+    image:
+      "https://mountainrunners.cat/content-resources/assets/logo_mountain_runners.png",
   });
 
   for (const path of [
     "/ca/esdeveniments/anella-verda/",
     "/ca/esdeveniments/berga-trail/",
-    "/ca/esdeveniments/cros-de-queralt/",
     "/ca/esdeveniments/escalada-queralt/",
     "/ca/esdeveniments/les-classiques-de-berga/",
-    "/ca/esdeveniments/minivolta-a-la-maria/",
     "/ca/esdeveniments/quina-berguedana/",
     "/ca/qui-som/",
     "/ca/socis/",
@@ -1031,9 +1129,14 @@ test("emits canonical and social metadata for published pages", async ({
     "content",
     "A.E. Mountain Runners del Berguedà",
   );
-  await expect(
-    page.locator('meta[property="og:description"]'),
-  ).not.toHaveAttribute("content", "");
+  await expect(page.locator('meta[name="description"]')).toHaveAttribute(
+    "content",
+    "Associació esportiva del Berguedà dedicada a la muntanya: escoles de trail, skimo i BTT, esdeveniments i valors d'esforç, constància i respecte per la natura.",
+  );
+  await expect(page.locator('meta[property="og:description"]')).toHaveAttribute(
+    "content",
+    "Associació esportiva del Berguedà dedicada a la muntanya: escoles de trail, skimo i BTT, esdeveniments i valors d'esforç, constància i respecte per la natura.",
+  );
   await expect(page.locator('meta[property="og:type"]')).toHaveAttribute(
     "content",
     "website",
@@ -1042,7 +1145,18 @@ test("emits canonical and social metadata for published pages", async ({
     "content",
     "https://mountainrunners.cat/ca/",
   );
-  await expect(page.locator('link[rel="alternate"]')).toHaveCount(3);
+  await expect(page.locator('meta[property="og:locale"]')).toHaveAttribute(
+    "content",
+    "ca_ES",
+  );
+  await expect(page.locator('meta[property="og:image"]')).toHaveAttribute(
+    "content",
+    /^https:\/\/mountainrunners\.cat\/_astro\/homepage-hero.*\.jpeg$/u,
+  );
+  await expect(
+    page.locator('link[rel="alternate"][hreflang="x-default"]'),
+  ).toHaveAttribute("href", "https://mountainrunners.cat/ca/");
+  await expect(page.locator('link[rel="alternate"]')).toHaveCount(4);
 
   await page.goto("/ca/esdeveniments/ultra-pirineu/");
   await expect(page.locator('link[rel="canonical"]')).toHaveAttribute(
@@ -1071,7 +1185,7 @@ test("emits canonical and social metadata for published pages", async ({
     "content",
     "https://mountainrunners.cat/ca/socis/",
   );
-  await expect(page.locator('link[rel="alternate"]')).toHaveCount(3);
+  await expect(page.locator('link[rel="alternate"]')).toHaveCount(4);
 
   await page.goto("/ca/escoles/");
   await expect(page.locator('link[rel="canonical"]')).toHaveAttribute(
@@ -1081,6 +1195,14 @@ test("emits canonical and social metadata for published pages", async ({
   await expect(page.locator('meta[property="og:title"]')).toHaveAttribute(
     "content",
     "Escoles | Mountain Runners",
+  );
+  await expect(page.locator('meta[name="description"]')).toHaveAttribute(
+    "content",
+    "Escoles de trail, skimo i BTT per a infants i joves al Berguedà, en horari no lectiu i amb els valors de l'esport i la muntanya.",
+  );
+  await expect(page.locator('meta[property="og:image"]')).toHaveAttribute(
+    "content",
+    /^https:\/\/mountainrunners\.cat\/_astro\/schools-hub-hero/u,
   );
   await expect(page.locator('meta[property="og:url"]')).toHaveAttribute(
     "content",
@@ -1261,6 +1383,7 @@ test("publishes documents and legal routes from the footer", async ({
   await expect(page.locator("main")).toContainText(
     "Responsable del tractament",
   );
+  await expect(page.locator("main")).toContainText("Plausible");
 
   await page.goto("/ca/cookies/");
   await expect(page.locator("main h1")).toHaveText("Política de cookies");
@@ -1268,6 +1391,7 @@ test("publishes documents and legal routes from the footer", async ({
     "Quines cookies utilitza aquest web",
   );
   await expect(page.locator("main")).toContainText("Consentiment i banner");
+  await expect(page.locator("main")).toContainText("Plausible");
 
   // None of the new fixed routes may emit empty anchors, placeholder hashes
   // or disabled controls, mirroring the criteria of the other fixed pages.

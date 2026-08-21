@@ -20,10 +20,13 @@ producció a cada push a `main` i el job de desplegament, en el mateix run,
 transfereix aquest artefacte a l'entorn GitHub `production` (restringit a
 `main`, sense secrets al job de build). La T5.3 ha preparat la configuració i
 les eines del servidor — `tools/server/` — (Caddyfile, bootstrap, CLI de
-releases i gate SSH). El diagrama viu de la configuració del VPS és a
+releases i gate SSH). L'analítica pública és Plausible CE autoallotjat a
+`analytics.rogerbg.cat` ([ADR 0007](decisions/0007-self-hosted-plausible-analytics.md)).
+El diagrama viu de la configuració del VPS és a
 [`docs/runbook.md`](runbook.md#arquitectura-del-servidor). Lighthouse continua
-sent una auditoria manual. Encara no existeixen previews de pull request ni el
-tall de l'apex (T5.5), ni cap servei Hono.
+sent una auditoria manual. L'apex ja serveix des del VPS (T5.5,
+[runbook](runbook.md#9-tall-dns-i-primera-activació-pública)); encara no
+existeixen previews de pull request ni cap servei Hono.
 
 ## Direcció Acceptada
 
@@ -39,13 +42,14 @@ d'aplicació renderitzat al servidor.
 
 ## Límits De L'Arquitectura
 
-| Àrea                | Responsabilitat                               | Límit                                                                                                                              |
-| ------------------- | --------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
-| Web estàtica        | Renderitzar contingut editorial publicat      | El build d'Astro no conté secrets                                                                                                  |
-| Contingut           | Pàgines estructurades i dades de l'associació | Versionat a Git i revisat per pull request                                                                                         |
-| Xat públic          | Respondre preguntes sobre contingut publicat  | API Hono separada, de només lectura i sense accés editorial                                                                        |
-| Assistent editorial | Preparar canvis de contingut                  | Flux privat de branca, validació i pull request                                                                                    |
-| Allotjament         | Servir la web estàtica i serveis aïllats      | Caddy i releases (T5.3); desplegament continu des de `main` (T5.4); tall a T5.5; sense desplegament des d'una sessió local d'agent |
+| Àrea                | Responsabilitat                               | Límit                                                                                                                                                                                                       |
+| ------------------- | --------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Web estàtica        | Renderitzar contingut editorial publicat      | El build d'Astro no conté secrets                                                                                                                                                                           |
+| Contingut           | Pàgines estructurades i dades de l'associació | Versionat a Git i revisat per pull request                                                                                                                                                                  |
+| Xat públic          | Respondre preguntes sobre contingut publicat  | API Hono separada, de només lectura i sense accés editorial                                                                                                                                                 |
+| Assistent editorial | Preparar canvis de contingut                  | Flux privat de branca, validació i pull request                                                                                                                                                             |
+| Allotjament         | Servir la web estàtica i serveis aïllats      | Caddy i releases (T5.3); desplegament continu des de `main` (T5.4); apex al VPS (T5.5); rollback a `production-rollback`; sense desplegament des d'una sessió local d'agent                                 |
+| Analítica           | Mesurar visites agregades de la web pública   | Plausible CE autoallotjat a `analytics.rogerbg.cat`; script asíncron; CSP sense comodins ni `unsafe-eval`; sense cookies ni tokens al build ([ADR 0007](decisions/0007-self-hosted-plausible-analytics.md)) |
 
 ## Estructura De Pàgines I Presentació
 
@@ -79,7 +83,8 @@ formen part del disseny inicial.
 
 - Servei de xat Hono i generador d'índex.
 - Integració amb Telegram, Discord o Hermes.
-- Tall de l'apex i retirada del gate d'aprovació (T5.5).
+- HSTS, període d'observació i retirada del gate de `production`, que resten
+  accions supervisades de la T5.5.
 - Previews, dominis efímers i possible integració amb Cloudflare fins a definir
   i implementar la fase 6.
 

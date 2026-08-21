@@ -10,6 +10,7 @@ import {
 import type { Locale } from "../../../lib/content/primitives";
 import type { PublishedVariant } from "../../../lib/content/publication";
 import { getPublicationCatalog } from "../../../lib/content/repository";
+import { getResourceHref } from "../../../lib/content/images";
 import {
   getCanonicalUrl,
   getLocalizedAlternatives,
@@ -49,18 +50,28 @@ const featuredEdition = event
   ? getMostRelevantEdition(event, today)
   : undefined;
 const canonicalUrl = new URL(getCanonicalUrl(variant, Astro.site!));
+const coverImageUrl = new URL(
+  getResourceHref(variant.entry.cover.resource),
+  Astro.site,
+).toString();
 const structuredData =
   event !== null && featuredEdition !== undefined
     ? [
         getEventJsonLd({
-          event,
-          edition: featuredEdition,
           canonicalUrl,
+          description: event.summary[locale],
+          edition: featuredEdition,
+          event,
+          imageUrl: coverImageUrl,
           locale,
           today,
         }),
       ].filter((data) => data !== undefined)
     : [];
+const pageTitle =
+  variant.kind === "event"
+    ? variant.entry.title[locale]
+    : variant.entry.name[locale];
 ---
 
 <PublicLayout
@@ -68,8 +79,12 @@ const structuredData =
   canonical={canonicalUrl.toString()}
   description={variant.entry.summary[locale]!}
   locale={locale}
+  socialImage={{
+    alt: variant.entry.cover.alt[locale]!,
+    url: coverImageUrl,
+  }}
   structuredData={structuredData}
-  title={`${variant.kind === "event" ? variant.entry.title[locale] : variant.entry.name[locale]} | ${messages.site_title({}, { locale })}`}
+  title={`${pageTitle} | ${messages.site_title({}, { locale })}`}
 >
   {
     variant.kind === "event" ? (

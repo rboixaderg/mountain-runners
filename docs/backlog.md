@@ -158,7 +158,117 @@ i una fase que toqui la capa de presentació de l'aplicació.
 
 **Seguiment:** coberta per la fase 4 (T4.4, PR #49).
 
+### Analítica Web Respectuosa Amb La Privacitat
+
+**Estat:** Incorporada com a entrega autònoma.
+
+**Problema:** després de publicar la nova web caldrà entendre quines pàgines i
+continguts són útils, sense introduir analítica publicitària ni un seguiment
+invasiu de les persones visitants.
+
+**Resultat esperat:** disposar de mètriques mínimes i accionables de la web
+pública mitjançant Plausible autoallotjat, mantenint-lo com un servei operatiu
+separat de la compilació estàtica.
+
+**Dependències:** web pública funcional, destí de producció definit i instància
+Plausible existent a `analytics.rogerbg.cat`.
+
+**Seguiment:** [especificació d'analítica Plausible](specs/plausible-analytics.md)
+i [ADR 0007](decisions/0007-self-hosted-plausible-analytics.md). La T1 està
+fusionada a la PR #90. Els esdeveniments d'acció i el temps d'estada es recullen
+a l'entrada oberta corresponent; no s'amplien silenciosament aquesta entrega.
+
 ## Necessitats Obertes
+
+### Esdeveniments D'Acció I Temps D'Estada
+
+**Estat:** Capturada.
+
+**Problema:** les visites de pàgina i els comptadors automàtics de clics sortints,
+baixades i formularis no expliquen quines accions de la web pública són útils
+(inscripció, alta de soci, butlletí, documents, navegació, selector d'idioma) ni
+quant de temps visible passen les persones visitants a cada pàgina o a la visita.
+Sense aquestes mètriques agregades el club no pot prioritzar contingut ni
+detectar recorreguts que acaben en una acció.
+
+**Resultat esperat:** emetre esdeveniments personalitzats agregats a Plausible
+per a les accions rellevants de la interfície i mesurar l'estona visible
+d'estada, amb llindars reproduïbles, sense cookies pròpies no tècniques, sense
+identificadors persistents i sense que una fallada de l'analítica trenqui la
+navegació. Els textos de privacitat i de cookies han de descriure aquests
+esdeveniments reals.
+
+**Abans de planificar-ho cal definir:**
+
+- el catàleg tancat d'esdeveniments i propietats (noms estables, àrea de la
+  pàgina, locale, ruta, tipus de pàgina) per a accions com la navegació de la
+  capçalera i el peu, el selector d'idioma, les inscripcions i informació
+  d'esdeveniments i escoles, l'alta de soci i la federació, el butlletí, els
+  documents i estatuts, els enllaços de contacte i xarxes, els col·laboradors i
+  els recorreguts del calendari;
+- com s'evita duplicar els comptadors automàtics de clics sortints, baixades i
+  enviaments de formulari que ja pugui emetre l'snippet, i quines accions
+  internes o amb nom de negoci calen igualment;
+- el mesurament del temps: només temps visible (pausa amb la pestanya oculta),
+  llindars per pàgina (per exemple 15, 30, 60 i 120 segons) i si cal una
+  agregació de l'estona total de la visita sense emmagatzemar identificadors
+  persistents; opcionalment, profunditat de scroll si respon una pregunta
+  concreta;
+- el contracte de privacitat: etiquetes sanititzades i truncades, cap adreça de
+  correu, telèfon, query string ni text lliure que pugui identificar una
+  persona; propietats només agregables;
+- com s'executa el client a un lloc estàtic multipàgina: script servit per
+  `'self'`, sense `unsafe-inline` a `script-src`, i reinici del temps a cada
+  càrrega de pàgina;
+- l'actualització de privacitat i cookies en ca/es/en, i si cal ampliar l'ADR
+  0007 o l'especificació d'analítica ja acceptada;
+- les comprovacions: el catàleg d'esdeveniments està cobert per proves, el
+  recorregut E2E continua funcionant amb l'origen de Plausible bloquejat i no es
+  canvien rutes, contingut editorial ni selectors E2E existents.
+
+**Dependències:** snippet de Plausible al `PublicLayout`, cua `window.plausible`
+a l'origen propi, CSP que permet `connect-src` cap a l'origen d'analítica i
+textos legals de la primera entrega d'analítica. No forma part de la fase 5.
+
+**Seguiment:** pendent de triatge.
+
+### Entrada Sense Idioma Més Ràpida
+
+**Estat:** Capturada.
+
+**Problema:** quan una persona visita l'origen sense prefix d'idioma (per
+exemple `https://mountainrunners.cat/`), la web redirigeix al català
+(`/ca/`). Avui aquesta resposta es percep lenta: l'arrel emet un document
+mínim amb `meta refresh` cap a `/ca/` en lloc de servir ja el contingut
+català o una redirecció HTTP immediata. Això afegeix un salt perceptible
+abans de veure la pàgina d'inici.
+
+**Resultat esperat:** analitzar i triar una estratègia perquè l'entrada sense
+idioma mostri el català amb menys latència —servir el català per defecte a
+l'arrel, una redirecció HTTP ràpida a la vora o al servidor, o una altra
+opció compatible amb el contracte d'i18n— sense perdre URLs canòniques,
+`hreflang`, SEO ni el selector d'idioma.
+
+**Abans de planificar-ho cal definir:**
+
+- la causa mesurable de la lentitud (document intermedi amb `meta refresh`,
+  cadena de redireccions Astro/`redirectToDefaultLocale`, o latència de
+  xarxa) i un criteri d'èxit (temps fins al primer contingut útil);
+- si es pot servir el català a `/` sense prefix, mantenint `/ca/`, `/es/` i
+  `/en/` com a rutes publicades, o si cal conservar sempre el prefix i només
+  accelerar la redirecció (HTTP 301/302 a Caddy o a l'artefacte);
+- l'impacte sobre `prefixDefaultLocale`, canòniques, `hreflang`, sitemap,
+  robots i proves que avui exigeixen que l'arrel redirigeixi a `/ca/`;
+- la coherència amb l'entrada de declaració de rutes per idioma i amb el
+  contracte tipat de rutes;
+- les comprovacions de regressió: arrel, variants localitzades, E2E del shell
+  i matriu de rutes.
+
+**Dependències:** configuració i18n d'Astro (`prefixDefaultLocale` i
+`redirectToDefaultLocale`), pàgina arrel i, si s'opta per redirecció al
+servidor, el `Caddyfile` de producció.
+
+**Seguiment:** pendent de triatge.
 
 ### Equipa't Amb Nosaltres
 
@@ -255,34 +365,6 @@ separació es manté dins del model i la capa de presentació existents.
 
 **Seguiment:** entrega en curs a la branca `refactor/contact-semantic-values`;
 PR pendent de revisió.
-
-### Analítica Web Respectuosa Amb La Privacitat
-
-**Estat:** Capturada.
-
-**Problema:** després de publicar la nova web caldrà entendre quines pàgines i
-continguts són útils, sense introduir analítica publicitària ni un seguiment
-invasiu de les persones visitants.
-
-**Resultat esperat:** disposar de mètriques mínimes i accionables de la web
-pública mitjançant Plausible autoallotjat al VPS, mantenint-lo com un servei
-operatiu separat de la compilació estàtica.
-
-**Abans de planificar-ho cal definir:**
-
-- les preguntes que han de respondre les mètriques i els esdeveniments realment
-  necessaris;
-- els requisits legals i de consentiment aplicables a la configuració escollida;
-- el cost de CPU, memòria i disc al VPS compartit;
-- actualitzacions, còpies de seguretat, restauració, salut i retenció de dades;
-- l'aïllament, TLS i accés al tauler d'administració;
-- si una fallada de l'analítica pot quedar completament desacoblada de la web;
-- els criteris d'acceptació i la documentació operativa necessària.
-
-**Dependències:** web pública funcional, destí de producció definit i operació
-del VPS preparada.
-
-**Seguiment:** pendent de triatge.
 
 ### Regressió Visual De Les Pantalles Principals
 

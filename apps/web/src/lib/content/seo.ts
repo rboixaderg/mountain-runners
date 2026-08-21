@@ -3,6 +3,17 @@ import type { Locale } from "./primitives";
 
 export type StructuredData = Record<string, unknown>;
 
+export const openGraphLocales = {
+  ca: "ca_ES",
+  es: "es_ES",
+  en: "en_GB",
+} as const satisfies Record<Locale, string>;
+
+export type SocialImage = {
+  alt: string;
+  url: string;
+};
+
 const jsonLdScriptType = "application/ld+json";
 
 export function serializeJsonLd(value: unknown): string {
@@ -19,15 +30,24 @@ export function renderJsonLdScript(value: unknown): string {
 }
 
 export function getOrganizationJsonLd(params: {
+  logoUrl?: string;
   name: string;
+  sameAs?: string[];
   siteUrl: URL;
 }): StructuredData {
-  return {
+  const data: StructuredData = {
     "@context": "https://schema.org",
     "@type": "Organization",
     name: params.name,
     url: params.siteUrl.toString(),
   };
+  if (params.logoUrl !== undefined) {
+    data.logo = params.logoUrl;
+  }
+  if (params.sameAs !== undefined && params.sameAs.length > 0) {
+    data.sameAs = params.sameAs;
+  }
+  return data;
 }
 
 export function getWebSiteJsonLd(params: {
@@ -48,26 +68,36 @@ export function getWebSiteJsonLd(params: {
  * generated from placeholder or unreviewed data.
  */
 export function getSiteJsonLd(params: {
+  logoUrl?: string;
   name: string | undefined;
+  sameAs?: string[];
   siteUrl: URL;
 }): StructuredData[] {
   if (params.name === undefined) {
     return [];
   }
   return [
-    getOrganizationJsonLd({ name: params.name, siteUrl: params.siteUrl }),
+    getOrganizationJsonLd({
+      logoUrl: params.logoUrl,
+      name: params.name,
+      sameAs: params.sameAs,
+      siteUrl: params.siteUrl,
+    }),
     getWebSiteJsonLd({ name: params.name, siteUrl: params.siteUrl }),
   ];
 }
 
 export function getEventJsonLd(params: {
-  event: Event;
-  edition: EventEdition;
   canonicalUrl: URL;
+  description?: string;
+  edition: EventEdition;
+  event: Event;
+  imageUrl?: string;
   locale: Locale;
   today: string;
 }): StructuredData | undefined {
-  const { event, edition, canonicalUrl, locale, today } = params;
+  const { event, edition, canonicalUrl, description, imageUrl, locale, today } =
+    params;
   // An edition is described as long as it has not fully ended. Editions that
   // already ended are deliberately omitted: they are historical and would
   // otherwise appear as upcoming in rich results.
@@ -94,6 +124,12 @@ export function getEventJsonLd(params: {
       name: edition.location[locale],
     },
   };
+  if (description !== undefined) {
+    data.description = description;
+  }
+  if (imageUrl !== undefined) {
+    data.image = imageUrl;
+  }
   if (edition.endDate !== undefined) {
     data.endDate = edition.endDate;
   }

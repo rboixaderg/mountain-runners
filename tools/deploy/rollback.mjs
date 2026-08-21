@@ -5,7 +5,11 @@
 // of an older commit is not a rollback: only this workflow may move the live
 // pointer backwards.
 
-import { createSmokeRunner, rollbackRelease } from "./operations.mjs";
+import {
+  createSmokeRunner,
+  rollbackRelease,
+  smokeExpectsNoIndex,
+} from "./operations.mjs";
 import { commitPattern } from "../server/release/validate.mjs";
 import { createSshTransport } from "./ssh.mjs";
 
@@ -39,7 +43,7 @@ async function main() {
     }),
     smoke: createSmokeRunner({
       baseUrl: requireEnvironment("SMOKE_BASE_URL"),
-      expectNoIndex: process.env.SMOKE_EXPECT_NOINDEX !== "false",
+      expectNoIndex: smokeExpectsNoIndex(process.env.SMOKE_EXPECT_NOINDEX),
     }),
   });
   console.log(message);

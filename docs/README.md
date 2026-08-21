@@ -26,8 +26,10 @@ acceptada:
 - [`backlog.md`](backlog.md): necessitats obertes i registre del seu triatge.
 - [`deployment.md`](deployment.md): estat i límits operatius de la fase 5.
 - [`runbook.md`](runbook.md): operació de producció (servidor, TLS, logs, salut,
-  releases, desplegament continu i reversió; el tall arriba amb la T5.5).
+  releases, desplegament continu, reversió, tall DNS i període d'observació).
   Inclou el diagrama Mermaid viu de l'arquitectura del VPS.
+- [`phase-5-t55-dns-inventory.md`](phase-5-t55-dns-inventory.md): inventari
+  públic dels registres a preservar i a substituir al tall.
 - [`phase-5-t51-preparacio.md`](phase-5-t51-preparacio.md): decisions
   preliminars de desplegament que la T5.1 ha de ratificar.
 - [`ai-assistant.md`](ai-assistant.md): límits dels futurs xat públic i assistent

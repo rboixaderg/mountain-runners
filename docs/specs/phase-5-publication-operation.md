@@ -3,9 +3,11 @@
 ## Estat
 
 T5.1 completada el 16 d'agost de 2026, amb les decisions registrades a
-[`docs/phase-5-t51-decisions.md`](../phase-5-t51-decisions.md). La fase 4 es va
-completar el 16 d'agost de 2026 i ja no bloqueja la publicació. No es provisiona
-ni s'activa producció fins a completar les decisions i controls de T5.1.
+[`docs/phase-5-t51-decisions.md`](../phase-5-t51-decisions.md). La T5.2, la
+T5.3 i la T5.4 són a `main` (PRs #77, #79, #84 i el seguiment #85). La fase 4
+es va completar el 16 d'agost de 2026 i ja no bloqueja la publicació. El tall
+DNS i la primera activació pública són la T5.5 i requereixen aprovació
+explícita de la persona mantenidora.
 
 ## Objectiu
 
@@ -97,8 +99,8 @@ conversa o procediment corresponent.
 | T5.1 Decisions i porta de llançament         | Completada | Fase 4 completada | Decisions, riscos i responsables confirmats | PR #76 |
 | T5.2 Artefacte i controls de publicació      | Completada | T5.1              | Artefacte CI complet i verificat            | PR #77 |
 | T5.3 VPS, Caddy, releases i reversió         | Completada | T5.2              | Servidor TLS preparat i reversió comprovada | PR #79 |
-| T5.4 Desplegament continu des de `main`      | En curs    | T5.2 i T5.3       | Workflow protegit amb smoke tests           | PR #84 |
-| T5.5 Tall, validació i operació de producció | Pendent    | T5.4              | Web pública i runbook verificats            | -      |
+| T5.4 Desplegament continu des de `main`      | Completada | T5.2 i T5.3       | Workflow protegit amb smoke tests           | PR #84 |
+| T5.5 Tall, validació i operació de producció | En curs    | T5.4              | Web pública i runbook verificats            | PR #88 |
 
 ### T5.1: Decisions I Porta De Llançament
 

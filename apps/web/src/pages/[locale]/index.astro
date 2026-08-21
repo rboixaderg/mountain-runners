@@ -3,6 +3,7 @@ import { locales } from "../../../i18n.config.mjs";
 import * as messages from "../../paraglide/messages.js";
 import { assertIsLocale } from "../../paraglide/runtime.js";
 import homepageImageAvif from "../../assets/home/homepage-hero.avif";
+import homepageImageJpeg from "../../assets/home/homepage-hero.jpeg";
 import homepageImageSmallAvif from "../../assets/home/homepage-hero-mobile.avif";
 import HomepageEventCard from "../../components/events/HomepageEventCard.astro";
 import PageHero from "../../components/PageHero.astro";
@@ -76,8 +77,17 @@ const schoolCards = await Promise.all(
 );
 const siteUrl = new URL("/", Astro.site);
 const siteEntity = catalog.entities.get("mountain-runners");
+const siteLogoUrl =
+  siteEntity === undefined
+    ? undefined
+    : new URL(getResourceHref(siteEntity.logo.resource), siteUrl).toString();
+const socialProfileUrls = (siteEntity?.links ?? [])
+  .filter((link) => link.kind === "instagram" || link.kind === "strava")
+  .map((link) => link.url);
 const structuredData = getSiteJsonLd({
+  logoUrl: siteLogoUrl,
   name: siteEntity?.name[locale],
+  sameAs: socialProfileUrls,
   siteUrl,
 });
 const eventsPath = getDomainPath("event", locale);
@@ -101,12 +111,16 @@ export function getStaticPaths() {
 
 <PublicLayout
   canonical={canonicalUrl.toString()}
-  description={messages.homepage_hero_description({}, { locale })}
+  description={messages.homepage_page_description({}, { locale })}
   locale={locale}
   localizedAlternatives={locales.map((alternativeLocale) => ({
     locale: assertIsLocale(alternativeLocale),
     href: new URL(`/${alternativeLocale}/`, Astro.site).toString(),
   }))}
+  socialImage={{
+    alt: messages.homepage_hero_image_alt({}, { locale }),
+    url: new URL(homepageImageJpeg.src, Astro.site).toString(),
+  }}
   structuredData={structuredData}
   title={messages.homepage_hero_title({}, { locale })}
 >

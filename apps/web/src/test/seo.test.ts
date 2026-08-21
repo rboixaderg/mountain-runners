@@ -114,6 +114,33 @@ describe("organization and website structured data", () => {
       name: "Mountain Runners del Berguedà",
       url: "https://mountainrunners.cat/",
     });
+    expect(data).not.toHaveProperty("logo");
+    expect(data).not.toHaveProperty("sameAs");
+  });
+
+  it("includes reviewed logo and social profiles when provided", () => {
+    const data = getOrganizationJsonLd({
+      logoUrl:
+        "https://mountainrunners.cat/content-resources/assets/logo_mountain_runners.png",
+      name: "Mountain Runners del Berguedà",
+      sameAs: [
+        "https://www.instagram.com/infomountain/",
+        "https://www.strava.com/clubs/156769",
+      ],
+      siteUrl: new URL("https://mountainrunners.cat"),
+    });
+
+    expect(data).toEqual({
+      "@context": "https://schema.org",
+      "@type": "Organization",
+      name: "Mountain Runners del Berguedà",
+      url: "https://mountainrunners.cat/",
+      logo: "https://mountainrunners.cat/content-resources/assets/logo_mountain_runners.png",
+      sameAs: [
+        "https://www.instagram.com/infomountain/",
+        "https://www.strava.com/clubs/156769",
+      ],
+    });
   });
 
   it("exposes the canonical website identity", () => {
@@ -188,6 +215,27 @@ describe("event structured data", () => {
     });
     expect(data).not.toHaveProperty("offers");
     expect(data).not.toHaveProperty("performer");
+  });
+
+  it("adds the reviewed summary and cover when provided", () => {
+    const data = getEventJsonLd({
+      canonicalUrl: new URL(
+        "https://mountainrunners.cat/ca/esdeveniments/ultra-pirineu/",
+      ),
+      description: "Cursa de muntanya.",
+      edition: edition(),
+      event,
+      imageUrl:
+        "https://mountainrunners.cat/content-resources/assets/logo_mountain_runners.png",
+      locale: "ca",
+      today: "2026-08-04",
+    });
+
+    expect(data).toMatchObject({
+      description: "Cursa de muntanya.",
+      image:
+        "https://mountainrunners.cat/content-resources/assets/logo_mountain_runners.png",
+    });
   });
 
   it("omits the end date when the edition does not announce one", () => {
