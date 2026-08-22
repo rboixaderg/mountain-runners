@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 import { JSDOM } from "jsdom";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { analyticsEventNames } from "../lib/analytics/catalog";
+import { plausibleAnalytics } from "../lib/analytics/plausible";
 
 const testDirectory = dirname(fileURLToPath(import.meta.url));
 const plausibleEventsScript = readFileSync(
@@ -61,6 +62,9 @@ function createHarness(
     (() => 0)) as typeof dom.window.setInterval;
   options.beforeEval?.(dom);
   const plausible = vi.fn();
+  // The remote tracker sets window.plausible.l on load; the harness starts
+  // with the tracker loaded so events go through the queue path.
+  Object.assign(plausible, { l: true });
   dom.window.plausible = plausible;
   dom.window.eval(plausibleEventsScript);
   return { dom, plausible };
@@ -134,6 +138,57 @@ describe("UI Action emission", () => {
     expect(() =>
       dom.window.document.getElementById("link")!.click(),
     ).not.toThrow();
+  });
+
+  it("sends a beacon when the async tracker has not loaded yet", async () => {
+    const { dom, plausible } = createHarness({
+      body: '<a id="link" data-analytics-action="navigate" data-analytics-area="header_nav" data-analytics-target="events" href="/ca/esdeveniments/">Events</a>',
+    });
+    activeDom = dom;
+    const sendBeacon = vi.fn<(...args: [string, Blob]) => boolean>(() => true);
+    dom.window.navigator.sendBeacon = sendBeacon;
+    delete dom.window.plausible.l;
+
+    dom.window.document.getElementById("link")!.click();
+
+    expect(plausible).not.toHaveBeenCalled();
+    expect(sendBeacon).toHaveBeenCalledTimes(1);
+    const [endpoint, blob] = sendBeacon.mock.calls[0]!;
+    expect(endpoint).toBe(plausibleAnalytics.endpoint);
+    const blobText = await new Promise<string>((resolve, reject) => {
+      const reader = new dom.window.FileReader();
+      reader.onload = () => resolve(String(reader.result));
+      reader.onerror = () => reject(reader.error);
+      reader.readAsText(blob);
+    });
+    expect(blobText).toBe(
+      JSON.stringify({
+        n: analyticsEventNames.uiAction,
+        u: "https://mountainrunners.cat/ca/",
+        d: plausibleAnalytics.domain,
+        p: {
+          action: "navigate",
+          area: "header_nav",
+          locale: "ca",
+          page_type: "home",
+          route: "/ca/",
+          target: "events",
+        },
+      }),
+    );
+  });
+
+  it("slugifies instrumented targets under the catalog sanitizer contract", () => {
+    const { dom, plausible } = createHarness({
+      body: '<a id="link" data-analytics-action="navigate" data-analytics-area="header_nav" data-analytics-target="Berga Trail 2026" href="/ca/">Home</a>',
+    });
+    activeDom = dom;
+
+    dom.window.document.getElementById("link")!.click();
+
+    expect(plausible).toHaveBeenCalledWith(analyticsEventNames.uiAction, {
+      props: expect.objectContaining({ target: "berga_trail_2026" }),
+    });
   });
 });
 
@@ -332,11 +387,16 @@ describe("Scroll Depth emission", () => {
     expect(plausible).not.toHaveBeenCalled();
   });
 
-  it("fires the reached thresholds when the page loads already scrolled", () => {
-    const { plausible } = createScrollHarness({
+  it("evaluates the scroll ratio only when the page is shown", () => {
+    const { dom, plausible } = createScrollHarness({
       scrollHeight: 1200,
       scrollY: 540,
     });
+    // The script runs in the head, before the body height exists: the
+    // reached thresholds must not fire until the page is shown.
+    expect(plausible).not.toHaveBeenCalled();
+
+    dom.window.dispatchEvent(new dom.window.Event("pageshow"));
 
     expect(plausible).toHaveBeenCalledWith(analyticsEventNames.scrollDepth, {
       props: expect.objectContaining({ threshold: "50" }),

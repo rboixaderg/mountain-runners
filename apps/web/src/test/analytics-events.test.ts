@@ -12,6 +12,7 @@ import {
   scrollDepthThresholds,
 } from "../lib/analytics/catalog";
 import { getAnalyticsPageType } from "../lib/analytics/page-type";
+import { plausibleAnalytics } from "../lib/analytics/plausible";
 
 const testDirectory = dirname(fileURLToPath(import.meta.url));
 const plausibleEventsScript = readFileSync(
@@ -83,6 +84,11 @@ describe("plausible-events client script", () => {
     ]) {
       expect(plausibleEventsScript).toContain(String(threshold));
     }
+  });
+
+  it("mirrors the beacon endpoint and domain of the analytics instance", () => {
+    expect(plausibleEventsScript).toContain(plausibleAnalytics.endpoint);
+    expect(plausibleEventsScript).toContain(`"${plausibleAnalytics.domain}"`);
   });
 
   it("reads page context from self-hosted meta tags", () => {

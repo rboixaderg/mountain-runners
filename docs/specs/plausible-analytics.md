@@ -119,6 +119,11 @@ client, i el recorregut E2E del shell amb l'origen de Plausible bloquejat.
   també incrementa el comptador automàtic de l'snippet; s'accepta aquest
   solapament perquè el comptador automàtic no aporta ni àrea de la pàgina ni
   identitat de l'acció, i les dues famílies responen a preguntes diferents.
+- Si l'script remot encara no ha carregat quan s'emet un esdeveniment (primer
+  paint o host lent), `/js/plausible-events.js` l'envia amb un beacon directe a
+  l'endpoint en lloc d'encuar-lo: un esdeveniment encuat es perdria en navegar.
+  El flag `window.plausible.l` que el tracker real estableix en carregar
+  distingeix els dos estats i evita duplicats.
 - El host de validació i l'entorn local poden carregar l'script; el filtre de
   nom d'amfitrió de Plausible descarta visites que no siguin de
   `mountainrunners.cat`.

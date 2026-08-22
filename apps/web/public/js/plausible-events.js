@@ -6,6 +6,8 @@
   };
   const engagedTimeThresholdsSeconds = [15, 30, 60, 120];
   const scrollDepthThresholds = [50, 90];
+  const analyticsEndpoint = "https://analytics.rogerbg.cat/api/event";
+  const analyticsDomain = "mountainrunners.cat";
   const analyticsAttributeNames = {
     action: "data-analytics-action",
     area: "data-analytics-area",
@@ -35,16 +37,49 @@
   }
 
   function sanitizeProp(value) {
-    const normalized = String(value).trim().slice(0, 64);
-    return /^[\w.-]{1,64}$/u.test(normalized) ? normalized : "unknown";
+    const normalized = String(value)
+      .trim()
+      .toLowerCase()
+      .replaceAll(/[^a-z0-9_-]+/gu, "_")
+      .replaceAll(/_+/gu, "_")
+      .replaceAll(/^_|_$/gu, "")
+      .slice(0, 64);
+
+    return /^[a-z0-9_-]{1,64}$/u.test(normalized) ? normalized : "unknown";
   }
 
   function sanitizeRoute(pathname) {
     return pathname.slice(0, 120);
   }
 
+  function sendEventBeacon(eventName, props) {
+    const payload = {
+      n: eventName,
+      u: window.location.href,
+      d: analyticsDomain,
+      p: props,
+    };
+
+    navigator.sendBeacon(
+      analyticsEndpoint,
+      new Blob([JSON.stringify(payload)], { type: "text/plain" }),
+    );
+  }
+
   function trackEvent(eventName, props) {
     if (typeof window.plausible !== "function") {
+      return;
+    }
+
+    if (window.plausible.l !== true) {
+      try {
+        // The async tracker has not replaced the queue stub yet: a queued
+        // event would be destroyed by the navigation, so it is sent with a
+        // beacon that survives unload and is never replayed as a duplicate.
+        sendEventBeacon(eventName, props);
+      } catch {
+        // Analytics must never break navigation.
+      }
       return;
     }
 
@@ -195,9 +230,11 @@
     }
 
     window.addEventListener("scroll", handleScroll, { passive: true });
-    // A page loaded already scrolled (restored position or anchor) may never
-    // emit a scroll event, so the current ratio is checked once on load.
-    fireDueThresholds(readScrollRatio());
+    // The script runs in the head, before the body height and any restored
+    // scroll position exist, so the ratio is evaluated when the page is
+    // shown: this covers initial loads, hash landings and back/forward
+    // restores that never emit a scroll event.
+    window.addEventListener("pageshow", handleScroll, { passive: true });
   }
 
   document.addEventListener("click", handleActionClick, { capture: true });
