@@ -104,19 +104,14 @@
 
     function recordVisibleElapsed() {
       visibleElapsedMs += Date.now() - visibleStartedAt;
+      visibleStartedAt = Date.now();
     }
 
     function resetVisibleClock() {
       visibleStartedAt = Date.now();
     }
 
-    function checkThresholds() {
-      if (document.visibilityState !== "visible") {
-        return;
-      }
-
-      const totalVisibleMs = visibleElapsedMs + (Date.now() - visibleStartedAt);
-
+    function fireDueThresholds(totalVisibleMs) {
       for (const thresholdSeconds of dwellThresholdsSeconds) {
         if (firedThresholds.has(thresholdSeconds)) {
           continue;
@@ -134,14 +129,28 @@
       }
     }
 
+    function checkThresholds() {
+      if (document.visibilityState !== "visible") {
+        return;
+      }
+
+      fireDueThresholds(visibleElapsedMs + (Date.now() - visibleStartedAt));
+    }
+
     document.addEventListener("visibilitychange", () => {
       if (document.visibilityState === "hidden") {
         recordVisibleElapsed();
+        fireDueThresholds(visibleElapsedMs);
         return;
       }
 
       resetVisibleClock();
       checkThresholds();
+    });
+
+    window.addEventListener("pagehide", () => {
+      recordVisibleElapsed();
+      fireDueThresholds(visibleElapsedMs);
     });
 
     window.setInterval(checkThresholds, 1000);
