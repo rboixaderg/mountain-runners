@@ -1,0 +1,79 @@
+apps/web/e2e/shell.spec.ts
+  s_59ed08068e33ed::t_215daf992a48b8 90-95
+apps/web/messages/ca.json
+  s_59ed08068e33ed::t_28abeba029cf3e 126,158
+apps/web/messages/en.json
+  s_59ed08068e33ed::t_931a14471eca4b 126,158
+apps/web/messages/es.json
+  s_59ed08068e33ed::t_647f2eee99dcc9 126,158
+apps/web/public/js/plausible-events.js
+  s_59ed08068e33ed::t_4b61549cf4690d 1-152
+apps/web/src/components/ContactDataList.astro
+  s_59ed08068e33ed::t_a16fb00ecf4b41 6-7,28-37,54-56,66-68
+apps/web/src/components/ExternalLink.astro
+  s_59ed08068e33ed::t_91035554d936c1 6-7,10-12,19-27,32-39,42-47
+apps/web/src/components/LanguageSelector.astro
+  s_59ed08068e33ed::t_51471cff2bae50 4-5,20-23,66-67
+apps/web/src/components/PlausibleAnalytics.astro
+  s_59ed08068e33ed::t_9860d533fb9715 3-11,14-15,18
+apps/web/src/components/PreFooter.astro
+  s_59ed08068e33ed::t_65e05315eb515c 12-13,41-55,75,97,186
+apps/web/src/components/SiteFooter.astro
+  s_59ed08068e33ed::t_d55590b65529f3 7-8,25-32,58-59,102-107,110-115,118-121,133-136,141-144,149-152
+apps/web/src/components/SiteHeader.astro
+  s_59ed08068e33ed::t_36a80e0067034b 11-16,53-67,76-77,98-99,113-114,131-132,148-149,164-165,176,207-208,223-224,241-242,258-259,275-276,287
+apps/web/src/components/about/AboutStatutes.astro
+  s_59ed08068e33ed::t_21b5f345b936c1 7-8,19-23,43-47
+apps/web/src/components/documents/DocumentEntry.astro
+  s_59ed08068e33ed::t_ae7fa694f77096 12-17,36-40,48-54,56-58
+apps/web/src/components/events/EventMonthlyCalendar.astro
+  s_59ed08068e33ed::t_d64e7023d16683 9-14,34-37,112-113,157-166
+apps/web/src/components/events/EventRegistrationPanel.astro
+  s_59ed08068e33ed::t_c5228cccbb71b9 8,50-52,71-73
+apps/web/src/components/events/EventResources.astro
+  s_59ed08068e33ed::t_9eeb0dc542b01b 7-12,38-42
+apps/web/src/components/members/MembersActionSection.astro
+  s_59ed08068e33ed::t_9d8475e5bb0700 7-8,33-40,74
+apps/web/src/components/members/MembersBenefits.astro
+  s_59ed08068e33ed::t_ccdc65a57a9ce8 5-6,13-17,37
+apps/web/src/components/members/MembersDirectory.astro
+  s_59ed08068e33ed::t_2838c1d14471ad 9,72-74
+apps/web/src/components/schools/SchoolRegistration.astro
+  s_59ed08068e33ed::t_d8fc14efbccf0b 10,48-50
+apps/web/src/layouts/PublicLayout.astro
+  s_59ed08068e33ed::t_fc414634381e5a 6,64,121
+apps/web/src/lib/analytics/attributes.ts
+  s_59ed08068e33ed::t_521c0da3ac472e 1-24
+apps/web/src/lib/analytics/catalog.ts
+  s_59ed08068e33ed::t_bbec99c8e55805 1-142
+apps/web/src/lib/analytics/page-type.ts
+  s_59ed08068e33ed::t_45d460a582e50d 1-78
+apps/web/src/pages/[locale]/index.astro
+  s_59ed08068e33ed::t_cf09ba3227d73a 34-39,112-125,184,192-193,202,241-242,291-292,318-319
+apps/web/src/test/analytics-events.test.ts
+  s_59ed08068e33ed::t_78a958e07ff910 1-131
+apps/web/src/test/public-layout.test.ts
+  s_59ed08068e33ed::t_7fc6e7f2becfab 71-73
+docs/backlog.md
+  s_59ed08068e33ed::t_929c5f1bdb020f 185,229-230
+docs/decisions/0007-self-hosted-plausible-analytics.md
+  s_59ed08068e33ed::t_a828e0c1a71221 21-24
+docs/specs/plausible-analytics.md
+  s_59ed08068e33ed::t_d89d4e4c752a6e 58,82-104,113-116,151-152,159-161,183-184
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "9ae9337f7d457e06cc06a58b4bddafc1b3ddd20c",
+  "prompts": {},
+  "sessions": {
+    "s_59ed08068e33ed": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "aa4b593e-79e5-44fe-b2de-b6d9c2b932f3",
+        "model": "unknown"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
