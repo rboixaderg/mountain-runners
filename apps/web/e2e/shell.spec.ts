@@ -87,6 +87,12 @@ test("loads the Plausible analytics script asynchronously", async ({
   await expect(page.locator('script[src="/js/plausible-init.js"]')).toHaveCount(
     1,
   );
+  await expect(
+    page.locator('script[src="/js/plausible-events.js"]'),
+  ).toHaveCount(1);
+  await expect(
+    page.locator('meta[name="mr-analytics-locale"]'),
+  ).toHaveAttribute("content", "ca");
 });
 
 test("keeps rendering and navigating when Plausible is blocked", async ({

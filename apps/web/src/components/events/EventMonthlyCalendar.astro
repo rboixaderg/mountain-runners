@@ -6,6 +6,8 @@ import {
   buildCalendarMonthGrid,
   getCalendarFocusMonth,
 } from "../../lib/presentation/events";
+import { analyticsActionAttributes } from "../../lib/analytics/attributes";
+import { analyticsActions, analyticsAreas } from "../../lib/analytics/catalog";
 import "../../styles/events-calendar.css";
 
 interface Props {
@@ -99,6 +101,11 @@ const calendar = buildCalendarMonthGrid(
                           aria-controls={popoverId}
                           aria-expanded="false"
                           aria-label={dayLabel}
+                          {...analyticsActionAttributes({
+                            action: analyticsActions.calendarDayOpen,
+                            area: analyticsAreas.eventCalendar,
+                            target: day.date ?? "unknown",
+                          })}
                         >
                           <span class="events-calendar__day-number">
                             {day.dayNumber}
@@ -142,6 +149,11 @@ const calendar = buildCalendarMonthGrid(
                               <a
                                 class="events-calendar__event-link"
                                 href={event.href}
+                                {...analyticsActionAttributes({
+                                  action: analyticsActions.calendarEventLink,
+                                  area: analyticsAreas.eventCalendar,
+                                  target: event.id,
+                                })}
                               >
                                 {messages.event_more_information(
                                   {},

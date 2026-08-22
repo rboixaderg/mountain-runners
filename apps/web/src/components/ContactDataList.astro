@@ -3,6 +3,8 @@ import * as messages from "../paraglide/messages.js";
 import type { Contact } from "../lib/content/models";
 import type { Locale } from "../lib/content/primitives";
 import { getMailtoHref, getTelHref } from "../lib/presentation/urls";
+import { analyticsActionAttributes } from "../lib/analytics/attributes";
+import { analyticsActions, analyticsAreas } from "../lib/analytics/catalog";
 import "../styles/contact-data.css";
 
 type ContactAddressLabelKey =
@@ -23,6 +25,16 @@ const cifLabel = messages.contact_cif_label({}, { locale });
 const emailLabel = messages.contact_email_label({}, { locale });
 const hoursLabel = messages.contact_hours_label({}, { locale });
 const phoneLabel = messages.contact_phone_label({}, { locale });
+const contactEmailAttributes = analyticsActionAttributes({
+  action: analyticsActions.contactEmail,
+  area: analyticsAreas.legalContact,
+  target: "email",
+});
+const contactPhoneAttributes = analyticsActionAttributes({
+  action: analyticsActions.contactPhone,
+  area: analyticsAreas.legalContact,
+  target: "phone",
+});
 ---
 
 <dl class="contact-data">
@@ -39,7 +51,9 @@ const phoneLabel = messages.contact_phone_label({}, { locale });
       <div class="contact-data__row">
         <dt>{emailLabel}</dt>
         <dd>
-          <a href={getMailtoHref(contact.email)}>{contact.email}</a>
+          <a href={getMailtoHref(contact.email)} {...contactEmailAttributes}>
+            {contact.email}
+          </a>
         </dd>
       </div>
     )
@@ -49,7 +63,9 @@ const phoneLabel = messages.contact_phone_label({}, { locale });
       <div class="contact-data__row">
         <dt>{phoneLabel}</dt>
         <dd>
-          <a href={getTelHref(phone)}>{phone}</a>
+          <a href={getTelHref(phone)} {...contactPhoneAttributes}>
+            {phone}
+          </a>
         </dd>
       </div>
     ))

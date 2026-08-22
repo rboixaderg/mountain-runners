@@ -10,6 +10,7 @@ const noonUtcDate = (value: string): Date => new Date(`${value}T12:00:00Z`);
 export type CalendarDayEventSummary = {
   dateLabel: string;
   href: string;
+  id: string;
   isMultiDay: boolean;
   location: string;
   position: "single" | "start" | "middle" | "end";
@@ -38,6 +39,7 @@ export type CalendarMonthGrid = {
 
 export type EventHistoryRow = {
   href: string;
+  id: string;
   location: string;
   title: string;
   year: string;
@@ -136,6 +138,7 @@ export function collectCalendarDayEvents(
         title,
         location,
         href: resolveEventHref(event),
+        id: event.id,
         dateLabel: formatCalendarEditionDateLabel(edition, locale),
         isMultiDay,
         position: "single",
@@ -324,6 +327,7 @@ export function getEventHistoryRows(
     return [
       {
         href: resolveHref(event),
+        id: event.id,
         location,
         title,
         year: parseIsoDateParts(edition.startDate).year.toString(),

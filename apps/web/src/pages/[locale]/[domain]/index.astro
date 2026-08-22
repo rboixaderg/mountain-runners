@@ -26,6 +26,7 @@ import {
   getVariantPath,
 } from "../../../lib/content/routes";
 import { getEventHistoryRows } from "../../../lib/presentation/events";
+import { analyticsAreas } from "../../../lib/analytics/catalog";
 import "../../../styles/events-hub.css";
 import "../../../styles/homepage.css";
 
@@ -208,6 +209,7 @@ const socialImage =
                 <div class="homepage-events border-line grid border-t">
                   {events.map((event, index) => (
                     <HomepageEventCard
+                      analyticsArea={analyticsAreas.eventsHub}
                       edition={getNextEdition(event, today)}
                       event={event}
                       featured={index === 0}

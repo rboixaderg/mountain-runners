@@ -7,6 +7,7 @@ import {
   type RegistrationPresentation,
 } from "../../lib/presentation/status";
 import ExternalLink from "../ExternalLink.astro";
+import { analyticsActions, analyticsAreas } from "../../lib/analytics/catalog";
 
 interface Props {
   locale: Locale;
@@ -44,6 +45,9 @@ const registrationLabel = messages[registration.key]({}, { locale });
         href={registration.url}
         label={messages.school_registration_action({}, { locale })}
         showHost={false}
+        analyticsArea={analyticsAreas.schoolRegistration}
+        analyticsAction={analyticsActions.schoolRegistration}
+        analyticsTarget={school.id}
       />
     )
   }

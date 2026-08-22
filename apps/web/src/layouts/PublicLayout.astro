@@ -3,6 +3,7 @@ import SiteFooter from "../components/SiteFooter.astro";
 import SiteHeader from "../components/SiteHeader.astro";
 import PreFooter from "../components/PreFooter.astro";
 import PlausibleAnalytics from "../components/PlausibleAnalytics.astro";
+import { getAnalyticsPageType } from "../lib/analytics/page-type";
 import logoFavicon from "../assets/favicon-32.png";
 import oswaldFont from "../assets/fonts/oswald-latin.woff2";
 import { getPublicationCatalog } from "../lib/content/repository";
@@ -60,6 +61,7 @@ const memberSignupLink = getMemberSignupLink(
   locale,
   getFixedPagePath("members", locale),
 );
+const analyticsPageType = getAnalyticsPageType(Astro.url.pathname);
 ---
 
 <!doctype html>
@@ -116,7 +118,7 @@ const memberSignupLink = getMemberSignupLink(
       ))
     }
     <title>{title}</title>
-    <PlausibleAnalytics />
+    <PlausibleAnalytics locale={locale} pageType={analyticsPageType} />
   </head>
   <body>
     <a class="skip-link" href="#main-content"

@@ -182,7 +182,7 @@ a l'entrada oberta corresponent; no s'amplien silenciosament aquesta entrega.
 
 ### Esdeveniments D'Acció I Temps D'Estada
 
-**Estat:** Capturada.
+**Estat:** Incorporada com a entrega autònoma (T2 d'analítica Plausible).
 
 **Problema:** les visites de pàgina i els comptadors automàtics de clics sortints,
 baixades i formularis no expliquen quines accions de la web pública són útils
@@ -192,11 +192,11 @@ Sense aquestes mètriques agregades el club no pot prioritzar contingut ni
 detectar recorreguts que acaben en una acció.
 
 **Resultat esperat:** emetre esdeveniments personalitzats agregats a Plausible
-per a les accions rellevants de la interfície i mesurar l'estona visible
-d'estada, amb llindars reproduïbles, sense cookies pròpies no tècniques, sense
-identificadors persistents i sense que una fallada de l'analítica trenqui la
-navegació. Els textos de privacitat i de cookies han de descriure aquests
-esdeveniments reals.
+per a les accions rellevants de la interfície i mesurar l'estona activa d'estada
+i la profunditat de scroll, amb llindars reproduïbles, sense cookies pròpies no
+tècniques, sense identificadors persistents i sense que una fallada de
+l'analítica trenqui la navegació. Els textos de privacitat i de cookies han de
+descriure aquests esdeveniments reals.
 
 **Abans de planificar-ho cal definir:**
 
@@ -206,14 +206,15 @@ esdeveniments reals.
   d'esdeveniments i escoles, l'alta de soci i la federació, el butlletí, els
   documents i estatuts, els enllaços de contacte i xarxes, els col·laboradors i
   els recorreguts del calendari;
-- com s'evita duplicar els comptadors automàtics de clics sortints, baixades i
-  enviaments de formulari que ja pugui emetre l'snippet, i quines accions
-  internes o amb nom de negoci calen igualment;
-- el mesurament del temps: només temps visible (pausa amb la pestanya oculta),
-  llindars per pàgina (per exemple 15, 30, 60 i 120 segons) i si cal una
-  agregació de l'estona total de la visita sense emmagatzemar identificadors
-  persistents; opcionalment, profunditat de scroll si respon una pregunta
-  concreta;
+- el solapament entre els comptadors automàtics de clics sortints, baixades i
+  enviaments de formulari i els esdeveniments personalitzats, acceptat i
+  documentat a l'especificació: el comptador automàtic no aporta ni àrea de la
+  pàgina ni identitat de l'acció;
+- el mesurament del temps i de la profunditat: només temps visible (pausa amb la
+  pestanya oculta), llindars per pàgina (per exemple 15, 30, 60 i 120 segons) i
+  llindars de scroll (50% i 90%), una vegada per llindar i càrrega de pàgina, i
+  si cal una agregació de l'estona total de la visita sense emmagatzemar
+  identificadors persistents;
 - el contracte de privacitat: etiquetes sanititzades i truncades, cap adreça de
   correu, telèfon, query string ni text lliure que pugui identificar una
   persona; propietats només agregables;
@@ -226,11 +227,8 @@ esdeveniments reals.
   recorregut E2E continua funcionant amb l'origen de Plausible bloquejat i no es
   canvien rutes, contingut editorial ni selectors E2E existents.
 
-**Dependències:** snippet de Plausible al `PublicLayout`, cua `window.plausible`
-a l'origen propi, CSP que permet `connect-src` cap a l'origen d'analítica i
-textos legals de la primera entrega d'analítica. No forma part de la fase 5.
-
-**Seguiment:** pendent de triatge.
+**Seguiment:** [especificació d'analítica Plausible](specs/plausible-analytics.md)
+(T2). Implementació a la branca `feat/analytics-events`.
 
 ### Entrada Sense Idioma Més Ràpida
 

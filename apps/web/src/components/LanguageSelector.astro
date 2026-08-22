@@ -1,6 +1,8 @@
 ---
 import * as messages from "../paraglide/messages.js";
 import type { Locale } from "../lib/content/primitives";
+import { analyticsActionAttributes } from "../lib/analytics/attributes";
+import { analyticsActions, analyticsAreas } from "../lib/analytics/catalog";
 
 type LocalizedAlternative = { locale: Locale; href: string };
 
@@ -57,6 +59,11 @@ const languageNames: Record<Locale, string> = {
                   class="language-selector__option"
                   href={alternative.href}
                   hreflang={alternative.locale}
+                  {...analyticsActionAttributes({
+                    action: analyticsActions.localeSwitch,
+                    area: analyticsAreas.languageSelector,
+                    target: alternative.locale,
+                  })}
                 >
                   {languageNames[alternative.locale]}
                 </a>

@@ -6,6 +6,7 @@ import type { Entity } from "../../lib/content/models";
 import type { Locale } from "../../lib/content/primitives";
 import { getOrderedEntityLinks } from "../../lib/presentation/entities";
 import ExternalLink from "../ExternalLink.astro";
+import { analyticsActions, analyticsAreas } from "../../lib/analytics/catalog";
 
 interface Props {
   collaborators: Entity[];
@@ -68,6 +69,9 @@ const collaboratorsWithImages = await Promise.all(
                   className="members-directory__website"
                   href={primaryLink.url}
                   label={entity.name[locale]!}
+                  analyticsArea={analyticsAreas.membersCollaborators}
+                  analyticsAction={analyticsActions.collaboratorWebsite}
+                  analyticsTarget={entity.id}
                 />
               )}
             </div>

@@ -4,6 +4,8 @@ import type { Locale } from "../lib/content/primitives";
 import { getDomainPath, getFixedPagePath } from "../lib/content/routes";
 import { getSiteSocialLinks } from "../lib/presentation/social";
 import { externalLinkAttributes } from "../lib/presentation/urls";
+import { analyticsActionAttributes } from "../lib/analytics/attributes";
+import { analyticsActions, analyticsAreas } from "../lib/analytics/catalog";
 import "../styles/site-footer.css";
 
 interface Props {
@@ -20,6 +22,36 @@ const documentsPath = getFixedPagePath("documents", locale);
 const legalNoticePath = getFixedPagePath("legal-notice", locale);
 const legalPrivacyPath = getFixedPagePath("legal-privacy", locale);
 const legalCookiesPath = getFixedPagePath("legal-cookies", locale);
+const homeNavAttributes = analyticsActionAttributes({
+  action: analyticsActions.navigate,
+  area: analyticsAreas.footerNav,
+  target: "home",
+});
+const eventsNavAttributes = analyticsActionAttributes({
+  action: analyticsActions.navigate,
+  area: analyticsAreas.footerNav,
+  target: "events",
+});
+const documentsNavAttributes = analyticsActionAttributes({
+  action: analyticsActions.navigate,
+  area: analyticsAreas.footerNav,
+  target: "documents",
+});
+const legalNoticeNavAttributes = analyticsActionAttributes({
+  action: analyticsActions.navigate,
+  area: analyticsAreas.footerNav,
+  target: "legal_notice",
+});
+const privacyNavAttributes = analyticsActionAttributes({
+  action: analyticsActions.navigate,
+  area: analyticsAreas.footerNav,
+  target: "privacy",
+});
+const cookiesNavAttributes = analyticsActionAttributes({
+  action: analyticsActions.navigate,
+  area: analyticsAreas.footerNav,
+  target: "cookies",
+});
 ---
 
 <footer class="site-footer">
@@ -45,6 +77,11 @@ const legalCookiesPath = getFixedPagePath("legal-cookies", locale);
                 class="site-footer__social-link"
                 href={socialLink.url}
                 {...externalLinkAttributes}
+                {...analyticsActionAttributes({
+                  action: analyticsActions.socialLink,
+                  area: analyticsAreas.footerSocial,
+                  target: socialLink.id,
+                })}
               >
                 {socialLink.id === "instagram" && (
                   <svg
@@ -87,13 +124,17 @@ const legalCookiesPath = getFixedPagePath("legal-cookies", locale);
     >
       <ul class="footer-links">
         <li>
-          <a href={homePath}>{messages.navigation_home({}, { locale })}</a>
+          <a href={homePath} {...homeNavAttributes}
+            >{messages.navigation_home({}, { locale })}</a
+          >
         </li>
         <li>
-          <a href={eventsPath}>{messages.navigation_events({}, { locale })}</a>
+          <a href={eventsPath} {...eventsNavAttributes}
+            >{messages.navigation_events({}, { locale })}</a
+          >
         </li>
         <li>
-          <a href={documentsPath}
+          <a href={documentsPath} {...documentsNavAttributes}
             >{messages.documents_page_title({}, { locale })}</a
           >
         </li>
@@ -105,17 +146,17 @@ const legalCookiesPath = getFixedPagePath("legal-cookies", locale);
     >
       <ul class="footer-links">
         <li>
-          <a href={legalNoticePath}
+          <a href={legalNoticePath} {...legalNoticeNavAttributes}
             >{messages.legal_notice_title({}, { locale })}</a
           >
         </li>
         <li>
-          <a href={legalPrivacyPath}
+          <a href={legalPrivacyPath} {...privacyNavAttributes}
             >{messages.legal_privacy_title({}, { locale })}</a
           >
         </li>
         <li>
-          <a href={legalCookiesPath}
+          <a href={legalCookiesPath} {...cookiesNavAttributes}
             >{messages.legal_cookies_title({}, { locale })}</a
           >
         </li>

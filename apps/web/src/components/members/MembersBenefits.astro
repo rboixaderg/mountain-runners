@@ -2,12 +2,19 @@
 import * as messages from "../../paraglide/messages.js";
 import socisServeis from "../../assets/members/socis-serveis.jpg";
 import type { Locale } from "../../lib/content/primitives";
+import { analyticsActionAttributes } from "../../lib/analytics/attributes";
+import { analyticsActions, analyticsAreas } from "../../lib/analytics/catalog";
 
 interface Props {
   locale: Locale;
 }
 
 const { locale } = Astro.props;
+const collaboratorsAnchorAttributes = analyticsActionAttributes({
+  action: analyticsActions.anchorJump,
+  area: analyticsAreas.membersCollaborators,
+  target: "collaborators",
+});
 ---
 
 <section class="members-benefits" aria-labelledby="members-benefits-title">
@@ -27,6 +34,7 @@ const { locale } = Astro.props;
         <a
           class="members-benefits__collaborators-link"
           href="#members-collaborators-title"
+          {...collaboratorsAnchorAttributes}
         >
           {messages.members_benefits_collaborators_link({}, { locale })}
         </a>

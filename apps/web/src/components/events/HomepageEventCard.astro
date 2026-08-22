@@ -4,8 +4,14 @@ import type { Event, EventEdition } from "../../lib/content/models";
 import type { Locale } from "../../lib/content/primitives";
 import { getEditionDayMonth } from "../../lib/presentation/dates";
 import { getHomepageEventStatusMessageKey } from "../../lib/presentation/status";
+import { analyticsActionAttributes } from "../../lib/analytics/attributes";
+import {
+  analyticsActions,
+  type AnalyticsArea,
+} from "../../lib/analytics/catalog";
 
 interface Props {
+  analyticsArea: AnalyticsArea;
   edition: EventEdition | undefined;
   event: Event;
   featured?: boolean;
@@ -14,10 +20,23 @@ interface Props {
   today: string;
 }
 
-const { edition, event, featured = false, href, locale, today } = Astro.props;
+const {
+  analyticsArea,
+  edition,
+  event,
+  featured = false,
+  href,
+  locale,
+  today,
+} = Astro.props;
 const statusKey = getHomepageEventStatusMessageKey(edition, today);
 const status = messages[statusKey]({}, { locale });
 const dateParts = getEditionDayMonth(edition, locale);
+const eventLinkAttributes = analyticsActionAttributes({
+  action: analyticsActions.navigate,
+  area: analyticsArea,
+  target: event.id,
+});
 ---
 
 <article
@@ -26,7 +45,11 @@ const dateParts = getEditionDayMonth(edition, locale);
     featured && "homepage-event--featured",
   ]}
 >
-  <a class="homepage-event__link grid text-inherit no-underline" href={href}>
+  <a
+    class="homepage-event__link grid text-inherit no-underline"
+    href={href}
+    {...eventLinkAttributes}
+  >
     <div
       class="homepage-event__date max-md:border-line grid place-items-center px-4 py-6 text-center max-md:row-span-2 max-md:border-r"
     >

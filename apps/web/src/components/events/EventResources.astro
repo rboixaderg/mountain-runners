@@ -4,6 +4,8 @@ import { externalLinkAttributes } from "../../lib/presentation/urls";
 import { getDocumentHref } from "../../lib/content/images";
 import type { Document, EventEdition } from "../../lib/content/models";
 import type { Locale } from "../../lib/content/primitives";
+import { analyticsActionAttributes } from "../../lib/analytics/attributes";
+import { analyticsActions, analyticsAreas } from "../../lib/analytics/catalog";
 
 interface Props {
   documents: { id: string; document: Document | undefined }[];
@@ -29,6 +31,11 @@ const { documents, edition, locale } = Astro.props;
                   {...(document.resource.kind === "external"
                     ? externalLinkAttributes
                     : {})}
+                  {...analyticsActionAttributes({
+                    action: analyticsActions.documentOpen,
+                    area: analyticsAreas.eventResources,
+                    target: id,
+                  })}
                 >
                   {document.title[locale]}
                 </a>
