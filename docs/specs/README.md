@@ -50,6 +50,10 @@ una o més tasques. Cada tasca inclou identificador, abast i exclusió immediata
 dependències, resultat observable, comprovacions mínimes i una PR dedicada o una
 raó explícita per agrupar-la amb una altra.
 
+Els resultats i criteris d'acceptació defineixen el conjunt mínim de
+comportaments observables i les exclusions, no la implementació. No justifiquen
+generalitat especulativa ni funcionalitats no demanades.
+
 La taula de seguiment mostra les tasques; una subsecció per tasca n'explica els
 límits. La checklist detallada continua a la draft PR per evitar dues fonts de
 veritat. Una necessitat nova es desglossa com a tasca nova o torna al backlog;

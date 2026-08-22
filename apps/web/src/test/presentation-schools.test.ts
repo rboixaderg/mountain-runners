@@ -149,21 +149,39 @@ describe("school practical presentation contract", () => {
     });
   });
 
-  it("parses the BTT annual fee options and quarterly note", () => {
+  it("parses the BTT and Enduro course fees with term breakdown note", () => {
     expect(
       parsePreviewPriceSection(
-        "- Inscripció anual, complet: 640 €\n- Inscripció anual, només dimarts: 336 €\n- Inscripció anual, només dissabte: 392 €\n\nTambé hi ha la possibilitat d'inscriure't per trimestres. Si vols més informació, posa't en contacte amb nosaltres.\n\nEls preus poden quedar subjectes a modificació a l'inici de curs.",
+        "- BTT dimarts: 354 € el curs (142 € / 101 € / 111 € per trimestre)\n- BTT dissabte: 450 € el curs (186 € / 93 € / 171 € per trimestre)\n- BTT dimarts + dissabte: 582 € el curs (237 € / 134 € / 211 € per trimestre)\n- Pack de 5 dissabtes: 94 €\n- Enduro dimarts: 440 € el curs (173 € / 105 € / 162 € per trimestre)\n- Enduro dimarts + dijous: 683 € el curs (268 € / 163 € / 252 € per trimestre)\n\nBTT: inscripció trimestral. Enduro: inscripció anual (els imports per trimestre són el desglossament del pagament). El pack de 5 dissabtes prioritza qui ve els dimarts. Combinacions entre modalitats: a consultar.",
       ),
     ).toEqual({
       listedFees: [
-        { label: "Inscripció anual, complet", amount: "640 €" },
-        { label: "Inscripció anual, només dimarts", amount: "336 €" },
-        { label: "Inscripció anual, només dissabte", amount: "392 €" },
+        {
+          label: "BTT dimarts",
+          amount: "354 € el curs (142 € / 101 € / 111 € per trimestre)",
+        },
+        {
+          label: "BTT dissabte",
+          amount: "450 € el curs (186 € / 93 € / 171 € per trimestre)",
+        },
+        {
+          label: "BTT dimarts + dissabte",
+          amount: "582 € el curs (237 € / 134 € / 211 € per trimestre)",
+        },
+        { label: "Pack de 5 dissabtes", amount: "94 €" },
+        {
+          label: "Enduro dimarts",
+          amount: "440 € el curs (173 € / 105 € / 162 € per trimestre)",
+        },
+        {
+          label: "Enduro dimarts + dijous",
+          amount: "683 € el curs (268 € / 163 € / 252 € per trimestre)",
+        },
       ],
       monthlyTiers: [],
       registrationFees: [],
       footnote:
-        "També hi ha la possibilitat d'inscriure't per trimestres. Si vols més informació, posa't en contacte amb nosaltres.\n\nEls preus poden quedar subjectes a modificació a l'inici de curs.",
+        "BTT: inscripció trimestral. Enduro: inscripció anual (els imports per trimestre són el desglossament del pagament). El pack de 5 dissabtes prioritza qui ve els dimarts. Combinacions entre modalitats: a consultar.",
     });
   });
 

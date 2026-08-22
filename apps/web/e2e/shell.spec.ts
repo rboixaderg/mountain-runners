@@ -673,7 +673,7 @@ test("renders the schools hub in editorial order with links to details", async (
   ).resolves.toEqual([
     "Inscripció oberta",
     "Inscripció properament",
-    "Inscripció properament",
+    "Inscripció oberta",
   ]);
   await expect(
     page.locator('.schools-hub-item a[href="/ca/escoles/escola-trail/"]'),
@@ -866,11 +866,14 @@ test("renders the board and the unavailable states without fake controls", async
   await expect(
     page.getByRole("heading", { level: 3, name: "Preus" }),
   ).toBeVisible();
-  await expect(page.getByText("640 €")).toBeVisible();
-  await expect(page.getByText("336 €")).toBeVisible();
-  await expect(page.getByText("392 €")).toBeVisible();
+  await expect(page.getByText("354 €")).toBeVisible();
+  await expect(page.getByText("450 €")).toBeVisible();
+  await expect(page.getByText("582 €")).toBeVisible();
+  await expect(page.getByText("94 €")).toBeVisible();
+  await expect(page.getByText("440 €")).toBeVisible();
+  await expect(page.getByText("683 €")).toBeVisible();
   await expect(
-    page.getByText("També hi ha la possibilitat d'inscriure't per trimestres"),
+    page.getByText("BTT: inscripció trimestral. Enduro: inscripció anual"),
   ).toBeVisible();
 });
 
