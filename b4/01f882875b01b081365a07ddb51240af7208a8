@@ -1,0 +1,22 @@
+apps/web/public/js/plausible-events.js
+  h_1727aeeb492b30 9-10,40-48,55-68,74-85,233-237
+apps/web/src/lib/analytics/plausible.ts
+  h_1727aeeb492b30 2-3
+apps/web/src/test/analytics-events.test.ts
+  h_1727aeeb492b30 15,89-93
+apps/web/src/test/plausible-events-behavior.test.ts
+  h_1727aeeb492b30 8,65-67,142-192,390-391,395-399
+docs/specs/plausible-analytics.md
+  h_1727aeeb492b30 122-126
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "b401f882875b01b081365a07ddb51240af7208a8",
+  "prompts": {},
+  "humans": {
+    "h_1727aeeb492b30": {
+      "author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
