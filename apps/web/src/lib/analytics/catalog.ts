@@ -3,9 +3,6 @@ export const analyticsEventNames = {
   uiAction: "UI Action",
 } as const;
 
-export type AnalyticsEventName =
-  (typeof analyticsEventNames)[keyof typeof analyticsEventNames];
-
 export const analyticsAreas = {
   aboutStatutes: "about_statutes",
   documents: "documents",
@@ -68,11 +65,7 @@ export type AnalyticsPageType =
 
 export const dwellTimeThresholdsSeconds = [15, 30, 60, 120] as const;
 
-export type DwellTimeThresholdSeconds =
-  (typeof dwellTimeThresholdsSeconds)[number];
-
 const analyticsTargetPattern = /^[a-z0-9_-]{1,64}$/u;
-const analyticsPropPattern = /^[\w.-]{1,64}$/u;
 
 export function sanitizeAnalyticsTarget(value: string): string {
   const normalized = value
@@ -88,55 +81,4 @@ export function sanitizeAnalyticsTarget(value: string): string {
   }
 
   return normalized;
-}
-
-export function sanitizeAnalyticsProp(value: string): string {
-  const normalized = value.trim().slice(0, 64);
-  if (normalized.length === 0 || !analyticsPropPattern.test(normalized)) {
-    return "unknown";
-  }
-
-  return normalized;
-}
-
-export function sanitizeAnalyticsRoute(pathname: string): string {
-  const withoutQuery = pathname.split("?")[0]?.split("#")[0] ?? "/";
-  return withoutQuery.slice(0, 120);
-}
-
-export function buildAnalyticsEventProps(options: {
-  action: AnalyticsAction;
-  area: AnalyticsArea;
-  locale: string;
-  pageType: AnalyticsPageType;
-  route: string;
-  target?: string;
-}): Record<string, string> {
-  const props: Record<string, string> = {
-    action: sanitizeAnalyticsProp(options.action),
-    area: sanitizeAnalyticsProp(options.area),
-    locale: sanitizeAnalyticsProp(options.locale),
-    page_type: sanitizeAnalyticsProp(options.pageType),
-    route: sanitizeAnalyticsRoute(options.route),
-  };
-
-  if (options.target !== undefined) {
-    props.target = sanitizeAnalyticsTarget(options.target);
-  }
-
-  return props;
-}
-
-export function buildDwellEventProps(options: {
-  locale: string;
-  pageType: AnalyticsPageType;
-  route: string;
-  thresholdSeconds: DwellTimeThresholdSeconds;
-}): Record<string, string> {
-  return {
-    locale: sanitizeAnalyticsProp(options.locale),
-    page_type: sanitizeAnalyticsProp(options.pageType),
-    route: sanitizeAnalyticsRoute(options.route),
-    threshold: sanitizeAnalyticsProp(String(options.thresholdSeconds)),
-  };
 }

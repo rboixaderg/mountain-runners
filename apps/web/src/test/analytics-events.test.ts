@@ -7,11 +7,7 @@ import {
   analyticsAreas,
   analyticsEventNames,
   analyticsPageTypes,
-  buildAnalyticsEventProps,
-  buildDwellEventProps,
   dwellTimeThresholdsSeconds,
-  sanitizeAnalyticsProp,
-  sanitizeAnalyticsRoute,
   sanitizeAnalyticsTarget,
 } from "../lib/analytics/catalog";
 import { getAnalyticsPageType } from "../lib/analytics/page-type";
@@ -23,54 +19,12 @@ const plausibleEventsScript = readFileSync(
 );
 
 describe("analytics catalog", () => {
-  it("sanitizes targets and props without accepting free-form identifiers", () => {
+  it("sanitizes targets without accepting free-form identifiers", () => {
     expect(sanitizeAnalyticsTarget("Berga Trail 2026")).toBe(
       "berga_trail_2026",
     );
     expect(sanitizeAnalyticsTarget("")).toBe("unknown");
     expect(sanitizeAnalyticsTarget("a@b.c")).toBe("a_b_c");
-    expect(sanitizeAnalyticsProp("ca")).toBe("ca");
-    expect(sanitizeAnalyticsProp("")).toBe("unknown");
-  });
-
-  it("drops query strings and fragments from routes", () => {
-    expect(sanitizeAnalyticsRoute("/ca/socis/?utm=test#section")).toBe(
-      "/ca/socis/",
-    );
-  });
-
-  it("builds stable UI action and dwell props", () => {
-    expect(
-      buildAnalyticsEventProps({
-        action: analyticsActions.memberSignup,
-        area: analyticsAreas.headerNav,
-        locale: "ca",
-        pageType: analyticsPageTypes.home,
-        route: "/ca/",
-        target: "signup",
-      }),
-    ).toEqual({
-      action: "member_signup",
-      area: "header_nav",
-      locale: "ca",
-      page_type: "home",
-      route: "/ca/",
-      target: "signup",
-    });
-
-    expect(
-      buildDwellEventProps({
-        locale: "ca",
-        pageType: analyticsPageTypes.eventsHub,
-        route: "/ca/esdeveniments/",
-        thresholdSeconds: 30,
-      }),
-    ).toEqual({
-      locale: "ca",
-      page_type: "events_hub",
-      route: "/ca/esdeveniments/",
-      threshold: "30",
-    });
   });
 
   it("covers every catalog area and action with stable snake_case values", () => {
