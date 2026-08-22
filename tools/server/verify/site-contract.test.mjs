@@ -3,6 +3,7 @@ import test from "node:test";
 import {
   hstsPresentFinding,
   indexableFinding,
+  rootLocaleRedirectFinding,
   wwwRedirectFinding,
 } from "./site-contract.mjs";
 
@@ -31,6 +32,32 @@ test("hstsPresentFinding requires max-age=31536000 without includeSubDomains", (
     "strict-transport-security": "max-age=31536000; includeSubDomains",
   });
   assert.match(hstsPresentFinding("apex", withSubdomains), /includeSubDomains/);
+});
+
+test("rootLocaleRedirectFinding requires a 301 or 308 to /ca/", () => {
+  const rootUrl = `${apexOrigin}/`;
+
+  for (const [status, location] of [
+    [308, "/ca/"],
+    [301, `${apexOrigin}/ca/`],
+  ]) {
+    assert.equal(
+      rootLocaleRedirectFinding({ status, location, rootUrl }),
+      undefined,
+    );
+  }
+
+  for (const [status, location] of [
+    [200, ""],
+    [308, "/"],
+    [308, "/ca/?source=root"],
+    [308, "https://example.com/ca/"],
+  ]) {
+    assert.match(
+      rootLocaleRedirectFinding({ status, location, rootUrl }),
+      /expected a redirect/,
+    );
+  }
 });
 
 test("wwwRedirectFinding requires a 301 or 308 that preserves /ca/", () => {
