@@ -58,6 +58,10 @@
 (common_site) {
 	import common_headers
 	import common_cache
+	# Keep locale-prefixed URLs canonical while avoiding the generated
+	# index.html meta refresh for the unprefixed entry point.
+	@unprefixed_root path /
+	redir @unprefixed_root /ca/ permanent
 	root * /var/lib/mountain-runners/current
 	# No directory listings; trailing-slash routes keep their slash and
 	# directory indexes are served from index.html. Any error (including the

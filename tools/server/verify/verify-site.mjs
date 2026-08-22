@@ -2,8 +2,9 @@
 // Site verification for the validation host and, at the cut, for production
 // (phase 5, tasks 5.3 and 5.5).
 //
-// Checks the live host contract approved in T5.1: HTTP→HTTPS, TLS, trailing
-// slash, global 404, security headers (nosniff, Referrer-Policy,
+// Checks the live host contract approved in T5.1: HTTP→HTTPS, TLS, the root
+// locale redirect, trailing slash, global 404, security headers (nosniff,
+// Referrer-Policy,
 // Permissions-Policy, CSP), the approved cache policies and, for the
 // validation host, X-Robots-Tag: noindex, nofollow, noarchive and the
 // absence of HSTS.
@@ -16,6 +17,7 @@ import { contentSecurityPolicy } from "../caddy/content-security-policy.mjs";
 import {
   hstsPresentFinding,
   indexableFinding,
+  rootLocaleRedirectFinding,
   wwwRedirectFinding,
 } from "./site-contract.mjs";
 
@@ -38,7 +40,7 @@ function requireFlag(name) {
 }
 
 const baseUrl = requireFlag("--base-url");
-const routes = ["/", "/ca/", "/es/", "/en/"];
+const routes = ["/ca/", "/es/", "/en/"];
 const noCachePolicy = /no-cache, must-revalidate/u;
 
 const headersPatterns = {
@@ -59,6 +61,7 @@ async function check() {
   }
 
   await checkHttpRedirect(parsedBase);
+  await checkRootLocaleRedirect(parsedBase);
 
   const rootResponse = await fetchText(`${baseUrl}/ca/`);
   const assetUrls = [
@@ -148,6 +151,18 @@ async function checkHttpRedirect(parsedBase) {
       `HTTP redirect location is not HTTPS: ${location || "absent"}.`,
     );
   }
+}
+
+async function checkRootLocaleRedirect(parsedBase) {
+  const rootUrl = `${parsedBase.origin}/`;
+  const response = await fetchRaw(rootUrl);
+  pushFinding(
+    rootLocaleRedirectFinding({
+      status: response.status,
+      location: response.headers.get("location") ?? "",
+      rootUrl,
+    }),
+  );
 }
 
 async function checkTrailingSlash(urlWithoutSlash) {
