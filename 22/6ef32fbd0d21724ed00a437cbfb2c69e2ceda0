@@ -1,0 +1,16 @@
+docs/backlog.md
+  h_1727aeeb492b30 209-212
+docs/specs/plausible-analytics.md
+  h_1727aeeb492b30 114-118
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "226ef32fbd0d21724ed00a437cbfb2c69e2ceda0",
+  "prompts": {},
+  "humans": {
+    "h_1727aeeb492b30": {
+      "author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
