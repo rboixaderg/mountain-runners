@@ -10,6 +10,7 @@ const noonUtcDate = (value: string): Date => new Date(`${value}T12:00:00Z`);
 export type CalendarDayEventSummary = {
   dateLabel: string;
   href: string;
+  id: string;
   isMultiDay: boolean;
   location: string;
   position: "single" | "start" | "middle" | "end";
@@ -136,6 +137,7 @@ export function collectCalendarDayEvents(
         title,
         location,
         href: resolveEventHref(event),
+        id: event.id,
         dateLabel: formatCalendarEditionDateLabel(edition, locale),
         isMultiDay,
         position: "single",

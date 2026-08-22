@@ -7,11 +7,7 @@ import {
   getCalendarFocusMonth,
 } from "../../lib/presentation/events";
 import { analyticsActionAttributes } from "../../lib/analytics/attributes";
-import {
-  analyticsActions,
-  analyticsAreas,
-  sanitizeAnalyticsTarget,
-} from "../../lib/analytics/catalog";
+import { analyticsActions, analyticsAreas } from "../../lib/analytics/catalog";
 import "../../styles/events-calendar.css";
 
 interface Props {
@@ -157,12 +153,7 @@ const calendarDayOpenAttributes = analyticsActionAttributes({
                                 {...analyticsActionAttributes({
                                   action: analyticsActions.calendarEventLink,
                                   area: analyticsAreas.eventCalendar,
-                                  target: sanitizeAnalyticsTarget(
-                                    event.href
-                                      .split("/")
-                                      .filter(Boolean)
-                                      .at(-1) ?? "event",
-                                  ),
+                                  target: event.id,
                                 })}
                               >
                                 {messages.event_more_information(

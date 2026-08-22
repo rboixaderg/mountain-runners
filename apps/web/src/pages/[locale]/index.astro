@@ -239,7 +239,9 @@ export function getStaticPaths() {
                 class="homepage-school-list__link grid h-full grid-rows-[auto_auto_1fr_auto] gap-3 p-4 text-inherit no-underline"
                 href={getVariantPath(variant)}
                 {...homepageAttributes}
-                data-analytics-target={sanitizeAnalyticsTarget(variant.slug)}
+                data-analytics-target={sanitizeAnalyticsTarget(
+                  variant.entry.id,
+                )}
               >
                 <img
                   class="homepage-school-list__mark bg-stone aspect-[4/3] w-full object-cover contrast-105 grayscale"

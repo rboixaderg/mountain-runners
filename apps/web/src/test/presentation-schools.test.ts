@@ -332,10 +332,12 @@ describe("getSchoolNavigationItems", () => {
     ).toEqual([
       {
         href: "/ca/escoles/escola-trail/",
+        id: "trail-school",
         label: "Escola de Trail",
       },
       {
         href: "/ca/escoles/escola-btt/",
+        id: "btt-school",
         label: "Escola BTT",
       },
     ]);

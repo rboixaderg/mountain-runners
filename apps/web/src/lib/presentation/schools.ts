@@ -391,6 +391,7 @@ export const schoolPracticalPreviewLayoutClasses: Record<
 
 export type SchoolNavigationItem = {
   href: string;
+  id: string;
   label: string;
 };
 
@@ -407,6 +408,6 @@ export function getSchoolNavigationItems(
       return [];
     }
 
-    return [{ href: getVariantPath(variant), label }];
+    return [{ href: getVariantPath(variant), id: variant.entry.id, label }];
   });
 }

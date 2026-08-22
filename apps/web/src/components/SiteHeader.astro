@@ -9,11 +9,7 @@ import type { MemberSignupLink } from "../lib/presentation/status";
 import { externalLinkAttributes } from "../lib/presentation/urls";
 import LanguageSelector from "./LanguageSelector.astro";
 import { analyticsActionAttributes } from "../lib/analytics/attributes";
-import {
-  analyticsActions,
-  analyticsAreas,
-  sanitizeAnalyticsTarget,
-} from "../lib/analytics/catalog";
+import { analyticsActions, analyticsAreas } from "../lib/analytics/catalog";
 import "../styles/site-header.css";
 
 type LocalizedAlternative = { locale: Locale; href: string };
@@ -37,8 +33,16 @@ const schoolNavigationItems = getSchoolNavigationItems(schoolVariants, locale);
 const schoolsNavigationActive = isCurrentPath(schoolsPath);
 const schoolsHubActive = currentPath === schoolsPath;
 const navigationItems = [
-  { href: eventsPath, label: messages.navigation_events({}, { locale }) },
-  { href: membersPath, label: messages.navigation_members({}, { locale }) },
+  {
+    href: eventsPath,
+    label: messages.navigation_events({}, { locale }),
+    target: "events",
+  },
+  {
+    href: membersPath,
+    label: messages.navigation_members({}, { locale }),
+    target: "members",
+  },
 ];
 
 function isCurrentPath(path: string): boolean {
@@ -49,11 +53,6 @@ function isCurrentPath(path: string): boolean {
 
 function isSchoolDetailPath(path: string): boolean {
   return currentPath === path;
-}
-
-function navigationTarget(href: string): string {
-  const segments = href.split("/").filter(Boolean);
-  return sanitizeAnalyticsTarget(segments.at(-1) ?? "home");
 }
 
 const headerNavAttributes = analyticsActionAttributes({
@@ -129,7 +128,7 @@ const headerSignupAttributes = analyticsActionAttributes({
                       isSchoolDetailPath(item.href) ? "page" : undefined
                     }
                     {...headerNavAttributes}
-                    data-analytics-target={navigationTarget(item.href)}
+                    data-analytics-target={item.id}
                   >
                     {item.label}
                   </a>
@@ -162,7 +161,7 @@ const headerSignupAttributes = analyticsActionAttributes({
             href={item.href}
             aria-current={isCurrentPath(item.href) ? "page" : undefined}
             {...headerNavAttributes}
-            data-analytics-target={navigationTarget(item.href)}
+            data-analytics-target={item.target}
           >
             {item.label}
           </a>
@@ -239,7 +238,7 @@ const headerSignupAttributes = analyticsActionAttributes({
                           isSchoolDetailPath(item.href) ? "page" : undefined
                         }
                         {...headerNavAttributes}
-                        data-analytics-target={navigationTarget(item.href)}
+                        data-analytics-target={item.id}
                       >
                         {item.label}
                       </a>
@@ -273,7 +272,7 @@ const headerSignupAttributes = analyticsActionAttributes({
                 href={item.href}
                 aria-current={isCurrentPath(item.href) ? "page" : undefined}
                 {...headerNavAttributes}
-                data-analytics-target={navigationTarget(item.href)}
+                data-analytics-target={item.target}
               >
                 {item.label}
               </a>
