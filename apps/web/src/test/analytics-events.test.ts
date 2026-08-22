@@ -7,8 +7,9 @@ import {
   analyticsAreas,
   analyticsEventNames,
   analyticsPageTypes,
-  dwellTimeThresholdsSeconds,
+  engagedTimeThresholdsSeconds,
   sanitizeAnalyticsTarget,
+  scrollDepthThresholds,
 } from "../lib/analytics/catalog";
 import { getAnalyticsPageType } from "../lib/analytics/page-type";
 
@@ -65,15 +66,21 @@ describe("analytics page type", () => {
 });
 
 describe("plausible-events client script", () => {
-  it("mirrors the TypeScript event names and dwell thresholds", () => {
+  it("mirrors the TypeScript event names and thresholds", () => {
     expect(plausibleEventsScript).toContain(
       `"${analyticsEventNames.uiAction}"`,
     );
     expect(plausibleEventsScript).toContain(
-      `"${analyticsEventNames.pageDwell}"`,
+      `"${analyticsEventNames.engagedTime}"`,
+    );
+    expect(plausibleEventsScript).toContain(
+      `"${analyticsEventNames.scrollDepth}"`,
     );
 
-    for (const threshold of dwellTimeThresholdsSeconds) {
+    for (const threshold of [
+      ...engagedTimeThresholdsSeconds,
+      ...scrollDepthThresholds,
+    ]) {
       expect(plausibleEventsScript).toContain(String(threshold));
     }
   });

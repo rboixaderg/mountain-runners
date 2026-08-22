@@ -20,7 +20,8 @@ continua renderitzant i navegant.
 No s'instal·len cookies ni identificadors persistents, no hi ha banner de
 consentiment i l'abast inclou visites de pàgina, referències agregades i
 esdeveniments personalitzats del projecte (`UI Action` per a accions rellevants
-de la interfície i `Page Dwell` per al temps visible d'estada per pàgina).
+de la interfície, `Engaged Time` per al temps actiu d'estada per pàgina i
+`Scroll Depth` per a la profunditat de scroll assolida).
 El build estàtic no conté tokens d'administració ni de l'API.
 
 ## Raonament

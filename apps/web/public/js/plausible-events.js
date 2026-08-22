@@ -1,9 +1,11 @@
 (function initPlausibleEvents() {
   const eventNames = {
-    pageDwell: "Page Dwell",
+    engagedTime: "Engaged Time",
+    scrollDepth: "Scroll Depth",
     uiAction: "UI Action",
   };
-  const dwellThresholdsSeconds = [15, 30, 60, 120];
+  const engagedTimeThresholdsSeconds = [15, 30, 60, 120];
+  const scrollDepthThresholds = [50, 90];
   const analyticsAttributeNames = {
     action: "data-analytics-action",
     area: "data-analytics-area",
@@ -96,7 +98,7 @@
     trackEvent(eventNames.uiAction, props);
   }
 
-  function startDwellTracking() {
+  function startEngagedTimeTracking() {
     const pageContext = readPageContext();
     const firedThresholds = new Set();
     let visibleStartedAt = Date.now();
@@ -112,14 +114,14 @@
     }
 
     function fireDueThresholds(totalVisibleMs) {
-      for (const thresholdSeconds of dwellThresholdsSeconds) {
+      for (const thresholdSeconds of engagedTimeThresholdsSeconds) {
         if (firedThresholds.has(thresholdSeconds)) {
           continue;
         }
 
         if (totalVisibleMs >= thresholdSeconds * 1000) {
           firedThresholds.add(thresholdSeconds);
-          trackEvent(eventNames.pageDwell, {
+          trackEvent(eventNames.engagedTime, {
             locale: sanitizeProp(pageContext.locale),
             page_type: sanitizeProp(pageContext.pageType),
             route: sanitizeRoute(pageContext.route),
@@ -156,6 +158,49 @@
     window.setInterval(checkThresholds, 1000);
   }
 
+  function startScrollDepthTracking() {
+    const pageContext = readPageContext();
+    const firedThresholds = new Set();
+
+    function readScrollRatio() {
+      const maxScroll =
+        document.documentElement.scrollHeight - window.innerHeight;
+      if (maxScroll <= 0) {
+        return 0;
+      }
+
+      return window.scrollY / maxScroll;
+    }
+
+    function fireDueThresholds(scrollRatio) {
+      for (const threshold of scrollDepthThresholds) {
+        if (firedThresholds.has(threshold)) {
+          continue;
+        }
+
+        if (scrollRatio >= threshold / 100) {
+          firedThresholds.add(threshold);
+          trackEvent(eventNames.scrollDepth, {
+            locale: sanitizeProp(pageContext.locale),
+            page_type: sanitizeProp(pageContext.pageType),
+            route: sanitizeRoute(pageContext.route),
+            threshold: sanitizeProp(String(threshold)),
+          });
+        }
+      }
+    }
+
+    function handleScroll() {
+      fireDueThresholds(readScrollRatio());
+    }
+
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    // A page loaded already scrolled (restored position or anchor) may never
+    // emit a scroll event, so the current ratio is checked once on load.
+    fireDueThresholds(readScrollRatio());
+  }
+
   document.addEventListener("click", handleActionClick, { capture: true });
-  startDwellTracking();
+  startEngagedTimeTracking();
+  startScrollDepthTracking();
 })();

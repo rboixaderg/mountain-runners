@@ -32,6 +32,7 @@ function recurringInterval(callback: () => void, delay: number): number {
 
 function createHarness(
   options: {
+    beforeEval?: (dom: JSDOM) => void;
     body?: string;
     interval?: (callback: () => void, delay: number) => number;
     pathname?: string;
@@ -58,6 +59,7 @@ function createHarness(
   dom.window.Date = Date;
   dom.window.setInterval = (options.interval ??
     (() => 0)) as typeof dom.window.setInterval;
+  options.beforeEval?.(dom);
   const plausible = vi.fn();
   dom.window.plausible = plausible;
   dom.window.eval(plausibleEventsScript);
@@ -135,7 +137,7 @@ describe("UI Action emission", () => {
   });
 });
 
-describe("Page Dwell emission", () => {
+describe("Engaged Time emission", () => {
   it("fires each threshold once while the page stays visible", () => {
     vi.useFakeTimers();
     const { dom, plausible } = createHarness({
@@ -145,20 +147,26 @@ describe("Page Dwell emission", () => {
 
     vi.advanceTimersByTime(16000);
     expect(plausible).toHaveBeenCalledTimes(1);
-    expect(plausible).toHaveBeenLastCalledWith(analyticsEventNames.pageDwell, {
-      props: expect.objectContaining({
-        locale: "ca",
-        page_type: "home",
-        route: "/ca/",
-        threshold: "15",
-      }),
-    });
+    expect(plausible).toHaveBeenLastCalledWith(
+      analyticsEventNames.engagedTime,
+      {
+        props: expect.objectContaining({
+          locale: "ca",
+          page_type: "home",
+          route: "/ca/",
+          threshold: "15",
+        }),
+      },
+    );
 
     vi.advanceTimersByTime(15000);
     expect(plausible).toHaveBeenCalledTimes(2);
-    expect(plausible).toHaveBeenLastCalledWith(analyticsEventNames.pageDwell, {
-      props: expect.objectContaining({ threshold: "30" }),
-    });
+    expect(plausible).toHaveBeenLastCalledWith(
+      analyticsEventNames.engagedTime,
+      {
+        props: expect.objectContaining({ threshold: "30" }),
+      },
+    );
   });
 
   it("pauses the visible clock while the tab is hidden", () => {
@@ -186,9 +194,12 @@ describe("Page Dwell emission", () => {
     dom.window.document.dispatchEvent(new dom.window.Event("visibilitychange"));
     vi.advanceTimersByTime(15000);
     expect(plausible).toHaveBeenCalledTimes(2);
-    expect(plausible).toHaveBeenLastCalledWith(analyticsEventNames.pageDwell, {
-      props: expect.objectContaining({ threshold: "30" }),
-    });
+    expect(plausible).toHaveBeenLastCalledWith(
+      analyticsEventNames.engagedTime,
+      {
+        props: expect.objectContaining({ threshold: "30" }),
+      },
+    );
   });
 
   it("fires the due thresholds when the tab is hidden without a pending tick", () => {
@@ -203,12 +214,15 @@ describe("Page Dwell emission", () => {
     });
     dom.window.document.dispatchEvent(new dom.window.Event("visibilitychange"));
 
-    expect(plausible).toHaveBeenCalledWith(analyticsEventNames.pageDwell, {
+    expect(plausible).toHaveBeenCalledWith(analyticsEventNames.engagedTime, {
       props: expect.objectContaining({ threshold: "15" }),
     });
-    expect(plausible).not.toHaveBeenCalledWith(analyticsEventNames.pageDwell, {
-      props: expect.objectContaining({ threshold: "30" }),
-    });
+    expect(plausible).not.toHaveBeenCalledWith(
+      analyticsEventNames.engagedTime,
+      {
+        props: expect.objectContaining({ threshold: "30" }),
+      },
+    );
   });
 
   it("fires the due thresholds when the page is unloaded", () => {
@@ -219,9 +233,116 @@ describe("Page Dwell emission", () => {
     vi.advanceTimersByTime(20000);
     dom.window.dispatchEvent(new dom.window.Event("pagehide"));
 
-    expect(plausible).toHaveBeenCalledWith(analyticsEventNames.pageDwell, {
+    expect(plausible).toHaveBeenCalledWith(analyticsEventNames.engagedTime, {
       props: expect.objectContaining({ threshold: "15" }),
     });
     expect(plausible).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("Scroll Depth emission", () => {
+  function createScrollHarness(options: {
+    scrollHeight: number;
+    scrollY: number;
+  }) {
+    const harness = createHarness({
+      interval: () => 0,
+      beforeEval: (dom) => {
+        Object.defineProperty(dom.window, "innerHeight", {
+          configurable: true,
+          value: 600,
+        });
+        Object.defineProperty(
+          dom.window.document.documentElement,
+          "scrollHeight",
+          { configurable: true, value: options.scrollHeight },
+        );
+        setScrollY(dom, options.scrollY);
+      },
+    });
+    activeDom = harness.dom;
+    return harness;
+  }
+
+  function setScrollY(dom: JSDOM, value: number) {
+    Object.defineProperty(dom.window, "scrollY", {
+      configurable: true,
+      value,
+    });
+  }
+
+  it("fires each threshold once as the user scrolls down", () => {
+    const { dom, plausible } = createScrollHarness({
+      scrollHeight: 1200,
+      scrollY: 0,
+    });
+    expect(plausible).not.toHaveBeenCalled();
+
+    setScrollY(dom, 300);
+    dom.window.dispatchEvent(new dom.window.Event("scroll"));
+    expect(plausible).toHaveBeenLastCalledWith(
+      analyticsEventNames.scrollDepth,
+      {
+        props: expect.objectContaining({
+          locale: "ca",
+          page_type: "home",
+          route: "/ca/",
+          threshold: "50",
+        }),
+      },
+    );
+
+    setScrollY(dom, 540);
+    dom.window.dispatchEvent(new dom.window.Event("scroll"));
+    expect(plausible).toHaveBeenLastCalledWith(
+      analyticsEventNames.scrollDepth,
+      {
+        props: expect.objectContaining({ threshold: "90" }),
+      },
+    );
+    expect(plausible).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not re-fire a threshold once it was reached", () => {
+    const { dom, plausible } = createScrollHarness({
+      scrollHeight: 1200,
+      scrollY: 0,
+    });
+
+    setScrollY(dom, 300);
+    dom.window.dispatchEvent(new dom.window.Event("scroll"));
+    expect(plausible).toHaveBeenCalledTimes(1);
+
+    setScrollY(dom, 200);
+    dom.window.dispatchEvent(new dom.window.Event("scroll"));
+    setScrollY(dom, 300);
+    dom.window.dispatchEvent(new dom.window.Event("scroll"));
+    expect(plausible).toHaveBeenCalledTimes(1);
+  });
+
+  it("emits nothing when the page cannot scroll", () => {
+    const { dom, plausible } = createScrollHarness({
+      scrollHeight: 600,
+      scrollY: 0,
+    });
+
+    setScrollY(dom, 300);
+    dom.window.dispatchEvent(new dom.window.Event("scroll"));
+
+    expect(plausible).not.toHaveBeenCalled();
+  });
+
+  it("fires the reached thresholds when the page loads already scrolled", () => {
+    const { plausible } = createScrollHarness({
+      scrollHeight: 1200,
+      scrollY: 540,
+    });
+
+    expect(plausible).toHaveBeenCalledWith(analyticsEventNames.scrollDepth, {
+      props: expect.objectContaining({ threshold: "50" }),
+    });
+    expect(plausible).toHaveBeenCalledWith(analyticsEventNames.scrollDepth, {
+      props: expect.objectContaining({ threshold: "90" }),
+    });
   });
 });

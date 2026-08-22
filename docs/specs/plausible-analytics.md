@@ -55,7 +55,7 @@ la CSP anterior i les pàgines continuen funcionant.
 | Tasca | Estat   | Resultat                                                                                         | Enllaç |
 | ----- | ------- | ------------------------------------------------------------------------------------------------ | ------ |
 | T1    | En curs | Script al layout, CSP, textos legals, ADR 0007 i comprovacions que l'analítica no trenqui la web |        |
-| T2    | En curs | Esdeveniments d'acció personalitzats i temps visible d'estada per pàgina                         |        |
+| T2    | En curs | Esdeveniments d'acció personalitzats, temps actiu (engaged time) i profunditat de scroll         |        |
 
 ### T1. Integrar Plausible A La Web Pública
 
@@ -79,28 +79,30 @@ layout, cookies i privacitat.
 **PR:** `feat(analytics-t1): add self-hosted Plausible pageviews`. Una sola PR
 perquè és una funcionalitat d'una tasca.
 
-### T2. Esdeveniments D'Acció I Temps Visible D'Estada
+### T2. Esdeveniments D'Acció, Temps Actiu I Profunditat De Scroll
 
 **Abast:** catàleg tancat d'esdeveniments i propietats, script client a l'origen
 propi (`/js/plausible-events.js`), metadades de context de pàgina al layout,
 atributs `data-analytics-*` a les accions rellevants de la interfície, mesurament
-del temps visible amb llindars 15/30/60/120 segons per càrrega de pàgina i
-actualització de privacitat i cookies en ca/es/en.
+del temps actiu (engaged time) amb llindars 15/30/60/120 segons per càrrega de
+pàgina, mesurament de la profunditat de scroll amb llindars 50/90% una vegada per
+llindar i càrrega de pàgina, i actualització de privacitat i cookies en ca/es/en.
 
-**Fora d'aquesta tasca:** scroll depth, identificadors persistents de visita,
-tauler públic, canvis de CSP i accions remotes al VPS.
+**Fora d'aquesta tasca:** identificadors persistents de visita, tauler públic,
+canvis de CSP i accions remotes al VPS.
 
 **Dependències:** T1 (snippet, cua, CSP i textos legals base).
 
 **Resultat observable:** les accions instrumentades emeten `UI Action` amb
 propietats agregables (`area`, `action`, `target`, `locale`, `page_type`,
-`route`); el temps visible emet `Page Dwell` als llindars configurats; privacitat
-i cookies descriuen aquests esdeveniments.
+`route`); el temps actiu emet `Engaged Time` als llindars configurats; el scroll
+emet `Scroll Depth` en arribar al 50% o al 90% de la pàgina, una vegada per
+llindar i càrrega; privacitat i cookies descriuen aquests esdeveniments.
 
 **Comprovacions mínimes:** `pnpm check`, proves Vitest del catàleg i script
 client, i el recorregut E2E del shell amb l'origen de Plausible bloquejat.
 
-**PR:** `feat(analytics-t2): add Plausible action events and dwell time`.
+**PR:** `feat(analytics-t2): add Plausible action events, engaged time and scroll depth`.
 
 ## Integració A La Web
 
@@ -110,8 +112,9 @@ client, i el recorregut E2E del shell amb l'origen de Plausible bloquejat.
   `/js/plausible-init.js`, servit per `'self'`.
 - A més de la visita de pàgina, l'snippet públic activa els comptadors agregats
   de clics a enllaços sortints, baixades de fitxers i enviaments de formularis
-  vàlids. Els esdeveniments personalitzats del projecte (`UI Action` i
-  `Page Dwell`) s'emeten des de `/js/plausible-events.js`. Quan una acció
+  vàlids. Els esdeveniments personalitzats del projecte (`UI Action`,
+  `Engaged Time` i `Scroll Depth`) s'emeten des de `/js/plausible-events.js`.
+  Quan una acció
   instrumentada és un enllaç sortint o una baixada de fitxer, el mateix clic
   també incrementa el comptador automàtic de l'snippet; s'accepta aquest
   solapament perquè el comptador automàtic no aporta ni àrea de la pàgina ni
@@ -151,7 +154,8 @@ Les pàgines de cookies i de privacitat, en ca/es/en, han de descriure:
 - analítica agregada autoallotjada amb Plausible, sense cookies pròpies no
   tècniques ni publicitat, que mesura visites de pàgina, referències, clics
   sortints, baixades de fitxers, enviaments de formularis vàlids, accions
-  rellevants de la interfície i el temps visible d'estada per pàgina;
+  rellevants de la interfície, el temps actiu d'estada per pàgina i la
+  profunditat de scroll assolida;
 - absència de banner general, i el paper continuat de YouTube;
 - interès legítim, retenció màxima de 25 mesos de les mètriques i l'host
   `analytics.rogerbg.cat` com a encarregat d'aquest tractament.
@@ -182,8 +186,8 @@ Les pàgines de cookies i de privacitat, en ca/es/en, han de descriure:
 
 ## Fora D'Abast
 
-- Objectius o embuts avançats, scroll depth i identificadors persistents de
-  visita entre pàgines.
+- Objectius o embuts avançats i identificadors persistents de visita entre
+  pàgines.
 - Instància Plausible pròpia, DNS `analytics.mountainrunners.cat`, listmonk i
   newsletter.
 - Tauler públic de mètriques, contracte d'encarregat formal i auditoria del VPS

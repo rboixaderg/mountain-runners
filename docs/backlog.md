@@ -192,11 +192,11 @@ Sense aquestes mètriques agregades el club no pot prioritzar contingut ni
 detectar recorreguts que acaben en una acció.
 
 **Resultat esperat:** emetre esdeveniments personalitzats agregats a Plausible
-per a les accions rellevants de la interfície i mesurar l'estona visible
-d'estada, amb llindars reproduïbles, sense cookies pròpies no tècniques, sense
-identificadors persistents i sense que una fallada de l'analítica trenqui la
-navegació. Els textos de privacitat i de cookies han de descriure aquests
-esdeveniments reals.
+per a les accions rellevants de la interfície i mesurar l'estona activa d'estada
+i la profunditat de scroll, amb llindars reproduïbles, sense cookies pròpies no
+tècniques, sense identificadors persistents i sense que una fallada de
+l'analítica trenqui la navegació. Els textos de privacitat i de cookies han de
+descriure aquests esdeveniments reals.
 
 **Abans de planificar-ho cal definir:**
 
@@ -210,11 +210,11 @@ esdeveniments reals.
   enviaments de formulari i els esdeveniments personalitzats, acceptat i
   documentat a l'especificació: el comptador automàtic no aporta ni àrea de la
   pàgina ni identitat de l'acció;
-- el mesurament del temps: només temps visible (pausa amb la pestanya oculta),
-  llindars per pàgina (per exemple 15, 30, 60 i 120 segons) i si cal una
-  agregació de l'estona total de la visita sense emmagatzemar identificadors
-  persistents; opcionalment, profunditat de scroll si respon una pregunta
-  concreta;
+- el mesurament del temps i de la profunditat: només temps visible (pausa amb la
+  pestanya oculta), llindars per pàgina (per exemple 15, 30, 60 i 120 segons) i
+  llindars de scroll (50% i 90%), una vegada per llindar i càrrega de pàgina, i
+  si cal una agregació de l'estona total de la visita sense emmagatzemar
+  identificadors persistents;
 - el contracte de privacitat: etiquetes sanititzades i truncades, cap adreça de
   correu, telèfon, query string ni text lliure que pugui identificar una
   persona; propietats només agregables;

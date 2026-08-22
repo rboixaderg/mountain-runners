@@ -1,5 +1,6 @@
 export const analyticsEventNames = {
-  pageDwell: "Page Dwell",
+  engagedTime: "Engaged Time",
+  scrollDepth: "Scroll Depth",
   uiAction: "UI Action",
 } as const;
 
@@ -65,7 +66,9 @@ export const analyticsPageTypes = {
 export type AnalyticsPageType =
   (typeof analyticsPageTypes)[keyof typeof analyticsPageTypes];
 
-export const dwellTimeThresholdsSeconds = [15, 30, 60, 120] as const;
+export const engagedTimeThresholdsSeconds = [15, 30, 60, 120] as const;
+
+export const scrollDepthThresholds = [50, 90] as const;
 
 const analyticsTargetPattern = /^[a-z0-9_-]{1,64}$/u;
 
