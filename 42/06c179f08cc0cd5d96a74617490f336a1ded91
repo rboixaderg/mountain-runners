@@ -1,0 +1,24 @@
+apps/web/src/components/SiteHeader.astro
+  h_1727aeeb492b30 12,36-45,131,164,241,275
+apps/web/src/components/events/EventMonthlyCalendar.astro
+  h_1727aeeb492b30 10,156
+apps/web/src/lib/presentation/events.ts
+  h_1727aeeb492b30 13,140
+apps/web/src/lib/presentation/schools.ts
+  h_1727aeeb492b30 394,411
+apps/web/src/pages/[locale]/index.astro
+  h_1727aeeb492b30 242-244
+apps/web/src/test/presentation-schools.test.ts
+  h_1727aeeb492b30 335,340
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "4206c179f08cc0cd5d96a74617490f336a1ded91",
+  "prompts": {},
+  "humans": {
+    "h_1727aeeb492b30": {
+      "author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
