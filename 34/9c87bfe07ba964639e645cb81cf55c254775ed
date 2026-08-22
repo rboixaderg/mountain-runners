@@ -1,0 +1,19 @@
+apps/web/src/components/SiteFooter.astro
+  s_97b6d9ba1a2e65::t_b32b5de5d567a5 25,28,30-53,80-84,127,132,137,149,154,159
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "349c87bfe07ba964639e645cb81cf55c254775ed",
+  "prompts": {},
+  "sessions": {
+    "s_97b6d9ba1a2e65": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_fd77e7073ffezPBuN2VCAb3DUq",
+        "model": "deepseek-v4-flash"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
