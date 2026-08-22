@@ -1,0 +1,30 @@
+apps/web/src/components/events/EventsHubActiveCard.astro
+  h_1727aeeb492b30 8-9,27-31,35-39
+apps/web/src/components/events/EventsHubHistoryTable.astro
+  h_1727aeeb492b30 7-8,16-19,40-45
+apps/web/src/components/events/HomepageEventCard.astro
+  h_1727aeeb492b30 7-11,14,23-31,35-39,48-52
+apps/web/src/components/schools/SchoolHub.astro
+  h_1727aeeb492b30 10-11,100-108
+apps/web/src/lib/analytics/catalog.ts
+  h_1727aeeb492b30 12,24
+apps/web/src/lib/presentation/events.ts
+  h_1727aeeb492b30 42,330
+apps/web/src/pages/[locale]/[domain]/index.astro
+  h_1727aeeb492b30 29,212
+apps/web/src/pages/[locale]/index.astro
+  h_1727aeeb492b30 330
+apps/web/src/test/presentation-events.test.ts
+  h_1727aeeb492b30 146
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "325f8cc9df4b820783c969175a812fae26647877",
+  "prompts": {},
+  "humans": {
+    "h_1727aeeb492b30": {
+      "author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
