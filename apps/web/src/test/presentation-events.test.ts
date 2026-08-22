@@ -143,6 +143,7 @@ describe("getEventHistoryRows", () => {
     expect(rows).toEqual([
       {
         href: "/ca/esdeveniments/berga-trail/",
+        id: "berga-trail",
         location: "Berga",
         title: "Berga Trail",
         year: "2022",

@@ -39,6 +39,7 @@ export type CalendarMonthGrid = {
 
 export type EventHistoryRow = {
   href: string;
+  id: string;
   location: string;
   title: string;
   year: string;
@@ -326,6 +327,7 @@ export function getEventHistoryRows(
     return [
       {
         href: resolveHref(event),
+        id: event.id,
         location,
         title,
         year: parseIsoDateParts(edition.startDate).year.toString(),

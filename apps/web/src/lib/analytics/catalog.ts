@@ -9,6 +9,7 @@ export const analyticsAreas = {
   eventActions: "event_actions",
   eventCalendar: "event_calendar",
   eventResources: "event_resources",
+  eventsHub: "events_hub",
   footerNav: "footer_nav",
   footerSocial: "footer_social",
   headerNav: "header_nav",
@@ -20,6 +21,7 @@ export const analyticsAreas = {
   prefooterContact: "prefooter_contact",
   prefooterNewsletter: "prefooter_newsletter",
   schoolRegistration: "school_registration",
+  schoolsHub: "schools_hub",
 } as const;
 
 export type AnalyticsArea =

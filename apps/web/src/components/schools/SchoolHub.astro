@@ -7,6 +7,8 @@ import type { Locale } from "../../lib/content/primitives";
 import type { PublishedVariant } from "../../lib/content/publication";
 import { getVariantPath } from "../../lib/content/routes";
 import { getRegistrationPresentation } from "../../lib/presentation/status";
+import { analyticsActionAttributes } from "../../lib/analytics/attributes";
+import { analyticsActions, analyticsAreas } from "../../lib/analytics/catalog";
 import PageIntro from "../PageIntro.astro";
 import "../../styles/schools-hub.css";
 
@@ -95,7 +97,15 @@ const valueItems = [
       ).key;
       return (
         <li class="schools-hub-item">
-          <a class="schools-hub-item__link" href={getVariantPath(variant)}>
+          <a
+            class="schools-hub-item__link"
+            href={getVariantPath(variant)}
+            {...analyticsActionAttributes({
+              action: analyticsActions.navigate,
+              area: analyticsAreas.schoolsHub,
+              target: school.id,
+            })}
+          >
             <img
               class="schools-hub-item__image"
               src={coverHref}

@@ -4,6 +4,8 @@ import type { EventHistoryRow } from "../../lib/presentation/events";
 import type { Locale } from "../../lib/content/primitives";
 import EventStatus from "../EventStatus.astro";
 import { eventStatusMessageKeys } from "../../lib/presentation/status";
+import { analyticsActionAttributes } from "../../lib/analytics/attributes";
+import { analyticsActions, analyticsAreas } from "../../lib/analytics/catalog";
 
 interface Props {
   locale: Locale;
@@ -11,6 +13,10 @@ interface Props {
 }
 
 const { locale, rows } = Astro.props;
+const eventLinkAttributes = analyticsActionAttributes({
+  action: analyticsActions.navigate,
+  area: analyticsAreas.eventsHub,
+});
 ---
 
 <div class="events-hub-history">
@@ -31,7 +37,12 @@ const { locale, rows } = Astro.props;
           <tr>
             <td class="events-hub-history__year">{row.year}</td>
             <td>
-              <a class="events-hub-history__title" href={row.href}>
+              <a
+                class="events-hub-history__title"
+                href={row.href}
+                {...eventLinkAttributes}
+                data-analytics-target={row.id}
+              >
                 {row.title}
               </a>
             </td>

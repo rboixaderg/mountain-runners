@@ -327,6 +327,7 @@ export function getStaticPaths() {
       {
         events.map(({ edition, event, href }, index) => (
           <HomepageEventCard
+            analyticsArea={analyticsAreas.homepage}
             edition={edition}
             event={event}
             featured={index === 0}
