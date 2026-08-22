@@ -1,0 +1,23 @@
+apps/web/messages/en.json
+  s_97b6d9ba1a2e65::t_72778965262999 126,158
+apps/web/src/test/plausible-events-behavior.test.ts
+  s_97b6d9ba1a2e65::t_d2077714a1e8b7 35,62,140,150-160,164-169,197-202,217,220-225,236,242-348
+docs/specs/plausible-analytics.md
+  s_97b6d9ba1a2e65::t_59ee161478a5dd 58,82,87-89,91-92,98-100,105,115-117,157-158,189-190
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "fa7f3f26c2e14ed91dd46b301927158ebe326426",
+  "prompts": {},
+  "sessions": {
+    "s_97b6d9ba1a2e65": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_fd77e7073ffezPBuN2VCAb3DUq",
+        "model": "deepseek-v4-flash"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
