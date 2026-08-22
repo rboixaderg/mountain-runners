@@ -1,0 +1,14 @@
+apps/web/public/js/plausible-events.js
+  h_1727aeeb492b30 107,114,132-139,143,151-155
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "bf3b1b192a68cdd458111d2af0fe7cc1008e3fb1",
+  "prompts": {},
+  "humans": {
+    "h_1727aeeb492b30": {
+      "author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
