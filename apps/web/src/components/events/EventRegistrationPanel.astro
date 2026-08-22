@@ -5,6 +5,7 @@ import type { Locale } from "../../lib/content/primitives";
 import type { RegistrationPresentation } from "../../lib/presentation/status";
 import EventResources from "./EventResources.astro";
 import ExternalLink from "../ExternalLink.astro";
+import { analyticsActions, analyticsAreas } from "../../lib/analytics/catalog";
 
 interface Props {
   documents: { id: string; document: Document | undefined }[];
@@ -46,6 +47,9 @@ const showPanel = edition !== undefined;
               className="event-action"
               href={informationUrl!}
               label={messages.event_more_information({}, { locale })}
+              analyticsArea={analyticsAreas.eventActions}
+              analyticsAction={analyticsActions.eventInformation}
+              analyticsTarget="information"
             />
           </article>
         )}
@@ -64,6 +68,9 @@ const showPanel = edition !== undefined;
               className="event-action event-action--registration"
               href={registration.url}
               label={messages[registration.actionKey]({}, { locale })}
+              analyticsArea={analyticsAreas.eventActions}
+              analyticsAction={analyticsActions.eventRegistration}
+              analyticsTarget="registration"
             />
           )}
         </article>

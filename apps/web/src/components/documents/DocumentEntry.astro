@@ -9,6 +9,12 @@ import {
   resourceLocaleMessageKeys,
 } from "../../lib/presentation/documents";
 import ExternalLink from "../ExternalLink.astro";
+import { analyticsActionAttributes } from "../../lib/analytics/attributes";
+import {
+  analyticsActions,
+  analyticsAreas,
+  sanitizeAnalyticsTarget,
+} from "../../lib/analytics/catalog";
 
 interface Props {
   document: Document;
@@ -27,6 +33,11 @@ const resourceLocaleMessageKey =
 // Only the Catalan variant of the fixed pages is published today, so the
 // required Catalan title is always present in the rendered locale.
 const documentTitle = document.title[locale]!;
+const documentAttributes = analyticsActionAttributes({
+  action: analyticsActions.documentOpen,
+  area: analyticsAreas.documents,
+  target: sanitizeAnalyticsTarget(document.id),
+});
 ---
 
 <li class="documents-entry">
@@ -34,9 +45,17 @@ const documentTitle = document.title[locale]!;
     {
       documentHref !== undefined ? (
         document.resource.kind === "external" ? (
-          <ExternalLink href={documentHref} label={documentTitle} />
+          <ExternalLink
+            href={documentHref}
+            label={documentTitle}
+            analyticsArea={analyticsAreas.documents}
+            analyticsAction={analyticsActions.documentOpen}
+            analyticsTarget={document.id}
+          />
         ) : (
-          <a href={documentHref}>{documentTitle}</a>
+          <a href={documentHref} {...documentAttributes}>
+            {documentTitle}
+          </a>
         )
       ) : (
         <>

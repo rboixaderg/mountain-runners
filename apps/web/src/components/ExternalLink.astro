@@ -3,22 +3,48 @@ import {
   externalLinkAttributes,
   getExternalHost,
 } from "../lib/presentation/urls";
+import { analyticsActionAttributes } from "../lib/analytics/attributes";
+import type { AnalyticsAction, AnalyticsArea } from "../lib/analytics/catalog";
 
 interface Props {
+  analyticsAction?: AnalyticsAction;
+  analyticsArea?: AnalyticsArea;
+  analyticsTarget?: string;
   className?: string;
   href: string;
   label: string;
   showHost?: boolean;
 }
 
-const { className, href, label, showHost = true } = Astro.props;
+const {
+  analyticsAction,
+  analyticsArea,
+  analyticsTarget,
+  className,
+  href,
+  label,
+  showHost = true,
+} = Astro.props;
 let linkText = label;
 if (showHost) {
   linkText = `${label} · ${getExternalHost(href)}`;
 }
+const analyticsAttributes =
+  analyticsArea !== undefined && analyticsAction !== undefined
+    ? analyticsActionAttributes({
+        action: analyticsAction,
+        area: analyticsArea,
+        target: analyticsTarget,
+      })
+    : {};
 ---
 
-<a class={className} href={href} {...externalLinkAttributes}>
+<a
+  class={className}
+  href={href}
+  {...externalLinkAttributes}
+  {...analyticsAttributes}
+>
   {linkText}{" "}
   <span aria-hidden="true">→</span>
 </a>

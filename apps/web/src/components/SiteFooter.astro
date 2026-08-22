@@ -4,6 +4,8 @@ import type { Locale } from "../lib/content/primitives";
 import { getDomainPath, getFixedPagePath } from "../lib/content/routes";
 import { getSiteSocialLinks } from "../lib/presentation/social";
 import { externalLinkAttributes } from "../lib/presentation/urls";
+import { analyticsActionAttributes } from "../lib/analytics/attributes";
+import { analyticsActions, analyticsAreas } from "../lib/analytics/catalog";
 import "../styles/site-footer.css";
 
 interface Props {
@@ -20,6 +22,14 @@ const documentsPath = getFixedPagePath("documents", locale);
 const legalNoticePath = getFixedPagePath("legal-notice", locale);
 const legalPrivacyPath = getFixedPagePath("legal-privacy", locale);
 const legalCookiesPath = getFixedPagePath("legal-cookies", locale);
+const footerNavAttributes = analyticsActionAttributes({
+  action: analyticsActions.navigate,
+  area: analyticsAreas.footerNav,
+});
+const footerSocialAttributes = analyticsActionAttributes({
+  action: analyticsActions.socialLink,
+  area: analyticsAreas.footerSocial,
+});
 ---
 
 <footer class="site-footer">
@@ -45,6 +55,8 @@ const legalCookiesPath = getFixedPagePath("legal-cookies", locale);
                 class="site-footer__social-link"
                 href={socialLink.url}
                 {...externalLinkAttributes}
+                {...footerSocialAttributes}
+                data-analytics-target={socialLink.id}
               >
                 {socialLink.id === "instagram" && (
                   <svg
@@ -87,13 +99,26 @@ const legalCookiesPath = getFixedPagePath("legal-cookies", locale);
     >
       <ul class="footer-links">
         <li>
-          <a href={homePath}>{messages.navigation_home({}, { locale })}</a>
+          <a
+            href={homePath}
+            {...footerNavAttributes}
+            data-analytics-target="home"
+            >{messages.navigation_home({}, { locale })}</a
+          >
         </li>
         <li>
-          <a href={eventsPath}>{messages.navigation_events({}, { locale })}</a>
+          <a
+            href={eventsPath}
+            {...footerNavAttributes}
+            data-analytics-target="events"
+            >{messages.navigation_events({}, { locale })}</a
+          >
         </li>
         <li>
-          <a href={documentsPath}
+          <a
+            href={documentsPath}
+            {...footerNavAttributes}
+            data-analytics-target="documents"
             >{messages.documents_page_title({}, { locale })}</a
           >
         </li>
@@ -105,17 +130,26 @@ const legalCookiesPath = getFixedPagePath("legal-cookies", locale);
     >
       <ul class="footer-links">
         <li>
-          <a href={legalNoticePath}
+          <a
+            href={legalNoticePath}
+            {...footerNavAttributes}
+            data-analytics-target="legal_notice"
             >{messages.legal_notice_title({}, { locale })}</a
           >
         </li>
         <li>
-          <a href={legalPrivacyPath}
+          <a
+            href={legalPrivacyPath}
+            {...footerNavAttributes}
+            data-analytics-target="privacy"
             >{messages.legal_privacy_title({}, { locale })}</a
           >
         </li>
         <li>
-          <a href={legalCookiesPath}
+          <a
+            href={legalCookiesPath}
+            {...footerNavAttributes}
+            data-analytics-target="cookies"
             >{messages.legal_cookies_title({}, { locale })}</a
           >
         </li>

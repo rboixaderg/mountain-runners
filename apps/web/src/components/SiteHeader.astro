@@ -8,6 +8,12 @@ import { getSchoolNavigationItems } from "../lib/presentation/schools";
 import type { MemberSignupLink } from "../lib/presentation/status";
 import { externalLinkAttributes } from "../lib/presentation/urls";
 import LanguageSelector from "./LanguageSelector.astro";
+import { analyticsActionAttributes } from "../lib/analytics/attributes";
+import {
+  analyticsActions,
+  analyticsAreas,
+  sanitizeAnalyticsTarget,
+} from "../lib/analytics/catalog";
 import "../styles/site-header.css";
 
 type LocalizedAlternative = { locale: Locale; href: string };
@@ -44,6 +50,21 @@ function isCurrentPath(path: string): boolean {
 function isSchoolDetailPath(path: string): boolean {
   return currentPath === path;
 }
+
+function navigationTarget(href: string): string {
+  const segments = href.split("/").filter(Boolean);
+  return sanitizeAnalyticsTarget(segments.at(-1) ?? "home");
+}
+
+const headerNavAttributes = analyticsActionAttributes({
+  action: analyticsActions.navigate,
+  area: analyticsAreas.headerNav,
+});
+const headerSignupAttributes = analyticsActionAttributes({
+  action: analyticsActions.memberSignup,
+  area: analyticsAreas.headerNav,
+  target: "signup",
+});
 ---
 
 <header class="site-header">
@@ -52,6 +73,8 @@ function isSchoolDetailPath(path: string): boolean {
       class="site-header__brand"
       href={homePath}
       aria-label={messages.site_title({}, { locale })}
+      {...headerNavAttributes}
+      data-analytics-target="home"
     >
       <img
         class="site-logo"
@@ -72,6 +95,8 @@ function isSchoolDetailPath(path: string): boolean {
         ]}
         href={aboutPath}
         aria-current={isCurrentPath(aboutPath) ? "page" : undefined}
+        {...headerNavAttributes}
+        data-analytics-target="about"
       >
         {messages.navigation_about({}, { locale })}
       </a>
@@ -85,6 +110,8 @@ function isSchoolDetailPath(path: string): boolean {
               ]}
               href={schoolsPath}
               aria-current={schoolsHubActive ? "page" : undefined}
+              {...headerNavAttributes}
+              data-analytics-target="schools"
             >
               {messages.navigation_schools({}, { locale })}
             </a>
@@ -101,6 +128,8 @@ function isSchoolDetailPath(path: string): boolean {
                     aria-current={
                       isSchoolDetailPath(item.href) ? "page" : undefined
                     }
+                    {...headerNavAttributes}
+                    data-analytics-target={navigationTarget(item.href)}
                   >
                     {item.label}
                   </a>
@@ -116,6 +145,8 @@ function isSchoolDetailPath(path: string): boolean {
             ]}
             href={schoolsPath}
             aria-current={schoolsNavigationActive ? "page" : undefined}
+            {...headerNavAttributes}
+            data-analytics-target="schools"
           >
             {messages.navigation_schools({}, { locale })}
           </a>
@@ -130,6 +161,8 @@ function isSchoolDetailPath(path: string): boolean {
             ]}
             href={item.href}
             aria-current={isCurrentPath(item.href) ? "page" : undefined}
+            {...headerNavAttributes}
+            data-analytics-target={navigationTarget(item.href)}
           >
             {item.label}
           </a>
@@ -140,6 +173,7 @@ function isSchoolDetailPath(path: string): boolean {
       class="site-header__cta"
       href={memberSignupLink.href}
       {...memberSignupLink.isExternal ? externalLinkAttributes : {}}
+      {...headerSignupAttributes}
     >
       {messages.cta_join_members({}, { locale })}
     </a>
@@ -170,6 +204,8 @@ function isSchoolDetailPath(path: string): boolean {
             ]}
             href={aboutPath}
             aria-current={isCurrentPath(aboutPath) ? "page" : undefined}
+            {...headerNavAttributes}
+            data-analytics-target="about"
           >
             {messages.navigation_about({}, { locale })}
           </a>
@@ -184,6 +220,8 @@ function isSchoolDetailPath(path: string): boolean {
                   ]}
                   href={schoolsPath}
                   aria-current={schoolsHubActive ? "page" : undefined}
+                  {...headerNavAttributes}
+                  data-analytics-target="schools"
                 >
                   {messages.navigation_schools({}, { locale })}
                 </a>
@@ -200,6 +238,8 @@ function isSchoolDetailPath(path: string): boolean {
                         aria-current={
                           isSchoolDetailPath(item.href) ? "page" : undefined
                         }
+                        {...headerNavAttributes}
+                        data-analytics-target={navigationTarget(item.href)}
                       >
                         {item.label}
                       </a>
@@ -215,6 +255,8 @@ function isSchoolDetailPath(path: string): boolean {
                 ]}
                 href={schoolsPath}
                 aria-current={schoolsHubActive ? "page" : undefined}
+                {...headerNavAttributes}
+                data-analytics-target="schools"
               >
                 {messages.navigation_schools({}, { locale })}
               </a>
@@ -230,6 +272,8 @@ function isSchoolDetailPath(path: string): boolean {
                 ]}
                 href={item.href}
                 aria-current={isCurrentPath(item.href) ? "page" : undefined}
+                {...headerNavAttributes}
+                data-analytics-target={navigationTarget(item.href)}
               >
                 {item.label}
               </a>
@@ -240,6 +284,7 @@ function isSchoolDetailPath(path: string): boolean {
           class="site-header__mobile-cta"
           href={memberSignupLink.href}
           {...memberSignupLink.isExternal ? externalLinkAttributes : {}}
+          {...headerSignupAttributes}
         >
           {messages.cta_join_members({}, { locale })}
         </a>

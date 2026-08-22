@@ -4,6 +4,8 @@ import type { ExternalAction } from "../../lib/content/models";
 import type { Locale } from "../../lib/content/primitives";
 import { getExternalActionPresentation } from "../../lib/presentation/status";
 import { externalLinkAttributes } from "../../lib/presentation/urls";
+import { analyticsActionAttributes } from "../../lib/analytics/attributes";
+import { analyticsActions, analyticsAreas } from "../../lib/analytics/catalog";
 
 interface Props {
   action: ExternalAction | undefined;
@@ -28,6 +30,14 @@ const { href: actionHref, stateMessageKey } = getExternalActionPresentation(
   action,
   locale,
 );
+const actionAttributes = analyticsActionAttributes({
+  action:
+    variant === "federation"
+      ? analyticsActions.federationSignup
+      : analyticsActions.memberSignup,
+  area: analyticsAreas.membersAction,
+  target: variant,
+});
 ---
 
 <section
@@ -61,6 +71,7 @@ const { href: actionHref, stateMessageKey } = getExternalActionPresentation(
           ]}
           href={actionHref}
           {...externalLinkAttributes}
+          {...actionAttributes}
         >
           {messages[actionLabelKey]({}, { locale })}
         </a>

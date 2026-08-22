@@ -1,6 +1,18 @@
 ---
 import { plausibleScriptSrc } from "../lib/analytics/plausible";
+import type { AnalyticsPageType } from "../lib/analytics/catalog";
+import type { Locale } from "../lib/content/primitives";
+
+interface Props {
+  locale: Locale;
+  pageType: AnalyticsPageType;
+}
+
+const { locale, pageType } = Astro.props;
 ---
 
+<meta name="mr-analytics-locale" content={locale} />
+<meta name="mr-analytics-page-type" content={pageType} />
 <script is:inline async src={plausibleScriptSrc}></script>
 <script is:inline src="/js/plausible-init.js"></script>
+<script is:inline src="/js/plausible-events.js"></script>

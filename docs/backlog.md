@@ -182,7 +182,7 @@ a l'entrada oberta corresponent; no s'amplien silenciosament aquesta entrega.
 
 ### Esdeveniments D'Acció I Temps D'Estada
 
-**Estat:** Capturada.
+**Estat:** Incorporada com a entrega autònoma (T2 d'analítica Plausible).
 
 **Problema:** les visites de pàgina i els comptadors automàtics de clics sortints,
 baixades i formularis no expliquen quines accions de la web pública són útils
@@ -226,11 +226,8 @@ esdeveniments reals.
   recorregut E2E continua funcionant amb l'origen de Plausible bloquejat i no es
   canvien rutes, contingut editorial ni selectors E2E existents.
 
-**Dependències:** snippet de Plausible al `PublicLayout`, cua `window.plausible`
-a l'origen propi, CSP que permet `connect-src` cap a l'origen d'analítica i
-textos legals de la primera entrega d'analítica. No forma part de la fase 5.
-
-**Seguiment:** pendent de triatge.
+**Seguiment:** [especificació d'analítica Plausible](specs/plausible-analytics.md)
+(T2). Implementació a la branca `feat/analytics-events`.
 
 ### Entrada Sense Idioma Més Ràpida
 

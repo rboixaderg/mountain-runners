@@ -68,6 +68,9 @@ describe("PublicLayout structured data", () => {
     expect(plausibleScriptTag).toBeDefined();
     expect(plausibleScriptTag).toContain("async");
     expect(html).toContain('src="/js/plausible-init.js"');
+    expect(html).toContain('src="/js/plausible-events.js"');
+    expect(html).toContain('name="mr-analytics-locale" content="ca"');
+    expect(html).toContain('name="mr-analytics-page-type" content="other"');
     expect(html).not.toContain("plausible.init()");
   });
 });

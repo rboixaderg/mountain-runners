@@ -55,6 +55,7 @@ la CSP anterior i les pàgines continuen funcionant.
 | Tasca | Estat   | Resultat                                                                                         | Enllaç |
 | ----- | ------- | ------------------------------------------------------------------------------------------------ | ------ |
 | T1    | En curs | Script al layout, CSP, textos legals, ADR 0007 i comprovacions que l'analítica no trenqui la web |        |
+| T2    | En curs | Esdeveniments d'acció personalitzats i temps visible d'estada per pàgina                         |        |
 
 ### T1. Integrar Plausible A La Web Pública
 
@@ -78,6 +79,29 @@ layout, cookies i privacitat.
 **PR:** `feat(analytics-t1): add self-hosted Plausible pageviews`. Una sola PR
 perquè és una funcionalitat d'una tasca.
 
+### T2. Esdeveniments D'Acció I Temps Visible D'Estada
+
+**Abast:** catàleg tancat d'esdeveniments i propietats, script client a l'origen
+propi (`/js/plausible-events.js`), metadades de context de pàgina al layout,
+atributs `data-analytics-*` a les accions rellevants de la interfície, mesurament
+del temps visible amb llindars 15/30/60/120 segons per càrrega de pàgina i
+actualització de privacitat i cookies en ca/es/en.
+
+**Fora d'aquesta tasca:** scroll depth, identificadors persistents de visita,
+tauler públic, canvis de CSP i accions remotes al VPS.
+
+**Dependències:** T1 (snippet, cua, CSP i textos legals base).
+
+**Resultat observable:** les accions instrumentades emeten `UI Action` amb
+propietats agregables (`area`, `action`, `target`, `locale`, `page_type`,
+`route`); el temps visible emet `Page Dwell` als llindars configurats; privacitat
+i cookies descriuen aquests esdeveniments.
+
+**Comprovacions mínimes:** `pnpm check`, proves Vitest del catàleg i script
+client, i el recorregut E2E del shell amb l'origen de Plausible bloquejat.
+
+**PR:** `feat(analytics-t2): add Plausible action events and dwell time`.
+
 ## Integració A La Web
 
 - L'script remot és `https://analytics.rogerbg.cat/js/pa-gRKxE0JnFqvhkV5c5BUwD.js`,
@@ -86,7 +110,10 @@ perquè és una funcionalitat d'una tasca.
   `/js/plausible-init.js`, servit per `'self'`.
 - A més de la visita de pàgina, l'snippet públic activa els comptadors agregats
   de clics a enllaços sortints, baixades de fitxers i enviaments de formularis
-  vàlids. No s'hi afegeixen esdeveniments personalitzats propis del projecte.
+  vàlids. Els esdeveniments personalitzats del projecte (`UI Action` i
+  `Page Dwell`) s'emeten des de `/js/plausible-events.js` i no dupliquen
+  automàticament aquests comptadors: aporten nom de negoci, àrea de la pàgina
+  i temps visible d'estada.
 - El host de validació i l'entorn local poden carregar l'script; el filtre de
   nom d'amfitrió de Plausible descarta visites que no siguin de
   `mountainrunners.cat`.
@@ -121,15 +148,17 @@ Les pàgines de cookies i de privacitat, en ca/es/en, han de descriure:
 
 - analítica agregada autoallotjada amb Plausible, sense cookies pròpies no
   tècniques ni publicitat, que mesura visites de pàgina, referències, clics
-  sortints, baixades de fitxers i enviaments de formularis vàlids;
+  sortints, baixades de fitxers, enviaments de formularis vàlids, accions
+  rellevants de la interfície i el temps visible d'estada per pàgina;
 - absència de banner general, i el paper continuat de YouTube;
 - interès legítim, retenció màxima de 25 mesos de les mètriques i l'host
   `analytics.rogerbg.cat` com a encarregat d'aquest tractament.
 
 ## Estratègia De Tests I Qualitat
 
-- Vitest: el layout emet l'script asíncron amb l'URL canònica i no introdueix
-  l'snippet com a `script` inline executable.
+- Vitest: el layout emet l'script asíncron amb l'URL canònica, les metadades de
+  context i no introdueix l'snippet com a `script` inline executable; el catàleg
+  d'esdeveniments i el script client comparteixen noms i llindars estables.
 - `node --test`: el `Caddyfile` i el verifier comparteixen la CSP esperada.
 - Playwright: el shell públic carrega l'script; cookies i privacitat esmenten
   Plausible. Els recorreguts intercepten i bloquegen `analytics.rogerbg.cat`
@@ -151,7 +180,8 @@ Les pàgines de cookies i de privacitat, en ca/es/en, han de descriure:
 
 ## Fora D'Abast
 
-- Esdeveniments personalitzats, objectius o embuts.
+- Objectius o embuts avançats, scroll depth i identificadors persistents de
+  visita entre pàgines.
 - Instància Plausible pròpia, DNS `analytics.mountainrunners.cat`, listmonk i
   newsletter.
 - Tauler públic de mètriques, contracte d'encarregat formal i auditoria del VPS

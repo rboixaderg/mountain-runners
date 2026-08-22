@@ -9,6 +9,8 @@ import {
   getMailtoHref,
   getTelHref,
 } from "../lib/presentation/urls";
+import { analyticsActionAttributes } from "../lib/analytics/attributes";
+import { analyticsActions, analyticsAreas } from "../lib/analytics/catalog";
 import "../styles/prefooter.css";
 
 interface Props {
@@ -36,6 +38,21 @@ const newsletterStatusId =
 const officeHours = contact?.hours[locale]?.trim() ?? "";
 const officeAddress = contact?.address[locale]?.trim() ?? "";
 const showOfficeDetails = officeHours.length > 0;
+const contactEmailAttributes = analyticsActionAttributes({
+  action: analyticsActions.contactEmail,
+  area: analyticsAreas.prefooterContact,
+  target: "email",
+});
+const contactPhoneAttributes = analyticsActionAttributes({
+  action: analyticsActions.contactPhone,
+  area: analyticsAreas.prefooterContact,
+  target: "phone",
+});
+const newsletterAttributes = analyticsActionAttributes({
+  action: analyticsActions.newsletterSubscribe,
+  area: analyticsAreas.prefooterNewsletter,
+  target: "newsletter",
+});
 ---
 
 <section class="site-prefooter" aria-labelledby="site-prefooter-title">
@@ -55,6 +72,7 @@ const showOfficeDetails = officeHours.length > 0;
                 <a
                   class="site-prefooter__contact-item"
                   href={getMailtoHref(contact.email)}
+                  {...contactEmailAttributes}
                 >
                   <svg
                     class="site-prefooter__contact-icon"
@@ -76,6 +94,7 @@ const showOfficeDetails = officeHours.length > 0;
                 <a
                   class="site-prefooter__contact-item"
                   href={getTelHref(phone)}
+                  {...contactPhoneAttributes}
                 >
                   <svg
                     class="site-prefooter__contact-icon"
@@ -164,6 +183,7 @@ const showOfficeDetails = officeHours.length > 0;
               class="site-prefooter__newsletter-submit"
               href={newsletterPresentation.url}
               {...externalLinkAttributes}
+              {...newsletterAttributes}
             >
               {messages.prefooter_newsletter_submit({}, { locale })}
             </a>

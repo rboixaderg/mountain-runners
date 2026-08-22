@@ -4,6 +4,8 @@ import { getDocumentHref } from "../../lib/content/images";
 import { statutesDocumentId } from "../../lib/content/models";
 import type { Locale } from "../../lib/content/primitives";
 import type { PublicationCatalog } from "../../lib/content/publication";
+import { analyticsActionAttributes } from "../../lib/analytics/attributes";
+import { analyticsActions, analyticsAreas } from "../../lib/analytics/catalog";
 
 interface Props {
   catalog: PublicationCatalog;
@@ -14,6 +16,11 @@ const { catalog, locale } = Astro.props;
 const statutesDocument = catalog.documents.get(statutesDocumentId);
 const statutesHref = getDocumentHref(statutesDocument);
 const statutesTitle = statutesDocument?.title[locale];
+const statutesAttributes = analyticsActionAttributes({
+  action: analyticsActions.documentOpen,
+  area: analyticsAreas.aboutStatutes,
+  target: "statutes",
+});
 ---
 
 <section
@@ -33,7 +40,11 @@ const statutesTitle = statutesDocument?.title[locale];
         <p class="about-statutes__description">
           {messages.about_statutes_description({}, { locale })}
         </p>
-        <a class="about-statutes__link" href={statutesHref}>
+        <a
+          class="about-statutes__link"
+          href={statutesHref}
+          {...statutesAttributes}
+        >
           {statutesTitle}
         </a>
       </div>

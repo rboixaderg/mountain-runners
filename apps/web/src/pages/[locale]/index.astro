@@ -31,6 +31,12 @@ import {
   getMemberSignupLink,
 } from "../../lib/presentation/status";
 import { externalLinkAttributes } from "../../lib/presentation/urls";
+import { analyticsActionAttributes } from "../../lib/analytics/attributes";
+import {
+  analyticsActions,
+  analyticsAreas,
+  sanitizeAnalyticsTarget,
+} from "../../lib/analytics/catalog";
 import "../../styles/homepage.css";
 
 const locale = assertIsLocale(Astro.currentLocale);
@@ -103,6 +109,20 @@ const federationLink = getFederationLink(
   membersPath,
 );
 const schoolsPath = getDomainPath("school", locale);
+const homepageAttributes = analyticsActionAttributes({
+  action: analyticsActions.navigate,
+  area: analyticsAreas.homepage,
+});
+const homepageSignupAttributes = analyticsActionAttributes({
+  action: analyticsActions.memberSignup,
+  area: analyticsAreas.homepage,
+  target: "signup",
+});
+const homepageFederationAttributes = analyticsActionAttributes({
+  action: analyticsActions.federationSignup,
+  area: analyticsAreas.homepage,
+  target: "federation",
+});
 
 export function getStaticPaths() {
   return locales.map((locale) => ({ params: { locale } }));
@@ -161,6 +181,7 @@ export function getStaticPaths() {
           class="homepage-join-cta border-ink font-display text-ink inline-flex min-h-11 items-center gap-3 border-2 bg-white px-6 py-[0.85rem] text-[0.8rem] leading-[1.2] font-bold tracking-[0.12em] uppercase no-underline"
           href={memberSignupLink.href}
           {...memberSignupLink.isExternal ? externalLinkAttributes : {}}
+          {...homepageSignupAttributes}
         >
           {messages.cta_join_members({}, { locale })}
           <span aria-hidden="true">&rarr;</span>
@@ -168,6 +189,8 @@ export function getStaticPaths() {
         <a
           class="homepage-hero__cta homepage-hero__cta--secondary border-paper font-display text-paper inline-flex min-h-11 items-center gap-3 border-2 bg-transparent px-6 py-[0.85rem] text-[0.8rem] leading-[1.2] font-bold tracking-[0.12em] uppercase no-underline"
           href={schoolsPath}
+          {...homepageAttributes}
+          data-analytics-target="schools"
         >
           {messages.homepage_schools_title({}, { locale })}
           <span aria-hidden="true">&rarr;</span>
@@ -176,6 +199,7 @@ export function getStaticPaths() {
           class="homepage-hero__cta homepage-hero__cta--secondary border-paper font-display text-paper inline-flex min-h-11 items-center gap-3 border-2 bg-transparent px-6 py-[0.85rem] text-[0.8rem] leading-[1.2] font-bold tracking-[0.12em] uppercase no-underline"
           href={federationLink.href}
           {...federationLink.isExternal ? externalLinkAttributes : {}}
+          {...homepageFederationAttributes}
         >
           {messages.homepage_federation_cta({}, { locale })}
           <span aria-hidden="true">&rarr;</span>
@@ -214,6 +238,8 @@ export function getStaticPaths() {
               <a
                 class="homepage-school-list__link grid h-full grid-rows-[auto_auto_1fr_auto] gap-3 p-4 text-inherit no-underline"
                 href={getVariantPath(variant)}
+                {...homepageAttributes}
+                data-analytics-target={sanitizeAnalyticsTarget(variant.slug)}
               >
                 <img
                   class="homepage-school-list__mark bg-stone aspect-[4/3] w-full object-cover contrast-105 grayscale"
@@ -262,6 +288,8 @@ export function getStaticPaths() {
           <a
             class="homepage-members-banner__action border-ink font-display text-ink mt-2 inline-flex min-h-11 items-center gap-3 border-2 bg-white px-6 py-[0.85rem] text-[0.8rem] leading-[1.2] font-bold tracking-[0.12em] uppercase no-underline"
             href={membersPath}
+            {...homepageAttributes}
+            data-analytics-target="members"
           >
             {messages.homepage_members_action({}, { locale })}
             <span aria-hidden="true">&rarr;</span>
@@ -287,6 +315,8 @@ export function getStaticPaths() {
       <a
         class="homepage-section__view-all font-display text-red text-[0.8rem] font-bold tracking-[0.12em] uppercase underline decoration-[0.1rem] underline-offset-[0.3rem]"
         href={eventsPath}
+        {...homepageAttributes}
+        data-analytics-target="events"
       >
         {messages.homepage_events_view_all({}, { locale })}
       </a>

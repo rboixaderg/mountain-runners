@@ -6,6 +6,12 @@ import {
   buildCalendarMonthGrid,
   getCalendarFocusMonth,
 } from "../../lib/presentation/events";
+import { analyticsActionAttributes } from "../../lib/analytics/attributes";
+import {
+  analyticsActions,
+  analyticsAreas,
+  sanitizeAnalyticsTarget,
+} from "../../lib/analytics/catalog";
 import "../../styles/events-calendar.css";
 
 interface Props {
@@ -25,6 +31,10 @@ const calendar = buildCalendarMonthGrid(
   today,
   resolveEventHref,
 );
+const calendarDayOpenAttributes = analyticsActionAttributes({
+  action: analyticsActions.calendarDayOpen,
+  area: analyticsAreas.eventCalendar,
+});
 ---
 
 <section
@@ -99,6 +109,8 @@ const calendar = buildCalendarMonthGrid(
                           aria-controls={popoverId}
                           aria-expanded="false"
                           aria-label={dayLabel}
+                          {...calendarDayOpenAttributes}
+                          data-analytics-target={day.date ?? "unknown"}
                         >
                           <span class="events-calendar__day-number">
                             {day.dayNumber}
@@ -142,6 +154,16 @@ const calendar = buildCalendarMonthGrid(
                               <a
                                 class="events-calendar__event-link"
                                 href={event.href}
+                                {...analyticsActionAttributes({
+                                  action: analyticsActions.calendarEventLink,
+                                  area: analyticsAreas.eventCalendar,
+                                  target: sanitizeAnalyticsTarget(
+                                    event.href
+                                      .split("/")
+                                      .filter(Boolean)
+                                      .at(-1) ?? "event",
+                                  ),
+                                })}
                               >
                                 {messages.event_more_information(
                                   {},
