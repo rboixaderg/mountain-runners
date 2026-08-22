@@ -206,9 +206,10 @@ esdeveniments reals.
   d'esdeveniments i escoles, l'alta de soci i la federació, el butlletí, els
   documents i estatuts, els enllaços de contacte i xarxes, els col·laboradors i
   els recorreguts del calendari;
-- com s'evita duplicar els comptadors automàtics de clics sortints, baixades i
-  enviaments de formulari que ja pugui emetre l'snippet, i quines accions
-  internes o amb nom de negoci calen igualment;
+- el solapament entre els comptadors automàtics de clics sortints, baixades i
+  enviaments de formulari i els esdeveniments personalitzats, acceptat i
+  documentat a l'especificació: el comptador automàtic no aporta ni àrea de la
+  pàgina ni identitat de l'acció;
 - el mesurament del temps: només temps visible (pausa amb la pestanya oculta),
   llindars per pàgina (per exemple 15, 30, 60 i 120 segons) i si cal una
   agregació de l'estona total de la visita sense emmagatzemar identificadors

@@ -111,9 +111,11 @@ client, i el recorregut E2E del shell amb l'origen de Plausible bloquejat.
 - A més de la visita de pàgina, l'snippet públic activa els comptadors agregats
   de clics a enllaços sortints, baixades de fitxers i enviaments de formularis
   vàlids. Els esdeveniments personalitzats del projecte (`UI Action` i
-  `Page Dwell`) s'emeten des de `/js/plausible-events.js` i no dupliquen
-  automàticament aquests comptadors: aporten nom de negoci, àrea de la pàgina
-  i temps visible d'estada.
+  `Page Dwell`) s'emeten des de `/js/plausible-events.js`. Quan una acció
+  instrumentada és un enllaç sortint o una baixada de fitxer, el mateix clic
+  també incrementa el comptador automàtic de l'snippet; s'accepta aquest
+  solapament perquè el comptador automàtic no aporta ni àrea de la pàgina ni
+  identitat de l'acció, i les dues famílies responen a preguntes diferents.
 - El host de validació i l'entorn local poden carregar l'script; el filtre de
   nom d'amfitrió de Plausible descarta visites que no siguin de
   `mountainrunners.cat`.
