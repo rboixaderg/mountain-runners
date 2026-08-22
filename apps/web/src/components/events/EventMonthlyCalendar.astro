@@ -27,10 +27,6 @@ const calendar = buildCalendarMonthGrid(
   today,
   resolveEventHref,
 );
-const calendarDayOpenAttributes = analyticsActionAttributes({
-  action: analyticsActions.calendarDayOpen,
-  area: analyticsAreas.eventCalendar,
-});
 ---
 
 <section
@@ -105,8 +101,11 @@ const calendarDayOpenAttributes = analyticsActionAttributes({
                           aria-controls={popoverId}
                           aria-expanded="false"
                           aria-label={dayLabel}
-                          {...calendarDayOpenAttributes}
-                          data-analytics-target={day.date ?? "unknown"}
+                          {...analyticsActionAttributes({
+                            action: analyticsActions.calendarDayOpen,
+                            area: analyticsAreas.eventCalendar,
+                            target: day.date ?? "unknown",
+                          })}
                         >
                           <span class="events-calendar__day-number">
                             {day.dayNumber}

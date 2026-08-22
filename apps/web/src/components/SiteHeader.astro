@@ -36,12 +36,20 @@ const navigationItems = [
   {
     href: eventsPath,
     label: messages.navigation_events({}, { locale }),
-    target: "events",
+    attributes: analyticsActionAttributes({
+      action: analyticsActions.navigate,
+      area: analyticsAreas.headerNav,
+      target: "events",
+    }),
   },
   {
     href: membersPath,
     label: messages.navigation_members({}, { locale }),
-    target: "members",
+    attributes: analyticsActionAttributes({
+      action: analyticsActions.navigate,
+      area: analyticsAreas.headerNav,
+      target: "members",
+    }),
   },
 ];
 
@@ -55,9 +63,20 @@ function isSchoolDetailPath(path: string): boolean {
   return currentPath === path;
 }
 
-const headerNavAttributes = analyticsActionAttributes({
+const homeNavAttributes = analyticsActionAttributes({
   action: analyticsActions.navigate,
   area: analyticsAreas.headerNav,
+  target: "home",
+});
+const aboutNavAttributes = analyticsActionAttributes({
+  action: analyticsActions.navigate,
+  area: analyticsAreas.headerNav,
+  target: "about",
+});
+const schoolsNavAttributes = analyticsActionAttributes({
+  action: analyticsActions.navigate,
+  area: analyticsAreas.headerNav,
+  target: "schools",
 });
 const headerSignupAttributes = analyticsActionAttributes({
   action: analyticsActions.memberSignup,
@@ -72,8 +91,7 @@ const headerSignupAttributes = analyticsActionAttributes({
       class="site-header__brand"
       href={homePath}
       aria-label={messages.site_title({}, { locale })}
-      {...headerNavAttributes}
-      data-analytics-target="home"
+      {...homeNavAttributes}
     >
       <img
         class="site-logo"
@@ -94,8 +112,7 @@ const headerSignupAttributes = analyticsActionAttributes({
         ]}
         href={aboutPath}
         aria-current={isCurrentPath(aboutPath) ? "page" : undefined}
-        {...headerNavAttributes}
-        data-analytics-target="about"
+        {...aboutNavAttributes}
       >
         {messages.navigation_about({}, { locale })}
       </a>
@@ -109,8 +126,7 @@ const headerSignupAttributes = analyticsActionAttributes({
               ]}
               href={schoolsPath}
               aria-current={schoolsHubActive ? "page" : undefined}
-              {...headerNavAttributes}
-              data-analytics-target="schools"
+              {...schoolsNavAttributes}
             >
               {messages.navigation_schools({}, { locale })}
             </a>
@@ -127,8 +143,11 @@ const headerSignupAttributes = analyticsActionAttributes({
                     aria-current={
                       isSchoolDetailPath(item.href) ? "page" : undefined
                     }
-                    {...headerNavAttributes}
-                    data-analytics-target={item.id}
+                    {...analyticsActionAttributes({
+                      action: analyticsActions.navigate,
+                      area: analyticsAreas.headerNav,
+                      target: item.id,
+                    })}
                   >
                     {item.label}
                   </a>
@@ -144,8 +163,7 @@ const headerSignupAttributes = analyticsActionAttributes({
             ]}
             href={schoolsPath}
             aria-current={schoolsNavigationActive ? "page" : undefined}
-            {...headerNavAttributes}
-            data-analytics-target="schools"
+            {...schoolsNavAttributes}
           >
             {messages.navigation_schools({}, { locale })}
           </a>
@@ -160,8 +178,7 @@ const headerSignupAttributes = analyticsActionAttributes({
             ]}
             href={item.href}
             aria-current={isCurrentPath(item.href) ? "page" : undefined}
-            {...headerNavAttributes}
-            data-analytics-target={item.target}
+            {...item.attributes}
           >
             {item.label}
           </a>
@@ -203,8 +220,7 @@ const headerSignupAttributes = analyticsActionAttributes({
             ]}
             href={aboutPath}
             aria-current={isCurrentPath(aboutPath) ? "page" : undefined}
-            {...headerNavAttributes}
-            data-analytics-target="about"
+            {...aboutNavAttributes}
           >
             {messages.navigation_about({}, { locale })}
           </a>
@@ -219,8 +235,7 @@ const headerSignupAttributes = analyticsActionAttributes({
                   ]}
                   href={schoolsPath}
                   aria-current={schoolsHubActive ? "page" : undefined}
-                  {...headerNavAttributes}
-                  data-analytics-target="schools"
+                  {...schoolsNavAttributes}
                 >
                   {messages.navigation_schools({}, { locale })}
                 </a>
@@ -237,8 +252,11 @@ const headerSignupAttributes = analyticsActionAttributes({
                         aria-current={
                           isSchoolDetailPath(item.href) ? "page" : undefined
                         }
-                        {...headerNavAttributes}
-                        data-analytics-target={item.id}
+                        {...analyticsActionAttributes({
+                          action: analyticsActions.navigate,
+                          area: analyticsAreas.headerNav,
+                          target: item.id,
+                        })}
                       >
                         {item.label}
                       </a>
@@ -254,8 +272,7 @@ const headerSignupAttributes = analyticsActionAttributes({
                 ]}
                 href={schoolsPath}
                 aria-current={schoolsHubActive ? "page" : undefined}
-                {...headerNavAttributes}
-                data-analytics-target="schools"
+                {...schoolsNavAttributes}
               >
                 {messages.navigation_schools({}, { locale })}
               </a>
@@ -271,8 +288,7 @@ const headerSignupAttributes = analyticsActionAttributes({
                 ]}
                 href={item.href}
                 aria-current={isCurrentPath(item.href) ? "page" : undefined}
-                {...headerNavAttributes}
-                data-analytics-target={item.target}
+                {...item.attributes}
               >
                 {item.label}
               </a>

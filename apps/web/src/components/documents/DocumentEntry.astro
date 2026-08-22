@@ -10,11 +10,7 @@ import {
 } from "../../lib/presentation/documents";
 import ExternalLink from "../ExternalLink.astro";
 import { analyticsActionAttributes } from "../../lib/analytics/attributes";
-import {
-  analyticsActions,
-  analyticsAreas,
-  sanitizeAnalyticsTarget,
-} from "../../lib/analytics/catalog";
+import { analyticsActions, analyticsAreas } from "../../lib/analytics/catalog";
 
 interface Props {
   document: Document;
@@ -36,7 +32,7 @@ const documentTitle = document.title[locale]!;
 const documentAttributes = analyticsActionAttributes({
   action: analyticsActions.documentOpen,
   area: analyticsAreas.documents,
-  target: sanitizeAnalyticsTarget(document.id),
+  target: document.id,
 });
 ---
 

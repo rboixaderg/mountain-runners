@@ -17,10 +17,6 @@ const languageNames: Record<Locale, string> = {
   es: messages.language_es({}, { locale }),
   en: messages.language_en({}, { locale }),
 };
-const localeSwitchAttributes = analyticsActionAttributes({
-  action: analyticsActions.localeSwitch,
-  area: analyticsAreas.languageSelector,
-});
 ---
 
 {
@@ -63,8 +59,11 @@ const localeSwitchAttributes = analyticsActionAttributes({
                   class="language-selector__option"
                   href={alternative.href}
                   hreflang={alternative.locale}
-                  {...localeSwitchAttributes}
-                  data-analytics-target={alternative.locale}
+                  {...analyticsActionAttributes({
+                    action: analyticsActions.localeSwitch,
+                    area: analyticsAreas.languageSelector,
+                    target: alternative.locale,
+                  })}
                 >
                   {languageNames[alternative.locale]}
                 </a>

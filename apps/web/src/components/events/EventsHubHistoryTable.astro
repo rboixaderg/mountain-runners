@@ -13,10 +13,6 @@ interface Props {
 }
 
 const { locale, rows } = Astro.props;
-const eventLinkAttributes = analyticsActionAttributes({
-  action: analyticsActions.navigate,
-  area: analyticsAreas.eventsHub,
-});
 ---
 
 <div class="events-hub-history">
@@ -40,8 +36,11 @@ const eventLinkAttributes = analyticsActionAttributes({
               <a
                 class="events-hub-history__title"
                 href={row.href}
-                {...eventLinkAttributes}
-                data-analytics-target={row.id}
+                {...analyticsActionAttributes({
+                  action: analyticsActions.navigate,
+                  area: analyticsAreas.eventsHub,
+                  target: row.id,
+                })}
               >
                 {row.title}
               </a>

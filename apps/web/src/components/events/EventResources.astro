@@ -5,11 +5,7 @@ import { getDocumentHref } from "../../lib/content/images";
 import type { Document, EventEdition } from "../../lib/content/models";
 import type { Locale } from "../../lib/content/primitives";
 import { analyticsActionAttributes } from "../../lib/analytics/attributes";
-import {
-  analyticsActions,
-  analyticsAreas,
-  sanitizeAnalyticsTarget,
-} from "../../lib/analytics/catalog";
+import { analyticsActions, analyticsAreas } from "../../lib/analytics/catalog";
 
 interface Props {
   documents: { id: string; document: Document | undefined }[];
@@ -38,7 +34,7 @@ const { documents, edition, locale } = Astro.props;
                   {...analyticsActionAttributes({
                     action: analyticsActions.documentOpen,
                     area: analyticsAreas.eventResources,
-                    target: sanitizeAnalyticsTarget(id),
+                    target: id,
                   })}
                 >
                   {document.title[locale]}

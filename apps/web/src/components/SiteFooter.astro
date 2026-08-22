@@ -22,13 +22,35 @@ const documentsPath = getFixedPagePath("documents", locale);
 const legalNoticePath = getFixedPagePath("legal-notice", locale);
 const legalPrivacyPath = getFixedPagePath("legal-privacy", locale);
 const legalCookiesPath = getFixedPagePath("legal-cookies", locale);
-const footerNavAttributes = analyticsActionAttributes({
+const homeNavAttributes = analyticsActionAttributes({
   action: analyticsActions.navigate,
   area: analyticsAreas.footerNav,
+  target: "home",
 });
-const footerSocialAttributes = analyticsActionAttributes({
-  action: analyticsActions.socialLink,
-  area: analyticsAreas.footerSocial,
+const eventsNavAttributes = analyticsActionAttributes({
+  action: analyticsActions.navigate,
+  area: analyticsAreas.footerNav,
+  target: "events",
+});
+const documentsNavAttributes = analyticsActionAttributes({
+  action: analyticsActions.navigate,
+  area: analyticsAreas.footerNav,
+  target: "documents",
+});
+const legalNoticeNavAttributes = analyticsActionAttributes({
+  action: analyticsActions.navigate,
+  area: analyticsAreas.footerNav,
+  target: "legal_notice",
+});
+const privacyNavAttributes = analyticsActionAttributes({
+  action: analyticsActions.navigate,
+  area: analyticsAreas.footerNav,
+  target: "privacy",
+});
+const cookiesNavAttributes = analyticsActionAttributes({
+  action: analyticsActions.navigate,
+  area: analyticsAreas.footerNav,
+  target: "cookies",
 });
 ---
 
@@ -55,8 +77,11 @@ const footerSocialAttributes = analyticsActionAttributes({
                 class="site-footer__social-link"
                 href={socialLink.url}
                 {...externalLinkAttributes}
-                {...footerSocialAttributes}
-                data-analytics-target={socialLink.id}
+                {...analyticsActionAttributes({
+                  action: analyticsActions.socialLink,
+                  area: analyticsAreas.footerSocial,
+                  target: socialLink.id,
+                })}
               >
                 {socialLink.id === "instagram" && (
                   <svg
@@ -99,26 +124,17 @@ const footerSocialAttributes = analyticsActionAttributes({
     >
       <ul class="footer-links">
         <li>
-          <a
-            href={homePath}
-            {...footerNavAttributes}
-            data-analytics-target="home"
+          <a href={homePath} {...homeNavAttributes}
             >{messages.navigation_home({}, { locale })}</a
           >
         </li>
         <li>
-          <a
-            href={eventsPath}
-            {...footerNavAttributes}
-            data-analytics-target="events"
+          <a href={eventsPath} {...eventsNavAttributes}
             >{messages.navigation_events({}, { locale })}</a
           >
         </li>
         <li>
-          <a
-            href={documentsPath}
-            {...footerNavAttributes}
-            data-analytics-target="documents"
+          <a href={documentsPath} {...documentsNavAttributes}
             >{messages.documents_page_title({}, { locale })}</a
           >
         </li>
@@ -130,26 +146,17 @@ const footerSocialAttributes = analyticsActionAttributes({
     >
       <ul class="footer-links">
         <li>
-          <a
-            href={legalNoticePath}
-            {...footerNavAttributes}
-            data-analytics-target="legal_notice"
+          <a href={legalNoticePath} {...legalNoticeNavAttributes}
             >{messages.legal_notice_title({}, { locale })}</a
           >
         </li>
         <li>
-          <a
-            href={legalPrivacyPath}
-            {...footerNavAttributes}
-            data-analytics-target="privacy"
+          <a href={legalPrivacyPath} {...privacyNavAttributes}
             >{messages.legal_privacy_title({}, { locale })}</a
           >
         </li>
         <li>
-          <a
-            href={legalCookiesPath}
-            {...footerNavAttributes}
-            data-analytics-target="cookies"
+          <a href={legalCookiesPath} {...cookiesNavAttributes}
             >{messages.legal_cookies_title({}, { locale })}</a
           >
         </li>
