@@ -23,25 +23,34 @@ const registrationLabel = messages[registration.key]({}, { locale });
 ---
 
 <section
-  class="schools-detail__section schools-detail__registration"
+  class="schools-detail__section schools-detail__registration grid items-start justify-items-center text-center text-white"
   aria-labelledby="school-registration-title"
 >
-  <div class="schools-detail__section-heading">
-    <span class="schools-detail__section-marker" aria-hidden="true"></span>
-    <h2 id="school-registration-title">
+  <div
+    class="schools-detail__section-heading mb-3 flex w-full max-w-3xl min-w-0 items-center justify-center gap-2"
+  >
+    <span
+      class="schools-detail__section-marker bg-red h-6 w-2 flex-none"
+      aria-hidden="true"></span>
+    <h2
+      class="font-display m-0 leading-none text-white uppercase italic"
+      id="school-registration-title"
+    >
       {messages.school_registration_title({}, { locale })}
     </h2>
   </div>
-  <p class="schools-detail__registration-intro">
+  <p class="schools-detail__registration-intro mb-4 w-full max-w-3xl min-w-0">
     {messages.school_registration_intro({}, { locale })}
   </p>
-  <p class="schools-detail__registration-status">
+  <p
+    class="schools-detail__registration-status m-0 mb-6 w-full max-w-3xl min-w-0 font-bold text-white uppercase"
+  >
     <span>{registrationLabel}</span>
   </p>
   {
     registration.url && (
       <ExternalLink
-        className="schools-detail__external-link"
+        className="schools-detail__external-link border-red bg-red inline-flex w-full max-w-3xl min-w-0 flex-wrap items-center justify-center border-2 text-xs leading-normal font-bold text-white uppercase"
         href={registration.url}
         label={messages.school_registration_action({}, { locale })}
         showHost={false}

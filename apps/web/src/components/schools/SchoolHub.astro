@@ -55,15 +55,17 @@ const valueItems = [
   title={messages.navigation_schools({}, { locale })}
 />
 
-<section class="page-frame schools-hub-values">
-  <ul class="schools-hub-values__list">
+<section class="page-frame schools-hub-values border-line border-b">
+  <ul
+    class="schools-hub-values__list m-0 grid list-none grid-cols-1 p-0 md:grid-cols-3"
+  >
     {
       valueItems.map(({ descriptionKey, titleKey }) => (
-        <li class="schools-hub-values__item">
-          <p class="schools-hub-values__title">
+        <li class="schools-hub-values__item border-ink bg-stone grid gap-3 border-2">
+          <p class="schools-hub-values__title font-display text-red m-0 font-bold tracking-widest uppercase">
             {messages[titleKey]({}, { locale })}
           </p>
-          <p class="schools-hub-values__description">
+          <p class="schools-hub-values__description text-ink m-0 leading-normal">
             {messages[descriptionKey]({}, { locale })}
           </p>
         </li>
@@ -76,18 +78,25 @@ const valueItems = [
   class="page-frame schools-hub-programs"
   aria-labelledby="schools-programs-title"
 >
-  <div class="schools-hub-programs__heading">
-    <span class="schools-hub-programs__marker" aria-hidden="true"></span>
-    <h2 class="schools-hub-programs__title" id="schools-programs-title">
+  <div class="schools-hub-programs__heading mb-5 flex items-center gap-2">
+    <span
+      class="schools-hub-programs__marker bg-red h-6 w-2 flex-none"
+      aria-hidden="true"></span>
+    <h2
+      class="schools-hub-programs__title font-display m-0 uppercase"
+      id="schools-programs-title"
+    >
       {messages.schools_programs_title({}, { locale })}
     </h2>
   </div>
-  <p class="schools-hub-programs__intro">
+  <p class="schools-hub-programs__intro text-muted m-0">
     {messages.schools_programs_intro({}, { locale })}
   </p>
 </section>
 
-<ul class="schools-hub-list">
+<ul
+  class="schools-hub-list mx-auto grid list-none grid-cols-1 px-0 md:grid-cols-3"
+>
   {
     schoolsWithCovers.map(({ coverHref, coverSize, variant }) => {
       const school = variant.entry;
@@ -96,9 +105,9 @@ const valueItems = [
         undefined,
       ).key;
       return (
-        <li class="schools-hub-item">
+        <li class="schools-hub-item border-ink flex flex-col overflow-hidden border-2 bg-white">
           <a
-            class="schools-hub-item__link"
+            class="schools-hub-item__link text-ink grid h-full p-0 no-underline"
             href={getVariantPath(variant)}
             {...analyticsActionAttributes({
               action: analyticsActions.navigate,
@@ -107,7 +116,7 @@ const valueItems = [
             })}
           >
             <img
-              class="schools-hub-item__image"
+              class="schools-hub-item__image size-full object-cover"
               src={coverHref}
               width={coverSize?.width}
               height={coverSize?.height}
@@ -115,15 +124,17 @@ const valueItems = [
               loading="lazy"
               decoding="async"
             />
-            <span class="schools-hub-item__body">
-              <span class="schools-hub-item__status">
+            <span class="schools-hub-item__body relative flex min-h-0 flex-col gap-4 bg-white">
+              <span class="schools-hub-item__status bg-ink m-0 w-fit font-bold tracking-widest text-white uppercase">
                 {messages[registrationStatusKey]({}, { locale })}
               </span>
-              <strong>{school.name[locale]}</strong>
-              <span class="schools-hub-item__summary">
+              <strong class="font-display uppercase">
+                {school.name[locale]}
+              </strong>
+              <span class="schools-hub-item__summary text-muted min-h-0">
                 {school.summary[locale]}
               </span>
-              <span class="schools-hub-item__action">
+              <span class="schools-hub-item__action text-red mt-auto pt-2 font-bold uppercase underline decoration-2">
                 {messages.school_more_information({}, { locale })}{" "}
                 <span aria-hidden="true">→</span>
               </span>
@@ -135,8 +146,11 @@ const valueItems = [
   }
 </ul>
 
-<div class="schools-hub-separator" aria-hidden="true">
-  <span></span>
+<div
+  class="schools-hub-separator text-red mx-auto flex items-center justify-center gap-4 px-6 py-8"
+  aria-hidden="true"
+>
+  <span class="bg-line h-px w-1/4"></span>
   <b>◆</b>
-  <span></span>
+  <span class="bg-line h-px w-1/4"></span>
 </div>

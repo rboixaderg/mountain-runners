@@ -80,7 +80,7 @@ const editionDocuments =
       >
         <EventStatus
           slot="meta"
-          className="detail-hero__meta"
+          className="detail-hero__meta m-0 mb-3 text-xs leading-normal font-bold uppercase"
           locale={locale}
           statusKey={getEventActivityMessageKey(event.active)}
         />
@@ -101,7 +101,7 @@ const editionDocuments =
     locale={locale}
     registration={registration}
   />
-  <div class="page-frame events-detail__content">
+  <div class="page-frame events-detail__content pt-0">
     <EventHistory editions={previousEditions} locale={locale} />
     <EventEntities
       entities={relatedEntities}

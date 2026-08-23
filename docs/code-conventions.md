@@ -47,8 +47,8 @@ inline. A la segona aparició d'un helper, s'extreu i es reutilitza.
   frontmatter amb retorns primerencs ni amagant l'HTML amb CSS.
 - Els components reben dades ja resoltes des del domini i el `locale`; no
   tornen a seleccionar ni ordenar. Només decideixen presentació i visibilitat.
-- Els noms de classe i els selectors E2E es conserven: un refactor no canvia la
-  sortida visual ni els selectors existents.
+- Un refactor conserva la sortida visual, les rutes, el contingut i el
+  comportament observable. Els noms de classe no formen part d'aquest contracte.
 
 ## Presentació
 
@@ -80,21 +80,26 @@ inline. A la segona aparició d'un helper, s'extreu i es reutilitza.
 
 ## Estils
 
-- Les utilitats de Tailwind són la primera opció per a composició, espaiat,
-  tipografia i color ordinaris, i conviuen amb les classes semàntiques o E2E
-  existents: aquestes classes formen part del contracte públic i no s'eliminen.
+- Les utilitats amb nom de Tailwind, recolzades pels tokens de `@theme`, són
+  l'opció per defecte per a composició, espaiat, tipografia, color i la resta
+  d'estils ordinaris.
+- Una utilitat arbitrària de Tailwind (`[...]`) no converteix CSS específic en
+  una solució compartida. No es trasllada CSS propi a valors arbitraris només
+  per mantenir-lo dins de l'atribut `class`; primer es busca una utilitat amb nom
+  o un token de tema que expressi la decisió.
 - `src/styles/global.css` és l'únic fonament global: importa Tailwind, defineix
   els tokens de color i tipografia amb `@theme`, manté les variables estructurals
   compartides a `:root`, declara les tipografies i conserva només els valors per
   defecte d'elements, focus, salt al contingut i moviment reduït.
-- El CSS que una utilitat no expressa de manera clara —pseudo-elements,
-  decoració, estats de pare complexos o cascades responsive pròpies— viu amb el
-  component propietari o en un full petit importat per la plantilla que coordina
-  diversos components fills. `@apply` no és l'arquitectura principal.
+- El CSS propi es limita als casos que les utilitats amb nom i els tokens de
+  tema no expressen amb claredat, com pseudo-elements, decoració, estats de pare
+  complexos o cascades responsive pròpies. Cada regla ha de tenir una
+  justificació concreta en revisió i viu amb el component propietari o en un
+  full petit importat per la plantilla que coordina diversos components fills.
+  `@apply` no és l'arquitectura principal.
 - Un component que només necessita declaracions ordinàries no crea un full CSS:
-  manté la classe BEM o E2E i hi afegeix les utilitats. Els fulls específics
-  s'importen des del component o la plantilla propietaris, mai des del layout
-  públic.
+  aplica les utilitats amb nom al markup. Els fulls específics s'importen des del
+  component o la plantilla propietaris, mai des del layout públic.
 - Els selectors `:global(...)` per a markdown es declaren al component que
   posseeix el contenidor que rep l'HTML (`set:html`), mai des d'una plantilla o
   d'un component pare cap a classes de components fills. L'àncora local es manté
@@ -106,6 +111,16 @@ inline. A la segona aparició d'un helper, s'extreu i es reutilitza.
   selector: dins dels parèntesis només hi entra allò que no pot rebre l'atribut
   de scoping. El contingut editorial no genera classes, estils ni URLs
   decoratives.
+
+## Selectors De Prova
+
+- Les classes CSS són detalls d'implementació i mai fan de hooks E2E.
+- Els tests localitzen els elements, per aquest ordre, pel rol i el nom
+  accessible, l'etiqueta, el text visible o una relació semàntica amb el seu
+  contenidor o control.
+- `data-testid` només s'usa quan no hi ha cap alternativa semàntica. El test
+  documenta al costat de l'ús per què el rol, el nom accessible, l'etiqueta, el
+  text visible i les relacions semàntiques no identifiquen l'element.
 
 ## Noms Explícits
 
@@ -160,9 +175,10 @@ inline. A la segona aparició d'un helper, s'extreu i es reutilitza.
 
 ## Estabilitat Pública
 
-El refactor no altera sortida visual, rutes, contingut ni selectors E2E. Quan
-un refactor toca plantilles, la validació inclou comparar el `dist/` generat amb
-el de `main`.
+El refactor no altera sortida visual, rutes, contingut ni comportament
+observable. La sintaxi dels selectors i els noms de classe poden canviar perquè
+no són contractes públics. Quan un refactor toca plantilles, la validació inclou
+comparar el `dist/` generat amb el de `main`.
 
 ## Desviacions Conegudes
 

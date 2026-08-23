@@ -34,21 +34,33 @@ const calendar = buildCalendarMonthGrid(
   aria-labelledby="events-calendar-title"
   data-events-calendar
 >
-  <div class="events-hub-section__heading">
-    <span class="events-hub-section__marker" aria-hidden="true"></span>
-    <h2 id="events-calendar-title" class="events-hub-section__title">
+  <div class="events-hub-section__heading mb-7 flex items-center gap-2">
+    <span
+      class="events-hub-section__marker bg-red h-6 w-2 shrink-0"
+      aria-hidden="true"></span>
+    <h2
+      id="events-calendar-title"
+      class="events-hub-section__title font-display m-0 leading-none uppercase"
+    >
       {messages.events_calendar_title({}, { locale })}
     </h2>
   </div>
 
-  <div class="events-calendar__panel">
-    <table class="events-calendar__table">
-      <caption class="events-calendar__caption">{calendar.monthLabel}</caption>
+  <div class="events-calendar__panel border-line bg-paper border">
+    <table class="events-calendar__table w-full table-fixed border-collapse">
+      <caption
+        class="events-calendar__caption border-line font-display caption-top border-b px-6 py-5 text-left font-bold capitalize"
+      >
+        {calendar.monthLabel}
+      </caption>
       <thead>
         <tr>
           {
             calendar.weekdayLabels.map((weekdayLabel) => (
-              <th scope="col" class="events-calendar__weekday">
+              <th
+                scope="col"
+                class="events-calendar__weekday border-line font-display text-muted border-b px-2 text-center font-bold uppercase"
+              >
                 {weekdayLabel}
               </th>
             ))
@@ -83,9 +95,9 @@ const calendar = buildCalendarMonthGrid(
                 return (
                   <td
                     class:list={[
-                      "events-calendar__day",
-                      !day.isCurrentMonth && "events-calendar__day--outside",
-                      day.isToday && "events-calendar__day--today",
+                      "events-calendar__day border-line bg-paper relative h-18 border-r border-b p-0 text-center align-middle max-md:h-13",
+                      !day.isCurrentMonth &&
+                        "events-calendar__day--outside text-muted",
                       hasEvents && "events-calendar__day--has-events",
                       day.isMultiDay && "events-calendar__day--multi-day",
                       day.isRangeStart && "events-calendar__day--range-start",
@@ -97,7 +109,7 @@ const calendar = buildCalendarMonthGrid(
                       <>
                         <button
                           type="button"
-                          class="events-calendar__day-button"
+                          class="events-calendar__day-button grid size-full cursor-pointer place-items-center border-0 bg-transparent p-0 text-inherit"
                           aria-controls={popoverId}
                           aria-expanded="false"
                           aria-label={dayLabel}
@@ -107,11 +119,16 @@ const calendar = buildCalendarMonthGrid(
                             target: day.date ?? "unknown",
                           })}
                         >
-                          <span class="events-calendar__day-number">
+                          <span
+                            class:list={[
+                              "events-calendar__day-number font-display relative z-1 inline-grid size-8 place-items-center font-bold",
+                              day.isToday && "border-ink border-2",
+                            ]}
+                          >
                             {day.dayNumber}
                           </span>
                           <span
-                            class="events-calendar__day-mark"
+                            class="events-calendar__day-mark bg-red absolute rounded-full"
                             aria-hidden="true"
                           />
                         </button>
@@ -126,28 +143,28 @@ const calendar = buildCalendarMonthGrid(
                         >
                           {day.events.map((event) => (
                             <article class="events-calendar__event">
-                              <h3 class="events-calendar__event-title">
+                              <h3 class="events-calendar__event-title font-display m-0 mb-2 font-bold uppercase">
                                 {event.title}
                               </h3>
                               <dl class="events-calendar__event-meta">
                                 <div>
-                                  <dt>
+                                  <dt class="text-muted font-bold uppercase">
                                     {messages.event_dates_label({}, { locale })}
                                   </dt>
-                                  <dd>{event.dateLabel}</dd>
+                                  <dd class="m-0">{event.dateLabel}</dd>
                                 </div>
                                 <div>
-                                  <dt>
+                                  <dt class="text-muted font-bold uppercase">
                                     {messages.event_location_label(
                                       {},
                                       { locale },
                                     )}
                                   </dt>
-                                  <dd>{event.location}</dd>
+                                  <dd class="m-0">{event.location}</dd>
                                 </div>
                               </dl>
                               <a
-                                class="events-calendar__event-link"
+                                class="events-calendar__event-link text-ink hover:text-red font-bold uppercase underline"
                                 href={event.href}
                                 {...analyticsActionAttributes({
                                   action: analyticsActions.calendarEventLink,
@@ -166,7 +183,12 @@ const calendar = buildCalendarMonthGrid(
                       </>
                     ) : (
                       day.dayNumber !== null && (
-                        <span class="events-calendar__day-number">
+                        <span
+                          class:list={[
+                            "events-calendar__day-number font-display relative z-1 inline-grid size-8 place-items-center font-bold",
+                            day.isToday && "border-ink border-2",
+                          ]}
+                        >
                           {day.dayNumber}
                         </span>
                       )

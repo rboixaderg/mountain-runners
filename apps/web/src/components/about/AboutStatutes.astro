@@ -24,24 +24,29 @@ const statutesAttributes = analyticsActionAttributes({
 ---
 
 <section
-  class="page-frame about-section about-section--statutes"
+  class="page-frame about-section about-section--statutes border-b-0"
   aria-labelledby="about-statutes-title"
 >
-  <div class="about-section__heading">
-    <span class="about-section__marker" aria-hidden="true"></span>
-    <h2 class="about-section__title" id="about-statutes-title">
+  <div class="about-section__heading mb-8 flex items-center gap-2">
+    <span
+      class="about-section__marker bg-red h-6 w-2 shrink-0"
+      aria-hidden="true"></span>
+    <h2
+      class="about-section__title font-display m-0 leading-none uppercase"
+      id="about-statutes-title"
+    >
       {messages.about_statutes_title({}, { locale })}
     </h2>
   </div>
 
   {
     statutesHref && statutesDocument && statutesTitle ? (
-      <div class="about-statutes__card">
-        <p class="about-statutes__description">
+      <div class="about-statutes__card grid gap-4">
+        <p class="about-statutes__description m-0 text-base">
           {messages.about_statutes_description({}, { locale })}
         </p>
         <a
-          class="about-statutes__link"
+          class="about-statutes__link font-display text-ink hover:text-red font-bold uppercase underline"
           href={statutesHref}
           {...statutesAttributes}
         >
@@ -49,7 +54,7 @@ const statutesAttributes = analyticsActionAttributes({
         </a>
       </div>
     ) : (
-      <p class="about-section__body">
+      <p class="about-section__body text-base">
         {messages.about_statutes_unavailable({}, { locale })}
       </p>
     )

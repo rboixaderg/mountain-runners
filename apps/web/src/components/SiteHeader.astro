@@ -85,16 +85,18 @@ const headerSignupAttributes = analyticsActionAttributes({
 });
 ---
 
-<header class="site-header">
-  <div class="page-frame site-header__inner">
+<header
+  class="border-line sticky top-0 z-30 overflow-visible border-b bg-white"
+>
+  <div class="page-frame site-header__inner flex min-h-19 min-w-0 items-center">
     <a
-      class="site-header__brand"
+      class="shrink-0 no-underline"
       href={homePath}
       aria-label={messages.site_title({}, { locale })}
       {...homeNavAttributes}
     >
       <img
-        class="site-logo"
+        class="site-logo w-17"
         src={logo.src}
         width={logo.width}
         height={logo.height}
@@ -102,13 +104,16 @@ const headerSignupAttributes = analyticsActionAttributes({
       />
     </a>
     <nav
-      class="site-header__navigation"
+      class="site-header__navigation hidden items-center lg:ml-auto lg:flex"
       aria-label={messages.primary_navigation({}, { locale })}
     >
       <a
         class:list={[
           "site-header__link",
-          isCurrentPath(aboutPath) && "site-header__link--active",
+          "font-display hover:border-red hover:text-red py-1 font-bold uppercase no-underline",
+          isCurrentPath(aboutPath)
+            ? "border-red text-red"
+            : "border-transparent",
         ]}
         href={aboutPath}
         aria-current={isCurrentPath(aboutPath) ? "page" : undefined}
@@ -118,11 +123,14 @@ const headerSignupAttributes = analyticsActionAttributes({
       </a>
       {
         schoolNavigationItems.length > 0 ? (
-          <div class="site-header__dropdown">
+          <div class="site-header__dropdown relative">
             <a
               class:list={[
                 "site-header__link",
-                schoolsNavigationActive && "site-header__link--active",
+                "font-display hover:border-red hover:text-red py-1 font-bold uppercase no-underline",
+                schoolsNavigationActive
+                  ? "border-red text-red"
+                  : "border-transparent",
               ]}
               href={schoolsPath}
               aria-current={schoolsHubActive ? "page" : undefined}
@@ -130,14 +138,14 @@ const headerSignupAttributes = analyticsActionAttributes({
             >
               {messages.navigation_schools({}, { locale })}
             </a>
-            <ul class="site-header__dropdown-panel">
+            <ul class="site-header__dropdown-panel border-ink absolute left-0 m-0 min-w-56 list-none border-2 bg-white py-2">
               {schoolNavigationItems.map((item) => (
                 <li>
                   <a
                     class:list={[
                       "site-header__dropdown-link",
-                      isSchoolDetailPath(item.href) &&
-                        "site-header__dropdown-link--active",
+                      "text-ink font-display hover:bg-stone hover:text-red block font-bold uppercase no-underline",
+                      isSchoolDetailPath(item.href) && "bg-stone text-red",
                     ]}
                     href={item.href}
                     aria-current={
@@ -159,7 +167,10 @@ const headerSignupAttributes = analyticsActionAttributes({
           <a
             class:list={[
               "site-header__link",
-              schoolsNavigationActive && "site-header__link--active",
+              "font-display hover:border-red hover:text-red py-1 font-bold uppercase no-underline",
+              schoolsNavigationActive
+                ? "border-red text-red"
+                : "border-transparent",
             ]}
             href={schoolsPath}
             aria-current={schoolsNavigationActive ? "page" : undefined}
@@ -174,7 +185,10 @@ const headerSignupAttributes = analyticsActionAttributes({
           <a
             class:list={[
               "site-header__link",
-              isCurrentPath(item.href) && "site-header__link--active",
+              "font-display hover:border-red hover:text-red py-1 font-bold uppercase no-underline",
+              isCurrentPath(item.href)
+                ? "border-red text-red"
+                : "border-transparent",
             ]}
             href={item.href}
             aria-current={isCurrentPath(item.href) ? "page" : undefined}
@@ -186,37 +200,45 @@ const headerSignupAttributes = analyticsActionAttributes({
       }
     </nav>
     <a
-      class="site-header__cta"
+      class="site-header__cta border-red bg-red font-display hover:border-ink hover:bg-ink ml-auto inline-flex items-center border-2 px-5 text-xs font-bold whitespace-nowrap text-white uppercase no-underline hover:text-white"
       href={memberSignupLink.href}
       {...memberSignupLink.isExternal ? externalLinkAttributes : {}}
       {...headerSignupAttributes}
     >
       {messages.cta_join_members({}, { locale })}
     </a>
-    <div class="site-header__language">
+    <div class="hidden lg:flex">
       <LanguageSelector
         localizedAlternatives={localizedAlternatives}
         locale={locale}
       />
     </div>
-    <details class="site-header__mobile-menu">
-      <summary>
-        <span class="site-header__menu-toggle">
+    <details class="site-header__mobile-menu relative ml-0 lg:hidden">
+      <summary
+        class="border-ink font-display block cursor-pointer list-none border-2 p-0 font-bold uppercase"
+      >
+        <span class="site-header__menu-toggle flex min-h-11 items-center gap-3">
           <span class="site-header__menu-label"
             >{messages.menu({}, { locale })}</span
           >
-          <span class="site-header__menu-icon" aria-hidden="true"></span>
+          <span class="site-header__menu-icon relative block" aria-hidden="true"
+          ></span>
         </span>
       </summary>
-      <div class="site-header__mobile-panel">
+      <div
+        class="site-header__mobile-panel border-ink absolute right-0 overflow-y-auto overscroll-contain border-2 bg-white p-5"
+      >
         <nav
-          class="site-header__mobile-navigation"
+          class="site-header__mobile-navigation grid"
           aria-label={messages.primary_navigation({}, { locale })}
         >
           <a
             class:list={[
               "site-header__mobile-link",
-              isCurrentPath(aboutPath) && "site-header__mobile-link--active",
+              "font-display hover:border-red hover:bg-stone hover:text-red flex min-h-11 items-center border-l-4 px-3 font-bold uppercase no-underline",
+              isCurrentPath(aboutPath)
+                ? "border-red bg-stone text-red"
+                : "border-transparent",
             ]}
             href={aboutPath}
             aria-current={isCurrentPath(aboutPath) ? "page" : undefined}
@@ -226,12 +248,14 @@ const headerSignupAttributes = analyticsActionAttributes({
           </a>
           {
             schoolNavigationItems.length > 0 ? (
-              <div class="site-header__mobile-group">
+              <div class="site-header__mobile-group grid">
                 <a
                   class:list={[
                     "site-header__mobile-link",
-                    schoolsNavigationActive &&
-                      "site-header__mobile-link--active",
+                    "font-display hover:border-red hover:bg-stone hover:text-red flex min-h-11 items-center border-l-4 px-3 font-bold uppercase no-underline",
+                    schoolsNavigationActive
+                      ? "border-red bg-stone text-red"
+                      : "border-transparent",
                   ]}
                   href={schoolsPath}
                   aria-current={schoolsHubActive ? "page" : undefined}
@@ -239,14 +263,14 @@ const headerSignupAttributes = analyticsActionAttributes({
                 >
                   {messages.navigation_schools({}, { locale })}
                 </a>
-                <ul class="site-header__mobile-submenu">
+                <ul class="border-line m-0 grid list-none gap-1 border-l-2 pl-3">
                   {schoolNavigationItems.map((item) => (
                     <li>
                       <a
                         class:list={[
                           "site-header__mobile-submenu-link",
-                          isSchoolDetailPath(item.href) &&
-                            "site-header__mobile-submenu-link--active",
+                          "text-ink font-display hover:bg-stone hover:text-red flex min-h-9 items-center px-3 text-xs font-bold uppercase no-underline",
+                          isSchoolDetailPath(item.href) && "bg-stone text-red",
                         ]}
                         href={item.href}
                         aria-current={
@@ -268,7 +292,10 @@ const headerSignupAttributes = analyticsActionAttributes({
               <a
                 class:list={[
                   "site-header__mobile-link",
-                  schoolsNavigationActive && "site-header__mobile-link--active",
+                  "font-display hover:border-red hover:bg-stone hover:text-red flex min-h-11 items-center border-l-4 px-3 font-bold uppercase no-underline",
+                  schoolsNavigationActive
+                    ? "border-red bg-stone text-red"
+                    : "border-transparent",
                 ]}
                 href={schoolsPath}
                 aria-current={schoolsHubActive ? "page" : undefined}
@@ -283,8 +310,10 @@ const headerSignupAttributes = analyticsActionAttributes({
               <a
                 class:list={[
                   "site-header__mobile-link",
-                  isCurrentPath(item.href) &&
-                    "site-header__mobile-link--active",
+                  "font-display hover:border-red hover:bg-stone hover:text-red flex min-h-11 items-center border-l-4 px-3 font-bold uppercase no-underline",
+                  isCurrentPath(item.href)
+                    ? "border-red bg-stone text-red"
+                    : "border-transparent",
                 ]}
                 href={item.href}
                 aria-current={isCurrentPath(item.href) ? "page" : undefined}
@@ -296,14 +325,16 @@ const headerSignupAttributes = analyticsActionAttributes({
           }
         </nav>
         <a
-          class="site-header__mobile-cta"
+          class="site-header__mobile-cta border-red bg-red font-display hover:border-ink hover:bg-ink mt-5 flex min-h-11 items-center justify-center border-2 px-4 font-bold text-white uppercase no-underline hover:text-white"
           href={memberSignupLink.href}
           {...memberSignupLink.isExternal ? externalLinkAttributes : {}}
           {...headerSignupAttributes}
         >
           {messages.cta_join_members({}, { locale })}
         </a>
-        <div class="site-header__mobile-language">
+        <div
+          class="site-header__mobile-language border-line mt-5 border-t pt-4"
+        >
           <LanguageSelector
             localizedAlternatives={localizedAlternatives}
             locale={locale}

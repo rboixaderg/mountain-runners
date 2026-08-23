@@ -37,7 +37,7 @@ const documentAttributes = analyticsActionAttributes({
 ---
 
 <li class="documents-entry">
-  <p class="documents-entry__title">
+  <p class="documents-entry__title m-0 mb-2 font-bold">
     {
       documentHref !== undefined ? (
         document.resource.kind === "external" ? (
@@ -57,7 +57,7 @@ const documentAttributes = analyticsActionAttributes({
         <>
           {documentTitle}
           {availabilityMessageKey !== undefined && (
-            <span class="documents-entry__state">
+            <span class="documents-entry__state text-muted ml-3 text-xs leading-normal font-bold uppercase">
               {messages[availabilityMessageKey]({}, { locale })}
             </span>
           )}
@@ -65,30 +65,34 @@ const documentAttributes = analyticsActionAttributes({
       )
     }
   </p>
-  <p class="documents-entry__description">
+  <p
+    class="documents-entry__description text-muted m-0 mb-2 text-sm leading-normal"
+  >
     {document.description[locale]}
   </p>
   {
     (document.date !== undefined ||
       resourceLocaleMessageKey !== undefined ||
       document.attribution !== undefined) && (
-      <dl class="documents-entry__meta">
+      <dl class="documents-entry__meta text-muted m-0 flex flex-wrap gap-x-4 gap-y-2 text-xs leading-normal font-bold uppercase">
         {document.date !== undefined && (
-          <div>
+          <div class="flex gap-2">
             <dt>{messages.document_date_label({}, { locale })}</dt>
-            <dd>{formatCalendarDate(document.date, locale)}</dd>
+            <dd class="m-0">{formatCalendarDate(document.date, locale)}</dd>
           </div>
         )}
         {resourceLocaleMessageKey !== undefined && (
-          <div>
+          <div class="flex gap-2">
             <dt>{messages.document_language_label({}, { locale })}</dt>
-            <dd>{messages[resourceLocaleMessageKey]({}, { locale })}</dd>
+            <dd class="m-0">
+              {messages[resourceLocaleMessageKey]({}, { locale })}
+            </dd>
           </div>
         )}
         {document.attribution !== undefined && (
-          <div>
+          <div class="flex gap-2">
             <dt>{messages.document_attribution_label({}, { locale })}</dt>
-            <dd>{document.attribution[locale]}</dd>
+            <dd class="m-0">{document.attribution[locale]}</dd>
           </div>
         )}
       </dl>

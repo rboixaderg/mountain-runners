@@ -55,27 +55,35 @@ const newsletterAttributes = analyticsActionAttributes({
 });
 ---
 
-<section class="site-prefooter" aria-labelledby="site-prefooter-title">
-  <div class="page-frame site-prefooter__grid">
-    <div class="site-prefooter__questions">
-      <h2 id="site-prefooter-title">
+<section
+  class="site-prefooter border-line bg-stone border-t"
+  aria-labelledby="site-prefooter-title"
+>
+  <div
+    class="page-frame site-prefooter__grid grid md:grid-cols-2 md:items-center"
+  >
+    <div class="site-prefooter__questions min-w-0">
+      <h2
+        class="text-red font-display m-0 mb-4 uppercase"
+        id="site-prefooter-title"
+      >
         {messages.prefooter_questions_title({}, { locale })}
       </h2>
-      <p class="site-prefooter__questions-description">
+      <p class="site-prefooter__questions-description text-muted m-0 mb-6">
         {messages.prefooter_questions_description({}, { locale })}
       </p>
       {
         contact && (
-          <ul class="site-prefooter__contact-list">
+          <ul class="site-prefooter__contact-list m-0 grid list-none p-0">
             {contact.email && (
               <li>
                 <a
-                  class="site-prefooter__contact-item"
+                  class="site-prefooter__contact-item text-ink hover:text-red m-0 inline-flex items-start gap-2 leading-normal font-semibold"
                   href={getMailtoHref(contact.email)}
                   {...contactEmailAttributes}
                 >
                   <svg
-                    class="site-prefooter__contact-icon"
+                    class="site-prefooter__contact-icon text-red size-5 shrink-0"
                     viewBox="0 0 24 24"
                     aria-hidden="true"
                     focusable="false"
@@ -92,12 +100,12 @@ const newsletterAttributes = analyticsActionAttributes({
             {contact.phones?.map((phone) => (
               <li>
                 <a
-                  class="site-prefooter__contact-item"
+                  class="site-prefooter__contact-item text-ink hover:text-red m-0 inline-flex items-start gap-2 leading-normal font-semibold"
                   href={getTelHref(phone)}
                   {...contactPhoneAttributes}
                 >
                   <svg
-                    class="site-prefooter__contact-icon"
+                    class="site-prefooter__contact-icon text-red size-5 shrink-0"
                     viewBox="0 0 24 24"
                     aria-hidden="true"
                     focusable="false"
@@ -113,9 +121,9 @@ const newsletterAttributes = analyticsActionAttributes({
             ))}
             {showOfficeDetails && officeAddress.length > 0 && (
               <li>
-                <p class="site-prefooter__contact-item site-prefooter__contact-item--static">
+                <p class="site-prefooter__contact-item text-ink m-0 inline-flex cursor-default items-start gap-2 leading-normal font-semibold">
                   <svg
-                    class="site-prefooter__contact-icon"
+                    class="site-prefooter__contact-icon text-red size-5 shrink-0"
                     viewBox="0 0 24 24"
                     aria-hidden="true"
                     focusable="false"
@@ -131,9 +139,9 @@ const newsletterAttributes = analyticsActionAttributes({
             )}
             {showOfficeDetails && (
               <li>
-                <p class="site-prefooter__contact-item site-prefooter__contact-item--static">
+                <p class="site-prefooter__contact-item text-ink m-0 inline-flex cursor-default items-start gap-2 leading-normal font-semibold">
                   <svg
-                    class="site-prefooter__contact-icon"
+                    class="site-prefooter__contact-icon text-red size-5 shrink-0"
                     viewBox="0 0 24 24"
                     aria-hidden="true"
                     focusable="false"
@@ -152,20 +160,24 @@ const newsletterAttributes = analyticsActionAttributes({
       }
     </div>
 
-    <div class="site-prefooter__newsletter">
-      <h3 class="site-prefooter__newsletter-title">
+    <div
+      class="site-prefooter__newsletter border-ink min-w-0 border-2 bg-white"
+    >
+      <h3
+        class="site-prefooter__newsletter-title font-display m-0 mb-4 uppercase"
+      >
         {messages.prefooter_newsletter_title({}, { locale })}
       </h3>
-      <p class="site-prefooter__newsletter-description">
+      <p class="site-prefooter__newsletter-description text-muted m-0 mb-4">
         {messages.prefooter_newsletter_description({}, { locale })}
       </p>
-      <div class="site-prefooter__newsletter-form">
-        <label class="site-prefooter__sr-only" for={emailInputId}>
+      <div class="flex flex-col gap-2 sm:flex-row sm:items-stretch">
+        <label class="sr-only" for={emailInputId}>
           {messages.prefooter_newsletter_email_label({}, { locale })}
         </label>
         <input
           id={emailInputId}
-          class="site-prefooter__newsletter-input"
+          class="site-prefooter__newsletter-input border-line text-ink w-full min-w-0 border-2 bg-white px-3 py-2.5 disabled:cursor-not-allowed sm:flex-1"
           type="email"
           autocomplete="email"
           placeholder={messages.prefooter_newsletter_email_placeholder(
@@ -180,7 +192,7 @@ const newsletterAttributes = analyticsActionAttributes({
         {
           newsletterPresentation?.kind === "link" ? (
             <a
-              class="site-prefooter__newsletter-submit"
+              class="site-prefooter__newsletter-submit bg-ink font-display hover:bg-red inline-flex items-center justify-center border-0 px-4 py-2.5 font-bold text-white uppercase no-underline hover:text-white sm:shrink-0"
               href={newsletterPresentation.url}
               {...externalLinkAttributes}
               {...newsletterAttributes}
@@ -189,7 +201,7 @@ const newsletterAttributes = analyticsActionAttributes({
             </a>
           ) : (
             <button
-              class="site-prefooter__newsletter-submit"
+              class="site-prefooter__newsletter-submit bg-ink font-display disabled:hover:bg-ink inline-flex items-center justify-center border-0 px-4 py-2.5 font-bold text-white uppercase disabled:cursor-not-allowed sm:shrink-0"
               type="button"
               disabled
             >
@@ -200,7 +212,10 @@ const newsletterAttributes = analyticsActionAttributes({
       </div>
       {
         newsletterStatusMessage !== null && (
-          <p class="site-prefooter__newsletter-status" id={newsletterStatusId}>
+          <p
+            class="site-prefooter__newsletter-status text-muted m-0 mt-3"
+            id={newsletterStatusId}
+          >
             {newsletterStatusMessage}
           </p>
         )

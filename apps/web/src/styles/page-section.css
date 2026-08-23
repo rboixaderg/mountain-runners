@@ -1,40 +1,13 @@
 .page-section {
   padding-block: var(--section-space);
-  border-bottom: 1px solid var(--color-line);
-}
-
-.page-section__heading {
-  display: flex;
-  gap: var(--space-2);
-  align-items: center;
-  margin-bottom: 2rem;
-}
-
-.page-section__marker {
-  width: 0.5rem;
-  height: 1.5rem;
-  flex: 0 0 auto;
-  background: var(--color-red);
 }
 
 .page-section__title {
-  margin: 0;
-  font-family: var(--font-display);
   font-size: clamp(1.8rem, 4vw, 3rem);
-  line-height: 1;
   letter-spacing: 0.06em;
-  text-transform: uppercase;
 }
 
-.page-section__body,
-.page-section__paragraph {
+.page-section__body {
   max-width: var(--reading-width);
-  margin: 0 0 var(--space-4);
-  font-size: 1rem;
   line-height: 1.6;
-}
-
-.page-section__body:last-child,
-.page-section__paragraph:last-child {
-  margin-bottom: 0;
 }

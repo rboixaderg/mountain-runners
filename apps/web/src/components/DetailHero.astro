@@ -22,20 +22,41 @@ const {
 } = Astro.props;
 ---
 
-<section class="detail-hero">
-  <figure class="detail-hero__cover">
+<section
+  class="detail-hero border-ink bg-ink relative grid place-items-center overflow-hidden border-y-4 text-white"
+>
+  <figure
+    class="detail-hero__cover bg-red absolute inset-0 m-0 block overflow-hidden border-0"
+  >
     <img
+      class="h-full min-h-0 w-full object-cover mix-blend-multiply"
       src={coverHref}
       alt={coverAlt}
       {...coverWidth === undefined || coverHeight === undefined
         ? {}
         : { width: coverWidth, height: coverHeight }}
     />
-    {coverAttribution && <figcaption>{coverAttribution}</figcaption>}
+    {
+      coverAttribution && (
+        <figcaption class="text-paper absolute right-3 bottom-3 z-1 m-0 px-2 py-1">
+          {coverAttribution}
+        </figcaption>
+      )
+    }
   </figure>
-  <div class="page-frame detail-hero__copy">
-    <p class="detail-hero__kicker">{kicker}</p>
+  <div
+    class="page-frame detail-hero__copy relative z-1 grid justify-items-center text-center"
+  >
+    <p
+      class="detail-hero__kicker bg-ink font-display m-0 mb-4 border-0 leading-normal font-bold text-white uppercase"
+    >
+      {kicker}
+    </p>
     <slot name="meta" />
-    <h1 class="detail-hero__title">{title}</h1>
+    <h1
+      class="detail-hero__title font-display m-0 wrap-anywhere text-white uppercase italic"
+    >
+      {title}
+    </h1>
   </div>
 </section>

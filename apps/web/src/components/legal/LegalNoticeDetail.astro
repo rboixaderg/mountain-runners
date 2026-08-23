@@ -82,22 +82,38 @@ const contact = catalog.contact;
     id="legal-notice-entity"
     title={messages.legal_notice_entity_title({}, { locale })}
   >
-    <dl class="legal-data">
-      <div class="legal-data__row">
-        <dt>{messages.legal_notice_entity_name_label({}, { locale })}</dt>
-        <dd>{messages.legal_notice_entity_name({}, { locale })}</dd>
+    <dl class="legal-data m-0 grid gap-3">
+      <div class="legal-data__row grid gap-3">
+        <dt class="text-muted text-xs leading-normal font-bold uppercase">
+          {messages.legal_notice_entity_name_label({}, { locale })}
+        </dt>
+        <dd class="m-0 min-w-0 wrap-anywhere">
+          {messages.legal_notice_entity_name({}, { locale })}
+        </dd>
       </div>
-      <div class="legal-data__row">
-        <dt>{messages.legal_notice_entity_type_label({}, { locale })}</dt>
-        <dd>{messages.legal_notice_entity_type({}, { locale })}</dd>
+      <div class="legal-data__row grid gap-3">
+        <dt class="text-muted text-xs leading-normal font-bold uppercase">
+          {messages.legal_notice_entity_type_label({}, { locale })}
+        </dt>
+        <dd class="m-0 min-w-0 wrap-anywhere">
+          {messages.legal_notice_entity_type({}, { locale })}
+        </dd>
       </div>
-      <div class="legal-data__row">
-        <dt>{messages.legal_notice_entity_register_label({}, { locale })}</dt>
-        <dd>{messages.legal_notice_entity_register({}, { locale })}</dd>
+      <div class="legal-data__row grid gap-3">
+        <dt class="text-muted text-xs leading-normal font-bold uppercase">
+          {messages.legal_notice_entity_register_label({}, { locale })}
+        </dt>
+        <dd class="m-0 min-w-0 wrap-anywhere">
+          {messages.legal_notice_entity_register({}, { locale })}
+        </dd>
       </div>
-      <div class="legal-data__row">
-        <dt>{messages.legal_notice_entity_census_label({}, { locale })}</dt>
-        <dd>{messages.legal_notice_entity_census({}, { locale })}</dd>
+      <div class="legal-data__row grid gap-3">
+        <dt class="text-muted text-xs leading-normal font-bold uppercase">
+          {messages.legal_notice_entity_census_label({}, { locale })}
+        </dt>
+        <dd class="m-0 min-w-0 wrap-anywhere">
+          {messages.legal_notice_entity_census({}, { locale })}
+        </dd>
       </div>
     </dl>
     {

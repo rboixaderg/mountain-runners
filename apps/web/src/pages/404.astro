@@ -16,13 +16,9 @@ const canonical = new URL("/404.html", Astro.site).toString();
   <section
     class="page-frame max-w-[var(--reading-width)] py-[clamp(var(--space-12),10vw,7rem)]"
   >
-    <p
-      class="m-0 font-[family-name:var(--font-display)] text-lg tracking-[0.06em] uppercase"
-    >
-      404
-    </p>
+    <p class="font-display m-0 text-lg tracking-[0.06em] uppercase">404</p>
     <h1
-      class="my-3 mb-6 max-w-[15ch] font-[family-name:var(--font-display)] text-[clamp(2.8rem,9vw,5.5rem)] leading-[0.95] tracking-[0.015em] uppercase"
+      class="font-display my-3 mb-6 max-w-[15ch] text-[clamp(2.8rem,9vw,5.5rem)] leading-[0.95] tracking-[0.015em] uppercase"
     >
       {messages.not_found_title({}, { locale })}
     </h1>

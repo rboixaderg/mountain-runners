@@ -14,6 +14,7 @@ modify or review public pages.
 - Design and visual decisions: `DESIGN.md`.
 - Architecture and content boundaries: `docs/architecture.md`,
   `docs/content-model.md` and `docs/decisions/` (ADRs).
+- Implementation rules: `AGENTS.md` and `docs/code-conventions.md`.
 - Product requirements and security: `docs/roadmap.md`, `docs/backlog.md`,
   `SECURITY.md`.
 
@@ -32,11 +33,11 @@ Run the smallest relevant check before declaring work complete:
 | `pnpm lighthouse`      | Lighthouse scores and budgets on representative routes|
 | `pnpm validate`        | CI gate: format, lint, typecheck, unit tests and E2E  |
 
-`pnpm check` no construeix ni fixa el rellotge. Les ordres que construeixen i
-serveixen el build (`pnpm test:e2e`, `pnpm test:a11y`, `pnpm lighthouse`)
-executen amb `PUBLIC_SITE_ORIGIN=https://mountainrunners.cat` i
-`BUILD_TODAY=2026-08-04` per mantenir builds i assertions deterministes; la CI
-els defineix també a nivell de job.
+`pnpm check` does not build or fix the clock. Commands that build and serve the
+site (`pnpm test:e2e`, `pnpm test:a11y`, `pnpm lighthouse`) run with
+`PUBLIC_SITE_ORIGIN=https://mountainrunners.cat` and `BUILD_TODAY=2026-08-04`
+to keep builds and assertions deterministic. CI also defines both variables at
+the job level.
 
 ## Representative Routes And Viewports
 
@@ -49,6 +50,21 @@ event detail (e.g. `/ca/esdeveniments/ultra-pirineu/`), plus the 404 page.
   templates, including the 404.
 - Lighthouse runs on mobile (390x844) over the routes picked from the built
   sitemap.
+
+## Implementation Contracts
+
+- Use named Tailwind utilities backed by theme tokens for ordinary styles.
+  Keep custom CSS minimal and owner-scoped; do not move bespoke CSS to an
+  arbitrary Tailwind value only to relocate it.
+- Treat CSS classes as implementation details, never as E2E hooks.
+- Locate elements by role and accessible name, label, visible text or semantic
+  relationships with their container or control. Use the first option that
+  describes what a user or assistive technology can observe.
+- Use `data-testid` only when no semantic alternative exists. Document next to
+  the test why role, accessible name, label, visible text and semantic
+  relationships cannot identify the element.
+- Refactors preserve visual output, routes, content and user-observable
+  behavior, not selector syntax.
 
 ## Mandatory Thresholds And Budgets
 

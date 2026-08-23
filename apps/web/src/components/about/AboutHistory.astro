@@ -11,23 +11,32 @@ interface Props {
 const { locale } = Astro.props;
 ---
 
-<section class="page-frame about-section" aria-labelledby="about-history-title">
-  <div class="about-section__heading">
-    <span class="about-section__marker" aria-hidden="true"></span>
-    <h2 class="about-section__title" id="about-history-title">
+<section
+  class="page-frame about-section border-line border-b"
+  aria-labelledby="about-history-title"
+>
+  <div class="about-section__heading mb-8 flex items-center gap-2">
+    <span
+      class="about-section__marker bg-red h-6 w-2 shrink-0"
+      aria-hidden="true"></span>
+    <h2
+      class="about-section__title font-display m-0 leading-none uppercase"
+      id="about-history-title"
+    >
       {messages.about_history_title({}, { locale })}
     </h2>
   </div>
 
-  <div class="about-history__grid">
+  <div class="about-history__grid grid items-start">
     <div
-      class="about-section__body"
+      class="about-section__body text-base"
       set:html={renderRestrictedMarkdown(
         messages.about_history({}, { locale }),
       )}
     />
-    <figure class="about-history__photo">
+    <figure class="about-history__photo m-0">
       <img
+        class="border-ink block max-h-80 w-full border-2 object-cover object-center"
         src={aboutHistory.src}
         width={aboutHistory.width}
         height={aboutHistory.height}

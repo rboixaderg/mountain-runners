@@ -16,11 +16,11 @@ const videoId = videoUrl ? extractYoutubeVideoId(videoUrl) : undefined;
 {
   videoId !== undefined && (
     <section
-      class="members-video"
+      class="members-video border-line bg-stone border-b"
       aria-label={messages.members_video_title({}, { locale })}
     >
-      <div class="page-frame members-video__inner">
-        <figure class="members-video__figure">
+      <div class="page-frame members-video__inner flex justify-center">
+        <figure class="members-video__figure m-0">
           <YoutubeEmbed
             className="members-video__embed"
             title={messages.members_video_title({}, { locale })}

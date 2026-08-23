@@ -24,18 +24,25 @@ if (!hasPreviewPriceContent(pricesMarkdown)) {
 }
 ---
 
-<article class="schools-detail-preview__prices">
-  <div class="schools-detail-preview__prices-header">
-    <div class="schools-detail-preview__practical-icon" aria-hidden="true">
+<article
+  class="schools-detail-preview__prices border-ink flex min-w-0 flex-col border-2 bg-white"
+>
+  <div class="schools-detail-preview__prices-header flex items-start gap-4">
+    <div
+      class="schools-detail-preview__practical-icon bg-ink inline-flex p-3 text-white"
+      aria-hidden="true"
+    >
       <SchoolPracticalIcon sectionKey="prices" />
     </div>
-    <div class="schools-detail-preview__prices-heading">
-      <h3 class="schools-detail-preview__practical-card-title">
+    <div class="schools-detail-preview__prices-heading min-w-0">
+      <h3
+        class="schools-detail-preview__practical-card-title font-display text-ink m-0 font-bold uppercase"
+      >
         {messages.school_prices_label({}, { locale })}
       </h3>
       {
         parsedSection.lead && (
-          <p class="schools-detail-preview__prices-intro">
+          <p class="schools-detail-preview__prices-intro text-muted m-0 mt-2">
             {parsedSection.lead}
           </p>
         )
@@ -43,23 +50,23 @@ if (!hasPreviewPriceContent(pricesMarkdown)) {
     </div>
   </div>
 
-  <div class="schools-detail-preview__prices-body">
+  <div class="schools-detail-preview__prices-body grid gap-5">
     {
       priceTiers.length > 0 && (
-        <ul class="schools-detail-preview__price-tiers">
+        <ul class="schools-detail-preview__price-tiers m-0 grid list-none grid-cols-1 gap-3 p-0 md:grid-cols-3">
           {priceTiers.map((priceTier) => {
             const formattedAmount = formatPriceAmount(priceTier.amount);
 
             return (
-              <li class="schools-detail-preview__price-tier">
-                <span class="schools-detail-preview__price-tier-label">
+              <li class="schools-detail-preview__price-tier border-ink bg-stone grid justify-items-center border-2 text-center">
+                <span class="schools-detail-preview__price-tier-label text-muted text-xs leading-normal font-bold uppercase">
                   {priceTier.label}
                 </span>
-                <span class="schools-detail-preview__price-tier-value">
+                <span class="schools-detail-preview__price-tier-value font-display text-red mt-2 leading-none font-bold">
                   {formattedAmount.value}
                 </span>
                 {formattedAmount.unit.length > 0 && (
-                  <span class="schools-detail-preview__price-tier-unit">
+                  <span class="schools-detail-preview__price-tier-unit text-ink font-semibold">
                     {formattedAmount.unit}
                   </span>
                 )}
@@ -72,17 +79,17 @@ if (!hasPreviewPriceContent(pricesMarkdown)) {
 
     {
       priceSection.registrationFees.length > 0 && (
-        <div class="schools-detail-preview__price-registration">
-          <h4 class="schools-detail-preview__price-registration-title">
+        <div class="schools-detail-preview__price-registration grid gap-3 pt-5">
+          <h4 class="schools-detail-preview__price-registration-title font-display text-ink m-0 font-bold uppercase">
             {messages.school_prices_registration_label({}, { locale })}
           </h4>
-          <ul class="schools-detail-preview__price-registration-list">
+          <ul class="schools-detail-preview__price-registration-list m-0 grid list-none gap-2 p-0 md:grid-cols-2">
             {priceSection.registrationFees.map((registrationFee) => (
-              <li class="schools-detail-preview__price-registration-item">
-                <span class="schools-detail-preview__price-registration-label">
+              <li class="schools-detail-preview__price-registration-item bg-stone flex flex-wrap items-baseline justify-between">
+                <span class="schools-detail-preview__price-registration-label min-w-0 font-semibold">
                   {registrationFee.label}
                 </span>
-                <span class="schools-detail-preview__price-registration-amount">
+                <span class="schools-detail-preview__price-registration-amount font-display text-red min-w-0 text-end font-bold">
                   {registrationFee.amount}
                 </span>
               </li>
@@ -94,7 +101,7 @@ if (!hasPreviewPriceContent(pricesMarkdown)) {
 
     {
       priceSection.footnote && (
-        <p class="schools-detail-preview__prices-footnote">
+        <p class="schools-detail-preview__prices-footnote text-muted m-0 leading-normal">
           {priceSection.footnote}
         </p>
       )

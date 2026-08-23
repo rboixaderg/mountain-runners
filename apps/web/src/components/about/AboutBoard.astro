@@ -15,19 +15,25 @@ const boardMembers = parseBoardMembers(
 ---
 
 <section
-  class="page-frame about-section about-section--dark"
+  class="page-frame about-section about-section--dark border-line bg-ink max-w-none border-b text-white"
   aria-labelledby="about-board-title"
 >
-  <div class="about-section__heading">
-    <span class="about-section__marker" aria-hidden="true"></span>
-    <h2 class="about-section__title" id="about-board-title">
+  <div class="about-section__heading mb-8 flex items-center gap-2">
+    <span
+      class="about-section__marker bg-red h-6 w-2 shrink-0"
+      aria-hidden="true"></span>
+    <h2
+      class="about-section__title font-display m-0 leading-none uppercase"
+      id="about-board-title"
+    >
       {messages.about_board_title({}, { locale })}
     </h2>
   </div>
 
-  <div class="about-board__layout">
-    <figure class="about-board__photo">
+  <div class="about-board__layout grid items-start">
+    <figure class="about-board__photo m-0">
       <img
+        class="block w-full"
         src={boardPhoto.src}
         width={boardPhoto.width}
         height={boardPhoto.height}
@@ -37,13 +43,15 @@ const boardMembers = parseBoardMembers(
       />
     </figure>
 
-    <ul class="about-board__list">
+    <ul class="about-board__list m-0 grid list-none gap-0 p-0">
       {
         boardMembers.map((member) => (
-          <li class="about-board__member">
-            <span class="about-board__member-name">{member.name}</span>
-            <span class="about-board__member-role">
-              <span class="about-board__role-label">
+          <li class="about-board__member flex items-center justify-between gap-4">
+            <span class="about-board__member-name font-display font-bold uppercase">
+              {member.name}
+            </span>
+            <span class="about-board__member-role grid shrink-0 text-right">
+              <span class="about-board__role-label font-bold tracking-widest uppercase">
                 {messages.about_board_role_label({}, { locale })}
               </span>
               <span>{member.role}</span>

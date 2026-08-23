@@ -33,40 +33,48 @@ const collaboratorsWithImages = await Promise.all(
 {
   collaboratorsWithImages.length > 0 && (
     <section
-      class="page-frame members-section"
+      class="page-frame members-section border-line border-b"
       aria-labelledby="members-collaborators-title"
     >
-      <div class="members-section__heading">
-        <span class="members-section__marker" aria-hidden="true" />
-        <h2 class="members-section__title" id="members-collaborators-title">
+      <div class="members-section__heading mb-8 flex items-center gap-2">
+        <span
+          class="members-section__marker bg-red h-6 w-2 shrink-0"
+          aria-hidden="true"
+        />
+        <h2
+          class="members-section__title font-display m-0 leading-none uppercase"
+          id="members-collaborators-title"
+        >
           {messages.members_collaborators_title({}, { locale })}
         </h2>
       </div>
-      <ul class="members-directory">
+      <ul class="members-directory m-0 grid max-w-none list-none grid-cols-1 gap-x-12 gap-y-0 p-0 md:grid-cols-2">
         {collaboratorsWithImages.map(({ entity, href, primaryLink, size }) => (
-          <li class="members-directory__entry">
+          <li class="members-directory__entry border-line grid min-h-0 items-start gap-4 border-b border-dashed py-5 first:pt-0 last:border-b-0">
             <img
-              class="members-directory__logo"
+              class="members-directory__logo max-h-14 w-full max-w-20 shrink-0 object-contain"
               src={href}
               alt={entity.logo.alt[locale]}
               {...(size === undefined
                 ? {}
                 : { width: size.width, height: size.height })}
             />
-            <div class="members-directory__content">
-              <h3 class="members-directory__name">{entity.name[locale]}</h3>
-              <p class="members-directory__benefit">
+            <div class="members-directory__content min-w-0">
+              <h3 class="members-directory__name font-display m-0 mb-2 uppercase">
+                {entity.name[locale]}
+              </h3>
+              <p class="members-directory__benefit text-red">
                 <strong>{entity.membershipBenefit!.title[locale]}</strong>
               </p>
               <div
-                class="members-directory__description"
+                class="members-directory__description text-muted leading-normal"
                 set:html={renderRestrictedMarkdown(
                   entity.membershipBenefit!.description[locale]!,
                 )}
               />
               {primaryLink && (
                 <ExternalLink
-                  className="members-directory__website"
+                  className="members-directory__website text-red mt-2 inline-flex max-w-full flex-wrap items-center text-xs font-bold uppercase no-underline wrap-anywhere hover:bg-transparent hover:text-ink"
                   href={primaryLink.url}
                   label={entity.name[locale]!}
                   analyticsArea={analyticsAreas.membersCollaborators}

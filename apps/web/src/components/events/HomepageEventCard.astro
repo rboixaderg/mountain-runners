@@ -39,28 +39,35 @@ const eventLinkAttributes = analyticsActionAttributes({
 });
 ---
 
-<article
-  class:list={[
-    "homepage-event border-line border-b",
-    featured && "homepage-event--featured",
-  ]}
->
+<article class="homepage-event border-line border-b">
   <a
     class="homepage-event__link grid text-inherit no-underline"
     href={href}
     {...eventLinkAttributes}
   >
     <div
-      class="homepage-event__date max-md:border-line grid place-items-center px-4 py-6 text-center max-md:row-span-2 max-md:border-r"
+      class:list={[
+        "homepage-event__date max-md:border-line grid place-items-center px-4 py-6 text-center max-md:row-span-2 max-md:border-r",
+        featured && "bg-red text-paper",
+      ]}
     >
       {
         edition ? (
-          <time datetime={edition.startDate}>
-            <span>{dateParts?.day}</span>
-            <small>{dateParts?.month}</small>
+          <time class="grid" datetime={edition.startDate}>
+            <span class="font-display font-bold">{dateParts?.day}</span>
+            <small
+              class:list={[
+                "font-display mt-2 font-bold uppercase",
+                featured ? "text-inherit" : "text-red",
+              ]}
+            >
+              {dateParts?.month}
+            </small>
           </time>
         ) : (
-          <span aria-hidden="true">--</span>
+          <span class="font-display text-line font-bold" aria-hidden="true">
+            --
+          </span>
         )
       }
     </div>
@@ -96,10 +103,10 @@ const eventLinkAttributes = analyticsActionAttributes({
       }
     </div>
     <div
-      class="homepage-event__aside md:border-line grid place-items-center px-6 py-4 max-md:justify-items-start max-md:px-[clamp(1.5rem,3vw,2.25rem)] max-md:pt-0 max-md:pb-[clamp(1.5rem,3vw,2.25rem)] md:border-l"
+      class="md:border-line grid place-items-center px-6 py-4 max-md:justify-items-start max-md:px-[clamp(1.5rem,3vw,2.25rem)] max-md:pt-0 max-md:pb-[clamp(1.5rem,3vw,2.25rem)] md:border-l"
     >
       <span
-        class="homepage-event__action font-display text-ink text-center text-xs font-bold tracking-[0.12em] uppercase underline decoration-[0.1rem] underline-offset-[0.3rem]"
+        class="homepage-event__action font-display text-ink text-center text-xs leading-normal font-bold tracking-[0.12em] uppercase underline decoration-[0.1rem] underline-offset-[0.3rem]"
       >
         {messages.homepage_event_action({}, { locale })}
       </span>

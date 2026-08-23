@@ -25,7 +25,7 @@ const {
 const usesResponsiveSource = imageLarge.src !== image.src;
 ---
 
-<figure slot="media" class:list={["page-hero__media", className]}>
+<figure slot="media" class:list={["page-hero__media m-0", className]}>
   <picture>
     {
       usesResponsiveSource && (
@@ -44,7 +44,9 @@ const usesResponsiveSource = imageLarge.src !== image.src;
   </picture>
   {
     attribution && (
-      <figcaption class="page-hero__attribution">{attribution}</figcaption>
+      <figcaption class="page-hero__attribution absolute right-3 bottom-3 m-0 bg-black/75 px-2 py-1 text-xs text-white">
+        {attribution}
+      </figcaption>
     )
   }
 </figure>

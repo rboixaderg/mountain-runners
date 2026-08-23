@@ -17,22 +17,30 @@ const collaboratorsAnchorAttributes = analyticsActionAttributes({
 });
 ---
 
-<section class="members-benefits" aria-labelledby="members-benefits-title">
-  <div class="page-frame members-benefits__inner">
-    <div class="members-section__heading">
-      <span class="members-section__marker" aria-hidden="true"></span>
-      <h2 class="members-section__title" id="members-benefits-title">
+<section
+  class="members-benefits bg-ink w-full max-w-none text-white"
+  aria-labelledby="members-benefits-title"
+>
+  <div class="page-frame members-benefits__inner grid">
+    <div class="members-section__heading mb-8 flex items-center gap-2">
+      <span
+        class="members-section__marker bg-red h-6 w-2 shrink-0"
+        aria-hidden="true"></span>
+      <h2
+        class="members-section__title font-display m-0 leading-none uppercase"
+        id="members-benefits-title"
+      >
         {messages.members_benefits_title({}, { locale })}
       </h2>
     </div>
 
-    <div class="members-benefits__layout">
-      <div class="members-benefits__copy">
-        <p class="members-benefits__intro">
+    <div class="members-benefits__layout grid items-center">
+      <div class="members-benefits__copy grid min-w-0">
+        <p class="members-benefits__intro m-0">
           {messages.members_benefits_intro({}, { locale })}
         </p>
         <a
-          class="members-benefits__collaborators-link"
+          class="members-benefits__collaborators-link font-display text-red-on-dark font-bold uppercase underline hover:text-white"
           href="#members-collaborators-title"
           {...collaboratorsAnchorAttributes}
         >
@@ -40,8 +48,9 @@ const collaboratorsAnchorAttributes = analyticsActionAttributes({
         </a>
       </div>
 
-      <figure class="members-benefits__photo">
+      <figure class="members-benefits__photo m-0 justify-self-center">
         <img
+          class="block w-full"
           src={socisServeis.src}
           width={socisServeis.width}
           height={socisServeis.height}

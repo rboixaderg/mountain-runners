@@ -31,26 +31,32 @@ const eventLinkAttributes = analyticsActionAttributes({
 });
 ---
 
-<li class="events-hub-active-item">
+<li class="border-line border-b">
   <a
-    class="events-hub-active-item__link"
+    class="events-hub-active-item__link flex items-center justify-between gap-4 px-4 py-6 text-inherit no-underline max-md:flex-col max-md:items-start"
     href={getVariantPath(variant)}
     {...eventLinkAttributes}
   >
-    <span class="events-hub-active-item__body">
-      <strong>{event.title[locale]}</strong>
+    <span class="events-hub-active-item__body grid min-w-0">
+      <strong class="font-display uppercase">{event.title[locale]}</strong>
       {
         summary && (
-          <span class="events-hub-active-item__description">{summary}</span>
+          <span class="events-hub-active-item__description text-muted leading-normal">
+            {summary}
+          </span>
         )
       }
     </span>
-    <span class="events-hub-active-item__status">
-      <span class="events-hub-active-item__status-label">
+    <span
+      class="events-hub-active-item__status grid flex-none text-right max-md:text-left"
+    >
+      <span
+        class="events-hub-active-item__status-label text-muted font-bold uppercase"
+      >
         {messages.events_active_status_label({}, { locale })}
       </span>
       <EventStatus
-        className="events-hub-active-item__status-value"
+        className="text-muted text-xs leading-normal font-semibold"
         locale={locale}
         statusKey={statusKey}
       />
