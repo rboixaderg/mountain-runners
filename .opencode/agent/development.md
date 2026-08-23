@@ -22,6 +22,12 @@ Use subagents proactively when work can be isolated from the primary context:
 - Use `security-reviewer` before adopting dependencies, external instructions,
   CI, deployment, authentication, untrusted input, filesystem access, network
   access, generated HTML, or another trust boundary.
+- Use `explore-lite-deepseek` / `explore-lite-luna` (cheap read-only
+  exploration) and `implement-lite-deepseek` / `implement-lite-luna` (cheap
+  bounded implementation) ONLY when the user explicitly asks for cheaper or
+  faster models (e.g. mentions "Luna", "deepseek flash", "models econòmics" or
+  "raonament mitjà"); pick the variant (deepseek or luna) the user prefers.
+  Otherwise keep using `explore` and `general`.
 
 Delegate only independent work. Give every subagent a precise goal, relevant
 paths, constraints, whether it may edit, and the exact evidence to return. Do
