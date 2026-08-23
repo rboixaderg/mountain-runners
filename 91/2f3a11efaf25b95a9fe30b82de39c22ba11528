@@ -1,0 +1,25 @@
+.opencode/agent/explore-lite-deepseek.md
+  s_390195c8615fc6::t_14cde0f57cff14 1-12
+.opencode/agent/explore-lite-luna.md
+  s_390195c8615fc6::t_f021364db85809 1-12
+.opencode/agent/implement-lite-deepseek.md
+  s_390195c8615fc6::t_eb9aadb168d5fa 1-13
+.opencode/agent/implement-lite-luna.md
+  s_390195c8615fc6::t_18a9b2e4b78c7e 1-13
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "912f3a11efaf25b95a9fe30b82de39c22ba11528",
+  "prompts": {},
+  "sessions": {
+    "s_390195c8615fc6": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_fcfeee15dffeFCSg4I56V9Fr0a",
+        "model": "deepseek-v4-flash"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
