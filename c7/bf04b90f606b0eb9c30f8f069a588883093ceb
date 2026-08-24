@@ -1,0 +1,35 @@
+apps/web/src/lib/content/markdown.ts
+  s_11947d5b07e631::t_02da492881f041 192-230
+apps/web/src/pages/404.astro
+  s_11947d5b07e631::t_985f9d639c61fa 35-41
+apps/web/src/pages/llms.txt.ts
+  s_11947d5b07e631::t_dd0756313fe489 1-77
+apps/web/src/test/content-markdown.test.ts
+  s_11947d5b07e631::t_58c8f4a50bfff1 4,102-117
+apps/web/src/test/seo.test.ts
+  s_36da54c8c93690::t_fe8400e127a524 159-195,229-258
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "c7bf04b90f606b0eb9c30f8f069a588883093ceb",
+  "prompts": {},
+  "sessions": {
+    "s_11947d5b07e631": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_fcd748cb7ffe9dtqRjlMuZXXDB",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    },
+    "s_36da54c8c93690": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_fcd680d87ffe8CGgtX3Tzkb2BK",
+        "model": "gpt-5.6-luna"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
