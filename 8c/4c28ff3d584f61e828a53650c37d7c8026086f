@@ -1,0 +1,19 @@
+apps/web/src/pages/llms.txt.ts
+  s_11947d5b07e631::t_1c3fa64ad90631 7-8,10,12,15-19,24,26,30,55,57,59-63,65,67,71,73-74
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "8c4c28ff3d584f61e828a53650c37d7c8026086f",
+  "prompts": {},
+  "sessions": {
+    "s_11947d5b07e631": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_fcd748cb7ffe9dtqRjlMuZXXDB",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
