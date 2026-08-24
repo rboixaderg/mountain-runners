@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   markdownLimits,
+  markdownToPlainText,
   parseRestrictedMarkdown,
   renderRestrictedMarkdown,
 } from "../lib/content/markdown";
@@ -96,5 +97,21 @@ describe("restricted Markdown", () => {
     expect(() =>
       parseRestrictedMarkdown("-\r".repeat(markdownLimits.maxLines)),
     ).toThrow(/lines/u);
+  });
+});
+
+describe("markdownToPlainText", () => {
+  it("keeps only the textual content, dropping markup", () => {
+    expect(
+      markdownToPlainText(
+        "Text with **strength**, *emphasis* and [a link](https://example.com).",
+      ),
+    ).toBe("Text with strength, emphasis and a link.");
+  });
+
+  it("joins paragraphs and lists into a single plain-text value", () => {
+    expect(markdownToPlainText("Primer paràgraf.\n\n- Un\n- Dos")).toBe(
+      "Primer paràgraf. Un; Dos",
+    );
   });
 });
