@@ -2,12 +2,12 @@
 
 @theme {
   --color-red: #d71920;
-  --color-red-on-dark: #ff7378;
   --color-ink: #111111;
   --color-paper: #fafaf8;
   --color-stone: #f1f1ee;
   --color-line: #d7d7d2;
   --color-muted: #5d5d58;
+  --color-red-on-dark: #ff7378;
   --font-body: "Inter", Arial, Helvetica, sans-serif;
   --font-display: "Oswald", Impact, "Arial Narrow Bold", sans-serif;
 }
@@ -20,8 +20,6 @@
   --space-2: 0.5rem;
   --space-3: 0.75rem;
   --space-4: 1rem;
-  --space-6: 1.5rem;
-  --space-8: 2rem;
   --space-12: 3rem;
 }
 
@@ -94,6 +92,10 @@
 @utility page-frame {
   width: min(calc(100% - 2 * var(--page-gutter)), var(--page-width));
   margin-inline: auto;
+}
+
+@utility py-section {
+  padding-block: var(--section-space);
 }
 
 .skip-link {

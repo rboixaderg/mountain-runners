@@ -28,7 +28,6 @@
 .schools-detail__external-link {
   gap: 0.35rem;
   letter-spacing: 0.06em;
-  overflow-wrap: anywhere;
 }
 
 .schools-detail__registration .schools-detail__external-link {

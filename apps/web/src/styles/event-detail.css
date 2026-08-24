@@ -195,11 +195,6 @@
   padding-block-end: var(--section-space);
 }
 
-.events-detail__content > .events-detail__history:first-child,
-.events-detail__content > .events-detail__entities:first-child {
-  margin-top: 0;
-}
-
 .events-detail__resources h2,
 .events-detail__history h2,
 .events-detail__entities h2 {
@@ -213,6 +208,10 @@
 .events-detail__history,
 .events-detail__entities {
   max-width: 46rem;
+}
+
+.events-detail__history:not(:first-child),
+.events-detail__entities:not(:first-child) {
   margin-top: clamp(2rem, 4vw, 3rem);
 }
 

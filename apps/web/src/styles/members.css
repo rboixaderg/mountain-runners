@@ -1,17 +1,3 @@
-.members-section {
-  padding-block: var(--section-space);
-}
-
-.members-section__title {
-  font-size: clamp(1.8rem, 4vw, 3rem);
-  letter-spacing: 0.06em;
-}
-
-.members-section__body {
-  max-width: var(--reading-width);
-  line-height: 1.6;
-}
-
 .members-action-card--signup {
   border-left: 0.35rem solid var(--color-red);
 }
@@ -26,14 +12,7 @@
   );
 }
 
-.members-action-card--federation .members-section__body {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  justify-content: flex-end;
-}
-
-.members-action-card .members-section__body {
+.members-action-card .page-section__body {
   max-width: 40rem;
 }
 
@@ -47,19 +26,12 @@
 }
 
 .members-action__link--federation {
-  margin-top: 0;
-  border-color: var(--color-red);
   padding: 0.9rem 1.35rem;
-  background: var(--color-red);
   box-shadow: 0.35rem 0.35rem 0 var(--color-ink);
-  color: white;
 }
 
 .members-action__link--federation:hover {
-  border-color: var(--color-ink);
-  background: var(--color-ink);
   box-shadow: 0.35rem 0.35rem 0 var(--color-red);
-  color: white;
 }
 
 .members-video {
@@ -75,7 +47,6 @@
 }
 
 .members-benefits {
-  padding-block: var(--section-space);
   padding-inline: max(var(--page-gutter), calc((100% - var(--page-width)) / 2));
 }
 
@@ -111,12 +82,6 @@
   letter-spacing: 0.06em;
   text-decoration-thickness: 0.1rem;
   text-underline-offset: 0.2rem;
-}
-
-.members-detail > [aria-labelledby="members-collaborators-title"] {
-  width: min(calc(100% - 2 * var(--page-gutter)), var(--page-width));
-  margin-inline: auto;
-  padding-block: var(--section-space);
 }
 
 .members-directory__entry {

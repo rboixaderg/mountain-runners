@@ -12,15 +12,13 @@ const { locale } = Astro.props;
 ---
 
 <section
-  class="page-frame about-section border-line border-b"
+  class="page-frame page-section py-section border-line border-b"
   aria-labelledby="about-history-title"
 >
-  <div class="about-section__heading mb-8 flex items-center gap-2">
-    <span
-      class="about-section__marker bg-red h-6 w-2 shrink-0"
-      aria-hidden="true"></span>
+  <div class="mb-8 flex items-center gap-2">
+    <span class="bg-red h-6 w-2 shrink-0" aria-hidden="true"></span>
     <h2
-      class="about-section__title font-display m-0 leading-none uppercase"
+      class="page-section__title font-display m-0 leading-none uppercase"
       id="about-history-title"
     >
       {messages.about_history_title({}, { locale })}
@@ -29,12 +27,12 @@ const { locale } = Astro.props;
 
   <div class="about-history__grid grid items-start">
     <div
-      class="about-section__body text-base"
+      class="page-section__body text-base"
       set:html={renderRestrictedMarkdown(
         messages.about_history({}, { locale }),
       )}
     />
-    <figure class="about-history__photo m-0">
+    <figure class="m-0 w-full max-w-3xs">
       <img
         class="border-ink block max-h-80 w-full border-2 object-cover object-center"
         src={aboutHistory.src}

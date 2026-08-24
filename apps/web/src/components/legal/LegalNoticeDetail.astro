@@ -5,7 +5,7 @@ import * as messages from "../../paraglide/messages.js";
 import { renderRestrictedMarkdown } from "../../lib/content/markdown";
 import type { PublicationCatalog } from "../../lib/content/publication";
 import type { Locale } from "../../lib/content/primitives";
-import "../../styles/legal-data.css";
+import "../../styles/contact-data.css";
 import ContactDataList from "../ContactDataList.astro";
 import PageIntro from "../PageIntro.astro";
 import PageSection from "../PageSection.astro";
@@ -82,8 +82,8 @@ const contact = catalog.contact;
     id="legal-notice-entity"
     title={messages.legal_notice_entity_title({}, { locale })}
   >
-    <dl class="legal-data m-0 grid gap-3">
-      <div class="legal-data__row grid gap-3">
+    <dl class="contact-data m-0 grid gap-3">
+      <div class="contact-data__row grid gap-3">
         <dt class="text-muted text-xs leading-normal font-bold uppercase">
           {messages.legal_notice_entity_name_label({}, { locale })}
         </dt>
@@ -91,7 +91,7 @@ const contact = catalog.contact;
           {messages.legal_notice_entity_name({}, { locale })}
         </dd>
       </div>
-      <div class="legal-data__row grid gap-3">
+      <div class="contact-data__row grid gap-3">
         <dt class="text-muted text-xs leading-normal font-bold uppercase">
           {messages.legal_notice_entity_type_label({}, { locale })}
         </dt>
@@ -99,7 +99,7 @@ const contact = catalog.contact;
           {messages.legal_notice_entity_type({}, { locale })}
         </dd>
       </div>
-      <div class="legal-data__row grid gap-3">
+      <div class="contact-data__row grid gap-3">
         <dt class="text-muted text-xs leading-normal font-bold uppercase">
           {messages.legal_notice_entity_register_label({}, { locale })}
         </dt>
@@ -107,7 +107,7 @@ const contact = catalog.contact;
           {messages.legal_notice_entity_register({}, { locale })}
         </dd>
       </div>
-      <div class="legal-data__row grid gap-3">
+      <div class="contact-data__row grid gap-3">
         <dt class="text-muted text-xs leading-normal font-bold uppercase">
           {messages.legal_notice_entity_census_label({}, { locale })}
         </dt>

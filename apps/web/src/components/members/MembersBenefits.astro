@@ -18,16 +18,14 @@ const collaboratorsAnchorAttributes = analyticsActionAttributes({
 ---
 
 <section
-  class="members-benefits bg-ink w-full max-w-none text-white"
+  class="members-benefits bg-ink py-section w-full max-w-none text-white"
   aria-labelledby="members-benefits-title"
 >
   <div class="page-frame members-benefits__inner grid">
-    <div class="members-section__heading mb-8 flex items-center gap-2">
-      <span
-        class="members-section__marker bg-red h-6 w-2 shrink-0"
-        aria-hidden="true"></span>
+    <div class="mb-8 flex items-center gap-2">
+      <span class="bg-red h-6 w-2 shrink-0" aria-hidden="true"></span>
       <h2
-        class="members-section__title font-display m-0 leading-none uppercase"
+        class="page-section__title font-display m-0 leading-none uppercase"
         id="members-benefits-title"
       >
         {messages.members_benefits_title({}, { locale })}

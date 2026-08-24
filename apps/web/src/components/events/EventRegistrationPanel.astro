@@ -31,9 +31,8 @@ const showPanel = edition !== undefined;
     >
       <div
         class:list={[
-          "events-detail__actions-grid grid grid-cols-1 gap-5",
-          !hasInformationLink &&
-            "events-detail__actions-grid--single mx-auto max-w-xl",
+          "grid grid-cols-1 gap-5",
+          !hasInformationLink && "mx-auto max-w-xl",
           hasInformationLink && "md:grid-cols-2",
         ]}
       >

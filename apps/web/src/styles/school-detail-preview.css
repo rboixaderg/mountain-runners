@@ -120,20 +120,20 @@
   background: var(--color-red);
 }
 
-.schools-detail-preview__practical {
+.schools-detail-preview__practical,
+.schools-detail-preview__gallery,
+.schools-detail-preview__video {
   padding-block: clamp(2.5rem, 5vw, 4rem);
-  scroll-margin-top: 5rem;
 }
 
-.schools-detail-preview__practical-layout {
+.schools-detail-preview__practical-layout,
+.schools-detail-preview__practical-grid {
   gap: clamp(1rem, 2vw, 1.25rem);
 }
 
-.schools-detail-preview__practical-layout > * {
-  min-width: 0;
-}
-
-.schools-detail-preview__practical-header {
+.schools-detail-preview__practical-header,
+.schools-detail-preview__gallery-heading,
+.schools-detail-preview__video-heading {
   margin-bottom: clamp(1.5rem, 3vw, 2rem);
 }
 
@@ -148,11 +148,8 @@
   line-height: 1.6;
 }
 
-.schools-detail-preview__practical-grid {
-  gap: clamp(1rem, 2vw, 1.25rem);
-}
-
-.schools-detail-preview__practical-card {
+.schools-detail-preview__practical-card,
+.schools-detail-preview__prices {
   padding: clamp(1.5rem, 3vw, 2rem);
   box-shadow: 0.5rem 0.5rem 0 var(--color-red);
 }
@@ -165,11 +162,6 @@
   font-size: clamp(1rem, 2vw, 1.15rem);
   letter-spacing: 0.06em;
   line-height: 1.2;
-}
-
-.schools-detail-preview__prices {
-  padding: clamp(1.5rem, 3vw, 2rem);
-  box-shadow: 0.5rem 0.5rem 0 var(--color-red);
 }
 
 .schools-detail-preview__prices-header {
@@ -223,7 +215,6 @@
   flex: 1 1 12rem;
   font-size: 1.05rem;
   line-height: 1.35;
-  overflow-wrap: anywhere;
 }
 
 .schools-detail-preview__prices-footnote {
@@ -262,19 +253,6 @@
   pointer-events: none;
 }
 
-.schools-detail-preview__gallery {
-  padding-block: clamp(2.5rem, 5vw, 4rem);
-}
-
-.schools-detail-preview__video {
-  padding-block: clamp(2.5rem, 5vw, 4rem);
-}
-
-.schools-detail-preview__gallery-heading,
-.schools-detail-preview__video-heading {
-  margin-bottom: clamp(1.5rem, 3vw, 2rem);
-}
-
 .schools-detail-preview__gallery-heading h2,
 .schools-detail-preview__video-heading h2 {
   font-size: clamp(1.75rem, 3.5vw, 2.5rem);
@@ -287,10 +265,6 @@
 
 .schools-detail-preview__gallery-item figure {
   padding: 0.35rem;
-}
-
-.schools-detail-preview__gallery-item img {
-  aspect-ratio: 4 / 3;
 }
 
 .schools-detail-preview__gallery-item figcaption {

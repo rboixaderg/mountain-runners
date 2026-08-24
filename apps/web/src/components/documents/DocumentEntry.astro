@@ -36,8 +36,8 @@ const documentAttributes = analyticsActionAttributes({
 });
 ---
 
-<li class="documents-entry">
-  <p class="documents-entry__title m-0 mb-2 font-bold">
+<li>
+  <p class="m-0 mb-2 font-bold">
     {
       documentHref !== undefined ? (
         document.resource.kind === "external" ? (
@@ -65,9 +65,7 @@ const documentAttributes = analyticsActionAttributes({
       )
     }
   </p>
-  <p
-    class="documents-entry__description text-muted m-0 mb-2 text-sm leading-normal"
-  >
+  <p class="text-muted m-0 mb-2 text-sm leading-normal">
     {document.description[locale]}
   </p>
   {

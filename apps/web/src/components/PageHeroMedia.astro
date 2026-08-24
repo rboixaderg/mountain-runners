@@ -25,15 +25,24 @@ const {
 const usesResponsiveSource = imageLarge.src !== image.src;
 ---
 
-<figure slot="media" class:list={["page-hero__media m-0", className]}>
-  <picture>
+<figure
+  slot="media"
+  class:list={[
+    "absolute inset-0 z-0 m-0 block h-full w-full max-w-none",
+    className,
+  ]}
+>
+  <picture class="block h-full w-full">
     {
       usesResponsiveSource && (
         <source media={largeViewportQuery} srcset={imageLarge.src} />
       )
     }
     <img
-      class:list={["page-hero__image", imageClassName]}
+      class:list={[
+        "h-full w-full object-cover opacity-25 mix-blend-multiply",
+        imageClassName,
+      ]}
       src={image.src}
       width={image.width}
       height={image.height}

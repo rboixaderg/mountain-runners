@@ -34,10 +34,8 @@ const calendar = buildCalendarMonthGrid(
   aria-labelledby="events-calendar-title"
   data-events-calendar
 >
-  <div class="events-hub-section__heading mb-7 flex items-center gap-2">
-    <span
-      class="events-hub-section__marker bg-red h-6 w-2 shrink-0"
-      aria-hidden="true"></span>
+  <div class="mb-7 flex items-center gap-2">
+    <span class="bg-red h-6 w-2 shrink-0" aria-hidden="true"></span>
     <h2
       id="events-calendar-title"
       class="events-hub-section__title font-display m-0 leading-none uppercase"
@@ -46,8 +44,8 @@ const calendar = buildCalendarMonthGrid(
     </h2>
   </div>
 
-  <div class="events-calendar__panel border-line bg-paper border">
-    <table class="events-calendar__table w-full table-fixed border-collapse">
+  <div class="border-line bg-paper border">
+    <table class="w-full table-fixed border-collapse">
       <caption
         class="events-calendar__caption border-line font-display caption-top border-b px-6 py-5 text-left font-bold capitalize"
       >

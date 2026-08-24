@@ -19,11 +19,11 @@ const { locale, variant } = Astro.props;
 const school = variant.entry;
 ---
 
-<div class="schools-detail pb-0">
+<div class="pb-0">
   <SchoolPreviewHero locale={locale} school={school} />
   <SchoolPreviewAbout locale={locale} school={school} />
   <SchoolPreviewPracticalInfo locale={locale} school={school} />
-  <div class="schools-detail-preview__registration">
+  <div>
     <SchoolRegistration locale={locale} school={school} />
   </div>
   <SchoolGallery locale={locale} school={school} />

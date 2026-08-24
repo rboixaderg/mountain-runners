@@ -27,11 +27,9 @@ const registrationLabel = messages[registration.key]({}, { locale });
   aria-labelledby="school-registration-title"
 >
   <div
-    class="schools-detail__section-heading mb-3 flex w-full max-w-3xl min-w-0 items-center justify-center gap-2"
+    class="mb-3 flex w-full max-w-3xl min-w-0 items-center justify-center gap-2"
   >
-    <span
-      class="schools-detail__section-marker bg-red h-6 w-2 flex-none"
-      aria-hidden="true"></span>
+    <span class="bg-red h-6 w-2 flex-none" aria-hidden="true"></span>
     <h2
       class="font-display m-0 leading-none text-white uppercase italic"
       id="school-registration-title"
@@ -50,7 +48,7 @@ const registrationLabel = messages[registration.key]({}, { locale });
   {
     registration.url && (
       <ExternalLink
-        className="schools-detail__external-link border-red bg-red inline-flex w-full max-w-3xl min-w-0 flex-wrap items-center justify-center border-2 text-xs leading-normal font-bold text-white uppercase"
+        className="schools-detail__external-link border-red bg-red inline-flex w-full max-w-3xl min-w-0 flex-wrap items-center justify-center wrap-anywhere border-2 text-xs leading-normal font-bold text-white uppercase"
         href={registration.url}
         label={messages.school_registration_action({}, { locale })}
         showHost={false}

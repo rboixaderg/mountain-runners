@@ -37,13 +37,11 @@
 }
 
 .schools-hub-list {
-  width: min(calc(100% - 2 * var(--page-gutter)), var(--page-width));
   gap: clamp(1.25rem, 3vw, 2rem);
   padding-block: clamp(2rem, 4vw, 3rem) clamp(3rem, 6vw, 5rem);
 }
 
 .schools-hub-item__link {
-  min-height: 22rem;
   grid-template-rows: minmax(14rem, 20rem) minmax(0, 1fr);
 }
 
@@ -93,14 +91,6 @@
 
 .schools-hub-item__link:hover .schools-hub-item__body {
   background: rgb(215 25 32 / 0.04);
-}
-
-.schools-hub-item__link:hover .schools-hub-item__action {
-  color: var(--color-ink);
-}
-
-.schools-hub-separator {
-  width: min(calc(100% - 2 * var(--page-gutter)), var(--page-width));
 }
 
 .schools-hub-separator b {

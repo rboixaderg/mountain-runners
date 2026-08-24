@@ -15,15 +15,13 @@ const boardMembers = parseBoardMembers(
 ---
 
 <section
-  class="page-frame about-section about-section--dark border-line bg-ink max-w-none border-b text-white"
+  class="page-frame page-section py-section about-section--dark border-line bg-ink max-w-none border-b text-white"
   aria-labelledby="about-board-title"
 >
-  <div class="about-section__heading mb-8 flex items-center gap-2">
-    <span
-      class="about-section__marker bg-red h-6 w-2 shrink-0"
-      aria-hidden="true"></span>
+  <div class="mb-8 flex items-center gap-2">
+    <span class="bg-red h-6 w-2 shrink-0" aria-hidden="true"></span>
     <h2
-      class="about-section__title font-display m-0 leading-none uppercase"
+      class="page-section__title font-display m-0 leading-none uppercase"
       id="about-board-title"
     >
       {messages.about_board_title({}, { locale })}
@@ -31,9 +29,9 @@ const boardMembers = parseBoardMembers(
   </div>
 
   <div class="about-board__layout grid items-start">
-    <figure class="about-board__photo m-0">
+    <figure class="about-board__photo m-0 w-full max-w-3xs">
       <img
-        class="block w-full"
+        class="block w-full border-2 border-white/35"
         src={boardPhoto.src}
         width={boardPhoto.width}
         height={boardPhoto.height}
@@ -46,11 +44,11 @@ const boardMembers = parseBoardMembers(
     <ul class="about-board__list m-0 grid list-none gap-0 p-0">
       {
         boardMembers.map((member) => (
-          <li class="about-board__member flex items-center justify-between gap-4">
+          <li class="about-board__member flex items-center justify-between gap-4 max-md:flex-col max-md:items-start">
             <span class="about-board__member-name font-display font-bold uppercase">
               {member.name}
             </span>
-            <span class="about-board__member-role grid shrink-0 text-right">
+            <span class="about-board__member-role grid shrink-0 text-right max-md:text-left">
               <span class="about-board__role-label font-bold tracking-widest uppercase">
                 {messages.about_board_role_label({}, { locale })}
               </span>

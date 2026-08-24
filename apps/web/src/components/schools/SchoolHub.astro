@@ -78,10 +78,8 @@ const valueItems = [
   class="page-frame schools-hub-programs"
   aria-labelledby="schools-programs-title"
 >
-  <div class="schools-hub-programs__heading mb-5 flex items-center gap-2">
-    <span
-      class="schools-hub-programs__marker bg-red h-6 w-2 flex-none"
-      aria-hidden="true"></span>
+  <div class="mb-5 flex items-center gap-2">
+    <span class="bg-red h-6 w-2 flex-none" aria-hidden="true"></span>
     <h2
       class="schools-hub-programs__title font-display m-0 uppercase"
       id="schools-programs-title"
@@ -95,7 +93,7 @@ const valueItems = [
 </section>
 
 <ul
-  class="schools-hub-list mx-auto grid list-none grid-cols-1 px-0 md:grid-cols-3"
+  class="page-frame schools-hub-list grid list-none grid-cols-1 px-0 md:grid-cols-3"
 >
   {
     schoolsWithCovers.map(({ coverHref, coverSize, variant }) => {
@@ -105,9 +103,9 @@ const valueItems = [
         undefined,
       ).key;
       return (
-        <li class="schools-hub-item border-ink flex flex-col overflow-hidden border-2 bg-white">
+        <li class="border-ink flex flex-col overflow-hidden border-2 bg-white">
           <a
-            class="schools-hub-item__link text-ink grid h-full p-0 no-underline"
+            class="group schools-hub-item__link text-ink grid h-full min-h-88 p-0 no-underline"
             href={getVariantPath(variant)}
             {...analyticsActionAttributes({
               action: analyticsActions.navigate,
@@ -134,7 +132,7 @@ const valueItems = [
               <span class="schools-hub-item__summary text-muted min-h-0">
                 {school.summary[locale]}
               </span>
-              <span class="schools-hub-item__action text-red mt-auto pt-2 font-bold uppercase underline decoration-2">
+              <span class="schools-hub-item__action text-red group-hover:text-ink mt-auto pt-2 font-bold uppercase underline decoration-2">
                 {messages.school_more_information({}, { locale })}{" "}
                 <span aria-hidden="true">→</span>
               </span>
@@ -147,7 +145,7 @@ const valueItems = [
 </ul>
 
 <div
-  class="schools-hub-separator text-red mx-auto flex items-center justify-center gap-4 px-6 py-8"
+  class="page-frame schools-hub-separator text-red flex items-center justify-center gap-4 px-6 py-8"
   aria-hidden="true"
 >
   <span class="bg-line h-px w-1/4"></span>

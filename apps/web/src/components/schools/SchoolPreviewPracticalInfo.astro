@@ -52,7 +52,7 @@ const hasPracticalContent =
 {
   hasPracticalContent && (
     <section
-      class="schools-detail-preview__practical border-ink bg-stone relative z-0 border-y-2"
+      class="schools-detail-preview__practical border-ink bg-stone relative z-0 scroll-mt-20 border-y-2"
       aria-labelledby="school-preview-practical-title"
     >
       <div class="page-frame schools-detail-preview__practical-header">
@@ -69,7 +69,7 @@ const hasPracticalContent =
 
       <div class="page-frame schools-detail-preview__practical-layout grid min-w-0">
         {essentialSections.length > 0 && (
-          <ul class="schools-detail-preview__practical-grid schools-detail-preview__practical-grid--essentials m-0 grid list-none grid-cols-1 p-0 md:grid-cols-3">
+          <ul class="schools-detail-preview__practical-grid m-0 grid min-w-0 list-none grid-cols-1 p-0 md:grid-cols-3">
             {essentialSections.map((sectionKey) => {
               const parsedSection = parseSchoolPracticalSection(
                 sectionContent(sectionKey)!,
@@ -92,14 +92,13 @@ const hasPracticalContent =
                 <li
                   class:list={[
                     "schools-detail-preview__practical-card",
-                    isDetailedSchedule &&
-                      "schools-detail-preview__practical-card--schedule-detailed md:col-span-full",
+                    isDetailedSchedule && "md:col-span-full",
                     "border-ink relative flex h-full min-w-0 flex-col items-start overflow-hidden border-2 bg-white",
                   ]}
                 >
-                  <div class="schools-detail-preview__practical-card-top mb-4 flex flex-col items-start gap-5">
+                  <div class="mb-4 flex flex-col items-start gap-5">
                     <div
-                      class="schools-detail-preview__practical-icon bg-ink inline-flex p-3 text-white"
+                      class="bg-ink inline-flex p-3 text-white"
                       aria-hidden="true"
                     >
                       <SchoolPracticalIcon sectionKey={sectionKey} />
@@ -111,7 +110,7 @@ const hasPracticalContent =
                       )}
                     </h3>
                   </div>
-                  <div class="schools-detail-preview__practical-card-content w-full flex-1">
+                  <div class="w-full flex-1">
                     {sectionKey === "schedule" && scheduleParts ? (
                       <>
                         {parsedSection.label && (
@@ -119,7 +118,7 @@ const hasPracticalContent =
                             {parsedSection.label}
                           </p>
                         )}
-                        <p class="schools-detail-preview__practical-card-primary text-ink m-0 text-base leading-normal font-semibold">
+                        <p class="text-ink m-0 text-base leading-normal font-semibold">
                           {scheduleParts.days}
                         </p>
                         {scheduleParts.time && (
@@ -142,7 +141,7 @@ const hasPracticalContent =
                       />
                     ) : sectionKey === "location" && locationParts ? (
                       <>
-                        <p class="schools-detail-preview__practical-card-primary text-ink m-0 text-base leading-normal font-semibold">
+                        <p class="text-ink m-0 text-base leading-normal font-semibold">
                           {locationParts.primary}
                         </p>
                         {locationParts.secondary && (
@@ -186,7 +185,7 @@ const hasPracticalContent =
         )}
 
         {contextSections.length > 0 && (
-          <ul class="schools-detail-preview__practical-grid schools-detail-preview__practical-grid--context m-0 grid list-none grid-cols-1 p-0 md:grid-cols-2">
+          <ul class="schools-detail-preview__practical-grid m-0 grid min-w-0 list-none grid-cols-1 p-0 md:grid-cols-2">
             {contextSections.map((sectionKey) => {
               const parsedSection = parseSchoolPracticalSection(
                 sectionContent(sectionKey)!,
@@ -200,9 +199,9 @@ const hasPracticalContent =
                     "border-ink relative flex h-full min-w-0 flex-col items-start overflow-hidden border-2 bg-white",
                   ]}
                 >
-                  <div class="schools-detail-preview__practical-card-top mb-4 flex flex-col items-start gap-5">
+                  <div class="mb-4 flex flex-col items-start gap-5">
                     <div
-                      class="schools-detail-preview__practical-icon bg-ink inline-flex p-3 text-white"
+                      class="bg-ink inline-flex p-3 text-white"
                       aria-hidden="true"
                     >
                       <SchoolPracticalIcon sectionKey={sectionKey} />
@@ -214,9 +213,9 @@ const hasPracticalContent =
                       )}
                     </h3>
                   </div>
-                  <div class="schools-detail-preview__practical-card-content w-full flex-1">
+                  <div class="w-full flex-1">
                     {parsedSection.lead && (
-                      <p class="schools-detail-preview__practical-card-primary text-ink m-0 text-base leading-normal font-semibold">
+                      <p class="text-ink m-0 text-base leading-normal font-semibold">
                         {parsedSection.lead}
                       </p>
                     )}

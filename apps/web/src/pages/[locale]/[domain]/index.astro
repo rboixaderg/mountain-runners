@@ -172,11 +172,8 @@ const socialImage =
                 class:list={["page-frame", "events-hub-section"]}
                 aria-labelledby={section.id}
               >
-                <div class="events-hub-section__heading mb-7 flex items-center gap-2">
-                  <span
-                    class="events-hub-section__marker bg-ink h-6 w-2 shrink-0"
-                    aria-hidden="true"
-                  />
+                <div class="mb-7 flex items-center gap-2">
+                  <span class="bg-ink h-6 w-2 shrink-0" aria-hidden="true" />
                   <h2
                     id={section.id}
                     class="events-hub-section__title font-display text-muted m-0 leading-none uppercase"
@@ -196,10 +193,10 @@ const socialImage =
               class:list={["page-frame", "events-hub-section"]}
               aria-labelledby={section.id}
             >
-              <div class="events-hub-section__heading mb-7 flex items-center gap-2">
+              <div class="mb-7 flex items-center gap-2">
                 <span
                   class:list={[
-                    "events-hub-section__marker h-6 w-2 shrink-0",
+                    "h-6 w-2 shrink-0",
                     section.group === "active-without-date"
                       ? "bg-line"
                       : "bg-red",
@@ -215,7 +212,7 @@ const socialImage =
               </div>
 
               {section.group === "upcoming" ? (
-                <div class="homepage-events border-line grid border-t">
+                <div class="border-line grid border-t">
                   {events.map((event, index) => (
                     <HomepageEventCard
                       analyticsArea={analyticsAreas.eventsHub}

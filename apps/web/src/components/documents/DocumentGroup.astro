@@ -17,13 +17,11 @@ const title = messages[documentTypeMessageKeys[documentType]]({}, { locale });
 ---
 
 <section
-  class="page-frame page-section border-line border-b"
+  class="page-frame page-section py-section border-line border-b"
   aria-labelledby={`documents-${documentType}-title`}
 >
-  <div class="page-section__heading mb-8 flex items-center gap-2">
-    <span
-      class="page-section__marker bg-red h-6 w-2 shrink-0"
-      aria-hidden="true"></span>
+  <div class="mb-8 flex items-center gap-2">
+    <span class="bg-red h-6 w-2 shrink-0" aria-hidden="true"></span>
     <h2
       class="page-section__title font-display m-0 leading-none uppercase"
       id={`documents-${documentType}-title`}

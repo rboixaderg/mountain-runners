@@ -33,10 +33,7 @@ const hasModalities = modalities.length > 0;
         <dl class="m-0 grid grid-cols-1 gap-4 md:grid-cols-3">
           <div class="border-red flex min-h-36 flex-col border-l-4 p-6">
             <dt class="font-display mb-2 flex items-center gap-3 font-bold text-white uppercase">
-              <span
-                class="events-detail__practical-icon text-red flex shrink-0"
-                aria-hidden="true"
-              >
+              <span class="text-red flex shrink-0" aria-hidden="true">
                 <EventPracticalIcon field="dates" />
               </span>
               {messages.event_dates_label({}, { locale })}
@@ -51,10 +48,7 @@ const hasModalities = modalities.length > 0;
           </div>
           <div class="border-red flex min-h-36 flex-col border-l-4 p-6">
             <dt class="font-display mb-2 flex items-center gap-3 font-bold text-white uppercase">
-              <span
-                class="events-detail__practical-icon text-red flex shrink-0"
-                aria-hidden="true"
-              >
+              <span class="text-red flex shrink-0" aria-hidden="true">
                 <EventPracticalIcon field="location" />
               </span>
               {messages.event_location_label({}, { locale })}
@@ -66,10 +60,7 @@ const hasModalities = modalities.length > 0;
           {hasModalities && (
             <div class="border-red flex min-h-36 flex-col border-l-4 p-6">
               <dt class="font-display mb-2 flex items-center gap-3 font-bold text-white uppercase">
-                <span
-                  class="events-detail__practical-icon text-red flex shrink-0"
-                  aria-hidden="true"
-                >
+                <span class="text-red flex shrink-0" aria-hidden="true">
                   <EventPracticalIcon field="modalities" />
                 </span>
                 {messages.event_modalities_label({}, { locale })}

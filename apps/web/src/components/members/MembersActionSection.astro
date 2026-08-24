@@ -52,18 +52,21 @@ const actionAttributes = analyticsActionAttributes({
   ]}
   aria-labelledby={sectionId}
 >
-  <div class="members-section__heading mb-6 flex items-center gap-2">
-    <span
-      class="members-section__marker bg-red h-6 w-2 shrink-0"
-      aria-hidden="true"></span>
+  <div class="mb-6 flex items-center gap-2">
+    <span class="bg-red h-6 w-2 shrink-0" aria-hidden="true"></span>
     <h2
-      class="members-section__title font-display m-0 leading-none uppercase"
+      class="page-section__title font-display m-0 leading-none uppercase"
       id={sectionId}
     >
       {messages[titleKey]({}, { locale })}
     </h2>
   </div>
-  <div class="members-section__body text-base">
+  <div
+    class:list={[
+      "page-section__body text-base",
+      variant === "federation" && "flex flex-1 flex-col justify-end",
+    ]}
+  >
     {
       introKey !== undefined ? (
         <p class="m-0 mb-4 last:mb-0">{messages[introKey]({}, { locale })}</p>
@@ -74,8 +77,10 @@ const actionAttributes = analyticsActionAttributes({
         <a
           class:list={[
             "members-action__link",
-            "border-ink text-ink hover:bg-ink mt-6 inline-flex w-fit max-w-full items-center self-start border-2 px-4 text-xs leading-normal font-bold whitespace-nowrap uppercase no-underline hover:text-white",
-            variant === "federation" && "members-action__link--federation",
+            "border-ink text-ink hover:bg-ink inline-flex w-fit max-w-full items-center self-start border-2 px-4 text-xs leading-normal font-bold whitespace-nowrap uppercase no-underline hover:text-white",
+            variant === "signup" && "mt-6",
+            variant === "federation" &&
+              "members-action__link--federation border-red bg-red hover:border-ink hover:bg-ink text-white hover:text-white",
           ]}
           href={actionHref}
           {...externalLinkAttributes}

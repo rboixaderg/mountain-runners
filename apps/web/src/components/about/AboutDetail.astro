@@ -8,6 +8,7 @@ import AboutBoard from "./AboutBoard.astro";
 import AboutHistory from "./AboutHistory.astro";
 import AboutPresident from "./AboutPresident.astro";
 import AboutStatutes from "./AboutStatutes.astro";
+import "../../styles/page-section.css";
 import "../../styles/about.css";
 
 interface Props {
@@ -18,7 +19,7 @@ interface Props {
 const { catalog, locale } = Astro.props;
 ---
 
-<article class="about-detail pb-0">
+<article class="pb-0">
   <PageIntro
     description={messages.about_page_description({}, { locale })}
     heroImage={aboutHero}

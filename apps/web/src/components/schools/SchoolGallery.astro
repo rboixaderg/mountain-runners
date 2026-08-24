@@ -30,10 +30,7 @@ const galleryImages = await Promise.all(
     >
       <div class="page-frame">
         <div class="schools-detail-preview__gallery-heading flex items-center gap-2">
-          <span
-            class="schools-detail-preview__gallery-marker bg-red h-6 w-2 flex-none"
-            aria-hidden="true"
-          />
+          <span class="bg-red h-6 w-2 flex-none" aria-hidden="true" />
           <h2 class="font-display m-0 uppercase" id="school-gallery-title">
             {messages.school_gallery_title({}, { locale })}
           </h2>
@@ -43,7 +40,7 @@ const galleryImages = await Promise.all(
             <li class="schools-detail-preview__gallery-item">
               <figure class="border-ink m-0 border-2 bg-white">
                 <img
-                  class="block w-full object-cover"
+                  class="block aspect-4/3 w-full object-cover"
                   src={href}
                   alt={image.alt[locale]}
                   loading="lazy"

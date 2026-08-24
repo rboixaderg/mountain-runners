@@ -28,13 +28,10 @@ if (!hasPreviewPriceContent(pricesMarkdown)) {
   class="schools-detail-preview__prices border-ink flex min-w-0 flex-col border-2 bg-white"
 >
   <div class="schools-detail-preview__prices-header flex items-start gap-4">
-    <div
-      class="schools-detail-preview__practical-icon bg-ink inline-flex p-3 text-white"
-      aria-hidden="true"
-    >
+    <div class="bg-ink inline-flex p-3 text-white" aria-hidden="true">
       <SchoolPracticalIcon sectionKey="prices" />
     </div>
-    <div class="schools-detail-preview__prices-heading min-w-0">
+    <div class="min-w-0">
       <h3
         class="schools-detail-preview__practical-card-title font-display text-ink m-0 font-bold uppercase"
       >
@@ -50,10 +47,10 @@ if (!hasPreviewPriceContent(pricesMarkdown)) {
     </div>
   </div>
 
-  <div class="schools-detail-preview__prices-body grid gap-5">
+  <div class="grid gap-5">
     {
       priceTiers.length > 0 && (
-        <ul class="schools-detail-preview__price-tiers m-0 grid list-none grid-cols-1 gap-3 p-0 md:grid-cols-3">
+        <ul class="m-0 grid list-none grid-cols-1 gap-3 p-0 md:grid-cols-3">
           {priceTiers.map((priceTier) => {
             const formattedAmount = formatPriceAmount(priceTier.amount);
 
@@ -83,13 +80,13 @@ if (!hasPreviewPriceContent(pricesMarkdown)) {
           <h4 class="schools-detail-preview__price-registration-title font-display text-ink m-0 font-bold uppercase">
             {messages.school_prices_registration_label({}, { locale })}
           </h4>
-          <ul class="schools-detail-preview__price-registration-list m-0 grid list-none gap-2 p-0 md:grid-cols-2">
+          <ul class="m-0 grid list-none gap-2 p-0 md:grid-cols-2">
             {priceSection.registrationFees.map((registrationFee) => (
               <li class="schools-detail-preview__price-registration-item bg-stone flex flex-wrap items-baseline justify-between">
                 <span class="schools-detail-preview__price-registration-label min-w-0 font-semibold">
                   {registrationFee.label}
                 </span>
-                <span class="schools-detail-preview__price-registration-amount font-display text-red min-w-0 text-end font-bold">
+                <span class="schools-detail-preview__price-registration-amount font-display text-red min-w-0 text-end font-bold wrap-anywhere">
                   {registrationFee.amount}
                 </span>
               </li>

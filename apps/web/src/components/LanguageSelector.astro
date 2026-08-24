@@ -21,13 +21,10 @@ const languageNames: Record<Locale, string> = {
 
 {
   localizedAlternatives.length > 1 && (
-    <nav
-      class="language-selector"
-      aria-label={messages.language_selector({}, { locale })}
-    >
-      <details class="language-selector__details relative">
+    <nav aria-label={messages.language_selector({}, { locale })}>
+      <details class="language-selector__details group relative">
         <summary
-          class="language-selector__summary border-ink text-ink font-display block cursor-pointer list-none border-2 p-0 text-xs leading-none font-bold"
+          class="language-selector__summary border-ink text-ink font-display hover:border-red hover:bg-red group-open:border-red group-open:bg-red block cursor-pointer list-none border-2 p-0 text-xs leading-none font-bold group-open:text-white hover:text-white"
           aria-label={`${messages.language_selector({}, { locale })}: ${languageNames[locale]}`}
         >
           <span class="language-selector__toggle inline-flex min-h-10 items-center">

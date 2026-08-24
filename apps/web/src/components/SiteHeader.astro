@@ -123,7 +123,7 @@ const headerSignupAttributes = analyticsActionAttributes({
       </a>
       {
         schoolNavigationItems.length > 0 ? (
-          <div class="site-header__dropdown relative">
+          <div class="group relative">
             <a
               class:list={[
                 "site-header__link",
@@ -138,7 +138,7 @@ const headerSignupAttributes = analyticsActionAttributes({
             >
               {messages.navigation_schools({}, { locale })}
             </a>
-            <ul class="site-header__dropdown-panel border-ink absolute left-0 m-0 min-w-56 list-none border-2 bg-white py-2">
+            <ul class="site-header__dropdown-panel border-ink pointer-events-none invisible absolute left-0 z-1 m-0 min-w-56 list-none border-2 bg-white py-2 opacity-0 group-focus-within:pointer-events-auto group-focus-within:visible group-focus-within:opacity-100 group-hover:pointer-events-auto group-hover:visible group-hover:opacity-100">
               {schoolNavigationItems.map((item) => (
                 <li>
                   <a
@@ -213,9 +213,9 @@ const headerSignupAttributes = analyticsActionAttributes({
         locale={locale}
       />
     </div>
-    <details class="site-header__mobile-menu relative ml-0 lg:hidden">
+    <details class="site-header__mobile-menu group relative ml-0 lg:hidden">
       <summary
-        class="border-ink font-display block cursor-pointer list-none border-2 p-0 font-bold uppercase"
+        class="border-ink font-display group-open:border-red group-open:bg-red block cursor-pointer list-none border-2 p-0 font-bold uppercase group-open:text-white"
       >
         <span class="site-header__menu-toggle flex min-h-11 items-center gap-3">
           <span class="site-header__menu-label"
