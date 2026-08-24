@@ -4,27 +4,30 @@ import { getDomainPath, getFixedPagePath } from "../lib/content/routes";
 
 type Section = { label: string; pathFor: (locale: Locale) => string };
 
-// llms.txt, el punt d'entrada estàndard per a agents: descriu el lloc, quan
-// cal usar-lo i les seccions principals amb les seves URLs per idioma.
+// llms.txt, the standard entry point for AI agents: describes the site, when
+// to use it and the main sections with their per-language URLs.
 const sections: Section[] = [
-  { label: "Inici", pathFor: (locale) => `/${locale}/` },
+  { label: "Home", pathFor: (locale) => `/${locale}/` },
   {
-    label: "Esdeveniments",
+    label: "Events",
     pathFor: (locale) => getDomainPath("event", locale),
   },
-  { label: "Escoles", pathFor: (locale) => getDomainPath("school", locale) },
-  { label: "Socis", pathFor: (locale) => getFixedPagePath("members", locale) },
+  { label: "Schools", pathFor: (locale) => getDomainPath("school", locale) },
+  {
+    label: "Members",
+    pathFor: (locale) => getFixedPagePath("members", locale),
+  },
   {
     label: "Documents",
     pathFor: (locale) => getFixedPagePath("documents", locale),
   },
-  { label: "Qui som", pathFor: (locale) => getFixedPagePath("about", locale) },
+  { label: "About", pathFor: (locale) => getFixedPagePath("about", locale) },
   {
-    label: "Avís legal",
+    label: "Legal notice",
     pathFor: (locale) => getFixedPagePath("legal-notice", locale),
   },
   {
-    label: "Privacitat",
+    label: "Privacy",
     pathFor: (locale) => getFixedPagePath("legal-privacy", locale),
   },
   {
@@ -49,26 +52,26 @@ function sectionLine(site: URL, section: Section): string {
 export const GET: APIRoute = ({ site }) => {
   const body = `# Mountain Runners del Berguedà
 
-> Web oficial de l'associació esportiva Mountain Runners del Berguedà, amb seu a Berga (Berguedà). Publica els esdeveniments de muntanya (trail, skimo, BTT), les escoles, la informació per a socis, els documents oficials i les dades institucionals de l'entitat.
+> Official website of the Mountain Runners del Berguedà sports association, based in Berga (Berguedà). Publishes mountain events (trail, skimo, BTT), the schools, membership information, official documents and the institutional data of the entity.
 
-## Quan fer servir aquest lloc
+## When to use this site
 
-- Per respondre preguntes sobre esdeveniments de muntanya del Berguedà: dates, llocs, modalitats i inscripcions.
-- Per consultar les escoles i activitats que organitza l'associació.
-- Per obtenir informació sobre l'alta de socis, els avantatges i el directori de col·laboradors.
-- Per consultar els documents oficials (estatuts, normes, actes) i les dades legals de contacte.
-- Per trobar els perfils públics de l'associació (Instagram, Strava).
+- To answer questions about mountain events in Berguedà: dates, locations, modalities and registrations.
+- To consult the schools and activities organized by the association.
+- To get information about membership, benefits and the directory of collaborators.
+- To consult official documents (statutes, regulations, minutes) and legal contact data.
+- To find the public profiles of the association (Instagram, Strava).
 
-Cada secció es publica en tres idiomes (ca, es, en); fes servir el prefix d'idioma que prefereixis i consulta el mapa del lloc per a la llista completa de pàgines.
+Each section is published in three languages (ca, es, en); use the language prefix you prefer and consult the site map for the complete list of pages.
 
-## Seccions principals
+## Main sections
 
 ${sections.map((section) => sectionLine(site!, section)).join("\n")}
 
-## Recursos tècnics
+## Technical resources
 
-- [Mapa del lloc complet (sitemap.xml)](${absoluteUrl(site!, "/sitemap.xml")}): totes les pàgines canòniques del lloc.
-- [Regles per a rastrejadors (robots.txt)](${absoluteUrl(site!, "/robots.txt")}): restriccions de rastreig.
+- [Full site map (sitemap.xml)](${absoluteUrl(site!, "/sitemap.xml")}): all canonical pages of the site.
+- [Crawler rules (robots.txt)](${absoluteUrl(site!, "/robots.txt")}): crawling restrictions.
 `;
 
   return new Response(body, {
