@@ -1,0 +1,133 @@
+apps/web/src/components/DetailHero.astro
+  s_971cd1b0ca55a7::t_0829c0dd79c114 47
+apps/web/src/components/LanguageSelector.astro
+  s_e50aaaae0da912::t_04ade574ec9022 24-25,27
+apps/web/src/components/PageHeroMedia.astro
+  s_971cd1b0ca55a7::t_a548383d7c3ff3 28-35,42-45
+apps/web/src/components/SiteFooter.astro
+  s_e50aaaae0da912::t_388c480a192189 57
+apps/web/src/components/SiteHeader.astro
+  s_e50aaaae0da912::t_d560af42c6769d 126,141,216,218
+apps/web/src/components/documents/DocumentEntry.astro
+  s_2d08b5794e2f13::t_0972e62296f0b6 39-40,68
+apps/web/src/components/events/EventDescription.astro
+  s_f3051fca503ae2::t_5803c412f7dbd0 28,41,43,46
+apps/web/src/components/events/EventEntities.astro
+  s_f3051fca503ae2::t_244a21a1b37851 31,39,42
+apps/web/src/components/events/EventHistory.astro
+  s_f3051fca503ae2::t_eb2a6a2b28e0ac 17
+apps/web/src/components/events/EventMonthlyCalendar.astro
+  s_f3051fca503ae2::t_5335be905f44a0 37-38,47-48
+apps/web/src/components/events/EventPracticalInfo.astro
+  s_f3051fca503ae2::t_a16e190ee4b351 36,51,63
+apps/web/src/components/events/EventRegistrationPanel.astro
+  s_f3051fca503ae2::t_5413fd52b0844f 34-35
+apps/web/src/components/events/HomepageEventCard.astro
+  s_be26b515536771::t_2391eabeeb6393 42,44,74-75,77,82,89,95,105
+apps/web/src/components/members/MembersBenefits.astro
+  s_e7a48ca98a9578::t_02c065744a7aa4 21,25-26,28
+apps/web/src/components/members/MembersDetail.astro
+  s_3b63ee050ca1e9::t_9502e86b84ee08 17,36,46
+apps/web/src/components/schools/SchoolGallery.astro
+  s_8f9a7124520aea::t_f3892b7ac359c5 33,43
+apps/web/src/components/schools/SchoolHub.astro
+  s_8f9a7124520aea::t_593f6ce0a68436 81-82,96,106,108,135,148
+apps/web/src/components/schools/SchoolPreviewPrices.astro
+  s_8f9a7124520aea::t_5e6f67d35dadc2 31,34,50,53,83,89
+apps/web/src/components/schools/SchoolRegistration.astro
+  s_51fdc83a748b25::t_5f8b2a7790cc0c 30,32,51
+apps/web/src/components/schools/SchoolVideo.astro
+  s_8f9a7124520aea::t_5f8679053bd8b8 28
+apps/web/src/pages/[locale]/index.astro
+  s_be26b515536771::t_6d6a71b54d99cc 155-156,162,166,170-172,182,217,235,239,241,250,260,263,274,276,309,325,361
+apps/web/src/styles/global.css
+  s_908121edc9ea28::t_d02f203438fac7 10,97-100
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "7f34fa446b220c4d05dce8ac30b819b6bbcb1f11",
+  "prompts": {},
+  "sessions": {
+    "s_2d08b5794e2f13": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_fcfc191e0ffet2iv05h3vTPjrs",
+        "model": "gpt-5.6-luna"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    },
+    "s_3b63ee050ca1e9": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_fcd9804baffei5FyHTsu1501UA",
+        "model": "gpt-5.6-luna"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    },
+    "s_51fdc83a748b25": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_fcd98046dffe76J8uvITmORS5O",
+        "model": "gpt-5.6-luna"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    },
+    "s_8f9a7124520aea": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_fcfc191e6ffekA56znjhPF9wjF",
+        "model": "gpt-5.6-luna"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    },
+    "s_908121edc9ea28": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_fcdbe5588ffe4FWkn6uQSeOFcv",
+        "model": "gpt-5.6-luna"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    },
+    "s_971cd1b0ca55a7": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_fcfc19208ffekRuNBv5sWZ7Yfi",
+        "model": "gpt-5.6-luna"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    },
+    "s_be26b515536771": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_fcfc19216ffeyqUAi7ZCmzLf7J",
+        "model": "gpt-5.6-luna"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    },
+    "s_e50aaaae0da912": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_fcfc1920effeoKgXiaFQpOyKKg",
+        "model": "gpt-5.6-luna"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    },
+    "s_e7a48ca98a9578": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_fcdbe55adffeeJrloJi4Rr0Cj2",
+        "model": "gpt-5.6-luna"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    },
+    "s_f3051fca503ae2": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_fcd98047effeUKLlMTGs5FQuHP",
+        "model": "gpt-5.6-luna"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
