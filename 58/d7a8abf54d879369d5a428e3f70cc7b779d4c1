@@ -1,0 +1,16 @@
+docs/architecture.md
+  h_1727aeeb492b30 13-23
+docs/content-model.md
+  h_1727aeeb492b30 90-93
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "58d7a8abf54d879369d5a428e3f70cc7b779d4c1",
+  "prompts": {},
+  "humans": {
+    "h_1727aeeb492b30": {
+      "author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
