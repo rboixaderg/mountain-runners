@@ -29,7 +29,6 @@
 .site-prefooter__questions-description,
 .site-prefooter__newsletter-description {
   max-width: 35rem;
-  line-height: 1.6;
 }
 
 .site-prefooter__newsletter-description {
@@ -67,7 +66,6 @@
 
 .site-prefooter__newsletter-submit {
   font-size: 0.85rem;
-  letter-spacing: 0.06em;
   line-height: 1.2;
   transition:
     background-color 160ms ease,
@@ -80,7 +78,6 @@
 
 .site-prefooter__newsletter-status {
   font-size: 0.9rem;
-  line-height: 1.5;
 }
 
 @media (min-width: 48rem) {

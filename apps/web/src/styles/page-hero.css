@@ -13,10 +13,6 @@
   z-index: 2;
 }
 
-.page-hero__kicker {
-  letter-spacing: 0.06em;
-}
-
 .page-hero__title {
   max-width: min(100%, 14ch);
   font-size: clamp(3.5rem, 9vw, 7.5rem);

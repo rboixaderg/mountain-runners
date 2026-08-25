@@ -69,7 +69,9 @@ const newsletterAttributes = analyticsActionAttributes({
       >
         {messages.prefooter_questions_title({}, { locale })}
       </h2>
-      <p class="site-prefooter__questions-description text-muted m-0 mb-6">
+      <p
+        class="site-prefooter__questions-description text-muted leading-copy m-0 mb-6"
+      >
         {messages.prefooter_questions_description({}, { locale })}
       </p>
       {
@@ -168,7 +170,9 @@ const newsletterAttributes = analyticsActionAttributes({
       >
         {messages.prefooter_newsletter_title({}, { locale })}
       </h3>
-      <p class="site-prefooter__newsletter-description text-muted m-0 mb-4">
+      <p
+        class="site-prefooter__newsletter-description text-muted leading-copy m-0 mb-4"
+      >
         {messages.prefooter_newsletter_description({}, { locale })}
       </p>
       <div class="flex flex-col gap-2 sm:flex-row sm:items-stretch">
@@ -192,7 +196,7 @@ const newsletterAttributes = analyticsActionAttributes({
         {
           newsletterPresentation?.kind === "link" ? (
             <a
-              class="site-prefooter__newsletter-submit bg-ink font-display hover:bg-red inline-flex items-center justify-center border-0 px-4 py-2.5 font-bold text-white uppercase no-underline hover:text-white sm:shrink-0"
+              class="site-prefooter__newsletter-submit tracking-display bg-ink font-display hover:bg-red inline-flex items-center justify-center border-0 px-4 py-2.5 font-bold text-white uppercase no-underline hover:text-white sm:shrink-0"
               href={newsletterPresentation.url}
               {...externalLinkAttributes}
               {...newsletterAttributes}
@@ -201,7 +205,7 @@ const newsletterAttributes = analyticsActionAttributes({
             </a>
           ) : (
             <button
-              class="site-prefooter__newsletter-submit bg-ink font-display disabled:hover:bg-ink inline-flex items-center justify-center border-0 px-4 py-2.5 font-bold text-white uppercase disabled:cursor-not-allowed sm:shrink-0"
+              class="site-prefooter__newsletter-submit tracking-display bg-ink font-display disabled:hover:bg-ink inline-flex items-center justify-center border-0 px-4 py-2.5 font-bold text-white uppercase disabled:cursor-not-allowed sm:shrink-0"
               type="button"
               disabled
             >
@@ -213,7 +217,7 @@ const newsletterAttributes = analyticsActionAttributes({
       {
         newsletterStatusMessage !== null && (
           <p
-            class="site-prefooter__newsletter-status text-muted m-0 mt-3"
+            class="site-prefooter__newsletter-status text-muted m-0 mt-3 leading-normal"
             id={newsletterStatusId}
           >
             {newsletterStatusMessage}

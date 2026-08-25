@@ -17,7 +17,6 @@
 
 .about-section__signature {
   font-size: 1.1rem;
-  letter-spacing: 0.06em;
 }
 
 .about-history__grid,
@@ -59,13 +58,8 @@
   background: color-mix(in srgb, var(--color-line) 8%, var(--color-paper));
 }
 
-.about-statutes__description {
-  line-height: 1.6;
-}
-
 .about-statutes__link {
   font-size: 0.85rem;
-  letter-spacing: 0.06em;
   text-decoration-thickness: 0.1rem;
   text-underline-offset: 0.2rem;
 }

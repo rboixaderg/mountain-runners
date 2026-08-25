@@ -16,13 +16,13 @@ const { id, title } = Astro.props;
   <div class="mb-8 flex items-center gap-2">
     <span class="bg-red h-6 w-2 shrink-0" aria-hidden="true"></span>
     <h2
-      class="page-section__title font-display m-0 leading-none uppercase"
+      class="page-section__title font-display tracking-display m-0 leading-none uppercase"
       id={id}
     >
       {title}
     </h2>
   </div>
-  <div class="page-section__body m-0 text-base"><slot /></div>
+  <div class="page-section__body leading-copy m-0 text-base"><slot /></div>
 </section>
 
 <style>
@@ -30,7 +30,7 @@ const { id, title } = Astro.props;
     max-width: var(--reading-width);
     margin: 0 0 var(--space-4);
     font-size: 1rem;
-    line-height: 1.6;
+    line-height: var(--leading-copy);
   }
 
   .page-section__body :global(.page-section__markdown p:last-child) {

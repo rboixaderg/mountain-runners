@@ -1,9 +1,7 @@
 .page-section__title {
   font-size: clamp(1.8rem, 4vw, 3rem);
-  letter-spacing: 0.06em;
 }
 
 .page-section__body {
   max-width: var(--reading-width);
-  line-height: 1.6;
 }

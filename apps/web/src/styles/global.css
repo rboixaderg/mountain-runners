@@ -10,6 +10,8 @@
   --color-red-on-dark: #ff7378;
   --font-body: "Inter", Arial, Helvetica, sans-serif;
   --font-display: "Oswald", Impact, "Arial Narrow Bold", sans-serif;
+  --tracking-display: 0.06em;
+  --leading-copy: 1.6;
 }
 
 :root {

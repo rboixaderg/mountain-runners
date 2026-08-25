@@ -59,7 +59,9 @@ const cookiesNavAttributes = analyticsActionAttributes({
     class="page-frame site-footer__grid grid gap-10 md:grid-cols-2 md:items-start"
   >
     <div class="min-w-0">
-      <p class="site-footer__brand font-display m-0 mb-4 font-bold uppercase">
+      <p
+        class="site-footer__brand tracking-display font-display m-0 mb-4 font-bold uppercase"
+      >
         {messages.site_title({}, { locale })}
       </p>
       <p class="site-footer__tagline m-0">
@@ -71,7 +73,7 @@ const cookiesNavAttributes = analyticsActionAttributes({
       aria-label={messages.footer_social_title({}, { locale })}
     >
       <p
-        class="site-footer__section-title font-display m-0 mb-4 font-bold uppercase"
+        class="site-footer__section-title font-display m-0 mb-4 font-bold tracking-widest uppercase"
       >
         {messages.footer_social_title({}, { locale })}
       </p>
@@ -167,7 +169,7 @@ const cookiesNavAttributes = analyticsActionAttributes({
     </nav>
   </div>
   <div
-    class="page-frame site-footer__bottom flex flex-wrap justify-center gap-3 py-6 text-xs leading-normal uppercase"
+    class="page-frame site-footer__bottom tracking-display flex flex-wrap justify-center gap-3 py-6 text-xs leading-normal uppercase"
   >
     <span>{messages.site_title({}, { locale })}</span>
     <span aria-hidden="true">©</span>

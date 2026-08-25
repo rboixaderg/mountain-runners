@@ -41,7 +41,6 @@
 
 .language-selector__option {
   padding-block: 0.65rem;
-  letter-spacing: 0.06em;
   line-height: 1.2;
 }
 
@@ -71,7 +70,6 @@
 
 .site-header__dropdown-link {
   padding-block: 0.65rem;
-  letter-spacing: 0.06em;
 }
 
 .site-header__mobile-group {
@@ -80,7 +78,6 @@
 
 .site-header__mobile-submenu-link {
   padding-block: 0.35rem;
-  letter-spacing: 0.06em;
 }
 
 .site-header__cta {

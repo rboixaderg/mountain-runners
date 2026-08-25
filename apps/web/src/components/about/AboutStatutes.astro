@@ -39,12 +39,12 @@ const statutesAttributes = analyticsActionAttributes({
 
   {
     statutesHref && statutesDocument && statutesTitle ? (
-      <div class="about-statutes__card grid gap-4">
-        <p class="about-statutes__description m-0 text-base">
+      <div class="about-statutes__card border-line grid gap-4 border">
+        <p class="leading-copy m-0 text-base">
           {messages.about_statutes_description({}, { locale })}
         </p>
         <a
-          class="about-statutes__link font-display text-ink hover:text-red font-bold uppercase underline"
+          class="about-statutes__link font-display text-ink hover:text-red tracking-display font-bold uppercase underline"
           href={statutesHref}
           {...statutesAttributes}
         >

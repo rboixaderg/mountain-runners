@@ -46,14 +46,14 @@ const languageNames: Record<Locale, string> = {
             <li>
               {alternative.locale === locale ? (
                 <span
-                  class="language-selector__option bg-stone text-red font-display block w-full border-0 px-4 text-left text-xs font-bold uppercase no-underline"
+                  class="language-selector__option bg-stone text-red font-display tracking-display block w-full border-0 px-4 text-left text-xs font-bold uppercase no-underline"
                   aria-current="page"
                 >
                   {languageNames[alternative.locale]}
                 </span>
               ) : (
                 <a
-                  class="language-selector__option text-ink font-display hover:bg-stone hover:text-red block w-full border-0 bg-transparent px-4 text-left text-xs font-bold uppercase no-underline"
+                  class="language-selector__option text-ink font-display tracking-display hover:bg-stone hover:text-red block w-full border-0 bg-transparent px-4 text-left text-xs font-bold uppercase no-underline"
                   href={alternative.href}
                   hreflang={alternative.locale}
                   {...analyticsActionAttributes({
