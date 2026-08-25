@@ -10,9 +10,17 @@ Playwright i workflows de qualitat i seguretat.
 Les col·leccions registrades (`schools`, `events`, `entities`, `documents`,
 `externalActions` i `contact`) passen per YAML restringit i una capa central de
 publicació. La sortida actual inclou 66 rutes canòniques —22 per idioma—, més la
-redirecció arrel, la 404 global, `robots.txt`, el sitemap i els recursos públics
-validats. Les dades de contacte es mostren al prepeu compartit i a les pàgines
-legals; la pàgina de Contacte creada a la fase 3 es va retirar a la T4.4.
+redirecció arrel, la 404 global, `robots.txt`, el sitemap, `/llms.txt` i els
+recursos públics validats. Les dades de contacte es mostren al prepeu compartit
+i a les pàgines legals; la pàgina de Contacte creada a la fase 3 es va retirar a
+la T4.4.
+
+La superfície «agèntica» del lloc es compon de `/llms.txt`, que orienta els
+agents sobre el contingut i les seccions trilingües del lloc, i de les dades
+estructurades JSON-LD de la portada: l'entitat institucional s'emet amb
+descripció i dades de contacte (correu, telèfon i seu) normalitzades a text
+pla. La 404 global enllaça `/llms.txt` i el sitemap perquè un agent pugui
+recuperar-se d'una ruta inexistent.
 
 La CI valida qualitat, E2E, commits, secrets, dependències i anàlisi estàtica.
 El workflow `Artifact` (T5.2/T5.4) construeix i verifica l'artefacte de
