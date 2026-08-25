@@ -1,0 +1,47 @@
+apps/web/e2e/shell.spec.ts
+  s_5866bb89c69eab::t_960313c58e07eb 1024-1037
+apps/web/messages/ca.json
+  s_5866bb89c69eab::t_18e7b7b2f4a769 181
+apps/web/messages/en.json
+  s_5866bb89c69eab::t_2dc5ac8efe17e5 181
+apps/web/messages/es.json
+  s_5866bb89c69eab::t_d3dbaae4fcc3a4 181
+apps/web/package.json
+  s_5866bb89c69eab::t_a3f157467a79b8 16,18
+apps/web/src/lib/content/markdown.ts
+  s_5866bb89c69eab::t_9d61371b41fe0e 192-230
+apps/web/src/lib/content/seo.ts
+  s_5866bb89c69eab::t_f6f44c0f2bf125 33-34,37,40,54-78,100-101,104,107,114-115,118,121
+apps/web/src/pages/404.astro
+  s_5866bb89c69eab::t_0c9dc5ba3c2ad4 31-37
+apps/web/src/pages/[locale]/index.astro
+  s_5866bb89c69eab::t_5d39e4613dba82 19-22,92-93,95-99,102,105
+apps/web/src/pages/llms.txt.ts
+  s_5866bb89c69eab::t_d3fedf971259c6 1-80
+apps/web/src/test/content-markdown.test.ts
+  s_5866bb89c69eab::t_eeece76553e381 4,102-117
+apps/web/src/test/seo.test.ts
+  s_5866bb89c69eab::t_c0f34651d4c061 159-195,229-258
+docs/architecture.md
+  s_5866bb89c69eab::t_72d7a4dc1813f9 13-23
+docs/content-model.md
+  s_5866bb89c69eab::t_f4a664f1f7417e 90-93
+pnpm-lock.yaml
+  s_5866bb89c69eab::t_39a434fda5c8b9 87-88,93-94,232-233,247-248,287-288,292-293,297-298,303-304,309-310,315-316,321-322,326-327,331-332,916-917,1600-1601,1605,1920-1921,2746-2747,3227-3228,4163,4200,4202,4205,4246,4249,4252,4255,4258,4261,4264,4271,4274,4371,4769,5498,5501-5502,5514,5528,5880,6831,7371,7378-7386
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "ae4df57fe4c76c4cbb80a62a98e89be31a2581db",
+  "prompts": {},
+  "sessions": {
+    "s_5866bb89c69eab": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_fc7aa6573ffe9pMfeaDlXRPVKN",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
