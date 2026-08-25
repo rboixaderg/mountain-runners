@@ -3,11 +3,11 @@
 }
 
 .documents-entry__state {
-  letter-spacing: 0.08em;
+  letter-spacing: var(--tracking-label);
 }
 
 .documents-entry__meta {
-  letter-spacing: 0.08em;
+  letter-spacing: var(--tracking-label);
 }
 
 .documents-entry__meta dt::after {

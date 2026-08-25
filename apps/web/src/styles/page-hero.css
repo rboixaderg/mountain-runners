@@ -15,9 +15,9 @@
 
 .page-hero__title {
   max-width: min(100%, 14ch);
-  font-size: clamp(3.5rem, 9vw, 7.5rem);
-  line-height: 0.9;
-  letter-spacing: -0.035em;
+  font-size: var(--text-display);
+  line-height: var(--leading-display);
+  letter-spacing: var(--tracking-headline);
 }
 
 .page-hero__description {

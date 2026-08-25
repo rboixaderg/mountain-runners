@@ -1,26 +1,14 @@
-.homepage-join-cta,
-.homepage-hero__cta,
-.homepage-members-banner__action {
-  box-shadow: 0.2rem 0.2rem 0 var(--color-ink);
-}
-
-.homepage-section h2,
-.homepage-school-section h2 {
-  line-height: 0.92;
-}
-
 .homepage-event__link:hover {
   background: rgb(215 25 32 / 0.035);
 }
 
 .homepage-event__date span {
   font-size: clamp(2.25rem, 4vw, 3rem);
-  line-height: 0.9;
+  line-height: var(--leading-display);
 }
 
 .homepage-event__date small {
   font-size: 0.95rem;
-  letter-spacing: 0.12em;
 }
 
 @media (min-width: 48rem) {

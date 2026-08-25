@@ -1,16 +1,16 @@
 .events-calendar {
-  padding-block: clamp(3rem, 6vw, 5rem);
+  padding-block: var(--spacing-section);
 }
 
 .events-calendar__caption {
   font-size: clamp(1.35rem, 2.5vw, 1.85rem);
-  letter-spacing: 0.04em;
+  letter-spacing: var(--tracking-display);
 }
 
 .events-calendar__weekday {
   padding-block: 0.85rem;
-  font-size: 0.7rem;
-  letter-spacing: 0.08em;
+  font-size: var(--text-meta);
+  letter-spacing: var(--tracking-label);
 }
 
 .events-calendar__day:last-child {
@@ -93,7 +93,7 @@
 
 .events-calendar__event-meta dt {
   font-size: 0.62rem;
-  letter-spacing: 0.08em;
+  letter-spacing: var(--tracking-label);
 }
 
 .events-calendar__event-meta dd {
@@ -103,7 +103,7 @@
 
 .events-calendar__event-link {
   font-size: 0.68rem;
-  letter-spacing: 0.06em;
+  letter-spacing: var(--tracking-display);
   text-decoration-thickness: 0.1rem;
   text-underline-offset: 0.18rem;
 }
@@ -140,6 +140,6 @@
   .events-calendar__day-number {
     width: 1.65rem;
     height: 1.65rem;
-    font-size: 0.8rem;
+    font-size: var(--text-action);
   }
 }

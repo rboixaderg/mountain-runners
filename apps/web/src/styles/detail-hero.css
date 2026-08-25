@@ -16,23 +16,23 @@
 
 .detail-hero__cover figcaption {
   background: rgb(23 23 23 / 0.78);
-  font-size: 0.7rem;
+  font-size: var(--text-meta);
 }
 
 .detail-hero__kicker {
   padding: 0.35rem 0.65rem;
-  font-size: 0.7rem;
-  letter-spacing: 0.08em;
+  font-size: var(--text-meta);
+  letter-spacing: var(--tracking-label);
 }
 
 .detail-hero__meta {
   color: rgb(255 255 255 / 0.8);
-  letter-spacing: 0.08em;
+  letter-spacing: var(--tracking-label);
 }
 
 .detail-hero__title {
   max-width: 14ch;
-  font-size: clamp(3.1rem, 8vw, 7.5rem);
-  line-height: 0.88;
-  letter-spacing: -0.035em;
+  font-size: var(--text-display);
+  line-height: var(--leading-display);
+  letter-spacing: var(--tracking-headline);
 }

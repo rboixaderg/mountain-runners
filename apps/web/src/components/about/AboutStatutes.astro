@@ -6,6 +6,7 @@ import type { Locale } from "../../lib/content/primitives";
 import type { PublicationCatalog } from "../../lib/content/publication";
 import { analyticsActionAttributes } from "../../lib/analytics/attributes";
 import { analyticsActions, analyticsAreas } from "../../lib/analytics/catalog";
+import PageSection from "../PageSection.astro";
 
 interface Props {
   catalog: PublicationCatalog;
@@ -23,20 +24,12 @@ const statutesAttributes = analyticsActionAttributes({
 });
 ---
 
-<section
-  class="page-frame page-section py-section border-b-0"
-  aria-labelledby="about-statutes-title"
+<PageSection
+  id="about-statutes-title"
+  title={messages.about_statutes_title({}, { locale })}
+  bordered={false}
+  constrainBody={false}
 >
-  <div class="mb-8 flex items-center gap-2">
-    <span class="bg-red h-6 w-2 shrink-0" aria-hidden="true"></span>
-    <h2
-      class="page-section__title font-display m-0 leading-none uppercase"
-      id="about-statutes-title"
-    >
-      {messages.about_statutes_title({}, { locale })}
-    </h2>
-  </div>
-
   {
     statutesHref && statutesDocument && statutesTitle ? (
       <div class="about-statutes__card border-line grid gap-4 border">
@@ -57,4 +50,4 @@ const statutesAttributes = analyticsActionAttributes({
       </p>
     )
   }
-</section>
+</PageSection>

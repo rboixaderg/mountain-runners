@@ -3,6 +3,7 @@ import * as messages from "../../paraglide/messages.js";
 import boardPhoto from "../../assets/junta-directiva.jpg";
 import type { Locale } from "../../lib/content/primitives";
 import { parseBoardMembers } from "../../lib/presentation/about";
+import PageSection from "../PageSection.astro";
 
 interface Props {
   locale: Locale;
@@ -14,20 +15,12 @@ const boardMembers = parseBoardMembers(
 );
 ---
 
-<section
-  class="page-frame page-section py-section about-section--dark border-line bg-ink max-w-none border-b text-white"
-  aria-labelledby="about-board-title"
+<PageSection
+  id="about-board-title"
+  title={messages.about_board_title({}, { locale })}
+  class="about-section--dark bg-ink max-w-none text-white"
+  constrainBody={false}
 >
-  <div class="mb-8 flex items-center gap-2">
-    <span class="bg-red h-6 w-2 shrink-0" aria-hidden="true"></span>
-    <h2
-      class="page-section__title font-display m-0 leading-none uppercase"
-      id="about-board-title"
-    >
-      {messages.about_board_title({}, { locale })}
-    </h2>
-  </div>
-
   <div class="about-board__layout grid items-start">
     <figure class="about-board__photo m-0 w-full max-w-3xs">
       <img
@@ -49,7 +42,7 @@ const boardMembers = parseBoardMembers(
               {member.name}
             </span>
             <span class="about-board__member-role grid shrink-0 text-right max-md:text-left">
-              <span class="about-board__role-label font-bold tracking-widest uppercase">
+              <span class="about-board__role-label tracking-label font-bold uppercase">
                 {messages.about_board_role_label({}, { locale })}
               </span>
               <span>{member.role}</span>
@@ -59,4 +52,4 @@ const boardMembers = parseBoardMembers(
       }
     </ul>
   </div>
-</section>
+</PageSection>

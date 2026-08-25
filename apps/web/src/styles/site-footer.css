@@ -1,9 +1,9 @@
 .site-footer__grid {
-  padding-block: clamp(3rem, 7vw, 5rem);
+  padding-block: var(--spacing-section);
 }
 
 .site-footer__section-title {
-  font-size: 0.8rem;
+  font-size: var(--text-action);
   line-height: 1.3;
 }
 

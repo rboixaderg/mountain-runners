@@ -40,10 +40,10 @@ especificació de producte.
 | Baseline inicial        | `7f34fa446b220c4d05dce8ac30b819b6bbcb1f11`                           |
 | Fase actual             | `TW4-P07`                                                            |
 | Estat de la fase        | `Pendent`                                                            |
-| Últim checkpoint        | TW4-P06 validada; resum de la targeta amb `leading-copy`             |
+| Últim checkpoint        | TW4-DS02 validada; P07 aturat fins a autorització explícita          |
 | Última actualització    | 2026-08-25                                                           |
-| CSS propi de referència | 1.653 línies en 18 fulls i 118 línies en 6 blocs Astro               |
-| Canvis locals esperats  | Pla, enllaç documental i dinou paths d'aplicació de TW4-P01 a P06    |
+| CSS propi de referència | 1.666 línies en 18 fulls i 112 línies en 6 blocs Astro               |
+| Canvis locals esperats  | DS01 + DS02 sobre HEAD `a1ea89a`                                     |
 
 Els estats operatius són `Pendent`, `En curs`, `Validada` i `Bloquejada`.
 `Validada` indica que la fase ha superat les comprovacions locals i la revisió,
@@ -111,7 +111,10 @@ canvis a la PR sense autorització explícita de l'usuari en la sessió actual.
 
 Un token nou només s'accepta si té dos usos reals amb el mateix valor i la
 mateixa funció visual, o si representa un concepte estable de `DESIGN.md`. El
-token i els primers consumidors s'implementen a la mateixa fase.
+token i els primers consumidors s'implementen a la mateixa fase. A la segona
+aparició semànticament equivalent, el valor es promou a token. Es pot editar
+`global.css` en qualsevol fase només per afegir tokens aprovats i consumits en
+aquella mateixa fase.
 
 Abans d'acceptar-lo cal confirmar el namespace de Tailwind 4.3.3, inspeccionar
 el CSS compilat i comprovar l'equivalència visual. No s'agrupen valors només
@@ -131,24 +134,26 @@ moviment reduït. Cada regla restant ha de tenir una justificació concreta.
 
 ## Seqüència De Fases
 
-| ID        | Objectiu                                     | Dependències | Estat    |
-| --------- | -------------------------------------------- | ------------ | -------- |
-| `TW4-P00` | Baseline de només lectura                    | —            | Validada |
-| `TW4-P01` | Primitives compartits                        | P00          | Validada |
-| `TW4-P02` | Contacte, documents, legal i 404             | P01          | Validada |
-| `TW4-P03` | Header i selector d'idioma                   | P01          | Validada |
-| `TW4-P04` | Prefooter i footer                           | P01          | Validada |
-| `TW4-P05` | About                                        | P01          | Validada |
-| `TW4-P06` | Homepage i targeta d'esdeveniment compartida | P01          | Validada |
-| `TW4-P07` | Hub d'esdeveniments sense calendari          | P06          | Pendent  |
-| `TW4-P08` | Calendari d'esdeveniments                    | P07          | Pendent  |
-| `TW4-P09` | Detall d'esdeveniment                        | P01          | Pendent  |
-| `TW4-P10` | Socis                                        | P01          | Pendent  |
-| `TW4-P11` | Hub d'escoles                                | P01          | Pendent  |
-| `TW4-P12` | Preview del detall d'escola                  | P01, P11     | Pendent  |
-| `TW4-P13` | Registration del detall d'escola             | P12          | Pendent  |
-| `TW4-P14` | Neteja acotada de classes i ownership        | P02–P13      | Pendent  |
-| `TW4-P15` | Revisió independent i quality gate final     | P14          | Pendent  |
+| ID         | Objectiu                                     | Dependències | Estat    |
+| ---------- | -------------------------------------------- | ------------ | -------- |
+| `TW4-P00`  | Baseline de només lectura                    | —            | Validada |
+| `TW4-P01`  | Primitives compartits                        | P00          | Validada |
+| `TW4-P02`  | Contacte, documents, legal i 404             | P01          | Validada |
+| `TW4-P03`  | Header i selector d'idioma                   | P01          | Validada |
+| `TW4-P04`  | Prefooter i footer                           | P01          | Validada |
+| `TW4-P05`  | About                                        | P01          | Validada |
+| `TW4-P06`  | Homepage i targeta d'esdeveniment compartida | P01          | Validada |
+| `TW4-DS01` | Sistema de disseny operatiu                  | P06          | Validada |
+| `TW4-DS02` | Unificació d'escales globals                 | DS01         | Validada |
+| `TW4-P07`  | Hub d'esdeveniments sense calendari          | DS02         | Pendent  |
+| `TW4-P08`  | Calendari d'esdeveniments                    | P07          | Pendent  |
+| `TW4-P09`  | Detall d'esdeveniment                        | P01          | Pendent  |
+| `TW4-P10`  | Socis                                        | P01          | Pendent  |
+| `TW4-P11`  | Hub d'escoles                                | P01          | Pendent  |
+| `TW4-P12`  | Preview del detall d'escola                  | P01, P11     | Pendent  |
+| `TW4-P13`  | Registration del detall d'escola             | P12          | Pendent  |
+| `TW4-P14`  | Neteja acotada de classes i ownership        | P02–P13      | Pendent  |
+| `TW4-P15`  | Revisió independent i quality gate final     | P14          | Pendent  |
 
 ## Definició Fixa De Les Fases
 
@@ -214,6 +219,33 @@ moviment reduït. Cada regla restant ha de tenir una justificació concreta.
 - **Exclusió:** les fases del hub no tornen a modificar la targeta compartida.
 - **Comprovacions:** `pnpm check`, build, homepage, consumidor del hub, dos
   viewports, E2E i Lighthouse.
+
+### TW4-DS01 — Sistema De Disseny Operatiu
+
+- **Paths:** `global.css`, `homepage.css`, homepage, `HomepageEventCard.astro`,
+  `404.astro`, `DESIGN.md`, `AGENTS.md`, `docs/code-conventions.md` i aquest
+  pla.
+- **Objectiu:** definir els tokens semàntics i l'`@utility` estructural que ja
+  tenen coincidència exacta de valor, propietat i rol, i documentar l'ordre de
+  decisió. No és un redisseny ni una normalització de valors propers.
+- **Conservar:** tracking responsive del CTA del header, mides de data del
+  detall, leading `0.88`/`0.9`/`0.95`, ombres `0.25`/`0.35`/`0.5`, clamps
+  únics, markdown, pseudo-elements, graelles i el CSS de les fases P07–P13.
+- **Comprovacions:** `pnpm check`, build determinista, E2E, a11y, Lighthouse i
+  comparació visual a 320x720 i 1280x720 de les rutes representants.
+
+### TW4-DS02 — Unificació D'Escales Globals
+
+- **Paths:** `DESIGN.md`, `AGENTS.md`, `docs/code-conventions.md`, aquest pla,
+  `global.css` i els consumidors d'espaiat, tracking, leading, ombra i
+  tipografia fora de l'escala tancada.
+- **Objectiu:** aplicar les decisions d'unificació aprovades i normalitzar els
+  valors històrics propers. P07 resta aturat fins a validar DS02.
+- **Decisions:** un `spacing-section` i un `spacing-card`; tracking `0.06` /
+  `0.08` / `-0.03`; leading display `0.92`; ombra dura `0.35rem` (+ accent i
+  lg); un `text-section`; composició amb `PageSection` on encaixi.
+- **Comprovacions:** `pnpm check`, build, E2E, a11y, Lighthouse i revisió visual
+  a 320x720 i 1280x720.
 
 ### TW4-P07 — Hub D'Esdeveniments Sense Calendari
 
@@ -326,8 +358,7 @@ fins que la fase estigui controlada.
 - **Estat:** Pendent
 - **Sessió:** —
 - **Worktree i branca:** worktree dedicat, `refactor/tailwind-semantic-tests`
-- **Base de la fase:** canvis locals validats fins a `TW4-P06`, sobre
-  `origin/main` `1592cbd`
+- **Base de la fase:** canvis locals validats de TW4-DS01 sobre HEAD `a1ea89a`
 - **Evidència d'anàlisi Luna:** —
 - **Evidència d'implementació Luna:** —
 - **Revisió principal:** —
@@ -473,6 +504,44 @@ checkpoint de la fase següent. No s'hi enganxen logs complets.
   pràctiques i SEO a portada, hub i detall representatiu. Cap troballa no
   resolta. CSS propi: 1.653 línies en 18 fulls i 118 línies en sis blocs Astro.
 
+### TW4-DS01: Sistema De Disseny Operatiu, 2026-08-25
+
+- HEAD `a1ea89a` és la base commitada de P01–P06. L'auditoria va agrupar per
+  valor, propietat i rol, sense unificar `0.92`/`0.95`/`0.9`, `-0.02em`/`-0.03em`
+  ni ombres `0.2`/`0.25`/`0.35`/`0.5`.
+- Tokens aprovats: `tracking-label`, `tracking-headline`,
+  `leading-display-tight`, `leading-action`, `text-action`, `text-section`,
+  `text-section-copy`, `text-event-meta`, `shadow-action`, `py-action`,
+  `p-card-fluid` i `max-w-section-copy`. `@utility action-underline` per al
+  subratllat de gruix `0.1rem` i offset `0.3rem`.
+- Consumidors: homepage, `HomepageEventCard`, 404 i `homepage.css`. El CTA del
+  header conserva el tracking responsive `0.12em`/`0.08em`. El dia de la targeta
+  i les dates del detall queden en CSS propi.
+- La revisió independent no va trobar tokens òrfens, coincidències numèriques
+  accidentals ni canvis visuals. `pnpm check`, 68 pàgines, 298 E2E, les dues
+  proves axe i Lighthouse van passar. Portada 98/100/100/100; hub i detall
+  99/100/100/100. Sense overflow a 320x720 ni 1280x720. Valors computats: CTA
+  `0.8rem`/`1.2`/`0.12em`/`0.85rem` i ombra `3.2px 3.2px 0 #111`.
+- Cap troballa no resolta. CSS propi: 1.660 línies en 18 fulls i 118 línies en
+  sis blocs Astro.
+
+### TW4-DS02: Unificació D'Escales Globals, 2026-08-25
+
+- Decisions aprovades: un `spacing-section` i un `spacing-card`; tracking
+  `0.06` / `0.08` / `-0.03`; leading display `0.92`; ombra dura `0.35rem` (+
+  accent i lg `0.5rem`); un `text-section`; `text-display` /
+  `text-display-home`; `text-meta` substitueix `text-event-meta`;
+  `leading-display` substitueix `leading-display-tight`; `p-card` substitueix
+  `p-card-fluid`.
+- `DESIGN.md` documenta escales tancades. Consumidors migrats a CSS i Astro;
+  About, Documents i MembersDirectory composen amb `PageSection` (`bordered`,
+  `constrainBody`). Canvis visuals esperats per normalització.
+- `pnpm check`, 68 pàgines, 298 E2E, 2 axe i Lighthouse van passar. Portada
+  98/100/100/100; hub i detall 99/100/100/100. Sense overflow a 320x720 ni
+  1280x720 (E2E).
+- Cap troballa no resolta. CSS propi: 1.666 línies en 18 fulls i 112 línies en
+  6 blocs Astro. P07 resta pendent d'autorització.
+
 ## Prompt De La Sessió Següent
 
 ```text
@@ -481,8 +550,16 @@ Continua el pla de docs/tailwind-v4-migration-plan.md.
 Executa exclusivament la fase TW4-P07. No iniciïs ni analitzis cap altra fase.
 Aquest missatge és l'autorització explícita per implementar només TW4-P07.
 
-Confirma primer el worktree, la branca, el HEAD i l'estat de Git. Llegeix el
-checkpoint viu, les fonts governants i només els paths permesos de TW4-P07.
+Confirma primer el worktree, la branca, el HEAD i l'estat de Git. L'estat
+esperat és el final validat de TW4-DS02: canvis locals sobre HEAD `a1ea89a`,
+amb el pla de migració trackejat. Si hi ha canvis que no concorden amb aquest
+checkpoint, atura't. No executis reset, restore, checkout, rebase ni merge.
+
+Llegeix el checkpoint viu, les fonts governants i només els paths permesos de
+TW4-P07. Reutilitza les escales tancades de DS02 (`tracking-*`, `leading-*`,
+`text-*`, `shadow-action*`, `py-section`, `p-card`, etc.). Normalitza només
+cap a aquestes escales quan valor, propietat i rol coincideixin; no inventis
+tokens nous en aquesta fase.
 
 Delega l'anàlisi de només lectura a explore-lite-luna. Després de revisar-ne
 l'evidència i fixar l'allowlist, delega la implementació acotada a
@@ -492,10 +569,9 @@ decisions d'integració i executa la verificació.
 Migra només títols, labels, espaiat i colors de `events-hub.css`, la pàgina del
 hub, `EventsHubActiveCard.astro` i `EventsHubHistoryTable.astro`. No modifiquis
 el calendari, `HomepageEventCard.astro` ni `homepage.css`. Conserva la taula
-responsive i els selectors estructurals. Preserva exactament la sortida visual,
-les rutes, el contingut, el comportament, l'accessibilitat, els analytics i els
-selectors E2E semàntics. No afegeixis dependències, no utilitzis @apply, no
-inventis un objectiu de reducció i no ampliïs l'abast de la fase.
+responsive i els selectors estructurals. Preserva rutes, contingut,
+comportament, accessibilitat, analytics i selectors E2E semàntics. No afegeixis
+dependències, no utilitzis @apply i no ampliïs l'abast de la fase.
 
 Executa les comprovacions definides per TW4-P07. Actualitza el checkpoint viu,
 el registre de troballes i el prompt de la sessió següent. Atura't en acabar.

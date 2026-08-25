@@ -6,6 +6,7 @@ import type { Entity } from "../../lib/content/models";
 import type { Locale } from "../../lib/content/primitives";
 import { getOrderedEntityLinks } from "../../lib/presentation/entities";
 import ExternalLink from "../ExternalLink.astro";
+import PageSection from "../PageSection.astro";
 import { analyticsActions, analyticsAreas } from "../../lib/analytics/catalog";
 
 interface Props {
@@ -32,19 +33,11 @@ const collaboratorsWithImages = await Promise.all(
 
 {
   collaboratorsWithImages.length > 0 && (
-    <section
-      class="page-frame page-section py-section border-line border-b"
-      aria-labelledby="members-collaborators-title"
+    <PageSection
+      id="members-collaborators-title"
+      title={messages.members_collaborators_title({}, { locale })}
+      constrainBody={false}
     >
-      <div class="mb-8 flex items-center gap-2">
-        <span class="bg-red h-6 w-2 shrink-0" aria-hidden="true" />
-        <h2
-          class="page-section__title font-display m-0 leading-none uppercase"
-          id="members-collaborators-title"
-        >
-          {messages.members_collaborators_title({}, { locale })}
-        </h2>
-      </div>
       <ul class="m-0 grid max-w-none list-none grid-cols-1 gap-x-12 gap-y-0 p-0 md:grid-cols-2">
         {collaboratorsWithImages.map(({ entity, href, primaryLink, size }) => (
           <li class="members-directory__entry border-line grid min-h-0 items-start gap-4 border-b border-dashed py-5 first:pt-0 last:border-b-0">
@@ -83,7 +76,7 @@ const collaboratorsWithImages = await Promise.all(
           </li>
         ))}
       </ul>
-    </section>
+    </PageSection>
   )
 }
 

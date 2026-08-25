@@ -3,6 +3,7 @@ import * as messages from "../../paraglide/messages.js";
 import aboutHistory from "../../assets/about/about-history.jpg";
 import { renderRestrictedMarkdown } from "../../lib/content/markdown";
 import type { Locale } from "../../lib/content/primitives";
+import PageSection from "../PageSection.astro";
 
 interface Props {
   locale: Locale;
@@ -11,20 +12,11 @@ interface Props {
 const { locale } = Astro.props;
 ---
 
-<section
-  class="page-frame page-section py-section border-line border-b"
-  aria-labelledby="about-history-title"
+<PageSection
+  id="about-history-title"
+  title={messages.about_history_title({}, { locale })}
+  constrainBody={false}
 >
-  <div class="mb-8 flex items-center gap-2">
-    <span class="bg-red h-6 w-2 shrink-0" aria-hidden="true"></span>
-    <h2
-      class="page-section__title font-display m-0 leading-none uppercase"
-      id="about-history-title"
-    >
-      {messages.about_history_title({}, { locale })}
-    </h2>
-  </div>
-
   <div class="about-history__grid grid items-start">
     <div
       class="page-section__body text-base"
@@ -44,4 +36,4 @@ const { locale } = Astro.props;
       />
     </figure>
   </div>
-</section>
+</PageSection>

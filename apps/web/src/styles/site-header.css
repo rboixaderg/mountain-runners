@@ -3,7 +3,7 @@
 }
 
 .language-selector__summary {
-  letter-spacing: 0.08em;
+  letter-spacing: var(--tracking-label);
 }
 
 .language-selector__toggle {
@@ -36,12 +36,12 @@
 .language-selector__panel {
   top: calc(100% + 0.75rem);
   z-index: 2;
-  box-shadow: 0.35rem 0.35rem 0 var(--color-red);
+  box-shadow: var(--shadow-action-accent);
 }
 
 .language-selector__option {
   padding-block: 0.65rem;
-  line-height: 1.2;
+  line-height: var(--leading-action);
 }
 
 .site-header__mobile-language .language-selector__panel {
@@ -54,7 +54,7 @@
 .site-header__link,
 .site-header__mobile-menu summary {
   font-size: 0.85rem;
-  letter-spacing: 0.08em;
+  letter-spacing: var(--tracking-label);
 }
 
 .site-header__link {
@@ -65,7 +65,7 @@
 .site-header__dropdown-panel {
   top: calc(100% + 0.75rem);
   z-index: 1;
-  box-shadow: 0.35rem 0.35rem 0 var(--color-red);
+  box-shadow: var(--shadow-action-accent);
 }
 
 .site-header__dropdown-link {
@@ -82,13 +82,13 @@
 
 .site-header__cta {
   padding-block: 0.7rem;
-  box-shadow: 0.35rem 0.35rem 0 var(--color-ink);
-  letter-spacing: 0.12em;
+  box-shadow: var(--shadow-action);
+  letter-spacing: var(--tracking-label);
 }
 
 .site-header__cta:hover,
 .site-header__mobile-cta:hover {
-  box-shadow: 0.35rem 0.35rem 0 var(--color-red);
+  box-shadow: var(--shadow-action-accent);
 }
 
 .site-header__menu-toggle {
@@ -128,7 +128,7 @@
   top: calc(100% + 1.25rem);
   width: min(20rem, calc(100vw - 2 * var(--page-gutter)));
   max-height: calc(100dvh - 6.5rem);
-  box-shadow: 0.5rem 0.5rem 0 var(--color-red);
+  box-shadow: var(--shadow-action-lg);
 }
 
 .site-header__mobile-navigation {
@@ -141,8 +141,8 @@
 
 .site-header__mobile-cta {
   padding-block: 0.7rem;
-  box-shadow: 0.35rem 0.35rem 0 var(--color-ink);
-  letter-spacing: 0.04em;
+  box-shadow: var(--shadow-action);
+  letter-spacing: var(--tracking-display);
 }
 
 @media (max-width: 22.5rem) {
@@ -157,7 +157,7 @@
   .site-header__cta {
     padding-inline: 0.65rem 0.75rem;
     font-size: 0.68rem;
-    letter-spacing: 0.08em;
+    letter-spacing: var(--tracking-label);
   }
 
   .site-header__menu-toggle {
@@ -181,6 +181,6 @@
   }
 
   .site-header__cta {
-    font-size: 0.8rem;
+    font-size: var(--text-action);
   }
 }

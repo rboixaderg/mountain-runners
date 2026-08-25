@@ -1,10 +1,10 @@
 .schools-detail__section h2 {
-  font-size: clamp(1.8rem, 4vw, 3rem);
+  font-size: var(--text-section);
 }
 
 .schools-detail__registration {
   min-height: clamp(18rem, 26vw, 24rem);
-  padding: clamp(3rem, 7vw, 6rem) var(--page-gutter);
+  padding: var(--spacing-section) var(--page-gutter);
   background-color: var(--color-ink);
   background-image: radial-gradient(rgb(215 25 32 / 0.42) 1px, transparent 1px);
   background-size: 1rem 1rem;
@@ -21,16 +21,16 @@
 }
 
 .schools-detail__registration-status {
-  font-size: 0.8rem;
-  letter-spacing: 0.08em;
+  font-size: var(--text-action);
+  letter-spacing: var(--tracking-label);
 }
 
 .schools-detail__external-link {
   gap: 0.35rem;
-  letter-spacing: 0.06em;
+  letter-spacing: var(--tracking-display);
 }
 
 .schools-detail__registration .schools-detail__external-link {
   padding: 0.8rem 1rem;
-  box-shadow: 0.25rem 0.25rem 0 white;
+  box-shadow: var(--shadow-action);
 }

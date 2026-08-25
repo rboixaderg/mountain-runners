@@ -18,7 +18,7 @@ const canonical = new URL("/404.html", Astro.site).toString();
   >
     <p class="font-display tracking-display m-0 text-lg uppercase">404</p>
     <h1
-      class="font-display my-3 mb-6 max-w-[15ch] text-[clamp(2.8rem,9vw,5.5rem)] leading-[0.95] tracking-[0.015em] uppercase"
+      class="font-display text-display-home leading-display tracking-headline my-3 mb-6 max-w-[15ch] uppercase"
     >
       {messages.not_found_title({}, { locale })}
     </h1>
@@ -28,7 +28,7 @@ const canonical = new URL("/404.html", Astro.site).toString();
     <a class="mt-6 inline-block font-bold" href="/ca/"
       >{messages.back_to_home({}, { locale })}</a
     >
-    <p class="mt-10 mb-2 text-xs font-bold tracking-[0.12em] uppercase">
+    <p class="tracking-label mt-10 mb-2 text-xs font-bold uppercase">
       {messages.not_found_agent_resources({}, { locale })}
     </p>
     <ul class="m-0 list-none space-y-1 p-0 text-[0.95rem]">

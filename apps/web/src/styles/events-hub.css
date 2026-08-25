@@ -1,10 +1,10 @@
 .events-hub-section {
-  padding-block: clamp(3rem, 6vw, 5rem);
+  padding-block: var(--spacing-section);
 }
 
 .events-hub-section__title {
-  font-size: clamp(1.7rem, 3vw, 2.6rem);
-  letter-spacing: 0.06em;
+  font-size: var(--text-section);
+  letter-spacing: var(--tracking-display);
 }
 
 .events-hub-active-item__link:hover {
@@ -30,11 +30,11 @@
 
 .events-hub-active-item__status-label {
   font-size: 0.62rem;
-  letter-spacing: 0.1em;
+  letter-spacing: var(--tracking-label);
 }
 
 .events-hub-history__table th {
-  letter-spacing: 0.08em;
+  letter-spacing: var(--tracking-label);
 }
 
 .events-hub-history__table td {
@@ -51,5 +51,5 @@
   padding: 0.25rem 0.45rem;
   background: color-mix(in srgb, var(--color-line) 35%, var(--color-paper));
   font-size: 0.62rem;
-  letter-spacing: 0.08em;
+  letter-spacing: var(--tracking-label);
 }

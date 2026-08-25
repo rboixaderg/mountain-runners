@@ -80,23 +80,44 @@ inline. A la segona aparició d'un helper, s'extreu i es reutilitza.
 
 ## Estils
 
+L'ordre de decisió per a cada estil és aquest, i s'atura al primer que expressa
+el valor amb claredat:
+
+1. **Utilitat Tailwind estàndard** recolzada pel tema per defecte o per un token
+   ja existent (`tracking-display`, `leading-copy`, `border-line`).
+2. **Token semàntic `@theme`** quan el valor té dues aparicions reals amb la
+   mateixa propietat i la mateixa funció visual, o quan `DESIGN.md` ja n'ha fixat
+   el rol a l'escala tancada. El token i els consumidors s'afegeixen a la
+   mateixa fase. Es pot editar `global.css` en qualsevol fase només per afegir
+   o ajustar tokens d'escala aprovats i consumits en aquella fase. Els noms
+   descriuen el rol (`tracking-label`, `shadow-action`), no el número. Els
+   valors històrics gairebé iguals es normalitzen a l'escala de `DESIGN.md`; no
+   es creen excepcions per pàgina.
+3. **`@utility` estructural** només per a un patró reutilitzat que els
+   namespaces de `@theme` no poden generar (per exemple un subratllat amb gruix
+   i offset propis). No es converteix la classe d'un sol component en una
+   utilitat global amb un altre nom.
+4. **Arbitrari local justificat** (`[...]`) només quan el valor queda fora de
+   l'escala tancada i té una raó documentada. No es trasllada CSS propi a un
+   arbitrari només per mantenir-lo dins de `class`.
+5. **CSS propi justificat** per selectors, cascades, pseudo-elements, markdown,
+   estats complexos, gradients, filtres, textures i graelles que Tailwind no
+   expressa amb claredat. Cada regla ha de tenir una justificació concreta en
+   revisió i viu amb el component propietari o en un full petit importat per la
+   plantilla que coordina diversos components fills. `@apply` no és
+   l'arquitectura principal.
+
 - Les utilitats amb nom de Tailwind, recolzades pels tokens de `@theme`, són
   l'opció per defecte per a composició, espaiat, tipografia, color i la resta
   d'estils ordinaris.
 - Una utilitat arbitrària de Tailwind (`[...]`) no converteix CSS específic en
-  una solució compartida. No es trasllada CSS propi a valors arbitraris només
-  per mantenir-lo dins de l'atribut `class`; primer es busca una utilitat amb nom
-  o un token de tema que expressi la decisió.
+  una solució compartida.
 - `src/styles/global.css` és l'únic fonament global: importa Tailwind, defineix
-  els tokens de color i tipografia amb `@theme`, manté les variables estructurals
-  compartides a `:root`, declara les tipografies i conserva només els valors per
-  defecte d'elements, focus, salt al contingut i moviment reduït.
-- El CSS propi es limita als casos que les utilitats amb nom i els tokens de
-  tema no expressen amb claredat, com pseudo-elements, decoració, estats de pare
-  complexos o cascades responsive pròpies. Cada regla ha de tenir una
-  justificació concreta en revisió i viu amb el component propietari o en un
-  full petit importat per la plantilla que coordina diversos components fills.
-  `@apply` no és l'arquitectura principal.
+  els tokens de color, tipografia, ombra i espaiat semàntic amb `@theme`, manté
+  les variables estructurals compartides a `:root`, declara les tipografies i
+  conserva només els valors per defecte d'elements, focus, salt al contingut i
+  moviment reduït. A la segona aparició semànticament equivalent, el valor es
+  promou a token.
 - Un component que només necessita declaracions ordinàries no crea un full CSS:
   aplica les utilitats amb nom al markup. Els fulls específics s'importen des del
   component o la plantilla propietaris, mai des del layout públic.

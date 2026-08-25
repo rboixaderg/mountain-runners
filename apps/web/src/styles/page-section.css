@@ -1,5 +1,5 @@
 .page-section__title {
-  font-size: clamp(1.8rem, 4vw, 3rem);
+  font-size: var(--text-section);
 }
 
 .page-section__body {

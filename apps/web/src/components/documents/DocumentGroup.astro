@@ -4,7 +4,7 @@ import type { Document } from "../../lib/content/models";
 import type { Locale } from "../../lib/content/primitives";
 import { documentTypeMessageKeys } from "../../lib/presentation/documents";
 import DocumentEntry from "./DocumentEntry.astro";
-import "../../styles/page-section.css";
+import PageSection from "../PageSection.astro";
 
 interface Props {
   documents: Document[];
@@ -16,19 +16,11 @@ const { documents, documentType, locale } = Astro.props;
 const title = messages[documentTypeMessageKeys[documentType]]({}, { locale });
 ---
 
-<section
-  class="page-frame page-section py-section border-line border-b"
-  aria-labelledby={`documents-${documentType}-title`}
+<PageSection
+  id={`documents-${documentType}-title`}
+  title={title}
+  constrainBody={false}
 >
-  <div class="mb-8 flex items-center gap-2">
-    <span class="bg-red h-6 w-2 shrink-0" aria-hidden="true"></span>
-    <h2
-      class="page-section__title font-display tracking-display m-0 leading-none uppercase"
-      id={`documents-${documentType}-title`}
-    >
-      {title}
-    </h2>
-  </div>
   <ul class="documents-list m-0 grid list-none gap-8 p-0">
     {
       documents.map((document) => (
@@ -36,4 +28,4 @@ const title = messages[documentTypeMessageKeys[documentType]]({}, { locale });
       ))
     }
   </ul>
-</section>
+</PageSection>

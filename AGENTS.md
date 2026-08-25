@@ -66,6 +66,12 @@ reviewing `apps/web` code. The review of every PR checks these rules:
 - Use named Tailwind utilities backed by theme tokens for ordinary styles. Do
   not turn bespoke CSS into arbitrary Tailwind values merely to keep it in a
   class attribute.
+- Promote a repeated value to a `@theme` token at the second semantically
+  equivalent occurrence, or when `DESIGN.md` already defines the role. Edit
+  `global.css` in any phase only to add or adjust approved scale tokens
+  consumed in that same phase. Prefer the closed scales in `DESIGN.md` over
+  near-equal historical values; do not invent per-page spacing, tracking or
+  shadow exceptions.
 - Keep custom CSS minimal and scoped to the component or template that owns it.
   Every custom rule must have a concrete reason that named utilities and theme
   tokens cannot express clearly.

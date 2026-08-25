@@ -1,5 +1,5 @@
 .schools-hub-values {
-  padding-block: clamp(2.5rem, 5vw, 4rem);
+  padding-block: var(--spacing-section);
 }
 
 .schools-hub-values__list {
@@ -12,7 +12,7 @@
 
 .schools-hub-values__title {
   font-size: clamp(1.1rem, 2.5vw, 1.35rem);
-  line-height: 1.2;
+  line-height: var(--leading-action);
 }
 
 .schools-hub-values__description {
@@ -25,15 +25,15 @@
 }
 
 .schools-hub-programs__title {
-  font-size: clamp(1.7rem, 3vw, 2.6rem);
+  font-size: var(--text-section);
   line-height: 1.05;
-  letter-spacing: 0.04em;
+  letter-spacing: var(--tracking-display);
 }
 
 .schools-hub-programs__intro {
   max-width: var(--reading-width);
   font-size: 1.05rem;
-  line-height: 1.6;
+  line-height: var(--leading-copy);
 }
 
 .schools-hub-list {
@@ -66,13 +66,13 @@
 
 .schools-hub-item__status {
   padding: 0.5rem 0.85rem;
-  font-size: 0.7rem;
+  font-size: var(--text-meta);
   line-height: 1.3;
 }
 
 .schools-hub-item__body strong {
-  font-size: clamp(1.8rem, 4vw, 3rem);
-  line-height: 0.95;
+  font-size: var(--text-section);
+  line-height: var(--leading-display);
 }
 
 .schools-hub-item__summary {
@@ -80,8 +80,8 @@
 }
 
 .schools-hub-item__action {
-  font-size: 0.7rem;
-  letter-spacing: 0.06em;
+  font-size: var(--text-meta);
+  letter-spacing: var(--tracking-display);
   text-underline-offset: 0.2rem;
 }
 
@@ -94,5 +94,5 @@
 }
 
 .schools-hub-separator b {
-  font-size: 0.8rem;
+  font-size: var(--text-action);
 }

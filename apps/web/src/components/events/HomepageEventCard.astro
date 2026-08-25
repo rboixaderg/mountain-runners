@@ -57,7 +57,7 @@ const eventLinkAttributes = analyticsActionAttributes({
             <span class="font-display font-bold">{dateParts?.day}</span>
             <small
               class:list={[
-                "font-display mt-2 font-bold uppercase",
+                "font-display tracking-label mt-2 font-bold uppercase",
                 featured ? "text-inherit" : "text-red",
               ]}
             >
@@ -71,15 +71,15 @@ const eventLinkAttributes = analyticsActionAttributes({
         )
       }
     </div>
-    <div class="grid content-center p-[clamp(1.5rem,3vw,2.25rem)]">
+    <div class="p-card grid content-center">
       <p class="m-0 mb-3 flex flex-wrap items-center gap-x-3 gap-y-2">
         <span
-          class="bg-ink font-display text-paper px-2 py-[0.2rem] text-[0.7rem] leading-[1.4] font-bold tracking-widest uppercase"
+          class="bg-ink font-display text-meta text-paper tracking-label px-2 py-[0.2rem] font-bold uppercase"
           >{status}</span
         >
         {
           edition && (
-            <span class="font-display text-red text-[0.7rem] leading-[1.4] font-bold tracking-widest uppercase">
+            <span class="font-display text-meta text-red tracking-label font-bold uppercase">
               {edition.location[locale]}
             </span>
           )
@@ -99,10 +99,10 @@ const eventLinkAttributes = analyticsActionAttributes({
       }
     </div>
     <div
-      class="md:border-line grid place-items-center px-6 py-4 max-md:justify-items-start max-md:px-[clamp(1.5rem,3vw,2.25rem)] max-md:pt-0 max-md:pb-[clamp(1.5rem,3vw,2.25rem)] md:border-l"
+      class="md:border-line max-md:px-card max-md:pb-card grid place-items-center px-6 py-4 max-md:justify-items-start max-md:pt-0 md:border-l"
     >
       <span
-        class="font-display text-ink group-hover:text-red text-center text-xs leading-normal font-bold tracking-[0.12em] uppercase underline decoration-[0.1rem] underline-offset-[0.3rem]"
+        class="font-display text-ink group-hover:text-red action-underline tracking-label text-center text-xs leading-normal font-bold uppercase"
       >
         {messages.homepage_event_action({}, { locale })}
       </span>

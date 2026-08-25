@@ -4,13 +4,26 @@ import "../styles/page-section.css";
 interface Props {
   id: string;
   title: string;
+  class?: string;
+  bordered?: boolean;
+  constrainBody?: boolean;
 }
 
-const { id, title } = Astro.props;
+const {
+  id,
+  title,
+  class: className,
+  bordered = true,
+  constrainBody = true,
+} = Astro.props;
 ---
 
 <section
-  class="page-frame page-section py-section border-line border-b"
+  class:list={[
+    "page-frame page-section py-section",
+    bordered && "border-line border-b",
+    className,
+  ]}
   aria-labelledby={id}
 >
   <div class="mb-8 flex items-center gap-2">
@@ -22,7 +35,15 @@ const { id, title } = Astro.props;
       {title}
     </h2>
   </div>
-  <div class="page-section__body leading-copy m-0 text-base"><slot /></div>
+  {
+    constrainBody ? (
+      <div class="page-section__body leading-copy m-0 text-base">
+        <slot />
+      </div>
+    ) : (
+      <slot />
+    )
+  }
 </section>
 
 <style>
