@@ -84,8 +84,8 @@ importers:
         specifier: 2.22.0
         version: 2.22.0(typescript@6.0.3)(vite@8.1.4(@types/node@24.13.3)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.0))
       '@inlang/plugin-message-format':
-        specifier: 4.4.1
-        version: 4.4.1
+        specifier: 4.4.3
+        version: 4.4.3
       '@tailwindcss/vite':
         specifier: 4.3.3
         version: 4.3.3(vite@8.1.4(@types/node@24.13.3)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.0))
@@ -913,8 +913,8 @@ packages:
       vite:
         optional: true
 
-  '@inlang/plugin-message-format@4.4.1':
-    resolution: {integrity: sha512-gI918CgIbOzrSk8BdETtARYVo3WcojjD33ASmn+taeNunkgrN5U4TkEqpC3yDJ+G0tMZm1mhEzS3dn3JwJpQoA==}
+  '@inlang/plugin-message-format@4.4.3':
+    resolution: {integrity: sha512-jBOT0CKgG49mctJZZ3Ltz4o9xkxbCYM1xXhKXl+1dIRV+IedpS93q1jAdMKGSfexgGxcagFopdNbnLb7wq/OZg==}
 
   '@inlang/recommend-sherlock@0.2.1':
     resolution: {integrity: sha512-ckv8HvHy/iTqaVAEKrr+gnl+p3XFNwe5D2+6w6wJk2ORV2XkcRkKOJ/XsTUJbPSiyi4PI+p+T3bqbmNx/rDUlg==}
@@ -4766,7 +4766,7 @@ snapshots:
     transitivePeerDependencies:
       - babel-plugin-macros
 
-  '@inlang/plugin-message-format@4.4.1':
+  '@inlang/plugin-message-format@4.4.3':
     dependencies:
       flat: 6.0.1
 
