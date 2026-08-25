@@ -189,3 +189,42 @@ function renderContent(
 export function renderRestrictedMarkdown(source: string): string {
   return parseRestrictedMarkdown(source).children.map(renderContent).join("\n");
 }
+
+function textFromPhrasingContent(node: PhrasingContent): string {
+  switch (node.type) {
+    case "text":
+      return node.value;
+    case "strong":
+    case "emphasis":
+    case "link":
+      return node.children.map(textFromPhrasingContent).join("");
+    default:
+      throw new Error(`Unsupported Markdown node: ${node.type}`);
+  }
+}
+
+function textFromContent(
+  node: RootContent | ListItem["children"][number],
+): string {
+  switch (node.type) {
+    case "paragraph":
+      return node.children.map(textFromPhrasingContent).join("");
+    case "list":
+      return node.children
+        .map((item) => item.children.map(textFromContent).join(""))
+        .join("; ");
+    default:
+      throw new Error(`Unsupported Markdown node: ${node.type}`);
+  }
+}
+
+/**
+ * Renders validated restricted Markdown as plain text, keeping only the
+ * textual content. Used for semantic descriptions such as JSON-LD, where
+ * markup must not leak into the value.
+ */
+export function markdownToPlainText(source: string): string {
+  return parseRestrictedMarkdown(source)
+    .children.map(textFromContent)
+    .join(" ");
+}
