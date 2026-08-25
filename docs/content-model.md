@@ -87,7 +87,10 @@ El Markdown editorial només admet paràgrafs, negreta, cursiva, llistes i enlla
 HTTPS validats. Es converteix a HTML des d'un arbre de sintaxi amb una llista
 explícita de nodes permesos; no admet HTML cru, components ni codi executable.
 La longitud, la sintaxi, la profunditat i el nombre de nodes també estan limitats
-abans de renderitzar-lo.
+abans de renderitzar-lo. Quan el markdown alimenta una sortida semàntica (les
+dades estructurades JSON-LD de la portada), es normalitza a text pla amb
+`markdownToPlainText`: les descripcions surten netes, sense cap marca de
+sintaxi.
 
 Cada fitxer de `apps/web/src/content/` passa pel loader YAML restringit abans de
 la validació de l'esquema de la col·lecció. L'identificador declarat ha de

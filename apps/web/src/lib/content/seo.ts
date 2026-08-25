@@ -30,10 +30,14 @@ export function renderJsonLdScript(value: unknown): string {
 }
 
 export function getOrganizationJsonLd(params: {
+  description?: string;
+  email?: string;
   logoUrl?: string;
   name: string;
+  postalAddress?: string;
   sameAs?: string[];
   siteUrl: URL;
+  telephone?: string;
 }): StructuredData {
   const data: StructuredData = {
     "@context": "https://schema.org",
@@ -46,6 +50,31 @@ export function getOrganizationJsonLd(params: {
   }
   if (params.sameAs !== undefined && params.sameAs.length > 0) {
     data.sameAs = params.sameAs;
+  }
+  if (params.description !== undefined) {
+    data.description = params.description;
+  }
+  if (params.email !== undefined || params.telephone !== undefined) {
+    data.contactPoint = [
+      {
+        "@type": "ContactPoint",
+        // contactType is a schema.org string value, language-neutral.
+        contactType: "customer service",
+        ...(params.email !== undefined ? { email: params.email } : {}),
+        ...(params.telephone !== undefined
+          ? { telephone: params.telephone }
+          : {}),
+      },
+    ];
+  }
+  if (params.postalAddress !== undefined) {
+    data.address = {
+      "@type": "PostalAddress",
+      // The association has its seat in Berga; the country is stable and is
+      // not part of the localized address string.
+      addressCountry: "ES",
+      streetAddress: params.postalAddress,
+    };
   }
   return data;
 }
@@ -68,20 +97,28 @@ export function getWebSiteJsonLd(params: {
  * generated from placeholder or unreviewed data.
  */
 export function getSiteJsonLd(params: {
+  description?: string;
+  email?: string;
   logoUrl?: string;
   name: string | undefined;
+  postalAddress?: string;
   sameAs?: string[];
   siteUrl: URL;
+  telephone?: string;
 }): StructuredData[] {
   if (params.name === undefined) {
     return [];
   }
   return [
     getOrganizationJsonLd({
+      description: params.description,
+      email: params.email,
       logoUrl: params.logoUrl,
       name: params.name,
+      postalAddress: params.postalAddress,
       sameAs: params.sameAs,
       siteUrl: params.siteUrl,
+      telephone: params.telephone,
     }),
     getWebSiteJsonLd({ name: params.name, siteUrl: params.siteUrl }),
   ];

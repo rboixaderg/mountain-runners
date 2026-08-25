@@ -1003,6 +1003,20 @@ test("publishes structured data only on pages with reviewed data", async ({
       "https://www.instagram.com/infomountain/",
       "https://www.strava.com/clubs/156769",
     ],
+    description: "Associació esportiva del Berguedà.",
+    contactPoint: [
+      {
+        "@type": "ContactPoint",
+        contactType: "customer service",
+        email: "info@mountainrunners.cat",
+        telephone: "+34938213747",
+      },
+    ],
+    address: {
+      "@type": "PostalAddress",
+      addressCountry: "ES",
+      streetAddress: "Plaça Sant Joan, 15 baixos, 08600 Berga",
+    },
   });
   expect(homeData[1]).toMatchObject({
     "@type": "WebSite",
