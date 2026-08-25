@@ -1,0 +1,61 @@
+apps/web/src/components/LanguageSelector.astro
+  s_5866bb89c69eab::t_931a367b2e0d47 49,56
+apps/web/src/components/PageIntro.astro
+  s_5866bb89c69eab::t_9e464e9dff4e47 39
+apps/web/src/components/PageSection.astro
+  s_5866bb89c69eab::t_61ceca360d4d23 19,25,33
+apps/web/src/components/PreFooter.astro
+  s_5866bb89c69eab::t_0b0c0ca43fbc2b 72-74,173-175,199,208,220
+apps/web/src/components/SiteFooter.astro
+  s_5866bb89c69eab::t_55a01a97fb592d 62-64,76,172
+apps/web/src/components/SiteHeader.astro
+  s_5866bb89c69eab::t_61ce5f2c3c8528 147,272
+apps/web/src/components/about/AboutPresident.astro
+  s_71d2b5bd39cd40::t_f2eabfe517a9c3 32-34
+apps/web/src/components/about/AboutStatutes.astro
+  s_71d2b5bd39cd40::t_93161d69eca017 42-43,47
+apps/web/src/components/documents/DocumentGroup.astro
+  s_5866bb89c69eab::t_3ef6ccf1b4cc25 26
+apps/web/src/components/documents/DocumentsDetail.astro
+  s_5866bb89c69eab::t_85edf94f06e118 43
+apps/web/src/components/events/HomepageEventCard.astro
+  s_a5df3824aa6629::t_00cdf0771807e7 95
+apps/web/src/pages/404.astro
+  s_5866bb89c69eab::t_c061a5d447f688 19
+apps/web/src/styles/global.css
+  s_5866bb89c69eab::t_972366ed0b7037 13-14
+docs/README.md
+  s_5866bb89c69eab::t_be802e1e83d277 25-26
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "a1ea89a6bab24853000c7c280fb7ee0a3cb40b82",
+  "prompts": {},
+  "sessions": {
+    "s_5866bb89c69eab": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_fc7aa6573ffe9pMfeaDlXRPVKN",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    },
+    "s_71d2b5bd39cd40": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_fc7302755ffe2qWD6P7a8naDFA",
+        "model": "gpt-5.6-luna"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    },
+    "s_a5df3824aa6629": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_fc70827feffeI4WPRtLRZ8OOnN",
+        "model": "gpt-5.6-luna"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
