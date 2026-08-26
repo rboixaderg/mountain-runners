@@ -55,21 +55,21 @@ const hasPracticalContent =
       class="border-ink bg-stone py-section relative z-0 scroll-mt-20 border-y-2"
       aria-labelledby="school-preview-practical-title"
     >
-      <div class="page-frame schools-detail-preview__practical-header">
+      <div class="page-frame mb-6 md:mb-8">
         <h2
           class="schools-detail-preview__practical-title font-display border-red tracking-display m-0 mb-4 inline-block border-b-4 pb-2 uppercase"
           id="school-preview-practical-title"
         >
           {messages.school_practical_info_title({}, { locale })}
         </h2>
-        <p class="schools-detail-preview__practical-intro text-muted max-w-reading leading-copy m-0">
+        <p class="text-muted max-w-reading leading-copy m-0 text-base">
           {messages.school_practical_info_intro({}, { locale })}
         </p>
       </div>
 
-      <div class="page-frame schools-detail-preview__practical-layout grid min-w-0">
+      <div class="page-frame grid min-w-0 gap-4 md:gap-5">
         {essentialSections.length > 0 && (
-          <ul class="schools-detail-preview__practical-grid m-0 grid min-w-0 list-none grid-cols-1 p-0 md:grid-cols-3">
+          <ul class="m-0 grid min-w-0 list-none grid-cols-1 gap-4 p-0 md:grid-cols-3 md:gap-5">
             {essentialSections.map((sectionKey) => {
               const parsedSection = parseSchoolPracticalSection(
                 sectionContent(sectionKey)!,
@@ -113,7 +113,7 @@ const hasPracticalContent =
                     {sectionKey === "schedule" && scheduleParts ? (
                       <>
                         {parsedSection.label && (
-                          <p class="schools-detail-preview__practical-card-label text-muted tracking-label text-xs leading-normal font-bold uppercase">
+                          <p class="text-muted tracking-label mb-1.5 text-xs leading-normal font-bold uppercase">
                             {parsedSection.label}
                           </p>
                         )}
@@ -121,19 +121,19 @@ const hasPracticalContent =
                           {scheduleParts.days}
                         </p>
                         {scheduleParts.time && (
-                          <p class="schools-detail-preview__practical-card-highlight font-display text-red leading-action font-bold">
+                          <p class="schools-detail-preview__practical-card-highlight font-display text-red leading-action mt-1.5 font-bold">
                             {scheduleParts.time}
                           </p>
                         )}
                         {parsedSection.body.length > 0 && (
-                          <p class="schools-detail-preview__practical-card-note text-muted leading-normal">
+                          <p class="text-muted mt-2.5 text-sm leading-normal">
                             {parsedSection.body}
                           </p>
                         )}
                       </>
                     ) : sectionKey === "schedule" && isDetailedSchedule ? (
                       <div
-                        class="schools-detail-preview__practical-card-body text-ink mt-3 w-full"
+                        class="schools-detail-preview__practical-card-body text-ink mt-3 w-full text-sm leading-normal"
                         set:html={renderRestrictedMarkdown(
                           sectionContent(sectionKey)!,
                         )}
@@ -144,14 +144,14 @@ const hasPracticalContent =
                           {locationParts.primary}
                         </p>
                         {locationParts.secondary && (
-                          <p class="schools-detail-preview__practical-card-note text-muted leading-normal">
+                          <p class="text-muted mt-2.5 text-sm leading-normal">
                             {locationParts.secondary}
                           </p>
                         )}
                       </>
                     ) : (
                       parsedSection.lead && (
-                        <p class="schools-detail-preview__practical-card-highlight font-display text-red leading-action font-bold">
+                        <p class="schools-detail-preview__practical-card-highlight font-display text-red leading-action mt-1.5 font-bold">
                           {parsedSection.lead}
                         </p>
                       )
@@ -159,7 +159,7 @@ const hasPracticalContent =
                   </div>
                   {sectionKey === "location" && (
                     <svg
-                      class="schools-detail-preview__practical-watermark"
+                      class="schools-detail-preview__practical-watermark opacity-5"
                       viewBox="0 0 24 24"
                       aria-hidden="true"
                       focusable="false"
@@ -184,7 +184,7 @@ const hasPracticalContent =
         )}
 
         {contextSections.length > 0 && (
-          <ul class="schools-detail-preview__practical-grid m-0 grid min-w-0 list-none grid-cols-1 p-0 md:grid-cols-2">
+          <ul class="m-0 grid min-w-0 list-none grid-cols-1 gap-4 p-0 md:grid-cols-2 md:gap-5">
             {contextSections.map((sectionKey) => {
               const parsedSection = parseSchoolPracticalSection(
                 sectionContent(sectionKey)!,
@@ -218,7 +218,7 @@ const hasPracticalContent =
                     )}
                     {parsedSection.body.length > 0 && (
                       <div
-                        class="schools-detail-preview__practical-card-body text-ink mt-3 w-full"
+                        class="schools-detail-preview__practical-card-body text-ink mt-3 w-full text-sm leading-normal"
                         set:html={renderRestrictedMarkdown(parsedSection.body)}
                       />
                     )}

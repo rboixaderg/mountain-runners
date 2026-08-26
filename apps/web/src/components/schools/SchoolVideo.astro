@@ -24,9 +24,12 @@ const videoId =
       aria-labelledby="school-video-title"
     >
       <div class="page-frame">
-        <div class="schools-detail-preview__video-heading flex items-center gap-2">
+        <div class="schools-detail-preview__video-heading mb-6 flex items-center gap-2 md:mb-8">
           <span class="bg-red h-6 w-2 flex-none" aria-hidden="true" />
-          <h2 class="font-display m-0 uppercase" id="school-video-title">
+          <h2
+            class="font-display m-0 leading-none uppercase"
+            id="school-video-title"
+          >
             {messages.school_video_title({}, { locale })}
           </h2>
         </div>
@@ -37,7 +40,7 @@ const videoId =
         />
         {videoUrl && (
           <ExternalLink
-            className="schools-detail-preview__video-link text-red mt-4 inline-flex max-w-full items-center text-xs leading-normal font-bold tracking-display uppercase"
+            className="text-red mt-4 inline-flex max-w-full items-center gap-1.5 text-xs leading-normal font-bold tracking-display uppercase"
             href={videoUrl}
             label={messages.school_video_action({}, { locale })}
           />

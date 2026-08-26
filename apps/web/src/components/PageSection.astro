@@ -1,6 +1,4 @@
 ---
-import "../styles/page-section.css";
-
 interface Props {
   id: string;
   title: string;
@@ -29,7 +27,7 @@ const {
   <div class="mb-8 flex items-center gap-2">
     <span class="bg-red h-6 w-2 shrink-0" aria-hidden="true"></span>
     <h2
-      class="page-section__title font-display tracking-display m-0 leading-none uppercase"
+      class="font-display text-section tracking-display m-0 leading-none uppercase"
       id={id}
     >
       {title}
@@ -37,7 +35,7 @@ const {
   </div>
   {
     constrainBody ? (
-      <div class="page-section__body leading-copy m-0 text-base">
+      <div class="page-section__body leading-copy max-w-reading m-0 text-base">
         <slot />
       </div>
     ) : (

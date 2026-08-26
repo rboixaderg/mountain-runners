@@ -9,23 +9,6 @@
   content: "";
 }
 
-.detail-hero__cover img {
-  filter: grayscale(1) contrast(1.12);
-  opacity: 0.72;
-}
-
-.detail-hero__cover figcaption {
-  background: rgb(23 23 23 / 0.78);
-}
-
-.detail-hero__kicker {
-  padding: 0.35rem 0.65rem;
-}
-
-.detail-hero__meta {
-  color: rgb(255 255 255 / 0.8);
-}
-
 .detail-hero__title {
   max-width: 14ch;
 }

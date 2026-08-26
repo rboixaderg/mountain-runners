@@ -1,15 +1,3 @@
-.documents-list {
-  max-width: var(--reading-width);
-}
-
-.documents-entry__state {
-  letter-spacing: var(--tracking-label);
-}
-
-.documents-entry__meta {
-  letter-spacing: var(--tracking-label);
-}
-
 .documents-entry__meta dt::after {
   content: ":";
 }

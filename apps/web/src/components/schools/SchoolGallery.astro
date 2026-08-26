@@ -29,16 +29,19 @@ const galleryImages = await Promise.all(
       aria-labelledby="school-gallery-title"
     >
       <div class="page-frame">
-        <div class="schools-detail-preview__gallery-heading flex items-center gap-2">
+        <div class="schools-detail-preview__gallery-heading mb-6 flex items-center gap-2 md:mb-8">
           <span class="bg-red h-6 w-2 flex-none" aria-hidden="true" />
-          <h2 class="font-display m-0 uppercase" id="school-gallery-title">
+          <h2
+            class="font-display m-0 leading-none uppercase"
+            id="school-gallery-title"
+          >
             {messages.school_gallery_title({}, { locale })}
           </h2>
         </div>
-        <ul class="schools-detail-preview__gallery-list m-0 grid list-none grid-cols-2 p-0 md:grid-cols-3">
+        <ul class="m-0 grid list-none grid-cols-2 gap-3 p-0 md:grid-cols-3 md:gap-5">
           {galleryImages.map(({ image, href, size }) => (
-            <li class="schools-detail-preview__gallery-item">
-              <figure class="border-ink m-0 border-2 bg-white">
+            <li>
+              <figure class="border-ink m-0 border-2 bg-white p-1.5">
                 <img
                   class="block aspect-4/3 w-full object-cover"
                   src={href}

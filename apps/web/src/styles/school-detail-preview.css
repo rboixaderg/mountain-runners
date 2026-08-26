@@ -2,11 +2,6 @@
   min-height: clamp(16rem, 38vh, 26rem);
 }
 
-.schools-detail-preview__hero-cover img {
-  filter: grayscale(1) contrast(1.1);
-  opacity: 0.72;
-}
-
 .schools-detail-preview__hero-overlay {
   position: absolute;
   inset: 0;
@@ -22,10 +17,6 @@
   padding-block: clamp(2.5rem, 6vw, 4rem);
 }
 
-.schools-detail-preview__hero-kicker {
-  padding: 0.35rem 0.75rem;
-}
-
 .schools-detail-preview__hero-title {
   max-width: 14ch;
   font-size: clamp(2.25rem, 6vw, 4rem);
@@ -33,9 +24,7 @@
 }
 
 .schools-detail-preview__hero-summary {
-  color: rgb(255 255 255 / 0.92);
   font-size: clamp(1rem, 2.2vw, 1.2rem);
-  line-height: 1.55;
 }
 
 .schools-detail-preview__hero-edge {
@@ -77,13 +66,8 @@
   );
 }
 
-.schools-detail-preview__about {
-  gap: clamp(1.5rem, 4vw, 2.5rem);
-}
-
 .schools-detail-preview__about-title {
   font-size: clamp(1.75rem, 3.5vw, 2.5rem);
-  line-height: 1.05;
 }
 
 .schools-detail-preview__about-title::after {
@@ -93,16 +77,6 @@
   margin-top: 0.75rem;
   background: var(--color-red);
   content: "";
-}
-
-.schools-detail-preview__about-body {
-  font-size: 1.05rem;
-  line-height: 1.65;
-}
-
-.schools-detail-preview__about-media {
-  width: min(100%, 22rem);
-  margin: 0 auto;
 }
 
 .schools-detail-preview__about-media-accent {
@@ -115,97 +89,20 @@
   background: var(--color-red);
 }
 
-.schools-detail-preview__practical-layout,
-.schools-detail-preview__practical-grid {
-  gap: clamp(1rem, 2vw, 1.25rem);
-}
-
-.schools-detail-preview__practical-header,
-.schools-detail-preview__gallery-heading,
-.schools-detail-preview__video-heading {
-  margin-bottom: clamp(1.5rem, 3vw, 2rem);
-}
-
 .schools-detail-preview__practical-title {
   font-size: clamp(1.35rem, 2.5vw, 1.65rem);
-}
-
-.schools-detail-preview__practical-intro {
-  font-size: 1.05rem;
 }
 
 .schools-detail-preview__practical-card-title {
   font-size: clamp(1rem, 2vw, 1.15rem);
 }
 
-.schools-detail-preview__prices-header {
-  margin-bottom: clamp(1.25rem, 3vw, 1.75rem);
-}
-
-.schools-detail-preview__prices-intro {
-  font-size: 0.95rem;
-  line-height: 1.55;
-}
-
-.schools-detail-preview__price-tier {
-  padding: clamp(1rem, 2.5vw, 1.35rem);
-}
-
 .schools-detail-preview__price-tier-value {
   font-size: clamp(1.75rem, 4vw, 2.35rem);
 }
 
-.schools-detail-preview__price-tier-unit {
-  margin-top: 0.35rem;
-  font-size: 0.85rem;
-}
-
-.schools-detail-preview__price-registration {
-  border-top: 0.0625rem solid rgb(23 23 23 / 0.12);
-}
-
-.schools-detail-preview__price-registration-title {
-  font-size: 0.85rem;
-}
-
-.schools-detail-preview__price-registration-item {
-  gap: 0.35rem 1rem;
-  border: 0.0625rem solid rgb(23 23 23 / 0.12);
-  padding: 0.65rem 0.85rem;
-}
-
-.schools-detail-preview__price-registration-label {
-  flex: 0 1 auto;
-  font-size: 0.95rem;
-}
-
-.schools-detail-preview__price-registration-amount {
-  flex: 1 1 12rem;
-  font-size: 1.05rem;
-  line-height: 1.35;
-}
-
-.schools-detail-preview__prices-footnote {
-  font-size: 0.9rem;
-}
-
-.schools-detail-preview__practical-card-label {
-  margin: 0 0 0.35rem;
-}
-
 .schools-detail-preview__practical-card-highlight {
-  margin: 0.35rem 0 0;
   font-size: clamp(1.15rem, 2.4vw, 1.45rem);
-}
-
-.schools-detail-preview__practical-card-note {
-  margin: 0.65rem 0 0;
-  font-size: 0.9rem;
-}
-
-.schools-detail-preview__practical-card-body {
-  font-size: 0.95rem;
-  line-height: 1.55;
 }
 
 .schools-detail-preview__practical-watermark {
@@ -215,26 +112,12 @@
   width: 6rem;
   height: 6rem;
   color: var(--color-ink);
-  opacity: 0.06;
   pointer-events: none;
 }
 
 .schools-detail-preview__gallery-heading h2,
 .schools-detail-preview__video-heading h2 {
   font-size: clamp(1.75rem, 3.5vw, 2.5rem);
-  line-height: 1.05;
-}
-
-.schools-detail-preview__gallery-list {
-  gap: clamp(0.75rem, 2vw, 1.25rem);
-}
-
-.schools-detail-preview__gallery-item figure {
-  padding: 0.35rem;
-}
-
-.schools-detail-preview__video-link {
-  gap: 0.35rem;
 }
 
 @media (min-width: 48rem) {

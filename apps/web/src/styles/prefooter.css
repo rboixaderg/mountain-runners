@@ -1,87 +1,17 @@
-.site-prefooter__grid {
-  gap: clamp(2rem, 5vw, 3rem);
-  padding-block: var(--spacing-section);
-}
-
 .site-prefooter__questions {
-  padding-left: clamp(1rem, 2.5vw, 1.25rem);
   border-left: 0.35rem solid var(--color-red);
-}
-
-.site-prefooter__questions h2,
-.site-prefooter__newsletter-title {
-  letter-spacing: var(--tracking-display);
-  line-height: 1.15;
 }
 
 .site-prefooter__questions h2 {
   font-size: clamp(1.5rem, 3vw, 2rem);
 }
 
-.site-prefooter__newsletter {
-  padding: var(--spacing-card);
-}
-
 .site-prefooter__newsletter-title {
   font-size: clamp(1.15rem, 2.5vw, 1.35rem);
-}
-
-.site-prefooter__questions-description,
-.site-prefooter__newsletter-description {
-  max-width: 35rem;
-}
-
-.site-prefooter__newsletter-description {
-  font-size: 0.95rem;
-}
-
-.site-prefooter__contact-list {
-  gap: 0.85rem;
-}
-
-.site-prefooter__contact-item {
-  text-decoration-thickness: 0.12rem;
-  text-underline-offset: 0.2rem;
-}
-
-.site-prefooter__contact-icon {
-  margin-top: 0.1rem;
-}
-
-.site-prefooter__newsletter-input {
-  font: inherit;
-  font-size: 0.95rem;
-  line-height: 1.4;
-}
-
-.site-prefooter__newsletter-input:disabled {
-  opacity: 0.72;
 }
 
 .site-prefooter__newsletter-input:focus-visible {
   border-color: var(--color-ink);
   outline: 2px solid var(--color-ink);
   outline-offset: 2px;
-}
-
-.site-prefooter__newsletter-submit {
-  font-size: 0.85rem;
-  line-height: var(--leading-action);
-  transition:
-    background-color 160ms ease,
-    color 160ms ease;
-}
-
-.site-prefooter__newsletter-submit:disabled {
-  opacity: 0.55;
-}
-
-.site-prefooter__newsletter-status {
-  font-size: 0.9rem;
-}
-
-@media (min-width: 48rem) {
-  .site-prefooter__grid {
-    gap: 3rem;
-  }
 }

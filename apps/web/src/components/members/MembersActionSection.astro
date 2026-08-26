@@ -54,7 +54,7 @@ const actionAttributes = analyticsActionAttributes({
   <div class="mb-6 flex items-center gap-2">
     <span class="bg-red h-6 w-2 shrink-0" aria-hidden="true"></span>
     <h2
-      class="page-section__title font-display m-0 leading-none uppercase"
+      class="font-display text-section m-0 leading-none uppercase"
       id={sectionId}
     >
       {messages[titleKey]({}, { locale })}
@@ -75,11 +75,10 @@ const actionAttributes = analyticsActionAttributes({
       actionHref !== undefined ? (
         <a
           class:list={[
-            "members-action__link",
-            "border-ink text-ink hover:bg-ink tracking-display inline-flex w-fit max-w-full items-center self-start border-2 px-4 text-xs leading-normal font-bold whitespace-nowrap uppercase no-underline hover:text-white",
+            "border-ink text-ink hover:bg-ink tracking-display py-action inline-flex w-fit max-w-full items-center self-start border-2 px-4 text-xs leading-normal font-bold whitespace-nowrap uppercase no-underline hover:text-white",
             variant === "signup" && "shadow-action-accent mt-6",
             variant === "federation" &&
-              "members-action__link--federation border-red bg-red shadow-action hover:shadow-action-accent hover:border-ink hover:bg-ink text-white hover:text-white",
+              "border-red bg-red shadow-action hover:shadow-action-accent hover:border-ink hover:bg-ink px-5 py-4 text-white hover:text-white",
           ]}
           href={actionHref}
           {...externalLinkAttributes}
@@ -88,7 +87,7 @@ const actionAttributes = analyticsActionAttributes({
           {messages[actionLabelKey]({}, { locale })}
         </a>
       ) : stateMessageKey !== undefined ? (
-        <p class="members-action__state text-muted mt-4 mb-0">
+        <p class="text-muted mt-4 mb-0">
           {messages[stateMessageKey]({}, { locale })}
         </p>
       ) : null

@@ -29,7 +29,7 @@ const { documents, edition, locale } = Astro.props;
             <li class="my-2">
               {documentHref && document ? (
                 <a
-                  class="font-bold"
+                  class="text-sm font-bold"
                   href={documentHref}
                   {...(document.resource.kind === "external"
                     ? externalLinkAttributes

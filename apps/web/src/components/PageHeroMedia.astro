@@ -40,7 +40,7 @@ const usesResponsiveSource = imageLarge.src !== image.src;
     }
     <img
       class:list={[
-        "h-full w-full object-cover opacity-25 mix-blend-multiply",
+        "h-full w-full object-cover opacity-25 mix-blend-multiply contrast-110 grayscale",
         imageClassName,
       ]}
       src={image.src}
@@ -53,7 +53,7 @@ const usesResponsiveSource = imageLarge.src !== image.src;
   </picture>
   {
     attribution && (
-      <figcaption class="page-hero__attribution absolute right-3 bottom-3 m-0 bg-black/75 px-2 py-1 text-xs text-white">
+      <figcaption class="page-hero__attribution absolute right-3 bottom-3 z-1 m-0 bg-black/75 px-2 py-1 text-xs leading-tight text-white">
         {attribution}
       </figcaption>
     )

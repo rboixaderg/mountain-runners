@@ -1,40 +1,12 @@
-.events-hub-active-item__link:hover {
-  background: rgb(227 6 19 / 0.035);
-}
-
-.events-hub-active-item__body {
-  gap: 0.35rem;
-}
-
 .events-hub-active-item__body strong {
   font-size: clamp(1.15rem, 2.5vw, 1.45rem);
-  line-height: 1.05;
-}
-
-.events-hub-active-item__description {
-  font-size: 0.9rem;
-}
-
-.events-hub-active-item__status {
-  gap: 0.2rem;
-}
-
-.events-hub-active-item__status-label {
-  font-size: 0.62rem;
 }
 
 .events-hub-history__table td {
   border-bottom: 1px solid
     color-mix(in srgb, var(--color-line) 70%, transparent);
-  font-size: 0.9rem;
-}
-
-.events-hub-history__title {
-  font-size: 0.95rem;
 }
 
 .events-hub-history__status {
-  padding: 0.25rem 0.45rem;
   background: color-mix(in srgb, var(--color-line) 35%, var(--color-paper));
-  font-size: 0.62rem;
 }

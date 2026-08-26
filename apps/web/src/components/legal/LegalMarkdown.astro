@@ -8,11 +8,13 @@ interface Props {
 const { source } = Astro.props;
 ---
 
-<div class="legal-markdown" set:html={renderRestrictedMarkdown(source)} />
+<div
+  class="legal-markdown max-w-reading"
+  set:html={renderRestrictedMarkdown(source)}
+/>
 
 <style>
   .legal-markdown :global(p) {
-    max-width: var(--reading-width);
     margin: 0 0 var(--space-4);
     font-size: 1rem;
     line-height: var(--leading-copy);

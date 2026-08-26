@@ -21,7 +21,7 @@ const title = messages[documentTypeMessageKeys[documentType]]({}, { locale });
   title={title}
   constrainBody={false}
 >
-  <ul class="documents-list m-0 grid list-none gap-8 p-0">
+  <ul class="max-w-reading m-0 grid list-none gap-8 p-0">
     {
       documents.map((document) => (
         <DocumentEntry document={document} locale={locale} />

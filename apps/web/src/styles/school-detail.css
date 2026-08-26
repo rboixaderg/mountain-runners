@@ -6,19 +6,9 @@
 }
 
 .schools-detail__registration-intro {
-  color: rgb(255 255 255 / 0.82);
   font-size: clamp(1rem, 2vw, 1.2rem);
-  line-height: 1.55;
 }
 
 .schools-detail__registration h2 {
   font-size: clamp(2.35rem, 5vw, 4.5rem);
-}
-
-.schools-detail__external-link {
-  gap: 0.35rem;
-}
-
-.schools-detail__registration .schools-detail__external-link {
-  padding-block: 0.8rem;
 }

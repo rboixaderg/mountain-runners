@@ -1,16 +1,3 @@
-.site-header__inner {
-  gap: clamp(0.75rem, 1.5vw, 1.5rem);
-}
-
-.language-selector__summary {
-  letter-spacing: var(--tracking-label);
-}
-
-.language-selector__toggle {
-  gap: 0.45rem;
-  padding: 0.45rem 0.65rem;
-}
-
 .language-selector__summary::-webkit-details-marker,
 .site-header__mobile-menu summary::-webkit-details-marker {
   display: none;
@@ -36,12 +23,6 @@
 .language-selector__panel {
   top: calc(100% + 0.75rem);
   z-index: 2;
-  box-shadow: var(--shadow-action-accent);
-}
-
-.language-selector__option {
-  padding-block: 0.65rem;
-  line-height: var(--leading-action);
 }
 
 .site-header__mobile-language .language-selector__panel {
@@ -49,12 +30,6 @@
   min-width: 0;
   margin-top: 0.5rem;
   box-shadow: none;
-}
-
-.site-header__link,
-.site-header__mobile-menu summary {
-  font-size: 0.85rem;
-  letter-spacing: var(--tracking-label);
 }
 
 .site-header__link {
@@ -65,34 +40,6 @@
 .site-header__dropdown-panel {
   top: calc(100% + 0.75rem);
   z-index: 1;
-  box-shadow: var(--shadow-action-accent);
-}
-
-.site-header__dropdown-link {
-  padding-block: 0.65rem;
-}
-
-.site-header__mobile-group {
-  gap: 0.35rem;
-}
-
-.site-header__mobile-submenu-link {
-  padding-block: 0.35rem;
-}
-
-.site-header__cta {
-  padding-block: 0.7rem;
-  box-shadow: var(--shadow-action);
-  letter-spacing: var(--tracking-label);
-}
-
-.site-header__cta:hover,
-.site-header__mobile-cta:hover {
-  box-shadow: var(--shadow-action-accent);
-}
-
-.site-header__menu-toggle {
-  padding: 0.55rem 0.75rem;
 }
 
 .site-header__menu-icon {
@@ -128,21 +75,6 @@
   top: calc(100% + 1.25rem);
   width: min(20rem, calc(100vw - 2 * var(--page-gutter)));
   max-height: calc(100dvh - 6.5rem);
-  box-shadow: var(--shadow-action-lg);
-}
-
-.site-header__mobile-navigation {
-  gap: 0.9rem;
-}
-
-.site-header__mobile-link {
-  padding-block: 0.55rem;
-}
-
-.site-header__mobile-cta {
-  padding-block: 0.7rem;
-  box-shadow: var(--shadow-action);
-  letter-spacing: var(--tracking-display);
 }
 
 @media (max-width: 22.5rem) {
@@ -157,7 +89,6 @@
   .site-header__cta {
     padding-inline: 0.65rem 0.75rem;
     font-size: 0.68rem;
-    letter-spacing: var(--tracking-label);
   }
 
   .site-header__menu-toggle {
@@ -172,15 +103,5 @@
     overflow: hidden;
     clip-path: inset(50%);
     white-space: nowrap;
-  }
-}
-
-@media (min-width: 64rem) {
-  .site-header__navigation {
-    gap: clamp(1rem, 2vw, 2rem);
-  }
-
-  .site-header__cta {
-    font-size: var(--text-action);
   }
 }

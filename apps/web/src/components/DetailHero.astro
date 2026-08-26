@@ -23,13 +23,16 @@ const {
 ---
 
 <section
-  class="detail-hero border-ink bg-ink relative grid place-items-center overflow-hidden border-y-4 text-white"
+  class="detail-hero border-ink bg-ink relative grid place-items-center overflow-hidden border-t-4 text-white"
 >
   <figure
     class="detail-hero__cover bg-red absolute inset-0 m-0 block overflow-hidden border-0"
   >
+    {
+      /* Event covers stay fully visible in the banner and the description frame. */
+    }
     <img
-      class="h-full min-h-0 w-full object-cover mix-blend-multiply"
+      class="h-full min-h-0 w-full object-contain opacity-70 mix-blend-multiply contrast-110 grayscale"
       src={coverHref}
       alt={coverAlt}
       {...coverWidth === undefined || coverHeight === undefined
@@ -38,7 +41,7 @@ const {
     />
     {
       coverAttribution && (
-        <figcaption class="text-paper text-meta absolute right-3 bottom-3 z-1 m-0 px-2 py-1 leading-normal">
+        <figcaption class="text-paper text-meta absolute right-3 bottom-3 z-1 m-0 bg-black/80 px-2 py-1 leading-normal">
           {coverAttribution}
         </figcaption>
       )
@@ -46,7 +49,7 @@ const {
   </figure>
   <div class="page-frame relative z-1 grid justify-items-center text-center">
     <p
-      class="detail-hero__kicker bg-ink font-display text-meta tracking-label m-0 mb-4 border-0 leading-normal font-bold text-white uppercase"
+      class="bg-ink font-display text-meta tracking-label m-0 mb-4 border-0 px-2.5 py-1.5 leading-normal font-bold text-white uppercase"
     >
       {kicker}
     </p>

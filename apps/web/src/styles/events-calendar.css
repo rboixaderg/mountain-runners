@@ -6,10 +6,6 @@
   background: color-mix(in srgb, var(--color-line) 10%, var(--color-paper));
 }
 
-.events-calendar__day-number {
-  font-size: 0.95rem;
-}
-
 .events-calendar__day-mark {
   inset: auto 0.35rem 0.65rem;
   height: 0.35rem;
@@ -32,9 +28,6 @@
   width: max-content;
   min-width: min(16rem, 70vw);
   max-width: min(18rem, 80vw);
-  padding: 0.85rem;
-  border: 1px solid var(--color-line);
-  background: var(--color-paper);
   box-shadow: 0 0.35rem 1rem rgb(9 9 11 / 0.12);
   opacity: 0;
   pointer-events: none;
@@ -53,17 +46,6 @@
   visibility: visible;
 }
 
-.events-calendar__event + .events-calendar__event {
-  margin-top: 0.85rem;
-  padding-top: 0.85rem;
-  border-top: 1px solid var(--color-line);
-}
-
-.events-calendar__event-title {
-  font-size: 0.95rem;
-  line-height: 1.15;
-}
-
 .events-calendar__event-meta {
   display: grid;
   gap: 0.45rem;
@@ -73,21 +55,6 @@
 .events-calendar__event-meta div {
   display: grid;
   gap: 0.1rem;
-}
-
-.events-calendar__event-meta dt {
-  font-size: 0.62rem;
-}
-
-.events-calendar__event-meta dd {
-  font-size: 0.82rem;
-  line-height: 1.4;
-}
-
-.events-calendar__event-link {
-  font-size: 0.68rem;
-  text-decoration-thickness: 0.1rem;
-  text-underline-offset: 0.18rem;
 }
 
 .events-calendar__day--multi-day.events-calendar__day--range-start

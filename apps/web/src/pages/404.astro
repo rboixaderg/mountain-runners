@@ -14,7 +14,7 @@ const canonical = new URL("/404.html", Astro.site).toString();
   title={`${messages.not_found_title({}, { locale })} | ${messages.site_title()}`}
 >
   <section
-    class="page-frame max-w-[var(--reading-width)] py-[clamp(var(--space-12),10vw,7rem)]"
+    class="page-frame max-w-reading py-[clamp(var(--space-12),10vw,7rem)]"
   >
     <p class="font-display tracking-display m-0 text-lg uppercase">404</p>
     <h1

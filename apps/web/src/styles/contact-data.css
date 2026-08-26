@@ -1,11 +1,3 @@
-.contact-data {
-  max-width: var(--reading-width);
-}
-
 .contact-data__row {
   grid-template-columns: minmax(7rem, 9rem) minmax(0, 1fr);
-}
-
-.contact-data dt {
-  letter-spacing: var(--tracking-label);
 }

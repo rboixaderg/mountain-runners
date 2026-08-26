@@ -49,10 +49,10 @@ const { locale, rows } = Astro.props;
       {
         rows.map((row) => (
           <tr>
-            <td class="text-muted px-3 py-4">{row.year}</td>
-            <td class="px-3 py-4">
+            <td class="text-muted px-3 py-4 text-sm">{row.year}</td>
+            <td class="px-3 py-4 text-sm">
               <a
-                class="events-hub-history__title font-display hover:text-red font-bold text-inherit uppercase no-underline"
+                class="font-display hover:text-red text-sm font-bold text-inherit uppercase no-underline"
                 href={row.href}
                 {...analyticsActionAttributes({
                   action: analyticsActions.navigate,
@@ -63,10 +63,10 @@ const { locale, rows } = Astro.props;
                 {row.title}
               </a>
             </td>
-            <td class="px-3 py-4">{row.location}</td>
-            <td class="px-3 py-4 text-right">
+            <td class="px-3 py-4 text-sm">{row.location}</td>
+            <td class="px-3 py-4 text-right text-sm">
               <EventStatus
-                className="events-hub-history__status text-muted inline-block font-bold tracking-label uppercase"
+                className="events-hub-history__status text-muted text-meta inline-block px-2 py-1 font-bold tracking-label uppercase"
                 locale={locale}
                 statusKey={eventStatusMessageKeys.historical}
               />

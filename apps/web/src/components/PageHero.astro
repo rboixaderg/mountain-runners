@@ -16,13 +16,7 @@ const { className, contentClassName } = Astro.props;
   ]}
 >
   <slot name="media" />
-  <div
-    class:list={[
-      "page-frame",
-      "page-hero__content relative z-2",
-      contentClassName,
-    ]}
-  >
+  <div class:list={["page-frame relative z-2", contentClassName]}>
     <slot />
   </div>
 </section>

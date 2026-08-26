@@ -41,7 +41,7 @@ const eventLinkAttributes = analyticsActionAttributes({
 
 <article class="border-line border-b">
   <a
-    class="homepage-event__link group grid text-inherit no-underline"
+    class="homepage-event__link group hover:bg-red/5 grid text-inherit no-underline"
     href={href}
     {...eventLinkAttributes}
   >
@@ -54,10 +54,12 @@ const eventLinkAttributes = analyticsActionAttributes({
       {
         edition ? (
           <time class="grid" datetime={edition.startDate}>
-            <span class="font-display font-bold">{dateParts?.day}</span>
+            <span class="font-display leading-display font-bold">
+              {dateParts?.day}
+            </span>
             <small
               class:list={[
-                "font-display tracking-label mt-2 font-bold uppercase",
+                "font-display tracking-label mt-2 text-sm font-bold uppercase",
                 featured ? "text-inherit" : "text-red",
               ]}
             >
@@ -92,7 +94,7 @@ const eventLinkAttributes = analyticsActionAttributes({
       </h3>
       {
         event.summary[locale] && (
-          <p class="text-muted leading-copy mt-3 max-w-[46rem] text-[0.95rem]">
+          <p class="text-muted leading-copy max-w-reading mt-3 text-sm">
             {event.summary[locale]}
           </p>
         )

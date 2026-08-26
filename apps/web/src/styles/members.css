@@ -12,76 +12,20 @@
   );
 }
 
-.members-action__link {
-  padding-block: 0.8rem;
-}
-
-.members-action__link--federation {
-  padding: 0.9rem 1.35rem;
-}
-
 .members-benefits {
   padding-inline: max(var(--page-gutter), calc((100% - var(--page-width)) / 2));
 }
 
-.members-benefits__inner {
-  gap: clamp(1.5rem, 4vw, 2.5rem);
-}
-
-.members-benefits__layout {
-  gap: clamp(1.5rem, 4vw, 3rem);
-}
-
-.members-benefits__copy {
-  gap: clamp(1rem, 2.5vw, 1.5rem);
-}
-
 .members-benefits__intro {
-  color: rgb(255 255 255 / 0.82);
   font-size: clamp(1rem, 2vw, 1.15rem);
-}
-
-.members-benefits__photo {
-  max-width: min(100%, 22rem);
-}
-
-.members-benefits__photo img {
-  border: 0.125rem solid rgb(255 255 255 / 0.35);
-}
-
-.members-benefits__collaborators-link {
-  text-decoration-thickness: 0.1rem;
-  text-underline-offset: 0.2rem;
 }
 
 .members-directory__entry {
   grid-template-columns: minmax(3.5rem, 5rem) minmax(0, 1fr);
 }
 
-.members-directory__name {
-  font-size: 1.1rem;
-  line-height: 1.1;
-}
-
-.members-directory__benefit {
-  margin: 0.35rem 0 0;
-}
-
-.members-directory__description {
-  margin-top: 0.35rem;
-  font-size: 0.9rem;
-}
-
-.members-directory__website {
-  gap: 0.35rem;
-}
-
 @media (min-width: 48rem) {
   .members-benefits__layout {
     grid-template-columns: minmax(0, 1fr) minmax(0, 22rem);
-  }
-
-  .members-benefits__photo {
-    justify-self: end;
   }
 }

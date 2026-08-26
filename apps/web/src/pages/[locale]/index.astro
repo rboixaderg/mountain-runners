@@ -181,7 +181,7 @@ export function getStaticPaths() {
       >
         <span>{messages.homepage_hero_title_club({}, { locale })}</span>{
           " "
-        }<span class="homepage-hero__title-region block"
+        }<span class="text-ink block"
           >{messages.homepage_hero_title_region({}, { locale })}</span
         >
       </h1>
@@ -193,7 +193,7 @@ export function getStaticPaths() {
       />
       <div class="mt-4 flex flex-wrap items-center gap-x-4 gap-y-3">
         <a
-          class="homepage-join-cta border-ink font-display text-action leading-action tracking-label py-action shadow-action text-ink hover:bg-ink inline-flex min-h-11 items-center gap-3 border-2 bg-white px-6 font-bold uppercase no-underline hover:border-white hover:text-white"
+          class="border-ink font-display text-action leading-action tracking-label py-action shadow-action text-ink hover:bg-ink inline-flex min-h-11 items-center gap-3 border-2 bg-white px-6 font-bold uppercase no-underline hover:border-white hover:text-white"
           href={memberSignupLink.href}
           {...memberSignupLink.isExternal ? externalLinkAttributes : {}}
           {...homepageSignupAttributes}
@@ -202,7 +202,7 @@ export function getStaticPaths() {
           <span aria-hidden="true">&rarr;</span>
         </a>
         <a
-          class="homepage-hero__cta border-paper font-display text-action leading-action tracking-label py-action shadow-action text-paper hover:border-paper hover:bg-paper hover:text-ink inline-flex min-h-11 -rotate-1 items-center gap-3 border-2 bg-transparent px-6 font-bold uppercase no-underline"
+          class="border-paper font-display text-action leading-action tracking-label py-action shadow-action text-paper hover:border-paper hover:bg-paper hover:text-ink inline-flex min-h-11 -rotate-1 items-center gap-3 border-2 bg-transparent px-6 font-bold uppercase no-underline"
           href={schoolsPath}
           {...homepageSchoolsAttributes}
         >
@@ -210,7 +210,7 @@ export function getStaticPaths() {
           <span aria-hidden="true">&rarr;</span>
         </a>
         <a
-          class="homepage-hero__cta border-paper font-display text-action leading-action tracking-label py-action shadow-action text-paper hover:border-paper hover:bg-paper hover:text-ink inline-flex min-h-11 -rotate-1 items-center gap-3 border-2 bg-transparent px-6 font-bold uppercase no-underline"
+          class="border-paper font-display text-action leading-action tracking-label py-action shadow-action text-paper hover:border-paper hover:bg-paper hover:text-ink inline-flex min-h-11 -rotate-1 items-center gap-3 border-2 bg-transparent px-6 font-bold uppercase no-underline"
           href={federationLink.href}
           {...federationLink.isExternal ? externalLinkAttributes : {}}
           {...homepageFederationAttributes}
@@ -222,9 +222,7 @@ export function getStaticPaths() {
     </div>
   </PageHero>
 
-  <section
-    class="homepage-school-section bg-ink text-paper py-section relative overflow-hidden"
-  >
+  <section class="bg-ink text-paper py-section relative overflow-hidden">
     <div
       class="page-frame grid justify-items-center gap-[clamp(2.5rem,5vw,3.5rem)]"
     >
@@ -301,7 +299,7 @@ export function getStaticPaths() {
             )}
           />
           <a
-            class="homepage-members-banner__action border-ink font-display text-action leading-action tracking-label py-action shadow-action text-ink hover:bg-ink mt-2 inline-flex min-h-11 items-center gap-3 border-2 bg-white px-6 font-bold uppercase no-underline hover:border-white hover:text-white"
+            class="border-ink font-display text-action leading-action tracking-label py-action shadow-action text-ink hover:bg-ink mt-2 inline-flex min-h-11 items-center gap-3 border-2 bg-white px-6 font-bold uppercase no-underline hover:border-white hover:text-white"
             href={membersPath}
             {...homepageMembersAttributes}
           >
@@ -313,10 +311,7 @@ export function getStaticPaths() {
     </div>
   </section>
 
-  <section
-    class="page-frame homepage-section py-section"
-    aria-labelledby="events-title"
-  >
+  <section class="page-frame py-section" aria-labelledby="events-title">
     <div
       class="mb-8 flex flex-wrap items-baseline justify-between gap-x-6 gap-y-3"
     >

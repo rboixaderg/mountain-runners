@@ -38,12 +38,12 @@ especificació de producte.
 | Worktree                | `/Users/rogerboixaderguell/Develop/mountain_runners-tailwind-review` |
 | Branca                  | `refactor/tailwind-semantic-tests`                                   |
 | Baseline inicial        | `7f34fa446b220c4d05dce8ac30b819b6bbcb1f11`                           |
-| Fase actual             | `TW4-P15`                                                            |
+| Fase actual             | `TW4-P16`                                                            |
 | Estat de la fase        | `Validada`                                                           |
-| Últim checkpoint        | P07–P15 validades sobre HEAD `cf01472`                               |
+| Últim checkpoint        | Passada named-utility a tots els fulls (851 línies)                  |
 | Última actualització    | 2026-08-26                                                           |
-| CSS propi de referència | 1.520 línies en 18 fulls i 106 línies en 6 blocs Astro               |
-| Canvis locals esperats  | P07–P15 i aquest seguiment sobre HEAD net `cf01472`                  |
+| CSS propi de referència | 851 línies en 17 fulls                                               |
+| Canvis locals esperats  | P07–P16 sobre HEAD `cf01472`                                         |
 
 Els estats operatius són `Pendent`, `En curs`, `Validada` i `Bloquejada`.
 `Validada` indica que la fase ha superat les comprovacions locals i la revisió,
@@ -154,6 +154,7 @@ moviment reduït. Cada regla restant ha de tenir una justificació concreta.
 | `TW4-P13`  | Registration del detall d'escola             | P12          | Validada |
 | `TW4-P14`  | Neteja acotada de classes i ownership        | P02–P13      | Validada |
 | `TW4-P15`  | Revisió independent i quality gate final     | P14          | Validada |
+| `TW4-P16`  | Tokens residuals després de P15              | P15          | Validada |
 
 ## Definició Fixa De Les Fases
 
@@ -340,6 +341,18 @@ moviment reduït. Cada regla restant ha de tenir una justificació concreta.
   JSON-LD, més les notes d'impacte en accessibilitat, SEO, rendiment, seguretat i
   llicències.
 
+### TW4-P16 — Tokens Residuals Després De P15
+
+- **Paths:** fulls CSS restants i els seus consumidors Astro.
+- **Objectiu:** moure al markup cada propietat que ja té una utilitat amb nom
+  (`text-section`, `max-w-reading`, `tracking-label`, `p-card`, `py-section`,
+  ombres d'acció) i eliminar el full o la classe si queda buit.
+- **Conservar:** graelles `minmax`, markdown `:global`, `[open]`,
+  pseudo-elements, `clip-path`, filtres, gradients, `color-mix`, focus propi,
+  clamps i mides sense token.
+- **Exclusió:** no crear tokens nous ni arbitraris `[...]` només per treure CSS.
+- **Comprovacions:** `pnpm check` i revisió visual de rutes representatives.
+
 ## Criteris D'Aturada
 
 La fase s'atura si necessita un valor arbitrari per moure CSS, un token d'un sol
@@ -352,6 +365,27 @@ Si falla, no s'utilitza Git per descartar treball acumulat. El mateix
 fins que la fase estigui controlada.
 
 ## Checkpoint Viu
+
+### TW4-P16: Tokens Residuals Després De P15
+
+- **Estat:** Validada
+- **Sessió:** 2026-08-26
+- **Worktree i branca:** worktree dedicat, `refactor/tailwind-semantic-tests`
+- **Base de la fase:** P07–P15 sobre HEAD `cf01472`
+- **Evidència d'anàlisi:** el CSS restant encara reenviava tokens ja existents
+  (`text-section`, `max-w-reading`, `tracking-label`, `p-card`, `py-section`,
+  ombres). El que queda són graelles, markdown, estats, textures i valors
+  únics.
+- **Evidència d'implementació:** s'ha eliminat `page-section.css`; s'han
+  encongit documents, contacte, hero, header, footer, prefooter, about i
+  homepage. El detall d'esdeveniment usa `border-t-4` i `object-contain` al
+  hero.
+- **Validació executada:** `pnpm check` (323 unitats, 50 de servidor). Valors
+  computats a portada, documents, about, detall i 404: `text-section` 48px,
+  `max-w-reading` 704px, `tracking-label` 0.08em, `p-card` 36px, `py-section`
+  84px, ombra d'acció 5.6px, hero `object-fit: contain` i vora inferior 0.
+- **Troballes no resoltes:** cap.
+- **Acció següent:** revisió humana del diff; no commit sense autorització.
 
 ### TW4-P15: Revisió Independent I Quality Gate Final
 
@@ -631,14 +665,34 @@ checkpoint de la fase següent. No s'hi enganxen logs complets.
 - CSS propi final: 1.520 línies en 18 fulls i 106 línies en 6 blocs Astro. Cap
   troballa no resolta.
 
+### TW4-P16: Tokens Residuals Després De P15, 2026-08-26
+
+- El CSS que encara només reenviava tokens ha passat al markup. S'ha eliminat
+  `page-section.css` (17 fulls restants).
+- `pnpm check` ha passat. Els valors computats confirmen `text-section`,
+  `max-w-reading`, tracking, `p-card`, `py-section` i ombres d'acció.
+- CSS propi: 1.434 línies en 17 fulls i 105 línies en 6 blocs Astro. El que
+  queda (graelles, markdown, `[open]`, clip-path, textures, clamps únics) no
+  té utilitat amb nom equivalent.
+- Neteja posterior de classes BEM sense CSS: kicker del page-hero, wrappers
+  de la home, estat d'acció de socis, `page-hero__content` (z-index redundant)
+  i `detail-hero__meta` (`text-white/80`). CSS propi: 1.425 línies en 17 fulls.
+- `about.css`: padding, gap, vores i filtre de la junta han passat a utilitats
+  amb nom. El markdown de `set:html`, el clamp del nom, el `color-mix` de
+  l'estatut i les graelles `minmax` continuen al full.
+- Passada a tots els fulls: padding, gap, vora, filtre i color amb nom al
+  markup. CSS residual per markdown, clamps de títol, `minmax`, clip-path,
+  `[open]` i textures. CSS propi: 851 línies en 17 fulls.
+
 ## Prompt De La Sessió Següent
 
 ```text
-El pla de migració Tailwind v4 està complet i validat al worktree
+El pla de migració Tailwind v4 està complet, amb P16 de tokens residuals
+validada al worktree
 `/Users/rogerboixaderguell/Develop/mountain_runners-tailwind-review`, branca
-`refactor/tailwind-semantic-tests`, sobre HEAD `cf01472`.
+`refactor/tailwind-semantic-tests`, sobre HEAD `cf01472` més els canvis locals
+P07–P16.
 
-No implementis cap fase nova. Revisa l'estat i el diff acumulat contra HEAD i
-confirma que només hi ha els canvis P07–P15 registrats al checkpoint. No facis
+No implementis cap fase nova. Revisa l'estat i el diff acumulat. No facis
 commit, push, merge, canvis a la PR ni deploy sense autorització explícita.
 ```

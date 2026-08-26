@@ -18,13 +18,15 @@ const boardMembers = parseBoardMembers(
 <PageSection
   id="about-board-title"
   title={messages.about_board_title({}, { locale })}
-  class="about-section--dark bg-ink max-w-none text-white"
+  class="bg-ink text-white"
   constrainBody={false}
 >
-  <div class="about-board__layout grid items-start">
-    <figure class="about-board__photo m-0 w-full max-w-3xs">
+  <div
+    class="about-board__layout grid items-start gap-6 md:items-center md:gap-12"
+  >
+    <figure class="m-0 w-full max-w-3xs">
       <img
-        class="block w-full border-2 border-white/35"
+        class="block w-full border-2 border-white/35 contrast-110 grayscale"
         src={boardPhoto.src}
         width={boardPhoto.width}
         height={boardPhoto.height}
@@ -34,15 +36,15 @@ const boardMembers = parseBoardMembers(
       />
     </figure>
 
-    <ul class="about-board__list m-0 grid list-none gap-0 p-0">
+    <ul class="m-0 grid list-none gap-0 border-t border-white/25 p-0">
       {
         boardMembers.map((member) => (
-          <li class="about-board__member flex items-center justify-between gap-4 max-md:flex-col max-md:items-start">
+          <li class="flex items-center justify-between gap-4 border-b border-white/20 py-5 max-md:flex-col max-md:items-start">
             <span class="about-board__member-name font-display font-bold uppercase">
               {member.name}
             </span>
-            <span class="about-board__member-role grid shrink-0 text-right max-md:text-left">
-              <span class="about-board__role-label tracking-label font-bold uppercase">
+            <span class="grid shrink-0 gap-1 text-right max-md:text-left">
+              <span class="text-meta tracking-label font-bold text-white/55 uppercase">
                 {messages.about_board_role_label({}, { locale })}
               </span>
               <span>{member.role}</span>

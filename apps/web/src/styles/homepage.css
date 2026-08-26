@@ -1,14 +1,5 @@
-.homepage-event__link:hover {
-  background: rgb(215 25 32 / 0.035);
-}
-
 .homepage-event__date span {
   font-size: clamp(2.25rem, 4vw, 3rem);
-  line-height: var(--leading-display);
-}
-
-.homepage-event__date small {
-  font-size: 0.95rem;
 }
 
 @media (min-width: 48rem) {

@@ -15,57 +15,13 @@
   margin-block: var(--space-2);
 }
 
-.about-section__signature {
-  font-size: 1.1rem;
-}
-
-.about-history__grid,
-.about-board__layout {
-  gap: clamp(1.5rem, 4vw, 3rem);
-}
-
-.about-board__photo img {
-  filter: grayscale(1) contrast(1.1);
-}
-
-.about-board__list {
-  border-top: 1px solid rgb(255 255 255 / 0.25);
-}
-
-.about-board__member {
-  padding: 1.35rem 0;
-  border-bottom: 1px solid rgb(255 255 255 / 0.18);
-}
-
 .about-board__member-name {
   font-size: clamp(1.05rem, 2.2vw, 1.35rem);
   line-height: 1.1;
 }
 
-.about-board__member-role {
-  gap: 0.2rem;
-}
-
-.about-board__role-label {
-  color: rgb(255 255 255 / 0.55);
-  font-size: 0.62rem;
-}
-
 .about-statutes__card {
-  max-width: var(--reading-width);
-  padding: var(--spacing-card);
-  border: 1px solid var(--color-line);
   background: color-mix(in srgb, var(--color-line) 8%, var(--color-paper));
-}
-
-.about-statutes__link {
-  font-size: 0.85rem;
-  text-decoration-thickness: 0.1rem;
-  text-underline-offset: 0.2rem;
-}
-
-.about-section--dark {
-  padding-inline: max(var(--page-gutter), calc((100% - var(--page-width)) / 2));
 }
 
 @media (min-width: 48rem) {
@@ -75,6 +31,5 @@
 
   .about-board__layout {
     grid-template-columns: minmax(0, 16rem) minmax(0, 1fr);
-    align-items: center;
   }
 }

@@ -17,9 +17,9 @@ const { locale } = Astro.props;
   title={messages.about_history_title({}, { locale })}
   constrainBody={false}
 >
-  <div class="about-history__grid grid items-start">
+  <div class="about-history__grid grid items-start gap-6 md:gap-12">
     <div
-      class="page-section__body text-base"
+      class="page-section__body max-w-reading text-base"
       set:html={renderRestrictedMarkdown(
         messages.about_history({}, { locale }),
       )}

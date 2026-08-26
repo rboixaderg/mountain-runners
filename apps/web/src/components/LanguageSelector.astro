@@ -24,10 +24,10 @@ const languageNames: Record<Locale, string> = {
     <nav aria-label={messages.language_selector({}, { locale })}>
       <details class="language-selector__details group relative">
         <summary
-          class="language-selector__summary border-ink text-ink font-display hover:border-red hover:bg-red group-open:border-red group-open:bg-red block cursor-pointer list-none border-2 p-0 text-xs leading-none font-bold group-open:text-white hover:text-white"
+          class="language-selector__summary border-ink text-ink font-display tracking-label hover:border-red hover:bg-red group-open:border-red group-open:bg-red block cursor-pointer list-none border-2 p-0 text-xs leading-none font-bold group-open:text-white hover:text-white"
           aria-label={`${messages.language_selector({}, { locale })}: ${languageNames[locale]}`}
         >
-          <span class="language-selector__toggle inline-flex min-h-10 items-center">
+          <span class="inline-flex min-h-10 items-center gap-2 px-2.5 py-2">
             <svg
               class="language-selector__icon size-4 fill-none stroke-current"
               viewBox="0 0 24 24"
@@ -41,19 +41,19 @@ const languageNames: Record<Locale, string> = {
             <span class="language-selector__chevron" aria-hidden="true" />
           </span>
         </summary>
-        <ul class="language-selector__panel border-ink absolute right-0 m-0 min-w-44 list-none border-2 bg-white py-2">
+        <ul class="language-selector__panel border-ink shadow-action-accent absolute right-0 m-0 min-w-44 list-none border-2 bg-white py-2">
           {localizedAlternatives.map((alternative) => (
             <li>
               {alternative.locale === locale ? (
                 <span
-                  class="language-selector__option bg-stone text-red font-display tracking-display block w-full border-0 px-4 text-left text-xs font-bold uppercase no-underline"
+                  class="bg-stone text-red font-display tracking-display leading-action block w-full border-0 px-4 py-2.5 text-left text-xs font-bold uppercase no-underline"
                   aria-current="page"
                 >
                   {languageNames[alternative.locale]}
                 </span>
               ) : (
                 <a
-                  class="language-selector__option text-ink font-display tracking-display hover:bg-stone hover:text-red block w-full border-0 bg-transparent px-4 text-left text-xs font-bold uppercase no-underline"
+                  class="text-ink font-display tracking-display leading-action hover:bg-stone hover:text-red block w-full border-0 bg-transparent px-4 py-2.5 text-left text-xs font-bold uppercase no-underline"
                   href={alternative.href}
                   hreflang={alternative.locale}
                   {...analyticsActionAttributes({

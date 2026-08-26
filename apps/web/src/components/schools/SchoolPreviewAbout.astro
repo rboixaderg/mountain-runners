@@ -26,22 +26,24 @@ const coverSize =
 ---
 
 <section
-  class="page-frame schools-detail-preview__about py-section grid items-center"
+  class="page-frame schools-detail-preview__about py-section grid items-center gap-6 md:gap-10"
   aria-labelledby="school-preview-about-title"
 >
   <div class="min-w-0">
     <h2
-      class="schools-detail-preview__about-title font-display m-0 mb-5 uppercase"
+      class="schools-detail-preview__about-title font-display m-0 mb-5 leading-none uppercase"
       id="school-preview-about-title"
     >
       {messages.school_preview_about_title({}, { locale })}
     </h2>
     <div
-      class="schools-detail-preview__about-body text-ink max-w-reading"
+      class="schools-detail-preview__about-body text-ink max-w-reading leading-copy text-base"
       set:html={renderRestrictedMarkdown(description!)}
     />
   </div>
-  <figure class="schools-detail-preview__about-media relative">
+  <figure
+    class="schools-detail-preview__about-media relative mx-auto w-full max-w-sm"
+  >
     <div class="schools-detail-preview__about-media-accent" aria-hidden="true">
     </div>
     <div

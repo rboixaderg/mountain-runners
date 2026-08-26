@@ -57,7 +57,7 @@ const documentAttributes = analyticsActionAttributes({
         <>
           {documentTitle}
           {availabilityMessageKey !== undefined && (
-            <span class="documents-entry__state text-muted ml-3 text-xs leading-normal font-bold uppercase">
+            <span class="text-muted tracking-label ml-3 text-xs leading-normal font-bold uppercase">
               {messages[availabilityMessageKey]({}, { locale })}
             </span>
           )}
@@ -72,7 +72,7 @@ const documentAttributes = analyticsActionAttributes({
     (document.date !== undefined ||
       resourceLocaleMessageKey !== undefined ||
       document.attribution !== undefined) && (
-      <dl class="documents-entry__meta text-muted m-0 flex flex-wrap gap-x-4 gap-y-2 text-xs leading-normal font-bold uppercase">
+      <dl class="documents-entry__meta text-muted tracking-label m-0 flex flex-wrap gap-x-4 gap-y-2 text-xs leading-normal font-bold uppercase">
         {document.date !== undefined && (
           <div class="flex gap-2">
             <dt>{messages.document_date_label({}, { locale })}</dt>
