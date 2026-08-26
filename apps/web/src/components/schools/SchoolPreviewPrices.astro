@@ -25,7 +25,7 @@ if (!hasPreviewPriceContent(pricesMarkdown)) {
 ---
 
 <article
-  class="schools-detail-preview__prices border-ink flex min-w-0 flex-col border-2 bg-white"
+  class="border-ink p-card shadow-action-lg flex min-w-0 flex-col border-2 bg-white"
 >
   <div class="schools-detail-preview__prices-header flex items-start gap-4">
     <div class="bg-ink inline-flex p-3 text-white" aria-hidden="true">
@@ -33,7 +33,7 @@ if (!hasPreviewPriceContent(pricesMarkdown)) {
     </div>
     <div class="min-w-0">
       <h3
-        class="schools-detail-preview__practical-card-title font-display text-ink m-0 font-bold uppercase"
+        class="schools-detail-preview__practical-card-title font-display text-ink leading-action tracking-display m-0 font-bold uppercase"
       >
         {messages.school_prices_label({}, { locale })}
       </h3>
@@ -55,8 +55,8 @@ if (!hasPreviewPriceContent(pricesMarkdown)) {
             const formattedAmount = formatPriceAmount(priceTier.amount);
 
             return (
-              <li class="schools-detail-preview__price-tier border-ink bg-stone grid justify-items-center border-2 text-center">
-                <span class="schools-detail-preview__price-tier-label text-muted text-xs leading-normal font-bold uppercase">
+              <li class="schools-detail-preview__price-tier border-ink bg-stone shadow-action-accent grid justify-items-center border-2 text-center">
+                <span class="text-muted tracking-label text-xs leading-normal font-bold uppercase">
                   {priceTier.label}
                 </span>
                 <span class="schools-detail-preview__price-tier-value font-display text-red mt-2 leading-none font-bold">
@@ -77,7 +77,7 @@ if (!hasPreviewPriceContent(pricesMarkdown)) {
     {
       priceSection.registrationFees.length > 0 && (
         <div class="schools-detail-preview__price-registration grid gap-3 pt-5">
-          <h4 class="schools-detail-preview__price-registration-title font-display text-ink m-0 font-bold uppercase">
+          <h4 class="schools-detail-preview__price-registration-title font-display text-ink tracking-label m-0 font-bold uppercase">
             {messages.school_prices_registration_label({}, { locale })}
           </h4>
           <ul class="m-0 grid list-none gap-2 p-0 md:grid-cols-2">

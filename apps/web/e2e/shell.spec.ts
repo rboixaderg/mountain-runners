@@ -354,6 +354,89 @@ test("renders the events hub groups in order with links to details", async ({
   await expect(main.locator('a[href=""], a[href="#"]')).toHaveCount(0);
 });
 
+test("keeps the calendar popover state and mobile bounds synchronized", async ({
+  page,
+}, testInfo) => {
+  await page.goto("/ca/esdeveniments/");
+
+  const calendar = page.getByRole("region", { name: "Calendari mensual" });
+  const dayButton = calendar.getByRole("button", {
+    name: "16: Escalada de Vilada a Castell de l'Areny",
+  });
+  const popoverId = await dayButton.getAttribute("aria-controls");
+  expect(popoverId).not.toBeNull();
+  const popover = page.locator(`#${popoverId}`);
+  const outsideHeading = page.getByRole("heading", {
+    level: 2,
+    name: "Pròximes edicions",
+  });
+  const outsideLink = page
+    .getByRole("region", { name: "Pròximes edicions" })
+    .getByRole("link", { name: /Ultra Pirineu/u })
+    .first();
+
+  if (!testInfo.project.name.endsWith("-mobile")) {
+    await dayButton.focus();
+    await dayButton.hover();
+    await expect(dayButton).toHaveAttribute("aria-expanded", "true");
+    await expect(popover).toBeVisible();
+    await outsideHeading.hover();
+    await expect(dayButton).toHaveAttribute("aria-expanded", "true");
+    await expect(popover).toBeVisible();
+    await dayButton.hover();
+    await outsideLink.focus();
+    await expect(dayButton).toHaveAttribute("aria-expanded", "true");
+    await expect(popover).toBeVisible();
+    await outsideHeading.hover();
+    await expect(dayButton).toHaveAttribute("aria-expanded", "false");
+    await expect(popover).toBeHidden();
+  }
+
+  await dayButton.click();
+  await expect(dayButton).toHaveAttribute("aria-expanded", "true");
+  await expect(popover).toHaveRole("region");
+  await expect(popover).toHaveAccessibleName("Esdeveniments del dia");
+  await expect(popover).toBeVisible();
+  if (testInfo.project.name.endsWith("-mobile")) {
+    const popoverBounds = await popover.evaluate((element) => {
+      const bounds = element.getBoundingClientRect();
+      return {
+        left: bounds.left,
+        right: bounds.right,
+        viewportWidth: document.documentElement.clientWidth,
+      };
+    });
+    expect(popoverBounds.left).toBeGreaterThanOrEqual(0);
+    expect(popoverBounds.right).toBeLessThanOrEqual(
+      popoverBounds.viewportWidth,
+    );
+  }
+
+  await dayButton.click();
+  await expect(dayButton).toHaveAttribute("aria-expanded", "false");
+  await expect(popover).toBeHidden();
+
+  await outsideLink.focus();
+  if (!testInfo.project.name.endsWith("-mobile")) {
+    await outsideHeading.hover();
+  }
+  await dayButton.focus();
+  await expect(dayButton).toHaveAttribute("aria-expanded", "true");
+  const eventLink = popover.getByRole("link").first();
+  await eventLink.focus();
+  await expect(eventLink).toBeFocused();
+  await page.keyboard.press("Escape");
+  await expect(dayButton).toHaveAttribute("aria-expanded", "false");
+  await expect(popover).toBeHidden();
+  await expect(dayButton).toBeFocused();
+
+  await dayButton.press("Enter");
+  await expect(dayButton).toHaveAttribute("aria-expanded", "true");
+  await outsideHeading.click();
+  await expect(dayButton).toHaveAttribute("aria-expanded", "false");
+  await expect(popover).toBeHidden();
+});
+
 test("renders the club attribution for every Skimo gallery photo", async ({
   page,
 }) => {

@@ -50,7 +50,7 @@ const collaboratorsWithImages = await Promise.all(
                 : { width: size.width, height: size.height })}
             />
             <div class="min-w-0">
-              <h3 class="members-directory__name font-display m-0 mb-2 uppercase">
+              <h3 class="members-directory__name font-display tracking-display m-0 mb-2 uppercase">
                 {entity.name[locale]}
               </h3>
               <p class="members-directory__benefit text-red">
@@ -64,7 +64,7 @@ const collaboratorsWithImages = await Promise.all(
               />
               {primaryLink && (
                 <ExternalLink
-                  className="members-directory__website text-red mt-2 inline-flex max-w-full flex-wrap items-center text-xs font-bold uppercase no-underline wrap-anywhere hover:bg-transparent hover:text-ink"
+                  className="members-directory__website text-red tracking-display mt-2 inline-flex max-w-full flex-wrap items-center text-xs font-bold uppercase no-underline wrap-anywhere hover:bg-transparent hover:text-ink"
                   href={primaryLink.url}
                   label={entity.name[locale]!}
                   analyticsArea={analyticsAreas.membersCollaborators}

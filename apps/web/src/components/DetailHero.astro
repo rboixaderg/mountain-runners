@@ -38,7 +38,7 @@ const {
     />
     {
       coverAttribution && (
-        <figcaption class="text-paper absolute right-3 bottom-3 z-1 m-0 px-2 py-1">
+        <figcaption class="text-paper text-meta absolute right-3 bottom-3 z-1 m-0 px-2 py-1 leading-normal">
           {coverAttribution}
         </figcaption>
       )
@@ -46,13 +46,13 @@ const {
   </figure>
   <div class="page-frame relative z-1 grid justify-items-center text-center">
     <p
-      class="detail-hero__kicker bg-ink font-display m-0 mb-4 border-0 leading-normal font-bold text-white uppercase"
+      class="detail-hero__kicker bg-ink font-display text-meta tracking-label m-0 mb-4 border-0 leading-normal font-bold text-white uppercase"
     >
       {kicker}
     </p>
     <slot name="meta" />
     <h1
-      class="detail-hero__title font-display m-0 wrap-anywhere text-white uppercase italic"
+      class="detail-hero__title font-display text-display leading-display tracking-headline m-0 wrap-anywhere text-white uppercase italic"
     >
       {title}
     </h1>

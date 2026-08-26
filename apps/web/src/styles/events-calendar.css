@@ -1,20 +1,5 @@
-.events-calendar {
-  padding-block: var(--spacing-section);
-}
-
 .events-calendar__caption {
   font-size: clamp(1.35rem, 2.5vw, 1.85rem);
-  letter-spacing: var(--tracking-display);
-}
-
-.events-calendar__weekday {
-  padding-block: 0.85rem;
-  font-size: var(--text-meta);
-  letter-spacing: var(--tracking-label);
-}
-
-.events-calendar__day:last-child {
-  border-right: 0;
 }
 
 .events-calendar__day--outside {
@@ -60,8 +45,7 @@
   visibility: hidden;
 }
 
-.events-calendar__day--has-events:hover .events-calendar__popover,
-.events-calendar__day--has-events:focus-within .events-calendar__popover,
+.events-calendar__day--preview .events-calendar__popover,
 .events-calendar__day--open .events-calendar__popover {
   opacity: 1;
   pointer-events: auto;
@@ -93,7 +77,6 @@
 
 .events-calendar__event-meta dt {
   font-size: 0.62rem;
-  letter-spacing: var(--tracking-label);
 }
 
 .events-calendar__event-meta dd {
@@ -103,7 +86,6 @@
 
 .events-calendar__event-link {
   font-size: 0.68rem;
-  letter-spacing: var(--tracking-display);
   text-decoration-thickness: 0.1rem;
   text-underline-offset: 0.18rem;
 }
@@ -140,6 +122,44 @@
   .events-calendar__day-number {
     width: 1.65rem;
     height: 1.65rem;
-    font-size: var(--text-action);
+  }
+
+  .events-calendar__day:nth-child(1) .events-calendar__popover {
+    left: 0;
+  }
+
+  .events-calendar__day:nth-child(2) .events-calendar__popover {
+    left: -100%;
+  }
+
+  .events-calendar__day:nth-child(3) .events-calendar__popover {
+    left: -200%;
+  }
+
+  .events-calendar__day:nth-child(5) .events-calendar__popover {
+    right: -200%;
+    left: auto;
+  }
+
+  .events-calendar__day:nth-child(6) .events-calendar__popover {
+    right: -100%;
+    left: auto;
+  }
+
+  .events-calendar__day:nth-child(7) .events-calendar__popover {
+    right: 0;
+    left: auto;
+  }
+
+  .events-calendar__day:nth-child(-n + 3) .events-calendar__popover,
+  .events-calendar__day:nth-child(n + 5) .events-calendar__popover {
+    transform: translateY(0.15rem);
+  }
+
+  .events-calendar__day--preview:nth-child(-n + 3) .events-calendar__popover,
+  .events-calendar__day--preview:nth-child(n + 5) .events-calendar__popover,
+  .events-calendar__day--open:nth-child(-n + 3) .events-calendar__popover,
+  .events-calendar__day--open:nth-child(n + 5) .events-calendar__popover {
+    transform: translateY(0);
   }
 }

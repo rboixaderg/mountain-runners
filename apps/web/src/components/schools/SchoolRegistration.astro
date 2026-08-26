@@ -23,7 +23,7 @@ const registrationLabel = messages[registration.key]({}, { locale });
 ---
 
 <section
-  class="schools-detail__section schools-detail__registration grid items-start justify-items-center text-center text-white"
+  class="schools-detail__registration bg-ink py-section grid items-start justify-items-center text-center text-white"
   aria-labelledby="school-registration-title"
 >
   <div
@@ -41,14 +41,14 @@ const registrationLabel = messages[registration.key]({}, { locale });
     {messages.school_registration_intro({}, { locale })}
   </p>
   <p
-    class="schools-detail__registration-status m-0 mb-6 w-full max-w-3xl min-w-0 font-bold text-white uppercase"
+    class="text-action tracking-label m-0 mb-6 w-full max-w-3xl min-w-0 font-bold text-white uppercase"
   >
     <span>{registrationLabel}</span>
   </p>
   {
     registration.url && (
       <ExternalLink
-        className="schools-detail__external-link border-red bg-red inline-flex w-full max-w-3xl min-w-0 flex-wrap items-center justify-center wrap-anywhere border-2 text-xs leading-normal font-bold text-white uppercase"
+        className="schools-detail__external-link border-red bg-red shadow-action tracking-display inline-flex w-full max-w-3xl min-w-0 flex-wrap items-center justify-center wrap-anywhere border-2 px-4 text-xs leading-normal font-bold text-white uppercase"
         href={registration.url}
         label={messages.school_registration_action({}, { locale })}
         showHost={false}

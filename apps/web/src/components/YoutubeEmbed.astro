@@ -13,12 +13,12 @@ const embedUrl = buildYoutubeEmbedUrl(videoId);
 
 <div
   class:list={[
-    "youtube-embed border-ink bg-ink relative aspect-video overflow-hidden border-2",
+    "border-ink bg-ink relative aspect-video overflow-hidden border-2",
     className,
   ]}
 >
   <iframe
-    class="youtube-embed__frame block h-full w-full border-0"
+    class="block h-full w-full border-0"
     src={embedUrl}
     title={title}
     loading="lazy"

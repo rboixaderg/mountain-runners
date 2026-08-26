@@ -21,7 +21,7 @@ const documentGroups = getDocumentGroups(
 );
 ---
 
-<article class="page-detail pb-0">
+<article class="pb-0">
   <PageIntro
     description={messages.documents_page_description({}, { locale })}
     heroImage={homepageHeroSmall}
@@ -39,7 +39,7 @@ const documentGroups = getDocumentGroups(
         />
       ))
     ) : (
-      <section class="page-frame page-section py-section border-line border-b">
+      <section class="page-frame py-section border-line border-b">
         <p class="page-section__body leading-copy m-0 text-base">
           {messages.documents_empty({}, { locale })}
         </p>

@@ -48,10 +48,6 @@
   content: "";
 }
 
-.events-detail__edition-inner {
-  padding-block: var(--spacing-section);
-}
-
 .events-detail__edition h2 {
   font-size: clamp(2rem, 4vw, 3.25rem);
 }
@@ -76,7 +72,6 @@
 
 .events-detail__edition dt {
   font-size: 0.9rem;
-  letter-spacing: var(--tracking-display);
 }
 
 .events-detail__edition dd {
@@ -103,7 +98,6 @@
 
 .events-detail__description {
   gap: clamp(1.5rem, 4vw, 2.5rem);
-  padding-block: var(--spacing-section);
 }
 
 .events-detail__description-title {
@@ -121,7 +115,6 @@
 }
 
 .events-detail__description-body {
-  max-width: var(--reading-width);
   font-size: 1.05rem;
   line-height: 1.65;
 }
@@ -132,14 +125,6 @@
 
 .events-detail__actions {
   padding-block: clamp(2.5rem, 5vw, 4rem) clamp(1rem, 2vw, 1.5rem);
-}
-
-.events-detail__action-card {
-  padding: var(--spacing-card);
-}
-
-.events-detail__action-card--info {
-  box-shadow: var(--shadow-action);
 }
 
 .events-detail__action-card--registration {
@@ -171,28 +156,13 @@
   color: rgb(255 255 255 / 0.82);
 }
 
-.events-detail__registration-status {
-  font-size: var(--text-action);
-  letter-spacing: var(--tracking-label);
-}
-
 .events-detail .event-action {
   gap: 0.35rem;
-  letter-spacing: var(--tracking-display);
   padding-block: 0.8rem;
-  box-shadow: var(--shadow-action);
-}
-
-.events-detail .event-action--registration {
-  box-shadow: var(--shadow-action);
 }
 
 .events-detail__actions .events-detail__resources {
   margin-top: clamp(1.5rem, 3vw, 2rem);
-}
-
-.events-detail__content {
-  padding-block-end: var(--section-space);
 }
 
 .events-detail__resources h2,
@@ -213,10 +183,6 @@
 .events-detail__history:not(:first-child),
 .events-detail__entities:not(:first-child) {
   margin-top: clamp(2rem, 4vw, 3rem);
-}
-
-.events-detail__entities p {
-  font-size: var(--text-action);
 }
 
 .events-detail__entity-icon {

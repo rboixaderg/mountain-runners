@@ -20,7 +20,7 @@ const {
 
 <section
   class:list={[
-    "page-frame page-section py-section",
+    "page-frame py-section",
     bordered && "border-line border-b",
     className,
   ]}
@@ -45,16 +45,3 @@ const {
     )
   }
 </section>
-
-<style>
-  .page-section__body :global(.page-section__markdown p) {
-    max-width: var(--reading-width);
-    margin: 0 0 var(--space-4);
-    font-size: 1rem;
-    line-height: var(--leading-copy);
-  }
-
-  .page-section__body :global(.page-section__markdown p:last-child) {
-    margin-bottom: 0;
-  }
-</style>

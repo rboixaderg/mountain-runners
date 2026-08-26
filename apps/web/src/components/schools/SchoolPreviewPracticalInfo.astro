@@ -52,17 +52,17 @@ const hasPracticalContent =
 {
   hasPracticalContent && (
     <section
-      class="schools-detail-preview__practical border-ink bg-stone relative z-0 scroll-mt-20 border-y-2"
+      class="border-ink bg-stone py-section relative z-0 scroll-mt-20 border-y-2"
       aria-labelledby="school-preview-practical-title"
     >
       <div class="page-frame schools-detail-preview__practical-header">
         <h2
-          class="schools-detail-preview__practical-title font-display border-red m-0 mb-4 inline-block border-b-4 pb-2 uppercase"
+          class="schools-detail-preview__practical-title font-display border-red tracking-display m-0 mb-4 inline-block border-b-4 pb-2 uppercase"
           id="school-preview-practical-title"
         >
           {messages.school_practical_info_title({}, { locale })}
         </h2>
-        <p class="schools-detail-preview__practical-intro text-muted m-0">
+        <p class="schools-detail-preview__practical-intro text-muted max-w-reading leading-copy m-0">
           {messages.school_practical_info_intro({}, { locale })}
         </p>
       </div>
@@ -91,9 +91,8 @@ const hasPracticalContent =
               return (
                 <li
                   class:list={[
-                    "schools-detail-preview__practical-card",
                     isDetailedSchedule && "md:col-span-full",
-                    "border-ink relative flex h-full min-w-0 flex-col items-start overflow-hidden border-2 bg-white",
+                    "border-ink p-card shadow-action-lg relative flex h-full min-w-0 flex-col items-start overflow-hidden border-2 bg-white",
                   ]}
                 >
                   <div class="mb-4 flex flex-col items-start gap-5">
@@ -103,7 +102,7 @@ const hasPracticalContent =
                     >
                       <SchoolPracticalIcon sectionKey={sectionKey} />
                     </div>
-                    <h3 class="schools-detail-preview__practical-card-title font-display text-ink m-0 font-bold uppercase">
+                    <h3 class="schools-detail-preview__practical-card-title font-display text-ink leading-action tracking-display m-0 font-bold uppercase">
                       {messages[schoolPracticalSectionMessageKeys[sectionKey]](
                         {},
                         { locale },
@@ -114,7 +113,7 @@ const hasPracticalContent =
                     {sectionKey === "schedule" && scheduleParts ? (
                       <>
                         {parsedSection.label && (
-                          <p class="schools-detail-preview__practical-card-label text-muted text-xs leading-normal font-bold uppercase">
+                          <p class="schools-detail-preview__practical-card-label text-muted tracking-label text-xs leading-normal font-bold uppercase">
                             {parsedSection.label}
                           </p>
                         )}
@@ -122,7 +121,7 @@ const hasPracticalContent =
                           {scheduleParts.days}
                         </p>
                         {scheduleParts.time && (
-                          <p class="schools-detail-preview__practical-card-highlight font-display text-red font-bold">
+                          <p class="schools-detail-preview__practical-card-highlight font-display text-red leading-action font-bold">
                             {scheduleParts.time}
                           </p>
                         )}
@@ -152,7 +151,7 @@ const hasPracticalContent =
                       </>
                     ) : (
                       parsedSection.lead && (
-                        <p class="schools-detail-preview__practical-card-highlight font-display text-red font-bold">
+                        <p class="schools-detail-preview__practical-card-highlight font-display text-red leading-action font-bold">
                           {parsedSection.lead}
                         </p>
                       )
@@ -194,9 +193,7 @@ const hasPracticalContent =
               return (
                 <li
                   class:list={[
-                    "schools-detail-preview__practical-card",
-                    "schools-detail-preview__practical-card--context",
-                    "border-ink relative flex h-full min-w-0 flex-col items-start overflow-hidden border-2 bg-white",
+                    "border-ink p-card shadow-action-accent relative flex h-full min-w-0 flex-col items-start overflow-hidden border-2 bg-white",
                   ]}
                 >
                   <div class="mb-4 flex flex-col items-start gap-5">
@@ -206,7 +203,7 @@ const hasPracticalContent =
                     >
                       <SchoolPracticalIcon sectionKey={sectionKey} />
                     </div>
-                    <h3 class="schools-detail-preview__practical-card-title font-display text-ink m-0 font-bold uppercase">
+                    <h3 class="schools-detail-preview__practical-card-title font-display text-ink leading-action tracking-display m-0 font-bold uppercase">
                       {messages[schoolPracticalSectionMessageKeys[sectionKey]](
                         {},
                         { locale },

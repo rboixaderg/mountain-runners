@@ -51,7 +51,9 @@ const hasOtherEntities = entities.some(
               ))}
             </span>
             {entity.attribution?.[locale] && (
-              <p class="text-muted m-0 mt-2">{entity.attribution[locale]}</p>
+              <p class="text-muted text-action m-0 mt-2">
+                {entity.attribution[locale]}
+              </p>
             )}
           </li>
         ))}

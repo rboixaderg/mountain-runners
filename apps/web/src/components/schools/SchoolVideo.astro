@@ -20,7 +20,7 @@ const videoId =
 {
   videoId !== undefined && (
     <section
-      class="schools-detail-preview__video border-ink border-b-2 bg-white"
+      class="border-ink py-section border-b-2 bg-white"
       aria-labelledby="school-video-title"
     >
       <div class="page-frame">
@@ -31,13 +31,13 @@ const videoId =
           </h2>
         </div>
         <YoutubeEmbed
-          className="schools-detail-preview__video-embed"
+          className="max-w-reading shadow-action-lg"
           title={messages.school_video_title({}, { locale })}
           videoId={videoId}
         />
         {videoUrl && (
           <ExternalLink
-            className="schools-detail-preview__video-link text-red mt-4 inline-flex max-w-full items-center text-xs leading-normal font-bold uppercase"
+            className="schools-detail-preview__video-link text-red mt-4 inline-flex max-w-full items-center text-xs leading-normal font-bold tracking-display uppercase"
             href={videoUrl}
             label={messages.school_video_action({}, { locale })}
           />

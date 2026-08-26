@@ -1,12 +1,3 @@
-.events-hub-section {
-  padding-block: var(--spacing-section);
-}
-
-.events-hub-section__title {
-  font-size: var(--text-section);
-  letter-spacing: var(--tracking-display);
-}
-
 .events-hub-active-item__link:hover {
   background: rgb(227 6 19 / 0.035);
 }
@@ -30,11 +21,6 @@
 
 .events-hub-active-item__status-label {
   font-size: 0.62rem;
-  letter-spacing: var(--tracking-label);
-}
-
-.events-hub-history__table th {
-  letter-spacing: var(--tracking-label);
 }
 
 .events-hub-history__table td {
@@ -51,5 +37,4 @@
   padding: 0.25rem 0.45rem;
   background: color-mix(in srgb, var(--color-line) 35%, var(--color-paper));
   font-size: 0.62rem;
-  letter-spacing: var(--tracking-label);
 }

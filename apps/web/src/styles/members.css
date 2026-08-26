@@ -12,38 +12,12 @@
   );
 }
 
-.members-action-card .page-section__body {
-  max-width: 40rem;
-}
-
 .members-action__link {
   padding-block: 0.8rem;
-  letter-spacing: var(--tracking-display);
-}
-
-.members-action-card--signup .members-action__link {
-  box-shadow: var(--shadow-action-accent);
 }
 
 .members-action__link--federation {
   padding: 0.9rem 1.35rem;
-  box-shadow: var(--shadow-action);
-}
-
-.members-action__link--federation:hover {
-  box-shadow: var(--shadow-action-accent);
-}
-
-.members-video {
-  padding-block: var(--spacing-section);
-}
-
-.members-video__figure {
-  width: min(100%, 44rem);
-}
-
-.members-video__embed {
-  box-shadow: var(--shadow-action-lg);
 }
 
 .members-benefits {
@@ -63,10 +37,8 @@
 }
 
 .members-benefits__intro {
-  max-width: 42rem;
   color: rgb(255 255 255 / 0.82);
   font-size: clamp(1rem, 2vw, 1.15rem);
-  line-height: var(--leading-copy);
 }
 
 .members-benefits__photo {
@@ -78,8 +50,6 @@
 }
 
 .members-benefits__collaborators-link {
-  font-size: var(--text-action);
-  letter-spacing: var(--tracking-display);
   text-decoration-thickness: 0.1rem;
   text-underline-offset: 0.2rem;
 }
@@ -91,7 +61,6 @@
 .members-directory__name {
   font-size: 1.1rem;
   line-height: 1.1;
-  letter-spacing: var(--tracking-display);
 }
 
 .members-directory__benefit {
@@ -105,7 +74,6 @@
 
 .members-directory__website {
   gap: 0.35rem;
-  letter-spacing: var(--tracking-display);
 }
 
 @media (min-width: 48rem) {

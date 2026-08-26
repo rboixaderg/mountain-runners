@@ -34,11 +34,11 @@ const collaboratorsAnchorAttributes = analyticsActionAttributes({
 
     <div class="members-benefits__layout grid items-center">
       <div class="members-benefits__copy grid min-w-0">
-        <p class="members-benefits__intro m-0">
+        <p class="members-benefits__intro leading-copy m-0 max-w-2xl">
           {messages.members_benefits_intro({}, { locale })}
         </p>
         <a
-          class="members-benefits__collaborators-link font-display text-red-on-dark font-bold uppercase underline hover:text-white"
+          class="members-benefits__collaborators-link font-display text-action text-red-on-dark tracking-display font-bold uppercase underline hover:text-white"
           href="#members-collaborators-title"
           {...collaboratorsAnchorAttributes}
         >

@@ -25,7 +25,7 @@ const galleryImages = await Promise.all(
 {
   galleryImages.length > 0 && (
     <section
-      class="schools-detail-preview__gallery border-line bg-stone border-b"
+      class="border-line bg-stone py-section border-b"
       aria-labelledby="school-gallery-title"
     >
       <div class="page-frame">
@@ -50,7 +50,7 @@ const galleryImages = await Promise.all(
                     : { width: size.width, height: size.height })}
                 />
                 {image.attribution?.[locale] && (
-                  <figcaption class="text-muted mt-2 text-center font-bold uppercase">
+                  <figcaption class="text-muted text-meta tracking-label mt-2 text-center leading-normal font-bold uppercase">
                     {image.attribution[locale]}
                   </figcaption>
                 )}

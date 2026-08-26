@@ -38,12 +38,12 @@ especificació de producte.
 | Worktree                | `/Users/rogerboixaderguell/Develop/mountain_runners-tailwind-review` |
 | Branca                  | `refactor/tailwind-semantic-tests`                                   |
 | Baseline inicial        | `7f34fa446b220c4d05dce8ac30b819b6bbcb1f11`                           |
-| Fase actual             | `TW4-P07`                                                            |
-| Estat de la fase        | `Pendent`                                                            |
-| Últim checkpoint        | TW4-DS02 validada; P07 aturat fins a autorització explícita          |
-| Última actualització    | 2026-08-25                                                           |
-| CSS propi de referència | 1.666 línies en 18 fulls i 112 línies en 6 blocs Astro               |
-| Canvis locals esperats  | DS01 + DS02 sobre HEAD `a1ea89a`                                     |
+| Fase actual             | `TW4-P15`                                                            |
+| Estat de la fase        | `Validada`                                                           |
+| Últim checkpoint        | P07–P15 validades sobre HEAD `cf01472`                               |
+| Última actualització    | 2026-08-26                                                           |
+| CSS propi de referència | 1.520 línies en 18 fulls i 106 línies en 6 blocs Astro               |
+| Canvis locals esperats  | P07–P15 i aquest seguiment sobre HEAD net `cf01472`                  |
 
 Els estats operatius són `Pendent`, `En curs`, `Validada` i `Bloquejada`.
 `Validada` indica que la fase ha superat les comprovacions locals i la revisió,
@@ -145,15 +145,15 @@ moviment reduït. Cada regla restant ha de tenir una justificació concreta.
 | `TW4-P06`  | Homepage i targeta d'esdeveniment compartida | P01          | Validada |
 | `TW4-DS01` | Sistema de disseny operatiu                  | P06          | Validada |
 | `TW4-DS02` | Unificació d'escales globals                 | DS01         | Validada |
-| `TW4-P07`  | Hub d'esdeveniments sense calendari          | DS02         | Pendent  |
-| `TW4-P08`  | Calendari d'esdeveniments                    | P07          | Pendent  |
-| `TW4-P09`  | Detall d'esdeveniment                        | P01          | Pendent  |
-| `TW4-P10`  | Socis                                        | P01          | Pendent  |
-| `TW4-P11`  | Hub d'escoles                                | P01          | Pendent  |
-| `TW4-P12`  | Preview del detall d'escola                  | P01, P11     | Pendent  |
-| `TW4-P13`  | Registration del detall d'escola             | P12          | Pendent  |
-| `TW4-P14`  | Neteja acotada de classes i ownership        | P02–P13      | Pendent  |
-| `TW4-P15`  | Revisió independent i quality gate final     | P14          | Pendent  |
+| `TW4-P07`  | Hub d'esdeveniments sense calendari          | DS02         | Validada |
+| `TW4-P08`  | Calendari d'esdeveniments                    | P07          | Validada |
+| `TW4-P09`  | Detall d'esdeveniment                        | P01          | Validada |
+| `TW4-P10`  | Socis                                        | P01          | Validada |
+| `TW4-P11`  | Hub d'escoles                                | P01          | Validada |
+| `TW4-P12`  | Preview del detall d'escola                  | P01, P11     | Validada |
+| `TW4-P13`  | Registration del detall d'escola             | P12          | Validada |
+| `TW4-P14`  | Neteja acotada de classes i ownership        | P02–P13      | Validada |
+| `TW4-P15`  | Revisió independent i quality gate final     | P14          | Validada |
 
 ## Definició Fixa De Les Fases
 
@@ -353,18 +353,23 @@ fins que la fase estigui controlada.
 
 ## Checkpoint Viu
 
-### TW4-P07: Hub D'Esdeveniments Sense Calendari
+### TW4-P15: Revisió Independent I Quality Gate Final
 
-- **Estat:** Pendent
-- **Sessió:** —
+- **Estat:** Validada
+- **Sessió:** 2026-08-26
 - **Worktree i branca:** worktree dedicat, `refactor/tailwind-semantic-tests`
-- **Base de la fase:** canvis locals validats de TW4-DS01 sobre HEAD `a1ea89a`
-- **Evidència d'anàlisi Luna:** —
-- **Evidència d'implementació Luna:** —
-- **Revisió principal:** —
-- **Validació executada:** —
-- **Troballes no resoltes:** —
-- **Acció següent:** executar només `TW4-P07`.
+- **Base de la fase:** P07–P14 sobre HEAD `cf01472`
+- **Evidència d'anàlisi:** dues revisions independents van validar tokens,
+  ownership, classes, interaccions, ARIA, analytics i markdown després de les
+  correccions acotades.
+- **Evidència d'implementació:** P15 només va corregir troballes confirmades: una
+  vora no exacta, utilitats ordinàries residuals, classes mortes i l'estat i
+  l'overflow mòbil del popover del calendari.
+- **Revisió principal:** cap troballa accionable després de la revisió final.
+- **Validació executada:** `git diff --check`, `CI=1 pnpm validate`,
+  `pnpm test:a11y`, `pnpm lighthouse` i comparació visual determinista.
+- **Troballes no resoltes:** cap.
+- **Acció següent:** revisió humana del diff acumulat; no queda cap fase del pla.
 
 En validar una fase, el checkpoint es copia de forma concisa al registre
 històric, s'actualitza la taula, s'avança `Estat Actual` i es prepara el
@@ -542,38 +547,98 @@ checkpoint de la fase següent. No s'hi enganxen logs complets.
 - Cap troballa no resolta. CSS propi: 1.666 línies en 18 fulls i 112 línies en
   6 blocs Astro. P07 resta pendent d'autorització.
 
+### TW4-P07: Hub D'Esdeveniments Sense Calendari, 2026-08-26
+
+- El hub usa `py-section`, `text-section`, `tracking-display` i
+  `tracking-label` als consumidors directes. La taula responsive, els colors
+  barrejats i els selectors estructurals continuen al CSS específic.
+- `pnpm check`, el build de 68 pàgines i 18 proves E2E enfocades van passar. La
+  primera execució del test de servidor va trobar un `EPIPE` transitori; la
+  repetició sense canvis va passar les 50 proves.
+
+### TW4-P08: Calendari D'Esdeveniments, 2026-08-26
+
+- Espaiat, tracking, tipografia meta i l'última vora de cada fila van passar a
+  utilitats amb nom. Rangs, popover, focus, estats i estructura de taula es van
+  conservar.
+- La revisió final va detectar dos defectes previs: tancament visual desalineat
+  amb `aria-expanded` i clipping del popover a les columnes laterals en mòbil.
+  L'estat preview/open ara sincronitza hover, focus, click, Escape i ARIA; el
+  posicionament mòbil manté el popover dins del viewport.
+
+### TW4-P09: Detall D'Esdeveniment, 2026-08-26
+
+- Hero, seccions, targetes d'acció i atribucions reutilitzen les escales de
+  display, tracking, spacing, amplada i ombra. Brush, gradients, textures,
+  markdown, comes i overrides continuen al CSS específic.
+- `pnpm check` i el build determinista de 68 pàgines van passar. La variant de
+  registration oberta continua sense ruta publicada i no es va alterar el
+  contingut per fabricar-ne una.
+
+### TW4-P10: Socis, 2026-08-26
+
+- Accions, vídeo, beneficis i directori reutilitzen amplades, leading, tracking
+  i ombres amb nom. La revisió va revertir `border-2`: no és semànticament
+  idèntic a la vora original de `0.125rem` fora d'una arrel de 16 píxels.
+- `pnpm check`, build i sis proves E2E de Socis van passar.
+
+### TW4-P11: Hub D'Escoles, 2026-08-26
+
+- Secció de valors, títols, introducció, estat, nom de targeta i acció usen les
+  escales tancades. El line-height específic `1.3` de l'estat es conserva i es
+  va verificar al CSS computat.
+- `pnpm check` i el build determinista van passar.
+
+### TW4-P12: Preview Del Detall D'Escola, 2026-08-26
+
+- Hero, seccions, informació pràctica, preus, galeria i vídeo reutilitzen
+  `py-section`, `p-card`, amplades, tracking, leading i ombres amb nom.
+- Es van conservar overlays, brush, watermark, gradients, grids, markdown i els
+  clamps dels títols de galeria i vídeo, que no tenen equivalència exacta.
+  `pnpm check`, 22 proves enfocades i el build van passar.
+
+### TW4-P13: Registration Del Detall D'Escola, 2026-08-26
+
+- La secció usa espaiat, color, tracking i ombra amb nom. Es van eliminar el
+  selector sobreescrit `.schools-detail__section h2` i la classe sense
+  consumidor; el padding vertical de `0.8rem` es conserva perquè `py-action`
+  val `0.85rem`.
+- `pnpm check`, 18 proves enfocades i el build van passar.
+
+### TW4-P14: Neteja Acotada De Classes I Ownership, 2026-08-26
+
+- Es van eliminar les classes mortes registrades i els residus descoberts per
+  la revisió. Els aliases `--space-*` i els imports de `page-section.css`
+  continuen perquè tenen consumidors i formen part de `DESIGN.md`.
+- `LegalMarkdown` rep Markdown font i aplica `renderRestrictedMarkdown` al seu
+  propi `set:html`; conserva l'adreça segura de privacitat i els atributs dels
+  links externs. La revisió de seguretat no va trobar regressions.
+
+### TW4-P15: Revisió Independent I Quality Gate Final, 2026-08-26
+
+- Les dues revisions independents van tancar sense troballes accionables després
+  de dues correccions acotades de CSS i calendari.
+- `git diff --check` i `CI=1 pnpm validate` van passar: 323 proves unitàries, 50
+  de servidor i 304 E2E, amb 302 casos de matriu omesos intencionadament fora de
+  Chromium. Les dues proves axe aplicables van passar.
+- Lighthouse va obtenir 99/100/100/100 a portada, hub i detall representatiu, i
+  tots els pressupostos van passar. La primera arrencada de Chrome va fallar amb
+  `ECONNREFUSED`; la repetició sense canvis va passar.
+- La comparació visual de nou rutes a 320x720 i 1280x720 no va detectar
+  regressions contra HEAD. Les diferències amb `7f34fa4` corresponen a les
+  normalitzacions aprovades; cap ruta amplia el document. El popover mòbil queda
+  entre x=43 i x=299 dins d'un viewport de 320 píxels.
+- CSS propi final: 1.520 línies en 18 fulls i 106 línies en 6 blocs Astro. Cap
+  troballa no resolta.
+
 ## Prompt De La Sessió Següent
 
 ```text
-Continua el pla de docs/tailwind-v4-migration-plan.md.
+El pla de migració Tailwind v4 està complet i validat al worktree
+`/Users/rogerboixaderguell/Develop/mountain_runners-tailwind-review`, branca
+`refactor/tailwind-semantic-tests`, sobre HEAD `cf01472`.
 
-Executa exclusivament la fase TW4-P07. No iniciïs ni analitzis cap altra fase.
-Aquest missatge és l'autorització explícita per implementar només TW4-P07.
-
-Confirma primer el worktree, la branca, el HEAD i l'estat de Git. L'estat
-esperat és el final validat de TW4-DS02: canvis locals sobre HEAD `a1ea89a`,
-amb el pla de migració trackejat. Si hi ha canvis que no concorden amb aquest
-checkpoint, atura't. No executis reset, restore, checkout, rebase ni merge.
-
-Llegeix el checkpoint viu, les fonts governants i només els paths permesos de
-TW4-P07. Reutilitza les escales tancades de DS02 (`tracking-*`, `leading-*`,
-`text-*`, `shadow-action*`, `py-section`, `p-card`, etc.). Normalitza només
-cap a aquestes escales quan valor, propietat i rol coincideixin; no inventis
-tokens nous en aquesta fase.
-
-Delega l'anàlisi de només lectura a explore-lite-luna. Després de revisar-ne
-l'evidència i fixar l'allowlist, delega la implementació acotada a
-implement-lite-luna. L'agent principal només orquestra, revisa el diff, pren
-decisions d'integració i executa la verificació.
-
-Migra només títols, labels, espaiat i colors de `events-hub.css`, la pàgina del
-hub, `EventsHubActiveCard.astro` i `EventsHubHistoryTable.astro`. No modifiquis
-el calendari, `HomepageEventCard.astro` ni `homepage.css`. Conserva la taula
-responsive i els selectors estructurals. Preserva rutes, contingut,
-comportament, accessibilitat, analytics i selectors E2E semàntics. No afegeixis
-dependències, no utilitzis @apply i no ampliïs l'abast de la fase.
-
-Executa les comprovacions definides per TW4-P07. Actualitza el checkpoint viu,
-el registre de troballes i el prompt de la sessió següent. Atura't en acabar.
-No facis commit, push, merge ni deploy sense autorització explícita.
+No implementis cap fase nova. Revisa l'estat i el diff acumulat contra HEAD i
+confirma que només hi ha els canvis P07–P15 registrats al checkpoint. No facis
+commit, push, merge, canvis a la PR ni deploy sense autorització explícita.
 ```

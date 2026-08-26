@@ -30,7 +30,7 @@ const calendar = buildCalendarMonthGrid(
 ---
 
 <section
-  class="events-calendar page-frame"
+  class="page-frame py-section"
   aria-labelledby="events-calendar-title"
   data-events-calendar
 >
@@ -38,7 +38,7 @@ const calendar = buildCalendarMonthGrid(
     <span class="bg-red h-6 w-2 shrink-0" aria-hidden="true"></span>
     <h2
       id="events-calendar-title"
-      class="events-hub-section__title font-display m-0 leading-none uppercase"
+      class="font-display text-section tracking-display m-0 leading-none uppercase"
     >
       {messages.events_calendar_title({}, { locale })}
     </h2>
@@ -47,7 +47,7 @@ const calendar = buildCalendarMonthGrid(
   <div class="border-line bg-paper border">
     <table class="w-full table-fixed border-collapse">
       <caption
-        class="events-calendar__caption border-line font-display caption-top border-b px-6 py-5 text-left font-bold capitalize"
+        class="events-calendar__caption border-line font-display tracking-display caption-top border-b px-6 py-5 text-left font-bold capitalize"
       >
         {calendar.monthLabel}
       </caption>
@@ -57,7 +57,7 @@ const calendar = buildCalendarMonthGrid(
             calendar.weekdayLabels.map((weekdayLabel) => (
               <th
                 scope="col"
-                class="events-calendar__weekday border-line font-display text-muted border-b px-2 text-center font-bold uppercase"
+                class="events-calendar__weekday border-line font-display text-muted text-meta py-action tracking-label border-b px-2 text-center leading-normal font-bold uppercase"
               >
                 {weekdayLabel}
               </th>
@@ -93,7 +93,7 @@ const calendar = buildCalendarMonthGrid(
                 return (
                   <td
                     class:list={[
-                      "events-calendar__day border-line bg-paper relative h-18 border-r border-b p-0 text-center align-middle max-md:h-13",
+                      "events-calendar__day border-line bg-paper relative h-18 border-r border-b p-0 text-center align-middle last:border-r-0 max-md:h-13",
                       !day.isCurrentMonth &&
                         "events-calendar__day--outside text-muted",
                       hasEvents && "events-calendar__day--has-events",
@@ -119,7 +119,7 @@ const calendar = buildCalendarMonthGrid(
                         >
                           <span
                             class:list={[
-                              "events-calendar__day-number font-display relative z-1 inline-grid size-8 place-items-center font-bold",
+                              "events-calendar__day-number font-display max-md:text-action relative z-1 inline-grid size-8 place-items-center font-bold",
                               day.isToday && "border-ink border-2",
                             ]}
                           >
@@ -146,13 +146,13 @@ const calendar = buildCalendarMonthGrid(
                               </h3>
                               <dl class="events-calendar__event-meta">
                                 <div>
-                                  <dt class="text-muted font-bold uppercase">
+                                  <dt class="text-muted tracking-label font-bold uppercase">
                                     {messages.event_dates_label({}, { locale })}
                                   </dt>
                                   <dd class="m-0">{event.dateLabel}</dd>
                                 </div>
                                 <div>
-                                  <dt class="text-muted font-bold uppercase">
+                                  <dt class="text-muted tracking-label font-bold uppercase">
                                     {messages.event_location_label(
                                       {},
                                       { locale },
@@ -162,7 +162,7 @@ const calendar = buildCalendarMonthGrid(
                                 </div>
                               </dl>
                               <a
-                                class="events-calendar__event-link text-ink hover:text-red font-bold uppercase underline"
+                                class="events-calendar__event-link text-ink hover:text-red tracking-display font-bold uppercase underline"
                                 href={event.href}
                                 {...analyticsActionAttributes({
                                   action: analyticsActions.calendarEventLink,
@@ -183,7 +183,7 @@ const calendar = buildCalendarMonthGrid(
                       day.dayNumber !== null && (
                         <span
                           class:list={[
-                            "events-calendar__day-number font-display relative z-1 inline-grid size-8 place-items-center font-bold",
+                            "events-calendar__day-number font-display max-md:text-action relative z-1 inline-grid size-8 place-items-center font-bold",
                             day.isToday && "border-ink border-2",
                           ]}
                         >
@@ -205,12 +205,33 @@ const calendar = buildCalendarMonthGrid(
 <script>
   function closeCalendarPopovers(calendar: HTMLElement) {
     for (const day of calendar.querySelectorAll(
-      ".events-calendar__day--open",
+      ".events-calendar__day--open, .events-calendar__day--preview",
     )) {
-      day.classList.remove("events-calendar__day--open");
+      day.classList.remove(
+        "events-calendar__day--open",
+        "events-calendar__day--preview",
+      );
       const button = day.querySelector(".events-calendar__day-button");
       button?.setAttribute("aria-expanded", "false");
     }
+  }
+
+  function previewCalendarDay(day: HTMLElement) {
+    if (day.classList.contains("events-calendar__day--open")) return;
+
+    day.classList.add("events-calendar__day--preview");
+    day
+      .querySelector(".events-calendar__day-button")
+      ?.setAttribute("aria-expanded", "true");
+  }
+
+  function closeCalendarDayPreview(day: HTMLElement) {
+    if (day.classList.contains("events-calendar__day--open")) return;
+
+    day.classList.remove("events-calendar__day--preview");
+    day
+      .querySelector(".events-calendar__day-button")
+      ?.setAttribute("aria-expanded", "false");
   }
 
   function openCalendarDay(day: HTMLElement) {
@@ -226,6 +247,30 @@ const calendar = buildCalendarMonthGrid(
   )) {
     if (!(calendarElement instanceof HTMLElement)) continue;
     const calendar = calendarElement;
+
+    for (const dayElement of calendar.querySelectorAll(
+      ".events-calendar__day--has-events",
+    )) {
+      if (!(dayElement instanceof HTMLElement)) continue;
+      const day = dayElement;
+
+      day.addEventListener("pointerenter", () => previewCalendarDay(day));
+      day.addEventListener("pointerleave", () => {
+        if (day.contains(document.activeElement)) return;
+        closeCalendarDayPreview(day);
+      });
+      day.addEventListener("focusin", () => previewCalendarDay(day));
+      day.addEventListener("focusout", (event) => {
+        if (
+          (event.relatedTarget instanceof Node &&
+            day.contains(event.relatedTarget)) ||
+          day.matches(":hover")
+        ) {
+          return;
+        }
+        closeCalendarDayPreview(day);
+      });
+    }
 
     calendar.addEventListener("click", (event) => {
       const target = event.target;
@@ -267,6 +312,18 @@ const calendar = buildCalendarMonthGrid(
       "[data-events-calendar]",
     )) {
       if (calendar instanceof HTMLElement) {
+        for (const day of calendar.querySelectorAll(
+          ".events-calendar__day--open, .events-calendar__day--preview",
+        )) {
+          if (
+            day instanceof HTMLElement &&
+            day.contains(document.activeElement)
+          ) {
+            day
+              .querySelector<HTMLButtonElement>(".events-calendar__day-button")
+              ?.focus();
+          }
+        }
         closeCalendarPopovers(calendar);
       }
     }

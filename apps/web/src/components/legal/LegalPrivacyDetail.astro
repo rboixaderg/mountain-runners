@@ -2,13 +2,13 @@
 import homepageHero from "../../assets/home/homepage-hero.jpeg";
 import homepageHeroSmall from "../../assets/home/homepage-hero-mobile.jpeg";
 import * as messages from "../../paraglide/messages.js";
-import { renderRestrictedMarkdown } from "../../lib/content/markdown";
 import type { PublicationCatalog } from "../../lib/content/publication";
 import type { Locale } from "../../lib/content/primitives";
 import { getMarkdownSafeEmailAddress } from "../../lib/presentation/urls";
 import ContactDataList from "../ContactDataList.astro";
 import PageIntro from "../PageIntro.astro";
 import PageSection from "../PageSection.astro";
+import LegalMarkdown from "./LegalMarkdown.astro";
 
 type LegalPrivacySection = {
   id: string;
@@ -94,7 +94,7 @@ const visibleLegalPrivacySections = legalPrivacySections.flatMap((section) => {
 });
 ---
 
-<article class="page-detail pb-0">
+<article class="pb-0">
   <PageIntro
     description={messages.legal_privacy_description({}, { locale })}
     heroImage={homepageHeroSmall}
@@ -119,10 +119,7 @@ const visibleLegalPrivacySections = legalPrivacySections.flatMap((section) => {
   {
     visibleLegalPrivacySections.map(({ body, id, titleKey }) => (
       <PageSection id={id} title={messages[titleKey]({}, { locale })}>
-        <div
-          class="page-section__markdown"
-          set:html={renderRestrictedMarkdown(body)}
-        />
+        <LegalMarkdown source={body} />
       </PageSection>
     ))
   }

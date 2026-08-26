@@ -2,13 +2,13 @@
 import homepageHero from "../../assets/home/homepage-hero.jpeg";
 import homepageHeroSmall from "../../assets/home/homepage-hero-mobile.jpeg";
 import * as messages from "../../paraglide/messages.js";
-import { renderRestrictedMarkdown } from "../../lib/content/markdown";
 import type { PublicationCatalog } from "../../lib/content/publication";
 import type { Locale } from "../../lib/content/primitives";
 import "../../styles/contact-data.css";
 import ContactDataList from "../ContactDataList.astro";
 import PageIntro from "../PageIntro.astro";
 import PageSection from "../PageSection.astro";
+import LegalMarkdown from "./LegalMarkdown.astro";
 
 type LegalNoticeSection = {
   id: string;
@@ -70,7 +70,7 @@ const { catalog, locale } = Astro.props;
 const contact = catalog.contact;
 ---
 
-<article class="page-detail pb-0">
+<article class="pb-0">
   <PageIntro
     description={messages.legal_notice_description({}, { locale })}
     heroImage={homepageHeroSmall}
@@ -129,10 +129,7 @@ const contact = catalog.contact;
   {
     legalNoticeSections.map(({ bodyKey, id, titleKey }) => (
       <PageSection id={id} title={messages[titleKey]({}, { locale })}>
-        <div
-          class="page-section__markdown"
-          set:html={renderRestrictedMarkdown(messages[bodyKey]({}, { locale }))}
-        />
+        <LegalMarkdown source={messages[bodyKey]({}, { locale })} />
       </PageSection>
     ))
   }

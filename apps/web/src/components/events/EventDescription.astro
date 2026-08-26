@@ -22,7 +22,7 @@ const coverSize =
 {
   description !== undefined && description.trim().length > 0 && (
     <section
-      class="page-frame events-detail__description grid items-center"
+      class="page-frame events-detail__description py-section grid items-center"
       aria-labelledby="event-description-title"
     >
       <div class="min-w-0">
@@ -33,7 +33,7 @@ const coverSize =
           {messages.event_description_title({}, { locale })}
         </h2>
         <div
-          class="events-detail__description-body text-ink"
+          class="events-detail__description-body text-ink max-w-reading"
           set:html={renderRestrictedMarkdown(description)}
         />
       </div>

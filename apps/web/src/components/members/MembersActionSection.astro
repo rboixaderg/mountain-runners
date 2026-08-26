@@ -42,7 +42,6 @@ const actionAttributes = analyticsActionAttributes({
 
 <section
   class:list={[
-    "members-action-card",
     "min-h-80",
     "p-6",
     "md:p-12",
@@ -63,7 +62,7 @@ const actionAttributes = analyticsActionAttributes({
   </div>
   <div
     class:list={[
-      "page-section__body text-base",
+      "page-section__body max-w-section-copy text-base",
       variant === "federation" && "flex flex-1 flex-col justify-end",
     ]}
   >
@@ -77,10 +76,10 @@ const actionAttributes = analyticsActionAttributes({
         <a
           class:list={[
             "members-action__link",
-            "border-ink text-ink hover:bg-ink inline-flex w-fit max-w-full items-center self-start border-2 px-4 text-xs leading-normal font-bold whitespace-nowrap uppercase no-underline hover:text-white",
-            variant === "signup" && "mt-6",
+            "border-ink text-ink hover:bg-ink tracking-display inline-flex w-fit max-w-full items-center self-start border-2 px-4 text-xs leading-normal font-bold whitespace-nowrap uppercase no-underline hover:text-white",
+            variant === "signup" && "shadow-action-accent mt-6",
             variant === "federation" &&
-              "members-action__link--federation border-red bg-red hover:border-ink hover:bg-ink text-white hover:text-white",
+              "members-action__link--federation border-red bg-red shadow-action hover:shadow-action-accent hover:border-ink hover:bg-ink text-white hover:text-white",
           ]}
           href={actionHref}
           {...externalLinkAttributes}

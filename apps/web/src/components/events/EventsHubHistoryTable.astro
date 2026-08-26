@@ -21,25 +21,25 @@ const { locale, rows } = Astro.props;
       <tr>
         <th
           scope="col"
-          class="border-line font-display text-muted border-b-2 px-3 py-4 text-xs leading-normal font-bold uppercase"
+          class="border-line font-display text-muted tracking-label border-b-2 px-3 py-4 text-xs leading-normal font-bold uppercase"
         >
           {messages.events_history_year({}, { locale })}
         </th>
         <th
           scope="col"
-          class="border-line font-display text-muted border-b-2 px-3 py-4 text-xs leading-normal font-bold uppercase"
+          class="border-line font-display text-muted tracking-label border-b-2 px-3 py-4 text-xs leading-normal font-bold uppercase"
         >
           {messages.events_history_event({}, { locale })}
         </th>
         <th
           scope="col"
-          class="border-line font-display text-muted border-b-2 px-3 py-4 text-xs leading-normal font-bold uppercase"
+          class="border-line font-display text-muted tracking-label border-b-2 px-3 py-4 text-xs leading-normal font-bold uppercase"
         >
           {messages.events_history_location({}, { locale })}
         </th>
         <th
           scope="col"
-          class="border-line font-display text-muted border-b-2 px-3 py-4 text-right text-xs leading-normal font-bold uppercase"
+          class="border-line font-display text-muted tracking-label border-b-2 px-3 py-4 text-right text-xs leading-normal font-bold uppercase"
         >
           {messages.events_history_status({}, { locale })}
         </th>
@@ -66,7 +66,7 @@ const { locale, rows } = Astro.props;
             <td class="px-3 py-4">{row.location}</td>
             <td class="px-3 py-4 text-right">
               <EventStatus
-                className="events-hub-history__status text-muted inline-block font-bold uppercase"
+                className="events-hub-history__status text-muted inline-block font-bold tracking-label uppercase"
                 locale={locale}
                 statusKey={eventStatusMessageKeys.historical}
               />

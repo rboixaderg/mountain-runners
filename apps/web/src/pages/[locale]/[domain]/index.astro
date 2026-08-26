@@ -169,14 +169,14 @@ const socialImage =
             if (historyRows.length === 0) return null;
             return (
               <section
-                class:list={["page-frame", "events-hub-section"]}
+                class:list={["page-frame", "py-section"]}
                 aria-labelledby={section.id}
               >
                 <div class="mb-7 flex items-center gap-2">
                   <span class="bg-ink h-6 w-2 shrink-0" aria-hidden="true" />
                   <h2
                     id={section.id}
-                    class="events-hub-section__title font-display text-muted m-0 leading-none uppercase"
+                    class="font-display text-section text-muted tracking-display m-0 leading-none uppercase"
                   >
                     {section.title}
                   </h2>
@@ -190,7 +190,7 @@ const socialImage =
 
           return (
             <section
-              class:list={["page-frame", "events-hub-section"]}
+              class:list={["page-frame", "py-section"]}
               aria-labelledby={section.id}
             >
               <div class="mb-7 flex items-center gap-2">
@@ -205,7 +205,7 @@ const socialImage =
                 />
                 <h2
                   id={section.id}
-                  class="events-hub-section__title font-display m-0 leading-none uppercase"
+                  class="font-display text-section tracking-display m-0 leading-none uppercase"
                 >
                   {section.title}
                 </h2>

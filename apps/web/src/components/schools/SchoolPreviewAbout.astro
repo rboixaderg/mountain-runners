@@ -26,7 +26,7 @@ const coverSize =
 ---
 
 <section
-  class="page-frame schools-detail-preview__about grid items-center"
+  class="page-frame schools-detail-preview__about py-section grid items-center"
   aria-labelledby="school-preview-about-title"
 >
   <div class="min-w-0">
@@ -37,7 +37,7 @@ const coverSize =
       {messages.school_preview_about_title({}, { locale })}
     </h2>
     <div
-      class="schools-detail-preview__about-body text-ink"
+      class="schools-detail-preview__about-body text-ink max-w-reading"
       set:html={renderRestrictedMarkdown(description!)}
     />
   </div>
