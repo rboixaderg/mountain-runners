@@ -1,0 +1,51 @@
+apps/web/src/components/events/EventEntities.astro
+  s_42a1041c01567f::t_0d238512d09a8a 54-56
+apps/web/src/components/events/EventsHubActiveCard.astro
+  s_3f7c365b361e73::t_6b89f3473f0bde 54
+apps/web/src/components/events/EventsHubHistoryTable.astro
+  s_3f7c365b361e73::t_1ecead864f019f 24,30,36,42,69
+apps/web/src/components/schools/SchoolHub.astro
+  s_6dabd845cf32c4::t_6a6df293528e28 58,65,84,90-92,128,131,137,150,154
+apps/web/src/components/schools/SchoolPreviewHero.astro
+  s_b52de6d51953b3::t_8ac7b512a638d4 42,46-48
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "5681668a10e39108f526debf65e1940c5921962b",
+  "prompts": {},
+  "sessions": {
+    "s_3f7c365b361e73": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_fc5b9c779ffe2I8Glp6Ib1Nny9",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    },
+    "s_42a1041c01567f": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_fc5b23afdffeDDIXNUL1hbAZ6H",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    },
+    "s_6dabd845cf32c4": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_fc3926bc0ffednRd7mJPylc14N",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    },
+    "s_b52de6d51953b3": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_fc5a5a440fferCKZiQ1dX7F2gw",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
