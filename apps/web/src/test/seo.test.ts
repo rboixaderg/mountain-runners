@@ -156,6 +156,43 @@ describe("organization and website structured data", () => {
       url: "https://mountainrunners.cat/",
     });
   });
+
+  it("adds description, contact point and postal address when reviewed", () => {
+    const data = getOrganizationJsonLd({
+      description: "Associació esportiva del Berguedà.",
+      email: "info@mountainrunners.cat",
+      logoUrl:
+        "https://mountainrunners.cat/content-resources/assets/logo_mountain_runners.png",
+      name: "Mountain Runners del Berguedà",
+      postalAddress: "Plaça Sant Joan, 15 baixos, 08600 Berga",
+      sameAs: ["https://www.instagram.com/infomountain/"],
+      siteUrl: new URL("https://mountainrunners.cat"),
+      telephone: "+34938213747",
+    });
+
+    expect(data).toEqual({
+      "@context": "https://schema.org",
+      "@type": "Organization",
+      name: "Mountain Runners del Berguedà",
+      url: "https://mountainrunners.cat/",
+      logo: "https://mountainrunners.cat/content-resources/assets/logo_mountain_runners.png",
+      sameAs: ["https://www.instagram.com/infomountain/"],
+      description: "Associació esportiva del Berguedà.",
+      contactPoint: [
+        {
+          "@type": "ContactPoint",
+          contactType: "customer service",
+          email: "info@mountainrunners.cat",
+          telephone: "+34938213747",
+        },
+      ],
+      address: {
+        "@type": "PostalAddress",
+        addressCountry: "ES",
+        streetAddress: "Plaça Sant Joan, 15 baixos, 08600 Berga",
+      },
+    });
+  });
 });
 
 describe("homepage structured data", () => {
@@ -188,6 +225,36 @@ describe("homepage structured data", () => {
         siteUrl: new URL("https://mountainrunners.cat"),
       }),
     ).toEqual([]);
+  });
+
+  it("forwards the reviewed description and contact to the organization", () => {
+    const data = getSiteJsonLd({
+      description: "Associació esportiva del Berguedà.",
+      email: "info@mountainrunners.cat",
+      name: "Mountain Runners del Berguedà",
+      postalAddress: "Plaça Sant Joan, 15 baixos, 08600 Berga",
+      siteUrl: new URL("https://mountainrunners.cat"),
+      telephone: "+34938213747",
+    });
+
+    expect(data).toHaveLength(2);
+    expect(data[0]).toMatchObject({
+      "@type": "Organization",
+      description: "Associació esportiva del Berguedà.",
+      contactPoint: [
+        {
+          "@type": "ContactPoint",
+          contactType: "customer service",
+          email: "info@mountainrunners.cat",
+          telephone: "+34938213747",
+        },
+      ],
+      address: {
+        "@type": "PostalAddress",
+        addressCountry: "ES",
+        streetAddress: "Plaça Sant Joan, 15 baixos, 08600 Berga",
+      },
+    });
   });
 });
 
