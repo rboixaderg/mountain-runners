@@ -1,0 +1,107 @@
+apps/web/src/components/ContactDataList.astro
+  s_a115f5935a5e1c::t_7a292767ce98f3 40,42-44,50-52,60,74,86-88
+apps/web/src/components/PageHero.astro
+  s_a115f5935a5e1c::t_54947c452b9832 19
+apps/web/src/components/PageHeroMedia.astro
+  s_a115f5935a5e1c::t_da180ef571ea40 43,56
+apps/web/src/components/PageIntro.astro
+  s_a115f5935a5e1c::t_c57ccebee78528 39,43-45,49
+apps/web/src/components/PageSection.astro
+  s_a115f5935a5e1c::t_65527d3cf825ea 30,38
+apps/web/src/components/SiteFooter.astro
+  s_a115f5935a5e1c::t_b66f4349ab18d8 59,63,67,76,80,85,133,135-138,142-145,150-153,160,162-165,170-173,178-181,189
+apps/web/src/components/about/AboutBoard.astro
+  s_a115f5935a5e1c::t_4401be22dab2b4 21,24-27,29,39,42,46-47
+apps/web/src/components/about/AboutPresident.astro
+  s_a115f5935a5e1c::t_74e52a46549005 23
+apps/web/src/components/about/AboutStatutes.astro
+  s_a115f5935a5e1c::t_6145e66638e367 35,40,48
+apps/web/src/components/documents/DocumentGroup.astro
+  s_a115f5935a5e1c::t_0d869cfcc74652 24
+apps/web/src/components/documents/DocumentsDetail.astro
+  s_a115f5935a5e1c::t_2be8d1a2faffc3 43
+apps/web/src/components/events/EventDescription.astro
+  s_a115f5935a5e1c::t_b3d85cd92634e5 25,31,36,41
+apps/web/src/components/events/EventEntities.astro
+  s_a115f5935a5e1c::t_46f742680e97f2 31
+apps/web/src/components/events/EventHistory.astro
+  s_a115f5935a5e1c::t_557ee4d8372c8f 17
+apps/web/src/components/events/EventMonthlyCalendar.astro
+  s_a115f5935a5e1c::t_a6bd9269f0d7e1 122,135,143-144,149,152-154,157,163-165,169,190
+apps/web/src/components/events/EventsHubActiveCard.astro
+  s_a115f5935a5e1c::t_4ec91dd2399984 36,40-43,46,50-51
+apps/web/src/components/events/HomepageEventCard.astro
+  s_a115f5935a5e1c::t_93d8ef9dedc30f 44,57-59,62,97
+apps/web/src/components/legal/LegalNoticeDetail.astro
+  s_a115f5935a5e1c::t_298dac0ec01375 85,87-89,97-99,107-109,117-119
+apps/web/src/components/schools/SchoolGallery.astro
+  s_a115f5935a5e1c::t_0dc40b0079a1ef 32,34-37,41,43-44
+apps/web/src/components/schools/SchoolHub.astro
+  s_a115f5935a5e1c::t_f78152a7a699f0 59,62,66,82,88,94,115,123-124,130,133
+apps/web/src/components/schools/SchoolPreviewAbout.astro
+  s_a115f5935a5e1c::t_2f7cd3a52a9b77 29,34,40,44-46
+apps/web/src/components/schools/SchoolPreviewHero.astro
+  s_a115f5935a5e1c::t_fbed36320e7f45 23,26,40,49-51
+apps/web/src/components/schools/SchoolPreviewPracticalInfo.astro
+  s_a115f5935a5e1c::t_2ac8ef4a00dbd2 58,65,70,72,116,124,129,136,147,154,162,187,221
+apps/web/src/components/schools/SchoolRegistration.astro
+  s_a115f5935a5e1c::t_b1266f5ebf6af4 40-42,53
+apps/web/src/components/schools/SchoolVideo.astro
+  s_a115f5935a5e1c::t_d0a50d8ca702f7 27,29-32,43
+apps/web/src/pages/[locale]/index.astro
+  s_a115f5935a5e1c::t_fd3a52c18decfc 184,196,205,213,225,302,314
+apps/web/src/components/DetailHero.astro
+  s_a115f5935a5e1c::t_ade3e649888192 26,31-33,35,44,52
+apps/web/src/components/LanguageSelector.astro
+  s_a115f5935a5e1c::t_90c3dd00add86a 27,30,44,49,56
+apps/web/src/components/PreFooter.astro
+  s_a115f5935a5e1c::t_3823a712a9cc92 63,65,67,72,77,81,86,103,108,124,126,142,144,163,165,169,178,193,202,214
+apps/web/src/components/SiteHeader.astro
+  s_a115f5935a5e1c::t_24a79c5e9afd25 91-93,109,115,132,143,148,171,189,204,219,221-223,232,235,240,253,256,272,294,311,326
+apps/web/src/components/about/AboutHistory.astro
+  s_a115f5935a5e1c::t_16770a810c7c27 20,22
+apps/web/src/components/documents/DocumentEntry.astro
+  s_a115f5935a5e1c::t_42ff7068b22245 60,75
+apps/web/src/components/events/EntityLinkIcon.astro
+  s_a115f5935a5e1c::t_9094670c9bba52 14,29,44,59
+apps/web/src/components/events/EventDetail.astro
+  s_a115f5935a5e1c::t_56ad0a323fa134 83
+apps/web/src/components/events/EventPracticalInfo.astro
+  s_a115f5935a5e1c::t_ab46edaa69a366 35,41,50,56,62,68-69,71
+apps/web/src/components/events/EventRegistrationPanel.astro
+  s_a115f5935a5e1c::t_5914d078ba0eda 41,44,48,58,61,69
+apps/web/src/components/events/EventResources.astro
+  s_a115f5935a5e1c::t_cedf3f1d7a7a67 32
+apps/web/src/components/events/EventsHubHistoryTable.astro
+  s_a115f5935a5e1c::t_0b14822299ccb7 52-53,55,66-67,69
+apps/web/src/components/legal/LegalMarkdown.astro
+  s_a115f5935a5e1c::t_aebce9d67b9702 11-14
+apps/web/src/components/members/MembersActionSection.astro
+  s_a115f5935a5e1c::t_a13aa57d3d2fce 57,78,81,90
+apps/web/src/components/members/MembersBenefits.astro
+  s_a115f5935a5e1c::t_8c0f36c3e56c6f 24,28,35-39,43,51-53,55
+apps/web/src/components/members/MembersDirectory.astro
+  s_a115f5935a5e1c::t_948e5bb425b6d4 53,56,60,67
+apps/web/src/components/schools/SchoolPreviewPrices.astro
+  s_a115f5935a5e1c::t_a97aada0f35a27 30,42,58,66,79-80,85-86,89,101
+apps/web/src/pages/404.astro
+  s_a115f5935a5e1c::t_fd98690f8f9429 17
+docs/tailwind-v4-migration-plan.md
+  s_a115f5935a5e1c::t_25eebe8f1d4eac 41,43,45-46,157,344-355,369-389,668-686,690-691,693-694,696
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "172ae613a1e7fc0419534ef729832fc82603fce4",
+  "prompts": {},
+  "sessions": {
+    "s_a115f5935a5e1c": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "1ab9aeca-3dc6-449d-8dd7-41ed15c53561",
+        "model": "grok-4.6"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
