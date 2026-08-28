@@ -384,7 +384,10 @@ test("keeps the calendar popover state and mobile bounds synchronized", async ({
     await expect(dayButton).toHaveAttribute("aria-expanded", "true");
     await expect(popover).toBeVisible();
     await dayButton.hover();
-    await outsideLink.focus();
+    await outsideLink.evaluate((element) => {
+      if (!(element instanceof HTMLElement)) return;
+      element.focus({ preventScroll: true });
+    });
     await expect(dayButton).toHaveAttribute("aria-expanded", "true");
     await expect(popover).toBeVisible();
     await outsideHeading.hover();
