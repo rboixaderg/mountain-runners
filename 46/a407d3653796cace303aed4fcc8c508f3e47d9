@@ -1,0 +1,20 @@
+docs/architecture.md
+  h_1727aeeb492b30 51-57
+docs/backlog.md
+  h_1727aeeb492b30 233-253
+docs/decisions/0008-request-observability.md
+  h_1727aeeb492b30 1-50
+docs/specs/request-observability.md
+  h_1727aeeb492b30 1-219
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "46a407d3653796cace303aed4fcc8c508f3e47d9",
+  "prompts": {},
+  "humans": {
+    "h_1727aeeb492b30": {
+      "author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
