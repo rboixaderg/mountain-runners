@@ -1,0 +1,25 @@
+docs/deployment.md
+  s_3a331da0508e16::t_040b29aa77c205 7-10,188-191
+docs/roadmap.md
+  s_3a331da0508e16::t_6bd8b6206fdf93 61,244-249
+docs/specs/phase-5-publication-operation.md
+  s_3a331da0508e16::t_5972c8b1016d0c 8-11,104
+docs/validation/phase-5-t55-launch-gate.md
+  s_3a331da0508e16::t_a85401c32d1e8a 5-8,15-16,18-19,21,24-28,32,34,36,39-41,43,48-50,52,55-56,58,63,65-68
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "ce37afded8888f146757d486e0c57d2f45aaf3f5",
+  "prompts": {},
+  "sessions": {
+    "s_3a331da0508e16": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_fb6eaa40fffeSDk5FXq9Es4MyO",
+        "model": "deepseek-v4-flash"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
