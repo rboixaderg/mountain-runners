@@ -2,13 +2,13 @@
 import homepageHero from "../../assets/home/homepage-hero.jpeg";
 import homepageHeroSmall from "../../assets/home/homepage-hero-mobile.jpeg";
 import * as messages from "../../paraglide/messages.js";
-import { renderRestrictedMarkdown } from "../../lib/content/markdown";
 import type { PublicationCatalog } from "../../lib/content/publication";
 import type { Locale } from "../../lib/content/primitives";
-import "../../styles/legal-data.css";
+import "../../styles/contact-data.css";
 import ContactDataList from "../ContactDataList.astro";
 import PageIntro from "../PageIntro.astro";
 import PageSection from "../PageSection.astro";
+import LegalMarkdown from "./LegalMarkdown.astro";
 
 type LegalNoticeSection = {
   id: string;
@@ -70,7 +70,7 @@ const { catalog, locale } = Astro.props;
 const contact = catalog.contact;
 ---
 
-<article class="page-detail pb-0">
+<article class="pb-0">
   <PageIntro
     description={messages.legal_notice_description({}, { locale })}
     heroImage={homepageHeroSmall}
@@ -82,22 +82,46 @@ const contact = catalog.contact;
     id="legal-notice-entity"
     title={messages.legal_notice_entity_title({}, { locale })}
   >
-    <dl class="legal-data">
-      <div class="legal-data__row">
-        <dt>{messages.legal_notice_entity_name_label({}, { locale })}</dt>
-        <dd>{messages.legal_notice_entity_name({}, { locale })}</dd>
+    <dl class="max-w-reading m-0 grid gap-3">
+      <div class="contact-data__row grid gap-3">
+        <dt
+          class="text-muted tracking-label text-xs leading-normal font-bold uppercase"
+        >
+          {messages.legal_notice_entity_name_label({}, { locale })}
+        </dt>
+        <dd class="m-0 min-w-0 wrap-anywhere">
+          {messages.legal_notice_entity_name({}, { locale })}
+        </dd>
       </div>
-      <div class="legal-data__row">
-        <dt>{messages.legal_notice_entity_type_label({}, { locale })}</dt>
-        <dd>{messages.legal_notice_entity_type({}, { locale })}</dd>
+      <div class="contact-data__row grid gap-3">
+        <dt
+          class="text-muted tracking-label text-xs leading-normal font-bold uppercase"
+        >
+          {messages.legal_notice_entity_type_label({}, { locale })}
+        </dt>
+        <dd class="m-0 min-w-0 wrap-anywhere">
+          {messages.legal_notice_entity_type({}, { locale })}
+        </dd>
       </div>
-      <div class="legal-data__row">
-        <dt>{messages.legal_notice_entity_register_label({}, { locale })}</dt>
-        <dd>{messages.legal_notice_entity_register({}, { locale })}</dd>
+      <div class="contact-data__row grid gap-3">
+        <dt
+          class="text-muted tracking-label text-xs leading-normal font-bold uppercase"
+        >
+          {messages.legal_notice_entity_register_label({}, { locale })}
+        </dt>
+        <dd class="m-0 min-w-0 wrap-anywhere">
+          {messages.legal_notice_entity_register({}, { locale })}
+        </dd>
       </div>
-      <div class="legal-data__row">
-        <dt>{messages.legal_notice_entity_census_label({}, { locale })}</dt>
-        <dd>{messages.legal_notice_entity_census({}, { locale })}</dd>
+      <div class="contact-data__row grid gap-3">
+        <dt
+          class="text-muted tracking-label text-xs leading-normal font-bold uppercase"
+        >
+          {messages.legal_notice_entity_census_label({}, { locale })}
+        </dt>
+        <dd class="m-0 min-w-0 wrap-anywhere">
+          {messages.legal_notice_entity_census({}, { locale })}
+        </dd>
       </div>
     </dl>
     {
@@ -113,10 +137,7 @@ const contact = catalog.contact;
   {
     legalNoticeSections.map(({ bodyKey, id, titleKey }) => (
       <PageSection id={id} title={messages[titleKey]({}, { locale })}>
-        <div
-          class="page-section__markdown"
-          set:html={renderRestrictedMarkdown(messages[bodyKey]({}, { locale }))}
-        />
+        <LegalMarkdown source={messages[bodyKey]({}, { locale })} />
       </PageSection>
     ))
   }

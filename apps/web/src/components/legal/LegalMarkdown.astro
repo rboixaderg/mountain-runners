@@ -1,0 +1,26 @@
+---
+import { renderRestrictedMarkdown } from "../../lib/content/markdown";
+
+interface Props {
+  source: string;
+}
+
+const { source } = Astro.props;
+---
+
+<div
+  class="legal-markdown max-w-reading"
+  set:html={renderRestrictedMarkdown(source)}
+/>
+
+<style>
+  .legal-markdown :global(p) {
+    margin: 0 0 var(--space-4);
+    font-size: 1rem;
+    line-height: var(--leading-copy);
+  }
+
+  .legal-markdown :global(p:last-child) {
+    margin-bottom: 0;
+  }
+</style>

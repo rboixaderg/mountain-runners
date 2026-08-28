@@ -17,22 +17,30 @@ const collaboratorsAnchorAttributes = analyticsActionAttributes({
 });
 ---
 
-<section class="members-benefits" aria-labelledby="members-benefits-title">
-  <div class="page-frame members-benefits__inner">
-    <div class="members-section__heading">
-      <span class="members-section__marker" aria-hidden="true"></span>
-      <h2 class="members-section__title" id="members-benefits-title">
+<section
+  class="members-benefits bg-ink py-section w-full max-w-none text-white"
+  aria-labelledby="members-benefits-title"
+>
+  <div class="page-frame grid gap-6 md:gap-10">
+    <div class="mb-8 flex items-center gap-2">
+      <span class="bg-red h-6 w-2 shrink-0" aria-hidden="true"></span>
+      <h2
+        class="font-display text-section m-0 leading-none uppercase"
+        id="members-benefits-title"
+      >
         {messages.members_benefits_title({}, { locale })}
       </h2>
     </div>
 
-    <div class="members-benefits__layout">
-      <div class="members-benefits__copy">
-        <p class="members-benefits__intro">
+    <div class="members-benefits__layout grid items-center gap-6 md:gap-12">
+      <div class="grid min-w-0 gap-4 md:gap-6">
+        <p
+          class="members-benefits__intro leading-copy m-0 max-w-2xl text-white/80"
+        >
           {messages.members_benefits_intro({}, { locale })}
         </p>
         <a
-          class="members-benefits__collaborators-link"
+          class="font-display text-action text-red-on-dark tracking-display font-bold uppercase underline decoration-2 underline-offset-2 hover:text-white"
           href="#members-collaborators-title"
           {...collaboratorsAnchorAttributes}
         >
@@ -40,8 +48,11 @@ const collaboratorsAnchorAttributes = analyticsActionAttributes({
         </a>
       </div>
 
-      <figure class="members-benefits__photo">
+      <figure
+        class="m-0 w-full max-w-sm justify-self-center md:justify-self-end"
+      >
         <img
+          class="block w-full border-2 border-white/35"
           src={socisServeis.src}
           width={socisServeis.width}
           height={socisServeis.height}

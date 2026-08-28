@@ -54,27 +54,35 @@ const cookiesNavAttributes = analyticsActionAttributes({
 });
 ---
 
-<footer class="site-footer">
-  <div class="page-frame site-footer__grid">
-    <div class="site-footer__identity">
-      <p class="site-footer__brand">{messages.site_title({}, { locale })}</p>
-      <p class="site-footer__tagline">
+<footer class="site-footer border-red bg-ink border-t-3 text-white">
+  <div
+    class="page-frame site-footer__grid py-section grid gap-10 md:grid-cols-2 md:items-start"
+  >
+    <div class="min-w-0">
+      <p
+        class="tracking-display font-display m-0 mb-4 text-xl font-bold uppercase"
+      >
+        {messages.site_title({}, { locale })}
+      </p>
+      <p class="m-0 max-w-sm text-white/70">
         {messages.homepage_community_description({}, { locale })}
       </p>
     </div>
     <nav
-      class="site-footer__social"
+      class="min-w-0"
       aria-label={messages.footer_social_title({}, { locale })}
     >
-      <p class="site-footer__section-title">
+      <p
+        class="font-display text-action m-0 mb-4 leading-tight font-bold tracking-widest uppercase"
+      >
         {messages.footer_social_title({}, { locale })}
       </p>
-      <ul class="site-footer__social-list">
+      <ul class="m-0 grid list-none gap-3 p-0">
         {
           siteSocialLinks.map((socialLink) => (
             <li>
               <a
-                class="site-footer__social-link"
+                class="hover:text-red inline-flex items-center gap-2 text-sm text-white/70 no-underline transition-colors"
                 href={socialLink.url}
                 {...externalLinkAttributes}
                 {...analyticsActionAttributes({
@@ -85,7 +93,7 @@ const cookiesNavAttributes = analyticsActionAttributes({
               >
                 {socialLink.id === "instagram" && (
                   <svg
-                    class="site-footer__social-icon"
+                    class="size-4.5 shrink-0"
                     viewBox="0 0 24 24"
                     aria-hidden="true"
                     focusable="false"
@@ -98,7 +106,7 @@ const cookiesNavAttributes = analyticsActionAttributes({
                 )}
                 {socialLink.id === "strava" && (
                   <svg
-                    class="site-footer__social-icon"
+                    class="size-4.5 shrink-0"
                     viewBox="0 0 24 24"
                     aria-hidden="true"
                     focusable="false"
@@ -119,51 +127,67 @@ const cookiesNavAttributes = analyticsActionAttributes({
       </ul>
     </nav>
     <nav
-      class="site-footer__nav"
+      class="min-w-0"
       aria-label={messages.footer_navigation({}, { locale })}
     >
-      <ul class="footer-links">
+      <ul class="m-0 grid list-none gap-3 p-0">
         <li>
-          <a href={homePath} {...homeNavAttributes}
-            >{messages.navigation_home({}, { locale })}</a
+          <a
+            class="text-white/80 hover:text-white"
+            href={homePath}
+            {...homeNavAttributes}>{messages.navigation_home({}, { locale })}</a
           >
         </li>
         <li>
-          <a href={eventsPath} {...eventsNavAttributes}
+          <a
+            class="text-white/80 hover:text-white"
+            href={eventsPath}
+            {...eventsNavAttributes}
             >{messages.navigation_events({}, { locale })}</a
           >
         </li>
         <li>
-          <a href={documentsPath} {...documentsNavAttributes}
+          <a
+            class="text-white/80 hover:text-white"
+            href={documentsPath}
+            {...documentsNavAttributes}
             >{messages.documents_page_title({}, { locale })}</a
           >
         </li>
       </ul>
     </nav>
-    <nav
-      class="site-footer__legal"
-      aria-label={messages.legal_navigation({}, { locale })}
-    >
-      <ul class="footer-links">
+    <nav class="min-w-0" aria-label={messages.legal_navigation({}, { locale })}>
+      <ul class="m-0 grid list-none gap-3 p-0">
         <li>
-          <a href={legalNoticePath} {...legalNoticeNavAttributes}
+          <a
+            class="text-white/80 hover:text-white"
+            href={legalNoticePath}
+            {...legalNoticeNavAttributes}
             >{messages.legal_notice_title({}, { locale })}</a
           >
         </li>
         <li>
-          <a href={legalPrivacyPath} {...privacyNavAttributes}
+          <a
+            class="text-white/80 hover:text-white"
+            href={legalPrivacyPath}
+            {...privacyNavAttributes}
             >{messages.legal_privacy_title({}, { locale })}</a
           >
         </li>
         <li>
-          <a href={legalCookiesPath} {...cookiesNavAttributes}
+          <a
+            class="text-white/80 hover:text-white"
+            href={legalCookiesPath}
+            {...cookiesNavAttributes}
             >{messages.legal_cookies_title({}, { locale })}</a
           >
         </li>
       </ul>
     </nav>
   </div>
-  <div class="page-frame site-footer__bottom">
+  <div
+    class="page-frame tracking-display flex flex-wrap justify-center gap-3 border-t border-white/20 py-6 text-xs leading-normal text-white/60 uppercase"
+  >
     <span>{messages.site_title({}, { locale })}</span>
     <span aria-hidden="true">©</span>
     <span>{messages.legal_notice_title({}, { locale })}</span>

@@ -376,19 +376,6 @@ export function extractLocationParts(text: string): {
   };
 }
 
-export const schoolPracticalPreviewLayoutClasses: Record<
-  SchoolPracticalSectionKey,
-  string
-> = {
-  since: "schools-detail-preview__practical-card--since",
-  purpose: "schools-detail-preview__practical-card--purpose",
-  audience: "schools-detail-preview__practical-card--audience",
-  schedule: "schools-detail-preview__practical-card--schedule",
-  location: "schools-detail-preview__practical-card--location",
-  requirements: "schools-detail-preview__practical-card--requirements",
-  prices: "schools-detail-preview__practical-card--prices",
-};
-
 export type SchoolNavigationItem = {
   href: string;
   id: string;

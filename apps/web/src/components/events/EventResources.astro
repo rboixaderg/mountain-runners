@@ -18,15 +18,18 @@ const { documents, edition, locale } = Astro.props;
 
 {
   edition && documents.length > 0 && (
-    <section class="events-detail__resources">
-      <h2>{messages.event_resources_title({}, { locale })}</h2>
-      <ul>
+    <section class="events-detail__resources border-ink m-0 border-t-2 pt-6">
+      <h2 class="font-display m-0 mb-4 leading-none uppercase">
+        {messages.event_resources_title({}, { locale })}
+      </h2>
+      <ul class="m-0 pl-5">
         {documents.map(({ id, document }) => {
           const documentHref = getDocumentHref(document);
           return (
-            <li>
+            <li class="my-2">
               {documentHref && document ? (
                 <a
+                  class="text-sm font-bold"
                   href={documentHref}
                   {...(document.resource.kind === "external"
                     ? externalLinkAttributes

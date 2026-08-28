@@ -22,29 +22,30 @@ const coverSize =
 {
   description !== undefined && description.trim().length > 0 && (
     <section
-      class="page-frame events-detail__description"
+      class="page-frame events-detail__description py-section grid items-center gap-6 md:gap-10"
       aria-labelledby="event-description-title"
     >
-      <div class="events-detail__description-copy">
+      <div class="min-w-0">
         <h2
           id="event-description-title"
-          class="events-detail__description-title"
+          class="events-detail__description-title font-display m-0 mb-5 leading-none uppercase"
         >
           {messages.event_description_title({}, { locale })}
         </h2>
         <div
-          class="events-detail__description-body"
+          class="events-detail__description-body text-ink max-w-reading leading-copy text-base"
           set:html={renderRestrictedMarkdown(description)}
         />
       </div>
       {coverHref && (
-        <figure class="events-detail__description-media">
+        <figure class="relative mx-auto my-0 w-full max-w-sm md:m-0 md:justify-self-end">
           <div
-            class="events-detail__description-media-accent"
+            class="bg-red absolute right-5 -bottom-5 -left-5 z-0 h-full"
             aria-hidden="true"
           />
-          <div class="events-detail__description-media-frame">
+          <div class="border-ink relative z-1 rotate-2 overflow-hidden border-2 bg-white p-2">
             <img
+              class="block aspect-square w-full object-contain"
               src={coverHref}
               alt={event.cover.alt[locale]!}
               loading="lazy"
@@ -59,3 +60,19 @@ const coverSize =
     </section>
   )
 }
+
+<style>
+  .events-detail__description-body :global(:first-child) {
+    margin-top: 0;
+    font-size: clamp(1.2rem, 2.4vw, 1.55rem);
+    font-weight: 500;
+  }
+
+  .events-detail__description-body :global(:last-child) {
+    margin-bottom: 0;
+  }
+
+  .events-detail__description-body :global(p + p) {
+    margin-top: 1rem;
+  }
+</style>

@@ -6,6 +6,7 @@ import type { Locale } from "../../lib/content/primitives";
 import type { PublicationCatalog } from "../../lib/content/publication";
 import { analyticsActionAttributes } from "../../lib/analytics/attributes";
 import { analyticsActions, analyticsAreas } from "../../lib/analytics/catalog";
+import PageSection from "../PageSection.astro";
 
 interface Props {
   catalog: PublicationCatalog;
@@ -23,25 +24,20 @@ const statutesAttributes = analyticsActionAttributes({
 });
 ---
 
-<section
-  class="page-frame about-section about-section--statutes"
-  aria-labelledby="about-statutes-title"
+<PageSection
+  id="about-statutes-title"
+  title={messages.about_statutes_title({}, { locale })}
+  bordered={false}
+  constrainBody={false}
 >
-  <div class="about-section__heading">
-    <span class="about-section__marker" aria-hidden="true"></span>
-    <h2 class="about-section__title" id="about-statutes-title">
-      {messages.about_statutes_title({}, { locale })}
-    </h2>
-  </div>
-
   {
     statutesHref && statutesDocument && statutesTitle ? (
-      <div class="about-statutes__card">
-        <p class="about-statutes__description">
+      <div class="about-statutes__card border-line p-card max-w-reading grid gap-4 border">
+        <p class="leading-copy m-0 text-base">
           {messages.about_statutes_description({}, { locale })}
         </p>
         <a
-          class="about-statutes__link"
+          class="font-display text-ink hover:text-red tracking-display text-sm font-bold uppercase underline"
           href={statutesHref}
           {...statutesAttributes}
         >
@@ -49,9 +45,9 @@ const statutesAttributes = analyticsActionAttributes({
         </a>
       </div>
     ) : (
-      <p class="about-section__body">
+      <p class="page-section__body max-w-reading text-base">
         {messages.about_statutes_unavailable({}, { locale })}
       </p>
     )
   }
-</section>
+</PageSection>

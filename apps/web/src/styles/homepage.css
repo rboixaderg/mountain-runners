@@ -1,127 +1,5 @@
-.homepage-hero__mountain {
-  position: absolute;
-}
-
-.homepage-hero__title-region {
-  display: block;
-}
-
-.homepage-join-cta {
-  box-shadow: 0.2rem 0.2rem 0 var(--color-ink);
-}
-
-.homepage-hero__cta {
-  box-shadow: 0.2rem 0.2rem 0 var(--color-ink);
-  transform: rotate(-1deg);
-}
-
-.homepage-section h2,
-.homepage-school-section h2 {
-  line-height: 0.92;
-}
-
-.homepage-members-banner h2 {
-  font-weight: 400;
-}
-
-.homepage-members-banner__action {
-  box-shadow: 0.2rem 0.2rem 0 var(--color-ink);
-}
-
-.homepage-members-banner__action:hover {
-  border-color: white;
-  background: var(--color-ink);
-  color: white;
-}
-
-.homepage-events {
-  border-inline-color: currentcolor;
-  border-bottom-color: currentcolor;
-}
-
-.homepage-event {
-  border-top-color: currentcolor;
-  border-inline-color: currentcolor;
-}
-
-.homepage-join-cta:hover {
-  border-color: white;
-  background: var(--color-ink);
-  color: white;
-}
-
-.homepage-hero__cta--secondary:hover {
-  border-color: var(--color-paper);
-  background: var(--color-paper);
-  color: var(--color-ink);
-}
-
-.homepage-section__view-all:hover {
-  color: var(--color-ink);
-}
-
-.homepage-event__link:hover {
-  background: rgb(215 25 32 / 0.035);
-}
-
-.homepage-event__link:hover h3,
-.homepage-event__link:hover .homepage-event__action {
-  color: var(--color-red);
-}
-
-.homepage-event--featured .homepage-event__date {
-  background: var(--color-red);
-  color: var(--color-paper);
-}
-
-.homepage-event__date time {
-  display: grid;
-}
-
-.homepage-event__date > span[aria-hidden] {
-  color: var(--color-line);
-}
-
 .homepage-event__date span {
-  font-family: var(--font-display);
   font-size: clamp(2.25rem, 4vw, 3rem);
-  font-weight: 700;
-  line-height: 0.9;
-}
-
-.homepage-event__date small {
-  margin-top: var(--space-2);
-  color: var(--color-red);
-  font-family: var(--font-display);
-  font-size: 0.95rem;
-  font-weight: 700;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-}
-
-.homepage-event__action,
-.homepage-school-list__action {
-  line-height: 1.5;
-}
-
-.homepage-school-list__mark {
-  filter: grayscale(1) contrast(1.05);
-}
-
-.homepage-school-section__heading > div {
-  color: rgb(255 255 255 / 0.78);
-}
-
-.homepage-event--featured .homepage-event__date small {
-  color: inherit;
-}
-
-.homepage-school-list__link:hover .homepage-school-list__mark {
-  filter: none;
-}
-
-.homepage-school-list__link:hover .homepage-school-list__action {
-  color: var(--color-ink);
 }
 
 @media (min-width: 48rem) {
@@ -130,27 +8,10 @@
       minmax(8rem, 10rem) minmax(0, 1fr)
       minmax(8rem, 10rem);
   }
-
-  .homepage-event__aside {
-    border-top-color: currentcolor;
-    border-right-color: currentcolor;
-    border-bottom-color: currentcolor;
-  }
 }
 
 @media (max-width: 47.99rem) {
-  .homepage-hero {
-    min-height: 0;
-    padding-block: 2.75rem 4rem;
-  }
-
   .homepage-event__link {
     grid-template-columns: 5.5rem minmax(0, 1fr);
-  }
-
-  .homepage-event__date {
-    border-top-color: currentcolor;
-    border-bottom-color: currentcolor;
-    border-left-color: currentcolor;
   }
 }

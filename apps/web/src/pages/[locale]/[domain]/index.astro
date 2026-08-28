@@ -169,16 +169,15 @@ const socialImage =
             if (historyRows.length === 0) return null;
             return (
               <section
-                class:list={[
-                  "page-frame",
-                  "events-hub-section",
-                  "events-hub-section--past",
-                ]}
+                class:list={["page-frame", "py-section"]}
                 aria-labelledby={section.id}
               >
-                <div class="events-hub-section__heading">
-                  <span class="events-hub-section__marker" aria-hidden="true" />
-                  <h2 id={section.id} class="events-hub-section__title">
+                <div class="mb-7 flex items-center gap-2">
+                  <span class="bg-ink h-6 w-2 shrink-0" aria-hidden="true" />
+                  <h2
+                    id={section.id}
+                    class="font-display text-section text-muted tracking-display m-0 leading-none uppercase"
+                  >
                     {section.title}
                   </h2>
                 </div>
@@ -191,22 +190,29 @@ const socialImage =
 
           return (
             <section
-              class:list={[
-                "page-frame",
-                "events-hub-section",
-                `events-hub-section--${section.group}`,
-              ]}
+              class:list={["page-frame", "py-section"]}
               aria-labelledby={section.id}
             >
-              <div class="events-hub-section__heading">
-                <span class="events-hub-section__marker" aria-hidden="true" />
-                <h2 id={section.id} class="events-hub-section__title">
+              <div class="mb-7 flex items-center gap-2">
+                <span
+                  class:list={[
+                    "h-6 w-2 shrink-0",
+                    section.group === "active-without-date"
+                      ? "bg-line"
+                      : "bg-red",
+                  ]}
+                  aria-hidden="true"
+                />
+                <h2
+                  id={section.id}
+                  class="font-display text-section tracking-display m-0 leading-none uppercase"
+                >
                   {section.title}
                 </h2>
               </div>
 
               {section.group === "upcoming" ? (
-                <div class="homepage-events border-line grid border-t">
+                <div class="border-line grid border-t">
                   {events.map((event, index) => (
                     <HomepageEventCard
                       analyticsArea={analyticsAreas.eventsHub}
@@ -220,7 +226,7 @@ const socialImage =
                   ))}
                 </div>
               ) : (
-                <ul class="events-hub-active-list">
+                <ul class="border-ink m-0 grid list-none grid-cols-1 border-t p-0">
                   {events.map((event) => (
                     <EventsHubActiveCard
                       event={event}

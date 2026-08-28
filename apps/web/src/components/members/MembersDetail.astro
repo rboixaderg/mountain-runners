@@ -32,7 +32,7 @@ const institutionalEntity = catalog.entities.get(institutionalEntityId);
 const collaborators = getMembersDirectoryEntities(catalog, locale);
 ---
 
-<article class="members-detail">
+<article class="pb-0">
   <PageIntro
     description={messages.members_page_description({}, { locale })}
     heroAttribution={messages.members_intro_photo_attribution({}, { locale })}
@@ -42,9 +42,7 @@ const collaborators = getMembersDirectoryEntities(catalog, locale);
     title={messages.navigation_members({}, { locale })}
   />
 
-  <div
-    class="page-frame members-actions grid gap-6 py-[var(--section-space)] md:grid-cols-2 md:gap-12"
-  >
+  <div class="page-frame py-section grid gap-6 md:grid-cols-2 md:gap-12">
     <MembersActionSection
       action={signupAction}
       actionLabelKey="members_signup_action"

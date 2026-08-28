@@ -42,32 +42,43 @@ const actionAttributes = analyticsActionAttributes({
 
 <section
   class:list={[
-    "members-action-card",
     "min-h-80",
     "p-6",
     "md:p-12",
+    variant === "signup" && "bg-stone",
+    variant === "federation" && "border-ink flex flex-col border-2 bg-white",
     `members-action-card--${variant}`,
   ]}
   aria-labelledby={sectionId}
 >
-  <div class="members-section__heading">
-    <span class="members-section__marker" aria-hidden="true"></span>
-    <h2 class="members-section__title" id={sectionId}>
+  <div class="mb-6 flex items-center gap-2">
+    <span class="bg-red h-6 w-2 shrink-0" aria-hidden="true"></span>
+    <h2
+      class="font-display text-section m-0 leading-none uppercase"
+      id={sectionId}
+    >
       {messages[titleKey]({}, { locale })}
     </h2>
   </div>
-  <div class="members-section__body">
+  <div
+    class:list={[
+      "page-section__body max-w-section-copy text-base",
+      variant === "federation" && "flex flex-1 flex-col justify-end",
+    ]}
+  >
     {
       introKey !== undefined ? (
-        <p>{messages[introKey]({}, { locale })}</p>
+        <p class="m-0 mb-4 last:mb-0">{messages[introKey]({}, { locale })}</p>
       ) : null
     }
     {
       actionHref !== undefined ? (
         <a
           class:list={[
-            "members-action__link",
-            variant === "federation" && "members-action__link--federation",
+            "border-ink text-ink hover:bg-ink tracking-display py-action inline-flex w-fit max-w-full items-center self-start border-2 px-4 text-xs leading-normal font-bold whitespace-nowrap uppercase no-underline hover:text-white",
+            variant === "signup" && "shadow-action-accent mt-6",
+            variant === "federation" &&
+              "border-red bg-red shadow-action hover:shadow-action-accent hover:border-ink hover:bg-ink px-5 py-4 text-white hover:text-white",
           ]}
           href={actionHref}
           {...externalLinkAttributes}
@@ -76,7 +87,7 @@ const actionAttributes = analyticsActionAttributes({
           {messages[actionLabelKey]({}, { locale })}
         </a>
       ) : stateMessageKey !== undefined ? (
-        <p class="members-action__state">
+        <p class="text-muted mt-4 mb-0">
           {messages[stateMessageKey]({}, { locale })}
         </p>
       ) : null

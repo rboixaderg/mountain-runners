@@ -28,16 +28,18 @@ const hasOtherEntities = entities.some(
 
 {
   hasOtherEntities && (
-    <section class="events-detail__entities">
-      <h2>{messages.event_entities_title({}, { locale })}</h2>
-      <ul>
+    <section class="events-detail__entities border-ink max-w-reading mx-0 mb-6 border-t-2 pt-6 first:mt-0">
+      <h2 class="font-display m-0 mb-4 leading-none uppercase">
+        {messages.event_entities_title({}, { locale })}
+      </h2>
+      <ul class="m-0 pl-5">
         {entities.map((entity) => (
-          <li>
+          <li class="my-2">
             <strong>{entity.name[locale]}</strong>
-            <span class="events-detail__entity-links">
+            <span class="ms-2 inline-flex items-center gap-2 align-middle">
               {getOrderedEntityLinks(entity.links ?? []).map((link) => (
                 <a
-                  class="events-detail__entity-link"
+                  class="text-red hover:text-ink inline-flex items-center"
                   href={link.url}
                   aria-label={`${messages[
                     entityLinkLabelMessageKeys[link.kind]
@@ -49,7 +51,9 @@ const hasOtherEntities = entities.some(
               ))}
             </span>
             {entity.attribution?.[locale] && (
-              <p>{entity.attribution[locale]}</p>
+              <p class="text-muted text-action m-0 mt-2">
+                {entity.attribution[locale]}
+              </p>
             )}
           </li>
         ))}

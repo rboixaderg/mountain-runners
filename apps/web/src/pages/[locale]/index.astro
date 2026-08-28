@@ -164,26 +164,24 @@ export function getStaticPaths() {
   title={messages.homepage_hero_title({}, { locale })}
 >
   <PageHero
-    className="homepage-hero"
-    contentClassName="homepage-hero__grid grid items-center md:grid-cols-12"
+    className="max-md:min-h-0 max-md:pt-11 max-md:pb-16"
+    contentClassName="grid items-center md:grid-cols-12"
   >
     <PageHeroMedia
       slot="media"
       fetchpriority="high"
       image={homepageImageSmallAvif}
-      imageClassName="homepage-hero__mountain"
+      imageClassName="absolute"
       imageLarge={homepageImageAvif}
       loading="eager"
     />
-    <div
-      class="homepage-hero__intro relative z-[2] grid max-w-[42rem] gap-6 md:col-span-9"
-    >
+    <div class="relative z-2 grid max-w-2xl gap-6 md:col-span-9">
       <h1
-        class="font-display m-0 max-w-[14ch] text-[clamp(2.6rem,7vw,5.25rem)] leading-[0.92] font-bold tracking-[-0.03em] uppercase max-md:text-[clamp(2.4rem,12vw,3.25rem)]"
+        class="font-display text-display-home leading-display tracking-headline m-0 max-w-[14ch] font-bold uppercase max-md:text-[clamp(2.4rem,12vw,3.25rem)]"
       >
-        <span class="homepage-hero__title-club"
-          >{messages.homepage_hero_title_club({}, { locale })}</span
-        >{" "}<span class="homepage-hero__title-region"
+        <span>{messages.homepage_hero_title_club({}, { locale })}</span>{
+          " "
+        }<span class="text-ink block"
           >{messages.homepage_hero_title_region({}, { locale })}</span
         >
       </h1>
@@ -193,11 +191,9 @@ export function getStaticPaths() {
           messages.homepage_hero_description({}, { locale }),
         )}
       />
-      <div
-        class="homepage-hero__actions mt-4 flex flex-wrap items-center gap-x-4 gap-y-3"
-      >
+      <div class="mt-4 flex flex-wrap items-center gap-x-4 gap-y-3">
         <a
-          class="homepage-join-cta border-ink font-display text-ink inline-flex min-h-11 items-center gap-3 border-2 bg-white px-6 py-[0.85rem] text-[0.8rem] leading-[1.2] font-bold tracking-[0.12em] uppercase no-underline"
+          class="border-ink font-display text-action leading-action tracking-label py-action shadow-action text-ink hover:bg-ink inline-flex min-h-11 items-center gap-3 border-2 bg-white px-6 font-bold uppercase no-underline hover:border-white hover:text-white"
           href={memberSignupLink.href}
           {...memberSignupLink.isExternal ? externalLinkAttributes : {}}
           {...homepageSignupAttributes}
@@ -206,7 +202,7 @@ export function getStaticPaths() {
           <span aria-hidden="true">&rarr;</span>
         </a>
         <a
-          class="homepage-hero__cta homepage-hero__cta--secondary border-paper font-display text-paper inline-flex min-h-11 items-center gap-3 border-2 bg-transparent px-6 py-[0.85rem] text-[0.8rem] leading-[1.2] font-bold tracking-[0.12em] uppercase no-underline"
+          class="border-paper font-display text-action leading-action tracking-label py-action shadow-action text-paper hover:border-paper hover:bg-paper hover:text-ink inline-flex min-h-11 -rotate-1 items-center gap-3 border-2 bg-transparent px-6 font-bold uppercase no-underline"
           href={schoolsPath}
           {...homepageSchoolsAttributes}
         >
@@ -214,7 +210,7 @@ export function getStaticPaths() {
           <span aria-hidden="true">&rarr;</span>
         </a>
         <a
-          class="homepage-hero__cta homepage-hero__cta--secondary border-paper font-display text-paper inline-flex min-h-11 items-center gap-3 border-2 bg-transparent px-6 py-[0.85rem] text-[0.8rem] leading-[1.2] font-bold tracking-[0.12em] uppercase no-underline"
+          class="border-paper font-display text-action leading-action tracking-label py-action shadow-action text-paper hover:border-paper hover:bg-paper hover:text-ink inline-flex min-h-11 -rotate-1 items-center gap-3 border-2 bg-transparent px-6 font-bold uppercase no-underline"
           href={federationLink.href}
           {...federationLink.isExternal ? externalLinkAttributes : {}}
           {...homepageFederationAttributes}
@@ -226,35 +222,33 @@ export function getStaticPaths() {
     </div>
   </PageHero>
 
-  <section
-    class="homepage-school-section bg-ink text-paper relative overflow-hidden py-[clamp(4rem,8vw,6rem)]"
-  >
+  <section class="bg-ink text-paper py-section relative overflow-hidden">
     <div
-      class="page-frame homepage-school-section__inner grid justify-items-center gap-[clamp(2.5rem,5vw,3.5rem)]"
+      class="page-frame grid justify-items-center gap-[clamp(2.5rem,5vw,3.5rem)]"
     >
       <div
-        class="homepage-school-section__heading grid max-w-[40rem] gap-4 text-center"
+        class="homepage-school-section__heading max-w-section-copy grid gap-4 text-center"
       >
         <h2
-          class="font-display m-0 text-[clamp(2.25rem,5.5vw,3.75rem)] font-bold tracking-[-0.02em] uppercase"
+          class="font-display text-section leading-display tracking-headline m-0 font-bold uppercase"
         >
           {messages.homepage_schools_title({}, { locale })}
         </h2>
         <div
-          class="text-[clamp(1.05rem,2vw,1.25rem)] leading-normal text-white/78"
+          class="text-section-copy leading-normal text-white/78"
           set:html={renderRestrictedMarkdown(
             messages.homepage_schools_description({}, { locale }),
           )}
         />
       </div>
       <ul
-        class="homepage-school-list m-0 grid w-full list-none grid-cols-1 gap-4 p-0 md:grid-cols-3"
+        class="m-0 grid w-full list-none grid-cols-1 gap-4 p-0 md:grid-cols-3"
       >
         {
           schoolCards.map(({ variant, coverHref, coverSize }) => (
-            <li class="bg-paper text-ink max-md:max-w-[28rem]">
+            <li class="bg-paper text-ink max-md:max-w-md">
               <a
-                class="homepage-school-list__link grid h-full grid-rows-[auto_auto_1fr_auto] gap-3 p-4 text-inherit no-underline"
+                class="group grid h-full grid-rows-[auto_auto_1fr_auto] gap-3 p-4 text-inherit no-underline"
                 href={getVariantPath(variant)}
                 {...analyticsActionAttributes({
                   action: analyticsActions.navigate,
@@ -263,7 +257,7 @@ export function getStaticPaths() {
                 })}
               >
                 <img
-                  class="homepage-school-list__mark bg-stone aspect-[4/3] w-full object-cover contrast-105 grayscale"
+                  class="bg-stone aspect-4/3 w-full object-cover contrast-105 grayscale group-hover:filter-none"
                   src={coverHref}
                   width={coverSize?.width}
                   height={coverSize?.height}
@@ -273,10 +267,10 @@ export function getStaticPaths() {
                 <strong class="font-display text-[1.4rem] leading-[1.1] uppercase">
                   {variant.entry.name[locale]}
                 </strong>
-                <span class="homepage-school-list__summary text-muted text-[0.9rem] leading-[1.55]">
+                <span class="text-muted text-[0.9rem] leading-[1.55]">
                   {variant.entry.summary[locale]}
                 </span>
-                <span class="homepage-school-list__action font-display text-red mt-4 self-end text-xs font-bold tracking-[0.12em] uppercase underline decoration-[0.1rem] underline-offset-[0.3rem]">
+                <span class="font-display text-red group-hover:text-ink action-underline tracking-label mt-4 self-end text-xs leading-normal font-bold uppercase">
                   {messages.homepage_school_action({}, { locale })}
                 </span>
               </a>
@@ -287,27 +281,25 @@ export function getStaticPaths() {
     </div>
   </section>
 
-  <section class="homepage-members-banner py-[clamp(3rem,6vw,4.5rem)]">
+  <section class="py-section">
     <div class="page-frame">
-      <div
-        class="homepage-members-banner__inner bg-red text-paper p-[clamp(2.25rem,5vw,4rem)]"
-      >
+      <div class="bg-red text-paper p-[clamp(2.25rem,5vw,4rem)]">
         <div
-          class="homepage-members-banner__copy grid max-w-[40rem] justify-items-start gap-4"
+          class="homepage-members-banner__copy max-w-section-copy grid justify-items-start gap-4"
         >
           <h2
-            class="font-display m-0 text-[clamp(2.25rem,5vw,3.5rem)] leading-[0.95] font-bold tracking-[-0.02em] uppercase"
+            class="font-display text-section leading-display tracking-headline m-0 font-normal uppercase"
           >
             {messages.homepage_members_title({}, { locale })}
           </h2>
           <div
-            class="text-[clamp(1.05rem,2vw,1.25rem)] leading-normal"
+            class="text-section-copy leading-normal"
             set:html={renderRestrictedMarkdown(
               messages.homepage_members_description({}, { locale }),
             )}
           />
           <a
-            class="homepage-members-banner__action border-ink font-display text-ink mt-2 inline-flex min-h-11 items-center gap-3 border-2 bg-white px-6 py-[0.85rem] text-[0.8rem] leading-[1.2] font-bold tracking-[0.12em] uppercase no-underline"
+            class="border-ink font-display text-action leading-action tracking-label py-action shadow-action text-ink hover:bg-ink mt-2 inline-flex min-h-11 items-center gap-3 border-2 bg-white px-6 font-bold uppercase no-underline hover:border-white hover:text-white"
             href={membersPath}
             {...homepageMembersAttributes}
           >
@@ -319,28 +311,25 @@ export function getStaticPaths() {
     </div>
   </section>
 
-  <section
-    class="page-frame homepage-section py-[clamp(3.5rem,7vw,5.5rem)]"
-    aria-labelledby="events-title"
-  >
+  <section class="page-frame py-section" aria-labelledby="events-title">
     <div
-      class="homepage-section__header mb-8 flex flex-wrap items-baseline justify-between gap-x-6 gap-y-3"
+      class="mb-8 flex flex-wrap items-baseline justify-between gap-x-6 gap-y-3"
     >
       <h2
         id="events-title"
-        class="font-display m-0 text-[clamp(2.25rem,5.5vw,3.75rem)] font-bold tracking-[-0.02em] uppercase"
+        class="font-display text-section leading-display tracking-headline m-0 font-bold uppercase"
       >
         {messages.homepage_events_title({}, { locale })}
       </h2>
       <a
-        class="homepage-section__view-all font-display text-red text-[0.8rem] font-bold tracking-[0.12em] uppercase underline decoration-[0.1rem] underline-offset-[0.3rem]"
+        class="font-display text-action tracking-label action-underline text-red hover:text-ink font-bold uppercase"
         href={eventsPath}
         {...homepageEventsAttributes}
       >
         {messages.homepage_events_view_all({}, { locale })}
       </a>
     </div>
-    <div class="homepage-events border-line grid border-t">
+    <div class="border-line grid border-t">
       {
         events.map(({ edition, event, href }, index) => (
           <HomepageEventCard
@@ -376,12 +365,7 @@ export function getStaticPaths() {
 
   .homepage-hero__copy :global(:last-child),
   .homepage-school-section__heading > div :global(:last-child),
-  .homepage-members-banner__copy > div :global(:last-child),
-  .homepage-event__description :global(:last-child) {
+  .homepage-members-banner__copy > div :global(:last-child) {
     margin-bottom: 0;
-  }
-
-  .homepage-event__description :global(:first-child) {
-    margin-top: 0;
   }
 </style>

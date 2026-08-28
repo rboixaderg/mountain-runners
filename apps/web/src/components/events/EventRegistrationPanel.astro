@@ -26,25 +26,26 @@ const showPanel = edition !== undefined;
 {
   showPanel && (
     <section
-      class="page-frame events-detail__actions"
+      class="page-frame events-detail__actions border-ink border-t-2"
       aria-label={messages.event_actions_region({}, { locale })}
     >
       <div
         class:list={[
-          "events-detail__actions-grid",
-          !hasInformationLink && "events-detail__actions-grid--single",
+          "grid grid-cols-1 gap-5",
+          !hasInformationLink && "mx-auto max-w-xl",
+          hasInformationLink && "md:grid-cols-2",
         ]}
       >
         {hasInformationLink && (
-          <article class="events-detail__action-card events-detail__action-card--info">
-            <h2 class="events-detail__action-title">
+          <article class="events-detail__action-card--info border-ink p-card shadow-action grid content-start gap-4 border-2 bg-white">
+            <h2 class="events-detail__action-title font-display m-0 leading-none uppercase">
               {messages.event_more_information({}, { locale })}
             </h2>
-            <p class="events-detail__action-intro">
+            <p class="events-detail__action-intro text-muted m-0 max-w-md leading-normal">
               {messages.event_information_intro({}, { locale })}
             </p>
             <ExternalLink
-              className="event-action"
+              className="event-action shadow-action tracking-display inline-flex items-center justify-self-start gap-1.5 border-2 border-ink bg-white px-5 py-action text-xs font-bold text-ink no-underline uppercase hover:bg-ink hover:text-white"
               href={informationUrl!}
               label={messages.event_more_information({}, { locale })}
               analyticsArea={analyticsAreas.eventActions}
@@ -53,19 +54,19 @@ const showPanel = edition !== undefined;
             />
           </article>
         )}
-        <article class="events-detail__action-card events-detail__action-card--registration">
-          <h2 class="events-detail__action-title">
+        <article class="events-detail__action-card--registration border-ink p-card grid content-start gap-4 border-2 text-center text-white">
+          <h2 class="events-detail__action-title font-display m-0 leading-none text-white uppercase italic">
             {messages.event_registration_title({}, { locale })}
           </h2>
-          <p class="events-detail__action-intro">
+          <p class="events-detail__action-intro m-0 max-w-md justify-self-center leading-normal text-white/80">
             {messages.event_registration_intro({}, { locale })}
           </p>
-          <p class="events-detail__registration-status">
+          <p class="text-action tracking-label m-0 font-bold text-white uppercase">
             <span>{messages[registration.key]({}, { locale })}</span>
           </p>
           {registration.url && registration.actionKey && (
             <ExternalLink
-              className="event-action event-action--registration"
+              className="event-action shadow-action tracking-display inline-flex items-center justify-self-center gap-1.5 border-2 border-red bg-red px-5 py-action text-xs font-bold text-white no-underline uppercase hover:bg-white hover:text-ink"
               href={registration.url}
               label={messages[registration.actionKey]({}, { locale })}
               analyticsArea={analyticsAreas.eventActions}

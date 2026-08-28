@@ -63,8 +63,24 @@ reviewing `apps/web` code. The review of every PR checks these rules:
   boundaries. Extract reusable helpers and fragments at the second real
   occurrence, never in advance; keep components required by the accepted
   architecture even when they are used once.
-- Never change visual output, routes, content or existing E2E selectors when
-  refactoring.
+- Use named Tailwind utilities backed by theme tokens for ordinary styles. Do
+  not turn bespoke CSS into arbitrary Tailwind values merely to keep it in a
+  class attribute.
+- Promote a repeated value to a `@theme` token at the second semantically
+  equivalent occurrence, or when `DESIGN.md` already defines the role. Edit
+  `global.css` in any phase only to add or adjust approved scale tokens
+  consumed in that same phase. Prefer the closed scales in `DESIGN.md` over
+  near-equal historical values; do not invent per-page spacing, tracking or
+  shadow exceptions.
+- Keep custom CSS minimal and scoped to the component or template that owns it.
+  Every custom rule must have a concrete reason that named utilities and theme
+  tokens cannot express clearly.
+- Treat CSS classes as implementation details, never as E2E hooks. Tests prefer
+  role and accessible name, labels, visible text and semantic relationships.
+  Use `data-testid` only when no semantic alternative exists, and document the
+  reason next to the test.
+- Refactors preserve visual output, routes, content and user-observable
+  behavior. Selector syntax may change when those contracts remain intact.
 
 ## Security
 

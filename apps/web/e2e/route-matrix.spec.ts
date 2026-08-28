@@ -10,6 +10,18 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { expect, test } from "@playwright/test";
+import type { Locale } from "../src/lib/content/primitives";
+
+const languageSelectorLabels: Record<Locale, string> = {
+  ca: "Idioma",
+  es: "Idioma",
+  en: "Language",
+};
+const skipLinkLabels: Record<Locale, string> = {
+  ca: "Vés al contingut principal",
+  es: "Ir al contenido principal",
+  en: "Skip to main content",
+};
 
 const sitemapPath = resolve(process.cwd(), "apps/web/dist/sitemap.xml");
 let sitemap: string;
@@ -42,21 +54,21 @@ for (const path of publishedPaths) {
     const response = await page.goto(path);
     expect(response?.status(), `${path} responds with 200`).toBe(200);
 
-    const locale = path.slice(1, 3);
+    const locale = path.slice(1, 3) as Locale;
     await expect(
       page.locator("html"),
       `${path} declares its locale`,
     ).toHaveAttribute("lang", locale);
     await expect(
-      page.locator("main#main-content"),
+      page.getByRole("main"),
       `${path} renders the main landmark`,
     ).toBeVisible();
     await expect(
-      page.locator("h1"),
+      page.getByRole("heading", { includeHidden: true, level: 1 }),
       `${path} renders exactly one h1`,
     ).toHaveCount(1);
     await expect(
-      page.locator("h1"),
+      page.getByRole("heading", { includeHidden: true, level: 1 }),
       `${path} renders a non-empty h1`,
     ).not.toHaveText(/^\s*$/u);
 
@@ -70,11 +82,16 @@ for (const path of publishedPaths) {
     ).toHaveAttribute("href", canonicalHref);
 
     await expect(
-      page.locator("nav.language-selector"),
+      page.getByRole("navigation", {
+        includeHidden: true,
+        name: languageSelectorLabels[locale],
+      }),
       `${path} offers the language selector in the header and the mobile menu`,
     ).toHaveCount(2);
 
-    const skipLink = page.locator("a.skip-link");
+    const skipLink = page.getByRole("link", {
+      name: skipLinkLabels[locale],
+    });
     await skipLink.focus();
     await expect(
       skipLink,
@@ -110,22 +127,28 @@ test("matrix root document redirects to the Catalan homepage", async ({
     "href",
     "https://mountainrunners.cat/ca/",
   );
-  await expect(page.locator('a[href="/ca/"]')).toHaveCount(1);
+  await expect(page.getByRole("link")).toHaveAttribute("href", "/ca/");
 });
 
 test("matrix unknown routes serve the 404 document", async ({ page }) => {
   const response = await page.goto("/ca/ruta-inexistent/");
   expect(response?.status()).toBe(404);
-  await expect(page.locator("h1")).toHaveCount(1);
+  await expect(
+    page.getByRole("heading", { includeHidden: true, level: 1 }),
+  ).toHaveCount(1);
 });
 
 test("matrix state: active event with a next edition and closed registration", async ({
   page,
 }) => {
   await page.goto("/ca/esdeveniments/ultra-pirineu/");
-  await expect(page.locator(".detail-hero__meta")).toContainText("Actiu");
-  await expect(page.locator(".events-detail__dates time")).toHaveCount(2);
-  await expect(page.locator("main")).toContainText("Inscripció tancada");
+  await expect(page.getByText("Actiu", { exact: true })).toBeVisible();
+  await expect(
+    page.getByRole("region", { name: "Informació pràctica" }).locator("time"),
+  ).toHaveCount(2);
+  await expect(
+    page.getByText("Inscripció tancada", { exact: true }),
+  ).toBeVisible();
   await expect(
     page.getByRole("link", { name: "Més informació a la seva web" }),
   ).toHaveCount(1);
@@ -133,7 +156,9 @@ test("matrix state: active event with a next edition and closed registration", a
 
 test("matrix state: event registration coming soon", async ({ page }) => {
   await page.goto("/ca/esdeveniments/llobregat-x-la-diabetis/");
-  await expect(page.locator("main")).toContainText("Inscripció properament");
+  await expect(
+    page.getByText("Inscripció properament", { exact: true }),
+  ).toBeVisible();
   await expect(page.getByRole("link", { name: "Inscriu-t'hi" })).toHaveCount(0);
 });
 
@@ -141,7 +166,7 @@ test("matrix state: historical event keeps its badge without a registration acti
   page,
 }) => {
   await page.goto("/ca/esdeveniments/anella-verda/");
-  await expect(page.locator(".detail-hero__meta")).toContainText("Històric");
+  await expect(page.getByText("Històric", { exact: true })).toBeVisible();
   await expect(page.getByRole("link", { name: "Inscriu-t'hi" })).toHaveCount(0);
 });
 
@@ -149,32 +174,36 @@ test("matrix state: school with a deferred privacy-enhanced video", async ({
   page,
 }) => {
   await page.goto("/ca/escoles/escola-skimo/");
-  await expect(
-    page.locator(".schools-detail-preview__video-embed"),
-  ).toHaveCount(1);
-  await expect(
-    page.locator(
-      '.schools-detail-preview__video-embed iframe[src*="youtube-nocookie.com"]',
-    ),
-  ).toHaveCount(1);
+  const videoRegion = page.getByRole("region", { name: "Vídeo" });
+  await expect(videoRegion).toHaveCount(1);
+  await expect(videoRegion.getByTitle("Vídeo")).toHaveAttribute(
+    "src",
+    /youtube-nocookie\.com/u,
+  );
 });
 
 test("matrix state: school without video renders no embed", async ({
   page,
 }) => {
   await page.goto("/ca/escoles/escola-btt/");
-  await expect(page.locator("main iframe")).toHaveCount(0);
+  await expect(page.getByRole("main").locator("iframe")).toHaveCount(0);
 });
 
 test("matrix state: unavailable newsletter publishes the disabled preview", async ({
   page,
 }) => {
   await page.goto("/ca/");
-  const newsletter = page.locator(".site-prefooter__newsletter");
-  await expect(newsletter).toContainText(
-    "El servei de butlletí encara no està disponible.",
-  );
-  await expect(newsletter.locator("input")).toBeDisabled();
-  await expect(newsletter.locator("button")).toBeDisabled();
+  const newsletter = page
+    .getByRole("heading", { level: 3, name: "Butlletí del club" })
+    .locator("..");
+  await expect(
+    newsletter.getByText("El servei de butlletí encara no està disponible.", {
+      exact: true,
+    }),
+  ).toBeVisible();
+  await expect(newsletter.getByLabel("Correu electrònic")).toBeDisabled();
+  await expect(
+    newsletter.getByRole("button", { name: "Subscripció" }),
+  ).toBeDisabled();
   await expect(newsletter.locator("form")).toHaveCount(0);
 });
