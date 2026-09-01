@@ -138,12 +138,9 @@ Aquests recursos conserven els drets de les entitats i persones respectives i
 no queden coberts per la llicència MIT del programari.
 
 Els fitxers de `sponsors/` són els logotips dels patrocinadors que publica la
-secció de patrocinadors de la portada. Es descarreguen i versionen localment amb
-l'URL d'origen registrat al camp `sourceUrl` de cada logotip:
+secció de patrocinadors de la portada:
 
-- `vera.webp` prové de
-  `https://mardestiu.cat/wp-content/uploads/2026/05/logo-vera-1.webp` i és el
-  logotip de l'operadora de telecomunicacions catalana Vera.
+- `vera.webp` és el logotip de l'operadora de telecomunicacions catalana Vera.
 
 Aquests recursos conserven els drets de les entitats respectives i no queden
 coberts per la llicència MIT del programari.
