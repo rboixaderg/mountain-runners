@@ -138,7 +138,7 @@ Aquests recursos conserven els drets de les entitats i persones respectives i
 no queden coberts per la llicència MIT del programari.
 
 Els fitxers de `sponsors/` són els logotips dels patrocinadors que publica la
-secció de patrocinadors de la portada:
+franja de patrocinadors del prepeu:
 
 - `vera.webp` és el logotip de l'operadora de telecomunicacions catalana Vera.
 

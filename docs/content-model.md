@@ -128,7 +128,7 @@ exclusivament de les entitats publicades amb avantatge de soci
 (`membershipBenefit`), ordenades alfabèticament pel nom en català; no es
 duplica cap llista editorial en els recursos de traducció.
 
-La secció de patrocinadors de la portada es deriva exclusivament de les entitats
+La franja de patrocinadors del prepeu es deriva exclusivament de les entitats
 publicades marcades com a patrocinadores (camp `sponsor`), ordenades
 alfabèticament pel nom en català; no es duplica cap llista editorial en els
 recursos de traducció.

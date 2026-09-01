@@ -14,7 +14,7 @@ import {
   createPublicationCatalog,
   type ContentSource,
 } from "../lib/content/publication";
-import { getHomepageSponsors } from "../lib/content/sponsors";
+import { getSponsorEntities } from "../lib/content/sponsors";
 import { parseRestrictedYaml } from "../lib/content/yaml";
 
 async function loadCollection<T>(directory: string, schema: z.ZodType<T>) {
@@ -51,7 +51,7 @@ async function loadSource(): Promise<ContentSource> {
 describe("homepage sponsors", () => {
   it("derives sponsors from published entities marked as sponsors", async () => {
     const catalog = createPublicationCatalog(await loadSource());
-    const sponsors = getHomepageSponsors(catalog, "ca");
+    const sponsors = getSponsorEntities(catalog, "ca");
 
     expect(sponsors.map((entity) => entity.id)).toEqual(["vera"]);
     for (const entity of sponsors) {
@@ -61,7 +61,7 @@ describe("homepage sponsors", () => {
 
   it("excludes collaborators and the club itself", async () => {
     const catalog = createPublicationCatalog(await loadSource());
-    const sponsorIds = getHomepageSponsors(catalog, "ca").map(
+    const sponsorIds = getSponsorEntities(catalog, "ca").map(
       (entity) => entity.id,
     );
 
@@ -74,6 +74,6 @@ describe("homepage sponsors", () => {
     source.entities.find(({ id }) => id === "vera")!.published = false;
 
     const catalog = createPublicationCatalog(source);
-    expect(getHomepageSponsors(catalog, "ca")).toHaveLength(0);
+    expect(getSponsorEntities(catalog, "ca")).toHaveLength(0);
   });
 });

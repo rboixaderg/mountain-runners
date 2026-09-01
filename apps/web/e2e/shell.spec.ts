@@ -141,17 +141,7 @@ test("renders the published homepage sections in order", async ({ page }) => {
     "Les nostres escoles",
     "Forma part del club",
     "Agenda d'activitats",
-    "Patrocinadors",
   ]);
-  const sponsorsRegion = page.getByRole("region", {
-    name: "Patrocinadors",
-  });
-  const sponsorLogoLink = sponsorsRegion.getByRole("link", {
-    name: "Logotip de Vera",
-  });
-  await expect(sponsorLogoLink).toHaveCount(1);
-  await expect(sponsorLogoLink).toHaveAttribute("href", "https://somvera.cat/");
-  await expect(sponsorLogoLink).toHaveAttribute("target", "_blank");
   await expect(
     main.getByRole("link", { name: "Veure tot l'any" }),
   ).toHaveAttribute("href", "/ca/esdeveniments/");
@@ -1469,6 +1459,12 @@ test("publishes documents and legal routes from the footer", async ({
     page.getByRole("navigation", { name: "Xarxes socials" }),
   ).toBeVisible();
   const prefooter = page.getByRole("region", { name: "Tens dubtes?" });
+  const sponsorLogoLink = prefooter.getByRole("link", {
+    name: "Logotip de Vera",
+  });
+  await expect(sponsorLogoLink).toHaveCount(1);
+  await expect(sponsorLogoLink).toHaveAttribute("href", "https://somvera.cat/");
+  await expect(sponsorLogoLink).toHaveAttribute("target", "_blank");
   await expect(
     prefooter.getByRole("link", { name: "info@mountainrunners.cat" }),
   ).toHaveAttribute("href", "mailto:info@mountainrunners.cat");
