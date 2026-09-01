@@ -1,0 +1,19 @@
+apps/web/src/pages/[locale]/index.astro
+  s_7ee671075c30ed::t_21ca46d8e4aead 262,266
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "e991391652bd5f96d4f41336f6048cd089076b8b",
+  "prompts": {},
+  "sessions": {
+    "s_7ee671075c30ed": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_fa24df557ffeQxcbP3k50UZNTu",
+        "model": "deepseek-v4-flash"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
