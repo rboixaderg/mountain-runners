@@ -242,11 +242,11 @@ export function getStaticPaths() {
         />
       </div>
       <ul
-        class="m-0 grid w-full list-none grid-cols-1 gap-4 p-0 md:grid-cols-3"
+        class="m-0 grid w-full list-none grid-cols-1 justify-items-center gap-4 p-0 md:grid-cols-3"
       >
         {
           schoolCards.map(({ variant, coverHref, coverSize }) => (
-            <li class="bg-paper text-ink max-md:max-w-md">
+            <li class="bg-paper text-ink w-full max-md:max-w-md">
               <a
                 class="group grid h-full grid-rows-[auto_auto_1fr_auto] gap-3 p-4 text-inherit no-underline"
                 href={getVariantPath(variant)}

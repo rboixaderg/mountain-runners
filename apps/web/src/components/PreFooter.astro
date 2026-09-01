@@ -1,8 +1,11 @@
 ---
 import * as messages from "../paraglide/messages.js";
+import { getLocalImageSize, getResourceHref } from "../lib/content/images";
 import { newsletterActionId } from "../lib/content/models";
 import type { Locale } from "../lib/content/primitives";
 import type { PublicationCatalog } from "../lib/content/publication";
+import { getSponsorEntities } from "../lib/content/sponsors";
+import { getOrderedEntityLinks } from "../lib/presentation/entities";
 import { getNewsletterPresentation } from "../lib/presentation/newsletter";
 import {
   externalLinkAttributes,
@@ -53,6 +56,20 @@ const newsletterAttributes = analyticsActionAttributes({
   area: analyticsAreas.prefooterNewsletter,
   target: "newsletter",
 });
+const sponsorItems = await Promise.all(
+  getSponsorEntities(catalog, locale).map(async (entity) => {
+    const resource = entity.logo.resource;
+    return {
+      entity,
+      href: getResourceHref(resource),
+      primaryLink: getOrderedEntityLinks(entity.links ?? [])[0],
+      size:
+        resource.kind === "local"
+          ? await getLocalImageSize(resource.path)
+          : undefined,
+    };
+  }),
+);
 ---
 
 <section
@@ -220,4 +237,45 @@ const newsletterAttributes = analyticsActionAttributes({
       }
     </div>
   </div>
+  {
+    sponsorItems.length > 0 && (
+      <div class="page-frame border-line border-t">
+        <ul class="m-0 flex list-none flex-wrap items-center justify-center gap-x-10 gap-y-6 p-0 py-8">
+          {sponsorItems.map(({ entity, href, primaryLink, size }) => {
+            const logo = (
+              <img
+                class="max-h-14 w-auto max-w-40"
+                src={href}
+                alt={entity.logo.alt[locale]}
+                {...(size === undefined
+                  ? {}
+                  : { width: size.width, height: size.height })}
+                loading="lazy"
+              />
+            );
+            return (
+              <li>
+                {primaryLink ? (
+                  <a
+                    class="inline-flex items-center"
+                    href={primaryLink.url}
+                    {...externalLinkAttributes}
+                    {...analyticsActionAttributes({
+                      action: analyticsActions.navigate,
+                      area: analyticsAreas.prefooterSponsors,
+                      target: entity.id,
+                    })}
+                  >
+                    {logo}
+                  </a>
+                ) : (
+                  logo
+                )}
+              </li>
+            );
+          })}
+        </ul>
+      </div>
+    )
+  }
 </section>

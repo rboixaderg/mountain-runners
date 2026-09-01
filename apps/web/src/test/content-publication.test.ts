@@ -158,6 +158,7 @@ describe("publication catalog", () => {
       "src/assets/schools/gallery/trail/trail-session-21.jpg",
       "src/assets/schools/gallery/trail/trail-session-23.jpg",
       "src/assets/schools/gallery/trail/trail-session-29.jpg",
+      "src/assets/sponsors/vera.webp",
       "src/content-assets/documents/estatuts-mrb.pdf",
     ]);
   });

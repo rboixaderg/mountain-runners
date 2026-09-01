@@ -1,0 +1,23 @@
+id: vera
+published: true
+sponsor: true
+name:
+  ca: Vera
+  es: Vera
+  en: Vera
+logo:
+  resource:
+    kind: local
+    path: src/assets/sponsors/vera.webp
+  alt:
+    ca: Logotip de Vera
+    es: Logotipo de Vera
+    en: Vera logo
+  sourceUrl: https://mardestiu.cat/wp-content/uploads/2026/05/logo-vera-1.webp
+description:
+  ca: Operadora de telecomunicacions catalana i patrocinadora de Mountain Runners del Berguedà.
+  es: Operadora de telecomunicaciones catalana y patrocinadora de Mountain Runners del Berguedà.
+  en: Catalan telecommunications operator and sponsor of Mountain Runners del Berguedà.
+links:
+  - kind: website
+    url: https://somvera.cat
