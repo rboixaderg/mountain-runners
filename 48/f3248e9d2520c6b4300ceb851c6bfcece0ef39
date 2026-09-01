@@ -1,0 +1,14 @@
+apps/web/src/pages/[locale]/index.astro
+  h_1727aeeb492b30 372
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "48f3248e9d2520c6b4300ceb851c6bfcece0ef39",
+  "prompts": {},
+  "humans": {
+    "h_1727aeeb492b30": {
+      "author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
