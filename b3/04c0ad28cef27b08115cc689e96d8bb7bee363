@@ -1,0 +1,21 @@
+apps/web/src/components/PreFooter.astro
+  s_ce7192364d1fe3::t_629d36f3486701 3,7-8,59-72,240-280
+apps/web/src/test/sponsors.test.ts
+  s_ce7192364d1fe3::t_3bece16c517543 17,54,64,77
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "b304c0ad28cef27b08115cc689e96d8bb7bee363",
+  "prompts": {},
+  "sessions": {
+    "s_ce7192364d1fe3": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_fa1c9de07ffeT8X5eykpPXtxqn",
+        "model": "deepseek-v4-flash"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
