@@ -28,7 +28,9 @@ import {
   getVariantPath,
 } from "../../lib/content/routes";
 import { getSiteJsonLd } from "../../lib/content/seo";
+import { getHomepageSponsors } from "../../lib/content/sponsors";
 import { externalActionIds } from "../../lib/content/models";
+import { getOrderedEntityLinks } from "../../lib/presentation/entities";
 import {
   getFederationLink,
   getMemberSignupLink,
@@ -74,6 +76,21 @@ const schoolCards = await Promise.all(
       variant,
       coverHref: getResourceHref(resource),
       coverSize:
+        resource.kind === "local"
+          ? await getLocalImageSize(resource.path)
+          : undefined,
+    };
+  }),
+);
+const sponsors = getHomepageSponsors(catalog, locale);
+const sponsorItems = await Promise.all(
+  sponsors.map(async (entity) => {
+    const resource = entity.logo.resource;
+    return {
+      entity,
+      href: getResourceHref(resource),
+      primaryLink: getOrderedEntityLinks(entity.links ?? [])[0],
+      size:
         resource.kind === "local"
           ? await getLocalImageSize(resource.path)
           : undefined,
@@ -345,6 +362,59 @@ export function getStaticPaths() {
       }
     </div>
   </section>
+
+  {
+    sponsorItems.length > 0 && (
+      <section
+        class="page-frame py-section border-line border-t"
+        aria-labelledby="homepage-sponsors-title"
+      >
+        <div class="mb-8 flex items-baseline gap-x-6 gap-y-3">
+          <h2
+            id="homepage-sponsors-title"
+            class="font-display text-section leading-display tracking-headline m-0 font-bold uppercase"
+          >
+            {messages.homepage_sponsors_title({}, { locale })}
+          </h2>
+        </div>
+        <ul class="m-0 grid list-none grid-cols-2 gap-x-10 gap-y-10 p-0 md:grid-cols-4">
+          {sponsorItems.map(({ entity, href, primaryLink, size }) => {
+            const logo = (
+              <img
+                class="max-h-14 w-auto max-w-40"
+                src={href}
+                alt={entity.logo.alt[locale]}
+                {...(size === undefined
+                  ? {}
+                  : { width: size.width, height: size.height })}
+                loading="lazy"
+              />
+            );
+            return (
+              <li class="flex items-center justify-center">
+                {primaryLink ? (
+                  <a
+                    class="inline-flex items-center"
+                    href={primaryLink.url}
+                    {...externalLinkAttributes}
+                    {...analyticsActionAttributes({
+                      action: analyticsActions.navigate,
+                      area: analyticsAreas.homepage,
+                      target: entity.id,
+                    })}
+                  >
+                    {logo}
+                  </a>
+                ) : (
+                  logo
+                )}
+              </li>
+            );
+          })}
+        </ul>
+      </section>
+    )
+  }
 </PublicLayout>
 
 <style>
