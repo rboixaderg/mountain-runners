@@ -1,0 +1,47 @@
+apps/web/e2e/shell.spec.ts
+  s_ce7192364d1fe3::t_ba4a48352119d1 144,146-154
+apps/web/messages/ca.json
+  s_7ee671075c30ed::t_e7b79205c625fc 111
+apps/web/messages/en.json
+  s_7ee671075c30ed::t_1244ec47d38e26 111
+apps/web/messages/es.json
+  s_7ee671075c30ed::t_bbe884ac90a5c3 111
+apps/web/src/assets/README.md
+  s_7ee671075c30ed::t_6b349164faa19c 140-150
+apps/web/src/lib/content/models.ts
+  s_7ee671075c30ed::t_c5de300180045a 198-200
+apps/web/src/lib/content/sponsors.ts
+  s_7ee671075c30ed::t_7770327e0465ef 1-17
+apps/web/src/pages/[locale]/index.astro
+  s_ce7192364d1fe3::t_3d89b36250a37b 31,33,85-99,365-417
+apps/web/src/test/content-publication.test.ts
+  s_7ee671075c30ed::t_0d3f458f6dcc5d 161
+apps/web/src/test/sponsors.test.ts
+  s_7ee671075c30ed::t_bb8d723c46e6f0 1-79
+docs/content-model.md
+  s_7ee671075c30ed::t_cf9b456552eb10 41-44,131-135
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "fde962c56438b79f683c7748673db3be1610c2f6",
+  "prompts": {},
+  "sessions": {
+    "s_7ee671075c30ed": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_fa24df557ffeQxcbP3k50UZNTu",
+        "model": "deepseek-v4-flash"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    },
+    "s_ce7192364d1fe3": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_fa1c9de07ffeT8X5eykpPXtxqn",
+        "model": "deepseek-v4-flash"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
