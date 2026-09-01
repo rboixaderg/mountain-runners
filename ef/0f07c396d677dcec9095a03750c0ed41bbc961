@@ -1,0 +1,14 @@
+apps/web/src/assets/README.md
+  h_1727aeeb492b30 141,143
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "ef0f07c396d677dcec9095a03750c0ed41bbc961",
+  "prompts": {},
+  "humans": {
+    "h_1727aeeb492b30": {
+      "author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
