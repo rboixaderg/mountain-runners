@@ -4,12 +4,10 @@
 
 El repositori disposa de CI de qualitat, seguretat, contracte d'artefacte i
 desplegament continu protegit des de `main`. L'apex i `www` ja serveixen des
-del VPS (19 d'agost de 2026). Resten el gate de llançament, HSTS, l'entorn
-`production-rollback` i el període d'observació
-([runbook](runbook.md#9-tall-dns-i-primera-activació-pública)). Cap canvi DNS
-addicional ni retirada del gate de `production` no s'executa sense la persona
-mantenidora. Els previews de pull request i la decisió sobre Cloudflare
-corresponen a la
+del VPS (19 d'agost de 2026) i la fase 5 es va tancar el 28 d'agost de 2026
+amb el gate de llançament, l'HSTS i el període d'observació completats
+([runbook](runbook.md#9-tall-dns-i-primera-activació-pública)). Els previews
+de pull request i la decisió sobre Cloudflare corresponen a la
 [`fase 6`](specs/phase-6-pull-request-previews.md) i no bloquegen producció.
 
 ## Destí
@@ -187,10 +185,10 @@ servidor (`pnpm test:server`). `pnpm validate` no executa Lighthouse;
 
 ## No Implementat
 
-Les accions remotes que resten (HSTS, entorn `production-rollback`, retirada
-dels required reviewers només de `production` després de 48 h) requereixen
-aprovació explícita i queden registrades a la checklist de la T5.5. Tampoc hi
-ha previews, que la fase 6 avalua i implementa de manera separada. Només cal
+La fase 5 està tancada; HSTS, entorn `production-rollback` i retirada dels
+required reviewers de `production` estan registrats a la
+[checklist de la T5.5](validation/phase-5-t55-launch-gate.md). No hi ha
+previews, que la fase 6 avalua i implementa de manera separada. Només cal
 un ADR nou quan la implementació introdueixi o canviï una decisió
 arquitectònica; els detalls que apliquin la direcció acceptada continuen
 requerint una pull request revisada.

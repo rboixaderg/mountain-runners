@@ -58,7 +58,7 @@ constructor genèric de pàgines sense una necessitat editorial concreta.
 | 2. Vertical slice públic                     | Completada  | Shell global, inici i esdeveniments funcionals            |
 | 3. Cobertura de contingut                    | Completada  | Resta de pàgines i plantilles de la web                   |
 | 4. Validació integral de disseny i contingut | Completada  | Revisió pàgina a pàgina i traducció a es/en              |
-| 5. Publicació a producció i operació         | Pendent     | Desplegament continu segur sobre Hetzner                  |
+| 5. Publicació a producció i operació         | Completada | Desplegament continu segur sobre Hetzner                  |
 | 6. Previews de PR i estratègia DNS/edge      | Planificada | Previews aïllades i decisió informada sobre Cloudflare    |
 | 7. Xat públic                                | Planificada | Consultes de només lectura sobre contingut publicat       |
 | 8. Assistència editorial                     | Planificada | Edició privada, auditada i basada en pull requests        |
@@ -241,12 +241,12 @@ visuals aprovats que els corresponen.
 
 ## Fase 5: Publicació A Producció I Operació
 
-**Estat:** T5.1 a T5.4 completades a `main` (decisions, artefacte, servidor i
-desplegament continu). L'apex ja serveix des del VPS (T5.5, 19 d'agost de
-2026). Resten el gate de llançament, HSTS, l'entorn `production-rollback` i
-el període d'observació; HSTS i la retirada del gate de `production`
-requereixen la persona mantenidora.
-La fase 4 està completada i ja no bloqueja la publicació.
+**Estat:** Completada el 28 d'agost de 2026. T5.1 a T5.4 es van completar a
+`main` (decisions, artefacte, servidor i desplegament continu); l'apex ja
+serveix des del VPS des del 19 d'agost de 2026 (T5.5). El gate de llançament,
+l'HSTS, l'entorn `production-rollback`, la reversió provada, el període
+d'observació i la retirada del gate de `production` estan tancats i registrats
+a la [checklist de la T5.5](validation/phase-5-t55-launch-gate.md).
 
 **Especificació:**
 [`docs/specs/phase-5-publication-operation.md`](specs/phase-5-publication-operation.md).
@@ -373,8 +373,6 @@ humana ni el flux de Git.
 
 ## Decisions Pendents Abans De Les Fases Posteriors
 
-- Accés del VPS de Hetzner, responsables, entorn de producció i política de logs
-  per completar la fase 5.
 - Necessitat real de Cloudflare, wildcard DNS o TLS, visibilitat i retenció dels
   previews per a la fase 6.
 - Política de minimització, accés i conservació dels logs de Caddy, coherent amb
