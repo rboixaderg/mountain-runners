@@ -21,6 +21,7 @@ export const analyticsAreas = {
   membersCollaborators: "members_collaborators",
   prefooterContact: "prefooter_contact",
   prefooterNewsletter: "prefooter_newsletter",
+  prefooterSponsors: "prefooter_sponsors",
   schoolRegistration: "school_registration",
   schoolsHub: "schools_hub",
 } as const;

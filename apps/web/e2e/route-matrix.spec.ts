@@ -154,12 +154,14 @@ test("matrix state: active event with a next edition and closed registration", a
   ).toHaveCount(1);
 });
 
-test("matrix state: event registration coming soon", async ({ page }) => {
+test("matrix state: event registration open", async ({ page }) => {
   await page.goto("/ca/esdeveniments/llobregat-x-la-diabetis/");
   await expect(
-    page.getByText("Inscripció properament", { exact: true }),
+    page.getByText("Inscripció oberta", { exact: true }),
   ).toBeVisible();
-  await expect(page.getByRole("link", { name: "Inscriu-t'hi" })).toHaveCount(0);
+  await expect(
+    page.getByRole("link", { name: "Inscriu-t'hi" }),
+  ).toHaveAttribute("href", "https://llobregat.org/inscripcio");
 });
 
 test("matrix state: historical event keeps its badge without a registration action", async ({
