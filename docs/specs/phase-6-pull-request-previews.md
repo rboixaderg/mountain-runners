@@ -72,13 +72,13 @@ VPS requereix aprovació explícita de la persona mantenidora.
 
 ## Tasques, Entregues I Seguiment
 
-| Unitat                                       | Estat   | Dependències | Resultat verificable                          | PR  |
-| -------------------------------------------- | ------- | ------------ | --------------------------------------------- | --- |
-| T6.1 Requisits, amenaces i alternatives      | Pendent | Fase 5       | Comparativa i riscos aprovats                 | -   |
-| T6.2 Decisió de domini, DNS, TLS i proveïdor | Pendent | T6.1         | Arquitectura mínima decidida                  | -   |
-| T6.3 Artefacte i publicador de confiança     | Pendent | T6.2         | Frontera segura sense executar codi no fiable | -   |
-| T6.4 Cicle de vida, aïllament i neteja       | Pendent | T6.3         | Orígens efímers creats i retirats             | -   |
-| T6.5 Validació de previews i operació        | Pendent | T6.4         | Gate i runbook verificats                     | -   |
+| Unitat                                       | Estat      | Dependències | Resultat verificable                          | PR      |
+| -------------------------------------------- | ---------- | ------------ | --------------------------------------------- | ------- |
+| T6.1 Requisits, amenaces i alternatives      | En revisió | Fase 5       | Comparativa i riscos aprovats                 | PR #113 |
+| T6.2 Decisió de domini, DNS, TLS i proveïdor | Pendent    | T6.1         | Arquitectura mínima decidida                  | -       |
+| T6.3 Artefacte i publicador de confiança     | Pendent    | T6.2         | Frontera segura sense executar codi no fiable | -       |
+| T6.4 Cicle de vida, aïllament i neteja       | Pendent    | T6.3         | Orígens efímers creats i retirats             | -       |
+| T6.5 Validació de previews i operació        | Pendent    | T6.4         | Gate i runbook verificats                     | -       |
 
 ### T6.1: Requisits, Amenaces I Alternatives
 
