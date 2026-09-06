@@ -1459,6 +1459,12 @@ test("publishes documents and legal routes from the footer", async ({
     page.getByRole("navigation", { name: "Xarxes socials" }),
   ).toBeVisible();
   const prefooter = page.getByRole("region", { name: "Tens dubtes?" });
+  const sponsorLogoLink = prefooter.getByRole("link", {
+    name: "Logotip de Vera",
+  });
+  await expect(sponsorLogoLink).toHaveCount(1);
+  await expect(sponsorLogoLink).toHaveAttribute("href", "https://somvera.cat/");
+  await expect(sponsorLogoLink).toHaveAttribute("target", "_blank");
   await expect(
     prefooter.getByRole("link", { name: "info@mountainrunners.cat" }),
   ).toHaveAttribute("href", "mailto:info@mountainrunners.cat");

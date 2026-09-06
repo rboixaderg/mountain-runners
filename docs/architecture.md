@@ -98,8 +98,6 @@ formen part del disseny inicial.
 
 - Servei de xat Hono i generador d'índex.
 - Integració amb Telegram, Discord o Hermes.
-- HSTS, període d'observació i retirada del gate de `production`, que resten
-  accions supervisades de la T5.5.
 - Previews, dominis efímers i possible integració amb Cloudflare fins a definir
   i implementar la fase 6.
 
