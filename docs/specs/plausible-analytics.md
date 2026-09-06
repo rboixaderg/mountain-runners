@@ -52,10 +52,10 @@ la CSP anterior i les pàgines continuen funcionant.
 
 ## Tasques, Entregues I Seguiment
 
-| Tasca | Estat   | Resultat                                                                                         | Enllaç |
-| ----- | ------- | ------------------------------------------------------------------------------------------------ | ------ |
-| T1    | En curs | Script al layout, CSP, textos legals, ADR 0007 i comprovacions que l'analítica no trenqui la web |        |
-| T2    | En curs | Esdeveniments d'acció personalitzats, temps actiu (engaged time) i profunditat de scroll         |        |
+| Tasca | Estat     | Resultat                                                                                         | Enllaç                                                           |
+| ----- | --------- | ------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------- |
+| T1    | En curs   | Script al layout, CSP, textos legals, ADR 0007 i comprovacions que l'analítica no trenqui la web |                                                                  |
+| T2    | Fusionada | Esdeveniments d'acció personalitzats, temps actiu (engaged time) i profunditat de scroll         | [PR #96](https://github.com/rboixaderg/mountain-runners/pull/96) |
 
 ### T1. Integrar Plausible A La Web Pública
 
