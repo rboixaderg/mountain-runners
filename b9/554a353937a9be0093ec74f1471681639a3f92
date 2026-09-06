@@ -1,0 +1,29 @@
+docs/backlog.md
+  s_b48777a0372e20::t_58c7b9f9438960 185,231-232
+docs/specs/plausible-analytics.md
+  s_39f803ac3a45ce::t_4819d76c39c5a9 55-58
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "b9554a353937a9be0093ec74f1471681639a3f92",
+  "prompts": {},
+  "sessions": {
+    "s_39f803ac3a45ce": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_f88b1c97dffebLsmlczHyrDh8c",
+        "model": "muse-spark-1.3-contributor-free"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    },
+    "s_b48777a0372e20": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_f88a9cef7ffelU9X07q63ypfcg",
+        "model": "gpt-5.6-terra"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
