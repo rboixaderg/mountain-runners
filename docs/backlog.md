@@ -182,7 +182,7 @@ a l'entrada oberta corresponent; no s'amplien silenciosament aquesta entrega.
 
 ### Esdeveniments D'Acció I Temps D'Estada
 
-**Estat:** Incorporada com a entrega autònoma (T2 d'analítica Plausible).
+**Estat:** Incorporada i fusionada a la [PR #96](https://github.com/rboixaderg/mountain-runners/pull/96) (entrega autònoma T2 d'analítica Plausible).
 
 **Problema:** les visites de pàgina i els comptadors automàtics de clics sortints,
 baixades i formularis no expliquen quines accions de la web pública són útils
@@ -228,7 +228,8 @@ descriure aquests esdeveniments reals.
   canvien rutes, contingut editorial ni selectors E2E existents.
 
 **Seguiment:** [especificació d'analítica Plausible](specs/plausible-analytics.md)
-(T2). Implementació a la branca `feat/analytics-events`.
+(T2). Fusionada amb squash a la [PR #96](https://github.com/rboixaderg/mountain-runners/pull/96)
+(`cb842f5`); la branca `feat/analytics-events` ja s'ha retirat.
 
 ### Observabilitat De Totes Les Peticions A L'Origen
 
