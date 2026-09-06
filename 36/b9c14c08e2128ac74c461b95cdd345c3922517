@@ -1,0 +1,19 @@
+docs/specs/phase-6-pull-request-previews.md
+  s_39f803ac3a45ce::t_29cd839808f322 75-81
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "36b9c14c08e2128ac74c461b95cdd345c3922517",
+  "prompts": {},
+  "sessions": {
+    "s_39f803ac3a45ce": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_f88b1c97dffebLsmlczHyrDh8c",
+        "model": "muse-spark-1.3-contributor-free"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
