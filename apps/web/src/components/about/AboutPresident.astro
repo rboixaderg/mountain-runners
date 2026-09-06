@@ -2,6 +2,7 @@
 import * as messages from "../../paraglide/messages.js";
 import { renderRestrictedMarkdown } from "../../lib/content/markdown";
 import type { Locale } from "../../lib/content/primitives";
+import PageSection from "../PageSection.astro";
 
 interface Props {
   locale: Locale;
@@ -10,23 +11,16 @@ interface Props {
 const { locale } = Astro.props;
 ---
 
-<section
-  class="page-frame about-section"
-  aria-labelledby="about-president-title"
+<PageSection
+  id="about-president-title"
+  title={messages.about_president_title({}, { locale })}
 >
-  <div class="about-section__heading">
-    <span class="about-section__marker" aria-hidden="true"></span>
-    <h2 class="about-section__title" id="about-president-title">
-      {messages.about_president_title({}, { locale })}
-    </h2>
-  </div>
   <div
-    class="about-section__body"
     set:html={renderRestrictedMarkdown(
       messages.about_president_message({}, { locale }),
     )}
   />
-  <p class="about-section__signature">
+  <p class="font-display tracking-display m-0 mt-4 text-lg font-bold uppercase">
     {messages.about_president_signature({}, { locale })}
   </p>
-</section>
+</PageSection>

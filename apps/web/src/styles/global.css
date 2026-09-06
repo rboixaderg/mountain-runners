@@ -2,26 +2,45 @@
 
 @theme {
   --color-red: #d71920;
-  --color-red-on-dark: #ff7378;
   --color-ink: #111111;
   --color-paper: #fafaf8;
   --color-stone: #f1f1ee;
   --color-line: #d7d7d2;
   --color-muted: #5d5d58;
+  --color-red-on-dark: #ff7378;
   --font-body: "Inter", Arial, Helvetica, sans-serif;
   --font-display: "Oswald", Impact, "Arial Narrow Bold", sans-serif;
+  --tracking-display: 0.06em;
+  --tracking-label: 0.08em;
+  --tracking-headline: -0.03em;
+  --leading-copy: 1.6;
+  --leading-display: 0.92;
+  --leading-action: 1.2;
+  --text-action: 0.8rem;
+  --text-section: clamp(1.8rem, 4vw, 3rem);
+  --text-display: clamp(3.5rem, 9vw, 7.5rem);
+  --text-display-home: clamp(2.6rem, 7vw, 5.25rem);
+  --text-section-copy: clamp(1.05rem, 2vw, 1.25rem);
+  --text-meta: 0.7rem;
+  --text-meta--line-height: 1.4;
+  --shadow-action: 0.35rem 0.35rem 0 var(--color-ink);
+  --shadow-action-accent: 0.35rem 0.35rem 0 var(--color-red);
+  --shadow-action-lg: 0.5rem 0.5rem 0 var(--color-red);
+  --spacing-action: 0.85rem;
+  --spacing-card: clamp(1.5rem, 3vw, 2.25rem);
+  --spacing-section: clamp(3.5rem, 7vw, 6rem);
+  --container-section-copy: 40rem;
+  --container-reading: 44rem;
 }
 
 :root {
   --page-width: 80rem;
   --reading-width: 44rem;
   --page-gutter: clamp(1.25rem, 4vw, 2rem);
-  --section-space: clamp(3.5rem, 7vw, 6rem);
+  --section-space: var(--spacing-section);
   --space-2: 0.5rem;
   --space-3: 0.75rem;
   --space-4: 1rem;
-  --space-6: 1.5rem;
-  --space-8: 2rem;
   --space-12: 3rem;
 }
 
@@ -94,6 +113,16 @@
 @utility page-frame {
   width: min(calc(100% - 2 * var(--page-gutter)), var(--page-width));
   margin-inline: auto;
+}
+
+@utility py-section {
+  padding-block: var(--section-space);
+}
+
+@utility action-underline {
+  text-decoration-line: underline;
+  text-decoration-thickness: 0.1rem;
+  text-underline-offset: 0.3rem;
 }
 
 .skip-link {

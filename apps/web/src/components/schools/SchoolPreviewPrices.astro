@@ -24,18 +24,22 @@ if (!hasPreviewPriceContent(pricesMarkdown)) {
 }
 ---
 
-<article class="schools-detail-preview__prices">
-  <div class="schools-detail-preview__prices-header">
-    <div class="schools-detail-preview__practical-icon" aria-hidden="true">
+<article
+  class="border-ink p-card shadow-action-lg flex min-w-0 flex-col border-2 bg-white"
+>
+  <div class="mb-5 flex items-start gap-4 md:mb-7">
+    <div class="bg-ink inline-flex p-3 text-white" aria-hidden="true">
       <SchoolPracticalIcon sectionKey="prices" />
     </div>
-    <div class="schools-detail-preview__prices-heading">
-      <h3 class="schools-detail-preview__practical-card-title">
+    <div class="min-w-0">
+      <h3
+        class="schools-detail-preview__practical-card-title font-display text-ink leading-action tracking-display m-0 font-bold uppercase"
+      >
         {messages.school_prices_label({}, { locale })}
       </h3>
       {
         parsedSection.lead && (
-          <p class="schools-detail-preview__prices-intro">
+          <p class="text-muted m-0 mt-2 text-sm leading-normal">
             {parsedSection.lead}
           </p>
         )
@@ -43,23 +47,23 @@ if (!hasPreviewPriceContent(pricesMarkdown)) {
     </div>
   </div>
 
-  <div class="schools-detail-preview__prices-body">
+  <div class="grid gap-5">
     {
       priceTiers.length > 0 && (
-        <ul class="schools-detail-preview__price-tiers">
+        <ul class="m-0 grid list-none grid-cols-1 gap-3 p-0 md:grid-cols-3">
           {priceTiers.map((priceTier) => {
             const formattedAmount = formatPriceAmount(priceTier.amount);
 
             return (
-              <li class="schools-detail-preview__price-tier">
-                <span class="schools-detail-preview__price-tier-label">
+              <li class="border-ink bg-stone shadow-action-accent grid justify-items-center border-2 p-4 text-center md:p-5">
+                <span class="text-muted tracking-label text-xs leading-normal font-bold uppercase">
                   {priceTier.label}
                 </span>
-                <span class="schools-detail-preview__price-tier-value">
+                <span class="schools-detail-preview__price-tier-value font-display text-red mt-2 leading-none font-bold">
                   {formattedAmount.value}
                 </span>
                 {formattedAmount.unit.length > 0 && (
-                  <span class="schools-detail-preview__price-tier-unit">
+                  <span class="text-ink mt-1.5 text-sm font-semibold">
                     {formattedAmount.unit}
                   </span>
                 )}
@@ -72,17 +76,17 @@ if (!hasPreviewPriceContent(pricesMarkdown)) {
 
     {
       priceSection.registrationFees.length > 0 && (
-        <div class="schools-detail-preview__price-registration">
-          <h4 class="schools-detail-preview__price-registration-title">
+        <div class="grid gap-3 border-t border-black/10 pt-5">
+          <h4 class="font-display text-ink tracking-label m-0 text-sm font-bold uppercase">
             {messages.school_prices_registration_label({}, { locale })}
           </h4>
-          <ul class="schools-detail-preview__price-registration-list">
+          <ul class="m-0 grid list-none gap-2 p-0 md:grid-cols-2">
             {priceSection.registrationFees.map((registrationFee) => (
-              <li class="schools-detail-preview__price-registration-item">
-                <span class="schools-detail-preview__price-registration-label">
+              <li class="bg-stone flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1.5 border border-black/10 px-3 py-2.5">
+                <span class="min-w-0 text-sm font-semibold">
                   {registrationFee.label}
                 </span>
-                <span class="schools-detail-preview__price-registration-amount">
+                <span class="font-display text-red min-w-0 flex-1 basis-48 text-end text-base leading-snug font-bold wrap-anywhere">
                   {registrationFee.amount}
                 </span>
               </li>
@@ -94,7 +98,7 @@ if (!hasPreviewPriceContent(pricesMarkdown)) {
 
     {
       priceSection.footnote && (
-        <p class="schools-detail-preview__prices-footnote">
+        <p class="text-muted m-0 text-sm leading-normal">
           {priceSection.footnote}
         </p>
       )

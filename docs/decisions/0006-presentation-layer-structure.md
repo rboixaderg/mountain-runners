@@ -57,8 +57,12 @@ Regles de manteniment:
    l'estructura de dades és el senyal que l'obliga.
 4. Cada tipus d'entrada té un component de detall propi; els fragments repetits
    són components reutilitzables, no codi copiat.
-5. El refactor no altera sortida visual, rutes, contingut ni els selectors dels
-   E2E existents.
+5. El refactor no altera sortida visual, rutes, contingut ni comportament
+   observable. La sintaxi dels selectors no forma part d'aquest contracte: les
+   classes CSS són detalls d'implementació i mai fan de hooks E2E. Els tests
+   prioritzen el rol i el nom accessible, l'etiqueta, el text visible i les
+   relacions semàntiques. `data-testid` només s'usa quan no hi ha cap alternativa
+   semàntica i el test en documenta el motiu.
 6. La llegibilitat humana prima sobre la brevetat: una funció pot ser més llarga
    si així es llegeix més fàcilment. Les cadenes de ternaris niats i els
    condicionals enrevessats es reescriuen amb branques explícites, retorns
@@ -82,6 +86,13 @@ exemples i criteris de decisió— es manté a
   sortida localitzada, i mai no se li afegeix un paràmetre de `locale` inert.
   Aquesta esmena substitueix la redacció original de la regla 3 i no afecta la
   resta de regles.
+- 23 d'agost de 2026: la regla 5 substitueix l'obligació de conservar els
+  selectors E2E per l'obligació de conservar el comportament observable. Les
+  classes CSS són detalls d'implementació, no contractes de prova. Els tests
+  usen selectors semàntics i només recorren a `data-testid` quan no hi ha cap
+  alternativa semàntica i en documenten el motiu. Aquesta esmena resol el
+  conflicte amb l'ús de Tailwind sense canviar la sortida visual, les rutes, el
+  contingut ni cap altre comportament observable.
 
 ## Conseqüències
 

@@ -48,6 +48,13 @@ Cloudflare o de dominis wildcard.
 La versió inicial no té base de dades, CMS, comptes d'usuari ni backend
 d'aplicació renderitzat al servidor.
 
+L'[ADR 0008](decisions/0008-request-observability.md) accepta una entrega
+posterior d'observabilitat de peticions a l'origen. Caddy classificarà
+transitòriament el `User-Agent` i només conservarà la família derivada al registre
+d'accés de set dies; un resum local sense IP ni identificadors es podrà conservar
+sense termini màxim. Aquesta direcció encara no descriu el comportament desplegat
+i no introdueix cap servei extern ni canvia Plausible.
+
 ## Límits De L'Arquitectura
 
 | Àrea                | Responsabilitat                               | Límit                                                                                                                                                                                                       |
@@ -91,8 +98,6 @@ formen part del disseny inicial.
 
 - Servei de xat Hono i generador d'índex.
 - Integració amb Telegram, Discord o Hermes.
-- HSTS, període d'observació i retirada del gate de `production`, que resten
-  accions supervisades de la T5.5.
 - Previews, dominis efímers i possible integració amb Cloudflare fins a definir
   i implementar la fase 6.
 

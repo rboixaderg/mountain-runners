@@ -35,7 +35,19 @@ const resolvedHeroImage = heroImage ?? heroImageLarge;
       />
     )
   }
-  <p class="page-hero__kicker">{kicker}</p>
-  <h1 class="page-hero__title">{title}</h1>
-  <p class="page-hero__description">{description}</p>
+  <p
+    class="font-display tracking-display m-0 mb-2 text-xl leading-normal font-bold uppercase"
+  >
+    {kicker}
+  </p>
+  <h1
+    class="page-hero__title font-display text-display leading-display tracking-headline m-0 mb-6 break-words uppercase"
+  >
+    {title}
+  </h1>
+  <p
+    class="page-hero__description max-w-reading m-0 border-l-4 border-white pl-3 leading-snug font-medium"
+  >
+    {description}
+  </p>
 </PageHero>

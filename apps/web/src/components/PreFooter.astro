@@ -1,8 +1,11 @@
 ---
 import * as messages from "../paraglide/messages.js";
+import { getLocalImageSize, getResourceHref } from "../lib/content/images";
 import { newsletterActionId } from "../lib/content/models";
 import type { Locale } from "../lib/content/primitives";
 import type { PublicationCatalog } from "../lib/content/publication";
+import { getSponsorEntities } from "../lib/content/sponsors";
+import { getOrderedEntityLinks } from "../lib/presentation/entities";
 import { getNewsletterPresentation } from "../lib/presentation/newsletter";
 import {
   externalLinkAttributes,
@@ -53,29 +56,51 @@ const newsletterAttributes = analyticsActionAttributes({
   area: analyticsAreas.prefooterNewsletter,
   target: "newsletter",
 });
+const sponsorItems = await Promise.all(
+  getSponsorEntities(catalog, locale).map(async (entity) => {
+    const resource = entity.logo.resource;
+    return {
+      entity,
+      href: getResourceHref(resource),
+      primaryLink: getOrderedEntityLinks(entity.links ?? [])[0],
+      size:
+        resource.kind === "local"
+          ? await getLocalImageSize(resource.path)
+          : undefined,
+    };
+  }),
+);
 ---
 
-<section class="site-prefooter" aria-labelledby="site-prefooter-title">
-  <div class="page-frame site-prefooter__grid">
-    <div class="site-prefooter__questions">
-      <h2 id="site-prefooter-title">
+<section
+  class="border-line bg-stone border-t"
+  aria-labelledby="site-prefooter-title"
+>
+  <div
+    class="page-frame py-section grid gap-8 md:grid-cols-2 md:items-center md:gap-12"
+  >
+    <div class="site-prefooter__questions min-w-0 pl-4 md:pl-5">
+      <h2
+        class="text-red font-display tracking-display m-0 mb-4 leading-tight uppercase"
+        id="site-prefooter-title"
+      >
         {messages.prefooter_questions_title({}, { locale })}
       </h2>
-      <p class="site-prefooter__questions-description">
+      <p class="text-muted leading-copy m-0 mb-6 max-w-xl">
         {messages.prefooter_questions_description({}, { locale })}
       </p>
       {
         contact && (
-          <ul class="site-prefooter__contact-list">
+          <ul class="m-0 grid list-none gap-3 p-0">
             {contact.email && (
               <li>
                 <a
-                  class="site-prefooter__contact-item"
+                  class="text-ink hover:text-red m-0 inline-flex items-start gap-2 leading-normal font-semibold decoration-2 underline-offset-2"
                   href={getMailtoHref(contact.email)}
                   {...contactEmailAttributes}
                 >
                   <svg
-                    class="site-prefooter__contact-icon"
+                    class="text-red mt-0.5 size-5 shrink-0"
                     viewBox="0 0 24 24"
                     aria-hidden="true"
                     focusable="false"
@@ -92,12 +117,12 @@ const newsletterAttributes = analyticsActionAttributes({
             {contact.phones?.map((phone) => (
               <li>
                 <a
-                  class="site-prefooter__contact-item"
+                  class="text-ink hover:text-red m-0 inline-flex items-start gap-2 leading-normal font-semibold decoration-2 underline-offset-2"
                   href={getTelHref(phone)}
                   {...contactPhoneAttributes}
                 >
                   <svg
-                    class="site-prefooter__contact-icon"
+                    class="text-red mt-0.5 size-5 shrink-0"
                     viewBox="0 0 24 24"
                     aria-hidden="true"
                     focusable="false"
@@ -113,9 +138,9 @@ const newsletterAttributes = analyticsActionAttributes({
             ))}
             {showOfficeDetails && officeAddress.length > 0 && (
               <li>
-                <p class="site-prefooter__contact-item site-prefooter__contact-item--static">
+                <p class="text-ink m-0 inline-flex cursor-default items-start gap-2 leading-normal font-semibold">
                   <svg
-                    class="site-prefooter__contact-icon"
+                    class="text-red mt-0.5 size-5 shrink-0"
                     viewBox="0 0 24 24"
                     aria-hidden="true"
                     focusable="false"
@@ -131,9 +156,9 @@ const newsletterAttributes = analyticsActionAttributes({
             )}
             {showOfficeDetails && (
               <li>
-                <p class="site-prefooter__contact-item site-prefooter__contact-item--static">
+                <p class="text-ink m-0 inline-flex cursor-default items-start gap-2 leading-normal font-semibold">
                   <svg
-                    class="site-prefooter__contact-icon"
+                    class="text-red mt-0.5 size-5 shrink-0"
                     viewBox="0 0 24 24"
                     aria-hidden="true"
                     focusable="false"
@@ -152,20 +177,22 @@ const newsletterAttributes = analyticsActionAttributes({
       }
     </div>
 
-    <div class="site-prefooter__newsletter">
-      <h3 class="site-prefooter__newsletter-title">
+    <div class="border-ink p-card min-w-0 border-2 bg-white">
+      <h3
+        class="site-prefooter__newsletter-title font-display tracking-display m-0 mb-4 leading-tight uppercase"
+      >
         {messages.prefooter_newsletter_title({}, { locale })}
       </h3>
-      <p class="site-prefooter__newsletter-description">
+      <p class="text-muted leading-copy m-0 mb-4 max-w-xl text-sm">
         {messages.prefooter_newsletter_description({}, { locale })}
       </p>
-      <div class="site-prefooter__newsletter-form">
-        <label class="site-prefooter__sr-only" for={emailInputId}>
+      <div class="flex flex-col gap-2 sm:flex-row sm:items-stretch">
+        <label class="sr-only" for={emailInputId}>
           {messages.prefooter_newsletter_email_label({}, { locale })}
         </label>
         <input
           id={emailInputId}
-          class="site-prefooter__newsletter-input"
+          class="site-prefooter__newsletter-input border-line text-ink w-full min-w-0 border-2 bg-white px-3 py-2.5 text-sm leading-snug disabled:cursor-not-allowed disabled:opacity-70 sm:flex-1"
           type="email"
           autocomplete="email"
           placeholder={messages.prefooter_newsletter_email_placeholder(
@@ -180,7 +207,7 @@ const newsletterAttributes = analyticsActionAttributes({
         {
           newsletterPresentation?.kind === "link" ? (
             <a
-              class="site-prefooter__newsletter-submit"
+              class="tracking-display leading-action bg-ink font-display hover:bg-red inline-flex items-center justify-center border-0 px-4 py-2.5 text-sm font-bold text-white uppercase no-underline transition-colors hover:text-white sm:shrink-0"
               href={newsletterPresentation.url}
               {...externalLinkAttributes}
               {...newsletterAttributes}
@@ -189,7 +216,7 @@ const newsletterAttributes = analyticsActionAttributes({
             </a>
           ) : (
             <button
-              class="site-prefooter__newsletter-submit"
+              class="tracking-display leading-action bg-ink font-display disabled:hover:bg-ink inline-flex items-center justify-center border-0 px-4 py-2.5 text-sm font-bold text-white uppercase transition-colors disabled:cursor-not-allowed disabled:opacity-55 sm:shrink-0"
               type="button"
               disabled
             >
@@ -200,11 +227,55 @@ const newsletterAttributes = analyticsActionAttributes({
       </div>
       {
         newsletterStatusMessage !== null && (
-          <p class="site-prefooter__newsletter-status" id={newsletterStatusId}>
+          <p
+            class="text-muted m-0 mt-3 text-sm leading-normal"
+            id={newsletterStatusId}
+          >
             {newsletterStatusMessage}
           </p>
         )
       }
     </div>
   </div>
+  {
+    sponsorItems.length > 0 && (
+      <div class="page-frame border-line border-t">
+        <ul class="m-0 flex list-none flex-wrap items-center justify-center gap-x-10 gap-y-6 p-0 py-8">
+          {sponsorItems.map(({ entity, href, primaryLink, size }) => {
+            const logo = (
+              <img
+                class="max-h-14 w-auto max-w-40"
+                src={href}
+                alt={entity.logo.alt[locale]}
+                {...(size === undefined
+                  ? {}
+                  : { width: size.width, height: size.height })}
+                loading="lazy"
+              />
+            );
+            return (
+              <li>
+                {primaryLink ? (
+                  <a
+                    class="inline-flex items-center"
+                    href={primaryLink.url}
+                    {...externalLinkAttributes}
+                    {...analyticsActionAttributes({
+                      action: analyticsActions.navigate,
+                      area: analyticsAreas.prefooterSponsors,
+                      target: entity.id,
+                    })}
+                  >
+                    {logo}
+                  </a>
+                ) : (
+                  logo
+                )}
+              </li>
+            );
+          })}
+        </ul>
+      </div>
+    )
+  }
 </section>

@@ -47,8 +47,8 @@ inline. A la segona aparició d'un helper, s'extreu i es reutilitza.
   frontmatter amb retorns primerencs ni amagant l'HTML amb CSS.
 - Els components reben dades ja resoltes des del domini i el `locale`; no
   tornen a seleccionar ni ordenar. Només decideixen presentació i visibilitat.
-- Els noms de classe i els selectors E2E es conserven: un refactor no canvia la
-  sortida visual ni els selectors existents.
+- Un refactor conserva la sortida visual, les rutes, el contingut i el
+  comportament observable. Els noms de classe no formen part d'aquest contracte.
 
 ## Presentació
 
@@ -80,21 +80,47 @@ inline. A la segona aparició d'un helper, s'extreu i es reutilitza.
 
 ## Estils
 
-- Les utilitats de Tailwind són la primera opció per a composició, espaiat,
-  tipografia i color ordinaris, i conviuen amb les classes semàntiques o E2E
-  existents: aquestes classes formen part del contracte públic i no s'eliminen.
+L'ordre de decisió per a cada estil és aquest, i s'atura al primer que expressa
+el valor amb claredat:
+
+1. **Utilitat Tailwind estàndard** recolzada pel tema per defecte o per un token
+   ja existent (`tracking-display`, `leading-copy`, `border-line`).
+2. **Token semàntic `@theme`** quan el valor té dues aparicions reals amb la
+   mateixa propietat i la mateixa funció visual, o quan `DESIGN.md` ja n'ha fixat
+   el rol a l'escala tancada. El token i els consumidors s'afegeixen a la
+   mateixa fase. Es pot editar `global.css` en qualsevol fase només per afegir
+   o ajustar tokens d'escala aprovats i consumits en aquella fase. Els noms
+   descriuen el rol (`tracking-label`, `shadow-action`), no el número. Els
+   valors històrics gairebé iguals es normalitzen a l'escala de `DESIGN.md`; no
+   es creen excepcions per pàgina.
+3. **`@utility` estructural** només per a un patró reutilitzat que els
+   namespaces de `@theme` no poden generar (per exemple un subratllat amb gruix
+   i offset propis). No es converteix la classe d'un sol component en una
+   utilitat global amb un altre nom.
+4. **Arbitrari local justificat** (`[...]`) només quan el valor queda fora de
+   l'escala tancada i té una raó documentada. No es trasllada CSS propi a un
+   arbitrari només per mantenir-lo dins de `class`.
+5. **CSS propi justificat** per selectors, cascades, pseudo-elements, markdown,
+   estats complexos, gradients, filtres, textures i graelles que Tailwind no
+   expressa amb claredat. Cada regla ha de tenir una justificació concreta en
+   revisió i viu amb el component propietari o en un full petit importat per la
+   plantilla que coordina diversos components fills. `@apply` no és
+   l'arquitectura principal.
+
+- Les utilitats amb nom de Tailwind, recolzades pels tokens de `@theme`, són
+  l'opció per defecte per a composició, espaiat, tipografia, color i la resta
+  d'estils ordinaris.
+- Una utilitat arbitrària de Tailwind (`[...]`) no converteix CSS específic en
+  una solució compartida.
 - `src/styles/global.css` és l'únic fonament global: importa Tailwind, defineix
-  els tokens de color i tipografia amb `@theme`, manté les variables estructurals
-  compartides a `:root`, declara les tipografies i conserva només els valors per
-  defecte d'elements, focus, salt al contingut i moviment reduït.
-- El CSS que una utilitat no expressa de manera clara —pseudo-elements,
-  decoració, estats de pare complexos o cascades responsive pròpies— viu amb el
-  component propietari o en un full petit importat per la plantilla que coordina
-  diversos components fills. `@apply` no és l'arquitectura principal.
+  els tokens de color, tipografia, ombra i espaiat semàntic amb `@theme`, manté
+  les variables estructurals compartides a `:root`, declara les tipografies i
+  conserva només els valors per defecte d'elements, focus, salt al contingut i
+  moviment reduït. A la segona aparició semànticament equivalent, el valor es
+  promou a token.
 - Un component que només necessita declaracions ordinàries no crea un full CSS:
-  manté la classe BEM o E2E i hi afegeix les utilitats. Els fulls específics
-  s'importen des del component o la plantilla propietaris, mai des del layout
-  públic.
+  aplica les utilitats amb nom al markup. Els fulls específics s'importen des del
+  component o la plantilla propietaris, mai des del layout públic.
 - Els selectors `:global(...)` per a markdown es declaren al component que
   posseeix el contenidor que rep l'HTML (`set:html`), mai des d'una plantilla o
   d'un component pare cap a classes de components fills. L'àncora local es manté
@@ -106,6 +132,16 @@ inline. A la segona aparició d'un helper, s'extreu i es reutilitza.
   selector: dins dels parèntesis només hi entra allò que no pot rebre l'atribut
   de scoping. El contingut editorial no genera classes, estils ni URLs
   decoratives.
+
+## Selectors De Prova
+
+- Les classes CSS són detalls d'implementació i mai fan de hooks E2E.
+- Els tests localitzen els elements, per aquest ordre, pel rol i el nom
+  accessible, l'etiqueta, el text visible o una relació semàntica amb el seu
+  contenidor o control.
+- `data-testid` només s'usa quan no hi ha cap alternativa semàntica. El test
+  documenta al costat de l'ús per què el rol, el nom accessible, l'etiqueta, el
+  text visible i les relacions semàntiques no identifiquen l'element.
 
 ## Noms Explícits
 
@@ -160,9 +196,10 @@ inline. A la segona aparició d'un helper, s'extreu i es reutilitza.
 
 ## Estabilitat Pública
 
-El refactor no altera sortida visual, rutes, contingut ni selectors E2E. Quan
-un refactor toca plantilles, la validació inclou comparar el `dist/` generat amb
-el de `main`.
+El refactor no altera sortida visual, rutes, contingut ni comportament
+observable. La sintaxi dels selectors i els noms de classe poden canviar perquè
+no són contractes públics. Quan un refactor toca plantilles, la validació inclou
+comparar el `dist/` generat amb el de `main`.
 
 ## Desviacions Conegudes
 

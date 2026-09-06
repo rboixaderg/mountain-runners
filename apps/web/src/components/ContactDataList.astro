@@ -37,20 +37,30 @@ const contactPhoneAttributes = analyticsActionAttributes({
 });
 ---
 
-<dl class="contact-data">
-  <div class="contact-data__row">
-    <dt>{cifLabel}</dt>
-    <dd>{contact.cif}</dd>
+<dl class="max-w-reading m-0 grid gap-3">
+  <div class="contact-data__row grid gap-3">
+    <dt
+      class="text-muted tracking-label text-xs leading-normal font-bold uppercase"
+    >
+      {cifLabel}
+    </dt>
+    <dd class="m-0 min-w-0 wrap-anywhere">{contact.cif}</dd>
   </div>
-  <div class="contact-data__row">
-    <dt>{addressLabel}</dt>
-    <dd>{contact.address[locale]}</dd>
+  <div class="contact-data__row grid gap-3">
+    <dt
+      class="text-muted tracking-label text-xs leading-normal font-bold uppercase"
+    >
+      {addressLabel}
+    </dt>
+    <dd class="m-0 min-w-0 wrap-anywhere">{contact.address[locale]}</dd>
   </div>
   {
     contact.email !== undefined && (
-      <div class="contact-data__row">
-        <dt>{emailLabel}</dt>
-        <dd>
+      <div class="contact-data__row grid gap-3">
+        <dt class="text-muted tracking-label text-xs leading-normal font-bold uppercase">
+          {emailLabel}
+        </dt>
+        <dd class="m-0 min-w-0 wrap-anywhere">
           <a href={getMailtoHref(contact.email)} {...contactEmailAttributes}>
             {contact.email}
           </a>
@@ -60,9 +70,11 @@ const contactPhoneAttributes = analyticsActionAttributes({
   }
   {
     contact.phones?.map((phone) => (
-      <div class="contact-data__row">
-        <dt>{phoneLabel}</dt>
-        <dd>
+      <div class="contact-data__row grid gap-3">
+        <dt class="text-muted tracking-label text-xs leading-normal font-bold uppercase">
+          {phoneLabel}
+        </dt>
+        <dd class="m-0 min-w-0 wrap-anywhere">
           <a href={getTelHref(phone)} {...contactPhoneAttributes}>
             {phone}
           </a>
@@ -70,8 +82,12 @@ const contactPhoneAttributes = analyticsActionAttributes({
       </div>
     ))
   }
-  <div class="contact-data__row">
-    <dt>{hoursLabel}</dt>
-    <dd>{contact.hours[locale]}</dd>
+  <div class="contact-data__row grid gap-3">
+    <dt
+      class="text-muted tracking-label text-xs leading-normal font-bold uppercase"
+    >
+      {hoursLabel}
+    </dt>
+    <dd class="m-0 min-w-0 wrap-anywhere">{contact.hours[locale]}</dd>
   </div>
 </dl>

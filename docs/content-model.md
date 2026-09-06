@@ -38,9 +38,10 @@ Les col·leccions de contingut registrades són:
   editorial explícit (`hubOrder`) per al hub.
 - `events`: esdeveniments amb resum, entitats relacionades, recursos i edicions
   embegudes.
-- `entities`: organitzacions reutilitzables, avantatges opcionals per a socis i,
-  per a l'entitat institucional, perfils socials i recursos promocionals externs
-  validats.
+- `entities`: organitzacions reutilitzables — organitzadores, col·laboradores,
+  patrocinadores i empreses amb avantatge per a socis —, amb avantatges opcionals
+  i, per a l'entitat institucional, perfils socials i recursos promocionals
+  externs validats.
 - `documents`: recursos locals o externs amb tipus, idioma i disponibilitat.
 - `externalActions`: accions externes d'alta, federació i butlletí amb estat
   explícit i URL externa opcional.
@@ -126,6 +127,11 @@ amb text útil, mai amb un control fals. El directori de col·laboradors es deri
 exclusivament de les entitats publicades amb avantatge de soci
 (`membershipBenefit`), ordenades alfabèticament pel nom en català; no es
 duplica cap llista editorial en els recursos de traducció.
+
+La franja de patrocinadors del prepeu es deriva exclusivament de les entitats
+publicades marcades com a patrocinadores (camp `sponsor`), ordenades
+alfabèticament pel nom en català; no es duplica cap llista editorial en els
+recursos de traducció.
 
 El directori de Documents agrupa per tipus els documents publicats: només els
 documents amb disponibilitat `available` mostren enllaç i només els seus

@@ -15,14 +15,32 @@ interface Props {
 const { locale, rows } = Astro.props;
 ---
 
-<div class="events-hub-history">
-  <table class="events-hub-history__table">
+<div class="overflow-x-auto">
+  <table class="events-hub-history__table w-full border-collapse text-left">
     <thead>
       <tr>
-        <th scope="col">{messages.events_history_year({}, { locale })}</th>
-        <th scope="col">{messages.events_history_event({}, { locale })}</th>
-        <th scope="col">{messages.events_history_location({}, { locale })}</th>
-        <th scope="col" class="events-hub-history__status-heading">
+        <th
+          scope="col"
+          class="border-line font-display text-muted tracking-label border-b-2 px-3 py-4 text-xs leading-normal font-bold uppercase"
+        >
+          {messages.events_history_year({}, { locale })}
+        </th>
+        <th
+          scope="col"
+          class="border-line font-display text-muted tracking-label border-b-2 px-3 py-4 text-xs leading-normal font-bold uppercase"
+        >
+          {messages.events_history_event({}, { locale })}
+        </th>
+        <th
+          scope="col"
+          class="border-line font-display text-muted tracking-label border-b-2 px-3 py-4 text-xs leading-normal font-bold uppercase"
+        >
+          {messages.events_history_location({}, { locale })}
+        </th>
+        <th
+          scope="col"
+          class="border-line font-display text-muted tracking-label border-b-2 px-3 py-4 text-right text-xs leading-normal font-bold uppercase"
+        >
           {messages.events_history_status({}, { locale })}
         </th>
       </tr>
@@ -31,10 +49,10 @@ const { locale, rows } = Astro.props;
       {
         rows.map((row) => (
           <tr>
-            <td class="events-hub-history__year">{row.year}</td>
-            <td>
+            <td class="text-muted px-3 py-4 text-sm">{row.year}</td>
+            <td class="px-3 py-4 text-sm">
               <a
-                class="events-hub-history__title"
+                class="font-display hover:text-red text-sm font-bold text-inherit uppercase no-underline"
                 href={row.href}
                 {...analyticsActionAttributes({
                   action: analyticsActions.navigate,
@@ -45,10 +63,10 @@ const { locale, rows } = Astro.props;
                 {row.title}
               </a>
             </td>
-            <td>{row.location}</td>
-            <td class="events-hub-history__status-cell">
+            <td class="px-3 py-4 text-sm">{row.location}</td>
+            <td class="px-3 py-4 text-right text-sm">
               <EventStatus
-                className="events-hub-history__status"
+                className="events-hub-history__status text-muted text-meta inline-block px-2 py-1 font-bold tracking-label uppercase"
                 locale={locale}
                 statusKey={eventStatusMessageKeys.historical}
               />

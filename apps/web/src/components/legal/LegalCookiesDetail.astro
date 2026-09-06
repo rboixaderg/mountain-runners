@@ -2,10 +2,10 @@
 import homepageHero from "../../assets/home/homepage-hero.jpeg";
 import homepageHeroSmall from "../../assets/home/homepage-hero-mobile.jpeg";
 import * as messages from "../../paraglide/messages.js";
-import { renderRestrictedMarkdown } from "../../lib/content/markdown";
 import type { Locale } from "../../lib/content/primitives";
 import PageIntro from "../PageIntro.astro";
 import PageSection from "../PageSection.astro";
+import LegalMarkdown from "./LegalMarkdown.astro";
 
 type LegalCookiesSection = {
   id: string;
@@ -51,7 +51,7 @@ interface Props {
 const { locale } = Astro.props;
 ---
 
-<article class="page-detail pb-0">
+<article class="pb-0">
   <PageIntro
     description={messages.legal_cookies_description({}, { locale })}
     heroImage={homepageHeroSmall}
@@ -62,10 +62,7 @@ const { locale } = Astro.props;
   {
     legalCookiesSections.map(({ bodyKey, id, titleKey }) => (
       <PageSection id={id} title={messages[titleKey]({}, { locale })}>
-        <div
-          class="page-section__markdown"
-          set:html={renderRestrictedMarkdown(messages[bodyKey]({}, { locale }))}
-        />
+        <LegalMarkdown source={messages[bodyKey]({}, { locale })} />
       </PageSection>
     ))
   }

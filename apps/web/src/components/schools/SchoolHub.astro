@@ -55,15 +55,15 @@ const valueItems = [
   title={messages.navigation_schools({}, { locale })}
 />
 
-<section class="page-frame schools-hub-values">
-  <ul class="schools-hub-values__list">
+<section class="page-frame border-line py-section border-b">
+  <ul class="m-0 grid list-none grid-cols-1 gap-6 p-0 md:grid-cols-3 md:gap-10">
     {
       valueItems.map(({ descriptionKey, titleKey }) => (
-        <li class="schools-hub-values__item">
-          <p class="schools-hub-values__title">
+        <li class="border-ink bg-stone grid gap-3 border-2 p-5 md:p-7">
+          <p class="schools-hub-values__title font-display text-red leading-action m-0 font-bold tracking-widest uppercase">
             {messages[titleKey]({}, { locale })}
           </p>
-          <p class="schools-hub-values__description">
+          <p class="schools-hub-values__description text-ink m-0 max-w-sm leading-normal">
             {messages[descriptionKey]({}, { locale })}
           </p>
         </li>
@@ -76,18 +76,23 @@ const valueItems = [
   class="page-frame schools-hub-programs"
   aria-labelledby="schools-programs-title"
 >
-  <div class="schools-hub-programs__heading">
-    <span class="schools-hub-programs__marker" aria-hidden="true"></span>
-    <h2 class="schools-hub-programs__title" id="schools-programs-title">
+  <div class="mb-5 flex items-center gap-2">
+    <span class="bg-red h-6 w-2 flex-none" aria-hidden="true"></span>
+    <h2
+      class="font-display text-section tracking-display m-0 leading-none uppercase"
+      id="schools-programs-title"
+    >
       {messages.schools_programs_title({}, { locale })}
     </h2>
   </div>
-  <p class="schools-hub-programs__intro">
+  <p class="text-muted max-w-reading leading-copy m-0 text-base">
     {messages.schools_programs_intro({}, { locale })}
   </p>
 </section>
 
-<ul class="schools-hub-list">
+<ul
+  class="page-frame schools-hub-list grid list-none grid-cols-1 gap-5 px-0 md:grid-cols-3 md:gap-8"
+>
   {
     schoolsWithCovers.map(({ coverHref, coverSize, variant }) => {
       const school = variant.entry;
@@ -96,9 +101,9 @@ const valueItems = [
         undefined,
       ).key;
       return (
-        <li class="schools-hub-item">
+        <li class="border-ink flex flex-col overflow-hidden border-2 bg-white">
           <a
-            class="schools-hub-item__link"
+            class="group schools-hub-item__link text-ink grid h-full min-h-88 p-0 no-underline"
             href={getVariantPath(variant)}
             {...analyticsActionAttributes({
               action: analyticsActions.navigate,
@@ -107,7 +112,7 @@ const valueItems = [
             })}
           >
             <img
-              class="schools-hub-item__image"
+              class="size-full object-cover contrast-110 grayscale transition-[filter] duration-200 group-hover:contrast-100 group-hover:grayscale-0"
               src={coverHref}
               width={coverSize?.width}
               height={coverSize?.height}
@@ -115,15 +120,17 @@ const valueItems = [
               loading="lazy"
               decoding="async"
             />
-            <span class="schools-hub-item__body">
-              <span class="schools-hub-item__status">
+            <span class="schools-hub-item__body group-hover:bg-red/5 relative flex min-h-0 flex-col gap-4 bg-white">
+              <span class="bg-ink text-meta px-action m-0 w-fit py-2 leading-tight font-bold tracking-widest text-white uppercase">
                 {messages[registrationStatusKey]({}, { locale })}
               </span>
-              <strong>{school.name[locale]}</strong>
-              <span class="schools-hub-item__summary">
+              <strong class="font-display text-section leading-display uppercase">
+                {school.name[locale]}
+              </strong>
+              <span class="text-muted min-h-0 text-sm">
                 {school.summary[locale]}
               </span>
-              <span class="schools-hub-item__action">
+              <span class="text-red group-hover:text-ink text-meta tracking-display mt-auto pt-2 leading-normal font-bold uppercase underline decoration-2 underline-offset-2">
                 {messages.school_more_information({}, { locale })}{" "}
                 <span aria-hidden="true">→</span>
               </span>
@@ -135,8 +142,11 @@ const valueItems = [
   }
 </ul>
 
-<div class="schools-hub-separator" aria-hidden="true">
-  <span></span>
-  <b>◆</b>
-  <span></span>
+<div
+  class="page-frame text-red flex items-center justify-center gap-4 px-6 py-8"
+  aria-hidden="true"
+>
+  <span class="bg-line h-px w-1/4"></span>
+  <b class="text-action">◆</b>
+  <span class="bg-line h-px w-1/4"></span>
 </div>

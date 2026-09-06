@@ -39,67 +39,72 @@ const eventLinkAttributes = analyticsActionAttributes({
 });
 ---
 
-<article
-  class:list={[
-    "homepage-event border-line border-b",
-    featured && "homepage-event--featured",
-  ]}
->
+<article class="border-line border-b">
   <a
-    class="homepage-event__link grid text-inherit no-underline"
+    class="homepage-event__link group hover:bg-red/5 grid text-inherit no-underline"
     href={href}
     {...eventLinkAttributes}
   >
     <div
-      class="homepage-event__date max-md:border-line grid place-items-center px-4 py-6 text-center max-md:row-span-2 max-md:border-r"
+      class:list={[
+        "homepage-event__date max-md:border-line grid place-items-center px-4 py-6 text-center max-md:row-span-2 max-md:border-r",
+        featured && "bg-red text-paper",
+      ]}
     >
       {
         edition ? (
-          <time datetime={edition.startDate}>
-            <span>{dateParts?.day}</span>
-            <small>{dateParts?.month}</small>
+          <time class="grid" datetime={edition.startDate}>
+            <span class="font-display leading-display font-bold">
+              {dateParts?.day}
+            </span>
+            <small
+              class:list={[
+                "font-display tracking-label mt-2 text-sm font-bold uppercase",
+                featured ? "text-inherit" : "text-red",
+              ]}
+            >
+              {dateParts?.month}
+            </small>
           </time>
         ) : (
-          <span aria-hidden="true">--</span>
+          <span class="font-display text-line font-bold" aria-hidden="true">
+            --
+          </span>
         )
       }
     </div>
-    <div
-      class="homepage-event__body grid content-center p-[clamp(1.5rem,3vw,2.25rem)]"
-    >
-      <p
-        class="homepage-event__meta m-0 mb-3 flex flex-wrap items-center gap-x-3 gap-y-2"
-      >
+    <div class="p-card grid content-center">
+      <p class="m-0 mb-3 flex flex-wrap items-center gap-x-3 gap-y-2">
         <span
-          class="homepage-event__status bg-ink font-display text-paper px-2 py-[0.2rem] text-[0.7rem] leading-[1.4] font-bold tracking-[0.1em] uppercase"
+          class="bg-ink font-display text-meta text-paper tracking-label px-2 py-[0.2rem] font-bold uppercase"
           >{status}</span
         >
         {
           edition && (
-            <span class="homepage-event__location font-display text-red text-[0.7rem] leading-[1.4] font-bold tracking-[0.1em] uppercase">
+            <span class="font-display text-meta text-red tracking-label font-bold uppercase">
               {edition.location[locale]}
             </span>
           )
         }
       </p>
       <h3
-        class="font-display m-0 text-[clamp(1.75rem,3.4vw,2.75rem)] leading-none uppercase"
+        class="font-display group-hover:text-red m-0 text-[clamp(1.75rem,3.4vw,2.75rem)] leading-none uppercase"
       >
         {event.title[locale]}
       </h3>
       {
         event.summary[locale] && (
-          <p class="homepage-event__description text-muted mt-3 max-w-[46rem] text-[0.95rem] leading-[1.6]">
+          <p class="text-muted leading-copy max-w-reading mt-3 text-sm">
             {event.summary[locale]}
           </p>
         )
       }
     </div>
     <div
-      class="homepage-event__aside md:border-line grid place-items-center px-6 py-4 max-md:justify-items-start max-md:px-[clamp(1.5rem,3vw,2.25rem)] max-md:pt-0 max-md:pb-[clamp(1.5rem,3vw,2.25rem)] md:border-l"
+      class="md:border-line max-md:px-card max-md:pb-card grid place-items-center px-6 py-4 max-md:justify-items-start max-md:pt-0 md:border-l"
     >
       <span
-        class="homepage-event__action font-display text-ink text-center text-xs font-bold tracking-[0.12em] uppercase underline decoration-[0.1rem] underline-offset-[0.3rem]"
+        class="font-display text-ink group-hover:text-red action-underline tracking-label text-center text-xs leading-normal font-bold uppercase"
       >
         {messages.homepage_event_action({}, { locale })}
       </span>

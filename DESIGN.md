@@ -34,6 +34,75 @@ campaign, a SaaS product or a dark sports-tech interface.
 - Display typography must feel strong without turning every page into a race
   poster.
 
+## Operational Design System
+
+Ordinary styles use named Tailwind utilities backed by a closed `@theme` scale.
+Custom CSS is reserved for selectors, cascades, pseudo-elements, markdown,
+complex states and structures that named utilities cannot express clearly.
+Do not invent per-page spacing, tracking or shadow values.
+
+Near-equal historical values are normalized to the scale below. New work must
+use these roles. If a screen needs something outside the scale, change the
+scale in this document first.
+
+### Closed scales
+
+**Spacing**
+
+| Token / utility                       | Value                         | Use                       |
+| ------------------------------------- | ----------------------------- | ------------------------- |
+| `--page-gutter` / `page-frame`        | `clamp(1.25rem, 4vw, 2rem)`   | Horizontal page inset     |
+| `--spacing-section` / `py-section`    | `clamp(3.5rem, 7vw, 6rem)`    | Vertical section rhythm   |
+| `--spacing-card` / `p-card`           | `clamp(1.5rem, 3vw, 2.25rem)` | Bordered card padding     |
+| `--spacing-action` / `py-action`      | `0.85rem`                     | Compact CTA block padding |
+| `--space-2`…`--space-4`, `--space-12` | fixed rem steps               | Small local gaps only     |
+| Tailwind `gap-*`                      | default scale                 | Prefer over bespoke gaps  |
+
+**Tracking**
+
+| Token               | Value     | Use                          |
+| ------------------- | --------- | ---------------------------- |
+| `tracking-display`  | `0.06em`  | Compact display / nav titles |
+| `tracking-label`    | `0.08em`  | Uppercase labels, meta, CTAs |
+| `tracking-headline` | `-0.03em` | Large display headlines      |
+
+**Leading**
+
+| Token                | Value         | Use                            |
+| -------------------- | ------------- | ------------------------------ |
+| `leading-display`    | `0.92`        | Large uppercase display titles |
+| `leading-action`     | `1.2`         | Compact CTAs and control text  |
+| `leading-copy`       | `1.6`         | Body and supporting copy       |
+| Tailwind `leading-*` | default scale | Everything else                |
+
+**Shadow**
+
+| Token                  | Value                   | Use                        |
+| ---------------------- | ----------------------- | -------------------------- |
+| `shadow-action`        | `0.35rem 0.35rem 0` ink | Default hard action shadow |
+| `shadow-action-accent` | `0.35rem 0.35rem 0` red | Accent / hover hard shadow |
+| `shadow-action-lg`     | `0.5rem 0.5rem 0` red   | Large panel hard shadow    |
+
+**Type sizes**
+
+| Token               | Value                         | Use                         |
+| ------------------- | ----------------------------- | --------------------------- |
+| `text-display`      | `clamp(3.5rem, 9vw, 7.5rem)`  | Page and detail heroes      |
+| `text-display-home` | `clamp(2.6rem, 7vw, 5.25rem)` | Homepage hero only          |
+| `text-section`      | `clamp(1.8rem, 4vw, 3rem)`    | Section titles site-wide    |
+| `text-action`       | `0.8rem`                      | Compact CTA text            |
+| `text-meta`         | `0.7rem` / leading `1.4`      | Status, kickers, small meta |
+
+### Composition roles
+
+- **Section shell.** Prefer `PageSection` for the standard frame, title bar and
+  body measure. Do not hand-roll `page-frame page-section py-section` again.
+- **Action control.** Compact uppercase CTAs share `text-action`,
+  `leading-action`, `tracking-label`, `py-action` and `shadow-action` (or the
+  accent / large shadow tokens when the control needs them).
+- **Action link.** Compact uppercase text links use `tracking-label` and
+  `action-underline`.
+
 ## Composition
 
 - Use an editorial, responsive layout with generous whitespace and a clear

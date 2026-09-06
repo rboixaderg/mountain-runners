@@ -230,6 +230,27 @@ descriure aquests esdeveniments reals.
 **Seguiment:** [especificació d'analítica Plausible](specs/plausible-analytics.md)
 (T2). Implementació a la branca `feat/analytics-events`.
 
+### Observabilitat De Totes Les Peticions A L'Origen
+
+**Estat:** Incorporada com a entrega autònoma.
+
+**Problema:** Plausible depèn de JavaScript i exclou trànsit automatitzat
+conegut, de manera que no permet saber quines peticions HTTP rep realment el
+servidor ni quins crawlers s'hi identifiquen.
+
+**Resultat esperat:** conservar el registre individual minimitzat durant set
+dies, classificar transitòriament el `User-Agent` sense desar-lo i generar resums
+agregats de totes les peticions rebudes. Els resums no contenen IP ni
+identificadors, treuen les dimensions dels recomptes escassos i es conserven
+sense termini màxim.
+
+**Dependències:** Caddy i la rotació diària existents, revisió de seguretat i
+privacitat i activació remota supervisada.
+
+**Seguiment:** [especificació d'observabilitat de
+peticions](specs/request-observability.md) i [ADR
+0008](decisions/0008-request-observability.md).
+
 ### Entrada Sense Idioma Més Ràpida
 
 **Estat:** Incorporada com a entrega autònoma.

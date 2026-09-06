@@ -23,20 +23,22 @@ const hasModalities = modalities.length > 0;
 {
   edition && (
     <section
-      class="events-detail__edition"
+      class="events-detail__edition bg-ink m-0 w-full border-0 p-0 text-white shadow-none"
       aria-label={messages.event_practical_info({}, { locale })}
     >
-      <div class="page-frame events-detail__edition-inner">
-        <h2>{messages.event_practical_info({}, { locale })}</h2>
-        <dl>
-          <div>
-            <dt>
-              <span class="events-detail__practical-icon" aria-hidden="true">
+      <div class="page-frame py-section">
+        <h2 class="font-display m-0 mb-8 flex items-center gap-3 leading-none text-white uppercase">
+          {messages.event_practical_info({}, { locale })}
+        </h2>
+        <dl class="m-0 grid grid-cols-1 gap-4 md:grid-cols-3">
+          <div class="border-red flex min-h-36 flex-col border-l-4 p-6">
+            <dt class="font-display tracking-display mb-2 flex items-center gap-3 text-sm font-bold text-white uppercase">
+              <span class="text-red flex shrink-0" aria-hidden="true">
                 <EventPracticalIcon field="dates" />
               </span>
               {messages.event_dates_label({}, { locale })}
             </dt>
-            <dd class="events-detail__dates">
+            <dd class="events-detail__dates m-0 text-base font-medium text-white/75">
               {event.active && !hasAnnouncedDate ? (
                 <span>{messages.event_no_date_announced({}, { locale })}</span>
               ) : (
@@ -44,27 +46,31 @@ const hasModalities = modalities.length > 0;
               )}
             </dd>
           </div>
-          <div>
-            <dt>
-              <span class="events-detail__practical-icon" aria-hidden="true">
+          <div class="border-red flex min-h-36 flex-col border-l-4 p-6">
+            <dt class="font-display tracking-display mb-2 flex items-center gap-3 text-sm font-bold text-white uppercase">
+              <span class="text-red flex shrink-0" aria-hidden="true">
                 <EventPracticalIcon field="location" />
               </span>
               {messages.event_location_label({}, { locale })}
             </dt>
-            <dd>{edition.location[locale]}</dd>
+            <dd class="m-0 text-base font-medium text-white/75">
+              {edition.location[locale]}
+            </dd>
           </div>
           {hasModalities && (
-            <div>
-              <dt>
-                <span class="events-detail__practical-icon" aria-hidden="true">
+            <div class="border-red flex min-h-36 flex-col border-l-4 p-6">
+              <dt class="font-display tracking-display mb-2 flex items-center gap-3 text-sm font-bold text-white uppercase">
+                <span class="text-red flex shrink-0" aria-hidden="true">
                   <EventPracticalIcon field="modalities" />
                 </span>
                 {messages.event_modalities_label({}, { locale })}
               </dt>
-              <dd>
-                <ul class="events-detail__modalities">
+              <dd class="m-0 text-base font-medium text-white/75">
+                <ul class="events-detail__modalities m-0 flex list-none flex-wrap gap-1.5 p-0">
                   {modalities.map((modality) => (
-                    <li>{modality[locale]}</li>
+                    <li class="border-0 p-0 text-base font-medium tracking-normal text-white/75 normal-case">
+                      {modality[locale]}
+                    </li>
                   ))}
                 </ul>
               </dd>

@@ -195,6 +195,9 @@ export type EntityLink = z.infer<typeof entityLinkSchema>;
 export const entitySchema = z.strictObject({
   id: contentIdSchema,
   published: z.boolean(),
+  // Marks the entity as a homepage sponsor. The homepage sponsors wall derives
+  // from the published entities that carry this flag.
+  sponsor: z.boolean().optional(),
   name: localizedTextSchema,
   logo: imageSchema,
   description: localizedMarkdownSchema,
