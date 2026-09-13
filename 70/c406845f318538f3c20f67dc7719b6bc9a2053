@@ -1,0 +1,19 @@
+docs/phase-6-t62-decisions.md
+  s_ebbeadd7046c89::t_e7a0fdce1c3877 16-17,25-57,61-67,70-71,138,144-147,151-155,157-160,164-169,179-193,197-201,209-210
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "70c406845f318538f3c20f67dc7719b6bc9a2053",
+  "prompts": {},
+  "sessions": {
+    "s_ebbeadd7046c89": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_f641af659ffeRhCVd8rCiTIfk1",
+        "model": "glm-5.3-flash"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
