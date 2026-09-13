@@ -1,0 +1,21 @@
+docs/decisions/0009-pr-previews-same-domain-and-own-branches.md
+  s_087df644df6310::t_8857a53669eb4b 1-74
+docs/specs/phase-6-pull-request-previews.md
+  s_087df644df6310::t_82dfdad5db25cc 31-41,59-61,92-93,104-113,150,157-159,170-171,209-218,260-265,281-285,314-317,323-324,327-330
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "3530323f5e9d63eb2bf01290d9972d8ca3c245bc",
+  "prompts": {},
+  "sessions": {
+    "s_087df644df6310": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_f666740cbffeKgFlwTbQ7y1tt1",
+        "model": "muse-spark-1.3-contributor-free"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
