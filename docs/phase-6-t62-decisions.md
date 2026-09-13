@@ -13,12 +13,12 @@ sota `*.preview.mountainrunners.cat`, sense segon domini ni servei extern, i
 publicació restringida a branques pròpies.
 
 Les decisions d'aquest document estan confirmades amb la persona mantenidora en
-conversa directa el 13 de setembre de 2026. La prova de foc VR-01 i la creació
-del registre wildcard VR-02 són accions remotes que
-requereixen l'aprovació i l'execució de la persona mantenidora; queden com a
-passos signats pendents dins d'aquesta tasca. Aquesta decisió no implementa el
-publicador (T6.3), no crea cap compte ni zona (l'alta és de la persona
-mantenidora) i no migra la zona de producció.
+conversa directa el 13 de setembre de 2026. La prova de foc VR-01 és una acció
+remota que requereix l'aprovació i l'execució de la persona mantenidora quan el
+procés Caddy de previews estigui provisionat (inici de la T6.4); el registre
+wildcard VR-02 ja està executat i signat el mateix dia. Aquesta decisió no
+implementa el publicador (T6.3), no crea cap compte ni zona i no migra la zona
+de producció.
 
 ## Decisions Confirmades
 
@@ -179,18 +179,28 @@ tornar a servir les previews (o no servir-les) sense cap rastre.
 | ID    | Verificació                                                                                                                                                 | Responsable         | Estat     |
 | ----- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------- | --------- |
 | VR-01 | Prova de foc: emissió contra l'staging de Let's Encrypt des del procés de previews abans d'activar res                                                      | Persona mantenidora | Pendent   |
-| VR-02 | Registre wildcard A `*.preview` creat a la zona d'Hostinger amb aprovació explícita; export previ i comparació posterior; apex, `www`, MX i correu intactes | Persona mantenidora | Pendent   |
+| VR-02 | Registre wildcard A `*.preview` creat a la zona d'Hostinger amb aprovació explícita; export previ i comparació posterior; apex, `www`, MX i correu intactes | Persona mantenidora | Confirmat |
 | VR-03 | Cap credencial DNS de previews: cap token ni API del registrador al repo, CI o servidor; l'únic accés és el hPanel de la mantenidora                        | Agent + mantenidora | Confirmat |
 | VR-04 | Visibilitat pública i retenció de 14 dies signades; esquema `pr-<n>` enumerable acceptat                                                                    | Persona mantenidora | Confirmat |
 | VR-05 | Pressupost de quotes amb el volum real (TLS, orígens simultanis) escrit a aquest document                                                                   | Agent + mantenidora | Confirmat |
 | VR-06 | No s'adopta Cloudflare com a proxy, accés ni frontera; no cal ADR addicional per aquesta via                                                                | Persona mantenidora | Confirmat |
 | VR-07 | Criteri de visibilitat restringida obligatòria escrit; procediment de retirada ràpida definit per la T6.4                                                   | Persona mantenidora | Parcial   |
 
-VR-01 i VR-02 s'executen amb aprovació explícita de la persona mantenidora
-dins d'aquesta tasca, abans que la T6.3 implementi el publicador. VR-03 queda
+VR-01 s'executa amb aprovació explícita de la persona mantenidora quan el
+procés Caddy de previews estigui provisionat, abans que la T6.3 activi cap
+publicació. VR-02 està executada i confirmada (vegeu la comprovació al final
+del document). VR-03 queda
 com a propietat permanent del disseny i es revalida a les validacions de la
 T6.3 i la T6.5. VR-07 queda tancat quan la T6.4 defineixi el procediment de
 retirada ràpida.
+
+## Comprovació Del Registre Wildcard (VR-02)
+
+- [x] Registre A `*.preview.mountainrunners.cat` → `46.225.181.252` creat a la
+      zona d'Hostinger el 13 de setembre de 2026 per la persona mantenidora.
+- [x] Verificació creuada el mateix dia: `dig +short pr-99.preview.mountainrunners.cat`,
+      `mountainrunners.cat` i `www.mountainrunners.cat` retornen la mateixa IP:
+      el wildcard apunta al VPS i producció continua servint sense canvis.
 
 ## Fonts
 
