@@ -79,8 +79,8 @@ VPS requereix aprovació explícita de la persona mantenidora.
 
 | Unitat                                       | Estat      | Dependències | Resultat verificable                          | PR      |
 | -------------------------------------------- | ---------- | ------------ | --------------------------------------------- | ------- |
-| T6.1 Requisits, amenaces i alternatives      | En revisió | Fase 5       | Comparativa i riscos aprovats                 | PR #113 |
-| T6.2 Decisió de domini, DNS, TLS i proveïdor | Pendent    | T6.1         | Arquitectura mínima decidida                  | -       |
+| T6.1 Requisits, amenaces i alternatives      | Completada | Fase 5       | Comparativa i riscos aprovats                 | PR #113 |
+| T6.2 Decisió de domini, DNS, TLS i proveïdor | En curs    | T6.1         | Arquitectura mínima decidida                  | -       |
 | T6.3 Artefacte i publicador de confiança     | Pendent    | T6.2         | Frontera segura sense executar codi no fiable | -       |
 | T6.4 Cicle de vida, aïllament i neteja       | Pendent    | T6.3         | Orígens efímers creats i retirats             | -       |
 | T6.5 Validació de previews i operació        | Pendent    | T6.4         | Gate i runbook verificats                     | -       |
@@ -213,7 +213,8 @@ els controls compensatoris de l'ADR 0009: publicació restringida a branques
 pròpies, producció sense cookies i, si en guanyés cap, sempre `__Host-` o
 `__Secure-`, host-only i sense atribut `Domain`, de manera que contingut d'una
 preview no pugui definir ni sobreescriure cookies del lloc públic. Si
-s'utilitza un wildcard, es limita a la zona pròpia dels previews. Qualsevol
+s'utilitza un wildcard, es limita al prefix `preview.` de la zona de producció
+(esmena de l'ADR 0009 a la T6.2). Qualsevol
 autenticació utilitza cookies host-only amb prefix `__Host-` i es prova contra
 accés creuat entre previews.
 
@@ -223,12 +224,14 @@ el rastreig sense considerar-lo l'única protecció. Si la política exigeix acc
 restringit, l'autenticació s'aplica abans de servir l'artefacte i no s'injecta al
 build estàtic.
 
-La solució TLS documenta emissió, renovació, quotes i fallades. L'automatització
-DNS utilitza una credencial limitada a la zona o prefix imprescindible i només
-si l'opció aprovada ho necessita. La credencial només pot modificar una zona
-separada o una subzona delegada de previews; no s'accepta escriptura sobre la zona
-que conté l'apex, `www`, MX o polítiques de correu de producció. No s'exposa cap
-API global del registrador o de producció al job de build.
+La solució TLS documenta emissió, renovació, quotes i fallades. Els previews
+no automatitzen el DNS i no disposen de cap credencial DNS (esmena de l'ADR
+0009 a la T6.2): els registres de previews són el wildcard manual creat per la
+persona mantenidora a la zona de producció. Si algun dia calgués automatitzar
+el DNS, es reobriria la decisió amb un ADR; qualsevol credencial llavors només
+podria modificar una zona separada o una subzona delegada de previews i mai la
+zona que conté l'apex, `www`, MX o polítiques de correu de producció. No
+s'exposa cap API global del registrador o de producció al job de build.
 
 ## Cicle De Vida I Operació
 
