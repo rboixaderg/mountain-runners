@@ -14,7 +14,7 @@ publicació restringida a branques pròpies.
 
 Les decisions d'aquest document estan confirmades amb la persona mantenidora en
 conversa directa el 13 de setembre de 2026. La prova de foc VR-01, la delegació
-NS VR-02 i la creació del projecte i el token VR-03 són accions remotes que
+NS VR-02 i la creació del compte i el token VR-03 són accions remotes que
 requereixen l'aprovació i l'execució de la persona mantenidora; queden com a
 passos signats pendents dins d'aquesta tasca. Aquesta decisió no implementa el
 publicador (T6.3), no crea cap compte ni zona (l'alta és de la persona
@@ -24,38 +24,40 @@ mantenidora) i no migra la zona de producció.
 
 ### Zona De DNS De Les Previews (RQ-03, VR-03)
 
-- La zona `preview.mountainrunners.cat` viu a **Hetzner Console (DNS)**, dins
-  d'**un projecte Hetzner nou i dedicat** que no conté cap altre recurs (cap
-  servidor, cap zona més).
-- La credencial és un token API creat dins d'aquest projecte. Els tokens de la
-  Hetzner Console tenen àmbit de projecte: un projecte monozona fa que el token
-  només pugui llegir i editar la zona de previews. Si el token es filtra, el
-  dany màxim és editar registres de previews; no pot crear servidors ni tocar
-  cap altra zona. Això compleix AM-04.
-- **Cost del projecte: 0 €/mes.** El projecte és un contenidor de gestió de la
-  Hetzner Console, no un recurs facturable: els servidors, IP i discs es facturen
-  per recurs, i un projecte buit (només la zona DNS i un token) no genera cap
-  càrrega. El límit de 20 projectes per compte és més que suficient. La zona
-  DNS d'Hetzner és gratuïta i el projecte només la conté.
+- La zona `preview.mountainrunners.cat` viu a **deSEC.io**, servei gratuït de
+  DNS gestionat per la societat civil alemanya sense ànim de lucre deSEC e.V.
+- **Esmena de la primera versió d'aquesta decisió.** Originalment es va triar la
+  Hetzner Console dins d'un projecte dedicat, però la creació de la zona va ser
+  rebutjada ("invalid domain") i la documentació oficial d'Hetzner ho confirma:
+  "Subzones are not supported" — la Console només allotja zones de dominis
+  registrables complets. L'alternativa Cloudflare tampoc no és viable per a
+  subzones: el "subdomain setup" requereix pla Enterprise. Crear la zona
+  `mountainrunners.cat` sencera a un altre proveïdor mouria l'autoritat de la
+  zona de producció, cosa que ADR 0009 i la fase 5 prohibeixen. deSEC compleix
+  tots els requisits: allotja subzones com a zones pròpies, el registre és
+  gratuït, i els tokens admeten polítiques de rang limitades per domini.
+- La credencial és un token API de deSEC amb una política de RRset que només
+  permet escriure al domini `preview.mountainrunners.cat` (tipus A). Si el token
+  es filtra, el dany màxim és editar registres d'aquest domini; no pot tocar cap
+  altra zona del compte ni crear recursos. Això compleix AM-04 amb un àmbit fins
+  i tot més estret que un projecte monozona.
+- **Cost: 0 €/mes.** deSEC és gratuït (donacions); no cal cap IP ni recurs nou.
 - La zona de producció continua a Hostinger i no es mou. La delegació és només
   de la subzona: dos registres NS a la zona d'Hostinger
-  (`preview.mountainrunners.cat` → nameservers d'Hetzner). Cap credencial de
+  (`preview.mountainrunners.cat` → nameservers de deSEC). Cap credencial de
   previews pot escriure mai a l'apex, `www`, MX, SPF, DKIM, DMARC ni cap altre
   registre de producció (VR-02).
-- **Comparativa tancada.** L'alternativa era Cloudflare en mode només DNS, amb
-  un token natiu per zona (`Zone:Read` + `DNS:Edit` d'aquella zona). Compleix
-  AM-04 igual, però afegeix un compte, un proveïdor i una superfície de
-  configuració nous, i la seva política de retenció de dades de compte. Hetzner
-  dona el mateix aïllament de credencial amb menys peces, al proveïdor on ja viu
-  el VPS, i sense obrir cap compte nou. Descartada Cloudflare per a aquesta
-  fase; queda documentada com a alternativa si algun dia el projecte Hetzner
-  deixés de donar aïllament per projecte.
-- Matisos d'Hetzner registrats: la zona es crea directament a la Hetzner Console
-  (el DNS Console antic ja no admet zones noves i els seus tokens no funcionen
-  amb la Cloud API); l'àmbit del token és el projecte sencer, per això el
-  projecte ha de romandre buit i monozona (la reconciliació de VR-03 ho
-  comprova); el límit de 25 zones per compte i el de 20 projectes per compte són
-  irrellevants (se n'afageix una zona i un projecte).
+- **Comparativa tancada.** Hetzner Console: rebutjada perquè no admet subzones
+  (documentat més amunt). Cloudflare només DNS: el token per zona compleix
+  AM-04, però una zona de subdomini exigeix pla Enterprise, i un compte i
+  proveïdor nous són dependència que el projecte no paga per res. Zone
+  sencera a Hetzner o Cloudflare: mou l'autoritat de producció, prohibida.
+  deSEC: subzones acceptades, token limitat per domini, gratuït, entitat
+  europea sense ànim de lucre (coherent amb la sobirania de dades d'AM-10).
+- Matisos de deSEC registrats: DNSSEC automàtic (transparent per a la
+  delegació; si cal, s'afegeix el registre DS a Hostinger com a pas opcional);
+  límit de 300 modificacions de RRset per domini i dia, irrellevant per a un
+  ús manual; el registre del compte exigeix un correu i 2FA recomanada.
 
 ### Registres DNS Per Origina (VR-02, VR-04, VR-05)
 
@@ -138,30 +140,31 @@ mantenidora) i no migra la zona de producció.
 
 ### Costos I Dependència (RQ-17)
 
-| Concepte                                                       | Cost                                                                            |
-| -------------------------------------------------------------- | ------------------------------------------------------------------------------- |
-| Domini                                                         | 0 € (mateix domini registrable, ADR 0009)                                       |
-| Zona DNS a Hetzner Console                                     | 0 € (el DNS d'Hetzner és gratuït)                                               |
-| Projecte Hetzner dedicat                                       | 0 €/mes (contenidor de gestió, no facturable; límit de 20 projectes per compte) |
-| IP nova                                                        | 0 €/mes (el wildcard apunta a la mateixa VPS; cap IP addicional)                |
-| Certificats Let's Encrypt                                      | 0 €                                                                             |
-| Servidor (mateix VPS, espai disc i memòria propis de previews) | 0 €/mes afegit; el marge el confirma la T6.4                                    |
-| Escalada possible: Floating IPv4                               | 3,00 €/mes només si la T6.5 ho demana                                           |
+| Concepte                                                       | Cost                                                             |
+| -------------------------------------------------------------- | ---------------------------------------------------------------- |
+| Domini                                                         | 0 € (mateix domini registrable, ADR 0009)                        |
+| Zona DNS de la subzona a deSEC                                 | 0 € (servei gratuït finançat amb donacions)                      |
+| IP nova                                                        | 0 €/mes (el wildcard apunta a la mateixa VPS; cap IP addicional) |
+| Certificats Let's Encrypt                                      | 0 €                                                              |
+| Servidor (mateix VPS, espai disc i memòria propis de previews) | 0 €/mes afegit; el marge el confirma la T6.4                     |
+| Escalada possible: Floating IPv4                               | 3,00 €/mes només si la T6.5 ho demana                            |
 
-Dependència nova: cap compte nou. La dependència del DNS d'Hetzner per a la
-subzona és nova però limitada: si Hetzner DNS deixés de funcionar, producció no
-es veu afectada (la zona de producció és a Hostinger) i les previews deixen de
-resoldre fins a restaurar la zona. El pla de sortida és eliminar els dos
-registres NS d'Hostinger i tornar a servir les previews (o no servir-les) sense
-cap rastre de la zona delegada.
+Dependència nova: un compte gratuït a deSEC. La dependència de deSEC per a la
+subzona és limitada: si deSEC deixés de funcionar, producció no es veu afectada
+(la zona de producció és a Hostinger) i les previews deixen de resoldre fins a
+restaurar la zona. El pla de sortida és eliminar els dos registres NS
+d'Hostinger i tornar a servir les previews (o no servir-les) sense cap rastre de
+la zona delegada; la zona de deSEC es pot exportar i recrear a qualsevol altre
+DNS que allotgi subzones.
 
 ### Credencial I Verificació De Producció (AM-04)
 
-- L'únic secret nou és el token del projecte Hetzner monozona. Viu fora del
-  repositori, al magatzem de secrets aprovat, i només la persona mantenidora el
-  conserva; cap workflow, ni el publicador, ni el servidor el llegeixen.
+- L'únic secret nou és el token de deSEC amb la política limitada al domini de
+  previews. Viu fora del repositori, al magatzem de secrets aprovat, i només la
+  persona mantenidora el conserva; cap workflow, ni el publicador, ni el
+  servidor el llegeixen.
 - Comprovació de frontera exigida per l'espec: la zona de producció continua a
-  Hostinger; el projecte Hetzner de previews no conté cap zona que no sigui
+  Hostinger; el token de previews només pot escriure RRset del domini
   `preview.mountainrunners.cat`; cap credencial de previews té permís sobre
   l'apex, `www`, MX ni polítiques de correu. La T6.3 i la T6.5 reexecuten aquesta
   comprovació a les seves validacions.
@@ -171,9 +174,11 @@ cap rastre de la zona delegada.
 - La delegació NS des d'Hostinger és un canvi a la zona de producció: es fa amb
   la persona mantenidora, després d'exportar la zona actual, i la T6.1 ja fixa
   que no toca apex, `www`, MX ni correu (VR-02).
-- Un token de projecte Hetzner té àmbit de projecte, no de zona: si algú afegeix
-  una segona zona al projecte, l'aïllament es degrada en silenci. La
-  reconciliació de la T6.4 comprova que el projecte continua monozona.
+- Un token de deSEC té l'àmbit que les seves polítiques concedeixin: la política
+  d'escriptura ha de quedar limitada al domini de previews i al tipus A, i la
+  reconciliació de la T6.4 ho revalida. El compte de deSEC ha de romandre amb
+  només aquest domini; si s'hi afegís cap altre, l'aïllament es verifica igual
+  per la política de domini del token, però es redueix la claredat del compte.
 - El wildcard fa que qualsevol nom sota la zona resolgui: la superfície és
   resposta 404 del procés de previews, mai producció; la identificació de
   no-producció i `noindex` cobreixen el contingut servible.
@@ -183,15 +188,15 @@ cap rastre de la zona delegada.
 
 ## Verificacions Pendents De Signatura
 
-| ID    | Verificació                                                                                               | Responsable         | Estat     |
-| ----- | --------------------------------------------------------------------------------------------------------- | ------------------- | --------- |
-| VR-01 | Prova de foc: emissió contra l'staging de Let's Encrypt des del procés de previews abans d'activar res    | Persona mantenidora | Pendent   |
-| VR-02 | Delegació NS de la subzona des d'Hostinger provada, sense tocar apex, `www`, MX ni correu                 | Persona mantenidora | Pendent   |
-| VR-03 | Projecte Hetzner monozona creat, token d'àmbit de projecte conservat fora del repo, permisos comprovats   | Persona mantenidora | Pendent   |
-| VR-04 | Visibilitat pública i retenció de 14 dies signades; esquema `pr-<n>` enumerable acceptat                  | Persona mantenidora | Confirmat |
-| VR-05 | Pressupost de quotes amb el volum real (TLS, API DNS, orígens simultanis) escrit a aquest document        | Agent + mantenidora | Confirmat |
-| VR-06 | No s'adopta Cloudflare com a proxy, accés ni frontera; no cal ADR addicional per aquesta via              | Persona mantenidora | Confirmat |
-| VR-07 | Criteri de visibilitat restringida obligatòria escrit; procediment de retirada ràpida definit per la T6.4 | Persona mantenidora | Parcial   |
+| ID    | Verificació                                                                                                                                           | Responsable         | Estat     |
+| ----- | ----------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------- | --------- |
+| VR-01 | Prova de foc: emissió contra l'staging de Let's Encrypt des del procés de previews abans d'activar res                                                | Persona mantenidora | Pendent   |
+| VR-02 | Delegació NS de la subzona des d'Hostinger provada, sense tocar apex, `www`, MX ni correu                                                             | Persona mantenidora | Pendent   |
+| VR-03 | Compte deSEC dedicat, domini creat, token amb política limitada a `preview.mountainrunners.cat` tipus A, conservat fora del repo, permisos comprovats | Persona mantenidora | Pendent   |
+| VR-04 | Visibilitat pública i retenció de 14 dies signades; esquema `pr-<n>` enumerable acceptat                                                              | Persona mantenidora | Confirmat |
+| VR-05 | Pressupost de quotes amb el volum real (TLS, API DNS, orígens simultanis) escrit a aquest document                                                    | Agent + mantenidora | Confirmat |
+| VR-06 | No s'adopta Cloudflare com a proxy, accés ni frontera; no cal ADR addicional per aquesta via                                                          | Persona mantenidora | Confirmat |
+| VR-07 | Criteri de visibilitat restringida obligatòria escrit; procediment de retirada ràpida definit per la T6.4                                             | Persona mantenidora | Parcial   |
 
 VR-01, VR-02 i VR-03 s'executen amb aprovació explícita de la persona
 mantenidora dins d'aquesta tasca, abans que la T6.3 implementi el publicador.
@@ -199,15 +204,18 @@ VR-07 queda tancat quan la T6.4 defineixi el procediment de retirada ràpida.
 
 ## Fonts
 
+- FAQ de zones de la documentació de DNS d'Hetzner
+  (docs.hetzner.com/networking/dns/faq/zones): "Subzones are not supported";
+  motiu del rebuig de la zona `preview.mountainrunners.cat` a la Hetzner
+  Console, confirmat en prova real ("invalid domain").
+- Documentació de Cloudflare sobre "Subdomain setup"
+  (developers.cloudflare.com/dns/zone-setups/subdomain-setup): "Subdomain setup
+  is only available for Enterprise accounts".
+- Documentació de deSEC (desec.readthedocs.io): gestió de dominis qualsevol per
+  API, polítiques de tokens amb rang per domini i tipus de RRset, límits de
+  300 RRset per domini i dia, DNSSEC automàtic.
 - Preus oficials d'IP d'Hetzner (docs.hetzner.com/general/infrastructure-and-availability/ipv4-pricing):
   Floating IPv4 3,00 €/mes; Primary IPv4 0,50 €/mes; IPv6 primària gratuïta.
-- FAQ d'Hetzner Cloud (docs.hetzner.com/cloud/general/faq): límit de 20
-  projectes per compte; els recursos es facturen per recurs, no per projecte.
-- Documentació de la migració del DNS d'Hetzner a la Hetzner Console
-  (docs.hetzner.com/networking/dns/migration-to-hetzner-console):
-  "As API tokens are scoped per project, you can restrict access to specific
-  zones by placing them in separate projects"; els tokens del DNS Console antic
-  no funcionen amb la Cloud API.
 - Límits oficials de Let's Encrypt (letsencrypt.org/docs/rate-limits).
 - Documentació de Caddy sobre HTTPS automàtic i repte HTTP-01 (caddyserver.com).
 - Limitacions dels tokens del DNS Console antic documentades per tercers
