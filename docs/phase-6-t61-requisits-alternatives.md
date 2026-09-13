@@ -1,9 +1,15 @@
 # Previews de PR: requisits, amenaces i alternatives (T6.1)
 
 Estat: esborrany per a revisió. Tasca T6.1 de
-[la fase 6](specs/phase-6-pull-request-previews.md). Aquest document no adopta
-cap proveïdor, no crea comptes ni zones, no migra el DNS i no publica cap
-preview. Ho decideix la T6.2 amb aquest document a la mà.
+[la fase 6](specs/phase-6-pull-request-previews.md). Durant la revisió, la
+persona mantenidora ha acceptat
+[l'ADR 0009](decisions/0009-pr-previews-same-domain-and-own-branches.md): les
+previews viuen sota `*.preview.mountainrunners.cat`, el mateix domini
+registrable de producció, amb controls compensatoris, i la publicació es limita
+a branques del repositori principal. Aquest document no adopta cap proveïdor,
+no crea comptes ni zones, no migra el DNS i no publica cap preview: la subzona,
+el TLS, la visibilitat i la retenció els decideix la T6.2 amb aquest document a
+la mà.
 
 ## 1. Per a què serveixen
 
@@ -14,25 +20,32 @@ producció i no executen res dinàmic. Són HTML estàtic efímer.
 
 Consumidores: les persones mantenidores i revisores del repo. El ritme real
 són poques PR obertes alhora, així que el sistema ha de ser barat de mantenir
-i ha de netejar sol. Si un dia el volum canvia, la T6.2 ja haurà deixat
-escrites les quotes i els límits.
+i ha de netejar sol.
 
 ## 2. Requisits
 
 Els marcats [fixat] venen de l'especificació i no es renegocien. Els marcats
-[T6.2] queden oberts per a la decisió.
+[T6.2] queden oberts per a la decisió. Els marcats [proposta] venen de
+l'anàlisi d'aquest document: la T6.2 els ratifica en la decisió. RQ-02 i
+RQ-03 reflecteixen la frontera fixada per l'ADR 0009, que substitueix el
+domini registrable separat que la versió original de l'especificació demanava.
 
 **Origen i domini.**
 
 - RQ-01 [fixat] Cada preview té un origen únic i estable, vinculat a una PR i
   a un head SHA concrets. Si el SHA canvia sense reautoritzar, no s'activa.
-- RQ-02 [fixat] L'origen viu sota un domini registrable diferent de
-  `mountainrunners.cat`. Res de `*.preview.mountainrunners.cat`: comparteix
-  site amb producció i el contingut d'una PR podria definir cookies llegibles
-  des del lloc públic.
-- RQ-03 [T6.2] Quin domini concret. Ha de ser curt, òbviament no productiu i
-  registrat pel club. El preu i la disponibilitat es confirmen amb el
-  registrador abans de decidir.
+- RQ-02 [fixat] L'origen viu sota `*.preview.mountainrunners.cat`, el mateix
+  domini registrable de producció, amb els controls compensatoris de l'ADR
+  0009: publicació restringida a branques pròpies, producció sense cookies i
+  qualsevol cookie futura sempre `__Host-` o `__Secure-`, host-only i sense
+  atribut `Domain`, CORS d'origen exacte i identificació de no-producció
+  servida per la capa de confiança. La frontera _same-site_ queda acceptada
+  com a risc escrit, i l'invariant de cookies es verifica de manera
+  determinista.
+- RQ-03 [T6.2] La subzona delegada `preview.mountainrunners.cat` amb credencial
+  pròpia: on viu la zona (Hetzner DNS o Cloudflare només DNS), amb quina API i
+  quin límit de permisos. Cap segon domini: l'ADR 0009 el descarta, i la
+  credencial mai toca l'apex, `www`, MX ni polítiques de correu.
 
 **No indexació i identificació.**
 
@@ -51,7 +64,7 @@ Els marcats [fixat] venen de l'especificació i no es renegocien. Els marcats
 
 - RQ-07 [fixat] La preview no comparteix amb producció cookies, storage,
   caches, zona DNS amb permís d'escriptura, credencials ni namespaces. Les
-  cookies d'autenticació, si n'hi ha, són `__Host-` i host-only.
+  cookies d'autenticació, si n'hi ha, porten prefix `__Host-`.
 - RQ-08 [fixat] El build de la PR es compila en un runner efímer amb permisos
   de lectura, sense secrets, sense caches compartides amb jobs de confiança i
   sense permís d'escriptura sobre infraestructura persistent.
@@ -67,8 +80,8 @@ Els marcats [fixat] venen de l'especificació i no es renegocien. Els marcats
 
 - RQ-10 [fixat] Cap artefacte es publica perquè s'obri o s'actualitzi una PR.
   Cal autorització explícita d'una mantenidora per cada SHA.
-- RQ-11 [fixat] Els forks i les contribucions externes queden restringits per
-  defecte: sense publicació automàtica i sense secrets al job no fiable.
+- RQ-11 [fixat] Els forks i les contribucions externes no tenen cap preview:
+  ni automàtica ni autoritzada, i sense secrets al job no fiable (ADR 0009).
 - RQ-12 [T6.2] Visibilitat per defecte: pública, restringida o autenticada.
   Pública és més còmoda per revisar; restringida redueix l'exposició d'HTML
   no fiable. La decisió pesa comoditat contra exposició, amb el model
@@ -90,10 +103,11 @@ Els marcats [fixat] venen de l'especificació i no es renegocien. Els marcats
   d'autorització ni contingut dels artefactes. Camps, retenció, ubicació i
   responsable queden escrits a la T6.2.
 - RQ-16 [fixat] Una fallada de DNS, TLS, hosting, neteja o proveïdor de
-  previews no modifica ni interromp producció. Si comparteixen VPS, la
-  separació és concreta: procés Caddy separat, quota de disc pròpia,
-  emmagatzematge ACME separat i cap reload de previews que toqui producció.
-  Això es prova a la T6.5, però el disseny ja ho ha de garantir.
+  previews no modifica ni interromp producció (criteri 10 de l'espec). Si
+  comparteixen VPS, aquest document proposa la separació concreta: procés
+  Caddy separat, quota de disc pròpia, emmagatzematge ACME separat i cap
+  reload de previews que toqui producció; la T6.2 ho confirma al disseny i la
+  T6.5 ho prova.
 - RQ-17 [T6.2] Costos fixos i variables, límits i dependència del proveïdor,
   amb el pla de sortida escrit abans d'adoptar res.
 
@@ -106,17 +120,20 @@ GitHub i en bytes verificats. Aquestes són les amenaces que el disseny ha de
 tancar, digui el que digui l'opció escollida.
 
 - AM-01 Contingut actiu no fiable. L'HTML d'una PR pot portar scripts que
-  llegeixen el que tinguin al seu origen. Per això el domini separat de
-  RQ-02 no és negociable: limita el dany a la preview mateixa.
+  llegeixen el que tinguin al seu origen. L'aïllament d'origen de RQ-02 limita
+  el dany a la preview mateixa, i els controls compensatoris de l'ADR 0009
+  (invariant de cookies, CORS d'origen exacte, publicació només a branques
+  pròpies) tanquen l'atac de domini pare que el domini registrable separat
+  evitava per construcció.
 - AM-02 Confusió amb producció. Una revisora podria validar contingut
   pensant que mira producció, o un cercador podria indexar la preview.
   RQ-04, RQ-05 i RQ-06 hi responen en tres capes.
 - AM-03 Exhauriment de quotes TLS. Sense controls, qualsevol podria forçar
   emissions fins a topar amb els límits de Let's Encrypt (50 certificats per
   domini registrat i setmana, 300 comandes per compte cada 3 hores, 5
-  validacions fallides per host i hora). L'emissió ha d'estar lligada a
-  l'autorització de RQ-10, no a l'arribada de trànsit. L'on-demand TLS sense
-  allowlist queda prohibit: només el publicador autoritzat provoca emissions.
+  validacions fallides per compte, host i hora). L'emissió ha d'estar lligada
+  a l'autorització de RQ-10, no a l'arribada de trànsit: per això l'on-demand
+  TLS sense allowlist viola RQ-10 i queda prohibit.
 - AM-04 Credencial DNS amb massa permisos. Un token que pot editar la zona
   de producció o el correu converteix un compromís del sistema de previews
   en un compromís del domini públic. La credencial només toca la zona de
@@ -139,7 +156,8 @@ tancar, digui el que digui l'opció escollida.
   camins de fallada.
 - AM-10 Proveïdor opac. Un servei extern veu el codi de cada PR, els logs
   d'accés i les dades de qui revisa. La T6.2 ha de deixar escrit què en fa,
-  on ho desa i com se'n surt.
+  on ho desa i com se'n surt. L'ADR 0009 el descarta per a aquesta fase; el
+  risc queda escrit per si la frontera canvia.
 - AM-11 Abús de la reputació del domini. Un atacant pot obrir PR amb un clon
   de phishing i compartir l'enllaç: el domini el registra el club i la
   víctima no té manera de saber que mira una preview. Agreuja qualsevol
@@ -154,25 +172,31 @@ tancar, digui el que digui l'opció escollida.
 
 **Capçaleres de la capa de confiança.**
 
-- RQ-19 [fixat] Les capçaleres de seguretat les serveix el bloc de
-  confiança, que la PR no pot sobreescriure: CSP, `frame-ancestors`,
-  `X-Content-Type-Options`, `Referrer-Policy` i un `Cache-Control` que no
-  retingui orfes després de la retirada.
+- RQ-19 [proposta] Les capçaleres de seguretat les serveix el bloc de
+  confiança, que la PR no pot sobreescriure: CSP amb la directiva
+  `frame-ancestors`, `X-Content-Type-Options`, `Referrer-Policy` i un
+  `Cache-Control` que no retingui orfes després de la retirada.
 
 **Derivats de la PR.**
 
-- RQ-20 [fixat] Tot valor derivat de la PR que toqui DNS, shell, Caddy o API
+- RQ-20 [proposta] Tot valor derivat de la PR que toqui DNS, shell, Caddy o API
   passa una validació estricta: només `[a-z0-9-]`, la resta es rebutja. El
   publicador no interpola mai títols, branques ni cap string de PR en ordres
   ni plantilles.
 
 ## 4. Alternatives comparades
 
-Totes es comparen amb els mateixos deu punts de l'especificació: control DNS
-i wildcards, mecanisme TLS i quotes, aïllament d'origen, tractament de
+Totes es comparen amb els mateixos deu punts de l'especificació: control DNS,
+wildcards i TTL, mecanisme TLS i quotes, aïllament d'origen, tractament de
 forks, domini separat i autorització, autenticació opcional, costos,
 logs i dades, neteja i sortida, i impacte sobre Hostinger, Hetzner, Caddy i
-producció. La T6.2 tria; aquí cap opció queda marcada com a guanyadora.
+producció. CSP i capçaleres de RQ-19 i logs de RQ-15 són transversals: es
+valoren al disseny final, no per opció. La decisió d'ADR 0009 fixa la frontera:
+origen a `*.preview.mountainrunners.cat` amb controls compensatoris i
+publicació restringida a branques pròpies. Aquesta secció queda com a registre
+de l'anàlisi que va portar-hi: per què no val un segon domini (el projecte no
+en comprarà cap), per què no val un servei extern (sobirania de dades, AM-10) i
+quina mecànica DNS/TLS es conserva dins del nou límit.
 
 ### ALT-A. Domini separat amb zona a Hetzner DNS i Caddy al VPS
 
@@ -229,9 +253,10 @@ mai com a origen de previews.
 La zona del domini nou a Cloudflare en taronja, o un túnel des del VPS, amb
 Cloudflare Access davant de cada preview. Aporta el que les altres no tenen:
 autenticació sense codi propi, amb pla gratuït fins a 50 usuaris i retenció
-de logs de 24 hores. Però mou la frontera de confiança: el trànsit i
+de logs limitada. Però mou la frontera de confiança: el trànsit i
 l'accés depenen de Cloudflare, cal compte amb forma de pagament, el proxy
-trenca HTTP-01 i obliga a DNS-01 o a certificats d'origen, i cal revisar què
+pot trencar HTTP-01 i exigir DNS-01 o certificats d'origen segons
+configuració, i cal revisar què
 en fa de les dades. Té sentit si la T6.2 tria visibilitat restringida per
 defecte; per a previews públiques és pagar dependència sense guanyar res.
 
@@ -244,7 +269,9 @@ tercer, amb la seva retenció i la seva sortida. També cal donar al servei
 accés al repo i encaixar-hi autorització per SHA, `noindex` i neteja d'orfes
 amb les seves primitives, no amb les nostres. És l'opció amb menys feina
 pròpia i amb menys control propi. Interessant si el criteri que mana és no
-tocar el VPS; dolenta si mana la sobirania de les dades.
+tocar el VPS; dolenta si mana la sobirania de les dades. Per a forks delega
+el tractament al servei, cosa que no compleix RQ-11 tal com l'ADR 0009 la
+fixa: una raó més per descartar-la.
 
 ### Taula resum
 
@@ -257,17 +284,26 @@ tocar el VPS; dolenta si mana la sobirania de les dades.
 | E. Cloudflare proxy/Access | DNS-01 o cert d'origen        | Domini separat, trànsit extern | RQ-11 a Actions | Gratuït fins a 50 usuaris, dependència | Frontera de confiança externa      |
 | F. Servei extern           | El del servei                 | Infraestructura aliena         | El del servei   | Segons pla, repo connectat             | Dades i control fora               |
 
-ALT-D no és una opció vàlida d'origen. Hi és perquè quedi escrit per què
-no: val per a credencials, no per a navegador.
+Amb la decisió d'ADR 0009, la taula anterior queda com a registre de l'anàlisi
+original. En el nou límit: ALT-D esdevé el model d'origen (la subzona delegada
+aïlla credencials, i l'aïllament de navegador que li faltava el donen els
+controls compensatoris), la mecànica DNS/TLS d'ALT-A es conserva sense cap
+domini nou, la zona d'ALT-B és una opció viva per on viu la subzona, ALT-C
+segueix comparant-se com a mecanisme TLS, i ALT-E i ALT-F queden descartades
+per a aquesta fase.
 
 ## 5. Verificacions que T6.2 ha de tancar
+
+La T6.2 tanca aquestes verificacions amb responsable i signatura a la
+decisió, com demana l'abast de T6.2 a l'espec.
 
 - VR-01 L'API de zona que toqui cobreix crear i esborrar registres de la
   zona de previews amb un token limitat, amb aprovació explícita de la
   mantenidora. Prova de foc: una emissió contra
   l'staging de Let's Encrypt abans de decidir.
-- VR-02 Domini concret: disponibilitat, preu de registre i renovació, i qui
-  el registra. Res de noms provisionals a la configuració final.
+- VR-02 Subzona `preview.mountainrunners.cat`: delegació NS provada des de la
+  zona d'Hostinger sense tocar apex, `www`, MX ni correu, i configuració final
+  sense noms provisionals. Cap segon domini (ADR 0009).
 - VR-03 Si la zona viu a Hetzner DNS: delegació NS provada i permís mínim
   del token, amb aprovació explícita de la mantenidora. Si viu a
   Cloudflare: compte creat, zona en mode només DNS i
@@ -277,8 +313,8 @@ no: val per a credencials, no per a navegador.
   noms d'origen ha de dir si és enumerable (`pr-<n>`) i si cal aleatorietat
   quan l'accés sigui restringit.
 - VR-05 Pressupost de quotes amb el volum real: emissions TLS per setmana,
-  duplicats (5 per setmana), crides API DNS per desplegament i màxim
-  d'orígens simultanis.
+  duplicats del mateix conjunt de noms (5 per setmana), crides API DNS per
+  desplegament i màxim d'orígens simultanis.
 - VR-06 Si s'adopta Cloudflare com a proxy, accés o frontera permanent, cal
   la decisió explícita de seguretat, privacitat, cost, reversió i
   responsabilitat que demana l'especificació, i un ADR si canvia una
@@ -292,14 +328,15 @@ no: val per a credencials, no per a navegador.
 Estructura, sense xifres inventades. Els preus es confirmen a la T6.2 amb el
 registrador i els proveïdors, i queden escrits a la decisió.
 
-- Domini separat: registre i renovació anuals. Un sol cost fix, independent
-  de l'opció.
+- Domini: cap. Les previews viuen sota `mountainrunners.cat` (ADR 0009): no hi
+  ha registre ni renovació nous.
 - VPS actual: cap cost addicional si les previews viuen al mateix Hetzner,
   però cal comptar el marge de disc i memòria per als orígens simultanis.
 - TLS amb Let's Encrypt: sense cost, amb els límits de la secció 3. El
   wildcard no estalvia diners, només emissions.
-- Cloudflare Access: pla gratuït fins a 50 usuaris, 24 hores de logs. Més
-  enllà només si el projecte supera el llindar o necessita retenció.
+- Cloudflare Access: pla gratuït fins a 50 usuaris; la retenció de logs es
+  confirma amb la documentació oficial. Més enllà només si el projecte
+  supera el llindar o necessita retenció.
 - Servei extern: el que digui el seu pla per a builds i ample de banda, més
   el cost de sortida si un dia se'n va.
 
@@ -309,12 +346,11 @@ registrador i els proveïdors, i queden escrits a la decisió.
 - Documentació de Caddy sobre HTTPS automàtic, on-demand TLS i repte DNS-01
   (caddyserver.com).
 - Proveïdors DNS de lego i guia del proveïdor de Cloudflare (go-acme.github.io).
-- Fils de la comunitat Caddy sobre límits de Let's Encrypt amb on-demand
-  TLS i emissió de wildcards (caddy.community).
-- Revisions del pla gratuït de Cloudflare Zero Trust del 2026, fins a 50
-  usuaris (zerometric.net, zerotrustcost.com, costbench.com).
+- Límits oficials del pla gratuït de Cloudflare Zero Trust
+  (developers.cloudflare.com/cloudflare-one/account-limits).
 - Fil de lego sobre l'API DNS de Hostinger (`developers.hostinger.com`,
   github.com/go-acme/lego discussions).
 - Estat actual del repo: `docs/phase-5-t55-dns-inventory.md`,
   `docs/deployment.md`, `docs/runbook.md`, `tools/server/`,
-  `.github/workflows/` i `docs/decisions/0001` i `0003`.
+  `.github/workflows/`, `docs/decisions/0001`, `0003` i
+  `docs/decisions/0009-pr-previews-same-domain-and-own-branches.md`.

@@ -28,13 +28,17 @@ alternativa més simple. Cloudflare és una opció a comparar, no una decisió p
 - La publicació la fa un context de confiança amb codi fixat des de `main`, que
   verifica l'artefacte sense executar scripts ni fer checkout de la PR.
 - Cap artefacte es publica només perquè s'hagi obert o actualitzat una PR. La
-  publicació requereix autorització explícita d'una persona mantenidora; els
-  forks i contribucions externes queden restringits per defecte i mostren una
-  identificació inequívoca de no-producció servida per la capa de confiança.
-- Cada preview utilitza un origen en un domini registrable diferent de producció,
-  exclou el contingut marcat `published: false` en el build ordinari, declara
-  `noindex, noarchive` i té caducitat i neteja definides. El manifest no es
-  considera prova suficient que HTML arbitrari d'una PR sigui segur o publicable.
+  publicació requereix autorització explícita d'una persona mantenidora i es
+  limita a branques del repositori principal: els forks i les contribucions
+  externes no tenen cap preview, ni automàtica ni autoritzada, i les previews
+  mostren una identificació inequívoca de no-producció servida per la capa de
+  confiança.
+- Cada preview utilitza un origen únic sota `*.preview.mountainrunners.cat`, el
+  mateix domini registrable de producció, amb els controls compensatoris de
+  l'ADR 0009, exclou el contingut marcat `published: false` en el build
+  ordinari, declara `noindex, noarchive` i té caducitat i neteja definides. El
+  manifest no es considera prova suficient que HTML arbitrari d'una PR sigui
+  segur o publicable.
 - La fase no pressuposa que calgui traslladar els nameservers de Hostinger. T6.1
   compara opcions i T6.2 aprova la mínima arquitectura que satisfà els requisits.
 - L'adopció de Cloudflare com a proxy, capa d'accés o frontera permanent de
@@ -52,8 +56,9 @@ alternativa més simple. Cloudflare és una opció a comparar, no una decisió p
   inclosa l'opció de no utilitzar Cloudflare.
 - Decisió traçable sobre dominis, certificats, publicador, visibilitat, retenció,
   cost i responsabilitats.
-- Preview aïllada per PR en un domini registrable diferent, vinculada al commit,
-  amb canonical del seu origen, accés aprovat i identificació de no-producció.
+- Preview aïllada per PR com a subdomini de `*.preview.mountainrunners.cat`
+  segons l'ADR 0009, vinculada al commit, amb canonical del seu origen, accés
+  aprovat i identificació de no-producció.
 - Publicador de confiança que valida manifest, digests i arxiu abans d'escriure
   només al namespace assignat.
 - Caducitat, retirada en tancar la PR, revocació i runbook verificats.
@@ -84,7 +89,8 @@ VPS requereix aprovació explícita de la persona mantenidora.
 
 **Abast:** definir qui necessita previews, visibilitat pública, restringida o
 autenticada, autorització prèvia per publicar, suport per a forks, volum esperat,
-durada, cost, domini registrable separat, canonical, identificació visual, logs,
+durada, cost, origen de les previews (domini registrable separat o no),
+canonical, identificació visual, logs,
 responsabilitats i criteris de neteja; modelar codi de PR, artefactes, runner,
 caches, publicador, DNS, TLS, navegador i servidor com a fronteres diferenciades;
 comparar Hostinger DNS, Caddy, Cloudflare i serveis externs. **Exclusió:** no
@@ -95,15 +101,16 @@ operació, cost i reversibilitat. **PR:** pròpia.
 
 ### T6.2: Decisió De Domini, DNS, TLS I Proveïdor
 
-**Abast:** escollir la mínima solució que compleix T6.1 i documentar domini o
-subdomini, wildcard DNS o registres per PR, TLS individual o wildcard,
-allotjament, proxy, autenticació, API necessàries, límits, costos, responsable i
-pla de sortida. Ha de comparar com a mínim: un domini registrable separat amb
-zona pròpia; una subzona DNS delegada només com a aïllament de credencials;
-certificats individuals gestionats per Caddy; wildcard TLS amb DNS-01;
-Cloudflare DNS-only; Cloudflare proxied o Access; i un servei de previews extern.
-No s'accepta `*.preview.mountainrunners.cat` com a aïllament de navegador perquè
-continua sent _same-site_ amb producció. **Exclusió:** no implementa encara el
+**Abast:** escollir la mínima solució que compleix T6.1 i documentar subdomini,
+wildcard DNS o registres per PR, TLS individual o wildcard, allotjament, proxy,
+autenticació, API necessàries, límits, costos, responsable i pla de sortida.
+L'ADR 0009 fixa la frontera: origen sota `*.preview.mountainrunners.cat` amb
+controls compensatoris i publicació restringida a branques pròpies, sense segon
+domini ni servei extern de previews. Dins d'aquest límit ha de comparar com a
+mínim: una subzona DNS delegada amb credencial pròpia; registres per PR a la
+zona de previews; certificats individuals gestionats per Caddy; wildcard TLS amb
+DNS-01; i la comprovació que cap credencial toca la zona de producció.
+**Exclusió:** no implementa encara el
 publicador ni migra la zona només per conveniència. **Depèn de:** T6.1.
 **Resultat:** decisió aprovada, ADR si
 introdueix o canvia una frontera arquitectònica, i cap dependència no
@@ -140,15 +147,16 @@ DNS fallit, expiració i neteja idempotent. **PR:** pròpia.
 
 ### T6.5: Validació De Previews I Operació
 
-**Abast:** validar previews pròpies i de fork, navegació i metadades en els tres
+**Abast:** validar previews pròpies, navegació i metadades en els tres
 idiomes, autorització i visibilitat acordades, absència de secrets, comportament
 ordinari de `published: false`, identificació de no-producció, expiració, logs,
 alertes, revocació i runbook; verificar que una fallada del sistema de previews
 no afecta producció. **Exclusió:** no converteix la preview en staging de
 producció ni introdueix analítica. **Depèn de:** T6.4. **Resultat:** sistema
 operable i responsabilitats acceptades. **Comprovació:** `pnpm validate`, smoke
-de preview, `noindex, noarchive`, canonical, headers, fork, neteja, fallada del
-proveïdor i producció inalterada. **PR:** pròpia i darrera de la fase.
+de preview, `noindex, noarchive`, canonical, headers, cap publicació de fork,
+invariant de cookies de producció (ADR 0009), neteja, fallada del proveïdor i
+producció inalterada. **PR:** pròpia i darrera de la fase.
 
 ## Alternatives I Porta De Decisió
 
@@ -159,7 +167,8 @@ per cada opció:
 - mecanisme TLS, renovació, quotes i límits d'emissió;
 - aïllament d'origen, cookies, storage, caché i CSP;
 - tractament de forks i separació entre build no fiable i publicador;
-- domini registrable separat, autorització i identificació de no-producció;
+- origen de previews dins del límit de l'ADR 0009, autorització i identificació
+  de no-producció;
 - autenticació opcional sense donar credencials al build;
 - costos fixos i variables, límits i dependència del proveïdor;
 - camps i retenció de logs, ubicació i tractament de dades;
@@ -197,11 +206,16 @@ configuració, claus TLS, estat ACME o secrets de producció.
 ## Dominis, TLS I Robots
 
 Cada preview té un origen únic i estable per al commit o la PR segons la decisió
-de T6.2, sota un domini registrable diferent de `mountainrunners.cat`. Això evita
-la relació _same-site_ amb producció i impedeix que contingut actiu no fiable
-defineixi cookies de domini pare per al lloc públic. Si s'utilitza un wildcard,
-es limita a la zona pròpia dels previews. Qualsevol autenticació utilitza cookies
-host-only amb prefix `__Host-` i es prova contra accés creuat entre previews.
+de T6.2, com a subdomini de `*.preview.mountainrunners.cat`, el mateix domini
+registrable de producció (ADR 0009). L'aïllament d'origen (cookies, storage,
+document) el dona l'origen propi; la frontera _same-site_ queda acceptada amb
+els controls compensatoris de l'ADR 0009: publicació restringida a branques
+pròpies, producció sense cookies i, si en guanyés cap, sempre `__Host-` o
+`__Secure-`, host-only i sense atribut `Domain`, de manera que contingut d'una
+preview no pugui definir ni sobreescriure cookies del lloc públic. Si
+s'utilitza un wildcard, es limita a la zona pròpia dels previews. Qualsevol
+autenticació utilitza cookies host-only amb prefix `__Host-` i es prova contra
+accés creuat entre previews.
 
 Totes les respostes HTML i els recursos tècnics aplicables declaren
 `X-Robots-Tag: noindex, nofollow, noarchive`; el `robots.txt` de preview bloqueja
@@ -243,8 +257,12 @@ revocació i desactivació completa del sistema sense afectar producció.
   robots, recursos i navegació representativa en `ca`, `es` i `en`.
 - Provar creació, actualització, concurrència, cancel·lació, expiració, tancament,
   reobertura, revocació i reconciliació d'orfes.
-- Validar domini registrable separat, TLS, headers, identificació de
-  no-producció, caché, cookies `__Host-`, storage i autenticació si s'aplica.
+- Validar l'origen sota `*.preview.mountainrunners.cat` dins dels controls de
+  l'ADR 0009, TLS, headers, identificació de no-producció, caché, cookies
+  `__Host-`, storage i autenticació si s'aplica.
+- Verificar la invariant de cookies de producció de l'ADR 0009 amb una
+  comprovació determinista que falla si qualsevol resposta de producció declara
+  un `Set-Cookie` sense prefix `__Host-` o `__Secure-`.
 - Simular indisponibilitat de DNS, TLS, hosting o proveïdor i demostrar que
   producció continua operativa.
 
@@ -260,10 +278,11 @@ revocació i desactivació completa del sistema sense afectar producció.
   absents d'arguments, URLs, artefactes i logs.
 - Extracció segura que rebutja paths absoluts, `..`, symlinks, hardlinks,
   dispositius i tipus inesperats abans d'escriure.
-- Aïllament d'origen i de navegador; no es confia només en `noindex` com a control
-  d'accés.
-- Autorització humana abans de publicar, accés restringit per defecte per a
-  forks i identificació inequívoca que no és producció.
+- Aïllament d'origen entre preview i producció; la frontera _same-site_ queda
+  acceptada amb els controls compensatoris de l'ADR 0009; no es confia només en
+  `noindex` com a control d'accés.
+- Autorització humana abans de publicar, cap preview per a forks i
+  identificació inequívoca que no és producció.
 - Credencial DNS sense permisos sobre la zona de producció o correu.
 - Política explícita de visibilitat, logs, retenció, ubicació i responsable del
   proveïdor escollit.
@@ -292,20 +311,23 @@ La fase es considera completada quan:
    d'adoptar serveis o aplicar canvis remots.
 2. Les cinc unitats tenen PR pròpia revisada, validada i fusionada en ordre de
    dependències.
-3. La decisió justifica si s'utilitzen Hostinger, Hetzner, Caddy, Cloudflare, un
-   wildcard o un servei extern, i inclou domini registrable separat, cost,
-   privacitat, reversió i ADR quan correspongui.
+3. La decisió justifica l'opció triada dins del límit de l'ADR 0009 (origen sota
+   `*.preview.mountainrunners.cat`, publicació restringida a branques pròpies,
+   sense segon domini ni servei extern), i inclou cost, privacitat, reversió i
+   ADR quan correspongui.
 4. El build no fiable utilitza un runner efímer, no rep secrets ni permisos
    d'escriptura, no desa caches consumibles per jobs de confiança i el publicador
    no executa ni fa checkout del codi de la PR.
 5. Cada preview requereix autorització, està vinculada a PR i head SHA vigents,
    utilitza l'origen correcte, queda identificada com a no-producció i no pot
-   promocionar-se a producció; els forks tenen accés restringit per defecte.
+   promocionar-se a producció; els forks i les contribucions externes no tenen
+   cap preview.
 6. Manifest, digests, límits i arxiu es verifiquen abans d'escriure en un
    namespace aïllat; els casos malformats són rebutjats sense publicació parcial.
-7. La preview serveix TLS, canonical i headers aprovats des d'un domini
-   registrable diferent, declara `noindex, nofollow, noarchive` i no comparteix
-   cookies, storage, zona DNS editable ni credencials amb producció.
+7. La preview serveix TLS, canonical i headers aprovats des d'un subdomini propi
+   de `mountainrunners.cat` segons l'ADR 0009, declara
+   `noindex, nofollow, noarchive` i no comparteix cookies, storage, zona DNS
+   editable ni credencials amb producció.
 8. Crear, actualitzar, tancar, expirar, revocar i reconciliar previews funciona
    de manera idempotent i elimina recursos orfes.
 9. Una PR de fork segueix la política aprovada sense exposar secrets, sense
