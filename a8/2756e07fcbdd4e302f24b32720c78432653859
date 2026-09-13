@@ -1,0 +1,25 @@
+docs/runbook.md
+  s_2f8aa6b6bfc0f7::t_7c6211373fd2a6 41,52-57,68-69,77,85-87,103,106,113-114,136-152,162-169,172,183,188-192,741-791
+tools/preview/publish.test.mjs
+  s_2f8aa6b6bfc0f7::t_07c8beac1a3412 1-420
+tools/preview/verify-source-run.mjs
+  s_2f8aa6b6bfc0f7::t_df1a8027be4fd4 1-57
+tools/server/preview/gate.mjs
+  s_2f8aa6b6bfc0f7::t_70be456aa73a5b 1-207
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "a82756e07fcbdd4e302f24b32720c78432653859",
+  "prompts": {},
+  "sessions": {
+    "s_2f8aa6b6bfc0f7": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_f63951844ffeRxsb3LtiMq4e0o",
+        "model": "glm-5.3-flash"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
