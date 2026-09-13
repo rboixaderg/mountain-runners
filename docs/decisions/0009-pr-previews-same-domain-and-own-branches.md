@@ -2,7 +2,10 @@
 
 ## Estat
 
-Acceptada.
+Acceptada. Esmenada el 13 de setembre de 2026 (T6.2, PR #117): els registres DNS
+dels previews viuen a la zona de producció d'Hostinger sense subzona delegada;
+la frontera de domini i els controls compensatoris no canvien. Vegeu l'apartat
+Esmena.
 
 ## Decisió
 
@@ -36,6 +39,37 @@ La T6.2 decideix DNS i TLS dins d'aquesta frontera i ja no compara domini
 registrable separat ni serveis externs de previews. Si el projecte necessités
 previews de forks o cookies a producció, aquesta decisió s'ha de revisar amb un
 ADR nou.
+
+## Esmena (T6.2, 13 de setembre de 2026)
+
+La frase "La zona DNS dels previews és una subzona delegada amb credencial
+pròpia" queda substituïda per la decisió esmenada d'aquest apartat. Hostinger,
+el proveïdor de la zona pare que aquest ADR manté intacte, no permet registres
+NS per a subdominis ("Hostinger domains don't allow custom nameservers (NS
+records) for subdomains – only for the main domain", documentació oficial de
+DNS d'Hostinger). Sense segon domini (aquest ADR), sense zona Enterprise
+(Cloudflare) i amb la zona de producció protegida del trasllat (fase 5), la
+subzona delegada és irrealitzable dins dels límits del projecte.
+
+La decisió esmenada: els registres DNS dels previews viuen directament a la
+zona de producció d'Hostinger, com un únic wildcard A
+`*.preview.mountainrunners.cat` → la IP del procés de previews, creat
+manualment amb aprovació explícita de la persona mantenidora. Cap credencial
+DNS de previews existeix: cap token, secret o API del registrador viu al CI, al
+servidor o al repositori, i l'únic accés d'escriptura és el hPanel de la
+persona mantenidora, el mateix que ja protegeix la zona sencera. AM-04 es
+compleix al buit: no hi ha credencial de previews que pugui filtrar-se, i la
+frontera "cap escriptura sobre l'apex, `www`, MX o correu" passa a dependre del
+procediment manual (export previ de la zona, canvi mínim, comparació posterior)
+que la T6.4 prova i la T6.5 revalida.
+
+Restricció permanent que acompanya aquesta esmena: els previews no automatitzen
+mai el DNS. Si algun dia calguessin registres per PR o qualsevol escriptura
+automatitzada, cal reobrir aquesta decisió amb un ADR, perquè amb Hostinger
+qualsevol token d'API és de compte sencer i violaria AM-04.
+
+La resta de l'ADR no canvia: mateix domini registrable, publicació només a
+branques pròpies i controls compensatoris.
 
 ## Raonament
 
