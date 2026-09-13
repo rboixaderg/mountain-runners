@@ -1,0 +1,14 @@
+docs/phase-6-t62-decisions.md
+  h_1727aeeb492b30 17,27-44,47,50-60,143-158,162-165,167,177-181,191-199,207-216
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "51d4c3fcb2280d387a98f34af42b241242caf687",
+  "prompts": {},
+  "humans": {
+    "h_1727aeeb492b30": {
+      "author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
