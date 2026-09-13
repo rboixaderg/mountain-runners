@@ -6,9 +6,11 @@ El repositori disposa de CI de qualitat, seguretat, contracte d'artefacte i
 desplegament continu protegit des de `main`. L'apex i `www` ja serveixen des
 del VPS (19 d'agost de 2026) i la fase 5 es va tancar el 28 d'agost de 2026
 amb el gate de llançament, l'HSTS i el període d'observació completats
-([runbook](runbook.md#9-tall-dns-i-primera-activació-pública)). Els previews
-de pull request i la decisió sobre Cloudflare corresponen a la
-[`fase 6`](specs/phase-6-pull-request-previews.md) i no bloquegen producció.
+([runbook](runbook.md#9-tall-dns-i-primera-activació-pública)). La T6.1 i la
+T6.2 han fixat requisits i arquitectura de previews
+([ADR 0009](decisions/0009-pr-previews-same-domain-and-own-branches.md)); la
+T6.3 implementa la frontera entre el build no fiable i el publicador. El
+resta de la fase 6 no bloqueja producció.
 
 ## Destí
 
@@ -175,11 +177,68 @@ checklist d'evidència és a
 Cap canvi DNS, de Caddy o dels entorns GitHub no s'executa sense la persona
 mantenidora.
 
+## Previews De Pull Request (T6.3)
+
+La frontera de previews viu en dues meitats que mai comparteixen confiança,
+dins del límit de l'[ADR 0009](decisions/0009-pr-previews-same-domain-and-own-branches.md)
+(origen sota `*.preview.mountainrunners.cat`, publicació només a branques
+pròpies, cap segon domini ni servei extern) i de la decisió T6.2
+([`docs/phase-6-t62-decisions.md`](phase-6-t62-decisions.md)): cap credencial
+DNS, certificats individuals HTTP-01, un procés Caddy amb blocs separats.
+
+### Build no fiable (pull_request)
+
+- `tools/preview/build-artifact.mjs` adapta el contracte de la T5.2: compila
+  la web amb l'origen exacte de la preview
+  (`https://pr-<n>.preview.mountainrunners.cat`, derivat i validat a partir de
+  `PR_NUMBER`) i registra un manifest que vincula commit (head SHA de la PR),
+  número de PR, origen, `BUILD_TODAY`, workflow i la llista de fitxers amb
+  mida i SHA-256.
+- El workflow `Preview build` (`.github/workflows/preview-build.yml`)
+  s'activa a cada `pull_request` (oberta, actualitzada o reoberta), fa
+  checkout del head SHA de la PR, executa `pnpm validate` complet en el
+  context no fiable i puja només l'artefacte intermedi
+  (`mountain-runners-preview`, retenció de 7 dies).
+- El job no rep cap secret, no usa cap cache compartida amb jobs de confiança
+  i no té cap permís d'escriptura. Els forks compilen sota les mateixes
+  condicions; el seu artefacte mai no es publica.
+
+### Publicador de confiança (T6.3)
+
+- El workflow `Preview publish` s'executa només des de `main`, darrere de
+  l'entorn GitHub `previews` amb required reviewers: l'aprovació de la
+  persona mantenidora és l'autorització explícita per SHA.
+- `tools/preview/verify-source-run.mjs` valida el run d'origen contra
+  metadades de plataforma de confiança: repositori, workflow
+  (`.github/workflows/preview-build.yml`), esdeveniment `pull_request`,
+  conclusió `success`, head del mateix repositori (els forks es rebutgen) i
+  vinculació run↔PR. Res no ve de l'artefacte.
+- `tools/preview/publish.mjs` descarrega l'artefacte d'aquell run, valida
+  manifest, mida, nombre de fitxers, digests i paths amb els mateixos
+  validadors de producció, comprova que el manifest (commit, origen i número
+  de PR) coincideix amb l'estat de la PR, transfereix amb `receive`,
+  instal·la, revalida que la PR continua oberta i al mateix head SHA
+  immediatament abans d'activar, activa el namespace de la PR i en comprova
+  la salut.
+- L'escriptura al servidor passa per la identitat `preview-deploy` (gate
+  forçat `preview-ssh-gate`), que només pot operar dins del seu propi
+  namespace `/var/lib/mountain-runners-previews/namespaces/pr-<n>/`; producció
+  (`/var/lib/mountain-runners`), Caddy, claus TLS i estat ACME queden fora
+  del seu abast. Cap secret de previews es comparteix amb producció.
+- La publicació és atòmica: l'install extrau en un directori nou i l'activació
+  mou el symlink `current` del namespace de manera atòmica; un error conserva
+  la versió anterior de la mateixa PR o no crea cap origen.
+
+La T6.4 crea els orígens Caddy (blocs per PR, TLS individual, identificació
+de no-producció, caché i política de capçaleres) i el cicle de vida complet;
+la T6.5 valida el sistema end-to-end.
+
 ## CI Implementada
 
 GitHub Actions executa qualitat, E2E, Conventional Commits, detecció de secrets,
 revisió de dependències, CodeQL, el contracte d'artefacte de la T5.2, el
-desplegament continu i el rollback de la T5.4, i els tests de les eines del
+desplegament continu i el rollback de la T5.4, el build no fiable i el
+publicador de previews de la T6.3, i els tests de les eines del
 servidor (`pnpm test:server`). `pnpm validate` no executa Lighthouse;
 `pnpm lighthouse` és una auditoria manual separada.
 
@@ -187,8 +246,9 @@ servidor (`pnpm test:server`). `pnpm validate` no executa Lighthouse;
 
 La fase 5 està tancada; HSTS, entorn `production-rollback` i retirada dels
 required reviewers de `production` estan registrats a la
-[checklist de la T5.5](validation/phase-5-t55-launch-gate.md). No hi ha
-previews, que la fase 6 avalua i implementa de manera separada. Només cal
-un ADR nou quan la implementació introdueixi o canviï una decisió
-arquitectònica; els detalls que apliquin la direcció acceptada continuen
-requerint una pull request revisada.
+[checklist de la T5.5](validation/phase-5-t55-launch-gate.md). De la fase 6,
+la T6.3 té la frontera de previews implementada; la T6.4 (orígens, TLS,
+cicle de vida i neteja) i la T6.5 (validació completa) resten pendents i
+cap preview encara es publica. Només cal un ADR nou quan la implementació
+introdueixi o canviï una decisió arquitectònica; els detalls que apliquen la
+direcció acceptada continuen requerint una pull request revisada.

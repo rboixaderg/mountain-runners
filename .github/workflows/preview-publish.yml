@@ -1,0 +1,70 @@
+name: Preview publish
+
+# Trusted preview publisher (T6.3): pinned to `main`, behind the `previews`
+# GitHub environment (required reviewers = explicit maintainer authorization
+# per run). It never checks out or executes pull request code: it verifies
+# the source run against trusted platform metadata, validates the artifact
+# and writes only to the namespace assigned to the pull request.
+
+on:
+  workflow_dispatch:
+    inputs:
+      pull_number:
+        description: Pull request number to publish
+        required: true
+        type: string
+      build_run_id:
+        description: Workflow run id that built the preview artifact
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  publish:
+    name: Publish preview
+    if: github.ref == 'refs/heads/main' && github.event.repository.fork == false
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment:
+      name: previews
+    concurrency:
+      group: previews
+      cancel-in-progress: false
+    steps:
+      - name: Check out main (trusted publisher code)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      - name: Verify the source run against trusted metadata
+        env:
+          PREVIEW_PULL_NUMBER: ${{ inputs.pull_number }}
+          PREVIEW_BUILD_RUN_ID: ${{ inputs.build_run_id }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GITHUB_API_URL: ${{ github.api_url }}
+        run: node tools/preview/verify-source-run.mjs
+      - name: Download the preview artifact
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          name: mountain-runners-preview
+          path: artifacts/preview/
+          run-id: ${{ inputs.build_run_id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Publish the verified preview
+        env:
+          PREVIEW_PULL_NUMBER: ${{ inputs.pull_number }}
+          PREVIEW_BUILD_RUN_ID: ${{ inputs.build_run_id }}
+          ARTIFACT_DIRECTORY: artifacts/preview
+          PREVIEW_HOST: ${{ vars.PREVIEW_HOST }}
+          PREVIEW_DEPLOY_USER: ${{ vars.PREVIEW_DEPLOY_USER }}
+          PREVIEW_SSH_PRIVATE_KEY: ${{ secrets.PREVIEW_SSH_PRIVATE_KEY }}
+          PREVIEW_KNOWN_HOSTS: ${{ secrets.PREVIEW_KNOWN_HOSTS }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GITHUB_API_URL: ${{ github.api_url }}
+        run: node tools/preview/publish.mjs

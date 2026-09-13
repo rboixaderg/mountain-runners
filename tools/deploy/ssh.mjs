@@ -4,7 +4,8 @@
 // 0600, runs ssh in BatchMode with StrictHostKeyChecking, and never prints
 // the key, the known_hosts file or the remote command's stdin. The forced
 // command on the server tokenizes SSH_ORIGINAL_COMMAND; this client only
-// sends `mountain-release …` plus the file body for `receive`.
+// sends the remote tool (`mountain-release` for production, `mountain-preview`
+// for previews) plus the file body for `receive`.
 
 import { spawn } from "node:child_process";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
@@ -30,12 +31,16 @@ export function createSshTransport({
   privateKey,
   knownHosts,
   sshCommand = "ssh",
+  allowedUsers = ["mountain-deploy"],
+  remoteTool = "mountain-release",
 }) {
   if (!hostPattern.test(host) || host.includes("@")) {
-    throw new Error("DEPLOY_HOST is not a hostname or address.");
+    throw new Error("The deploy host is not a hostname or address.");
   }
-  if (user !== "mountain-deploy") {
-    throw new Error("DEPLOY_USER must be the mountain-deploy identity.");
+  if (!allowedUsers.includes(user)) {
+    throw new Error(
+      `The deploy user must be the ${allowedUsers.join(" or ")} identity.`,
+    );
   }
   if (privateKey === undefined || privateKey.trim() === "") {
     throw new Error("DEPLOY_SSH_PRIVATE_KEY is required.");
@@ -55,7 +60,7 @@ export function createSshTransport({
             knownHostsFile,
             user,
             host,
-            remoteCommand: `mountain-release receive ${fileName}`,
+            remoteCommand: `${remoteTool} receive ${fileName}`,
             stdin: contents,
           }),
       );
