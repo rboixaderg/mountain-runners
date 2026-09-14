@@ -23,7 +23,9 @@ import {
 } from "../server/release/adversarial-archive.mjs";
 import { previewOrigin } from "../server/preview/config.mjs";
 import {
+  assertCommentAuthorized,
   publishPreview,
+  resolveLatestBuildRun,
   resolvePullRequestState,
   resolveSourceRun,
 } from "./publish-operations.mjs";
@@ -40,6 +42,7 @@ const previewFiles = [
 const testRepository = "rboixaderg/mountain-runners";
 
 function createRunResponse({
+  id = 123456,
   event = "pull_request",
   conclusion = "success",
   headRepository = testRepository,
@@ -48,7 +51,7 @@ function createRunResponse({
   path = ".github/workflows/preview-build.yml",
 } = {}) {
   return {
-    id: 123456,
+    id,
     event,
     conclusion,
     head_sha: previewCommit,
@@ -74,9 +77,31 @@ function createPullResponse({
 // same trusted source the workflows use.
 function createFakeFetch({
   run = createRunResponse(),
+  runsList,
   pull = createPullResponse(),
+  collaboratorStatus = 204,
 } = {}) {
   return async (url) => {
+    if (url.includes("/actions/runs?")) {
+      const page = Number(new URL(url).searchParams.get("page") ?? "1");
+      const pageRuns =
+        typeof runsList === "function" ? runsList(page) : (runsList ?? []);
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({
+          total_count: pageRuns.length,
+          workflow_runs: pageRuns,
+        }),
+      };
+    }
+    if (url.includes("/collaborators/")) {
+      return {
+        ok: collaboratorStatus === 204,
+        status: collaboratorStatus,
+        json: async () => ({}),
+      };
+    }
     if (url.includes("/actions/runs/")) {
       return { ok: true, status: 200, json: async () => run };
     }
@@ -236,6 +261,77 @@ test("resolvePullRequestState accepts an open own-branch pull request and reject
           fetchImpl: createFakeFetch({ pull }),
         }),
       pattern,
+      `${name} must be rejected`,
+    );
+  }
+});
+
+test("resolveLatestBuildRun returns the newest successful run bound to the pull request", async () => {
+  const olderMatchingRun = createRunResponse({ id: 111 });
+  const newestMatchingRun = createRunResponse({ id: 222 });
+  const resolved = await resolveLatestBuildRun({
+    repository: testRepository,
+    pullNumber: previewPullNumber,
+    fetchImpl: createFakeFetch({
+      runsList: [newestMatchingRun, olderMatchingRun],
+    }),
+  });
+  assert.equal(resolved.id, 222);
+});
+
+test("resolveLatestBuildRun skips failed and unrelated runs and paginates", async () => {
+  const matchingRun = createRunResponse({ id: 333 });
+  const foreignRun = createRunResponse({ id: 444, pullRequests: [98] });
+  const fullPage = Array.from({ length: 100 }, (_, index) =>
+    createRunResponse({ id: 1000 + index, pullRequests: [97] }),
+  );
+  const resolved = await resolveLatestBuildRun({
+    repository: testRepository,
+    pullNumber: previewPullNumber,
+    fetchImpl: createFakeFetch({
+      runsList: (page) =>
+        page === 1
+          ? [createRunResponse({ id: 5, conclusion: "failure" }), ...fullPage]
+          : [matchingRun, foreignRun],
+    }),
+  });
+  assert.equal(resolved.id, 333);
+});
+
+test("resolveLatestBuildRun rejects a pull request without a successful build", async () => {
+  await assert.rejects(
+    () =>
+      resolveLatestBuildRun({
+        repository: testRepository,
+        pullNumber: previewPullNumber,
+        fetchImpl: createFakeFetch({
+          runsList: [createRunResponse({ id: 5, conclusion: "failure" })],
+        }),
+      }),
+    /No successful Preview build run was found/,
+  );
+});
+
+test("assertCommentAuthorized requires a repository collaborator", async () => {
+  await assertCommentAuthorized({
+    repository: testRepository,
+    commentAuthor: "rboixaderg",
+    fetchImpl: createFakeFetch({ collaboratorStatus: 204 }),
+  });
+
+  const rejections = [
+    { name: "outside commenter", status: 404 },
+    { name: "forbidden check", status: 403 },
+  ];
+  for (const { name, status } of rejections) {
+    await assert.rejects(
+      () =>
+        assertCommentAuthorized({
+          repository: testRepository,
+          commentAuthor: "random-user",
+          fetchImpl: createFakeFetch({ collaboratorStatus: status }),
+        }),
+      /not a repository collaborator/,
       `${name} must be rejected`,
     );
   }

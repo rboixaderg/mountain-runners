@@ -205,14 +205,22 @@ DNS, certificats individuals HTTP-01, un procés Caddy amb blocs separats.
 
 ### Publicador de confiança (T6.3)
 
-- El workflow `Preview publish` s'executa només des de `main`, darrere de
-  l'entorn GitHub `previews` amb required reviewers: l'aprovació de la
-  persona mantenidora és l'autorització explícita per SHA.
+- El workflow `Preview publish` s'executa només des de `main` amb codi de
+  confiança. Es dispara de dues maneres, totes dues sense cap aprovació
+  manual de l'entorn: un **comentari a la PR amb el text exacte `/preview`**
+  d'una persona col·laboradora (verificat via API — aquesta és l'autorització
+  explícita per SHA), o un `workflow_dispatch` amb `pull_number` i
+  `build_run_id`. L'entorn GitHub `previews` només separa els secrets
+  `PREVIEW_*` de producció; no té required reviewers. El risc residual
+  acceptat: qualsevol col·laboradora pot sol·licitar la publicació d'una PR
+  pròpia; el publicador rebutja forks, PRs tancades i caps mouments.
 - `tools/preview/verify-source-run.mjs` valida el run d'origen contra
   metadades de plataforma de confiança: repositori, workflow
   (`.github/workflows/preview-build.yml`), esdeveniment `pull_request`,
   conclusió `success`, head del mateix repositori (els forks es rebutgen) i
-  vinculació run↔PR. Res no ve de l'artefacte.
+  vinculació run↔PR. Res no ve de l'artefacte. Amb el comentari, el darrer
+  run correcte de la PR es resol automàticament
+  (`tools/preview/resolve-comment.mjs`), sense haver de buscar cap run id.
 - `tools/preview/publish.mjs` descarrega l'artefacte d'aquell run, valida
   manifest, mida, nombre de fitxers, digests i paths amb els mateixos
   validadors de producció, comprova que el manifest (commit, origen i número

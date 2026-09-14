@@ -1,10 +1,17 @@
 name: Preview publish
 
-# Trusted preview publisher (T6.3): pinned to `main`, behind the `previews`
-# GitHub environment (required reviewers = explicit maintainer authorization
-# per run). It never checks out or executes pull request code: it verifies
-# the source run against trusted platform metadata, validates the artifact
-# and writes only to the namespace assigned to the pull request.
+# Trusted preview publisher (T6.3): pinned to `main`. It never checks out or
+# executes pull request code: it verifies the source run against trusted
+# platform metadata, validates the artifact and writes only to the namespace
+# assigned to the pull request.
+#
+# Two trusted triggers, both without any approval click:
+#   - a `/preview` comment on the pull request, written by a repository
+#     collaborator (verified via the API): the explicit maintainer
+#     authorization; the publisher resolves the latest successful build run;
+#   - a manual workflow_dispatch with pull_number and build_run_id.
+# The `previews` environment exists only to scope the PREVIEW_* secrets away
+# from production; it carries no required reviewers.
 
 on:
   workflow_dispatch:
@@ -17,10 +24,13 @@ on:
         description: Workflow run id that built the preview artifact
         required: true
         type: string
+  issue_comment:
+    types: [created]
 
 permissions:
   contents: read
   actions: read
+  pull-requests: read
 
 jobs:
   publish:
@@ -40,25 +50,35 @@ jobs:
           persist-credentials: false
       - name: Set up Node.js
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-      - name: Verify the source run against trusted metadata
+      - name: Resolve the publish trigger
+        id: resolve
         env:
-          PREVIEW_PULL_NUMBER: ${{ inputs.pull_number }}
-          PREVIEW_BUILD_RUN_ID: ${{ inputs.build_run_id }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GITHUB_API_URL: ${{ github.api_url }}
+        run: node tools/preview/resolve-comment.mjs
+      - name: Verify the source run against trusted metadata
+        if: steps.resolve.outputs.should_publish == 'true'
+        env:
+          PREVIEW_PULL_NUMBER: ${{ steps.resolve.outputs.pull_number || inputs.pull_number }}
+          PREVIEW_BUILD_RUN_ID: ${{ steps.resolve.outputs.build_run_id || inputs.build_run_id }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_REPOSITORY: ${{ github.repository }}
           GITHUB_API_URL: ${{ github.api_url }}
         run: node tools/preview/verify-source-run.mjs
       - name: Download the preview artifact
+        if: steps.resolve.outputs.should_publish == 'true'
         uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
         with:
           name: mountain-runners-preview
           path: artifacts/preview/
-          run-id: ${{ inputs.build_run_id }}
+          run-id: ${{ steps.resolve.outputs.build_run_id || inputs.build_run_id }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Publish the verified preview
+        if: steps.resolve.outputs.should_publish == 'true'
         env:
-          PREVIEW_PULL_NUMBER: ${{ inputs.pull_number }}
-          PREVIEW_BUILD_RUN_ID: ${{ inputs.build_run_id }}
+          PREVIEW_PULL_NUMBER: ${{ steps.resolve.outputs.pull_number || inputs.pull_number }}
+          PREVIEW_BUILD_RUN_ID: ${{ steps.resolve.outputs.build_run_id || inputs.build_run_id }}
           ARTIFACT_DIRECTORY: artifacts/preview
           PREVIEW_HOST: ${{ vars.PREVIEW_HOST }}
           PREVIEW_DEPLOY_USER: ${{ vars.PREVIEW_DEPLOY_USER }}

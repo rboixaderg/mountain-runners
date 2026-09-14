@@ -549,8 +549,11 @@ test("the preview workflows pin actions, keep secrets off the build and gate the
   );
   assert.match(buildWorkflow, /node tools\/preview\/build-artifact\.mjs/);
 
-  // The trusted publisher: main-only, the previews environment, no forks.
+  // The trusted publisher: main-only, the previews environment for secrets,
+  // comment- and dispatch-triggered, no forks and no approval click.
   assert.match(publishWorkflow, /workflow_dispatch:/);
+  assert.match(publishWorkflow, /issue_comment:\n {4}types: \[created\]/);
+  assert.match(publishWorkflow, /pull-requests: read/);
   assert.match(publishWorkflow, /name: previews/);
   assert.match(publishWorkflow, /group: previews/);
   assert.match(publishWorkflow, /cancel-in-progress: false/);
@@ -564,8 +567,13 @@ test("the preview workflows pin actions, keep secrets off the build and gate the
     publishWorkflow,
     /uses: actions\/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131/,
   );
+  assert.match(publishWorkflow, /node tools\/preview\/resolve-comment\.mjs/);
   assert.match(publishWorkflow, /node tools\/preview\/verify-source-run\.mjs/);
   assert.match(publishWorkflow, /node tools\/preview\/publish\.mjs/);
+  assert.match(
+    publishWorkflow,
+    /if: steps\.resolve\.outputs\.should_publish == 'true'/,
+  );
 
   // No pull_request_target anywhere in the preview system.
   assert.doesNotMatch(buildWorkflow, /pull_request_target/);

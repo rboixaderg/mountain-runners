@@ -356,8 +356,9 @@ Next steps (all require maintainer approval; see docs/runbook.md):
    Uncomment `import Caddyfile.production` in /etc/caddy/Caddyfile, run
    `caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile`,
    and restart Caddy *before* moving apex/www DNS to this VPS.
-5. Create the GitHub `previews` environment (T6.3) with required reviewers
-   and the PREVIEW_* secrets, and hand the wildcard record
+5. Create the GitHub `previews` environment (T6.3) to scope the PREVIEW_*
+   secrets away from production (no required reviewers: authorization
+   happens via the verified `/preview` comment), and hand the wildcard record
    `*.preview.mountainrunners.cat` to the preview Caddy blocks (T6.4).
 
 Deploy identity: ${RELEASE_ROOT}/.ssh/authorized_keys (${DEPLOY_PUBLIC_KEY:+installed}${DEPLOY_PUBLIC_KEY:-not installed})

@@ -30,6 +30,10 @@ function apiHeaders(token) {
   return headers;
 }
 
+function apiBaseUrl(apiUrl) {
+  return (apiUrl ?? "https://api.github.com").replace(/\/$/u, "");
+}
+
 async function fetchRepositoryJson({
   repository,
   apiUrl,
@@ -41,37 +45,24 @@ async function fetchRepositoryJson({
   if (repository === undefined || repository === "") {
     throw new Error("GITHUB_REPOSITORY is required to reach the GitHub API.");
   }
-  const baseUrl = (apiUrl ?? "https://api.github.com").replace(/\/$/u, "");
-  const response = await fetchImpl(`${baseUrl}/repos/${repository}/${path}`, {
-    headers: apiHeaders(token),
-  });
+  const response = await fetchImpl(
+    `${apiBaseUrl(apiUrl)}/repos/${repository}/${path}`,
+    {
+      headers: apiHeaders(token),
+    },
+  );
   if (!response.ok) {
     throw new Error(`${failureMessage} (${response.status}).`);
   }
   return response.json();
 }
 
-// Verifies the source workflow run against trusted platform metadata: this
+// Validates a workflow run against trusted platform metadata: this
 // repository, the preview build workflow, a pull_request event, a successful
-// conclusion, a same-repository head (forks get no previews) and the
-// platform binding between the run and the pull request. Nothing here is
-// taken from the artifact.
-export async function resolveSourceRun({
-  repository,
-  apiUrl,
-  token,
-  runId,
-  pullNumber,
-  fetchImpl = fetch,
-}) {
-  const run = await fetchRepositoryJson({
-    repository,
-    apiUrl,
-    token,
-    fetchImpl,
-    path: `actions/runs/${runId}`,
-    failureMessage: "Cannot read the source workflow run",
-  });
+// conclusion, a same-repository head (forks get no previews) and the platform
+// binding between the run and the pull request. Nothing here is taken from
+// the artifact.
+function assertSourceRunMetadata(run, { repository, pullNumber }) {
   if (run.repository?.full_name !== repository) {
     throw new Error("The source run does not belong to this repository.");
   }
@@ -105,6 +96,104 @@ export async function resolveSourceRun({
     );
   }
   return run;
+}
+
+export async function resolveSourceRun({
+  repository,
+  apiUrl,
+  token,
+  runId,
+  pullNumber,
+  fetchImpl = fetch,
+}) {
+  const run = await fetchRepositoryJson({
+    repository,
+    apiUrl,
+    token,
+    fetchImpl,
+    path: `actions/runs/${runId}`,
+    failureMessage: "Cannot read the source workflow run",
+  });
+  return assertSourceRunMetadata(run, { repository, pullNumber });
+}
+
+// Resolves the latest successful Preview build run for a pull request from
+// trusted platform metadata (newest first): a same-repository pull_request
+// run of the preview build workflow that is bound to this pull request. Used
+// by the comment-triggered publisher, so nobody has to look up a run id.
+export async function resolveLatestBuildRun({
+  repository,
+  apiUrl,
+  token,
+  pullNumber,
+  fetchImpl = fetch,
+}) {
+  if (repository === undefined || repository === "") {
+    throw new Error("GITHUB_REPOSITORY is required to reach the GitHub API.");
+  }
+  const maxPages = 10;
+  for (let page = 1; page <= maxPages; page += 1) {
+    const response = await fetchImpl(
+      `${apiBaseUrl(apiUrl)}/repos/${repository}/actions/runs?event=pull_request&per_page=100&page=${page}`,
+      { headers: apiHeaders(token) },
+    );
+    if (!response.ok) {
+      throw new Error(
+        `Cannot list the preview build runs (${response.status}).`,
+      );
+    }
+    const body = await response.json();
+    const runs = Array.isArray(body?.workflow_runs) ? body.workflow_runs : [];
+    const latestMatchingRun = runs.find(
+      (candidate) =>
+        candidate.conclusion === "success" &&
+        candidate.path === previewBuildWorkflowPath &&
+        candidate.head_repository?.full_name === repository &&
+        candidate.pull_requests?.some(
+          (associatedPullRequest) =>
+            associatedPullRequest.number === pullNumber,
+        ),
+    );
+    if (latestMatchingRun !== undefined) {
+      return assertSourceRunMetadata(latestMatchingRun, {
+        repository,
+        pullNumber,
+      });
+    }
+    if (runs.length < 100) {
+      break;
+    }
+  }
+  throw new Error(
+    `No successful Preview build run was found for pull request ${pullNumber}.`,
+  );
+}
+
+// The comment that requests a publish must come from a repository
+// collaborator: this verified check is the explicit maintainer
+// authorization for the publish (the environment only scopes the secrets).
+export async function assertCommentAuthorized({
+  repository,
+  apiUrl,
+  token,
+  commentAuthor,
+  fetchImpl = fetch,
+}) {
+  if (repository === undefined || repository === "") {
+    throw new Error("GITHUB_REPOSITORY is required to reach the GitHub API.");
+  }
+  if (commentAuthor === undefined || commentAuthor === "") {
+    throw new Error("The comment author is required.");
+  }
+  const response = await fetchImpl(
+    `${apiBaseUrl(apiUrl)}/repos/${repository}/collaborators/${commentAuthor}`,
+    { headers: apiHeaders(token) },
+  );
+  if (response.status !== 204) {
+    throw new Error(
+      `The comment author ${commentAuthor} is not a repository collaborator; previews require explicit maintainer authorization.`,
+    );
+  }
 }
 
 // Reads the pull request state from the platform: only an open pull request

@@ -757,17 +757,20 @@ el build no fiable i el publicador de confiança.
 La identitat de previews executa les operacions directament com a
 `preview-deploy` (el namespace és seu): no hi ha daemon ni socket, i cap
 permís sobre `/var/lib/mountain-runners`, `/etc/caddy`, les claus TLS o
-l'estat ACME. Els secrets de previews (`PREVIEW_SSH_PRIVATE_KEY`,
-`PREVIEW_KNOWN_HOSTS`) viuen només a l'entorn GitHub `previews`, mai
-compartits amb producció.
+l'estat ACME.
 
 ### Publicar una preview
 
 1. La PR oberta compila el seu artefacte intermedi al workflow
    `Preview build` (sense secrets ni caches; `pnpm validate` inclòs).
-2. La persona mantenidora executa `Preview publish` amb `pull_number` i
-   `build_run_id` i aprova l'entorn `previews`: aquesta aprovació és
-   l'autorització explícita per SHA.
+2. La persona mantenidora publica la preview amb un **comentari a la PR amb
+   el text exacte `/preview`** (per exemple, via
+   `gh pr comment <n> --body "/preview"`, també des d'un agent). El
+   publicador de confiança (codi fixat a `main`) verifica que l'autor del
+   comentari és col·laborador del repositori — aquesta verificació és
+   l'autorització explícita per SHA — resol el darrer run de build correcte
+   de la PR i publica. També hi ha via manual: `Preview publish`
+   (workflow_dispatch amb `pull_number` i `build_run_id`).
 3. El publicador valida el run (repositori, workflow, esdeveniment, PR,
    conclusió), l'artefacte (manifest, mida, fitxers, digests, paths) i
    revalida que la PR continua oberta i al mateix head SHA just abans
@@ -785,6 +788,14 @@ compartits amb producció.
 5. La retirada (tancament, fusió, revocació, caducitat i reconciliació
    d'orfes) és la T6.4; mentre el sistema no estigui validat, no es publica
    cap preview.
+
+L'entorn GitHub `previews` només separa els secrets de producció: no té
+required reviewers, perquè l'autorització és el comentari verificat. Els
+secrets de previews (`PREVIEW_SSH_PRIVATE_KEY`, `PREVIEW_KNOWN_HOSTS`) viuen
+només a l'entorn `previews`, mai compartits amb producció. El risc residual
+acceptat: qualsevol col·laborador del repositori pot sol·licitar la
+publicació d'una PR pròpia amb `/preview`; el publicador continua rebutjant
+forks, PRs tancades i caps mouments.
 
 Quan el sistema de previews falla (DNS, TLS, gateway, neteja), producció no
 es veu afectada: blocs Caddy separats, emmagatzematge ACME separat i cap
