@@ -526,56 +526,59 @@ test("the direct invocation (maintainer CLI) runs the same operations", async ()
   });
 });
 
-test("the preview workflows pin actions, keep secrets off the build and gate the publisher", async () => {
-  const buildWorkflow = await readFile(
-    join(toolDirectory, "../../../.github/workflows/preview-build.yml"),
-    "utf8",
-  );
-  const publishWorkflow = await readFile(
-    join(toolDirectory, "../../../.github/workflows/preview-publish.yml"),
+test("the preview workflow pins actions, separates the trust boundaries and has no approval click", async () => {
+  const previewWorkflow = await readFile(
+    join(toolDirectory, "../../../.github/workflows/preview.yml"),
     "utf8",
   );
 
-  // The untrusted build job: no secrets, no environment, no caches.
-  assert.match(buildWorkflow, /pull_request:/);
-  assert.match(buildWorkflow, /types: \[opened, synchronize, reopened\]/);
-  assert.match(buildWorkflow, /permissions:\n {2}contents: read\n/);
-  assert.doesNotMatch(buildWorkflow, /secrets\./);
-  assert.doesNotMatch(buildWorkflow, /environment:/);
-  assert.doesNotMatch(buildWorkflow, /cache:/);
+  // Triggered on demand: a /preview comment or a manual dispatch; nothing
+  // builds or publishes automatically on pull request events.
+  assert.match(previewWorkflow, /issue_comment:\n {4}types: \[created\]/);
+  assert.match(previewWorkflow, /workflow_dispatch:/);
+  assert.doesNotMatch(previewWorkflow, /pull_request:/);
+  assert.doesNotMatch(previewWorkflow, /pull_request_target/);
+  assert.match(previewWorkflow, /pull-requests: read/);
   assert.match(
-    buildWorkflow,
-    /uses: actions\/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1/,
-  );
-  assert.match(buildWorkflow, /node tools\/preview\/build-artifact\.mjs/);
-
-  // The trusted publisher: main-only, the previews environment for secrets,
-  // comment- and dispatch-triggered, no forks and no approval click.
-  assert.match(publishWorkflow, /workflow_dispatch:/);
-  assert.match(publishWorkflow, /issue_comment:\n {4}types: \[created\]/);
-  assert.match(publishWorkflow, /pull-requests: read/);
-  assert.match(publishWorkflow, /name: previews/);
-  assert.match(publishWorkflow, /group: previews/);
-  assert.match(publishWorkflow, /cancel-in-progress: false/);
-  assert.match(
-    publishWorkflow,
+    previewWorkflow,
     /github.ref == 'refs\/heads\/main' && github.event.repository.fork == false/,
   );
-  assert.match(publishWorkflow, /actions: read/);
-  assert.match(publishWorkflow, /secrets\.PREVIEW_SSH_PRIVATE_KEY/);
+
+  // The authorize job resolves the request from trusted code on main.
+  assert.match(previewWorkflow, /node tools\/preview\/resolve-publish\.mjs/);
+
+  // The untrusted build job: no secrets, no environment, no caches, and the
+  // checkout is the pull request head SHA resolved by the authorize job.
+  const [authorizeJob, restOfWorkflow] = previewWorkflow.split("\n  build:\n");
+  const [buildJob, publishJob] = restOfWorkflow.split("\n  publish:\n");
   assert.match(
-    publishWorkflow,
-    /uses: actions\/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131/,
+    authorizeJob,
+    /actions\/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1/,
   );
-  assert.match(publishWorkflow, /node tools\/preview\/resolve-comment\.mjs/);
-  assert.match(publishWorkflow, /node tools\/preview\/verify-source-run\.mjs/);
-  assert.match(publishWorkflow, /node tools\/preview\/publish\.mjs/);
+  assert.doesNotMatch(buildJob, /secrets\./);
+  assert.doesNotMatch(buildJob, /environment:/);
+  assert.doesNotMatch(buildJob, /cache:/);
   assert.match(
-    publishWorkflow,
-    /if: steps\.resolve\.outputs\.should_publish == 'true'/,
+    buildJob,
+    /ref: \$\{\{ needs\.authorize\.outputs\.head_sha \}\}/,
+  );
+  assert.match(buildJob, /node tools\/preview\/build-artifact\.mjs/);
+  assert.match(
+    buildJob,
+    /uses: actions\/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a/,
   );
 
-  // No pull_request_target anywhere in the preview system.
-  assert.doesNotMatch(buildWorkflow, /pull_request_target/);
-  assert.doesNotMatch(publishWorkflow, /pull_request_target/);
+  // The trusted publish job: code from main behind the previews environment
+  // (secrets only), the same-run artifact and the publish script.
+  assert.match(publishJob, /needs: \[authorize, build\]/);
+  assert.match(publishJob, /name: previews/);
+  assert.match(publishJob, /group: previews/);
+  assert.match(publishJob, /cancel-in-progress: false/);
+  assert.match(publishJob, /secrets\.PREVIEW_SSH_PRIVATE_KEY/);
+  assert.match(
+    publishJob,
+    /uses: actions\/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131/,
+  );
+  assert.doesNotMatch(publishJob, /run-id:/);
+  assert.match(publishJob, /node tools\/preview\/publish\.mjs/);
 });

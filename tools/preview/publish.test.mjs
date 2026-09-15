@@ -2,13 +2,13 @@
 //
 // Run with: node --test tools/preview/
 //
-// The suite verifies the publisher's trust chain: the source workflow run is
-// validated against trusted platform metadata (repository, workflow, event,
-// PR binding, head SHA and conclusion), the artifact is validated with the
-// same validators as production, and the pull request state is revalidated
-// immediately before activation. Forks, closed pull requests, moved heads,
-// foreign manifests and malicious archives are all rejected. No production
-// credentials are involved.
+// The suite verifies the publisher's trust chain: the pull request state is
+// validated against trusted platform metadata (open, own-branch head SHA),
+// the artifact built in the same workflow run is validated with the same
+// validators as production, and the pull request state is revalidated
+// immediately before activation. Closed pull requests, moved heads, fork
+// heads, foreign manifests and the comment authorization (collaborator-only)
+// are all rejected. No production credentials are involved.
 
 import assert from "node:assert/strict";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
@@ -25,9 +25,7 @@ import { previewOrigin } from "../server/preview/config.mjs";
 import {
   assertCommentAuthorized,
   publishPreview,
-  resolveLatestBuildRun,
   resolvePullRequestState,
-  resolveSourceRun,
 } from "./publish-operations.mjs";
 
 const previewPullNumber = 99;
@@ -41,27 +39,6 @@ const previewFiles = [
 
 const testRepository = "rboixaderg/mountain-runners";
 
-function createRunResponse({
-  id = 123456,
-  event = "pull_request",
-  conclusion = "success",
-  headRepository = testRepository,
-  pullRequests = [previewPullNumber],
-  repository = testRepository,
-  path = ".github/workflows/preview-build.yml",
-} = {}) {
-  return {
-    id,
-    event,
-    conclusion,
-    head_sha: previewCommit,
-    path,
-    repository: { full_name: repository },
-    head_repository: { full_name: headRepository },
-    pull_requests: pullRequests.map((number) => ({ number })),
-  };
-}
-
 function createPullResponse({
   state = "open",
   headSha = previewCommit,
@@ -73,37 +50,18 @@ function createPullResponse({
   };
 }
 
-// A fake GitHub API: the run and the pull request responses come from the
-// same trusted source the workflows use.
+// A fake GitHub API with the same trusted source the workflows use.
 function createFakeFetch({
-  run = createRunResponse(),
-  runsList,
   pull = createPullResponse(),
   collaboratorStatus = 204,
 } = {}) {
   return async (url) => {
-    if (url.includes("/actions/runs?")) {
-      const page = Number(new URL(url).searchParams.get("page") ?? "1");
-      const pageRuns =
-        typeof runsList === "function" ? runsList(page) : (runsList ?? []);
-      return {
-        ok: true,
-        status: 200,
-        json: async () => ({
-          total_count: pageRuns.length,
-          workflow_runs: pageRuns,
-        }),
-      };
-    }
     if (url.includes("/collaborators/")) {
       return {
         ok: collaboratorStatus === 204,
         status: collaboratorStatus,
         json: async () => ({}),
       };
-    }
-    if (url.includes("/actions/runs/")) {
-      return { ok: true, status: 200, json: async () => run };
     }
     if (url.includes(`/pulls/${previewPullNumber}`)) {
       return { ok: true, status: 200, json: async () => pull };
@@ -166,69 +124,19 @@ async function withPreviewArtifact(
   }
 }
 
-test("resolveSourceRun accepts a successful same-repository pull request run", async () => {
-  const run = await resolveSourceRun({
-    repository: testRepository,
-    runId: 123456,
+function createTestPublisher(transport, artifactDirectory, { pull } = {}) {
+  return publishPreview({
+    artifactDirectory,
     pullNumber: previewPullNumber,
-    fetchImpl: createFakeFetch({}),
+    resolvePullRequestState: async () =>
+      resolvePullRequestState({
+        repository: testRepository,
+        pullNumber: previewPullNumber,
+        fetchImpl: createFakeFetch({ pull }),
+      }),
+    transport,
   });
-  assert.equal(run.event, "pull_request");
-  assert.equal(run.conclusion, "success");
-});
-
-test("resolveSourceRun rejects forks, other events, failed runs and unassociated runs", async () => {
-  const rejections = [
-    {
-      name: "fork head",
-      run: createRunResponse({ headRepository: "fork-owner/mountain-runners" }),
-      pattern: /head repository is not this repository/,
-    },
-    {
-      name: "other workflow",
-      run: createRunResponse({ path: ".github/workflows/quality.yml" }),
-      pattern: /workflow must be/,
-    },
-    {
-      name: "push event",
-      run: createRunResponse({ event: "push" }),
-      pattern: /event must be pull_request/,
-    },
-    {
-      name: "failed conclusion",
-      run: createRunResponse({ conclusion: "failure" }),
-      pattern: /conclusion must be success/,
-    },
-    {
-      name: "run bound to another pull request",
-      run: createRunResponse({ pullRequests: [98] }),
-      pattern: /not associated with pull request/,
-    },
-    {
-      name: "run with no pull request binding",
-      run: createRunResponse({ pullRequests: [] }),
-      pattern: /not associated with pull request/,
-    },
-    {
-      name: "run from another repository",
-      run: createRunResponse({ repository: "other-owner/other-repo" }),
-      pattern: /does not belong to this repository/,
-    },
-  ];
-  for (const { name, run, pattern } of rejections) {
-    await assert.rejects(
-      () =>
-        resolveSourceRun({
-          repository: testRepository,
-          runId: 123456,
-          pullNumber: previewPullNumber,
-          fetchImpl: createFakeFetch({ run }),
-        }),
-      pattern,
-      `${name} must be rejected`,
-    );
-  }
-});
+}
 
 test("resolvePullRequestState accepts an open own-branch pull request and rejects the rest", async () => {
   const accepted = await resolvePullRequestState({
@@ -266,52 +174,6 @@ test("resolvePullRequestState accepts an open own-branch pull request and reject
   }
 });
 
-test("resolveLatestBuildRun returns the newest successful run bound to the pull request", async () => {
-  const olderMatchingRun = createRunResponse({ id: 111 });
-  const newestMatchingRun = createRunResponse({ id: 222 });
-  const resolved = await resolveLatestBuildRun({
-    repository: testRepository,
-    pullNumber: previewPullNumber,
-    fetchImpl: createFakeFetch({
-      runsList: [newestMatchingRun, olderMatchingRun],
-    }),
-  });
-  assert.equal(resolved.id, 222);
-});
-
-test("resolveLatestBuildRun skips failed and unrelated runs and paginates", async () => {
-  const matchingRun = createRunResponse({ id: 333 });
-  const foreignRun = createRunResponse({ id: 444, pullRequests: [98] });
-  const fullPage = Array.from({ length: 100 }, (_, index) =>
-    createRunResponse({ id: 1000 + index, pullRequests: [97] }),
-  );
-  const resolved = await resolveLatestBuildRun({
-    repository: testRepository,
-    pullNumber: previewPullNumber,
-    fetchImpl: createFakeFetch({
-      runsList: (page) =>
-        page === 1
-          ? [createRunResponse({ id: 5, conclusion: "failure" }), ...fullPage]
-          : [matchingRun, foreignRun],
-    }),
-  });
-  assert.equal(resolved.id, 333);
-});
-
-test("resolveLatestBuildRun rejects a pull request without a successful build", async () => {
-  await assert.rejects(
-    () =>
-      resolveLatestBuildRun({
-        repository: testRepository,
-        pullNumber: previewPullNumber,
-        fetchImpl: createFakeFetch({
-          runsList: [createRunResponse({ id: 5, conclusion: "failure" })],
-        }),
-      }),
-    /No successful Preview build run was found/,
-  );
-});
-
 test("assertCommentAuthorized requires a repository collaborator", async () => {
   await assertCommentAuthorized({
     repository: testRepository,
@@ -340,24 +202,7 @@ test("assertCommentAuthorized requires a repository collaborator", async () => {
 test("publishPreview publishes a valid artifact end to end", async () => {
   await withPreviewArtifact(async (artifactDirectory) => {
     const transport = createMemoryTransport();
-    const message = await publishPreview({
-      artifactDirectory,
-      pullNumber: previewPullNumber,
-      resolveSourceRun: async () =>
-        resolveSourceRun({
-          repository: testRepository,
-          runId: 123456,
-          pullNumber: previewPullNumber,
-          fetchImpl: createFakeFetch({}),
-        }),
-      resolvePullRequestState: async () =>
-        resolvePullRequestState({
-          repository: testRepository,
-          pullNumber: previewPullNumber,
-          fetchImpl: createFakeFetch({}),
-        }),
-      transport,
-    });
+    const message = await createTestPublisher(transport, artifactDirectory);
     assert.match(
       message,
       /Published preview .*pr-99\.preview\.mountainrunners\.cat/,
@@ -379,13 +224,6 @@ test("publishPreview rejects a moved pull request head immediately before activa
         publishPreview({
           artifactDirectory,
           pullNumber: previewPullNumber,
-          resolveSourceRun: async () =>
-            resolveSourceRun({
-              repository: testRepository,
-              runId: 123456,
-              pullNumber: previewPullNumber,
-              fetchImpl: createFakeFetch({}),
-            }),
           resolvePullRequestState: async () => {
             pullRequestFetches += 1;
             // The head moves between the first check and the pre-activation
@@ -418,28 +256,10 @@ test("publishPreview rejects a moved pull request head immediately before activa
 test("publishPreview rejects a closed pull request", async () => {
   await withPreviewArtifact(async (artifactDirectory) => {
     const transport = createMemoryTransport();
-    const closedPullRequestFetch = createFakeFetch({
-      pull: createPullResponse({ state: "closed" }),
-    });
     await assert.rejects(
       () =>
-        publishPreview({
-          artifactDirectory,
-          pullNumber: previewPullNumber,
-          resolveSourceRun: async () =>
-            resolveSourceRun({
-              repository: testRepository,
-              runId: 123456,
-              pullNumber: previewPullNumber,
-              fetchImpl: createFakeFetch({}),
-            }),
-          resolvePullRequestState: async () =>
-            resolvePullRequestState({
-              repository: testRepository,
-              pullNumber: previewPullNumber,
-              fetchImpl: closedPullRequestFetch,
-            }),
-          transport,
+        createTestPublisher(transport, artifactDirectory, {
+          pull: createPullResponse({ state: "closed" }),
         }),
       /only an open pull request/,
     );
@@ -452,25 +272,7 @@ test("publishPreview rejects a manifest whose commit differs from the pull reque
     async (artifactDirectory) => {
       const transport = createMemoryTransport();
       await assert.rejects(
-        () =>
-          publishPreview({
-            artifactDirectory,
-            pullNumber: previewPullNumber,
-            resolveSourceRun: async () =>
-              resolveSourceRun({
-                repository: testRepository,
-                runId: 123456,
-                pullNumber: previewPullNumber,
-                fetchImpl: createFakeFetch({}),
-              }),
-            resolvePullRequestState: async () =>
-              resolvePullRequestState({
-                repository: testRepository,
-                pullNumber: previewPullNumber,
-                fetchImpl: createFakeFetch({}),
-              }),
-            transport,
-          }),
+        () => createTestPublisher(transport, artifactDirectory),
         /does not match the candidate/,
       );
       assert.equal(transport.commands.length, 0);
@@ -484,25 +286,7 @@ test("publishPreview rejects a manifest built for another pull request", async (
     async (artifactDirectory) => {
       const transport = createMemoryTransport();
       await assert.rejects(
-        () =>
-          publishPreview({
-            artifactDirectory,
-            pullNumber: previewPullNumber,
-            resolveSourceRun: async () =>
-              resolveSourceRun({
-                repository: testRepository,
-                runId: 123456,
-                pullNumber: previewPullNumber,
-                fetchImpl: createFakeFetch({}),
-              }),
-            resolvePullRequestState: async () =>
-              resolvePullRequestState({
-                repository: testRepository,
-                pullNumber: previewPullNumber,
-                fetchImpl: createFakeFetch({}),
-              }),
-            transport,
-          }),
+        () => createTestPublisher(transport, artifactDirectory),
         /is not the production origin|does not match namespace/,
       );
       assert.equal(transport.commands.length, 0);

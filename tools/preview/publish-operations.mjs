@@ -2,12 +2,12 @@
 //
 // Runs from `main` on a GitHub-hosted runner behind the `previews`
 // environment. It never checks out the pull request and never executes PR
-// code: it verifies the source workflow run against trusted platform
-// metadata (repository, workflow path, run, event, PR binding, head SHA and
-// conclusion), validates the intermediate artifact with the same validators
-// as production, and only then writes to the namespace assigned to the PR.
-// The pull request state is revalidated immediately before activation, so a
-// closed, unauthorized or moved pull request can never be activated.
+// code: it verifies the pull request state against trusted platform
+// metadata, validates the intermediate artifact built in the same workflow
+// run (manifest, size, file count, digests and paths), and only then writes
+// to the namespace assigned to the PR. The pull request state is revalidated
+// immediately before activation, so a closed, unauthorized or moved pull
+// request can never be activated.
 
 import { loadVerifiedArtifact } from "../deploy/artifact.mjs";
 import { RemoteCommandError } from "../deploy/ssh.mjs";
@@ -15,8 +15,6 @@ import {
   assertPreviewManifestConsistency,
   previewOrigin,
 } from "../server/preview/config.mjs";
-
-const previewBuildWorkflowPath = ".github/workflows/preview-build.yml";
 
 function apiHeaders(token) {
   const headers = {
@@ -55,118 +53,6 @@ async function fetchRepositoryJson({
     throw new Error(`${failureMessage} (${response.status}).`);
   }
   return response.json();
-}
-
-// Validates a workflow run against trusted platform metadata: this
-// repository, the preview build workflow, a pull_request event, a successful
-// conclusion, a same-repository head (forks get no previews) and the platform
-// binding between the run and the pull request. Nothing here is taken from
-// the artifact.
-function assertSourceRunMetadata(run, { repository, pullNumber }) {
-  if (run.repository?.full_name !== repository) {
-    throw new Error("The source run does not belong to this repository.");
-  }
-  if (run.path !== previewBuildWorkflowPath) {
-    throw new Error(
-      `The source run workflow must be ${previewBuildWorkflowPath}, got ${run.path}.`,
-    );
-  }
-  if (run.event !== "pull_request") {
-    throw new Error(
-      `The source run event must be pull_request, got ${run.event}.`,
-    );
-  }
-  if (run.conclusion !== "success") {
-    throw new Error(
-      `The source run conclusion must be success, got ${run.conclusion}.`,
-    );
-  }
-  if (run.head_repository?.full_name !== repository) {
-    throw new Error(
-      "The source run head repository is not this repository; forks have no previews.",
-    );
-  }
-  if (
-    !run.pull_requests?.some(
-      (associatedPullRequest) => associatedPullRequest.number === pullNumber,
-    )
-  ) {
-    throw new Error(
-      `The source run is not associated with pull request ${pullNumber}.`,
-    );
-  }
-  return run;
-}
-
-export async function resolveSourceRun({
-  repository,
-  apiUrl,
-  token,
-  runId,
-  pullNumber,
-  fetchImpl = fetch,
-}) {
-  const run = await fetchRepositoryJson({
-    repository,
-    apiUrl,
-    token,
-    fetchImpl,
-    path: `actions/runs/${runId}`,
-    failureMessage: "Cannot read the source workflow run",
-  });
-  return assertSourceRunMetadata(run, { repository, pullNumber });
-}
-
-// Resolves the latest successful Preview build run for a pull request from
-// trusted platform metadata (newest first): a same-repository pull_request
-// run of the preview build workflow that is bound to this pull request. Used
-// by the comment-triggered publisher, so nobody has to look up a run id.
-export async function resolveLatestBuildRun({
-  repository,
-  apiUrl,
-  token,
-  pullNumber,
-  fetchImpl = fetch,
-}) {
-  if (repository === undefined || repository === "") {
-    throw new Error("GITHUB_REPOSITORY is required to reach the GitHub API.");
-  }
-  const maxPages = 10;
-  for (let page = 1; page <= maxPages; page += 1) {
-    const response = await fetchImpl(
-      `${apiBaseUrl(apiUrl)}/repos/${repository}/actions/runs?event=pull_request&per_page=100&page=${page}`,
-      { headers: apiHeaders(token) },
-    );
-    if (!response.ok) {
-      throw new Error(
-        `Cannot list the preview build runs (${response.status}).`,
-      );
-    }
-    const body = await response.json();
-    const runs = Array.isArray(body?.workflow_runs) ? body.workflow_runs : [];
-    const latestMatchingRun = runs.find(
-      (candidate) =>
-        candidate.conclusion === "success" &&
-        candidate.path === previewBuildWorkflowPath &&
-        candidate.head_repository?.full_name === repository &&
-        candidate.pull_requests?.some(
-          (associatedPullRequest) =>
-            associatedPullRequest.number === pullNumber,
-        ),
-    );
-    if (latestMatchingRun !== undefined) {
-      return assertSourceRunMetadata(latestMatchingRun, {
-        repository,
-        pullNumber,
-      });
-    }
-    if (runs.length < 100) {
-      break;
-    }
-  }
-  throw new Error(
-    `No successful Preview build run was found for pull request ${pullNumber}.`,
-  );
 }
 
 // The comment that requests a publish must come from a repository
@@ -282,19 +168,17 @@ async function activatePreviewRelease(transport, pullNumber, headSha) {
 }
 
 // Publishes the verified intermediate artifact to the namespace assigned to
-// the pull request: verifies the source run and the pull request state,
-// validates the artifact (manifest, size, file count, digests and paths),
-// transfers and installs it, revalidates the pull request immediately
-// before activation, activates it and checks the namespace health.
+// the pull request: verifies the pull request state against trusted platform
+// metadata, validates the artifact (manifest, size, file count, digests and
+// paths), transfers and installs it, revalidates the pull request
+// immediately before activation, activates it and checks the namespace
+// health.
 export async function publishPreview({
   artifactDirectory,
   pullNumber,
-  resolveSourceRun,
   resolvePullRequestState,
   transport,
 }) {
-  await resolveSourceRun();
-
   const pullRequest = await resolvePullRequestState();
   const artifact = await loadVerifiedArtifact(artifactDirectory, {
     expectedCommit: pullRequest.headSha,

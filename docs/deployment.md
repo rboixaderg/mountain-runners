@@ -186,48 +186,41 @@ pròpies, cap segon domini ni servei extern) i de la decisió T6.2
 ([`docs/phase-6-t62-decisions.md`](phase-6-t62-decisions.md)): cap credencial
 DNS, certificats individuals HTTP-01, un procés Caddy amb blocs separats.
 
-### Build no fiable (pull_request)
+### Un sol workflow, disparat sota demanda
 
-- `tools/preview/build-artifact.mjs` adapta el contracte de la T5.2: compila
-  la web amb l'origen exacte de la preview
-  (`https://pr-<n>.preview.mountainrunners.cat`, derivat i validat a partir de
-  `PR_NUMBER`) i registra un manifest que vincula commit (head SHA de la PR),
-  número de PR, origen, `BUILD_TODAY`, workflow i la llista de fitxers amb
-  mida i SHA-256.
-- El workflow `Preview build` (`.github/workflows/preview-build.yml`)
-  s'activa a cada `pull_request` (oberta, actualitzada o reoberta), fa
-  checkout del head SHA de la PR, executa `pnpm validate` complet en el
-  context no fiable i puja només l'artefacte intermedi
-  (`mountain-runners-preview`, retenció de 7 dies).
-- El job no rep cap secret, no usa cap cache compartida amb jobs de confiança
-  i no té cap permís d'escriptura. Els forks compilen sota les mateixes
-  condicions; el seu artefacte mai no es publica.
+Res no es construeix ni es publica perquè s'obri o s'actualitzi una PR. El
+workflow `Preview` (`.github/workflows/preview.yml`) s'activa només amb un
+**comentari a la PR amb el text exacte `/preview`** d'una persona
+col·laboradora (verificat via API — aquesta és l'autorització explícita per
+SHA), o amb un `workflow_dispatch` amb el número de PR. L'entorn GitHub
+`previews` només separa els secrets `PREVIEW_*` de producció; no té required
+reviewers. El risc residual acceptat i escrit: qualsevol col·laboradora pot
+sol·licitar la publicació d'una PR pròpia; el sistema rebutja forks, PRs
+tancades i caps mouments. El flux té tres jobs amb fronteres explícites:
 
-### Publicador de confiança (T6.3)
+1. **`authorize`** (codi de confiança des de la branca per defecte):
+   `tools/preview/resolve-publish.mjs` comprova el comentari i l'autor,
+   resol el número de PR i el head SHA vigent i rebutja aviat una PR tancada
+   o un fork. Un comentari qualsevol produeix un run verd que no fa res.
+2. **`build`** (no fiable): `tools/preview/build-artifact.mjs` compila la web
+   amb l'origen exacte de la preview
+   (`https://pr-<n>.preview.mountainrunners.cat`, derivat i validat a partir
+   del número de PR) i registra un manifest que vincula commit (head SHA),
+   número de PR, origen, `BUILD_TODAY`, workflow i fitxers amb mida i
+   SHA-256; fa checkout del head SHA, executa `pnpm validate` complet i puja
+   l'artefacte intermedi (`mountain-runners-preview`, retenció de 7 dies).
+   El job no rep cap secret, no usa cap cache compartida amb jobs de
+   confiança i no té cap permís d'escriptura.
+3. **`publish`** (de confiança, `needs: [authorize, build]`): descarrega
+   l'artefacte del mateix run, valida manifest, mida, nombre de fitxers,
+   digests i paths amb els mateixos validadors de producció, comprova la
+   coherència manifest↔PR (commit, origen, número), transfereix amb
+   `receive`, instal·la, revalida que la PR continua oberta i al mateix head
+   SHA immediatament abans d'activar, activa el namespace de la PR i en
+   comprova la salut. Mai no fa checkout ni executa codi de la PR.
 
-- El workflow `Preview publish` s'executa només des de `main` amb codi de
-  confiança. Es dispara de dues maneres, totes dues sense cap aprovació
-  manual de l'entorn: un **comentari a la PR amb el text exacte `/preview`**
-  d'una persona col·laboradora (verificat via API — aquesta és l'autorització
-  explícita per SHA), o un `workflow_dispatch` amb `pull_number` i
-  `build_run_id`. L'entorn GitHub `previews` només separa els secrets
-  `PREVIEW_*` de producció; no té required reviewers. El risc residual
-  acceptat: qualsevol col·laboradora pot sol·licitar la publicació d'una PR
-  pròpia; el publicador rebutja forks, PRs tancades i caps mouments.
-- `tools/preview/verify-source-run.mjs` valida el run d'origen contra
-  metadades de plataforma de confiança: repositori, workflow
-  (`.github/workflows/preview-build.yml`), esdeveniment `pull_request`,
-  conclusió `success`, head del mateix repositori (els forks es rebutgen) i
-  vinculació run↔PR. Res no ve de l'artefacte. Amb el comentari, el darrer
-  run correcte de la PR es resol automàticament
-  (`tools/preview/resolve-comment.mjs`), sense haver de buscar cap run id.
-- `tools/preview/publish.mjs` descarrega l'artefacte d'aquell run, valida
-  manifest, mida, nombre de fitxers, digests i paths amb els mateixos
-  validadors de producció, comprova que el manifest (commit, origen i número
-  de PR) coincideix amb l'estat de la PR, transfereix amb `receive`,
-  instal·la, revalida que la PR continua oberta i al mateix head SHA
-  immediatament abans d'activar, activa el namespace de la PR i en comprova
-  la salut.
+### Frontera del servidor
+
 - L'escriptura al servidor passa per la identitat `preview-deploy` (gate
   forçat `preview-ssh-gate`), que només pot operar dins del seu propi
   namespace `/var/lib/mountain-runners-previews/namespaces/pr-<n>/`; producció

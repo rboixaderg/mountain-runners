@@ -4,13 +4,13 @@
 // Runs from `main` on a GitHub-hosted runner behind the `previews`
 // environment with the preview deployment secrets. It never prints
 // credentials, never rebuilds the site and never touches production: the
-// source run and the pull request are verified against trusted platform
-// metadata inside publishPreview, and the artifact is validated before
-// anything is written to the namespace assigned to the pull request.
+// pull request state is verified against trusted platform metadata inside
+// publishPreview, and the artifact built in the same workflow run is
+// validated before anything is written to the namespace assigned to the
+// pull request.
 //
 // Required environment:
 //   PREVIEW_PULL_NUMBER   pull request number to publish
-//   PREVIEW_BUILD_RUN_ID  workflow run id that built the preview artifact
 //   PREVIEW_HOST          preview VPS host
 //   PREVIEW_DEPLOY_USER   optional; must be the preview-deploy identity
 //   PREVIEW_SSH_PRIVATE_KEY, PREVIEW_KNOWN_HOSTS  preview identity secrets
@@ -18,7 +18,6 @@
 import {
   publishPreview,
   resolvePullRequestState,
-  resolveSourceRun,
 } from "./publish-operations.mjs";
 import { createSshTransport } from "../deploy/ssh.mjs";
 
@@ -35,19 +34,10 @@ async function main() {
   const apiUrl = process.env.GITHUB_API_URL;
   const token = process.env.GITHUB_TOKEN;
   const pullNumber = Number(requireEnvironment("PREVIEW_PULL_NUMBER"));
-  const runId = Number(requireEnvironment("PREVIEW_BUILD_RUN_ID"));
 
   const message = await publishPreview({
     artifactDirectory: process.env.ARTIFACT_DIRECTORY ?? "artifacts/preview",
     pullNumber,
-    resolveSourceRun: () =>
-      resolveSourceRun({
-        repository,
-        apiUrl,
-        token,
-        runId,
-        pullNumber,
-      }),
     resolvePullRequestState: () =>
       resolvePullRequestState({
         repository,

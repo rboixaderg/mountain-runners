@@ -761,18 +761,21 @@ l'estat ACME.
 
 ### Publicar una preview
 
-1. La PR oberta compila el seu artefacte intermedi al workflow
-   `Preview build` (sense secrets ni caches; `pnpm validate` inclòs).
-2. La persona mantenidora publica la preview amb un **comentari a la PR amb
+Res no es construeix ni es publica perquè s'obri o s'actualitzi una PR: el
+workflow `Preview` només corre sota demanda.
+
+1. La persona mantenidora publica la preview amb un **comentari a la PR amb
    el text exacte `/preview`** (per exemple, via
-   `gh pr comment <n> --body "/preview"`, també des d'un agent). El
-   publicador de confiança (codi fixat a `main`) verifica que l'autor del
-   comentari és col·laborador del repositori — aquesta verificació és
-   l'autorització explícita per SHA — resol el darrer run de build correcte
-   de la PR i publica. També hi ha via manual: `Preview publish`
-   (workflow_dispatch amb `pull_number` i `build_run_id`).
-3. El publicador valida el run (repositori, workflow, esdeveniment, PR,
-   conclusió), l'artefacte (manifest, mida, fitxers, digests, paths) i
+   `gh pr comment <n> --body "/preview"`, també des d'un agent). També hi ha
+   via manual: `Preview` (workflow_dispatch amb el número de PR).
+2. El job `authorize` (codi de confiança des de la branca per defecte)
+   verifica que l'autor del comentari és col·laborador del repositori —
+   aquesta verificació és l'autorització explícita per SHA — i resol el
+   número de PR i el head SHA vigent.
+3. El job `build` (no fiable, sense secrets ni caches) fa checkout del head
+   SHA, executa `pnpm validate` complet i compila l'artefacte amb l'origen
+   `pr-<n>.preview.mountainrunners.cat`; el job `publish` valida manifest,
+   mida, fitxers, digests i paths amb els validadors de producció i
    revalida que la PR continua oberta i al mateix head SHA just abans
    d'activar el namespace.
 4. Verificació posterior a l'activació:
