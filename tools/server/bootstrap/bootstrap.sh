@@ -18,6 +18,7 @@
 # Usage (as root or with sudo):
 #   VALIDATION_HOST=validate.example.cat \
 #   DEPLOY_PUBLIC_KEY="ssh-ed25519 AAAA... deploy@ci" \
+#   PREVIEW_PUBLIC_KEY="ssh-ed25519 AAAA... preview@ci" \
 #   ./bootstrap.sh
 #
 # Environment:
@@ -27,6 +28,8 @@
 #                     mountainrunners.cat)
 #   DEPLOY_PUBLIC_KEY optional; public key installed for the deploy identity,
 #                     forced to the release gate (no shell, no PTY)
+#   PREVIEW_PUBLIC_KEY optional; public key installed for the preview
+#                     identity, forced to the preview gate (no shell, no PTY)
 set -euo pipefail
 
 readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -34,6 +37,7 @@ readonly TOOL_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 readonly RELEASE_LIB="/usr/local/lib/mountain-runners"
 readonly RELEASE_ROOT="/var/lib/mountain-runners"
 readonly LOG_ROOT="/var/log/mountain-runners"
+readonly PREVIEW_ROOT="/var/lib/mountain-runners-previews"
 
 readonly CADDY_VERSION="v2.11.4"
 # Official SHA-512 pins from caddy_2.11.4_checksums.txt (Caddy does not
@@ -49,6 +53,7 @@ fail() { printf '[bootstrap] ERROR: %s\n' "$*" >&2; exit 1; }
 : "${VALIDATION_HOST:?VALIDATION_HOST is required (the validation subdomain).}"
 readonly PRODUCTION_DOMAIN="${PRODUCTION_DOMAIN:-mountainrunners.cat}"
 readonly DEPLOY_PUBLIC_KEY="${DEPLOY_PUBLIC_KEY:-}"
+readonly PREVIEW_PUBLIC_KEY="${PREVIEW_PUBLIC_KEY:-}"
 
 [[ -d "${TOOL_ROOT}/release" ]] || fail "run from the repository checkout (tools/server not found at ${TOOL_ROOT})."
 
@@ -230,8 +235,75 @@ if [[ -d "${RELEASE_ROOT}/.ssh" ]]; then
   fi
 fi
 
-# --- sshd hardening (key-only authentication) --------------------------------
+# --- preview identity and namespaces (T6.3) ----------------------------------
+#
+# The preview identity owns one namespace per pull request under PREVIEW_ROOT
+# and executes the preview operations directly: no root daemon and no access
+# to the production release root, the Caddy configuration, the TLS keys or
+# the ACME state. The data root itself stays root-owned so the identity
+# cannot rewrite its own authorized_keys; it only writes inside namespaces/.
 
+if ! getent group preview-deploy >/dev/null; then
+  groupadd --system preview-deploy
+  log "Created group preview-deploy."
+fi
+
+if ! id preview-deploy >/dev/null 2>&1; then
+  useradd --system --gid preview-deploy --home-dir "${PREVIEW_ROOT}" \
+    --shell "${RELEASE_LIB}/preview-shell" preview-deploy
+  log "Created system user preview-deploy (gate-only shell)."
+fi
+usermod -p '*' preview-deploy
+
+mkdir -p "${PREVIEW_ROOT}/namespaces"
+chown root:root "${PREVIEW_ROOT}"
+chmod 755 "${PREVIEW_ROOT}"
+chown preview-deploy:preview-deploy "${PREVIEW_ROOT}/namespaces"
+chmod 755 "${PREVIEW_ROOT}/namespaces"
+
+log "Installing the preview tooling to ${RELEASE_LIB}/preview."
+mkdir -p "${RELEASE_LIB}/preview"
+install -m 0644 -o root -g root \
+  "${TOOL_ROOT}/preview/config.mjs" \
+  "${TOOL_ROOT}/preview/gate.mjs" \
+  "${RELEASE_LIB}/preview/"
+chmod 0755 "${RELEASE_LIB}/preview/gate.mjs"
+ln -sf "${RELEASE_LIB}/preview/gate.mjs" /usr/local/bin/mountain-preview
+ln -sf "${RELEASE_LIB}/preview/gate.mjs" /usr/local/bin/preview-ssh-gate
+
+cat > "${RELEASE_LIB}/preview-shell" <<'EOF'
+#!/bin/sh
+# Mountain Runners preview shell: only the preview gate may run.
+exec /usr/local/bin/preview-ssh-gate
+EOF
+chown root:root "${RELEASE_LIB}/preview-shell"
+chmod 0755 "${RELEASE_LIB}/preview-shell"
+if ! grep -Fx "${RELEASE_LIB}/preview-shell" /etc/shells >/dev/null 2>&1; then
+  echo "${RELEASE_LIB}/preview-shell" >> /etc/shells
+fi
+
+if [[ -n "${PREVIEW_PUBLIC_KEY}" ]]; then
+  if [[ "${PREVIEW_PUBLIC_KEY}" == *$'\n'* ]]; then
+    fail "PREVIEW_PUBLIC_KEY does not look like a single public key line."
+  fi
+  case "${PREVIEW_PUBLIC_KEY}" in
+    ssh-ed25519\ * | ssh-rsa\ * | ecdsa-sha2-nistp256\ * | sk-ssh-ed25519\ *) ;;
+    *) fail "PREVIEW_PUBLIC_KEY does not look like a single public key line." ;;
+  esac
+  log "Installing the preview identity key (forced command, no shell)."
+  mkdir -p "${PREVIEW_ROOT}/.ssh"
+  printf 'restrict,no-pty,no-port-forwarding,no-agent-forwarding,no-X11-forwarding,command="/usr/local/bin/preview-ssh-gate" %s\n' \
+    "${PREVIEW_PUBLIC_KEY}" > "${PREVIEW_ROOT}/.ssh/authorized_keys"
+fi
+if [[ -d "${PREVIEW_ROOT}/.ssh" ]]; then
+  chown -R root:root "${PREVIEW_ROOT}/.ssh"
+  chmod 755 "${PREVIEW_ROOT}/.ssh"
+  if [[ -f "${PREVIEW_ROOT}/.ssh/authorized_keys" ]]; then
+    chmod 644 "${PREVIEW_ROOT}/.ssh/authorized_keys"
+  fi
+fi
+
+# --- sshd hardening (key-only authentication) --------------------------------
 log "Hardening sshd: key-only authentication."
 mkdir -p /etc/ssh/sshd_config.d
 cat > /etc/ssh/sshd_config.d/99-mountain-runners.conf <<'EOF'
@@ -284,8 +356,14 @@ Next steps (all require maintainer approval; see docs/runbook.md):
    Uncomment `import Caddyfile.production` in /etc/caddy/Caddyfile, run
    `caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile`,
    and restart Caddy *before* moving apex/www DNS to this VPS.
+5. Create the GitHub `previews` environment (T6.3) to scope the PREVIEW_*
+   secrets away from production (no required reviewers: authorization
+   happens via the verified `/preview` comment), and hand the wildcard record
+   `*.preview.mountainrunners.cat` to the preview Caddy blocks (T6.4).
 
 Deploy identity: ${RELEASE_ROOT}/.ssh/authorized_keys (${DEPLOY_PUBLIC_KEY:+installed}${DEPLOY_PUBLIC_KEY:-not installed})
+Preview identity: ${PREVIEW_ROOT}/.ssh/authorized_keys (${PREVIEW_PUBLIC_KEY:+installed}${PREVIEW_PUBLIC_KEY:-not installed})
+Preview namespaces: ${PREVIEW_ROOT}/namespaces (pr-<n>/ per pull request)
 Release daemon:   systemctl status mountain-release (socket /run/mountain-release.sock)
 Logs: ${LOG_ROOT} (root only via sudo)
 Release registry: ${RELEASE_ROOT}/releases.json (permanent, root only)

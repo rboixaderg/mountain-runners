@@ -1,0 +1,135 @@
+name: Preview
+
+# Untrusted build + trusted publication of pull request previews (T6.3),
+# triggered on demand: a `/preview` comment on the pull request from a
+# repository collaborator (verified via the API — the explicit maintainer
+# authorization), or a manual workflow_dispatch with the pull number.
+# Nothing is built or published automatically on pull request events.
+#
+# The authorize job runs trusted code from the default branch; the build job
+# checks out the pull request head and receives no secrets, no caches and no
+# write permissions; the publish job runs code from `main` behind the
+# `previews` environment (which only scopes the PREVIEW_* secrets away from
+# production) and never checks out the pull request.
+
+on:
+  workflow_dispatch:
+    inputs:
+      pull_number:
+        description: Pull request number to publish
+        required: true
+        type: string
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: read
+  actions: read
+  pull-requests: read
+
+jobs:
+  authorize:
+    name: Authorize the publish request
+    if: github.ref == 'refs/heads/main' && github.event.repository.fork == false
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      should_publish: ${{ steps.resolve.outputs.should_publish }}
+      pull_number: ${{ steps.resolve.outputs.pull_number }}
+      head_sha: ${{ steps.resolve.outputs.head_sha }}
+    steps:
+      - name: Check out main (trusted publisher code)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      - name: Resolve the publish request
+        id: resolve
+        env:
+          PREVIEW_PULL_NUMBER: ${{ inputs.pull_number }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GITHUB_API_URL: ${{ github.api_url }}
+        run: node tools/preview/resolve-publish.mjs
+
+  build:
+    name: Build preview artifact
+    needs: authorize
+    if: needs.authorize.outputs.should_publish == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      PR_NUMBER: ${{ needs.authorize.outputs.pull_number }}
+      GITHUB_SHA: ${{ needs.authorize.outputs.head_sha }}
+      PUBLIC_SITE_ORIGIN: https://pr-${{ needs.authorize.outputs.pull_number }}.preview.mountainrunners.cat
+    steps:
+      - name: Check out pull request head
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # The manifest binds the artifact to the PR head SHA: the content
+          # built must be exactly that commit, not the merge ref that a
+          # pull_request checkout uses by default.
+          ref: ${{ needs.authorize.outputs.head_sha }}
+          persist-credentials: false
+      - name: Install pnpm
+        uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+        with:
+          version: 10.33.0
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .node-version
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Install Playwright browsers
+        run: pnpm exec playwright install --with-deps chromium firefox webkit
+      - name: Resolve editorial date (Europe/Madrid)
+        run: echo "BUILD_TODAY=$(TZ=Europe/Madrid date +%F)" >> "$GITHUB_ENV"
+      - name: Run the full quality gate in the untrusted context
+        run: pnpm validate
+      - name: Build and verify the preview artifact
+        run: node tools/preview/build-artifact.mjs
+      - name: Upload preview artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: mountain-runners-preview
+          path: artifacts/preview/
+          retention-days: 7
+          if-no-files-found: error
+
+  publish:
+    name: Publish preview
+    needs: [authorize, build]
+    if: needs.authorize.outputs.should_publish == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment:
+      name: previews
+    concurrency:
+      group: previews
+      cancel-in-progress: false
+    steps:
+      - name: Check out main (trusted publisher code)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      - name: Download the preview artifact
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          name: mountain-runners-preview
+          path: artifacts/preview/
+      - name: Publish the verified preview
+        env:
+          PREVIEW_PULL_NUMBER: ${{ needs.authorize.outputs.pull_number }}
+          ARTIFACT_DIRECTORY: artifacts/preview
+          PREVIEW_HOST: ${{ vars.PREVIEW_HOST }}
+          PREVIEW_DEPLOY_USER: ${{ vars.PREVIEW_DEPLOY_USER }}
+          PREVIEW_SSH_PRIVATE_KEY: ${{ secrets.PREVIEW_SSH_PRIVATE_KEY }}
+          PREVIEW_KNOWN_HOSTS: ${{ secrets.PREVIEW_KNOWN_HOSTS }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GITHUB_API_URL: ${{ github.api_url }}
+        run: node tools/preview/publish.mjs

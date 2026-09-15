@@ -8,54 +8,22 @@
 // Required environment:
 //   PUBLIC_SITE_ORIGIN  production origin (https://mountainrunners.cat)
 //   BUILD_TODAY         editorial date, fixed for both builds
-import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { lstat, readdir, readFile, rm } from "node:fs/promises";
-import { join, relative, resolve } from "node:path";
+import { readFile, rm } from "node:fs/promises";
+import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import {
+  listRegularFiles,
+  requireEditorialDate,
+  requireEnvironment,
+  runBuild,
+} from "./packaging.mjs";
 
 const rootDirectory = fileURLToPath(new URL("../..", import.meta.url));
 const distDirectory = resolve(rootDirectory, "apps/web/dist");
 
-function requireEnvironment(name) {
-  const value = process.env[name];
-  if (value === undefined || value === "") {
-    throw new Error(`${name} is required to verify reproducibility.`);
-  }
-  return value;
-}
-
-requireEnvironment("PUBLIC_SITE_ORIGIN");
-requireEnvironment("BUILD_TODAY");
-
-function runBuild() {
-  const result = spawnSync("pnpm", ["build"], {
-    cwd: rootDirectory,
-    stdio: "inherit",
-  });
-  if (result.status !== 0) {
-    throw new Error(`Build failed with status ${result.status}.`);
-  }
-}
-
-async function listRegularFiles(directory, root) {
-  const files = [];
-  const entries = await readdir(directory, { withFileTypes: true });
-  for (const entry of entries) {
-    const absolutePath = join(directory, entry.name);
-    const stats = await lstat(absolutePath);
-    if (stats.isDirectory()) {
-      files.push(...(await listRegularFiles(absolutePath, root)));
-    } else if (stats.isFile()) {
-      files.push({ relativePath: relative(root, absolutePath), absolutePath });
-    } else {
-      throw new Error(
-        `Output entry is not a regular file: ${relative(root, absolutePath)}`,
-      );
-    }
-  }
-  return files;
-}
+requireEnvironment("PUBLIC_SITE_ORIGIN", "verify reproducibility.");
+requireEditorialDate("verify reproducibility.");
 
 async function snapshotOutput() {
   const files = await listRegularFiles(distDirectory, distDirectory);
