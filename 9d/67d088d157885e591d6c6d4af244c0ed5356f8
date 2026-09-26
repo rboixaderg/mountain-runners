@@ -1,0 +1,16 @@
+docs/runbook.md
+  h_1727aeeb492b30 271-272,279-283
+docs/specs/phase-6-pull-request-previews.md
+  h_1727aeeb492b30 87
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "9d67d088d157885e591d6c6d4af244c0ed5356f8",
+  "prompts": {},
+  "humans": {
+    "h_1727aeeb492b30": {
+      "author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
