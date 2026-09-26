@@ -3,6 +3,7 @@ import * as messages from "../../paraglide/messages.js";
 import type { School } from "../../lib/content/models";
 import type { Locale } from "../../lib/content/primitives";
 import { formatCalendarDate } from "../../lib/presentation/dates";
+import { analyticsActions, analyticsAreas } from "../../lib/analytics/catalog";
 import ExternalLink from "../ExternalLink.astro";
 
 interface Props {
@@ -46,6 +47,9 @@ const showPressVideo =
             className="text-red mt-4 inline-flex max-w-full items-center gap-1.5 text-xs leading-normal font-bold tracking-display uppercase"
             href={pressVideo.url}
             label={messages.school_press_video_action({}, { locale })}
+            analyticsArea={analyticsAreas.schoolPress}
+            analyticsAction={analyticsActions.schoolPress}
+            analyticsTarget={school.id}
           />
         </article>
       </div>

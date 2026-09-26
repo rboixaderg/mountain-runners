@@ -190,11 +190,24 @@ test("matrix state: trail school links the InfoK report", async ({ page }) => {
     name: /Passió pel trail a l'escola Mountain Runners del Berguedà/i,
   });
   await expect(pressRegion.getByText("InfoK, 3Cat")).toBeVisible();
-  await expect(
-    pressRegion.getByRole("link", { name: /Mira el reportatge/ }),
-  ).toHaveAttribute(
+  const reportLink = pressRegion.getByRole("link", {
+    name: /Mira el reportatge/,
+  });
+  await expect(reportLink).toHaveAttribute(
     "href",
     "https://www.3cat.cat/3cat/passio-pel-trail-a-lescola-mountain-runners-del-bergueda/video/6425700/",
+  );
+  await expect(reportLink).toHaveAttribute(
+    "data-analytics-action",
+    "school_press",
+  );
+  await expect(reportLink).toHaveAttribute(
+    "data-analytics-area",
+    "school_press",
+  );
+  await expect(reportLink).toHaveAttribute(
+    "data-analytics-target",
+    "trail-school",
   );
   await expect(
     page.getByRole("region", { name: "Vídeo" }).getByText("InfoK, 3Cat"),
