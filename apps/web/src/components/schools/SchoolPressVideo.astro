@@ -1,0 +1,58 @@
+---
+import * as messages from "../../paraglide/messages.js";
+import type { School } from "../../lib/content/models";
+import type { Locale } from "../../lib/content/primitives";
+import { formatCalendarDate } from "../../lib/presentation/dates";
+import { analyticsActions, analyticsAreas } from "../../lib/analytics/catalog";
+import ExternalLink from "../ExternalLink.astro";
+
+interface Props {
+  locale: Locale;
+  school: School;
+}
+
+const { locale, school } = Astro.props;
+const pressVideo = school.pressVideo;
+const pressSource = pressVideo?.source[locale];
+const pressTitle = pressVideo?.title[locale];
+const showPressVideo =
+  pressVideo !== undefined &&
+  pressSource !== undefined &&
+  pressTitle !== undefined;
+---
+
+{
+  showPressVideo && pressVideo && (
+    <section
+      class="border-ink py-section border-t-2 bg-white"
+      aria-labelledby="school-press-video-title"
+    >
+      <div class="page-frame">
+        <article class="border-ink p-card border-2">
+          <p class="text-meta text-red tracking-label m-0 font-bold uppercase">
+            {pressSource}
+          </p>
+          <h2
+            class="font-display text-section-copy mt-3 mb-0 leading-tight uppercase"
+            id="school-press-video-title"
+          >
+            {pressTitle}
+          </h2>
+          <p class="text-muted mt-2 mb-0 text-sm leading-normal">
+            <time datetime={pressVideo.publishedOn}>
+              {formatCalendarDate(pressVideo.publishedOn, locale)}
+            </time>
+          </p>
+          <ExternalLink
+            className="text-red mt-4 inline-flex max-w-full items-center gap-1.5 text-xs leading-normal font-bold tracking-display uppercase"
+            href={pressVideo.url}
+            label={messages.school_press_video_action({}, { locale })}
+            analyticsArea={analyticsAreas.schoolPress}
+            analyticsAction={analyticsActions.schoolPress}
+            analyticsTarget={school.id}
+          />
+        </article>
+      </div>
+    </section>
+  )
+}

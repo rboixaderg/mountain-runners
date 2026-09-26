@@ -13,6 +13,7 @@ import {
   instagramProfileUrlSchema,
   phoneNumberSchema,
   stravaClubUrlSchema,
+  threeCatVideoUrlSchema,
   youtubeVideoUrlSchema,
 } from "./urls";
 
@@ -91,6 +92,16 @@ export const schoolSchema = z.strictObject({
   coverCard: imageResourceSchema.optional(),
   gallery: z.array(imageSchema).max(20),
   promotionalVideoUrl: youtubeVideoUrlSchema.optional(),
+  // One press appearance. Omitted locales hide the card; they do not unpublish
+  // the school. The URL stays a 3Cat watch page, never an embed.
+  pressVideo: z
+    .strictObject({
+      source: localizedTextSchema,
+      title: localizedTextSchema,
+      publishedOn: dateSchema,
+      url: threeCatVideoUrlSchema,
+    })
+    .optional(),
   registrationStatus: registrationStatusSchema,
   registrationUrl: localizedHttpsUrlSchema.optional(),
   sections: z.strictObject({

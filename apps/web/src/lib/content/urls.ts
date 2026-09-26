@@ -109,6 +109,25 @@ export const stravaClubUrlSchema = httpsUrlSchema.refine(
   { error: "Expected a Strava club URL" },
 );
 
+export const threeCatVideoUrlSchema = httpsUrlSchema.refine(
+  (value) => {
+    const url = new URL(value);
+    const pathSegments = url.pathname.split("/").filter(Boolean);
+
+    return (
+      url.hostname === "www.3cat.cat" &&
+      pathSegments.length === 4 &&
+      pathSegments[0] === "3cat" &&
+      /^[a-z0-9]+(?:-[a-z0-9]+)*$/u.test(pathSegments[1] ?? "") &&
+      pathSegments[2] === "video" &&
+      /^\d+$/u.test(pathSegments[3] ?? "") &&
+      url.search.length === 0 &&
+      url.hash.length === 0
+    );
+  },
+  { error: "Expected a 3Cat video URL" },
+);
+
 export const youtubeVideoUrlSchema = httpsUrlSchema.refine(
   (value) => {
     const url = new URL(value);

@@ -5,6 +5,7 @@ import SchoolGallery from "./SchoolGallery.astro";
 import SchoolPreviewAbout from "./SchoolPreviewAbout.astro";
 import SchoolPreviewHero from "./SchoolPreviewHero.astro";
 import SchoolPreviewPracticalInfo from "./SchoolPreviewPracticalInfo.astro";
+import SchoolPressVideo from "./SchoolPressVideo.astro";
 import SchoolRegistration from "./SchoolRegistration.astro";
 import SchoolVideo from "./SchoolVideo.astro";
 import "../../styles/school-detail.css";
@@ -22,6 +23,7 @@ const school = variant.entry;
 <div class="pb-0">
   <SchoolPreviewHero locale={locale} school={school} />
   <SchoolPreviewAbout locale={locale} school={school} />
+  <SchoolPressVideo locale={locale} school={school} />
   <SchoolPreviewPracticalInfo locale={locale} school={school} />
   <div>
     <SchoolRegistration locale={locale} school={school} />

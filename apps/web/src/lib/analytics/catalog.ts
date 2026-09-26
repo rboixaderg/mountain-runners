@@ -22,6 +22,7 @@ export const analyticsAreas = {
   prefooterContact: "prefooter_contact",
   prefooterNewsletter: "prefooter_newsletter",
   prefooterSponsors: "prefooter_sponsors",
+  schoolPress: "school_press",
   schoolRegistration: "school_registration",
   schoolsHub: "schools_hub",
 } as const;
@@ -43,6 +44,7 @@ export const analyticsActions = {
   memberSignup: "member_signup",
   navigate: "navigate",
   newsletterSubscribe: "newsletter_subscribe",
+  schoolPress: "school_press",
   schoolRegistration: "school_registration",
   socialLink: "social_link",
   collaboratorWebsite: "collaborator_website",

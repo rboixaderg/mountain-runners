@@ -34,8 +34,9 @@
 Les col·leccions de contingut registrades són:
 
 - `schools`: programes amb informació pràctica, recursos, cobertes de fitxa i de
-  targeta, galeries, vídeo, requisits opcionals, estat d'inscripció i un ordre
-  editorial explícit (`hubOrder`) per al hub.
+  targeta, galeries, vídeo promocional de YouTube, una aparició de premsa
+  opcional (`pressVideo`, URL de visionat de 3Cat), requisits opcionals, estat
+  d'inscripció i un ordre editorial explícit (`hubOrder`) per al hub.
 - `events`: esdeveniments amb resum, entitats relacionades, recursos i edicions
   embegudes.
 - `entities`: organitzacions reutilitzables — organitzadores, col·laboradores,
@@ -163,6 +164,11 @@ primitiva general d'imatges accepti una URL HTTPS externa per a altres models, l
 publicació d'una escola exclou cobertes o fotografies externes per evitar
 hotlinking i garantir que el detall conserva dimensions, procedència i control
 editorial del recurs.
+
+`pressVideo` és una aparició de premsa opcional, separada del vídeo promocional
+de YouTube. Desa la font, el títol, la data i la URL de la pàgina de visionat de
+3Cat. Si en un idioma falta el títol o la font, la targeta s'omet en aquella
+variant i l'escola es continua publicant.
 
 El codi centralitza els dominis editorials localitzats: escoles són
 `/{locale}/escoles/{slug}/`, `/{locale}/escuelas/{slug}/` o
