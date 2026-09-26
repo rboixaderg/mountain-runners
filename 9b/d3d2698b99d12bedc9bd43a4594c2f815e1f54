@@ -1,0 +1,23 @@
+apps/web/e2e/route-matrix.spec.ts
+  s_9f08e1c13cfe04::t_c664eadc7457c6 193-196,200-211
+apps/web/src/components/schools/SchoolPressVideo.astro
+  s_9f08e1c13cfe04::t_0ca5c0c0677768 6,50-52
+apps/web/src/lib/analytics/catalog.ts
+  s_9f08e1c13cfe04::t_6f66c33bae0f84 25,47
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "9bd3d2698b99d12bedc9bd43a4594c2f815e1f54",
+  "prompts": {},
+  "sessions": {
+    "s_9f08e1c13cfe04": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "f0dc29cd-e7ac-4b69-b77f-d155af41e10d",
+        "model": "unknown"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
