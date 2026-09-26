@@ -1,0 +1,43 @@
+apps/web/e2e/route-matrix.spec.ts
+  s_53a88b75e57a50::t_c5adba309645d6 187-219
+apps/web/messages/ca.json
+  s_53a88b75e57a50::t_7fb23782a78230 220
+apps/web/messages/en.json
+  s_53a88b75e57a50::t_3a6dead2607d98 220
+apps/web/messages/es.json
+  s_53a88b75e57a50::t_2cc8a88242a579 220
+apps/web/src/components/schools/SchoolDetail.astro
+  s_53a88b75e57a50::t_4dfaaa163f445f 8,26
+apps/web/src/components/schools/SchoolPressVideo.astro
+  s_53a88b75e57a50::t_d6b831d2c400c3 1-54
+apps/web/src/content/schools/trail-school.yaml
+  s_53a88b75e57a50::t_e425b921df6298 129-139
+apps/web/src/lib/content/models.ts
+  s_53a88b75e57a50::t_e3e988c6decee8 16,95-104
+apps/web/src/lib/content/urls.ts
+  s_53a88b75e57a50::t_2e85b2c344c171 112-130
+apps/web/src/styles/site-header.css
+  s_53a88b75e57a50::t_c8b5fe56dbf86b 45-55
+apps/web/src/test/content-models.test.ts
+  s_53a88b75e57a50::t_f48c7fc849be3d 247-278
+apps/web/src/test/content-publication.test.ts
+  s_53a88b75e57a50::t_bff9cbbe88891e 391-398
+docs/content-model.md
+  s_53a88b75e57a50::t_7a3d8750799d75 37-39,168-172
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "1af626f544e2064dd9ffcfb314b6540cc0828900",
+  "prompts": {},
+  "sessions": {
+    "s_53a88b75e57a50": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "1caa91cf-a437-4b34-bc9f-5ca66c287144",
+        "model": "unknown"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
