@@ -15,7 +15,10 @@
 //   PREVIEW_DEPLOY_USER   optional; must be the preview-deploy identity
 //   PREVIEW_SSH_PRIVATE_KEY, PREVIEW_KNOWN_HOSTS  preview identity secrets
 //   GITHUB_TOKEN, GITHUB_REPOSITORY, GITHUB_API_URL
+import { readFileSync } from "node:fs";
 import {
+  assertCommentAuthorized,
+  assertDispatchActorAuthorized,
   publishPreview,
   resolvePullRequestState,
 } from "./publish-operations.mjs";
@@ -29,11 +32,39 @@ function requireEnvironment(name) {
   return value;
 }
 
+function readEvent() {
+  return JSON.parse(
+    readFileSync(requireEnvironment("GITHUB_EVENT_PATH"), "utf8"),
+  );
+}
+
 async function main() {
   const repository = requireEnvironment("GITHUB_REPOSITORY");
   const apiUrl = process.env.GITHUB_API_URL;
   const token = process.env.GITHUB_TOKEN;
   const pullNumber = Number(requireEnvironment("PREVIEW_PULL_NUMBER"));
+  const revalidateCommentAuthorization =
+    process.env.GITHUB_EVENT_NAME === "issue_comment"
+      ? async () => {
+          const event = readEvent();
+          await assertCommentAuthorized({
+            repository,
+            apiUrl,
+            token,
+            commentAuthor: event.comment?.user?.login,
+          });
+        }
+      : undefined;
+  const revalidateDispatchAuthorization =
+    process.env.GITHUB_EVENT_NAME === "workflow_dispatch"
+      ? () =>
+          assertDispatchActorAuthorized({
+            repository,
+            apiUrl,
+            token,
+            actor: requireEnvironment("GITHUB_ACTOR"),
+          })
+      : undefined;
 
   const message = await publishPreview({
     artifactDirectory: process.env.ARTIFACT_DIRECTORY ?? "artifacts/preview",
@@ -45,6 +76,8 @@ async function main() {
         token,
         pullNumber,
       }),
+    revalidateCommentAuthorization,
+    revalidateDispatchAuthorization,
     transport: createSshTransport({
       host: requireEnvironment("PREVIEW_HOST"),
       user: process.env.PREVIEW_DEPLOY_USER || "preview-deploy",

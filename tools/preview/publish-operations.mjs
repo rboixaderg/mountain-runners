@@ -82,6 +82,42 @@ export async function assertCommentAuthorized({
   }
 }
 
+// A workflow_dispatch run is initially authorized by GitHub's write-access
+// requirement. Recheck that the dispatch actor still has write access before
+// activation; the collaborator endpoint's legacy permission maps maintain to
+// write, while read and none are insufficient.
+export async function assertDispatchActorAuthorized({
+  repository,
+  apiUrl,
+  token,
+  actor,
+  fetchImpl = fetch,
+}) {
+  if (repository === undefined || repository === "") {
+    throw new Error("GITHUB_REPOSITORY is required to reach the GitHub API.");
+  }
+  if (actor === undefined || actor === "") {
+    throw new Error(
+      "GITHUB_ACTOR is required to revalidate workflow dispatch authorization.",
+    );
+  }
+  const response = await fetchImpl(
+    `${apiBaseUrl(apiUrl)}/repos/${repository}/collaborators/${actor}/permission`,
+    { headers: apiHeaders(token) },
+  );
+  if (!response.ok) {
+    throw new Error(
+      `The workflow dispatch actor does not have current repository write permission (HTTP ${response.status}).`,
+    );
+  }
+  const { permission } = await response.json();
+  if (permission !== "write" && permission !== "admin") {
+    throw new Error(
+      "The workflow dispatch actor no longer has repository write permission.",
+    );
+  }
+}
+
 // Reads the pull request state from the platform: only an open pull request
 // from this repository (own branches) can be published; returns the head
 // SHA the artifact must match.
@@ -123,11 +159,12 @@ function assertPullRequestUnchanged(previous, current) {
 
 async function transferAndVerify(
   transport,
+  pullNumber,
   fileName,
   contents,
   expectedSha256,
 ) {
-  const received = await transport.receive(fileName, contents);
+  const received = await transport.receive(fileName, contents, pullNumber);
   if (received.sha256 !== expectedSha256) {
     throw new Error(
       `Digest mismatch after transferring ${fileName}: got ${received.sha256}, expected ${expectedSha256}.`,
@@ -135,10 +172,15 @@ async function transferAndVerify(
   }
 }
 
-async function installPreviewRelease(transport, archiveFileName, headSha) {
+async function installPreviewRelease(
+  transport,
+  pullNumber,
+  archiveFileName,
+  headSha,
+) {
   try {
     return await transport.run(
-      `mountain-preview install ${archiveFileName} manifest.json`,
+      `mountain-preview install ${pullNumber} ${archiveFileName} manifest.json`,
     );
   } catch (error) {
     if (
@@ -177,6 +219,8 @@ export async function publishPreview({
   artifactDirectory,
   pullNumber,
   resolvePullRequestState,
+  revalidateCommentAuthorization,
+  revalidateDispatchAuthorization,
   transport,
 }) {
   const pullRequest = await resolvePullRequestState();
@@ -188,12 +232,14 @@ export async function publishPreview({
 
   await transferAndVerify(
     transport,
+    pullNumber,
     artifact.archiveFileName,
     artifact.archiveBuffer,
     artifact.archiveSha256,
   );
   await transferAndVerify(
     transport,
+    pullNumber,
     "manifest.json",
     artifact.manifestBuffer,
     artifact.manifestSha256,
@@ -201,12 +247,15 @@ export async function publishPreview({
 
   await installPreviewRelease(
     transport,
+    pullNumber,
     artifact.archiveFileName,
     pullRequest.headSha,
   );
 
   const revalidated = await resolvePullRequestState();
   assertPullRequestUnchanged(pullRequest, revalidated);
+  await revalidateCommentAuthorization?.();
+  await revalidateDispatchAuthorization?.();
 
   await activatePreviewRelease(transport, pullNumber, pullRequest.headSha);
   const health = await transport.run(`mountain-preview health ${pullNumber}`);

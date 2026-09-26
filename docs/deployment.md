@@ -216,16 +216,26 @@ tancades i caps mouments. El flux té tres jobs amb fronteres explícites:
    digests i paths amb els mateixos validadors de producció, comprova la
    coherència manifest↔PR (commit, origen, número), transfereix amb
    `receive`, instal·la, revalida que la PR continua oberta i al mateix head
-   SHA immediatament abans d'activar, activa el namespace de la PR i en
-   comprova la salut. Mai no fa checkout ni executa codi de la PR.
+   SHA i que continua vigent l'autorització (col·laboradora per a `/preview` o
+   permís d'escriptura per a `workflow_dispatch`) immediatament abans d'activar;
+   activa el namespace de la PR i en comprova la salut. Mai no fa checkout ni
+   executa codi de la PR.
 
 ### Frontera del servidor
 
 - L'escriptura al servidor passa per la identitat `preview-deploy` (gate
   forçat `preview-ssh-gate`), que només pot operar dins del seu propi
   namespace `/var/lib/mountain-runners-previews/namespaces/pr-<n>/`; producció
-  (`/var/lib/mountain-runners`), Caddy, claus TLS i estat ACME queden fora
-  del seu abast. Cap secret de previews es comparteix amb producció.
+  (`/var/lib/mountain-runners`), Caddy, claus TLS i estat ACME no són
+  modificables per aquesta identitat. Un ACL POSIX anomenat denega a
+  `preview-deploy` la lectura i el recorregut de `/var/lib/mountain-runners`
+  sense canviar el mode `0755` que necessiten Caddy i `mountain-deploy`. No
+  s'ha donat accés al socket del daemon. Cap secret de previews es comparteix
+  amb producció.
+- El bootstrap instal·la el gate a `preview/` i crea el symlink
+  `release -> .`, que el resol contra les eines de release planes sense còpies
+  duplicades. En un VPS ja actiu, segueix el procediment preview-only del
+  [runbook](runbook.md); no tornis a executar el bootstrap complet.
 - La publicació és atòmica: l'install extrau en un directori nou i l'activació
   mou el symlink `current` del namespace de manera atòmica; un error conserva
   la versió anterior de la mateixa PR o no crea cap origen.

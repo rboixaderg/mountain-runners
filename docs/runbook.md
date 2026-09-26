@@ -153,7 +153,7 @@ sequenceDiagram
 ### Estructura
 
 ```text
-/var/lib/mountain-runners/         755  root:root
+/var/lib/mountain-runners/         755  root:root; ACL preview-deploy:---
 ├── releases/<commit>/             755  root:root (una release per commit)
 ├── incoming/                      2770 root:mountain-runners (uploads)
 ├── current                        symlink atòmic a la release activa (root)
@@ -169,13 +169,18 @@ sequenceDiagram
 └── .ssh/authorized_keys           644  root:root (clau preview-deploy)
 /var/log/mountain-runners/         700  caddy:caddy (accés només via sudo)
 /run/mountain-release.sock         660  root:mountain-runners (socket del daemon)
-/usr/local/lib/mountain-runners/        eines instal·lades pel bootstrap (release/ i preview/)
+/usr/local/lib/mountain-runners/        eines de release planes + preview/ i release -> .
 ```
 
-### Bootstrap (provisió inicial)
+### Bootstrap (només provisió inicial d'un VPS nou)
 
-Requereix aprovació prèvia i el registre DNS del host de validació apuntant al
-VPS. Executar com a `root` des del checkout del repositori:
+El bootstrap complet només s'executa en un VPS nou, amb aprovació prèvia i el
+registre DNS del host de validació apuntant al VPS. **No el tornis a executar
+contra el VPS actiu per instal·lar o actualitzar les previews**: reescriu
+`/etc/caddy/Caddyfile` i `Caddyfile.production`, reinicia els serveis de
+releases i Caddy, i pot tornar a deixar comentat l'import de la configuració de
+producció. Executar com a `root` des del checkout del repositori només durant
+la provisió inicial:
 
 ```sh
 VALIDATION_HOST=validate.mountainrunners.cat \
@@ -191,6 +196,96 @@ drop-in systemd perquè Caddy pugui escriure `/var/log/mountain-runners`, la
 configuració de Caddy validada, el servei del daemon de releases i les eines.
 Si no es passa cap clau pública, la identitat corresponent s'afegeix després
 manualment amb les mateixes opcions de forced command.
+
+### Instal·lació De T6.3 En Un VPS Ja Actiu (preview-only)
+
+La instal·lació s'ha de fer per una persona mantenidora, des d'un checkout
+revisat de la branca desplegada. No executis `bootstrap.sh` ni cap ordre de
+`tools/deploy/`. El gate reutilitza les eines de release planes mitjançant un
+symlink root-owned `release -> .`, sense duplicar mòduls. No substitueixis un
+directori o symlink `release` existent: atura't i revisa'l abans de migrar.
+
+```sh
+REPO=/path/to/reviewed/mountain_runners
+LIB=/usr/local/lib/mountain-runners
+
+sudo install -d -o root -g root -m 0755 "$LIB"
+if sudo test -L "$LIB/release"; then
+  test "$(sudo readlink "$LIB/release")" = . || {
+    echo "Unexpected release symlink; stop and inspect." >&2
+    exit 1
+  }
+elif sudo test -e "$LIB/release"; then
+  echo "Existing release path is not a symlink; stop and inspect." >&2
+  exit 1
+else
+  sudo ln -s . "$LIB/release"
+fi
+sudo chown -h root:root "$LIB/release"
+sudo install -d -o root -g root -m 0755 "$LIB/preview"
+sudo install -o root -g root -m 0644 \
+  "$REPO/tools/server/preview/gate.mjs" \
+  "$REPO/tools/server/preview/config.mjs" \
+  "$LIB/preview/"
+sudo chmod 0755 "$LIB/preview/gate.mjs"
+sudo ln -s "$LIB/preview/gate.mjs" /usr/local/bin/mountain-preview
+sudo ln -s "$LIB/preview/gate.mjs" /usr/local/bin/preview-ssh-gate
+```
+
+La identitat SSH, el shell forçat i els namespaces no es creen amb aquestes
+ordres. Provisiona'ls seguint com a referència només el bloc T6.3 de
+`tools/server/bootstrap/bootstrap.sh`; no executis el script. Si `preview-deploy`
+ja existeix, revisa'n grup, shell, estat de contrasenya i claus abans de
+modificar-ne res. No canviïs la contrasenya ni reemplaçis
+`/var/lib/mountain-runners-previews/.ssh/authorized_keys`; afegeix la clau
+revisada amb forced command després de revisar el fitxer existent. La identitat
+no ha de pertànyer a `mountain-runners` ni accedir a
+`/run/mountain-release.sock`. La configuració d'origen, TLS i Caddy continua
+fora de T6.3.
+
+### Bloqueig De Lectura De Les Releases De Producció
+
+El bootstrap instal·la `acl` i, després de crear `preview-deploy`, afegeix una
+ACL d'accés `u:preview-deploy:---` només a
+`/var/lib/mountain-runners`. El directori continua amb el mateix owner, grup i
+mode `0755`; Caddy i `mountain-deploy` continuen travessant-lo. L'entrada
+nominal d'usuari es comprova abans de les entrades de grup, per tant també
+denega accés si `preview-deploy` rep algun grup de producció per error. No
+afegeixis membres a `mountain-runners` ni toquis el socket del daemon.
+
+Per migrar un VPS existent, una persona mantenidora ha de revisar primer la
+sortida actual de `getfacl -p` i comprovar que el root és `root:root 0755`.
+Desa l'ACL original fora del repositori. Després que `preview-deploy` existeixi,
+executa només aquesta ACL, sense `-R` i sense canviar `chmod` o grups:
+
+```sh
+RELEASE_ROOT=/var/lib/mountain-runners
+sudo apt-get install acl
+sudo stat -c '%U:%G %a %n' "$RELEASE_ROOT"
+sudo getfacl -p "$RELEASE_ROOT"
+sudo getfacl -p "$RELEASE_ROOT" > "$HOME/mountain-runners-release.acl.before-preview"
+sudo -u caddy test -x "$RELEASE_ROOT"
+sudo -u mountain-deploy test -x "$RELEASE_ROOT"
+sudo setfacl -n -m u:preview-deploy:--- "$RELEASE_ROOT"
+sudo getfacl -p "$RELEASE_ROOT"
+sudo -u preview-deploy test ! -r "$RELEASE_ROOT"
+sudo -u preview-deploy test ! -x "$RELEASE_ROOT"
+sudo -u caddy test -r "$RELEASE_ROOT"
+sudo -u caddy test -x "$RELEASE_ROOT"
+sudo -u mountain-deploy test -r "$RELEASE_ROOT"
+sudo -u mountain-deploy test -x "$RELEASE_ROOT"
+```
+
+`-n` conserva una ACL mask existent. Sense una ACL estesa prèvia, la màscara
+creada és igual als permisos del grup existent (`r-x`), i la nova entrada
+`---` no els amplia. Compara `getfacl` abans i després: només ha d'aparèixer
+l'entrada de `preview-deploy` i, si no n'hi havia, la màscara equivalent a
+`group::`. Atura't i restaura el fitxer desat si canvia qualsevol altra entrada
+o fallen les comprovacions de Caddy o del desplegament:
+`sudo setfacl --restore="$HOME/mountain-runners-release.acl.before-preview"`.
+Després comprova `sudo mountain-release health` i el lloc públic.
+L'ACL no cobreix `/etc/caddy`, claus TLS o ACME; aquestes rutes mantenen els
+permisos existents.
 
 ### Verificació Del Host I Accés SSH
 
@@ -755,9 +850,13 @@ el build no fiable i el publicador de confiança.
 | Namespace per PR | `/var/lib/mountain-runners-previews/namespaces/pr-<n>/` — l'única ruta que la identitat pot escriure              |
 
 La identitat de previews executa les operacions directament com a
-`preview-deploy` (el namespace és seu): no hi ha daemon ni socket, i cap
-permís sobre `/var/lib/mountain-runners`, `/etc/caddy`, les claus TLS o
-l'estat ACME.
+`preview-deploy` (el namespace és seu): no hi ha daemon ni socket. L'ACL
+`u:preview-deploy:---` a `/var/lib/mountain-runners` impedeix llegir i travessar
+les releases de producció, tot i que el mode UNIX segueix sent `0755` perquè
+Caddy i `mountain-deploy` conservin l'accés existent. La identitat no pot
+escriure a `/etc/caddy`, les claus TLS o l'estat ACME, i no pertany al grup
+`mountain-runners`. No li concedeixis accés a `/run/mountain-release.sock` ni
+afegeixis-la a grups de producció.
 
 ### Publicar una preview
 
@@ -776,8 +875,9 @@ workflow `Preview` només corre sota demanda.
    SHA, executa `pnpm validate` complet i compila l'artefacte amb l'origen
    `pr-<n>.preview.mountainrunners.cat`; el job `publish` valida manifest,
    mida, fitxers, digests i paths amb els validadors de producció i
-   revalida que la PR continua oberta i al mateix head SHA just abans
-   d'activar el namespace.
+   revalida que la PR continua oberta i al mateix head SHA i que l'autorització
+   encara és vigent (col·laboradora per a `/preview` o permís d'escriptura per
+   a `workflow_dispatch`), just abans d'activar el namespace.
 4. Verificació posterior a l'activació:
 
    ```sh

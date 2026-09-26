@@ -50,7 +50,7 @@ export function createSshTransport({
   }
 
   return {
-    async receive(fileName, contents) {
+    async receive(fileName, contents, pullNumber) {
       const stdout = await withIdentityFiles(
         { privateKey, knownHosts },
         (identityFile, knownHostsFile) =>
@@ -60,7 +60,10 @@ export function createSshTransport({
             knownHostsFile,
             user,
             host,
-            remoteCommand: `${remoteTool} receive ${fileName}`,
+            remoteCommand:
+              pullNumber === undefined
+                ? `${remoteTool} receive ${fileName}`
+                : `${remoteTool} receive ${pullNumber} ${fileName}`,
             stdin: contents,
           }),
       );

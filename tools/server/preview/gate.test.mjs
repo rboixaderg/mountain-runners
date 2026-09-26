@@ -13,12 +13,14 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import {
+  cp,
   mkdir,
   mkdtemp,
   readFile,
   readlink,
   rm,
   stat,
+  symlink,
   writeFile,
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -81,6 +83,18 @@ function runGateDirect(root, args) {
   return spawnSync(process.execPath, [gatePath, ...args], {
     encoding: "utf8",
     env: { ...process.env, MOUNTAIN_PREVIEW_ROOT: root },
+  });
+}
+
+function runInstalledGate(gatePath, root, originalCommand, stdin) {
+  return spawnSync(process.execPath, [gatePath], {
+    encoding: "utf8",
+    input: stdin,
+    env: {
+      ...process.env,
+      MOUNTAIN_PREVIEW_ROOT: root,
+      SSH_ORIGINAL_COMMAND: originalCommand,
+    },
   });
 }
 
@@ -212,6 +226,112 @@ test("receives into the pull request namespace, installs, activates and reports 
     assert.equal(health.status, 0, gateOutput(health));
     assert.match(health.stdout, /Health: OK/);
   });
+});
+
+test("the bootstrap install layout resolves the preview gate release imports", async () => {
+  const installRoot = await mkdtemp(
+    join(tmpdir(), "mountain-preview-install-"),
+  );
+  const previewRoot = join(installRoot, "preview");
+  const releaseLink = join(installRoot, "release");
+  const installedGate = join(previewRoot, "gate.mjs");
+  const flatReleaseModules = [
+    "archive.mjs",
+    "config.mjs",
+    "fsutil.mjs",
+    "manifest.mjs",
+    "operations.mjs",
+    "receive.mjs",
+    "registry.mjs",
+    "validate.mjs",
+    "cli.mjs",
+    "daemon.mjs",
+    "ssh-gate.mjs",
+  ];
+
+  try {
+    await mkdir(previewRoot, { recursive: true });
+    await symlink(".", releaseLink);
+    await cp(gatePath, installedGate);
+    await cp(
+      join(toolDirectory, "config.mjs"),
+      join(previewRoot, "config.mjs"),
+    );
+    for (const moduleName of flatReleaseModules) {
+      await cp(
+        join(toolDirectory, "../release", moduleName),
+        join(installRoot, moduleName),
+      );
+    }
+    assert.equal((await stat(join(installRoot, "cli.mjs"))).isFile(), true);
+    assert.equal(await readlink(releaseLink), ".");
+
+    const root = join(installRoot, "preview-data");
+    await mkdir(join(root, "namespaces"), { recursive: true });
+    const archiveBytes = Buffer.from("test upload");
+    const result = runInstalledGate(
+      installedGate,
+      root,
+      "mountain-preview receive 99 artifact.tar.gz",
+      archiveBytes,
+    );
+
+    assert.equal(result.status, 0, gateOutput(result));
+    assert.match(result.stdout, /Received artifact\.tar\.gz/);
+    assert.equal(
+      (
+        await readFile(
+          join(root, "namespaces", "pr-99", "incoming", "artifact.tar.gz"),
+        )
+      ).equals(archiveBytes),
+      true,
+    );
+  } finally {
+    await rm(installRoot, { recursive: true, force: true });
+  }
+});
+
+test("bootstrap denies preview-deploy access to the production release root with a named ACL", async () => {
+  const bootstrap = await readFile(
+    join(toolDirectory, "../bootstrap/bootstrap.sh"),
+    "utf8",
+  );
+  const previewUserSetup = bootstrap.indexOf("usermod -p '*' preview-deploy");
+  const productionAcl = bootstrap.indexOf(
+    'setfacl -n -m u:preview-deploy:--- "${RELEASE_ROOT}"',
+  );
+
+  assert.match(bootstrap, /apt-get install[^\n]*\bacl\b/u);
+  assert.notEqual(previewUserSetup, -1);
+  assert.notEqual(productionAcl, -1);
+  assert.ok(productionAcl > previewUserSetup);
+  assert.doesNotMatch(bootstrap, /setfacl\s+-R/u);
+});
+
+test("bootstrap and the preview-only runbook reject incompatible release paths before installing the gate", async () => {
+  const bootstrap = await readFile(
+    join(toolDirectory, "../bootstrap/bootstrap.sh"),
+    "utf8",
+  );
+  const runbook = await readFile(
+    join(toolDirectory, "../../../docs/runbook.md"),
+    "utf8",
+  );
+  const bootstrapPathCheck = bootstrap.indexOf(
+    'elif [[ -e "${RELEASE_IMPORT_LINK}" ]]',
+  );
+  const flatModuleInstall = bootstrap.indexOf(
+    '"${TOOL_ROOT}/release/config.mjs"',
+  );
+  const runbookPathCheck = runbook.indexOf('if sudo test -L "$LIB/release"');
+  const previewGateInstall = runbook.indexOf(
+    '"$REPO/tools/server/preview/gate.mjs"',
+  );
+
+  assert.notEqual(bootstrapPathCheck, -1);
+  assert.ok(bootstrapPathCheck < flatModuleInstall);
+  assert.notEqual(runbookPathCheck, -1);
+  assert.ok(runbookPathCheck < previewGateInstall);
 });
 
 test("rejects a manifest built for another pull request", async () => {

@@ -11,9 +11,11 @@
 // are all rejected. No production credentials are involved.
 
 import assert from "node:assert/strict";
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { spawnSync } from "node:child_process";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import test from "node:test";
 
 import {
@@ -24,6 +26,7 @@ import {
 import { previewOrigin } from "../server/preview/config.mjs";
 import {
   assertCommentAuthorized,
+  assertDispatchActorAuthorized,
   publishPreview,
   resolvePullRequestState,
 } from "./publish-operations.mjs";
@@ -38,6 +41,10 @@ const previewFiles = [
 ];
 
 const testRepository = "rboixaderg/mountain-runners";
+const gatePath = join(
+  dirname(fileURLToPath(import.meta.url)),
+  "../server/preview/gate.mjs",
+);
 
 function createPullResponse({
   state = "open",
@@ -54,8 +61,17 @@ function createPullResponse({
 function createFakeFetch({
   pull = createPullResponse(),
   collaboratorStatus = 204,
+  collaboratorPermissionStatus = 200,
+  collaboratorPermission = "write",
 } = {}) {
   return async (url) => {
+    if (url.endsWith("/permission")) {
+      return {
+        ok: collaboratorPermissionStatus === 200,
+        status: collaboratorPermissionStatus,
+        json: async () => ({ permission: collaboratorPermission }),
+      };
+    }
     if (url.includes("/collaborators/")) {
       return {
         ok: collaboratorStatus === 204,
@@ -74,7 +90,8 @@ function createMemoryTransport() {
   const commands = [];
   return {
     commands,
-    async receive(fileName, contents) {
+    async receive(fileName, contents, pullNumber) {
+      commands.push(`mountain-preview receive ${pullNumber} ${fileName}`);
       const digest = sha256Of(contents);
       return { fileName, sha256: digest, bytes: contents.length };
     },
@@ -124,7 +141,15 @@ async function withPreviewArtifact(
   }
 }
 
-function createTestPublisher(transport, artifactDirectory, { pull } = {}) {
+function createTestPublisher(
+  transport,
+  artifactDirectory,
+  {
+    pull,
+    revalidateCommentAuthorization,
+    revalidateDispatchAuthorization,
+  } = {},
+) {
   return publishPreview({
     artifactDirectory,
     pullNumber: previewPullNumber,
@@ -134,8 +159,51 @@ function createTestPublisher(transport, artifactDirectory, { pull } = {}) {
         pullNumber: previewPullNumber,
         fetchImpl: createFakeFetch({ pull }),
       }),
+    revalidateCommentAuthorization,
+    revalidateDispatchAuthorization,
     transport,
   });
+}
+
+function createGateTransport(root) {
+  const commands = [];
+  function runGate(command, contents) {
+    commands.push(command);
+    const result = spawnSync(process.execPath, [gatePath], {
+      encoding: "utf8",
+      input: contents,
+      env: {
+        ...process.env,
+        MOUNTAIN_PREVIEW_ROOT: root,
+        SSH_ORIGINAL_COMMAND: command,
+      },
+    });
+    if (result.status !== 0) {
+      throw new Error(result.stderr.trim() || result.stdout.trim());
+    }
+    return result.stdout.trim();
+  }
+  return {
+    commands,
+    async receive(fileName, contents, pullNumber) {
+      const output = runGate(
+        `mountain-preview receive ${pullNumber} ${fileName}`,
+        contents,
+      );
+      const match = /^Received (\S+) sha256:([0-9a-f]{64}) bytes:(\d+)$/u.exec(
+        output,
+      );
+      assert.ok(match, output);
+      return {
+        fileName: match[1],
+        sha256: match[2],
+        bytes: Number(match[3]),
+      };
+    },
+    async run(command) {
+      return runGate(command);
+    },
+  };
 }
 
 test("resolvePullRequestState accepts an open own-branch pull request and rejects the rest", async () => {
@@ -199,6 +267,51 @@ test("assertCommentAuthorized requires a repository collaborator", async () => {
   }
 });
 
+test("assertDispatchActorAuthorized requires current write permission", async () => {
+  for (const permission of ["write", "admin"]) {
+    await assertDispatchActorAuthorized({
+      repository: testRepository,
+      actor: "rboixaderg",
+      fetchImpl: createFakeFetch({ collaboratorPermission: permission }),
+    });
+  }
+
+  const rejections = [
+    {
+      name: "removed actor",
+      options: { collaboratorPermissionStatus: 404 },
+      pattern: /does not have current repository write permission/,
+    },
+    {
+      name: "forbidden permission check",
+      options: { collaboratorPermissionStatus: 403 },
+      pattern: /does not have current repository write permission/,
+    },
+    {
+      name: "read-only actor",
+      options: { collaboratorPermission: "read" },
+      pattern: /no longer has repository write permission/,
+    },
+    {
+      name: "actor with no write permission",
+      options: { collaboratorPermission: "none" },
+      pattern: /no longer has repository write permission/,
+    },
+  ];
+  for (const { name, options, pattern } of rejections) {
+    await assert.rejects(
+      () =>
+        assertDispatchActorAuthorized({
+          repository: testRepository,
+          actor: "rboixaderg",
+          fetchImpl: createFakeFetch(options),
+        }),
+      pattern,
+      `${name} must be rejected`,
+    );
+  }
+});
+
 test("publishPreview publishes a valid artifact end to end", async () => {
   await withPreviewArtifact(async (artifactDirectory) => {
     const transport = createMemoryTransport();
@@ -208,10 +321,102 @@ test("publishPreview publishes a valid artifact end to end", async () => {
       /Published preview .*pr-99\.preview\.mountainrunners\.cat/,
     );
     assert.deepEqual(transport.commands, [
-      `mountain-preview install mountain-runners-${previewCommit.slice(0, 12)}.tar.gz manifest.json`,
+      `mountain-preview receive ${previewPullNumber} mountain-runners-${previewCommit.slice(0, 12)}.tar.gz`,
+      `mountain-preview receive ${previewPullNumber} manifest.json`,
+      `mountain-preview install ${previewPullNumber} mountain-runners-${previewCommit.slice(0, 12)}.tar.gz manifest.json`,
       `mountain-preview activate ${previewPullNumber} ${previewCommit}`,
       `mountain-preview health ${previewPullNumber}`,
     ]);
+  });
+});
+
+test("publishPreview uses the real gate protocol in an isolated namespace", async () => {
+  const root = await mkdtemp(
+    join(tmpdir(), "mountain-preview-publisher-gate-"),
+  );
+  try {
+    await mkdir(join(root, "namespaces"), { recursive: true });
+    await withPreviewArtifact(async (artifactDirectory) => {
+      const transport = createGateTransport(root);
+      await createTestPublisher(transport, artifactDirectory);
+      assert.deepEqual(transport.commands, [
+        `mountain-preview receive ${previewPullNumber} mountain-runners-${previewCommit.slice(0, 12)}.tar.gz`,
+        `mountain-preview receive ${previewPullNumber} manifest.json`,
+        `mountain-preview install ${previewPullNumber} mountain-runners-${previewCommit.slice(0, 12)}.tar.gz manifest.json`,
+        `mountain-preview activate ${previewPullNumber} ${previewCommit}`,
+        `mountain-preview health ${previewPullNumber}`,
+      ]);
+    });
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("publishPreview does not activate after the requesting collaborator loses permission", async () => {
+  await withPreviewArtifact(async (artifactDirectory) => {
+    const transport = createMemoryTransport();
+    await assert.rejects(
+      () =>
+        createTestPublisher(transport, artifactDirectory, {
+          revalidateCommentAuthorization: () =>
+            assertCommentAuthorized({
+              repository: testRepository,
+              commentAuthor: "rboixaderg",
+              fetchImpl: createFakeFetch({ collaboratorStatus: 404 }),
+            }),
+        }),
+      /not a repository collaborator/,
+    );
+    assert.equal(
+      transport.commands.some((command) =>
+        command.startsWith("mountain-preview activate"),
+      ),
+      false,
+    );
+  });
+});
+
+test("publishPreview revalidates dispatch write permission before successful activation", async () => {
+  await withPreviewArtifact(async (artifactDirectory) => {
+    const transport = createMemoryTransport();
+    await createTestPublisher(transport, artifactDirectory, {
+      revalidateDispatchAuthorization: () =>
+        assertDispatchActorAuthorized({
+          repository: testRepository,
+          actor: "rboixaderg",
+          fetchImpl: createFakeFetch({ collaboratorPermission: "write" }),
+        }),
+    });
+    assert.equal(
+      transport.commands.some((command) =>
+        command.startsWith("mountain-preview activate"),
+      ),
+      true,
+    );
+  });
+});
+
+test("publishPreview does not activate after dispatch actor write permission is withdrawn", async () => {
+  await withPreviewArtifact(async (artifactDirectory) => {
+    const transport = createMemoryTransport();
+    await assert.rejects(
+      () =>
+        createTestPublisher(transport, artifactDirectory, {
+          revalidateDispatchAuthorization: () =>
+            assertDispatchActorAuthorized({
+              repository: testRepository,
+              actor: "rboixaderg",
+              fetchImpl: createFakeFetch({ collaboratorPermissionStatus: 404 }),
+            }),
+        }),
+      /does not have current repository write permission/,
+    );
+    assert.equal(
+      transport.commands.some((command) =>
+        command.startsWith("mountain-preview activate"),
+      ),
+      false,
+    );
   });
 });
 

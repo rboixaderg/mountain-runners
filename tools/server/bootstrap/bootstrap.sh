@@ -68,9 +68,9 @@ esac
 
 # --- system packages --------------------------------------------------------
 
-log "Installing system prerequisites (curl, nodejs, Caddy dependencies)."
+log "Installing system prerequisites (curl, nodejs, Caddy dependencies and POSIX ACL tools)."
 apt-get update -qq
-DEBIAN_FRONTEND=noninteractive apt-get install -y -qq curl nodejs ca-certificates libcap2-bin
+DEBIAN_FRONTEND=noninteractive apt-get install -y -qq acl curl nodejs ca-certificates libcap2-bin
 
 # --- pinned Caddy -----------------------------------------------------------
 
@@ -139,6 +139,22 @@ chmod 700 "${LOG_ROOT}"
 
 log "Installing the release tooling to ${RELEASE_LIB}."
 mkdir -p "${RELEASE_LIB}"
+
+# The preview gate imports release operations via ../release/. A root-owned
+# symlink makes that resolve to the existing flat phase 5 install without
+# duplicating code. Refuse to replace a pre-existing directory or foreign link
+# before installing or updating any release modules.
+readonly RELEASE_IMPORT_LINK="${RELEASE_LIB}/release"
+if [[ -L "${RELEASE_IMPORT_LINK}" ]]; then
+  [[ "$(readlink "${RELEASE_IMPORT_LINK}")" == "." ]] || \
+    fail "${RELEASE_IMPORT_LINK} exists as a symlink with an unexpected target."
+elif [[ -e "${RELEASE_IMPORT_LINK}" ]]; then
+  fail "${RELEASE_IMPORT_LINK} already exists and is not the expected symlink; inspect it before migrating."
+else
+  ln -s . "${RELEASE_IMPORT_LINK}"
+fi
+chown -h root:root "${RELEASE_IMPORT_LINK}"
+
 install -m 0644 -o root -g root \
   "${TOOL_ROOT}/release/config.mjs" \
   "${TOOL_ROOT}/release/fsutil.mjs" \
@@ -238,10 +254,12 @@ fi
 # --- preview identity and namespaces (T6.3) ----------------------------------
 #
 # The preview identity owns one namespace per pull request under PREVIEW_ROOT
-# and executes the preview operations directly: no root daemon and no access
-# to the production release root, the Caddy configuration, the TLS keys or
-# the ACME state. The data root itself stays root-owned so the identity
-# cannot rewrite its own authorized_keys; it only writes inside namespaces/.
+# and executes the preview operations directly: no root daemon and no write
+# access to the production release root, the Caddy configuration, the TLS keys
+# or the ACME state. A named POSIX ACL also denies this identity traversal of
+# RELEASE_ROOT while preserving its existing mode and other users' access.
+# The data root itself stays root-owned so the identity cannot rewrite its own
+# authorized_keys; it only writes inside namespaces/.
 
 if ! getent group preview-deploy >/dev/null; then
   groupadd --system preview-deploy
@@ -254,6 +272,11 @@ if ! id preview-deploy >/dev/null 2>&1; then
   log "Created system user preview-deploy (gate-only shell)."
 fi
 usermod -p '*' preview-deploy
+
+# A named ACL entry denies preview-deploy at the production root without
+# changing its owner, group, mode bits or access for Caddy and mountain-deploy.
+# Keep the existing ACL mask: recalculating it could change other named ACLs.
+setfacl -n -m u:preview-deploy:--- "${RELEASE_ROOT}"
 
 mkdir -p "${PREVIEW_ROOT}/namespaces"
 chown root:root "${PREVIEW_ROOT}"
