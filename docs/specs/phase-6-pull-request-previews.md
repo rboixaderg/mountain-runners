@@ -84,7 +84,7 @@ VPS requereix aprovació explícita de la persona mantenidora.
 | -------------------------------------------- | ---------- | ------------ | --------------------------------------------- | ------- |
 | T6.1 Requisits, amenaces i alternatives      | Completada | Fase 5       | Comparativa i riscos aprovats                 | PR #113 |
 | T6.2 Decisió de domini, DNS, TLS i proveïdor | Completada | T6.1         | Arquitectura mínima decidida                  | PR #117 |
-| T6.3 Artefacte i publicador de confiança     | En curs    | T6.2         | Frontera segura sense executar codi no fiable | -       |
+| T6.3 Artefacte i publicador de confiança     | Completada | T6.2         | Frontera segura sense executar codi no fiable | PR #121 |
 | T6.4 Cicle de vida, aïllament i neteja       | Pendent    | T6.3         | Orígens efímers creats i retirats             | -       |
 | T6.6 Notificació de preview a la PR          | Pendent    | T6.4         | URL i SHA comunicats després d'activar        | -       |
 | T6.5 Validació de previews i operació        | Pendent    | T6.6         | Gate i runbook verificats                     | -       |
