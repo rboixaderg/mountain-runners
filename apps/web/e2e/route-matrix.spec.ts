@@ -184,6 +184,52 @@ test("matrix state: school with a deferred privacy-enhanced video", async ({
   );
 });
 
+test("matrix state: trail school links the InfoK report", async ({ page }) => {
+  await page.goto("/ca/escoles/escola-trail/");
+  const pressRegion = page.getByRole("region", {
+    name: /Passió pel trail a l'escola Mountain Runners del Berguedà/i,
+  });
+  await expect(pressRegion.getByText("InfoK, 3Cat")).toBeVisible();
+  const reportLink = pressRegion.getByRole("link", {
+    name: /Mira el reportatge/,
+  });
+  await expect(reportLink).toHaveAttribute(
+    "href",
+    "https://www.3cat.cat/3cat/passio-pel-trail-a-lescola-mountain-runners-del-bergueda/video/6425700/",
+  );
+  await expect(reportLink).toHaveAttribute(
+    "data-analytics-action",
+    "school_press",
+  );
+  await expect(reportLink).toHaveAttribute(
+    "data-analytics-area",
+    "school_press",
+  );
+  await expect(reportLink).toHaveAttribute(
+    "data-analytics-target",
+    "trail-school",
+  );
+  await expect(
+    page.getByRole("region", { name: "Vídeo" }).getByText("InfoK, 3Cat"),
+  ).toHaveCount(0);
+
+  const headingOrder = (
+    await page.getByRole("heading", { level: 2 }).allInnerTexts()
+  ).map((heading) => heading.toLocaleLowerCase("ca"));
+  const aboutIndex = headingOrder.findIndex((heading) =>
+    heading.includes("què oferim"),
+  );
+  const pressIndex = headingOrder.findIndex((heading) =>
+    heading.includes("passió pel trail"),
+  );
+  const practicalIndex = headingOrder.findIndex((heading) =>
+    heading.includes("informació pràctica"),
+  );
+  expect(aboutIndex).toBeGreaterThanOrEqual(0);
+  expect(pressIndex).toBeGreaterThan(aboutIndex);
+  expect(practicalIndex).toBeGreaterThan(pressIndex);
+});
+
 test("matrix state: school without video renders no embed", async ({
   page,
 }) => {
