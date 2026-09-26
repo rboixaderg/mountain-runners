@@ -268,13 +268,18 @@ sudo -u caddy test -x "$RELEASE_ROOT"
 sudo -u mountain-deploy test -x "$RELEASE_ROOT"
 sudo setfacl -n -m u:preview-deploy:--- "$RELEASE_ROOT"
 sudo getfacl -p "$RELEASE_ROOT"
-sudo -u preview-deploy test ! -r "$RELEASE_ROOT"
-sudo -u preview-deploy test ! -x "$RELEASE_ROOT"
+sudo -u preview-deploy ls "$RELEASE_ROOT" >/dev/null
+sudo -u preview-deploy /bin/sh -c 'cd "$1"' sh "$RELEASE_ROOT"
 sudo -u caddy test -r "$RELEASE_ROOT"
 sudo -u caddy test -x "$RELEASE_ROOT"
 sudo -u mountain-deploy test -r "$RELEASE_ROOT"
 sudo -u mountain-deploy test -x "$RELEASE_ROOT"
 ```
+
+Les dues ordres com a `preview-deploy` han de fallar perquè no pot llistar ni
+travessar el directori; confirma que l'error és de permisos. Les comprovacions
+amb `test -r` i `test -x` poden donar falsos positius en aquest entorn i no són
+prova suficient de l'aïllament.
 
 `-n` conserva una ACL mask existent. Sense una ACL estesa prèvia, la màscara
 creada és igual als permisos del grup existent (`r-x`), i la nova entrada
