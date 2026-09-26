@@ -38,6 +38,7 @@ Hetzner només ha d'obrir 22, 80 i 443.
 | Persona mantenidora | Usuari administratiu no `root` amb `sudo` (accés per SSH amb clau; host key verificat)                                           |
 | `mountain-deploy`   | Usuari de sistema amb shell restringit (gate + `receive` a `incoming/`); clau SSH amb `command="mountain-ssh-gate"` i `restrict` |
 | Daemon de releases  | Servei systemd com a `root` (`mountain-release.service`); únic escriptor de releases, registre i `current`                       |
+| `preview-deploy`    | Usuari de sistema amb shell restringit (gate + `receive` de previews); clau SSH amb `command="preview-ssh-gate"` i `restrict`    |
 | `caddy`             | Usuari del paquet; només llegeix la release activa i escriu els logs                                                             |
 
 La clau de desplegament es fixa a
@@ -47,6 +48,12 @@ filesystem ni `sudo`: el gate tokenitza sense shell i envia la petició al daemo
 per `/run/mountain-release.sock` (grup `mountain-runners`, mode 0660), que la
 revalida i l'executa com a `root`. El daemon tampoc pot escriure la
 configuració de Caddy, les claus TLS ni l'estat ACME.
+
+La identitat de previews (`preview-deploy`) opera directament sobre el seu
+propi namespace (no té daemon ni socket): el seu gate forçat
+(`preview-ssh-gate`) valida cada comanda i la vincula al namespace `pr-<n>`
+de la PR; cap credencial DNS existeix i producció resta fora del seu abast.
+Vegeu la secció [13](#13-previews-de-pull-request-t63).
 
 ### Arquitectura Del Servidor
 
@@ -58,6 +65,8 @@ El tallafoc de Hetzner només obre 22, 80 i 443. Caddy escolta 80/443, termina
 TLS amb ACME i serveix el symlink `current`. El host de validació continua al
 `Caddyfile`; l'apex i `www` s'importen de `Caddyfile.production` (actiu des
 del tall). El daemon de releases no escriu Caddy, claus TLS ni estat ACME.
+La identitat de previews opera els seus namespaces pròpis sense daemon; els
+orígens Caddy de previews arriben amb la T6.4.
 
 ```mermaid
 flowchart TB
@@ -65,7 +74,7 @@ flowchart TB
     Visitant["Visitant HTTPS"]
     Mantenidora["Persona mantenidora"]
     Actions["GitHub Actions (main)"]
-    DeployKey["Clau mountain-deploy"]
+    DeployKey["Claus mountain-deploy i preview-deploy"]
   end
 
   subgraph VPS["VPS Hetzner"]
@@ -73,6 +82,9 @@ flowchart TB
     Caddy["Caddy 2.11.4 :80 / :443"]
     Gate["mountain-ssh-gate"]
     Daemon["mountain-release.service root"]
+    PreviewGate["preview-ssh-gate"]
+    PreviewIdentity["preview-deploy (sense daemon)"]
+    PreviewNamespaces["namespaces/pr-<n>/"]
     Sock["/run/mountain-release.sock"]
     Current["symlink current"]
     Releases["releases/commit"]
@@ -88,15 +100,18 @@ flowchart TB
   Caddy --> Logs
   Caddyfile -.->|"config; el daemon no hi escriu"| Caddy
   Mantenidora -->|"SSH admin + sudo"| sshd
-  Actions -->|"SSH receive + mountain-release"| DeployKey
+  Actions -->|"SSH receive + mountain-release / mountain-preview"| DeployKey
   DeployKey -->|"SSH forced command"| sshd
   sshd --> Gate
+  sshd --> PreviewIdentity
   Gate --> Sock
   Sock --> Daemon
   Daemon --> Incoming
   Daemon --> Releases
   Daemon --> Current
   Daemon --> Registry
+  PreviewIdentity --> PreviewGate
+  PreviewGate --> PreviewNamespaces
 ```
 
 Operació d'una release (instal·lar o activar) des de la identitat de
@@ -118,38 +133,159 @@ sequenceDiagram
   Caddy->>FS: serveix current
 ```
 
+Operació d'una preview (receive → install → activate) des de la identitat de
+previews:
+
+```mermaid
+sequenceDiagram
+  participant Preview as Clau preview-deploy
+  participant Gate as preview-ssh-gate
+  participant NS as namespaces/pr-<n>/
+  participant Caddy as Caddy (T6.4)
+
+  Preview->>Gate: SSH receive (stdin) / mountain-preview
+  Note over Gate: tokenitza sense shell; validació i namespace per PR
+  Gate->>NS: receive, install, activate (directe, com a preview-deploy)
+  Note over NS: registre i symlink per namespace; mai toca /var/lib/mountain-runners
+  Caddy->>NS: serveix els orígens actius (blocs de previews, T6.4)
+```
+
 ### Estructura
 
 ```text
-/var/lib/mountain-runners/         755  root:root
+/var/lib/mountain-runners/         755  root:root; ACL preview-deploy:---
 ├── releases/<commit>/             755  root:root (una release per commit)
 ├── incoming/                      2770 root:mountain-runners (uploads)
 ├── current                        symlink atòmic a la release activa (root)
 ├── releases.json                  600  root:root (registre permanent)
 └── .ssh/authorized_keys           644  root:root (llegible per sshd-session)
+/var/lib/mountain-runners-previews/ 755  root:root
+├── namespaces/                    755  preview-deploy:preview-deploy
+│   └── pr-<n>/                    namespace per PR (creació del gate)
+│       ├── releases/<commit>/     builds extraïts i verificats
+│       ├── incoming/              uploads en staging
+│       ├── current                symlink atòmic al build actiu
+│       └── releases.json          registre del namespace
+└── .ssh/authorized_keys           644  root:root (clau preview-deploy)
 /var/log/mountain-runners/         700  caddy:caddy (accés només via sudo)
 /run/mountain-release.sock         660  root:mountain-runners (socket del daemon)
-/usr/local/lib/mountain-runners/        eines instal·lades pel bootstrap
+/usr/local/lib/mountain-runners/        eines de release planes + preview/ i release -> .
 ```
 
-### Bootstrap (provisió inicial)
+### Bootstrap (només provisió inicial d'un VPS nou)
 
-Requereix aprovació prèvia i el registre DNS del host de validació apuntant al
-VPS. Executar com a `root` des del checkout del repositori:
+El bootstrap complet només s'executa en un VPS nou, amb aprovació prèvia i el
+registre DNS del host de validació apuntant al VPS. **No el tornis a executar
+contra el VPS actiu per instal·lar o actualitzar les previews**: reescriu
+`/etc/caddy/Caddyfile` i `Caddyfile.production`, reinicia els serveis de
+releases i Caddy, i pot tornar a deixar comentat l'import de la configuració de
+producció. Executar com a `root` des del checkout del repositori només durant
+la provisió inicial:
 
 ```sh
 VALIDATION_HOST=validate.mountainrunners.cat \
 DEPLOY_PUBLIC_KEY="ssh-ed25519 AAAA... deploy@ci" \
+PREVIEW_PUBLIC_KEY="ssh-ed25519 AAAA... preview@ci" \
 ./tools/server/bootstrap/bootstrap.sh
 ```
 
 El bootstrap és reproduïble i idempotent: instal·la Caddy pinjat amb checksum
-SHA-512 verificat (`checksums.txt` oficial), crea les identitats, el layout,
-els directoris de logs, un drop-in systemd perquè Caddy pugui escriure
-`/var/log/mountain-runners`, la configuració de Caddy validada, el servei del
-daemon de releases i les eines.
-Si no es passa `DEPLOY_PUBLIC_KEY`, la clau de desplegament s'afegeix després
+SHA-512 verificat (`checksums.txt` oficial), crea les identitats (desplegament
+i previews), el layout, els namespaces de previews, els directoris de logs, un
+drop-in systemd perquè Caddy pugui escriure `/var/log/mountain-runners`, la
+configuració de Caddy validada, el servei del daemon de releases i les eines.
+Si no es passa cap clau pública, la identitat corresponent s'afegeix després
 manualment amb les mateixes opcions de forced command.
+
+### Instal·lació De T6.3 En Un VPS Ja Actiu (preview-only)
+
+La instal·lació s'ha de fer per una persona mantenidora, des d'un checkout
+revisat de la branca desplegada. No executis `bootstrap.sh` ni cap ordre de
+`tools/deploy/`. El gate reutilitza les eines de release planes mitjançant un
+symlink root-owned `release -> .`, sense duplicar mòduls. No substitueixis un
+directori o symlink `release` existent: atura't i revisa'l abans de migrar.
+
+```sh
+REPO=/path/to/reviewed/mountain_runners
+LIB=/usr/local/lib/mountain-runners
+
+sudo install -d -o root -g root -m 0755 "$LIB"
+if sudo test -L "$LIB/release"; then
+  test "$(sudo readlink "$LIB/release")" = . || {
+    echo "Unexpected release symlink; stop and inspect." >&2
+    exit 1
+  }
+elif sudo test -e "$LIB/release"; then
+  echo "Existing release path is not a symlink; stop and inspect." >&2
+  exit 1
+else
+  sudo ln -s . "$LIB/release"
+fi
+sudo chown -h root:root "$LIB/release"
+sudo install -d -o root -g root -m 0755 "$LIB/preview"
+sudo install -o root -g root -m 0644 \
+  "$REPO/tools/server/preview/gate.mjs" \
+  "$REPO/tools/server/preview/config.mjs" \
+  "$LIB/preview/"
+sudo chmod 0755 "$LIB/preview/gate.mjs"
+sudo ln -s "$LIB/preview/gate.mjs" /usr/local/bin/mountain-preview
+sudo ln -s "$LIB/preview/gate.mjs" /usr/local/bin/preview-ssh-gate
+```
+
+La identitat SSH, el shell forçat i els namespaces no es creen amb aquestes
+ordres. Provisiona'ls seguint com a referència només el bloc T6.3 de
+`tools/server/bootstrap/bootstrap.sh`; no executis el script. Si `preview-deploy`
+ja existeix, revisa'n grup, shell, estat de contrasenya i claus abans de
+modificar-ne res. No canviïs la contrasenya ni reemplaçis
+`/var/lib/mountain-runners-previews/.ssh/authorized_keys`; afegeix la clau
+revisada amb forced command després de revisar el fitxer existent. La identitat
+no ha de pertànyer a `mountain-runners` ni accedir a
+`/run/mountain-release.sock`. La configuració d'origen, TLS i Caddy continua
+fora de T6.3.
+
+### Bloqueig De Lectura De Les Releases De Producció
+
+El bootstrap instal·la `acl` i, després de crear `preview-deploy`, afegeix una
+ACL d'accés `u:preview-deploy:---` només a
+`/var/lib/mountain-runners`. El directori continua amb el mateix owner, grup i
+mode `0755`; Caddy i `mountain-deploy` continuen travessant-lo. L'entrada
+nominal d'usuari es comprova abans de les entrades de grup, per tant també
+denega accés si `preview-deploy` rep algun grup de producció per error. No
+afegeixis membres a `mountain-runners` ni toquis el socket del daemon.
+
+Per migrar un VPS existent, una persona mantenidora ha de revisar primer la
+sortida actual de `getfacl -p` i comprovar que el root és `root:root 0755`.
+Desa l'ACL original fora del repositori. Després que `preview-deploy` existeixi,
+executa només aquesta ACL, sense `-R` i sense canviar `chmod` o grups:
+
+```sh
+RELEASE_ROOT=/var/lib/mountain-runners
+sudo apt-get install acl
+sudo stat -c '%U:%G %a %n' "$RELEASE_ROOT"
+sudo getfacl -p "$RELEASE_ROOT"
+sudo getfacl -p "$RELEASE_ROOT" > "$HOME/mountain-runners-release.acl.before-preview"
+sudo -u caddy test -x "$RELEASE_ROOT"
+sudo -u mountain-deploy test -x "$RELEASE_ROOT"
+sudo setfacl -n -m u:preview-deploy:--- "$RELEASE_ROOT"
+sudo getfacl -p "$RELEASE_ROOT"
+sudo -u preview-deploy test ! -r "$RELEASE_ROOT"
+sudo -u preview-deploy test ! -x "$RELEASE_ROOT"
+sudo -u caddy test -r "$RELEASE_ROOT"
+sudo -u caddy test -x "$RELEASE_ROOT"
+sudo -u mountain-deploy test -r "$RELEASE_ROOT"
+sudo -u mountain-deploy test -x "$RELEASE_ROOT"
+```
+
+`-n` conserva una ACL mask existent. Sense una ACL estesa prèvia, la màscara
+creada és igual als permisos del grup existent (`r-x`), i la nova entrada
+`---` no els amplia. Compara `getfacl` abans i després: només ha d'aparèixer
+l'entrada de `preview-deploy` i, si no n'hi havia, la màscara equivalent a
+`group::`. Atura't i restaura el fitxer desat si canvia qualsevol altra entrada
+o fallen les comprovacions de Caddy o del desplegament:
+`sudo setfacl --restore="$HOME/mountain-runners-release.acl.before-preview"`.
+Després comprova `sudo mountain-release health` i el lloc públic.
+L'ACL no cobreix `/etc/caddy`, claus TLS o ACME; aquestes rutes mantenen els
+permisos existents.
 
 ### Verificació Del Host I Accés SSH
 
@@ -697,3 +833,73 @@ Quan confirma les 48 hores sense incidència de tall, correu o TLS:
    [`docs/validation/phase-5-t55-launch-gate.md`](validation/phase-5-t55-launch-gate.md).
 
 Cap agent no configura els entorns ni n'elimina els reviewers.
+
+## 13. Previews De Pull Request (T6.3)
+
+Les previews de PR (fase 6, decisió T6.2) viuen al mateix VPS dins del procés
+Caddy existent, però amb blocs, emmagatzematge ACME i logs separats; el DNS
+és un wildcard manual (`*.preview.mountainrunners.cat` → aquest VPS) i cap
+sistema de previews té credencials DNS. La T6.3 implementa la frontera entre
+el build no fiable i el publicador de confiança.
+
+### Identitats de previews
+
+| Identitat        | Rol                                                                                                               |
+| ---------------- | ----------------------------------------------------------------------------------------------------------------- |
+| `preview-deploy` | Usuari de sistema amb shell restringit (gate + `receive`); clau SSH amb `command="preview-ssh-gate"` i `restrict` |
+| Namespace per PR | `/var/lib/mountain-runners-previews/namespaces/pr-<n>/` — l'única ruta que la identitat pot escriure              |
+
+La identitat de previews executa les operacions directament com a
+`preview-deploy` (el namespace és seu): no hi ha daemon ni socket. L'ACL
+`u:preview-deploy:---` a `/var/lib/mountain-runners` impedeix llegir i travessar
+les releases de producció, tot i que el mode UNIX segueix sent `0755` perquè
+Caddy i `mountain-deploy` conservin l'accés existent. La identitat no pot
+escriure a `/etc/caddy`, les claus TLS o l'estat ACME, i no pertany al grup
+`mountain-runners`. No li concedeixis accés a `/run/mountain-release.sock` ni
+afegeixis-la a grups de producció.
+
+### Publicar una preview
+
+Res no es construeix ni es publica perquè s'obri o s'actualitzi una PR: el
+workflow `Preview` només corre sota demanda.
+
+1. La persona mantenidora publica la preview amb un **comentari a la PR amb
+   el text exacte `/preview`** (per exemple, via
+   `gh pr comment <n> --body "/preview"`, també des d'un agent). També hi ha
+   via manual: `Preview` (workflow_dispatch amb el número de PR).
+2. El job `authorize` (codi de confiança des de la branca per defecte)
+   verifica que l'autor del comentari és col·laborador del repositori —
+   aquesta verificació és l'autorització explícita per SHA — i resol el
+   número de PR i el head SHA vigent.
+3. El job `build` (no fiable, sense secrets ni caches) fa checkout del head
+   SHA, executa `pnpm validate` complet i compila l'artefacte amb l'origen
+   `pr-<n>.preview.mountainrunners.cat`; el job `publish` valida manifest,
+   mida, fitxers, digests i paths amb els validadors de producció i
+   revalida que la PR continua oberta i al mateix head SHA i que l'autorització
+   encara és vigent (col·laboradora per a `/preview` o permís d'escriptura per
+   a `workflow_dispatch`), just abans d'activar el namespace.
+4. Verificació posterior a l'activació:
+
+   ```sh
+   sudo mountain-preview list <n>     # registre del namespace
+   sudo mountain-preview health <n>   # registre + digests del build actiu
+   ```
+
+   Els orígens TLS i les capçaleres de no-producció es comproven a la T6.4 i
+   la T6.5, quan els blocs Caddy de previews estiguin actius.
+
+5. La retirada (tancament, fusió, revocació, caducitat i reconciliació
+   d'orfes) és la T6.4; mentre el sistema no estigui validat, no es publica
+   cap preview.
+
+L'entorn GitHub `previews` només separa els secrets de producció: no té
+required reviewers, perquè l'autorització és el comentari verificat. Els
+secrets de previews (`PREVIEW_SSH_PRIVATE_KEY`, `PREVIEW_KNOWN_HOSTS`) viuen
+només a l'entorn `previews`, mai compartits amb producció. El risc residual
+acceptat: qualsevol col·laborador del repositori pot sol·licitar la
+publicació d'una PR pròpia amb `/preview`; el publicador continua rebutjant
+forks, PRs tancades i caps mouments.
+
+Quan el sistema de previews falla (DNS, TLS, gateway, neteja), producció no
+es veu afectada: blocs Caddy separats, emmagatzematge ACME separat i cap
+secret compartit.
