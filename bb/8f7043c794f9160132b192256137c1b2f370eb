@@ -1,0 +1,29 @@
+docs/runbook.md
+  s_6e2a003de0dea2::t_318ab112ef6531 156,172,175,177-183,200-289,853-859,878-880
+tools/preview/publish-operations.mjs
+  s_d519eb7ceaf445::t_397aeea40a1aad 85-120,162,167,175-180,183,222-223,235,242,250,257-258
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "bb8f7043c794f9160132b192256137c1b2f370eb",
+  "prompts": {},
+  "sessions": {
+    "s_6e2a003de0dea2": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_f23d68020ffecXRfbOb4x2AX0d",
+        "model": "unknown"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    },
+    "s_d519eb7ceaf445": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_f23c807beffeZMrp3LRxCClYn6",
+        "model": "unknown"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
