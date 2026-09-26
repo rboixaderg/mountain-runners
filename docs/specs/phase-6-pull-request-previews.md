@@ -62,6 +62,8 @@ alternativa més simple. Cloudflare és una opció a comparar, no una decisió p
 - Publicador de confiança que valida manifest, digests i arxiu abans d'escriure
   només al namespace assignat.
 - Caducitat, retirada en tancar la PR, revocació i runbook verificats.
+- Comentari idempotent del publicador de confiança a la PR amb l'URL i el SHA
+  de la preview activada correctament.
 
 ## Dependències I Ordre D'Inici
 
@@ -69,7 +71,8 @@ La fase depèn de la fase 5 completada perquè reutilitza el contracte d'artefac
 les convencions de Caddy i l'experiència operativa sense modificar producció.
 T6.1 fixa requisits i amenaces. T6.2 pren la decisió d'arquitectura. T6.3 adapta
 el build i crea la frontera de publicació. T6.4 implementa DNS, TLS, cicle de vida
-i accés segons la decisió. T6.5 valida el sistema complet i tanca el runbook.
+i accés segons la decisió. T6.6 notifica una activació correcta a la PR. T6.5
+valida el sistema complet i tanca el runbook.
 
 Cada tasca s'implementa en un worktree i una branca propis des de l'últim
 `main`. Qualsevol alta de servei, canvi de nameservers, DNS, secrets, repositori o
@@ -83,7 +86,8 @@ VPS requereix aprovació explícita de la persona mantenidora.
 | T6.2 Decisió de domini, DNS, TLS i proveïdor | En curs    | T6.1         | Arquitectura mínima decidida                  | -       |
 | T6.3 Artefacte i publicador de confiança     | Pendent    | T6.2         | Frontera segura sense executar codi no fiable | -       |
 | T6.4 Cicle de vida, aïllament i neteja       | Pendent    | T6.3         | Orígens efímers creats i retirats             | -       |
-| T6.5 Validació de previews i operació        | Pendent    | T6.4         | Gate i runbook verificats                     | -       |
+| T6.6 Notificació de preview a la PR          | Pendent    | T6.4         | URL i SHA comunicats després d'activar        | -       |
+| T6.5 Validació de previews i operació        | Pendent    | T6.6         | Gate i runbook verificats                     | -       |
 
 ### T6.1: Requisits, Amenaces I Alternatives
 
@@ -145,6 +149,21 @@ actualització, expiració i eliminació. **Comprovació:** dues PR simultànies
 reexecució, PR tancada o reoberta, job cancel·lat, quota exhaurida, certificat o
 DNS fallit, expiració i neteja idempotent. **PR:** pròpia.
 
+### T6.6: Notificació De Preview A La PR
+
+**Abast:** el publicador de confiança, fixat a `main`, crea o actualitza el seu
+únic comentari amb marcador fix a la PR, amb l'URL de l'origen activat i el SHA
+que ha publicat, només després d'activar-lo correctament i de revalidar PR
+oberta, autoritzada i amb el mateix SHA. **Exclusió:** no escriu comentaris el
+build no fiable, no usa cap dada controlada per la PR, no afegeix comandaments
+de comentari ni altera autorització, activació, DNS o producció. **Depèn de:**
+T6.4. **Resultat:** la persona revisora rep la URL efectiva sense comentaris
+duplicats en reexecucions. **Comprovació:** provar que no hi ha comentari si
+l'activació falla o la PR és de fork, tancada, revocada o té un SHA obsolet; que
+l'URL i el SHA són correctes després d'activar, i que la reexecució només
+actualitza el comentari existent creat pel publicador amb el marcador fix.
+**PR:** pròpia.
+
 ### T6.5: Validació De Previews I Operació
 
 **Abast:** validar previews pròpies, navegació i metadades en els tres
@@ -152,7 +171,7 @@ idiomes, autorització i visibilitat acordades, absència de secrets, comportame
 ordinari de `published: false`, identificació de no-producció, expiració, logs,
 alertes, revocació i runbook; verificar que una fallada del sistema de previews
 no afecta producció. **Exclusió:** no converteix la preview en staging de
-producció ni introdueix analítica. **Depèn de:** T6.4. **Resultat:** sistema
+producció ni introdueix analítica. **Depèn de:** T6.6. **Resultat:** sistema
 operable i responsabilitats acceptades. **Comprovació:** `pnpm validate`, smoke
 de preview, `noindex, noarchive`, canonical, headers, cap publicació de fork,
 invariant de cookies de producció (ADR 0009), neteja, fallada del proveïdor i
@@ -260,6 +279,9 @@ revocació i desactivació completa del sistema sense afectar producció.
   robots, recursos i navegació representativa en `ca`, `es` i `en`.
 - Provar creació, actualització, concurrència, cancel·lació, expiració, tancament,
   reobertura, revocació i reconciliació d'orfes.
+- Verificar que el publicador comenta l'URL i SHA correctes només després d'una
+  activació reeixida i que la reexecució només actualitza el comentari del
+  publicador amb marcador fix, sense generar-ne duplicats.
 - Validar l'origen sota `*.preview.mountainrunners.cat` dins dels controls de
   l'ADR 0009, TLS, headers, identificació de no-producció, caché, cookies
   `__Host-`, storage i autenticació si s'aplica.
@@ -286,6 +308,10 @@ revocació i desactivació completa del sistema sense afectar producció.
   `noindex` com a control d'accés.
 - Autorització humana abans de publicar, cap preview per a forks i
   identificació inequívoca que no és producció.
+- Només el job de publicació de confiança té el permís mínim per escriure el
+  comentari de preview; el build no fiable no té aquest permís ni dades que
+  s'interpolin al comentari, i només pot actualitzar un comentari propi amb
+  marcador fix.
 - Credencial DNS sense permisos sobre la zona de producció o correu.
 - Política explícita de visibilitat, logs, retenció, ubicació i responsable del
   proveïdor escollit.
@@ -312,7 +338,7 @@ La fase es considera completada quan:
 
 1. Els requisits, amenaces, alternatives i responsabilitats estan aprovats abans
    d'adoptar serveis o aplicar canvis remots.
-2. Les cinc unitats tenen PR pròpia revisada, validada i fusionada en ordre de
+2. Les sis unitats tenen PR pròpia revisada, validada i fusionada en ordre de
    dependències.
 3. La decisió justifica l'opció triada dins del límit de l'ADR 0009 (origen sota
    `*.preview.mountainrunners.cat`, publicació restringida a branques pròpies,
@@ -336,7 +362,10 @@ La fase es considera completada quan:
 9. Una PR de fork segueix la política aprovada sense exposar secrets, sense
    publicació automàtica i sense convertir un context privilegiat en executor de
    codi no fiable; una PR tancada, revocada o amb SHA obsolet no es pot activar.
-10. Una fallada de DNS, TLS, hosting, neteja o proveïdor de previews no modifica
+10. Després d'activar correctament una preview, el publicador de confiança crea
+    o actualitza el seu únic comentari amb marcador fix a la PR amb l'URL i SHA
+    efectius; cap error, fork, tancament, revocació o SHA obsolet no en crea cap.
+11. Una fallada de DNS, TLS, hosting, neteja o proveïdor de previews no modifica
     ni interromp producció.
-11. El runbook descriu publicació, accés, quota, logs, renovació TLS, neteja,
+12. El runbook descriu publicació, accés, quota, logs, renovació TLS, neteja,
     revocació, incidències i desactivació completa amb responsables verificats.
