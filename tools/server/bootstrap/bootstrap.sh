@@ -134,6 +134,12 @@ chmod 2770 "${RELEASE_ROOT}/incoming"
 mkdir -p "${LOG_ROOT}"
 chown caddy:caddy "${LOG_ROOT}"
 chmod 700 "${LOG_ROOT}"
+mkdir -p /var/log/mountain-runners-previews
+chown caddy:caddy /var/log/mountain-runners-previews
+chmod 700 /var/log/mountain-runners-previews
+touch /var/log/mountain-runners-previews/access.log
+chown caddy:caddy /var/log/mountain-runners-previews/access.log
+chmod 600 /var/log/mountain-runners-previews/access.log
 
 # --- release tooling ---------------------------------------------------------
 
@@ -200,6 +206,9 @@ install_caddyfile() {
 }
 
 log "Installing the validated Caddyfile (validation host: ${VALIDATION_HOST})."
+install -m 0644 -o root -g root "${TOOL_ROOT}/caddy/Caddyfile.previews" /etc/caddy/Caddyfile.previews
+install -d -m 0755 -o root -g root /etc/caddy/preview-robots
+install -m 0644 -o root -g root "${TOOL_ROOT}/caddy/preview-robots/robots.txt" /etc/caddy/preview-robots/robots.txt
 install_caddyfile "${TOOL_ROOT}/caddy/Caddyfile" /etc/caddy/Caddyfile "${PRODUCTION_DOMAIN}"
 install_caddyfile "${TOOL_ROOT}/caddy/Caddyfile.production" /etc/caddy/Caddyfile.production "${PRODUCTION_DOMAIN}"
 
@@ -288,9 +297,19 @@ log "Installing the preview tooling to ${RELEASE_LIB}/preview."
 mkdir -p "${RELEASE_LIB}/preview"
 install -m 0644 -o root -g root \
   "${TOOL_ROOT}/preview/config.mjs" \
+  "${TOOL_ROOT}/preview/authorize.mjs" \
+  "${TOOL_ROOT}/preview/capacity.mjs" \
   "${TOOL_ROOT}/preview/gate.mjs" \
+  "${TOOL_ROOT}/preview/inventory.mjs" \
+  "${TOOL_ROOT}/preview/prune.mjs" \
+  "${TOOL_ROOT}/preview/retire.mjs" \
+  "${TOOL_ROOT}/preview/site-socket.mjs" \
+  "${TOOL_ROOT}/preview/site-config.mjs" \
+  "${TOOL_ROOT}/preview/site-manager.mjs" \
+  "${TOOL_ROOT}/preview/site-daemon.mjs" \
   "${RELEASE_LIB}/preview/"
 chmod 0755 "${RELEASE_LIB}/preview/gate.mjs"
+chmod 0755 "${RELEASE_LIB}/preview/site-daemon.mjs"
 ln -sf "${RELEASE_LIB}/preview/gate.mjs" /usr/local/bin/mountain-preview
 ln -sf "${RELEASE_LIB}/preview/gate.mjs" /usr/local/bin/preview-ssh-gate
 
@@ -325,6 +344,14 @@ if [[ -d "${PREVIEW_ROOT}/.ssh" ]]; then
     chmod 644 "${PREVIEW_ROOT}/.ssh/authorized_keys"
   fi
 fi
+
+sed -e "s|^Environment=MOUNTAIN_PREVIEW_SITE_GID=.*|Environment=MOUNTAIN_PREVIEW_SITE_GID=$(getent group preview-deploy | cut -d: -f3)|" \
+  "${TOOL_ROOT}/systemd/mountain-preview-site.service" > /etc/systemd/system/mountain-preview-site.service
+chown root:root /etc/systemd/system/mountain-preview-site.service
+chmod 0644 /etc/systemd/system/mountain-preview-site.service
+systemctl daemon-reload
+systemctl enable mountain-preview-site >/dev/null 2>&1 || true
+systemctl restart mountain-preview-site
 
 # --- sshd hardening (key-only authentication) --------------------------------
 log "Hardening sshd: key-only authentication."

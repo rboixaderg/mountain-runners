@@ -31,8 +31,8 @@ alternativa més simple. Cloudflare és una opció a comparar, no una decisió p
   publicació requereix autorització explícita d'una persona mantenidora i es
   limita a branques del repositori principal: els forks i les contribucions
   externes no tenen cap preview, ni automàtica ni autoritzada, i les previews
-  mostren una identificació inequívoca de no-producció servida per la capa de
-  confiança.
+  mostren una identificació de no-producció en el layout del build; l'ADR 0009
+  esmenat a la T6.4 accepta que una PR maliciosa la pot ocultar.
 - Cada preview utilitza un origen únic sota `*.preview.mountainrunners.cat`, el
   mateix domini registrable de producció, amb els controls compensatoris de
   l'ADR 0009, exclou el contingut marcat `published: false` en el build
@@ -45,7 +45,9 @@ alternativa més simple. Cloudflare és una opció a comparar, no una decisió p
   confiança requereix una decisió explícita de seguretat, privacitat, cost,
   reversió i responsabilitat. T6.2 determina si també cal un ADR.
 - La fase 6 no pot compartir credencials, zona DNS amb permís d'escriptura,
-  paths, caches, cookies ni namespaces amb producció.
+  paths de releases, caches, cookies ni namespaces amb producció. L'única
+  excepció és el magatzem ACME global del procés Caddy compartit (ADR 0010),
+  inaccessible a la identitat de previews.
 - Cap agent o sessió local pot publicar o conservar una preview fora del workflow
   aprovat.
 
@@ -140,7 +142,7 @@ fitxers duplicats i contingut despublicat. **PR:** pròpia.
 ### T6.4: Cicle De Vida, Aïllament I Neteja
 
 **Abast:** crear l'origen segons T6.2, aplicar TLS, headers de robots, CSP,
-identificació inequívoca de no-producció i política de caché, aïllar cookies i
+identificació de no-producció al layout i política de caché, aïllar cookies i
 storage, registrar propietat, autorització i caducitat, actualitzar una PR sense
 deixar releases òrfenes i retirar la preview en tancar o revocar la PR.
 **Exclusió:** no modifica l'origen, els secrets, els fitxers ni el
@@ -289,7 +291,9 @@ revocació i desactivació completa del sistema sense afectar producció.
   comprovació determinista que falla si qualsevol resposta de producció declara
   un `Set-Cookie` sense prefix `__Host-` o `__Secure-`.
 - Simular indisponibilitat de DNS, TLS, hosting o proveïdor i demostrar que
-  producció continua operativa.
+  producció continua operativa en els casos provats. Una fallada del procés
+  Caddy o de l'ACME compartit pot afectar-la (ADR 0010): si una prova detecta
+  interrupció, aturar les previews i revisar-ne l'arquitectura.
 
 ## Seguretat I Privacitat
 
@@ -306,8 +310,8 @@ revocació i desactivació completa del sistema sense afectar producció.
 - Aïllament d'origen entre preview i producció; la frontera _same-site_ queda
   acceptada amb els controls compensatoris de l'ADR 0009; no es confia només en
   `noindex` com a control d'accés.
-- Autorització humana abans de publicar, cap preview per a forks i
-  identificació inequívoca que no és producció.
+- Autorització humana abans de publicar, cap preview per a forks i marca de
+  no-producció en el layout amb el risc residual de l'ADR 0009 esmenat.
 - Només el job de publicació de confiança té el permís mínim per escriure el
   comentari de preview; el build no fiable no té aquest permís ni dades que
   s'interpolin al comentari, i només pot actualitzar un comentari propi amb
@@ -365,7 +369,9 @@ La fase es considera completada quan:
 10. Després d'activar correctament una preview, el publicador de confiança crea
     o actualitza el seu únic comentari amb marcador fix a la PR amb l'URL i SHA
     efectius; cap error, fork, tancament, revocació o SHA obsolet no en crea cap.
-11. Una fallada de DNS, TLS, hosting, neteja o proveïdor de previews no modifica
-    ni interromp producció.
+11. Les fallades simulades de DNS, TLS, hosting, neteja o proveïdor de previews
+    no modifiquen ni interrompen producció; el risc residual del procés i del
+    magatzem ACME compartits queda acceptat a l'ADR 0010 i qualsevol
+    interrupció observada obliga a aturar les previews i revisar la decisió.
 12. El runbook descriu publicació, accés, quota, logs, renovació TLS, neteja,
     revocació, incidències i desactivació completa amb responsables verificats.

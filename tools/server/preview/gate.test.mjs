@@ -17,6 +17,7 @@ import {
   mkdir,
   mkdtemp,
   readFile,
+  readdir,
   readlink,
   rm,
   stat,
@@ -228,6 +229,222 @@ test("receives into the pull request namespace, installs, activates and reports 
   });
 });
 
+test("retire unpublishes only the requested namespace and is idempotent", async () => {
+  await withPreviewRoot(async (root) => {
+    const first = previewNamespacePaths(previewPullNumber);
+    const second = previewNamespacePaths(previewPullNumber + 1);
+    await mkdir(first.releasesDirectory, { recursive: true });
+    await mkdir(second.releasesDirectory, { recursive: true });
+    await writeFile(join(first.releasesDirectory, "old.html"), "retire me");
+    await writeFile(join(second.releasesDirectory, "keep.html"), "keep me");
+
+    const retired = runGate(
+      root,
+      `mountain-preview retire ${previewPullNumber}`,
+    );
+    assert.equal(retired.status, 0, gateOutput(retired));
+    assert.equal(await pathExists(first.root), false);
+    assert.equal(
+      await readFile(join(second.releasesDirectory, "keep.html"), "utf8"),
+      "keep me",
+    );
+    assert.deepEqual(await readdir(join(root, "namespaces")), [
+      `pr-${previewPullNumber + 1}`,
+    ]);
+
+    const repeated = runGate(
+      root,
+      `mountain-preview retire ${previewPullNumber}`,
+    );
+    assert.equal(repeated.status, 0, gateOutput(repeated));
+    assert.match(repeated.stdout, /already retired/);
+    assert.notEqual(runGate(root, "mountain-preview retire ../99").status, 0);
+  });
+});
+
+test("retire refuses a symlinked namespace instead of deleting its target", async () => {
+  await withPreviewRoot(async (root) => {
+    const target = join(root, "unrelated");
+    await mkdir(target);
+    await writeFile(join(target, "keep.html"), "keep me");
+    await symlink(target, previewNamespacePaths(previewPullNumber).root);
+
+    const result = runGate(
+      root,
+      `mountain-preview retire ${previewPullNumber}`,
+    );
+    assert.notEqual(result.status, 0);
+    assert.match(gateOutput(result), /not a directory/);
+    assert.equal(await readFile(join(target, "keep.html"), "utf8"), "keep me");
+  });
+});
+
+test("a sixth active preview is refused until an existing origin is retired", async () => {
+  await withPreviewRoot(async (root) => {
+    const archiveName = await receiveArtifact(root);
+    const installed = runGate(
+      root,
+      `mountain-preview install ${previewPullNumber} ${archiveName} manifest.json`,
+    );
+    assert.equal(installed.status, 0, gateOutput(installed));
+    for (let number = 1; number <= 5; number += 1) {
+      const namespace = previewNamespacePaths(number);
+      await mkdir(namespace.releasesDirectory, { recursive: true });
+      await symlink(namespace.releasesDirectory, namespace.currentLink);
+    }
+    const rejected = runGate(
+      root,
+      `mountain-preview activate ${previewPullNumber} ${previewCommit}`,
+    );
+    assert.notEqual(rejected.status, 0);
+    assert.match(gateOutput(rejected), /limit of 5 active origins/);
+
+    const retired = runGate(root, "mountain-preview retire 1");
+    assert.equal(retired.status, 0, gateOutput(retired));
+    const activated = runGate(
+      root,
+      `mountain-preview activate ${previewPullNumber} ${previewCommit}`,
+    );
+    assert.equal(activated.status, 0, gateOutput(activated));
+  });
+});
+
+test("a sixth pending namespace is refused before accepting uploads", async () => {
+  await withPreviewRoot(async (root) => {
+    for (let number = 1; number <= 5; number += 1) {
+      await mkdir(previewNamespacePaths(number).root);
+    }
+    const result = runGate(
+      root,
+      `mountain-preview receive ${previewPullNumber} manifest.json`,
+      "{}",
+    );
+    assert.notEqual(result.status, 0);
+    assert.match(gateOutput(result), /limit of 5 namespaces/);
+    assert.equal(
+      await pathExists(previewNamespacePaths(previewPullNumber).root),
+      false,
+    );
+  });
+});
+
+test("inventory reports active commits and pending namespaces without opening releases", async () => {
+  await withPreviewRoot(async (root) => {
+    const archiveName = await receiveArtifact(root);
+    const pending = JSON.parse(
+      runGate(root, "mountain-preview inventory").stdout,
+    );
+    assert.equal(pending.length, 1);
+    assert.equal(pending[0].pullNumber, previewPullNumber);
+    assert.equal(pending[0].commit, undefined);
+
+    const install = runGate(
+      root,
+      `mountain-preview install ${previewPullNumber} ${archiveName} manifest.json`,
+    );
+    assert.equal(install.status, 0, gateOutput(install));
+    const activate = runGate(
+      root,
+      `mountain-preview activate ${previewPullNumber} ${previewCommit}`,
+    );
+    assert.equal(activate.status, 0, gateOutput(activate));
+    const active = JSON.parse(
+      runGate(root, "mountain-preview inventory").stdout,
+    );
+    assert.equal(active[0].commit, previewCommit);
+    assert.ok(Date.parse(active[0].updatedAt));
+  });
+});
+
+test("authorization records PR, actor and expiry in the verified release", async () => {
+  await withPreviewRoot(async (root) => {
+    const archiveName = await receiveArtifact(root);
+    assert.equal(
+      runGate(
+        root,
+        `mountain-preview install ${previewPullNumber} ${archiveName} manifest.json`,
+      ).status,
+      0,
+    );
+    const badActor = runGate(
+      root,
+      `mountain-preview authorize ${previewPullNumber} ${previewCommit} bad.actor`,
+    );
+    assert.notEqual(badActor.status, 0);
+    const authorized = runGate(
+      root,
+      `mountain-preview authorize ${previewPullNumber} ${previewCommit} maintainer`,
+    );
+    assert.equal(authorized.status, 0, gateOutput(authorized));
+    const release = JSON.parse(
+      await readFile(
+        previewNamespacePaths(previewPullNumber).registryFile,
+        "utf8",
+      ),
+    ).releases[0];
+    assert.equal(release.pullRequestNumber, previewPullNumber);
+    assert.equal(release.authorizedBy, "maintainer");
+    assert.equal(
+      Date.parse(release.expiresAt) - Date.parse(release.authorizedAt),
+      14 * 24 * 60 * 60 * 1000,
+    );
+  });
+});
+
+test("prune removes the previous release after updating an origin", async () => {
+  await withPreviewRoot(async (root) => {
+    const first = await receiveArtifact(root);
+    assert.equal(
+      runGate(
+        root,
+        `mountain-preview install ${previewPullNumber} ${first} manifest.json`,
+      ).status,
+      0,
+    );
+    assert.equal(
+      runGate(
+        root,
+        `mountain-preview activate ${previewPullNumber} ${previewCommit}`,
+      ).status,
+      0,
+    );
+    const second = await receiveArtifact(root, {
+      commit: updatedPreviewCommit,
+    });
+    assert.equal(
+      runGate(
+        root,
+        `mountain-preview install ${previewPullNumber} ${second} manifest.json`,
+      ).status,
+      0,
+    );
+    assert.equal(
+      runGate(
+        root,
+        `mountain-preview activate ${previewPullNumber} ${updatedPreviewCommit}`,
+      ).status,
+      0,
+    );
+    const pruned = runGate(root, `mountain-preview prune ${previewPullNumber}`);
+    assert.equal(pruned.status, 0, gateOutput(pruned));
+    const namespace = previewNamespacePaths(previewPullNumber);
+    assert.equal(
+      await pathExists(join(namespace.releasesDirectory, previewCommit)),
+      false,
+    );
+    assert.equal(
+      await pathExists(join(namespace.releasesDirectory, updatedPreviewCommit)),
+      true,
+    );
+    assert.deepEqual(await readdir(namespace.incomingDirectory), []);
+    assert.equal(
+      JSON.parse(await readFile(namespace.registryFile, "utf8")).releases
+        .length,
+      1,
+    );
+  });
+});
+
 test("the bootstrap install layout resolves the preview gate release imports", async () => {
   const installRoot = await mkdtemp(
     join(tmpdir(), "mountain-preview-install-"),
@@ -256,6 +473,27 @@ test("the bootstrap install layout resolves the preview gate release imports", a
     await cp(
       join(toolDirectory, "config.mjs"),
       join(previewRoot, "config.mjs"),
+    );
+    await cp(
+      join(toolDirectory, "authorize.mjs"),
+      join(previewRoot, "authorize.mjs"),
+    );
+    await cp(
+      join(toolDirectory, "retire.mjs"),
+      join(previewRoot, "retire.mjs"),
+    );
+    await cp(
+      join(toolDirectory, "capacity.mjs"),
+      join(previewRoot, "capacity.mjs"),
+    );
+    await cp(
+      join(toolDirectory, "inventory.mjs"),
+      join(previewRoot, "inventory.mjs"),
+    );
+    await cp(join(toolDirectory, "prune.mjs"), join(previewRoot, "prune.mjs"));
+    await cp(
+      join(toolDirectory, "site-socket.mjs"),
+      join(previewRoot, "site-socket.mjs"),
     );
     for (const moduleName of flatReleaseModules) {
       await cp(

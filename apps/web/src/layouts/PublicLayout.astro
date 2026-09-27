@@ -3,6 +3,7 @@ import SiteFooter from "../components/SiteFooter.astro";
 import SiteHeader from "../components/SiteHeader.astro";
 import PreFooter from "../components/PreFooter.astro";
 import PlausibleAnalytics from "../components/PlausibleAnalytics.astro";
+import PreviewNotice from "../components/PreviewNotice.astro";
 import { getAnalyticsPageType } from "../lib/analytics/page-type";
 import logoFavicon from "../assets/favicon-32.png";
 import oswaldFont from "../assets/fonts/oswald-latin.woff2";
@@ -62,6 +63,7 @@ const memberSignupLink = getMemberSignupLink(
   getFixedPagePath("members", locale),
 );
 const analyticsPageType = getAnalyticsPageType(Astro.url.pathname);
+const isPreview = import.meta.env.PUBLIC_PREVIEW === "true";
 ---
 
 <!doctype html>
@@ -78,7 +80,11 @@ const analyticsPageType = getAnalyticsPageType(Astro.url.pathname);
       crossorigin
     />
     <meta name="description" content={description} />
-    {noindex && <meta name="robots" content="noindex, nofollow" />}
+    {
+      (noindex || isPreview) && (
+        <meta name="robots" content="noindex, nofollow" />
+      )
+    }
     {canonical && <link rel="canonical" href={canonical} />}
     {
       localizedAlternatives.map((alternative) => (
@@ -118,12 +124,17 @@ const analyticsPageType = getAnalyticsPageType(Astro.url.pathname);
       ))
     }
     <title>{title}</title>
-    <PlausibleAnalytics locale={locale} pageType={analyticsPageType} />
+    {
+      !isPreview && (
+        <PlausibleAnalytics locale={locale} pageType={analyticsPageType} />
+      )
+    }
   </head>
   <body>
     <a class="skip-link" href="#main-content"
       >{messages.skip_to_content({}, { locale })}</a
     >
+    {isPreview && <PreviewNotice locale={locale} />}
     <SiteHeader
       localizedAlternatives={localizedAlternatives}
       locale={locale}

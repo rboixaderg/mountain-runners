@@ -218,8 +218,9 @@ tancades i caps mouments. El flux té tres jobs amb fronteres explícites:
    `receive`, instal·la, revalida que la PR continua oberta i al mateix head
    SHA i que continua vigent l'autorització (col·laboradora per a `/preview` o
    permís d'escriptura per a `workflow_dispatch`) immediatament abans d'activar;
-   activa el namespace de la PR i en comprova la salut. Mai no fa checkout ni
-   executa codi de la PR.
+   registra l'autorització, demana al broker root-owned el bloc Caddy,
+   revalida abans d'activar, comprova TLS, capçaleres i salut, i neteja les
+   releases anteriors. Mai no fa checkout ni executa codi de la PR.
 
 ### Frontera del servidor
 
@@ -230,8 +231,10 @@ tancades i caps mouments. El flux té tres jobs amb fronteres explícites:
   modificables per aquesta identitat. Un ACL POSIX anomenat denega a
   `preview-deploy` la lectura i el recorregut de `/var/lib/mountain-runners`
   sense canviar el mode `0755` que necessiten Caddy i `mountain-deploy`. No
-  s'ha donat accés al socket del daemon. Cap secret de previews es comparteix
-  amb producció.
+  s'ha donat accés al socket del daemon de producció. El socket separat
+  `mountain-preview-site` admet només altes/baixes d'orígens numèrics amb
+  releases autoritzades, no directives Caddy arbitràries. Cap secret de
+  previews es comparteix amb producció.
 - El bootstrap instal·la el gate a `preview/` i crea el symlink
   `release -> .`, que el resol contra les eines de release planes sense còpies
   duplicades. En un VPS ja actiu, segueix el procediment preview-only del

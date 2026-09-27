@@ -71,6 +71,20 @@ qualsevol token d'API és de compte sencer i violaria AM-04.
 La resta de l'ADR no canvia: mateix domini registrable, publicació només a
 branques pròpies i controls compensatoris.
 
+## Esmena (T6.4, 27 de setembre de 2026): identificació visual
+
+La persona mantenidora substitueix la garantia «La identificació inequívoca de
+no-producció es serveix des de la capa de confiança i no pot ser ocultada pel
+contingut de la PR» per una marca visible en el layout de la web, activada
+només en builds de preview amb `PUBLIC_PREVIEW=true`. La capa de confiança
+conserva els headers de robots i de seguretat, però **no garanteix la marca
+visual**: l'HTML de la PR pot eliminar el component o amagar-lo amb CSS/JS.
+Les instruccions als agents no són una defensa contra un contribuidor
+maliciós. Aquest risc de confusió o suplantació queda acceptat expressament
+per simplicitat; qualsevol preview pública continua requerint autorització
+humana per SHA, només de branques pròpies, i retirada immediata. Si hi ha
+abús, es desactiven les previews i es revisa la decisió abans de reprendre-les.
+
 ## Raonament
 
 La T6.1 (PR #113) modela el contingut d'una PR com a contingut actiu no fiable

@@ -115,3 +115,7 @@ https://__VALIDATION_HOST__ {
 
 # Host de producció: s'activa al tall (T5.5) descomentant la línia següent.
 # import Caddyfile.production
+
+# Separate root-owned preview fragment. Keep it empty until the T6.4 lifecycle
+# and server-side Caddy manager have been installed and validated.
+import Caddyfile.previews

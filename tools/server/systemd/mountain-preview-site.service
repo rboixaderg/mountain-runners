@@ -1,0 +1,18 @@
+[Unit]
+Description=Mountain Runners preview Caddy site manager
+After=network.target caddy.service
+
+[Service]
+Type=simple
+ExecStart=/usr/local/lib/mountain-runners/preview/site-daemon.mjs
+Environment=MOUNTAIN_PREVIEW_SITE_GID=0
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/etc/caddy /run
+
+[Install]
+WantedBy=multi-user.target

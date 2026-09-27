@@ -93,6 +93,8 @@ reviewing `apps/web` code. The review of every PR checks these rules:
   and review new third-party services or telemetry.
 - Treat public-chat input as untrusted and keep the future editorial assistant
   restricted to allowed content paths and explicit scripts.
+- Do not remove or hide `PreviewNotice` or the `PUBLIC_PREVIEW` build switch.
+  This rule guides agents; it is not a security boundary against PR authors.
 - Do not run destructive commands or commands that publish, deploy, push,
   create releases, alter infrastructure or change remote configuration without
   explicit user approval in the current conversation.

@@ -20,6 +20,12 @@
 //   activate <pr-number> <commit>                 repoint the namespace
 //   list <pr-number>                              show the namespace registry
 //   health <pr-number>                            verify registry + active digests
+//   retire <pr-number>                            unpublish and remove namespace
+//   inventory                                     list origins for reconciliation
+//   prune <pr-number>                            remove inactive releases/uploads
+//   site-enable <pr-number>                     configure verified origin in Caddy
+//   site-disable <pr-number>                    remove origin from Caddy
+//   site-sync                                   remove sites without a current release
 //
 // Exit codes: 0 success, 1 error.
 
@@ -42,6 +48,16 @@ import {
   prNumberPattern,
   previewNamespacePaths,
 } from "./config.mjs";
+import { retirePreview } from "./retire.mjs";
+import {
+  assertNamespaceCapacity,
+  assertPreviewCapacity,
+  withPreviewCapacity,
+} from "./capacity.mjs";
+import { previewInventory } from "./inventory.mjs";
+import { prunePreview } from "./prune.mjs";
+import { requestPreviewSite } from "./site-socket.mjs";
+import { authorizePreview } from "./authorize.mjs";
 
 const unsafeTokenPattern = /[\s"'`$\\;|&<>()]/u;
 
@@ -70,6 +86,11 @@ function requirePullRequestNumber(argument) {
 }
 
 function validateCommand(command, commandArgs) {
+  if (command === "inventory" || command === "site-sync") {
+    if (commandArgs.length !== 0)
+      throw new Error(`${command} takes no arguments.`);
+    return { command };
+  }
   if (command === "receive") {
     if (commandArgs.length !== 2) {
       throw new Error(
@@ -114,7 +135,28 @@ function validateCommand(command, commandArgs) {
     };
   }
 
-  if (command === "list" || command === "health") {
+  if (command === "authorize") {
+    if (commandArgs.length !== 3 || !commitPattern.test(commandArgs[1])) {
+      throw new Error(
+        "authorize requires a PR number, commit and GitHub actor.",
+      );
+    }
+    return {
+      command,
+      pullRequestNumber: requirePullRequestNumber(commandArgs[0]),
+      commit: commandArgs[1],
+      actor: commandArgs[2],
+    };
+  }
+
+  if (
+    command === "list" ||
+    command === "health" ||
+    command === "retire" ||
+    command === "prune" ||
+    command === "site-enable" ||
+    command === "site-disable"
+  ) {
     if (commandArgs.length !== 1) {
       throw new Error(`${command} requires exactly the pull request number.`);
     }
@@ -139,14 +181,35 @@ async function assertManifestBelongsToNamespace(
 }
 
 async function runCommand(validated) {
+  if (validated.command === "inventory") {
+    return JSON.stringify(await previewInventory());
+  }
+  if (validated.command === "site-sync") {
+    return requestPreviewSite("sync");
+  }
   const { pullRequestNumber } = validated;
+  if (
+    validated.command === "site-enable" ||
+    validated.command === "site-disable"
+  ) {
+    return requestPreviewSite(
+      validated.command === "site-enable" ? "enable" : "disable",
+      Number(pullRequestNumber),
+    );
+  }
+  if (validated.command === "retire") {
+    return retirePreview(pullRequestNumber);
+  }
   // MOUNTAIN_RELEASE_ROOT points the phase 5 validators, registry and
   // operations at this preview's namespace; nothing outside it is touched.
   const namespaceRoot = previewNamespacePaths(pullRequestNumber).root;
   process.env.MOUNTAIN_RELEASE_ROOT = namespaceRoot;
 
-  await mkdir(join(namespaceRoot, "incoming"), { recursive: true });
-  await mkdir(join(namespaceRoot, "releases"), { recursive: true });
+  await withPreviewCapacity(async () => {
+    await assertNamespaceCapacity(pullRequestNumber);
+    await mkdir(join(namespaceRoot, "incoming"), { recursive: true });
+    await mkdir(join(namespaceRoot, "releases"), { recursive: true });
+  });
 
   if (validated.command === "receive") {
     const received = await receiveIncomingFile({
@@ -163,12 +226,29 @@ async function runCommand(validated) {
     return performInstall(archivePath, manifestPath);
   }
 
+  if (validated.command === "authorize") {
+    return authorizePreview(
+      validated.commit,
+      validated.actor,
+      pullRequestNumber,
+    );
+  }
+
   if (validated.command === "activate") {
-    return performActivate(validated.commit);
+    return withPreviewCapacity(async () => {
+      await assertPreviewCapacity(pullRequestNumber);
+      return performActivate(validated.commit);
+    });
   }
 
   if (validated.command === "list") {
     return performList();
+  }
+
+  if (validated.command === "prune") {
+    const health = await performHealth();
+    if (!health.startsWith("Health: OK")) throw new Error(health);
+    return prunePreview();
   }
 
   const healthMessage = await performHealth();
