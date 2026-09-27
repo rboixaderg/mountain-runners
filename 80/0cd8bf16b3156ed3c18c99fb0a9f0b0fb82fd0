@@ -1,0 +1,41 @@
+docs/deployment.md
+  s_2c2bf972ad3a2b::t_6ea1f3e3db5775 221-223,238-240
+tools/preview/publish-operations.mjs
+  s_2c2bf972ad3a2b::t_765b1cc618fbd2 15,230,268-273,276-282,309-315
+tools/preview/publish.test.mjs
+  s_2c2bf972ad3a2b::t_0be87dfede5473 15,28,39,181,205,231,236,380-400,450-473
+tools/server/preview/authorization-proof.mjs
+  s_2c2bf972ad3a2b::t_3b89df530d55a3 1-42
+tools/server/preview/gate.test.mjs
+  s_2c2bf972ad3a2b::t_9bd9f708b8e1bd 39-40,48,67-70,72,85,91-103,229,304-318,327,384,398,408-446,448,450-452,455,457-458,474-525,536,554,935,985,1012
+tools/server/preview/inventory.mjs
+  s_2c2bf972ad3a2b::t_eb3e84b50d4ca7 24-28,30-36
+tools/server/preview/retire.mjs
+  s_2c2bf972ad3a2b::t_bcdbc757a33af7 4,36-51
+tools/server/preview/site-daemon.mjs
+  s_2c2bf972ad3a2b::t_fc36eb5b0b145a 3,8-9,11,18-21,47-81
+tools/server/preview/site-manager.mjs
+  s_2c2bf972ad3a2b::t_4263d942461aab 61,63-78
+tools/server/preview/site-manager.test.mjs
+  s_2c2bf972ad3a2b::t_b78fb71e1e6080 45-49,53,106-127
+tools/server/preview/site-socket.mjs
+  s_2c2bf972ad3a2b::t_695c20a8782fbe 6,28-30
+tools/server/preview/test-authorization.mjs
+  s_2c2bf972ad3a2b::t_1c276179eb73ea 1-55
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "800cd8bf16b3156ed3c18c99fb0a9f0b0fb82fd0",
+  "prompts": {},
+  "sessions": {
+    "s_2c2bf972ad3a2b": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_f1ca558ebffe9vLf7TWF0P5bcW",
+        "model": "unknown"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
