@@ -26,6 +26,29 @@ separada per a qualsevol acció al VPS. **Cap preview no està publicada.**
   SHA obsolet, reexecució i restauració després d'un reinici Caddy o smoke
   fallit.
 
+## Correccions de la revisió de la PR #130
+
+- `pnpm check` i `pnpm validate`: correctes després de la revisió, amb 328
+  tests de web, 104 de servidor i 306 recorreguts Playwright de producció.
+- Build local amb `PUBLIC_SITE_ORIGIN=https://pr-130.preview.mountainrunners.cat`
+  i `PUBLIC_PREVIEW=true`: correcte. Els 12 tests de preview passen en
+  Chromium, Firefox i WebKit, tant a escriptori com a mòbil. El test ja no
+  pressuposa que la PR sigui la #99.
+- El test del gate comprova que la clau SSH sola no pot autoritzar ni activar
+  una release i que el broker rebutja una signatura falsa. La prova de
+  publicació passa pel broker amb una parella de claus efímera generada al test;
+  cap clau real no figura al repositori.
+- La reconciliació retira un namespace amb el registre inconsistent i continua
+  netejant les altres PR; marca l'execució com a fallida per exigir revisió i esborra
+  directoris de retirades interrompudes. Es comproven també l'actualització
+  dels 14 dies en reautoritzar el mateix SHA, la verificació dels altres
+  orígens després de reiniciar Caddy i la recuperació horària d'una poda
+  fallida.
+- Continua pendent crear i instal·lar la clau pública de signatura al VPS,
+  configurar la privada només al secret `PREVIEW_AUTH_PRIVATE_KEY` de l'entorn
+  `previews` i comprovar els permisos reals del drop-in de Caddy. Requereix
+  aprovació separada; cap preview no s'ha publicat.
+
 ## Pendent abans de l'activació
 
 - Revisar el codi i validar el flux complet contra el VPS amb aprovació de la

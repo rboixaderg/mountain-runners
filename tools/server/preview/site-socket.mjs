@@ -3,7 +3,7 @@ import { connect } from "node:net";
 const socketPath =
   process.env.MOUNTAIN_PREVIEW_SITE_SOCKET ?? "/run/mountain-preview-site.sock";
 
-export function requestPreviewSite(command, pullRequestNumber) {
+export function requestPreviewSite(command, pullRequestNumber, authorization) {
   return new Promise((resolveRequest, rejectRequest) => {
     const socket = connect(socketPath);
     let response = "";
@@ -25,6 +25,8 @@ export function requestPreviewSite(command, pullRequestNumber) {
         rejectRequest(error);
       }
     });
-    socket.write(`${JSON.stringify({ command, pullRequestNumber })}\n`);
+    socket.write(
+      `${JSON.stringify({ command, pullRequestNumber, ...authorization })}\n`,
+    );
   });
 }

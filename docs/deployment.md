@@ -218,7 +218,9 @@ tancades i caps mouments. El flux té tres jobs amb fronteres explícites:
    `receive`, instal·la, revalida que la PR continua oberta i al mateix head
    SHA i que continua vigent l'autorització (col·laboradora per a `/preview` o
    permís d'escriptura per a `workflow_dispatch`) immediatament abans d'activar;
-   registra l'autorització, demana al broker root-owned el bloc Caddy,
+   signa l'autorització amb `PREVIEW_AUTH_PRIVATE_KEY` (absent del build) i
+   l'envia per l'entrada estàndard al broker root-owned, que en verifica la
+   clau pública abans de registrar-la. Després demana el bloc Caddy,
    revalida abans d'activar, comprova TLS, capçaleres i salut, i neteja les
    releases anteriors. Mai no fa checkout ni executa codi de la PR.
 
@@ -233,7 +235,9 @@ tancades i caps mouments. El flux té tres jobs amb fronteres explícites:
   sense canviar el mode `0755` que necessiten Caddy i `mountain-deploy`. No
   s'ha donat accés al socket del daemon de producció. El socket separat
   `mountain-preview-site` admet només altes/baixes d'orígens numèrics amb
-  releases autoritzades, no directives Caddy arbitràries. Cap secret de
+  releases autoritzades, no directives Caddy arbitràries. L'alta de
+  l'autorització exigeix una signatura recent del publicador; la clau SSH
+  per si sola no la pot generar. Cap secret de
   previews es comparteix amb producció.
 - El bootstrap instal·la el gate a `preview/` i crea el symlink
   `release -> .`, que el resol contra les eines de release planes sense còpies

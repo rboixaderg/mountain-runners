@@ -297,6 +297,7 @@ log "Installing the preview tooling to ${RELEASE_LIB}/preview."
 mkdir -p "${RELEASE_LIB}/preview"
 install -m 0644 -o root -g root \
   "${TOOL_ROOT}/preview/config.mjs" \
+  "${TOOL_ROOT}/preview/authorization-proof.mjs" \
   "${TOOL_ROOT}/preview/authorize.mjs" \
   "${TOOL_ROOT}/preview/capacity.mjs" \
   "${TOOL_ROOT}/preview/gate.mjs" \
@@ -346,6 +347,7 @@ if [[ -d "${PREVIEW_ROOT}/.ssh" ]]; then
 fi
 
 sed -e "s|^Environment=MOUNTAIN_PREVIEW_SITE_GID=.*|Environment=MOUNTAIN_PREVIEW_SITE_GID=$(getent group preview-deploy | cut -d: -f3)|" \
+  -e "s|^Environment=MOUNTAIN_PREVIEW_SITE_UID=.*|Environment=MOUNTAIN_PREVIEW_SITE_UID=$(id -u preview-deploy)|" \
   "${TOOL_ROOT}/systemd/mountain-preview-site.service" > /etc/systemd/system/mountain-preview-site.service
 chown root:root /etc/systemd/system/mountain-preview-site.service
 chmod 0644 /etc/systemd/system/mountain-preview-site.service

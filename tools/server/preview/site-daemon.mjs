@@ -1,16 +1,24 @@
 #!/usr/bin/env node
 // Privileged, bounded broker: preview-deploy can request only numeric hosts.
+import { execFile } from "node:child_process";
 import { chmodSync, chownSync, lstatSync, unlinkSync } from "node:fs";
 import { readFile, readlink } from "node:fs/promises";
 import { connect, createServer } from "node:net";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { promisify } from "node:util";
 import { previewNamespacePaths, previewOrigin } from "./config.mjs";
+import { verifyPreviewAuthorization } from "./authorization-proof.mjs";
 import { parsePreviewSites } from "./site-config.mjs";
 import { updatePreviewSite } from "./site-manager.mjs";
 
 const socketPath =
   process.env.MOUNTAIN_PREVIEW_SITE_SOCKET ?? "/run/mountain-preview-site.sock";
 const socketGid = Number(process.env.MOUNTAIN_PREVIEW_SITE_GID ?? 0);
+const previewUid = Number(
+  process.env.MOUNTAIN_PREVIEW_SITE_UID ?? process.getuid(),
+);
+const exec = promisify(execFile);
 const fragmentPath = process.env.MOUNTAIN_PREVIEW_CADDY_DIRECTORY
   ? join(process.env.MOUNTAIN_PREVIEW_CADDY_DIRECTORY, "Caddyfile.previews")
   : "/etc/caddy/Caddyfile.previews";
@@ -36,6 +44,41 @@ async function eligible(pullNumber) {
 }
 
 async function update(request) {
+  if (request.command === "authorize") {
+    const { pullRequestNumber, commit, actor, issuedAt, signature } = request;
+    const publicKey = await readFile(
+      process.env.MOUNTAIN_PREVIEW_AUTH_PUBLIC_KEY ??
+        "/etc/mountain-runners/preview-auth.pub",
+      "utf8",
+    );
+    verifyPreviewAuthorization(
+      { pullRequestNumber, commit, actor, issuedAt },
+      signature,
+      publicKey,
+    );
+    if (previewUid === 0)
+      throw new Error(
+        "Preview authorization requires the unprivileged preview UID.",
+      );
+    const { stdout } = await exec(
+      process.execPath,
+      [
+        fileURLToPath(new URL("./authorize.mjs", import.meta.url)),
+        commit,
+        actor,
+        String(pullRequestNumber),
+      ],
+      {
+        uid: previewUid,
+        gid: socketGid || process.getgid(),
+        env: {
+          ...process.env,
+          MOUNTAIN_RELEASE_ROOT: previewNamespacePaths(pullRequestNumber).root,
+        },
+      },
+    );
+    return stdout.trim();
+  }
   if (request.command === "sync") {
     const sites = parsePreviewSites(await readFile(fragmentPath, "utf8"));
     for (const number of sites) {

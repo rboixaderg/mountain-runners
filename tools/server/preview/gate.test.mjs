@@ -36,6 +36,8 @@ import {
   writeCraftedArchive,
 } from "../release/adversarial-archive.mjs";
 import { previewNamespacePaths, previewOrigin } from "./config.mjs";
+import { signPreviewAuthorization } from "./authorization-proof.mjs";
+import { withPreviewAuthorization } from "./test-authorization.mjs";
 
 const toolDirectory = dirname(fileURLToPath(import.meta.url));
 const gatePath = join(toolDirectory, "gate.mjs");
@@ -43,6 +45,7 @@ const gatePath = join(toolDirectory, "gate.mjs");
 const previewPullNumber = 99;
 const previewCommit = "9".repeat(40);
 const updatedPreviewCommit = "8".repeat(40);
+const authorizationKeys = new Map();
 
 const previewFiles = [
   { path: "index.html", content: "<html>preview home</html>" },
@@ -61,8 +64,12 @@ async function withPreviewRoot(run) {
   process.env.MOUNTAIN_PREVIEW_ROOT = root;
   try {
     await mkdir(join(root, "namespaces"), { recursive: true });
-    return await run(root);
+    return await withPreviewAuthorization(root, async ({ privateKey }) => {
+      authorizationKeys.set(root, privateKey);
+      return run(root);
+    });
   } finally {
+    authorizationKeys.delete(root);
     process.env.MOUNTAIN_PREVIEW_ROOT = previousPreviewRoot;
     await rm(root, { recursive: true, force: true });
   }
@@ -75,9 +82,23 @@ function runGate(root, originalCommand, stdin) {
     env: {
       ...process.env,
       MOUNTAIN_PREVIEW_ROOT: root,
+      MOUNTAIN_PREVIEW_SITE_SOCKET: join(root, "site.sock"),
       SSH_ORIGINAL_COMMAND: originalCommand,
     },
   });
+}
+
+function authorizeRelease(root, commit = previewCommit, actor = "maintainer") {
+  const issuedAt = Date.now();
+  const signature = signPreviewAuthorization(
+    { pullRequestNumber: previewPullNumber, commit, actor, issuedAt },
+    authorizationKeys.get(root),
+  );
+  return runGate(
+    root,
+    `mountain-preview authorize ${previewPullNumber} ${commit} ${actor}`,
+    JSON.stringify({ issuedAt, signature }),
+  );
 }
 
 function runGateDirect(root, args) {
@@ -205,6 +226,7 @@ test("receives into the pull request namespace, installs, activates and reports 
       ),
       "<html>hola preview</html>",
     );
+    assert.equal(authorizeRelease(root).status, 0);
 
     const activate = runGate(
       root,
@@ -279,6 +301,21 @@ test("retire refuses a symlinked namespace instead of deleting its target", asyn
   });
 });
 
+test("inventory removes directories left by an interrupted retirement", async () => {
+  await withPreviewRoot(async (root) => {
+    const retired = join(
+      root,
+      "namespaces",
+      ".retired-pr-99-00000000-0000-4000-8000-000000000000",
+    );
+    await mkdir(retired);
+    await writeFile(join(retired, "old.html"), "orphaned release");
+    const inventory = runGate(root, "mountain-preview inventory");
+    assert.equal(inventory.status, 0, gateOutput(inventory));
+    assert.equal(await pathExists(retired), false);
+  });
+});
+
 test("a sixth active preview is refused until an existing origin is retired", async () => {
   await withPreviewRoot(async (root) => {
     const archiveName = await receiveArtifact(root);
@@ -287,6 +324,7 @@ test("a sixth active preview is refused until an existing origin is retired", as
       `mountain-preview install ${previewPullNumber} ${archiveName} manifest.json`,
     );
     assert.equal(installed.status, 0, gateOutput(installed));
+    assert.equal(authorizeRelease(root).status, 0);
     for (let number = 1; number <= 5; number += 1) {
       const namespace = previewNamespacePaths(number);
       await mkdir(namespace.releasesDirectory, { recursive: true });
@@ -343,6 +381,7 @@ test("inventory reports active commits and pending namespaces without opening re
       `mountain-preview install ${previewPullNumber} ${archiveName} manifest.json`,
     );
     assert.equal(install.status, 0, gateOutput(install));
+    assert.equal(authorizeRelease(root).status, 0);
     const activate = runGate(
       root,
       `mountain-preview activate ${previewPullNumber} ${previewCommit}`,
@@ -356,6 +395,46 @@ test("inventory reports active commits and pending namespaces without opening re
   });
 });
 
+test("inventory isolates a damaged registry instead of blocking other namespaces", async () => {
+  await withPreviewRoot(async (root) => {
+    const archiveName = await receiveArtifact(root);
+    assert.equal(
+      runGate(
+        root,
+        `mountain-preview install ${previewPullNumber} ${archiveName} manifest.json`,
+      ).status,
+      0,
+    );
+    assert.equal(authorizeRelease(root).status, 0);
+    assert.equal(
+      runGate(
+        root,
+        `mountain-preview activate ${previewPullNumber} ${previewCommit}`,
+      ).status,
+      0,
+    );
+    await writeFile(
+      previewNamespacePaths(previewPullNumber).registryFile,
+      "corrupted registry",
+    );
+    await mkdir(previewNamespacePaths(previewPullNumber + 1).root);
+    const result = runGate(root, "mountain-preview inventory");
+    assert.equal(result.status, 0, gateOutput(result));
+    const inventory = JSON.parse(result.stdout);
+    assert.deepEqual(
+      inventory
+        .map((entry) => entry.pullNumber)
+        .sort((first, second) => first - second),
+      [previewPullNumber, previewPullNumber + 1],
+    );
+    assert.equal(
+      inventory.find((entry) => entry.pullNumber === previewPullNumber)
+        .inconsistent,
+      true,
+    );
+  });
+});
+
 test("authorization records PR, actor and expiry in the verified release", async () => {
   await withPreviewRoot(async (root) => {
     const archiveName = await receiveArtifact(root);
@@ -366,16 +445,17 @@ test("authorization records PR, actor and expiry in the verified release", async
       ).status,
       0,
     );
-    const badActor = runGate(
-      root,
-      `mountain-preview authorize ${previewPullNumber} ${previewCommit} bad.actor`,
-    );
+    const badActor = authorizeRelease(root, previewCommit, "bad.actor");
     assert.notEqual(badActor.status, 0);
-    const authorized = runGate(
+    const authorized = authorizeRelease(root);
+    assert.equal(authorized.status, 0, gateOutput(authorized));
+    const forged = runGate(
       root,
       `mountain-preview authorize ${previewPullNumber} ${previewCommit} maintainer`,
+      JSON.stringify({ issuedAt: Date.now(), signature: "forged" }),
     );
-    assert.equal(authorized.status, 0, gateOutput(authorized));
+    assert.notEqual(forged.status, 0);
+    assert.match(gateOutput(forged), /Invalid preview authorization/);
     const release = JSON.parse(
       await readFile(
         previewNamespacePaths(previewPullNumber).registryFile,
@@ -391,6 +471,58 @@ test("authorization records PR, actor and expiry in the verified release", async
   });
 });
 
+test("a deploy key cannot activate an installed release without signed authorization", async () => {
+  await withPreviewRoot(async (root) => {
+    const archiveName = await receiveArtifact(root);
+    assert.equal(
+      runGate(
+        root,
+        `mountain-preview install ${previewPullNumber} ${archiveName} manifest.json`,
+      ).status,
+      0,
+    );
+    const denied = runGate(
+      root,
+      `mountain-preview activate ${previewPullNumber} ${previewCommit}`,
+    );
+    assert.notEqual(denied.status, 0);
+    assert.match(gateOutput(denied), /no current authorization/);
+  });
+});
+
+test("re-authorizing an active SHA renews its retention timestamp", async () => {
+  await withPreviewRoot(async (root) => {
+    const archiveName = await receiveArtifact(root);
+    assert.equal(
+      runGate(
+        root,
+        `mountain-preview install ${previewPullNumber} ${archiveName} manifest.json`,
+      ).status,
+      0,
+    );
+    assert.equal(authorizeRelease(root).status, 0);
+    assert.equal(
+      runGate(
+        root,
+        `mountain-preview activate ${previewPullNumber} ${previewCommit}`,
+      ).status,
+      0,
+    );
+    const registryFile = previewNamespacePaths(previewPullNumber).registryFile;
+    const registry = JSON.parse(await readFile(registryFile, "utf8"));
+    registry.releases[0].activatedAt = "2026-08-01T00:00:00.000Z";
+    await writeFile(registryFile, JSON.stringify(registry));
+    assert.equal(authorizeRelease(root).status, 0);
+    const inventory = JSON.parse(
+      runGate(root, "mountain-preview inventory").stdout,
+    );
+    assert.ok(
+      Date.parse(inventory[0].updatedAt) >
+        Date.parse("2026-08-01T00:00:00.000Z"),
+    );
+  });
+});
+
 test("prune removes the previous release after updating an origin", async () => {
   await withPreviewRoot(async (root) => {
     const first = await receiveArtifact(root);
@@ -401,6 +533,7 @@ test("prune removes the previous release after updating an origin", async () => 
       ).status,
       0,
     );
+    assert.equal(authorizeRelease(root).status, 0);
     assert.equal(
       runGate(
         root,
@@ -418,6 +551,7 @@ test("prune removes the previous release after updating an origin", async () => 
       ).status,
       0,
     );
+    assert.equal(authorizeRelease(root, updatedPreviewCommit).status, 0);
     assert.equal(
       runGate(
         root,
@@ -798,6 +932,7 @@ test("a failed install does not move an existing namespace pointer", async () =>
       `mountain-preview install ${previewPullNumber} ${previewArchiveName(previewCommit)} manifest.json`,
     );
     assert.equal(install.status, 0, gateOutput(install));
+    assert.equal(authorizeRelease(root).status, 0);
     const activate = runGate(
       root,
       `mountain-preview activate ${previewPullNumber} ${previewCommit}`,
@@ -847,7 +982,7 @@ test("activate requires an installed commit and rejects an unknown one", async (
       `mountain-preview activate ${previewPullNumber} ${previewCommit}`,
     );
     assert.equal(result.status, 1);
-    assert.match(gateOutput(result), /not registered/);
+    assert.match(gateOutput(result), /no current authorization/);
   });
 });
 
@@ -874,6 +1009,7 @@ test("the direct invocation (maintainer CLI) runs the same operations", async ()
     ]);
     assert.equal(install.status, 0, gateOutput(install));
     assert.match(install.stdout, /Installed release/);
+    assert.equal(authorizeRelease(root).status, 0);
 
     const activate = runGateDirect(root, [
       "activate",

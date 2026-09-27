@@ -134,6 +134,7 @@ jobs:
           PREVIEW_HOST: ${{ vars.PREVIEW_HOST }}
           PREVIEW_DEPLOY_USER: ${{ vars.PREVIEW_DEPLOY_USER }}
           PREVIEW_SSH_PRIVATE_KEY: ${{ secrets.PREVIEW_SSH_PRIVATE_KEY }}
+          PREVIEW_AUTH_PRIVATE_KEY: ${{ secrets.PREVIEW_AUTH_PRIVATE_KEY }}
           PREVIEW_KNOWN_HOSTS: ${{ secrets.PREVIEW_KNOWN_HOSTS }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_REPOSITORY: ${{ github.repository }}

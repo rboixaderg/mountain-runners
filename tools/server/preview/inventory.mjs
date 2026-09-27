@@ -21,14 +21,19 @@ export async function previewInventory() {
       inventory.push({ pullNumber, updatedAt: metadata.mtime.toISOString() });
       continue;
     }
-    const registry = JSON.parse(await readFile(paths.registryFile, "utf8"));
-    const active = registry.releases?.find(
-      (release) => release.status === "active",
-    );
-    if (!active || target !== join(paths.releasesDirectory, active.commit)) {
-      throw new Error(
-        `Preview ${pullNumber} has an inconsistent active release.`,
+    let active;
+    try {
+      const registry = JSON.parse(await readFile(paths.registryFile, "utf8"));
+      active = registry.releases?.find(
+        (release) => release.status === "active",
       );
+    } catch {
+      inventory.push({ pullNumber, inconsistent: true });
+      continue;
+    }
+    if (!active || target !== join(paths.releasesDirectory, active.commit)) {
+      inventory.push({ pullNumber, inconsistent: true });
+      continue;
     }
     inventory.push({
       pullNumber,

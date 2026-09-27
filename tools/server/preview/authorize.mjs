@@ -21,7 +21,18 @@ export function authorizePreview(commit, actor, pullRequestNumber) {
     release.expiresAt = new Date(
       authorizedAt.getTime() + 14 * 24 * 60 * 60 * 1000,
     ).toISOString();
+    if (release.status === "active") release.activatedAt = release.authorizedAt;
     saveRegistry(registry);
     return `Authorized preview ${pullRequestNumber} at ${commit}.`;
   });
+}
+
+if (process.argv[1]?.endsWith("/authorize.mjs")) {
+  const [, , commit, actor, pullRequestNumber] = process.argv;
+  authorizePreview(commit, actor, pullRequestNumber)
+    .then(console.log)
+    .catch((error) => {
+      console.error(`Error: ${error.message}`);
+      process.exitCode = 1;
+    });
 }

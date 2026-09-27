@@ -8,15 +8,15 @@
 // same way the release gate does. The direct maintainer invocation reads the
 // command from argv instead.
 //
-// The preview identity owns its namespace (the preview data root is
-// preview-deploy-owned), so the operations execute directly: no root daemon
-// and no privileged filesystem access are involved. Every command binds the
-// pull request argument to the namespace and to the manifest (origin and PR
-// number must match) before anything is extracted.
+// The preview identity owns its namespace and runs release operations directly.
+// A separate root-owned broker verifies signed authorizations and manages Caddy;
+// the gate cannot write its configuration or authorize a release on its own.
+// Install binds the PR argument to the manifest origin and number.
 //
 // Commands:
 //   receive <pr-number> <name>                    stage an upload (stdin)
 //   install <pr-number> <archive> <manifest>      validate and extract
+//   authorize <pr-number> <commit> <actor>        send signed proof from stdin
 //   activate <pr-number> <commit>                 repoint the namespace
 //   list <pr-number>                              show the namespace registry
 //   health <pr-number>                            verify registry + active digests
@@ -38,6 +38,7 @@ import {
   performList,
 } from "../release/operations.mjs";
 import { loadAndValidateManifest } from "../release/manifest.mjs";
+import { loadRegistry } from "../release/registry.mjs";
 import {
   formatReceiveMessage,
   receiveIncomingFile,
@@ -48,7 +49,7 @@ import {
   prNumberPattern,
   previewNamespacePaths,
 } from "./config.mjs";
-import { retirePreview } from "./retire.mjs";
+import { cleanRetiredPreviews, retirePreview } from "./retire.mjs";
 import {
   assertNamespaceCapacity,
   assertPreviewCapacity,
@@ -57,7 +58,6 @@ import {
 import { previewInventory } from "./inventory.mjs";
 import { prunePreview } from "./prune.mjs";
 import { requestPreviewSite } from "./site-socket.mjs";
-import { authorizePreview } from "./authorize.mjs";
 
 const unsafeTokenPattern = /[\s"'`$\\;|&<>()]/u;
 
@@ -182,6 +182,7 @@ async function assertManifestBelongsToNamespace(
 
 async function runCommand(validated) {
   if (validated.command === "inventory") {
+    await withPreviewCapacity(cleanRetiredPreviews);
     return JSON.stringify(await previewInventory());
   }
   if (validated.command === "site-sync") {
@@ -227,16 +228,34 @@ async function runCommand(validated) {
   }
 
   if (validated.command === "authorize") {
-    return authorizePreview(
-      validated.commit,
-      validated.actor,
-      pullRequestNumber,
-    );
+    let proof = "";
+    for await (const chunk of process.stdin) {
+      proof += chunk.toString("utf8");
+      if (proof.length > 1024)
+        throw new Error("Oversized preview authorization proof.");
+    }
+    const { issuedAt, signature } = JSON.parse(proof);
+    return requestPreviewSite("authorize", Number(pullRequestNumber), {
+      commit: validated.commit,
+      actor: validated.actor,
+      issuedAt,
+      signature,
+    });
   }
 
   if (validated.command === "activate") {
     return withPreviewCapacity(async () => {
       await assertPreviewCapacity(pullRequestNumber);
+      const registry = loadRegistry();
+      const release = registry.releases.find(
+        (entry) => entry.commit === validated.commit,
+      );
+      if (
+        !release?.authorizedBy ||
+        Date.parse(release.expiresAt) <= Date.now()
+      ) {
+        throw new Error("The preview release has no current authorization.");
+      }
       return performActivate(validated.commit);
     });
   }

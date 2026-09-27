@@ -240,6 +240,7 @@ sudo install -d -o root -g root -m 0755 "$LIB/preview"
 sudo install -o root -g root -m 0644 \
   "$REPO/tools/server/preview/gate.mjs" \
   "$REPO/tools/server/preview/config.mjs" \
+  "$REPO/tools/server/preview/authorization-proof.mjs" \
   "$REPO/tools/server/preview/authorize.mjs" \
   "$REPO/tools/server/preview/capacity.mjs" \
   "$REPO/tools/server/preview/inventory.mjs" \
@@ -908,7 +909,10 @@ workflow `Preview` només corre sota demanda.
    mida, fitxers, digests i paths amb els validadors de producció i
    revalida que la PR continua oberta i al mateix head SHA i que l'autorització
    encara és vigent (col·laboradora per a `/preview` o permís d'escriptura per
-   a `workflow_dispatch`). El broker root-owned valida el Caddyfile abans de
+   a `workflow_dispatch`). El publicador signa l'autorització amb la clau
+   privada exclusiva del job de confiança; el broker verifica la signatura
+   amb la clau pública del VPS abans de registrar-la. La clau SSH de previews
+   per si sola no pot autoritzar una release. El broker valida el Caddyfile abans de
    reiniciar el procés compartit per configurar l'origen, i el publicador
    revalida la PR i l'autorització just abans d'activar el namespace.
 4. Verificació posterior a l'activació:
@@ -936,7 +940,10 @@ El workflow `Preview cleanup` reconcilia cada hora i en tancar una PR. Retira
 previews tancades, de forks, amb SHA antic o que portin 14 dies sense
 actualitzar-se. Els uploads interromputs caduquen al cap d'un dia; `site-sync`
 elimina blocs Caddy sense release activa i `prune` esborra releases anteriors
-i uploads consumits. El gate rebutja un sisè origen actiu. La marca visual
+i uploads consumits. Si `current` i el registre no concorden, la reconciliació
+retira la preview afectada, continua amb les altres i falla el job perquè se'n
+revisi la causa. També elimina directoris de retirades interrompudes. El gate
+rebutja un sisè origen actiu. La marca visual
 `PUBLIC_PREVIEW` és part del build i una PR maliciosa la pot ocultar (esmena
 de l'ADR 0009): cal revisar el contingut abans d'autoritzar-lo.
 
@@ -954,9 +961,18 @@ La persona mantenidora instal·la els mòduls nous de `tools/server/preview/`
 com a `root:root` a `/usr/local/lib/mountain-runners/preview/` i el servei
 `tools/server/systemd/mountain-preview-site.service` a
 `/etc/systemd/system/`, substituint el GID `0` de la plantilla pel GID real
-del grup `preview-deploy`. Crea `/var/log/mountain-runners-previews/` com a
+del grup `preview-deploy` i l'UID `0` per l'UID de l'usuari `preview-deploy`.
+Instal·la la clau pública de signatura a
+`/etc/mountain-runners/preview-auth.pub` com a `root:root` mode `0644`, i
+configura `PREVIEW_AUTH_PRIVATE_KEY` només com a secret de l'entorn GitHub
+`previews`; la clau privada no s'instal·la al VPS ni es desa al repositori.
+La persona mantenidora genera el parell fora del repositori i comprova que
+el broker rebutja una signatura absent o invàlida abans de publicar res.
+Crea `/var/log/mountain-runners-previews/` com a
 `caddy:caddy` mode `0700` amb `access.log` com a `caddy:caddy` mode `0600`
-abans de validar Caddy, i `/etc/caddy/Caddyfile.previews` buit com a
+abans de validar Caddy. Instal·la el drop-in revisat
+`tools/server/systemd/caddy-mountain-runners.conf`, que autoritza aquesta
+ruta de logs al sandbox de Caddy, i `/etc/caddy/Caddyfile.previews` buit com a
 `root:root` mode `0644`. Afegeix només `import Caddyfile.previews` al final del
 `Caddyfile` vigent i instal·la `tools/server/caddy/preview-robots/robots.txt`
 a `/etc/caddy/preview-robots/robots.txt` com a `root:root` mode `0644`.
@@ -975,7 +991,8 @@ reinicia i suspèn les previews; no edita cap release de producció.
 
 L'entorn GitHub `previews` només separa els secrets de producció: no té
 required reviewers, perquè l'autorització és el comentari verificat. Els
-secrets de previews (`PREVIEW_SSH_PRIVATE_KEY`, `PREVIEW_KNOWN_HOSTS`) viuen
+secrets de previews (`PREVIEW_SSH_PRIVATE_KEY`, `PREVIEW_KNOWN_HOSTS`,
+`PREVIEW_AUTH_PRIVATE_KEY`) viuen
 només a l'entorn `previews`, mai compartits amb producció. El risc residual
 acceptat: qualsevol col·laborador del repositori pot sol·licitar la
 publicació d'una PR pròpia amb `/preview`; el publicador continua rebutjant

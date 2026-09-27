@@ -58,15 +58,24 @@ export async function updatePreviewSite(
     await rename(temporaryFragment, fragmentPath);
     try {
       await run("systemctl", ["restart", "caddy"]);
-      await run("curl", [
-        "--fail",
-        "--silent",
-        "--max-time",
-        "10",
-        "--output",
-        "/dev/null",
+      for (const origin of [
         "https://mountainrunners.cat/ca/",
-      ]);
+        ...sites
+          .filter((number) => next.includes(number))
+          .map(
+            (number) => `https://pr-${number}.preview.mountainrunners.cat/ca/`,
+          ),
+      ]) {
+        await run("curl", [
+          "--fail",
+          "--silent",
+          "--max-time",
+          "10",
+          "--output",
+          "/dev/null",
+          origin,
+        ]);
+      }
     } catch (error) {
       await writeFile(fragmentPath, previous, { mode: 0o644 });
       await run("systemctl", ["restart", "caddy"]);

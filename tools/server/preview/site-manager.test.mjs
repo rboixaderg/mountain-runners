@@ -42,11 +42,15 @@ test("configures only numeric preview origins, validates before restart and is i
     );
     assert.deepEqual(
       commands.map(([executable]) => executable),
-      ["caddy", "systemctl", "curl", "caddy", "systemctl", "curl"],
+      ["caddy", "systemctl", "curl", "caddy", "systemctl", "curl", "curl"],
+    );
+    assert.equal(
+      commands.at(-1)[1].at(-1),
+      "https://pr-42.preview.mountainrunners.cat/ca/",
     );
     assert.match(commands[0][1][2], /Caddyfile\.\d+\.candidate/u);
     await updatePreviewSite(42, true, { directory, run });
-    assert.equal(commands.length, 6);
+    assert.equal(commands.length, 7);
     await updatePreviewSite(42, false, { directory, run });
     assert.deepEqual(
       parsePreviewSites(
@@ -93,6 +97,28 @@ test("a failed Caddy restart restores the previous preview fragment", async () =
         },
       }),
       /restart failed/,
+    );
+    assert.equal(restarts, 2);
+    assert.deepEqual(parsePreviewSites(await readFile(fragment, "utf8")), [5]);
+  });
+});
+
+test("an existing preview failing after restart restores the previous fragment", async () => {
+  await withCaddyFiles(async (directory) => {
+    const fragment = join(directory, "Caddyfile.previews");
+    await writeFile(fragment, `${renderPreviewSites([5])}\n`);
+    let restarts = 0;
+    await assert.rejects(
+      updatePreviewSite(6, true, {
+        directory,
+        run: async (executable, args) => {
+          if (executable === "systemctl") restarts += 1;
+          if (executable === "curl" && args.at(-1).includes("pr-5")) {
+            throw new Error("existing preview unavailable");
+          }
+        },
+      }),
+      /existing preview unavailable/,
     );
     assert.equal(restarts, 2);
     assert.deepEqual(parsePreviewSites(await readFile(fragment, "utf8")), [5]);

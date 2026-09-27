@@ -32,8 +32,13 @@ sense allowlist. Els logs, els namespaces i les identitats de desplegament
 continuen separats.
 
 La configuració de previews és root-owned i no la pot editar l'artefacte ni
-la identitat de publicació. Un broker root-owned accepta només un número de PR
-pel socket del grup de previews, comprova l'autorització registrada en una
+la identitat de publicació. Un broker root-owned accepta només orígens derivats
+d'un número de PR pel socket del grup de previews. L'autorització requereix
+una signatura Ed25519 recent del publicador de confiança sobre PR, SHA, actor
+i hora. La clau privada
+viu només al job `publish` de GitHub i la pública al VPS; la clau SSH de
+`preview-deploy` no pot fabricar autoritzacions. El broker comprova la signatura
+abans de registrar l'autorització, comprova l'autorització registrada en una
 release elegible i genera únicament el fragment de hosts permesos: no accepta
 directives Caddy arbitràries. Cada canvi de configuració requereix validació
 del Caddyfile complet **abans** de reiniciar; si la validació falla, es

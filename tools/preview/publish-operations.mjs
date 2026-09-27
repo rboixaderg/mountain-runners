@@ -12,6 +12,7 @@
 import { loadVerifiedArtifact } from "../deploy/artifact.mjs";
 import { RemoteCommandError } from "../deploy/ssh.mjs";
 import { verifyPreviewSite } from "./smoke.mjs";
+import { signPreviewAuthorization } from "../server/preview/authorization-proof.mjs";
 import {
   assertPreviewManifestConsistency,
   previewOrigin,
@@ -226,6 +227,7 @@ export async function publishPreview({
   revalidateCommentAuthorization,
   revalidateDispatchAuthorization,
   authorizedBy,
+  authorizationPrivateKey,
   transport,
   verifyPreview = verifyPreviewSite,
 }) {
@@ -263,8 +265,21 @@ export async function publishPreview({
   await revalidateCommentAuthorization?.();
   await revalidateDispatchAuthorization?.();
 
+  const authorization = {
+    pullRequestNumber: pullNumber,
+    commit: pullRequest.headSha,
+    actor: authorizedBy,
+    issuedAt: Date.now(),
+  };
   await transport.run(
     `mountain-preview authorize ${pullNumber} ${pullRequest.headSha} ${authorizedBy}`,
+    JSON.stringify({
+      issuedAt: authorization.issuedAt,
+      signature: signPreviewAuthorization(
+        authorization,
+        authorizationPrivateKey,
+      ),
+    }),
   );
   const previousList = await transport.run(
     `mountain-preview list ${pullNumber}`,
@@ -291,7 +306,12 @@ export async function publishPreview({
     }
     throw error;
   }
-  await transport.run(`mountain-preview prune ${pullNumber}`);
-
+  try {
+    await transport.run(`mountain-preview prune ${pullNumber}`);
+  } catch (error) {
+    console.warn(
+      `Preview ${pullNumber} is published but prune failed: ${error.message}`,
+    );
+  }
   return `Published preview ${previewOrigin(pullNumber)} at commit ${pullRequest.headSha}.`;
 }

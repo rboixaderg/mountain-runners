@@ -17,7 +17,7 @@ test("preview marks every locale and does not load analytics", async ({
     );
     await expect(page.locator('link[rel="canonical"]')).toHaveAttribute(
       "href",
-      `https://pr-99.preview.mountainrunners.cat/${locale}/`,
+      `${process.env.PUBLIC_SITE_ORIGIN}/${locale}/`,
     );
     await expect(page.locator('script[src*="plausible"]')).toHaveCount(0);
   }

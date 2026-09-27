@@ -6,6 +6,7 @@ After=network.target caddy.service
 Type=simple
 ExecStart=/usr/local/lib/mountain-runners/preview/site-daemon.mjs
 Environment=MOUNTAIN_PREVIEW_SITE_GID=0
+Environment=MOUNTAIN_PREVIEW_SITE_UID=0
 Restart=on-failure
 RestartSec=5
 NoNewPrivileges=true

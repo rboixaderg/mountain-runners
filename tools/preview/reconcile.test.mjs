@@ -47,6 +47,7 @@ test("retires expired, closed and stale-head previews but keeps open current hea
     "mountain-preview site-disable 2",
     "mountain-preview retire 3",
     "mountain-preview site-disable 3",
+    "mountain-preview prune 4",
   ]);
 });
 
@@ -112,5 +113,27 @@ test("an API failure never retires a fresh preview", async () => {
   assert.deepEqual(transport.commands, [
     "mountain-preview site-sync",
     "mountain-preview inventory",
+  ]);
+});
+
+test("one inconsistent namespace does not prevent retiring other previews", async () => {
+  const transport = transportFor([
+    { pullNumber: 1, inconsistent: true },
+    { pullNumber: 2, commit, updatedAt: "2026-09-27T11:00:00.000Z" },
+  ]);
+  await assert.rejects(
+    reconcilePreviews({
+      transport,
+      repository,
+      now,
+      readPull: async () => ({ state: "closed" }),
+    }),
+    /Inconsistent active previews were retired: 1/,
+  );
+  assert.deepEqual(transport.commands.slice(-4), [
+    "mountain-preview retire 1",
+    "mountain-preview site-disable 1",
+    "mountain-preview retire 2",
+    "mountain-preview site-disable 2",
   ]);
 });

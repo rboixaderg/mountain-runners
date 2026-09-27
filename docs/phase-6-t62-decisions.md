@@ -148,14 +148,17 @@ de producció.
 | Servidor (mateix VPS, espai disc i memòria propis de previews) | 0 €/mes afegit; el marge el confirma la T6.4                     |
 | Escalada possible: Floating IPv4                               | 3,00 €/mes només si la T6.5 ho demana                            |
 
-Dependència nova: **cap**. Cap compte, cap zona i cap credencial nous; els
+Dependència DNS/TLS nova a la T6.2: **cap**. Cap compte, cap zona ni credencial
+DNS nous; els
 registres de previews viuen a la zona d'Hostinger que el projecte ja custodia.
+La T6.4 afegeix una clau de signatura per separar l'autorització de la clau
+SSH de publicació (ADR 0010); no dona accés al DNS ni a producció.
 El pla de sortida és eliminar el registre wildcard `*.preview` del hPanel i
 tornar a servir les previews (o no servir-les) sense cap rastre.
 
 ### Credencial I Verificació De Producció (AM-04)
 
-- Cap secret nou. Cap credencial DNS de previews existeix: cap token ni API del
+- Cap secret DNS nou. Cap credencial DNS de previews existeix: cap token ni API del
   registrador viu al repositori, al CI, al servidor o al magatzem de secrets.
 - L'únic accés d'escriptura sobre els registres de previews és el hPanel de la
   persona mantenidora, que ja és l'accés de producció existent i no forma part

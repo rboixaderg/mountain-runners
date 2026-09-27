@@ -15,9 +15,16 @@ export async function reconcilePreviews({
   const inventory = JSON.parse(
     await transport.run("mountain-preview inventory"),
   );
+  const inconsistent = [];
   for (const entry of inventory) {
     if (!Number.isSafeInteger(entry.pullNumber) || entry.pullNumber < 1) {
       throw new Error("Invalid pull request number in preview inventory.");
+    }
+    if (entry.inconsistent) {
+      await transport.run(`mountain-preview retire ${entry.pullNumber}`);
+      await transport.run(`mountain-preview site-disable ${entry.pullNumber}`);
+      inconsistent.push(entry.pullNumber);
+      continue;
     }
     const updatedAt = Date.parse(entry.updatedAt);
     if (!Number.isFinite(updatedAt) || updatedAt > now) {
@@ -38,7 +45,14 @@ export async function reconcilePreviews({
     if (shouldRetire) {
       await transport.run(`mountain-preview retire ${entry.pullNumber}`);
       await transport.run(`mountain-preview site-disable ${entry.pullNumber}`);
+    } else if (entry.commit !== undefined) {
+      await transport.run(`mountain-preview prune ${entry.pullNumber}`);
     }
+  }
+  if (inconsistent.length > 0) {
+    throw new Error(
+      `Inconsistent active previews were retired: ${inconsistent.join(", ")}.`,
+    );
   }
 }
 
