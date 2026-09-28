@@ -16,44 +16,56 @@ export async function reconcilePreviews({
     await transport.run("mountain-preview inventory"),
   );
   const inconsistent = [];
+  const failures = [];
   for (const entry of inventory) {
-    if (!Number.isSafeInteger(entry.pullNumber) || entry.pullNumber < 1) {
-      throw new Error("Invalid pull request number in preview inventory.");
-    }
-    if (entry.inconsistent) {
-      await transport.run(`mountain-preview retire ${entry.pullNumber}`);
-      await transport.run(`mountain-preview site-disable ${entry.pullNumber}`);
-      inconsistent.push(entry.pullNumber);
-      continue;
-    }
-    const updatedAt = Date.parse(entry.updatedAt);
-    if (!Number.isFinite(updatedAt) || updatedAt > now) {
-      throw new Error(`Invalid update time for preview ${entry.pullNumber}.`);
-    }
-    let shouldRetire =
-      now - updatedAt >=
-        (entry.commit === undefined ? pendingRetentionMs : activeRetentionMs) ||
-      (entry.expiresAt !== undefined && Date.parse(entry.expiresAt) <= now);
-    if (!shouldRetire) {
-      const pull = await readPull(entry.pullNumber);
-      shouldRetire =
-        pull.state !== "open" ||
-        pull.labels?.some((label) => label.name === "preview-revoked") ||
-        pull.head?.repo?.full_name !== repository ||
-        (entry.commit !== undefined && pull.head.sha !== entry.commit);
-    }
-    if (shouldRetire) {
-      await transport.run(`mountain-preview retire ${entry.pullNumber}`);
-      await transport.run(`mountain-preview site-disable ${entry.pullNumber}`);
-    } else if (entry.commit !== undefined) {
-      await transport.run(`mountain-preview prune ${entry.pullNumber}`);
+    try {
+      if (!Number.isSafeInteger(entry.pullNumber) || entry.pullNumber < 1) {
+        throw new Error("Invalid pull request number in preview inventory.");
+      }
+      if (entry.inconsistent) {
+        await transport.run(`mountain-preview retire ${entry.pullNumber}`);
+        await transport.run(
+          `mountain-preview site-disable ${entry.pullNumber}`,
+        );
+        inconsistent.push(entry.pullNumber);
+        continue;
+      }
+      const updatedAt = Date.parse(entry.updatedAt);
+      if (!Number.isFinite(updatedAt) || updatedAt > now) {
+        throw new Error(`Invalid update time for preview ${entry.pullNumber}.`);
+      }
+      let shouldRetire =
+        now - updatedAt >=
+          (entry.commit === undefined
+            ? pendingRetentionMs
+            : activeRetentionMs) ||
+        (entry.expiresAt !== undefined && Date.parse(entry.expiresAt) <= now);
+      if (!shouldRetire) {
+        const pull = await readPull(entry.pullNumber);
+        shouldRetire =
+          pull.state !== "open" ||
+          pull.labels?.some((label) => label.name === "preview-revoked") ||
+          pull.head?.repo?.full_name !== repository ||
+          (entry.commit !== undefined && pull.head.sha !== entry.commit);
+      }
+      if (shouldRetire) {
+        await transport.run(`mountain-preview retire ${entry.pullNumber}`);
+        await transport.run(
+          `mountain-preview site-disable ${entry.pullNumber}`,
+        );
+      } else if (entry.commit !== undefined) {
+        await transport.run(`mountain-preview prune ${entry.pullNumber}`);
+      }
+    } catch (error) {
+      failures.push(`Preview ${entry.pullNumber}: ${error.message}`);
     }
   }
   if (inconsistent.length > 0) {
-    throw new Error(
+    failures.push(
       `Inconsistent active previews were retired: ${inconsistent.join(", ")}.`,
     );
   }
+  if (failures.length > 0) throw new Error(failures.join("\n"));
 }
 
 async function main() {

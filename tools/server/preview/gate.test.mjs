@@ -548,6 +548,11 @@ test("prune removes the previous release after updating an origin", async () => 
       ).status,
       0,
     );
+    const namespace = previewNamespacePaths(previewPullNumber);
+    const interruptedCommit = "a".repeat(40);
+    const orphan = join(namespace.releasesDirectory, interruptedCommit);
+    await mkdir(orphan);
+    await writeFile(join(orphan, "index.html"), "interrupted install");
     const second = await receiveArtifact(root, {
       commit: updatedPreviewCommit,
     });
@@ -568,11 +573,11 @@ test("prune removes the previous release after updating an origin", async () => 
     );
     const pruned = runGate(root, `mountain-preview prune ${previewPullNumber}`);
     assert.equal(pruned.status, 0, gateOutput(pruned));
-    const namespace = previewNamespacePaths(previewPullNumber);
     assert.equal(
       await pathExists(join(namespace.releasesDirectory, previewCommit)),
       false,
     );
+    assert.equal(await pathExists(orphan), false);
     assert.equal(
       await pathExists(join(namespace.releasesDirectory, updatedPreviewCommit)),
       true,
@@ -760,6 +765,25 @@ test("bootstrap denies preview-deploy access to the production release root with
   assert.notEqual(productionAcl, -1);
   assert.ok(productionAcl > previewUserSetup);
   assert.doesNotMatch(bootstrap, /setfacl\s+-R/u);
+});
+
+test("bootstrap preserves the Caddy preview fragment on a repeated run", async () => {
+  const bootstrap = await readFile(
+    join(toolDirectory, "../bootstrap/bootstrap.sh"),
+    "utf8",
+  );
+  // The fragment is live configuration once a preview is enabled, so the
+  // template only seeds it on a fresh server.
+  const guard = bootstrap.indexOf(
+    "if [[ ! -e /etc/caddy/Caddyfile.previews ]]; then",
+  );
+  const seed = bootstrap.indexOf(
+    '/caddy/Caddyfile.previews" /etc/caddy/Caddyfile.previews',
+  );
+  assert.notEqual(guard, -1);
+  assert.notEqual(seed, -1);
+  assert.ok(guard < seed);
+  assert.ok(bootstrap.indexOf("fi", seed) > seed);
 });
 
 test("the preview process sandbox permits authorization writes only inside preview namespaces", async () => {

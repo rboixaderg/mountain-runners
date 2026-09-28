@@ -206,7 +206,9 @@ install_caddyfile() {
 }
 
 log "Installing the validated Caddyfile (validation host: ${VALIDATION_HOST})."
-install -m 0644 -o root -g root "${TOOL_ROOT}/caddy/Caddyfile.previews" /etc/caddy/Caddyfile.previews
+if [[ ! -e /etc/caddy/Caddyfile.previews ]]; then
+  install -m 0644 -o root -g root "${TOOL_ROOT}/caddy/Caddyfile.previews" /etc/caddy/Caddyfile.previews
+fi
 install -d -m 0755 -o root -g root /etc/caddy/preview-robots
 install -m 0644 -o root -g root "${TOOL_ROOT}/caddy/preview-robots/robots.txt" /etc/caddy/preview-robots/robots.txt
 install_caddyfile "${TOOL_ROOT}/caddy/Caddyfile" /etc/caddy/Caddyfile "${PRODUCTION_DOMAIN}"

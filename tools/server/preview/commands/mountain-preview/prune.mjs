@@ -18,13 +18,12 @@ export async function prunePreview() {
         "A preview must have exactly one active release to prune.",
       );
     const paths = releasePaths();
-    for (const entry of registry.releases) {
-      if (entry.status !== "active") {
-        await rm(join(paths.releasesDirectory, entry.commit), {
-          recursive: true,
-          force: true,
-        });
-      }
+    for (const name of await readdir(paths.releasesDirectory)) {
+      if (name === active[0].commit) continue;
+      await rm(join(paths.releasesDirectory, name), {
+        recursive: true,
+        force: true,
+      });
     }
     registry.releases = active;
     saveRegistry(registry);
