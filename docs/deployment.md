@@ -213,14 +213,21 @@ tools/server/preview/
 
 | Nom                                     | Què és                                                                                                                                                                                                                       |
 | --------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `preview-deploy`                        | Usuari restringit del VPS que escriu als directoris de previews, sense accés a les releases de producció ni a la configuració de Caddy.                                                                                      |
+| `preview-deploy`                        | Usuari restringit del VPS compartit per totes les previews. Escriu als seus directoris, sense accés a les releases de producció ni a la configuració de Caddy.                                                               |
 | `mountain-preview` / `preview-ssh-gate` | El mateix programa invocat amb dos noms: comanda per operar previews i comanda forçada quan s'hi accedeix per SSH. Valida cada petició.                                                                                      |
 | `mountain-preview-site`                 | Procés local del VPS, engegat per `systemd` com a `root`. Rep peticions de `mountain-preview` per un socket Unix (canal local entre processos), verifica les signatures d'autorització i aplica els canvis permesos a Caddy. |
 | `preview-authorization`                 | Procés fill temporal engegat per `mountain-preview-site` després de verificar la signatura. Escriu l'autorització com a `preview-deploy`.                                                                                    |
-| `pr-<n>`                                | Directori propi d'una PR, també anomenat _namespace_, amb les seves versions i el registre d'autoritzacions.                                                                                                                 |
+| `pr-<n>`                                | Directori de dades d'una PR, també anomenat _namespace_, amb les seves versions i el registre d'autoritzacions. No és un usuari ni un aïllament del sistema operatiu.                                                        |
 | _Release_                               | Versió de la web instal·lada al directori d'una PR; només una és activa en cada moment.                                                                                                                                      |
 | SHA del commit                          | Identificador del commit vigent de la PR. La petició de publicació es vincula a aquest commit, no a tots els futurs canvis de la PR.                                                                                         |
 | _Workflow_ / _job_                      | Automatització de GitHub Actions / una de les seves etapes, com `authorize`, `build` o `publish`.                                                                                                                            |
+
+Una **comanda forçada** és una regla de la clau SSH. Encara que el client demani
+`mountain-preview receive 130 ...`, el servidor executa sempre
+`preview-ssh-gate`, no la petició directament. Aquest programa llegeix la
+petició original, comprova que sigui una operació admesa i tria el directori de
+la PR indicada. Rebutja ordres arbitràries i no obre cap terminal. La regla
+limita què es pot demanar per SSH, però **no lliga la clau a una sola PR**.
 
 ### Un sol workflow, disparat sota demanda
 
@@ -264,12 +271,17 @@ abans de publicar. El flux té tres jobs amb fronteres explícites:
 
 ### Frontera del servidor
 
-- Les releases de preview s'escriuen al VPS com a `preview-deploy` (comanda SSH
-  forçada `preview-ssh-gate`), que només pot operar dins del seu propi
-  namespace `/var/lib/mountain-runners-previews/namespaces/pr-<n>/`; producció
-  (`/var/lib/mountain-runners`), Caddy, claus TLS i estat ACME no són
-  modificables per aquesta identitat. Un ACL POSIX anomenat denega a
-  `preview-deploy` la lectura i el recorregut de `/var/lib/mountain-runners`
+- Les releases de cada PR es guarden a
+  `/var/lib/mountain-runners-previews/namespaces/pr-<n>/`. La comanda SSH
+  forçada les escriu com a `preview-deploy` i selecciona el directori segons el
+  número de PR. El mateix usuari pot operar als directoris de diverses PR,
+  inclosa la retirada d'una preview; els directoris per PR no són una barrera
+  de permisos entre previews. Qui tingui la clau SSH pot demanar `retire` o
+  `site-disable` per a qualsevol PR; registrar una autorització nova exigeix la
+  signatura del publicador. Producció (`/var/lib/mountain-runners`), Caddy,
+  claus TLS i estat ACME no són modificables per aquesta identitat. Un ACL
+  POSIX anomenat denega a `preview-deploy` la lectura i el recorregut de
+  `/var/lib/mountain-runners`
   sense canviar el mode `0755` que necessiten Caddy i `mountain-deploy`. No
   s'ha donat accés al socket del procés de releases de producció. El procés
   `mountain-preview-site` rep pel seu socket peticions per registrar

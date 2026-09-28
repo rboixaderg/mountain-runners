@@ -262,8 +262,8 @@ fi
 
 # --- preview identity and namespaces (T6.3) ----------------------------------
 #
-# The preview identity owns one namespace per pull request under PREVIEW_ROOT
-# and executes the preview operations directly: no root daemon and no write
+# The preview identity owns the namespaces directory and every PR directory
+# under it and executes preview operations directly: no root daemon and no write
 # access to the production release root, the Caddy configuration, the TLS keys
 # or the ACME state. A named POSIX ACL also denies this identity traversal of
 # RELEASE_ROOT while preserving its existing mode and other users' access.

@@ -49,12 +49,15 @@ per `/run/mountain-release.sock` (grup `mountain-runners`, mode 0660), que la
 revalida i l'executa com a `root`. El daemon tampoc pot escriure la
 configuració de Caddy, les claus TLS ni l'estat ACME.
 
-La identitat de previews (`preview-deploy`) opera directament sobre el directori
-de cada PR (`pr-<n>`). La comanda forçada per SSH (`preview-ssh-gate`) valida
-cada petició i la vincula a la PR. La verificació de la signatura d'autorització
-i els canvis a Caddy passen pel procés `mountain-preview-site`, mitjançant un
-socket local; cap credencial DNS existeix i les releases de producció resten
-fora de l'abast de `preview-deploy`.
+La identitat de previews (`preview-deploy`) és compartida per totes les PR.
+Quan algú usa la seva clau SSH, el servidor executa sempre la comanda forçada
+`preview-ssh-gate` en lloc de la comanda demanada pel client. El programa llegeix
+la petició original, rebutja les ordres no permeses i, si rep un número de PR,
+opera al directori `pr-<n>` corresponent. La clau no està lligada a una sola
+PR. La verificació de la signatura d'autorització i els canvis a Caddy passen
+pel procés `mountain-preview-site`, mitjançant un socket local; cap credencial
+DNS existeix i les releases de producció resten fora de l'abast de
+`preview-deploy`.
 Vegeu la secció [13](#13-previews-de-pull-request-t63).
 
 ### Arquitectura Del Servidor
@@ -895,12 +898,14 @@ procés i el directori per PR es defineixen a
 | Element          | Què és                                                                                                                      |
 | ---------------- | --------------------------------------------------------------------------------------------------------------------------- |
 | `preview-deploy` | Usuari de sistema amb accés SSH limitat a la comanda `preview-ssh-gate`; clau amb `command="preview-ssh-gate"` i `restrict` |
-| Namespace per PR | `/var/lib/mountain-runners-previews/namespaces/pr-<n>/` — l'única ruta que la identitat pot escriure                        |
+| Directori per PR | `/var/lib/mountain-runners-previews/namespaces/pr-<n>/`; tots comparteixen l'usuari `preview-deploy`                        |
 
 La identitat de previews executa les operacions de releases directament com a
-`preview-deploy` (el directori de la PR és seu). L'autorització signada i els
-canvis dels blocs Caddy passen pel procés `mountain-preview-site`, amb un socket
-restringit al grup de previews. L'ACL `u:preview-deploy:---` a
+`preview-deploy`. És propietària de `namespaces/` i dels directoris de totes
+les PR que hi crea; no hi ha comptes ni permisos independents per PR.
+L'autorització signada i els canvis dels blocs Caddy passen pel procés
+`mountain-preview-site` mitjançant un socket restringit al grup de previews.
+L'ACL `u:preview-deploy:---` a
 `/var/lib/mountain-runners` impedeix llegir i travessar
 les releases de producció, tot i que el mode UNIX segueix sent `0755` perquè
 Caddy i `mountain-deploy` conservin l'accés existent. La identitat no pot

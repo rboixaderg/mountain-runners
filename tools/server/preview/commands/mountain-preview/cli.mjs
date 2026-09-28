@@ -2,15 +2,16 @@
 // SSH forced-command gate and direct CLI for the preview identity (T6.3).
 //
 // The preview SSH key is installed with `command="/usr/local/bin/preview-ssh-gate"`
-// in authorized_keys, so the holder can only run the bounded preview
-// operations on its own namespace. The gate tokenizes SSH_ORIGINAL_COMMAND
-// without a shell and rejects any token containing shell metacharacters, the
-// same way the release gate does. The direct maintainer invocation reads the
-// command from argv instead.
+// in authorized_keys, so the holder can only request bounded preview
+// operations. The PR number selects a directory; the key is not bound to
+// one PR. The gate tokenizes SSH_ORIGINAL_COMMAND without a shell and rejects
+// any token containing shell metacharacters, the same way the release gate
+// does. The direct maintainer invocation reads the command from argv instead.
 //
-// The preview identity owns its namespace and runs release operations directly.
-// The separate root-owned preview process verifies signed authorizations and manages Caddy;
-// the gate cannot write its configuration or authorize a release on its own.
+// The preview identity owns the shared namespaces directory and runs release
+// operations directly. The separate root-owned preview process verifies
+// signed authorizations and manages Caddy; the gate cannot write its
+// configuration or authorize a release on its own.
 // Install binds the PR argument to the manifest origin and number.
 //
 // Commands:
