@@ -1,0 +1,14 @@
+docs/backlog.md
+  h_1727aeeb492b30 331-364
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "5b60eb9f7755b1272aa2a868ab56a28f0d5b4b07",
+  "prompts": {},
+  "humans": {
+    "h_1727aeeb492b30": {
+      "author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
