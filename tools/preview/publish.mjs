@@ -69,6 +69,11 @@ async function main() {
   const message = await publishPreview({
     artifactDirectory: process.env.ARTIFACT_DIRECTORY ?? "artifacts/preview",
     pullNumber,
+    authorizedBy:
+      process.env.GITHUB_EVENT_NAME === "issue_comment"
+        ? readEvent().comment?.user?.login
+        : requireEnvironment("GITHUB_ACTOR"),
+    authorizationPrivateKey: requireEnvironment("PREVIEW_AUTH_PRIVATE_KEY"),
     resolvePullRequestState: () =>
       resolvePullRequestState({
         repository,

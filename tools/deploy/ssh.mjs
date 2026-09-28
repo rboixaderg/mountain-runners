@@ -69,7 +69,7 @@ export function createSshTransport({
       );
       return parseReceiveMessage(stdout, fileName);
     },
-    async run(remoteCommand) {
+    async run(remoteCommand, stdin) {
       return withIdentityFiles(
         { privateKey, knownHosts },
         (identityFile, knownHostsFile) =>
@@ -80,6 +80,7 @@ export function createSshTransport({
             user,
             host,
             remoteCommand,
+            stdin,
           }),
       );
     },

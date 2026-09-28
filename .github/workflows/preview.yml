@@ -89,7 +89,13 @@ jobs:
       - name: Run the full quality gate in the untrusted context
         run: pnpm validate
       - name: Build and verify the preview artifact
+        env:
+          PUBLIC_PREVIEW: "true"
         run: node tools/preview/build-artifact.mjs
+      - name: Verify preview-only pages
+        env:
+          PUBLIC_PREVIEW: "true"
+        run: pnpm exec playwright test apps/web/e2e/preview.spec.ts
       - name: Upload preview artifact
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
@@ -128,6 +134,7 @@ jobs:
           PREVIEW_HOST: ${{ vars.PREVIEW_HOST }}
           PREVIEW_DEPLOY_USER: ${{ vars.PREVIEW_DEPLOY_USER }}
           PREVIEW_SSH_PRIVATE_KEY: ${{ secrets.PREVIEW_SSH_PRIVATE_KEY }}
+          PREVIEW_AUTH_PRIVATE_KEY: ${{ secrets.PREVIEW_AUTH_PRIVATE_KEY }}
           PREVIEW_KNOWN_HOSTS: ${{ secrets.PREVIEW_KNOWN_HOSTS }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_REPOSITORY: ${{ github.repository }}

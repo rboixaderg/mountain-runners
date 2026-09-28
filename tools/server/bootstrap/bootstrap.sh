@@ -134,6 +134,12 @@ chmod 2770 "${RELEASE_ROOT}/incoming"
 mkdir -p "${LOG_ROOT}"
 chown caddy:caddy "${LOG_ROOT}"
 chmod 700 "${LOG_ROOT}"
+mkdir -p /var/log/mountain-runners-previews
+chown caddy:caddy /var/log/mountain-runners-previews
+chmod 700 /var/log/mountain-runners-previews
+touch /var/log/mountain-runners-previews/access.log
+chown caddy:caddy /var/log/mountain-runners-previews/access.log
+chmod 600 /var/log/mountain-runners-previews/access.log
 
 # --- release tooling ---------------------------------------------------------
 
@@ -200,6 +206,9 @@ install_caddyfile() {
 }
 
 log "Installing the validated Caddyfile (validation host: ${VALIDATION_HOST})."
+install -m 0644 -o root -g root "${TOOL_ROOT}/caddy/Caddyfile.previews" /etc/caddy/Caddyfile.previews
+install -d -m 0755 -o root -g root /etc/caddy/preview-robots
+install -m 0644 -o root -g root "${TOOL_ROOT}/caddy/preview-robots/robots.txt" /etc/caddy/preview-robots/robots.txt
 install_caddyfile "${TOOL_ROOT}/caddy/Caddyfile" /etc/caddy/Caddyfile "${PRODUCTION_DOMAIN}"
 install_caddyfile "${TOOL_ROOT}/caddy/Caddyfile.production" /etc/caddy/Caddyfile.production "${PRODUCTION_DOMAIN}"
 
@@ -253,8 +262,8 @@ fi
 
 # --- preview identity and namespaces (T6.3) ----------------------------------
 #
-# The preview identity owns one namespace per pull request under PREVIEW_ROOT
-# and executes the preview operations directly: no root daemon and no write
+# The preview identity owns the namespaces directory and every PR directory
+# under it and executes preview operations directly: no root daemon and no write
 # access to the production release root, the Caddy configuration, the TLS keys
 # or the ACME state. A named POSIX ACL also denies this identity traversal of
 # RELEASE_ROOT while preserving its existing mode and other users' access.
@@ -285,14 +294,37 @@ chown preview-deploy:preview-deploy "${PREVIEW_ROOT}/namespaces"
 chmod 755 "${PREVIEW_ROOT}/namespaces"
 
 log "Installing the preview tooling to ${RELEASE_LIB}/preview."
-mkdir -p "${RELEASE_LIB}/preview"
+install -d -m 0755 -o root -g root \
+  "${RELEASE_LIB}/preview" \
+  "${RELEASE_LIB}/preview/commands" \
+  "${RELEASE_LIB}/preview/commands/mountain-preview" \
+  "${RELEASE_LIB}/preview/processes" \
+  "${RELEASE_LIB}/preview/processes/mountain-preview-site" \
+  "${RELEASE_LIB}/preview/processes/preview-authorization"
 install -m 0644 -o root -g root \
   "${TOOL_ROOT}/preview/config.mjs" \
-  "${TOOL_ROOT}/preview/gate.mjs" \
+  "${TOOL_ROOT}/preview/authorization-proof.mjs" \
   "${RELEASE_LIB}/preview/"
-chmod 0755 "${RELEASE_LIB}/preview/gate.mjs"
-ln -sf "${RELEASE_LIB}/preview/gate.mjs" /usr/local/bin/mountain-preview
-ln -sf "${RELEASE_LIB}/preview/gate.mjs" /usr/local/bin/preview-ssh-gate
+install -m 0644 -o root -g root \
+  "${TOOL_ROOT}/preview/commands/mountain-preview/cli.mjs" \
+  "${TOOL_ROOT}/preview/commands/mountain-preview/site-request.mjs" \
+  "${TOOL_ROOT}/preview/commands/mountain-preview/capacity.mjs" \
+  "${TOOL_ROOT}/preview/commands/mountain-preview/inventory.mjs" \
+  "${TOOL_ROOT}/preview/commands/mountain-preview/prune.mjs" \
+  "${TOOL_ROOT}/preview/commands/mountain-preview/retire.mjs" \
+  "${RELEASE_LIB}/preview/commands/mountain-preview/"
+install -m 0644 -o root -g root \
+  "${TOOL_ROOT}/preview/processes/mountain-preview-site/main.mjs" \
+  "${TOOL_ROOT}/preview/processes/mountain-preview-site/caddy.mjs" \
+  "${TOOL_ROOT}/preview/processes/mountain-preview-site/caddy-fragment.mjs" \
+  "${RELEASE_LIB}/preview/processes/mountain-preview-site/"
+install -m 0644 -o root -g root \
+  "${TOOL_ROOT}/preview/processes/preview-authorization/main.mjs" \
+  "${RELEASE_LIB}/preview/processes/preview-authorization/"
+chmod 0755 "${RELEASE_LIB}/preview/commands/mountain-preview/cli.mjs"
+chmod 0755 "${RELEASE_LIB}/preview/processes/mountain-preview-site/main.mjs"
+ln -sf "${RELEASE_LIB}/preview/commands/mountain-preview/cli.mjs" /usr/local/bin/mountain-preview
+ln -sf "${RELEASE_LIB}/preview/commands/mountain-preview/cli.mjs" /usr/local/bin/preview-ssh-gate
 
 cat > "${RELEASE_LIB}/preview-shell" <<'EOF'
 #!/bin/sh
@@ -325,6 +357,15 @@ if [[ -d "${PREVIEW_ROOT}/.ssh" ]]; then
     chmod 644 "${PREVIEW_ROOT}/.ssh/authorized_keys"
   fi
 fi
+
+sed -e "s|^Environment=MOUNTAIN_PREVIEW_SITE_GID=.*|Environment=MOUNTAIN_PREVIEW_SITE_GID=$(getent group preview-deploy | cut -d: -f3)|" \
+  -e "s|^Environment=MOUNTAIN_PREVIEW_SITE_UID=.*|Environment=MOUNTAIN_PREVIEW_SITE_UID=$(id -u preview-deploy)|" \
+  "${TOOL_ROOT}/systemd/mountain-preview-site.service" > /etc/systemd/system/mountain-preview-site.service
+chown root:root /etc/systemd/system/mountain-preview-site.service
+chmod 0644 /etc/systemd/system/mountain-preview-site.service
+systemctl daemon-reload
+systemctl enable mountain-preview-site >/dev/null 2>&1 || true
+systemctl restart mountain-preview-site
 
 # --- sshd hardening (key-only authentication) --------------------------------
 log "Hardening sshd: key-only authentication."

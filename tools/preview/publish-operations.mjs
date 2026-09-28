@@ -11,6 +11,8 @@
 
 import { loadVerifiedArtifact } from "../deploy/artifact.mjs";
 import { RemoteCommandError } from "../deploy/ssh.mjs";
+import { verifyPreviewSite } from "./smoke.mjs";
+import { signPreviewAuthorization } from "../server/preview/authorization-proof.mjs";
 import {
   assertPreviewManifestConsistency,
   previewOrigin,
@@ -141,6 +143,9 @@ export async function resolvePullRequestState({
       `Pull request ${pullNumber} is ${pullRequest.state}; only an open pull request can be published.`,
     );
   }
+  if (pullRequest.labels?.some((label) => label.name === "preview-revoked")) {
+    throw new Error(`Pull request ${pullNumber} has a revoked preview.`);
+  }
   if (pullRequest.head?.repo?.full_name !== repository) {
     throw new Error(
       "The pull request head repository is not this repository; forks have no previews.",
@@ -221,7 +226,10 @@ export async function publishPreview({
   resolvePullRequestState,
   revalidateCommentAuthorization,
   revalidateDispatchAuthorization,
+  authorizedBy,
+  authorizationPrivateKey,
   transport,
+  verifyPreview = verifyPreviewSite,
 }) {
   const pullRequest = await resolvePullRequestState();
   const artifact = await loadVerifiedArtifact(artifactDirectory, {
@@ -257,11 +265,53 @@ export async function publishPreview({
   await revalidateCommentAuthorization?.();
   await revalidateDispatchAuthorization?.();
 
-  await activatePreviewRelease(transport, pullNumber, pullRequest.headSha);
-  const health = await transport.run(`mountain-preview health ${pullNumber}`);
-  if (!health.startsWith("Health: OK")) {
-    throw new Error(health);
+  const authorization = {
+    pullRequestNumber: pullNumber,
+    commit: pullRequest.headSha,
+    actor: authorizedBy,
+    issuedAt: Date.now(),
+  };
+  await transport.run(
+    `mountain-preview authorize ${pullNumber} ${pullRequest.headSha} ${authorizedBy}`,
+    JSON.stringify({
+      issuedAt: authorization.issuedAt,
+      signature: signPreviewAuthorization(
+        authorization,
+        authorizationPrivateKey,
+      ),
+    }),
+  );
+  const previousList = await transport.run(
+    `mountain-preview list ${pullNumber}`,
+  );
+  const previousCommit = /^active\s+([0-9a-f]{40})/mu.exec(previousList)?.[1];
+  await transport.run(`mountain-preview site-enable ${pullNumber}`);
+  try {
+    const beforeActivation = await resolvePullRequestState();
+    assertPullRequestUnchanged(pullRequest, beforeActivation);
+    await revalidateCommentAuthorization?.();
+    await revalidateDispatchAuthorization?.();
+    await activatePreviewRelease(transport, pullNumber, pullRequest.headSha);
+    const health = await transport.run(`mountain-preview health ${pullNumber}`);
+    if (!health.startsWith("Health: OK")) throw new Error(health);
+    await verifyPreview(previewOrigin(pullNumber));
+  } catch (error) {
+    if (previousCommit && previousCommit !== pullRequest.headSha) {
+      await transport.run(
+        `mountain-preview activate ${pullNumber} ${previousCommit}`,
+      );
+    } else if (!previousCommit) {
+      await transport.run(`mountain-preview retire ${pullNumber}`);
+      await transport.run(`mountain-preview site-disable ${pullNumber}`);
+    }
+    throw error;
   }
-
+  try {
+    await transport.run(`mountain-preview prune ${pullNumber}`);
+  } catch (error) {
+    console.warn(
+      `Preview ${pullNumber} is published but prune failed: ${error.message}`,
+    );
+  }
   return `Published preview ${previewOrigin(pullNumber)} at commit ${pullRequest.headSha}.`;
 }
