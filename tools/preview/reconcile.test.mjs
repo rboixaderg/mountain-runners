@@ -116,6 +116,64 @@ test("an API failure never retires a fresh preview", async () => {
   ]);
 });
 
+test("a failed GitHub lookup does not block retirement of another preview", async () => {
+  const transport = transportFor([
+    { pullNumber: 1, commit, updatedAt: "2026-09-27T11:00:00.000Z" },
+    { pullNumber: 2, commit, updatedAt: "2026-09-27T11:00:00.000Z" },
+  ]);
+  await assert.rejects(
+    reconcilePreviews({
+      transport,
+      repository,
+      now,
+      readPull: async (number) => {
+        if (number === 1) throw new Error("GitHub unavailable");
+        return { state: "closed" };
+      },
+    }),
+    /Preview 1: GitHub unavailable/,
+  );
+  assert.deepEqual(transport.commands, [
+    "mountain-preview site-sync",
+    "mountain-preview inventory",
+    "mountain-preview retire 2",
+    "mountain-preview site-disable 2",
+  ]);
+});
+
+test("a failed prune does not block revocation of another preview", async () => {
+  const transport = transportFor([
+    { pullNumber: 1, commit, updatedAt: "2026-09-27T11:00:00.000Z" },
+    { pullNumber: 2, commit, updatedAt: "2026-09-27T11:00:00.000Z" },
+  ]);
+  const originalRun = transport.run;
+  transport.run = async (command) => {
+    if (command === "mountain-preview prune 1") {
+      transport.commands.push(command);
+      throw new Error("Health: DEGRADED");
+    }
+    return originalRun(command);
+  };
+  await assert.rejects(
+    reconcilePreviews({
+      transport,
+      repository,
+      now,
+      readPull: async (number) => ({
+        state: "open",
+        labels: number === 2 ? [{ name: "preview-revoked" }] : [],
+        head: { sha: commit, repo: { full_name: repository } },
+      }),
+    }),
+    /Preview 1: Health: DEGRADED/,
+  );
+  assert.deepEqual(transport.commands.slice(-3), [
+    "mountain-preview prune 1",
+    "mountain-preview retire 2",
+    "mountain-preview site-disable 2",
+  ]);
+});
+
 test("one inconsistent namespace does not prevent retiring other previews", async () => {
   const transport = transportFor([
     { pullNumber: 1, inconsistent: true },

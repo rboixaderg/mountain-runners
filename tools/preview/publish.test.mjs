@@ -447,6 +447,38 @@ test("a failed update restores the previous active commit", async () => {
   });
 });
 
+test("a failure before activation keeps the previous commit and the original error", async () => {
+  await withPreviewArtifact(async (artifactDirectory) => {
+    const transport = createMemoryTransport();
+    const originalRun = transport.run;
+    transport.run = (command, stdin) => {
+      if (command === `mountain-preview list ${previewPullNumber}`) {
+        transport.commands.push(command);
+        return `active   ${movedPreviewCommit} build 2026-09-01 installed 2026-09-01`;
+      }
+      return originalRun(command, stdin);
+    };
+    let authorizationChecks = 0;
+    await assert.rejects(
+      createTestPublisher(transport, artifactDirectory, {
+        revalidateDispatchAuthorization: () => {
+          authorizationChecks += 1;
+          if (authorizationChecks === 2)
+            throw new Error("Permission withdrawn");
+        },
+      }),
+      /Permission withdrawn/,
+    );
+    assert.equal(transport.commands.at(-1), "mountain-preview site-enable 99");
+    assert.equal(
+      transport.commands.some((command) =>
+        command.startsWith("mountain-preview activate"),
+      ),
+      false,
+    );
+  });
+});
+
 test("a prune failure does not report a published release as failed", async () => {
   await withPreviewArtifact(async (artifactDirectory) => {
     const transport = createMemoryTransport();
