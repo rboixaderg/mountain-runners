@@ -294,25 +294,37 @@ chown preview-deploy:preview-deploy "${PREVIEW_ROOT}/namespaces"
 chmod 755 "${PREVIEW_ROOT}/namespaces"
 
 log "Installing the preview tooling to ${RELEASE_LIB}/preview."
-mkdir -p "${RELEASE_LIB}/preview"
+install -d -m 0755 -o root -g root \
+  "${RELEASE_LIB}/preview" \
+  "${RELEASE_LIB}/preview/commands" \
+  "${RELEASE_LIB}/preview/commands/mountain-preview" \
+  "${RELEASE_LIB}/preview/processes" \
+  "${RELEASE_LIB}/preview/processes/mountain-preview-site" \
+  "${RELEASE_LIB}/preview/processes/preview-authorization"
 install -m 0644 -o root -g root \
   "${TOOL_ROOT}/preview/config.mjs" \
   "${TOOL_ROOT}/preview/authorization-proof.mjs" \
-  "${TOOL_ROOT}/preview/authorize.mjs" \
-  "${TOOL_ROOT}/preview/capacity.mjs" \
-  "${TOOL_ROOT}/preview/gate.mjs" \
-  "${TOOL_ROOT}/preview/inventory.mjs" \
-  "${TOOL_ROOT}/preview/prune.mjs" \
-  "${TOOL_ROOT}/preview/retire.mjs" \
-  "${TOOL_ROOT}/preview/site-socket.mjs" \
-  "${TOOL_ROOT}/preview/site-config.mjs" \
-  "${TOOL_ROOT}/preview/site-manager.mjs" \
-  "${TOOL_ROOT}/preview/site-daemon.mjs" \
   "${RELEASE_LIB}/preview/"
-chmod 0755 "${RELEASE_LIB}/preview/gate.mjs"
-chmod 0755 "${RELEASE_LIB}/preview/site-daemon.mjs"
-ln -sf "${RELEASE_LIB}/preview/gate.mjs" /usr/local/bin/mountain-preview
-ln -sf "${RELEASE_LIB}/preview/gate.mjs" /usr/local/bin/preview-ssh-gate
+install -m 0644 -o root -g root \
+  "${TOOL_ROOT}/preview/commands/mountain-preview/cli.mjs" \
+  "${TOOL_ROOT}/preview/commands/mountain-preview/site-request.mjs" \
+  "${TOOL_ROOT}/preview/commands/mountain-preview/capacity.mjs" \
+  "${TOOL_ROOT}/preview/commands/mountain-preview/inventory.mjs" \
+  "${TOOL_ROOT}/preview/commands/mountain-preview/prune.mjs" \
+  "${TOOL_ROOT}/preview/commands/mountain-preview/retire.mjs" \
+  "${RELEASE_LIB}/preview/commands/mountain-preview/"
+install -m 0644 -o root -g root \
+  "${TOOL_ROOT}/preview/processes/mountain-preview-site/main.mjs" \
+  "${TOOL_ROOT}/preview/processes/mountain-preview-site/caddy.mjs" \
+  "${TOOL_ROOT}/preview/processes/mountain-preview-site/caddy-fragment.mjs" \
+  "${RELEASE_LIB}/preview/processes/mountain-preview-site/"
+install -m 0644 -o root -g root \
+  "${TOOL_ROOT}/preview/processes/preview-authorization/main.mjs" \
+  "${RELEASE_LIB}/preview/processes/preview-authorization/"
+chmod 0755 "${RELEASE_LIB}/preview/commands/mountain-preview/cli.mjs"
+chmod 0755 "${RELEASE_LIB}/preview/processes/mountain-preview-site/main.mjs"
+ln -sf "${RELEASE_LIB}/preview/commands/mountain-preview/cli.mjs" /usr/local/bin/mountain-preview
+ln -sf "${RELEASE_LIB}/preview/commands/mountain-preview/cli.mjs" /usr/local/bin/preview-ssh-gate
 
 cat > "${RELEASE_LIB}/preview-shell" <<'EOF'
 #!/bin/sh

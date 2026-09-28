@@ -1,7 +1,8 @@
+// Caddy changes run inside the privileged preview process.
 import { execFile } from "node:child_process";
 import { readFile, rename, unlink, writeFile } from "node:fs/promises";
 import { promisify } from "node:util";
-import { parsePreviewSites, renderPreviewSites } from "./site-config.mjs";
+import { parsePreviewSites, renderPreviewSites } from "./caddy-fragment.mjs";
 
 const exec = promisify(execFile);
 const caddyDirectory = "/etc/caddy";

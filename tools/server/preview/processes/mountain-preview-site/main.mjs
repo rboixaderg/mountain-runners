@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Privileged, bounded broker: preview-deploy can request only numeric hosts.
+// Privileged preview process: validates signed authorization and PR-bound Caddy changes.
 import { execFile } from "node:child_process";
 import { chmodSync, chownSync, lstatSync, unlinkSync } from "node:fs";
 import { readFile, readlink } from "node:fs/promises";
@@ -7,10 +7,10 @@ import { connect, createServer } from "node:net";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
-import { previewNamespacePaths, previewOrigin } from "./config.mjs";
-import { verifyPreviewAuthorization } from "./authorization-proof.mjs";
-import { parsePreviewSites } from "./site-config.mjs";
-import { updatePreviewSite } from "./site-manager.mjs";
+import { previewNamespacePaths, previewOrigin } from "../../config.mjs";
+import { verifyPreviewAuthorization } from "../../authorization-proof.mjs";
+import { parsePreviewSites } from "./caddy-fragment.mjs";
+import { updatePreviewSite } from "./caddy.mjs";
 
 const socketPath =
   process.env.MOUNTAIN_PREVIEW_SITE_SOCKET ?? "/run/mountain-preview-site.sock";
@@ -63,7 +63,9 @@ async function update(request) {
     const { stdout } = await exec(
       process.execPath,
       [
-        fileURLToPath(new URL("./authorize.mjs", import.meta.url)),
+        fileURLToPath(
+          new URL("../preview-authorization/main.mjs", import.meta.url),
+        ),
         commit,
         actor,
         String(pullRequestNumber),
@@ -112,7 +114,7 @@ async function main() {
       await new Promise((resolve, reject) => {
         const socket = connect(socketPath);
         socket.on("connect", () =>
-          reject(new Error("Preview site daemon already running.")),
+          reject(new Error("Preview site process already running.")),
         );
         socket.on("error", resolve);
       });
@@ -154,6 +156,6 @@ async function main() {
 }
 
 main().catch((error) => {
-  console.error(`Preview site daemon failed: ${error.message}`);
+  console.error(`Preview site process failed: ${error.message}`);
   process.exitCode = 1;
 });

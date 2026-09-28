@@ -94,16 +94,18 @@ de producció.
 
 - **Esmena T6.4, ADR 0010:** un sol procés Caddy al VPS actual, amb blocs de
   servidor separats per a producció i previews, **magatzem ACME compartit**
-  (opció global de Caddy) i **logs d'accés separats**; els errors del procés
-  compartit continuen al log global. La identitat de
-  previews no té accés al magatzem ACME. Cap canvi de preview no pot editar
+  (opció global de Caddy) i **registres d'accés separats**; els errors del procés
+  compartit continuen al registre global. L'usuari `preview-deploy` no té
+  accés al magatzem ACME. Cap canvi de preview no pot editar
   els blocs de producció, però aplicar-lo reinicia el procés compartit:
   `caddy validate` del Caddyfile complet precedeix el reinici i després es
   comprova producció. No hi ha aïllament de fallades del procés ni d'ACME.
-  El broker root-owned de T6.4 només genera hosts numèrics i no accepta
-  directives de la PR.
-- El risc compartit queda acceptat per simplicitat i cost zero: un crash,
-  reinici fallat o problema de l'estat ACME podria interrompre producció.
+  El procés `mountain-preview-site` de la T6.4 s'executa com a `root`, només
+  genera noms d'origen a partir de números de PR i no accepta directives de la
+  PR.
+- El risc compartit queda acceptat per simplicitat i cost zero: una caiguda de
+  Caddy, un reinici fallat o un problema de l'estat ACME podria interrompre
+  producció.
   La T6.5 prova la validació prèvia, la recuperació i la salut de producció;
   si troba una interrupció causada pels previews, se n'atura l'activació i
   es revisa l'arquitectura abans de continuar.
@@ -119,10 +121,11 @@ de producció.
 
 - **Visibilitat pública per defecte**, sense autenticació. Les previews només
   existeixen per a branques del repositori principal amb autorització explícita
-  per SHA (RQ-10, RQ-11), la marca de no-producció és part del build (esmena
-  de l'ADR 0009 a la T6.4) i la retirada d'una preview abusiva és immediata via
-  revocació del publicador. Aquestes capes responen a AM-11 sense pagar la
-  dependència d'un sistema d'accés extern (ALT-E queda descartada).
+  per al commit vigent de la PR, identificat pel seu SHA (RQ-10, RQ-11). La
+  marca de no-producció és part del build (esmena de l'ADR 0009 a la T6.4) i
+  la retirada d'una preview abusiva és immediata via revocació del publicador.
+  Aquests controls responen a AM-11 sense la dependència d'un sistema d'accés
+  extern (ALT-E queda descartada).
 - Criteri escrit de VR-07: la visibilitat restringida per defecte esdevé
   **obligatòria** si els forks obtenen previews (cosa que exigiria revisar
   l'ADR 0009 amb un ADR nou) o si una preview pública genera un incident de

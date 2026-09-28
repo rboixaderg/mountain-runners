@@ -1,3 +1,4 @@
+// Sends bounded requests from mountain-preview to the preview site process.
 import { connect } from "node:net";
 
 const socketPath =

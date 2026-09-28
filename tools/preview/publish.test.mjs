@@ -46,7 +46,7 @@ const previewFiles = [
 const testRepository = "rboixaderg/mountain-runners";
 const gatePath = join(
   dirname(fileURLToPath(import.meta.url)),
-  "../server/preview/gate.mjs",
+  "../server/preview/commands/mountain-preview/cli.mjs",
 );
 
 function createPullResponse({

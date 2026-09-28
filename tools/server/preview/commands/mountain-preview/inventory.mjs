@@ -1,6 +1,6 @@
 import { readFile, readdir, readlink, stat } from "node:fs/promises";
 import { join } from "node:path";
-import { previewNamespacePaths, previewRoot } from "./config.mjs";
+import { previewNamespacePaths, previewRoot } from "../../config.mjs";
 
 export async function previewInventory() {
   const directory = join(previewRoot(), "namespaces");

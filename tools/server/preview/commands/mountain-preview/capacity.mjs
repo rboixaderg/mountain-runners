@@ -1,7 +1,7 @@
 import { lstat, open, readdir, stat, unlink } from "node:fs/promises";
 import { join } from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
-import { previewRoot } from "./config.mjs";
+import { previewRoot } from "../../config.mjs";
 
 const capacity = 5;
 const namespacesDirectory = () => join(previewRoot(), "namespaces");

@@ -6,9 +6,9 @@
 // archives (absolute paths, traversal, symlinks, hardlinks, devices,
 // duplicates, limits and digest mismatches), the pull request namespace
 // binding (origin and PR number must match the namespace argument) and the
-// namespace lifecycle (receive, install, activate, list, health). The gate
-// runs directly as the preview identity: no daemon, no root and no
-// production credentials.
+// namespace lifecycle (receive, install, activate, list, health). The command
+// runs release operations as the preview identity; signed authorization uses
+// the separate preview process. No production credentials are involved.
 
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
@@ -40,7 +40,7 @@ import { signPreviewAuthorization } from "./authorization-proof.mjs";
 import { withPreviewAuthorization } from "./test-authorization.mjs";
 
 const toolDirectory = dirname(fileURLToPath(import.meta.url));
-const gatePath = join(toolDirectory, "gate.mjs");
+const gatePath = join(toolDirectory, "commands/mountain-preview/cli.mjs");
 
 const previewPullNumber = 99;
 const previewCommit = "9".repeat(40);
@@ -108,7 +108,13 @@ function runGateDirect(root, args) {
   });
 }
 
-function runInstalledGate(gatePath, root, originalCommand, stdin) {
+function runInstalledGate(
+  gatePath,
+  root,
+  originalCommand,
+  stdin,
+  siteEnv = {},
+) {
   return spawnSync(process.execPath, [gatePath], {
     encoding: "utf8",
     input: stdin,
@@ -116,6 +122,7 @@ function runInstalledGate(gatePath, root, originalCommand, stdin) {
       ...process.env,
       MOUNTAIN_PREVIEW_ROOT: root,
       SSH_ORIGINAL_COMMAND: originalCommand,
+      ...siteEnv,
     },
   });
 }
@@ -579,13 +586,17 @@ test("prune removes the previous release after updating an origin", async () => 
   });
 });
 
-test("the bootstrap install layout resolves the preview gate release imports", async () => {
+test("the bootstrap install layout resolves the preview command and process imports", async () => {
   const installRoot = await mkdtemp(
     join(tmpdir(), "mountain-preview-install-"),
   );
   const previewRoot = join(installRoot, "preview");
   const releaseLink = join(installRoot, "release");
-  const installedGate = join(previewRoot, "gate.mjs");
+  const installedGate = join(previewRoot, "commands/mountain-preview/cli.mjs");
+  const installedProcess = join(
+    previewRoot,
+    "processes/mountain-preview-site/main.mjs",
+  );
   const flatReleaseModules = [
     "archive.mjs",
     "config.mjs",
@@ -601,7 +612,13 @@ test("the bootstrap install layout resolves the preview gate release imports", a
   ];
 
   try {
-    await mkdir(previewRoot, { recursive: true });
+    await mkdir(join(previewRoot, "commands/mountain-preview"), {
+      recursive: true,
+    });
+    await mkdir(join(previewRoot, "processes/mountain-preview-site"), {
+      recursive: true,
+    });
+    await mkdir(join(previewRoot, "processes/preview-authorization"));
     await symlink(".", releaseLink);
     await cp(gatePath, installedGate);
     await cp(
@@ -609,26 +626,31 @@ test("the bootstrap install layout resolves the preview gate release imports", a
       join(previewRoot, "config.mjs"),
     );
     await cp(
-      join(toolDirectory, "authorize.mjs"),
-      join(previewRoot, "authorize.mjs"),
+      join(toolDirectory, "processes/preview-authorization/main.mjs"),
+      join(previewRoot, "processes/preview-authorization/main.mjs"),
     );
+    for (const moduleName of ["caddy-fragment.mjs", "caddy.mjs", "main.mjs"]) {
+      await cp(
+        join(toolDirectory, "processes/mountain-preview-site", moduleName),
+        join(previewRoot, "processes/mountain-preview-site", moduleName),
+      );
+    }
     await cp(
-      join(toolDirectory, "retire.mjs"),
-      join(previewRoot, "retire.mjs"),
+      join(toolDirectory, "authorization-proof.mjs"),
+      join(previewRoot, "authorization-proof.mjs"),
     );
-    await cp(
-      join(toolDirectory, "capacity.mjs"),
-      join(previewRoot, "capacity.mjs"),
-    );
-    await cp(
-      join(toolDirectory, "inventory.mjs"),
-      join(previewRoot, "inventory.mjs"),
-    );
-    await cp(join(toolDirectory, "prune.mjs"), join(previewRoot, "prune.mjs"));
-    await cp(
-      join(toolDirectory, "site-socket.mjs"),
-      join(previewRoot, "site-socket.mjs"),
-    );
+    for (const moduleName of [
+      "site-request.mjs",
+      "retire.mjs",
+      "capacity.mjs",
+      "inventory.mjs",
+      "prune.mjs",
+    ]) {
+      await cp(
+        join(toolDirectory, "commands/mountain-preview", moduleName),
+        join(previewRoot, "commands/mountain-preview", moduleName),
+      );
+    }
     for (const moduleName of flatReleaseModules) {
       await cp(
         join(toolDirectory, "../release", moduleName),
@@ -658,6 +680,66 @@ test("the bootstrap install layout resolves the preview gate release imports", a
       ).equals(archiveBytes),
       true,
     );
+    const archiveName = previewArchiveName(previewCommit);
+    const archive = await makePreviewArchiveBytes(previewFiles);
+    await withPreviewAuthorization(
+      root,
+      async ({ env, privateKey }) => {
+        for (const [name, bytes] of [
+          [archiveName, archive],
+          ["manifest.json", Buffer.from(JSON.stringify(makePreviewManifest()))],
+        ]) {
+          const receive = runInstalledGate(
+            installedGate,
+            root,
+            `mountain-preview receive 99 ${name}`,
+            bytes,
+            env,
+          );
+          assert.equal(receive.status, 0, gateOutput(receive));
+        }
+        const install = runInstalledGate(
+          installedGate,
+          root,
+          `mountain-preview install 99 ${archiveName} manifest.json`,
+          undefined,
+          env,
+        );
+        assert.equal(install.status, 0, gateOutput(install));
+        const issuedAt = Date.now();
+        const signature = signPreviewAuthorization(
+          {
+            pullRequestNumber: 99,
+            commit: previewCommit,
+            actor: "maintainer",
+            issuedAt,
+          },
+          privateKey,
+        );
+        const authorize = runInstalledGate(
+          installedGate,
+          root,
+          `mountain-preview authorize 99 ${previewCommit} maintainer`,
+          JSON.stringify({ issuedAt, signature }),
+          env,
+        );
+        assert.equal(authorize.status, 0, gateOutput(authorize));
+        const registry = JSON.parse(
+          await readFile(join(root, "namespaces/pr-99/releases.json"), "utf8"),
+        );
+        assert.equal(registry.releases[0].authorizedBy, "maintainer");
+      },
+      undefined,
+      installedProcess,
+    );
+    const service = await readFile(
+      join(toolDirectory, "../systemd/mountain-preview-site.service"),
+      "utf8",
+    );
+    assert.match(
+      service,
+      /ExecStart=\/usr\/local\/lib\/mountain-runners\/preview\/processes\/mountain-preview-site\/main\.mjs/u,
+    );
   } finally {
     await rm(installRoot, { recursive: true, force: true });
   }
@@ -680,6 +762,18 @@ test("bootstrap denies preview-deploy access to the production release root with
   assert.doesNotMatch(bootstrap, /setfacl\s+-R/u);
 });
 
+test("the preview process sandbox permits authorization writes only inside preview namespaces", async () => {
+  const service = await readFile(
+    join(toolDirectory, "../systemd/mountain-preview-site.service"),
+    "utf8",
+  );
+  assert.match(service, /^ProtectSystem=strict$/mu);
+  assert.equal(
+    service.match(/^ReadWritePaths=.*$/mu)?.[0],
+    "ReadWritePaths=/etc/caddy /run /var/lib/mountain-runners-previews/namespaces",
+  );
+});
+
 test("bootstrap and the preview-only runbook reject incompatible release paths before installing the gate", async () => {
   const bootstrap = await readFile(
     join(toolDirectory, "../bootstrap/bootstrap.sh"),
@@ -697,7 +791,7 @@ test("bootstrap and the preview-only runbook reject incompatible release paths b
   );
   const runbookPathCheck = runbook.indexOf('if sudo test -L "$LIB/release"');
   const previewGateInstall = runbook.indexOf(
-    '"$REPO/tools/server/preview/gate.mjs"',
+    '"$REPO/tools/server/preview/commands/mountain-preview/cli.mjs"',
   );
 
   assert.notEqual(bootstrapPathCheck, -1);

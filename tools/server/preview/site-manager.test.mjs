@@ -6,8 +6,11 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
-import { updatePreviewSite } from "./site-manager.mjs";
-import { parsePreviewSites, renderPreviewSites } from "./site-config.mjs";
+import { updatePreviewSite } from "./processes/mountain-preview-site/caddy.mjs";
+import {
+  parsePreviewSites,
+  renderPreviewSites,
+} from "./processes/mountain-preview-site/caddy-fragment.mjs";
 
 const toolDirectory = fileURLToPath(new URL(".", import.meta.url));
 
@@ -144,12 +147,12 @@ test("rejects hand-edited fragments and a sixth configured site", async () => {
   });
 });
 
-test("the gate reaches the restricted site daemon through its own socket", async () => {
+test("the preview command reaches the process through its restricted socket", async () => {
   await withCaddyFiles(async (directory) => {
     const socketPath = join(directory, "site.sock");
     const daemon = spawn(
       process.execPath,
-      [join(toolDirectory, "site-daemon.mjs")],
+      [join(toolDirectory, "processes/mountain-preview-site/main.mjs")],
       {
         env: {
           ...process.env,
@@ -174,7 +177,7 @@ test("the gate reaches the restricted site daemon through its own socket", async
       }
       const result = spawnSync(
         process.execPath,
-        [join(toolDirectory, "gate.mjs"), "site-sync"],
+        [join(toolDirectory, "commands/mountain-preview/cli.mjs"), "site-sync"],
         {
           encoding: "utf8",
           env: { ...process.env, MOUNTAIN_PREVIEW_SITE_SOCKET: socketPath },

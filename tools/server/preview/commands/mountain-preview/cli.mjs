@@ -9,7 +9,7 @@
 // command from argv instead.
 //
 // The preview identity owns its namespace and runs release operations directly.
-// A separate root-owned broker verifies signed authorizations and manages Caddy;
+// The separate root-owned preview process verifies signed authorizations and manages Caddy;
 // the gate cannot write its configuration or authorize a release on its own.
 // Install binds the PR argument to the manifest origin and number.
 //
@@ -36,19 +36,19 @@ import {
   performHealth,
   performInstall,
   performList,
-} from "../release/operations.mjs";
-import { loadAndValidateManifest } from "../release/manifest.mjs";
-import { loadRegistry } from "../release/registry.mjs";
+} from "../../../release/operations.mjs";
+import { loadAndValidateManifest } from "../../../release/manifest.mjs";
+import { loadRegistry } from "../../../release/registry.mjs";
 import {
   formatReceiveMessage,
   receiveIncomingFile,
-} from "../release/receive.mjs";
-import { commitPattern, incomingPath } from "../release/validate.mjs";
+} from "../../../release/receive.mjs";
+import { commitPattern, incomingPath } from "../../../release/validate.mjs";
 import {
   assertPreviewManifestConsistency,
   prNumberPattern,
   previewNamespacePaths,
-} from "./config.mjs";
+} from "../../config.mjs";
 import { cleanRetiredPreviews, retirePreview } from "./retire.mjs";
 import {
   assertNamespaceCapacity,
@@ -57,7 +57,7 @@ import {
 } from "./capacity.mjs";
 import { previewInventory } from "./inventory.mjs";
 import { prunePreview } from "./prune.mjs";
-import { requestPreviewSite } from "./site-socket.mjs";
+import { requestPreviewSite } from "./site-request.mjs";
 
 const unsafeTokenPattern = /[\s"'`$\\;|&<>()]/u;
 

@@ -34,10 +34,10 @@ separada per a qualsevol acció al VPS. **Cap preview no està publicada.**
   i `PUBLIC_PREVIEW=true`: correcte. Els 12 tests de preview passen en
   Chromium, Firefox i WebKit, tant a escriptori com a mòbil. El test ja no
   pressuposa que la PR sigui la #99.
-- El test del gate comprova que la clau SSH sola no pot autoritzar ni activar
-  una release i que el broker rebutja una signatura falsa. La prova de
-  publicació passa pel broker amb una parella de claus efímera generada al test;
-  cap clau real no figura al repositori.
+- El test de `preview-ssh-gate` comprova que la clau SSH sola no pot autoritzar
+  ni activar una release i que el procés `mountain-preview-site` rebutja una
+  signatura falsa. La prova de publicació passa pel procés amb una parella de
+  claus efímera generada al test; cap clau real no figura al repositori.
 - La reconciliació retira un namespace amb el registre inconsistent i continua
   netejant les altres PR; marca l'execució com a fallida per exigir revisió i esborra
   directoris de retirades interrompudes. Es comproven també l'actualització
@@ -48,6 +48,16 @@ separada per a qualsevol acció al VPS. **Cap preview no està publicada.**
   configurar la privada només al secret `PREVIEW_AUTH_PRIVATE_KEY` de l'entorn
   `previews` i comprovar els permisos reals del drop-in de Caddy. Requereix
   aprovació separada; cap preview no s'ha publicat.
+
+## Verificació posterior (28 de setembre de 2026)
+
+- Després de separar el codi de la comanda i dels processos i de limitar
+  `ReadWritePaths` als directoris de previews, `pnpm validate` passa amb 328
+  tests web, 105 de servidor i 306 recorreguts Playwright de producció.
+- La prova d'instal·lació recorre la comanda i tots dos processos des de les
+  rutes noves, fins a registrar una autorització signada. Un test comprova
+  l'excepció d'escriptura de la unitat `systemd`, però la prova del sandbox real
+  al VPS continua pendent de la T6.5.
 
 ## Pendent abans de l'activació
 

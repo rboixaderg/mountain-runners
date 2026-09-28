@@ -1,4 +1,4 @@
-// Root-owned Caddy fragment: the preview identity never writes this file.
+// Renders the root-owned Caddy fragment for explicitly enabled preview origins.
 export function renderPreviewSites(pullNumbers) {
   return [...pullNumbers]
     .sort((first, second) => first - second)

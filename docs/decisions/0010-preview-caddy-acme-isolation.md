@@ -26,25 +26,28 @@ d'un reinici.
 
 Es conserva **un sol procés Caddy**, amb la mateixa IP i el wildcard DNS
 existent. Els certificats de producció i previews comparteixen el magatzem
-ACME del procés, però `preview-deploy` no pot llegir-lo ni escriure-hi. Els
-orígens de preview es configuren explícitament: no s'activa TLS on-demand
-sense allowlist. Els logs, els namespaces i les identitats de desplegament
-continuen separats.
+ACME del procés, on Caddy desa l'estat dels certificats TLS, però
+`preview-deploy` no pot llegir-lo ni escriure-hi. Caddy només configura TLS per
+als subdominis de PR habilitats explícitament, no per a qualsevol subdomini que
+rebi una petició. Els registres d'accés, els directoris de cada PR i els
+usuaris de desplegament continuen separats.
 
-La configuració de previews és root-owned i no la pot editar l'artefacte ni
-la identitat de publicació. Un broker root-owned accepta només orígens derivats
-d'un número de PR pel socket del grup de previews. L'autorització requereix
-una signatura Ed25519 recent del publicador de confiança sobre PR, SHA, actor
-i hora. La clau privada
-viu només al job `publish` de GitHub i la pública al VPS; la clau SSH de
-`preview-deploy` no pot fabricar autoritzacions. El broker comprova la signatura
-abans de registrar l'autorització, comprova l'autorització registrada en una
-release elegible i genera únicament el fragment de hosts permesos: no accepta
-directives Caddy arbitràries. Cada canvi de configuració requereix validació
-del Caddyfile complet **abans** de reiniciar; si la validació falla, es
-conserva la configuració anterior. Després del reinici es comproven tant
-producció com els orígens actius. El reinici afecta el procés compartit:
-la validació redueix el risc, però no garanteix que una fallada en temps
+La configuració de previews només la pot modificar `root`, no l'artefacte ni
+la identitat de publicació. El procés `mountain-preview-site` s'executa al VPS
+com a `root`, rep peticions pel socket del grup de previews i només configura
+orígens derivats d'un número de PR. L'autorització requereix una signatura
+Ed25519 recent del job de publicació de GitHub sobre PR, SHA, actor i hora. La
+clau privada només és accessible al job `publish` de GitHub; la clau pública
+s'instal·la al VPS. La clau SSH de `preview-deploy` no pot fabricar
+autoritzacions. El procés comprova la signatura
+abans de registrar l'autorització, comprova que la versió instal·lada de la PR
+està autoritzada i genera únicament el fragment de configuració de Caddy per
+als subdominis permesos: no accepta directives Caddy arbitràries. Cada canvi
+requereix validar el Caddyfile complet, el fitxer de configuració de Caddy,
+**abans** de reiniciar. Si la validació falla, es conserva la configuració
+anterior. Després del reinici es comproven tant producció com els orígens
+actius. El reinici afecta Caddy, compartit amb producció. La validació redueix
+el risc, però no garanteix que una fallada en temps
 d'execució no interrompi producció. No s'ha de presentar la separació de
 blocs com a independència operativa completa.
 
@@ -59,7 +62,7 @@ Per desactivar previews sense tocar el DNS ni els certificats de producció,
 es retiren els blocs de preview després de validar la configuració resultant;
 la persona mantenidora aplica qualsevol canvi remot amb aprovació explícita.
 
-El risc residual acceptat és que una fallada del procés, del magatzem ACME
+El risc residual acceptat és que una fallada de Caddy, del magatzem ACME
 compartit o d'un reinici pot afectar tots dos serveis. La T6.5 ha de provar
 el camí d'error, el procediment de restauració i l'estat de producció; cap
 preview no es publica abans de completar el cicle de vida i aquestes proves.

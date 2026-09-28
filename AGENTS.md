@@ -82,6 +82,19 @@ reviewing `apps/web` code. The review of every PR checks these rules:
 - Refactors preserve visual output, routes, content and user-observable
   behavior. Selector syntax may change when those contracts remain intact.
 
+## Preview Server Tooling
+
+- In `tools/server/preview/`, give each new command its own
+  `commands/<name>/` directory and each process, persistent or short-lived, its
+  own `processes/<name>/` directory. Different names for the same executable
+  share one directory.
+- Name command entry points `cli.mjs` and process entry points `main.mjs`.
+  Keep supporting modules with their owner; leave only modules used by more
+  than one program at the preview root. Use descriptive names for those modules.
+- Keep the installed layout, symlinks, systemd units, tests and the directory
+  map in [`docs/deployment.md`](docs/deployment.md) in sync. This rule does not
+  require reorganizing the existing `tools/server/release/` implementation.
+
 ## Security
 
 - Never commit, print, paste or request secrets. Use environment variables and

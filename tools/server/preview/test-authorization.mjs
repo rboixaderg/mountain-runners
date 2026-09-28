@@ -9,6 +9,10 @@ export async function withPreviewAuthorization(
   root,
   run,
   keys = generateKeyPairSync("ed25519"),
+  previewProcessPath = join(
+    import.meta.dirname,
+    "processes/mountain-preview-site/main.mjs",
+  ),
 ) {
   const socketPath = join(root, "site.sock");
   const publicKeyPath = join(root, "auth.pub");
@@ -22,14 +26,10 @@ export async function withPreviewAuthorization(
     MOUNTAIN_PREVIEW_SITE_SOCKET: socketPath,
     MOUNTAIN_PREVIEW_AUTH_PUBLIC_KEY: publicKeyPath,
   };
-  const daemon = spawn(
-    process.execPath,
-    [join(import.meta.dirname, "site-daemon.mjs")],
-    {
-      env,
-      stdio: "ignore",
-    },
-  );
+  const previewProcess = spawn(process.execPath, [previewProcessPath], {
+    env,
+    stdio: "ignore",
+  });
   try {
     let connected = false;
     for (let attempt = 0; attempt < 50; attempt += 1) {
@@ -44,12 +44,12 @@ export async function withPreviewAuthorization(
       if (connected) break;
       await sleep(20);
     }
-    if (!connected) throw new Error("Preview site daemon did not start.");
+    if (!connected) throw new Error("Preview site process did not start.");
     return await run({ env, privateKey: keys.privateKey });
   } finally {
-    if (daemon.exitCode === null) {
-      daemon.kill();
-      await new Promise((resolve) => daemon.once("exit", resolve));
+    if (previewProcess.exitCode === null) {
+      previewProcess.kill();
+      await new Promise((resolve) => previewProcess.once("exit", resolve));
     }
   }
 }

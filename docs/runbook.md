@@ -49,11 +49,12 @@ per `/run/mountain-release.sock` (grup `mountain-runners`, mode 0660), que la
 revalida i l'executa com a `root`. El daemon tampoc pot escriure la
 configuració de Caddy, les claus TLS ni l'estat ACME.
 
-La identitat de previews (`preview-deploy`) opera directament sobre el seu
-propi namespace; el seu gate forçat (`preview-ssh-gate`) valida cada comanda i
-la vincula al namespace `pr-<n>` de la PR. Només la configuració d'orígens
-Caddy passa pel socket separat del broker root-owned; cap credencial DNS
-existeix i les releases de producció resten fora del seu abast.
+La identitat de previews (`preview-deploy`) opera directament sobre el directori
+de cada PR (`pr-<n>`). La comanda forçada per SSH (`preview-ssh-gate`) valida
+cada petició i la vincula a la PR. La verificació de la signatura d'autorització
+i els canvis a Caddy passen pel procés `mountain-preview-site`, mitjançant un
+socket local; cap credencial DNS existeix i les releases de producció resten
+fora de l'abast de `preview-deploy`.
 Vegeu la secció [13](#13-previews-de-pull-request-t63).
 
 ### Arquitectura Del Servidor
@@ -66,9 +67,10 @@ El tallafoc de Hetzner només obre 22, 80 i 443. Caddy escolta 80/443, termina
 TLS amb ACME i serveix el symlink `current`. El host de validació continua al
 `Caddyfile`; l'apex i `www` s'importen de `Caddyfile.production` (actiu des
 del tall). El daemon de releases no escriu Caddy, claus TLS ni estat ACME.
-La identitat de previews opera els seus namespaces propis directament; el
-broker `mountain-preview-site` (root) gestiona només el fragment Caddy de
-previews a través d'un socket diferent del daemon de producció (T6.4).
+La identitat de previews opera directament als seus directoris per PR. El
+procés `mountain-preview-site`, executat com a `root`, verifica les
+autoritzacions signades i modifica el fragment Caddy de previews a través d'un
+socket diferent del de releases de producció (T6.4).
 
 ```mermaid
 flowchart TB
@@ -88,7 +90,7 @@ flowchart TB
     PreviewIdentity["preview-deploy"]
     PreviewNamespaces["namespaces/pr-<n>/"]
     PreviewSiteSock["/run/mountain-preview-site.sock"]
-    PreviewSiteDaemon["mountain-preview-site.service root"]
+    PreviewSiteProcess["Procés mountain-preview-site (root)"]
     PreviewCaddyfile["/etc/caddy/Caddyfile.previews"]
     Sock["/run/mountain-release.sock"]
     Current["symlink current"]
@@ -118,8 +120,8 @@ flowchart TB
   PreviewIdentity --> PreviewGate
   PreviewGate --> PreviewNamespaces
   PreviewGate --> PreviewSiteSock
-  PreviewSiteSock --> PreviewSiteDaemon
-  PreviewSiteDaemon --> PreviewCaddyfile
+  PreviewSiteSock --> PreviewSiteProcess
+  PreviewSiteProcess --> PreviewCaddyfile
   PreviewCaddyfile -.-> Caddy
 ```
 
@@ -151,14 +153,16 @@ sequenceDiagram
   participant Preview as Clau preview-deploy
   participant Gate as preview-ssh-gate
   participant NS as namespaces/pr-<n>/
-  participant Broker as mountain-preview-site (root)
+  participant Process as Procés mountain-preview-site (root)
   participant Caddy as Caddy (T6.4)
 
   Preview->>Gate: SSH receive (stdin) / mountain-preview
   Note over Gate: tokenitza sense shell; validació i namespace per PR
-  Gate->>NS: receive, install, authorize (preview-deploy)
-  Gate->>Broker: site-enable (socket limitat)
-  Broker->>Caddy: valida config completa, reinicia, verifica producció
+  Gate->>NS: receive, install (preview-deploy)
+  Gate->>Process: authorize: PR, SHA i signatura (socket)
+  Process->>NS: registra l'autorització com a preview-deploy
+  Gate->>Process: site-enable (socket)
+  Process->>Caddy: valida config, reinicia, verifica producció i previews
   Gate->>NS: activate, health, prune (preview-deploy)
   Note over NS: registre i symlink per namespace; mai toca /var/lib/mountain-runners
   Caddy->>NS: serveix els orígens actius (blocs de previews, T6.4)
@@ -236,24 +240,36 @@ else
   sudo ln -s . "$LIB/release"
 fi
 sudo chown -h root:root "$LIB/release"
-sudo install -d -o root -g root -m 0755 "$LIB/preview"
+sudo install -d -o root -g root -m 0755 \
+  "$LIB/preview" \
+  "$LIB/preview/commands" \
+  "$LIB/preview/commands/mountain-preview" \
+  "$LIB/preview/processes" \
+  "$LIB/preview/processes/mountain-preview-site" \
+  "$LIB/preview/processes/preview-authorization"
 sudo install -o root -g root -m 0644 \
-  "$REPO/tools/server/preview/gate.mjs" \
   "$REPO/tools/server/preview/config.mjs" \
   "$REPO/tools/server/preview/authorization-proof.mjs" \
-  "$REPO/tools/server/preview/authorize.mjs" \
-  "$REPO/tools/server/preview/capacity.mjs" \
-  "$REPO/tools/server/preview/inventory.mjs" \
-  "$REPO/tools/server/preview/prune.mjs" \
-  "$REPO/tools/server/preview/retire.mjs" \
-  "$REPO/tools/server/preview/site-socket.mjs" \
-  "$REPO/tools/server/preview/site-config.mjs" \
-  "$REPO/tools/server/preview/site-manager.mjs" \
-  "$REPO/tools/server/preview/site-daemon.mjs" \
   "$LIB/preview/"
-sudo chmod 0755 "$LIB/preview/gate.mjs" "$LIB/preview/site-daemon.mjs"
-sudo ln -s "$LIB/preview/gate.mjs" /usr/local/bin/mountain-preview
-sudo ln -s "$LIB/preview/gate.mjs" /usr/local/bin/preview-ssh-gate
+sudo install -o root -g root -m 0644 \
+  "$REPO/tools/server/preview/commands/mountain-preview/cli.mjs" \
+  "$REPO/tools/server/preview/commands/mountain-preview/site-request.mjs" \
+  "$REPO/tools/server/preview/commands/mountain-preview/capacity.mjs" \
+  "$REPO/tools/server/preview/commands/mountain-preview/inventory.mjs" \
+  "$REPO/tools/server/preview/commands/mountain-preview/prune.mjs" \
+  "$REPO/tools/server/preview/commands/mountain-preview/retire.mjs" \
+  "$LIB/preview/commands/mountain-preview/"
+sudo install -o root -g root -m 0644 \
+  "$REPO/tools/server/preview/processes/mountain-preview-site/main.mjs" \
+  "$REPO/tools/server/preview/processes/mountain-preview-site/caddy.mjs" \
+  "$REPO/tools/server/preview/processes/mountain-preview-site/caddy-fragment.mjs" \
+  "$LIB/preview/processes/mountain-preview-site/"
+sudo install -o root -g root -m 0644 \
+  "$REPO/tools/server/preview/processes/preview-authorization/main.mjs" \
+  "$LIB/preview/processes/preview-authorization/"
+sudo chmod 0755 "$LIB/preview/commands/mountain-preview/cli.mjs" "$LIB/preview/processes/mountain-preview-site/main.mjs"
+sudo ln -s "$LIB/preview/commands/mountain-preview/cli.mjs" /usr/local/bin/mountain-preview
+sudo ln -s "$LIB/preview/commands/mountain-preview/cli.mjs" /usr/local/bin/preview-ssh-gate
 ```
 
 La identitat SSH, el shell forçat i els namespaces no es creen amb aquestes
@@ -865,25 +881,27 @@ Cap agent no configura els entorns ni n'elimina els reviewers.
 
 ## 13. Previews De Pull Request (T6.3)
 
-Les previews de PR (fase 6, decisió T6.2 esmenada per l'ADR 0010) viuen al
-mateix VPS dins del procés Caddy existent, amb blocs i logs separats però
-emmagatzematge ACME compartit; el DNS
-és un wildcard manual (`*.preview.mountainrunners.cat` → aquest VPS) i cap
+Les previews de PR (fase 6, decisió T6.2 esmenada per l'ADR 0010) les serveix
+Caddy al mateix VPS que producció, amb blocs i registres d'accés separats però
+emmagatzematge ACME compartit. El DNS és un wildcard manual
+(`*.preview.mountainrunners.cat` → aquest VPS) i cap
 sistema de previews té credencials DNS. La T6.3 implementa la frontera entre
-el build no fiable i el publicador de confiança.
+el build no fiable i el publicador de confiança. Els noms de la comanda, el
+procés i el directori per PR es defineixen a
+[`docs/deployment.md`](deployment.md#noms-del-flux-de-previews).
 
-### Identitats de previews
+### Usuari i directori de previews
 
-| Identitat        | Rol                                                                                                               |
-| ---------------- | ----------------------------------------------------------------------------------------------------------------- |
-| `preview-deploy` | Usuari de sistema amb shell restringit (gate + `receive`); clau SSH amb `command="preview-ssh-gate"` i `restrict` |
-| Namespace per PR | `/var/lib/mountain-runners-previews/namespaces/pr-<n>/` — l'única ruta que la identitat pot escriure              |
+| Element          | Què és                                                                                                                      |
+| ---------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| `preview-deploy` | Usuari de sistema amb accés SSH limitat a la comanda `preview-ssh-gate`; clau amb `command="preview-ssh-gate"` i `restrict` |
+| Namespace per PR | `/var/lib/mountain-runners-previews/namespaces/pr-<n>/` — l'única ruta que la identitat pot escriure                        |
 
 La identitat de previews executa les operacions de releases directament com a
-`preview-deploy` (el namespace és seu). Només la gestió dels blocs Caddy passa
-pel daemon `mountain-preview-site` amb socket restringit al grup de previews.
-L'ACL
-`u:preview-deploy:---` a `/var/lib/mountain-runners` impedeix llegir i travessar
+`preview-deploy` (el directori de la PR és seu). L'autorització signada i els
+canvis dels blocs Caddy passen pel procés `mountain-preview-site`, amb un socket
+restringit al grup de previews. L'ACL `u:preview-deploy:---` a
+`/var/lib/mountain-runners` impedeix llegir i travessar
 les releases de producció, tot i que el mode UNIX segueix sent `0755` perquè
 Caddy i `mountain-deploy` conservin l'accés existent. La identitat no pot
 escriure a `/etc/caddy`, les claus TLS o l'estat ACME, i no pertany al grup
@@ -895,26 +913,27 @@ afegeixis-la a grups de producció.
 Res no es construeix ni es publica perquè s'obri o s'actualitzi una PR: el
 workflow `Preview` només corre sota demanda.
 
-1. La persona mantenidora publica la preview amb un **comentari a la PR amb
-   el text exacte `/preview`** (per exemple, via
+1. Una persona col·laboradora amb permisos demana la preview amb un
+   **comentari a la PR amb el text exacte `/preview`** (per exemple, via
    `gh pr comment <n> --body "/preview"`, també des d'un agent). També hi ha
    via manual: `Preview` (workflow_dispatch amb el número de PR).
 2. El job `authorize` (codi de confiança des de la branca per defecte)
-   verifica que l'autor del comentari és col·laborador del repositori —
-   aquesta verificació és l'autorització explícita per SHA — i resol el
-   número de PR i el head SHA vigent.
-3. El job `build` (no fiable, sense secrets ni caches) fa checkout del head
-   SHA, executa `pnpm validate` complet i compila l'artefacte amb l'origen
-   `pr-<n>.preview.mountainrunners.cat`; el job `publish` valida manifest,
+   comprova els permisos de qui l'ha demanada i identifica el commit vigent de
+   la PR pel seu SHA. La petició queda vinculada a aquest commit, no a tots els
+   futurs canvis de la PR.
+3. El job `build` (no fiable, sense secrets ni caches) fa checkout del commit
+   vigent de la PR, executa `pnpm validate` complet i compila l'artefacte amb
+   l'origen `pr-<n>.preview.mountainrunners.cat`; el job `publish` valida manifest,
    mida, fitxers, digests i paths amb els validadors de producció i
-   revalida que la PR continua oberta i al mateix head SHA i que l'autorització
+   revalida que la PR continua oberta i al mateix commit i que l'autorització
    encara és vigent (col·laboradora per a `/preview` o permís d'escriptura per
    a `workflow_dispatch`). El publicador signa l'autorització amb la clau
-   privada exclusiva del job de confiança; el broker verifica la signatura
-   amb la clau pública del VPS abans de registrar-la. La clau SSH de previews
-   per si sola no pot autoritzar una release. El broker valida el Caddyfile abans de
-   reiniciar el procés compartit per configurar l'origen, i el publicador
-   revalida la PR i l'autorització just abans d'activar el namespace.
+   privada exclusiva del job de confiança. El procés `mountain-preview-site`
+   verifica la signatura amb la clau pública del VPS abans de registrar-la.
+   La clau SSH de previews per si sola no pot autoritzar una release. El
+   procés valida el Caddyfile abans de reiniciar Caddy per configurar l'origen.
+   El publicador torna a comprovar la PR i l'autorització just abans d'activar
+   la versió instal·lada al directori de la PR.
 4. Verificació posterior a l'activació:
 
    ```sh
@@ -938,12 +957,13 @@ aprovació explícita separada.
 
 El workflow `Preview cleanup` reconcilia cada hora i en tancar una PR. Retira
 previews tancades, de forks, amb SHA antic o que portin 14 dies sense
-actualitzar-se. Els uploads interromputs caduquen al cap d'un dia; `site-sync`
-elimina blocs Caddy sense release activa i `prune` esborra releases anteriors
-i uploads consumits. Si `current` i el registre no concorden, la reconciliació
+actualitzar-se. Els fitxers rebuts però no instal·lats caduquen al cap d'un
+dia. `mountain-preview site-sync` elimina blocs Caddy sense versió activa i
+`mountain-preview prune <n>` esborra versions anteriors i fitxers rebuts ja
+utilitzats. Si `current` i el registre no concorden, la reconciliació
 retira la preview afectada, continua amb les altres i falla el job perquè se'n
-revisi la causa. També elimina directoris de retirades interrompudes. El gate
-rebutja un sisè origen actiu. La marca visual
+revisi la causa. També elimina directoris de retirades interrompudes. La
+comanda `mountain-preview` rebutja un sisè origen actiu. La marca visual
 `PUBLIC_PREVIEW` és part del build i una PR maliciosa la pot ocultar (esmena
 de l'ADR 0009): cal revisar el contingut abans d'autoritzar-lo.
 
@@ -958,16 +978,27 @@ executar la retirada pel canal administratiu aprovat; no editar releases a mà.
 ### Instal·lació de T6.4 al VPS existent (només amb aprovació)
 
 La persona mantenidora instal·la els mòduls nous de `tools/server/preview/`
-com a `root:root` a `/usr/local/lib/mountain-runners/preview/` i el servei
+com a `root:root` a `/usr/local/lib/mountain-runners/preview/`, conservant les
+subcarpetes `commands/mountain-preview/`, `processes/mountain-preview-site/` i
+`processes/preview-authorization/`, i el servei
 `tools/server/systemd/mountain-preview-site.service` a
 `/etc/systemd/system/`, substituint el GID `0` de la plantilla pel GID real
 del grup `preview-deploy` i l'UID `0` per l'UID de l'usuari `preview-deploy`.
+Si ja hi ha una instal·lació de T6.3, la persona mantenidora actualitza els
+enllaços `/usr/local/bin/mountain-preview` i `/usr/local/bin/preview-ssh-gate`
+perquè tots dos apuntin a
+`/usr/local/lib/mountain-runners/preview/commands/mountain-preview/cli.mjs`.
+Comprova també que la unitat `mountain-preview-site.service` engega
+`/usr/local/lib/mountain-runners/preview/processes/mountain-preview-site/main.mjs` abans de
+reprendre cap publicació; els fitxers antics al directori `preview/` no són els
+punts d'entrada nous.
 Instal·la la clau pública de signatura a
 `/etc/mountain-runners/preview-auth.pub` com a `root:root` mode `0644`, i
 configura `PREVIEW_AUTH_PRIVATE_KEY` només com a secret de l'entorn GitHub
 `previews`; la clau privada no s'instal·la al VPS ni es desa al repositori.
 La persona mantenidora genera el parell fora del repositori i comprova que
-el broker rebutja una signatura absent o invàlida abans de publicar res.
+el procés `mountain-preview-site` rebutja una signatura absent o invàlida
+abans de publicar res.
 Crea `/var/log/mountain-runners-previews/` com a
 `caddy:caddy` mode `0700` amb `access.log` com a `caddy:caddy` mode `0600`
 abans de validar Caddy. Instal·la el drop-in revisat
@@ -979,8 +1010,16 @@ a `/etc/caddy/preview-robots/robots.txt` com a `root:root` mode `0644`.
 No substitueix els blocs de producció ni toca les seves credencials; no
 reexecuta el bootstrap sobre el VPS actiu.
 Valida **tot** `/etc/caddy/Caddyfile` abans de reiniciar Caddy; després
-comprova producció. Recarrega systemd i activa el servei root-owned amb el
+comprova producció. Recarrega systemd i activa el servei
+`mountain-preview-site`, que executa el procés com a `root`, amb el
 socket `/run/mountain-preview-site.sock` mode `0660`, grup `preview-deploy`.
+La unitat manté `/var/lib` en mode només lectura excepte
+`/var/lib/mountain-runners-previews/namespaces`: el procés fill
+`preview-authorization` necessita escriure el registre i el fitxer de bloqueig
+d'una PR com a `preview-deploy`. Durant les proves de la T6.5, comprova amb
+una autorització signada que el registre de la PR s'actualitza sota el servei
+real de `systemd`; els tests locals no reprodueixen aquest sandbox. Si falla,
+no activis les previews.
 No obre el sistema a previews de revisió fins que la prova TLS contra l'staging
 de Let's Encrypt, la retirada, la reconciliació, els logs i els smoke tests de
 la T6.5 passin. La primera preview de prova requereix aprovació explícita i

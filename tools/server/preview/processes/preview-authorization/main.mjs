@@ -2,9 +2,9 @@ import {
   loadRegistry,
   saveRegistry,
   withRegistryLock,
-} from "../release/registry.mjs";
+} from "../../../release/registry.mjs";
 
-export function authorizePreview(commit, actor, pullRequestNumber) {
+function authorizePreview(commit, actor, pullRequestNumber) {
   if (!/^[A-Za-z0-9-]{1,39}$/u.test(actor)) {
     throw new Error("Invalid GitHub actor for preview authorization.");
   }
@@ -27,12 +27,10 @@ export function authorizePreview(commit, actor, pullRequestNumber) {
   });
 }
 
-if (process.argv[1]?.endsWith("/authorize.mjs")) {
-  const [, , commit, actor, pullRequestNumber] = process.argv;
-  authorizePreview(commit, actor, pullRequestNumber)
-    .then(console.log)
-    .catch((error) => {
-      console.error(`Error: ${error.message}`);
-      process.exitCode = 1;
-    });
-}
+const [, , commit, actor, pullRequestNumber] = process.argv;
+authorizePreview(commit, actor, pullRequestNumber)
+  .then(console.log)
+  .catch((error) => {
+    console.error(`Error: ${error.message}`);
+    process.exitCode = 1;
+  });

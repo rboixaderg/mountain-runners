@@ -1,11 +1,11 @@
 import { readdir, rm } from "node:fs/promises";
 import { join } from "node:path";
-import { releasePaths } from "../release/config.mjs";
+import { releasePaths } from "../../../release/config.mjs";
 import {
   loadRegistry,
   saveRegistry,
   withRegistryLock,
-} from "../release/registry.mjs";
+} from "../../../release/registry.mjs";
 
 export async function prunePreview() {
   return withRegistryLock(async () => {

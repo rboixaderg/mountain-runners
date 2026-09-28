@@ -35,6 +35,9 @@ compensatoris permanents, que formen part del contracte de la web pública:
 - La identificació inequívoca de no-producció es serveix des de la capa de
   confiança i no pot ser ocultada pel contingut de la PR.
 
+La garantia de l'últim punt queda substituïda per l'esmena T6.4 sobre l'avís de
+preview, més avall.
+
 La T6.2 decideix DNS i TLS dins d'aquesta frontera i ja no compara domini
 registrable separat ni serveis externs de previews. Si el projecte necessités
 previews de forks o cookies a producció, aquesta decisió s'ha de revisar amb un

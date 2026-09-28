@@ -3,7 +3,7 @@
 import { randomUUID } from "node:crypto";
 import { lstat, readdir, rename, rm } from "node:fs/promises";
 import { join } from "node:path";
-import { previewNamespacePaths, previewRoot } from "./config.mjs";
+import { previewNamespacePaths, previewRoot } from "../../config.mjs";
 import { withPreviewCapacity } from "./capacity.mjs";
 
 export async function retirePreview(pullRequestNumber) {
