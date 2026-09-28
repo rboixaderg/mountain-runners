@@ -328,6 +328,33 @@ mantenir el catàleg actualitzat.
 
 **Seguiment:** pendent de triatge.
 
+### Enllaços Directes A Les Seccions De La Web
+
+**Estat:** Capturada.
+
+**Problema:** no totes les seccions de contingut de la web es poden compartir o
+obrir directament amb un enllaç propi. Per exemple, cal poder enllaçar la secció
+de col·laboradors de la pàgina de socis.
+
+**Resultat esperat:** poder obrir i compartir una URL que porti directament a
+cadascuna de les seccions de contingut de les pàgines públiques, per exemple
+`/ca/socis/#collaboradors`.
+
+**Abans de planificar-ho cal definir:**
+
+- quines seccions i rutes públiques entren a l'abast;
+- el contracte dels identificadors de fragment i si es mantenen coherents entre
+  idiomes;
+- com es descobreixen i es copien els enllaços, inclosa l'accessibilitat dels
+  controls;
+- com es comproven els fragments, les destinacions i el desplaçament a la secció
+  objectiu en totes les variants publicades.
+
+**Dependències:** inventari de les seccions de contingut i decisió sobre el
+comportament dels enllaços directes.
+
+**Seguiment:** pendent de triatge.
+
 ### Revisar El Directori De Col·laboradors
 
 **Estat:** Capturada.
