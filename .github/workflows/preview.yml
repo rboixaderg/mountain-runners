@@ -108,6 +108,10 @@ jobs:
     name: Publish preview
     needs: [authorize, build]
     if: needs.authorize.outputs.should_publish == 'true'
+    permissions:
+      contents: read
+      actions: read
+      pull-requests: write
     runs-on: ubuntu-latest
     timeout-minutes: 15
     environment:

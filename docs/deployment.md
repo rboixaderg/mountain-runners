@@ -269,6 +269,14 @@ abans de publicar. El flux té tres jobs amb fronteres explícites:
    l'autorització abans d'activar, comprova TLS, capçaleres i salut, i neteja les
    releases anteriors. Mai no fa checkout ni executa codi de la PR.
 
+Quan el smoke de la preview passa, `publish` torna a validar l'estat, el SHA i
+l'autorització de la PR. Amb el permís `pull-requests: write`, exclusiu d'aquest
+job, crea o actualitza un únic comentari propi amb l'URL i el SHA activats. Cerca
+el marcador fix només als comentaris de `github-actions[bot]`; mai no modifica
+comentaris d'altres persones. Si l'activació o el smoke fallen, no comenta res.
+Un error en escriure el comentari fa fallar el job, però no desfà una preview que
+ja està activa: cal comprovar-ne l'estat abans de reexecutar-lo.
+
 ### Frontera del servidor
 
 - Les releases de cada PR es guarden a

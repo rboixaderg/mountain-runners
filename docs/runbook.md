@@ -939,6 +939,10 @@ workflow `Preview` només corre sota demanda.
    procés valida el Caddyfile abans de reiniciar Caddy per configurar l'origen.
    El publicador torna a comprovar la PR i l'autorització just abans d'activar
    la versió instal·lada al directori de la PR.
+   Després de comprovar la salut i el smoke, torna a validar la PR i actualitza
+   el seu comentari amb l'URL i el SHA publicats. Si el job falla escrivint el
+   comentari, la preview pot continuar activa: comprova `list` i `health` abans
+   de reexecutar el workflow. El build no fiable no pot escriure comentaris.
 4. Verificació posterior a l'activació:
 
    ```sh
