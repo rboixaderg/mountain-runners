@@ -73,17 +73,25 @@ branques pròpies i controls compensatoris.
 
 ## Esmena (T6.4, 27 de setembre de 2026): identificació visual
 
-La persona mantenidora substitueix la garantia «La identificació inequívoca de
-no-producció es serveix des de la capa de confiança i no pot ser ocultada pel
-contingut de la PR» per una marca visible en el layout de la web, activada
-només en builds de preview amb `PUBLIC_PREVIEW=true`. La capa de confiança
-conserva els headers de robots i de seguretat, però **no garanteix la marca
-visual**: l'HTML de la PR pot eliminar el component o amagar-lo amb CSS/JS.
-Les instruccions als agents no són una defensa contra un contribuidor
-maliciós. Aquest risc de confusió o suplantació queda acceptat expressament
-per simplicitat; qualsevol preview pública continua requerint autorització
-humana per SHA, només de branques pròpies, i retirada immediata. Si hi ha
-abús, es desactiven les previews i es revisa la decisió abans de reprendre-les.
+La decisió inicial preveia que l'avís que identifica la web com una preview es
+mostrés d'una manera que el codi de la PR no pogués eliminar ni amagar
+(mitjançant un mecanisme gestionat fora de la PR, en la infraestructura que
+publica la preview). La persona mantenidora renuncia a aquesta garantia i opta
+per incloure l'avís a la web només quan es compila amb `PUBLIC_PREVIEW=true`.
+Com que l'avís forma part de la web generada amb el codi de la PR, qui modifiqui
+la PR pot eliminar-lo o amagar-lo amb CSS o JavaScript. Caddy continua imposant
+les capçaleres de seguretat i les instruccions per als cercadors, però no pot
+garantir que l'avís sigui visible.
+
+Les instruccions als agents tampoc no impedeixen que una persona malintencionada
+amagui l'avís. La persona mantenidora accepta el risc de confusió o suplantació
+per simplificar el sistema. Només es publiquen previews de branques del
+repositori principal quan una persona amb permisos ho demana mitjançant
+`/preview` o una execució manual. El sistema vincula la petició al commit vigent
+de la PR i comprova que no hagi canviat abans de publicar-lo. Les previews es
+retiren quan la PR es tanca o es revoca, i la reconciliació periòdica detecta les
+que hagin quedat actives. Si es detecta un abús, es desactiven les previews i es
+revisa la decisió abans de tornar-les a activar.
 
 ## Raonament
 
