@@ -1,0 +1,14 @@
+docs/decisions/0009-pr-previews-same-domain-and-own-branches.md
+  h_1727aeeb492b30 76-94
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "e4673490a98de544a3b1bee9404ccde661ce83a7",
+  "prompts": {},
+  "humans": {
+    "h_1727aeeb492b30": {
+      "author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
