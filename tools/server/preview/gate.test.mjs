@@ -327,9 +327,13 @@ test("cleanup-retired removes directories left by an interrupted retirement whil
   });
 });
 
-test("list and health never create a missing namespace", async () => {
+test("queries neither wait for the capacity lock nor create a missing namespace", async () => {
   await withPreviewRoot(async (root) => {
     const namespace = previewNamespacePaths(77);
+    const lockPath = join(root, "namespaces", ".capacity.lock");
+    await writeFile(lockPath, "");
+    const inventory = runGate(root, "mountain-preview inventory");
+    assert.equal(inventory.status, 0, gateOutput(inventory));
     const list = runGate(root, "mountain-preview list 77");
     assert.equal(list.status, 0, gateOutput(list));
     assert.match(list.stdout, /No releases registered/);
@@ -337,10 +341,7 @@ test("list and health never create a missing namespace", async () => {
     assert.notEqual(health.status, 0);
     assert.match(gateOutput(health), /Health: DEGRADED/);
     assert.equal(await pathExists(namespace.root), false);
-    assert.equal(
-      await pathExists(join(root, "namespaces", ".capacity.lock")),
-      false,
-    );
+    assert.equal(await pathExists(lockPath), true);
   });
 });
 
@@ -1139,17 +1140,6 @@ test("activate requires an installed commit and rejects an unknown one", async (
     );
     assert.equal(result.status, 1);
     assert.match(gateOutput(result), /no current authorization/);
-  });
-});
-
-test("health reports a degraded namespace when nothing is active", async () => {
-  await withPreviewRoot(async (root) => {
-    const result = runGate(
-      root,
-      `mountain-preview health ${previewPullNumber}`,
-    );
-    assert.equal(result.status, 1);
-    assert.match(gateOutput(result), /Health: DEGRADED/);
   });
 });
 

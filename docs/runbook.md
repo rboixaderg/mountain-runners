@@ -975,9 +975,18 @@ instal·lació interrompuda i fitxers rebuts ja utilitzats. Si una entrada de
 l'inventari falla, la reconciliació continua amb les altres previews i acaba
 fent fallar el job amb la llista d'incidències. Un namespace danyat, on
 `current` i el registre no concorden, es retira abans de continuar perquè
-se'n revisi la causa. La comanda `mountain-preview` rebutja un sisè origen actiu. La marca visual
-`PUBLIC_PREVIEW` és part del build i una PR maliciosa la pot ocultar (esmena
-de l'ADR 0009): cal revisar el contingut abans d'autoritzar-lo.
+se'n revisi la causa. La comanda `mountain-preview` rebutja un sisè origen
+actiu. La marca visual `PUBLIC_PREVIEW` és part del build i una PR maliciosa la
+pot ocultar (esmena de l'ADR 0009): cal revisar el contingut abans
+d'autoritzar-lo.
+
+Les ordres de consulta de `mountain-preview` (`inventory`, `list <n>` i
+`health <n>`) són pures: no creen directoris, no prenen el bloqueig de
+capacitat i no esborren res, de manera que es poden executar en qualsevol
+moment per diagnosticar. Totes les altres són d'escriptura: `receive`,
+`install`, `authorize`, `activate`, `retire`, `prune`, `cleanup-retired`,
+`site-enable`, `site-disable` i `site-reconcile`. La taula de
+[`deployment.md`](deployment.md#ordres-de-mountain-preview) en descriu l'efecte.
 
 Per revocar immediatament una preview d'una PR oberta, la persona mantenidora
 afegeix l'etiqueta `preview-revoked` a GitHub. El workflow de neteja reacciona

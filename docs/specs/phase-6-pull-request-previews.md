@@ -73,8 +73,10 @@ La fase depèn de la fase 5 completada perquè reutilitza el contracte d'artefac
 les convencions de Caddy i l'experiència operativa sense modificar producció.
 T6.1 fixa requisits i amenaces. T6.2 pren la decisió d'arquitectura. T6.3 adapta
 el build i crea la frontera de publicació. T6.4 implementa DNS, TLS, cicle de vida
-i accés segons la decisió. T6.6 notifica una activació correcta a la PR. T6.5
-valida el sistema complet i tanca el runbook.
+i accés segons la decisió. T6.6 notifica una activació correcta a la PR. T6.7
+esmena el contracte CLI de la T6.4 perquè les consultes siguin pures
+([especificació](phase-6-preview-cli-contract.md)). T6.5 valida el sistema
+complet i tanca el runbook.
 
 Cada tasca s'implementa en un worktree i una branca propis des de l'últim
 `main`. Qualsevol alta de servei, canvi de nameservers, DNS, secrets, repositori o
@@ -89,7 +91,8 @@ VPS requereix aprovació explícita de la persona mantenidora.
 | T6.3 Artefacte i publicador de confiança     | Completada | T6.2         | Frontera segura sense executar codi no fiable | PR #121 |
 | T6.4 Cicle de vida, aïllament i neteja       | Pendent    | T6.3         | Orígens efímers creats i retirats             | -       |
 | T6.6 Notificació de preview a la PR          | Pendent    | T6.4         | URL i SHA comunicats després d'activar        | -       |
-| T6.5 Validació de previews i operació        | Pendent    | T6.6         | Gate i runbook verificats                     | -       |
+| T6.7 Contracte de consulta i escriptura      | En curs    | T6.4         | CLI amb consultes pures i verbs explícits     | PR #136 |
+| T6.5 Validació de previews i operació        | Pendent    | T6.6, T6.7   | Gate i runbook verificats                     | -       |
 
 ### T6.1: Requisits, Amenaces I Alternatives
 
@@ -173,7 +176,7 @@ idiomes, autorització i visibilitat acordades, absència de secrets, comportame
 ordinari de `published: false`, identificació de no-producció, expiració, logs,
 alertes, revocació i runbook; verificar que una fallada del sistema de previews
 no afecta producció. **Exclusió:** no converteix la preview en staging de
-producció ni introdueix analítica. **Depèn de:** T6.6. **Resultat:** sistema
+producció ni introdueix analítica. **Depèn de:** T6.6 i T6.7. **Resultat:** sistema
 operable i responsabilitats acceptades. **Comprovació:** `pnpm validate`, smoke
 de preview, `noindex, noarchive`, canonical, headers, cap publicació de fork,
 invariant de cookies de producció (ADR 0009), neteja, fallada del proveïdor i

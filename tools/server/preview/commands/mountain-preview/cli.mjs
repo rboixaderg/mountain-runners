@@ -286,13 +286,9 @@ async function runCommand(validated) {
     });
   }
 
-  if (validated.command === "prune") {
-    const health = await performHealth();
-    if (!health.startsWith("Health: OK")) throw new Error(health);
-    return prunePreview();
-  }
-
-  throw new Error(`Unknown command: ${validated.command}.`);
+  const health = await performHealth();
+  if (!health.startsWith("Health: OK")) throw new Error(health);
+  return prunePreview();
 }
 
 async function main() {

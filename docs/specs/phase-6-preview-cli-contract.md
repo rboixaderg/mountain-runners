@@ -2,7 +2,7 @@
 
 ## Estat
 
-Pendent. Esmena de la T6.4: el codi existeix i està fusionat (PR #130, #135),
+En curs (PR #136). Esmena de la T6.4: el codi existeix i està fusionat (PR #130, #135),
 però no s'ha executat mai contra el VPS real. La T6.5 (`docs/phase-6-t65-activacio-vps.md`,
 pendent d'execució) va detectar que tres ordres amb nom de consulta modifiquen
 l'estat. Aquesta tasca ho corregeix abans de l'activació.
@@ -47,10 +47,10 @@ mantenidora fins a la PR, com qualsevol canvi de codi.
 
 ## Tasques, Entregues I Seguiment
 
-| Unitat                                  | Estat   | Dependències | Resultat verificable              | PR  |
-| --------------------------------------- | ------- | ------------ | --------------------------------- | --- |
-| T6.7 Contracte de consulta i escriptura | Pendent | T6.4         | CLI amb consultes pures i verbs   | -   |
-|                                         |         |              | explícits, reconciliació adaptada |     |
+| Unitat                                  | Estat   | Dependències | Resultat verificable              | PR      |
+| --------------------------------------- | ------- | ------------ | --------------------------------- | ------- |
+| T6.7 Contracte de consulta i escriptura | En curs | T6.4         | CLI amb consultes pures i verbs   | PR #136 |
+|                                         |         |              | explícits, reconciliació adaptada |         |
 
 ### T6.7: Contracte De Consulta I Escriptura
 
