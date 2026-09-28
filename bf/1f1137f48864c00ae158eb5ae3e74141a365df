@@ -1,0 +1,41 @@
+tools/preview/publish.test.mjs
+  s_d8bdf40b9f42bc::t_6aad86fd6e12db 49
+tools/server/preview/commands/mountain-preview/site-request.mjs
+  s_d8bdf40b9f42bc::t_d3bd9acb6152f1 1
+tools/server/preview/processes/mountain-preview-site/caddy-fragment.mjs
+  s_d8bdf40b9f42bc::t_5eedce83fe7030 1
+tools/server/preview/processes/mountain-preview-site/caddy.mjs
+  s_d8bdf40b9f42bc::t_4bb72e4f8dfbac 1,5
+tools/server/preview/processes/mountain-preview-site/main.mjs
+  s_2c2bf972ad3a2b::t_24c28695e1398d 2,10-13,66-68,117,159
+tools/server/preview/processes/preview-authorization/main.mjs
+  s_d8bdf40b9f42bc::t_a246685c2e8219 5,7,30-36
+tools/server/preview/site-manager.test.mjs
+  s_d8bdf40b9f42bc::t_60aea642843806 9-13,150,155,180
+tools/server/preview/test-authorization.mjs
+  s_2c2bf972ad3a2b::t_7fcda337a7acad 12-15,29-32,47,50-52
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "bf1f1137f48864c00ae158eb5ae3e74141a365df",
+  "prompts": {},
+  "sessions": {
+    "s_2c2bf972ad3a2b": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_f1ca558ebffe9vLf7TWF0P5bcW",
+        "model": "unknown"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    },
+    "s_d8bdf40b9f42bc": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_f19665a49ffeCiexT2Ri2WkaZh",
+        "model": "unknown"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
