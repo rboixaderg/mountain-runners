@@ -19,6 +19,7 @@ import { readFileSync } from "node:fs";
 import {
   assertCommentAuthorized,
   assertDispatchActorAuthorized,
+  commentOnPublishedPreview,
   publishPreview,
   resolvePullRequestState,
 } from "./publish-operations.mjs";
@@ -83,6 +84,15 @@ async function main() {
       }),
     revalidateCommentAuthorization,
     revalidateDispatchAuthorization,
+    onPublished: ({ headSha, origin }) =>
+      commentOnPublishedPreview({
+        repository,
+        apiUrl,
+        token,
+        pullNumber,
+        headSha,
+        origin,
+      }),
     transport: createSshTransport({
       host: requireEnvironment("PREVIEW_HOST"),
       user: process.env.PREVIEW_DEPLOY_USER || "preview-deploy",

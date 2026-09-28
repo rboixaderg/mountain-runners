@@ -162,6 +162,56 @@ function assertPullRequestUnchanged(previous, current) {
   }
 }
 
+const previewCommentMarker = "<!-- mountain-runners-preview -->";
+
+// Only update a comment authored by this workflow's GitHub Actions bot.
+// Neither the PR title nor any other PR-controlled text enters the comment.
+export async function commentOnPublishedPreview({
+  repository,
+  apiUrl,
+  token,
+  pullNumber,
+  headSha,
+  origin,
+  fetchImpl = fetch,
+}) {
+  const base = `${apiBaseUrl(apiUrl)}/repos/${repository}`;
+  const body = `${previewCommentMarker}\nPreview publicada: ${origin}\nCommit: \`${headSha}\`.`;
+  let existingComment;
+  for (let page = 1; ; page += 1) {
+    const response = await fetchImpl(
+      `${base}/issues/${pullNumber}/comments?per_page=100&page=${page}`,
+      { headers: apiHeaders(token) },
+    );
+    if (!response.ok) {
+      throw new Error(
+        `Cannot list preview comments (HTTP ${response.status}).`,
+      );
+    }
+    const comments = await response.json();
+    existingComment = comments.find(
+      (comment) =>
+        comment.user?.login === "github-actions[bot]" &&
+        comment.body?.includes(previewCommentMarker),
+    );
+    if (existingComment || comments.length < 100) break;
+  }
+
+  const response = await fetchImpl(
+    existingComment
+      ? `${base}/issues/comments/${existingComment.id}`
+      : `${base}/issues/${pullNumber}/comments`,
+    {
+      method: existingComment ? "PATCH" : "POST",
+      headers: { ...apiHeaders(token), "Content-Type": "application/json" },
+      body: JSON.stringify({ body }),
+    },
+  );
+  if (!response.ok) {
+    throw new Error(`Cannot write preview comment (HTTP ${response.status}).`);
+  }
+}
+
 async function transferAndVerify(
   transport,
   pullNumber,
@@ -230,6 +280,7 @@ export async function publishPreview({
   authorizationPrivateKey,
   transport,
   verifyPreview = verifyPreviewSite,
+  onPublished,
 }) {
   const pullRequest = await resolvePullRequestState();
   const artifact = await loadVerifiedArtifact(artifactDirectory, {
@@ -314,6 +365,16 @@ export async function publishPreview({
     console.warn(
       `Preview ${pullNumber} is published but prune failed: ${error.message}`,
     );
+  }
+  if (onPublished) {
+    const current = await resolvePullRequestState();
+    assertPullRequestUnchanged(pullRequest, current);
+    await revalidateCommentAuthorization?.();
+    await revalidateDispatchAuthorization?.();
+    await onPublished({
+      origin: previewOrigin(pullNumber),
+      headSha: pullRequest.headSha,
+    });
   }
   return `Published preview ${previewOrigin(pullNumber)} at commit ${pullRequest.headSha}.`;
 }

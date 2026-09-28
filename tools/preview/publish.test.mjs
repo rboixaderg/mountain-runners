@@ -29,6 +29,7 @@ import { withPreviewAuthorization } from "../server/preview/test-authorization.m
 import {
   assertCommentAuthorized,
   assertDispatchActorAuthorized,
+  commentOnPublishedPreview,
   publishPreview,
   resolvePullRequestState,
 } from "./publish-operations.mjs";
@@ -172,6 +173,8 @@ function createTestPublisher(
     revalidateCommentAuthorization,
     revalidateDispatchAuthorization,
     verifyPreview = async () => {},
+    onPublished,
+    resolveState,
   } = {},
 ) {
   return publishPreview({
@@ -179,18 +182,215 @@ function createTestPublisher(
     pullNumber: previewPullNumber,
     authorizedBy: "maintainer",
     authorizationPrivateKey: authorizationKeys.privateKey,
-    resolvePullRequestState: async () =>
-      resolvePullRequestState({
-        repository: testRepository,
-        pullNumber: previewPullNumber,
-        fetchImpl: createFakeFetch({ pull }),
-      }),
+    resolvePullRequestState:
+      resolveState ??
+      (() =>
+        resolvePullRequestState({
+          repository: testRepository,
+          pullNumber: previewPullNumber,
+          fetchImpl: createFakeFetch({ pull }),
+        })),
     revalidateCommentAuthorization,
     revalidateDispatchAuthorization,
     transport,
     verifyPreview,
+    onPublished,
   });
 }
+
+test("preview comment is created with trusted URL and SHA and updated only when owned by the publisher", async () => {
+  const writes = [];
+  const fetchImpl = async (url, options) => {
+    if (options.method) {
+      writes.push({ url, ...options });
+      return { ok: true };
+    }
+    return {
+      ok: true,
+      json: async () => [
+        {
+          id: 1,
+          user: { login: "another-user" },
+          body: "<!-- mountain-runners-preview -->",
+        },
+        {
+          id: 2,
+          user: { login: "github-actions[bot]" },
+          body: "Unrelated comment",
+        },
+      ],
+    };
+  };
+  const args = {
+    repository: testRepository,
+    pullNumber: previewPullNumber,
+    headSha: previewCommit,
+    origin: previewOrigin(previewPullNumber),
+    fetchImpl,
+  };
+  await commentOnPublishedPreview(args);
+  assert.equal(writes[0].method, "POST");
+  assert.match(writes[0].url, /\/issues\/99\/comments$/);
+  assert.match(JSON.parse(writes[0].body).body, /pr-99.*9{40}/s);
+
+  const ownedFetch = async (url, options) => {
+    if (options.method) {
+      writes.push({ url, ...options });
+      return { ok: true };
+    }
+    return {
+      ok: true,
+      json: async () => [
+        {
+          id: 3,
+          user: { login: "github-actions[bot]" },
+          body: "<!-- mountain-runners-preview -->\nOld preview",
+        },
+      ],
+    };
+  };
+  await commentOnPublishedPreview({ ...args, fetchImpl: ownedFetch });
+  assert.equal(writes[1].method, "PATCH");
+  assert.match(writes[1].url, /\/issues\/comments\/3$/);
+  assert.equal(writes[0].body, writes[1].body);
+});
+
+test("preview comment searches later pages before creating a new one and fails closed on API errors", async () => {
+  let page = 0;
+  const writes = [];
+  const args = {
+    repository: testRepository,
+    pullNumber: previewPullNumber,
+    headSha: previewCommit,
+    origin: previewOrigin(previewPullNumber),
+  };
+  await commentOnPublishedPreview({
+    ...args,
+    fetchImpl: async (url, options) => {
+      if (options.method) {
+        writes.push({ url, method: options.method });
+        return { ok: true };
+      }
+      page += 1;
+      return {
+        ok: true,
+        json: async () =>
+          page === 1
+            ? Array.from({ length: 100 }, () => ({ user: { login: "reader" } }))
+            : [
+                {
+                  id: 42,
+                  user: { login: "github-actions[bot]" },
+                  body: "<!-- mountain-runners-preview -->",
+                },
+              ],
+      };
+    },
+  });
+  assert.equal(page, 2);
+  assert.deepEqual(
+    writes.map(({ method }) => method),
+    ["PATCH"],
+  );
+  await assert.rejects(
+    () =>
+      commentOnPublishedPreview({
+        ...args,
+        fetchImpl: async () => ({ ok: false, status: 403 }),
+      }),
+    /Cannot list preview comments/,
+  );
+});
+
+test("a successful activation notifies only after smoke and renewed authorization", async () => {
+  await withPreviewArtifact(async (artifactDirectory) => {
+    const transport = createMemoryTransport();
+    const notifications = [];
+    let authorizationChecks = 0;
+    await createTestPublisher(transport, artifactDirectory, {
+      revalidateCommentAuthorization: async () => {
+        authorizationChecks += 1;
+      },
+      onPublished: async (publication) => {
+        notifications.push(publication);
+        assert.equal(transport.commands.at(-1), "mountain-preview prune 99");
+        assert.equal(authorizationChecks, 3);
+      },
+    });
+    assert.deepEqual(notifications, [
+      { origin: previewOrigin(previewPullNumber), headSha: previewCommit },
+    ]);
+  });
+});
+
+test("no notification follows a failed activation, smoke, or changed PR after activation", async () => {
+  for (const failure of [
+    "activation",
+    "smoke",
+    "closed",
+    "revoked",
+    "fork",
+    "moved",
+    "unauthorized",
+  ]) {
+    await withPreviewArtifact(async (artifactDirectory) => {
+      const transport = createMemoryTransport();
+      const run = transport.run;
+      if (failure === "activation") {
+        transport.run = (command, contents) => {
+          if (command.startsWith("mountain-preview activate "))
+            throw new Error("activation failed");
+          return run(command, contents);
+        };
+      }
+      let checks = 0;
+      let authorizationChecks = 0;
+      let notified = false;
+      await assert.rejects(
+        () =>
+          createTestPublisher(transport, artifactDirectory, {
+            resolveState: async () => {
+              checks += 1;
+              const changed = checks === 4;
+              const pull = changed
+                ? createPullResponse({
+                    state: failure === "closed" ? "closed" : "open",
+                    labels:
+                      failure === "revoked"
+                        ? [{ name: "preview-revoked" }]
+                        : [],
+                    headRepository:
+                      failure === "fork" ? "someone/fork" : testRepository,
+                    headSha:
+                      failure === "moved" ? movedPreviewCommit : previewCommit,
+                  })
+                : createPullResponse();
+              return resolvePullRequestState({
+                repository: testRepository,
+                pullNumber: previewPullNumber,
+                fetchImpl: createFakeFetch({ pull }),
+              });
+            },
+            revalidateCommentAuthorization: async () => {
+              authorizationChecks += 1;
+              if (failure === "unauthorized" && authorizationChecks === 3) {
+                throw new Error("authorization withdrawn");
+              }
+            },
+            verifyPreview: async () => {
+              if (failure === "smoke") throw new Error("smoke failed");
+            },
+            onPublished: async () => {
+              notified = true;
+            },
+          }),
+        undefined,
+        failure,
+      );
+      assert.equal(notified, false, failure);
+    });
+  }
+});
 
 function createGateTransport(root) {
   const commands = [];
