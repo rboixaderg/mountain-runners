@@ -1,0 +1,19 @@
+docs/specs/phase-6-pull-request-previews.md
+  s_d8bdf40b9f42bc::t_4a09530ebd9e7f 74-76,91-92,169-184,191-193,299-300,362
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "613e4524491cb5581241ad6fa38d405fea655215",
+  "prompts": {},
+  "sessions": {
+    "s_d8bdf40b9f42bc": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_f19665a49ffeCiexT2Ri2WkaZh",
+        "model": "unknown"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
