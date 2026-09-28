@@ -1,0 +1,23 @@
+docs/deployment.md
+  s_5dcb01aaebfad9::t_fb2de8b13e47d8 214-228
+docs/specs/phase-6-preview-cli-contract.md
+  s_5dcb01aaebfad9::t_87557caa96b9f0 1-143
+tools/server/preview/site-manager.test.mjs
+  s_5dcb01aaebfad9::t_947faad03acac3 180-183
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "fe8d8275faa20bc6b3086206e0c136a6ef0fb852",
+  "prompts": {},
+  "sessions": {
+    "s_5dcb01aaebfad9": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_f166d7b66ffeeholbRyLBsZdY6",
+        "model": "unknown"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
