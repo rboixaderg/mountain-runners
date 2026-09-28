@@ -328,6 +328,40 @@ mantenir el catàleg actualitzat.
 
 **Seguiment:** pendent de triatge.
 
+### Avaluar Notícies, Blog I Estructures Editorials Reutilitzables
+
+**Estat:** Capturada.
+
+**Problema:** la web no té un espai per publicar notícies del club ni articles
+editorials de format blog. Sense una estructura compartida, aquests continguts
+podrien variar de format i requerir més feina manual per preparar-los i
+publicar-los.
+
+**Resultat esperat:** decidir si convé crear apartats de notícies i de blog i,
+si escau, definir estructures editorials via skills o plantilles que permetin
+crear continguts amb un format consistent i agilitzin la seva preparació.
+
+**Abans de planificar-ho cal definir:**
+
+- la diferència d'ús entre notícies i articles de blog, i si necessiten apartats,
+  pàgines de detall o fluxos de publicació diferenciats;
+- quins camps, seccions i recursos són comuns i quins varien entre els dos tipus
+  de contingut, incloent-hi autoria, dates, imatges i enllaços relacionats;
+- com es mantenen una estructura i uns criteris editorials consistents sense
+  restringir innecessàriament la varietat dels continguts;
+- si les estructures reutilitzables han de ser skills, plantilles editorials o
+  totes dues, on viurien i qui les mantindria;
+- l'encaix amb el model de contingut i la publicació multilingüe actuals, la
+  navegació i el sistema visual del lloc;
+- qui proposa, revisa i valida els continguts, i quines comprovacions de qualitat
+  editorial, accessibilitat i publicació caldrien.
+
+**Dependències:** validar la necessitat editorial amb el club i revisar el
+contracte actual de contingut, les eines editorials disponibles i les
+convencions de skills del repositori.
+
+**Seguiment:** pendent de triatge.
+
 ### Enllaços Directes A Les Seccions De La Web
 
 **Estat:** Capturada.
