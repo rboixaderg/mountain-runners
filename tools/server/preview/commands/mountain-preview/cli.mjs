@@ -14,19 +14,20 @@
 // configuration or authorize a release on its own.
 // Install binds the PR argument to the manifest origin and number.
 //
-// Commands:
+// Commands (queries are read-only; maintenance and origins mutate state):
+//   inventory                                     list origins for reconciliation (read-only)
+//   list <pr-number>                              show the namespace registry (read-only)
+//   health <pr-number>                            verify registry + active digests (read-only)
 //   receive <pr-number> <name>                    stage an upload (stdin)
 //   install <pr-number> <archive> <manifest>      validate and extract
 //   authorize <pr-number> <commit> <actor>        send signed proof from stdin
 //   activate <pr-number> <commit>                 repoint the namespace
-//   list <pr-number>                              show the namespace registry
-//   health <pr-number>                            verify registry + active digests
 //   retire <pr-number>                            unpublish and remove namespace
-//   inventory                                     list origins for reconciliation
-//   prune <pr-number>                            remove inactive releases/uploads
+//   prune <pr-number>                             remove inactive releases/uploads
+//   cleanup-retired                               remove interrupted retirements
 //   site-enable <pr-number>                     configure verified origin in Caddy
 //   site-disable <pr-number>                    remove origin from Caddy
-//   site-sync                                   remove sites without a current release
+//   site-reconcile                              remove sites without a current release
 //
 // Exit codes: 0 success, 1 error.
 
@@ -87,7 +88,11 @@ function requirePullRequestNumber(argument) {
 }
 
 function validateCommand(command, commandArgs) {
-  if (command === "inventory" || command === "site-sync") {
+  if (
+    command === "inventory" ||
+    command === "cleanup-retired" ||
+    command === "site-reconcile"
+  ) {
     if (commandArgs.length !== 0)
       throw new Error(`${command} takes no arguments.`);
     return { command };
@@ -182,12 +187,17 @@ async function assertManifestBelongsToNamespace(
 }
 
 async function runCommand(validated) {
+  // Queries are read-only: no capacity lock, no directory creation, no
+  // cleanup. The name of the command is its effect.
   if (validated.command === "inventory") {
-    await withPreviewCapacity(cleanRetiredPreviews);
     return JSON.stringify(await previewInventory());
   }
-  if (validated.command === "site-sync") {
-    return requestPreviewSite("sync");
+  if (validated.command === "cleanup-retired") {
+    await withPreviewCapacity(cleanRetiredPreviews);
+    return "Cleaned retired preview namespaces.";
+  }
+  if (validated.command === "site-reconcile") {
+    return requestPreviewSite("reconcile");
   }
   const { pullRequestNumber } = validated;
   if (
@@ -203,7 +213,22 @@ async function runCommand(validated) {
     return retirePreview(pullRequestNumber);
   }
   // MOUNTAIN_RELEASE_ROOT points the phase 5 validators, registry and
-  // operations at this preview's namespace; nothing outside it is touched.
+  // operations at this preview's namespace; queries stop here without
+  // touching the filesystem beyond reading it.
+  if (validated.command === "list" || validated.command === "health") {
+    process.env.MOUNTAIN_RELEASE_ROOT =
+      previewNamespacePaths(pullRequestNumber).root;
+    if (validated.command === "list") {
+      return performList();
+    }
+    const healthMessage = await performHealth();
+    if (!healthMessage.startsWith("Health: OK")) {
+      throw new Error(healthMessage);
+    }
+    return healthMessage;
+  }
+  // Only mutating namespace commands reach the capacity gate and create
+  // directories; nothing outside the namespace is touched.
   const namespaceRoot = previewNamespacePaths(pullRequestNumber).root;
   process.env.MOUNTAIN_RELEASE_ROOT = namespaceRoot;
 
@@ -261,21 +286,13 @@ async function runCommand(validated) {
     });
   }
 
-  if (validated.command === "list") {
-    return performList();
-  }
-
   if (validated.command === "prune") {
     const health = await performHealth();
     if (!health.startsWith("Health: OK")) throw new Error(health);
     return prunePreview();
   }
 
-  const healthMessage = await performHealth();
-  if (!healthMessage.startsWith("Health: OK")) {
-    throw new Error(healthMessage);
-  }
-  return healthMessage;
+  throw new Error(`Unknown command: ${validated.command}.`);
 }
 
 async function main() {

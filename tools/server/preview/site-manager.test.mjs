@@ -177,7 +177,10 @@ test("the preview command reaches the process through its restricted socket", as
       }
       const result = spawnSync(
         process.execPath,
-        [join(toolDirectory, "commands/mountain-preview/cli.mjs"), "site-sync"],
+        [
+          join(toolDirectory, "commands/mountain-preview/cli.mjs"),
+          "site-reconcile",
+        ],
         {
           encoding: "utf8",
           env: { ...process.env, MOUNTAIN_PREVIEW_SITE_SOCKET: socketPath },

@@ -4,7 +4,13 @@ import { previewNamespacePaths, previewRoot } from "../../config.mjs";
 
 export async function previewInventory() {
   const directory = join(previewRoot(), "namespaces");
-  const entries = await readdir(directory, { withFileTypes: true });
+  let entries;
+  try {
+    entries = await readdir(directory, { withFileTypes: true });
+  } catch (error) {
+    if (error.code === "ENOENT") return [];
+    throw error;
+  }
   const inventory = [];
   for (const entry of entries) {
     if (!entry.isDirectory() || !/^pr-[1-9]\d*$/u.test(entry.name)) continue;

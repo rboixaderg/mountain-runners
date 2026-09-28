@@ -308,7 +308,7 @@ test("retire refuses a symlinked namespace instead of deleting its target", asyn
   });
 });
 
-test("inventory removes directories left by an interrupted retirement", async () => {
+test("cleanup-retired removes directories left by an interrupted retirement while inventory preserves them", async () => {
   await withPreviewRoot(async (root) => {
     const retired = join(
       root,
@@ -319,7 +319,45 @@ test("inventory removes directories left by an interrupted retirement", async ()
     await writeFile(join(retired, "old.html"), "orphaned release");
     const inventory = runGate(root, "mountain-preview inventory");
     assert.equal(inventory.status, 0, gateOutput(inventory));
+    assert.equal(await pathExists(retired), true);
+    const cleaned = runGate(root, "mountain-preview cleanup-retired");
+    assert.equal(cleaned.status, 0, gateOutput(cleaned));
+    assert.match(cleaned.stdout, /Cleaned retired preview namespaces/);
     assert.equal(await pathExists(retired), false);
+  });
+});
+
+test("list and health never create a missing namespace", async () => {
+  await withPreviewRoot(async (root) => {
+    const namespace = previewNamespacePaths(77);
+    const list = runGate(root, "mountain-preview list 77");
+    assert.equal(list.status, 0, gateOutput(list));
+    assert.match(list.stdout, /No releases registered/);
+    const health = runGate(root, "mountain-preview health 77");
+    assert.notEqual(health.status, 0);
+    assert.match(gateOutput(health), /Health: DEGRADED/);
+    assert.equal(await pathExists(namespace.root), false);
+    assert.equal(
+      await pathExists(join(root, "namespaces", ".capacity.lock")),
+      false,
+    );
+  });
+});
+
+test("inventory returns an empty list when no namespace exists", async () => {
+  await withPreviewRoot(async (root) => {
+    await rm(join(root, "namespaces"), { recursive: true, force: true });
+    const inventory = runGate(root, "mountain-preview inventory");
+    assert.equal(inventory.status, 0, gateOutput(inventory));
+    assert.deepEqual(JSON.parse(inventory.stdout), []);
+  });
+});
+
+test("site-sync is rejected as an unknown command", async () => {
+  await withPreviewRoot(async (root) => {
+    const result = runGate(root, "mountain-preview site-sync");
+    assert.notEqual(result.status, 0);
+    assert.match(gateOutput(result), /Unknown command/);
   });
 });
 

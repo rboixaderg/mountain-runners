@@ -967,14 +967,15 @@ aprovació explícita separada.
 El workflow `Preview cleanup` reconcilia cada hora i en tancar una PR. Retira
 previews tancades, de forks, amb SHA antic o que portin 14 dies sense
 actualitzar-se. Els fitxers rebuts però no instal·lats caduquen al cap d'un
-dia. `mountain-preview site-sync` elimina blocs Caddy sense versió activa i
+dia. La reconciliació comença amb `mountain-preview cleanup-retired`, que
+elimina directoris de retirades interrompudes, i `mountain-preview
+site-reconcile`, que elimina blocs Caddy sense versió activa i reinicia Caddy.
 `mountain-preview prune <n>` esborra versions anteriors, directoris d'una
 instal·lació interrompuda i fitxers rebuts ja utilitzats. Si una entrada de
 l'inventari falla, la reconciliació continua amb les altres previews i acaba
 fent fallar el job amb la llista d'incidències. Un namespace danyat, on
 `current` i el registre no concorden, es retira abans de continuar perquè
-se'n revisi la causa. També elimina directoris de retirades interrompudes. La
-comanda `mountain-preview` rebutja un sisè origen actiu. La marca visual
+se'n revisi la causa. La comanda `mountain-preview` rebutja un sisè origen actiu. La marca visual
 `PUBLIC_PREVIEW` és part del build i una PR maliciosa la pot ocultar (esmena
 de l'ADR 0009): cal revisar el contingut abans d'autoritzar-lo.
 
