@@ -1,0 +1,29 @@
+docs/specs/phase-6-preview-cli-contract.md
+  s_178eb827134c19::t_986b205d8d8337 5,50-53
+tools/server/preview/site-manager.test.mjs
+  s_178eb827134c19::t_dfafbbb4c9c86b 150,191-201
+docs/runbook.md
+  s_178eb827134c19::t_51017b546a99f5 978-989
+docs/specs/phase-6-pull-request-previews.md
+  s_178eb827134c19::t_8b806ad805960c 76-79,94-95,179
+tools/server/preview/commands/mountain-preview/cli.mjs
+  s_178eb827134c19::t_889884070fa78d 289-291
+tools/server/preview/gate.test.mjs
+  s_178eb827134c19::t_008eb5b0a10206 330,333-336,344
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "478ba209b6fc18562542a2bd4d6418151eaae4ba",
+  "prompts": {},
+  "sessions": {
+    "s_178eb827134c19": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "cce22f61-6818-46b3-8c88-0fd6b58ac53c",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
