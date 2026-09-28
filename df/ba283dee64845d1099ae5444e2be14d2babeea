@@ -1,0 +1,16 @@
+docs/backlog.md
+  h_1727aeeb492b30 331-357
+docs/specs/phase-6-pull-request-previews.md
+  h_1727aeeb492b30 74-75,90,173-174,341
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "dfba283dee64845d1099ae5444e2be14d2babeea",
+  "prompts": {},
+  "humans": {
+    "h_1727aeeb492b30": {
+      "author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
