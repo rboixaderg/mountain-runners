@@ -1,0 +1,20 @@
+docs/deployment.md
+  h_1727aeeb492b30 216,220,225-231,274-284
+docs/runbook.md
+  h_1727aeeb492b30 52-60,901,904-908
+tools/server/bootstrap/bootstrap.sh
+  h_1727aeeb492b30 265-266
+tools/server/preview/commands/mountain-preview/cli.mjs
+  h_1727aeeb492b30 5-9,11-14
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "a7ed749d5a41042c63d7dbf4fc02a7e897858b9e",
+  "prompts": {},
+  "humans": {
+    "h_1727aeeb492b30": {
+      "author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
