@@ -337,17 +337,19 @@ export async function publishPreview({
   );
   const previousCommit = /^active\s+([0-9a-f]{40})/mu.exec(previousList)?.[1];
   await transport.run(`mountain-preview site-enable ${pullNumber}`);
+  let activated = false;
   try {
     const beforeActivation = await resolvePullRequestState();
     assertPullRequestUnchanged(pullRequest, beforeActivation);
     await revalidateCommentAuthorization?.();
     await revalidateDispatchAuthorization?.();
     await activatePreviewRelease(transport, pullNumber, pullRequest.headSha);
+    activated = true;
     const health = await transport.run(`mountain-preview health ${pullNumber}`);
     if (!health.startsWith("Health: OK")) throw new Error(health);
     await verifyPreview(previewOrigin(pullNumber));
   } catch (error) {
-    if (previousCommit && previousCommit !== pullRequest.headSha) {
+    if (activated && previousCommit && previousCommit !== pullRequest.headSha) {
       await transport.run(
         `mountain-preview activate ${pullNumber} ${previousCommit}`,
       );

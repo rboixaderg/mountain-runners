@@ -968,10 +968,12 @@ El workflow `Preview cleanup` reconcilia cada hora i en tancar una PR. Retira
 previews tancades, de forks, amb SHA antic o que portin 14 dies sense
 actualitzar-se. Els fitxers rebuts però no instal·lats caduquen al cap d'un
 dia. `mountain-preview site-sync` elimina blocs Caddy sense versió activa i
-`mountain-preview prune <n>` esborra versions anteriors i fitxers rebuts ja
-utilitzats. Si `current` i el registre no concorden, la reconciliació
-retira la preview afectada, continua amb les altres i falla el job perquè se'n
-revisi la causa. També elimina directoris de retirades interrompudes. La
+`mountain-preview prune <n>` esborra versions anteriors, directoris d'una
+instal·lació interrompuda i fitxers rebuts ja utilitzats. Si una entrada de
+l'inventari falla, la reconciliació continua amb les altres previews i acaba
+fent fallar el job amb la llista d'incidències. Un namespace danyat, on
+`current` i el registre no concorden, es retira abans de continuar perquè
+se'n revisi la causa. També elimina directoris de retirades interrompudes. La
 comanda `mountain-preview` rebutja un sisè origen actiu. La marca visual
 `PUBLIC_PREVIEW` és part del build i una PR maliciosa la pot ocultar (esmena
 de l'ADR 0009): cal revisar el contingut abans d'autoritzar-lo.
@@ -1017,7 +1019,10 @@ ruta de logs al sandbox de Caddy, i `/etc/caddy/Caddyfile.previews` buit com a
 `Caddyfile` vigent i instal·la `tools/server/caddy/preview-robots/robots.txt`
 a `/etc/caddy/preview-robots/robots.txt` com a `root:root` mode `0644`.
 No substitueix els blocs de producció ni toca les seves credencials; no
-reexecuta el bootstrap sobre el VPS actiu.
+reexecuta el bootstrap sobre el VPS actiu. El bootstrap tampoc no sobreescriu
+un `/etc/caddy/Caddyfile.previews` que ja existeix, de manera que una reexecució
+no despublica els orígens actius, però la instal·lació manual segueix sent la
+via aprovada.
 Valida **tot** `/etc/caddy/Caddyfile` abans de reiniciar Caddy; després
 comprova producció. Recarrega systemd i activa el servei
 `mountain-preview-site`, que executa el procés com a `root`, amb el

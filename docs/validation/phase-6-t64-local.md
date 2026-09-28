@@ -59,6 +59,22 @@ separada per a qualsevol acció al VPS. **Cap preview no està publicada.**
   l'excepció d'escriptura de la unitat `systemd`, però la prova del sandbox real
   al VPS continua pendent de la T6.5.
 
+## Corrections de la revisió de la PR #130 (28 de setembre de 2026)
+
+- La poda esborra qualsevol directori de `releases/` que no sigui la versió
+  activa, de manera que una instal·lació interrompuda no deixa una release
+  òrfena quan la PR avança a un altre SHA.
+- La reconciliació aïlla la fallada de cada entrada: continua amb les altres
+  previews i acaba informant totes les incidències, en lloc d'abandonar el
+  recorregut i deixar publicades les PR següents.
+- El publicador només restaura el commit anterior quan l'activació s'ha
+  completat, de manera que un error anterior a l'activació no queda emmascarat
+  per una restauració impossible.
+- El bootstrap no sobreescriu un `Caddyfile.previews` existent, així una
+  reexecució ja no despublica els orígens actius.
+- `pnpm check`: correcte amb 328 tests web, 109 de servidor i els nous casos
+  de regressió.
+
 ## Pendent abans de l'activació
 
 - Revisar el codi i validar el flux complet contra el VPS amb aprovació de la
