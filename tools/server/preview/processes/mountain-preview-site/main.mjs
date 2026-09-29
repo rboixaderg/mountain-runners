@@ -81,7 +81,7 @@ async function update(request) {
     );
     return stdout.trim();
   }
-  if (request.command === "sync") {
+  if (request.command === "reconcile") {
     const sites = parsePreviewSites(await readFile(fragmentPath, "utf8"));
     for (const number of sites) {
       try {
@@ -100,7 +100,7 @@ async function update(request) {
     (request.command !== "enable" && request.command !== "disable")
   ) {
     throw new Error(
-      "Only enable/disable with a numeric PR or sync are allowed.",
+      "Only enable/disable with a numeric PR or reconcile are allowed.",
     );
   }
   if (request.command === "enable") await eligible(number);

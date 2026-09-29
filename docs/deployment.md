@@ -211,6 +211,21 @@ tools/server/preview/
         └── main.mjs           # Procés fill breu que escriu l'autorització
 ```
 
+### Ordres de `mountain-preview`
+
+El nom de cada ordre descriu el seu efecte. Les de consulta són pures: no
+creen directoris, no prenen el bloqueig de capacitat i no esborren res.
+
+| Ordre                                | Consulta o escriptura | Efecte                                                 |
+| ------------------------------------ | --------------------- | ------------------------------------------------------ |
+| `inventory`                          | Consulta              | Llista els orígens per reconciliar; `[]` si no n'hi ha |
+| `list <n>` / `health <n>`            | Consulta              | Registre i salut del namespace; no el creen            |
+| `receive/install/authorize/activate` | Escriptura            | Publicació al namespace assignat                       |
+| `retire <n>` / `prune <n>`           | Escriptura            | Retirada i poda per PR                                 |
+| `cleanup-retired`                    | Escriptura            | Elimina directoris de retirades interrompudes          |
+| `site-enable/site-disable <n>`       | Escriptura            | Activa o retira un origen a Caddy                      |
+| `site-reconcile`                     | Escriptura            | Elimina blocs Caddy sense `current` i reinicia Caddy   |
+
 | Nom                                     | Què és                                                                                                                                                                                                                       |
 | --------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `preview-deploy`                        | Usuari restringit del VPS compartit per totes les previews. Escriu als seus directoris, sense accés a les releases de producció ni a la configuració de Caddy.                                                               |

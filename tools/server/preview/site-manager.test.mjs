@@ -147,7 +147,7 @@ test("rejects hand-edited fragments and a sixth configured site", async () => {
   });
 });
 
-test("the preview command reaches the process through its restricted socket", async () => {
+test("the socket accepts site-reconcile and rejects the retired sync request", async () => {
   await withCaddyFiles(async (directory) => {
     const socketPath = join(directory, "site.sock");
     const daemon = spawn(
@@ -177,7 +177,10 @@ test("the preview command reaches the process through its restricted socket", as
       }
       const result = spawnSync(
         process.execPath,
-        [join(toolDirectory, "commands/mountain-preview/cli.mjs"), "site-sync"],
+        [
+          join(toolDirectory, "commands/mountain-preview/cli.mjs"),
+          "site-reconcile",
+        ],
         {
           encoding: "utf8",
           env: { ...process.env, MOUNTAIN_PREVIEW_SITE_SOCKET: socketPath },
@@ -185,6 +188,17 @@ test("the preview command reaches the process through its restricted socket", as
       );
       assert.equal(result.status, 0, result.stderr);
       assert.match(result.stdout, /Reconciled preview Caddy sites/);
+      const legacyResponse = await new Promise((resolve, reject) => {
+        let response = "";
+        const socket = connect(socketPath, () =>
+          socket.write(`${JSON.stringify({ command: "sync" })}\n`),
+        );
+        socket.on("data", (chunk) => (response += chunk.toString("utf8")));
+        socket.on("end", () => resolve(JSON.parse(response)));
+        socket.on("error", reject);
+      });
+      assert.equal(legacyResponse.ok, false);
+      assert.match(legacyResponse.message, /or reconcile are allowed/);
     } finally {
       if (daemon.exitCode === null) {
         daemon.kill();

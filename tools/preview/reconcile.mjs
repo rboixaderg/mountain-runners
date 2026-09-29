@@ -11,7 +11,8 @@ export async function reconcilePreviews({
   repository,
   now = Date.now(),
 }) {
-  await transport.run("mountain-preview site-sync");
+  await transport.run("mountain-preview cleanup-retired");
+  await transport.run("mountain-preview site-reconcile");
   const inventory = JSON.parse(
     await transport.run("mountain-preview inventory"),
   );

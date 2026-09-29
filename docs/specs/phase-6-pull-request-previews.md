@@ -73,8 +73,9 @@ La fase depèn de la fase 5 completada perquè reutilitza el contracte d'artefac
 les convencions de Caddy i l'experiència operativa sense modificar producció.
 T6.1 fixa requisits i amenaces. T6.2 pren la decisió d'arquitectura. T6.3 adapta
 el build i crea la frontera de publicació. T6.4 implementa DNS, TLS, cicle de vida
-i accés segons la decisió. T6.6 notifica una activació correcta a la PR. T6.5
-valida el sistema complet i tanca el runbook.
+i accés segons la decisió. T6.6 notifica una activació correcta a la PR. T6.7
+esmena el contracte CLI de la T6.4 perquè les consultes siguin pures abans
+d'instal·lar-lo al VPS. T6.5 valida el sistema complet i tanca el runbook.
 
 Cada tasca s'implementa en un worktree i una branca propis des de l'últim
 `main`. Qualsevol alta de servei, canvi de nameservers, DNS, secrets, repositori o
@@ -89,7 +90,8 @@ VPS requereix aprovació explícita de la persona mantenidora.
 | T6.3 Artefacte i publicador de confiança     | Completada | T6.2         | Frontera segura sense executar codi no fiable | PR #121 |
 | T6.4 Cicle de vida, aïllament i neteja       | Pendent    | T6.3         | Orígens efímers creats i retirats             | -       |
 | T6.6 Notificació de preview a la PR          | Pendent    | T6.4         | URL i SHA comunicats després d'activar        | -       |
-| T6.5 Validació de previews i operació        | Pendent    | T6.6         | Gate i runbook verificats                     | -       |
+| T6.7 Contracte de consulta i escriptura      | En curs    | T6.4         | CLI amb consultes pures i verbs explícits     | PR #136 |
+| T6.5 Validació de previews i operació        | Pendent    | T6.6, T6.7   | Gate i runbook verificats                     | -       |
 
 ### T6.1: Requisits, Amenaces I Alternatives
 
@@ -166,6 +168,21 @@ l'URL i el SHA són correctes després d'activar, i que la reexecució només
 actualitza el comentari existent creat pel publicador amb el marcador fix.
 **PR:** pròpia.
 
+### T6.7: Contracte De Consulta I Escriptura
+
+**Abast:** esmena de la T6.4 detectada en preparar l'activació de la T6.5:
+`inventory`, `list` i `health` modificaven l'estat. Fer-les pures, afegir
+`cleanup-retired` per a les retirades interrompudes, reanomenar `site-sync` a
+`site-reconcile` sense àlies (el sistema no s'ha activat mai), tolerar
+`namespaces/` absent a l'inventari, adaptar `tools/preview/reconcile.mjs` i
+classificar cada ordre a `docs/deployment.md` i `docs/runbook.md`.
+**Exclusió:** no canvia l'autenticació, l'autorització signada, el format del
+registre, la política de retenció ni cap frontera de l'ADR 0009 o de l'ADR 0010;
+no executa la T6.5. **Depèn de:** T6.4. **Resultat:** el nom de cada ordre
+descriu el seu efecte i la reconciliació horària usa el nou contracte.
+**Comprovació:** `pnpm test:server`, `prettier --check` i `eslint` sobre els
+fitxers tocats. **PR:** pròpia.
+
 ### T6.5: Validació De Previews I Operació
 
 **Abast:** validar previews pròpies, navegació i metadades en els tres
@@ -173,7 +190,7 @@ idiomes, autorització i visibilitat acordades, absència de secrets, comportame
 ordinari de `published: false`, identificació de no-producció, expiració, logs,
 alertes, revocació i runbook; verificar que una fallada del sistema de previews
 no afecta producció. **Exclusió:** no converteix la preview en staging de
-producció ni introdueix analítica. **Depèn de:** T6.6. **Resultat:** sistema
+producció ni introdueix analítica. **Depèn de:** T6.6 i T6.7. **Resultat:** sistema
 operable i responsabilitats acceptades. **Comprovació:** `pnpm validate`, smoke
 de preview, `noindex, noarchive`, canonical, headers, cap publicació de fork,
 invariant de cookies de producció (ADR 0009), neteja, fallada del proveïdor i
@@ -268,6 +285,22 @@ a T6.1. Els logs no desen query strings, cookies, capçaleres d'autorització ni
 contingut dels artefactes. El runbook cobreix quota, certificats, DNS, neteja,
 revocació i desactivació completa del sistema sense afectar producció.
 
+### Contracte De `mountain-preview`
+
+El nom de cada ordre descriu el seu efecte (T6.7):
+
+- Consulta: `inventory`, `list <n>` i `health <n>` només llegeixen. No creen
+  fitxers ni directoris, no prenen el bloqueig de capacitat, no esborren res i
+  mai fallen per límit de capacitat. `inventory` retorna `[]` si `namespaces/`
+  no existeix; `health` d'un namespace absent és `DEGRADED`.
+- Escriptura: `receive`, `install`, `authorize`, `activate`, `retire`, `prune`,
+  `cleanup-retired` (elimina `.retired-pr-<n>-<uuid>`), `site-enable`,
+  `site-disable` i `site-reconcile` (elimina blocs Caddy sense `current` i
+  reinicia Caddy). Només `receive`, `install`, `authorize`, `activate` i
+  `prune` passen per la comprovació de capacitat i creen el namespace.
+- La reconciliació executa `cleanup-retired`, `site-reconcile` i `inventory`,
+  i després `retire`, `site-disable` o `prune` per a cada entrada.
+
 ## Estratègia De Tests I Qualitat
 
 - Reutilitzar el contracte de build de la fase 5 amb origen de preview explícit.
@@ -284,6 +317,10 @@ revocació i desactivació completa del sistema sense afectar producció.
 - Verificar que el publicador comenta l'URL i SHA correctes només després d'una
   activació reeixida i que la reexecució només actualitza el comentari del
   publicador amb marcador fix, sense generar-ne duplicats.
+- Provar que les consultes de `mountain-preview` no esperen el bloqueig de
+  capacitat ni creen el namespace, que `cleanup-retired` neteja el que
+  `inventory` conserva, que el gate i el socket rebutgen `site-sync` i que la
+  reconciliació respecta l'ordre del contracte.
 - Validar l'origen sota `*.preview.mountainrunners.cat` dins dels controls de
   l'ADR 0009, TLS, headers, identificació de no-producció, caché, cookies
   `__Host-`, storage i autenticació si s'aplica.
@@ -342,7 +379,7 @@ La fase es considera completada quan:
 
 1. Els requisits, amenaces, alternatives i responsabilitats estan aprovats abans
    d'adoptar serveis o aplicar canvis remots.
-2. Les sis unitats tenen PR pròpia revisada, validada i fusionada en ordre de
+2. Les set unitats tenen PR pròpia revisada, validada i fusionada en ordre de
    dependències.
 3. La decisió justifica l'opció triada dins del límit de l'ADR 0009 (origen sota
    `*.preview.mountainrunners.cat`, publicació restringida a branques pròpies,
@@ -375,3 +412,5 @@ La fase es considera completada quan:
     interrupció observada obliga a aturar les previews i revisar la decisió.
 12. El runbook descriu publicació, accés, quota, logs, renovació TLS, neteja,
     revocació, incidències i desactivació completa amb responsables verificats.
+13. Les ordres de consulta de `mountain-preview` no modifiquen cap estat i tota
+    mutació té un verb explícit, documentat com a escriptura.

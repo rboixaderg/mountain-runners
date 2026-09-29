@@ -39,7 +39,8 @@ test("retires expired, closed and stale-head previews but keeps open current hea
     }),
   });
   assert.deepEqual(transport.commands, [
-    "mountain-preview site-sync",
+    "mountain-preview cleanup-retired",
+    "mountain-preview site-reconcile",
     "mountain-preview inventory",
     "mountain-preview retire 1",
     "mountain-preview site-disable 1",
@@ -66,7 +67,8 @@ test("retires canceled uploads after one day and fork heads immediately", async 
     }),
   });
   assert.deepEqual(transport.commands, [
-    "mountain-preview site-sync",
+    "mountain-preview cleanup-retired",
+    "mountain-preview site-reconcile",
     "mountain-preview inventory",
     "mountain-preview retire 1",
     "mountain-preview site-disable 1",
@@ -111,7 +113,8 @@ test("an API failure never retires a fresh preview", async () => {
     /GitHub unavailable/,
   );
   assert.deepEqual(transport.commands, [
-    "mountain-preview site-sync",
+    "mountain-preview cleanup-retired",
+    "mountain-preview site-reconcile",
     "mountain-preview inventory",
   ]);
 });
@@ -134,7 +137,8 @@ test("a failed GitHub lookup does not block retirement of another preview", asyn
     /Preview 1: GitHub unavailable/,
   );
   assert.deepEqual(transport.commands, [
-    "mountain-preview site-sync",
+    "mountain-preview cleanup-retired",
+    "mountain-preview site-reconcile",
     "mountain-preview inventory",
     "mountain-preview retire 2",
     "mountain-preview site-disable 2",
