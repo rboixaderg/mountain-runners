@@ -66,31 +66,27 @@ const actionAttributes = analyticsActionAttributes({
       variant === "federation" && "flex flex-1 flex-col justify-end",
     ]}
   >
-    {
-      introKey !== undefined ? (
-        <p class="m-0 mb-4 last:mb-0">{messages[introKey]({}, { locale })}</p>
-      ) : null
-    }
-    {
-      actionHref !== undefined ? (
-        <a
-          class:list={[
-            "border-ink text-ink hover:bg-ink tracking-display py-action inline-flex w-fit max-w-full items-center self-start border-2 px-4 text-xs leading-normal font-bold whitespace-nowrap uppercase no-underline hover:text-white",
-            variant === "signup" && "shadow-action-accent mt-6",
-            variant === "federation" &&
-              "border-red bg-red shadow-action hover:shadow-action-accent hover:border-ink hover:bg-ink px-5 py-4 text-white hover:text-white",
-          ]}
-          href={actionHref}
-          {...externalLinkAttributes}
-          {...actionAttributes}
-        >
-          {messages[actionLabelKey]({}, { locale })}
-        </a>
-      ) : stateMessageKey !== undefined ? (
-        <p class="text-muted mt-4 mb-0">
-          {messages[stateMessageKey]({}, { locale })}
-        </p>
-      ) : null
-    }
+    {introKey !== undefined ? (
+      <p class="m-0 mb-4 last:mb-0">{messages[introKey]({}, { locale })}</p>
+    ) : null}
+    {actionHref !== undefined ? (
+      <a
+        class:list={[
+          "border-ink text-ink hover:bg-ink tracking-display py-action inline-flex w-fit max-w-full items-center self-start border-2 px-4 text-xs leading-normal font-bold whitespace-nowrap uppercase no-underline hover:text-white",
+          variant === "signup" && "shadow-action-accent mt-6",
+          variant === "federation" &&
+            "border-red bg-red shadow-action hover:shadow-action-accent hover:border-ink hover:bg-ink px-5 py-4 text-white hover:text-white",
+        ]}
+        href={actionHref}
+        {...externalLinkAttributes}
+        {...actionAttributes}
+      >
+        {messages[actionLabelKey]({}, { locale })}
+      </a>
+    ) : stateMessageKey !== undefined ? (
+      <p class="text-muted mt-4 mb-0">
+        {messages[stateMessageKey]({}, { locale })}
+      </p>
+    ) : null}
   </div>
 </section>

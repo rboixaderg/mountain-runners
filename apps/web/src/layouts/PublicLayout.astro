@@ -80,57 +80,51 @@ const analyticsPageType = getAnalyticsPageType(Astro.url.pathname);
     <meta name="description" content={description} />
     {noindex && <meta name="robots" content="noindex, nofollow" />}
     {canonical && <link rel="canonical" href={canonical} />}
-    {
-      localizedAlternatives.map((alternative) => (
-        <link
-          rel="alternate"
-          hreflang={alternative.locale}
-          href={alternative.href}
-        />
-      ))
-    }
-    {
-      defaultLocaleAlternative && (
-        <link
-          rel="alternate"
-          hreflang="x-default"
-          href={defaultLocaleAlternative.href}
-        />
-      )
-    }
+    {localizedAlternatives.map((alternative) => (
+      <link
+        rel="alternate"
+        hreflang={alternative.locale}
+        href={alternative.href}
+      />
+    ))}
+    {defaultLocaleAlternative && (
+      <link
+        rel="alternate"
+        hreflang="x-default"
+        href={defaultLocaleAlternative.href}
+      />
+    )}
     <meta property="og:title" content={title} />
     <meta property="og:description" content={description} />
     <meta property="og:type" content="website" />
     <meta property="og:locale" content={openGraphLocales[locale]} />
     {canonical && <meta property="og:url" content={canonical} />}
-    {
-      socialImage && (
-        <>
-          <meta property="og:image" content={socialImage.url} />
-          <meta property="og:image:alt" content={socialImage.alt} />
-          <meta name="twitter:card" content="summary_large_image" />
-        </>
-      )
-    }
-    {
-      structuredData.map((data) => (
-        <Fragment set:html={renderJsonLdScript(data)} />
-      ))
-    }
+    {socialImage && (
+      <>
+        <meta property="og:image" content={socialImage.url} />
+        <meta property="og:image:alt" content={socialImage.alt} />
+        <meta name="twitter:card" content="summary_large_image" />
+      </>
+    )}
+    {structuredData.map((data) => (
+      <Fragment set:html={renderJsonLdScript(data)} />
+    ))}
     <title>{title}</title>
     <PlausibleAnalytics locale={locale} pageType={analyticsPageType} />
   </head>
   <body>
-    <a class="skip-link" href="#main-content"
-      >{messages.skip_to_content({}, { locale })}</a
-    >
+    <a class="skip-link" href="#main-content">
+      {messages.skip_to_content({}, { locale })}
+    </a>
     <SiteHeader
       localizedAlternatives={localizedAlternatives}
       locale={locale}
       memberSignupLink={memberSignupLink}
       schoolVariants={schoolVariants}
     />
-    <main id="main-content"><slot /></main>
+    <main id="main-content">
+      <slot />
+    </main>
     <PreFooter catalog={catalog} locale={locale} />
     <SiteFooter
       instagramUrl={getEntityLinkUrl(institutionalLinks, "instagram")}

@@ -13,21 +13,19 @@ const { locale, videoUrl } = Astro.props;
 const videoId = videoUrl ? extractYoutubeVideoId(videoUrl) : undefined;
 ---
 
-{
-  videoId !== undefined && (
-    <section
-      class="border-line bg-stone py-section border-b"
-      aria-label={messages.members_video_title({}, { locale })}
-    >
-      <div class="page-frame flex justify-center">
-        <figure class="max-w-reading m-0 w-full">
-          <YoutubeEmbed
-            className="shadow-action-lg"
-            title={messages.members_video_title({}, { locale })}
-            videoId={videoId}
-          />
-        </figure>
-      </div>
-    </section>
-  )
-}
+{videoId !== undefined && (
+  <section
+    class="border-line bg-stone py-section border-b"
+    aria-label={messages.members_video_title({}, { locale })}
+  >
+    <div class="page-frame flex justify-center">
+      <figure class="max-w-reading m-0 w-full">
+        <YoutubeEmbed
+          className="shadow-action-lg"
+          title={messages.members_video_title({}, { locale })}
+          videoId={videoId}
+        />
+      </figure>
+    </div>
+  </section>
+)}

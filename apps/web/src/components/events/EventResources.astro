@@ -16,42 +16,40 @@ interface Props {
 const { documents, edition, locale } = Astro.props;
 ---
 
-{
-  edition && documents.length > 0 && (
-    <section class="events-detail__resources border-ink m-0 border-t-2 pt-6">
-      <h2 class="font-display m-0 mb-4 leading-none uppercase">
-        {messages.event_resources_title({}, { locale })}
-      </h2>
-      <ul class="m-0 pl-5">
-        {documents.map(({ id, document }) => {
-          const documentHref = getDocumentHref(document);
-          return (
-            <li class="my-2">
-              {documentHref && document ? (
-                <a
-                  class="text-sm font-bold"
-                  href={documentHref}
-                  {...(document.resource.kind === "external"
-                    ? externalLinkAttributes
-                    : {})}
-                  {...analyticsActionAttributes({
-                    action: analyticsActions.documentOpen,
-                    area: analyticsAreas.eventResources,
-                    target: id,
-                  })}
-                >
-                  {document.title[locale]}
-                </a>
-              ) : (
-                <span>
-                  {document?.title[locale] ?? id} —{" "}
-                  {messages.event_resource_unavailable({}, { locale })}
-                </span>
-              )}
-            </li>
-          );
-        })}
-      </ul>
-    </section>
-  )
-}
+{edition && documents.length > 0 && (
+  <section class="events-detail__resources border-ink m-0 border-t-2 pt-6">
+    <h2 class="font-display m-0 mb-4 leading-none uppercase">
+      {messages.event_resources_title({}, { locale })}
+    </h2>
+    <ul class="m-0 pl-5">
+      {documents.map(({ id, document }) => {
+        const documentHref = getDocumentHref(document);
+        return (
+          <li class="my-2">
+            {documentHref && document ? (
+              <a
+                class="text-sm font-bold"
+                href={documentHref}
+                {...(document.resource.kind === "external"
+                  ? externalLinkAttributes
+                  : {})}
+                {...analyticsActionAttributes({
+                  action: analyticsActions.documentOpen,
+                  area: analyticsAreas.eventResources,
+                  target: id,
+                })}
+              >
+                {document.title[locale]}
+              </a>
+            ) : (
+              <span>
+                {document?.title[locale] ?? id} —{" "}
+                {messages.event_resource_unavailable({}, { locale })}
+              </span>
+            )}
+          </li>
+        );
+      })}
+    </ul>
+  </section>
+)}

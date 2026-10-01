@@ -49,189 +49,184 @@ const hasPracticalContent =
   essentialSections.length > 0 || contextSections.length > 0 || hasPrices;
 ---
 
-{
-  hasPracticalContent && (
-    <section
-      class="border-ink bg-stone py-section relative z-0 scroll-mt-20 border-y-2"
-      aria-labelledby="school-preview-practical-title"
-    >
-      <div class="page-frame mb-6 md:mb-8">
-        <h2
-          class="schools-detail-preview__practical-title font-display border-red tracking-display m-0 mb-4 inline-block border-b-4 pb-2 uppercase"
-          id="school-preview-practical-title"
-        >
-          {messages.school_practical_info_title({}, { locale })}
-        </h2>
-        <p class="text-muted max-w-reading leading-copy m-0 text-base">
-          {messages.school_practical_info_intro({}, { locale })}
-        </p>
-      </div>
+{hasPracticalContent && (
+  <section
+    class="border-ink bg-stone py-section relative z-0 scroll-mt-20 border-y-2"
+    aria-labelledby="school-preview-practical-title"
+  >
+    <div class="page-frame mb-6 md:mb-8">
+      <h2
+        class="schools-detail-preview__practical-title font-display border-red tracking-display m-0 mb-4 inline-block border-b-4 pb-2 uppercase"
+        id="school-preview-practical-title"
+      >
+        {messages.school_practical_info_title({}, { locale })}
+      </h2>
+      <p class="text-muted max-w-reading leading-copy m-0 text-base">
+        {messages.school_practical_info_intro({}, { locale })}
+      </p>
+    </div>
 
-      <div class="page-frame grid min-w-0 gap-4 md:gap-5">
-        {essentialSections.length > 0 && (
-          <ul class="m-0 grid min-w-0 list-none grid-cols-1 gap-4 p-0 md:grid-cols-3 md:gap-5">
-            {essentialSections.map((sectionKey) => {
-              const parsedSection = parseSchoolPracticalSection(
-                sectionContent(sectionKey)!,
-              );
-              const scheduleParts =
-                sectionKey === "schedule" &&
-                isCompactSchedulePreview(parsedSection)
-                  ? extractScheduleParts(parsedSection.lead!)
-                  : null;
-              const locationParts =
-                sectionKey === "location" && parsedSection.lead
-                  ? extractLocationParts(parsedSection.lead)
-                  : null;
+    <div class="page-frame grid min-w-0 gap-4 md:gap-5">
+      {essentialSections.length > 0 && (
+        <ul class="m-0 grid min-w-0 list-none grid-cols-1 gap-4 p-0 md:grid-cols-3 md:gap-5">
+          {essentialSections.map((sectionKey) => {
+            const parsedSection = parseSchoolPracticalSection(
+              sectionContent(sectionKey)!,
+            );
+            const scheduleParts =
+              sectionKey === "schedule" &&
+              isCompactSchedulePreview(parsedSection)
+                ? extractScheduleParts(parsedSection.lead!)
+                : null;
+            const locationParts =
+              sectionKey === "location" && parsedSection.lead
+                ? extractLocationParts(parsedSection.lead)
+                : null;
 
-              const isDetailedSchedule =
-                sectionKey === "schedule" &&
-                !isCompactSchedulePreview(parsedSection);
+            const isDetailedSchedule =
+              sectionKey === "schedule" &&
+              !isCompactSchedulePreview(parsedSection);
 
-              return (
-                <li
-                  class:list={[
-                    isDetailedSchedule && "md:col-span-full",
-                    "border-ink p-card shadow-action-lg relative flex h-full min-w-0 flex-col items-start overflow-hidden border-2 bg-white",
-                  ]}
-                >
-                  <div class="mb-4 flex flex-col items-start gap-5">
-                    <div
-                      class="bg-ink inline-flex p-3 text-white"
-                      aria-hidden="true"
-                    >
-                      <SchoolPracticalIcon sectionKey={sectionKey} />
-                    </div>
-                    <h3 class="schools-detail-preview__practical-card-title font-display text-ink leading-action tracking-display m-0 font-bold uppercase">
-                      {messages[schoolPracticalSectionMessageKeys[sectionKey]](
-                        {},
-                        { locale },
-                      )}
-                    </h3>
+            return (
+              <li
+                class:list={[
+                  isDetailedSchedule && "md:col-span-full",
+                  "border-ink p-card shadow-action-lg relative flex h-full min-w-0 flex-col items-start overflow-hidden border-2 bg-white",
+                ]}
+              >
+                <div class="mb-4 flex flex-col items-start gap-5">
+                  <div
+                    class="bg-ink inline-flex p-3 text-white"
+                    aria-hidden="true"
+                  >
+                    <SchoolPracticalIcon sectionKey={sectionKey} />
                   </div>
-                  <div class="w-full flex-1">
-                    {sectionKey === "schedule" && scheduleParts ? (
-                      <>
-                        {parsedSection.label && (
-                          <p class="text-muted tracking-label mb-1.5 text-xs leading-normal font-bold uppercase">
-                            {parsedSection.label}
-                          </p>
-                        )}
-                        <p class="text-ink m-0 text-base leading-normal font-semibold">
-                          {scheduleParts.days}
-                        </p>
-                        {scheduleParts.time && (
-                          <p class="schools-detail-preview__practical-card-highlight font-display text-red leading-action mt-1.5 font-bold">
-                            {scheduleParts.time}
-                          </p>
-                        )}
-                        {parsedSection.body.length > 0 && (
-                          <p class="text-muted mt-2.5 text-sm leading-normal">
-                            {parsedSection.body}
-                          </p>
-                        )}
-                      </>
-                    ) : sectionKey === "schedule" && isDetailedSchedule ? (
-                      <div
-                        class="schools-detail-preview__practical-card-body text-ink mt-3 w-full text-sm leading-normal"
-                        set:html={renderRestrictedMarkdown(
-                          sectionContent(sectionKey)!,
-                        )}
-                      />
-                    ) : sectionKey === "location" && locationParts ? (
-                      <>
-                        <p class="text-ink m-0 text-base leading-normal font-semibold">
-                          {locationParts.primary}
-                        </p>
-                        {locationParts.secondary && (
-                          <p class="text-muted mt-2.5 text-sm leading-normal">
-                            {locationParts.secondary}
-                          </p>
-                        )}
-                      </>
-                    ) : (
-                      parsedSection.lead && (
-                        <p class="schools-detail-preview__practical-card-highlight font-display text-red leading-action mt-1.5 font-bold">
-                          {parsedSection.lead}
-                        </p>
-                      )
+                  <h3 class="schools-detail-preview__practical-card-title font-display text-ink leading-action tracking-display m-0 font-bold uppercase">
+                    {messages[schoolPracticalSectionMessageKeys[sectionKey]](
+                      {},
+                      { locale },
                     )}
-                  </div>
-                  {sectionKey === "location" && (
-                    <svg
-                      class="schools-detail-preview__practical-watermark opacity-5"
-                      viewBox="0 0 24 24"
-                      aria-hidden="true"
-                      focusable="false"
-                    >
-                      <path
-                        fill="currentColor"
-                        d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5S10.62 6.5 12 6.5s2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"
-                      />
-                    </svg>
-                  )}
-                </li>
-              );
-            })}
-          </ul>
-        )}
-
-        {hasPrices && pricesMarkdown && (
-          <SchoolPreviewPrices
-            locale={locale}
-            pricesMarkdown={pricesMarkdown}
-          />
-        )}
-
-        {contextSections.length > 0 && (
-          <ul class="m-0 grid min-w-0 list-none grid-cols-1 gap-4 p-0 md:grid-cols-2 md:gap-5">
-            {contextSections.map((sectionKey) => {
-              const parsedSection = parseSchoolPracticalSection(
-                sectionContent(sectionKey)!,
-              );
-
-              return (
-                <li
-                  class:list={[
-                    "border-ink p-card shadow-action-accent relative flex h-full min-w-0 flex-col items-start overflow-hidden border-2 bg-white",
-                  ]}
-                >
-                  <div class="mb-4 flex flex-col items-start gap-5">
-                    <div
-                      class="bg-ink inline-flex p-3 text-white"
-                      aria-hidden="true"
-                    >
-                      <SchoolPracticalIcon sectionKey={sectionKey} />
-                    </div>
-                    <h3 class="schools-detail-preview__practical-card-title font-display text-ink leading-action tracking-display m-0 font-bold uppercase">
-                      {messages[schoolPracticalSectionMessageKeys[sectionKey]](
-                        {},
-                        { locale },
+                  </h3>
+                </div>
+                <div class="w-full flex-1">
+                  {sectionKey === "schedule" && scheduleParts ? (
+                    <>
+                      {parsedSection.label && (
+                        <p class="text-muted tracking-label mb-1.5 text-xs leading-normal font-bold uppercase">
+                          {parsedSection.label}
+                        </p>
                       )}
-                    </h3>
-                  </div>
-                  <div class="w-full flex-1">
-                    {parsedSection.lead && (
                       <p class="text-ink m-0 text-base leading-normal font-semibold">
+                        {scheduleParts.days}
+                      </p>
+                      {scheduleParts.time && (
+                        <p class="schools-detail-preview__practical-card-highlight font-display text-red leading-action mt-1.5 font-bold">
+                          {scheduleParts.time}
+                        </p>
+                      )}
+                      {parsedSection.body.length > 0 && (
+                        <p class="text-muted mt-2.5 text-sm leading-normal">
+                          {parsedSection.body}
+                        </p>
+                      )}
+                    </>
+                  ) : sectionKey === "schedule" && isDetailedSchedule ? (
+                    <div
+                      class="schools-detail-preview__practical-card-body text-ink mt-3 w-full text-sm leading-normal"
+                      set:html={renderRestrictedMarkdown(
+                        sectionContent(sectionKey)!,
+                      )}
+                    />
+                  ) : sectionKey === "location" && locationParts ? (
+                    <>
+                      <p class="text-ink m-0 text-base leading-normal font-semibold">
+                        {locationParts.primary}
+                      </p>
+                      {locationParts.secondary && (
+                        <p class="text-muted mt-2.5 text-sm leading-normal">
+                          {locationParts.secondary}
+                        </p>
+                      )}
+                    </>
+                  ) : (
+                    parsedSection.lead && (
+                      <p class="schools-detail-preview__practical-card-highlight font-display text-red leading-action mt-1.5 font-bold">
                         {parsedSection.lead}
                       </p>
-                    )}
-                    {parsedSection.body.length > 0 && (
-                      <div
-                        class="schools-detail-preview__practical-card-body text-ink mt-3 w-full text-sm leading-normal"
-                        set:html={renderRestrictedMarkdown(parsedSection.body)}
-                      />
-                    )}
+                    )
+                  )}
+                </div>
+                {sectionKey === "location" && (
+                  <svg
+                    class="schools-detail-preview__practical-watermark opacity-5"
+                    viewBox="0 0 24 24"
+                    aria-hidden="true"
+                    focusable="false"
+                  >
+                    <path
+                      fill="currentColor"
+                      d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5S10.62 6.5 12 6.5s2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"
+                    />
+                  </svg>
+                )}
+              </li>
+            );
+          })}
+        </ul>
+      )}
+
+      {hasPrices && pricesMarkdown && (
+        <SchoolPreviewPrices locale={locale} pricesMarkdown={pricesMarkdown} />
+      )}
+
+      {contextSections.length > 0 && (
+        <ul class="m-0 grid min-w-0 list-none grid-cols-1 gap-4 p-0 md:grid-cols-2 md:gap-5">
+          {contextSections.map((sectionKey) => {
+            const parsedSection = parseSchoolPracticalSection(
+              sectionContent(sectionKey)!,
+            );
+
+            return (
+              <li
+                class:list={[
+                  "border-ink p-card shadow-action-accent relative flex h-full min-w-0 flex-col items-start overflow-hidden border-2 bg-white",
+                ]}
+              >
+                <div class="mb-4 flex flex-col items-start gap-5">
+                  <div
+                    class="bg-ink inline-flex p-3 text-white"
+                    aria-hidden="true"
+                  >
+                    <SchoolPracticalIcon sectionKey={sectionKey} />
                   </div>
-                </li>
-              );
-            })}
-          </ul>
-        )}
-      </div>
-    </section>
-  )
-}
+                  <h3 class="schools-detail-preview__practical-card-title font-display text-ink leading-action tracking-display m-0 font-bold uppercase">
+                    {messages[schoolPracticalSectionMessageKeys[sectionKey]](
+                      {},
+                      { locale },
+                    )}
+                  </h3>
+                </div>
+                <div class="w-full flex-1">
+                  {parsedSection.lead && (
+                    <p class="text-ink m-0 text-base leading-normal font-semibold">
+                      {parsedSection.lead}
+                    </p>
+                  )}
+                  {parsedSection.body.length > 0 && (
+                    <div
+                      class="schools-detail-preview__practical-card-body text-ink mt-3 w-full text-sm leading-normal"
+                      set:html={renderRestrictedMarkdown(parsedSection.body)}
+                    />
+                  )}
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </div>
+  </section>
+)}
 
 <style>
   .schools-detail-preview__practical-card-body > :global(:first-child) {

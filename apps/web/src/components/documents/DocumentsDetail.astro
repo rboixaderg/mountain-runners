@@ -29,21 +29,19 @@ const documentGroups = getDocumentGroups(
     kicker={messages.site_title({}, { locale })}
     title={messages.documents_page_title({}, { locale })}
   />
-  {
-    documentGroups.length > 0 ? (
-      documentGroups.map(({ documentType, documents }) => (
-        <DocumentGroup
-          documentType={documentType}
-          documents={documents}
-          locale={locale}
-        />
-      ))
-    ) : (
-      <section class="page-frame py-section border-line border-b">
-        <p class="page-section__body leading-copy max-w-reading m-0 text-base">
-          {messages.documents_empty({}, { locale })}
-        </p>
-      </section>
-    )
-  }
+  {documentGroups.length > 0 ? (
+    documentGroups.map(({ documentType, documents }) => (
+      <DocumentGroup
+        documentType={documentType}
+        documents={documents}
+        locale={locale}
+      />
+    ))
+  ) : (
+    <section class="page-frame py-section border-line border-b">
+      <p class="page-section__body leading-copy max-w-reading m-0 text-base">
+        {messages.documents_empty({}, { locale })}
+      </p>
+    </section>
+  )}
 </article>

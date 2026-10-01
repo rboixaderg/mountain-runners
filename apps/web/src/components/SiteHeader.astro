@@ -85,12 +85,8 @@ const headerSignupAttributes = analyticsActionAttributes({
 });
 ---
 
-<header
-  class="border-line sticky top-0 z-30 overflow-visible border-b bg-white"
->
-  <div
-    class="page-frame site-header__inner flex min-h-19 min-w-0 items-center gap-3 lg:gap-6"
-  >
+<header class="border-line sticky top-0 z-30 overflow-visible border-b bg-white">
+  <div class="page-frame site-header__inner flex min-h-19 min-w-0 items-center gap-3 lg:gap-6">
     <a
       class="shrink-0 no-underline"
       href={homePath}
@@ -123,48 +119,8 @@ const headerSignupAttributes = analyticsActionAttributes({
       >
         {messages.navigation_about({}, { locale })}
       </a>
-      {
-        schoolNavigationItems.length > 0 ? (
-          <div class="group relative">
-            <a
-              class:list={[
-                "site-header__link",
-                "font-display tracking-label hover:border-red hover:text-red py-1 text-sm font-bold uppercase no-underline",
-                schoolsNavigationActive
-                  ? "border-red text-red"
-                  : "border-transparent",
-              ]}
-              href={schoolsPath}
-              aria-current={schoolsHubActive ? "page" : undefined}
-              {...schoolsNavAttributes}
-            >
-              {messages.navigation_schools({}, { locale })}
-            </a>
-            <ul class="site-header__dropdown-panel border-ink shadow-action-accent pointer-events-none invisible absolute left-0 z-1 m-0 min-w-56 list-none border-2 bg-white py-2 opacity-0 group-focus-within:pointer-events-auto group-focus-within:visible group-focus-within:opacity-100 group-hover:pointer-events-auto group-hover:visible group-hover:opacity-100">
-              {schoolNavigationItems.map((item) => (
-                <li>
-                  <a
-                    class:list={[
-                      "text-ink font-display tracking-display hover:bg-stone hover:text-red block px-4 py-2.5 font-bold uppercase no-underline",
-                      isSchoolDetailPath(item.href) && "bg-stone text-red",
-                    ]}
-                    href={item.href}
-                    aria-current={
-                      isSchoolDetailPath(item.href) ? "page" : undefined
-                    }
-                    {...analyticsActionAttributes({
-                      action: analyticsActions.navigate,
-                      area: analyticsAreas.headerNav,
-                      target: item.id,
-                    })}
-                  >
-                    {item.label}
-                  </a>
-                </li>
-              ))}
-            </ul>
-          </div>
-        ) : (
+      {schoolNavigationItems.length > 0 ? (
+        <div class="group relative">
           <a
             class:list={[
               "site-header__link",
@@ -174,36 +130,72 @@ const headerSignupAttributes = analyticsActionAttributes({
                 : "border-transparent",
             ]}
             href={schoolsPath}
-            aria-current={schoolsNavigationActive ? "page" : undefined}
+            aria-current={schoolsHubActive ? "page" : undefined}
             {...schoolsNavAttributes}
           >
             {messages.navigation_schools({}, { locale })}
           </a>
-        )
-      }
-      {
-        navigationItems.map((item) => (
-          <a
-            class:list={[
-              "site-header__link",
-              "font-display tracking-label hover:border-red hover:text-red py-1 text-sm font-bold uppercase no-underline",
-              isCurrentPath(item.href)
-                ? "border-red text-red"
-                : "border-transparent",
-            ]}
-            href={item.href}
-            aria-current={isCurrentPath(item.href) ? "page" : undefined}
-            {...item.attributes}
-          >
-            {item.label}
-          </a>
-        ))
-      }
+          <ul class="site-header__dropdown-panel border-ink shadow-action-accent pointer-events-none invisible absolute left-0 z-1 m-0 min-w-56 list-none border-2 bg-white py-2 opacity-0 group-focus-within:pointer-events-auto group-focus-within:visible group-focus-within:opacity-100 group-hover:pointer-events-auto group-hover:visible group-hover:opacity-100">
+            {schoolNavigationItems.map((item) => (
+              <li>
+                <a
+                  class:list={[
+                    "text-ink font-display tracking-display hover:bg-stone hover:text-red block px-4 py-2.5 font-bold uppercase no-underline",
+                    isSchoolDetailPath(item.href) && "bg-stone text-red",
+                  ]}
+                  href={item.href}
+                  aria-current={
+                    isSchoolDetailPath(item.href) ? "page" : undefined
+                  }
+                  {...analyticsActionAttributes({
+                    action: analyticsActions.navigate,
+                    area: analyticsAreas.headerNav,
+                    target: item.id,
+                  })}
+                >
+                  {item.label}
+                </a>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : (
+        <a
+          class:list={[
+            "site-header__link",
+            "font-display tracking-label hover:border-red hover:text-red py-1 text-sm font-bold uppercase no-underline",
+            schoolsNavigationActive
+              ? "border-red text-red"
+              : "border-transparent",
+          ]}
+          href={schoolsPath}
+          aria-current={schoolsNavigationActive ? "page" : undefined}
+          {...schoolsNavAttributes}
+        >
+          {messages.navigation_schools({}, { locale })}
+        </a>
+      )}
+      {navigationItems.map((item) => (
+        <a
+          class:list={[
+            "site-header__link",
+            "font-display tracking-label hover:border-red hover:text-red py-1 text-sm font-bold uppercase no-underline",
+            isCurrentPath(item.href)
+              ? "border-red text-red"
+              : "border-transparent",
+          ]}
+          href={item.href}
+          aria-current={isCurrentPath(item.href) ? "page" : undefined}
+          {...item.attributes}
+        >
+          {item.label}
+        </a>
+      ))}
     </nav>
     <a
       class="site-header__cta border-red bg-red font-display tracking-label shadow-action hover:shadow-action-accent hover:border-ink hover:bg-ink lg:text-action ml-auto inline-flex items-center border-2 px-5 py-3 text-xs font-bold whitespace-nowrap text-white uppercase no-underline hover:text-white"
       href={memberSignupLink.href}
-      {...memberSignupLink.isExternal ? externalLinkAttributes : {}}
+      {...(memberSignupLink.isExternal ? externalLinkAttributes : {})}
       {...headerSignupAttributes}
     >
       {messages.cta_join_members({}, { locale })}
@@ -215,22 +207,18 @@ const headerSignupAttributes = analyticsActionAttributes({
       />
     </div>
     <details class="site-header__mobile-menu group relative ml-0 lg:hidden">
-      <summary
-        class="border-ink font-display tracking-label group-open:border-red group-open:bg-red block cursor-pointer list-none border-2 p-0 text-sm font-bold uppercase group-open:text-white"
-      >
-        <span
-          class="site-header__menu-toggle flex min-h-11 items-center gap-3 px-3 py-2"
-        >
-          <span class="site-header__menu-label"
-            >{messages.menu({}, { locale })}</span
-          >
-          <span class="site-header__menu-icon relative block" aria-hidden="true"
+      <summary class="border-ink font-display tracking-label group-open:border-red group-open:bg-red block cursor-pointer list-none border-2 p-0 text-sm font-bold uppercase group-open:text-white">
+        <span class="site-header__menu-toggle flex min-h-11 items-center gap-3 px-3 py-2">
+          <span class="site-header__menu-label">
+            {messages.menu({}, { locale })}
+          </span>
+          <span
+            class="site-header__menu-icon relative block"
+            aria-hidden="true"
           ></span>
         </span>
       </summary>
-      <div
-        class="site-header__mobile-panel border-ink shadow-action-lg absolute right-0 overflow-y-auto overscroll-contain border-2 bg-white p-5"
-      >
+      <div class="site-header__mobile-panel border-ink shadow-action-lg absolute right-0 overflow-y-auto overscroll-contain border-2 bg-white p-5">
         <nav
           class="grid gap-4"
           aria-label={messages.primary_navigation({}, { locale })}
@@ -248,47 +236,8 @@ const headerSignupAttributes = analyticsActionAttributes({
           >
             {messages.navigation_about({}, { locale })}
           </a>
-          {
-            schoolNavigationItems.length > 0 ? (
-              <div class="grid gap-1.5">
-                <a
-                  class:list={[
-                    "font-display hover:border-red hover:bg-stone hover:text-red flex min-h-11 items-center border-l-4 px-3 py-2 font-bold uppercase no-underline",
-                    schoolsNavigationActive
-                      ? "border-red bg-stone text-red"
-                      : "border-transparent",
-                  ]}
-                  href={schoolsPath}
-                  aria-current={schoolsHubActive ? "page" : undefined}
-                  {...schoolsNavAttributes}
-                >
-                  {messages.navigation_schools({}, { locale })}
-                </a>
-                <ul class="border-line m-0 grid list-none gap-1 border-l-2 pl-3">
-                  {schoolNavigationItems.map((item) => (
-                    <li>
-                      <a
-                        class:list={[
-                          "text-ink font-display tracking-display hover:bg-stone hover:text-red flex min-h-9 items-center px-3 py-1.5 text-xs font-bold uppercase no-underline",
-                          isSchoolDetailPath(item.href) && "bg-stone text-red",
-                        ]}
-                        href={item.href}
-                        aria-current={
-                          isSchoolDetailPath(item.href) ? "page" : undefined
-                        }
-                        {...analyticsActionAttributes({
-                          action: analyticsActions.navigate,
-                          area: analyticsAreas.headerNav,
-                          target: item.id,
-                        })}
-                      >
-                        {item.label}
-                      </a>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ) : (
+          {schoolNavigationItems.length > 0 ? (
+            <div class="grid gap-1.5">
               <a
                 class:list={[
                   "font-display hover:border-red hover:bg-stone hover:text-red flex min-h-11 items-center border-l-4 px-3 py-2 font-bold uppercase no-underline",
@@ -302,37 +251,70 @@ const headerSignupAttributes = analyticsActionAttributes({
               >
                 {messages.navigation_schools({}, { locale })}
               </a>
-            )
-          }
-          {
-            navigationItems.map((item) => (
-              <a
-                class:list={[
-                  "font-display hover:border-red hover:bg-stone hover:text-red flex min-h-11 items-center border-l-4 px-3 py-2 font-bold uppercase no-underline",
-                  isCurrentPath(item.href)
-                    ? "border-red bg-stone text-red"
-                    : "border-transparent",
-                ]}
-                href={item.href}
-                aria-current={isCurrentPath(item.href) ? "page" : undefined}
-                {...item.attributes}
-              >
-                {item.label}
-              </a>
-            ))
-          }
+              <ul class="border-line m-0 grid list-none gap-1 border-l-2 pl-3">
+                {schoolNavigationItems.map((item) => (
+                  <li>
+                    <a
+                      class:list={[
+                        "text-ink font-display tracking-display hover:bg-stone hover:text-red flex min-h-9 items-center px-3 py-1.5 text-xs font-bold uppercase no-underline",
+                        isSchoolDetailPath(item.href) && "bg-stone text-red",
+                      ]}
+                      href={item.href}
+                      aria-current={
+                        isSchoolDetailPath(item.href) ? "page" : undefined
+                      }
+                      {...analyticsActionAttributes({
+                        action: analyticsActions.navigate,
+                        area: analyticsAreas.headerNav,
+                        target: item.id,
+                      })}
+                    >
+                      {item.label}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : (
+            <a
+              class:list={[
+                "font-display hover:border-red hover:bg-stone hover:text-red flex min-h-11 items-center border-l-4 px-3 py-2 font-bold uppercase no-underline",
+                schoolsNavigationActive
+                  ? "border-red bg-stone text-red"
+                  : "border-transparent",
+              ]}
+              href={schoolsPath}
+              aria-current={schoolsHubActive ? "page" : undefined}
+              {...schoolsNavAttributes}
+            >
+              {messages.navigation_schools({}, { locale })}
+            </a>
+          )}
+          {navigationItems.map((item) => (
+            <a
+              class:list={[
+                "font-display hover:border-red hover:bg-stone hover:text-red flex min-h-11 items-center border-l-4 px-3 py-2 font-bold uppercase no-underline",
+                isCurrentPath(item.href)
+                  ? "border-red bg-stone text-red"
+                  : "border-transparent",
+              ]}
+              href={item.href}
+              aria-current={isCurrentPath(item.href) ? "page" : undefined}
+              {...item.attributes}
+            >
+              {item.label}
+            </a>
+          ))}
         </nav>
         <a
           class="border-red bg-red font-display tracking-display shadow-action hover:shadow-action-accent hover:border-ink hover:bg-ink mt-5 flex min-h-11 items-center justify-center border-2 px-4 py-3 font-bold text-white uppercase no-underline hover:text-white"
           href={memberSignupLink.href}
-          {...memberSignupLink.isExternal ? externalLinkAttributes : {}}
+          {...(memberSignupLink.isExternal ? externalLinkAttributes : {})}
           {...headerSignupAttributes}
         >
           {messages.cta_join_members({}, { locale })}
         </a>
-        <div
-          class="site-header__mobile-language border-line mt-5 border-t pt-4"
-        >
+        <div class="site-header__mobile-language border-line mt-5 border-t pt-4">
           <LanguageSelector
             localizedAlternatives={localizedAlternatives}
             locale={locale}
