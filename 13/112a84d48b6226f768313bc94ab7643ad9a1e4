@@ -1,0 +1,123 @@
+apps/web/src/components/ContactDataList.astro
+  s_8d20e05a01ae88::t_891554f74a4a07 42,48,53-76,78
+apps/web/src/components/DetailHero.astro
+  s_8d20e05a01ae88::t_8e58f2047fb45a 25-27,32,34,36-40,43,47
+apps/web/src/components/EditionDates.astro
+  s_8d20e05a01ae88::t_84b5a1cc44997c 17-22
+apps/web/src/components/ExternalLink.astro
+  s_8d20e05a01ae88::t_daa80a849c09ed 48
+apps/web/src/components/LanguageSelector.astro
+  s_8d20e05a01ae88::t_a948c1de1ea383 22-72
+apps/web/src/components/PageHeroMedia.astro
+  s_8d20e05a01ae88::t_caec87ac44d564 36-38,52-56
+apps/web/src/components/PageIntro.astro
+  s_8d20e05a01ae88::t_f8737457819466 28-36,39,42
+apps/web/src/components/PageSection.astro
+  s_8d20e05a01ae88::t_bd53b2ac179669 36-37,39-42
+apps/web/src/components/PreFooter.astro
+  s_8d20e05a01ae88::t_91d2124ee0f694 79,90-103,105-125,127-173,177,197,199,201-214,216-227,230-268
+apps/web/src/components/SiteFooter.astro
+  s_8d20e05a01ae88::t_6361ca8e9491f6 58,60,71,75-118,130,132-133,141-142,150-151,163-164,172-173,181-182,187
+apps/web/src/components/SiteHeader.astro
+  s_8d20e05a01ae88::t_39bb395ceeedf9 88-89,122-123,133,138-193,198,210-217,221,239-240,254-307,312,317
+apps/web/src/components/YoutubeEmbed.astro
+  s_8d20e05a01ae88::t_404930a5b4c9a6 27-28
+apps/web/src/components/about/AboutBoard.astro
+  s_8d20e05a01ae88::t_2980ee009be466 24,38-45,47-50
+apps/web/src/components/about/AboutStatutes.astro
+  s_8d20e05a01ae88::t_88803f98f53e7d 33-36,38-50
+apps/web/src/components/documents/DocumentEntry.astro
+  s_8d20e05a01ae88::t_8fe8c0bf0614cc 41-49,51,53,55-64,69-94
+apps/web/src/components/documents/DocumentGroup.astro
+  s_8d20e05a01ae88::t_592b6030b48dc3 25-27
+apps/web/src/components/documents/DocumentsDetail.astro
+  s_8d20e05a01ae88::t_38d3aa050008e8 32-46
+apps/web/src/components/events/EntityLinkIcon.astro
+  s_8d20e05a01ae88::t_80f7b7d8c4882d 11-74
+apps/web/src/components/events/EventDescription.astro
+  s_8d20e05a01ae88::t_ff6bc12fe63dbe 22-40,42-43,45-54,56-60
+apps/web/src/components/events/EventDetail.astro
+  s_8d20e05a01ae88::t_7eb3ffde296a3f 66-87
+apps/web/src/components/events/EventEntities.astro
+  s_8d20e05a01ae88::t_f499b8992e9802 29-62
+apps/web/src/components/events/EventHistory.astro
+  s_8d20e05a01ae88::t_baa8e8e68b0159 15-29
+apps/web/src/components/events/EventMonthlyCalendar.astro
+  s_8d20e05a01ae88::t_2c16bb64fcd5d8 49,54-61,65-86,88-114,123-194
+apps/web/src/components/events/EventPracticalIcon.astro
+  s_8d20e05a01ae88::t_cef20620ab59c0 10-48
+apps/web/src/components/events/EventPracticalInfo.astro
+  s_8d20e05a01ae88::t_92049e78dd2ced 23-59,63,65,68-74,77-81
+apps/web/src/components/events/EventRegistrationPanel.astro
+  s_8d20e05a01ae88::t_2c088df8585a43 26-36,38-41,43-44,46-53,56-82
+apps/web/src/components/events/EventResources.astro
+  s_8d20e05a01ae88::t_7bf235288be335 19-55
+apps/web/src/components/events/EventsHubActiveCard.astro
+  s_8d20e05a01ae88::t_b7176a7f07074a 41-46
+apps/web/src/components/events/EventsHubHistoryTable.astro
+  s_8d20e05a01ae88::t_ab2edac861ab06 49-74
+apps/web/src/components/events/HomepageEventCard.astro
+  s_8d20e05a01ae88::t_43e236186cb9cb 54-57,59-72,76-83,85,88-92,94-95
+apps/web/src/components/legal/LegalCookiesDetail.astro
+  s_8d20e05a01ae88::t_17fbc0a698eb64 62-66
+apps/web/src/components/legal/LegalNoticeDetail.astro
+  s_8d20e05a01ae88::t_9268a2d43da2f2 87,95,103,111,119-125,127-131
+apps/web/src/components/legal/LegalPrivacyDetail.astro
+  s_8d20e05a01ae88::t_0a2bd76a188543 109-115,117-121
+apps/web/src/components/members/MembersActionSection.astro
+  s_8d20e05a01ae88::t_e90dc58107da32 69-90
+apps/web/src/components/members/MembersBenefits.astro
+  s_8d20e05a01ae88::t_a42b6705cf06bc 37,49
+apps/web/src/components/members/MembersDirectory.astro
+  s_8d20e05a01ae88::t_62acf6a6845187 34-62,64-71,73-79
+apps/web/src/components/members/MembersVideo.astro
+  s_8d20e05a01ae88::t_3e179d2d1282ab 16-31
+apps/web/src/components/schools/SchoolGallery.astro
+  s_8d20e05a01ae88::t_b32b3dd7bea7fe 25-38,40-65
+apps/web/src/components/schools/SchoolHub.astro
+  s_8d20e05a01ae88::t_cc2a917f7f869e 60-69,91-130,132-136
+apps/web/src/components/schools/SchoolPracticalIcon.astro
+  s_8d20e05a01ae88::t_fc704b5b7774bd 12-102
+apps/web/src/components/schools/SchoolPressVideo.astro
+  s_8d20e05a01ae88::t_42575f1151006c 24-56
+apps/web/src/components/schools/SchoolPreviewAbout.astro
+  s_8d20e05a01ae88::t_1a193c0a351b06 44,46-49,56,58
+apps/web/src/components/schools/SchoolPreviewHero.astro
+  s_8d20e05a01ae88::t_ae7c92bda37eda 20,28,30,34-35,38,41
+apps/web/src/components/schools/SchoolPreviewPracticalInfo.astro
+  s_8d20e05a01ae88::t_0a1950e20ad8b6 52-67,69-84,86-88,90-102,104-116,118-122,124,126-133,135-137,139-141,143-153,156-200,202-229
+apps/web/src/components/schools/SchoolPreviewPrices.astro
+  s_8d20e05a01ae88::t_d50fae6c865c1a 27,33,36-40,45-48,50-60,62-67,69-87,89-93
+apps/web/src/components/schools/SchoolRegistration.astro
+  s_8d20e05a01ae88::t_62d3776a71ce9e 29,38,41,44-54
+apps/web/src/components/schools/SchoolVideo.astro
+  s_8d20e05a01ae88::t_4cddced5f1039c 20-33,35-49
+apps/web/src/layouts/PublicLayout.astro
+  s_8d20e05a01ae88::t_3eb51009722c45 83-96,102-111,116-118,125-127
+apps/web/src/pages/404.astro
+  s_8d20e05a01ae88::t_ecdc35bc646ef3 16,18,24-26,31-36
+apps/web/src/pages/[locale]/[domain]/[slug].astro
+  s_8d20e05a01ae88::t_6f54cb397ae55a 89-98
+apps/web/src/pages/[locale]/[domain]/index.astro
+  s_8d20e05a01ae88::t_ac1dcb152d3572 145-156,158-163,165-168,175,178,183,186-243
+apps/web/src/pages/[locale]/index.astro
+  s_8d20e05a01ae88::t_086cef2408ebd7 179-183,195,212,223-225,235-266,274-275,298,314-324
+apps/web/src/pages/index.astro
+  s_8d20e05a01ae88::t_388132ace15f5e 8-12
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "13112a84d48b6226f768313bc94ab7643ad9a1e4",
+  "prompts": {},
+  "sessions": {
+    "s_8d20e05a01ae88": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_f073aeb35ffehve0YIu3aXbvtX",
+        "model": "unknown"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
