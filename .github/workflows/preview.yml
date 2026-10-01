@@ -61,7 +61,6 @@ jobs:
     timeout-minutes: 60
     env:
       PR_NUMBER: ${{ needs.authorize.outputs.pull_number }}
-      GITHUB_SHA: ${{ needs.authorize.outputs.head_sha }}
       PUBLIC_SITE_ORIGIN: https://pr-${{ needs.authorize.outputs.pull_number }}.preview.mountainrunners.cat
     steps:
       - name: Check out pull request head
