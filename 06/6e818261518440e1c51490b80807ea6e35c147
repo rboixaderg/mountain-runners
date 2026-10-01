@@ -1,0 +1,121 @@
+.github/workflows/artifact.yml
+  s_8d20e05a01ae88::t_245aa0f82d20bb 24,58,98
+.github/workflows/codeql.yml
+  s_8d20e05a01ae88::t_fc3a6dfd37b653 25,30
+.github/workflows/preview-cleanup.yml
+  s_8d20e05a01ae88::t_641951c71ad4f3 1-41
+.github/workflows/preview.yml
+  s_8d20e05a01ae88::t_fae7802a3653f0 92-93,95-98,111-114,141
+.github/workflows/quality.yml
+  s_8d20e05a01ae88::t_1e033362d8456c 25,62
+AGENTS.md
+  s_8d20e05a01ae88::t_59b24d46b0adb0 85-97,109-110
+apps/web/.env.example
+  s_8d20e05a01ae88::t_e999db8f2f6578 3-4
+apps/web/e2e/preview.spec.ts
+  s_8d20e05a01ae88::t_6948c1e6976829 1-30
+apps/web/messages/ca.json
+  s_8d20e05a01ae88::t_26ca8585ffd8c0 225
+apps/web/messages/en.json
+  s_8d20e05a01ae88::t_83077938fcd0cd 225
+apps/web/messages/es.json
+  s_8d20e05a01ae88::t_24591787fbeb97 225
+apps/web/scripts/verify-i18n-output.mjs
+  s_8d20e05a01ae88::t_6064661f2ecec9 225-229
+apps/web/src/components/PreviewNotice.astro
+  s_8d20e05a01ae88::t_23d4fe78f4c7ab 1-14
+apps/web/src/layouts/PublicLayout.astro
+  s_8d20e05a01ae88::t_ca93eb067d0d2c 6,66,83-85,117-119,125
+apps/web/src/pages/robots.txt.ts
+  s_8d20e05a01ae88::t_f6057ef1cfe7b1 5-7
+docs/backlog.md
+  s_8d20e05a01ae88::t_cda99dd6fa4fcd 331-364
+docs/decisions/0009-pr-previews-same-domain-and-own-branches.md
+  s_8d20e05a01ae88::t_516437875cb6f4 38-40,77-98
+docs/decisions/0010-preview-caddy-acme-isolation.md
+  s_8d20e05a01ae88::t_67f75f3601adb1 1-68
+docs/deployment.md
+  s_8d20e05a01ae88::t_cd31b2f0cc460f 189-246,252-258,280-293,297-307,309-315
+docs/phase-6-t62-decisions.md
+  s_8d20e05a01ae88::t_0442c1aff7fe3b 18,95-111,117-118,124-128,154-155,157-158,164,203
+docs/roadmap.md
+  s_8d20e05a01ae88::t_d4f171be2095a3 305-306
+docs/runbook.md
+  s_8d20e05a01ae88::t_27e8292826a4ad 52-60,73-76,93,95-97,125-128,150-151,159,164-169,246-252,255,257-275,887-890,892-909,921-922,926-931,933,935-945,960-1054,1057-1058,1064-1069
+docs/specs/phase-6-pull-request-previews.md
+  s_8d20e05a01ae88::t_30495b21e10ca1 34-35,48-50,76-78,93-94,147,171-185,193,288-303,320-323,331-333,350-351,382,409-412,415-416
+docs/validation/phase-6-t64-local.md
+  s_8d20e05a01ae88::t_66d653d8ec6c73 1-90
+tools/deploy/deploy.test.mjs
+  s_8d20e05a01ae88::t_91fbdc238cefa5 573
+tools/deploy/ssh.mjs
+  s_8d20e05a01ae88::t_66250962e85002 72,83
+tools/preview/publish-operations.mjs
+  s_8d20e05a01ae88::t_5f0b3066897ab1 14-15,146-148,165-214,279-280,282-283,319-377
+tools/preview/publish.mjs
+  s_8d20e05a01ae88::t_ff59a359422cc6 22,73-77,87-95
+tools/preview/publish.test.mjs
+  s_8d20e05a01ae88::t_16400a534fe228 15,28,32,40,50,57,61,119-136,175-177,183-192,196-197,201-394,405,431-436,450-454,564-566,569,580-600,606-705
+tools/preview/reconcile.mjs
+  s_8d20e05a01ae88::t_37588ad7627ee3 1-117
+tools/preview/reconcile.test.mjs
+  s_8d20e05a01ae88::t_051d05344df441 1-201
+tools/preview/smoke.mjs
+  s_8d20e05a01ae88::t_5cf5909e84951e 1-45
+tools/preview/smoke.test.mjs
+  s_8d20e05a01ae88::t_40a3a4eb22e766 1-50
+tools/server/bootstrap/bootstrap.sh
+  s_8d20e05a01ae88::t_a3f3298a3bb7f2 137-142,209-213,267-268,299-305,308,310-329,363-371
+tools/server/caddy/Caddyfile
+  s_8d20e05a01ae88::t_ee751354ed91c8 118-121
+tools/server/caddy/preview-robots/robots.txt
+  s_8d20e05a01ae88::t_a28f43a5805ede 1-2
+tools/server/preview/authorization-proof.mjs
+  s_8d20e05a01ae88::t_5140c72e11b5e5 1-42
+tools/server/preview/commands/mountain-preview/capacity.mjs
+  s_8d20e05a01ae88::t_e5221d2c3f330e 1-67
+tools/server/preview/commands/mountain-preview/cli.mjs
+  s_8d20e05a01ae88::t_aa6bec77f2bc61 5-9,11-15,17-20,23,25-30,41-43,47-48,53-62,91-99,144-165,190-201,203-214,216-231,235-239,256-269,272-286,289-291
+tools/server/preview/commands/mountain-preview/inventory.mjs
+  s_8d20e05a01ae88::t_56feaf4e493ad0 1-54
+tools/server/preview/commands/mountain-preview/prune.mjs
+  s_8d20e05a01ae88::t_15fbf9eb3aa1bd 1-38
+tools/server/preview/commands/mountain-preview/retire.mjs
+  s_8d20e05a01ae88::t_59e7b0cfb0186a 1-51
+tools/server/preview/commands/mountain-preview/site-request.mjs
+  s_8d20e05a01ae88::t_d1c7cbfe83e0ca 1-33
+tools/server/preview/gate.test.mjs
+  s_8d20e05a01ae88::t_2d0c9caa764c83 9-11,20,39-40,43,48,67-70,72,85,91-103,111-117,125,236,261-633,639-643,659-665,672-697,727-786,809-839,857,1092,1142,1158
+tools/server/preview/processes/mountain-preview-site/caddy-fragment.mjs
+  s_8d20e05a01ae88::t_9025881112228e 1-65
+tools/server/preview/processes/mountain-preview-site/caddy.mjs
+  s_8d20e05a01ae88::t_2d47e2f04189b0 1-89
+tools/server/preview/processes/mountain-preview-site/main.mjs
+  s_8d20e05a01ae88::t_a6d7526029f8e7 1-161
+tools/server/preview/processes/preview-authorization/main.mjs
+  s_8d20e05a01ae88::t_50e925b48f7ac0 1-36
+tools/server/preview/site-manager.test.mjs
+  s_8d20e05a01ae88::t_56c6f60227e8c1 1-209
+tools/server/preview/test-authorization.mjs
+  s_8d20e05a01ae88::t_049b0ef80d8d09 1-55
+tools/server/systemd/caddy-mountain-runners.conf
+  s_8d20e05a01ae88::t_eb38c6dff8e928 6
+tools/server/systemd/mountain-preview-site.service
+  s_8d20e05a01ae88::t_e2360365771f68 1-19
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "066e818261518440e1c51490b80807ea6e35c147",
+  "prompts": {},
+  "sessions": {
+    "s_8d20e05a01ae88": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_f073aeb35ffehve0YIu3aXbvtX",
+        "model": "unknown"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
