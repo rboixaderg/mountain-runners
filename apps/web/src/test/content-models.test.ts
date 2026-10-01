@@ -244,4 +244,36 @@ describe("editorial collection schemas", () => {
       }).success,
     ).toBe(false);
   });
+
+  it("accepts a 3Cat press video and rejects other watch URLs", async () => {
+    const school = await parseFixture(
+      fixturePaths.schools,
+      collectionSchemas.schools,
+    );
+    const pressVideo = school.pressVideo;
+
+    expect(pressVideo?.publishedOn).toBe("2026-09-17");
+    expect(pressVideo?.url).toBe(
+      "https://www.3cat.cat/3cat/passio-pel-trail-a-lescola-mountain-runners-del-bergueda/video/6425700/",
+    );
+
+    expect(
+      collectionSchemas.schools.safeParse({
+        ...school,
+        pressVideo: {
+          ...pressVideo,
+          url: "https://www.youtube.com/watch?v=SSaismIBl_8",
+        },
+      }).success,
+    ).toBe(false);
+    expect(
+      collectionSchemas.schools.safeParse({
+        ...school,
+        pressVideo: {
+          ...pressVideo,
+          url: "https://www.3cat.cat/3cat/video/6425700/embed/",
+        },
+      }).success,
+    ).toBe(false);
+  });
 });

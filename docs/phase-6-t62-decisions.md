@@ -15,7 +15,7 @@ publicació restringida a branques pròpies.
 Les decisions d'aquest document estan confirmades amb la persona mantenidora en
 conversa directa el 13 de setembre de 2026. La prova de foc VR-01 és una acció
 remota que requereix l'aprovació i l'execució de la persona mantenidora quan el
-procés Caddy de previews estigui provisionat (inici de la T6.4); el registre
+bloc Caddy de previews estigui preparat (T6.4); el registre
 wildcard VR-02 ja està executat i signat el mateix dia. Aquesta decisió no
 implementa el publicador (T6.3), no crea cap compte ni zona i no migra la zona
 de producció.
@@ -92,30 +92,40 @@ de producció.
 
 ### Servidor I Separació De Fallades (RQ-16, AM-09)
 
-- **Un sol procés Caddy al VPS actual**, amb blocs de servidor separats per a
-  producció i previews, **emmagatzematge ACME separat** per a les previews i
-  **directoris de logs propis**. Cap recàrrega de previews toca els blocs de
-  producció, i cada recàrrega passa `caddy validate` abans d'aplicar-se.
-- El risc compartit del procés queda escrit: un crash o un reload fallat
-  afectaria tots dos serveis. La mitigació és la validació prèvia de
-  configuració i la disciplina de blocs separats, tal com demanava la T6.1
-  ("config i proves, no bones intencions"); la T6.5 prova aquesta separació.
+- **Esmena T6.4, ADR 0010:** un sol procés Caddy al VPS actual, amb blocs de
+  servidor separats per a producció i previews, **magatzem ACME compartit**
+  (opció global de Caddy) i **registres d'accés separats**; els errors del procés
+  compartit continuen al registre global. L'usuari `preview-deploy` no té
+  accés al magatzem ACME. Cap canvi de preview no pot editar
+  els blocs de producció, però aplicar-lo reinicia el procés compartit:
+  `caddy validate` del Caddyfile complet precedeix el reinici i després es
+  comprova producció. No hi ha aïllament de fallades del procés ni d'ACME.
+  El procés `mountain-preview-site` de la T6.4 s'executa com a `root`, només
+  genera noms d'origen a partir de números de PR i no accepta directives de la
+  PR.
+- El risc compartit queda acceptat per simplicitat i cost zero: una caiguda de
+  Caddy, un reinici fallat o un problema de l'estat ACME podria interrompre
+  producció.
+  La T6.5 prova la validació prèvia, la recuperació i la salut de producció;
+  si troba una interrupció causada pels previews, se n'atura l'activació i
+  es revisa l'arquitectura abans de continuar.
 - **Escalada documentada, no adoptada**: si la T6.5 demostra que el risc
   compartit és real, la via d'escala és un segon procés Caddy escoltant a una
   **Floating IPv4 (3,00 €/mes)**, o un segon servidor Cloud petit. No es paga
   aquest aïllament per avançat.
 - **Comparativa tancada.** Allotjament de previews al mateix VPS d'Hetzner amb
-  separació de blocs i d'emmagatzematge ACME; proxy extern, túnel o segon
-  allotjament: descartats per dependència i cost (RQ-17, AM-10).
+  separació de blocs i de logs, però no d'emmagatzematge ACME; proxy extern,
+  túnel o segon allotjament: descartats per dependència i cost (RQ-17, AM-10).
 
 ### Visibilitat I Autenticació (RQ-12, AM-11, VR-07)
 
 - **Visibilitat pública per defecte**, sense autenticació. Les previews només
   existeixen per a branques del repositori principal amb autorització explícita
-  per SHA (RQ-10, RQ-11), la marca de no-producció és servida per la capa de
-  confiança (RQ-05) i la retirada d'una preview abusiva és immediata via
-  revocació del publicador. Aquestes capes responen a AM-11 sense pagar la
-  dependència d'un sistema d'accés extern (ALT-E queda descartada).
+  per al commit vigent de la PR, identificat pel seu SHA (RQ-10, RQ-11). La
+  marca de no-producció és part del build (esmena de l'ADR 0009 a la T6.4) i
+  la retirada d'una preview abusiva és immediata via revocació del publicador.
+  Aquests controls responen a AM-11 sense la dependència d'un sistema d'accés
+  extern (ALT-E queda descartada).
 - Criteri escrit de VR-07: la visibilitat restringida per defecte esdevé
   **obligatòria** si els forks obtenen previews (cosa que exigiria revisar
   l'ADR 0009 amb un ADR nou) o si una preview pública genera un incident de
@@ -141,14 +151,17 @@ de producció.
 | Servidor (mateix VPS, espai disc i memòria propis de previews) | 0 €/mes afegit; el marge el confirma la T6.4                     |
 | Escalada possible: Floating IPv4                               | 3,00 €/mes només si la T6.5 ho demana                            |
 
-Dependència nova: **cap**. Cap compte, cap zona i cap credencial nous; els
+Dependència DNS/TLS nova a la T6.2: **cap**. Cap compte, cap zona ni credencial
+DNS nous; els
 registres de previews viuen a la zona d'Hostinger que el projecte ja custodia.
+La T6.4 afegeix una clau de signatura per separar l'autorització de la clau
+SSH de publicació (ADR 0010); no dona accés al DNS ni a producció.
 El pla de sortida és eliminar el registre wildcard `*.preview` del hPanel i
 tornar a servir les previews (o no servir-les) sense cap rastre.
 
 ### Credencial I Verificació De Producció (AM-04)
 
-- Cap secret nou. Cap credencial DNS de previews existeix: cap token ni API del
+- Cap secret DNS nou. Cap credencial DNS de previews existeix: cap token ni API del
   registrador viu al repositori, al CI, al servidor o al magatzem de secrets.
 - L'únic accés d'escriptura sobre els registres de previews és el hPanel de la
   persona mantenidora, que ja és l'accés de producció existent i no forma part
@@ -187,7 +200,7 @@ tornar a servir les previews (o no servir-les) sense cap rastre.
 | VR-07 | Criteri de visibilitat restringida obligatòria escrit; procediment de retirada ràpida definit per la T6.4                                                   | Persona mantenidora | Parcial   |
 
 VR-01 s'executa amb aprovació explícita de la persona mantenidora quan el
-procés Caddy de previews estigui provisionat, abans que la T6.3 activi cap
+bloc Caddy de previews estigui preparat, abans d'activar cap
 publicació. VR-02 està executada i confirmada (vegeu la comprovació al final
 del document). VR-03 queda
 com a propietat permanent del disseny i es revalida a les validacions de la

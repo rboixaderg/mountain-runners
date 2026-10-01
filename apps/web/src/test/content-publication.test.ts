@@ -388,6 +388,14 @@ describe("publication catalog", () => {
     expect(variantKeys(source)).toContain("school:ca:escola-trail");
   });
 
+  it("keeps a school published when a press video title lacks a translation", async () => {
+    const source = await loadSource();
+    const trailSchool = source.schools.find(({ id }) => id === "trail-school")!;
+    delete trailSchool.pressVideo?.title.en;
+
+    expect(variantKeys(source)).toContain("school:en:trail-school");
+  });
+
   it("does not publish a school with an external image resource", async () => {
     const source = await loadSource();
     const trailSchool = source.schools.find(({ id }) => id === "trail-school")!;

@@ -328,6 +328,67 @@ mantenir el catàleg actualitzat.
 
 **Seguiment:** pendent de triatge.
 
+### Avaluar Notícies, Blog I Estructures Editorials Reutilitzables
+
+**Estat:** Capturada.
+
+**Problema:** la web no té un espai per publicar notícies del club ni articles
+editorials de format blog. Sense una estructura compartida, aquests continguts
+podrien variar de format i requerir més feina manual per preparar-los i
+publicar-los.
+
+**Resultat esperat:** decidir si convé crear apartats de notícies i de blog i,
+si escau, definir estructures editorials via skills o plantilles que permetin
+crear continguts amb un format consistent i agilitzin la seva preparació.
+
+**Abans de planificar-ho cal definir:**
+
+- la diferència d'ús entre notícies i articles de blog, i si necessiten apartats,
+  pàgines de detall o fluxos de publicació diferenciats;
+- quins camps, seccions i recursos són comuns i quins varien entre els dos tipus
+  de contingut, incloent-hi autoria, dates, imatges i enllaços relacionats;
+- com es mantenen una estructura i uns criteris editorials consistents sense
+  restringir innecessàriament la varietat dels continguts;
+- si les estructures reutilitzables han de ser skills, plantilles editorials o
+  totes dues, on viurien i qui les mantindria;
+- l'encaix amb el model de contingut i la publicació multilingüe actuals, la
+  navegació i el sistema visual del lloc;
+- qui proposa, revisa i valida els continguts, i quines comprovacions de qualitat
+  editorial, accessibilitat i publicació caldrien.
+
+**Dependències:** validar la necessitat editorial amb el club i revisar el
+contracte actual de contingut, les eines editorials disponibles i les
+convencions de skills del repositori.
+
+**Seguiment:** pendent de triatge.
+
+### Enllaços Directes A Les Seccions De La Web
+
+**Estat:** Capturada.
+
+**Problema:** no totes les seccions de contingut de la web es poden compartir o
+obrir directament amb un enllaç propi. Per exemple, cal poder enllaçar la secció
+de col·laboradors de la pàgina de socis.
+
+**Resultat esperat:** poder obrir i compartir una URL que porti directament a
+cadascuna de les seccions de contingut de les pàgines públiques, per exemple
+`/ca/socis/#collaboradors`.
+
+**Abans de planificar-ho cal definir:**
+
+- quines seccions i rutes públiques entren a l'abast;
+- el contracte dels identificadors de fragment i si es mantenen coherents entre
+  idiomes;
+- com es descobreixen i es copien els enllaços, inclosa l'accessibilitat dels
+  controls;
+- com es comproven els fragments, les destinacions i el desplaçament a la secció
+  objectiu en totes les variants publicades.
+
+**Dependències:** inventari de les seccions de contingut i decisió sobre el
+comportament dels enllaços directes.
+
+**Seguiment:** pendent de triatge.
+
 ### Revisar El Directori De Col·laboradors
 
 **Estat:** Capturada.

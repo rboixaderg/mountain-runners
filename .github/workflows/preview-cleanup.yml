@@ -1,0 +1,41 @@
+name: Preview cleanup
+
+# Only trusted main code runs; pull_request_target is used solely for the
+# closed event metadata. No PR checkout, scripts or user-provided commands.
+on:
+  schedule:
+    - cron: "17 * * * *"
+  workflow_dispatch:
+  pull_request_target:
+    types: [closed, labeled]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  reconcile:
+    if: github.repository == 'rboixaderg/mountain-runners' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: previews
+    concurrency:
+      group: previews
+      cancel-in-progress: false
+    steps:
+      - name: Check out trusted main
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: main
+          persist-credentials: false
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      - name: Reconcile previews
+        env:
+          PREVIEW_HOST: ${{ vars.PREVIEW_HOST }}
+          PREVIEW_DEPLOY_USER: ${{ vars.PREVIEW_DEPLOY_USER }}
+          PREVIEW_SSH_PRIVATE_KEY: ${{ secrets.PREVIEW_SSH_PRIVATE_KEY }}
+          PREVIEW_KNOWN_HOSTS: ${{ secrets.PREVIEW_KNOWN_HOSTS }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: node tools/preview/reconcile.mjs
