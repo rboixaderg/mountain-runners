@@ -1,0 +1,25 @@
+docs/deployment.md
+  s_b1b221cd346ddf::t_cac771d975e8c6 267-269
+tools/preview/build-artifact.mjs
+  s_b1b221cd346ddf::t_c25325d2956aea 16-18,22,59
+tools/release/packaging.mjs
+  s_b1b221cd346ddf::t_f4310d328a3fa9 53-56
+tools/server/preview/gate.test.mjs
+  s_b1b221cd346ddf::t_99e4b2e9dfe4e9 1205-1206
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "b19dc717926839e0a48032764188f8418ddcc548",
+  "prompts": {},
+  "sessions": {
+    "s_b1b221cd346ddf": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "6f440222-0f3d-4548-8914-b1228c6fea69",
+        "model": "unknown"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
