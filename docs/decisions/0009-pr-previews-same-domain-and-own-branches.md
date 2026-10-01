@@ -35,6 +35,9 @@ compensatoris permanents, que formen part del contracte de la web pública:
 - La identificació inequívoca de no-producció es serveix des de la capa de
   confiança i no pot ser ocultada pel contingut de la PR.
 
+La garantia de l'últim punt queda substituïda per l'esmena T6.4 sobre l'avís de
+preview, més avall.
+
 La T6.2 decideix DNS i TLS dins d'aquesta frontera i ja no compara domini
 registrable separat ni serveis externs de previews. Si el projecte necessités
 previews de forks o cookies a producció, aquesta decisió s'ha de revisar amb un
@@ -70,6 +73,28 @@ qualsevol token d'API és de compte sencer i violaria AM-04.
 
 La resta de l'ADR no canvia: mateix domini registrable, publicació només a
 branques pròpies i controls compensatoris.
+
+## Esmena (T6.4, 27 de setembre de 2026): identificació visual
+
+La decisió inicial preveia que l'avís que identifica la web com una preview es
+mostrés d'una manera que el codi de la PR no pogués eliminar ni amagar
+(mitjançant un mecanisme gestionat fora de la PR, en la infraestructura que
+publica la preview). La persona mantenidora renuncia a aquesta garantia i opta
+per incloure l'avís a la web només quan es compila amb `PUBLIC_PREVIEW=true`.
+Com que l'avís forma part de la web generada amb el codi de la PR, qui modifiqui
+la PR pot eliminar-lo o amagar-lo amb CSS o JavaScript. Caddy continua imposant
+les capçaleres de seguretat i les instruccions per als cercadors, però no pot
+garantir que l'avís sigui visible.
+
+Les instruccions als agents tampoc no impedeixen que una persona malintencionada
+amagui l'avís. La persona mantenidora accepta el risc de confusió o suplantació
+per simplificar el sistema. Només es publiquen previews de branques del
+repositori principal quan una persona amb permisos ho demana mitjançant
+`/preview` o una execució manual. El sistema vincula la petició al commit vigent
+de la PR i comprova que no hagi canviat abans de publicar-lo. Les previews es
+retiren quan la PR es tanca o es revoca, i la reconciliació periòdica detecta les
+que hagin quedat actives. Si es detecta un abús, es desactiven les previews i es
+revisa la decisió abans de tornar-les a activar.
 
 ## Raonament
 

@@ -302,8 +302,8 @@ són realment necessaris.
   producció ni execució de codi de la PR en el context privilegiat.
 - Publicar cada preview en un origen aïllat, amb `noindex`, expiració, revocació
   i neteja d'orfes.
-- Garantir que una fallada dels previews o del proveïdor escollit no afecta
-  producció.
+- Provar que les fallades simulades dels previews no afecten producció i
+  documentar el risc residual del procés Caddy i l'ACME compartits (ADR 0010).
 
 **Criteris de tancament:**
 

@@ -222,7 +222,11 @@ if (
 }
 const robots = await readFile(join(distPath, "robots.txt"), "utf8");
 const sitemapDirective = `Sitemap: ${new URL("/sitemap.xml", publicSiteOrigin)}`;
-if (!robots.split("\n").includes(sitemapDirective)) {
+if (process.env.PUBLIC_PREVIEW === "true") {
+  if (robots !== "User-agent: *\nDisallow: /\n") {
+    throw new Error("Preview robots output must disallow crawling.");
+  }
+} else if (!robots.split("\n").includes(sitemapDirective)) {
   throw new Error("Robots output does not declare the canonical sitemap URL.");
 }
 await readFile(join(distPath, expectedPublishedResource));

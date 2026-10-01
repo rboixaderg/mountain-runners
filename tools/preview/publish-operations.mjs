@@ -11,6 +11,8 @@
 
 import { loadVerifiedArtifact } from "../deploy/artifact.mjs";
 import { RemoteCommandError } from "../deploy/ssh.mjs";
+import { verifyPreviewSite } from "./smoke.mjs";
+import { signPreviewAuthorization } from "../server/preview/authorization-proof.mjs";
 import {
   assertPreviewManifestConsistency,
   previewOrigin,
@@ -141,6 +143,9 @@ export async function resolvePullRequestState({
       `Pull request ${pullNumber} is ${pullRequest.state}; only an open pull request can be published.`,
     );
   }
+  if (pullRequest.labels?.some((label) => label.name === "preview-revoked")) {
+    throw new Error(`Pull request ${pullNumber} has a revoked preview.`);
+  }
   if (pullRequest.head?.repo?.full_name !== repository) {
     throw new Error(
       "The pull request head repository is not this repository; forks have no previews.",
@@ -154,6 +159,56 @@ function assertPullRequestUnchanged(previous, current) {
     throw new Error(
       `Refusing to activate a moved pull request: the head changed from ${previous.headSha} to ${current.headSha}.`,
     );
+  }
+}
+
+const previewCommentMarker = "<!-- mountain-runners-preview -->";
+
+// Only update a comment authored by this workflow's GitHub Actions bot.
+// Neither the PR title nor any other PR-controlled text enters the comment.
+export async function commentOnPublishedPreview({
+  repository,
+  apiUrl,
+  token,
+  pullNumber,
+  headSha,
+  origin,
+  fetchImpl = fetch,
+}) {
+  const base = `${apiBaseUrl(apiUrl)}/repos/${repository}`;
+  const body = `${previewCommentMarker}\nPreview publicada: ${origin}\nCommit: \`${headSha}\`.`;
+  let existingComment;
+  for (let page = 1; ; page += 1) {
+    const response = await fetchImpl(
+      `${base}/issues/${pullNumber}/comments?per_page=100&page=${page}`,
+      { headers: apiHeaders(token) },
+    );
+    if (!response.ok) {
+      throw new Error(
+        `Cannot list preview comments (HTTP ${response.status}).`,
+      );
+    }
+    const comments = await response.json();
+    existingComment = comments.find(
+      (comment) =>
+        comment.user?.login === "github-actions[bot]" &&
+        comment.body?.includes(previewCommentMarker),
+    );
+    if (existingComment || comments.length < 100) break;
+  }
+
+  const response = await fetchImpl(
+    existingComment
+      ? `${base}/issues/comments/${existingComment.id}`
+      : `${base}/issues/${pullNumber}/comments`,
+    {
+      method: existingComment ? "PATCH" : "POST",
+      headers: { ...apiHeaders(token), "Content-Type": "application/json" },
+      body: JSON.stringify({ body }),
+    },
+  );
+  if (!response.ok) {
+    throw new Error(`Cannot write preview comment (HTTP ${response.status}).`);
   }
 }
 
@@ -221,7 +276,11 @@ export async function publishPreview({
   resolvePullRequestState,
   revalidateCommentAuthorization,
   revalidateDispatchAuthorization,
+  authorizedBy,
+  authorizationPrivateKey,
   transport,
+  verifyPreview = verifyPreviewSite,
+  onPublished,
 }) {
   const pullRequest = await resolvePullRequestState();
   const artifact = await loadVerifiedArtifact(artifactDirectory, {
@@ -257,11 +316,65 @@ export async function publishPreview({
   await revalidateCommentAuthorization?.();
   await revalidateDispatchAuthorization?.();
 
-  await activatePreviewRelease(transport, pullNumber, pullRequest.headSha);
-  const health = await transport.run(`mountain-preview health ${pullNumber}`);
-  if (!health.startsWith("Health: OK")) {
-    throw new Error(health);
+  const authorization = {
+    pullRequestNumber: pullNumber,
+    commit: pullRequest.headSha,
+    actor: authorizedBy,
+    issuedAt: Date.now(),
+  };
+  await transport.run(
+    `mountain-preview authorize ${pullNumber} ${pullRequest.headSha} ${authorizedBy}`,
+    JSON.stringify({
+      issuedAt: authorization.issuedAt,
+      signature: signPreviewAuthorization(
+        authorization,
+        authorizationPrivateKey,
+      ),
+    }),
+  );
+  const previousList = await transport.run(
+    `mountain-preview list ${pullNumber}`,
+  );
+  const previousCommit = /^active\s+([0-9a-f]{40})/mu.exec(previousList)?.[1];
+  await transport.run(`mountain-preview site-enable ${pullNumber}`);
+  let activated = false;
+  try {
+    const beforeActivation = await resolvePullRequestState();
+    assertPullRequestUnchanged(pullRequest, beforeActivation);
+    await revalidateCommentAuthorization?.();
+    await revalidateDispatchAuthorization?.();
+    await activatePreviewRelease(transport, pullNumber, pullRequest.headSha);
+    activated = true;
+    const health = await transport.run(`mountain-preview health ${pullNumber}`);
+    if (!health.startsWith("Health: OK")) throw new Error(health);
+    await verifyPreview(previewOrigin(pullNumber));
+  } catch (error) {
+    if (activated && previousCommit && previousCommit !== pullRequest.headSha) {
+      await transport.run(
+        `mountain-preview activate ${pullNumber} ${previousCommit}`,
+      );
+    } else if (!previousCommit) {
+      await transport.run(`mountain-preview retire ${pullNumber}`);
+      await transport.run(`mountain-preview site-disable ${pullNumber}`);
+    }
+    throw error;
   }
-
+  try {
+    await transport.run(`mountain-preview prune ${pullNumber}`);
+  } catch (error) {
+    console.warn(
+      `Preview ${pullNumber} is published but prune failed: ${error.message}`,
+    );
+  }
+  if (onPublished) {
+    const current = await resolvePullRequestState();
+    assertPullRequestUnchanged(pullRequest, current);
+    await revalidateCommentAuthorization?.();
+    await revalidateDispatchAuthorization?.();
+    await onPublished({
+      origin: previewOrigin(pullNumber),
+      headSha: pullRequest.headSha,
+    });
+  }
   return `Published preview ${previewOrigin(pullNumber)} at commit ${pullRequest.headSha}.`;
 }

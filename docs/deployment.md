@@ -186,17 +186,76 @@ pròpies, cap segon domini ni servei extern) i de la decisió T6.2
 ([`docs/phase-6-t62-decisions.md`](phase-6-t62-decisions.md)): cap credencial
 DNS, certificats individuals HTTP-01, un procés Caddy amb blocs separats.
 
+### Noms del flux de previews
+
+Cada programa executable té una carpeta pròpia. Els mòduls compartits queden
+a `tools/server/preview/`:
+
+```text
+tools/server/preview/
+├── config.mjs                 # Directoris i origen de cada PR
+├── authorization-proof.mjs    # Contracte de signatures compartit
+├── commands/mountain-preview/
+│   ├── cli.mjs                # Comanda SSH/CLI
+│   ├── site-request.mjs       # Peticions al procés de previews
+│   ├── capacity.mjs           # Límit de previews simultànies
+│   ├── inventory.mjs          # Inventari de PR publicades
+│   ├── prune.mjs              # Neteja de versions inactives
+│   └── retire.mjs             # Retirada d'una PR
+└── processes/
+    ├── mountain-preview-site/
+    │   ├── main.mjs           # Procés persistent, engegat per systemd
+    │   ├── caddy.mjs          # Canvis a la configuració de Caddy
+    │   └── caddy-fragment.mjs # Plantilla dels subdominis de PR
+    └── preview-authorization/
+        └── main.mjs           # Procés fill breu que escriu l'autorització
+```
+
+### Ordres de `mountain-preview`
+
+El nom de cada ordre descriu el seu efecte. Les de consulta són pures: no
+creen directoris, no prenen el bloqueig de capacitat i no esborren res.
+
+| Ordre                                | Consulta o escriptura | Efecte                                                 |
+| ------------------------------------ | --------------------- | ------------------------------------------------------ |
+| `inventory`                          | Consulta              | Llista els orígens per reconciliar; `[]` si no n'hi ha |
+| `list <n>` / `health <n>`            | Consulta              | Registre i salut del namespace; no el creen            |
+| `receive/install/authorize/activate` | Escriptura            | Publicació al namespace assignat                       |
+| `retire <n>` / `prune <n>`           | Escriptura            | Retirada i poda per PR                                 |
+| `cleanup-retired`                    | Escriptura            | Elimina directoris de retirades interrompudes          |
+| `site-enable/site-disable <n>`       | Escriptura            | Activa o retira un origen a Caddy                      |
+| `site-reconcile`                     | Escriptura            | Elimina blocs Caddy sense `current` i reinicia Caddy   |
+
+| Nom                                     | Què és                                                                                                                                                                                                                       |
+| --------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `preview-deploy`                        | Usuari restringit del VPS compartit per totes les previews. Escriu als seus directoris, sense accés a les releases de producció ni a la configuració de Caddy.                                                               |
+| `mountain-preview` / `preview-ssh-gate` | El mateix programa invocat amb dos noms: comanda per operar previews i comanda forçada quan s'hi accedeix per SSH. Valida cada petició.                                                                                      |
+| `mountain-preview-site`                 | Procés local del VPS, engegat per `systemd` com a `root`. Rep peticions de `mountain-preview` per un socket Unix (canal local entre processos), verifica les signatures d'autorització i aplica els canvis permesos a Caddy. |
+| `preview-authorization`                 | Procés fill temporal engegat per `mountain-preview-site` després de verificar la signatura. Escriu l'autorització com a `preview-deploy`.                                                                                    |
+| `pr-<n>`                                | Directori de dades d'una PR, també anomenat _namespace_, amb les seves versions i el registre d'autoritzacions. No és un usuari ni un aïllament del sistema operatiu.                                                        |
+| _Release_                               | Versió de la web instal·lada al directori d'una PR; només una és activa en cada moment.                                                                                                                                      |
+| SHA del commit                          | Identificador del commit vigent de la PR. La petició de publicació es vincula a aquest commit, no a tots els futurs canvis de la PR.                                                                                         |
+| _Workflow_ / _job_                      | Automatització de GitHub Actions / una de les seves etapes, com `authorize`, `build` o `publish`.                                                                                                                            |
+
+Una **comanda forçada** és una regla de la clau SSH. Encara que el client demani
+`mountain-preview receive 130 ...`, el servidor executa sempre
+`preview-ssh-gate`, no la petició directament. Aquest programa llegeix la
+petició original, comprova que sigui una operació admesa i tria el directori de
+la PR indicada. Rebutja ordres arbitràries i no obre cap terminal. La regla
+limita què es pot demanar per SSH, però **no lliga la clau a una sola PR**.
+
 ### Un sol workflow, disparat sota demanda
 
 Res no es construeix ni es publica perquè s'obri o s'actualitzi una PR. El
 workflow `Preview` (`.github/workflows/preview.yml`) s'activa només amb un
 **comentari a la PR amb el text exacte `/preview`** d'una persona
-col·laboradora (verificat via API — aquesta és l'autorització explícita per
-SHA), o amb un `workflow_dispatch` amb el número de PR. L'entorn GitHub
-`previews` només separa els secrets `PREVIEW_*` de producció; no té required
-reviewers. El risc residual acceptat i escrit: qualsevol col·laboradora pot
-sol·licitar la publicació d'una PR pròpia; el sistema rebutja forks, PRs
-tancades i caps mouments. El flux té tres jobs amb fronteres explícites:
+col·laboradora (verificada via API), o amb un `workflow_dispatch` amb el número
+de PR. El job `authorize` vincula la petició al commit que encapçala la PR,
+identificat pel seu SHA. L'entorn GitHub `previews` separa els secrets
+`PREVIEW_*` dels de producció, però no exigeix revisors abans d'executar-se.
+Qualsevol col·laboradora pot demanar una preview d'una PR del repositori
+principal; el sistema rebutja forks, PR tancades i commits que hagin canviat
+abans de publicar. El flux té tres jobs amb fronteres explícites:
 
 1. **`authorize`** (codi de confiança des de la branca per defecte):
    `tools/preview/resolve-publish.mjs` comprova el comentari i l'autor,
@@ -218,21 +277,42 @@ tancades i caps mouments. El flux té tres jobs amb fronteres explícites:
    `receive`, instal·la, revalida que la PR continua oberta i al mateix head
    SHA i que continua vigent l'autorització (col·laboradora per a `/preview` o
    permís d'escriptura per a `workflow_dispatch`) immediatament abans d'activar;
-   activa el namespace de la PR i en comprova la salut. Mai no fa checkout ni
-   executa codi de la PR.
+   signa l'autorització amb `PREVIEW_AUTH_PRIVATE_KEY` (absent del build) i
+   l'envia per l'entrada estàndard al procés `mountain-preview-site`, que
+   verifica la signatura amb la clau pública del VPS abans de registrar
+   l'autorització. Després demana el bloc Caddy, torna a comprovar la PR i
+   l'autorització abans d'activar, comprova TLS, capçaleres i salut, i neteja les
+   releases anteriors. Mai no fa checkout ni executa codi de la PR.
+
+Quan el smoke de la preview passa, `publish` torna a validar l'estat, el SHA i
+l'autorització de la PR. Amb el permís `pull-requests: write`, exclusiu d'aquest
+job, crea o actualitza un únic comentari propi amb l'URL i el SHA activats. Cerca
+el marcador fix només als comentaris de `github-actions[bot]`; mai no modifica
+comentaris d'altres persones. Si l'activació o el smoke fallen, no comenta res.
+Un error en escriure el comentari fa fallar el job, però no desfà una preview que
+ja està activa: cal comprovar-ne l'estat abans de reexecutar-lo.
 
 ### Frontera del servidor
 
-- L'escriptura al servidor passa per la identitat `preview-deploy` (gate
-  forçat `preview-ssh-gate`), que només pot operar dins del seu propi
-  namespace `/var/lib/mountain-runners-previews/namespaces/pr-<n>/`; producció
-  (`/var/lib/mountain-runners`), Caddy, claus TLS i estat ACME no són
-  modificables per aquesta identitat. Un ACL POSIX anomenat denega a
-  `preview-deploy` la lectura i el recorregut de `/var/lib/mountain-runners`
+- Les releases de cada PR es guarden a
+  `/var/lib/mountain-runners-previews/namespaces/pr-<n>/`. La comanda SSH
+  forçada les escriu com a `preview-deploy` i selecciona el directori segons el
+  número de PR. El mateix usuari pot operar als directoris de diverses PR,
+  inclosa la retirada d'una preview; els directoris per PR no són una barrera
+  de permisos entre previews. Qui tingui la clau SSH pot demanar `retire` o
+  `site-disable` per a qualsevol PR; registrar una autorització nova exigeix la
+  signatura del publicador. Producció (`/var/lib/mountain-runners`), Caddy,
+  claus TLS i estat ACME no són modificables per aquesta identitat. Un ACL
+  POSIX anomenat denega a `preview-deploy` la lectura i el recorregut de
+  `/var/lib/mountain-runners`
   sense canviar el mode `0755` que necessiten Caddy i `mountain-deploy`. No
-  s'ha donat accés al socket del daemon. Cap secret de previews es comparteix
-  amb producció.
-- El bootstrap instal·la el gate a `preview/` i crea el symlink
+  s'ha donat accés al socket del procés de releases de producció. El procés
+  `mountain-preview-site` rep pel seu socket peticions per registrar
+  autoritzacions signades i activar, desactivar o sincronitzar orígens derivats
+  de números de PR. No accepta directives Caddy arbitràries; la clau SSH
+  per si sola no pot signar una autorització. Cap secret de
+  previews es comparteix amb producció.
+- El bootstrap instal·la la comanda a `preview/commands/mountain-preview/` i crea el symlink
   `release -> .`, que el resol contra les eines de release planes sense còpies
   duplicades. En un VPS ja actiu, segueix el procediment preview-only del
   [runbook](runbook.md); no tornis a executar el bootstrap complet.

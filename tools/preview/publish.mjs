@@ -19,6 +19,7 @@ import { readFileSync } from "node:fs";
 import {
   assertCommentAuthorized,
   assertDispatchActorAuthorized,
+  commentOnPublishedPreview,
   publishPreview,
   resolvePullRequestState,
 } from "./publish-operations.mjs";
@@ -69,6 +70,11 @@ async function main() {
   const message = await publishPreview({
     artifactDirectory: process.env.ARTIFACT_DIRECTORY ?? "artifacts/preview",
     pullNumber,
+    authorizedBy:
+      process.env.GITHUB_EVENT_NAME === "issue_comment"
+        ? readEvent().comment?.user?.login
+        : requireEnvironment("GITHUB_ACTOR"),
+    authorizationPrivateKey: requireEnvironment("PREVIEW_AUTH_PRIVATE_KEY"),
     resolvePullRequestState: () =>
       resolvePullRequestState({
         repository,
@@ -78,6 +84,15 @@ async function main() {
       }),
     revalidateCommentAuthorization,
     revalidateDispatchAuthorization,
+    onPublished: ({ headSha, origin }) =>
+      commentOnPublishedPreview({
+        repository,
+        apiUrl,
+        token,
+        pullNumber,
+        headSha,
+        origin,
+      }),
     transport: createSshTransport({
       host: requireEnvironment("PREVIEW_HOST"),
       user: process.env.PREVIEW_DEPLOY_USER || "preview-deploy",

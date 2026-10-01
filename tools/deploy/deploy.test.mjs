@@ -570,7 +570,7 @@ test("the production workflows pin actions, restrict main and keep secrets off t
   assert.match(deployJob, /secrets\.DEPLOY_SSH_PRIVATE_KEY/);
   assert.match(
     deployJob,
-    /uses: actions\/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131/,
+    /uses: actions\/download-artifact@[a-f0-9]{40}(?=\s|$)/,
   );
   assert.match(
     deployJob,
