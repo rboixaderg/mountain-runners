@@ -1,0 +1,14 @@
+tools/deploy/deploy.test.mjs
+  h_1727aeeb492b30 573
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "4f718890161894f8bc92146d6c62580de7031fcf",
+  "prompts": {},
+  "humans": {
+    "h_1727aeeb492b30": {
+      "author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
