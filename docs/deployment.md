@@ -264,7 +264,9 @@ abans de publicar. El flux té tres jobs amb fronteres explícites:
 2. **`build`** (no fiable): `tools/preview/build-artifact.mjs` compila la web
    amb l'origen exacte de la preview
    (`https://pr-<n>.preview.mountainrunners.cat`, derivat i validat a partir
-   del número de PR) i registra un manifest que vincula commit (head SHA),
+   del número de PR) i registra un manifest que vincula commit (el head SHA
+   del checkout, llegit amb `git rev-parse HEAD` i no de `GITHUB_SHA`, que en
+   un `issue_comment` apunta a la branca per defecte i no es pot sobreescriure),
    número de PR, origen, `BUILD_TODAY`, workflow i fitxers amb mida i
    SHA-256; fa checkout del head SHA, executa `pnpm validate` complet i puja
    l'artefacte intermedi (`mountain-runners-preview`, retenció de 7 dies).

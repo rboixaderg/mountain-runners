@@ -12,13 +12,15 @@
 //   BUILD_TODAY         editorial date, explicit and coherent with Madrid time
 //   PR_NUMBER           pull request number the artifact belongs to
 // Optional environment (CI):
-//   GITHUB_SHA          PR head commit to record in the manifest
 //   GITHUB_WORKFLOW     workflow name to record in the manifest
+// The manifest records the checked-out commit, not GITHUB_SHA: on
+// issue_comment and workflow_dispatch runs GITHUB_SHA is the default branch
+// head and GitHub ignores attempts to override it.
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
+  checkedOutCommit,
   collectManifestFiles,
-  currentCommit,
   manifestLimits,
   manifestSchemaVersion,
   packageArtifact,
@@ -54,7 +56,7 @@ if (publicSiteOrigin !== previewOrigin) {
 }
 const buildToday = requireEditorialDate("build the preview artifact.");
 
-const commit = currentCommit();
+const commit = checkedOutCommit();
 const workflow = process.env.GITHUB_WORKFLOW ?? "local";
 
 runBuild();

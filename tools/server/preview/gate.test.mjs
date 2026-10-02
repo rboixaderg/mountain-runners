@@ -1206,6 +1206,8 @@ test("the preview workflow pins actions, separates the trust boundaries and has 
     buildJob,
     /ref: \$\{\{ needs\.authorize\.outputs\.head_sha \}\}/,
   );
+  // GitHub ignores overrides of GITHUB_SHA; the manifest uses the checkout.
+  assert.doesNotMatch(buildJob, /GITHUB_SHA:/);
   assert.match(buildJob, /node tools\/preview\/build-artifact\.mjs/);
   assert.match(
     buildJob,
