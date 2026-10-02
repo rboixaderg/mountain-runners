@@ -1,0 +1,35 @@
+---
+import type { PostVariant } from "../../lib/content/posts";
+import type { Locale } from "../../lib/content/primitives";
+import { getVariantPath } from "../../lib/content/routes";
+import {
+  formatPostDate,
+  getPostDisplayDate,
+} from "../../lib/presentation/posts";
+import PostStatus from "./PostStatus.astro";
+interface Props {
+  variants: PostVariant[];
+  locale: Locale;
+}
+const { variants, locale } = Astro.props;
+---
+
+<ul class="m-0 list-none p-0">
+  {
+    variants.map((variant) => (
+      <li class="border-line border-t py-6">
+        <PostStatus post={variant.entry} locale={locale} />
+        <h3 class="font-display text-2xl leading-tight">
+          <a href={getVariantPath(variant)}>{variant.entry.title[locale]}</a>
+        </h3>
+        <p>{variant.entry.summary[locale]}</p>
+        <p class="text-muted text-sm">
+          {variant.entry.author.name} ·{" "}
+          <time datetime={getPostDisplayDate(variant.entry)}>
+            {formatPostDate(getPostDisplayDate(variant.entry), locale)}
+          </time>
+        </p>
+      </li>
+    ))
+  }
+</ul>

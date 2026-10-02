@@ -1,0 +1,55 @@
+---
+import type { PostVariant } from "../../lib/content/posts";
+import { getDomainPath } from "../../lib/content/routes";
+import {
+  formatPostDate,
+  getPostDisplayDate,
+  postTitleMessageKeys,
+} from "../../lib/presentation/posts";
+import * as messages from "../../paraglide/messages.js";
+import PostStatus from "./PostStatus.astro";
+interface Props {
+  variant: PostVariant;
+}
+const { entry: post, locale, kind } = Astro.props.variant;
+---
+
+<header class="page-frame pt-section">
+  <a
+    class="action-underline tracking-label text-action uppercase"
+    href={getDomainPath(kind, locale)}
+    >{messages[postTitleMessageKeys[kind]]({}, { locale })}</a
+  >
+  <PostStatus post={post} locale={locale} />
+  <h1 class="font-display text-section max-w-reading leading-tight">
+    {post.title[locale]}
+  </h1>
+  <p class="text-sm">{post.author.name}</p>
+  <p class="text-muted text-sm">
+    {
+      post.published
+        ? messages.posts_published({}, { locale })
+        : messages.posts_created({}, { locale })
+    }
+    <time datetime={getPostDisplayDate(post)}
+      >{formatPostDate(getPostDisplayDate(post), locale)}</time
+    >
+  </p>
+  {
+    post.updatedAt && (
+      <p class="text-muted text-sm">
+        {messages.posts_updated({}, { locale })}{" "}
+        <time datetime={post.updatedAt}>
+          {formatPostDate(post.updatedAt, locale)}
+        </time>
+      </p>
+    )
+  }
+  {
+    !post.published && (
+      <p class="max-w-reading leading-copy">
+        {messages.posts_draft_notice({}, { locale })}
+      </p>
+    )
+  }
+</header>

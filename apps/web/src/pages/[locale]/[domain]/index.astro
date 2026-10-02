@@ -6,6 +6,11 @@ import EventsHubActiveCard from "../../../components/events/EventsHubActiveCard.
 import EventsHubHistoryTable from "../../../components/events/EventsHubHistoryTable.astro";
 import HomepageEventCard from "../../../components/events/HomepageEventCard.astro";
 import SchoolHub from "../../../components/schools/SchoolHub.astro";
+import PostHub from "../../../components/posts/PostHub.astro";
+import { knownLocales } from "../../../lib/content/primitives";
+import { postTypes } from "../../../lib/content/models";
+import { postTitleMessageKeys } from "../../../lib/presentation/posts";
+import { getBuildPostVariants } from "../../../lib/content/repository";
 import PublicLayout from "../../../layouts/PublicLayout.astro";
 import hubHeroImage from "../../../assets/events/events-hub-hero.webp";
 import hubHeroImageSmall from "../../../assets/events/events-hub-hero-mobile.webp";
@@ -49,6 +54,12 @@ export async function getStaticPaths() {
       .map(({ locale }) => locale),
   );
   return [
+    ...knownLocales.flatMap((locale) =>
+      Object.values(postTypes).map((kind) => ({
+        params: { locale, domain: getRouteDomain(kind, locale) },
+        props: { kind },
+      })),
+    ),
     ...[...eventLocales].map((locale) => ({
       params: { locale, domain: getRouteDomain("event", locale) },
       props: { kind: "event" as const },
@@ -61,9 +72,13 @@ export async function getStaticPaths() {
 }
 
 const { kind } = Astro.props;
+const editorialKind = kind === "news" || kind === "blog" ? kind : undefined;
 const locale = assertIsLocale(Astro.currentLocale);
 const canonical = new URL(getDomainPath(kind, locale), Astro.site).toString();
 const catalog = await getPublicationCatalog();
+const postVariants = (await getBuildPostVariants()).filter(
+  (variant) => variant.kind === kind && variant.locale === locale,
+);
 const today = process.env.BUILD_TODAY ?? getMadridDate(new Date());
 // The hub publishes one route per locale that has variants of this domain;
 // the hreflang alternatives mirror exactly those published hubs.
@@ -114,14 +129,15 @@ const hubSections: {
     id: "past",
   },
 ];
-const hubTitle =
-  kind === "school"
-    ? messages.navigation_schools({}, { locale })
-    : messages.navigation_events({}, { locale });
-const hubDescription =
-  kind === "school"
-    ? messages.schools_page_description({}, { locale })
-    : messages.events_page_description({}, { locale });
+let hubTitle = messages.navigation_events({}, { locale });
+let hubDescription = messages.events_page_description({}, { locale });
+if (kind === "school") {
+  hubTitle = messages.navigation_schools({}, { locale });
+  hubDescription = messages.schools_page_description({}, { locale });
+} else if (editorialKind !== undefined) {
+  hubTitle = messages[postTitleMessageKeys[editorialKind]]({}, { locale });
+  hubDescription = messages.posts_hub_description({}, { locale });
+}
 const socialImage =
   kind === "school"
     ? {
@@ -139,13 +155,22 @@ const socialImage =
   description={hubDescription}
   locale={locale}
   localizedAlternatives={localizedAlternatives}
-  socialImage={socialImage}
+  socialImage={editorialKind === undefined ? socialImage : undefined}
   title={`${hubTitle} | ${messages.site_title({}, { locale })}`}
 >
   {
-    kind === "school" ? (
-      <SchoolHub locale={locale} variants={schoolVariants} />
-    ) : (
+    editorialKind !== undefined && (
+      <PostHub
+        kind={editorialKind}
+        locale={locale}
+        published={postVariants.filter(({ entry }) => entry.published)}
+        drafts={postVariants.filter(({ entry }) => !entry.published)}
+      />
+    )
+  }
+  {kind === "school" && <SchoolHub locale={locale} variants={schoolVariants} />}
+  {
+    kind === "event" && (
       <>
         <PageIntro
           description={messages.events_intro({}, { locale })}

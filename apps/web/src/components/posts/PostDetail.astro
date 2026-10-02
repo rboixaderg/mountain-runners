@@ -1,0 +1,20 @@
+---
+import type { PostVariant } from "../../lib/content/posts";
+import type { PublishedVariant } from "../../lib/content/publication";
+import PostHeader from "./PostHeader.astro";
+import PostCover from "./PostCover.astro";
+import PostBody from "./PostBody.astro";
+import PostResources from "./PostResources.astro";
+interface Props {
+  variant: PostVariant;
+  relatedEvents: Extract<PublishedVariant, { kind: "event" }>[];
+}
+const { variant, relatedEvents } = Astro.props;
+---
+
+<article>
+  <PostHeader variant={variant} />
+  <PostCover variant={variant} />
+  <PostBody variant={variant} />
+  <PostResources variant={variant} relatedEvents={relatedEvents} />
+</article>

@@ -356,6 +356,7 @@ export const postSchema = z
       })
       .optional(),
     relatedEventIds: z.array(contentIdSchema).max(20).optional(),
+    relatedPage: z.literal("members").optional(),
   })
   .superRefine((post, context) => {
     if (post.published && post.publishedAt === undefined) {

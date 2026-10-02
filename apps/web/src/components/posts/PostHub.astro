@@ -1,0 +1,47 @@
+---
+import type { PostVariant } from "../../lib/content/posts";
+import type { PostType } from "../../lib/content/models";
+import type { Locale } from "../../lib/content/primitives";
+import { postTitleMessageKeys } from "../../lib/presentation/posts";
+import * as messages from "../../paraglide/messages.js";
+import PageSection from "../PageSection.astro";
+import PostList from "./PostList.astro";
+interface Props {
+  kind: PostType;
+  locale: Locale;
+  published: PostVariant[];
+  drafts: PostVariant[];
+}
+const { kind, locale, published, drafts } = Astro.props;
+---
+
+<div class="page-frame py-section">
+  <h1 class="font-display text-display leading-display">
+    {messages[postTitleMessageKeys[kind]]({}, { locale })}
+  </h1>
+  <p class="leading-copy max-w-prose">
+    {messages.posts_hub_description({}, { locale })}
+  </p>
+</div>
+<PageSection
+  title={messages.posts_published_heading({}, { locale })}
+  id="published-posts"
+>
+  {
+    published.length > 0 ? (
+      <PostList variants={published} locale={locale} />
+    ) : (
+      <p>{messages.posts_empty({}, { locale })}</p>
+    )
+  }
+</PageSection>
+{
+  drafts.length > 0 && (
+    <PageSection
+      title={messages.posts_drafts_heading({}, { locale })}
+      id="draft-posts"
+    >
+      <PostList variants={drafts} locale={locale} />
+    </PageSection>
+  )
+}

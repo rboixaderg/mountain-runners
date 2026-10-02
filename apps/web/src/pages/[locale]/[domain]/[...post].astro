@@ -1,0 +1,40 @@
+---
+import PublicLayout from "../../../layouts/PublicLayout.astro";
+import PostDetail from "../../../components/posts/PostDetail.astro";
+import {
+  getBuildPostVariants,
+  getPublicationCatalog,
+} from "../../../lib/content/repository";
+import { getRouteDomain, getVariantPath } from "../../../lib/content/routes";
+import type { PublishedVariant } from "../../../lib/content/publication";
+import * as messages from "../../../paraglide/messages.js";
+
+export async function getStaticPaths() {
+  return (await getBuildPostVariants()).map((variant) => ({
+    params: {
+      locale: variant.locale,
+      domain: getRouteDomain(variant.kind, variant.locale),
+      post: variant.slug,
+    },
+    props: { variant },
+  }));
+}
+const { variant } = Astro.props;
+const { locale, entry } = variant;
+const catalog = await getPublicationCatalog();
+const relatedEvents = catalog.variants.filter(
+  (candidate): candidate is Extract<PublishedVariant, { kind: "event" }> =>
+    candidate.kind === "event" &&
+    candidate.locale === locale &&
+    (entry.relatedEventIds ?? []).includes(candidate.entry.id),
+);
+---
+
+<PublicLayout
+  canonical={new URL(getVariantPath(variant), Astro.site).toString()}
+  description={entry.summary[locale]!}
+  locale={locale}
+  title={`${entry.title[locale]} | ${messages.site_title({}, { locale })}`}
+>
+  <PostDetail variant={variant} relatedEvents={relatedEvents} />
+</PublicLayout>

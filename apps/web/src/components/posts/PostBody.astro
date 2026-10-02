@@ -1,0 +1,38 @@
+---
+import type { PostVariant } from "../../lib/content/posts";
+import { renderRestrictedMarkdown } from "../../lib/content/markdown";
+interface Props {
+  variant: PostVariant;
+}
+const { entry, locale } = Astro.props.variant;
+---
+
+<div class="page-frame py-section">
+  <div class="post-copy max-w-reading leading-copy">
+    <div
+      class="text-lg"
+      set:html={renderRestrictedMarkdown(entry.lead[locale]!)}
+    />
+    {
+      entry.sections.map((section) => (
+        <section class="mt-8">
+          {section.heading && (
+            <h2 class="font-display text-2xl leading-tight">
+              {section.heading[locale]}
+            </h2>
+          )}
+          <div set:html={renderRestrictedMarkdown(section.body[locale]!)} />
+        </section>
+      ))
+    }
+  </div>
+</div>
+<style>
+  /* Restricted Markdown cannot carry utilities; the owner styles its generated paragraphs. */
+  .post-copy :global(p) {
+    margin-block: 0 1rem;
+  }
+  .post-copy :global(li + li) {
+    margin-top: 0.5rem;
+  }
+</style>

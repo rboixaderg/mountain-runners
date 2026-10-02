@@ -176,6 +176,8 @@ fitxer. Camps desconeguts rebutjats. Constants tipades per als valors compartits
 - `correction` opcional, data i nota traduïble per a rectificacions materials.
 - `relatedEventIds` opcional, identificadors d'esdeveniments existents. Referència
   inexistent fa fallar; referència no publicada o incompleta no genera enllaç.
+- `relatedPage` opcional, actualment només `members`, per relacionar una guia
+  amb la informació vigent de socis. El component construeix l'enllaç localitzat.
 
 `publishedAt` no pot ser anterior a `createdAt`; `updatedAt` no precedeix la
 publicació, o la preparació si encara no hi ha publicació. Dates de publicació

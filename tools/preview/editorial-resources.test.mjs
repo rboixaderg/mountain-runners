@@ -99,6 +99,26 @@ test("editorial resources stay isolated across clean builds and preview-to-publi
         assert.equal(result.status, 0, result.stdout + result.stderr);
       }
       const dist = join(app, "dist");
+      const publishedDetail = await readFile(
+        join(dist, "ca/noticies/published/index.html"),
+        "utf8",
+      );
+      assert.ok(publishedDetail.includes('datetime="2026-10-02T10:00:00Z"'));
+      assert.ok(
+        publishedDetail.includes(
+          "editorial-images/480/content-assets/posts/published.png.webp",
+        ),
+      );
+      if (preview) {
+        const draftDetail = await readFile(
+          join(dist, "ca/noticies/draft/index.html"),
+          "utf8",
+        );
+        assert.ok(
+          draftDetail.includes("Esborrany · No publicat a la web pública"),
+        );
+        assert.ok(draftDetail.includes("pendent de revisió"));
+      }
       const files = await listRegularFiles(dist, dist);
       const snapshots = await Promise.all(
         files.map(async (file) => [

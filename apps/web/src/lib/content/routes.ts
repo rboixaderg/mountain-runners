@@ -1,7 +1,8 @@
 import type { PublishedVariant, PublicationCatalog } from "./publication";
 import { knownLocales, type Locale } from "./primitives";
+import type { PostVariant } from "./posts";
 
-export type RouteKind = PublishedVariant["kind"];
+export type RouteKind = PublishedVariant["kind"] | PostVariant["kind"];
 
 type RouteDomains = Record<RouteKind, Record<Locale, string>>;
 
@@ -17,6 +18,8 @@ const technicalRouteSegments = new Set([
 const fixedRouteSegments = new Set<string>(knownLocales);
 
 export const routeDomains: RouteDomains = {
+  news: { ca: "noticies", es: "noticias", en: "news" },
+  blog: { ca: "blog", es: "blog", en: "blog" },
   school: {
     ca: "escoles",
     es: "escuelas",
@@ -160,7 +163,9 @@ export function getDomainPath(kind: RouteKind, locale: Locale): string {
   return `/${locale}/${getRouteDomain(kind, locale)}/`;
 }
 
-export function getVariantPath(variant: PublishedVariant): string {
+export function getVariantPath(
+  variant: PublishedVariant | PostVariant,
+): string {
   return `${getDomainPath(variant.kind, variant.locale)}${variant.slug}/`;
 }
 
