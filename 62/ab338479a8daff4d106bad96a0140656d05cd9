@@ -1,0 +1,21 @@
+docs/editorial/guide.md
+  s_120017d0f56a54::t_fbc0bbd2e423f5 1-70
+docs/specs/news-and-blog.md
+  s_120017d0f56a54::t_ce0aedbc355fb1 12-13,24-25,70,94-98,166-168
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "62ab338479a8daff4d106bad96a0140656d05cd9",
+  "prompts": {},
+  "sessions": {
+    "s_120017d0f56a54": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_f02792959ffeesIf41si1KsTGG",
+        "model": "unknown"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
