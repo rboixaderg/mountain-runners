@@ -109,6 +109,20 @@ test("editorial resources stay isolated across clean builds and preview-to-publi
           "editorial-images/480/content-assets/posts/published.png.webp",
         ),
       );
+      assert.ok(
+        publishedDetail.includes('property="og:type" content="article"'),
+      );
+      assert.ok(publishedDetail.includes('hreflang="ca"'));
+      assert.ok(!publishedDetail.includes('hreflang="es"'));
+      const sitemap = await readFile(join(dist, "sitemap.xml"), "utf8");
+      assert.ok(sitemap.includes("/ca/noticies/published/"));
+      assert.ok(!sitemap.includes("/ca/noticies/draft/"));
+      const scripts = [
+        ...publishedDetail.matchAll(
+          /<script type="application\/ld\+json">(.*?)<\/script>/gu,
+        ),
+      ];
+      assert.equal(JSON.parse(scripts[0][1])["@type"], "NewsArticle");
       if (preview) {
         const draftDetail = await readFile(
           join(dist, "ca/noticies/draft/index.html"),
@@ -118,6 +132,10 @@ test("editorial resources stay isolated across clean builds and preview-to-publi
           draftDetail.includes("Esborrany · No publicat a la web pública"),
         );
         assert.ok(draftDetail.includes("pendent de revisió"));
+        assert.ok(!draftDetail.includes('type="application/ld+json"'));
+        assert.ok(
+          draftDetail.includes('name="robots" content="noindex, nofollow"'),
+        );
       }
       const files = await listRegularFiles(dist, dist);
       const snapshots = await Promise.all(

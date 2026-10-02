@@ -82,11 +82,14 @@ const postVariants = (await getBuildPostVariants()).filter(
 const today = process.env.BUILD_TODAY ?? getMadridDate(new Date());
 // The hub publishes one route per locale that has variants of this domain;
 // the hreflang alternatives mirror exactly those published hubs.
-const hubLocales = new Set(
-  catalog.variants
-    .filter((variant) => variant.kind === kind)
-    .map(({ locale: variantLocale }) => variantLocale),
-);
+const hubLocales =
+  editorialKind !== undefined
+    ? new Set(knownLocales)
+    : new Set(
+        catalog.variants
+          .filter((variant) => variant.kind === kind)
+          .map(({ locale: variantLocale }) => variantLocale),
+      );
 const localizedAlternatives = [...hubLocales].map((alternativeLocale) => ({
   locale: alternativeLocale,
   href: new URL(getDomainPath(kind, alternativeLocale), Astro.site).toString(),

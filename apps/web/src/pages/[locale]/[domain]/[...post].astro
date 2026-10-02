@@ -8,20 +8,31 @@ import {
 import { getRouteDomain, getVariantPath } from "../../../lib/content/routes";
 import type { PublishedVariant } from "../../../lib/content/publication";
 import * as messages from "../../../paraglide/messages.js";
+import {
+  getPostAlternatives,
+  getPostJsonLd,
+  getPostSocialImage,
+} from "../../../lib/content/post-seo";
 
 export async function getStaticPaths() {
-  return (await getBuildPostVariants()).map((variant) => ({
+  const variants = await getBuildPostVariants();
+  const site = new URL(import.meta.env.SITE);
+  return variants.map((variant) => ({
     params: {
       locale: variant.locale,
       domain: getRouteDomain(variant.kind, variant.locale),
       post: variant.slug,
     },
-    props: { variant },
+    props: {
+      variant,
+      localizedAlternatives: getPostAlternatives(variants, variant, site),
+    },
   }));
 }
-const { variant } = Astro.props;
+const { variant, localizedAlternatives } = Astro.props;
 const { locale, entry } = variant;
 const catalog = await getPublicationCatalog();
+const structuredData = getPostJsonLd(variant, Astro.site!);
 const relatedEvents = catalog.variants.filter(
   (candidate): candidate is Extract<PublishedVariant, { kind: "event" }> =>
     candidate.kind === "event" &&
@@ -31,6 +42,10 @@ const relatedEvents = catalog.variants.filter(
 ---
 
 <PublicLayout
+  localizedAlternatives={localizedAlternatives}
+  socialImage={getPostSocialImage(variant, Astro.site!)}
+  structuredData={structuredData ? [structuredData] : []}
+  openGraphType="article"
   canonical={new URL(getVariantPath(variant), Astro.site).toString()}
   description={entry.summary[locale]!}
   locale={locale}
