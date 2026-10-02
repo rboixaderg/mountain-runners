@@ -1,0 +1,27 @@
+apps/web/package.json
+  s_120017d0f56a54::t_aea82cf58a8524 20
+apps/web/src/lib/content/post-images.ts
+  s_120017d0f56a54::t_139ac3a9bd1c01 1-33
+apps/web/src/pages/editorial-images/[...image].ts
+  s_120017d0f56a54::t_2a807a750ff774 1-33
+pnpm-lock.yaml
+  s_120017d0f56a54::t_136649972590ec 98-100,826-827,832-833,838-839,843-844,848-849,853-854,859-860,865-866,871-872,877-878,883-884,889-890,895-896,901-902,908-909,915-916,922-923,929-930,936-937,943-944,950-951,957-958,961-962,966-967,972-973,978-979,3336-3337,4760,4762,4764,4767,4769,4772,4774,4777,4780,4783,4786,4789,4792,4795,4798,4801,4804,4807,4809,4812,4814,4817,4819,4822,4824,4827,4829,4832,4834,4837,4839,4842,4844,4847,4852,4854,4857,4860,4863,5673,7526,7532-7556
+tools/preview/editorial-resources.test.mjs
+  s_120017d0f56a54::t_c715fb8074632c 120-130,135-140
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "7c7d6f4a5664d1374b03608085696d7ee2873725",
+  "prompts": {},
+  "sessions": {
+    "s_120017d0f56a54": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_f02792959ffeesIf41si1KsTGG",
+        "model": "unknown"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
