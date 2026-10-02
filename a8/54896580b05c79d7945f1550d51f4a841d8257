@@ -1,0 +1,33 @@
+apps/web/src/content.config.ts
+  s_395f98d8a9e919::t_9ce4562aad2052 50-54,62
+apps/web/src/lib/content/models.ts
+  s_395f98d8a9e919::t_cd126a9c87d52d 3,10-14,301-410,418,427
+apps/web/src/lib/content/posts.ts
+  s_395f98d8a9e919::t_ad82d8af87b467 1-138
+apps/web/src/lib/content/resources.ts
+  s_395f98d8a9e919::t_2129578ac5963f 67
+apps/web/src/pages/content-resources/[...resource].ts
+  s_395f98d8a9e919::t_ed13bd45a440ea 6-10,24-29
+apps/web/src/test/content-models.test.ts
+  s_395f98d8a9e919::t_85c01eb6e99479 14,24
+apps/web/src/test/content-posts.test.ts
+  s_395f98d8a9e919::t_4b2344e1511cd7 1-319
+apps/web/src/test/fixtures/post.yaml
+  s_395f98d8a9e919::t_10f8d82436e4a9 1-20
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "a854896580b05c79d7945f1550d51f4a841d8257",
+  "prompts": {},
+  "sessions": {
+    "s_395f98d8a9e919": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_f02fbefcdffen2rSvGC3SdUk8h",
+        "model": "unknown"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
