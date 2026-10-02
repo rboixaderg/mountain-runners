@@ -1,0 +1,21 @@
+apps/web/build-mode.mjs
+  s_395f98d8a9e919::t_8dd76c045362fa 1-23
+apps/web/src/test/build-mode.test.ts
+  s_395f98d8a9e919::t_ab5e7649bf9993 1-30
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "584ed481e5e9d5fdb7ddbf1518024020b274f887",
+  "prompts": {},
+  "sessions": {
+    "s_395f98d8a9e919": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_f02fbefcdffen2rSvGC3SdUk8h",
+        "model": "unknown"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
