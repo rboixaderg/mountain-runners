@@ -117,10 +117,27 @@ test("editorial resources stay isolated across clean builds and preview-to-publi
     assert.ok(publicOutput.some(([path]) => path === resource("shared")));
     assert.ok(!publicOutput.some(([path]) => path === resource("draft")));
     assert.ok(!publicOutput.some(([path]) => path.startsWith("_astro/draft.")));
+    for (const width of [480, 1200]) {
+      const derivative = (name) =>
+        `editorial-images/${width}/content-assets/posts/${name}.png.webp`;
+      assert.ok(
+        publicOutput.some(([path]) => path === derivative("published")),
+      );
+      assert.ok(publicOutput.some(([path]) => path === derivative("shared")));
+      assert.ok(!publicOutput.some(([path]) => path === derivative("draft")));
+      const bytes = await readFile(join(app, "dist", derivative("published")));
+      assert.equal(bytes.toString("ascii", 8, 12), "WEBP");
+    }
     await rm(join(app, "dist"), { recursive: true });
     assert.deepEqual(await build(false), publicOutput);
     const previewOutput = await build(true);
     assert.ok(previewOutput.some(([path]) => path === resource("draft")));
+    assert.ok(
+      previewOutput.some(
+        ([path]) =>
+          path === "editorial-images/480/content-assets/posts/draft.png.webp",
+      ),
+    );
     assert.deepEqual(await build(false), publicOutput);
   } finally {
     await rm(directory, { recursive: true, force: true });

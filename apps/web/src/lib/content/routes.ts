@@ -11,6 +11,7 @@ const technicalRouteSegments = new Set([
   "admin",
   "api",
   "content-resources",
+  "editorial-images",
 ]);
 
 const fixedRouteSegments = new Set<string>(knownLocales);

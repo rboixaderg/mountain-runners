@@ -23,6 +23,13 @@ constructors oficials fixen `PUBLIC_PREVIEW=false` per a producció i `true` per
 a preview, rebutjant flags contradictoris. No s'utilitzen imports glob d'imatges
 editorials: poden emetre originals de variants excloses.
 
+Les cobertes editorials seleccionades es transformen amb `sharp` durant el
+build, sense imports d'imatges a Vite. La ruta estàtica `editorial-images/`
+genera WebP de 480 i 1200 píxels, sense ampliar originals més petits, amb
+orientació corregida i sense conservar metadades EXIF. Només rep paths locals
+validats i seleccionats pel mode de build. No és un servei dinàmic ni permet
+transformar paths arbitraris a petició.
+
 La superfície «agèntica» del lloc es compon de `/llms.txt`, que orienta els
 agents sobre el contingut i les seccions trilingües del lloc, i de les dades
 estructurades JSON-LD de la portada: l'entitat institucional s'emet amb
