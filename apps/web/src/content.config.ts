@@ -47,6 +47,11 @@ const contact = defineCollection({
   schema: collectionSchemas.contact,
 });
 
+const posts = defineCollection({
+  loader: restrictedYamlLoader("src/content/posts/", collectionSchemas.posts),
+  schema: collectionSchemas.posts,
+});
+
 export const collections = {
   schools,
   events,
@@ -54,4 +59,5 @@ export const collections = {
   documents,
   externalActions,
   contact,
+  posts,
 };

@@ -3,7 +3,11 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import type { APIRoute } from "astro";
 import { getPublishedLocalResources } from "../../lib/content/publication";
-import { getPublicationCatalog } from "../../lib/content/repository";
+import {
+  getPublicationCatalog,
+  getBuildPostVariants,
+} from "../../lib/content/repository";
+import { getPostLocalResources } from "../../lib/content/posts";
 import { resolveLocalResourcePath } from "../../lib/content/resources";
 
 const contentTypes = new Map([
@@ -17,7 +21,12 @@ const contentTypes = new Map([
 
 export async function getStaticPaths() {
   const catalog = await getPublicationCatalog();
-  return getPublishedLocalResources(catalog).map((sourcePath) => ({
+  const posts = await getBuildPostVariants();
+  const resources = new Set([
+    ...getPublishedLocalResources(catalog),
+    ...getPostLocalResources(posts),
+  ]);
+  return [...resources].map((sourcePath) => ({
     params: {
       resource: sourcePath.replace(/^src\//u, ""),
     },
