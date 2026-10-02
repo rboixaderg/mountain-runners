@@ -1,0 +1,31 @@
+docs/README.md
+  s_395f98d8a9e919::t_d4aa89a9847c5c 40-47
+docs/backlog.md
+  s_395f98d8a9e919::t_6988a58af88636 363-368
+docs/decisions/0011-news-blog-editorial-previews.md
+  s_395f98d8a9e919::t_760c202eb08035 1-54
+docs/editorial/drafts/com-fer-te-soci.md
+  s_395f98d8a9e919::t_0f5af057a13af1 1-67
+docs/editorial/drafts/inauguracio-nou-local.md
+  s_395f98d8a9e919::t_df6e501d7b646b 1-49
+docs/news-and-blog-plan.md
+  s_395f98d8a9e919::t_2dd2fc29c4b1c5 1-657
+docs/specs/phase-6-pull-request-previews.md
+  s_395f98d8a9e919::t_1c3726f1cf396a 11-17
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "99d4b97a30e988627c4ca274b8773081b2c45a90",
+  "prompts": {},
+  "sessions": {
+    "s_395f98d8a9e919": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_f02fbefcdffen2rSvGC3SdUk8h",
+        "model": "unknown"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
