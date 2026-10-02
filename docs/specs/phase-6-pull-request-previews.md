@@ -8,6 +8,13 @@ estable i operable segons l'acceptació de la fase 5.
 
 ## Objectiu
 
+Esmena del 2 d'octubre de 2026: l'[ADR 0011](../decisions/0011-news-blog-editorial-previews.md)
+i l'[especificació de notícies i blog](news-and-blog.md) autoritzen una excepció
+posterior per mostrar esborranys de `posts` en preview, amb estat explícit.
+Les exclusions de contingut despublicat d'aquest document es mantenen per a
+totes les altres col·leccions. Aquesta esmena no declara implementada l'excepció
+ni canvia la infraestructura o els requisits de confiança de la fase 6.
+
 Decidir i implementar un sistema de previews de pull request aïllat, efímer i
 segur que permeti revisar la web abans del merge sense exposar secrets, permisos
 de producció ni contingut despublicat.

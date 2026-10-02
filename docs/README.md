@@ -37,6 +37,14 @@ acceptada:
 - [`ai-assistant.md`](ai-assistant.md): límits dels futurs xat públic i assistent
   editorial.
 - [`specs/`](specs/): requisits i acceptació de fases i tasques.
+- [`specs/news-and-blog.md`](specs/news-and-blog.md): funcionalitat autoritzada
+  de notícies, blog i esborranys editorials en preview, amb tasques en curs.
+
+## Investigació i antecedents
+
+- [`news-and-blog-plan.md`](news-and-blog-plan.md): investigació editorial i
+  alternatives que han originat l'especificació de notícies i blog. Es conserva
+  com a antecedent; la spec i l'ADR 0011 governen l'entrega autoritzada.
 
 ## Registres Històrics
 

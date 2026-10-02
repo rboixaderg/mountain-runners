@@ -8,12 +8,20 @@ Tailwind, Paraglide, Content Collections amb Zod, SEO tècnic, proves Vitest i
 Playwright i workflows de qualitat i seguretat.
 
 Les col·leccions registrades (`schools`, `events`, `entities`, `documents`,
-`externalActions` i `contact`) passen per YAML restringit i una capa central de
+`externalActions`, `contact` i `posts`) passen per YAML restringit i una capa central de
 publicació. La sortida actual inclou 66 rutes canòniques —22 per idioma—, més la
 redirecció arrel, la 404 global, `robots.txt`, el sitemap, `/llms.txt` i els
 recursos públics validats. Les dades de contacte es mostren al prepeu compartit
 i a les pàgines legals; la pàgina de Contacte creada a la fase 3 es va retirar a
 la T4.4.
+
+`posts` disposa d'esquema i seleccions explícites pública i de preview, però no
+genera pàgines editorials encara. Els esborranys de posts no modifiquen el catàleg
+públic de les altres col·leccions. La ruta de recursos incorpora les cobertes
+seleccionades pel mode explícit; el render editorial es farà després. Els
+constructors oficials fixen `PUBLIC_PREVIEW=false` per a producció i `true` per
+a preview, rebutjant flags contradictoris. No s'utilitzen imports glob d'imatges
+editorials: poden emetre originals de variants excloses.
 
 La superfície «agèntica» del lloc es compon de `/llms.txt`, que orienta els
 agents sobre el contingut i les seccions trilingües del lloc, i de les dades

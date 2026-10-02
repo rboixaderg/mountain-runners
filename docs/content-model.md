@@ -49,6 +49,31 @@ Les col·leccions de contingut registrades són:
 - `contact`: dades institucionals de contacte (correu, telèfons, seu, horaris i
   CIF) amb correu i telèfon com a valors semàntics validats; el render
   construeix els enllaços `mailto:` i `tel:` a partir d'aquests valors.
+- `posts`: notícies i articles de blog amb `type: news | blog`, publicació
+  explícita, autoria pública, dates, entradeta i seccions de Markdown restringit.
+  Les cobertes opcionals són locals i requereixen text alternatiu i crèdit.
+
+La col·lecció `posts` està registrada, però encara no genera hubs ni detalls.
+El repositori ofereix `getPublishedPostVariants` i `getPreviewPostVariants`
+com a seleccions explícites separades: la primera exclou esborranys i la segona
+admet posts complets amb `published: false`. No canvia la visibilitat de cap
+altra col·lecció ni s'activa cap mode de build de preview per aquesta API.
+La ruta de recursos selecciona les cobertes dels posts segons el mode explícit
+de build. Només copia una coberta si la variant és visible i té alt i crèdit
+complets en aquell idioma. Les pàgines i metadades són entregues posteriors.
+`getBuildPostVariants` tria preview exclusivament amb `PUBLIC_PREVIEW=true`;
+el catàleg públic de les altres col·leccions no canvia.
+
+Les seleccions de posts validen identificadors
+únics, slugs únics per tipus i idioma, referències d'esdeveniments existents,
+recursos locals resolubles i cap publicació futura respecte de la data editorial
+de build a Madrid. La completesa de les seccions es comprova per idioma sense
+fallback. La publicació requereix `publishedAt`; una retirada pot conservar-ne
+la data. Les actualitzacions es comparen com a instants respectant els offsets.
+Els blogs requereixen autoria personal, mentre que una notícia pot tenir
+signatura institucional. No s'afegeixen continguts reals ni fixtures a aquesta
+col·lecció durant l'entrega del model. El loader en valida l'esquema durant el
+build; la validació del catàleg de posts s'executa quan se'n demana una selecció.
 
 La col·lecció `contact` conté exactament una entrada institucional. El catàleg
 falla si en falta o n'hi ha més d'una, i només exposa les dades si l'entrada està
@@ -101,6 +126,14 @@ a fitxers regulars dins de `src/assets/` o `src/content-assets/`, sense enllaço
 simbòlics ni escapaments de directori.
 
 ## Publicació
+
+L'[ADR 0011](decisions/0011-news-blog-editorial-previews.md) autoritza una
+excepció per revisar esborranys de notícies i blog en preview.
+L'[especificació](specs/news-and-blog.md) en defineix l'abast. Producció manté
+el filtratge de publicació i l'excepció no afecta altres col·leccions. Les
+seleccions de posts i els recursos originals ja estan implementats en aquesta
+branca; les pàgines editorials i la comprovació d'imatges transformades resten
+pendents.
 
 `apps/web/src/lib/content/publication.ts` és la capa de domini autoritativa per
 decidir les variants publicables. Comprova la unicitat dels slugs per idioma,
