@@ -23,6 +23,9 @@ campaign, a SaaS product or a dark sports-tech interface.
 - Do not introduce unrelated brand colours, generic decorative gradients or
   lifestyle palettes. Controlled brand-colour overlays and subtle textures may
   support image legibility or a deliberate editorial transition.
+- Preview builds use `--color-preview` (`#fde047`) with ink text for the
+  environment notice. This warning yellow is not a brand colour. The notice
+  sits above the navigation inside the same sticky header.
 
 ## Typography
 
