@@ -39,6 +39,10 @@ acceptada:
 - [`specs/`](specs/): requisits i acceptació de fases i tasques.
 - [`specs/news-and-blog.md`](specs/news-and-blog.md): funcionalitat autoritzada
   de notícies, blog i esborranys editorials en preview, amb tasques en curs.
+- [`editorial/guide.md`](editorial/guide.md): criteris d'exactitud, drets,
+  signatura, rectificació i aprovació humana. Inclou les dues plantilles.
+- [`validation/news-blog-integrated.md`](validation/news-blog-integrated.md):
+  validació local de la continuació de la PR #140 i revisions pendents.
 
 ## Investigació i antecedents
 

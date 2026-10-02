@@ -11,7 +11,10 @@
 - Autoria: `mountain runners`, confirmada per la persona mantenidora.
 - Data de publicació: pendent.
 
-Aquest document és un pilot editorial, no una entrada registrada a la web.
+Aquest document conserva el pilot editorial inicial i les notes de revisió.
+L'esborrany renderitzat viu a
+[`com-fer-te-soci.yaml`](../../../apps/web/src/content/posts/com-fer-te-soci.yaml),
+que explicita el caràcter provisional del formulari. El YAML és la font del render.
 La descripció de les pantalles és provisional. No s'ha comprovat el formulari
 extern ni s'han introduït dades personals o de pagament per validar-lo.
 Només el text de l'apartat següent és una proposta de contingut per als lectors.

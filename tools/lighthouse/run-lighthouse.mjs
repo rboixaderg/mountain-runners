@@ -23,7 +23,9 @@ function routeName(pathname) {
   if (pathname === "/ca/") return "home";
   if (pathname === "/ca/esdeveniments/") return "events";
   const match = /^\/ca\/esdeveniments\/([^/]+)\/$/u.exec(pathname);
-  return match ? `event-${match[1]}` : "page";
+  return match
+    ? `event-${match[1]}`
+    : pathname.split("/").filter(Boolean).join("-");
 }
 
 function pickRepresentativeRoutes(sitemapPaths) {
@@ -42,7 +44,14 @@ function pickRepresentativeRoutes(sitemapPaths) {
       `Sitemap lacks representative route(s): ${missing.join(", ")}`,
     );
   }
-  return [home, hub, detail];
+  const routes = [home, hub, detail, "/ca/noticies/", "/ca/blog/"];
+  if (process.env.PUBLIC_PREVIEW === "true") {
+    routes.push(
+      "/ca/noticies/inauguracio-nou-local/",
+      "/ca/blog/com-fer-te-soci/",
+    );
+  }
+  return routes;
 }
 
 // Failure artifacts are uploaded to a public repository, and the spec excludes
@@ -152,17 +161,18 @@ const preview = spawn(
     "--filter",
     "@mountain-runners/web",
     "exec",
-    "astro",
-    "preview",
-    "--host",
-    "127.0.0.1",
-    "--port",
+    "node",
+    "scripts/lighthouse-preview.mjs",
     String(previewPort),
   ],
-  { cwd: rootDir, stdio: ["ignore", "pipe", "pipe"], detached: true },
+  {
+    cwd: rootDir,
+    stdio: ["ignore", "pipe", "pipe"],
+    detached: true,
+  },
 );
 preview.stdout.on("data", () => {});
-preview.stderr.on("data", () => {});
+preview.stderr.on("data", (chunk) => process.stderr.write(chunk));
 const stopPreview = () => {
   try {
     process.kill(-preview.pid, "SIGTERM");

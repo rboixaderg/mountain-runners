@@ -131,9 +131,12 @@ L'[ADR 0011](decisions/0011-news-blog-editorial-previews.md) autoritza una
 excepció per revisar esborranys de notícies i blog en preview.
 L'[especificació](specs/news-and-blog.md) en defineix l'abast. Producció manté
 el filtratge de publicació i l'excepció no afecta altres col·leccions. Les
-seleccions de posts i els recursos originals ja estan implementats en aquesta
-branca; les pàgines editorials i la comprovació d'imatges transformades resten
-pendents.
+seleccions de posts, les pàgines i les transformacions locals estan implementades
+en aquesta branca. Només es generen derivades de cobertes seleccionades. Els
+originals dels posts no es copien perquè el render no els utilitza; un original
+compartit amb una altra col·lecció pública es conserva segons el seu contracte.
+Sitemap i JSON-LD només inclouen posts publicats. El selector del preview només
+enllaça variants completes al seu mateix origen.
 
 `apps/web/src/lib/content/publication.ts` és la capa de domini autoritativa per
 decidir les variants publicables. Comprova la unicitat dels slugs per idioma,

@@ -12,7 +12,10 @@
 - Fotografia: pendent de rebre. Es preveu disposar, com a mínim, d'una imatge
   exterior del local; encara no està confirmada ni aprovada per publicar.
 
-Aquest document és un pilot editorial, no una entrada registrada a la web.
+Aquest document conserva el pilot editorial inicial i les notes de revisió.
+L'esborrany renderitzat viu a
+[`inauguracio-nou-local.yaml`](../../../apps/web/src/content/posts/inauguracio-nou-local.yaml).
+El YAML és la font del render.
 Només el text de l'apartat següent és una proposta de contingut per als lectors.
 
 ## Text proposat

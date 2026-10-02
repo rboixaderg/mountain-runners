@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import AxeBuilder from "@axe-core/playwright";
 
 test("editorial hubs are discoverable and have localized empty states", async ({
   page,
@@ -24,4 +25,102 @@ test("editorial hubs are discoverable and have localized empty states", async ({
   await expect(
     page.getByText("There are no publications in this language yet."),
   ).toBeVisible();
+});
+
+const pilots = [
+  {
+    hub: "/ca/noticies/",
+    path: "/ca/noticies/inauguracio-nou-local/",
+    title:
+      "Mountain Runners inaugura el nou local a la plaça de Sant Joan de Berga",
+  },
+  {
+    hub: "/ca/blog/",
+    path: "/ca/blog/com-fer-te-soci/",
+    title: "Com fer-te soci o sòcia de Mountain Runners",
+  },
+];
+
+for (const pilot of pilots) {
+  test(`pilot remains unpublished: ${pilot.path}`, async ({
+    page,
+    request,
+  }) => {
+    if (process.env.PUBLIC_PREVIEW !== "true") {
+      const response = await request.get(pilot.path);
+      expect(response.status()).toBe(404);
+      await page.goto(pilot.hub);
+      await expect(
+        page.getByRole("link", { name: pilot.title, exact: true }),
+      ).toHaveCount(0);
+      return;
+    }
+    await page.goto(pilot.hub);
+    await expect(
+      page.getByRole("heading", { name: "Esborranys", exact: true }),
+    ).toBeVisible();
+    const titleLink = page.getByRole("link", {
+      name: pilot.title,
+      exact: true,
+    });
+    await titleLink.focus();
+    await expect(titleLink).toBeFocused();
+    await titleLink.press("Enter");
+    await expect(
+      page.getByRole("heading", { level: 1, name: pilot.title }),
+    ).toBeVisible();
+    await expect(
+      page.getByText("Esborrany · No publicat a la web pública", {
+        exact: true,
+      }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("banner").getByRole("complementary"),
+    ).toContainText("PREVIEW ·");
+    await expect(page.locator('meta[name="robots"]')).toHaveAttribute(
+      "content",
+      "noindex, nofollow",
+    );
+    await expect(
+      page.locator('script[type="application/ld+json"]'),
+    ).toHaveCount(0);
+    await expect(page.locator('link[hreflang="es"]')).toHaveCount(0);
+    await expect(page.getByRole("article")).toContainText("mountain runners");
+    await expect(page.getByRole("article").getByRole("img")).toHaveCount(0);
+    if (pilot.path.includes("com-fer-te-soci")) {
+      await expect(
+        page.getByRole("link", { name: "Ves a la pàgina de Socis" }),
+      ).toHaveAttribute("href", "/ca/socis/");
+    }
+    const sitemap = await request.get("/sitemap.xml");
+    expect(await sitemap.text()).not.toContain(pilot.path);
+  });
+}
+
+test("editorial hubs and preview pilots have no detected accessibility violations @a11y", async ({
+  page,
+  browserName,
+}) => {
+  test.skip(
+    browserName !== "chromium",
+    "axe runs on Chromium desktop and mobile.",
+  );
+  const paths = ["/ca/noticies/", "/ca/blog/"];
+  if (process.env.PUBLIC_PREVIEW === "true")
+    paths.push(...pilots.map((pilot) => pilot.path));
+  for (const path of paths) {
+    await page.goto(path);
+    expect(
+      (
+        await new AxeBuilder({ page })
+          .withTags(["wcag2a", "wcag2aa", "wcag21aa", "wcag22aa"])
+          .analyze()
+      ).violations,
+    ).toEqual([]);
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= window.innerWidth,
+      ),
+    ).toBe(true);
+  }
 });

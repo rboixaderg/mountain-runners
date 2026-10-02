@@ -1,0 +1,29 @@
+id: com-fer-te-soci
+type: blog
+published: false
+slug:
+  ca: com-fer-te-soci
+title:
+  ca: Com fer-te soci o sòcia de Mountain Runners
+summary:
+  ca: Una guia provisional per començar l'alta al club, des de les dades personals fins a les dades de pagament del formulari.
+lead:
+  ca: Per fer-te soci o sòcia de Mountain Runners del Berguedà, accedeix al formulari d'alta des de la pàgina de Socis de la web. Aquesta guia descriu provisionalment dues pantalles, primer les dades personals i després les dades de pagament. Els passos del formulari encara estan pendents de comprovació.
+sections:
+  - heading:
+      ca: 1. Omple les dades personals
+    body:
+      ca: A la primera pantalla, introdueix les dades personals que et demana el formulari. Revisa que siguin correctes abans de continuar a la pantalla següent.
+  - heading:
+      ca: 2. Completa les dades de pagament
+    body:
+      ca: A la segona pantalla, introdueix les dades de pagament sol·licitades i segueix les indicacions del formulari. Aquesta guia no confirma que completar-lo impliqui una alta efectiva o un cobrament.
+  - heading:
+      ca: On començar l'alta
+    body:
+      ca: A la pàgina de Socis trobaràs l'accés al formulari d'alta i la informació del club sobre federació i avantatges per a socis i sòcies.
+author:
+  type: organization
+  name: mountain runners
+createdAt: 2026-10-02
+relatedPage: members

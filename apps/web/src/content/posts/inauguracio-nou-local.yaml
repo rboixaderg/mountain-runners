@@ -1,0 +1,18 @@
+id: inauguracio-nou-local
+type: news
+published: false
+slug:
+  ca: inauguracio-nou-local
+title:
+  ca: Mountain Runners inaugura el nou local a la plaça de Sant Joan de Berga
+summary:
+  ca: La inauguració del 26 de setembre va incloure una caminada a Queralt i un piscolabis a la tornada al nou local, situat al número 15 de la plaça de Sant Joan.
+lead:
+  ca: Mountain Runners del Berguedà va inaugurar el nou local el 26 de setembre de 2026, a la plaça de Sant Joan, número 15, de Berga. L'acte va combinar una sortida a peu a Queralt amb un piscolabis a la tornada.
+sections:
+  - body:
+      ca: La jornada va començar amb una caminada a Queralt. Després de la sortida, la celebració va continuar amb un piscolabis al nou local del club.
+author:
+  type: organization
+  name: mountain runners
+createdAt: 2026-10-02

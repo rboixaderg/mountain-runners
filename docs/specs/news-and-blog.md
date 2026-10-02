@@ -64,15 +64,21 @@ necessita el sistema de fase 6 operatiu i autorització explícita per publicar.
 
 ## Tasques, entregues i seguiment
 
-| Unitat | Abast                        | Dependències                        | Estat   | PR      |
-| ------ | ---------------------------- | ----------------------------------- | ------- | ------- |
-| NB-01  | Decisió i especificació      | Aprovació de la persona mantenidora | En curs | Pendent |
-| NB-02  | Guia, plantilles i skill     | NB-01                               | En curs | #140    |
-| NB-03  | Model, col·lecció i selecció | NB-01                               | En curs | Pendent |
-| NB-04  | Recursos i modes de build    | NB-03                               | En curs | Pendent |
-| NB-05  | Hubs, detall i navegació     | NB-02, NB-04                        | Pendent | Pendent |
-| NB-06  | Metadades i descoberta       | NB-05                               | Pendent | Pendent |
-| NB-07  | Pilots i validació integrada | NB-02 a NB-06                       | Pendent | Pendent |
+| Unitat | Abast                        | Dependències                        | Estat      | PR   |
+| ------ | ---------------------------- | ----------------------------------- | ---------- | ---- |
+| NB-01  | Decisió i especificació      | Aprovació de la persona mantenidora | En revisió | #140 |
+| NB-02  | Guia, plantilles i skill     | NB-01                               | En revisió | #140 |
+| NB-03  | Model, col·lecció i selecció | NB-01                               | En revisió | #140 |
+| NB-04  | Recursos i modes de build    | NB-03                               | En revisió | #140 |
+| NB-05  | Hubs, detall i navegació     | NB-02, NB-04                        | En revisió | #140 |
+| NB-06  | Metadades i descoberta       | NB-05                               | En revisió | #140 |
+| NB-07  | Pilots i validació integrada | NB-02 a NB-06                       | En curs    | #140 |
+
+Continuació local del 2 i 3 d'octubre de 2026: implementació tècnica de totes les
+unitats, amb un commit per tasca pendent. NB-07 conserva pendents la revisió visual
+manual i l'aprovació editorial humana. L'[evidència integrada](../validation/news-blog-integrated.md)
+separa comprovacions executades i pendents. No s'ha fet push d'aquesta continuació,
+merge, activació remota ni desplegament.
 
 ### NB-01. Decisió i especificació
 
@@ -89,12 +95,12 @@ skills externes no revisades. Resultat: preparació consistent amb preguntes qua
 falten dades. Comprovacions: els dos pilots, fonts contradictòries, dades
 insuficients i petició de publicar sense revisió. Inclosa a la PR conjunta.
 
-### NB-03. Model, col·lecció i selecció
-
 NB-02 implementada localment: [guia editorial](../editorial/guide.md), plantilles
 i skill `editorial-posts`. Contracte revisat amb els dos pilots i casos de fonts
 contradictòries, dades insuficients i publicació sense revisió. No és aprovació
 editorial ni una prova automàtica del model.
+
+### NB-03. Model, col·lecció i selecció
 
 Abast: esquema `posts`, registre al loader restringit, validació de dates,
 referències, recursos i seleccions públiques i de preview explícites. Exclou
