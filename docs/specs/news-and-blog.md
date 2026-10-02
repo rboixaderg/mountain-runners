@@ -9,8 +9,8 @@ No s'afegeix una fase ni es renumeren les fases existents. Cap tasca es consider
 completada fins que la seva PR estigui revisada, validada i fusionada.
 
 La persona mantenidora farà la revisió editorial. Els pilots són la inauguració
-del local del 26 de setembre de 2026 i la guia per fer-se soci. La fotografia,
-l'autoria personal del blog i la comprovació del formulari continuen pendents;
+del local del 26 de setembre de 2026 i la guia per fer-se soci. La fotografia
+i la comprovació del formulari continuen pendents;
 no bloquegen el model ni les proves amb fixtures, però sí la publicació editorial.
 
 ## Objectiu
@@ -21,7 +21,8 @@ contingut publicat i complet en l'idioma de la ruta.
 
 ## Límits i decisions confirmades
 
-- Astro estàtic, Git, YAML restringit i Zod estricte. Sense dependències noves.
+- Astro estàtic, Git, YAML restringit i Zod estricte. La persona mantenidora
+  autoritza `sharp` per optimitzar imatges; no s'autoritzen altres dependències.
 - Una col·lecció `posts`, tipus `news | blog` i estat `published: boolean`.
 - Català obligatori. Castellà i anglès només si la variant requerida és completa,
   sense fallback de text català sota una ruta d'un altre idioma.
@@ -66,7 +67,7 @@ necessita el sistema de fase 6 operatiu i autorització explícita per publicar.
 | Unitat | Abast                        | Dependències                        | Estat   | PR      |
 | ------ | ---------------------------- | ----------------------------------- | ------- | ------- |
 | NB-01  | Decisió i especificació      | Aprovació de la persona mantenidora | En curs | Pendent |
-| NB-02  | Guia, plantilles i skill     | NB-01                               | Pendent | Pendent |
+| NB-02  | Guia, plantilles i skill     | NB-01                               | En curs | #140    |
 | NB-03  | Model, col·lecció i selecció | NB-01                               | En curs | Pendent |
 | NB-04  | Recursos i modes de build    | NB-03                               | En curs | Pendent |
 | NB-05  | Hubs, detall i navegació     | NB-02, NB-04                        | Pendent | Pendent |
@@ -89,6 +90,11 @@ falten dades. Comprovacions: els dos pilots, fonts contradictòries, dades
 insuficients i petició de publicar sense revisió. Inclosa a la PR conjunta.
 
 ### NB-03. Model, col·lecció i selecció
+
+NB-02 implementada localment: [guia editorial](../editorial/guide.md), plantilles
+i skill `editorial-posts`. Contracte revisat amb els dos pilots i casos de fonts
+contradictòries, dades insuficients i publicació sense revisió. No és aprovació
+editorial ni una prova automàtica del model.
 
 Abast: esquema `posts`, registre al loader restringit, validació de dates,
 referències, recursos i seleccions públiques i de preview explícites. Exclou
@@ -157,8 +163,9 @@ fitxer. Camps desconeguts rebutjats. Constants tipades per als valors compartits
 - `sections` és una seqüència de cossos Markdown restringits amb encapçalament
   textual opcional traduïble. Pot ser buida per a una notícia que ja expliqui
   els fets a l'entradeta. No és un constructor de blocs ni admet HTML, MDX o H1.
-- `author` té nom públic i tipus `person | organization`; el blog requereix
-  `person`. No es creen perfils, comptes ni una col·lecció d'autors.
+- `author` té nom públic i tipus `person | organization`. Per decisió de la
+  persona mantenidora, notícies i blog se signen `mountain runners`, amb tipus
+  `organization`. No es creen perfils, comptes ni una col·lecció d'autors.
 - `createdAt` és una data ISO de preparació. `publishedAt` és data/hora ISO amb
   offset i és obligatori per publicar. `updatedAt` és opcional, només per canvis
   materials. Una retirada pot conservar `publishedAt`.

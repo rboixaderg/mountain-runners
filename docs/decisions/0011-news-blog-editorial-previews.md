@@ -41,6 +41,15 @@ La col·lecció compartida evita duplicar esquemes i selecció de contingut que
 comparteix identitat, idiomes, autoria i publicació. Dos hubs mantenen la
 diferència entre notícies i articles de blog. No cal un CMS ni Markdown executable.
 
+## Esmena del 2 d'octubre de 2026
+
+La persona mantenidora confirma que totes les entrades se signen
+`mountain runners`, amb autoria `organization`, també al blog. Això substitueix
+el requisit inicial d'autoria personal del blog. Autoritza afegir `sharp` per a
+les transformacions locals d'imatges durant el build, com a única excepció al
+límit inicial de dependències noves. Aquesta autorització no canvia el filtratge
+de recursos, la revisió editorial ni els permisos de publicació.
+
 ## Conseqüències
 
 - Les comprovacions de producció han d'excloure també els textos i recursos

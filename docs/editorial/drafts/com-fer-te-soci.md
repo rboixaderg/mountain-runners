@@ -8,7 +8,7 @@
 - Fonts: informació facilitada per la persona mantenidora i acció d'alta
   registrada a `apps/web/src/content/external-actions/member-signup.yaml`.
 - Idioma: català.
-- Autoria personal: pendent d'indicar el nom públic de la signatura.
+- Autoria: `mountain runners`, confirmada per la persona mantenidora.
 - Data de publicació: pendent.
 
 Aquest document és un pilot editorial, no una entrada registrada a la web.
@@ -62,6 +62,6 @@ localitzades; aquesta nota no forma part del text públic.
   efectiva o pagament completat. El text no promet cap d'aquests resultats.
 - No afirmar quotes, terminis, enviament de carnet o equivalència entre alta de
   soci i federació sense confirmació.
-- Indicar l'autoria pública i aprovar el text abans de publicar.
+- Aprovar el text abans de publicar.
 - Mantenir l'enllaç d'alta i les condicions vigents a les fonts autoritatives de
   la web, sense duplicar-les en aquest article.

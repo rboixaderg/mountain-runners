@@ -8,7 +8,7 @@
 - Idioma: català.
 - Data dels fets: 26 de setembre de 2026.
 - Data de publicació: pendent. No s'ha de confondre amb la data de l'acte.
-- Signatura proposada: Mountain Runners del Berguedà, pendent d'aprovació.
+- Signatura: `mountain runners`, confirmada per la persona mantenidora.
 - Fotografia: pendent de rebre. Es preveu disposar, com a mínim, d'una imatge
   exterior del local; encara no està confirmada ni aprovada per publicar.
 

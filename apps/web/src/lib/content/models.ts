@@ -358,16 +358,6 @@ export const postSchema = z
     relatedEventIds: z.array(contentIdSchema).max(20).optional(),
   })
   .superRefine((post, context) => {
-    if (
-      post.type === postTypes.blog &&
-      post.author.type !== postAuthorTypes.person
-    ) {
-      context.addIssue({
-        code: "custom",
-        path: ["author", "type"],
-        message: "A blog requires a personal byline",
-      });
-    }
     if (post.published && post.publishedAt === undefined) {
       context.addIssue({
         code: "custom",

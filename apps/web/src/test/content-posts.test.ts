@@ -25,7 +25,7 @@ function source(posts: Post[]): PostSource {
 }
 
 describe("post schema", () => {
-  it("supports brief news without cover or artificial sections and personal blogs", () => {
+  it("supports brief news and blogs with personal or organizational bylines", () => {
     expect(createPost({ sections: [] }).sections).toEqual([]);
     expect(
       createPost({
@@ -34,7 +34,7 @@ describe("post schema", () => {
       }).type,
     ).toBe("blog");
     expect(postSchema.safeParse({ ...fixture, type: "blog" }).success).toBe(
-      false,
+      true,
     );
   });
 

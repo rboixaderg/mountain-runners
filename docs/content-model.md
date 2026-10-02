@@ -70,8 +70,8 @@ recursos locals resolubles i cap publicació futura respecte de la data editoria
 de build a Madrid. La completesa de les seccions es comprova per idioma sense
 fallback. La publicació requereix `publishedAt`; una retirada pot conservar-ne
 la data. Les actualitzacions es comparen com a instants respectant els offsets.
-Els blogs requereixen autoria personal, mentre que una notícia pot tenir
-signatura institucional. No s'afegeixen continguts reals ni fixtures a aquesta
+Notícies i blogs admeten signatura institucional; la persona mantenidora ha
+confirmat `mountain runners` per a totes les entrades. No s'afegeixen fixtures a aquesta
 col·lecció durant l'entrega del model. El loader en valida l'esquema durant el
 build; la validació del catàleg de posts s'executa quan se'n demana una selecció.
 
