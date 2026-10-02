@@ -1,0 +1,24 @@
+DESIGN.md
+  h_1727aeeb492b30 26-28
+apps/web/e2e/preview.spec.ts
+  h_1727aeeb492b30 31-63
+apps/web/src/components/PreviewNotice.astro
+  h_1727aeeb492b30 12
+apps/web/src/components/SiteHeader.astro
+  h_1727aeeb492b30 91
+apps/web/src/layouts/PublicLayout.astro
+  h_1727aeeb492b30 142-144
+apps/web/src/styles/global.css
+  h_1727aeeb492b30 11
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "66004c178b86edfc8fdd125ee3e86dccc9bdad70",
+  "prompts": {},
+  "humans": {
+    "h_1727aeeb492b30": {
+      "author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
