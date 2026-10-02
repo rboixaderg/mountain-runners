@@ -1,0 +1,23 @@
+docs/runbook.md
+  s_b1b221cd346ddf::t_9613f49d2affea 1008-1012
+tools/server/preview/gate.test.mjs
+  s_b1b221cd346ddf::t_1ecf4e17b18818 838-841
+tools/server/systemd/mountain-preview-site.service
+  s_b1b221cd346ddf::t_5b4ad8271365e8 17-19
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "f305f2c922ad4c1e1342983833b338b3a1d32acd",
+  "prompts": {},
+  "sessions": {
+    "s_b1b221cd346ddf": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "6f440222-0f3d-4548-8914-b1228c6fea69",
+        "model": "unknown"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
