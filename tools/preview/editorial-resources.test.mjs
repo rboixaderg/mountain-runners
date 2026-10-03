@@ -1,3 +1,4 @@
+/* global document, innerWidth -- Used only inside Playwright's browser evaluation. */
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import {
@@ -16,6 +17,8 @@ import test from "node:test";
 import { createHash } from "node:crypto";
 import { createRequire } from "node:module";
 import { listRegularFiles } from "../release/packaging.mjs";
+import { chromium, firefox, webkit } from "@playwright/test";
+import AxeBuilder from "@axe-core/playwright";
 
 const appDirectory = fileURLToPath(new URL("../../apps/web/", import.meta.url));
 const sharp = createRequire(
@@ -40,7 +43,13 @@ test("editorial resources stay isolated across clean builds and preview-to-publi
     );
     await mkdir(join(app, "src/content-assets/posts"), { recursive: true });
     // Distinct pixels ensure an unexpected hashed derivative cannot look shared.
-    const colors = { published: "red", draft: "blue", shared: "green" };
+    const colors = {
+      published: "red",
+      draft: "blue",
+      shared: "green",
+      "section-draft": "purple",
+      "section-public": "orange",
+    };
     const draftDigests = new Set();
     for (const [name, background] of Object.entries(colors)) {
       const image = await sharp({
@@ -49,7 +58,7 @@ test("editorial resources stay isolated across clean builds and preview-to-publi
         .png()
         .toBuffer();
       await writeFile(join(app, `src/content-assets/posts/${name}.png`), image);
-      if (name === "draft") {
+      if (name === "draft" || name === "section-draft") {
         draftDigests.add(createHash("sha256").update(image).digest("hex"));
         for (const width of [480, 1200]) {
           const derivative = await sharp(image)
@@ -71,7 +80,7 @@ test("editorial resources stay isolated across clean builds and preview-to-publi
       ["shared-draft", false, "shared"],
     ]) {
       const localized = (value) =>
-        id === "published"
+        id === "published" || id === "published-blog"
           ? { ca: value, es: `ES ${value}`, en: `EN ${value}` }
           : { ca: value };
       const post = {
@@ -98,6 +107,39 @@ test("editorial resources stay isolated across clean builds and preview-to-publi
           attribution: localized("Fixture"),
         },
       };
+      const sectionImage = (name, label) => ({
+        resource: {
+          kind: "local",
+          path: `src/content-assets/posts/${name}.png`,
+        },
+        alt: id === "published-blog" ? { ca: label } : localized(label),
+        attribution: localized("Fixture"),
+        caption: localized(label),
+      });
+      post.sections = [
+        {
+          heading: localized("Primer pas"),
+          body: localized("Explicació del primer pas"),
+          images: [
+            sectionImage(
+              published ? "section-public" : "section-draft",
+              "Primera pantalla",
+            ),
+          ],
+        },
+        {
+          heading: localized("Text sol"),
+          body: localized("Una secció sense imatges"),
+        },
+        {
+          heading: localized("Segon pas"),
+          body: localized("Explicació del segon pas"),
+          images: [
+            sectionImage("shared", "Segona pantalla"),
+            sectionImage("shared", "Detall de pantalla"),
+          ],
+        },
+      ];
       // JSON is an accepted subset of the restricted YAML parser.
       await writeFile(
         join(app, `src/content/posts/${id}.yaml`),
@@ -152,6 +194,8 @@ test("editorial resources stay isolated across clean builds and preview-to-publi
       );
       assert.ok(blogDetail.includes('"@type":"BlogPosting"'));
       assert.ok(!blogDetail.includes('hreflang="es"'));
+      assert.ok(blogDetail.includes('alt="Primera pantalla" loading="lazy"'));
+      assert.ok(blogDetail.includes("section-public.png.webp"));
       const sitemap = await readFile(join(dist, "sitemap.xml"), "utf8");
       assert.ok(sitemap.includes("/ca/noticies/published/"));
       assert.ok(!sitemap.includes("/ca/noticies/draft/"));
@@ -209,6 +253,82 @@ test("editorial resources stay isolated across clean builds and preview-to-publi
       return snapshots.sort(([left], [right]) => left.localeCompare(right));
     }
     const publicOutput = await build(false);
+    // Exercise the actual built CSS and HTML, without adding synthetic content
+    // to the editorial collection in the real worktree.
+    for (const browserType of [chromium, firefox, webkit]) {
+      const browser = await browserType.launch();
+      try {
+        for (const width of [1280, 320]) {
+          const context = await browser.newContext({
+            viewport: { width, height: 720 },
+          });
+          const page = await context.newPage();
+          await page.route("**/*", async (route) => {
+            const url = new URL(route.request().url());
+            if (url.hostname !== "editorial.test") return route.abort();
+            const pathname = url.pathname.endsWith("/")
+              ? `${url.pathname}index.html`
+              : url.pathname;
+            const contentTypes = {
+              ".html": "text/html",
+              ".css": "text/css",
+              ".js": "application/javascript",
+              ".webp": "image/webp",
+              ".woff2": "font/woff2",
+            };
+            const extension = pathname.slice(pathname.lastIndexOf("."));
+            await route.fulfill({
+              body: await readFile(join(app, "dist", pathname)),
+              contentType:
+                contentTypes[extension] ?? "application/octet-stream",
+            });
+          });
+          await page.goto("https://editorial.test/ca/blog/published-blog/");
+          const firstHeading = await page
+            .getByRole("heading", { name: "Primer pas", exact: true })
+            .boundingBox();
+          const firstImage = await page
+            .getByRole("img", { name: "Primera pantalla", exact: true })
+            .boundingBox();
+          const secondHeading = await page
+            .getByRole("heading", { name: "Segon pas", exact: true })
+            .boundingBox();
+          const secondImage = await page
+            .getByRole("img", { name: "Segona pantalla", exact: true })
+            .boundingBox();
+          if (width === 1280) {
+            assert.ok(firstImage.x + firstImage.width <= firstHeading.x);
+            assert.ok(secondHeading.x + secondHeading.width <= secondImage.x);
+          } else {
+            assert.ok(firstHeading.y + firstHeading.height <= firstImage.y);
+            assert.ok(secondHeading.y + secondHeading.height <= secondImage.y);
+          }
+          assert.equal(
+            await page
+              .getByRole("heading", { name: "Text sol", exact: true })
+              .locator("xpath=ancestor::section[1]")
+              .getByRole("img")
+              .count(),
+            0,
+          );
+          assert.equal(
+            await page.evaluate(
+              () => document.documentElement.scrollWidth <= innerWidth,
+            ),
+            true,
+          );
+          if (browserType === chromium) {
+            const results = await new AxeBuilder({ page })
+              .withTags(["wcag2a", "wcag2aa", "wcag21aa", "wcag22aa"])
+              .analyze();
+            assert.deepEqual(results.violations, []);
+          }
+          await context.close();
+        }
+      } finally {
+        await browser.close();
+      }
+    }
     const resource = (name) =>
       `content-resources/content-assets/posts/${name}.png`;
     assert.ok(!publicOutput.some(([path]) => path === resource("published")));
@@ -223,6 +343,12 @@ test("editorial resources stay isolated across clean builds and preview-to-publi
       );
       assert.ok(publicOutput.some(([path]) => path === derivative("shared")));
       assert.ok(!publicOutput.some(([path]) => path === derivative("draft")));
+      assert.ok(
+        publicOutput.some(([path]) => path === derivative("section-public")),
+      );
+      assert.ok(
+        !publicOutput.some(([path]) => path === derivative("section-draft")),
+      );
       const bytes = await readFile(join(app, "dist", derivative("published")));
       assert.equal(bytes.toString("ascii", 8, 12), "WEBP");
     }
@@ -234,6 +360,13 @@ test("editorial resources stay isolated across clean builds and preview-to-publi
       previewOutput.some(
         ([path]) =>
           path === "editorial-images/480/content-assets/posts/draft.png.webp",
+      ),
+    );
+    assert.ok(
+      previewOutput.some(
+        ([path]) =>
+          path ===
+          "editorial-images/480/content-assets/posts/section-draft.png.webp",
       ),
     );
     assert.deepEqual(await build(false), publicOutput);

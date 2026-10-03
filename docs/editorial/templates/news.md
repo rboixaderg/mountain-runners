@@ -5,12 +5,14 @@
 - Estat inicial: esborrany, `published: false`.
 - Tipus: `news`.
 - Identificador estable i slug català:
-- Signatura: `mountain runners`, tipus `organization`.
+- Signatura per defecte: `mountain runners`, tipus `organization`; si s'indica
+  una altra autoria, registrar-ne el nom públic i el tipus.
 - Data de preparació:
 - Fets confirmats: què ha passat, qui, quan i on.
 - Fonts i atribucions:
 - Dubtes per resoldre amb la persona mantenidora:
 - Fotografia aprovada, drets, alt i crèdit, o sense coberta:
+- Imatges opcionals de cada secció: recurs local, alt, crèdit i peu opcional.
 - Idiomes complets disponibles:
 
 ## Text per als lectors

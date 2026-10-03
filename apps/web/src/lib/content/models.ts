@@ -311,6 +311,14 @@ const postTimestampSchema = z.iso
     error: "Expected a valid timestamp with a time zone",
   });
 
+const postImageSchema = z.strictObject({
+  ...imageSchema.shape,
+  resource: localImageResourceSchema,
+  attribution: localizedTextSchema,
+  caption: localizedTextSchema.optional(),
+});
+export type PostImage = z.infer<typeof postImageSchema>;
+
 export const postSchema = z
   .strictObject({
     ...publishableFields,
@@ -323,6 +331,7 @@ export const postSchema = z
         z.strictObject({
           heading: localizedTextSchema.optional(),
           body: localizedMarkdownSchema,
+          images: z.array(postImageSchema).min(1).max(10).optional(),
         }),
       )
       .max(50),
@@ -333,13 +342,7 @@ export const postSchema = z
     createdAt: dateSchema,
     publishedAt: postTimestampSchema.optional(),
     updatedAt: postTimestampSchema.optional(),
-    cover: z
-      .strictObject({
-        ...imageSchema.shape,
-        resource: localImageResourceSchema,
-        attribution: localizedTextSchema,
-      })
-      .optional(),
+    cover: postImageSchema.optional(),
     sources: z
       .array(
         z.strictObject({

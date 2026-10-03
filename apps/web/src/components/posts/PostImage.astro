@@ -1,0 +1,37 @@
+---
+import type { PostImage } from "../../lib/content/models";
+import type { Locale } from "../../lib/content/primitives";
+import {
+  getPostImageHref,
+  transformPostImage,
+} from "../../lib/content/post-images";
+interface Props {
+  image: PostImage;
+  locale: Locale;
+  loading: "eager" | "lazy";
+}
+const { image, locale, loading } = Astro.props;
+const { info } = await transformPostImage(image.resource.path, 1200);
+---
+
+<figure class="m-0 min-w-0">
+  <picture>
+    <source
+      media="(max-width: 480px)"
+      srcset={getPostImageHref(image.resource.path, 480)}
+    />
+    <img
+      class="h-auto w-full"
+      src={getPostImageHref(image.resource.path, 1200)}
+      width={info.width}
+      height={info.height}
+      alt={image.alt[locale]!}
+      loading={loading}
+      decoding="async"
+    />
+  </picture>
+  <figcaption class="text-muted mt-2 text-sm">
+    {image.caption && <p class="m-0">{image.caption[locale]}</p>}
+    {image.attribution[locale]}
+  </figcaption>
+</figure>

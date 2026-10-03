@@ -1,6 +1,8 @@
 ---
 import type { PostVariant } from "../../lib/content/posts";
 import { renderRestrictedMarkdown } from "../../lib/content/markdown";
+import { getPostSections } from "../../lib/presentation/posts";
+import PostImage from "./PostImage.astro";
 interface Props {
   variant: PostVariant;
 }
@@ -8,20 +10,46 @@ const { entry, locale } = Astro.props.variant;
 ---
 
 <div class="page-frame py-section">
-  <div class="post-copy max-w-reading leading-copy">
+  <div class="post-copy leading-copy">
     <div
-      class="text-lg"
+      class="max-w-reading text-lg"
       set:html={renderRestrictedMarkdown(entry.lead[locale]!)}
     />
     {
-      entry.sections.map((section) => (
-        <section class="mt-8">
-          {section.heading && (
-            <h2 class="font-display text-2xl leading-tight">
-              {section.heading[locale]}
-            </h2>
+      getPostSections(entry).map(({ section, hasImages, imageOnLeft }) => (
+        <section
+          class:list={[
+            "mt-8",
+            hasImages
+              ? "grid items-start gap-8 lg:grid-cols-2"
+              : "max-w-reading",
+          ]}
+        >
+          <div
+            class:list={[
+              "max-w-reading min-w-0",
+              imageOnLeft && "lg:col-start-2 lg:row-start-1",
+            ]}
+          >
+            {section.heading && (
+              <h2 class="font-display text-2xl leading-tight">
+                {section.heading[locale]}
+              </h2>
+            )}
+            <div set:html={renderRestrictedMarkdown(section.body[locale]!)} />
+          </div>
+          {hasImages && (
+            <div
+              class:list={[
+                "grid min-w-0 gap-6",
+                imageOnLeft && "lg:col-start-1 lg:row-start-1",
+              ]}
+            >
+              {section.images!.map((image) => (
+                <PostImage image={image} locale={locale} loading="lazy" />
+              ))}
+            </div>
           )}
-          <div set:html={renderRestrictedMarkdown(section.body[locale]!)} />
         </section>
       ))
     }

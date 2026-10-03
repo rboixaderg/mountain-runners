@@ -167,16 +167,21 @@ fitxer. Camps desconeguts rebutjats. Constants tipades per als valors compartits
 - `id`, `type`, `published`, `slug`, `title`, `summary`, `lead`, `sections`,
   `author` i `createdAt` obligatoris. Textos i slug traduïbles, català obligatori.
 - `sections` és una seqüència de cossos Markdown restringits amb encapçalament
-  textual opcional traduïble. Pot ser buida per a una notícia que ja expliqui
-  els fets a l'entradeta. No és un constructor de blocs ni admet HTML, MDX o H1.
+  textual opcional traduïble i `images` opcional, entre una i deu imatges locals
+  amb `alt`, `attribution` i `caption` opcional traduïbles. Pot ser buida per a
+  una notícia que ja expliqui els fets a l'entradeta. No és un constructor de
+  blocs ni admet HTML, MDX o H1.
 - `author` té nom públic i tipus `person | organization`. Per decisió de la
-  persona mantenidora, notícies i blog se signen `mountain runners`, amb tipus
-  `organization`. No es creen perfils, comptes ni una col·lecció d'autors.
+  persona mantenidora, la signatura per defecte és `mountain runners`, amb tipus
+  `organization`. Si s'explicita una altra autoria, s'utilitza el seu nom públic
+  i tipus. `author` continua obligatori al YAML. No es creen perfils, comptes ni
+  una col·lecció d'autors.
 - `createdAt` és una data ISO de preparació. `publishedAt` és data/hora ISO amb
   offset i és obligatori per publicar. `updatedAt` és opcional, només per canvis
   materials. Una retirada pot conservar `publishedAt`.
 - `cover` opcional, recurs local amb alt i crèdit traduïbles obligatoris quan hi
   ha coberta. Sense fotografia aprovada no es crea una coberta fictícia.
+
 - `sources` opcional, llista limitada de fonts públiques amb nom traduïble i
   HTTPS. La informació directa del club pot atribuir-se al cos sense URL.
 - `correction` opcional, data i nota traduïble per a rectificacions materials.
@@ -184,6 +189,17 @@ fitxer. Camps desconeguts rebutjats. Constants tipades per als valors compartits
   inexistent fa fallar; referència no publicada o incompleta no genera enllaç.
 - `relatedPage` opcional, actualment només `members`, per relacionar una guia
   amb la informació vigent de socis. El component construeix l'enllaç localitzat.
+
+Les imatges del cos són part de la completesa de cada variant: si una imatge
+declarada no té alt, crèdit o peu declarat traduïts, aquella variant no es genera.
+Només es transformen recursos de variants seleccionades. La coberta segueix
+sent opcional i no es confon amb les imatges dels passos.
+
+En escriptori, a partir de `lg`, les seccions il·lustrades alternen imatge a
+l'esquerra/text a la dreta i viceversa. Les seccions sense imatges no consumeixen
+un torn. En mòbil i a l'ordre del document, el text precedeix les imatges. No es
+retallen les captures, les imatges del cos es carreguen de manera diferida i les
+seccions sense imatges conserven l'amplada de lectura.
 
 `publishedAt` no pot ser anterior a `createdAt`; `updatedAt` no precedeix la
 publicació, o la preparació si encara no hi ha publicació. Dates de publicació

@@ -25,3 +25,13 @@ export function getPostDisplayDate(post: Post): string {
   if (post.published) return post.publishedAt!;
   return post.createdAt;
 }
+
+export function getPostSections(post: Post) {
+  let illustratedSectionCount = 0;
+  return post.sections.map((section) => {
+    const hasImages = section.images !== undefined;
+    const imageOnLeft = hasImages && illustratedSectionCount % 2 === 0;
+    if (hasImages) illustratedSectionCount += 1;
+    return { section, hasImages, imageOnLeft };
+  });
+}

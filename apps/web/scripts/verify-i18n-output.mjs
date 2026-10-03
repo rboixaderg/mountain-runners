@@ -238,6 +238,12 @@ for (const file of await readdir(postsDirectory)) {
       section.heading ? [section.heading, section.body] : [section.body],
     ),
   ];
+  for (const section of post.sections) {
+    for (const image of section.images ?? []) {
+      fields.push(image.alt, image.attribution);
+      if (image.caption) fields.push(image.caption);
+    }
+  }
   for (const locale of configuredLocales) {
     if (
       !fields.every(

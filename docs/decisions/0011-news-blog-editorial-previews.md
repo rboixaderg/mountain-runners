@@ -50,6 +50,14 @@ les transformacions locals d'imatges durant el build, com a única excepció al
 límit inicial de dependències noves. Aquesta autorització no canvia el filtratge
 de recursos, la revisió editorial ni els permisos de publicació.
 
+## Aclariment del 3 d'octubre de 2026
+
+La persona mantenidora aclareix que `mountain runners` és l'autoria per defecte,
+no una restricció: una autoria diferent explícita és vàlida amb el seu nom públic
+i tipus `person` o `organization`. El YAML continua exigint `author`; no s'afegeix
+un fallback al render. També autoritza imatges locals opcionals a les seccions,
+amb la mateixa selecció de recursos i aïllament dels esborranys.
+
 ## Conseqüències
 
 - Les comprovacions de producció han d'excloure també els textos i recursos

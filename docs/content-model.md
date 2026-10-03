@@ -71,7 +71,11 @@ de build a Madrid. La completesa de les seccions es comprova per idioma sense
 fallback. La publicació requereix `publishedAt`; una retirada pot conservar-ne
 la data. Les actualitzacions es comparen com a instants respectant els offsets.
 Notícies i blogs admeten signatura institucional; la persona mantenidora ha
-confirmat `mountain runners` per a totes les entrades. No s'afegeixen fixtures a aquesta
+confirmat `mountain runners` com a signatura per defecte, amb altres autories
+explícites permeses. `author` sempre es declara al YAML. Les seccions admeten
+imatges locals opcionals amb alt, crèdit i peu opcional traduïbles. Els textos
+d'imatges declarades formen part de la completesa de la variant; els recursos
+només es transformen després de seleccionar-la. No s'afegeixen fixtures a aquesta
 col·lecció durant l'entrega del model. El loader en valida l'esquema durant el
 build; la validació del catàleg de posts s'executa quan se'n demana una selecció.
 

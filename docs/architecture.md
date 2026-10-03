@@ -30,6 +30,12 @@ orientació corregida i sense conservar metadades EXIF. Només rep paths locals
 validats i seleccionats pel mode de build. No és un servei dinàmic ni permet
 transformar paths arbitraris a petició.
 
+Les seccions editorials també admeten imatges locals opcionals. El mateix
+endpoint transforma només els recursos de variants completes seleccionades;
+el render alterna imatge/text en escriptori i apila text/imatge en mòbil. La
+completesa inclou els textos de les imatges declarades, a diferència de la
+coberta opcional que es pot ometre en una traducció incompleta.
+
 La superfície «agèntica» del lloc es compon de `/llms.txt`, que orienta els
 agents sobre el contingut i les seccions trilingües del lloc, i de les dades
 estructurades JSON-LD de la portada: l'entitat institucional s'emet amb

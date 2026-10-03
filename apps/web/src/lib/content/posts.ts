@@ -56,7 +56,14 @@ function isPostComplete(post: Post, locale: Locale): boolean {
       (section) =>
         hasCompleteTranslation(section.body, locale) &&
         (section.heading === undefined ||
-          hasCompleteTranslation(section.heading, locale)),
+          hasCompleteTranslation(section.heading, locale)) &&
+        (section.images ?? []).every(
+          (image) =>
+            hasCompleteTranslation(image.alt, locale) &&
+            hasCompleteTranslation(image.attribution, locale) &&
+            (image.caption === undefined ||
+              hasCompleteTranslation(image.caption, locale)),
+        ),
     )
   );
 }
@@ -119,7 +126,9 @@ export function getPostCover(post: Post, locale: Locale): Post["cover"] {
   if (
     cover === undefined ||
     !hasCompleteTranslation(cover.alt, locale) ||
-    !hasCompleteTranslation(cover.attribution, locale)
+    !hasCompleteTranslation(cover.attribution, locale) ||
+    (cover.caption !== undefined &&
+      !hasCompleteTranslation(cover.caption, locale))
   ) {
     return undefined;
   }
@@ -133,6 +142,9 @@ export function getPostLocalResources(
   for (const variant of variants) {
     const cover = getPostCover(variant.entry, variant.locale);
     if (cover !== undefined) paths.add(cover.resource.path);
+    for (const section of variant.entry.sections) {
+      for (const image of section.images ?? []) paths.add(image.resource.path);
+    }
   }
   return [...paths].sort();
 }

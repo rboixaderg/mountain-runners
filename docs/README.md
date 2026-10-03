@@ -43,6 +43,8 @@ acceptada:
   signatura, rectificació i aprovació humana. Inclou les dues plantilles.
 - [`validation/news-blog-integrated.md`](validation/news-blog-integrated.md):
   validació local de la continuació de la PR #140 i revisions pendents.
+- [`validation/news-blog-section-images.md`](validation/news-blog-section-images.md):
+  imatges opcionals de secció, alternança responsive i autoria per defecte.
 
 ## Investigació i antecedents
 

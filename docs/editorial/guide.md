@@ -4,8 +4,10 @@
 
 Les notícies expliquen fets del club amb la informació principal al començament.
 El blog respon una pregunta del lector o desenvolupa una opinió identificada com
-a tal. Tots dos tipus se signen `mountain runners`, amb autoria `organization`,
-per decisió de la persona mantenidora.
+a tal. La signatura per defecte és `mountain runners`, amb autoria
+`organization`. Si s'indica una altra autoria, s'escriu el seu nom públic i el
+tipus `person` o `organization`. El YAML sempre declara l'autoria explícitament;
+el valor per defecte és un criteri editorial, no un nom afegit pel render.
 
 1. Recollir els fets confirmats, les fonts i els dubtes abans de redactar.
 2. Utilitzar la [plantilla de notícia](templates/news.md) o la
@@ -37,6 +39,43 @@ Els articles, publicats o en esborrany, viuen només a la col·lecció `posts`.
   que poden canviar. No provar formularis amb dades personals o pagaments reals.
 
 ## Imatges i privacitat
+
+Cada secció pot ometre `images` o incloure entre una i deu imatges locals amb
+`resource`, `alt` i `attribution`. `caption` és opcional. Si una secció declara
+imatges, els textos de totes han de ser complets en l'idioma de l'article;
+si falta una traducció, aquella variant no es genera. No s'amaga una captura
+necessària per entendre un tutorial ni es fa fallback al català.
+
+En escriptori, la primera secció amb imatges mostra les imatges a l'esquerra i
+el text a la dreta; la següent, a l'inrevés. Les seccions sense imatges no alteren
+l'alternança i mantenen l'amplada de lectura. En mòbil, el text precedeix les
+imatges, que es mostren sense retallar i amb càrrega diferida. Les imatges d'una
+mateixa secció s'apilen en l'ordre del YAML.
+
+Exemple d'una secció il·lustrada. El fitxer ha d'existir i estar aprovat abans
+d'incorporar la referència al contingut:
+
+```yaml
+sections:
+  - heading:
+      ca: Revisa les dades
+    body:
+      ca: Comprova les dades abans de continuar amb el pas següent.
+    images:
+      - resource:
+          kind: local
+          path: src/content-assets/posts/com-fer-te-soci/revisio.png
+        alt:
+          ca: Pantalla de revisió del formulari amb les dades de prova.
+        attribution:
+          ca: mountain runners
+        caption:
+          ca: Revisa les dades abans de continuar.
+```
+
+Desa els fitxers a `apps/web/src/content-assets/posts/<id>/`. Prepara captures
+amb dades fictícies i elimina dades personals, bancàries i identificadors abans
+d'afegir-les a Git. El text de la captura no substitueix l'explicació del pas.
 
 No afegir una coberta si no hi ha fotografia aprovada. Confirmar drets, crèdit i
 permís de publicació, especialment si hi apareixen menors. Escriure l'alt després
