@@ -2,8 +2,9 @@
 
 ## Estat
 
-Acceptada per la persona mantenidora el 2 d'octubre de 2026. Implementació pendent
-del flux de revisió i PR. Aquesta decisió no autoritza cap activació remota.
+Acceptada per la persona mantenidora el 2 d'octubre de 2026. Implementació a la
+PR #140, pendent de revisió i merge humà. Aquesta decisió no autoritza cap
+activació remota; les previews requereixen una petició explícita separada.
 
 ## Decisió
 

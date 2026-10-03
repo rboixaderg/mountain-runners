@@ -54,17 +54,20 @@ releases i gate SSH). L'analítica pública és Plausible CE autoallotjat a
 El diagrama viu de la configuració del VPS és a
 [`docs/runbook.md`](runbook.md#arquitectura-del-servidor). Lighthouse continua
 sent una auditoria manual. L'apex ja serveix des del VPS (T5.5,
-[runbook](runbook.md#9-tall-dns-i-primera-activació-pública)); encara no
-existeixen previews de pull request ni cap servei Hono.
+[runbook](runbook.md#9-tall-dns-i-primera-activació-pública)); les previews de
+pull request ja són operatives mitjançant el workflow `Preview`, amb petició
+explícita `/preview` i publicador de confiança des de `main`.
+No existeix cap servei Hono.
 
 ## Direcció Acceptada
 
 La web és un lloc estàtic amb Astro i TypeScript. Les Content Collections
 validades amb Zod modelen el contingut editorial, i Git n'és la font de veritat.
 La direcció acceptada per a la fase 5 és servir-la amb Caddy des d'un VPS modest
-de Hetzner, mantenint inicialment Hostinger com a DNS autoritatiu. La fase 6
-avaluarà separadament l'arquitectura de previews i la necessitat real de
-Cloudflare o de dominis wildcard.
+de Hetzner, mantenint inicialment Hostinger com a DNS autoritatiu. Les previews
+segueixen els ADR 0009 i 0010: artefacte i namespace separats, origen per PR,
+caducitat i publicació autoritzada. L'excepció editorial de l'ADR 0011 no canvia
+aquesta frontera de confiança ni declara completada tota la fase 6.
 
 La versió inicial no té base de dades, CMS, comptes d'usuari ni backend
 d'aplicació renderitzat al servidor.
@@ -108,6 +111,14 @@ la fase 4 va registrar respecte de l'ADR 0006 van quedar corregides amb la PR
 de l'ADR 0006). Qualsevol desviació futura continua requerint una correcció
 separada o un ADR que substitueixi aquesta frontera.
 
+### Composició editorial
+
+El detall editorial composa `PostHeader`, `PostCover`, `PostBody`,
+`PostMembersLink`, `PostCorrection`, `PostSources` i `PostRelatedEvents`.
+Cada secció és propietària dels missatges, les dades que presenta i la seva
+condició de visibilitat. La pàgina carrega les variants i les referències
+publicades; els components no consulten les col·leccions.
+
 ## Xat Públic, Més Endavant
 
 El xat públic indexarà tot el contingut publicat, incloent-hi pàgines editorials
@@ -119,8 +130,8 @@ formen part del disseny inicial.
 
 - Servei de xat Hono i generador d'índex.
 - Integració amb Telegram, Discord o Hermes.
-- Previews, dominis efímers i possible integració amb Cloudflare fins a definir
-  i implementar la fase 6.
+- Noves integracions DNS/edge o proveïdors per a previews fora de la decisió
+  acceptada de la fase 6.
 
 Consulta els ADR de `docs/decisions/` per conèixer les decisions darrere
 d'aquests límits.

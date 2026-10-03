@@ -53,14 +53,16 @@ Les col·leccions de contingut registrades són:
   explícita, autoria pública, dates, entradeta i seccions de Markdown restringit.
   Les cobertes opcionals són locals i requereixen text alternatiu i crèdit.
 
-La col·lecció `posts` està registrada, però encara no genera hubs ni detalls.
+La col·lecció `posts` està registrada i genera hubs i detalls de notícies i blog.
 El repositori ofereix `getPublishedPostVariants` i `getPreviewPostVariants`
 com a seleccions explícites separades: la primera exclou esborranys i la segona
 admet posts complets amb `published: false`. No canvia la visibilitat de cap
 altra col·lecció ni s'activa cap mode de build de preview per aquesta API.
-La ruta de recursos selecciona les cobertes dels posts segons el mode explícit
-de build. Només copia una coberta si la variant és visible i té alt i crèdit
-complets en aquell idioma. Les pàgines i metadades són entregues posteriors.
+La ruta estàtica `editorial-images/` transforma cobertes i imatges de secció
+segons el mode explícit de build, només per a variants seleccionades. Una
+coberta opcional incompleta s'omet; una imatge de secció declarada incompleta
+impedeix generar la variant lingüística. El render consumeix derivades WebP,
+no còpies dels originals dels posts. Les pàgines i metadades estan implementades.
 `getBuildPostVariants` tria preview exclusivament amb `PUBLIC_PREVIEW=true`;
 el catàleg públic de les altres col·leccions no canvia.
 
@@ -75,8 +77,9 @@ confirmat `Mountain Runners` com a signatura per defecte, amb altres autories
 explícites permeses. `author` sempre es declara al YAML. Les seccions admeten
 imatges locals opcionals amb alt, crèdit i peu opcional traduïbles. Els textos
 d'imatges declarades formen part de la completesa de la variant; els recursos
-només es transformen després de seleccionar-la. No s'afegeixen fixtures a aquesta
-col·lecció durant l'entrega del model. El loader en valida l'esquema durant el
+només es transformen després de seleccionar-la. Els dos pilots reals es conserven
+en esborrany; les fixtures sintètiques només existeixen a les proves. El loader
+en valida l'esquema durant el
 build; la validació del catàleg de posts s'executa quan se'n demana una selecció.
 
 La col·lecció `contact` conté exactament una entrada institucional. El catàleg
@@ -136,14 +139,16 @@ excepció per revisar esborranys de notícies i blog en preview.
 L'[especificació](specs/news-and-blog.md) en defineix l'abast. Producció manté
 el filtratge de publicació i l'excepció no afecta altres col·leccions. Les
 seleccions de posts, les pàgines i les transformacions locals estan implementades
-en aquesta branca. Només es generen derivades de cobertes seleccionades. Els
+en aquesta branca. Només es generen derivades d'imatges seleccionades. Els
 originals dels posts no es copien perquè el render no els utilitza; un original
 compartit amb una altra col·lecció pública es conserva segons el seu contracte.
 Sitemap i JSON-LD només inclouen posts publicats. El selector del preview només
 enllaça variants completes al seu mateix origen.
 
 `apps/web/src/lib/content/publication.ts` és la capa de domini autoritativa per
-decidir les variants publicables. Comprova la unicitat dels slugs per idioma,
+decidir les variants publicables de les col·leccions anteriors; `posts.ts` aplica
+el contracte editorial de notícies i blog amb seleccions explícites pública i
+de preview. La validació comprova la unicitat dels slugs per idioma,
 l'existència de referències i la completesa transitiva dels camps renderitzats,
 entitats i documents.
 

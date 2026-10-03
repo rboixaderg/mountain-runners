@@ -4,6 +4,11 @@ Continuació local de la PR #140, executada el 2 i 3 d'octubre de 2026 a
 `mountain_runners-news-blog-artifacts`, branca `feat/news-blog-artifacts`.
 No acredita un desplegament remot ni substitueix revisió humana.
 
+Aquest document conserva els resultats d'aquella etapa, no l'estat actual de la
+PR. La [revisió d'analítica i UI](news-blog-analytics-ui.md) i el
+[seguiment arquitectònic](news-blog-architecture-closure.md) registren les
+correccions, la revisió visual, les previews autoritzades i l'auditoria posterior.
+
 ## Implementació i revisió de la PR
 
 La PR inicial contenia NB-01, NB-03 i part de NB-04. Aquesta continuació afegeix

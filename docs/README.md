@@ -47,6 +47,8 @@ acceptada:
   imatges opcionals de secció, alternança responsive i autoria per defecte.
 - [`validation/news-blog-analytics-ui.md`](validation/news-blog-analytics-ui.md):
   analítica editorial etiquetada i revisió visual amb Playwright MCP.
+- [`validation/news-blog-architecture-closure.md`](validation/news-blog-architecture-closure.md):
+  integració amb `main`, propietat de seccions i estat actual de validació i audit.
 
 ## Investigació i antecedents
 
