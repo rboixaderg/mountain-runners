@@ -38,62 +38,58 @@ const documentAttributes = analyticsActionAttributes({
 
 <li>
   <p class="m-0 mb-2 font-bold">
-    {
-      documentHref !== undefined ? (
-        document.resource.kind === "external" ? (
-          <ExternalLink
-            href={documentHref}
-            label={documentTitle}
-            analyticsArea={analyticsAreas.documents}
-            analyticsAction={analyticsActions.documentOpen}
-            analyticsTarget={document.id}
-          />
-        ) : (
-          <a href={documentHref} {...documentAttributes}>
-            {documentTitle}
-          </a>
-        )
+    {documentHref !== undefined ? (
+      document.resource.kind === "external" ? (
+        <ExternalLink
+          href={documentHref}
+          label={documentTitle}
+          analyticsArea={analyticsAreas.documents}
+          analyticsAction={analyticsActions.documentOpen}
+          analyticsTarget={document.id}
+        />
       ) : (
-        <>
+        <a href={documentHref} {...documentAttributes}>
           {documentTitle}
-          {availabilityMessageKey !== undefined && (
-            <span class="text-muted tracking-label ml-3 text-xs leading-normal font-bold uppercase">
-              {messages[availabilityMessageKey]({}, { locale })}
-            </span>
-          )}
-        </>
+        </a>
       )
-    }
+    ) : (
+      <>
+        {documentTitle}
+        {availabilityMessageKey !== undefined && (
+          <span class="text-muted tracking-label ml-3 text-xs leading-normal font-bold uppercase">
+            {messages[availabilityMessageKey]({}, { locale })}
+          </span>
+        )}
+      </>
+    )}
   </p>
   <p class="text-muted m-0 mb-2 text-sm leading-normal">
     {document.description[locale]}
   </p>
-  {
-    (document.date !== undefined ||
-      resourceLocaleMessageKey !== undefined ||
-      document.attribution !== undefined) && (
-      <dl class="documents-entry__meta text-muted tracking-label m-0 flex flex-wrap gap-x-4 gap-y-2 text-xs leading-normal font-bold uppercase">
-        {document.date !== undefined && (
-          <div class="flex gap-2">
-            <dt>{messages.document_date_label({}, { locale })}</dt>
-            <dd class="m-0">{formatCalendarDate(document.date, locale)}</dd>
-          </div>
-        )}
-        {resourceLocaleMessageKey !== undefined && (
-          <div class="flex gap-2">
-            <dt>{messages.document_language_label({}, { locale })}</dt>
-            <dd class="m-0">
-              {messages[resourceLocaleMessageKey]({}, { locale })}
-            </dd>
-          </div>
-        )}
-        {document.attribution !== undefined && (
-          <div class="flex gap-2">
-            <dt>{messages.document_attribution_label({}, { locale })}</dt>
-            <dd class="m-0">{document.attribution[locale]}</dd>
-          </div>
-        )}
-      </dl>
-    )
-  }
+  {(document.date !== undefined ||
+    resourceLocaleMessageKey !== undefined ||
+    document.attribution !== undefined) && (
+    <dl class="documents-entry__meta text-muted tracking-label m-0 flex flex-wrap gap-x-4 gap-y-2 text-xs leading-normal font-bold uppercase">
+      {document.date !== undefined && (
+        <div class="flex gap-2">
+          <dt>{messages.document_date_label({}, { locale })}</dt>
+          <dd class="m-0">{formatCalendarDate(document.date, locale)}</dd>
+        </div>
+      )}
+      {resourceLocaleMessageKey !== undefined && (
+        <div class="flex gap-2">
+          <dt>{messages.document_language_label({}, { locale })}</dt>
+          <dd class="m-0">
+            {messages[resourceLocaleMessageKey]({}, { locale })}
+          </dd>
+        </div>
+      )}
+      {document.attribution !== undefined && (
+        <div class="flex gap-2">
+          <dt>{messages.document_attribution_label({}, { locale })}</dt>
+          <dd class="m-0">{document.attribution[locale]}</dd>
+        </div>
+      )}
+    </dl>
+  )}
 </li>

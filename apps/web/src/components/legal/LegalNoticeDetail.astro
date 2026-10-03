@@ -84,9 +84,7 @@ const contact = catalog.contact;
   >
     <dl class="max-w-reading m-0 grid gap-3">
       <div class="contact-data__row grid gap-3">
-        <dt
-          class="text-muted tracking-label text-xs leading-normal font-bold uppercase"
-        >
+        <dt class="text-muted tracking-label text-xs leading-normal font-bold uppercase">
           {messages.legal_notice_entity_name_label({}, { locale })}
         </dt>
         <dd class="m-0 min-w-0 wrap-anywhere">
@@ -94,9 +92,7 @@ const contact = catalog.contact;
         </dd>
       </div>
       <div class="contact-data__row grid gap-3">
-        <dt
-          class="text-muted tracking-label text-xs leading-normal font-bold uppercase"
-        >
+        <dt class="text-muted tracking-label text-xs leading-normal font-bold uppercase">
           {messages.legal_notice_entity_type_label({}, { locale })}
         </dt>
         <dd class="m-0 min-w-0 wrap-anywhere">
@@ -104,9 +100,7 @@ const contact = catalog.contact;
         </dd>
       </div>
       <div class="contact-data__row grid gap-3">
-        <dt
-          class="text-muted tracking-label text-xs leading-normal font-bold uppercase"
-        >
+        <dt class="text-muted tracking-label text-xs leading-normal font-bold uppercase">
           {messages.legal_notice_entity_register_label({}, { locale })}
         </dt>
         <dd class="m-0 min-w-0 wrap-anywhere">
@@ -114,9 +108,7 @@ const contact = catalog.contact;
         </dd>
       </div>
       <div class="contact-data__row grid gap-3">
-        <dt
-          class="text-muted tracking-label text-xs leading-normal font-bold uppercase"
-        >
+        <dt class="text-muted tracking-label text-xs leading-normal font-bold uppercase">
           {messages.legal_notice_entity_census_label({}, { locale })}
         </dt>
         <dd class="m-0 min-w-0 wrap-anywhere">
@@ -124,21 +116,17 @@ const contact = catalog.contact;
         </dd>
       </div>
     </dl>
-    {
-      contact && (
-        <ContactDataList
-          addressLabelKey="legal_entity_address_label"
-          contact={contact}
-          locale={locale}
-        />
-      )
-    }
+    {contact && (
+      <ContactDataList
+        addressLabelKey="legal_entity_address_label"
+        contact={contact}
+        locale={locale}
+      />
+    )}
   </PageSection>
-  {
-    legalNoticeSections.map(({ bodyKey, id, titleKey }) => (
-      <PageSection id={id} title={messages[titleKey]({}, { locale })}>
-        <LegalMarkdown source={messages[bodyKey]({}, { locale })} />
-      </PageSection>
-    ))
-  }
+  {legalNoticeSections.map(({ bodyKey, id, titleKey }) => (
+    <PageSection id={id} title={messages[titleKey]({}, { locale })}>
+      <LegalMarkdown source={messages[bodyKey]({}, { locale })} />
+    </PageSection>
+  ))}
 </article>

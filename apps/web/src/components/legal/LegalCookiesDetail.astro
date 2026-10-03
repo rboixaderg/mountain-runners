@@ -59,11 +59,9 @@ const { locale } = Astro.props;
     kicker={messages.site_title({}, { locale })}
     title={messages.legal_cookies_title({}, { locale })}
   />
-  {
-    legalCookiesSections.map(({ bodyKey, id, titleKey }) => (
-      <PageSection id={id} title={messages[titleKey]({}, { locale })}>
-        <LegalMarkdown source={messages[bodyKey]({}, { locale })} />
-      </PageSection>
-    ))
-  }
+  {legalCookiesSections.map(({ bodyKey, id, titleKey }) => (
+    <PageSection id={id} title={messages[titleKey]({}, { locale })}>
+      <LegalMarkdown source={messages[bodyKey]({}, { locale })} />
+    </PageSection>
+  ))}
 </article>

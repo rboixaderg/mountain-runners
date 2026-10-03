@@ -106,21 +106,17 @@ const visibleLegalPrivacySections = legalPrivacySections.flatMap((section) => {
     id="legal-privacy-responsible"
     title={messages.legal_privacy_responsible_title({}, { locale })}
   >
-    {
-      contact && (
-        <ContactDataList
-          addressLabelKey="legal_entity_address_label"
-          contact={contact}
-          locale={locale}
-        />
-      )
-    }
+    {contact && (
+      <ContactDataList
+        addressLabelKey="legal_entity_address_label"
+        contact={contact}
+        locale={locale}
+      />
+    )}
   </PageSection>
-  {
-    visibleLegalPrivacySections.map(({ body, id, titleKey }) => (
-      <PageSection id={id} title={messages[titleKey]({}, { locale })}>
-        <LegalMarkdown source={body} />
-      </PageSection>
-    ))
-  }
+  {visibleLegalPrivacySections.map(({ body, id, titleKey }) => (
+    <PageSection id={id} title={messages[titleKey]({}, { locale })}>
+      <LegalMarkdown source={body} />
+    </PageSection>
+  ))}
 </article>

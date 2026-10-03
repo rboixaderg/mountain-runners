@@ -51,61 +51,48 @@ const eventLinkAttributes = analyticsActionAttributes({
         featured && "bg-red text-paper",
       ]}
     >
-      {
-        edition ? (
-          <time class="grid" datetime={edition.startDate}>
-            <span class="font-display leading-display font-bold">
-              {dateParts?.day}
-            </span>
-            <small
-              class:list={[
-                "font-display tracking-label mt-2 text-sm font-bold uppercase",
-                featured ? "text-inherit" : "text-red",
-              ]}
-            >
-              {dateParts?.month}
-            </small>
-          </time>
-        ) : (
-          <span class="font-display text-line font-bold" aria-hidden="true">
-            --
+      {edition ? (
+        <time class="grid" datetime={edition.startDate}>
+          <span class="font-display leading-display font-bold">
+            {dateParts?.day}
           </span>
-        )
-      }
+          <small
+            class:list={[
+              "font-display tracking-label mt-2 text-sm font-bold uppercase",
+              featured ? "text-inherit" : "text-red",
+            ]}
+          >
+            {dateParts?.month}
+          </small>
+        </time>
+      ) : (
+        <span class="font-display text-line font-bold" aria-hidden="true">
+          --
+        </span>
+      )}
     </div>
     <div class="p-card grid content-center">
       <p class="m-0 mb-3 flex flex-wrap items-center gap-x-3 gap-y-2">
-        <span
-          class="bg-ink font-display text-meta text-paper tracking-label px-2 py-[0.2rem] font-bold uppercase"
-          >{status}</span
-        >
-        {
-          edition && (
-            <span class="font-display text-meta text-red tracking-label font-bold uppercase">
-              {edition.location[locale]}
-            </span>
-          )
-        }
+        <span class="bg-ink font-display text-meta text-paper tracking-label px-2 py-[0.2rem] font-bold uppercase">
+          {status}
+        </span>
+        {edition && (
+          <span class="font-display text-meta text-red tracking-label font-bold uppercase">
+            {edition.location[locale]}
+          </span>
+        )}
       </p>
-      <h3
-        class="font-display group-hover:text-red m-0 text-[clamp(1.75rem,3.4vw,2.75rem)] leading-none uppercase"
-      >
+      <h3 class="font-display group-hover:text-red m-0 text-[clamp(1.75rem,3.4vw,2.75rem)] leading-none uppercase">
         {event.title[locale]}
       </h3>
-      {
-        event.summary[locale] && (
-          <p class="text-muted leading-copy max-w-reading mt-3 text-sm">
-            {event.summary[locale]}
-          </p>
-        )
-      }
+      {event.summary[locale] && (
+        <p class="text-muted leading-copy max-w-reading mt-3 text-sm">
+          {event.summary[locale]}
+        </p>
+      )}
     </div>
-    <div
-      class="md:border-line max-md:px-card max-md:pb-card grid place-items-center px-6 py-4 max-md:justify-items-start max-md:pt-0 md:border-l"
-    >
-      <span
-        class="font-display text-ink group-hover:text-red action-underline tracking-label text-center text-xs leading-normal font-bold uppercase"
-      >
+    <div class="md:border-line max-md:px-card max-md:pb-card grid place-items-center px-6 py-4 max-md:justify-items-start max-md:pt-0 md:border-l">
+      <span class="font-display text-ink group-hover:text-red action-underline tracking-label text-center text-xs leading-normal font-bold uppercase">
         {messages.homepage_event_action({}, { locale })}
       </span>
     </div>

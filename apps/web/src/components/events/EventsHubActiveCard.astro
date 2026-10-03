@@ -38,14 +38,12 @@ const eventLinkAttributes = analyticsActionAttributes({
     {...eventLinkAttributes}
   >
     <span class="events-hub-active-item__body grid min-w-0 gap-1.5">
-      <strong class="font-display leading-none uppercase"
-        >{event.title[locale]}</strong
-      >
-      {
-        summary && (
-          <span class="text-muted text-sm leading-normal">{summary}</span>
-        )
-      }
+      <strong class="font-display leading-none uppercase">
+        {event.title[locale]}
+      </strong>
+      {summary && (
+        <span class="text-muted text-sm leading-normal">{summary}</span>
+      )}
     </span>
     <span class="grid flex-none gap-1 text-right max-md:text-left">
       <span class="text-muted text-meta tracking-label font-bold uppercase">

@@ -86,16 +86,14 @@ const pageTitle =
   structuredData={structuredData}
   title={`${pageTitle} | ${messages.site_title({}, { locale })}`}
 >
-  {
-    variant.kind === "event" ? (
-      <EventDetail
-        catalog={catalog}
-        locale={locale}
-        today={today}
-        variant={variant}
-      />
-    ) : (
-      <SchoolDetail locale={locale} variant={variant} />
-    )
-  }
+  {variant.kind === "event" ? (
+    <EventDetail
+      catalog={catalog}
+      locale={locale}
+      today={today}
+      variant={variant}
+    />
+  ) : (
+    <SchoolDetail locale={locale} variant={variant} />
+  )}
 </PublicLayout>

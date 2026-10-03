@@ -14,12 +14,10 @@ const { startLabel, endLabel } = formatEditionDate(edition, locale);
 
 <>
   <time datetime={edition.startDate}>{startLabel}</time>
-  {
-    endLabel && (
-      <>
-        {" – "}
-        <time datetime={edition.endDate}>{endLabel}</time>
-      </>
-    )
-  }
+  {endLabel && (
+    <>
+      {" – "}
+      <time datetime={edition.endDate}>{endLabel}</time>
+    </>
+  )}
 </>

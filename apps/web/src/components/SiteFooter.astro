@@ -55,13 +55,9 @@ const cookiesNavAttributes = analyticsActionAttributes({
 ---
 
 <footer class="site-footer border-red bg-ink border-t-3 text-white">
-  <div
-    class="page-frame site-footer__grid py-section grid gap-10 md:grid-cols-2 md:items-start"
-  >
+  <div class="page-frame site-footer__grid py-section grid gap-10 md:grid-cols-2 md:items-start">
     <div class="min-w-0">
-      <p
-        class="tracking-display font-display m-0 mb-4 text-xl font-bold uppercase"
-      >
+      <p class="tracking-display font-display m-0 mb-4 text-xl font-bold uppercase">
         {messages.site_title({}, { locale })}
       </p>
       <p class="m-0 max-w-sm text-white/70">
@@ -72,58 +68,54 @@ const cookiesNavAttributes = analyticsActionAttributes({
       class="min-w-0"
       aria-label={messages.footer_social_title({}, { locale })}
     >
-      <p
-        class="font-display text-action m-0 mb-4 leading-tight font-bold tracking-widest uppercase"
-      >
+      <p class="font-display text-action m-0 mb-4 leading-tight font-bold tracking-widest uppercase">
         {messages.footer_social_title({}, { locale })}
       </p>
       <ul class="m-0 grid list-none gap-3 p-0">
-        {
-          siteSocialLinks.map((socialLink) => (
-            <li>
-              <a
-                class="hover:text-red inline-flex items-center gap-2 text-sm text-white/70 no-underline transition-colors"
-                href={socialLink.url}
-                {...externalLinkAttributes}
-                {...analyticsActionAttributes({
-                  action: analyticsActions.socialLink,
-                  area: analyticsAreas.footerSocial,
-                  target: socialLink.id,
-                })}
-              >
-                {socialLink.id === "instagram" && (
-                  <svg
-                    class="size-4.5 shrink-0"
-                    viewBox="0 0 24 24"
-                    aria-hidden="true"
-                    focusable="false"
-                  >
-                    <path
-                      fill="currentColor"
-                      d="M7.8 2h8.4C19.4 2 22 4.6 22 7.8v8.4a5.8 5.8 0 0 1-5.8 5.8H7.8C4.6 22 2 19.4 2 16.2V7.8A5.8 5.8 0 0 1 7.8 2m-.2 2A3.6 3.6 0 0 0 4 7.6v8.8A3.6 3.6 0 0 0 7.6 20h8.8a3.6 3.6 0 0 0 3.6-3.6V7.6A3.6 3.6 0 0 0 16.4 4H7.6m9.65 1.5a1.25 1.25 0 1 1 0 2.5 1.25 1.25 0 0 1 0-2.5M12 7a5 5 0 1 1 0 10 5 5 0 0 1 0-10m0 2a3 3 0 1 0 0 6 3 3 0 0 0 0-6z"
-                    />
-                  </svg>
-                )}
-                {socialLink.id === "strava" && (
-                  <svg
-                    class="size-4.5 shrink-0"
-                    viewBox="0 0 24 24"
-                    aria-hidden="true"
-                    focusable="false"
-                  >
-                    <path
-                      fill="currentColor"
-                      d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066m-7.008-5.599l2.836 5.599h4.172L10.463 0l-7 13.828h4.169"
-                    />
-                  </svg>
-                )}
-                <span>
-                  {messages[socialLink.labelMessageKey]({}, { locale })}
-                </span>
-              </a>
-            </li>
-          ))
-        }
+        {siteSocialLinks.map((socialLink) => (
+          <li>
+            <a
+              class="hover:text-red inline-flex items-center gap-2 text-sm text-white/70 no-underline transition-colors"
+              href={socialLink.url}
+              {...externalLinkAttributes}
+              {...analyticsActionAttributes({
+                action: analyticsActions.socialLink,
+                area: analyticsAreas.footerSocial,
+                target: socialLink.id,
+              })}
+            >
+              {socialLink.id === "instagram" && (
+                <svg
+                  class="size-4.5 shrink-0"
+                  viewBox="0 0 24 24"
+                  aria-hidden="true"
+                  focusable="false"
+                >
+                  <path
+                    fill="currentColor"
+                    d="M7.8 2h8.4C19.4 2 22 4.6 22 7.8v8.4a5.8 5.8 0 0 1-5.8 5.8H7.8C4.6 22 2 19.4 2 16.2V7.8A5.8 5.8 0 0 1 7.8 2m-.2 2A3.6 3.6 0 0 0 4 7.6v8.8A3.6 3.6 0 0 0 7.6 20h8.8a3.6 3.6 0 0 0 3.6-3.6V7.6A3.6 3.6 0 0 0 16.4 4H7.6m9.65 1.5a1.25 1.25 0 1 1 0 2.5 1.25 1.25 0 0 1 0-2.5M12 7a5 5 0 1 1 0 10 5 5 0 0 1 0-10m0 2a3 3 0 1 0 0 6 3 3 0 0 0 0-6z"
+                  />
+                </svg>
+              )}
+              {socialLink.id === "strava" && (
+                <svg
+                  class="size-4.5 shrink-0"
+                  viewBox="0 0 24 24"
+                  aria-hidden="true"
+                  focusable="false"
+                >
+                  <path
+                    fill="currentColor"
+                    d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066m-7.008-5.599l2.836 5.599h4.172L10.463 0l-7 13.828h4.169"
+                  />
+                </svg>
+              )}
+              <span>
+                {messages[socialLink.labelMessageKey]({}, { locale })}
+              </span>
+            </a>
+          </li>
+        ))}
       </ul>
     </nav>
     <nav
@@ -135,24 +127,28 @@ const cookiesNavAttributes = analyticsActionAttributes({
           <a
             class="text-white/80 hover:text-white"
             href={homePath}
-            {...homeNavAttributes}>{messages.navigation_home({}, { locale })}</a
+            {...homeNavAttributes}
           >
+            {messages.navigation_home({}, { locale })}
+          </a>
         </li>
         <li>
           <a
             class="text-white/80 hover:text-white"
             href={eventsPath}
             {...eventsNavAttributes}
-            >{messages.navigation_events({}, { locale })}</a
           >
+            {messages.navigation_events({}, { locale })}
+          </a>
         </li>
         <li>
           <a
             class="text-white/80 hover:text-white"
             href={documentsPath}
             {...documentsNavAttributes}
-            >{messages.documents_page_title({}, { locale })}</a
           >
+            {messages.documents_page_title({}, { locale })}
+          </a>
         </li>
       </ul>
     </nav>
@@ -163,31 +159,32 @@ const cookiesNavAttributes = analyticsActionAttributes({
             class="text-white/80 hover:text-white"
             href={legalNoticePath}
             {...legalNoticeNavAttributes}
-            >{messages.legal_notice_title({}, { locale })}</a
           >
+            {messages.legal_notice_title({}, { locale })}
+          </a>
         </li>
         <li>
           <a
             class="text-white/80 hover:text-white"
             href={legalPrivacyPath}
             {...privacyNavAttributes}
-            >{messages.legal_privacy_title({}, { locale })}</a
           >
+            {messages.legal_privacy_title({}, { locale })}
+          </a>
         </li>
         <li>
           <a
             class="text-white/80 hover:text-white"
             href={legalCookiesPath}
             {...cookiesNavAttributes}
-            >{messages.legal_cookies_title({}, { locale })}</a
           >
+            {messages.legal_cookies_title({}, { locale })}
+          </a>
         </li>
       </ul>
     </nav>
   </div>
-  <div
-    class="page-frame tracking-display flex flex-wrap justify-center gap-3 border-t border-white/20 py-6 text-xs leading-normal text-white/60 uppercase"
-  >
+  <div class="page-frame tracking-display flex flex-wrap justify-center gap-3 border-t border-white/20 py-6 text-xs leading-normal text-white/60 uppercase">
     <span>{messages.site_title({}, { locale })}</span>
     <span aria-hidden="true">©</span>
     <span>{messages.legal_notice_title({}, { locale })}</span>

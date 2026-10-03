@@ -33,11 +33,9 @@ const usesResponsiveSource = imageLarge.src !== image.src;
   ]}
 >
   <picture class="block h-full w-full">
-    {
-      usesResponsiveSource && (
-        <source media={largeViewportQuery} srcset={imageLarge.src} />
-      )
-    }
+    {usesResponsiveSource && (
+      <source media={largeViewportQuery} srcset={imageLarge.src} />
+    )}
     <img
       class:list={[
         "h-full w-full object-cover opacity-25 mix-blend-multiply contrast-110 grayscale",
@@ -51,11 +49,9 @@ const usesResponsiveSource = imageLarge.src !== image.src;
       alt=""
     />
   </picture>
-  {
-    attribution && (
-      <figcaption class="page-hero__attribution absolute right-3 bottom-3 z-1 m-0 bg-black/75 px-2 py-1 text-xs leading-tight text-white">
-        {attribution}
-      </figcaption>
-    )
-  }
+  {attribution && (
+    <figcaption class="page-hero__attribution absolute right-3 bottom-3 z-1 m-0 bg-black/75 px-2 py-1 text-xs leading-tight text-white">
+      {attribution}
+    </figcaption>
+  )}
 </figure>

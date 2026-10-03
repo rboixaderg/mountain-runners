@@ -30,24 +30,22 @@ const statutesAttributes = analyticsActionAttributes({
   bordered={false}
   constrainBody={false}
 >
-  {
-    statutesHref && statutesDocument && statutesTitle ? (
-      <div class="about-statutes__card border-line p-card max-w-reading grid gap-4 border">
-        <p class="leading-copy m-0 text-base">
-          {messages.about_statutes_description({}, { locale })}
-        </p>
-        <a
-          class="font-display text-ink hover:text-red tracking-display text-sm font-bold uppercase underline"
-          href={statutesHref}
-          {...statutesAttributes}
-        >
-          {statutesTitle}
-        </a>
-      </div>
-    ) : (
-      <p class="page-section__body max-w-reading text-base">
-        {messages.about_statutes_unavailable({}, { locale })}
+  {statutesHref && statutesDocument && statutesTitle ? (
+    <div class="about-statutes__card border-line p-card max-w-reading grid gap-4 border">
+      <p class="leading-copy m-0 text-base">
+        {messages.about_statutes_description({}, { locale })}
       </p>
-    )
-  }
+      <a
+        class="font-display text-ink hover:text-red tracking-display text-sm font-bold uppercase underline"
+        href={statutesHref}
+        {...statutesAttributes}
+      >
+        {statutesTitle}
+      </a>
+    </div>
+  ) : (
+    <p class="page-section__body max-w-reading text-base">
+      {messages.about_statutes_unavailable({}, { locale })}
+    </p>
+  )}
 </PageSection>
