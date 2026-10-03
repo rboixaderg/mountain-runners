@@ -1,0 +1,37 @@
+apps/web/src/components/posts/PostCorrection.astro
+  s_120017d0f56a54::t_38ebfd65160e1d 1-26
+apps/web/src/components/posts/PostDetail.astro
+  s_0f3c70dd90d603::t_605761ec87bff1 7-10,22-25
+apps/web/src/components/posts/PostMembersLink.astro
+  s_0f3c70dd90d603::t_0c7fb4cb550f06 1-27
+apps/web/src/components/posts/PostRelatedEvents.astro
+  s_0f3c70dd90d603::t_af39a9beda4726 2,4,7-8,10,13
+apps/web/src/components/posts/PostSources.astro
+  s_0f3c70dd90d603::t_0a83ca75a00935 1-25
+tools/preview/editorial-resources.test.mjs
+  s_120017d0f56a54::t_5af5a01e443433 100-114,320-356,531-550
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "48e59988778ca6d07ac34ab3d2dcb0f4e4cde9c9",
+  "prompts": {},
+  "sessions": {
+    "s_0f3c70dd90d603": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_eff58f011ffe6yDvdI7XEAP2uK",
+        "model": "unknown"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    },
+    "s_120017d0f56a54": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_f02792959ffeesIf41si1KsTGG",
+        "model": "unknown"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
