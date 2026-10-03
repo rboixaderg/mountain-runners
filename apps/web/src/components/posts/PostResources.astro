@@ -23,76 +23,65 @@ const correction = entry.correction?.note[locale]
   : undefined;
 ---
 
-{
-  entry.relatedPage && (
-    <div class="page-frame pb-section">
-      <a
-        class="action-underline"
-        href={getFixedPagePath(entry.relatedPage, locale)}
-        {...analyticsActionAttributes({
-          action: analyticsActions.navigate,
-          area: analyticsAreas.postResources,
-          target: entry.relatedPage,
-        })}
-      >
-        {messages.posts_members_link({}, { locale })}
-      </a>
-    </div>
-  )
-}
-{
-  correction && (
-    <PageSection
-      title={messages.posts_correction({}, { locale })}
-      id="post-correction"
+{entry.relatedPage && (
+  <div class="page-frame pb-section">
+    <a
+      class="action-underline"
+      href={getFixedPagePath(entry.relatedPage, locale)}
+      {...analyticsActionAttributes({
+        action: analyticsActions.navigate,
+        area: analyticsAreas.postResources,
+        target: entry.relatedPage,
+      })}
     >
-      <time datetime={correction.date}>
-        {formatPostDate(correction.date, locale)}
-      </time>
-      <div set:html={renderRestrictedMarkdown(correction.note[locale]!)} />
-    </PageSection>
-  )
-}
-{
-  sources.length > 0 && (
-    <PageSection
-      title={messages.posts_sources({}, { locale })}
-      id="post-sources"
-    >
-      <ul>
-        {sources.map((source) => (
-          <li>
-            <a href={source.url} {...externalLinkAttributes}>
-              {source.name[locale]}
-            </a>
-          </li>
-        ))}
-      </ul>
-    </PageSection>
-  )
-}
-{
-  relatedEvents.length > 0 && (
-    <PageSection
-      title={messages.posts_related_events({}, { locale })}
-      id="post-events"
-    >
-      <ul>
-        {relatedEvents.map((event) => (
-          <li>
-            <a
-              href={getVariantPath(event)}
-              {...analyticsActionAttributes({
-                action: analyticsActions.navigate,
-                area: analyticsAreas.postResources,
-                target: event.entry.id,
-              })}
-            >
-              {event.entry.title[locale]}
-            </a>
-          </li>
-        ))}
-      </ul>
-    </PageSection>
-  )
-}
+      {messages.posts_members_link({}, { locale })}
+    </a>
+  </div>
+)}
+{correction && (
+  <PageSection
+    title={messages.posts_correction({}, { locale })}
+    id="post-correction"
+  >
+    <time datetime={correction.date}>
+      {formatPostDate(correction.date, locale)}
+    </time>
+    <div set:html={renderRestrictedMarkdown(correction.note[locale]!)} />
+  </PageSection>
+)}
+{sources.length > 0 && (
+  <PageSection title={messages.posts_sources({}, { locale })} id="post-sources">
+    <ul>
+      {sources.map((source) => (
+        <li>
+          <a href={source.url} {...externalLinkAttributes}>
+            {source.name[locale]}
+          </a>
+        </li>
+      ))}
+    </ul>
+  </PageSection>
+)}
+{relatedEvents.length > 0 && (
+  <PageSection
+    title={messages.posts_related_events({}, { locale })}
+    id="post-events"
+  >
+    <ul>
+      {relatedEvents.map((event) => (
+        <li>
+          <a
+            href={getVariantPath(event)}
+            {...analyticsActionAttributes({
+              action: analyticsActions.navigate,
+              area: analyticsAreas.postResources,
+              target: event.entry.id,
+            })}
+          >
+            {event.entry.title[locale]}
+          </a>
+        </li>
+      ))}
+    </ul>
+  </PageSection>
+)}

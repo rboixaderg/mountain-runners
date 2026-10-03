@@ -17,35 +17,33 @@ const videoId =
   videoUrl === undefined ? undefined : extractYoutubeVideoId(videoUrl);
 ---
 
-{
-  videoId !== undefined && (
-    <section
-      class="border-ink py-section border-b-2 bg-white"
-      aria-labelledby="school-video-title"
-    >
-      <div class="page-frame">
-        <div class="schools-detail-preview__video-heading mb-6 flex items-center gap-2 md:mb-8">
-          <span class="bg-red h-6 w-2 flex-none" aria-hidden="true" />
-          <h2
-            class="font-display m-0 leading-none uppercase"
-            id="school-video-title"
-          >
-            {messages.school_video_title({}, { locale })}
-          </h2>
-        </div>
-        <YoutubeEmbed
-          className="max-w-reading shadow-action-lg"
-          title={messages.school_video_title({}, { locale })}
-          videoId={videoId}
-        />
-        {videoUrl && (
-          <ExternalLink
-            className="text-red mt-4 inline-flex max-w-full items-center gap-1.5 text-xs leading-normal font-bold tracking-display uppercase"
-            href={videoUrl}
-            label={messages.school_video_action({}, { locale })}
-          />
-        )}
+{videoId !== undefined && (
+  <section
+    class="border-ink py-section border-b-2 bg-white"
+    aria-labelledby="school-video-title"
+  >
+    <div class="page-frame">
+      <div class="schools-detail-preview__video-heading mb-6 flex items-center gap-2 md:mb-8">
+        <span class="bg-red h-6 w-2 flex-none" aria-hidden="true" />
+        <h2
+          class="font-display m-0 leading-none uppercase"
+          id="school-video-title"
+        >
+          {messages.school_video_title({}, { locale })}
+        </h2>
       </div>
-    </section>
-  )
-}
+      <YoutubeEmbed
+        className="max-w-reading shadow-action-lg"
+        title={messages.school_video_title({}, { locale })}
+        videoId={videoId}
+      />
+      {videoUrl && (
+        <ExternalLink
+          className="text-red mt-4 inline-flex max-w-full items-center gap-1.5 text-xs leading-normal font-bold tracking-display uppercase"
+          href={videoUrl}
+          label={messages.school_video_action({}, { locale })}
+        />
+      )}
+    </div>
+  </section>
+)}

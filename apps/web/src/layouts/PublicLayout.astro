@@ -82,60 +82,48 @@ const isPreview = import.meta.env.PUBLIC_PREVIEW === "true";
       crossorigin
     />
     <meta name="description" content={description} />
-    {
-      (noindex || isPreview) && (
-        <meta name="robots" content="noindex, nofollow" />
-      )
-    }
+    {(noindex || isPreview) && (
+      <meta name="robots" content="noindex, nofollow" />
+    )}
     {canonical && <link rel="canonical" href={canonical} />}
-    {
-      localizedAlternatives.map((alternative) => (
-        <link
-          rel="alternate"
-          hreflang={alternative.locale}
-          href={alternative.href}
-        />
-      ))
-    }
-    {
-      defaultLocaleAlternative && (
-        <link
-          rel="alternate"
-          hreflang="x-default"
-          href={defaultLocaleAlternative.href}
-        />
-      )
-    }
+    {localizedAlternatives.map((alternative) => (
+      <link
+        rel="alternate"
+        hreflang={alternative.locale}
+        href={alternative.href}
+      />
+    ))}
+    {defaultLocaleAlternative && (
+      <link
+        rel="alternate"
+        hreflang="x-default"
+        href={defaultLocaleAlternative.href}
+      />
+    )}
     <meta property="og:title" content={title} />
     <meta property="og:description" content={description} />
     <meta property="og:type" content={openGraphType} />
     <meta property="og:locale" content={openGraphLocales[locale]} />
     {canonical && <meta property="og:url" content={canonical} />}
-    {
-      socialImage && (
-        <>
-          <meta property="og:image" content={socialImage.url} />
-          <meta property="og:image:alt" content={socialImage.alt} />
-          <meta name="twitter:card" content="summary_large_image" />
-        </>
-      )
-    }
-    {
-      structuredData.map((data) => (
-        <Fragment set:html={renderJsonLdScript(data)} />
-      ))
-    }
+    {socialImage && (
+      <>
+        <meta property="og:image" content={socialImage.url} />
+        <meta property="og:image:alt" content={socialImage.alt} />
+        <meta name="twitter:card" content="summary_large_image" />
+      </>
+    )}
+    {structuredData.map((data) => (
+      <Fragment set:html={renderJsonLdScript(data)} />
+    ))}
     <title>{title}</title>
-    {
-      !isPreview && (
-        <PlausibleAnalytics locale={locale} pageType={analyticsPageType} />
-      )
-    }
+    {!isPreview && (
+      <PlausibleAnalytics locale={locale} pageType={analyticsPageType} />
+    )}
   </head>
   <body>
-    <a class="skip-link" href="#main-content"
-      >{messages.skip_to_content({}, { locale })}</a
-    >
+    <a class="skip-link" href="#main-content">
+      {messages.skip_to_content({}, { locale })}
+    </a>
     <SiteHeader
       localizedAlternatives={localizedAlternatives}
       locale={locale}
@@ -144,7 +132,9 @@ const isPreview = import.meta.env.PUBLIC_PREVIEW === "true";
     >
       {isPreview && <PreviewNotice locale={locale} />}
     </SiteHeader>
-    <main id="main-content"><slot /></main>
+    <main id="main-content">
+      <slot />
+    </main>
     <PreFooter catalog={catalog} locale={locale} />
     <SiteFooter
       instagramUrl={getEntityLinkUrl(institutionalLinks, "instagram")}

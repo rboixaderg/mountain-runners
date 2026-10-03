@@ -39,53 +39,43 @@ const contactPhoneAttributes = analyticsActionAttributes({
 
 <dl class="max-w-reading m-0 grid gap-3">
   <div class="contact-data__row grid gap-3">
-    <dt
-      class="text-muted tracking-label text-xs leading-normal font-bold uppercase"
-    >
+    <dt class="text-muted tracking-label text-xs leading-normal font-bold uppercase">
       {cifLabel}
     </dt>
     <dd class="m-0 min-w-0 wrap-anywhere">{contact.cif}</dd>
   </div>
   <div class="contact-data__row grid gap-3">
-    <dt
-      class="text-muted tracking-label text-xs leading-normal font-bold uppercase"
-    >
+    <dt class="text-muted tracking-label text-xs leading-normal font-bold uppercase">
       {addressLabel}
     </dt>
     <dd class="m-0 min-w-0 wrap-anywhere">{contact.address[locale]}</dd>
   </div>
-  {
-    contact.email !== undefined && (
-      <div class="contact-data__row grid gap-3">
-        <dt class="text-muted tracking-label text-xs leading-normal font-bold uppercase">
-          {emailLabel}
-        </dt>
-        <dd class="m-0 min-w-0 wrap-anywhere">
-          <a href={getMailtoHref(contact.email)} {...contactEmailAttributes}>
-            {contact.email}
-          </a>
-        </dd>
-      </div>
-    )
-  }
-  {
-    contact.phones?.map((phone) => (
-      <div class="contact-data__row grid gap-3">
-        <dt class="text-muted tracking-label text-xs leading-normal font-bold uppercase">
-          {phoneLabel}
-        </dt>
-        <dd class="m-0 min-w-0 wrap-anywhere">
-          <a href={getTelHref(phone)} {...contactPhoneAttributes}>
-            {phone}
-          </a>
-        </dd>
-      </div>
-    ))
-  }
+  {contact.email !== undefined && (
+    <div class="contact-data__row grid gap-3">
+      <dt class="text-muted tracking-label text-xs leading-normal font-bold uppercase">
+        {emailLabel}
+      </dt>
+      <dd class="m-0 min-w-0 wrap-anywhere">
+        <a href={getMailtoHref(contact.email)} {...contactEmailAttributes}>
+          {contact.email}
+        </a>
+      </dd>
+    </div>
+  )}
+  {contact.phones?.map((phone) => (
+    <div class="contact-data__row grid gap-3">
+      <dt class="text-muted tracking-label text-xs leading-normal font-bold uppercase">
+        {phoneLabel}
+      </dt>
+      <dd class="m-0 min-w-0 wrap-anywhere">
+        <a href={getTelHref(phone)} {...contactPhoneAttributes}>
+          {phone}
+        </a>
+      </dd>
+    </div>
+  ))}
   <div class="contact-data__row grid gap-3">
-    <dt
-      class="text-muted tracking-label text-xs leading-normal font-bold uppercase"
-    >
+    <dt class="text-muted tracking-label text-xs leading-normal font-bold uppercase">
       {hoursLabel}
     </dt>
     <dd class="m-0 min-w-0 wrap-anywhere">{contact.hours[locale]}</dd>

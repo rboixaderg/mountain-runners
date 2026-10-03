@@ -16,9 +16,7 @@ const { kind, locale, published, drafts } = Astro.props;
 ---
 
 <div class="page-frame pt-section">
-  <h1
-    class="font-display text-display leading-display tracking-headline mb-6 uppercase"
-  >
+  <h1 class="font-display text-display leading-display tracking-headline mb-6 uppercase">
     {messages[postTitleMessageKeys[kind]]({}, { locale })}
   </h1>
   <p class="leading-copy max-w-prose">
@@ -29,21 +27,17 @@ const { kind, locale, published, drafts } = Astro.props;
   title={messages.posts_published_heading({}, { locale })}
   id="published-posts"
 >
-  {
-    published.length > 0 ? (
-      <PostList variants={published} locale={locale} />
-    ) : (
-      <p>{messages.posts_empty({}, { locale })}</p>
-    )
-  }
+  {published.length > 0 ? (
+    <PostList variants={published} locale={locale} />
+  ) : (
+    <p>{messages.posts_empty({}, { locale })}</p>
+  )}
 </PageSection>
-{
-  drafts.length > 0 && (
-    <PageSection
-      title={messages.posts_drafts_heading({}, { locale })}
-      id="draft-posts"
-    >
-      <PostList variants={drafts} locale={locale} />
-    </PageSection>
-  )
-}
+{drafts.length > 0 && (
+  <PageSection
+    title={messages.posts_drafts_heading({}, { locale })}
+    id="draft-posts"
+  >
+    <PostList variants={drafts} locale={locale} />
+  </PageSection>
+)}

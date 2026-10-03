@@ -8,12 +8,10 @@ const { entry, locale } = Astro.props.variant;
 const cover = getPostCover(entry, locale);
 ---
 
-{
-  cover && (
-    <div class="page-frame my-8">
-      <div class="max-w-reading">
-        <PostImage image={cover} locale={locale} loading="eager" />
-      </div>
+{cover && (
+  <div class="page-frame my-8">
+    <div class="max-w-reading">
+      <PostImage image={cover} locale={locale} loading="eager" />
     </div>
-  )
-}
+  </div>
+)}

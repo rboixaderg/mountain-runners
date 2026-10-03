@@ -33,13 +33,11 @@ const {
       {title}
     </h2>
   </div>
-  {
-    constrainBody ? (
-      <div class="page-section__body leading-copy max-w-reading m-0 text-base">
-        <slot />
-      </div>
-    ) : (
+  {constrainBody ? (
+    <div class="page-section__body leading-copy max-w-reading m-0 text-base">
       <slot />
-    )
-  }
+    </div>
+  ) : (
+    <slot />
+  )}
 </section>

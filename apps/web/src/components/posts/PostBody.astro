@@ -15,47 +15,43 @@ const { entry, locale } = Astro.props.variant;
       class="post-markdown max-w-reading text-lg"
       set:html={renderRestrictedMarkdown(entry.lead[locale]!)}
     />
-    {
-      getPostSections(entry).map(({ section, hasImages, imageOnLeft }) => (
-        <section
+    {getPostSections(entry).map(({ section, hasImages, imageOnLeft }) => (
+      <section
+        class:list={[
+          "mt-8",
+          hasImages ? "grid items-start gap-8 lg:grid-cols-2" : "max-w-reading",
+        ]}
+      >
+        <div
           class:list={[
-            "mt-8",
-            hasImages
-              ? "grid items-start gap-8 lg:grid-cols-2"
-              : "max-w-reading",
+            "max-w-reading min-w-0",
+            imageOnLeft && "lg:col-start-2 lg:row-start-1",
           ]}
         >
+          {section.heading && (
+            <h2 class="font-display mb-3 text-2xl leading-tight">
+              {section.heading[locale]}
+            </h2>
+          )}
+          <div
+            class="post-markdown"
+            set:html={renderRestrictedMarkdown(section.body[locale]!)}
+          />
+        </div>
+        {hasImages && (
           <div
             class:list={[
-              "max-w-reading min-w-0",
-              imageOnLeft && "lg:col-start-2 lg:row-start-1",
+              "grid min-w-0 gap-6",
+              imageOnLeft && "lg:col-start-1 lg:row-start-1",
             ]}
           >
-            {section.heading && (
-              <h2 class="font-display mb-3 text-2xl leading-tight">
-                {section.heading[locale]}
-              </h2>
-            )}
-            <div
-              class="post-markdown"
-              set:html={renderRestrictedMarkdown(section.body[locale]!)}
-            />
+            {section.images!.map((image) => (
+              <PostImage image={image} locale={locale} loading="lazy" />
+            ))}
           </div>
-          {hasImages && (
-            <div
-              class:list={[
-                "grid min-w-0 gap-6",
-                imageOnLeft && "lg:col-start-1 lg:row-start-1",
-              ]}
-            >
-              {section.images!.map((image) => (
-                <PostImage image={image} locale={locale} loading="lazy" />
-              ))}
-            </div>
-          )}
-        </section>
-      ))
-    }
+        )}
+      </section>
+    ))}
   </div>
 </div>
 <style>

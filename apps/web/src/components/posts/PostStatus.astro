@@ -10,10 +10,8 @@ interface Props {
 const { post, locale } = Astro.props;
 ---
 
-{
-  import.meta.env.PUBLIC_PREVIEW === "true" && (
-    <p class="bg-preview text-ink border-ink border-l-4 p-3 text-sm font-bold">
-      {messages[getPostPreviewMessageKey(post)]({}, { locale })}
-    </p>
-  )
-}
+{import.meta.env.PUBLIC_PREVIEW === "true" && (
+  <p class="bg-preview text-ink border-ink border-l-4 p-3 text-sm font-bold">
+    {messages[getPostPreviewMessageKey(post)]({}, { locale })}
+  </p>
+)}
