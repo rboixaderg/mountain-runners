@@ -4,7 +4,10 @@ import type { PublishedVariant } from "../../lib/content/publication";
 import PostHeader from "./PostHeader.astro";
 import PostCover from "./PostCover.astro";
 import PostBody from "./PostBody.astro";
-import PostResources from "./PostResources.astro";
+import PostMembersLink from "./PostMembersLink.astro";
+import PostCorrection from "./PostCorrection.astro";
+import PostSources from "./PostSources.astro";
+import PostRelatedEvents from "./PostRelatedEvents.astro";
 interface Props {
   variant: PostVariant;
   relatedEvents: Extract<PublishedVariant, { kind: "event" }>[];
@@ -16,5 +19,8 @@ const { variant, relatedEvents } = Astro.props;
   <PostHeader variant={variant} />
   <PostCover variant={variant} />
   <PostBody variant={variant} />
-  <PostResources variant={variant} relatedEvents={relatedEvents} />
+  <PostMembersLink variant={variant} />
+  <PostCorrection variant={variant} />
+  <PostSources variant={variant} />
+  <PostRelatedEvents locale={variant.locale} relatedEvents={relatedEvents} />
 </article>

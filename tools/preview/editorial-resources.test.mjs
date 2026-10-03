@@ -97,7 +97,21 @@ test("editorial resources stay isolated across clean builds and preview-to-publi
         sections: [],
         author: { type: "organization", name: "Fixture" },
         ...(id === "published-blog"
-          ? { relatedPage: "members", updatedAt: "2026-10-02T12:00:00Z" }
+          ? {
+              relatedPage: "members",
+              updatedAt: "2026-10-02T12:00:00Z",
+              correction: {
+                date: "2026-10-02",
+                note: { ca: "Rectificació de prova amb **text destacat**." },
+              },
+              sources: [
+                {
+                  name: { ca: "Font documental de prova" },
+                  url: "https://example.org/source",
+                },
+              ],
+              relatedEventIds: ["anella-verda"],
+            }
           : {}),
         createdAt: "2026-10-02",
         ...(published ? { publishedAt: "2026-10-02T10:00:00Z" } : {}),
@@ -303,6 +317,43 @@ test("editorial resources stay isolated across clean builds and preview-to-publi
             });
           });
           await page.goto("https://editorial.test/ca/blog/published-blog/");
+          const correctionRegion = page.getByRole("region", {
+            name: "Rectificació",
+            exact: true,
+          });
+          assert.ok(await correctionRegion.isVisible());
+          assert.equal(
+            await correctionRegion.locator("time").getAttribute("datetime"),
+            "2026-10-02",
+          );
+          assert.equal(
+            await correctionRegion.locator("strong").innerText(),
+            "text destacat",
+          );
+          const sourceLink = page
+            .getByRole("region", { name: "Fonts", exact: true })
+            .getByRole("link", {
+              name: "Font documental de prova",
+              exact: true,
+            });
+          assert.equal(
+            await sourceLink.getAttribute("href"),
+            "https://example.org/source",
+          );
+          const relatedEventLink = page
+            .getByRole("region", {
+              name: "Esdeveniments relacionats",
+              exact: true,
+            })
+            .getByRole("link", { name: "Anella Verda", exact: true });
+          assert.equal(
+            await relatedEventLink.getAttribute("href"),
+            "/ca/esdeveniments/anella-verda/",
+          );
+          assert.equal(
+            await relatedEventLink.getAttribute("data-analytics-target"),
+            "anella-verda",
+          );
           assert.equal(
             await page
               .getByText("Publicat el 2 d’octubre del 2026", { exact: true })
@@ -477,6 +528,26 @@ test("editorial resources stay isolated across clean builds and preview-to-publi
               ],
             );
           }
+          await page.goto("https://editorial.test/ca/noticies/published/");
+          for (const name of [
+            "Rectificació",
+            "Fonts",
+            "Esdeveniments relacionats",
+          ]) {
+            assert.equal(
+              await page.getByRole("region", { name, exact: true }).count(),
+              0,
+            );
+          }
+          assert.equal(
+            await page
+              .getByRole("link", {
+                name: "Ves a la pàgina de Socis",
+                exact: true,
+              })
+              .count(),
+            0,
+          );
           await context.close();
         }
       } finally {
