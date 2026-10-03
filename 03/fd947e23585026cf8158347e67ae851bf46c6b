@@ -1,0 +1,51 @@
+apps/web/e2e/posts.spec.ts
+  s_120017d0f56a54::t_0fcf438fe210e3 4-58
+apps/web/src/components/SiteHeader.astro
+  s_120017d0f56a54::t_207a560d6501af 39-43,48-52
+apps/web/src/components/posts/PostBody.astro
+  s_120017d0f56a54::t_a68c0bc3e4d81f 15,35,39-42,63,66,69-82
+apps/web/src/components/posts/PostHeader.astro
+  s_120017d0f56a54::t_2bd549532dec29 11-12,21,23-27,30,33,56
+apps/web/src/components/posts/PostHub.astro
+  s_120017d0f56a54::t_e53b2e887e78a4 18-21
+apps/web/src/components/posts/PostList.astro
+  s_120017d0f56a54::t_bbb79ec468dd2e 10-14,27-37,40
+apps/web/src/components/posts/PostResources.astro
+  s_120017d0f56a54::t_9bd2687f90cdaf 10-11,32-36,83-92
+apps/web/src/lib/analytics/page-type.ts
+  s_120017d0f56a54::t_faaccc4a9d13df 6,24-45,83,92
+apps/web/src/test/analytics-events.test.ts
+  s_120017d0f56a54::t_ebb2d9784080c0 44-59
+docs/README.md
+  s_0f3c70dd90d603::t_2917832cfc7894 48-49
+docs/specs/news-and-blog.md
+  s_0f3c70dd90d603::t_98cb543d3325a4 78-81
+docs/validation/news-blog-analytics-ui.md
+  s_0f3c70dd90d603::t_ae9d1e17daaf83 1-94
+tools/preview/editorial-resources.test.mjs
+  s_120017d0f56a54::t_42d5aab57839ad 1,99,123-125,202-206,274-282,304-311,345-378,384-464
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "03fd947e23585026cf8158347e67ae851bf46c6b",
+  "prompts": {},
+  "sessions": {
+    "s_0f3c70dd90d603": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_eff58f011ffe6yDvdI7XEAP2uK",
+        "model": "unknown"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    },
+    "s_120017d0f56a54": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_f02792959ffeesIf41si1KsTGG",
+        "model": "unknown"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
