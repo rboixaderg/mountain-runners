@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { plausibleAnalytics } from "../src/lib/analytics/plausible";
 
 test.skip(
   process.env.PUBLIC_PREVIEW !== "true",
@@ -21,6 +22,31 @@ test("preview marks every locale and does not load analytics", async ({
     );
     await expect(page.locator('script[src*="plausible"]')).toHaveCount(0);
   }
+});
+
+test("preview reports no analytics markup and never contacts the analytics origin", async ({
+  page,
+}) => {
+  const analyticsRequests: string[] = [];
+  page.on("request", (request) => {
+    if (request.url().startsWith(plausibleAnalytics.origin)) {
+      analyticsRequests.push(request.url());
+    }
+  });
+
+  for (const path of [
+    "/ca/",
+    "/ca/esdevenements/",
+    "/ca/esdeveniments/ultra-pirineu/",
+    "/404.html",
+  ]) {
+    await page.goto(path);
+    await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+    await expect(page.locator('meta[name^="mr-analytics-"]')).toHaveCount(0);
+    await expect(page.locator("[data-analytics-action]")).toHaveCount(0);
+  }
+
+  expect(analyticsRequests).toEqual([]);
 });
 
 test("preview robots file blocks crawlers", async ({ request }) => {
