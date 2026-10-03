@@ -17,6 +17,7 @@
 // issue_comment and workflow_dispatch runs GITHUB_SHA is the default branch
 // head and GitHub ignores attempts to override it.
 import { resolve } from "node:path";
+import { requireArtifactMode } from "../../apps/web/build-mode.mjs";
 import { fileURLToPath } from "node:url";
 import {
   checkedOutCommit,
@@ -59,7 +60,7 @@ const buildToday = requireEditorialDate("build the preview artifact.");
 const commit = checkedOutCommit();
 const workflow = process.env.GITHUB_WORKFLOW ?? "local";
 
-runBuild();
+runBuild(requireArtifactMode(true));
 await verifyInternalLinks(distDirectory);
 
 const { files, expandedBytes } = await collectManifestFiles(distDirectory);

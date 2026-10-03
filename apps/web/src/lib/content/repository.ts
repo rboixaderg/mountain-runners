@@ -11,6 +11,12 @@ import {
   resolveLocalResourcePath,
 } from "./resources";
 import { assertUniquePublishedPaths } from "./routes";
+import {
+  createPublishedPostVariants,
+  createPreviewPostVariants,
+  type PostSource,
+  type PostVariant,
+} from "./posts";
 
 async function validateLocalResources(source: unknown): Promise<void> {
   const appDirectory = fileURLToPath(new URL("../../../", import.meta.url));
@@ -46,4 +52,34 @@ export async function getPublicationCatalog(): Promise<PublicationCatalog> {
   const catalog = createPublicationCatalog(source);
   assertUniquePublishedPaths(catalog);
   return catalog;
+}
+
+async function getPostSource(): Promise<PostSource> {
+  const [posts, events] = await Promise.all([
+    getCollection("posts"),
+    getCollection("events"),
+  ]);
+  const entries = posts.map(({ data }) => data);
+  await validateLocalResources(entries);
+  return {
+    posts: entries,
+    eventIds: new Set(events.map(({ data }) => data.id)),
+  };
+}
+
+export async function getPublishedPostVariants(): Promise<PostVariant[]> {
+  const today = process.env.BUILD_TODAY ?? getMadridDate(new Date());
+  return createPublishedPostVariants(await getPostSource(), today);
+}
+
+export async function getPreviewPostVariants(): Promise<PostVariant[]> {
+  const today = process.env.BUILD_TODAY ?? getMadridDate(new Date());
+  return createPreviewPostVariants(await getPostSource(), today);
+}
+
+export async function getBuildPostVariants(): Promise<PostVariant[]> {
+  if (import.meta.env.PUBLIC_PREVIEW === "true") {
+    return getPreviewPostVariants();
+  }
+  return getPublishedPostVariants();
 }

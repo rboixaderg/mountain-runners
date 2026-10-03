@@ -34,6 +34,24 @@ const schoolsNavigationActive = isCurrentPath(schoolsPath);
 const schoolsHubActive = currentPath === schoolsPath;
 const navigationItems = [
   {
+    href: getDomainPath("news", locale),
+    label: messages.navigation_news({}, { locale }),
+    attributes: analyticsActionAttributes({
+      action: analyticsActions.navigate,
+      area: analyticsAreas.headerNav,
+      target: "news",
+    }),
+  },
+  {
+    href: getDomainPath("blog", locale),
+    label: messages.navigation_blog({}, { locale }),
+    attributes: analyticsActionAttributes({
+      action: analyticsActions.navigate,
+      area: analyticsAreas.headerNav,
+      target: "blog",
+    }),
+  },
+  {
     href: eventsPath,
     label: messages.navigation_events({}, { locale }),
     attributes: analyticsActionAttributes({

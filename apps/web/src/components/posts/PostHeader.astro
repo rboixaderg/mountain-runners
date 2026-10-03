@@ -1,0 +1,59 @@
+---
+import type { PostVariant } from "../../lib/content/posts";
+import { getDomainPath } from "../../lib/content/routes";
+import {
+  formatPostDate,
+  getPostDisplayDate,
+  postTitleMessageKeys,
+} from "../../lib/presentation/posts";
+import * as messages from "../../paraglide/messages.js";
+import PostStatus from "./PostStatus.astro";
+import { analyticsActionAttributes } from "../../lib/analytics/attributes";
+import { analyticsActions, analyticsAreas } from "../../lib/analytics/catalog";
+interface Props {
+  variant: PostVariant;
+}
+const { entry: post, locale, kind } = Astro.props.variant;
+---
+
+<header class="page-frame pt-section">
+  <a
+    class="action-underline tracking-label text-action mb-4 inline-block uppercase"
+    href={getDomainPath(kind, locale)}
+    {...analyticsActionAttributes({
+      action: analyticsActions.navigate,
+      area: analyticsAreas.postNavigation,
+      target: kind,
+    })}
+  >
+    {messages[postTitleMessageKeys[kind]]({}, { locale })}
+  </a>
+  <PostStatus post={post} locale={locale} />
+  <h1 class="font-display text-section max-w-reading mt-6 mb-4 leading-tight">
+    {post.title[locale]}
+  </h1>
+  <div class="border-line max-w-reading flex flex-col gap-2 border-t pt-4">
+    <p class="text-base font-semibold">{post.author.name}</p>
+    <p class="text-muted leading-copy text-sm">
+      {post.published
+        ? messages.posts_published({}, { locale })
+        : messages.posts_created({}, { locale })}{" "}
+      <time class="text-ink font-medium" datetime={getPostDisplayDate(post)}>
+        {formatPostDate(getPostDisplayDate(post), locale)}
+      </time>
+    </p>
+    {post.updatedAt && (
+      <p class="text-muted leading-copy text-sm">
+        {messages.posts_updated({}, { locale })}{" "}
+        <time class="text-ink font-medium" datetime={post.updatedAt}>
+          {formatPostDate(post.updatedAt, locale)}
+        </time>
+      </p>
+    )}
+  </div>
+  {!post.published && (
+    <p class="max-w-reading leading-copy mt-4">
+      {messages.posts_draft_notice({}, { locale })}
+    </p>
+  )}
+</header>

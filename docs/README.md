@@ -37,6 +37,24 @@ acceptada:
 - [`ai-assistant.md`](ai-assistant.md): límits dels futurs xat públic i assistent
   editorial.
 - [`specs/`](specs/): requisits i acceptació de fases i tasques.
+- [`specs/news-and-blog.md`](specs/news-and-blog.md): funcionalitat autoritzada
+  de notícies, blog i esborranys editorials en preview, amb tasques en curs.
+- [`editorial/guide.md`](editorial/guide.md): criteris d'exactitud, drets,
+  signatura, rectificació i aprovació humana. Inclou les dues plantilles.
+- [`validation/news-blog-integrated.md`](validation/news-blog-integrated.md):
+  validació local de la continuació de la PR #140 i revisions pendents.
+- [`validation/news-blog-section-images.md`](validation/news-blog-section-images.md):
+  imatges opcionals de secció, alternança responsive i autoria per defecte.
+- [`validation/news-blog-analytics-ui.md`](validation/news-blog-analytics-ui.md):
+  analítica editorial etiquetada i revisió visual amb Playwright MCP.
+- [`validation/news-blog-architecture-closure.md`](validation/news-blog-architecture-closure.md):
+  integració amb `main`, propietat de seccions i estat actual de validació i audit.
+
+## Investigació i antecedents
+
+- [`news-and-blog-plan.md`](news-and-blog-plan.md): investigació editorial i
+  alternatives que han originat l'especificació de notícies i blog. Es conserva
+  com a antecedent; la spec i l'ADR 0011 governen l'entrega autoritzada.
 
 ## Registres Històrics
 

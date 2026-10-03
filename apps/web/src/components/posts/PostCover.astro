@@ -1,0 +1,17 @@
+---
+import { getPostCover, type PostVariant } from "../../lib/content/posts";
+import PostImage from "./PostImage.astro";
+interface Props {
+  variant: PostVariant;
+}
+const { entry, locale } = Astro.props.variant;
+const cover = getPostCover(entry, locale);
+---
+
+{cover && (
+  <div class="page-frame my-8">
+    <div class="max-w-reading">
+      <PostImage image={cover} locale={locale} loading="eager" />
+    </div>
+  </div>
+)}

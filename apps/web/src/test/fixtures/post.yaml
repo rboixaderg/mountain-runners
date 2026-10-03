@@ -1,0 +1,20 @@
+id: editorial-example
+type: news
+published: false
+slug:
+  ca: exemple-editorial
+title:
+  ca: Exemple editorial de prova
+summary:
+  ca: Contingut fictici per validar el model, no és una notícia del club.
+lead:
+  ca: Aquest text només és una fixture de test.
+sections:
+  - heading:
+      ca: Informació de prova
+    body:
+      ca: Un paràgraf amb **èmfasi** i una [font](https://example.org/).
+author:
+  type: organization
+  name: Entitat de prova
+createdAt: 2026-10-02

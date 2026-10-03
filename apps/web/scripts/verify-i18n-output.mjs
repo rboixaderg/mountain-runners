@@ -2,6 +2,7 @@ import { readFile, readdir } from "node:fs/promises";
 import { join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 import { loadEnv } from "vite";
+import { parse } from "yaml";
 
 const { PUBLIC_SITE_ORIGIN } = loadEnv(
   process.env.NODE_ENV ?? "development",
@@ -146,6 +147,12 @@ const sitemapUrls = new Set(
 );
 const expectedSitemapUrls = new Set(
   [
+    "ca/noticies/",
+    "ca/blog/",
+    "es/noticias/",
+    "es/blog/",
+    "en/news/",
+    "en/blog/",
     "ca/",
     "es/",
     "en/",
@@ -214,6 +221,44 @@ const expectedSitemapUrls = new Set(
     "en/cookies/",
   ].map((path) => new URL(path, publicSiteOrigin).toString()),
 );
+// Derive editorial expectations from source, never from the observed build routes.
+// The Astro loader has already validated the strict YAML schema at this point.
+const postsDirectory = new URL("../src/content/posts/", import.meta.url);
+const newsDomains = { ca: "noticies", es: "noticias", en: "news" };
+for (const file of await readdir(postsDirectory)) {
+  if (!file.endsWith(".yaml")) continue;
+  const post = parse(await readFile(new URL(file, postsDirectory), "utf8"));
+  if (!post.published) continue;
+  const fields = [
+    post.slug,
+    post.title,
+    post.summary,
+    post.lead,
+    ...post.sections.flatMap((section) =>
+      section.heading ? [section.heading, section.body] : [section.body],
+    ),
+  ];
+  for (const section of post.sections) {
+    for (const image of section.images ?? []) {
+      fields.push(image.alt, image.attribution);
+      if (image.caption) fields.push(image.caption);
+    }
+  }
+  for (const locale of configuredLocales) {
+    if (
+      !fields.every(
+        (field) =>
+          typeof field[locale] === "string" && field[locale].trim() !== "",
+      )
+    )
+      continue;
+    const domain = post.type === "news" ? newsDomains[locale] : "blog";
+    const route = `${locale}/${domain}/${post.slug[locale]}/`;
+    expectedSitemapUrls.add(new URL(route, publicSiteOrigin).toString());
+    if (!outputRoutes.includes(`${route}index.html`))
+      throw new Error(`Published post route missing: ${route}`);
+  }
+}
 if (
   sitemapUrls.size !== expectedSitemapUrls.size ||
   [...expectedSitemapUrls].some((url) => !sitemapUrls.has(url))
