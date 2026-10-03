@@ -36,12 +36,20 @@ const navigationItems = [
   {
     href: getDomainPath("news", locale),
     label: messages.navigation_news({}, { locale }),
-    attributes: {},
+    attributes: analyticsActionAttributes({
+      action: analyticsActions.navigate,
+      area: analyticsAreas.headerNav,
+      target: "news",
+    }),
   },
   {
     href: getDomainPath("blog", locale),
     label: messages.navigation_blog({}, { locale }),
-    attributes: {},
+    attributes: analyticsActionAttributes({
+      action: analyticsActions.navigate,
+      area: analyticsAreas.headerNav,
+      target: "blog",
+    }),
   },
   {
     href: eventsPath,

@@ -75,8 +75,10 @@ necessita el sistema de fase 6 operatiu i autorització explícita per publicar.
 | NB-07  | Pilots i validació integrada | NB-02 a NB-06                       | En curs    | #140 |
 
 Continuació local del 2 i 3 d'octubre de 2026: implementació tècnica de totes les
-unitats, amb un commit per tasca pendent. NB-07 conserva pendents la revisió visual
-manual i l'aprovació editorial humana. L'[evidència integrada](../validation/news-blog-integrated.md)
+unitats, amb un commit per tasca pendent. NB-07 conserva pendent l'aprovació
+editorial humana. La [revisió visual posterior](../validation/news-blog-analytics-ui.md)
+cobreix els templates editorials amb Playwright MCP, sense acreditar captures
+reals del formulari. L'[evidència integrada](../validation/news-blog-integrated.md)
 separa comprovacions executades i pendents. No s'ha fet push d'aquesta continuació,
 merge, activació remota ni desplegament.
 

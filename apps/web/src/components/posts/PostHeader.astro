@@ -8,6 +8,8 @@ import {
 } from "../../lib/presentation/posts";
 import * as messages from "../../paraglide/messages.js";
 import PostStatus from "./PostStatus.astro";
+import { analyticsActionAttributes } from "../../lib/analytics/attributes";
+import { analyticsActions, analyticsAreas } from "../../lib/analytics/catalog";
 interface Props {
   variant: PostVariant;
 }
@@ -16,15 +18,19 @@ const { entry: post, locale, kind } = Astro.props.variant;
 
 <header class="page-frame pt-section">
   <a
-    class="action-underline tracking-label text-action uppercase"
+    class="action-underline tracking-label text-action mb-4 inline-block uppercase"
     href={getDomainPath(kind, locale)}
-    >{messages[postTitleMessageKeys[kind]]({}, { locale })}</a
+    {...analyticsActionAttributes({
+      action: analyticsActions.navigate,
+      area: analyticsAreas.postNavigation,
+      target: kind,
+    })}>{messages[postTitleMessageKeys[kind]]({}, { locale })}</a
   >
   <PostStatus post={post} locale={locale} />
-  <h1 class="font-display text-section max-w-reading leading-tight">
+  <h1 class="font-display text-section max-w-reading mt-6 mb-4 leading-tight">
     {post.title[locale]}
   </h1>
-  <p class="text-sm">{post.author.name}</p>
+  <p class="mb-2 text-sm">{post.author.name}</p>
   <p class="text-muted text-sm">
     {
       post.published
@@ -47,7 +53,7 @@ const { entry: post, locale, kind } = Astro.props.variant;
   }
   {
     !post.published && (
-      <p class="max-w-reading leading-copy">
+      <p class="max-w-reading leading-copy mt-4">
         {messages.posts_draft_notice({}, { locale })}
       </p>
     )

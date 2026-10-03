@@ -45,6 +45,8 @@ acceptada:
   validació local de la continuació de la PR #140 i revisions pendents.
 - [`validation/news-blog-section-images.md`](validation/news-blog-section-images.md):
   imatges opcionals de secció, alternança responsive i autoria per defecte.
+- [`validation/news-blog-analytics-ui.md`](validation/news-blog-analytics-ui.md):
+  analítica editorial etiquetada i revisió visual amb Playwright MCP.
 
 ## Investigació i antecedents
 

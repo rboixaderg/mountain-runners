@@ -7,6 +7,11 @@ import {
   getPostDisplayDate,
 } from "../../lib/presentation/posts";
 import PostStatus from "./PostStatus.astro";
+import { analyticsActionAttributes } from "../../lib/analytics/attributes";
+import {
+  analyticsActions,
+  analyticsPostHubAreas,
+} from "../../lib/analytics/catalog";
 interface Props {
   variants: PostVariant[];
   locale: Locale;
@@ -19,11 +24,20 @@ const { variants, locale } = Astro.props;
     variants.map((variant) => (
       <li class="border-line border-t py-6">
         <PostStatus post={variant.entry} locale={locale} />
-        <h3 class="font-display text-2xl leading-tight">
-          <a href={getVariantPath(variant)}>{variant.entry.title[locale]}</a>
+        <h3 class="font-display mt-4 mb-3 text-2xl leading-tight">
+          <a
+            href={getVariantPath(variant)}
+            {...analyticsActionAttributes({
+              action: analyticsActions.navigate,
+              area: analyticsPostHubAreas[variant.kind],
+              target: variant.entry.id,
+            })}
+          >
+            {variant.entry.title[locale]}
+          </a>
         </h3>
         <p>{variant.entry.summary[locale]}</p>
-        <p class="text-muted text-sm">
+        <p class="text-muted mt-3 text-sm">
           {variant.entry.author.name} ·{" "}
           <time datetime={getPostDisplayDate(variant.entry)}>
             {formatPostDate(getPostDisplayDate(variant.entry), locale)}

@@ -1,4 +1,4 @@
-/* global document, innerWidth -- Used only inside Playwright's browser evaluation. */
+/* global document, innerWidth, window -- Used only inside Playwright's browser evaluation. */
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import {
@@ -96,6 +96,7 @@ test("editorial resources stay isolated across clean builds and preview-to-publi
         lead: localized(published ? id : `UNPUBLISHED_POST_FIXTURE_${id}`),
         sections: [],
         author: { type: "organization", name: "Fixture" },
+        ...(id === "published-blog" ? { relatedPage: "members" } : {}),
         createdAt: "2026-10-02",
         ...(published ? { publishedAt: "2026-10-02T10:00:00Z" } : {}),
         cover: {
@@ -119,7 +120,9 @@ test("editorial resources stay isolated across clean builds and preview-to-publi
       post.sections = [
         {
           heading: localized("Primer pas"),
-          body: localized("Explicació del primer pas"),
+          body: localized(
+            "Explicació del primer pas\n\n1. Comprovació numerada\n2. Segona comprovació\n\n- Punt de prova\n- Segon punt\n\n[Font de prova](https://example.org/)",
+          ),
           images: [
             sectionImage(
               published ? "section-public" : "section-draft",
@@ -196,6 +199,11 @@ test("editorial resources stay isolated across clean builds and preview-to-publi
       assert.ok(!blogDetail.includes('hreflang="es"'));
       assert.ok(blogDetail.includes('alt="Primera pantalla" loading="lazy"'));
       assert.ok(blogDetail.includes("section-public.png.webp"));
+      assert.ok(publishedDetail.includes('content="news_detail"') || preview);
+      assert.ok(blogDetail.includes('content="blog_detail"') || preview);
+      if (preview) {
+        assert.ok(!blogDetail.includes('src="/js/plausible-events.js"'));
+      }
       const sitemap = await readFile(join(dist, "sitemap.xml"), "utf8");
       assert.ok(sitemap.includes("/ca/noticies/published/"));
       assert.ok(!sitemap.includes("/ca/noticies/draft/"));
@@ -263,6 +271,15 @@ test("editorial resources stay isolated across clean builds and preview-to-publi
             viewport: { width, height: 720 },
           });
           const page = await context.newPage();
+          await context.addInitScript(() => {
+            window.__analyticsEvents = [];
+            window.plausible = Object.assign(
+              (name, options) => {
+                window.__analyticsEvents.push({ name, ...options });
+              },
+              { l: true, init() {} },
+            );
+          });
           await page.route("**/*", async (route) => {
             const url = new URL(route.request().url());
             if (url.hostname !== "editorial.test") return route.abort();
@@ -284,6 +301,14 @@ test("editorial resources stay isolated across clean builds and preview-to-publi
             });
           });
           await page.goto("https://editorial.test/ca/blog/published-blog/");
+          assert.deepEqual(
+            await page.evaluate(() =>
+              window.__analyticsEvents.filter(
+                ({ name }) => name === "UI Action",
+              ),
+            ),
+            [],
+          );
           const firstHeading = await page
             .getByRole("heading", { name: "Primer pas", exact: true })
             .boundingBox();
@@ -317,11 +342,126 @@ test("editorial resources stay isolated across clean builds and preview-to-publi
             ),
             true,
           );
+          const article = page.getByRole("article");
+          const orderedList = article
+            .getByRole("list")
+            .filter({ hasText: "Comprovació numerada" });
+          const unorderedList = article
+            .getByRole("list")
+            .filter({ hasText: "Punt de prova" });
+          assert.equal(
+            await orderedList.evaluate(
+              (element) =>
+                element.ownerDocument.defaultView.getComputedStyle(element)
+                  .listStyleType,
+            ),
+            "decimal",
+          );
+          assert.equal(
+            await unorderedList.evaluate(
+              (element) =>
+                element.ownerDocument.defaultView.getComputedStyle(element)
+                  .listStyleType,
+            ),
+            "disc",
+          );
+          assert.ok(
+            (
+              await article
+                .getByRole("link", { name: "Font de prova" })
+                .evaluate(
+                  (element) =>
+                    element.ownerDocument.defaultView.getComputedStyle(element)
+                      .textDecorationLine,
+                )
+            ).includes("underline"),
+          );
           if (browserType === chromium) {
             const results = await new AxeBuilder({ page })
               .withTags(["wcag2a", "wcag2aa", "wcag21aa", "wcag22aa"])
               .analyze();
             assert.deepEqual(results.violations, []);
+            for (const [hub, title, area, pageType, target] of [
+              [
+                "/ca/blog/",
+                "published-blog",
+                "blog_hub",
+                "blog_hub",
+                "published-blog",
+              ],
+              [
+                "/es/noticias/",
+                "ES published",
+                "news_hub",
+                "news_hub",
+                "published",
+              ],
+            ]) {
+              await page.goto(`https://editorial.test${hub}`);
+              await page.evaluate(() =>
+                document.addEventListener(
+                  "click",
+                  (event) => event.preventDefault(),
+                  { once: true },
+                ),
+              );
+              await page
+                .getByRole("link", { name: title, exact: true })
+                .click();
+              const events = await page.evaluate(
+                () => window.__analyticsEvents,
+              );
+              assert.deepEqual(
+                events.filter(({ name }) => name === "UI Action"),
+                [
+                  {
+                    name: "UI Action",
+                    props: {
+                      action: "navigate",
+                      area,
+                      locale: hub.startsWith("/es/") ? "es" : "ca",
+                      page_type: pageType,
+                      route: hub,
+                      target,
+                    },
+                  },
+                ],
+              );
+            }
+            await page.goto("https://editorial.test/ca/blog/published-blog/");
+            await page.evaluate(() =>
+              document.addEventListener(
+                "click",
+                (event) => event.preventDefault(),
+                { once: true },
+              ),
+            );
+            const membersLink = page.getByRole("link", {
+              name: "Ves a la pàgina de Socis",
+              exact: true,
+            });
+            await membersLink.focus();
+            await membersLink.press("Enter");
+            assert.deepEqual(
+              await page.evaluate(() =>
+                window.__analyticsEvents.filter(
+                  ({ name }) => name === "UI Action",
+                ),
+              ),
+              [
+                {
+                  name: "UI Action",
+                  props: {
+                    action: "navigate",
+                    area: "post_resources",
+                    locale: "ca",
+                    page_type: "blog_detail",
+                    route: "/ca/blog/published-blog/",
+                    target: "members",
+                  },
+                },
+              ],
+            );
           }
           await context.close();
         }

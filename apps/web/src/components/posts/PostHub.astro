@@ -15,8 +15,10 @@ interface Props {
 const { kind, locale, published, drafts } = Astro.props;
 ---
 
-<div class="page-frame py-section">
-  <h1 class="font-display text-display leading-display">
+<div class="page-frame pt-section">
+  <h1
+    class="font-display text-display leading-display tracking-headline mb-6 uppercase"
+  >
     {messages[postTitleMessageKeys[kind]]({}, { locale })}
   </h1>
   <p class="leading-copy max-w-prose">

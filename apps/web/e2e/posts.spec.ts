@@ -1,6 +1,61 @@
 import { expect, test } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 
+test("editorial menu clicks emit labeled actions without depending on Plausible", async ({
+  page,
+}) => {
+  test.skip(
+    process.env.PUBLIC_PREVIEW === "true",
+    "Preview does not load analytics.",
+  );
+  await page.route("https://analytics.rogerbg.cat/**", (route) =>
+    route.abort(),
+  );
+  const events: { name: string; props: Record<string, string> }[] = [];
+  await page.exposeFunction(
+    "captureAnalyticsAction",
+    (name: string, options: { props: Record<string, string> }) =>
+      events.push({ name, props: options.props }),
+  );
+  // Stub the loaded tracker, not the site's event script. This checks emitted
+  // events across navigation without relying on browser-specific beacon capture.
+  await page.addInitScript(
+    "window.plausible = Object.assign((name, options) => window.captureAnalyticsAction(name, options), { l: true, init() {} });",
+  );
+  for (const [label, target] of [
+    ["Notícies", "news"],
+    ["Blog", "blog"],
+  ]) {
+    events.length = 0;
+    await page.goto("/ca/");
+    if (page.viewportSize()!.width < 1024)
+      await page.locator("summary").filter({ hasText: "Menú" }).click();
+    await page
+      .getByRole("navigation", { name: "Navegació principal" })
+      .filter({ visible: true })
+      .getByRole("link", { name: label, exact: true })
+      .click();
+    await expect
+      .poll(() => events.filter(({ name }) => name === "UI Action"))
+      .toEqual([
+        {
+          name: "UI Action",
+          props: {
+            action: "navigate",
+            area: "header_nav",
+            locale: "ca",
+            page_type: "home",
+            route: "/ca/",
+            target,
+          },
+        },
+      ]);
+    await expect(
+      page.getByRole("heading", { name: label, level: 1, exact: true }),
+    ).toBeVisible();
+  }
+});
+
 test("editorial hubs are discoverable and have localized empty states", async ({
   page,
 }) => {

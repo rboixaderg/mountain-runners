@@ -7,6 +7,8 @@ import { formatPostDate } from "../../lib/presentation/posts";
 import { externalLinkAttributes } from "../../lib/presentation/urls";
 import * as messages from "../../paraglide/messages.js";
 import PageSection from "../PageSection.astro";
+import { analyticsActionAttributes } from "../../lib/analytics/attributes";
+import { analyticsActions, analyticsAreas } from "../../lib/analytics/catalog";
 interface Props {
   variant: PostVariant;
   relatedEvents: Extract<PublishedVariant, { kind: "event" }>[];
@@ -27,6 +29,11 @@ const correction = entry.correction?.note[locale]
       <a
         class="action-underline"
         href={getFixedPagePath(entry.relatedPage, locale)}
+        {...analyticsActionAttributes({
+          action: analyticsActions.navigate,
+          area: analyticsAreas.postResources,
+          target: entry.relatedPage,
+        })}
       >
         {messages.posts_members_link({}, { locale })}
       </a>
@@ -73,7 +80,16 @@ const correction = entry.correction?.note[locale]
       <ul>
         {relatedEvents.map((event) => (
           <li>
-            <a href={getVariantPath(event)}>{event.entry.title[locale]}</a>
+            <a
+              href={getVariantPath(event)}
+              {...analyticsActionAttributes({
+                action: analyticsActions.navigate,
+                area: analyticsAreas.postResources,
+                target: event.entry.id,
+              })}
+            >
+              {event.entry.title[locale]}
+            </a>
           </li>
         ))}
       </ul>
