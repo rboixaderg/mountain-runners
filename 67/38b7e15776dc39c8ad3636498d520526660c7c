@@ -1,0 +1,22 @@
+docs/editorial/drafts/com-fer-te-soci.md
+  h_1727aeeb492b30 1,3,5-9,23
+docs/editorial/drafts/inauguracio-nou-local.md
+  h_1727aeeb492b30 1,3,5-6,10-11,16
+docs/editorial/guide.md
+  h_1727aeeb492b30 24-26
+docs/news-and-blog-plan.md
+  h_1727aeeb492b30 100-103
+docs/specs/news-and-blog.md
+  h_1727aeeb492b30 244-246
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "6738b7e15776dc39c8ad3636498d520526660c7c",
+  "prompts": {},
+  "humans": {
+    "h_1727aeeb492b30": {
+      "author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
