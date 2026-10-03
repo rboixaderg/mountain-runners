@@ -1,0 +1,41 @@
+apps/web/e2e/preview.spec.ts
+  s_c578b754bd3353::t_30669ab39f9d38 2,27-51
+apps/web/src/layouts/PublicLayout.astro
+  s_c578b754bd3353::t_2892f1d6dcae58 7,83,117,131
+apps/web/src/lib/analytics/attributes.ts
+  s_c578b754bd3353::t_d258165b552890 6,13-16
+apps/web/src/lib/analytics/plausible.ts
+  s_0f3c70dd90d603::t_5bc11bf17affbc 9-18
+apps/web/src/test/analytics-events.test.ts
+  s_c578b754bd3353::t_8db3feb4d0bc34 4,69-107
+apps/web/src/test/plausible.test.ts
+  s_c578b754bd3353::t_090df06fc8bb72 1,15-40
+docs/specs/plausible-analytics.md
+  s_c578b754bd3353::t_300b4e90b6fe22 44-45,61,110-134,159-183,226-227,231-232,268-270
+tools/server/preview/site-manager.test.mjs
+  s_c578b754bd3353::t_79d2d1641b3fbf 150-159
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "082ee0b9648455d181477183194a57b18dbf3992",
+  "prompts": {},
+  "sessions": {
+    "s_0f3c70dd90d603": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_eff58f011ffe6yDvdI7XEAP2uK",
+        "model": "unknown"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    },
+    "s_c578b754bd3353": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_eff44215bfferWPL27BniHM0K8",
+        "model": "unknown"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
