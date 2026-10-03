@@ -97,6 +97,10 @@ Ja s'han preparat els primers textos:
   personals a la primera pantalla i dades de pagament a la segona. La descripció
   del formulari és provisional i es validarà abans de publicar.
 
+Els enllaços dels pilots anteriors conserven ara només les notes de revisió.
+El contingut de la web viu a `apps/web/src/content/posts/`, també quan és un
+esborrany. No es mantenen còpies dels articles a `docs/`.
+
 ## Tasques, entregues i seguiment
 
 Identificadors provisionals, sense atribuir-los a una fase aprovada. Cada tasca

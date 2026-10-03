@@ -21,6 +21,9 @@ El format executable és YAML restringit a
 [el model](../content-model.md). Les plantilles són fitxes de treball, no fitxers
 per copiar directament a la col·lecció.
 
+Els articles, publicats o en esborrany, viuen només a la col·lecció `posts`.
+`docs/` conté documentació i notes de revisió, no còpies dels textos de la web.
+
 ## Exactitud i fonts
 
 - Separar fets, opinions i instruccions provisionals.

@@ -241,9 +241,9 @@ drets d'imatge i protecció de menors. Notícies amb fets principals primer;
 blog amb estructura que respongui a la pregunta del lector. L'agent pregunta
 quan falten fets i no inventa resultats, quotes, testimonis o fotografies.
 
-La notícia pilot utilitza els fets confirmats del
-[seu esborrany](../editorial/drafts/inauguracio-nou-local.md). La
-[guia de socis](../editorial/drafts/com-fer-te-soci.md) descriu provisionalment
+La [notícia pilot](../../apps/web/src/content/posts/inauguracio-nou-local.yaml)
+utilitza els fets confirmats de la inauguració. La
+[guia de socis](../../apps/web/src/content/posts/com-fer-te-soci.yaml) descriu provisionalment
 dues pantalles, dades personals i de pagament. No promet alta efectiva o cobrament;
 la descripció s'ha de verificar abans de publicar. Enllaça a Socis amb el helper
 de rutes, sense duplicar les condicions vigents.
