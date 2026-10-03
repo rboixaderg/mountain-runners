@@ -1,0 +1,28 @@
+docs/README.md
+  h_1727aeeb492b30 50-51
+docs/architecture.md
+  h_1727aeeb492b30 57-60,67-70,114-121,133-134
+docs/content-model.md
+  h_1727aeeb492b30 56,61-65,80-82,142,149-151
+docs/decisions/0011-news-blog-editorial-previews.md
+  h_1727aeeb492b30 5-7
+docs/specs/news-and-blog.md
+  h_1727aeeb492b30 78,82-86
+docs/specs/phase-6-pull-request-previews.md
+  h_1727aeeb492b30 5-8,16-18
+docs/validation/news-blog-architecture-closure.md
+  h_1727aeeb492b30 1-82
+docs/validation/news-blog-integrated.md
+  h_1727aeeb492b30 7-11
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "2f6ada0d44bb8c480ce32e43ab8702cf7132ac02",
+  "prompts": {},
+  "humans": {
+    "h_1727aeeb492b30": {
+      "author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
