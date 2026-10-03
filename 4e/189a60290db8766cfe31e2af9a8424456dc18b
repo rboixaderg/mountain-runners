@@ -1,0 +1,41 @@
+DESIGN.md
+  s_1ceb335488badc::t_d2352fa3f00ad0 26-28
+apps/web/e2e/preview.spec.ts
+  s_1ceb335488badc::t_4c87bd61347e40 31-63
+apps/web/src/components/PreviewNotice.astro
+  s_1ceb335488badc::t_f3f23212ac9988 12
+apps/web/src/components/SiteHeader.astro
+  s_1ceb335488badc::t_d9a1cfa77970f8 89
+apps/web/src/layouts/PublicLayout.astro
+  s_1ceb335488badc::t_e95b62edd98dab 130-132
+apps/web/src/styles/global.css
+  s_1ceb335488badc::t_b7a7ad23d986e1 11
+docs/deployment.md
+  s_1ceb335488badc::t_63a14458124815 267-269
+docs/runbook.md
+  s_1ceb335488badc::t_a086a3825be46f 1008-1012
+tools/preview/build-artifact.mjs
+  s_1ceb335488badc::t_2730a7996df654 16-18,22,59
+tools/release/packaging.mjs
+  s_1ceb335488badc::t_91d445f9969a60 53-56
+tools/server/preview/gate.test.mjs
+  s_1ceb335488badc::t_98805a81f29c62 838-841,1209-1210
+tools/server/systemd/mountain-preview-site.service
+  s_1ceb335488badc::t_b5ba583d8ff707 17-19
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "4e189a60290db8766cfe31e2af9a8424456dc18b",
+  "prompts": {},
+  "sessions": {
+    "s_1ceb335488badc": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_eff5d3c34ffelT0qbctm1lnMbR",
+        "model": "unknown"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
