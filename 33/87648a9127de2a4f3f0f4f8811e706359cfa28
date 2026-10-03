@@ -1,0 +1,14 @@
+apps/web/e2e/preview.spec.ts
+  h_1727aeeb492b30 37-40,42-43,46-47
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "3387648a9127de2a4f3f0f4f8811e706359cfa28",
+  "prompts": {},
+  "humans": {
+    "h_1727aeeb492b30": {
+      "author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
