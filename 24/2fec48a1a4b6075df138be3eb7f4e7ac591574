@@ -1,0 +1,27 @@
+apps/web/src/components/posts/PostBody.astro
+  s_120017d0f56a54::t_7b8d177c92dcb1 4-5,13,15,19-51
+apps/web/src/components/posts/PostCover.astro
+  s_120017d0f56a54::t_49dd1fde7fa798 3,12-17
+apps/web/src/components/posts/PostImage.astro
+  s_120017d0f56a54::t_493e5e89b71278 1-37
+apps/web/src/lib/content/posts.ts
+  s_120017d0f56a54::t_c57dd4bfa9d981 59-66,129-131,145-147
+apps/web/src/test/post-section-images.test.ts
+  s_120017d0f56a54::t_03783cdd007321 1-135
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "242fec48a1a4b6075df138be3eb7f4e7ac591574",
+  "prompts": {},
+  "sessions": {
+    "s_120017d0f56a54": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_f02792959ffeesIf41si1KsTGG",
+        "model": "unknown"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
