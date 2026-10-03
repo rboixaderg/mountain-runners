@@ -14,6 +14,9 @@ ProtectSystem=strict
 ProtectHome=true
 PrivateTmp=true
 ReadWritePaths=/etc/caddy /run /var/lib/mountain-runners-previews/namespaces
+# `caddy validate` opens the log files declared in the Caddyfile; private
+# tmpfs mounts satisfy it without granting write access to the real logs.
+TemporaryFileSystem=/var/log/mountain-runners /var/log/mountain-runners-previews
 
 [Install]
 WantedBy=multi-user.target

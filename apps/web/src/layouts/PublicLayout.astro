@@ -122,13 +122,14 @@ const isPreview = import.meta.env.PUBLIC_PREVIEW === "true";
     <a class="skip-link" href="#main-content">
       {messages.skip_to_content({}, { locale })}
     </a>
-    {isPreview && <PreviewNotice locale={locale} />}
     <SiteHeader
       localizedAlternatives={localizedAlternatives}
       locale={locale}
       memberSignupLink={memberSignupLink}
       schoolVariants={schoolVariants}
-    />
+    >
+      {isPreview && <PreviewNotice locale={locale} />}
+    </SiteHeader>
     <main id="main-content">
       <slot />
     </main>

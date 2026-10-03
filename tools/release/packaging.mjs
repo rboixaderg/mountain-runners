@@ -50,9 +50,10 @@ export function requireEditorialDate(purpose) {
 }
 
 export function currentCommit() {
-  if (process.env.GITHUB_SHA !== undefined) {
-    return process.env.GITHUB_SHA;
-  }
+  return process.env.GITHUB_SHA ?? checkedOutCommit();
+}
+
+export function checkedOutCommit() {
   const result = spawnSync("git", ["rev-parse", "HEAD"], {
     cwd: rootDirectory,
     encoding: "utf8",

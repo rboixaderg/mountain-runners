@@ -835,6 +835,10 @@ test("the preview process sandbox permits authorization writes only inside previ
     service.match(/^ReadWritePaths=.*$/mu)?.[0],
     "ReadWritePaths=/etc/caddy /run /var/lib/mountain-runners-previews/namespaces",
   );
+  assert.equal(
+    service.match(/^TemporaryFileSystem=.*$/mu)?.[0],
+    "TemporaryFileSystem=/var/log/mountain-runners /var/log/mountain-runners-previews",
+  );
 });
 
 test("bootstrap and the preview-only runbook reject incompatible release paths before installing the gate", async () => {
@@ -1202,6 +1206,8 @@ test("the preview workflow pins actions, separates the trust boundaries and has 
     buildJob,
     /ref: \$\{\{ needs\.authorize\.outputs\.head_sha \}\}/,
   );
+  // GitHub ignores overrides of GITHUB_SHA; the manifest uses the checkout.
+  assert.doesNotMatch(buildJob, /GITHUB_SHA:/);
   assert.match(buildJob, /node tools\/preview\/build-artifact\.mjs/);
   assert.match(
     buildJob,

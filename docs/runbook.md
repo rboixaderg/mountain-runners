@@ -1005,6 +1005,11 @@ subcarpetes `commands/mountain-preview/`, `processes/mountain-preview-site/` i
 `tools/server/systemd/mountain-preview-site.service` a
 `/etc/systemd/system/`, substituint el GID `0` de la plantilla pel GID real
 del grup `preview-deploy` i l'UID `0` per l'UID de l'usuari `preview-deploy`.
+La unitat munta `/var/log/mountain-runners` i
+`/var/log/mountain-runners-previews` com a `TemporaryFileSystem=` privats:
+`caddy validate` obre els logs que declara el Caddyfile, i sense aquests
+muntatges falla amb `read-only file system` per `ProtectSystem=strict`. El
+procés no escriu mai als logs reals de Caddy.
 Si ja hi ha una instal·lació de T6.3, la persona mantenidora actualitza els
 enllaços `/usr/local/bin/mountain-preview` i `/usr/local/bin/preview-ssh-gate`
 perquè tots dos apuntin a
