@@ -3,12 +3,17 @@ import {
   type AnalyticsAction,
   type AnalyticsArea,
 } from "./catalog";
+import { analyticsEnabled } from "./plausible";
 
 export function analyticsActionAttributes(options: {
   action: AnalyticsAction;
   area: AnalyticsArea;
   target?: string;
 }): Record<string, string> {
+  if (!analyticsEnabled) {
+    return {};
+  }
+
   const attributes: Record<string, string> = {
     "data-analytics-action": options.action,
     "data-analytics-area": options.area,

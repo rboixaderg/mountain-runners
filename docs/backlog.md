@@ -180,6 +180,32 @@ a l'entrada oberta corresponent; no s'amplien silenciosament aquesta entrega.
 
 ## Necessitats Obertes
 
+### Desactivar L'Analítica En Mode Preview
+
+**Estat:** Incorporada a la [PR #141](https://github.com/rboixaderg/mountain-runners/pull/141) (entrega autònoma T3 d'analítica Plausible).
+
+**Problema:** les previews de pull request no són la web pública, però poden
+carregar l'analítica i enregistrar visites i accions de revisió com si fossin
+activitat real de producció. Això contamina les mètriques i no aporta valor a la
+revisió de contingut.
+
+**Resultat esperat:** garantir que Plausible no s'executa ni rep esdeveniments
+des de cap preview, mantenint l'analítica activa a producció i sense alterar la
+navegació o les comprovacions de les previews.
+
+**Resposta:** el criteri viu en un sol lloc, `analyticsEnabled`, derivat del
+contracte `PUBLIC_PREVIEW`. En un build de preview no hi ha script ni
+metadades d'analítica, ni atributs `data-analytics-*`; la CSP del fragment de
+previews de Caddy només permet `self` i el filtre de noms d'amfitrió de Plausible
+descarta la resta. A producció no canvia res: la sortida és idèntica a `main`.
+
+**Dependències:** contracte actual de `PUBLIC_PREVIEW`, integració Plausible
+([ADR 0007](decisions/0007-self-hosted-plausible-analytics.md)) i infraestructura
+de previews de la fase 6.
+
+**Seguiment:** [especificació d'analítica Plausible](specs/plausible-analytics.md),
+T3.
+
 ### Esdeveniments D'Acció I Temps D'Estada
 
 **Estat:** Incorporada i fusionada a la [PR #96](https://github.com/rboixaderg/mountain-runners/pull/96) (entrega autònoma T2 d'analítica Plausible).
