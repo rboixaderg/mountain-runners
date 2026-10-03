@@ -4,10 +4,16 @@
 
 Les notícies expliquen fets del club amb la informació principal al començament.
 El blog respon una pregunta del lector o desenvolupa una opinió identificada com
-a tal. La signatura per defecte és `mountain runners`, amb autoria
+a tal. La signatura per defecte és `Mountain Runners`, amb autoria
 `organization`. Si s'indica una altra autoria, s'escriu el seu nom públic i el
 tipus `person` o `organization`. El YAML sempre declara l'autoria explícitament;
 el valor per defecte és un criteri editorial, no un nom afegit pel render.
+
+Els noms propis conserven les majúscules al YAML; no s'aplica `capitalize` ni
+una conversió automàtica a altres autories. El detall agrupa la signatura i les
+dates sota el titular. Els esborranys mostren «Preparat el», els articles publicats
+«Publicat el» i, si consta una actualització, «Actualitzat el» en una línia pròpia.
+La data de l'esdeveniment no substitueix la data editorial. No s'inventen hores.
 
 1. Recollir els fets confirmats, les fonts i els dubtes abans de redactar.
 2. Utilitzar la [plantilla de notícia](templates/news.md) o la
@@ -68,7 +74,7 @@ sections:
         alt:
           ca: Pantalla de revisió del formulari amb les dades de prova.
         attribution:
-          ca: mountain runners
+          ca: Mountain Runners
         caption:
           ca: Revisa les dades abans de continuar.
 ```

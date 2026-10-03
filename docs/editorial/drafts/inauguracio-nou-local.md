@@ -7,7 +7,7 @@ revisió, a partir de la informació facilitada per la persona mantenidora.
 
 ## Revisió pendent
 
-- Aprovar el titular, el resum i el text. La signatura `mountain runners` ja està
+- Aprovar el titular, el resum i el text. La signatura `Mountain Runners` ja està
   confirmada. No hi ha xifres
   d'assistència, declaracions ni descripcions d'usos del local perquè no se n'ha
   facilitat informació.

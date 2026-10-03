@@ -174,7 +174,7 @@ fitxer. Camps desconeguts rebutjats. Constants tipades per als valors compartits
   una notícia que ja expliqui els fets a l'entradeta. No és un constructor de
   blocs ni admet HTML, MDX o H1.
 - `author` té nom públic i tipus `person | organization`. Per decisió de la
-  persona mantenidora, la signatura per defecte és `mountain runners`, amb tipus
+  persona mantenidora, la signatura per defecte és `Mountain Runners`, amb tipus
   `organization`. Si s'explicita una altra autoria, s'utilitza el seu nom públic
   i tipus. `author` continua obligatori al YAML. No es creen perfils, comptes ni
   una col·lecció d'autors.

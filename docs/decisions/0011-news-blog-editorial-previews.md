@@ -58,6 +58,13 @@ i tipus `person` o `organization`. El YAML continua exigint `author`; no s'afege
 un fallback al render. També autoritza imatges locals opcionals a les seccions,
 amb la mateixa selecció de recursos i aïllament dels esborranys.
 
+## Grafia de la signatura
+
+El 3 d'octubre de 2026 la persona mantenidora aprova la grafia `Mountain Runners`,
+amb les inicials del nom propi en majúscula. Substitueix la grafia en minúscules
+dels aclariments anteriors, sense canviar el tipus d'autoria, el nom explícit al
+YAML ni la possibilitat d'una altra signatura. El render no transforma els noms.
+
 ## Conseqüències
 
 - Les comprovacions de producció han d'excloure també els textos i recursos

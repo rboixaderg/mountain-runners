@@ -140,7 +140,19 @@ for (const pilot of pilots) {
       page.locator('script[type="application/ld+json"]'),
     ).toHaveCount(0);
     await expect(page.locator('link[hreflang="es"]')).toHaveCount(0);
-    await expect(page.getByRole("article")).toContainText("mountain runners");
+    const articleHeader = page.getByRole("article").locator("header");
+    await expect(
+      articleHeader.getByText("Mountain Runners", { exact: true }),
+    ).toBeVisible();
+    await expect(
+      articleHeader.getByText("Preparat el 2 d’octubre del 2026", {
+        exact: true,
+      }),
+    ).toBeVisible();
+    await expect(articleHeader.locator("time")).toHaveAttribute(
+      "datetime",
+      "2026-10-02",
+    );
     await expect(page.getByRole("article").getByRole("img")).toHaveCount(0);
     if (pilot.path.includes("com-fer-te-soci")) {
       await expect(

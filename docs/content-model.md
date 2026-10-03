@@ -71,7 +71,7 @@ de build a Madrid. La completesa de les seccions es comprova per idioma sense
 fallback. La publicació requereix `publishedAt`; una retirada pot conservar-ne
 la data. Les actualitzacions es comparen com a instants respectant els offsets.
 Notícies i blogs admeten signatura institucional; la persona mantenidora ha
-confirmat `mountain runners` com a signatura per defecte, amb altres autories
+confirmat `Mountain Runners` com a signatura per defecte, amb altres autories
 explícites permeses. `author` sempre es declara al YAML. Les seccions admeten
 imatges locals opcionals amb alt, crèdit i peu opcional traduïbles. Els textos
 d'imatges declarades formen part de la completesa de la variant; els recursos

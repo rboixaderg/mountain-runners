@@ -96,7 +96,9 @@ test("editorial resources stay isolated across clean builds and preview-to-publi
         lead: localized(published ? id : `UNPUBLISHED_POST_FIXTURE_${id}`),
         sections: [],
         author: { type: "organization", name: "Fixture" },
-        ...(id === "published-blog" ? { relatedPage: "members" } : {}),
+        ...(id === "published-blog"
+          ? { relatedPage: "members", updatedAt: "2026-10-02T12:00:00Z" }
+          : {}),
         createdAt: "2026-10-02",
         ...(published ? { publishedAt: "2026-10-02T10:00:00Z" } : {}),
         cover: {
@@ -301,6 +303,18 @@ test("editorial resources stay isolated across clean builds and preview-to-publi
             });
           });
           await page.goto("https://editorial.test/ca/blog/published-blog/");
+          assert.equal(
+            await page
+              .getByText("Publicat el 2 d’octubre del 2026", { exact: true })
+              .count(),
+            1,
+          );
+          assert.equal(
+            await page
+              .getByText("Actualitzat el 2 d’octubre del 2026", { exact: true })
+              .count(),
+            1,
+          );
           assert.deepEqual(
             await page.evaluate(() =>
               window.__analyticsEvents.filter(

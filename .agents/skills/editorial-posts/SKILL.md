@@ -14,7 +14,7 @@ description: Prepare or revise Mountain Runners news and blog drafts, including 
 3. Write reader-facing content in Catalan. Load and apply `unslop`. Distinguish
    facts from opinions and provisional instructions. Never invent quotations,
    attendance, results, testimonials, photographs, prices or deadlines.
-4. Unless another author is explicitly provided, sign posts as `mountain runners`
+4. Unless another author is explicitly provided, sign posts as `Mountain Runners`
    with author type `organization`. For an explicit different author, record their
    public name and matching `person` or `organization` type. Always write the author
    into YAML; this is an editorial default, not a runtime fallback. Keep

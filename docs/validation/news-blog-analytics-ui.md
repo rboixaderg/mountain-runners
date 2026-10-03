@@ -72,6 +72,44 @@ s'ha aturat.
 
 ## Validació
 
+### Seguiment de la signatura i les dates
+
+La revisió posterior de la preview ha confirmat que el detall mostrava
+`Preparat el2 d’octubre del 2026`, sense separació entre etiqueta i data.
+S'ha afegit un espai explícit, compartit pels estats preparat i publicat.
+La signatura i les dates formen ara un bloc sota el titular, separat amb una
+línia discreta. L'autoria té seminegreta i la data color de text principal.
+L'actualització conserva una línia pròpia. Als llistats també es reforça la
+signatura i el contrast de la data.
+
+Amb l'aprovació de la persona mantenidora, els dos pilots i el criteri editorial
+utilitzen `Mountain Runners`. El nom es desa al YAML; no es transforma amb CSS ni
+es modifica una altra autoria explícita. L'ADR 0011 registra la nova grafia sense
+reescriure els acords històrics. No es canvien dates ni estats de publicació.
+
+Referències consultades:
+
+- [VilaWeb](https://www.vilaweb.cat/noticies/les-portades-del-diumenge-3-de-maig-de-2026/):
+  signatura «Redacció», data principal i actualització diferenciades.
+- [ARA](https://en.ara.cat/weather/busy-weekend-with-new-rains_1_5867558.html):
+  noms propis dels autors, seguits de data i hora.
+- [El País](https://elpais.com/deportes/futbol/2026-10-03/el-mundo-quiere-ser-como-espana-y-busca-seleccionadores-como-de-la-fuente.html):
+  autor amb nom propi i línia de lloc, data i hora.
+
+Revisió visual local amb Playwright MCP a 1280 píxels al detall de notícia i
+320 píxels a la guia del blog. Captures a `artifacts/ui-review/`, fora de Git.
+La data queda separada i no hi ha desbordament horitzontal. Les proves dels dos
+pilots comproven la signatura exacta, la frase amb espai i el `datetime` original.
+La integració d'articles publicats comprova també «Publicat el» i «Actualitzat el»
+amb separació en els tres navegadors. El servidor propi i el navegador s'han tancat.
+
+S'han repetit `pnpm validate`, Lighthouse públic, el build preview i els E2E de
+posts/preview, amb els mateixos resultats detallats a continuació. Sense noves
+dependències, scripts, recursos fotogràfics o canvis de seguretat i llicència.
+Les comprovacions existents de metadades i aïllament dels esborranys passen.
+
+### Resultats
+
 - `pnpm validate`: 391 tests unitaris, 116 de servidor/integració i 344 E2E
   correctes; 352 omesos pels filtres existents.
 - Integració de quatre builds, comparació de paths/SHA-256 públics i aïllament

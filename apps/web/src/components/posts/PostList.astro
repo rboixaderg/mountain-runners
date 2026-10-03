@@ -38,8 +38,11 @@ const { variants, locale } = Astro.props;
         </h3>
         <p>{variant.entry.summary[locale]}</p>
         <p class="text-muted mt-3 text-sm">
-          {variant.entry.author.name} ·{" "}
-          <time datetime={getPostDisplayDate(variant.entry)}>
+          <span class="text-ink font-semibold">
+            {variant.entry.author.name}
+          </span>{" "}
+          ·{" "}
+          <time class="text-ink" datetime={getPostDisplayDate(variant.entry)}>
             {formatPostDate(getPostDisplayDate(variant.entry), locale)}
           </time>
         </p>
