@@ -41,6 +41,8 @@ navegació.
 - Les pàgines de privacitat i de cookies descriuen l'analítica real, en els tres
   idiomes, i continuen sense banner general.
 - Bloquejar o aturar Plausible no impedeix carregar ni navegar la web.
+- Els previews de pull request no carreguen Plausible ni li envien cap
+  esdeveniment.
 - El build no incorpora tokens d'administració ni de l'API de Plausible.
 
 ## Dependències I Ordre D'Inici
@@ -56,6 +58,7 @@ la CSP anterior i les pàgines continuen funcionant.
 | ----- | --------- | ------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------- |
 | T1    | En curs   | Script al layout, CSP, textos legals, ADR 0007 i comprovacions que l'analítica no trenqui la web |                                                                  |
 | T2    | Fusionada | Esdeveniments d'acció personalitzats, temps actiu (engaged time) i profunditat de scroll         | [PR #96](https://github.com/rboixaderg/mountain-runners/pull/96) |
+| T3    | En curs   | L'analítica no s'executa ni rep esdeveniments des de cap preview de pull request                 |
 
 ### T1. Integrar Plausible A La Web Pública
 
@@ -104,6 +107,31 @@ client, i el recorregut E2E del shell amb l'origen de Plausible bloquejat.
 
 **PR:** `feat(analytics-t2): add Plausible action events, engaged time and scroll depth`.
 
+### T3. Desactivar L'Analítica En Mode Preview
+
+**Abast:** criteri únic `analyticsEnabled` derivat de `PUBLIC_PREVIEW`, cap
+script ni metadades d'analítica al markup de preview, cap atribut
+`data-analytics-*` en aquests builds, proves de regressió a Vitest, Playwright i
+`node --test`, i aquesta documentació.
+
+**Fora d'aquesta tasca:** filtrats o canvis a la instància de Plausible
+(`analytics.rogerbg.cat` és un servei extern al repositori), cap acció remota,
+i treure els fitxers `/js/plausible-*.js` de l'artefacte publicat: són
+codi inerte quan el preview no els referencia, i la garantia útil és que el
+preview no els carrega ni els invoca.
+
+**Dependències:** T1 i T2 (integració existent), el contracte `PUBLIC_PREVIEW` de
+la fase 6 i la CSP del fragment de previews.
+
+**Resultat observable:** una preview de pull request no conté marcatge
+d'analítica ni fa cap petició a l'origen de Plausible; la producció els
+conserva tots dos.
+
+**Comprovacions mínimes:** `pnpm check`, el recorregut E2E de previews en el
+build de preview (`PUBLIC_PREVIEW=true`) i `pnpm test:e2e` a producció.
+
+**PR:** `fix(analytics-t3): keep Plausible out of pull request previews`.
+
 ## Integració A La Web
 
 - L'script remot és `https://analytics.rogerbg.cat/js/pa-gRKxE0JnFqvhkV5c5BUwD.js`,
@@ -127,6 +155,33 @@ client, i el recorregut E2E del shell amb l'origen de Plausible bloquejat.
 - El host de validació i l'entorn local poden carregar l'script; el filtre de
   nom d'amfitrió de Plausible descarta visites que no siguin de
   `mountainrunners.cat`.
+
+## Previews De Pull Request
+
+Les previews de pull request no són la web pública i no es mesuren. El criteri
+viu en un sol lloc, `analyticsEnabled` a
+`apps/web/src/lib/analytics/plausible.ts`, i es deriva del mateix contracte
+`PUBLIC_PREVIEW` que l'artefacte de preview i l'avís de preview. El mode del build
+es defineix a `apps/web/src/lib/build.ts` amb `isPreviewBuild`, compartit pel
+layout, `robots.txt` i l'analítica, sense dependre de Plausible. Quan el build
+és de preview:
+
+- el layout no renderitza `PlausibleAnalytics`: no hi ha script remot, ni
+  `/js/plausible-init.js`, ni `/js/plausible-events.js`, ni les metadades
+  `mr-analytics-*`;
+- `analyticsActionAttributes` no retorna atributs, de manera que cap elemente
+  marca una acció com a instrumentada (`data-analytics-*`);
+- la CSP del fragment de previews de Caddy permet només `self` a `script-src` i
+  a `connect-src`, de manera que un script o un beacon que s'escapessin quedarien
+  bloquejats pel navegador;
+- el filtre de nom d'amfitrió de Plausible descarta a més els esdeveniments que
+  arribessin des d'un nom de preview.
+
+A producció el criteri és l'invers: l'script, les metadades i els atributts
+s'hi conserven. La garantia la sostenen les proves, no una convenció: Vitest
+cobreix el canvi de criteri segons `PUBLIC_PREVIEW`, Playwright comprova que un
+build de preview no emet marcatge d'analítica ni fa cap petició a l'origen, i
+`node --test` fixa que la CSP de previews no conté l'origen de Plausible.
 
 ## Operació De La CSP
 
@@ -170,11 +225,13 @@ Les pàgines de cookies i de privacitat, en ca/es/en, han de descriure:
 - Vitest: el layout emet l'script asíncron amb l'URL canònica, les metadades de
   context i no introdueix l'snippet com a `script` inline executable; el catàleg
   d'esdeveniments i el script client comparteixen noms i llindars estables.
-- `node --test`: el `Caddyfile` i el verifier comparteixen la CSP esperada.
+- `node --test`: el `Caddyfile` i el verifier comparteixen la CSP esperada, i la
+  CSP del fragment de previews no permet l'origen de Plausible.
 - Playwright: el shell públic carrega l'script; cookies i privacitat esmenten
   Plausible. Els recorreguts intercepten i bloquegen `analytics.rogerbg.cat`
   perquè la suite no depengui de la resposta remota i verifiqui que la
-  navegació continua funcionant.
+  navegació continua funcionant. El recorregut de previews exigeix el contrari:
+  cap marcatge d'analítica i cap petició a l'origen.
 - No s'executa Lighthouse per aquesta entrega: l'script és asíncron i no canvia
   el disseny; una regressió de pressupost es tractaria a part.
 
@@ -210,3 +267,6 @@ Les pàgines de cookies i de privacitat, en ca/es/en, han de descriure:
 4. Les comprovacions mínimes de la T1 passen.
 5. El runbook explica com aplicar la CSP al VPS sense reexecutar el bootstrap.
 6. Bloquejar l'origen de Plausible no impedeix renderitzar ni navegar.
+7. Un build de preview (`PUBLIC_PREVIEW=true`) no emet cap marca d'analítica ni
+   fa cap petició a `analytics.rogerbg.cat`, i el build de producció les
+   conserva.

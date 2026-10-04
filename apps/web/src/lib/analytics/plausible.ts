@@ -1,3 +1,5 @@
+import { isPreviewBuild } from "../build";
+
 export const plausibleAnalytics = {
   domain: "mountainrunners.cat",
   endpoint: "https://analytics.rogerbg.cat/api/event",
@@ -6,3 +8,5 @@ export const plausibleAnalytics = {
 } as const;
 
 export const plausibleScriptSrc = `${plausibleAnalytics.origin}${plausibleAnalytics.scriptPath}`;
+
+export const analyticsEnabled = !isPreviewBuild;

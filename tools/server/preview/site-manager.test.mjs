@@ -147,6 +147,16 @@ test("rejects hand-edited fragments and a sixth configured site", async () => {
   });
 });
 
+test("the preview sites never allow the analytics origin", () => {
+  const policy = renderPreviewSites([1]).match(
+    /header Content-Security-Policy "([^"]+)"/u,
+  )?.[1];
+  assert.ok(policy, "the preview fragment must set a Content-Security-Policy");
+  assert.match(policy, /script-src 'self';/u);
+  assert.match(policy, /connect-src 'self';/u);
+  assert.doesNotMatch(policy, /analytics\.rogerbg\.cat/u);
+});
+
 test("the socket accepts site-reconcile and rejects the retired sync request", async () => {
   await withCaddyFiles(async (directory) => {
     const socketPath = join(directory, "site.sock");
