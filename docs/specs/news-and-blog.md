@@ -253,9 +253,11 @@ quan falten fets i no inventa resultats, quotes, testimonis o fotografies.
 
 La [notícia pilot](../../apps/web/src/content/posts/inauguracio-nou-local.yaml)
 utilitza els fets confirmats de la inauguració. La
-[guia de socis](../../apps/web/src/content/posts/com-fer-te-soci.yaml) descriu provisionalment
-dues pantalles, dades personals i de pagament. No promet alta efectiva o cobrament;
-la descripció s'ha de verificar abans de publicar. Enllaça a Socis amb el helper
+[guia de socis](../../apps/web/src/content/posts/com-fer-te-soci.yaml) descriu els accessos
+des del web i les quatre pantalles de les captures facilitades per la persona
+mantenidora: dades personals, domiciliació bancària, condicions legals i resum.
+No promet alta efectiva o cobrament; el text i les captures s'han de revisar
+abans de publicar. Enllaça a Socis amb el helper
 de rutes, sense duplicar les condicions vigents.
 
 ## Estratègia de tests i qualitat

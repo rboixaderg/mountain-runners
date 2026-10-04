@@ -4,24 +4,131 @@ published: false
 slug:
   ca: com-fer-te-soci
 title:
-  ca: Com fer-te soci o sòcia de Mountain Runners
+  ca: Com fer-te soci o sòcia de Mountain Runners del Berguedà, pas a pas
 summary:
-  ca: Una guia provisional per començar l'alta al club, des de les dades personals fins a les dades de pagament del formulari.
+  ca: On trobar el formulari d'alta al web i com completar les dades personals, la domiciliació bancària i la revisió final a Playoff.
 lead:
-  ca: Per fer-te soci o sòcia de Mountain Runners del Berguedà, accedeix al formulari d'alta des de la pàgina de Socis de la web. Aquesta guia descriu provisionalment dues pantalles, primer les dades personals i després les dades de pagament. Els passos del formulari encara estan pendents de comprovació.
+  ca: Vols fer-te soci o sòcia del club? Des d'aquest web pots accedir al formulari d'alta de Playoff. T'expliquem on trobar-lo i com completar els quatre passos del formulari.
 sections:
   - heading:
-      ca: 1. Omple les dades personals
+      ca: 1. Accedeix al formulari des del web
     body:
-      ca: A la primera pantalla, introdueix les dades personals que et demana el formulari. Revisa que siguin correctes abans de continuar a la pantalla següent.
+      ca: |
+        Pots arribar al mateix formulari des de diferents punts del web:
+
+        - Des de la capçalera, prem el botó **Fes-te soci**.
+        - Des de la pàgina d'inici, prem **Fes-te soci**, al primer bloc de presentació del club.
+        - Des de la secció **Socis**, accessible des del menú principal, prem **Fes-te soci o sòcia**.
+        - Des del menú del mòbil, desplega el menú i prem **Fes-te soci**.
+
+        Tots aquests accessos et porten al [formulari d'alta de socis de Playoff](https://mountainrunners.playoffinformatica.com/Preinscripcio.php), fora del web del club. Hi veuràs el títol "Alta Socis" i el logotip de Mountain Runners del Berguedà.
+
+        Abans de començar, tingues a mà les dades personals, les dades de contacte i l'IBAN del compte bancari. **El pagament es fa únicament per domiciliació bancària.** Els camps marcats amb un asterisc són obligatoris.
   - heading:
-      ca: 2. Completa les dades de pagament
+      ca: 2. Omple les dades personals
     body:
-      ca: A la segona pantalla, introdueix les dades de pagament sol·licitades i segueix les indicacions del formulari. Aquesta guia no confirma que completar-lo impliqui una alta efectiva o un cobrament.
+      ca: |
+        La primera pantalla, "Dades de la persona", recull la informació de qui es vol donar d'alta.
+
+        **Dades d'identificació**
+
+        Introdueix el nom, els cognoms, el NIF/NIE i la data de naixement. Són obligatoris. Per indicar la data, selecciona el dia, el mes i l'any als desplegables.
+
+        També hi trobaràs camps sense asterisc per al passaport, la targeta sanitària, el gènere, el codi de llicència i la nacionalitat. Completa'ls quan correspongui. Revisa la nacionalitat, ja que a la captura apareix seleccionada Espanya.
+
+        **Dades de contacte**
+
+        Omple el correu electrònic principal, el prefix telefònic i el telèfon principal. Són obligatoris.
+
+        El prefix que apareix seleccionat és +34. Canvia'l si el teu número correspon a un altre país. Si vols, també pots afegir un correu electrònic secundari i un segon telèfon amb el seu prefix.
+
+        **Adreça**
+
+        Revisa el país i introdueix l'adreça, el codi postal, la població i la província. Aquests quatre últims camps són obligatoris.
+
+        Comprova que tot sigui correcte i prem **Continuar**.
+    images:
+      - resource:
+          kind: local
+          path: src/content-assets/posts/com-fer-te-soci/dades-personals.png
+        alt:
+          ca: Pantalla de dades personals de Playoff amb els camps d'identificació, contacte i adreça buits i el botó Continuar.
+        attribution:
+          ca: Mountain Runners, captura del formulari de Playoff.
+        caption:
+          ca: Omple les dades de la persona que es vol donar d'alta. Els camps amb asterisc són obligatoris.
   - heading:
-      ca: On començar l'alta
+      ca: 3. Completa les dades de domiciliació bancària
     body:
-      ca: A la pàgina de Socis trobaràs l'accés al formulari d'alta i la informació del club sobre federació i avantatges per a socis i sòcies.
+      ca: |
+        La pantalla següent té el títol "Mètode preferit de l'associat per a futurs pagaments". El mètode disponible és la domiciliació bancària.
+
+        Omple les dades del compte:
+
+        - **Titular del compte bancari**, obligatori. Indica el nom del titular.
+        - **NIF/NIE/passaport**. Introdueix el document d'identificació del titular del compte.
+        - **IBAN**, obligatori. Escriu el número complet del compte bancari.
+
+        Revisa especialment el titular i l'IBAN abans de prémer **Continuar**. Si necessites corregir les dades de la pantalla anterior, prem **Tornar**.
+    images:
+      - resource:
+          kind: local
+          path: src/content-assets/posts/com-fer-te-soci/domiciliacio-bancaria.png
+        alt:
+          ca: Pantalla de pagament de Playoff amb domiciliació bancària seleccionada i els camps de titular, document d'identificació i IBAN buits.
+        attribution:
+          ca: Mountain Runners, captura del formulari de Playoff.
+        caption:
+          ca: La domiciliació bancària és l'únic mètode de pagament disponible.
+  - heading:
+      ca: 4. Revisa la informació sobre el tractament de dades
+    body:
+      ca: |
+        A la pantalla de condicions legals trobaràs un camp d'"Observacions", sense asterisc. Pots deixar-lo buit o fer-lo servir per comunicar al club alguna informació relacionada amb la teva alta.
+
+        El formulari indica que les dades introduïdes es tractaran de manera responsable i únicament per als fins de gestió de l'Associació Esportiva Mountain Runners del Berguedà.
+
+        Llegeix la informació i prem **Continuar** per passar al resum. El botó **Tornar** et permet revisar les dades del pas anterior.
+    images:
+      - resource:
+          kind: local
+          path: src/content-assets/posts/com-fer-te-soci/condicions-legals.png
+        alt:
+          ca: Pantalla de condicions legals de Playoff amb el camp Observacions buit, la informació sobre el tractament de dades i els botons Tornar i Continuar.
+        attribution:
+          ca: Mountain Runners, captura del formulari de Playoff.
+        caption:
+          ca: Llegeix la informació sobre el tractament de dades abans de continuar al resum.
+  - heading:
+      ca: 5. Comprova el resum i finalitza
+    body:
+      ca: |
+        L'última pantalla mostra el resum de la persona que has afegit.
+
+        Revisa les dades abans d'acabar. Si hi ha algun error, prem **Modificar** per corregir-lo.
+
+        Si vols tramitar l'alta d'una altra persona dins del mateix procés, prem **Afegir més persones** i completa les seves dades.
+
+        Quan ho hagis revisat tot, prem **Finalitzar** i segueix les indicacions que apareguin a Playoff.
+    images:
+      - resource:
+          kind: local
+          path: src/content-assets/posts/com-fer-te-soci/resum.png
+        alt:
+          ca: Pantalla de resum de Playoff amb dades fictícies de prova i les opcions Modificar, Afegir més persones, Tornar i Finalitzar.
+        attribution:
+          ca: Mountain Runners, captura del formulari de Playoff amb dades personals substituïdes.
+        caption:
+          ca: Revisa les dades abans de finalitzar. Aquesta captura utilitza dades fictícies de prova.
+  - heading:
+      ca: Tens dubtes durant el procés?
+    body:
+      ca: |
+        Pots contactar amb el club al correu aembergueda@gmail.com o al telèfon 938 213 747.
+
+        Consulta la pàgina de Socis per trobar la informació del club sobre federació i avantatges per a socis i sòcies.
+
+        [Accedeix al formulari i fes-te soci o sòcia](https://mountainrunners.playoffinformatica.com/Preinscripcio.php).
 author:
   type: organization
   name: Mountain Runners
