@@ -1,0 +1,39 @@
+apps/web/e2e/preview.spec.ts
+  s_13854e25ab90f1::t_508d8fe464ecfe 2,27-55
+apps/web/src/layouts/PublicLayout.astro
+  s_13854e25ab90f1::t_daa705df6c230f 7-8,86,120,134
+apps/web/src/lib/analytics/attributes.ts
+  s_13854e25ab90f1::t_890d49b52cc80c 6,13-16
+apps/web/src/lib/analytics/plausible.ts
+  s_13854e25ab90f1::t_0026c2e5aa891f 1-2,11-12
+apps/web/src/lib/build.ts
+  s_13854e25ab90f1::t_7b87084950b40f 1-2
+apps/web/src/pages/robots.txt.ts
+  s_13854e25ab90f1::t_b12fb7ca345288 2,6
+apps/web/src/test/analytics-events.test.ts
+  s_13854e25ab90f1::t_5504b9f9544c9b 4,85-123
+apps/web/src/test/build.test.ts
+  s_13854e25ab90f1::t_37d3f6cbfb2458 1-18
+apps/web/src/test/plausible.test.ts
+  s_13854e25ab90f1::t_05aa5bf711c2fb 1,15-36
+docs/backlog.md
+  s_13854e25ab90f1::t_b0ca9ebb7f89f2 183-208
+tools/server/preview/site-manager.test.mjs
+  s_13854e25ab90f1::t_6aa9805afe49c4 150-159
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "a700d2262b6293a1f6baa2a480112222de813b7d",
+  "prompts": {},
+  "sessions": {
+    "s_13854e25ab90f1": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_ef962b235ffeO12L5IJpx1sbEm",
+        "model": "unknown"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
