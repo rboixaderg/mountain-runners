@@ -1,0 +1,16 @@
+apps/web/src/content/posts/inauguracio-nou-local.yaml
+  h_1727aeeb492b30 9,11,14-16
+docs/editorial/drafts/inauguracio-nou-local.md
+  h_1727aeeb492b30 11-14
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "79c6efc0ebd1dbc78c007728c76cec211028385b",
+  "prompts": {},
+  "humans": {
+    "h_1727aeeb492b30": {
+      "author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
