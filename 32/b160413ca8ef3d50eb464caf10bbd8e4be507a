@@ -1,0 +1,14 @@
+AGENTS.md
+  h_1727aeeb492b30 144-148
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "32b160413ca8ef3d50eb464caf10bbd8e4be507a",
+  "prompts": {},
+  "humans": {
+    "h_1727aeeb492b30": {
+      "author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
