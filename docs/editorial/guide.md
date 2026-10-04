@@ -30,7 +30,9 @@ El format executable és YAML restringit a
 per copiar directament a la col·lecció.
 
 Els articles, publicats o en esborrany, viuen només a la col·lecció `posts`.
-`docs/` conté documentació i notes de revisió, no còpies dels textos de la web.
+`docs/` conté la documentació del flux, no còpies dels textos de la web ni
+documents complementaris de cada entrada. Les notes de revisió, les aprovacions
+pendents i les evidències de validació es registren a la PR i a CI.
 
 ## Exactitud i fonts
 
@@ -45,6 +47,36 @@ Els articles, publicats o en esborrany, viuen només a la col·lecció `posts`.
   que poden canviar. No provar formularis amb dades personals o pagaments reals.
 
 ## Imatges i privacitat
+
+### Portada de notícies i blog
+
+La mateixa imatge del camp `cover` es fa servir al detall i com a miniatura al
+llistat de Notícies o Blog. No cal una segona fotografia per al llistat. Sense
+portada, l'entrada es mostra només amb text, sense un espai d'imatge buit.
+
+Quan es demani preparar o afegir una portada, l'agent ha d'indicar aquestes
+mides abans de demanar o triar el fitxer:
+
+- Format recomanat horitzontal **16:9**.
+- Mida recomanada **1600 × 900 píxels**; preferiblement no menys de
+  **1200 × 675 píxels** per a una fotografia.
+- Al detall, la imatge ocupa un marc horitzontal amb preferència 16:9 i una
+  altura màxima de **320 píxels**, o 20rem amb la mida de lletra base.
+- Al llistat, la miniatura ocupa **192 × 108 píxels**, o 12rem × 6,75rem.
+
+Són recomanacions editorials, no requisits rígids del YAML. L'agent ha de
+comprovar les dimensions reals del fitxer, informar si difereixen del format
+recomanat i explicar-ne el resultat. La imatge es mostra sencera i centrada,
+sense deformar ni retallar. Una fotografia 16:9 aprofita millor el marc; un
+logotip quadrat deixa espai als costats. No s'ha de generar ni ampliar un logo
+només per arribar a la resolució recomanada.
+
+El build genera WebP de fins a 480 i 1200 píxels d'amplada, sense ampliar els
+originals. Cal comprovar el pes resultant contra el pressupost de 300 KiB per
+imatge, no exigir que l'original tingui aquell pes. Els crèdits i l'alt han de
+ser complets en cada idioma on es mostri la portada.
+
+### Imatges de les seccions
 
 Cada secció pot ometre `images` o incloure entre una i deu imatges locals amb
 `resource`, `alt` i `attribution`. `caption` és opcional. Si una secció declara
@@ -83,7 +115,8 @@ Desa els fitxers a `apps/web/src/content-assets/posts/<id>/`. Prepara captures
 amb dades fictícies i elimina dades personals, bancàries i identificadors abans
 d'afegir-les a Git. El text de la captura no substitueix l'explicació del pas.
 
-No afegir una coberta si no hi ha fotografia aprovada. Confirmar drets, crèdit i
+No afegir una coberta si no hi ha una imatge aprovada, fotografia o logotip.
+Confirmar drets, crèdit i
 permís de publicació, especialment si hi apareixen menors. Escriure l'alt després
 de veure la imatge. Els consentiments i les proves de drets es custodien fora del
 repositori. Els recursos locals viuen a `src/content-assets/`, mai a `public/`

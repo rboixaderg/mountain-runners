@@ -175,7 +175,14 @@ fitxer. Camps desconeguts rebutjats. Constants tipades per als valors compartits
   directament al text; no hi ha camp ni secció separada de rectificacions, per
   decisió de la persona mantenidora del 4 d'octubre de 2026.
 - `cover` opcional, recurs local amb alt i crèdit traduïbles obligatoris quan hi
-  ha coberta. Sense fotografia aprovada no es crea una coberta fictícia.
+  ha coberta. Sense imatge aprovada no es crea una coberta fictícia. La mateixa
+  portada es reutilitza com a miniatura al llistat; no hi ha un segon camp.
+  El marc té preferència 16:9, sense retallar ni deformar, amb altura màxima
+  de 20rem al detall i miniatura de 12rem × 6,75rem al llistat. Sense portada
+  no es reserva espai d'imatge. Es recomanen originals de 1600 × 900 px,
+  preferiblement almenys 1200 × 675 px per a fotografies; no són restriccions
+  del model. La guia i la skill exigeixen informar de les mides recomanades i
+  comprovar les dimensions reals quan es prepari una portada.
 
 - `sources` opcional, llista limitada de fonts públiques amb nom traduïble i
   HTTPS. La informació directa del club pot atribuir-se al cos sense URL.

@@ -22,7 +22,18 @@ description: Prepare or revise Mountain Runners news and blog drafts, including 
    approval. Do not assign a publication timestamp from an event date.
 5. Use the strict YAML posts contract. Only add complete translations; never use
    Catalan fallback in another locale. Use restricted Markdown, no HTML or MDX.
-6. Add a cover only after reviewing the actual approved image, rights, alt and
+6. When asked to prepare or add a news/blog cover, state the intended dimensions
+   before requesting or choosing the file: horizontal 16:9, recommended
+   1600×900px, preferably at least 1200×675px for photographs. The detail frame
+   is capped at 20rem in height (320px at the base font size); list thumbnails
+   are 12rem × 6.75rem (192×108px). Both reuse the same `cover` resource.
+   Inspect the actual dimensions and explain mismatches; these are editorial
+   recommendations, not schema validation. Covers are centered, fully contained,
+   never cropped or distorted. Approved square logos keep their native format;
+   do not invent or upscale an asset to meet the recommendation. Section images
+   retain their natural ratio, independently of the cover frame. Check generated
+   WebP sizes against the existing 300 KiB image budget.
+   Add a cover only after reviewing the actual approved image, rights, alt and
    credit. Keep consent records outside this public repository. Never put
    draft-only assets in `public/`.
    Section images are optional local resources with localized alt and attribution,
@@ -31,7 +42,8 @@ description: Prepare or revise Mountain Runners news and blog drafts, including 
    Use fictitious data in screenshots and sanitize private information before Git.
 7. Link authoritative membership information rather than duplicating mutable
    conditions. Do not enter personal or payment data to test a form.
-8. Record unresolved editorial questions separately from reader-facing text.
+8. Record unresolved editorial questions, pending approvals and validation
+   evidence in the pull request and CI, not in companion repository documents.
    Request human review of facts, translations, rights and publication date.
    A request to publish without review does not authorize publishing, merging,
    pushing, preview activation or deployment.

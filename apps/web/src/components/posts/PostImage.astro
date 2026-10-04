@@ -9,8 +9,9 @@ interface Props {
   image: PostImage;
   locale: Locale;
   loading: "eager" | "lazy";
+  isCover?: boolean;
 }
-const { image, locale, loading } = Astro.props;
+const { image, locale, loading, isCover = false } = Astro.props;
 const { info } = await transformPostImage(image.resource.path, 1200);
 ---
 
@@ -21,7 +22,10 @@ const { info } = await transformPostImage(image.resource.path, 1200);
       srcset={getPostImageHref(image.resource.path, 480)}
     />
     <img
-      class="h-auto w-full"
+      class:list={[
+        "w-full",
+        isCover ? "aspect-video max-h-80 object-contain" : "h-auto",
+      ]}
       src={getPostImageHref(image.resource.path, 1200)}
       width={info.width}
       height={info.height}

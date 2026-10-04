@@ -140,6 +140,15 @@ scale in this document first.
 
 ## Images
 
+- Editorial covers use a horizontal 16:9 frame, capped at 20rem in height on
+  detail pages. Fit the whole image with `object-contain`; do not crop logos or
+  stretch images. The same cover appears as a 12rem by 6.75rem thumbnail in news
+  and blog lists. Entries without a cover reserve no image space.
+- Recommend 1600×900px originals for editorial covers, or at least 1200×675px
+  when available. These are editorial recommendations, not schema constraints.
+  Existing approved logos may keep their native size and aspect ratio. Section
+  screenshots retain their natural aspect ratio and are never cropped into the
+  cover frame.
 - Prioritise authentic images of members, training, races, volunteers and the
   Bergueda landscape.
 - Use high-contrast, documentary-style crops with real movement and people.

@@ -92,7 +92,8 @@ const pilots = [
   {
     hub: "/ca/blog/",
     path: "/ca/blog/com-fer-te-soci/",
-    title: "Com fer-te soci o sòcia de Mountain Runners",
+    title:
+      "Com fer-te soci o sòcia de Mountain Runners del Berguedà, pas a pas",
   },
 ];
 
@@ -118,6 +119,19 @@ for (const pilot of pilots) {
       name: pilot.title,
       exact: true,
     });
+    const listEntry = page.getByRole("listitem").filter({ has: titleLink });
+    if (pilot.path.includes("com-fer-te-soci")) {
+      const thumbnail = listEntry.getByRole("img", {
+        name: "Logotip de l'Associació Esportiva Mountain Runners del Berguedà.",
+      });
+      await expect(thumbnail).toBeVisible();
+      await expect(thumbnail).toHaveAttribute("loading", "lazy");
+      const bounds = await thumbnail.boundingBox();
+      expect(bounds!.width).toBe(192);
+      expect(bounds!.height).toBe(108);
+    } else {
+      await expect(listEntry.getByRole("img")).toHaveCount(0);
+    }
     await titleLink.focus();
     await expect(titleLink).toBeFocused();
     await titleLink.press("Enter");
@@ -153,11 +167,34 @@ for (const pilot of pilots) {
       "datetime",
       "2026-10-02",
     );
-    await expect(page.getByRole("article").getByRole("img")).toHaveCount(0);
     if (pilot.path.includes("com-fer-te-soci")) {
+      await expect(page.getByRole("article").getByRole("img")).toHaveCount(5);
+      const cover = page.getByRole("article").getByRole("img", {
+        name: "Logotip de l'Associació Esportiva Mountain Runners del Berguedà.",
+      });
+      await expect(cover).toHaveAttribute("loading", "eager");
+      expect((await cover.boundingBox())!.height).toBeLessThanOrEqual(320);
+      expect(
+        await cover.evaluate((image) => getComputedStyle(image).objectFit),
+      ).toBe("contain");
+      const screenshot = page.getByRole("img", {
+        name: "Pantalla de dades personals de Playoff amb els camps d'identificació, contacte i adreça buits i el botó Continuar.",
+      });
+      const screenshotBounds = await screenshot.boundingBox();
+      const sourceRatio = await screenshot.evaluate(
+        (image: HTMLImageElement) =>
+          Number(image.getAttribute("width")) /
+          Number(image.getAttribute("height")),
+      );
+      expect(screenshotBounds!.width / screenshotBounds!.height).toBeCloseTo(
+        sourceRatio,
+        2,
+      );
       await expect(
         page.getByRole("link", { name: "Ves a la pàgina de Socis" }),
       ).toHaveAttribute("href", "/ca/socis/");
+    } else {
+      await expect(page.getByRole("article").getByRole("img")).toHaveCount(0);
     }
     const sitemap = await request.get("/sitemap.xml");
     expect(await sitemap.text()).not.toContain(pilot.path);

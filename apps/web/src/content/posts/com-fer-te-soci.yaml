@@ -124,7 +124,7 @@ sections:
       ca: Tens dubtes durant el procés?
     body:
       ca: |
-        Pots contactar amb el club al correu aembergueda@gmail.com o al telèfon 938 213 747.
+        Pots contactar amb el club al correu info@mountainrunners.cat o al telèfon 938 213 747.
 
         Consulta la pàgina de Socis per trobar la informació del club sobre federació i avantatges per a socis i sòcies.
 
@@ -133,4 +133,12 @@ author:
   type: organization
   name: Mountain Runners
 createdAt: 2026-10-02
+cover:
+  resource:
+    kind: local
+    path: src/assets/logo_mountain_runners.png
+  alt:
+    ca: Logotip de l'Associació Esportiva Mountain Runners del Berguedà.
+  attribution:
+    ca: Mountain Runners del Berguedà.
 relatedPage: members

@@ -13,6 +13,9 @@
 - Fonts i atribucions:
 - Dubtes per resoldre amb la persona mantenidora:
 - Fotografia aprovada, drets, alt i crèdit, o sense coberta:
+- Portada: recomanar 16:9, 1600 × 900 px, preferiblement almenys 1200 × 675 px
+  per a fotografies; comprovar la mida real i explicar-ne l'encaix. Reutilitzar
+  la mateixa portada al llistat, sense retallar logotips.
 - Imatges opcionals de cada secció: recurs local, alt, crèdit i peu opcional.
 - Idiomes complets disponibles:
 

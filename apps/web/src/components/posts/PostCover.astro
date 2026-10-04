@@ -11,7 +11,7 @@ const cover = getPostCover(entry, locale);
 {cover && (
   <div class="page-frame my-8">
     <div class="max-w-reading">
-      <PostImage image={cover} locale={locale} loading="eager" />
+      <PostImage image={cover} locale={locale} loading="eager" isCover />
     </div>
   </div>
 )}
