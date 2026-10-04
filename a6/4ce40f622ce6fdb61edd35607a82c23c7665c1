@@ -1,0 +1,14 @@
+apps/web/src/components/SiteHeader.astro
+  h_1727aeeb492b30 37-38,42,46-47,51,55-56,60,64-65,69
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "a64ce40f622ce6fdb61edd35607a82c23c7665c1",
+  "prompts": {},
+  "humans": {
+    "h_1727aeeb492b30": {
+      "author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
