@@ -1,0 +1,26 @@
+apps/web/src/layouts/PublicLayout.astro
+  h_1727aeeb492b30 7-8
+apps/web/src/lib/analytics/plausible.ts
+  h_1727aeeb492b30 1-2
+apps/web/src/lib/build.ts
+  h_1727aeeb492b30 1-2
+apps/web/src/pages/robots.txt.ts
+  h_1727aeeb492b30 2,6
+apps/web/src/test/build.test.ts
+  h_1727aeeb492b30 1-18
+apps/web/src/test/plausible.test.ts
+  h_1727aeeb492b30 24,32
+docs/specs/plausible-analytics.md
+  h_1727aeeb492b30 164-166
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "58553beb8011604621e10fe7bf495567d84ea6f5",
+  "prompts": {},
+  "humans": {
+    "h_1727aeeb492b30": {
+      "author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
