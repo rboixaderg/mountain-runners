@@ -21,9 +21,11 @@ import { chromium, firefox, webkit } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 
 const appDirectory = fileURLToPath(new URL("../../apps/web/", import.meta.url));
-const sharp = createRequire(
+const requireFromApp = createRequire(
   new URL("../../apps/web/package.json", import.meta.url),
-)("sharp");
+);
+const sharp = requireFromApp("sharp");
+const { JSDOM } = requireFromApp("jsdom");
 
 test("editorial resources stay isolated across clean builds and preview-to-public rebuilds", async () => {
   const directory = await mkdtemp(join(tmpdir(), "news-blog-resources-"));
@@ -75,12 +77,13 @@ test("editorial resources stay isolated across clean builds and preview-to-publi
     for (const [id, published, resource, type = "news"] of [
       ["published", true, "published"],
       ["published-blog", true, "published", "blog"],
+      ["optional-translations", true, "published", "blog"],
       ["draft", false, "draft"],
       ["shared-public", true, "shared"],
       ["shared-draft", false, "shared"],
     ]) {
       const localized = (value) =>
-        id === "published" || id === "published-blog"
+        ["published", "published-blog", "optional-translations"].includes(id)
           ? { ca: value, es: `ES ${value}`, en: `EN ${value}` }
           : { ca: value };
       const post = {
@@ -89,21 +92,17 @@ test("editorial resources stay isolated across clean builds and preview-to-publi
         published,
         slug:
           id === "published"
-            ? { ca: id, es: "publicado", en: id }
+            ? { ca: id, es: "publicado", en: "published-news" }
             : { ca: id, es: `parcial-${id}` },
         title: localized(id),
         summary: localized(id),
         lead: localized(published ? id : `UNPUBLISHED_POST_FIXTURE_${id}`),
         sections: [],
         author: { type: "organization", name: "Fixture" },
-        ...(id === "published-blog"
+        ...(id === "published-blog" || id === "optional-translations"
           ? {
               relatedPage: "members",
               updatedAt: "2026-10-02T12:00:00Z",
-              correction: {
-                date: "2026-10-02",
-                note: { ca: "Rectificació de prova amb **text destacat**." },
-              },
               sources: [
                 {
                   name: { ca: "Font documental de prova" },
@@ -120,8 +119,11 @@ test("editorial resources stay isolated across clean builds and preview-to-publi
             kind: "local",
             path: `src/content-assets/posts/${resource}.png`,
           },
-          alt: localized(id),
-          attribution: localized("Fixture"),
+          alt: id === "optional-translations" ? { ca: id } : localized(id),
+          attribution:
+            id === "optional-translations"
+              ? { ca: "Fixture" }
+              : localized("Fixture"),
         },
       };
       const sectionImage = (name, label) => ({
@@ -133,32 +135,35 @@ test("editorial resources stay isolated across clean builds and preview-to-publi
         attribution: localized("Fixture"),
         caption: localized(label),
       });
-      post.sections = [
-        {
-          heading: localized("Primer pas"),
-          body: localized(
-            "Explicació del primer pas\n\n1. Comprovació numerada\n2. Segona comprovació\n\n- Punt de prova\n- Segon punt\n\n[Font de prova](https://example.org/)",
-          ),
-          images: [
-            sectionImage(
-              published ? "section-public" : "section-draft",
-              "Primera pantalla",
-            ),
-          ],
-        },
-        {
-          heading: localized("Text sol"),
-          body: localized("Una secció sense imatges"),
-        },
-        {
-          heading: localized("Segon pas"),
-          body: localized("Explicació del segon pas"),
-          images: [
-            sectionImage("shared", "Segona pantalla"),
-            sectionImage("shared", "Detall de pantalla"),
-          ],
-        },
-      ];
+      post.sections =
+        id === "optional-translations"
+          ? []
+          : [
+              {
+                heading: localized("Primer pas"),
+                body: localized(
+                  "Explicació del primer pas\n\n1. Comprovació numerada\n2. Segona comprovació\n\n- Punt de prova\n- Segon punt\n\n[Font de prova](https://example.org/)",
+                ),
+                images: [
+                  sectionImage(
+                    published ? "section-public" : "section-draft",
+                    "Primera pantalla",
+                  ),
+                ],
+              },
+              {
+                heading: localized("Text sol"),
+                body: localized("Una secció sense imatges"),
+              },
+              {
+                heading: localized("Segon pas"),
+                body: localized("Explicació del segon pas"),
+                images: [
+                  sectionImage("shared", "Segona pantalla"),
+                  sectionImage("shared", "Detall de pantalla"),
+                ],
+              },
+            ];
       // JSON is an accepted subset of the restricted YAML parser.
       await writeFile(
         join(app, `src/content/posts/${id}.yaml`),
@@ -166,6 +171,9 @@ test("editorial resources stay isolated across clean builds and preview-to-publi
       );
     }
     async function build(preview) {
+      const origin = preview
+        ? "https://pr-999.preview.mountainrunners.cat"
+        : "https://mountainrunners.cat";
       for (const command of [
         ["scripts/generate-paraglide.mjs"],
         [join(appDirectory, "node_modules/astro/bin/astro.mjs"), "build"],
@@ -177,9 +185,7 @@ test("editorial resources stay isolated across clean builds and preview-to-publi
           env: {
             ...process.env,
             PUBLIC_PREVIEW: String(preview),
-            PUBLIC_SITE_ORIGIN: preview
-              ? "https://pr-999.preview.mountainrunners.cat"
-              : "https://mountainrunners.cat",
+            PUBLIC_SITE_ORIGIN: origin,
             BUILD_TODAY: "2026-10-02",
           },
         });
@@ -199,14 +205,108 @@ test("editorial resources stay isolated across clean builds and preview-to-publi
       assert.ok(
         publishedDetail.includes('property="og:type" content="article"'),
       );
-      assert.ok(publishedDetail.includes('hreflang="ca"'));
-      assert.ok(publishedDetail.includes('hreflang="es"'));
-      const spanishDetail = await readFile(
-        join(dist, "es/noticias/publicado/index.html"),
-        "utf8",
-      );
-      assert.ok(spanishDetail.includes('<html lang="es">'));
-      assert.ok(spanishDetail.includes("ES published"));
+      const newsPaths = {
+        ca: "/ca/noticies/published/",
+        es: "/es/noticias/publicado/",
+        en: "/en/news/published-news/",
+      };
+      const socialImageUrl = `${origin}/editorial-images/1200/content-assets/posts/published.png.webp`;
+      for (const [locale, path] of Object.entries(newsPaths)) {
+        const html = await readFile(join(dist, path, "index.html"), "utf8");
+        const { document } = new JSDOM(html).window;
+        assert.equal(document.documentElement.lang, locale);
+        assert.equal(
+          document.querySelector("article h1").textContent.trim(),
+          { ca: "published", es: "ES published", en: "EN published" }[locale],
+        );
+        assert.equal(
+          document.querySelector('link[rel="canonical"]').getAttribute("href"),
+          `${origin}${path}`,
+        );
+        assert.equal(
+          document
+            .querySelector('meta[property="og:url"]')
+            .getAttribute("content"),
+          `${origin}${path}`,
+        );
+        assert.deepEqual(
+          [...document.querySelectorAll('link[rel="alternate"]')]
+            .map((link) => ({
+              locale: link.getAttribute("hreflang"),
+              href: link.getAttribute("href"),
+            }))
+            .sort((left, right) => left.locale.localeCompare(right.locale)),
+          [
+            { locale: "ca", href: `${origin}/ca/noticies/published/` },
+            { locale: "en", href: `${origin}/en/news/published-news/` },
+            { locale: "es", href: `${origin}/es/noticias/publicado/` },
+            { locale: "x-default", href: `${origin}/ca/noticies/published/` },
+          ],
+        );
+        assert.equal(
+          document
+            .querySelector('meta[property="og:image"]')
+            .getAttribute("content"),
+          socialImageUrl,
+        );
+        const structuredData = JSON.parse(
+          document.querySelector('script[type="application/ld+json"]')
+            .textContent,
+        );
+        assert.equal(structuredData.mainEntityOfPage, `${origin}${path}`);
+        assert.equal(structuredData.image, socialImageUrl);
+      }
+      for (const [locale, slug] of [
+        ["ca", "optional-translations"],
+        ["es", "parcial-optional-translations"],
+      ]) {
+        const html = await readFile(
+          join(dist, locale, "blog", slug, "index.html"),
+          "utf8",
+        );
+        const { document } = new JSDOM(html).window;
+        const article = document.querySelector("article");
+        const hasOptionals = locale === "ca";
+        assert.equal(document.documentElement.lang, locale);
+        assert.equal(
+          article.querySelectorAll("figure").length,
+          hasOptionals ? 1 : 0,
+        );
+        assert.equal(
+          article.querySelector('section[aria-labelledby="post-sources"]') !==
+            null,
+          hasOptionals,
+        );
+        assert.equal(
+          article.textContent.includes("Font documental de prova"),
+          hasOptionals,
+        );
+        assert.equal(
+          article.querySelector('a[href="https://example.org/source"]') !==
+            null,
+          hasOptionals,
+        );
+        assert.equal(
+          document
+            .querySelector('meta[property="og:image"]')
+            ?.getAttribute("content") ?? null,
+          hasOptionals ? socialImageUrl : null,
+        );
+        assert.equal(
+          document
+            .querySelector('meta[property="og:image:alt"]')
+            ?.getAttribute("content") ?? null,
+          hasOptionals ? "optional-translations" : null,
+        );
+        const structuredData = JSON.parse(
+          document.querySelector('script[type="application/ld+json"]')
+            .textContent,
+        );
+        assert.equal(
+          structuredData.image,
+          hasOptionals ? socialImageUrl : undefined,
+        );
+      }
       const blogDetail = await readFile(
         join(dist, "ca/blog/published-blog/index.html"),
         "utf8",
@@ -215,10 +315,13 @@ test("editorial resources stay isolated across clean builds and preview-to-publi
       assert.ok(!blogDetail.includes('hreflang="es"'));
       assert.ok(blogDetail.includes('alt="Primera pantalla" loading="lazy"'));
       assert.ok(blogDetail.includes("section-public.png.webp"));
-      assert.ok(publishedDetail.includes('content="news_detail"') || preview);
-      assert.ok(blogDetail.includes('content="blog_detail"') || preview);
       if (preview) {
+        assert.ok(!publishedDetail.includes('name="mr-analytics-page-type"'));
+        assert.ok(!blogDetail.includes('name="mr-analytics-page-type"'));
         assert.ok(!blogDetail.includes('src="/js/plausible-events.js"'));
+      } else {
+        assert.ok(publishedDetail.includes('content="news_detail"'));
+        assert.ok(blogDetail.includes('content="blog_detail"'));
       }
       const sitemap = await readFile(join(dist, "sitemap.xml"), "utf8");
       assert.ok(sitemap.includes("/ca/noticies/published/"));
@@ -277,6 +380,41 @@ test("editorial resources stay isolated across clean builds and preview-to-publi
       return snapshots.sort(([left], [right]) => left.localeCompare(right));
     }
     const publicOutput = await build(false);
+    for (const [path, content, message] of [
+      [
+        "ca/noticies/draft/index.html",
+        "<!doctype html><title>Unexpected draft route</title>",
+        "Unselected HTML routes reached the build output",
+      ],
+      [
+        "unexpected-marker.txt",
+        "UNPUBLISHED_POST_FIXTURE_draft",
+        "Unpublished content reached the build output",
+      ],
+    ]) {
+      const file = join(app, "dist", path);
+      await mkdir(join(file, ".."), { recursive: true });
+      await writeFile(file, content);
+      try {
+        const result = spawnSync(
+          process.execPath,
+          ["scripts/verify-i18n-output.mjs"],
+          {
+            cwd: app,
+            encoding: "utf8",
+            env: {
+              ...process.env,
+              PUBLIC_PREVIEW: "false",
+              PUBLIC_SITE_ORIGIN: "https://mountainrunners.cat",
+            },
+          },
+        );
+        assert.equal(result.status, 1, result.stdout + result.stderr);
+        assert.ok(result.stderr.includes(message), result.stderr);
+      } finally {
+        await rm(file);
+      }
+    }
     // Exercise the actual built CSS and HTML, without adding synthetic content
     // to the editorial collection in the real worktree.
     for (const browserType of [chromium, firefox, webkit]) {
@@ -317,19 +455,6 @@ test("editorial resources stay isolated across clean builds and preview-to-publi
             });
           });
           await page.goto("https://editorial.test/ca/blog/published-blog/");
-          const correctionRegion = page.getByRole("region", {
-            name: "Rectificació",
-            exact: true,
-          });
-          assert.ok(await correctionRegion.isVisible());
-          assert.equal(
-            await correctionRegion.locator("time").getAttribute("datetime"),
-            "2026-10-02",
-          );
-          assert.equal(
-            await correctionRegion.locator("strong").innerText(),
-            "text destacat",
-          );
           const sourceLink = page
             .getByRole("region", { name: "Fonts", exact: true })
             .getByRole("link", {
@@ -529,11 +654,7 @@ test("editorial resources stay isolated across clean builds and preview-to-publi
             );
           }
           await page.goto("https://editorial.test/ca/noticies/published/");
-          for (const name of [
-            "Rectificació",
-            "Fonts",
-            "Esdeveniments relacionats",
-          ]) {
+          for (const name of ["Fonts", "Esdeveniments relacionats"]) {
             assert.equal(
               await page.getByRole("region", { name, exact: true }).count(),
               0,

@@ -3,13 +3,15 @@ import { join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 import { loadEnv } from "vite";
 import { parse } from "yaml";
+import { parsePreviewFlag } from "../build-mode.mjs";
 
-const { PUBLIC_SITE_ORIGIN } = loadEnv(
+const { PUBLIC_SITE_ORIGIN, PUBLIC_PREVIEW } = loadEnv(
   process.env.NODE_ENV ?? "development",
   fileURLToPath(new URL("../", import.meta.url)),
-  "PUBLIC_SITE_ORIGIN",
+  "PUBLIC_",
 );
 const publicSiteOrigin = new URL(PUBLIC_SITE_ORIGIN);
+const isPreview = parsePreviewFlag(PUBLIC_PREVIEW);
 
 const configuredLocales = ["ca", "es", "en"];
 const publishedHomepages = configuredLocales.map((locale) => [
@@ -33,6 +35,7 @@ const forbiddenOutputMarkers = [
   // The club guide is a synthetic fixture: its document stays published but
   // temporarily unavailable, so its PDF must never reach the public output.
   "club-guide.pdf",
+  ...(isPreview ? [] : ["UNPUBLISHED_POST_FIXTURE_"]),
 ];
 
 const expectedPublishedResource =
@@ -221,6 +224,13 @@ const expectedSitemapUrls = new Set(
     "en/cookies/",
   ].map((path) => new URL(path, publicSiteOrigin).toString()),
 );
+const expectedOutputRoutes = new Set([
+  "index.html",
+  "404.html",
+  ...[...expectedSitemapUrls].map(
+    (url) => `${new URL(url).pathname.slice(1)}index.html`,
+  ),
+]);
 // Derive editorial expectations from source, never from the observed build routes.
 // The Astro loader has already validated the strict YAML schema at this point.
 const postsDirectory = new URL("../src/content/posts/", import.meta.url);
@@ -228,7 +238,6 @@ const newsDomains = { ca: "noticies", es: "noticias", en: "news" };
 for (const file of await readdir(postsDirectory)) {
   if (!file.endsWith(".yaml")) continue;
   const post = parse(await readFile(new URL(file, postsDirectory), "utf8"));
-  if (!post.published) continue;
   const fields = [
     post.slug,
     post.title,
@@ -254,9 +263,25 @@ for (const file of await readdir(postsDirectory)) {
       continue;
     const domain = post.type === "news" ? newsDomains[locale] : "blog";
     const route = `${locale}/${domain}/${post.slug[locale]}/`;
-    expectedSitemapUrls.add(new URL(route, publicSiteOrigin).toString());
-    if (!outputRoutes.includes(`${route}index.html`))
-      throw new Error(`Published post route missing: ${route}`);
+    if (post.published) {
+      expectedSitemapUrls.add(new URL(route, publicSiteOrigin).toString());
+    }
+    if (post.published || isPreview) {
+      expectedOutputRoutes.add(`${route}index.html`);
+    }
+  }
+}
+const unselectedRoutes = outputRoutes.filter(
+  (route) => !expectedOutputRoutes.has(route),
+);
+if (unselectedRoutes.length > 0) {
+  throw new Error(
+    `Unselected HTML routes reached the build output: ${unselectedRoutes.join(", ")}`,
+  );
+}
+for (const route of expectedOutputRoutes) {
+  if (!outputRoutes.includes(route)) {
+    throw new Error(`Expected HTML route missing: ${route}`);
   }
 }
 if (
@@ -267,7 +292,7 @@ if (
 }
 const robots = await readFile(join(distPath, "robots.txt"), "utf8");
 const sitemapDirective = `Sitemap: ${new URL("/sitemap.xml", publicSiteOrigin)}`;
-if (process.env.PUBLIC_PREVIEW === "true") {
+if (isPreview) {
   if (robots !== "User-agent: *\nDisallow: /\n") {
     throw new Error("Preview robots output must disallow crawling.");
   }

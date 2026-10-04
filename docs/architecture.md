@@ -30,6 +30,9 @@ orientació corregida i sense conservar metadades EXIF. Només rep paths locals
 validats i seleccionats pel mode de build. No és un servei dinàmic ni permet
 transformar paths arbitraris a petició.
 
+Sharp és una dependència de build amb llicència Apache-2.0; libvips utilitza
+LGPL-2.1-or-later. Aquestes llicències no substitueixen els drets dels originals.
+
 Les seccions editorials també admeten imatges locals opcionals. El mateix
 endpoint transforma només els recursos de variants completes seleccionades;
 el render alterna imatge/text en escriptori i apila text/imatge en mòbil. La
@@ -114,7 +117,7 @@ separada o un ADR que substitueixi aquesta frontera.
 ### Composició editorial
 
 El detall editorial composa `PostHeader`, `PostCover`, `PostBody`,
-`PostMembersLink`, `PostCorrection`, `PostSources` i `PostRelatedEvents`.
+`PostMembersLink`, `PostSources` i `PostRelatedEvents`.
 Cada secció és propietària dels missatges, les dades que presenta i la seva
 condició de visibilitat. La pàgina carrega les variants i les referències
 publicades; els components no consulten les col·leccions.

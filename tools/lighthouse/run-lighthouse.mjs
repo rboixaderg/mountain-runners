@@ -195,6 +195,15 @@ try {
   );
   const routes = pickRepresentativeRoutes(sitemapPaths);
 
+  for (const route of routes) {
+    const response = await fetch(`${baseUrl}${route}`, { redirect: "error" });
+    if (response.status !== 200) {
+      throw new Error(
+        `Lighthouse route ${route} returned HTTP ${response.status}, expected 200.`,
+      );
+    }
+  }
+
   chrome = await chromeLauncher.launch({
     chromeFlags: ["--headless", "--no-sandbox", "--disable-dev-shm-usage"],
   });

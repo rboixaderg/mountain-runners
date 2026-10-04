@@ -352,12 +352,6 @@ export const postSchema = z
       )
       .max(30)
       .optional(),
-    correction: z
-      .strictObject({
-        date: dateSchema,
-        note: localizedMarkdownSchema,
-      })
-      .optional(),
     relatedEventIds: z.array(contentIdSchema).max(20).optional(),
     relatedPage: z.literal("members").optional(),
   })

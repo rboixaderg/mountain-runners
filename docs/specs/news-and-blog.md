@@ -2,8 +2,8 @@
 
 ## Estat
 
-Funcionalitat autoritzada per la persona mantenidora el 2 d'octubre de 2026 a
-partir del [pla d'investigació](../news-and-blog-plan.md). Les decisions de
+Funcionalitat autoritzada per la persona mantenidora el 2 d'octubre de 2026.
+Aquesta especificació defineix l'abast, les tasques i l'acceptació. Les decisions de
 publicació es registren a l'[ADR 0011](../decisions/0011-news-blog-editorial-previews.md).
 No s'afegeix una fase ni es renumeren les fases existents. Cap tasca es considera
 completada fins que la seva PR estigui revisada, validada i fusionada.
@@ -74,16 +74,22 @@ necessita el sistema de fase 6 operatiu i autorització explícita per publicar.
 | NB-06  | Metadades i descoberta       | NB-05                               | En revisió | #140 |
 | NB-07  | Pilots i validació integrada | NB-02 a NB-06                       | En curs    | #140 |
 
-Continuació local del 2 i 3 d'octubre de 2026: implementació tècnica de totes les
-unitats, amb commits separats per tasca. NB-07 conserva pendent l'aprovació
-editorial humana. La [revisió visual posterior](../validation/news-blog-analytics-ui.md)
-cobreix els templates editorials amb Playwright MCP, sense acreditar captures
-reals del formulari. L'[evidència integrada](../validation/news-blog-integrated.md)
-separa les comprovacions d'aquella etapa. La continuació s'ha pujat a la PR i
-les previews autoritzades han passat el workflow fins al commit `02a5533`.
-El [seguiment arquitectònic](../validation/news-blog-architecture-closure.md)
-registra la sincronització posterior amb `main`, la composició de seccions i
-l'auditoria actual. No s'ha fusionat la PR ni publicat cap pilot.
+La implementació tècnica es revisa a la
+[PR #140](https://github.com/rboixaderg/mountain-runners/pull/140). Els resultats
+locals indiquen la data i l'abast de cada comprovació a la PR; les execucions de
+CI identifiquen el commit validat. No s'ha fusionat la PR ni publicat cap pilot.
+
+Pendents de tancament:
+
+- Aprovació editorial dels pilots, comprovació del formulari i imatges/drets
+  aprovats. Validar la llegibilitat i el pes de captures reals abans de publicar.
+- Revisió manual de focus, teclat i zoom natiu al 200%. Axe i les comprovacions
+  de reflow no acrediten conformitat WCAG completa.
+- Revisió de l'aplicabilitat i tractament de
+  [GHSA-ch52-4w7c-c8xp](https://github.com/advisories/GHSA-ch52-4w7c-c8xp)
+  a `http-cache-semantics` via Astro. Servir un artefacte estàtic no descarta
+  l'impacte durant el build o les eines locals; no hi ha excepció aprovada.
+- Revisió humana final i merge pel flux protegit.
 
 ### NB-01. Decisió i especificació
 
@@ -115,14 +121,6 @@ Comprovacions: unitàries positives i negatives, typecheck, lint i build ordinar
 amb rutes existents inalterades. Inclosa a la PR conjunta; no es declara complet el filtre
 d'artefacte fins a NB-04.
 
-Progrés local del 2 d'octubre de 2026: model i seleccions implementats a la branca
-`feat/news-blog-model`, al worktree `mountain_runners-news-blog-model`.
-`pnpm check` passa amb 358 tests de web i 115 de servidor; passen els builds
-públic/preview i els 18 E2E existents de preview. No hi ha rutes noves, pilots
-registrats, commit ni PR. L'evidència viu a `docs/validation/news-blog-model.md`
-en aquella branca. Aquests canvis i l'evidència s'han consolidat al worktree
-actiu. La tasca continua `En curs` fins al flux de revisió i merge.
-
 ### NB-04. Recursos i modes de build
 
 Abast: recursos segons camps realment renderitzats, mode `PUBLIC_PREVIEW` explícit
@@ -130,16 +128,6 @@ als builds oficials i verificacions de sortida separades. Exclou infraestructura
 DNS i publicador. Resultat: cap residu ni recurs exclusiu d'esborrany al build
 públic. Comprovacions: dos builds nets, preview seguit de producció, recurs
 exclusiu/compartit, assets optimitzats, enllaços i modes incoherents. Inclosa a la PR conjunta.
-
-Progrés local del 2 d'octubre de 2026: selecció de cobertes i controls de mode
-implementats a `feat/news-blog-artifacts`, amb NB-03 copiat com a dependència
-local no comesa. `pnpm check` passa amb 364 tests de web i 116 de servidor,
-inclosa la prova de quatre builds reals i comparació de paths/digests.
-L'evidència és `docs/validation/news-blog-artifacts.md` en aquella branca.
-L'aïllament d'imatges transformades continua pendent: no hi ha `sharp` i no
-s'han autoritzat dependències noves. Una prova exploratòria també confirma que
-un glob lazy de totes les imatges pot filtrar originals d'esborranys a `_astro`;
-no s'incorpora aquesta estratègia. La tasca no es declara completa.
 
 ### NB-05. Hubs, detall i navegació
 
@@ -183,13 +171,14 @@ fitxer. Camps desconeguts rebutjats. Constants tipades per als valors compartits
   una col·lecció d'autors.
 - `createdAt` és una data ISO de preparació. `publishedAt` és data/hora ISO amb
   offset i és obligatori per publicar. `updatedAt` és opcional, només per canvis
-  materials. Una retirada pot conservar `publishedAt`.
+  materials. Una retirada pot conservar `publishedAt`. Les correccions s'apliquen
+  directament al text; no hi ha camp ni secció separada de rectificacions, per
+  decisió de la persona mantenidora del 4 d'octubre de 2026.
 - `cover` opcional, recurs local amb alt i crèdit traduïbles obligatoris quan hi
   ha coberta. Sense fotografia aprovada no es crea una coberta fictícia.
 
 - `sources` opcional, llista limitada de fonts públiques amb nom traduïble i
   HTTPS. La informació directa del club pot atribuir-se al cos sense URL.
-- `correction` opcional, data i nota traduïble per a rectificacions materials.
 - `relatedEventIds` opcional, identificadors d'esdeveniments existents. Referència
   inexistent fa fallar; referència no publicada o incompleta no genera enllaç.
 - `relatedPage` opcional, actualment només `members`, per relacionar una guia
@@ -214,7 +203,7 @@ No hi ha programació implícita. Les comparacions de timestamps respecten l'off
 Una variant requereix slug, títol, resum, entradeta i totes les seccions completes
 en el seu idioma. Encapsular un encapçalament traduïble opcional no el converteix
 en un camp prescindible si existeix: sense traducció, aquella secció no és completa.
-Coberta o rectificació opcionals incompletes s'ometen; fonts opcionals només es
+Cobertes opcionals incompletes s'ometen; fonts opcionals només es
 mostren quan el nom està traduït. Sense fallback.
 
 Els identificadors són únics a tota la col·lecció. Slugs únics per tipus i idioma:
@@ -257,7 +246,7 @@ ADR 0006. Reutilitzar layout, `PageSection` i tokens de `DESIGN.md`. Una H1,
 encapçalaments H2 quan calgui, dates amb `<time>`, amplada de lectura limitada,
 imatges locals i estats accessibles. Sense marcs buits quan no hi ha coberta.
 
-La guia aplica exactitud, atribució, distinció de fets/opinions, rectificacions,
+La guia aplica exactitud, atribució, distinció de fets/opinions, actualitzacions,
 drets d'imatge i protecció de menors. Notícies amb fets principals primer;
 blog amb estructura que respongui a la pregunta del lector. L'agent pregunta
 quan falten fets i no inventa resultats, quotes, testimonis o fotografies.

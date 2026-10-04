@@ -5,7 +5,6 @@ import PostHeader from "./PostHeader.astro";
 import PostCover from "./PostCover.astro";
 import PostBody from "./PostBody.astro";
 import PostMembersLink from "./PostMembersLink.astro";
-import PostCorrection from "./PostCorrection.astro";
 import PostSources from "./PostSources.astro";
 import PostRelatedEvents from "./PostRelatedEvents.astro";
 interface Props {
@@ -20,7 +19,6 @@ const { variant, relatedEvents } = Astro.props;
   <PostCover variant={variant} />
   <PostBody variant={variant} />
   <PostMembersLink variant={variant} />
-  <PostCorrection variant={variant} />
   <PostSources variant={variant} />
   <PostRelatedEvents locale={variant.locale} relatedEvents={relatedEvents} />
 </article>

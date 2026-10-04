@@ -42,6 +42,18 @@ ràpides (format, lint, typecheck i tests). `pnpm lighthouse` és una auditoria
 manual separada, fora de `pnpm validate` i de la CI, que valida les rutes
 representatives contra els llindars i pressupostos configurats.
 
+Per auditar també els pilots d'esborrany, construeix un preview amb el mode i
+l'origen explícits, i executa el runner sobre aquell mateix artefacte:
+
+```sh
+PUBLIC_PREVIEW=true PUBLIC_SITE_ORIGIN=https://pr-999.preview.mountainrunners.cat BUILD_TODAY=2026-10-04 pnpm build
+PUBLIC_PREVIEW=true node tools/lighthouse/run-lighthouse.mjs
+```
+
+El runner exigeix HTTP 200 a totes les rutes abans d'auditar-les. Els pilots
+continuen amb `noindex`; el llindar SEO 100 pot fer fallar l'auditoria de preview
+per aquest motiu. No s'ha de retirar la protecció ni rebaixar el llindar.
+
 ## Arquitectura
 
 - Web estàtica: Astro, TypeScript i Content Collections amb Zod.

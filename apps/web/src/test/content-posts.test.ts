@@ -52,7 +52,6 @@ describe("post schema", () => {
     { sections: [{ body: { ca: "[Enllaç](javascript:alert)" } }] },
     { sources: [{ name: { ca: "Font" }, url: "http://example.org" }] },
     { author: { type: "person", name: " " } },
-    { correction: { date: "2026-02-30", note: { ca: "Correcció" } } },
     { unexpected: true },
   ])(
     "rejects invalid editorial input %j without throwing from refinements",
@@ -119,6 +118,22 @@ describe("post schema", () => {
 });
 
 describe("explicit post publication and preview selection", () => {
+  it("omits a cover when any declared localized field lacks a translation", () => {
+    const cover = {
+      resource: { kind: "local" as const, path: "src/assets/posts/photo.jpg" },
+      alt: { ca: "Foto", es: "Fotografía" },
+      attribution: { ca: "Club", es: "Club" },
+      caption: { ca: "Peu", es: "Pie" },
+    };
+    expect(getPostCover(createPost({ cover }), "es")).toEqual(cover);
+    for (const field of ["alt", "attribution", "caption"] as const) {
+      const post = createPost({
+        cover: { ...cover, [field]: { ca: cover[field].ca } },
+      });
+      expect(getPostCover(post, "es")).toBeUndefined();
+      expect(getPostCover(post, "ca")).toEqual(post.cover);
+    }
+  });
   it("selects only renderable covers, deduplicating shared and multilingual resources", () => {
     const cover = {
       resource: { kind: "local" as const, path: "src/assets/posts/shared.jpg" },
@@ -205,7 +220,7 @@ describe("explicit post publication and preview selection", () => {
     ).toEqual(["ca"]);
   });
 
-  it("does not require optional cover or correction translations for a complete variant", () => {
+  it("does not require optional cover translations for a complete variant", () => {
     const translated = createPost({
       slug: { ca: "exemple", es: "ejemplo" },
       title: { ca: "Exemple", es: "Ejemplo" },
@@ -217,7 +232,6 @@ describe("explicit post publication and preview selection", () => {
         alt: { ca: "Foto" },
         attribution: { ca: "Autoria" },
       },
-      correction: { date: today, note: { ca: "Correcció" } },
     });
     expect(
       createPreviewPostVariants(source([translated]), today).map(
@@ -254,12 +268,12 @@ describe("explicit post publication and preview selection", () => {
           today,
         ),
       ).toThrow("references missing event");
-      expect(
+      expect(() =>
         select(
           source([createPost({ relatedEventIds: ["club-event"] })]),
           today,
         ),
-      ).toBeDefined();
+      ).not.toThrow();
       expect(() =>
         select(
           source([
@@ -309,11 +323,15 @@ describe("explicit post publication and preview selection", () => {
       createdAt: "2026-09-01",
     });
     const draft = createPost();
+    const tiedDraft = createPost({
+      id: "aaa-draft",
+      slug: { ca: "empat-draft" },
+    });
     expect(
       createPreviewPostVariants(
-        source([oldDraft, second, draft, first, tied]),
+        source([oldDraft, second, draft, first, tied, tiedDraft]),
         today,
       ).map(({ entry }) => entry.id),
-    ).toEqual(["aaa", "first", "second", draft.id, oldDraft.id]);
+    ).toEqual(["aaa", "first", "second", tiedDraft.id, draft.id, oldDraft.id]);
   });
 });

@@ -98,7 +98,8 @@ l'accés.
 La persona mantenidora aprova fets, signatura, traduccions, drets i data de
 publicació. La data de l'acte no és `publishedAt`: aquest camp és l'instant de
 publicació, amb offset. `createdAt` identifica la preparació. `updatedAt` es
-reserva per a canvis materials; una rectificació incorpora data i nota explícites.
+reserva per a canvis materials. Les correccions s'apliquen directament al text;
+no hi ha un camp ni una secció separada de rectificacions.
 
 El preview permet llegir l'esborrany sense canviar `published`. Una petició de
 publicar sense revisió no autoritza l'agent a marcar-lo com a publicat, fer merge
