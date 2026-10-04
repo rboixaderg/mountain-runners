@@ -1,0 +1,18 @@
+apps/web/src/content/posts/com-fer-te-soci.yaml
+  h_1727aeeb492b30 7,9,11,14,16-26,28,30-59,61,63-131
+docs/editorial/drafts/com-fer-te-soci.md
+  h_1727aeeb492b30 7-9,11-19,23-27,35-52
+docs/specs/news-and-blog.md
+  h_1727aeeb492b30 256-260
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "9f6ef73b28a712a4e985d41ab897cb509d1caa12",
+  "prompts": {},
+  "humans": {
+    "h_1727aeeb492b30": {
+      "author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
