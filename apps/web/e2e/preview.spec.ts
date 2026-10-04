@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { plausibleAnalytics } from "../src/lib/analytics/plausible";
 
 test.skip(
   process.env.PUBLIC_PREVIEW !== "true",
@@ -21,6 +22,35 @@ test("preview marks every locale and does not load analytics", async ({
     );
     await expect(page.locator('script[src*="plausible"]')).toHaveCount(0);
   }
+});
+
+test("preview reports no analytics markup and never contacts the analytics origin", async ({
+  page,
+}) => {
+  const analyticsRequests: string[] = [];
+  page.on("request", (request) => {
+    if (request.url().startsWith(plausibleAnalytics.origin)) {
+      analyticsRequests.push(request.url());
+    }
+  });
+
+  for (const route of [
+    // Instrumented actions live on the members and school templates, so the
+    // sweep needs pages that answer 200: the 404 document would satisfy every
+    // assertion below without proving anything.
+    "/ca/",
+    "/ca/socis/",
+    "/ca/escoles/escola-trail/",
+    "/404.html",
+  ]) {
+    const response = await page.goto(route);
+    expect(response?.status()).toBe(200);
+    await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+    await expect(page.locator('meta[name^="mr-analytics-"]')).toHaveCount(0);
+    await expect(page.locator("[data-analytics-action]")).toHaveCount(0);
+  }
+
+  expect(analyticsRequests).toEqual([]);
 });
 
 test("preview robots file blocks crawlers", async ({ request }) => {

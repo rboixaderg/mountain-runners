@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   analyticsActions,
   analyticsAreas,
@@ -79,6 +79,45 @@ describe("analytics page type", () => {
     expect(getAnalyticsPageType("/en/events/")).toBe(
       analyticsPageTypes.eventsHub,
     );
+  });
+});
+
+describe("analytics action attributes", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it("marks instrumented actions outside preview builds", async () => {
+    vi.stubEnv("PUBLIC_PREVIEW", undefined);
+    vi.resetModules();
+    const { analyticsActionAttributes } =
+      await import("../lib/analytics/attributes");
+
+    expect(
+      analyticsActionAttributes({
+        action: analyticsActions.navigate,
+        area: analyticsAreas.headerNav,
+        target: "Berga Trail 2026",
+      }),
+    ).toEqual({
+      "data-analytics-action": "navigate",
+      "data-analytics-area": "header_nav",
+      "data-analytics-target": "berga_trail_2026",
+    });
+  });
+
+  it("emits no analytics markup in preview builds", async () => {
+    vi.stubEnv("PUBLIC_PREVIEW", "true");
+    vi.resetModules();
+    const { analyticsActionAttributes } =
+      await import("../lib/analytics/attributes");
+
+    expect(
+      analyticsActionAttributes({
+        action: analyticsActions.navigate,
+        area: analyticsAreas.headerNav,
+      }),
+    ).toEqual({});
   });
 });
 
