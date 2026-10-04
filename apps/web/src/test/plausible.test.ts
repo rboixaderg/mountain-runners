@@ -21,20 +21,16 @@ describe("analytics availability", () => {
   it("enables analytics when the build is not a preview", async () => {
     vi.stubEnv("PUBLIC_PREVIEW", undefined);
     vi.resetModules();
-    const { analyticsEnabled, isPreviewBuild } =
-      await import("../lib/analytics/plausible");
+    const { analyticsEnabled } = await import("../lib/analytics/plausible");
 
-    expect(isPreviewBuild).toBe(false);
     expect(analyticsEnabled).toBe(true);
   });
 
   it("disables analytics when the build is a preview", async () => {
     vi.stubEnv("PUBLIC_PREVIEW", "true");
     vi.resetModules();
-    const { analyticsEnabled, isPreviewBuild } =
-      await import("../lib/analytics/plausible");
+    const { analyticsEnabled } = await import("../lib/analytics/plausible");
 
-    expect(isPreviewBuild).toBe(true);
     expect(analyticsEnabled).toBe(false);
   });
 });

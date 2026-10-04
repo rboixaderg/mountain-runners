@@ -161,7 +161,9 @@ build de preview (`PUBLIC_PREVIEW=true`) i `pnpm test:e2e` a producció.
 Les previews de pull request no són la web pública i no es mesuren. El criteri
 viu en un sol lloc, `analyticsEnabled` a
 `apps/web/src/lib/analytics/plausible.ts`, i es deriva del mateix contracte
-`PUBLIC_PREVIEW` que l'artefacte de preview i l'avís de preview. Quan el build
+`PUBLIC_PREVIEW` que l'artefacte de preview i l'avís de preview. El mode del build
+es defineix a `apps/web/src/lib/build.ts` amb `isPreviewBuild`, compartit pel
+layout, `robots.txt` i l'analítica, sense dependre de Plausible. Quan el build
 és de preview:
 
 - el layout no renderitza `PlausibleAnalytics`: no hi ha script remot, ni
