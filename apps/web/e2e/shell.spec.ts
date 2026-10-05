@@ -440,6 +440,23 @@ test("keeps the calendar popover state and mobile bounds synchronized", async ({
   await expect(popover).toBeHidden();
 });
 
+test("moves the events calendar between available months", async ({ page }) => {
+  await page.goto("/ca/esdeveniments/");
+
+  const calendar = page.getByRole("region", { name: "Calendari mensual" });
+  const monthCaption = calendar.locator("caption:visible");
+  const previousMonth = calendar.getByRole("button", { name: "Mes anterior" });
+  const nextMonth = calendar.getByRole("button", { name: "Mes següent" });
+
+  await expect(monthCaption).toHaveText("agost del 2026");
+  await previousMonth.click();
+  await expect(monthCaption).toHaveText("juliol del 2026");
+  await nextMonth.click();
+  await expect(monthCaption).toHaveText("agost del 2026");
+  await nextMonth.click();
+  await expect(monthCaption).toHaveText("setembre del 2026");
+});
+
 test("renders the club attribution for every Skimo gallery photo", async ({
   page,
 }) => {

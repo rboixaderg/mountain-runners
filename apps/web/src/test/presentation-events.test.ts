@@ -4,6 +4,7 @@ import {
   buildCalendarMonthGrid,
   collectCalendarDayEvents,
   getCalendarFocusMonth,
+  getCalendarMonthRange,
   getEditionInclusiveDates,
   getEventHistoryRows,
 } from "../lib/presentation/events";
@@ -116,6 +117,24 @@ describe("getCalendarFocusMonth", () => {
     expect(getCalendarFocusMonth([singleDayEvent], "2026-11-01")).toEqual({
       year: 2026,
       month: 11,
+    });
+  });
+});
+
+describe("getCalendarMonthRange", () => {
+  it("returns the first and last months containing event editions", () => {
+    expect(
+      getCalendarMonthRange([multiDayEvent, singleDayEvent], "2026-08-09"),
+    ).toEqual({
+      first: { year: 2025, month: 10 },
+      last: { year: 2026, month: 10 },
+    });
+  });
+
+  it("uses today as the range when no event editions exist", () => {
+    expect(getCalendarMonthRange([], "2026-08-09")).toEqual({
+      first: { year: 2025, month: 8 },
+      last: { year: 2026, month: 8 },
     });
   });
 });

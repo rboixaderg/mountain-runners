@@ -196,6 +196,33 @@ export function getCalendarFocusMonth(
   return { year: todayParts.year, month: todayParts.month };
 }
 
+export function getCalendarMonthRange(
+  events: readonly Event[],
+  today: string,
+): {
+  first: { year: number; month: number };
+  last: { year: number; month: number };
+} {
+  const upcomingEndDates = events.flatMap((event) =>
+    event.editions.flatMap((edition) => {
+      const endDate = edition.endDate ?? edition.startDate;
+      return endDate >= today ? [endDate] : [];
+    }),
+  );
+  const lastDate = upcomingEndDates.toSorted().at(-1) ?? today;
+  const focusMonth = getCalendarFocusMonth(events, today);
+  const firstMonthDate = noonUtcDate(
+    `${focusMonth.year}-${String(focusMonth.month).padStart(2, "0")}-01`,
+  );
+  firstMonthDate.setUTCMonth(firstMonthDate.getUTCMonth() - 12);
+  const first = parseIsoDateParts(formatIsoDate(firstMonthDate));
+  const last = parseIsoDateParts(lastDate);
+  return {
+    first: { year: first.year, month: first.month },
+    last: { year: last.year, month: last.month },
+  };
+}
+
 function getWeekdayLabels(locale: Locale): string[] {
   const formatter = new Intl.DateTimeFormat(locale, {
     weekday: "short",
