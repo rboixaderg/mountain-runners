@@ -1,0 +1,16 @@
+apps/web/src/components/events/EventRegistrationPanel.astro
+  h_1727aeeb492b30 50,72
+apps/web/src/content/events/minivolta-a-la-maria.yaml
+  h_1727aeeb492b30 25,38,51,74-76
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "90ca16b25eaaa420abd5e02c4c205aa2d0a0cdaa",
+  "prompts": {},
+  "humans": {
+    "h_1727aeeb492b30": {
+      "author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
