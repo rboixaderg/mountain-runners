@@ -1,0 +1,33 @@
+apps/web/e2e/shell.spec.ts
+  s_9e6e62fab96f59::t_e6f110ab76d4b1 443-459
+apps/web/src/components/events/EventMonthlyCalendar.astro
+  s_84443846137640::t_4d7df616c8c003 4,9,24-49,68-105,107-224,228-253,302-330
+apps/web/src/lib/presentation/events.ts
+  s_84443846137640::t_ed5b48fd6bebd5 199-225
+apps/web/src/test/presentation-events.test.ts
+  s_84443846137640::t_fd4dca33ed5c11 7,124-141
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "9b0326e8883355b8d004715e5720b104d2573308",
+  "prompts": {},
+  "sessions": {
+    "s_84443846137640": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_ef26266b9ffeegiXoVLzVhSwRD",
+        "model": "unknown"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    },
+    "s_9e6e62fab96f59": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_ef57c4108ffeOQV07aH6ABAQIc",
+        "model": "unknown"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
