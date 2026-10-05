@@ -965,8 +965,12 @@ d'activar cap preview. La instal·lació de la primitiva al VPS requereix una
 aprovació explícita separada.
 
 El workflow `Preview cleanup` reconcilia cada hora i en tancar una PR. Retira
-previews tancades, de forks, amb SHA antic o que portin 14 dies sense
-actualitzar-se. Els fitxers rebuts però no instal·lats caduquen al cap d'un
+previews tancades, revocades, de forks o que portin 14 dies sense
+actualitzar-se. Pujar commits a la branca no retira la preview publicada ni
+en renova la caducitat: continua servint el SHA autoritzat fins que es demana
+una nova preview amb `/preview` o es compleix un criteri de retirada.
+La comprovació del head SHA vigent es manté per a les noves publicacions.
+Els fitxers rebuts però no instal·lats caduquen al cap d'un
 dia. La reconciliació comença amb `mountain-preview cleanup-retired`, que
 elimina directoris de retirades interrompudes, i `mountain-preview
 site-reconcile`, que elimina blocs Caddy sense versió activa i reinicia Caddy.

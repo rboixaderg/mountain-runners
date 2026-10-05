@@ -19,7 +19,7 @@ function transportFor(entries) {
   };
 }
 
-test("retires expired, closed and stale-head previews but keeps open current heads", async () => {
+test("retires expired and closed previews but keeps open previews even when their head advances", async () => {
   const transport = transportFor([
     { pullNumber: 1, commit, updatedAt: "2026-09-12T00:00:00.000Z" },
     { pullNumber: 2, commit, updatedAt: "2026-09-27T00:00:00.000Z" },
@@ -46,8 +46,7 @@ test("retires expired, closed and stale-head previews but keeps open current hea
     "mountain-preview site-disable 1",
     "mountain-preview retire 2",
     "mountain-preview site-disable 2",
-    "mountain-preview retire 3",
-    "mountain-preview site-disable 3",
+    "mountain-preview prune 3",
     "mountain-preview prune 4",
   ]);
 });
