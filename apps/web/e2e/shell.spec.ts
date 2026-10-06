@@ -444,17 +444,75 @@ test("moves the events calendar between available months", async ({ page }) => {
   await page.goto("/ca/esdeveniments/");
 
   const calendar = page.getByRole("region", { name: "Calendari mensual" });
-  const monthCaption = calendar.locator("caption:visible");
+  const monthTable = calendar.getByRole("table");
   const previousMonth = calendar.getByRole("button", { name: "Mes anterior" });
   const nextMonth = calendar.getByRole("button", { name: "Mes següent" });
 
-  await expect(monthCaption).toHaveText("agost del 2026");
+  await expect(monthTable).toHaveAccessibleName("agost del 2026");
   await previousMonth.click();
-  await expect(monthCaption).toHaveText("juliol del 2026");
+  await expect(monthTable).toHaveAccessibleName("juliol del 2026");
   await nextMonth.click();
-  await expect(monthCaption).toHaveText("agost del 2026");
+  await expect(monthTable).toHaveAccessibleName("agost del 2026");
   await nextMonth.click();
-  await expect(monthCaption).toHaveText("setembre del 2026");
+  await expect(monthTable).toHaveAccessibleName("setembre del 2026");
+
+  // Only the visible month reaches the accessibility tree or the tab order.
+  await expect(calendar.getByRole("table")).toHaveCount(1);
+});
+
+test("stops the events calendar at the bounds of its navigable range", async ({
+  page,
+}) => {
+  await page.goto("/ca/esdeveniments/");
+
+  const calendar = page.getByRole("region", { name: "Calendari mensual" });
+  const monthTable = calendar.getByRole("table");
+  const previousMonth = calendar.getByRole("button", { name: "Mes anterior" });
+  const nextMonth = calendar.getByRole("button", { name: "Mes següent" });
+
+  for (let month = 0; month < 30; month += 1) {
+    if (await nextMonth.isDisabled()) break;
+    await nextMonth.click();
+  }
+
+  await expect(monthTable).toHaveAccessibleName("novembre del 2026");
+  await expect(nextMonth).toBeDisabled();
+  await expect(previousMonth).toBeEnabled();
+
+  for (let month = 0; month < 30; month += 1) {
+    if (await previousMonth.isDisabled()) break;
+    await previousMonth.click();
+  }
+
+  await expect(monthTable).toHaveAccessibleName("agost del 2025");
+  await expect(previousMonth).toBeDisabled();
+  await expect(nextMonth).toBeEnabled();
+});
+
+test("closes an open calendar popover when the month changes", async ({
+  page,
+}) => {
+  await page.goto("/ca/esdeveniments/");
+
+  const calendar = page.getByRole("region", { name: "Calendari mensual" });
+  const monthTable = calendar.getByRole("table");
+  const dayButton = calendar.getByRole("button", {
+    name: "16: Escalada de Vilada a Castell de l'Areny",
+  });
+  const popoverId = await dayButton.getAttribute("aria-controls");
+  const popover = page.locator(`#${popoverId}`);
+
+  await dayButton.click();
+  await expect(dayButton).toHaveAttribute("aria-expanded", "true");
+  await expect(popover).toBeVisible();
+
+  await calendar.getByRole("button", { name: "Mes següent" }).click();
+  await expect(monthTable).toHaveAccessibleName("setembre del 2026");
+
+  await calendar.getByRole("button", { name: "Mes anterior" }).click();
+  await expect(monthTable).toHaveAccessibleName("agost del 2026");
+  await expect(dayButton).toHaveAttribute("aria-expanded", "false");
+  await expect(popover).toBeHidden();
 });
 
 test("renders the club attribution for every Skimo gallery photo", async ({

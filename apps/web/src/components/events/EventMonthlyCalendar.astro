@@ -1,12 +1,11 @@
 ---
 import * as messages from "../../paraglide/messages.js";
 import type { Event } from "../../lib/content/models";
-import type { CalendarMonthGrid } from "../../lib/presentation/events";
 import type { Locale } from "../../lib/content/primitives";
 import {
   buildCalendarMonthGrid,
-  getCalendarFocusMonth,
   getCalendarMonthRange,
+  getCalendarWeekdayLabels,
 } from "../../lib/presentation/events";
 import { analyticsActionAttributes } from "../../lib/analytics/attributes";
 import { analyticsActions, analyticsAreas } from "../../lib/analytics/catalog";
@@ -20,34 +19,13 @@ interface Props {
 }
 
 const { events, locale, resolveEventHref, today } = Astro.props;
-const focusMonth = getCalendarFocusMonth(events, today);
-const monthRange = getCalendarMonthRange(events, today);
-const monthGrids: CalendarMonthGrid[] = [];
-for (
-  let year = monthRange.first.year, month = monthRange.first.month;
-  year < monthRange.last.year ||
-  (year === monthRange.last.year && month <= monthRange.last.month);
-  month += 1
-) {
-  if (month === 13) {
-    year += 1;
-    month = 1;
-  }
-  monthGrids.push(
-    buildCalendarMonthGrid(
-      events,
-      year,
-      month,
-      locale,
-      today,
-      resolveEventHref,
-    ),
-  );
-}
-const focusIndex = monthGrids.findIndex(
-  (monthGrid) =>
-    monthGrid.year === focusMonth.year && monthGrid.month === focusMonth.month,
+const { focusIndex, months } = getCalendarMonthRange(events, today);
+const monthGrids = months.map(({ year, month }) =>
+  buildCalendarMonthGrid(events, year, month, locale, today, resolveEventHref),
 );
+const weekdayLabels = getCalendarWeekdayLabels(locale);
+const focusMonthLabel = monthGrids[focusIndex].monthLabel;
+const isNavigable = monthGrids.length > 1;
 ---
 
 <section
@@ -65,173 +43,107 @@ const focusIndex = monthGrids.findIndex(
     </h2>
   </div>
 
-  <div class="mb-4 flex justify-end gap-2">
-    <button
-      type="button"
-      class="border-line border px-4 py-2"
-      data-calendar-previous
-      disabled={focusIndex === 0}
-    >
-      {messages.events_calendar_previous({}, { locale })}
-    </button>
-    <button
-      type="button"
-      class="border-line border px-4 py-2"
-      data-calendar-next
-      disabled={focusIndex === monthGrids.length - 1}
-    >
-      {messages.events_calendar_next({}, { locale })}
-    </button>
-  </div>
+  {isNavigable && (
+    <div class="mb-4 flex justify-end gap-2" data-calendar-controls hidden>
+      <button
+        type="button"
+        class="border-line font-display text-action leading-action tracking-label border px-4 py-action font-bold uppercase transition-colors disabled:cursor-not-allowed disabled:opacity-55"
+        data-calendar-previous
+        disabled={focusIndex === 0}
+      >
+        {messages.events_calendar_previous({}, { locale })}
+      </button>
+      <button
+        type="button"
+        class="border-line font-display text-action leading-action tracking-label border px-4 py-action font-bold uppercase transition-colors disabled:cursor-not-allowed disabled:opacity-55"
+        data-calendar-next
+        disabled={focusIndex === monthGrids.length - 1}
+      >
+        {messages.events_calendar_next({}, { locale })}
+      </button>
+    </div>
+  )}
   <div
     class="border-line bg-paper border"
     data-calendar-months
     data-current-month={focusIndex}
   >
-    {monthGrids.map((monthGrid, index) => (
-      <div data-calendar-month={index} hidden={index !== focusIndex}>
-        <table class="w-full table-fixed border-collapse">
-          <caption
-            class="events-calendar__caption border-line font-display tracking-display caption-top border-b px-6 py-5 text-left font-bold capitalize"
-            aria-live="polite"
-          >
-            {monthGrid.monthLabel}
-          </caption>
-          <thead>
+    <table class="w-full table-fixed border-collapse">
+      <caption
+        class="events-calendar__caption border-line font-display tracking-display caption-top border-b px-6 py-5 text-left font-bold capitalize"
+        aria-live="polite"
+        data-calendar-caption
+      >
+        {focusMonthLabel}
+      </caption>
+      <thead>
+        <tr>
+          {weekdayLabels.map((weekdayLabel) => (
+            <th
+              scope="col"
+              class="events-calendar__weekday border-line font-display text-muted text-meta py-action tracking-label border-b px-2 text-center leading-normal font-bold uppercase"
+            >
+              {weekdayLabel}
+            </th>
+          ))}
+        </tr>
+      </thead>
+      {monthGrids.map((monthGrid, index) => (
+        <tbody
+          data-calendar-month={index}
+          data-month-label={monthGrid.monthLabel}
+          hidden={index !== focusIndex}
+        >
+          {monthGrid.weeks.map((week) => (
             <tr>
-              {monthGrid.weekdayLabels.map((weekdayLabel) => (
-                <th
-                  scope="col"
-                  class="events-calendar__weekday border-line font-display text-muted text-meta py-action tracking-label border-b px-2 text-center leading-normal font-bold uppercase"
-                >
-                  {weekdayLabel}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {monthGrid.weeks.map((week) => (
-              <tr>
-                {week.map((day) => {
-                  const hasEvents = day.events.length > 0;
-                  const dayLabel =
-                    day.dayNumber === null
-                      ? undefined
-                      : hasEvents
-                        ? messages.events_calendar_day_with_events(
-                            {
-                              day: day.dayNumber,
-                              events: day.events
-                                .map((event) => event.title)
-                                .join(", "),
-                            },
-                            { locale },
-                          )
-                        : String(day.dayNumber);
-                  const popoverId =
-                    day.date === null
-                      ? undefined
-                      : `events-calendar-popover-${day.date}`;
+              {week.map((day) => {
+                const hasEvents = day.events.length > 0;
+                const dayLabel =
+                  day.dayNumber === null
+                    ? undefined
+                    : hasEvents
+                      ? messages.events_calendar_day_with_events(
+                          {
+                            day: day.dayNumber,
+                            events: day.events
+                              .map((event) => event.title)
+                              .join(", "),
+                          },
+                          { locale },
+                        )
+                      : String(day.dayNumber);
+                const popoverId =
+                  day.date === null
+                    ? undefined
+                    : `events-calendar-popover-${day.date}`;
 
-                  return (
-                    <td
-                      class:list={[
-                        "events-calendar__day border-line bg-paper relative h-18 border-r border-b p-0 text-center align-middle last:border-r-0 max-md:h-13",
-                        !day.isCurrentMonth &&
-                          "events-calendar__day--outside text-muted",
-                        hasEvents && "events-calendar__day--has-events",
-                        day.isMultiDay && "events-calendar__day--multi-day",
-                        day.isRangeStart && "events-calendar__day--range-start",
-                        day.isRangeMiddle &&
-                          "events-calendar__day--range-middle",
-                        day.isRangeEnd && "events-calendar__day--range-end",
-                      ]}
-                    >
-                      {day.dayNumber !== null && hasEvents ? (
-                        <>
-                          <button
-                            type="button"
-                            class="events-calendar__day-button grid size-full cursor-pointer place-items-center border-0 bg-transparent p-0 text-inherit"
-                            aria-controls={popoverId}
-                            aria-expanded="false"
-                            aria-label={dayLabel}
-                            {...analyticsActionAttributes({
-                              action: analyticsActions.calendarDayOpen,
-                              area: analyticsAreas.eventCalendar,
-                              target: day.date ?? "unknown",
-                            })}
-                          >
-                            <span
-                              class:list={[
-                                "events-calendar__day-number font-display max-md:text-action relative z-1 inline-grid size-8 place-items-center text-sm font-bold",
-                                day.isToday && "border-ink border-2",
-                              ]}
-                            >
-                              {day.dayNumber}
-                            </span>
-                            <span
-                              class="events-calendar__day-mark bg-red absolute rounded-full"
-                              aria-hidden="true"
-                            />
-                          </button>
-                          <div
-                            id={popoverId}
-                            class="events-calendar__popover border-line bg-paper p-action border"
-                            role="region"
-                            aria-label={messages.events_calendar_popover_label(
-                              {},
-                              { locale },
-                            )}
-                          >
-                            {day.events.map((event) => (
-                              <article class="not-first:border-line not-first:mt-3 not-first:border-t not-first:pt-3">
-                                <h3 class="font-display m-0 mb-2 text-sm leading-tight font-bold uppercase">
-                                  {event.title}
-                                </h3>
-                                <dl class="events-calendar__event-meta">
-                                  <div>
-                                    <dt class="text-muted text-meta tracking-label font-bold uppercase">
-                                      {messages.event_dates_label(
-                                        {},
-                                        { locale },
-                                      )}
-                                    </dt>
-                                    <dd class="m-0 text-sm leading-snug">
-                                      {event.dateLabel}
-                                    </dd>
-                                  </div>
-                                  <div>
-                                    <dt class="text-muted text-meta tracking-label font-bold uppercase">
-                                      {messages.event_location_label(
-                                        {},
-                                        { locale },
-                                      )}
-                                    </dt>
-                                    <dd class="m-0 text-sm leading-snug">
-                                      {event.location}
-                                    </dd>
-                                  </div>
-                                </dl>
-                                <a
-                                  class="text-ink hover:text-red text-meta tracking-display font-bold uppercase underline"
-                                  href={event.href}
-                                  {...analyticsActionAttributes({
-                                    action: analyticsActions.calendarEventLink,
-                                    area: analyticsAreas.eventCalendar,
-                                    target: event.id,
-                                  })}
-                                >
-                                  {messages.event_more_information(
-                                    {},
-                                    { locale },
-                                  )}
-                                </a>
-                              </article>
-                            ))}
-                          </div>
-                        </>
-                      ) : (
-                        day.dayNumber !== null && (
+                return (
+                  <td
+                    class:list={[
+                      "events-calendar__day border-line bg-paper relative h-18 border-r border-b p-0 text-center align-middle last:border-r-0 max-md:h-13",
+                      !day.isCurrentMonth &&
+                        "events-calendar__day--outside text-muted",
+                      hasEvents && "events-calendar__day--has-events",
+                      day.isMultiDay && "events-calendar__day--multi-day",
+                      day.isRangeStart && "events-calendar__day--range-start",
+                      day.isRangeMiddle && "events-calendar__day--range-middle",
+                      day.isRangeEnd && "events-calendar__day--range-end",
+                    ]}
+                  >
+                    {day.dayNumber !== null && hasEvents ? (
+                      <>
+                        <button
+                          type="button"
+                          class="events-calendar__day-button grid size-full cursor-pointer place-items-center border-0 bg-transparent p-0 text-inherit"
+                          aria-controls={popoverId}
+                          aria-expanded="false"
+                          aria-label={dayLabel}
+                          {...analyticsActionAttributes({
+                            action: analyticsActions.calendarDayOpen,
+                            area: analyticsAreas.eventCalendar,
+                            target: day.date ?? "unknown",
+                          })}
+                        >
                           <span
                             class:list={[
                               "events-calendar__day-number font-display max-md:text-action relative z-1 inline-grid size-8 place-items-center text-sm font-bold",
@@ -240,17 +152,84 @@ const focusIndex = monthGrids.findIndex(
                           >
                             {day.dayNumber}
                           </span>
-                        )
-                      )}
-                    </td>
-                  );
-                })}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    ))}
+                          <span
+                            class="events-calendar__day-mark bg-red absolute rounded-full"
+                            aria-hidden="true"
+                          />
+                        </button>
+                        <div
+                          id={popoverId}
+                          class="events-calendar__popover border-line bg-paper p-action border"
+                          role="region"
+                          aria-label={messages.events_calendar_popover_label(
+                            {},
+                            { locale },
+                          )}
+                        >
+                          {day.events.map((event) => (
+                            <article class="not-first:border-line not-first:mt-3 not-first:border-t not-first:pt-3">
+                              <h3 class="font-display m-0 mb-2 text-sm leading-tight font-bold uppercase">
+                                {event.title}
+                              </h3>
+                              <dl class="events-calendar__event-meta">
+                                <div>
+                                  <dt class="text-muted text-meta tracking-label font-bold uppercase">
+                                    {messages.event_dates_label({}, { locale })}
+                                  </dt>
+                                  <dd class="m-0 text-sm leading-snug">
+                                    {event.dateLabel}
+                                  </dd>
+                                </div>
+                                <div>
+                                  <dt class="text-muted text-meta tracking-label font-bold uppercase">
+                                    {messages.event_location_label(
+                                      {},
+                                      { locale },
+                                    )}
+                                  </dt>
+                                  <dd class="m-0 text-sm leading-snug">
+                                    {event.location}
+                                  </dd>
+                                </div>
+                              </dl>
+                              <a
+                                class="text-ink hover:text-red text-meta tracking-display font-bold uppercase underline"
+                                href={event.href}
+                                {...analyticsActionAttributes({
+                                  action: analyticsActions.calendarEventLink,
+                                  area: analyticsAreas.eventCalendar,
+                                  target: event.id,
+                                })}
+                              >
+                                {messages.event_more_information(
+                                  {},
+                                  { locale },
+                                )}
+                              </a>
+                            </article>
+                          ))}
+                        </div>
+                      </>
+                    ) : (
+                      day.dayNumber !== null && (
+                        <span
+                          class:list={[
+                            "events-calendar__day-number font-display max-md:text-action relative z-1 inline-grid size-8 place-items-center text-sm font-bold",
+                            day.isToday && "border-ink border-2",
+                          ]}
+                        >
+                          {day.dayNumber}
+                        </span>
+                      )
+                    )}
+                  </td>
+                );
+              })}
+            </tr>
+          ))}
+        </tbody>
+      ))}
+    </table>
   </div>
 </section>
 
@@ -303,26 +282,36 @@ const focusIndex = monthGrids.findIndex(
     const monthViews = monthContainer?.querySelectorAll<HTMLElement>(
       "[data-calendar-month]",
     );
+    const monthCaption = calendar.querySelector("[data-calendar-caption]");
     const previousButton = calendar.querySelector("[data-calendar-previous]");
     const nextButton = calendar.querySelector("[data-calendar-next]");
     if (
       monthContainer instanceof HTMLElement &&
       monthViews !== undefined &&
+      monthCaption instanceof HTMLElement &&
       previousButton instanceof HTMLButtonElement &&
       nextButton instanceof HTMLButtonElement
     ) {
       let currentMonth = Number(monthContainer.dataset.currentMonth);
       const showMonth = (monthIndex: number) => {
+        const targetMonth = Math.min(
+          Math.max(monthIndex, 0),
+          monthViews.length - 1,
+        );
         monthViews.forEach((monthView, index) => {
-          monthView.hidden = index !== monthIndex;
+          monthView.hidden = index !== targetMonth;
         });
-        currentMonth = monthIndex;
+        currentMonth = targetMonth;
         previousButton.disabled = currentMonth === 0;
         nextButton.disabled = currentMonth === monthViews.length - 1;
         monthContainer.dataset.currentMonth = String(currentMonth);
+        monthCaption.textContent =
+          monthViews[currentMonth].getAttribute("data-month-label");
         closeCalendarPopovers(calendar);
       };
-      showMonth(currentMonth);
+      calendar
+        .querySelector("[data-calendar-controls]")
+        ?.removeAttribute("hidden");
       previousButton.addEventListener("click", () =>
         showMonth(currentMonth - 1),
       );

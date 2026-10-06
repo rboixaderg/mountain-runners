@@ -1,4 +1,8 @@
-import { getLatestEdition, getNextEdition } from "../content/events";
+import {
+  getLatestEdition,
+  getNextEdition,
+  isUpcomingEdition,
+} from "../content/events";
 import type { Event, EventEdition } from "../content/models";
 import type { Locale } from "../content/primitives";
 import { formatEditionDate } from "./dates";
@@ -32,9 +36,15 @@ export type CalendarMonthDay = {
 export type CalendarMonthGrid = {
   month: number;
   monthLabel: string;
-  weekdayLabels: readonly string[];
   weeks: readonly (readonly CalendarMonthDay[])[];
   year: number;
+};
+
+export type CalendarMonth = { month: number; year: number };
+
+export type CalendarMonthRange = {
+  focusIndex: number;
+  months: readonly CalendarMonth[];
 };
 
 export type EventHistoryRow = {
@@ -170,10 +180,22 @@ export function collectCalendarDayEvents(
   return dayEvents;
 }
 
+function addMonths(month: CalendarMonth, amount: number): CalendarMonth {
+  const monthIndex = month.year * 12 + month.month - 1 + amount;
+  return { year: Math.floor(monthIndex / 12), month: (monthIndex % 12) + 1 };
+}
+
+function isSameMonthOrBefore(
+  month: CalendarMonth,
+  other: CalendarMonth,
+): boolean {
+  return month.year * 12 + month.month <= other.year * 12 + other.month;
+}
+
 export function getCalendarFocusMonth(
   events: readonly Event[],
   today: string,
-): { year: number; month: number } {
+): CalendarMonth {
   let nearestUpcomingDate: string | undefined;
 
   for (const event of events) {
@@ -196,34 +218,53 @@ export function getCalendarFocusMonth(
   return { year: todayParts.year, month: todayParts.month };
 }
 
+// The calendar renders every navigable month into the static page, so both
+// windows are bounded: the back window is a fixed twelve months of history and
+// the forward window stops short of an edition announced far in the future.
+const calendarBackMonths = 12;
+const calendarForwardMonths = 18;
+
 export function getCalendarMonthRange(
   events: readonly Event[],
   today: string,
-): {
-  first: { year: number; month: number };
-  last: { year: number; month: number };
-} {
-  const upcomingEndDates = events.flatMap((event) =>
-    event.editions.flatMap((edition) => {
-      const endDate = edition.endDate ?? edition.startDate;
-      return endDate >= today ? [endDate] : [];
-    }),
-  );
-  const lastDate = upcomingEndDates.toSorted().at(-1) ?? today;
+): CalendarMonthRange {
   const focusMonth = getCalendarFocusMonth(events, today);
-  const firstMonthDate = noonUtcDate(
-    `${focusMonth.year}-${String(focusMonth.month).padStart(2, "0")}-01`,
+  const upcomingEndDates = events.flatMap((event) =>
+    event.editions.flatMap((edition) =>
+      isUpcomingEdition(edition, today)
+        ? [edition.endDate ?? edition.startDate]
+        : [],
+    ),
   );
-  firstMonthDate.setUTCMonth(firstMonthDate.getUTCMonth() - 12);
-  const first = parseIsoDateParts(formatIsoDate(firstMonthDate));
-  const last = parseIsoDateParts(lastDate);
-  return {
-    first: { year: first.year, month: first.month },
-    last: { year: last.year, month: last.month },
+  const lastUpcomingDate = upcomingEndDates.toSorted().at(-1);
+  if (lastUpcomingDate === undefined) {
+    return { focusIndex: 0, months: [focusMonth] };
+  }
+
+  const lastParts = parseIsoDateParts(lastUpcomingDate);
+  const upcomingMonth: CalendarMonth = {
+    year: lastParts.year,
+    month: lastParts.month,
   };
+  const forwardLimit = addMonths(focusMonth, calendarForwardMonths);
+  const lastMonth = isSameMonthOrBefore(forwardLimit, upcomingMonth)
+    ? forwardLimit
+    : upcomingMonth;
+  const firstMonth = addMonths(focusMonth, -calendarBackMonths);
+
+  const months: CalendarMonth[] = [];
+  for (
+    let month = firstMonth;
+    isSameMonthOrBefore(month, lastMonth);
+    month = addMonths(month, 1)
+  ) {
+    months.push(month);
+  }
+
+  return { focusIndex: calendarBackMonths, months };
 }
 
-function getWeekdayLabels(locale: Locale): string[] {
+export function getCalendarWeekdayLabels(locale: Locale): string[] {
   const formatter = new Intl.DateTimeFormat(locale, {
     weekday: "short",
     timeZone: madridTimeZone,
@@ -333,7 +374,6 @@ export function buildCalendarMonthGrid(
     year,
     month,
     monthLabel: getMonthLabel(year, month, locale),
-    weekdayLabels: getWeekdayLabels(locale),
     weeks,
   };
 }
