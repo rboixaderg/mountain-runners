@@ -489,6 +489,32 @@ test("stops the events calendar at the bounds of its navigable range", async ({
   await expect(nextMonth).toBeEnabled();
 });
 
+test("loads calendar navigation with the preview script policy", async ({
+  page,
+}) => {
+  await page.route("**/ca/esdeveniments/", async (route) => {
+    const response = await route.fetch();
+    await route.fulfill({
+      response,
+      headers: {
+        ...response.headers(),
+        "content-security-policy":
+          "default-src 'self'; script-src 'self'; connect-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; frame-src https://www.youtube-nocookie.com; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; object-src 'none'",
+      },
+    });
+  });
+
+  await page.goto("/ca/esdeveniments/");
+
+  const calendar = page.getByRole("region", { name: "Calendari mensual" });
+  const monthTable = calendar.getByRole("table");
+  await expect(monthTable).toHaveAccessibleName("agost del 2026");
+
+  await calendar.getByRole("button", { name: "Mes següent" }).click();
+
+  await expect(monthTable).toHaveAccessibleName("setembre del 2026");
+});
+
 test("closes an open calendar popover when the month changes", async ({
   page,
 }) => {

@@ -23,6 +23,11 @@ export default defineConfig({
     },
   },
   vite: {
+    build: {
+      // Keep processed scripts external so script-src 'self' can authorize them.
+      assetsInlineLimit: (filePath) =>
+        filePath.endsWith(".js") ? false : undefined,
+    },
     plugins: [tailwindcss(), paraglideVitePlugin(paraglideOptions)],
   },
 });
