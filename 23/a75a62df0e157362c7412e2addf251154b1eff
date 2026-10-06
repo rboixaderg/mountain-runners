@@ -1,0 +1,29 @@
+apps/web/e2e/shell.spec.ts
+  s_089cc18dc54b10::t_7c94a8dc0f1fc5 492-517
+apps/web/src/scripts/events-calendar.ts
+  s_a1ecb309472400::t_0be122f8ae3a43 1-158
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "23a75a62df0e157362c7412e2addf251154b1eff",
+  "prompts": {},
+  "sessions": {
+    "s_089cc18dc54b10": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_ef57c5e3fffeVb87RfNa9vyM3D",
+        "model": "unknown"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    },
+    "s_a1ecb309472400": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_ef24788e1ffeNTIKOhoEJzmrYs",
+        "model": "unknown"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
