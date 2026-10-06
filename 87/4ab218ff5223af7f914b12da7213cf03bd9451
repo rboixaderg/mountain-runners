@@ -1,0 +1,21 @@
+apps/web/src/lib/content/events.ts
+  s_9e6e62fab96f59::t_fba2d924ee5df1 1,20-26,30,125
+apps/web/src/lib/presentation/events.ts
+  s_9e6e62fab96f59::t_9fc0a2c219d5bc 1-5,43-49,183-194,198,221-226,230,232-237,239-247,249-264,267
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "874ab218ff5223af7f914b12da7213cf03bd9451",
+  "prompts": {},
+  "sessions": {
+    "s_9e6e62fab96f59": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_ef57c4108ffeOQV07aH6ABAQIc",
+        "model": "unknown"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
