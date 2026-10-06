@@ -1,0 +1,16 @@
+apps/web/src/lib/presentation/events.ts
+  h_1727aeeb492b30 241
+apps/web/src/test/presentation-events.test.ts
+  h_1727aeeb492b30 183,189-197,200-206
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "c57ccae52b28bba862e9d2198ee10fea8ce87e04",
+  "prompts": {},
+  "humans": {
+    "h_1727aeeb492b30": {
+      "author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
