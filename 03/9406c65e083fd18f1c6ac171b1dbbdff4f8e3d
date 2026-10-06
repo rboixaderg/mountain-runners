@@ -1,0 +1,21 @@
+.agents/skills/frontend-testing/SKILL.md
+  s_089cc18dc54b10::t_7b10f072fce71c 1-50
+.agents/skills/quality-gate/SKILL.md
+  s_089cc18dc54b10::t_9f43147b0cf2bd 18-19,30-37,52-54,79-92
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "039406c65e083fd18f1c6ac171b1dbbdff4f8e3d",
+  "prompts": {},
+  "sessions": {
+    "s_089cc18dc54b10": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_ef57c5e3fffeVb87RfNa9vyM3D",
+        "model": "unknown"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
