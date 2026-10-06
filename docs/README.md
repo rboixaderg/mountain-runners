@@ -22,6 +22,8 @@ acceptada:
 - [`content-model.md`](content-model.md): contracte editorial i de publicació.
 - [`code-conventions.md`](code-conventions.md): normes d'implementació de
   `apps/web`.
+- [`testing-strategy.md`](testing-strategy.md): nivells de prova, garanties de
+  regressió, aïllament, redundància i validació.
 - [`tailwind-v4-migration-plan.md`](tailwind-v4-migration-plan.md): pla operatiu
   incremental i checkpoints de la migració Tailwind de la PR #98.
 - [`roadmap.md`](roadmap.md): fases, dependències i estat general.
