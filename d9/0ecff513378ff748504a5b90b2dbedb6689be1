@@ -1,0 +1,49 @@
+apps/web/src/test/sponsors.test.ts
+  s_9e6e62fab96f59::t_ef5176160e282a 3-4,8,18
+apps/web/src/test/i18n.test.ts
+  s_84443846137640::t_cce7b2fb726400 20-23,80-97
+apps/web/src/test/support/publication-catalog.ts
+  s_9e6e62fab96f59::t_4606e3b387a93b 1-66
+apps/web/src/test/members.test.ts
+  s_9e6e62fab96f59::t_92d670f615607c 2,4,8-9,11,15-16,19-49,53,62,64-65,67-73,75-82,85-101,104-117,120-134
+apps/web/src/test/analytics-events.test.ts
+  s_84443846137640::t_e0381e33eb8268 106-113
+  s_9e6e62fab96f59::t_896b2a780893f2 31-35,44-46,48,104-105,114,116
+apps/web/src/test/seo.test.ts
+  s_9e6e62fab96f59::t_fe950d874b4c95 6,47-56,92,97-98,103-105
+apps/web/src/lib/content/models.ts
+  s_9e6e62fab96f59::t_e9e4ad771d87e2 81-94,120
+apps/web/src/test/content-routes.test.ts
+  s_9e6e62fab96f59::t_9d950404c203c9 2,15,19-23,26
+apps/web/src/test/presentation-schools.test.ts
+  s_9e6e62fab96f59::t_259efc631bbd33 1,3,22-26,29-32,35-44
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "d90ecff513378ff748504a5b90b2dbedb6689be1",
+  "prompts": {},
+  "humans": {
+    "h_1727aeeb492b30": {
+      "author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  },
+  "sessions": {
+    "s_84443846137640": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_ef26266b9ffeegiXoVLzVhSwRD",
+        "model": "unknown"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    },
+    "s_9e6e62fab96f59": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_ef57c4108ffeOQV07aH6ABAQIc",
+        "model": "unknown"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
