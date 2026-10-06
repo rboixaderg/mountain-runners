@@ -1,0 +1,39 @@
+apps/web/e2e/route-matrix.spec.ts
+  s_9e6e62fab96f59::t_2bda7bcf0a81d9 14-15,46-52
+  s_9e6e62fab96f59::t_cd1a42b9d5ae2d 53
+playwright.config.ts
+  s_a1ecb309472400::t_0f91e7d52b9e1d 6-18,61
+apps/web/src/test/support/published-site.ts
+  s_9e6e62fab96f59::t_5d665c0e78fa65 1-186
+apps/web/e2e/shell.spec.ts
+  s_9e6e62fab96f59::t_3e76a1f9d5c7b6 4-22,148,153,158-166,168-175,178-179,183,185-204,209-210,213-219,221,224-234,242-248,250,269,273-275,278-282,288,290-301,303-319,321-322,325-356,358-400,402-403,755,758,763-767,770-787,814-825,827,837-840,843-845,847,851-854,923,926-927,1058,1061,1086-1092,1096-1098,1100-1101,1104,1107-1118,1120-1121,1123-1150,1152-1163,1165-1172,1175,1179,1188-1193,1200,1207-1209
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "3eb48e5d0ed07d2c7aedb350748f9d3ee38021b1",
+  "prompts": {},
+  "humans": {
+    "h_1727aeeb492b30": {
+      "author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  },
+  "sessions": {
+    "s_9e6e62fab96f59": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_ef57c4108ffeOQV07aH6ABAQIc",
+        "model": "unknown"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    },
+    "s_a1ecb309472400": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_ef24788e1ffeNTIKOhoEJzmrYs",
+        "model": "unknown"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
