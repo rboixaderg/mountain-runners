@@ -3,6 +3,19 @@ import { defineConfig } from "@playwright/test";
 const desktopViewport = { width: 1280, height: 720 };
 const mobileViewport = { width: 320, height: 720 };
 
+// The suite asserts against the built artifact, so the reference date must be
+// the one the build used. `pnpm test:e2e` only prefixes the build command, so
+// the tests themselves would otherwise fall back to the real clock and derive
+// event statuses from a different date than the pages were rendered with.
+const siteOrigin =
+  process.env.PUBLIC_SITE_ORIGIN ?? "https://mountainrunners.cat";
+const buildToday = process.env.BUILD_TODAY ?? "2026-08-04";
+
+// Workers inherit this process environment, so the tests read the same origin
+// and reference date that the preview server and the build used.
+process.env.PUBLIC_SITE_ORIGIN = siteOrigin;
+process.env.BUILD_TODAY = buildToday;
+
 export default defineConfig({
   testDir: "apps/web/e2e",
   forbidOnly: Boolean(process.env.CI),
@@ -45,8 +58,7 @@ export default defineConfig({
     command:
       "pnpm --filter @mountain-runners/web exec astro preview --host 127.0.0.1 --port 4321",
     env: {
-      PUBLIC_SITE_ORIGIN:
-        process.env.PUBLIC_SITE_ORIGIN ?? "https://mountainrunners.cat",
+      PUBLIC_SITE_ORIGIN: siteOrigin,
       // Astro 7.2 daemonizes `astro preview` when it detects an agentic
       // environment, which makes Playwright report "exited early". Keep the
       // preview in the foreground so Playwright owns its lifecycle.
