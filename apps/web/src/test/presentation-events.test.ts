@@ -77,9 +77,15 @@ describe("collectCalendarDayEvents", () => {
 });
 
 describe("buildCalendarMonthGrid", () => {
-  it("highlights single-day and multi-day events in the focused month", () => {
+  it("groups overlapping events by day and highlights multi-day spans", () => {
+    const overlappingEvent = {
+      ...singleDayEvent,
+      id: "overlap",
+      title: { ca: "Trail compartit" },
+      editions: [{ ...singleDayEvent.editions[0]!, startDate: "2026-10-03" }],
+    };
     const grid = buildCalendarMonthGrid(
-      [multiDayEvent, singleDayEvent],
+      [multiDayEvent, singleDayEvent, overlappingEvent],
       2026,
       10,
       "ca",
@@ -100,6 +106,10 @@ describe("buildCalendarMonthGrid", () => {
     expect(octoberDays[0]?.events[0]?.href).toBe("/ca/esdeveniments/ultra/");
     expect(octoberDays[0]?.isRangeStart).toBe(true);
     expect(octoberDays[1]?.isRangeMiddle).toBe(true);
+    expect(octoberDays[1]?.events.map((event) => event.title)).toEqual([
+      "Ultra Pirineu",
+      "Trail compartit",
+    ]);
     expect(octoberDays[2]?.isRangeEnd).toBe(true);
     expect(octoberDays[3]?.isMultiDay).toBe(false);
   });

@@ -45,17 +45,20 @@ describe("publication catalog", () => {
         event.published &&
         hasCompleteTranslation(event.title, incompleteLocale),
     )!;
-    const slug = translatedEvent.slug[incompleteLocale];
-    expect(
-      variantKeys(source).filter((key) => key.endsWith(`:${slug}`)),
-    ).toHaveLength(1);
+    // Slugs may be identical across locales; only the incomplete variant
+    // should disappear, not another translation of the same event.
+    translatedEvent.slug[incompleteLocale] = translatedEvent.slug.ca;
+    const incompleteKey = `event:${incompleteLocale}:${translatedEvent.slug[incompleteLocale]}`;
+    const completeKeys = variantKeys(source);
+    expect(completeKeys).toContain(incompleteKey);
+    expect(completeKeys).toContain(`event:ca:${translatedEvent.slug.ca}`);
 
     delete (translatedEvent.title as Partial<Record<Locale, string>>)[
       incompleteLocale
     ];
-    expect(
-      variantKeys(source).filter((key) => key.endsWith(`:${slug}`)),
-    ).toEqual([]);
+    expect(variantKeys(source)).toEqual(
+      completeKeys.filter((key) => key !== incompleteKey),
+    );
   });
 
   it("keeps unpublished and unavailable resources out of the public output", async () => {

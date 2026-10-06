@@ -44,7 +44,7 @@ export type PublishedSchool = {
 };
 
 export type PublishedSite = {
-  calendarEventTitles: string[];
+  calendarDays: { dayNumber: number | null; eventTitles: string[] }[];
   catalog: PublicationCatalog;
   collaborators: Entity[];
   eventHubGroups: Record<
@@ -174,13 +174,12 @@ export async function loadPublishedSite(
       ?.url?.[locale],
     federationUrl: catalog.externalActions.get(externalActionIds.federation)
       ?.url?.[locale],
-    calendarEventTitles: [
-      ...new Set(
-        calendarGrid.weeks
-          .flat()
-          .flatMap((day) => day.events)
-          .map((calendarEvent) => calendarEvent.title),
-      ),
-    ].sort(),
+    calendarDays: calendarGrid.weeks
+      .flat()
+      .filter((day) => day.events.length > 0)
+      .map((day) => ({
+        dayNumber: day.dayNumber,
+        eventTitles: day.events.map((event) => event.title),
+      })),
   };
 }

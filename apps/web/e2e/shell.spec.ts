@@ -368,7 +368,7 @@ test("keeps an event out of the hub region its state does not match", async ({
   }
 });
 
-test("publishes the monthly calendar with a day control per dated event", async ({
+test("publishes the monthly calendar with a control per day holding events", async ({
   page,
 }) => {
   await page.goto("/ca/esdeveniments/");
@@ -379,18 +379,17 @@ test("publishes the monthly calendar with a day control per dated event", async 
   await expect(dayButtons.first()).toBeVisible();
   // Every day that holds an event gets exactly one labelled control, and no
   // other day gets one.
-  await expect(dayButtons).toHaveCount(site.calendarEventTitles.length);
+  await expect(dayButtons).toHaveCount(site.calendarDays.length);
 
   // Each control announces the day and the events it holds, so a screen reader
   // reaches the same information the popover shows.
-  const controlNames = await dayButtons.evaluateAll((buttons) =>
-    buttons.map((button) => button.getAttribute("aria-label") ?? ""),
-  );
-  for (const eventTitle of site.calendarEventTitles) {
-    expect(
-      controlNames.some((name) => name.includes(eventTitle)),
-      `${eventTitle} has a day control`,
-    ).toBe(true);
+  for (const [index, day] of site.calendarDays.entries()) {
+    await expect(dayButtons.nth(index)).toHaveAccessibleName(
+      messages.events_calendar_day_with_events(
+        { day: day.dayNumber!, events: day.eventTitles.join(", ") },
+        { locale: site.locale },
+      ),
+    );
   }
 });
 
@@ -1107,17 +1106,17 @@ test("emits canonical and social metadata for published pages", async ({
   // One representative route per template, plus every locale: canonical,
   // hreflang and the Open Graph locale must follow the route, not the copy.
   const representativeRoutes = [
-    "/ca/",
-    site.orderedSchools.at(-1)!.href,
-    site.homepageEvents.at(0)!.href,
-    "/ca/qui-som/",
-    "/ca/socis/",
-    "/ca/esdeveniments/",
-    "/ca/escoles/",
-    "/ca/documents/",
+    { path: "/ca/", hasSocialImage: true },
+    { path: site.orderedSchools.at(-1)!.href, hasSocialImage: true },
+    { path: site.homepageEvents.at(0)!.href, hasSocialImage: true },
+    { path: "/ca/qui-som/", hasSocialImage: false },
+    { path: "/ca/socis/", hasSocialImage: false },
+    { path: "/ca/esdeveniments/", hasSocialImage: true },
+    { path: "/ca/escoles/", hasSocialImage: true },
+    { path: "/ca/documents/", hasSocialImage: false },
   ];
 
-  for (const route of representativeRoutes) {
+  for (const { path: route, hasSocialImage } of representativeRoutes) {
     await page.goto(route);
 
     await expect(
@@ -1139,7 +1138,8 @@ test("emits canonical and social metadata for published pages", async ({
     // Templates that declare a social image must publish it as an absolute
     // URL on the canonical origin, with the alt text the screen reader needs.
     const socialImage = page.locator('meta[property="og:image"]');
-    if ((await socialImage.count()) > 0) {
+    await expect(socialImage).toHaveCount(hasSocialImage ? 1 : 0);
+    if (hasSocialImage) {
       await expect(socialImage).toHaveAttribute(
         "content",
         /^https:\/\/mountainrunners\.cat\//u,
