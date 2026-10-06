@@ -1,0 +1,24 @@
+CONTRIBUTING.md
+  h_1727aeeb492b30 72-85
+apps/web/e2e/shell.spec.ts
+  h_1727aeeb492b30 371,382,386-392,1109-1116,1119,1141-1142
+apps/web/e2e/structured-data.spec.ts
+  h_1727aeeb492b30 1-102
+apps/web/src/test/content-publication.test.ts
+  h_1727aeeb492b30 48-54,59-61
+apps/web/src/test/presentation-events.test.ts
+  h_1727aeeb492b30 80-86,88,109-112
+apps/web/src/test/support/published-site.ts
+  h_1727aeeb492b30 47,177-183
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "80a8c97d6bb7498fdce6a33cad353e76c9c73c9b",
+  "prompts": {},
+  "humans": {
+    "h_1727aeeb492b30": {
+      "author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
