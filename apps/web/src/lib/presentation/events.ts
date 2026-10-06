@@ -237,11 +237,8 @@ export function getCalendarMonthRange(
     ),
   );
   const lastUpcomingDate = upcomingEndDates.toSorted().at(-1);
-  if (lastUpcomingDate === undefined) {
-    return { focusIndex: 0, months: [focusMonth] };
-  }
 
-  const lastParts = parseIsoDateParts(lastUpcomingDate);
+  const lastParts = parseIsoDateParts(lastUpcomingDate ?? today);
   const upcomingMonth: CalendarMonth = {
     year: lastParts.year,
     month: lastParts.month,

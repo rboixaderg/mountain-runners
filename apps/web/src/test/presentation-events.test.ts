@@ -180,23 +180,30 @@ describe("getCalendarMonthRange", () => {
     expect(months.at(-1)).toEqual({ year: 2026, month: 12 });
   });
 
-  it("ignores editions that are entirely in the past", () => {
+  it("keeps twelve months of history when all editions are in the past", () => {
     const pastEvent = {
       ...singleDayEvent,
       editions: [{ ...singleDayEvent.editions[0], startDate: "2026-05-12" }],
     } as Event;
 
-    expect(getCalendarMonthRange([pastEvent], "2026-08-09")).toEqual({
-      focusIndex: 0,
-      months: [{ year: 2026, month: 8 }],
-    });
+    const { focusIndex, months } = getCalendarMonthRange(
+      [pastEvent],
+      "2026-08-09",
+    );
+
+    expect(focusIndex).toBe(12);
+    expect(months).toHaveLength(13);
+    expect(months[0]).toEqual({ year: 2025, month: 8 });
+    expect(months.at(-1)).toEqual({ year: 2026, month: 8 });
   });
 
-  it("returns only the focus month when no edition is upcoming", () => {
-    expect(getCalendarMonthRange([], "2026-08-09")).toEqual({
-      focusIndex: 0,
-      months: [{ year: 2026, month: 8 }],
-    });
+  it("keeps twelve months of history when there are no events", () => {
+    const { focusIndex, months } = getCalendarMonthRange([], "2026-08-09");
+
+    expect(focusIndex).toBe(12);
+    expect(months).toHaveLength(13);
+    expect(months[0]).toEqual({ year: 2025, month: 8 });
+    expect(months.at(-1)).toEqual({ year: 2026, month: 8 });
   });
 
   it("bounds the forward window so a distant edition cannot grow the page", () => {
