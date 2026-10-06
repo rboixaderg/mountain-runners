@@ -105,18 +105,19 @@ describe("analytics action attributes", () => {
   });
 });
 
-describe("plausible-events client script", () => {
-  it("mirrors the TypeScript event names and thresholds", () => {
-    expect(plausibleEventsScript).toContain(
-      `"${analyticsEventNames.uiAction}"`,
-    );
-    expect(plausibleEventsScript).toContain(
-      `"${analyticsEventNames.engagedTime}"`,
-    );
-    expect(plausibleEventsScript).toContain(
-      `"${analyticsEventNames.scrollDepth}"`,
-    );
+// The shipped client script is plain JavaScript and cannot import the TypeScript
+// catalog, so these constants are duplicated across the boundary. Asserting they
+// stay mirrored catches the drift. The thresholds no behaviour test advances are
+// 60 and 120 seconds, which is why they are checked here rather than only through
+// the emitted events.
+describe("plausible-events client script mirrors the TypeScript contract", () => {
+  it("mirrors every event name", () => {
+    for (const eventName of Object.values(analyticsEventNames)) {
+      expect(plausibleEventsScript).toContain(`"${eventName}"`);
+    }
+  });
 
+  it("mirrors every engaged time and scroll depth threshold", () => {
     for (const threshold of [
       ...engagedTimeThresholdsSeconds,
       ...scrollDepthThresholds,

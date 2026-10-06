@@ -17,6 +17,10 @@ function readJson(path: string): Record<string, unknown> {
   return JSON.parse(readFileSync(new URL(path, import.meta.url), "utf8"));
 }
 
+function placeholdersOf(message: string): string[] {
+  return [...message.matchAll(/\{(\w+)\}/gu)].map((match) => match[1]!).sort();
+}
+
 describe("internationalization configuration", () => {
   it("uses the expected prefixed locales and default locale", () => {
     expect(defaultLocale).toBe("ca");
@@ -71,6 +75,24 @@ describe("internationalization configuration", () => {
           (value) => typeof value === "string" && value.length > 0,
         ),
       ).toBe(true);
+    }
+  });
+
+  // Paraglide substitutes placeholders by name, so a translation that drops or
+  // misspells one would render the raw `{placeholder}` to the reader.
+  it("requires the same placeholders in every catalog", () => {
+    const catalogs = locales.map((locale) =>
+      readJson(`../../messages/${locale}.json`),
+    );
+
+    for (const [index, catalog] of catalogs.entries()) {
+      const locale = locales[index]!;
+      for (const [key, value] of Object.entries(catalog)) {
+        expect(
+          placeholdersOf(String(value)),
+          `${locale} mismatches the placeholders of "${key}"`,
+        ).toEqual(placeholdersOf(String(catalogs[0]![key])));
+      }
     }
   });
 });

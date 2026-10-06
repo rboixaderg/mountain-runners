@@ -3,16 +3,13 @@ import type { Event, EventEdition } from "../lib/content/models";
 import {
   getEventJsonLd,
   getOrganizationJsonLd,
+  openGraphLocales,
   getSiteJsonLd,
   getWebSiteJsonLd,
   renderJsonLdScript,
   serializeJsonLd,
   type StructuredData,
 } from "../lib/content/seo";
-
-function unescapeJsonLd(serialized: string): string {
-  return serialized.replace(/\\u003c/gu, "<").replace(/\\u003e/gu, ">");
-}
 
 const event: Event = {
   id: "ultra-pirineu",
@@ -46,6 +43,16 @@ function edition(overrides: Partial<EventEdition> = {}): EventEdition {
     ...overrides,
   };
 }
+
+describe("openGraphLocales", () => {
+  it("maps every known locale to its Open Graph locale", () => {
+    expect(openGraphLocales).toEqual({
+      ca: "ca_ES",
+      es: "es_ES",
+      en: "en_GB",
+    });
+  });
+});
 
 describe("JSON-LD serialization", () => {
   it("escapes script-closing sequences and angle brackets in final HTML", () => {
@@ -82,22 +89,20 @@ describe("JSON-LD serialization", () => {
     expect(serialized).toContain("\\u2029");
   });
 
-  it("round-trips the escaped JSON-LD back to the original value", () => {
+  it("produces JSON a browser parses back to the original value", () => {
     const value = {
       name: "Mountain Runners del Berguedà",
       note: "</script> & <tag> \u2028 line",
     };
-    const scriptContent = renderJsonLdScript(value).slice(
+    const html = renderJsonLdScript(value);
+    const scriptContent = html.slice(
       '<script type="application/ld+json">'.length,
       -"</script>".length,
     );
-    const parsed = JSON.parse(unescapeJsonLd(scriptContent)) as {
-      name: string;
-      note: string;
-    };
 
-    expect(parsed.name).toBe(value.name);
-    expect(parsed.note).toBe(value.note);
+    // JSON.parse resolves the escapes itself, so this asserts the escaping
+    // stays reversible without restating the escape set in the test.
+    expect(JSON.parse(scriptContent)).toEqual(value);
   });
 });
 

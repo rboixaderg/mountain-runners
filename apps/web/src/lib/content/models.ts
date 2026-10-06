@@ -78,7 +78,20 @@ export type RegistrationStatus = (typeof registrationStatuses)[number];
 
 const registrationStatusSchema = z.enum(registrationStatuses);
 
-export const schoolSchema = z.strictObject({
+// The practical sections a school entry may declare, in editorial order.
+// Exported so the presentation layer and its tests can prove they name every
+// section without restating the list.
+export const schoolSectionsSchema = z.strictObject({
+  since: localizedMarkdownSchema,
+  purpose: localizedMarkdownSchema,
+  audience: localizedMarkdownSchema,
+  schedule: localizedMarkdownSchema,
+  location: localizedMarkdownSchema,
+  requirements: localizedMarkdownSchema.optional(),
+  prices: localizedMarkdownSchema,
+});
+
+const schoolSchema = z.strictObject({
   ...publishableFields,
   // Editorial order of the school hub: explicit, stable and validated in the
   // model, never derived from the order of the source files.
@@ -104,15 +117,7 @@ export const schoolSchema = z.strictObject({
     .optional(),
   registrationStatus: registrationStatusSchema,
   registrationUrl: localizedHttpsUrlSchema.optional(),
-  sections: z.strictObject({
-    since: localizedMarkdownSchema,
-    purpose: localizedMarkdownSchema,
-    audience: localizedMarkdownSchema,
-    schedule: localizedMarkdownSchema,
-    location: localizedMarkdownSchema,
-    requirements: localizedMarkdownSchema.optional(),
-    prices: localizedMarkdownSchema,
-  }),
+  sections: schoolSectionsSchema,
 });
 
 const eventEditionSchema = z

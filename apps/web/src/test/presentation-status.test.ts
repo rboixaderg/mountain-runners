@@ -1,17 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
-  getEventActivityMessageKey,
   getEventHubStatusMessageKey,
   getHomepageEventStatusMessageKey,
   getRegistrationPresentation,
 } from "../lib/presentation/status";
-
-describe("getEventActivityMessageKey", () => {
-  it("maps active and historical events to their message keys", () => {
-    expect(getEventActivityMessageKey(true)).toBe("event_status_active");
-    expect(getEventActivityMessageKey(false)).toBe("event_status_historical");
-  });
-});
 
 describe("getEventHubStatusMessageKey", () => {
   const today = "2026-08-04";
