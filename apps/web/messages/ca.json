@@ -72,6 +72,8 @@
   "events_calendar_day_with_events": "{day}: {events}",
   "events_calendar_popover_label": "Esdeveniments del dia",
   "events_calendar_title": "Calendari mensual",
+  "events_calendar_previous": "Mes anterior",
+  "events_calendar_next": "Mes següent",
   "events_history_event": "Esdeveniment",
   "events_history_location": "Ubicació",
   "events_history_status": "Estat",

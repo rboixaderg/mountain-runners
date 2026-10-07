@@ -72,6 +72,8 @@
   "events_calendar_day_with_events": "{day}: {events}",
   "events_calendar_popover_label": "Events on this day",
   "events_calendar_title": "Monthly calendar",
+  "events_calendar_previous": "Previous month",
+  "events_calendar_next": "Next month",
   "events_history_event": "Event",
   "events_history_location": "Location",
   "events_history_status": "Status",

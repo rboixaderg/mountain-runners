@@ -1,4 +1,4 @@
-import type { Event } from "./models";
+import type { Event, EventEdition } from "./models";
 import type { Locale } from "./primitives";
 
 export function getMadridDate(date: Date): string {
@@ -17,10 +17,17 @@ export function getMadridDate(date: Date): string {
   return `${parts.year}-${parts.month}-${parts.day}`;
 }
 
+export function isUpcomingEdition(
+  edition: Pick<EventEdition, "endDate" | "startDate">,
+  today: string,
+): boolean {
+  return (edition.endDate ?? edition.startDate) >= today;
+}
+
 export function getNextEdition(event: Event, today: string) {
   return event.editions.reduce<(typeof event.editions)[number] | undefined>(
     (nextEdition, edition) =>
-      (edition.endDate ?? edition.startDate) >= today &&
+      isUpcomingEdition(edition, today) &&
       (nextEdition === undefined || edition.startDate < nextEdition.startDate)
         ? edition
         : nextEdition,
@@ -115,7 +122,7 @@ export function getMostRelevantEdition(event: Event, today: string) {
 
 export function getPreviousEditions(event: Event, today: string) {
   return event.editions
-    .filter((edition) => (edition.endDate ?? edition.startDate) < today)
+    .filter((edition) => !isUpcomingEdition(edition, today))
     .sort((left, right) =>
       (right.endDate ?? right.startDate).localeCompare(
         left.endDate ?? left.startDate,
