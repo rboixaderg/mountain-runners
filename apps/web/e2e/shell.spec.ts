@@ -440,7 +440,10 @@ test("keeps the calendar popover state and mobile bounds synchronized", async ({
   await expect(popover).toBeHidden();
 });
 
-test("moves the events calendar between available months", async ({ page }) => {
+test("moves the events calendar between available months", async ({
+  page,
+  browserName,
+}) => {
   await page.goto("/ca/esdeveniments/");
 
   const calendar = page.getByRole("region", { name: "Calendari mensual" });
@@ -448,16 +451,43 @@ test("moves the events calendar between available months", async ({ page }) => {
   const previousMonth = calendar.getByRole("button", { name: "Mes anterior" });
   const nextMonth = calendar.getByRole("button", { name: "Mes següent" });
 
+  const augustEvent = calendar.getByRole("button", {
+    name: "16: Escalada de Vilada a Castell de l'Areny",
+  });
+  const octoberEvent = calendar.getByRole("button", {
+    name: "2: Ultra Pirineu",
+    exact: true,
+  });
+
   await expect(monthTable).toHaveAccessibleName("agost del 2026");
+  await expect(augustEvent).toBeVisible();
+  await expect(octoberEvent).toHaveCount(0);
   await previousMonth.click();
   await expect(monthTable).toHaveAccessibleName("juliol del 2026");
+  await expect(augustEvent).toHaveCount(0);
   await nextMonth.click();
   await expect(monthTable).toHaveAccessibleName("agost del 2026");
+  await expect(augustEvent).toBeVisible();
   await nextMonth.click();
   await expect(monthTable).toHaveAccessibleName("setembre del 2026");
+  await expect(calendar.getByRole("button", { expanded: false })).toHaveCount(
+    0,
+  );
 
-  // Only the visible month reaches the accessibility tree or the tab order.
-  await expect(calendar.getByRole("table")).toHaveCount(1);
+  await nextMonth.click();
+  await expect(monthTable).toHaveAccessibleName("octubre del 2026");
+  await expect(octoberEvent).toBeVisible();
+  await expect(augustEvent).toHaveCount(0);
+
+  // Tab reaches the visible month, not event controls in earlier hidden months.
+  await nextMonth.focus();
+  // WebKit on macOS uses Option+Tab to include buttons in keyboard navigation.
+  if (browserName === "webkit") {
+    await page.keyboard.press("Alt+Tab");
+  } else {
+    await page.keyboard.press("Tab");
+  }
+  await expect(octoberEvent).toBeFocused();
 });
 
 test("stops the events calendar at the bounds of its navigable range", async ({
@@ -534,7 +564,34 @@ test("closes an open calendar popover when the month changes", async ({
 
   await calendar.getByRole("button", { name: "Mes següent" }).click();
   await expect(monthTable).toHaveAccessibleName("setembre del 2026");
+  await expect(dayButton).toHaveCount(0);
+  await expect(
+    calendar.getByRole("button", {
+      name: "16: Escalada de Vilada a Castell de l'Areny",
+      includeHidden: true,
+    }),
+  ).toHaveAttribute("aria-expanded", "false");
 
+  await calendar.getByRole("button", { name: "Mes següent" }).click();
+  await expect(monthTable).toHaveAccessibleName("octubre del 2026");
+  const octoberDayButton = calendar.getByRole("button", {
+    name: "2: Ultra Pirineu",
+    exact: true,
+  });
+  const octoberPopoverId = await octoberDayButton.getAttribute("aria-controls");
+  const octoberPopover = page.locator(`#${octoberPopoverId}`);
+
+  await octoberDayButton.click();
+  await expect(octoberDayButton).toHaveAttribute("aria-expanded", "true");
+  await expect(octoberPopover).toBeVisible();
+  await expect(
+    octoberPopover.getByRole("heading", { name: "Ultra Pirineu" }),
+  ).toBeVisible();
+  await expect(
+    octoberPopover.getByRole("link", { name: "Més informació" }),
+  ).toHaveAttribute("href", "/ca/esdeveniments/ultra-pirineu/");
+
+  await calendar.getByRole("button", { name: "Mes anterior" }).click();
   await calendar.getByRole("button", { name: "Mes anterior" }).click();
   await expect(monthTable).toHaveAccessibleName("agost del 2026");
   await expect(dayButton).toHaveAttribute("aria-expanded", "false");
