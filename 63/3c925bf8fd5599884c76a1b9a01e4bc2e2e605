@@ -1,0 +1,19 @@
+apps/web/e2e/shell.spec.ts
+  s_7e312282edd75c::t_b75714f58b74d5 443-446,454-461,463-464,467,470,473-475,477-490,567-582,584-594
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "633c925bf8fd5599884c76a1b9a01e4bc2e2e605",
+  "prompts": {},
+  "sessions": {
+    "s_7e312282edd75c": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_eeb664a3fffe5RqRZ6fZuZOUhu",
+        "model": "unknown"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
