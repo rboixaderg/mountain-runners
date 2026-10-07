@@ -15,6 +15,8 @@ modify or review public pages.
 - Architecture and content boundaries: `docs/architecture.md`,
   `docs/content-model.md` and `docs/decisions/` (ADRs).
 - Implementation rules: `AGENTS.md` and `docs/code-conventions.md`.
+- Test-level selection and coverage: `docs/testing-strategy.md`. Read it and
+  load `frontend-testing` when adding, changing or reviewing tests.
 - Product requirements and security: `docs/roadmap.md`, `docs/backlog.md`,
   `SECURITY.md`.
 
@@ -25,13 +27,14 @@ recommendations (skills, blogs, checklists).
 
 Run the smallest relevant check before declaring work complete:
 
-| Command                | Responsibility                                        |
-| ---------------------- | ----------------------------------------------------- |
-| `pnpm check`           | Format, lint, typecheck and Vitest                    |
-| `pnpm test:e2e`        | Playwright journeys in Chromium, Firefox and WebKit   |
-| `pnpm test:a11y`       | axe automated accessibility checks                    |
-| `pnpm lighthouse`      | Lighthouse scores and budgets on representative routes|
-| `pnpm validate`        | CI gate: format, lint, typecheck, unit tests and E2E  |
+| Command            | Responsibility                                             |
+| ------------------ | ---------------------------------------------------------- |
+| `pnpm check`       | Format, lint, typecheck, Vitest and Node operational tests |
+| `pnpm test:server` | Node operational tests for server and deployment tools     |
+| `pnpm test:e2e`    | Playwright journeys in Chromium, Firefox and WebKit        |
+| `pnpm test:a11y`   | axe automated accessibility checks                         |
+| `pnpm lighthouse`  | Lighthouse scores and budgets on representative routes     |
+| `pnpm validate`    | CI gate: `pnpm check`, build and Playwright                |
 
 `pnpm check` does not build or fix the clock. Commands that build and serve the
 site (`pnpm test:e2e`, `pnpm test:a11y`, `pnpm lighthouse`) run with
@@ -46,6 +49,9 @@ event detail (e.g. `/ca/esdeveniments/ultra-pirineu/`), plus the 404 page.
 
 - Functional and responsive journeys run on desktop (1280x720) and mobile
   (320x720) across Chromium, Firefox and WebKit.
+- New static build contracts need one execution, with relevant locales and
+  templates, not every browser and viewport. Preserve existing coverage before
+  consolidating checks; route sweeps still protect translated layout overflow.
 - axe checks run on Chromium in both viewports over all representative
   templates, including the 404.
 - Lighthouse runs on mobile (390x844) over the routes picked from the built
@@ -70,20 +76,20 @@ event detail (e.g. `/ca/esdeveniments/ultra-pirineu/`), plus the 404 page.
 
 On mobile, for homepage, hub and one representative detail:
 
-| Check                                   | Threshold |
-| --------------------------------------- | --------- |
-| Lighthouse Performance                  | >= 90     |
-| Lighthouse Accessibility                 | 100       |
-| Lighthouse Best Practices               | 100       |
-| Lighthouse SEO                          | 100       |
-| Largest Contentful Paint (lab)          | <= 2.5 s  |
-| Cumulative Layout Shift                 | <= 0.1    |
-| Total Blocking Time                     | <= 200 ms |
-| JavaScript transfer (all requests)      | <= 30 KiB |
-| CSS transfer (all requests)             | <= 50 KiB |
-| Fonts transfer (all requests)           | <= 200 KiB|
-| Largest single image                    | <= 300 KiB|
-| Total transfer (all requests)           | <= 1.5 MiB|
+| Check                              | Threshold  |
+| ---------------------------------- | ---------- |
+| Lighthouse Performance             | >= 90      |
+| Lighthouse Accessibility           | 100        |
+| Lighthouse Best Practices          | 100        |
+| Lighthouse SEO                     | 100        |
+| Largest Contentful Paint (lab)     | <= 2.5 s   |
+| Cumulative Layout Shift            | <= 0.1     |
+| Total Blocking Time                | <= 200 ms  |
+| JavaScript transfer (all requests) | <= 30 KiB  |
+| CSS transfer (all requests)        | <= 50 KiB  |
+| Fonts transfer (all requests)      | <= 200 KiB |
+| Largest single image               | <= 300 KiB |
+| Total transfer (all requests)      | <= 1.5 MiB |
 
 Budgets live in `tools/lighthouse/budgets.json` and are enforced by
 `tools/lighthouse/run-lighthouse.mjs`, which also writes JSON reports to

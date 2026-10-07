@@ -139,6 +139,9 @@ reviewing `apps/web` code. The review of every PR checks these rules:
 
 ## Verification
 
+- Follow `docs/testing-strategy.md` and load `frontend-testing` when adding,
+  changing or reviewing tests. Choose the least costly level that detects the
+  regression; preserve independent boundary tests and page-wiring coverage.
 - Run the smallest relevant checks before declaring work complete.
 - Do not claim a check passed when the project has no applicable command yet.
 - For documentation-only changes, verify links, file paths and consistency with

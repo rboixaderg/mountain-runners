@@ -69,6 +69,13 @@ principal protegida no formen part del flux de treball normal. Reservar el
 worktree principal per a documentació de planificació no elimina aquestes
 proteccions.
 
+## Estratègia de proves
+
+L'[estratègia de proves](docs/testing-strategy.md) governa quan cal una unitària,
+un render Astro, un contracte de build o un recorregut E2E. Consulta-la abans
+d'afegir, moure o eliminar proves; els agents carreguen la skill local
+`frontend-testing`. La skill `vitest` continua sent una referència tècnica.
+
 ## Revisió Independent Amb Agents
 
 Per contrastar una implementació amb la seva tasca de l'especificació, obre una
