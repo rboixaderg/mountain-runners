@@ -289,6 +289,12 @@ revocació inicia la retirada. Una reconciliació periòdica detecta i elimina
 namespaces orfes sense confiar només
 en un únic esdeveniment de GitHub.
 
+Un canvi del head SHA de la branca no retira una preview ja publicada ni
+en renova la caducitat. La preview continua servint el commit autoritzat
+fins que es demana una nova publicació o es compleix un criteri de retirada.
+La comprovació del head SHA vigent s'aplica a les noves publicacions,
+no a la conservació de la preview existent durant la reconciliació.
+
 La retenció per defecte és la mínima necessària per revisar la PR i es confirma
 a T6.1. Els logs no desen query strings, cookies, capçaleres d'autorització ni
 contingut dels artefactes. El runbook cobreix quota, certificats, DNS, neteja,
@@ -397,7 +403,8 @@ La fase es considera completada quan:
 4. El build no fiable utilitza un runner efímer, no rep secrets ni permisos
    d'escriptura, no desa caches consumibles per jobs de confiança i el publicador
    no executa ni fa checkout del codi de la PR.
-5. Cada preview requereix autorització, està vinculada a PR i head SHA vigents,
+5. Cada preview requereix autorització, està vinculada a la PR i al seu head SHA
+   vigent en el moment de publicar-la,
    utilitza l'origen correcte, queda identificada com a no-producció i no pot
    promocionar-se a producció; els forks i les contribucions externes no tenen
    cap preview.

@@ -46,8 +46,7 @@ export async function reconcilePreviews({
         shouldRetire =
           pull.state !== "open" ||
           pull.labels?.some((label) => label.name === "preview-revoked") ||
-          pull.head?.repo?.full_name !== repository ||
-          (entry.commit !== undefined && pull.head.sha !== entry.commit);
+          pull.head?.repo?.full_name !== repository;
       }
       if (shouldRetire) {
         await transport.run(`mountain-preview retire ${entry.pullNumber}`);
