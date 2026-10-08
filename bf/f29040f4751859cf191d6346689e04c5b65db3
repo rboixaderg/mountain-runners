@@ -1,0 +1,25 @@
+apps/web/e2e/posts.spec.ts
+  s_579ddf991e88c2::t_adc89df7e91d18 73-76,92,100-105,109,113-114,118,146-162,165,172,178,207-214,217,221-315,322,375,378-387,389-405,421,429-434
+apps/web/e2e/route-matrix.spec.ts
+  s_579ddf991e88c2::t_90013d77a14ac2 84-88,94-95,146,153-156
+apps/web/src/test/content-events.test.ts
+  s_579ddf991e88c2::t_7d688282c3ab60 51,55,63,66-76
+apps/web/src/test/content-posts.test.ts
+  s_579ddf991e88c2::t_4b9ec09cdcbef5 7,28-53
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "bff29040f4751859cf191d6346689e04c5b65db3",
+  "prompts": {},
+  "sessions": {
+    "s_579ddf991e88c2": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a11d02-6eda-7177-8cbe-dd80e6bb46af",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
