@@ -112,7 +112,6 @@ describe("publication catalog", () => {
       "src/assets/collaborators/estetica-adela.png",
       "src/assets/collaborators/farmacia-cosp.png",
       "src/assets/collaborators/four-riders-bike-park.png",
-      "src/assets/collaborators/intersport-serramarti.png",
       "src/assets/collaborators/joieria-climent.png",
       "src/assets/collaborators/ortopedia-alvarez-saz-cabra.jpg",
       "src/assets/collaborators/pedratour.png",

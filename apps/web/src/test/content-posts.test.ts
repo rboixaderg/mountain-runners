@@ -4,6 +4,7 @@ import { postSchema, type Post } from "../lib/content/models";
 import {
   createPublishedPostVariants,
   createPreviewPostVariants,
+  getHomepagePostVariants,
   getPostCover,
   getPostLocalResources,
   type PostSource,
@@ -23,6 +24,32 @@ function createPost(overrides: Partial<Post> = {}): Post {
 function source(posts: Post[]): PostSource {
   return { posts, eventIds: new Set(["club-event"]) };
 }
+
+describe("homepage post selection", () => {
+  it.each([0, 1, 6, 7])(
+    "limits %i mixed entries without mutating their selection",
+    (count) => {
+      const posts = Array.from({ length: count }, (_, index) =>
+        createPost({
+          id: `post-${index}`,
+          slug: { ca: `entrada-${index}` },
+          type: index % 2 === 0 ? "news" : "blog",
+          published: index < 2,
+          publishedAt: index < 2 ? "2026-10-02T10:00:00Z" : undefined,
+        }),
+      );
+      const selected = createPreviewPostVariants(
+        source(posts),
+        today,
+      ).reverse();
+      const original = [...selected];
+      expect(
+        getHomepagePostVariants(selected).map(({ entry }) => entry.id),
+      ).toEqual(posts.slice(0, 6).map(({ id }) => id));
+      expect(selected).toEqual(original);
+    },
+  );
+});
 
 describe("post schema", () => {
   it("supports brief news and blogs with personal or organizational bylines", () => {

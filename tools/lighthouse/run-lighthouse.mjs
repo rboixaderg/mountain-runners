@@ -44,14 +44,16 @@ function pickRepresentativeRoutes(sitemapPaths) {
       `Sitemap lacks representative route(s): ${missing.join(", ")}`,
     );
   }
-  const routes = [home, hub, detail, "/ca/noticies/", "/ca/blog/"];
-  if (process.env.PUBLIC_PREVIEW === "true") {
-    routes.push(
-      "/ca/noticies/inauguracio-nou-local/",
-      "/ca/blog/com-fer-te-soci/",
-    );
-  }
-  return routes;
+  return [
+    home,
+    hub,
+    detail,
+    "/ca/noticies/",
+    "/ca/blog/",
+    "/ca/noticies/inauguracio-nou-local/",
+    "/ca/blog/com-fer-te-soci/",
+    "/ca/blog/com-registrar-te-a-playoff/",
+  ];
 }
 
 // Failure artifacts are uploaded to a public repository, and the spec excludes

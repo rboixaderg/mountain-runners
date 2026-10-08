@@ -77,8 +77,10 @@ confirmat `Mountain Runners` com a signatura per defecte, amb altres autories
 explícites permeses. `author` sempre es declara al YAML. Les seccions admeten
 imatges locals opcionals amb alt, crèdit i peu opcional traduïbles. Els textos
 d'imatges declarades formen part de la completesa de la variant; els recursos
-només es transformen després de seleccionar-la. Els dos pilots reals es conserven
-en esborrany; les fixtures sintètiques només existeixen a les proves. El loader
+només es transformen després de seleccionar-la. La notícia del local i els dos
+blogs reals estan marcats per publicar, amb `publishedAt` del 8 d'octubre de 2026
+aprovat per la persona mantenidora. Les fixtures sintètiques d'esborrany només
+existeixen a les proves. El loader
 en valida l'esquema durant el
 build; la validació del catàleg de posts s'executa quan se'n demana una selecció.
 

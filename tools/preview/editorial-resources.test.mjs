@@ -43,6 +43,9 @@ test("editorial resources stay isolated across clean builds and preview-to-publi
       join(app, "node_modules"),
       "dir",
     );
+    // Synthetic publication states must not depend on real editorial approvals.
+    await rm(join(app, "src/content/posts"), { recursive: true });
+    await mkdir(join(app, "src/content/posts"), { recursive: true });
     await mkdir(join(app, "src/content-assets/posts"), { recursive: true });
     // Distinct pixels ensure an unexpected hashed derivative cannot look shared.
     const colors = {
@@ -192,6 +195,40 @@ test("editorial resources stay isolated across clean builds and preview-to-publi
         assert.equal(result.status, 0, result.stdout + result.stderr);
       }
       const dist = join(app, "dist");
+      for (const locale of ["ca", "es", "en"]) {
+        const homepage = new JSDOM(
+          await readFile(join(dist, locale, "index.html"), "utf8"),
+        ).window.document;
+        const titles = [...homepage.querySelectorAll("main section")]
+          .find((section) =>
+            [
+              "Actualitat del club",
+              "Actualidad del club",
+              "Club updates",
+            ].includes(section.querySelector("h2")?.textContent.trim()),
+          )
+          .querySelectorAll("h3");
+        const publishedTitles = {
+          ca: [
+            "optional-translations",
+            "published",
+            "published-blog",
+            "shared-public",
+          ],
+          es: ["ES optional-translations", "ES published"],
+          en: ["EN published"],
+        }[locale];
+        assert.deepEqual(
+          [...titles]
+            .slice(0, publishedTitles.length)
+            .map((heading) => heading.textContent.trim()),
+          publishedTitles,
+        );
+        assert.equal(
+          titles.length,
+          preview && locale === "ca" ? 6 : publishedTitles.length,
+        );
+      }
       const publishedDetail = await readFile(
         join(dist, "ca/noticies/published/index.html"),
         "utf8",

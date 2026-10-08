@@ -141,6 +141,7 @@ test("renders the published homepage sections in order", async ({ page }) => {
     "Les nostres escoles",
     "Forma part del club",
     "Agenda d'activitats",
+    "Actualitat del club",
   ]);
   await expect(
     main.getByRole("link", { name: "Veure tot l'any" }),
@@ -171,49 +172,35 @@ test("renders the published homepage sections in order", async ({ page }) => {
     name: "Agenda d'activitats",
   });
   const eventCards = eventsRegion.getByRole("article");
-  await expect(eventCards).toHaveCount(8);
+  await expect(eventCards).toHaveCount(3);
   await expect(
     eventsRegion.getByRole("heading", { level: 3 }).allTextContents(),
   ).resolves.toEqual([
-    "Escalada de Vilada a Castell de l'Areny",
-    "Ultra Pirineu",
     "Llobregat x la Diabetis",
     "Cros de Queralt",
     "Minivolta a la Maria",
-    "Escalada Popular a Queralt",
-    "Les Clàssiques de Berga",
-    "Quina Berguedana",
   ]);
-  const eventStatuses = [
-    "Pròxima edició",
-    "Pròxima edició",
-    "Pròxima edició",
-    "Pròxima edició",
-    "Pròxima edició",
-    "Sense pròxima data anunciada",
-    "Sense pròxima data anunciada",
-    "Sense pròxima data anunciada",
-  ];
+  const eventStatuses = ["Pròxima edició", "Pròxima edició", "Pròxima edició"];
   for (const [index, status] of eventStatuses.entries()) {
     await expect(
       eventCards.nth(index).getByText(status, { exact: true }),
     ).toBeVisible();
   }
-  await expect(
-    page.getByRole("heading", {
-      level: 3,
-      name: "Escalada de Vilada a Castell de l'Areny",
-    }),
-  ).toBeVisible();
-  await expect(
-    page.getByRole("heading", { level: 3, name: "Ultra Pirineu" }),
-  ).toBeVisible();
-  await expect(
-    page.getByRole("heading", {
-      level: 3,
-      name: "Escalada Popular a Queralt",
-    }),
-  ).toBeVisible();
+  for (const undatedTitle of [
+    "Escalada de Vilada a Castell de l'Areny",
+    "Ultra Pirineu",
+    "Escalada Popular a Queralt",
+    "Les Clàssiques de Berga",
+    "Quina Berguedana",
+  ]) {
+    await expect(
+      eventsRegion.getByRole("heading", {
+        level: 3,
+        name: undatedTitle,
+        exact: true,
+      }),
+    ).toHaveCount(0);
+  }
   await expect(eventsRegion).not.toContainText("Berga Trail");
   const schoolsSection = page.locator("main section").filter({
     has: page.getByRole("heading", {
@@ -309,15 +296,11 @@ test("renders the events hub groups in order with links to details", async ({
   await expect(
     upcomingRegion.getByRole("heading", { level: 3 }).allTextContents(),
   ).resolves.toEqual([
-    "Escalada de Vilada a Castell de l'Areny",
-    "Ultra Pirineu",
     "Llobregat x la Diabetis",
     "Cros de Queralt",
     "Minivolta a la Maria",
   ]);
   const upcomingLinks = [
-    ["Escalada de Vilada a Castell de l'Areny", "escalada-castell-areny"],
-    ["Ultra Pirineu", "ultra-pirineu"],
     ["Llobregat x la Diabetis", "llobregat-x-la-diabetis"],
     ["Cros de Queralt", "cros-de-queralt"],
     ["Minivolta a la Maria", "minivolta-a-la-maria"],
@@ -339,7 +322,7 @@ test("renders the events hub groups in order with links to details", async ({
   await expect(
     pastRegion.getByRole("link", { name: "Berga Trail" }),
   ).toHaveAttribute("href", "/ca/esdeveniments/berga-trail/");
-  await expect(activeRegion.getByRole("listitem")).toHaveCount(3);
+  await expect(activeRegion.getByRole("listitem")).toHaveCount(5);
   await expect(
     activeRegion
       .getByRole("listitem")
@@ -361,7 +344,7 @@ test("keeps the calendar popover state and mobile bounds synchronized", async ({
 
   const calendar = page.getByRole("region", { name: "Calendari mensual" });
   const dayButton = calendar.getByRole("button", {
-    name: "16: Escalada de Vilada a Castell de l'Areny",
+    name: "16: Llobregat x la Diabetis",
   });
   const popoverId = await dayButton.getAttribute("aria-controls");
   expect(popoverId).not.toBeNull();
@@ -372,7 +355,7 @@ test("keeps the calendar popover state and mobile bounds synchronized", async ({
   });
   const outsideLink = page
     .getByRole("region", { name: "Pròximes edicions" })
-    .getByRole("link", { name: /Ultra Pirineu/u })
+    .getByRole("link", { name: /Cros de Queralt/u })
     .first();
 
   if (!testInfo.project.name.endsWith("-mobile")) {
@@ -459,6 +442,9 @@ test("moves the events calendar between available months", async ({
     exact: true,
   });
 
+  await expect(monthTable).toHaveAccessibleName("octubre del 2026");
+  await previousMonth.click();
+  await previousMonth.click();
   await expect(monthTable).toHaveAccessibleName("agost del 2026");
   await expect(augustEvent).toBeVisible();
   await expect(octoberEvent).toHaveCount(0);
@@ -514,7 +500,7 @@ test("stops the events calendar at the bounds of its navigable range", async ({
     await previousMonth.click();
   }
 
-  await expect(monthTable).toHaveAccessibleName("agost del 2025");
+  await expect(monthTable).toHaveAccessibleName("octubre del 2025");
   await expect(previousMonth).toBeDisabled();
   await expect(nextMonth).toBeEnabled();
 });
@@ -538,11 +524,11 @@ test("loads calendar navigation with the preview script policy", async ({
 
   const calendar = page.getByRole("region", { name: "Calendari mensual" });
   const monthTable = calendar.getByRole("table");
-  await expect(monthTable).toHaveAccessibleName("agost del 2026");
+  await expect(monthTable).toHaveAccessibleName("octubre del 2026");
 
   await calendar.getByRole("button", { name: "Mes següent" }).click();
 
-  await expect(monthTable).toHaveAccessibleName("setembre del 2026");
+  await expect(monthTable).toHaveAccessibleName("novembre del 2026");
 });
 
 test("closes an open calendar popover when the month changes", async ({
@@ -552,6 +538,8 @@ test("closes an open calendar popover when the month changes", async ({
 
   const calendar = page.getByRole("region", { name: "Calendari mensual" });
   const monthTable = calendar.getByRole("table");
+  await calendar.getByRole("button", { name: "Mes anterior" }).click();
+  await calendar.getByRole("button", { name: "Mes anterior" }).click();
   const dayButton = calendar.getByRole("button", {
     name: "16: Escalada de Vilada a Castell de l'Areny",
   });
@@ -875,7 +863,7 @@ test("renders the Members page sections in editorial order", async ({
   const collaboratorsRegion = page.getByRole("region", {
     name: "Col·laboradors",
   });
-  await expect(collaboratorsRegion.getByRole("listitem")).toHaveCount(21);
+  await expect(collaboratorsRegion.getByRole("listitem")).toHaveCount(20);
   await expect(
     collaboratorsRegion.getByRole("heading", { level: 3 }).allTextContents(),
   ).resolves.toEqual([
@@ -889,7 +877,6 @@ test("renders the Members page sections in editorial order", async ({
     "ELIT",
     "Estètica Adela",
     "Farmàcia Cosp",
-    "Intersport Serra Martí",
     "Joieria Climent",
     "Ortopèdia Álvarez Saz Cabra",
     "Pedratour",
@@ -1295,39 +1282,11 @@ test("publishes structured data only on pages with reviewed data", async ({
   expect(await jsonLd()).toEqual([]);
 
   await page.goto("/ca/esdeveniments/ultra-pirineu/");
-  const eventData = await jsonLd();
-  expect(eventData).toHaveLength(1);
-  expect(eventData[0]).toEqual({
-    "@context": "https://schema.org",
-    "@type": "Event",
-    name: "Ultra Pirineu",
-    url: "https://mountainrunners.cat/ca/esdeveniments/ultra-pirineu/",
-    startDate: "2026-10-02",
-    endDate: "2026-10-04",
-    eventStatus: "https://schema.org/EventScheduled",
-    location: { "@type": "Place", name: "Bagà" },
-    description:
-      "És una cursa de muntanya que recorre part de la serralada del Cadí-Moixeró.",
-    image:
-      "https://mountainrunners.cat/content-resources/assets/logo_mountain_runners.png",
-  });
+  // Past editions remain readable but are not advertised as upcoming events.
+  expect(await jsonLd()).toEqual([]);
 
   await page.goto("/ca/esdeveniments/escalada-castell-areny/");
-  const castellArenyData = await jsonLd();
-  expect(castellArenyData).toHaveLength(1);
-  expect(castellArenyData[0]).toEqual({
-    "@context": "https://schema.org",
-    "@type": "Event",
-    name: "Escalada de Vilada a Castell de l'Areny",
-    url: "https://mountainrunners.cat/ca/esdeveniments/escalada-castell-areny/",
-    startDate: "2026-08-16",
-    eventStatus: "https://schema.org/EventScheduled",
-    location: { "@type": "Place", name: "Zona Esportiva de Vilada" },
-    description:
-      "Cronoescalada de la Lliga d'escalades del Berguedà, de Vilada a Castell de l'Areny.",
-    image:
-      "https://mountainrunners.cat/content-resources/assets/events/escalada-castell-areny-cover.jpg",
-  });
+  expect(await jsonLd()).toEqual([]);
 
   await page.goto("/ca/esdeveniments/llobregat-x-la-diabetis/");
   const llobregatData = await jsonLd();

@@ -9,15 +9,16 @@ Playwright i workflows de qualitat i seguretat.
 
 Les col·leccions registrades (`schools`, `events`, `entities`, `documents`,
 `externalActions`, `contact` i `posts`) passen per YAML restringit i una capa central de
-publicació. Aquesta branca inclou 72 rutes canòniques, 24 per idioma, més la
+publicació. Aquesta branca inclou 75 rutes canòniques, 27 en català i 24 en cada altre idioma, més la
 redirecció arrel, la 404 global, `robots.txt`, el sitemap, `/llms.txt` i els
 recursos públics validats. Les dades de contacte es mostren al prepeu compartit
 i a les pàgines legals; la pàgina de Contacte creada a la fase 3 es va retirar a
 la T4.4.
 
 `posts` disposa d'esquema, hubs i detalls i seleccions explícites pública i de
-preview. Els dos pilots continuen en esborrany i només tenen detall català al
-preview. No modifiquen el catàleg públic de les altres col·leccions. Les cobertes
+preview. La notícia del local i els dos articles de blog estan marcats per
+publicar amb aprovació editorial del 8 d'octubre de 2026, només en català.
+Els esborranys de prova continuen aïllats del build públic. Els posts no modifiquen el catàleg públic de les altres col·leccions. Les cobertes
 seleccionades es renderitzen amb derivades WebP. Els
 constructors oficials fixen `PUBLIC_PREVIEW=false` per a producció i `true` per
 a preview, rebutjant flags contradictoris. No s'utilitzen imports glob d'imatges
@@ -115,6 +116,11 @@ de l'ADR 0006). Qualsevol desviació futura continua requerint una correcció
 separada o un ADR que substitueixi aquesta frontera.
 
 ### Composició editorial
+
+La portada carrega la mateixa selecció editorial del mode de build i en passa
+fins a sis variants de l'idioma actual a la secció d'actualitat. La secció
+combina notícies i blog en un carrusel manual sense dependències noves i no es
+renderitza quan la selecció és buida. No consulta col·leccions des del component.
 
 El detall editorial composa `PostHeader`, `PostCover`, `PostBody`,
 `PostMembersLink`, `PostSources` i `PostRelatedEvents`.

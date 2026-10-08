@@ -8,10 +8,22 @@ publicació es registren a l'[ADR 0011](../decisions/0011-news-blog-editorial-pr
 No s'afegeix una fase ni es renumeren les fases existents. Cap tasca es considera
 completada fins que la seva PR estigui revisada, validada i fusionada.
 
-La persona mantenidora farà la revisió editorial. Els pilots són la inauguració
-del local del 26 de setembre de 2026 i la guia per fer-se soci. La fotografia
-i la comprovació del formulari continuen pendents;
-no bloquegen el model ni les proves amb fixtures, però sí la publicació editorial.
+Els pilots inicials són la inauguració del local del 26 de setembre de 2026 i la
+guia per fer-se soci. L'article sobre l'aplicació mòbil s'hi afegeix posteriorment.
+La revisió editorial inicial és substituïda per l'aprovació humana del 8 d'octubre
+que es registra més avall. La notícia es publica sense fotografia del local.
+
+El 8 d'octubre de 2026 la persona mantenidora amplia aquesta mateixa PR amb
+NB-08: actualitat de notícies i blog a la portada. Autoritza retirar la
+prohibició general de carrusels de `DESIGN.md`, amb navegació manual i sense
+rotació automàtica. Els límits de publicació i preview no canvien.
+
+La persona mantenidora aprova el contingut de la notícia del local i dels dos
+blogs el 8 d'octubre de 2026 i autoritza marcar-los per publicar. Aquesta decisió
+substitueix l'estat inicial d'esborrany dels pilots. `publishedAt` registra l'instant
+real d'aquesta aprovació, no la data de l'acte. El rellotge determinista de CI,
+E2E i Lighthouse passa al 8 d'octubre perquè no precedeixi aquestes publicacions;
+les fixtures sintètiques mantenen la prova d'aïllament d'esborranys.
 
 ## Objectiu
 
@@ -39,7 +51,8 @@ contingut publicat i complet en l'idioma de la ruta.
 - Esborranys descobribles al preview amb estat textual explícit.
 - Producció sense rutes, textos, metadades o recursos exclusius d'esborranys.
 - Guia, dues plantilles i skill local amb estructura i criteris editorials comuns.
-- Dos pilots en esborrany, sense informació ni imatges inventades.
+- Preparació inicial de dos pilots en esborrany, sense informació ni imatges
+  inventades; aprovació posterior de les tres entrades per la persona mantenidora.
 
 ## Dependències i ordre d'inici
 
@@ -73,16 +86,18 @@ necessita el sistema de fase 6 operatiu i autorització explícita per publicar.
 | NB-05  | Hubs, detall i navegació     | NB-02, NB-04                        | En revisió | #140 |
 | NB-06  | Metadades i descoberta       | NB-05                               | En revisió | #140 |
 | NB-07  | Pilots i validació integrada | NB-02 a NB-06                       | En curs    | #140 |
+| NB-08  | Actualitat a la portada      | NB-03 a NB-06                       | En curs    | #140 |
 
 La implementació tècnica es revisa a la
 [PR #140](https://github.com/rboixaderg/mountain-runners/pull/140). Els resultats
 locals indiquen la data i l'abast de cada comprovació a la PR; les execucions de
-CI identifiquen el commit validat. No s'ha fusionat la PR ni publicat cap pilot.
+CI identifiquen el commit validat. No s'ha fusionat la PR ni desplegat aquests continguts. Les tres entrades
+estan marcades per publicar, amb aprovació editorial del 8 d'octubre.
 
 Pendents de tancament:
 
-- Aprovació editorial dels pilots, comprovació del formulari i imatges/drets
-  aprovats. Validar la llegibilitat i el pes de captures reals abans de publicar.
+- Fotografia del local opcional, amb drets verificats abans d'afegir-la. No
+  bloqueja la publicació del text que la persona mantenidora ha aprovat.
 - Revisió manual de focus, teclat i zoom natiu al 200%. Axe i les comprovacions
   de reflow no acrediten conformitat WCAG completa.
 - Revisió de l'aplicabilitat i tractament de
@@ -151,6 +166,27 @@ documentació del comportament real. Exclou publicació dels articles sense
 aprovació, merge i desplegament. Resultat: evidència integrada i contingut llest
 per revisar. Comprovacions: `pnpm validate`, builds públic/preview, Lighthouse,
 revisió manual/editorial i negatives de filtracions. Inclosa a la PR conjunta.
+
+### NB-08. Actualitat a la portada
+
+Abast: secció «Actualitat del club» com a última secció de la portada,
+després de l'agenda d'activitats, amb fins a sis notícies i articles de blog complets en l'idioma actual.
+Manté l'ordre editorial existent: publicats per data de publicació descendent,
+i esborranys de preview després, per data de preparació i identificador.
+Cada entrada mostra el tipus, el títol enllaçat, el resum, la data, l'estat de
+preview i la coberta si està disponible. Enllaça també als dos hubs.
+El carrusel és manual, amb desplaçament tàctil, teclat i controls anterior/següent
+quan hi ha contingut fora del marc. Sense JavaScript conserva el desplaçament i
+els enllaços. Si no hi ha entrades seleccionades, no es renderitza la secció.
+L'agenda de portada només inclou esdeveniments actius amb una edició en curs o
+futura amb data confirmada. Els actius sense pròxima data continuen al hub,
+però no a la portada. Aquesta decisió del 8 d'octubre de 2026 substitueix la
+selecció de portada de T2.5, sense modificar els grups del hub.
+Exclou autoplay, contingut fixat, paginació i dependències noves. Inclosa a #140
+per autorització explícita de la persona mantenidora.
+Comprovacions: límit i ordre mixt sense mutar la selecció, estats buits per
+idioma, exclusió pública d'esborranys, navegació manual, teclat, focus, reflow,
+axe, builds públic/preview i pressupostos de la portada.
 
 ## Model de contingut
 
@@ -298,14 +334,15 @@ La skill no és una frontera de permisos; l'assistent privat continua fora d'aba
 ## Fora d'abast
 
 CMS, backend, comptes, MDX, constructor de blocs, comentaris, cerca, categories,
-paginació, portada, RSS, butlletins, cron, migració d'arxiu, assistent desplegat,
+paginació, autoplay, RSS, butlletins, cron, migració d'arxiu, assistent desplegat,
 índex de xat, imatges generades i previews de despublicats d'altres col·leccions.
 Cap canvi DNS, nou servei, commit, push, merge o desplegament no autoritzat.
 
 ## Criteris d'acceptació
 
-1. Els dos pilots complets es poden llegir en preview amb `published: false`,
-   sense duplicació ni canvi d'estat, i no tenen ruta pública.
+1. Les tres entrades aprovades tenen `published: true`, data de publicació real
+   i ruta catalana als dos modes. Les fixtures d'esborrany continuen llegibles
+   només al preview i no tenen ruta ni recursos exclusius al build públic.
 2. Llistat i detall identifiquen l'esborrany, amb avís global de preview. Una
    entrada publicable no afirma que la mateixa versió ja sigui a producció.
 3. Producció no conté textos, metadades ni recursos exclusius d'esborranys.
@@ -317,3 +354,6 @@ Cap canvi DNS, nou servei, commit, push, merge o desplegament no autoritzat.
    humana. Els pilots no es publiquen per haver-se integrat a una PR tècnica.
 7. Hi ha evidència de model, builds, E2E, revisió manual/editorial i pressupostos
    aplicables. Validació local no es presenta com a desplegament remot.
+8. La portada combina fins a sis entrades de notícies i blog amb la mateixa
+   selecció per idioma i mode, sense fallback ni filtracions d'esborranys. La
+   secció desapareix quan és buida i es pot navegar sense rotació automàtica.

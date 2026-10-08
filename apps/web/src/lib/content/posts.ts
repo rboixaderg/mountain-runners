@@ -121,6 +121,12 @@ export function createPreviewPostVariants(
   return createPostVariants(source, today, true);
 }
 
+export function getHomepagePostVariants(
+  variants: readonly PostVariant[],
+): PostVariant[] {
+  return [...variants].sort(comparePostVariants).slice(0, 6);
+}
+
 export function getPostCover(post: Post, locale: Locale): Post["cover"] {
   const cover = post.cover;
   if (

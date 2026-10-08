@@ -66,6 +66,13 @@ amb les inicials del nom propi en majúscula. Substitueix la grafia en minúscul
 dels aclariments anteriors, sense canviar el tipus d'autoria, el nom explícit al
 YAML ni la possibilitat d'una altra signatura. El render no transforma els noms.
 
+## Ampliació del 8 d'octubre de 2026
+
+La persona mantenidora autoritza afegir a la portada una selecció conjunta de
+notícies i blog, dins de la PR #140. La superfície nova reutilitza la selecció
+pública o de preview i identifica els esborranys; no amplia l'excepció a altres
+col·leccions. NB-08 de l'especificació en fixa el límit i la navegació manual.
+
 ## Conseqüències
 
 - Les comprovacions de producció han d'excloure també els textos i recursos
