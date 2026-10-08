@@ -1,0 +1,19 @@
+apps/web/e2e/posts.spec.ts
+  s_579ddf991e88c2::t_ca830692cdc13d 204-295,305,320-337
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "d5022ba1843b40a8db7de6e704480d06546418be",
+  "prompts": {},
+  "sessions": {
+    "s_579ddf991e88c2": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a11d02-6eda-7177-8cbe-dd80e6bb46af",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
