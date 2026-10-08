@@ -440,6 +440,164 @@ test("keeps the calendar popover state and mobile bounds synchronized", async ({
   await expect(popover).toBeHidden();
 });
 
+test("moves the events calendar between available months", async ({
+  page,
+  browserName,
+}) => {
+  await page.goto("/ca/esdeveniments/");
+
+  const calendar = page.getByRole("region", { name: "Calendari mensual" });
+  const monthTable = calendar.getByRole("table");
+  const previousMonth = calendar.getByRole("button", { name: "Mes anterior" });
+  const nextMonth = calendar.getByRole("button", { name: "Mes següent" });
+
+  const augustEvent = calendar.getByRole("button", {
+    name: "16: Escalada de Vilada a Castell de l'Areny",
+  });
+  const octoberEvent = calendar.getByRole("button", {
+    name: "2: Ultra Pirineu",
+    exact: true,
+  });
+
+  await expect(monthTable).toHaveAccessibleName("agost del 2026");
+  await expect(augustEvent).toBeVisible();
+  await expect(octoberEvent).toHaveCount(0);
+  await previousMonth.click();
+  await expect(monthTable).toHaveAccessibleName("juliol del 2026");
+  await expect(augustEvent).toHaveCount(0);
+  await nextMonth.click();
+  await expect(monthTable).toHaveAccessibleName("agost del 2026");
+  await expect(augustEvent).toBeVisible();
+  await nextMonth.click();
+  await expect(monthTable).toHaveAccessibleName("setembre del 2026");
+  await expect(calendar.getByRole("button", { expanded: false })).toHaveCount(
+    0,
+  );
+
+  await nextMonth.click();
+  await expect(monthTable).toHaveAccessibleName("octubre del 2026");
+  await expect(octoberEvent).toBeVisible();
+  await expect(augustEvent).toHaveCount(0);
+
+  // Tab reaches the visible month, not event controls in earlier hidden months.
+  await nextMonth.focus();
+  // WebKit on macOS uses Option+Tab to include buttons in keyboard navigation.
+  if (browserName === "webkit") {
+    await page.keyboard.press("Alt+Tab");
+  } else {
+    await page.keyboard.press("Tab");
+  }
+  await expect(octoberEvent).toBeFocused();
+});
+
+test("stops the events calendar at the bounds of its navigable range", async ({
+  page,
+}) => {
+  await page.goto("/ca/esdeveniments/");
+
+  const calendar = page.getByRole("region", { name: "Calendari mensual" });
+  const monthTable = calendar.getByRole("table");
+  const previousMonth = calendar.getByRole("button", { name: "Mes anterior" });
+  const nextMonth = calendar.getByRole("button", { name: "Mes següent" });
+
+  for (let month = 0; month < 30; month += 1) {
+    if (await nextMonth.isDisabled()) break;
+    await nextMonth.click();
+  }
+
+  await expect(monthTable).toHaveAccessibleName("novembre del 2026");
+  await expect(nextMonth).toBeDisabled();
+  await expect(previousMonth).toBeEnabled();
+
+  for (let month = 0; month < 30; month += 1) {
+    if (await previousMonth.isDisabled()) break;
+    await previousMonth.click();
+  }
+
+  await expect(monthTable).toHaveAccessibleName("agost del 2025");
+  await expect(previousMonth).toBeDisabled();
+  await expect(nextMonth).toBeEnabled();
+});
+
+test("loads calendar navigation with the preview script policy", async ({
+  page,
+}) => {
+  await page.route("**/ca/esdeveniments/", async (route) => {
+    const response = await route.fetch();
+    await route.fulfill({
+      response,
+      headers: {
+        ...response.headers(),
+        "content-security-policy":
+          "default-src 'self'; script-src 'self'; connect-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; frame-src https://www.youtube-nocookie.com; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; object-src 'none'",
+      },
+    });
+  });
+
+  await page.goto("/ca/esdeveniments/");
+
+  const calendar = page.getByRole("region", { name: "Calendari mensual" });
+  const monthTable = calendar.getByRole("table");
+  await expect(monthTable).toHaveAccessibleName("agost del 2026");
+
+  await calendar.getByRole("button", { name: "Mes següent" }).click();
+
+  await expect(monthTable).toHaveAccessibleName("setembre del 2026");
+});
+
+test("closes an open calendar popover when the month changes", async ({
+  page,
+}) => {
+  await page.goto("/ca/esdeveniments/");
+
+  const calendar = page.getByRole("region", { name: "Calendari mensual" });
+  const monthTable = calendar.getByRole("table");
+  const dayButton = calendar.getByRole("button", {
+    name: "16: Escalada de Vilada a Castell de l'Areny",
+  });
+  const popoverId = await dayButton.getAttribute("aria-controls");
+  const popover = page.locator(`#${popoverId}`);
+
+  await dayButton.click();
+  await expect(dayButton).toHaveAttribute("aria-expanded", "true");
+  await expect(popover).toBeVisible();
+
+  await calendar.getByRole("button", { name: "Mes següent" }).click();
+  await expect(monthTable).toHaveAccessibleName("setembre del 2026");
+  await expect(dayButton).toHaveCount(0);
+  await expect(
+    calendar.getByRole("button", {
+      name: "16: Escalada de Vilada a Castell de l'Areny",
+      includeHidden: true,
+    }),
+  ).toHaveAttribute("aria-expanded", "false");
+
+  await calendar.getByRole("button", { name: "Mes següent" }).click();
+  await expect(monthTable).toHaveAccessibleName("octubre del 2026");
+  const octoberDayButton = calendar.getByRole("button", {
+    name: "2: Ultra Pirineu",
+    exact: true,
+  });
+  const octoberPopoverId = await octoberDayButton.getAttribute("aria-controls");
+  const octoberPopover = page.locator(`#${octoberPopoverId}`);
+
+  await octoberDayButton.click();
+  await expect(octoberDayButton).toHaveAttribute("aria-expanded", "true");
+  await expect(octoberPopover).toBeVisible();
+  await expect(
+    octoberPopover.getByRole("heading", { name: "Ultra Pirineu" }),
+  ).toBeVisible();
+  await expect(
+    octoberPopover.getByRole("link", { name: "Més informació" }),
+  ).toHaveAttribute("href", "/ca/esdeveniments/ultra-pirineu/");
+
+  await calendar.getByRole("button", { name: "Mes anterior" }).click();
+  await calendar.getByRole("button", { name: "Mes anterior" }).click();
+  await expect(monthTable).toHaveAccessibleName("agost del 2026");
+  await expect(dayButton).toHaveAttribute("aria-expanded", "false");
+  await expect(popover).toBeHidden();
+});
+
 test("renders the club attribution for every Skimo gallery photo", async ({
   page,
 }) => {
