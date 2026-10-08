@@ -8,12 +8,37 @@ Tailwind, Paraglide, Content Collections amb Zod, SEO tècnic, proves Vitest i
 Playwright i workflows de qualitat i seguretat.
 
 Les col·leccions registrades (`schools`, `events`, `entities`, `documents`,
-`externalActions` i `contact`) passen per YAML restringit i una capa central de
-publicació. La sortida actual inclou 66 rutes canòniques —22 per idioma—, més la
+`externalActions`, `contact` i `posts`) passen per YAML restringit i una capa central de
+publicació. Aquesta branca inclou 75 rutes canòniques, 27 en català i 24 en cada altre idioma, més la
 redirecció arrel, la 404 global, `robots.txt`, el sitemap, `/llms.txt` i els
 recursos públics validats. Les dades de contacte es mostren al prepeu compartit
 i a les pàgines legals; la pàgina de Contacte creada a la fase 3 es va retirar a
 la T4.4.
+
+`posts` disposa d'esquema, hubs i detalls i seleccions explícites pública i de
+preview. La notícia del local i els dos articles de blog estan marcats per
+publicar amb aprovació editorial del 8 d'octubre de 2026, només en català.
+Els esborranys de prova continuen aïllats del build públic. Els posts no modifiquen el catàleg públic de les altres col·leccions. Les cobertes
+seleccionades es renderitzen amb derivades WebP. Els
+constructors oficials fixen `PUBLIC_PREVIEW=false` per a producció i `true` per
+a preview, rebutjant flags contradictoris. No s'utilitzen imports glob d'imatges
+editorials: poden emetre originals de variants excloses.
+
+Les cobertes editorials seleccionades es transformen amb `sharp` durant el
+build, sense imports d'imatges a Vite. La ruta estàtica `editorial-images/`
+genera WebP de 480 i 1200 píxels, sense ampliar originals més petits, amb
+orientació corregida i sense conservar metadades EXIF. Només rep paths locals
+validats i seleccionats pel mode de build. No és un servei dinàmic ni permet
+transformar paths arbitraris a petició.
+
+Sharp és una dependència de build amb llicència Apache-2.0; libvips utilitza
+LGPL-2.1-or-later. Aquestes llicències no substitueixen els drets dels originals.
+
+Les seccions editorials també admeten imatges locals opcionals. El mateix
+endpoint transforma només els recursos de variants completes seleccionades;
+el render alterna imatge/text en escriptori i apila text/imatge en mòbil. La
+completesa inclou els textos de les imatges declarades, a diferència de la
+coberta opcional que es pot ometre en una traducció incompleta.
 
 La superfície «agèntica» del lloc es compon de `/llms.txt`, que orienta els
 agents sobre el contingut i les seccions trilingües del lloc, i de les dades
@@ -33,17 +58,20 @@ releases i gate SSH). L'analítica pública és Plausible CE autoallotjat a
 El diagrama viu de la configuració del VPS és a
 [`docs/runbook.md`](runbook.md#arquitectura-del-servidor). Lighthouse continua
 sent una auditoria manual. L'apex ja serveix des del VPS (T5.5,
-[runbook](runbook.md#9-tall-dns-i-primera-activació-pública)); encara no
-existeixen previews de pull request ni cap servei Hono.
+[runbook](runbook.md#9-tall-dns-i-primera-activació-pública)); les previews de
+pull request ja són operatives mitjançant el workflow `Preview`, amb petició
+explícita `/preview` i publicador de confiança des de `main`.
+No existeix cap servei Hono.
 
 ## Direcció Acceptada
 
 La web és un lloc estàtic amb Astro i TypeScript. Les Content Collections
 validades amb Zod modelen el contingut editorial, i Git n'és la font de veritat.
 La direcció acceptada per a la fase 5 és servir-la amb Caddy des d'un VPS modest
-de Hetzner, mantenint inicialment Hostinger com a DNS autoritatiu. La fase 6
-avaluarà separadament l'arquitectura de previews i la necessitat real de
-Cloudflare o de dominis wildcard.
+de Hetzner, mantenint inicialment Hostinger com a DNS autoritatiu. Les previews
+segueixen els ADR 0009 i 0010: artefacte i namespace separats, origen per PR,
+caducitat i publicació autoritzada. L'excepció editorial de l'ADR 0011 no canvia
+aquesta frontera de confiança ni declara completada tota la fase 6.
 
 La versió inicial no té base de dades, CMS, comptes d'usuari ni backend
 d'aplicació renderitzat al servidor.
@@ -87,6 +115,19 @@ la fase 4 va registrar respecte de l'ADR 0006 van quedar corregides amb la PR
 de l'ADR 0006). Qualsevol desviació futura continua requerint una correcció
 separada o un ADR que substitueixi aquesta frontera.
 
+### Composició editorial
+
+La portada carrega la mateixa selecció editorial del mode de build i en passa
+fins a sis variants de l'idioma actual a la secció d'actualitat. La secció
+combina notícies i blog en un carrusel manual sense dependències noves i no es
+renderitza quan la selecció és buida. No consulta col·leccions des del component.
+
+El detall editorial composa `PostHeader`, `PostCover`, `PostBody`,
+`PostMembersLink`, `PostSources` i `PostRelatedEvents`.
+Cada secció és propietària dels missatges, les dades que presenta i la seva
+condició de visibilitat. La pàgina carrega les variants i les referències
+publicades; els components no consulten les col·leccions.
+
 ## Xat Públic, Més Endavant
 
 El xat públic indexarà tot el contingut publicat, incloent-hi pàgines editorials
@@ -98,8 +139,8 @@ formen part del disseny inicial.
 
 - Servei de xat Hono i generador d'índex.
 - Integració amb Telegram, Discord o Hermes.
-- Previews, dominis efímers i possible integració amb Cloudflare fins a definir
-  i implementar la fase 6.
+- Noves integracions DNS/edge o proveïdors per a previews fora de la decisió
+  acceptada de la fase 6.
 
 Consulta els ADR de `docs/decisions/` per conèixer les decisions darrere
 d'aquests límits.

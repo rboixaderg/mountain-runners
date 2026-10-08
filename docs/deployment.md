@@ -35,6 +35,13 @@ de desplegament separades.
 - `pnpm build` genera una sortida Astro estàtica a `apps/web/dist/`.
 - `PUBLIC_SITE_ORIGIN` és obligatori per generar canonical, `hreflang`, sitemap
   i `robots.txt`; producció ha d'utilitzar `https://mountainrunners.cat`.
+- `PUBLIC_PREVIEW` només accepta `true`, `false`, cadena buida o absència. Els dos
+  últims casos equivalen a `false`.
+  Els entry points oficials fixen explícitament `false` per a producció i `true`
+  per a preview i rebutgen flags contradictoris. El constructor d'artefactes de
+  preview exigeix l'origen exacte de la PR, mai el de producció; el constructor
+  de producció exigeix `https://mountainrunners.cat`. El preview només habilita esborranys de
+  posts complets, segons l'[ADR 0011](decisions/0011-news-blog-editorial-previews.md).
 - `BUILD_TODAY` permet fixar la data editorial del build. Les proves i la CI la
   fixen per obtenir resultats deterministes; un build sense aquesta variable
   utilitza la data actual de Madrid.
@@ -52,9 +59,11 @@ al servidor.
 
 Ordre d'execució (a CI o manualment):
 
-1. `pnpm build` amb `PUBLIC_SITE_ORIGIN` i `BUILD_TODAY` explícits, que ja
+1. `pnpm build` amb `PUBLIC_PREVIEW=false`, `PUBLIC_SITE_ORIGIN` i `BUILD_TODAY` explícits, que ja
    executa la verificació de sortida existent (`verify-i18n-output.mjs`:
-   rutes, `/`, 404, sitemap, robots, recursos i exclusió d'esborranys).
+   rutes seleccionades des de les fonts, `/`, 404, sitemap, robots, recursos i
+   exclusió de rutes i marcadors d'esborranys). El mateix verificador permet
+   detalls editorials d'esborrany només amb `PUBLIC_PREVIEW=true`; mai al sitemap.
 2. `tools/release/verify-internal-links.mjs`: els enllaços interns (href, src,
    srcset i `url()` de CSS) i fitxers locals són bloquejants i han de resoldre
    dins del build. Els absoluts (inclosos els same-origin que apunten fora del
@@ -69,10 +78,10 @@ Ordre d'execució (a CI o manualment):
 
 Límits aprovats de l'artefacte (fitxers regulars, mida expandida):
 
-| Límit              | Valor   | Justificació                                |
-| ------------------ | ------- | ------------------------------------------- |
-| Mida expandida màx | 128 MiB | Build actual ≈ 21 MB (PDF d'estatuts 12 MB) |
-| Nombre de fitxers  | 5.000   | Build actual: 149 fitxers                   |
+| Límit              | Valor   | Justificació                                      |
+| ------------------ | ------- | ------------------------------------------------- |
+| Mida expandida màx | 128 MiB | Build actual ≈ 21 MB (PDF d'estatuts 12 MB)       |
+| Nombre de fitxers  | 5.000   | Recompte real registrat al manifest de cada build |
 
 Scripts associats: `pnpm artifact` (contracte complet) i
 `pnpm artifact:reproducibility` (dos builds nets amb les mateixes entrades han

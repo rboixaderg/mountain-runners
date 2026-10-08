@@ -23,6 +23,7 @@ import {
   runBuild,
 } from "./packaging.mjs";
 import { verifyInternalLinks } from "./verify-internal-links.mjs";
+import { requireArtifactMode } from "../../apps/web/build-mode.mjs";
 
 const rootDirectory = fileURLToPath(new URL("../..", import.meta.url));
 const distDirectory = resolve(rootDirectory, "apps/web/dist");
@@ -37,7 +38,7 @@ const buildToday = requireEditorialDate("build the production artifact.");
 const commit = currentCommit();
 const workflow = process.env.GITHUB_WORKFLOW ?? "local";
 
-runBuild();
+runBuild(requireArtifactMode(false));
 await verifyInternalLinks(distDirectory);
 
 const { files, expandedBytes } = await collectManifestFiles(distDirectory);

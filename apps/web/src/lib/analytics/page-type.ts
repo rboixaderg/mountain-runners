@@ -3,6 +3,7 @@ import {
   fixedPageRouteSegments,
   routeDomains,
   type FixedPageKind,
+  type RouteKind,
 } from "../content/routes";
 import { analyticsPageTypes, type AnalyticsPageType } from "./catalog";
 
@@ -19,6 +20,28 @@ const fixedPageAnalyticsTypes: Partial<
   documents: analyticsPageTypes.documents,
   members: analyticsPageTypes.members,
 };
+
+const domainAnalyticsTypes = {
+  event: {
+    hub: analyticsPageTypes.eventsHub,
+    detail: analyticsPageTypes.eventDetail,
+  },
+  school: {
+    hub: analyticsPageTypes.schoolsHub,
+    detail: analyticsPageTypes.schoolDetail,
+  },
+  news: {
+    hub: analyticsPageTypes.newsHub,
+    detail: analyticsPageTypes.newsDetail,
+  },
+  blog: {
+    hub: analyticsPageTypes.blogHub,
+    detail: analyticsPageTypes.blogDetail,
+  },
+} satisfies Record<
+  RouteKind,
+  { hub: AnalyticsPageType; detail: AnalyticsPageType }
+>;
 
 function isKnownLocale(value: string): value is Locale {
   return knownLocales.includes(value as Locale);
@@ -57,9 +80,7 @@ export function getAnalyticsPageType(pathname: string): AnalyticsPageType {
 
     for (const [kind, localizedDomains] of Object.entries(routeDomains)) {
       if (localizedDomains[localeCandidate] === firstSegment) {
-        return kind === "event"
-          ? analyticsPageTypes.eventsHub
-          : analyticsPageTypes.schoolsHub;
+        return domainAnalyticsTypes[kind as RouteKind].hub;
       }
     }
 
@@ -68,9 +89,7 @@ export function getAnalyticsPageType(pathname: string): AnalyticsPageType {
 
   for (const [kind, localizedDomains] of Object.entries(routeDomains)) {
     if (localizedDomains[localeCandidate] === firstSegment) {
-      return kind === "event"
-        ? analyticsPageTypes.eventDetail
-        : analyticsPageTypes.schoolDetail;
+      return domainAnalyticsTypes[kind as RouteKind].detail;
     }
   }
 

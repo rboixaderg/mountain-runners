@@ -51,6 +51,24 @@ const navigationItems = [
       target: "members",
     }),
   },
+  {
+    href: getDomainPath("news", locale),
+    label: messages.navigation_news({}, { locale }),
+    attributes: analyticsActionAttributes({
+      action: analyticsActions.navigate,
+      area: analyticsAreas.headerNav,
+      target: "news",
+    }),
+  },
+  {
+    href: getDomainPath("blog", locale),
+    label: messages.navigation_blog({}, { locale }),
+    attributes: analyticsActionAttributes({
+      action: analyticsActions.navigate,
+      area: analyticsAreas.headerNav,
+      target: "blog",
+    }),
+  },
 ];
 
 function isCurrentPath(path: string): boolean {

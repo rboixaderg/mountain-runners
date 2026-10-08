@@ -23,7 +23,9 @@ function routeName(pathname) {
   if (pathname === "/ca/") return "home";
   if (pathname === "/ca/esdeveniments/") return "events";
   const match = /^\/ca\/esdeveniments\/([^/]+)\/$/u.exec(pathname);
-  return match ? `event-${match[1]}` : "page";
+  return match
+    ? `event-${match[1]}`
+    : pathname.split("/").filter(Boolean).join("-");
 }
 
 function pickRepresentativeRoutes(sitemapPaths) {
@@ -42,7 +44,16 @@ function pickRepresentativeRoutes(sitemapPaths) {
       `Sitemap lacks representative route(s): ${missing.join(", ")}`,
     );
   }
-  return [home, hub, detail];
+  return [
+    home,
+    hub,
+    detail,
+    "/ca/noticies/",
+    "/ca/blog/",
+    "/ca/noticies/inauguracio-nou-local/",
+    "/ca/blog/com-fer-te-soci/",
+    "/ca/blog/com-registrar-te-a-playoff/",
+  ];
 }
 
 // Failure artifacts are uploaded to a public repository, and the spec excludes
@@ -152,17 +163,18 @@ const preview = spawn(
     "--filter",
     "@mountain-runners/web",
     "exec",
-    "astro",
-    "preview",
-    "--host",
-    "127.0.0.1",
-    "--port",
+    "node",
+    "scripts/lighthouse-preview.mjs",
     String(previewPort),
   ],
-  { cwd: rootDir, stdio: ["ignore", "pipe", "pipe"], detached: true },
+  {
+    cwd: rootDir,
+    stdio: ["ignore", "pipe", "pipe"],
+    detached: true,
+  },
 );
 preview.stdout.on("data", () => {});
-preview.stderr.on("data", () => {});
+preview.stderr.on("data", (chunk) => process.stderr.write(chunk));
 const stopPreview = () => {
   try {
     process.kill(-preview.pid, "SIGTERM");
@@ -184,6 +196,15 @@ try {
     (match) => new URL(match[1]).pathname,
   );
   const routes = pickRepresentativeRoutes(sitemapPaths);
+
+  for (const route of routes) {
+    const response = await fetch(`${baseUrl}${route}`, { redirect: "error" });
+    if (response.status !== 200) {
+      throw new Error(
+        `Lighthouse route ${route} returned HTTP ${response.status}, expected 200.`,
+      );
+    }
+  }
 
   chrome = await chromeLauncher.launch({
     chromeFlags: ["--headless", "--no-sandbox", "--disable-dev-shm-usage"],

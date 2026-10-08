@@ -386,7 +386,11 @@ crear continguts amb un format consistent i agilitzin la seva preparació.
 contracte actual de contingut, les eines editorials disponibles i les
 convencions de skills del repositori.
 
-**Seguiment:** pendent de triatge.
+**Seguiment:** [especificació de notícies i blog](specs/news-and-blog.md), autoritzada el 2
+d'octubre de 2026. L'[ADR 0011](decisions/0011-news-blog-editorial-previews.md)
+registra l'excepció de preview. Revisió editorial assumida per la persona
+mantenidora; pilots preparats en esborrany. Implementació iniciada per tasques,
+sense afegir una fase al roadmap ni autoritzar desplegaments.
 
 ### Enllaços Directes A Les Seccions De La Web
 

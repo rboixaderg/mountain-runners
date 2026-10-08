@@ -81,13 +81,18 @@ for (const path of publishedPaths) {
       page.locator(`link[rel="alternate"][hreflang="${locale}"]`),
     ).toHaveAttribute("href", canonicalHref);
 
+    // A post with one complete locale must not offer fallback translations.
+    const alternateLocaleCount = await page
+      .locator('link[rel="alternate"][hreflang]:not([hreflang="x-default"])')
+      .count();
+    const expectedLanguageSelectors = alternateLocaleCount > 1 ? 2 : 0;
     await expect(
       page.getByRole("navigation", {
         includeHidden: true,
         name: languageSelectorLabels[locale],
       }),
-      `${path} offers the language selector in the header and the mobile menu`,
-    ).toHaveCount(2);
+      `${path} offers language selectors only for real localized alternatives`,
+    ).toHaveCount(expectedLanguageSelectors);
 
     const skipLink = page.getByRole("link", {
       name: skipLinkLabels[locale],
@@ -138,14 +143,17 @@ test("matrix unknown routes serve the 404 document", async ({ page }) => {
   ).toHaveCount(1);
 });
 
-test("matrix state: active event with a next edition and closed registration", async ({
+test("matrix state: active event without a next edition keeps closed registration", async ({
   page,
 }) => {
   await page.goto("/ca/esdeveniments/ultra-pirineu/");
   await expect(page.getByText("Actiu", { exact: true })).toBeVisible();
   await expect(
     page.getByRole("region", { name: "Informació pràctica" }).locator("time"),
-  ).toHaveCount(2);
+  ).toHaveCount(0);
+  await expect(
+    page.getByText("Sense data anunciada", { exact: true }),
+  ).toBeVisible();
   await expect(
     page.getByText("Inscripció tancada", { exact: true }),
   ).toBeVisible();

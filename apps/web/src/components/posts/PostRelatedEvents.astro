@@ -1,0 +1,38 @@
+---
+import type { Locale } from "../../lib/content/primitives";
+import type { PublishedVariant } from "../../lib/content/publication";
+import { getVariantPath } from "../../lib/content/routes";
+import { analyticsActionAttributes } from "../../lib/analytics/attributes";
+import { analyticsActions, analyticsAreas } from "../../lib/analytics/catalog";
+import * as messages from "../../paraglide/messages.js";
+import PageSection from "../PageSection.astro";
+interface Props {
+  locale: Locale;
+  relatedEvents: Extract<PublishedVariant, { kind: "event" }>[];
+}
+const { locale, relatedEvents } = Astro.props;
+---
+
+{relatedEvents.length > 0 && (
+  <PageSection
+    title={messages.posts_related_events({}, { locale })}
+    id="post-events"
+  >
+    <ul>
+      {relatedEvents.map((event) => (
+        <li>
+          <a
+            href={getVariantPath(event)}
+            {...analyticsActionAttributes({
+              action: analyticsActions.navigate,
+              area: analyticsAreas.postResources,
+              target: event.entry.id,
+            })}
+          >
+            {event.entry.title[locale]}
+          </a>
+        </li>
+      ))}
+    </ul>
+  </PageSection>
+)}

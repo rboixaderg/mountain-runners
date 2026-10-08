@@ -11,6 +11,7 @@ const fixturePaths = {
   documents: "../content/documents/club-guide.yaml",
   externalActions: "../content/external-actions/member-signup.yaml",
   contact: "../content/contact/mountain-runners-contact.yaml",
+  posts: "./fixtures/post.yaml",
 } as const;
 
 const requiredFields = {
@@ -20,6 +21,7 @@ const requiredFields = {
   documents: ["id", "resource"],
   externalActions: ["id", "status"],
   contact: ["id", "address", "hours", "cif"],
+  posts: ["id", "type", "published", "sections", "author", "createdAt"],
 } as const;
 
 const invalidStateFixtures = [

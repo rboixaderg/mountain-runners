@@ -1,0 +1,62 @@
+---
+import type { PostVariant } from "../../lib/content/posts";
+import { getPostCover } from "../../lib/content/posts";
+import type { Locale } from "../../lib/content/primitives";
+import { getVariantPath } from "../../lib/content/routes";
+import {
+  formatPostDate,
+  getPostDisplayDate,
+} from "../../lib/presentation/posts";
+import PostStatus from "./PostStatus.astro";
+import PostImage from "./PostImage.astro";
+import { analyticsActionAttributes } from "../../lib/analytics/attributes";
+import {
+  analyticsActions,
+  analyticsPostHubAreas,
+} from "../../lib/analytics/catalog";
+interface Props {
+  variants: PostVariant[];
+  locale: Locale;
+}
+const { variants, locale } = Astro.props;
+---
+
+<ul class="m-0 list-none p-0">
+  {variants.map((variant) => {
+    const cover = getPostCover(variant.entry, locale);
+    return (
+      <li class="border-line flex flex-col gap-6 border-t py-6 sm:flex-row">
+        {cover && (
+          <div class="w-48 shrink-0">
+            <PostImage image={cover} locale={locale} loading="lazy" isCover />
+          </div>
+        )}
+        <div class="min-w-0 flex-1">
+          <PostStatus post={variant.entry} locale={locale} />
+          <h3 class="font-display mt-4 mb-3 text-2xl leading-tight">
+            <a
+              href={getVariantPath(variant)}
+              {...analyticsActionAttributes({
+                action: analyticsActions.navigate,
+                area: analyticsPostHubAreas[variant.kind],
+                target: variant.entry.id,
+              })}
+            >
+              {variant.entry.title[locale]}
+            </a>
+          </h3>
+          <p>{variant.entry.summary[locale]}</p>
+          <p class="text-muted mt-3 text-sm">
+            <span class="text-ink font-semibold">
+              {variant.entry.author.name}
+            </span>{" "}
+            ·{" "}
+            <time class="text-ink" datetime={getPostDisplayDate(variant.entry)}>
+              {formatPostDate(getPostDisplayDate(variant.entry), locale)}
+            </time>
+          </p>
+        </div>
+      </li>
+    );
+  })}
+</ul>

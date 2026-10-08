@@ -1,0 +1,77 @@
+id: com-registrar-te-a-playoff
+type: blog
+published: true
+publishedAt: 2026-10-08T20:46:54Z
+slug:
+  ca: com-registrar-te-a-playoff
+title:
+  ca: Aplicació mòbil per als socis del club, com registrar-te i accedir-hi
+summary:
+  ca: Comunicacions del club, carnet digital i avantatges per als socis. T'expliquem com registrar-te a l'aplicació mòbil i com iniciar sessió també des del web.
+lead:
+  ca: L'aplicació mòbil per als socis del club et permet rebre les comunicacions de Mountain Runners i portar el carnet digital al mòbil per mostrar-lo als establiments col·laboradors. Si encara no tens compte, t'expliquem com registrar-te i seleccionar el club. També pots iniciar sessió des del navegador.
+sections:
+  - heading:
+      ca: Què trobaràs a l'aplicació?
+    body:
+      ca: |
+        A l'app tens les novetats i comunicacions de l'A.E. Mountain Runners del Berguedà i el teu carnet digital de soci.
+
+        Pots consultar les comunicacions del club des de l'opció **Comunicats** i accedir al carnet des de **Carnet**. A la pantalla d'inici també hi veuràs el carnet i les pròximes activitats.
+
+        Presenta el carnet digital als establiments col·laboradors per gaudir dels descomptes i avantatges que ofereixen als socis i sòcies. Trobaràs el directori de col·laboradors a la pàgina de Socis d'aquest web.
+    images:
+      - resource:
+          kind: local
+          path: src/content-assets/posts/com-registrar-te-a-playoff/espai-del-soci.jpg
+        alt:
+          ca: Pantalla d'inici de l'aplicació mòbil per als socis amb el carnet, les pròximes activitats i els accessos a Carnet, Rebuts i Comunicats. Les dades personals del carnet estan ocultes.
+        attribution:
+          ca: Mountain Runners, captura de l'app Playoff amb les dades personals ocultes.
+        caption:
+          ca: A l'inici trobaràs el carnet i les pròximes activitats. Hem ocultat el nom, el número de soci i el codi QR de la captura.
+  - heading:
+      ca: 1. Descarrega l'aplicació mòbil
+    body:
+      ca: |
+        L'aplicació que fem servir al club es diu Playoff. Instal·la-la des de la botiga del teu mòbil:
+
+        - [Descarrega Playoff per a Android a Google Play](https://play.google.com/store/apps/details?id=com.playoff.playoffclubs).
+        - [Descarrega Playoff per a iPhone a l'App Store](https://apps.apple.com/es/app/playoff/id1324608384).
+
+        Quan la tinguis instal·lada, obre-la per començar el registre.
+  - heading:
+      ca: 2. Crea el teu compte i selecciona Mountain Runners
+    body:
+      ca: |
+        A la pantalla de benvinguda de l'app, prem **Registra't aquí**, a la part inferior, al costat de "No tens compte?". Segueix les indicacions per crear el teu compte.
+
+        Durant el procés, tria Mountain Runners com a entitat a la qual et vols registrar i completa el registre.
+    images:
+      - resource:
+          kind: local
+          path: src/content-assets/posts/com-registrar-te-a-playoff/registre-inicial.jpg
+        alt:
+          ca: Pantalla de benvinguda de l'app Playoff amb l'enllaç Registra't aquí a la part inferior, al costat de No tens compte?
+        attribution:
+          ca: Mountain Runners, captura de l'app Playoff.
+        caption:
+          ca: Per crear el teu compte, prem Registra't aquí a la part inferior de la pantalla.
+  - heading:
+      ca: 3. Inicia sessió a l'aplicació
+    body:
+      ca: |
+        Un cop registrat, inicia sessió a l'app amb el teu compte.
+
+        - Si només tens una entitat associada, entraràs directament en aquella entitat.
+        - Si tens més d'una entitat associada, l'app et deixarà triar en quina vols entrar. Selecciona Mountain Runners per accedir al club.
+  - heading:
+      ca: També pots iniciar sessió des del web
+    body:
+      ca: |
+        Si prefereixes fer servir el navegador, ves a [l'accés web per als socis](https://app.playoffinformatica.com/) i inicia sessió amb el teu compte. L'enllaç t'obre la plataforma Playoff.
+author:
+  type: organization
+  name: Mountain Runners
+createdAt: 2026-10-08
+relatedPage: members

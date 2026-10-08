@@ -140,6 +140,19 @@ scale in this document first.
 
 ## Images
 
+- Editorial covers use a horizontal 16:9 frame, capped at 20rem in height on
+  detail pages. Fit the whole image with `object-contain`; do not crop logos or
+  stretch images. The same cover appears as a 12rem by 6.75rem thumbnail in news
+  and blog lists. Entries without a cover reserve no image space.
+- Recommend 1600×900px originals for editorial covers, or at least 1200×675px
+  when available. These are editorial recommendations, not schema constraints.
+  Existing approved logos may keep their native size and aspect ratio. Section
+  screenshots retain their natural aspect ratio and are never cropped into the
+  cover frame. Section images are centered and capped at 30rem in height (480px
+  at the base font size), with width constrained to their column. Clicking a
+  section image opens a native modal viewer at the larger derivative's size,
+  constrained horizontally to the viewport and scrollable vertically. Keep the
+  close control visible and restore focus to the image link on dismissal.
 - Prioritise authentic images of members, training, races, volunteers and the
   Bergueda landscape.
 - Use high-contrast, documentary-style crops with real movement and people.
@@ -154,13 +167,23 @@ scale in this document first.
 - Never use colour as the only way to communicate status.
 - Interactions should use restrained changes of colour, underline or border.
   Avoid exaggerated scale effects and decorative animation.
+- Editorial carousels use manual horizontal scrolling, never autoplay. All items
+  remain in the document and links are keyboard accessible. Provide labeled
+  previous/next controls when scrolling is needed and respect reduced motion.
+  The homepage combines up to six news and blog entries in one latest-content
+  section after the activity agenda, as the last homepage section; omit it when
+  no complete entries are available in the current locale. The homepage agenda
+  only shows active events with a confirmed current or future edition.
+  On mobile, keep short hub links and navigation controls on one row below the
+  title. Cards use the standard 16rem width to reveal the next entry, with
+  smaller titles and summaries but no text truncation.
 
 ## Never Use
 
 - Dark-first page layouts.
 - Generic commercial image-on-top cards repeated across a page; structured
   school programme cards are the documented exception.
-- Carousels, sliders or sponsor marquees.
+- Sponsor marquees.
 - Dashboard-like controls unless essential for scanning events.
 - Generic SaaS panels, glass effects, large shadows or pill-heavy interfaces.
 - Topographic map decoration.

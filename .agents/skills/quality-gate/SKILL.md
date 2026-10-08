@@ -38,7 +38,7 @@ Run the smallest relevant check before declaring work complete:
 
 `pnpm check` does not build or fix the clock. Commands that build and serve the
 site (`pnpm test:e2e`, `pnpm test:a11y`, `pnpm lighthouse`) run with
-`PUBLIC_SITE_ORIGIN=https://mountainrunners.cat` and `BUILD_TODAY=2026-08-04`
+`PUBLIC_SITE_ORIGIN=https://mountainrunners.cat` and `BUILD_TODAY=2026-10-08`
 to keep builds and assertions deterministic. CI also defines both variables at
 the job level.
 

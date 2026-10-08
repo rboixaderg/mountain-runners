@@ -34,6 +34,7 @@ interface Props {
   description: string;
   locale: Locale;
   noindex?: boolean;
+  openGraphType?: "website" | "article";
   socialImage?: SocialImage;
   structuredData?: StructuredData[];
   title: string;
@@ -45,6 +46,7 @@ const {
   description,
   locale,
   noindex = false,
+  openGraphType = "website",
   socialImage,
   structuredData = [],
   title,
@@ -101,7 +103,7 @@ const analyticsPageType = getAnalyticsPageType(Astro.url.pathname);
     )}
     <meta property="og:title" content={title} />
     <meta property="og:description" content={description} />
-    <meta property="og:type" content="website" />
+    <meta property="og:type" content={openGraphType} />
     <meta property="og:locale" content={openGraphLocales[locale]} />
     {canonical && <meta property="og:url" content={canonical} />}
     {socialImage && (

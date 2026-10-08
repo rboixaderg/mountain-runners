@@ -100,8 +100,7 @@ export function getHomepageEvents(
   events: readonly Event[],
   today: string,
 ): Event[] {
-  const groups = getEventHubGroups(events, today);
-  return [...groups.upcoming, ...groups["active-without-date"]];
+  return getEventHubGroups(events, today).upcoming;
 }
 
 export function getLatestEdition(event: Event) {

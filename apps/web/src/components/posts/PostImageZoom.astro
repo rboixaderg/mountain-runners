@@ -1,0 +1,82 @@
+---
+import type { PostImage } from "../../lib/content/models";
+import type { Locale } from "../../lib/content/primitives";
+import { getPostImageHref } from "../../lib/content/post-images";
+import * as messages from "../../paraglide/messages";
+import PostImageView from "./PostImage.astro";
+
+interface Props {
+  image: PostImage;
+  locale: Locale;
+}
+const { image, locale } = Astro.props;
+const href = getPostImageHref(image.resource.path, 1200);
+---
+
+<post-image-zoom class="block min-w-0">
+  <a
+    class="block cursor-zoom-in"
+    href={href}
+    aria-label={messages.post_image_enlarge(
+      { description: image.alt[locale]! },
+      { locale },
+    )}
+  >
+    <PostImageView image={image} locale={locale} loading="lazy" />
+  </a>
+  <dialog
+    class="border-line bg-paper text-ink m-auto border p-4"
+    aria-label={messages.post_image_enlarged({}, { locale })}
+  >
+    <form method="dialog" class="bg-paper sticky top-0 mb-4 flex justify-end">
+      <button class="border-ink min-h-11 cursor-pointer border px-4" autofocus>
+        {messages.post_image_close({}, { locale })}
+      </button>
+    </form>
+    <img
+      class="h-auto w-auto max-w-full"
+      src={href}
+      alt={image.alt[locale]!}
+      loading="lazy"
+      decoding="async"
+    />
+  </dialog>
+</post-image-zoom>
+
+<script>
+  class PostImageZoom extends HTMLElement {
+    connectedCallback() {
+      const link = this.querySelector("a")!;
+      const dialog = this.querySelector("dialog")!;
+      link.addEventListener("click", (event) => {
+        event.preventDefault();
+        dialog.showModal();
+      });
+      dialog.addEventListener("close", () => link.focus());
+      dialog.addEventListener("click", (event) => {
+        if (event.target !== dialog) return;
+        const bounds = dialog.getBoundingClientRect();
+        if (
+          event.clientX < bounds.left ||
+          event.clientX > bounds.right ||
+          event.clientY < bounds.top ||
+          event.clientY > bounds.bottom
+        ) {
+          dialog.close();
+        }
+      });
+    }
+  }
+  customElements.define("post-image-zoom", PostImageZoom);
+</script>
+
+<style>
+  /* Keep the native scrolling viewer inside the viewport, including mobile browser chrome. */
+  dialog {
+    max-width: calc(100vw - 2rem);
+    max-height: calc(100dvh - 2rem);
+  }
+  dialog::backdrop {
+    background: color-mix(in srgb, var(--color-ink) 80%, transparent);
+  }
+</style>
