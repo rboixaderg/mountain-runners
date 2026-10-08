@@ -1,0 +1,71 @@
+apps/web/e2e/route-matrix.spec.ts
+  s_579ddf991e88c2::t_90013d77a14ac2 84-88,94-95,146,153-156
+apps/web/src/test/content-events.test.ts
+  s_579ddf991e88c2::t_7d688282c3ab60 51,55,63,66-76
+apps/web/src/test/content-posts.test.ts
+  s_579ddf991e88c2::t_4b9ec09cdcbef5 7,28-53
+apps/web/e2e/posts.spec.ts
+  s_579ddf991e88c2::t_adc89df7e91d18 73-76,92,100-105,109,113-114,118,146-162,165,172,178,207-214,217,221-315,322,375,378-387,389-405,421,429-434
+.agents/skills/quality-gate/SKILL.md
+  s_579ddf991e88c2::t_9fafbff0ea785e 41
+.github/workflows/quality.yml
+  s_579ddf991e88c2::t_840e5f5bb1ff81 18
+DESIGN.md
+  s_579ddf991e88c2::t_97d9955d62be13 170-179,186
+README.md
+  s_579ddf991e88c2::t_e698f385f57592 10-13
+apps/web/messages/ca.json
+  s_579ddf991e88c2::t_1de27265ec9f5e 251-256
+apps/web/messages/en.json
+  s_579ddf991e88c2::t_efc88a85b788d0 251-256
+apps/web/messages/es.json
+  s_579ddf991e88c2::t_91d42ac855f924 251-256
+apps/web/src/components/posts/HomepagePosts.astro
+  s_579ddf991e88c2::t_7a4d64e6992649 1-190
+apps/web/src/content/posts/com-fer-te-soci.yaml
+  s_579ddf991e88c2::t_f8f793ba21aa91 3-4
+apps/web/src/content/posts/com-registrar-te-a-playoff.yaml
+  s_579ddf991e88c2::t_62030f7168286e 3-4
+apps/web/src/content/posts/inauguracio-nou-local.yaml
+  s_579ddf991e88c2::t_5adb7e0be4c5ef 3-4,8,10,12,15-26
+apps/web/src/lib/content/events.ts
+  s_579ddf991e88c2::t_ae0acfcd2cea56 103
+apps/web/src/lib/content/posts.ts
+  s_579ddf991e88c2::t_c1043f6b28a5e9 124-129
+apps/web/src/pages/[locale]/index.astro
+  s_579ddf991e88c2::t_b0510bd37376ff 9-10,26-29,49-51,335
+apps/web/src/test/members.test.ts
+  s_579ddf991e88c2::t_f21e3baee7b91d 61,108
+docs/architecture.md
+  s_579ddf991e88c2::t_711e8ff4fb46e4 12,19-21,120-124
+docs/content-model.md
+  s_579ddf991e88c2::t_199caeea6a5bc9 80-83
+docs/decisions/0011-news-blog-editorial-previews.md
+  s_579ddf991e88c2::t_dab81eb4fcd76e 69-75
+docs/specs/news-and-blog.md
+  s_579ddf991e88c2::t_156dcfdedde7df 11-26,54-55,89,94-95,99-100,170-190,337,343-345,357-359
+docs/specs/phase-2-public-vertical-slice.md
+  s_579ddf991e88c2::t_a1c829561d3856 315-322
+package.json
+  s_579ddf991e88c2::t_1043a2a5cd7c4a 18,22-23
+tools/lighthouse/run-lighthouse.mjs
+  s_579ddf991e88c2::t_fac0cea6a4c24f 47-56
+tools/preview/editorial-resources.test.mjs
+  s_579ddf991e88c2::t_0217657be8bf26 46-48,198-231
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "6841872daacb6593d2f82245a78fa81708f78192",
+  "prompts": {},
+  "sessions": {
+    "s_579ddf991e88c2": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a11d02-6eda-7177-8cbe-dd80e6bb46af",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
