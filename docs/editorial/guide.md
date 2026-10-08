@@ -87,8 +87,13 @@ necessària per entendre un tutorial ni es fa fallback al català.
 En escriptori, la primera secció amb imatges mostra les imatges a l'esquerra i
 el text a la dreta; la següent, a l'inrevés. Les seccions sense imatges no alteren
 l'alternança i mantenen l'amplada de lectura. En mòbil, el text precedeix les
-imatges, que es mostren sense retallar i amb càrrega diferida. Les imatges d'una
-mateixa secció s'apilen en l'ordre del YAML.
+imatges, que es mostren sense retallar i amb càrrega diferida. L'altura màxima
+és de 30rem, 480 píxels amb la mida de lletra base, i l'amplada s'ajusta a la
+columna sense deformar la imatge. Les imatges queden centrades. Les imatges
+d'una mateixa secció s'apilen en l'ordre del YAML. En clicar una imatge de
+secció s'obre un visor ampliat amb desplaçament per veure-la sencera. Es pot
+tancar amb el botó, amb Escape o clicant fora del visor. El focus torna a
+l'enllaç de la imatge. Sense JavaScript, l'enllaç obre la imatge directament.
 
 Exemple d'una secció il·lustrada. El fitxer ha d'existir i estar aprovat abans
 d'incorporar la referència al contingut:

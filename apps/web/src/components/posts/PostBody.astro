@@ -2,7 +2,7 @@
 import type { PostVariant } from "../../lib/content/posts";
 import { renderRestrictedMarkdown } from "../../lib/content/markdown";
 import { getPostSections } from "../../lib/presentation/posts";
-import PostImage from "./PostImage.astro";
+import PostImageZoom from "./PostImageZoom.astro";
 interface Props {
   variant: PostVariant;
 }
@@ -46,7 +46,7 @@ const { entry, locale } = Astro.props.variant;
             ]}
           >
             {section.images!.map((image) => (
-              <PostImage image={image} locale={locale} loading="lazy" />
+              <PostImageZoom image={image} locale={locale} />
             ))}
           </div>
         )}

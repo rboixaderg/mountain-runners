@@ -201,7 +201,98 @@ for (const pilot of pilots) {
   });
 }
 
-test("editorial hubs and preview pilots have no detected accessibility violations @a11y", async ({
+const registrationArticle = {
+  path: "/ca/blog/com-registrar-te-a-playoff/",
+  screenshotAlt:
+    "Pantalla de benvinguda de l'app Playoff amb l'enllaç Registra't aquí a la part inferior, al costat de No tens compte?",
+};
+
+test("registration draft is absent publicly and its screenshot stays proportional within the preview height limit", async ({
+  page,
+  request,
+}) => {
+  if (process.env.PUBLIC_PREVIEW !== "true") {
+    expect((await request.get(registrationArticle.path)).status()).toBe(404);
+    return;
+  }
+  await page.goto(registrationArticle.path);
+  const screenshot = page.getByRole("img", {
+    name: registrationArticle.screenshotAlt,
+    exact: true,
+  });
+  await expect(screenshot).toBeVisible();
+  const bounds = await screenshot.boundingBox();
+  expect(bounds!.height).toBeLessThanOrEqual(480);
+  const sourceRatio = await screenshot.evaluate(
+    (image: HTMLImageElement) =>
+      Number(image.getAttribute("width")) /
+      Number(image.getAttribute("height")),
+  );
+  expect(bounds!.width / bounds!.height).toBeCloseTo(sourceRatio, 2);
+});
+
+test("section image viewer supports keyboard, dismissal and focus restoration", async ({
+  page,
+}) => {
+  test.skip(
+    process.env.PUBLIC_PREVIEW !== "true",
+    "The registration article is a draft.",
+  );
+  await page.goto(registrationArticle.path);
+  const link = page.getByRole("link", {
+    name: `Amplia la imatge: ${registrationArticle.screenshotAlt}`,
+    exact: true,
+  });
+  const dialog = page.getByRole("dialog", { name: "Imatge ampliada" });
+  const thumbnailHeight = (await link.getByRole("img").boundingBox())!.height;
+  await link.focus();
+  await link.press("Enter");
+  await expect(dialog).toBeVisible();
+  const closeButton = dialog.getByRole("button", {
+    name: "Tanca",
+    exact: true,
+  });
+  await expect(closeButton).toBeFocused();
+  const image = dialog.getByRole("img");
+  await expect(image).toBeVisible();
+  expect((await image.boundingBox())!.height).toBeGreaterThan(thumbnailHeight);
+  await closeButton.press("Escape");
+  await expect(dialog).toBeHidden();
+  await expect(link).toBeFocused();
+  await link.click();
+  await closeButton.click();
+  await expect(dialog).toBeHidden();
+  await expect(link).toBeFocused();
+  await link.click();
+  await page.mouse.click(2, 2);
+  await expect(dialog).toBeHidden();
+  await expect(link).toBeFocused();
+});
+
+test.describe("section image fallback without JavaScript", () => {
+  test.use({ javaScriptEnabled: false });
+
+  test("image link opens the larger derivative", async ({ page }) => {
+    test.skip(
+      process.env.PUBLIC_PREVIEW !== "true",
+      "The registration article is a draft.",
+    );
+    await page.goto(registrationArticle.path);
+    const link = page.getByRole("link", {
+      name: `Amplia la imatge: ${registrationArticle.screenshotAlt}`,
+      exact: true,
+    });
+    const href = await link.getAttribute("href");
+    expect(href).toBe(
+      "/editorial-images/1200/content-assets/posts/com-registrar-te-a-playoff/registre-inicial.jpg.webp",
+    );
+    const targetUrl = new URL(href!, page.url()).href;
+    await link.click();
+    await expect(page).toHaveURL(targetUrl);
+  });
+});
+
+test("editorial hubs and preview articles have no detected accessibility violations @a11y", async ({
   page,
   browserName,
 }) => {
@@ -211,7 +302,7 @@ test("editorial hubs and preview pilots have no detected accessibility violation
   );
   const paths = ["/ca/noticies/", "/ca/blog/"];
   if (process.env.PUBLIC_PREVIEW === "true")
-    paths.push(...pilots.map((pilot) => pilot.path));
+    paths.push(...pilots.map((pilot) => pilot.path), registrationArticle.path);
   for (const path of paths) {
     await page.goto(path);
     expect(
@@ -226,5 +317,23 @@ test("editorial hubs and preview pilots have no detected accessibility violation
         () => document.documentElement.scrollWidth <= window.innerWidth,
       ),
     ).toBe(true);
+    if (path === registrationArticle.path) {
+      await page
+        .getByRole("link", {
+          name: `Amplia la imatge: ${registrationArticle.screenshotAlt}`,
+          exact: true,
+        })
+        .click();
+      await expect(
+        page.getByRole("dialog", { name: "Imatge ampliada" }),
+      ).toBeVisible();
+      expect(
+        (
+          await new AxeBuilder({ page })
+            .withTags(["wcag2a", "wcag2aa", "wcag21aa", "wcag22aa"])
+            .analyze()
+        ).violations,
+      ).toEqual([]);
+    }
   }
 });

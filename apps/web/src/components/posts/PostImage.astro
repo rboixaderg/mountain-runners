@@ -23,8 +23,9 @@ const { info } = await transformPostImage(image.resource.path, 1200);
     />
     <img
       class:list={[
-        "w-full",
-        isCover ? "aspect-video max-h-80 object-contain" : "h-auto",
+        isCover
+          ? "aspect-video max-h-80 w-full object-contain"
+          : "mx-auto h-auto max-h-120 w-auto max-w-full object-contain",
       ]}
       src={getPostImageHref(image.resource.path, 1200)}
       width={info.width}

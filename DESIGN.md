@@ -148,7 +148,11 @@ scale in this document first.
   when available. These are editorial recommendations, not schema constraints.
   Existing approved logos may keep their native size and aspect ratio. Section
   screenshots retain their natural aspect ratio and are never cropped into the
-  cover frame.
+  cover frame. Section images are centered and capped at 30rem in height (480px
+  at the base font size), with width constrained to their column. Clicking a
+  section image opens a native modal viewer at the larger derivative's size,
+  constrained horizontally to the viewport and scrollable vertically. Keep the
+  close control visible and restore focus to the image link on dismissal.
 - Prioritise authentic images of members, training, races, volunteers and the
   Bergueda landscape.
 - Use high-contrast, documentary-style crops with real movement and people.
