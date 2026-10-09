@@ -76,6 +76,20 @@ un render Astro, un contracte de build o un recorregut E2E. Consulta-la abans
 d'afegir, moure o eliminar proves; els agents carreguen la skill local
 `frontend-testing`. La skill `vitest` continua sent una referència tècnica.
 
+## Contractes de prova del web
+
+Les proves E2E deriven les entrades del catàleg publicat, sense fixar el recompte
+ni els noms del contingut editorial. Les unitàries han de comprovar les regles
+amb casos independents, inclosos slugs compartits entre idiomes i esdeveniments
+que coincideixen el mateix dia o duren diversos dies.
+
+[`structured-data.spec.ts`](apps/web/e2e/structured-data.spec.ts) comprova que
+les pàgines connecten les dades JSON-LD al layout en l'HTML del build. Aquest
+contracte només s'executa en Chromium d'escriptori; les proves dels helpers i
+del layout cobreixen per separat la generació i l'escaping. La presència de
+metadades opcionals es comprova segons el contracte de la plantilla, no segons
+si l'etiqueta ja existeix al DOM.
+
 ## Revisió Independent Amb Agents
 
 Per contrastar una implementació amb la seva tasca de l'especificació, obre una

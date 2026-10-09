@@ -11,6 +11,11 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { expect, test } from "@playwright/test";
 import type { Locale } from "../src/lib/content/primitives";
+import {
+  loadPublicationCatalog,
+  loadPublishedPostVariants,
+} from "../src/test/support/publication-catalog";
+import { readPublishedPaths } from "../src/test/support/published-site";
 
 const languageSelectorLabels: Record<Locale, string> = {
   ca: "Idioma",
@@ -40,6 +45,19 @@ const publishedPaths = [...sitemap.matchAll(/<loc>([^<]+)<\/loc>/gu)]
 if (publishedPaths.length === 0) {
   throw new Error(`The sitemap at ${sitemapPath} contains no routes.`);
 }
+
+// The sitemap describes the built artifact, so this suite sweeps exactly what
+// the build published. `getSitemapUrls` derives the same list from the
+// catalog; the parity assertion below keeps both in step.
+test("publishes exactly the routes the catalog derives", async () => {
+  const [catalog, postVariants] = await Promise.all([
+    loadPublicationCatalog(),
+    loadPublishedPostVariants(),
+  ]);
+  expect([...publishedPaths].sort()).toEqual(
+    readPublishedPaths(catalog, postVariants),
+  );
+});
 
 test.skip(
   ({ browserName }) => browserName !== "chromium",

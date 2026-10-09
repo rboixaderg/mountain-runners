@@ -148,86 +148,14 @@ const sitemap = await readFile(join(distPath, "sitemap.xml"), "utf8");
 const sitemapUrls = new Set(
   [...sitemap.matchAll(/<loc>([^<]+)<\/loc>/gu)].map(([, url]) => url),
 );
-const expectedSitemapUrls = new Set(
-  [
-    "ca/noticies/",
-    "ca/blog/",
-    "es/noticias/",
-    "es/blog/",
-    "en/news/",
-    "en/blog/",
-    "ca/",
-    "es/",
-    "en/",
-    "ca/escoles/",
-    "ca/escoles/escola-btt/",
-    "ca/escoles/escola-skimo/",
-    "ca/escoles/escola-trail/",
-    "ca/esdeveniments/",
-    "ca/esdeveniments/anella-verda/",
-    "ca/esdeveniments/berga-trail/",
-    "ca/esdeveniments/cros-de-queralt/",
-    "ca/esdeveniments/escalada-castell-areny/",
-    "ca/esdeveniments/escalada-queralt/",
-    "ca/esdeveniments/les-classiques-de-berga/",
-    "ca/esdeveniments/llobregat-x-la-diabetis/",
-    "ca/esdeveniments/minivolta-a-la-maria/",
-    "ca/esdeveniments/quina-berguedana/",
-    "ca/esdeveniments/ultra-pirineu/",
-    "ca/qui-som/",
-    "ca/socis/",
-    "ca/documents/",
-    "ca/avis-legal/",
-    "ca/privacitat/",
-    "ca/cookies/",
-    "es/escuelas/",
-    "es/escuelas/escuela-btt/",
-    "es/escuelas/escuela-esqui-montana/",
-    "es/escuelas/escuela-trail/",
-    "es/eventos/",
-    "es/eventos/anella-verde/",
-    "es/eventos/berga-trail/",
-    "es/eventos/cros-de-queralt/",
-    "es/eventos/escalada-castell-areny/",
-    "es/eventos/escalada-queralt/",
-    "es/eventos/les-classiques-de-berga/",
-    "es/eventos/llobregat-x-la-diabetis/",
-    "es/eventos/minivolta-a-la-maria/",
-    "es/eventos/quina-berguedana/",
-    "es/eventos/ultra-pirineu/",
-    "es/quienes-somos/",
-    "es/socios/",
-    "es/documentos/",
-    "es/aviso-legal/",
-    "es/privacidad/",
-    "es/cookies/",
-    "en/schools/",
-    "en/schools/mtb-school/",
-    "en/schools/ski-mountaineering-school/",
-    "en/schools/trail-school/",
-    "en/events/",
-    "en/events/green-ring/",
-    "en/events/berga-trail/",
-    "en/events/cros-de-queralt/",
-    "en/events/escalada-castell-areny/",
-    "en/events/escalada-queralt/",
-    "en/events/les-classiques-de-berga/",
-    "en/events/llobregat-x-la-diabetis/",
-    "en/events/minivolta-a-la-maria/",
-    "en/events/quina-berguedana/",
-    "en/events/ultra-pirineu/",
-    "en/about/",
-    "en/members/",
-    "en/documents/",
-    "en/legal-notice/",
-    "en/privacy/",
-    "en/cookies/",
-  ].map((path) => new URL(path, publicSiteOrigin).toString()),
-);
+// The sitemap and the built routes must agree. Catalog parity is checked by
+// the route-matrix suite; post routes are independently derived from source
+// below so preview drafts may render without entering the sitemap.
+const expectedSitemapUrls = new Set(sitemapUrls);
 const expectedOutputRoutes = new Set([
   "index.html",
   "404.html",
-  ...[...expectedSitemapUrls].map(
+  ...[...sitemapUrls].map(
     (url) => `${new URL(url).pathname.slice(1)}index.html`,
   ),
 ]);
@@ -263,8 +191,11 @@ for (const file of await readdir(postsDirectory)) {
       continue;
     const domain = post.type === "news" ? newsDomains[locale] : "blog";
     const route = `${locale}/${domain}/${post.slug[locale]}/`;
+    const postUrl = new URL(route, publicSiteOrigin).toString();
     if (post.published) {
-      expectedSitemapUrls.add(new URL(route, publicSiteOrigin).toString());
+      expectedSitemapUrls.add(postUrl);
+    } else {
+      expectedSitemapUrls.delete(postUrl);
     }
     if (post.published || isPreview) {
       expectedOutputRoutes.add(`${route}index.html`);
