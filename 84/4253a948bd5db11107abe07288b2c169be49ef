@@ -1,0 +1,193 @@
+.agents/skills/editorial-posts/SKILL.md
+  s_c6f0f868859628::t_0c67d6b888c4be 1-51
+.agents/skills/frontend-testing/SKILL.md
+  s_c6f0f868859628::t_828501976b5631 1-50
+.agents/skills/quality-gate/SKILL.md
+  s_c6f0f868859628::t_9a2845bdb2e478 18-19,30-37,41,52-54,79-92
+.agents/skills/spec-implementation-review/SKILL.md
+  s_c6f0f868859628::t_e1a9d42db6147d 78-81,95-99
+.github/workflows/preview.yml
+  s_c6f0f868859628::t_591e58f3ccbd98 97
+.github/workflows/quality.yml
+  s_c6f0f868859628::t_cb68fd4d7739d8 18
+AGENTS.md
+  s_c6f0f868859628::t_bfec9c32d93ce2 142-144,147-151
+DESIGN.md
+  s_c6f0f868859628::t_381cc03979dd84 143-155,170-179,186
+README.md
+  s_c6f0f868859628::t_1bfd49537d5490 9-13,47-58
+apps/web/astro.config.mjs
+  s_c6f0f868859628::t_54cf659abbe51e 7,9,12,15-16,29-33
+apps/web/build-mode.mjs
+  s_c6f0f868859628::t_0b0d5359d2ec2d 1-23
+apps/web/e2e/posts.spec.ts
+  s_c6f0f868859628::t_267ace331c18b8 1-468
+apps/web/messages/ca.json
+  s_c6f0f868859628::t_7a8a87f1efb9f2 2-16,90-91,251-259
+apps/web/messages/en.json
+  s_c6f0f868859628::t_ba90a16c6a286c 2-16,90-91,251-259
+apps/web/messages/es.json
+  s_c6f0f868859628::t_e2f85a41d6541d 2-16,90-91,251-259
+apps/web/package.json
+  s_c6f0f868859628::t_e8e535a53624c7 20
+apps/web/scripts/lighthouse-preview.mjs
+  s_c6f0f868859628::t_c13ce9648b9730 1-14
+apps/web/src/components/SiteHeader.astro
+  s_c6f0f868859628::t_8fc873107e8fee 54-71
+apps/web/src/components/events/EventMonthlyCalendar.astro
+  s_c6f0f868859628::t_bd3208d03f3972 7-8,22-24,26-28,46-70,72-77,81,91-214,223-231,236
+apps/web/src/components/posts/HomepagePosts.astro
+  s_c6f0f868859628::t_f773862d488228 1-190
+apps/web/src/components/posts/PostBody.astro
+  s_c6f0f868859628::t_97180f7e898e49 1-79
+apps/web/src/components/posts/PostCover.astro
+  s_c6f0f868859628::t_9cb0a3a54a1af6 1-17
+apps/web/src/components/posts/PostDetail.astro
+  s_c6f0f868859628::t_e9b8dd394f545b 1-24
+apps/web/src/components/posts/PostHeader.astro
+  s_c6f0f868859628::t_30b82cc45c4757 1-59
+apps/web/src/components/posts/PostHub.astro
+  s_c6f0f868859628::t_43f48986f0efeb 1-43
+apps/web/src/components/posts/PostImageZoom.astro
+  s_c6f0f868859628::t_a05307476119e2 1-82
+apps/web/src/components/posts/PostList.astro
+  s_c6f0f868859628::t_0419da2e7a6b17 1-62
+apps/web/src/components/posts/PostMembersLink.astro
+  s_c6f0f868859628::t_8bd931dbf273c9 1-27
+apps/web/src/components/posts/PostRelatedEvents.astro
+  s_c6f0f868859628::t_cf10461b4aedd4 1-38
+apps/web/src/components/posts/PostSources.astro
+  s_c6f0f868859628::t_f7172726650087 1-25
+apps/web/src/components/posts/PostStatus.astro
+  s_c6f0f868859628::t_c2363fc8c088e5 1-17
+apps/web/src/content.config.ts
+  s_c6f0f868859628::t_9d45a594923eb5 50-54,62
+apps/web/src/content/posts/com-fer-te-soci.yaml
+  s_c6f0f868859628::t_057f8b7db9d428 1-145
+apps/web/src/content/posts/com-registrar-te-a-playoff.yaml
+  s_c6f0f868859628::t_9408a2c9ec8d31 1-77
+apps/web/src/content/posts/inauguracio-nou-local.yaml
+  s_c6f0f868859628::t_bd4872a191ed47 1-30
+apps/web/src/layouts/PublicLayout.astro
+  s_c6f0f868859628::t_c3d6e39d065b99 37,49,106
+apps/web/src/lib/analytics/catalog.ts
+  s_c6f0f868859628::t_5434706f7e337f 9,23-25,37-41,67-68,75-76
+apps/web/src/lib/analytics/page-type.ts
+  s_c6f0f868859628::t_4614ed994f5b9b 6,24-45,83,92
+apps/web/src/lib/content/events.ts
+  s_c6f0f868859628::t_38d88c77f53812 1,20-26,30,103,124
+apps/web/src/lib/content/models.ts
+  s_c6f0f868859628::t_a16a68d7381235 3,10-14,306-403,411,420
+apps/web/src/lib/content/post-images.ts
+  s_c6f0f868859628::t_ec40dadfdbebf2 1-33
+apps/web/src/lib/content/post-seo.ts
+  s_c6f0f868859628::t_c4348fcaa86b48 1-72
+apps/web/src/lib/content/posts.ts
+  s_c6f0f868859628::t_1aa671b8a0aed9 1-156
+apps/web/src/lib/content/repository.ts
+  s_c6f0f868859628::t_2455b2b4dd0110 14-19,56-85
+apps/web/src/lib/content/resources.ts
+  s_c6f0f868859628::t_94d48c1a62b39b 67
+apps/web/src/lib/content/routes.ts
+  s_c6f0f868859628::t_723ba3c804821a 3,5,15,21-22,166-168
+apps/web/src/lib/presentation/events.ts
+  s_c6f0f868859628::t_ae4c78339592a2 1-5,43-49,183-194,198,221-264
+apps/web/src/lib/presentation/posts.ts
+  s_c6f0f868859628::t_f7fcc92aebd08d 1-37
+apps/web/src/pages/[locale]/[domain]/[...post].astro
+  s_c6f0f868859628::t_e2a17e6f320887 1-55
+apps/web/src/pages/[locale]/[domain]/index.astro
+  s_c6f0f868859628::t_9f066731cbb709 9-13,57-62,75,79-81,85-92,135-143,161,164-173
+apps/web/src/pages/[locale]/index.astro
+  s_c6f0f868859628::t_c6c739b95425a3 9-10,26-29,49-51,335
+apps/web/src/pages/content-resources/[...resource].ts
+  s_c6f0f868859628::t_94cfac344b55cd 20-21
+apps/web/src/pages/editorial-images/[...image].ts
+  s_c6f0f868859628::t_dace7d310aab28 1-33
+apps/web/src/pages/llms.txt.ts
+  s_c6f0f868859628::t_d6c6214711adb3 16-17,67
+apps/web/src/pages/sitemap.xml.ts
+  s_c6f0f868859628::t_f3cb1380b477ed 2-6,23-27
+apps/web/src/scripts/events-calendar.ts
+  s_c6f0f868859628::t_2f5a4f28077a01 1-158
+apps/web/src/test/analytics-events.test.ts
+  s_c6f0f868859628::t_88f8217d017fc2 44-59
+apps/web/src/test/build-mode.test.ts
+  s_c6f0f868859628::t_23eb3b9951403e 1-30
+apps/web/src/test/content-events.test.ts
+  s_c6f0f868859628::t_235e846956142b 51,55,63,66-76
+apps/web/src/test/content-models.test.ts
+  s_c6f0f868859628::t_aa706c3a05f1d4 14,24
+apps/web/src/test/content-posts.test.ts
+  s_c6f0f868859628::t_3851b7c01e271a 1-364
+apps/web/src/test/fixtures/post.yaml
+  s_c6f0f868859628::t_fa8f87dd22d979 1-20
+apps/web/src/test/post-section-images.test.ts
+  s_c6f0f868859628::t_451e2a4f0b8ebf 1-135
+apps/web/src/test/post-seo.test.ts
+  s_c6f0f868859628::t_f46c1ef5a62dc1 1-66
+apps/web/src/test/presentation-events.test.ts
+  s_c6f0f868859628::t_e78a5a15615f2e 7,134-241
+apps/web/src/test/presentation-posts.test.ts
+  s_c6f0f868859628::t_661d9eec9e6849 1-46
+apps/web/src/test/support/publication-catalog.ts
+  s_c6f0f868859628::t_381f16f1e6df75 18,21-24,72-85
+docs/README.md
+  s_c6f0f868859628::t_f0b1c285b9f24c 25-26,42-50
+docs/architecture.md
+  s_c6f0f868859628::t_8e6777065c4b9a 11-12,18-42,61-64,71-74,118-130,142-143
+docs/backlog.md
+  s_c6f0f868859628::t_3575f8e8cc8b39 389-393
+docs/content-model.md
+  s_c6f0f868859628::t_baf0aea7e97702 52-85,139-149,151-153
+docs/decisions/0011-news-blog-editorial-previews.md
+  s_c6f0f868859628::t_a309604ee3a6f4 1-86
+docs/deployment.md
+  s_c6f0f868859628::t_f421c294f21cfa 38-44,62,64-66,81-84
+docs/editorial/guide.md
+  s_c6f0f868859628::t_f899f220e201f4 1-157
+docs/editorial/templates/blog.md
+  s_c6f0f868859628::t_85252cea8a8e3c 1-35
+docs/editorial/templates/news.md
+  s_c6f0f868859628::t_e54bad6f5ec704 1-33
+docs/specs/news-and-blog.md
+  s_c6f0f868859628::t_8ac9d9fcbeaa73 1-359
+docs/specs/phase-2-public-vertical-slice.md
+  s_c6f0f868859628::t_909b3fec070892 315-322
+docs/specs/phase-6-pull-request-previews.md
+  s_c6f0f868859628::t_3b3a1f1221a8d2 5-8,12-19
+docs/specs/plausible-analytics.md
+  s_c6f0f868859628::t_4cfb6c2f20b5e3 159-185
+docs/testing-strategy.md
+  s_c6f0f868859628::t_834556945b6871 1-142
+pnpm-lock.yaml
+  s_c6f0f868859628::t_e24621a7fcc5ce 98-100,827-828,833-834,839-840,844-845,849-850,854-855,860-861,866-867,872-873,878-879,884-885,890-891,896-897,902-903,909-910,916-917,923-924,930-931,937-938,944-945,951-952,958-959,962-963,967-968,973-974,979-980,3340-3341,4743,4745,4747,4750,4752,4755,4757,4760,4763,4766,4769,4772,4775,4778,4781,4784,4787,4790,4792,4795,4797,4800,4802,4805,4807,4810,4812,4815,4817,4820,4822,4825,4827,4830,4835,4837,4840,4843,4846,5611,7462,7468-7493
+tools/lighthouse/run-lighthouse.mjs
+  s_c6f0f868859628::t_9fb66706be159b 26-28,47-56,166-167,170-174,177,200-208
+tools/preview/build-artifact.mjs
+  s_c6f0f868859628::t_e48bfe290e7e82 20,63
+tools/preview/editorial-resources.test.mjs
+  s_c6f0f868859628::t_cdc4cc435299b1 1-759
+tools/release/build-artifact.mjs
+  s_c6f0f868859628::t_488f85ebd612a4 26,41
+tools/release/packaging.mjs
+  s_c6f0f868859628::t_c051ab0b48904f 69,73
+tools/release/verify-reproducibility.mjs
+  s_c6f0f868859628::t_f5138f0e2d1c91 12,28,66,69
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "844253a948bd5db11107abe07288b2c169be49ef",
+  "prompts": {},
+  "sessions": {
+    "s_c6f0f868859628": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_ee11bc20dffeBZeHpEj7Pz7719",
+        "model": "unknown"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
