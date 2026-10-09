@@ -1,0 +1,17 @@
+---
+import type { Post } from "../../lib/content/models";
+import type { Locale } from "../../lib/content/primitives";
+import { getPostPreviewMessageKey } from "../../lib/presentation/posts";
+import * as messages from "../../paraglide/messages.js";
+interface Props {
+  post: Post;
+  locale: Locale;
+}
+const { post, locale } = Astro.props;
+---
+
+{import.meta.env.PUBLIC_PREVIEW === "true" && (
+  <p class="bg-preview text-ink border-ink border-l-4 p-3 text-sm font-bold">
+    {messages[getPostPreviewMessageKey(post)]({}, { locale })}
+  </p>
+)}

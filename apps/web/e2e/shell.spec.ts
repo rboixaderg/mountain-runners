@@ -154,6 +154,7 @@ test("renders the published homepage sections in order", async ({ page }) => {
     "Les nostres escoles",
     "Forma part del club",
     "Agenda d'activitats",
+    "Actualitat del club",
   ]);
   await expect(main.locator('a[href=""], a[href="#"]')).toHaveCount(0);
 });
@@ -222,8 +223,11 @@ test("lists every published homepage event in editorial order", async ({
     ).toBeVisible();
   }
 
-  // Past events never reach the homepage agenda: it lists upcoming editions
-  // plus active events without an announced date.
+  // The homepage agenda contains only upcoming editions, not active events
+  // without an announced date or past events.
+  for (const { event } of site.eventHubGroups["active-without-date"]) {
+    await expect(eventsRegion).not.toContainText(event.title.ca);
+  }
   for (const { event } of site.eventHubGroups.past) {
     await expect(eventsRegion).not.toContainText(event.title.ca);
   }
@@ -409,7 +413,7 @@ test("keeps the calendar popover state and mobile bounds synchronized", async ({
 
   const calendar = page.getByRole("region", { name: "Calendari mensual" });
   const dayButton = calendar.getByRole("button", {
-    name: "16: Escalada de Vilada a Castell de l'Areny",
+    name: "16: Llobregat x la Diabetis",
   });
   const popoverId = await dayButton.getAttribute("aria-controls");
   expect(popoverId).not.toBeNull();
@@ -420,7 +424,7 @@ test("keeps the calendar popover state and mobile bounds synchronized", async ({
   });
   const outsideLink = page
     .getByRole("region", { name: "Pròximes edicions" })
-    .getByRole("link", { name: /Ultra Pirineu/u })
+    .getByRole("link", { name: /Cros de Queralt/u })
     .first();
 
   if (!testInfo.project.name.endsWith("-mobile")) {
@@ -484,6 +488,169 @@ test("keeps the calendar popover state and mobile bounds synchronized", async ({
   await dayButton.press("Enter");
   await expect(dayButton).toHaveAttribute("aria-expanded", "true");
   await outsideHeading.click();
+  await expect(dayButton).toHaveAttribute("aria-expanded", "false");
+  await expect(popover).toBeHidden();
+});
+
+test("moves the events calendar between available months", async ({
+  page,
+  browserName,
+}) => {
+  await page.goto("/ca/esdeveniments/");
+
+  const calendar = page.getByRole("region", { name: "Calendari mensual" });
+  const monthTable = calendar.getByRole("table");
+  const previousMonth = calendar.getByRole("button", { name: "Mes anterior" });
+  const nextMonth = calendar.getByRole("button", { name: "Mes següent" });
+
+  const augustEvent = calendar.getByRole("button", {
+    name: "16: Escalada de Vilada a Castell de l'Areny",
+  });
+  const octoberEvent = calendar.getByRole("button", {
+    name: "2: Ultra Pirineu",
+    exact: true,
+  });
+
+  await expect(monthTable).toHaveAccessibleName("octubre del 2026");
+  await previousMonth.click();
+  await previousMonth.click();
+  await expect(monthTable).toHaveAccessibleName("agost del 2026");
+  await expect(augustEvent).toBeVisible();
+  await expect(octoberEvent).toHaveCount(0);
+  await previousMonth.click();
+  await expect(monthTable).toHaveAccessibleName("juliol del 2026");
+  await expect(augustEvent).toHaveCount(0);
+  await nextMonth.click();
+  await expect(monthTable).toHaveAccessibleName("agost del 2026");
+  await expect(augustEvent).toBeVisible();
+  await nextMonth.click();
+  await expect(monthTable).toHaveAccessibleName("setembre del 2026");
+  await expect(calendar.getByRole("button", { expanded: false })).toHaveCount(
+    0,
+  );
+
+  await nextMonth.click();
+  await expect(monthTable).toHaveAccessibleName("octubre del 2026");
+  await expect(octoberEvent).toBeVisible();
+  await expect(augustEvent).toHaveCount(0);
+
+  // Tab reaches the visible month, not event controls in earlier hidden months.
+  await nextMonth.focus();
+  // WebKit on macOS uses Option+Tab to include buttons in keyboard navigation.
+  if (browserName === "webkit") {
+    await page.keyboard.press("Alt+Tab");
+  } else {
+    await page.keyboard.press("Tab");
+  }
+  await expect(octoberEvent).toBeFocused();
+});
+
+test("stops the events calendar at the bounds of its navigable range", async ({
+  page,
+}) => {
+  await page.goto("/ca/esdeveniments/");
+
+  const calendar = page.getByRole("region", { name: "Calendari mensual" });
+  const monthTable = calendar.getByRole("table");
+  const previousMonth = calendar.getByRole("button", { name: "Mes anterior" });
+  const nextMonth = calendar.getByRole("button", { name: "Mes següent" });
+
+  for (let month = 0; month < 30; month += 1) {
+    if (await nextMonth.isDisabled()) break;
+    await nextMonth.click();
+  }
+
+  await expect(monthTable).toHaveAccessibleName("novembre del 2026");
+  await expect(nextMonth).toBeDisabled();
+  await expect(previousMonth).toBeEnabled();
+
+  for (let month = 0; month < 30; month += 1) {
+    if (await previousMonth.isDisabled()) break;
+    await previousMonth.click();
+  }
+
+  await expect(monthTable).toHaveAccessibleName("octubre del 2025");
+  await expect(previousMonth).toBeDisabled();
+  await expect(nextMonth).toBeEnabled();
+});
+
+test("loads calendar navigation with the preview script policy", async ({
+  page,
+}) => {
+  await page.route("**/ca/esdeveniments/", async (route) => {
+    const response = await route.fetch();
+    await route.fulfill({
+      response,
+      headers: {
+        ...response.headers(),
+        "content-security-policy":
+          "default-src 'self'; script-src 'self'; connect-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; frame-src https://www.youtube-nocookie.com; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; object-src 'none'",
+      },
+    });
+  });
+
+  await page.goto("/ca/esdeveniments/");
+
+  const calendar = page.getByRole("region", { name: "Calendari mensual" });
+  const monthTable = calendar.getByRole("table");
+  await expect(monthTable).toHaveAccessibleName("octubre del 2026");
+
+  await calendar.getByRole("button", { name: "Mes següent" }).click();
+
+  await expect(monthTable).toHaveAccessibleName("novembre del 2026");
+});
+
+test("closes an open calendar popover when the month changes", async ({
+  page,
+}) => {
+  await page.goto("/ca/esdeveniments/");
+
+  const calendar = page.getByRole("region", { name: "Calendari mensual" });
+  const monthTable = calendar.getByRole("table");
+  await calendar.getByRole("button", { name: "Mes anterior" }).click();
+  await calendar.getByRole("button", { name: "Mes anterior" }).click();
+  const dayButton = calendar.getByRole("button", {
+    name: "16: Escalada de Vilada a Castell de l'Areny",
+  });
+  const popoverId = await dayButton.getAttribute("aria-controls");
+  const popover = page.locator(`#${popoverId}`);
+
+  await dayButton.click();
+  await expect(dayButton).toHaveAttribute("aria-expanded", "true");
+  await expect(popover).toBeVisible();
+
+  await calendar.getByRole("button", { name: "Mes següent" }).click();
+  await expect(monthTable).toHaveAccessibleName("setembre del 2026");
+  await expect(dayButton).toHaveCount(0);
+  await expect(
+    calendar.getByRole("button", {
+      name: "16: Escalada de Vilada a Castell de l'Areny",
+      includeHidden: true,
+    }),
+  ).toHaveAttribute("aria-expanded", "false");
+
+  await calendar.getByRole("button", { name: "Mes següent" }).click();
+  await expect(monthTable).toHaveAccessibleName("octubre del 2026");
+  const octoberDayButton = calendar.getByRole("button", {
+    name: "2: Ultra Pirineu",
+    exact: true,
+  });
+  const octoberPopoverId = await octoberDayButton.getAttribute("aria-controls");
+  const octoberPopover = page.locator(`#${octoberPopoverId}`);
+
+  await octoberDayButton.click();
+  await expect(octoberDayButton).toHaveAttribute("aria-expanded", "true");
+  await expect(octoberPopover).toBeVisible();
+  await expect(
+    octoberPopover.getByRole("heading", { name: "Ultra Pirineu" }),
+  ).toBeVisible();
+  await expect(
+    octoberPopover.getByRole("link", { name: "Més informació" }),
+  ).toHaveAttribute("href", "/ca/esdeveniments/ultra-pirineu/");
+
+  await calendar.getByRole("button", { name: "Mes anterior" }).click();
+  await calendar.getByRole("button", { name: "Mes anterior" }).click();
+  await expect(monthTable).toHaveAccessibleName("agost del 2026");
   await expect(dayButton).toHaveAttribute("aria-expanded", "false");
   await expect(popover).toBeHidden();
 });
@@ -784,6 +951,9 @@ test("renders the Members page sections in editorial order", async ({
       collaborator.membershipBenefit!.description.ca,
     );
   }
+  await expect(
+    page.getByRole("link", { name: /snowlockers\.com/u }),
+  ).toHaveAttribute("href", "https://www.snowlockers.com/");
   await expect(page.locator('main a[href=""], main a[href="#"]')).toHaveCount(
     0,
   );

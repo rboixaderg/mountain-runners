@@ -1,0 +1,25 @@
+---
+import type { PostVariant } from "../../lib/content/posts";
+import { externalLinkAttributes } from "../../lib/presentation/urls";
+import * as messages from "../../paraglide/messages.js";
+import PageSection from "../PageSection.astro";
+interface Props {
+  variant: PostVariant;
+}
+const { entry, locale } = Astro.props.variant;
+const sources = (entry.sources ?? []).filter((source) => source.name[locale]);
+---
+
+{sources.length > 0 && (
+  <PageSection title={messages.posts_sources({}, { locale })} id="post-sources">
+    <ul>
+      {sources.map((source) => (
+        <li>
+          <a href={source.url} {...externalLinkAttributes}>
+            {source.name[locale]}
+          </a>
+        </li>
+      ))}
+    </ul>
+  </PageSection>
+)}

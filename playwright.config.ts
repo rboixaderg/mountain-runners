@@ -4,9 +4,8 @@ const desktopViewport = { width: 1280, height: 720 };
 const mobileViewport = { width: 320, height: 720 };
 
 // The suite asserts against the built artifact, so the reference date must be
-// the one the build used. `pnpm test:e2e` only prefixes the build command, so
-// the tests themselves would otherwise fall back to the real clock and derive
-// event statuses from a different date than the pages were rendered with.
+// the one the build used. The package scripts export the same origin and date
+// to both build and browser tests; direct invocations should do the same.
 const siteOrigin =
   process.env.PUBLIC_SITE_ORIGIN ?? "https://mountainrunners.cat";
 const buildToday = process.env.BUILD_TODAY ?? "2026-08-04";

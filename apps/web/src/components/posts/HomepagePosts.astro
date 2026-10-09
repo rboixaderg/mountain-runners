@@ -1,0 +1,190 @@
+---
+import type { PostVariant } from "../../lib/content/posts";
+import { getPostCover } from "../../lib/content/posts";
+import type { Locale } from "../../lib/content/primitives";
+import { getDomainPath, getVariantPath } from "../../lib/content/routes";
+import {
+  formatPostDate,
+  getPostDisplayDate,
+  postTitleMessageKeys,
+} from "../../lib/presentation/posts";
+import { analyticsActionAttributes } from "../../lib/analytics/attributes";
+import { analyticsActions, analyticsAreas } from "../../lib/analytics/catalog";
+import * as messages from "../../paraglide/messages";
+import PostStatus from "./PostStatus.astro";
+import PostImage from "./PostImage.astro";
+
+interface Props {
+  variants: PostVariant[];
+  locale: Locale;
+}
+const { variants, locale } = Astro.props;
+---
+
+{variants.length > 0 && (
+  <section class="page-frame py-section" aria-labelledby="homepage-posts-title">
+    <homepage-posts class="block min-w-0">
+      <div class="mb-6 flex flex-wrap items-center justify-between gap-4">
+        <h2
+          id="homepage-posts-title"
+          class="font-display text-section leading-display tracking-headline m-0 font-bold uppercase"
+        >
+          {messages.homepage_posts_title({}, { locale })}
+        </h2>
+        <div class="flex w-full flex-wrap items-center gap-4 sm:w-auto">
+          <a
+            class="max-sm:font-display max-sm:text-action max-sm:tracking-label max-sm:uppercase"
+            aria-label={messages.homepage_posts_news({}, { locale })}
+            href={getDomainPath("news", locale)}
+            {...analyticsActionAttributes({
+              action: analyticsActions.navigate,
+              area: analyticsAreas.homepage,
+              target: "news",
+            })}
+          >
+            <span class="sm:hidden">
+              {messages.navigation_news({}, { locale })}
+            </span>
+            <span class="hidden sm:inline">
+              {messages.homepage_posts_news({}, { locale })}
+            </span>
+          </a>
+          <a
+            class="max-sm:font-display max-sm:text-action max-sm:tracking-label max-sm:uppercase"
+            aria-label={messages.homepage_posts_blog({}, { locale })}
+            href={getDomainPath("blog", locale)}
+            {...analyticsActionAttributes({
+              action: analyticsActions.navigate,
+              area: analyticsAreas.homepage,
+              target: "blog",
+            })}
+          >
+            <span class="sm:hidden">
+              {messages.navigation_blog({}, { locale })}
+            </span>
+            <span class="hidden sm:inline">
+              {messages.homepage_posts_blog({}, { locale })}
+            </span>
+          </a>
+          <div
+            data-controls
+            hidden
+            class="ml-auto shrink-0 whitespace-nowrap sm:ml-0"
+          >
+            <button
+              type="button"
+              data-previous
+              class="border-ink bg-paper text-ink mr-2 inline-flex size-11 cursor-pointer items-center justify-center border-2 enabled:hover:border-red enabled:hover:bg-stone enabled:hover:text-red disabled:cursor-default disabled:opacity-40"
+              aria-label={messages.homepage_posts_previous({}, { locale })}
+            >
+              <svg
+                class="size-5"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                aria-hidden="true"
+              >
+                <path d="m15 5-7 7 7 7" />
+              </svg>
+            </button>
+            <button
+              type="button"
+              data-next
+              class="border-ink bg-paper text-ink inline-flex size-11 cursor-pointer items-center justify-center border-2 enabled:hover:border-red enabled:hover:bg-stone enabled:hover:text-red disabled:cursor-default disabled:opacity-40"
+              aria-label={messages.homepage_posts_next({}, { locale })}
+            >
+              <svg
+                class="size-5"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                aria-hidden="true"
+              >
+                <path d="m9 5 7 7-7 7" />
+              </svg>
+            </button>
+          </div>
+        </div>
+      </div>
+      <ul
+        tabindex="0"
+        aria-label={messages.homepage_posts_list({}, { locale })}
+        class="m-0 grid snap-x snap-mandatory auto-cols-64 grid-flow-col gap-4 overflow-x-auto sm:gap-6 scroll-smooth p-0 pb-4 focus-visible:-outline-offset-2 motion-reduce:scroll-auto sm:auto-cols-80"
+      >
+        {variants.map((variant) => {
+          const cover = getPostCover(variant.entry, locale);
+          const displayDate = getPostDisplayDate(variant.entry);
+          return (
+            <li class="border-line min-w-0 snap-start border-t pt-6">
+              <p class="text-muted m-0 text-sm">
+                {messages[postTitleMessageKeys[variant.kind]]({}, { locale })}
+              </p>
+              <PostStatus post={variant.entry} locale={locale} />
+              {cover && (
+                <div class="mt-4 w-48 max-w-full">
+                  <PostImage
+                    image={cover}
+                    locale={locale}
+                    loading="lazy"
+                    isCover
+                  />
+                </div>
+              )}
+              <h3 class="font-display my-4 text-xl leading-tight sm:text-2xl">
+                <a
+                  href={getVariantPath(variant)}
+                  {...analyticsActionAttributes({
+                    action: analyticsActions.navigate,
+                    area: analyticsAreas.homepage,
+                    target: variant.entry.id,
+                  })}
+                >
+                  {variant.entry.title[locale]}
+                </a>
+              </h3>
+              <p class="text-sm sm:text-base">
+                {variant.entry.summary[locale]}
+              </p>
+              <time
+                class="text-muted mt-4 block text-sm"
+                datetime={displayDate}
+              >
+                {formatPostDate(displayDate, locale)}
+              </time>
+            </li>
+          );
+        })}
+      </ul>
+    </homepage-posts>
+  </section>
+)}
+
+<script>
+  class HomepagePosts extends HTMLElement {
+    connectedCallback() {
+      const list = this.querySelector("ul")!;
+      const controls = this.querySelector<HTMLElement>("[data-controls]")!;
+      const previous =
+        this.querySelector<HTMLButtonElement>("[data-previous]")!;
+      const next = this.querySelector<HTMLButtonElement>("[data-next]")!;
+      const updateControls = () => {
+        const maximumScroll = list.scrollWidth - list.clientWidth;
+        controls.hidden = maximumScroll <= 1;
+        previous.disabled = list.scrollLeft <= 1;
+        next.disabled = list.scrollLeft >= maximumScroll - 1;
+      };
+      previous.addEventListener("click", () => {
+        list.scrollBy({ left: -list.clientWidth });
+      });
+      next.addEventListener("click", () => {
+        list.scrollBy({ left: list.clientWidth });
+      });
+      list.addEventListener("scroll", updateControls);
+      new ResizeObserver(updateControls).observe(list);
+      updateControls();
+    }
+  }
+  customElements.define("homepage-posts", HomepagePosts);
+</script>

@@ -75,6 +75,10 @@ Do not report subjective style preferences.
 
 ### 3. Test Strategy
 
+Read `docs/testing-strategy.md` and load `frontend-testing`. Distinguish pure
+rules, Astro render, built-page wiring, browser behavior and operational
+boundaries; the test runner alone does not define the level.
+
 Map tests to requirements and behavior branches. Look for:
 
 - acceptance criteria, failure paths, or boundary values without tests;
@@ -87,6 +91,11 @@ Map tests to requirements and behavior branches. Look for:
 Do not request tests for trivial lines or pursue an arbitrary coverage number.
 For every missing test, name the behavior or branch it should protect. For every
 redundant test, identify the overlap.
+
+Name the regression guarantee and justify the proposed level. A related E2E
+does not replace unit boundary cases; helper and layout tests do not prove page
+wiring. Check that production-derived expectations have independent rule
+coverage. Separate verified sensitivity and measured cost from hypotheses.
 
 ### Conditional Security Review
 

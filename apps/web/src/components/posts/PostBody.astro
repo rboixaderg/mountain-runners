@@ -1,0 +1,79 @@
+---
+import type { PostVariant } from "../../lib/content/posts";
+import { renderRestrictedMarkdown } from "../../lib/content/markdown";
+import { getPostSections } from "../../lib/presentation/posts";
+import PostImageZoom from "./PostImageZoom.astro";
+interface Props {
+  variant: PostVariant;
+}
+const { entry, locale } = Astro.props.variant;
+---
+
+<div class="page-frame py-section">
+  <div class="post-copy leading-copy">
+    <div
+      class="post-markdown max-w-reading text-lg"
+      set:html={renderRestrictedMarkdown(entry.lead[locale]!)}
+    />
+    {getPostSections(entry).map(({ section, hasImages, imageOnLeft }) => (
+      <section
+        class:list={[
+          "mt-8",
+          hasImages ? "grid items-start gap-8 lg:grid-cols-2" : "max-w-reading",
+        ]}
+      >
+        <div
+          class:list={[
+            "max-w-reading min-w-0",
+            imageOnLeft && "lg:col-start-2 lg:row-start-1",
+          ]}
+        >
+          {section.heading && (
+            <h2 class="font-display mb-3 text-2xl leading-tight">
+              {section.heading[locale]}
+            </h2>
+          )}
+          <div
+            class="post-markdown"
+            set:html={renderRestrictedMarkdown(section.body[locale]!)}
+          />
+        </div>
+        {hasImages && (
+          <div
+            class:list={[
+              "grid min-w-0 gap-6",
+              imageOnLeft && "lg:col-start-1 lg:row-start-1",
+            ]}
+          >
+            {section.images!.map((image) => (
+              <PostImageZoom image={image} locale={locale} />
+            ))}
+          </div>
+        )}
+      </section>
+    ))}
+  </div>
+</div>
+<style>
+  /* Restricted Markdown cannot carry utilities; the owner styles its generated paragraphs. */
+  .post-markdown :global(p) {
+    margin-block: 0 1rem;
+  }
+  .post-markdown :global(li + li) {
+    margin-top: 0.5rem;
+  }
+  .post-markdown :global(ul),
+  .post-markdown :global(ol) {
+    margin-block: 0 1rem;
+    padding-inline-start: 1.5rem;
+  }
+  .post-markdown :global(ul) {
+    list-style-type: disc;
+  }
+  .post-markdown :global(ol) {
+    list-style-type: decimal;
+  }
+  .post-markdown :global(a) {
+    text-decoration-line: underline;
+  }
+</style>

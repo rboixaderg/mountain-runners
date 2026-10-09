@@ -59,6 +59,27 @@ describe("members directory", () => {
       expect(entity.membershipBenefit).toBeDefined();
     }
   });
+
+  it("excludes unpublished entities from the directory", async () => {
+    const source = await loadContentSource();
+    const initialDirectory = getMembersDirectoryEntities(
+      createPublicationCatalog(source),
+      "ca",
+    );
+    const unpublishedEntity = source.entities.find(
+      ({ id }) => id === initialDirectory[0]!.id,
+    )!;
+    unpublishedEntity.published = false;
+
+    const updatedDirectory = getMembersDirectoryEntities(
+      createPublicationCatalog(source),
+      "ca",
+    );
+    const updatedIds = updatedDirectory.map(({ id }) => id);
+
+    expect(updatedIds).not.toContain(unpublishedEntity.id);
+    expect(updatedDirectory).toHaveLength(initialDirectory.length - 1);
+  });
 });
 
 describe("member action links", () => {

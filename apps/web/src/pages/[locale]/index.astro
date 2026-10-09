@@ -6,6 +6,8 @@ import homepageImageAvif from "../../assets/home/homepage-hero.avif";
 import homepageImageJpeg from "../../assets/home/homepage-hero.jpeg";
 import homepageImageSmallAvif from "../../assets/home/homepage-hero-mobile.avif";
 import HomepageEventCard from "../../components/events/HomepageEventCard.astro";
+import HomepagePosts from "../../components/posts/HomepagePosts.astro";
+import { getHomepagePostVariants } from "../../lib/content/posts";
 import PageHero from "../../components/PageHero.astro";
 import PageHeroMedia from "../../components/PageHeroMedia.astro";
 import PublicLayout from "../../layouts/PublicLayout.astro";
@@ -21,7 +23,10 @@ import {
   renderRestrictedMarkdown,
 } from "../../lib/content/markdown";
 import type { PublishedVariant } from "../../lib/content/publication";
-import { getPublicationCatalog } from "../../lib/content/repository";
+import {
+  getBuildPostVariants,
+  getPublicationCatalog,
+} from "../../lib/content/repository";
 import {
   getDomainPath,
   getFixedPagePath,
@@ -41,6 +46,9 @@ import "../../styles/homepage.css";
 const locale = assertIsLocale(Astro.currentLocale);
 const canonicalUrl = new URL(`/${locale}/`, Astro.site);
 const catalog = await getPublicationCatalog();
+const postVariants = getHomepagePostVariants(
+  (await getBuildPostVariants()).filter((variant) => variant.locale === locale),
+);
 const today = process.env.BUILD_TODAY ?? getMadridDate(new Date());
 const eventVariants = catalog.variants.filter(
   (variant): variant is Extract<PublishedVariant, { kind: "event" }> =>
@@ -324,6 +332,7 @@ export function getStaticPaths() {
       ))}
     </div>
   </section>
+  <HomepagePosts variants={postVariants} locale={locale} />
 </PublicLayout>
 
 <style>

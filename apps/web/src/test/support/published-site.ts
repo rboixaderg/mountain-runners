@@ -13,6 +13,8 @@ import {
 } from "../../lib/content/events";
 import type { EventHubGroup } from "../../lib/content/events";
 import { getMembersDirectoryEntities } from "../../lib/content/members";
+import { getPostSitemapUrls } from "../../lib/content/post-seo";
+import type { PostVariant } from "../../lib/content/posts";
 import { getOrderedSchoolVariants } from "../../lib/content/schools";
 import {
   externalActionIds,
@@ -35,7 +37,11 @@ import {
   buildCalendarMonthGrid,
   getCalendarFocusMonth,
 } from "../../lib/presentation/events";
-import { buildToday, loadPublicationCatalog } from "./publication-catalog";
+import {
+  buildToday,
+  loadPublicationCatalog,
+  loadPublishedPostVariants,
+} from "./publication-catalog";
 
 export type PublishedSchool = {
   href: string;
@@ -80,12 +86,16 @@ function variantsOfKind<K extends PublishedVariant["kind"]>(
 // Every route the build publishes, in every locale: the catalog already knows
 // which variants and fixed pages are public, so a new event or school is
 // covered the day it ships.
-export function readPublishedPaths(catalog: PublicationCatalog): string[] {
+export function readPublishedPaths(
+  catalog: PublicationCatalog,
+  postVariants: readonly PostVariant[],
+): string[] {
   return [
     ...new Set(
-      getSitemapUrls(catalog, new URL(publicSiteOrigin())).map(
-        (url) => new URL(url).pathname,
-      ),
+      [
+        ...getSitemapUrls(catalog, new URL(publicSiteOrigin())),
+        ...getPostSitemapUrls(postVariants, new URL(publicSiteOrigin())),
+      ].map((url) => new URL(url).pathname),
     ),
   ].sort();
 }
@@ -99,7 +109,10 @@ export function publicSiteOrigin(): string {
 export async function loadPublishedSite(
   locale: Locale = "ca",
 ): Promise<PublishedSite> {
-  const catalog = await loadPublicationCatalog();
+  const [catalog, postVariants] = await Promise.all([
+    loadPublicationCatalog(),
+    loadPublishedPostVariants(),
+  ]);
   const today = buildToday();
 
   const eventVariants = variantsOfKind(catalog, "event", locale);
@@ -129,7 +142,7 @@ export async function loadPublishedSite(
     locale,
     today,
     collaborators: getMembersDirectoryEntities(catalog, locale),
-    sitemapPaths: readPublishedPaths(catalog),
+    sitemapPaths: readPublishedPaths(catalog, postVariants),
     homepageEvents: getHomepageEvents(events, today).map((event) => {
       const variant = eventVariants.find(
         (candidate) => candidate.entry.id === event.id,

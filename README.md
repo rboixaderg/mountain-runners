@@ -6,8 +6,11 @@ Web de codi obert de l'associació esportiva Mountain Runners del Berguedà.
 
 Aquest repositori conté l'aplicació Astro estàtica implementada fins a la fase 4,
 el model editorial validat, la infraestructura multiidioma, el sistema visual i
-les normes de col·laboració. La sortida actual genera 66 rutes canòniques: 22 en
-català, 22 en castellà i 22 en anglès, a més dels recursos tècnics globals.
+les normes de col·laboració. Aquesta branca afegeix els hubs de notícies i blog:
+75 rutes canòniques, 27 en català i 24 en cada altre idioma, a més dels recursos
+tècnics globals. La notícia del local i els dos articles de blog estan marcats
+per publicar després de l'aprovació editorial del 8 d'octubre de 2026; el merge
+i el desplegament continuen pendents.
 
 La fase 4 es va completar el 16 d'agost de 2026 i el seu tancament és a `main`.
 La fase 5 ha completat la T5.1 (decisions), la T5.2 (artefacte), la T5.3
@@ -40,6 +43,18 @@ condicions que la integració contínua. `pnpm check` ofereix les comprovacions
 ràpides (format, lint, typecheck i tests). `pnpm lighthouse` és una auditoria
 manual separada, fora de `pnpm validate` i de la CI, que valida les rutes
 representatives contra els llindars i pressupostos configurats.
+
+Per auditar també els pilots d'esborrany, construeix un preview amb el mode i
+l'origen explícits, i executa el runner sobre aquell mateix artefacte:
+
+```sh
+PUBLIC_PREVIEW=true PUBLIC_SITE_ORIGIN=https://pr-999.preview.mountainrunners.cat BUILD_TODAY=2026-10-04 pnpm build
+PUBLIC_PREVIEW=true node tools/lighthouse/run-lighthouse.mjs
+```
+
+El runner exigeix HTTP 200 a totes les rutes abans d'auditar-les. Els pilots
+continuen amb `noindex`; el llindar SEO 100 pot fer fallar l'auditoria de preview
+per aquest motiu. No s'ha de retirar la protecció ni rebaixar el llindar.
 
 ## Arquitectura
 

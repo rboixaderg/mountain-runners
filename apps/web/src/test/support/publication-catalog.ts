@@ -15,8 +15,13 @@ import {
   type Entity,
   type Event,
   type ExternalAction,
+  type Post,
   type School,
 } from "../../lib/content/models";
+import {
+  createPublishedPostVariants,
+  type PostVariant,
+} from "../../lib/content/posts";
 import {
   createPublicationCatalog,
   type ContentSource,
@@ -63,4 +68,18 @@ export function buildToday(): string {
 
 export async function loadPublicationCatalog(): Promise<PublicationCatalog> {
   return createPublicationCatalog(await loadContentSource());
+}
+
+export async function loadPublishedPostVariants(): Promise<PostVariant[]> {
+  const [posts, events] = await Promise.all([
+    loadCollection<Post>("posts", collectionSchemas.posts),
+    loadCollection<Event>("events", collectionSchemas.events),
+  ]);
+  return createPublishedPostVariants(
+    {
+      posts,
+      eventIds: new Set(events.map(({ id }) => id)),
+    },
+    buildToday(),
+  );
 }
