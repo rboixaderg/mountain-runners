@@ -41,6 +41,22 @@ describe("analytics catalog", () => {
 });
 
 describe("analytics page type", () => {
+  it.each([
+    ["/ca/noticies/", "news_hub"],
+    ["/es/noticias/", "news_hub"],
+    ["/en/news/", "news_hub"],
+    ["/ca/noticies/exemple/", "news_detail"],
+    ["/es/noticias/ejemplo/", "news_detail"],
+    ["/en/news/example/", "news_detail"],
+    ["/ca/blog/", "blog_hub"],
+    ["/es/blog/", "blog_hub"],
+    ["/en/blog/", "blog_hub"],
+    ["/ca/blog/exemple/", "blog_detail"],
+    ["/es/blog/ejemplo/", "blog_detail"],
+    ["/en/blog/example/", "blog_detail"],
+  ])("labels editorial route %s as %s", (route, pageType) => {
+    expect(getAnalyticsPageType(route)).toBe(pageType);
+  });
   it("derives page types from localized public routes", () => {
     expect(getAnalyticsPageType("/ca/")).toBe(analyticsPageTypes.home);
     expect(getAnalyticsPageType("/ca/qui-som/")).toBe(analyticsPageTypes.about);
@@ -105,18 +121,19 @@ describe("analytics action attributes", () => {
   });
 });
 
-describe("plausible-events client script", () => {
-  it("mirrors the TypeScript event names and thresholds", () => {
-    expect(plausibleEventsScript).toContain(
-      `"${analyticsEventNames.uiAction}"`,
-    );
-    expect(plausibleEventsScript).toContain(
-      `"${analyticsEventNames.engagedTime}"`,
-    );
-    expect(plausibleEventsScript).toContain(
-      `"${analyticsEventNames.scrollDepth}"`,
-    );
+// The shipped client script is plain JavaScript and cannot import the TypeScript
+// catalog, so these constants are duplicated across the boundary. Asserting they
+// stay mirrored catches the drift. The thresholds no behaviour test advances are
+// 60 and 120 seconds, which is why they are checked here rather than only through
+// the emitted events.
+describe("plausible-events client script mirrors the TypeScript contract", () => {
+  it("mirrors every event name", () => {
+    for (const eventName of Object.values(analyticsEventNames)) {
+      expect(plausibleEventsScript).toContain(`"${eventName}"`);
+    }
+  });
 
+  it("mirrors every engaged time and scroll depth threshold", () => {
     for (const threshold of [
       ...engagedTimeThresholdsSeconds,
       ...scrollDepthThresholds,

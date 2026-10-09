@@ -48,10 +48,11 @@ function createEvent(
 }
 
 describe("homepage events", () => {
-  it("prioritizes active events with the nearest upcoming edition", () => {
+  it("selects only active events with a confirmed current or future edition", () => {
     const events = getHomepageEvents(
       [
         createEvent("without-date", true, ["2025-01-01"]),
+        createEvent("without-editions", true, []),
         createEvent("later", true, ["2027-06-01"]),
         createEvent("soon", true, ["2027-06-01", "2027-05-01"]),
         createEvent("historical", false, ["2027-04-01"]),
@@ -59,23 +60,20 @@ describe("homepage events", () => {
       "2027-04-01",
     );
 
-    expect(events.map(({ id }) => id)).toEqual([
-      "soon",
-      "later",
-      "without-date",
-    ]);
+    expect(events.map(({ id }) => id)).toEqual(["soon", "later"]);
   });
 
-  it("orders two active events without an upcoming edition by id", () => {
-    const events = getHomepageEvents(
-      [
-        createEvent("zeta", true, ["2025-02-01"]),
-        createEvent("alfa", true, ["2025-01-01"]),
-      ],
-      "2027-01-01",
-    );
-
-    expect(events.map(({ id }) => id)).toEqual(["alfa", "zeta"]);
+  it("returns an empty homepage selection when no active event has a confirmed upcoming date", () => {
+    expect(
+      getHomepageEvents(
+        [
+          createEvent("past-only", true, ["2025-02-01"]),
+          createEvent("without-editions", true, []),
+          createEvent("inactive-future", false, ["2027-05-01"]),
+        ],
+        "2027-01-01",
+      ),
+    ).toEqual([]);
   });
 
   it("orders two upcoming events on the same date by id", () => {

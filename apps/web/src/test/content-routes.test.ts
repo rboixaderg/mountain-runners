@@ -1,19 +1,5 @@
-import { readFile, readdir } from "node:fs/promises";
 import { describe, expect, it } from "vitest";
-import type { z } from "zod";
-import {
-  collectionSchemas,
-  type Contact,
-  type Document,
-  type Entity,
-  type Event,
-  type ExternalAction,
-  type School,
-} from "../lib/content/models";
-import {
-  createPublicationCatalog,
-  type ContentSource,
-} from "../lib/content/publication";
+import { createPublicationCatalog } from "../lib/content/publication";
 import {
   assertFixedPageRouteSegments,
   assertRouteDomains,
@@ -26,42 +12,18 @@ import {
   getVariantPath,
   routeDomains,
 } from "../lib/content/routes";
-import { parseRestrictedYaml } from "../lib/content/yaml";
+import { loadContentSource } from "./support/publication-catalog";
 
 const publicSiteOrigin = new URL("https://mountainrunners.cat");
 
-async function loadCollection<T>(directory: string, schema: z.ZodType<T>) {
-  const directoryUrl = new URL(`../content/${directory}/`, import.meta.url);
-  const files = (await readdir(directoryUrl))
-    .filter((file) => file.endsWith(".yaml"))
-    .sort();
-  return Promise.all(
-    files.map(async (file) =>
-      parseRestrictedYaml(
-        await readFile(new URL(file, directoryUrl), "utf8"),
-        schema,
-      ),
-    ),
-  );
-}
-
-async function loadSource(): Promise<ContentSource> {
-  const [schools, events, entities, documents, externalActions, contact] =
-    await Promise.all([
-      loadCollection<School>("schools", collectionSchemas.schools),
-      loadCollection<Event>("events", collectionSchemas.events),
-      loadCollection<Entity>("entities", collectionSchemas.entities),
-      loadCollection<Document>("documents", collectionSchemas.documents),
-      loadCollection<ExternalAction>(
-        "external-actions",
-        collectionSchemas.externalActions,
-      ),
-      loadCollection<Contact>("contact", collectionSchemas.contact),
-    ]);
-  for (const event of events) {
+// The routes suite narrows the published events to a single known entry so the
+// expectations stay about routes instead of the current editorial roster.
+async function loadSource() {
+  const source = await loadContentSource();
+  for (const event of source.events) {
     event.published = event.id === "mountain-day";
   }
-  return { schools, events, entities, documents, externalActions, contact };
+  return source;
 }
 
 function addTranslations(value: unknown, locale: "es" | "en"): void {

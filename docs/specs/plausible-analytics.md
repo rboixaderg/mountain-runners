@@ -156,6 +156,33 @@ build de preview (`PUBLIC_PREVIEW=true`) i `pnpm test:e2e` a producció.
   nom d'amfitrió de Plausible descarta visites que no siguin de
   `mountainrunners.cat`.
 
+### Notícies i blog
+
+Els hubs i detalls editorials s'etiqueten `news_hub`, `news_detail`, `blog_hub`
+i `blog_detail`. Els clics reutilitzen `UI Action` i `action: navigate`:
+
+- Menú: `area: header_nav`, `target: news | blog`.
+- Llistat: `area: news_hub | blog_hub`, `target` és l'identificador estable de
+  l'entrada, no el titular o l'autoria.
+- Retorn al hub: `area: post_navigation`, `target: news | blog`.
+- Recursos relacionats: `area: post_resources`, amb `target: members` o
+  l'identificador públic de l'esdeveniment.
+
+`route`, `locale` i `page_type` descriuen la pàgina on es produeix el clic. Els
+temps actius i el scroll també reben el tipus editorial correcte. El preview no
+carrega cap script d'analítica i no emet aquests esdeveniments.
+
+Per consultar clics interns, filtrar l'objectiu existent `UI Action` per àrea,
+destinació i ruta d'origen. Per consultar arribades a la web per un article,
+utilitzar les pàgines d'entrada i les fonts d'adquisició de Plausible. Una visita
+de pàgina no és un clic ni necessàriament una entrada a la web. `Direct/None`
+indica manca de font atribuïble, no prova que s'hagi escrit l'adreça. No es resten
+clics de visites per deduir entrades directes. No s'afegeixen UTM internes,
+identificadors persistents, cookies ni un nou esdeveniment d'entrada.
+
+La configuració i disponibilitat del tauler remot es verifiquen en operació;
+les proves locals intercepten l'analítica i no generen trànsit real.
+
 ## Previews De Pull Request
 
 Les previews de pull request no són la web pública i no es mesuren. El criteri

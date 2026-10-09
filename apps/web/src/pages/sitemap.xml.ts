@@ -1,5 +1,9 @@
 import type { APIRoute } from "astro";
-import { getPublicationCatalog } from "../lib/content/repository";
+import {
+  getPublicationCatalog,
+  getPublishedPostVariants,
+} from "../lib/content/repository";
+import { getPostSitemapUrls } from "../lib/content/post-seo";
 import { getSitemapUrls } from "../lib/content/routes";
 
 function escapeXml(value: string): string {
@@ -16,7 +20,11 @@ function escapeXml(value: string): string {
 
 export const GET: APIRoute = async ({ site }) => {
   const catalog = await getPublicationCatalog();
-  const urls = getSitemapUrls(catalog, site!)
+  const urls = [
+    ...getSitemapUrls(catalog, site!),
+    ...getPostSitemapUrls(await getPublishedPostVariants(), site!),
+  ]
+    .sort()
     .map((url) => `  <url><loc>${escapeXml(url)}</loc></url>`)
     .join("\n");
 

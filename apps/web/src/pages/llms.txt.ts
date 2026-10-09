@@ -13,6 +13,8 @@ const sections: Section[] = [
     pathFor: (locale) => getDomainPath("event", locale),
   },
   { label: "Schools", pathFor: (locale) => getDomainPath("school", locale) },
+  { label: "News", pathFor: (locale) => getDomainPath("news", locale) },
+  { label: "Blog", pathFor: (locale) => getDomainPath("blog", locale) },
   {
     label: "Members",
     pathFor: (locale) => getFixedPagePath("members", locale),
@@ -62,7 +64,7 @@ export const GET: APIRoute = ({ site }) => {
 - To consult official documents (statutes, regulations, minutes) and legal contact data.
 - To find the public profiles of the association (Instagram, Strava).
 
-Each section is published in three languages (ca, es, en); use the language prefix you prefer and consult the site map for the complete list of pages.
+Section hubs are available in three languages (ca, es, en). Editorial articles are available only in their complete languages, without fallback. Consult the sitemap for published pages; preview drafts are not included and are not authoritative public information.
 
 ## Main sections
 

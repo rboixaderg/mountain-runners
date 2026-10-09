@@ -9,6 +9,7 @@
 //   PUBLIC_SITE_ORIGIN  production origin (https://mountainrunners.cat)
 //   BUILD_TODAY         editorial date, fixed for both builds
 import { createHash } from "node:crypto";
+import { requireArtifactMode } from "../../apps/web/build-mode.mjs";
 import { readFile, rm } from "node:fs/promises";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -24,6 +25,7 @@ const distDirectory = resolve(rootDirectory, "apps/web/dist");
 
 requireEnvironment("PUBLIC_SITE_ORIGIN", "verify reproducibility.");
 requireEditorialDate("verify reproducibility.");
+const publicPreview = requireArtifactMode(false);
 
 async function snapshotOutput() {
   const files = await listRegularFiles(distDirectory, distDirectory);
@@ -61,10 +63,10 @@ function describeDifferences(firstSnapshot, secondSnapshot) {
   return differences;
 }
 
-runBuild();
+runBuild(publicPreview);
 const firstSnapshot = await snapshotOutput();
 await rm(distDirectory, { recursive: true, force: true });
-runBuild();
+runBuild(publicPreview);
 const secondSnapshot = await snapshotOutput();
 
 if (JSON.stringify(firstSnapshot) !== JSON.stringify(secondSnapshot)) {

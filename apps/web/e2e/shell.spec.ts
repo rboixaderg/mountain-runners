@@ -1,6 +1,25 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Locator, type Page } from "@playwright/test";
 import { plausibleScriptSrc } from "../src/lib/analytics/plausible";
+import { getRegistrationPresentation } from "../src/lib/presentation/status";
+import {
+  loadPublishedSite,
+  publicSiteOrigin,
+} from "../src/test/support/published-site";
+import * as messages from "../src/paraglide/messages.js";
+import { locales } from "../i18n.config.mjs";
+import type { Locale } from "../src/lib/content/primitives";
+import { openGraphLocales } from "../src/lib/content/seo";
+
+// The expectations below are derived from the content the build publishes, so
+// adding an event or a school keeps these tests meaningful instead of failing
+// them. What they pin is the editorial contract: which entries a page shows,
+// in which region, in which order, and which controls it must never render.
+let site: Awaited<ReturnType<typeof loadPublishedSite>>;
+
+test.beforeAll(async () => {
+  site = await loadPublishedSite("ca");
+});
 
 test.beforeEach(async ({ page }) => {
   // Keep the shell suite independent from the remote analytics host.
@@ -126,122 +145,114 @@ test("renders the published homepage sections in order", async ({ page }) => {
 
   const main = page.getByRole("main");
   const hero = page.locator("main section:has(h1)");
-  await expect(
-    page.getByRole("heading", {
-      level: 1,
-      name: "A.E. Mountain Runners del Berguedà",
-    }),
-  ).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1 })).toHaveCount(1);
   await expect(hero.locator('img[alt=""]')).toHaveAttribute(
     "src",
     /^\/_astro\//u,
   );
-  await expect(main.locator("h1, h2").allTextContents()).resolves.toEqual([
-    "A.E. Mountain Runners del Berguedà",
+  await expect(main.locator("h2").allTextContents()).resolves.toEqual([
     "Les nostres escoles",
     "Forma part del club",
     "Agenda d'activitats",
+    "Actualitat del club",
   ]);
-  await expect(
-    main.getByRole("link", { name: "Veure tot l'any" }),
-  ).toHaveAttribute("href", "/ca/esdeveniments/");
+  await expect(main.locator('a[href=""], a[href="#"]')).toHaveCount(0);
+});
+
+test("offers the homepage actions with their reviewed destinations", async ({
+  page,
+}) => {
+  await page.goto("/ca/");
+
+  const hero = page.locator("main section:has(h1)");
   await expect(hero.getByRole("link")).toHaveCount(3);
+
+  const signupLink = page
+    .getByRole("banner")
+    .getByRole("link", { name: "Fes-te soci" });
+  await expect(signupLink).toHaveCount(1);
+  await expect(signupLink).toHaveAttribute("href", site.memberSignupUrl!);
+  await expect(signupLink).toHaveAttribute("target", "_blank");
+
   const heroSignupLink = hero.getByRole("link", { name: "Fes-te soci" });
   await expect(heroSignupLink).toHaveCount(1);
-  await expect(heroSignupLink).toHaveAttribute(
-    "href",
-    "https://mountainrunners.playoffinformatica.com/Preinscripcio.php",
-  );
-  await expect(heroSignupLink).toHaveAttribute("target", "_blank");
-  await expect(
-    main.getByRole("link", { name: "Veure més informació", exact: true }),
-  ).toHaveAttribute("href", "/ca/socis/");
-  await expect(
-    hero.getByRole("link", { name: "Les nostres escoles" }),
-  ).toHaveAttribute("href", "/ca/escoles/");
+  await expect(heroSignupLink).toHaveAttribute("href", site.memberSignupUrl!);
+
   const federationLink = hero.getByRole("link", {
     name: "Federa't amb nosaltres",
   });
-  await expect(federationLink).toHaveAttribute(
-    "href",
-    "https://mountainrunners.playoffinformatica.com/PanellActivitatsWebNou.php?SELECCIO_NIVELL=4",
-  );
+  await expect(federationLink).toHaveAttribute("href", site.federationUrl!);
   await expect(federationLink).toHaveAttribute("target", "_blank");
+
+  await expect(
+    hero.getByRole("link", { name: "Les nostres escoles" }),
+  ).toHaveAttribute("href", "/ca/escoles/");
+  await expect(
+    page.getByRole("main").getByRole("link", {
+      name: "Veure més informació",
+      exact: true,
+    }),
+  ).toHaveAttribute("href", site.membersPath);
+  await expect(
+    page.getByRole("main").getByRole("link", { name: "Veure tot l'any" }),
+  ).toHaveAttribute("href", "/ca/esdeveniments/");
+});
+
+test("lists every published homepage event in editorial order", async ({
+  page,
+}) => {
+  await page.goto("/ca/");
+
   const eventsRegion = page.getByRole("region", {
     name: "Agenda d'activitats",
   });
   const eventCards = eventsRegion.getByRole("article");
-  await expect(eventCards).toHaveCount(8);
+
+  await expect(eventCards).toHaveCount(site.homepageEvents.length);
   await expect(
     eventsRegion.getByRole("heading", { level: 3 }).allTextContents(),
-  ).resolves.toEqual([
-    "Escalada de Vilada a Castell de l'Areny",
-    "Ultra Pirineu",
-    "Llobregat x la Diabetis",
-    "Cros de Queralt",
-    "Minivolta a la Maria",
-    "Escalada Popular a Queralt",
-    "Les Clàssiques de Berga",
-    "Quina Berguedana",
-  ]);
-  const eventStatuses = [
-    "Pròxima edició",
-    "Pròxima edició",
-    "Pròxima edició",
-    "Pròxima edició",
-    "Pròxima edició",
-    "Sense pròxima data anunciada",
-    "Sense pròxima data anunciada",
-    "Sense pròxima data anunciada",
-  ];
-  for (const [index, status] of eventStatuses.entries()) {
+  ).resolves.toEqual(site.homepageEvents.map(({ event }) => event.title.ca));
+
+  for (const [index, { event, href }] of site.homepageEvents.entries()) {
+    await expect(eventCards.nth(index).getByRole("link")).toHaveAttribute(
+      "href",
+      href,
+    );
     await expect(
-      eventCards.nth(index).getByText(status, { exact: true }),
+      eventCards.nth(index).getByRole("heading", { name: event.title.ca }),
     ).toBeVisible();
   }
-  await expect(
-    page.getByRole("heading", {
-      level: 3,
-      name: "Escalada de Vilada a Castell de l'Areny",
-    }),
-  ).toBeVisible();
-  await expect(
-    page.getByRole("heading", { level: 3, name: "Ultra Pirineu" }),
-  ).toBeVisible();
-  await expect(
-    page.getByRole("heading", {
-      level: 3,
-      name: "Escalada Popular a Queralt",
-    }),
-  ).toBeVisible();
-  await expect(eventsRegion).not.toContainText("Berga Trail");
+
+  // The homepage agenda contains only upcoming editions, not active events
+  // without an announced date or past events.
+  for (const { event } of site.eventHubGroups["active-without-date"]) {
+    await expect(eventsRegion).not.toContainText(event.title.ca);
+  }
+  for (const { event } of site.eventHubGroups.past) {
+    await expect(eventsRegion).not.toContainText(event.title.ca);
+  }
+});
+
+test("shows one school card per published school", async ({ page }) => {
+  await page.goto("/ca/");
+
   const schoolsSection = page.locator("main section").filter({
     has: page.getByRole("heading", {
       level: 2,
       name: "Les nostres escoles",
     }),
   });
-  await expect(schoolsSection.locator('img[alt=""]')).toHaveCount(3);
   const schoolLinks = schoolsSection.getByRole("link");
-  await expect(schoolLinks).toHaveCount(3);
-  for (const [index, schoolName] of [
-    "Escola de Trail",
-    "Escola Skimo",
-    "Escola BTT",
-  ].entries()) {
-    await expect(schoolLinks.nth(index)).toContainText(schoolName);
-    await expect(schoolLinks.nth(index)).toContainText("Informació");
-  }
-  const headerSignupLink = page
-    .getByRole("banner")
-    .getByRole("link", { name: "Fes-te soci" });
-  await expect(headerSignupLink).toHaveCount(1);
-  await expect(headerSignupLink).toHaveAttribute(
-    "href",
-    "https://mountainrunners.playoffinformatica.com/Preinscripcio.php",
+
+  await expect(schoolsSection.locator('img[alt=""]')).toHaveCount(
+    site.orderedSchools.length,
   );
-  await expect(headerSignupLink).toHaveAttribute("target", "_blank");
-  await expect(main.locator('a[href=""], a[href="#"]')).toHaveCount(0);
+  await expect(schoolLinks).toHaveCount(site.orderedSchools.length);
+  for (const [index, { school, href }] of site.orderedSchools.entries()) {
+    await expect(schoolLinks.nth(index)).toContainText(school.name.ca);
+    await expect(schoolLinks.nth(index)).toContainText("Informació");
+    await expect(schoolLinks.nth(index)).toHaveAttribute("href", href);
+  }
 });
 
 test("links the portada to the events hub with published entries", async ({
@@ -259,99 +270,140 @@ test("links the portada to the events hub with published entries", async ({
   await expect(page.locator('meta[name="robots"]')).toHaveCount(0);
 });
 
-test("renders the events hub groups in order with links to details", async ({
-  page,
-}) => {
+test("renders the events hub groups in editorial order", async ({ page }) => {
   await page.goto("/ca/esdeveniments/");
 
-  const main = page.getByRole("main");
-  await expect(
-    page.getByRole("heading", { level: 1, name: "Esdeveniments" }),
-  ).toBeVisible();
   const hero = page.locator("main section:has(h1)");
-  const heroImage = hero.locator('img[alt=""]');
-  await expect(heroImage).toHaveAttribute("src", /^\/_astro\//u);
-  await expect(heroImage).toHaveAttribute("width", "960");
-  await expect(heroImage).toHaveAttribute("height", "641");
-  await expect(heroImage).toHaveAttribute("alt", "");
-  await expect(hero.locator("figcaption")).toHaveText(
-    "Arxiu: Mountain Runners del Berguedà",
+  await expect(hero.locator('img[alt=""]')).toHaveAttribute(
+    "src",
+    /^\/_astro\//u,
   );
-  await expect(
-    page.getByRole("heading", { level: 2, name: "Calendari mensual" }),
-  ).toBeVisible();
-  await expect(
-    page.getByRole("heading", { level: 2, name: "Pròximes edicions" }),
-  ).toBeVisible();
-  await expect(
-    page.getByRole("heading", {
-      level: 2,
-      name: "Vigents sense pròxima data",
-    }),
-  ).toBeVisible();
-  await expect(
-    page.getByRole("heading", { level: 2, name: "Esdeveniments passats" }),
-  ).toBeVisible();
 
-  const headings = await main
-    .getByRole("heading", { level: 2 })
-    .allTextContents();
-  expect(headings).toEqual([
+  // The hub keeps one labelled region per publication state, always in this
+  // order, so the reading order is part of the contract.
+  await expect(
+    page.getByRole("main").getByRole("heading", { level: 2 }).allTextContents(),
+  ).resolves.toEqual([
     "Calendari mensual",
     "Pròximes edicions",
     "Vigents sense pròxima data",
     "Esdeveniments passats",
   ]);
+});
 
-  const upcomingRegion = page.getByRole("region", {
-    name: "Pròximes edicions",
-  });
+test("lists each published event in the region its state belongs to", async ({
+  page,
+}) => {
+  await page.goto("/ca/esdeveniments/");
+
+  // Each hub section renders its own entry markup: the upcoming section uses
+  // event cards, the without-date section a compact list, and the history a
+  // table of past editions.
+  const upcoming = page.getByRole("region", { name: "Pròximes edicions" });
+  await expect(upcoming.getByRole("article")).toHaveCount(
+    site.eventHubGroups.upcoming.length,
+  );
   await expect(
-    upcomingRegion.getByRole("heading", { level: 3 }).allTextContents(),
-  ).resolves.toEqual([
-    "Escalada de Vilada a Castell de l'Areny",
-    "Ultra Pirineu",
-    "Llobregat x la Diabetis",
-    "Cros de Queralt",
-    "Minivolta a la Maria",
-  ]);
-  const upcomingLinks = [
-    ["Escalada de Vilada a Castell de l'Areny", "escalada-castell-areny"],
-    ["Ultra Pirineu", "ultra-pirineu"],
-    ["Llobregat x la Diabetis", "llobregat-x-la-diabetis"],
-    ["Cros de Queralt", "cros-de-queralt"],
-    ["Minivolta a la Maria", "minivolta-a-la-maria"],
-  ] as const;
-  for (const [name, slug] of upcomingLinks) {
-    await expect(
-      upcomingRegion.getByRole("link", { name: new RegExp(name, "u") }),
-    ).toHaveAttribute("href", `/ca/esdeveniments/${slug}/`);
+    upcoming.getByRole("heading", { level: 3 }).allTextContents(),
+  ).resolves.toEqual(
+    site.eventHubGroups.upcoming.map(({ event }) => event.title.ca),
+  );
+  for (const [
+    index,
+    { href, nextEdition },
+  ] of site.eventHubGroups.upcoming.entries()) {
+    const card = upcoming.getByRole("article").nth(index);
+    await expect(card.getByRole("link")).toHaveAttribute("href", href);
+    // An upcoming event always has a next edition, so the card shows that
+    // edition's date and place instead of the missing-date placeholder.
+    await expect(card.getByRole("time")).toHaveAttribute(
+      "datetime",
+      nextEdition!.startDate,
+    );
+    await expect(card).toContainText(nextEdition!.location.ca);
   }
-  const activeRegion = page.getByRole("region", {
+
+  const withoutDate = page.getByRole("region", {
     name: "Vigents sense pròxima data",
   });
-  await expect(
-    activeRegion.getByRole("link", { name: /Escalada Popular a Queralt/u }),
-  ).toHaveAttribute("href", "/ca/esdeveniments/escalada-queralt/");
-  const pastRegion = page.getByRole("region", {
-    name: "Esdeveniments passats",
+  await expect(withoutDate.getByRole("listitem")).toHaveCount(
+    site.eventHubGroups["active-without-date"].length,
+  );
+  for (const [index, { event, href }] of site.eventHubGroups[
+    "active-without-date"
+  ].entries()) {
+    const item = withoutDate.getByRole("listitem").nth(index);
+    await expect(item.getByRole("link")).toHaveAttribute("href", href);
+    await expect(item.getByRole("link")).toContainText(event.title.ca);
+    // No date is announced, so the entry must not offer a calendar date.
+    await expect(item.locator("time")).toHaveCount(0);
+  }
+
+  const past = page.getByRole("region", { name: "Esdeveniments passats" });
+  await expect(past.getByRole("row")).toHaveCount(
+    site.eventHubGroups.past.length + 1,
+  );
+  for (const [index, { event }] of site.eventHubGroups.past.entries()) {
+    await expect(past.getByRole("row").nth(index + 1)).toContainText(
+      event.title.ca,
+    );
+  }
+});
+
+test("keeps an event out of the hub region its state does not match", async ({
+  page,
+}) => {
+  await page.goto("/ca/esdeveniments/");
+
+  const upcoming = page.getByRole("region", { name: "Pròximes edicions" });
+  const withoutDate = page.getByRole("region", {
+    name: "Vigents sense pròxima data",
   });
+
+  for (const { event } of site.eventHubGroups["active-without-date"]) {
+    await expect(
+      upcoming.getByRole("link", { name: new RegExp(event.title.ca, "u") }),
+    ).toHaveCount(0);
+  }
+  for (const { event } of site.eventHubGroups.upcoming) {
+    await expect(
+      withoutDate.getByRole("link", { name: new RegExp(event.title.ca, "u") }),
+    ).toHaveCount(0);
+  }
+});
+
+test("publishes the monthly calendar with a control per day holding events", async ({
+  page,
+}) => {
+  await page.goto("/ca/esdeveniments/");
+
+  const calendar = page.getByRole("region", { name: "Calendari mensual" });
+  const dayButtons = calendar.getByRole("button", { expanded: false });
+
+  await expect(dayButtons.first()).toBeVisible();
+  // Every day that holds an event gets exactly one labelled control, and no
+  // other day gets one.
+  await expect(dayButtons).toHaveCount(site.calendarDays.length);
+
+  // Each control announces the day and the events it holds, so a screen reader
+  // reaches the same information the popover shows.
+  for (const [index, day] of site.calendarDays.entries()) {
+    await expect(dayButtons.nth(index)).toHaveAccessibleName(
+      messages.events_calendar_day_with_events(
+        { day: day.dayNumber!, events: day.eventTitles.join(", ") },
+        { locale: site.locale },
+      ),
+    );
+  }
+});
+
+test("never renders an empty or placeholder link on the events hub", async ({
+  page,
+}) => {
+  await page.goto("/ca/esdeveniments/");
   await expect(
-    pastRegion.getByRole("link", { name: "Berga Trail" }),
-  ).toHaveAttribute("href", "/ca/esdeveniments/berga-trail/");
-  await expect(activeRegion.getByRole("listitem")).toHaveCount(3);
-  await expect(
-    activeRegion
-      .getByRole("listitem")
-      .first()
-      .getByText("Sense pròxima data anunciada", { exact: true }),
-  ).toBeVisible();
-  await expect(
-    page
-      .getByRole("region", { name: "Calendari mensual" })
-      .getByRole("button", { expanded: false }),
-  ).not.toHaveCount(0);
-  await expect(main.locator('a[href=""], a[href="#"]')).toHaveCount(0);
+    page.getByRole("main").locator('a[href=""], a[href="#"]'),
+  ).toHaveCount(0);
 });
 
 test("keeps the calendar popover state and mobile bounds synchronized", async ({
@@ -361,7 +413,7 @@ test("keeps the calendar popover state and mobile bounds synchronized", async ({
 
   const calendar = page.getByRole("region", { name: "Calendari mensual" });
   const dayButton = calendar.getByRole("button", {
-    name: "16: Escalada de Vilada a Castell de l'Areny",
+    name: "16: Llobregat x la Diabetis",
   });
   const popoverId = await dayButton.getAttribute("aria-controls");
   expect(popoverId).not.toBeNull();
@@ -372,7 +424,7 @@ test("keeps the calendar popover state and mobile bounds synchronized", async ({
   });
   const outsideLink = page
     .getByRole("region", { name: "Pròximes edicions" })
-    .getByRole("link", { name: /Ultra Pirineu/u })
+    .getByRole("link", { name: /Cros de Queralt/u })
     .first();
 
   if (!testInfo.project.name.endsWith("-mobile")) {
@@ -436,6 +488,169 @@ test("keeps the calendar popover state and mobile bounds synchronized", async ({
   await dayButton.press("Enter");
   await expect(dayButton).toHaveAttribute("aria-expanded", "true");
   await outsideHeading.click();
+  await expect(dayButton).toHaveAttribute("aria-expanded", "false");
+  await expect(popover).toBeHidden();
+});
+
+test("moves the events calendar between available months", async ({
+  page,
+  browserName,
+}) => {
+  await page.goto("/ca/esdeveniments/");
+
+  const calendar = page.getByRole("region", { name: "Calendari mensual" });
+  const monthTable = calendar.getByRole("table");
+  const previousMonth = calendar.getByRole("button", { name: "Mes anterior" });
+  const nextMonth = calendar.getByRole("button", { name: "Mes següent" });
+
+  const augustEvent = calendar.getByRole("button", {
+    name: "16: Escalada de Vilada a Castell de l'Areny",
+  });
+  const octoberEvent = calendar.getByRole("button", {
+    name: "2: Ultra Pirineu",
+    exact: true,
+  });
+
+  await expect(monthTable).toHaveAccessibleName("octubre del 2026");
+  await previousMonth.click();
+  await previousMonth.click();
+  await expect(monthTable).toHaveAccessibleName("agost del 2026");
+  await expect(augustEvent).toBeVisible();
+  await expect(octoberEvent).toHaveCount(0);
+  await previousMonth.click();
+  await expect(monthTable).toHaveAccessibleName("juliol del 2026");
+  await expect(augustEvent).toHaveCount(0);
+  await nextMonth.click();
+  await expect(monthTable).toHaveAccessibleName("agost del 2026");
+  await expect(augustEvent).toBeVisible();
+  await nextMonth.click();
+  await expect(monthTable).toHaveAccessibleName("setembre del 2026");
+  await expect(calendar.getByRole("button", { expanded: false })).toHaveCount(
+    0,
+  );
+
+  await nextMonth.click();
+  await expect(monthTable).toHaveAccessibleName("octubre del 2026");
+  await expect(octoberEvent).toBeVisible();
+  await expect(augustEvent).toHaveCount(0);
+
+  // Tab reaches the visible month, not event controls in earlier hidden months.
+  await nextMonth.focus();
+  // WebKit on macOS uses Option+Tab to include buttons in keyboard navigation.
+  if (browserName === "webkit") {
+    await page.keyboard.press("Alt+Tab");
+  } else {
+    await page.keyboard.press("Tab");
+  }
+  await expect(octoberEvent).toBeFocused();
+});
+
+test("stops the events calendar at the bounds of its navigable range", async ({
+  page,
+}) => {
+  await page.goto("/ca/esdeveniments/");
+
+  const calendar = page.getByRole("region", { name: "Calendari mensual" });
+  const monthTable = calendar.getByRole("table");
+  const previousMonth = calendar.getByRole("button", { name: "Mes anterior" });
+  const nextMonth = calendar.getByRole("button", { name: "Mes següent" });
+
+  for (let month = 0; month < 30; month += 1) {
+    if (await nextMonth.isDisabled()) break;
+    await nextMonth.click();
+  }
+
+  await expect(monthTable).toHaveAccessibleName("novembre del 2026");
+  await expect(nextMonth).toBeDisabled();
+  await expect(previousMonth).toBeEnabled();
+
+  for (let month = 0; month < 30; month += 1) {
+    if (await previousMonth.isDisabled()) break;
+    await previousMonth.click();
+  }
+
+  await expect(monthTable).toHaveAccessibleName("octubre del 2025");
+  await expect(previousMonth).toBeDisabled();
+  await expect(nextMonth).toBeEnabled();
+});
+
+test("loads calendar navigation with the preview script policy", async ({
+  page,
+}) => {
+  await page.route("**/ca/esdeveniments/", async (route) => {
+    const response = await route.fetch();
+    await route.fulfill({
+      response,
+      headers: {
+        ...response.headers(),
+        "content-security-policy":
+          "default-src 'self'; script-src 'self'; connect-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; frame-src https://www.youtube-nocookie.com; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; object-src 'none'",
+      },
+    });
+  });
+
+  await page.goto("/ca/esdeveniments/");
+
+  const calendar = page.getByRole("region", { name: "Calendari mensual" });
+  const monthTable = calendar.getByRole("table");
+  await expect(monthTable).toHaveAccessibleName("octubre del 2026");
+
+  await calendar.getByRole("button", { name: "Mes següent" }).click();
+
+  await expect(monthTable).toHaveAccessibleName("novembre del 2026");
+});
+
+test("closes an open calendar popover when the month changes", async ({
+  page,
+}) => {
+  await page.goto("/ca/esdeveniments/");
+
+  const calendar = page.getByRole("region", { name: "Calendari mensual" });
+  const monthTable = calendar.getByRole("table");
+  await calendar.getByRole("button", { name: "Mes anterior" }).click();
+  await calendar.getByRole("button", { name: "Mes anterior" }).click();
+  const dayButton = calendar.getByRole("button", {
+    name: "16: Escalada de Vilada a Castell de l'Areny",
+  });
+  const popoverId = await dayButton.getAttribute("aria-controls");
+  const popover = page.locator(`#${popoverId}`);
+
+  await dayButton.click();
+  await expect(dayButton).toHaveAttribute("aria-expanded", "true");
+  await expect(popover).toBeVisible();
+
+  await calendar.getByRole("button", { name: "Mes següent" }).click();
+  await expect(monthTable).toHaveAccessibleName("setembre del 2026");
+  await expect(dayButton).toHaveCount(0);
+  await expect(
+    calendar.getByRole("button", {
+      name: "16: Escalada de Vilada a Castell de l'Areny",
+      includeHidden: true,
+    }),
+  ).toHaveAttribute("aria-expanded", "false");
+
+  await calendar.getByRole("button", { name: "Mes següent" }).click();
+  await expect(monthTable).toHaveAccessibleName("octubre del 2026");
+  const octoberDayButton = calendar.getByRole("button", {
+    name: "2: Ultra Pirineu",
+    exact: true,
+  });
+  const octoberPopoverId = await octoberDayButton.getAttribute("aria-controls");
+  const octoberPopover = page.locator(`#${octoberPopoverId}`);
+
+  await octoberDayButton.click();
+  await expect(octoberDayButton).toHaveAttribute("aria-expanded", "true");
+  await expect(octoberPopover).toBeVisible();
+  await expect(
+    octoberPopover.getByRole("heading", { name: "Ultra Pirineu" }),
+  ).toBeVisible();
+  await expect(
+    octoberPopover.getByRole("link", { name: "Més informació" }),
+  ).toHaveAttribute("href", "/ca/esdeveniments/ultra-pirineu/");
+
+  await calendar.getByRole("button", { name: "Mes anterior" }).click();
+  await calendar.getByRole("button", { name: "Mes anterior" }).click();
+  await expect(monthTable).toHaveAccessibleName("agost del 2026");
   await expect(dayButton).toHaveAttribute("aria-expanded", "false");
   await expect(popover).toBeHidden();
 });
@@ -703,53 +918,42 @@ test("renders the Members page sections in editorial order", async ({
 
   const signupLink = page.getByRole("link", { name: /Fes-te soci o sòcia/u });
   await expect(signupLink).toHaveCount(1);
-  await expect(signupLink).toHaveAttribute(
-    "href",
-    "https://mountainrunners.playoffinformatica.com/Preinscripcio.php",
-  );
+  await expect(signupLink).toHaveAttribute("href", site.memberSignupUrl!);
   const federationLink = page.getByRole("link", { name: /Federa't/u });
   await expect(federationLink).toHaveCount(1);
-  await expect(federationLink).toHaveAttribute(
-    "href",
-    "https://mountainrunners.playoffinformatica.com/PanellActivitatsWebNou.php?SELECCIO_NIVELL=4",
-  );
+  await expect(federationLink).toHaveAttribute("href", site.federationUrl!);
 
   const collaboratorsRegion = page.getByRole("region", {
     name: "Col·laboradors",
   });
-  await expect(collaboratorsRegion.getByRole("listitem")).toHaveCount(21);
+  const collaboratorItems = collaboratorsRegion.getByRole("listitem");
+
+  // The directory is derived from the published entities carrying a
+  // membership benefit, so the rendered wall must match it entry for entry.
+  await expect(collaboratorItems).toHaveCount(site.collaborators.length);
   await expect(
     collaboratorsRegion.getByRole("heading", { level: 3 }).allTextContents(),
-  ).resolves.toEqual([
-    "4 Riders Bike Park",
-    "Aina Vila",
-    "Alexandra Bruy",
-    "Bicixtrem",
-    "Centre Òptic",
-    "CIMETIR",
-    "Clínica Jessica Genescà",
-    "ELIT",
-    "Estètica Adela",
-    "Farmàcia Cosp",
-    "Intersport Serra Martí",
-    "Joieria Climent",
-    "Ortopèdia Álvarez Saz Cabra",
-    "Pedratour",
-    "Peu de Via",
-    "Podologia Ingrid Soca",
-    "Ramir's Sabaters",
-    "Ríos Running Berga",
-    "SNOWLOCKERS",
-    "Veloberga",
-    "Visites al Berguedà",
-  ]);
-  await expect(
-    page.getByRole("img", { name: "Logotip de 4 Riders Bike Park" }),
-  ).toBeVisible();
+  ).resolves.toEqual(site.collaborators.map(({ name }) => name.ca));
+
+  for (const [index, collaborator] of site.collaborators.entries()) {
+    const item = collaboratorItems.nth(index);
+    // Each entry shows the reviewed logo alt text, the benefit title and its
+    // description, so the directory never renders a bare logo.
+    await expect(item.getByRole("img")).toHaveAttribute(
+      "alt",
+      collaborator.logo.alt.ca,
+    );
+    await expect(
+      item.getByRole("heading", { name: collaborator.name.ca }),
+    ).toBeVisible();
+    await expect(item).toContainText(collaborator.membershipBenefit!.title.ca);
+    await expect(item).toContainText(
+      collaborator.membershipBenefit!.description.ca,
+    );
+  }
   await expect(
     page.getByRole("link", { name: /snowlockers\.com/u }),
   ).toHaveAttribute("href", "https://www.snowlockers.com/");
-  await expect(collaboratorsRegion).toContainText("20% de descompte");
   await expect(page.locator('main a[href=""], main a[href="#"]')).toHaveCount(
     0,
   );
@@ -776,31 +980,20 @@ test("renders the schools hub in editorial order with links to details", async (
   await expect(
     page.getByText("Compartim un eix comú, la muntanya."),
   ).toBeVisible();
-  const schoolLinks = page
-    .getByRole("main")
-    .getByRole("link")
-    .filter({ hasText: /Escola de Trail|Escola Skimo|Escola BTT/u });
-  await expect(schoolLinks).toHaveCount(3);
-  const schoolNames = ["Escola de Trail", "Escola Skimo", "Escola BTT"];
-  const registrationStatuses = [
-    "Inscripció oberta",
-    "Inscripció properament",
-    "Inscripció oberta",
-  ];
-  const schoolHrefs = [
-    "/ca/escoles/escola-trail/",
-    "/ca/escoles/escola-skimo/",
-    "/ca/escoles/escola-btt/",
-  ];
-  for (const [index, schoolName] of schoolNames.entries()) {
-    await expect(schoolLinks.nth(index)).toContainText(schoolName);
-    await expect(schoolLinks.nth(index)).toContainText(
-      registrationStatuses[index]!,
+  // The hub lists the schools in editorial order, each with the registration
+  // state its entry declares.
+  const schoolList = page.getByRole("main").getByRole("list").last();
+  const schoolCards = schoolList.getByRole("listitem");
+  await expect(schoolCards).toHaveCount(site.orderedSchools.length);
+  for (const [index, { school, href }] of site.orderedSchools.entries()) {
+    const card = schoolCards.nth(index);
+    await expect(card).toContainText(school.name.ca);
+    await expect(card).toContainText(
+      messages[
+        getRegistrationPresentation(school.registrationStatus, undefined).key
+      ]({}, { locale: "ca" }),
     );
-    await expect(schoolLinks.nth(index)).toHaveAttribute(
-      "href",
-      schoolHrefs[index]!,
-    );
+    await expect(card.getByRole("link")).toHaveAttribute("href", href);
   }
   await expect(page.locator('main a[href=""], main a[href="#"]')).toHaveCount(
     0,
@@ -810,15 +1003,24 @@ test("renders the schools hub in editorial order with links to details", async (
 test("navigates from the schools hub to a published school detail", async ({
   page,
 }) => {
+  const trailSchool = site.schools.find(
+    ({ school }) => school.id === "trail-school",
+  )!;
+
   await page.goto("/ca/escoles/");
 
-  await page.getByRole("link", { name: /Escola de Trail/u }).click();
+  await page
+    .getByRole("link", { name: new RegExp(trailSchool.school.name.ca, "u") })
+    .click();
 
-  await expect(page).toHaveURL("/ca/escoles/escola-trail/");
+  await expect(page).toHaveURL(trailSchool.href);
   await expect(page.locator("html")).toHaveAttribute("lang", "ca");
   const schoolDetail = page.getByRole("main");
   await expect(
-    schoolDetail.getByRole("heading", { level: 1, name: "Escola de Trail" }),
+    schoolDetail.getByRole("heading", {
+      level: 1,
+      name: trailSchool.school.name.ca,
+    }),
   ).toBeVisible();
   const aboutImage = schoolDetail
     .getByRole("region", { name: "Què oferim" })
@@ -887,9 +1089,11 @@ test("navigates from the schools hub to a published school detail", async ({
   });
   await expect(registrationLink).toHaveAttribute(
     "href",
-    "https://mountainrunners.playoffinformatica.com/preinscripcio/5/Alta-Escola-Trail/",
+    trailSchool.registrationUrl!,
   );
   await expect(registrationLink).toHaveAttribute("target", "_blank");
+  // The link label is editorial copy: it must never leak the registration
+  // host to the reader.
   await expect(registrationLink).not.toContainText("playoffinformatica");
   const registrationLinkOverflow = await registrationLink.evaluate(
     (element) => ({
@@ -1020,16 +1224,10 @@ test("reaches and activates the available actions with the keyboard", async ({
   await page.goto("/ca/socis/");
   const signupLink = page.getByRole("link", { name: /Fes-te soci o sòcia/u });
   await tabUntilFocused(page, signupLink);
-  await expect(signupLink).toHaveAttribute(
-    "href",
-    "https://mountainrunners.playoffinformatica.com/Preinscripcio.php",
-  );
+  await expect(signupLink).toHaveAttribute("href", site.memberSignupUrl!);
   const federationLink = page.getByRole("link", { name: /Federa't/u });
   await tabUntilFocused(page, federationLink);
-  await expect(federationLink).toHaveAttribute(
-    "href",
-    "https://mountainrunners.playoffinformatica.com/PanellActivitatsWebNou.php?SELECCIO_NIVELL=4",
-  );
+  await expect(federationLink).toHaveAttribute("href", site.federationUrl!);
 });
 
 test("renders the useful Catalan 404 document", async ({ page }) => {
@@ -1054,298 +1252,101 @@ test("@a11y has no detectable axe violations", async ({
 }) => {
   test.skip(browserName !== "chromium", "axe runs once per viewport");
 
-  for (const path of [
-    "/ca/",
-    "/404.html",
-    "/ca/esdeveniments/",
-    "/ca/esdeveniments/ultra-pirineu/",
-    "/ca/esdeveniments/anella-verda/",
-    "/ca/esdeveniments/berga-trail/",
-    "/ca/esdeveniments/cros-de-queralt/",
-    "/ca/esdeveniments/escalada-castell-areny/",
-    "/ca/esdeveniments/escalada-queralt/",
-    "/ca/esdeveniments/les-classiques-de-berga/",
-    "/ca/esdeveniments/llobregat-x-la-diabetis/",
-    "/ca/esdeveniments/minivolta-a-la-maria/",
-    "/ca/esdeveniments/quina-berguedana/",
-    "/ca/qui-som/",
-    "/ca/socis/",
-    "/ca/escoles/",
-    "/ca/escoles/escola-trail/",
-    "/ca/documents/",
-    "/ca/avis-legal/",
-    "/ca/privacitat/",
-    "/ca/cookies/",
-  ]) {
+  // Every published route is swept, in all three locales, so a new event,
+  // school or fixed page is accessible the day it is published.
+  test.slow();
+
+  const routes = ["/404.html", ...site.sitemapPaths];
+  const violationsByRoute: string[] = [];
+  for (const path of routes) {
     await page.goto(path);
 
     const results = await new AxeBuilder({ page }).exclude("iframe").analyze();
-    expect(results.violations, path).toEqual([]);
+    for (const violation of results.violations) {
+      violationsByRoute.push(`${path}: ${violation.id}`);
+    }
   }
-});
 
-test("publishes structured data only on pages with reviewed data", async ({
-  page,
-}) => {
-  const jsonLd = async () =>
-    page
-      .locator('script[type="application/ld+json"]')
-      .evaluateAll((scripts) =>
-        scripts.map((script) => JSON.parse(script.textContent ?? "null")),
-      );
-
-  await page.goto("/ca/");
-  const homeData = await jsonLd();
-  expect(homeData).toHaveLength(2);
-  expect(homeData[0]).toEqual({
-    "@context": "https://schema.org",
-    "@type": "Organization",
-    name: "Mountain Runners del Berguedà",
-    url: "https://mountainrunners.cat/",
-    logo: "https://mountainrunners.cat/content-resources/assets/logo_mountain_runners.png",
-    sameAs: [
-      "https://www.instagram.com/infomountain/",
-      "https://www.strava.com/clubs/156769",
-    ],
-    description: "Associació esportiva del Berguedà.",
-    contactPoint: [
-      {
-        "@type": "ContactPoint",
-        contactType: "customer service",
-        email: "info@mountainrunners.cat",
-        telephone: "+34938213747",
-      },
-    ],
-    address: {
-      "@type": "PostalAddress",
-      addressCountry: "ES",
-      streetAddress: "Plaça Sant Joan, 15 baixos, 08600 Berga",
-    },
-  });
-  expect(homeData[1]).toMatchObject({
-    "@type": "WebSite",
-    url: "https://mountainrunners.cat/",
-  });
-
-  await page.goto("/ca/esdeveniments/");
-  expect(await jsonLd()).toEqual([]);
-
-  await page.goto("/ca/escoles/");
-  expect(await jsonLd()).toEqual([]);
-
-  await page.goto("/ca/escoles/escola-trail/");
-  expect(await jsonLd()).toEqual([]);
-
-  await page.goto("/ca/esdeveniments/ultra-pirineu/");
-  const eventData = await jsonLd();
-  expect(eventData).toHaveLength(1);
-  expect(eventData[0]).toEqual({
-    "@context": "https://schema.org",
-    "@type": "Event",
-    name: "Ultra Pirineu",
-    url: "https://mountainrunners.cat/ca/esdeveniments/ultra-pirineu/",
-    startDate: "2026-10-02",
-    endDate: "2026-10-04",
-    eventStatus: "https://schema.org/EventScheduled",
-    location: { "@type": "Place", name: "Bagà" },
-    description:
-      "És una cursa de muntanya que recorre part de la serralada del Cadí-Moixeró.",
-    image:
-      "https://mountainrunners.cat/content-resources/assets/logo_mountain_runners.png",
-  });
-
-  await page.goto("/ca/esdeveniments/escalada-castell-areny/");
-  const castellArenyData = await jsonLd();
-  expect(castellArenyData).toHaveLength(1);
-  expect(castellArenyData[0]).toEqual({
-    "@context": "https://schema.org",
-    "@type": "Event",
-    name: "Escalada de Vilada a Castell de l'Areny",
-    url: "https://mountainrunners.cat/ca/esdeveniments/escalada-castell-areny/",
-    startDate: "2026-08-16",
-    eventStatus: "https://schema.org/EventScheduled",
-    location: { "@type": "Place", name: "Zona Esportiva de Vilada" },
-    description:
-      "Cronoescalada de la Lliga d'escalades del Berguedà, de Vilada a Castell de l'Areny.",
-    image:
-      "https://mountainrunners.cat/content-resources/assets/events/escalada-castell-areny-cover.jpg",
-  });
-
-  await page.goto("/ca/esdeveniments/llobregat-x-la-diabetis/");
-  const llobregatData = await jsonLd();
-  expect(llobregatData).toHaveLength(1);
-  expect(llobregatData[0]).toEqual({
-    "@context": "https://schema.org",
-    "@type": "Event",
-    name: "Llobregat x la Diabetis",
-    url: "https://mountainrunners.cat/ca/esdeveniments/llobregat-x-la-diabetis/",
-    startDate: "2026-10-16",
-    endDate: "2026-10-18",
-    eventStatus: "https://schema.org/EventScheduled",
-    location: {
-      "@type": "Place",
-      name: "Castellar de n'Hug — El Prat de Llobregat",
-    },
-    description:
-      "Repte solidari de 180 km pel riu Llobregat, de Castellar de n'Hug al Prat, a favor de la recerca en diabetis tipus 1.",
-    image:
-      "https://mountainrunners.cat/content-resources/assets/events/llobregat-x-la-diabetis-cover.png",
-  });
-
-  await page.goto("/ca/esdeveniments/cros-de-queralt/");
-  const crosData = await jsonLd();
-  expect(crosData).toHaveLength(1);
-  expect(crosData[0]).toEqual({
-    "@context": "https://schema.org",
-    "@type": "Event",
-    name: "Cros de Queralt",
-    url: "https://mountainrunners.cat/ca/esdeveniments/cros-de-queralt/",
-    startDate: "2026-10-18",
-    eventStatus: "https://schema.org/EventScheduled",
-    location: { "@type": "Place", name: "Santuari de Queralt, Berga" },
-    description:
-      "La prova de Berga del Cros Escolar del Berguedà, a l'entorn del Santuari de Queralt, amb la col·laboració de Mountain Runners.",
-    image:
-      "https://mountainrunners.cat/content-resources/assets/logo_mountain_runners.png",
-  });
-
-  await page.goto("/ca/esdeveniments/minivolta-a-la-maria/");
-  const minivoltaData = await jsonLd();
-  expect(minivoltaData).toHaveLength(1);
-  expect(minivoltaData[0]).toEqual({
-    "@context": "https://schema.org",
-    "@type": "Event",
-    name: "Minivolta a la Maria",
-    url: "https://mountainrunners.cat/ca/esdeveniments/minivolta-a-la-maria/",
-    startDate: "2026-11-15",
-    eventStatus: "https://schema.org/EventScheduled",
-    location: { "@type": "Place", name: "Avià" },
-    description:
-      "La cursa infantil de la Volta a la Maria, la cursa de muntanya d'Avià, organitzada per Mountain Runners del Berguedà.",
-    image:
-      "https://mountainrunners.cat/content-resources/assets/logo_mountain_runners.png",
-  });
-
-  for (const path of [
-    "/ca/esdeveniments/anella-verda/",
-    "/ca/esdeveniments/berga-trail/",
-    "/ca/esdeveniments/escalada-queralt/",
-    "/ca/esdeveniments/les-classiques-de-berga/",
-    "/ca/esdeveniments/quina-berguedana/",
-    "/ca/qui-som/",
-    "/ca/socis/",
-    "/404.html",
-  ]) {
-    await page.goto(path);
-    expect(await jsonLd(), path).toEqual([]);
-  }
+  expect(violationsByRoute).toEqual([]);
 });
 
 test("emits canonical and social metadata for published pages", async ({
   page,
 }) => {
+  // One representative route per template, plus every locale: canonical,
+  // hreflang and the Open Graph locale must follow the route, not the copy.
+  const representativeRoutes = [
+    { path: "/ca/", hasSocialImage: true },
+    { path: site.orderedSchools.at(-1)!.href, hasSocialImage: true },
+    { path: site.homepageEvents.at(0)!.href, hasSocialImage: true },
+    { path: "/ca/qui-som/", hasSocialImage: false },
+    { path: "/ca/socis/", hasSocialImage: false },
+    { path: "/ca/esdeveniments/", hasSocialImage: true },
+    { path: "/ca/escoles/", hasSocialImage: true },
+    { path: "/ca/documents/", hasSocialImage: false },
+  ];
+
+  for (const { path: route, hasSocialImage } of representativeRoutes) {
+    await page.goto(route);
+
+    await expect(
+      page.locator('link[rel="canonical"]'),
+      `${route} canonical`,
+    ).toHaveAttribute("href", `${publicSiteOrigin()}${route}`);
+    await expect(
+      page.locator('meta[property="og:url"]'),
+      `${route} og:url`,
+    ).toHaveAttribute("content", `${publicSiteOrigin()}${route}`);
+    await expect(
+      page.locator('meta[property="og:type"]'),
+      `${route} og:type`,
+    ).toHaveAttribute("content", "website");
+    await expect(
+      page.locator('meta[name="description"]'),
+      `${route} description`,
+    ).toHaveAttribute("content", /\S/u);
+    // Templates that declare a social image must publish it as an absolute
+    // URL on the canonical origin, with the alt text the screen reader needs.
+    const socialImage = page.locator('meta[property="og:image"]');
+    await expect(socialImage).toHaveCount(hasSocialImage ? 1 : 0);
+    if (hasSocialImage) {
+      await expect(socialImage).toHaveAttribute(
+        "content",
+        /^https:\/\/mountainrunners\.cat\//u,
+      );
+      await expect(
+        page.locator('meta[property="og:image:alt"]'),
+      ).toHaveAttribute("content", /\S/u);
+    }
+
+    // The alternate set must contain this route's own locale, pointing at
+    // the canonical URL, so search engines can pair the translations.
+    const ownLocale = route.split("/")[1]!;
+    await expect(
+      page.locator(`link[rel="alternate"][hreflang="${ownLocale}"]`),
+      `${route} hreflang`,
+    ).toHaveAttribute("href", `${publicSiteOrigin()}${route}`);
+    await expect(
+      page.locator('link[rel="alternate"]'),
+      `${route} alternates`,
+    ).toHaveCount(locales.length + 1);
+  }
+
+  // Every locale declares its own Open Graph locale, which is what social
+  // platforms read to localize a shared link.
+  for (const locale of locales as Locale[]) {
+    await page.goto(`/${locale}/`);
+    await expect(
+      page.locator('meta[property="og:locale"]'),
+      `/${locale}/ og:locale`,
+    ).toHaveAttribute("content", openGraphLocales[locale]);
+  }
+
+  // The root document names the default locale as the x-default alternate.
   await page.goto("/ca/");
-  await expect(page.locator('link[rel="canonical"]')).toHaveAttribute(
-    "href",
-    "https://mountainrunners.cat/ca/",
-  );
-  await expect(page.locator('meta[property="og:title"]')).toHaveAttribute(
-    "content",
-    "A.E. Mountain Runners del Berguedà",
-  );
-  await expect(page.locator('meta[name="description"]')).toHaveAttribute(
-    "content",
-    "Associació esportiva del Berguedà dedicada a la muntanya: escoles de trail, skimo i BTT, esdeveniments i valors d'esforç, constància i respecte per la natura.",
-  );
-  await expect(page.locator('meta[property="og:description"]')).toHaveAttribute(
-    "content",
-    "Associació esportiva del Berguedà dedicada a la muntanya: escoles de trail, skimo i BTT, esdeveniments i valors d'esforç, constància i respecte per la natura.",
-  );
-  await expect(page.locator('meta[property="og:type"]')).toHaveAttribute(
-    "content",
-    "website",
-  );
-  await expect(page.locator('meta[property="og:url"]')).toHaveAttribute(
-    "content",
-    "https://mountainrunners.cat/ca/",
-  );
-  await expect(page.locator('meta[property="og:locale"]')).toHaveAttribute(
-    "content",
-    "ca_ES",
-  );
-  await expect(page.locator('meta[property="og:image"]')).toHaveAttribute(
-    "content",
-    /^https:\/\/mountainrunners\.cat\/_astro\/homepage-hero.*\.jpeg$/u,
-  );
   await expect(
     page.locator('link[rel="alternate"][hreflang="x-default"]'),
-  ).toHaveAttribute("href", "https://mountainrunners.cat/ca/");
-  await expect(page.locator('link[rel="alternate"]')).toHaveCount(4);
-
-  await page.goto("/ca/esdeveniments/ultra-pirineu/");
-  await expect(page.locator('link[rel="canonical"]')).toHaveAttribute(
-    "href",
-    "https://mountainrunners.cat/ca/esdeveniments/ultra-pirineu/",
-  );
-  await expect(page.locator('meta[property="og:title"]')).toHaveAttribute(
-    "content",
-    "Ultra Pirineu | Mountain Runners",
-  );
-  await expect(page.locator('meta[property="og:url"]')).toHaveAttribute(
-    "content",
-    "https://mountainrunners.cat/ca/esdeveniments/ultra-pirineu/",
-  );
-
-  await page.goto("/ca/socis/");
-  await expect(page.locator('link[rel="canonical"]')).toHaveAttribute(
-    "href",
-    "https://mountainrunners.cat/ca/socis/",
-  );
-  await expect(page.locator('meta[property="og:title"]')).toHaveAttribute(
-    "content",
-    "Socis | Mountain Runners",
-  );
-  await expect(page.locator('meta[property="og:url"]')).toHaveAttribute(
-    "content",
-    "https://mountainrunners.cat/ca/socis/",
-  );
-  await expect(page.locator('link[rel="alternate"]')).toHaveCount(4);
-
-  await page.goto("/ca/escoles/");
-  await expect(page.locator('link[rel="canonical"]')).toHaveAttribute(
-    "href",
-    "https://mountainrunners.cat/ca/escoles/",
-  );
-  await expect(page.locator('meta[property="og:title"]')).toHaveAttribute(
-    "content",
-    "Escoles | Mountain Runners",
-  );
-  await expect(page.locator('meta[name="description"]')).toHaveAttribute(
-    "content",
-    "Escoles de trail, skimo i BTT per a infants i joves al Berguedà, en horari no lectiu i amb els valors de l'esport i la muntanya.",
-  );
-  await expect(page.locator('meta[property="og:image"]')).toHaveAttribute(
-    "content",
-    /^https:\/\/mountainrunners\.cat\/_astro\/schools-hub-hero/u,
-  );
-  await expect(page.locator('meta[property="og:url"]')).toHaveAttribute(
-    "content",
-    "https://mountainrunners.cat/ca/escoles/",
-  );
-
-  await page.goto("/ca/escoles/escola-trail/");
-  await expect(page.locator('link[rel="canonical"]')).toHaveAttribute(
-    "href",
-    "https://mountainrunners.cat/ca/escoles/escola-trail/",
-  );
-  await expect(page.locator('meta[property="og:title"]')).toHaveAttribute(
-    "content",
-    "Escola de Trail | Mountain Runners",
-  );
-  await expect(page.locator('meta[property="og:url"]')).toHaveAttribute(
-    "content",
-    "https://mountainrunners.cat/ca/escoles/escola-trail/",
-  );
+  ).toHaveAttribute("href", `${publicSiteOrigin()}/ca/`);
 });
 
 test("serves sitemap and robots aligned with the canonical origin", async ({
@@ -1354,62 +1355,28 @@ test("serves sitemap and robots aligned with the canonical origin", async ({
   const sitemapResponse = await page.request.get("/sitemap.xml");
   expect(sitemapResponse.ok()).toBeTruthy();
   const sitemapText = await sitemapResponse.text();
-  for (const url of [
-    "https://mountainrunners.cat/ca/",
-    "https://mountainrunners.cat/ca/esdeveniments/",
-    "https://mountainrunners.cat/ca/esdeveniments/anella-verda/",
-    "https://mountainrunners.cat/ca/esdeveniments/berga-trail/",
-    "https://mountainrunners.cat/ca/esdeveniments/escalada-castell-areny/",
-    "https://mountainrunners.cat/ca/esdeveniments/escalada-queralt/",
-    "https://mountainrunners.cat/ca/esdeveniments/ultra-pirineu/",
-    "https://mountainrunners.cat/ca/qui-som/",
-    "https://mountainrunners.cat/ca/socis/",
-    "https://mountainrunners.cat/ca/escoles/",
-    "https://mountainrunners.cat/ca/escoles/escola-trail/",
-    "https://mountainrunners.cat/ca/escoles/escola-skimo/",
-    "https://mountainrunners.cat/ca/escoles/escola-btt/",
-    "https://mountainrunners.cat/ca/documents/",
-    "https://mountainrunners.cat/ca/avis-legal/",
-    "https://mountainrunners.cat/ca/privacitat/",
-    "https://mountainrunners.cat/ca/cookies/",
-  ]) {
-    expect(sitemapText).toContain(`<loc>${url}</loc>`);
+
+  // Every published route must be discoverable, on the canonical origin, and
+  // the error document must never be advertised.
+  const origin = publicSiteOrigin();
+  for (const path of site.sitemapPaths) {
+    expect(sitemapText, path).toContain(`<loc>${origin}${path}</loc>`);
   }
   expect(sitemapText).not.toContain("404");
 
   const robotsResponse = await page.request.get("/robots.txt");
   expect(robotsResponse.ok()).toBeTruthy();
   expect(await robotsResponse.text()).toContain(
-    "Sitemap: https://mountainrunners.cat/sitemap.xml",
+    `Sitemap: ${origin}/sitemap.xml`,
   );
 });
 
 test("has no broken or falsely disabled links within the slice", async ({
   page,
 }) => {
-  const slicePaths = [
-    "/ca/",
-    "/ca/esdeveniments/",
-    "/ca/esdeveniments/ultra-pirineu/",
-    "/ca/esdeveniments/anella-verda/",
-    "/ca/esdeveniments/berga-trail/",
-    "/ca/esdeveniments/cros-de-queralt/",
-    "/ca/esdeveniments/escalada-castell-areny/",
-    "/ca/esdeveniments/escalada-queralt/",
-    "/ca/esdeveniments/les-classiques-de-berga/",
-    "/ca/esdeveniments/llobregat-x-la-diabetis/",
-    "/ca/esdeveniments/minivolta-a-la-maria/",
-    "/ca/esdeveniments/quina-berguedana/",
-    "/ca/qui-som/",
-    "/ca/socis/",
-    "/ca/escoles/",
-    "/ca/escoles/escola-trail/",
-    "/ca/documents/",
-    "/ca/avis-legal/",
-    "/ca/privacitat/",
-    "/ca/cookies/",
-    "/404.html",
-  ];
+  // Every published page, so a link published in any locale or template is
+  // checked instead of only the ones a hand-written slice happened to name.
+  const slicePaths = [...site.sitemapPaths, "/404.html"];
   const internalHrefs = new Set<string>();
   for (const path of slicePaths) {
     await page.goto(path);

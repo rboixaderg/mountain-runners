@@ -1,4 +1,6 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
+import { locales } from "../../i18n.config.mjs";
 import { getOrderedPublishedSchoolVariants } from "../lib/content/schools";
 import type { PublicationCatalog } from "../lib/content/publication";
 import {
@@ -17,26 +19,29 @@ import {
   schoolPracticalSectionMessageKeys,
   schoolPracticalSectionOrder,
 } from "../lib/presentation/schools";
+import { schoolSectionsSchema } from "../lib/content/models";
+
+function readJson(path: string): Record<string, unknown> {
+  return JSON.parse(readFileSync(new URL(path, import.meta.url), "utf8"));
+}
 
 describe("school practical presentation contract", () => {
-  it("keeps practical fields in the editorial reading order", () => {
-    expect(schoolPracticalSectionOrder).toEqual([
-      "since",
-      "purpose",
-      "audience",
-      "schedule",
-      "location",
-      "requirements",
-      "prices",
-    ]);
+  it("names every practical section that the schema allows", () => {
+    expect([...schoolPracticalSectionOrder].sort()).toEqual(
+      Object.keys(schoolSectionsSchema.shape).sort(),
+    );
   });
 
-  it("maps every practical field to a translated label", () => {
-    expect(
-      schoolPracticalSectionOrder.every((sectionKey) =>
-        schoolPracticalSectionMessageKeys[sectionKey].startsWith("school_"),
-      ),
-    ).toBe(true);
+  it("translates the label of every practical section in every catalog", () => {
+    for (const locale of locales) {
+      const catalog = readJson(`../../messages/${locale}.json`);
+      for (const sectionKey of schoolPracticalSectionOrder) {
+        expect(
+          catalog[schoolPracticalSectionMessageKeys[sectionKey]],
+          `${locale} misses ${sectionKey}`,
+        ).toEqual(expect.any(String));
+      }
+    }
   });
 
   it("splits labeled schedule content into label, lead and body", () => {

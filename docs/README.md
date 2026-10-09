@@ -22,6 +22,8 @@ acceptada:
 - [`content-model.md`](content-model.md): contracte editorial i de publicació.
 - [`code-conventions.md`](code-conventions.md): normes d'implementació de
   `apps/web`.
+- [`testing-strategy.md`](testing-strategy.md): nivells de prova, garanties de
+  regressió, aïllament, redundància i validació.
 - [`tailwind-v4-migration-plan.md`](tailwind-v4-migration-plan.md): pla operatiu
   incremental i checkpoints de la migració Tailwind de la PR #98.
 - [`roadmap.md`](roadmap.md): fases, dependències i estat general.
@@ -37,6 +39,15 @@ acceptada:
 - [`ai-assistant.md`](ai-assistant.md): límits dels futurs xat públic i assistent
   editorial.
 - [`specs/`](specs/): requisits i acceptació de fases i tasques.
+- [`specs/news-and-blog.md`](specs/news-and-blog.md): funcionalitat autoritzada
+  de notícies, blog i esborranys editorials en preview, amb tasques en curs.
+- [`editorial/guide.md`](editorial/guide.md): criteris d'exactitud, drets,
+  signatura, actualització i aprovació humana. Inclou les dues plantilles.
+
+Els resultats de validació de notícies i blog es registren a la
+[PR #140](https://github.com/rboixaderg/mountain-runners/pull/140) i les seves
+execucions de CI, no en informes addicionals al repositori. Els requisits i
+pendents es mantenen a l'especificació.
 
 ## Registres Històrics
 

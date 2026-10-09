@@ -1,0 +1,27 @@
+---
+import type { PostVariant } from "../../lib/content/posts";
+import { getFixedPagePath } from "../../lib/content/routes";
+import { analyticsActionAttributes } from "../../lib/analytics/attributes";
+import { analyticsActions, analyticsAreas } from "../../lib/analytics/catalog";
+import * as messages from "../../paraglide/messages.js";
+interface Props {
+  variant: PostVariant;
+}
+const { entry, locale } = Astro.props.variant;
+---
+
+{entry.relatedPage && (
+  <div class="page-frame pb-section">
+    <a
+      class="action-underline"
+      href={getFixedPagePath(entry.relatedPage, locale)}
+      {...analyticsActionAttributes({
+        action: analyticsActions.navigate,
+        area: analyticsAreas.postResources,
+        target: entry.relatedPage,
+      })}
+    >
+      {messages.posts_members_link({}, { locale })}
+    </a>
+  </div>
+)}

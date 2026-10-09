@@ -1,52 +1,18 @@
-import { readFile, readdir } from "node:fs/promises";
+import { stat } from "node:fs/promises";
+import { resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import type { z } from "zod";
-import {
-  collectionSchemas,
-  type Contact,
-  type Document,
-  type Entity,
-  type Event,
-  type ExternalAction,
-  type School,
-} from "../lib/content/models";
+import type { Contact } from "../lib/content/models";
+import { hasCompleteTranslation, type Locale } from "../lib/content/primitives";
 import {
   createPublicationCatalog,
   getPublishedLocalResources,
   type ContentSource,
 } from "../lib/content/publication";
-import { parseRestrictedYaml } from "../lib/content/yaml";
+import { collectLocalResourcePaths } from "../lib/content/resources";
+import { loadContentSource } from "./support/publication-catalog";
 
-async function loadCollection<T>(directory: string, schema: z.ZodType<T>) {
-  const directoryUrl = new URL(`../content/${directory}/`, import.meta.url);
-  const files = (await readdir(directoryUrl))
-    .filter((file) => file.endsWith(".yaml"))
-    .sort();
-  return Promise.all(
-    files.map(async (file) =>
-      parseRestrictedYaml(
-        await readFile(new URL(file, directoryUrl), "utf8"),
-        schema,
-      ),
-    ),
-  );
-}
-
-async function loadSource(): Promise<ContentSource> {
-  const [schools, events, entities, documents, externalActions, contact] =
-    await Promise.all([
-      loadCollection<School>("schools", collectionSchemas.schools),
-      loadCollection<Event>("events", collectionSchemas.events),
-      loadCollection<Entity>("entities", collectionSchemas.entities),
-      loadCollection<Document>("documents", collectionSchemas.documents),
-      loadCollection<ExternalAction>(
-        "external-actions",
-        collectionSchemas.externalActions,
-      ),
-      loadCollection<Contact>("contact", collectionSchemas.contact),
-    ]);
-  return { schools, events, entities, documents, externalActions, contact };
-}
+const loadSource = loadContentSource;
 
 function variantKeys(source: ContentSource) {
   return createPublicationCatalog(source).variants.map(
@@ -59,108 +25,104 @@ describe("publication catalog", () => {
     const source = await loadSource();
     const catalog = createPublicationCatalog(source);
 
-    expect(variantKeys(source)).toEqual([
-      "school:ca:escola-btt",
-      "school:ca:escola-skimo",
-      "school:ca:escola-trail",
-      "event:ca:anella-verda",
-      "event:ca:berga-trail",
-      "event:ca:cros-de-queralt",
-      "event:ca:escalada-castell-areny",
-      "event:ca:escalada-queralt",
-      "event:ca:les-classiques-de-berga",
-      "event:ca:llobregat-x-la-diabetis",
-      "event:ca:minivolta-a-la-maria",
-      "event:ca:quina-berguedana",
-      "event:ca:ultra-pirineu",
-      "school:es:escuela-btt",
-      "school:es:escuela-esqui-montana",
-      "school:es:escuela-trail",
-      "event:es:anella-verde",
-      "event:es:berga-trail",
-      "event:es:cros-de-queralt",
-      "event:es:escalada-castell-areny",
-      "event:es:escalada-queralt",
-      "event:es:les-classiques-de-berga",
-      "event:es:llobregat-x-la-diabetis",
-      "event:es:minivolta-a-la-maria",
-      "event:es:quina-berguedana",
-      "event:es:ultra-pirineu",
-      "school:en:mtb-school",
-      "school:en:ski-mountaineering-school",
-      "school:en:trail-school",
-      "event:en:green-ring",
-      "event:en:berga-trail",
-      "event:en:cros-de-queralt",
-      "event:en:escalada-castell-areny",
-      "event:en:escalada-queralt",
-      "event:en:les-classiques-de-berga",
-      "event:en:llobregat-x-la-diabetis",
-      "event:en:minivolta-a-la-maria",
-      "event:en:quina-berguedana",
-      "event:en:ultra-pirineu",
-    ]);
+    // The publication set is derived from the content, so the contract is not
+    // a fixed roster but the rule: every published variant exists, and each one
+    // carries a complete translation in its own locale. Removing a single
+    // translation below proves the rule is enforced per locale.
+    expect(catalog.variants.length).toBeGreaterThan(0);
+    for (const variant of catalog.variants) {
+      const name =
+        "name" in variant.entry ? variant.entry.name : variant.entry.title;
+      expect(hasCompleteTranslation(name, variant.locale)).toBe(true);
+      expect(hasCompleteTranslation(variant.entry.slug, variant.locale)).toBe(
+        true,
+      );
+    }
+
+    const incompleteLocale: Locale = "en";
+    const translatedEvent = source.events.find(
+      (event) =>
+        event.published &&
+        hasCompleteTranslation(event.title, incompleteLocale),
+    )!;
+    // Slugs may be identical across locales; only the incomplete variant
+    // should disappear, not another translation of the same event.
+    translatedEvent.slug[incompleteLocale] = translatedEvent.slug.ca;
+    const incompleteKey = `event:${incompleteLocale}:${translatedEvent.slug[incompleteLocale]}`;
+    const completeKeys = variantKeys(source);
+    expect(completeKeys).toContain(incompleteKey);
+    expect(completeKeys).toContain(`event:ca:${translatedEvent.slug.ca}`);
+
+    delete (translatedEvent.title as Partial<Record<Locale, string>>)[
+      incompleteLocale
+    ];
+    expect(variantKeys(source)).toEqual(
+      completeKeys.filter((key) => key !== incompleteKey),
+    );
+  });
+
+  it("keeps unpublished and unavailable resources out of the public output", async () => {
+    const source = await loadSource();
+    const catalog = createPublicationCatalog(source);
+    const resources = getPublishedLocalResources(catalog);
+
+    // Nothing unpublished and nothing temporarily unavailable may reach the
+    // build, and everything that does must exist on disk.
     expect(catalog.documents.has("private-draft")).toBe(false);
-    expect(getPublishedLocalResources(catalog)).toEqual([
-      "src/assets/collaborators/aina-vila.png",
-      "src/assets/collaborators/alexandra-bruy.png",
-      "src/assets/collaborators/bicixtrem.jpg",
-      "src/assets/collaborators/centre-optic.jpg",
-      "src/assets/collaborators/cimetir.jpg",
-      "src/assets/collaborators/clinica-jessica-genesca.png",
-      "src/assets/collaborators/elit.png",
-      "src/assets/collaborators/estetica-adela.png",
-      "src/assets/collaborators/farmacia-cosp.png",
-      "src/assets/collaborators/four-riders-bike-park.png",
-      "src/assets/collaborators/intersport-serramarti.png",
-      "src/assets/collaborators/joieria-climent.png",
-      "src/assets/collaborators/ortopedia-alvarez-saz-cabra.jpg",
-      "src/assets/collaborators/pedratour.png",
-      "src/assets/collaborators/peu-de-via.webp",
-      "src/assets/collaborators/podologia-ingrid-soca.jpg",
-      "src/assets/collaborators/ramirs-sabaters.png",
-      "src/assets/collaborators/rios-running-berga.jpeg",
-      "src/assets/collaborators/snowlockers.png",
-      "src/assets/collaborators/veloberga.jpg",
-      "src/assets/collaborators/visites-al-bergueda.jpg",
-      "src/assets/entities/basquet-berga.jpg",
-      "src/assets/entities/club-atletic-berga.png",
-      "src/assets/entities/club-esportiu-berga.png",
-      "src/assets/entities/club-esqui-bergueda.png",
-      "src/assets/entities/club-voleibol-berga.jpg",
-      "src/assets/entities/handbol-berga.jpg",
-      "src/assets/events/anella-verda-cover.webp",
-      "src/assets/events/escalada-castell-areny-cover.jpg",
-      "src/assets/events/escalada-queralt-cover.jpg",
-      "src/assets/events/les-classiques-de-berga-cover.png",
-      "src/assets/events/llobregat-x-la-diabetis-cover.png",
-      "src/assets/events/quina-berguedana-cover.jpg",
-      "src/assets/logo_mountain_runners.png",
-      "src/assets/schools/escola-btt-card.jpg",
-      "src/assets/schools/escola-btt.jpg",
-      "src/assets/schools/escola-skimo-card.jpg",
-      "src/assets/schools/escola-skimo.jpg",
-      "src/assets/schools/escola-trail-card.jpg",
-      "src/assets/schools/escola-trail.jpg",
-      "src/assets/schools/gallery/btt/btt-session-0009.jpg",
-      "src/assets/schools/gallery/btt/btt-session-0031.jpg",
-      "src/assets/schools/gallery/btt/btt-session-0123.jpg",
-      "src/assets/schools/gallery/btt/btt-session-0139.jpg",
-      "src/assets/schools/gallery/btt/btt-session-0203.jpg",
-      "src/assets/schools/gallery/btt/btt-session-0239.jpg",
-      "src/assets/schools/gallery/skimo/skimo-session-0295.jpg",
-      "src/assets/schools/gallery/skimo/skimo-session-2385.jpg",
-      "src/assets/schools/gallery/skimo/skimo-session-4221.jpg",
-      "src/assets/schools/gallery/skimo/skimo-session-4284.jpg",
-      "src/assets/schools/gallery/trail/trail-friday-pics-07.jpg",
-      "src/assets/schools/gallery/trail/trail-friday-pics-26.jpg",
-      "src/assets/schools/gallery/trail/trail-session-08.jpg",
-      "src/assets/schools/gallery/trail/trail-session-21.jpg",
-      "src/assets/schools/gallery/trail/trail-session-23.jpg",
-      "src/assets/schools/gallery/trail/trail-session-29.jpg",
-      "src/assets/sponsors/vera.webp",
-      "src/content-assets/documents/estatuts-mrb.pdf",
-    ]);
+
+    const unavailable = source.documents.filter(
+      ({ published, availability }) =>
+        published && availability !== "available",
+    );
+    expect(unavailable.length).toBeGreaterThan(0);
+    for (const document of unavailable) {
+      // A published but unavailable document stays in the catalog so the page
+      // can explain the state; only its file must stay out of the build.
+      expect(catalog.documents.has(document.id)).toBe(true);
+      for (const path of collectLocalResourcePaths(document)) {
+        expect(resources).not.toContain(path);
+      }
+    }
+    const unpublishedDocuments = source.documents.filter(
+      ({ published }) => !published,
+    );
+    expect(unpublishedDocuments.length).toBeGreaterThan(0);
+    for (const document of unpublishedDocuments) {
+      expect(catalog.documents.has(document.id)).toBe(false);
+      for (const path of collectLocalResourcePaths(document)) {
+        expect(resources).not.toContain(path);
+      }
+    }
+    // No entity is unpublished today, so one is unpublished here to prove the
+    // rule instead of asserting today's roster.
+    const entity = source.entities.find(
+      (candidate) =>
+        catalog.entities.has(candidate.id) &&
+        candidate.logo.resource.kind === "local",
+    )!;
+    const unpublished = createPublicationCatalog({
+      ...source,
+      entities: source.entities.map((candidate) =>
+        candidate.id === entity.id
+          ? { ...candidate, published: false }
+          : candidate,
+      ),
+    });
+    expect(unpublished.entities.has(entity.id)).toBe(false);
+    const unpublishedResources = getPublishedLocalResources(unpublished);
+    for (const path of collectLocalResourcePaths(entity)) {
+      expect(unpublishedResources).not.toContain(path);
+    }
+
+    // Resource paths are relative to the application root, where the build reads
+    // them from.
+    const appDirectory = fileURLToPath(new URL("../../", import.meta.url));
+    for (const resourcePath of resources) {
+      await expect(
+        stat(resolve(appDirectory, resourcePath)),
+        resourcePath,
+      ).resolves.toBeDefined();
+    }
   });
 
   it("applies completeness transitively to event references", async () => {

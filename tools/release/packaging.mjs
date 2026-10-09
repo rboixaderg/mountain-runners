@@ -66,10 +66,11 @@ export function checkedOutCommit() {
   return result.stdout.trim();
 }
 
-export function runBuild() {
+export function runBuild(publicPreview) {
   const result = spawnSync("pnpm", ["build"], {
     cwd: rootDirectory,
     stdio: "inherit",
+    env: { ...process.env, PUBLIC_PREVIEW: publicPreview },
   });
   if (result.status !== 0) {
     throw new Error(`Build failed with status ${result.status}.`);

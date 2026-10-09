@@ -64,7 +64,7 @@ export const localResourceSchema = z.strictObject({
   path: localResourcePathSchema,
 });
 
-const localImageResourceSchema = z.strictObject({
+export const localImageResourceSchema = z.strictObject({
   kind: z.literal("local"),
   path: localResourcePathSchema.refine(
     (value) => imageExtensions.has(path.posix.extname(value)),

@@ -1,12 +1,17 @@
 import { z } from "zod";
 import { parseRestrictedMarkdown } from "./markdown";
+import { getMadridDate } from "./events";
 import {
   localeSchema,
   nonEmptyStringSchema,
   slugSchema,
   translatableSchema,
 } from "./primitives";
-import { imageResourceSchema, safeResourceSchema } from "./resources";
+import {
+  imageResourceSchema,
+  localImageResourceSchema,
+  safeResourceSchema,
+} from "./resources";
 import {
   emailAddressSchema,
   httpsUrlSchema,
@@ -78,7 +83,20 @@ export type RegistrationStatus = (typeof registrationStatuses)[number];
 
 const registrationStatusSchema = z.enum(registrationStatuses);
 
-export const schoolSchema = z.strictObject({
+// The practical sections a school entry may declare, in editorial order.
+// Exported so the presentation layer and its tests can prove they name every
+// section without restating the list.
+export const schoolSectionsSchema = z.strictObject({
+  since: localizedMarkdownSchema,
+  purpose: localizedMarkdownSchema,
+  audience: localizedMarkdownSchema,
+  schedule: localizedMarkdownSchema,
+  location: localizedMarkdownSchema,
+  requirements: localizedMarkdownSchema.optional(),
+  prices: localizedMarkdownSchema,
+});
+
+const schoolSchema = z.strictObject({
   ...publishableFields,
   // Editorial order of the school hub: explicit, stable and validated in the
   // model, never derived from the order of the source files.
@@ -104,15 +122,7 @@ export const schoolSchema = z.strictObject({
     .optional(),
   registrationStatus: registrationStatusSchema,
   registrationUrl: localizedHttpsUrlSchema.optional(),
-  sections: z.strictObject({
-    since: localizedMarkdownSchema,
-    purpose: localizedMarkdownSchema,
-    audience: localizedMarkdownSchema,
-    schedule: localizedMarkdownSchema,
-    location: localizedMarkdownSchema,
-    requirements: localizedMarkdownSchema.optional(),
-    prices: localizedMarkdownSchema,
-  }),
+  sections: schoolSectionsSchema,
 });
 
 const eventEditionSchema = z
@@ -293,6 +303,104 @@ export const contactSchema = z.strictObject({
   cif: nonEmptyStringSchema,
 });
 
+export const postTypes = { news: "news", blog: "blog" } as const;
+export type PostType = (typeof postTypes)[keyof typeof postTypes];
+export const postAuthorTypes = {
+  person: "person",
+  organization: "organization",
+} as const;
+
+const postTimestampSchema = z.iso
+  .datetime({ offset: true })
+  .refine((value) => Number.isFinite(Date.parse(value)), {
+    error: "Expected a valid timestamp with a time zone",
+  });
+
+const postImageSchema = z.strictObject({
+  ...imageSchema.shape,
+  resource: localImageResourceSchema,
+  attribution: localizedTextSchema,
+  caption: localizedTextSchema.optional(),
+});
+export type PostImage = z.infer<typeof postImageSchema>;
+
+export const postSchema = z
+  .strictObject({
+    ...publishableFields,
+    type: z.enum(postTypes),
+    title: localizedTextSchema,
+    summary: localizedTextSchema,
+    lead: localizedMarkdownSchema,
+    sections: z
+      .array(
+        z.strictObject({
+          heading: localizedTextSchema.optional(),
+          body: localizedMarkdownSchema,
+          images: z.array(postImageSchema).min(1).max(10).optional(),
+        }),
+      )
+      .max(50),
+    author: z.strictObject({
+      type: z.enum(postAuthorTypes),
+      name: nonEmptyStringSchema,
+    }),
+    createdAt: dateSchema,
+    publishedAt: postTimestampSchema.optional(),
+    updatedAt: postTimestampSchema.optional(),
+    cover: postImageSchema.optional(),
+    sources: z
+      .array(
+        z.strictObject({
+          name: localizedTextSchema,
+          url: httpsUrlSchema,
+        }),
+      )
+      .max(30)
+      .optional(),
+    relatedEventIds: z.array(contentIdSchema).max(20).optional(),
+    relatedPage: z.literal("members").optional(),
+  })
+  .superRefine((post, context) => {
+    if (post.published && post.publishedAt === undefined) {
+      context.addIssue({
+        code: "custom",
+        path: ["publishedAt"],
+        message: "A published post requires publishedAt",
+      });
+    }
+    // Invalid timestamps already have field errors; refinements must not throw.
+    if (
+      post.publishedAt !== undefined &&
+      Number.isFinite(Date.parse(post.publishedAt))
+    ) {
+      if (getMadridDate(new Date(post.publishedAt)) < post.createdAt) {
+        context.addIssue({
+          code: "custom",
+          path: ["publishedAt"],
+          message: "Publication cannot precede preparation",
+        });
+      }
+    }
+    if (
+      post.updatedAt !== undefined &&
+      Number.isFinite(Date.parse(post.updatedAt))
+    ) {
+      const precedesPublication =
+        post.publishedAt !== undefined &&
+        Date.parse(post.updatedAt) < Date.parse(post.publishedAt);
+      if (
+        precedesPublication ||
+        getMadridDate(new Date(post.updatedAt)) < post.createdAt
+      ) {
+        context.addIssue({
+          code: "custom",
+          path: ["updatedAt"],
+          message: "Update cannot precede preparation or publication",
+        });
+      }
+    }
+  });
+
 export type School = z.infer<typeof schoolSchema>;
 export type Event = z.infer<typeof eventSchema>;
 export type EventEdition = z.infer<typeof eventEditionSchema>;
@@ -300,6 +408,7 @@ export type Entity = z.infer<typeof entitySchema>;
 export type Document = z.infer<typeof documentSchema>;
 export type ExternalAction = z.infer<typeof externalActionSchema>;
 export type Contact = z.infer<typeof contactSchema>;
+export type Post = z.infer<typeof postSchema>;
 
 export const collectionSchemas = {
   schools: schoolSchema,
@@ -308,4 +417,5 @@ export const collectionSchemas = {
   documents: documentSchema,
   externalActions: externalActionSchema,
   contact: contactSchema,
+  posts: postSchema,
 } as const;

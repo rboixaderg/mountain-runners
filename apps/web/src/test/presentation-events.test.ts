@@ -4,6 +4,7 @@ import {
   buildCalendarMonthGrid,
   collectCalendarDayEvents,
   getCalendarFocusMonth,
+  getCalendarMonthRange,
   getEditionInclusiveDates,
   getEventHistoryRows,
 } from "../lib/presentation/events";
@@ -77,9 +78,15 @@ describe("collectCalendarDayEvents", () => {
 });
 
 describe("buildCalendarMonthGrid", () => {
-  it("highlights single-day and multi-day events in the focused month", () => {
+  it("groups overlapping events by day and highlights multi-day spans", () => {
+    const overlappingEvent = {
+      ...singleDayEvent,
+      id: "overlap",
+      title: { ca: "Trail compartit" },
+      editions: [{ ...singleDayEvent.editions[0]!, startDate: "2026-10-03" }],
+    };
     const grid = buildCalendarMonthGrid(
-      [multiDayEvent, singleDayEvent],
+      [multiDayEvent, singleDayEvent, overlappingEvent],
       2026,
       10,
       "ca",
@@ -100,6 +107,10 @@ describe("buildCalendarMonthGrid", () => {
     expect(octoberDays[0]?.events[0]?.href).toBe("/ca/esdeveniments/ultra/");
     expect(octoberDays[0]?.isRangeStart).toBe(true);
     expect(octoberDays[1]?.isRangeMiddle).toBe(true);
+    expect(octoberDays[1]?.events.map((event) => event.title)).toEqual([
+      "Ultra Pirineu",
+      "Trail compartit",
+    ]);
     expect(octoberDays[2]?.isRangeEnd).toBe(true);
     expect(octoberDays[3]?.isMultiDay).toBe(false);
   });
@@ -117,6 +128,114 @@ describe("getCalendarFocusMonth", () => {
       year: 2026,
       month: 11,
     });
+  });
+});
+
+describe("getCalendarMonthRange", () => {
+  it("navigates from twelve months before the focus month to the furthest upcoming edition", () => {
+    const farFutureEvent = {
+      id: "winter",
+      title: { ca: "Winter stage" },
+      editions: [
+        {
+          id: "edition-2027",
+          startDate: "2027-02-11",
+          location: { ca: "Berga" },
+        },
+      ],
+    } as Event;
+
+    expect(
+      getCalendarMonthRange([multiDayEvent, farFutureEvent], "2026-08-09"),
+    ).toEqual({
+      focusIndex: 12,
+      months: [
+        { year: 2025, month: 10 },
+        { year: 2025, month: 11 },
+        { year: 2025, month: 12 },
+        { year: 2026, month: 1 },
+        { year: 2026, month: 2 },
+        { year: 2026, month: 3 },
+        { year: 2026, month: 4 },
+        { year: 2026, month: 5 },
+        { year: 2026, month: 6 },
+        { year: 2026, month: 7 },
+        { year: 2026, month: 8 },
+        { year: 2026, month: 9 },
+        { year: 2026, month: 10 },
+        { year: 2026, month: 11 },
+        { year: 2026, month: 12 },
+        { year: 2027, month: 1 },
+        { year: 2027, month: 2 },
+      ],
+    });
+  });
+
+  it("uses the end date, not the start date, of the furthest edition", () => {
+    const yearSpanningEvent = {
+      id: "winter",
+      title: { ca: "Winter stage" },
+      editions: [
+        {
+          id: "edition-2027",
+          startDate: "2026-11-30",
+          endDate: "2026-12-02",
+          location: { ca: "Berga" },
+        },
+      ],
+    } as Event;
+
+    const { months } = getCalendarMonthRange([yearSpanningEvent], "2026-08-09");
+
+    expect(months.at(-1)).toEqual({ year: 2026, month: 12 });
+  });
+
+  it("keeps twelve months of history when all editions are in the past", () => {
+    const pastEvent = {
+      ...singleDayEvent,
+      editions: [{ ...singleDayEvent.editions[0], startDate: "2026-05-12" }],
+    } as Event;
+
+    const { focusIndex, months } = getCalendarMonthRange(
+      [pastEvent],
+      "2026-08-09",
+    );
+
+    expect(focusIndex).toBe(12);
+    expect(months).toHaveLength(13);
+    expect(months[0]).toEqual({ year: 2025, month: 8 });
+    expect(months.at(-1)).toEqual({ year: 2026, month: 8 });
+  });
+
+  it("keeps twelve months of history when there are no events", () => {
+    const { focusIndex, months } = getCalendarMonthRange([], "2026-08-09");
+
+    expect(focusIndex).toBe(12);
+    expect(months).toHaveLength(13);
+    expect(months[0]).toEqual({ year: 2025, month: 8 });
+    expect(months.at(-1)).toEqual({ year: 2026, month: 8 });
+  });
+
+  it("bounds the forward window so a distant edition cannot grow the page", () => {
+    const distantEvent = {
+      id: "distant",
+      title: { ca: "Distant stage" },
+      editions: [
+        {
+          id: "edition-2040",
+          startDate: "2040-06-01",
+          location: { ca: "Berga" },
+        },
+      ],
+    } as Event;
+
+    const { focusIndex, months } = getCalendarMonthRange(
+      [multiDayEvent, distantEvent],
+      "2026-08-09",
+    );
+
+    expect(focusIndex).toBe(12);
+    expect(months.at(-1)).toEqual({ year: 2028, month: 4 });
   });
 });
 

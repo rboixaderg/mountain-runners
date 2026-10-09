@@ -6,6 +6,7 @@ export const analyticsEventNames = {
 
 export const analyticsAreas = {
   aboutStatutes: "about_statutes",
+  blogHub: "blog_hub",
   documents: "documents",
   eventActions: "event_actions",
   eventCalendar: "event_calendar",
@@ -19,6 +20,9 @@ export const analyticsAreas = {
   legalContact: "legal_contact",
   membersAction: "members_action",
   membersCollaborators: "members_collaborators",
+  newsHub: "news_hub",
+  postNavigation: "post_navigation",
+  postResources: "post_resources",
   prefooterContact: "prefooter_contact",
   prefooterNewsletter: "prefooter_newsletter",
   prefooterSponsors: "prefooter_sponsors",
@@ -29,6 +33,11 @@ export const analyticsAreas = {
 
 export type AnalyticsArea =
   (typeof analyticsAreas)[keyof typeof analyticsAreas];
+
+export const analyticsPostHubAreas = {
+  news: analyticsAreas.newsHub,
+  blog: analyticsAreas.blogHub,
+} as const;
 
 export const analyticsActions = {
   anchorJump: "anchor_jump",
@@ -55,12 +64,16 @@ export type AnalyticsAction =
 
 export const analyticsPageTypes = {
   about: "about",
+  blogDetail: "blog_detail",
+  blogHub: "blog_hub",
   documents: "documents",
   eventDetail: "event_detail",
   eventsHub: "events_hub",
   home: "home",
   legal: "legal",
   members: "members",
+  newsDetail: "news_detail",
+  newsHub: "news_hub",
   other: "other",
   schoolDetail: "school_detail",
   schoolsHub: "schools_hub",

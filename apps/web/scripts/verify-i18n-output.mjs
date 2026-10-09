@@ -2,13 +2,16 @@ import { readFile, readdir } from "node:fs/promises";
 import { join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 import { loadEnv } from "vite";
+import { parse } from "yaml";
+import { parsePreviewFlag } from "../build-mode.mjs";
 
-const { PUBLIC_SITE_ORIGIN } = loadEnv(
+const { PUBLIC_SITE_ORIGIN, PUBLIC_PREVIEW } = loadEnv(
   process.env.NODE_ENV ?? "development",
   fileURLToPath(new URL("../", import.meta.url)),
-  "PUBLIC_SITE_ORIGIN",
+  "PUBLIC_",
 );
 const publicSiteOrigin = new URL(PUBLIC_SITE_ORIGIN);
+const isPreview = parsePreviewFlag(PUBLIC_PREVIEW);
 
 const configuredLocales = ["ca", "es", "en"];
 const publishedHomepages = configuredLocales.map((locale) => [
@@ -32,6 +35,7 @@ const forbiddenOutputMarkers = [
   // The club guide is a synthetic fixture: its document stays published but
   // temporarily unavailable, so its PDF must never reach the public output.
   "club-guide.pdf",
+  ...(isPreview ? [] : ["UNPUBLISHED_POST_FIXTURE_"]),
 ];
 
 const expectedPublishedResource =
@@ -144,76 +148,73 @@ const sitemap = await readFile(join(distPath, "sitemap.xml"), "utf8");
 const sitemapUrls = new Set(
   [...sitemap.matchAll(/<loc>([^<]+)<\/loc>/gu)].map(([, url]) => url),
 );
-const expectedSitemapUrls = new Set(
-  [
-    "ca/",
-    "es/",
-    "en/",
-    "ca/escoles/",
-    "ca/escoles/escola-btt/",
-    "ca/escoles/escola-skimo/",
-    "ca/escoles/escola-trail/",
-    "ca/esdeveniments/",
-    "ca/esdeveniments/anella-verda/",
-    "ca/esdeveniments/berga-trail/",
-    "ca/esdeveniments/cros-de-queralt/",
-    "ca/esdeveniments/escalada-castell-areny/",
-    "ca/esdeveniments/escalada-queralt/",
-    "ca/esdeveniments/les-classiques-de-berga/",
-    "ca/esdeveniments/llobregat-x-la-diabetis/",
-    "ca/esdeveniments/minivolta-a-la-maria/",
-    "ca/esdeveniments/quina-berguedana/",
-    "ca/esdeveniments/ultra-pirineu/",
-    "ca/qui-som/",
-    "ca/socis/",
-    "ca/documents/",
-    "ca/avis-legal/",
-    "ca/privacitat/",
-    "ca/cookies/",
-    "es/escuelas/",
-    "es/escuelas/escuela-btt/",
-    "es/escuelas/escuela-esqui-montana/",
-    "es/escuelas/escuela-trail/",
-    "es/eventos/",
-    "es/eventos/anella-verde/",
-    "es/eventos/berga-trail/",
-    "es/eventos/cros-de-queralt/",
-    "es/eventos/escalada-castell-areny/",
-    "es/eventos/escalada-queralt/",
-    "es/eventos/les-classiques-de-berga/",
-    "es/eventos/llobregat-x-la-diabetis/",
-    "es/eventos/minivolta-a-la-maria/",
-    "es/eventos/quina-berguedana/",
-    "es/eventos/ultra-pirineu/",
-    "es/quienes-somos/",
-    "es/socios/",
-    "es/documentos/",
-    "es/aviso-legal/",
-    "es/privacidad/",
-    "es/cookies/",
-    "en/schools/",
-    "en/schools/mtb-school/",
-    "en/schools/ski-mountaineering-school/",
-    "en/schools/trail-school/",
-    "en/events/",
-    "en/events/green-ring/",
-    "en/events/berga-trail/",
-    "en/events/cros-de-queralt/",
-    "en/events/escalada-castell-areny/",
-    "en/events/escalada-queralt/",
-    "en/events/les-classiques-de-berga/",
-    "en/events/llobregat-x-la-diabetis/",
-    "en/events/minivolta-a-la-maria/",
-    "en/events/quina-berguedana/",
-    "en/events/ultra-pirineu/",
-    "en/about/",
-    "en/members/",
-    "en/documents/",
-    "en/legal-notice/",
-    "en/privacy/",
-    "en/cookies/",
-  ].map((path) => new URL(path, publicSiteOrigin).toString()),
+// The sitemap and the built routes must agree. Catalog parity is checked by
+// the route-matrix suite; post routes are independently derived from source
+// below so preview drafts may render without entering the sitemap.
+const expectedSitemapUrls = new Set(sitemapUrls);
+const expectedOutputRoutes = new Set([
+  "index.html",
+  "404.html",
+  ...[...sitemapUrls].map(
+    (url) => `${new URL(url).pathname.slice(1)}index.html`,
+  ),
+]);
+// Derive editorial expectations from source, never from the observed build routes.
+// The Astro loader has already validated the strict YAML schema at this point.
+const postsDirectory = new URL("../src/content/posts/", import.meta.url);
+const newsDomains = { ca: "noticies", es: "noticias", en: "news" };
+for (const file of await readdir(postsDirectory)) {
+  if (!file.endsWith(".yaml")) continue;
+  const post = parse(await readFile(new URL(file, postsDirectory), "utf8"));
+  const fields = [
+    post.slug,
+    post.title,
+    post.summary,
+    post.lead,
+    ...post.sections.flatMap((section) =>
+      section.heading ? [section.heading, section.body] : [section.body],
+    ),
+  ];
+  for (const section of post.sections) {
+    for (const image of section.images ?? []) {
+      fields.push(image.alt, image.attribution);
+      if (image.caption) fields.push(image.caption);
+    }
+  }
+  for (const locale of configuredLocales) {
+    if (
+      !fields.every(
+        (field) =>
+          typeof field[locale] === "string" && field[locale].trim() !== "",
+      )
+    )
+      continue;
+    const domain = post.type === "news" ? newsDomains[locale] : "blog";
+    const route = `${locale}/${domain}/${post.slug[locale]}/`;
+    const postUrl = new URL(route, publicSiteOrigin).toString();
+    if (post.published) {
+      expectedSitemapUrls.add(postUrl);
+    } else {
+      expectedSitemapUrls.delete(postUrl);
+    }
+    if (post.published || isPreview) {
+      expectedOutputRoutes.add(`${route}index.html`);
+    }
+  }
+}
+const unselectedRoutes = outputRoutes.filter(
+  (route) => !expectedOutputRoutes.has(route),
 );
+if (unselectedRoutes.length > 0) {
+  throw new Error(
+    `Unselected HTML routes reached the build output: ${unselectedRoutes.join(", ")}`,
+  );
+}
+for (const route of expectedOutputRoutes) {
+  if (!outputRoutes.includes(route)) {
+    throw new Error(`Expected HTML route missing: ${route}`);
+  }
+}
 if (
   sitemapUrls.size !== expectedSitemapUrls.size ||
   [...expectedSitemapUrls].some((url) => !sitemapUrls.has(url))
@@ -222,7 +223,7 @@ if (
 }
 const robots = await readFile(join(distPath, "robots.txt"), "utf8");
 const sitemapDirective = `Sitemap: ${new URL("/sitemap.xml", publicSiteOrigin)}`;
-if (process.env.PUBLIC_PREVIEW === "true") {
+if (isPreview) {
   if (robots !== "User-agent: *\nDisallow: /\n") {
     throw new Error("Preview robots output must disallow crawling.");
   }

@@ -11,6 +11,11 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { expect, test } from "@playwright/test";
 import type { Locale } from "../src/lib/content/primitives";
+import {
+  loadPublicationCatalog,
+  loadPublishedPostVariants,
+} from "../src/test/support/publication-catalog";
+import { readPublishedPaths } from "../src/test/support/published-site";
 
 const languageSelectorLabels: Record<Locale, string> = {
   ca: "Idioma",
@@ -40,6 +45,19 @@ const publishedPaths = [...sitemap.matchAll(/<loc>([^<]+)<\/loc>/gu)]
 if (publishedPaths.length === 0) {
   throw new Error(`The sitemap at ${sitemapPath} contains no routes.`);
 }
+
+// The sitemap describes the built artifact, so this suite sweeps exactly what
+// the build published. `getSitemapUrls` derives the same list from the
+// catalog; the parity assertion below keeps both in step.
+test("publishes exactly the routes the catalog derives", async () => {
+  const [catalog, postVariants] = await Promise.all([
+    loadPublicationCatalog(),
+    loadPublishedPostVariants(),
+  ]);
+  expect([...publishedPaths].sort()).toEqual(
+    readPublishedPaths(catalog, postVariants),
+  );
+});
 
 test.skip(
   ({ browserName }) => browserName !== "chromium",
@@ -81,13 +99,18 @@ for (const path of publishedPaths) {
       page.locator(`link[rel="alternate"][hreflang="${locale}"]`),
     ).toHaveAttribute("href", canonicalHref);
 
+    // A post with one complete locale must not offer fallback translations.
+    const alternateLocaleCount = await page
+      .locator('link[rel="alternate"][hreflang]:not([hreflang="x-default"])')
+      .count();
+    const expectedLanguageSelectors = alternateLocaleCount > 1 ? 2 : 0;
     await expect(
       page.getByRole("navigation", {
         includeHidden: true,
         name: languageSelectorLabels[locale],
       }),
-      `${path} offers the language selector in the header and the mobile menu`,
-    ).toHaveCount(2);
+      `${path} offers language selectors only for real localized alternatives`,
+    ).toHaveCount(expectedLanguageSelectors);
 
     const skipLink = page.getByRole("link", {
       name: skipLinkLabels[locale],
@@ -138,14 +161,17 @@ test("matrix unknown routes serve the 404 document", async ({ page }) => {
   ).toHaveCount(1);
 });
 
-test("matrix state: active event with a next edition and closed registration", async ({
+test("matrix state: active event without a next edition keeps closed registration", async ({
   page,
 }) => {
   await page.goto("/ca/esdeveniments/ultra-pirineu/");
   await expect(page.getByText("Actiu", { exact: true })).toBeVisible();
   await expect(
     page.getByRole("region", { name: "Informació pràctica" }).locator("time"),
-  ).toHaveCount(2);
+  ).toHaveCount(0);
+  await expect(
+    page.getByText("Sense data anunciada", { exact: true }),
+  ).toBeVisible();
   await expect(
     page.getByText("Inscripció tancada", { exact: true }),
   ).toBeVisible();
