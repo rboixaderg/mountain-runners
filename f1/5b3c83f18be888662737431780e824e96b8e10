@@ -1,0 +1,14 @@
+tools/server/preview/gate.test.mjs
+  h_1727aeeb492b30 1226
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "f15b3c83f18be888662737431780e824e96b8e10",
+  "prompts": {},
+  "humans": {
+    "h_1727aeeb492b30": {
+      "author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
