@@ -1223,7 +1223,7 @@ test("the preview workflow pins actions, separates the trust boundaries and has 
   assert.match(publishJob, /secrets\.PREVIEW_SSH_PRIVATE_KEY/);
   assert.match(
     publishJob,
-    /uses: actions\/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131/,
+    /uses: actions\/download-artifact@[a-f0-9]{40}(?=\s|$)/,
   );
   assert.doesNotMatch(publishJob, /run-id:/);
   assert.match(publishJob, /node tools\/preview\/publish\.mjs/);
