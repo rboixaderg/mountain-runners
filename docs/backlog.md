@@ -180,6 +180,26 @@ a l'entrada oberta corresponent; no s'amplien silenciosament aquesta entrega.
 
 ## Necessitats Obertes
 
+### Entrenaments Funcionals Per A Socis
+
+**Estat:** Autoritzada com a entrega autònoma.
+
+**Problema:** les persones sòcies necessiten trobar en un mateix lloc la
+informació bàsica del nou servei d'entrenaments funcionals i l'accés a les
+reserves.
+
+**Resultat esperat:** una secció informativa a la pàgina Socis que expliqui
+l'activitat, l'exclusivitat per a socis, la ubicació i com consultar les sessions
+disponibles a Playoff.
+
+**Dependències:** confirmar que l'adreça institucional i la destinació de reserva
+continuen vigents abans de publicar la implementació. Els horaris posteriors a
+l'octubre i les condicions de l'abonament mensual encara no estan definits i no
+s'han de presentar com a confirmats.
+
+**Seguiment:** [especificació del servei d'entrenaments per a
+socis](specs/member-services.md), tasca MS-01.
+
 ### Desactivar L'Analítica En Mode Preview
 
 **Estat:** Incorporada a la [PR #141](https://github.com/rboixaderg/mountain-runners/pull/141) (entrega autònoma T3 d'analítica Plausible).
