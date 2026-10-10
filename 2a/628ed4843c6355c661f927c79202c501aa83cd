@@ -1,0 +1,19 @@
+docs/specs/member-services.md
+  s_0714b855542a53::t_1dc414ff977861 1-163
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "2a628ed4843c6355c661f927c79202c501aa83cd",
+  "prompts": {},
+  "sessions": {
+    "s_0714b855542a53": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_edf3b6c4bffeXbGdJNs613dk8V",
+        "model": "unknown"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
