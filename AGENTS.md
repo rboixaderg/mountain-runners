@@ -143,6 +143,10 @@ reviewing `apps/web` code. The review of every PR checks these rules:
   changing or reviewing tests. Choose the least costly level that detects the
   regression; preserve independent boundary tests and page-wiring coverage.
 - Run the smallest relevant checks before declaring work complete.
+- The local `pre-push` hook only runs the fast `pnpm check:local`; it does not
+  replace the checks the change requires. When a change adds or modifies an E2E
+  journey, run it locally before declaring the work complete; CI still runs the
+  full suite.
 - Do not claim a check passed when the project has no applicable command yet.
 - Record validation evidence in the pull request and CI, not in additional
   repository reports, unless an approved specification explicitly requires them.

@@ -11,8 +11,8 @@ Cal tenir Node 24.11.0, pnpm 10.33.0 mitjançant Corepack, Gitleaks 8.30.1 i els
 navegadors fixats per Playwright. Gitleaks és obligatori: el hook de pre-commit
 l'executa abans de crear cada commit per detectar secrets en els fitxers staged.
 
-Després de `pnpm install`, instal·la els navegadors locals necessaris per a
-`pnpm validate`:
+Després de `pnpm install`, instal·la els navegadors locals necessaris per
+executar el gate complet (`pnpm validate` o els recorreguts E2E):
 
 ```sh
 pnpm exec playwright install chromium firefox webkit
@@ -40,11 +40,15 @@ instal·la la release fixada anterior abans de continuar.
 
 Els hooks locals vigents són:
 
-| Hook         | Comprovació                                         |
-| ------------ | --------------------------------------------------- |
-| `pre-commit` | Gitleaks sobre staged i `lint-staged`               |
-| `commit-msg` | Conventional Commits amb Commitlint                 |
-| `pre-push`   | `pnpm validate` (checks ràpids, build i Playwright) |
+| Hook         | Comprovació                                           |
+| ------------ | ----------------------------------------------------- |
+| `pre-commit` | Gitleaks sobre staged i `lint-staged`                 |
+| `commit-msg` | Conventional Commits amb Commitlint                   |
+| `pre-push`   | `pnpm check:local` (format, lint, typecheck i Vitest) |
+
+El hook `pre-push` és ràpid i no substitueix les proves que afecten el canvi. Si
+afegeixes o modifiques un recorregut E2E, executa'l localment abans de declarar
+la feina feta; la CI continua executant la suite completa.
 
 ## Flux De Treball
 

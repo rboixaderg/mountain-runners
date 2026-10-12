@@ -37,12 +37,15 @@ pnpm dev
 `hreflang`, the sitemap and `robots.txt`. Preview and production deployments
 must provide their own value.
 
-`pnpm validate` executa format, lint, typecheck, tests unitaris i recorreguts
-Playwright, incloses les comprovacions axe aplicables, amb les mateixes
-condicions que la integració contínua. `pnpm check` ofereix les comprovacions
-ràpides (format, lint, typecheck i tests). `pnpm lighthouse` és una auditoria
-manual separada, fora de `pnpm validate` i de la CI, que valida les rutes
-representatives contra els llindars i pressupostos configurats.
+`pnpm validate` executa format, lint, typecheck, tests unitaris, proves
+operatives i recorreguts Playwright, incloses les comprovacions axe aplicables,
+amb les mateixes condicions que la integració contínua. Per a la feina diària,
+el hook `pre-push` executa `pnpm check:local` (format, lint, typecheck i tests
+unitaris) i deixa el gate complet a la CI
+([ADR 0012](docs/decisions/0012-local-fast-checks.md)). `pnpm check` afegeix les
+proves operatives de servidor. `pnpm lighthouse` és una auditoria manual separada,
+fora de `pnpm validate` i de la CI, que valida les rutes representatives contra
+els llindars i pressupostos configurats.
 
 Per auditar també els pilots d'esborrany, construeix un preview amb el mode i
 l'origen explícits, i executa el runner sobre aquell mateix artefacte:
