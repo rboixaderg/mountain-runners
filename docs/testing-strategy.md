@@ -125,6 +125,7 @@ Les ordres vigents són a [`package.json`](../package.json):
 | `pnpm test`        | Vitest, inclòs render, i verificació de generació Paraglide |
 | `pnpm test:server` | Proves operatives de Node                                   |
 | `pnpm check`       | Format, lint, typecheck, Vitest i proves operatives         |
+| `pnpm check:local` | Format, lint, typecheck i Vitest, sense build ni servidor   |
 | `pnpm build`       | Build Astro i verificació de la sortida i18n                |
 | `pnpm test:e2e`    | Build amb origen i data fixats, seguit de Playwright        |
 | `pnpm test:a11y`   | Build fixat i selecció de proves `@a11y`                    |
@@ -135,6 +136,13 @@ Per a una execució directa de Playwright, construeix abans l'artefacte i passa
 als tests el mateix `PUBLIC_SITE_ORIGIN`, `BUILD_TODAY` i `PUBLIC_PREVIEW` que
 al build. Les comprovacions locals focalitzades no substitueixen els gates
 obligatoris de CI i hooks.
+
+El hook `pre-push` executa `pnpm check:local` perquè el feedback local sigui
+ràpid ([ADR 0012](decisions/0012-local-fast-checks.md)). El gate complet
+(`pnpm check` i `pnpm test:e2e`) viu a CI i es pot reproduir localment amb
+`pnpm validate` quan el canvi ho requereixi. Si el canvi afegeix o modifica un
+recorregut E2E, executa'l localment abans de declarar la feina feta: el hook
+ràpid no substitueix les proves que afecten el canvi.
 
 Registra les ordres i resultats reals, els casos protegits i el risc residual.
 Distingeix passades, omissions intencionades i parts no executades. Els canvis

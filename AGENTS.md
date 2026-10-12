@@ -19,6 +19,7 @@
 - Never overwrite or revert work you did not create.
 - Update the relevant documentation when a technical decision, boundary or
   workflow changes.
+- Keep `README.md` to the current state; decisions live in `docs/decisions/`.
 - Use English for code, commit messages, `AGENTS.md` and `DESIGN.md`. Use
   Catalan for project documentation, user-facing content and pull-request
   descriptions.
@@ -143,6 +144,10 @@ reviewing `apps/web` code. The review of every PR checks these rules:
   changing or reviewing tests. Choose the least costly level that detects the
   regression; preserve independent boundary tests and page-wiring coverage.
 - Run the smallest relevant checks before declaring work complete.
+- The local `pre-push` hook only runs the fast `pnpm check:local`; it does not
+  replace the checks the change requires. When a change adds or modifies an E2E
+  journey, run it locally before declaring the work complete; CI still runs the
+  full suite.
 - Do not claim a check passed when the project has no applicable command yet.
 - Record validation evidence in the pull request and CI, not in additional
   repository reports, unless an approved specification explicitly requires them.
