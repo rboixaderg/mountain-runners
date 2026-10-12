@@ -13,6 +13,7 @@ import PageIntro from "../PageIntro.astro";
 import MembersActionSection from "./MembersActionSection.astro";
 import MembersBenefits from "./MembersBenefits.astro";
 import MembersDirectory from "./MembersDirectory.astro";
+import MembersFunctionalTraining from "./MembersFunctionalTraining.astro";
 import MembersVideo from "./MembersVideo.astro";
 import "../../styles/members.css";
 
@@ -27,6 +28,9 @@ const signupAction = catalog.externalActions.get(
 );
 const federationAction = catalog.externalActions.get(
   externalActionIds.federation,
+);
+const functionalTrainingAction = catalog.externalActions.get(
+  externalActionIds.functionalTraining,
 );
 const institutionalEntity = catalog.entities.get(institutionalEntityId);
 const collaborators = getMembersDirectoryEntities(catalog, locale);
@@ -60,6 +64,12 @@ const collaborators = getMembersDirectoryEntities(catalog, locale);
       variant="federation"
     />
   </div>
+
+  <MembersFunctionalTraining
+    action={functionalTrainingAction}
+    contact={catalog.contact}
+    locale={locale}
+  />
 
   <MembersVideo
     locale={locale}

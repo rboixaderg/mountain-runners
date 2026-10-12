@@ -911,6 +911,7 @@ test("renders the Members page sections in editorial order", async ({
     "Socis",
     "Alta de socis",
     "Federació",
+    "Entrenaments funcionals",
     "Avantatges per a socis i sòcies",
     "Col·laboradors",
   ]);
@@ -922,6 +923,19 @@ test("renders the Members page sections in editorial order", async ({
   const federationLink = page.getByRole("link", { name: /Federa't/u });
   await expect(federationLink).toHaveCount(1);
   await expect(federationLink).toHaveAttribute("href", site.federationUrl!);
+
+  const trainingRegion = page.getByRole("region", {
+    name: "Entrenaments funcionals",
+  });
+  await expect(trainingRegion).toContainText(site.catalog.contact!.address.ca!);
+  const trainingLink = page.getByRole("link", {
+    name: /Consulta les sessions i reserva a Playoff/u,
+  });
+  await expect(trainingLink).toHaveCount(1);
+  await expect(trainingLink).toHaveAttribute(
+    "href",
+    site.functionalTrainingUrl!,
+  );
 
   const collaboratorsRegion = page.getByRole("region", {
     name: "Col·laboradors",
@@ -1220,7 +1234,7 @@ test("reaches and activates the available actions with the keyboard", async ({
   await expect(page).toHaveURL("/ca/esdeveniments/ultra-pirineu/");
 
   // The available members actions stay on the focus order with their
-  // reviewed hrefs, so the keyboard can reach both of them.
+  // reviewed hrefs, so the keyboard can reach all of them.
   await page.goto("/ca/socis/");
   const signupLink = page.getByRole("link", { name: /Fes-te soci o sòcia/u });
   await tabUntilFocused(page, signupLink);
@@ -1228,6 +1242,14 @@ test("reaches and activates the available actions with the keyboard", async ({
   const federationLink = page.getByRole("link", { name: /Federa't/u });
   await tabUntilFocused(page, federationLink);
   await expect(federationLink).toHaveAttribute("href", site.federationUrl!);
+  const trainingLink = page.getByRole("link", {
+    name: /Consulta les sessions i reserva a Playoff/u,
+  });
+  await tabUntilFocused(page, trainingLink);
+  await expect(trainingLink).toHaveAttribute(
+    "href",
+    site.functionalTrainingUrl!,
+  );
 });
 
 test("renders the useful Catalan 404 document", async ({ page }) => {

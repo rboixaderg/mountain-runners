@@ -3,8 +3,8 @@
 ## Estat
 
 Autoritzada per la persona mantenidora el 10 d'octubre de 2026. La definició de
-la tasca és aprovada; la implementació continua pendent. No s'afegeix una fase al
-roadmap ni s'amplia cap entrega activa.
+la tasca és aprovada; la implementació es desenvolupa a la PR #150, pendent de
+revisió i fusió. No s'afegeix una fase al roadmap ni s'amplia cap entrega activa.
 
 ## Objectiu
 
@@ -58,9 +58,9 @@ consultar la disponibilitat remota del servei.
 
 ## Tasques, entregues i seguiment
 
-| Unitat | Abast                                                        | Dependències                                    | Estat   | PR  |
-| ------ | ------------------------------------------------------------ | ----------------------------------------------- | ------- | --- |
-| MS-01  | Afegir la secció d'entrenaments funcionals a la pàgina Socis | URL de reserva i adreça institucional aprovades | Pendent |     |
+| Unitat | Abast                                                        | Dependències                                    | Estat   | PR                                                              |
+| ------ | ------------------------------------------------------------ | ----------------------------------------------- | ------- | --------------------------------------------------------------- |
+| MS-01  | Afegir la secció d'entrenaments funcionals a la pàgina Socis | URL de reserva i adreça institucional aprovades | En curs | [#150](https://github.com/rboixaderg/mountain-runners/pull/150) |
 
 ### MS-01. Afegir El Servei D'entrenaments Funcionals A Socis
 
@@ -90,8 +90,9 @@ navegador existent de Socis ampliat només si cal protegir una interacció nova;
 i escriptori i `git diff --check`. Les proves comproven la URL configurada, no la
 seva disponibilitat remota.
 
-**PR:** una PR dedicada per a MS-01, amb enllaç a aquesta especificació, resultats
-de les comprovacions i revisió del contingut en els tres idiomes.
+**PR:** la PR #150, que també conté aquesta especificació, amb enllaç a
+l'especificació, resultats de les comprovacions i revisió del contingut en els
+tres idiomes.
 
 ## Requisits De Contingut I Presentació
 

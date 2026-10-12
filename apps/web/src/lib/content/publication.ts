@@ -310,6 +310,7 @@ function assertExternalActionsReference(
   for (const actionId of [
     externalActionIds.memberSignup,
     externalActionIds.federation,
+    externalActionIds.functionalTraining,
   ]) {
     const action = externalActions.find(({ id }) => id === actionId);
     if (action === undefined || !action.published) {

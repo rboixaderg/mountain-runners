@@ -375,6 +375,7 @@ describe("publication catalog", () => {
 
     expect([...catalog.externalActions.keys()]).toEqual([
       "federation",
+      "functional-training",
       "member-signup",
       "newsletter",
     ]);
@@ -458,6 +459,15 @@ describe("publication catalog", () => {
       createPublicationCatalog(sourceWithUnpublishedFederation),
     ).toThrow(
       "Members page references missing or unpublished external action: federation",
+    );
+
+    const sourceWithoutTraining = await loadSource();
+    sourceWithoutTraining.externalActions =
+      sourceWithoutTraining.externalActions.filter(
+        ({ id }) => id !== "functional-training",
+      );
+    expect(() => createPublicationCatalog(sourceWithoutTraining)).toThrow(
+      "Members page references missing or unpublished external action: functional-training",
     );
   });
 
