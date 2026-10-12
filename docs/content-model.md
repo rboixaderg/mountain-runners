@@ -174,9 +174,11 @@ d'entrenaments funcionals pels seus identificadors estables (`member-signup`,
 enllaça a la URL traduïble i una acció no disponible s'explica amb text útil,
 mai amb un control fals. La secció de serveis per a socis i sòcies inclou una
 entrada d'entrenaments funcionals que descriu l'activitat, n'indica
-l'exclusivitat per a socis i sòcies i mostra l'adreça del local resolta des de
+l'exclusivitat per a socis i sòcies, publica el preu vigent per sessió i mostra
+l'adreça del local resolta des de
 la col·lecció `contact`; les reserves es fan a Playoff, sense publicar horaris ni
-abonaments no confirmats. El directori de col·laboradors es deriva
+abonaments no confirmats. La pàgina d'inici inclou una versió resumida del servei
+amb el mateix preu. El directori de col·laboradors es deriva
 exclusivament de les entitats publicades amb avantatge de soci
 (`membershipBenefit`), ordenades alfabèticament pel nom en català; no es
 duplica cap llista editorial en els recursos de traducció.

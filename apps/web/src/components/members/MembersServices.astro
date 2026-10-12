@@ -42,6 +42,12 @@ const address = contact?.address[locale];
     <p class="m-0 mb-4 last:mb-0">
       {messages.members_functional_training_members_only({}, { locale })}
     </p>
+    <p class="m-0 mb-4 last:mb-0">
+      <span class="text-muted tracking-label mr-2 text-xs leading-normal font-bold uppercase">
+        {messages.members_functional_training_price_label({}, { locale })}
+      </span>
+      {messages.members_functional_training_price({}, { locale })}
+    </p>
     {address !== undefined && (
       <p class="m-0 mb-4 last:mb-0">
         <span class="text-muted tracking-label mr-2 text-xs leading-normal font-bold uppercase">

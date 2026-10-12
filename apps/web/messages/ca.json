@@ -122,6 +122,7 @@
   "homepage_members_description": "Els socis i sòcies gaudeixen d'avantatges als establiments col·laboradors del Berguedà, formació a les escoles del club i suport amb la federació.\n\n- Descomptes i condicions especials a botigues i serveis del territori\n- Escoles de trail, skimo i BTT obertes tot l'any\n- Alta i federació tramitades per l'entitat",
   "homepage_members_title": "Forma part del club",
   "homepage_members_action": "Veure més informació",
+  "homepage_members_services_action": "Veure els serveis",
   "homepage_school_action": "Informació",
   "homepage_schools_description": "Formació esportiva per a infants i joves: trail, skimo i BTT al Berguedà.",
   "homepage_schools_title": "Les nostres escoles",
@@ -267,5 +268,7 @@
   "members_functional_training_title": "Entrenaments funcionals",
   "members_functional_training_intro": "Entrenament funcional al local del club per treballar la força i el control corporal, incloent-hi estabilitat, mobilitat i core. Les sessions s'adapten a diferents nivells i complementen l'activitat esportiva i la condició física general.",
   "members_functional_training_members_only": "Activitat exclusiva per a socis i sòcies del club.",
+  "members_functional_training_price_label": "Preu",
+  "members_functional_training_price": "10 € per sessió",
   "members_functional_training_action": "Consulta les sessions i reserva a Playoff"
 }

@@ -8,10 +8,11 @@ revisió i fusió. No s'afegeix una fase al roadmap ni s'amplia cap entrega acti
 
 ## Objectiu
 
-Afegir a la pàgina Socis una secció de serveis per a socis i sòcies que incorpori,
-com a primera entrada, els entrenaments funcionals del club, amb accés directe a
-Playoff perquè les persones sòcies consultin les sessions disponibles i en facin
-la reserva.
+Afegir una secció de serveis per a socis i sòcies a la pàgina Socis, amb els
+entrenaments funcionals del club com a primera entrada, i una secció resumida a
+la pàgina d'inici. La secció mostra el preu confirmat (10 € per sessió) i l'accés
+directe a Playoff perquè les persones sòcies consultin les sessions disponibles i
+en facin la reserva.
 
 ## Límits i decisions confirmades
 
@@ -26,6 +27,9 @@ la reserva.
   disponibilitat i reservar.
 - No es mostrarà l'abonament mensual anunciat com a possibilitat per al novembre
   fins que se n'hagin confirmat les condicions.
+- El preu per sessió confirmat és de 10 €. Es publica com a dada vigent mentre el
+  club no en confirmi un altre, a la pàgina Socis i a la secció resumida de la
+  pàgina d'inici.
 - Els missatges de la pàgina fixa es tradueixen als idiomes publicats (`ca`,
   `es` i `en`). L'estructura estable i l'ordre de la secció viuen en components,
   d'acord amb l'ADR 0005.
@@ -43,7 +47,10 @@ la reserva.
 ## Resultats esperats
 
 - La pàgina Socis presenta una secció de serveis per a socis i sòcies amb una
-  entrada d'entrenaments funcionals en català, castellà i anglès.
+  entrada d'entrenaments funcionals en català, castellà i anglès, i la pàgina
+  d'inici en mostra una versió resumida.
+- La secció indica el preu vigent per sessió (10 €) i el tracta com una dada
+  confirmada de la mateixa manera que l'adreça del local.
 - El contingut explica que les sessions treballen força i control corporal,
   incloent-hi estabilitat, mobilitat i core, i que s'adapten a diferents nivells.
 - La secció fa explícita l'exclusivitat per a socis i sòcies i mostra l'adreça
@@ -63,21 +70,22 @@ consultar la disponibilitat remota del servei.
 
 ## Tasques, entregues i seguiment
 
-| Unitat | Abast                                                        | Dependències                                    | Estat   | PR                                                              |
-| ------ | ------------------------------------------------------------ | ----------------------------------------------- | ------- | --------------------------------------------------------------- |
-| MS-01  | Afegir la secció d'entrenaments funcionals a la pàgina Socis | URL de reserva i adreça institucional aprovades | En curs | [#150](https://github.com/rboixaderg/mountain-runners/pull/150) |
+| Unitat | Abast                                                          | Dependències                           | Estat   | PR                                                              |
+| ------ | -------------------------------------------------------------- | -------------------------------------- | ------- | --------------------------------------------------------------- |
+| MS-01  | Afegir el servei d'entrenaments funcionals a Socis i a la home | URL de reserva, adreça i preu aprovats | En curs | [#150](https://github.com/rboixaderg/mountain-runners/pull/150) |
 
 ### MS-01. Afegir El Servei D'entrenaments Funcionals A Socis
 
 **Abast:** incorporar una secció localitzada de serveis per a socis i sòcies a la
 composició existent de la pàgina Socis, amb els entrenaments funcionals com a
-primera entrada; afegir una acció externa estable per a la reserva si el
+primera entrada, i una secció resumida a la pàgina d'inici; afegir una acció
+externa estable per a la reserva si el
 identificador actual no cobreix aquest servei; reutilitzar el contacte
 institucional per a l'adreça; presentar la descripció, l'exclusivitat per a
-socis i sòcies i l'enllaç a Playoff.
+socis i sòcies, el preu vigent per sessió i l'enllaç a Playoff.
 
 **Fora d'aquesta tasca:** publicar horaris de novembre o posteriors, gestionar
-reserves al web, mostrar preus o aforament, publicar l'abonament mensual,
+reserves al web, mostrar aforament, publicar l'abonament mensual,
 introduir una col·lecció de serveis, canviar les rutes o la navegació principal,
 afegir imatges noves o alterar els avantatges dels col·laboradors.
 
@@ -86,8 +94,10 @@ externes, les dades de contacte publicades i els recursos de traducció existent
 
 **Resultat observable:** a cadascuna de les rutes idiomàtiques de Socis es pot
 identificar la secció de serveis, reconèixer els entrenaments funcionals com una
-de les seves entrades, entendre'n l'exclusivitat, consultar on es fa i obrir la
-reserva de Playoff. La pàgina no presenta com a vigents dades de calendari o
+de les seves entrades, entendre'n l'exclusivitat, consultar on es fa, veure el
+preu per sessió i obrir
+la reserva de Playoff. La pàgina d'inici resumeix el servei amb el preu i
+l'enllaç a Socis. La pàgina no presenta com a vigents dades de calendari o
 abonament no confirmades.
 
 **Comprovacions mínimes:** proves de render o de contracte de pàgina que cobreixin
@@ -117,9 +127,14 @@ tres idiomes.
   `PageSection`, la jerarquia tipogràfica i l'escala visual de `DESIGN.md`. L'entrada
   fa servir la targeta estructurada existent; no es crea una pàgina comercial de
   gimnàs ni es repeteixen targetes promocionals genèriques.
+- El preu vigent per sessió (10 €) es mostra amb una etiqueta pròpia, com una dada
+  confirmada més del servei.
+- La pàgina d'inici inclou una secció resumida de serveis per a socis i sòcies amb
+  l'entrada d'entrenaments funcionals, el preu i una crida a la pàgina Socis;
+  reutilitza els missatges del servei i no en duplica el contingut.
 - Les traduccions mantenen el mateix significat i els mateixos fets confirmats;
-  cap variant no afegeix horaris, preus, aforament o condicions que no apareguin
-  en la resta.
+  cap variant no afegeix horaris, aforament ni condicions que no apareguin en la
+  resta, i totes publiquen el mateix preu confirmat.
 
 ## Estratègia De Tests I Qualitat
 
@@ -149,8 +164,8 @@ tres idiomes.
 ## Fora D'abast
 
 - Horaris, recurrència o calendari de sessions a partir del novembre.
-- Import per sessió, límit de places i abonament mensual fins que el club en
-  confirmi la vigència i les condicions.
+- Aforament i abonament mensual fins que el club en confirmi la vigència i les
+  condicions. L'import per sessió confirmat (10 €) sí que es publica.
 - Reserva, pagament, llista d'espera, autenticació o gestió de places dins del
   lloc web.
 - Nous models editorials, CMS, backend, aplicació mòbil o integració API amb
@@ -162,12 +177,13 @@ tres idiomes.
 
 1. Les tres rutes idiomàtiques de la pàgina Socis mostren la secció de serveis i
    l'entrada d'entrenaments funcionals amb títols i text comprensibles en el seu
-   idioma.
+   idioma, i la pàgina d'inici en mostra la versió resumida.
 2. La secció descriu els entrenaments funcionals, indica que són exclusius per a
-   socis i sòcies i mostra l'adreça vigent del local, sense duplicar-ne la font.
+   socis i sòcies, mostra el preu vigent per sessió i mostra l'adreça vigent del
+   local, sense duplicar-ne la font.
 3. L'enllaç accessible de reserva apunta a l'URL HTTPS aprovada de Playoff i
    permet consultar-hi sessions disponibles.
-4. No apareixen horaris futurs, preus, aforament ni l'abonament mensual mentre
+4. No apareixen horaris futurs, aforament ni l'abonament mensual mentre
    aquests detalls no estiguin confirmats.
 5. «Avantatges per a socis i sòcies», el directori de col·laboradors, les rutes i
    la navegació actuals mantenen el seu comportament.

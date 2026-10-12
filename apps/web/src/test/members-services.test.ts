@@ -71,6 +71,9 @@ describe("MembersServices", () => {
       expect(section.textContent).toContain(
         messages.members_functional_training_members_only({}, { locale }),
       );
+      expect(section.textContent).toContain(
+        messages.members_functional_training_price({}, { locale }),
+      );
       expect(section.textContent).toContain(contact.address[locale]);
       expect(link?.getAttribute("href")).toBe(reservationUrl);
       expect(link?.getAttribute("target")).toBe("_blank");

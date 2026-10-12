@@ -122,6 +122,7 @@
   "homepage_members_description": "Members enjoy benefits at partner businesses across Berguedà, training at the club schools and support with federation licensing.\n\n- Discounts and special terms at local shops and services\n- Trail, skimo and MTB schools open year-round\n- Membership registration and federation licensing handled by the club",
   "homepage_members_title": "Join the club",
   "homepage_members_action": "See more information",
+  "homepage_members_services_action": "See the services",
   "homepage_school_action": "Information",
   "homepage_schools_description": "Sports training for children and young people: trail, skimo and mountain biking in Berguedà.",
   "homepage_schools_title": "Our schools",
@@ -267,5 +268,7 @@
   "members_functional_training_title": "Functional training",
   "members_functional_training_intro": "Functional training at the club's premises to work on strength and body control, including stability, mobility and core. Sessions adapt to different levels and complement sporting activity and general fitness.",
   "members_functional_training_members_only": "Members-only activity for club members.",
+  "members_functional_training_price_label": "Price",
+  "members_functional_training_price": "€10 per session",
   "members_functional_training_action": "See sessions and book on Playoff"
 }
