@@ -19,6 +19,9 @@
 - Never overwrite or revert work you did not create.
 - Update the relevant documentation when a technical decision, boundary or
   workflow changes.
+- Keep `README.md` to the current state: commands, structure and status only.
+  Record decisions and their rationale in `docs/decisions/`, and operational
+  rules here or in `docs/testing-strategy.md`, never in the README.
 - Use English for code, commit messages, `AGENTS.md` and `DESIGN.md`. Use
   Catalan for project documentation, user-facing content and pull-request
   descriptions.
