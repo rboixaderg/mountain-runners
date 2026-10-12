@@ -13,7 +13,7 @@ import PageIntro from "../PageIntro.astro";
 import MembersActionSection from "./MembersActionSection.astro";
 import MembersBenefits from "./MembersBenefits.astro";
 import MembersDirectory from "./MembersDirectory.astro";
-import MembersFunctionalTraining from "./MembersFunctionalTraining.astro";
+import MembersServices from "./MembersServices.astro";
 import MembersVideo from "./MembersVideo.astro";
 import "../../styles/members.css";
 
@@ -65,7 +65,7 @@ const collaborators = getMembersDirectoryEntities(catalog, locale);
     />
   </div>
 
-  <MembersFunctionalTraining
+  <MembersServices
     action={functionalTrainingAction}
     contact={catalog.contact}
     locale={locale}

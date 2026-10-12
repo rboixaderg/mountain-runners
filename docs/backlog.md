@@ -188,9 +188,10 @@ a l'entrada oberta corresponent; no s'amplien silenciosament aquesta entrega.
 informació bàsica del nou servei d'entrenaments funcionals i l'accés a les
 reserves.
 
-**Resultat esperat:** una secció informativa a la pàgina Socis que expliqui
-l'activitat, l'exclusivitat per a socis, la ubicació i com consultar les sessions
-disponibles a Playoff.
+**Resultat esperat:** una secció de serveis per a socis i sòcies a la pàgina
+Socis que inclogui els entrenaments funcionals, expliqui l'activitat,
+l'exclusivitat per a socis, la ubicació i com consultar les sessions disponibles
+a Playoff.
 
 **Dependències:** confirmar que l'adreça institucional i la destinació de reserva
 continuen vigents abans de publicar la implementació. Els horaris posteriors a

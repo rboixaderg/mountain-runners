@@ -1,7 +1,7 @@
 import { experimental_AstroContainer as AstroContainer } from "astro/container";
 import { JSDOM } from "jsdom";
 import { describe, expect, it } from "vitest";
-import MembersFunctionalTraining from "../components/members/MembersFunctionalTraining.astro";
+import MembersServices from "../components/members/MembersServices.astro";
 import type { Contact, ExternalAction } from "../lib/content/models";
 import type { Locale } from "../lib/content/primitives";
 import * as messages from "../paraglide/messages.js";
@@ -42,20 +42,20 @@ function actionWithStatus(status: ExternalAction["status"]): ExternalAction {
 
 function getSection(html: string): Element {
   const section = new JSDOM(html).window.document.querySelector(
-    'section[aria-labelledby="members-functional-training-title"]',
+    'section[aria-labelledby="members-services-title"]',
   );
   if (section === null) {
-    throw new Error("Functional training section did not render");
+    throw new Error("Members services section did not render");
   }
   return section;
 }
 
-describe("MembersFunctionalTraining", () => {
+describe("MembersServices", () => {
   it.each(locales as Locale[])(
     "renders the localized section and reservation link for %s",
     async (locale) => {
       const container = await AstroContainer.create();
-      const html = await container.renderToString(MembersFunctionalTraining, {
+      const html = await container.renderToString(MembersServices, {
         props: { action: actionWithStatus("available"), contact, locale },
       });
 
@@ -63,6 +63,9 @@ describe("MembersFunctionalTraining", () => {
       const link = section.querySelector("a");
 
       expect(section.querySelector("h2")?.textContent).toBe(
+        messages.members_services_title({}, { locale }),
+      );
+      expect(section.querySelector("h3")?.textContent).toBe(
         messages.members_functional_training_title({}, { locale }),
       );
       expect(section.textContent).toContain(
@@ -89,7 +92,7 @@ describe("MembersFunctionalTraining", () => {
 
   it("explains an unavailable action without a control", async () => {
     const container = await AstroContainer.create();
-    const html = await container.renderToString(MembersFunctionalTraining, {
+    const html = await container.renderToString(MembersServices, {
       props: {
         action: actionWithStatus("temporarily-unavailable"),
         contact,
@@ -109,7 +112,7 @@ describe("MembersFunctionalTraining", () => {
 
   it("omits the address when the institutional contact is unavailable", async () => {
     const container = await AstroContainer.create();
-    const html = await container.renderToString(MembersFunctionalTraining, {
+    const html = await container.renderToString(MembersServices, {
       props: {
         action: actionWithStatus("available"),
         contact: undefined,

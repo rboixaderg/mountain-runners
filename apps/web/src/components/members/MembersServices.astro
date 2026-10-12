@@ -1,0 +1,67 @@
+---
+import * as messages from "../../paraglide/messages.js";
+import type { Contact, ExternalAction } from "../../lib/content/models";
+import type { Locale } from "../../lib/content/primitives";
+import { getExternalActionPresentation } from "../../lib/presentation/status";
+import { analyticsActions, analyticsAreas } from "../../lib/analytics/catalog";
+import ExternalLink from "../ExternalLink.astro";
+import PageSection from "../PageSection.astro";
+
+interface Props {
+  action: ExternalAction | undefined;
+  contact: Contact | undefined;
+  locale: Locale;
+}
+
+const { action, contact, locale } = Astro.props;
+const { href: reservationHref, stateMessageKey } =
+  getExternalActionPresentation(action, locale);
+const address = contact?.address[locale];
+---
+
+<PageSection
+  id="members-services-title"
+  title={messages.members_services_title({}, { locale })}
+>
+  <p class="m-0 mb-6 last:mb-0">
+    {messages.members_services_intro({}, { locale })}
+  </p>
+  <article
+    class="border-ink p-card border-2 bg-white"
+    aria-labelledby="members-functional-training-title"
+  >
+    <h3
+      class="font-display tracking-display m-0 mb-4 text-2xl leading-none uppercase"
+      id="members-functional-training-title"
+    >
+      {messages.members_functional_training_title({}, { locale })}
+    </h3>
+    <p class="m-0 mb-4 last:mb-0">
+      {messages.members_functional_training_intro({}, { locale })}
+    </p>
+    <p class="m-0 mb-4 last:mb-0">
+      {messages.members_functional_training_members_only({}, { locale })}
+    </p>
+    {address !== undefined && (
+      <p class="m-0 mb-4 last:mb-0">
+        <span class="text-muted tracking-label mr-2 text-xs leading-normal font-bold uppercase">
+          {messages.contact_address_label({}, { locale })}
+        </span>
+        {address}
+      </p>
+    )}
+    {reservationHref !== undefined ? (
+      <ExternalLink
+        className="text-red tracking-display text-action font-bold uppercase underline decoration-2 underline-offset-2 hover:text-ink"
+        href={reservationHref}
+        label={messages.members_functional_training_action({}, { locale })}
+        showHost={false}
+        analyticsArea={analyticsAreas.membersTraining}
+        analyticsAction={analyticsActions.trainingReservation}
+        analyticsTarget="functional_training"
+      />
+    ) : stateMessageKey !== undefined ? (
+      <p class="text-muted m-0">{messages[stateMessageKey]({}, { locale })}</p>
+    ) : null}
+  </article>
+</PageSection>

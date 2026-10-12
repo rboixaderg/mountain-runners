@@ -911,7 +911,7 @@ test("renders the Members page sections in editorial order", async ({
     "Socis",
     "Alta de socis",
     "Federació",
-    "Entrenaments funcionals",
+    "Serveis per a socis i sòcies",
     "Avantatges per a socis i sòcies",
     "Col·laboradors",
   ]);
@@ -924,10 +924,16 @@ test("renders the Members page sections in editorial order", async ({
   await expect(federationLink).toHaveCount(1);
   await expect(federationLink).toHaveAttribute("href", site.federationUrl!);
 
-  const trainingRegion = page.getByRole("region", {
-    name: "Entrenaments funcionals",
+  const servicesRegion = page.getByRole("region", {
+    name: "Serveis per a socis i sòcies",
   });
-  await expect(trainingRegion).toContainText(site.catalog.contact!.address.ca!);
+  await expect(
+    servicesRegion.getByRole("heading", {
+      level: 3,
+      name: "Entrenaments funcionals",
+    }),
+  ).toBeVisible();
+  await expect(servicesRegion).toContainText(site.catalog.contact!.address.ca!);
   const trainingLink = page.getByRole("link", {
     name: /Consulta les sessions i reserva a Playoff/u,
   });

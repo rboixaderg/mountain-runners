@@ -1,4 +1,4 @@
-# Especificació: Servei D'entrenaments Funcionals Per A Socis
+# Especificació: Serveis Per A Socis: Entrenaments Funcionals
 
 ## Estat
 
@@ -8,12 +8,17 @@ revisió i fusió. No s'afegeix una fase al roadmap ni s'amplia cap entrega acti
 
 ## Objectiu
 
-Afegir a la pàgina Socis una secció informativa sobre els entrenaments funcionals
-del club, amb accés directe a Playoff perquè les persones sòcies consultin les
-sessions disponibles i en facin la reserva.
+Afegir a la pàgina Socis una secció de serveis per a socis i sòcies que incorpori,
+com a primera entrada, els entrenaments funcionals del club, amb accés directe a
+Playoff perquè les persones sòcies consultin les sessions disponibles i en facin
+la reserva.
 
 ## Límits i decisions confirmades
 
+- La secció es presenta com un catàleg de serveis per a socis i sòcies, no com
+  una secció aïllada d'una única activitat: n'hi pot haver més d'una i les noves
+  entrades s'hi afegiran sense crear una col·lecció editorial ni canviar la
+  composició de la pàgina.
 - La secció descriu l'activitat, indica que és exclusiva per a socis i sòcies,
   mostra l'adreça del local i enllaça a la reserva de Playoff.
 - Els horaris posteriors a l'octubre encara no estan definits. La web no en
@@ -37,8 +42,8 @@ sessions disponibles i en facin la reserva.
 
 ## Resultats esperats
 
-- La pàgina Socis presenta una secció pròpia d'entrenaments funcionals en català,
-  castellà i anglès.
+- La pàgina Socis presenta una secció de serveis per a socis i sòcies amb una
+  entrada d'entrenaments funcionals en català, castellà i anglès.
 - El contingut explica que les sessions treballen força i control corporal,
   incloent-hi estabilitat, mobilitat i core, i que s'adapten a diferents nivells.
 - La secció fa explícita l'exclusivitat per a socis i sòcies i mostra l'adreça
@@ -64,8 +69,9 @@ consultar la disponibilitat remota del servei.
 
 ### MS-01. Afegir El Servei D'entrenaments Funcionals A Socis
 
-**Abast:** incorporar una secció localitzada a la composició existent de la
-pàgina Socis; afegir una acció externa estable per a la reserva si el
+**Abast:** incorporar una secció localitzada de serveis per a socis i sòcies a la
+composició existent de la pàgina Socis, amb els entrenaments funcionals com a
+primera entrada; afegir una acció externa estable per a la reserva si el
 identificador actual no cobreix aquest servei; reutilitzar el contacte
 institucional per a l'adreça; presentar la descripció, l'exclusivitat per a
 socis i sòcies i l'enllaç a Playoff.
@@ -79,7 +85,8 @@ afegir imatges noves o alterar els avantatges dels col·laboradors.
 externes, les dades de contacte publicades i els recursos de traducció existents.
 
 **Resultat observable:** a cadascuna de les rutes idiomàtiques de Socis es pot
-identificar el servei, entendre'n l'exclusivitat, consultar on es fa i obrir la
+identificar la secció de serveis, reconèixer els entrenaments funcionals com una
+de les seves entrades, entendre'n l'exclusivitat, consultar on es fa i obrir la
 reserva de Playoff. La pàgina no presenta com a vigents dades de calendari o
 abonament no confirmades.
 
@@ -104,9 +111,12 @@ tres idiomes.
 - La crida a l'acció explica que permet consultar sessions i reservar a Playoff.
   L'enllaç és identificable, usable amb teclat i exposa un nom accessible que
   n'explica el destí o l'acció.
-- La secció segueix els patrons de `PageSection`, la jerarquia tipogràfica i
-  l'escala visual de `DESIGN.md`. No es crea una pàgina comercial de gimnàs ni es
-  repeteixen targetes promocionals genèriques.
+- La secció de serveis presenta un títol propi i una entrada per als entrenaments
+  funcionals amb el seu propi encapçalament de nivell inferior, de manera que es
+  llegeix com un catàleg que pot incorporar més serveis. Segueix els patrons de
+  `PageSection`, la jerarquia tipogràfica i l'escala visual de `DESIGN.md`. L'entrada
+  fa servir la targeta estructurada existent; no es crea una pàgina comercial de
+  gimnàs ni es repeteixen targetes promocionals genèriques.
 - Les traduccions mantenen el mateix significat i els mateixos fets confirmats;
   cap variant no afegeix horaris, preus, aforament o condicions que no apareguin
   en la resta.
@@ -150,8 +160,9 @@ tres idiomes.
 
 ## Criteris D'acceptació
 
-1. Les tres rutes idiomàtiques de la pàgina Socis mostren la secció amb títol i
-   text comprensibles en el seu idioma.
+1. Les tres rutes idiomàtiques de la pàgina Socis mostren la secció de serveis i
+   l'entrada d'entrenaments funcionals amb títols i text comprensibles en el seu
+   idioma.
 2. La secció descriu els entrenaments funcionals, indica que són exclusius per a
    socis i sòcies i mostra l'adreça vigent del local, sense duplicar-ne la font.
 3. L'enllaç accessible de reserva apunta a l'URL HTTPS aprovada de Playoff i
