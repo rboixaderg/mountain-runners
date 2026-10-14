@@ -26,6 +26,15 @@
         "--isolated"
       ],
       "enabled": true
+    },
+    "plausible": {
+      "type": "local",
+      "command": ["node", "{env:PLAUSIBLE_MCP_ENTRYPOINT}"],
+      "environment": {
+        "PLAUSIBLE_API_KEY": "{env:PLAUSIBLE_API_KEY}",
+        "PLAUSIBLE_BASE_URL": "{env:PLAUSIBLE_BASE_URL}"
+      },
+      "enabled": true
     }
   }
 }

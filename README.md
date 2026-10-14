@@ -42,6 +42,26 @@ unitaris, proves de servidor i Playwright), igual que la CI. `pnpm check` n'omet
 Playwright i `pnpm check:local`, el hook `pre-push`, n'omet també les proves de
 servidor. `pnpm lighthouse` és una auditoria manual separada.
 
+### MCP de Plausible (OpenCode)
+
+OpenCode inicia el servidor MCP local de Plausible. Cal Node 20 o superior i
+una instància compatible amb l'API Stats v2. El servidor extern queda fixat al
+commit `0f3710ee1be973a76c52b9ceafd4d5b50e09a8e7`:
+
+```sh
+git clone https://github.com/getsentry/plausible-mcp.git ~/.local/share/plausible-mcp
+cd ~/.local/share/plausible-mcp
+git checkout 0f3710ee1be973a76c52b9ceafd4d5b50e09a8e7
+corepack pnpm install --frozen-lockfile
+corepack pnpm build
+```
+
+Abans d'iniciar OpenCode, configura a l'entorn local `PLAUSIBLE_MCP_ENTRYPOINT`
+amb la ruta absoluta a `~/.local/share/plausible-mcp/dist/index.js`.
+Configura `PLAUSIBLE_BASE_URL` amb l'origen de la instància i `PLAUSIBLE_API_KEY`
+amb una clau de lectura. No desis la clau al repositori ni a fitxers de
+configuració versionats. El MCP només exposa consultes de lectura.
+
 Per auditar també els pilots d'esborrany, construeix un preview amb el mode i
 l'origen explícits, i executa el runner sobre aquell mateix artefacte:
 
