@@ -926,6 +926,10 @@ test("renders the Members page sections in editorial order", async ({
   const federationLink = page.getByRole("link", { name: /Federa't/u });
   await expect(federationLink).toHaveCount(1);
   await expect(federationLink).toHaveAttribute("href", site.federationUrl!);
+  const federationRegion = page.getByRole("region", { name: "Federació" });
+  await expect(federationRegion).toContainText(
+    "El club tramita la federació de les persones sòcies",
+  );
 
   const servicesRegion = page.getByRole("region", {
     name: "Serveis per a socis i sòcies",
