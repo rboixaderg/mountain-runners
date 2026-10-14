@@ -1,0 +1,29 @@
+.agents/skills/unslop/SKILL.md
+  s_241b16c62b4116::t_b09900dc4b2735 3,8-9,11,13-16,32-102,106-107
+.agents/skills/vitest/SKILL.md
+  s_0714b855542a53::t_f964604fbc0f4a 23-42
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "a428564ad4663560e44103dca61af8ae423d7ca7",
+  "prompts": {},
+  "sessions": {
+    "s_0714b855542a53": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_edf3b6c4bffeXbGdJNs613dk8V",
+        "model": "unknown"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    },
+    "s_241b16c62b4116": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a13c12-b41d-7237-8b82-6eb83bcbc798",
+        "model": "gpt-6-luna"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
