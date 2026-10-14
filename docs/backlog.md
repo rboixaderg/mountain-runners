@@ -191,8 +191,8 @@ reserves.
 **Resultat esperat:** una secció de serveis per a socis i sòcies a la pàgina
 Socis que inclogui els entrenaments funcionals, expliqui l'activitat,
 l'exclusivitat per a socis, la ubicació, el preu vigent per sessió i com
-consultar les sessions disponibles a Playoff, amb una versió resumida a la
-pàgina d'inici.
+consultar les sessions disponibles a Playoff, i un punt propi a «Forma part del
+club» de la pàgina d'inici.
 
 **Dependències:** confirmar que l'adreça institucional i la destinació de reserva
 continuen vigents abans de publicar la implementació. El preu per sessió

@@ -153,7 +153,6 @@ test("renders the published homepage sections in order", async ({ page }) => {
   await expect(main.locator("h2").allTextContents()).resolves.toEqual([
     "Les nostres escoles",
     "Forma part del club",
-    "Serveis per a socis i sòcies",
     "Agenda d'activitats",
     "Actualitat del club",
   ]);
@@ -194,13 +193,9 @@ test("offers the homepage actions with their reviewed destinations", async ({
       exact: true,
     }),
   ).toHaveAttribute("href", site.membersPath);
-  const servicesRegion = page.getByRole("region", {
-    name: "Serveis per a socis i sòcies",
-  });
-  await expect(servicesRegion).toContainText("10 € per sessió");
-  await expect(
-    servicesRegion.getByRole("link", { name: "Veure els serveis" }),
-  ).toHaveAttribute("href", site.membersPath);
+  await expect(page.getByRole("main")).toContainText(
+    "Entrenaments funcionals al local del club, 10 € per sessió",
+  );
   await expect(
     page.getByRole("main").getByRole("link", { name: "Veure tot l'any" }),
   ).toHaveAttribute("href", "/ca/esdeveniments/");

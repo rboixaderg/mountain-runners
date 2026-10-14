@@ -9,8 +9,9 @@ revisió i fusió. No s'afegeix una fase al roadmap ni s'amplia cap entrega acti
 ## Objectiu
 
 Afegir una secció de serveis per a socis i sòcies a la pàgina Socis, amb els
-entrenaments funcionals del club com a primera entrada, i una secció resumida a
-la pàgina d'inici. La secció mostra el preu confirmat (10 € per sessió) i l'accés
+entrenaments funcionals del club com a primera entrada, i un punt propi dins de
+«Forma part del club» a la pàgina d'inici. La secció mostra el preu confirmat
+(10 € per sessió) i l'accés
 directe a Playoff perquè les persones sòcies consultin les sessions disponibles i
 en facin la reserva.
 
@@ -28,8 +29,8 @@ en facin la reserva.
 - No es mostrarà l'abonament mensual anunciat com a possibilitat per al novembre
   fins que se n'hagin confirmat les condicions.
 - El preu per sessió confirmat és de 10 €. Es publica com a dada vigent mentre el
-  club no en confirmi un altre, a la pàgina Socis i a la secció resumida de la
-  pàgina d'inici.
+  club no en confirmi un altre, a la pàgina Socis i al punt de «Forma part del
+  club» de la pàgina d'inici.
 - Els missatges de la pàgina fixa es tradueixen als idiomes publicats (`ca`,
   `es` i `en`). L'estructura estable i l'ordre de la secció viuen en components,
   d'acord amb l'ADR 0005.
@@ -48,7 +49,7 @@ en facin la reserva.
 
 - La pàgina Socis presenta una secció de serveis per a socis i sòcies amb una
   entrada d'entrenaments funcionals en català, castellà i anglès, i la pàgina
-  d'inici en mostra una versió resumida.
+  d'inici l'inclou com un punt de «Forma part del club».
 - La secció indica el preu vigent per sessió (10 €) i el tracta com una dada
   confirmada de la mateixa manera que l'adreça del local.
 - El contingut explica que les sessions treballen força i control corporal,
@@ -78,7 +79,8 @@ consultar la disponibilitat remota del servei.
 
 **Abast:** incorporar una secció localitzada de serveis per a socis i sòcies a la
 composició existent de la pàgina Socis, amb els entrenaments funcionals com a
-primera entrada, i una secció resumida a la pàgina d'inici; afegir una acció
+primera entrada, i un punt propi a «Forma part del club» de la pàgina d'inici;
+afegir una acció
 externa estable per a la reserva si el
 identificador actual no cobreix aquest servei; reutilitzar el contacte
 institucional per a l'adreça; presentar la descripció, l'exclusivitat per a
@@ -96,8 +98,9 @@ externes, les dades de contacte publicades i els recursos de traducció existent
 identificar la secció de serveis, reconèixer els entrenaments funcionals com una
 de les seves entrades, entendre'n l'exclusivitat, consultar on es fa, veure el
 preu per sessió i obrir
-la reserva de Playoff. La pàgina d'inici resumeix el servei amb el preu i
-l'enllaç a Socis. La pàgina no presenta com a vigents dades de calendari o
+la reserva de Playoff. La pàgina d'inici llista el servei i el preu com un punt
+més de «Forma part del club». La pàgina no presenta com a vigents dades de
+calendari o
 abonament no confirmades.
 
 **Comprovacions mínimes:** proves de render o de contracte de pàgina que cobreixin
@@ -129,9 +132,9 @@ tres idiomes.
   gimnàs ni es repeteixen targetes promocionals genèriques.
 - El preu vigent per sessió (10 €) es mostra amb una etiqueta pròpia, com una dada
   confirmada més del servei.
-- La pàgina d'inici inclou una secció resumida de serveis per a socis i sòcies amb
-  l'entrada d'entrenaments funcionals, el preu i una crida a la pàgina Socis;
-  reutilitza els missatges del servei i no en duplica el contingut.
+- La pàgina d'inici afegeix els entrenaments funcionals i el preu com un punt
+  més de la llista de «Forma part del club», sense crear una secció pròpia ni
+  duplicar-ne el contingut.
 - Les traduccions mantenen el mateix significat i els mateixos fets confirmats;
   cap variant no afegeix horaris, aforament ni condicions que no apareguin en la
   resta, i totes publiquen el mateix preu confirmat.
@@ -177,7 +180,7 @@ tres idiomes.
 
 1. Les tres rutes idiomàtiques de la pàgina Socis mostren la secció de serveis i
    l'entrada d'entrenaments funcionals amb títols i text comprensibles en el seu
-   idioma, i la pàgina d'inici en mostra la versió resumida.
+   idioma, i la pàgina d'inici l'inclou com un punt de «Forma part del club».
 2. La secció descriu els entrenaments funcionals, indica que són exclusius per a
    socis i sòcies, mostra el preu vigent per sessió i mostra l'adreça vigent del
    local, sense duplicar-ne la font.

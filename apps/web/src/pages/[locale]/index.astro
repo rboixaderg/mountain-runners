@@ -135,11 +135,6 @@ const homepageMembersAttributes = analyticsActionAttributes({
   area: analyticsAreas.homepage,
   target: "members",
 });
-const homepageMembersServicesAttributes = analyticsActionAttributes({
-  action: analyticsActions.navigate,
-  area: analyticsAreas.homepage,
-  target: "members_services",
-});
 const homepageEventsAttributes = analyticsActionAttributes({
   action: analyticsActions.navigate,
   area: analyticsAreas.homepage,
@@ -305,41 +300,6 @@ export function getStaticPaths() {
         </div>
       </div>
     </div>
-  </section>
-
-  <section
-    class="page-frame py-section"
-    aria-labelledby="homepage-members-services-title"
-  >
-    <div class="mb-8 flex flex-wrap items-baseline justify-between gap-x-6 gap-y-3">
-      <h2
-        class="font-display text-section leading-display tracking-headline m-0 font-bold uppercase"
-        id="homepage-members-services-title"
-      >
-        {messages.members_services_title({}, { locale })}
-      </h2>
-      <a
-        class="font-display text-action tracking-label action-underline text-red hover:text-ink font-bold uppercase"
-        href={membersPath}
-        {...homepageMembersServicesAttributes}
-      >
-        {messages.homepage_members_services_action({}, { locale })}
-      </a>
-    </div>
-    <article class="border-ink p-card border-2 bg-white">
-      <h3 class="font-display tracking-display m-0 mb-4 text-2xl leading-none uppercase">
-        {messages.members_functional_training_title({}, { locale })}
-      </h3>
-      <p class="m-0 mb-4 last:mb-0">
-        {messages.members_functional_training_intro({}, { locale })}
-      </p>
-      <p class="m-0">
-        <span class="text-muted tracking-label mr-2 text-xs leading-normal font-bold uppercase">
-          {messages.members_functional_training_price_label({}, { locale })}
-        </span>
-        {messages.members_functional_training_price({}, { locale })}
-      </p>
-    </article>
   </section>
 
   <section class="page-frame py-section" aria-labelledby="events-title">
