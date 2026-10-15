@@ -177,8 +177,9 @@ entrada d'entrenaments funcionals que descriu l'activitat, n'indica
 l'exclusivitat per a socis i sòcies, publica el preu vigent per sessió i mostra
 l'adreça del local resolta des de
 la col·lecció `contact`; les reserves es fan a Playoff, sense publicar horaris ni
-abonaments no confirmats. La pàgina d'inici llista el servei i el preu com un punt
-de «Forma part del club». El directori de col·laboradors es deriva
+abonaments no confirmats. La pàgina d'inici anuncia de manera genèrica els serveis
+i activitats a l'abast de les persones sòcies dins de «Forma part del club». El
+directori de col·laboradors es deriva
 exclusivament de les entitats publicades amb avantatge de soci
 (`membershipBenefit`), ordenades alfabèticament pel nom en català; no es
 duplica cap llista editorial en els recursos de traducció.

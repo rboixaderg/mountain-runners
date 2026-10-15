@@ -194,7 +194,7 @@ test("offers the homepage actions with their reviewed destinations", async ({
     }),
   ).toHaveAttribute("href", site.membersPath);
   await expect(page.getByRole("main")).toContainText(
-    "Entrenaments funcionals al local del club, 10 € per sessió",
+    "Serveis i activitats del club a disposició de les persones sòcies",
   );
   await expect(
     page.getByRole("main").getByRole("link", { name: "Veure tot l'any" }),
