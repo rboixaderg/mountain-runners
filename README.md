@@ -42,27 +42,33 @@ unitaris, proves de servidor i Playwright), igual que la CI. `pnpm check` n'omet
 Playwright i `pnpm check:local`, el hook `pre-push`, n'omet també les proves de
 servidor. `pnpm lighthouse` és una auditoria manual separada.
 
-### MCP de Plausible (OpenCode i Pi)
+### Consultar Plausible amb una skill
 
-OpenCode i Pi inicien el servidor MCP local de Plausible. Cal Node 20 o superior
-i una instància compatible amb l'API Stats v2. El servidor extern queda fixat al
-commit `0f3710ee1be973a76c52b9ceafd4d5b50e09a8e7`:
+La skill de projecte
+[`plausible-analytics`](.agents/skills/plausible-analytics/SKILL.md) consulta
+l'API Stats v2 directament, sense servidor MCP ni dependències addicionals.
+Està limitada al lloc `mountainrunners.cat` i només fa consultes de lectura.
+No canvia el tracker públic ni incorpora secrets al build.
+
+Abans d'iniciar OpenCode o Pi, exporta `PLAUSIBLE_BASE_URL` amb l'origen HTTPS
+de la instància i `PLAUSIBLE_API_KEY` amb una clau Stats de lectura que tingui
+accés al lloc. Es reutilitzen les variables de la integració anterior; el
+script no carrega fitxers `.env`. No desis ni imprimeixis la clau.
+`--use-system-ca` afegeix els certificats de confiança del sistema sense
+desactivar la verificació TLS.
 
 ```sh
-git clone https://github.com/getsentry/plausible-mcp.git ~/.local/share/plausible-mcp
-cd ~/.local/share/plausible-mcp
-git checkout 0f3710ee1be973a76c52b9ceafd4d5b50e09a8e7
-corepack pnpm install --frozen-lockfile
-corepack pnpm build
+node --use-system-ca .agents/skills/plausible-analytics/scripts/query.mjs <<'JSON'
+{"metrics": ["pageviews"], "date_range": "7d"}
+JSON
 ```
 
-Abans d'iniciar OpenCode o Pi, configura `PLAUSIBLE_BASE_URL` amb l'origen de
-la instància i `PLAUSIBLE_API_KEY` amb una clau de lectura. No desis la clau al
-repositori ni a fitxers de configuració versionats. OpenCode resol la ruta de
-l'executable a partir de `HOME`, així que no cal una variable per a aquesta
-ruta. Pi llegeix `.pi/mcp.json` després de concedir confiança al projecte.
-Executa `pi mcp list` des de l'arrel del projecte per verificar la connexió. El
-MCP només exposa consultes de lectura.
+Pi descobreix la skill a `.agents/skills/`; es pot invocar explícitament amb
+`/skill:plausible-analytics`. OpenCode utilitza el directori de skills de
+projecte configurat a `opencode.json`. Després de substituir la integració,
+fes `/reload` a Pi o reinicia OpenCode per deixar de carregar el MCP anterior.
+`pnpm test:analytics` executa les proves del client sense accés de xarxa ni
+credencials reals.
 
 Per auditar també els pilots d'esborrany, construeix un preview amb el mode i
 l'origen explícits, i executa el runner sobre aquell mateix artefacte:
