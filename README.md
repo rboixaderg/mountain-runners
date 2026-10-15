@@ -42,6 +42,34 @@ unitaris, proves de servidor i Playwright), igual que la CI. `pnpm check` n'omet
 Playwright i `pnpm check:local`, el hook `pre-push`, n'omet també les proves de
 servidor. `pnpm lighthouse` és una auditoria manual separada.
 
+### Consultar Plausible amb una skill
+
+La skill de projecte
+[`plausible-analytics`](.agents/skills/plausible-analytics/SKILL.md) consulta
+l'API Stats v2 directament, sense servidor MCP ni dependències addicionals.
+Està limitada al lloc `mountainrunners.cat` i només fa consultes de lectura.
+No canvia el tracker públic ni incorpora secrets al build.
+
+Abans d'iniciar OpenCode o Pi, exporta `PLAUSIBLE_BASE_URL` amb l'origen HTTPS
+de la instància i `PLAUSIBLE_API_KEY` amb una clau Stats de lectura que tingui
+accés al lloc. Es reutilitzen les variables de la integració anterior; el
+script no carrega fitxers `.env`. No desis ni imprimeixis la clau.
+`--use-system-ca` afegeix els certificats de confiança del sistema sense
+desactivar la verificació TLS.
+
+```sh
+node --use-system-ca .agents/skills/plausible-analytics/scripts/query.mjs <<'JSON'
+{"metrics": ["pageviews"], "date_range": "7d"}
+JSON
+```
+
+Pi descobreix la skill a `.agents/skills/`; es pot invocar explícitament amb
+`/skill:plausible-analytics`. OpenCode utilitza el directori de skills de
+projecte configurat a `opencode.json`. Després de substituir la integració,
+fes `/reload` a Pi o reinicia OpenCode per deixar de carregar el MCP anterior.
+`pnpm test:analytics` executa les proves del client sense accés de xarxa ni
+credencials reals.
+
 Per auditar també els pilots d'esborrany, construeix un preview amb el mode i
 l'origen explícits, i executa el runner sobre aquell mateix artefacte:
 

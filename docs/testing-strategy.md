@@ -120,17 +120,18 @@ que no has verificat experimentalment aquesta sensibilitat ni els costos.
 Executa primer la prova afectada i després les suites i comprovacions aplicables.
 Les ordres vigents són a [`package.json`](../package.json):
 
-| Ordre              | Abast                                                       |
-| ------------------ | ----------------------------------------------------------- |
-| `pnpm test`        | Vitest, inclòs render, i verificació de generació Paraglide |
-| `pnpm test:server` | Proves operatives de Node                                   |
-| `pnpm check`       | Format, lint, typecheck, Vitest i proves operatives         |
-| `pnpm check:local` | Format, lint, typecheck i Vitest, sense build ni servidor   |
-| `pnpm build`       | Build Astro i verificació de la sortida i18n                |
-| `pnpm test:e2e`    | Build amb origen i data fixats, seguit de Playwright        |
-| `pnpm test:a11y`   | Build fixat i selecció de proves `@a11y`                    |
-| `pnpm validate`    | `pnpm check` i `pnpm test:e2e`                              |
-| `pnpm lighthouse`  | Auditoria separada de rendiment, llindars i pressupostos    |
+| Ordre                 | Abast                                                                      |
+| --------------------- | -------------------------------------------------------------------------- |
+| `pnpm test`           | Vitest, inclòs render, i verificació de generació Paraglide                |
+| `pnpm test:analytics` | Client Stats v2 de Plausible amb xarxa simulada                            |
+| `pnpm test:server`    | Proves operatives de Node                                                  |
+| `pnpm check`          | Format, lint, typecheck, Vitest, client Stats v2 i proves operatives       |
+| `pnpm check:local`    | Format, lint, typecheck, Vitest i client Stats v2, sense build ni servidor |
+| `pnpm build`          | Build Astro i verificació de la sortida i18n                               |
+| `pnpm test:e2e`       | Build amb origen i data fixats, seguit de Playwright                       |
+| `pnpm test:a11y`      | Build fixat i selecció de proves `@a11y`                                   |
+| `pnpm validate`       | `pnpm check` i `pnpm test:e2e`                                             |
+| `pnpm lighthouse`     | Auditoria separada de rendiment, llindars i pressupostos                   |
 
 Per a una execució directa de Playwright, construeix abans l'artefacte i passa
 als tests el mateix `PUBLIC_SITE_ORIGIN`, `BUILD_TODAY` i `PUBLIC_PREVIEW` que
