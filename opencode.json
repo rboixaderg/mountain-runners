@@ -29,7 +29,7 @@
     },
     "plausible": {
       "type": "local",
-      "command": ["node", "{env:PLAUSIBLE_MCP_ENTRYPOINT}"],
+      "command": ["node", "{env:HOME}/.local/share/plausible-mcp/dist/index.js"],
       "environment": {
         "PLAUSIBLE_API_KEY": "{env:PLAUSIBLE_API_KEY}",
         "PLAUSIBLE_BASE_URL": "{env:PLAUSIBLE_BASE_URL}"

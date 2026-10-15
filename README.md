@@ -58,11 +58,11 @@ corepack pnpm build
 
 Abans d'iniciar OpenCode o Pi, configura `PLAUSIBLE_BASE_URL` amb l'origen de
 la instància i `PLAUSIBLE_API_KEY` amb una clau de lectura. No desis la clau al
-repositori ni a fitxers de configuració versionats. OpenCode també necessita
-`PLAUSIBLE_MCP_ENTRYPOINT` amb la ruta absoluta a
-`~/.local/share/plausible-mcp/dist/index.js`. Pi llegeix `.pi/mcp.json` després
-de concedir confiança al projecte. Executa `pi mcp list` des de l'arrel del
-projecte per verificar la connexió. El MCP només exposa consultes de lectura.
+repositori ni a fitxers de configuració versionats. OpenCode resol la ruta de
+l'executable a partir de `HOME`, així que no cal una variable per a aquesta
+ruta. Pi llegeix `.pi/mcp.json` després de concedir confiança al projecte.
+Executa `pi mcp list` des de l'arrel del projecte per verificar la connexió. El
+MCP només exposa consultes de lectura.
 
 Per auditar també els pilots d'esborrany, construeix un preview amb el mode i
 l'origen explícits, i executa el runner sobre aquell mateix artefacte:
