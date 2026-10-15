@@ -1,0 +1,25 @@
+.agents/skills/plausible-analytics/references/stats-api.md
+  s_eef3d213aa954c::t_78c59cc2fe4ff7 1-143
+.agents/skills/plausible-analytics/scripts/query.mjs
+  s_eef3d213aa954c::t_a0c8a553230e82 1-90
+.agents/skills/plausible-analytics/scripts/query.test.mjs
+  s_eef3d213aa954c::t_c89a5509ed5c06 1-148
+docs/testing-strategy.md
+  s_eef3d213aa954c::t_bdd609f49f2324 123-134
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "5194fc5799bef8edc14cde3b9aebd039bb4ed1ee",
+  "prompts": {},
+  "sessions": {
+    "s_eef3d213aa954c": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a13e7c-56c1-70ff-b35c-41a21fd24abe",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
