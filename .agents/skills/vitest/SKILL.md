@@ -20,6 +20,26 @@ Vitest is a next-generation testing framework powered by Vite. It provides a Jes
 
 > The skill is based on Vitest 3.x, generated at 2026-01-28.
 
+## Test value and redundancy
+
+Before adding or changing tests, review the existing tests for the affected
+behavior, including coverage at other test levels.
+
+- Map existing and proposed tests to requirements, behavior branches, boundary
+  values and distinct regression guarantees.
+- Identify redundant tests that cover the same behavior and branch without
+  protecting a different regression. Name the overlapping tests and explain
+  what coverage would remain if one were removed.
+- Do not treat similar names, shared setup or checks at different test levels
+  as proof of redundancy. Preserve tests that protect distinct contracts,
+  failure paths or integration boundaries.
+- Prefer extending an existing test or using a parameterized test for cases
+  with the same structure, while keeping failures easy to identify.
+- Add tests for missing behavior, not to increase test counts or reach an
+  arbitrary coverage number. Each new test must have a stated purpose.
+- When test cleanup is in scope, remove or consolidate proven redundancy and
+  run the affected tests. Otherwise, report it without deleting existing tests.
+
 ## Core
 
 | Topic | Description | Reference |

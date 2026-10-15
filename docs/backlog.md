@@ -230,6 +230,62 @@ de previews de la fase 6.
 **Seguiment:** [especificació d'analítica Plausible](specs/plausible-analytics.md),
 T3.
 
+### Analitzar Les Visites A URLs Antigues De WordPress I Redirigir-les
+
+**Estat:** Capturada.
+
+**Problema:** hi ha visites a URLs de l'antiga web de WordPress que ara acaben
+a la pàgina 404. Cal analitzar les dades de Plausible per identificar les
+adreces concretes que encara reben trànsit.
+
+**Resultat esperat:** disposar d'una llista de URLs antigues contrastada amb
+Plausible i configurar redireccions explícites d'aquestes adreces a la pàgina
+d'inici, sense redirigir indiscriminadament totes les rutes inexistents.
+
+**Abans de planificar-ho cal definir:**
+
+- el període d'anàlisi a Plausible, les URLs afectades i el volum de visites
+  que arriba a cadascuna;
+- el mapa exacte de redireccions, la destinació d'inici i el tractament de
+  variants amb barra final o paràmetres;
+- el codi HTTP i la configuració de servidor necessaris, evitant bucles i
+  mantenint la resposta 404 per a les rutes no incloses;
+- com es comprovaran les redireccions i se'n revisarà el resultat amb les
+  dades d'analítica posteriors.
+
+**Dependències:** accés a les dades de Plausible i revisió de la configuració
+actual de redireccions del servidor.
+
+**Seguiment:** pendent de triatge.
+
+### Revisar Els Enllaços Per A Agents I El Disseny De La Pàgina 404
+
+**Estat:** Capturada.
+
+**Problema:** la pàgina 404 presenta enllaços pensats per a agents que són
+visibles també per a les persones visitants. Cal revisar si aporten utilitat a
+la navegació habitual i repensar el disseny de la pàgina.
+
+**Resultat esperat:** una pàgina 404 clara i coherent amb el sistema visual,
+amb opcions útils per reprendre la navegació i una decisió sobre la visibilitat
+dels enllaços per a agents.
+
+**Abans de planificar-ho cal definir:**
+
+- quins enllaços necessiten els agents i si cal que siguin visibles per a les
+  persones visitants;
+- si es poden amagar amb CSS i mantenir-los al DOM, comprovant que els agents
+  destinataris els poden descobrir i que no creen focus invisibles ni
+  confusió amb lectors de pantalla;
+- la jerarquia visual, els textos i les accions de recuperació de la pàgina,
+  en mòbil i escriptori i en els idiomes publicats.
+
+**Dependències:** revisar la pàgina 404 actual i el contracte de descoberta
+dels recursos per a agents; mantenir l'accessibilitat i la coherència amb
+`DESIGN.md`.
+
+**Seguiment:** pendent de triatge.
+
 ### Esdeveniments D'Acció I Temps D'Estada
 
 **Estat:** Incorporada i fusionada a la [PR #96](https://github.com/rboixaderg/mountain-runners/pull/96) (entrega autònoma T2 d'analítica Plausible).
