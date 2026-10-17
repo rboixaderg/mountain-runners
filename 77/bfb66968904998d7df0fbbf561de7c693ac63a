@@ -1,0 +1,21 @@
+apps/web/src/test/members-services.test.ts
+  s_e6879e08c3ada6::t_d3dec644921527 30,54-65,76-79,90-91,94-97,116,129-137,144-159
+apps/web/src/test/presentation-members.test.ts
+  s_e6879e08c3ada6::t_ede7793b24f4d0 1-15
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "77bfb66968904998d7df0fbbf561de7c693ac63a",
+  "prompts": {},
+  "sessions": {
+    "s_e6879e08c3ada6": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a1499c-6bc8-76cd-b1ed-5aa0ccfa4a35",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
