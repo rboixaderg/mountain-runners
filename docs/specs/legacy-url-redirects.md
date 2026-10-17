@@ -151,13 +151,18 @@ també els detalls catalans, com `/escoles/escola-btt/`,
   `redir` catch-all. Els matchers d'idioma es contrasten amb casos de hubs i
   detalls amb i sense barra final, inclosos subarbres catalans i segments
   semblants que no han de coincidir.
-- `tools/server/verify/site-contract.test.mjs` i `verify-site.mjs`: amb el flag
-  `--expect-legacy-redirects`, una mostra representativa de rutes de llegat, de
-  spam, de sondes i de rutes sense prefix respon 301 a la destinació esperada.
-  El smoke inclou detalls catalans, variants sense barra final en els tres
-  idiomes i una query string que s'ha de descartar.
+- `tools/server/verify/site-contract.test.mjs` i `verify-site.mjs`: cada
+  execució comprova una mostra representativa de rutes de llegat, de spam,
+  de sondes i de rutes sense prefix. El smoke inclou detalls catalans,
+  variants sense barra final en els tres idiomes i una query string que
+  s'ha de descartar. Aquestes comprovacions són obligatòries també als
+  smoke tests de desplegament i reversió.
+- `tools/server/verify/verify-site.test.mjs`: executa el CLI amb HTTP simulat
+  en els modes indexable i noindex. Accepta un host correcte i rebutja una
+  redirecció de llegat absent sense requerir cap flag addicional.
 - Manual, després d'aplicar el Caddyfile: validar, reiniciar Caddy i executar
-  `verify-site` amb `--expect-legacy-redirects` contra el host.
+  `verify-site` contra el host. Un host nou ha de tenir el fragment activat
+  abans d'executar aquesta verificació.
 
 ## Seguretat I Privacitat
 

@@ -201,8 +201,9 @@ rutes inexistents.
 - les rutes actuals que arriben sense prefix d'idioma reben el prefix del
   segment localitzat (ca, es o en), amb els segments compartits al català;
 - les rutes no incloses en cap prefix continuen responent 404;
-- verificació estàtica del Caddyfile i comprovació del host amb
-  `--expect-legacy-redirects`.
+- verificació estàtica del Caddyfile i comprovació obligatòria de les
+  redireccions del host amb `verify-site`, també als smoke tests de
+  desplegament i reversió.
 
 **Dependències:** accés a les dades de Plausible i aplicació manual del canvi
 per una persona mantenidora, com la resta de canvis de Caddyfile.

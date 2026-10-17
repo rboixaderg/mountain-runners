@@ -454,12 +454,14 @@ el 404 de les rutes excloses:
 ```sh
 caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
 systemctl restart caddy
-node tools/server/verify/verify-site.mjs --base-url https://mountainrunners.cat --expect-indexable --expect-legacy-redirects
+node tools/server/verify/verify-site.mjs --base-url https://mountainrunners.cat --expect-indexable
 ```
 
-El smoke del desplegament no passa `--expect-legacy-redirects`: si el fragment
-encara no s'ha aplicat, les adreces antigues continuen responent 404 i el
-contracte general del host no falla.
+`verify-site` comprova sempre les redireccions, també quan l'executen els
+smoke tests de desplegament i de reversió. No cal cap flag addicional. Si una
+redirecció comprovada falla, el smoke falla. Abans d'utilitzar el verificador
+en un host nou, cal instal·lar i activar el fragment de Caddy; el desplegament
+de l'artefacte continua sense actualitzar aquesta configuració.
 
 ### CSP I Analítica
 
