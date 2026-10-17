@@ -180,6 +180,9 @@ El procediment (Caddy de producció **abans** del DNS, Hostinger, smoke de
 l'apex, HSTS i observació) és al [`docs/runbook.md`](runbook.md).
 `verify-site.mjs --expect-indexable` comprova el contracte de l'apex;
 `--expect-hsts` exigeix `max-age=31536000` sense `includeSubDomains`.
+Les redireccions de llegat i de rutes sense prefix d'idioma es comproven
+sempre, també als smoke tests de desplegament i reversió. Un host nou ha de
+tenir el fragment de Caddy instal·lat abans d'executar-los.
 
 L'inventari previ al tall és a
 [`docs/phase-5-t55-dns-inventory.md`](phase-5-t55-dns-inventory.md). La
