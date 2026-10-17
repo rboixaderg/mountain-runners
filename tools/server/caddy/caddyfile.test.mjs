@@ -151,18 +151,45 @@ test("Caddyfile redirects spam and technical probes to the homepage", () => {
 });
 
 const localeRedirects = [
-  [
-    "\t@locale_ca path /qui-som /qui-som/* /noticies /noticies/* /documents /documents/* /avis-legal /avis-legal/* /privacitat /privacitat/* /cookies /cookies/*",
-    "\tredir @locale_ca /ca{http.request.uri.path} permanent",
-  ],
-  [
-    "\t@locale_es path /quienes-somos /quienes-somos/* /escuelas /escuelas/* /eventos /eventos/* /noticias /noticias/* /socios /socios/* /documentos /documentos/* /aviso-legal /aviso-legal/* /privacidad /privacidad/*",
-    "\tredir @locale_es /es{http.request.uri.path} permanent",
-  ],
-  [
-    "\t@locale_en path /about /about/* /schools /schools/* /events /events/* /news /news/* /members /members/* /legal-notice /legal-notice/* /privacy /privacy/*",
-    "\tredir @locale_en /en{http.request.uri.path} permanent",
-  ],
+  {
+    locale: "ca",
+    segments: [
+      "qui-som",
+      "escoles",
+      "esdeveniments",
+      "blog",
+      "noticies",
+      "documents",
+      "avis-legal",
+      "privacitat",
+      "cookies",
+    ],
+  },
+  {
+    locale: "es",
+    segments: [
+      "quienes-somos",
+      "escuelas",
+      "eventos",
+      "noticias",
+      "socios",
+      "documentos",
+      "aviso-legal",
+      "privacidad",
+    ],
+  },
+  {
+    locale: "en",
+    segments: [
+      "about",
+      "schools",
+      "events",
+      "news",
+      "members",
+      "legal-notice",
+      "privacy",
+    ],
+  },
 ];
 
 function localeRedirectsSnippet() {
@@ -173,7 +200,7 @@ function localeRedirectsSnippet() {
   return redirectsFile.slice(start, end);
 }
 
-test("Caddyfile adds the locale prefix to unprefixed localized routes", () => {
+test("Caddyfile adds the locale prefix and canonical slash to hubs and details", () => {
   const snippet = localeRedirectsSnippet();
   const importIndex = caddyfile.indexOf("\timport locale_redirects");
   const fileServerIndex = caddyfile.indexOf("\tfile_server");
@@ -181,11 +208,50 @@ test("Caddyfile adds the locale prefix to unprefixed localized routes", () => {
   assert.notEqual(importIndex, -1);
   assert.ok(importIndex < fileServerIndex);
 
-  for (const [matcher, redirect] of localeRedirects) {
+  for (const { locale, segments } of localeRedirects) {
+    const matcherPrefix = `\t@locale_${locale} path_regexp locale_${locale} `;
+    const matcherLine = snippet
+      .split("\n")
+      .find((line) => line.startsWith(matcherPrefix));
+    assert.ok(matcherLine, `missing locale matcher: ${locale}`);
+    // These expressions use the same anchors, groups and quantifiers in
+    // JavaScript and Caddy's RE2 engine. Live HTTP checks remain in verify-site.
+    const expression = new RegExp(matcherLine.slice(matcherPrefix.length));
     assert.ok(
-      snippet.includes(`${matcher}\n${redirect}`),
-      `missing locale redirect: ${redirect.trim()}`,
+      snippet.includes(
+        `\tredir @locale_${locale} /${locale}{re.locale_${locale}.1}/ permanent`,
+      ),
     );
+
+    for (const segment of segments) {
+      for (const suffix of ["", "/detail", "/2026/detail"]) {
+        const pathWithoutSlash = `/${segment}${suffix}`;
+        for (const path of [pathWithoutSlash, `${pathWithoutSlash}/`]) {
+          const match = expression.exec(path);
+          assert.ok(match, `missing ${locale} redirect for ${path}`);
+          assert.equal(
+            `/${locale}${match[1]}/`,
+            `/${locale}${pathWithoutSlash}/`,
+            `the first redirect must include exactly one final slash: ${path}`,
+          );
+        }
+      }
+      assert.equal(expression.test(`/${segment}-extra/`), false);
+    }
+
+    for (const path of [
+      "/",
+      "/unknown-route/",
+      "/ca/escoles/",
+      "/es/",
+      "/en/",
+    ]) {
+      assert.equal(
+        expression.test(path),
+        false,
+        `unexpected redirect: ${path}`,
+      );
+    }
   }
 
   assert.equal(

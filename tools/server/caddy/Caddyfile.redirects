@@ -51,14 +51,16 @@
 # segment belongs to (ca, es or en) and keep the rest of the path. The locale
 # is inferred from the localized route segment; segments shared by several
 # locales (blog, cookies, documents) stay on Catalan. Any path outside this
-# closed set keeps the regular 404 response.
+# closed set keeps the regular 404 response. Capture the path without its
+# optional final slash, then append exactly one slash to the destination so
+# file_server does not need a second redirect for directory indexes.
 (locale_redirects) {
-	@locale_ca path /qui-som /qui-som/* /noticies /noticies/* /documents /documents/* /avis-legal /avis-legal/* /privacitat /privacitat/* /cookies /cookies/*
-	redir @locale_ca /ca{http.request.uri.path} permanent
+	@locale_ca path_regexp locale_ca ^(/(qui-som|escoles|esdeveniments|blog|noticies|documents|avis-legal|privacitat|cookies)(/.*[^/])?)/?$
+	redir @locale_ca /ca{re.locale_ca.1}/ permanent
 
-	@locale_es path /quienes-somos /quienes-somos/* /escuelas /escuelas/* /eventos /eventos/* /noticias /noticias/* /socios /socios/* /documentos /documentos/* /aviso-legal /aviso-legal/* /privacidad /privacidad/*
-	redir @locale_es /es{http.request.uri.path} permanent
+	@locale_es path_regexp locale_es ^(/(quienes-somos|escuelas|eventos|noticias|socios|documentos|aviso-legal|privacidad)(/.*[^/])?)/?$
+	redir @locale_es /es{re.locale_es.1}/ permanent
 
-	@locale_en path /about /about/* /schools /schools/* /events /events/* /news /news/* /members /members/* /legal-notice /legal-notice/* /privacy /privacy/*
-	redir @locale_en /en{http.request.uri.path} permanent
+	@locale_en path_regexp locale_en ^(/(about|schools|events|news|members|legal-notice|privacy)(/.*[^/])?)/?$
+	redir @locale_en /en{re.locale_en.1}/ permanent
 }

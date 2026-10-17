@@ -444,7 +444,9 @@ import locale_redirects
 
 `legacy_redirects` cobreix les URLs antigues i les sondes, i `locale_redirects`
 afegeix el prefix d'idioma (ca, es o en) a les rutes actuals que arriben sense
-prefix.
+prefix, inclosos els detalls catalans d'escoles, esdeveniments i blog. Les
+variants amb i sense barra final apunten directament a la ruta canònica amb
+barra, sense un segon salt de `file_server`.
 
 Tot seguit cal validar, reiniciar i comprovar les redireccions representatives i
 el 404 de les rutes excloses:

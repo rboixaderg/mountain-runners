@@ -112,17 +112,21 @@ continua responent 404.
 
 A més del mapa de llegat, `(locale_redirects)` afegeix el prefix d'idioma a les
 rutes actuals que arriben sense prefix. El prefix s'infereix del segment
-localitzat i la resta del path es conserva:
+localitzat i la resta del path es conserva, amb una única barra final perquè
+la destinació sigui canònica des de la primera resposta:
 
-| Idioma | Segments sense prefix                                                                                                   | Prefix afegit |
-| ------ | ----------------------------------------------------------------------------------------------------------------------- | ------------- |
-| ca     | `qui-som`, `noticies`, `documents`, `avis-legal`, `privacitat`, `cookies` (i el seu subarbre)                           | `/ca`         |
-| es     | `quienes-somos`, `escuelas`, `eventos`, `noticias`, `socios`, `documentos`, `aviso-legal`, `privacidad` (i el subarbre) | `/es`         |
-| en     | `about`, `schools`, `events`, `news`, `members`, `legal-notice`, `privacy` (i el subarbre)                              | `/en`         |
+| Idioma | Segments sense prefix                                                                                                             | Prefix afegit |
+| ------ | --------------------------------------------------------------------------------------------------------------------------------- | ------------- |
+| ca     | `qui-som`, `escoles`, `esdeveniments`, `blog`, `noticies`, `documents`, `avis-legal`, `privacitat`, `cookies` (i el seu subarbre) | `/ca`         |
+| es     | `quienes-somos`, `escuelas`, `eventos`, `noticias`, `socios`, `documentos`, `aviso-legal`, `privacidad` (i el subarbre)           | `/es`         |
+| en     | `about`, `schools`, `events`, `news`, `members`, `legal-notice`, `privacy` (i el subarbre)                                        | `/en`         |
 
 Els segments compartits per més d'un idioma (`blog`, `cookies`, `documents`) es
-resolen al català. Les regles de llegat de `/escoles`, `/esdeveniments`, `/blog`
-i `/socis` ja cobreixen el cas català.
+resolen al català. Les regles de llegat mantenen les destinacions dels hubs
+`/escoles`, `/esdeveniments`, `/blog` i `/socis`. Les regles d'idioma cobreixen
+també els detalls catalans, com `/escoles/escola-btt/`,
+`/esdeveniments/berga-trail/` i `/blog/com-fer-te-soci/`. L'arxiu mensual
+`/esdeveniments/mes/*` conserva la redirecció de llegat al hub.
 
 ## Comportament
 
@@ -130,21 +134,28 @@ i `/socis` ja cobreixen el cas català.
   `tools/server/caddy/Caddyfile.redirects`, que el bootstrap instal·la al costat
   de `/etc/caddy/Caddyfile`. El Caddyfile l'importa i `(common_site)` els invoca
   després de la redirecció d'arrel i abans de `file_server`.
-- Els matchers són conjunts tancats de paths (`path ...`), amb wildcards per
-  als arxius mensuals (`/esdeveniments/mes/*`) i per als prefixos de spam,
-  sondes i rutes sense prefix. Cap regla equival a `/`; la ruta no llistada
-  continua responent 404.
-- Les destinacions són paths interns absoluts; no s'accepta cap valor de la
-  petició com a destinació.
+- Els matchers de llegat són conjunts tancats de paths (`path ...`), amb
+  wildcards per als arxius mensuals (`/esdeveniments/mes/*`), spam i sondes.
+  Els d'idioma usen `path_regexp` amb segments tancats i capturen el path
+  sense barra final. La destinació afegeix el prefix d'idioma i una única
+  barra final, tant per als hubs com per als detalls. Cap regla equival a
+  `/`; la ruta no llistada continua responent 404.
+- Les destinacions són paths interns amb prefix d'idioma constant. Les
+  regles de llegat fixen la destinació completa; les d'idioma conserven
+  només el path dels segments admesos, mai un origen aportat pel client.
 
 ## Estratègia De Tests I Qualitat
 
 - `tools/server/caddy/caddyfile.test.mjs`: les regles existeixen, s'importen
-  abans de `file_server`, cobreixen el spam, les sondes i el prefix d'idioma, i
-  no hi ha cap `redir` catch-all.
+  abans de `file_server`, cobreixen el spam i les sondes, i no hi ha cap
+  `redir` catch-all. Els matchers d'idioma es contrasten amb casos de hubs i
+  detalls amb i sense barra final, inclosos subarbres catalans i segments
+  semblants que no han de coincidir.
 - `tools/server/verify/site-contract.test.mjs` i `verify-site.mjs`: amb el flag
   `--expect-legacy-redirects`, una mostra representativa de rutes de llegat, de
   spam, de sondes i de rutes sense prefix respon 301 a la destinació esperada.
+  El smoke inclou detalls catalans, variants sense barra final en els tres
+  idiomes i una query string que s'ha de descartar.
 - Manual, després d'aplicar el Caddyfile: validar, reiniciar Caddy i executar
   `verify-site` amb `--expect-legacy-redirects` contra el host.
 

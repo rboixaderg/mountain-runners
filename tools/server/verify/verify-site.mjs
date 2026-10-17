@@ -190,6 +190,22 @@ const redirectChecks = [
   { path: "/escuelas/escuela-trail/", target: "/es/escuelas/escuela-trail/" },
   { path: "/schools/mtb-school/", target: "/en/schools/mtb-school/" },
   { path: "/noticies/", target: "/ca/noticies/" },
+  { path: "/escoles/escola-btt/", target: "/ca/escoles/escola-btt/" },
+  { path: "/escoles/escola-btt", target: "/ca/escoles/escola-btt/" },
+  {
+    path: "/esdeveniments/berga-trail/",
+    target: "/ca/esdeveniments/berga-trail/",
+  },
+  {
+    path: "/esdeveniments/berga-trail",
+    target: "/ca/esdeveniments/berga-trail/",
+  },
+  { path: "/blog/com-fer-te-soci/", target: "/ca/blog/com-fer-te-soci/" },
+  { path: "/blog/com-fer-te-soci", target: "/ca/blog/com-fer-te-soci/" },
+  { path: "/qui-som?utm_source=legacy", target: "/ca/qui-som/" },
+  { path: "/quienes-somos", target: "/es/quienes-somos/" },
+  { path: "/about", target: "/en/about/" },
+  { path: "/schools/mtb-school", target: "/en/schools/mtb-school/" },
 ];
 
 async function checkLegacyRedirects(parsedBase) {
