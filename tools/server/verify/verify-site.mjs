@@ -3,7 +3,8 @@
 // (phase 5, tasks 5.3 and 5.5).
 //
 // Checks the live host contract approved in T5.1: HTTP→HTTPS, TLS, the root
-// locale redirect, trailing slash, global 404, security headers (nosniff,
+// locale redirect, legacy and unprefixed-route redirects, trailing slash,
+// global 404, security headers (nosniff,
 // Referrer-Policy,
 // Permissions-Policy, CSP), the approved cache policies and, for the
 // validation host, X-Robots-Tag: noindex, nofollow, noarchive and the
@@ -12,7 +13,6 @@
 // Usage:
 //   node tools/server/verify/verify-site.mjs --base-url https://host --expect-noindex
 //   node tools/server/verify/verify-site.mjs --base-url https://mountainrunners.cat --expect-indexable
-//   node tools/server/verify/verify-site.mjs --base-url https://mountainrunners.cat --expect-indexable --expect-legacy-redirects
 
 import { contentSecurityPolicy } from "../caddy/content-security-policy.mjs";
 import {
@@ -26,9 +26,6 @@ import {
 const expectNoIndex = process.argv.includes("--expect-noindex");
 const expectIndexable = process.argv.includes("--expect-indexable");
 const expectHsts = process.argv.includes("--expect-hsts");
-const expectLegacyRedirects = process.argv.includes(
-  "--expect-legacy-redirects",
-);
 
 if (expectNoIndex && expectIndexable) {
   throw new Error(
@@ -67,9 +64,7 @@ async function check() {
 
   await checkHttpRedirect(parsedBase);
   await checkRootLocaleRedirect(parsedBase);
-  if (expectLegacyRedirects) {
-    await checkLegacyRedirects(parsedBase);
-  }
+  await checkLegacyRedirects(parsedBase);
 
   const rootResponse = await fetchText(`${baseUrl}/ca/`);
   const assetUrls = [
