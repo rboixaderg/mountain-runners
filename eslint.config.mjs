@@ -39,6 +39,10 @@ export default tseslint.config(
   },
   {
     files: ["apps/web/src/paraglide/**/*.js"],
+    // Paraglide emits an initialization that ESLint treats as unused.
+    rules: {
+      "no-useless-assignment": "off",
+    },
     languageOptions: {
       globals: {
         ...globals.browser,
