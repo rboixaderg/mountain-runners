@@ -3,6 +3,7 @@ import test from "node:test";
 import {
   hstsPresentFinding,
   indexableFinding,
+  legacyRedirectFinding,
   rootLocaleRedirectFinding,
   wwwRedirectFinding,
 } from "./site-contract.mjs";
@@ -97,4 +98,46 @@ test("wwwRedirectFinding requires a 301 or 308 that preserves /ca/", () => {
     }),
     /expected a redirect/,
   );
+});
+
+test("legacyRedirectFinding requires a 301 or 308 to the mapped page", () => {
+  const requestedUrl = `${apexOrigin}/el-club/`;
+
+  assert.equal(
+    legacyRedirectFinding({
+      status: 301,
+      location: "/ca/qui-som/",
+      requestedUrl,
+      targetPath: "/ca/qui-som/",
+    }),
+    undefined,
+  );
+  assert.equal(
+    legacyRedirectFinding({
+      status: 308,
+      location: `${apexOrigin}/ca/qui-som/`,
+      requestedUrl,
+      targetPath: "/ca/qui-som/",
+    }),
+    undefined,
+  );
+
+  for (const [status, location] of [
+    [200, ""],
+    [404, ""],
+    [301, "/ca/"],
+    [301, "/ca/qui-som/?utm_source=legacy"],
+    [301, "/ca/qui-som/#history"],
+    [301, "https://example.com/ca/qui-som/"],
+  ]) {
+    assert.match(
+      legacyRedirectFinding({
+        status,
+        location,
+        requestedUrl,
+        targetPath: "/ca/qui-som/",
+      }),
+      /expected a redirect/,
+    );
+  }
 });

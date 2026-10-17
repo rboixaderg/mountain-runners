@@ -1,0 +1,64 @@
+# Static redirect map for legacy club URLs that still receive traffic (imported
+# from Caddyfile, installed next to it by the bootstrap). Every rule maps a
+# closed set of old paths to its current page; the query string is dropped and
+# any route not listed here keeps the regular 404 response. The inventory, the
+# exclusions and the verification live in docs/specs/legacy-url-redirects.md.
+(legacy_redirects) {
+	@legacy_home path /index.php /index.php/* /contact /contact/ /contacteu /contacteu/ /pagina-exemple /pagina-exemple/
+	redir @legacy_home /ca/ permanent
+
+	@legacy_about path /el-club /el-club/
+	redir @legacy_about /ca/qui-som/ permanent
+
+	@legacy_members path /socis /socis/ /llicencia-federativa /llicencia-federativa/ /avantatge-per-a-socis-i-socies /avantatge-per-a-socis-i-socies/
+	redir @legacy_members /ca/socis/ permanent
+
+	@legacy_schools_hub path /escoles /escoles/
+	redir @legacy_schools_hub /ca/escoles/ permanent
+
+	@legacy_school_btt path /escola-btt /escola-btt/
+	redir @legacy_school_btt /ca/escoles/escola-btt/ permanent
+
+	@legacy_school_trail path /escola-trail /escola-trail/
+	redir @legacy_school_trail /ca/escoles/escola-trail/ permanent
+
+	@legacy_school_skimo path /escola-skimo /escola-skimo/
+	redir @legacy_school_skimo /ca/escoles/escola-skimo/ permanent
+
+	@legacy_events_hub path /esdeveniments /esdeveniments/ /esdeveniments/mes/*
+	redir @legacy_events_hub /ca/esdeveniments/ permanent
+
+	@legacy_event_berga path /berga-trail /berga-trail/
+	redir @legacy_event_berga /ca/esdeveniments/berga-trail/ permanent
+
+	@legacy_event_ultra path /ultra-pirineu /ultra-pirineu/
+	redir @legacy_event_ultra /ca/esdeveniments/ultra-pirineu/ permanent
+
+	@legacy_blog path /blog /blog/
+	redir @legacy_blog /ca/blog/ permanent
+
+	@legacy_documents path /images/*
+	redir @legacy_documents /ca/documents/ permanent
+
+	@legacy_spam path /2024/* /2025/* /category/*
+	redir @legacy_spam /ca/ permanent
+
+	@legacy_technical path /wp-json/* /wp-login.php /administrator /administrator/ /webmail /webmail/ /.well-known/* /tel:*
+	redir @legacy_technical /ca/ permanent
+}
+
+# Current routes requested without a locale prefix: add the locale that the
+# segment belongs to (ca, es or en) and keep the rest of the path. The locale
+# is inferred from the localized route segment; segments shared by several
+# locales (blog, cookies, documents) stay on Catalan. Any path outside this
+# closed set keeps the regular 404 response.
+(locale_redirects) {
+	@locale_ca path /qui-som /qui-som/* /noticies /noticies/* /documents /documents/* /avis-legal /avis-legal/* /privacitat /privacitat/* /cookies /cookies/*
+	redir @locale_ca /ca{http.request.uri.path} permanent
+
+	@locale_es path /quienes-somos /quienes-somos/* /escuelas /escuelas/* /eventos /eventos/* /noticias /noticias/* /socios /socios/* /documentos /documentos/* /aviso-legal /aviso-legal/* /privacidad /privacidad/*
+	redir @locale_es /es{http.request.uri.path} permanent
+
+	@locale_en path /about /about/* /schools /schools/* /events /events/* /news /news/* /members /members/* /legal-notice /legal-notice/* /privacy /privacy/*
+	redir @locale_en /en{http.request.uri.path} permanent
+}

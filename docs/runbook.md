@@ -417,6 +417,48 @@ systemctl restart caddy
 node tools/server/verify/verify-site.mjs --base-url https://mountainrunners.cat --expect-indexable
 ```
 
+### Redireccions D'URLs De Llegat
+
+El fragment `(legacy_redirects)` viu a `tools/server/caddy/Caddyfile.redirects`
+i el mapa complet, amb els volums de Plausible i les exclusions, és a
+[`docs/specs/legacy-url-redirects.md`](specs/legacy-url-redirects.md). El
+fragment importa regles tancades de paths: cap ruta no inclosa no canvia i
+continua responent 404. El desplegament de l'artefacte no actualitza Caddy.
+
+Per aplicar el mapa al VPS, una persona mantenidora copia el fragment i
+afegeix els tres imports a `/etc/caddy/Caddyfile`, sense reexecutar el bootstrap
+(que tornaria a comentar `import Caddyfile.production`):
+
+```sh
+install -m 0644 -o root -g root tools/server/caddy/Caddyfile.redirects /etc/caddy/Caddyfile.redirects
+```
+
+```caddyfile
+# A l'inici de /etc/caddy/Caddyfile, després del bloc global d'opcions:
+import Caddyfile.redirects
+
+# Dins de (common_site), després de la redirecció d'arrel:
+import legacy_redirects
+import locale_redirects
+```
+
+`legacy_redirects` cobreix les URLs antigues i les sondes, i `locale_redirects`
+afegeix el prefix d'idioma (ca, es o en) a les rutes actuals que arriben sense
+prefix.
+
+Tot seguit cal validar, reiniciar i comprovar les redireccions representatives i
+el 404 de les rutes excloses:
+
+```sh
+caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
+systemctl restart caddy
+node tools/server/verify/verify-site.mjs --base-url https://mountainrunners.cat --expect-indexable --expect-legacy-redirects
+```
+
+El smoke del desplegament no passa `--expect-legacy-redirects`: si el fragment
+encara no s'ha aplicat, les adreces antigues continuen responent 404 i el
+contracte general del host no falla.
+
 ### CSP I Analítica
 
 La CSP vigent (T5.1 esmenada per l'[ADR 0007](decisions/0007-self-hosted-plausible-analytics.md))
