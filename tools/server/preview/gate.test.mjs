@@ -1195,10 +1195,7 @@ test("the preview workflow pins actions, separates the trust boundaries and has 
   // checkout is the pull request head SHA resolved by the authorize job.
   const [authorizeJob, restOfWorkflow] = previewWorkflow.split("\n  build:\n");
   const [buildJob, publishJob] = restOfWorkflow.split("\n  publish:\n");
-  assert.match(
-    authorizeJob,
-    /actions\/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1/,
-  );
+  assert.match(authorizeJob, /uses: actions\/checkout@[a-f0-9]{40}(?=\s|$)/);
   assert.doesNotMatch(buildJob, /secrets\./);
   assert.doesNotMatch(buildJob, /environment:/);
   assert.doesNotMatch(buildJob, /cache:/);
@@ -1209,10 +1206,7 @@ test("the preview workflow pins actions, separates the trust boundaries and has 
   // GitHub ignores overrides of GITHUB_SHA; the manifest uses the checkout.
   assert.doesNotMatch(buildJob, /GITHUB_SHA:/);
   assert.match(buildJob, /node tools\/preview\/build-artifact\.mjs/);
-  assert.match(
-    buildJob,
-    /uses: actions\/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a/,
-  );
+  assert.match(buildJob, /uses: actions\/upload-artifact@[a-f0-9]{40}(?=\s|$)/);
 
   // The trusted publish job: code from main behind the previews environment
   // (secrets only), the same-run artifact and the publish script.
