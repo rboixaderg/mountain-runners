@@ -1,0 +1,41 @@
+.github/workflows/artifact.yml
+  s_a131fa3a1d726f::t_caf8ad84e20ba8 28,39,62,94,98
+.github/workflows/codeql.yml
+  s_a131fa3a1d726f::t_2aa8c10b5f2b7d 25,30
+.github/workflows/preview-cleanup.yml
+  s_a131fa3a1d726f::t_d0b0becbd906e6 32
+.github/workflows/preview.yml
+  s_a131fa3a1d726f::t_d9cdbbc1b4da17 46,79,99,127,129
+.github/workflows/quality.yml
+  s_a131fa3a1d726f::t_bad61a9ac05dce 29,43,66
+.github/workflows/rollback.yml
+  s_a131fa3a1d726f::t_c8b7c7624a235a 36
+pnpm-lock.yaml
+  s_a131fa3a1d726f::t_a570e2f1e2fcbe 87-88,406-473,1065-1066,1075-1078,1104-1106,1177-1303,2032-2035,2550-2552,3360-3363,4027-4030,4694-4748,5249,5251-5252,5268-5274,5302-5307,5316,5396-5459,6188-6189,6797-6798,7693-7715,8417-8418
+tools/server/preview/gate.test.mjs
+  s_260cf55f0cf338::t_bc68bc89a29a32 1198,1209
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "d79b8a78c287a645119253598aaa7a6b63490c39",
+  "prompts": {},
+  "sessions": {
+    "s_260cf55f0cf338": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a14876-b3f6-7330-9260-2603b5cfcc18",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    },
+    "s_a131fa3a1d726f": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a14869-d0b8-76cd-b1ed-5a9e99bca56d",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
