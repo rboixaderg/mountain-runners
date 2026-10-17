@@ -1,0 +1,19 @@
+pnpm-lock.yaml
+  s_260cf55f0cf338::t_a952d27c2c6f5a 116,3987-3988,4382,4384,4514,4535,5188,5195,8290
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "4ea84eacae04fa0e574e30d70cab2c5f0eec2d1e",
+  "prompts": {},
+  "sessions": {
+    "s_260cf55f0cf338": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a14876-b3f6-7330-9260-2603b5cfcc18",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
