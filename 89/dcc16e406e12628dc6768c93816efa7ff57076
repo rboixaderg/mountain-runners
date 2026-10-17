@@ -1,0 +1,19 @@
+pnpm-lock.yaml
+  s_00341af824f386::t_b6ec531948bfc3 3935-3938,4164-4165,5177,5220,6252,7049,8267-8268,8442
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "89dcc16e406e12628dc6768c93816efa7ff57076",
+  "prompts": {},
+  "sessions": {
+    "s_00341af824f386": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "1793a99b-fe14-4d2d-8f5b-286b8ad154de",
+        "model": "grok-4.7"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
