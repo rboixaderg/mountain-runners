@@ -1,0 +1,19 @@
+tools/server/verify/verify-site.test.mjs
+  s_260cf55f0cf338::t_3a085f3886f174 1-122
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "af50fe9ecadf8b60838b91067e9738fb51106501",
+  "prompts": {},
+  "sessions": {
+    "s_260cf55f0cf338": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a14876-b3f6-7330-9260-2603b5cfcc18",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
