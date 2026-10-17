@@ -1230,7 +1230,10 @@ test("reaches and activates the available actions with the keyboard", async ({
   await expect(federationLink).toHaveAttribute("href", site.federationUrl!);
 });
 
-test("renders the useful Catalan 404 document", async ({ page }) => {
+test("renders the useful Catalan 404 document", async ({
+  page,
+  browserName,
+}) => {
   await page.goto("/404.html");
 
   await expect(page.locator("html")).toHaveAttribute("lang", "ca");
@@ -1241,9 +1244,45 @@ test("renders the useful Catalan 404 document", async ({ page }) => {
   await expect(
     page.getByRole("heading", { level: 1, name: "Pàgina no trobada" }),
   ).toBeVisible();
+  const main = page.getByRole("main");
   await expect(
-    page.getByRole("link", { name: "Torna a l'inici" }),
+    main.getByText(messages.not_found_description({}, { locale: "ca" })),
+  ).toBeVisible();
+  await expect(
+    main.getByRole("link", { name: "Torna a l'inici" }),
   ).toHaveAttribute("href", "/ca/");
+  const eventsLink = main.getByRole("link", { name: "Consulta l'agenda" });
+  await expect(eventsLink).toHaveAttribute("href", "/ca/esdeveniments/");
+
+  const technicalResources = main.locator("details");
+  const technicalSummary = technicalResources.locator("summary");
+  const agentResource = technicalResources.locator('a[href="/llms.txt"]');
+  await expect(agentResource).toHaveCount(1);
+  await expect(agentResource).toBeHidden();
+  await tabUntilFocused(page, technicalSummary);
+  await page.keyboard.press("Enter");
+  await expect(agentResource).toBeVisible();
+  // macOS WebKit uses Option+Tab to include links in keyboard navigation.
+  const linkTabKey =
+    browserName === "webkit" && process.platform === "darwin"
+      ? "Alt+Tab"
+      : "Tab";
+  await page.keyboard.press(linkTabKey);
+  await expect(agentResource).toBeFocused();
+  await expect(
+    technicalResources.getByRole("link", { name: "sitemap.xml" }),
+  ).toHaveAttribute("href", "/sitemap.xml");
+  await expect(main).toHaveJSProperty(
+    "scrollWidth",
+    await main.evaluate((element) => element.clientWidth),
+  );
+  const accessibilityResults = await new AxeBuilder({ page })
+    .include("main")
+    .analyze();
+  expect(accessibilityResults.violations).toEqual([]);
+
+  await eventsLink.click();
+  await expect(page).toHaveURL(/\/ca\/esdeveniments\/$/u);
 });
 
 test("@a11y has no detectable axe violations", async ({

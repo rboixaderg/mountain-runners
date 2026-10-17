@@ -44,8 +44,10 @@ La superfície «agèntica» del lloc es compon de `/llms.txt`, que orienta els
 agents sobre el contingut i les seccions trilingües del lloc, i de les dades
 estructurades JSON-LD de la portada: l'entitat institucional s'emet amb
 descripció i dades de contacte (correu, telèfon i seu) normalitzades a text
-pla. La 404 global enllaça `/llms.txt` i el sitemap perquè un agent pugui
-recuperar-se d'una ruta inexistent.
+pla. La 404 global conserva els enllaços a `/llms.txt` i al sitemap al DOM, dins
+del desplegable natiu «Recursos tècnics». Un agent que llegeixi l'HTML els
+pot descobrir directament; si navega per la interfície, ha d'obrir el
+desplegable per recuperar-se d'una ruta inexistent.
 
 La CI valida qualitat, E2E, commits, secrets, dependències i anàlisi estàtica.
 El workflow `Artifact` (T5.2/T5.4) construeix i verifica l'artefacte de
