@@ -988,6 +988,30 @@ test("renders the Members page sections in editorial order", async ({
   await expect(
     page.locator('main a[aria-disabled="true"], main button[disabled]'),
   ).toHaveCount(0);
+  const contactLink = servicesRegion.getByRole("link", {
+    name: "Més informació i contacte",
+    exact: true,
+  });
+  await expect(
+    page.getByRole("main").getByRole("link", {
+      name: "Més informació i contacte",
+      exact: true,
+    }),
+  ).toHaveCount(1);
+  await contactLink.click();
+  await expect(page).toHaveURL("/ca/socis/#site-prefooter-title");
+  const contactHeading = page.getByRole("heading", {
+    level: 2,
+    name: "Tens dubtes?",
+    exact: true,
+  });
+  await expect(contactHeading).toBeFocused();
+  await expect(contactHeading).toBeInViewport();
+  const headerBounds = await page.getByRole("banner").boundingBox();
+  const contactBounds = await contactHeading.boundingBox();
+  expect(contactBounds!.y).toBeGreaterThanOrEqual(
+    headerBounds!.y + headerBounds!.height,
+  );
 });
 
 test("renders the schools hub in editorial order with links to details", async ({
@@ -1264,6 +1288,24 @@ test("reaches and activates the available actions with the keyboard", async ({
     "href",
     site.functionalTrainingUrl!,
   );
+  const trainingContactLink = page.getByRole("link", {
+    name: "Més informació i contacte",
+    exact: true,
+  });
+  await tabUntilFocused(page, trainingContactLink);
+  await page.keyboard.press("Enter");
+  await expect(page).toHaveURL("/ca/socis/#site-prefooter-title");
+  await expect(
+    page.getByRole("heading", {
+      level: 2,
+      name: "Tens dubtes?",
+      exact: true,
+    }),
+  ).toBeFocused();
+  await page.keyboard.press("Tab");
+  await expect(
+    page.getByRole("link", { name: "info@mountainrunners.cat", exact: true }),
+  ).toBeFocused();
 });
 
 test("renders the useful Catalan 404 document", async ({ page }) => {

@@ -30,7 +30,11 @@ en facin la reserva.
 - No es mostrarà l'abonament mensual anunciat com a possibilitat per al novembre
   fins que se n'hagin confirmat les condicions.
 - El preu per sessió confirmat és de 10 €. Es publica com a dada vigent mentre el
-  club no en confirmi un altre, a la pàgina Socis.
+  club no en confirmi un altre, a la pàgina Socis. Es desa una sola vegada al camp
+  numèric `sessionPriceEuros` de l'acció externa `functional-training`, obligatori
+  per a aquesta acció i validat com a import positiu de fins a dos decimals. Les
+  traduccions només aporten el text que acompanya l'import formatat per idioma,
+  d'acord amb l'ADR 0005.
 - Els missatges de la pàgina fixa es tradueixen als idiomes publicats (`ca`,
   `es` i `en`). L'estructura estable i l'ordre de la secció viuen en components,
   d'acord amb l'ADR 0005.
@@ -128,6 +132,11 @@ tres idiomes.
 - La crida a l'acció explica que permet consultar sessions i reservar a Playoff.
   L'enllaç és identificable, usable amb teclat i exposa un nom accessible que
   n'explica el destí o l'acció.
+- Només la targeta d'entrenaments funcionals incorpora «Més informació i
+  contacte», traduït als tres idiomes. És un enllaç intern al contacte del peu
+  de pàgina, també disponible quan la reserva no ho està. El salt situa el focus
+  al títol de contacte, sense quedar ocult sota la capçalera fixa. No s'afegeix
+  als blocs d'alta o federació ni substitueix la reserva a Playoff.
 - La secció de serveis presenta un títol propi i una entrada per als entrenaments
   funcionals amb el seu propi encapçalament de nivell inferior, de manera que es
   llegeix com un catàleg que pot incorporar més serveis. Segueix els patrons de

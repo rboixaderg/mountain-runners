@@ -284,6 +284,7 @@ export const externalActionSchema = z
     published: z.boolean(),
     status: externalActionStatusSchema,
     url: localizedHttpsUrlSchema.optional(),
+    sessionPriceEuros: z.number().positive().multipleOf(0.01).optional(),
   })
   .refine(
     ({ status, url }) => (status === "available") === (url !== undefined),
@@ -291,6 +292,15 @@ export const externalActionSchema = z
       error:
         "An available external action requires a URL and an unavailable one must not carry one",
       path: ["url"],
+    },
+  )
+  .refine(
+    ({ id, sessionPriceEuros }) =>
+      id !== externalActionIds.functionalTraining ||
+      sessionPriceEuros !== undefined,
+    {
+      error: "Functional training requires a session price in euros",
+      path: ["sessionPriceEuros"],
     },
   );
 

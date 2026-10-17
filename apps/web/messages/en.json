@@ -268,7 +268,8 @@
   "members_functional_training_title": "Functional training",
   "members_functional_training_intro": "Functional training at the club's premises to work on strength and body control, including stability, mobility and core. Sessions adapt to different levels and are useful both for mountain practice and for wellbeing and general fitness.",
   "members_functional_training_members_only": "Members-only activity for club members.",
+  "members_functional_training_contact": "More information and contact",
   "members_functional_training_price_label": "Price",
-  "members_functional_training_price": "€10 per session",
+  "members_functional_training_price": "{price} per session",
   "members_functional_training_action": "See sessions and book on Playoff"
 }

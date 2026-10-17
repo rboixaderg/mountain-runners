@@ -392,6 +392,19 @@ describe("publication catalog", () => {
     );
   });
 
+  it("publishes the approved training reservation destination in every locale", async () => {
+    const catalog = createPublicationCatalog(await loadSource());
+
+    expect(catalog.externalActions.get("functional-training")?.url).toEqual({
+      ca: "https://mountainrunners.playoffinformatica.com/Reserva.php#",
+      es: "https://mountainrunners.playoffinformatica.com/Reserva.php#",
+      en: "https://mountainrunners.playoffinformatica.com/Reserva.php#",
+    });
+    expect(
+      catalog.externalActions.get("functional-training")?.sessionPriceEuros,
+    ).toBe(10);
+  });
+
   it("excludes unpublished external actions and contact data", async () => {
     const source = await loadSource();
     source.externalActions.find(({ id }) => id === "newsletter")!.published =

@@ -27,6 +27,7 @@ function actionWithStatus(status: ExternalAction["status"]): ExternalAction {
   return {
     id: "functional-training",
     published: true,
+    sessionPriceEuros: 12.5,
     status,
     ...(status === "available"
       ? {
@@ -50,6 +51,18 @@ function getSection(html: string): Element {
   return section;
 }
 
+const expectedPrices: Record<Locale, string> = {
+  ca: "12,5 € per sessió",
+  es: "12,5 € por sesión",
+  en: "€12.5 per session",
+};
+
+const expectedContactLabels: Record<Locale, string> = {
+  ca: "Més informació i contacte",
+  es: "Más información y contacto",
+  en: "More information and contact",
+};
+
 describe("MembersServices", () => {
   it.each(locales as Locale[])(
     "renders the localized section and reservation link for %s",
@@ -60,7 +73,10 @@ describe("MembersServices", () => {
       });
 
       const section = getSection(html);
-      const link = section.querySelector("a");
+      const link = section.querySelector('a[href^="https:"]');
+      const contactLink = section.querySelector(
+        'a[href="#site-prefooter-title"]',
+      );
 
       expect(section.querySelector("h2")?.textContent).toBe(
         messages.members_services_title({}, { locale }),
@@ -71,10 +87,14 @@ describe("MembersServices", () => {
       expect(section.textContent).toContain(
         messages.members_functional_training_members_only({}, { locale }),
       );
-      expect(section.textContent).toContain(
-        messages.members_functional_training_price({}, { locale }),
+      expect(section.textContent?.replaceAll("\u00a0", " ")).toContain(
+        expectedPrices[locale],
       );
       expect(section.textContent).toContain(contact.address[locale]);
+      expect(contactLink?.textContent?.trim()).toBe(
+        expectedContactLabels[locale],
+      );
+      expect(contactLink?.hasAttribute("target")).toBe(false);
       expect(link?.getAttribute("href")).toBe(reservationUrl);
       expect(link?.getAttribute("target")).toBe("_blank");
       expect(link?.getAttribute("rel")).toBe("noopener noreferrer");
@@ -93,7 +113,7 @@ describe("MembersServices", () => {
     },
   );
 
-  it("explains an unavailable action without a control", async () => {
+  it("keeps contact access when booking is unavailable", async () => {
     const container = await AstroContainer.create();
     const html = await container.renderToString(MembersServices, {
       props: {
@@ -106,11 +126,35 @@ describe("MembersServices", () => {
     const section = getSection(html);
 
     expect(section.textContent).toContain("Temporalment no disponible");
-    expect(section.querySelector("a, button, input")).toBeNull();
+    expect(
+      section.querySelector('a[href^="https:"], button, input'),
+    ).toBeNull();
+    expect(section.querySelector("a")?.getAttribute("href")).toBe(
+      "#site-prefooter-title",
+    );
+    expect(section.textContent?.replaceAll("\u00a0", " ")).toContain(
+      expectedPrices.ca,
+    );
     // The section keeps describing the service when booking is not offered.
     expect(section.textContent).toContain(
       messages.members_functional_training_intro({}, { locale: "ca" }),
     );
+  });
+
+  it("does not invent a price or booking link when the action is missing", async () => {
+    const container = await AstroContainer.create();
+    const html = await container.renderToString(MembersServices, {
+      props: { action: undefined, contact, locale: "ca" },
+    });
+
+    const section = getSection(html);
+
+    expect(section.textContent).toContain("No disponible");
+    expect(section.textContent).not.toContain("Preu");
+    expect(section.textContent).not.toContain("€");
+    expect(
+      section.querySelector('a[href^="https:"], button, input'),
+    ).toBeNull();
   });
 
   it("omits the address when the institutional contact is unavailable", async () => {

@@ -268,7 +268,8 @@
   "members_functional_training_title": "Entrenaments funcionals",
   "members_functional_training_intro": "Entrenament funcional al local del club per treballar la força i el control corporal, incloent-hi estabilitat, mobilitat i core. Les sessions s'adapten a diferents nivells i són útils tant per a la pràctica de muntanya com per al benestar i la forma física general.",
   "members_functional_training_members_only": "Activitat exclusiva per a socis i sòcies del club.",
+  "members_functional_training_contact": "Més informació i contacte",
   "members_functional_training_price_label": "Preu",
-  "members_functional_training_price": "10 € per sessió",
+  "members_functional_training_price": "{price} per sessió",
   "members_functional_training_action": "Consulta les sessions i reserva a Playoff"
 }

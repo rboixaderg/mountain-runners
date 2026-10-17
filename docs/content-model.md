@@ -44,8 +44,9 @@ Les col·leccions de contingut registrades són:
   i, per a l'entitat institucional, perfils socials i recursos promocionals
   externs validats.
 - `documents`: recursos locals o externs amb tipus, idioma i disponibilitat.
-- `externalActions`: accions externes d'alta, federació i butlletí amb estat
-  explícit i URL externa opcional.
+- `externalActions`: accions externes d'alta, federació, reserva d'entrenaments
+  funcionals i butlletí amb estat explícit i URL externa opcional. La reserva
+  d'entrenaments declara també el preu numèric per sessió en euros.
 - `contact`: dades institucionals de contacte (correu, telèfons, seu, horaris i
   CIF) amb correu i telèfon com a valors semàntics validats; el render
   construeix els enllaços `mailto:` i `tel:` a partir d'aquests valors.
@@ -172,8 +173,12 @@ La pàgina Socis renderitza les accions externes d'alta, federació i reserva
 d'entrenaments funcionals pels seus identificadors estables (`member-signup`,
 `federation` i `functional-training`) i en mostra l'estat: una acció disponible
 enllaça a la URL traduïble i una acció no disponible s'explica amb text útil,
-mai amb un control fals. La secció de serveis per a socis i sòcies inclou una
-entrada d'entrenaments funcionals que descriu l'activitat, n'indica
+mai amb un control fals. L'acció `functional-training` requereix el camp
+`sessionPriceEuros`, un nombre positiu de fins a dos decimals que conserva el preu
+confirmat encara que la reserva no estigui disponible. És l'única font de
+l'import: els recursos de traducció només n'interpolen el valor formatat per
+idioma. La secció de serveis per a socis i sòcies inclou una entrada
+d'entrenaments funcionals que descriu l'activitat, n'indica
 l'exclusivitat per a socis i sòcies, publica el preu vigent per sessió i mostra
 l'adreça del local resolta des de
 la col·lecció `contact`; les reserves es fan a Playoff, sense publicar horaris ni

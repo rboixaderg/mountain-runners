@@ -268,7 +268,8 @@
   "members_functional_training_title": "Entrenamientos funcionales",
   "members_functional_training_intro": "Entrenamiento funcional en el local del club para trabajar la fuerza y el control corporal, incluida la estabilidad, la movilidad y el core. Las sesiones se adaptan a diferentes niveles y son útiles tanto para la práctica de montaña como para el bienestar y la forma física general.",
   "members_functional_training_members_only": "Actividad exclusiva para socios y socias del club.",
+  "members_functional_training_contact": "Más información y contacto",
   "members_functional_training_price_label": "Precio",
-  "members_functional_training_price": "10 € por sesión",
+  "members_functional_training_price": "{price} por sesión",
   "members_functional_training_action": "Consulta las sesiones y reserva en Playoff"
 }
