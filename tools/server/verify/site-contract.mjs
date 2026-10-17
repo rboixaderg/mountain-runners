@@ -62,3 +62,29 @@ export function wwwRedirectFinding({ status, location, apexOrigin, wwwUrl }) {
   }
   return undefined;
 }
+
+export function legacyRedirectFinding({
+  status,
+  location,
+  requestedUrl,
+  targetPath,
+}) {
+  const expected = new URL(targetPath, requestedUrl);
+  let redirectsToTarget = false;
+  if ((status === 301 || status === 308) && location !== "") {
+    try {
+      const resolved = new URL(location, requestedUrl);
+      redirectsToTarget =
+        resolved.origin === expected.origin &&
+        resolved.pathname === expected.pathname &&
+        resolved.search === "" &&
+        resolved.hash === "";
+    } catch {
+      redirectsToTarget = false;
+    }
+  }
+  if (!redirectsToTarget) {
+    return `Legacy ${requestedUrl} returned ${status} Location ${location || "absent"}, expected a redirect to ${expected.origin}${expected.pathname}.`;
+  }
+  return undefined;
+}

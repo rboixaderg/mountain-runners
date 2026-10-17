@@ -178,6 +178,38 @@ i [ADR 0007](decisions/0007-self-hosted-plausible-analytics.md). La T1 està
 fusionada a la PR #90. Els esdeveniments d'acció i el temps d'estada es recullen
 a l'entrada oberta corresponent; no s'amplien silenciosament aquesta entrega.
 
+### Redirigir Les URLs De Llegat Amb Trànsit
+
+**Estat:** Incorporada com a entrega autònoma.
+
+**Problema:** hi ha visites a URLs de la web anterior del club (Joomla i
+WordPress) que ara acaben a la pàgina 404.
+
+**Resultat esperat:** una llista d'adreces antigues contrastada amb Plausible i
+redireccions HTTP permanents i explícites cap a la pàgina actual equivalent o,
+si no n'hi ha, la pàgina d'inici, sense redirigir indiscriminadament totes les
+rutes inexistents.
+
+**Decisions preses:**
+
+- període analitzat: tot l'històric disponible de Plausible
+  (`2026-08-19` → `2026-10-16`), amb el volum de cada adreça;
+- els paths absents del sitemap es classifiquen en contingut del club anterior,
+  spam injectat, sondes tècniques i un altre hostname; els tres primers grups es
+  redirigeixen a la pàgina equivalent o a `/ca/`;
+- codi HTTP 301 a Caddy, amb matchers tancats i la query string descartada;
+- les rutes actuals que arriben sense prefix d'idioma reben el prefix del
+  segment localitzat (ca, es o en), amb els segments compartits al català;
+- les rutes no incloses en cap prefix continuen responent 404;
+- verificació estàtica del Caddyfile i comprovació del host amb
+  `--expect-legacy-redirects`.
+
+**Dependències:** accés a les dades de Plausible i aplicació manual del canvi
+per una persona mantenidora, com la resta de canvis de Caddyfile.
+
+**Seguiment:** [especificació de redireccions de llegat](specs/legacy-url-redirects.md),
+T1.
+
 ## Necessitats Obertes
 
 ### Entrenaments Funcionals Per A Socis
@@ -229,34 +261,6 @@ de previews de la fase 6.
 
 **Seguiment:** [especificació d'analítica Plausible](specs/plausible-analytics.md),
 T3.
-
-### Analitzar Les Visites A URLs Antigues De WordPress I Redirigir-les
-
-**Estat:** Capturada.
-
-**Problema:** hi ha visites a URLs de l'antiga web de WordPress que ara acaben
-a la pàgina 404. Cal analitzar les dades de Plausible per identificar les
-adreces concretes que encara reben trànsit.
-
-**Resultat esperat:** disposar d'una llista de URLs antigues contrastada amb
-Plausible i configurar redireccions explícites d'aquestes adreces a la pàgina
-d'inici, sense redirigir indiscriminadament totes les rutes inexistents.
-
-**Abans de planificar-ho cal definir:**
-
-- el període d'anàlisi a Plausible, les URLs afectades i el volum de visites
-  que arriba a cadascuna;
-- el mapa exacte de redireccions, la destinació d'inici i el tractament de
-  variants amb barra final o paràmetres;
-- el codi HTTP i la configuració de servidor necessaris, evitant bucles i
-  mantenint la resposta 404 per a les rutes no incloses;
-- com es comprovaran les redireccions i se'n revisarà el resultat amb les
-  dades d'analítica posteriors.
-
-**Dependències:** accés a les dades de Plausible i revisió de la configuració
-actual de redireccions del servidor.
-
-**Seguiment:** pendent de triatge.
 
 ### Revisar Els Enllaços Per A Agents I El Disseny De La Pàgina 404
 

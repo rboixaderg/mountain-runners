@@ -12,11 +12,13 @@
 // Usage:
 //   node tools/server/verify/verify-site.mjs --base-url https://host --expect-noindex
 //   node tools/server/verify/verify-site.mjs --base-url https://mountainrunners.cat --expect-indexable
+//   node tools/server/verify/verify-site.mjs --base-url https://mountainrunners.cat --expect-indexable --expect-legacy-redirects
 
 import { contentSecurityPolicy } from "../caddy/content-security-policy.mjs";
 import {
   hstsPresentFinding,
   indexableFinding,
+  legacyRedirectFinding,
   rootLocaleRedirectFinding,
   wwwRedirectFinding,
 } from "./site-contract.mjs";
@@ -24,6 +26,9 @@ import {
 const expectNoIndex = process.argv.includes("--expect-noindex");
 const expectIndexable = process.argv.includes("--expect-indexable");
 const expectHsts = process.argv.includes("--expect-hsts");
+const expectLegacyRedirects = process.argv.includes(
+  "--expect-legacy-redirects",
+);
 
 if (expectNoIndex && expectIndexable) {
   throw new Error(
@@ -62,6 +67,9 @@ async function check() {
 
   await checkHttpRedirect(parsedBase);
   await checkRootLocaleRedirect(parsedBase);
+  if (expectLegacyRedirects) {
+    await checkLegacyRedirects(parsedBase);
+  }
 
   const rootResponse = await fetchText(`${baseUrl}/ca/`);
   const assetUrls = [
@@ -163,6 +171,56 @@ async function checkRootLocaleRedirect(parsedBase) {
       rootUrl,
     }),
   );
+}
+
+// Representative sample of the redirect map in
+// docs/specs/legacy-url-redirects.md. The static Caddyfile tests cover every
+// rule; these checks prove the deployed host applies the map once a maintainer
+// has updated /etc/caddy/Caddyfile.
+const redirectChecks = [
+  { path: "/index.php/actualitat", target: "/ca/" },
+  { path: "/el-club/", target: "/ca/qui-som/" },
+  { path: "/escola-btt/", target: "/ca/escoles/escola-btt/" },
+  { path: "/esdeveniments/mes/2022-02/", target: "/ca/esdeveniments/" },
+  { path: "/blog", target: "/ca/blog/" },
+  { path: "/wp-login.php", target: "/ca/" },
+  { path: "/wp-json/oembed/1.0/embed", target: "/ca/" },
+  { path: "/2025/05/17/ice-cream-and-gelato-ingredients", target: "/ca/" },
+  { path: "/quienes-somos/", target: "/es/quienes-somos/" },
+  { path: "/escuelas/escuela-trail/", target: "/es/escuelas/escuela-trail/" },
+  { path: "/schools/mtb-school/", target: "/en/schools/mtb-school/" },
+  { path: "/noticies/", target: "/ca/noticies/" },
+  { path: "/escoles/escola-btt/", target: "/ca/escoles/escola-btt/" },
+  { path: "/escoles/escola-btt", target: "/ca/escoles/escola-btt/" },
+  {
+    path: "/esdeveniments/berga-trail/",
+    target: "/ca/esdeveniments/berga-trail/",
+  },
+  {
+    path: "/esdeveniments/berga-trail",
+    target: "/ca/esdeveniments/berga-trail/",
+  },
+  { path: "/blog/com-fer-te-soci/", target: "/ca/blog/com-fer-te-soci/" },
+  { path: "/blog/com-fer-te-soci", target: "/ca/blog/com-fer-te-soci/" },
+  { path: "/qui-som?utm_source=legacy", target: "/ca/qui-som/" },
+  { path: "/quienes-somos", target: "/es/quienes-somos/" },
+  { path: "/about", target: "/en/about/" },
+  { path: "/schools/mtb-school", target: "/en/schools/mtb-school/" },
+];
+
+async function checkLegacyRedirects(parsedBase) {
+  for (const { path, target } of redirectChecks) {
+    const requestedUrl = `${parsedBase.origin}${path}`;
+    const response = await fetchRaw(requestedUrl);
+    pushFinding(
+      legacyRedirectFinding({
+        status: response.status,
+        location: response.headers.get("location") ?? "",
+        requestedUrl,
+        targetPath: target,
+      }),
+    );
+  }
 }
 
 async function checkTrailingSlash(urlWithoutSlash) {

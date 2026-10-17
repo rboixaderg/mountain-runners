@@ -213,6 +213,7 @@ install -d -m 0755 -o root -g root /etc/caddy/preview-robots
 install -m 0644 -o root -g root "${TOOL_ROOT}/caddy/preview-robots/robots.txt" /etc/caddy/preview-robots/robots.txt
 install_caddyfile "${TOOL_ROOT}/caddy/Caddyfile" /etc/caddy/Caddyfile "${PRODUCTION_DOMAIN}"
 install_caddyfile "${TOOL_ROOT}/caddy/Caddyfile.production" /etc/caddy/Caddyfile.production "${PRODUCTION_DOMAIN}"
+install -m 0644 -o root -g root "${TOOL_ROOT}/caddy/Caddyfile.redirects" /etc/caddy/Caddyfile.redirects
 
 if ! caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile >/dev/null 2>&1; then
   fail "the generated Caddyfile does not validate; refusing to proceed."
