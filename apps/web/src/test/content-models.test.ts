@@ -185,6 +185,47 @@ describe("editorial collection schemas", () => {
     );
   });
 
+  it("requires a session price for functional training", () => {
+    expect(
+      collectionSchemas.externalActions.safeParse({
+        id: "functional-training",
+        published: true,
+        status: "unavailable",
+      }).success,
+    ).toBe(false);
+  });
+
+  it.each(["available", "temporarily-unavailable"])(
+    "accepts a positive training session price when booking is %s",
+    (status) => {
+      expect(
+        collectionSchemas.externalActions.safeParse({
+          id: "functional-training",
+          published: true,
+          status,
+          sessionPriceEuros: 12.5,
+          ...(status === "available"
+            ? { url: { ca: "https://example.org/reserve" } }
+            : {}),
+        }).success,
+      ).toBe(true);
+    },
+  );
+
+  it.each([0, -1, 0.001, "10", Number.NaN, Number.POSITIVE_INFINITY])(
+    "rejects an invalid training session price: %s",
+    (sessionPriceEuros) => {
+      expect(
+        collectionSchemas.externalActions.safeParse({
+          id: "functional-training",
+          published: true,
+          status: "unavailable",
+          sessionPriceEuros,
+        }).success,
+      ).toBe(false);
+    },
+  );
+
   it("rejects invalid email and phone values in contact data", async () => {
     const contact = await parseFixture(
       fixturePaths.contact,

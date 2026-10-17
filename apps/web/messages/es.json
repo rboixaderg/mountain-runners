@@ -119,7 +119,7 @@
   "homepage_hero_title": "A.E. Mountain Runners del Berguedà",
   "homepage_hero_title_club": "A.E. Mountain Runners",
   "homepage_hero_title_region": "del Berguedà",
-  "homepage_members_description": "Los socios y socias disfrutan de ventajas en los establecimientos colaboradores del Berguedà, formación en las escuelas del club y apoyo con la federación.\n\n- Descuentos y condiciones especiales en tiendas y servicios del territorio\n- Escuelas de trail, skimo y BTT abiertas todo el año\n- Alta y federación tramitadas por la entidad",
+  "homepage_members_description": "Los socios y socias disfrutan de ventajas en los establecimientos colaboradores del Berguedà, formación en las escuelas del club y apoyo con la federación.\n\n- Descuentos y condiciones especiales en tiendas y servicios del territorio\n- Escuelas de trail, skimo y BTT abiertas todo el año\n- Servicios y actividades del club a disposición de los socios y socias\n- Alta y federación tramitadas por la entidad",
   "homepage_members_title": "Forma parte del club",
   "homepage_members_action": "Ver más información",
   "homepage_school_action": "Información",
@@ -246,6 +246,7 @@
   "members_signup_intro": "El club tramita las nuevas altas de socios y socias a través del servicio de inscripción de la entidad.",
   "members_signup_action": "Hazte socio o socia",
   "members_federation_action": "Fedérate",
+  "members_federation_intro": "El club tramita la federación de los socios y socias para la práctica deportiva federada, a través del servicio de la entidad.",
   "members_benefits_intro": "Enseña tu carnet de socio o socia y disfruta de las ventajas en los establecimientos colaboradores.",
   "members_benefits_collaborators_link": "Ver colaboradores",
   "homepage_posts_title": "Actualidad del club",
@@ -261,5 +262,14 @@
   "external_action_coming_soon": "Próximamente",
   "members_intro_photo_alt": "Portada de la sección de socios de Mountain Runners del Berguedà",
   "members_intro_photo_attribution": "Fotografía: @about_paulagnf",
-  "members_benefits_photo_alt": "Fotografía de la sección de socios de Mountain Runners del Berguedà"
+  "members_benefits_photo_alt": "Fotografía de la sección de socios de Mountain Runners del Berguedà",
+  "members_services_title": "Servicios para socios y socias",
+  "members_services_intro": "Actividades y servicios que el club pone a disposición de las personas socias.",
+  "members_functional_training_title": "Entrenamientos funcionales",
+  "members_functional_training_intro": "Entrenamiento funcional en el local del club para trabajar la fuerza y el control corporal, incluida la estabilidad, la movilidad y el core. Las sesiones se adaptan a diferentes niveles y son útiles tanto para la práctica de montaña como para el bienestar y la forma física general.",
+  "members_functional_training_members_only": "Actividad exclusiva para socios y socias del club.",
+  "members_functional_training_contact": "Más información y contacto",
+  "members_functional_training_price_label": "Precio",
+  "members_functional_training_price": "{price} por sesión",
+  "members_functional_training_action": "Consulta las sesiones y reserva en Playoff"
 }

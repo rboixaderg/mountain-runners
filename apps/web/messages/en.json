@@ -119,7 +119,7 @@
   "homepage_hero_title": "A.E. Mountain Runners del Berguedà",
   "homepage_hero_title_club": "A.E. Mountain Runners",
   "homepage_hero_title_region": "del Berguedà",
-  "homepage_members_description": "Members enjoy benefits at partner businesses across Berguedà, training at the club schools and support with federation licensing.\n\n- Discounts and special terms at local shops and services\n- Trail, skimo and MTB schools open year-round\n- Membership registration and federation licensing handled by the club",
+  "homepage_members_description": "Members enjoy benefits at partner businesses across Berguedà, training at the club schools and support with federation licensing.\n\n- Discounts and special terms at local shops and services\n- Trail, skimo and MTB schools open year-round\n- Club services and activities available to members\n- Membership registration and federation licensing handled by the club",
   "homepage_members_title": "Join the club",
   "homepage_members_action": "See more information",
   "homepage_school_action": "Information",
@@ -246,6 +246,7 @@
   "members_signup_intro": "New member sign-ups are processed through the club's external sign-up service.",
   "members_signup_action": "Become a member",
   "members_federation_action": "Get your federation licence",
+  "members_federation_intro": "The club handles members' federation licensing for federated sport through the organisation's service.",
   "members_benefits_intro": "Show your membership card and enjoy the benefits at collaborating businesses.",
   "members_benefits_collaborators_link": "View collaborators",
   "homepage_posts_title": "Club updates",
@@ -261,5 +262,14 @@
   "external_action_coming_soon": "Coming soon",
   "members_intro_photo_alt": "Cover of the membership section of Mountain Runners del Berguedà",
   "members_intro_photo_attribution": "Photo: @about_paulagnf",
-  "members_benefits_photo_alt": "Photograph of the membership section of Mountain Runners del Berguedà"
+  "members_benefits_photo_alt": "Photograph of the membership section of Mountain Runners del Berguedà",
+  "members_services_title": "Services for members",
+  "members_services_intro": "Activities and services the club makes available to members.",
+  "members_functional_training_title": "Functional training",
+  "members_functional_training_intro": "Functional training at the club's premises to work on strength and body control, including stability, mobility and core. Sessions adapt to different levels and are useful both for mountain practice and for wellbeing and general fitness.",
+  "members_functional_training_members_only": "Members-only activity for club members.",
+  "members_functional_training_contact": "More information and contact",
+  "members_functional_training_price_label": "Price",
+  "members_functional_training_price": "{price} per session",
+  "members_functional_training_action": "See sessions and book on Playoff"
 }

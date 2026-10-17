@@ -375,6 +375,7 @@ describe("publication catalog", () => {
 
     expect([...catalog.externalActions.keys()]).toEqual([
       "federation",
+      "functional-training",
       "member-signup",
       "newsletter",
     ]);
@@ -389,6 +390,19 @@ describe("publication catalog", () => {
     expect(catalog.entities.get("mountain-runners")?.promotionalVideoUrl).toBe(
       "https://www.youtube.com/watch?v=EUV5uETCjeo",
     );
+  });
+
+  it("publishes the approved training reservation destination in every locale", async () => {
+    const catalog = createPublicationCatalog(await loadSource());
+
+    expect(catalog.externalActions.get("functional-training")?.url).toEqual({
+      ca: "https://mountainrunners.playoffinformatica.com/Reserva.php#",
+      es: "https://mountainrunners.playoffinformatica.com/Reserva.php#",
+      en: "https://mountainrunners.playoffinformatica.com/Reserva.php#",
+    });
+    expect(
+      catalog.externalActions.get("functional-training")?.sessionPriceEuros,
+    ).toBe(10);
   });
 
   it("excludes unpublished external actions and contact data", async () => {
@@ -458,6 +472,15 @@ describe("publication catalog", () => {
       createPublicationCatalog(sourceWithUnpublishedFederation),
     ).toThrow(
       "Members page references missing or unpublished external action: federation",
+    );
+
+    const sourceWithoutTraining = await loadSource();
+    sourceWithoutTraining.externalActions =
+      sourceWithoutTraining.externalActions.filter(
+        ({ id }) => id !== "functional-training",
+      );
+    expect(() => createPublicationCatalog(sourceWithoutTraining)).toThrow(
+      "Members page references missing or unpublished external action: functional-training",
     );
   });
 
