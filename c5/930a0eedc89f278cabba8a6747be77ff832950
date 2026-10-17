@@ -1,0 +1,31 @@
+apps/web/e2e/shell.spec.ts
+  s_d8acb34ef47499::t_1cc870bd349afe 1233-1236,1247,1249-1252,1254-1285
+apps/web/messages/ca.json
+  s_d8acb34ef47499::t_e202a4c591d618 198-200
+apps/web/messages/en.json
+  s_d8acb34ef47499::t_4f30e7694e2958 198-200
+apps/web/messages/es.json
+  s_d8acb34ef47499::t_83da99c18595c2 198-200
+apps/web/src/pages/404.astro
+  s_d8acb34ef47499::t_b1eee8e10f12d8 3,17,19,22,25-43
+docs/architecture.md
+  s_d8acb34ef47499::t_f7e3b75abfe8ab 47-50
+docs/backlog.md
+  s_d8acb34ef47499::t_dbfcb458fe896e 244,246-247,249-251,253-257,259-260,262-264
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "c5930a0eedc89f278cabba8a6747be77ff832950",
+  "prompts": {},
+  "sessions": {
+    "s_d8acb34ef47499": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a14a91-6bbd-71a1-aa86-c9dd7f2e96b5",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
