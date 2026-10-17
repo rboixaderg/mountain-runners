@@ -31,6 +31,12 @@
 	}
 }
 
+# Static map of legacy club URLs that still receive traffic. The snippet lives
+# in Caddyfile.redirects (installed next to this file by the bootstrap) and the
+# inventory with its exclusions is documented in
+# docs/specs/legacy-url-redirects.md.
+import Caddyfile.redirects
+
 # Headers approved in T5.1 and amended by ADR 0007: CSP without wildcards or
 # unsafe-eval, plus the minimum header set. script-src and connect-src allow
 # the self-hosted Plausible origin. X-Robots-Tag is applied per host
@@ -62,6 +68,8 @@
 	# index.html meta refresh for the unprefixed entry point.
 	@unprefixed_root path /
 	redir @unprefixed_root /ca/ permanent
+	import legacy_redirects
+	import locale_redirects
 	root * /var/lib/mountain-runners/current
 	# No directory listings; trailing-slash routes keep their slash and
 	# directory indexes are served from index.html. Any error (including the

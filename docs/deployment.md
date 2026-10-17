@@ -131,7 +131,9 @@ cada canvi d'aquesta arquitectura.
   T5.1, 404 global, rutes amb barra final preservades, caché immutable per a
   `/_astro/*` i curta per a `/content-resources/*`, i logs minimitzats amb els
   camps aprovats (la query string mai no es registra). El host de producció
-  s'activa al tall (T5.5) important `Caddyfile.production`.
+  s'activa al tall (T5.5) important `Caddyfile.production`. El fragment
+  `Caddyfile.redirects` conté el mapa de redireccions permanents de les URLs de
+  llegat amb trànsit, amb les rutes no incloses en 404.
 - **CLI de releases** (`tools/server/release/`): `install` (extracció segura:
   rebutja paths absoluts, `..`, symlinks, hardlinks, dispositius, duplicats i
   límits de mida/fitxers, i verifica tots els digests contra el manifest),
