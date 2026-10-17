@@ -1,0 +1,23 @@
+docs/specs/legacy-url-redirects.md
+  s_260cf55f0cf338::t_33d9cb4ef11b18 115-116,118-122,125-129,137-145,150-153,157-158
+tools/server/caddy/caddyfile.test.mjs
+  s_260cf55f0cf338::t_59da0a1428e601 154-192,203,211-219,221-223,225-254
+tools/server/verify/verify-site.mjs
+  s_260cf55f0cf338::t_b4ef4cb4702e6a 193-208
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "0e23feb43279fb0f0cf5c64db6a0b846981fb0ab",
+  "prompts": {},
+  "sessions": {
+    "s_260cf55f0cf338": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a14876-b3f6-7330-9260-2603b5cfcc18",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
