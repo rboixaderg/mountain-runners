@@ -241,31 +241,27 @@ T3.
 
 ### Revisar Els Enllaços Per A Agents I El Disseny De La Pàgina 404
 
-**Estat:** Capturada.
+**Estat:** Implementada localment, pendent de revisió i integració.
 
-**Problema:** la pàgina 404 presenta enllaços pensats per a agents que són
-visibles també per a les persones visitants. Cal revisar si aporten utilitat a
-la navegació habitual i repensar el disseny de la pàgina.
+**Problema:** la pàgina 404 presentava els enllaços per a agents al mateix
+nivell que les opcions de recuperació de les persones visitants.
 
-**Resultat esperat:** una pàgina 404 clara i coherent amb el sistema visual,
-amb opcions útils per reprendre la navegació i una decisió sobre la visibilitat
-dels enllaços per a agents.
+**Resultat:** text que explica que la pàgina no existeix o ha canviat d'adreça,
+amb enllaços a l'inici i a l'agenda. L'espaiat i la tipografia utilitzen els
+tokens del sistema visual.
 
-**Abans de planificar-ho cal definir:**
+**Decisió:** els enllaços a `/llms.txt` i `/sitemap.xml` es conserven al DOM
+dins d'un desplegable natiu «Recursos tècnics», tancat inicialment. Un agent
+que llegeixi l'HTML els pot descobrir directament; un agent que navegui per la
+interfície ha d'obrir el desplegable. No s'utilitza CSS per crear enllaços
+invisibles que puguin rebre focus.
 
-- quins enllaços necessiten els agents i si cal que siguin visibles per a les
-  persones visitants;
-- si es poden amagar amb CSS i mantenir-los al DOM, comprovant que els agents
-  destinataris els poden descobrir i que no creen focus invisibles ni
-  confusió amb lectors de pantalla;
-- la jerarquia visual, els textos i les accions de recuperació de la pàgina,
-  en mòbil i escriptori i en els idiomes publicats.
+La 404 continua sent el document global en català. Els missatges equivalents
+es mantenen en castellà i anglès, sense crear rutes 404 noves.
 
-**Dependències:** revisar la pàgina 404 actual i el contracte de descoberta
-dels recursos per a agents; mantenir l'accessibilitat i la coherència amb
-`DESIGN.md`.
-
-**Seguiment:** pendent de triatge.
+**Seguiment:** revisió del canvi abans del merge. La prova existent de la 404
+cobreix recuperació a l'agenda, desplegable amb teclat i accessibilitat del
+contingut obert en mòbil i escriptori.
 
 ### Esdeveniments D'Acció I Temps D'Estada
 
