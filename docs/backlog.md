@@ -174,9 +174,8 @@ separat de la compilació estàtica.
 Plausible existent a `analytics.rogerbg.cat`.
 
 **Seguiment:** [especificació d'analítica Plausible](specs/plausible-analytics.md)
-i [ADR 0007](decisions/0007-self-hosted-plausible-analytics.md). La T1 està
-fusionada a la PR #90. Els esdeveniments d'acció i el temps d'estada es recullen
-a l'entrada oberta corresponent; no s'amplien silenciosament aquesta entrega.
+i [ADR 0007](decisions/0007-self-hosted-plausible-analytics.md). L'entrega està
+tancada: T1 a la PR #90, T2 a la PR #96 i T3 a la PR #141.
 
 ### Redirigir Les URLs De Llegat Amb Trànsit
 
@@ -209,9 +208,7 @@ rutes inexistents.
 per una persona mantenidora, com la resta de canvis de Caddyfile.
 
 **Seguiment:** [especificació de redireccions de llegat](specs/legacy-url-redirects.md),
-T1.
-
-## Necessitats Obertes
+T1, completada a les PRs #159 i #160 i aplicada al VPS.
 
 ### Desactivar L'Analítica En Mode Preview
 
@@ -241,7 +238,8 @@ T3.
 
 ### Revisar Els Enllaços Per A Agents I El Disseny De La Pàgina 404
 
-**Estat:** Implementada localment, pendent de revisió i integració.
+**Estat:** Incorporada a la
+[PR #161](https://github.com/rboixaderg/mountain-runners/pull/161).
 
 **Problema:** la pàgina 404 presentava els enllaços per a agents al mateix
 nivell que les opcions de recuperació de les persones visitants.
@@ -259,9 +257,8 @@ invisibles que puguin rebre focus.
 La 404 continua sent el document global en català. Els missatges equivalents
 es mantenen en castellà i anglès, sense crear rutes 404 noves.
 
-**Seguiment:** revisió del canvi abans del merge. La prova existent de la 404
-cobreix recuperació a l'agenda, desplegable amb teclat i accessibilitat del
-contingut obert en mòbil i escriptori.
+**Seguiment:** la prova de la 404 cobreix recuperació a l'agenda, desplegable
+amb teclat i accessibilitat del contingut obert en mòbil i escriptori.
 
 ### Esdeveniments D'Acció I Temps D'Estada
 
@@ -381,41 +378,12 @@ contracte viu i les instruccions d'activació. El criteri d'èxit és que l'arre
 respongui directament amb `301` o `308` i `Location: /ca/`, sense servir el
 document intermedi.
 
-### Equipa't Amb Nosaltres
-
-**Estat:** Capturada.
-
-**Problema:** la web no disposa d'un espai on les persones sòcies i seguidores
-puguin consultar tota la roba disponible amb la marca de Mountain Runners.
-
-**Resultat esperat:** crear una nova secció pública «Equipa't amb nosaltres» que
-presenti de manera clara el catàleg complet de roba del club, amb la informació
-i les imatges necessàries per conèixer cada peça i saber com adquirir-la.
-
-**Abans de planificar-ho cal definir:**
-
-- quines dades tindrà cada peça, com ara nom, descripció, fotografies, talles,
-  preu, disponibilitat i instruccions de compra;
-- qui mantindrà el catàleg i com es gestionaran els canvis d'estoc, preu o
-  temporada;
-- si la secció serà només informativa, enllaçarà a un canal extern o requerirà
-  un procés propi de reserva, comanda o pagament;
-- l'estructura de contingut, les traduccions i la integració amb la navegació i
-  el sistema visual actuals;
-- els drets d'ús de les fotografies i les necessitats d'accessibilitat, proves i
-  seguiment de les accions de compra.
-
-**Dependències:** inventari validat de peces, fotografies i informació
-comercial; decisió sobre el procés d'adquisició i la persona responsable de
-mantenir el catàleg actualitzat.
-
-**Seguiment:** pendent de triatge.
-
 ### Avaluar Notícies, Blog I Estructures Editorials Reutilitzables
 
-**Estat:** Capturada.
+**Estat:** Incorporada a la
+[PR #140](https://github.com/rboixaderg/mountain-runners/pull/140).
 
-**Problema:** la web no té un espai per publicar notícies del club ni articles
+**Problema:** la web no tenia un espai per publicar notícies del club ni articles
 editorials de format blog. Sense una estructura compartida, aquests continguts
 podrien variar de format i requerir més feina manual per preparar-los i
 publicar-los.
@@ -445,9 +413,82 @@ convencions de skills del repositori.
 
 **Seguiment:** [especificació de notícies i blog](specs/news-and-blog.md), autoritzada el 2
 d'octubre de 2026. L'[ADR 0011](decisions/0011-news-blog-editorial-previews.md)
-registra l'excepció de preview. Revisió editorial assumida per la persona
-mantenidora; pilots preparats en esborrany. Implementació iniciada per tasques,
-sense afegir una fase al roadmap ni autoritzar desplegaments.
+registra l'excepció de preview. L'entrega es va fusionar a la PR #140 el 8
+d'octubre de 2026; els pendents editorials i de revisió humana es mantenen a
+l'especificació.
+
+### Separar La Presentació Del Contacte I Simplificar Les Validacions
+
+**Estat:** Incorporada a la
+[PR #70](https://github.com/rboixaderg/mountain-runners/pull/70).
+
+**Problema:** el contingut de contacte desa informació pròpia del render HTML,
+com els protocols `mailto:` i `tel:`, en lloc de representar només les dades
+editorials. Això barreja el model de contingut amb la responsabilitat de la
+interfície. A més, el model actual aplica més validacions de les necessàries en
+alguns camps, cosa que pot fer que el catàleg estigui sobrevalidat i sigui més
+difícil d'editar sense aportar una garantia real per a la sortida publicada.
+
+**Resultat esperat:** modificar el model i el render del contacte perquè les
+dades emmagatzemin valors semàntics i el component construeixi els atributs i
+protocols HTML necessaris. Revisar les validacions del contingut i conservar
+només les que siguin necessàries per al contracte editorial, la seguretat o la
+correctesa de la sortida. Documentar aquesta regla com a convenció de codi:
+validar a la frontera corresponent, sense duplicar ni anticipar al model de
+dades restriccions que pertanyen al render.
+
+**Abans de planificar-ho cal definir:**
+
+- la representació canònica de correus i telèfons al contingut i la forma
+  segura de convertir-la en `href` i text visible;
+- quines validacions del contacte i dels primitives de contingut són garanties
+  necessàries i quines només repliquen decisions de presentació;
+- la compatibilitat amb les dades publicades, les traduccions i els selectors o
+  contractes de proves existents;
+- l'actualització de `docs/code-conventions.md` i, si escau, de les instruccions
+  resumides a `AGENTS.md`;
+- les proves de model, render i seguretat que demostrin que es manté la sortida
+  correcta sense conservar validacions redundants.
+
+**Dependències:** revisió del model de contingut de contacte i dels components
+que el renderitzen; no cal canviar cap frontera arquitectònica acceptada si la
+separació es manté dins del model i la capa de presentació existents.
+
+**Seguiment:** [PR #70](https://github.com/rboixaderg/mountain-runners/pull/70),
+fusionada; la regla de validar a la frontera viu a
+[`docs/code-conventions.md`](code-conventions.md).
+
+## Necessitats Obertes
+
+### Equipa't Amb Nosaltres
+
+**Estat:** Capturada.
+
+**Problema:** la web no disposa d'un espai on les persones sòcies i seguidores
+puguin consultar tota la roba disponible amb la marca de Mountain Runners.
+
+**Resultat esperat:** crear una nova secció pública «Equipa't amb nosaltres» que
+presenti de manera clara el catàleg complet de roba del club, amb la informació
+i les imatges necessàries per conèixer cada peça i saber com adquirir-la.
+
+**Abans de planificar-ho cal definir:**
+
+- quines dades tindrà cada peça, com ara nom, descripció, fotografies, talles,
+  preu, disponibilitat i instruccions de compra;
+- qui mantindrà el catàleg i com es gestionaran els canvis d'estoc, preu o
+  temporada;
+- si la secció serà només informativa, enllaçarà a un canal extern o requerirà
+  un procés propi de reserva, comanda o pagament;
+- l'estructura de contingut, les traduccions i la integració amb la navegació i
+  el sistema visual actuals;
+- els drets d'ús de les fotografies i les necessitats d'accessibilitat, proves i
+  seguiment de les accions de compra.
+
+**Dependències:** inventari validat de peces, fotografies i informació
+comercial; decisió sobre el procés d'adquisició i la persona responsable de
+mantenir el catàleg actualitzat.
+
+**Seguiment:** pendent de triatge.
 
 ### Enllaços Directes A Les Seccions De La Web
 
@@ -502,45 +543,6 @@ amb l'estat i la informació correcta de cada col·laborador.
 persona responsable de les relacions amb els col·laboradors.
 
 **Seguiment:** pendent de triatge.
-
-### Separar La Presentació Del Contacte I Simplificar Les Validacions
-
-**Estat:** Incorporada (entrega en curs).
-
-**Problema:** el contingut de contacte desa informació pròpia del render HTML,
-com els protocols `mailto:` i `tel:`, en lloc de representar només les dades
-editorials. Això barreja el model de contingut amb la responsabilitat de la
-interfície. A més, el model actual aplica més validacions de les necessàries en
-alguns camps, cosa que pot fer que el catàleg estigui sobrevalidat i sigui més
-difícil d'editar sense aportar una garantia real per a la sortida publicada.
-
-**Resultat esperat:** modificar el model i el render del contacte perquè les
-dades emmagatzemin valors semàntics i el component construeixi els atributs i
-protocols HTML necessaris. Revisar les validacions del contingut i conservar
-només les que siguin necessàries per al contracte editorial, la seguretat o la
-correctesa de la sortida. Documentar aquesta regla com a convenció de codi:
-validar a la frontera corresponent, sense duplicar ni anticipar al model de
-dades restriccions que pertanyen al render.
-
-**Abans de planificar-ho cal definir:**
-
-- la representació canònica de correus i telèfons al contingut i la forma
-  segura de convertir-la en `href` i text visible;
-- quines validacions del contacte i dels primitives de contingut són garanties
-  necessàries i quines només repliquen decisions de presentació;
-- la compatibilitat amb les dades publicades, les traduccions i els selectors o
-  contractes de proves existents;
-- l'actualització de `docs/code-conventions.md` i, si escau, de les instruccions
-  resumides a `AGENTS.md`;
-- les proves de model, render i seguretat que demostrin que es manté la sortida
-  correcta sense conservar validacions redundants.
-
-**Dependències:** revisió del model de contingut de contacte i dels components
-que el renderitzen; no cal canviar cap frontera arquitectònica acceptada si la
-separació es manté dins del model i la capa de presentació existents.
-
-**Seguiment:** entrega en curs a la branca `refactor/contact-semantic-values`;
-PR pendent de revisió.
 
 ### Regressió Visual De Les Pantalles Principals
 

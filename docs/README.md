@@ -28,7 +28,7 @@ acceptada:
   incremental i checkpoints de la migració Tailwind de la PR #98.
 - [`roadmap.md`](roadmap.md): fases, dependències i estat general.
 - [`backlog.md`](backlog.md): necessitats obertes i registre del seu triatge.
-- [`deployment.md`](deployment.md): estat i límits operatius de la fase 5.
+- [`deployment.md`](deployment.md): estat i límits operatius de les fases 5 i 6.
 - [`runbook.md`](runbook.md): operació de producció (servidor, TLS, logs, salut,
   releases, desplegament continu, reversió, tall DNS i període d'observació).
   Inclou el diagrama Mermaid viu de l'arquitectura del VPS.

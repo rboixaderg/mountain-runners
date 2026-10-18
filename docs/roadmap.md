@@ -59,7 +59,7 @@ constructor genèric de pàgines sense una necessitat editorial concreta.
 | 3. Cobertura de contingut                    | Completada  | Resta de pàgines i plantilles de la web                   |
 | 4. Validació integral de disseny i contingut | Completada  | Revisió pàgina a pàgina i traducció a es/en              |
 | 5. Publicació a producció i operació         | Completada | Desplegament continu segur sobre Hetzner                  |
-| 6. Previews de PR i estratègia DNS/edge      | Planificada | Previews aïllades i decisió informada sobre Cloudflare    |
+| 6. Previews de PR i estratègia DNS/edge      | Completada  | Previews aïllades i decisió informada sobre Cloudflare    |
 | 7. Xat públic                                | Planificada | Consultes de només lectura sobre contingut publicat       |
 | 8. Assistència editorial                     | Planificada | Edició privada, auditada i basada en pull requests        |
 
@@ -282,7 +282,13 @@ automàticament els commits fusionats a `main`.
 
 ## Fase 6: Previews De PR I Estratègia DNS/Edge
 
-**Estat:** Planificada després de completar la fase 5.
+**Estat:** Completada el 18 d'octubre de 2026. T6.1 a T6.7 estan fusionades a
+`main` (#113, #117, #121, #130, #134, #135, #136 i #142) i el sistema de
+previews està activat i validat al VPS sota `*.preview.mountainrunners.cat`
+(T6.5). L'operació és a la
+[secció 13 del runbook](runbook.md#13-previews-de-pull-request-t63) i la
+classificació de les ordres a
+[`docs/deployment.md`](deployment.md#previews-de-pull-request-t63).
 
 **Especificació:**
 [`docs/specs/phase-6-pull-request-previews.md`](specs/phase-6-pull-request-previews.md).
@@ -373,8 +379,6 @@ humana ni el flux de Git.
 
 ## Decisions Pendents Abans De Les Fases Posteriors
 
-- Necessitat real de Cloudflare, wildcard DNS o TLS, visibilitat i retenció dels
-  previews per a la fase 6.
 - Política de minimització, accés i conservació dels logs de Caddy, coherent amb
   els textos de privacitat.
 - Tractament de privacitat dels vídeos de YouTube abans del primer desplegament.

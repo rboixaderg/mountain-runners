@@ -6,11 +6,11 @@ El repositori disposa de CI de qualitat, seguretat, contracte d'artefacte i
 desplegament continu protegit des de `main`. L'apex i `www` ja serveixen des
 del VPS (19 d'agost de 2026) i la fase 5 es va tancar el 28 d'agost de 2026
 amb el gate de llançament, l'HSTS i el període d'observació completats
-([runbook](runbook.md#9-tall-dns-i-primera-activació-pública)). La T6.1 i la
-T6.2 han fixat requisits i arquitectura de previews
-([ADR 0009](decisions/0009-pr-previews-same-domain-and-own-branches.md)); la
-T6.3 implementa la frontera entre el build no fiable i el publicador. El
-resta de la fase 6 no bloqueja producció.
+([runbook](runbook.md#9-tall-dns-i-primera-activació-pública)). Les fases 5 i 6
+estan tancades: la T6.1 i la T6.2 van fixar els requisits i l'arquitectura de
+previews ([ADR 0009](decisions/0009-pr-previews-same-domain-and-own-branches.md)),
+la T6.3 implementa la frontera entre el build no fiable i el publicador, i el
+sistema de previews està activat i validat al VPS (T6.5).
 
 ## Destí
 
@@ -338,7 +338,7 @@ ja està activa: cal comprovar-ne l'estat abans de reexecutar-lo.
 
 La T6.4 crea els orígens Caddy (blocs per PR, TLS individual, identificació
 de no-producció, caché i política de capçaleres) i el cicle de vida complet;
-la T6.5 valida el sistema end-to-end.
+la T6.5 va validar el sistema end-to-end al VPS.
 
 ## CI Implementada
 
@@ -353,9 +353,8 @@ servidor (`pnpm test:server`). `pnpm validate` no executa Lighthouse;
 
 La fase 5 està tancada; HSTS, entorn `production-rollback` i retirada dels
 required reviewers de `production` estan registrats a la
-[checklist de la T5.5](validation/phase-5-t55-launch-gate.md). De la fase 6,
-la T6.3 té la frontera de previews implementada; la T6.4 (orígens, TLS,
-cicle de vida i neteja) i la T6.5 (validació completa) resten pendents i
-cap preview encara es publica. Només cal un ADR nou quan la implementació
-introdueixi o canviï una decisió arquitectònica; els detalls que apliquen la
-direcció acceptada continuen requerint una pull request revisada.
+[checklist de la T5.5](validation/phase-5-t55-launch-gate.md). La fase 6 també
+està tancada: les previews de PR són operatives i validades al VPS. Les fases 7
+i 8 continuen planificades i sense implementació. Només cal un ADR nou quan la
+implementació introdueixi o canviï una decisió arquitectònica; els detalls que
+apliquen la direcció acceptada continuen requerint una pull request revisada.
