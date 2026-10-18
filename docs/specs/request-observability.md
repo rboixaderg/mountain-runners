@@ -43,7 +43,8 @@ conservar el `User-Agent` complet ni ampliar Plausible amb trànsit automatitzat
   dia pendent abans que caduqui el registre i no duplica un dia quan es torna a
   executar.
 - Les persones administradores poden consultar peticions per data, ruta o classe
-  de ruta, classe d'estat i família de client.
+  de ruta, classe d'estat i família de client, i comparar les peticions a pàgines
+  amb els pageviews de Plausible per al mateix període sense barrejar les fonts.
 - La configuració i les proves demostren que cap query string, referent,
   `User-Agent`, cookie, autorització o IP entra als resums.
 - El runbook i els textos públics descriuen el tractament que s'activa, la
@@ -81,7 +82,9 @@ acceptada.
 
 **Resultat observable:** una petició rebuda apareix al registre individual durant
 set dies amb una categoria derivada i contribueix una sola vegada a un recompte
-persistent, dimensional o acumulat sense dimensions.
+persistent, dimensional o acumulat sense dimensions. La consulta permet a les
+persones administradores comparar les peticions a pàgines amb els pageviews de
+Plausible per al mateix període, sense combinar les fonts.
 
 **Comprovacions mínimes:** format, `git diff --check`, proves del Caddyfile,
 proves unitàries del classificador i l'agregador amb fixtures sensibles, i prova
@@ -136,9 +139,12 @@ registra quins dies ja ha consolidat sense copiar camps del registre d'accés.
 ## Consulta i operació
 
 La consulta inicial és una ordre local que llegeix els resums i permet filtrar
-per interval de dates, ruta o classe, classe d'estat i família. No mostra ni
-necessita el registre individual. Els fitxers agregats resten al VPS amb accés
-restringit a les persones administradores i no se serveixen des de Caddy.
+per interval de dates, ruta o classe, classe d'estat i família. Permet obtenir el
+recompte de peticions a pàgines per comparar-lo amb els pageviews del mateix
+període a Plausible. Les fonts continuen separades i no s'hi afegeixen dades de
+Plausible. La consulta no mostra ni necessita el registre individual. Els fitxers
+agregats resten al VPS amb accés restringit a les persones administradores i no
+se serveixen des de Caddy.
 
 El runbook documenta generació, reexecució, comprovació, còpia de seguretat,
 restauració i eliminació completa. També diferencia una pujada de peticions, una
@@ -211,7 +217,8 @@ registre de set dies.
    termini màxim; cap fila dimensional conté menys de cinc peticions i els
    recomptes escassos només incrementen el total acumulat sense dimensions.
 6. La consulta administrativa respon per data, ruta o classe, classe d'estat i
-   família sense llegir registres individuals.
+   família sense llegir registres individuals, i permet comparar les peticions a
+   pàgines amb els pageviews de Plausible sense combinar les fonts.
 7. Runbook i privacitat en ca/es/en descriuen el comportament activat abans del
    canvi remot al VPS.
 8. Les comprovacions mínimes passen amb dades exclusivament sintètiques.
