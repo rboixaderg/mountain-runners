@@ -63,6 +63,9 @@ constructor genèric de pàgines sense una necessitat editorial concreta.
 | 7. Xat públic                                | Planificada | Consultes de només lectura sobre contingut publicat       |
 | 8. Assistència editorial                     | Planificada | Edició privada, auditada i basada en pull requests        |
 
+Ordre d'execució: la fase 8 s'avança a la fase 7, que no n'és dependència
+tècnica ([ADR 0002](decisions/0002-public-chat-and-private-editor.md)).
+
 ## Fase 0: Fundació Del Projecte
 
 **Estat:** Completada.
@@ -358,24 +361,28 @@ editorial ni exposar contingut privat.
 - El servei es pot desactivar sense afectar la disponibilitat ni la funcionalitat
   principal de la web.
 
-## Fase 8: Assistència Editorial Privada
+## Fase 8: Assistència Editorial Delegada
+
+**Especificació:**
+[`docs/specs/phase-8-editorial-assistance.md`](specs/phase-8-editorial-assistance.md).
 
 **Objectiu:** facilitar l'edició conversacional sense substituir la revisió
 humana ni el flux de Git.
 
 **Abast:**
 
-- Definir canals i identitats autoritzades per a l'assistent privat.
-- Limitar-lo a camins de contingut i scripts de validació aprovats.
-- Permetre crear branca, editar, validar, obrir pull request i retornar preview.
-- Afegir registre d'auditoria i revocació d'accés.
+- Definir el canal, les identitats autoritzades i la delegació de tasques.
+- Limitar-lo als camins de contingut i als recursos aprovats, incloses les
+  imatges enviades des del xat.
+- Permetre crear branca, editar, obrir pull request i demanar preview amb CI
+  verda.
+- Afegir registre d'auditoria, revocació d'accés i aturada d'emergència.
 
 **Criteris de tancament:**
 
-- L'assistent no pot fusionar, desplegar ni accedir a secrets.
-- Cada canvi és atribuïble a una branca, diff i pull request.
-- Les fallades de validació no generen publicacions ni canvis parcials a
-  producció.
+- L'assistent no pot fusionar, desplegar ni accedir a secrets de producció.
+- Cada canvi és atribuïble a una tasca, una branca, un diff i una pull request.
+- Una CI vermella no activa cap preview ni genera canvis parcials a producció.
 
 ## Decisions Pendents Abans De Les Fases Posteriors
 
@@ -383,3 +390,5 @@ humana ni el flux de Git.
   els textos de privacitat.
 - Tractament de privacitat dels vídeos de YouTube abans del primer desplegament.
 - Política de conservació de logs i límits d'ús del futur xat públic.
+- Política d'esborrat o caducitat de les sessions duradores de l'assistència
+  editorial i del seu registre d'auditoria.
