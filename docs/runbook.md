@@ -996,19 +996,17 @@ workflow `Preview` només corre sota demanda.
    sudo mountain-preview health <n>   # registre + digests del build actiu
    ```
 
-   Els orígens TLS i les capçaleres de no-producció es comproven a la T6.4 i
-   la T6.5, quan els blocs Caddy de previews estiguin actius.
+   Els orígens TLS i les capçaleres de no-producció estan implementats a la
+   T6.4 i validats al VPS per la T6.5.
 
 5. La retirada (tancament, fusió, revocació, caducitat i reconciliació
-   d'orfes) és la T6.4; mentre el sistema no estigui validat, no es publica
-   cap preview.
+   d'orfes) és la T6.4 i està verificada al VPS.
 
 La T6.4 afegeix `mountain-preview retire <n>`: despublica l'origen canviant
 atòmicament el nom del namespace i després n'esborra les releases. Repetir-lo
-quan el namespace ja no existeix no falla. És una primitiva local: fins que la
-reconciliació i la retirada automatitzada no estiguin verificades, no s'ha
-d'activar cap preview. La instal·lació de la primitiva al VPS requereix una
-aprovació explícita separada.
+quan el namespace ja no existeix no falla. La reconciliació i la retirada
+automatitzada estan verificades al VPS (T6.5). La instal·lació de la primitiva
+en un VPS nou requereix una aprovació explícita separada.
 
 El workflow `Preview cleanup` reconcilia cada hora i en tancar una PR. Retira
 previews tancades, revocades, de forks o que portin 14 dies sense
@@ -1095,13 +1093,12 @@ socket `/run/mountain-preview-site.sock` mode `0660`, grup `preview-deploy`.
 La unitat manté `/var/lib` en mode només lectura excepte
 `/var/lib/mountain-runners-previews/namespaces`: el procés fill
 `preview-authorization` necessita escriure el registre i el fitxer de bloqueig
-d'una PR com a `preview-deploy`. Durant les proves de la T6.5, comprova amb
-una autorització signada que el registre de la PR s'actualitza sota el servei
-real de `systemd`; els tests locals no reprodueixen aquest sandbox. Si falla,
-no activis les previews.
-No obre el sistema a previews de revisió fins que la prova TLS contra l'staging
-de Let's Encrypt, la retirada, la reconciliació, els logs i els smoke tests de
-la T6.5 passin. La primera preview de prova requereix aprovació explícita i
+d'una PR com a `preview-deploy`. La validació de la T6.5 va comprovar amb una
+autorització signada que el registre de la PR s'actualitza sota el servei real
+de `systemd`; els tests locals no reprodueixen aquest sandbox.
+En un VPS nou, no obris el sistema a previews de revisió fins que la prova TLS
+contra l'staging de Let's Encrypt, la retirada, la reconciliació, els logs i els
+smoke tests passin. La primera preview de prova requereix aprovació explícita i
 retirada immediata en acabar la validació.
 Si falla la validació, restaura la configuració anterior i no reinicia Caddy.
 Si falla el reinici o el smoke de producció, restaura el fragment anterior,

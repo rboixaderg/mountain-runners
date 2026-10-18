@@ -2,8 +2,9 @@
 
 ## Estat
 
-Implementació local al worktree de la T6.4, pendent de revisió i d'aprovació
-separada per a qualsevol acció al VPS. **Cap preview no està publicada.**
+Registre de la implementació local de la T6.4. **La T6.5 va validar i activar el
+sistema al VPS el 18 d'octubre de 2026**: les comprovacions que s'enumeren més
+avall queden tancades i les observacions datades es conserven com a registre.
 
 ## Evidència local (27 de setembre de 2026)
 
@@ -75,7 +76,7 @@ separada per a qualsevol acció al VPS. **Cap preview no està publicada.**
 - `pnpm check`: correcte amb 328 tests web, 109 de servidor i els nous casos
   de regressió.
 
-## Pendent abans de l'activació
+## Comprovacions Prèvies A L'Activació (Tancades Per La T6.5)
 
 - Revisar el codi i validar el flux complet contra el VPS amb aprovació de la
   persona mantenidora, sense reexecutar el bootstrap existent.

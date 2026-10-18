@@ -2,10 +2,10 @@
 
 ## Estat
 
-En implementació. La dependència inicial era producció estable i operable segons
-l'acceptació de la fase 5. El workflow `Preview` ja ha publicat previews
-autoritzades de la PR #140; això no declara completada la fase ni substitueix
-els criteris de tancament i les revisions de cada tasca.
+Completada el 18 d'octubre de 2026. El sistema de previews és operatiu i validat
+al VPS sota `*.preview.mountainrunners.cat`: T6.1 a T6.7 estan fusionades i les
+previews de PR autoritzades funcionen. L'operació és a la
+[secció 13 del runbook](../runbook.md#13-previews-de-pull-request-t63).
 
 ## Objectiu
 
@@ -13,8 +13,8 @@ Esmena del 2 d'octubre de 2026: l'[ADR 0011](../decisions/0011-news-blog-editori
 i l'[especificació de notícies i blog](news-and-blog.md) autoritzen una excepció
 posterior per mostrar esborranys de `posts` en preview, amb estat explícit.
 Les exclusions de contingut despublicat d'aquest document es mantenen per a
-totes les altres col·leccions. La PR #140 implementa aquesta excepció i continua
-pendent de revisió i merge. No canvia la infraestructura ni els requisits de
+totes les altres col·leccions. La PR #140 implementa aquesta excepció i es va
+fusionar el 8 d'octubre de 2026. No canvia la infraestructura ni els requisits de
 confiança de la fase 6.
 
 Decidir i implementar un sistema de previews de pull request aïllat, efímer i
@@ -92,15 +92,15 @@ VPS requereix aprovació explícita de la persona mantenidora.
 
 ## Tasques, Entregues I Seguiment
 
-| Unitat                                       | Estat      | Dependències | Resultat verificable                          | PR      |
-| -------------------------------------------- | ---------- | ------------ | --------------------------------------------- | ------- |
-| T6.1 Requisits, amenaces i alternatives      | Completada | Fase 5       | Comparativa i riscos aprovats                 | PR #113 |
-| T6.2 Decisió de domini, DNS, TLS i proveïdor | Completada | T6.1         | Arquitectura mínima decidida                  | PR #117 |
-| T6.3 Artefacte i publicador de confiança     | Completada | T6.2         | Frontera segura sense executar codi no fiable | PR #121 |
-| T6.4 Cicle de vida, aïllament i neteja       | Pendent    | T6.3         | Orígens efímers creats i retirats             | -       |
-| T6.6 Notificació de preview a la PR          | Pendent    | T6.4         | URL i SHA comunicats després d'activar        | -       |
-| T6.7 Contracte de consulta i escriptura      | En curs    | T6.4         | CLI amb consultes pures i verbs explícits     | PR #136 |
-| T6.5 Validació de previews i operació        | Pendent    | T6.6, T6.7   | Gate i runbook verificats                     | -       |
+| Unitat                                       | Estat      | Dependències | Resultat verificable                          | PR                |
+| -------------------------------------------- | ---------- | ------------ | --------------------------------------------- | ----------------- |
+| T6.1 Requisits, amenaces i alternatives      | Completada | Fase 5       | Comparativa i riscos aprovats                 | PR #113           |
+| T6.2 Decisió de domini, DNS, TLS i proveïdor | Completada | T6.1         | Arquitectura mínima decidida                  | PR #117           |
+| T6.3 Artefacte i publicador de confiança     | Completada | T6.2         | Frontera segura sense executar codi no fiable | PR #121           |
+| T6.4 Cicle de vida, aïllament i neteja       | Completada | T6.3         | Orígens efímers creats i retirats             | #130, #135 i #142 |
+| T6.6 Notificació de preview a la PR          | Completada | T6.4         | URL i SHA comunicats després d'activar        | PR #134           |
+| T6.7 Contracte de consulta i escriptura      | Completada | T6.4         | CLI amb consultes pures i verbs explícits     | PR #136           |
+| T6.5 Validació de previews i operació        | Completada | T6.6, T6.7   | Gate i runbook verificats                     | PR #162           |
 
 ### T6.1: Requisits, Amenaces I Alternatives
 

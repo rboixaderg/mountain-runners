@@ -73,7 +73,7 @@ La direcció acceptada per a la fase 5 és servir-la amb Caddy des d'un VPS mode
 de Hetzner, mantenint inicialment Hostinger com a DNS autoritatiu. Les previews
 segueixen els ADR 0009 i 0010: artefacte i namespace separats, origen per PR,
 caducitat i publicació autoritzada. L'excepció editorial de l'ADR 0011 no canvia
-aquesta frontera de confiança ni declara completada tota la fase 6.
+aquesta frontera de confiança.
 
 La versió inicial no té base de dades, CMS, comptes d'usuari ni backend
 d'aplicació renderitzat al servidor.
