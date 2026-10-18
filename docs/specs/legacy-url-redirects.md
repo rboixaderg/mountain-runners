@@ -2,7 +2,8 @@
 
 ## Estat
 
-En curs.
+Completada el 17 d'octubre de 2026. El mapa de redireccions és al Caddyfile de
+producció i `verify-site` comprova sempre les redireccions.
 
 ## Objectiu
 
@@ -55,9 +56,9 @@ catalana.
 
 ## Tasques, Entregues I Seguiment
 
-| Tasca | Estat   | PR  |
-| ----- | ------- | --- |
-| T1    | En curs | —   |
+| Tasca | Estat      | PR          |
+| ----- | ---------- | ----------- |
+| T1    | Completada | #159 i #160 |
 
 ### T1: Redireccions De Llegat I Verificació
 
@@ -74,7 +75,8 @@ mantenidora.
 indicada i una ruta desconeguda continua responent 404.
 
 **Comprovacions mínimes:** `pnpm test:server` i el `caddyfile.test.mjs`
-actualitzat; després d'aplicar el canvi, `verify-site` contra el host.
+actualitzat; després d'aplicar el canvi, `verify-site` contra el host, que
+comprova sempre les redireccions.
 
 ## Mapa De Redireccions
 
@@ -183,5 +185,5 @@ també els detalls catalans, com `/escoles/escola-btt/`,
   sondes tècniques i les rutes sense prefix d'idioma hi són incloses.
 - Una ruta desconeguda fora de tots els prefixos continua responent 404.
 - `pnpm test:server` passa amb les proves noves.
-- El runbook descriu com aplicar el canvi, i la verificació del host queda
-  enllestida per executar-se després.
+- El runbook descriu com aplicar el canvi i `verify-site` comprova les
+  redireccions del host.

@@ -2,7 +2,8 @@
 
 ## Estat
 
-En curs.
+Completada el 4 d'octubre de 2026. T1, T2 i T3 estan fusionades i l'analítica
+respectuosa amb la privacitat és operativa a producció.
 
 ## Objectiu
 
@@ -54,11 +55,11 @@ la CSP anterior i les pàgines continuen funcionant.
 
 ## Tasques, Entregues I Seguiment
 
-| Tasca | Estat     | Resultat                                                                                         | Enllaç                                                           |
-| ----- | --------- | ------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------- |
-| T1    | En curs   | Script al layout, CSP, textos legals, ADR 0007 i comprovacions que l'analítica no trenqui la web |                                                                  |
-| T2    | Fusionada | Esdeveniments d'acció personalitzats, temps actiu (engaged time) i profunditat de scroll         | [PR #96](https://github.com/rboixaderg/mountain-runners/pull/96) |
-| T3    | En curs   | L'analítica no s'executa ni rep esdeveniments des de cap preview de pull request                 |
+| Tasca | Estat      | Resultat                                                                                         | Enllaç                                                             |
+| ----- | ---------- | ------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------ |
+| T1    | Completada | Script al layout, CSP, textos legals, ADR 0007 i comprovacions que l'analítica no trenqui la web | [PR #90](https://github.com/rboixaderg/mountain-runners/pull/90)   |
+| T2    | Completada | Esdeveniments d'acció personalitzats, temps actiu (engaged time) i profunditat de scroll         | [PR #96](https://github.com/rboixaderg/mountain-runners/pull/96)   |
+| T3    | Completada | L'analítica no s'executa ni rep esdeveniments des de cap preview de pull request                 | [PR #141](https://github.com/rboixaderg/mountain-runners/pull/141) |
 
 ### T1. Integrar Plausible A La Web Pública
 
