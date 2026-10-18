@@ -1,0 +1,19 @@
+docs/roadmap.md
+  s_b05af71d7fb266::t_f32af90357d6a0 60-61,393-395
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "87da5f6e8b666a27645bae31c307a613d5f62534",
+  "prompts": {},
+  "sessions": {
+    "s_b05af71d7fb266": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a1505a-b06f-751e-a049-af112024a71a",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
