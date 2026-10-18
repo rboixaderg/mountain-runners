@@ -1,0 +1,23 @@
+docs/backlog.md
+  s_c939e44ae47251::t_70dce1c458e247 177-178,211,241-242,260-261,383-384,386,416-491
+docs/specs/legacy-url-redirects.md
+  s_c939e44ae47251::t_ba185cd3dc8cea 5-6,59-61,78-79,188-189
+docs/specs/plausible-analytics.md
+  s_c939e44ae47251::t_56dd344b7f937d 5-6,58-62
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "84e6e1c95fb26b503aa4f7deb5a66c8176b9dbf7",
+  "prompts": {},
+  "sessions": {
+    "s_c939e44ae47251": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_eb1c3e26fffeLMwL0Z10OrIYMJ",
+        "model": "unknown"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
