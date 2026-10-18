@@ -31,6 +31,12 @@ La revisió del mateix dia incorpora aquestes decisions:
   repositori, per a les accions del pont. La persona mantenidora revisa i
   aprova les seves pull requests.
 
+La revisió de funcionament confirma Telegram amb temes de fòrum, un tema per
+tasca creat pel bot, i tasques compartides entre totes les persones
+autoritzades. Les tasques poden executar-se en paral·lel, amb un límit global
+configurable i cua. La retenció de converses i sessions queda pendent de
+l'avaluació de l'eina a T8.2, sense fixar ara cap termini.
+
 Aquesta especificació encara no autoritza cap implementació: cap unitat passa a
 `En curs` fins que la PR de l'especificació es revisi i fusioni.
 
@@ -50,8 +56,9 @@ revocació immediata de l'accés.
   branca, editar contingut autoritzat, obrir una pull request i retornar una
   preview. Mai fusionar, desplegar, publicar ni accedir a secrets
   ([ADR 0003](../decisions/0003-agent-workflow-and-security.md)).
-- Canal: supergrup privat de Telegram amb el bot com a membre. La pertinença al
-  grup no és autorització: les identitats s'autoritzen amb una llista explícita
+- Canal: supergrup privat de Telegram amb temes de fòrum activats i el bot
+  com a administrador amb `can_manage_topics`. El bot crea un tema per tasca.
+  La pertinença al grup no és autorització: les identitats s'autoritzen amb una llista explícita
   d'IDs d'usuari de Telegram i la revocació en retira l'accés de manera
   immediata.
 - Delegació: llançar una tasca des del canal és l'acte d'autorització de la
@@ -64,7 +71,8 @@ revocació immediata de l'accés.
   registra el pont i un identificador de tasca a la descripció de la pull
   request, sense IDs de Telegram ni dades personals. Cada missatge de Telegram
   conserva l'autor real a l'auditoria del pont; el compte de GitHub només
-  identifica l'agent.
+  identifica l'agent. Qualsevol persona autoritzada pot continuar o cancel·lar
+  una tasca compartida; cada acció conserva la identitat de qui l'ha demanada.
 - El pont (el procés del host) és l'únic component amb credencials de GitHub i
   l'únic que fa push, obre la pull request i comenta `/preview` amb la clau de
   desplegament d'escriptura del compte dedicat i el seu PAT. El model i les
@@ -107,7 +115,11 @@ revocació immediata de l'accés.
 - Les edicions i les imatges queden restringides als camins autoritzats;
   qualsevol altre camí o ordre es rebutja abans de fer push i amb una explicació.
 - Una CI vermella no activa cap preview; l'assistència comunica el job que falla
-  i pot continuar treballant a la mateixa branca.
+  i intenta com a màxim dues correccions automàtiques dins de l'allowlist.
+- Les tasques compartides es poden continuar i cancel·lar des del seu tema;
+  les instruccions contradictòries requereixen aclariment abans de continuar.
+- Les tasques de temes diferents poden avançar en paral·lel amb worktrees
+  independents, un límit global configurable i cua per a les que el superin.
 - Totes les accions queden registrades amb identitat, tasca, model, branca,
   pull request i resultat, i l'accés d'una identitat es pot revocar de manera
   efectiva.
@@ -158,7 +170,9 @@ compte de Telegram, del pont, del harness, del PAT, de la clau del model i de
 la subscripció; prompt injection des del canal i des del contingut; abús);
 què ha de registrar l'auditoria i qui la consulta; la política d'imatges
 (drets, metadades, límits); i els límits d'ús que la subscripció no cobreix
-(concurrència, tasques per identitat i per dia).
+(límit global de concurrència i cua, tasques per identitat i per dia).
+Concretar la continuació i cancel·lació compartides, els conflictes
+d'instruccions i la revocació sense cancel·lar les tasques ja autoritzades.
 **Exclusió:** no crea el bot, el supergrup ni cap compte o clau. **Depèn de:**
 fases 5 i 6. **Resultat:** requisits observables, alternatives i riscs sense
 decisions implícites. **Comprovació:** revisió de seguretat, privacitat,
@@ -177,25 +191,26 @@ credencial pugui fusionar), ubicació de la llista d'identitats i del registre
 d'auditoria, i el model triat amb una avaluació reproduïble. Escriure l'ADR,
 com a mínim, per a la delegació d'edició i per a la petició de preview amb la
 identitat de l'agent, i actualitzar `docs/ai-assistant.md` amb el flux de
-delegació i el gate de CI.
+delegació i el gate de CI. Avaluar la retenció de converses, sessions i
+registre segons les capacitats reals de l'eina, sense pressupostar cap
+termini ni conservació indefinida; registrar la decisió o els punts pendents.
 **Exclusió:** no implementa el pont ni el perfil de pi ni crea credencials.
 **Depèn de:** T8.1. **Resultat:** decisió aprovada, amb cost, privacitat,
 reversió i model justificats, i ADR. **Comprovació:** revisió de permisos mínims
 del PAT i de la clau de desplegament, separació de credencials entre pont i
 harness, proves de rotació i revocació, i cap dependència no justificada. **PR:** pròpia.
 
-T8.2 inclou una avaluació acotada de construir contra reutilitzar, amb prova
-real de les eines candidates que ja cobreixen el transport, les sessions, el
-provider i l'aïllament. El primer candidat és el runtime durador oficial del
-mateix pi, `@earendil-works/pi-durable`, amb el gateway de tercers
+T8.2 inclou una avaluació acotada de construir contra reutilitzar. El candidat
+preferit és `@earendil-works/pi-durable`, amb el gateway de tercers
 `pi-durable-telegram` (`smixs/pi-durable-telegram`, v0.1.x) com a base o bé amb
-un canal propi sobre les seves llibreries exportades: sessions duradores,
-represa després d'una caiguda, una conversa per tasca amb `cwd` propi, guard de
-crides d'eina i progrés observable. El gateway
-fa una conversa per xat; la correspondència tema de Telegram → conversa és una
-extensió petita i localitzada, que es proposa a l'upstream i, si no, es manté
-com un fork mínim. Com que l'API de pi-durable és experimental, la versió es
-fixa i la integració s'aïlla darrere d'un adaptador propi. Els altres candidats són Hermes Agent amb el seu gateway de
+un canal propi sobre les seves llibreries exportades. La prova ha de verificar
+sessions duradores, represa després d'una caiguda, una conversa per tema amb
+`cwd` propi, guard de crides d'eina, progrés observable i concurrència limitada
+amb cua. No es dona per provat que el gateway suporti els temes ni que
+adaptar-lo sigui una extensió petita: T8.2 n'avalua l'esforç i el manteniment
+abans de triar entre contribució upstream, fork o canal propi. Si l'API triada
+és experimental, se'n fixa la versió i s'aïlla darrere d'un adaptador propi.
+Els altres candidats són Hermes Agent amb el seu gateway de
 Telegram, topics per sessió, allowlist d'usuaris i el provider OpenCode Go;
 OpenClaw amb el backend ACP i Pi ACP; i les alternatives pi-natives
 `pi-gateway` i `pi-agent-telegram`. La comparació manté pi com a harness; si cap
@@ -206,6 +221,12 @@ el pin, la llicència, l'abast dels permisos, la configuració de memòria i
 aprenentatge autònom, i les proves de seguretat. La part editorial (worktree,
 guard, format, push, pull request, CI, preview i auditoria) és responsabilitat
 del projecte encara que el transport es reutilitzi.
+
+La prova de credencials ha de demostrar el push a una branca de tasca,
+l'obertura i el tancament d'una pull request, el comentari `/preview` i la
+lectura de la CI amb els permisos previstos, així com el rebuig de la fusió i
+del push directe a `main`. La separació proposada no es considera validada
+només per la descripció dels permisos.
 
 L'avaluació de models és un conjunt fix de tasques representatives (redactar una
 notícia amb fets donats i traduccions completes, actualitzar un camp sense tocar
@@ -219,7 +240,9 @@ registra el resultat.
 
 **Abast:** implementar el pont que escolta el supergrup, verifica la identitat,
 deduplica els missatges i crea una tasca amb sessió i worktree propis des de
-l'últim `main`; el perfil editorial versionat que carrega la guia, les
+l'últim `main`; la creació automàtica del tema, la continuació compartida,
+la serialització d'instruccions per tasca i el límit global amb cua; el perfil
+editorial versionat que carrega la guia, les
 plantilles i les skills; el guard que bloqueja edicions fora de l'allowlist i el
 guard de diff que valida el conjunt del canvi abans de lliurar-lo a T8.4; la
 ingesta d'imatges de Telegram amb validació i eliminació de metadades; la
@@ -237,7 +260,10 @@ l'allowlist bloquejats pel guard i pel diff; `pnpm check` verd. **PR:** pròpia.
 títol de Conventional Commits i descripció en català, esperar la CI, retornar el
 resultat a la conversa i, només amb CI verda, comentar `/preview` amb la
 identitat delegada; després llegir el comentari del publicador de confiança i
-retornar l'URL i el SHA. **Exclusió:** no fusiona, no desplega, no publica i no
+retornar l'URL i el SHA; limitar la reparació automàtica de CI a dos intents;
+actualitzar branques amb canvis concurrents sense sobreescriure intencions
+editorials; i tancar la pull request quan es cancel·la la tasca.
+**Exclusió:** no fusiona, no desplega, no publica i no
 pot autoritzar res més enllà de la delegació rebuda; l'activació de la preview
 continua passant pel publicador de confiança de la fase 6. **Depèn de:** T8.3.
 **Resultat:** la persona autoritzada rep la pull request, el resultat de la CI i
@@ -253,9 +279,11 @@ registre d'auditoria; implementar la consulta de la traça per identitat, tasca 
 període; netejar worktrees i adjunts en tancar la tasca; la revocació
 d'identitats (retirada de la llista, del supergrup i, si escau, del PAT i de la
 clau de desplegament) com a efectiva i immediata; i l'aturada d'emergència del
-servei i del bot. **Exclusió:** el registre només desa metadades i el text de
-la tasca truncat, i no esborra les sessions duradores de pi; no amplia la llista
-d'identitats des del canal. **Depèn de:** T8.3. **Resultat:** traça completa de
+servei i del bot; registrar l'autor de cada acció i distingir revocació
+d'identitat de cancel·lació de tasca. Aplicar les mesures de retenció que
+s'aprovin després de l'avaluació de T8.2. **Exclusió:** el registre només desa
+metadades i el text de la tasca truncat; no fixa unilateralment la retenció ni
+amplia la llista d'identitats des del canal. **Depèn de:** T8.3. **Resultat:** traça completa de
 l'activitat i revocació i aturada provades en directe. **Comprovació:** prova de
 revocació i aturada en temps real, revisió de minimització del registre i
 neteja de worktrees. **PR:** pròpia.
@@ -277,31 +305,44 @@ canvi i revisió de seguretat final. **PR:** pròpia i darrera de la fase.
 
 ### Canal, Identitats I Delegació
 
-- Supergrup privat de Telegram, d'invitació, amb el bot com a membre i el
-  privacy mode desactivat. El pont fa long polling: no exposa cap port, webhook
-  ni domini nou.
+- Supergrup privat de Telegram, d'invitació, amb temes de fòrum activats i el
+  privacy mode del bot desactivat. El pont fa long polling: no exposa cap port,
+  webhook ni domini nou.
 - Només es processen els missatges adreçats al bot de manera explícita
   (resposta, menció o una ordre de tasca). La resta de missatges del grup
   s'ignoren sense enviar-se al model ni al registre.
 - No hi ha cap confirmació intermèdia: llançar la tasca és l'autorització;
   l'agent treballa i obre la pull request directament.
-- Si el bot ha de crear els temes, és administrador del grup amb
-  `can_manage_topics`; si no, els crea una persona autoritzada.
+- El bot és administrador amb `can_manage_topics` i crea automàticament un
+  tema quan una persona autoritzada li demana una tasca nova. Comunica l'enllaç
+  al tema i hi continua la conversa. La creació d'un tema per si sola no
+  autoritza cap tasca.
 - Autorització per llista explícita d'IDs d'usuari de Telegram. La pertinença al
   grup no autoritza cap acció.
-- Cada tasca registra la identitat delegant. Les respostes posteriors sobre la
-  mateixa tasca continuen la mateixa sessió, branca i pull request.
-- Cada tasca té un fil propi al supergrup: un tema del fòrum o una cadena de
-  respostes. Un tema nou crea una tasca nova; una resposta dins del tema
-  continua la mateixa tasca. El pont persisteix la correspondència entre el fil
-  de Telegram, la tasca, la conversa duradora de pi, la branca i la pull
-  request, i la recupera després d'un reinici. Cada conversa té el seu propi
-  worktree, branca, toolset i guard.
-- Límit per identitat: una tasca activa alhora i un nombre màxim diari, encara
-  que la subscripció no facturi per petició. Tasques de temes diferents poden
-  córrer en paral·lel; els missatges d'una mateixa conversa se serialitzen.
+- Cada tasca registra la identitat delegant i l'autor de cada acció posterior.
+  Qualsevol persona autoritzada pot continuar-la o cancel·lar-la, encara que no
+  l'hagi iniciada. Les instruccions posteriors continuen la mateixa sessió,
+  branca i pull request.
+- Cada tasca té un tema propi al supergrup. El pont persisteix la
+  correspondència entre `chat_id`, `message_thread_id`, tasca, conversa duradora
+  de pi, branca i pull request, i la recupera després d'un reinici. Cada
+  conversa té el seu propi worktree, branca, toolset i guard. No es fan servir
+  cadenes de respostes com a alternativa als temes.
+- Les instruccions d'una mateixa tasca es processen en ordre. Si es
+  contradiuen, l'agent pausa l'acció afectada i demana aclariment al tema; no
+  prioritza automàticament l'últim missatge.
+- Tasques de temes diferents poden executar-se en paral·lel. Hi ha un límit
+  global configurable d'execucions simultànies i una cua per a les que el
+  superin. T8.1 concreta el valor inicial i els límits per identitat i per dia,
+  sense tractar la tasca compartida com a propietat exclusiva de qui l'inicia.
+- Cancel·lar una tasca atura l'agent i impedeix noves accions d'aquella tasca.
+  Si té una pull request oberta, el pont la tanca sense fusionar i hi conserva
+  el motiu i la traça del treball fet. Els reintents del pont no poden reobrir
+  ni continuar automàticament una tasca cancel·lada.
 - Revocació: retirar una identitat de la llista i del supergrup impedeix de
-  manera immediata qualsevol acció posterior. Si hi ha compromís, també es
+  manera immediata noves instruccions d'aquella persona. No cancel·la les
+  tasques ja autoritzades ni n'atura l'execució: les altres persones
+  autoritzades les poden continuar o cancel·lar. Si hi ha compromís, també es
   revoquen el token del bot i les credencials de GitHub.
 - Cap canal alternatiu (Discord, correu, webhook genèric) en aquesta fase.
 
@@ -344,8 +385,9 @@ canvi i revisió de seguretat final. **PR:** pròpia i darrera de la fase.
   portada.
 - Es validen extensió, tipus real, mida màxima d'entrada i dimensions, i es
   reescriuen sense EXIF ni geolocalització abans d'entrar al worktree.
-- Es comprova el pes de les variants generades contra el pressupost de 300 KiB
-  per imatge abans de donar la tasca per completa.
+- La CI comprova el pes de les variants generades pel build contra el
+  pressupost de 300 KiB per imatge. El pont no dona la tasca per completa ni
+  demana preview si aquesta comprovació falla; el harness no genera variants.
 - La persona que envia la imatge n'afirma els drets. La pull request registra
   l'origen i la data; els consentiments es conserven fora del repositori.
 - No s'accepten captures amb dades personals, bancàries o identificadors sense
@@ -368,8 +410,8 @@ canvi i revisió de seguretat final. **PR:** pròpia i darrera de la fase.
   configuració fixa la confiança del projecte perquè les skills versionades es
   carreguin sense cap prompt interactiu.
 - El pont manté una conversa duradora per tasca i tradueix el seu progrés a
-  missatges curts. Si la base és el CLI de pi, cada missatge reprèn la mateixa
-  sessió (`--session-id`) amb un directori de sessions propi. Les preguntes de
+  missatges curts. T8.2 verifica el mecanisme de represa de sessions del
+  runtime triat i el seu directori de sessions propi. Les preguntes de
   l'agent són text final; la resposta de la persona reprèn la mateixa conversa.
 - El harness té una allowlist d'eines i un guard que bloqueja `edit` i `write`
   fora de l'allowlist. El perfil no habilita `bash`, MCP ni eines de xarxa:
@@ -382,10 +424,11 @@ canvi i revisió de seguretat final. **PR:** pròpia i darrera de la fase.
 - El model i el runtime es fixen a les versions que superin l'avaluació i es
   documenten al runbook. El harness no necessita `pnpm` ni les dependències de
   la web: la CI és qui valida.
-- Del runtime durador no cal implementar res: aporta les converses, la represa,
-  el `cwd` per conversa, els hooks d'eines, el progrés i el graf de tasques. El
-  projecte implementa el canal amb topics (fork del gateway o canal propi), el
-  perfil i el guard editorials, el publicador durador, la ingesta d'imatges
+- Es reutilitzen les capacitats del runtime que T8.2 hagi verificat. Les
+  converses, la represa, el `cwd` per conversa, els hooks d'eines i el progrés
+  són requisits a provar, no garanties atribuïdes anticipadament a una eina.
+  El projecte cobreix les mancances aprovades i implementa la integració amb
+  temes, el perfil i el guard editorials, el publicador, la ingesta d'imatges
   validada i l'auditoria.
 
 ### Pull Requests, CI I Previews
@@ -400,8 +443,17 @@ canvi i revisió de seguretat final. **PR:** pròpia i darrera de la fase.
   guard de diff, perquè la CI no falli només per format.
 - El push es fa només després que el guard de diff accepti el canvi. La pull
   request s'obre tot seguit i la CI n'és el gate.
-- Si la CI falla, el pont comunica el job i el motiu, no demana cap preview i
-  permet continuar a la mateixa branca.
+- Si la CI falla, el pont comunica el job i el motiu i no demana cap preview.
+  L'agent pot fer com a màxim dos intents automàtics de correcció per cicle de
+  validació d'una petició humana, sempre dins de l'allowlist i a la mateixa
+  branca. Si encara falla o cal tocar codi, atura la reparació automàtica i
+  explica el bloqueig al tema. Una nova fallada de CI per si sola no reinicia
+  el comptador; una nova instrucció humana pot iniciar un altre cicle.
+- Si la fusió d'una altra tasca deixa la branca desactualitzada o amb
+  conflictes, es pot actualitzar automàticament quan es preservin tots dos
+  canvis dins de l'allowlist. Si hi ha contradicció o cal una decisió editorial,
+  es demana aclariment al tema abans de continuar. Qualsevol actualització
+  passa de nou pel guard i per la CI abans de demanar preview.
 - Amb CI verda, el pont comenta exactament `/preview` amb la identitat delegada
   i espera el comentari idempotent del publicador de confiança. Retorna l'URL i
   el SHA d'aquell comentari; mai construeix l'URL.
@@ -414,13 +466,16 @@ canvi i revisió de seguretat final. **PR:** pròpia i darrera de la fase.
 
 - Cada tasca registra identitat delegant, ordre, model, sessió, branca, commits,
   pull request, resultat de la CI, URL i SHA de la preview, resultat i moment.
+  Cada continuació o cancel·lació registra també qui l'ha demanada; el compte
+  compartit de GitHub no substitueix aquesta atribució.
 - El registre guarda només metadades (identitat, model, branca, pull request,
   CI, preview i moment) i el text de la tasca truncat; mai la conversa completa.
   L'accés i la consulta es fixen a T8.1.
-- Les sessions duradores de pi es conserven: és el disseny de pi-durable i no
-  ofereix cap API d'esborrat. La política d'esborrat o caducitat queda fora
-  d'aquesta fase i es registra com a decisió pendent, amb les opcions conegudes
-  (API d'upstream, poda SQL o rotació de fitxers).
+- El termini de retenció i el mecanisme d'esborrat de converses, sessions i
+  registre queden pendents de T8.2, segons l'eina escollida. L'avaluació
+  documenta què es desa, on, qui hi accedeix i quines opcions reals hi ha per
+  eliminar-ho. No s'aprova ara cap termini ni una conservació indefinida;
+  qualsevol limitació o decisió ajornada queda explícita a l'ADR.
 - Els worktrees i els adjunts es netegen en tancar la tasca per higiene
   operativa. Es recomana activar l'auto-esborrat de missatges al supergrup per
   limitar la còpia de Telegram.
@@ -442,8 +497,20 @@ canvi i revisió de seguretat final. **PR:** pròpia i darrera de la fase.
 - Proves d'integració amb un repositori temporal, un Telegram simulat i un
   GitHub simulat: missatge → tasca → branca → edició → guard → push → pull
   request → CI verda → preview. Cap prova depèn de la xarxa real.
-- Proves de fil: un tema nou crea una tasca, una resposta el reprèn, un
-  reinici conserva la correspondència i un update duplicat no crea res.
+- Proves de temes: una petició autoritzada crea una tasca i un tema, una
+  instrucció adreçada al bot dins del tema la reprèn, un reinici conserva la
+  correspondència i un update duplicat no crea res. Crear un tema sense
+  petició autoritzada no inicia cap tasca.
+- Proves de col·laboració: una altra persona autoritzada continua o cancel·la
+  la tasca amb atribució pròpia; instruccions contradictòries demanen
+  aclariment; revocar qui l'ha iniciada bloqueja les seves noves instruccions
+  però no atura la tasca ni impedeix continuar-la a les altres persones.
+- Proves de concurrència i cancel·lació: worktrees independents, instruccions
+  serialitzades per tasca, límit global i cua, aturada de la tasca cancel·lada
+  i tancament de la seva PR sense reobertura per reintents.
+- Proves de recuperació: màxim de dos intents automàtics davant CI vermella,
+  cap edició de codi per reparar-la, actualització de branques preservant els
+  canvis concurrents i aclariment davant conflictes editorials.
 - Casos negatius: identitat desconeguda o revocada, missatge duplicat, camí
   prohibit, YAML invàlid, imatge no permesa, CI vermella sense preview, PAT
   caducat, GitHub no disponible, harness aturat i dues tasques simultànies.
@@ -481,8 +548,8 @@ canvi i revisió de seguretat final. **PR:** pròpia i darrera de la fase.
 - Les imatges s'envien sense EXIF ni geolocalització i sense dades personals o
   financeres visibles.
 - El registre d'auditoria és minimitzat i no conserva el contingut íntegre dels
-  missatges. Les sessions duradores de pi es conserven tal com les desa el
-  runtime.
+  missatges. La retenció de sessions s'avalua amb l'eina a T8.2; no es confon
+  la minimització del registre amb la del contingut de les sessions.
 - La rotació de credencials, la revocació d'identitats i l'aturada d'emergència
   queden provades i documentades al runbook.
 
@@ -507,8 +574,9 @@ canvi i revisió de seguretat final. **PR:** pròpia i darrera de la fase.
 - Pressupostos, facturació o límits per token: la subscripció OpenCode Go és el
   límit econòmic. Els límits de concurrència i d'ús per identitat es mantenen
   per evitar abús operatiu.
-- La política d'esborrat o caducitat de les sessions duradores de pi i del
-  registre d'auditoria. Les sessions es conserven tal com les desa el runtime.
+- Fixar anticipadament un termini o mecanisme de retenció sense haver avaluat
+  l'eina. T8.2 recull les capacitats, limitacions i decisions pendents; aquesta
+  especificació no imposa ara un sistema propi d'esborrat de sessions.
 
 ## Criteris D'Acceptació
 
@@ -516,14 +584,23 @@ La fase es considera completada quan:
 
 1. Les sis unitats tenen PR pròpia revisada, validada i fusionada en ordre de
    dependències.
-2. Només les identitats autoritzades poden llançar tasques; la revocació d'una
-   identitat és efectiva de manera immediata i provada en directe.
+2. Només les identitats autoritzades poden llançar, continuar o cancel·lar
+   tasques compartides. Cada tasca té un tema creat pel bot. Revocar una
+   identitat bloqueja immediatament les seves noves instruccions sense aturar
+   les tasques ja autoritzades. La col·laboració, els aclariments davant
+   contradiccions, el límit global amb cua i la cancel·lació amb tancament de
+   PR queden provats.
 3. Cap edició ni cap imatge fora de l'allowlist es materialitza: el guard, el
    diff i la CI la rebutgen, i el servei ho explica a la conversa.
-4. Una CI vermella no activa cap preview, i la causa es comunica a la conversa;
-   la mateixa tasca pot continuar a la mateixa branca.
+4. Una CI vermella no activa cap preview. Hi ha com a màxim dos intents
+   automàtics de correcció dins de l'allowlist per cicle de petició humana;
+   després s'explica el bloqueig. La mateixa tasca pot continuar a la mateixa
+   branca. Les actualitzacions per canvis concurrents preserven tots dos
+   canvis o demanen aclariment, i tornen a passar guard i CI.
 5. Cada tasca queda registrada amb identitat, model, branca, pull request,
-   resultat de la CI i preview, i la traça es pot consultar.
+   resultat de la CI i preview, i la traça es pot consultar amb l'autor de
+   cada acció. T8.2 documenta les capacitats de retenció de l'eina i la decisió
+   o els punts que continuïn pendents.
 6. El model i les seves eines no tenen cap credencial de GitHub; el pont no
    exposa cap operació de fusió, desplegament ni accés a secrets de producció.
    Cap credencial del pont no pot fusionar, i la protecció de branca ho

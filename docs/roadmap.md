@@ -57,8 +57,8 @@ constructor genèric de pàgines sense una necessitat editorial concreta.
 | 1. Base executable i qualitat                | Completada  | Astro, validacions, CI, multiidioma i models de contingut |
 | 2. Vertical slice públic                     | Completada  | Shell global, inici i esdeveniments funcionals            |
 | 3. Cobertura de contingut                    | Completada  | Resta de pàgines i plantilles de la web                   |
-| 4. Validació integral de disseny i contingut | Completada  | Revisió pàgina a pàgina i traducció a es/en              |
-| 5. Publicació a producció i operació         | Completada | Desplegament continu segur sobre Hetzner                  |
+| 4. Validació integral de disseny i contingut | Completada  | Revisió pàgina a pàgina i traducció a es/en               |
+| 5. Publicació a producció i operació         | Completada  | Desplegament continu segur sobre Hetzner                  |
 | 6. Previews de PR i estratègia DNS/edge      | Completada  | Previews aïllades i decisió informada sobre Cloudflare    |
 | 7. Xat públic                                | Planificada | Consultes de només lectura sobre contingut publicat       |
 | 8. Assistència editorial                     | Planificada | Edició privada, auditada i basada en pull requests        |
@@ -390,5 +390,6 @@ humana ni el flux de Git.
   els textos de privacitat.
 - Tractament de privacitat dels vídeos de YouTube abans del primer desplegament.
 - Política de conservació de logs i límits d'ús del futur xat públic.
-- Política d'esborrat o caducitat de les sessions duradores de l'assistència
-  editorial i del seu registre d'auditoria.
+- Retenció i esborrat de converses, sessions i registre de l'assistència
+  editorial: T8.2 n'avalua les capacitats segons l'eina triada i registra la
+  decisió o els punts pendents, sense fixar ara cap termini.
