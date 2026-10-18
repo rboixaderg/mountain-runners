@@ -321,9 +321,10 @@ servidor ni quins crawlers s'hi identifiquen.
 
 **Resultat esperat:** conservar el registre individual minimitzat durant set
 dies, classificar transitòriament el `User-Agent` sense desar-lo i generar resums
-agregats de totes les peticions rebudes. Els resums no contenen IP ni
-identificadors, treuen les dimensions dels recomptes escassos i es conserven
-sense termini màxim.
+agregats persistents de les peticions rebudes. La consulta permet comparar les
+peticions a pàgines amb els pageviews de Plausible, mantenint les fonts separades.
+Els resums no contenen IP ni identificadors, treuen les dimensions dels recomptes
+escassos i es conserven sense termini màxim.
 
 **Dependències:** Caddy i la rotació diària existents, revisió de seguretat i
 privacitat i activació remota supervisada.
