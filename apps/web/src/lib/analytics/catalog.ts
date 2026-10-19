@@ -20,6 +20,7 @@ export const analyticsAreas = {
   legalContact: "legal_contact",
   membersAction: "members_action",
   membersCollaborators: "members_collaborators",
+  membersTraining: "members_training",
   newsHub: "news_hub",
   postNavigation: "post_navigation",
   postResources: "post_resources",
@@ -56,6 +57,7 @@ export const analyticsActions = {
   schoolPress: "school_press",
   schoolRegistration: "school_registration",
   socialLink: "social_link",
+  trainingReservation: "training_reservation",
   collaboratorWebsite: "collaborator_website",
 } as const;
 

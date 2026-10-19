@@ -58,6 +58,7 @@ export type PublishedSite = {
     { event: Event; href: string; nextEdition: EventEdition | undefined }[]
   >;
   federationUrl: string | undefined;
+  functionalTrainingUrl: string | undefined;
   homepageEvents: {
     edition: EventEdition | undefined;
     event: Event;
@@ -187,6 +188,9 @@ export async function loadPublishedSite(
       ?.url?.[locale],
     federationUrl: catalog.externalActions.get(externalActionIds.federation)
       ?.url?.[locale],
+    functionalTrainingUrl: catalog.externalActions.get(
+      externalActionIds.functionalTraining,
+    )?.url?.[locale],
     calendarDays: calendarGrid.weeks
       .flat()
       .filter((day) => day.events.length > 0)

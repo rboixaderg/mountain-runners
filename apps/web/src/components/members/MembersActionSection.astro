@@ -10,7 +10,7 @@ import { analyticsActions, analyticsAreas } from "../../lib/analytics/catalog";
 interface Props {
   action: ExternalAction | undefined;
   actionLabelKey: "members_federation_action" | "members_signup_action";
-  introKey?: "members_signup_intro";
+  introKey?: "members_federation_intro" | "members_signup_intro";
   locale: Locale;
   sectionId: string;
   titleKey: "members_federation_title" | "members_signup_title";
