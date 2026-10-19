@@ -1,0 +1,16 @@
+apps/web/src/content/events/cros-de-queralt.yaml
+  h_1727aeeb492b30 107
+apps/web/src/content/events/llobregat-x-la-diabetis.yaml
+  h_1727aeeb492b30 112
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "23dbe50424af4133cbb7435a826dc9a756ebfef3",
+  "prompts": {},
+  "humans": {
+    "h_1727aeeb492b30": {
+      "author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
