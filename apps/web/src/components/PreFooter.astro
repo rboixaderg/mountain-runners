@@ -79,8 +79,9 @@ const sponsorItems = await Promise.all(
   <div class="page-frame py-section grid gap-8 md:grid-cols-2 md:items-center md:gap-12">
     <div class="site-prefooter__questions min-w-0 pl-4 md:pl-5">
       <h2
-        class="text-red font-display tracking-display m-0 mb-4 leading-tight uppercase"
+        class="text-red font-display tracking-display m-0 mb-4 scroll-mt-40 leading-tight uppercase"
         id="site-prefooter-title"
+        tabindex="-1"
       >
         {messages.prefooter_questions_title({}, { locale })}
       </h2>

@@ -253,12 +253,13 @@ export const documentSchema = z.strictObject({
 export const statutesDocumentId = "estatuts";
 
 // Stable fixed identifiers of the external actions the fixed pages reference
-// (membership sign-up, federation and newsletter). The Members page renders
-// the sign-up and federation actions; the newsletter action belongs to the
-// Contact page.
+// (membership sign-up, federation, functional-training reservation and
+// newsletter). The Members page renders the sign-up, federation and functional
+// training actions; the newsletter action belongs to the Contact page.
 export const externalActionIds = {
   memberSignup: "member-signup",
   federation: "federation",
+  functionalTraining: "functional-training",
   newsletter: "newsletter",
 } as const;
 
@@ -283,6 +284,7 @@ export const externalActionSchema = z
     published: z.boolean(),
     status: externalActionStatusSchema,
     url: localizedHttpsUrlSchema.optional(),
+    sessionPriceEuros: z.number().positive().multipleOf(0.01).optional(),
   })
   .refine(
     ({ status, url }) => (status === "available") === (url !== undefined),
@@ -290,6 +292,15 @@ export const externalActionSchema = z
       error:
         "An available external action requires a URL and an unavailable one must not carry one",
       path: ["url"],
+    },
+  )
+  .refine(
+    ({ id, sessionPriceEuros }) =>
+      id !== externalActionIds.functionalTraining ||
+      sessionPriceEuros !== undefined,
+    {
+      error: "Functional training requires a session price in euros",
+      path: ["sessionPriceEuros"],
     },
   );
 

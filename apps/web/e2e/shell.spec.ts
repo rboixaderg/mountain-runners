@@ -193,6 +193,9 @@ test("offers the homepage actions with their reviewed destinations", async ({
       exact: true,
     }),
   ).toHaveAttribute("href", site.membersPath);
+  await expect(page.getByRole("main")).toContainText(
+    "Serveis i activitats del club a disposició de les persones sòcies",
+  );
   await expect(
     page.getByRole("main").getByRole("link", { name: "Veure tot l'any" }),
   ).toHaveAttribute("href", "/ca/esdeveniments/");
@@ -911,6 +914,7 @@ test("renders the Members page sections in editorial order", async ({
     "Socis",
     "Alta de socis",
     "Federació",
+    "Serveis per a socis i sòcies",
     "Avantatges per a socis i sòcies",
     "Col·laboradors",
   ]);
@@ -922,6 +926,30 @@ test("renders the Members page sections in editorial order", async ({
   const federationLink = page.getByRole("link", { name: /Federa't/u });
   await expect(federationLink).toHaveCount(1);
   await expect(federationLink).toHaveAttribute("href", site.federationUrl!);
+  const federationRegion = page.getByRole("region", { name: "Federació" });
+  await expect(federationRegion).toContainText(
+    "El club tramita la federació de les persones sòcies",
+  );
+
+  const servicesRegion = page.getByRole("region", {
+    name: "Serveis per a socis i sòcies",
+  });
+  await expect(
+    servicesRegion.getByRole("heading", {
+      level: 3,
+      name: "Entrenaments funcionals",
+    }),
+  ).toBeVisible();
+  await expect(servicesRegion).toContainText(site.catalog.contact!.address.ca!);
+  await expect(servicesRegion).toContainText("10 € per sessió");
+  const trainingLink = page.getByRole("link", {
+    name: /Consulta les sessions i reserva a Playoff/u,
+  });
+  await expect(trainingLink).toHaveCount(1);
+  await expect(trainingLink).toHaveAttribute(
+    "href",
+    site.functionalTrainingUrl!,
+  );
 
   const collaboratorsRegion = page.getByRole("region", {
     name: "Col·laboradors",
@@ -960,6 +988,30 @@ test("renders the Members page sections in editorial order", async ({
   await expect(
     page.locator('main a[aria-disabled="true"], main button[disabled]'),
   ).toHaveCount(0);
+  const contactLink = servicesRegion.getByRole("link", {
+    name: "Més informació i contacte",
+    exact: true,
+  });
+  await expect(
+    page.getByRole("main").getByRole("link", {
+      name: "Més informació i contacte",
+      exact: true,
+    }),
+  ).toHaveCount(1);
+  await contactLink.click();
+  await expect(page).toHaveURL("/ca/socis/#site-prefooter-title");
+  const contactHeading = page.getByRole("heading", {
+    level: 2,
+    name: "Tens dubtes?",
+    exact: true,
+  });
+  await expect(contactHeading).toBeFocused();
+  await expect(contactHeading).toBeInViewport();
+  const headerBounds = await page.getByRole("banner").boundingBox();
+  const contactBounds = await contactHeading.boundingBox();
+  expect(contactBounds!.y).toBeGreaterThanOrEqual(
+    headerBounds!.y + headerBounds!.height,
+  );
 });
 
 test("renders the schools hub in editorial order with links to details", async ({
@@ -1220,7 +1272,7 @@ test("reaches and activates the available actions with the keyboard", async ({
   await expect(page).toHaveURL("/ca/esdeveniments/ultra-pirineu/");
 
   // The available members actions stay on the focus order with their
-  // reviewed hrefs, so the keyboard can reach both of them.
+  // reviewed hrefs, so the keyboard can reach all of them.
   await page.goto("/ca/socis/");
   const signupLink = page.getByRole("link", { name: /Fes-te soci o sòcia/u });
   await tabUntilFocused(page, signupLink);
@@ -1228,6 +1280,32 @@ test("reaches and activates the available actions with the keyboard", async ({
   const federationLink = page.getByRole("link", { name: /Federa't/u });
   await tabUntilFocused(page, federationLink);
   await expect(federationLink).toHaveAttribute("href", site.federationUrl!);
+  const trainingLink = page.getByRole("link", {
+    name: /Consulta les sessions i reserva a Playoff/u,
+  });
+  await tabUntilFocused(page, trainingLink);
+  await expect(trainingLink).toHaveAttribute(
+    "href",
+    site.functionalTrainingUrl!,
+  );
+  const trainingContactLink = page.getByRole("link", {
+    name: "Més informació i contacte",
+    exact: true,
+  });
+  await tabUntilFocused(page, trainingContactLink);
+  await page.keyboard.press("Enter");
+  await expect(page).toHaveURL("/ca/socis/#site-prefooter-title");
+  await expect(
+    page.getByRole("heading", {
+      level: 2,
+      name: "Tens dubtes?",
+      exact: true,
+    }),
+  ).toBeFocused();
+  await page.keyboard.press("Tab");
+  await expect(
+    page.getByRole("link", { name: "info@mountainrunners.cat", exact: true }),
+  ).toBeFocused();
 });
 
 test("renders the useful Catalan 404 document", async ({
@@ -1480,9 +1558,7 @@ test("publishes documents and legal routes from the footer", async ({
   await expect(
     prefooter.getByRole("link", { name: "+34691910774" }),
   ).toHaveAttribute("href", "tel:+34691910774");
-  await expect(prefooter).toContainText(
-    "De dilluns a divendres, de 18 h a 20 h",
-  );
+  await expect(prefooter).toContainText(site.catalog.contact!.hours.ca!);
   await expect(prefooter).toContainText(
     "Plaça Sant Joan, 15 baixos, 08600 Berga",
   );
