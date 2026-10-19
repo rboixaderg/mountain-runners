@@ -12,6 +12,14 @@ import { resolve } from "node:path";
 import { expect, test } from "@playwright/test";
 import type { Locale } from "../src/lib/content/primitives";
 import {
+  getMostRelevantEdition,
+  getRegistrationUrl,
+} from "../src/lib/content/events";
+import { getVariantPath } from "../src/lib/content/routes";
+import { getRegistrationPresentation } from "../src/lib/presentation/status";
+import * as messages from "../src/paraglide/messages.js";
+import {
+  buildToday,
   loadPublicationCatalog,
   loadPublishedPostVariants,
 } from "../src/test/support/publication-catalog";
@@ -180,14 +188,45 @@ test("matrix state: active event without a next edition keeps closed registratio
   ).toHaveCount(1);
 });
 
-test("matrix state: event registration open", async ({ page }) => {
-  await page.goto("/ca/esdeveniments/llobregat-x-la-diabetis/");
-  await expect(
-    page.getByText("Inscripció oberta", { exact: true }),
-  ).toBeVisible();
-  await expect(
-    page.getByRole("link", { name: "Inscriu-t'hi" }),
-  ).toHaveAttribute("href", "https://llobregat.org/inscripcio");
+test("matrix state: event registration follows the published edition", async ({
+  page,
+}) => {
+  const catalog = await loadPublicationCatalog();
+  const today = buildToday();
+
+  for (const variant of catalog.variants) {
+    if (variant.kind !== "event" || variant.locale !== "ca") continue;
+
+    const edition = getMostRelevantEdition(variant.entry, today);
+    const registration = getRegistrationPresentation(
+      edition?.registrationStatus,
+      getRegistrationUrl(variant.entry, edition, variant.locale),
+    );
+
+    await page.goto(getVariantPath(variant));
+    if (edition === undefined) {
+      await expect(
+        page.getByRole("heading", { level: 2, name: "Inscripció" }),
+      ).toHaveCount(0);
+      continue;
+    }
+
+    await expect(
+      page.getByText(messages[registration.key]({}, { locale: "ca" }), {
+        exact: true,
+      }),
+    ).toBeVisible();
+    if (registration.url && registration.actionKey) {
+      await expect(
+        page.getByRole("link", {
+          name: messages[registration.actionKey]({}, { locale: "ca" }),
+        }),
+      ).toHaveAttribute("href", registration.url);
+    }
+    await expect(page.getByRole("link", { name: "Inscriu-t'hi" })).toHaveCount(
+      edition.registrationStatus === "open" && registration.url ? 1 : 0,
+    );
+  }
 });
 
 test("matrix state: historical event keeps its badge without a registration action", async ({
