@@ -1,0 +1,14 @@
+apps/web/src/content/contact/mountain-runners-contact.yaml
+  h_1727aeeb492b30 12-14
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "2501795c178aa600b2af3a5b08c06e50a9996aa1",
+  "prompts": {},
+  "humans": {
+    "h_1727aeeb492b30": {
+      "author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
