@@ -1,0 +1,19 @@
+apps/web/e2e/route-matrix.spec.ts
+  s_be1d71c335825a::t_4f2dc4cbc0fc03 15-22,191-229
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "ef1e62ecefe7f136a437de0c9e61114c3379d204",
+  "prompts": {},
+  "sessions": {
+    "s_be1d71c335825a": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a15525-262c-737f-adeb-32c0ab0f7a7d",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
