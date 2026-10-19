@@ -1480,9 +1480,7 @@ test("publishes documents and legal routes from the footer", async ({
   await expect(
     prefooter.getByRole("link", { name: "+34691910774" }),
   ).toHaveAttribute("href", "tel:+34691910774");
-  await expect(prefooter).toContainText(
-    "De dilluns a divendres, de 18 h a 20 h",
-  );
+  await expect(prefooter).toContainText(site.catalog.contact!.hours.ca!);
   await expect(prefooter).toContainText(
     "Plaça Sant Joan, 15 baixos, 08600 Berga",
   );
