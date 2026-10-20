@@ -12,7 +12,7 @@
     "typecheck": "pnpm paraglide:generate && astro check"
   },
   "dependencies": {
-    "@inlang/paraglide-js": "2.24.1",
+    "@inlang/paraglide-js": "2.29.0",
     "@inlang/plugin-message-format": "4.5.4",
     "@tailwindcss/vite": "4.3.3",
     "astro": "7.4.0",
