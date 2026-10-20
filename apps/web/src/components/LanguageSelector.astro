@@ -24,7 +24,7 @@ const languageNames: Record<Locale, string> = {
     <details class="language-selector__details group relative">
       <summary
         class="language-selector__summary border-ink text-ink font-display tracking-label hover:border-red hover:bg-red group-open:border-red group-open:bg-red block cursor-pointer list-none border-2 p-0 text-xs leading-none font-bold group-open:text-white hover:text-white"
-        aria-label={`${messages.language_selector({}, { locale })}: ${languageNames[locale]}`}
+        aria-label={`${locale.toUpperCase()}, ${messages.language_selector({}, { locale })}: ${languageNames[locale]}`}
       >
         <span class="inline-flex min-h-10 items-center gap-2 px-2.5 py-2">
           <svg

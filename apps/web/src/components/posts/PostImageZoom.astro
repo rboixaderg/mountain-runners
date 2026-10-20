@@ -14,16 +14,7 @@ const href = getPostImageHref(image.resource.path, 1200);
 ---
 
 <post-image-zoom class="block min-w-0">
-  <a
-    class="block cursor-zoom-in"
-    href={href}
-    aria-label={messages.post_image_enlarge(
-      { description: image.alt[locale]! },
-      { locale },
-    )}
-  >
-    <PostImageView image={image} locale={locale} loading="lazy" />
-  </a>
+  <PostImageView image={image} locale={locale} loading="lazy" zoomHref={href} />
   <dialog
     class="border-line bg-paper text-ink m-auto border p-4"
     aria-label={messages.post_image_enlarged({}, { locale })}
