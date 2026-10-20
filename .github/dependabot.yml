@@ -9,6 +9,12 @@ updates:
       development-dependencies:
         dependency-type: development
     open-pull-requests-limit: 10
+    ignore:
+      # typescript-eslint still rejects the TypeScript 7 API, so major
+      # TypeScript updates break `pnpm lint`.
+      # https://github.com/typescript-eslint/typescript-eslint/issues/10940
+      - dependency-name: typescript
+        update-types: ["version-update:semver-major"]
   - package-ecosystem: github-actions
     directory: /
     schedule:
