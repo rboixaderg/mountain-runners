@@ -84,8 +84,8 @@ importers:
         specifier: 2.29.0
         version: 2.29.0(eslint@10.12.0(jiti@2.7.0))(typescript@6.0.3)(vite@8.3.4(@types/node@26.6.5)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))
       '@inlang/plugin-message-format':
-        specifier: 4.5.2
-        version: 4.5.2
+        specifier: 4.5.4
+        version: 4.5.4
       '@tailwindcss/vite':
         specifier: 4.3.3
         version: 4.3.3(vite@8.3.4(@types/node@26.6.5)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))
@@ -1065,15 +1065,11 @@ packages:
       vite:
         optional: true
 
-  '@inlang/plugin-message-format@4.5.2':
-    resolution: {integrity: sha512-alC8+5and4dNm6TWEdc/MAYIuiPbeBG4rdowwiiy+kM3OCSfJRl3oXrXsmsbP7yoU81VH8LMSrBgrWtKLFeVDQ==}
+  '@inlang/plugin-message-format@4.5.4':
+    resolution: {integrity: sha512-rpNQgDvL723tvUM9VWu6uwXnRzIGSTBN7M7QJbQmpPk0SROMXjXPEafVteEZ1RAeeETcYsUG8OJes6nCcnYu6A==}
 
   '@inlang/recommend-sherlock@0.2.1':
     resolution: {integrity: sha512-ckv8HvHy/iTqaVAEKrr+gnl+p3XFNwe5D2+6w6wJk2ORV2XkcRkKOJ/XsTUJbPSiyi4PI+p+T3bqbmNx/rDUlg==}
-
-  '@inlang/sdk@4.0.2':
-    resolution: {integrity: sha512-IiOiQpybiV2HrguH+2eG+9Pqsm8AuUBtjHpgl3rnwXkE9x1p+mAC5YqVVRlquGLELXxFiu90zvgFXdYnt4X3LA==}
-    engines: {node: '>=20.0.0'}
 
   '@inlang/sdk@4.0.4':
     resolution: {integrity: sha512-OJhVSGJa/Ak52WncgqIPHr9TyVJ1DuoublcmtNo9H8apoVn4Dr1DJNxUxawCCc01QmMSg8qoY8GrTV8SVIu1lg==}
@@ -1103,9 +1099,6 @@ packages:
 
   '@keyv/serialize@1.1.1':
     resolution: {integrity: sha512-dXn3FZhPv0US+7dtJsIi2R+c7qWYiReoEh5zUntWCf4oSpMNib8FDhSoed6m3QyZdx5hK7iLFkYk3rNxwt8vTA==}
-
-  '@lix-js/sdk@0.19.0':
-    resolution: {integrity: sha512-ks7hKZdJGH0APlSLWtFYCXDO3yIoleoPqzLgkZYtMbaiWRN2Ih772tNGGBZFLKbutq6DuNRwcjNkG94KqWRbBA==}
 
   '@lix-js/sdk@0.20.1':
     resolution: {integrity: sha512-oscOFP8Cr1My6Wh2KVYC9+aJ1mHs+d7vnD+7PPJaA4L+Y1FR37Sm99SrFGfvUizaj/XtRi2GlDF2IOFt9iXMNQ==}
@@ -5234,21 +5227,14 @@ snapshots:
       typescript: 6.0.3
       vite: 8.3.4(@types/node@26.6.5)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1)
 
-  '@inlang/plugin-message-format@4.5.2':
+  '@inlang/plugin-message-format@4.5.4':
     dependencies:
-      '@inlang/sdk': 4.0.2
+      '@inlang/sdk': 4.0.4
       '@sinclair/typebox': 0.31.30
 
   '@inlang/recommend-sherlock@0.2.1':
     dependencies:
       comment-json: 4.6.2
-
-  '@inlang/sdk@4.0.2':
-    dependencies:
-      '@lix-js/sdk': 0.19.0
-      '@sinclair/typebox': 0.31.30
-      kysely: 0.28.17
-      uuid: 14.0.3
 
   '@inlang/sdk@4.0.4':
     dependencies:
@@ -5283,12 +5269,6 @@ snapshots:
       keyv: 5.6.0
 
   '@keyv/serialize@1.1.1': {}
-
-  '@lix-js/sdk@0.19.0':
-    dependencies:
-      '@bytecodealliance/jco-transpile': 0.13.0
-      binaryen: 130.0.0
-      fflate: 0.8.3
 
   '@lix-js/sdk@0.20.1':
     dependencies:
