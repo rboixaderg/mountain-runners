@@ -31,7 +31,7 @@ describe("LanguageSelector", () => {
     const document = new JSDOM(html).window.document;
     const navigation = document.querySelector('nav[aria-label="Idioma"]');
     const summary = navigation?.querySelector(
-      'summary[aria-label="Idioma: Català"]',
+      'summary[aria-label="CA, Idioma: Català"]',
     );
     const currentLanguage = navigation?.querySelector('[aria-current="page"]');
     const spanishAlternative = navigation?.querySelector(
