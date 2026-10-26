@@ -13,7 +13,7 @@
   },
   "dependencies": {
     "@inlang/paraglide-js": "2.24.1",
-    "@inlang/plugin-message-format": "4.5.4",
+    "@inlang/plugin-message-format": "4.5.5",
     "@tailwindcss/vite": "4.3.3",
     "astro": "7.4.0",
     "remark-parse": "11.0.0",
