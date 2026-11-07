@@ -1,0 +1,21 @@
+docs/roadmap.md
+  s_02092f99072f7f::t_864b6ebc358b6f 40-42,65,365,369-370,372-376,380-394,398-406,414-416
+docs/specs/phase-8-editorial-assistance.md
+  s_02092f99072f7f::t_9bbfb739f78769 1,5-49,53-506
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "96feada237c842afd987b91669b335b6f5f50a40",
+  "prompts": {},
+  "sessions": {
+    "s_02092f99072f7f": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a1b566-a2e7-73a5-95b2-f84c207aa94f",
+        "model": "deepseek-v4.1-flash"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
