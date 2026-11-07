@@ -167,6 +167,8 @@ i execució de codi del repositori. **Exclusió:** no crea infraestructura ni
 comptes ni converteix les peticions en formularis. **Depèn de:** fases 5 i 6.
 **Resultat:** contracte observable i amenaces revisades. **Comprovació:** revisió
 de seguretat, privacitat, col·laboració i operació. **PR:** pròpia.
+El contracte i la matriu d'amenaces són a
+[requisits i amenaces de T8.1](../phase-8-t81-requisits-amenaces.md).
 
 ### T8.2: Avaluació, runtime, permisos i ADR
 
@@ -311,7 +313,9 @@ independent. **PR:** pròpia, darrera de la fase.
   demanant aclariment quan hi ha contradicció funcional. No s'oculta un
   conflicte ni es declara integrat un canvi que no ho està.
 - Hi ha un límit configurable d'execucions simultànies i recursos, amb espera
-  quan se supera. T8.1 en concreta el valor. Això no és un bloqueig funcional
+  quan se supera. T8.1 concreta concurrència, cua i comportament en superar un
+  límit; T8.2 fixa els valors de temps i recursos després d'avaluar el runtime i
+  el VPS. Això no és un bloqueig funcional
   per compartir fitxers i no limita el nombre de sessions obertes al nombre
   de processos actius.
 - Aturar una execució conserva els canvis i la PR. El tancament d'una PR o
@@ -373,8 +377,8 @@ independent. **PR:** pròpia, darrera de la fase.
   suficient una prohibició al prompt ni es dona per segura una combinació de
   credencials sense prova negativa efectiva.
 - Les fallades locals o de CI relacionades amb la feina es poden reparar dins
-  de l'abast, inclòs el codi. T8.1 fixa els límits de reintents i d'execució;
-  no s'hereta com a requisit confirmat el màxim editorial de dos intents. Un
+  de l'abast, inclòs el codi. T8.1 fixa els límits de reintents i el comportament
+  en superar els límits d'execució; T8.2 fixa els valors de temps i recursos. Un
   error fora de l'abast o un límit assolit es comunica, sense bucles infinits
   ni canvis especulatius per posar la CI en verd.
 - Una CI vermella no activa preview. Amb CI verda i una petició explícita al
