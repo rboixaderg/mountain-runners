@@ -1,0 +1,16 @@
+docs/phase-8-t81-requisits-amenaces.md
+  h_1727aeeb492b30 1-125
+docs/specs/phase-8-editorial-assistance.md
+  h_1727aeeb492b30 170-171,316-318,380-381
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "8c824849da21b83eb1ee64605a0e2d7215de687c",
+  "prompts": {},
+  "humans": {
+    "h_1727aeeb492b30": {
+      "author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
