@@ -22,9 +22,15 @@ defecte només inclou els fitxers YAML de les col·leccions editorials aprovades
 els recursos que aquestes referencien. No inclou components, estils, rutes,
 configuració d'Astro, catàlegs de missatges, esquemes, scripts ni la navegació.
 
-No pot fusionar pull requests, publicar contingut, desplegar serveis, accedir a
-camins del sistema de fitxers no relacionats ni rebre accés de shell o de
-producció sense restriccions.
+No pot fusionar pull requests pel seu compte, publicar contingut, desplegar
+serveis, accedir a camins del sistema de fitxers no relacionats ni rebre accés
+de shell o de producció sense restriccions.
+
+El merge continua sent una decisió humana. L'agent privat de desenvolupament de
+la fase 8 el pot executar només amb la petició explícita d'un membre verificat
+del grup, un SHA concret i les comprovacions obligatòries en verd, segons
+l'[ADR 0013](decisions/0013-private-development-agent-boundary.md) i un cop
+aprovada l'esmena de merge.
 
 ## Agent De Desenvolupament
 
