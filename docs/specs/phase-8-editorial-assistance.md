@@ -86,16 +86,17 @@ desplegament directe per part de l'agent.
 - Una consulta no autoritza modificacions. Una petició d'implementació sí que
   autoritza el recorregut fins a la PR dins del seu abast; si aquest és ambigu,
   l'agent demana aclariment. No s'exigeixen ordres estructurades.
-- Els commits, el push i les PR utilitzen un compte de GitHub dedicat de
-  `mountain-runners`. El compte identifica l'agent; no substitueix l'atribució
-  privada de qui demana cada acció. Cap autor aprova la seva pròpia PR.
+- Els commits, el push i les PR de l'agent utilitzen el compte de GitHub
+  `rboixaderg`, compartit amb la persona mantenidora. El compte no distingeix
+  per si sol les accions de l'agent ni substitueix l'atribució privada de qui
+  demana cada acció. Cap autor aprova la seva pròpia PR.
 - L'agent no fusiona, no activa auto-merge, no fa push directe a `main` i no
   desplega directament. Només una PR revisada i fusionada per una persona pot
   arribar a producció pel pipeline protegit ([ADR 0003](../decisions/0003-agent-workflow-and-security.md)).
 - Les comprovacions locals segueixen `AGENTS.md` i
   [l'estratègia de proves](../testing-strategy.md); la CI continua sent un gate
   independent. Una persona del grup demana la preview al fil; l'agent utilitza
-  el compte de GitHub dedicat i el flux aprovat de la fase 6. No es demana amb
+  el compte de GitHub configurat i el flux aprovat de la fase 6. No es demana amb
   CI vermella ni sense la petició explícita de la persona.
 - El contingut continua subjecte als esquemes i la
   [guia editorial](../editorial/guide.md): nou contingut en esborrany,
@@ -199,7 +200,8 @@ justificada, prova reproduïble i ADR aprovat abans d'habilitar permisos nous.
 **Comprovació:** provar els controls essencials del pilot i justificar les
 verificacions que requereixen la base operativa. El flux real fins a PR es
 comprova a T8.3; la represa entre fils i els casos addicionals, a T8.4–T8.6.
-**PR:** pròpia.
+**PR:** pròpia. La [proposta d'ADR 0013](../decisions/0013-private-development-agent-boundary.md)
+recull les fronteres en avaluació; encara no modifica les decisions vigents.
 
 pi és el punt de partida del harness. `@earendil-works/pi-durable` és un
 candidat, no una obligació ni una garantia de recuperació d'efectes externs.
@@ -388,12 +390,15 @@ independent. **PR:** pròpia, darrera de la fase.
 - Les operacions de GitHub utilitzen una integració reutilitzada o pròpia amb
   permisos mínims; no s'imposa un procés publicador separat si no cal. Secrets
   i tokens no entren al prompt, a les sortides d'eines ni a Git.
-- Abans d'activar l'escriptura del pilot, es verifica amb la identitat i els
-  permisos reals que l'agent pot fer push a una branca i obrir una PR, però no
-  pot fusionar, activar auto-merge, modificar proteccions ni fer push a `main`.
-  T8.4 completa les comprovacions d'actualització, comentaris i CI. Una
-  prohibició al prompt no substitueix les proteccions ni la prova negativa. Les
-  comprovacions es dissenyen sense fusionar cap PR ni fer push a `main`.
+- Abans d'activar l'escriptura del pilot, es verifica que l'agent pot fer push
+  a una branca i obrir una PR, però no pot fusionar, activar auto-merge,
+  modificar proteccions ni fer push a `main`. Com que `rboixaderg` és un compte
+  administrador compartit amb la persona mantenidora, cal provar la separació
+  tècnica de la credencial i de les operacions disponibles al servei; el rol
+  del compte per si sol no distingeix l'agent. T8.4 completa les comprovacions
+  d'actualització, comentaris i CI. Una prohibició al prompt no substitueix les
+  proteccions ni la prova negativa. Les comprovacions es dissenyen sense
+  fusionar cap PR ni fer push a `main`.
 - Les fallades locals o de CI relacionades amb la feina es poden reparar dins
   de l'abast, inclòs el codi. T8.1 fixa els límits de reintents i el comportament
   en superar els límits d'execució; T8.2 fixa els valors de temps i recursos. Un

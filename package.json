@@ -23,7 +23,7 @@
     "test:analytics": "node --test .agents/skills/plausible-analytics/scripts/query.test.mjs",
     "test:a11y": "export PUBLIC_SITE_ORIGIN=https://mountainrunners.cat BUILD_TODAY=2026-10-08; pnpm build && playwright test --grep @a11y",
     "test:e2e": "export PUBLIC_SITE_ORIGIN=https://mountainrunners.cat BUILD_TODAY=2026-10-08; pnpm build && playwright test",
-    "test:server": "node --test \"tools/server/caddy/*.test.mjs\" \"tools/server/release/*.test.mjs\" \"tools/server/preview/*.test.mjs\" \"tools/server/verify/*.test.mjs\" \"tools/deploy/*.test.mjs\" \"tools/preview/*.test.mjs\"",
+    "test:server": "node --test \"tools/server/caddy/*.test.mjs\" \"tools/server/release/*.test.mjs\" \"tools/server/preview/*.test.mjs\" \"tools/server/verify/*.test.mjs\" \"tools/deploy/*.test.mjs\" \"tools/preview/*.test.mjs\" \"tools/phase-8-evaluation/*.test.mjs\"",
     "typecheck": "pnpm --filter @mountain-runners/web typecheck",
     "validate": "pnpm check && pnpm test:e2e"
   },
