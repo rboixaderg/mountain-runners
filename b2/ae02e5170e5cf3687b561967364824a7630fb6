@@ -1,0 +1,27 @@
+docs/specs/phase-8-editorial-assistance.md
+  s_fb352bc8777b80::t_f9e6ecf6d6ab18 89-92,99,203-204,393-401
+package.json
+  s_fb352bc8777b80::t_0084ae63ad4c64 26
+tools/phase-8-evaluation/isolation.test.mjs
+  s_fb352bc8777b80::t_14a4630096e54d 1-84
+tools/phase-8-evaluation/recovery-queue.mjs
+  s_fb352bc8777b80::t_933ee7d97d0f0a 1-118
+tools/phase-8-evaluation/recovery-queue.test.mjs
+  s_fb352bc8777b80::t_b3be7123164d58 1-97
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "b2ae02e5170e5cf3687b561967364824a7630fb6",
+  "prompts": {},
+  "sessions": {
+    "s_fb352bc8777b80": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a1b7f1-e47e-709f-8424-18fe95156b09",
+        "model": "gpt-6.1-terra"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
