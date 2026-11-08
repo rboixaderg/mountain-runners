@@ -1,0 +1,31 @@
+docs/phase-8-t81-requisits-amenaces.md
+  s_0ac05da9a28c8a::t_ed44d2b95846fc 28-30,116-117
+docs/roadmap.md
+  s_e2edd69b13a985::t_eb08f7575242ed 41-42,374-376,394-396,406-408
+docs/specs/phase-8-editorial-assistance.md
+  s_0ac05da9a28c8a::t_f5e17290c0c2b4 24-28,50-53,66-67,98-105,140-143,173-180,203-204,251-253,265-267,271-273,275-276,279,411-414,419-421,433-440,468-472,501-512,528-530,564-568
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "f9884acb9a7611cfea976d7071c4399770920282",
+  "prompts": {},
+  "sessions": {
+    "s_0ac05da9a28c8a": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a1bd2b-3381-7799-b4a1-7d1544470b2b",
+        "model": "deepseek-v4.1-flash"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    },
+    "s_e2edd69b13a985": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a1bd2c-98c5-709f-8424-19012e7772c5",
+        "model": "gpt-6.1-terra"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
