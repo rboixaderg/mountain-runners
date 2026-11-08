@@ -366,14 +366,17 @@ editorial ni exposar contingut privat.
 
 **Especificació:**
 [`docs/specs/phase-8-editorial-assistance.md`](specs/phase-8-editorial-assistance.md).
-Es conserva el camí històric després de la revisió d'abast del 6 de novembre de
-2026.
+Es conserva el camí històric després de la revisió d'abast del 6 de novembre de 2026.
 
 **Objectiu:** oferir sessions compartides de consulta i desenvolupament al VPS
 sobre el codi i el contingut del projecte, sense substituir Git ni la revisió
 humana. És una ampliació proposada del perfil editorial: T8.2 ha d'obtenir
 l'ADR que esmeni les fronteres vigents abans d'habilitar els permisos nous.
 T8.2 també revisa l'ADR 0009 abans d'activar la petició delegada de previews.
+La T8.3 prepara una base operativa que porta una tasca petita de Telegram fins
+al repositori i una PR. Les comprovacions essencials de seguretat precedeixen
+l'activació del pilot; els casos addicionals es validen amb la base en marxa a
+les entregues posteriors.
 
 **Abast:**
 

@@ -22,6 +22,9 @@ La persona mantenidora confirma:
 - Una petició d'implementació autoritza editar, executar proves, fer commits,
   push a la branca de treball i obrir o actualitzar la PR, sense confirmacions
   intermèdies. El merge és exclusivament humà.
+- La primera base operativa inclou Telegram, sessions i el flux complet fins a
+  una PR amb un canvi petit. Les millores i els casos menys freqüents es proven
+  sobre aquesta base, sense retirar els controls de seguretat previs al pilot.
 - Una persona del grup pot demanar una preview al fil. L'agent comenta
   `/preview` a la PR amb el seu compte de GitHub; no la demana automàticament.
 - Una feina es pot reprendre des d'un altre tema amb la branca o PR, la seva
@@ -133,12 +136,19 @@ de les previews de la fase 6 i dels contractes de contingut i guia editorial
 existents, inclòs el flux de notícies i blog de la
 [PR #140](https://github.com/rboixaderg/mountain-runners/pull/140).
 
-T8.1 concreta els requisits operatius i les amenaces sense reobrir les decisions
-funcionals confirmades. T8.2 compara runtimes i integracions, verifica la
-viabilitat i proposa l'ADR d'ampliació de permisos i les esmenes documentals.
-T8.3 connecta Telegram amb sessions i entorns de desenvolupament. T8.4 integra
-Git, PR, CI i preview. T8.5 completa l'auditoria, revocació i recuperació
-operativa. T8.6 valida el conjunt i el runbook.
+T8.1 concreta els requisits operatius i les amenaces. T8.2 compara runtimes i
+integracions, defineix la frontera de seguretat i proposa l'ADR. T8.3 entrega
+una base amb Telegram, sessions i una primera tasca petita fins a PR. T8.4
+amplia el flux de GitHub amb continuació de feines, CI i preview. T8.5 completa
+l'auditoria, la revocació i la recuperació. T8.6 valida el conjunt i el runbook.
+
+Les proves que depenen del servei complet es fan sobre la base operativa i no
+bloquegen l'avaluació inicial. Abans d'activar el pilot es comproven els
+controls essencials d'identitat, aïllament, credencials i protecció de `main`.
+La persona mantenidora disposa d'un procediment d'aturada del servei. Si una
+acció externa té un resultat desconegut, el pilot s'atura i ho comunica sense
+repetir-la automàticament. Les proves addicionals i els casos menys freqüents
+s'agrupen a T8.4, T8.5 i T8.6. Els criteris de seguretat finals es mantenen.
 
 Cada unitat d'implementació utilitza un worktree i una branca propis des de
 l'últim `main` i té PR dedicada. L'alta del bot, del grup, del compte de GitHub i
@@ -147,14 +157,14 @@ són prerequisits per habilitar la nova capacitat d'escriptura del servei.
 
 ## Tasques, entregues i seguiment
 
-| Unitat                                               | Estat   | Dependències | Resultat verificable                              | PR  |
-| ---------------------------------------------------- | ------- | ------------ | ------------------------------------------------- | --- |
-| T8.1 Requisits, sessions, identitats i amenaces      | Pendent | Fases 5 i 6  | Contracte operatiu i riscos revisats              | -   |
-| T8.2 Avaluació, runtime, permisos i ADR              | Pendent | T8.1         | Solució mínima verificada i frontera aprovada     | -   |
-| T8.3 Telegram, sessions i entorns de desenvolupament | Pendent | T8.2         | Consultes i canvis locals en sessions compartides | -   |
-| T8.4 Git, pull requests, CI i preview                | Pendent | T8.3         | PR autònoma i preview demanada per una persona    | -   |
-| T8.5 Auditoria, revocació i recuperació              | Pendent | T8.3         | Atribució, continuïtat i aturada verificades      | -   |
-| T8.6 Validació integral i runbook                    | Pendent | T8.4, T8.5   | Servei operable sense accés a producció           | -   |
+| Unitat                                          | Estat      | Dependències | Resultat verificable                             | PR                                                              |
+| ----------------------------------------------- | ---------- | ------------ | ------------------------------------------------ | --------------------------------------------------------------- |
+| T8.1 Requisits, sessions, identitats i amenaces | Completada | Fases 5 i 6  | Contracte operatiu i riscos revisats             | [#180](https://github.com/rboixaderg/mountain-runners/pull/180) |
+| T8.2 Avaluació, runtime, permisos i ADR         | En curs    | T8.1         | Solució mínima verificada i frontera aprovada    | -                                                               |
+| T8.3 Base operativa de Telegram fins a PR       | Pendent    | T8.2         | Una tasca petita arriba a PR des de Telegram     | -                                                               |
+| T8.4 Continuació, CI i preview                  | Pendent    | T8.3         | Feina represa i preview demanada per una persona | -                                                               |
+| T8.5 Auditoria, revocació i recuperació         | Pendent    | T8.3         | Atribució, continuïtat i aturada verificades     | -                                                               |
+| T8.6 Validació integral i runbook               | Pendent    | T8.4, T8.5   | Servei operable sense accés a producció          | -                                                               |
 
 ### T8.1: Requisits, sessions, identitats i amenaces
 
@@ -173,8 +183,8 @@ El contracte i la matriu d'amenaces són a
 ### T8.2: Avaluació, runtime, permisos i ADR
 
 **Abast:** comparar reutilització i codi propi segons l'esforç total de
-manteniment; verificar sessions, terminal i proves aïllades, represa entre
-fils, progrés, interrupció i integració amb GitHub. Fixar versions, llicències,
+manteniment; verificar la viabilitat de sessions, terminal aïllada i integració
+amb GitHub. Fixar versions, llicències,
 model, aïllament, persistència, credencials, permisos, rotació, xarxa i límits.
 Proposar l'ADR per ampliar l'agent de contingut a desenvolupament, autoritzar per
 pertinença al grup i delegar el flux fins a PR. Revisar l'ADR 0009 i proposar
@@ -186,8 +196,10 @@ alterar el xat públic ni la revisió humana. **Exclusió:** no desplega el serv
 ni crea credencials de producció; la prova acotada només usa entorns i comptes
 de prova autoritzats explícitament. **Depèn de:** T8.1. **Resultat:** elecció
 justificada, prova reproduïble i ADR aprovat abans d'habilitar permisos nous.
-**Comprovació:** demostrar consulta compartida, canvi de codi amb prova, PR,
-represa des d'un altre fil i rebuig de merge i accés a producció. **PR:** pròpia.
+**Comprovació:** provar els controls essencials del pilot i justificar les
+verificacions que requereixen la base operativa. El flux real fins a PR es
+comprova a T8.3; la represa entre fils i els casos addicionals, a T8.4–T8.6.
+**PR:** pròpia.
 
 pi és el punt de partida del harness. `@earendil-works/pi-durable` és un
 candidat, no una obligació ni una garantia de recuperació d'efectes externs.
@@ -200,46 +212,51 @@ seva interfície. Si canviar el harness és necessari, l'ADR ho ha de justificar
 les alternatives OpenCode identificades es poden valorar en aquest cas. No cal
 avaluar tots els candidats: la comparació és acotada als viables per T8.1.
 
-La prova ha d'incloure dos usuaris en un fil, una consulta sense branca nova,
-una implementació de codi, una feina de contingut, una continuació de PR des
-d'un altre fil, solapaments no bloquejants i una interrupció després d'una
-acció externa. Cal distingir recuperar l'historial de recuperar una execució.
-Es tria la solució més senzilla que superi aquests casos, sense construir una
-interfície web ni un gestor de tasques per defecte.
+La comparació reutilitza les proves disponibles i identifica els casos que
+requereixen el servei operatiu. El pilot comprova una consulta i una tasca de
+codi fins a PR. La fase valida després dos usuaris, contingut, continuació
+des d'un altre fil, solapaments i interrupció després d'una acció externa. Cal
+distingir recuperar l'historial de recuperar una execució. Es tria una solució
+sense exigir una interfície web ni un gestor de tasques per defecte.
 
 La retenció es decideix segons les capacitats verificades: què es desa, on,
 qui ho consulta i com s'esborra, inclosos backups. No es fixa ara un termini ni
 una conservació indefinida. Engram o una altra memòria són opcionals; no
 substitueixen el codi, PR, especificacions i ADR ni s'exigeix una base de tasques.
 
-### T8.3: Telegram, sessions i entorns de desenvolupament
+### T8.3: Base operativa de Telegram fins a PR
 
-**Abast:** implementar o configurar el pont reutilitzat; comprovar grup i
-membres, atribuir i deduplicar missatges, associar temes i sessions i processar
-instruccions en ordre. Carregar les regles i skills del projecte i preparar
-entorns per consultar, modificar i provar codi o contingut. Separar sessions
-de feines i worktrees; mostrar avisos de solapament sense bloquejar i preservar
-els canvis aliens. Incorporar adjunts amb les validacions previstes.
-**Exclusió:** no fa push ni PR abans de T8.4; no administra el host ni exposa
-secrets de producció. **Depèn de:** T8.2. **Resultat:** consultes compartides i
-canvis locals comprovables, sense una relació obligatòria tema/tasca/PR.
-**Comprovació:** proves de routing, autorització, consulta sense canvis,
-terminal aïllada, adjunts i solapaments. **PR:** pròpia.
+**Abast:** implementar el pont de Telegram, les sessions i un entorn aïllat de
+desenvolupament. Verificar el grup i l'autor, atribuir i deduplicar missatges i
+processar-los en ordre. Carregar les regles i skills del projecte. Processar
+una consulta i preparar una tasca petita de codi en una branca pròpia. Executar
+les comprovacions pertinents, fer commit i push i obrir una PR amb la identitat
+aprovada. Preparar el servei per operar al VPS mitjançant el flux de
+desplegament aprovat.
+**Exclusió:** no fusiona ni activa auto-merge, no fa push a `main`, no demana
+preview i no accedeix a secrets o serveis de producció. **Depèn de:** T8.2,
+ADR aprovat i controls essencials verificats abans d'activar permisos.
+**Resultat:** una petició natural arriba a una PR revisable sense confirmacions
+intermèdies; una consulta no crea branca. **Comprovació:** sessió, autorització,
+aïllament, permisos reals mínims i una tasca petita fins a PR. **PR:** pròpia.
+El desplegament i l'activació del pilot requereixen aprovació explícita; una
+PR de preparació no els activa per si sola.
 
-### T8.4: Git, pull requests, CI i preview
+### T8.4: Continuació, CI i preview
 
-**Abast:** habilitar commit, push a branques i creació o actualització de PR
-amb la identitat de l'agent, comprovacions locals pertinents, seguiment i
+**Abast:** ampliar la base que ja crea branques i PR amb el seguiment i la
 reparació acotada de CI i, quan una persona ho demana al fil, petició de
 preview i retorn d'URL i SHA confirmats.
 Recuperar una branca/PR existent des d'una altra sessió i actualitzar el seu
-context revisable. Reutilitzar les integracions viables, sense exigir un
-publicador propi. **Exclusió:** no fusiona, activa auto-merge, fa push a `main`
+context revisable. Avisar dels solapaments sense bloquejar i incorporar adjunts
+amb les validacions previstes. Reutilitzar les integracions viables, sense
+exigir un publicador propi. **Exclusió:** no fusiona, activa auto-merge, fa push a `main`
 ni desplega; aturar una execució no tanca automàticament la PR. **Depèn de:**
 T8.3. **Resultat:** una petició natural d'implementació arriba a PR sense
 confirmacions intermèdies; la preview requereix una petició explícita al fil.
-**Comprovació:** dues sessions sobre una PR, absència de petició automàtica,
-CI vermella sense preview, idempotència i rebuig de merge. **PR:** pròpia.
+**Comprovació:** dues sessions sobre una PR, solapaments, validació d'adjunts,
+absència de petició automàtica, CI vermella sense preview, idempotència i
+rebuig de merge. **PR:** pròpia.
 
 ### T8.5: Auditoria, revocació i recuperació
 
@@ -371,11 +388,12 @@ independent. **PR:** pròpia, darrera de la fase.
 - Les operacions de GitHub utilitzen una integració reutilitzada o pròpia amb
   permisos mínims; no s'imposa un procés publicador separat si no cal. Secrets
   i tokens no entren al prompt, a les sortides d'eines ni a Git.
-- T8.2 verifica que l'agent pot fer push a branques de treball, obrir i
-  actualitzar PR, comentar i llegir CI, però no pot fusionar, activar
-  auto-merge, modificar proteccions ni fer push a `main`. No es considera
-  suficient una prohibició al prompt ni es dona per segura una combinació de
-  credencials sense prova negativa efectiva.
+- Abans d'activar l'escriptura del pilot, es verifica amb la identitat i els
+  permisos reals que l'agent pot fer push a una branca i obrir una PR, però no
+  pot fusionar, activar auto-merge, modificar proteccions ni fer push a `main`.
+  T8.4 completa les comprovacions d'actualització, comentaris i CI. Una
+  prohibició al prompt no substitueix les proteccions ni la prova negativa. Les
+  comprovacions es dissenyen sense fusionar cap PR ni fer push a `main`.
 - Les fallades locals o de CI relacionades amb la feina es poden reparar dins
   de l'abast, inclòs el codi. T8.1 fixa els límits de reintents i el comportament
   en superar els límits d'execució; T8.2 fixa els valors de temps i recursos. Un
@@ -421,9 +439,12 @@ s'afegeixen les mancances del pont sense duplicar suites senceres.
 - Interrupció durant una prova i després de push/PR: preservar treball,
   reconciliar l'estat i no duplicar accions. Neteja que no elimina treball
   recuperable ni afecta altres sessions.
-- Smoke real autoritzat amb diversos autors, canvi de codi i contingut,
-  continuació entre fils i preview; revisió de seguretat abans de donar
-  permisos d'escriptura reals al servei.
+- Abans del pilot amb escriptura real: revisió de seguretat i verificació dels
+  controls d'identitat, aïllament, credencials i protecció de `main`. Smoke
+  autoritzat d'una consulta i un canvi petit fins a PR.
+- Amb la base operativa: smoke autoritzat amb diversos autors, contingut,
+  continuació entre fils i preview, i proves dels casos d'interrupció i
+  revocació pendents abans de tancar la fase.
 
 Les proves automatitzades del servei s'incorporen al gate de CI del projecte.
 L'evidència viu a les PR i la CI, no en informes addicionals al repositori. Una
