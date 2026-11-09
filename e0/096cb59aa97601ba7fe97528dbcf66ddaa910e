@@ -1,0 +1,25 @@
+AGENTS.md
+  s_1eb0b80efcf64b::t_27b097737142f6 137-144
+docs/architecture.md
+  s_1eb0b80efcf64b::t_9426682342d49d 90-98,134-159,170-171
+docs/decisions/0009-pr-previews-same-domain-and-own-branches.md
+  s_1eb0b80efcf64b::t_c7d7a459110a14 7-10,101-120
+docs/specs/phase-8-editorial-assistance.md
+  s_1eb0b80efcf64b::t_a2ee0514803ec4 48,53-55,174-181,217-218
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "e0096cb59aa97601ba7fe97528dbcf66ddaa910e",
+  "prompts": {},
+  "sessions": {
+    "s_1eb0b80efcf64b": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a1c207-3bbf-7799-b4a1-7d1714d2b860",
+        "model": "deepseek-v4.1-flash"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
