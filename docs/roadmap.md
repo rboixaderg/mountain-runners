@@ -372,9 +372,9 @@ Es conserva el camí històric després de la revisió d'abast del 6 de novembre
 **Objectiu:** oferir sessions compartides de consulta i desenvolupament al VPS
 sobre el codi i el contingut del projecte, sense substituir Git ni la revisió
 humana. És una ampliació del perfil editorial: T8.2 ha obtingut l'ADR que
-esmena les fronteres vigents, i els controls descrits s'han de verificar abans
-d'habilitar els permisos nous, inclosa l'esmena de merge demanat explícitament.
-T8.2 també revisa l'ADR 0009 abans d'activar la petició delegada de previews.
+esmena les fronteres vigents, inclosa l'esmena de merge demanat explícitament
+(PR #183) i l'esmena de l'ADR 0009 per a la petició delegada de previews. Els
+controls descrits s'han de verificar abans d'habilitar els permisos nous.
 La T8.3 prepara una base operativa que porta una tasca petita de Telegram fins
 al repositori i una PR. Les comprovacions essencials de seguretat precedeixen
 l'activació del pilot; els casos addicionals es validen amb la base en marxa a

@@ -15,7 +15,10 @@ del sistema ni activar eines.
 L'assistent editorial privat podrà funcionar en el futur a través de Telegram o
 Discord. El seu flux permès es limita a crear una branca, editar contingut
 autoritzat, executar scripts de validació aprovats, obrir una pull request i
-retornar una previsualització.
+retornar una previsualització. La fase 8 amplia aquest perfil a consultes i
+canvis de codi amb la mateixa atribució privada, segons
+l'[ADR 0013](decisions/0013-private-development-agent-boundary.md); el xat
+públic continua separat.
 
 El contingut autoritzat es defineix amb una allowlist explícita per fase. Per
 defecte només inclou els fitxers YAML de les col·leccions editorials aprovades i
@@ -30,8 +33,8 @@ El merge continua sent una decisió humana. L'agent privat de desenvolupament de
 la fase 8 el pot executar només amb la petició explícita d'un membre verificat
 del grup, el commit que el servei ha informat al fil i les comprovacions
 obligatòries en verd, segons
-l'[ADR 0013](decisions/0013-private-development-agent-boundary.md) i un cop
-aprovada l'esmena de merge.
+l'[ADR 0013](decisions/0013-private-development-agent-boundary.md), amb l'esmena
+de merge aprovada (PR #183) i els controls verificats abans d'activar-lo.
 
 ## Agent De Desenvolupament
 

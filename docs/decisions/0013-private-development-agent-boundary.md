@@ -4,9 +4,11 @@
 
 Acceptada el 8 de novembre de 2026 amb el merge de la [PR #182](https://github.com/rboixaderg/mountain-runners/pull/182) a la T8.2 de la [fase 8](../specs/phase-8-editorial-assistance.md). L'acceptació no autoritza per si sola nous permisos, desplegaments ni canvis de configuració remota: els controls descrits aquí s'han de verificar abans d'activar-los.
 
-Aquesta revisió proposa una esmena acotada a la decisió acceptada: que el servei pugui executar el merge demanat explícitament per una persona verificada. Mentre l'esmena no s'aprovi amb el merge de la PR que la conté, el merge continua reservat a una persona a GitHub i els ADR [0002](0002-public-chat-and-private-editor.md), [0003](0003-agent-workflow-and-security.md) i [0009](0009-pr-previews-same-domain-and-own-branches.md), `AGENTS.md` i els [límits dels assistents](../ai-assistant.md) continuen vigents en la seva forma actual.
+Esmenada el 9 de novembre de 2026 amb el merge de la [PR #183](https://github.com/rboixaderg/mountain-runners/pull/183), que aprova l'esmena acotada per executar el merge demanat explícitament per una persona verificada i alinea `AGENTS.md`, `CONTRIBUTING.md` i els [límits dels assistents](../ai-assistant.md). L'aprovació no activa cap permís: el merge demanat i la petició delegada de preview no s'habiliten fins que els controls d'aquest ADR estiguin verificats.
 
 L'esmena substitueix la proposta anterior, que reservava el merge a una persona a GitHub. La persona mantenidora n'ha canviat la decisió: els membres del grup són usuaris controlats i, després de validar el resultat, poden demanar explícitament el merge. L'excepció acotada a l'ADR 0003 inclou el push, la PR i aquest merge demanat; l'auto-merge, el push a `main`, els canvis de protecció i el desplegament continuen prohibits en tots els casos.
+
+La mateixa revisió esmena l'[ADR 0009](0009-pr-previews-same-domain-and-own-branches.md) per delegar-hi la petició de preview. El xat públic de l'[ADR 0002](0002-public-chat-and-private-editor.md) continua sense canvis i separat d'aquest servei.
 
 ## Context
 
@@ -39,7 +41,7 @@ El prototip local ha comprovat amb Telegram i el model configurat la separació 
 - **Recuperació.** La recepció i l'admissió han de ser duradores abans de confirmar una actualització de Telegram. Una acció externa amb resultat desconegut no es repeteix fins a consultar l'estat real. Si no es pot determinar el resultat, el servei ho comunica i no el declara completat. Les peticions pendents i el treball no fusionat no s'eliminen automàticament. La cua experimental de `tools/phase-8-evaluation/` usa SQLite de Node 24.11.0, declarat experimental, i dades sintètiques; no implementa la reconciliació amb GitHub ni és una implementació de producció.
 - **Privacitat.** La traça privada, les sessions, els logs i les còpies tenen controls d'accés i retenció explícits. Les PR i les branques són públiques: no hi entren identificadors personals, converses privades ni secrets. L'agent no pressuposa que una comprovació automàtica detecti totes les dades privades.
 
-## Merge autoritzat per una persona (esmena proposada)
+## Merge autoritzat per una persona (esmena acceptada)
 
 Els membres del grup són usuaris controlats i la seva instrucció és
 l'autorització. El merge continua sent una decisió humana: la persona que ha
@@ -111,13 +113,13 @@ Les sortides dels processos, els commits i les PR poden contenir dades no fiable
 
 Una persona membre verificada demana la preview al tema. Sense cap segona confirmació ni correspondència individual entre Telegram i GitHub, l'agent comprova la CI, comenta `/preview` amb el compte compartit i retorna l'URL i el SHA confirmats pel publicador. Sense una petició explícita o amb CI vermella, no demana la preview.
 
-Es proposa esmenar l'ADR 0009 per acceptar també una petició explícita d'un membre verificat al tema de Telegram, tramesa com a comentari `/preview` pel compte de l'agent. La persona no ha de fer un segon pas a GitHub. Es mantenen la CI verda, les branques pròpies, la vinculació al SHA, la revalidació del publicador i la resta de controls de preview.
+L'[ADR 0009](0009-pr-previews-same-domain-and-own-branches.md) s'esmena en aquesta mateixa revisió per acceptar també una petició explícita d'un membre verificat al tema de Telegram, tramesa com a comentari `/preview` pel compte de l'agent. La persona no ha de fer un segon pas a GitHub. Es mantenen la CI verda, les branques pròpies, la vinculació al SHA, la revalidació del publicador i la resta de controls de preview.
 
-El publicador actual comprova que l'autor del comentari de GitHub sigui col·laborador; no veu la petició de Telegram. La delegació requereix l'aprovació d'aquesta esmena i proves del flux i dels permisos. Fins llavors continua vigent el flux actual de preview amb autorització humana a GitHub.
+El publicador actual comprova que l'autor del comentari de GitHub sigui col·laborador; no veu la petició de Telegram. La delegació requereix, a més de l'esmena aprovada, proves del flux i dels permisos; fins que es facin, continua vigent el flux de preview amb autorització humana a GitHub.
 
 ## Comprovacions i punts pendents
 
-Abans d'activar el pilot cal aprovar l'esmena de merge i provar els controls essencials d'identitat, aïllament, credencials i protecció de `main`. El compte de GitHub triat és administrador; un compte de prova sense accés al repositori no substitueix les comprovacions de la credencial i del component de confiança que utilitzarà el servei. Les comprovacions de permisos no fusionen cap PR ni fan push a `main`; el merge del pilot s'exercita després, amb autorització explícita.
+L'esmena de merge i l'esmena de l'ADR 0009 ja estan aprovades. Abans d'activar el pilot cal provar els controls essencials d'identitat, aïllament, credencials i protecció de `main`. El compte de GitHub triat és administrador; un compte de prova sense accés al repositori no substitueix les comprovacions de la credencial i del component de confiança que utilitzarà el servei. Les comprovacions de permisos no fusionen cap PR ni fan push a `main`; el merge del pilot s'exercita després, amb autorització explícita.
 
 Una prova local en un contenidor no privilegiat, amb només la interfície de xarxa local i el sistema de fitxers arrel de només lectura, ha escrit en un directori de treball sintètic muntat i ha comprovat que un fitxer i una variable sintètics del host no hi eren visibles. El [test reutilitzable](../../tools/phase-8-evaluation/isolation.test.mjs) només s'executa si se li indica una imatge local. Per exemple, amb Docker disponible i la imatge indicada ja present localment:
 
@@ -131,7 +133,7 @@ La persona mantenidora informa que el VPS té 2 vCPU, 4 GB de RAM i 40 GB de dis
 
 Les proves de revocació, dos autors, continuació entre fils, recuperació d'efectes externs i preview es completen sobre la base operativa segons la planificació aprovada. La prova real de revocació continua pendent.
 
-La [PR #181](https://github.com/rboixaderg/mountain-runners/pull/181) ha reordenat el primer pilot fins a PR. L'aprovació d'aquest ADR no autoritza per si sola cap desplegament o canvi remot. Quan la frontera s'aprovi, cal alinear `AGENTS.md`, `docs/ai-assistant.md` i `docs/architecture.md` sense alterar el xat públic ni la revisió humana.
+La [PR #181](https://github.com/rboixaderg/mountain-runners/pull/181) ha reordenat el primer pilot fins a PR. L'aprovació d'aquest ADR no autoritza per si sola cap desplegament o canvi remot. `AGENTS.md`, `CONTRIBUTING.md` i `docs/ai-assistant.md` ja estan alineats amb la frontera; [`docs/architecture.md`](../architecture.md) s'alinea en aquesta mateixa revisió, sense alterar el xat públic ni la revisió humana.
 
 ## Conseqüències
 
