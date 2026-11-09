@@ -67,8 +67,8 @@ al worktree principal.
 6. Una persona mantenidora la fusiona només després de la revisió i de superar
    les comprovacions obligatòries. Els agents no fusionen ni activen auto-merge;
    l'única excepció és l'agent privat de la fase 8, amb la petició explícita
-   d'un membre verificat, l'esmena de merge de l'ADR 0013 aprovada i els seus
-   controls verificats.
+   d'un membre verificat, l'esmena de merge de l'ADR 0013 aprovada (PR #183) i
+   els seus controls verificats.
 7. Elimina el worktree i la branca de vida curta quan la tasca estigui fusionada.
 
 Els canvis directes al servidor de producció i els push directes a la branca

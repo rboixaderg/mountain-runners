@@ -87,14 +87,15 @@ i no introdueix cap servei extern ni canvia Plausible.
 
 ## Límits De L'Arquitectura
 
-| Àrea                | Responsabilitat                               | Límit                                                                                                                                                                                                       |
-| ------------------- | --------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Web estàtica        | Renderitzar contingut editorial publicat      | El build d'Astro no conté secrets                                                                                                                                                                           |
-| Contingut           | Pàgines estructurades i dades de l'associació | Versionat a Git i revisat per pull request                                                                                                                                                                  |
-| Xat públic          | Respondre preguntes sobre contingut publicat  | API Hono separada, de només lectura i sense accés editorial                                                                                                                                                 |
-| Assistent editorial | Preparar canvis de contingut                  | Flux privat de branca, validació i pull request                                                                                                                                                             |
-| Allotjament         | Servir la web estàtica i serveis aïllats      | Caddy i releases (T5.3); desplegament continu des de `main` (T5.4); apex al VPS (T5.5); rollback a `production-rollback`; sense desplegament des d'una sessió local d'agent                                 |
-| Analítica           | Mesurar visites agregades de la web pública   | Plausible CE autoallotjat a `analytics.rogerbg.cat`; script asíncron; CSP sense comodins ni `unsafe-eval`; sense cookies ni tokens al build ([ADR 0007](decisions/0007-self-hosted-plausible-analytics.md)) |
+| Àrea                            | Responsabilitat                                               | Límit                                                                                                                                                                                                            |
+| ------------------------------- | ------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Web estàtica                    | Renderitzar contingut editorial publicat                      | El build d'Astro no conté secrets                                                                                                                                                                                |
+| Contingut                       | Pàgines estructurades i dades de l'associació                 | Versionat a Git i revisat per pull request                                                                                                                                                                       |
+| Xat públic                      | Respondre preguntes sobre contingut publicat                  | API Hono separada, de només lectura i sense accés editorial                                                                                                                                                      |
+| Assistent editorial             | Preparar canvis de contingut                                  | Flux privat de branca, validació i pull request                                                                                                                                                                  |
+| Agent privat de desenvolupament | Consultar i preparar canvis de codi o contingut fins a una PR | Component de confiança amb la credencial de GitHub; entorn aïllat sense xarxa ni credencials; sense desplegament, auto-merge ni push a `main` ([ADR 0013](decisions/0013-private-development-agent-boundary.md)) |
+| Allotjament                     | Servir la web estàtica i serveis aïllats                      | Caddy i releases (T5.3); desplegament continu des de `main` (T5.4); apex al VPS (T5.5); rollback a `production-rollback`; sense desplegament des d'una sessió local d'agent                                      |
+| Analítica                       | Mesurar visites agregades de la web pública                   | Plausible CE autoallotjat a `analytics.rogerbg.cat`; script asíncron; CSP sense comodins ni `unsafe-eval`; sense cookies ni tokens al build ([ADR 0007](decisions/0007-self-hosted-plausible-analytics.md))      |
 
 ## Estructura De Pàgines I Presentació
 
@@ -130,6 +131,32 @@ Cada secció és propietària dels missatges, les dades que presenta i la seva
 condició de visibilitat. La pàgina carrega les variants i les referències
 publicades; els components no consulten les col·leccions.
 
+## Agent Privat De Desenvolupament
+
+La fase 8 prepara un servei privat al VPS, separat de producció, accessible des
+d'un grup de Telegram amb temes de fòrum
+([ADR 0013](decisions/0013-private-development-agent-boundary.md)). Cada tema és
+una sessió de conversa; el treball viu a Git, a les especificacions i als ADR,
+no en un gestor de tasques.
+
+La frontera separa un component de confiança, que gestiona Telegram, el model i
+les operacions de GitHub, de l'entorn aïllat que executa scripts, hooks,
+dependències i proves del repositori. Només el component de confiança rep la
+credencial de GitHub i només exposa la branca de treball, la PR i el merge
+demanat amb `/merge <PR>`. L'entorn aïllat no llegeix credencials ni sessions i
+no té xarxa per defecte.
+
+L'agent no desplega, no fa push a `main`, no activa auto-merge i no modifica
+proteccions. El merge continua sent una decisió humana: l'executa només amb la
+petició explícita d'un membre verificat, fixada al commit de l'últim informe del
+fil i amb les comprovacions obligatòries en verd. La petició de preview es
+delega de la mateixa manera segons
+l'[ADR 0009](decisions/0009-pr-previews-same-domain-and-own-branches.md).
+
+Cap servei, compte ni credencial d'aquesta fase no existeix encara. L'aprovació
+de la frontera no activa permisos: els controls essencials s'han de verificar
+abans del pilot (T8.3) i la resta de casos, a les entregues posteriors.
+
 ## Xat Públic, Més Endavant
 
 El xat públic indexarà tot el contingut publicat, incloent-hi pàgines editorials
@@ -140,7 +167,8 @@ formen part del disseny inicial.
 ## Fora D'Abast Ara
 
 - Servei de xat Hono i generador d'índex.
-- Integració amb Telegram, Discord o Hermes.
+- El servei operatiu de Telegram de la fase 8: l'ADR 0013 n'accepta la frontera,
+  però cap servei, compte ni credencial no existeix encara.
 - Noves integracions DNS/edge o proveïdors per a previews fora de la decisió
   acceptada de la fase 6.
 

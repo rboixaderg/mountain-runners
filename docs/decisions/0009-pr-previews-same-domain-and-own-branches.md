@@ -4,8 +4,10 @@
 
 Acceptada. Esmenada el 13 de setembre de 2026 (T6.2, PR #117): els registres DNS
 dels previews viuen a la zona de producció d'Hostinger sense subzona delegada;
-la frontera de domini i els controls compensatoris no canvien. Vegeu l'apartat
-Esmena.
+la frontera de domini i els controls compensatoris no canvien. Esmenada el 9 de
+novembre de 2026 (T8.2): una petició explícita d'un membre verificat del grup
+privat autoritza l'agent a demanar la preview amb un comentari `/preview`. Vegeu
+l'apartat Esmena.
 
 ## Decisió
 
@@ -95,6 +97,26 @@ de la PR i comprova que no hagi canviat abans de publicar-lo. Les previews es
 retiren quan la PR es tanca o es revoca, i la reconciliació periòdica detecta les
 que hagin quedat actives. Si es detecta un abús, es desactiven les previews i es
 revisa la decisió abans de tornar-les a activar.
+
+## Esmena (T8.2, 9 de novembre de 2026): petició delegada de preview
+
+Una persona membre verificada del grup privat pot demanar la preview al fil de
+Telegram. Sense cap segona confirmació ni correspondència individual entre
+Telegram i GitHub, l'agent comprova la CI, comenta `/preview` a la PR amb el
+compte compartit i retorna l'URL i el SHA que confirma el publicador.
+
+La delegació no canvia la resta de controls d'aquest ADR: només es publiquen
+previews de branques del repositori principal, la petició s'enllaça al commit
+vigent i es revalida abans de publicar, i la preview es retira quan la PR es
+tanca o es revoca. Sense una petició explícita al fil o amb la CI vermella,
+l'agent no demana cap preview. El publicador continua comprovant que el
+comentari provingui d'un compte col·laborador; la pertinença al grup i
+l'atribució de qui demana la preview viuen a la traça privada del servei, no a
+GitHub.
+
+La delegació s'activa amb el pilot de la fase 8, després de verificar-ne els
+permisos i el flux. Fins llavors continua vigent el flux de preview amb
+autorització humana a GitHub.
 
 ## Raonament
 
