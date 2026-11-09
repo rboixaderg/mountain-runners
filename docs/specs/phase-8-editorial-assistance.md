@@ -45,13 +45,14 @@ comparació; pi és el punt de partida, no una elecció de runtime tancada.
 L'ampliació canvia fronteres descrites a `AGENTS.md`,
 [`docs/ai-assistant.md`](../ai-assistant.md) i l'arquitectura vigent. Aquesta
 especificació és una proposta, no una excepció operativa a aquestes normes.
-T8.2 ha de proposar i obtenir l'aprovació de l'ADR que les esmeni abans de
+T8.2 ha obtingut l'aprovació de l'ADR que les esmena abans de
 l'activació dels permisos nous. La separació del xat públic de l'ADR 0002 i la
 revisió humana i protecció de producció de l'ADR 0003 es mantenen; l'ADR 0003
 s'esmena de manera acotada per permetre el push, la PR i el merge demanat
 explícitament, sense eliminar la revisió humana ni la protecció de `main`.
-T8.2 també ha de revisar la delegació de la petició de preview respecte de l'[ADR 0009](../decisions/0009-pr-previews-same-domain-and-own-branches.md)
-i obtenir l'aprovació de l'esmena necessària abans d'activar-la.
+T8.2 també ha obtingut l'aprovació de l'esmena de l'[ADR 0009](../decisions/0009-pr-previews-same-domain-and-own-branches.md)
+que delega la petició de preview, sense activar-la fins que els controls
+estiguin verificats.
 
 Cap unitat passa a `En curs` fins que la PR de l'especificació es revisi i
 fusioni. Aquesta planificació no autoritza crear comptes, credencials ni
@@ -170,14 +171,14 @@ són prerequisits per habilitar la nova capacitat d'escriptura del servei.
 
 ## Tasques, entregues i seguiment
 
-| Unitat                                          | Estat      | Dependències | Resultat verificable                          | PR                                                              |
-| ----------------------------------------------- | ---------- | ------------ | --------------------------------------------- | --------------------------------------------------------------- |
-| T8.1 Requisits, sessions, identitats i amenaces | Completada | Fases 5 i 6  | Contracte operatiu i riscos revisats          | [#180](https://github.com/rboixaderg/mountain-runners/pull/180) |
-| T8.2 Avaluació, runtime, permisos i ADR         | Completada | T8.1         | Solució mínima verificada i frontera aprovada | [#182](https://github.com/rboixaderg/mountain-runners/pull/182) |
-| T8.3 Base operativa de Telegram fins a PR       | Pendent    | T8.2         | Una tasca petita arriba a PR des de Telegram  | -                                                               |
-| T8.4 Continuació, CI i preview                  | Pendent    | T8.3         | Feina represa, preview i merge a petició      | -                                                               |
-| T8.5 Auditoria, revocació i recuperació         | Pendent    | T8.3         | Atribució, continuïtat i aturada verificades  | -                                                               |
-| T8.6 Validació integral i runbook               | Pendent    | T8.4, T8.5   | Servei operable sense accés a producció       | -                                                               |
+| Unitat                                          | Estat      | Dependències | Resultat verificable                          | PR                                                                                                                               |
+| ----------------------------------------------- | ---------- | ------------ | --------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| T8.1 Requisits, sessions, identitats i amenaces | Completada | Fases 5 i 6  | Contracte operatiu i riscos revisats          | [#180](https://github.com/rboixaderg/mountain-runners/pull/180)                                                                  |
+| T8.2 Avaluació, runtime, permisos i ADR         | Completada | T8.1         | Solució mínima verificada i frontera aprovada | [#182](https://github.com/rboixaderg/mountain-runners/pull/182), [#183](https://github.com/rboixaderg/mountain-runners/pull/183) |
+| T8.3 Base operativa de Telegram fins a PR       | Pendent    | T8.2         | Una tasca petita arriba a PR des de Telegram  | -                                                                                                                                |
+| T8.4 Continuació, CI i preview                  | Pendent    | T8.3         | Feina represa, preview i merge a petició      | -                                                                                                                                |
+| T8.5 Auditoria, revocació i recuperació         | Pendent    | T8.3         | Atribució, continuïtat i aturada verificades  | -                                                                                                                                |
+| T8.6 Validació integral i runbook               | Pendent    | T8.4, T8.5   | Servei operable sense accés a producció       | -                                                                                                                                |
 
 ### T8.1: Requisits, sessions, identitats i amenaces
 
@@ -213,8 +214,8 @@ justificada, prova reproduïble i ADR aprovat abans d'habilitar permisos nous.
 **Comprovació:** provar els controls essencials del pilot i justificar les
 verificacions que requereixen la base operativa. El flux real fins a PR es
 comprova a T8.3; la represa entre fils i els casos addicionals, a T8.4–T8.6.
-**PR:** pròpia. La [proposta d'ADR 0013](../decisions/0013-private-development-agent-boundary.md)
-recull les fronteres en avaluació; encara no modifica les decisions vigents.
+**PR:** pròpia. L'[ADR 0013](../decisions/0013-private-development-agent-boundary.md)
+recull la frontera acceptada i esmena de manera acotada els ADR 0003 i 0009.
 
 pi és el punt de partida del harness. `@earendil-works/pi-durable` és un
 candidat, no una obligació ni una garantia de recuperació d'efectes externs.
