@@ -38,7 +38,8 @@ verificat.
 - El disseny segueix `DESIGN.md`; la navegació inicial és plana: Qui som, Socis,
   Escoles i Esdeveniments.
 - El xat públic és de només lectura. L'agent privat de desenvolupament i
-  consulta proposat a la fase 8 no pot fusionar ni desplegar directament;
+  consulta proposat a la fase 8 només pot fusionar una PR amb la petició
+  explícita d'un membre verificat i el commit validat, i no desplega mai;
   l'ampliació respecte del perfil editorial vigent necessita un ADR previ.
 - Cap fase pot introduir secrets al repositori ni evitar la revisió, la CI o les
   restriccions de desplegament definides a `AGENTS.md` i `SECURITY.md`.
@@ -370,8 +371,9 @@ Es conserva el camí històric després de la revisió d'abast del 6 de novembre
 
 **Objectiu:** oferir sessions compartides de consulta i desenvolupament al VPS
 sobre el codi i el contingut del projecte, sense substituir Git ni la revisió
-humana. És una ampliació proposada del perfil editorial: T8.2 ha d'obtenir
-l'ADR que esmeni les fronteres vigents abans d'habilitar els permisos nous.
+humana. És una ampliació del perfil editorial: T8.2 ha obtingut l'ADR que
+esmena les fronteres vigents, i els controls descrits s'han de verificar abans
+d'habilitar els permisos nous, inclosa l'esmena de merge demanat explícitament.
 T8.2 també revisa l'ADR 0009 abans d'activar la petició delegada de previews.
 La T8.3 prepara una base operativa que porta una tasca petita de Telegram fins
 al repositori i una PR. Les comprovacions essencials de seguretat precedeixen
@@ -389,6 +391,9 @@ les entregues posteriors.
   actualitzar PR sense confirmacions intermèdies per a una implementació
   encarregada. Amb CI verda, una persona del grup pot demanar al fil que
   l'agent sol·liciti la preview amb el seu compte de GitHub.
+- Fusionar la PR quan un membre verificat ho demana explícitament al fil amb el
+  commit ja validat i totes les comprovacions obligatòries en verd; sense
+  aquesta petició, l'agent no fusiona i mai no activa auto-merge.
 - Avisar de solapaments sense bloquejar per aquest fet, amb entorns separats i
   preservació dels canvis d'altres sessions.
 - Comparar runtimes i integracions per simplicitat i manteniment abans de
@@ -398,8 +403,9 @@ les entregues posteriors.
 
 **Criteris de tancament:**
 
-- L'ADR i els controls de permisos ampliats estan aprovats. L'agent no pot
-  fusionar, fer push a `main`, desplegar ni accedir a secrets de producció.
+- L'ADR i els controls de permisos ampliats estan aprovats. L'agent només
+  fusiona amb la petició explícita d'un membre verificat i el commit validat;
+  no fa push a `main`, no desplega ni accedeix a secrets de producció.
 - Les sessions compartides, les consultes i la represa de PR entre fils estan
   provades sense sobreescriure treball aliè ni duplicar accions en un reinici.
 - Cada instrucció és atribuïble a una persona al registre privat; les

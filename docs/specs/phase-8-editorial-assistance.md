@@ -21,7 +21,11 @@ La persona mantenidora confirma:
   ordres d'implementació, sense formulari ni estructura obligatòria.
 - Una petició d'implementació autoritza editar, executar proves, fer commits,
   push a la branca de treball i obrir o actualitzar la PR, sense confirmacions
-  intermèdies. El merge és exclusivament humà.
+  intermèdies.
+- El merge continua sent una decisió humana. Un cop validat el resultat, un
+  membre del grup el demana explícitament al fil i el servei l'executa amb el
+  commit validat. L'agent no fusiona mai per iniciativa pròpia ni per una
+  instrucció implícita.
 - La primera base operativa inclou Telegram, sessions i el flux complet fins a
   una PR amb un canvi petit. Les millores i els casos menys freqüents es proven
   sobre aquesta base, sense retirar els controls de seguretat previs al pilot.
@@ -43,8 +47,10 @@ L'ampliació canvia fronteres descrites a `AGENTS.md`,
 especificació és una proposta, no una excepció operativa a aquestes normes.
 T8.2 ha de proposar i obtenir l'aprovació de l'ADR que les esmeni abans de
 l'activació dels permisos nous. La separació del xat públic de l'ADR 0002 i la
-revisió humana i protecció de producció de l'ADR 0003 es mantenen. T8.2 també
-ha de revisar la delegació de la petició de preview respecte de l'[ADR 0009](../decisions/0009-pr-previews-same-domain-and-own-branches.md)
+revisió humana i protecció de producció de l'ADR 0003 es mantenen; l'ADR 0003
+s'esmena de manera acotada per permetre el push, la PR i el merge demanat
+explícitament, sense eliminar la revisió humana ni la protecció de `main`.
+T8.2 també ha de revisar la delegació de la petició de preview respecte de l'[ADR 0009](../decisions/0009-pr-previews-same-domain-and-own-branches.md)
 i obtenir l'aprovació de l'esmena necessària abans d'activar-la.
 
 Cap unitat passa a `En curs` fins que la PR de l'especificació es revisi i
@@ -57,8 +63,8 @@ Disposar d'un agent privat de desenvolupament i consulta al VPS, accessible des
 de sessions compartides de Telegram, que entengui el projecte i prepari canvis
 de codi o contingut fins a una PR revisable i la seva preview. La conversa no
 és un gestor de tasques: el treball es conserva a Git i a les seves
-especificacions i decisions, amb atribució humana privada i sense merge ni
-desplegament directe per part de l'agent.
+especificacions i decisions, amb atribució humana privada, sense desplegament
+per part de l'agent i amb el merge només a petició verificada d'una persona.
 
 ## Límits i decisions confirmades
 
@@ -89,10 +95,14 @@ desplegament directe per part de l'agent.
 - Els commits, el push i les PR de l'agent utilitzen el compte de GitHub
   `rboixaderg`, compartit amb la persona mantenidora. El compte no distingeix
   per si sol les accions de l'agent ni substitueix l'atribució privada de qui
-  demana cada acció. Cap autor aprova la seva pròpia PR.
-- L'agent no fusiona, no activa auto-merge, no fa push directe a `main` i no
-  desplega directament. Només una PR revisada i fusionada per una persona pot
-  arribar a producció pel pipeline protegit ([ADR 0003](../decisions/0003-agent-workflow-and-security.md)).
+  demana cada acció. L'agent no aprova les seves PR ni les fusiona pel seu
+  compte: la petició de merge és sempre d'una persona verificada.
+- L'agent no activa auto-merge, no fa push directe a `main`, no modifica
+  proteccions i no desplega. Només fusiona amb una petició explícita d'una
+  persona verificada, un SHA concret i totes les comprovacions obligatòries en
+  verd, pel camí determinista de l'[ADR 0013](../decisions/0013-private-development-agent-boundary.md).
+  El pipeline protegit continua desplegant només el que s'ha fusionat a `main`
+  ([ADR 0003](../decisions/0003-agent-workflow-and-security.md)).
 - Les comprovacions locals segueixen `AGENTS.md` i
   [l'estratègia de proves](../testing-strategy.md); la CI continua sent un gate
   independent. Una persona del grup demana la preview al fil; l'agent utilitza
@@ -127,8 +137,10 @@ desplegament directe per part de l'agent.
   interrupció no duplica PR, commits ni comentaris.
 - Retirar una persona del grup impedeix noves instruccions seves. El servei es
   pot aturar sense afectar producció ni previews.
-- Els intents de merge, accés a producció o sortida del sandbox es rebutgen amb
-  controls tècnics independents del model.
+- Una persona que ha validat la PR demana el merge al fil i el servei el fa
+  amb el commit validat, sense repetir cap acció prèvia ni duplicar el resultat.
+- Un merge sense petició verificada, l'accés a producció i la sortida del
+  sandbox es rebutgen amb controls independents del model.
 
 ## Dependències i ordre d'inici
 
@@ -158,14 +170,14 @@ són prerequisits per habilitar la nova capacitat d'escriptura del servei.
 
 ## Tasques, entregues i seguiment
 
-| Unitat                                          | Estat      | Dependències | Resultat verificable                             | PR                                                              |
-| ----------------------------------------------- | ---------- | ------------ | ------------------------------------------------ | --------------------------------------------------------------- |
-| T8.1 Requisits, sessions, identitats i amenaces | Completada | Fases 5 i 6  | Contracte operatiu i riscos revisats             | [#180](https://github.com/rboixaderg/mountain-runners/pull/180) |
-| T8.2 Avaluació, runtime, permisos i ADR         | En curs    | T8.1         | Solució mínima verificada i frontera aprovada    | -                                                               |
-| T8.3 Base operativa de Telegram fins a PR       | Pendent    | T8.2         | Una tasca petita arriba a PR des de Telegram     | -                                                               |
-| T8.4 Continuació, CI i preview                  | Pendent    | T8.3         | Feina represa i preview demanada per una persona | -                                                               |
-| T8.5 Auditoria, revocació i recuperació         | Pendent    | T8.3         | Atribució, continuïtat i aturada verificades     | -                                                               |
-| T8.6 Validació integral i runbook               | Pendent    | T8.4, T8.5   | Servei operable sense accés a producció          | -                                                               |
+| Unitat                                          | Estat      | Dependències | Resultat verificable                          | PR                                                              |
+| ----------------------------------------------- | ---------- | ------------ | --------------------------------------------- | --------------------------------------------------------------- |
+| T8.1 Requisits, sessions, identitats i amenaces | Completada | Fases 5 i 6  | Contracte operatiu i riscos revisats          | [#180](https://github.com/rboixaderg/mountain-runners/pull/180) |
+| T8.2 Avaluació, runtime, permisos i ADR         | Completada | T8.1         | Solució mínima verificada i frontera aprovada | [#182](https://github.com/rboixaderg/mountain-runners/pull/182) |
+| T8.3 Base operativa de Telegram fins a PR       | Pendent    | T8.2         | Una tasca petita arriba a PR des de Telegram  | -                                                               |
+| T8.4 Continuació, CI i preview                  | Pendent    | T8.3         | Feina represa, preview i merge a petició      | -                                                               |
+| T8.5 Auditoria, revocació i recuperació         | Pendent    | T8.3         | Atribució, continuïtat i aturada verificades  | -                                                               |
+| T8.6 Validació integral i runbook               | Pendent    | T8.4, T8.5   | Servei operable sense accés a producció       | -                                                               |
 
 ### T8.1: Requisits, sessions, identitats i amenaces
 
@@ -188,7 +200,8 @@ manteniment; verificar la viabilitat de sessions, terminal aïllada i integraci�
 amb GitHub. Fixar versions, llicències,
 model, aïllament, persistència, credencials, permisos, rotació, xarxa i límits.
 Proposar l'ADR per ampliar l'agent de contingut a desenvolupament, autoritzar per
-pertinença al grup i delegar el flux fins a PR. Revisar l'ADR 0009 i proposar
+pertinença al grup i delegar el flux fins a PR i fins al merge demanat
+explícitament. Revisar l'ADR 0009 i proposar
 l'esmena necessària per delegar a l'agent la petició de preview feta al fil.
 El flux actual de GitHub verifica el compte que comenta, no la persona de
 Telegram. Alinear `AGENTS.md`,
@@ -235,8 +248,9 @@ una consulta i preparar una tasca petita de codi en una branca pròpia. Executar
 les comprovacions pertinents, fer commit i push i obrir una PR amb la identitat
 aprovada. Preparar el servei per operar al VPS mitjançant el flux de
 desplegament aprovat.
-**Exclusió:** no fusiona ni activa auto-merge, no fa push a `main`, no demana
-preview i no accedeix a secrets o serveis de producció. **Depèn de:** T8.2,
+**Exclusió:** encara no fusiona ni activa auto-merge, no fa push a `main`, no demana
+preview i no accedeix a secrets o serveis de producció; el merge demanat
+s'incorpora a T8.4. **Depèn de:** T8.2,
 ADR aprovat i controls essencials verificats abans d'activar permisos.
 **Resultat:** una petició natural arriba a una PR revisable sense confirmacions
 intermèdies; una consulta no crea branca. **Comprovació:** sessió, autorització,
@@ -248,17 +262,21 @@ PR de preparació no els activa per si sola.
 
 **Abast:** ampliar la base que ja crea branques i PR amb el seguiment i la
 reparació acotada de CI i, quan una persona ho demana al fil, petició de
-preview i retorn d'URL i SHA confirmats.
+preview i retorn d'URL i SHA confirmats. Incorporar el merge demanat
+explícitament per un membre verificat, amb el commit validat i les
+comprovacions obligatòries en verd.
 Recuperar una branca/PR existent des d'una altra sessió i actualitzar el seu
 context revisable. Avisar dels solapaments sense bloquejar i incorporar adjunts
 amb les validacions previstes. Reutilitzar les integracions viables, sense
-exigir un publicador propi. **Exclusió:** no fusiona, activa auto-merge, fa push a `main`
-ni desplega; aturar una execució no tanca automàticament la PR. **Depèn de:**
+exigir un publicador propi. **Exclusió:** no activa auto-merge, no fa push a `main`,
+no modifica proteccions ni desplega; aturar una execució no tanca
+automàticament la PR. **Depèn de:**
 T8.3. **Resultat:** una petició natural d'implementació arriba a PR sense
-confirmacions intermèdies; la preview requereix una petició explícita al fil.
+confirmacions intermèdies; la preview i el merge requereixen una petició
+explícita al fil.
 **Comprovació:** dues sessions sobre una PR, solapaments, validació d'adjunts,
 absència de petició automàtica, CI vermella sense preview, idempotència i
-rebuig de merge. **PR:** pròpia.
+rebuig de merge sense comanda o amb commits posteriors a l'informe. **PR:** pròpia.
 
 ### T8.5: Auditoria, revocació i recuperació
 
@@ -390,15 +408,17 @@ independent. **PR:** pròpia, darrera de la fase.
 - Les operacions de GitHub utilitzen una integració reutilitzada o pròpia amb
   permisos mínims; no s'imposa un procés publicador separat si no cal. Secrets
   i tokens no entren al prompt, a les sortides d'eines ni a Git.
-- Abans d'activar l'escriptura del pilot, es verifica que l'agent pot fer push
-  a una branca i obrir una PR, però no pot fusionar, activar auto-merge,
-  modificar proteccions ni fer push a `main`. Com que `rboixaderg` és un compte
+- Abans d'activar l'escriptura del pilot, es verifica que el servei pot fer push
+  a una branca, obrir una PR i executar el merge demanat, però que no pot
+  activar auto-merge, modificar proteccions, fer push a `main` ni fusionar fora
+  del camí determinista. Com que `rboixaderg` és un compte
   administrador compartit amb la persona mantenidora, cal provar la separació
   tècnica de la credencial i de les operacions disponibles al servei; el rol
   del compte per si sol no distingeix l'agent. T8.4 completa les comprovacions
   d'actualització, comentaris i CI. Una prohibició al prompt no substitueix les
-  proteccions ni la prova negativa. Les comprovacions es dissenyen sense
-  fusionar cap PR ni fer push a `main`.
+  proteccions ni la prova negativa. Les comprovacions de permisos es dissenyen
+  sense fusionar cap PR ni fer push a `main`; el primer merge real del pilot
+  requereix autorització explícita i queda registrat a la traça.
 - Les fallades locals o de CI relacionades amb la feina es poden reparar dins
   de l'abast, inclòs el codi. T8.1 fixa els límits de reintents i el comportament
   en superar els límits d'execució; T8.2 fixa els valors de temps i recursos. Un
@@ -410,8 +430,17 @@ independent. **PR:** pròpia, darrera de la fase.
   de preview ni vincular cada persona a un compte de GitHub. L'agent retorna
   l'URL i el SHA del publicador de confiança, mai una URL construïda o un estat
   suposat. Sense petició explícita no comenta `/preview`.
-- Reinicis, updates duplicats i reintents no dupliquen commits, PR ni
-  comentaris. Abans de repetir una acció externa amb resultat desconegut,
+- El merge és una acció humana executada pel servei. Un membre verificat el
+  demana al fil amb `/merge <PR>` després de validar el resultat; el servei
+  comprova la pertinença, que el cap actual de la PR sigui el commit que ha
+  informat a aquell fil, i que totes les comprovacions obligatòries estiguin en
+  verd i al dia, i només llavors fusiona sense bypass d'administrador. La
+  persona no ha de conèixer el SHA: el fixa el servei amb la resposta de GitHub,
+  i qualsevol commit posterior obliga a una validació nova. No existeix
+  auto-merge ni merge per prosa, i l'entorn aïllat no pot invocar l'API de
+  GitHub.
+- Reinicis, updates duplicats i reintents no dupliquen commits, PR, comentaris
+  ni merges. Abans de repetir una acció externa amb resultat desconegut,
   s'inspecciona l'estat real de Git i GitHub.
 
 ## Estratègia de tests i qualitat
@@ -439,7 +468,12 @@ s'afegeixen les mancances del pont sense duplicar suites senceres.
   → canvi de codi → prova → commit → push → PR → CI → petició humana al fil
   → preview. Comprovar també que no es demana preview sense petició. Fallades de
   xarxa, credencials revocades i resposta externa amb resultat desconegut.
-- Rebuig tècnic de merge, auto-merge, push a `main`, canvi de permisos i accés a
+- Merge: una comanda verificada fusiona el commit de l'últim informe; es
+  rebutgen el merge sense comanda, des d'un altre grup o un missatge privat,
+  amb commits posteriors a l'informe, amb CI vermella, pendent o absent, amb la
+  PR en esborrany, amb la base canviada, amb bypass d'administrador i la
+  repetició després d'un resultat desconegut.
+- Rebuig tècnic d'auto-merge, push a `main`, canvi de permisos i accés a
   producció, tant per eines com per ordres alternatives dins del sandbox.
 - Interrupció durant una prova i després de push/PR: preservar treball,
   reconciliar l'estat i no duplicar accions. Neteja que no elimina treball
@@ -468,9 +502,18 @@ prova simulada no es presenta com a verificació dels permisos reals de GitHub.
   dels components. Les credencials només arriben als mecanismes que en
   necessiten l'ús; ni el model ni processos de proves o dependències han de
   poder llegir-les. T8.2 verifica aquesta frontera amb la solució triada.
-- Les proteccions i permisos han d'impedir merge i push directe encara que el
-  model intenti saltar-se les instruccions. L'agent no té credencials de
-  producció ni permisos administratius de GitHub.
+- Les proteccions i permisos han d'impedir el push directe a `main`, els
+  canvis de protecció i qualsevol merge fora del camí determinista, encara que
+  el model intenti saltar-se les instruccions. L'entorn aïllat no té credencials
+  ni accés directe a l'API de GitHub; només el component de confiança pot
+  executar el merge demanat per una persona. L'agent no té credencials de
+  producció ni fa cap operació administrativa del repositori.
+- El compte de GitHub és administrador i GitHub no distingeix el servei de la
+  persona mantenidora. Amb el merge autoritzat, la separació és el camí
+  determinista, les comprovacions obligatòries i l'auditoria, no una
+  impossibilitat tècnica del token. S'accepta aquest risc residual documentat a
+  l'[ADR 0013](../decisions/0013-private-development-agent-boundary.md); no
+  substitueix la revisió del diff abans de demanar el merge.
 - La traça privada registra autor, sessió, acció, moment, model i, quan
   existeixen, branca, commits, PR, CI i preview. L'auditoria minimitza el text
   de peticions i no duplica la conversa íntegra; els historials de sessió tenen
@@ -486,7 +529,9 @@ prova simulada no es presenta com a verificació dels permisos reals de GitHub.
 
 ## Fora d'abast
 
-- Merge, auto-merge, push directe a `main` i desplegament directe a producció.
+- Auto-merge, push directe a `main`, canvi de proteccions i desplegament
+  directe a producció. El merge només entra a l'abast amb una petició
+  verificada, mai automàtic.
 - Administració del VPS, canvis remots de Caddy, releases, DNS o infraestructura
   i accés a secrets o logs de producció des de l'agent.
 - El futur xat públic, el seu índex o credencials compartides amb aquest servei.
@@ -520,9 +565,12 @@ prova simulada no es presenta com a verificació dels permisos reals de GitHub.
 6. Una ordre natural d'implementació produeix canvis de codi o contingut,
    comprovacions pertinents, commit, push i PR sense confirmacions intermèdies,
    dins de l'abast i amb descripció i evidència revisables.
-7. El servei supera proves negatives de merge, auto-merge, push a `main`,
-   escapada del sandbox i accés a producció. No n'hi ha prou amb regles del
-   prompt. Només una persona fusiona i el pipeline protegit desplega.
+7. El servei fusiona només amb la petició explícita d'un membre verificat, el
+   commit informat al fil i les comprovacions obligatòries en verd, i supera les
+   proves negatives de merge sense comanda, amb commits posteriors a
+   l'informe, CI vermella o pendent,
+   auto-merge, push a `main`, escapada del sandbox i accés a producció. No
+   n'hi ha prou amb regles del prompt. Només el pipeline protegit desplega.
 8. Sense petició explícita al fil o amb CI vermella, l'agent no demana preview.
    Amb CI verda i la petició d'un membre verificat, comenta `/preview` amb el
    seu compte i retorna l'URL i el SHA confirmats pel publicador de la fase 6.
