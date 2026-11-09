@@ -1,0 +1,21 @@
+docs/decisions/0013-private-development-agent-boundary.md
+  s_0ac05da9a28c8a::t_5c7d62a4ab903d 50-59,67-69,75-78,84-85,93-98,106
+docs/phase-8-t81-requisits-amenaces.md
+  s_0ac05da9a28c8a::t_21cfd1a5a3fe01 29,109-121
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "425a2f95b8adc7eee79b6347c15be71416359610",
+  "prompts": {},
+  "sessions": {
+    "s_0ac05da9a28c8a": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a1bd2b-3381-7799-b4a1-7d1544470b2b",
+        "model": "deepseek-v4.1-flash"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
