@@ -276,7 +276,7 @@ confirmacions intermèdies; la preview i el merge requereixen una petició
 explícita al fil.
 **Comprovació:** dues sessions sobre una PR, solapaments, validació d'adjunts,
 absència de petició automàtica, CI vermella sense preview, idempotència i
-rebuig de merge sense comanda o amb SHA obsolet. **PR:** pròpia.
+rebuig de merge sense comanda o amb commits posteriors a l'informe. **PR:** pròpia.
 
 ### T8.5: Auditoria, revocació i recuperació
 
@@ -431,11 +431,14 @@ independent. **PR:** pròpia, darrera de la fase.
   l'URL i el SHA del publicador de confiança, mai una URL construïda o un estat
   suposat. Sense petició explícita no comenta `/preview`.
 - El merge és una acció humana executada pel servei. Un membre verificat el
-  demana al fil amb `/merge <PR> <SHA>` després de validar el resultat; el
-  servei comprova la pertinença, que el SHA sigui el cap actual de la PR i que
-  totes les comprovacions obligatòries estiguin en verd i al dia, i només
-  llavors fusiona sense bypass d'administrador. No existeix auto-merge ni merge
-  per prosa, i l'entorn aïllat no pot invocar l'API de GitHub.
+  demana al fil amb `/merge <PR>` després de validar el resultat; el servei
+  comprova la pertinença, que el cap actual de la PR sigui el commit que ha
+  informat a aquell fil, i que totes les comprovacions obligatòries estiguin en
+  verd i al dia, i només llavors fusiona sense bypass d'administrador. La
+  persona no ha de conèixer el SHA: el fixa el servei amb la resposta de GitHub,
+  i qualsevol commit posterior obliga a una validació nova. No existeix
+  auto-merge ni merge per prosa, i l'entorn aïllat no pot invocar l'API de
+  GitHub.
 - Reinicis, updates duplicats i reintents no dupliquen commits, PR, comentaris
   ni merges. Abans de repetir una acció externa amb resultat desconegut,
   s'inspecciona l'estat real de Git i GitHub.
@@ -465,10 +468,11 @@ s'afegeixen les mancances del pont sense duplicar suites senceres.
   → canvi de codi → prova → commit → push → PR → CI → petició humana al fil
   → preview. Comprovar també que no es demana preview sense petició. Fallades de
   xarxa, credencials revocades i resposta externa amb resultat desconegut.
-- Merge: una comanda verificada fusiona el SHA validat; es rebutgen el merge
-  sense comanda, des d'un altre grup o un missatge privat, amb SHA obsolet, amb
-  CI vermella, pendent o absent, amb la PR en esborrany, amb la base canviada,
-  amb bypass d'administrador i la repetició després d'un resultat desconegut.
+- Merge: una comanda verificada fusiona el commit de l'últim informe; es
+  rebutgen el merge sense comanda, des d'un altre grup o un missatge privat,
+  amb commits posteriors a l'informe, amb CI vermella, pendent o absent, amb la
+  PR en esborrany, amb la base canviada, amb bypass d'administrador i la
+  repetició després d'un resultat desconegut.
 - Rebuig tècnic d'auto-merge, push a `main`, canvi de permisos i accés a
   producció, tant per eines com per ordres alternatives dins del sandbox.
 - Interrupció durant una prova i després de push/PR: preservar treball,
@@ -562,8 +566,9 @@ prova simulada no es presenta com a verificació dels permisos reals de GitHub.
    comprovacions pertinents, commit, push i PR sense confirmacions intermèdies,
    dins de l'abast i amb descripció i evidència revisables.
 7. El servei fusiona només amb la petició explícita d'un membre verificat, el
-   SHA validat i les comprovacions obligatòries en verd, i supera les proves
-   negatives de merge sense comanda, SHA obsolet, CI vermella o pendent,
+   commit informat al fil i les comprovacions obligatòries en verd, i supera les
+   proves negatives de merge sense comanda, amb commits posteriors a
+   l'informe, CI vermella o pendent,
    auto-merge, push a `main`, escapada del sandbox i accés a producció. No
    n'hi ha prou amb regles del prompt. Només el pipeline protegit desplega.
 8. Sense petició explícita al fil o amb CI vermella, l'agent no demana preview.

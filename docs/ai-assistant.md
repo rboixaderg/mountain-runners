@@ -28,7 +28,8 @@ de shell o de producció sense restriccions.
 
 El merge continua sent una decisió humana. L'agent privat de desenvolupament de
 la fase 8 el pot executar només amb la petició explícita d'un membre verificat
-del grup, un SHA concret i les comprovacions obligatòries en verd, segons
+del grup, el commit que el servei ha informat al fil i les comprovacions
+obligatòries en verd, segons
 l'[ADR 0013](decisions/0013-private-development-agent-boundary.md) i un cop
 aprovada l'esmena de merge.
 
