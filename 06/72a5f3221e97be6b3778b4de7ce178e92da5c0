@@ -1,0 +1,177 @@
+.env.example
+  s_5a96a3bf85742f::t_cc8d6b6e49ceb2 3-18
+README.md
+  s_be3ee545295019::t_a95ae8c5773955 96-100
+docs/architecture.md
+  s_65a3dd57352249::t_0685b33903b1d3 156-191,203-205
+docs/deployment.md
+  s_65a3dd57352249::t_9320878dfd39dc 343-527,542-547
+docs/specs/phase-8-editorial-assistance.md
+  s_65a3dd57352249::t_c69a47b92f7e28 262-276
+docs/testing-strategy.md
+  s_65a3dd57352249::t_b01feaa75c158c 12-19
+package.json
+  s_3e2fbb21dd6951::t_14f7e78d03e98d 26,41-43
+packages/telegram-pi-bridge/LICENSE
+  s_3e2fbb21dd6951::t_f8f75cb1dd8309 1-21
+packages/telegram-pi-bridge/README.md
+  s_65a3dd57352249::t_3e30039c6ab017 1-197
+packages/telegram-pi-bridge/examples/conversation.mjs
+  s_65a3dd57352249::t_a4ef21e6bf3572 1-112
+packages/telegram-pi-bridge/package.json
+  s_3e2fbb21dd6951::t_29e7f782f57234 1-24
+packages/telegram-pi-bridge/src/index.mjs
+  s_3e2fbb21dd6951::t_02ba672037ed82 1-4
+packages/telegram-pi-bridge/src/pi/rpc.mjs
+  s_81bc2aeee66953::t_2490527dd6dffb 1-223
+packages/telegram-pi-bridge/src/sessions/identity.mjs
+  s_3e2fbb21dd6951::t_978eccee9971bf 1-32
+packages/telegram-pi-bridge/src/sessions/index.mjs
+  s_3e2fbb21dd6951::t_1f8507e84a9ad1 1-2
+packages/telegram-pi-bridge/src/sessions/queue.mjs
+  s_3e2fbb21dd6951::t_308d8f27fa748d 1-269
+packages/telegram-pi-bridge/src/telegram/api.mjs
+  s_3e2fbb21dd6951::t_0296eaa08be7fc 1-104
+packages/telegram-pi-bridge/src/telegram/attribution.mjs
+  s_3e2fbb21dd6951::t_fa04feb4d6524d 1-143
+packages/telegram-pi-bridge/src/telegram/bridge.mjs
+  s_65a3dd57352249::t_796dabc66ab291 1-254
+packages/telegram-pi-bridge/src/telegram/index.mjs
+  s_3e2fbb21dd6951::t_674eb6f8015594 1-2
+packages/telegram-pi-bridge/test/entries.test.mjs
+  s_81bc2aeee66953::t_04b603b104c798 1-40
+packages/telegram-pi-bridge/test/pi/rpc.test.mjs
+  s_81bc2aeee66953::t_f057c2ff378bc3 1-280
+packages/telegram-pi-bridge/test/sessions/identity.test.mjs
+  s_81bc2aeee66953::t_a340f70f486703 1-24
+packages/telegram-pi-bridge/test/sessions/queue.test.mjs
+  s_81bc2aeee66953::t_d9b21011577d1c 1-154
+packages/telegram-pi-bridge/test/telegram/api.test.mjs
+  s_65a3dd57352249::t_9ad80d26b3ac30 1-121
+packages/telegram-pi-bridge/test/telegram/attribution.test.mjs
+  s_81bc2aeee66953::t_615ada56fa2424 1-234
+packages/telegram-pi-bridge/test/telegram/bridge.test.mjs
+  s_81bc2aeee66953::t_a72c05cff46f28 1-343
+pnpm-lock.yaml
+  s_81bc2aeee66953::t_491f8d53badb22 10-13,140-141
+pnpm-workspace.yaml
+  s_3e2fbb21dd6951::t_ee77d0c96a77ea 4
+tools/server/README.md
+  s_81bc2aeee66953::t_68c8436b61d873 25-30,32
+tools/server/agent/README.md
+  s_65a3dd57352249::t_e0abf886c9d9ed 1-148
+tools/server/agent/config.mjs
+  s_5a96a3bf85742f::t_8d2e725e957f0b 1-156
+tools/server/agent/config.test.mjs
+  s_5a96a3bf85742f::t_a89578e863ce3f 1-84
+tools/server/agent/policy/development.mjs
+  s_81bc2aeee66953::t_2a45d0ac53b7d3 1-134
+tools/server/agent/policy/development.test.mjs
+  s_81bc2aeee66953::t_b54eef6e410e98 1-49
+tools/server/agent/processes/telegram-bridge/main.mjs
+  s_65a3dd57352249::t_dc9fcce997847e 1-126
+tools/server/agent/processes/telegram-bridge/main.test.mjs
+  s_65a3dd57352249::t_109ed9a4f5d80a 1-97
+tools/server/agent/repository/github.mjs
+  s_afe842f367e191::t_61ff3a50991f2c 1-182
+tools/server/agent/repository/github.test.mjs
+  s_afe842f367e191::t_0b554f69457964 1-292
+tools/server/agent/repository/publisher.mjs
+  s_81bc2aeee66953::t_8e00659700be7b 1-26
+tools/server/agent/repository/trusted-git.mjs
+  s_afe842f367e191::t_8b9eb7beb4fccd 1-93
+tools/server/agent/repository/worktrees.mjs
+  s_afe842f367e191::t_b5583e967fe698 1-177
+tools/server/agent/runtime/extensions/sandbox-bash.ts
+  s_afe842f367e191::t_db0bfbb06b089f 1-56
+tools/server/agent/runtime/pi-adapter.mjs
+  s_65a3dd57352249::t_bbd8d01a90b702 1-81
+tools/server/agent/runtime/pi-adapter.test.mjs
+  s_65a3dd57352249::t_8a6f2d226321c3 1-48
+tools/server/agent/runtime/profile-smoke.test.mjs
+  s_65a3dd57352249::t_5f52b74ceea9b3 1-107
+tools/server/agent/runtime/profile.mjs
+  s_afe842f367e191::t_2089849763ad54 1-29
+tools/server/agent/runtime/profile.test.mjs
+  s_afe842f367e191::t_500694da6cab52 1-61
+tools/server/agent/runtime/request-kind.mjs
+  s_81bc2aeee66953::t_1ec50b74a74116 1-28
+tools/server/agent/runtime/request-kind.test.mjs
+  s_81bc2aeee66953::t_b8bb12a9f5efec 1-30
+tools/server/agent/sandbox/arguments.mjs
+  s_afe842f367e191::t_5df1b9873bd625 1-130
+tools/server/agent/sandbox/commands.mjs
+  s_afe842f367e191::t_0a97d9c3ed6b62 1-136
+tools/server/agent/sandbox/commands.test.mjs
+  s_81bc2aeee66953::t_e6d56c52509324 1-292
+tools/server/agent/workflow/bridge-package.test.mjs
+  s_65a3dd57352249::t_2cabb8ad8e7083 1-184
+tools/server/agent/workflow/journey.test.mjs
+  s_65a3dd57352249::t_fb8cefbdc25eeb 1-242
+tools/server/agent/workflow/project-runner.mjs
+  s_81bc2aeee66953::t_55fe1b6cc9ca53 1-49
+tools/server/agent/workflow/regressions.test.mjs
+  s_65a3dd57352249::t_36e9368b253f28 1-266
+tools/server/agent/workflow/run-instruction.mjs
+  s_81bc2aeee66953::t_83650cc0969fbe 1-130
+tools/server/agent/workflow/run-instruction.test.mjs
+  s_81bc2aeee66953::t_2d5e8adca13421 1-460
+tools/server/systemd/mountain-agent.service
+  s_5a96a3bf85742f::t_07fe87b9c64ff4 1-29
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "0672a5f3221e97be6b3778b4de7ce178e92da5c0",
+  "prompts": {},
+  "sessions": {
+    "s_3e2fbb21dd6951": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a1c457-7554-7210-8c45-603ea4d48d24",
+        "model": "deepseek-v4.1-flash"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    },
+    "s_5a96a3bf85742f": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a1c21b-0d7b-7799-b4a1-7d19e28b021b",
+        "model": "deepseek-v4.1-flash"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    },
+    "s_65a3dd57352249": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a1c454-6b5e-7650-afb8-087dcbf6224c",
+        "model": "deepseek-v4.1-flash"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    },
+    "s_81bc2aeee66953": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a1c430-3570-7799-b4a1-7d1b2369084b",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    },
+    "s_afe842f367e191": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a1c438-2af9-70c2-b2b8-34875ba545f4",
+        "model": "deepseek-v4.1-flash"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    },
+    "s_be3ee545295019": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a1c46a-a721-73a1-871a-1eedb3fe5c56",
+        "model": "deepseek-v4.1-flash"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
