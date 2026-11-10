@@ -1,0 +1,21 @@
+apps/web/package.json
+  s_65a3dd57352249::t_cb02bf88a3fadc 21
+pnpm-lock.yaml
+  s_65a3dd57352249::t_663efaad6add5b 106-107,3599-3601,7743-7744
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "e043a672446adfc150e24bfbe9f512936fa9eada",
+  "prompts": {},
+  "sessions": {
+    "s_65a3dd57352249": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a1c454-6b5e-7650-afb8-087dcbf6224c",
+        "model": "deepseek-v4.1-flash"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
