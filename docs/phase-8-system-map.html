@@ -1,0 +1,1648 @@
+<!doctype html>
+<html lang="ca">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="description"
+      content="Mapa de la fase 8 de Mountain Runners: tasques, components de T8.3, permisos, fluxos i validació pendent al VPS."
+    />
+    <title>Fase 8 · Mapa del sistema · Mountain Runners</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --paper: #faf8f5;
+        --ink: #191919;
+        --muted: #55514d;
+        --accent: #bc1726;
+        --line: #d8d2cb;
+        --notice: #fff0ee;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html {
+        scroll-padding-top: 1.5rem;
+      }
+      body {
+        margin: 0;
+        background: var(--paper);
+        color: var(--ink);
+        font:
+          1rem/1.6 system-ui,
+          sans-serif;
+      }
+      a {
+        color: var(--accent);
+        text-underline-offset: 0.2em;
+      }
+      a:hover {
+        text-decoration-thickness: 0.15em;
+      }
+      :focus-visible {
+        outline: 3px solid var(--accent);
+        outline-offset: 4px;
+      }
+      .skip {
+        position: absolute;
+        left: 1rem;
+        top: -6rem;
+        padding: 0.75rem;
+        background: white;
+        z-index: 1;
+      }
+      .skip:focus {
+        top: 1rem;
+      }
+      .frame {
+        width: min(100% - 2.5rem, 78rem);
+        margin-inline: auto;
+      }
+      header {
+        padding-block: 3.5rem 2rem;
+        border-bottom: 3px solid var(--ink);
+      }
+      .eyebrow {
+        margin: 0 0 0.75rem;
+        color: var(--accent);
+        font-size: 0.8rem;
+        font-weight: 750;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+      h1,
+      h2,
+      h3 {
+        line-height: 1.2;
+      }
+      h1 {
+        max-width: 18ch;
+        margin: 0;
+        font-size: clamp(2.6rem, 5vw, 4rem);
+        letter-spacing: -0.03em;
+      }
+      h2 {
+        margin: 0 0 1rem;
+        font-size: clamp(1.8rem, 3vw, 2.5rem);
+        letter-spacing: -0.03em;
+      }
+      h3 {
+        margin-block: 1.5rem 0.75rem;
+        font-size: 1.2rem;
+      }
+      p {
+        margin-block: 0.75rem;
+      }
+      .intro {
+        max-width: 72ch;
+        font-size: 1.15rem;
+      }
+      .meta,
+      figcaption,
+      .hint {
+        color: var(--muted);
+        font-size: 0.9rem;
+      }
+      nav {
+        padding-block: 1.25rem;
+        border-bottom: 1px solid var(--line);
+      }
+      nav ul {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.75rem 1.5rem;
+        margin: 0;
+        padding: 0;
+        list-style: none;
+      }
+      nav a {
+        color: var(--ink);
+        font-weight: 650;
+      }
+      main > section {
+        padding-block: 3.5rem;
+        border-bottom: 1px solid var(--line);
+      }
+      .notice {
+        margin-block: 1.5rem;
+        padding: 1.25rem 1.5rem;
+        border-left: 4px solid var(--accent);
+        background: var(--notice);
+      }
+      .notice p:first-child {
+        margin-top: 0;
+      }
+      .notice p:last-child {
+        margin-bottom: 0;
+      }
+      .legend {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.75rem 1.5rem;
+        padding: 0;
+        list-style: none;
+      }
+      .tag {
+        display: inline-block;
+        padding: 0.15rem 0.5rem;
+        border: 1px solid var(--ink);
+        font-size: 0.8rem;
+        font-weight: 700;
+      }
+      .tag.pending {
+        color: var(--accent);
+        border-color: var(--accent);
+      }
+      .tag.future {
+        color: var(--muted);
+        border-color: var(--muted);
+        border-style: dashed;
+      }
+      figure {
+        margin: 1.5rem 0;
+      }
+      .diagram {
+        max-width: 100%;
+        overflow: auto;
+        padding: 1rem;
+        border: 1px solid var(--line);
+        background: white;
+      }
+      .diagram svg {
+        display: block;
+        width: 100%;
+        min-width: 64rem;
+        height: auto;
+      }
+      svg text {
+        fill: var(--ink);
+        font-family: system-ui, sans-serif;
+        font-size: 17px;
+      }
+      svg .small {
+        font-size: 15px;
+        fill: var(--muted);
+      }
+      svg .label {
+        font-size: 19px;
+        font-weight: 750;
+      }
+      svg .node {
+        fill: white;
+        stroke: var(--ink);
+        stroke-width: 1.5;
+      }
+      svg .current {
+        fill: var(--notice);
+        stroke: var(--accent);
+        stroke-width: 2;
+      }
+      svg .planned {
+        fill: white;
+        stroke: var(--muted);
+        stroke-width: 1.5;
+        stroke-dasharray: 6 5;
+      }
+      svg .zone {
+        fill: var(--paper);
+        stroke: var(--muted);
+        stroke-width: 1.5;
+        stroke-dasharray: 8 5;
+      }
+      svg .edge {
+        fill: none;
+        stroke: var(--ink);
+        stroke-width: 2;
+      }
+      svg .indirect {
+        stroke-dasharray: 5 5;
+      }
+      figcaption {
+        margin-top: 0.75rem;
+      }
+      .columns {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 1.5rem 3rem;
+      }
+      .columns > * {
+        min-width: 0;
+      }
+      dl {
+        margin: 0;
+      }
+      dt {
+        font-weight: 750;
+        margin-top: 1rem;
+      }
+      dd {
+        margin: 0.25rem 0 1rem;
+      }
+      li + li {
+        margin-top: 0.5rem;
+      }
+      code {
+        font:
+          0.9em/1.5 ui-monospace,
+          monospace;
+        overflow-wrap: anywhere;
+      }
+      pre {
+        margin: 1rem 0;
+        padding: 1.25rem;
+        border: 1px solid var(--line);
+        background: white;
+        white-space: pre-wrap;
+        overflow-wrap: anywhere;
+      }
+      .table-scroll {
+        max-width: 100%;
+        overflow: auto;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-block: 1rem;
+        text-align: left;
+      }
+      caption {
+        text-align: left;
+        font-weight: 750;
+        margin-bottom: 0.75rem;
+      }
+      th,
+      td {
+        padding: 0.85rem;
+        vertical-align: top;
+        border-bottom: 1px solid var(--line);
+      }
+      thead th {
+        background: var(--ink);
+        color: white;
+        font-size: 0.85rem;
+      }
+      tbody th {
+        width: 22%;
+      }
+      details {
+        margin-block: 1rem;
+        border-block: 1px solid var(--line);
+        padding-block: 0.75rem;
+      }
+      summary {
+        font-weight: 700;
+        cursor: pointer;
+      }
+      .flow {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 1.5rem;
+        padding: 0;
+        list-style-position: inside;
+      }
+      .flow li {
+        margin: 0;
+        padding: 1.25rem;
+        border-top: 3px solid var(--ink);
+        background: white;
+      }
+      .flow strong {
+        display: block;
+        margin-block: 0.5rem;
+      }
+      footer {
+        padding-block: 2rem 3.5rem;
+      }
+      @media (max-width: 48rem) {
+        .columns,
+        .flow {
+          grid-template-columns: 1fr;
+        }
+        th,
+        td {
+          padding: 0.65rem;
+        }
+        tbody th {
+          width: 30%;
+        }
+      }
+      @media print {
+        @page {
+          size: A4 landscape;
+          margin: 14mm;
+        }
+        body {
+          font-size: 10pt;
+          background: white;
+        }
+        .frame {
+          width: 100%;
+        }
+        header,
+        main > section {
+          padding-block: 1.5rem;
+        }
+        nav,
+        .skip,
+        .hint {
+          display: none;
+        }
+        .diagram,
+        .table-scroll {
+          overflow: visible;
+        }
+        .diagram svg {
+          min-width: 0;
+        }
+        figure,
+        tr,
+        .notice {
+          break-inside: avoid;
+        }
+        h2,
+        h3 {
+          break-after: avoid;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <a class="skip" href="#contingut">Ves al contingut</a>
+    <header class="frame">
+      <p class="eyebrow">Mountain Runners · Documentació tècnica</p>
+      <h1>Fase 8. Mapa del sistema</h1>
+      <p class="intro">
+        Què volem construir, quines peces té T8.3 i què falta demostrar abans
+        d'activar el pilot privat de Telegram.
+      </p>
+      <p class="meta">
+        Base del codi representat:
+        <a
+          href="https://github.com/rboixaderg/mountain-runners/commit/65acae91ec2928349faf701a50e2e97c4f73b89a"
+          ><code>65acae9</code></a
+        >
+        ·
+        <a href="https://github.com/rboixaderg/mountain-runners/pull/197"
+          >PR #197</a
+        >.
+      </p>
+      <div class="notice">
+        <p>
+          <strong
+            >T8.3 està implementada i provada localment, però no validada al
+            VPS.</strong
+          >
+          Encara cal comprovar l'aïllament, els permisos reals i una consulta i
+          una tasca petita de Telegram fins a PR. Aquestes comprovacions formen
+          part del tancament de T8.3.
+        </p>
+        <p>
+          El servei no està instal·lat ni activat. Aquest fitxer és un mapa
+          estàtic: no executa ordres, no monitoritza el VPS i no carrega
+          recursos externs. Es pot obrir directament al navegador des del clon o
+          després de descarregar-lo.
+        </p>
+      </div>
+    </header>
+    <nav class="frame" aria-label="Seccions del mapa">
+      <ul>
+        <li><a href="#fase">1. Fase completa</a></li>
+        <li><a href="#arquitectura">2. Arquitectura de T8.3</a></li>
+        <li><a href="#flux">3. De Telegram a PR</a></li>
+        <li><a href="#estat">4. Cua i worktrees</a></li>
+        <li><a href="#peces">5. Inventari de peces</a></li>
+        <li><a href="#limits">6. Permisos i límits</a></li>
+        <li><a href="#pilot">7. Validació real</a></li>
+      </ul>
+    </nav>
+    <main id="contingut" class="frame">
+      <section id="fase" aria-labelledby="fase-title">
+        <p class="eyebrow">Visió general</p>
+        <h2 id="fase-title">Un assistent privat, no una shell remota</h2>
+        <p>
+          Les persones del grup privat poden preguntar sobre el projecte i
+          encarregar canvis. L'agent treballa aïllat i proposa el resultat en
+          una pull request. El xat públic futur és un altre servei i queda fora
+          d'aquesta fase.
+        </p>
+        <ul class="legend" aria-label="Llegenda d'estats">
+          <li>
+            <span class="tag">Acceptat</span> Requisits o decisió aprovats.
+          </li>
+          <li>
+            <span class="tag pending">Implementat · per validar</span> Codi
+            disponible; falta prova real.
+          </li>
+          <li>
+            <span class="tag future">Planificat</span> Encara no implementat en
+            aquesta PR.
+          </li>
+        </ul>
+        <figure>
+          <div
+            class="diagram"
+            role="region"
+            aria-label="Diagrama de dependències de la fase 8, desplaçable horitzontalment"
+            tabindex="0"
+          >
+            <svg
+              viewBox="0 0 1180 300"
+              role="img"
+              aria-labelledby="phase-title phase-desc"
+            >
+              <title id="phase-title">Les sis tasques de la fase 8</title>
+              <desc id="phase-desc">
+                T8.1 precedeix T8.2 i T8.3. Després de T8.3, T8.4 i T8.5 poden
+                avançar en paral·lel. T8.6 depèn de totes dues. T8.3 encara té
+                pendent la validació real.
+              </desc>
+              <defs>
+                <marker
+                  id="phase-arrow"
+                  markerWidth="8"
+                  markerHeight="8"
+                  refX="7"
+                  refY="4"
+                  orient="auto"
+                >
+                  <path d="M0 0 L8 4 L0 8 Z" fill="#191919" />
+                </marker>
+              </defs>
+              <path
+                class="edge"
+                d="M200 145 H235"
+                marker-end="url(#phase-arrow)"
+              />
+              <path
+                class="edge"
+                d="M425 145 H460"
+                marker-end="url(#phase-arrow)"
+              />
+              <path
+                class="edge"
+                d="M650 145 H680 V70 H715"
+                marker-end="url(#phase-arrow)"
+              />
+              <path
+                class="edge"
+                d="M680 145 V230 H715"
+                marker-end="url(#phase-arrow)"
+              />
+              <path
+                class="edge"
+                d="M915 70 H945 V145 H975"
+                marker-end="url(#phase-arrow)"
+              />
+              <path class="edge" d="M915 230 H945 V145" />
+              <rect class="node" x="10" y="90" width="190" height="110" />
+              <text class="label" x="26" y="120">T8.1 · Requisits</text>
+              <text x="26" y="148">Sessions i amenaces</text>
+              <text class="small" x="26" y="178">Acceptada · PR #180</text>
+              <rect class="node" x="235" y="90" width="190" height="110" />
+              <text class="label" x="251" y="120">T8.2 · Frontera</text>
+              <text x="251" y="148">Avaluació i ADR</text>
+              <text class="small" x="251" y="178">Acceptada · #182 / #183</text>
+              <rect class="current" x="460" y="90" width="190" height="110" />
+              <text class="label" x="476" y="120">T8.3 · Fins a PR</text>
+              <text x="476" y="148">Implementada al codi</text>
+              <text class="small" x="476" y="178">Falta validació real</text>
+              <rect class="planned" x="715" y="15" width="200" height="110" />
+              <text class="label" x="731" y="45">T8.4 · Continuació</text>
+              <text x="731" y="73">CI, preview i merge</text>
+              <text class="small" x="731" y="103">Planificada</text>
+              <rect class="planned" x="715" y="175" width="200" height="110" />
+              <text class="label" x="731" y="205">T8.5 · Operació</text>
+              <text x="731" y="233">Traça i recuperació</text>
+              <text class="small" x="731" y="263">Planificada</text>
+              <rect class="planned" x="975" y="90" width="195" height="110" />
+              <text class="label" x="991" y="120">T8.6 · Integral</text>
+              <text x="991" y="148">Validació i runbook</text>
+              <text class="small" x="991" y="178">Planificada</text>
+            </svg>
+          </div>
+          <figcaption>
+            Les fletxes indiquen dependències. Aprovar una arquitectura no
+            activa credencials ni instal·la el servei.
+          </figcaption>
+        </figure>
+        <p class="hint">
+          En pantalles petites, desplaça els diagrames horitzontalment. També
+          pots enfocar-los amb Tab i usar les fletxes del teclat.
+        </p>
+        <div class="columns">
+          <div>
+            <h3>Què arriba amb T8.3</h3>
+            <ul>
+              <li>
+                Telegram verificat, cua duradora i sessions compartides per
+                tema.
+              </li>
+              <li>
+                Consulta de només lectura o canvi petit en una branca pròpia.
+              </li>
+              <li>Model i comprovacions, commit, escaneig, push i PR.</li>
+              <li>
+                Configuració i unitat previstes per al VPS, encara sense
+                activar.
+              </li>
+            </ul>
+          </div>
+          <div>
+            <h3>Què arriba després</h3>
+            <ul>
+              <li>
+                <strong>T8.4:</strong> seguir i reparar CI, reprendre branques
+                entre fils, solapaments i adjunts. Preview i merge només amb
+                petició explícita.
+              </li>
+              <li>
+                <strong>T8.5:</strong> completar auditoria, revocació,
+                reconciliació d'efectes externs, retenció i rotació.
+              </li>
+              <li>
+                <strong>T8.6:</strong> provar el conjunt i tancar el runbook. No
+                substitueix la prova mínima real exigida a T8.3.
+              </li>
+            </ul>
+          </div>
+        </div>
+        <details>
+          <summary>Com encaixen preview, merge i producció</summary>
+          <p>
+            GitHub executa la CI de la PR. T8.4 afegirà el seguiment des del
+            pont. Amb CI verda i petició d'un membre verificat, el servei podrà
+            demanar <code>/preview</code> al publicador existent de la fase 6 i
+            retornar l'URL i el SHA confirmats.
+          </p>
+          <p>
+            El merge continuarà sent una decisió humana. El camí futur
+            <code>/merge &lt;PR&gt;</code> haurà de comprovar membre,
+            repositori, SHA informat al fil, CI obligatòria verda i branca al
+            dia, sense bypass. Només després del merge al
+            <code>main</code> protegit actuarà el pipeline de desplegament
+            existent de la fase 5. L'agent no desplega directament.
+          </p>
+        </details>
+      </section>
+
+      <section id="arquitectura" aria-labelledby="architecture-title">
+        <p class="eyebrow">T8.3 · Processos i fronteres</p>
+        <h2 id="architecture-title">Què s'executa a cada lloc</h2>
+        <figure>
+          <div
+            class="diagram"
+            role="region"
+            aria-label="Diagrama de processos, secrets i contenidor, desplaçable horitzontalment"
+            tabindex="0"
+          >
+            <svg
+              viewBox="0 0 1180 665"
+              role="img"
+              aria-labelledby="system-title system-desc"
+            >
+              <title id="system-title">Arquitectura prevista al VPS</title>
+              <desc id="system-desc">
+                El pont de Telegram i el publicador GitHub s'executen al host
+                amb credencials restringides per component. Pi és un procés fill
+                del mateix usuari del servei i rep només la credencial del
+                proveïdor. Les eines de Pi i les comprovacions s'executen amb
+                Podman local sense root. El contenidor només munta el worktree.
+                El clon Git, les sessions i SQLite queden fora del contenidor.
+                Aquesta configuració encara no està validada al VPS.
+              </desc>
+              <defs>
+                <marker
+                  id="system-arrow"
+                  markerWidth="8"
+                  markerHeight="8"
+                  refX="7"
+                  refY="4"
+                  orient="auto"
+                >
+                  <path d="M0 0 L8 4 L0 8 Z" fill="#191919" />
+                </marker>
+              </defs>
+              <rect class="zone" x="240" y="25" width="680" height="625" />
+              <text class="small" x="262" y="49">
+                HOST · usuari mountain-agent · configuració prevista, no
+                activada
+              </text>
+              <path
+                class="edge"
+                d="M200 115 H270"
+                marker-end="url(#system-arrow)"
+              />
+              <path
+                class="edge"
+                d="M540 115 H620"
+                marker-end="url(#system-arrow)"
+              />
+              <path
+                class="edge"
+                d="M405 170 V270"
+                marker-end="url(#system-arrow)"
+              />
+              <path
+                class="edge"
+                d="M270 330 H200"
+                marker-end="url(#system-arrow)"
+              />
+              <path
+                class="edge"
+                d="M540 330 H620"
+                marker-end="url(#system-arrow)"
+              />
+              <path
+                class="edge"
+                d="M890 115 H960"
+                marker-end="url(#system-arrow)"
+              />
+              <path
+                class="edge"
+                d="M755 395 V490"
+                marker-end="url(#system-arrow)"
+              />
+              <path
+                class="edge"
+                d="M405 490 V395"
+                marker-end="url(#system-arrow)"
+              />
+              <path
+                class="edge indirect"
+                d="M540 145 H570 V235 H755 V270"
+                marker-end="url(#system-arrow)"
+              />
+              <path
+                class="edge"
+                d="M890 145 H905 V550 H890"
+                marker-end="url(#system-arrow)"
+              />
+              <text class="small" x="585" y="223">
+                comprovacions del coordinador
+              </text>
+              <text class="small" x="428" y="226">RPC</text>
+              <text class="small" x="278" y="452">sessions i perfils</text>
+              <text class="small" x="774" y="452">muntatge /work</text>
+              <rect class="node" x="20" y="65" width="180" height="100" />
+              <text class="label" x="36" y="99">Telegram</text>
+              <text x="36" y="126">Grup privat i temes</text>
+              <text class="small" x="36" y="150">Long polling HTTPS</text>
+              <rect class="node" x="20" y="280" width="180" height="110" />
+              <text class="label" x="36" y="313">Proveïdor</text>
+              <text x="36" y="341">del model</text>
+              <text class="small" x="36" y="370">Context necessari</text>
+              <rect class="node" x="960" y="65" width="200" height="100" />
+              <text class="label" x="976" y="99">GitHub</text>
+              <text x="976" y="126">Branca, PR i CI</text>
+              <text class="small" x="976" y="150">Repositori configurat</text>
+              <rect class="node" x="270" y="65" width="270" height="105" />
+              <text class="label" x="286" y="96">Pont + coordinació</text>
+              <text x="286" y="124">Verifica, desa i ordena</text>
+              <text class="small" x="286" y="150">
+                Token Telegram · cua SQLite
+              </text>
+              <rect class="node" x="620" y="65" width="270" height="105" />
+              <text class="label" x="636" y="96">Publicador Git/GitHub</text>
+              <text x="636" y="124">Escaneig → push → PR</text>
+              <text class="small" x="636" y="150">
+                Token GitHub · sense merge
+              </text>
+              <rect class="node" x="270" y="270" width="270" height="125" />
+              <text class="label" x="286" y="304">
+                Pi · procés fill al host
+              </text>
+              <text x="286" y="334">Només eina sandbox_bash</text>
+              <text class="small" x="286" y="362">
+                Credencial del proveïdor
+              </text>
+              <text class="small" x="286" y="383">
+                Sense eines natives del host
+              </text>
+              <rect class="zone" x="620" y="270" width="270" height="125" />
+              <text class="label" x="636" y="299">Podman local sense root</text>
+              <rect class="current" x="636" y="315" width="238" height="65" />
+              <text x="650" y="341">Contenidor · terminal i tests</text>
+              <text class="small" x="650" y="365">
+                Sense xarxa, tokens ni .git real
+              </text>
+              <rect class="node" x="270" y="490" width="620" height="105" />
+              <text class="label" x="286" y="521">
+                Estat privat i fitxers al host
+              </text>
+              <text x="286" y="550">
+                Clon i metadades Git · worktrees actuals i preservats
+              </text>
+              <text class="small" x="286" y="577">
+                Sessions Pi · perfils de confiança · admission.sqlite · marcador
+                de publicació
+              </text>
+              <text x="270" y="627">
+                Cap socket Docker/Podman del host. Cap credencial de producció.
+              </text>
+            </svg>
+          </div>
+          <figcaption>
+            El publicador és un component lògic del servei, no un dimoni
+            separat. La fletxa discontínua mostra les comprovacions que el
+            coordinador executa amb el mateix sandbox que usa l'eina de Pi.
+          </figcaption>
+        </figure>
+        <div class="notice">
+          <p>
+            <strong
+              >La separació de credencials no és una separació d'usuaris
+              Unix.</strong
+            >
+            El pont i Pi usen el mateix usuari del servei. Pi no hereta els
+            tokens de Telegram/GitHub i no ofereix eines natives del host al
+            model. La frontera per executar codi no fiable és el contenidor; cal
+            demostrar-la al VPS.
+          </p>
+        </div>
+        <div class="columns">
+          <div>
+            <h3>Nucli reutilitzable</h3>
+            <p>
+              <code>packages/telegram-pi-bridge</code> conté Telegram, autoria,
+              cua, identitat i transport RPC. És MIT, sense dependències npm,
+              GitHub, Git ni Podman. Les entrades <code>/telegram</code>,
+              <code>/sessions</code> i <code>/pi</code> es carreguen
+              independentment. Continua amb <code>private: true</code>, sense
+              publicar a npm.
+            </p>
+          </div>
+          <div>
+            <h3>Aplicació Mountain Runners</h3>
+            <p>
+              <code>tools/server/agent</code> aporta política, prompts,
+              configuració, classificació, perfils, sandbox, Git i publicació.
+              El coordinador rep operacions i rutes, no tokens ni una shell
+              privilegiada. Els controls no depenen només de les instruccions
+              del model.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <section id="flux" aria-labelledby="flow-title">
+        <p class="eyebrow">T8.3 · Recorregut complet</p>
+        <h2 id="flow-title">De la instrucció al resultat revisable</h2>
+        <ol>
+          <li>
+            Telegram entrega un update. El pont comprova grup, tema, autoria i
+            menció o resposta al bot. Consulta la pertinença actual amb
+            <code>getChatMember</code>.
+          </li>
+          <li>
+            Una instrucció vàlida es desa a SQLite abans d'avançar l'offset.
+            L'identificador de l'update evita duplicats. Només hi ha una
+            execució global.
+          </li>
+          <li>
+            Una crida efímera al model, sense eines ni historial del repositori,
+            distingeix consulta, implementació nova, continuació explícita o
+            aclariment.
+          </li>
+        </ol>
+        <div class="columns">
+          <div>
+            <h3>Consulta</h3>
+            <p>
+              Usa el worktree actual amb un muntatge de només lectura. Retorna
+              text al tema, sense crear una branca ni publicar feina pendent.
+            </p>
+          </div>
+          <div>
+            <h3>Implementació o continuació</h3>
+            <p>
+              Una feina nova té worktree i branca propis. Una continuació només
+              reprèn la feina pendent actual. Si no hi ha feina pendent o la
+              petició no és clara, es demana aclariment.
+            </p>
+          </div>
+        </div>
+        <figure>
+          <div
+            class="diagram"
+            role="region"
+            aria-label="Diagrama del flux d'implementació fins a PR, desplaçable horitzontalment"
+            tabindex="0"
+          >
+            <svg
+              viewBox="0 0 1180 360"
+              role="img"
+              aria-labelledby="publish-title publish-desc"
+            >
+              <title id="publish-title">
+                Ordre de les operacions d'una implementació
+              </title>
+              <desc id="publish-desc">
+                El model edita al sandbox. Es comprova la neteja dels
+                contenidors, es crea o valida la branca i s'executa pnpm check.
+                Després es fa commit, s'inspecciona tot l'historial publicable,
+                es puja el SHA inspeccionat i s'obre o reutilitza la PR. Només
+                després es desa el marcador de publicació i es respon a
+                Telegram. Una consulta no recorre aquest flux.
+              </desc>
+              <defs>
+                <marker
+                  id="publish-arrow"
+                  markerWidth="8"
+                  markerHeight="8"
+                  refX="7"
+                  refY="4"
+                  orient="auto"
+                >
+                  <path d="M0 0 L8 4 L0 8 Z" fill="#191919" />
+                </marker>
+              </defs>
+              <path
+                class="edge"
+                d="M270 90 H310"
+                marker-end="url(#publish-arrow)"
+              />
+              <path
+                class="edge"
+                d="M560 90 H600"
+                marker-end="url(#publish-arrow)"
+              />
+              <path
+                class="edge"
+                d="M850 90 H890"
+                marker-end="url(#publish-arrow)"
+              />
+              <path
+                class="edge"
+                d="M1015 145 V215"
+                marker-end="url(#publish-arrow)"
+              />
+              <path
+                class="edge"
+                d="M890 270 H850"
+                marker-end="url(#publish-arrow)"
+              />
+              <path
+                class="edge"
+                d="M600 270 H560"
+                marker-end="url(#publish-arrow)"
+              />
+              <path
+                class="edge"
+                d="M310 270 H270"
+                marker-end="url(#publish-arrow)"
+              />
+              <rect class="node" x="20" y="35" width="250" height="110" />
+              <text class="label" x="36" y="66">1 · Model i eines</text>
+              <text x="36" y="95">Canvis només a /work</text>
+              <text class="small" x="36" y="125">
+                Verificar neteja del sandbox
+              </text>
+              <rect class="node" x="310" y="35" width="250" height="110" />
+              <text class="label" x="326" y="66">2 · Branca i proves</text>
+              <text x="326" y="95">pnpm check al contenidor</text>
+              <text class="small" x="326" y="125">Si falla, no es publica</text>
+              <rect class="node" x="600" y="35" width="250" height="110" />
+              <text class="label" x="616" y="66">3 · Commit local</text>
+              <text x="616" y="95">Git amb metadades fiables</text>
+              <text class="small" x="616" y="125">
+                Sense hooks ni entorn secret
+              </text>
+              <rect class="current" x="890" y="35" width="270" height="110" />
+              <text class="label" x="906" y="66">
+                4 · Inspecció de l'historial
+              </text>
+              <text x="906" y="95">Objectes, secrets i rutes</text>
+              <text class="small" x="906" y="125">
+                Qualsevol refús atura el push
+              </text>
+              <rect class="node" x="890" y="215" width="270" height="110" />
+              <text class="label" x="906" y="246">5 · Push del SHA</text>
+              <text x="906" y="275">Només branca de treball</text>
+              <text class="small" x="906" y="305">
+                Sense force ni etiquetes extra
+              </text>
+              <rect class="node" x="600" y="215" width="250" height="110" />
+              <text class="label" x="616" y="246">
+                6 · Obrir o reutilitzar PR
+              </text>
+              <text x="616" y="275">Base main · repo configurat</text>
+              <text class="small" x="616" y="305">Sense merge ni preview</text>
+              <rect class="node" x="310" y="215" width="250" height="110" />
+              <text class="label" x="326" y="246">
+                7 · Confirmar publicació
+              </text>
+              <text x="326" y="275">Desar agent-published-head</text>
+              <text class="small" x="326" y="305">
+                Només si push i PR es confirmen
+              </text>
+              <rect class="node" x="20" y="215" width="250" height="110" />
+              <text class="label" x="36" y="246">8 · Resposta al tema</text>
+              <text x="36" y="275">URL de PR, branca i SHA</text>
+              <text class="small" x="36" y="305">
+                Completar la instrucció a la cua
+              </text>
+            </svg>
+          </div>
+          <figcaption>
+            El commit és anterior a l'escaneig. Per això s'inspeccionen tots els
+            objectes nous de <code>origin/main..HEAD</code>, incloses versions
+            esborrades i missatges de commit, no només els fitxers actuals.
+          </figcaption>
+        </figure>
+        <p>
+          El filtre de publicació rebutja canvis a <code>.github/**</code> i
+          <code>CODEOWNERS</code> en qualsevol commit del rang, encara que
+          després es reverteixin. Un objecte il·legible, un secret conegut o un
+          pressupost d'inspecció superat refusen la publicació.
+        </p>
+        <p>
+          Si no hi ha <code>SUMMARY</code> vàlid, el títol és
+          <code>feat(agent): update project</code> i la branca usa
+          <code>feat/agent-change-&lt;update&gt;</code>. No es copia el text
+          privat de Telegram als noms públics. Un resum vàlid del model també
+          s'ha de revisar abans del merge.
+        </p>
+      </section>
+
+      <section id="estat" aria-labelledby="state-title">
+        <p class="eyebrow">T8.3 · Persistència i fallades</p>
+        <h2 id="state-title">Què es conserva i què bloqueja</h2>
+        <figure>
+          <div
+            class="diagram"
+            role="region"
+            aria-label="Diagrama d'estats de la cua, desplaçable horitzontalment"
+            tabindex="0"
+          >
+            <svg
+              viewBox="0 0 1180 335"
+              role="img"
+              aria-labelledby="queue-title queue-desc"
+            >
+              <title id="queue-title">Estats d'una instrucció</title>
+              <desc id="queue-desc">
+                Una instrucció admesa passa de pending a running. Un resultat
+                conegut, inclosa una fallada local, acaba a done. Un resultat de
+                publicació desconegut, una neteja no confirmada o una
+                interrupció de procés passa a uncertain i bloqueja. Les
+                peticions noves amb cua plena o bloquejada es desen com a
+                rejected. No hi ha repetició automàtica d'un estat uncertain.
+              </desc>
+              <defs>
+                <marker
+                  id="queue-arrow"
+                  markerWidth="8"
+                  markerHeight="8"
+                  refX="7"
+                  refY="4"
+                  orient="auto"
+                >
+                  <path d="M0 0 L8 4 L0 8 Z" fill="#191919" />
+                </marker>
+              </defs>
+              <path
+                class="edge"
+                d="M250 85 H315"
+                marker-end="url(#queue-arrow)"
+              />
+              <path
+                class="edge"
+                d="M555 85 H620"
+                marker-end="url(#queue-arrow)"
+              />
+              <path
+                class="edge"
+                d="M435 140 V215 H620"
+                marker-end="url(#queue-arrow)"
+              />
+              <path
+                class="edge"
+                d="M860 265 H930"
+                marker-end="url(#queue-arrow)"
+              />
+              <rect class="node" x="20" y="30" width="230" height="110" />
+              <text class="label" x="36" y="62">pending</text>
+              <text x="36" y="91">Admesa i duradora</text>
+              <text class="small" x="36" y="120">
+                Es conserva l'ordre d'arribada
+              </text>
+              <rect class="node" x="315" y="30" width="240" height="110" />
+              <text class="label" x="331" y="62">running</text>
+              <text x="331" y="91">Una execució global</text>
+              <text class="small" x="331" y="120">
+                No executa altres instruccions
+              </text>
+              <rect class="node" x="620" y="30" width="240" height="110" />
+              <text class="label" x="636" y="62">done</text>
+              <text x="636" y="91">Resultat conegut</text>
+              <text class="small" x="636" y="120">
+                Èxit, resposta o fallada local
+              </text>
+              <rect class="current" x="620" y="210" width="240" height="110" />
+              <text class="label" x="636" y="242">uncertain</text>
+              <text x="636" y="271">Resultat no confirmat</text>
+              <text class="small" x="636" y="300">
+                No es repeteix automàticament
+              </text>
+              <rect class="current" x="930" y="210" width="230" height="110" />
+              <text class="label" x="946" y="242">Cua bloquejada</text>
+              <text x="946" y="271">Cal revisar l'estat real</text>
+              <text class="small" x="946" y="300">
+                També refusa l'arrencada
+              </text>
+              <text class="small" x="35" y="225">
+                rejected: petició nova refusada per cua plena o bloquejada.
+              </text>
+              <text class="small" x="35" y="254">
+                Les peticions que ja eren pending es conserven.
+              </text>
+              <text class="small" x="35" y="283">
+                Un error de pertinença no admet feina i demana reintentar.
+              </text>
+            </svg>
+          </div>
+          <figcaption>
+            <code>done</code> no vol dir necessàriament èxit. L'outcome
+            diferencia resposta, publicació i fallada local. Una excepció no
+            classificada d'un consumidor del paquet es tracta amb cautela i
+            bloqueja.
+          </figcaption>
+        </figure>
+        <div class="columns">
+          <div>
+            <h3>Errors coneguts abans de publicar</h3>
+            <p>
+              Classificador, Git local, model o comprovacions fallits; timeout o
+              cancel·lació amb neteja confirmada. La instrucció falla, conserva
+              la feina i deixa continuar la cua.
+            </p>
+            <h3>Publicació o execució incertes</h3>
+            <p>
+              Una excepció després d'iniciar la publicació bloqueja, excepte un
+              refús local identificat. Una aturada no confirmada també bloqueja
+              perquè podria quedar codi no fiable actiu.
+            </p>
+          </div>
+          <div>
+            <h3>Reinici</h3>
+            <p>
+              Les files <code>running</code> passen a <code>uncertain</code>.
+              <code>recover()</code> compta totes les incertes, també les de
+              reinicis anteriors. El servei no arrenca fins que es reconciliï
+              l'estat.
+            </p>
+            <h3>Límit actual de recuperació</h3>
+            <p>
+              T8.3 bloqueja i preserva; no implementa una reconciliació completa
+              ni una comanda per desbloquejar. T8.4/T8.5 han de completar aquest
+              camí sense repetir efectes remots.
+            </p>
+          </div>
+        </div>
+        <h3>Una sessió no equival a una única feina</h3>
+        <ol class="flow">
+          <li>
+            <strong>Feina A al tema</strong><code>worktrees/&lt;tema&gt;/</code>
+            <p>Branca pròpia. Si falla, els canvis no es perden.</p>
+          </li>
+          <li>
+            <strong>Arriba una feina B nova</strong
+            ><code>worktrees/&lt;tema&gt;-before-&lt;update&gt;/</code>
+            <p>
+              Git mou aquí el worktree A, inclosos els fitxers ignorats. No
+              l'esborra.
+            </p>
+          </li>
+          <li>
+            <strong>Feina B independent</strong
+            ><code>worktrees/&lt;tema&gt;/</code>
+            <p>
+              Worktree nou des de <code>origin/main</code>. El cwd i la sessió
+              de Pi continuen estables per tema.
+            </p>
+          </li>
+        </ol>
+        <p>
+          Una continuació explícita no fa aquest relleu: reprèn la feina pendent
+          actual. Recuperar una feina arxivada o una PR des d'un altre fil
+          correspon a T8.4. Un <code>main</code> que ha avançat no es confon amb
+          commits propis pendents.
+        </p>
+      </section>
+
+      <section id="peces" aria-labelledby="pieces-title">
+        <p class="eyebrow">Inventari del codi</p>
+        <h2 id="pieces-title">On viu cada responsabilitat</h2>
+        <p>
+          Les rutes següents són relatives a l'arrel del repositori. Els
+          enllaços porten a les fonts; el mapa explica les peces, no substitueix
+          el codi ni les decisions acceptades.
+        </p>
+        <div
+          class="table-scroll"
+          role="region"
+          aria-label="Inventari de components"
+          tabindex="0"
+        >
+          <table>
+            <caption>
+              Nucli, aplicació i instal·lació prevista
+            </caption>
+            <thead>
+              <tr>
+                <th scope="col">Peça</th>
+                <th scope="col">Font</th>
+                <th scope="col">Responsabilitat</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <th scope="row">Transport Telegram</th>
+                <td>
+                  <a href="../packages/telegram-pi-bridge/src/telegram/api.mjs"
+                    ><code
+                      >packages/telegram-pi-bridge/src/telegram/api.mjs</code
+                    ></a
+                  >
+                </td>
+                <td>
+                  <code>getMe</code>, long polling, pertinença i respostes al
+                  tema. Errors sense exposar el token.
+                </td>
+              </tr>
+              <tr>
+                <th scope="row">Autoria i admissió</th>
+                <td>
+                  <a
+                    href="../packages/telegram-pi-bridge/src/telegram/attribution.mjs"
+                    ><code>telegram/attribution.mjs</code></a
+                  >
+                  ·
+                  <a
+                    href="../packages/telegram-pi-bridge/src/telegram/bridge.mjs"
+                    ><code>telegram/bridge.mjs</code></a
+                  >
+                </td>
+                <td>
+                  Grup, persona, tema, mencions i resposta al bot; pertinença
+                  actual, cua, execució i informes.
+                </td>
+              </tr>
+              <tr>
+                <th scope="row">Identitat i cua</th>
+                <td>
+                  <a
+                    href="../packages/telegram-pi-bridge/src/sessions/identity.mjs"
+                    ><code>sessions/identity.mjs</code></a
+                  >
+                  ·
+                  <a
+                    href="../packages/telegram-pi-bridge/src/sessions/queue.mjs"
+                    ><code>sessions/queue.mjs</code></a
+                  >
+                </td>
+                <td>
+                  Sessió per grup i tema; SQLite amb instruccions, offset i
+                  traça privada.
+                </td>
+              </tr>
+              <tr>
+                <th scope="row">Protocol Pi</th>
+                <td>
+                  <a href="../packages/telegram-pi-bridge/src/pi/rpc.mjs"
+                    ><code>pi/rpc.mjs</code></a
+                  >
+                </td>
+                <td>
+                  Procés fill, JSONL, resposta completada, límit de sortida,
+                  timeout, abort i callback de neteja.
+                </td>
+              </tr>
+              <tr>
+                <th scope="row">Arrencada</th>
+                <td>
+                  <a
+                    href="../tools/server/agent/processes/telegram-bridge/main.mjs"
+                    ><code
+                      >tools/server/agent/processes/telegram-bridge/main.mjs</code
+                    ></a
+                  >
+                  ·
+                  <a href="../tools/server/agent/config.mjs"
+                    ><code>config.mjs</code></a
+                  >
+                </td>
+                <td>
+                  Valida configuració, obre SQLite, comprova recuperació i
+                  identitat del bot i connecta els components.
+                </td>
+              </tr>
+              <tr>
+                <th scope="row">Política del projecte</th>
+                <td>
+                  <a href="../tools/server/agent/policy/development.mjs"
+                    ><code>policy/development.mjs</code></a
+                  >
+                </td>
+                <td>
+                  Prompts, tipus de petició, <code>pnpm check</code>, metadades
+                  públiques i informes. Sense accés a processos ni secrets.
+                </td>
+              </tr>
+              <tr>
+                <th scope="row">Composició i coordinació</th>
+                <td>
+                  <a href="../tools/server/agent/workflow/project-runner.mjs"
+                    ><code>workflow/project-runner.mjs</code></a
+                  >
+                  ·
+                  <a href="../tools/server/agent/workflow/run-instruction.mjs"
+                    ><code>workflow/run-instruction.mjs</code></a
+                  >
+                </td>
+                <td>
+                  La composició connecta model, sandbox i publicador. El
+                  coordinador ordena els passos i distingeix fallada local
+                  d'incertesa.
+                </td>
+              </tr>
+              <tr>
+                <th scope="row">Classificació i torn</th>
+                <td>
+                  <a href="../tools/server/agent/runtime/request-kind.mjs"
+                    ><code>runtime/request-kind.mjs</code></a
+                  >
+                  ·
+                  <a href="../tools/server/agent/runtime/agent.mjs"
+                    ><code>runtime/agent.mjs</code></a
+                  >
+                </td>
+                <td>
+                  Classificació efímera sense eines; preparació i execució del
+                  torn persistent del tema.
+                </td>
+              </tr>
+              <tr>
+                <th scope="row">Perfil i adaptador</th>
+                <td>
+                  <a href="../tools/server/agent/runtime/profile.mjs"
+                    ><code>runtime/profile.mjs</code></a
+                  >
+                  ·
+                  <a href="../tools/server/agent/runtime/pi-adapter.mjs"
+                    ><code>runtime/pi-adapter.mjs</code></a
+                  >
+                </td>
+                <td>
+                  Reconstrueix recursos de confiança; prepara l'entorn permès,
+                  l'eina aïllada i la verificació final de neteja.
+                </td>
+              </tr>
+              <tr>
+                <th scope="row">Eina del model</th>
+                <td>
+                  <a
+                    href="../tools/server/agent/runtime/extensions/sandbox-bash.ts"
+                    ><code>runtime/extensions/sandbox-bash.ts</code></a
+                  >
+                </td>
+                <td>
+                  Només <code>sandbox_bash</code>. Lectura, edició i proves dins
+                  de <code>/work</code>. Bloqueja altres eines, també en
+                  reprendre sessió.
+                </td>
+              </tr>
+              <tr>
+                <th scope="row">Execució aïllada</th>
+                <td>
+                  <a href="../tools/server/agent/sandbox/arguments.mjs"
+                    ><code>sandbox/arguments.mjs</code></a
+                  >
+                  ·
+                  <a href="../tools/server/agent/sandbox/commands.mjs"
+                    ><code>commands.mjs</code></a
+                  >
+                  ·
+                  <a href="../tools/server/agent/sandbox/errors.mjs"
+                    ><code>errors.mjs</code></a
+                  >
+                </td>
+                <td>
+                  Arguments de Podman, worktree dins de l'arrel permesa, UID no
+                  root, recursos, límit de sortida i aturada confirmada.
+                </td>
+              </tr>
+              <tr>
+                <th scope="row">Git i worktrees</th>
+                <td>
+                  <a href="../tools/server/agent/repository/trusted-git.mjs"
+                    ><code>repository/trusted-git.mjs</code></a
+                  >
+                  ·
+                  <a href="../tools/server/agent/repository/worktrees.mjs"
+                    ><code>repository/worktrees.mjs</code></a
+                  >
+                </td>
+                <td>
+                  Metadades fora del contenidor, marcador
+                  <code>.git</code> verificat, branques pròpies, preservació de
+                  feina, commit i marcador de publicació.
+                </td>
+              </tr>
+              <tr>
+                <th scope="row">Inspecció i publicació</th>
+                <td>
+                  <a href="../tools/server/agent/repository/secret-scan.mjs"
+                    ><code>repository/secret-scan.mjs</code></a
+                  >
+                  ·
+                  <a href="../tools/server/agent/repository/publisher.mjs"
+                    ><code>publisher.mjs</code></a
+                  >
+                  ·
+                  <a href="../tools/server/agent/repository/github.mjs"
+                    ><code>github.mjs</code></a
+                  >
+                </td>
+                <td>
+                  Historial, rutes protegides, secrets coneguts, push del SHA
+                  inspeccionat i PR. Només confirma l'estat després de push i
+                  PR.
+                </td>
+              </tr>
+              <tr>
+                <th scope="row">Unitat del servei</th>
+                <td>
+                  <a href="../tools/server/systemd/mountain-agent.service"
+                    ><code>tools/server/systemd/mountain-agent.service</code></a
+                  >
+                </td>
+                <td>
+                  Usuari i HOME propis, directori de runtime, cgroup delegat i
+                  sockets del host inaccessibles. Encara no instal·lada ni
+                  provada al VPS.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <details>
+          <summary>Directoris previstos al VPS</summary>
+          <pre><code>/usr/local/lib/mountain-runners/
+├── agent/                         aplicació instal·lada des de codi revisat
+└── node_modules/telegram-pi-bridge/ paquet local autònom
+
+/var/lib/mountain-runners-agent/
+├── repository/                    clon i metadades Git de confiança
+├── worktrees/                     feina actual per tema i feina preservada
+├── sessions/                      historial privat de Pi
+└── state/                         admission.sqlite i perfils de confiança
+
+/etc/mountain-runners-agent/agent.env  configuració i credencials; mai a Git
+/run/mountain-runners-agent/           runtime privat de Podman</code></pre>
+          <p>
+            Només el worktree es munta a <code>/work</code>. El fitxer indicador
+            <code>.git</code> pot ser visible, però les metadades a què apunta
+            no es munten. Git al host en comprova el valor abans d'operar. El
+            marcador <code>agent-published-head</code> viu a les metadades de
+            confiança, fora del muntatge.
+          </p>
+        </details>
+      </section>
+
+      <section id="limits" aria-labelledby="limits-title">
+        <p class="eyebrow">Fronteres que no s'han de confondre</p>
+        <h2 id="limits-title">Credencials, recursos i exclusions</h2>
+        <div
+          class="table-scroll"
+          role="region"
+          aria-label="Permisos per component"
+          tabindex="0"
+        >
+          <table>
+            <caption>
+              Permisos previstos; els permisos reals encara s'han de comprovar
+            </caption>
+            <thead>
+              <tr>
+                <th scope="col">Component</th>
+                <th scope="col">Rep o utilitza</th>
+                <th scope="col">No rep o no exposa</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <th scope="row">Pont Telegram</th>
+                <td>
+                  Token del bot, grup configurat, instruccions i autoria
+                  privada.
+                </td>
+                <td>No passa el token a Pi, al prompt ni al contenidor.</td>
+              </tr>
+              <tr>
+                <th scope="row">Procés Pi</th>
+                <td>
+                  Entorn permès amb la credencial del proveïdor, perfil de
+                  confiança i context necessari. La credencial autentica la
+                  crida; no és text del prompt.
+                </td>
+                <td>
+                  No hereta tokens Telegram/GitHub. No carrega automàticament
+                  settings, extensions, context o skills del repositori al host.
+                </td>
+              </tr>
+              <tr>
+                <th scope="row">Contenidor</th>
+                <td>
+                  Fitxers del worktree, eina terminal i dependències de
+                  desenvolupament necessàries.
+                </td>
+                <td>
+                  Sense xarxa, tokens, sessions privades, metadades Git, socket
+                  del host ni recursos de producció. Consulta amb muntatge
+                  readonly.
+                </td>
+              </tr>
+              <tr>
+                <th scope="row">Publicador GitHub</th>
+                <td>
+                  Credencial acotada al repositori amb
+                  <code>Contents: write</code> i
+                  <code>Pull requests: write</code>.
+                </td>
+                <td>
+                  Sense <code>Workflows: write</code> ni administració
+                  previstos. El component actual no ofereix merge, auto-merge,
+                  push a main ni desplegament.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p>
+          El compte GitHub escollit és administrador. Això no prova els permisos
+          del token ni separa la persona del servei. La frontera depèn també de
+          les operacions explícites del component, les proteccions i les proves
+          negatives. No es pot donar per verificada només amb la configuració
+          escrita.
+        </p>
+        <div class="columns">
+          <div>
+            <h3>Límits que el codi aplica</h3>
+            <dl>
+              <dt>Execució i cua</dt>
+              <dd>
+                Una execució global i fins a 10 instruccions pendents per
+                defecte. Cua plena o bloquejada refusa les peticions noves amb
+                avís.
+              </dd>
+              <dt>Sandbox, valors inicials configurables</dt>
+              <dd>
+                30 minuts per execució, 2.048 MiB de memòria, 1 CPU i 256
+                processos. Arrel readonly, cap capability,
+                <code>no-new-privileges</code> i <code>/tmp</code> de 256 MiB.
+              </dd>
+              <dt>Sortida i inspecció</dt>
+              <dd>
+                1 MiB conjunt de stdout/stderr per ordre i per torn RPC.
+                Inspecció de Git limitada a 2 MiB per objecte i 32 MiB totals,
+                amb refús si no es pot completar.
+              </dd>
+            </dl>
+          </div>
+          <div>
+            <h3>Límits que encara no estan demostrats</h3>
+            <ul>
+              <li>
+                Valors adequats i límits efectius al VPS compartit amb
+                producció.
+              </li>
+              <li>
+                Quota de disc dels worktrees, sessions, imatges i estat;
+                retenció i neteja.
+              </li>
+              <li>
+                Límits de memòria, CPU i processos del host. El límit de sortida
+                no els substitueix.
+              </li>
+              <li>
+                Configuració real de Podman, cgroups, mapatges d'usuari i
+                aturada.
+              </li>
+            </ul>
+            <p>
+              El servei necessita els helpers restringits
+              <code>newuidmap</code> i <code>newgidmap</code>. Per això la
+              unitat del host no fixa <code>NoNewPrivileges=true</code>; el
+              contenidor sí que aplica <code>no-new-privileges</code>. Cal
+              revisar i provar aquesta distinció abans d'activar-lo.
+            </p>
+          </div>
+        </div>
+        <div class="notice">
+          <p>
+            <strong>Fora del camí actual:</strong> merge, auto-merge, push a
+            <code>main</code>, force-push, petició de preview, desplegament i
+            canvis de permisos o infraestructura des de Telegram. Preparar una
+            PR no autoritza instal·lar ni activar el servei.
+          </p>
+        </div>
+      </section>
+
+      <section id="pilot" aria-labelledby="pilot-title">
+        <p class="eyebrow">Tancament de T8.3</p>
+        <h2 id="pilot-title">Prova real supervisada al VPS</h2>
+        <p>
+          No cal afegir una VM de proves separada per fer aquest primer pilot.
+          Es pot validar al VPS real amb aprovació explícita, usuari dedicat i
+          operacions acotades. Que el grup sigui controlat no elimina el risc
+          d'una ordre errònia ni el consum de recursos de producció.
+        </p>
+        <ol>
+          <li>
+            <strong>Inspecció de només lectura.</strong> Confirmar sistema
+            operatiu, espai, memòria disponible, serveis existents i viabilitat
+            de Podman/cgroup v2. No canviar la configuració encara.
+          </li>
+          <li>
+            <strong>Preparació aprovada.</strong> Revisar els canvis concrets
+            abans d'aplicar-los: usuari, rangs subordinats no solapats amb
+            altres usuaris o comptes reals, emmagatzematge i imatge rootless,
+            unitat i límits. Cap socket de contenidors privilegiat.
+          </li>
+          <li>
+            <strong>Proves negatives sintètiques.</strong> Confirmar identitat
+            no root, escriptura només al worktree, readonly en consultes,
+            absència de secrets/fitxers del host i xarxa, límits i aturada
+            efectiva del contenidor.
+          </li>
+          <li>
+            <strong>Dependències offline.</strong> Executar
+            <code>pnpm check</code> real en un worktree nou i sense xarxa. Tenir
+            dependències en una imatge no basta si el muntatge de
+            <code>/work</code> les tapa; cal provar la disposició efectiva.
+          </li>
+          <li>
+            <strong>Permisos reals.</strong> Verificar bot, grup, pertinença,
+            token GitHub sense permís de workflows i restriccions de branca dels
+            entorns. Les proves negatives no fan merge ni push a
+            <code>main</code>.
+          </li>
+          <li>
+            <strong>Recorregut complet.</strong> Enviar una consulta real i un
+            canvi petit per Telegram. Observar comprovacions, commit, branca,
+            push, PR i resposta al tema amb el SHA correcte. Aturar el servei i
+            confirmar que no afecta la web. Sense merge ni desplegament durant
+            aquesta prova.
+          </li>
+        </ol>
+        <p>
+          L'evidència de les comprovacions anirà a la PR i a la CI. Aquest mapa
+          no és un informe de validació i no dona cap comprovació real per
+          passada. La validació integral de T8.6 ampliarà aquests casos amb les
+          funcions de T8.4 i T8.5.
+        </p>
+      </section>
+    </main>
+    <footer class="frame">
+      <h2>Fonts de veritat</h2>
+      <ul>
+        <li>
+          <a href="specs/phase-8-editorial-assistance.md"
+            >Especificació de la fase 8</a
+          >: abast, dependències i acceptació.
+        </li>
+        <li>
+          <a href="decisions/0013-private-development-agent-boundary.md"
+            >ADR 0013</a
+          >: frontera de l'agent privat i merge demanat.
+        </li>
+        <li>
+          <a href="architecture.md">Arquitectura</a> i
+          <a href="deployment.md#agent-privat-de-desenvolupament-t83"
+            >desplegament previst</a
+          >.
+        </li>
+        <li>
+          <a href="../tools/server/agent/README.md"
+            >Mapa de mòduls de l'agent</a
+          >
+          i
+          <a href="../packages/telegram-pi-bridge/README.md"
+            >API del paquet reutilitzable</a
+          >.
+        </li>
+        <li>
+          <a href="testing-strategy.md">Estratègia de proves</a> i
+          <a href="README.md">mapa de documentació</a>.
+        </li>
+      </ul>
+      <p class="meta">
+        Actualitza aquest mapa quan canviïn les peces o les fronteres. En cas de
+        discrepància, l'ADR i l'especificació governen la decisió; el codi
+        descriu la implementació. Cap canvi d'aquest document modifica permisos
+        ni desplega res.
+      </p>
+    </footer>
+  </body>
+</html>

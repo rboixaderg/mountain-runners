@@ -1,0 +1,32 @@
+[Unit]
+Description=Mountain Runners private development agent
+Documentation=file:///usr/local/lib/mountain-runners/agent/README.md
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=mountain-agent
+Group=mountain-agent
+# Rootless local Podman has no daemon and receives no host container socket.
+Delegate=yes
+RuntimeDirectory=mountain-runners-agent
+RuntimeDirectoryMode=0700
+WorkingDirectory=/var/lib/mountain-runners-agent
+Environment=HOME=/var/lib/mountain-runners-agent
+Environment=XDG_RUNTIME_DIR=/run/mountain-runners-agent
+EnvironmentFile=/etc/mountain-runners-agent/agent.env
+ExecStart=/usr/bin/node /usr/local/lib/mountain-runners/agent/processes/telegram-bridge/main.mjs
+Restart=on-failure
+RestartSec=10
+UMask=0077
+# Rootless user namespaces require the restricted newuidmap/newgidmap helpers.
+# Containers still enforce no-new-privileges and drop every capability.
+InaccessiblePaths=-/run/docker.sock -/run/podman/podman.sock
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/var/lib/mountain-runners-agent
+
+[Install]
+WantedBy=multi-user.target

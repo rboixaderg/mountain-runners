@@ -340,6 +340,250 @@ La T6.4 crea els orígens Caddy (blocs per PR, TLS individual, identificació
 de no-producció, caché i política de capçaleres) i el cicle de vida complet;
 la T6.5 va validar el sistema end-to-end al VPS.
 
+## Agent Privat De Desenvolupament (T8.3)
+
+La T8.3 implementa la base operativa de l'assistent privat de la fase 8:
+Telegram, sessions i un entorn aïllat que porta una tasca petita fins a una PR.
+**No s'ha desplegat ni activat** cap servei, bot, grup, compte ni credencial. La
+instal·lació al VPS i l'activació del pilot requereixen aprovació explícita i es
+fan per una PR i un procediment revisats.
+
+Les eines viuen a `tools/server/agent/` i s'instal·len a
+`/usr/local/lib/mountain-runners/agent/`. La unitat és
+`tools/server/systemd/mountain-agent.service`. El nucli reutilitzable és
+[`packages/telegram-pi-bridge`](../packages/telegram-pi-bridge/README.md), amb
+llicència MIT i sense dependències npm. El servei el consumeix per l'API pública;
+GitHub, Docker i la política del projecte no formen part del paquet.
+El [mapa de mòduls i el recorregut
+d'una petició](../tools/server/agent/README.md) expliquen quina peça fa cada pas.
+
+### Components i frontera
+
+| Component           | Accés                                                                        | Límit                                                                                                   |
+| ------------------- | ---------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| Pont de Telegram    | Token del bot, grup configurat, cua duradora i traça privada                 | No entrega cap credencial a Pi, a l'entorn aïllat ni a les proves                                       |
+| Pi i model          | Credencial del proveïdor i sessions per tema                                 | Confiança de projecte denegada: no carrega extensions, hooks ni `settings` del repositori               |
+| Entorn aïllat       | Worktree de la feina                                                         | Sense xarxa, sense credencials, sistema de fitxers de només lectura, sense socket de Docker             |
+| Component de GitHub | Compte `rboixaderg`: `push` de la branca i obertura o reutilització de la PR | Sense merge, auto-merge, push a `main`, canvis de protecció ni desplegament; el merge demanat és a T8.4 |
+
+El pont és l'únic procés amb el token de Telegram i el de GitHub. Arrenca Pi amb
+una llista blanca d'entorn: `PATH`, `HOME`, el perfil de l'agent, la configuració
+de l'entorn aïllat i només les variables del proveïdor que declara
+`MOUNTAIN_AGENT_PROVIDER_ENVIRONMENT_VARIABLES`. Els tokens de Telegram i GitHub
+no arriben mai al procés de Pi. Aquesta política viu a
+`tools/server/agent/runtime/pi-adapter.mjs`; el client RPC del paquet només rep
+les opcions i l'entorn explícits. Per defecte, el paquet no habilita eines ni
+càrrega automàtica d'extensions. L'adaptador selecciona l'extensió aïllada
+instal·lada i proporciona el callback de neteja dels contenidors de Podman.
+
+Pi no exposa la `bash` del host. El model només pot executar ordres amb
+`sandbox_bash`, una extensió del perfil de confiança que aplica el mateix
+constructor d'arguments que el component de confiança: contenidor no
+privilegiat, `--network=none`, `--read-only`, `--cap-drop=ALL`,
+`--security-opt=no-new-privileges`, límits de CPU, memòria i processos i
+l'UID/GID no root del propietari del worktree. Només munta el worktree a `/work`,
+en mode de només lectura per a consultes. No exposa eines natives de fitxers del
+host. El pont i Pi executen Podman local sense root, amb `--remote=false`
+i `--userns=keep-id`. No pertanyen al grup Docker ni reben cap socket de
+contenidors del host. La unitat també fa inaccessibles els sockets habituals
+de Docker i Podman amb root.
+
+Podman usa `cgroupfs` i la unitat delega el seu cgroup amb `Delegate=yes`.
+`RuntimeDirectory` crea `/run/mountain-runners-agent` amb mode `0700`;
+`XDG_RUNTIME_DIR` arriba a Pi i al runtime, però no al contenidor com a variable
+d'entorn del host. El runtime només rep `PATH`, `HOME` i `XDG_RUNTIME_DIR`.
+Els helpers de sistema `newuidmap` i `newgidmap` necessiten els permisos
+restringits per mapar els rangs subordinats de l'usuari. Per això la unitat del
+pont no fixa `NoNewPrivileges=true`; el contenidor sí que conserva
+`--security-opt=no-new-privileges` i `--cap-drop=ALL`. Aquesta excepció no dona
+accés a un dimoni privilegiat. Cal provar aquesta configuració a Linux abans
+d'activar-la; les proves Docker anteriors no validen Podman.
+
+El perfil de cada instrucció es reconstrueix a l'estat del servei amb només
+recursos de confiança instal·lats. Pi no carrega automàticament context ni
+skills del repositori al host: el model ha de llegir `AGENTS.md`, les skills
+aplicables i la documentació amb `sandbox_bash`. Això evita seguir symlinks del
+repositori cap a fitxers del host. No es mantenen còpies de les convencions.
+
+Les metadades Git no es munten al contenidor. El component de confiança
+selecciona el directori Git del registre del clon, comprova el fitxer indicador
+`.git` i rebutja qualsevol alteració abans d'executar Git. Les ordres del host
+desactiven hooks i fsmonitor, ignoren la configuració global i reben un entorn
+restringit, sense els tokens del pont. Només el push rep l'autenticació de GitHub.
+Abans d'aquest push, el servei inspecciona tots els objectes nous del rang
+`origin/main..HEAD`, inclosos fitxers de commits anteriors, missatges de commit
+i noms dins dels arbres Git. Compara els bytes amb els tokens de Telegram,
+GitHub i els valors declarats a `MOUNTAIN_AGENT_PROVIDER_ENVIRONMENT_VARIABLES`.
+Un objecte il·legible, un objecte de més de 2 MiB o un total superior a 32 MiB
+refusa la publicació; no se salta cap fitxer per continuar. No segueix symlinks
+del worktree per llegir el contingut.
+
+Qualsevol commit del rang que afegeixi, modifiqui, mogui o esborri `.github/**`
+o un fitxer `CODEOWNERS` refusa la publicació, encara que un commit posterior
+reverteixi el canvi. El push publica exactament el SHA inspeccionat, sense
+forçar-lo. La credencial de GitHub ha de ser un token acotat al repositori amb
+`Contents: write` i `Pull requests: write`, sense `Workflows: write` ni permisos
+d'administració. El rol administrador del compte no prova els permisos del
+token. Abans del pilot cal verificar els permisos reals i les regles de branca
+dels entorns `previews` i `production`; aquestes proves locals no ho demostren.
+
+Un timeout o una cancel·lació de Pi també espera l'aturada dels contenidors de
+la sessió; si no es pot confirmar, l'execució queda fallida o incerta.
+
+### Sessions, admissió i recuperació
+
+- El tema del fòrum (`chat_id` + `message_thread_id`) és la sessió. El
+  identificador de sessió de Pi deriva del tema; dos temes no comparteixen
+  historial.
+- Només s'accepta un missatge d'una persona del grup configurat, dins d'un tema,
+  que menciona el bot o respon a un missatge seu; els reenviaments, els àmbits
+  anònims, els altres grups i els missatges privats s'ignoren. La pertinença es
+  consulta a Telegram per a cada instrucció, sense memòria cau. Una fallada
+  de la consulta denega la instrucció i informa l'autor perquè ho torni a provar.
+- L'admissió és duradora abans d'avançar l'offset de Telegram. Els updates es
+  dedupliquen, la cua admet deu instruccions pendents i només hi ha una
+  execució global. Una cua plena es registra i es comunica al tema.
+- Un reinici marca com a incert qualsevol treball en curs i refusa l'arrencada.
+  El servei continua refusant totes les arrencades mentre hi hagi una instrucció
+  incerta. Mentre el procés encara funciona amb la cua bloquejada, les peticions
+  noves es registren com a refusades i reben un avís; no s'acumulen com a pendents. Cal revisar l'estat real; no es repeteix cap acció
+  externa automàticament. La reconciliació completa és a T8.4/T8.5.
+- Una primera crida efímera al model classifica només la petició verificada,
+  sense eines, historial ni context del repositori. Distingeix consulta, feina
+  nova i continuació explícita de la feina pendent. Una resposta invàlida demana
+  aclariment, no habilita escriptures. Una petició de continuació sense feina
+  pendent també demana aclariment.
+- Una consulta munta el worktree en mode de només lectura, sense crear cap
+  branca ni publicar feina anterior pendent. Una feina nova preserva el worktree
+  anterior, inclosos els fitxers ignorats, a `<tema>-before-<update>` i comença des de `origin/main` en
+  una branca pròpia. Una continuació explícita reutilitza només la feina
+  pendent actual; no incorpora automàticament altres treballs arxivats. Les
+  operacions executen `pnpm check` al contenidor abans de commit, push i PR.
+- Un error local, un timeout o una cancel·lació confirmada no bloquegen la cua.
+  Un error després d'iniciar la publicació queda incert, excepte un refús local
+  identificat pel publicador. Una aturada de contenidors no confirmada també
+  bloqueja, perquè encara podria executar-se codi no fiable.
+- La sortida conjunta de stdout i stderr té un límit d'1 MiB per ordre del
+  sandbox i per torn RPC de Pi. Superar-lo atura el procés i espera la neteja
+  dels contenidors. Si afecta el torn RPC o les comprovacions, la instrucció
+  falla abans de publicar. El timeout es manté independent. L'adaptador també
+  verifica la neteja després de cada torn completat de Pi, abans de comprovar
+  o publicar, encara que el model hagi tractat un error d'eina.
+- Un worktree net no implica que s'hagi publicat. El servei conserva la branca
+  amb commits pendents fins que push i PR estiguin confirmats; només llavors
+  registra el commit publicat fora del muntatge i pot tornar a `origin/main`.
+
+### Configuració
+
+Les variables es documenten, sense valors, a `.env.example`. El fitxer real viu
+fora del repositori a `/etc/mountain-runners-agent/agent.env`, amb mode `0600` i
+propietat de la identitat del servei. La instal·lació prevista és:
+
+```text
+/var/lib/mountain-runners-agent/           0700  mountain-agent:mountain-agent
+├── repository/                            clon amb origin i main
+├── worktrees/                             worktree actual per tema i feina preservada
+├── sessions/                              historial de Pi per tema
+└── state/                                 admission.sqlite, perfils i traça
+/etc/mountain-runners-agent/agent.env      0600  credencials del servei
+/usr/local/lib/mountain-runners/agent/     aplicació instal·lada
+/usr/local/lib/mountain-runners/node_modules/
+└── telegram-pi-bridge/                    paquet autònom, sense node_modules propi
+```
+
+`MOUNTAIN_AGENT_BASE_BRANCH`, si s'informa, ha de ser `main`. La imatge de
+l'entorn aïllat ha d'estar fixada i no pot usar l'etiqueta `latest`. Els límits
+numèrics (CPU, memòria, processos, temps d'execució i cua) tenen valors inicials
+al codi, però **no estan verificats al VPS** de 2 vCPU, 4 GB i 40 GB, que
+comparteix amb la resta de serveis.
+
+### Instal·lació prevista
+
+El procediment següent és la preparació prevista; **no s'ha executat** i cap ordre
+no es pot llançar sense aprovació explícita. Crea una identitat, un clon i una
+unitat separats de producció i de previews.
+
+```sh
+# No executat. Requereix aprovació explícita abans de cada pas.
+useradd --system --home /var/lib/mountain-runners-agent \
+  --shell /usr/sbin/nologin mountain-agent
+install -d -m 0700 -o mountain-agent -g mountain-agent \
+  /var/lib/mountain-runners-agent/{repository,worktrees,sessions,state}
+install -d -m 0750 -o root -g mountain-agent /etc/mountain-runners-agent
+runuser -u mountain-agent -- git clone --branch main \
+  https://github.com/rboixaderg/mountain-runners.git \
+  /var/lib/mountain-runners-agent/repository
+install -d -m 0755 /usr/local/lib/mountain-runners/agent
+cp -a tools/server/agent/. /usr/local/lib/mountain-runners/agent/
+install -d -m 0755 \
+  /usr/local/lib/mountain-runners/node_modules/telegram-pi-bridge
+cp -a packages/telegram-pi-bridge/{src,examples,package.json,LICENSE,README.md} \
+  /usr/local/lib/mountain-runners/node_modules/telegram-pi-bridge/
+install -m 0644 tools/server/systemd/mountain-agent.service \
+  /etc/systemd/system/mountain-agent.service
+# Abans d'arrencar: agent.env amb els noms de `.env.example` i la imatge
+# aïllada fixada i ja present localment.
+systemctl daemon-reload
+```
+
+Abans d'arrencar, cal Linux amb cgroup v2, Podman local sense root, un runtime
+OCI compatible i els helpers `newuidmap` i `newgidmap`. Una persona
+administradora ha d'assignar rangs no solapats a `mountain-agent` a `/etc/subuid`
+i `/etc/subgid`, sense incloure UID/GID de comptes reals del VPS, i preparar
+l'emmagatzematge i la imatge de Podman amb aquest
+usuari. No s'usa `podman.socket`, ni `sudo podman`, ni el magatzem d'imatges de
+root. Si s'havia seguit una versió anterior del procediment, cal retirar la
+pertinença al grup Docker abans d'activar el servei. La instal·lació ha de
+comprovar que `podman --remote=false info --format '{{.Host.Security.Rootless}}'`
+retorna `true` com a `mountain-agent`, i demostrar els límits dins del cgroup
+delegat de la unitat. No s'han fet aquestes operacions al VPS.
+
+La imatge aïllada ha d'incloure Node 24.11.0, pnpm, git i les dependències que
+necessita `pnpm check`, perquè el contenidor no té xarxa. El paquet no requereix instal·lar dependències ni compilar-lo al servidor.
+La disposició instal·lada del servei i del paquet es comprova amb una prova
+local sense symlinks al workspace; no equival a haver-lo desplegat.
+El clon del servei no comparteix el worktree principal de la persona mantenidora ni el de cap altra
+feina local.
+
+### Verificació
+
+```sh
+pnpm --filter telegram-pi-bridge test
+pnpm test:server
+# Opcional: Linux amb Podman sense root i imatge local ja disponible:
+MR_ISOLATION_TEST_IMAGE=<imatge-local> node --test tools/server/agent/sandbox/commands.test.mjs
+# Càrrega del perfil real a Pi, sense credencials ni petició al model:
+MR_AGENT_PI_COMMAND=<executable-pi> node --test tools/server/agent/runtime/profile-smoke.test.mjs
+```
+
+Les proves cobreixen autorització, deduplicació, ordre, cua plena, reinici amb
+resultat desconegut, branques i `main`, secrets a tot l'historial publicable,
+rutes protegides, límits d'inspecció i objectes il·legibles, reutilització de
+PR, consulta sense branca i el recorregut sintètic fins a PR amb Git i GitHub
+simulats. El gate també executa la suite del paquet en una còpia independent,
+crea un tarball local i el consumeix sense GitHub ni Docker, i verifica la
+resolució d'imports de la disposició instal·lada. No publica el paquet ni crea
+cap repositori remot. Una prova simulada no demostra els permisos reals de GitHub ni
+l'aïllament al VPS.
+
+### Pendents abans d'activar el pilot
+
+1. Crear el bot, el supergrup privat amb temes i la credencial de GitHub sense
+   `Workflows: write` ni administració, amb aprovació explícita i fora del
+   repositori. Verificar també les restriccions dels entorns de GitHub.
+2. Instal·lar la unitat, la identitat `mountain-agent`, el clon i les eines; no
+   reutilitzar identitats, directoris ni secrets de producció o previews.
+3. Demostrar l'aïllament al VPS (xarxa, credencials, filesystem, socket) i
+   verificar els límits de recursos reals.
+4. Proporcionar dependències offline a la imatge perquè `pnpm check` funcioni
+   sense xarxa dins del contenidor.
+5. Provar la pertinença, la revocació, dos autors i la represa entre temes
+   (T8.4/T8.5) i documentar l'aturada, la rotació i la retenció (T8.5/T8.6).
+6. Fer un smoke autoritzat d'una consulta i d'una tasca petita fins a PR. El
+   primer merge real continua sent posterior, explícit i humà (T8.4).
+
+Fins aleshores, el servei no s'activa i cap agent no desplega ni fusiona res.
+
 ## CI Implementada
 
 GitHub Actions executa qualitat, E2E, Conventional Commits, detecció de secrets,
@@ -354,7 +598,9 @@ servidor (`pnpm test:server`). `pnpm validate` no executa Lighthouse;
 La fase 5 està tancada; HSTS, entorn `production-rollback` i retirada dels
 required reviewers de `production` estan registrats a la
 [checklist de la T5.5](validation/phase-5-t55-launch-gate.md). La fase 6 també
-està tancada: les previews de PR són operatives i validades al VPS. Les fases 7
-i 8 continuen planificades i sense implementació. Només cal un ADR nou quan la
-implementació introdueixi o canviï una decisió arquitectònica; els detalls que
-apliquen la direcció acceptada continuen requerint una pull request revisada.
+està tancada: les previews de PR són operatives i validades al VPS. La fase 7
+continua planificada i sense implementació. La fase 8 té la base T8.3
+implementada al repositori, però el servei no s'ha desplegat ni activat i la
+resta de la fase continua pendent. Només cal un ADR nou quan la implementació
+introdueixi o canviï una decisió arquitectònica; els detalls que apliquen la
+direcció acceptada continuen requerint una pull request revisada.

@@ -153,9 +153,61 @@ fil i amb les comprovacions obligatòries en verd. La petició de preview es
 delega de la mateixa manera segons
 l'[ADR 0009](decisions/0009-pr-previews-same-domain-and-own-branches.md).
 
-Cap servei, compte ni credencial d'aquesta fase no existeix encara. L'aprovació
-de la frontera no activa permisos: els controls essencials s'han de verificar
-abans del pilot (T8.3) i la resta de casos, a les entregues posteriors.
+La T8.3 separa el nucli Telegram i Pi a
+[`packages/telegram-pi-bridge`](../packages/telegram-pi-bridge/README.md):
+transport, autorització, cua duradora, identitat per tema i protocol RPC. És un
+paquet ESM amb llicència MIT, API i proves propis, sense dependències npm ni
+coneixement de GitHub, Docker o les regles del projecte. Es pot provar i
+empaquetar fora d'aquest repositori; encara no està publicat a npm.
+Les entrades `/telegram`, `/sessions` i `/pi` es carreguen per separat. Importar
+només `/pi` no carrega Telegram ni SQLite.
+
+L'aplicació de `tools/server/agent/` consumeix el paquet i li proporciona
+`runInstruction`. `policy/development.mjs` conté les regles pures de prompts,
+classificació, comprovació i metadades públiques. `workflow/project-runner.mjs`
+les connecta amb les integracions. El coordinador `workflow/run-instruction.mjs`
+rep operacions i rutes, sense tokens ni clients de Docker o GitHub. El perfil
+de confiança, l'entorn aïllat i Git/GitHub continuen fora del paquet. El transport RPC no hereta l'entorn
+secret del servei ni activa eines per defecte; l'adaptador del projecte tria
+explícitament `sandbox_bash` i la neteja dels contenidors. Pi manté la credencial del proveïdor al host i no té
+la `bash` del host: l'execució passa per l'extensió `sandbox_bash` i pel mateix
+constructor d'arguments que el component de confiança. Tampoc exposa eines
+natives de fitxers del host ni carrega automàticament context o skills del
+repositori: el model els llegeix dins del contenidor. Les consultes usen un
+muntatge de només lectura i no publiquen feina pendent. Una feina nova
+preserva el worktree pendent anterior i comença des de `origin/main`; només
+una continuació explícita reutilitza la feina pendent actual. Els errors locals
+coneguts no bloquegen la cua; els resultats remots incerts i les aturades de
+contenidors no confirmades sí que la bloquegen. La sortida del sandbox i la
+del torn de Pi tenen cadascuna un límit conjunt d'1 MiB per stdout i stderr.
+
+El servei executa Podman local sense root, amb un espai d'usuari que conserva
+l'UID/GID del worktree. Ni el pont ni Pi pertanyen al grup Docker ni reben un
+socket de contenidors del host. La unitat delega el seu cgroup al runtime;
+les proves reals de Podman a Linux i dels límits al VPS continuen pendents.
+
+El component de Git selecciona explícitament metadades fora del muntatge,
+rebutja alteracions del fitxer indicador `.git` i executa les ordres amb hooks
+i fsmonitor desactivats i sense heretar els secrets del pont. Un worktree net
+només es reinicia quan no conté commits propis pendents de publicació
+confirmada. La comparació d'ascendència evita confondre un `main` antic amb
+feina pròpia no publicada. Sense un resum vàlid del model, els noms públics
+usen un text neutre i l'identificador de l'update, mai el text privat de Telegram.
+Abans del push s'inspeccionen els objectes nous de tot l'historial de
+`origin/main..HEAD`, incloses versions esborrades i missatges de commit. Un
+objecte il·legible o que supera el pressupost refusa la publicació. Els canvis
+a `.github/**` i `CODEOWNERS` es rebutgen en qualsevol commit del rang. La
+credencial prevista no té el permís `Workflows: write`. El push publica
+exactament el SHA inspeccionat, sense forçar-lo. El
+[mapa de mòduls](../tools/server/agent/README.md) diferencia el nucli
+reutilitzable de l'aplicació i les seves fronteres. El merge demanat i la petició
+delegada de preview continuen fora d'aquesta base (T8.4).
+
+La base no s'ha desplegat ni activat: no existeix cap servei, bot, grup ni
+credencial de la fase 8. L'aprovació de la frontera no activa permisos; els
+controls essencials s'han de verificar abans del pilot i la resta de casos, a les
+entregues posteriors. La instal·lació, la configuració, els límits pendents i
+les comprovacions són a [`docs/deployment.md`](deployment.md#agent-privat-de-desenvolupament-t83).
 
 ## Xat Públic, Més Endavant
 
@@ -167,8 +219,9 @@ formen part del disseny inicial.
 ## Fora D'Abast Ara
 
 - Servei de xat Hono i generador d'índex.
-- El servei operatiu de Telegram de la fase 8: l'ADR 0013 n'accepta la frontera,
-  però cap servei, compte ni credencial no existeix encara.
+- El servei operatiu de Telegram de la fase 8: l'ADR 0013 n'accepta la frontera i
+  la base T8.3 existeix al repositori, però no s'ha desplegat ni activat cap
+  servei, compte ni credencial.
 - Noves integracions DNS/edge o proveïdors per a previews fora de la decisió
   acceptada de la fase 6.
 

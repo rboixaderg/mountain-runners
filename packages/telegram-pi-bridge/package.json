@@ -1,0 +1,24 @@
+{
+  "name": "telegram-pi-bridge",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Telegram forum-topic sessions and a credential-isolated Pi RPC transport.",
+  "type": "module",
+  "license": "MIT",
+  "engines": {
+    "node": ">=24.11.0"
+  },
+  "exports": {
+    ".": "./src/index.mjs",
+    "./telegram": "./src/telegram/index.mjs",
+    "./sessions": "./src/sessions/index.mjs",
+    "./pi": "./src/pi/rpc.mjs"
+  },
+  "files": [
+    "src/",
+    "examples/"
+  ],
+  "scripts": {
+    "test": "node --test \"test/**/*.test.mjs\""
+  }
+}

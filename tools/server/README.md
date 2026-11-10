@@ -22,7 +22,14 @@ Tota l'operació està documentada al
 | `release/receive.mjs`                 | Escriptura limitada i hashed de uploads a `incoming/`                                  |
 | `release/validate.mjs`                | Validació d'arguments compartida entre el gate i el daemon                             |
 | `release/cli.test.mjs`                | Tests `node --test` amb arxius tar adversos i el daemon en marxa                       |
+| `../../packages/telegram-pi-bridge/`  | Nucli autònom MIT: Telegram, cua, sessions i RPC; sense GitHub ni Docker               |
+| `agent/`                              | Base operativa de l'agent privat de la fase 8 (T8.3); frontera a `docs/deployment.md`  |
+| `agent/processes/telegram-bridge/`    | Procés del pont de Telegram, sessions i admissió duradora                              |
+| `agent/runtime/`                      | Adaptador del client RPC, perfil de confiança i extensió `sandbox_bash`                |
+| `agent/sandbox/`                      | Execució aïllada i arguments de Docker compartits amb l'extensió                       |
+| `agent/repository/`                   | Metadades Git de confiança, worktrees, commits, push i PR                              |
 | `systemd/mountain-release.service`    | Unitat del daemon (root, socket `/run/mountain-release.sock`)                          |
+| `systemd/mountain-agent.service`      | Unitat del pont de Telegram de la T8.3 (sense activar)                                 |
 | `systemd/caddy-mountain-runners.conf` | Drop-in de Caddy: `ReadWritePaths` de logs i releases                                  |
 
 ## Layout Al Servidor
