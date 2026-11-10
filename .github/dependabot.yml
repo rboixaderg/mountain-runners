@@ -6,8 +6,15 @@ updates:
       interval: weekly
       day: monday
     groups:
+      # Playwright ships its own browser builds, so a bump can break the E2E
+      # suite without any application change: 1.65.0 crashes Firefox on the
+      # published pages. Keep it in a group with its axe adapter to review the
+      # browser build and the full suite on its own.
+      playwright:
+        patterns: ["@playwright/test", "@axe-core/playwright"]
       development-dependencies:
         dependency-type: development
+        exclude-patterns: ["@playwright/test", "@axe-core/playwright"]
     open-pull-requests-limit: 10
     ignore:
       # typescript-eslint still rejects the TypeScript 7 API, so major
