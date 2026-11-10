@@ -1,0 +1,14 @@
+.github/dependabot.yml
+  h_1727aeeb492b30 9-14,17
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "4575e23ea5d1a39f7827b8aac213ae3fbf29d9f6",
+  "prompts": {},
+  "humans": {
+    "h_1727aeeb492b30": {
+      "author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
