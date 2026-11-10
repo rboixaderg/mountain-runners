@@ -15,6 +15,7 @@ export const paraglideOptions = {
   project: "./project.inlang",
   outdir: "./src/paraglide",
   strategy: ["url", "globalVariable"],
+  outputStructure: "message-modules",
   urlPatterns,
   includeEslintDisableComment: false,
 };
