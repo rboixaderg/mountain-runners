@@ -1,0 +1,45 @@
+packages/telegram-pi-bridge/src/telegram/attribution.mjs
+  s_3608004c427287::t_13b94b69f36803 45-47
+packages/telegram-pi-bridge/src/telegram/bridge.mjs
+  s_3608004c427287::t_f81e0a148c32f5 14-17,74,150-156,166-172
+packages/telegram-pi-bridge/test/pi/rpc.test.mjs
+  s_3608004c427287::t_97d80e14af7604 268-315
+packages/telegram-pi-bridge/test/telegram/attribution.test.mjs
+  s_3608004c427287::t_9d4b7123406fed 48-61
+packages/telegram-pi-bridge/test/telegram/bridge.test.mjs
+  s_3608004c427287::t_42991e3a35271c 252-308
+tools/server/agent/policy/development.mjs
+  s_3608004c427287::t_d9c8d1aed4d4d5 7-10,30,59,61-64,67,71,93-98,111-112,120-125
+tools/server/agent/policy/development.test.mjs
+  s_3608004c427287::t_bebc876a57def0 11-16,52
+tools/server/agent/repository/worktrees.test.mjs
+  s_3608004c427287::t_581645d210574d 13,136-155
+tools/server/agent/sandbox/commands.mjs
+  s_3608004c427287::t_2ee882ffd8a9ab 17-19,62,101-114,132,139,143
+tools/server/agent/sandbox/commands.test.mjs
+  s_3608004c427287::t_72fef8a8151772 165-207
+tools/server/agent/workflow/project-runner.mjs
+  s_3608004c427287::t_3c17f1936d8b7e 6-9,21,28
+tools/server/agent/workflow/regressions.test.mjs
+  s_3608004c427287::t_7ac3e05745c940 27,201-236,266,269-272,274-278
+tools/server/agent/workflow/run-instruction.mjs
+  s_3608004c427287::t_fafffbe93e4806 2,15,36-128,131-168,171-173
+tools/server/agent/workflow/run-instruction.test.mjs
+  s_3608004c427287::t_47d4379bbb9c7c 5,18,214,227,235-382,423-424,455-458,472-477,522,579-582,637-638
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "65acae91ec2928349faf701a50e2e97c4f73b89a",
+  "prompts": {},
+  "sessions": {
+    "s_3608004c427287": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a1c6b6-18fc-7799-b4a1-7d26f28bd2db",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
