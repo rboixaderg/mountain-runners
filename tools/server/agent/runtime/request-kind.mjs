@@ -10,7 +10,10 @@ import {
   parseRequestKind,
 } from "../policy/development.mjs";
 
-export async function classifyRequest(config, { instruction, signal }) {
+export async function classifyRequest(
+  config,
+  { instruction, signal, environment },
+) {
   const directory = join(config.paths.state, "request-classifier");
   await mkdir(directory, { recursive: true, mode: 0o700 });
   const result = await runProjectPrompt({
@@ -18,6 +21,7 @@ export async function classifyRequest(config, { instruction, signal }) {
     profileDirectory: directory,
     worktreePath: directory,
     classifyOnly: true,
+    environment,
     signal,
     message: buildClassificationPrompt(instruction),
   });

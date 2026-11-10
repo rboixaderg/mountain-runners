@@ -64,7 +64,10 @@ function configFor(paths) {
       token: "github-secret",
       repository: "rboixaderg/mountain-runners",
     },
-    model: { sandboxImage: "mountain-agent-pi:1.5.0" },
+    model: {
+      sandboxImage: "mountain-agent-pi:1.5.0",
+      providerEnvironmentVariables: [],
+    },
     paths: {
       repository: paths.repository,
       worktrees: paths.worktrees,
@@ -225,6 +228,30 @@ test("marks a timed-out run as uncertain and keeps the work", async (context) =>
     existsSync(join(paths.worktrees, "topic_n1001234567890_7")),
     true,
   );
+});
+
+test("passes the configured provider credentials to the publication scanner", async (context) => {
+  const paths = await fixture(context);
+  const github = githubStub();
+  const config = configFor(paths);
+  config.model.providerEnvironmentVariables = ["SYNTHETIC_PROVIDER_KEY"];
+  const runner = createProjectRunner({
+    config,
+    environment: { SYNTHETIC_PROVIDER_KEY: "synthetic-provider-secret" },
+    classifyRequest: async () => "implementation",
+    github,
+    runModel: async ({ worktreePath }) => {
+      writeFileSync(join(worktreePath, "change.txt"), "change\n");
+      return { text: "SUMMARY: fix(agent): protect provider credentials" };
+    },
+    runChecks: async () => ({ exitCode: 0 }),
+  });
+  await runner(request());
+  assert.deepEqual(github.pushes[0].secrets, [
+    "telegram-secret",
+    "github-secret",
+    "synthetic-provider-secret",
+  ]);
 });
 
 test("uses a conventional fallback when the model omits the summary", async (context) => {

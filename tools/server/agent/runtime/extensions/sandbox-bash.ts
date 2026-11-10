@@ -1,4 +1,4 @@
-/** The model's only tool. All filesystem access and execution stays in Docker. */
+/** The model's only tool. Filesystem access and execution use rootless Podman. */
 import { Type } from "typebox";
 import { readSandboxSettings } from "./arguments.mjs";
 import { runSandboxedCommand } from "./commands.mjs";

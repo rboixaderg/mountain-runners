@@ -176,10 +176,21 @@ natives de fitxers del host ni carrega automàticament context o skills del
 repositori: el model els llegeix dins del contenidor. Les consultes usen un
 muntatge de només lectura i no publiquen feina pendent.
 
+El servei executa Podman local sense root, amb un espai d'usuari que conserva
+l'UID/GID del worktree. Ni el pont ni Pi pertanyen al grup Docker ni reben un
+socket de contenidors del host. La unitat delega el seu cgroup al runtime;
+les proves reals de Podman a Linux i dels límits al VPS continuen pendents.
+
 El component de Git selecciona explícitament metadades fora del muntatge,
 rebutja alteracions del fitxer indicador `.git` i executa les ordres amb hooks
 i fsmonitor desactivats i sense heretar els secrets del pont. Un worktree net
-només es reinicia quan no conté commits pendents de publicació confirmada. El
+només es reinicia quan no conté commits pendents de publicació confirmada.
+Abans del push s'inspeccionen els objectes nous de tot l'historial de
+`origin/main..HEAD`, incloses versions esborrades i missatges de commit. Un
+objecte il·legible o que supera el pressupost refusa la publicació. Els canvis
+a `.github/**` i `CODEOWNERS` es rebutgen en qualsevol commit del rang. La
+credencial prevista no té el permís `Workflows: write`. El push publica
+exactament el SHA inspeccionat, sense forçar-lo. El
 [mapa de mòduls](../tools/server/agent/README.md) diferencia el nucli
 reutilitzable de l'aplicació i les seves fronteres. El merge demanat i la petició
 delegada de preview continuen fora d'aquesta base (T8.4).

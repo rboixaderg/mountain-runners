@@ -17,23 +17,43 @@ import { buildSandboxArguments } from "./arguments.mjs";
 
 const executeFile = promisify(execFile);
 
+// Local rootless Podman needs its storage/runtime paths, not bridge credentials.
+function podmanEnvironment() {
+  if (process.getuid() === 0) {
+    throw new Error("The agent container runtime must run without root.");
+  }
+  return {
+    PATH: process.env.PATH,
+    HOME: process.env.HOME,
+    XDG_RUNTIME_DIR: process.env.XDG_RUNTIME_DIR,
+  };
+}
+
 /**
  * Kill the containers of a session. Used on timeout and on shutdown, because
- * killing the Docker client or Pi leaves the container running.
+ * killing the Podman client or Pi leaves the container running.
  */
 export async function stopSandboxedCommands(sessionIdentifier) {
   try {
-    const { stdout } = await executeFile("docker", [
-      "ps",
-      "--quiet",
-      "--filter",
-      `label=mountain-agent.session=${sessionIdentifier}`,
-    ]);
+    const environment = podmanEnvironment();
+    const { stdout } = await executeFile(
+      "podman",
+      [
+        "--remote=false",
+        "ps",
+        "--quiet",
+        "--filter",
+        `label=mountain-agent.session=${sessionIdentifier}`,
+      ],
+      { env: environment },
+    );
     const containers = stdout.split("\n").filter(Boolean);
     if (containers.length === 0) {
       return 0;
     }
-    await executeFile("docker", ["kill", ...containers]);
+    await executeFile("podman", ["--remote=false", "kill", ...containers], {
+      env: environment,
+    });
     return containers.length;
   } catch (error) {
     throw new Error("Could not confirm that the sandbox containers stopped.", {
@@ -71,8 +91,8 @@ export async function runSandboxedCommand({
   });
 
   let timedOut = false;
-  const child = spawn("docker", argumentsList, {
-    env: { PATH: process.env.PATH },
+  const child = spawn("podman", argumentsList, {
+    env: podmanEnvironment(),
     stdio: ["ignore", "pipe", "pipe"],
   });
   const stdout = [];
@@ -116,17 +136,25 @@ export async function runSandboxedCommand({
 /** Kill every agent container, regardless of session. */
 export async function stopAllSandboxedCommands() {
   try {
-    const { stdout } = await executeFile("docker", [
-      "ps",
-      "--quiet",
-      "--filter",
-      "label=mountain-agent.session",
-    ]);
+    const environment = podmanEnvironment();
+    const { stdout } = await executeFile(
+      "podman",
+      [
+        "--remote=false",
+        "ps",
+        "--quiet",
+        "--filter",
+        "label=mountain-agent.session",
+      ],
+      { env: environment },
+    );
     const containers = stdout.split("\n").filter(Boolean);
     if (containers.length === 0) {
       return 0;
     }
-    await executeFile("docker", ["kill", ...containers]);
+    await executeFile("podman", ["--remote=false", "kill", ...containers], {
+      env: environment,
+    });
     return containers.length;
   } catch (error) {
     throw new Error("Could not confirm that the sandbox containers stopped.", {

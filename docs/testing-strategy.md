@@ -16,7 +16,15 @@ instal·lat, sense credencials ni serveis externs. Les proves del paquet carregu
 cada entrada pública en un procés nou i bloquegen les dependències alienes.
 Les regles pures del consumidor es proven a `tools/server/agent/policy/`; les
 proves operatives conserven els recorreguts fins a PR i els errors remots de
-resultat desconegut. No es modifica aquesta arquitectura.
+resultat desconegut. La publicació prova secrets en commits anteriors,
+pressupostos d'inspecció, objectes il·legibles i rutes protegides, sense xarxa.
+El contracte del runtime prova els arguments complets, l'entorn mínim i la
+neteja amb un executable simulat. Les proves reals del sandbox de T8.3
+requereixen Linux, Podman local sense root i una imatge ja disponible mitjançant
+`MR_ISOLATION_TEST_IMAGE`; sense aquesta variable se salten, també a la CI
+ordinària. El perfil real de Pi requereix `MR_AGENT_PI_COMMAND` i també se
+salta per defecte. Cap d'aquestes omissions demostra l'aïllament al VPS.
+No es modifica aquesta arquitectura.
 
 Aquest document és la font de veritat per triar el nivell de prova, dissenyar
 expectatives i revisar cobertura. Prevalen els ADR i les

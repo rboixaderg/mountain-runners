@@ -36,16 +36,16 @@ tools/server/agent/               aplicació de Mountain Runners
 ├── runtime/
 │   ├── request-kind.mjs          interpreta la petició actual sense eines
 │   ├── agent.mjs                 prepara el perfil i inicia el torn
-│   ├── pi-adapter.mjs            entorn, eina aïllada i neteja de Docker
+│   ├── pi-adapter.mjs            entorn, eina aïllada i neteja de Podman
 │   ├── profile.mjs               prepara recursos de confiança
 │   └── extensions/sandbox-bash.ts única eina del model
 ├── sandbox/
-│   ├── arguments.mjs             muntatge, identitat i límits de Docker
+│   ├── arguments.mjs             muntatge, identitat i límits de Podman
 │   └── commands.mjs              execució i aturada dels contenidors
 └── repository/
     ├── trusted-git.mjs            metadades explícites i entorn restringit
     ├── worktrees.mjs              worktree, branca, commit i estat publicat
-    ├── secret-scan.mjs            refús local de credencials conegudes
+    ├── secret-scan.mjs            historial, rutes i credencials conegudes
     ├── publisher.mjs              push, PR i confirmació de l'estat publicat
     └── github.mjs                 client de GitHub i push segur
 ```
@@ -109,11 +109,19 @@ política ni pot autoritzar per si sol una publicació.
   `sandbox_bash`. Ni un perfil antic ni el repositori hi poden afegir eines.
 - El model llegeix `AGENTS.md`, skills i documentació dins del contenidor. Pi
   no els carrega al host ni manté còpies que puguin seguir symlinks cap a secrets.
-- El contenidor usa l'UID/GID no root del propietari del worktree, sense xarxa,
-  credencials, socket Docker ni metadades Git. Això conserva `UMask=0077`.
+- Podman s'executa localment sense root ni dimoni, amb `--remote=false` i
+  `--userns=keep-id`. Conserva l'UID/GID del worktree i `UMask=0077`. Ni el pont
+  ni Pi tenen grup Docker o socket de contenidors del host. El contenidor no
+  té xarxa, credencials ni metadades Git.
 - Git selecciona metadades del registre de confiança, comprova l'indicador
   `.git`, desactiva hooks i fsmonitor i no hereta l'entorn secret del pont.
-- Matar Pi no atura Docker. El paquet crida `onInterrupted`; l'adaptador del
+- La publicació inspecciona tots els objectes nous de `origin/main..HEAD`,
+  inclosos fitxers esborrats i missatges de commit, contra els tokens de
+  Telegram, GitHub i les variables del proveïdor. Refusa objectes il·legibles,
+  objectes de més de 2 MiB o un total superior a 32 MiB. També rebutja canvis
+  a `.github/**` i `CODEOWNERS` en qualsevol commit del rang. El push usa el
+  SHA inspeccionat. Cal una credencial sense `Workflows: write`.
+- Matar Pi no atura els contenidors de Podman. El paquet crida `onInterrupted`; l'adaptador del
   projecte espera l'aturada dels contenidors i no oculta una neteja fallida.
 
 ## Proves i fonts de veritat
@@ -132,7 +140,7 @@ pnpm --filter telegram-pi-bridge test
 pnpm test:server
 pnpm check
 
-# Opcional: imatge local ja disponible; no es descarrega res.
+# Opcional: Linux, Podman sense root i imatge local; no es descarrega res.
 MR_ISOLATION_TEST_IMAGE=<imatge-local> node --test tools/server/agent/sandbox/commands.test.mjs
 
 # Opcional: perfil real a Pi, sense credencials ni petició al model.

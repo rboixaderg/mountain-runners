@@ -14,10 +14,13 @@ import { createInstructionRunner } from "./run-instruction.mjs";
 export function createProjectRunner({
   config,
   github,
-  classifyRequest = (context) => classifyWithModel(config, context),
+  environment = process.env,
+  classifyRequest = (context) =>
+    classifyWithModel(config, { ...context, environment }),
   runModel = (context) =>
     runAgent(config, {
       ...context,
+      environment,
       message: buildInstructionPrompt(context.instruction, context.kind),
       readOnly: context.kind === "consultation",
     }),
@@ -43,7 +46,13 @@ export function createProjectRunner({
     logger,
     publishChange: createPublisher({
       github,
-      secrets: [config.telegram.botToken, config.github.token],
+      secrets: [
+        config.telegram.botToken,
+        config.github.token,
+        ...config.model.providerEnvironmentVariables.map(
+          (name) => environment[name],
+        ),
+      ],
     }),
   });
 }

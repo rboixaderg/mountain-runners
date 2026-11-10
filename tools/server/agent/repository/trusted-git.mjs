@@ -60,11 +60,17 @@ export function gitEnvironment(environment = {}) {
 export async function runGit(
   worktree,
   argumentsList,
-  { environment, allowFailure = false } = {},
+  {
+    environment,
+    allowFailure = false,
+    input,
+    encoding = "utf8",
+    maxBuffer = 1024 * 1024,
+  } = {},
 ) {
   assertWorktreeMarker(worktree);
   try {
-    const { stdout } = await executeFile(
+    const execution = executeFile(
       "git",
       [
         `--git-dir=${worktree.gitDirectory}`,
@@ -77,8 +83,17 @@ export async function runGit(
         "core.attributesFile=/dev/null",
         ...argumentsList,
       ],
-      { cwd: worktree.path, env: gitEnvironment(environment) },
+      {
+        cwd: worktree.path,
+        env: gitEnvironment(environment),
+        encoding,
+        maxBuffer,
+      },
     );
+    if (input !== undefined) {
+      execution.child.stdin.end(input);
+    }
+    const { stdout } = await execution;
     // Callers parsing porcelain/-z need every byte, including leading spaces.
     return stdout;
   } catch (error) {

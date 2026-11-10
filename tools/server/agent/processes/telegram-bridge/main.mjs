@@ -79,7 +79,8 @@ export async function startService({
       repository: config.github.repository,
     });
   const runner =
-    runnerOverride ?? createProjectRunner({ config, github, logger });
+    runnerOverride ??
+    createProjectRunner({ config, github, environment, logger });
 
   const bridge = new AgentBridge({
     groupIdentifier: config.telegram.groupIdentifier,

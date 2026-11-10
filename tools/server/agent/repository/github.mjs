@@ -10,7 +10,7 @@
 // opening a duplicate PR after a restart.
 
 import { assertWorkBranch } from "./worktrees.mjs";
-import { assertNoSecretsInWorktree } from "./secret-scan.mjs";
+import { assertPublishableHistory } from "./secret-scan.mjs";
 
 import { runGit } from "./trusted-git.mjs";
 
@@ -109,13 +109,16 @@ export class GitHubTrust {
 
   /**
    * Push the job branch. `main` and other repositories are rejected before any
-   * Git command runs, and the worktree is scanned for live credentials.
+   * Git command runs. All outgoing history is checked for protected paths,
+   * live credentials and inspection limits before the first remote write.
    */
   async pushBranch({ worktree, branch, secrets = [] }) {
+    let commit;
     try {
       assertWorkBranch(branch);
       await this.#assertOrigin(worktree);
-      await assertNoSecretsInWorktree({ worktree, secrets });
+      commit = await this.#git(worktree, ["rev-parse", "HEAD"]);
+      await assertPublishableHistory({ worktree, commit, secrets });
     } catch (error) {
       throw new PublishRefusedError(
         error instanceof Error ? error.message : "Publication refused.",
@@ -123,12 +126,15 @@ export class GitHubTrust {
       );
     }
 
-    const commit = await this.#git(worktree, ["rev-parse", "HEAD"]);
-    await this.#git(worktree, ["push", "origin", branch], {
-      GIT_CONFIG_COUNT: "1",
-      GIT_CONFIG_KEY_0: `url.https://x-access-token:${this.#token}@github.com/.insteadOf`,
-      GIT_CONFIG_VALUE_0: "https://github.com/",
-    });
+    await this.#git(
+      worktree,
+      ["push", "--no-follow-tags", "origin", `${commit}:refs/heads/${branch}`],
+      {
+        GIT_CONFIG_COUNT: "1",
+        GIT_CONFIG_KEY_0: `url.https://x-access-token:${this.#token}@github.com/.insteadOf`,
+        GIT_CONFIG_VALUE_0: "https://github.com/",
+      },
+    );
     return { branch, commit };
   }
 

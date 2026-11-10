@@ -374,7 +374,7 @@ no arriben mai al procés de Pi. Aquesta política viu a
 `tools/server/agent/runtime/pi-adapter.mjs`; el client RPC del paquet només rep
 les opcions i l'entorn explícits. Per defecte, el paquet no habilita eines ni
 càrrega automàtica d'extensions. L'adaptador selecciona l'extensió aïllada
-instal·lada i proporciona el callback de neteja de Docker.
+instal·lada i proporciona el callback de neteja dels contenidors de Podman.
 
 Pi no exposa la `bash` del host. El model només pot executar ordres amb
 `sandbox_bash`, una extensió del perfil de confiança que aplica el mateix
@@ -383,8 +383,21 @@ privilegiat, `--network=none`, `--read-only`, `--cap-drop=ALL`,
 `--security-opt=no-new-privileges`, límits de CPU, memòria i processos i
 l'UID/GID no root del propietari del worktree. Només munta el worktree a `/work`,
 en mode de només lectura per a consultes. No exposa eines natives de fitxers del
-host. La unitat de systemd dona al
-pont accés al dimoni de Docker; el socket no es munta mai dins del contenidor.
+host. El pont i Pi executen Podman local sense root, amb `--remote=false`
+i `--userns=keep-id`. No pertanyen al grup Docker ni reben cap socket de
+contenidors del host. La unitat també fa inaccessibles els sockets habituals
+de Docker i Podman amb root.
+
+Podman usa `cgroupfs` i la unitat delega el seu cgroup amb `Delegate=yes`.
+`RuntimeDirectory` crea `/run/mountain-runners-agent` amb mode `0700`;
+`XDG_RUNTIME_DIR` arriba a Pi i al runtime, però no al contenidor com a variable
+d'entorn del host. El runtime només rep `PATH`, `HOME` i `XDG_RUNTIME_DIR`.
+Els helpers de sistema `newuidmap` i `newgidmap` necessiten els permisos
+restringits per mapar els rangs subordinats de l'usuari. Per això la unitat del
+pont no fixa `NoNewPrivileges=true`; el contenidor sí que conserva
+`--security-opt=no-new-privileges` i `--cap-drop=ALL`. Aquesta excepció no dona
+accés a un dimoni privilegiat. Cal provar aquesta configuració a Linux abans
+d'activar-la; les proves Docker anteriors no validen Podman.
 
 El perfil de cada instrucció es reconstrueix a l'estat del servei amb només
 recursos de confiança instal·lats. Pi no carrega automàticament context ni
@@ -397,6 +410,23 @@ selecciona el directori Git del registre del clon, comprova el fitxer indicador
 `.git` i rebutja qualsevol alteració abans d'executar Git. Les ordres del host
 desactiven hooks i fsmonitor, ignoren la configuració global i reben un entorn
 restringit, sense els tokens del pont. Només el push rep l'autenticació de GitHub.
+Abans d'aquest push, el servei inspecciona tots els objectes nous del rang
+`origin/main..HEAD`, inclosos fitxers de commits anteriors, missatges de commit
+i noms dins dels arbres Git. Compara els bytes amb els tokens de Telegram,
+GitHub i els valors declarats a `MOUNTAIN_AGENT_PROVIDER_ENVIRONMENT_VARIABLES`.
+Un objecte il·legible, un objecte de més de 2 MiB o un total superior a 32 MiB
+refusa la publicació; no se salta cap fitxer per continuar. No segueix symlinks
+del worktree per llegir el contingut.
+
+Qualsevol commit del rang que afegeixi, modifiqui, mogui o esborri `.github/**`
+o un fitxer `CODEOWNERS` refusa la publicació, encara que un commit posterior
+reverteixi el canvi. El push publica exactament el SHA inspeccionat, sense
+forçar-lo. La credencial de GitHub ha de ser un token acotat al repositori amb
+`Contents: write` i `Pull requests: write`, sense `Workflows: write` ni permisos
+d'administració. El rol administrador del compte no prova els permisos del
+token. Abans del pilot cal verificar els permisos reals i les regles de branca
+dels entorns `previews` i `production`; aquestes proves locals no ho demostren.
+
 Un timeout o una cancel·lació de Pi també espera l'aturada dels contenidors de
 la sessió; si no es pot confirmar, l'execució queda fallida o incerta.
 
@@ -461,7 +491,6 @@ unitat separats de producció i de previews.
 # No executat. Requereix aprovació explícita abans de cada pas.
 useradd --system --home /var/lib/mountain-runners-agent \
   --shell /usr/sbin/nologin mountain-agent
-usermod --append --groups docker mountain-agent
 install -d -m 0700 -o mountain-agent -g mountain-agent \
   /var/lib/mountain-runners-agent/{repository,worktrees,sessions,state}
 install -d -m 0750 -o root -g mountain-agent /etc/mountain-runners-agent
@@ -481,6 +510,18 @@ install -m 0644 tools/server/systemd/mountain-agent.service \
 systemctl daemon-reload
 ```
 
+Abans d'arrencar, cal Linux amb cgroup v2, Podman local sense root, un runtime
+OCI compatible i els helpers `newuidmap` i `newgidmap`. Una persona
+administradora ha d'assignar rangs no solapats a `mountain-agent` a `/etc/subuid`
+i `/etc/subgid`, sense incloure UID/GID de comptes reals del VPS, i preparar
+l'emmagatzematge i la imatge de Podman amb aquest
+usuari. No s'usa `podman.socket`, ni `sudo podman`, ni el magatzem d'imatges de
+root. Si s'havia seguit una versió anterior del procediment, cal retirar la
+pertinença al grup Docker abans d'activar el servei. La instal·lació ha de
+comprovar que `podman --remote=false info --format '{{.Host.Security.Rootless}}'`
+retorna `true` com a `mountain-agent`, i demostrar els límits dins del cgroup
+delegat de la unitat. No s'han fet aquestes operacions al VPS.
+
 La imatge aïllada ha d'incloure Node 24.11.0, pnpm, git i les dependències que
 necessita `pnpm check`, perquè el contenidor no té xarxa. El paquet no requereix instal·lar dependències ni compilar-lo al servidor.
 La disposició instal·lada del servei i del paquet es comprova amb una prova
@@ -493,14 +534,15 @@ feina local.
 ```sh
 pnpm --filter telegram-pi-bridge test
 pnpm test:server
-# Prova real del contenidor (opcional; la imatge ha d'existir localment):
+# Opcional: Linux amb Podman sense root i imatge local ja disponible:
 MR_ISOLATION_TEST_IMAGE=<imatge-local> node --test tools/server/agent/sandbox/commands.test.mjs
 # Càrrega del perfil real a Pi, sense credencials ni petició al model:
 MR_AGENT_PI_COMMAND=<executable-pi> node --test tools/server/agent/runtime/profile-smoke.test.mjs
 ```
 
 Les proves cobreixen autorització, deduplicació, ordre, cua plena, reinici amb
-resultat desconegut, branques i `main`, credencials al worktree, reutilització de
+resultat desconegut, branques i `main`, secrets a tot l'historial publicable,
+rutes protegides, límits d'inspecció i objectes il·legibles, reutilització de
 PR, consulta sense branca i el recorregut sintètic fins a PR amb Git i GitHub
 simulats. El gate també executa la suite del paquet en una còpia independent,
 crea un tarball local i el consumeix sense GitHub ni Docker, i verifica la
@@ -510,8 +552,9 @@ l'aïllament al VPS.
 
 ### Pendents abans d'activar el pilot
 
-1. Crear el bot, el supergrup privat amb temes i la credencial de GitHub, amb
-   aprovació explícita i fora del repositori.
+1. Crear el bot, el supergrup privat amb temes i la credencial de GitHub sense
+   `Workflows: write` ni administració, amb aprovació explícita i fora del
+   repositori. Verificar també les restriccions dels entorns de GitHub.
 2. Instal·lar la unitat, la identitat `mountain-agent`, el clon i les eines; no
    reutilitzar identitats, directoris ni secrets de producció o previews.
 3. Demostrar l'aïllament al VPS (xarxa, credencials, filesystem, socket) i

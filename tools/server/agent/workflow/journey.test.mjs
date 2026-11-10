@@ -84,7 +84,10 @@ function configFor(paths) {
       botUsername,
     },
     github: { token: githubToken, repository },
-    model: { sandboxImage: "mountain-agent-pi:1.5.0" },
+    model: {
+      sandboxImage: "mountain-agent-pi:1.5.0",
+      providerEnvironmentVariables: [],
+    },
     paths: {
       repository: paths.repository,
       worktrees: paths.worktrees,

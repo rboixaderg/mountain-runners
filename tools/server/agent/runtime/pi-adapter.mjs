@@ -1,5 +1,5 @@
 // Mountain Runners adapter for the generic RPC transport. Only this layer
-// knows the model environment allowlist, the sandbox extension and Docker cleanup.
+// knows the model environment allowlist, the sandbox extension and Podman cleanup.
 
 import { join } from "node:path";
 import { runPiPrompt } from "telegram-pi-bridge/pi";
@@ -16,6 +16,7 @@ export function buildPiEnvironment({
   const allowedEnvironment = {
     PATH: environment.PATH,
     HOME: environment.HOME,
+    XDG_RUNTIME_DIR: environment.XDG_RUNTIME_DIR,
     PI_CODING_AGENT_DIR: profileDirectory,
     MR_AGENT_SANDBOX_IMAGE: sandbox.image,
     MR_AGENT_WORKTREE_ROOT: sandbox.worktreeRoot,

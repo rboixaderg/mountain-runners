@@ -15,6 +15,7 @@ export async function runAgent(config, context) {
     profileDirectory,
     sessionIdentifier: context.sessionIdentifier,
     message: context.message,
+    environment: context.environment,
     readOnly: context.readOnly,
     worktreePath: context.worktreePath,
     signal: context.signal,

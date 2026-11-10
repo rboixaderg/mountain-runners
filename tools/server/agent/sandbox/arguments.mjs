@@ -66,9 +66,12 @@ export function buildSandboxArguments({
   }
 
   return [
+    "--remote=false",
+    "--cgroup-manager=cgroupfs",
     "run",
     "--rm",
     "--pull=never",
+    "--userns=keep-id",
     "--network=none",
     "--read-only",
     "--cap-drop=ALL",

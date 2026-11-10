@@ -1,8 +1,10 @@
 import assert from "node:assert/strict";
 import {
+  chmodSync,
   mkdirSync,
   mkdtempSync,
   realpathSync,
+  readFileSync,
   rmSync,
   symlinkSync,
   writeFileSync,
@@ -14,7 +16,11 @@ import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { randomUUID } from "node:crypto";
 import { buildSandboxArguments, readSandboxSettings } from "./arguments.mjs";
-import { runSandboxedCommand } from "./commands.mjs";
+import {
+  runSandboxedCommand,
+  stopSandboxedCommands,
+  stopAllSandboxedCommands,
+} from "./commands.mjs";
 
 const image = process.env.MR_ISOLATION_TEST_IMAGE;
 
@@ -53,7 +59,13 @@ test("builds a sandbox with no network, no credentials and one writable worktree
     sessionIdentifier: "topic_n1001234567890_7",
   });
 
-  for (const required of [
+  assert.deepEqual(argumentsList, [
+    "--remote=false",
+    "--cgroup-manager=cgroupfs",
+    "run",
+    "--rm",
+    "--pull=never",
+    "--userns=keep-id",
     "--network=none",
     "--read-only",
     "--cap-drop=ALL",
@@ -63,26 +75,108 @@ test("builds a sandbox with no network, no credentials and one writable worktree
     "--cpus=1",
     `--user=${process.getuid()}:${process.getgid()}`,
     "--workdir=/work",
+    "--label",
+    "mountain-agent.session=topic_n1001234567890_7",
+    "--tmpfs",
+    "/tmp:rw,noexec,nosuid,size=256m",
+    "--mount",
+    `type=bind,src=${realpathSync(workspace)},dst=/work`,
     "--name",
     "mountain-agent-test",
-    "mountain-agent.session=topic_n1001234567890_7",
-  ]) {
-    assert.equal(
-      argumentsList.includes(required),
-      true,
-      `expected ${required} in ${argumentsList.join(" ")}`,
-    );
-  }
+    "mountain-agent-pi:1.5.0",
+    "node",
+    "-e",
+    "console.log('ok')",
+  ]);
+});
 
-  const mountIndex = argumentsList.indexOf("--mount");
-  assert.equal(
-    argumentsList[mountIndex + 1],
-    `type=bind,src=${realpathSync(workspace)},dst=/work`,
+test("the service has no Docker group or daemon dependency", () => {
+  const unit = readFileSync(
+    new URL("../../systemd/mountain-agent.service", import.meta.url),
+    "utf8",
   );
-  const imageIndex = argumentsList.indexOf("mountain-agent-pi:1.5.0");
-  assert.equal(argumentsList.slice(0, imageIndex).includes("-e"), false);
-  assert.equal(argumentsList.slice(0, imageIndex).includes("--env"), false);
-  assert.equal(argumentsList.slice(-3).join(" "), "node -e console.log('ok')");
+  assert.doesNotMatch(unit, /docker\.service|SupplementaryGroups=/u);
+  assert.match(unit, /InaccessiblePaths=.*\/run\/docker\.sock/u);
+  assert.match(unit, /Delegate=yes/u);
+});
+
+test("runs and stops only local rootless Podman with a minimal host environment", async (context) => {
+  const { directory, worktreeRoot, workspace } = workspaceFixture(context);
+  const callsPath = join(directory, "calls.jsonl");
+  const script = `#!${process.execPath}
+const fs = require('node:fs');
+fs.appendFileSync(${JSON.stringify(callsPath)}, JSON.stringify({ executable: require('node:path').basename(process.argv[1]), arguments: process.argv.slice(2), environment: Object.keys(process.env).sort() }) + '\\n');
+process.stdout.write(process.argv.includes('ps') ? 'synthetic-container\\n' : 'sandboxed');
+`;
+  for (const executable of ["podman", "docker"]) {
+    const path = join(directory, executable);
+    writeFileSync(path, script);
+    chmodSync(path, 0o755);
+  }
+  const originalPath = process.env.PATH;
+  const originalRuntime = process.env.XDG_RUNTIME_DIR;
+  process.env.PATH = directory;
+  process.env.XDG_RUNTIME_DIR = directory;
+  context.after(() => {
+    process.env.PATH = originalPath;
+    if (originalRuntime === undefined) delete process.env.XDG_RUNTIME_DIR;
+    else process.env.XDG_RUNTIME_DIR = originalRuntime;
+  });
+  const result = await runSandboxedCommand({
+    image: "synthetic:1",
+    workspacePath: workspace,
+    worktreeRoot,
+    command: ["true"],
+    limits,
+    sessionIdentifier: "topic-test",
+    timeoutMilliseconds: 5000,
+  });
+  assert.equal(result.exitCode, 0);
+  assert.equal(await stopSandboxedCommands("topic-test"), 1);
+  assert.equal(await stopAllSandboxedCommands(), 1);
+  const calls = readFileSync(callsPath, "utf8")
+    .trim()
+    .split("\n")
+    .map((line) => JSON.parse(line));
+  assert.equal(calls.length, 5);
+  for (const call of calls) {
+    assert.equal(call.executable, "podman");
+    assert.equal(call.arguments[0], "--remote=false");
+    // macOS adds this platform variable when starting a process.
+    const expectedEnvironment = ["HOME", "PATH", "XDG_RUNTIME_DIR"];
+    if (process.platform === "darwin")
+      expectedEnvironment.push("__CF_USER_TEXT_ENCODING");
+    assert.deepEqual(call.environment, expectedEnvironment);
+  }
+  assert.deepEqual(calls[1].arguments.slice(1), [
+    "ps",
+    "--quiet",
+    "--filter",
+    "label=mountain-agent.session=topic-test",
+  ]);
+  assert.deepEqual(calls[3].arguments.slice(1), [
+    "ps",
+    "--quiet",
+    "--filter",
+    "label=mountain-agent.session",
+  ]);
+});
+
+test("refuses to start the container runtime as root", async (context) => {
+  const { worktreeRoot, workspace } = workspaceFixture(context);
+  context.mock.method(process, "getuid", () => 0);
+  await assert.rejects(
+    runSandboxedCommand({
+      image: "synthetic:1",
+      workspacePath: workspace,
+      worktreeRoot,
+      command: ["true"],
+      limits,
+      sessionIdentifier: "topic-test",
+      timeoutMilliseconds: 5000,
+    }),
+    /runtime must run without root/u,
+  );
 });
 
 test("rejects a workspace outside the configured worktree root", (context) => {
@@ -281,7 +375,8 @@ test(
     });
     assert.equal(result.timedOut, true);
     assert.match(result.stdout, /started/u);
-    const { stdout } = await promisify(execFile)("docker", [
+    const { stdout } = await promisify(execFile)("podman", [
+      "--remote=false",
       "ps",
       "--quiet",
       "--filter",
