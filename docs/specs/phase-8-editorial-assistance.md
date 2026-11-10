@@ -259,6 +259,21 @@ aïllament, permisos reals mínims i una tasca petita fins a PR. **PR:** pròpia
 El desplegament i l'activació del pilot requereixen aprovació explícita; una
 PR de preparació no els activa per si sola.
 
+**Ampliació acordada durant la implementació:** separar el nucli reutilitzable
+Telegram i Pi en un paquet local amb llicència MIT, API, proves i exemple propis.
+Les entrades `/telegram`, `/sessions` i `/pi` es carreguen independentment;
+`/pi` no carrega Telegram ni SQLite. El consumidor separa les regles pures del
+projecte, la composició d'integracions i la coordinació del flux. El coordinador
+no rep tokens ni clients de Docker o GitHub.
+El nucli no depèn de GitHub, Docker, les comprovacions ni els prompts de Mountain
+Runners. El servei del projecte el consumeix i conserva l'autorització,
+l'aïllament i el flux fins a PR. La comprovació inclou executar les proves del
+paquet en una còpia independent i consumir-ne el tarball fora del repositori,
+sense credencials de GitHub ni Docker. Aquesta separació s'agrupa amb T8.3
+perquè extreu la seva implementació encara no fusionada, sense canviar els
+permisos aprovats. Crear un repositori remot, publicar a npm o desplegar el
+paquet queda fora d'aquesta entrega i requereix aprovació explícita.
+
 ### T8.4: Continuació, CI i preview
 
 **Abast:** ampliar la base que ja crea branques i PR amb el seguiment i la

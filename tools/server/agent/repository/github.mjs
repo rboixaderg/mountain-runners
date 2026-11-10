@@ -1,0 +1,182 @@
+// Trusted GitHub component for the private agent (T8.3).
+//
+// Only two operations exist: push the job branch and open (or reuse) its pull
+// request against `main`. There is no merge, no auto-merge, no protection
+// change and no write to `main`; the requested merge belongs to T8.4 and will
+// need its own deterministic path. The token stays in this component: it is
+// never passed to the sandbox, the model or the tests.
+//
+// Pushing is idempotent for the same commit and the pull request lookup avoids
+// opening a duplicate PR after a restart.
+
+import { assertWorkBranch } from "./worktrees.mjs";
+import { assertNoSecretsInWorktree } from "./secret-scan.mjs";
+
+import { runGit } from "./trusted-git.mjs";
+
+function repositoryUrl(repository) {
+  return `https://github.com/${repository}.git`;
+}
+
+/**
+ * A publish refused by a local rule (branch, origin or credential scan). Nothing
+ * reached GitHub, so the caller reports a normal failure instead of stopping
+ * the service as an unknown external result.
+ */
+export class PublishRefusedError extends Error {
+  constructor(message, options) {
+    super(message, options);
+    this.name = "PublishRefusedError";
+  }
+}
+
+export class GitHubTrust {
+  #token;
+  #repository;
+  #baseBranch;
+  #fetch;
+  #apiBaseUrl;
+
+  constructor({
+    token,
+    repository,
+    baseBranch = "main",
+    fetchImpl = fetch,
+    apiBaseUrl = "https://api.github.com",
+  }) {
+    if (!token) {
+      throw new Error("A GitHub token is required.");
+    }
+    if (baseBranch !== "main") {
+      throw new Error("The agent only targets the main base branch.");
+    }
+    this.#token = token;
+    this.#repository = repository;
+    this.#baseBranch = baseBranch;
+    this.#fetch = fetchImpl;
+    this.#apiBaseUrl = apiBaseUrl;
+  }
+
+  async #git(worktree, argumentsList, environment = {}) {
+    try {
+      return (await runGit(worktree, argumentsList, { environment })).trim();
+    } catch (error) {
+      error.message = String(error.message).replaceAll(this.#token, "***");
+      // execFile's original error may retain an unredacted remote URL.
+      delete error.cause;
+      throw error;
+    }
+  }
+
+  async #assertOrigin(worktree) {
+    const remote = await this.#git(worktree, [
+      "config",
+      "--get",
+      "remote.origin.url",
+    ]);
+    const accepted = new Set([
+      repositoryUrl(this.#repository),
+      `git@github.com:${this.#repository}.git`,
+      `https://github.com/${this.#repository}`,
+    ]);
+    if (!accepted.has(remote)) {
+      throw new Error(
+        `The worktree origin ${remote} is not the configured repository.`,
+      );
+    }
+  }
+
+  async #request(method, path, body) {
+    const response = await this.#fetch(`${this.#apiBaseUrl}${path}`, {
+      method,
+      headers: {
+        authorization: `Bearer ${this.#token}`,
+        accept: "application/vnd.github+json",
+        "user-agent": "mountain-runners-agent",
+        "x-github-api-version": "2022-11-28",
+        ...(body ? { "content-type": "application/json" } : {}),
+      },
+      body: body ? JSON.stringify(body) : undefined,
+    });
+
+    if (!response.ok) {
+      throw new Error(
+        `GitHub ${method} ${path} failed with HTTP ${response.status}.`,
+      );
+    }
+    return response.json();
+  }
+
+  /**
+   * Push the job branch. `main` and other repositories are rejected before any
+   * Git command runs, and the worktree is scanned for live credentials.
+   */
+  async pushBranch({ worktree, branch, secrets = [] }) {
+    try {
+      assertWorkBranch(branch);
+      await this.#assertOrigin(worktree);
+      await assertNoSecretsInWorktree({ worktree, secrets });
+    } catch (error) {
+      throw new PublishRefusedError(
+        error instanceof Error ? error.message : "Publication refused.",
+        { cause: error },
+      );
+    }
+
+    const commit = await this.#git(worktree, ["rev-parse", "HEAD"]);
+    await this.#git(worktree, ["push", "origin", branch], {
+      GIT_CONFIG_COUNT: "1",
+      GIT_CONFIG_KEY_0: `url.https://x-access-token:${this.#token}@github.com/.insteadOf`,
+      GIT_CONFIG_VALUE_0: "https://github.com/",
+    });
+    return { branch, commit };
+  }
+
+  async findOpenPullRequest({ branch }) {
+    assertWorkBranch(branch);
+    const owner = this.#repository.split("/")[0];
+    const pulls = await this.#request(
+      "GET",
+      `/repos/${this.#repository}/pulls?state=open&head=${encodeURIComponent(`${owner}:${branch}`)}`,
+    );
+    const pull = pulls[0];
+    if (!pull) {
+      return null;
+    }
+    return {
+      number: pull.number,
+      htmlUrl: pull.html_url,
+      headSha: pull.head.sha,
+      draft: pull.draft,
+      baseBranch: pull.base.ref,
+    };
+  }
+
+  /**
+   * Open the pull request, or return the existing one for the same branch. The
+   * agent never opens a second PR for a resumed branch.
+   */
+  async ensurePullRequest({ branch, title, body }) {
+    assertWorkBranch(branch);
+    const existing = await this.findOpenPullRequest({ branch });
+    if (existing) {
+      return { pullRequest: existing, created: false };
+    }
+
+    const pull = await this.#request(
+      "POST",
+      `/repos/${this.#repository}/pulls`,
+      { title, body, head: branch, base: this.#baseBranch, draft: false },
+    );
+    return {
+      pullRequest: {
+        number: pull.number,
+        htmlUrl: pull.html_url,
+        headSha: pull.head.sha,
+        draft: pull.draft,
+        baseBranch: pull.base.ref,
+      },
+      created: true,
+    };
+  }
+}

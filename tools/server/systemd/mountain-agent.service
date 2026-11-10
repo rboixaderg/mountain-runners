@@ -1,0 +1,29 @@
+[Unit]
+Description=Mountain Runners private development agent
+Documentation=file:///usr/local/lib/mountain-runners/agent/README.md
+After=network-online.target docker.service
+Wants=network-online.target
+Requires=docker.service
+
+[Service]
+Type=simple
+User=mountain-agent
+Group=mountain-agent
+# The trusted component talks to the Docker daemon to start the isolated job
+# containers. The containers never receive the socket.
+SupplementaryGroups=docker
+WorkingDirectory=/var/lib/mountain-runners-agent
+Environment=HOME=/var/lib/mountain-runners-agent
+EnvironmentFile=/etc/mountain-runners-agent/agent.env
+ExecStart=/usr/bin/node /usr/local/lib/mountain-runners/agent/processes/telegram-bridge/main.mjs
+Restart=on-failure
+RestartSec=10
+UMask=0077
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/var/lib/mountain-runners-agent
+
+[Install]
+WantedBy=multi-user.target
