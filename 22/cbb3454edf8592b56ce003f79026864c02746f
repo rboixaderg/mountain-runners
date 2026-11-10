@@ -1,0 +1,16 @@
+docs/README.md
+  h_1727aeeb492b30 22-24
+docs/phase-8-system-map.html
+  h_1727aeeb492b30 1-1648
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "22cbb3454edf8592b56ce003f79026864c02746f",
+  "prompts": {},
+  "humans": {
+    "h_1727aeeb492b30": {
+      "author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
