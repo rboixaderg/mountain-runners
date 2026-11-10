@@ -1,0 +1,19 @@
+apps/web/paraglide.config.mjs
+  s_65a3dd57352249::t_e22d1d748ffa00 18
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "ae1a083c3c7a15761884de4fac7ee562dd9fca6f",
+  "prompts": {},
+  "sessions": {
+    "s_65a3dd57352249": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a1c454-6b5e-7650-afb8-087dcbf6224c",
+        "model": "deepseek-v4.1-flash"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
