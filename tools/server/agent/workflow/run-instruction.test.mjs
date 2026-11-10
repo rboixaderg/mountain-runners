@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
 import {
   existsSync,
+  readFileSync,
   mkdtempSync,
   realpathSync,
   rmSync,
@@ -14,6 +15,7 @@ import { test } from "node:test";
 import { PublishRefusedError } from "../repository/github.mjs";
 import { createProjectRunner } from "./project-runner.mjs";
 import { hasUnpublishedCommit } from "../repository/worktrees.mjs";
+import { SandboxCleanupError } from "../sandbox/errors.mjs";
 
 const executeFile = promisify(execFile);
 
@@ -209,7 +211,7 @@ test("keeps the worktree and publishes nothing when the checks fail", async (con
   );
 });
 
-test("marks a timed-out run as uncertain and keeps the work", async (context) => {
+test("reports a timed-out local run as failed and keeps the work", async (context) => {
   const paths = await fixture(context);
   const github = githubStub();
   const runner = createProjectRunner({
@@ -222,11 +224,159 @@ test("marks a timed-out run as uncertain and keeps the work", async (context) =>
 
   const result = await runner(request());
 
-  assert.equal(result.outcome, "uncertain");
+  assert.equal(result.outcome, "failed");
   assert.deepEqual(github.pushes, []);
   assert.equal(
     existsSync(join(paths.worktrees, "topic_n1001234567890_7")),
     true,
+  );
+});
+
+for (const failureStage of [
+  "classification",
+  "model",
+  "checks",
+  "checks_timeout",
+  "model_aborted",
+  "signal",
+]) {
+  test(`does not mark a local ${failureStage} failure as a remote uncertainty`, async (context) => {
+    const paths = await fixture(context);
+    const github = githubStub();
+    const controller = new AbortController();
+    const runner = createProjectRunner({
+      config: configFor(paths),
+      github,
+      classifyRequest: async () => {
+        if (failureStage === "classification")
+          throw new Error("Synthetic classifier failure");
+        return "implementation";
+      },
+      runModel: async ({ worktreePath }) => {
+        if (failureStage === "model")
+          throw new Error("Synthetic model failure");
+        if (failureStage === "model_aborted")
+          return { text: "", aborted: true };
+        if (failureStage === "signal") controller.abort();
+        writeFileSync(join(worktreePath, "change.txt"), "change\n");
+        return { text: "SUMMARY: fix(agent): repair a local failure" };
+      },
+      runChecks: async () => {
+        if (failureStage === "checks_timeout")
+          return { exitCode: -1, timedOut: true };
+        throw new Error("Synthetic checks failure");
+      },
+    });
+    const result = await runner(request(), { signal: controller.signal });
+    assert.equal(result.outcome, "failed");
+    assert.deepEqual(github.pushes, []);
+  });
+}
+
+test("blocks after an unconfirmed sandbox stop even before publication", async (context) => {
+  const paths = await fixture(context);
+  const github = githubStub();
+  const runner = createProjectRunner({
+    config: configFor(paths),
+    github,
+    classifyRequest: async () => "implementation",
+    runModel: async () => {
+      throw new SandboxCleanupError({
+        cause: new Error("Synthetic stop failure"),
+      });
+    },
+    runChecks: async () =>
+      assert.fail("checks must not start after unsafe cleanup"),
+  });
+  assert.equal((await runner(request())).outcome, "uncertain");
+  assert.deepEqual(github.pushes, []);
+});
+
+test("does not invent work when continuation has no pending task", async (context) => {
+  const paths = await fixture(context);
+  const runner = createProjectRunner({
+    config: configFor(paths),
+    github: githubStub(),
+    classifyRequest: async () => "continuation",
+    runModel: async () => assert.fail("there is no pending task to resume"),
+  });
+  assert.equal((await runner(request())).outcome, "answered");
+});
+
+test("starts an unrelated task independently while preserving previous failed work", async (context) => {
+  const paths = await fixture(context);
+  const github = githubStub();
+  let turn = 0;
+  const runner = createProjectRunner({
+    config: configFor(paths),
+    github,
+    classifyRequest: async () => "implementation",
+    runModel: async ({ worktreePath }) => {
+      turn += 1;
+      if (turn === 2)
+        assert.equal(existsSync(join(worktreePath, "previous.txt")), false);
+      writeFileSync(
+        join(worktreePath, turn === 1 ? "previous.txt" : "new.txt"),
+        "preserved\n",
+      );
+      return { text: "SUMMARY: fix(agent): implement a task" };
+    },
+    runChecks: async () => ({ exitCode: turn === 1 ? 1 : 0 }),
+  });
+  assert.equal((await runner(request())).outcome, "failed");
+  assert.equal(
+    (
+      await runner(
+        request({
+          updateIdentifier: 1002,
+          instruction: "Fes una altra feina independent.",
+        }),
+      )
+    ).outcome,
+    "pull_request_created",
+  );
+  assert.equal(github.pushes[0].branch, "fix/agent-implement-a-task-1002");
+  const archived = join(paths.worktrees, "topic_n1001234567890_7-before-1002");
+  assert.equal(
+    readFileSync(join(archived, "previous.txt"), "utf8"),
+    "preserved\n",
+  );
+  assert.equal(
+    await git(archived, ["branch", "--show-current"]),
+    "fix/agent-implement-a-task-1001",
+  );
+  assert.doesNotMatch(github.pulls[0].body, /previous\.txt/u);
+});
+
+test("does not carry ignored artifacts from a completed task into a new task", async (context) => {
+  const paths = await fixture(context);
+  let turn = 0;
+  const runner = createProjectRunner({
+    config: configFor(paths),
+    github: githubStub(),
+    classifyRequest: async () => "implementation",
+    runModel: async ({ worktreePath }) => {
+      turn += 1;
+      if (turn === 1) {
+        writeFileSync(join(worktreePath, ".gitignore"), "cache.bin\n");
+        writeFileSync(join(worktreePath, "cache.bin"), "previous cache\n");
+      } else assert.equal(existsSync(join(worktreePath, "cache.bin")), false);
+      writeFileSync(join(worktreePath, `task-${turn}.txt`), "task\n");
+      return { text: "SUMMARY: fix(agent): keep task artifacts isolated" };
+    },
+    runChecks: async () => ({ exitCode: 0 }),
+  });
+  assert.equal((await runner(request())).outcome, "pull_request_created");
+  assert.equal(
+    (await runner(request({ updateIdentifier: 1002 }))).outcome,
+    "pull_request_created",
+  );
+  assert.equal(
+    readFileSync(
+      join(paths.worktrees, "topic_n1001234567890_7-before-1002", "cache.bin"),
+      "utf8",
+    ),
+    "previous cache\n",
   );
 });
 
@@ -270,14 +420,8 @@ test("uses a conventional fallback when the model omits the summary", async (con
 
   await runner(request());
 
-  assert.equal(
-    github.pulls[0].title,
-    "feat(agent): afegeix una prova sintetica",
-  );
-  assert.equal(
-    github.pushes[0].branch,
-    "feat/agent-afegeix-una-prova-sintetica-1001",
-  );
+  assert.equal(github.pulls[0].title, "feat(agent): update project");
+  assert.equal(github.pushes[0].branch, "feat/agent-change-1001");
 });
 
 test("keeps one worktree per topic so the Pi session continues", async (context) => {
@@ -308,7 +452,10 @@ test("continues the unpublished branch when the previous checks failed", async (
   let checksPass = false;
   const runner = createProjectRunner({
     config: configFor(paths),
-    classifyRequest: async () => "implementation",
+    classifyRequest: async ({ instruction }) =>
+      instruction === "Continua la feina pendent."
+        ? "continuation"
+        : "implementation",
     github,
     runModel: async ({ worktreePath }) => {
       writeFileSync(join(worktreePath, "change.txt"), "canvi\n");
@@ -322,7 +469,12 @@ test("continues the unpublished branch when the previous checks failed", async (
 
   const first = await runner(request({ updateIdentifier: 1001 }));
   checksPass = true;
-  const second = await runner(request({ updateIdentifier: 1002 }));
+  const second = await runner(
+    request({
+      updateIdentifier: 1002,
+      instruction: "Continua la feina pendent.",
+    }),
+  );
 
   assert.equal(first.outcome, "failed");
   assert.equal(second.outcome, "pull_request_created");
@@ -367,7 +519,7 @@ test("starts a new branch from the latest main after a published change", async 
   await runner(request({ updateIdentifier: 1002 }));
 
   const secondBranch = github.pushes[1].branch;
-  assert.equal(secondBranch, "feat/agent-afegeix-una-prova-sintetica-1002");
+  assert.equal(secondBranch, "feat/agent-change-1002");
   const ancestry = await executeFile("git", [
     "-C",
     paths.repository,
@@ -424,7 +576,10 @@ test("retries a locally refused publication without losing or duplicating the co
   const runner = createProjectRunner({
     config: configFor(paths),
     github,
-    classifyRequest: async () => "implementation",
+    classifyRequest: async ({ instruction }) =>
+      instruction === "Torna a provar la publicació pendent."
+        ? "continuation"
+        : "implementation",
     runModel: async ({ worktreePath }) => {
       if (turns === 0)
         writeFileSync(
@@ -479,7 +634,8 @@ for (const operationName of ["pushBranch", "ensurePullRequest"]) {
       },
       runChecks: async () => ({ exitCode: 0 }),
     });
-    await assert.rejects(runner(request()), (error) => error === failure);
+    const result = await runner(request());
+    assert.equal(result.outcome, "uncertain");
     assert.equal(github.pushes.length, 1);
     assert.equal(github.pulls.length, operationName === "pushBranch" ? 0 : 1);
     assert.equal(await hasUnpublishedCommit(github.pushes[0].worktree), true);

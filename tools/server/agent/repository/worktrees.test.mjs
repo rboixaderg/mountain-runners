@@ -10,6 +10,7 @@ import {
   createBranch,
   currentBranch,
   ensureSessionWorktree,
+  hasUnpublishedCommit,
 } from "./worktrees.mjs";
 
 const executeFile = promisify(execFile);
@@ -129,6 +130,26 @@ test("returns a clean session worktree to the latest origin/main", async (contex
   assert.equal(
     await git(second.path, ["rev-parse", "HEAD"]),
     await git(origin, ["rev-parse", "main"]),
+  );
+});
+
+test("does not treat an old main commit as unpublished branch work", async (context) => {
+  const { origin, repository, worktreeRoot } = await repositoryFixture(context);
+  const worktree = await ensureSessionWorktree({
+    repositoryPath: repository,
+    worktreeRoot,
+    name: "topic-old-main",
+  });
+  await createBranch({ worktree, branch: "fix/no-own-commits" });
+  writeFileSync(join(repository, "new-main.txt"), "main advance\n");
+  await git(repository, ["add", "--all"]);
+  await git(repository, ["commit", "-m", "test: advance main"]);
+  await git(repository, ["push", "origin", "main"]);
+  await git(worktree.path, ["fetch", "origin", "main"]);
+  assert.equal(await hasUnpublishedCommit(worktree), false);
+  assert.notEqual(
+    await git(origin, ["rev-parse", "main"]),
+    await git(worktree.path, ["rev-parse", "HEAD"]),
   );
 });
 

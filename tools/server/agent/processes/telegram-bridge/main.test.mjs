@@ -85,13 +85,15 @@ test("refuses to start with an interrupted instruction of unknown result", async
   queue.next();
   queue.close();
 
-  await assert.rejects(
-    startService({
-      environment,
-      telegram: telegramStub(),
-      github: {},
-      runner: async () => ({}),
-    }),
-    { message: /unknown external result/u },
-  );
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    await assert.rejects(
+      startService({
+        environment,
+        telegram: telegramStub(),
+        github: {},
+        runner: async () => ({}),
+      }),
+      { message: /unknown external result/u },
+    );
+  }
 });

@@ -77,6 +77,20 @@ export function projectPiOptions({
   };
 }
 
-export function runProjectPrompt(options) {
-  return runPiPrompt(projectPiOptions(options));
+export async function runProjectPrompt(options) {
+  const piOptions = projectPiOptions(options);
+  let interrupted = false;
+  try {
+    return await runPiPrompt({
+      ...piOptions,
+      onInterrupted: async () => {
+        interrupted = true;
+        await piOptions.onInterrupted?.();
+      },
+    });
+  } finally {
+    // A tool error reported to the model must not hide a surviving container.
+    // Verify cleanup after settled turns too, before checks or publication.
+    if (!interrupted) await piOptions.onInterrupted?.();
+  }
 }

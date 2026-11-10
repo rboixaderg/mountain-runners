@@ -162,6 +162,49 @@ process.stdout.write(process.argv.includes('ps') ? 'synthetic-container\\n' : 's
   ]);
 });
 
+test("bounds combined command output and stops its container on overflow", async (context) => {
+  const { directory, worktreeRoot, workspace } = workspaceFixture(context);
+  const callsPath = join(directory, "cleanup.txt");
+  const executable = join(directory, "podman");
+  writeFileSync(
+    executable,
+    `#!${process.execPath}
+const fs = require("node:fs");
+if (process.argv.includes("run")) {
+ process.stdout.write("x".repeat(600*1024));
+ process.stderr.write("y".repeat(600*1024));
+ setInterval(()=>{},1000);
+} else {
+ fs.appendFileSync(${JSON.stringify(callsPath)},process.argv.slice(2).join(" ")+"\\n");
+ if (process.argv.includes("ps")) process.stdout.write("synthetic-container\\n");
+}
+`,
+  );
+  chmodSync(executable, 0o755);
+  const originalPath = process.env.PATH;
+  process.env.PATH = directory;
+  context.after(() => {
+    process.env.PATH = originalPath;
+  });
+  const result = await runSandboxedCommand({
+    image: "synthetic:1",
+    workspacePath: workspace,
+    worktreeRoot,
+    command: ["true"],
+    limits,
+    sessionIdentifier: "topic-output",
+    timeoutMilliseconds: 5000,
+  });
+  assert.equal(result.outputLimitExceeded, true);
+  assert.equal(result.timedOut, false);
+  assert.notEqual(result.exitCode, 0);
+  assert.ok(
+    Buffer.byteLength(result.stdout) + Buffer.byteLength(result.stderr) <=
+      1024 * 1024,
+  );
+  assert.match(readFileSync(callsPath, "utf8"), /kill synthetic-container/u);
+});
+
 test("refuses to start the container runtime as root", async (context) => {
   const { worktreeRoot, workspace } = workspaceFixture(context);
   context.mock.method(process, "getuid", () => 0);

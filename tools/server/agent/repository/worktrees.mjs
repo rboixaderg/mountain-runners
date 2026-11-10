@@ -52,6 +52,7 @@ export async function ensureSessionWorktree({
   worktreeRoot,
   name,
   baseBranch = "main",
+  newTaskIdentifier,
 }) {
   if (baseBranch !== "main") {
     throw new Error("The agent only starts work from main.");
@@ -59,14 +60,32 @@ export async function ensureSessionWorktree({
   if (!/^[a-z0-9][a-z0-9._-]*$/u.test(name)) {
     throw new Error(`Invalid worktree name ${name}.`);
   }
+  if (
+    newTaskIdentifier !== undefined &&
+    (!Number.isSafeInteger(newTaskIdentifier) || newTaskIdentifier < 0)
+  ) {
+    throw new Error("A new task requires a valid update identifier.");
+  }
   mkdirSync(worktreeRoot, { recursive: true });
   const worktreePath = join(realpathSync(worktreeRoot), name);
   const repository = primaryRepository(repositoryPath);
-  const existing = (await worktreePaths(repository)).some(
+  let existing = (await worktreePaths(repository)).some(
     (path) => path === worktreePath,
   );
 
   await runGit(repository, ["fetch", "--prune", "origin", baseBranch]);
+  if (existing && newTaskIdentifier !== undefined) {
+    const previous = registeredWorktree(repositoryPath, worktreePath);
+    // Check the untrusted Git marker before moving the registered worktree.
+    // Even a clean tree may contain ignored artifacts from a previous task.
+    await listChangedPaths(previous);
+    const archivePath = join(
+      realpathSync(worktreeRoot),
+      `${name}-before-${newTaskIdentifier}`,
+    );
+    await runGit(repository, ["worktree", "move", worktreePath, archivePath]);
+    existing = false;
+  }
   if (!existing) {
     await runGit(repository, [
       "worktree",
@@ -154,8 +173,12 @@ export async function hasUnpublishedCommit(worktree) {
   ) {
     return false;
   }
-  const base = (await runGit(worktree, ["rev-parse", "origin/main"])).trim();
-  return commit !== base;
+  const count = await runGit(worktree, [
+    "rev-list",
+    "--count",
+    "origin/main..HEAD",
+  ]);
+  return count.trim() !== "0";
 }
 
 export async function committedPaths(worktree) {

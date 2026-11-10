@@ -14,6 +14,9 @@ import { execFile, spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { promisify } from "node:util";
 import { buildSandboxArguments } from "./arguments.mjs";
+import { SandboxCleanupError } from "./errors.mjs";
+
+const maximumOutputBytes = 1024 * 1024;
 
 const executeFile = promisify(execFile);
 
@@ -56,9 +59,7 @@ export async function stopSandboxedCommands(sessionIdentifier) {
     });
     return containers.length;
   } catch (error) {
-    throw new Error("Could not confirm that the sandbox containers stopped.", {
-      cause: error,
-    });
+    throw new SandboxCleanupError({ cause: error });
   }
 }
 
@@ -97,8 +98,20 @@ export async function runSandboxedCommand({
   });
   const stdout = [];
   const stderr = [];
-  child.stdout.on("data", (chunk) => stdout.push(chunk));
-  child.stderr.on("data", (chunk) => stderr.push(chunk));
+  let outputBytes = 0;
+  let outputLimitExceeded = false;
+  function retainOutput(chunks, chunk) {
+    if (outputLimitExceeded) return;
+    outputBytes += chunk.length;
+    if (outputBytes > maximumOutputBytes) {
+      outputLimitExceeded = true;
+      child.kill("SIGKILL");
+      return;
+    }
+    chunks.push(chunk);
+  }
+  child.stdout.on("data", (chunk) => retainOutput(stdout, chunk));
+  child.stderr.on("data", (chunk) => retainOutput(stderr, chunk));
 
   const timer = setTimeout(() => {
     timedOut = true;
@@ -116,18 +129,18 @@ export async function runSandboxedCommand({
       child.on("error", rejectPromise);
       child.on("close", (exitCode, closeSignal) => {
         resolvePromise({
-          exitCode: exitCode ?? -1,
+          exitCode: outputLimitExceeded ? -1 : (exitCode ?? -1),
           signal: closeSignal,
           stdout: Buffer.concat(stdout).toString("utf8"),
           stderr: Buffer.concat(stderr).toString("utf8"),
         });
       });
     });
-    return { ...result, timedOut };
+    return { ...result, timedOut, outputLimitExceeded };
   } finally {
     clearTimeout(timer);
     signal?.removeEventListener("abort", abortHandler);
-    if (timedOut || signal?.aborted) {
+    if (timedOut || signal?.aborted || outputLimitExceeded) {
       await stopSandboxedCommands(sessionIdentifier);
     }
   }

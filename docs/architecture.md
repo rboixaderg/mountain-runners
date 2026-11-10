@@ -174,7 +174,12 @@ la `bash` del host: l'execució passa per l'extensió `sandbox_bash` i pel matei
 constructor d'arguments que el component de confiança. Tampoc exposa eines
 natives de fitxers del host ni carrega automàticament context o skills del
 repositori: el model els llegeix dins del contenidor. Les consultes usen un
-muntatge de només lectura i no publiquen feina pendent.
+muntatge de només lectura i no publiquen feina pendent. Una feina nova
+preserva el worktree pendent anterior i comença des de `origin/main`; només
+una continuació explícita reutilitza la feina pendent actual. Els errors locals
+coneguts no bloquegen la cua; els resultats remots incerts i les aturades de
+contenidors no confirmades sí que la bloquegen. La sortida del sandbox i la
+del torn de Pi tenen cadascuna un límit conjunt d'1 MiB per stdout i stderr.
 
 El servei executa Podman local sense root, amb un espai d'usuari que conserva
 l'UID/GID del worktree. Ni el pont ni Pi pertanyen al grup Docker ni reben un
@@ -184,7 +189,10 @@ les proves reals de Podman a Linux i dels límits al VPS continuen pendents.
 El component de Git selecciona explícitament metadades fora del muntatge,
 rebutja alteracions del fitxer indicador `.git` i executa les ordres amb hooks
 i fsmonitor desactivats i sense heretar els secrets del pont. Un worktree net
-només es reinicia quan no conté commits pendents de publicació confirmada.
+només es reinicia quan no conté commits propis pendents de publicació
+confirmada. La comparació d'ascendència evita confondre un `main` antic amb
+feina pròpia no publicada. Sense un resum vàlid del model, els noms públics
+usen un text neutre i l'identificador de l'update, mai el text privat de Telegram.
 Abans del push s'inspeccionen els objectes nous de tot l'historial de
 `origin/main..HEAD`, incloses versions esborrades i missatges de commit. Un
 objecte il·legible o que supera el pressupost refusa la publicació. Els canvis

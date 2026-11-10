@@ -37,7 +37,9 @@ cal executar o quan es pot publicar una PR. L'aplicació proporciona
 
 `outcome: "uncertain"` o una excepció bloquegen la cua. Un resultat desconegut
 no es repeteix automàticament. La reconciliació d'efectes externs i la retenció
-són responsabilitat de l'aplicació, no garanties d'aquesta cua.
+són responsabilitat de l'aplicació, no garanties d'aquesta cua. Els errors
+locals coneguts han de retornar `{ outcome: "failed", report }`; així la cua
+pot continuar. Una excepció no classificada es tracta amb cautela i bloqueja.
 
 ## Requisits
 
@@ -99,7 +101,8 @@ await bridge.run({ signal });
 
 Només s'admeten missatges de persones verificades del grup configurat, dins d'un
 tema, que mencionen el bot o responen a un missatge seu. La pertinença es
-consulta per instrucció, sense memòria cau; un error denega l'admissió. Els
+consulta per instrucció, sense memòria cau; un error denega l'admissió i avisa
+l'autor perquè torni a enviar la petició. Els
 autors anònims, reenviaments i missatges fora del tema no s'admeten.
 
 Un tema comparteix sessió entre els membres. El bot respon amb el resultat,
@@ -108,8 +111,14 @@ instruccions es dedupliquen per update i s'executen en ordre. El polling i
 l'execució són seqüencials; no hi ha un canal de cancel·lació per missatges
 mentre el callback treballa. El `signal` del procés sí que arriba al callback.
 
-Els missatges es poden substituir amb
-`messages: { queueFull, unknownResult }`. El transport admet `fetchImpl` i
+Una cua bloquejada per incertesa refusa les instruccions noves amb un avís.
+`admit()` retorna `rejected_blocked` i les desa com a refusades. Les instruccions
+que ja eren pendents es conserven. `recover()` transforma les execucions
+interrompudes en incertes i retorna el total d'instruccions incertes, incloses
+les de reinicis anteriors.
+
+Els missatges es poden substituir parcialment amb
+`messages: { queueFull, queueBlocked, membershipUnavailable, unknownResult }`. El transport admet `fetchImpl` i
 `baseUrl` per proves; el seu origen per defecte és l'API HTTPS de Telegram.
 
 ### Torn de Pi
@@ -138,7 +147,11 @@ vols reprendre l'historial.
 El valor retornat inclou `text`, `timedOut` i `stderr`; pot incloure `aborted`
 o `handled`. El client espera `agent_settled`, no només `agent_end`. Un prompt
 refusat es rebutja i un prompt gestionat per una comanda retorna sense esperar
-un torn inexistent. El timeout per defecte és de 30 minuts.
+un torn inexistent. Els missatges de l'assistent es separen amb dos salts de
+línia. El timeout per defecte és de 30 minuts. La sortida conjunta de stdout i
+stderr té un límit d'1 MiB per torn, inclòs JSONL incomplet o no vàlid. Un excés
+mata el procés, espera que es tanqui i executa `onInterrupted` abans de rebutjar
+la crida; no retorna una resposta parcial com si fos completa.
 
 Per defecte no hi ha eines, extensions, MCP, skills, templates ni càrrega
 automàtica d'instruccions del directori. `tools` només admet noms explícits,

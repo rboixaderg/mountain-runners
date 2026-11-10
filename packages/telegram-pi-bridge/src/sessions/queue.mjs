@@ -97,7 +97,15 @@ export class AdmissionQueue {
         )
         .get();
 
-      const status = count >= this.#maxPending ? "rejected" : "pending";
+      const blocked = this.#database
+        .prepare(
+          "SELECT 1 FROM instructions WHERE status = 'uncertain' LIMIT 1",
+        )
+        .get();
+      let outcome = null;
+      if (blocked) outcome = "queue_blocked";
+      else if (count >= this.#maxPending) outcome = "queue_full";
+      const status = outcome === null ? "pending" : "rejected";
       this.#database
         .prepare(
           `INSERT INTO instructions
@@ -111,11 +119,13 @@ export class AdmissionQueue {
           authorIdentifier,
           instruction,
           status,
-          status === "rejected" ? "queue_full" : null,
+          outcome,
           this.#now().toISOString(),
         );
 
-      return status === "rejected" ? "rejected_full" : "accepted";
+      if (outcome === "queue_blocked") return "rejected_blocked";
+      if (outcome === "queue_full") return "rejected_full";
+      return "accepted";
     });
   }
 
@@ -187,16 +197,23 @@ export class AdmissionQueue {
   }
 
   /**
-   * Mark a running instruction as interrupted by a restart. The caller must
-   * reconcile the external state before any further work; the instruction is
-   * never replayed automatically.
+   * Mark interrupted runs as uncertain and return the total uncertain count,
+   * including previous restarts. The caller must reconcile the real state;
+   * interrupted instructions are never replayed automatically.
    */
   recover() {
-    return this.#database
-      .prepare(
-        "UPDATE instructions SET status = 'uncertain' WHERE status = 'running'",
-      )
-      .run().changes;
+    return this.#transaction(() => {
+      this.#database
+        .prepare(
+          "UPDATE instructions SET status = 'uncertain' WHERE status = 'running'",
+        )
+        .run();
+      return this.#database
+        .prepare(
+          "SELECT COUNT(*) AS count FROM instructions WHERE status = 'uncertain'",
+        )
+        .get().count;
+    });
   }
 
   status(updateIdentifier) {

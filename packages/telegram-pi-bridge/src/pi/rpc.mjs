@@ -5,6 +5,8 @@
 import { spawn } from "node:child_process";
 import { isAbsolute } from "node:path";
 
+const maximumOutputBytes = 1024 * 1024;
+
 export function buildPiArguments({
   model,
   sessionIdentifier,
@@ -122,14 +124,17 @@ export async function runPiPrompt({
   let text = "";
   let timedOut = false;
   let settled = false;
+  let aborted = false;
+  let outputLimitExceeded = false;
+  let outputBytes = 0;
 
   const stderr = [];
   let buffer = "";
 
   const settle = new Promise((resolvePromise, rejectPromise) => {
     const abortHandler = () => {
+      aborted = true;
       child.kill("SIGKILL");
-      rejectPromise(new Error("The Pi run was aborted."));
     };
     signal?.addEventListener("abort", abortHandler, { once: true });
 
@@ -138,20 +143,36 @@ export async function runPiPrompt({
       child.kill("SIGKILL");
     }, timeoutMilliseconds);
 
+    let finished = false;
     const finish = (callback) => {
+      if (finished) return;
+      finished = true;
       clearTimeout(timer);
       signal?.removeEventListener("abort", abortHandler);
       callback();
     };
 
+    const acceptOutput = (chunk) => {
+      if (finished || outputLimitExceeded || aborted) return false;
+      outputBytes += Buffer.byteLength(chunk);
+      if (outputBytes > maximumOutputBytes) {
+        outputLimitExceeded = true;
+        child.kill("SIGKILL");
+        return false;
+      }
+      return true;
+    };
     child.stderr.setEncoding("utf8");
-    child.stderr.on("data", (chunk) => stderr.push(chunk));
+    child.stderr.on("data", (chunk) => {
+      if (acceptOutput(chunk)) stderr.push(chunk);
+    });
 
     child.stdout.setEncoding("utf8");
     child.stdout.on("data", (chunk) => {
+      if (!acceptOutput(chunk)) return;
       buffer += chunk;
       let separator;
-      while ((separator = buffer.indexOf("\n")) !== -1) {
+      while (!finished && (separator = buffer.indexOf("\n")) !== -1) {
         const line = buffer.slice(0, separator).replace(/\r$/u, "");
         buffer = buffer.slice(separator + 1);
         if (line.trim() === "") {
@@ -179,7 +200,11 @@ export async function runPiPrompt({
             );
           }
         } else if (record.type === "message_end") {
-          text += assistantText(record.message);
+          const answer = assistantText(record.message);
+          if (answer !== "") {
+            if (text !== "") text += "\n\n";
+            text += answer;
+          }
         } else if (record.type === "agent_settled") {
           settled = true;
           finish(() =>
@@ -195,6 +220,14 @@ export async function runPiPrompt({
         return;
       }
       finish(() => {
+        if (outputLimitExceeded) {
+          rejectPromise(new Error("The Pi run exceeded the output limit."));
+          return;
+        }
+        if (aborted) {
+          rejectPromise(new Error("The Pi run was aborted."));
+          return;
+        }
         if (timedOut) {
           resolvePromise({ text, timedOut: true });
           return;
@@ -206,6 +239,7 @@ export async function runPiPrompt({
       });
     });
 
+    child.stdin.on("error", (error) => finish(() => rejectPromise(error)));
     child.stdin.write(
       `${JSON.stringify({ id: "prompt-1", type: "prompt", message })}\n`,
     );
@@ -215,6 +249,7 @@ export async function runPiPrompt({
     const result = await settle;
     return { ...result, timedOut, stderr: stderr.join("") };
   } finally {
+    if (!settled) child.kill("SIGKILL");
     child.stdin.end();
     if (!settled || signal?.aborted) {
       await onInterrupted?.();

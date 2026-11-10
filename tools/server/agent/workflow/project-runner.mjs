@@ -3,7 +3,10 @@
 
 import { runAgent } from "../runtime/agent.mjs";
 import { classifyRequest as classifyWithModel } from "../runtime/request-kind.mjs";
-import { runSandboxedCommand } from "../sandbox/commands.mjs";
+import {
+  runSandboxedCommand,
+  stopSandboxedCommands,
+} from "../sandbox/commands.mjs";
 import { createPublisher } from "../repository/publisher.mjs";
 import {
   buildInstructionPrompt,
@@ -15,12 +18,14 @@ export function createProjectRunner({
   config,
   github,
   environment = process.env,
+  stopCommands = stopSandboxedCommands,
   classifyRequest = (context) =>
     classifyWithModel(config, { ...context, environment }),
   runModel = (context) =>
     runAgent(config, {
       ...context,
       environment,
+      stopCommands,
       message: buildInstructionPrompt(context.instruction, context.kind),
       readOnly: context.kind === "consultation",
     }),

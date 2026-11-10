@@ -249,6 +249,63 @@ test("stops new work when the run throws and reports the unknown result", async 
   );
 });
 
+test("continues with the next instruction after a known local failure", async (contextObject) => {
+  const { queue } = context(contextObject);
+  const telegram = telegramStub({
+    batches: [[instructionUpdate(10, 7), instructionUpdate(11, 8)]],
+  });
+  const bridge = bridgeFor({
+    queue,
+    telegram,
+    runInstruction: async (request) =>
+      request.updateIdentifier === 10
+        ? { outcome: "failed", report: "Local failure; no publication" }
+        : { outcome: "answered", report: "Next task completed" },
+  });
+  await bridge.pollOnce();
+  await bridge.executeNext();
+  await bridge.executeNext();
+  assert.equal(queue.status(10), "done");
+  assert.equal(queue.status(11), "done");
+  assert.equal(telegram.sent[1].text, "Next task completed");
+});
+
+test("rejects and reports new instructions while an uncertain run blocks the queue", async (contextObject) => {
+  const { queue } = context(contextObject);
+  const telegram = telegramStub({
+    batches: [[instructionUpdate(10, 7)], [instructionUpdate(11, 8)]],
+  });
+  const bridge = bridgeFor({
+    queue,
+    telegram,
+    runInstruction: async () => ({ outcome: "uncertain" }),
+  });
+  await bridge.pollOnce();
+  await bridge.executeNext();
+  await bridge.pollOnce();
+  assert.equal(queue.status(11), "rejected");
+  assert.equal(queue.pendingCount(), 0);
+  assert.equal(queue.readOffset(), 12);
+  assert.equal(telegram.sent[1].text, defaultBridgeMessages.queueBlocked);
+});
+
+test("tells the author to retry when Telegram cannot verify membership", async (contextObject) => {
+  const { queue } = context(contextObject);
+  const telegram = telegramStub({
+    batches: [[instructionUpdate(10, 7)]],
+    members: {},
+  });
+  const bridge = bridgeFor({ queue, telegram });
+  await bridge.pollOnce();
+  assert.equal(queue.pendingCount(), 0);
+  assert.equal(queue.readOffset(), 11);
+  assert.equal(telegram.sent.length, 1);
+  assert.equal(
+    telegram.sent[0].text,
+    defaultBridgeMessages.membershipUnavailable,
+  );
+});
+
 test("processes two topics in arrival order", async (t) => {
   const { queue } = context(t);
   const telegram = telegramStub({

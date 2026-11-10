@@ -11,6 +11,10 @@ import { parseSessionKey } from "../sessions/identity.mjs";
 export const defaultBridgeMessages = {
   queueFull:
     "The queue is full. This instruction was not accepted; try again after the current work finishes.",
+  queueBlocked:
+    "Execution is blocked by an uncertain result. This instruction was not accepted; an operator must reconcile the state before you retry.",
+  membershipUnavailable:
+    "Group membership could not be verified. This instruction was not accepted; please retry.",
   unknownResult:
     "The result is unknown. Execution is blocked until an operator checks the actual state.",
 };
@@ -67,7 +71,7 @@ export class AgentBridge {
     }
     this.#groupIdentifier = groupIdentifier;
     this.#botUsername = botUsername;
-    this.#messages = messages;
+    this.#messages = { ...defaultBridgeMessages, ...messages };
     this.#telegram = telegram;
     this.#queue = queue;
     this.#runInstruction = runInstruction;
@@ -143,6 +147,13 @@ export class AgentBridge {
             action: "instruction_denied",
             detail: membership.reason,
           });
+          if (membership.reason === "membership_check_failed") {
+            await this.#reply(
+              classification.sessionKey,
+              this.#messages.membershipUnavailable,
+              { signal },
+            );
+          }
         } else {
           const admission = this.#queue.admit({
             updateIdentifier: classification.updateIdentifier,
@@ -152,6 +163,13 @@ export class AgentBridge {
             instruction: classification.text,
           });
           this.#traceAdmission(admission, classification);
+          if (admission === "rejected_blocked") {
+            await this.#reply(
+              classification.sessionKey,
+              this.#messages.queueBlocked,
+              { signal },
+            );
+          }
           if (admission === "rejected_full") {
             await this.#reply(
               classification.sessionKey,

@@ -45,6 +45,20 @@ test("accepts a mention in a forum topic and keeps the session key", () => {
   assert.equal(result.text, "revisa el README");
 });
 
+test("removes multiple mentions using their original UTF-16 offsets", () => {
+  const text = `🥾 @${botUsername} revisa @${botUsername} el README`;
+  const firstOffset = text.indexOf("@");
+  const secondOffset = text.lastIndexOf("@");
+  const result = classifyInstruction(
+    baseUpdate({
+      text,
+      entities: [mentionEntity(firstOffset), mentionEntity(secondOffset)],
+    }),
+    context,
+  );
+  assert.equal(result.text, "🥾  revisa  el README");
+});
+
 test("accepts a reply to the bot without a mention", () => {
   const update = baseUpdate({
     text: "i ara el CHANGELOG",

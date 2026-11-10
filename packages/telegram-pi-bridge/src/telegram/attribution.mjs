@@ -42,7 +42,9 @@ function isReplyToBot(message, botIdentifier) {
 
 function instructionText(message, mentions) {
   let text = message.text ?? "";
-  for (const entity of mentions) {
+  for (const entity of mentions.toSorted(
+    (first, second) => second.offset - first.offset,
+  )) {
     text =
       text.slice(0, entity.offset) + text.slice(entity.offset + entity.length);
   }

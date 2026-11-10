@@ -8,7 +8,12 @@ import {
 } from "./development.mjs";
 
 test("accepts only a recognized request kind in a JSON result", () => {
-  for (const kind of ["consultation", "implementation", "clarification"]) {
+  for (const kind of [
+    "consultation",
+    "implementation",
+    "continuation",
+    "clarification",
+  ]) {
     assert.equal(parseRequestKind(JSON.stringify({ kind })), kind);
   }
   for (const response of [
@@ -44,6 +49,6 @@ test("builds branch names that match the repository rules", () => {
       instruction: "afegeix una prova",
       updateIdentifier: 7,
     }),
-    "feat/agent-afegeix-una-prova-7",
+    "feat/agent-change-7",
   );
 });

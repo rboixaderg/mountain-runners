@@ -24,6 +24,7 @@ import {
   listChangedPaths,
 } from "../repository/worktrees.mjs";
 import { createProjectRunner } from "./project-runner.mjs";
+import { SandboxCleanupError } from "../sandbox/errors.mjs";
 
 const executeFile = promisify(execFile);
 const limits = {
@@ -197,6 +198,42 @@ test("kills the session containers as well as Pi on a model deadline", async (co
   assert.deepEqual(stopped, ["topic_n100_7"]);
 });
 
+for (const cleanupFails of [false, true]) {
+  test(`verifies sandbox cleanup after a settled model turn, with failure=${cleanupFails}`, async (context) => {
+    const directory = temporaryDirectory(context);
+    const executable = join(directory, "settled-pi");
+    writeFileSync(
+      executable,
+      `#!${process.execPath}\nprocess.stdout.write(JSON.stringify({type:'agent_settled',aborted:false})+'\\n');\n`,
+    );
+    chmodSync(executable, 0o755);
+    let cleanups = 0;
+    const running = runProjectPrompt({
+      config: {
+        paths: { sessions: directory, worktrees: directory },
+        model: {
+          identifier: "synthetic",
+          piCommand: executable,
+          providerEnvironmentVariables: [],
+          sandboxImage: "synthetic:1",
+        },
+        limits: { ...limits, executionTimeoutMs: 5000 },
+      },
+      profileDirectory: directory,
+      sessionIdentifier: "topic-cleanup",
+      message: "synthetic",
+      worktreePath: directory,
+      stopCommands: async () => {
+        cleanups += 1;
+        if (cleanupFails) throw new SandboxCleanupError();
+      },
+    });
+    if (cleanupFails) await assert.rejects(running, SandboxCleanupError);
+    else await running;
+    assert.equal(cleanups, 1);
+  });
+}
+
 test("uses the default classifier, real profile and RPC wiring before publishing", async (context) => {
   const { directory, config } = await repositoryFixture(context);
   const executable = join(directory, "fake-pi");
@@ -226,9 +263,19 @@ process.stdin.once("data", () => {
   config.model.piCommand = executable;
   config.limits.executionTimeoutMs = 5000;
   const calls = [];
+  let cleaned = false;
   const runner = createProjectRunner({
     config,
+    stopCommands: async () => {
+      cleaned = true;
+      return 0;
+    },
     runChecks: async ({ worktreePath }) => {
+      assert.equal(
+        cleaned,
+        true,
+        "the model sandbox must be stopped before checks",
+      );
       assert.equal(
         readFileSync(join(worktreePath, "README.md"), "utf8"),
         "wired change\n",

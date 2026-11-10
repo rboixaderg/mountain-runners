@@ -265,6 +265,54 @@ test("preserves Unicode line separators inside JSON strings", async (context) =>
   assert.equal(result.text, answer);
 });
 
+test("separates assistant messages without joining unrelated words", async (context) => {
+  const directory = fixture(context);
+  const { executable } = fakePi(context, {
+    script: `
+for (const text of ["First answer", "SUMMARY: fix(agent): keep separate messages"]) {
+ process.stdout.write(JSON.stringify({type:"message_end",message:{role:"assistant",content:[{type:"text",text}]}})+"\\n");
+}
+process.stdout.write(JSON.stringify({type:"agent_settled",aborted:false})+"\\n");
+`,
+  });
+  const result = await runPiPrompt({
+    ...optionsFor(executable),
+    profileDirectory: directory.profile,
+    cwd: directory.worktreePath,
+    message: "question",
+  });
+  assert.equal(
+    result.text,
+    "First answer\n\nSUMMARY: fix(agent): keep separate messages",
+  );
+});
+
+for (const stream of ["stdout", "stderr", "combined"]) {
+  test(`stops Pi and cleans up when ${stream} exceeds the output budget`, async (context) => {
+    const directory = fixture(context);
+    const { executable } = fakePi(context, {
+      script:
+        stream === "combined"
+          ? "process.stdout.write('x'.repeat(600*1024));process.stderr.write('y'.repeat(600*1024));setInterval(()=>{},1000);"
+          : `process.${stream}.write('x'.repeat(2*1024*1024));setInterval(()=>{},1000);`,
+    });
+    let cleanups = 0;
+    await assert.rejects(
+      runPiPrompt({
+        ...optionsFor(executable),
+        profileDirectory: directory.profile,
+        cwd: directory.worktreePath,
+        message: "question",
+        onInterrupted: async () => {
+          cleanups += 1;
+        },
+      }),
+      /output limit/u,
+    );
+    assert.equal(cleanups, 1);
+  });
+}
+
 test("rejects an unavailable Pi executable without starting any external action", async (context) => {
   const directory = fixture(context);
   await assert.rejects(

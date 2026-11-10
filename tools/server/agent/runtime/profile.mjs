@@ -14,6 +14,7 @@ export async function preparePiProfile({ profileRoot, sessionIdentifier }) {
     ["./extensions/sandbox-bash.ts", "sandbox-bash.ts"],
     ["../sandbox/arguments.mjs", "arguments.mjs"],
     ["../sandbox/commands.mjs", "commands.mjs"],
+    ["../sandbox/errors.mjs", "errors.mjs"],
   ]) {
     await cp(
       fileURLToPath(new URL(source, import.meta.url)),

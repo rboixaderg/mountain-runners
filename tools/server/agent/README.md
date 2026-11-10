@@ -41,7 +41,8 @@ tools/server/agent/               aplicació de Mountain Runners
 │   └── extensions/sandbox-bash.ts única eina del model
 ├── sandbox/
 │   ├── arguments.mjs             muntatge, identitat i límits de Podman
-│   └── commands.mjs              execució i aturada dels contenidors
+│   ├── commands.mjs              execució i aturada dels contenidors
+│   └── errors.mjs                aturada no confirmada que bloqueja el servei
 └── repository/
     ├── trusted-git.mjs            metadades explícites i entorn restringit
     ├── worktrees.mjs              worktree, branca, commit i estat publicat
@@ -81,10 +82,16 @@ al servidor. El nom local encara no representa una publicació a npm.
 
 1. El paquet verifica el grup, tema, autor i pertinença actual, desa la
    instrucció abans d'avançar l'offset i la deduplica. Només hi ha una execució
-   global; un resultat incert bloqueja les següents.
+   global; un resultat incert bloqueja les següents. Les peticions noves durant
+   el bloqueig es refusen amb avís. Un error de consulta de pertinença també
+   informa l'autor; no admet la instrucció per defecte.
 2. `workflow` interpreta la petició amb una crida efímera sense eines, historial
    ni context del repositori. Si no és clara, demana aclariment.
-3. El servei prepara el worktree estable del tema. `runtime/pi-adapter` tria
+3. El servei prepara el worktree actual del tema. Una feina nova preserva
+   l'anterior a `<tema>-before-<update>` i crea un worktree des de `origin/main`,
+   sense arrossegar fitxers ignorats d'una feina anterior.
+   Només una continuació explícita reutilitza la feina pendent actual.
+   `runtime/pi-adapter` tria
    explícitament el perfil, l'entorn, `sandbox_bash` i la neteja dels processos.
    El paquet només executa el protocol RPC amb aquestes opcions.
 4. Una consulta munta `/work` en mode de només lectura i retorna la resposta,
@@ -95,6 +102,12 @@ al servidor. El nom local encara no representa una publicació a npm.
 6. `repository` fa commit, escaneja les credencials conegudes, publica la branca
    i obre o reutilitza la PR. Només després de confirmar push i PR registra el
    commit publicat fora del muntatge. El paquet retorna el resultat al tema.
+
+Un error local conegut, un timeout o una cancel·lació amb neteja confirmada
+retornen una fallada sense bloquejar la cua. Un error després d'iniciar la
+publicació, o una aturada de sandbox no confirmada, retornen un resultat incert.
+L'arrencada es refusa mentre quedi qualsevol instrucció incerta, fins i tot
+després de diversos reinicis. La reconciliació completa continua fora de T8.3.
 
 La classificació semàntica no substitueix l'autorització, els muntatges de només
 lectura ni les operacions deterministes de Git. El paquet no inclou aquesta
@@ -121,8 +134,15 @@ política ni pot autoritzar per si sol una publicació.
   objectes de més de 2 MiB o un total superior a 32 MiB. També rebutja canvis
   a `.github/**` i `CODEOWNERS` en qualsevol commit del rang. El push usa el
   SHA inspeccionat. Cal una credencial sense `Workflows: write`.
+- Sense `SUMMARY` vàlid, la branca usa `feat/agent-change-<update>` i el títol
+  usa `feat(agent): update project`. No es deriva cap fallback del text privat.
+- La sortida conjunta de stdout i stderr es limita a 1 MiB per ordre i per torn
+  RPC. Un excés atura el procés i espera la neteja dels contenidors. Els
+  missatges de l'assistent es concatenen amb una separació de paràgraf.
 - Matar Pi no atura els contenidors de Podman. El paquet crida `onInterrupted`; l'adaptador del
   projecte espera l'aturada dels contenidors i no oculta una neteja fallida.
+  També verifica la neteja després dels torns completats, abans de comprovar
+  o publicar, per detectar contenidors que hagin sobreviscut a un error d'eina.
 
 ## Proves i fonts de veritat
 

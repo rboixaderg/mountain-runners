@@ -438,21 +438,37 @@ la sessió; si no es pot confirmar, l'execució queda fallida o incerta.
 - Només s'accepta un missatge d'una persona del grup configurat, dins d'un tema,
   que menciona el bot o respon a un missatge seu; els reenviaments, els àmbits
   anònims, els altres grups i els missatges privats s'ignoren. La pertinença es
-  consulta a Telegram per a cada instrucció, sense memòria cau, i una fallada
-  denega la instrucció.
+  consulta a Telegram per a cada instrucció, sense memòria cau. Una fallada
+  de la consulta denega la instrucció i informa l'autor perquè ho torni a provar.
 - L'admissió és duradora abans d'avançar l'offset de Telegram. Els updates es
   dedupliquen, la cua admet deu instruccions pendents i només hi ha una
   execució global. Una cua plena es registra i es comunica al tema.
-- Un reinici marca com a incert qualsevol treball en curs i refusa aquella
-  arrencada. Qualsevol instrucció incerta bloqueja l'execució de la cua, també
-  en arrencades posteriors. Cal revisar l'estat real; no es repeteix cap acció
+- Un reinici marca com a incert qualsevol treball en curs i refusa l'arrencada.
+  El servei continua refusant totes les arrencades mentre hi hagi una instrucció
+  incerta. Mentre el procés encara funciona amb la cua bloquejada, les peticions
+  noves es registren com a refusades i reben un avís; no s'acumulen com a pendents. Cal revisar l'estat real; no es repeteix cap acció
   externa automàticament. La reconciliació completa és a T8.4/T8.5.
 - Una primera crida efímera al model classifica només la petició verificada,
-  sense eines, historial ni context del repositori. Una resposta invàlida demana
-  aclariment, no habilita escriptures.
+  sense eines, historial ni context del repositori. Distingeix consulta, feina
+  nova i continuació explícita de la feina pendent. Una resposta invàlida demana
+  aclariment, no habilita escriptures. Una petició de continuació sense feina
+  pendent també demana aclariment.
 - Una consulta munta el worktree en mode de només lectura, sense crear cap
-  branca ni publicar feina anterior pendent. Una implementació crea o reprèn
-  la branca, executa `pnpm check` al contenidor, fa commit, push i PR.
+  branca ni publicar feina anterior pendent. Una feina nova preserva el worktree
+  anterior, inclosos els fitxers ignorats, a `<tema>-before-<update>` i comença des de `origin/main` en
+  una branca pròpia. Una continuació explícita reutilitza només la feina
+  pendent actual; no incorpora automàticament altres treballs arxivats. Les
+  operacions executen `pnpm check` al contenidor abans de commit, push i PR.
+- Un error local, un timeout o una cancel·lació confirmada no bloquegen la cua.
+  Un error després d'iniciar la publicació queda incert, excepte un refús local
+  identificat pel publicador. Una aturada de contenidors no confirmada també
+  bloqueja, perquè encara podria executar-se codi no fiable.
+- La sortida conjunta de stdout i stderr té un límit d'1 MiB per ordre del
+  sandbox i per torn RPC de Pi. Superar-lo atura el procés i espera la neteja
+  dels contenidors. Si afecta el torn RPC o les comprovacions, la instrucció
+  falla abans de publicar. El timeout es manté independent. L'adaptador també
+  verifica la neteja després de cada torn completat de Pi, abans de comprovar
+  o publicar, encara que el model hagi tractat un error d'eina.
 - Un worktree net no implica que s'hagi publicat. El servei conserva la branca
   amb commits pendents fins que push i PR estiguin confirmats; només llavors
   registra el commit publicat fora del muntatge i pot tornar a `origin/main`.
@@ -466,7 +482,7 @@ propietat de la identitat del servei. La instal·lació prevista és:
 ```text
 /var/lib/mountain-runners-agent/           0700  mountain-agent:mountain-agent
 ├── repository/                            clon amb origin i main
-├── worktrees/                             un worktree estable per tema
+├── worktrees/                             worktree actual per tema i feina preservada
 ├── sessions/                              historial de Pi per tema
 └── state/                                 admission.sqlite, perfils i traça
 /etc/mountain-runners-agent/agent.env      0600  credencials del servei
