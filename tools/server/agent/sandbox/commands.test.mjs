@@ -129,6 +129,17 @@ test("the service has no Docker group or daemon dependency", () => {
   assert.match(unit, /^TasksMax=384$/mu);
 });
 
+test("bounds agent stop and restart so a refused start does not loop", () => {
+  const unit = readFileSync(
+    new URL("../../systemd/mountain-agent.service", import.meta.url),
+    "utf8",
+  );
+  assert.match(unit, /^Restart=on-abnormal$/mu);
+  assert.match(unit, /^StartLimitIntervalSec=5min$/mu);
+  assert.match(unit, /^StartLimitBurst=3$/mu);
+  assert.match(unit, /^TimeoutStopSec=30$/mu);
+});
+
 test("runs and stops only local rootless Podman with a minimal host environment", async (context) => {
   const { directory, worktreeRoot, workspace } = workspaceFixture(context);
   const callsPath = join(directory, "calls.jsonl");

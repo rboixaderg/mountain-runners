@@ -7,6 +7,9 @@ BindsTo=var-lib-mountain\x2drunners\x2dagent.mount var-lib-mountain\x2drunners\x
 After=var-lib-mountain\x2drunners\x2dagent.mount var-lib-mountain\x2drunners\x2dagent-state.mount
 AssertPathIsMountPoint=/var/lib/mountain-runners-agent
 AssertPathIsMountPoint=/var/lib/mountain-runners-agent/state
+# A crash loop around a refused start must stop after a few attempts.
+StartLimitIntervalSec=5min
+StartLimitBurst=3
 
 [Service]
 Type=simple
@@ -29,8 +32,15 @@ Environment=XDG_RUNTIME_DIR=/run/mountain-runners-agent
 EnvironmentFile=/etc/mountain-runners-agent/agent.env
 ExecStartPre=/usr/bin/node /usr/local/lib/mountain-runners/agent/storage/verify-volumes.mjs
 ExecStart=/usr/bin/node /usr/local/lib/mountain-runners/agent/processes/telegram-bridge/main.mjs
-Restart=on-failure
+# A refused start (interrupted work with an unknown result) must stay failed
+# for the operator instead of restarting; a crash or an OOM kill still
+# restarts. The default start limit does not trip at a ten second spacing.
+Restart=on-abnormal
 RestartSec=10
+# The rootless Podman pause process ignores SIGTERM, so every stop reaches this
+# bound before systemd escalates to SIGKILL. Containers are removed by conmon
+# on their own, so a longer drain is not needed.
+TimeoutStopSec=30
 UMask=0077
 # Rootless user namespaces require the restricted newuidmap/newgidmap helpers.
 # Containers still enforce no-new-privileges and drop every capability.

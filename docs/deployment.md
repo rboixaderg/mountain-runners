@@ -500,6 +500,32 @@ la sessió; si no es pot confirmar, l'execució queda fallida o incerta.
   amb commits pendents fins que push i PR estiguin confirmats; només llavors
   registra el commit publicat fora del muntatge i pot tornar a `origin/main`.
 
+### Aturada i reinici
+
+El contenidor de cada ordre s'executa amb `--rm`: conmon l'elimina sol quan el
+procés mor. Una aturada ordenada i una mort sobtada del pont deixen el mateix
+resultat, cap contenidor ni cap registre residual. El contenidor viu dins del
+cgroup de la unitat, de manera que `MemoryMax`, `CPUQuota` i `TasksMax` cobreixen
+també la feina del model.
+
+El procés `pause` de Podman sense root no respon a `SIGTERM`. Tota aturada amb
+un contenidor obert arriba doncs al límit `TimeoutStopSec=30` i és systemd qui
+l'ha de matar; amb el valor per defecte de 90 segons cada reinici s'endarreria
+tant. El límit s'ha de mantenir per sobre del temps de neteja ordenada d'un torn
+interromput.
+
+`Restart=on-abnormal`, amb `StartLimitIntervalSec=5min` i `StartLimitBurst=3`,
+evita dos bucles: una arrencada que refusa feina interrompuda amb resultat
+desconegut queda fallida per a la persona operadora en lloc de reintentar-se, i
+una seqüència de caigudes s'atura després de tres intents. Una caiguda o una
+mort per falta de memòria sí que es reprèn.
+
+Verificat al VPS l'11 de novembre de 2026 amb una unitat transitòria equivalent:
+`SIGKILL` al pont amb una ordre llarga oberta dins del contenidor, contenidor
+eliminat, cap procés ni registre residual i arrencada posterior neta. Els límits
+llegits del cgroup van ser 2560 M de memòria, 150 % de CPU i 384 tasques. El
+consum del procés `pause` es compta a la unitat, no al contenidor.
+
 ### Configuració
 
 Les variables es documenten, sense valors, a `.env.example`. El fitxer real viu
@@ -705,7 +731,9 @@ secrets ni dades privades. Una comprovació omesa o fallida no completa la T8.3.
 2. Instal·lar la unitat, la identitat `mountain-agent`, el clon i les eines; no
    reutilitzar identitats, directoris ni secrets de producció o previews.
 3. Demostrar l'aïllament al VPS (xarxa, credencials, filesystem, socket) i
-   verificar els límits de recursos reals.
+   verificar els límits de recursos reals. Els límits del cgroup i el cicle
+   d'aturada i reinici ja s'han mesurat al VPS; queden l'aïllament de xarxa i de
+   credencials dins del contenidor i el recompte del consum del procés `pause`.
 4. Proporcionar dependències offline a la imatge perquè `pnpm check` funcioni
    sense xarxa dins del contenidor.
 5. Provar la pertinença, la revocació, dos autors i la represa entre temes
