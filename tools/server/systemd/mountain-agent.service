@@ -10,6 +10,11 @@ User=mountain-agent
 Group=mountain-agent
 # Rootless local Podman has no daemon and receives no host container socket.
 Delegate=yes
+# Provisional limits include the bridge, Pi and all delegated containers.
+CPUQuota=150%
+MemoryMax=2560M
+MemorySwapMax=0
+TasksMax=384
 RuntimeDirectory=mountain-runners-agent
 RuntimeDirectoryMode=0700
 WorkingDirectory=/var/lib/mountain-runners-agent

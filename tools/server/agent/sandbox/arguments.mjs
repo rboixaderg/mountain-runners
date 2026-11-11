@@ -12,6 +12,20 @@ import { isAbsolute, relative } from "node:path";
 
 const latestTagPattern = /:latest$/u;
 
+export function buildModelCommand(command, readOnly) {
+  if (readOnly) {
+    return ["env", "HOME=/tmp", "bash", "-lc", command];
+  }
+  return [
+    "env",
+    "HOME=/tmp",
+    "TMPDIR=/work/.agent-runtime-tmp",
+    "bash",
+    "-lc",
+    command,
+  ];
+}
+
 export function assertWorkspaceInsideRoot(workspacePath, worktreeRoot) {
   if (!isAbsolute(workspacePath) || !isAbsolute(worktreeRoot)) {
     throw new Error("The workspace and the worktree root must be absolute.");

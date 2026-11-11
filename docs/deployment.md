@@ -519,8 +519,11 @@ propietat de la identitat del servei. La instal·lació prevista és:
 `MOUNTAIN_AGENT_BASE_BRANCH`, si s'informa, ha de ser `main`. La imatge de
 l'entorn aïllat ha d'estar fixada i no pot usar l'etiqueta `latest`. Els límits
 numèrics (CPU, memòria, processos, temps d'execució i cua) tenen valors inicials
-al codi, però **no estan verificats al VPS** de 2 vCPU, 4 GB i 40 GB, que
-comparteix amb la resta de serveis.
+al codi. La unitat limita el conjunt del servei i els seus contenidors a 1,5 CPU,
+2560 MiB de memòria, sense swap i 384 processos. Cada contenidor té inicialment
+1 CPU i 2048 MiB; el límit de la unitat inclou també Pi i el pont. Aquests
+valors són provisionals i **no estan verificats al VPS** de 2 vCPU, 4 GB i 40 GB,
+que comparteix amb la resta de serveis. La unitat no imposa cap quota de disc.
 
 ### Instal·lació prevista
 

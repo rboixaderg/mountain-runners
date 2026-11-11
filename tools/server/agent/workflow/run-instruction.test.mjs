@@ -142,6 +142,82 @@ test("answers a consultation without creating a branch or a remote effect", asyn
   assert.equal(await git(paths.repository, ["branch", "--list", "feat/*"]), "");
 });
 
+test("prepares dependencies before the model for an implementation", async (context) => {
+  const paths = await fixture(context);
+  const calls = [];
+  const runner = createProjectRunner({
+    config: configFor(paths),
+    github: githubStub(),
+    classifyRequest: async () => "implementation",
+    executeSandbox: async (options) => {
+      calls.push({ kind: "prepare", command: options.command });
+      return { exitCode: 0, timedOut: false };
+    },
+    executeAgent: async () => {
+      calls.push({ kind: "model" });
+      return { text: "No changes." };
+    },
+  });
+  const result = await runner(request());
+  assert.equal(result.outcome, "answered");
+  assert.deepEqual(
+    calls.map((call) => call.kind),
+    ["prepare", "model"],
+  );
+  assert.match(calls[0].command.join(" "), /pnpm install --offline/u);
+});
+
+test("consultations do not prepare writable dependencies", async (context) => {
+  const paths = await fixture(context);
+  const runner = createProjectRunner({
+    config: configFor(paths),
+    github: githubStub(),
+    classifyRequest: async () => "consultation",
+    executeSandbox: async () =>
+      assert.fail("consultations do not install dependencies"),
+    executeAgent: async (_config, options) => {
+      assert.equal(options.readOnly, true);
+      return { text: "Synthetic answer." };
+    },
+  });
+  assert.equal((await runner(request())).outcome, "answered");
+});
+
+test("does not start the model when offline preparation fails", async (context) => {
+  const paths = await fixture(context);
+  const github = githubStub();
+  let modelStarted = false;
+  const runner = createProjectRunner({
+    config: configFor(paths),
+    github,
+    classifyRequest: async () => "implementation",
+    executeSandbox: async () => ({ exitCode: 1, timedOut: false }),
+    executeAgent: async () => {
+      modelStarted = true;
+      return { text: "unexpected" };
+    },
+  });
+  const result = await runner(request());
+  assert.equal(result.outcome, "failed");
+  assert.match(result.report, /preparar les dependències/u);
+  assert.equal(modelStarted, false);
+  assert.deepEqual(github.pushes, []);
+});
+
+test("reports a timed-out preparation without starting the model", async (context) => {
+  const paths = await fixture(context);
+  const runner = createProjectRunner({
+    config: configFor(paths),
+    github: githubStub(),
+    classifyRequest: async () => "implementation",
+    executeSandbox: async () => ({ exitCode: -1, timedOut: true }),
+    executeAgent: async () => assert.fail("model must not run"),
+  });
+  const result = await runner(request());
+  assert.equal(result.outcome, "failed");
+  assert.match(result.report, /superat el límit de temps/u);
+});
+
 test("publishes a small change as a pull request after the checks pass", async (context) => {
   const paths = await fixture(context);
   const github = githubStub();

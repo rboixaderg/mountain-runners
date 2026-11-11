@@ -15,7 +15,11 @@ import { test } from "node:test";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { randomUUID } from "node:crypto";
-import { buildSandboxArguments, readSandboxSettings } from "./arguments.mjs";
+import {
+  buildModelCommand,
+  buildSandboxArguments,
+  readSandboxSettings,
+} from "./arguments.mjs";
 import {
   runSandboxedCommand,
   stopSandboxedCommands,
@@ -90,6 +94,24 @@ test("builds a sandbox with no network, no credentials and one writable worktree
   ]);
 });
 
+test("prepares an executable temporary path for writable model commands only", () => {
+  assert.deepEqual(buildModelCommand("pnpm check", false), [
+    "env",
+    "HOME=/tmp",
+    "TMPDIR=/work/.agent-runtime-tmp",
+    "bash",
+    "-lc",
+    "pnpm check",
+  ]);
+  assert.deepEqual(buildModelCommand("pwd", true), [
+    "env",
+    "HOME=/tmp",
+    "bash",
+    "-lc",
+    "pwd",
+  ]);
+});
+
 test("the service has no Docker group or daemon dependency", () => {
   const unit = readFileSync(
     new URL("../../systemd/mountain-agent.service", import.meta.url),
@@ -98,6 +120,10 @@ test("the service has no Docker group or daemon dependency", () => {
   assert.doesNotMatch(unit, /docker\.service|SupplementaryGroups=/u);
   assert.match(unit, /InaccessiblePaths=.*\/run\/docker\.sock/u);
   assert.match(unit, /Delegate=yes/u);
+  assert.match(unit, /^CPUQuota=150%$/mu);
+  assert.match(unit, /^MemoryMax=2560M$/mu);
+  assert.match(unit, /^MemorySwapMax=0$/mu);
+  assert.match(unit, /^TasksMax=384$/mu);
 });
 
 test("runs and stops only local rootless Podman with a minimal host environment", async (context) => {

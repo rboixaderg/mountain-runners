@@ -264,13 +264,23 @@ process.stdin.once("data", () => {
   config.limits.executionTimeoutMs = 5000;
   const calls = [];
   let cleaned = false;
+  let prepared = false;
   const runner = createProjectRunner({
     config,
+    executeSandbox: async () => {
+      prepared = true;
+      return { exitCode: 0, timedOut: false };
+    },
     stopCommands: async () => {
       cleaned = true;
       return 0;
     },
     runChecks: async ({ worktreePath }) => {
+      assert.equal(
+        prepared,
+        true,
+        "dependencies must be prepared before the model",
+      );
       assert.equal(
         cleaned,
         true,
