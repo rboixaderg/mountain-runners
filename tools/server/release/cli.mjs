@@ -6,6 +6,7 @@
 //   activate <commit>               atomically point `current` at a release
 //   rollback [<commit>]             activate the previous eligible release
 //   revoke   <commit> --reason <t>  mark a release revoked (never activates)
+//   prune    [--keep <n>]           delete old release trees and expired uploads
 //   list                            show the release registry
 //   health                          verify registry, active release and digests
 //   daemon                          serve the release socket (systemd, root)
@@ -22,6 +23,7 @@ import {
   performHealth,
   performInstall,
   performList,
+  performPrune,
   performRevoke,
   performRollback,
 } from "./operations.mjs";
@@ -33,6 +35,7 @@ const usage = `Usage:
   mountain-release activate <commit>
   mountain-release rollback [<commit>]
   mountain-release revoke <commit> --reason <text>
+  mountain-release prune [--keep <n>]
   mountain-release list
   mountain-release health
   mountain-release daemon`;
@@ -42,6 +45,7 @@ const commands = new Set([
   "activate",
   "rollback",
   "revoke",
+  "prune",
   "list",
   "health",
   "daemon",
@@ -87,6 +91,11 @@ async function main() {
     return;
   }
 
+  if (command === "prune") {
+    console.log(await performPrune(parseRetentionWindow(args)));
+    return;
+  }
+
   if (command === "list") {
     console.log(performList());
     return;
@@ -110,6 +119,20 @@ async function main() {
 }
 
 class CliError extends Error {}
+
+function parseRetentionWindow(args) {
+  if (args.length === 0) {
+    return undefined;
+  }
+  const [flag, value, ...extra] = args;
+  if (flag !== "--keep" || value === undefined || extra.length > 0) {
+    throw new CliError("prune accepts only --keep <n>.");
+  }
+  if (!/^[0-9]+$/u.test(value)) {
+    throw new CliError("--keep requires an integer.");
+  }
+  return Number.parseInt(value, 10);
+}
 
 main().catch((error) => {
   if (error instanceof NoEligibleReleaseError) {

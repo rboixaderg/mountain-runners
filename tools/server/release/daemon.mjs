@@ -21,6 +21,7 @@ import {
   performHealth,
   performInstall,
   performList,
+  performPrune,
   performRevoke,
   performRollback,
 } from "./operations.mjs";
@@ -182,6 +183,9 @@ async function runOperation(validated) {
   }
   if (command === "list") {
     return performList();
+  }
+  if (command === "prune") {
+    return performPrune();
   }
   return performHealth();
 }

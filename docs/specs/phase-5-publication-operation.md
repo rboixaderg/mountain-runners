@@ -259,6 +259,13 @@ permet revocar un artefacte per vulnerabilitat, retirada de consentiment,
 contingut incorrecte o incidència legal. La reversió verifica digest i
 elegibilitat i rebutja releases revocades.
 
+El registre de releases és permanent, però els artefactes desplegats al disc
+tenen una retenció finita: es conserven fins a cinc releases, amb prioritat per
+l'activa i l'anterior activa elegible. La resta es poda, amb la seva entrada
+marcada i traçable. La finestra limita les candidates de reversió, però no en
+garanteix cap. Una release podada no es pot reinstal·lar amb el mateix commit;
+recuperar-ne el contingut requereix un commit nou i el flux revisat.
+
 Si no queda cap release elegible —inclosa la primera etapa després de retirar la
 reversió DNS cap a Hostinger—, el runbook defineix una resposta d'emergència que
 no reconstrueix, no edita fitxers manualment al servidor i no reactiva un

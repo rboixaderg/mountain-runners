@@ -52,6 +52,12 @@ Només tres registres, tots allotjats al VPS:
 - Accés només per `root` via sudo; cap credencial ni query sensible als logs.
 - La política pública de privacitat s'actualitza a la T5.3 amb el hosting i els
   logs que s'activaran.
+- **Esmena (retenció d'artefactes)**: la permanència del registre es manté i no
+  canvia cap decisió d'aquesta taula. La implementació de `mountain-release
+prune` afegeix una retenció per als arbres extrets i els uploads —l'activa i
+  l'anterior activa elegible i altres elegibles recents, fins a cinc en total,
+  amb `prunedAt` a la resta— perquè el disc no creixi amb cada desplegament. Detall al
+  [`docs/runbook.md`](runbook.md#retenció-i-poda).
 
 ### Headers Mínims I CSP
 
