@@ -36,7 +36,7 @@ if [ "$1" = install ]; then
   mkdir -p node_modules
 elif [ "$1" = check ]; then
   test -d "$TMPDIR" || exit 8
-  printf '%s\\n' "$TMPDIR" >> "$TEST_CALLS"
+  printf '%s\\n' "$TMPDIR" "$MR_AGENT_BROWSER_PROFILE" >> "$TEST_CALLS"
 fi
 `,
   );
@@ -67,6 +67,7 @@ test("installs from the offline store before checking with a private worktree te
   );
   assert.equal(lines[1], "check");
   assert.match(lines[2], /^.+\/\.agent-check\.[A-Za-z0-9]+$/u);
+  assert.equal(lines[3], "chromium");
 });
 
 test("rejects a package-manager version missing from the image before running pnpm install", (context) => {

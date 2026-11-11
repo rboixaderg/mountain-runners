@@ -98,6 +98,7 @@ test("prepares an executable temporary path for writable model commands only", (
   assert.deepEqual(buildModelCommand("pnpm check", false), [
     "env",
     "HOME=/tmp",
+    "MR_AGENT_BROWSER_PROFILE=chromium",
     "TMPDIR=/work/.agent-runtime-tmp",
     "bash",
     "-lc",

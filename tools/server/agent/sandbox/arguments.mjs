@@ -19,6 +19,7 @@ export function buildModelCommand(command, readOnly) {
   return [
     "env",
     "HOME=/tmp",
+    "MR_AGENT_BROWSER_PROFILE=chromium",
     "TMPDIR=/work/.agent-runtime-tmp",
     "bash",
     "-lc",
