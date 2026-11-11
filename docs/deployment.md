@@ -566,6 +566,51 @@ resolució d'imports de la disposició instal·lada. No publica el paquet ni cre
 cap repositori remot. Una prova simulada no demostra els permisos reals de GitHub ni
 l'aïllament al VPS.
 
+### Preflight del primer pilot
+
+Aquest preflight prepara la revisió i l'execució del pilot. No substitueix les
+proves ni autoritza per si sol instal·lar o activar el servei. Atura el
+procediment si un resultat no coincideix amb el requerit. Conserva les dades
+privades i els valors de les credencials fora de la PR i dels logs.
+
+1. **Revisió i preparació.** Revisa aquesta unitat, el procediment d'instal·lació
+   i els canvis necessaris amb una persona independent. Confirma que el commit
+   instal·lat és el revisat. No executis el bootstrap complet del servidor de
+   producció per preparar l'agent.
+2. **Capacitat i límits.** Mesura memòria i disc disponibles al VPS abans i
+   durant el pilot. Fixa i prova límits per al servei del host i els contenidors,
+   inclosos CPU, memòria, processos, temps i disc. El límit de sortida no és una
+   quota de disc. La unitat actual no defineix límits de recursos del host i el
+   procediment encara no implementa una quota de disc. No activis el servei
+   fins que aquests límits estiguin implementats i verificats. Comprova que els
+   serveis de producció i preview continuen funcionant durant les proves.
+3. **Runtime i aïllament.** Prova Podman local sense root amb la identitat i la
+   unitat previstes, no amb el dimoni Docker. Verifica el mapatge UID/GID, els
+   cgroups delegats, els muntatges de lectura i escriptura, l'absència de
+   xarxa, credencials i sockets del host, i la neteja després d'un timeout o una
+   aturada. El resultat d'un test Docker no substitueix aquesta prova.
+4. **Comprovacions sense xarxa.** Prepara una imatge fixada que contingui les
+   eines i les dependències necessàries. Des d'un worktree nou, executa
+   `pnpm check` dins del sandbox amb la xarxa desactivada. Comprova la versió de
+   Node i pnpm i que la prova no reutilitza `node_modules` d'una feina anterior.
+   Una instal·lació offline al Mac no verifica la imatge Linux ni aquest flux.
+5. **GitHub i credencials.** Verifica amb la credencial real, sense exposar-la,
+   els permisos mínims i les restriccions de branca dels entorns `production` i
+   `previews`. Revisa també tots els camins de workflows que puguin rebre
+   secrets d'aquests entorns. El `if` de `main` del workflow de preview no
+   substitueix aquesta revisió. Prova els rebuigs sense fusionar cap PR ni fer
+   push a `main`. No activis l'escriptura si no es pot demostrar la frontera.
+6. **Pilot supervisat.** Des del grup i tema autoritzats, fes una consulta i
+   comprova que no crea branca. Després demana un canvi petit i comprova la
+   identitat de l'autor, la sessió, les validacions, la branca i la PR. Verifica
+   que ni el prompt, ni els logs, ni l'historial publicable contenen credencials.
+   No demanis preview ni merge en aquest pilot. Si una acció externa té un
+   resultat desconegut, atura el pilot i reconcilia el resultat abans de reprendre'l.
+
+Registra a la PR la versió o digest de la imatge, els límits comprovats i el
+resultat de cada pas, sense adreces privades, identificadors de Telegram ni
+secrets. Una comprovació omesa o fallida no dona per completada la T8.3.
+
 ### Pendents abans d'activar el pilot
 
 1. Crear el bot, el supergrup privat amb temes i la credencial de GitHub sense
