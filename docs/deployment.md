@@ -537,6 +537,31 @@ de configuració. També comprova el magatzem rootless de Podman. Una fallada
 impedeix l'arrencada. La verificació no substitueix les proves reals de disc
 ple, recuperació i publicació segura.
 
+La inicialització diferida d'ext4 pot alliberar blocs del fitxer després del
+primer muntatge, fins i tot amb `nodiscard`. Per això els volums nous es creen
+amb la inicialització completa de la taula d'inodes i del journal, i es tornen
+a reservar després del format. Comprova la reserva també després de muntar-los.
+
+`nodiscard` no impedeix una ordre `fstrim` explícita: aquesta pot alliberar la
+reserva física mentre l'agent funciona. No executis `fstrim` sobre aquests dos
+volums ni els afegeixis a una selecció automàtica de trim. Abans del pilot,
+comprova la configuració efectiva del temporitzador del host i la seva selecció
+amb una prova en sec. Al VPS actual, `fstrim.service` usa `--listed-in` amb
+`/etc/fstab` com a primera font; mentre aquest fitxer no sigui buit, la prova en
+sec ha de mostrar només els sistemes previstos i excloure els dos volums de
+l'agent. Torna a comprovar-ho si canvien el servei o `fstab`. El verificador
+només comprova la reserva abans d'arrencar; no detecta una pèrdua posterior en
+temps real.
+
+Si la reserva és incompleta, no arrenquis l'agent ni tornis a formatar els
+volums. Amb aprovació explícita, atura el servei i els processos que els usin;
+comprova que els dispositius loop apunten als fitxers esperats i desmunta primer
+l'estat i després el treball. Comprova els dos sistemes de fitxers fora de línia,
+reserva de nou els fitxers amb `fallocate` sense canviar-ne la mida i repeteix
+la comprovació. Munta primer el treball i després l'estat. Verifica la reserva,
+els continguts necessaris i `verify-volumes.mjs` abans de reprendre el pilot.
+Investiga i elimina la causa de la pèrdua abans de donar-la per resolta.
+
 ### Instal·lació prevista
 
 El procediment següent és la preparació prevista; **no s'ha executat** i cap ordre
@@ -556,8 +581,8 @@ umask 077
 ( set -C; : > /var/lib/mountain-runners-agent-volumes/state.ext4 )
 fallocate -l 11G /var/lib/mountain-runners-agent-volumes/work.ext4
 fallocate -l 1G /var/lib/mountain-runners-agent-volumes/state.ext4
-mkfs.ext4 -E nodiscard /var/lib/mountain-runners-agent-volumes/work.ext4
-mkfs.ext4 -E nodiscard /var/lib/mountain-runners-agent-volumes/state.ext4
+mkfs.ext4 -E nodiscard,lazy_itable_init=0,lazy_journal_init=0 /var/lib/mountain-runners-agent-volumes/work.ext4
+mkfs.ext4 -E nodiscard,lazy_itable_init=0,lazy_journal_init=0 /var/lib/mountain-runners-agent-volumes/state.ext4
 # Verifica la reserva després de formatar; mkfs pot desassignar blocs.
 fallocate -l 11G /var/lib/mountain-runners-agent-volumes/work.ext4
 fallocate -l 1G /var/lib/mountain-runners-agent-volumes/state.ext4
@@ -572,6 +597,9 @@ install -d -m 0700 -o mountain-agent -g mountain-agent \
 systemctl start 'var-lib-mountain\x2drunners\x2dagent-state.mount'
 chown mountain-agent:mountain-agent /var/lib/mountain-runners-agent/state
 chmod 0700 /var/lib/mountain-runners-agent/state
+# Comprova que els blocs reservats cobreixen la mida lògica de cada fitxer.
+stat -c '%n size=%s blocks=%b blocksize=%B' \
+  /var/lib/mountain-runners-agent-volumes/{work,state}.ext4
 install -d -m 0700 -o mountain-agent -g mountain-agent \
   /var/lib/mountain-runners-agent/{repository,worktrees,sessions,tmp}
 install -d -m 0750 -o root -g mountain-agent /etc/mountain-runners-agent
@@ -646,8 +674,9 @@ privades fora de la PR i dels logs.
    el commit instal·lat és el revisat. No executis el bootstrap complet de
    producció per preparar l'agent.
 2. Mesura el disc i la memòria disponibles. Verifica els límits efectius de
-   CPU, memòria, processos, temps i disc, inclosos el journal i `/run`. Prova
-   l'esgotament del volum de treball i del d'estat, la recuperació de la cua i
+   CPU, memòria, processos, temps i disc, inclosos el journal i `/run`. Verifica
+   que el trim programat exclou els volums de l'agent. Prova l'esgotament del
+   volum de treball i del d'estat, la recuperació de la cua i
    l'absència de publicació incompleta. Comprova la salut de producció i previews.
 3. Amb la identitat i unitat previstes, verifica Podman sense root, el mapatge
    UID/GID, els cgroups, els muntatges i l'absència de xarxa, credencials i
