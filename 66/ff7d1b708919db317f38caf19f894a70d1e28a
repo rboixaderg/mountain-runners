@@ -1,0 +1,18 @@
+docs/deployment.md
+  h_1727aeeb492b30 503-528,734-736
+tools/server/agent/sandbox/commands.test.mjs
+  h_1727aeeb492b30 132-142
+tools/server/systemd/mountain-agent.service
+  h_1727aeeb492b30 10-12,35-38,40-43
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "66ff7d1b708919db317f38caf19f894a70d1e28a",
+  "prompts": {},
+  "humans": {
+    "h_1727aeeb492b30": {
+      "author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
