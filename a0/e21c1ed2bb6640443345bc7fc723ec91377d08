@@ -1,0 +1,49 @@
+docs/deployment.md
+  s_82eb7227937794::t_97279252cafe7f 154-155
+docs/phase-5-t51-decisions.md
+  s_82eb7227937794::t_05c553281866f6 58-59
+docs/runbook.md
+  s_7f3c88c7005d36::t_5ff08be63092b3 499-501,536-538,567-569,578-579,584-586,591-617,621-622,629-630
+docs/specs/phase-5-publication-operation.md
+  s_82eb7227937794::t_ca3180e038197d 263-267
+tools/server/preview/gate.test.mjs
+  s_7f3c88c7005d36::t_ccb3cb28de333d 633-681
+tools/server/release/cli.test.mjs
+  s_7f3c88c7005d36::t_1a5ca7a6e79a6c 825-869
+tools/server/release/config.mjs
+  s_f7c44c60fcfa24::t_26afa39f72d350 28-30
+tools/server/release/operations.mjs
+  s_7f3c88c7005d36::t_1cd29997863258 123-126,156-159,161,245,281-283,338,398-399,401-407,409-411
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "a0e21c1ed2bb6640443345bc7fc723ec91377d08",
+  "prompts": {},
+  "sessions": {
+    "s_7f3c88c7005d36": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a1ca2c-492a-7015-90f0-0f1680752df3",
+        "model": "gpt-6.1-terra"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    },
+    "s_82eb7227937794": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a1ca30-ed16-7720-849f-a9b18f70b28a",
+        "model": "deepseek-v4.1-flash"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    },
+    "s_f7c44c60fcfa24": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a1c75e-7a35-7799-b4a1-7d29a7ed153a",
+        "model": "gpt-6.1-terra"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
