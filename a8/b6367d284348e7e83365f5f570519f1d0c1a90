@@ -1,0 +1,39 @@
+docs/deployment.md
+  s_c58e674dd5e915::t_26be9252033863 605-610
+docs/testing-strategy.md
+  s_c58e674dd5e915::t_53d40d2b2d287e 27-29
+tools/preview/browser-profile.mjs
+  s_c58e674dd5e915::t_5c5cf656a67741 1-9
+tools/preview/browser-profile.test.mjs
+  s_c58e674dd5e915::t_7504c99e625260 1-13
+tools/preview/editorial-resources.test.mjs
+  s_c58e674dd5e915::t_e546875cacbb33 22,458-462
+tools/server/agent/README.md
+  s_c58e674dd5e915::t_1dbc34d0652231 150,158-160,172
+tools/server/agent/policy/development.mjs
+  s_c58e674dd5e915::t_927034facbea54 26
+tools/server/agent/policy/offline-check.test.mjs
+  s_c58e674dd5e915::t_d4535b2526d96e 39,70
+tools/server/agent/sandbox/Containerfile
+  s_c58e674dd5e915::t_e67cb922012635 21
+tools/server/agent/sandbox/arguments.mjs
+  s_c58e674dd5e915::t_ffc07e8d5a54a1 22
+tools/server/agent/sandbox/commands.test.mjs
+  s_c58e674dd5e915::t_61cd656278b623 101
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "a8b6367d284348e7e83365f5f570519f1d0c1a90",
+  "prompts": {},
+  "sessions": {
+    "s_c58e674dd5e915": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a1cbb8-26e9-7799-b4a1-7d2c8cd6c44d",
+        "model": "gpt-6.1-terra"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
