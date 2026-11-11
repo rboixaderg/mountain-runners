@@ -141,8 +141,10 @@ política ni pot autoritzar per si sol una publicació.
   missatges de l'assistent es concatenen amb una separació de paràgraf.
 - Matar Pi no atura els contenidors de Podman. El paquet crida `onInterrupted`; l'adaptador del
   projecte espera l'aturada dels contenidors i no oculta una neteja fallida.
-  També verifica la neteja després dels torns completats, abans de comprovar
-  o publicar, per detectar contenidors que hagin sobreviscut a un error d'eina.
+  També verifica la neteja després de cada ordre del sandbox i dels torns
+  completats, abans de comprovar o publicar. Atura els contenidors actius de la sessió, elimina els seus
+  registres aturats i comprova que no en quedi cap. Si Podman no pot completar
+  la neteja, el resultat és incert; no esborra worktrees ni sessions.
 
 ## Imatge experimental per a comprovacions offline
 

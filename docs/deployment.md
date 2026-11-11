@@ -492,8 +492,10 @@ la sessió; si no es pot confirmar, l'execució queda fallida o incerta.
   sandbox i per torn RPC de Pi. Superar-lo atura el procés i espera la neteja
   dels contenidors. Si afecta el torn RPC o les comprovacions, la instrucció
   falla abans de publicar. El timeout es manté independent. L'adaptador també
-  verifica la neteja després de cada torn completat de Pi, abans de comprovar
-  o publicar, encara que el model hagi tractat un error d'eina.
+  verifica la neteja després de cada ordre del sandbox i de cada torn completat
+  de Pi, abans de comprovar o publicar. Atura els contenidors actius de la sessió, elimina els seus
+  registres aturats i comprova que no en quedi cap. Si Podman no pot completar
+  la neteja, el resultat és incert; els worktrees i sessions es conserven.
 - Un worktree net no implica que s'hagi publicat. El servei conserva la branca
   amb commits pendents fins que push i PR estiguin confirmats; només llavors
   registra el commit publicat fora del muntatge i pot tornar a `origin/main`.
@@ -633,6 +635,38 @@ crea un tarball local i el consumeix sense GitHub ni Docker, i verifica la
 resolució d'imports de la disposició instal·lada. No publica el paquet ni crea
 cap repositori remot. Una prova simulada no demostra els permisos reals de GitHub ni
 l'aïllament al VPS.
+
+### Preflight del primer pilot
+
+Aquest preflight no autoritza instal·lar ni activar el servei. Atura el
+procediment si una comprovació falla. Conserva les credencials i les dades
+privades fora de la PR i dels logs.
+
+1. Revisa el codi i la instal·lació amb una persona independent. Confirma que
+   el commit instal·lat és el revisat. No executis el bootstrap complet de
+   producció per preparar l'agent.
+2. Mesura el disc i la memòria disponibles. Verifica els límits efectius de
+   CPU, memòria, processos, temps i disc, inclosos el journal i `/run`. Prova
+   l'esgotament del volum de treball i del d'estat, la recuperació de la cua i
+   l'absència de publicació incompleta. Comprova la salut de producció i previews.
+3. Amb la identitat i unitat previstes, verifica Podman sense root, el mapatge
+   UID/GID, els cgroups, els muntatges i l'absència de xarxa, credencials i
+   sockets del host al sandbox. Prova la neteja després d'un timeout i d'una
+   fallada de disc. Un test amb Docker no substitueix aquestes proves.
+4. Prepara una imatge fixada a partir del commit revisat. Des d'un worktree
+   nou, executa `pnpm check` al sandbox sense xarxa. Verifica les versions de
+   Node i pnpm i que no es reutilitza `node_modules` d'una altra feina.
+5. Verifica els permisos de la credencial real i les restriccions dels entorns
+   `production` i `previews`, sense exposar secrets. Revisa els workflows que
+   poden rebre secrets i prova els rebuigs sense fusionar cap PR ni fer push a
+   `main`. Si la frontera no es pot demostrar, no activis l'escriptura.
+6. Amb autorització explícita, prova una consulta que no creï branca i una
+   tasca petita fins a PR. Comprova l'autor, la sessió, les validacions i la
+   branca. No demanis preview ni merge durant aquest pilot. Si una acció té un
+   resultat desconegut, atura el pilot i reconcilia'l abans de reprendre'l.
+
+Registra a la PR el digest de la imatge, els límits i els resultats, sense
+secrets ni dades privades. Una comprovació omesa o fallida no completa la T8.3.
 
 ### Pendents abans d'activar el pilot
 

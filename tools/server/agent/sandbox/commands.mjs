@@ -33,32 +33,42 @@ function podmanEnvironment() {
   };
 }
 
-/**
- * Kill the containers of a session. Used on timeout and on shutdown, because
- * killing the Podman client or Pi leaves the container running.
- */
-export async function stopSandboxedCommands(sessionIdentifier) {
-  try {
-    const environment = podmanEnvironment();
-    const { stdout } = await executeFile(
-      "podman",
-      [
-        "--remote=false",
-        "ps",
-        "--quiet",
-        "--filter",
-        `label=mountain-agent.session=${sessionIdentifier}`,
-      ],
-      { env: environment },
-    );
-    const containers = stdout.split("\n").filter(Boolean);
-    if (containers.length === 0) {
-      return 0;
-    }
-    await executeFile("podman", ["--remote=false", "kill", ...containers], {
+async function cleanSandboxContainers(label) {
+  const environment = podmanEnvironment();
+  async function listContainers(includeStopped) {
+    const argumentsList = ["--remote=false", "ps", "--quiet"];
+    if (includeStopped) argumentsList.push("--all");
+    argumentsList.push("--filter", label);
+    const { stdout } = await executeFile("podman", argumentsList, {
       env: environment,
     });
-    return containers.length;
+    return stdout.split("\n").filter(Boolean);
+  }
+
+  const running = await listContainers(false);
+  if (running.length > 0) {
+    await executeFile("podman", ["--remote=false", "kill", ...running], {
+      env: environment,
+    });
+  }
+  const remaining = await listContainers(true);
+  if (remaining.length > 0) {
+    await executeFile("podman", ["--remote=false", "rm", ...remaining], {
+      env: environment,
+    });
+  }
+  if ((await listContainers(true)).length > 0) {
+    throw new Error("Sandbox containers remain after cleanup.");
+  }
+  return running.length;
+}
+
+/** Stop and remove only the containers belonging to this session. */
+export async function stopSandboxedCommands(sessionIdentifier) {
+  try {
+    return await cleanSandboxContainers(
+      `label=mountain-agent.session=${sessionIdentifier}`,
+    );
   } catch (error) {
     throw new SandboxCleanupError({ cause: error });
   }
@@ -141,35 +151,14 @@ export async function runSandboxedCommand({
   } finally {
     clearTimeout(timer);
     signal?.removeEventListener("abort", abortHandler);
-    if (timedOut || signal?.aborted || outputLimitExceeded) {
-      await stopSandboxedCommands(sessionIdentifier);
-    }
+    await stopSandboxedCommands(sessionIdentifier);
   }
 }
 
-/** Kill every agent container, regardless of session. */
+/** Stop and remove every agent container, regardless of session. */
 export async function stopAllSandboxedCommands() {
   try {
-    const environment = podmanEnvironment();
-    const { stdout } = await executeFile(
-      "podman",
-      [
-        "--remote=false",
-        "ps",
-        "--quiet",
-        "--filter",
-        "label=mountain-agent.session",
-      ],
-      { env: environment },
-    );
-    const containers = stdout.split("\n").filter(Boolean);
-    if (containers.length === 0) {
-      return 0;
-    }
-    await executeFile("podman", ["--remote=false", "kill", ...containers], {
-      env: environment,
-    });
-    return containers.length;
+    return await cleanSandboxContainers("label=mountain-agent.session");
   } catch (error) {
     throw new Error("Could not confirm that the sandbox containers stopped.", {
       cause: error,
