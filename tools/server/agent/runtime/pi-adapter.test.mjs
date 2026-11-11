@@ -22,6 +22,7 @@ test("keeps project credentials out of Pi and explicitly enables only the isolat
     environment: {
       PATH: "/usr/bin",
       HOME: "/private/home",
+      TMPDIR: "/private/home/tmp",
       XDG_RUNTIME_DIR: "/private/runtime",
       PROVIDER_KEY: "synthetic-provider",
       GITHUB_TOKEN: "synthetic-github",
@@ -31,6 +32,7 @@ test("keeps project credentials out of Pi and explicitly enables only the isolat
   });
   assert.equal(options.environment.PROVIDER_KEY, "synthetic-provider");
   assert.equal(options.environment.XDG_RUNTIME_DIR, "/private/runtime");
+  assert.equal(options.environment.TMPDIR, "/private/home/tmp");
   assert.equal(options.environment.GITHUB_TOKEN, undefined);
   assert.equal(options.environment.TELEGRAM_BOT_TOKEN, undefined);
   assert.equal(options.environment.MR_AGENT_READ_ONLY, "true");

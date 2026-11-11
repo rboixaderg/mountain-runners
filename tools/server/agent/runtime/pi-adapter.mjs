@@ -16,6 +16,7 @@ export function buildPiEnvironment({
   const allowedEnvironment = {
     PATH: environment.PATH,
     HOME: environment.HOME,
+    TMPDIR: environment.TMPDIR,
     XDG_RUNTIME_DIR: environment.XDG_RUNTIME_DIR,
     PI_CODING_AGENT_DIR: profileDirectory,
     MR_AGENT_SANDBOX_IMAGE: sandbox.image,

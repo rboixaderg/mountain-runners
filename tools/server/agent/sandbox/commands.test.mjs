@@ -120,6 +120,7 @@ test("the service has no Docker group or daemon dependency", () => {
   assert.doesNotMatch(unit, /docker\.service|SupplementaryGroups=/u);
   assert.match(unit, /InaccessiblePaths=.*\/run\/docker\.sock/u);
   assert.match(unit, /Delegate=yes/u);
+  assert.match(unit, /^DelegateSubgroup=main$/mu);
   assert.match(unit, /^CPUQuota=150%$/mu);
   assert.match(unit, /^MemoryMax=2560M$/mu);
   assert.match(unit, /^MemorySwapMax=0$/mu);
@@ -141,12 +142,16 @@ process.stdout.write(process.argv.includes('ps') ? 'synthetic-container\\n' : 's
   }
   const originalPath = process.env.PATH;
   const originalRuntime = process.env.XDG_RUNTIME_DIR;
+  const originalTemporaryDirectory = process.env.TMPDIR;
   process.env.PATH = directory;
   process.env.XDG_RUNTIME_DIR = directory;
+  process.env.TMPDIR = directory;
   context.after(() => {
     process.env.PATH = originalPath;
     if (originalRuntime === undefined) delete process.env.XDG_RUNTIME_DIR;
     else process.env.XDG_RUNTIME_DIR = originalRuntime;
+    if (originalTemporaryDirectory === undefined) delete process.env.TMPDIR;
+    else process.env.TMPDIR = originalTemporaryDirectory;
   });
   const result = await runSandboxedCommand({
     image: "synthetic:1",
@@ -169,7 +174,7 @@ process.stdout.write(process.argv.includes('ps') ? 'synthetic-container\\n' : 's
     assert.equal(call.executable, "podman");
     assert.equal(call.arguments[0], "--remote=false");
     // macOS adds this platform variable when starting a process.
-    const expectedEnvironment = ["HOME", "PATH", "XDG_RUNTIME_DIR"];
+    const expectedEnvironment = ["HOME", "PATH", "TMPDIR", "XDG_RUNTIME_DIR"];
     if (process.platform === "darwin")
       expectedEnvironment.push("__CF_USER_TEXT_ENCODING");
     assert.deepEqual(call.environment, expectedEnvironment);
