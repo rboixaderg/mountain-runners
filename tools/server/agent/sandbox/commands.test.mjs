@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import {
   chmodSync,
+  existsSync,
   mkdirSync,
   mkdtempSync,
   realpathSync,
@@ -134,7 +135,10 @@ test("runs and stops only local rootless Podman with a minimal host environment"
   const script = `#!${process.execPath}
 const fs = require('node:fs');
 fs.appendFileSync(${JSON.stringify(callsPath)}, JSON.stringify({ executable: require('node:path').basename(process.argv[1]), arguments: process.argv.slice(2), environment: Object.keys(process.env).sort() }) + '\\n');
-process.stdout.write(process.argv.includes('ps') ? 'synthetic-container\\n' : 'sandboxed');
+const removed = ${JSON.stringify(join(directory, "removed-container"))};
+if (process.argv.includes('kill') && fs.existsSync(removed)) fs.unlinkSync(removed);
+if (process.argv.includes('rm')) fs.writeFileSync(removed, 'removed');
+if (process.argv.includes('ps') && (!process.argv.includes('--all') || !fs.existsSync(removed))) process.stdout.write('synthetic-container\\n');
 `;
   for (const executable of ["podman", "docker"]) {
     const path = join(directory, executable);
@@ -170,7 +174,7 @@ process.stdout.write(process.argv.includes('ps') ? 'synthetic-container\\n' : 's
     .trim()
     .split("\n")
     .map((line) => JSON.parse(line));
-  assert.equal(calls.length, 5);
+  assert.equal(calls.length, 16);
   for (const call of calls) {
     assert.equal(call.executable, "podman");
     assert.equal(call.arguments[0], "--remote=false");
@@ -186,12 +190,116 @@ process.stdout.write(process.argv.includes('ps') ? 'synthetic-container\\n' : 's
     "--filter",
     "label=mountain-agent.session=topic-test",
   ]);
-  assert.deepEqual(calls[3].arguments.slice(1), [
+  assert.deepEqual(calls[11].arguments.slice(1), [
     "ps",
     "--quiet",
     "--filter",
     "label=mountain-agent.session",
   ]);
+});
+
+test("removes stopped session containers left after a failed automatic removal", async (context) => {
+  const { directory } = workspaceFixture(context);
+  const callsPath = join(directory, "cleanup-calls");
+  const removedPath = join(directory, "removed");
+  const executable = join(directory, "podman");
+  writeFileSync(
+    executable,
+    `#!${process.execPath}
+const fs = require("node:fs");
+const args = process.argv.slice(2);
+fs.appendFileSync(${JSON.stringify(callsPath)}, args.join(" ") + "\\n");
+if (args.includes("ps") && args.includes("--all") && !fs.existsSync(${JSON.stringify(removedPath)})) {
+  process.stdout.write("stopped-container\\n");
+}
+if (args.includes("rm")) fs.writeFileSync(${JSON.stringify(removedPath)}, "removed");
+`,
+  );
+  chmodSync(executable, 0o755);
+  const originalPath = process.env.PATH;
+  process.env.PATH = directory;
+  context.after(() => {
+    process.env.PATH = originalPath;
+  });
+
+  assert.equal(await stopSandboxedCommands("topic-cleanup"), 0);
+  assert.match(readFileSync(callsPath, "utf8"), /rm stopped-container/u);
+  assert.equal(existsSync(removedPath), true);
+});
+
+test("cleans stopped containers after a normally completed sandbox command", async (context) => {
+  const { directory, worktreeRoot, workspace } = workspaceFixture(context);
+  const removedPath = join(directory, "normal-removed");
+  const executable = join(directory, "podman");
+  writeFileSync(
+    executable,
+    `#!${process.execPath}
+const fs = require("node:fs");
+if (process.argv.includes("ps") && process.argv.includes("--all") && !fs.existsSync(${JSON.stringify(removedPath)})) process.stdout.write("stopped-container\\n");
+if (process.argv.includes("rm")) fs.writeFileSync(${JSON.stringify(removedPath)}, "removed");
+`,
+  );
+  chmodSync(executable, 0o755);
+  const originalPath = process.env.PATH;
+  process.env.PATH = directory;
+  context.after(() => {
+    process.env.PATH = originalPath;
+  });
+
+  const result = await runSandboxedCommand({
+    image: "synthetic:1",
+    workspacePath: workspace,
+    worktreeRoot,
+    command: ["true"],
+    limits,
+    sessionIdentifier: "topic-normal",
+    timeoutMilliseconds: 5000,
+  });
+  assert.equal(result.exitCode, 0);
+  assert.equal(existsSync(removedPath), true);
+});
+
+test("reports an uncertain stop if Podman cannot remove a stopped container", async (context) => {
+  const { directory } = workspaceFixture(context);
+  const executable = join(directory, "podman");
+  writeFileSync(
+    executable,
+    `#!${process.execPath}
+if (process.argv.includes("ps") && process.argv.includes("--all")) process.stdout.write("stopped-container\\n");
+if (process.argv.includes("rm")) process.exit(125);
+`,
+  );
+  chmodSync(executable, 0o755);
+  const originalPath = process.env.PATH;
+  process.env.PATH = directory;
+  context.after(() => {
+    process.env.PATH = originalPath;
+  });
+
+  await assert.rejects(stopSandboxedCommands("topic-cleanup"), {
+    name: "SandboxCleanupError",
+  });
+});
+
+test("reports an uncertain stop if a container remains after removal", async (context) => {
+  const { directory } = workspaceFixture(context);
+  const executable = join(directory, "podman");
+  writeFileSync(
+    executable,
+    `#!${process.execPath}
+if (process.argv.includes("ps") && process.argv.includes("--all")) process.stdout.write("stopped-container\\n");
+`,
+  );
+  chmodSync(executable, 0o755);
+  const originalPath = process.env.PATH;
+  process.env.PATH = directory;
+  context.after(() => {
+    process.env.PATH = originalPath;
+  });
+
+  await assert.rejects(stopSandboxedCommands("topic-cleanup"), {
+    name: "SandboxCleanupError",
+  });
 });
 
 test("bounds combined command output and stops its container on overflow", async (context) => {
@@ -208,7 +316,9 @@ if (process.argv.includes("run")) {
  setInterval(()=>{},1000);
 } else {
  fs.appendFileSync(${JSON.stringify(callsPath)},process.argv.slice(2).join(" ")+"\\n");
- if (process.argv.includes("ps")) process.stdout.write("synthetic-container\\n");
+ const removed = ${JSON.stringify(join(directory, "overflow-removed"))};
+ if (process.argv.includes("rm")) fs.writeFileSync(removed, "removed");
+ if (process.argv.includes("ps") && (!process.argv.includes("--all") || !fs.existsSync(removed))) process.stdout.write("synthetic-container\\n");
 }
 `,
   );
