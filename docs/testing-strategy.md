@@ -24,7 +24,9 @@ requereixen Linux, Podman local sense root i una imatge ja disponible mitjançan
 `MR_ISOLATION_TEST_IMAGE`; sense aquesta variable se salten, també a la CI
 ordinària. El perfil real de Pi requereix `MR_AGENT_PI_COMMAND` i també se
 salta per defecte. Cap d'aquestes omissions demostra l'aïllament al VPS.
-No es modifica aquesta arquitectura.
+El perfil de l'agent executa la prova de recursos editorials només amb Chromium
+abans d'obrir la PR. La CI conserva els tres navegadors en aquesta prova i als
+E2E; una fallada de la CI impedeix el merge.
 
 Aquest document és la font de veritat per triar el nivell de prova, dissenyar
 expectatives i revisar cobertura. Prevalen els ADR i les

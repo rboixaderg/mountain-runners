@@ -18,7 +18,7 @@ COPY apps/web/package.json apps/web/package.json
 COPY packages/telegram-pi-bridge/package.json packages/telegram-pi-bridge/package.json
 RUN pnpm fetch --frozen-lockfile --store-dir /opt/mountain-agent/store \
     && pnpm install --offline --frozen-lockfile --ignore-scripts --store-dir /opt/mountain-agent/store \
-    && pnpm exec playwright install --with-deps chromium firefox webkit \
+    && pnpm exec playwright install --with-deps chromium \
     && chmod -R a+rX /opt/mountain-agent \
     && rm -rf /work \
     && mkdir /work

@@ -602,8 +602,12 @@ comprovar que `podman --remote=false info --format '{{.Host.Security.Rootless}}'
 retorna `true` com a `mountain-agent`, i demostrar els límits dins del cgroup
 delegat de la unitat. No s'han fet aquestes operacions al VPS.
 
-La imatge aïllada ha d'incloure Node 24.11.0, pnpm, git i les dependències que
-necessita `pnpm check`, perquè el contenidor no té xarxa. El paquet no requereix instal·lar dependències ni compilar-lo al servidor.
+La imatge aïllada ha d'incloure Node 24.11.0, pnpm, git, Chromium i les
+altres dependències que necessita `pnpm check`, perquè el contenidor no té xarxa.
+El perfil de l'agent executa les proves de navegador només amb Chromium abans
+de publicar la PR. La CI executa la prova completa i els E2E també amb Firefox
+i WebKit; la protecció de `main` ha d'exigir que la CI passi abans del merge.
+El paquet no requereix instal·lar dependències ni compilar-lo al servidor.
 La disposició instal·lada del servei i del paquet es comprova amb una prova
 local sense symlinks al workspace; no equival a haver-lo desplegat.
 El clon del servei no comparteix el worktree principal de la persona mantenidora ni el de cap altra

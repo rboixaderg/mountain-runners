@@ -19,6 +19,7 @@ import { createRequire } from "node:module";
 import { listRegularFiles } from "../release/packaging.mjs";
 import { chromium, firefox, webkit } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
+import { editorialBrowserNames } from "./browser-profile.mjs";
 
 const appDirectory = fileURLToPath(new URL("../../apps/web/", import.meta.url));
 const requireFromApp = createRequire(
@@ -454,7 +455,11 @@ test("editorial resources stay isolated across clean builds and preview-to-publi
     }
     // Exercise the actual built CSS and HTML, without adding synthetic content
     // to the editorial collection in the real worktree.
-    for (const browserType of [chromium, firefox, webkit]) {
+    const browsers = { chromium, firefox, webkit };
+    for (const browserName of editorialBrowserNames(
+      process.env.MR_AGENT_BROWSER_PROFILE,
+    )) {
+      const browserType = browsers[browserName];
       const browser = await browserType.launch();
       try {
         for (const width of [1280, 320]) {

@@ -23,7 +23,7 @@ export const sandboxCheckCommand = [
   sandboxPrepareCommand,
   'TMPDIR=$(mktemp -d "$PWD/.agent-check.XXXXXXXX")',
   "export TMPDIR",
-  checkCommand,
+  `MR_AGENT_BROWSER_PROFILE=chromium ${checkCommand}`,
 ].join(" && ");
 const summaryPattern =
   /^(feat|fix|docs|refactor|test|build|ci|chore|security)\(([a-z0-9-]+)\): (.+)$/u;

@@ -147,7 +147,7 @@ política ni pot autoritzar per si sol una publicació.
 ## Imatge experimental per a comprovacions offline
 
 `sandbox/Containerfile` prepara una imatge de Node amb pnpm, el magatzem de
-paquets del lockfile i els tres navegadors de Playwright. Construeix-la només
+paquets del lockfile i Chromium de Playwright. Construeix-la només
 a partir d'una còpia d'un commit revisat, no d'un worktree amb fitxers locals.
 La construcció necessita xarxa; l'execució del sandbox no en té. Una imatge
 preparada per a un lockfile pot no contenir les dependències d'un altre.
@@ -155,8 +155,9 @@ preparada per a un lockfile pot no contenir les dependències d'un altre.
 El magatzem és a `/opt/mountain-agent/store`. Una instal·lació al worktree usa
 `pnpm install --offline --frozen-lockfile --store-dir /opt/mountain-agent/store`.
 Les proves que executen fitxers temporals necessiten `TMPDIR` en un directori
-escriptible de `/work`: `/tmp` manté `noexec`. La imatge inclou els navegadors
-perquè una prova de `pnpm check` usa Chromium, Firefox i WebKit.
+escriptible de `/work`: `/tmp` manté `noexec`. El perfil del sandbox executa
+la prova de navegador amb Chromium. La CI executa la mateixa prova i els E2E
+amb Chromium, Firefox i WebKit; una fallada de CI bloqueja el merge.
 
 Abans d'una implementació o continuació, el servei prepara les dependències
 offline perquè el model pugui executar proves. Les consultes no instal·len res
@@ -168,8 +169,7 @@ segons el moment de la fallada.
 
 La versió de pnpm del `package.json` ha de coincidir amb la de la imatge. Una
 diferència es refusa sense descarregar cap versió nova. La imatge és
-experimental: no s'ha validat amb Podman, systemd ni l'arquitectura del VPS i
-no autoritza activar el pilot.
+experimental i no autoritza activar el pilot sense les comprovacions del VPS.
 
 ## Proves i fonts de veritat
 
