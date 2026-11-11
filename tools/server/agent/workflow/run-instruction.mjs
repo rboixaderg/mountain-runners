@@ -75,6 +75,12 @@ export function createInstructionRunner({
         worktreePath: worktree.path,
         signal,
       });
+      if (modelResult.preparationFailed) {
+        return {
+          outcome: "failed",
+          report: instructionReports.preparationFailed,
+        };
+      }
       if (modelResult.timedOut) {
         logger("execution_timed_out", identifier);
         return { outcome: "failed", report: instructionReports.modelTimedOut };

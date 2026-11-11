@@ -86,7 +86,11 @@ test(
     await mkdir(binaries);
     await symlink(process.execPath, join(binaries, "node"));
     // Only Node is discoverable: Git and Docker are not available to the consumer.
-    const testEnvironment = { PATH: binaries, HOME: directory };
+    const testEnvironment = {
+      PATH: binaries,
+      HOME: directory,
+      TMPDIR: directory,
+    };
     await executeFile(process.execPath, ["--test", "test/**/*.test.mjs"], {
       cwd: standalone,
       env: testEnvironment,
