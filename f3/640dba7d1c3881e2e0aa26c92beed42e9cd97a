@@ -1,0 +1,23 @@
+tools/server/agent/README.md
+  s_c58e674dd5e915::t_7deea82b11c687 144-147
+tools/server/agent/sandbox/commands.mjs
+  s_c58e674dd5e915::t_b29798d0ae1888 36-66,69-70,154,158,161
+tools/server/agent/sandbox/commands.test.mjs
+  s_c58e674dd5e915::t_78439ccf5ae98b 4,138-141,177,193,201-304,319-321
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "f3640dba7d1c3881e2e0aa26c92beed42e9cd97a",
+  "prompts": {},
+  "sessions": {
+    "s_c58e674dd5e915": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a1cbb8-26e9-7799-b4a1-7d2c8cd6c44d",
+        "model": "gpt-6.1-terra"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
