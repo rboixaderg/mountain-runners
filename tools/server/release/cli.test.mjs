@@ -822,6 +822,51 @@ test("prune keeps the active release and the most recent eligible ones", async (
   });
 });
 
+test("prune preserves the displaced active release ahead of newer unactivated candidates", async () => {
+  await withReleaseRoot(async (root) => {
+    const commits = commitsOf(7);
+    await installRelease(root, commits[0]);
+    assert.equal(runCli(root, ["activate", commits[0]]).status, 0);
+    for (const commit of commits.slice(1)) {
+      await installRelease(root, commit);
+    }
+    assert.equal(runCli(root, ["activate", commits[6]]).status, 0);
+    const prune = runCli(root, ["prune"]);
+    assert.equal(prune.status, 0, prune.stderr);
+    assert.equal(await pathExists(join(root, "releases", commits[0])), true);
+    assert.equal(runCli(root, ["rollback"]).status, 0);
+    assert.equal(
+      await readlink(join(root, "current")),
+      join(root, "releases", commits[0]),
+    );
+  });
+});
+
+test("prune reconciles a missing eligible tree inside the retention window", async () => {
+  await withReleaseRoot(async (root) => {
+    const commits = commitsOf(3);
+    for (const commit of commits) {
+      await installRelease(root, commit);
+    }
+    assert.equal(runCli(root, ["activate", commits[0]]).status, 0);
+    await rm(join(root, "releases", commits[1]), { recursive: true });
+    assert.equal(runCli(root, ["health"]).status, 1);
+    const prune = runCli(root, ["prune"]);
+    assert.equal(prune.status, 0, prune.stderr);
+    const registry = await readRegistry(root);
+    assert.ok(
+      registry.releases.find((entry) => entry.commit === commits[1]).prunedAt,
+    );
+    assert.equal(runCli(root, ["health"]).status, 0);
+    assert.equal(runCli(root, ["rollback", commits[2]]).status, 0);
+    await rm(join(root, "releases", commits[2]), { recursive: true });
+    const missingActive = runCli(root, ["prune"]);
+    assert.equal(missingActive.status, 1);
+    assert.match(missingActive.stderr, /active release .* is missing/);
+    assert.equal(await pathExists(join(root, "releases", commits[0])), true);
+  });
+});
+
 test("prune refuses a window without rollback and an inconsistent state", async () => {
   await withReleaseRoot(async (root) => {
     const commits = commitsOf(2);

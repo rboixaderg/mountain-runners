@@ -120,7 +120,10 @@ export async function performRollback(commit) {
           "No eligible release remains; apply the emergency response defined in the runbook.",
         );
       }
-      selectedCommit = candidates[0].commit;
+      const previous = candidates.find(
+        (entry) => entry.commit === registry.previousActiveCommit,
+      );
+      selectedCommit = previous?.commit ?? candidates[0].commit;
     }
     const message = await activateLocked(selectedCommit);
     return `${message}\nRolled back to release ${selectedCommit}.`;
@@ -149,15 +152,13 @@ export async function performPrune(keep = retentionPolicy.retainedReleases) {
       );
     }
 
-    const kept = retainedCommits(registry, activeCommit, keep);
     const directoryNames = await listDirectoryNames(paths.releasesDirectory);
-    for (const commit of kept) {
-      if (!directoryNames.has(commit)) {
-        throw new Error(
-          `Release ${commit} is retained but its directory is missing; run mountain-release health before pruning.`,
-        );
-      }
+    if (!directoryNames.has(activeCommit)) {
+      throw new Error(
+        `The active release ${activeCommit} is missing; run mountain-release health before pruning.`,
+      );
     }
+    const kept = retainedCommits(registry, activeCommit, keep, directoryNames);
 
     const prunedAt = new Date().toISOString();
     let newlyPruned = 0;
@@ -241,7 +242,7 @@ export function performList() {
     .join("\n");
 }
 
-export async function performHealth() {
+export async function performHealth({ checkInactiveTrees = true } = {}) {
   const findings = [];
   let registry;
   try {
@@ -277,7 +278,9 @@ export async function performHealth() {
     }
   }
 
-  findings.push(...(await findMissingReleaseTrees(registry)));
+  if (checkInactiveTrees) {
+    findings.push(...(await findMissingReleaseTrees(registry)));
+  }
   return formatHealth(findings);
 }
 
@@ -332,6 +335,7 @@ async function activateLocked(commit) {
   for (const candidate of registry.releases) {
     if (candidate.status === "active") {
       candidate.status = "eligible";
+      registry.previousActiveCommit = candidate.commit;
       break;
     }
   }
@@ -391,12 +395,20 @@ function assertRetentionWindow(keep) {
   }
 }
 
-// The active release plus the most recent eligible ones, up to the window.
-function retainedCommits(registry, activeCommit, keep) {
+// Keep the displaced active release before newer, potentially unverified installs.
+function retainedCommits(registry, activeCommit, keep, directoryNames) {
   const kept = new Set([activeCommit]);
-  const candidates = eligibleReleases(registry).sort((first, second) =>
-    second.installedAt.localeCompare(first.installedAt),
+  const candidates = eligibleReleases(registry)
+    .filter((entry) => directoryNames.has(entry.commit))
+    .sort((first, second) =>
+      second.installedAt.localeCompare(first.installedAt),
+    );
+  const previous = candidates.find(
+    (entry) => entry.commit === registry.previousActiveCommit,
   );
+  if (previous !== undefined) {
+    kept.add(previous.commit);
+  }
   for (const entry of candidates) {
     if (kept.size >= keep) {
       break;

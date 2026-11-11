@@ -55,8 +55,8 @@ Només tres registres, tots allotjats al VPS:
 - **Esmena (retenció d'artefactes)**: la permanència del registre es manté i no
   canvia cap decisió d'aquesta taula. La implementació de `mountain-release
 prune` afegeix una retenció per als arbres extrets i els uploads —l'activa i
-  les quatre elegibles més recents, `prunedAt` a la resta— perquè el disc no
-  creixi amb cada desplegament. Detall al
+  l'anterior activa elegible i altres elegibles recents, fins a cinc en total,
+  amb `prunedAt` a la resta— perquè el disc no creixi amb cada desplegament. Detall al
   [`docs/runbook.md`](runbook.md#retenció-i-poda).
 
 ### Headers Mínims I CSP

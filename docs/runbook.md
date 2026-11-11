@@ -496,9 +496,9 @@ Tres registres, tots al VPS (T5.1):
 | Releases | Commit, digests, dates i estat de cada release             | `/var/lib/mountain-runners/releases.json` | Permanent              |
 
 - La permanència és del registre, no dels arbres extrets. `prune` conserva
-  l'activa i les quatre elegibles més recents (5 en total) i marca la resta amb
-  `prunedAt`; l'entrada i els digests es conserven per sempre, el directori no
-  (secció 5). Els uploads d'`incoming/` els consumeix `install` i els que queden
+  l'activa, l'anterior activa si és elegible i altres elegibles recents, fins a
+  5 en total. Marca la resta amb `prunedAt`; l'entrada i els digests es
+  conserven per sempre, el directori no (secció 5). Els uploads d'`incoming/` els consumeix `install` i els que queden
   d'una instal·lació fallida caduquen al cap d'un dia.
 - La rotació és diària a mitjanit (integració de Caddy) amb compressió gzip.
 - Accés exclusivament per `root` via `sudo`; cap credencial ni query string
@@ -533,9 +533,9 @@ apunta a una release registrada com a `active`, que els digests de la release
 activa coincideixen amb el manifest i que cada entrada sense `prunedAt` té el
 seu directori. Un estat `DEGRADED` requereix revisió immediata: no s'activa cap
 release nova fins a resoldre'l. Els directoris que el registre no coneix no
-degraden la salut: `mountain-release prune` els elimina. Una entrada sense
-directori es reconcilia amb `prune`; no l'esborris ni editïs `releases.json` a
-mà.
+degraden la salut: `mountain-release prune` els elimina. Si falta un directori
+inactiu, `prune` marca l'entrada com a podada; no editis `releases.json` a mà.
+Si falta l'arbre actiu, la poda es rebutja i cal aplicar la resposta d'emergència.
 
 ## 5. Releases I Reversió
 
@@ -564,8 +564,9 @@ elegibilitat.
 
 ### Retenció I Poda
 
-El disc no creix amb cada desplegament. `prune` conserva l'activa i les quatre
-release elegibles més recents —5 en total, uns 120 MB— i elimina la resta:
+Després d'un desplegament verificat, `prune` conserva fins a 5 releases: l'activa,
+l'anterior activa si encara és elegible, i les elegibles instal·lades més
+recentment. El límit correspon a uns 120 MB amb la mida actual:
 
 ```sh
 sudo mountain-release prune              # finestra aprovada de 5
@@ -574,33 +575,59 @@ sudo mountain-release prune --keep 3     # només si cal reduir el disc
 
 - El registre és permanent: cada entrada conserva commit, digests, dates i
   estat, amb `prunedAt` quan el directori ja no hi és. Una release podada no
-  torna a ser elegible mai; es pot reconstruir des de git pel commit.
+  torna a ser elegible ni es pot reinstal·lar amb el mateix commit. Per recuperar
+  el contingut cal preparar un commit nou i publicar-lo pel flux revisat.
 - `prune` s'executa sota el bloqueig del registre, desa el registre abans
   d'esborrar directoris i, si s'interromp, la propera execució el reconcilia
   (un directori orfe és inofensiu; una entrada orfe trencaria la reversió).
 - Rebutja podar si no hi ha exactament una release activa, si `current` no hi
-  apunta o si una de les releases que hauria de conservar no té directori.
-  Sempre deixa com a mínim una release elegible sencera.
+  apunta o si falta l'arbre actiu. Marca com a podades les entrades inactives
+  sense directori i conserva les candidates disponibles. La finestra és un
+  màxim: no garanteix que existeixi cap release elegible.
 - Esborra també els directoris sense entrada i els uploads de més d'un dia.
 - El job de desplegament l'executa després de verificar la release activa; una
   poda fallida no reverteix el desplegament. La identitat de desplegament no
   pot canviar la finestra: pel gate, `prune` no accepta arguments.
-- Per actualitzar aquestes eines en un VPS existent no tornis a executar el
-  bootstrap (`tools/server/bootstrap/bootstrap.sh` reescriu el Caddyfile):
-  copia els mòduls amb `install -m 0644 -o root -g root`, reinicia
-  `mountain-release.service` i comprova `health`.
+
+### Actualitzar les eines en un VPS existent
+
+Aquest procediment requereix l'aprovació de la persona mantenidora. No executis
+el bootstrap: reescriu el Caddyfile. Des d'una còpia revisada del repositori al
+VPS, sense desplegaments ni publicacions de preview en curs, executa com a root:
+
+```sh
+REPO=/path/to/reviewed/mountain_runners
+LIB=/usr/local/lib/mountain-runners
+install -d -m 2770 -o root -g mountain-runners /var/lib/mountain-runners/incoming
+install -m 0644 -o root -g root \
+  "$REPO/tools/server/release/"{config,fsutil,manifest,archive,registry,validate,operations,receive}.mjs "$LIB/"
+install -m 0755 -o root -g root \
+  "$REPO/tools/server/release/"{cli,daemon,ssh-gate}.mjs "$LIB/"
+install -m 0755 -o root -g root \
+  "$REPO/tools/server/preview/commands/mountain-preview/cli.mjs" \
+  "$LIB/preview/commands/mountain-preview/cli.mjs"
+systemctl restart mountain-release.service
+mountain-release health
+```
+
+Si `health` només informa d'arbres inactius absents, executa
+`mountain-release prune` i torna a comprovar `health`. Si falta l'arbre actiu o
+la poda falla, atura l'actualització i segueix la resposta d'emergència. Abans
+de reprendre els desplegaments, comprova també el gate SSH i la salut de les
+previews existents.
 
 ### Reversió Rutinària (Interna)
 
-Sense tocar DNS, s'activa la release anterior elegible més recent:
+Sense tocar DNS, s'activa l'anterior release activa si encara és elegible. Si
+no es coneix o ja no és elegible, se selecciona la instal·lada més recent:
 
 ```sh
 sudo mountain-release rollback            # release anterior elegible
 sudo mountain-release rollback <commit>   # release elegible concreta
 ```
 
-Una release podada no és elegible: la finestra de `prune` és també la
-profunditat garantida de reversió.
+Una release podada no és elegible. La finestra limita les candidates de
+reversió, però no en garanteix cap si falten arbres o s'han revocat releases.
 
 La reversió verifica elegibilitat i digests i rebutja releases revocades. Si el
 workflow de desplegament ha quedat inconsistent amb el registre, `activate` és

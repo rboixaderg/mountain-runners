@@ -151,7 +151,8 @@ cada canvi d'aquesta arquitectura.
   les releases revocades mai no es reactiven. La permanència cobreix el
   registre, no els arbres extrets: `prune` marca amb `prunedAt` les entrades que
   ja no tenen directori, de manera que una release podada no torna a ser
-  elegible.
+  elegible. La poda prioritza l'anterior activa elegible abans de les altres
+  candidates més recents.
 - **Polítiques públiques**: la política de privacitat descriu l'allotjament a
   Hetzner i els registres del servidor (7 dies d'accés, 30 d'error).
 

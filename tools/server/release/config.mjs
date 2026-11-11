@@ -25,8 +25,9 @@ export const approvedLimits = Object.freeze({
 });
 
 // Retention of the release artifacts (runbook: "Retenció i poda"). The window
-// counts releases, not days: the active release plus the most recent eligible
-// ones. Below two there is no rollback target left, so prune refuses. The upper
+// counts releases, not days: the active release, the previous active release
+// when eligible, and then the most recent eligible ones. Below two there is no
+// rollback target left, so prune refuses that window. The upper
 // bound only protects a manual invocation from an accidental huge window; a
 // deployment can never change the window because prune takes no arguments over
 // the SSH gate.
