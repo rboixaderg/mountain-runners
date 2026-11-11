@@ -1,0 +1,49 @@
+tools/server/agent/runtime/pi-adapter.mjs
+  s_82eb7227937794::t_c970988a1af042 19
+tools/server/agent/runtime/pi-adapter.test.mjs
+  s_0527362200a025::t_d2af29de243449 25,35
+tools/server/agent/sandbox/commands.mjs
+  s_82eb7227937794::t_e28d001a408215 31
+tools/server/agent/storage/volume-units.test.mjs
+  s_8cc781ecbdffad::t_e93a572e99a180 1-55
+tools/server/agent/storage/volume-validation.mjs
+  s_8cc781ecbdffad::t_5312b97974d018 1-43
+tools/server/agent/storage/volume-validation.test.mjs
+  s_8cc781ecbdffad::t_f24fa024c3c2c2 1-100
+tools/server/systemd/var-lib-mountain\x2drunners\x2dagent-state.mount
+  s_0527362200a025::t_37da07b6123fd8 1-10
+tools/server/systemd/var-lib-mountain\x2drunners\x2dagent.mount
+  s_0527362200a025::t_cfd48643db15ea 1-8
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "49fb8556dfd721be9fdb428cc517eff9cab3e8c5",
+  "prompts": {},
+  "sessions": {
+    "s_0527362200a025": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a1cb92-7509-7585-86f4-f2723505972c",
+        "model": "deepseek-v4.1-flash"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    },
+    "s_82eb7227937794": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a1ca30-ed16-7720-849f-a9b18f70b28a",
+        "model": "deepseek-v4.1-flash"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    },
+    "s_8cc781ecbdffad": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a1ca42-54f1-7799-b4a1-7d2b88ec0b9c",
+        "model": "gpt-6.1-terra"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
