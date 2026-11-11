@@ -1,10 +1,10 @@
 // Deploy and rollback orchestration (phase 5, task 5.4).
 //
 // Verifies the local artifact, rejects a stale protected-branch head, stages
-// the archive through the deploy identity, installs, activates atomically and
-// runs smoke tests. A failure before activation leaves the live pointer
-// untouched. A failure after activation restores the commit that was active
-// before this job, never an unrelated eligible release.
+// the archive through the deploy identity, installs, activates atomically, runs
+// smoke tests and prunes the release window. A failure before activation leaves
+// the live pointer untouched. A failure after activation restores the commit
+// that was active before this job, never an unrelated eligible release.
 
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
@@ -72,6 +72,7 @@ export async function deployRelease({
     );
   }
 
+  await pruneRetainedReleases(transport);
   return `Deployed release ${candidateCommit}.`;
 }
 
@@ -195,6 +196,16 @@ async function activateRelease(transport, candidateCommit) {
       return { changedPointer: false, message: error.message };
     }
     throw error;
+  }
+}
+
+// The release is live and verified when this runs, so a failed prune must not
+// undo the deployment: retention is housekeeping, not a release gate.
+async function pruneRetainedReleases(transport) {
+  try {
+    console.log(await transport.run("mountain-release prune"));
+  } catch (error) {
+    console.warn(`Warning: release pruning failed: ${error.message}`);
   }
 }
 

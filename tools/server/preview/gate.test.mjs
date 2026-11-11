@@ -630,6 +630,55 @@ test("prune removes the previous release after updating an origin", async () => 
   });
 });
 
+test("prune resumes after an inactive preview tree was removed", async () => {
+  await withPreviewRoot(async (root) => {
+    const archive = await receiveArtifact(root);
+    assert.equal(
+      runGate(
+        root,
+        `mountain-preview install ${previewPullNumber} ${archive} manifest.json`,
+      ).status,
+      0,
+    );
+    assert.equal(authorizeRelease(root).status, 0);
+    assert.equal(
+      runGate(
+        root,
+        `mountain-preview activate ${previewPullNumber} ${previewCommit}`,
+      ).status,
+      0,
+    );
+    const namespace = previewNamespacePaths(previewPullNumber);
+    const registry = JSON.parse(await readFile(namespace.registryFile, "utf8"));
+    registry.releases.push({
+      ...registry.releases[0],
+      commit: updatedPreviewCommit,
+      status: "eligible",
+    });
+    await writeFile(namespace.registryFile, JSON.stringify(registry));
+    assert.notEqual(
+      runGate(root, `mountain-preview health ${previewPullNumber}`).status,
+      0,
+    );
+    const prune = runGate(root, `mountain-preview prune ${previewPullNumber}`);
+    assert.equal(prune.status, 0, gateOutput(prune));
+    assert.equal(
+      runGate(root, `mountain-preview health ${previewPullNumber}`).status,
+      0,
+    );
+    await writeFile(
+      join(namespace.releasesDirectory, previewCommit, "index.html"),
+      "corrupted",
+    );
+    const unhealthyPrune = runGate(
+      root,
+      `mountain-preview prune ${previewPullNumber}`,
+    );
+    assert.notEqual(unhealthyPrune.status, 0);
+    assert.match(gateOutput(unhealthyPrune), /Health: DEGRADED/);
+  });
+});
+
 test("the bootstrap install layout resolves the preview command and process imports", async () => {
   const installRoot = await mkdtemp(
     join(tmpdir(), "mountain-preview-install-"),

@@ -7,7 +7,9 @@
 
 import { createHash } from "node:crypto";
 import {
+  lstat,
   mkdir,
+  readdir,
   readlink,
   rename,
   rm,
@@ -23,12 +25,13 @@ import {
   validateArchiveEntries,
   verifyReleaseDigests,
 } from "./archive.mjs";
-import { releasePaths, approvedLimits } from "./config.mjs";
+import { releasePaths, approvedLimits, retentionPolicy } from "./config.mjs";
 import { readFileBounded } from "./fsutil.mjs";
 import { loadAndValidateManifest } from "./manifest.mjs";
 import {
   eligibleReleases,
   findRelease,
+  isEligibleRelease,
   loadRegistry,
   saveRegistry,
   withRegistryLock,
@@ -92,6 +95,10 @@ export async function performInstall(archivePath, manifestPath) {
 
     registry.releases.push(registryEntry);
     saveRegistry(registry);
+    // The uploads are consumed from here on. The deploy job re-transfers them
+    // on every run, so keeping them would only grow incoming/ with every
+    // deployment; a failed install keeps its uploads for diagnosis.
+    await discardConsumedUploads(archivePath, manifestPath);
     return `Installed release ${manifest.commit} (${registryEntry.fileCount} files).`;
   });
 }
@@ -113,10 +120,76 @@ export async function performRollback(commit) {
           "No eligible release remains; apply the emergency response defined in the runbook.",
         );
       }
-      selectedCommit = candidates[0].commit;
+      const previous = candidates.find(
+        (entry) => entry.commit === registry.previousActiveCommit,
+      );
+      selectedCommit = previous?.commit ?? candidates[0].commit;
     }
     const message = await activateLocked(selectedCommit);
     return `${message}\nRolled back to release ${selectedCommit}.`;
+  });
+}
+
+export async function performPrune(keep = retentionPolicy.retainedReleases) {
+  assertRetentionWindow(keep);
+  return withRegistryLock(async () => {
+    const registry = loadRegistry();
+    const paths = releasePaths();
+    const activeEntries = registry.releases.filter(
+      (entry) => entry.status === "active",
+    );
+    if (activeEntries.length !== 1) {
+      throw new Error(
+        `Pruning requires exactly one active release; found ${activeEntries.length}. Run mountain-release health first.`,
+      );
+    }
+    const activeCommit = activeEntries[0].commit;
+    const activeDirectory = join(paths.releasesDirectory, activeCommit);
+    const currentTarget = await readCurrentTarget(paths.currentLink);
+    if (currentTarget !== activeDirectory) {
+      throw new Error(
+        `current points to ${currentTarget}, not to the active release ${activeCommit}; run mountain-release health before pruning.`,
+      );
+    }
+
+    const directoryNames = await listDirectoryNames(paths.releasesDirectory);
+    if (!directoryNames.has(activeCommit)) {
+      throw new Error(
+        `The active release ${activeCommit} is missing; run mountain-release health before pruning.`,
+      );
+    }
+    const kept = retainedCommits(registry, activeCommit, keep, directoryNames);
+
+    const prunedAt = new Date().toISOString();
+    let newlyPruned = 0;
+    for (const entry of registry.releases) {
+      if (kept.has(entry.commit) || entry.prunedAt !== undefined) {
+        continue;
+      }
+      entry.prunedAt = prunedAt;
+      newlyPruned += 1;
+    }
+    if (newlyPruned > 0) {
+      // Registry first: an orphan directory is harmless, but an eligible
+      // entry without a tree breaks the next activation.
+      saveRegistry(registry);
+    }
+
+    let removedDirectories = 0;
+    for (const name of directoryNames) {
+      if (kept.has(name)) {
+        continue;
+      }
+      await rm(join(paths.releasesDirectory, name), {
+        recursive: true,
+        force: true,
+      });
+      removedDirectories += 1;
+    }
+    const removedUploads = await discardExpiredUploads(paths.incomingDirectory);
+    await assertCurrentRelease(activeDirectory);
+
+    return `Retained ${kept.size} releases (${newlyPruned} newly pruned), removed ${removedDirectories} release directories and ${removedUploads} expired uploads.`;
   });
 }
 
@@ -156,14 +229,20 @@ export function performList() {
       second.installedAt.localeCompare(first.installedAt),
     )
     .map((entry) => {
-      const reason =
-        entry.status === "revoked" ? ` (${entry.revokedReason})` : "";
-      return `${entry.status.padEnd(8)} ${entry.commit} build ${entry.buildToday} installed ${entry.installedAt}${reason}`;
+      const markers = [];
+      if (entry.status === "revoked") {
+        markers.push(`(${entry.revokedReason})`);
+      }
+      if (entry.prunedAt !== undefined) {
+        markers.push("(pruned)");
+      }
+      const suffix = markers.length === 0 ? "" : ` ${markers.join(" ")}`;
+      return `${entry.status.padEnd(8)} ${entry.commit} build ${entry.buildToday} installed ${entry.installedAt}${suffix}`;
     })
     .join("\n");
 }
 
-export async function performHealth() {
+export async function performHealth({ checkInactiveTrees = true } = {}) {
   const findings = [];
   let registry;
   try {
@@ -199,7 +278,31 @@ export async function performHealth() {
     }
   }
 
+  if (checkInactiveTrees) {
+    findings.push(...(await findMissingReleaseTrees(registry)));
+  }
   return formatHealth(findings);
+}
+
+// The registry and the disk must agree on every entry that could still be
+// activated: an eligible entry without a tree breaks the next rollback, so it
+// degrades health. Leftover directories that the registry does not know about
+// are harmless and prune removes them.
+async function findMissingReleaseTrees(registry) {
+  const { releasesDirectory } = releasePaths();
+  const directoryNames = await listDirectoryNames(releasesDirectory);
+  const findings = [];
+  for (const entry of registry.releases) {
+    if (entry.prunedAt !== undefined) {
+      continue;
+    }
+    if (!directoryNames.has(entry.commit)) {
+      findings.push(
+        `release ${entry.commit}: registered as ${entry.status} but its directory is missing; run mountain-release prune to reconcile it.`,
+      );
+    }
+  }
+  return findings;
 }
 
 function formatHealth(findings) {
@@ -212,16 +315,27 @@ function formatHealth(findings) {
 async function activateLocked(commit) {
   const registry = loadRegistry();
   const entry = requireEligibleRelease(registry, commit);
-  await verifyReleaseDigests(
-    join(releasePaths().releasesDirectory, commit),
-    entry.files,
-  );
+  try {
+    await verifyReleaseDigests(
+      join(releasePaths().releasesDirectory, commit),
+      entry.files,
+    );
+  } catch (error) {
+    if (error.code === "ENOENT") {
+      throw new Error(
+        `Release ${commit} has no complete release directory on disk; run mountain-release health and mountain-release prune.`,
+        { cause: error },
+      );
+    }
+    throw error;
+  }
 
   await swapCurrentLink(join(releasePaths().releasesDirectory, commit));
 
   for (const candidate of registry.releases) {
     if (candidate.status === "active") {
       candidate.status = "eligible";
+      registry.previousActiveCommit = candidate.commit;
       break;
     }
   }
@@ -233,12 +347,22 @@ async function activateLocked(commit) {
 
 function requireEligibleRelease(registry, commit) {
   const entry = findRelease(registry, commit);
-  if (entry === undefined || entry.status !== "eligible") {
-    throw new Error(
-      `Release ${commit} is not eligible (${entry?.status ?? "not registered"}).`,
-    );
+  if (entry !== undefined && isEligibleRelease(entry)) {
+    return entry;
   }
-  return entry;
+  throw new Error(
+    `Release ${commit} is not eligible (${describeReleaseState(entry)}).`,
+  );
+}
+
+function describeReleaseState(entry) {
+  if (entry === undefined) {
+    return "not registered";
+  }
+  if (entry.prunedAt !== undefined) {
+    return `${entry.status}, pruned`;
+  }
+  return entry.status;
 }
 
 async function swapCurrentLink(releaseDirectory) {
@@ -256,6 +380,125 @@ async function swapCurrentLink(releaseDirectory) {
 
 function sha256OfBuffer(buffer) {
   return createHash("sha256").update(buffer).digest("hex");
+}
+
+function assertRetentionWindow(keep) {
+  const { minimumRetainedReleases, maximumRetainedReleases } = retentionPolicy;
+  if (
+    !Number.isInteger(keep) ||
+    keep < minimumRetainedReleases ||
+    keep > maximumRetainedReleases
+  ) {
+    throw new Error(
+      `The retention window must be an integer between ${minimumRetainedReleases} and ${maximumRetainedReleases} releases (got ${keep}).`,
+    );
+  }
+}
+
+// Keep the displaced active release before newer, potentially unverified installs.
+function retainedCommits(registry, activeCommit, keep, directoryNames) {
+  const kept = new Set([activeCommit]);
+  const candidates = eligibleReleases(registry)
+    .filter((entry) => directoryNames.has(entry.commit))
+    .sort((first, second) =>
+      second.installedAt.localeCompare(first.installedAt),
+    );
+  const previous = candidates.find(
+    (entry) => entry.commit === registry.previousActiveCommit,
+  );
+  if (previous !== undefined) {
+    kept.add(previous.commit);
+  }
+  for (const entry of candidates) {
+    if (kept.size >= keep) {
+      break;
+    }
+    kept.add(entry.commit);
+  }
+  return kept;
+}
+
+async function listDirectoryNames(directory) {
+  try {
+    return new Set(await readdir(directory));
+  } catch (error) {
+    if (error.code !== "ENOENT") {
+      throw error;
+    }
+    return new Set();
+  }
+}
+
+async function readCurrentTarget(currentLink) {
+  try {
+    return await readlink(currentLink);
+  } catch (error) {
+    if (error.code !== "ENOENT") {
+      throw error;
+    }
+    throw new Error(
+      "The current release symlink is missing; run mountain-release health before pruning.",
+      { cause: error },
+    );
+  }
+}
+
+async function assertCurrentRelease(activeDirectory) {
+  const { currentLink } = releasePaths();
+  const target = await readCurrentTarget(currentLink);
+  if (target !== activeDirectory) {
+    throw new Error(
+      `current no longer points to the active release ${activeDirectory} after pruning.`,
+    );
+  }
+  if (!(await pathExists(activeDirectory))) {
+    throw new Error(
+      `The active release ${activeDirectory} is missing after pruning.`,
+    );
+  }
+}
+
+async function discardConsumedUploads(...uploadPaths) {
+  for (const uploadPath of uploadPaths) {
+    // A leftover upload is harmless (prune removes it after a day), so failing
+    // to delete it must not fail an install that already succeeded.
+    await unlink(uploadPath).catch(() => {});
+  }
+}
+
+async function discardExpiredUploads(incomingDirectory) {
+  const deadline = Date.now() - retentionPolicy.uploadLifetimeMs;
+  let uploads;
+  try {
+    uploads = await readdir(incomingDirectory, { withFileTypes: true });
+  } catch (error) {
+    if (error.code !== "ENOENT") {
+      throw error;
+    }
+    return 0;
+  }
+  let removed = 0;
+  for (const upload of uploads) {
+    if (upload.isDirectory()) {
+      continue;
+    }
+    const uploadPath = join(incomingDirectory, upload.name);
+    let metadata;
+    try {
+      metadata = await lstat(uploadPath);
+    } catch (error) {
+      if (error.code !== "ENOENT") {
+        throw error;
+      }
+      continue;
+    }
+    if (metadata.mtimeMs > deadline) {
+      continue;
+    }
+    await unlink(uploadPath);
+    removed += 1;
+  }
+  return removed;
 }
 
 async function pathExists(path) {

@@ -5,6 +5,12 @@
 // after installation, becomes "active" when the `current` symlink points to it
 // and is rejected by activation and rollback once "revoked".
 //
+// Permanence covers this file, not the extracted trees: prune records
+// `prunedAt` on the entries whose directory it removes, so the registry keeps
+// the commit, the digests and the state of every release ever installed while
+// the disk stays bounded. A pruned entry is never eligible again, because an
+// eligible release without a tree would break the next activation.
+//
 // Mutations are serialized through an exclusive lock file so concurrent CI
 // executions cannot interleave partial state (spec: exclusive mutual exclusion,
 // no two partial activations).
@@ -135,7 +141,13 @@ export function findRelease(registry, commit) {
 }
 
 export function eligibleReleases(registry) {
-  return registry.releases.filter((entry) => entry.status === "eligible");
+  return registry.releases.filter(isEligibleRelease);
+}
+
+// A release is eligible only when it is registered as eligible and prune has
+// not recorded the removal of its tree in `prunedAt`.
+export function isEligibleRelease(entry) {
+  return entry.status === "eligible" && entry.prunedAt === undefined;
 }
 
 function isStaleLock(lockFile) {

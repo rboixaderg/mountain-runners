@@ -286,7 +286,9 @@ async function runCommand(validated) {
     });
   }
 
-  const health = await performHealth();
+  // An interrupted preview prune may already have removed inactive trees.
+  // Verify the active release before reconciling the remaining registry.
+  const health = await performHealth({ checkInactiveTrees: false });
   if (!health.startsWith("Health: OK")) throw new Error(health);
   return prunePreview();
 }

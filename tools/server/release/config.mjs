@@ -1,10 +1,14 @@
 // Release tooling configuration (phase 5, task 5.3).
 //
 // Paths follow the approved server layout documented in docs/runbook.md:
-//   /var/lib/mountain-runners/releases/<commit>/  extracted releases
+//   /var/lib/mountain-runners/releases/<commit>/  extracted releases, pruned by policy
 //   /var/lib/mountain-runners/current             atomic symlink to the active release
 //   /var/lib/mountain-runners/releases.json       permanent release registry
 //   /var/lib/mountain-runners/incoming/           uploads staged before installation
+//
+// The registry is permanent: it keeps the commit, the digests and the state of
+// every release ever installed. The extracted trees and the staged uploads are
+// not: prune bounds them so the disk cannot grow with every deployment.
 //
 // Tests override MOUNTAIN_RELEASE_ROOT to a temporary directory. The approved
 // limits are server-side constants (defense in depth): they are never taken
@@ -18,6 +22,22 @@ export const approvedLimits = Object.freeze({
   maxFileCount: 5_000,
   // Compressed archive ceiling used by install and by the SSH receive path.
   maxArchiveBytes: 268_435_456, // 256 MiB
+});
+
+// Retention of the release artifacts (runbook: "Retenció i poda"). The window
+// counts releases, not days: the active release, the previous active release
+// when eligible, and then the most recent eligible ones. Below two there is no
+// rollback target left, so prune refuses that window. The upper
+// bound only protects a manual invocation from an accidental huge window; a
+// deployment can never change the window because prune takes no arguments over
+// the SSH gate.
+export const retentionPolicy = Object.freeze({
+  retainedReleases: 5,
+  minimumRetainedReleases: 2,
+  maximumRetainedReleases: 50,
+  // Uploads are consumed by a successful install; anything left behind belongs
+  // to a failed install or to an interrupted transfer.
+  uploadLifetimeMs: 24 * 60 * 60 * 1000,
 });
 
 export function releaseRoot() {
