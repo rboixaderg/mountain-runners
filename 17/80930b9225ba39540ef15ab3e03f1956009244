@@ -1,0 +1,21 @@
+tools/server/agent/policy/offline-check.test.mjs
+  s_f7c44c60fcfa24::t_b3cb7bfed4787f 1-73
+tools/server/agent/workflow/bridge-package.test.mjs
+  s_f7c44c60fcfa24::t_b7ed7584686fdd 89-93
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "1780930b9225ba39540ef15ab3e03f1956009244",
+  "prompts": {},
+  "sessions": {
+    "s_f7c44c60fcfa24": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a1c75e-7a35-7799-b4a1-7d29a7ed153a",
+        "model": "gpt-6.1-terra"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
