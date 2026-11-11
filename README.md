@@ -1,5 +1,7 @@
 # Mountain Runners
 
+<!-- Prova temporal de publicació. No fusionar. -->
+
 Web de codi obert de l'associació esportiva Mountain Runners del Berguedà.
 
 ## Estat
