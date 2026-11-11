@@ -16,6 +16,7 @@ const allowedCommands = new Set([
   "activate",
   "rollback",
   "revoke",
+  "prune",
   "list",
   "health",
 ]);
@@ -67,6 +68,15 @@ export function validateArgs(command, tokens) {
       );
     }
     return ["revoke", commit, reason];
+  }
+
+  // The deploy identity prunes after a verified deployment, always with the
+  // approved window: a smaller window from CI would shrink the rollback range.
+  if (command === "prune") {
+    if (tokens.length > 0) {
+      throw new Error("prune takes no arguments over the deploy identity.");
+    }
+    return [command];
   }
 
   if (command === "list" || command === "health") {

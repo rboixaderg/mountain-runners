@@ -14,8 +14,10 @@ import {
   mkdtemp,
   readFile,
   readlink,
+  readdir,
   rm,
   stat,
+  utimes,
   writeFile,
 } from "node:fs/promises";
 import { connect } from "node:net";
@@ -53,6 +55,30 @@ function runCli(root, args) {
     encoding: "utf8",
     env: { ...process.env, MOUNTAIN_RELEASE_ROOT: root },
   });
+}
+
+// Installs one valid release per commit and leaves the uploads consumed, the way
+// a deployment does.
+async function installRelease(root, commit) {
+  const archivePath = join(root, "incoming", `${commit}.tar.gz`);
+  const manifestPath = join(root, "incoming", `${commit}.json`);
+  await makeNormalArchive(archivePath, simpleFiles);
+  await writeFile(
+    manifestPath,
+    JSON.stringify(makeManifest({ commit, files: simpleFiles })),
+  );
+  const result = runCli(root, ["install", archivePath, manifestPath]);
+  assert.equal(result.status, 0, result.stderr);
+}
+
+function readRegistry(root) {
+  return readFile(join(root, "releases.json"), "utf8").then(JSON.parse);
+}
+
+function commitsOf(count) {
+  return Array.from({ length: count }, (unused, index) =>
+    String(index + 1).repeat(40),
+  );
 }
 
 // Spawns the root release daemon on a per-test socket and runs the given
@@ -544,6 +570,22 @@ test("the SSH gate reaches the daemon and performs validated operations", async 
         0,
       );
 
+      const prune = runGate(root, socketPath, "mountain-release prune");
+      assert.equal(prune.status, 0, gateOutput(prune));
+      assert.match(gateOutput(prune), /Retained 1 releases/u);
+
+      // The deploy identity prunes with the approved window only.
+      const override = runGate(
+        root,
+        socketPath,
+        "mountain-release prune --keep 3",
+      );
+      assert.equal(override.status, 1, gateOutput(override));
+      assert.match(
+        gateOutput(override),
+        /prune takes no arguments over the deploy identity/u,
+      );
+
       const revokeActive = runGate(
         root,
         socketPath,
@@ -724,6 +766,148 @@ test("rejects an archive whose listed expanded size exceeds the limit", async ()
     assert.equal(result.status, 1);
     assert.match(result.stderr, /expanded size limit|tar failed/);
     assert.equal(await pathExists(join(root, "releases", testCommit)), false);
+  });
+});
+
+test("prune keeps the active release and the most recent eligible ones", async () => {
+  await withReleaseRoot(async (root) => {
+    const commits = commitsOf(7);
+    for (const commit of commits) {
+      await installRelease(root, commit);
+    }
+    // The active release is the oldest one: pruning must keep it anyway.
+    assert.equal(runCli(root, ["activate", commits[0]]).status, 0);
+
+    const prune = runCli(root, ["prune", "--keep", "5"]);
+    assert.equal(prune.status, 0, prune.stderr);
+    assert.match(prune.stdout, /Retained 5 releases \(2 newly pruned\)/);
+
+    const kept = [commits[0], commits[3], commits[4], commits[5], commits[6]];
+    const directories = new Set(await readdir(join(root, "releases")));
+    assert.deepEqual([...directories].sort(), [...kept].sort());
+
+    // The registry stays permanent: every entry remains, only the removed trees
+    // are marked as pruned.
+    const registry = await readRegistry(root);
+    assert.equal(registry.releases.length, 7);
+    assert.deepEqual(
+      registry.releases
+        .filter((entry) => entry.prunedAt !== undefined)
+        .map((entry) => entry.commit)
+        .sort(),
+      [commits[1], commits[2]].sort(),
+    );
+
+    const list = runCli(root, ["list"]);
+    assert.match(
+      list.stdout,
+      new RegExp(`eligible\\s+${commits[1]}\\b[^\\n]*\\(pruned\\)`, "u"),
+    );
+    assert.doesNotMatch(
+      list.stdout,
+      new RegExp(`\\s${commits[0]}\\b[^\\n]*\\(pruned\\)`, "u"),
+    );
+
+    // Rollback still works and skips the pruned releases.
+    const rollback = runCli(root, ["rollback"]);
+    assert.equal(rollback.status, 0, rollback.stderr);
+    assert.equal(
+      await readlink(join(root, "current")),
+      join(root, "releases", commits[6]),
+    );
+
+    const activatePruned = runCli(root, ["activate", commits[1]]);
+    assert.equal(activatePruned.status, 1);
+    assert.match(activatePruned.stderr, /not eligible \(eligible, pruned\)/);
+  });
+});
+
+test("prune refuses a window without rollback and an inconsistent state", async () => {
+  await withReleaseRoot(async (root) => {
+    const commits = commitsOf(2);
+    for (const commit of commits) {
+      await installRelease(root, commit);
+    }
+
+    const tooSmall = runCli(root, ["prune", "--keep", "1"]);
+    assert.equal(tooSmall.status, 1);
+    assert.match(tooSmall.stderr, /between 2 and 50 releases/);
+
+    const notANumber = runCli(root, ["prune", "--keep", "two"]);
+    assert.equal(notANumber.status, 1);
+    assert.match(notANumber.stderr, /--keep requires an integer/);
+
+    // No release is active yet, so there is nothing to prune against.
+    const inactive = runCli(root, ["prune"]);
+    assert.equal(inactive.status, 1);
+    assert.match(inactive.stderr, /exactly one active release; found 0/u);
+    assert.equal((await readdir(join(root, "releases"))).length, 2);
+
+    const registry = await readRegistry(root);
+    assert.equal(
+      registry.releases.every((entry) => entry.prunedAt === undefined),
+      true,
+    );
+
+    // A missing `current` symlink is a degraded state, not a prune target.
+    assert.equal(runCli(root, ["activate", commits[0]]).status, 0);
+    await rm(join(root, "current"));
+    const missingCurrent = runCli(root, ["prune"]);
+    assert.equal(missingCurrent.status, 1);
+    assert.match(missingCurrent.stderr, /symlink is missing/);
+  });
+});
+
+test("install consumes its uploads and prune removes expired leftovers", async () => {
+  await withReleaseRoot(async (root) => {
+    const commits = commitsOf(1);
+    await installRelease(root, commits[0]);
+    assert.deepEqual(await readdir(join(root, "incoming")), []);
+
+    const staleUpload = join(root, "incoming", "stale.tar.gz");
+    const freshUpload = join(root, "incoming", "fresh.tar.gz");
+    await writeFile(staleUpload, "stale");
+    await writeFile(freshUpload, "fresh");
+    await utimes(staleUpload, new Date(0), new Date(0));
+
+    assert.equal(runCli(root, ["activate", commits[0]]).status, 0);
+    const prune = runCli(root, ["prune"]);
+    assert.equal(prune.status, 0, prune.stderr);
+    assert.match(prune.stdout, /1 expired uploads/u);
+    assert.equal(await pathExists(staleUpload), false);
+    assert.equal(await pathExists(freshUpload), true);
+  });
+});
+
+test("health reports a missing release tree and prune reconciles it", async () => {
+  await withReleaseRoot(async (root) => {
+    const commits = commitsOf(7);
+    for (const commit of commits) {
+      await installRelease(root, commit);
+    }
+    assert.equal(runCli(root, ["activate", commits[0]]).status, 0);
+    await mkdir(join(root, "releases", "orphan-directory"));
+
+    // Two trees removed by hand outside the retained window, plus an orphan.
+    await rm(join(root, "releases", commits[1]), { recursive: true });
+    await rm(join(root, "releases", commits[2]), { recursive: true });
+
+    const degraded = runCli(root, ["health"]);
+    assert.equal(degraded.status, 1);
+    assert.match(degraded.stdout, /directory is missing/u);
+
+    const prune = runCli(root, ["prune", "--keep", "5"]);
+    assert.equal(prune.status, 0, prune.stderr);
+    assert.match(prune.stdout, /2 newly pruned/u);
+    assert.match(prune.stdout, /removed 1 release directories/u);
+
+    const health = runCli(root, ["health"]);
+    assert.equal(health.status, 0, health.stdout);
+    assert.match(health.stdout, /Health: OK/u);
+    assert.equal(
+      await pathExists(join(root, "releases", "orphan-directory")),
+      false,
+    );
   });
 });
 

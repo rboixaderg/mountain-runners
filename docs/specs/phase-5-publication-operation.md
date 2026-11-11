@@ -259,6 +259,12 @@ permet revocar un artefacte per vulnerabilitat, retirada de consentiment,
 contingut incorrecte o incidència legal. La reversió verifica digest i
 elegibilitat i rebutja releases revocades.
 
+El registre de releases és permanent, però els artefactes desplegats al disc
+tenén una retenció finita: es conserven l'activa i les quatre elegibles més
+recents i la resta es poda, amb la seva entrada marcada i traçable. La finestra
+de retenció és, doncs, la profunditat garantida de reversió, i qualsevol release
+podada es reconstrueix des de git pel commit.
+
 Si no queda cap release elegible —inclosa la primera etapa després de retirar la
 reversió DNS cap a Hostinger—, el runbook defineix una resposta d'emergència que
 no reconstrueix, no edita fitxers manualment al servidor i no reactiva un

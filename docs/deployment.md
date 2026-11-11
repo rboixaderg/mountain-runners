@@ -136,19 +136,41 @@ cada canvi d'aquesta arquitectura.
   llegat amb trànsit, amb les rutes no incloses en 404.
 - **CLI de releases** (`tools/server/release/`): `install` (extracció segura:
   rebutja paths absoluts, `..`, symlinks, hardlinks, dispositius, duplicats i
-  límits de mida/fitxers, i verifica tots els digests contra el manifest),
-  `activate` (symlink `current` atòmic), `rollback` (release anterior elegible,
-  codi 3 quan no n'hi ha cap), `revoke` i `health`. La persona mantenidora les
-  executa amb `sudo`; la identitat de desplegament només pot arribar-hi a
-  través del forced command `ssh-gate.mjs` (tokenitza sense shell i valida tots
-  els arguments) i el daemon root (`mountain-release.service`), que revalida
-  cada petició per `/run/mountain-release.sock` i és l'únic escriptor de les
-  releases, del registre i del symlink actiu.
+  límits de mida/fitxers, verifica tots els digests contra el manifest i
+  consumeix els uploads que ha instal·lat), `activate` (symlink `current`
+  atòmic), `rollback` (release anterior elegible, codi 3 quan no n'hi ha cap),
+  `revoke`, `prune` (finestra de retenció de 5) i `health`. La persona
+  mantenidora les executa amb `sudo`; la identitat de desplegament només pot
+  arribar-hi a través del forced command `ssh-gate.mjs` (tokenitza sense shell i
+  valida tots els arguments) i el daemon root
+  (`mountain-release.service`), que revalida cada petició per
+  `/run/mountain-release.sock` i és l'únic escriptor de les releases, del
+  registre i del symlink actiu.
 - **Registre de releases** (`/var/lib/mountain-runners/releases.json`):
   permanent, amb commit, digests, dates i estat (`eligible`/`active`/`revoked`);
-  les releases revocades mai no es reactiven.
+  les releases revocades mai no es reactiven. La permanència cobreix el
+  registre, no els arbres extrets: `prune` marca amb `prunedAt` les entrades que
+  ja no tenen directori, de manera que una release podada no torna a ser
+  elegible.
 - **Polítiques públiques**: la política de privacitat descriu l'allotjament a
   Hetzner i els registres del servidor (7 dies d'accés, 30 d'error).
+
+### Ordres de `mountain-release`
+
+Les de consulta no muten res. Les d'escriptura passen pel bloqueig del registre.
+Pel gate SSH, la identitat de desplegament només pot enviar `install`,
+`activate`, `rollback`, `revoke`, `prune` (sense arguments), `list` i `health`.
+
+| Ordre                    | Consulta o escriptura | Efecte                                                            |
+| ------------------------ | --------------------- | ----------------------------------------------------------------- |
+| `list` / `health`        | Consulta              | Registre, symlink, digests i coherència disc-registre             |
+| `install <arxiu> <json>` | Escriptura            | Registra una release i consumeix els uploads                      |
+| `activate <commit>`      | Escriptura            | Mou `current` de manera atòmica                                   |
+| `rollback [<commit>]`    | Escriptura            | Activa la release anterior elegible                               |
+| `revoke <commit>`        | Escriptura            | Marca la release com a revocada; mai no es reactiva               |
+| `prune [--keep <n>]`     | Escriptura            | Conserva la finestra, marca `prunedAt` i esborra arbres i uploads |
+| `receive <fitxer>`       | Escriptura            | Desa un upload a `incoming/` (no passa pel daemon)                |
+| `daemon`                 | Servei                | Escolta el socket i executa les peticions validades               |
 
 La reversió rutinària és interna (canvia el punter atòmic sense tocar DNS); la
 restauració dels registres web anteriors de Hostinger queda com a via
@@ -160,9 +182,11 @@ s'aplica quan no queda cap release elegible.
 `tools/deploy/` orquestra el pas de l'artefacte de CI al VPS:
 
 - `deploy.mjs` verifica manifest i digests, rebutja un commit que ja no és el
-  HEAD de `main`, transfereix amb `receive`, instal·la, activa i executa smoke
-  tests. Una fallada després d'activar restaura el commit que era actiu, no un
-  `rollback` genèric. La comprovació de HEAD es repeteix després d'activar.
+  HEAD de `main`, transfereix amb `receive`, instal·la, activa, executa smoke
+  tests i, finalment, poda la finestra de releases perquè el disc no creixi amb
+  cada desplegament. Una fallada després d'activar restaura el commit que era
+  actiu, no un `rollback` genèric; una poda fallida només deixa un avís. La
+  comprovació de HEAD es repeteix després d'activar.
 - `rollback.mjs` és l'única via automatitzada per activar una release anterior
   elegible, sense reconstruir.
 - L'entorn GitHub `production` (restringit a `main`) allotja els secrets de

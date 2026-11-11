@@ -433,5 +433,5 @@ Preview identity: ${PREVIEW_ROOT}/.ssh/authorized_keys (${PREVIEW_PUBLIC_KEY:+in
 Preview namespaces: ${PREVIEW_ROOT}/namespaces (pr-<n>/ per pull request)
 Release daemon:   systemctl status mountain-release (socket /run/mountain-release.sock)
 Logs: ${LOG_ROOT} (root only via sudo)
-Release registry: ${RELEASE_ROOT}/releases.json (permanent, root only)
+Release registry: ${RELEASE_ROOT}/releases.json (permanent, root only; release trees are pruned by mountain-release prune)
 EOF

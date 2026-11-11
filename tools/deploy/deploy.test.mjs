@@ -133,6 +133,9 @@ function createMemoryTransport({ receiveSha256, commands: scripted } = {}) {
       if (command === "mountain-release health") {
         return "Health: OK";
       }
+      if (command === "mountain-release prune") {
+        return "Retained 5 releases (0 newly pruned), removed 0 release directories and 0 expired uploads.";
+      }
       if (command.startsWith("mountain-release rollback")) {
         return `Activated release ${previousCommit}.\nRolled back to release ${previousCommit}.`;
       }
@@ -375,6 +378,50 @@ test("an already-active candidate is verified and not rolled back", async () => 
       false,
     );
     assert.equal(transport.commands.includes("mountain-release health"), true);
+  });
+});
+
+test("a verified deployment prunes the release window last", async () => {
+  await withArtifact(async (directory) => {
+    const transport = createMemoryTransport();
+    const message = await deployRelease({
+      artifactDirectory: directory,
+      candidateCommit: testCommit,
+      resolveHead: async () => testCommit,
+      transport,
+      smoke: async () => {},
+    });
+    assert.match(message, /Deployed release/);
+    assert.equal(transport.commands.includes("mountain-release health"), true);
+    assert.equal(transport.commands.at(-1), "mountain-release prune");
+  });
+});
+
+test("a failed prune does not undo a verified deployment", async () => {
+  await withArtifact(async (directory) => {
+    const transport = createMemoryTransport({
+      commands: {
+        "mountain-release prune": new RemoteCommandError("prune exploded", {
+          status: 1,
+          stdout: "",
+          stderr: "prune exploded",
+        }),
+      },
+    });
+    const message = await deployRelease({
+      artifactDirectory: directory,
+      candidateCommit: testCommit,
+      resolveHead: async () => testCommit,
+      transport,
+      smoke: async () => {},
+    });
+    assert.match(message, /Deployed release/);
+    assert.equal(
+      transport.commands.includes(
+        `mountain-release activate ${previousCommit}`,
+      ),
+      false,
+    );
   });
 });
 

@@ -143,7 +143,7 @@ sequenceDiagram
   Note over Gate: tokenitza sense shell; receive escriu incoming/
   Gate->>Daemon: Unix socket
   Note over Daemon: revalida arguments com a root
-  Daemon->>FS: install / activate / rollback / revoke
+  Daemon->>FS: install / activate / rollback / revoke / prune
   Caddy->>FS: serveix current
 ```
 
@@ -175,8 +175,9 @@ sequenceDiagram
 
 ```text
 /var/lib/mountain-runners/         755  root:root; ACL preview-deploy:---
-├── releases/<commit>/             755  root:root (una release per commit)
-├── incoming/                      2770 root:mountain-runners (uploads)
+├── releases/<commit>/             755  root:root (una release per commit; en reté 5)
+├── incoming/                      2770 root:mountain-runners (uploads que consumeix
+│                                      `install`; els orfes caduquen al cap d'un dia)
 ├── current                        symlink atòmic a la release activa (root)
 ├── releases.json                  600  root:root (registre permanent)
 └── .ssh/authorized_keys           644  root:root (llegible per sshd-session)
@@ -494,6 +495,11 @@ Tres registres, tots al VPS (T5.1):
 | Error    | Fallades TLS/ACME i errors del servidor                    | `/var/log/mountain-runners/error.log`     | 30 dies                |
 | Releases | Commit, digests, dates i estat de cada release             | `/var/lib/mountain-runners/releases.json` | Permanent              |
 
+- La permanència és del registre, no dels arbres extrets. `prune` conserva
+  l'activa i les quatre elegibles més recents (5 en total) i marca la resta amb
+  `prunedAt`; l'entrada i els digests es conserven per sempre, el directori no
+  (secció 5). Els uploads d'`incoming/` els consumeix `install` i els que queden
+  d'una instal·lació fallida caduquen al cap d'un dia.
 - La rotació és diària a mitjanit (integració de Caddy) amb compressió gzip.
 - Accés exclusivament per `root` via `sudo`; cap credencial ni query string
   sensible no es registra. Caddy sempre afegeix `ts`, `level`, `logger` i
@@ -523,9 +529,13 @@ node tools/server/verify/verify-site.mjs --base-url https://<host> --expect-noin
 ```
 
 `mountain-release health` verifica que el registre es pot llegir, que `current`
-apunta a una release registrada com a `active` i que els digests de la release
-activa coincideixen amb el manifest. Un estat `DEGRADED` requereix revisió
-immediata: no s'activa cap release nova fins a resoldre'l.
+apunta a una release registrada com a `active`, que els digests de la release
+activa coincideixen amb el manifest i que cada entrada sense `prunedAt` té el
+seu directori. Un estat `DEGRADED` requereix revisió immediata: no s'activa cap
+release nova fins a resoldre'l. Els directoris que el registre no coneix no
+degraden la salut: `mountain-release prune` els elimina. Una entrada sense
+directori es reconcilia amb `prune`; no l'esborris ni editïs `releases.json` a
+mà.
 
 ## 5. Releases I Reversió
 
@@ -547,8 +557,38 @@ arguments i no permet cap altra ordena. `install` rebutja paths absoluts,
 inesperat i qualsevol arxiu que superi els límits aprovats (128 MiB expandits,
 5.000 entrades, arxiu comprimit màxim 256 MiB); verifica tots els digests
 contra el manifest i, en cas de fallada, elimina la release incompleta sense
-tocar el punter actiu. `activate` canvia el symlink `current` de manera
-atòmica (rename) després de verificar digests i elegibilitat.
+tocar el punter actiu. En cas d'èxit consumeix l'arxiu i el manifest, de manera
+que `incoming/` no creix amb els desplegaments. `activate` canvia el symlink
+`current` de manera atòmica (rename) després de verificar digests i
+elegibilitat.
+
+### Retenció I Poda
+
+El disc no creix amb cada desplegament. `prune` conserva l'activa i les quatre
+release elegibles més recents —5 en total, uns 120 MB— i elimina la resta:
+
+```sh
+sudo mountain-release prune              # finestra aprovada de 5
+sudo mountain-release prune --keep 3     # només si cal reduir el disc
+```
+
+- El registre és permanent: cada entrada conserva commit, digests, dates i
+  estat, amb `prunedAt` quan el directori ja no hi és. Una release podada no
+  torna a ser elegible mai; es pot reconstruir des de git pel commit.
+- `prune` s'executa sota el bloqueig del registre, desa el registre abans
+  d'esborrar directoris i, si s'interromp, la propera execució el reconcilia
+  (un directori orfe és inofensiu; una entrada orfe trencaria la reversió).
+- Rebutja podar si no hi ha exactament una release activa, si `current` no hi
+  apunta o si una de les releases que hauria de conservar no té directori.
+  Sempre deixa com a mínim una release elegible sencera.
+- Esborra també els directoris sense entrada i els uploads de més d'un dia.
+- El job de desplegament l'executa després de verificar la release activa; una
+  poda fallida no reverteix el desplegament. La identitat de desplegament no
+  pot canviar la finestra: pel gate, `prune` no accepta arguments.
+- Per actualitzar aquestes eines en un VPS existent no tornis a executar el
+  bootstrap (`tools/server/bootstrap/bootstrap.sh` reescriu el Caddyfile):
+  copia els mòduls amb `install -m 0644 -o root -g root`, reinicia
+  `mountain-release.service` i comprova `health`.
 
 ### Reversió Rutinària (Interna)
 
@@ -558,6 +598,9 @@ Sense tocar DNS, s'activa la release anterior elegible més recent:
 sudo mountain-release rollback            # release anterior elegible
 sudo mountain-release rollback <commit>   # release elegible concreta
 ```
+
+Una release podada no és elegible: la finestra de `prune` és també la
+profunditat garantida de reversió.
 
 La reversió verifica elegibilitat i digests i rebutja releases revocades. Si el
 workflow de desplegament ha quedat inconsistent amb el registre, `activate` és
@@ -699,6 +742,9 @@ n'aprova el desplegament.
    `SMOKE_EXPECT_NOINDEX` és `false`). Si fallen, restaura el commit que era
    actiu abans d'aquest `activate` (no un `rollback` genèric). Si no n'hi
    havia cap, registra la resposta d'emergència (secció 6) i falla.
+9. Amb la release activa verificada, executa `mountain-release prune` per
+   mantenir la finestra de 5. Si la poda falla, ho registra com a avís i el
+   desplegament continua.
 
 Reexecutar el mateix commit és idempotent: si la release ja és activa, el job
 només revalida salut i smoke.
