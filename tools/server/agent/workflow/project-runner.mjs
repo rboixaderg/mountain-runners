@@ -11,6 +11,7 @@ import { createPublisher } from "../repository/publisher.mjs";
 import {
   buildInstructionPrompt,
   sandboxCheckCommand,
+  sandboxPrepareCommand,
 } from "../policy/development.mjs";
 import { createInstructionRunner } from "./run-instruction.mjs";
 
@@ -19,18 +20,40 @@ export function createProjectRunner({
   github,
   environment = process.env,
   stopCommands = stopSandboxedCommands,
+  executeSandbox = runSandboxedCommand,
+  executeAgent = runAgent,
   classifyRequest = (context) =>
     classifyWithModel(config, { ...context, environment }),
-  runModel = (context) =>
-    runAgent(config, {
+  runModel = async (context) => {
+    if (context.kind !== "consultation") {
+      const preparation = await executeSandbox({
+        image: config.model.sandboxImage,
+        workspacePath: context.worktreePath,
+        worktreeRoot: config.paths.worktrees,
+        command: ["bash", "-lc", sandboxPrepareCommand],
+        limits: config.limits,
+        sessionIdentifier: context.sessionIdentifier,
+        timeoutMilliseconds: config.limits.executionTimeoutMs,
+        signal: context.signal,
+      });
+      context.signal?.throwIfAborted();
+      if (preparation.timedOut) {
+        return { timedOut: true };
+      }
+      if (preparation.exitCode !== 0) {
+        return { preparationFailed: true };
+      }
+    }
+    return executeAgent(config, {
       ...context,
       environment,
       stopCommands,
       message: buildInstructionPrompt(context.instruction, context.kind),
       readOnly: context.kind === "consultation",
-    }),
+    });
+  },
   runChecks = (context) =>
-    runSandboxedCommand({
+    executeSandbox({
       image: config.model.sandboxImage,
       workspacePath: context.worktreePath,
       worktreeRoot: config.paths.worktrees,

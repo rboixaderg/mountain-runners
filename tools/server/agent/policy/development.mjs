@@ -12,9 +12,15 @@ export const bridgeMessages = {
     "El resultat d'una acció externa és desconegut. El servei s'atura sense repetir-la; cal revisar l'estat real.",
 };
 export const checkCommand = "pnpm check";
-export const sandboxCheckCommand = [
-  "export HOME=/tmp",
+export const sandboxPrepareCommand = [
+  "export HOME=/tmp npm_config_manage_package_manager_versions=false",
+  "PNPM_VERSION=$(pnpm --version)",
+  `test "$(node -p 'require("./package.json").packageManager')" = "pnpm@$PNPM_VERSION"`,
   "pnpm install --offline --frozen-lockfile --store-dir /opt/mountain-agent/store",
+  "mkdir -p .agent-runtime-tmp",
+].join(" && ");
+export const sandboxCheckCommand = [
+  sandboxPrepareCommand,
   'TMPDIR=$(mktemp -d "$PWD/.agent-check.XXXXXXXX")',
   "export TMPDIR",
   checkCommand,
@@ -124,6 +130,8 @@ export function buildClassificationPrompt(instruction) {
 }
 
 export const instructionReports = {
+  preparationFailed:
+    "No s'han pogut preparar les dependències offline. Cal revisar el lockfile i la versió de pnpm de la imatge; no s'ha fet cap push.",
   executionFailed:
     "L'execució local ha fallat. No s'ha fet cap push; el treball es conserva i la cua pot continuar.",
   publicationUncertain:

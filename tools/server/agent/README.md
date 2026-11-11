@@ -158,11 +158,18 @@ Les proves que executen fitxers temporals necessiten `TMPDIR` en un directori
 escriptible de `/work`: `/tmp` manté `noexec`. La imatge inclou els navegadors
 perquè una prova de `pnpm check` usa Chromium, Firefox i WebKit.
 
-Abans de publicar, el servei instal·la les dependències offline i prepara un
-`TMPDIR` nou i ignorat per Git dins del worktree. Si la instal·lació
-falla, no executa `pnpm check` ni publica. La imatge és experimental: no s'ha
-validat amb Podman, systemd ni l'arquitectura del VPS i no autoritza activar el
-pilot.
+Abans d'una implementació o continuació, el servei prepara les dependències
+offline perquè el model pugui executar proves. Les consultes no instal·len res
+i conserven el worktree en només lectura. Les ordres d'implementació usen un
+`TMPDIR` ignorat per Git dins del worktree. Abans de publicar, el servei torna
+a instal·lar les dependències del lockfile i executa `pnpm check` amb un
+`TMPDIR` nou. Si la preparació falla, no inicia el model o no publica,
+segons el moment de la fallada.
+
+La versió de pnpm del `package.json` ha de coincidir amb la de la imatge. Una
+diferència es refusa sense descarregar cap versió nova. La imatge és
+experimental: no s'ha validat amb Podman, systemd ni l'arquitectura del VPS i
+no autoritza activar el pilot.
 
 ## Proves i fonts de veritat
 

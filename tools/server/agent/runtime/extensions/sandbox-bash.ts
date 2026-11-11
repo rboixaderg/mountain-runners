@@ -1,6 +1,6 @@
 /** The model's only tool. Filesystem access and execution use rootless Podman. */
 import { Type } from "typebox";
-import { readSandboxSettings } from "./arguments.mjs";
+import { buildModelCommand, readSandboxSettings } from "./arguments.mjs";
 import { runSandboxedCommand } from "./commands.mjs";
 
 export default function (pi: {
@@ -35,7 +35,7 @@ export default function (pi: {
         image: settings.image,
         workspacePath: process.cwd(),
         worktreeRoot: settings.worktreeRoot,
-        command: ["bash", "-lc", parameters.command],
+        command: buildModelCommand(parameters.command, settings.readOnly),
         limits: settings.limits,
         sessionIdentifier: settings.sessionIdentifier,
         timeoutMilliseconds: settings.limits.executionTimeoutMs,

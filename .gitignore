@@ -9,6 +9,7 @@ apps/web/src/paraglide/
 
 # Test output
 .agent-check.*/
+.agent-runtime-tmp/
 artifacts/
 coverage/
 playwright-report/

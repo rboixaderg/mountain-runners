@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import {
   chmodSync,
+  existsSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
@@ -20,10 +21,15 @@ function fixture(context) {
   const log = join(directory, "calls");
   mkdirSync(binaries);
   mkdirSync(workspace);
+  writeFileSync(
+    join(workspace, "package.json"),
+    JSON.stringify({ packageManager: "pnpm@10.33.0" }),
+  );
   const pnpm = join(binaries, "pnpm");
   writeFileSync(
     pnpm,
     `#!/bin/sh
+if [ "$1" = --version ]; then printf '10.33.0\\n'; exit 0; fi
 printf '%s\\n' "$*" >> "$TEST_CALLS"
 if [ "$1" = install ]; then
   if [ "$TEST_FAIL_INSTALL" = yes ]; then exit 9; fi
@@ -61,6 +67,16 @@ test("installs from the offline store before checking with a private worktree te
   );
   assert.equal(lines[1], "check");
   assert.match(lines[2], /^.+\/\.agent-check\.[A-Za-z0-9]+$/u);
+});
+
+test("rejects a package-manager version missing from the image before running pnpm install", (context) => {
+  const paths = fixture(context);
+  writeFileSync(
+    join(paths.workspace, "package.json"),
+    JSON.stringify({ packageManager: "pnpm@10.33.1" }),
+  );
+  assert.throws(() => runCheck(paths));
+  assert.equal(existsSync(paths.log), false);
 });
 
 test("does not run checks after offline installation fails", (context) => {

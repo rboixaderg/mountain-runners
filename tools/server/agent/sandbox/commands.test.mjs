@@ -15,7 +15,11 @@ import { test } from "node:test";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { randomUUID } from "node:crypto";
-import { buildSandboxArguments, readSandboxSettings } from "./arguments.mjs";
+import {
+  buildModelCommand,
+  buildSandboxArguments,
+  readSandboxSettings,
+} from "./arguments.mjs";
 import {
   runSandboxedCommand,
   stopSandboxedCommands,
@@ -87,6 +91,24 @@ test("builds a sandbox with no network, no credentials and one writable worktree
     "node",
     "-e",
     "console.log('ok')",
+  ]);
+});
+
+test("prepares an executable temporary path for writable model commands only", () => {
+  assert.deepEqual(buildModelCommand("pnpm check", false), [
+    "env",
+    "HOME=/tmp",
+    "TMPDIR=/work/.agent-runtime-tmp",
+    "bash",
+    "-lc",
+    "pnpm check",
+  ]);
+  assert.deepEqual(buildModelCommand("pwd", true), [
+    "env",
+    "HOME=/tmp",
+    "bash",
+    "-lc",
+    "pwd",
   ]);
 });
 

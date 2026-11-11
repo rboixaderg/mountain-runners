@@ -22,3 +22,7 @@ RUN pnpm fetch --frozen-lockfile --store-dir /opt/mountain-agent/store \
     && chmod -R a+rX /opt/mountain-agent \
     && rm -rf /work \
     && mkdir /work
+
+# Never download a different pnpm version inside the networkless sandbox.
+ENV npm_config_manage_package_manager_versions=false \
+    npm_config_package_manager_strict_version=true
