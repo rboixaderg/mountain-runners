@@ -523,7 +523,17 @@ al codi. La unitat limita el conjunt del servei i els seus contenidors a 1,5 CPU
 2560 MiB de memòria, sense swap i 384 processos. Cada contenidor té inicialment
 1 CPU i 2048 MiB; el límit de la unitat inclou també Pi i el pont. Aquests
 valors són provisionals i **no estan verificats al VPS** de 2 vCPU, 4 GB i 40 GB,
-que comparteix amb la resta de serveis. La unitat no imposa cap quota de disc.
+que comparteix amb la resta de serveis. L'emmagatzematge previst utilitza dos
+volums ext4 preassignats: 11 GiB per a Podman, repositori i worktrees, i 1 GiB
+separat per a la cua i la traça. La quota no inclou el journal ni `/run`; cal
+limitar-los i comprovar-ne l'impacte abans d'activar el pilot.
+
+Les unitats de muntatge viuen a `tools/server/systemd/`. Abans d'arrencar,
+`storage/verify-volumes.mjs` comprova els dos punts de muntatge, el dispositiu
+loop, el fitxer de suport, la mida, la reserva física, els permisos i les rutes
+de configuració. També comprova el magatzem rootless de Podman. Una fallada
+impedeix l'arrencada. La verificació no substitueix les proves reals de disc
+ple, recuperació i publicació segura.
 
 ### Instal·lació prevista
 
@@ -533,10 +543,35 @@ unitat separats de producció i de previews.
 
 ```sh
 # No executat. Requereix aprovació explícita abans de cada pas.
+set -eu
 useradd --system --home /var/lib/mountain-runners-agent \
   --shell /usr/sbin/nologin mountain-agent
+# Refusa una instal·lació existent; no sobreescriguis mai volums amb dades.
+test ! -e /var/lib/mountain-runners-agent-volumes
+mkdir -m 0711 /var/lib/mountain-runners-agent-volumes
+umask 077
+( set -C; : > /var/lib/mountain-runners-agent-volumes/work.ext4 )
+( set -C; : > /var/lib/mountain-runners-agent-volumes/state.ext4 )
+fallocate -l 11G /var/lib/mountain-runners-agent-volumes/work.ext4
+fallocate -l 1G /var/lib/mountain-runners-agent-volumes/state.ext4
+mkfs.ext4 -E nodiscard /var/lib/mountain-runners-agent-volumes/work.ext4
+mkfs.ext4 -E nodiscard /var/lib/mountain-runners-agent-volumes/state.ext4
+# Verifica la reserva després de formatar; mkfs pot desassignar blocs.
+fallocate -l 11G /var/lib/mountain-runners-agent-volumes/work.ext4
+fallocate -l 1G /var/lib/mountain-runners-agent-volumes/state.ext4
+install -m 0644 'tools/server/systemd/var-lib-mountain\x2drunners\x2dagent.mount' /etc/systemd/system/
+install -m 0644 'tools/server/systemd/var-lib-mountain\x2drunners\x2dagent-state.mount' /etc/systemd/system/
+systemctl daemon-reload
+systemctl start 'var-lib-mountain\x2drunners\x2dagent.mount'
+chown mountain-agent:mountain-agent /var/lib/mountain-runners-agent
+chmod 0700 /var/lib/mountain-runners-agent
 install -d -m 0700 -o mountain-agent -g mountain-agent \
-  /var/lib/mountain-runners-agent/{repository,worktrees,sessions,state}
+  /var/lib/mountain-runners-agent/state
+systemctl start 'var-lib-mountain\x2drunners\x2dagent-state.mount'
+chown mountain-agent:mountain-agent /var/lib/mountain-runners-agent/state
+chmod 0700 /var/lib/mountain-runners-agent/state
+install -d -m 0700 -o mountain-agent -g mountain-agent \
+  /var/lib/mountain-runners-agent/{repository,worktrees,sessions,tmp}
 install -d -m 0750 -o root -g mountain-agent /etc/mountain-runners-agent
 runuser -u mountain-agent -- git clone --branch main \
   https://github.com/rboixaderg/mountain-runners.git \
@@ -554,8 +589,9 @@ install -m 0644 tools/server/systemd/mountain-agent.service \
 systemctl daemon-reload
 ```
 
-Abans d'arrencar, cal Linux amb cgroup v2, Podman local sense root, un runtime
-OCI compatible i els helpers `newuidmap` i `newgidmap`. Una persona
+Abans d'arrencar, cal Linux amb cgroup v2, systemd 254 o posterior, Podman
+local sense root, un runtime OCI compatible i els helpers `newuidmap` i
+`newgidmap`. Una persona
 administradora ha d'assignar rangs no solapats a `mountain-agent` a `/etc/subuid`
 i `/etc/subgid`, sense incloure UID/GID de comptes reals del VPS, i preparar
 l'emmagatzematge i la imatge de Podman amb aquest

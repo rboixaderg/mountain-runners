@@ -3,6 +3,10 @@ Description=Mountain Runners private development agent
 Documentation=file:///usr/local/lib/mountain-runners/agent/README.md
 After=network-online.target
 Wants=network-online.target
+BindsTo=var-lib-mountain\x2drunners\x2dagent.mount var-lib-mountain\x2drunners\x2dagent-state.mount
+After=var-lib-mountain\x2drunners\x2dagent.mount var-lib-mountain\x2drunners\x2dagent-state.mount
+AssertPathIsMountPoint=/var/lib/mountain-runners-agent
+AssertPathIsMountPoint=/var/lib/mountain-runners-agent/state
 
 [Service]
 Type=simple
@@ -10,6 +14,7 @@ User=mountain-agent
 Group=mountain-agent
 # Rootless local Podman has no daemon and receives no host container socket.
 Delegate=yes
+DelegateSubgroup=main
 # Provisional limits include the bridge, Pi and all delegated containers.
 CPUQuota=150%
 MemoryMax=2560M
@@ -19,8 +24,10 @@ RuntimeDirectory=mountain-runners-agent
 RuntimeDirectoryMode=0700
 WorkingDirectory=/var/lib/mountain-runners-agent
 Environment=HOME=/var/lib/mountain-runners-agent
+Environment=TMPDIR=/var/lib/mountain-runners-agent/tmp
 Environment=XDG_RUNTIME_DIR=/run/mountain-runners-agent
 EnvironmentFile=/etc/mountain-runners-agent/agent.env
+ExecStartPre=/usr/bin/node /usr/local/lib/mountain-runners/agent/storage/verify-volumes.mjs
 ExecStart=/usr/bin/node /usr/local/lib/mountain-runners/agent/processes/telegram-bridge/main.mjs
 Restart=on-failure
 RestartSec=10
@@ -31,7 +38,7 @@ InaccessiblePaths=-/run/docker.sock -/run/podman/podman.sock
 ProtectSystem=strict
 ProtectHome=true
 PrivateTmp=true
-ReadWritePaths=/var/lib/mountain-runners-agent
+ReadWritePaths=/var/lib/mountain-runners-agent /var/lib/mountain-runners-agent/state
 
 [Install]
 WantedBy=multi-user.target

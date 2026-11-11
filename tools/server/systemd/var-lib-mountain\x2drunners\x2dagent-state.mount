@@ -1,0 +1,10 @@
+[Unit]
+Description=Reserved state storage for the Mountain Runners agent
+Requires=var-lib-mountain\x2drunners\x2dagent.mount
+After=var-lib-mountain\x2drunners\x2dagent.mount
+
+[Mount]
+What=/var/lib/mountain-runners-agent-volumes/state.ext4
+Where=/var/lib/mountain-runners-agent/state
+Type=ext4
+Options=loop,nosuid,nodev

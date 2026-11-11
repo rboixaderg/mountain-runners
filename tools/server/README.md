@@ -30,6 +30,7 @@ Tota l'operació està documentada al
 | `agent/repository/`                   | Metadades Git de confiança, worktrees, commits, push i PR                              |
 | `systemd/mountain-release.service`    | Unitat del daemon (root, socket `/run/mountain-release.sock`)                          |
 | `systemd/mountain-agent.service`      | Unitat del pont de Telegram de la T8.3 (sense activar)                                 |
+| `systemd/var-lib-mountain*.mount`     | Volums de treball i estat de l'agent, encara no activats                               |
 | `systemd/caddy-mountain-runners.conf` | Drop-in de Caddy: `ReadWritePaths` de logs i releases                                  |
 
 ## Layout Al Servidor

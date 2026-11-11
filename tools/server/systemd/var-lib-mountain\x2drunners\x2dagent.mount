@@ -1,0 +1,8 @@
+[Unit]
+Description=Bounded workspace for the Mountain Runners agent
+
+[Mount]
+What=/var/lib/mountain-runners-agent-volumes/work.ext4
+Where=/var/lib/mountain-runners-agent
+Type=ext4
+Options=loop,nosuid,nodev

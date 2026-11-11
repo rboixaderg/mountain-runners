@@ -28,6 +28,7 @@ function podmanEnvironment() {
   return {
     PATH: process.env.PATH,
     HOME: process.env.HOME,
+    TMPDIR: process.env.TMPDIR,
     XDG_RUNTIME_DIR: process.env.XDG_RUNTIME_DIR,
   };
 }
