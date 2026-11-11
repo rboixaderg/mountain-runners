@@ -12,6 +12,13 @@ export const bridgeMessages = {
     "El resultat d'una acció externa és desconegut. El servei s'atura sense repetir-la; cal revisar l'estat real.",
 };
 export const checkCommand = "pnpm check";
+export const sandboxCheckCommand = [
+  "export HOME=/tmp",
+  "pnpm install --offline --frozen-lockfile --store-dir /opt/mountain-agent/store",
+  'TMPDIR=$(mktemp -d "$PWD/.agent-check.XXXXXXXX")',
+  "export TMPDIR",
+  checkCommand,
+].join(" && ");
 const summaryPattern =
   /^(feat|fix|docs|refactor|test|build|ci|chore|security)\(([a-z0-9-]+)\): (.+)$/u;
 

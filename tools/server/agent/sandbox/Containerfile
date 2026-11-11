@@ -1,0 +1,24 @@
+# Build from a reviewed repository snapshot, never from a live worktree.
+FROM node:24.11.0-bookworm@sha256:e5bbac0e9b8a6e3b96a86a82bbbcf4c533a879694fd613ed616bae5116f6f243
+
+ENV COREPACK_HOME=/opt/mountain-agent/corepack \
+    COREPACK_ENABLE_NETWORK=0 \
+    PLAYWRIGHT_BROWSERS_PATH=/opt/mountain-agent/browsers
+
+# Prepare the package manager while network access is available. The subsequent
+# runtime is networkless and mounts its root filesystem read-only.
+RUN corepack enable \
+    && COREPACK_ENABLE_NETWORK=1 corepack prepare pnpm@10.33.0 --activate \
+    && ln -sf /opt/mountain-agent/corepack/v1/pnpm/10.33.0/bin/pnpm.cjs /usr/local/bin/pnpm
+
+# pnpm registers the project path in its store; the runtime uses /work too.
+WORKDIR /work
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY apps/web/package.json apps/web/package.json
+COPY packages/telegram-pi-bridge/package.json packages/telegram-pi-bridge/package.json
+RUN pnpm fetch --frozen-lockfile --store-dir /opt/mountain-agent/store \
+    && pnpm install --offline --frozen-lockfile --ignore-scripts --store-dir /opt/mountain-agent/store \
+    && pnpm exec playwright install --with-deps chromium firefox webkit \
+    && chmod -R a+rX /opt/mountain-agent \
+    && rm -rf /work \
+    && mkdir /work

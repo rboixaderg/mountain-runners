@@ -144,6 +144,26 @@ política ni pot autoritzar per si sol una publicació.
   També verifica la neteja després dels torns completats, abans de comprovar
   o publicar, per detectar contenidors que hagin sobreviscut a un error d'eina.
 
+## Imatge experimental per a comprovacions offline
+
+`sandbox/Containerfile` prepara una imatge de Node amb pnpm, el magatzem de
+paquets del lockfile i els tres navegadors de Playwright. Construeix-la només
+a partir d'una còpia d'un commit revisat, no d'un worktree amb fitxers locals.
+La construcció necessita xarxa; l'execució del sandbox no en té. Una imatge
+preparada per a un lockfile pot no contenir les dependències d'un altre.
+
+El magatzem és a `/opt/mountain-agent/store`. Una instal·lació al worktree usa
+`pnpm install --offline --frozen-lockfile --store-dir /opt/mountain-agent/store`.
+Les proves que executen fitxers temporals necessiten `TMPDIR` en un directori
+escriptible de `/work`: `/tmp` manté `noexec`. La imatge inclou els navegadors
+perquè una prova de `pnpm check` usa Chromium, Firefox i WebKit.
+
+Abans de publicar, el servei instal·la les dependències offline i prepara un
+`TMPDIR` nou i ignorat per Git dins del worktree. Si la instal·lació
+falla, no executa `pnpm check` ni publica. La imatge és experimental: no s'ha
+validat amb Podman, systemd ni l'arquitectura del VPS i no autoritza activar el
+pilot.
+
 ## Proves i fonts de veritat
 
 Les proves es mantenen amb el propietari de cada comportament. El paquet prova

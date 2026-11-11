@@ -10,7 +10,7 @@ import {
 import { createPublisher } from "../repository/publisher.mjs";
 import {
   buildInstructionPrompt,
-  checkCommand,
+  sandboxCheckCommand,
 } from "../policy/development.mjs";
 import { createInstructionRunner } from "./run-instruction.mjs";
 
@@ -34,7 +34,7 @@ export function createProjectRunner({
       image: config.model.sandboxImage,
       workspacePath: context.worktreePath,
       worktreeRoot: config.paths.worktrees,
-      command: ["bash", "-lc", checkCommand],
+      command: ["bash", "-lc", sandboxCheckCommand],
       limits: config.limits,
       sessionIdentifier: context.sessionIdentifier,
       timeoutMilliseconds: config.limits.executionTimeoutMs,

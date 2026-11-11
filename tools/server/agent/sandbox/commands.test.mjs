@@ -98,6 +98,10 @@ test("the service has no Docker group or daemon dependency", () => {
   assert.doesNotMatch(unit, /docker\.service|SupplementaryGroups=/u);
   assert.match(unit, /InaccessiblePaths=.*\/run\/docker\.sock/u);
   assert.match(unit, /Delegate=yes/u);
+  assert.match(unit, /^CPUQuota=150%$/mu);
+  assert.match(unit, /^MemoryMax=2560M$/mu);
+  assert.match(unit, /^MemorySwapMax=0$/mu);
+  assert.match(unit, /^TasksMax=384$/mu);
 });
 
 test("runs and stops only local rootless Podman with a minimal host environment", async (context) => {
