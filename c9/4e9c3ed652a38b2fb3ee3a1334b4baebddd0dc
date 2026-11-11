@@ -1,0 +1,14 @@
+docs/deployment.md
+  h_1727aeeb492b30 569-613
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "c94e9c3ed652a38b2fb3ee3a1334b4baebddd0dc",
+  "prompts": {},
+  "humans": {
+    "h_1727aeeb492b30": {
+      "author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
