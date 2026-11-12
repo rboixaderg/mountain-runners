@@ -369,9 +369,11 @@ la T6.5 va validar el sistema end-to-end al VPS.
 
 La T8.3 implementa la base operativa de l'assistent privat de la fase 8:
 Telegram, sessions i un entorn aïllat que porta una tasca petita fins a una PR.
-**No s'ha desplegat ni activat** cap servei, bot, grup, compte ni credencial. La
-instal·lació al VPS i l'activació del pilot requereixen aprovació explícita i es
-fan per una PR i un procediment revisats.
+La implementació està fusionada i instal·lada al VPS, i el pilot s'ha executat
+supervisat: una consulta que no crea branca i una tasca petita que arriba a PR,
+sense merge ni preview. El servei roman **aturat** per defecte i cada activació
+requereix aprovació explícita. El merge demanat, la preview i la resta de casos
+pertanyen a la T8.4.
 
 Les eines viuen a `tools/server/agent/` i s'instal·len a
 `/usr/local/lib/mountain-runners/agent/`. La unitat és
@@ -735,25 +737,39 @@ privades fora de la PR i dels logs.
 Registra a la PR el digest de la imatge, els límits i els resultats, sense
 secrets ni dades privades. Una comprovació omesa o fallida no completa la T8.3.
 
-### Pendents abans d'activar el pilot
+### Estat de la verificació del pilot
 
-1. Crear el bot, el supergrup privat amb temes i la credencial de GitHub sense
-   `Workflows: write` ni administració, amb aprovació explícita i fora del
-   repositori. Verificar també les restriccions dels entorns de GitHub.
-2. Instal·lar la unitat, la identitat `mountain-agent`, el clon i les eines; no
-   reutilitzar identitats, directoris ni secrets de producció o previews.
-3. Demostrar l'aïllament al VPS (xarxa, credencials, filesystem, socket) i
-   verificar els límits de recursos reals. Els límits del cgroup i el cicle
-   d'aturada i reinici ja s'han mesurat al VPS; queden l'aïllament de xarxa i de
-   credencials dins del contenidor i el recompte del consum del procés `pause`.
-4. Proporcionar dependències offline a la imatge perquè `pnpm check` funcioni
-   sense xarxa dins del contenidor.
-5. Provar la pertinença, la revocació, dos autors i la represa entre temes
-   (T8.4/T8.5) i documentar l'aturada, la rotació i la retenció (T8.5/T8.6).
-6. Fer un smoke autoritzat d'una consulta i d'una tasca petita fins a PR. El
-   primer merge real continua sent posterior, explícit i humà (T8.4).
+Verificat al VPS amb la identitat i la unitat instal·lades:
 
-Fins aleshores, el servei no s'activa i cap agent no desplega ni fusiona res.
+1. Bot, supergrup privat amb temes i credencials de Telegram, model i GitHub
+   creats fora del repositori. La credencial de GitHub refusa escriure a
+   `.github/workflows` (403) i no té lectura d'administració, de manera que
+   l'agent no pot introduir ni modificar workflows. L'entorn `production`
+   limita el desplegament a les branques que fixa la seva política; l'entorn
+   `previews` no té regla pròpia i només el condiciona el workflow.
+2. Unitat, identitat `mountain-agent`, clon, eines, imatge fixada i volums
+   acotats instal·lats i mesurats; `ExecStartPre` verifica els volums.
+3. Aïllament comprovat amb la suite real del contenidor: 17 de 17 proves, sense
+   xarxa, sense credencials i amb un sol worktree d'escriptura. Els límits de
+   cgroup es van llegir del sistema i el cicle d'aturada i reinici està acotat;
+   el consum del procés `pause` es compta a la unitat i no al contenidor.
+4. Dependències offline dins de la imatge; `pnpm check` funciona sense xarxa.
+5. Pilot supervisat: la consulta respon sense crear branca i la tasca petita
+   arriba a una PR amb la identitat de l'agent, un sol commit i el diff
+   esperat. La PR del pilot és sintètica i no s'ha de fusionar.
+
+Pendent per a les entregues següents:
+
+- Pertinença, revocació, dos autors, represa entre temes i continuació d'una
+  branca ja publicada (T8.4/T8.5), amb l'aturada, la rotació i la retenció
+  documentades (T8.5/T8.6).
+- Recuperació d'una acció externa amb resultat desconegut i reconciliació del
+  registre.
+- Retenció de worktrees: cada worktree conserva les seves dependències i el
+  volum de treball creix amb cada tasca arxivada.
+
+Mentre aquests casos no estiguin resolts, el servei no s'activa de manera
+permanent i cap agent no desplega ni fusiona res.
 
 ## CI Implementada
 
