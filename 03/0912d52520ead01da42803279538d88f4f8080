@@ -1,0 +1,31 @@
+packages/telegram-pi-bridge/test/telegram/bridge.test.mjs
+  s_82eb7227937794::t_343c6c22a67ed3 10-11,80,90,115-119,150-217,292-298,320,322,346,365,411,429-431,457-461,479
+tools/server/agent/workflow/bridge-package.test.mjs
+  s_df21baa118c6d2::t_b58801a8da9b12 63
+tools/server/agent/workflow/journey.test.mjs
+  s_df21baa118c6d2::t_834badd25cde77 198,200,202-206,209
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "030912d52520ead01da42803279538d88f4f8080",
+  "prompts": {},
+  "sessions": {
+    "s_82eb7227937794": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a1ca30-ed16-7720-849f-a9b18f70b28a",
+        "model": "deepseek-v4.1-flash"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    },
+    "s_df21baa118c6d2": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a1cc3a-5d14-7799-b4a1-7d2f00352f4d",
+        "model": "deepseek-v4.1-flash"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
