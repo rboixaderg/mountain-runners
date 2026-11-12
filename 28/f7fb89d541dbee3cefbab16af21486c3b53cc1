@@ -1,0 +1,16 @@
+docs/deployment.md
+  h_1727aeeb492b30 372-376,740-772
+docs/specs/phase-8-editorial-assistance.md
+  h_1727aeeb492b30 174-181,277-287
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "28f7fb89d541dbee3cefbab16af21486c3b53cc1",
+  "prompts": {},
+  "humans": {
+    "h_1727aeeb492b30": {
+      "author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
