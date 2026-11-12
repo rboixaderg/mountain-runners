@@ -1,0 +1,21 @@
+tools/server/agent/repository/retention.mjs
+  s_df21baa118c6d2::t_99288f5d2ba39b 1-124
+tools/server/agent/repository/retention.test.mjs
+  s_df21baa118c6d2::t_e5a8a40a912007 1-168
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "314cb1993bb549c3d1bd8e590cf677879837a358",
+  "prompts": {},
+  "sessions": {
+    "s_df21baa118c6d2": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a1cc3a-5d14-7799-b4a1-7d2f00352f4d",
+        "model": "deepseek-v4.1-flash"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
