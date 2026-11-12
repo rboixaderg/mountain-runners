@@ -171,14 +171,14 @@ són prerequisits per habilitar la nova capacitat d'escriptura del servei.
 
 ## Tasques, entregues i seguiment
 
-| Unitat                                          | Estat      | Dependències | Resultat verificable                          | PR                                                                                                                               |
-| ----------------------------------------------- | ---------- | ------------ | --------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
-| T8.1 Requisits, sessions, identitats i amenaces | Completada | Fases 5 i 6  | Contracte operatiu i riscos revisats          | [#180](https://github.com/rboixaderg/mountain-runners/pull/180)                                                                  |
-| T8.2 Avaluació, runtime, permisos i ADR         | Completada | T8.1         | Solució mínima verificada i frontera aprovada | [#182](https://github.com/rboixaderg/mountain-runners/pull/182), [#183](https://github.com/rboixaderg/mountain-runners/pull/183) |
-| T8.3 Base operativa de Telegram fins a PR       | Pendent    | T8.2         | Una tasca petita arriba a PR des de Telegram  | -                                                                                                                                |
-| T8.4 Continuació, CI i preview                  | Pendent    | T8.3         | Feina represa, preview i merge a petició      | -                                                                                                                                |
-| T8.5 Auditoria, revocació i recuperació         | Pendent    | T8.3         | Atribució, continuïtat i aturada verificades  | -                                                                                                                                |
-| T8.6 Validació integral i runbook               | Pendent    | T8.4, T8.5   | Servei operable sense accés a producció       | -                                                                                                                                |
+| Unitat                                          | Estat      | Dependències | Resultat verificable                          | PR                                                                                                                                                                                                |
+| ----------------------------------------------- | ---------- | ------------ | --------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| T8.1 Requisits, sessions, identitats i amenaces | Completada | Fases 5 i 6  | Contracte operatiu i riscos revisats          | [#180](https://github.com/rboixaderg/mountain-runners/pull/180)                                                                                                                                   |
+| T8.2 Avaluació, runtime, permisos i ADR         | Completada | T8.1         | Solució mínima verificada i frontera aprovada | [#182](https://github.com/rboixaderg/mountain-runners/pull/182), [#183](https://github.com/rboixaderg/mountain-runners/pull/183)                                                                  |
+| T8.3 Base operativa de Telegram fins a PR       | Completada | T8.2         | Una tasca petita arriba a PR des de Telegram  | [#197](https://github.com/rboixaderg/mountain-runners/pull/197), [#206](https://github.com/rboixaderg/mountain-runners/pull/206), [#207](https://github.com/rboixaderg/mountain-runners/pull/207) |
+| T8.4 Continuació, CI i preview                  | Pendent    | T8.3         | Feina represa, preview i merge a petició      | -                                                                                                                                                                                                 |
+| T8.5 Auditoria, revocació i recuperació         | Pendent    | T8.3         | Atribució, continuïtat i aturada verificades  | -                                                                                                                                                                                                 |
+| T8.6 Validació integral i runbook               | Pendent    | T8.4, T8.5   | Servei operable sense accés a producció       | -                                                                                                                                                                                                 |
 
 ### T8.1: Requisits, sessions, identitats i amenaces
 
@@ -273,6 +273,17 @@ sense credencials de GitHub ni Docker. Aquesta separació s'agrupa amb T8.3
 perquè extreu la seva implementació encara no fusionada, sense canviar els
 permisos aprovats. Crear un repositori remot, publicar a npm o desplegar el
 paquet queda fora d'aquesta entrega i requereix aprovació explícita.
+
+**Completada.** El pilot supervisat al VPS va respondre una consulta sense crear
+branca i va portar una tasca petita fins a una PR revisable, amb una sola
+instrucció i sense confirmacions intermèdies. La comprovació real va cobrir la
+sessió per tema, l'autorització per pertinença a cada instrucció (la denegació
+la cobreixen les proves del servei), l'aïllament del contenidor (17 de 17
+proves, sense xarxa ni credencials), els permisos mínims de la credencial de
+GitHub (escriptura a `.github/workflows` refusada amb 403 i cap lectura
+d'administració) i els límits reals del cgroup. La PR del pilot és sintètica i
+no s'ha de fusionar. Resten per a les entregues següents la continuació, la CI i
+la preview (T8.4) i l'auditoria, la revocació i la recuperació (T8.5).
 
 ### T8.4: Continuació, CI i preview
 
