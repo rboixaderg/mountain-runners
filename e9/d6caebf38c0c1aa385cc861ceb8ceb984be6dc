@@ -1,0 +1,29 @@
+tools/server/agent/workflow/run-instruction.mjs
+  s_df21baa118c6d2::t_73aad8b853d988 161
+tools/server/agent/workflow/run-instruction.test.mjs
+  s_82eb7227937794::t_6cbde49c15d11f 352-373
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "e9d6caebf38c0c1aa385cc861ceb8ceb984be6dc",
+  "prompts": {},
+  "sessions": {
+    "s_82eb7227937794": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a1ca30-ed16-7720-849f-a9b18f70b28a",
+        "model": "deepseek-v4.1-flash"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    },
+    "s_df21baa118c6d2": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a1cc3a-5d14-7799-b4a1-7d2f00352f4d",
+        "model": "deepseek-v4.1-flash"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
