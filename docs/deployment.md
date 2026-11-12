@@ -513,6 +513,14 @@ la sessió; si no es pot confirmar, l'execució queda fallida o incerta.
 - Un worktree net no implica que s'hagi publicat. El servei conserva la branca
   amb commits pendents fins que push i PR estiguin confirmats; només llavors
   registra el commit publicat fora del muntatge i pot tornar a `origin/main`.
+- Cada worktree arxivat conserva la seva còpia de dependències, així que el
+  volum acotat s'omple amb les iteracions. A l'arrencada el servei elimina només
+  els worktrees arxivats sense commits per davant d'`origin/main` i sense canvis
+  pendents, i sempre conserva l'arxiu més recent de cada tema. La comanda
+  `node storage/prune-worktrees.mjs --dry-run`, executada com la identitat del
+  servei, mostra la mateixa decisió sense esborrar res; sense `--dry-run`
+  l'aplica. Un worktree amb treball no publicat o sense cometre no s'esborra
+  mai, i el worktree actiu del tema tampoc.
 
 ### Aturada i reinici
 
