@@ -70,9 +70,16 @@ export async function runGit(
 ) {
   assertWorktreeMarker(worktree);
   try {
+    // The service runs with umask 0077 so private state stays private. Git must
+    // still write the modes recorded in the index, or a checked-out script
+    // loses its execute bits and the repository checks fail inside the agent.
     const execution = executeFile(
-      "git",
+      "/bin/sh",
       [
+        "-c",
+        'umask 022; exec "$@"',
+        "sh",
+        "git",
         `--git-dir=${worktree.gitDirectory}`,
         `--work-tree=${worktree.path}`,
         "-c",
