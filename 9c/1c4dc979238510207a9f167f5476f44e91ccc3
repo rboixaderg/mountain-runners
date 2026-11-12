@@ -1,0 +1,21 @@
+tools/server/agent/repository/trusted-git.mjs
+  s_df21baa118c6d2::t_975505c01bc559 73-75,77,79-82
+tools/server/agent/repository/worktrees.test.mjs
+  s_df21baa118c6d2::t_95d6e8df135de1 3-9,188-215
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "9c1c4dc979238510207a9f167f5476f44e91ccc3",
+  "prompts": {},
+  "sessions": {
+    "s_df21baa118c6d2": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a1cc3a-5d14-7799-b4a1-7d2f00352f4d",
+        "model": "deepseek-v4.1-flash"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
