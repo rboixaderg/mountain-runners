@@ -91,6 +91,11 @@ al servidor. El nom local encara no representa una publicació a npm.
    l'anterior a `<tema>-before-<update>` i crea un worktree des de `origin/main`,
    sense arrossegar fitxers ignorats d'una feina anterior.
    Només una continuació explícita reutilitza la feina pendent actual.
+   A l'arrencada, `repository/retention.mjs` esborra només els worktrees
+   arxivats que no tenen res a perdre: cap commit per davant d'`origin/main` i
+   cap canvi sense cometre. Conserva sempre l'arxiu més recent de cada tema i no
+   toca mai el worktree actiu. Si la retenció falla, ho registra i el servei
+   continua.
    `runtime/pi-adapter` tria
    explícitament el perfil, l'entorn, `sandbox_bash` i la neteja dels processos.
    El paquet només executa el protocol RPC amb aquestes opcions.

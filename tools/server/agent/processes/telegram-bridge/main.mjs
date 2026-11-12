@@ -15,6 +15,7 @@ import { AgentBridge, TelegramApi } from "telegram-pi-bridge/telegram";
 import { bridgeMessages } from "../../policy/development.mjs";
 import { readAgentConfig } from "../../config.mjs";
 import { GitHubTrust } from "../../repository/github.mjs";
+import { pruneArchivedWorktrees } from "../../repository/retention.mjs";
 import { createProjectRunner } from "../../workflow/project-runner.mjs";
 import { stopAllSandboxedCommands } from "../../sandbox/commands.mjs";
 
@@ -55,6 +56,24 @@ export async function startService({
     queue.close();
     throw new Error(
       `Refusing to start: ${recovered} interrupted instruction(s) have an unknown external result.`,
+    );
+  }
+
+  // Archived worktrees keep a dependency tree each; remove only the ones that
+  // have nothing left to lose. Retention never blocks the service.
+  try {
+    const retention = await pruneArchivedWorktrees({
+      repositoryPath: config.paths.repository,
+      worktreeRoot: config.paths.worktrees,
+      logger,
+    });
+    if (retention.removed.length > 0) {
+      logger("worktree_retention_applied", String(retention.removed.length));
+    }
+  } catch (error) {
+    logger(
+      "worktree_retention_failed",
+      error instanceof Error ? error.message : "unknown",
     );
   }
 
