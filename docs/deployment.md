@@ -468,6 +468,14 @@ la sessió; si no es pot confirmar, l'execució queda fallida o incerta.
 - L'admissió és duradora abans d'avançar l'offset de Telegram. Els updates es
   dedupliquen, la cua admet deu instruccions pendents i només hi ha una
   execució global. Una cua plena es registra i es comunica al tema.
+- Quan una instrucció s'admet, el tema rep de seguida un avís de recepció amb un
+  retall d'una línia de la petició. S'envia després de desar-la i abans
+  d'executar-la, i no inclou cap credencial. Si Telegram no accepta l'avís, la
+  feina continua i només es registra `reply_failed`; la resposta final arriba
+  igualment en aquell tema.
+- Un error local es registra amb el nom i el missatge de l'excepció perquè es
+  pugui diagnosticar al journal. El tema només rep l'avís genèric: ni rutes, ni
+  noms d'eines ni cap detall intern.
 - Un reinici marca com a incert qualsevol treball en curs i refusa l'arrencada.
   El servei continua refusant totes les arrencades mentre hi hagi una instrucció
   incerta. Mentre el procés encara funciona amb la cua bloquejada, les peticions

@@ -78,6 +78,7 @@ les exportacions i carrega tots els mòduls, inclòs SQLite.
 | `parseSessionKey`, `sessionIdentifier` | Identitat estable a partir de grup i tema                                                       |
 | `runPiPrompt`, `buildPiArguments`      | Torn RPC i construcció explícita dels arguments de Pi                                           |
 | `defaultBridgeMessages`                | Missatges operatius en anglès; l'aplicació pot substituir-los                                   |
+| `instructionExcerpt`                   | Retall d'una línia de la instrucció per al missatge de recepció                                 |
 
 ### Pont de Telegram
 
@@ -118,7 +119,11 @@ interrompudes en incertes i retorna el total d'instruccions incertes, incloses
 les de reinicis anteriors.
 
 Els missatges es poden substituir parcialment amb
-`messages: { queueFull, queueBlocked, membershipUnavailable, unknownResult }`. El transport admet `fetchImpl` i
+`messages: { acknowledgement, queueFull, queueBlocked, membershipUnavailable, unknownResult }`.
+`acknowledgement` és una funció que rep el retall d'una línia de la instrucció;
+la resta són cadenes. La recepció s'envia només quan la instrucció ja és duradora
+a la cua, abans d'executar-la, i un error d'enviament no atura la feina: es
+registra com a `reply_failed`. El transport admet `fetchImpl` i
 `baseUrl` per proves; el seu origen per defecte és l'API HTTPS de Telegram.
 
 ### Torn de Pi

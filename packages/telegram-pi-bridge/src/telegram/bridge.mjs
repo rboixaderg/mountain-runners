@@ -9,6 +9,8 @@ import { classifyInstruction, verifyMembership } from "./attribution.mjs";
 import { parseSessionKey } from "../sessions/identity.mjs";
 
 export const defaultBridgeMessages = {
+  acknowledgement: (excerpt) =>
+    `Instruction received. Working on "${excerpt}". The result will arrive in this topic.`,
   queueFull:
     "The queue is full. This instruction was not accepted; try again after the current work finishes.",
   queueBlocked:
@@ -19,6 +21,19 @@ export const defaultBridgeMessages = {
     "The result is unknown. Execution is blocked until an operator checks the actual state.",
 };
 export const maximumReportLength = 4000;
+export const maximumAcknowledgementExcerptLength = 120;
+
+/** One public, single-line excerpt of the instruction for the acknowledgement. */
+export function instructionExcerpt(
+  instruction,
+  maximumLength = maximumAcknowledgementExcerptLength,
+) {
+  const text = instruction.replace(/\s+/gu, " ").trim();
+  if (text.length <= maximumLength) {
+    return text;
+  }
+  return `${text.slice(0, maximumLength - 1).trimEnd()}…`;
+}
 
 function limitReport(report) {
   const text = report.trim();
@@ -163,6 +178,15 @@ export class AgentBridge {
             instruction: classification.text,
           });
           this.#traceAdmission(admission, classification);
+          if (admission === "accepted") {
+            await this.#reply(
+              classification.sessionKey,
+              this.#messages.acknowledgement(
+                instructionExcerpt(classification.text),
+              ),
+              { signal },
+            );
+          }
           if (admission === "rejected_blocked") {
             await this.#reply(
               classification.sessionKey,

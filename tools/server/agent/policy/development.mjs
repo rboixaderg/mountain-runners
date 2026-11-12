@@ -2,6 +2,8 @@
 // Pure data and functions only; no process, filesystem or network integration.
 
 export const bridgeMessages = {
+  acknowledgement: (excerpt) =>
+    `Petició rebuda. Hi estem treballant: «${excerpt}». Et respondré en aquest mateix tema quan acabi.`,
   queueFull:
     "La cua és plena. La instrucció no s'ha admès; torna-ho a provar quan acabi la feina en curs.",
   queueBlocked:
