@@ -1,0 +1,23 @@
+id: prova-pilot-de-l-agent
+type: news
+published: false
+slug:
+  ca: prova-pilot-de-l-agent
+title:
+  ca: Prova pilot de l'agent
+summary:
+  ca: Entrada sintètica per comprovar el flux editorial de l'agent. No descriu cap activitat del club.
+lead:
+  ca: Aquesta notícia és una prova tècnica. El text és sintètic i no recull fets, declaracions ni imatges del club.
+sections:
+  - heading:
+      ca: Abast de la prova
+    body:
+      ca: |
+        L'entrada comprova que l'agent pot preparar un fitxer YAML vàlid a la col·lecció de notícies. Es manté com a esborrany i no apareix a la web pública.
+
+        Les dades d'aquesta prova no corresponen a cap activitat confirmada del club.
+author:
+  type: organization
+  name: Mountain Runners
+createdAt: 2026-11-12
