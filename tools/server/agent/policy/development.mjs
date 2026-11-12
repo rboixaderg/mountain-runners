@@ -27,8 +27,24 @@ export const sandboxCheckCommand = [
   "export TMPDIR",
   `MR_AGENT_BROWSER_PROFILE=chromium ${checkCommand}`,
 ].join(" && ");
-const summaryPattern =
-  /^(feat|fix|docs|refactor|test|build|ci|chore|security)\(([a-z0-9-]+)\): (.+)$/u;
+// Conventional types the repository accepts for a change summary. The prompt
+// offers this list so the model does not invent a type that the parser would
+// discard, leaving the fallback title and a generic branch name.
+export const changeTypes = [
+  "feat",
+  "fix",
+  "docs",
+  "refactor",
+  "test",
+  "build",
+  "ci",
+  "chore",
+  "security",
+];
+const summaryPattern = new RegExp(
+  `^(${changeTypes.join("|")})\\(([a-z0-9-]+)\\): (.+)$`,
+  "u",
+);
 
 export function buildInstructionPrompt(instruction, kind) {
   return [
@@ -42,6 +58,7 @@ export function buildInstructionPrompt(instruction, kind) {
     "Keep the change small and follow those project rules.",
     "If the request is only a question, answer it without modifying files.",
     "When you changed files, end your answer with one line: SUMMARY: type(scope): imperative summary",
+    `The type must be one of ${changeTypes.join(", ")}. A type outside that list is discarded and the change gets a generic title.`,
     "SUMMARY is public. Describe only the code or content diff; do not include private conversation details or personal data.",
     "",
     "Request:",

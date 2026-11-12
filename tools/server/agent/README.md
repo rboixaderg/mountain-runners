@@ -136,6 +136,9 @@ política ni pot autoritzar per si sol una publicació.
   SHA inspeccionat. Cal una credencial sense `Workflows: write`.
 - Sense `SUMMARY` vàlid, la branca usa `feat/agent-change-<update>` i el títol
   usa `feat(agent): update project`. No es deriva cap fallback del text privat.
+  El prompt indica els tipus acceptats (`feat`, `fix`, `docs`, `refactor`,
+  `test`, `build`, `ci`, `chore`, `security`) perquè el model no n'inventi cap
+  que el parser hagi de descartar.
 - La sortida conjunta de stdout i stderr es limita a 1 MiB per ordre i per torn
   RPC. Un excés atura el procés i espera la neteja dels contenidors. Els
   missatges de l'assistent es concatenen amb una separació de paràgraf.
