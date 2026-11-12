@@ -60,7 +60,7 @@ try {
   await bridge.executeNext();
   assert.equal(queue.status(1),'done');
   assert.equal(queue.readOffset(),2);
-  assert.deepEqual(sent,[{chatIdentifier:-100,messageThreadIdentifier:7,text:'independent answer'}]);
+  assert.deepEqual(sent,[{chatIdentifier:-100,messageThreadIdentifier:7,text:'Instruction received. Working on "hello". The result will arrive in this topic.'},{chatIdentifier:-100,messageThreadIdentifier:7,text:'independent answer'}]);
 } finally {queue.close();}
 `;
 

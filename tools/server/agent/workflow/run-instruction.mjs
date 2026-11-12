@@ -158,7 +158,7 @@ export function createInstructionRunner({
     } catch (error) {
       logger(
         "instruction_failed",
-        error instanceof Error ? error.name : "unknown",
+        error instanceof Error ? `${error.name}: ${error.message}` : "unknown",
       );
       if (error instanceof SandboxCleanupError) {
         return {

@@ -7,6 +7,8 @@ import { AdmissionQueue } from "../../src/sessions/queue.mjs";
 import {
   AgentBridge,
   defaultBridgeMessages,
+  instructionExcerpt,
+  maximumAcknowledgementExcerptLength,
 } from "../../src/telegram/bridge.mjs";
 
 const groupIdentifier = "-1001234567890";
@@ -75,6 +77,7 @@ function bridgeFor({
   telegram,
   runInstruction = async () => ({}),
   messages,
+  logger = () => {},
 }) {
   return new AgentBridge({
     groupIdentifier,
@@ -84,6 +87,7 @@ function bridgeFor({
     queue,
     runInstruction,
     botIdentifier,
+    logger,
     pollTimeoutSeconds: 1,
   });
 }
@@ -108,6 +112,11 @@ test("executes an admitted instruction once and reports in its topic", async (t)
   assert.equal(executed[0].sessionKey, "-1001234567890:7");
   assert.equal(executed[0].instruction, "fes una tasca 10");
   assert.deepEqual(telegram.sent, [
+    {
+      chatIdentifier: -1001234567890,
+      messageThreadIdentifier: 7,
+      text: defaultBridgeMessages.acknowledgement("fes una tasca 10"),
+    },
     {
       chatIdentifier: -1001234567890,
       messageThreadIdentifier: 7,
@@ -138,7 +147,74 @@ test("executes a redelivered update only once", async (t) => {
   await bridge.executeNext();
 
   assert.equal(executions, 1);
-  assert.equal(telegram.sent.length, 1);
+  assert.equal(
+    telegram.sent.filter((message) =>
+      message.text.startsWith("Instruction received"),
+    ).length,
+    1,
+    "a redelivered update is acknowledged once",
+  );
+  assert.equal(telegram.sent.length, 2);
+});
+
+test("acknowledges an admitted instruction before running it", async (t) => {
+  const { queue } = context(t);
+  const order = [];
+  const telegram = telegramStub({ batches: [[instructionUpdate(10, 7)]] });
+  const sendMessage = telegram.sendMessage.bind(telegram);
+  telegram.sendMessage = async (message) => {
+    order.push(`send:${message.text}`);
+    await sendMessage(message);
+  };
+  const bridge = bridgeFor({
+    queue,
+    telegram,
+    runInstruction: async () => {
+      order.push("run");
+      return { outcome: "answered", report: "fet" };
+    },
+  });
+
+  await bridge.pollOnce();
+  await bridge.executeNext();
+
+  assert.equal(
+    order[0],
+    `send:${defaultBridgeMessages.acknowledgement("fes una tasca 10")}`,
+  );
+  assert.equal(order[1], "run");
+});
+
+test("runs the instruction when the acknowledgement cannot be sent", async (t) => {
+  const { queue } = context(t);
+  const telegram = telegramStub({ batches: [[instructionUpdate(10, 7)]] });
+  const events = [];
+  telegram.sendMessage = async () => {
+    events.push("send_failed");
+    throw new Error("Synthetic transport failure");
+  };
+  const bridge = bridgeFor({
+    queue,
+    telegram,
+    logger: (event) => events.push(event),
+    runInstruction: async () => ({ outcome: "answered", report: "fet" }),
+  });
+
+  await bridge.pollOnce();
+  await bridge.executeNext();
+
+  assert.equal(queue.status(10), "done");
+  assert.ok(events.includes("reply_failed"));
+});
+
+test("keeps the acknowledgement to one short line", () => {
+  assert.equal(
+    instructionExcerpt("  primera\nsegona\tlinia "),
+    "primera segona linia",
+  );
+  const longExcerpt = instructionExcerpt("x".repeat(300));
+  assert.equal(longExcerpt.length, maximumAcknowledgementExcerptLength);
+  assert.match(longExcerpt, /…$/u);
 });
 
 test("denies an instruction from a person outside the group", async (t) => {
@@ -213,13 +289,13 @@ test("rejects an instruction when the pending queue is full", async (t) => {
 
   assert.equal(queue.status(10), "pending");
   assert.equal(queue.status(11), "rejected");
-  assert.deepEqual(telegram.sent, [
-    {
-      chatIdentifier: -1001234567890,
-      messageThreadIdentifier: 8,
-      text: defaultBridgeMessages.queueFull,
-    },
-  ]);
+  assert.deepEqual(
+    telegram.sent.map((message) => message.text),
+    [
+      defaultBridgeMessages.acknowledgement("fes una tasca 10"),
+      defaultBridgeMessages.queueFull,
+    ],
+  );
 });
 
 test("stops new work when the run throws and reports the unknown result", async (t) => {
@@ -241,9 +317,9 @@ test("stops new work when the run throws and reports the unknown result", async 
 
   assert.equal(queue.status(10), "uncertain");
   assert.equal(queue.status(11), "pending");
-  assert.equal(telegram.sent[0].text, defaultBridgeMessages.unknownResult);
+  assert.equal(telegram.sent[2].text, defaultBridgeMessages.unknownResult);
   assert.equal(
-    telegram.sent[0].text.includes("synthetic output"),
+    telegram.sent[2].text.includes("synthetic output"),
     false,
     "internal failure details are not published to the topic",
   );
@@ -267,7 +343,7 @@ test("continues with the next instruction after a known local failure", async (c
   await bridge.executeNext();
   assert.equal(queue.status(10), "done");
   assert.equal(queue.status(11), "done");
-  assert.equal(telegram.sent[1].text, "Next task completed");
+  assert.equal(telegram.sent[3].text, "Next task completed");
 });
 
 test("rejects and reports new instructions while an uncertain run blocks the queue", async (contextObject) => {
@@ -286,7 +362,7 @@ test("rejects and reports new instructions while an uncertain run blocks the que
   assert.equal(queue.status(11), "rejected");
   assert.equal(queue.pendingCount(), 0);
   assert.equal(queue.readOffset(), 12);
-  assert.equal(telegram.sent[1].text, defaultBridgeMessages.queueBlocked);
+  assert.equal(telegram.sent[2].text, defaultBridgeMessages.queueBlocked);
 });
 
 test("tells the author to retry when Telegram cannot verify membership", async (contextObject) => {
@@ -332,7 +408,7 @@ test("processes two topics in arrival order", async (t) => {
   }
 
   assert.deepEqual(order, ["-1001234567890:7", "-1001234567890:8"]);
-  assert.equal(telegram.sent.length, 2);
+  assert.equal(telegram.sent.length, 4);
 });
 
 test("limits a long answer to the Telegram message budget", async (t) => {
@@ -350,9 +426,9 @@ test("limits a long answer to the Telegram message budget", async (t) => {
   await bridge.pollOnce();
   await bridge.executeNext();
 
-  assert.equal(telegram.sent.length, 1);
-  assert.equal(telegram.sent[0].text.length, 4000);
-  assert.match(telegram.sent[0].text, /…$/u);
+  assert.equal(telegram.sent.length, 2);
+  assert.equal(telegram.sent[1].text.length, 4000);
+  assert.match(telegram.sent[1].text, /…$/u);
 });
 
 test("uses application messages and forwards cancellation to the instruction callback", async (contextObject) => {
@@ -378,7 +454,11 @@ test("uses application messages and forwards cancellation to the instruction cal
   await bridge.executeNext({ signal: controller.signal });
   assert.deepEqual(
     telegram.sent.map((message) => message.text),
-    [messages.queueFull, messages.unknownResult],
+    [
+      defaultBridgeMessages.acknowledgement("fes una tasca 10"),
+      messages.queueFull,
+      messages.unknownResult,
+    ],
   );
 });
 
@@ -396,5 +476,5 @@ test("uses the fallback message and blocks the queue for an uncertain result wit
   await bridge.executeNext();
   assert.equal(queue.status(10), "uncertain");
   assert.equal(await bridge.executeNext(), null);
-  assert.equal(telegram.sent[0].text, defaultBridgeMessages.unknownResult);
+  assert.equal(telegram.sent[2].text, defaultBridgeMessages.unknownResult);
 });

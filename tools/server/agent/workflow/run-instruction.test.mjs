@@ -349,6 +349,28 @@ for (const failureStage of [
   });
 }
 
+test("logs the reason of a local failure for the operator", async (context) => {
+  const paths = await fixture(context);
+  const entries = [];
+  const runner = createProjectRunner({
+    config: configFor(paths),
+    github: githubStub(),
+    logger: (event, detail) => entries.push([event, detail]),
+    classifyRequest: async () => "implementation",
+    runModel: async () => {
+      throw new Error("Synthetic model failure");
+    },
+    runChecks: async () => assert.fail("checks must not start"),
+  });
+
+  const result = await runner(request());
+
+  assert.equal(result.outcome, "failed");
+  assert.deepEqual(entries, [
+    ["instruction_failed", "Error: Synthetic model failure"],
+  ]);
+});
+
 test("blocks after an unconfirmed sandbox stop even before publication", async (context) => {
   const paths = await fixture(context);
   const github = githubStub();

@@ -6,6 +6,7 @@ dist/
 
 # Generated localization runtime
 apps/web/src/paraglide/
+apps/web/project.inlang/cache/
 
 # Test output
 .agent-check.*/

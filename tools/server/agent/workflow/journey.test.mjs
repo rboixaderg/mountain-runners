@@ -195,13 +195,18 @@ test("a natural request reaches a pull request from Telegram", async (context) =
   assert.equal(queue.status(500), "done");
   assert.equal(queue.readOffset(), 501);
 
-  assert.equal(telegram.sent.length, 1);
+  assert.equal(telegram.sent.length, 2);
   assert.equal(telegram.sent[0].messageThreadIdentifier, 7);
-  assert.match(
+  assert.equal(
     telegram.sent[0].text,
+    'Instruction received. Working on "afegeix una prova sintètica". The result will arrive in this topic.',
+  );
+  assert.equal(telegram.sent[1].messageThreadIdentifier, 7);
+  assert.match(
+    telegram.sent[1].text,
     /https:\/\/github\.com\/rboixaderg\/mountain-runners\/pull\/200/u,
   );
-  assert.match(telegram.sent[0].text, /Comprovacions: pnpm check correcte/u);
+  assert.match(telegram.sent[1].text, /Comprovacions: pnpm check correcte/u);
 
   const branch = "feat/agent-reach-a-pull-request-500";
   assert.equal(
