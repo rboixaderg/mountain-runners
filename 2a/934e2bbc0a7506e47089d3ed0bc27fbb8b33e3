@@ -1,0 +1,14 @@
+.gitignore
+  h_1727aeeb492b30 9
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "2a934e2bbc0a7506e47089d3ed0bc27fbb8b33e3",
+  "prompts": {},
+  "humans": {
+    "h_1727aeeb492b30": {
+      "author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
