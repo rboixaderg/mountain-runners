@@ -435,6 +435,10 @@ selecciona el directori Git del registre del clon, comprova el fitxer indicador
 `.git` i rebutja qualsevol alteració abans d'executar Git. Les ordres del host
 desactiven hooks i fsmonitor, ignoren la configuració global i reben un entorn
 restringit, sense els tokens del pont. Només el push rep l'autenticació de GitHub.
+La unitat arrenca amb `UMask=0077` perquè l'estat privat quedi privat, així que
+les ordres Git de confiança executen amb `umask 022`: si no, els fitxers que
+genera el checkout perden els bits d'execució que consten a l'índex i les
+comprovacions del projecte fallen dins dels worktrees de l'agent.
 Abans d'aquest push, el servei inspecciona tots els objectes nous del rang
 `origin/main..HEAD`, inclosos fitxers de commits anteriors, missatges de commit
 i noms dins dels arbres Git. Compara els bytes amb els tokens de Telegram,

@@ -1,6 +1,12 @@
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
-import { mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import {
+  mkdtempSync,
+  realpathSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { promisify } from "node:util";
@@ -178,4 +184,32 @@ test("rejects main and unsafe branch names before touching Git", async (context)
       name,
     );
   }
+});
+
+test("keeps the executable mode recorded in the index under a restrictive umask", async (context) => {
+  const { repository, worktreeRoot } = await repositoryFixture(context);
+  writeFileSync(join(repository, "script.sh"), "#!/bin/sh\necho synthetic\n");
+  await git(repository, ["add", "script.sh"]);
+  await git(repository, ["update-index", "--chmod=+x", "script.sh"]);
+  await git(repository, ["commit", "-m", "chore: add a script"]);
+  await git(repository, ["push", "origin", "main"]);
+
+  const previousUmask = process.umask(0o077);
+  let result;
+  try {
+    result = await ensureSessionWorktree({
+      repositoryPath: repository,
+      worktreeRoot,
+      name: "topic_n1001234567890_7",
+    });
+  } finally {
+    process.umask(previousUmask);
+  }
+
+  const { mode } = statSync(join(result.path, "script.sh"));
+  assert.equal(
+    mode & 0o111,
+    0o111,
+    "the checked-out script keeps every execute bit",
+  );
 });
