@@ -507,6 +507,9 @@ test("runs the service background work only when no instruction is executing", a
       assert.equal(instructionRunning, false);
       assert.equal(queue.pendingCount(), 0);
       order.push("idle");
+      if (order.length === 3) {
+        controller.abort();
+      }
       return order.length === 2;
     },
   });
