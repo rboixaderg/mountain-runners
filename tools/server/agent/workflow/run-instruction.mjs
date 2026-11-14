@@ -56,6 +56,11 @@ export function createInstructionRunner({
     if (branch === null || (await headCommit(worktree)) !== request.commit) {
       return { report: instructionReports.repairCommitChanged };
     }
+    // Leftovers of a later instruction (for example a failed check) are not
+    // part of the failed commit and must never be committed by a repair.
+    if ((await listChangedPaths(worktree)).length > 0) {
+      return { report: instructionReports.repairWorktreeDirty };
+    }
     signal?.throwIfAborted();
     return {
       worktree,
@@ -80,13 +85,12 @@ export function createInstructionRunner({
       signal?.throwIfAborted();
       // Only the trusted internal repair request fixes its kind; every other
       // request is classified from its text.
-      const kind =
-        request.kind === repairRequestKind
-          ? repairRequestKind
-          : await classifyRequest({
-              instruction: request.instruction,
-              signal,
-            });
+      const kind = repair
+        ? repairRequestKind
+        : await classifyRequest({
+            instruction: request.instruction,
+            signal,
+          });
       if (
         kind !== "implementation" &&
         kind !== "consultation" &&
@@ -199,6 +203,13 @@ export function createInstructionRunner({
         branch,
         title,
         body,
+        // A repair only updates the pull request it continues.
+        repair: repair
+          ? {
+              pullRequestNumber: request.pullRequestNumber,
+              commit: request.commit,
+            }
+          : undefined,
       });
       if (publication.refused) {
         logger("publication_refused", identifier);

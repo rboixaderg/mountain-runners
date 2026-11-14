@@ -234,13 +234,17 @@ export class GitHubTrust {
 
   /**
    * Open the pull request, or return the existing one for the same branch. The
-   * agent never opens a second PR for a resumed branch.
+   * agent never opens a second PR for a resumed branch. Without `createMissing`
+   * a missing pull request is reported as `null` instead of being opened.
    */
-  async ensurePullRequest({ branch, title, body }) {
+  async ensurePullRequest({ branch, title, body, createMissing = true }) {
     assertWorkBranch(branch);
     const existing = await this.findOpenPullRequest({ branch });
     if (existing) {
       return { pullRequest: existing, created: false };
+    }
+    if (!createMissing) {
+      return { pullRequest: null, created: false };
     }
 
     const pull = await this.#request(

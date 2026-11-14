@@ -176,8 +176,8 @@ export async function commitSubject(worktree, commit) {
 
 /**
  * The published change of the worktree against the base branch, for context.
- * A diff that Git cannot produce within the buffer is reported as unavailable
- * instead of failing the whole repair.
+ * A diff larger than the limit is clipped; a diff Git cannot produce at all is
+ * reported as unavailable instead of failing the whole repair.
  */
 export async function changeDiff({
   worktree,
@@ -188,12 +188,17 @@ export async function changeDiff({
     throw new Error("The agent only diffs against main.");
   }
   try {
-    return await runGit(
+    const diff = await runGit(
       worktree,
       ["diff", "--no-color", "--no-ext-diff", `origin/${baseBranch}...HEAD`],
       { maxBuffer: maximumBytes },
     );
-  } catch {
+    return diff.slice(0, maximumBytes);
+  } catch (error) {
+    // Node keeps the output read before the buffer overflowed.
+    if (error.cause?.code === "ERR_CHILD_PROCESS_STDIO_MAXBUFFER") {
+      return error.cause.stdout.slice(0, maximumBytes);
+    }
     return null;
   }
 }

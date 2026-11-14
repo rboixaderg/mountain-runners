@@ -245,6 +245,8 @@ export const instructionReports = {
     "No s'ha trobat el worktree de la feina publicada. No s'ha intentat cap reparació automàtica; el treball es conserva i cal revisar-ho.",
   repairCommitChanged:
     "El worktree de la feina no és al commit que va fallar. No s'ha intentat cap reparació automàtica; cal revisar-ho.",
+  repairWorktreeDirty:
+    "El worktree de la feina té canvis sense publicar d'una instrucció posterior. No s'ha intentat cap reparació automàtica perquè no es publiquin; el treball es conserva i cal revisar-ho.",
 };
 
 export const ciWatchOutcomes = {
@@ -300,6 +302,8 @@ export const ciReports = {
     `CI fallida al commit ${shortCommit(commit)} (PR #${pullRequestNumber}): ${failedChecks.join(", ")} no ha acabat correctament. S'han esgotat ${maximumAttempts} intents de reparació automàtica per aquesta fallada i no se'n farà cap més. El treball es conserva; revisa-ho o dona una instrucció nova en aquest tema.`,
   unknown: ({ pullRequestNumber, commit }) =>
     `No s'ha pogut confirmar l'estat de les comprovacions obligatòries al commit ${shortCommit(commit)} (PR #${pullRequestNumber}) dins del termini. Consulta-ho a GitHub; no es reintenta automàticament.`,
+  unconfirmedFailure: ({ pullRequestNumber, commit, failedChecks }) =>
+    `No s'ha pogut confirmar l'estat complet de les comprovacions obligatòries al commit ${shortCommit(commit)} (PR #${pullRequestNumber}) dins del termini, però ${failedChecks.join(", ")} ha fallat. No s'ha fet cap reparació automàtica perquè l'estat del conjunt no és concloent; consulta-ho a GitHub.`,
   headChanged: ({ pullRequestNumber, commit, headSha }) =>
     `El cap de la PR #${pullRequestNumber} ha canviat al commit ${shortCommit(headSha)}. Aquest avís correspon al commit ${shortCommit(commit)}, que ja no és el cap; no es confirma cap estat per al commit actual.`,
   pullRequestClosed: ({ pullRequestNumber, commit }) =>
@@ -327,6 +331,8 @@ export const ciRepairReports = {
     `No s'ha reparat el commit ${shortCommit(commit)} de la PR #${pullRequestNumber}: l'estat de les comprovacions obligatòries encara no és concloent, perquè n'hi ha en curs, absents o duplicades. No s'ha intentat cap canvi; revisa-ho a GitHub.`,
   checksUnreadable: ({ pullRequestNumber, commit }) =>
     `No s'ha pogut llegir l'estat de les comprovacions obligatòries del commit ${shortCommit(commit)} (PR #${pullRequestNumber}). No s'ha intentat cap reparació; revisa-ho a GitHub.`,
+  queueStalled:
+    "No s'ha pogut desar el resultat d'aquest intent. Les reparacions automàtiques queden aturades fins que el servei es reiniciï i una persona revisi l'estat.",
   stateUnknown: ({ pullRequestNumber, commit }) =>
     `No s'ha pogut llegir l'estat de la PR #${pullRequestNumber} abans de reparar el commit ${shortCommit(commit)}. No s'ha intentat cap reparació automàtica.`,
 };

@@ -11,7 +11,9 @@
 // is touched. The budget is counted per pull request and failing-check set, so
 // it survives a restart and a new commit: the same failure cannot be repaired
 // automatically more than twice in a row. Only an attempt that was taken counts,
-// and the same watch, commit and failure is reserved once.
+// and the same watch, commit and failure is reserved once. A reservation cannot
+// run: it becomes claimable (`queued`) only once its announcement is delivered,
+// so the result can never reach the topic before the notice.
 
 import { DatabaseSync } from "node:sqlite";
 
@@ -36,7 +38,7 @@ const schema = `
     evidence TEXT NOT NULL,
     commit_sha TEXT NOT NULL,
     attempt_number INTEGER NOT NULL,
-    status TEXT NOT NULL CHECK (status IN ('queued', 'running', 'done', 'aborted', 'uncertain')),
+    status TEXT NOT NULL CHECK (status IN ('reserved', 'queued', 'running', 'done', 'aborted', 'uncertain')),
     outcome TEXT,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL
@@ -221,13 +223,13 @@ export class CiWatchStore {
           attemptNumber: existing.attempt_number,
         };
       }
-      // Only an attempt that was taken counts: a queued reservation that a new
-      // publication left behind never ran.
+      // Only an attempt that was taken counts: a reserved or queued attempt
+      // that a new publication left behind never ran.
       const { count } = this.#database
         .prepare(
           `SELECT COUNT(*) AS count FROM ci_repairs
            WHERE pull_request_number = ? AND failure_fingerprint = ?
-             AND status <> 'queued'`,
+             AND status NOT IN ('reserved', 'queued')`,
         )
         .get(pullRequestNumber, failureFingerprint);
       if (count >= maximumAttempts) {
@@ -240,7 +242,7 @@ export class CiWatchStore {
              (update_identifier, session_key, pull_request_number, failure_fingerprint,
               failed_checks, evidence, commit_sha, attempt_number, status, outcome,
               created_at, updated_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'queued', NULL, ?, ?)`,
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'reserved', NULL, ?, ?)`,
         )
         .run(
           updateIdentifier,
@@ -256,6 +258,18 @@ export class CiWatchStore {
         );
       return { sequence: Number(lastInsertRowid), attemptNumber: count + 1 };
     });
+  }
+
+  /** Make a reserved repair claimable once its announcement was delivered. */
+  queueRepair(sequence) {
+    return (
+      this.#database
+        .prepare(
+          `UPDATE ci_repairs SET status = 'queued', updated_at = ?
+           WHERE sequence = ? AND status = 'reserved'`,
+        )
+        .run(this.#now().toISOString(), sequence).changes === 1
+    );
   }
 
   /**
@@ -347,8 +361,8 @@ export class CiWatchStore {
 
   /**
    * Forget the automatic repair budget of a pull request: a green CI or a new
-   * human publication starts the next failure from scratch. A running or queued
-   * attempt is preserved, so the topic still receives its result, and an
+   * human publication starts the next failure from scratch. A running, queued or
+   * reserved attempt is preserved, so the topic still receives its result, and an
    * uncertain one keeps blocking the service until a person reconciles it.
    */
   resetRepairs(pullRequestNumber) {

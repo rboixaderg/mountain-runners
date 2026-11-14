@@ -32,6 +32,13 @@ function fixture(context) {
   return store;
 }
 
+/** Reserve an attempt and make it claimable, as the delivered announcement does. */
+function queueRepair(store, request) {
+  const reserved = store.requestRepair(request);
+  store.queueRepair(reserved.sequence);
+  return reserved;
+}
+
 function fakeTelegram() {
   const sent = [];
   return {
@@ -74,7 +81,7 @@ function executorFor({
 
 test("runs a queued repair through the instruction runner and reports the publication", async (context) => {
   const store = fixture(context);
-  const queued = store.requestRepair(repairRequest);
+  const queued = queueRepair(store, repairRequest);
   const telegram = fakeTelegram();
   const traces = [];
   const executed = [];
@@ -126,7 +133,7 @@ test("runs a queued repair through the instruction runner and reports the public
 
 test("reports a repair that published nothing instead of pretending it worked", async (context) => {
   const store = fixture(context);
-  const queued = store.requestRepair(repairRequest);
+  const queued = queueRepair(store, repairRequest);
   const telegram = fakeTelegram();
   const executor = executorFor({
     store,
@@ -149,7 +156,7 @@ test("reports a repair that published nothing instead of pretending it worked", 
 
 test("reports a failed repair and never retries it", async (context) => {
   const store = fixture(context);
-  const queued = store.requestRepair(repairRequest);
+  const queued = queueRepair(store, repairRequest);
   const telegram = fakeTelegram();
   const traces = [];
   const executor = executorFor({
@@ -176,7 +183,7 @@ test("reports a failed repair and never retries it", async (context) => {
 
 test("stops a repair on the stop signal, still informs the topic and never repeats", async (context) => {
   const store = fixture(context);
-  const queued = store.requestRepair(repairRequest);
+  const queued = queueRepair(store, repairRequest);
   const controller = new AbortController();
   const sent = [];
   const traces = [];
@@ -209,7 +216,7 @@ test("stops a repair on the stop signal, still informs the topic and never repea
 
 test("keeps an unknown repair result out of the queue", async (context) => {
   const store = fixture(context);
-  const queued = store.requestRepair(repairRequest);
+  const queued = queueRepair(store, repairRequest);
   const telegram = fakeTelegram();
   const executor = executorFor({
     store,
@@ -229,7 +236,7 @@ test("keeps an unknown repair result out of the queue", async (context) => {
 
 test("closes the attempt even when the report cannot be delivered", async (context) => {
   const store = fixture(context);
-  const queued = store.requestRepair(repairRequest);
+  const queued = queueRepair(store, repairRequest);
   const events = [];
   const executor = createCiRepairExecutor({
     repairs: store,
@@ -261,8 +268,8 @@ test("closes the attempt even when the report cannot be delivered", async (conte
 
 test("does not start a second repair while another one is running", async (context) => {
   const store = fixture(context);
-  store.requestRepair(repairRequest);
-  store.requestRepair({
+  queueRepair(store, repairRequest);
+  queueRepair(store, {
     ...repairRequest,
     failureFingerprint: JSON.stringify(["Gitleaks"]),
     failedChecks: ["Gitleaks"],
@@ -279,7 +286,7 @@ test("does not start a second repair while another one is running", async (conte
 
 test("never repairs a pull request that was closed or moved while queued", async (context) => {
   const store = fixture(context);
-  const queued = store.requestRepair(repairRequest);
+  const queued = queueRepair(store, repairRequest);
   const telegram = fakeTelegram();
   let executed = false;
   const executor = executorFor({
@@ -301,7 +308,7 @@ test("never repairs a pull request that was closed or moved while queued", async
 
 test("does not repair when the pull request state cannot be read", async (context) => {
   const store = fixture(context);
-  const queued = store.requestRepair(repairRequest);
+  const queued = queueRepair(store, repairRequest);
   const telegram = fakeTelegram();
   const events = [];
   const executor = executorFor({
@@ -324,7 +331,7 @@ test("does not repair when the pull request state cannot be read", async (contex
 
 test("informs the topic even when the private trace cannot be written", async (context) => {
   const store = fixture(context);
-  const queued = store.requestRepair(repairRequest);
+  const queued = queueRepair(store, repairRequest);
   const telegram = fakeTelegram();
   const events = [];
   const executor = executorFor({
@@ -349,7 +356,7 @@ test("informs the topic even when the private trace cannot be written", async (c
 
 test("treats a stop during the pull request read as an interruption", async (context) => {
   const store = fixture(context);
-  const queued = store.requestRepair(repairRequest);
+  const queued = queueRepair(store, repairRequest);
   const controller = new AbortController();
   const sent = [];
   const traces = [];
@@ -382,7 +389,7 @@ test("treats a stop during the pull request read as an interruption", async (con
 
 test("does not repair a commit whose required checks no longer fail", async (context) => {
   const store = fixture(context);
-  const queued = store.requestRepair(repairRequest);
+  const queued = queueRepair(store, repairRequest);
   const telegram = fakeTelegram();
   const traces = [];
   const executor = executorFor({
@@ -411,7 +418,7 @@ test("does not repair a commit whose required checks no longer fail", async (con
 
 test("does not repair while the failing set is still undecided", async (context) => {
   const store = fixture(context);
-  const queued = store.requestRepair(repairRequest);
+  const queued = queueRepair(store, repairRequest);
   const telegram = fakeTelegram();
   const executor = executorFor({
     store,
@@ -436,7 +443,7 @@ test("does not repair while the failing set is still undecided", async (context)
 
 test("does not repair when the CI state cannot be read", async (context) => {
   const store = fixture(context);
-  const queued = store.requestRepair(repairRequest);
+  const queued = queueRepair(store, repairRequest);
   const telegram = fakeTelegram();
   const events = [];
   const executor = executorFor({
@@ -458,7 +465,7 @@ test("does not repair when the CI state cannot be read", async (context) => {
 
 test("treats a stop during the CI reread as an interruption", async (context) => {
   const store = fixture(context);
-  const queued = store.requestRepair(repairRequest);
+  const queued = queueRepair(store, repairRequest);
   const controller = new AbortController();
   const sent = [];
   const executor = executorFor({
@@ -484,9 +491,10 @@ test("treats a stop during the CI reread as an interruption", async (context) =>
 
 test("informs the topic even when the attempt cannot be closed", async (context) => {
   const store = fixture(context);
-  store.requestRepair(repairRequest);
+  queueRepair(store, repairRequest);
   const telegram = fakeTelegram();
   const events = [];
+  const traces = [];
   const executor = createCiRepairExecutor({
     repairs: {
       claimNextRepair: () => store.claimNextRepair(),
@@ -509,11 +517,21 @@ test("informs the topic even when the attempt cannot be closed", async (context)
     }),
     telegram,
     logger: (event) => events.push(event),
+    recordTrace: (trace) => traces.push(trace),
   });
 
   await executor.runNext();
 
   assert.equal(telegram.sent.length, 1);
   assert.match(telegram.sent[0].text, /Reparació automàtica publicada/u);
+  assert.match(telegram.sent[0].text, /queden aturades/u);
   assert.deepEqual(events, ["ci_repair_close_failed"]);
+  // The trace keeps the real result and the wedged queue, and the row stays
+  // `running` so a restart reconciles it as uncertain and never retries it.
+  assert.deepEqual(
+    traces.map((trace) => trace.action),
+    ["ci_repair_published", "ci_repair_close_failed"],
+  );
+  assert.equal(store.repair(1).status, "running");
+  assert.equal(store.claimNextRepair(), null);
 });

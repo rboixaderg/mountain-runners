@@ -839,6 +839,7 @@ test("refuses a new repair while another repair has an unknown result", async (c
     commitSha: "d".repeat(40),
     maximumAttempts: 2,
   });
+  store.queueRepair(unknown.sequence);
   store.claimNextRepair();
   store.interruptRepairs();
   createCiWatchRegistration({ store })(registration);
@@ -949,4 +950,74 @@ test("reports the registered watch even when the repair budget cannot be reset",
   );
   assert.equal(store.pending().length, 1);
   assert.deepEqual(events, [{ event: "ci_repair_budget_reset_failed" }]);
+});
+
+test("makes the repair claimable only after the announcement and a reopenable watch", async (context) => {
+  const { store } = fixture(context);
+  createCiWatchRegistration({ store })(registration);
+  const observed = [];
+  const telegram = {
+    async sendMessage() {
+      // While the announcement is in flight the repair must not be claimable.
+      observed.push(store.claimNextRepair());
+    },
+  };
+
+  await workerFor({
+    store,
+    github: fakeGithub({
+      checkRuns: [checkRun("Validate", "completed", "failure")],
+    }),
+    telegram,
+  }).runOnce();
+
+  assert.deepEqual(observed, [null]);
+  // A fast repair finds the watch finished, so its publication can reopen it.
+  assert.equal(store.state(registration.updateIdentifier), "sent");
+  assert.equal(store.claimNextRepair().attempt_number, 1);
+  registerRepairPublication(store, nextCommit);
+  assert.equal(store.pending()[0].commit_sha, nextCommit);
+});
+
+test("never runs a repair whose announcement was not delivered", async (context) => {
+  const { store } = fixture(context);
+  createCiWatchRegistration({ store })(registration);
+
+  await workerFor({
+    store,
+    github: fakeGithub({
+      checkRuns: [checkRun("Validate", "completed", "failure")],
+    }),
+    telegram: {
+      async sendMessage() {
+        throw new Error("network down");
+      },
+    },
+  }).runOnce();
+
+  assert.equal(store.state(registration.updateIdentifier), "uncertain");
+  assert.equal(store.claimNextRepair(), null);
+});
+
+test("names the failed checks when the deadline ends an incomplete failure", async (context) => {
+  const { store } = fixture(context);
+  createCiWatchRegistration({ store })(registration);
+  const telegram = fakeTelegram();
+
+  await workerFor({
+    store,
+    github: fakeGithub({
+      checkRuns: [checkRun("Validate", "completed", "failure")],
+    }),
+    telegram,
+    requiredChecks: ["Validate", "Gitleaks"],
+    now: () => new Date(Date.now() + 2 * 60 * 60 * 1000),
+  }).runOnce();
+
+  assert.equal(telegram.sent.length, 1);
+  assert.match(telegram.sent[0].text, /No s'ha pogut confirmar/u);
+  assert.match(telegram.sent[0].text, /però Validate ha fallat/u);
+  assert.doesNotMatch(telegram.sent[0].text, /Reparació automàtica/u);
+  assert.equal(store.claimNextRepair(), null);
+  assert.equal(store.state(registration.updateIdentifier), "sent");
 });

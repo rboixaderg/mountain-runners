@@ -1,3 +1,5 @@
+import { clipText } from "../policy/development.mjs";
+
 // Classify the CI status of one commit from both GitHub check runs and legacy
 // commit statuses.
 //
@@ -22,14 +24,14 @@ const failingStatusStates = new Set(["error", "failure"]);
 const maximumDetailLength = 1200;
 const terminalColourPattern = new RegExp(String.raw`\u001B\[[0-9;]*m`, "gu");
 
-function clipped(value, maximumLength = maximumDetailLength) {
-  if (typeof value !== "string") {
-    return "";
-  }
-  const text = value.replace(terminalColourPattern, "").trim();
-  return text.length <= maximumLength
-    ? text
-    : `${text.slice(0, maximumLength - 1).trimEnd()}…`;
+function withoutTerminalColour(value) {
+  return typeof value === "string"
+    ? value.replace(terminalColourPattern, "").trim()
+    : value;
+}
+
+function clipped(value) {
+  return clipText(withoutTerminalColour(value), maximumDetailLength);
 }
 
 function timestamp(entry) {
@@ -62,11 +64,6 @@ function latestStatusPerContext(statuses) {
 }
 
 /**
- * Identify the same failure across commits: the set of failing required checks.
- * The message and the commit are evidence and attempts, not identity, so a
- * re-run or a new commit cannot reset the automatic repair budget.
- */
-/**
  * A failure that can be acted on: every required check is present, finished and
  * unambiguous, and at least one failed. A repair must never start from a
  * partial picture of the CI.
@@ -80,6 +77,11 @@ export function isDecisiveFailure(classification) {
   );
 }
 
+/**
+ * Identify the same failure across commits: the set of failing required checks.
+ * The message and the commit are evidence and attempts, not identity, so a
+ * re-run or a new commit cannot reset the automatic repair budget.
+ */
 export function failureFingerprint(failedChecks) {
   return JSON.stringify([...failedChecks].sort());
 }

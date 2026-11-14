@@ -101,6 +101,10 @@ function githubStub() {
   return {
     pushes: [],
     pulls: [],
+    pullRequest: { state: "open" },
+    async getPullRequest() {
+      return this.pullRequest;
+    },
     async pushBranch(argumentsObject) {
       this.pushes.push(argumentsObject);
       return {
@@ -850,6 +854,7 @@ test("repairs the published commit on its branch with the failure context", asyn
   // The CI worker reported the failure before the repair was reserved.
   assert.equal(ciWatches.beginSend(1001, "repairing"), true);
   assert.equal(ciWatches.finishSend(1001), true);
+  github.pullRequest = { state: "open", headSha: published };
   github.ensurePullRequest = async (argumentsObject) => {
     github.pulls.push(argumentsObject);
     return {
@@ -946,6 +951,80 @@ test("refuses to repair without the session worktree", async (context) => {
   assert.equal(result.outcome, "failed");
   assert.match(result.report, /No s'ha trobat el worktree/u);
   assert.equal(github.pushes.length, 0);
+});
+
+test("refuses to repair a worktree with leftovers of a later instruction", async (context) => {
+  const paths = await fixture(context);
+  const github = githubStub();
+  const published = await publishedWorktree(context, paths, github);
+  writeFileSync(
+    join(paths.worktrees, "topic_n1001234567890_7", "leftover.txt"),
+    "pendent\n",
+  );
+  const runner = createProjectRunner({
+    config: configFor(paths),
+    github,
+    runModel: async () => assert.fail("the model must not run"),
+  });
+
+  const result = await runner(repairRequest(published));
+
+  assert.equal(result.outcome, "failed");
+  assert.match(result.report, /canvis sense publicar/u);
+  assert.equal(github.pushes.length, 1);
+});
+
+for (const [label, pullRequest] of [
+  ["closed", { state: "closed" }],
+  ["moved", { state: "open", headSha: "f".repeat(40) }],
+]) {
+  test(`never publishes a repair whose pull request was ${label} during the run`, async (context) => {
+    const paths = await fixture(context);
+    const github = githubStub();
+    const published = await publishedWorktree(context, paths, github);
+    github.pullRequest = { headSha: published, ...pullRequest };
+    const runner = createProjectRunner({
+      config: configFor(paths),
+      github,
+      runModel: async ({ worktreePath }) => {
+        writeFileSync(join(worktreePath, "change.txt"), "canvi 2\n");
+        return { text: "SUMMARY: fix(tools): repair the synthetic check" };
+      },
+      runChecks: async () => ({ exitCode: 0, stdout: "", stderr: "" }),
+    });
+
+    const result = await runner(repairRequest(published));
+
+    assert.equal(result.outcome, "failed");
+    assert.match(result.report, /refusat/u);
+    assert.equal(github.pushes.length, 1);
+    assert.equal(github.pulls.length, 1);
+  });
+}
+
+test("a repair never asks GitHub to create a pull request", async (context) => {
+  const paths = await fixture(context);
+  const github = githubStub();
+  const published = await publishedWorktree(context, paths, github);
+  github.pullRequest = { state: "open", headSha: published };
+  github.ensurePullRequest = async (argumentsObject) => {
+    github.pulls.push(argumentsObject);
+    return { pullRequest: null, created: false };
+  };
+  const runner = createProjectRunner({
+    config: configFor(paths),
+    github,
+    runModel: async ({ worktreePath }) => {
+      writeFileSync(join(worktreePath, "change.txt"), "canvi 2\n");
+      return { text: "SUMMARY: fix(tools): repair the synthetic check" };
+    },
+    runChecks: async () => ({ exitCode: 0, stdout: "", stderr: "" }),
+  });
+
+  const result = await runner(repairRequest(published));
+
+  assert.equal(result.outcome, "failed");
+  assert.equal(github.pulls.at(-1).createMissing, false);
 });
 
 test("does not publish a repair that changed nothing", async (context) => {

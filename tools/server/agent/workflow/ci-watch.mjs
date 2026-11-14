@@ -34,8 +34,6 @@ const ciResults = {
   pullRequestClosed: "pull-request-closed",
 };
 
-// A read that never returns would stall every pending notice behind it.
-
 function sleep(milliseconds, signal) {
   return new Promise((resolve) => {
     let timer;
@@ -146,8 +144,12 @@ async function evaluateWatch({
     statuses,
   });
   const age = now().getTime() - Date.parse(watch.created_at);
+  // At the deadline an indecisive picture is reported as unconfirmed, still
+  // naming the checks that already failed. It never starts a repair.
   const undecided = () =>
-    age < watchTimeoutMilliseconds ? null : { result: ciResults.unknown };
+    age < watchTimeoutMilliseconds
+      ? null
+      : { result: ciResults.unknown, failedChecks: classification.failed };
   if (
     classification.state !== "success" &&
     classification.state !== "failure"
@@ -171,7 +173,7 @@ async function evaluateWatch({
   // A failure is decisive only when the whole required set is known and no
   // required check is still running: the identity of the failure and the repair
   // itself must see the complete set.
-  if (classification.failed.length > 0 && !isDecisiveFailure(classification)) {
+  if (!isDecisiveFailure(classification)) {
     return undecided();
   }
   // The failure evidence goes to the private repair queue and to the model, so
@@ -189,6 +191,13 @@ async function evaluateWatch({
       detail: redactSecrets(entry.detail, secrets),
     })),
   };
+}
+
+function unconfirmedNotice(common, failedChecks) {
+  if (failedChecks.length === 0) {
+    return ciReports.unknown(common);
+  }
+  return ciReports.unconfirmedFailure({ ...common, failedChecks });
 }
 
 function noticeFor({
@@ -227,7 +236,7 @@ function noticeFor({
     case ciResults.pullRequestClosed:
       return ciReports.pullRequestClosed(common);
     default:
-      return ciReports.unknown(common);
+      return unconfirmedNotice(common, outcome.failedChecks);
   }
 }
 
@@ -256,6 +265,7 @@ export function createCiWatchWorker({
     throw new Error("The durable repair queue is required.");
   }
 
+  /** Resolve to true only when the notice reached Telegram and was recorded. */
   async function deliver(watch, outcome, { signal } = {}) {
     let message;
     try {
@@ -277,11 +287,11 @@ export function createCiWatchWorker({
       // without pretending the delivery reached Telegram.
       store.markUncertain(watch.update_identifier);
       logger("ci_notification_invalid", describe(watch));
-      return;
+      return false;
     }
 
     if (!store.beginSend(watch.update_identifier, outcome.result)) {
-      return;
+      return false;
     }
     try {
       await telegram.sendMessage({ ...message, signal });
@@ -292,10 +302,11 @@ export function createCiWatchWorker({
         "ci_notification_uncertain",
         `${describe(watch)} ${error instanceof Error ? error.name : "unknown"}`,
       );
-      return;
+      return false;
     }
     store.finishSend(watch.update_identifier);
     logger("ci_notification_sent", outcome.result);
+    return true;
   }
 
   function logFailure(error) {
@@ -333,8 +344,11 @@ export function createCiWatchWorker({
 
   /**
    * Reserve the next automatic repair of a failure, or report the limit. The
-   * attempt is durable before the notice is sent, so a restart cannot lose the
-   * repair and a repeated cycle cannot reserve a third one.
+   * attempt is durable before the notice is sent, so a repeated cycle cannot
+   * reserve a third one. It is queued only after the notice is delivered and the
+   * watch is finished: the repair can neither report before its announcement nor
+   * publish while the watch cannot be reopened. An announcement that is not
+   * delivered leaves the reservation unqueued, so it never runs unannounced.
    */
   async function requestRepair(watch, outcome, { signal } = {}) {
     const requested = repairs.requestRepair({
@@ -361,7 +375,7 @@ export function createCiWatchWorker({
       });
       return;
     }
-    await deliver(
+    const announced = await deliver(
       watch,
       {
         ...outcome,
@@ -370,6 +384,9 @@ export function createCiWatchWorker({
       },
       { signal },
     );
+    if (announced) {
+      repairs.queueRepair(requested.sequence);
+    }
     safeTrace({
       updateIdentifier: watch.update_identifier,
       sessionKey: watch.session_key,

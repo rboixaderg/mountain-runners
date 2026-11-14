@@ -11,6 +11,15 @@ function fixture(context) {
   return join(directory, "state.sqlite");
 }
 
+// A reservation is claimable only once its announcement is delivered.
+function requestQueued(store, repairDetails) {
+  const requested = store.requestRepair(repairDetails);
+  if (requested !== null) {
+    store.queueRepair(requested.sequence);
+  }
+  return requested;
+}
+
 const request = {
   updateIdentifier: 12,
   sessionKey: "-100123:7",
@@ -122,7 +131,7 @@ test("follows the repaired commit in the same conversation slot", (context) => {
 test("counts the repairs of a failure across commits and stops at the budget", (context) => {
   const path = fixture(context);
   const store = new CiWatchStore(path);
-  const first = store.requestRepair(repairRequest);
+  const first = requestQueued(store, repairRequest);
   assert.deepEqual(first.attemptNumber, 1);
   assert.equal(store.repair(first.sequence).status, "queued");
   assert.deepEqual(
@@ -138,7 +147,7 @@ test("counts the repairs of a failure across commits and stops at the budget", (
     true,
   );
 
-  const second = store.requestRepair({
+  const second = requestQueued(store, {
     ...repairRequest,
     commitSha: "b".repeat(40),
   });
@@ -149,13 +158,13 @@ test("counts the repairs of a failure across commits and stops at the budget", (
     true,
   );
   assert.equal(
-    store.requestRepair({ ...repairRequest, commitSha: "c".repeat(40) }),
+    requestQueued(store, { ...repairRequest, commitSha: "c".repeat(40) }),
     null,
   );
 
   // A different failing check set has its own consecutive budget.
   assert.equal(
-    store.requestRepair({
+    requestQueued(store, {
       ...repairRequest,
       failureFingerprint: JSON.stringify(["Gitleaks"]),
       failedChecks: ["Gitleaks"],
@@ -168,8 +177,8 @@ test("counts the repairs of a failure across commits and stops at the budget", (
 test("runs one repair at a time and resumes it after a restart", (context) => {
   const path = fixture(context);
   let store = new CiWatchStore(path);
-  const first = store.requestRepair(repairRequest);
-  const second = store.requestRepair({
+  const first = requestQueued(store, repairRequest);
+  const second = requestQueued(store, {
     ...repairRequest,
     failureFingerprint: JSON.stringify(["Gitleaks"]),
     failedChecks: ["Gitleaks"],
@@ -195,7 +204,7 @@ test("runs one repair at a time and resumes it after a restart", (context) => {
 
 test("refuses to close a repair that never started", (context) => {
   const store = new CiWatchStore(fixture(context));
-  const repair = store.requestRepair(repairRequest);
+  const repair = requestQueued(store, repairRequest);
   assert.equal(
     store.finishRepair(repair.sequence, {
       status: "done",
@@ -216,18 +225,18 @@ test("refuses to close a repair that never started", (context) => {
 
 test("forgets a finished repair budget but keeps a running or queued attempt", (context) => {
   const store = new CiWatchStore(fixture(context));
-  const finished = store.requestRepair(repairRequest);
+  const finished = requestQueued(store, repairRequest);
   store.claimNextRepair();
   store.finishRepair(finished.sequence, {
     status: "done",
     outcome: "declined",
   });
-  const running = store.requestRepair({
+  const running = requestQueued(store, {
     ...repairRequest,
     failureFingerprint: JSON.stringify(["Gitleaks"]),
     failedChecks: ["Gitleaks"],
   });
-  const queued = store.requestRepair({
+  const queued = requestQueued(store, {
     ...repairRequest,
     failureFingerprint: JSON.stringify(["CodeQL"]),
     failedChecks: ["CodeQL"],
@@ -245,7 +254,7 @@ test("forgets a finished repair budget but keeps a running or queued attempt", (
 
 test("an uncertain repair survives a green CI or a new human publication", (context) => {
   const store = new CiWatchStore(fixture(context));
-  const attempt = store.requestRepair(repairRequest);
+  const attempt = requestQueued(store, repairRequest);
   store.claimNextRepair();
   store.interruptRepairs();
 
@@ -259,11 +268,11 @@ test("an uncertain repair survives a green CI or a new human publication", (cont
 test("reserves the same watch and commit only once across a restart", (context) => {
   const path = fixture(context);
   let store = new CiWatchStore(path);
-  const first = store.requestRepair(repairRequest);
+  const first = requestQueued(store, repairRequest);
   store.close();
 
   store = new CiWatchStore(path);
-  const repeated = store.requestRepair(repairRequest);
+  const repeated = requestQueued(store, repairRequest);
   assert.equal(repeated.sequence, first.sequence);
   assert.equal(repeated.attemptNumber, 1);
 
@@ -276,7 +285,7 @@ test("reserves the same watch and commit only once across a restart", (context) 
     }),
     true,
   );
-  const second = store.requestRepair({
+  const second = requestQueued(store, {
     ...repairRequest,
     commitSha: "b".repeat(40),
   });
@@ -284,7 +293,7 @@ test("reserves the same watch and commit only once across a restart", (context) 
   store.claimNextRepair();
   store.finishRepair(second.sequence, { status: "done", outcome: "published" });
   assert.equal(
-    store.requestRepair({ ...repairRequest, commitSha: "c".repeat(40) }),
+    requestQueued(store, { ...repairRequest, commitSha: "c".repeat(40) }),
     null,
   );
   store.close();
@@ -293,7 +302,7 @@ test("reserves the same watch and commit only once across a restart", (context) 
 test("keeps an uncertain repair blocking after more than one restart", (context) => {
   const path = fixture(context);
   let store = new CiWatchStore(path);
-  store.requestRepair(repairRequest);
+  requestQueued(store, repairRequest);
   store.claimNextRepair();
   store.close();
 
@@ -310,8 +319,8 @@ test("keeps an uncertain repair blocking after more than one restart", (context)
 
 test("does not count a reservation that never ran", (context) => {
   const store = new CiWatchStore(fixture(context));
-  const queued = store.requestRepair(repairRequest);
-  const second = store.requestRepair({
+  const queued = requestQueued(store, repairRequest);
+  const second = requestQueued(store, {
     ...repairRequest,
     commitSha: "b".repeat(40),
   });
@@ -327,8 +336,43 @@ test("does not count a reservation that never ran", (context) => {
     });
   }
   assert.equal(
-    store.requestRepair({ ...repairRequest, commitSha: "c".repeat(40) }),
+    requestQueued(store, { ...repairRequest, commitSha: "c".repeat(40) }),
     null,
   );
+  store.close();
+});
+
+test("keeps a reservation unclaimable until its announcement is queued", (context) => {
+  const store = new CiWatchStore(fixture(context));
+  const reserved = store.requestRepair(repairRequest);
+
+  assert.equal(store.repair(reserved.sequence).status, "reserved");
+  assert.equal(store.claimNextRepair(), null);
+
+  assert.equal(store.queueRepair(reserved.sequence), true);
+  assert.equal(store.queueRepair(reserved.sequence), false);
+  assert.equal(store.claimNextRepair().sequence, reserved.sequence);
+  store.close();
+});
+
+test("reuses an unannounced reservation after a restart without spending another attempt", (context) => {
+  const path = fixture(context);
+  let store = new CiWatchStore(path);
+  const reserved = store.requestRepair(repairRequest);
+  store.close();
+
+  store = new CiWatchStore(path);
+  const reused = store.requestRepair(repairRequest);
+  assert.deepEqual(reused, reserved);
+  assert.equal(reused.attemptNumber, 1);
+  assert.equal(store.repair(reserved.sequence).status, "reserved");
+  assert.equal(store.claimNextRepair(), null);
+
+  // The next failure still gets attempt 2, not 3: the reservation never ran.
+  const next = store.requestRepair({
+    ...repairRequest,
+    commitSha: "b".repeat(40),
+  });
+  assert.equal(next.attemptNumber, 1);
   store.close();
 });

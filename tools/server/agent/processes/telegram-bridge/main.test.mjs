@@ -275,6 +275,7 @@ function repairFixture(environment, statePath) {
     commitSha: "a".repeat(40),
     maximumAttempts: 2,
   });
+  ciWatches.queueRepair(repair.sequence);
   return { ciWatches, repair };
 }
 
@@ -452,7 +453,7 @@ test("does not run another repair while one has an unknown result", async (conte
   });
   await service.ciRepairExecutor.runNext();
   assert.equal(service.ciWatches.uncertainRepairCount(), 1);
-  service.ciWatches.requestRepair({
+  const secondRepair = service.ciWatches.requestRepair({
     updateIdentifier: 11,
     sessionKey: "-1001234567890:7",
     pullRequestNumber: 201,
@@ -462,6 +463,7 @@ test("does not run another repair while one has an unknown result", async (conte
     commitSha: "b".repeat(40),
     maximumAttempts: 2,
   });
+  service.ciWatches.queueRepair(secondRepair.sequence);
 
   const controller = new AbortController();
   const running = service.bridge.run({ signal: controller.signal });

@@ -47,7 +47,14 @@ export function createCiRepairExecutor({
   recordTrace = () => {},
   logger = () => {},
 }) {
-  async function report(repair, text, { signal } = {}) {
+  // Set when a result could not be stored: the `running` row blocks every
+  // later claim until a restart, so each report from then on says so.
+  let queueStalled = false;
+
+  async function report(repair, reportText, { signal } = {}) {
+    const text = queueStalled
+      ? `${reportText}\n\n${ciRepairReports.queueStalled}`
+      : reportText;
     try {
       const { chatIdentifier, threadIdentifier } = parseSessionKey(
         repair.session_key,
@@ -67,31 +74,42 @@ export function createCiRepairExecutor({
     }
   }
 
+  function trace(repair, action, detail) {
+    try {
+      recordTrace({
+        updateIdentifier: repair.update_identifier,
+        sessionKey: repair.session_key,
+        action,
+        detail,
+      });
+    } catch (error) {
+      // The notice to the topic matters more than the trace.
+      logger(
+        "ci_trace_failed",
+        error instanceof Error ? error.name : "unknown",
+      );
+    }
+  }
+
   /** Close the durable attempt first, then tell the topic what happened. */
   function close(repair, { status, outcome, traceAction, detail }) {
+    const description = detail ?? describe(repair);
     try {
       repairs.finishRepair(repair.sequence, { status, outcome });
     } catch (error) {
-      // The attempt stays `running` and nothing is repeated; the topic still
-      // learns the result.
+      // The attempt stays `running`, which blocks the queue on purpose: the
+      // result is not durable, so the next start reconciles it as `uncertain`
+      // and it is never retried automatically. The trace keeps the real result
+      // and the close failure, and the topic learns that repairs are paused.
+      queueStalled = true;
       logger(
         "ci_repair_close_failed",
         error instanceof Error ? error.name : "unknown",
       );
     }
-    try {
-      recordTrace({
-        updateIdentifier: repair.update_identifier,
-        sessionKey: repair.session_key,
-        action: traceAction,
-        detail: detail ?? describe(repair),
-      });
-    } catch (error) {
-      // The attempt is closed and the notice still matters more than the trace.
-      logger(
-        "ci_trace_failed",
-        error instanceof Error ? error.name : "unknown",
-      );
+    trace(repair, traceAction, description);
+    if (queueStalled) {
+      trace(repair, "ci_repair_close_failed", description);
     }
   }
 
