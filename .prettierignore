@@ -15,3 +15,6 @@ opencode.json
 
 # Preserve the verified upstream formatting of vendored portable skills.
 .agents/skills/
+
+# Claude Code reaches the same files through symbolic links in .claude/skills/.
+.claude/skills/

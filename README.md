@@ -65,8 +65,11 @@ JSON
 
 Pi descobreix la skill a `.agents/skills/`; es pot invocar explícitament amb
 `/skill:plausible-analytics`. OpenCode utilitza el directori de skills de
-projecte configurat a `opencode.json`. Després de substituir la integració,
-fes `/reload` a Pi o reinicia OpenCode per deixar de carregar el MCP anterior.
+projecte configurat a `opencode.json` i Claude Code les llegeix a
+`.claude/skills/`, on cada skill és un enllaç simbòlic a `.agents/skills/`.
+`CLAUDE.md` només importa `AGENTS.md`, que continua sent la font única
+d'instruccions. Després de substituir la integració, fes `/reload` a Pi o
+reinicia OpenCode per deixar de carregar el MCP anterior.
 `pnpm test:analytics` executa les proves del client sense accés de xarxa ni
 credencials reals.
 
