@@ -1,0 +1,19 @@
+packages/telegram-pi-bridge/test/telegram/bridge.test.mjs
+  s_7e5aa3a412d832::t_dd5e34af8cb7fc 510-512
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "b90f8fa661de03aeeea49446a0c570558df776e5",
+  "prompts": {},
+  "sessions": {
+    "s_7e5aa3a412d832": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "f5de8b74-7008-4809-a21f-2997cc2669d8",
+        "model": "unknown"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
