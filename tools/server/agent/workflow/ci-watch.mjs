@@ -19,11 +19,12 @@ import {
 import {
   defaultRequestTimeoutMilliseconds,
   requestSignal,
+  sleep,
 } from "../repository/request-signal.mjs";
 import { redactSecrets } from "../repository/secret-scan.mjs";
 import { ciReports, ciWatchOutcomes } from "../policy/development.mjs";
 
-const ciResults = {
+export const ciResults = {
   success: "success",
   failure: "failure",
   repairing: "repairing",
@@ -33,25 +34,6 @@ const ciResults = {
   headChanged: "head-changed",
   pullRequestClosed: "pull-request-closed",
 };
-
-function sleep(milliseconds, signal) {
-  return new Promise((resolve) => {
-    let timer;
-    function finish() {
-      clearTimeout(timer);
-      signal?.removeEventListener("abort", finish);
-      resolve();
-    }
-    if (signal?.aborted) {
-      resolve();
-      return;
-    }
-    timer = setTimeout(finish, milliseconds);
-    signal?.addEventListener("abort", finish, { once: true });
-    // The signal may have aborted between the check and the listener.
-    if (signal?.aborted) finish();
-  });
-}
 
 function describe(watch) {
   return `#${watch.pull_request_number} ${watch.commit_sha.slice(0, 7)}`;

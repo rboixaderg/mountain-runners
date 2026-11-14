@@ -376,3 +376,33 @@ test("reuses an unannounced reservation after a restart without spending another
   assert.equal(next.attemptNumber, 1);
   store.close();
 });
+
+test("reports the last delivered notice of the session, never a pending one", (context) => {
+  const store = new CiWatchStore(fixture(context));
+  assert.equal(store.lastReported("-100123:7"), undefined);
+
+  store.add(request);
+  assert.equal(store.lastReported("-100123:7"), undefined);
+  store.beginSend(12, "success");
+  assert.equal(store.lastReported("-100123:7"), undefined);
+  store.finishSend(12);
+  assert.deepEqual(
+    { ...store.lastReported("-100123:7") },
+    {
+      pull_request_number: 123,
+      commit_sha: request.commitSha,
+      result: "success",
+    },
+  );
+
+  store.add({
+    ...request,
+    updateIdentifier: 13,
+    commitSha: "b".repeat(40),
+  });
+  store.beginSend(13, "failure");
+  store.finishSend(13);
+  assert.equal(store.lastReported("-100123:7").result, "failure");
+  assert.equal(store.lastReported("-100123:8"), undefined);
+  store.close();
+});

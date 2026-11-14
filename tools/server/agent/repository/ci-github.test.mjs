@@ -148,7 +148,7 @@ test("reads one pull request to pin the reported commit to its head", async () =
         json: async () => ({
           number: 123,
           state: "open",
-          head: { sha: commit },
+          head: { sha: commit, repo: { full_name: "example/project" } },
           merged_at: null,
           html_url: "https://github.com/example/project/pull/123",
         }),
@@ -158,6 +158,7 @@ test("reads one pull request to pin the reported commit to its head", async () =
   assert.deepEqual(await github.getPullRequest({ number: 123 }), {
     state: "open",
     headSha: commit,
+    headRepository: "example/project",
   });
   assert.equal(requested.length, 1);
   assert.ok(new URL(requested[0]).pathname.endsWith("/pulls/123"));
@@ -178,5 +179,138 @@ test("rejects an invalid pull request number or response", async () => {
   await assert.rejects(
     github.getPullRequest({ number: 123 }),
     /invalid pull request response/u,
+  );
+});
+
+test("reports a pull request without head repository as having none", async () => {
+  const github = new GitHubTrust({
+    token: "synthetic",
+    repository: "example/project",
+    fetchImpl: async () => ({
+      ok: true,
+      json: async () => ({ state: "open", head: { sha: commit, repo: null } }),
+    }),
+  });
+  assert.equal(
+    (await github.getPullRequest({ number: 123 })).headRepository,
+    null,
+  );
+});
+
+test("posts exactly the preview command and returns the comment identity", async () => {
+  const requests = [];
+  const github = new GitHubTrust({
+    token: "synthetic",
+    repository: "example/project",
+    fetchImpl: async (url, options) => {
+      requests.push({ url, options });
+      return {
+        ok: true,
+        json: async () => ({ id: 77, created_at: "2026-11-14T10:00:00Z" }),
+      };
+    },
+  });
+  assert.deepEqual(
+    await github.commentOnPullRequest({ number: 123, body: "/preview" }),
+    { createdAt: "2026-11-14T10:00:00Z" },
+  );
+  assert.equal(requests.length, 1);
+  assert.equal(requests[0].options.method, "POST");
+  assert.ok(new URL(requests[0].url).pathname.endsWith("/issues/123/comments"));
+  assert.deepEqual(JSON.parse(requests[0].options.body), { body: "/preview" });
+});
+
+test("never posts a comment other than the preview command", async () => {
+  const requests = [];
+  const github = new GitHubTrust({
+    token: "synthetic",
+    repository: "example/project",
+    fetchImpl: async (url) => {
+      requests.push(url);
+      return { ok: true, json: async () => ({}) };
+    },
+  });
+  await assert.rejects(
+    github.commentOnPullRequest({ number: 123, body: "/merge" }),
+    /Only the preview command/u,
+  );
+  await assert.rejects(
+    github.commentOnPullRequest({ number: 0, body: "/preview" }),
+    /positive pull request number/u,
+  );
+  assert.deepEqual(requests, []);
+});
+
+test("rejects an invalid comment response after posting", async () => {
+  const github = new GitHubTrust({
+    token: "synthetic",
+    repository: "example/project",
+    fetchImpl: async () => ({ ok: true, json: async () => ({}) }),
+  });
+  await assert.rejects(
+    github.commentOnPullRequest({ number: 123, body: "/preview" }),
+    /invalid comment response/u,
+  );
+});
+
+test("exposes the HTTP status of a rejected response without the token", async () => {
+  const github = new GitHubTrust({
+    token: "synthetic-secret",
+    repository: "example/project",
+    fetchImpl: async () => ({ ok: false, status: 403 }),
+  });
+  await assert.rejects(
+    github.commentOnPullRequest({ number: 123, body: "/preview" }),
+    (error) =>
+      error.status === 403 && !error.message.includes("synthetic-secret"),
+  );
+});
+
+test("reads every page of pull request comments and fails closed past the limit", async () => {
+  const requested = [];
+  const github = new GitHubTrust({
+    token: "synthetic",
+    repository: "example/project",
+    fetchImpl: async (url) => ({
+      ok: true,
+      json: async () => {
+        requested.push(url);
+        return pageOf(url) === "1"
+          ? Array.from({ length: 100 }, (_, index) => ({ id: index }))
+          : [{ id: 100 }];
+      },
+    }),
+  });
+  const since = "2026-11-14T10:00:00Z";
+  assert.equal(
+    (await github.listIssueComments({ number: 123, since })).length,
+    101,
+  );
+  for (const url of requested) {
+    assert.equal(new URL(url).searchParams.get("since"), since);
+  }
+
+  const endless = new GitHubTrust({
+    token: "synthetic",
+    repository: "example/project",
+    fetchImpl: async () => ({
+      ok: true,
+      json: async () =>
+        Array.from({ length: 100 }, (_, index) => ({ id: index })),
+    }),
+  });
+  await assert.rejects(
+    endless.listIssueComments({ number: 123, since: "2026-11-14T10:00:00Z" }),
+    /pagination limit exceeded/u,
+  );
+
+  const invalid = new GitHubTrust({
+    token: "synthetic",
+    repository: "example/project",
+    fetchImpl: async () => ({ ok: true, json: async () => ({}) }),
+  });
+  await assert.rejects(
+    invalid.listIssueComments({ number: 123, since: "2026-11-14T10:00:00Z" }),
+    /invalid comments response/u,
   );
 });

@@ -2,9 +2,9 @@
 
 Aplicació de Mountain Runners que porta una petició de Telegram fins a una PR.
 El servei **no està desplegat ni activat**. Aquesta branca afegeix l'avís de CI
-de T8.4 vinculat al SHA publicat i la reparació automàtica acotada d'una CI
-vermella; la preview, el merge demanat i la continuació entre temes continuen
-pendents. Cap canvi d'aquesta branca autoritza instal·lacions ni operacions
+de T8.4 vinculat al SHA publicat, la reparació automàtica acotada d'una CI
+vermella i la preview demanada al tema; el merge demanat i la continuació entre
+temes continuen pendents. Cap canvi d'aquesta branca autoritza instal·lacions ni operacions
 remotes.
 
 ## Nucli reutilitzable i aplicació
@@ -37,6 +37,7 @@ tools/server/agent/               aplicació de Mountain Runners
 │   ├── project-runner.mjs        connecta política, model, sandbox i publicador
 │   ├── run-instruction.mjs       coordina consulta, implementació o reparació
 │   ├── ci-watch.mjs              avís de CI i reserva de la reparació acotada
+│   ├── preview-request.mjs       petició `/preview` determinista i confirmació
 │   └── ci-repair.mjs             executa una reparació quan la cua està inactiva
 ├── runtime/
 │   ├── request-kind.mjs          interpreta la petició actual sense eines
@@ -56,6 +57,8 @@ tools/server/agent/               aplicació de Mountain Runners
     ├── github.mjs                 client de GitHub, push segur i lectura de CI
     ├── ci-status.mjs              check runs i estats de commit d'un SHA exacte
     ├── request-signal.mjs         termini de lectura amb el senyal d'aturada
+    ├── preview-comment.mjs        comentari de confirmació del publicador de confiança
+    ├── preview-request-store.mjs  peticions de preview durables
     └── ci-watch-store.mjs         avís de CI i intents de reparació duradors
 ```
 
@@ -135,14 +138,36 @@ al servidor. El nom local encara no representa una publicació a npm.
    reparació que no canvia res, o que no pot confirmar el resultat, es tanca i es
    comunica sense reintentar-se.
 
+9. Una persona verificada pot demanar la preview en llenguatge natural. El
+   classificador només etiqueta la petició com a `preview`: el model no s'inicia
+   ni toca cap worktree. `workflow/preview-request.mjs` fixa la petició al commit
+   que el servei va informar en verd en aquell tema (mai una PR o un SHA escrits
+   per la persona) i torna a llegir la PR i les comprovacions obligatòries:
+   PR oberta, cap igual al commit fixat, branca del repositori principal i
+   comprovacions obligatòries totes en verd. Si hi ha qualsevol dubte o un error
+   de lectura, refusa i ho diu. Només llavors desa la petició (`commenting`),
+   comenta exactament `/preview` amb la credencial del servei i passa a
+   `awaiting`. Un bucle en segon pla llegeix els comentaris de la PR i només
+   accepta el del publicador de la fase 6 (`github-actions[bot]`, marcador,
+   origen exacte `https://pr-<n>.preview.mountainrunners.cat`, el SHA fixat i
+   escrit o actualitzat després de la petició). Retorna URL, SHA curt i PR al
+   tema; si el termini s'esgota, ho comunica com a no confirmat sense
+   construir cap URL. Un rebuig definitiu de GitHub (4xx, llevat de 408 i 429) acaba la petició
+   com a `failed` (traça `preview_failed`) sense bloquejar el servei; qualsevol
+   altre error deixa la petició `uncertain`. La identitat de GitHub de l'agent ha
+   de ser col·laboradora del repositori. Es pot repetir `/preview` pel mateix commit només quan la
+   petició anterior ha acabat. Una CI verda, una PR nova o una reparació no
+   demanen mai cap preview.
+
 Un error local conegut, un timeout o una cancel·lació amb neteja confirmada
 retornen una fallada sense bloquejar la cua. L'avís de CI tampoc no bloqueja la
 cua: només es declaren verdes les comprovacions obligatòries presents i
 correctes del SHA exacte, i un resultat no confirmat es comunica sense
 reintentar-lo. Un error després d'iniciar la
 publicació, o una aturada de sandbox no confirmada, retornen un resultat incert.
-L'arrencada es refusa mentre quedi qualsevol instrucció incerta o una reparació
-interrompuda, fins i tot després de diversos reinicis. Amb el servei en marxa,
+L'arrencada es refusa mentre quedi qualsevol instrucció incerta, una reparació
+interrompuda o un comentari `/preview` interromput abans de saber si s'ha
+publicat, fins i tot després de diversos reinicis. Amb el servei en marxa,
 una reparació amb resultat desconegut atura les reparacions automàtiques mentre
 les instruccions del tema continuen. La reconciliació completa
 continua fora de T8.3 i T8.4.

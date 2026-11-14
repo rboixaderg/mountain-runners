@@ -444,17 +444,19 @@ test("rejects an invalid branch before calling the API", async () => {
   assert.deepEqual(calls, []);
 });
 
-test("exposes only branch publication and read-only CI operations", () => {
+test("exposes only branch publication, the preview comment and read-only operations", () => {
   const publicOperations = Object.getOwnPropertyNames(GitHubTrust.prototype)
     .filter((name) => name !== "constructor")
     .sort();
 
   assert.deepEqual(publicOperations, [
+    "commentOnPullRequest",
     "ensurePullRequest",
     "findOpenPullRequest",
     "getCommitCheckRuns",
     "getCommitStatuses",
     "getPullRequest",
+    "listIssueComments",
     "pushBranch",
   ]);
 });

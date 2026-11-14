@@ -22,6 +22,7 @@ export function createProjectRunner({
   github,
   environment = process.env,
   ciWatches,
+  requestPreview,
   stopCommands = stopSandboxedCommands,
   executeSandbox = runSandboxedCommand,
   executeAgent = runAgent,
@@ -75,6 +76,7 @@ export function createProjectRunner({
     runModel,
     runChecks,
     logger,
+    requestPreview,
     registerCiWatch: ciWatches
       ? createCiWatchRegistration({ store: ciWatches, logger })
       : undefined,

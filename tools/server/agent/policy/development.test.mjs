@@ -17,6 +17,7 @@ test("accepts only a recognized request kind in a JSON result", () => {
     "implementation",
     "continuation",
     "clarification",
+    "preview",
   ]) {
     assert.equal(parseRequestKind(JSON.stringify({ kind })), kind);
   }
