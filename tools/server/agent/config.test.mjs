@@ -9,6 +9,7 @@ function validEnvironment(overrides = {}) {
     MOUNTAIN_AGENT_TELEGRAM_BOT_USERNAME: "mountain_agent_bot",
     MOUNTAIN_AGENT_TELEGRAM_BOT_TOKEN: "telegram-token",
     MOUNTAIN_AGENT_GITHUB_TOKEN: "github-token",
+    MOUNTAIN_AGENT_REQUIRED_CHECKS: "Validate, Gitleaks",
     MOUNTAIN_AGENT_SANDBOX_IMAGE: "mountain-agent-pi:1.5.0",
     MOUNTAIN_AGENT_REPOSITORY_PATH: "/srv/agent/repository",
     MOUNTAIN_AGENT_WORKTREE_PATH: "/srv/agent/worktrees",
@@ -25,6 +26,7 @@ test("reads a complete configuration with the provisional limits", () => {
   assert.equal(config.telegram.botUsername, "mountain_agent_bot");
   assert.equal(config.github.repository, "rboixaderg/mountain-runners");
   assert.equal(config.github.baseBranch, "main");
+  assert.deepEqual(config.github.requiredChecks, ["Validate", "Gitleaks"]);
   assert.equal(config.model.identifier, "opencode-go/glm-5.3-flash");
   assert.equal(
     config.limits.maxPendingInstructions,
@@ -34,6 +36,8 @@ test("reads a complete configuration with the provisional limits", () => {
     config.limits.executionTimeoutMs,
     defaultLimits.executionTimeoutMs,
   );
+  assert.equal(config.limits.ciPollIntervalMs, defaultLimits.ciPollIntervalMs);
+  assert.equal(config.limits.ciWatchTimeoutMs, defaultLimits.ciWatchTimeoutMs);
 });
 
 test("rejects a configuration without the GitHub credential", () => {
@@ -71,6 +75,23 @@ test("rejects a relative state path", () => {
       readAgentConfig(validEnvironment({ MOUNTAIN_AGENT_STATE_PATH: "state" })),
     { message: /absolute path/u },
   );
+});
+
+test("rejects an empty or duplicated required check list", () => {
+  for (const requiredChecks of [
+    "",
+    "Validate,",
+    "Validate,Validate",
+    "Validate,,Gitleaks",
+  ]) {
+    assert.throws(
+      () =>
+        readAgentConfig(
+          validEnvironment({ MOUNTAIN_AGENT_REQUIRED_CHECKS: requiredChecks }),
+        ),
+      { message: /MOUNTAIN_AGENT_REQUIRED_CHECKS/u },
+    );
+  }
 });
 
 test("rejects a non-numeric resource limit", () => {

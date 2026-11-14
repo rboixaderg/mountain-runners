@@ -171,10 +171,51 @@ export const instructionReports = {
     "La publicació s'ha refusat per una regla local. No s'ha enviat res a GitHub; el treball es conserva per revisar-lo.",
 };
 
-export function publicationReport({ created, pullRequest, branch, commit }) {
-  return [
+export const ciWatchOutcomes = {
+  registered: "registered",
+  unavailable: "unavailable",
+};
+
+export function publicationReport({
+  created,
+  pullRequest,
+  branch,
+  commit,
+  ciWatch,
+}) {
+  const lines = [
     `${created ? "Pull request creada" : "Pull request actualitzada"}: ${pullRequest.htmlUrl}`,
     `Branca ${branch}, commit ${commit}.`,
     `Comprovacions: ${checkCommand} correcte.`,
-  ].join("\n");
+  ];
+  if (ciWatch === ciWatchOutcomes.registered) {
+    lines.push(
+      "Seguiment de la CI de GitHub: t'avisaré en aquest tema quan acabi.",
+    );
+  }
+  if (ciWatch === ciWatchOutcomes.unavailable) {
+    lines.push(
+      "No s'ha pogut registrar el seguiment de la CI; consulta-la a GitHub.",
+    );
+  }
+  return lines.join("\n");
 }
+
+function shortCommit(commit) {
+  return commit.slice(0, 7);
+}
+
+// Final CI notices. Each one names the exact commit it describes, so a re-run
+// or a later commit can never be reported as the pinned one.
+export const ciReports = {
+  success: ({ pullRequestNumber, commit, requiredChecks }) =>
+    `Comprovacions obligatòries configurades en verd al commit ${shortCommit(commit)} (PR #${pullRequestNumber}): ${requiredChecks.join(", ")}.`,
+  failure: ({ pullRequestNumber, commit, failedChecks }) =>
+    `CI fallida al commit ${shortCommit(commit)} (PR #${pullRequestNumber}): ${failedChecks.join(", ")} no ha acabat correctament. El treball es conserva i no es reintenta automàticament.`,
+  unknown: ({ pullRequestNumber, commit }) =>
+    `No s'ha pogut confirmar l'estat de les comprovacions obligatòries al commit ${shortCommit(commit)} (PR #${pullRequestNumber}) dins del termini. Consulta-ho a GitHub; no es reintenta automàticament.`,
+  headChanged: ({ pullRequestNumber, commit, headSha }) =>
+    `El cap de la PR #${pullRequestNumber} ha canviat al commit ${shortCommit(headSha)}. Aquest avís correspon al commit ${shortCommit(commit)}, que ja no és el cap; no es confirma cap estat per al commit actual.`,
+  pullRequestClosed: ({ pullRequestNumber, commit }) =>
+    `La PR #${pullRequestNumber} ja no està oberta. No s'informa de la CI del commit ${shortCommit(commit)}.`,
+};

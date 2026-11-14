@@ -386,12 +386,12 @@ d'una petició](../tools/server/agent/README.md) expliquen quina peça fa cada p
 
 ### Components i frontera
 
-| Component           | Accés                                                                        | Límit                                                                                                   |
-| ------------------- | ---------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
-| Pont de Telegram    | Token del bot, grup configurat, cua duradora i traça privada                 | No entrega cap credencial a Pi, a l'entorn aïllat ni a les proves                                       |
-| Pi i model          | Credencial del proveïdor i sessions per tema                                 | Confiança de projecte denegada: no carrega extensions, hooks ni `settings` del repositori               |
-| Entorn aïllat       | Worktree de la feina                                                         | Sense xarxa, sense credencials, sistema de fitxers de només lectura, sense socket de Docker             |
-| Component de GitHub | Compte `rboixaderg`: `push` de la branca i obertura o reutilització de la PR | Sense merge, auto-merge, push a `main`, canvis de protecció ni desplegament; el merge demanat és a T8.4 |
+| Component           | Accés                                                                                                              | Límit                                                                                                   |
+| ------------------- | ------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------- |
+| Pont de Telegram    | Token del bot, grup configurat, cua duradora i traça privada                                                       | No entrega cap credencial a Pi, a l'entorn aïllat ni a les proves                                       |
+| Pi i model          | Credencial del proveïdor i sessions per tema                                                                       | Confiança de projecte denegada: no carrega extensions, hooks ni `settings` del repositori               |
+| Entorn aïllat       | Worktree de la feina                                                                                               | Sense xarxa, sense credencials, sistema de fitxers de només lectura, sense socket de Docker             |
+| Component de GitHub | Compte `rboixaderg`: `push` de la branca, obertura o reutilització de la PR i lectura de la CI del commit publicat | Sense merge, auto-merge, push a `main`, canvis de protecció ni desplegament; el merge demanat és a T8.4 |
 
 El pont és l'únic procés amb el token de Telegram i el de GitHub. Arrenca Pi amb
 una llista blanca d'entorn: `PATH`, `HOME`, el perfil de l'agent, la configuració
@@ -559,7 +559,7 @@ propietat de la identitat del servei. La instal·lació prevista és:
 ├── repository/                            clon amb origin i main
 ├── worktrees/                             worktree actual per tema i feina preservada
 ├── sessions/                              historial de Pi per tema
-└── state/                                 admission.sqlite, perfils i traça
+└── state/                                 admission.sqlite, ci-watch.sqlite, perfils i traça
 /etc/mountain-runners-agent/agent.env      0600  credencials del servei
 /usr/local/lib/mountain-runners/agent/     aplicació instal·lada
 /usr/local/lib/mountain-runners/node_modules/
@@ -567,9 +567,36 @@ propietat de la identitat del servei. La instal·lació prevista és:
 ```
 
 `MOUNTAIN_AGENT_BASE_BRANCH`, si s'informa, ha de ser `main`. La imatge de
-l'entorn aïllat ha d'estar fixada i no pot usar l'etiqueta `latest`. Els límits
-numèrics (CPU, memòria, processos, temps d'execució i cua) tenen valors inicials
-al codi. La unitat limita el conjunt del servei i els seus contenidors a 1,5 CPU,
+l'entorn aïllat ha d'estar fixada i no pot usar l'etiqueta `latest`.
+
+`MOUNTAIN_AGENT_REQUIRED_CHECKS` és obligatori i conté, separats per comes, els
+noms exactes de les comprovacions obligatòries de `main`. Verificat el 14 de
+novembre de 2026, la protecció de `main` exigeix aquestes set comprovacions amb
+la branca al dia:
+
+```text
+Validate, Conventional commits, Conventional title, Gitleaks, Dependency review, Analyze JavaScript and TypeScript, CodeQL
+```
+
+La credencial de l'agent no pot llegir la protecció de branca (respon 403), així
+que la llista es configura explícitament. Un nom incorrecte no es converteix mai
+en verd: la comprovació queda absent i l'avís acaba com a no confirmat. El
+servei llegeix els check runs (`filter=latest`) i els estats de commit heretats
+del SHA publicat, i envia un avís al mateix tema quan acaben les comprovacions
+obligatòries. El seguiment es desa a
+`state/ci-watch.sqlite`, no bloqueja la cua i no es repeteix automàticament: si
+Telegram no confirma un enviament, la fila queda com a incerta i el servei ho
+registra a l'arrencada, sense reintentar el missatge. Un canvi del cap de la PR
+o una PR tancada també es comuniquen i no confirmen cap estat del commit nou.
+L'interval de consulta i el termini del seguiment tenen valors inicials al codi
+(`MOUNTAIN_AGENT_CI_POLL_INTERVAL_MS`, `MOUNTAIN_AGENT_CI_WATCH_TIMEOUT_MS`).
+Si canvia la protecció de `main`, actualitza la llista al mateix moment: el
+servei no la pot contrastar i l'avís només confirma les comprovacions que hi
+consten. L'avís diu explícitament que es refereix a aquesta llista configurada,
+no a tota la CI de la PR.
+
+Els límits numèrics (CPU, memòria, processos, temps d'execució i cua) tenen valors
+inicials al codi. La unitat limita el conjunt del servei i els seus contenidors a 1,5 CPU,
 2560 MiB de memòria, sense swap i 384 processos. Cada contenidor té inicialment
 1 CPU i 2048 MiB; el límit de la unitat inclou també Pi i el pont. Aquests
 valors són provisionals i **no estan verificats al VPS** de 2 vCPU, 4 GB i 40 GB,

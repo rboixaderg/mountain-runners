@@ -22,6 +22,8 @@ export const defaultLimits = {
   sandboxMemoryMegabytes: 2048,
   sandboxCpuCount: 1,
   sandboxProcessLimit: 256,
+  ciPollIntervalMs: 30 * 1000,
+  ciWatchTimeoutMs: 60 * 60 * 1000,
 };
 
 function requiredValue(environment, name) {
@@ -61,6 +63,27 @@ function readNameList(environment, name) {
     if (!/^[A-Z_][A-Z0-9_]*$/u.test(entry)) {
       throw new Error(`Configuration value ${name} contains an invalid name.`);
     }
+  }
+  return names;
+}
+
+/**
+ * Required CI checks cannot be read with the agent credential (branch
+ * protection answers 403), so the exact names are configured explicitly. A
+ * wrong name never reports green: the check stays missing and the watch ends
+ * as unconfirmed.
+ */
+function readRequiredChecks(environment) {
+  const rawValue = requiredValue(environment, "MOUNTAIN_AGENT_REQUIRED_CHECKS");
+  const names = rawValue.split(",").map((entry) => entry.trim());
+  const unique = new Set(names);
+  const valid = names.every(
+    (name) => name !== "" && name.length <= 100 && /^[^\p{Cc}]+$/u.test(name),
+  );
+  if (!valid || unique.size !== names.length) {
+    throw new Error(
+      "Configuration value MOUNTAIN_AGENT_REQUIRED_CHECKS must be a comma-separated list of unique check names.",
+    );
   }
   return names;
 }
@@ -108,6 +131,7 @@ export function readAgentConfig(environment = process.env) {
       token: requiredValue(environment, "MOUNTAIN_AGENT_GITHUB_TOKEN"),
       repository,
       baseBranch,
+      requiredChecks: readRequiredChecks(environment),
     },
     model: {
       identifier:
@@ -150,6 +174,16 @@ export function readAgentConfig(environment = process.env) {
         environment,
         "MOUNTAIN_AGENT_SANDBOX_PROCESS_LIMIT",
         defaultLimits.sandboxProcessLimit,
+      ),
+      ciPollIntervalMs: positiveInteger(
+        environment,
+        "MOUNTAIN_AGENT_CI_POLL_INTERVAL_MS",
+        defaultLimits.ciPollIntervalMs,
+      ),
+      ciWatchTimeoutMs: positiveInteger(
+        environment,
+        "MOUNTAIN_AGENT_CI_WATCH_TIMEOUT_MS",
+        defaultLimits.ciWatchTimeoutMs,
       ),
     },
   };
