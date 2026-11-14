@@ -1,0 +1,61 @@
+.claude/skills/accessibility
+  s_a948e8fff01af8::t_b194fd687e93d6 1
+.claude/skills/editorial-posts
+  s_a948e8fff01af8::t_fa6b0265efb79f 1
+.claude/skills/frontend-testing
+  s_a948e8fff01af8::t_3b3aaeb9a0427e 1
+.claude/skills/plausible-analytics
+  s_a948e8fff01af8::t_db34328c08d015 1
+.claude/skills/project-context
+  s_a948e8fff01af8::t_e330b750c3dd1f 1
+.claude/skills/quality-gate
+  s_a948e8fff01af8::t_c4f0724a41a31f 1
+.claude/skills/seo
+  s_a948e8fff01af8::t_12d3aded63f209 1
+.claude/skills/spec-authoring
+  s_a948e8fff01af8::t_8f9de30359b655 1
+.claude/skills/spec-implementation-review
+  s_a948e8fff01af8::t_8664ce0fe1aa34 1
+.claude/skills/typescript-advanced-types
+  s_a948e8fff01af8::t_050a0b7e9ea971 1
+.claude/skills/unslop
+  s_a948e8fff01af8::t_0a4f11474a3b14 1
+.claude/skills/vitest
+  s_a948e8fff01af8::t_00e4f1d75a5a7d 1
+CLAUDE.md
+  s_a948e8fff01af8::t_8315c027b134c6 1-3
+README.md
+  s_7e5aa3a412d832::t_a5fe9cd8cc5576 68-72
+tools/agent-skills/skill-links.test.mjs
+  s_a948e8fff01af8::t_fb0470e69cafe2 1-44
+.prettierignore
+  s_7e5aa3a412d832::t_df76b3dc91ba7d 18-20
+eslint.config.mjs
+  s_7e5aa3a412d832::t_669aed8d1a7bce 14-15
+package.json
+  s_7e5aa3a412d832::t_9aef3521205d06 26
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "b04b82864772f10205e588cd0037257a2f43ca1f",
+  "prompts": {},
+  "sessions": {
+    "s_7e5aa3a412d832": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "f5de8b74-7008-4809-a21f-2997cc2669d8",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    },
+    "s_a948e8fff01af8": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a1dabd-b2af-7799-b4a1-7d351e62df49",
+        "model": "deepseek-v4.1-flash"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
