@@ -1,0 +1,21 @@
+.env.example
+  s_13d449a9fab27e::t_afbdb41363da8c 4-6,11
+docs/deployment.md
+  s_13d449a9fab27e::t_45f7d4945a3c15 573-586
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "8223cad9da5ea9389075a1ac8e990ad2ec005ef8",
+  "prompts": {},
+  "sessions": {
+    "s_13d449a9fab27e": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a1d8b7-09b6-7799-b4a1-7d303135820d",
+        "model": "deepseek-v4.1-flash"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
