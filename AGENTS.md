@@ -24,6 +24,22 @@
   Catalan for project documentation, user-facing content and pull-request
   descriptions.
 
+## Agent Tooling
+
+- `.agents/skills/` is the single source of truth for project skills. OpenCode
+  reads it through `opencode.json`, Pi discovers it directly and Claude Code
+  reads it through the per-skill symbolic links in `.claude/skills/`.
+- When you add, rename or remove a skill in `.agents/skills/`, update the
+  matching entry with
+  `ln -s ../../.agents/skills/<name> .claude/skills/<name>`. Never copy a skill
+  into `.claude/skills/`. `tools/agent-skills/` checks that both directories
+  list the same skills.
+- Keep skill frontmatter to the Agent Skills fields (`name`, `description`,
+  `license`, `compatibility`, `metadata`) so every agent tool loads the skill
+  unchanged.
+- `CLAUDE.md` only imports `AGENTS.md`. Keep project instructions in
+  `AGENTS.md` and tool-specific files free of duplicated rules.
+
 ## Code Conventions
 
 Follow [`docs/code-conventions.md`](docs/code-conventions.md) when writing or

@@ -11,6 +11,8 @@ export default tseslint.config(
       "**/dist/**",
       "**/node_modules/**",
       "**/.playwright-mcp/**",
+      // Symbolic links to .agents/skills/, which ESLint already reads once.
+      "**/.claude/skills/**",
     ],
   },
   eslint.configs.recommended,
