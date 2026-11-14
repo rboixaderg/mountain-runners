@@ -7,7 +7,8 @@
 // never passed to the sandbox, the model or the tests.
 //
 // Pushing is idempotent for the same commit and the pull request lookup avoids
-// opening a duplicate PR after a restart.
+// opening a duplicate PR after a restart. Reading the CI status of one commit
+// belongs to the same trusted component, because the token never leaves it.
 
 import { assertWorkBranch } from "./worktrees.mjs";
 import { assertPublishableHistory } from "./secret-scan.mjs";
@@ -16,6 +17,21 @@ import { runGit } from "./trusted-git.mjs";
 
 function repositoryUrl(repository) {
   return `https://github.com/${repository}.git`;
+}
+
+const fullCommitPattern = /^[a-f0-9]{40}$/u;
+const maximumPageCount = 10;
+
+function assertFullCommit(commit) {
+  if (typeof commit !== "string" || !fullCommitPattern.test(commit)) {
+    throw new Error("A full commit SHA is required.");
+  }
+}
+
+function assertPullRequestNumber(number) {
+  if (!Number.isSafeInteger(number) || number < 1) {
+    throw new Error("A positive pull request number is required.");
+  }
 }
 
 /**
@@ -86,7 +102,7 @@ export class GitHubTrust {
     }
   }
 
-  async #request(method, path, body) {
+  async #request(method, path, body, { signal } = {}) {
     const response = await this.#fetch(`${this.#apiBaseUrl}${path}`, {
       method,
       headers: {
@@ -97,6 +113,7 @@ export class GitHubTrust {
         ...(body ? { "content-type": "application/json" } : {}),
       },
       body: body ? JSON.stringify(body) : undefined,
+      signal,
     });
 
     if (!response.ok) {
@@ -136,6 +153,63 @@ export class GitHubTrust {
       },
     );
     return { branch, commit };
+  }
+
+  async getCommitCheckRuns({ commit, signal }) {
+    assertFullCommit(commit);
+    const checkRuns = [];
+    for (let page = 1; page <= maximumPageCount; page += 1) {
+      const response = await this.#request(
+        "GET",
+        `/repos/${this.#repository}/commits/${commit}/check-runs?filter=latest&per_page=100&page=${page}`,
+        undefined,
+        { signal },
+      );
+      if (!Array.isArray(response.check_runs)) {
+        throw new Error("GitHub returned an invalid check-runs response.");
+      }
+      checkRuns.push(...response.check_runs);
+      const total = response.total_count;
+      if (response.check_runs.length < 100) return checkRuns;
+      if (Number.isSafeInteger(total) && checkRuns.length >= total) {
+        return checkRuns;
+      }
+    }
+    throw new Error("GitHub check-runs pagination limit exceeded.");
+  }
+
+  /** Every commit status, newest first; the classifier keeps the newest per context. */
+  async getCommitStatuses({ commit, signal }) {
+    assertFullCommit(commit);
+    const statuses = [];
+    for (let page = 1; page <= maximumPageCount; page += 1) {
+      const response = await this.#request(
+        "GET",
+        `/repos/${this.#repository}/commits/${commit}/statuses?per_page=100&page=${page}`,
+        undefined,
+        { signal },
+      );
+      if (!Array.isArray(response)) {
+        throw new Error("GitHub returned an invalid commit statuses response.");
+      }
+      statuses.push(...response);
+      if (response.length < 100) return statuses;
+    }
+    throw new Error("GitHub commit statuses pagination limit exceeded.");
+  }
+
+  async getPullRequest({ number, signal }) {
+    assertPullRequestNumber(number);
+    const pull = await this.#request(
+      "GET",
+      `/repos/${this.#repository}/pulls/${number}`,
+      undefined,
+      { signal },
+    );
+    if (typeof pull?.head?.sha !== "string" || typeof pull.state !== "string") {
+      throw new Error("GitHub returned an invalid pull request response.");
+    }
+    return { state: pull.state, headSha: pull.head.sha };
   }
 
   async findOpenPullRequest({ branch }) {

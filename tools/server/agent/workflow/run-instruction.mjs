@@ -29,6 +29,7 @@ export function createInstructionRunner({
   runModel,
   runChecks,
   publishChange,
+  registerCiWatch,
   logger = () => {},
 }) {
   return async function runInstruction(request, { signal } = {}) {
@@ -149,11 +150,19 @@ export function createInstructionRunner({
           report: instructionReports.publicationRefused,
         };
       }
+      // The watch is durable before the report is sent, and it never waits for
+      // the CI of the commit: the queue keeps executing other instructions.
+      const ciWatch = registerCiWatch?.({
+        updateIdentifier: request.updateIdentifier,
+        sessionKey: request.sessionKey,
+        pullRequestNumber: publication.pullRequest.number,
+        commit: publication.commit,
+      });
       return {
         outcome: publication.created
           ? "pull_request_created"
           : "pull_request_updated",
-        report: publicationReport({ ...publication, branch }),
+        report: publicationReport({ ...publication, branch, ciWatch }),
       };
     } catch (error) {
       logger(

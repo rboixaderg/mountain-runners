@@ -8,6 +8,7 @@ import {
   stopSandboxedCommands,
 } from "../sandbox/commands.mjs";
 import { createPublisher } from "../repository/publisher.mjs";
+import { createCiWatchRegistration } from "./ci-watch.mjs";
 import {
   buildInstructionPrompt,
   sandboxCheckCommand,
@@ -19,6 +20,7 @@ export function createProjectRunner({
   config,
   github,
   environment = process.env,
+  ciWatches,
   stopCommands = stopSandboxedCommands,
   executeSandbox = runSandboxedCommand,
   executeAgent = runAgent,
@@ -72,6 +74,9 @@ export function createProjectRunner({
     runModel,
     runChecks,
     logger,
+    registerCiWatch: ciWatches
+      ? createCiWatchRegistration({ store: ciWatches, logger })
+      : undefined,
     publishChange: createPublisher({
       github,
       secrets: [

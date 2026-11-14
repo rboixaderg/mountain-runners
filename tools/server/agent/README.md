@@ -1,8 +1,10 @@
 # Agent privat de desenvolupament, T8.3
 
 Aplicació de Mountain Runners que porta una petició de Telegram fins a una PR.
-El servei **no està desplegat ni activat**. El merge i la preview continuen fora
-de T8.3; cap canvi d'aquesta branca autoritza instal·lacions ni operacions remotes.
+El servei **no està desplegat ni activat**. Aquesta branca afegeix només l'avís
+de CI de T8.4, vinculat al SHA publicat; la reparació acotada de CI, la preview i
+el merge demanat continuen pendents. El merge i la preview continuen fora de
+T8.3; cap canvi d'aquesta branca autoritza instal·lacions ni operacions remotes.
 
 ## Nucli reutilitzable i aplicació
 
@@ -32,7 +34,8 @@ tools/server/agent/               aplicació de Mountain Runners
 │   └── development.mjs           prompts, comprovació, noms i informes
 ├── workflow/
 │   ├── project-runner.mjs        connecta política, model, sandbox i publicador
-│   └── run-instruction.mjs       coordina consulta o implementació fins a PR
+│   ├── run-instruction.mjs       coordina consulta o implementació fins a PR
+│   └── ci-watch.mjs              registra i envia l'avís de CI al mateix tema
 ├── runtime/
 │   ├── request-kind.mjs          interpreta la petició actual sense eines
 │   ├── agent.mjs                 prepara el perfil i inicia el torn
@@ -48,7 +51,9 @@ tools/server/agent/               aplicació de Mountain Runners
     ├── worktrees.mjs              worktree, branca, commit i estat publicat
     ├── secret-scan.mjs            historial, rutes i credencials conegudes
     ├── publisher.mjs              push, PR i confirmació de l'estat publicat
-    └── github.mjs                 client de GitHub i push segur
+    ├── github.mjs                 client de GitHub, push segur i lectura de CI
+    ├── ci-status.mjs              check runs i estats de commit d'un SHA exacte
+    └── ci-watch-store.mjs         seguiment durador de l'avís de CI
 ```
 
 Per seguir el codi, comença per `processes/telegram-bridge/main.mjs`, continua
@@ -107,9 +112,17 @@ al servidor. El nom local encara no representa una publicació a npm.
 6. `repository` fa commit, escaneja les credencials conegudes, publica la branca
    i obre o reutilitza la PR. Només després de confirmar push i PR registra el
    commit publicat fora del muntatge. El paquet retorna el resultat al tema.
+7. Abans de respondre, `workflow` desa un seguiment de CI vinculat al SHA
+   publicat. Un bucle en segon pla llegeix els check runs i els estats de commit
+   d'aquell SHA i, quan les comprovacions obligatòries acaben, envia el resultat
+   al mateix tema. El bucle no bloqueja la cua; un enviament no confirmat queda
+   com a incert i no es repeteix sol.
 
 Un error local conegut, un timeout o una cancel·lació amb neteja confirmada
-retornen una fallada sense bloquejar la cua. Un error després d'iniciar la
+retornen una fallada sense bloquejar la cua. L'avís de CI tampoc no bloqueja la
+cua: només es declaren verdes les comprovacions obligatòries presents i
+correctes del SHA exacte, i un resultat no confirmat es comunica sense
+reintentar-lo. Un error després d'iniciar la
 publicació, o una aturada de sandbox no confirmada, retornen un resultat incert.
 L'arrencada es refusa mentre quedi qualsevol instrucció incerta, fins i tot
 després de diversos reinicis. La reconciliació completa continua fora de T8.3.

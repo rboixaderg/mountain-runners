@@ -3,6 +3,7 @@ import { execFile } from "node:child_process";
 import {
   existsSync,
   readFileSync,
+  mkdirSync,
   mkdtempSync,
   realpathSync,
   rmSync,
@@ -13,6 +14,7 @@ import { join } from "node:path";
 import { promisify } from "node:util";
 import { test } from "node:test";
 import { PublishRefusedError } from "../repository/github.mjs";
+import { CiWatchStore } from "../repository/ci-watch-store.mjs";
 import { createProjectRunner } from "./project-runner.mjs";
 import { hasUnpublishedCommit } from "../repository/worktrees.mjs";
 import { SandboxCleanupError } from "../sandbox/errors.mjs";
@@ -260,6 +262,70 @@ test("publishes a small change as a pull request after the checks pass", async (
     "--format=%s",
   ]);
   assert.equal(committed, "feat(tools): add synthetic change");
+});
+
+test("registers the CI watch for the published commit without waiting for CI", async (context) => {
+  const paths = await fixture(context);
+  mkdirSync(paths.state, { recursive: true });
+  const ciWatches = new CiWatchStore(join(paths.state, "ci-watch.sqlite"));
+  context.after(() => ciWatches.close());
+  const github = githubStub();
+  github.getCommitCheckRuns = () =>
+    assert.fail("the instruction must not wait for CI");
+  github.getCommitStatuses = () =>
+    assert.fail("the instruction must not wait for CI");
+  github.getPullRequest = () =>
+    assert.fail("the instruction must not wait for CI");
+  const runner = createProjectRunner({
+    config: configFor(paths),
+    classifyRequest: async () => "implementation",
+    github,
+    ciWatches,
+    runModel: async ({ worktreePath }) => {
+      writeFileSync(join(worktreePath, "change.txt"), "canvi\n");
+      return { text: "Canvi fet.\nSUMMARY: feat(tools): add synthetic change" };
+    },
+    runChecks: async () => ({ exitCode: 0, stdout: "", stderr: "" }),
+  });
+
+  const result = await runner(request());
+
+  assert.equal(result.outcome, "pull_request_created");
+  assert.match(result.report, /Seguiment de la CI de GitHub/u);
+  const published = await git(join(paths.worktrees, "topic_n1001234567890_7"), [
+    "rev-parse",
+    "HEAD",
+  ]);
+  const [watch] = ciWatches.pending();
+  assert.equal(watch.commit_sha, published);
+  assert.equal(watch.pull_request_number, 200);
+  assert.equal(watch.session_key, request().sessionKey);
+});
+
+test("reports an unregistered CI watch without losing the publication", async (context) => {
+  const paths = await fixture(context);
+  const github = githubStub();
+  const runner = createProjectRunner({
+    config: configFor(paths),
+    classifyRequest: async () => "implementation",
+    github,
+    ciWatches: {
+      add() {
+        throw new Error("state volume full");
+      },
+    },
+    runModel: async ({ worktreePath }) => {
+      writeFileSync(join(worktreePath, "change.txt"), "canvi\n");
+      return { text: "Canvi fet.\nSUMMARY: feat(tools): add synthetic change" };
+    },
+    runChecks: async () => ({ exitCode: 0, stdout: "", stderr: "" }),
+  });
+
+  const result = await runner(request());
+
+  assert.equal(result.outcome, "pull_request_created");
+  assert.match(result.report, /pull\/200/u);
+  assert.match(result.report, /No s'ha pogut registrar el seguiment de la CI/u);
 });
 
 test("keeps the worktree and publishes nothing when the checks fail", async (context) => {
