@@ -1,0 +1,35 @@
+tools/server/agent/repository/preview-comment.test.mjs
+  s_7e5aa3a412d832::t_a97cadcdf56e9d 97-101,103
+docs/deployment.md
+  s_d906e190189d71::t_8ac7980579b2f2 715-720
+tools/server/agent/repository/preview-comment.mjs
+  s_d906e190189d71::t_935eb7ec57d971 36-41
+tools/server/agent/workflow/preview-request.mjs
+  s_d906e190189d71::t_87146425ab0d51 149-155
+tools/server/agent/workflow/preview-request.test.mjs
+  s_d906e190189d71::t_9be1d425838795 181-182,211
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "7c422da9dff0c77ad7533a1966921f71a9153f2b",
+  "prompts": {},
+  "sessions": {
+    "s_7e5aa3a412d832": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "f5de8b74-7008-4809-a21f-2997cc2669d8",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    },
+    "s_d906e190189d71": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-ad93bf48b01dabbbd",
+        "model": "unknown"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
