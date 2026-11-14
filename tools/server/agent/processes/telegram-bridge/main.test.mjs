@@ -261,3 +261,218 @@ test("refuses to start with an interrupted instruction of unknown result", async
     );
   }
 });
+
+function repairFixture(environment, statePath) {
+  mkdirSync(statePath, { recursive: true });
+  const ciWatches = new CiWatchStore(join(statePath, "ci-watch.sqlite"));
+  const repair = ciWatches.requestRepair({
+    updateIdentifier: 10,
+    sessionKey: "-1001234567890:7",
+    pullRequestNumber: 200,
+    failureFingerprint: JSON.stringify(["Validate"]),
+    failedChecks: ["Validate"],
+    evidence: [{ name: "Validate", detail: "synthetic failure" }],
+    commitSha: "a".repeat(40),
+    maximumAttempts: 2,
+  });
+  ciWatches.queueRepair(repair.sequence);
+  return { ciWatches, repair };
+}
+
+test("refuses to start with an interrupted CI repair of unknown result", async (context) => {
+  const { environment, statePath } = environmentFor(context);
+  const { ciWatches } = repairFixture(environment, statePath);
+  ciWatches.claimNextRepair();
+  ciWatches.close();
+
+  await assert.rejects(
+    startService({
+      environment,
+      telegram: telegramStub(),
+      github: {},
+      runner: async () => ({}),
+    }),
+    { message: /CI repair\(s\) have an unknown external result/u },
+  );
+  // The uncertainty survives later restarts until a person reconciles it.
+  await assert.rejects(
+    startService({
+      environment,
+      telegram: telegramStub(),
+      github: {},
+      runner: async () => ({}),
+    }),
+    { message: /unknown external result/u },
+  );
+
+  const queue = new AdmissionQueue(join(statePath, "admission.sqlite"), {
+    maxPending: 10,
+  });
+  const trace = queue
+    .traceEntries()
+    .find((entry) => entry.action === "ci_repair_uncertain");
+  assert.equal(trace.update_identifier, 10);
+  assert.equal(trace.detail, `#200 ${"a".repeat(7)}`);
+  queue.close();
+  const reopened = new CiWatchStore(join(statePath, "ci-watch.sqlite"));
+  assert.equal(reopened.claimNextRepair(), null);
+  reopened.close();
+});
+
+test("runs a queued CI repair when the instruction queue is idle", async (context) => {
+  const { environment, statePath } = environmentFor(context);
+  const { ciWatches } = repairFixture(environment, statePath);
+  ciWatches.close();
+  const sent = [];
+  const executed = [];
+  const service = await startService({
+    environment,
+    telegram: {
+      async getMe() {
+        return { id: 999, username: "mountain_agent_bot" };
+      },
+      async sendMessage(message) {
+        sent.push(message);
+      },
+    },
+    github: {
+      async getPullRequest() {
+        return { state: "open", headSha: "a".repeat(40) };
+      },
+      async getCommitCheckRuns() {
+        return [
+          { name: "Validate", status: "completed", conclusion: "failure" },
+        ];
+      },
+      async getCommitStatuses() {
+        return [];
+      },
+    },
+    runner: async (request) => {
+      executed.push(request);
+      return {
+        outcome: "pull_request_updated",
+        report: "Pull request actualitzada.",
+      };
+    },
+  });
+
+  assert.equal(await service.ciRepairExecutor.runNext(), true);
+  assert.equal(await service.ciRepairExecutor.runNext(), false);
+  assert.equal(executed[0].kind, "repair");
+  assert.equal(executed[0].commit, "a".repeat(40));
+  assert.equal(sent.length, 1);
+  assert.equal(sent[0].messageThreadIdentifier, 7);
+  assert.match(sent[0].text, /Reparació automàtica publicada/u);
+  service.ciWatches.close();
+  service.queue.close();
+});
+
+test("does not run a queued repair while the instruction queue is blocked", async (context) => {
+  const { environment, statePath } = environmentFor(context);
+  const { ciWatches } = repairFixture(environment, statePath);
+  ciWatches.close();
+  const controller = new AbortController();
+  let executed = false;
+  const service = await startService({
+    environment,
+    telegram: {
+      async getMe() {
+        return { id: 999, username: "mountain_agent_bot" };
+      },
+      async getUpdates() {
+        // Yield to the timers of this test while the bridge loops.
+        await new Promise((resolve) => setImmediate(resolve));
+        return [];
+      },
+      async sendMessage() {},
+    },
+    github: {},
+    runner: async () => {
+      executed = true;
+      return { outcome: "answered", report: "no hauria de passar" };
+    },
+  });
+  // The block appears at runtime, after an external result became unknown.
+  service.queue.admit({
+    updateIdentifier: 20,
+    messageIdentifier: 2020,
+    sessionKey: "-1001234567890:7",
+    authorIdentifier: 42,
+    instruction: "tasca amb resultat desconegut",
+  });
+  service.queue.next();
+  service.queue.markUncertain(20, "publication_uncertain");
+  assert.equal(service.queue.isBlocked(), true);
+
+  const running = service.bridge.run({ signal: controller.signal });
+  await new Promise((resolve) => setTimeout(resolve, 50));
+  controller.abort();
+  await running;
+
+  assert.equal(executed, false);
+  assert.equal(service.ciWatches.claimNextRepair() !== null, true);
+  service.ciWatches.close();
+  service.queue.close();
+});
+
+test("does not run another repair while one has an unknown result", async (context) => {
+  const { environment, statePath } = environmentFor(context);
+  const { ciWatches } = repairFixture(environment, statePath);
+  ciWatches.close();
+  let executions = 0;
+  const service = await startService({
+    environment,
+    telegram: {
+      async getMe() {
+        return { id: 999, username: "mountain_agent_bot" };
+      },
+      async getUpdates() {
+        await new Promise((resolve) => setImmediate(resolve));
+        return [];
+      },
+      async sendMessage() {},
+    },
+    github: {
+      async getPullRequest() {
+        return { state: "open", headSha: "a".repeat(40) };
+      },
+      async getCommitCheckRuns() {
+        return [
+          { name: "Validate", status: "completed", conclusion: "failure" },
+        ];
+      },
+      async getCommitStatuses() {
+        return [];
+      },
+    },
+    runner: async () => {
+      executions += 1;
+      return { outcome: "uncertain", report: "resultat desconegut" };
+    },
+  });
+  await service.ciRepairExecutor.runNext();
+  assert.equal(service.ciWatches.uncertainRepairCount(), 1);
+  const secondRepair = service.ciWatches.requestRepair({
+    updateIdentifier: 11,
+    sessionKey: "-1001234567890:7",
+    pullRequestNumber: 201,
+    failureFingerprint: JSON.stringify(["Validate"]),
+    failedChecks: ["Validate"],
+    evidence: [],
+    commitSha: "b".repeat(40),
+    maximumAttempts: 2,
+  });
+  service.ciWatches.queueRepair(secondRepair.sequence);
+
+  const controller = new AbortController();
+  const running = service.bridge.run({ signal: controller.signal });
+  await new Promise((resolve) => setTimeout(resolve, 50));
+  controller.abort();
+  await running;
+
+  assert.equal(executions, 1);
+  assert.equal(service.ciWatches.claimNextRepair() !== null, true);
+  service.ciWatches.close();
+  service.queue.close();
+});

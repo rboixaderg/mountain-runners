@@ -70,6 +70,16 @@ export class AdmissionQueue {
     }
   }
 
+  #blocked() {
+    return (
+      this.#database
+        .prepare(
+          "SELECT 1 FROM instructions WHERE status IN ('running', 'uncertain') LIMIT 1",
+        )
+        .get() !== undefined
+    );
+  }
+
   /**
    * Record an instruction. A duplicate update is never admitted twice. When the
    * pending queue is full the instruction is recorded as rejected so it can be
@@ -136,12 +146,7 @@ export class AdmissionQueue {
    */
   next() {
     return this.#transaction(() => {
-      const blocked = this.#database
-        .prepare(
-          "SELECT 1 FROM instructions WHERE status IN ('running', 'uncertain') LIMIT 1",
-        )
-        .get();
-      if (blocked) {
+      if (this.#blocked()) {
         return null;
       }
 
@@ -229,6 +234,14 @@ export class AdmissionQueue {
       )
       .get();
     return count;
+  }
+
+  /**
+   * True while an instruction is running or has an unknown external result. A
+   * caller that performs its own external work must not start it in this state.
+   */
+  isBlocked() {
+    return this.#blocked();
   }
 
   recordTrace({

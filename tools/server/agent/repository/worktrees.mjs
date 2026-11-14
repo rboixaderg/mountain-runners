@@ -106,6 +106,33 @@ export async function ensureSessionWorktree({
   return { ...worktree, reused: existing };
 }
 
+/**
+ * Resolve the worktree of a session that must already exist. A repair continues
+ * an existing branch and never creates, moves or resets a worktree; the caller
+ * reports a missing one instead of starting a new task.
+ */
+export async function findSessionWorktree({
+  repositoryPath,
+  worktreeRoot,
+  name,
+}) {
+  if (!/^[a-z0-9][a-z0-9._-]*$/u.test(name)) {
+    throw new Error(`Invalid worktree name ${name}.`);
+  }
+  if (!existsSync(worktreeRoot)) {
+    return null;
+  }
+  const worktreePath = join(realpathSync(worktreeRoot), name);
+  const repository = primaryRepository(repositoryPath);
+  const registered = (await worktreePaths(repository)).some(
+    (path) => path === worktreePath,
+  );
+  if (!registered || !existsSync(worktreePath)) {
+    return null;
+  }
+  return registeredWorktree(repositoryPath, worktreePath);
+}
+
 export async function listChangedPaths(worktree) {
   const output = await runGit(worktree, [
     "status",
@@ -135,6 +162,45 @@ export async function currentBranch(worktree) {
     { allowFailure: true },
   );
   return branch.trim() || null;
+}
+
+export async function headCommit(worktree) {
+  return (await runGit(worktree, ["rev-parse", "HEAD"])).trim();
+}
+
+export async function commitSubject(worktree, commit) {
+  return (
+    await runGit(worktree, ["log", "-1", "--format=%s", commit, "--"])
+  ).trim();
+}
+
+/**
+ * The published change of the worktree against the base branch, for context.
+ * A diff larger than the limit is clipped; a diff Git cannot produce at all is
+ * reported as unavailable instead of failing the whole repair.
+ */
+export async function changeDiff({
+  worktree,
+  baseBranch = "main",
+  maximumBytes = 256 * 1024,
+}) {
+  if (baseBranch !== "main") {
+    throw new Error("The agent only diffs against main.");
+  }
+  try {
+    const diff = await runGit(
+      worktree,
+      ["diff", "--no-color", "--no-ext-diff", `origin/${baseBranch}...HEAD`],
+      { maxBuffer: maximumBytes },
+    );
+    return diff.slice(0, maximumBytes);
+  } catch (error) {
+    // Node keeps the output read before the buffer overflowed.
+    if (error.cause?.code === "ERR_CHILD_PROCESS_STDIO_MAXBUFFER") {
+      return error.cause.stdout.slice(0, maximumBytes);
+    }
+    return null;
+  }
 }
 
 export async function createBranch({ worktree, branch }) {

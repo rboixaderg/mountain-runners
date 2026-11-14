@@ -559,7 +559,7 @@ propietat de la identitat del servei. La instal·lació prevista és:
 ├── repository/                            clon amb origin i main
 ├── worktrees/                             worktree actual per tema i feina preservada
 ├── sessions/                              historial de Pi per tema
-└── state/                                 admission.sqlite, ci-watch.sqlite, perfils i traça
+└── state/                                 admission.sqlite, ci-watch.sqlite (avisos i reparacions), perfils i traça
 /etc/mountain-runners-agent/agent.env      0600  credencials del servei
 /usr/local/lib/mountain-runners/agent/     aplicació instal·lada
 /usr/local/lib/mountain-runners/node_modules/
@@ -594,6 +594,67 @@ Si canvia la protecció de `main`, actualitza la llista al mateix moment: el
 servei no la pot contrastar i l'avís només confirma les comprovacions que hi
 consten. L'avís diu explícitament que es refereix a aquesta llista configurada,
 no a tota la CI de la PR.
+
+Quan una comprovació obligatòria falla, el servei intenta reparar-la sol, amb un
+límit de dues reparacions consecutives per conjunt de comprovacions fallides. La
+identitat de la fallada és aquest conjunt de noms; el missatge de la comprovació
+i el SHA són evidència i abast de l'intent, no identitat, perquè un SHA nou a
+cada reparació faria impossible comptar res i un missatge variable reiniciaria el
+pressupost sense límit. El servei només actua quan ja no queda cap comprovació
+obligatòria en curs, i un intent declinat o cancel·lat també consumeix el
+pressupost.
+La reparació continua sent treball del servei: el model només proposa codi dins
+del sandbox i el servei fixa el commit, comprova el cap del worktree, executa
+`pnpm check` i publica pel mateix camí de sempre, sobre la mateixa branca i la
+mateixa PR. Un commit de reparació reobre el seguiment del tema, de manera que
+el tema continua rebent l'avís de la CI nova. La reparació només s'inicia quan
+la cua d'instruccions és buida i no està bloquejada per un resultat incert, amb
+els mateixos límits de temps i la mateixa execució única que una implementació.
+Abans de tocar la branca torna a llegir la PR: si és tancada o el cap ja no és
+el commit que va fallar, no repara res i ho comunica. Tampoc no repara un
+worktree amb canvis sense publicar d'una instrucció posterior, perquè no es
+publiquin com a reparació. Una reparació no crea mai una PR: just abans del push
+torna a comprovar que la PR continuï oberta al mateix commit i, si no, no
+publica res.
+
+El prompt de reparació inclou el diff publicat, el resum del canvi, els noms de
+les comprovacions fallides i la seva sortida pública, retallada, tractada com a
+dada no fiable i sense les credencials conegudes. El model no rep cap operació
+de GitHub. Decidir si la fallada és dins de l'abast és criteri seu; els controls
+deterministes són el límit d'intents, la comprovació del cap de la PR i de
+l'estat publicat, `pnpm check` i la revisió humana. El servei no converteix mai una fallada en èxit: si la reparació no
+canvia res, si les comprovacions locals fallen o si la fallada és externa, tanca
+l'intent i ho comunica amb el resultat real. Abans d'executar un intent torna a
+llegir la PR i les comprovacions obligatòries: si la PR s'ha tancat o mogut, si
+el commit ja és verd o si l'estat encara no és concloent, no publica res i ho
+comunica. En arribar al límit informa
+dels dos intents i espera una instrucció nova al tema. El nombre d'intents és
+finit: cada conjunt de comprovacions fallides en té dos, i qualsevol conjunt nou
+en té dos més, però cap conjunt no els pot renovar sol.
+
+Els intents es desen a `state/ci-watch.sqlite` abans de qualsevol efecte, de
+manera que sobreviuen a un reinici. Només compta l'intent que s'ha arribat a
+agafar, i el mateix avís, commit i fallada només es reserva una vegada. Un
+intent reservat només es pot executar després que l'avís «en curs» s'hagi
+enviat al tema; si l'avís no s'envia, l'intent no s'executa ni compta. Una reparació interrompuda pot haver fet
+push i mai no es repeteix sola: el servei refusa arrencar fins que una persona
+reconciliï l'estat real, igual que amb una instrucció interrompuda. Amb el
+servei en marxa, una reparació amb resultat desconegut atura les reparacions
+automàtiques, també les que es reservarien per una fallada nova: el tema ho
+informa en lloc d'anunciar un intent que no es farà. Les instruccions del tema
+continuen. Ni una CI verda ni una
+publicació nova esborren aquesta incertesa, i l'intent ja gastat no es
+recupera. Un missatge
+de resultat que no es pugui confirmar no es reenvia. Si el resultat d'un intent
+no es pot desar, l'intent queda en curs i atura la cua de reparacions fins al
+reinici, que el marca com a desconegut; el tema ho rep amb el resultat. Si el
+termini del seguiment s'esgota amb comprovacions fallides però el conjunt no és
+concloent, l'avís en dona els noms i no s'inicia cap reparació. La traça privada registra
+`ci_repair_requested`, `ci_repair_blocked`, `ci_repair_limit_reached`,
+`ci_repair_published`, `ci_repair_not_published`, `ci_repair_aborted`,
+`ci_repair_uncertain` i `ci_repair_close_failed` amb la PR i el commit, sense text de conversa ni
+credencials. Una traça que no es pot escriure es registra al log i no perd
+l'avís al tema.
 
 Els límits numèrics (CPU, memòria, processos, temps d'execució i cua) tenen valors
 inicials al codi. La unitat limita el conjunt del servei i els seus contenidors a 1,5 CPU,

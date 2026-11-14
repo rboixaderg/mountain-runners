@@ -88,6 +88,21 @@ function readRequiredChecks(environment) {
   return names;
 }
 
+/**
+ * Live credentials of the service. They are never sent to the model, the
+ * sandbox or the prompt; the trusted component uses them for the publication
+ * scan and to redact text it reads from outside.
+ */
+export function agentSecrets(config, environment = process.env) {
+  return [
+    config.telegram.botToken,
+    config.github.token,
+    ...config.model.providerEnvironmentVariables.map(
+      (name) => environment[name],
+    ),
+  ];
+}
+
 export function readAgentConfig(environment = process.env) {
   const repository = requiredValue(environment, "MOUNTAIN_AGENT_REPOSITORY");
   if (!repositoryPattern.test(repository)) {

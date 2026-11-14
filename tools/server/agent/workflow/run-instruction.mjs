@@ -7,19 +7,25 @@ import {
   commitAll,
   createBranch,
   currentBranch,
+  commitSubject,
+  changeDiff,
   ensureSessionWorktree,
+  findSessionWorktree,
+  headCommit,
   listChangedPaths,
   committedPaths,
   hasUnpublishedCommit,
 } from "../repository/worktrees.mjs";
 import { SandboxCleanupError } from "../sandbox/errors.mjs";
 import {
+  buildRepairInstruction,
   parseChangeSummary,
   branchNameForChange,
   fallbackTitle,
   pullRequestBody,
   instructionReports,
   publicationReport,
+  repairRequestKind,
 } from "../policy/development.mjs";
 
 export function createInstructionRunner({
@@ -32,32 +38,85 @@ export function createInstructionRunner({
   registerCiWatch,
   logger = () => {},
 }) {
+  /**
+   * A repair continues a published commit: the worktree and its branch must
+   * already exist and stay at that commit. The service never creates, resets or
+   * moves anything to repair a failure.
+   */
+  async function repairTarget(request, identifier, signal) {
+    const worktree = await findSessionWorktree({
+      repositoryPath,
+      worktreeRoot,
+      name: identifier,
+    });
+    if (worktree === null) {
+      return { report: instructionReports.repairWorktreeMissing };
+    }
+    const branch = await currentBranch(worktree);
+    if (branch === null || (await headCommit(worktree)) !== request.commit) {
+      return { report: instructionReports.repairCommitChanged };
+    }
+    // Leftovers of a later instruction (for example a failed check) are not
+    // part of the failed commit and must never be committed by a repair.
+    if ((await listChangedPaths(worktree)).length > 0) {
+      return { report: instructionReports.repairWorktreeDirty };
+    }
+    signal?.throwIfAborted();
+    return {
+      worktree,
+      branch,
+      instruction: buildRepairInstruction({
+        pullRequestNumber: request.pullRequestNumber,
+        commit: request.commit,
+        branch,
+        changeSummary: await commitSubject(worktree, request.commit),
+        failedChecks: request.failedChecks,
+        evidence: request.evidence,
+        diff: await changeDiff({ worktree }),
+      }),
+    };
+  }
+
   return async function runInstruction(request, { signal } = {}) {
     const identifier = sessionIdentifier(request.sessionKey);
+    const repair = request.kind === repairRequestKind;
     let publicationStarted = false;
     try {
       signal?.throwIfAborted();
-      const kind = await classifyRequest({
-        instruction: request.instruction,
-        signal,
-      });
+      // Only the trusted internal repair request fixes its kind; every other
+      // request is classified from its text.
+      const kind = repair
+        ? repairRequestKind
+        : await classifyRequest({
+            instruction: request.instruction,
+            signal,
+          });
       if (
         kind !== "implementation" &&
         kind !== "consultation" &&
-        kind !== "continuation"
+        kind !== "continuation" &&
+        kind !== repairRequestKind
       ) {
         return {
           outcome: "answered",
           report: instructionReports.clarification,
         };
       }
-      const worktree = await ensureSessionWorktree({
-        repositoryPath,
-        worktreeRoot,
-        name: identifier,
-        newTaskIdentifier:
-          kind === "implementation" ? request.updateIdentifier : undefined,
-      });
+      const target = repair
+        ? await repairTarget(request, identifier, signal)
+        : null;
+      if (target?.report) {
+        return { outcome: "failed", report: target.report };
+      }
+      const worktree = repair
+        ? target.worktree
+        : await ensureSessionWorktree({
+            repositoryPath,
+            worktreeRoot,
+            name: identifier,
+            newTaskIdentifier:
+              kind === "implementation" ? request.updateIdentifier : undefined,
+          });
       if (
         kind === "continuation" &&
         (await listChangedPaths(worktree)).length === 0 &&
@@ -71,7 +130,7 @@ export function createInstructionRunner({
       const modelResult = await runModel({
         sessionIdentifier: identifier,
         sessionKey: request.sessionKey,
-        instruction: request.instruction,
+        instruction: repair ? target.instruction : request.instruction,
         kind,
         worktreePath: worktree.path,
         signal,
@@ -108,7 +167,9 @@ export function createInstructionRunner({
       }
       const summary = parseChangeSummary(modelResult.text);
       const title = fallbackTitle({ summary });
-      const existingBranch = await currentBranch(worktree);
+      const existingBranch = repair
+        ? target.branch
+        : await currentBranch(worktree);
       const branch = existingBranch
         ? assertWorkBranch(existingBranch)
         : branchNameForChange({
@@ -142,6 +203,13 @@ export function createInstructionRunner({
         branch,
         title,
         body,
+        // A repair only updates the pull request it continues.
+        repair: repair
+          ? {
+              pullRequestNumber: request.pullRequestNumber,
+              commit: request.commit,
+            }
+          : undefined,
       });
       if (publication.refused) {
         logger("publication_refused", identifier);
@@ -151,12 +219,15 @@ export function createInstructionRunner({
         };
       }
       // The watch is durable before the report is sent, and it never waits for
-      // the CI of the commit: the queue keeps executing other instructions.
+      // the CI of the commit: the queue keeps executing other instructions. A
+      // repair reopens the watch of the instruction it continues, so the topic
+      // follows the new commit in the same conversation slot.
       const ciWatch = registerCiWatch?.({
         updateIdentifier: request.updateIdentifier,
         sessionKey: request.sessionKey,
         pullRequestNumber: publication.pullRequest.number,
         commit: publication.commit,
+        automatic: repair,
       });
       return {
         outcome: publication.created

@@ -7,6 +7,17 @@ import { runGit } from "./trusted-git.mjs";
 const maximumObjectBytes = 2 * 1024 * 1024;
 const maximumTotalBytes = 32 * 1024 * 1024;
 
+/** Remove known live credentials from text that leaves the trusted component. */
+export function redactSecrets(text, secrets) {
+  let redacted = text;
+  for (const secret of secrets) {
+    if (typeof secret === "string" && secret.length > 0) {
+      redacted = redacted.replaceAll(secret, "***");
+    }
+  }
+  return redacted;
+}
+
 function isProtectedPath(path) {
   const normalized = path.toLowerCase();
   return (

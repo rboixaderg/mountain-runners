@@ -3,6 +3,7 @@
 
 import { runAgent } from "../runtime/agent.mjs";
 import { classifyRequest as classifyWithModel } from "../runtime/request-kind.mjs";
+import { agentSecrets } from "../config.mjs";
 import {
   runSandboxedCommand,
   stopSandboxedCommands,
@@ -79,13 +80,7 @@ export function createProjectRunner({
       : undefined,
     publishChange: createPublisher({
       github,
-      secrets: [
-        config.telegram.botToken,
-        config.github.token,
-        ...config.model.providerEnvironmentVariables.map(
-          (name) => environment[name],
-        ),
-      ],
+      secrets: agentSecrets(config, environment),
     }),
   });
 }

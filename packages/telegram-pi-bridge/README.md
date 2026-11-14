@@ -70,15 +70,15 @@ rep la cua i el callback d'execució de l'aplicació. `/sessions` carrega SQLite
 però no Telegram ni Pi. L'entrada arrel `telegram-pi-bridge` conserva totes
 les exportacions i carrega tots els mòduls, inclòs SQLite.
 
-| Exportació                             | Responsabilitat                                                                                 |
-| -------------------------------------- | ----------------------------------------------------------------------------------------------- |
-| `TelegramApi`, `TelegramApiError`      | `getMe`, `getUpdates`, `getChatMember` i `sendMessage`; errors de transport sense URL amb token |
-| `AdmissionQueue`                       | Cua duradora SQLite amb límit de pendents i una execució global                                 |
-| `AgentBridge`                          | Connecta transport, comprovació de membres, cua i callback d'execució                           |
-| `parseSessionKey`, `sessionIdentifier` | Identitat estable a partir de grup i tema                                                       |
-| `runPiPrompt`, `buildPiArguments`      | Torn RPC i construcció explícita dels arguments de Pi                                           |
-| `defaultBridgeMessages`                | Missatges operatius en anglès; l'aplicació pot substituir-los                                   |
-| `instructionExcerpt`                   | Retall d'una línia de la instrucció per al missatge de recepció                                 |
+| Exportació                             | Responsabilitat                                                                                                          |
+| -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| `TelegramApi`, `TelegramApiError`      | `getMe`, `getUpdates`, `getChatMember` i `sendMessage`; errors de transport sense URL amb token                          |
+| `AdmissionQueue`                       | Cua duradora SQLite amb límit de pendents i una execució global                                                          |
+| `AgentBridge`                          | Connecta transport, comprovació de membres, cua, callback d'execució i treball propi de l'aplicació quan la cua és buida |
+| `parseSessionKey`, `sessionIdentifier` | Identitat estable a partir de grup i tema                                                                                |
+| `runPiPrompt`, `buildPiArguments`      | Torn RPC i construcció explícita dels arguments de Pi                                                                    |
+| `defaultBridgeMessages`                | Missatges operatius en anglès; l'aplicació pot substituir-los                                                            |
+| `instructionExcerpt`                   | Retall d'una línia de la instrucció per al missatge de recepció                                                          |
 
 ### Pont de Telegram
 
@@ -96,6 +96,7 @@ const bridge = new AgentBridge({
   telegram,
   queue,
   runInstruction,
+  runWhenIdle,
 });
 await bridge.run({ signal });
 ```
@@ -112,11 +113,24 @@ instruccions es dedupliquen per update i s'executen en ordre. El polling i
 l'execució són seqüencials; no hi ha un canal de cancel·lació per missatges
 mentre el callback treballa. El `signal` del procés sí que arriba al callback.
 
+`isBlocked()` indica si hi ha una instrucció en execució o amb un resultat extern
+desconegut. Un consumidor que faci feina externa pròpia ha de consultar-lo abans
+de començar-ne.
+
 Una cua bloquejada per incertesa refusa les instruccions noves amb un avís.
 `admit()` retorna `rejected_blocked` i les desa com a refusades. Les instruccions
 que ja eren pendents es conserven. `recover()` transforma les execucions
 interrompudes en incertes i retorna el total d'instruccions incertes, incloses
 les de reinicis anteriors.
+
+`runWhenIdle({ signal })` és opcional i serveix perquè l'aplicació executi la
+seva pròpia feina duradora de segon pla. El pont el crida només quan no queda
+cap instrucció per executar, i espera que retorni si ha fet alguna cosa: si en
+retorna `true`, torna a buidar la cua i el crida de nou. Així l'aplicació no
+necessita un segon executor ni un pany propi, i es conserva una sola execució
+global. Una excepció es registra com a `idle_work_failed` i no atura el pont.
+El pont no desa ni recupera aquesta feina: la durabilitat és responsabilitat de
+l'aplicació.
 
 Els missatges es poden substituir parcialment amb
 `messages: { acknowledgement, queueFull, queueBlocked, membershipUnavailable, unknownResult }`.

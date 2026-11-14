@@ -12,11 +12,16 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { AdmissionQueue } from "telegram-pi-bridge/sessions";
 import { AgentBridge, TelegramApi } from "telegram-pi-bridge/telegram";
-import { bridgeMessages } from "../../policy/development.mjs";
-import { readAgentConfig } from "../../config.mjs";
+import {
+  bridgeMessages,
+  maximumAutomaticRepairs,
+} from "../../policy/development.mjs";
+import { agentSecrets, readAgentConfig } from "../../config.mjs";
 import { GitHubTrust } from "../../repository/github.mjs";
 import { CiWatchStore } from "../../repository/ci-watch-store.mjs";
+import { classifyCommitStatus } from "../../repository/ci-status.mjs";
 import { pruneArchivedWorktrees } from "../../repository/retention.mjs";
+import { createCiRepairExecutor } from "../../workflow/ci-repair.mjs";
 import { createCiWatchWorker } from "../../workflow/ci-watch.mjs";
 import { createProjectRunner } from "../../workflow/project-runner.mjs";
 import { stopAllSandboxedCommands } from "../../sandbox/commands.mjs";
@@ -82,6 +87,28 @@ export async function startService({
     );
   }
 
+  // An interrupted repair may have pushed a commit. Like an interrupted
+  // instruction, it is never replayed automatically: the service refuses to
+  // start until a person reconciles the real state.
+  const interruptedRepairs = ciWatches.interruptRepairs();
+  for (const repair of interruptedRepairs) {
+    queue.recordTrace({
+      updateIdentifier: repair.update_identifier,
+      sessionKey: repair.session_key,
+      action: "ci_repair_uncertain",
+      detail: `#${repair.pull_request_number} ${repair.commit_sha.slice(0, 7)}`,
+    });
+  }
+  const uncertainRepairs = ciWatches.uncertainRepairCount();
+  if (uncertainRepairs > 0) {
+    logger("ci_repair_uncertain", String(uncertainRepairs));
+    ciWatches.close();
+    queue.close();
+    throw new Error(
+      `Refusing to start: ${uncertainRepairs} CI repair(s) have an unknown external result.`,
+    );
+  }
+
   // Archived worktrees keep a dependency tree each; remove only the ones that
   // have nothing left to lose. Retention never blocks the service.
   try {
@@ -131,6 +158,27 @@ export async function startService({
       ciWatches,
     });
 
+  const ciRepairExecutor = createCiRepairExecutor({
+    repairs: ciWatches,
+    runInstruction: runner,
+    readPullRequest: ({ pullRequestNumber, signal }) =>
+      github.getPullRequest({ number: pullRequestNumber, signal }),
+    readCiState: async ({ commit, signal }) => {
+      const [checkRuns, statuses] = await Promise.all([
+        github.getCommitCheckRuns({ commit, signal }),
+        github.getCommitStatuses({ commit, signal }),
+      ]);
+      return classifyCommitStatus({
+        requiredChecks: config.github.requiredChecks,
+        checkRuns,
+        statuses,
+      });
+    },
+    telegram,
+    recordTrace: (entry) => queue.recordTrace(entry),
+    logger,
+  });
+
   const bridge = new AgentBridge({
     groupIdentifier: config.telegram.groupIdentifier,
     botUsername: config.telegram.botUsername,
@@ -140,15 +188,26 @@ export async function startService({
     runInstruction: runner,
     botIdentifier: identity.id,
     logger,
+    // A repair continues a published change. It runs only when no admitted
+    // instruction is executing, and never while the queue is blocked by an
+    // unknown external result.
+    runWhenIdle: ({ signal }) =>
+      queue.isBlocked() || ciWatches.uncertainRepairCount() > 0
+        ? false
+        : ciRepairExecutor.runNext({ signal }),
   });
 
   const ciWorker = createCiWatchWorker({
     store: ciWatches,
+    repairs: ciWatches,
     github,
     telegram,
     requiredChecks: config.github.requiredChecks,
     pollIntervalMilliseconds: config.limits.ciPollIntervalMs,
     watchTimeoutMilliseconds: config.limits.ciWatchTimeoutMs,
+    maximumAutomaticRepairs,
+    secrets: agentSecrets(config, environment),
+    recordTrace: (entry) => queue.recordTrace(entry),
     logger,
   });
 
@@ -160,6 +219,7 @@ export async function startService({
     github,
     ciWatches,
     ciWorker,
+    ciRepairExecutor,
     logger,
   };
 }
