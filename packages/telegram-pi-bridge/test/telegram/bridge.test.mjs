@@ -76,6 +76,7 @@ function bridgeFor({
   queue,
   telegram,
   runInstruction = async () => ({}),
+  runWhenIdle,
   messages,
   logger = () => {},
 }) {
@@ -86,6 +87,7 @@ function bridgeFor({
     telegram,
     queue,
     runInstruction,
+    runWhenIdle,
     botIdentifier,
     logger,
     pollTimeoutSeconds: 1,
@@ -477,4 +479,66 @@ test("uses the fallback message and blocks the queue for an uncertain result wit
   assert.equal(queue.status(10), "uncertain");
   assert.equal(await bridge.executeNext(), null);
   assert.equal(telegram.sent[2].text, defaultBridgeMessages.unknownResult);
+});
+
+test("runs the service background work only when no instruction is executing", async (t) => {
+  const { queue } = context(t);
+  const telegram = telegramStub({ batches: [[instructionUpdate(10, 7)]] });
+  // Yield to the timers of this test between polls: the bridge loop never
+  // blocks, so an empty long poll would starve them.
+  const pollForUpdates = telegram.getUpdates.bind(telegram);
+  telegram.getUpdates = async (options) => {
+    await new Promise((resolve) => setImmediate(resolve));
+    return pollForUpdates(options);
+  };
+  const controller = new AbortController();
+  const order = [];
+  let instructionRunning = false;
+  const bridge = bridgeFor({
+    queue,
+    telegram,
+    async runInstruction() {
+      instructionRunning = true;
+      order.push("instruction");
+      instructionRunning = false;
+      return { outcome: "answered", report: "fet" };
+    },
+    async runWhenIdle() {
+      assert.equal(instructionRunning, false);
+      assert.equal(queue.pendingCount(), 0);
+      order.push("idle");
+      return order.length === 2;
+    },
+  });
+
+  const running = bridge.run({ signal: controller.signal });
+  for (let waited = 0; waited < 100 && !order.includes("idle"); waited += 1) {
+    await new Promise((resolve) => setTimeout(resolve, 5));
+  }
+  assert.ok(order.includes("idle"), "the idle work never ran");
+  controller.abort();
+  await running;
+
+  // The second idle call does nothing, so the loop returns to polling.
+  assert.deepEqual(order, ["instruction", "idle", "idle"]);
+});
+
+test("reports a defect of the background work without stopping the bridge", async (t) => {
+  const { queue } = context(t);
+  const telegram = telegramStub({ batches: [[]] });
+  const controller = new AbortController();
+  const events = [];
+  const bridge = bridgeFor({
+    queue,
+    telegram,
+    logger: (event) => events.push(event),
+    runWhenIdle: async () => {
+      controller.abort();
+      throw new Error("state volume full");
+    },
+  });
+
+  await bridge.run({ signal: controller.signal });
+
+  assert.deepEqual(events, ["idle_work_failed"]);
 });

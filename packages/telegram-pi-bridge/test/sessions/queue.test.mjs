@@ -40,10 +40,23 @@ test("keeps an accepted instruction across a restart and deduplicates its update
   queue = new AdmissionQueue(path, { maxPending: 10 });
   assert.equal(queue.admit(request(1)), "duplicate");
   assert.equal(queue.pendingCount(), 1);
+  assert.equal(queue.isBlocked(), false);
   assert.equal(queue.next().updateIdentifier, 1);
   assert.equal(queue.status(1), "running");
+  assert.equal(queue.isBlocked(), true);
   assert.equal(queue.complete(1, "pr_created"), true);
   assert.equal(queue.status(1), "done");
+  assert.equal(queue.isBlocked(), false);
+  queue.close();
+});
+
+test("stays blocked while an instruction has an unknown external result", (context) => {
+  const queue = new AdmissionQueue(databasePath(context), { maxPending: 10 });
+  queue.admit(request(1));
+  queue.next();
+  assert.equal(queue.markUncertain(1, "publication_uncertain"), true);
+  assert.equal(queue.isBlocked(), true);
+  assert.equal(queue.next(), null);
   queue.close();
 });
 

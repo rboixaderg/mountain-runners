@@ -1,10 +1,11 @@
 # Agent privat de desenvolupament, T8.3
 
 Aplicació de Mountain Runners que porta una petició de Telegram fins a una PR.
-El servei **no està desplegat ni activat**. Aquesta branca afegeix només l'avís
-de CI de T8.4, vinculat al SHA publicat; la reparació acotada de CI, la preview i
-el merge demanat continuen pendents. El merge i la preview continuen fora de
-T8.3; cap canvi d'aquesta branca autoritza instal·lacions ni operacions remotes.
+El servei **no està desplegat ni activat**. Aquesta branca afegeix l'avís de CI
+de T8.4 vinculat al SHA publicat i la reparació automàtica acotada d'una CI
+vermella; la preview, el merge demanat i la continuació entre temes continuen
+pendents. Cap canvi d'aquesta branca autoritza instal·lacions ni operacions
+remotes.
 
 ## Nucli reutilitzable i aplicació
 
@@ -34,8 +35,9 @@ tools/server/agent/               aplicació de Mountain Runners
 │   └── development.mjs           prompts, comprovació, noms i informes
 ├── workflow/
 │   ├── project-runner.mjs        connecta política, model, sandbox i publicador
-│   ├── run-instruction.mjs       coordina consulta o implementació fins a PR
-│   └── ci-watch.mjs              registra i envia l'avís de CI al mateix tema
+│   ├── run-instruction.mjs       coordina consulta, implementació o reparació
+│   ├── ci-watch.mjs              avís de CI i reserva de la reparació acotada
+│   └── ci-repair.mjs             executa una reparació quan la cua està inactiva
 ├── runtime/
 │   ├── request-kind.mjs          interpreta la petició actual sense eines
 │   ├── agent.mjs                 prepara el perfil i inicia el torn
@@ -53,7 +55,8 @@ tools/server/agent/               aplicació de Mountain Runners
     ├── publisher.mjs              push, PR i confirmació de l'estat publicat
     ├── github.mjs                 client de GitHub, push segur i lectura de CI
     ├── ci-status.mjs              check runs i estats de commit d'un SHA exacte
-    └── ci-watch-store.mjs         seguiment durador de l'avís de CI
+    ├── request-signal.mjs         termini de lectura amb el senyal d'aturada
+    └── ci-watch-store.mjs         avís de CI i intents de reparació duradors
 ```
 
 Per seguir el codi, comença per `processes/telegram-bridge/main.mjs`, continua
@@ -117,6 +120,20 @@ al servidor. El nom local encara no representa una publicació a npm.
    d'aquell SHA i, quan les comprovacions obligatòries acaben, envia el resultat
    al mateix tema. El bucle no bloqueja la cua; un enviament no confirmat queda
    com a incert i no es repeteix sol.
+8. Si les comprovacions obligatòries fallen, `workflow/ci-watch.mjs` reserva una
+   reparació automàtica abans d'avisar i tanca el seguiment. `ci-repair.mjs`
+   executa l'intent quan la cua d'instruccions és buida i no està bloquejada per
+   un resultat incert, pel mateix camí de model, comprovació, commit i publicació
+   que una implementació. Abans de tocar la branca torna a llegir la PR i les
+   comprovacions obligatòries: si la PR és tancada o moguda, si el commit ja és
+   verd o si l'estat no és concloent, no publica res i ho comunica. El commit nou reobre el mateix seguiment
+   al tema i la reparació no compta com a treball nou. Dues reparacions
+   consecutives del mateix conjunt de comprovacions fallides és el límit; després
+   n'informa i espera una instrucció nova. La identitat de la fallada és el
+   conjunt de noms de les comprovacions fallides: el missatge i el SHA són
+   evidència, no identitat. Només compta l'intent que s'ha arribat a agafar. Una
+   reparació que no canvia res, o que no pot confirmar el resultat, es tanca i es
+   comunica sense reintentar-se.
 
 Un error local conegut, un timeout o una cancel·lació amb neteja confirmada
 retornen una fallada sense bloquejar la cua. L'avís de CI tampoc no bloqueja la
@@ -124,8 +141,11 @@ cua: només es declaren verdes les comprovacions obligatòries presents i
 correctes del SHA exacte, i un resultat no confirmat es comunica sense
 reintentar-lo. Un error després d'iniciar la
 publicació, o una aturada de sandbox no confirmada, retornen un resultat incert.
-L'arrencada es refusa mentre quedi qualsevol instrucció incerta, fins i tot
-després de diversos reinicis. La reconciliació completa continua fora de T8.3.
+L'arrencada es refusa mentre quedi qualsevol instrucció incerta o una reparació
+interrompuda, fins i tot després de diversos reinicis. Amb el servei en marxa,
+una reparació amb resultat desconegut atura les reparacions automàtiques mentre
+les instruccions del tema continuen. La reconciliació completa
+continua fora de T8.3 i T8.4.
 
 La classificació semàntica no substitueix l'autorització, els muntatges de només
 lectura ni les operacions deterministes de Git. El paquet no inclou aquesta
@@ -135,6 +155,15 @@ política ni pot autoritzar per si sol una publicació.
 
 - El pont és l'únic procés amb els tokens de Telegram i GitHub. L'adaptador
   prepara una llista blanca d'entorn per a Pi, amb només la credencial del model.
+- La reparació automàtica continua sent treball del servei, no del model: el
+  model només proposa codi dins del sandbox. El servei fixa el commit que cal
+  reparar, hi comprova el cap del worktree, executa `pnpm check` i publica pel
+  mateix camí de sempre. El prompt inclou el diff publicat i la sortida de les
+  comprovacions com a dades no fiables, sense credencials conegudes, i el model
+  no rep cap operació de GitHub. Decidir si una fallada és dins de l'abast és
+  criteri del model: cap camí determinista no ho pot saber abans de veure el
+  diff. Els controls són el límit d'intents, la comprovació del cap de la PR,
+  `pnpm check` i la revisió humana de la PR.
 - El paquet desactiva les eines i la càrrega automàtica de recursos per defecte.
   L'aplicació selecciona explícitament l'extensió instal·lada de confiança i
   `sandbox_bash`. Ni un perfil antic ni el repositori hi poden afegir eines.
@@ -182,13 +211,13 @@ escriptible de `/work`: `/tmp` manté `noexec`. El perfil del sandbox executa
 la prova de navegador amb Chromium. La CI executa la mateixa prova i els E2E
 amb Chromium, Firefox i WebKit; una fallada de CI bloqueja el merge.
 
-Abans d'una implementació o continuació, el servei prepara les dependències
-offline perquè el model pugui executar proves. Les consultes no instal·len res
-i conserven el worktree en només lectura. Les ordres d'implementació usen un
-`TMPDIR` ignorat per Git dins del worktree. Abans de publicar, el servei torna
-a instal·lar les dependències del lockfile i executa `pnpm check` amb un
-`TMPDIR` nou. Si la preparació falla, no inicia el model o no publica,
-segons el moment de la fallada.
+Abans d'una implementació, una continuació o una reparació, el servei prepara
+les dependències offline perquè el model pugui executar proves. Les consultes no
+instal·len res i conserven el worktree en només lectura. Les ordres
+d'implementació usen un `TMPDIR` ignorat per Git dins del worktree. Abans de
+publicar, el servei torna a instal·lar les dependències del lockfile i executa
+`pnpm check` amb un `TMPDIR` nou. Si la preparació falla, no inicia el model o
+no publica, segons el moment de la fallada.
 
 La versió de pnpm del `package.json` ha de coincidir amb la de la imatge. Una
 diferència es refusa sense descarregar cap versió nova. La imatge és
@@ -199,7 +228,10 @@ experimental i no autoritza activar el pilot sense les comprovacions del VPS.
 Les proves es mantenen amb el propietari de cada comportament. El paquet prova
 Telegram, cua, sessions i RPC. L'aplicació prova la política, el sandbox i Git.
 `workflow/journey.test.mjs` cobreix el recorregut fins a PR amb fronteres externes
-simulades. `workflow/bridge-package.test.mjs` executa el paquet en una còpia
+simulades. `repository/ci-status.test.mjs` cobreix la classificació de la CI i la
+identitat de la fallada; `workflow/ci-watch.test.mjs`, la reserva de reparacions;
+i `workflow/ci-repair.test.mjs`, l'execució, el límit, el resultat desconegut i
+l'aturada. `workflow/bridge-package.test.mjs` executa el paquet en una còpia
 independent, prova el tarball des d'un consumidor extern i verifica la disposició
 instal·lada del servei. No s'hi fan peticions reals ni es necessiten credencials.
 

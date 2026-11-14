@@ -64,6 +64,7 @@ export class AgentBridge {
   #telegram;
   #queue;
   #runInstruction;
+  #runWhenIdle;
   #logger;
   #botIdentifier;
   #pollTimeoutSeconds;
@@ -76,6 +77,7 @@ export class AgentBridge {
     telegram,
     queue,
     runInstruction,
+    runWhenIdle = async () => false,
     botIdentifier,
     logger = () => {},
     pollTimeoutSeconds = 25,
@@ -90,6 +92,7 @@ export class AgentBridge {
     this.#telegram = telegram;
     this.#queue = queue;
     this.#runInstruction = runInstruction;
+    this.#runWhenIdle = runWhenIdle;
     this.#botIdentifier = botIdentifier;
     this.#logger = logger;
     this.#pollTimeoutSeconds = pollTimeoutSeconds;
@@ -275,6 +278,24 @@ export class AgentBridge {
     }
   }
 
+  /**
+   * Run one unit of the service's own durable background work. It is called only
+   * when no admitted instruction is running, so the single global execution is
+   * preserved, and it must return whether it did something. A defect is logged
+   * and never stops the bridge.
+   */
+  async #runIdleWork({ signal } = {}) {
+    try {
+      return (await this.#runWhenIdle({ signal })) === true;
+    } catch (error) {
+      this.#logger(
+        "idle_work_failed",
+        error instanceof Error ? error.name : "unknown",
+      );
+      return false;
+    }
+  }
+
   /** Long-polling service loop. It returns only when the signal is aborted. */
   async run({ signal } = {}) {
     while (!signal?.aborted) {
@@ -290,7 +311,12 @@ export class AgentBridge {
         );
         await sleep(this.#backoffMilliseconds, signal);
       }
-      await this.#drain({ signal });
+      while (!signal?.aborted) {
+        await this.#drain({ signal });
+        if (!(await this.#runIdleWork({ signal }))) {
+          break;
+        }
+      }
     }
   }
 }
