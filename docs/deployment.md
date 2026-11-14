@@ -570,13 +570,20 @@ propietat de la identitat del servei. La instal·lació prevista és:
 l'entorn aïllat ha d'estar fixada i no pot usar l'etiqueta `latest`.
 
 `MOUNTAIN_AGENT_REQUIRED_CHECKS` és obligatori i conté, separats per comes, els
-noms exactes de les comprovacions obligatòries de `main`, per exemple
-`Validate, Gitleaks`. La credencial de l'agent no pot llegir la protecció de
-branca (respon 403), així que la llista es configura explícitament. Un nom
-incorrecte no es converteix mai en verd: la comprovació queda absent i l'avís
-acaba com a no confirmat. El servei llegeix els check runs (`filter=latest`) i
-els estats de commit heretats del SHA publicat, i envia un avís al mateix tema
-quan acaben les comprovacions obligatòries. El seguiment es desa a
+noms exactes de les comprovacions obligatòries de `main`. Verificat el 14 de
+novembre de 2026, la protecció de `main` exigeix aquestes set comprovacions amb
+la branca al dia:
+
+```text
+Validate, Conventional commits, Conventional title, Gitleaks, Dependency review, Analyze JavaScript and TypeScript, CodeQL
+```
+
+La credencial de l'agent no pot llegir la protecció de branca (respon 403), així
+que la llista es configura explícitament. Un nom incorrecte no es converteix mai
+en verd: la comprovació queda absent i l'avís acaba com a no confirmat. El
+servei llegeix els check runs (`filter=latest`) i els estats de commit heretats
+del SHA publicat, i envia un avís al mateix tema quan acaben les comprovacions
+obligatòries. El seguiment es desa a
 `state/ci-watch.sqlite`, no bloqueja la cua i no es repeteix automàticament: si
 Telegram no confirma un enviament, la fila queda com a incerta i el servei ho
 registra a l'arrencada, sense reintentar el missatge. Un canvi del cap de la PR
