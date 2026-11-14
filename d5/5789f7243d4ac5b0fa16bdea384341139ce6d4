@@ -1,0 +1,63 @@
+.env.example
+  s_13d449a9fab27e::t_06809ee7dac1fe 10
+docs/deployment.md
+  s_13d449a9fab27e::t_22e03cd88e1d55 389-394,562,570-592
+tools/server/agent/README.md
+  s_4298a475f74455::t_92b2db53f9c838 4-7,37-38,54-56,115-119,122-125
+tools/server/agent/config.mjs
+  s_13d449a9fab27e::t_af5ba73eda6636 25-26,70-90,134,178-187
+tools/server/agent/config.test.mjs
+  s_13d449a9fab27e::t_ada8c3a7fac6c2 12,29,39-40,80-96
+tools/server/agent/policy/development.mjs
+  s_13d449a9fab27e::t_b4573a900aa5fe 174-186,190-205,207-221
+tools/server/agent/processes/telegram-bridge/main.mjs
+  s_13d449a9fab27e::t_f89bf926c0e6b2 18,20,64-84,111,126-132,145-191,200,206-212,215
+tools/server/agent/processes/telegram-bridge/main.test.mjs
+  s_13d449a9fab27e::t_97749e660fd385 7-8,28,47-100,111-113,131-235
+tools/server/agent/repository/ci-github.test.mjs
+  s_13d449a9fab27e::t_8a41766ef2b4c8 1-182
+tools/server/agent/repository/ci-status.mjs
+  s_13d449a9fab27e::t_18102da8cc0aed 1-143
+tools/server/agent/repository/ci-status.test.mjs
+  s_13d449a9fab27e::t_f674d706304efc 1-159
+tools/server/agent/repository/ci-watch-store.mjs
+  s_13d449a9fab27e::t_fd72ec4bf4b5ca 1-138
+tools/server/agent/repository/ci-watch-store.test.mjs
+  s_13d449a9fab27e::t_069157c35f6bd5 1-77
+tools/server/agent/repository/github.mjs
+  s_13d449a9fab27e::t_34f7ffab592188 10-11,22-36,105,116,158-214
+tools/server/agent/repository/github.test.mjs
+  s_13d449a9fab27e::t_f5a2ec5ad6cc13 447,455-457
+tools/server/agent/workflow/bridge-package.test.mjs
+  s_13d449a9fab27e::t_98a352bd3ae369 175,178
+tools/server/agent/workflow/ci-watch.mjs
+  s_13d449a9fab27e::t_914053f949261d 1-248
+tools/server/agent/workflow/ci-watch.test.mjs
+  s_13d449a9fab27e::t_0526025e71128e 1-452
+tools/server/agent/workflow/run-instruction.test.mjs
+  s_13d449a9fab27e::t_0b341a586109f9 6,17,267-330
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "d55789f7243d4ac5b0fa16bdea384341139ce6d4",
+  "prompts": {},
+  "sessions": {
+    "s_13d449a9fab27e": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a1d8b7-09b6-7799-b4a1-7d303135820d",
+        "model": "deepseek-v4.1-flash"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    },
+    "s_4298a475f74455": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a1d8a2-ea57-75e6-a358-60af2f485e35",
+        "model": "deepseek-v4.1-flash"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
