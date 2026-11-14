@@ -178,6 +178,8 @@ test("posts exactly /preview once for the reported green commit", async (context
   assert.equal(stateDuringPost, "commenting");
   assert.equal(previews.state(20), "awaiting");
   assert.deepEqual(actions(traces), ["preview_requested", "preview_commented"]);
+  assert.equal(traces[0].authorIdentifier, 555);
+  assert.equal(traces[0].detail, "#200 aaaaaaa");
   assert.equal(traces[1].authorIdentifier, 555);
   assert.equal(traces[1].detail, "#200 aaaaaaa");
 });
@@ -206,6 +208,7 @@ test("refuses without a commit reported green in the topic", async (context) => 
       .map((entry) => entry.detail),
     ["no_reported_commit", "no_reported_commit"],
   );
+  assert.ok(!actions(traces).includes("preview_requested"));
 });
 
 test("never accepts a PR or commit from the request text", async (context) => {

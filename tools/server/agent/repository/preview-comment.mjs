@@ -33,9 +33,12 @@ export function confirmedPreviewOrigin({
     if (comment.user?.login !== publisherLogin) continue;
     const parsed = pattern.exec(comment.body ?? "");
     if (parsed === null || parsed[2] !== commit) continue;
-    // GitHub timestamps have second granularity: a publication within the same
-    // second as the request cannot be told apart from it, so it is accepted.
-    if (Date.parse(comment.updated_at) >= Date.parse(requestedAt)) {
+    // GitHub timestamps have second granularity: an earlier publication of the
+    // same commit updated within the request's second cannot be told apart from
+    // it, so only a strictly later update counts. A real publication takes
+    // minutes of build and always ends later; a missed confirmation is the safe
+    // failure.
+    if (Date.parse(comment.updated_at) > Date.parse(requestedAt)) {
       return parsed[1];
     }
   }

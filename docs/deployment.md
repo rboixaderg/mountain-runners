@@ -712,6 +712,12 @@ privada.
   `updated_at` del comentari del publicador quan el torna a escriure. Si no ho
   fa, la petició acaba com a no confirmada tot i que la preview pot estar
   activa.
+- **Granularitat d'un segon.** `updated_at` només té precisió de segon, així
+  que només s'accepta un comentari actualitzat estrictament després de la
+  petició. Una publicació anterior del mateix commit feta dins del mateix segon
+  no es confon amb la confirmació. Una publicació real sempre acaba més tard,
+  perquè el build triga minuts; el cost de la regla és una no confirmació falsa,
+  que és la fallada segura.
 - **Cursa acceptada.** Si arriba un commit nou entre la comprovació i
   l'execució del flux, el flux construeix el cap nou i el servei informa de no
   confirmada perquè el SHA no coincideix.

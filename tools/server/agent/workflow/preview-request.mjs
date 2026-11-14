@@ -134,12 +134,6 @@ export function createPreviewRequests({
 
   /** The instruction runner calls this for a request classified as `preview`. */
   async function handle(request, { signal } = {}) {
-    safeTrace({
-      updateIdentifier: request.updateIdentifier,
-      authorIdentifier: request.authorIdentifier,
-      sessionKey: request.sessionKey,
-      action: "preview_requested",
-    });
     const reported = reportedCommits.lastReported(request.sessionKey);
     if (reported?.result !== ciResults.success) {
       return refuse(
@@ -152,6 +146,13 @@ export function createPreviewRequests({
       pullRequestNumber: reported.pull_request_number,
       commit: reported.commit_sha,
     };
+    safeTrace({
+      updateIdentifier: request.updateIdentifier,
+      authorIdentifier: request.authorIdentifier,
+      sessionKey: request.sessionKey,
+      action: "preview_requested",
+      detail: describeTarget(target),
+    });
 
     let refusal;
     try {

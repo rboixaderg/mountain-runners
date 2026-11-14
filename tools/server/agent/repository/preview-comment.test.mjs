@@ -94,9 +94,13 @@ test("rejects a comment not updated after the request", () => {
   assert.equal(confirmed(publisherComment({ updated_at: undefined })), null);
 });
 
-test("accepts a comment updated in the same second as the request", () => {
+test("rejects a comment updated in the same second as the request", () => {
+  assert.equal(confirmed(publisherComment({ updated_at: requestedAt })), null);
+});
+
+test("accepts a comment updated one second after the request", () => {
   assert.equal(
-    confirmed(publisherComment({ updated_at: requestedAt })),
+    confirmed(publisherComment({ updated_at: "2026-11-14T10:00:01Z" })),
     origin,
   );
 });
