@@ -90,14 +90,51 @@ L'execució la fa el component de confiança, que és l'únic que pot usar la
 credencial de GitHub. L'entorn aïllat, el model i les proves no hi tenen accés
 ni poden invocar l'API de GitHub directament.
 
+## Esmena (T8.4, 15 de novembre de 2026): `/merge` sense número
+
+La persona mantenidora decideix que la comanda de merge continua sent
+determinista, però que la persona no ha de teclejar el número de la PR: el
+servei ja coneix la PR que ha informat en aquell tema. El servei no interpreta mai prosa ni usa el
+model per triar la PR. Les formes acceptades, sempre al tema i amb les regles de
+menció o resposta existents, són:
+
+- `/merge <PR>`: sense canvis; `<PR>` ha de ser la PR de l'últim avís de CI verd
+  lliurat en aquell tema.
+- `/merge <PR> <SHA>`: sense canvis; el SHA ha de coincidir amb el commit fixat
+  i amb el cap actual.
+- `/merge`, sense número: el servei resol la PR de manera determinista amb el seu
+  estat durador, és a dir, la PR de l'últim avís de CI verd lliurat en aquell
+  tema, fixada a aquell commit. Només l'última PR informada d'un tema es pot
+  fusionar; una PR informada abans necessita un avís nou.
+
+Si el servei no pot resoldre-ho sense ambigüitat, pregunta i no fusiona res: no
+hi ha cap avís verd al tema; l'últim avís no és verd; o el tema té feina més
+nova que l'últim avís (una instrucció o una reparació en curs o en cua per a
+aquell tema, o una publicació encara no informada). La resposta nomena la PR i
+demana `/merge <PR>` després d'un informe nou, segons el cas.
+
+El resultat nomena sempre el número de la PR fusionada i el commit fusionat. La
+resta de controls no canvia: membre verificat comprovat en el moment
+d'executar, PR oberta, no esborrany, base `main` i cap igual al commit fixat,
+comprovacions obligatòries en verd i branca al dia, cap bypass
+d'administrador. El mètode de merge és sempre squash. Després d'un resultat
+desconegut no es repeteix mai el merge sense llegir abans l'estat real de la PR:
+si GitHub la mostra fusionada, el servei la tanca com a fusionada i ho informa;
+altrament decideix una persona.
+
+Es manté que no hi ha cap permís actiu fins que els controls estiguin
+verificats. Risc acceptat: fusionar una PR diferent de la que la persona tenia
+al cap. Mitigacions: només es pot fusionar l'última PR informada del tema, el
+servei pregunta davant de qualsevol dubte i el resultat és explícit.
+
 ## Separació proposada de permisos
 
-| Component            | Accés previst                                                          | Límit abans del pilot                                                                                                                                                                               |
-| -------------------- | ---------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Pont de Telegram     | Token del bot i verificació de membres del grup configurat             | No envia la credencial a Pi, al contingut ni a les proves.                                                                                                                                          |
-| Pi i model           | Credencial del proveïdor i context necessari de la sessió              | No rep credencials de GitHub ni de producció. Les eines d'execució no hereten la credencial del model.                                                                                              |
-| Entorn d'execució    | Worktree de la feina i dependències necessàries                        | No llegeix sessions ni credencials i no accedeix a serveis privats del VPS.                                                                                                                         |
-| Integració de GitHub | Compte `rboixaderg` amb una credencial per a branca, PR i merge acotat | El component només executa el merge demanat amb `/merge <PR>`, fixat al commit de l'últim informe; no exposa auto-merge, canvis de protecció ni escriptura a `main`. Cal provar-ho abans del pilot. |
+| Component            | Accés previst                                                          | Límit abans del pilot                                                                                                                                                                                                     |
+| -------------------- | ---------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Pont de Telegram     | Token del bot i verificació de membres del grup configurat             | No envia la credencial a Pi, al contingut ni a les proves.                                                                                                                                                                |
+| Pi i model           | Credencial del proveïdor i context necessari de la sessió              | No rep credencials de GitHub ni de producció. Les eines d'execució no hereten la credencial del model.                                                                                                                    |
+| Entorn d'execució    | Worktree de la feina i dependències necessàries                        | No llegeix sessions ni credencials i no accedeix a serveis privats del VPS.                                                                                                                                               |
+| Integració de GitHub | Compte `rboixaderg` amb una credencial per a branca, PR i merge acotat | El component només executa el merge demanat amb `/merge` (o `/merge <PR>`), resolt i fixat al commit de l'últim informe; no exposa auto-merge, canvis de protecció ni escriptura a `main`. Cal provar-ho abans del pilot. |
 
 Aquesta taula descriu una frontera proposada, no permisos ja concedits. La persona mantenidora ha triat el compte `rboixaderg`, que té el rol administrador al repositori. GitHub veu el mateix compte quan actua una persona o el servei; no es pot distingir l'agent pel rol del compte. La protecció actual de `main` exigeix PR i CI, però no exigeix cap aprovació. Una regla que permeti actuar als administradors tampoc separaria el servei de la persona mantenidora.
 
@@ -105,7 +142,7 @@ El servei necessita una credencial acotada i un component de confiança amb oper
 
 El component valida que cada operació afecti el repositori configurat i la branca de treball de la feina. Rebutja `main`, altres repositoris, arguments o rutes no autoritzats i operacions destructives no previstes. No rep ordres de shell ni URL de GitHub arbitràries per executar amb la credencial. La persona mantenidora conserva el seu accés habitual per revisar i fusionar des de GitHub; a més, pot demanar el merge pel camí anterior. Cap altra operació s'afegeix a les disponibles pel servei.
 
-Abans del pilot cal provar les operacions permeses i els rebuigs a través del component, inclosos intents alternatius des de l'entorn aïllat. Els rebuigs inclouen el merge sense comanda, des d'un altre grup o un missatge privat, amb commits posteriors a l'últim informe, amb comprovacions vermelles, pendents o absents, amb la PR en esborrany, amb la base canviada, amb bypass d'administrador i repetit després d'un resultat desconegut. Si no es pot demostrar aquesta frontera, el pilot no s'activa amb aquest compte. Les proves de permisos no fusionen cap PR ni fan push a `main`; el primer merge real del pilot requereix l'aprovació explícita de la persona mantenidora i queda registrat a la traça.
+Abans del pilot cal provar les operacions permeses i els rebuigs a través del component, inclosos intents alternatius des de l'entorn aïllat. Els rebuigs inclouen el merge sense comanda, des d'un altre grup o un missatge privat, amb commits posteriors a l'últim informe, amb `/merge` sense número sense un avís verd resoluble, amb feina més nova que l'avís, amb comprovacions vermelles, pendents o absents, amb la PR en esborrany, amb la base canviada, amb bypass d'administrador i repetit després d'un resultat desconegut. Si no es pot demostrar aquesta frontera, el pilot no s'activa amb aquest compte. Les proves de permisos no fusionen cap PR ni fan push a `main`; el primer merge real del pilot requereix l'aprovació explícita de la persona mantenidora i queda registrat a la traça.
 
 Les sortides dels processos, els commits i les PR poden contenir dades no fiables; l'aïllament de xarxa no garanteix per si sol que no s'hi filtri informació.
 
