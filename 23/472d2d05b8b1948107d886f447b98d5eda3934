@@ -1,0 +1,69 @@
+docs/deployment.md
+  s_7e5aa3a412d832::t_aeb0c4e8a4c2d9 375-376,389-394,562,731-828
+packages/telegram-pi-bridge/src/sessions/queue.mjs
+  s_7e5aa3a412d832::t_14ba0a93b37cbe 247-263
+packages/telegram-pi-bridge/src/telegram/index.mjs
+  s_7e5aa3a412d832::t_83e34d444d2508 3
+packages/telegram-pi-bridge/test/sessions/queue.test.mjs
+  s_7e5aa3a412d832::t_d20f2627b42c19 168-189
+tools/server/agent/README.md
+  s_7e5aa3a412d832::t_6451528862c902 6-7,41,63,164-185
+tools/server/agent/policy/development.mjs
+  s_7e5aa3a412d832::t_72194ed209f211 295,355-413
+tools/server/agent/processes/telegram-bridge/main.mjs
+  s_7e5aa3a412d832::t_773eaa7ae38362 14-18,28,33,147-164,191,218-237,247,313-314,364,382
+tools/server/agent/processes/telegram-bridge/main.test.mjs
+  s_7e5aa3a412d832::t_c195c945ab0ce5 8,598-858
+tools/server/agent/repository/ci-github.test.mjs
+  s_7e5aa3a412d832::t_ce620e81a4bdba 3-7,11-22,164-168,176-180,210-211,220-355
+tools/server/agent/repository/ci-watch-store.mjs
+  s_7e5aa3a412d832::t_f779b154d9d646 122-142
+tools/server/agent/repository/ci-watch-store.test.mjs
+  s_7e5aa3a412d832::t_551d0634fa90e2 409-432
+tools/server/agent/repository/github.mjs
+  s_7e5aa3a412d832::t_7c318cecb4b5a3 3-9,62-79,238-245,253-259,287-307
+tools/server/agent/repository/github.test.mjs
+  s_7e5aa3a412d832::t_4eb42ffffdd6da 447,460
+tools/server/agent/repository/merge-request-store.mjs
+  s_7e5aa3a412d832::t_b7f70e471d4470 1-228
+tools/server/agent/repository/merge-request-store.test.mjs
+  s_7e5aa3a412d832::t_2a80b11d432504 1-165
+tools/server/agent/workflow/ci-watch.test.mjs
+  s_7e5aa3a412d832::t_78bd73ce76e2e3 598-616
+tools/server/agent/workflow/merge-request.mjs
+  s_7e5aa3a412d832::t_aea6b843b0578a 1-634
+tools/server/agent/workflow/preview-request.mjs
+  s_7e5aa3a412d832::t_1010739430ee99 16
+tools/server/agent/workflow/project-runner.mjs
+  s_7e5aa3a412d832::t_dc1e342fdfa169 26,81
+tools/server/agent/workflow/run-instruction.mjs
+  s_7e5aa3a412d832::t_9eafd11e90643b 19,42,90-98
+tools/server/agent/workflow/run-instruction.test.mjs
+  s_7e5aa3a412d832::t_f38ee62e4bbe11 1112-1187
+tools/server/agent/workflow/merge-request.test.mjs
+  s_0a69fd94a93472::t_babb2264bd8130 1-1114
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "23472d2d05b8b1948107d886f447b98d5eda3934",
+  "prompts": {},
+  "sessions": {
+    "s_0a69fd94a93472": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-a717c8db8b8e32e16",
+        "model": "unknown"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    },
+    "s_7e5aa3a412d832": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "f5de8b74-7008-4809-a21f-2997cc2669d8",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
