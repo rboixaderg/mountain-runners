@@ -406,3 +406,27 @@ test("reports the last delivered notice of the session, never a pending one", (c
   assert.equal(store.lastReported("-100123:8"), undefined);
   store.close();
 });
+
+test("tells whether the topic has work newer than its last notice", (context) => {
+  const store = new CiWatchStore(fixture(context));
+  const topic = "-100123:7";
+  assert.equal(store.hasUnreportedWork(topic), false);
+
+  store.add(request);
+  assert.equal(store.hasUnreportedWork(topic), true);
+  assert.equal(store.hasUnreportedWork("-100123:8"), false);
+  store.beginSend(12, "failure");
+  assert.equal(store.hasUnreportedWork(topic), true);
+  store.finishSend(12);
+  assert.equal(store.hasUnreportedWork(topic), false);
+
+  const repair = store.requestRepair(repairRequest);
+  assert.equal(store.hasUnreportedWork(topic), true);
+  store.queueRepair(repair.sequence);
+  assert.equal(store.hasUnreportedWork(topic), true);
+  store.claimNextRepair();
+  assert.equal(store.hasUnreportedWork(topic), true);
+  store.finishRepair(repair.sequence, { status: "done", outcome: "published" });
+  assert.equal(store.hasUnreportedWork(topic), false);
+  store.close();
+});

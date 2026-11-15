@@ -244,6 +244,23 @@ export class AdmissionQueue {
     return this.#blocked();
   }
 
+  /**
+   * Whether the session has another instruction pending or running besides the
+   * given one: work that the person has not seen the result of.
+   */
+  hasOtherInstructions(sessionKey, updateIdentifier) {
+    return (
+      this.#database
+        .prepare(
+          `SELECT 1 FROM instructions
+           WHERE session_key = ? AND update_identifier <> ?
+             AND status IN ('pending', 'running')
+           LIMIT 1`,
+        )
+        .get(sessionKey, updateIdentifier) !== undefined
+    );
+  }
+
   recordTrace({
     updateIdentifier = null,
     authorIdentifier = null,

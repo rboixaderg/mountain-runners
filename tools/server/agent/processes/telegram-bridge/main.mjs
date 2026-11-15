@@ -11,7 +11,11 @@ import { mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { AdmissionQueue } from "telegram-pi-bridge/sessions";
-import { AgentBridge, TelegramApi } from "telegram-pi-bridge/telegram";
+import {
+  AgentBridge,
+  TelegramApi,
+  verifyMembership,
+} from "telegram-pi-bridge/telegram";
 import {
   bridgeMessages,
   maximumAutomaticRepairs,
@@ -21,10 +25,12 @@ import { agentSecrets, readAgentConfig } from "../../config.mjs";
 import { GitHubTrust } from "../../repository/github.mjs";
 import { CiWatchStore } from "../../repository/ci-watch-store.mjs";
 import { classifyCommitStatus } from "../../repository/ci-status.mjs";
+import { MergeRequestStore } from "../../repository/merge-request-store.mjs";
 import { PreviewRequestStore } from "../../repository/preview-request-store.mjs";
 import { pruneArchivedWorktrees } from "../../repository/retention.mjs";
 import { createCiRepairExecutor } from "../../workflow/ci-repair.mjs";
 import { createCiWatchWorker } from "../../workflow/ci-watch.mjs";
+import { createMergeRequests } from "../../workflow/merge-request.mjs";
 import { createPreviewRequests } from "../../workflow/preview-request.mjs";
 import { createProjectRunner } from "../../workflow/project-runner.mjs";
 import { stopAllSandboxedCommands } from "../../sandbox/commands.mjs";
@@ -138,6 +144,24 @@ export async function startService({
     );
   }
 
+  // An interrupted merge may have happened. It is never requested again
+  // blindly: it stays uncertain, attributed in the private trace, until the
+  // pull request is read and the topic is told once at startup. That never
+  // blocks the service, because only a new merge of the same pull request
+  // depends on it.
+  const mergeRequests = new MergeRequestStore(
+    join(config.paths.state, "merge-request.sqlite"),
+  );
+  for (const request of mergeRequests.recoverMerging()) {
+    queue.recordTrace({
+      updateIdentifier: request.update_identifier,
+      authorIdentifier: request.author_identifier,
+      sessionKey: request.session_key,
+      action: "merge_uncertain",
+      detail: `#${request.pull_request_number} ${request.commit_sha.slice(0, 7)}`,
+    });
+  }
+
   // Archived worktrees keep a dependency tree each; remove only the ones that
   // have nothing left to lose. Retention never blocks the service.
   try {
@@ -164,6 +188,7 @@ export async function startService({
     identity.username.toLowerCase() !==
       config.telegram.botUsername.toLowerCase()
   ) {
+    mergeRequests.close();
     previewRequests.close();
     ciWatches.close();
     queue.close();
@@ -190,6 +215,26 @@ export async function startService({
     recordTrace: (entry) => queue.recordTrace(entry),
     logger,
   });
+  const mergeWorker = createMergeRequests({
+    store: mergeRequests,
+    reportedCommits: ciWatches,
+    hasNewerWork: ({ sessionKey, updateIdentifier }) =>
+      queue.hasOtherInstructions(sessionKey, updateIdentifier) ||
+      ciWatches.hasUnreportedWork(sessionKey),
+    verifyMembership: (authorIdentifier) =>
+      verifyMembership({
+        telegram,
+        groupIdentifier: config.telegram.groupIdentifier,
+        authorIdentifier,
+      }),
+    github,
+    repository: config.github.repository,
+    requiredChecks: config.github.requiredChecks,
+    telegram,
+    recordTrace: (entry) => queue.recordTrace(entry),
+    logger,
+  });
+  await mergeWorker.reconcileUncertain({ signal });
   const runner =
     runnerOverride ??
     createProjectRunner({
@@ -199,6 +244,7 @@ export async function startService({
       logger,
       ciWatches,
       requestPreview: previewWorker.handle,
+      requestMerge: mergeWorker.handle,
     });
 
   const ciRepairExecutor = createCiRepairExecutor({
@@ -264,6 +310,8 @@ export async function startService({
     ciWorker,
     previewRequests,
     previewWorker,
+    mergeRequests,
+    mergeWorker,
     ciRepairExecutor,
     logger,
   };
@@ -313,6 +361,7 @@ export async function main({ environment = process.env } = {}) {
     ciWorker,
     previewRequests,
     previewWorker,
+    mergeRequests,
     logger,
   } = await startService({
     environment,
@@ -330,6 +379,7 @@ export async function main({ environment = process.env } = {}) {
     });
   } finally {
     await stopAllSandboxedCommands();
+    mergeRequests.close();
     previewRequests.close();
     ciWatches.close();
     queue.close();

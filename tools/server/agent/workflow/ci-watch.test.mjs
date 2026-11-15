@@ -595,6 +595,25 @@ test("does not report CI for a pull request that is no longer open", async (cont
   assert.match(telegram.sent[0].text, /ja no està oberta/u);
 });
 
+test("ends the watch of a merged pull request with the closed notice", async (context) => {
+  const { store } = fixture(context);
+  createCiWatchRegistration({ store })(registration);
+  const telegram = fakeTelegram();
+  const worker = workerFor({
+    store,
+    github: fakeGithub({
+      pullRequest: { state: "closed", merged: true, headSha: commit },
+    }),
+    telegram,
+  });
+
+  await worker.runOnce();
+  await worker.runOnce();
+
+  assert.equal(telegram.sent.length, 1);
+  assert.match(telegram.sent[0].text, /ja no està oberta/u);
+});
+
 test("reports a result read after the deadline instead of an unconfirmed notice", async (context) => {
   const { store } = fixture(context);
   createCiWatchRegistration({ store })(registration);

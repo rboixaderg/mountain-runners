@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { test } from "node:test";
 import { AdmissionQueue } from "telegram-pi-bridge/sessions";
 import { CiWatchStore } from "../../repository/ci-watch-store.mjs";
+import { MergeRequestStore } from "../../repository/merge-request-store.mjs";
 import { PreviewRequestStore } from "../../repository/preview-request-store.mjs";
 import { runBridgeWithCiWatcher, startService } from "./main.mjs";
 
@@ -593,4 +594,265 @@ test("runs the preview watcher beside the bridge and stops it with the service",
   });
 
   assert.equal(stopped, true);
+});
+
+const mergedPullRequest = {
+  state: "closed",
+  headSha: "a".repeat(40),
+  headRepository: "rboixaderg/mountain-runners",
+  draft: false,
+  baseRef: "main",
+  mergeableState: "clean",
+  merged: true,
+  mergeCommitSha: "b".repeat(40),
+};
+
+function interruptedMerge(statePath) {
+  mkdirSync(statePath, { recursive: true });
+  const merges = new MergeRequestStore(join(statePath, "merge-request.sqlite"));
+  merges.begin({
+    updateIdentifier: 40,
+    sessionKey: "-1001234567890:7",
+    authorIdentifier: 555,
+    pullRequestNumber: 200,
+    commitSha: "a".repeat(40),
+  });
+  merges.close();
+}
+
+test("keeps an interrupted merge uncertain, attributed in the trace, and still starts", async (context) => {
+  const { environment, statePath } = environmentFor(context);
+  interruptedMerge(statePath);
+  const sent = [];
+  const service = await startService({
+    environment,
+    telegram: {
+      ...telegramStub(),
+      async sendMessage(message) {
+        sent.push(message);
+      },
+    },
+    github: {
+      async getPullRequest() {
+        return { ...mergedPullRequest, state: "open", merged: false };
+      },
+    },
+    runner: async () => ({}),
+  });
+
+  assert.equal(service.mergeRequests.state(40), "uncertain");
+  assert.equal(sent.length, 1);
+  assert.ok(sent[0].text.includes(`/merge 200 ${"a".repeat(40)}`));
+  assert.notEqual(service.mergeRequests.uncertain()[0].notified_at, null);
+  const trace = service.queue
+    .traceEntries()
+    .find((entry) => entry.action === "merge_uncertain");
+  assert.equal(trace.update_identifier, 40);
+  assert.equal(trace.author_identifier, 555);
+  assert.equal(trace.detail, `#200 ${"a".repeat(7)}`);
+  service.mergeRequests.close();
+  service.ciWatches.close();
+  service.queue.close();
+});
+
+test("closes an interrupted merge that GitHub shows as merged and tells the topic", async (context) => {
+  const { environment, statePath } = environmentFor(context);
+  interruptedMerge(statePath);
+  const sent = [];
+  const service = await startService({
+    environment,
+    telegram: {
+      ...telegramStub(),
+      async sendMessage(message) {
+        sent.push(message);
+      },
+    },
+    github: {
+      async getPullRequest() {
+        return mergedPullRequest;
+      },
+    },
+    runner: async () => ({}),
+  });
+
+  assert.equal(service.mergeRequests.state(40), "merged");
+  assert.equal(sent.length, 1);
+  assert.match(sent[0].text, /PR #200/u);
+  assert.match(sent[0].text, /bbbbbbb/u);
+  assert.equal(
+    service.queue
+      .traceEntries()
+      .some((entry) => entry.action === "merge_reconciled"),
+    true,
+  );
+  service.mergeRequests.close();
+  service.ciWatches.close();
+  service.queue.close();
+});
+
+function mergeCommandUpdate(updateIdentifier, chat = { id: -1001234567890 }) {
+  return {
+    update_id: updateIdentifier,
+    message: {
+      message_id: updateIdentifier,
+      chat,
+      message_thread_id: 7,
+      is_topic_message: true,
+      from: { id: 555, is_bot: false },
+      text: "/merge @mountain_agent_bot",
+      entities: [{ type: "mention", offset: 7, length: 19 }],
+    },
+  };
+}
+
+async function runMergeCommand(
+  context,
+  {
+    membershipAtExecution = "member",
+    membershipAtAdmission = "member",
+    updates = [mergeCommandUpdate(100)],
+    prepare = () => {},
+  },
+) {
+  const { environment } = environmentFor(context);
+  const replies = [];
+  const membershipChecks = [];
+  const merges = [];
+  const commit = "a".repeat(40);
+  const service = await startService({
+    environment,
+    telegram: {
+      ...telegramStub(),
+      async getUpdates() {
+        return updates.splice(0);
+      },
+      async getChatMember() {
+        membershipChecks.push("checked");
+        return {
+          status:
+            membershipChecks.length === 1
+              ? membershipAtAdmission
+              : membershipAtExecution,
+        };
+      },
+      async sendMessage(message) {
+        replies.push(message.text);
+      },
+    },
+    github: {
+      async getPullRequest() {
+        return {
+          ...mergedPullRequest,
+          state: "open",
+          merged: false,
+          mergeCommitSha: null,
+        };
+      },
+      async getCommitCheckRuns() {
+        return [
+          { name: "Validate", status: "completed", conclusion: "success" },
+        ];
+      },
+      async getCommitStatuses() {
+        return [];
+      },
+      async mergePullRequest({ number, sha }) {
+        merges.push({ number, sha });
+        return { mergeCommitSha: "b".repeat(40) };
+      },
+    },
+  });
+  service.ciWatches.add({
+    updateIdentifier: 10,
+    sessionKey: "-1001234567890:7",
+    pullRequestNumber: 200,
+    commitSha: commit,
+  });
+  service.ciWatches.beginSend(10, "success");
+  service.ciWatches.finishSend(10);
+
+  await service.bridge.pollOnce();
+  prepare(service);
+  await service.bridge.executeNext();
+
+  const outcome = { replies, membershipChecks, merges, service };
+  service.mergeRequests.close();
+  service.ciWatches.close();
+  service.queue.close();
+  return outcome;
+}
+
+test("merges through the bridge after verifying the membership again at execution", async (context) => {
+  const { replies, membershipChecks, merges } = await runMergeCommand(context, {
+    membershipAtExecution: "member",
+  });
+
+  assert.equal(membershipChecks.length, 2);
+  assert.deepEqual(merges, [{ number: 200, sha: "a".repeat(40) }]);
+  assert.match(replies.at(-1), /PR #200 fusionada/u);
+});
+
+test("does not merge when the author left the group between admission and execution", async (context) => {
+  const { replies, membershipChecks, merges } = await runMergeCommand(context, {
+    membershipAtExecution: "left",
+  });
+
+  assert.equal(membershipChecks.length, 2);
+  assert.deepEqual(merges, []);
+  assert.match(replies.at(-1), /Ja no consten com a membre verificat/u);
+});
+
+test("never reaches the merge for a command outside the configured group topic or from a non-member", async (context) => {
+  for (const [name, options] of [
+    [
+      "another chat",
+      { updates: [mergeCommandUpdate(100, { id: -1009999999999 })] },
+    ],
+    [
+      "a private chat",
+      { updates: [mergeCommandUpdate(100, { id: 555, type: "private" })] },
+    ],
+    ["a non-member", { membershipAtAdmission: "left" }],
+  ]) {
+    const { merges, replies } = await runMergeCommand(context, options);
+
+    assert.deepEqual(merges, [], name);
+    assert.equal(
+      replies.some((reply) => /fusionada/u.test(reply)),
+      false,
+      name,
+    );
+  }
+});
+
+test("refuses the merge while the topic has another instruction waiting", async (context) => {
+  const { merges, replies } = await runMergeCommand(context, {
+    updates: [
+      mergeCommandUpdate(100),
+      { ...mergeCommandUpdate(101), update_id: 101 },
+    ],
+  });
+
+  assert.deepEqual(merges, []);
+  assert.match(replies.at(-1), /feina més nova que l'últim avís/u);
+});
+
+test("refuses the merge while an automatic repair is reserved for the topic", async (context) => {
+  const { merges, replies } = await runMergeCommand(context, {
+    prepare: (service) => {
+      service.ciWatches.requestRepair({
+        updateIdentifier: 10,
+        sessionKey: "-1001234567890:7",
+        pullRequestNumber: 200,
+        failureFingerprint: "fingerprint",
+        failedChecks: ["Validate"],
+        evidence: [],
+        commitSha: "c".repeat(40),
+        maximumAttempts: 2,
+      });
+    },
+  });
+
+  assert.deepEqual(merges, []);
+  assert.match(replies.at(-1), /feina més nova que l'últim avís/u);
 });

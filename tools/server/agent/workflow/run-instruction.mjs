@@ -16,6 +16,7 @@ import {
   committedPaths,
   hasUnpublishedCommit,
 } from "../repository/worktrees.mjs";
+import { parseMergeCommand } from "./merge-request.mjs";
 import { SandboxCleanupError } from "../sandbox/errors.mjs";
 import {
   buildRepairInstruction,
@@ -38,6 +39,7 @@ export function createInstructionRunner({
   publishChange,
   registerCiWatch,
   requestPreview,
+  requestMerge,
   logger = () => {},
 }) {
   /**
@@ -85,6 +87,15 @@ export function createInstructionRunner({
     let publicationStarted = false;
     try {
       signal?.throwIfAborted();
+      // A merge is recognised from the literal command before the classifier,
+      // so neither the classifier nor the model ever sees it. The internal
+      // repair instruction is service text, never a person's command.
+      const mergeCommand = repair
+        ? null
+        : parseMergeCommand(request.instruction);
+      if (mergeCommand !== null) {
+        return await requestMerge(request, mergeCommand, { signal });
+      }
       // Only the trusted internal repair request fixes its kind; every other
       // request is classified from its text.
       const kind = repair

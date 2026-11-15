@@ -13,7 +13,7 @@
 // repair publication never asks for a preview.
 
 import { parseSessionKey } from "telegram-pi-bridge/sessions";
-import { GitHubResponseError } from "../repository/github.mjs";
+import { isDefiniteRejection, statusClass } from "../repository/github.mjs";
 import { classifyCommitStatus } from "../repository/ci-status.mjs";
 import { confirmedPreviewOrigin } from "../repository/preview-comment.mjs";
 import {
@@ -37,23 +37,6 @@ const refusals = {
   checksNotGreen: "checks_not_green",
   unreadable: "unreadable",
 };
-
-// Responses that say the request itself was wrong or refused. A timeout (408)
-// or a rate limit (429) says nothing about whether the comment was created.
-const retryableClientStatuses = new Set([408, 429]);
-
-function isDefiniteRejection(error) {
-  return (
-    error instanceof GitHubResponseError &&
-    error.status >= 400 &&
-    error.status < 500 &&
-    !retryableClientStatuses.has(error.status)
-  );
-}
-
-function statusClass(status) {
-  return `${Math.floor(status / 100)}xx`;
-}
 
 function describeTarget({ pullRequestNumber, commit }) {
   return `#${pullRequestNumber} ${commit.slice(0, 7)}`;
