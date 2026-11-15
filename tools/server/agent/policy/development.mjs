@@ -363,6 +363,85 @@ export const continuationReports = {
     `La feina de la PR #${pullRequestNumber} continua en un altre tema.`,
 };
 
+// The overlap warning of an implementation or a continuation. It names the
+// shared files and the pull requests, never another topic: the list is a local
+// best effort and a missing warning proves nothing.
+export const overlapWarningLimits = { paths: 10, pathCharacters: 120 };
+
+// A path comes from another worktree, so it is data: a control character or a
+// bidirectional override would rewrite the report or reorder what it shows.
+// `\p{Cc}` is every C0 control, DEL and every C1 control.
+const unsafePathCharacters = /[\p{Cc}\u200e\u200f\u202a-\u202e\u2066-\u2069]/gu;
+
+function escapedPathCharacter(character) {
+  if (character === "`") {
+    return "'";
+  }
+  return character.replace(
+    unsafePathCharacters,
+    (control) =>
+      `\\u{${control
+        .codePointAt(0)
+        .toString(16)
+        .toUpperCase()
+        .padStart(4, "0")}}`,
+  );
+}
+
+/**
+ * The path as it is displayed. Escaping comes first, so clipping counts what the
+ * report shows and never cuts a `\u{...}` escape in half.
+ */
+function displayedPath(path) {
+  const characters = [...path].map(escapedPathCharacter);
+  let keptCharacters = 0;
+  let keptFrom = characters.length;
+  for (let index = characters.length - 1; index >= 0; index -= 1) {
+    const characterLength = characters[index].length;
+    if (
+      keptCharacters + characterLength >
+      overlapWarningLimits.pathCharacters - 1
+    ) {
+      break;
+    }
+    keptCharacters += characterLength;
+    keptFrom = index;
+  }
+  const end = characters.slice(keptFrom).join("");
+  return keptFrom === 0 ? end : `…${end}`;
+}
+
+export function overlapWarningReport({
+  overlappingPaths,
+  pullRequestNumbers,
+  hasLocalWork,
+}) {
+  const shownPaths = overlappingPaths
+    .slice(0, overlapWarningLimits.paths)
+    .map((path) => `\`${displayedPath(path)}\``);
+  const hiddenPathCount = overlappingPaths.length - shownPaths.length;
+  const listedPaths = shownPaths.join(", ");
+  const pathsText =
+    hiddenPathCount > 0
+      ? `${listedPaths} i ${hiddenPathCount} més`
+      : listedPaths;
+  const lines = [
+    `Avis de solapament: aquests fitxers també apareixen en feines actives conegudes: ${pathsText}.`,
+  ];
+  if (pullRequestNumbers.length > 0) {
+    lines.push(
+      `${pullRequestNumbers.map((number) => `PR #${number}`).join(", ")}.`,
+    );
+  }
+  if (hasLocalWork) {
+    lines.push("També se solapa amb una feina local d'un altre tema.");
+  }
+  lines.push(
+    "L'absència d'avís no garanteix que no hi hagi altres conflictes.",
+  );
+  return lines.join("\n");
+}
+
 export const ciWatchOutcomes = {
   registered: "registered",
   unavailable: "unavailable",

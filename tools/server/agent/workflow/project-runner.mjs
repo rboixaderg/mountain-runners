@@ -17,6 +17,7 @@ import {
 } from "../policy/development.mjs";
 import { createInstructionRunner } from "./run-instruction.mjs";
 import { createCrossTopicContinuation } from "./cross-topic-continuation.mjs";
+import { createOverlapWarning } from "./overlap-warning.mjs";
 
 export function createProjectRunner({
   config,
@@ -109,5 +110,15 @@ export function createProjectRunner({
       recordTrace,
       logger,
     }),
+    // Without the CI watches there is no known active pull request to compare
+    // with, so the service never warns.
+    warnAboutOverlaps: ciWatches
+      ? createOverlapWarning({
+          repositoryPath: config.paths.repository,
+          worktreeRoot: config.paths.worktrees,
+          listPullRequests: () => ciWatches.latestPublications(),
+          recordTrace,
+        })
+      : undefined,
   });
 }

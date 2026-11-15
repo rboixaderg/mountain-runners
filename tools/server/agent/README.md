@@ -42,6 +42,7 @@ tools/server/agent/               aplicació de Mountain Runners
 │   ├── preview-request.mjs         petició `/preview` determinista i confirmació
 │   ├── merge-request.mjs           comanda `/merge` determinista i recuperació
 │   ├── cross-topic-continuation.mjs represa d'una PR publicada des d'un altre tema
+│   ├── overlap-warning.mjs         avís dels fitxers que se solapen amb feines actives
 │   └── ci-repair.mjs               executa una reparació quan la cua està inactiva
 ├── runtime/
 │   ├── request-kind.mjs          interpreta la petició actual sense eines

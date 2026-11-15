@@ -16,7 +16,12 @@ import { test } from "node:test";
 import { PublishRefusedError } from "../repository/github.mjs";
 import { CiWatchStore } from "../repository/ci-watch-store.mjs";
 import { createProjectRunner } from "./project-runner.mjs";
-import { hasUnpublishedCommit } from "../repository/worktrees.mjs";
+import {
+  createBranch,
+  ensureSessionWorktree,
+  hasUnpublishedCommit,
+  recordPublication,
+} from "../repository/worktrees.mjs";
 import { SandboxCleanupError } from "../sandbox/errors.mjs";
 
 const executeFile = promisify(execFile);
@@ -1184,4 +1189,349 @@ test("a merge store failure reaches the runner failure report", async (context) 
   const result = await runner(request({ instruction: "/merge" }));
 
   assert.equal(result.outcome, "failed");
+});
+
+// A worktree of another topic that is changing the given paths, with or
+// without a published pull request registered in the CI watches.
+async function otherTopicWorktree(
+  paths,
+  { name = "topic_n1009999999999_3", branch, changedPaths = ["shared.txt"] },
+) {
+  const worktree = await ensureSessionWorktree({
+    repositoryPath: paths.repository,
+    worktreeRoot: paths.worktrees,
+    name,
+  });
+  await createBranch({ worktree, branch });
+  for (const path of changedPaths) {
+    writeFileSync(join(worktree.path, path), "other topic\n");
+  }
+  return worktree;
+}
+
+test("warns about the files of another topic's published pull request", async (context) => {
+  const paths = await fixture(context);
+  mkdirSync(paths.state, { recursive: true });
+  const ciWatches = new CiWatchStore(join(paths.state, "ci-watch.sqlite"));
+  context.after(() => ciWatches.close());
+  ciWatches.add({
+    updateIdentifier: 900,
+    sessionKey: "-1009999999999:3",
+    pullRequestNumber: 321,
+    commitSha: "a".repeat(40),
+  });
+  await otherTopicWorktree(paths, { branch: "feat/tools-other-change" });
+  const traces = [];
+  const runner = createProjectRunner({
+    config: configFor(paths),
+    classifyRequest: async () => "implementation",
+    github: githubStub(),
+    ciWatches,
+    recordTrace: (entry) => traces.push(entry),
+    runModel: async ({ worktreePath }) => {
+      writeFileSync(join(worktreePath, "shared.txt"), "current change\n");
+      return { text: "SUMMARY: feat(tools): change the shared file" };
+    },
+    runChecks: async () => ({ exitCode: 0 }),
+  });
+
+  const result = await runner(request());
+
+  assert.equal(result.outcome, "pull_request_created");
+  assert.match(result.report, /`shared\.txt`/u);
+  assert.match(result.report, /PR #321/u);
+  assert.match(result.report, /no garanteix que no hi hagi altres conflictes/u);
+  assert.deepEqual(
+    traces.map((entry) => entry.action),
+    ["overlap_warned"],
+  );
+  assert.match(traces[0].detail, /#321/u);
+  assert.doesNotMatch(traces[0].detail, /shared\.txt/u);
+});
+
+test("never compares overlaps for a consultation", async (context) => {
+  const paths = await fixture(context);
+  mkdirSync(paths.state, { recursive: true });
+  const ciWatches = new CiWatchStore(join(paths.state, "ci-watch.sqlite"));
+  context.after(() => ciWatches.close());
+  await otherTopicWorktree(paths, { branch: "feat/tools-other-change" });
+  const traces = [];
+  const runner = createProjectRunner({
+    config: configFor(paths),
+    classifyRequest: async () => "consultation",
+    github: githubStub(),
+    ciWatches,
+    recordTrace: (entry) => traces.push(entry),
+    runModel: async () => ({ text: "Resposta sintètica." }),
+    runChecks: async () => assert.fail("checks must not run"),
+  });
+
+  const result = await runner(request());
+
+  assert.equal(result.outcome, "answered");
+  assert.equal(result.report, "Resposta sintètica.");
+  assert.deepEqual(traces, []);
+});
+
+test("never compares overlaps for a continuation without changes", async (context) => {
+  const paths = await fixture(context);
+  mkdirSync(paths.state, { recursive: true });
+  const ciWatches = new CiWatchStore(join(paths.state, "ci-watch.sqlite"));
+  context.after(() => ciWatches.close());
+  await otherTopicWorktree(paths, { branch: "feat/tools-other-change" });
+  const traces = [];
+  const runner = createProjectRunner({
+    config: configFor(paths),
+    classifyRequest: async () => "continuation",
+    github: githubStub(),
+    ciWatches,
+    recordTrace: (entry) => traces.push(entry),
+    runModel: async () => assert.fail("there is no pending task to resume"),
+    runChecks: async () => assert.fail("checks must not run"),
+  });
+
+  assert.equal((await runner(request())).outcome, "answered");
+  assert.deepEqual(traces, []);
+});
+
+test("never compares overlaps for an automatic repair", async (context) => {
+  const paths = await fixture(context);
+  mkdirSync(paths.state, { recursive: true });
+  const ciWatches = new CiWatchStore(join(paths.state, "ci-watch.sqlite"));
+  context.after(() => ciWatches.close());
+  const github = githubStub();
+  const published = await publishedWorktree(context, paths, github, ciWatches);
+  assert.equal(ciWatches.beginSend(1001, "repairing"), true);
+  assert.equal(ciWatches.finishSend(1001), true);
+  await otherTopicWorktree(paths, {
+    branch: "feat/tools-other-change",
+    changedPaths: ["change.txt"],
+  });
+  github.pullRequest = { state: "open", headSha: published };
+  github.ensurePullRequest = async (argumentsObject) => {
+    github.pulls.push(argumentsObject);
+    return {
+      pullRequest: {
+        number: 200,
+        htmlUrl: "https://github.com/rboixaderg/mountain-runners/pull/200",
+      },
+      created: false,
+    };
+  };
+  const traces = [];
+  const runner = createProjectRunner({
+    config: configFor(paths),
+    github,
+    ciWatches,
+    recordTrace: (entry) => traces.push(entry),
+    runModel: async ({ worktreePath }) => {
+      writeFileSync(join(worktreePath, "change.txt"), "canvi reparat\n");
+      return { text: "SUMMARY: fix(tools): repair the synthetic check" };
+    },
+    runChecks: async () => ({ exitCode: 0 }),
+  });
+
+  const result = await runner(repairRequest(published));
+
+  assert.equal(result.outcome, "pull_request_updated", result.report);
+  assert.doesNotMatch(result.report, /solapament/u);
+  assert.deepEqual(traces, []);
+});
+
+test("publishes a continuation with the overlap warning", async (context) => {
+  const paths = await fixture(context);
+  mkdirSync(paths.state, { recursive: true });
+  const ciWatches = new CiWatchStore(join(paths.state, "ci-watch.sqlite"));
+  context.after(() => ciWatches.close());
+  const traces = [];
+  let checksPass = false;
+  const runner = createProjectRunner({
+    config: configFor(paths),
+    github: githubStub(),
+    ciWatches,
+    recordTrace: (entry) => traces.push(entry),
+    classifyRequest: async ({ instruction }) =>
+      instruction === "Continua la feina pendent."
+        ? "continuation"
+        : "implementation",
+    runModel: async ({ worktreePath }) => {
+      writeFileSync(join(worktreePath, "pending.txt"), "pendent\n");
+      return { text: "SUMMARY: feat(tools): keep the pending work" };
+    },
+    runChecks: async () => (checksPass ? { exitCode: 0 } : { exitCode: 1 }),
+  });
+  assert.equal((await runner(request())).outcome, "failed");
+  await otherTopicWorktree(paths, {
+    branch: "feat/tools-other-change",
+    changedPaths: ["pending.txt"],
+  });
+
+  checksPass = true;
+  const result = await runner(
+    request({
+      updateIdentifier: 1002,
+      instruction: "Continua la feina pendent.",
+    }),
+  );
+
+  assert.equal(result.outcome, "pull_request_created");
+  assert.match(result.report, /una feina local d'un altre tema/u);
+  assert.deepEqual(
+    traces.map((entry) => entry.action),
+    ["overlap_warned"],
+  );
+});
+
+test("keeps publishing when the overlap warning cannot be computed", async (context) => {
+  const paths = await fixture(context);
+  const entries = [];
+  const registered = [];
+  const runner = createProjectRunner({
+    config: configFor(paths),
+    classifyRequest: async () => "implementation",
+    github: githubStub(),
+    ciWatches: {
+      latestPublications() {
+        throw new Error("Synthetic state failure");
+      },
+      add(watch) {
+        registered.push(watch);
+      },
+      resetRepairs() {},
+    },
+    logger: (event, detail) => entries.push([event, detail]),
+    runModel: async ({ worktreePath }) => {
+      writeFileSync(join(worktreePath, "change.txt"), "canvi\n");
+      return { text: "SUMMARY: feat(tools): change a file" };
+    },
+    runChecks: async () => ({ exitCode: 0 }),
+  });
+
+  const result = await runner(request());
+
+  assert.equal(result.outcome, "pull_request_created");
+  assert.match(result.report, /pull\/200/u);
+  assert.doesNotMatch(result.report, /solapament/u);
+  assert.deepEqual(entries, [["overlap_warning_failed", "Error"]]);
+  assert.equal(registered.length, 1);
+});
+
+test("stops before committing when the signal aborts during the overlap warning", async (context) => {
+  const paths = await fixture(context);
+  const github = githubStub();
+  const controller = new AbortController();
+  const runner = createProjectRunner({
+    config: configFor(paths),
+    classifyRequest: async () => "implementation",
+    github,
+    ciWatches: {
+      latestPublications() {
+        controller.abort();
+        return [];
+      },
+      add() {},
+      resetRepairs() {},
+    },
+    runModel: async ({ worktreePath }) => {
+      writeFileSync(join(worktreePath, "change.txt"), "canvi\n");
+      return { text: "SUMMARY: feat(tools): change a file" };
+    },
+    runChecks: async () => ({ exitCode: 0 }),
+  });
+
+  const result = await runner(request(), { signal: controller.signal });
+
+  assert.equal(result.outcome, "failed");
+  assert.match(result.report, /interromput/u);
+  assert.deepEqual(github.pushes, []);
+  assert.deepEqual(github.pulls, []);
+  const worktree = join(paths.worktrees, "topic_n1001234567890_7");
+  assert.equal(
+    await git(worktree, ["rev-parse", "HEAD"]),
+    await git(paths.repository, ["rev-parse", "origin/main"]),
+    "the aborted instruction commits nothing",
+  );
+});
+
+test("never warns when another topic continues its own published pull request", async (context) => {
+  const paths = await fixture(context);
+  mkdirSync(paths.state, { recursive: true });
+  const ciWatches = new CiWatchStore(join(paths.state, "ci-watch.sqlite"));
+  context.after(() => ciWatches.close());
+  const github = githubStub();
+  // One topic published a pull request from a branch of the repository.
+  const topicA = await ensureSessionWorktree({
+    repositoryPath: paths.repository,
+    worktreeRoot: paths.worktrees,
+    name: "topic_n1009999999999_3",
+  });
+  await createBranch({
+    worktree: topicA,
+    branch: "feat/tools-published-change",
+  });
+  writeFileSync(join(topicA.path, "shared.txt"), "published\n");
+  await git(topicA.path, ["add", "shared.txt"]);
+  await git(topicA.path, [
+    "commit",
+    "-m",
+    "feat(tools): publish the shared file",
+  ]);
+  await git(topicA.path, ["push", "origin", "feat/tools-published-change"]);
+  const headSha = await git(topicA.path, ["rev-parse", "HEAD"]);
+  recordPublication(topicA, headSha);
+  ciWatches.add({
+    updateIdentifier: 900,
+    sessionKey: "-1009999999999:3",
+    pullRequestNumber: 321,
+    commitSha: headSha,
+  });
+  assert.equal(ciWatches.beginSend(900, "success"), true);
+  assert.equal(ciWatches.finishSend(900), true);
+  github.getPullRequest = async () => ({
+    number: 321,
+    state: "open",
+    draft: false,
+    baseRef: "main",
+    headRef: "feat/tools-published-change",
+    headSha,
+    headRepository: "rboixaderg/mountain-runners",
+  });
+  github.listIssueComments = async () => [];
+  github.ensurePullRequest = async (argumentsObject) => {
+    github.pulls.push(argumentsObject);
+    return {
+      pullRequest: {
+        number: 321,
+        htmlUrl: "https://github.com/rboixaderg/mountain-runners/pull/321",
+      },
+      created: false,
+    };
+  };
+  const traces = [];
+  const runner = createProjectRunner({
+    config: configFor(paths),
+    github,
+    ciWatches,
+    readCiState: async () => ({ state: "success", failed: [] }),
+    notifyHandover: async () => {},
+    hasOtherInstructions: () => false,
+    recordTrace: (entry) => traces.push(entry),
+    classifyRequest: async () => "continuation",
+    runModel: async ({ worktreePath }) => {
+      writeFileSync(join(worktreePath, "shared.txt"), "continued\n");
+      return { text: "SUMMARY: feat(tools): continue the shared file" };
+    },
+    runChecks: async () => ({ exitCode: 0 }),
+  });
+
+  const result = await runner(
+    request({ updateIdentifier: 1002, instruction: "Continua la PR #321." }),
+  );
+
+  assert.equal(result.outcome, "pull_request_updated", result.report);
+  assert.doesNotMatch(result.report, /solapament/u);
+  assert.equal(
+    traces.some((entry) => entry.action === "overlap_warned"),
+    false,
+  );
 });

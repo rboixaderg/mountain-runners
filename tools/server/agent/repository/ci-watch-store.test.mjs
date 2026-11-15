@@ -447,3 +447,91 @@ test("reports the topic of the most recent publication of a pull request", (cont
   assert.equal(store.latestPublication(123).session_key, "-100123:8");
   store.close();
 });
+
+test("lists the latest watch of each published pull request and its owner", (context) => {
+  const store = new CiWatchStore(fixture(context));
+  assert.deepEqual(store.latestPublications(), []);
+
+  // Two topics publish two pull requests; the later publication of one topic
+  // leaves its previous pull request without a local branch.
+  store.add(request);
+  store.add({
+    ...request,
+    updateIdentifier: 13,
+    sessionKey: "-100123:8",
+  });
+  store.add({
+    ...request,
+    updateIdentifier: 14,
+    pullRequestNumber: 124,
+    commitSha: "b".repeat(40),
+  });
+
+  const published = store.latestPublications().map((row) => ({ ...row }));
+  assert.deepEqual(published, [
+    {
+      pull_request_number: 123,
+      session_key: "-100123:8",
+      delivered_result: null,
+      is_owner_latest: 1,
+    },
+    {
+      pull_request_number: 124,
+      session_key: request.sessionKey,
+      delivered_result: null,
+      is_owner_latest: 1,
+    },
+  ]);
+
+  store.add({
+    ...request,
+    updateIdentifier: 15,
+    pullRequestNumber: 125,
+    commitSha: "c".repeat(40),
+  });
+  const publications = store.latestPublications();
+  assert.deepEqual(
+    publications.map(({ pull_request_number, is_owner_latest }) => [
+      pull_request_number,
+      is_owner_latest,
+    ]),
+    [
+      [123, 1],
+      [124, 0],
+      [125, 1],
+    ],
+  );
+  store.close();
+});
+
+test("keeps the result of the latest delivered notice of a pull request", (context) => {
+  const store = new CiWatchStore(fixture(context));
+  store.add(request);
+  assert.equal(store.beginSend(12, "pull-request-closed"), true);
+  assert.equal(store.finishSend(12), true);
+
+  const [publication] = store.latestPublications().map((row) => ({ ...row }));
+  assert.deepEqual(publication, {
+    pull_request_number: 123,
+    session_key: request.sessionKey,
+    delivered_result: "pull-request-closed",
+    is_owner_latest: 1,
+  });
+  store.close();
+});
+
+test("does not treat an interrupted or unknown notice as delivered", (context) => {
+  const store = new CiWatchStore(fixture(context));
+  store.add(request);
+  assert.equal(store.beginSend(12, "pull-request-closed"), true);
+  const [sending] = store.latestPublications();
+  assert.equal(sending.delivered_result, null, "a send in progress is unknown");
+
+  assert.equal(store.markUncertain(12), true);
+  const [uncertain] = store.latestPublications();
+  assert.equal(uncertain.delivered_result, null);
+
+  // A delivered notice of a later commit still counts.
+  assert.equal(store.beginSend(12, "success"), false);
+  store.close();
+});
