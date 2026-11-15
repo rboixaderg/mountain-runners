@@ -2,6 +2,8 @@
 // operations. This module has no container/GitHub transport or secret configuration.
 
 import { sessionIdentifier } from "telegram-pi-bridge/sessions";
+import { attachmentRefusalDetail } from "telegram-pi-bridge/telegram";
+import { removeAttachmentDirectory } from "../attachments/destination.mjs";
 import {
   assertWorkBranch,
   commitAll,
@@ -19,6 +21,10 @@ import {
 import { parseMergeCommand } from "./merge-request.mjs";
 import { SandboxCleanupError } from "../sandbox/errors.mjs";
 import {
+  attachmentAcceptedDetail,
+  attachmentRefusalReport,
+  attachmentReports,
+  buildAttachmentInstruction,
   buildRepairInstruction,
   ciWatchOutcomes,
   continuationReports,
@@ -44,6 +50,8 @@ export function createInstructionRunner({
   requestMerge,
   continueFromPullRequest,
   warnAboutOverlaps,
+  prepareAttachment,
+  recordTrace,
   logger = () => {},
 }) {
   /**
@@ -85,9 +93,53 @@ export function createInstructionRunner({
     };
   }
 
+  /**
+   * Download, validate and place the attached image of an implementation or a
+   * continuation. A refusal returns the report that tells the person why, and
+   * the file is never used without its origin, rights and credit.
+   */
+  async function applyAttachment({
+    attachment,
+    instruction,
+    request,
+    worktreePath,
+    signal,
+  }) {
+    const prepared = await prepareAttachment({
+      attachment,
+      worktreePath,
+      signal,
+    });
+    if (prepared.refusal) {
+      recordTrace({
+        updateIdentifier: request.updateIdentifier,
+        authorIdentifier: request.authorIdentifier,
+        sessionKey: request.sessionKey,
+        action: "attachment_refused",
+        detail: attachmentRefusalDetail(prepared.refusal),
+      });
+      return { report: attachmentRefusalReport(prepared.refusal) };
+    }
+    recordTrace({
+      updateIdentifier: request.updateIdentifier,
+      authorIdentifier: request.authorIdentifier,
+      sessionKey: request.sessionKey,
+      action: "attachment_accepted",
+      detail: attachmentAcceptedDetail(prepared.prepared),
+    });
+    return {
+      instruction: `${instruction}\n\n${buildAttachmentInstruction(prepared.prepared)}`,
+    };
+  }
+
   return async function runInstruction(request, { signal } = {}) {
     const identifier = sessionIdentifier(request.sessionKey);
     const repair = request.kind === repairRequestKind;
+    const attachment = request.attachment ?? null;
+    // Only an implementation and a continuation use an attached image. Every
+    // other request ignores it, and its report says so in one sentence.
+    const ignoringAttachment = (report) =>
+      attachment === null ? report : `${report}\n${attachmentReports.ignored}`;
     let publicationStarted = false;
     try {
       signal?.throwIfAborted();
@@ -98,7 +150,8 @@ export function createInstructionRunner({
         ? null
         : parseMergeCommand(request.instruction);
       if (mergeCommand !== null) {
-        return await requestMerge(request, mergeCommand, { signal });
+        const merged = await requestMerge(request, mergeCommand, { signal });
+        return { ...merged, report: ignoringAttachment(merged.report) };
       }
       // Only the trusted internal repair request fixes its kind; every other
       // request is classified from its text.
@@ -111,7 +164,8 @@ export function createInstructionRunner({
       // A preview is decided by the service, never by the model: no worktree
       // is touched and no model run starts.
       if (kind === previewRequestKind) {
-        return await requestPreview(request, { signal });
+        const preview = await requestPreview(request, { signal });
+        return { ...preview, report: ignoringAttachment(preview.report) };
       }
       if (
         kind !== "implementation" &&
@@ -121,7 +175,7 @@ export function createInstructionRunner({
       ) {
         return {
           outcome: "answered",
-          report: instructionReports.clarification,
+          report: ignoringAttachment(instructionReports.clarification),
         };
       }
       const target = repair
@@ -169,7 +223,7 @@ export function createInstructionRunner({
       ) {
         return {
           outcome: "answered",
-          report: instructionReports.clarification,
+          report: ignoringAttachment(instructionReports.clarification),
         };
       }
       // The service writes the instruction of an automatic repair and of a
@@ -180,6 +234,23 @@ export function createInstructionRunner({
       }
       if (resumed !== null) {
         instruction = resumed.instruction;
+      }
+      // The attachment reaches the model as service text appended to the
+      // instruction: its path, its type and its dimensions, never its content.
+      const kindUsesAttachment =
+        kind === "implementation" || kind === "continuation";
+      if (attachment !== null && kindUsesAttachment) {
+        const applied = await applyAttachment({
+          attachment,
+          instruction,
+          request,
+          worktreePath: worktree.path,
+          signal,
+        });
+        if (applied.report) {
+          return { outcome: "failed", report: applied.report };
+        }
+        instruction = applied.instruction;
       }
       const modelResult = await runModel({
         sessionIdentifier: identifier,
@@ -206,9 +277,16 @@ export function createInstructionRunner({
       if (kind === "consultation") {
         return {
           outcome: "answered",
-          report: modelResult.text.trim() || instructionReports.noAnswer,
+          report: ignoringAttachment(
+            modelResult.text.trim() || instructionReports.noAnswer,
+          ),
         };
       }
+      // Whatever the model moved is already outside this directory. Removing it
+      // before the checks and the commit means a received image never reaches a
+      // commit or a publication, even on a branch whose .gitignore lacks the
+      // rule.
+      removeAttachmentDirectory({ worktreePath: worktree.path });
       const changedPaths = await listChangedPaths(worktree);
       if (
         changedPaths.length === 0 &&

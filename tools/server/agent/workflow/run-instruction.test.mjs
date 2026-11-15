@@ -15,6 +15,11 @@ import { promisify } from "node:util";
 import { test } from "node:test";
 import { PublishRefusedError } from "../repository/github.mjs";
 import { CiWatchStore } from "../repository/ci-watch-store.mjs";
+import { createAttachmentPreparation } from "../attachments/prepare.mjs";
+import {
+  jpegImage,
+  pngImage,
+} from "../attachments/test-support/synthetic-images.mjs";
 import { createProjectRunner } from "./project-runner.mjs";
 import {
   createBranch,
@@ -39,7 +44,7 @@ async function git(directory, argumentsList) {
   return stdout.trim();
 }
 
-async function fixture(context) {
+async function fixture(context, { ignoreAttachments = true } = {}) {
   const directory = mkdtempSync(join(tmpdir(), "mr-agent-job-"));
   context.after(() =>
     rmSync(directory, {
@@ -54,7 +59,12 @@ async function fixture(context) {
   await executeFile("git", ["init", "--bare", "--initial-branch=main", origin]);
   await executeFile("git", ["clone", origin, repository]);
   writeFileSync(join(repository, "README.md"), "synthetic\n");
-  await git(repository, ["add", "README.md"]);
+  if (ignoreAttachments) {
+    writeFileSync(join(repository, ".gitignore"), ".agent-attachments/\n");
+    await git(repository, ["add", "README.md", ".gitignore"]);
+  } else {
+    await git(repository, ["add", "README.md"]);
+  }
   await git(repository, ["commit", "-m", "chore: initial"]);
   await git(repository, ["push", "origin", "main"]);
 
@@ -1534,4 +1544,289 @@ test("never warns when another topic continues its own published pull request", 
     traces.some((entry) => entry.action === "overlap_warned"),
     false,
   );
+});
+
+function attachmentRequest(overrides = {}) {
+  return request({
+    instruction: "usa la imatge adjunta a la portada",
+    attachment: {
+      fileIdentifier: "telegram-file",
+      fileUniqueIdentifier: "telegram-unique-file",
+      fileName: "Portada.PNG",
+      mimeType: "image/png",
+      fileSize: 1200000,
+      origin: "message",
+    },
+    ...overrides,
+  });
+}
+
+function telegramAttachment(bytes) {
+  return {
+    async getFile() {
+      return { file_id: "telegram-file", file_path: "documents/file_1.png" };
+    },
+    async downloadFile() {
+      return bytes;
+    },
+  };
+}
+
+test("places an attached image and appends the service text to the instruction", async (context) => {
+  const paths = await fixture(context);
+  const image = pngImage({ width: 1200, height: 800 });
+  const traces = [];
+  const instructions = [];
+  const runner = createProjectRunner({
+    config: configFor(paths),
+    github: githubStub(),
+    classifyRequest: async () => "implementation",
+    prepareAttachment: createAttachmentPreparation({
+      telegram: telegramAttachment(image),
+    }),
+    recordTrace: (entry) => traces.push(entry),
+    runModel: async ({ instruction, worktreePath }) => {
+      instructions.push(instruction);
+      // The cleaned file is available while the model works and is removed
+      // before the checks and the commit.
+      assert.deepEqual(
+        readFileSync(join(worktreePath, ".agent-attachments", "portada.png")),
+        image,
+      );
+      writeFileSync(join(worktreePath, "change.txt"), "canvi\n");
+      return { text: "Canvi fet.\nSUMMARY: feat(content): use the cover" };
+    },
+    runChecks: async () => ({ exitCode: 0, stdout: "", stderr: "" }),
+  });
+
+  const result = await runner(attachmentRequest());
+
+  assert.equal(result.outcome, "pull_request_created");
+  const worktreePath = join(paths.worktrees, "topic_n1001234567890_7");
+  assert.equal(existsSync(join(worktreePath, ".agent-attachments")), false);
+  assert.match(instructions[0], /^usa la imatge adjunta a la portada/u);
+  assert.match(instructions[0], /\.agent-attachments\/portada\.png/u);
+  assert.match(instructions[0], /image\/png; dimensions: 1200×800 px\./u);
+  assert.match(instructions[0], /unknown origin and rights/u);
+  assert.match(
+    instructions[0],
+    /reply to the message that contains the image, mentioning the bot, with the origin, the rights and the credit/u,
+  );
+  assert.deepEqual(
+    traces.filter((entry) => entry.action === "attachment_accepted"),
+    [
+      {
+        updateIdentifier: 1001,
+        authorIdentifier: 42,
+        sessionKey: "-1001234567890:7",
+        action: "attachment_accepted",
+        detail: `type=png width=1200 height=800 bytes=${image.length}`,
+      },
+    ],
+  );
+  // The ignored directory never reaches the commit or the publication.
+  assert.doesNotMatch(
+    await git(worktreePath, ["show", "--name-only", "--format=", "HEAD"]),
+    /\.agent-attachments/u,
+  );
+});
+
+test("ignores an attached image in a consultation and says so once", async (context) => {
+  const paths = await fixture(context);
+  const instructions = [];
+  const runner = createProjectRunner({
+    config: configFor(paths),
+    github: githubStub(),
+    classifyRequest: async () => "consultation",
+    prepareAttachment: async () =>
+      assert.fail("a consultation never downloads the attachment"),
+    runModel: async ({ instruction, worktreePath }) => {
+      instructions.push(instruction);
+      return {
+        text: `El worktree és ${worktreePath}.`,
+      };
+    },
+    runChecks: async () => assert.fail("checks must not run"),
+  });
+
+  const result = await runner(attachmentRequest());
+
+  assert.equal(result.outcome, "answered");
+  assert.equal(instructions[0], "usa la imatge adjunta a la portada");
+  assert.match(result.report, /El worktree és/u);
+  assert.match(
+    result.report,
+    /No s'ha fet servir l'adjunt: només una implementació o una continuació apliquen una imatge\.$/u,
+  );
+  assert.equal(
+    existsSync(
+      join(paths.worktrees, "topic_n1001234567890_7", ".agent-attachments"),
+    ),
+    false,
+  );
+});
+
+test("reports a refused attachment without starting the model", async (context) => {
+  const paths = await fixture(context);
+  const image = jpegImage({ width: 120, height: 80 });
+  const traces = [];
+  let modelStarted = false;
+  const runner = createProjectRunner({
+    config: configFor(paths),
+    github: githubStub(),
+    classifyRequest: async () => "implementation",
+    prepareAttachment: createAttachmentPreparation({
+      telegram: telegramAttachment(image),
+    }),
+    recordTrace: (entry) => traces.push(entry),
+    runModel: async () => {
+      modelStarted = true;
+      return { text: "unexpected" };
+    },
+    runChecks: async () => assert.fail("checks must not run"),
+  });
+
+  const result = await runner(attachmentRequest());
+
+  assert.equal(result.outcome, "failed");
+  assert.match(result.report, /no coincideix amb el nom ni el tipus/u);
+  assert.equal(modelStarted, false);
+  assert.equal(
+    traces.some(
+      (entry) =>
+        entry.action === "attachment_refused" &&
+        entry.detail === `reason=fake_type type=jpeg bytes=${image.length}`,
+    ),
+    true,
+  );
+  assert.equal(
+    existsSync(
+      join(paths.worktrees, "topic_n1001234567890_7", ".agent-attachments"),
+    ),
+    false,
+  );
+});
+
+test("never commits an attachment on a branch without the ignore rule", async (context) => {
+  const paths = await fixture(context, { ignoreAttachments: false });
+  const image = pngImage({ width: 200, height: 100 });
+  const github = githubStub();
+  const runner = createProjectRunner({
+    config: configFor(paths),
+    github,
+    recordTrace: () => {},
+    classifyRequest: async () => "implementation",
+    prepareAttachment: createAttachmentPreparation({
+      telegram: telegramAttachment(image),
+    }),
+    runModel: async ({ instruction, worktreePath }) => {
+      assert.match(instruction, /\.agent-attachments\/portada\.png/u);
+      assert.equal(
+        existsSync(join(worktreePath, ".agent-attachments", "portada.png")),
+        true,
+      );
+      writeFileSync(join(worktreePath, "change.txt"), "canvi\n");
+      return { text: "Canvi fet.\nSUMMARY: feat(content): add the cover" };
+    },
+    runChecks: async () => ({ exitCode: 0, stdout: "", stderr: "" }),
+  });
+
+  const result = await runner(attachmentRequest());
+
+  assert.equal(result.outcome, "pull_request_created");
+  const worktreePath = join(paths.worktrees, "topic_n1001234567890_7");
+  assert.equal(existsSync(join(worktreePath, ".agent-attachments")), false);
+  const committed = await git(worktreePath, [
+    "show",
+    "--name-only",
+    "--format=",
+    "HEAD",
+  ]);
+  assert.match(committed, /change\.txt/u);
+  assert.doesNotMatch(committed, /\.agent-attachments/u);
+  assert.equal(github.pushes.length, 1);
+});
+
+test("publishes nothing when the model only asks for the image rights", async (context) => {
+  const paths = await fixture(context, { ignoreAttachments: false });
+  const github = githubStub();
+  const runner = createProjectRunner({
+    config: configFor(paths),
+    github,
+    recordTrace: () => {},
+    classifyRequest: async () => "implementation",
+    prepareAttachment: createAttachmentPreparation({
+      telegram: telegramAttachment(pngImage({ width: 200, height: 100 })),
+    }),
+    runModel: async () => ({
+      text: "Quin és l'origen, els drets i el crèdit de la imatge?",
+    }),
+    runChecks: async () => assert.fail("checks must not run without changes"),
+  });
+
+  const result = await runner(attachmentRequest());
+
+  assert.equal(result.outcome, "answered");
+  assert.match(result.report, /origen/u);
+  const worktreePath = join(paths.worktrees, "topic_n1001234567890_7");
+  assert.equal(existsSync(join(worktreePath, ".agent-attachments")), false);
+  assert.equal(await git(worktreePath, ["status", "--porcelain"]), "");
+  assert.deepEqual(github.pushes, []);
+  assert.deepEqual(github.pulls, []);
+});
+
+test("continues a branch created before the ignore rule without publishing the attachment", async (context) => {
+  const paths = await fixture(context, { ignoreAttachments: false });
+  const image = pngImage({ width: 200, height: 100 });
+  const github = githubStub();
+  const first = createProjectRunner({
+    config: configFor(paths),
+    github,
+    classifyRequest: async () => "implementation",
+    runModel: async ({ worktreePath }) => {
+      writeFileSync(join(worktreePath, "pending.txt"), "canvi pendent\n");
+      return { text: "Canvi.\nSUMMARY: feat(content): pending change" };
+    },
+    runChecks: async () => ({ exitCode: 1, stdout: "", stderr: "" }),
+  });
+  const failed = await first(attachmentRequest({ attachment: null }));
+
+  assert.equal(failed.outcome, "failed");
+  assert.deepEqual(github.pushes, []);
+
+  const continuation = createProjectRunner({
+    config: configFor(paths),
+    github,
+    recordTrace: () => {},
+    classifyRequest: async () => "continuation",
+    prepareAttachment: createAttachmentPreparation({
+      telegram: telegramAttachment(image),
+    }),
+    runModel: async ({ instruction, worktreePath }) => {
+      assert.match(instruction, /\.agent-attachments\/portada\.png/u);
+      assert.equal(
+        existsSync(join(worktreePath, ".agent-attachments", "portada.png")),
+        true,
+      );
+      return { text: "No he canviat cap fitxer." };
+    },
+    runChecks: async () => ({ exitCode: 0, stdout: "", stderr: "" }),
+  });
+
+  const result = await continuation(
+    attachmentRequest({ instruction: "continua la feina pendent" }),
+  );
+
+  assert.equal(result.outcome, "pull_request_created");
+  const worktreePath = join(paths.worktrees, "topic_n1001234567890_7");
+  assert.equal(existsSync(join(worktreePath, ".agent-attachments")), false);
+  const committed = await git(worktreePath, [
+    "show",
+    "--name-only",
+    "--format=",
+    "HEAD",
+  ]);
+  assert.match(committed, /pending\.txt/u);
+  assert.doesNotMatch(committed, /\.agent-attachments/u);
+  assert.equal(github.pushes.length, 1);
 });

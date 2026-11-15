@@ -27,6 +27,16 @@ function isProtectedPath(path) {
   );
 }
 
+// A received attachment is never published, whatever the branch's .gitignore
+// says: the directory is removed before the commit and its history is refused.
+function isAttachmentPath(path) {
+  const normalized = path.toLowerCase();
+  return (
+    normalized === ".agent-attachments" ||
+    normalized.startsWith(".agent-attachments/")
+  );
+}
+
 export async function assertPublishableHistory({ worktree, commit, secrets }) {
   const range = `origin/main..${commit}`;
   const commits = await runGit(worktree, ["rev-list", range]);
@@ -51,7 +61,11 @@ export async function assertPublishableHistory({ worktree, commit, secrets }) {
     ],
     { input: commits },
   );
-  if (changedPaths.split("\0").some(isProtectedPath)) {
+  const changed = changedPaths.split("\0");
+  if (changed.some(isAttachmentPath)) {
+    throw new Error("Publication contains an attachment directory path.");
+  }
+  if (changed.some(isProtectedPath)) {
     throw new Error(
       "Publication changes a protected GitHub or CODEOWNERS path.",
     );

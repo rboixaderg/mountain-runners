@@ -24,6 +24,7 @@ const schema = `
     session_key TEXT NOT NULL,
     author_identifier INTEGER NOT NULL,
     instruction TEXT NOT NULL,
+    attachment TEXT,
     status TEXT NOT NULL CHECK (status IN ('pending', 'running', 'uncertain', 'done', 'rejected')),
     outcome TEXT,
     created_at TEXT NOT NULL
@@ -54,8 +55,21 @@ export class AdmissionQueue {
     }
     this.#database = new DatabaseSync(path);
     this.#database.exec(schema);
+    this.#migrate();
     this.#maxPending = maxPending;
     this.#now = now;
+  }
+
+  // An existing database predates the attachment column. The migration is
+  // idempotent: it only adds the column that is missing.
+  #migrate() {
+    const columns = this.#database
+      .prepare("PRAGMA table_info(instructions)")
+      .all();
+    if (columns.some((column) => column.name === "attachment")) {
+      return;
+    }
+    this.#database.exec("ALTER TABLE instructions ADD COLUMN attachment TEXT");
   }
 
   #transaction(callback) {
@@ -92,6 +106,7 @@ export class AdmissionQueue {
     sessionKey,
     authorIdentifier,
     instruction,
+    attachment = null,
   }) {
     return this.#transaction(() => {
       const existing = this.#database
@@ -119,8 +134,8 @@ export class AdmissionQueue {
       this.#database
         .prepare(
           `INSERT INTO instructions
-             (update_identifier, message_identifier, session_key, author_identifier, instruction, status, outcome, created_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+             (update_identifier, message_identifier, session_key, author_identifier, instruction, attachment, status, outcome, created_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         )
         .run(
           updateIdentifier,
@@ -128,6 +143,7 @@ export class AdmissionQueue {
           sessionKey,
           authorIdentifier,
           instruction,
+          attachment === null ? null : JSON.stringify(attachment),
           status,
           outcome,
           this.#now().toISOString(),
@@ -153,7 +169,7 @@ export class AdmissionQueue {
       const request = this.#database
         .prepare(
           `SELECT sequence, update_identifier, message_identifier, session_key,
-                  author_identifier, instruction
+                  author_identifier, instruction, attachment
            FROM instructions
            WHERE status = 'pending'
            ORDER BY sequence
@@ -175,6 +191,8 @@ export class AdmissionQueue {
         sessionKey: request.session_key,
         authorIdentifier: request.author_identifier,
         instruction: request.instruction,
+        attachment:
+          request.attachment === null ? null : JSON.parse(request.attachment),
       };
     });
   }

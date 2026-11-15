@@ -29,6 +29,13 @@ packages/telegram-pi-bridge/       nucli independent
 
 tools/server/agent/               aplicació de Mountain Runners
 ├── config.mjs                    configuració i credencials del servei
+├── attachments/
+│   ├── image-format.mjs          capçaleres, dimensions i metadades d'imatge
+│   ├── image-file.mjs            tipus real, límits i neteja de l'adjunt
+│   ├── destination.mjs           nom normalitzat i escriptura al worktree
+│   ├── prepare.mjs               descàrrega temporal, validació i destí
+│   ├── refusals.mjs              motius de refús compartits
+│   └── test-support/             imatges sintètiques de les proves
 ├── commands/trace/
 │   └── cli.mjs                   consulta de només lectura de la traça privada
 ├── processes/telegram-bridge/
@@ -205,6 +212,19 @@ al servidor. El nom local encara no representa una publicació a npm.
     els avisos. Un avís que falla o que esgota el termini es registra a la traça
     i no fa fallar la instrucció. El detall
     és a [`docs/deployment.md`](../../../docs/deployment.md).
+
+Un adjunt admès només s'aplica a una implementació o una continuació.
+`attachments/prepare.mjs` el descarrega al directori temporal del servei, en
+valida el tipus real contra l'extensió i el MIME declarats, en comprova
+l'estructura i les dimensions de les capçaleres, n'elimina les metadades i el
+desa a `.agent-attachments/` del worktree. El model rep el camí, el tipus i les
+dimensions com a text de servei, amb l'avís que l'origen i els drets són
+desconeguts i que ha de demanar-los responent al missatge de la imatge. Abans
+de les comprovacions i del commit, el servei esborra el directori, i
+`repository/secret-scan.mjs` refusa qualsevol història que contingui una ruta
+sota `.agent-attachments/`: l'adjunt no es publica ni en una branca amb un
+`.gitignore` anterior. La resta d'instruccions l'ignoren i ho diuen en una
+frase.
 
 Un error local conegut, un timeout o una cancel·lació amb neteja confirmada
 retornen una fallada sense bloquejar la cua. L'avís de CI tampoc no bloqueja la

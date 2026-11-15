@@ -6,6 +6,11 @@
 // configured group and admitted before the Telegram offset advances.
 
 import { classifyInstruction, verifyMembership } from "./attribution.mjs";
+import {
+  attachmentMegabytes,
+  attachmentRefusalDetail,
+  attachmentRefusalReasons,
+} from "./attachments.mjs";
 import { parseSessionKey } from "../sessions/identity.mjs";
 
 export const defaultBridgeMessages = {
@@ -19,6 +24,12 @@ export const defaultBridgeMessages = {
     "Group membership could not be verified. This instruction was not accepted; please retry.",
   unknownResult:
     "The result is unknown. Execution is blocked until an operator checks the actual state.",
+  attachmentPhoto:
+    "A compressed photo cannot be accepted. Send the image again as a file, with the instruction as its caption or as a reply to this message.",
+  attachmentUnsupported:
+    "Only JPEG, PNG and WebP images sent as a file are accepted. This attachment was not accepted.",
+  attachmentTooLarge: (megabytes) =>
+    `The image is ${megabytes} MB; the limit is 2 MB and 2400 px on the long side. Export it again within those limits and send it as a file. This instruction was not accepted.`,
 };
 export const maximumReportLength = 4000;
 export const maximumAcknowledgementExcerptLength = 120;
@@ -129,6 +140,37 @@ export class AgentBridge {
     });
   }
 
+  // A refused attachment is answered when it arrives: it is never queued. The
+  // report names the reason, never the original file name.
+  async #refuseAttachment(classification, { signal } = {}) {
+    this.#queue.recordTrace({
+      updateIdentifier: classification.updateIdentifier,
+      authorIdentifier: classification.authorIdentifier,
+      sessionKey: classification.sessionKey,
+      action: "attachment_refused",
+      detail: attachmentRefusalDetail(classification),
+    });
+    await this.#reply(
+      classification.sessionKey,
+      this.#attachmentRefusalText(classification),
+      { signal },
+    );
+  }
+
+  #attachmentRefusalText(classification) {
+    if (classification.reason === attachmentRefusalReasons.photo) {
+      return this.#messages.attachmentPhoto;
+    }
+    if (
+      classification.reason === attachmentRefusalReasons.unsupportedDocument
+    ) {
+      return this.#messages.attachmentUnsupported;
+    }
+    return this.#messages.attachmentTooLarge(
+      attachmentMegabytes(classification.bytes),
+    );
+  }
+
   /**
    * Read one Telegram batch, verify and admit each instruction, and advance the
    * durable offset only after the instruction is recorded. Returns how many
@@ -150,7 +192,10 @@ export class AgentBridge {
         botIdentifier: this.#botIdentifier,
       });
 
-      if (classification.decision === "instruction") {
+      if (
+        classification.decision === "instruction" ||
+        classification.decision === "refuse"
+      ) {
         const membership = await verifyMembership({
           telegram: this.#telegram,
           groupIdentifier: this.#groupIdentifier,
@@ -172,6 +217,8 @@ export class AgentBridge {
               { signal },
             );
           }
+        } else if (classification.decision === "refuse") {
+          await this.#refuseAttachment(classification, { signal });
         } else {
           const admission = this.#queue.admit({
             updateIdentifier: classification.updateIdentifier,
@@ -179,6 +226,7 @@ export class AgentBridge {
             sessionKey: classification.sessionKey,
             authorIdentifier: classification.authorIdentifier,
             instruction: classification.text,
+            attachment: classification.attachment,
           });
           this.#traceAdmission(admission, classification);
           if (admission === "accepted") {

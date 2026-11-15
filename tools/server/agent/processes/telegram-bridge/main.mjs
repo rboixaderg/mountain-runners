@@ -23,6 +23,7 @@ import {
   previewConfirmationTimeoutMilliseconds,
 } from "../../policy/development.mjs";
 import { agentSecrets, readAgentConfig } from "../../config.mjs";
+import { createAttachmentPreparation } from "../../attachments/prepare.mjs";
 import { GitHubTrust } from "../../repository/github.mjs";
 import { CiWatchStore } from "../../repository/ci-watch-store.mjs";
 import { MergeRequestStore } from "../../repository/merge-request-store.mjs";
@@ -262,6 +263,9 @@ export async function startService({
       requestPreview: previewWorker.handle,
       requestMerge: mergeWorker.handle,
       readCiState,
+      // The raw download only touches the service temporary directory, so the
+      // downloaded image is cleaned before it reaches a worktree.
+      prepareAttachment: createAttachmentPreparation({ telegram, logger }),
       hasOtherInstructions: (sessionKey, updateIdentifier) =>
         queue.hasOtherInstructions(sessionKey, updateIdentifier),
       notifyHandover: async ({ sessionKey, pullRequestNumber, signal }) => {

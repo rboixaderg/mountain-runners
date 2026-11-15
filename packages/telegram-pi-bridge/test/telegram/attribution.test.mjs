@@ -246,3 +246,241 @@ test("asks Telegram again for every instruction instead of caching", async () =>
   assert.equal(second.verified, false);
   assert.equal(telegram.calls, 2);
 });
+
+function imageDocument(overrides = {}) {
+  return {
+    file_id: "telegram-file",
+    file_unique_id: "telegram-unique-file",
+    file_name: "portada.png",
+    mime_type: "image/png",
+    file_size: 1200000,
+    ...overrides,
+  };
+}
+
+function documentUpdate(overrides = {}) {
+  return baseUpdate({
+    text: undefined,
+    entities: undefined,
+    caption: `@${botUsername} usa aquesta imatge`,
+    caption_entities: [mentionEntity()],
+    document: imageDocument(),
+    ...overrides,
+  });
+}
+
+test("accepts an image document with the mention in its caption", () => {
+  const result = classifyInstruction(documentUpdate(), context);
+
+  assert.equal(result.decision, "instruction");
+  assert.equal(result.text, "usa aquesta imatge");
+  assert.deepEqual(result.attachment, {
+    fileIdentifier: "telegram-file",
+    fileUniqueIdentifier: "telegram-unique-file",
+    fileName: "portada.png",
+    mimeType: "image/png",
+    fileSize: 1200000,
+    origin: "message",
+  });
+});
+
+test("accepts a document that replies to the bot and takes its caption", () => {
+  const result = classifyInstruction(
+    documentUpdate({
+      caption: "usa aquesta imatge",
+      caption_entities: [],
+      reply_to_message: { message_id: 49, from: { id: botIdentifier } },
+    }),
+    context,
+  );
+
+  assert.equal(result.decision, "instruction");
+  assert.equal(result.text, "usa aquesta imatge");
+  assert.equal(result.attachment?.origin, "message");
+});
+
+test("accepts the document of the message the instruction replies to", () => {
+  const update = baseUpdate({
+    reply_to_message: {
+      message_id: 49,
+      from: { id: 43, is_bot: false },
+      message_thread_id: 7,
+      document: imageDocument({
+        file_name: "foto.webp",
+        mime_type: "image/webp",
+      }),
+    },
+  });
+
+  const result = classifyInstruction(update, context);
+
+  assert.equal(result.decision, "instruction");
+  assert.equal(result.text, "revisa el README");
+  assert.equal(result.attachment?.origin, "reply");
+  assert.equal(result.attachment?.fileIdentifier, "telegram-file");
+});
+
+test("accepts a reply to the document message that answers with the rights", () => {
+  const update = baseUpdate({
+    text: `@${botUsername} l'origen és propi, els drets són de l'entitat i el crèdit és seu`,
+    reply_to_message: {
+      message_id: 49,
+      from: { id: 43, is_bot: false },
+      message_thread_id: 7,
+      document: imageDocument(),
+    },
+  });
+
+  const result = classifyInstruction(update, context);
+
+  assert.equal(result.decision, "instruction");
+  assert.equal(
+    result.text,
+    "l'origen és propi, els drets són de l'entitat i el crèdit és seu",
+  );
+  assert.equal(result.attachment?.origin, "reply");
+});
+
+test("ignores a document quoted from another topic", () => {
+  const update = baseUpdate({
+    reply_to_message: {
+      message_id: 49,
+      from: { id: 43, is_bot: false },
+      message_thread_id: 8,
+      document: imageDocument(),
+    },
+  });
+
+  const result = classifyInstruction(update, context);
+
+  assert.equal(result.decision, "instruction");
+  assert.equal(result.attachment, null);
+});
+
+test("keeps a text instruction without an attachment", () => {
+  const result = classifyInstruction(baseUpdate(), context);
+
+  assert.equal(result.attachment, null);
+});
+
+test("refuses a compressed photo and asks for a file", () => {
+  const result = classifyInstruction(
+    baseUpdate({
+      text: undefined,
+      entities: undefined,
+      caption: `@${botUsername} usa aquesta foto`,
+      caption_entities: [mentionEntity()],
+      photo: [
+        { file_id: "small", file_unique_id: "small-unique", width: 90 },
+        { file_id: "large", file_unique_id: "large-unique", width: 1280 },
+      ],
+    }),
+    context,
+  );
+
+  assert.equal(result.decision, "refuse");
+  assert.equal(result.reason, "photo");
+  assert.equal(result.sessionKey, "-1001234567890:7");
+  assert.equal(result.authorIdentifier, 42);
+});
+
+test("refuses a document that is not an accepted image", () => {
+  const result = classifyInstruction(
+    documentUpdate({
+      document: imageDocument({
+        file_name: "informe.pdf",
+        mime_type: "application/pdf",
+      }),
+    }),
+    context,
+  );
+
+  assert.equal(result.decision, "refuse");
+  assert.equal(result.reason, "unsupported_document");
+  assert.equal(result.type, "application/pdf");
+});
+
+test("never echoes a declared type that is not a plain MIME token", () => {
+  const result = classifyInstruction(
+    documentUpdate({
+      document: imageDocument({
+        file_name: "informe.pdf",
+        mime_type: "application/pdf\nforged trace line",
+      }),
+    }),
+    context,
+  );
+
+  assert.equal(result.decision, "refuse");
+  assert.equal(result.reason, "unsupported_document");
+  assert.equal(result.type, undefined);
+});
+
+test("refuses a compressed photo even when it replies to a document", () => {
+  const result = classifyInstruction(
+    documentUpdate({
+      text: undefined,
+      entities: undefined,
+      caption: `@${botUsername} usa aquesta foto`,
+      caption_entities: [mentionEntity()],
+      document: undefined,
+      photo: [{ file_id: "large", file_unique_id: "large-unique" }],
+      reply_to_message: {
+        message_id: 49,
+        from: { id: 43, is_bot: false },
+        message_thread_id: 7,
+        document: imageDocument(),
+      },
+    }),
+    context,
+  );
+
+  assert.equal(result.decision, "refuse");
+  assert.equal(result.reason, "photo");
+});
+
+test("refuses a declared image above the size limit with its size", () => {
+  const result = classifyInstruction(
+    documentUpdate({
+      document: imageDocument({ file_size: 3 * 1024 * 1024 }),
+    }),
+    context,
+  );
+
+  assert.equal(result.decision, "refuse");
+  assert.equal(result.reason, "declared_too_large");
+  assert.equal(result.type, "png");
+  assert.equal(result.bytes, 3 * 1024 * 1024);
+});
+
+test("ignores a forwarded document message", () => {
+  const result = classifyInstruction(
+    documentUpdate({
+      forward_origin: { type: "user", sender_user: { id: 7 } },
+    }),
+    context,
+  );
+
+  assert.equal(result.decision, "ignore");
+  assert.equal(result.reason, "forwarded_message");
+});
+
+test("ignores a document sent in another chat", () => {
+  const result = classifyInstruction(
+    documentUpdate({ chat: { id: -1005555555555, type: "supergroup" } }),
+    context,
+  );
+
+  assert.equal(result.decision, "ignore");
+  assert.equal(result.reason, "other_chat");
+});
+
+test("ignores a document that does not address the bot", () => {
+  const result = classifyInstruction(
+    documentUpdate({ caption: "mira aquesta imatge", caption_entities: [] }),
+    context,
+  );
+
+  assert.equal(result.decision, "ignore");
+  assert.equal(result.reason, "not_addressed_to_bot");
+});

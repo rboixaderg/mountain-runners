@@ -17,7 +17,8 @@ src/
 ├── telegram/
 │   ├── index.mjs          entrada /telegram
 │   ├── api.mjs            client mínim de la Bot API
-│   ├── attribution.mjs    grup, autor, tema i pertinença
+│   ├── attachments.mjs    contracte dels documents d'imatge
+│   ├── attribution.mjs    grup, autor, tema, pertinença i adjunts
 │   └── bridge.mjs         polling, cua, execució i resposta
 ├── sessions/
 │   ├── index.mjs          entrada /sessions
@@ -71,16 +72,20 @@ rep la cua i el callback d'execució de l'aplicació. `/sessions` carrega SQLite
 però no Telegram ni Pi. L'entrada arrel `telegram-pi-bridge` conserva totes
 les exportacions i carrega tots els mòduls, inclòs SQLite.
 
-| Exportació                             | Responsabilitat                                                                                                          |
-| -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
-| `TelegramApi`, `TelegramApiError`      | `getMe`, `getUpdates`, `getChatMember` i `sendMessage`; errors de transport sense URL amb token                          |
-| `AdmissionQueue`                       | Cua duradora SQLite amb límit de pendents i una execució global                                                          |
-| `readTraceEntries`                     | Consulta de només lectura de la traça privada; `parseTraceFilters` valida els filtres i llança `TraceQueryInputError`    |
-| `AgentBridge`                          | Connecta transport, comprovació de membres, cua, callback d'execució i treball propi de l'aplicació quan la cua és buida |
-| `parseSessionKey`, `sessionIdentifier` | Identitat estable a partir de grup i tema                                                                                |
-| `runPiPrompt`, `buildPiArguments`      | Torn RPC i construcció explícita dels arguments de Pi                                                                    |
-| `defaultBridgeMessages`                | Missatges operatius en anglès; l'aplicació pot substituir-los                                                            |
-| `instructionExcerpt`                   | Retall d'una línia de la instrucció per al missatge de recepció                                                          |
+| Exportació                                                                  | Responsabilitat                                                                                                            |
+| --------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| `TelegramApi`, `TelegramApiError`                                           | `getMe`, `getUpdates`, `getChatMember`, `sendMessage`, `getFile` i `downloadFile`; errors de transport sense URL amb token |
+| `TelegramFileTooLargeError`                                                 | Descàrrega aturada pel límit de bytes, amb la mida coneguda perquè el refús la pugui dir                                   |
+| `AdmissionQueue`                                                            | Cua duradora SQLite amb límit de pendents i una execució global                                                            |
+| `readTraceEntries`                                                          | Consulta de només lectura de la traça privada; `parseTraceFilters` valida els filtres i llança `TraceQueryInputError`      |
+| `AgentBridge`                                                               | Connecta transport, comprovació de membres, cua, callback d'execució i treball propi de l'aplicació quan la cua és buida   |
+| `parseSessionKey`, `sessionIdentifier`                                      | Identitat estable a partir de grup i tema                                                                                  |
+| `runPiPrompt`, `buildPiArguments`                                           | Torn RPC i construcció explícita dels arguments de Pi                                                                      |
+| `defaultBridgeMessages`                                                     | Missatges operatius en anglès; l'aplicació pot substituir-los                                                              |
+| `instructionExcerpt`                                                        | Retall d'una línia de la instrucció per al missatge de recepció                                                            |
+| `acceptedImageDocuments`, `attachmentOrigins`, `attachmentRefusalReasons`   | Contracte dels documents d'imatge: tipus, extensions, MIME i origen del document (`message` o `reply`)                     |
+| `maximumAttachmentBytes`, `imageDocumentRefusal`, `imageDocumentAttachment` | Límit de 2 MB declarat, refús d'un document i descripció duradora de l'adjunt admès                                        |
+| `declaredImageDocument`, `fileNameExtension`, `attachmentMegabytes`         | Confronament del nom i el MIME declarats, extensió del nom i format llegible de la mida                                    |
 
 ### Pont de Telegram
 
@@ -109,6 +114,14 @@ consulta per instrucció, sense memòria cau; un error denega l'admissió i avis
 l'autor perquè torni a enviar la petició. Els
 autors anònims, reenviaments i missatges fora del tema no s'admeten.
 
+Un document només s'admet com a adjunt si és una imatge JPEG, PNG o WebP
+declarada com a fitxer, amb una mida que cap als 2 MB. Una foto comprimida o un
+altre document es refusa en admetre la instrucció i no ocupa la cua; el paquet
+comprova el tipus declarat, i l'aplicació valida els bytes, les dimensions i les
+metadades quan executa la instrucció. L'adjunt admès viatja amb la fila de la
+cua (fitxer de Telegram, nom, tipus, mida i origen) i arriba a
+`runInstruction(request)`; el paquet no el descarrega mai.
+
 Un tema comparteix sessió entre els membres. El bot respon amb el resultat,
 limitat a 4.000 caràcters; no publica passos intermedis ni fa streaming. Les
 instruccions es dedupliquen per update i s'executen en ordre. El polling i
@@ -135,9 +148,9 @@ El pont no desa ni recupera aquesta feina: la durabilitat és responsabilitat de
 l'aplicació.
 
 Els missatges es poden substituir parcialment amb
-`messages: { acknowledgement, queueFull, queueBlocked, membershipUnavailable, unknownResult }`.
-`acknowledgement` és una funció que rep el retall d'una línia de la instrucció;
-la resta són cadenes. La recepció s'envia només quan la instrucció ja és duradora
+`messages: { acknowledgement, queueFull, queueBlocked, membershipUnavailable, unknownResult, attachmentPhoto, attachmentUnsupported, attachmentTooLarge }`.
+`acknowledgement` és una funció que rep el retall d'una línia de la instrucció,
+`attachmentTooLarge` rep la mida en MB i la resta són cadenes. La recepció s'envia només quan la instrucció ja és duradora
 a la cua, abans d'executar-la, i un error d'enviament no atura la feina: es
 registra com a `reply_failed`. El transport admet `fetchImpl` i
 `baseUrl` per proves; el seu origen per defecte és l'API HTTPS de Telegram.
