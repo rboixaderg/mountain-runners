@@ -1,0 +1,25 @@
+AGENTS.md
+  s_7e5aa3a412d832::t_8d512e0192aef4 156-157
+docs/decisions/0003-agent-workflow-and-security.md
+  s_7e5aa3a412d832::t_716952a3febb3f 29-30
+docs/decisions/0013-private-development-agent-boundary.md
+  s_7e5aa3a412d832::t_27ae5603ac7c54 93-129,132-137,145
+docs/specs/phase-8-editorial-assistance.md
+  s_7e5aa3a412d832::t_9de950cc37370f 461-463,501,599-600
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "564d0754a439a0f7f99683c1bf92444313a77a31",
+  "prompts": {},
+  "sessions": {
+    "s_7e5aa3a412d832": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "f5de8b74-7008-4809-a21f-2997cc2669d8",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
