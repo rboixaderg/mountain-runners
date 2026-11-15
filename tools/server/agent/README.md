@@ -3,8 +3,9 @@
 Aplicació de Mountain Runners que porta una petició de Telegram fins a una PR.
 El servei **no està desplegat ni activat**. Aquesta branca afegeix l'avís de CI
 de T8.4 vinculat al SHA publicat, la reparació automàtica acotada d'una CI
-vermella, la preview demanada al tema, el merge demanat amb `/merge` i la
-continuació d'una PR des d'un altre tema. Cap canvi d'aquesta branca autoritza
+vermella, la preview demanada al tema, el merge demanat amb `/merge`, la
+continuació d'una PR des d'un altre tema, l'avís de solapaments i els adjunts
+d'imatge. Cap canvi d'aquesta branca autoritza
 instal·lacions ni operacions remotes.
 
 ## Nucli reutilitzable i aplicació

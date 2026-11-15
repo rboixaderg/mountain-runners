@@ -372,8 +372,9 @@ Telegram, sessions i un entorn aïllat que porta una tasca petita fins a una PR.
 La implementació està fusionada i instal·lada al VPS, i el pilot s'ha executat
 supervisat: una consulta que no crea branca i una tasca petita que arriba a PR,
 sense merge ni preview. El servei roman **aturat** per defecte i cada activació
-requereix aprovació explícita. La preview i el merge demanats al tema ja estan
-implementats (vegeu més avall), però inactius; la resta de casos pertanyen a la T8.4.
+requereix aprovació explícita. Les capacitats de T8.4 (avís i reparació de CI,
+preview i merge demanats al tema, continuació entre temes, avís de solapaments i
+adjunts) estan implementades (vegeu més avall), però inactives.
 
 Les eines viuen a `tools/server/agent/` i s'instal·len a
 `/usr/local/lib/mountain-runners/agent/`. La unitat és
@@ -1213,9 +1214,8 @@ Verificat al VPS amb la identitat i la unitat instal·lades:
 
 Pendent per a les entregues següents:
 
-- Pertinença, revocació, dos autors, represa entre temes i continuació d'una
-  branca ja publicada (T8.4/T8.5), amb l'aturada, la rotació i la retenció
-  documentades (T8.5/T8.6).
+- Pertinença, revocació i dos autors (T8.5), amb l'aturada, la rotació i la
+  retenció documentades (T8.5/T8.6).
 - Recuperació d'una acció externa amb resultat desconegut i reconciliació del
   registre.
 - Retenció de worktrees: cada worktree conserva les seves dependències i el
