@@ -19,6 +19,17 @@ import {
 const protectedBranches = new Set(["main", "master"]);
 const branchPattern =
   /^(feat|fix|docs|refactor|test|build|ci|chore|security)\/[a-z0-9]+(?:[._-][a-z0-9]+)*$/u;
+const fullCommitPattern = /^[a-f0-9]{40}$/u;
+
+// Why a branch that another topic published was not released. The caller turns
+// each one into the report of the continued instruction: nothing is reset,
+// removed or overwritten to resume a branch.
+export const workBranchRefusals = {
+  dirtyWorktree: "dirty_worktree",
+  unpublishedCommits: "unpublished_commits",
+  divergedBranch: "diverged_branch",
+  movedHead: "moved_head",
+};
 
 export function assertWorkBranch(branch) {
   if (typeof branch !== "string" || branch === "") {
@@ -45,6 +56,24 @@ async function worktreePaths(repository) {
     .split("\n")
     .filter((line) => line.startsWith("worktree "))
     .map((line) => line.slice("worktree ".length));
+}
+
+/** Every registered worktree with the branch it holds, or null when detached. */
+async function worktreesByBranch(repository) {
+  const output = await runGit(repository, ["worktree", "list", "--porcelain"]);
+  const entries = [];
+  let entry = null;
+  for (const line of output.split("\n")) {
+    if (line.startsWith("worktree ")) {
+      entry = { path: line.slice("worktree ".length), branch: null };
+      entries.push(entry);
+      continue;
+    }
+    if (entry !== null && line.startsWith("branch refs/heads/")) {
+      entry.branch = line.slice("branch refs/heads/".length);
+    }
+  }
+  return entries;
 }
 
 export async function ensureSessionWorktree({
@@ -131,6 +160,108 @@ export async function findSessionWorktree({
     return null;
   }
   return registeredWorktree(repositoryPath, worktreePath);
+}
+
+/**
+ * Resume a work branch another topic published. Git allows one worktree per
+ * branch, so the branch is released from every worktree that holds it, the
+ * session worktree is preserved like a new task and the branch is checked out
+ * at the pull request head. A branch with unpublished work or with local
+ * history outside the remote head is reported instead of reset.
+ *
+ * @returns {Promise<{worktree: object} | {refusal: string}>}
+ */
+export async function resumeWorkBranch({
+  repositoryPath,
+  worktreeRoot,
+  name,
+  branch,
+  headSha,
+  newTaskIdentifier,
+}) {
+  if (!/^[a-z0-9][a-z0-9._-]*$/u.test(name)) {
+    throw new Error(`Invalid worktree name ${name}.`);
+  }
+  assertWorkBranch(branch);
+  if (typeof headSha !== "string" || !fullCommitPattern.test(headSha)) {
+    throw new Error("A full commit SHA is required to resume a work branch.");
+  }
+  if (!Number.isSafeInteger(newTaskIdentifier) || newTaskIdentifier < 0) {
+    throw new Error("A resumed branch requires a valid update identifier.");
+  }
+  mkdirSync(worktreeRoot, { recursive: true });
+  const root = realpathSync(worktreeRoot);
+  const worktreePath = join(root, name);
+  const repository = primaryRepository(repositoryPath);
+
+  // Every read and validation happens before the first local change.
+  await runGit(repository, ["fetch", "--prune", "origin", "main"]);
+  await runGit(repository, [
+    "fetch",
+    "--prune",
+    "origin",
+    `refs/heads/${branch}`,
+  ]);
+  const fetched = (
+    await runGit(repository, ["rev-parse", "FETCH_HEAD"])
+  ).trim();
+  if (fetched !== headSha) {
+    return { refusal: workBranchRefusals.movedHead };
+  }
+  const localBranch = (
+    await runGit(
+      repository,
+      ["rev-parse", "--verify", "--quiet", `refs/heads/${branch}`],
+      { allowFailure: true },
+    )
+  ).trim();
+  const holders = [];
+  for (const entry of await worktreesByBranch(repository)) {
+    if (entry.branch !== branch || !existsSync(entry.path)) {
+      continue;
+    }
+    const holder = registeredWorktree(repositoryPath, entry.path);
+    if ((await listChangedPaths(holder)).length > 0) {
+      return { refusal: workBranchRefusals.dirtyWorktree };
+    }
+    if (await hasUnpublishedCommit(holder)) {
+      return { refusal: workBranchRefusals.unpublishedCommits };
+    }
+    holders.push(holder);
+  }
+  if (localBranch !== "") {
+    const mergeBase = (
+      await runGit(repository, ["merge-base", localBranch, headSha], {
+        allowFailure: true,
+      })
+    ).trim();
+    if (mergeBase !== localBranch) {
+      return { refusal: workBranchRefusals.divergedBranch };
+    }
+  }
+
+  // Only the release moves local state: every refusal is already decided.
+  for (const holder of holders) {
+    await runGit(holder, ["checkout", "--detach"]);
+  }
+
+  if ((await worktreePaths(repository)).includes(worktreePath)) {
+    const previous = registeredWorktree(repositoryPath, worktreePath);
+    // Check the untrusted Git marker before moving the registered worktree.
+    await listChangedPaths(previous);
+    await runGit(repository, [
+      "worktree",
+      "move",
+      worktreePath,
+      join(root, `${name}-before-${newTaskIdentifier}`),
+    ]);
+  }
+  await runGit(repository, ["branch", "-f", branch, headSha]);
+  await runGit(repository, ["worktree", "add", worktreePath, branch]);
+  const worktree = registeredWorktree(repositoryPath, worktreePath);
+  // The head is published already: an unchanged resume never republishes it.
+  recordPublication(worktree, headSha);
+  return { worktree };
 }
 
 export async function listChangedPaths(worktree) {

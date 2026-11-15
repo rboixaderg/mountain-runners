@@ -10,7 +10,7 @@
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { AdmissionQueue } from "telegram-pi-bridge/sessions";
+import { AdmissionQueue, parseSessionKey } from "telegram-pi-bridge/sessions";
 import {
   AgentBridge,
   TelegramApi,
@@ -18,18 +18,25 @@ import {
 } from "telegram-pi-bridge/telegram";
 import {
   bridgeMessages,
+  continuationReports,
   maximumAutomaticRepairs,
   previewConfirmationTimeoutMilliseconds,
 } from "../../policy/development.mjs";
 import { agentSecrets, readAgentConfig } from "../../config.mjs";
 import { GitHubTrust } from "../../repository/github.mjs";
 import { CiWatchStore } from "../../repository/ci-watch-store.mjs";
-import { classifyCommitStatus } from "../../repository/ci-status.mjs";
 import { MergeRequestStore } from "../../repository/merge-request-store.mjs";
 import { PreviewRequestStore } from "../../repository/preview-request-store.mjs";
+import {
+  defaultRequestTimeoutMilliseconds,
+  requestSignal,
+} from "../../repository/request-signal.mjs";
 import { pruneArchivedWorktrees } from "../../repository/retention.mjs";
 import { createCiRepairExecutor } from "../../workflow/ci-repair.mjs";
-import { createCiWatchWorker } from "../../workflow/ci-watch.mjs";
+import {
+  createCiWatchWorker,
+  readCiState as readCiCheckState,
+} from "../../workflow/ci-watch.mjs";
 import { createMergeRequests } from "../../workflow/merge-request.mjs";
 import { createPreviewRequests } from "../../workflow/preview-request.mjs";
 import { createProjectRunner } from "../../workflow/project-runner.mjs";
@@ -235,6 +242,15 @@ export async function startService({
     logger,
   });
   await mergeWorker.reconcileUncertain({ signal });
+  // One read of the required checks of an exact commit, shared by the
+  // continuation of a pull request and the automatic repair.
+  const readCiState = ({ commit, signal }) =>
+    readCiCheckState({
+      github,
+      requiredChecks: config.github.requiredChecks,
+      commit,
+      signal,
+    });
   const runner =
     runnerOverride ??
     createProjectRunner({
@@ -245,6 +261,20 @@ export async function startService({
       ciWatches,
       requestPreview: previewWorker.handle,
       requestMerge: mergeWorker.handle,
+      readCiState,
+      hasOtherInstructions: (sessionKey, updateIdentifier) =>
+        queue.hasOtherInstructions(sessionKey, updateIdentifier),
+      notifyHandover: async ({ sessionKey, pullRequestNumber, signal }) => {
+        const { chatIdentifier, threadIdentifier } =
+          parseSessionKey(sessionKey);
+        await telegram.sendMessage({
+          chatIdentifier,
+          messageThreadIdentifier: threadIdentifier,
+          text: continuationReports.handover({ pullRequestNumber }),
+          signal: requestSignal(signal, defaultRequestTimeoutMilliseconds),
+        });
+      },
+      recordTrace: (entry) => queue.recordTrace(entry),
     });
 
   const ciRepairExecutor = createCiRepairExecutor({
@@ -252,17 +282,7 @@ export async function startService({
     runInstruction: runner,
     readPullRequest: ({ pullRequestNumber, signal }) =>
       github.getPullRequest({ number: pullRequestNumber, signal }),
-    readCiState: async ({ commit, signal }) => {
-      const [checkRuns, statuses] = await Promise.all([
-        github.getCommitCheckRuns({ commit, signal }),
-        github.getCommitStatuses({ commit, signal }),
-      ]);
-      return classifyCommitStatus({
-        requiredChecks: config.github.requiredChecks,
-        checkRuns,
-        statuses,
-      });
-    },
+    readCiState,
     telegram,
     recordTrace: (entry) => queue.recordTrace(entry),
     logger,

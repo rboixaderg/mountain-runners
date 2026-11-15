@@ -3,9 +3,9 @@
 Aplicació de Mountain Runners que porta una petició de Telegram fins a una PR.
 El servei **no està desplegat ni activat**. Aquesta branca afegeix l'avís de CI
 de T8.4 vinculat al SHA publicat, la reparació automàtica acotada d'una CI
-vermella, la preview demanada al tema i el merge demanat amb `/merge`; la
-continuació entre temes continua pendent. Cap canvi d'aquesta branca autoritza instal·lacions ni operacions
-remotes.
+vermella, la preview demanada al tema, el merge demanat amb `/merge` i la
+continuació d'una PR des d'un altre tema. Cap canvi d'aquesta branca autoritza
+instal·lacions ni operacions remotes.
 
 ## Nucli reutilitzable i aplicació
 
@@ -36,12 +36,13 @@ tools/server/agent/               aplicació de Mountain Runners
 ├── policy/
 │   └── development.mjs           prompts, comprovació, noms i informes
 ├── workflow/
-│   ├── project-runner.mjs        connecta política, model, sandbox i publicador
-│   ├── run-instruction.mjs       coordina consulta, implementació o reparació
-│   ├── ci-watch.mjs              avís de CI i reserva de la reparació acotada
-│   ├── preview-request.mjs       petició `/preview` determinista i confirmació
-│   ├── merge-request.mjs         comanda `/merge` determinista i recuperació
-│   └── ci-repair.mjs             executa una reparació quan la cua està inactiva
+│   ├── project-runner.mjs          connecta política, model, sandbox i publicador
+│   ├── run-instruction.mjs         coordina consulta, implementació o reparació
+│   ├── ci-watch.mjs                avís de CI i reserva de la reparació acotada
+│   ├── preview-request.mjs         petició `/preview` determinista i confirmació
+│   ├── merge-request.mjs           comanda `/merge` determinista i recuperació
+│   ├── cross-topic-continuation.mjs represa d'una PR publicada des d'un altre tema
+│   └── ci-repair.mjs               executa una reparació quan la cua està inactiva
 ├── runtime/
 │   ├── request-kind.mjs          interpreta la petició actual sense eines
 │   ├── agent.mjs                 prepara el perfil i inicia el torn
@@ -105,7 +106,9 @@ al servidor. El nom local encara no representa una publicació a npm.
 3. El servei prepara el worktree actual del tema. Una feina nova preserva
    l'anterior a `<tema>-before-<update>` i crea un worktree des de `origin/main`,
    sense arrossegar fitxers ignorats d'una feina anterior.
-   Només una continuació explícita reutilitza la feina pendent actual.
+   Només una continuació explícita reutilitza la feina pendent actual o, si
+   nomena una sola PR que el servei va publicar, la reprèn a
+   `workflow/cross-topic-continuation.mjs` (vegeu el punt 11).
    A l'arrencada, `repository/retention.mjs` esborra només els worktrees
    arxivats que no tenen res a perdre: cap commit per davant d'`origin/main` i
    cap canvi sense cometre. Conserva sempre l'arxiu més recent de cada tema i no
@@ -184,6 +187,23 @@ al servidor. El nom local encara no representa una publicació a npm.
     zero (si el cap de la PR s'ha mogut, amb el SHA del cap actual, que ha de ser l'últim informat en verd); `/merge` i `/merge <PR>` mai no la desbloquegen i no cal editar SQLite.
     La pertinença superada queda a la traça (`merge_membership_verified`). La
     resposta nomena la PR i el commit de merge. El detall és a [`docs/deployment.md`](../../../docs/deployment.md).
+
+11. Una continuació que nomena exactament una PR amb `#<número>` es reconeix pel
+    servei, no pel model. `workflow/cross-topic-continuation.mjs` la reprèn si la
+    PR és oberta, no és un esborrany, apunta a `main`, ve del repositori
+    configurat, la branca és una branca de treball i el servei l'ha publicada
+    abans (`ci_watches`). El tema de la publicació més recent n'és el propietari i
+    la represa espera que no tingui cap altra instrucció ni cap avís sense
+    informar. La branca s'allibera dels worktrees que la tenen (només si no hi ha
+    res per publicar), el worktree del tema es preserva com una feina nova i la
+    branca es munta al cap actual de la PR. El model rep la PR, el diff, els
+    últims vint comentaris i l'estat de les comprovacions com a dades no fiables.
+    La publicació només actualitza aquella PR, el tema nou registra el seu propi
+    avís i passa a ser-ne el propietari, i el tema anterior rep un avís curt. Si
+    la fila no es pot desar, la publicació es manté i el tema anterior conserva
+    els avisos. Un avís que falla o que esgota el termini es registra a la traça
+    i no fa fallar la instrucció. El detall
+    és a [`docs/deployment.md`](../../../docs/deployment.md).
 
 Un error local conegut, un timeout o una cancel·lació amb neteja confirmada
 retornen una fallada sense bloquejar la cua. L'avís de CI tampoc no bloqueja la

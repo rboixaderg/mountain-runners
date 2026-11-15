@@ -14,7 +14,11 @@ function pullRequestResponse(overrides = {}) {
     draft: false,
     merged: false,
     mergeable_state: "clean",
-    head: { sha: commit, repo: { full_name: "example/project" } },
+    head: {
+      sha: commit,
+      ref: "feat/example",
+      repo: { full_name: "example/project" },
+    },
     base: { ref: "main" },
     ...overrides,
   };
@@ -172,6 +176,7 @@ test("reads one pull request to pin the reported commit to its head", async () =
   assert.deepEqual(await github.getPullRequest({ number: 123 }), {
     state: "open",
     headSha: commit,
+    headRef: "feat/example",
     headRepository: "example/project",
     draft: false,
     baseRef: "main",
@@ -201,6 +206,21 @@ test("rejects an invalid pull request number or response", async () => {
   );
 });
 
+test("rejects a pull request response without a head branch", async () => {
+  const github = new GitHubTrust({
+    token: "synthetic",
+    repository: "example/project",
+    fetchImpl: async () => ({
+      ok: true,
+      json: async () => pullRequestResponse({ head: { sha: commit } }),
+    }),
+  });
+  await assert.rejects(
+    github.getPullRequest({ number: 123 }),
+    /invalid pull request response/u,
+  );
+});
+
 test("reports a pull request without head repository as having none", async () => {
   const github = new GitHubTrust({
     token: "synthetic",
@@ -208,7 +228,9 @@ test("reports a pull request without head repository as having none", async () =
     fetchImpl: async () => ({
       ok: true,
       json: async () =>
-        pullRequestResponse({ head: { sha: commit, repo: null } }),
+        pullRequestResponse({
+          head: { sha: commit, ref: "feat/example", repo: null },
+        }),
     }),
   });
   assert.equal(

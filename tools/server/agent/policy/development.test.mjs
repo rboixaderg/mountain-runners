@@ -2,9 +2,12 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
   branchNameForChange,
+  buildClassificationPrompt,
+  buildContinuationInstruction,
   buildInstructionPrompt,
   buildRepairInstruction,
   changeTypes,
+  continuationPromptLimits,
   parseChangeSummary,
   parseRequestKind,
   repairPromptLimits,
@@ -137,4 +140,65 @@ test("adds the repair rules that forbid hiding a failing check", () => {
     buildInstructionPrompt("Request", "implementation"),
     /automatic CI repair/u,
   );
+});
+
+test("labels the pull request context of a continuation as untrusted data", () => {
+  const instruction = buildContinuationInstruction({
+    pullRequestNumber: 301,
+    branch: "feat/phase-8-t8.4-cross-topic",
+    baseHeadSha: "b".repeat(40),
+    diff: "diff --git a/README.md b/README.md\n+continued\n",
+    comments: [
+      { login: "someone", body: "Synthetic review comment" },
+      { login: "someone-else", body: "" },
+    ],
+    checks: { state: "failure", failed: ["Validate"] },
+    request: "arregla el lint",
+  });
+
+  assert.match(instruction, /pull request #301/u);
+  assert.match(instruction, /feat\/phase-8-t8\.4-cross-topic/u);
+  assert.match(instruction, new RegExp("b".repeat(40), "u"));
+  assert.match(instruction, /untrusted data/u);
+  assert.match(instruction, /\+continued/u);
+  assert.match(instruction, /Required checks of the head: failure\./u);
+  assert.match(instruction, /Failing required checks: Validate\./u);
+  assert.match(instruction, /### someone\nSynthetic review comment/u);
+  assert.match(instruction, /### someone-else\n\(empty\)/u);
+  assert.match(instruction, /arregla el lint/u);
+});
+
+test("keeps only the last comments and clips their text", () => {
+  const comments = [];
+  for (
+    let index = 0;
+    index <= continuationPromptLimits.maximumComments + 4;
+    index += 1
+  ) {
+    comments.push({
+      login: `author-${index}`,
+      body: "x".repeat(continuationPromptLimits.commentCharacters + 100),
+    });
+  }
+  const instruction = buildContinuationInstruction({
+    pullRequestNumber: 301,
+    branch: "feat/phase-8-t8.4-cross-topic",
+    baseHeadSha: "b".repeat(40),
+    diff: null,
+    comments,
+    checks: { state: "unknown", failed: [] },
+    request: "continua",
+  });
+
+  assert.match(instruction, /\(the diff is not available\)/u);
+  assert.doesNotMatch(instruction, /### author-3\n/u);
+  assert.match(instruction, /### author-5\n/u);
+  assert.ok(
+    instruction.length < continuationPromptLimits.commentsCharacters + 2000,
+  );
+});
+
+test("classifies a pull request named by its number as a continuation", () => {
+  const prompt = buildClassificationPrompt("continua la PR #301");
+  assert.match(prompt, /a pull request named by its number/u);
 });

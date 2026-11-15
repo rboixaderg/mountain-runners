@@ -496,8 +496,10 @@ la sessió; si no es pot confirmar, l'execució queda fallida o incerta.
   branca ni publicar feina anterior pendent. Una feina nova preserva el worktree
   anterior, inclosos els fitxers ignorats, a `<tema>-before-<update>` i comença des de `origin/main` en
   una branca pròpia. Una continuació explícita reutilitza només la feina
-  pendent actual; no incorpora automàticament altres treballs arxivats. Les
-  operacions executen `pnpm check` al contenidor abans de commit, push i PR.
+  pendent actual o, si nomena una sola PR que el servei va publicar, la reprèn
+  (vegeu «Continuació d'una PR des d'un altre tema»); no incorpora
+  automàticament altres treballs arxivats. Les operacions executen `pnpm check`
+  al contenidor abans de commit, push i PR.
 - Un error local, un timeout o una cancel·lació confirmada no bloquegen la cua.
   Un error després d'iniciar la publicació queda incert, excepte un refús local
   identificat pel publicador. Una aturada de contenidors no confirmada també
@@ -825,6 +827,65 @@ de coincidir amb la protecció de `main` amb «Require branches to be up to date
 perquè `clean` signifiqui el mateix per als dos. El primer merge real requereix
 l'aprovació explícita de la persona mantenidora. Aquesta implementació no activa
 res.
+
+### Continuació d'una PR des d'un altre tema (T8.4)
+
+Una continuació pot reprendre una PR que el servei va publicar en un altre tema.
+No hi ha cap coincidència entre persones de Telegram i comptes de GitHub ni cap
+transferència de converses: el context viatja amb la PR.
+
+- **Destí.** Només quan el classificador diu `continuation` i el text conté
+  exactament un testimoni sencer `#<número>`, que parseja el servei i mai el
+  model. Dos números diferents responen amb una petició d'aclariment. Sense
+  número, el comportament és l'habitual: la feina pendent del tema.
+- **Elegibilitat, rellegida a GitHub.** PR oberta, no esborrany, base `main`,
+  repositori del cap igual al configurat (sense forks), branca que supera
+  `assertWorkBranch` i almenys una fila de `ci_watches` amb aquell número: les PR
+  obertes per persones no es reprenen mai. Qualsevol incompliment respon en
+  català i no toca res. El nom de la branca no identifica res: una fork que
+  reutilitza la branca d'una PR del tema també es refusa. Només després
+  d'aquestes comprovacions, si el worktree del tema ja té aquella branca,
+  s'aplica el camí de sempre.
+- **Traspàs.** El tema de la fila de `ci_watches` més recent és el propietari
+  actual. La represa espera que no tingui cap altra instrucció pendent o en curs
+  ni cap avís sense informar, de manera que dos temes no escriuen mai la mateixa
+  branca alhora. Després d'una publicació confirmada, `registerCiWatch` afegeix
+  la fila del tema nou (no automàtica): el tema nou és el propietari, rep els
+  avisos de CI i les reparacions, i `/merge` sense número s'hi resol. Si la
+  fila no es pot desar, la publicació es manté, no s'avisa ningú, es traça
+  `continuation_owner_unregistered` i la resposta diu que el canvi de tema no
+  s'ha pogut registrar. Si el propietari anterior és un altre tema, rep un avís
+  curt («La feina de la PR #N continua en un altre tema.»), sense dades
+  personals ni autoria. L'enviament té el mateix termini que les altres
+  lectures i respecta l'aturada del servei: un temps esgotat o una aturada es
+  traça com a fallit i no canvia el resultat publicat.
+- **Feina local.** El servei busca tots els worktrees registrats, actuals o
+  arxivats, que tinguin la branca en checkout. Si un té canvis sense cometre o
+  commits sense publicar, refusa i ho explica; no sobreescriu mai res. Si no, el
+  deixa en `--detach` al seu HEAD per alliberar la branca. Si la branca local
+  existeix i la seva punta no és avantpassada del cap de la PR, refusa per
+  història local no publicada. El worktree del tema es preserva com
+  `<nom>-before-<update>` com en una feina nova; després es baixa
+  `refs/heads/<branca>` d'`origin`, es comprova que el SHA baixat és el cap que
+  ha retornat GitHub (si no, el cap s'ha mogut i es refusa per tornar-ho a
+  provar), es fixa la branca local en aquell SHA i es fa `git worktree add`.
+  El cap queda registrat com a publicat, així que una represa sense canvis no
+  torna a publicar res.
+- **Canvis externs.** La represa parteix del cap actual de la PR encara que una
+  persona hi hagi fet push després de l'últim commit del servei. El push continua
+  sent només fast-forward i la resposta nomena el SHA des del qual s'ha
+  continuat.
+- **Publicació i context.** El canvi reutilitza l'opció `repair` del publicador
+  amb el número de PR i el SHA de partida: comprova que la PR segueix oberta i
+  amb aquell cap abans del push i no obre mai cap PR. El model rep, com a dades
+  no fiables i retallades, el número, la branca, el SHA de partida, el diff
+  `origin/main...HEAD`, els últims vint comentaris i l'estat de les
+  comprovacions obligatòries del cap, seguits de la petició de la persona.
+- **Traça privada.** `continuation_resumed`, `continuation_refused` (amb el
+  motiu i el SHA curt del cap quan s'ha pogut llegir),
+  `continuation_owner_unregistered`, `continuation_handover_notified` i
+  `continuation_handover_failed`, amb `#N` i el SHA curt, sense text de
+  conversa.
 
 Els límits numèrics (CPU, memòria, processos, temps d'execució i cua) tenen valors
 inicials al codi. La unitat limita el conjunt del servei i els seus contenidors a 1,5 CPU,
