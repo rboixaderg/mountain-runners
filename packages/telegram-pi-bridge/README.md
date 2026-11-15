@@ -22,7 +22,8 @@ src/
 ├── sessions/
 │   ├── index.mjs          entrada /sessions
 │   ├── identity.mjs       tema de Telegram → identificador de sessió
-│   └── queue.mjs          SQLite, deduplicació, ordre, offset i traça
+│   ├── queue.mjs          SQLite, deduplicació, ordre, offset i traça
+│   └── trace-reader.mjs   consulta de només lectura de la traça
 └── pi/
     └── rpc.mjs            procés Pi i protocol JSONL
 ```
@@ -74,6 +75,7 @@ les exportacions i carrega tots els mòduls, inclòs SQLite.
 | -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
 | `TelegramApi`, `TelegramApiError`      | `getMe`, `getUpdates`, `getChatMember` i `sendMessage`; errors de transport sense URL amb token                          |
 | `AdmissionQueue`                       | Cua duradora SQLite amb límit de pendents i una execució global                                                          |
+| `readTraceEntries`                     | Consulta de només lectura de la traça privada; `parseTraceFilters` valida els filtres i llança `TraceQueryInputError`    |
 | `AgentBridge`                          | Connecta transport, comprovació de membres, cua, callback d'execució i treball propi de l'aplicació quan la cua és buida |
 | `parseSessionKey`, `sessionIdentifier` | Identitat estable a partir de grup i tema                                                                                |
 | `runPiPrompt`, `buildPiArguments`      | Torn RPC i construcció explícita dels arguments de Pi                                                                    |

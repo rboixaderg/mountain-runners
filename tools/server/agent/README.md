@@ -29,6 +29,8 @@ packages/telegram-pi-bridge/       nucli independent
 
 tools/server/agent/               aplicació de Mountain Runners
 ├── config.mjs                    configuració i credencials del servei
+├── commands/trace/
+│   └── cli.mjs                   consulta de només lectura de la traça privada
 ├── processes/telegram-bridge/
 │   └── main.mjs                  connecta paquet i flux de desenvolupament
 ├── policy/
