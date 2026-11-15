@@ -1,0 +1,45 @@
+docs/deployment.md
+  s_56540a0810ef84::t_e4008057028644 890-919
+tools/server/agent/README.md
+  s_034dfc177e5f19::t_5d3bac3d8ef770 43
+tools/server/agent/policy/development.mjs
+  s_034dfc177e5f19::t_f219269b7d9c14 366-444
+tools/server/agent/policy/development.test.mjs
+  s_56540a0810ef84::t_448f9980685b01 11-12,207-310
+tools/server/agent/repository/ci-watch-store.test.mjs
+  s_56540a0810ef84::t_52012f0a14d897 450-537
+tools/server/agent/repository/worktrees.mjs
+  s_56540a0810ef84::t_575dd18d9bd090 12,23-24,284,287,293-339
+tools/server/agent/workflow/overlap-warning.mjs
+  s_034dfc177e5f19::t_2c5c7d94d6cfdc 1-163
+tools/server/agent/workflow/overlap-warning.test.mjs
+  s_56540a0810ef84::t_8f95fc991a32ad 1-680
+tools/server/agent/workflow/project-runner.mjs
+  s_034dfc177e5f19::t_e1a4ba1925f349 20,113-122
+tools/server/agent/workflow/run-instruction.test.mjs
+  s_56540a0810ef84::t_7d6d6a82e5bc88 19-24,1193-1537
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "18540b982ebd9179c413f8a868b774aa99525893",
+  "prompts": {},
+  "sessions": {
+    "s_034dfc177e5f19": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a1ddfd-1630-7799-b4a1-7d3899d76ddb",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    },
+    "s_56540a0810ef84": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a1de51-00f6-71a5-8170-b8130eb333ea",
+        "model": "deepseek-v4.1-flash"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
