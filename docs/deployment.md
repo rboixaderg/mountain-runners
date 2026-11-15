@@ -868,6 +868,41 @@ la comprovació. Munta primer el treball i després l'estat. Verifica la reserva
 els continguts necessaris i `verify-volumes.mjs` abans de reprendre el pilot.
 Investiga i elimina la causa de la pèrdua abans de donar-la per resolta.
 
+### Consulta de la traça privada (T8.5)
+
+La traça viu a la taula `trace` de `state/admission.sqlite` i no s'exposa mai
+per Telegram. La consulta només una persona amb accés root al VPS, amb una ordre
+que llegeix la base de dades en mode de només lectura i no necessita les
+credencials del servei. S'executa amb la identitat del servei, perquè SQLite pot
+crear fitxers auxiliars al costat de la base de dades i han de quedar del
+propietari `mountain-agent`:
+
+```sh
+runuser -u mountain-agent -- env \
+  MOUNTAIN_AGENT_STATE_PATH=/var/lib/mountain-runners-agent/state \
+  node /usr/local/lib/mountain-runners/agent/commands/trace/cli.mjs \
+  --since 2026-12-01T00:00:00Z --until 2026-12-02T00:00:00Z --limit 50
+```
+
+- **Filtres.** `--since` i `--until` comparen `created_at` en UTC, el primer
+  inclòs i el segon exclòs. Accepten data sola o data i hora ISO 8601, amb
+  mil·lisegons com a màxim, i refusen una data o una hora impossible.
+  `--topic=<session_key>` filtra per tema i necessita el signe igual, perquè
+  l'identificador comença per `-`. També hi ha `--update`, `--action`,
+  `--pull-request` i `--limit`. El filtre de PR accepta el número com a token
+  sencer del detall: `#21` no coincideix amb `#215` ni amb `#21abc`.
+- **Límits.** `--limit` val 100 per defecte i 10000 com a màxim. Amb un límit
+  que trunca, la sortida conté les entrades més noves, sempre en ordre ascendent.
+- **Sortida.** Una línia JSON per entrada, amb les columnes de la taula
+  (`sequence`, `update_identifier`, `author_identifier`, `session_key`,
+  `action`, `detail`, `created_at`) ordenades per `sequence` ascendent.
+- **Identificadors de Telegram.** Es mostren tal com es van desar. Només la
+  persona amb accés root al VPS la pot consultar i no hi ha cap opció
+  d'emmascarament.
+- **Errors.** Una opció desconeguda o un valor invàlid escriuen una ajuda breu a
+  stderr i acaben amb codi 2. Una base de dades absent acaba amb codi 1 i no es
+  crea.
+
 ### Instal·lació prevista
 
 El procediment següent és la preparació prevista; **no s'ha executat** i cap ordre
