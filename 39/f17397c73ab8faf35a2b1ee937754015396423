@@ -1,0 +1,87 @@
+.gitignore
+  s_79e5bbbb3b989e::t_acaa32ceb66b27 14-16
+docs/deployment.md
+  s_79e5bbbb3b989e::t_d0f47a91c30625 920-980
+docs/specs/phase-8-editorial-assistance.md
+  s_79e5bbbb3b989e::t_531608adcb65f2 419-421
+packages/telegram-pi-bridge/README.md
+  s_79e5bbbb3b989e::t_17185e5b865625 20-21,75-88,117-124,151-153
+packages/telegram-pi-bridge/src/sessions/queue.mjs
+  s_79e5bbbb3b989e::t_e81d508fa5cfbc 27,58,63-74,109,137-138,146,172,194-195
+packages/telegram-pi-bridge/src/telegram/api.mjs
+  s_79e5bbbb3b989e::t_db85596edb5f21 3-5,17-62,131-172
+packages/telegram-pi-bridge/src/telegram/attachments.mjs
+  s_79e5bbbb3b989e::t_ba373490dbacda 1-156
+packages/telegram-pi-bridge/src/telegram/attribution.mjs
+  s_79e5bbbb3b989e::t_9d792aaccdb187 10-16,19-20,23,34,48-49,53-102,104,111-114,144-147,151-159,164-186,193,195-198
+packages/telegram-pi-bridge/src/telegram/bridge.mjs
+  s_79e5bbbb3b989e::t_a197f5064ef65a 9-13,27-32,143-173,195-198,220-221,229
+packages/telegram-pi-bridge/src/telegram/index.mjs
+  s_79e5bbbb3b989e::t_482b9d72420d87 1-5,8-19
+packages/telegram-pi-bridge/test/sessions/queue.test.mjs
+  s_79e5bbbb3b989e::t_43496775ff19e5 6,191-263
+packages/telegram-pi-bridge/test/telegram/api.test.mjs
+  s_79e5bbbb3b989e::t_b979de9aa2304d 4-7,125-296
+packages/telegram-pi-bridge/test/telegram/attribution.test.mjs
+  s_79e5bbbb3b989e::t_d3747ea619cc02 249-486
+packages/telegram-pi-bridge/test/telegram/bridge.test.mjs
+  s_79e5bbbb3b989e::t_a970d5e6aecdbe 548-729
+tools/server/agent/README.md
+  s_79e5bbbb3b989e::t_a77c9f296a1caa 32-38,216-228
+tools/server/agent/attachments/destination.mjs
+  s_034dfc177e5f19::t_2e5f6898a82170 1-142
+tools/server/agent/attachments/destination.test.mjs
+  s_79e5bbbb3b989e::t_4964d95c898f96 1-199
+tools/server/agent/attachments/image-file.mjs
+  s_79e5bbbb3b989e::t_e59bd430fa0e94 1-134
+tools/server/agent/attachments/image-file.test.mjs
+  s_79e5bbbb3b989e::t_bd21b79c52e805 1-435
+tools/server/agent/attachments/image-format.mjs
+  s_034dfc177e5f19::t_d9729f85f789c3 1-485
+tools/server/agent/attachments/prepare.mjs
+  s_79e5bbbb3b989e::t_5785d9afb2126a 1-108
+tools/server/agent/attachments/prepare.test.mjs
+  s_79e5bbbb3b989e::t_0483f90356e11f 1-208
+tools/server/agent/attachments/refusals.mjs
+  s_79e5bbbb3b989e::t_7f5df68d352df5 1-14
+tools/server/agent/attachments/test-support/synthetic-images.mjs
+  s_79e5bbbb3b989e::t_acbe05f5a5196c 1-210
+tools/server/agent/policy/development.mjs
+  s_79e5bbbb3b989e::t_b5de1567a89aca 4-5,17-22,628-692
+tools/server/agent/processes/telegram-bridge/main.mjs
+  s_79e5bbbb3b989e::t_e697f538bbeebc 26,266-268
+tools/server/agent/repository/github.test.mjs
+  s_79e5bbbb3b989e::t_800d4886f34f5a 240-265
+tools/server/agent/repository/secret-scan.mjs
+  s_034dfc177e5f19::t_91368061f9142b 30-39,64-68
+tools/server/agent/workflow/project-runner.mjs
+  s_79e5bbbb3b989e::t_f15e2a003bcc3f 32,89-90
+tools/server/agent/workflow/run-instruction.mjs
+  s_79e5bbbb3b989e::t_80f89971c94d05 5-6,24-27,53-54,96-134,138-142,153-154,167-168,178,226,238-254,280-282,285-289
+tools/server/agent/workflow/run-instruction.test.mjs
+  s_79e5bbbb3b989e::t_95fccf42345651 18-22,47,62-67,1548-1832
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "39f17397c73ab8faf35a2b1ee937754015396423",
+  "prompts": {},
+  "sessions": {
+    "s_034dfc177e5f19": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a1ddfd-1630-7799-b4a1-7d3899d76ddb",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    },
+    "s_79e5bbbb3b989e": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e221ff4f7fferHalWmQESDKMJq",
+        "model": "unknown"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
