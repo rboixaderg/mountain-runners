@@ -1,10 +1,12 @@
 // Trusted GitHub component for the private agent (T8.3).
 //
-// Only three writes exist: push the job branch, open (or reuse) its pull
-// request against `main` and post the constant `/preview` comment that asks the
-// phase 6 workflow for a preview. There is no merge, no auto-merge, no
-// protection change and no write to `main`; the requested merge will need its
-// own deterministic path. The token stays in this component: it is
+// Only four writes exist: push the job branch, open (or reuse) its pull
+// request against `main`, post the constant `/preview` comment that asks the
+// phase 6 workflow for a preview and squash-merge a pull request pinned to the
+// head commit the service validated. The merge sends exactly `{ sha,
+// merge_method: "squash" }` to the one pull request merge endpoint: there is no
+// auto-merge, no administrator or protection endpoint, no write to `main` and
+// the pull request is never closed. The token stays in this component: it is
 // never passed to the sandbox, the model or the tests.
 //
 // Pushing is idempotent for the same commit and the pull request lookup avoids
@@ -55,6 +57,24 @@ export class GitHubResponseError extends Error {
     this.name = "GitHubResponseError";
     this.status = status;
   }
+}
+
+// Responses that say the request itself was wrong or refused. A timeout (408)
+// or a rate limit (429) says nothing about whether the write took effect.
+const retryableClientStatuses = new Set([408, 429]);
+
+/** Whether GitHub definitely refused a write, so nothing was created or merged. */
+export function isDefiniteRejection(error) {
+  return (
+    error instanceof GitHubResponseError &&
+    error.status >= 400 &&
+    error.status < 500 &&
+    !retryableClientStatuses.has(error.status)
+  );
+}
+
+export function statusClass(status) {
+  return `${Math.floor(status / 100)}xx`;
 }
 
 export class GitHubTrust {
@@ -215,7 +235,14 @@ export class GitHubTrust {
       undefined,
       { signal },
     );
-    if (typeof pull?.head?.sha !== "string" || typeof pull.state !== "string") {
+    if (
+      typeof pull?.head?.sha !== "string" ||
+      typeof pull.state !== "string" ||
+      typeof pull.base?.ref !== "string" ||
+      typeof pull.draft !== "boolean" ||
+      typeof pull.merged !== "boolean" ||
+      (pull.merged && typeof pull.merge_commit_sha !== "string")
+    ) {
       throw new Error("GitHub returned an invalid pull request response.");
     }
     return {
@@ -223,6 +250,13 @@ export class GitHubTrust {
       headSha: pull.head.sha,
       // A fork whose repository was deleted has no head repository.
       headRepository: pull.head.repo?.full_name ?? null,
+      draft: pull.draft,
+      baseRef: pull.base.ref,
+      // `unknown` while GitHub is still computing it; any other value but
+      // `clean` is a reason not to merge.
+      mergeableState: pull.mergeable_state,
+      merged: pull.merged,
+      mergeCommitSha: pull.merged ? pull.merge_commit_sha : null,
     };
   }
 
@@ -248,6 +282,27 @@ export class GitHubTrust {
       throw new Error("GitHub returned an invalid comment response.");
     }
     return { createdAt: comment.created_at };
+  }
+
+  /**
+   * Squash-merge the pull request only if its head is still `sha`: GitHub
+   * refuses the merge otherwise. Neither the method nor the message can be
+   * chosen by the caller. A response that does not confirm the merge is an
+   * unknown result, never a success.
+   */
+  async mergePullRequest({ number, sha, signal }) {
+    assertPullRequestNumber(number);
+    assertFullCommit(sha);
+    const merge = await this.#request(
+      "PUT",
+      `/repos/${this.#repository}/pulls/${number}/merge`,
+      { sha, merge_method: "squash" },
+      { signal },
+    );
+    if (merge?.merged !== true || typeof merge.sha !== "string") {
+      throw new Error("GitHub returned an invalid merge response.");
+    }
+    return { mergeCommitSha: merge.sha };
   }
 
   /**

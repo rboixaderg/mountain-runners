@@ -292,7 +292,7 @@ export function publicationReport({
   return lines.join("\n");
 }
 
-function shortCommit(commit) {
+export function shortCommit(commit) {
   return commit.slice(0, 7);
 }
 
@@ -350,6 +350,65 @@ export const previewReports = {
     `Preview publicada: ${origin}\nCommit ${shortCommit(commit)} (PR #${pullRequestNumber}).`,
   unconfirmed: ({ pullRequestNumber, commit }) =>
     `No s'ha pogut confirmar la preview del commit ${shortCommit(commit)} (PR #${pullRequestNumber}) dins del termini. Consulta la PR a GitHub; no es reintenta automàticament.`,
+};
+
+// Replies of the deterministic /merge handler. Each one that concerns a pull
+// request names it, and a merge always names the merge commit.
+export const mergeReports = {
+  usage:
+    "La comanda de merge és `/merge`, `/merge <PR>` o `/merge <PR> <SHA>` (SHA complet de 40 caràcters). No s'ha fusionat res.",
+  membershipRevoked:
+    "Ja no consten com a membre verificat del grup. No s'ha fusionat res.",
+  membershipUnavailable:
+    "No s'ha pogut verificar la pertinença al grup. No s'ha fusionat res; torna-ho a demanar.",
+  noReportedCommit:
+    "Aquest tema no té cap avís de CI lliurat. No s'ha fusionat res; espera l'avís amb les comprovacions en verd i torna a demanar `/merge`.",
+  notGreen: ({ pullRequestNumber, commit }) =>
+    `L'últim avís d'aquest tema (PR #${pullRequestNumber}, commit ${shortCommit(commit)}) no deia que les comprovacions estiguessin en verd. No s'ha fusionat res; espera un avís en verd i torna a demanar \`/merge\`.`,
+  otherPullRequest: ({ requestedNumber, pullRequestNumber }) =>
+    `L'última PR informada en aquest tema és la #${pullRequestNumber}, no la #${requestedNumber}. No s'ha fusionat res; només es pot fusionar l'última PR informada.`,
+  commitMismatch: ({ pullRequestNumber, commit }) =>
+    `El commit indicat no és el de l'últim avís de la PR #${pullRequestNumber} (${shortCommit(commit)}). No s'ha fusionat res.`,
+  newerWork: ({ pullRequestNumber, commit }) =>
+    `Aquest tema té feina més nova que l'últim avís (PR #${pullRequestNumber}, commit ${shortCommit(commit)}): una instrucció, una reparació o una publicació encara no informada. No s'ha fusionat res; espera el nou informe i torna a demanar \`/merge\`.`,
+  alreadyHandled:
+    "Aquesta petició de merge ja s'havia tramitat. No s'ha fusionat res de nou.",
+  alreadyInProgress: ({ pullRequestNumber }) =>
+    `Ja hi ha un merge de la PR #${pullRequestNumber} en curs. No s'ha fusionat res de nou.`,
+  uncertainOpen: ({ pullRequestNumber, commit }) =>
+    `Un merge anterior de la PR #${pullRequestNumber} (commit ${shortCommit(commit)}) té un resultat desconegut i GitHub no la mostra fusionada: és oberta. No s'ha fusionat res. Si vols un nou intent, confirma-ho amb \`/merge ${pullRequestNumber} ${commit}\`.`,
+  uncertainClosed: ({ pullRequestNumber, commit }) =>
+    `Un merge anterior de la PR #${pullRequestNumber} (commit ${shortCommit(commit)}) té un resultat desconegut i GitHub la mostra tancada sense fusionar. No s'ha fusionat res i no es pot fusionar.`,
+  alreadyMerged: ({ pullRequestNumber, mergeCommit }) =>
+    `La PR #${pullRequestNumber} ja està fusionada (commit ${shortCommit(mergeCommit)}). No s'ha fet res més.`,
+  notOpen: ({ pullRequestNumber }) =>
+    `La PR #${pullRequestNumber} ja no està oberta. No s'ha fusionat res.`,
+  draft: ({ pullRequestNumber }) =>
+    `La PR #${pullRequestNumber} és un esborrany. No s'ha fusionat res.`,
+  notMainBase: ({ pullRequestNumber }) =>
+    `La PR #${pullRequestNumber} no apunta a la branca main. No s'ha fusionat res.`,
+  notMainRepository: ({ pullRequestNumber }) =>
+    `La PR #${pullRequestNumber} no ve d'una branca del repositori principal. No s'ha fusionat res.`,
+  headMoved: ({ pullRequestNumber, commit }) =>
+    `El cap de la PR #${pullRequestNumber} ja no és el commit validat ${shortCommit(commit)}. No s'ha fusionat res; espera el nou informe i torna a demanar \`/merge\`.`,
+  checksNotGreen: ({ pullRequestNumber, commit }) =>
+    `Les comprovacions obligatòries del commit ${shortCommit(commit)} (PR #${pullRequestNumber}) no estan totes en verd ara mateix. No s'ha fusionat res.`,
+  behind: ({ pullRequestNumber }) =>
+    `La branca de la PR #${pullRequestNumber} no està al dia respecte de main. No s'ha fusionat res; actualitza la branca i espera el nou informe.`,
+  notClean: ({ pullRequestNumber }) =>
+    `GitHub no considera la PR #${pullRequestNumber} a punt per fusionar (conflictes, proteccions o comprovacions no satisfetes). No s'ha fusionat res; revisa-la a GitHub.`,
+  unreadable: ({ pullRequestNumber, commit }) =>
+    `No s'ha pogut llegir l'estat de la PR #${pullRequestNumber} o de les comprovacions del commit ${shortCommit(commit)}. No s'ha fusionat res.`,
+  merged: ({ pullRequestNumber, mergeCommit }) =>
+    `PR #${pullRequestNumber} fusionada (squash). Commit de merge ${shortCommit(mergeCommit)}.`,
+  mergedUnsaved: ({ pullRequestNumber, mergeCommit }) =>
+    `PR #${pullRequestNumber} fusionada (squash). Commit de merge ${shortCommit(mergeCommit)}. No s'ha pogut desar l'estat; el servei el tancarà en reiniciar-se.`,
+  failed: ({ pullRequestNumber, commit, statusClass }) =>
+    `GitHub ha rebutjat el merge de la PR #${pullRequestNumber} (commit ${shortCommit(commit)}, HTTP ${statusClass}): no s'ha fusionat res. Revisa l'estat de la PR i torna-ho a demanar.`,
+  uncertain: ({ pullRequestNumber, commit }) =>
+    `No s'ha pogut confirmar si la PR #${pullRequestNumber} (commit ${shortCommit(commit)}) s'ha fusionat. No es repeteix el merge: la propera petició llegirà l'estat real de la PR abans de fer res i, si no la mostra fusionada, et demanarà confirmar-ho amb \`/merge <PR> <SHA>\`.`,
+  reconciled: ({ pullRequestNumber, mergeCommit }) =>
+    `GitHub mostra la PR #${pullRequestNumber} fusionada (commit ${shortCommit(mergeCommit)}). Un merge anterior tenia un resultat desconegut.`,
 };
 
 // Results of an automatic repair, sent by the service when it finishes an

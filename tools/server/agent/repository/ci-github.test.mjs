@@ -1,8 +1,24 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { GitHubTrust } from "./github.mjs";
+import {
+  GitHubResponseError,
+  GitHubTrust,
+  isDefiniteRejection,
+} from "./github.mjs";
 
 const commit = "a".repeat(40);
+
+function pullRequestResponse(overrides = {}) {
+  return {
+    state: "open",
+    draft: false,
+    merged: false,
+    mergeable_state: "clean",
+    head: { sha: commit, repo: { full_name: "example/project" } },
+    base: { ref: "main" },
+    ...overrides,
+  };
+}
 
 function pageOf(url) {
   return new URL(url).searchParams.get("page");
@@ -145,13 +161,11 @@ test("reads one pull request to pin the reported commit to its head", async () =
       requested.push(url);
       return {
         ok: true,
-        json: async () => ({
-          number: 123,
-          state: "open",
-          head: { sha: commit, repo: { full_name: "example/project" } },
-          merged_at: null,
-          html_url: "https://github.com/example/project/pull/123",
-        }),
+        json: async () =>
+          pullRequestResponse({
+            number: 123,
+            html_url: "https://github.com/example/project/pull/123",
+          }),
       };
     },
   });
@@ -159,6 +173,11 @@ test("reads one pull request to pin the reported commit to its head", async () =
     state: "open",
     headSha: commit,
     headRepository: "example/project",
+    draft: false,
+    baseRef: "main",
+    mergeableState: "clean",
+    merged: false,
+    mergeCommitSha: null,
   });
   assert.equal(requested.length, 1);
   assert.ok(new URL(requested[0]).pathname.endsWith("/pulls/123"));
@@ -188,13 +207,150 @@ test("reports a pull request without head repository as having none", async () =
     repository: "example/project",
     fetchImpl: async () => ({
       ok: true,
-      json: async () => ({ state: "open", head: { sha: commit, repo: null } }),
+      json: async () =>
+        pullRequestResponse({ head: { sha: commit, repo: null } }),
     }),
   });
   assert.equal(
     (await github.getPullRequest({ number: 123 })).headRepository,
     null,
   );
+});
+
+test("reads the merge commit of a merged pull request and rejects one without it", async () => {
+  const mergeCommit = "b".repeat(40);
+  let response = pullRequestResponse({
+    state: "closed",
+    merged: true,
+    merge_commit_sha: mergeCommit,
+  });
+  const github = new GitHubTrust({
+    token: "synthetic",
+    repository: "example/project",
+    fetchImpl: async () => ({ ok: true, json: async () => response }),
+  });
+  const merged = await github.getPullRequest({ number: 123 });
+  assert.equal(merged.merged, true);
+  assert.equal(merged.mergeCommitSha, mergeCommit);
+
+  response = pullRequestResponse({ state: "closed", merged: true });
+  await assert.rejects(
+    github.getPullRequest({ number: 123 }),
+    /invalid pull request response/u,
+  );
+});
+
+test("rejects a pull request response without draft, base or merged flags", async () => {
+  for (const missing of ["draft", "base", "merged"]) {
+    const response = pullRequestResponse();
+    delete response[missing];
+    const github = new GitHubTrust({
+      token: "synthetic",
+      repository: "example/project",
+      fetchImpl: async () => ({ ok: true, json: async () => response }),
+    });
+    await assert.rejects(
+      github.getPullRequest({ number: 123 }),
+      /invalid pull request response/u,
+    );
+  }
+});
+
+test("merges with a PUT whose body is exactly the pinned commit and the squash method", async () => {
+  const mergeCommit = "b".repeat(40);
+  const requests = [];
+  const github = new GitHubTrust({
+    token: "synthetic",
+    repository: "example/project",
+    fetchImpl: async (url, options) => {
+      requests.push({ url, options });
+      return {
+        ok: true,
+        json: async () => ({ merged: true, sha: mergeCommit, message: "ok" }),
+      };
+    },
+  });
+  assert.deepEqual(
+    await github.mergePullRequest({ number: 123, sha: commit }),
+    { mergeCommitSha: mergeCommit },
+  );
+  assert.equal(requests.length, 1);
+  assert.equal(requests[0].options.method, "PUT");
+  assert.equal(
+    new URL(requests[0].url).pathname,
+    "/repos/example/project/pulls/123/merge",
+  );
+  assert.equal(
+    requests[0].options.body,
+    JSON.stringify({ sha: commit, merge_method: "squash" }),
+  );
+});
+
+test("refuses a merge without a valid pull request number or full commit before calling GitHub", async () => {
+  const requests = [];
+  const github = new GitHubTrust({
+    token: "synthetic",
+    repository: "example/project",
+    fetchImpl: async (url) => {
+      requests.push(url);
+      return { ok: true, json: async () => ({}) };
+    },
+  });
+  await assert.rejects(
+    github.mergePullRequest({ number: 0, sha: commit }),
+    /positive pull request number/u,
+  );
+  await assert.rejects(
+    github.mergePullRequest({ number: 123, sha: "abc123" }),
+    /full commit SHA/u,
+  );
+  assert.deepEqual(requests, []);
+});
+
+test("treats a merge response that does not confirm the merge as invalid", async () => {
+  for (const response of [
+    { merged: false, sha: commit },
+    { merged: true },
+    {},
+  ]) {
+    const github = new GitHubTrust({
+      token: "synthetic",
+      repository: "example/project",
+      fetchImpl: async () => ({ ok: true, json: async () => response }),
+    });
+    await assert.rejects(
+      github.mergePullRequest({ number: 123, sha: commit }),
+      /invalid merge response/u,
+    );
+  }
+});
+
+test("reports a refused merge as a GitHub response error that carries only the status", async () => {
+  const github = new GitHubTrust({
+    token: "synthetic",
+    repository: "example/project",
+    fetchImpl: async () => ({ ok: false, status: 409, json: async () => ({}) }),
+  });
+  await assert.rejects(
+    github.mergePullRequest({ number: 123, sha: commit }),
+    (error) => {
+      assert.ok(error instanceof GitHubResponseError);
+      assert.equal(error.status, 409);
+      assert.equal(isDefiniteRejection(error), true);
+      return true;
+    },
+  );
+});
+
+test("a definite rejection is a client error other than a timeout or a rate limit", () => {
+  const rejection = (status) =>
+    isDefiniteRejection(new GitHubResponseError("PUT", "/path", status));
+  assert.equal(rejection(405), true);
+  assert.equal(rejection(422), true);
+  assert.equal(rejection(408), false);
+  assert.equal(rejection(429), false);
+  assert.equal(rejection(500), false);
+  assert.equal(isDefiniteRejection(new Error("network")), false);
 });
 
 test("posts exactly the preview command and returns the comment identity", async () => {

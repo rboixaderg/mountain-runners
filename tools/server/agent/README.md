@@ -3,8 +3,8 @@
 Aplicació de Mountain Runners que porta una petició de Telegram fins a una PR.
 El servei **no està desplegat ni activat**. Aquesta branca afegeix l'avís de CI
 de T8.4 vinculat al SHA publicat, la reparació automàtica acotada d'una CI
-vermella i la preview demanada al tema; el merge demanat i la continuació entre
-temes continuen pendents. Cap canvi d'aquesta branca autoritza instal·lacions ni operacions
+vermella, la preview demanada al tema i el merge demanat amb `/merge`; la
+continuació entre temes continua pendent. Cap canvi d'aquesta branca autoritza instal·lacions ni operacions
 remotes.
 
 ## Nucli reutilitzable i aplicació
@@ -38,6 +38,7 @@ tools/server/agent/               aplicació de Mountain Runners
 │   ├── run-instruction.mjs       coordina consulta, implementació o reparació
 │   ├── ci-watch.mjs              avís de CI i reserva de la reparació acotada
 │   ├── preview-request.mjs       petició `/preview` determinista i confirmació
+│   ├── merge-request.mjs         comanda `/merge` determinista i recuperació
 │   └── ci-repair.mjs             executa una reparació quan la cua està inactiva
 ├── runtime/
 │   ├── request-kind.mjs          interpreta la petició actual sense eines
@@ -59,6 +60,7 @@ tools/server/agent/               aplicació de Mountain Runners
     ├── request-signal.mjs         termini de lectura amb el senyal d'aturada
     ├── preview-comment.mjs        comentari de confirmació del publicador de confiança
     ├── preview-request-store.mjs  peticions de preview durables
+    ├── merge-request-store.mjs    peticions de merge durables
     └── ci-watch-store.mjs         avís de CI i intents de reparació duradors
 ```
 
@@ -158,6 +160,28 @@ al servidor. El nom local encara no representa una publicació a npm.
    de ser col·laboradora del repositori. Es pot repetir `/preview` pel mateix commit només quan la
    petició anterior ha acabat. Una CI verda, una PR nova o una reparació no
    demanen mai cap preview.
+
+10. Una persona verificada pot demanar el merge amb la comanda literal `/merge`,
+    `/merge <PR>` o `/merge <PR> <SHA>` completa. `run-instruction.mjs` la reconeix
+    abans del classificador: ni aquest ni el model la veuen, i la prosa («fusiona-la»)
+    no fusiona res. `workflow/merge-request.mjs` torna a verificar la pertinença,
+    fixa la petició a la PR i al commit de l'últim avís de CI en verd lliurat al
+    tema i refusa si el tema té feina més nova que aquell avís (instrucció,
+    reparació o seguiment encara sense informar). Rellegeix la PR en fallada tancada
+    (oberta, no esborrany, base `main`, repositori principal, cap igual al commit
+    fixat, comprovacions obligatòries en verd i `mergeable_state` `clean`) i desa
+    la petició (`merging`) abans de la crida. Només llavors demana a GitHub un
+    squash amb el cos exacte `{ sha, merge_method: "squash" }`. Un 4xx definitiu
+    (llevat de 408 i 429) acaba com a `failed`; la resta d'errors deixa la petició
+    `uncertain` i no es repeteix mai: la petició següent d'aquella PR i
+    l'arrencada llegeixen la PR i, si GitHub la mostra fusionada, la tanquen com a
+    `merged` (`merge_reconciled`) i ho informen. Si no la mostra fusionada,
+    l'arrencada avisa el tema una sola vegada i només una persona verificada ho
+    resol amb `/merge <PR> <SHA>` del commit de la petició desconeguda: la tanca
+    com a `not_merged` (`merge_uncertain_cleared`) i repeteix tot el flux des de
+    zero (si el cap de la PR s'ha mogut, amb el SHA del cap actual, que ha de ser l'últim informat en verd); `/merge` i `/merge <PR>` mai no la desbloquegen i no cal editar SQLite.
+    La pertinença superada queda a la traça (`merge_membership_verified`). La
+    resposta nomena la PR i el commit de merge. El detall és a [`docs/deployment.md`](../../../docs/deployment.md).
 
 Un error local conegut, un timeout o una cancel·lació amb neteja confirmada
 retornen una fallada sense bloquejar la cua. L'avís de CI tampoc no bloqueja la

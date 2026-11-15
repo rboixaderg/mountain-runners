@@ -165,3 +165,25 @@ test("persists the Telegram offset and appends private trace entries", (context)
   assert.equal(entries[0].detail, "not_a_group_member");
   queue.close();
 });
+
+test("tells whether the session has another instruction pending or running", (context) => {
+  const queue = new AdmissionQueue(databasePath(context), { maxPending: 10 });
+  const topic = "-1001234567890:7";
+  assert.equal(queue.hasOtherInstructions(topic, 1), false);
+
+  queue.admit(request(1));
+  assert.equal(queue.hasOtherInstructions(topic, 1), false);
+  assert.equal(queue.hasOtherInstructions(topic, 2), true);
+  assert.equal(queue.hasOtherInstructions("-1001234567890:8", 2), false);
+
+  queue.admit(request(2));
+  assert.equal(queue.hasOtherInstructions(topic, 1), true);
+
+  queue.next();
+  assert.equal(queue.hasOtherInstructions(topic, 1), true);
+  queue.complete(1, "answered");
+  queue.next();
+  queue.complete(2, "answered");
+  assert.equal(queue.hasOtherInstructions(topic, 3), false);
+  queue.close();
+});

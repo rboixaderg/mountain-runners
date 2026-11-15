@@ -119,6 +119,27 @@ export class CiWatchStore {
       .get(sessionKey);
   }
 
+  /**
+   * Whether the topic has work newer than its last notice: a publication whose
+   * notice is not delivered yet, or an automatic repair that is reserved,
+   * queued or running. Either one will end with a new report.
+   */
+  hasUnreportedWork(sessionKey) {
+    return (
+      this.#database
+        .prepare(
+          `SELECT 1 WHERE EXISTS (
+             SELECT 1 FROM ci_watches
+             WHERE session_key = ? AND state IN ('pending', 'sending')
+           ) OR EXISTS (
+             SELECT 1 FROM ci_repairs
+             WHERE session_key = ? AND status IN ('reserved', 'queued', 'running')
+           )`,
+        )
+        .get(sessionKey, sessionKey) !== undefined
+    );
+  }
+
   /** Claim one result for delivery. A second claim never succeeds. */
   beginSend(updateIdentifier, result) {
     return (

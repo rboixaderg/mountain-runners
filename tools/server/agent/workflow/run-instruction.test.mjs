@@ -1109,3 +1109,79 @@ test("a preview store failure reaches the runner failure report", async (context
 
   assert.equal(result.outcome, "failed");
 });
+
+test("routes a literal /merge command to the service before the classifier and the model", async (context) => {
+  const paths = await fixture(context);
+  const github = githubStub();
+  const commands = [];
+  const runner = createProjectRunner({
+    config: configFor(paths),
+    classifyRequest: async () =>
+      assert.fail("the classifier must not see /merge"),
+    github,
+    requestMerge: async (mergeRequest, command) => {
+      commands.push([mergeRequest.updateIdentifier, command]);
+      return { outcome: "answered", report: "PR fusionada" };
+    },
+    runModel: async () => assert.fail("the model must not run for a merge"),
+    runChecks: async () => assert.fail("checks must not run for a merge"),
+  });
+
+  const bare = await runner(request({ instruction: "/merge" }));
+  const numbered = await runner(request({ instruction: "/merge #12" }));
+  const malformed = await runner(request({ instruction: "/merge 12 later" }));
+
+  assert.deepEqual(bare, { outcome: "answered", report: "PR fusionada" });
+  assert.deepEqual(numbered, bare);
+  assert.deepEqual(malformed, bare);
+  assert.deepEqual(commands, [
+    [1001, { valid: true }],
+    [1001, { valid: true, pullRequestNumber: 12, commit: undefined }],
+    [1001, { valid: false }],
+  ]);
+  assert.deepEqual(github.pushes, []);
+  assert.equal(existsSync(join(paths.worktrees, "scratch-1001")), false);
+});
+
+test("never treats prose as a merge", async (context) => {
+  const paths = await fixture(context);
+  const classified = [];
+  const runner = createProjectRunner({
+    config: configFor(paths),
+    classifyRequest: async ({ instruction }) => {
+      classified.push(instruction);
+      return "clarification";
+    },
+    github: githubStub(),
+    requestMerge: async () => assert.fail("prose must never reach a merge"),
+    runModel: async () => assert.fail("the model must not run"),
+    runChecks: async () => assert.fail("checks must not run"),
+  });
+
+  for (const instruction of [
+    "fusiona-la",
+    "ho pots fusionar?",
+    "si us plau /merge",
+  ]) {
+    const result = await runner(request({ instruction }));
+    assert.equal(result.outcome, "answered");
+  }
+  assert.equal(classified.length, 3);
+});
+
+test("a merge store failure reaches the runner failure report", async (context) => {
+  const paths = await fixture(context);
+  const runner = createProjectRunner({
+    config: configFor(paths),
+    github: githubStub(),
+    requestMerge: async () => {
+      throw new Error("database is locked");
+    },
+    runModel: async () => assert.fail("the model must not run for a merge"),
+    runChecks: async () => assert.fail("checks must not run for a merge"),
+  });
+
+  const result = await runner(request({ instruction: "/merge" }));
+
+  assert.equal(result.outcome, "failed");
+});

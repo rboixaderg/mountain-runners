@@ -372,8 +372,8 @@ Telegram, sessions i un entorn aïllat que porta una tasca petita fins a una PR.
 La implementació està fusionada i instal·lada al VPS, i el pilot s'ha executat
 supervisat: una consulta que no crea branca i una tasca petita que arriba a PR,
 sense merge ni preview. El servei roman **aturat** per defecte i cada activació
-requereix aprovació explícita. El merge demanat i la resta de casos pertanyen a la T8.4; la preview demanada
-al tema ja està implementada (vegeu més avall), però inactiva.
+requereix aprovació explícita. La preview i el merge demanats al tema ja estan
+implementats (vegeu més avall), però inactius; la resta de casos pertanyen a la T8.4.
 
 Les eines viuen a `tools/server/agent/` i s'instal·len a
 `/usr/local/lib/mountain-runners/agent/`. La unitat és
@@ -386,12 +386,12 @@ d'una petició](../tools/server/agent/README.md) expliquen quina peça fa cada p
 
 ### Components i frontera
 
-| Component           | Accés                                                                                                              | Límit                                                                                                   |
-| ------------------- | ------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------- |
-| Pont de Telegram    | Token del bot, grup configurat, cua duradora i traça privada                                                       | No entrega cap credencial a Pi, a l'entorn aïllat ni a les proves                                       |
-| Pi i model          | Credencial del proveïdor i sessions per tema                                                                       | Confiança de projecte denegada: no carrega extensions, hooks ni `settings` del repositori               |
-| Entorn aïllat       | Worktree de la feina                                                                                               | Sense xarxa, sense credencials, sistema de fitxers de només lectura, sense socket de Docker             |
-| Component de GitHub | Compte `rboixaderg`: `push` de la branca, obertura o reutilització de la PR i lectura de la CI del commit publicat | Sense merge, auto-merge, push a `main`, canvis de protecció ni desplegament; el merge demanat és a T8.4 |
+| Component           | Accés                                                                                                                                | Límit                                                                                                                                  |
+| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------- |
+| Pont de Telegram    | Token del bot, grup configurat, cua duradora i traça privada                                                                         | No entrega cap credencial a Pi, a l'entorn aïllat ni a les proves                                                                      |
+| Pi i model          | Credencial del proveïdor i sessions per tema                                                                                         | Confiança de projecte denegada: no carrega extensions, hooks ni `settings` del repositori                                              |
+| Entorn aïllat       | Worktree de la feina                                                                                                                 | Sense xarxa, sense credencials, sistema de fitxers de només lectura, sense socket de Docker                                            |
+| Component de GitHub | Compte `rboixaderg`: `push` de la branca, obertura o reutilització de la PR, lectura de la CI del commit publicat i el merge demanat | Sense auto-merge, push a `main`, canvis de protecció ni desplegament; l'únic merge és el squash demanat amb `/merge` (vegeu més avall) |
 
 El pont és l'únic procés amb el token de Telegram i el de GitHub. Arrenca Pi amb
 una llista blanca d'entorn: `PATH`, `HOME`, el perfil de l'agent, la configuració
@@ -559,7 +559,7 @@ propietat de la identitat del servei. La instal·lació prevista és:
 ├── repository/                            clon amb origin i main
 ├── worktrees/                             worktree actual per tema i feina preservada
 ├── sessions/                              historial de Pi per tema
-└── state/                                 admission.sqlite, ci-watch.sqlite (avisos i reparacions), preview-request.sqlite (peticions de preview), perfils i traça
+└── state/                                 admission.sqlite, ci-watch.sqlite (avisos i reparacions), preview-request.sqlite (peticions de preview), merge-request.sqlite (peticions de merge), perfils i traça
 /etc/mountain-runners-agent/agent.env      0600  credencials del servei
 /usr/local/lib/mountain-runners/agent/     aplicació instal·lada
 /usr/local/lib/mountain-runners/node_modules/
@@ -727,6 +727,104 @@ tenir escriptura a Pull requests (per comentar), lectura de Checks i Statuses i
 cap escriptura a Workflows; la identitat de GitHub de l'agent ha de ser col·laboradora del repositori, perquè el publicador de la fase 6 en comprova l'autor del comentari. El flux de la fase 6 ha de tenir configurats els
 secrets `PREVIEW_*`, l'entorn `previews` i el DNS de `*.preview.mountainrunners.cat`.
 Aquesta implementació no activa res.
+
+### Merge demanat al tema (T8.4)
+
+Una persona verificada demana el merge amb la comanda literal `/merge`. No es
+tria mai amb llenguatge natural: el servei reconeix el text complet abans del
+classificador, el model no veu la comanda i una frase com «fusiona-la» no fusiona
+res. La decisió segueix l'[ADR 0013](decisions/0013-private-development-agent-boundary.md)
+(esmena `/merge` sense número). No hi ha auto-merge, ni push a `main`, ni canvi de
+proteccions, ni tancament de la PR.
+
+- **Formes.** `/merge`, `/merge <PR>` (amb `#` opcional) i `/merge <PR> <SHA>`
+  (SHA complet de 40 caràcters), amb les regles de menció o resposta del pont.
+  Qualsevol altra cosa que comenci per `/merge` respon amb l'ajuda i no fusiona.
+- **Fixació.** La PR i el commit són els de l'últim avís de CI lliurat al tema,
+  que ha de ser en verd (`ci_watches`). El número i el SHA escrits han de coincidir
+  amb aquest avís; només es pot fusionar l'última PR informada del tema.
+- **Si no es pot resoldre, pregunta i no fusiona.** No hi ha cap avís; l'últim
+  avís no és verd; el número no és el de l'últim avís; o el tema té feina més
+  nova (una altra instrucció pendent o en curs, una reparació reservada, en cua o
+  en curs, o un seguiment de CI encara sense informar). La resposta nomena la PR
+  i demana esperar l'informe nou i tornar a escriure `/merge`.
+- **Pertinença.** Es torna a consultar a Telegram en el moment d'executar la
+  comanda, a més de l'admissió; una fallada de la consulta o un autor que ja no
+  és membre refusa el merge. La consulta es fa després de resoldre el
+  vincle i la feina més nova, i la comprovació superada queda a la traça
+  (`merge_membership_verified`).
+- **Condicions, rellegides en directe i en fallada tancada.** PR oberta, no
+  esborrany, base `main`, repositori del cap igual al configurat (sense forks),
+  cap igual al commit fixat, comprovacions obligatòries totes en verd amb el
+  classificador de la CI i `mergeable_state` igual a `clean` (branca al dia i sense
+  bloquejos). `behind` demana actualitzar la branca; `unknown` es torna a llegir un
+  màxim de tres vegades i després es refusa com a no llegible, sense llegir
+  abans les comprovacions; `blocked`,
+  `dirty`, `unstable`, `has_hooks` i qualsevol altre valor refusen. Un error de
+  lectura refusa.
+- **Crida.** `PUT /repos/{repo}/pulls/{n}/merge` amb el cos exacte
+  `{"sha": <commit fixat>, "merge_method": "squash"}`: GitHub rebutja el merge si
+  el cap ja no és aquest SHA. El servei no envia títol, missatge ni altre mètode.
+  La resposta ha de dir `merged: true` i portar el SHA del merge.
+- **Estats** (`state/merge-request.sqlite`): `merging` (desat abans de la crida),
+  `merged`, `failed` (4xx definitiu que no és 408 ni 429, com 405, 409 o 422: no
+  s'ha fusionat res, es respon i una petició nova és possible), `uncertain`
+  (xarxa, aturada, 408, 429, 5xx o resposta mal formada) i `not_merged` (una
+  persona ha confirmat que un resultat desconegut no va fusionar res). Una
+  actualització de Telegram només es tramita una vegada i una PR té com a màxim
+  una petició no acabada. Si la crida confirma el merge però no es pot desar
+  l'estat, el servei informa igualment de la fusió amb un avís; la petició queda
+  `merging` i en reiniciar-se passa a `uncertain` i es tanca com a `merged`
+  llegint la PR. Si no es pot desar el final d'un rebuig o d'un resultat
+  desconegut, la resposta és la del resultat desconegut.
+- **Resultat desconegut i camí de l'operador.** No es repeteix mai el merge sense
+  llegir la PR. Amb una petició `uncertain`, el `/merge` següent d'aquella PR i
+  l'arrencada del servei llegeixen la PR:
+  - Si GitHub la mostra fusionada, la petició es tanca com a `merged` i el tema
+    rep «GitHub mostra la PR #N fusionada (commit …)», sense afirmar qui l'ha
+    fusionada (pot haver estat per una altra via).
+  - Si no la mostra fusionada, el tema rep una vegada per petició (a
+    l'arrencada, o a la resposta si el resultat desconegut ha sorgit en
+    executar-se) l'avís que GitHub no la mostra fusionada, oberta o tancada
+    sense fusionar. Una `/merge` o `/merge <PR>` mai no desbloqueja res: demana
+    la forma estricta `/merge <PR> <SHA>`.
+  - Quan una persona verificada escriu `/merge <PR> <SHA>` amb el SHA del commit
+    fixat de la petició `uncertain`, i una lectura nova continua mostrant la PR
+    oberta i no fusionada, aquesta és la seva decisió: la petició es tanca com a
+    `not_merged` (traça `merge_uncertain_cleared` amb autor, PR i SHA) i la
+    petició continua des de zero amb tot el flux normal (vincle a l'últim avís
+    en verd, feina més nova, pertinença, condicions en directe, desat previ i
+    crida). Si el cap de la PR s'ha mogut des del commit fixat, l'avís demana
+    el SHA del cap actual i només aquest SHA ho desbloqueja (el flux normal
+    exigeix igualment que sigui l'últim commit informat en verd). No cal editar
+    SQLite. Una PR tancada sense fusionar no es pot
+    fusionar: l'avís ho diu i no s'envia cap crida.
+    Aquest resultat no bloqueja la cua ni l'arrencada del servei (a diferència d'un
+    comentari `/preview` interromput), perquè només afecta un nou merge de la
+    mateixa PR. Si la lectura no és possible, la petició continua `uncertain` i es
+    torna a intentar. Una petició `merging` interrompuda per un reinici passa a
+    `uncertain`.
+- **Resposta.** Nomena sempre la PR fusionada i el commit de merge (SHA curt).
+- **Traça privada.** `merge_membership_verified` (autor, PR i SHA),
+  `merge_requested`, `merge_refused` (amb el motiu), `merge_completed` (autor,
+  PR, SHA fixat, mètode i commit de merge), `merge_failed`, `merge_uncertain`,
+  `merge_uncertain_cleared` (autor, PR i SHA) i `merge_reconciled`, sense text
+  de conversa ni credencials.
+- **Després del merge.** La PR queda tancada: el seguiment de CI i la reparació
+  ja es detenen amb una PR no oberta, i la preview la refusa. L'avís «la PR ja no
+  està oberta» passa a ser l'últim del tema; un `/merge` posterior (amb o sense
+  número) llegeix la PR i, si és fusionada, respon «La PR #N ja està fusionada
+  (commit …)» en lloc de refusar-se com a no verda.
+
+Bloquejos d'activació, per a una persona. El permís `Contents: write` del token
+permet usar l'API de merge i el compte és administrador: l'API REST podria
+saltar-se la protecció de la branca llevat que s'activi «enforce admins». La
+guarda efectiva són les comprovacions del servei (`clean`, SHA fixat, avís verd)
+i el risc residual està acceptat a l'ADR 0013. `MOUNTAIN_AGENT_REQUIRED_CHECKS` ha
+de coincidir amb la protecció de `main` amb «Require branches to be up to date»,
+perquè `clean` signifiqui el mateix per als dos. El primer merge real requereix
+l'aprovació explícita de la persona mantenidora. Aquesta implementació no activa
+res.
 
 Els límits numèrics (CPU, memòria, processos, temps d'execució i cua) tenen valors
 inicials al codi. La unitat limita el conjunt del servei i els seus contenidors a 1,5 CPU,
