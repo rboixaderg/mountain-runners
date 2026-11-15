@@ -15,14 +15,17 @@ import { AgentBridge, TelegramApi } from "telegram-pi-bridge/telegram";
 import {
   bridgeMessages,
   maximumAutomaticRepairs,
+  previewConfirmationTimeoutMilliseconds,
 } from "../../policy/development.mjs";
 import { agentSecrets, readAgentConfig } from "../../config.mjs";
 import { GitHubTrust } from "../../repository/github.mjs";
 import { CiWatchStore } from "../../repository/ci-watch-store.mjs";
 import { classifyCommitStatus } from "../../repository/ci-status.mjs";
+import { PreviewRequestStore } from "../../repository/preview-request-store.mjs";
 import { pruneArchivedWorktrees } from "../../repository/retention.mjs";
 import { createCiRepairExecutor } from "../../workflow/ci-repair.mjs";
 import { createCiWatchWorker } from "../../workflow/ci-watch.mjs";
+import { createPreviewRequests } from "../../workflow/preview-request.mjs";
 import { createProjectRunner } from "../../workflow/project-runner.mjs";
 import { stopAllSandboxedCommands } from "../../sandbox/commands.mjs";
 
@@ -109,6 +112,32 @@ export async function startService({
     );
   }
 
+  // An interrupted preview comment may or may not exist. Like an interrupted
+  // repair, it is never posted again automatically: the service refuses to
+  // start until a person reconciles the real state.
+  const previewRequests = new PreviewRequestStore(
+    join(config.paths.state, "preview-request.sqlite"),
+  );
+  for (const request of previewRequests.recoverCommenting()) {
+    queue.recordTrace({
+      updateIdentifier: request.update_identifier,
+      authorIdentifier: request.author_identifier,
+      sessionKey: request.session_key,
+      action: "preview_uncertain",
+      detail: `#${request.pull_request_number} ${request.commit_sha.slice(0, 7)}`,
+    });
+  }
+  const uncertainPreviews = previewRequests.uncertainCount();
+  if (uncertainPreviews > 0) {
+    logger("preview_uncertain", String(uncertainPreviews));
+    previewRequests.close();
+    ciWatches.close();
+    queue.close();
+    throw new Error(
+      `Refusing to start: ${uncertainPreviews} preview request(s) have an unknown external result.`,
+    );
+  }
+
   // Archived worktrees keep a dependency tree each; remove only the ones that
   // have nothing left to lose. Retention never blocks the service.
   try {
@@ -135,6 +164,7 @@ export async function startService({
     identity.username.toLowerCase() !==
       config.telegram.botUsername.toLowerCase()
   ) {
+    previewRequests.close();
     ciWatches.close();
     queue.close();
     throw new Error(
@@ -148,6 +178,18 @@ export async function startService({
       token: config.github.token,
       repository: config.github.repository,
     });
+  const previewWorker = createPreviewRequests({
+    store: previewRequests,
+    reportedCommits: ciWatches,
+    github,
+    repository: config.github.repository,
+    requiredChecks: config.github.requiredChecks,
+    telegram,
+    pollIntervalMilliseconds: config.limits.ciPollIntervalMs,
+    confirmationTimeoutMilliseconds: previewConfirmationTimeoutMilliseconds,
+    recordTrace: (entry) => queue.recordTrace(entry),
+    logger,
+  });
   const runner =
     runnerOverride ??
     createProjectRunner({
@@ -156,6 +198,7 @@ export async function startService({
       environment,
       logger,
       ciWatches,
+      requestPreview: previewWorker.handle,
     });
 
   const ciRepairExecutor = createCiRepairExecutor({
@@ -219,35 +262,41 @@ export async function startService({
     github,
     ciWatches,
     ciWorker,
+    previewRequests,
+    previewWorker,
     ciRepairExecutor,
     logger,
   };
 }
 
 /**
- * Run the bridge and the CI watcher together. The watcher never blocks the
- * bridge, and it is always stopped before the remaining cleanup so a failing
- * bridge cannot leave the process waiting for it.
+ * Run the bridge and the CI and preview watchers together. A watcher never
+ * blocks the bridge, and both are always stopped before the remaining cleanup
+ * so a failing bridge cannot leave the process waiting for them.
  */
 export async function runBridgeWithCiWatcher({
   bridge,
   ciWorker,
+  previewWorker,
   signal,
   abort,
   logger = defaultLogger,
 }) {
-  const worker = ciWorker.run({ signal }).catch((error) => {
-    logger(
-      "ci_watch_worker_failed",
-      error instanceof Error ? error.message : "unknown",
-    );
-  });
+  function supervise(failureEvent, worker) {
+    return worker.run({ signal }).catch((error) => {
+      logger(failureEvent, error instanceof Error ? error.message : "unknown");
+    });
+  }
+  const workers = [supervise("ci_watch_worker_failed", ciWorker)];
+  if (previewWorker) {
+    workers.push(supervise("preview_worker_failed", previewWorker));
+  }
 
   try {
     await bridge.run({ signal });
   } finally {
     abort();
-    await worker;
+    await Promise.all(workers);
   }
 }
 
@@ -257,7 +306,15 @@ export async function main({ environment = process.env } = {}) {
   process.once("SIGINT", stop);
   process.once("SIGTERM", stop);
 
-  const { queue, bridge, ciWatches, ciWorker, logger } = await startService({
+  const {
+    queue,
+    bridge,
+    ciWatches,
+    ciWorker,
+    previewRequests,
+    previewWorker,
+    logger,
+  } = await startService({
     environment,
     signal: controller.signal,
   });
@@ -266,12 +323,14 @@ export async function main({ environment = process.env } = {}) {
     await runBridgeWithCiWatcher({
       bridge,
       ciWorker,
+      previewWorker,
       signal: controller.signal,
       abort: stop,
       logger,
     });
   } finally {
     await stopAllSandboxedCommands();
+    previewRequests.close();
     ciWatches.close();
     queue.close();
     logger("service_stopped");

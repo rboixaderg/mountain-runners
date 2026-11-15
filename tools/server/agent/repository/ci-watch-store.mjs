@@ -104,6 +104,21 @@ export class CiWatchStore {
       .get(updateIdentifier)?.state;
   }
 
+  /**
+   * The commit this topic was last told about: the most recently delivered
+   * notice of the session. Only a delivered notice counts, and its result says
+   * whether that commit was reported as green.
+   */
+  lastReported(sessionKey) {
+    return this.#database
+      .prepare(
+        `SELECT pull_request_number, commit_sha, result FROM ci_watches
+         WHERE session_key = ? AND state = 'sent'
+         ORDER BY updated_at DESC, update_identifier DESC LIMIT 1`,
+      )
+      .get(sessionKey);
+  }
+
   /** Claim one result for delivery. A second claim never succeeds. */
   beginSend(updateIdentifier, result) {
     return (

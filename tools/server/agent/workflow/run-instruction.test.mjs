@@ -1066,3 +1066,46 @@ test("classifies a request that only claims a kind it does not own", async (cont
   assert.equal(result.outcome, "answered");
   assert.equal(result.report, "Resposta sintètica.");
 });
+
+test("routes a preview request to the service without starting the model or touching a worktree", async (context) => {
+  const paths = await fixture(context);
+  const github = githubStub();
+  const requests = [];
+  const runner = createProjectRunner({
+    config: configFor(paths),
+    classifyRequest: async () => "preview",
+    github,
+    requestPreview: async (previewRequest) => {
+      requests.push(previewRequest.updateIdentifier);
+      return { outcome: "answered", report: "Preview demanada" };
+    },
+    runModel: async () => assert.fail("the model must not run for a preview"),
+    runChecks: async () => assert.fail("checks must not run for a preview"),
+  });
+
+  const result = await runner(request());
+
+  assert.deepEqual(result, { outcome: "answered", report: "Preview demanada" });
+  assert.deepEqual(requests, [1001]);
+  assert.deepEqual(github.pushes, []);
+  assert.deepEqual(github.pulls, []);
+  assert.equal(existsSync(join(paths.worktrees, "scratch-1001")), false);
+});
+
+test("a preview store failure reaches the runner failure report", async (context) => {
+  const paths = await fixture(context);
+  const runner = createProjectRunner({
+    config: configFor(paths),
+    classifyRequest: async () => "preview",
+    github: githubStub(),
+    requestPreview: async () => {
+      throw new Error("database is locked");
+    },
+    runModel: async () => assert.fail("the model must not run for a preview"),
+    runChecks: async () => assert.fail("checks must not run for a preview"),
+  });
+
+  const result = await runner(request());
+
+  assert.equal(result.outcome, "failed");
+});

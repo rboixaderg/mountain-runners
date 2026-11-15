@@ -372,8 +372,8 @@ Telegram, sessions i un entorn aïllat que porta una tasca petita fins a una PR.
 La implementació està fusionada i instal·lada al VPS, i el pilot s'ha executat
 supervisat: una consulta que no crea branca i una tasca petita que arriba a PR,
 sense merge ni preview. El servei roman **aturat** per defecte i cada activació
-requereix aprovació explícita. El merge demanat, la preview i la resta de casos
-pertanyen a la T8.4.
+requereix aprovació explícita. El merge demanat i la resta de casos pertanyen a la T8.4; la preview demanada
+al tema ja està implementada (vegeu més avall), però inactiva.
 
 Les eines viuen a `tools/server/agent/` i s'instal·len a
 `/usr/local/lib/mountain-runners/agent/`. La unitat és
@@ -559,7 +559,7 @@ propietat de la identitat del servei. La instal·lació prevista és:
 ├── repository/                            clon amb origin i main
 ├── worktrees/                             worktree actual per tema i feina preservada
 ├── sessions/                              historial de Pi per tema
-└── state/                                 admission.sqlite, ci-watch.sqlite (avisos i reparacions), perfils i traça
+└── state/                                 admission.sqlite, ci-watch.sqlite (avisos i reparacions), preview-request.sqlite (peticions de preview), perfils i traça
 /etc/mountain-runners-agent/agent.env      0600  credencials del servei
 /usr/local/lib/mountain-runners/agent/     aplicació instal·lada
 /usr/local/lib/mountain-runners/node_modules/
@@ -655,6 +655,78 @@ concloent, l'avís en dona els noms i no s'inicia cap reparació. La traça priv
 `ci_repair_uncertain` i `ci_repair_close_failed` amb la PR i el commit, sense text de conversa ni
 credencials. Una traça que no es pot escriure es registra al log i no perd
 l'avís al tema.
+
+### Preview demanada al tema (T8.4)
+
+Una persona verificada demana la preview en llenguatge natural. El servei no
+inicia el model: el classificador només etiqueta la petició i un tractament
+determinista del servei fa la resta. La delegació segueix l'[ADR 0009](decisions/0009-pr-previews-same-domain-and-own-branches.md)
+i l'[ADR 0013](decisions/0013-private-development-agent-boundary.md): no hi ha segona
+confirmació, només es treballa amb branques del repositori principal i el
+publicador de la fase 6 continua comprovant que l'autor del comentari és
+col·laborador. La pertinença i l'atribució de la persona només viuen a la traça
+privada.
+
+- **Fixació.** El destí és el commit que el servei va informar en verd en
+  aquell tema (la fila de `ci_watches` amb l'avís enviat com a èxit). Mai
+  s'accepta un número de PR ni un SHA escrits per la persona. Sense aquest
+  commit, el servei refusa.
+- **Condicions, rellegides en directe.** PR oberta, cap igual al commit fixat,
+  repositori de la branca igual al principal i comprovacions obligatòries totes
+  en verd amb el mateix classificador que la CI. Qualsevol resultat vermell,
+  pendent, absent, ambigu o un error de lectura refusa la petició.
+- **Comentari.** El servei publica exactament `/preview`. L'entorn aïllat i el
+  model no tenen accés a l'API de GitHub.
+- **Estats** (`state/preview-request.sqlite`): `commenting` (desat abans de
+  publicar), `awaiting`, `confirmed`, `timed_out`, `failed` (GitHub ha rebutjat el comentari
+  amb un 4xx definitiu que no és 408 ni 429: no s'ha creat res i no bloqueja el
+  servei) i `uncertain` (error de xarxa, temps esgotat, 408, 429, 5xx o resposta
+  mal formada: bloqueja fins que una persona reconciliï). Una actualització
+  de Telegram només es tramita una vegada. Es refusa una petició nova pel mateix
+  PR i commit mentre n'hi hagi una en `commenting`, `awaiting` o `uncertain`; es
+  permet quan l'anterior ha acabat com a `confirmed`, `failed` o `timed_out` (per exemple per tornar a publicar després de
+  retirar la preview). Un commit verd nou sempre permet una petició nova.
+- **Confirmació.** Un bucle en segon pla llegeix els comentaris de la PR i
+  només accepta el del publicador de la fase 6: autor `github-actions[bot]`,
+  marcador, origen exacte `https://pr-<n>.preview.mountainrunners.cat`, SHA igual
+  al fixat i comentari escrit o actualitzat després de la petició. Retorna URL,
+  SHA curt i PR al tema. Si en 15 minuts no hi ha confirmació, ho comunica
+  com a no confirmada; mai construeix ni suposa l'URL.
+- **Reinicis.** Una petició en `commenting` passa a `uncertain` i no es torna a
+  publicar mai sola; com amb una reparació interrompuda, el servei refusa
+  arrencar fins que una persona reconciliï l'estat real a GitHub. Una petició en
+  `awaiting` reprèn la lectura de comentaris amb el termini original.
+- **Traça privada.** `preview_requested`, `preview_refused` (amb el motiu),
+  `preview_commented`, `preview_confirmed`, `preview_unconfirmed`,
+  `preview_failed` i `preview_uncertain`, amb la PR i el commit i l'autor, sense text de conversa
+  ni credencials.
+- **Mai automàtic.** Ni una CI verda, ni crear una PR, ni publicar una reparació
+  demanen cap preview.
+
+- **Avís de confirmació.** L'avís s'envia abans de tancar la petició i només
+  es tanca si l'enviament ha anat bé; si falla, es reintenta al cicle següent.
+  Una caiguda entre l'enviament i el tancament pot duplicar l'avís. Una lectura
+  fallida de comentaris mai tanca una petició: el termini només s'aplica després
+  d'una lectura correcta.
+- **Repetició pel mateix commit.** Confia que GitHub actualitza el camp
+  `updated_at` del comentari del publicador quan el torna a escriure. Si no ho
+  fa, la petició acaba com a no confirmada tot i que la preview pot estar
+  activa.
+- **Granularitat d'un segon.** `updated_at` només té precisió de segon, així
+  que només s'accepta un comentari actualitzat estrictament després de la
+  petició. Una publicació anterior del mateix commit feta dins del mateix segon
+  no es confon amb la confirmació. Una publicació real sempre acaba més tard,
+  perquè el build triga minuts; el cost de la regla és una no confirmació falsa,
+  que és la fallada segura.
+- **Cursa acceptada.** Si arriba un commit nou entre la comprovació i
+  l'execució del flux, el flux construeix el cap nou i el servei informa de no
+  confirmada perquè el SHA no coincideix.
+
+L'activació continua depenent de la verificació del pilot: la credencial ha de
+tenir escriptura a Pull requests (per comentar), lectura de Checks i Statuses i
+cap escriptura a Workflows; la identitat de GitHub de l'agent ha de ser col·laboradora del repositori, perquè el publicador de la fase 6 en comprova l'autor del comentari. El flux de la fase 6 ha de tenir configurats els
+secrets `PREVIEW_*`, l'entorn `previews` i el DNS de `*.preview.mountainrunners.cat`.
+Aquesta implementació no activa res.
 
 Els límits numèrics (CPU, memòria, processos, temps d'execució i cua) tenen valors
 inicials al codi. La unitat limita el conjunt del servei i els seus contenidors a 1,5 CPU,

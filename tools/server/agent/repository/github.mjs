@@ -1,15 +1,17 @@
 // Trusted GitHub component for the private agent (T8.3).
 //
-// Only two operations exist: push the job branch and open (or reuse) its pull
-// request against `main`. There is no merge, no auto-merge, no protection
-// change and no write to `main`; the requested merge belongs to T8.4 and will
-// need its own deterministic path. The token stays in this component: it is
+// Only three writes exist: push the job branch, open (or reuse) its pull
+// request against `main` and post the constant `/preview` comment that asks the
+// phase 6 workflow for a preview. There is no merge, no auto-merge, no
+// protection change and no write to `main`; the requested merge will need its
+// own deterministic path. The token stays in this component: it is
 // never passed to the sandbox, the model or the tests.
 //
 // Pushing is idempotent for the same commit and the pull request lookup avoids
 // opening a duplicate PR after a restart. Reading the CI status of one commit
 // belongs to the same trusted component, because the token never leaves it.
 
+import { previewCommand } from "../policy/development.mjs";
 import { assertWorkBranch } from "./worktrees.mjs";
 import { assertPublishableHistory } from "./secret-scan.mjs";
 
@@ -43,6 +45,15 @@ export class PublishRefusedError extends Error {
   constructor(message, options) {
     super(message, options);
     this.name = "PublishRefusedError";
+  }
+}
+
+/** A response GitHub sent and the service received; it carries only the status. */
+export class GitHubResponseError extends Error {
+  constructor(method, path, status) {
+    super(`GitHub ${method} ${path} failed with HTTP ${status}.`);
+    this.name = "GitHubResponseError";
+    this.status = status;
   }
 }
 
@@ -117,9 +128,7 @@ export class GitHubTrust {
     });
 
     if (!response.ok) {
-      throw new Error(
-        `GitHub ${method} ${path} failed with HTTP ${response.status}.`,
-      );
+      throw new GitHubResponseError(method, path, response.status);
     }
     return response.json();
   }
@@ -209,7 +218,60 @@ export class GitHubTrust {
     if (typeof pull?.head?.sha !== "string" || typeof pull.state !== "string") {
       throw new Error("GitHub returned an invalid pull request response.");
     }
-    return { state: pull.state, headSha: pull.head.sha };
+    return {
+      state: pull.state,
+      headSha: pull.head.sha,
+      // A fork whose repository was deleted has no head repository.
+      headRepository: pull.head.repo?.full_name ?? null,
+    };
+  }
+
+  /**
+   * Post the exact `/preview` comment. The body is fixed: the model and the
+   * callers can never choose what the service writes with this credential.
+   */
+  async commentOnPullRequest({ number, body, signal }) {
+    assertPullRequestNumber(number);
+    if (body !== previewCommand) {
+      throw new Error("Only the preview command can be posted.");
+    }
+    const comment = await this.#request(
+      "POST",
+      `/repos/${this.#repository}/issues/${number}/comments`,
+      { body },
+      { signal },
+    );
+    if (
+      !Number.isSafeInteger(comment?.id) ||
+      typeof comment.created_at !== "string"
+    ) {
+      throw new Error("GitHub returned an invalid comment response.");
+    }
+    return { createdAt: comment.created_at };
+  }
+
+  /**
+   * The comments of a pull request updated since `since` (an ISO timestamp),
+   * oldest first. GitHub filters by `updated_at`, so the publisher's comment
+   * edited in place is still listed.
+   */
+  async listIssueComments({ number, since, signal }) {
+    assertPullRequestNumber(number);
+    const comments = [];
+    for (let page = 1; page <= maximumPageCount; page += 1) {
+      const response = await this.#request(
+        "GET",
+        `/repos/${this.#repository}/issues/${number}/comments?since=${encodeURIComponent(since)}&per_page=100&page=${page}`,
+        undefined,
+        { signal },
+      );
+      if (!Array.isArray(response)) {
+        throw new Error("GitHub returned an invalid comments response.");
+      }
+      comments.push(...response);
+      if (response.length < 100) return comments;
+    }
+    throw new Error("GitHub comments pagination limit exceeded.");
   }
 
   async findOpenPullRequest({ branch }) {

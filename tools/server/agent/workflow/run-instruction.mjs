@@ -25,6 +25,7 @@ import {
   pullRequestBody,
   instructionReports,
   publicationReport,
+  previewRequestKind,
   repairRequestKind,
 } from "../policy/development.mjs";
 
@@ -36,6 +37,7 @@ export function createInstructionRunner({
   runChecks,
   publishChange,
   registerCiWatch,
+  requestPreview,
   logger = () => {},
 }) {
   /**
@@ -91,6 +93,11 @@ export function createInstructionRunner({
             instruction: request.instruction,
             signal,
           });
+      // A preview is decided by the service, never by the model: no worktree
+      // is touched and no model run starts.
+      if (kind === previewRequestKind) {
+        return await requestPreview(request, { signal });
+      }
       if (
         kind !== "implementation" &&
         kind !== "consultation" &&

@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { test } from "node:test";
 import { AdmissionQueue } from "telegram-pi-bridge/sessions";
 import { CiWatchStore } from "../../repository/ci-watch-store.mjs";
+import { PreviewRequestStore } from "../../repository/preview-request-store.mjs";
 import { runBridgeWithCiWatcher, startService } from "./main.mjs";
 
 function environmentFor(context) {
@@ -135,6 +136,7 @@ test("keeps an interrupted CI notice uncertain and still starts", async (context
   ciWatches.add({
     updateIdentifier: 10,
     sessionKey: "-1001234567890:7",
+    authorIdentifier: 555,
     pullRequestNumber: 200,
     commitSha: "a".repeat(40),
   });
@@ -475,4 +477,120 @@ test("does not run another repair while one has an unknown result", async (conte
   assert.equal(service.ciWatches.claimNextRepair() !== null, true);
   service.ciWatches.close();
   service.queue.close();
+});
+
+function previewFixture(statePath, finalState) {
+  mkdirSync(statePath, { recursive: true });
+  const previews = new PreviewRequestStore(
+    join(statePath, "preview-request.sqlite"),
+  );
+  previews.begin({
+    updateIdentifier: 30,
+    sessionKey: "-1001234567890:7",
+    authorIdentifier: 555,
+    pullRequestNumber: 200,
+    commitSha: "a".repeat(40),
+  });
+  if (finalState === "awaiting") {
+    previews.markAwaiting(30, "2026-11-14T10:00:00Z");
+  }
+  previews.close();
+}
+
+test("refuses to start with an interrupted preview comment of unknown result", async (context) => {
+  const { environment, statePath } = environmentFor(context);
+  previewFixture(statePath, "commenting");
+
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    await assert.rejects(
+      startService({
+        environment,
+        telegram: telegramStub(),
+        github: {},
+        runner: async () => ({}),
+      }),
+      { message: /preview request\(s\) have an unknown external result/u },
+    );
+  }
+
+  const queue = new AdmissionQueue(join(statePath, "admission.sqlite"), {
+    maxPending: 10,
+  });
+  const trace = queue
+    .traceEntries()
+    .find((entry) => entry.action === "preview_uncertain");
+  assert.equal(trace.update_identifier, 30);
+  assert.equal(trace.detail, `#200 ${"a".repeat(7)}`);
+  queue.close();
+});
+
+test("resumes a preview awaiting the publisher after a restart", async (context) => {
+  const { environment, statePath } = environmentFor(context);
+  previewFixture(statePath, "awaiting");
+  const sent = [];
+  const commit = "a".repeat(40);
+  const service = await startService({
+    environment,
+    telegram: {
+      async getMe() {
+        return { id: 999, username: "mountain_agent_bot" };
+      },
+      async sendMessage(message) {
+        sent.push(message);
+      },
+    },
+    github: {
+      async listIssueComments() {
+        return [
+          {
+            user: { login: "github-actions[bot]" },
+            body: `<!-- mountain-runners-preview -->\nPreview publicada: https://pr-200.preview.mountainrunners.cat\nCommit: \`${commit}\`.`,
+            updated_at: "2026-11-14T10:05:00Z",
+          },
+        ];
+      },
+    },
+    runner: async () => ({}),
+  });
+  context.after(() => {
+    service.previewRequests.close();
+    service.ciWatches.close();
+    service.queue.close();
+  });
+
+  await service.previewWorker.runOnce();
+
+  assert.equal(service.previewRequests.state(30), "confirmed");
+  assert.equal(sent.length, 1);
+  assert.equal(sent[0].messageThreadIdentifier, 7);
+  assert.match(sent[0].text, /pr-200\.preview\.mountainrunners\.cat/u);
+  const trace = service.queue
+    .traceEntries()
+    .find((entry) => entry.action === "preview_confirmed");
+  assert.equal(trace.update_identifier, 30);
+  assert.equal(trace.author_identifier, 555);
+});
+
+test("runs the preview watcher beside the bridge and stops it with the service", async () => {
+  const controller = new AbortController();
+  let stopped = false;
+  const previewWorker = {
+    async run({ signal }) {
+      await new Promise((resolve) =>
+        signal.addEventListener("abort", resolve, { once: true }),
+      );
+      stopped = true;
+    },
+  };
+
+  await runBridgeWithCiWatcher({
+    bridge: { async run() {} },
+    ciWorker: { async run() {} },
+    previewWorker,
+    signal: controller.signal,
+    abort: () => controller.abort(),
+    logger: () => {},
+  });
+
+  assert.equal(stopped, true);
 });
