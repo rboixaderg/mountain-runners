@@ -29,6 +29,7 @@ export function createProjectRunner({
   readCiState,
   hasOtherInstructions,
   notifyHandover,
+  prepareAttachment,
   recordTrace,
   stopCommands = stopSandboxedCommands,
   executeSandbox = runSandboxedCommand,
@@ -85,6 +86,8 @@ export function createProjectRunner({
     logger,
     requestPreview,
     requestMerge,
+    prepareAttachment,
+    recordTrace,
     registerCiWatch: ciWatches
       ? createCiWatchRegistration({ store: ciWatches, logger })
       : undefined,

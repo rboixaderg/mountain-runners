@@ -545,3 +545,185 @@ test("reports a defect of the background work without stopping the bridge", asyn
 
   assert.deepEqual(events, ["idle_work_failed"]);
 });
+
+function documentUpdate(updateIdentifier, threadIdentifier, overrides = {}) {
+  return instructionUpdate(updateIdentifier, threadIdentifier, {
+    text: undefined,
+    entities: undefined,
+    caption: `@${botUsername} usa aquesta imatge`,
+    caption_entities: [
+      { type: "mention", offset: 0, length: botUsername.length + 1 },
+    ],
+    document: {
+      file_id: "telegram-file",
+      file_unique_id: "telegram-unique-file",
+      file_name: "portada.png",
+      mime_type: "image/png",
+      file_size: 1200000,
+    },
+    ...overrides,
+  });
+}
+
+test("admits an image document and hands it to the execution", async (t) => {
+  const { queue } = context(t);
+  const telegram = telegramStub({ batches: [[documentUpdate(10, 7)]] });
+  const executed = [];
+  const bridge = bridgeFor({
+    queue,
+    telegram,
+    runInstruction: async (request) => {
+      executed.push(request);
+      return { outcome: "answered", report: "Resposta al fil." };
+    },
+  });
+
+  assert.equal(await bridge.pollOnce(), 1);
+  assert.equal((await bridge.executeNext()) !== null, true);
+
+  assert.equal(executed[0].instruction, "usa aquesta imatge");
+  assert.deepEqual(executed[0].attachment, {
+    fileIdentifier: "telegram-file",
+    fileUniqueIdentifier: "telegram-unique-file",
+    fileName: "portada.png",
+    mimeType: "image/png",
+    fileSize: 1200000,
+    origin: "message",
+  });
+  assert.equal(
+    telegram.sent[0].text,
+    defaultBridgeMessages.acknowledgement("usa aquesta imatge"),
+  );
+  assert.equal(queue.status(10), "done");
+});
+
+test("refuses a compressed photo without queuing it", async (t) => {
+  const { queue } = context(t);
+  const telegram = telegramStub({
+    batches: [
+      [
+        instructionUpdate(10, 7, {
+          text: undefined,
+          entities: undefined,
+          caption: `@${botUsername} usa aquesta foto`,
+          caption_entities: [
+            { type: "mention", offset: 0, length: botUsername.length + 1 },
+          ],
+          photo: [
+            { file_id: "small", file_unique_id: "small-unique", width: 90 },
+            { file_id: "large", file_unique_id: "large-unique", width: 1280 },
+          ],
+        }),
+      ],
+    ],
+  });
+  let executions = 0;
+  const bridge = bridgeFor({
+    queue,
+    telegram,
+    runInstruction: async () => {
+      executions += 1;
+      return { outcome: "answered", report: "unexpected" };
+    },
+  });
+
+  assert.equal(await bridge.pollOnce(), 1);
+
+  assert.equal(queue.pendingCount(), 0);
+  assert.equal(queue.readOffset(), 11);
+  assert.deepEqual(telegram.sent, [
+    {
+      chatIdentifier: -1001234567890,
+      messageThreadIdentifier: 7,
+      text: defaultBridgeMessages.attachmentPhoto,
+    },
+  ]);
+  assert.equal(await bridge.executeNext(), null);
+  assert.equal(executions, 0);
+  const refusals = queue
+    .traceEntries()
+    .filter((entry) => entry.action === "attachment_refused");
+  assert.equal(refusals.length, 1);
+  assert.equal(refusals[0].update_identifier, 10);
+  assert.equal(refusals[0].author_identifier, 42);
+  assert.equal(refusals[0].session_key, "-1001234567890:7");
+  assert.equal(refusals[0].detail, "reason=photo");
+});
+
+test("refuses an oversized document with the real size", async (t) => {
+  const { queue } = context(t);
+  const telegram = telegramStub({
+    batches: [
+      [
+        documentUpdate(10, 7, {
+          document: {
+            file_id: "telegram-file",
+            file_unique_id: "telegram-unique-file",
+            file_name: "portada.png",
+            mime_type: "image/png",
+            file_size: 3 * 1024 * 1024,
+          },
+        }),
+      ],
+    ],
+  });
+  const bridge = bridgeFor({
+    queue,
+    telegram,
+    runInstruction: async () => ({}),
+  });
+
+  assert.equal(await bridge.pollOnce(), 1);
+
+  assert.equal(queue.pendingCount(), 0);
+  assert.equal(
+    telegram.sent[0].text,
+    defaultBridgeMessages.attachmentTooLarge("3.0"),
+  );
+  const [refusal] = queue
+    .traceEntries()
+    .filter((entry) => entry.action === "attachment_refused");
+  assert.equal(
+    refusal.detail,
+    "reason=declared_too_large type=png bytes=3145728",
+  );
+});
+
+test("traces the declared type of an unsupported document", async (t) => {
+  const { queue } = context(t);
+  const telegram = telegramStub({
+    batches: [
+      [
+        documentUpdate(10, 7, {
+          document: {
+            file_id: "telegram-file",
+            file_unique_id: "telegram-unique-file",
+            file_name: "informe.pdf",
+            mime_type: "application/pdf",
+            file_size: 1000,
+          },
+        }),
+      ],
+    ],
+  });
+  const bridge = bridgeFor({
+    queue,
+    telegram,
+    runInstruction: async () => ({}),
+  });
+
+  assert.equal(await bridge.pollOnce(), 1);
+
+  assert.equal(queue.pendingCount(), 0);
+  assert.equal(
+    telegram.sent[0].text,
+    defaultBridgeMessages.attachmentUnsupported,
+  );
+  const [refusal] = queue
+    .traceEntries()
+    .filter((entry) => entry.action === "attachment_refused");
+  assert.equal(
+    refusal.detail,
+    "reason=unsupported_document type=application/pdf",
+  );
+});

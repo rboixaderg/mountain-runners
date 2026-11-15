@@ -1,8 +1,8 @@
 // Minimal Telegram Bot API client for the private agent.
 //
-// Only the four methods the bridge needs are exposed. The bot token travels in
-// the request path, so errors never include the request URL or the token.
-// Long polling avoids an inbound port, a domain and webhooks.
+// Only the methods the bridge needs are exposed. The bot token travels in the
+// request path, so errors never include the request URL or the token. Long
+// polling avoids an inbound port, a domain and webhooks.
 
 const defaultBaseUrl = "https://api.telegram.org";
 
@@ -12,6 +12,52 @@ export class TelegramApiError extends Error {
     this.name = "TelegramApiError";
     this.method = method;
   }
+}
+
+/**
+ * A download that reached the byte limit. The caller turns it into a refusal
+ * that tells the person the real size, and `bytes` is the known count: the
+ * declared length, or what was already received when no length was sent.
+ */
+export class TelegramFileTooLargeError extends TelegramApiError {
+  constructor(bytes) {
+    super("downloadFile", "response above the size limit");
+    this.name = "TelegramFileTooLargeError";
+    this.bytes = bytes;
+  }
+}
+
+// Read one download response without allowing it to grow past the limit. The
+// declared length is checked first, and the stream is bounded as well because
+// the header is not guaranteed.
+async function readBoundedBody(response, maximumBytes) {
+  const declaredLength = Number(
+    response.headers.get("content-length") ?? Number.NaN,
+  );
+  if (Number.isFinite(declaredLength) && declaredLength > maximumBytes) {
+    await response.body?.cancel();
+    throw new TelegramFileTooLargeError(declaredLength);
+  }
+  const reader = response.body.getReader();
+  const chunks = [];
+  let received = 0;
+  try {
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) {
+        break;
+      }
+      received += value.byteLength;
+      if (received > maximumBytes) {
+        await reader.cancel();
+        throw new TelegramFileTooLargeError(received);
+      }
+      chunks.push(Buffer.from(value));
+    }
+  } finally {
+    reader.releaseLock();
+  }
+  return Buffer.concat(chunks);
 }
 
 export class TelegramApi {
@@ -80,6 +126,48 @@ export class TelegramApi {
       },
       { signal },
     );
+  }
+
+  /** The temporary location of a file Telegram already stores. */
+  async getFile({ fileIdentifier, signal }) {
+    return this.#call("getFile", { file_id: fileIdentifier }, { signal });
+  }
+
+  /**
+   * The bytes of a file returned by getFile. Redirects are refused: the URL
+   * carries the bot token and must never follow another location. Errors keep
+   * the TelegramApiError style, so no message contains the token or the URL.
+   */
+  async downloadFile({ filePath, maximumBytes, signal }) {
+    if (typeof filePath !== "string" || filePath === "") {
+      throw new TelegramApiError("downloadFile", "the file path is missing");
+    }
+    let response;
+    try {
+      response = await this.#fetch(
+        `${this.#baseUrl}/file/bot${this.#botToken}/${filePath}`,
+        { method: "GET", redirect: "error", signal },
+      );
+    } catch (error) {
+      if (error instanceof Error && error.name === "AbortError") {
+        throw error;
+      }
+      throw new TelegramApiError("downloadFile", "network error");
+    }
+    if (!response.ok || response.body === null) {
+      throw new TelegramApiError("downloadFile", `HTTP ${response.status}`);
+    }
+    try {
+      return await readBoundedBody(response, maximumBytes);
+    } catch (error) {
+      if (error instanceof TelegramApiError) {
+        throw error;
+      }
+      if (error instanceof Error && error.name === "AbortError") {
+        throw error;
+      }
+      throw new TelegramApiError("downloadFile", "network error");
+    }
   }
 
   async getChatMember({ chatIdentifier, userIdentifier, signal }) {

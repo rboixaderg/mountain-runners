@@ -917,6 +917,67 @@ calcular-lo es registra i s'ignora.
   feines locals i de fitxers; cap nom de fitxer ni cap clau de tema. Sense
   solapament no es traça res.
 
+### Adjunts (T8.4)
+
+Una implementació o una continuació poden rebre una imatge del tema. El servei
+la descarrega quan executa la instrucció, mai en admetre-la.
+
+- **Què s'accepta.** Només imatges JPEG, PNG i WebP enviades com a fitxer
+  (`message.document`), una per instrucció. Una foto comprimida es refusa amb
+  l'avís de tornar-la a enviar com a fitxer, i qualsevol altre document (PDF,
+  vídeo, arxiu, SVG, GIF, HEIC...) també. Els grups de mitjans queden fora
+  d'abast.
+- **Com s'envia.** El fitxer ha de ser al missatge que menciona el bot (menció a
+  la llegenda) o que respon a un missatge seu, o al missatge que la mateixa
+  instrucció respon, dins del tema. Els reenviaments s'ignoren i la instrucció
+  necessita text: la llegenda o el missatge.
+- **Límits.** 2 MB i 2.400 px de costat llarg. El servei no redimensiona ni
+  recodifica: per sobre d'un límit refusa i diu la mida i les dimensions reals
+  perquè la persona exporti la imatge dins dels límits. La mida declarada es
+  comprova en admetre la instrucció, i la descàrrega s'atura i es cancel·la si
+  supera el límit encara que Telegram no l'hagi declarada; el refús és el mateix
+  i porta la mida real.
+- **Validació.** El tipus real surt dels bytes i ha de coincidir amb l'extensió
+  i el tipus que ha declarat Telegram. Les dimensions es llegeixen només de les
+  capçaleres (PNG `IHDR`, JPEG SOF0–SOF15, WebP `VP8`, `VP8L` i `VP8X`), sense
+  descodificar cap píxel. L'estructura també es comprova: al PNG, l'`IHDR` fa 13
+  bytes i va primer, cada tros té el CRC correcte, hi ha d'haver `IDAT` i
+  l'`IEND` ha de tancar el fitxer; al WebP, la mida RIFF ha de consumir el
+  fitxer exacte, hi ha d'haver un sol fotograma i, en un fitxer estès, la tela ha
+  de coincidir amb el fotograma (l'animació no s'accepta); al JPEG, el
+  recorregut arriba a l'`EOI` i cap dada no el pot seguir. Un fitxer que no
+  compleix aquestes condicions es refusa.
+- **Metadades.** S'eliminen EXIF, XMP, IPTC, comentaris i dates del contenidor
+  (JPEG: APP1, APP13 i COM; PNG: `eXIf`, `tEXt`, `iTXt`, `zTXt` i `tIME`;
+  WebP: `EXIF`, `XMP ` i els bits corresponents de `VP8X`). APP0 i APP2 (ICC) es
+  conserven. Al JPEG el recorregut és complet, també entre les exploracions d'un
+  fitxer progressiu, i els segments de metadades s'eliminen a qualsevol posició.
+  Després de reescriure es torna a llegir el resultat i es comprova que el tipus,
+  les dimensions i la resta de dades d'imatge no canvien i que no hi queda cap
+  metadada.
+- **Destinació.** El fitxer net es desa a `.agent-attachments/<nom>` del
+  worktree, amb el nom normalitzat i l'extensió canònica (`.jpg`, `.png`,
+  `.webp`). La creació és exclusiva, amb mode 0644 exacte i sense seguir
+  symlinks. La descàrrega original només viu al directori temporal del servei i
+  s'esborra sempre. El model el mou al camí de contingut que demana la guia
+  editorial i, abans de les comprovacions i del commit, el servei esborra el
+  directori sencer: no publica l'adjunt ni en una branca el `.gitignore` de la
+  qual sigui anterior a aquest canvi. La publicació també refusa qualsevol
+  història que contingui una ruta sota `.agent-attachments/`.
+- **Què rep el model.** El camí relatiu, el tipus i les dimensions, afegits pel
+  servei a la instrucció com a text de servei. El text diu que el fitxer té
+  origen i drets desconeguts: si la petició no els indica, el model no ha de
+  canviar cap fitxer i ha de demanar que la persona respongui al missatge que
+  conté la imatge, mencionant el bot, amb l'origen, els drets i el crèdit; aquesta
+  resposta arriba com un adjunt nou i el servei la torna a validar. No s'hi posen
+  consentiments ni dades personals.
+- **Abast i traça.** Només una implementació i una continuació apliquen
+  l'adjunt; qualsevol altra instrucció l'ignora i ho diu en una frase. La traça
+  privada registra `attachment_accepted` (tipus, dimensions i bytes) i
+  `attachment_refused` (motiu i, quan es coneix, el tipus declarat i la mida),
+  també quan el refús és en admetre la instrucció; mai el nom original ni el
+  contingut.
+
 Els límits numèrics (CPU, memòria, processos, temps d'execució i cua) tenen valors
 inicials al codi. La unitat limita el conjunt del servei i els seus contenidors a 1,5 CPU,
 2560 MiB de memòria, sense swap i 384 processos. Cada contenidor té inicialment

@@ -11,6 +11,9 @@ apps/web/project.inlang/cache/
 # Test output
 .agent-check.*/
 .agent-runtime-tmp/
+
+# Images received from Telegram: never published from this directory.
+.agent-attachments/
 artifacts/
 coverage/
 playwright-report/

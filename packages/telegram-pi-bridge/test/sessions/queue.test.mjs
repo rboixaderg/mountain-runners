@@ -3,6 +3,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { spawnSync } from "node:child_process";
+import { DatabaseSync } from "node:sqlite";
 import { test } from "node:test";
 import { AdmissionQueue } from "../../src/sessions/queue.mjs";
 
@@ -185,5 +186,78 @@ test("tells whether the session has another instruction pending or running", (co
   queue.next();
   queue.complete(2, "answered");
   assert.equal(queue.hasOtherInstructions(topic, 3), false);
+  queue.close();
+});
+
+test("stores the attachment with the admitted instruction", (context) => {
+  const queue = new AdmissionQueue(databasePath(context), { maxPending: 10 });
+  const attachment = {
+    fileIdentifier: "telegram-file",
+    fileUniqueIdentifier: "telegram-unique-file",
+    fileName: "portada.png",
+    mimeType: "image/png",
+    fileSize: 1200000,
+    origin: "message",
+  };
+
+  assert.equal(queue.admit(request(1, { attachment })), "accepted");
+  assert.deepEqual(queue.next().attachment, attachment);
+  queue.close();
+});
+
+test("returns no attachment for an instruction without one", (context) => {
+  const queue = new AdmissionQueue(databasePath(context), { maxPending: 10 });
+  assert.equal(queue.admit(request(1)), "accepted");
+  assert.equal(queue.next().attachment, null);
+  queue.close();
+});
+
+test("adds the attachment column to an existing database", (context) => {
+  const path = databasePath(context);
+  const database = new DatabaseSync(path);
+  database.exec(`
+    CREATE TABLE instructions (
+      sequence INTEGER PRIMARY KEY,
+      update_identifier INTEGER NOT NULL UNIQUE,
+      message_identifier INTEGER NOT NULL,
+      session_key TEXT NOT NULL,
+      author_identifier INTEGER NOT NULL,
+      instruction TEXT NOT NULL,
+      status TEXT NOT NULL CHECK (status IN ('pending', 'running', 'uncertain', 'done', 'rejected')),
+      outcome TEXT,
+      created_at TEXT NOT NULL
+    );
+  `);
+  database
+    .prepare(
+      `INSERT INTO instructions
+         (update_identifier, message_identifier, session_key, author_identifier, instruction, status, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    )
+    .run(
+      1,
+      1001,
+      "-1001234567890:7",
+      42,
+      "instruction 1",
+      "pending",
+      "2026-01-01T00:00:00.000Z",
+    );
+  database.close();
+
+  const queue = new AdmissionQueue(path, { maxPending: 10 });
+  assert.equal(queue.next().attachment, null);
+  queue.complete(1, "answered");
+
+  const attachment = {
+    fileIdentifier: "telegram-file",
+    fileUniqueIdentifier: "telegram-unique-file",
+    fileName: "foto.jpg",
+    mimeType: "image/jpeg",
+    fileSize: 900000,
+    origin: "reply",
+  };
+  assert.equal(queue.admit(request(2, { attachment })), "accepted");
+  assert.deepEqual(queue.next().attachment, attachment);
   queue.close();
 });

@@ -416,9 +416,9 @@ independent. **PR:** pròpia, darrera de la fase.
   els requisits de traducció. No s'inventen fets ni s'utilitza fallback per
   donar per completa una variant incompleta.
 - Els adjunts s'accepten des de Telegram amb validació de tipus real, extensió,
-  mida i destinació. Les imatges mantenen el límit inicial de 10 MB d'entrada i
-  4.000 píxels de costat llarg, eliminació d'EXIF i geolocalització i pressupost
-  de 300 KiB per variant generada pel build.
+  mida i destinació. Les imatges tenen un límit de 2 MB d'entrada i 2.400
+  píxels de costat llarg, sense redimensionar al servei, eliminació d'EXIF i
+  geolocalització i pressupost de 300 KiB per variant generada pel build.
 - Els originals de portada s'envien com a fitxer, no com a foto comprimida.
   L'origen i els drets queden revisables a la PR sense publicar consentiments
   personals. No s'incorporen captures amb dades personals o financeres sense

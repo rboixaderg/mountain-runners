@@ -1,6 +1,8 @@
 // Mountain Runners policy: prompts, checks, naming and reports.
 // Pure data and functions only; no process, filesystem or network integration.
 
+import { attachmentRefusalReasons } from "../attachments/refusals.mjs";
+
 export const bridgeMessages = {
   acknowledgement: (excerpt) =>
     `Petició rebuda. Hi estem treballant: «${excerpt}». Et respondré en aquest mateix tema quan acabi.`,
@@ -12,6 +14,12 @@ export const bridgeMessages = {
     "No s'ha pogut verificar la pertinença al grup. La instrucció no s'ha admès; torna-ho a provar.",
   unknownResult:
     "El resultat d'una acció externa és desconegut. El servei s'atura sense repetir-la; cal revisar l'estat real.",
+  attachmentPhoto:
+    "Les fotos comprimides no s'accepten. Torna a enviar la imatge com a fitxer, amb la instrucció a la llegenda o com a resposta en aquest tema.",
+  attachmentUnsupported:
+    "Només s'accepten imatges JPEG, PNG o WebP enviades com a fitxer. Aquest adjunt no és compatible; no s'ha admès la instrucció.",
+  attachmentTooLarge: (megabytes) =>
+    `La imatge adjunta fa ${megabytes} MB; el límit és 2 MB i 2.400 px de costat llarg. Exporta-la de nou dins d'aquests límits i envia-la com a fitxer; no s'ha admès la instrucció.`,
 };
 export const checkCommand = "pnpm check";
 export const sandboxPrepareCommand = [
@@ -617,3 +625,68 @@ export const ciRepairReports = {
   stateUnknown: ({ pullRequestNumber, commit }) =>
     `No s'ha pogut llegir l'estat de la PR #${pullRequestNumber} abans de reparar el commit ${shortCommit(commit)}. No s'ha intentat cap reparació automàtica.`,
 };
+
+// An image attachment only feeds an implementation or a continuation. Any other
+// instruction ignores the file and says so once.
+export const attachmentReports = {
+  ignored:
+    "No s'ha fet servir l'adjunt: només una implementació o una continuació apliquen una imatge.",
+};
+
+function attachmentMegabytes(bytes) {
+  return (bytes / (1024 * 1024)).toFixed(1);
+}
+
+const attachmentRefusalMessages = {
+  [attachmentRefusalReasons.unsupportedType]: () =>
+    "L'adjunt no és una imatge JPEG, PNG o WebP. No s'ha desat cap fitxer; envia-la com a fitxer.",
+  [attachmentRefusalReasons.damagedImage]: () =>
+    "No s'ha pogut llegir l'estructura de la imatge adjunta. No s'ha desat cap fitxer; torna a exportar-la i envia-la com a fitxer.",
+  [attachmentRefusalReasons.fakeType]: ({ type }) =>
+    `El contingut de l'adjunt és ${type.toUpperCase()} i no coincideix amb el nom ni el tipus que ha declarat Telegram. No s'ha desat cap fitxer; envia la imatge original com a fitxer.`,
+  [attachmentRefusalReasons.tooLarge]: ({ bytes }) =>
+    `La imatge adjunta fa ${attachmentMegabytes(bytes)} MB; el límit és 2 MB i 2.400 px de costat llarg, sense redimensionar. No s'ha desat cap fitxer; exporta-la dins d'aquests límits i torna-la a enviar com a fitxer.`,
+  [attachmentRefusalReasons.dimensionsAboveLimit]: ({ width, height, bytes }) =>
+    `La imatge adjunta fa ${width}×${height} px i ${attachmentMegabytes(bytes)} MB; el límit és 2.400 px de costat llarg i 2 MB, sense redimensionar. No s'ha desat cap fitxer; exporta-la dins d'aquests límits i torna-la a enviar com a fitxer.`,
+  [attachmentRefusalReasons.downloadFailed]: () =>
+    "No s'ha pogut descarregar la imatge adjunta de Telegram. No s'ha desat cap fitxer; torna-la a enviar com a fitxer.",
+  [attachmentRefusalReasons.destinationExists]: ({ path }) =>
+    `Ja hi ha un fitxer a ${path}. No s'ha sobreescrit res; canvia el nom de la imatge i torna-la a enviar com a fitxer.`,
+  [attachmentRefusalReasons.destinationUnavailable]: () =>
+    "No s'ha pogut desar la imatge adjunta al worktree. No s'ha desat res; cal revisar-ho.",
+};
+
+/** The public report of a refused attachment, always with its real reason. */
+export function attachmentRefusalReport(refusal) {
+  const message =
+    attachmentRefusalMessages[refusal.reason] ??
+    attachmentRefusalMessages[attachmentRefusalReasons.downloadFailed];
+  return message(refusal);
+}
+
+/** The private trace of an accepted attachment: never its name or content. */
+export function attachmentAcceptedDetail({ type, width, height, bytes }) {
+  return `type=${type} width=${width} height=${height} bytes=${bytes}`;
+}
+
+/**
+ * Service text appended to the person's request when an image is attached. The
+ * file has unknown origin and rights, so the model must ask for them instead of
+ * using it, and it must never publish consent or personal data.
+ */
+export function buildAttachmentInstruction({
+  relativePath,
+  mimeType,
+  width,
+  height,
+}) {
+  return [
+    "Attached image provided by the service:",
+    `- Path inside this worktree: ${relativePath}`,
+    `- Type: ${mimeType}; dimensions: ${width}×${height} px.`,
+    "Telegram metadata has been removed, but the file has unknown origin and rights.",
+    "If the request does not state the origin, the rights and the credit of the image, do not use it: change no file and ask the person to reply to the message that contains the image, mentioning the bot, with the origin, the rights and the credit.",
+    "Never put consent or personal data in the repository.",
+    "The file stays ignored by Git where it is. If you use it, copy it to the content path that the editorial guide requires; never publish it from that directory.",
+  ].join("\n");
+}

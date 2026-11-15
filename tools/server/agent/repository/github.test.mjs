@@ -237,6 +237,32 @@ for (const protectedPath of [
   });
 }
 
+test("refuses a published history that contains an attachment path", async (context) => {
+  const { origin, clone, worktreeRoot } = await repositoryFixture(context);
+  const worktree = await branchWorktree({
+    repository: clone,
+    worktreeRoot,
+    branch,
+    name: "topic-attachment",
+  });
+  mkdirSync(join(worktree.path, ".agent-attachments"), { recursive: true });
+  writeFileSync(
+    join(worktree.path, ".agent-attachments", "portada.png"),
+    "synthetic-image",
+  );
+  await git(worktree.path, ["add", "--force", ".agent-attachments"]);
+  await git(worktree.path, ["commit", "-m", "test: commit an attachment"]);
+  await assert.rejects(trust().pushBranch({ worktree, branch }), {
+    message: /attachment directory path/u,
+  });
+  await git(worktree.path, ["rm", "-r", ".agent-attachments"]);
+  await git(worktree.path, ["commit", "-m", "test: remove the attachment"]);
+  await assert.rejects(trust().pushBranch({ worktree, branch }), {
+    message: /attachment directory path/u,
+  });
+  await assert.rejects(git(origin, ["rev-parse", branch]));
+});
+
 test("refuses moving an existing workflow out of its protected directory", async (context) => {
   const { origin, clone, worktreeRoot } = await repositoryFixture(context);
   const worktree = await branchWorktree({
