@@ -887,6 +887,36 @@ transferència de converses: el context viatja amb la PR.
   `continuation_handover_failed`, amb `#N` i el SHA curt, sense text de
   conversa.
 
+### Avís de solapaments (T8.4)
+
+Quan les comprovacions passen i abans del commit, una implementació o una
+continuació avisa el tema dels fitxers que també apareixen en feines actives
+conegudes. No bloqueja res: només afegeix unes línies al resultat, i un error en
+calcular-lo es registra i s'ignora.
+
+- **Què compta.** L'última fila de `ci_watches` de cada PR que el servei va
+  publicar, llevat que l'últim avís lliurat digui que la PR s'ha tancat, i el
+  worktree actual de cada altre tema amb canvis sense cometre o commits sense
+  publicar. Mai les carpetes `-before-<update>`, mai el tema que fa la petició, i
+  mai la PR que aquell canvi continua o repara. Un worktree net o ja publicat
+  sense res pendent no compta; un tema amb una PR tancada o no situada en una
+  branca de treball conserva la seva feina pendent com a feina local.
+- **Font local.** Només Git: `git diff --name-only -z origin/main...HEAD` i els
+  canvis sense cometre, amb els dos costats d'un reanomenament. No es fa cap
+  crida a GitHub. Una PR només es pot situar en una branca de treball quan és la
+  publicació més recent del seu tema i aquell worktree la té en checkout; si no,
+  s'omet.
+- **Missatge.** Els fitxers compartits (10 com a màxim, ordenats, amb «i N més»)
+  i cada PR com a `PR #N`. Cada camí es mostra retallat a 120 caràcters i amb els
+  caràcters de control, els canvis de direcció i els accents greus escapats,
+  perquè cap camí aliè pugui reescriure l'avís. Una feina local sense PR es diu
+  «una feina local d'un altre tema», sense nom del tema, de l'autor ni dades de
+  Telegram. Acaba amb una frase que recorda que l'absència d'avís no garanteix
+  que no hi hagi altres conflictes.
+- **Traça privada.** `overlap_warned` amb els números de PR i el nombre de
+  feines locals i de fitxers; cap nom de fitxer ni cap clau de tema. Sense
+  solapament no es traça res.
+
 Els límits numèrics (CPU, memòria, processos, temps d'execució i cua) tenen valors
 inicials al codi. La unitat limita el conjunt del servei i els seus contenidors a 1,5 CPU,
 2560 MiB de memòria, sense swap i 384 processos. Cada contenidor té inicialment

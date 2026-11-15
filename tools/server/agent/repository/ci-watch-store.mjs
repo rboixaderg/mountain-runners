@@ -119,6 +119,40 @@ export class CiWatchStore {
   }
 
   /**
+   * The latest watch of every pull request this service published: the owner
+   * topic, whether that watch is also the newest row of its topic, and the
+   * result of the latest notice that was actually delivered. An interrupted or
+   * unknown delivery is not delivered, so its result proves nothing.
+   *
+   * Only the newest publication of a topic has a local branch the service can
+   * read; the caller decides which pull requests still count as active work.
+   */
+  latestPublications() {
+    return this.#database
+      .prepare(
+        `SELECT owner.pull_request_number, owner.session_key,
+                (SELECT notice.result FROM ci_watches AS notice
+                 WHERE notice.pull_request_number = owner.pull_request_number
+                   AND notice.state = 'sent'
+                 ORDER BY notice.update_identifier DESC LIMIT 1) AS delivered_result,
+                owner.update_identifier = topic.latest_identifier AS is_owner_latest
+         FROM ci_watches AS owner
+         JOIN (
+           SELECT pull_request_number, MAX(update_identifier) AS update_identifier
+           FROM ci_watches GROUP BY pull_request_number
+         ) AS latest
+           ON latest.pull_request_number = owner.pull_request_number
+          AND latest.update_identifier = owner.update_identifier
+         JOIN (
+           SELECT session_key, MAX(update_identifier) AS latest_identifier
+           FROM ci_watches GROUP BY session_key
+         ) AS topic ON topic.session_key = owner.session_key
+         ORDER BY owner.pull_request_number`,
+      )
+      .all();
+  }
+
+  /**
    * The commit this topic was last told about: the most recently delivered
    * notice of the session. Only a delivered notice counts, and its result says
    * whether that commit was reported as green.

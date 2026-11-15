@@ -43,6 +43,7 @@ export function createInstructionRunner({
   requestPreview,
   requestMerge,
   continueFromPullRequest,
+  warnAboutOverlaps,
   logger = () => {},
 }) {
   /**
@@ -246,6 +247,29 @@ export function createInstructionRunner({
         return { outcome: "failed", report: instructionReports.checksFailed };
       }
       signal?.throwIfAborted();
+      // Only a change a person asked for warns about the work of other topics:
+      // an automatic repair only fixes an already published commit. The warning
+      // never blocks, so an error while computing it is logged and ignored.
+      let overlapWarning = null;
+      if (!repair) {
+        try {
+          overlapWarning =
+            (await warnAboutOverlaps?.({
+              updateIdentifier: request.updateIdentifier,
+              sessionKey: request.sessionKey,
+              worktree,
+              branch,
+              continuedPullRequestNumber: resumed?.pullRequestNumber,
+            })) ?? null;
+        } catch (error) {
+          logger(
+            "overlap_warning_failed",
+            error instanceof Error ? error.name : "unknown",
+          );
+        }
+      }
+      // A swallowed warning error never hides an abort: nothing is committed.
+      signal?.throwIfAborted();
       await commitAll({ worktree, message: title });
       const body = pullRequestBody({
         title,
@@ -320,6 +344,9 @@ export function createInstructionRunner({
         publicationText = `${publicationText}\n${continuationReports.ownerUnregistered(
           { pullRequestNumber: resumed.pullRequestNumber },
         )}`;
+      }
+      if (overlapWarning !== null) {
+        publicationText = `${publicationText}\n${overlapWarning}`;
       }
       return {
         outcome: publication.created

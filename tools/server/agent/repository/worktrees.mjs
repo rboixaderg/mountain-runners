@@ -9,7 +9,7 @@ import {
   realpathSync,
   writeFileSync,
 } from "node:fs";
-import { join } from "node:path";
+import { basename, dirname, join } from "node:path";
 import {
   primaryRepository,
   registeredWorktree,
@@ -20,6 +20,8 @@ const protectedBranches = new Set(["main", "master"]);
 const branchPattern =
   /^(feat|fix|docs|refactor|test|build|ci|chore|security)\/[a-z0-9]+(?:[._-][a-z0-9]+)*$/u;
 const fullCommitPattern = /^[a-f0-9]{40}$/u;
+// The session identifier of a topic, never an archived `<name>-before-<update>`.
+const topicWorktreePattern = /^topic_[0-9n]+_\d+$/u;
 
 // Why a branch that another topic published was not released. The caller turns
 // each one into the report of the continued instruction: nothing is reset,
@@ -279,11 +281,60 @@ export async function listChangedPaths(worktree) {
       continue;
     }
     changedPaths.push(entry.slice(3));
+    // A rename or a copy names its original path next: both sides changed.
     if (entry.startsWith("R") || entry.startsWith("C")) {
       index += 1;
+      changedPaths.push(entries[index]);
     }
   }
   return changedPaths;
+}
+
+/**
+ * The current worktree of every other topic. Archived worktrees keep the name
+ * of their topic but end in `-before-<update>`, so they never count as active
+ * work.
+ */
+export async function listOtherTopicWorktrees({
+  repositoryPath,
+  worktreeRoot,
+  excludeName,
+}) {
+  const root = realpathSync(worktreeRoot);
+  const worktrees = [];
+  for (const path of await worktreePaths(primaryRepository(repositoryPath))) {
+    const resolvedPath = realpathSync(path);
+    const name = basename(resolvedPath);
+    if (
+      dirname(resolvedPath) !== root ||
+      name === excludeName ||
+      !topicWorktreePattern.test(name)
+    ) {
+      continue;
+    }
+    worktrees.push({
+      name,
+      worktree: registeredWorktree(repositoryPath, resolvedPath),
+    });
+  }
+  return worktrees;
+}
+
+/**
+ * Every path the worktree would publish: committed since `origin/main` and not
+ * committed yet. A rename counts on both sides, so an overlap with the old
+ * name is visible too.
+ */
+export async function changedPathsAgainstMain(worktree) {
+  const committed = await runGit(worktree, [
+    "diff",
+    "--name-only",
+    "-z",
+    "--no-renames",
+    "origin/main...HEAD",
+  ]);
+  const pending = await listChangedPaths(worktree);
+  return [...new Set([...committed.split("\0").filter(Boolean), ...pending])];
 }
 
 export async function currentBranch(worktree) {
