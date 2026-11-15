@@ -1,7 +1,9 @@
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
 import {
+  existsSync,
   mkdtempSync,
+  readFileSync,
   realpathSync,
   rmSync,
   statSync,
@@ -19,6 +21,9 @@ import {
   currentBranch,
   ensureSessionWorktree,
   hasUnpublishedCommit,
+  recordPublication,
+  resumeWorkBranch,
+  workBranchRefusals,
 } from "./worktrees.mjs";
 
 const executeFile = promisify(execFile);
@@ -235,4 +240,163 @@ test("clips a diff larger than the limit instead of dropping it", async (context
   assert.equal(diff.length, 1000);
   assert.match(diff, /^diff --git a\/large\.txt/u);
   assert.match(await changeDiff({ worktree }), /synthetic line\n$/u);
+});
+
+const sharedBranch = "feat/phase-8-t8.4-shared";
+
+/** Publish one commit of the shared branch in a worktree that holds it. */
+async function publishedHolder({ repository, worktreeRoot, name }) {
+  const holder = await ensureSessionWorktree({
+    repositoryPath: repository,
+    worktreeRoot,
+    name,
+  });
+  await createBranch({ worktree: holder, branch: sharedBranch });
+  writeFileSync(join(holder.path, "change.txt"), "canvi\n");
+  const commit = await commitAll({
+    worktree: holder,
+    message: "feat: shared change",
+  });
+  await git(holder.path, ["push", "origin", `HEAD:refs/heads/${sharedBranch}`]);
+  recordPublication(holder, commit);
+  return { holder, commit };
+}
+
+test("resumes a published branch at its head and preserves the session worktree", async (context) => {
+  const { repository, worktreeRoot } = await repositoryFixture(context);
+  const { holder, commit } = await publishedHolder({
+    repository,
+    worktreeRoot,
+    name: "topic-holder",
+  });
+  const previous = await ensureSessionWorktree({
+    repositoryPath: repository,
+    worktreeRoot,
+    name: "topic-new",
+  });
+  writeFileSync(join(previous.path, "previous.txt"), "preserved\n");
+
+  const resumed = await resumeWorkBranch({
+    repositoryPath: repository,
+    worktreeRoot,
+    name: "topic-new",
+    branch: sharedBranch,
+    headSha: commit,
+    newTaskIdentifier: 2001,
+  });
+
+  assert.equal(resumed.worktree.path, previous.path);
+  assert.equal(await currentBranch(resumed.worktree), sharedBranch);
+  assert.equal(await git(resumed.worktree.path, ["rev-parse", "HEAD"]), commit);
+  assert.equal(
+    await currentBranch(holder),
+    null,
+    "the holder releases the branch",
+  );
+  assert.equal(
+    readFileSync(
+      join(realpathSync(worktreeRoot), "topic-new-before-2001", "previous.txt"),
+      "utf8",
+    ),
+    "preserved\n",
+  );
+  assert.equal(await hasUnpublishedCommit(resumed.worktree), false);
+});
+
+test("resumes a branch that an archived worktree still holds", async (context) => {
+  const { repository, worktreeRoot } = await repositoryFixture(context);
+  const { commit } = await publishedHolder({
+    repository,
+    worktreeRoot,
+    name: "topic-old-before-7",
+  });
+
+  const resumed = await resumeWorkBranch({
+    repositoryPath: repository,
+    worktreeRoot,
+    name: "topic-old",
+    branch: sharedBranch,
+    headSha: commit,
+    newTaskIdentifier: 2002,
+  });
+
+  assert.equal(await currentBranch(resumed.worktree), sharedBranch);
+  assert.equal(await git(resumed.worktree.path, ["rev-parse", "HEAD"]), commit);
+});
+
+for (const scenario of [
+  {
+    name: "uncommitted changes",
+    refusal: workBranchRefusals.dirtyWorktree,
+    prepare: (holder) =>
+      writeFileSync(join(holder.path, "pending.txt"), "pending\n"),
+  },
+  {
+    name: "unpublished commits",
+    refusal: workBranchRefusals.unpublishedCommits,
+    prepare: async (holder) => {
+      writeFileSync(join(holder.path, "change.txt"), "canvi 2\n");
+      await commitAll({ worktree: holder, message: "feat: unpublished" });
+    },
+  },
+  {
+    name: "a local branch outside the remote head",
+    refusal: workBranchRefusals.divergedBranch,
+    prepare: async (holder) => {
+      await git(holder.path, ["commit", "--amend", "-m", "feat: rewritten"]);
+      recordPublication(holder, await git(holder.path, ["rev-parse", "HEAD"]));
+    },
+  },
+]) {
+  test(`refuses to release the branch with ${scenario.name}`, async (context) => {
+    const { repository, worktreeRoot } = await repositoryFixture(context);
+    const { holder, commit } = await publishedHolder({
+      repository,
+      worktreeRoot,
+      name: "topic-holder",
+    });
+    await scenario.prepare(holder);
+
+    const resumed = await resumeWorkBranch({
+      repositoryPath: repository,
+      worktreeRoot,
+      name: "topic-new",
+      branch: sharedBranch,
+      headSha: commit,
+      newTaskIdentifier: 2003,
+    });
+
+    assert.equal(resumed.refusal, scenario.refusal);
+    assert.equal(await currentBranch(holder), sharedBranch);
+    assert.equal(
+      existsSync(join(realpathSync(worktreeRoot), "topic-new")),
+      false,
+      "no worktree is created after a refusal",
+    );
+  });
+}
+
+test("refuses a resume when the remote head moved", async (context) => {
+  const { origin, repository, worktreeRoot } = await repositoryFixture(context);
+  const { commit } = await publishedHolder({
+    repository,
+    worktreeRoot,
+    name: "topic-holder",
+  });
+
+  const resumed = await resumeWorkBranch({
+    repositoryPath: repository,
+    worktreeRoot,
+    name: "topic-new",
+    branch: sharedBranch,
+    headSha: await git(origin, ["rev-parse", "main"]),
+    newTaskIdentifier: 2004,
+  });
+
+  assert.equal(resumed.refusal, workBranchRefusals.movedHead);
+  assert.notEqual(commit, await git(origin, ["rev-parse", "main"]));
+  assert.equal(
+    existsSync(join(realpathSync(worktreeRoot), "topic-new")),
+    false,
+  );
 });

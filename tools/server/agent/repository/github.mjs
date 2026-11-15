@@ -237,6 +237,7 @@ export class GitHubTrust {
     );
     if (
       typeof pull?.head?.sha !== "string" ||
+      typeof pull.head.ref !== "string" ||
       typeof pull.state !== "string" ||
       typeof pull.base?.ref !== "string" ||
       typeof pull.draft !== "boolean" ||
@@ -248,6 +249,7 @@ export class GitHubTrust {
     return {
       state: pull.state,
       headSha: pull.head.sha,
+      headRef: pull.head.ref,
       // A fork whose repository was deleted has no head repository.
       headRepository: pull.head.repo?.full_name ?? null,
       draft: pull.draft,

@@ -16,6 +16,7 @@ import {
   sandboxPrepareCommand,
 } from "../policy/development.mjs";
 import { createInstructionRunner } from "./run-instruction.mjs";
+import { createCrossTopicContinuation } from "./cross-topic-continuation.mjs";
 
 export function createProjectRunner({
   config,
@@ -24,6 +25,10 @@ export function createProjectRunner({
   ciWatches,
   requestPreview,
   requestMerge,
+  readCiState,
+  hasOtherInstructions,
+  notifyHandover,
+  recordTrace,
   stopCommands = stopSandboxedCommands,
   executeSandbox = runSandboxedCommand,
   executeAgent = runAgent,
@@ -85,6 +90,24 @@ export function createProjectRunner({
     publishChange: createPublisher({
       github,
       secrets: agentSecrets(config, environment),
+    }),
+    continueFromPullRequest: createCrossTopicContinuation({
+      repositoryPath: config.paths.repository,
+      worktreeRoot: config.paths.worktrees,
+      repositoryName: config.github.repository,
+      readPullRequest: ({ number, signal }) =>
+        github.getPullRequest({ number, signal }),
+      readComments: ({ number, since, signal }) =>
+        github.listIssueComments({ number, since, signal }),
+      readCiState,
+      findOwner: (pullRequestNumber) =>
+        ciWatches?.latestPublication(pullRequestNumber),
+      hasPendingWork: ({ sessionKey, updateIdentifier }) =>
+        hasOtherInstructions(sessionKey, updateIdentifier) ||
+        ciWatches.hasUnreportedWork(sessionKey),
+      notifyHandover,
+      recordTrace,
+      logger,
     }),
   });
 }

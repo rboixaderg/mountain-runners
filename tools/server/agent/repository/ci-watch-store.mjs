@@ -105,6 +105,20 @@ export class CiWatchStore {
   }
 
   /**
+   * The topic that published the pull request last, taken from its most recent
+   * watch. It proves the service published the pull request and names the topic
+   * that currently owns it.
+   */
+  latestPublication(pullRequestNumber) {
+    return this.#database
+      .prepare(
+        `SELECT session_key FROM ci_watches WHERE pull_request_number = ?
+         ORDER BY update_identifier DESC LIMIT 1`,
+      )
+      .get(pullRequestNumber);
+  }
+
+  /**
    * The commit this topic was last told about: the most recently delivered
    * notice of the session. Only a delivered notice counts, and its result says
    * whether that commit was reported as green.

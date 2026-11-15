@@ -20,6 +20,8 @@ import { parseMergeCommand } from "./merge-request.mjs";
 import { SandboxCleanupError } from "../sandbox/errors.mjs";
 import {
   buildRepairInstruction,
+  ciWatchOutcomes,
+  continuationReports,
   parseChangeSummary,
   branchNameForChange,
   fallbackTitle,
@@ -40,6 +42,7 @@ export function createInstructionRunner({
   registerCiWatch,
   requestPreview,
   requestMerge,
+  continueFromPullRequest,
   logger = () => {},
 }) {
   /**
@@ -126,17 +129,40 @@ export function createInstructionRunner({
       if (target?.report) {
         return { outcome: "failed", report: target.report };
       }
-      const worktree = repair
-        ? target.worktree
-        : await ensureSessionWorktree({
-            repositoryPath,
-            worktreeRoot,
-            name: identifier,
-            newTaskIdentifier:
-              kind === "implementation" ? request.updateIdentifier : undefined,
-          });
+      // A continuation that names another topic's pull request resumes that
+      // pull request here. Null keeps the pending work of this same topic.
+      const continuation =
+        kind === "continuation" && !repair
+          ? await continueFromPullRequest(request, { signal })
+          : null;
+      if (continuation?.report) {
+        return { outcome: "answered", report: continuation.report };
+      }
+      const resumed = continuation?.resume ?? null;
+      const resumedLine =
+        resumed === null
+          ? null
+          : continuationReports.resumed({
+              pullRequestNumber: resumed.pullRequestNumber,
+              baseHeadSha: resumed.baseHeadSha,
+            });
+      let worktree;
+      if (resumed !== null) {
+        worktree = resumed.worktree;
+      } else if (repair) {
+        worktree = target.worktree;
+      } else {
+        worktree = await ensureSessionWorktree({
+          repositoryPath,
+          worktreeRoot,
+          name: identifier,
+          newTaskIdentifier:
+            kind === "implementation" ? request.updateIdentifier : undefined,
+        });
+      }
       if (
         kind === "continuation" &&
+        resumed === null &&
         (await listChangedPaths(worktree)).length === 0 &&
         !(await hasUnpublishedCommit(worktree))
       ) {
@@ -145,10 +171,19 @@ export function createInstructionRunner({
           report: instructionReports.clarification,
         };
       }
+      // The service writes the instruction of an automatic repair and of a
+      // resumed pull request; every other request is the person's own text.
+      let instruction = request.instruction;
+      if (repair) {
+        instruction = target.instruction;
+      }
+      if (resumed !== null) {
+        instruction = resumed.instruction;
+      }
       const modelResult = await runModel({
         sessionIdentifier: identifier,
         sessionKey: request.sessionKey,
-        instruction: repair ? target.instruction : request.instruction,
+        instruction,
         kind,
         worktreePath: worktree.path,
         signal,
@@ -178,9 +213,10 @@ export function createInstructionRunner({
         changedPaths.length === 0 &&
         !(await hasUnpublishedCommit(worktree))
       ) {
+        const answer = modelResult.text.trim() || instructionReports.noAnswer;
         return {
           outcome: "answered",
-          report: modelResult.text.trim() || instructionReports.noAnswer,
+          report: resumedLine === null ? answer : `${resumedLine}\n${answer}`,
         };
       }
       const summary = parseChangeSummary(modelResult.text);
@@ -216,18 +252,28 @@ export function createInstructionRunner({
         changedPaths: await committedPaths(worktree),
       });
       publicationStarted = true;
+      // A repair and a resumed pull request only update the pull request they
+      // continue: the publisher checks it is still open at that commit and
+      // never opens a new one.
+      let continuedPullRequest;
+      if (repair) {
+        continuedPullRequest = {
+          pullRequestNumber: request.pullRequestNumber,
+          commit: request.commit,
+        };
+      }
+      if (resumed !== null) {
+        continuedPullRequest = {
+          pullRequestNumber: resumed.pullRequestNumber,
+          commit: resumed.baseHeadSha,
+        };
+      }
       const publication = await publishChange({
         worktree,
         branch,
         title,
         body,
-        // A repair only updates the pull request it continues.
-        repair: repair
-          ? {
-              pullRequestNumber: request.pullRequestNumber,
-              commit: request.commit,
-            }
-          : undefined,
+        repair: continuedPullRequest,
       });
       if (publication.refused) {
         logger("publication_refused", identifier);
@@ -247,11 +293,39 @@ export function createInstructionRunner({
         commit: publication.commit,
         automatic: repair,
       });
+      // The new topic owns the pull request only once its watch is durable: the
+      // previous topic keeps the CI notices and is not told otherwise. A notice
+      // that fails never changes the published result.
+      let ownersMoved = false;
+      if (resumed !== null) {
+        ownersMoved = ciWatch === ciWatchOutcomes.registered;
+        if (ownersMoved) {
+          await resumed.notifyPublished({
+            commit: publication.commit,
+            signal,
+          });
+        } else {
+          resumed.recordOwnerUnregistered(publication.commit);
+        }
+      }
+      let publicationText = publicationReport({
+        ...publication,
+        branch,
+        ciWatch,
+      });
+      if (resumedLine !== null) {
+        publicationText = `${resumedLine}\n${publicationText}`;
+      }
+      if (resumed !== null && !ownersMoved) {
+        publicationText = `${publicationText}\n${continuationReports.ownerUnregistered(
+          { pullRequestNumber: resumed.pullRequestNumber },
+        )}`;
+      }
       return {
         outcome: publication.created
           ? "pull_request_created"
           : "pull_request_updated",
-        report: publicationReport({ ...publication, branch, ciWatch }),
+        report: publicationText,
       };
     } catch (error) {
       logger(

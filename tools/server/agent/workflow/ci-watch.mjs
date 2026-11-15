@@ -39,6 +39,15 @@ function describe(watch) {
   return `#${watch.pull_request_number} ${watch.commit_sha.slice(0, 7)}`;
 }
 
+/** Read and classify the required checks of one exact commit. */
+export async function readCiState({ github, requiredChecks, commit, signal }) {
+  const [checkRuns, statuses] = await Promise.all([
+    github.getCommitCheckRuns({ commit, signal }),
+    github.getCommitStatuses({ commit, signal }),
+  ]);
+  return classifyCommitStatus({ requiredChecks, checkRuns, statuses });
+}
+
 /**
  * Persist the watch for a confirmed publication. A failed insert costs the
  * notification, not the work already published, so it is reported to the topic

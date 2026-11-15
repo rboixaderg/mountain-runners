@@ -430,3 +430,20 @@ test("tells whether the topic has work newer than its last notice", (context) =>
   assert.equal(store.hasUnreportedWork(topic), false);
   store.close();
 });
+
+test("reports the topic of the most recent publication of a pull request", (context) => {
+  const store = new CiWatchStore(fixture(context));
+  assert.equal(store.latestPublication(123), undefined);
+
+  store.add(request);
+  assert.equal(store.latestPublication(123).session_key, request.sessionKey);
+  assert.equal(store.latestPublication(124), undefined);
+
+  store.add({
+    ...request,
+    updateIdentifier: 13,
+    sessionKey: "-100123:8",
+  });
+  assert.equal(store.latestPublication(123).session_key, "-100123:8");
+  store.close();
+});
