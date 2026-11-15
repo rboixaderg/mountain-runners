@@ -1,0 +1,75 @@
+docs/deployment.md
+  s_222299432dda2e::t_779b9bb73e750f 490-491,645-647,698-702,705-708,1066-1168,1329-1331
+packages/telegram-pi-bridge/README.md
+  s_222299432dda2e::t_9a1f77e44e00ff 141-147
+packages/telegram-pi-bridge/src/sessions/queue.mjs
+  s_5d32f41afd3fab::t_1fcb92994c5316 242-282,329-344
+packages/telegram-pi-bridge/test/sessions/queue.test.mjs
+  s_222299432dda2e::t_15addf468c16f5 264-333
+tools/server/agent/README.md
+  s_5d32f41afd3fab::t_dc8c6565580548 42-45,242-245,247-252,338-343
+tools/server/agent/commands/reconcile/cli.mjs
+  s_5d32f41afd3fab::t_e7ec74bad47c03 1-14
+tools/server/agent/commands/reconcile/cli.test.mjs
+  s_222299432dda2e::t_7083e9f44ab5e9 1-362
+tools/server/agent/commands/reconcile/command.mjs
+  s_222299432dda2e::t_d9880ca4076da1 1-266
+tools/server/agent/commands/reconcile/uncertain-cases.mjs
+  s_034dfc177e5f19::t_17966d71219778 1-531
+tools/server/agent/commands/reconcile/uncertain-cases.test.mjs
+  s_222299432dda2e::t_80ab04ee436950 1-936
+tools/server/agent/processes/telegram-bridge/main.mjs
+  s_5d32f41afd3fab::t_4eb15d9dc27c41 73-81,83-92,122,159-183
+tools/server/agent/processes/telegram-bridge/main.test.mjs
+  s_222299432dda2e::t_20040a0c7a748f 7-11,492,534-636
+tools/server/agent/repository/ci-watch-store.mjs
+  s_5d32f41afd3fab::t_d1a2290719dedf 422-472
+tools/server/agent/repository/ci-watch-store.test.mjs
+  s_222299432dda2e::t_b3fb91a7d6174a 538-595
+tools/server/agent/repository/preview-request-store.mjs
+  s_c71947ab7cf623::t_0774a6b4ad8c4e 182-237
+tools/server/agent/workflow/preview-request.mjs
+  s_5d32f41afd3fab::t_3e6451981dfb9f 258-260,273,287
+tools/server/agent/workflow/preview-request.test.mjs
+  s_222299432dda2e::t_bc4b1f9ff95ce1 149-151,423-424,652-684
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "806be34ca71d45469537702aaba8c6ea276e0073",
+  "prompts": {},
+  "sessions": {
+    "s_034dfc177e5f19": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a1ddfd-1630-7799-b4a1-7d3899d76ddb",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    },
+    "s_222299432dda2e": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a1e0ed-ad7e-75d6-842f-877c0811920e",
+        "model": "deepseek-v4.1-flash"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    },
+    "s_5d32f41afd3fab": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a1e0fd-5604-763f-915e-1fec9c147ec9",
+        "model": "deepseek-v4.1-flash"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    },
+    "s_c71947ab7cf623": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e1f0f6fb9ffegQp2QnbEToa53x",
+        "model": "unknown"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
