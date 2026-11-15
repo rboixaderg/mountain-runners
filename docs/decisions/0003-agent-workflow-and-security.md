@@ -26,8 +26,8 @@ L'[ADR 0013](0013-private-development-agent-boundary.md) acota una excepció per
 al servei privat de desenvolupament de la fase 8. Una petició d'implementació
 d'un membre verificat del grup autoritza editar, executar proves, fer commit,
 fer push a la branca de treball i obrir o actualitzar la PR. Una comanda
-explícita `/merge <PR>` autoritza el merge d'aquella PR, fixat al commit que el
-servei ha informat al fil i amb les comprovacions obligatòries en verd.
+explícita `/merge` (opcionalment `/merge <PR>`) autoritza el merge de la PR que el
+servei ha informat al fil, fixat al commit informat i amb les comprovacions obligatòries en verd.
 
 L'excepció no cobreix l'auto-merge, el push directe a `main`, els canvis de
 protecció ni el desplegament, que continuen prohibits en tots els casos. Les

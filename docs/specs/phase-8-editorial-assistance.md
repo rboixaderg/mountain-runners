@@ -458,8 +458,9 @@ independent. **PR:** pròpia, darrera de la fase.
   l'URL i el SHA del publicador de confiança, mai una URL construïda o un estat
   suposat. Sense petició explícita no comenta `/preview`.
 - El merge és una acció humana executada pel servei. Un membre verificat el
-  demana al fil amb `/merge <PR>` després de validar el resultat; el servei
-  comprova la pertinença, que el cap actual de la PR sigui el commit que ha
+  demana al fil amb `/merge` (opcionalment `/merge <PR>`) després de validar el
+  resultat; el servei resol la PR de l'últim avís verd del fil, i si no pot
+  resoldre-ho sense ambigüitat pregunta i no fusiona. Comprova la pertinença, que el cap actual de la PR sigui el commit que ha
   informat a aquell fil, i que totes les comprovacions obligatòries estiguin en
   verd i al dia, i només llavors fusiona sense bypass d'administrador. La
   persona no ha de conèixer el SHA: el fixa el servei amb la resposta de GitHub,
@@ -497,6 +498,7 @@ s'afegeixen les mancances del pont sense duplicar suites senceres.
   xarxa, credencials revocades i resposta externa amb resultat desconegut.
 - Merge: una comanda verificada fusiona el commit de l'últim informe; es
   rebutgen el merge sense comanda, des d'un altre grup o un missatge privat,
+  amb `/merge` sense avís verd resoluble o amb feina més nova que l'avís,
   amb commits posteriors a l'informe, amb CI vermella, pendent o absent, amb la
   PR en esborrany, amb la base canviada, amb bypass d'administrador i la
   repetició després d'un resultat desconegut.
@@ -594,8 +596,8 @@ prova simulada no es presenta com a verificació dels permisos reals de GitHub.
    dins de l'abast i amb descripció i evidència revisables.
 7. El servei fusiona només amb la petició explícita d'un membre verificat, el
    commit informat al fil i les comprovacions obligatòries en verd, i supera les
-   proves negatives de merge sense comanda, amb commits posteriors a
-   l'informe, CI vermella o pendent,
+   proves negatives de merge sense comanda, sense avís verd resoluble, amb
+   feina més nova que l'avís, amb commits posteriors a l'informe, CI vermella o pendent,
    auto-merge, push a `main`, escapada del sandbox i accés a producció. No
    n'hi ha prou amb regles del prompt. Només el pipeline protegit desplega.
 8. Sense petició explícita al fil o amb CI vermella, l'agent no demana preview.
