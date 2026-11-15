@@ -419,6 +419,57 @@ export class CiWatchStore {
     return count;
   }
 
+  /** Repairs whose external result is unknown, oldest first. */
+  uncertainRepairs() {
+    return this.#database
+      .prepare(
+        `SELECT sequence, update_identifier, session_key, pull_request_number,
+                commit_sha, created_at
+         FROM ci_repairs WHERE status = 'uncertain' ORDER BY sequence`,
+      )
+      .all();
+  }
+
+  /**
+   * Close an uncertain repair once a person checked GitHub, and return it. The
+   * guarded update matches the Telegram update, the row sequence and the failed
+   * commit, so a sequence that a later repair reused is never resolved by an
+   * older command. No CI watch is reopened: the commit is not followed again.
+   */
+  resolveUncertainRepair({
+    updateIdentifier,
+    sequence,
+    failedCommit,
+    outcome,
+  }) {
+    return this.#transaction(() => {
+      const changed =
+        this.#database
+          .prepare(
+            `UPDATE ci_repairs SET status = 'done', outcome = ?, updated_at = ?
+             WHERE sequence = ? AND update_identifier = ? AND commit_sha = ?
+               AND status = 'uncertain'`,
+          )
+          .run(
+            outcome,
+            this.#now().toISOString(),
+            sequence,
+            updateIdentifier,
+            failedCommit,
+          ).changes === 1;
+      if (!changed) {
+        return null;
+      }
+      return this.#database
+        .prepare(
+          `SELECT sequence, update_identifier, session_key, pull_request_number,
+                  commit_sha, created_at
+           FROM ci_repairs WHERE sequence = ?`,
+        )
+        .get(sequence);
+    });
+  }
+
   /**
    * A restart cannot know whether the interrupted repair published anything.
    * It is never repeated automatically and the caller must reconcile it.

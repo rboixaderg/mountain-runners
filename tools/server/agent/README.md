@@ -39,6 +39,10 @@ tools/server/agent/               aplicació de Mountain Runners
 │   └── test-support/             imatges sintètiques de les proves
 ├── commands/trace/
 │   └── cli.mjs                   consulta de només lectura de la traça privada
+├── commands/reconcile/
+│   ├── cli.mjs                   embolcall de procés: umask privat i codi de sortida
+│   ├── command.mjs               ordre d'operador, amb clients de GitHub i Telegram injectables
+│   └── uncertain-cases.mjs       fets i resolució d'una instrucció, reparació o preview
 ├── processes/telegram-bridge/
 │   └── main.mjs                  connecta paquet i flux de desenvolupament
 ├── policy/
@@ -235,10 +239,17 @@ reintentar-lo. Un error després d'iniciar la
 publicació, o una aturada de sandbox no confirmada, retornen un resultat incert.
 L'arrencada es refusa mentre quedi qualsevol instrucció incerta, una reparació
 interrompuda o un comentari `/preview` interromput abans de saber si s'ha
-publicat, fins i tot després de diversos reinicis. Amb el servei en marxa,
+publicat, fins i tot després de diversos reinicis. Abans de refusar, completa
+totes les recuperacions locals (instruccions, avisos, reparacions, previews i
+merges), de manera que un sol reinici deixa tots els casos atribuïts a la traça.
+Amb el servei en marxa,
 una reparació amb resultat desconegut atura les reparacions automàtiques mentre
-les instruccions del tema continuen. La reconciliació completa
-continua fora de T8.3 i T8.4.
+les instruccions del tema continuen. La reconciliació d'un resultat desconegut
+no és automàtica: una persona llegeix l'estat real i el tanca amb
+`commands/reconcile/cli.mjs`, amb el servei aturat i la identitat del servei.
+Cada resolució es desa amb la seva traça o no es desa, i la comanda no crea cap
+base de dades. El procediment és a
+[`docs/deployment.md`](../../../docs/deployment.md#reconciliació-de-resultats-desconeguts-t85).
 
 La classificació semàntica no substitueix l'autorització, els muntatges de només
 lectura ni les operacions deterministes de Git. El paquet no inclou aquesta
@@ -324,7 +335,12 @@ Telegram, cua, sessions i RPC. L'aplicació prova la política, el sandbox i Git
 simulades. `repository/ci-status.test.mjs` cobreix la classificació de la CI i la
 identitat de la fallada; `workflow/ci-watch.test.mjs`, la reserva de reparacions;
 i `workflow/ci-repair.test.mjs`, l'execució, el límit, el resultat desconegut i
-l'aturada. `workflow/bridge-package.test.mjs` executa el paquet en una còpia
+l'aturada. `commands/reconcile/uncertain-cases.test.mjs` cobreix els fets i la
+resolució de cada tipus de resultat desconegut, `commands/reconcile/command.test.mjs`
+una resolució completa amb clients simulats i `commands/reconcile/cli.test.mjs`
+el cablejat, els codis de sortida i l'absència de fitxers nous, amb stores SQLite
+temporals, repositoris locals i fronteres externes simulades.
+`workflow/bridge-package.test.mjs` executa el paquet en una còpia
 independent, prova el tarball des d'un consumidor extern i verifica la disposició
 instal·lada del servei. No s'hi fan peticions reals ni es necessiten credencials.
 

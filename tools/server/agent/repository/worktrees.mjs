@@ -414,11 +414,7 @@ export async function hasUnpublishedCommit(worktree) {
     return false;
   }
   const commit = (await runGit(worktree, ["rev-parse", "HEAD"])).trim();
-  const publicationPath = join(worktree.gitDirectory, "agent-published-head");
-  if (
-    existsSync(publicationPath) &&
-    readFileSync(publicationPath, "utf8").trim() === commit
-  ) {
+  if (publishedCommit(worktree) === commit) {
     return false;
   }
   const count = await runGit(worktree, [
@@ -427,6 +423,15 @@ export async function hasUnpublishedCommit(worktree) {
     "origin/main..HEAD",
   ]);
   return count.trim() !== "0";
+}
+
+/** The commit recorded as published outside the mount, or null. */
+export function publishedCommit(worktree) {
+  const publicationPath = join(worktree.gitDirectory, "agent-published-head");
+  if (!existsSync(publicationPath)) {
+    return null;
+  }
+  return readFileSync(publicationPath, "utf8").trim();
 }
 
 export async function committedPaths(worktree) {

@@ -255,7 +255,9 @@ export function createPreviewRequests({
    * after its report was sent, so a failed send is retried on the next cycle. A
    * crash between the send and the end of the row can repeat the notice once:
    * that is accepted over losing it. A failed read never ends a row, and the
-   * deadline is applied only after a successful read.
+   * deadline is applied only after a successful read. The confirmation is
+   * always validated against the request, never against a later reconciliation:
+   * a publisher comment written after the request still confirms it.
    */
   async function runOnce({ signal } = {}) {
     for (const row of store.awaiting()) {
@@ -268,7 +270,7 @@ export function createPreviewRequests({
       try {
         comments = await github.listIssueComments({
           number: row.pull_request_number,
-          since: row.commented_at,
+          since: row.created_at,
           signal: requestSignal(signal, requestTimeoutMilliseconds),
         });
       } catch (error) {
@@ -282,7 +284,7 @@ export function createPreviewRequests({
         comments,
         pullRequestNumber: row.pull_request_number,
         commit: row.commit_sha,
-        requestedAt: row.commented_at,
+        requestedAt: row.created_at,
       });
       const expired =
         now().getTime() - Date.parse(row.updated_at) >=

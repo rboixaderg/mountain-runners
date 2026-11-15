@@ -138,6 +138,13 @@ que ja eren pendents es conserven. `recover()` transforma les execucions
 interrompudes en incertes i retorna el total d'instruccions incertes, incloses
 les de reinicis anteriors.
 
+La reconciliació d'una incertesa és responsabilitat del consumidor. `uncertain()`
+retorna les instruccions incertes sense el text, i
+`resolveUncertain({ updateIdentifier, outcome, trace })` en tanca una, desa
+l'entrada de traça i retorna la fila, tot en una transacció. La instrucció només
+s'actualitza si encara és incerta, així que una resolució repetida no la
+sobreescriu ni afegeix cap traça.
+
 `runWhenIdle({ signal })` és opcional i serveix perquè l'aplicació executi la
 seva pròpia feina duradora de segon pla. El pont el crida només quan no queda
 cap instrucció per executar, i espera que retorni si ha fet alguna cosa: si en

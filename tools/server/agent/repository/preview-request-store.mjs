@@ -179,6 +179,62 @@ export class PreviewRequestStore {
       .all();
   }
 
+  /** Requests whose post may or may not have happened, oldest first. */
+  uncertain() {
+    return this.#database
+      .prepare(
+        `SELECT update_identifier, session_key, pull_request_number, commit_sha,
+                created_at
+         FROM preview_requests WHERE state = 'uncertain'
+         ORDER BY update_identifier`,
+      )
+      .all();
+  }
+
+  /**
+   * A person read GitHub and the `/preview` comment exists: the request waits
+   * for the publisher as if the post had been confirmed. The deadline restarts
+   * now, because the confirmation is read from this moment on. The guarded
+   * update refuses a case that is no longer uncertain.
+   */
+  resolveUncertainCommented(updateIdentifier) {
+    return this.#resolveUncertain(updateIdentifier, previewStates.awaiting);
+  }
+
+  /**
+   * A person read GitHub and the `/preview` comment does not exist: nothing was
+   * posted and the request ends as failed. The guarded update refuses a case
+   * that is no longer uncertain.
+   */
+  resolveUncertainNotCommented(updateIdentifier) {
+    return this.#resolveUncertain(updateIdentifier, previewStates.failed);
+  }
+
+  #resolveUncertain(updateIdentifier, state) {
+    return this.#transaction(() => {
+      const timestamp = this.#now().toISOString();
+      const commentedAt = state === previewStates.awaiting ? timestamp : null;
+      const changed =
+        this.#database
+          .prepare(
+            `UPDATE preview_requests
+             SET state = ?, commented_at = COALESCE(?, commented_at), updated_at = ?
+             WHERE update_identifier = ? AND state = 'uncertain'`,
+          )
+          .run(state, commentedAt, timestamp, updateIdentifier).changes === 1;
+      if (!changed) {
+        return null;
+      }
+      return this.#database
+        .prepare(
+          `SELECT update_identifier, session_key, pull_request_number, commit_sha,
+                  created_at
+           FROM preview_requests WHERE update_identifier = ?`,
+        )
+        .get(updateIdentifier);
+    });
+  }
+
   state(updateIdentifier) {
     return this.#database
       .prepare("SELECT state FROM preview_requests WHERE update_identifier = ?")

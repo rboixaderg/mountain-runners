@@ -626,6 +626,28 @@ export const ciRepairReports = {
     `No s'ha pogut llegir l'estat de la PR #${pullRequestNumber} abans de reparar el commit ${shortCommit(commit)}. No s'ha intentat cap reparació automàtica.`,
 };
 
+// Resolutions of an interrupted external result. A person chooses one after
+// reading the real state; the service never resolves these cases on its own.
+export const reconcileResolutions = {
+  published: "published",
+  notPublished: "not_published",
+  commented: "commented",
+  notCommented: "not_commented",
+};
+
+const reconcileResolutionResults = {
+  [reconcileResolutions.published]: "publicat",
+  [reconcileResolutions.notPublished]: "no publicat",
+  [reconcileResolutions.commented]: "comentari publicat",
+  [reconcileResolutions.notCommented]: "comentari no publicat",
+};
+
+// One neutral notice per reconciliation. It never repeats the instruction text.
+export const reconcileReports = {
+  reconciled: ({ resolution }) =>
+    `Una operació interrompuda s'ha revisat i tancada (resultat: ${reconcileResolutionResults[resolution]}). Si cal continuar la feina, demana-ho de nou.`,
+};
+
 // An image attachment only feeds an implementation or a continuation. Any other
 // instruction ignores the file and says so once.
 export const attachmentReports = {

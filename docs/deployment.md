@@ -487,7 +487,8 @@ la sessió; si no es pot confirmar, l'execució queda fallida o incerta.
   El servei continua refusant totes les arrencades mentre hi hagi una instrucció
   incerta. Mentre el procés encara funciona amb la cua bloquejada, les peticions
   noves es registren com a refusades i reben un avís; no s'acumulen com a pendents. Cal revisar l'estat real; no es repeteix cap acció
-  externa automàticament. La reconciliació completa és a T8.4/T8.5.
+  externa automàticament. La reconciliació d'aquests casos es fa amb l'ordre
+  d'operador de [Reconciliació de resultats desconeguts (T8.5)](#reconciliació-de-resultats-desconeguts-t85).
 - Una primera crida efímera al model classifica només la petició verificada,
   sense eines, historial ni context del repositori. Distingeix consulta, feina
   nova i continuació explícita de la feina pendent. Una resposta invàlida demana
@@ -641,7 +642,9 @@ agafar, i el mateix avís, commit i fallada només es reserva una vegada. Un
 intent reservat només es pot executar després que l'avís «en curs» s'hagi
 enviat al tema; si l'avís no s'envia, l'intent no s'executa ni compta. Una reparació interrompuda pot haver fet
 push i mai no es repeteix sola: el servei refusa arrencar fins que una persona
-reconciliï l'estat real, igual que amb una instrucció interrompuda. Amb el
+reconciliï l'estat real, igual que amb una instrucció interrompuda; el
+procediment és a
+[Reconciliació de resultats desconeguts (T8.5)](#reconciliació-de-resultats-desconeguts-t85). Amb el
 servei en marxa, una reparació amb resultat desconegut atura les reparacions
 automàtiques, també les que es reservarien per una fallada nova: el tema ho
 informa en lloc d'anunciar un intent que no es farà. Les instruccions del tema
@@ -692,13 +695,17 @@ privada.
 - **Confirmació.** Un bucle en segon pla llegeix els comentaris de la PR i
   només accepta el del publicador de la fase 6: autor `github-actions[bot]`,
   marcador, origen exacte `https://pr-<n>.preview.mountainrunners.cat`, SHA igual
-  al fixat i comentari escrit o actualitzat després de la petició. Retorna URL,
-  SHA curt i PR al tema. Si en 15 minuts no hi ha confirmació, ho comunica
-  com a no confirmada; mai construeix ni suposa l'URL.
+  al fixat i comentari escrit o actualitzat després de la petició. La
+  confirmació es valida sempre contra el moment de la petició (`created_at`),
+  també quan una persona la reconcilia després. Retorna URL, SHA curt i PR al
+  tema. Si en 15 minuts no hi ha confirmació, ho comunica com a no confirmada;
+  mai construeix ni suposa l'URL.
 - **Reinicis.** Una petició en `commenting` passa a `uncertain` i no es torna a
   publicar mai sola; com amb una reparació interrompuda, el servei refusa
-  arrencar fins que una persona reconciliï l'estat real a GitHub. Una petició en
-  `awaiting` reprèn la lectura de comentaris amb el termini original.
+  arrencar fins que una persona reconciliï l'estat real a GitHub, amb
+  [Reconciliació de resultats desconeguts (T8.5)](#reconciliació-de-resultats-desconeguts-t85).
+  Una petició en `awaiting` reprèn la lectura de comentaris amb el termini
+  original.
 - **Traça privada.** `preview_requested`, `preview_refused` (amb el motiu),
   `preview_commented`, `preview_confirmed`, `preview_unconfirmed`,
   `preview_failed` i `preview_uncertain`, amb la PR i el commit i l'autor, sense text de conversa
@@ -1056,6 +1063,109 @@ runuser -u mountain-agent -- env \
   stderr i acaben amb codi 2. Una base de dades absent acaba amb codi 1 i no es
   crea.
 
+### Reconciliació de resultats desconeguts (T8.5)
+
+Una aturada o un reinici pot deixar una acció externa amb resultat desconegut:
+una instrucció que podia haver fet push o obert una PR, una reparació automàtica
+que podia haver fet push o un comentari `/preview` que podia haver-se publicat.
+El servei refusa arrencar mentre en quedi cap. La decisió és d'una persona:
+l'ordre no repeteix l'acció, no fa push, no comenta i no fusiona res.
+
+**Precondició.** Atura el servei abans de fer res:
+
+```sh
+systemctl stop mountain-agent
+```
+
+Les ordres s'executen amb la identitat del servei i el seu entorn, que inclou les
+credencials de GitHub i Telegram:
+
+```sh
+systemd-run --pipe --wait --uid=mountain-agent --gid=mountain-agent \
+  -p EnvironmentFile=/etc/mountain-runners-agent/agent.env -p UMask=0077 \
+  /usr/bin/node /usr/local/lib/mountain-runners/agent/commands/reconcile/cli.mjs list
+```
+
+L'ordre fixa el seu propi `umask` i no crea cap base de dades: una base absent
+compta com que no hi ha cap cas d'aquell tipus.
+
+1. **Llista els casos.** `list` escriu una línia JSON per cas amb `kind`
+   (`instruction`, `repair` o `preview`), `update_identifier`, `session_key`,
+   `created_at` i els fets que pot llegir.
+   - `instruction`: `worktree` amb la branca del tema, el HEAD local i si aquell
+     HEAD ja consta com a publicat, i la PR oberta d'aquella branca amb el
+     número i el cap.
+   - `repair`: `update_identifier` (l'actualització de Telegram), `sequence`
+     (la seqüència de la fila), `failed_commit`, `pull_request_number` i
+     l'estat de la PR amb el seu cap.
+   - `preview`: `pull_request_number`, el commit i `comment_found`, que diu si el
+     compte del servei ha creat un comentari amb el cos exacte `/preview`
+     després de la petició. Un comentari creat abans i editat després no compta.
+
+   Si una lectura de GitHub falla, aquell cas porta `"github": "unavailable"` i
+   la resta es llisten igualment. Si el tema no té worktree local, `github` val
+   `"skipped"` i no es llegeix cap PR. La sortida no conté cap token ni el text de
+   la instrucció.
+
+2. **Comprova l'estat real a GitHub** amb la PR, la branca, els commits i els
+   comentaris que mostra la llista.
+
+3. **Resol un cas per ordre.** Afegeix `resolve` amb el `kind` i els
+   identificadors de la llista, dins de la mateixa ordre `systemd-run`:
+
+   ```sh
+   /usr/bin/node /usr/local/lib/mountain-runners/agent/commands/reconcile/cli.mjs \
+     resolve --kind instruction --update 12 --resolution published --commit <SHA>
+   /usr/bin/node /usr/local/lib/mountain-runners/agent/commands/reconcile/cli.mjs \
+     resolve --kind repair --update 3 --sequence 1 --failed-commit <SHA> \
+       --resolution not_published
+   /usr/bin/node /usr/local/lib/mountain-runners/agent/commands/reconcile/cli.mjs \
+     resolve --kind preview --update 21 --resolution commented
+   ```
+
+   | Cas        | Resolució                  | Efecte                                                                                                                                                   |
+   | ---------- | -------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+   | instrucció | `published --commit <SHA>` | Estat `done` i resultat `reconciled_published`; si el HEAD del worktree del tema és aquell commit, es marca com a publicat i no es torna a publicar mai. |
+   | instrucció | `not_published`            | Estat `done` i resultat `reconciled_not_published`; el treball local es conserva i una persona pot demanar-ne la continuació.                            |
+   | reparació  | `published --commit <SHA>` | Estat `done` i resultat `reconciled_published`; no es reobre cap seguiment de CI.                                                                        |
+   | reparació  | `not_published`            | Estat `done` i resultat `reconciled_not_published`; no es reobre cap seguiment de CI.                                                                    |
+   | preview    | `commented`                | Estat `awaiting` amb el moment actual; el servei continua esperant la confirmació del publicador i la informa al tema.                                   |
+   | preview    | `not_commented`            | Estat `failed`; no s'ha publicat res.                                                                                                                    |
+
+   `--commit` és obligatori amb `published` i no s'accepta en cap altre cas. Una
+   reparació exigeix `--update`, `--sequence` i `--failed-commit`, i la
+   transacció només afecta la fila que coincideix amb els tres: si una reparació
+   posterior reutilitza la mateixa seqüència, l'ordre antiga es refusa. Cada
+   crida afecta un sol cas, en una transacció limitada per l'estat incert: un cas
+   ja resolt es refusa amb codi 1 i no es sobreescriu.
+
+4. **Avís i traça.** Cada resolució registra `uncertain_reconciled` a la traça
+   privada amb el tipus, la resolució, la PR i el SHA curt quan es coneixen, sense
+   text de conversa ni identitat de l'operador. Després envia al tema un únic
+   avís neutre («Una operació interrompuda s'ha revisat i tancada (resultat:
+   ...)»). Si l'avís falla, s'escriu a stderr i es traça com a
+   `uncertain_reconciled_notice_failed`; la resolució es manté. Mai es desa una
+   resolució sense traça: en una instrucció, el canvi d'estat i la traça són una
+   sola transacció; en una reparació o una preview, la traça s'escriu abans del
+   canvi i, si falla, no es modifica res. Si el canvi falla després de la traça,
+   es registra `uncertain_reconcile_failed` i la comanda acaba amb codi 1. En una
+   instrucció publicada, el senyal de publicació del worktree s'escriu abans de
+   tancar-la: si falla, la instrucció continua incerta i es pot reintentar.
+
+5. **Torna a arrencar.** Amb tots els casos resolts, el recompte que llegeix
+   l'arrencada és zero i el servei arrenca. Cap acció interrompuda no s'ha
+   repetit. L'arrencada completa totes les recuperacions locals abans de
+   refusar, així que un sol reinici deixa tots els casos atribuïts a la traça i
+   visibles a `list`.
+
+Codis de sortida: 0 correcte. També és 0 quan `list` troba una lectura de GitHub
+no disponible (`"github": "unavailable"`) i quan `resolve` només falla en
+l'avís al tema. 1 és per a una fallada que impedeix completar l'ordre: un cas
+inexistent o ja resolt, una traça que no es pot escriure o una fallada de
+GitHub, Telegram o de la base de dades. 2 és un error d'ús (`parseArgs`, tipus,
+resolució, identificador o SHA invàlids, `--commit` que falta o que sobra,
+`--sequence` o `--failed-commit` fora d'una reparació).
+
 ### Instal·lació prevista
 
 El procediment següent és la preparació prevista; **no s'ha executat** i cap ordre
@@ -1216,8 +1326,9 @@ Pendent per a les entregues següents:
 
 - Pertinença, revocació i dos autors (T8.5), amb l'aturada, la rotació i la
   retenció documentades (T8.5/T8.6).
-- Recuperació d'una acció externa amb resultat desconegut i reconciliació del
-  registre.
+- Recuperació d'una acció externa amb resultat desconegut: el procediment és a
+  [Reconciliació de resultats desconeguts (T8.5)](#reconciliació-de-resultats-desconeguts-t85)
+  i la seva validació integral, a T8.6.
 - Retenció de worktrees: cada worktree conserva les seves dependències i el
   volum de treball creix amb cada tasca arxivada.
 
