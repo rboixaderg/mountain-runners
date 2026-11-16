@@ -1,0 +1,41 @@
+docs/decisions/0013-private-development-agent-boundary.md
+  s_f4116058b05ccc::t_fc704dd9949240 13-14
+docs/decisions/0014-operator-stop-and-repeatable-telegram-notices.md
+  s_034dfc177e5f19::t_0c7485f39c5aa1 1-75
+docs/deployment.md
+  s_034dfc177e5f19::t_4e8f4b4c38a927 537-541,740-742,825-828
+docs/phase-8-t81-requisits-amenaces.md
+  s_dd749985b9417e::t_b59700cc13a01e 73-78
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "7465f815f46cf6fa485173bc03ea34684a5eb50f",
+  "prompts": {},
+  "sessions": {
+    "s_034dfc177e5f19": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a1ddfd-1630-7799-b4a1-7d3899d76ddb",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    },
+    "s_dd749985b9417e": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a1e588-1a6b-752e-843e-49d65ab1b694",
+        "model": "deepseek-v4.1-flash"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    },
+    "s_f4116058b05ccc": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a1e578-6f1d-779b-bf3c-cb24d6d0d2c6",
+        "model": "deepseek-v4.1-flash"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
