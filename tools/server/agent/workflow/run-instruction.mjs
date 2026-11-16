@@ -64,17 +64,21 @@ export function createInstructionRunner({
       repositoryPath,
       worktreeRoot,
       name: identifier,
+      signal,
     });
     if (worktree === null) {
       return { report: instructionReports.repairWorktreeMissing };
     }
-    const branch = await currentBranch(worktree);
-    if (branch === null || (await headCommit(worktree)) !== request.commit) {
+    const branch = await currentBranch(worktree, { signal });
+    if (
+      branch === null ||
+      (await headCommit(worktree, { signal })) !== request.commit
+    ) {
       return { report: instructionReports.repairCommitChanged };
     }
     // Leftovers of a later instruction (for example a failed check) are not
     // part of the failed commit and must never be committed by a repair.
-    if ((await listChangedPaths(worktree)).length > 0) {
+    if ((await listChangedPaths(worktree, { signal })).length > 0) {
       return { report: instructionReports.repairWorktreeDirty };
     }
     signal?.throwIfAborted();
@@ -85,10 +89,12 @@ export function createInstructionRunner({
         pullRequestNumber: request.pullRequestNumber,
         commit: request.commit,
         branch,
-        changeSummary: await commitSubject(worktree, request.commit),
+        changeSummary: await commitSubject(worktree, request.commit, {
+          signal,
+        }),
         failedChecks: request.failedChecks,
         evidence: request.evidence,
-        diff: await changeDiff({ worktree }),
+        diff: await changeDiff({ worktree, signal }),
       }),
     };
   }
@@ -213,13 +219,14 @@ export function createInstructionRunner({
           name: identifier,
           newTaskIdentifier:
             kind === "implementation" ? request.updateIdentifier : undefined,
+          signal,
         });
       }
       if (
         kind === "continuation" &&
         resumed === null &&
-        (await listChangedPaths(worktree)).length === 0 &&
-        !(await hasUnpublishedCommit(worktree))
+        (await listChangedPaths(worktree, { signal })).length === 0 &&
+        !(await hasUnpublishedCommit(worktree, { signal }))
       ) {
         return {
           outcome: "answered",
@@ -287,10 +294,10 @@ export function createInstructionRunner({
       // commit or a publication, even on a branch whose .gitignore lacks the
       // rule.
       removeAttachmentDirectory({ worktreePath: worktree.path });
-      const changedPaths = await listChangedPaths(worktree);
+      const changedPaths = await listChangedPaths(worktree, { signal });
       if (
         changedPaths.length === 0 &&
-        !(await hasUnpublishedCommit(worktree))
+        !(await hasUnpublishedCommit(worktree, { signal }))
       ) {
         const answer = modelResult.text.trim() || instructionReports.noAnswer;
         return {
@@ -302,7 +309,7 @@ export function createInstructionRunner({
       const title = fallbackTitle({ summary });
       const existingBranch = repair
         ? target.branch
-        : await currentBranch(worktree);
+        : await currentBranch(worktree, { signal });
       const branch = existingBranch
         ? assertWorkBranch(existingBranch)
         : branchNameForChange({
@@ -310,7 +317,7 @@ export function createInstructionRunner({
             updateIdentifier: request.updateIdentifier,
           });
       if (!existingBranch) {
-        await createBranch({ worktree, branch });
+        await createBranch({ worktree, branch, signal });
       }
       const checks = await runChecks({
         sessionIdentifier: identifier,
@@ -338,6 +345,7 @@ export function createInstructionRunner({
               worktree,
               branch,
               continuedPullRequestNumber: resumed?.pullRequestNumber,
+              signal,
             })) ?? null;
         } catch (error) {
           logger(
@@ -348,12 +356,11 @@ export function createInstructionRunner({
       }
       // A swallowed warning error never hides an abort: nothing is committed.
       signal?.throwIfAborted();
-      await commitAll({ worktree, message: title });
+      await commitAll({ worktree, message: title, signal });
       const body = pullRequestBody({
         title,
-        changedPaths: await committedPaths(worktree),
+        changedPaths: await committedPaths(worktree, { signal }),
       });
-      publicationStarted = true;
       // A repair and a resumed pull request only update the pull request they
       // continue: the publisher checks it is still open at that commit and
       // never opens a new one.
@@ -370,14 +377,28 @@ export function createInstructionRunner({
           commit: resumed.baseHeadSha,
         };
       }
+      // The instruction only becomes possibly published when the publisher is
+      // about to write to GitHub: a read of the pull request that fails before
+      // the push is a local failure, never an unknown result.
       const publication = await publishChange({
         worktree,
         branch,
         title,
         body,
         repair: continuedPullRequest,
+        signal,
+        onPublicationStarted: () => {
+          publicationStarted = true;
+        },
       });
       if (publication.refused) {
+        if (publication.readFailed) {
+          logger("publication_read_failed", identifier);
+          return {
+            outcome: "failed",
+            report: instructionReports.publicationReadFailed,
+          };
+        }
         logger("publication_refused", identifier);
         return {
           outcome: "failed",

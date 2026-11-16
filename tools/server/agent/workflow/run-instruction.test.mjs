@@ -15,6 +15,7 @@ import { promisify } from "node:util";
 import { test } from "node:test";
 import { PublishRefusedError } from "../repository/github.mjs";
 import { CiWatchStore } from "../repository/ci-watch-store.mjs";
+import { instructionReports } from "../policy/development.mjs";
 import { createAttachmentPreparation } from "../attachments/prepare.mjs";
 import {
   jpegImage,
@@ -824,6 +825,118 @@ for (const operationName of ["pushBranch", "ensurePullRequest"]) {
     assert.equal(await hasUnpublishedCommit(github.pushes[0].worktree), true);
   });
 }
+
+test("keeps the instruction uncertain when the publication deadline expires after the push", async (context) => {
+  const paths = await fixture(context);
+  const github = githubStub();
+  const push = github.pushBranch.bind(github);
+  const pushSignals = [];
+  github.pushBranch = async (parameters) => {
+    pushSignals.push(parameters.signal);
+    return push(parameters);
+  };
+  // The push reached GitHub; the pull request request then ran out of time.
+  github.ensurePullRequest = async () => {
+    throw new DOMException("The operation timed out.", "TimeoutError");
+  };
+  const controller = new AbortController();
+  const runner = createProjectRunner({
+    config: configFor(paths),
+    github,
+    classifyRequest: async () => "implementation",
+    runModel: async ({ worktreePath }) => {
+      writeFileSync(join(worktreePath, "change.txt"), "keep this commit\n");
+      return { text: "SUMMARY: fix(agent): bound the publication" };
+    },
+    runChecks: async () => ({ exitCode: 0 }),
+  });
+
+  const result = await runner(request(), { signal: controller.signal });
+
+  assert.equal(result.outcome, "uncertain");
+  assert.equal(pushSignals.length, 1);
+  assert.equal(pushSignals[0], controller.signal);
+  assert.equal(await hasUnpublishedCommit(github.pushes[0].worktree), true);
+});
+
+/**
+ * A pull request read that never answers. The instruction deadline fails it, so
+ * the test proves the publisher classifies a pre-write timeout, not a defect of
+ * the fake transport.
+ */
+function unreadablePullRequestRead(milliseconds) {
+  return ({ signal }) => {
+    const deadline = AbortSignal.timeout(milliseconds);
+    const bounded = signal ? AbortSignal.any([signal, deadline]) : deadline;
+    return new Promise((resolve, reject) => {
+      bounded.addEventListener("abort", () => reject(bounded.reason), {
+        once: true,
+      });
+    });
+  };
+}
+
+test("a repair whose pull request cannot be read before the push fails locally", async (context) => {
+  const paths = await fixture(context);
+  const github = githubStub();
+  const published = await publishedWorktree(context, paths, github);
+  github.getPullRequest = unreadablePullRequestRead(10);
+  const logs = [];
+  const runner = createProjectRunner({
+    config: configFor(paths),
+    github,
+    logger: (action) => logs.push(action),
+    runModel: async ({ worktreePath }) => {
+      writeFileSync(join(worktreePath, "change.txt"), "canvi 2\n");
+      return { text: "SUMMARY: fix(tools): repair the synthetic check" };
+    },
+    runChecks: async () => ({ exitCode: 0 }),
+  });
+
+  const result = await runner(repairRequest(published));
+
+  // Nothing reached GitHub: the queue continues instead of blocking on an
+  // unknown external result.
+  assert.equal(result.outcome, "failed");
+  assert.equal(result.report, instructionReports.publicationReadFailed);
+  assert.deepEqual(logs, ["publication_read_failed"]);
+  assert.equal(github.pushes.length, 1);
+  assert.equal(github.pulls.length, 1);
+});
+
+test("a stop while reading the pull request of a repair is not uncertain", async (context) => {
+  const paths = await fixture(context);
+  const github = githubStub();
+  const published = await publishedWorktree(context, paths, github);
+  const controller = new AbortController();
+  github.getPullRequest = ({ signal }) => {
+    const pending = new Promise((resolve, reject) => {
+      signal.addEventListener("abort", () => reject(signal.reason), {
+        once: true,
+      });
+    });
+    controller.abort();
+    return pending;
+  };
+  const runner = createProjectRunner({
+    config: configFor(paths),
+    github,
+    runModel: async ({ worktreePath }) => {
+      writeFileSync(join(worktreePath, "change.txt"), "canvi 2\n");
+      return { text: "SUMMARY: fix(tools): repair the synthetic check" };
+    },
+    runChecks: async () => ({ exitCode: 0 }),
+  });
+
+  const result = await runner(repairRequest(published), {
+    signal: controller.signal,
+  });
+
+  assert.equal(result.outcome, "failed");
+  assert.equal(result.report, instructionReports.aborted);
+  assert.equal(github.pushes.length, 1);
+  assert.equal(github.pulls.length, 1);
+});
 
 function repairRequest(published, overrides = {}) {
   return {

@@ -301,6 +301,71 @@ test("continues another topic's pull request and updates it without opening anot
   assert.equal(continuationTraces[0].sessionKey, topicB);
 });
 
+test("a continued pull request that cannot be read before the push fails locally", async (context) => {
+  const paths = await fixture(context);
+  const github = githubStub(paths);
+  const ciWatches = stateStore(paths);
+  context.after(() => ciWatches.close());
+  const traces = [];
+  await publishFromTopicA({ paths, github, ciWatches });
+  const readPullRequest = github.getPullRequest.bind(github);
+  github.getPullRequest = (parameters) => {
+    // The continuation has read the pull request once already. The second read
+    // is the publisher's, immediately before the push.
+    if (github.pullRequestReads === 1) {
+      const deadline = AbortSignal.timeout(10);
+      const bounded = parameters.signal
+        ? AbortSignal.any([parameters.signal, deadline])
+        : deadline;
+      return new Promise((resolve, reject) => {
+        bounded.addEventListener("abort", () => reject(bounded.reason), {
+          once: true,
+        });
+      });
+    }
+    return readPullRequest(parameters);
+  };
+  const runner = runnerFor({
+    paths,
+    github,
+    ciWatches,
+    traces,
+    classifyRequest: async () => "continuation",
+    runModel: async ({ worktreePath }) => {
+      writeFileSync(join(worktreePath, "second.txt"), "segon\n");
+      return { text: "SUMMARY: fix(tools): finish the shared change" };
+    },
+  });
+
+  const result = await runner(
+    request({
+      updateIdentifier: 1002,
+      sessionKey: topicB,
+      instruction: "Continua la PR #200",
+    }),
+  );
+
+  // Nothing reached GitHub, so the continuation is a local failure and the
+  // queue keeps running.
+  assert.equal(result.outcome, "failed");
+  assert.equal(result.report, instructionReports.publicationReadFailed);
+  assert.equal(github.pullRequestReads, 1);
+  assert.equal(github.pushes.length, 1);
+  assert.deepEqual(github.reused, []);
+  // The topic resumed the branch but never published: the owner does not move
+  // and the previous topic receives no handover notice.
+  assert.deepEqual(
+    traces
+      .filter((entry) => entry.action.startsWith("continuation_"))
+      .map((entry) => entry.action),
+    ["continuation_resumed"],
+  );
+  assert.equal(
+    ciWatches.latestPublication(pullRequestNumber).session_key,
+    topicA,
+  );
+});
+
 for (const scenario of [
   {
     name: "a closed pull request",

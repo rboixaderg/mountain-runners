@@ -138,6 +138,11 @@ al servidor. El nom local encara no representa una publicació a npm.
 6. `repository` fa commit, escaneja les credencials conegudes, publica la branca
    i obre o reutilitza la PR. Només després de confirmar push i PR registra el
    commit publicat fora del muntatge. El paquet retorna el resultat al tema.
+   Totes les ordres Git i totes les crides a l'API de GitHub tenen termini i
+   reben el senyal de la instrucció: 120 s per a una ordre Git local, 300 s per
+   a `fetch` i `push`, i 30 s per a una crida a l'API que no porti termini propi.
+   Una ordre que s'esgota o s'atura es mata amb `SIGKILL` i no compta com un
+   refús local.
 7. Abans de respondre, `workflow` desa un seguiment de CI vinculat al SHA
    publicat. Un bucle en segon pla llegeix els check runs i els estats de commit
    d'aquell SHA i, quan les comprovacions obligatòries acaben, envia el resultat
@@ -235,7 +240,11 @@ sota `.agent-attachments/`: l'adjunt no es publica ni en una branca amb un
 frase.
 
 Un error local conegut, un timeout o una cancel·lació amb neteja confirmada
-retornen una fallada sense bloquejar la cua. L'avís de CI tampoc no bloqueja la
+retornen una fallada sense bloquejar la cua. Un termini o una aturada abans de
+la primera escriptura remota és una fallada local, i la lectura de la PR que el
+publicador fa abans del push també hi entra: un termini esgotat allà té el seu
+avís propi. Després d'un push o d'una petició de PR, la instrucció queda
+incerta. L'avís de CI tampoc no bloqueja la
 cua: només es declaren verdes les comprovacions obligatòries presents i
 correctes del SHA exacte, i un resultat no confirmat es comunica sense
 reintentar-lo. Un error després d'iniciar la

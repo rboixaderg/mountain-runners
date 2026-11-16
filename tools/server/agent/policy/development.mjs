@@ -325,6 +325,8 @@ export const instructionReports = {
     "Les comprovacions del projecte fallen. No s'ha fet cap push; el treball es conserva per revisar-lo.",
   publicationRefused:
     "La publicació s'ha refusat per una regla local. No s'ha enviat res a GitHub; el treball es conserva per revisar-lo.",
+  publicationReadFailed:
+    "No s'ha pogut llegir l'estat de la pull request abans de publicar. No s'ha enviat res a GitHub; el treball es conserva i la cua pot continuar.",
   repairWorktreeMissing:
     "No s'ha trobat el worktree de la feina publicada. No s'ha intentat cap reparació automàtica; el treball es conserva i cal revisar-ho.",
   repairCommitChanged:
