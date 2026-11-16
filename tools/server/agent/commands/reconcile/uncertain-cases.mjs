@@ -1,17 +1,17 @@
 // Operator reconciliation of unknown external results (T8.5).
 //
-// An interrupted instruction, automatic repair or `/preview` post leaves the
-// service unable to start, because the external effect may or may not have
-// happened. A person with root access reads the real state here and closes the
-// case with an explicit decision. Nothing is executed again and nothing is
-// pushed, commented or merged: the only writes are the durable store, the
-// published-head mark of an instruction whose head is confirmed, the private
-// trace and one neutral notice per topic.
+// An interrupted instruction, automatic repair, `/preview` post or CI notice
+// leaves the service unable to start or to trust its own state, because the
+// external effect may or may not have happened. A person with root access reads
+// the real state here and closes the case with an explicit decision. Nothing is
+// executed again and nothing is pushed, commented or merged: the only writes are
+// the durable store, the published-head mark of an instruction whose head is
+// confirmed and the private trace.
 //
 // A resolution is never kept without its trace. The instruction transition and
-// its trace share the admission database, so they are one transaction. A repair
-// or a preview lives in another database: the trace is written first and a
-// failure changes nothing.
+// its trace share the admission database, so they are one transaction. A repair,
+// a preview or a notice lives in another database: the trace is written first
+// and a failure changes nothing.
 
 import {
   parseSessionKey,
@@ -35,6 +35,7 @@ export const caseKinds = {
   instruction: "instruction",
   repair: "repair",
   preview: "preview",
+  notice: "notice",
 };
 
 /** Outcomes stored with a reconciled instruction or repair. */
@@ -56,6 +57,10 @@ export const resolutionsByKind = {
   [caseKinds.preview]: [
     reconcileResolutions.commented,
     reconcileResolutions.notCommented,
+  ],
+  [caseKinds.notice]: [
+    reconcileResolutions.delivered,
+    reconcileResolutions.resend,
   ],
 };
 
@@ -185,6 +190,22 @@ async function previewCase({ row, github }) {
 }
 
 /**
+ * The facts of an unknown CI notice. Its result was read from GitHub before the
+ * delivery, so it also says what the topic would have received.
+ */
+function noticeCase({ row }) {
+  return {
+    kind: caseKinds.notice,
+    update_identifier: row.update_identifier,
+    session_key: row.session_key,
+    created_at: row.created_at,
+    pull_request_number: row.pull_request_number,
+    commit: row.commit_sha,
+    result: row.result,
+  };
+}
+
+/**
  * One JSON-serialisable object per uncertain case, grouped by kind and oldest
  * first. A failed GitHub read prints `github: "unavailable"` for that case and
  * the remaining cases are still listed. A database that does not exist has no
@@ -200,6 +221,9 @@ export async function listUncertainCases({ config, stores, github }) {
   }
   for (const row of stores.previews?.uncertain() ?? []) {
     cases.push(await previewCase({ row, github }));
+  }
+  for (const row of stores.repairs?.uncertainNotices() ?? []) {
+    cases.push(noticeCase({ row }));
   }
   return cases;
 }
@@ -253,6 +277,37 @@ function failTransition({ stores, resolved, warn, error }) {
 }
 
 /**
+ * A confirmed publication is not a confirmed notice: the topic must still
+ * receive the report of the commit. The command rebuilds the durable watch the
+ * failed registration never wrote, so the ordinary worker re-reads the pull
+ * request and reports before `/merge` can resolve anything again. The watch is
+ * written before the instruction changes; a failure keeps it uncertain. An
+ * existing watch of the same update is left as it is.
+ */
+function registerConfirmedWatch({
+  stores,
+  sessionKey,
+  updateIdentifier,
+  pullRequestNumber,
+  commit,
+}) {
+  if (stores.repairs === null) {
+    throw new ReconcileCaseError(
+      "The CI watch database is missing; the publication cannot be followed.",
+    );
+  }
+  if (stores.repairs.state(updateIdentifier) !== undefined) {
+    return;
+  }
+  stores.repairs.add({
+    updateIdentifier,
+    sessionKey,
+    pullRequestNumber,
+    commitSha: commit,
+  });
+}
+
+/**
  * The topic worktree is marked as published only when its head is exactly the
  * commit a person confirmed, so the same commit can never be published twice.
  * The marker is written before the instruction changes: a failure keeps the
@@ -280,6 +335,7 @@ async function resolveInstruction({
   updateIdentifier,
   resolution,
   commit,
+  pullRequestNumber,
 }) {
   const row = (stores.instructions?.uncertain() ?? []).find(
     (candidate) => candidate.update_identifier === updateIdentifier,
@@ -289,17 +345,25 @@ async function resolveInstruction({
       `Instruction ${updateIdentifier} is not an uncertain case.`,
     );
   }
+  const published = resolution === reconcileResolutions.published;
   const resolved = {
     kind: caseKinds.instruction,
     updateIdentifier,
     telegramUpdateIdentifier: row.update_identifier,
     sessionKey: row.session_key,
-    pullRequestNumber: null,
+    pullRequestNumber: published ? pullRequestNumber : null,
     commit,
     resolution,
   };
 
-  if (resolution === reconcileResolutions.published) {
+  if (published) {
+    registerConfirmedWatch({
+      stores,
+      sessionKey: row.session_key,
+      updateIdentifier,
+      pullRequestNumber,
+      commit,
+    });
     await recordConfirmedPublication({
       config,
       sessionKey: row.session_key,
@@ -427,6 +491,50 @@ function resolvePreview({ stores, updateIdentifier, resolution, warn }) {
   return resolved;
 }
 
+function resolveNotice({ stores, updateIdentifier, resolution, warn }) {
+  const row = (stores.repairs?.uncertainNotices() ?? []).find(
+    (candidate) => candidate.update_identifier === updateIdentifier,
+  );
+  if (row === undefined) {
+    throw new ReconcileCaseError(
+      `Notice ${updateIdentifier} is not an uncertain case.`,
+    );
+  }
+  const resolved = {
+    kind: caseKinds.notice,
+    updateIdentifier,
+    telegramUpdateIdentifier: row.update_identifier,
+    sessionKey: row.session_key,
+    pullRequestNumber: row.pull_request_number,
+    commit: row.commit_sha,
+    resolution,
+  };
+
+  // The trace lives in another database: it is written first, so a failure
+  // leaves the notice uncertain.
+  recordTrace({ stores, entry: traceEntry(resolved) });
+  let applied;
+  try {
+    applied =
+      resolution === reconcileResolutions.delivered
+        ? stores.repairs.resolveUncertainNoticeDelivered(updateIdentifier)
+        : stores.repairs.resolveUncertainNoticeResend(updateIdentifier);
+  } catch (error) {
+    failTransition({ stores, resolved, warn, error });
+  }
+  if (applied === null) {
+    failTransition({
+      stores,
+      resolved,
+      warn,
+      error: new ReconcileCaseError(
+        `Notice ${updateIdentifier} is not an uncertain case.`,
+      ),
+    });
+  }
+  return resolved;
+}
+
 function resolveCase({
   config,
   stores,
@@ -437,6 +545,7 @@ function resolveCase({
   failedCommit,
   resolution,
   commit,
+  pullRequestNumber,
 }) {
   const resolutions = resolutionsByKind[kind];
   if (resolutions === undefined || !resolutions.includes(resolution)) {
@@ -452,6 +561,7 @@ function resolveCase({
         updateIdentifier,
         resolution,
         commit,
+        pullRequestNumber,
       });
     case caseKinds.repair:
       return resolveRepair({
@@ -470,6 +580,8 @@ function resolveCase({
         resolution,
         warn,
       });
+    case caseKinds.notice:
+      return resolveNotice({ stores, updateIdentifier, resolution, warn });
     default:
       throw new ReconcileCaseError(`Unknown case kind ${kind}.`);
   }
@@ -501,7 +613,9 @@ async function notify({ stores, telegram, resolved, warn }) {
  * Resolve one case with the decision of a person. Every store update is guarded
  * by the uncertain state, so an already resolved case is refused instead of
  * being overwritten. A resolution is never kept without its trace, and a failed
- * notice never undoes one.
+ * notice never undoes one. A reconciled notice sends no topic notice: `delivered`
+ * means the topic already received it and `resend` asks the ordinary worker to
+ * send it again.
  */
 export async function resolveUncertainCase({
   config,
@@ -513,6 +627,7 @@ export async function resolveUncertainCase({
   failedCommit,
   resolution,
   commit,
+  pullRequestNumber,
   warn = () => {},
 }) {
   const resolved = await resolveCase({
@@ -525,7 +640,10 @@ export async function resolveUncertainCase({
     failedCommit,
     resolution,
     commit,
+    pullRequestNumber,
   });
-  await notify({ stores, telegram, resolved, warn });
+  if (resolved.kind !== caseKinds.notice) {
+    await notify({ stores, telegram, resolved, warn });
+  }
   return resolved;
 }

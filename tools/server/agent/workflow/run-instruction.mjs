@@ -426,6 +426,15 @@ export function createInstructionRunner({
       if (overlapWarning !== null) {
         publicationText = `${publicationText}\n${overlapWarning}`;
       }
+      // The publication happened, but no durable CI watch records it: an older
+      // notice of the topic must not authorize anything from now on, so the
+      // instruction ends unknown and a person reconciles it.
+      if (ciWatch === ciWatchOutcomes.unavailable) {
+        return {
+          outcome: "uncertain",
+          report: `${publicationText}\n${instructionReports.ciWatchUnavailable}`,
+        };
+      }
       return {
         outcome: publication.created
           ? "pull_request_created"

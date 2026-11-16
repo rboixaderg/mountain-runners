@@ -16,6 +16,7 @@ import {
   failureFingerprint,
   isDecisiveFailure,
 } from "../repository/ci-status.mjs";
+import { repairWillNotRun } from "../repository/ci-watch-store.mjs";
 import {
   defaultRequestTimeoutMilliseconds,
   requestSignal,
@@ -28,6 +29,7 @@ export const ciResults = {
   success: "success",
   failure: "failure",
   repairing: "repairing",
+  repairNotRun: "repair-not-run",
   repairBlocked: "repair-blocked",
   repairLimit: "repair-limit",
   unknown: "unknown",
@@ -211,6 +213,11 @@ function noticeFor({
         attemptNumber: outcome.attemptNumber,
         maximumAttempts: maximumAutomaticRepairs,
       });
+    case ciResults.repairNotRun:
+      return ciReports.repairNotRun({
+        ...common,
+        failedChecks: outcome.failedChecks,
+      });
     case ciResults.repairBlocked:
       return ciReports.repairBlocked({
         ...common,
@@ -339,7 +346,10 @@ export function createCiWatchWorker({
    * reserve a third one. It is queued only after the notice is delivered and the
    * watch is finished: the repair can neither report before its announcement nor
    * publish while the watch cannot be reopened. An announcement that is not
-   * delivered leaves the reservation unqueued, so it never runs unannounced.
+   * delivered closes the reservation as aborted, so it never runs and it never
+   * blocks the topic waiting for a result that will not come. A failure whose
+   * attempt already ended is announced as a job that only a new instruction can
+   * continue, never as a repair that is running.
    */
   async function requestRepair(watch, outcome, { signal } = {}) {
     const requested = repairs.requestRepair({
@@ -366,6 +376,20 @@ export function createCiWatchWorker({
       });
       return;
     }
+    if (repairWillNotRun(requested.status)) {
+      await deliver(
+        watch,
+        { ...outcome, result: ciResults.repairNotRun },
+        { signal },
+      );
+      safeTrace({
+        updateIdentifier: watch.update_identifier,
+        sessionKey: watch.session_key,
+        action: "ci_repair_not_run",
+        detail: `${describe(watch)} ${requested.status}`,
+      });
+      return;
+    }
     const announced = await deliver(
       watch,
       {
@@ -375,8 +399,26 @@ export function createCiWatchWorker({
       },
       { signal },
     );
-    if (announced) {
-      repairs.queueRepair(requested.sequence);
+    if (!announced) {
+      repairs.abortReservedRepair(requested.sequence, "announcement_failed");
+      safeTrace({
+        updateIdentifier: watch.update_identifier,
+        sessionKey: watch.session_key,
+        action: "ci_repair_not_announced",
+        detail: describe(watch),
+      });
+      return;
+    }
+    // Only a reservation that actually reached the queue was requested: the
+    // topic must not wait for a repair that cannot run.
+    if (!repairs.queueRepair(requested.sequence)) {
+      safeTrace({
+        updateIdentifier: watch.update_identifier,
+        sessionKey: watch.session_key,
+        action: "ci_repair_not_queued",
+        detail: describe(watch),
+      });
+      return;
     }
     safeTrace({
       updateIdentifier: watch.update_identifier,
