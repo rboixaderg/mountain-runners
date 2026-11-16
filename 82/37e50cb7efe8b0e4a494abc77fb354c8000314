@@ -1,0 +1,29 @@
+docs/runbook.md
+  s_034dfc177e5f19::t_dbf2cf0788c0df 11-13,1197-1525
+docs/specs/phase-8-editorial-assistance.md
+  s_f45826cf270f64::t_ac53127deb86a4 181
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "8237e50cb7efe8b0e4a494abc77fb354c8000314",
+  "prompts": {},
+  "sessions": {
+    "s_034dfc177e5f19": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a1ddfd-1630-7799-b4a1-7d3899d76ddb",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    },
+    "s_f45826cf270f64": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a1e573-3772-73d5-974a-16dd563ae69c",
+        "model": "deepseek-v4.1-flash"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
