@@ -1185,6 +1185,28 @@ GitHub, Telegram o de la base de dades. 2 és un error d'ús (`parseArgs`, tipus
 resolució, identificador o SHA invàlids, `--commit` que falta o que sobra,
 `--sequence` o `--failed-commit` fora d'una reparació).
 
+### Retenció de la traça, l'estat i les sessions (T8.5)
+
+Decisió de la persona mantenidora: per ara no s'esborra res automàticament. La
+traça privada, les bases de dades de `state/` i l'historial de Pi de `sessions/`
+es conserven fins a una revisió explícita. Els worktrees arxivats segueixen la
+neteja que preserva treball no publicat (`storage/prune-worktrees.mjs`).
+
+- **Cost estimat.** La traça i les bases de `state/` creixen pocs MB l'any i
+  queden lluny de l'1 GiB del volum d'estat. L'historial de Pi és el que creix
+  més, perquè desa les sortides de les eines, però amb una desena de temes
+  actius s'estima en centenars de MB dins del volum de treball d'11 GiB. Són
+  estimacions, no mesures del VPS.
+- **Vigilància.** La comprovació periòdica mira l'ús dels dos volums:
+  `df -h /var/lib/mountain-runners-agent /var/lib/mountain-runners-agent/state`
+  i `du -sh /var/lib/mountain-runners-agent/{sessions,worktrees,state}`.
+- **Revisió.** Cal revisar aquesta decisió i fixar terminis si un dels dos
+  volums passa del 50 %, abans d'ampliar el pilot a més persones o quan una
+  persona demani esborrar les seves dades.
+- **Còpies.** Si hi ha còpies de seguretat del VPS, també contenen la traça i
+  l'historial. Esborrar l'original no esborra les còpies; la revisió les ha
+  d'incloure.
+
 ### Instal·lació prevista
 
 El procediment següent és la preparació prevista; **no s'ha executat** i cap ordre
@@ -1343,15 +1365,10 @@ Verificat al VPS amb la identitat i la unitat instal·lades:
 
 Pendent per a les entregues següents:
 
-- Dos autors al mateix tema, l'aturada, la rotació i la retenció documentades
-  (T8.5/T8.6). La pertinença i la revocació ja estan cobertes: una persona que
-  deixa el grup no pot donar instruccions noves, la feina ja acceptada continua
-  i la preview i el merge tornen a comprovar la pertinença en executar-se.
-- Recuperació d'una acció externa amb resultat desconegut: el procediment és a
-  [Reconciliació de resultats desconeguts (T8.5)](#reconciliació-de-resultats-desconeguts-t85)
-  i la seva validació integral, a T8.6.
-- Retenció de worktrees: cada worktree conserva les seves dependències i el
-  volum de treball creix amb cada tasca arxivada.
+- Validació integral a T8.6: dos autors al mateix tema, reconciliació d'un
+  resultat desconegut real, aturada i rotació de credencials documentades al
+  runbook. La pertinença, la revocació, la reconciliació i la retenció ja estan
+  definides (T8.5).
 
 Mentre aquests casos no estiguin resolts, el servei no s'activa de manera
 permanent i cap agent no desplega ni fusiona res.
