@@ -1,0 +1,21 @@
+docs/deployment.md
+  s_034dfc177e5f19::t_327ffdc92d4fe6 1188-1209,1368-1371
+docs/specs/phase-8-editorial-assistance.md
+  s_034dfc177e5f19::t_077ef5352512a5 180,330-340
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "e8b38823f9232fa0a9c4f8be698c8c7621929e7d",
+  "prompts": {},
+  "sessions": {
+    "s_034dfc177e5f19": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a1ddfd-1630-7799-b4a1-7d3899d76ddb",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
