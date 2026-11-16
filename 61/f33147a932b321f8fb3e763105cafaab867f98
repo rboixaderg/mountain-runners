@@ -1,0 +1,89 @@
+docs/deployment.md
+  s_4524fa79e3148a::t_3d3cdb3b80416e 462-474,488-491
+packages/telegram-pi-bridge/README.md
+  s_4524fa79e3148a::t_8c0917cb6f33d7 114-117
+packages/telegram-pi-bridge/src/telegram/bridge.mjs
+  s_2155bc7c379951::t_70c556d7c1233b 37-46,93,107,123,190-191,201,203-205,221,224-229,286,289
+packages/telegram-pi-bridge/test/telegram/bridge.test.mjs
+  s_2155bc7c379951::t_c6a697dcbc43de 82,95,99-113,404-445
+tools/server/agent/README.md
+  s_4524fa79e3148a::t_454200e1f95788 141-145,243-247
+tools/server/agent/policy/development.mjs
+  s_4524fa79e3148a::t_8f929c91d1a5bc 328-329
+tools/server/agent/repository/github.mjs
+  s_15cb8c1865fc78::t_a6d994a742bc56 19-22,24,90,98,111,114-123,125-131,140-146,159-163,165-168,179,193,197-199,215,379,385-386,406-412,414,426
+tools/server/agent/repository/github.test.mjs
+  s_4524fa79e3148a::t_1cb455b9036b02 3-9,15,75-124,491-567
+tools/server/agent/repository/publisher.mjs
+  s_15cb8c1865fc78::t_1e84df7725ab11 3-4,14-17,25-26,29-42,52-53,65
+tools/server/agent/repository/publisher.test.mjs
+  s_cc73cea25c9d15::t_4dffc7aae04a02 1-184
+tools/server/agent/repository/secret-scan.mjs
+  s_15cb8c1865fc78::t_370d3df0533a7b 40-45,47,67,79-83,87,110
+tools/server/agent/repository/trusted-git.mjs
+  s_cc73cea25c9d15::t_a8f68ef0332184 13-37,94-95,125-127,137-142
+tools/server/agent/repository/trusted-git.test.mjs
+  s_2212983f284fd4::t_685e25e67bab39 1-77
+tools/server/agent/repository/worktrees.mjs
+  s_cc73cea25c9d15::t_84da30393bfbd8 14,17,57-60,68-71,93,110,114-117,122,127-129,133-137,142-143,145-147,161,171,196,214-222,224,233,237,242,245,254,264,267,270-280,282-285,292-297,324,328-332,355-361,365,369,374-375,378,380-382,395,404,408-411,420,422,426-446,448,451-452,455-457,461-465,478-483
+tools/server/agent/workflow/ci-repair.test.mjs
+  s_4524fa79e3148a::t_5b0ff6ee0f614d 177-178
+tools/server/agent/workflow/cross-topic-continuation.mjs
+  s_15cb8c1865fc78::t_b36c720b5760f4 259,263-266,310,334
+tools/server/agent/workflow/cross-topic-continuation.test.mjs
+  s_4524fa79e3148a::t_a77dc020f0233c 304-368
+tools/server/agent/workflow/overlap-warning.mjs
+  s_4524fa79e3148a::t_7fbd84c7f7412e 39-42,51-53,62,67,69-70,80,82-84,89,112-116,127,132
+tools/server/agent/workflow/run-instruction.mjs
+  s_cc73cea25c9d15::t_2fad78a5ccead8 67,72-76,81,92-94,97,222,228-229,297,300,312,320,348,359,362,380-382,389-392,395-401
+tools/server/agent/workflow/run-instruction.test.mjs
+  s_cc73cea25c9d15::t_98abc2635b6bb6 18,829-940
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "61f33147a932b321f8fb3e763105cafaab867f98",
+  "prompts": {},
+  "sessions": {
+    "s_15cb8c1865fc78": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a1e588-1a7b-7724-9629-5fa9f987e630",
+        "model": "deepseek-v4.1-flash"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    },
+    "s_2155bc7c379951": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a1e57a-0adf-7404-aca6-34671f3b333c",
+        "model": "deepseek-v4.1-flash"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    },
+    "s_2212983f284fd4": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a1e56f-c580-7270-a538-0e257a3f877c",
+        "model": "deepseek-v4.1-flash"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    },
+    "s_4524fa79e3148a": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a1e588-1a7f-77d4-a874-44ba05bfa50b",
+        "model": "deepseek-v4.1-flash"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    },
+    "s_cc73cea25c9d15": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a1e588-1a75-7440-89e9-e6ebff8f1bbd",
+        "model": "deepseek-v4.1-flash"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
