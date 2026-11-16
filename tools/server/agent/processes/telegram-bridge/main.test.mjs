@@ -4,6 +4,11 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
 import { AdmissionQueue } from "telegram-pi-bridge/sessions";
+import { reconcileResolutions } from "../../policy/development.mjs";
+import {
+  listUncertainCases,
+  resolveUncertainCase,
+} from "../../commands/reconcile/uncertain-cases.mjs";
 import { CiWatchStore } from "../../repository/ci-watch-store.mjs";
 import { MergeRequestStore } from "../../repository/merge-request-store.mjs";
 import { PreviewRequestStore } from "../../repository/preview-request-store.mjs";
@@ -484,6 +489,7 @@ function previewFixture(statePath, finalState) {
   mkdirSync(statePath, { recursive: true });
   const previews = new PreviewRequestStore(
     join(statePath, "preview-request.sqlite"),
+    { now: () => new Date("2026-11-14T10:00:00Z") },
   );
   previews.begin({
     updateIdentifier: 30,
@@ -523,6 +529,109 @@ test("refuses to start with an interrupted preview comment of unknown result", a
   assert.equal(trace.update_identifier, 30);
   assert.equal(trace.detail, `#200 ${"a".repeat(7)}`);
   queue.close();
+});
+
+test("completes every local recovery before refusing the start", async (context) => {
+  const { directory, environment, statePath } = environmentFor(context);
+  mkdirSync(statePath, { recursive: true });
+  const queue = new AdmissionQueue(join(statePath, "admission.sqlite"), {
+    maxPending: 10,
+  });
+  queue.admit({
+    updateIdentifier: 20,
+    messageIdentifier: 2020,
+    sessionKey: "-1001234567890:7",
+    authorIdentifier: 42,
+    instruction: "synthetic private instruction",
+  });
+  queue.next();
+  queue.close();
+  previewFixture(statePath, "commenting");
+
+  // The refusal reports the instruction, but the preview must be recovered too.
+  await assert.rejects(
+    startService({
+      environment,
+      telegram: telegramStub(),
+      github: {},
+      runner: async () => ({}),
+    }),
+    {
+      message: /interrupted instruction\(s\) have an unknown external result/u,
+    },
+  );
+
+  const stores = {
+    instructions: new AdmissionQueue(join(statePath, "admission.sqlite"), {
+      maxPending: 10,
+    }),
+    repairs: new CiWatchStore(join(statePath, "ci-watch.sqlite")),
+    previews: new PreviewRequestStore(
+      join(statePath, "preview-request.sqlite"),
+    ),
+  };
+  assert.equal(stores.instructions.uncertain().length, 1);
+  assert.equal(stores.previews.uncertain().length, 1);
+
+  const config = {
+    paths: {
+      repository: join(directory, "repository"),
+      // No local worktree of this topic: the case is still listed.
+      worktrees: join(directory, "missing-worktrees"),
+      state: statePath,
+    },
+  };
+  const cases = await listUncertainCases({
+    config,
+    stores,
+    github: {
+      async getAuthenticatedLogin() {
+        return "mountain-agent-bot";
+      },
+      async listIssueComments() {
+        return [];
+      },
+    },
+  });
+  assert.deepEqual(
+    cases.map((facts) => facts.kind),
+    ["instruction", "preview"],
+  );
+
+  const telegram = {
+    async sendMessage() {},
+  };
+  await resolveUncertainCase({
+    config,
+    stores,
+    telegram,
+    kind: "instruction",
+    updateIdentifier: 20,
+    resolution: reconcileResolutions.notPublished,
+  });
+  await resolveUncertainCase({
+    config,
+    stores,
+    telegram,
+    kind: "preview",
+    updateIdentifier: 30,
+    resolution: reconcileResolutions.notCommented,
+  });
+  stores.previews.close();
+  stores.repairs.close();
+  stores.instructions.close();
+
+  const service = await startService({
+    environment,
+    telegram: telegramStub(),
+    github: {},
+    runner: async () => ({}),
+  });
+  assert.equal(service.queue.isBlocked(), false);
+  service.mergeRequests.close();
+  service.previewRequests.close();
+  service.ciWatches.close();
+  service.queue.close();
 });
 
 test("resumes a preview awaiting the publisher after a restart", async (context) => {

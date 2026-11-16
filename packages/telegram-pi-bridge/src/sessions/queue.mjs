@@ -239,6 +239,47 @@ export class AdmissionQueue {
     });
   }
 
+  /**
+   * Instructions whose external result is unknown, without their text: an
+   * operator only needs the identity and the moment of each case.
+   */
+  uncertain() {
+    return this.#database
+      .prepare(
+        `SELECT update_identifier, session_key, created_at
+         FROM instructions WHERE status = 'uncertain' ORDER BY sequence`,
+      )
+      .all();
+  }
+
+  /**
+   * Close an uncertain instruction once a person checked the real state, record
+   * its trace and return it, all in one transaction: a resolution is never kept
+   * without its audit entry, and a failure leaves the instruction uncertain.
+   * The guarded update refuses a case that is no longer uncertain.
+   */
+  resolveUncertain({ updateIdentifier, outcome, trace }) {
+    return this.#transaction(() => {
+      const changed =
+        this.#database
+          .prepare(
+            `UPDATE instructions SET status = 'done', outcome = ?
+             WHERE update_identifier = ? AND status = 'uncertain'`,
+          )
+          .run(outcome, updateIdentifier).changes === 1;
+      if (!changed) {
+        return null;
+      }
+      this.#insertTrace(trace);
+      return this.#database
+        .prepare(
+          `SELECT update_identifier, session_key, created_at
+           FROM instructions WHERE update_identifier = ?`,
+        )
+        .get(updateIdentifier);
+    });
+  }
+
   status(updateIdentifier) {
     return this.#database
       .prepare("SELECT status FROM instructions WHERE update_identifier = ?")
@@ -280,6 +321,22 @@ export class AdmissionQueue {
   }
 
   recordTrace({
+    updateIdentifier = null,
+    authorIdentifier = null,
+    sessionKey = null,
+    action,
+    detail = null,
+  }) {
+    this.#insertTrace({
+      updateIdentifier,
+      authorIdentifier,
+      sessionKey,
+      action,
+      detail,
+    });
+  }
+
+  #insertTrace({
     updateIdentifier = null,
     authorIdentifier = null,
     sessionKey = null,

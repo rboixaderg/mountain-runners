@@ -146,6 +146,9 @@ function setup(context, { github = fakeGithub() } = {}) {
     advance(milliseconds) {
       current = new Date(current.getTime() + milliseconds);
     },
+    setClock(moment) {
+      current = new Date(moment);
+    },
   };
 }
 
@@ -417,8 +420,8 @@ test("confirms through the publisher comment and reports URL, commit and PR", as
   assert.match(sent[0].text, /aaaaaaa/u);
   assert.match(sent[0].text, /PR #200/u);
   assert.deepEqual(github.listings, [
-    "2026-11-14T10:00:00Z",
-    "2026-11-14T10:00:00Z",
+    "2026-11-14T10:00:01.000Z",
+    "2026-11-14T10:00:01.000Z",
   ]);
   const confirmation = traces.find(
     (entry) => entry.action === "preview_confirmed",
@@ -645,4 +648,37 @@ test("never requests a preview when CI turns green or a pull request is publishe
   assert.equal(sent.length, 1);
   assert.match(sent[0].text, /en verd/u);
   assert.deepEqual(github.posts, []);
+});
+
+test("confirms a reconciled request from a publisher comment written after it", async (context) => {
+  const { ciWatches, previews, github, handler, sent, setClock, traces } =
+    setup(context);
+  reportGreen(ciWatches);
+  setClock("2026-11-14T10:00:00Z");
+  github.postError = new Error("synthetic network failure");
+  await handler.handle(request());
+  assert.equal(previews.state(20), "uncertain");
+
+  github.postError = null;
+  setClock("2026-11-14T11:00:00Z");
+  previews.resolveUncertainCommented(20);
+  assert.equal(previews.awaiting()[0].commented_at, "2026-11-14T11:00:00.000Z");
+
+  github.comments = [
+    publisherComment({
+      created_at: "2026-11-14T10:05:00Z",
+      updated_at: "2026-11-14T10:05:00Z",
+    }),
+  ];
+  await handler.runOnce();
+
+  assert.equal(previews.state(20), "confirmed");
+  assert.equal(sent.length, 1);
+  assert.match(
+    sent[0].text,
+    /https:\/\/pr-200\.preview\.mountainrunners\.cat/u,
+  );
+  assert.deepEqual(github.posts, []);
+  assert.deepEqual(github.listings, ["2026-11-14T10:00:00.000Z"]);
+  assert.ok(actions(traces).includes("preview_confirmed"));
 });

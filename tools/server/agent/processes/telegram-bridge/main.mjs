@@ -70,24 +70,36 @@ export async function startService({
     join(config.paths.state, "admission.sqlite"),
     { maxPending: config.limits.maxPendingInstructions },
   );
+  const ciWatches = new CiWatchStore(
+    join(config.paths.state, "ci-watch.sqlite"),
+  );
+  const previewRequests = new PreviewRequestStore(
+    join(config.paths.state, "preview-request.sqlite"),
+  );
+  const mergeRequests = new MergeRequestStore(
+    join(config.paths.state, "merge-request.sqlite"),
+  );
 
+  function closeStateStores() {
+    mergeRequests.close();
+    previewRequests.close();
+    ciWatches.close();
+    queue.close();
+  }
+
+  // Every local recovery runs before any refusal. A refused start must not
+  // leave a later case half reconciled, or the next start would depend on the
+  // order in which the cases were reported.
   const recovered = queue.recover();
   if (recovered > 0) {
     queue.recordTrace({
       action: "startup_refused_uncertain",
       detail: String(recovered),
     });
-    queue.close();
-    throw new Error(
-      `Refusing to start: ${recovered} interrupted instruction(s) have an unknown external result.`,
-    );
   }
 
   // Interrupted deliveries are unknown, not retried: each one stays attributed
   // in the private trace so an operator can reconcile it with GitHub.
-  const ciWatches = new CiWatchStore(
-    join(config.paths.state, "ci-watch.sqlite"),
-  );
   const interruptedNotifications = ciWatches.recoverSending();
   for (const watch of interruptedNotifications) {
     queue.recordTrace({
@@ -107,8 +119,7 @@ export async function startService({
   // An interrupted repair may have pushed a commit. Like an interrupted
   // instruction, it is never replayed automatically: the service refuses to
   // start until a person reconciles the real state.
-  const interruptedRepairs = ciWatches.interruptRepairs();
-  for (const repair of interruptedRepairs) {
+  for (const repair of ciWatches.interruptRepairs()) {
     queue.recordTrace({
       updateIdentifier: repair.update_identifier,
       sessionKey: repair.session_key,
@@ -116,22 +127,10 @@ export async function startService({
       detail: `#${repair.pull_request_number} ${repair.commit_sha.slice(0, 7)}`,
     });
   }
-  const uncertainRepairs = ciWatches.uncertainRepairCount();
-  if (uncertainRepairs > 0) {
-    logger("ci_repair_uncertain", String(uncertainRepairs));
-    ciWatches.close();
-    queue.close();
-    throw new Error(
-      `Refusing to start: ${uncertainRepairs} CI repair(s) have an unknown external result.`,
-    );
-  }
 
   // An interrupted preview comment may or may not exist. Like an interrupted
   // repair, it is never posted again automatically: the service refuses to
   // start until a person reconciles the real state.
-  const previewRequests = new PreviewRequestStore(
-    join(config.paths.state, "preview-request.sqlite"),
-  );
   for (const request of previewRequests.recoverCommenting()) {
     queue.recordTrace({
       updateIdentifier: request.update_identifier,
@@ -141,25 +140,12 @@ export async function startService({
       detail: `#${request.pull_request_number} ${request.commit_sha.slice(0, 7)}`,
     });
   }
-  const uncertainPreviews = previewRequests.uncertainCount();
-  if (uncertainPreviews > 0) {
-    logger("preview_uncertain", String(uncertainPreviews));
-    previewRequests.close();
-    ciWatches.close();
-    queue.close();
-    throw new Error(
-      `Refusing to start: ${uncertainPreviews} preview request(s) have an unknown external result.`,
-    );
-  }
 
   // An interrupted merge may have happened. It is never requested again
   // blindly: it stays uncertain, attributed in the private trace, until the
   // pull request is read and the topic is told once at startup. That never
   // blocks the service, because only a new merge of the same pull request
   // depends on it.
-  const mergeRequests = new MergeRequestStore(
-    join(config.paths.state, "merge-request.sqlite"),
-  );
   for (const request of mergeRequests.recoverMerging()) {
     queue.recordTrace({
       updateIdentifier: request.update_identifier,
@@ -168,6 +154,31 @@ export async function startService({
       action: "merge_uncertain",
       detail: `#${request.pull_request_number} ${request.commit_sha.slice(0, 7)}`,
     });
+  }
+
+  if (recovered > 0) {
+    closeStateStores();
+    throw new Error(
+      `Refusing to start: ${recovered} interrupted instruction(s) have an unknown external result.`,
+    );
+  }
+
+  const uncertainRepairs = ciWatches.uncertainRepairCount();
+  if (uncertainRepairs > 0) {
+    logger("ci_repair_uncertain", String(uncertainRepairs));
+    closeStateStores();
+    throw new Error(
+      `Refusing to start: ${uncertainRepairs} CI repair(s) have an unknown external result.`,
+    );
+  }
+
+  const uncertainPreviews = previewRequests.uncertainCount();
+  if (uncertainPreviews > 0) {
+    logger("preview_uncertain", String(uncertainPreviews));
+    closeStateStores();
+    throw new Error(
+      `Refusing to start: ${uncertainPreviews} preview request(s) have an unknown external result.`,
+    );
   }
 
   // Archived worktrees keep a dependency tree each; remove only the ones that

@@ -535,3 +535,61 @@ test("does not treat an interrupted or unknown notice as delivered", (context) =
   assert.equal(store.beginSend(12, "success"), false);
   store.close();
 });
+
+test("resolves an uncertain repair only with its update, sequence and failed commit", (context) => {
+  const store = new CiWatchStore(fixture(context));
+  const attempt = requestQueued(store, repairRequest);
+  store.claimNextRepair();
+  store.interruptRepairs();
+  const resolve = (identifiers) =>
+    store.resolveUncertainRepair({
+      ...identifiers,
+      outcome: "reconciled_not_published",
+    });
+  assert.equal(
+    resolve({
+      updateIdentifier: repairRequest.updateIdentifier,
+      sequence: attempt.sequence,
+      failedCommit: repairRequest.commitSha,
+    }).sequence,
+    attempt.sequence,
+  );
+  assert.equal(store.repair(attempt.sequence).status, "done");
+
+  // A later repair reuses the sequence once the finished row is cleared.
+  store.resetRepairs(repairRequest.pullRequestNumber);
+  const reused = requestQueued(store, {
+    ...repairRequest,
+    commitSha: "b".repeat(40),
+  });
+  store.claimNextRepair();
+  store.interruptRepairs();
+  assert.equal(reused.sequence, attempt.sequence);
+  assert.equal(
+    resolve({
+      updateIdentifier: repairRequest.updateIdentifier,
+      sequence: attempt.sequence,
+      failedCommit: repairRequest.commitSha,
+    }),
+    null,
+  );
+  assert.equal(
+    resolve({
+      updateIdentifier: repairRequest.updateIdentifier + 1,
+      sequence: attempt.sequence,
+      failedCommit: "b".repeat(40),
+    }),
+    null,
+  );
+  assert.equal(
+    resolve({
+      updateIdentifier: repairRequest.updateIdentifier,
+      sequence: attempt.sequence,
+      failedCommit: "b".repeat(40),
+    }).sequence,
+    attempt.sequence,
+  );
+  assert.equal(store.repair(attempt.sequence).status, "done");
+  assert.equal(store.uncertainRepairCount(), 0);
+  store.close();
+});

@@ -261,3 +261,73 @@ test("adds the attachment column to an existing database", (context) => {
   assert.deepEqual(queue.next().attachment, attachment);
   queue.close();
 });
+
+test("resolves an uncertain instruction once and never keeps its text", (context) => {
+  const path = databasePath(context);
+  const queue = new AdmissionQueue(path, { maxPending: 10 });
+  queue.admit(request(1));
+  queue.next();
+  queue.markUncertain(1, "uncertain");
+
+  const uncertain = queue.uncertain();
+  assert.equal(uncertain.length, 1);
+  assert.equal(uncertain[0].update_identifier, 1);
+  assert.equal(uncertain[0].session_key, "-1001234567890:7");
+  assert.equal("instruction" in uncertain[0], false);
+
+  const trace = {
+    updateIdentifier: 1,
+    sessionKey: "-1001234567890:7",
+    action: "uncertain_reconciled",
+    detail: "instruction not_published",
+  };
+  const resolved = queue.resolveUncertain({
+    updateIdentifier: 1,
+    outcome: "reconciled_not_published",
+    trace,
+  });
+  assert.equal(resolved.update_identifier, 1);
+  assert.equal(queue.status(1), "done");
+  assert.equal(queue.uncertain().length, 0);
+  const entries = queue.traceEntries();
+  assert.equal(entries.length, 1);
+  assert.equal(entries[0].action, "uncertain_reconciled");
+  assert.equal(entries[0].detail, "instruction not_published");
+
+  assert.equal(
+    queue.resolveUncertain({
+      updateIdentifier: 1,
+      outcome: "reconciled_published",
+      trace,
+    }),
+    null,
+  );
+  assert.equal(queue.traceEntries().length, 1);
+  queue.close();
+});
+
+test("keeps an instruction uncertain when its trace cannot be written", (context) => {
+  const path = databasePath(context);
+  const queue = new AdmissionQueue(path, { maxPending: 10 });
+  queue.admit(request(1));
+  queue.next();
+  queue.markUncertain(1, "uncertain");
+  const database = new DatabaseSync(path);
+  database.exec("DROP TABLE trace");
+  database.close();
+
+  assert.throws(() =>
+    queue.resolveUncertain({
+      updateIdentifier: 1,
+      outcome: "reconciled_not_published",
+      trace: {
+        updateIdentifier: 1,
+        sessionKey: "-1001234567890:7",
+        action: "uncertain_reconciled",
+        detail: "instruction not_published",
+      },
+    }),
+  );
+  assert.equal(queue.status(1), "uncertain");
+  queue.close();
+});

@@ -263,6 +263,18 @@ export class GitHubTrust {
   }
 
   /**
+   * The login of the account this token authenticates. Read-only, used to tell
+   * whether the `/preview` comment the service would post exists.
+   */
+  async getAuthenticatedLogin({ signal } = {}) {
+    const user = await this.#request("GET", "/user", undefined, { signal });
+    if (typeof user?.login !== "string" || user.login === "") {
+      throw new Error("GitHub returned an invalid user response.");
+    }
+    return user.login;
+  }
+
+  /**
    * Post the exact `/preview` comment. The body is fixed: the model and the
    * callers can never choose what the service writes with this credential.
    */
