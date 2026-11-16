@@ -222,9 +222,20 @@ export async function startService({
       token: config.github.token,
       repository: config.github.repository,
     });
+  // Both the preview and the merge re-check the author's membership when the
+  // request runs: neither is ordinary queued work. The read is bounded by the
+  // request deadline, so a Telegram that never answers cannot stall them.
+  const verifyAuthorMembership = (authorIdentifier, signal) =>
+    verifyMembership({
+      telegram,
+      groupIdentifier: config.telegram.groupIdentifier,
+      authorIdentifier,
+      signal: requestSignal(signal, defaultRequestTimeoutMilliseconds),
+    });
   const previewWorker = createPreviewRequests({
     store: previewRequests,
     reportedCommits: ciWatches,
+    verifyMembership: verifyAuthorMembership,
     github,
     repository: config.github.repository,
     requiredChecks: config.github.requiredChecks,
@@ -240,12 +251,7 @@ export async function startService({
     hasNewerWork: ({ sessionKey, updateIdentifier }) =>
       queue.hasOtherInstructions(sessionKey, updateIdentifier) ||
       ciWatches.hasUnreportedWork(sessionKey),
-    verifyMembership: (authorIdentifier) =>
-      verifyMembership({
-        telegram,
-        groupIdentifier: config.telegram.groupIdentifier,
-        authorIdentifier,
-      }),
+    verifyMembership: verifyAuthorMembership,
     github,
     repository: config.github.repository,
     requiredChecks: config.github.requiredChecks,

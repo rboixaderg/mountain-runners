@@ -201,18 +201,21 @@ export function classifyInstruction(
 
 /**
  * Verify that the author is still a member of the configured group.
- * The Telegram API is asked for every instruction; errors deny access.
+ * The Telegram API is asked for every instruction; errors deny access. A caller
+ * with its own deadline passes `signal`, so the read is bounded and stoppable.
  */
 export async function verifyMembership({
   telegram,
   groupIdentifier,
   authorIdentifier,
+  signal,
 }) {
   let member;
   try {
     member = await telegram.getChatMember({
       chatIdentifier: groupIdentifier,
       userIdentifier: authorIdentifier,
+      signal,
     });
   } catch (error) {
     return {

@@ -160,12 +160,15 @@ al servidor. El nom local encara no representa una publicació a npm.
 
 9. Una persona verificada pot demanar la preview en llenguatge natural. El
    classificador només etiqueta la petició com a `preview`: el model no s'inicia
-   ni toca cap worktree. `workflow/preview-request.mjs` fixa la petició al commit
-   que el servei va informar en verd en aquell tema (mai una PR o un SHA escrits
-   per la persona) i torna a llegir la PR i les comprovacions obligatòries:
+   ni toca cap worktree. `workflow/preview-request.mjs` torna a verificar la
+   pertinença de l'autor en executar la petició, com el merge, i fixa la
+   petició al commit que el servei va informar en verd en aquell tema (mai una
+   PR o un SHA escrits per la persona) i torna a llegir la PR i les
+   comprovacions obligatòries:
    PR oberta, cap igual al commit fixat, branca del repositori principal i
-   comprovacions obligatòries totes en verd. Si hi ha qualsevol dubte o un error
-   de lectura, refusa i ho diu. Només llavors desa la petició (`commenting`),
+   comprovacions obligatòries totes en verd. Si l'autor ja no és membre, si la
+   consulta de pertinença falla, si hi ha qualsevol dubte o un error de lectura,
+   refusa i ho diu. Només llavors desa la petició (`commenting`),
    comenta exactament `/preview` amb la credencial del servei i passa a
    `awaiting`. Un bucle en segon pla llegeix els comentaris de la PR i només
    accepta el del publicador de la fase 6 (`github-actions[bot]`, marcador,

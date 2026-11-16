@@ -480,6 +480,12 @@ la sessió; si no es pot confirmar, l'execució queda fallida o incerta.
   d'executar-la, i no inclou cap credencial. Si Telegram no accepta l'avís, la
   feina continua i només es registra `reply_failed`; la resposta final arriba
   igualment en aquell tema.
+- La revocació talla només el que encara no s'ha admès. Una persona que deixa
+  el grup o és expulsada no pot donar instruccions noves, però la feina
+  ordinària ja acceptada (implementacions, continuacions, consultes i
+  reparacions) continua i no torna a comprovar la pertinença. Les dues accions
+  que exposen o fusionen una PR, la preview i el merge, la tornen a comprovar en
+  executar-se.
 - Un error local es registra amb el nom i el missatge de l'excepció perquè es
   pugui diagnosticar al journal. El tema només rep l'avís genèric: ni rutes, ni
   noms d'eines ni cap detall intern.
@@ -681,6 +687,16 @@ privada.
   repositori de la branca igual al principal i comprovacions obligatòries totes
   en verd amb el mateix classificador que la CI. Qualsevol resultat vermell,
   pendent, absent, ambigu o un error de lectura refusa la petició.
+- **Pertinença.** Es torna a consultar a Telegram en el moment d'executar la
+  petició, com al merge i després de resoldre el commit fixat: una preview
+  publica la PR en un subdomini públic, així que no és feina ordinària de la
+  cua. Un autor que ja no és membre rep el rebuig `membership_revoked`; una
+  fallada de la consulta, el rebuig `membership_unavailable`, que demana
+  tornar-ho a provar. La lectura queda dins del termini de petició del
+  servei; si s'esgota, compta com una fallada i es respon demanant tornar-ho a
+  provar. En tots dos casos no es desa cap fila ni es publica cap
+  comentari. La comprovació superada queda a la traça
+  (`preview_membership_verified`).
 - **Comentari.** El servei publica exactament `/preview`. L'entorn aïllat i el
   model no tenen accés a l'API de GitHub.
 - **Estats** (`state/preview-request.sqlite`): `commenting` (desat abans de
@@ -706,7 +722,8 @@ privada.
   [Reconciliació de resultats desconeguts (T8.5)](#reconciliació-de-resultats-desconeguts-t85).
   Una petició en `awaiting` reprèn la lectura de comentaris amb el termini
   original.
-- **Traça privada.** `preview_requested`, `preview_refused` (amb el motiu),
+- **Traça privada.** `preview_requested`, `preview_membership_verified`,
+  `preview_refused` (amb el motiu),
   `preview_commented`, `preview_confirmed`, `preview_unconfirmed`,
   `preview_failed` i `preview_uncertain`, amb la PR i el commit i l'autor, sense text de conversa
   ni credencials.
@@ -760,7 +777,9 @@ proteccions, ni tancament de la PR.
   i demana esperar l'informe nou i tornar a escriure `/merge`.
 - **Pertinença.** Es torna a consultar a Telegram en el moment d'executar la
   comanda, a més de l'admissió; una fallada de la consulta o un autor que ja no
-  és membre refusa el merge. La consulta es fa després de resoldre el
+  és membre refusa el merge. La lectura queda dins del termini de petició del
+  servei; si s'esgota, compta com una fallada i refusa demanant tornar-ho a
+  provar. La consulta es fa després de resoldre el
   vincle i la feina més nova, i la comprovació superada queda a la traça
   (`merge_membership_verified`).
 - **Condicions, rellegides en directe i en fallada tancada.** PR oberta, no
@@ -1324,8 +1343,10 @@ Verificat al VPS amb la identitat i la unitat instal·lades:
 
 Pendent per a les entregues següents:
 
-- Pertinença, revocació i dos autors (T8.5), amb l'aturada, la rotació i la
-  retenció documentades (T8.5/T8.6).
+- Dos autors al mateix tema, l'aturada, la rotació i la retenció documentades
+  (T8.5/T8.6). La pertinença i la revocació ja estan cobertes: una persona que
+  deixa el grup no pot donar instruccions noves, la feina ja acceptada continua
+  i la preview i el merge tornen a comprovar la pertinença en executar-se.
 - Recuperació d'una acció externa amb resultat desconegut: el procediment és a
   [Reconciliació de resultats desconeguts (T8.5)](#reconciliació-de-resultats-desconeguts-t85)
   i la seva validació integral, a T8.6.

@@ -513,7 +513,10 @@ export function createMergeRequests({
     if (answer) {
       return answer;
     }
-    const membership = await verifyMembership(request.authorIdentifier);
+    const membership = await verifyMembership(request.authorIdentifier, signal);
+    // A service stop is an abort, not a refusal; a read that ran out of its own
+    // deadline is a failed check below and asks the person to try again.
+    signal?.throwIfAborted();
     if (!membership.verified) {
       if (membership.reason === "membership_check_failed") {
         return refuse(
