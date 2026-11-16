@@ -514,6 +514,10 @@ export const ciReports = {
 // Replies of the deterministic /preview handler. A preview is only ever
 // requested for the commit this topic last reported as green.
 export const previewReports = {
+  membershipRevoked:
+    "Ja no consten com a membre verificat del grup i una preview necessita que l'autor encara ho sigui. No s'ha demanat cap preview.",
+  membershipUnavailable:
+    "No s'ha pogut verificar la pertinença al grup. No s'ha demanat cap preview; torna-ho a demanar.",
   requested: ({ pullRequestNumber, commit }) =>
     `Preview demanada per al commit ${shortCommit(commit)} (PR #${pullRequestNumber}). Esperant la confirmació del publicador; rebràs l'URL en aquest mateix tema.`,
   noReportedCommit:

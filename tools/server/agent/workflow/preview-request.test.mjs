@@ -3,13 +3,16 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
+import { verifyMembership } from "telegram-pi-bridge/telegram";
 import { CiWatchStore } from "../repository/ci-watch-store.mjs";
 import { GitHubResponseError } from "../repository/github.mjs";
 import { PreviewRequestStore } from "../repository/preview-request-store.mjs";
+import { requestSignal } from "../repository/request-signal.mjs";
 import { createCiWatchRegistration, createCiWatchWorker } from "./ci-watch.mjs";
 import { createPreviewRequests } from "./preview-request.mjs";
 
 const repository = "rboixaderg/mountain-runners";
+const groupIdentifier = "-1001234567890";
 const commit = "a".repeat(40);
 const sessionKey = "-1001234567890:7";
 const origin = "https://pr-200.preview.mountainrunners.cat";
@@ -112,6 +115,10 @@ function setup(context, { github = fakeGithub() } = {}) {
   const { ciWatches, previews } = fixture(context, () => current);
   const sent = [];
   const traces = [];
+  const membership = {
+    result: { verified: true, status: "member" },
+    calls: [],
+  };
   const telegram = {
     sendError: null,
     async sendMessage(message) {
@@ -123,6 +130,10 @@ function setup(context, { github = fakeGithub() } = {}) {
     return createPreviewRequests({
       store: previews,
       reportedCommits: ciWatches,
+      verifyMembership: async (authorIdentifier) => {
+        membership.calls.push(authorIdentifier);
+        return membership.result;
+      },
       github,
       repository,
       requiredChecks: ["Validate"],
@@ -139,6 +150,7 @@ function setup(context, { github = fakeGithub() } = {}) {
     previews,
     github,
     telegram,
+    membership,
     handler: buildHandler(),
     buildHandler,
     sent,
@@ -166,7 +178,8 @@ function actions(traces) {
 }
 
 test("posts exactly /preview once for the reported green commit", async (context) => {
-  const { ciWatches, handler, github, previews, traces } = setup(context);
+  const { ciWatches, handler, github, membership, previews, traces } =
+    setup(context);
   reportGreen(ciWatches);
   let stateDuringPost;
   github.beforePost = () => {
@@ -180,11 +193,122 @@ test("posts exactly /preview once for the reported green commit", async (context
   assert.deepEqual(github.posts, [{ number: 200, body: "/preview" }]);
   assert.equal(stateDuringPost, "commenting");
   assert.equal(previews.state(20), "awaiting");
-  assert.deepEqual(actions(traces), ["preview_requested", "preview_commented"]);
+  assert.deepEqual(membership.calls, [555]);
+  assert.deepEqual(actions(traces), [
+    "preview_requested",
+    "preview_membership_verified",
+    "preview_commented",
+  ]);
   assert.equal(traces[0].authorIdentifier, 555);
   assert.equal(traces[0].detail, "#200 aaaaaaa");
   assert.equal(traces[1].authorIdentifier, 555);
+  assert.equal(traces[1].sessionKey, sessionKey);
   assert.equal(traces[1].detail, "#200 aaaaaaa");
+  assert.equal(traces[2].authorIdentifier, 555);
+  assert.equal(traces[2].detail, "#200 aaaaaaa");
+});
+
+test("refuses the preview when the author left the group before it ran", async (context) => {
+  const { ciWatches, handler, github, membership, previews, traces } =
+    setup(context);
+  reportGreen(ciWatches);
+
+  membership.result = { verified: false, reason: "not_a_group_member" };
+  const result = await handler.handle(request());
+
+  assert.equal(result.outcome, "answered");
+  assert.match(result.report, /Ja no consten com a membre verificat/u);
+  assert.match(result.report, /una preview necessita que l'autor/u);
+  assert.deepEqual(membership.calls, [555]);
+  assert.deepEqual(github.posts, []);
+  assert.equal(previews.state(20), undefined);
+  assert.deepEqual(actions(traces), ["preview_requested", "preview_refused"]);
+  assert.equal(traces[1].detail, "membership_revoked");
+  assert.equal(traces[1].authorIdentifier, 555);
+});
+
+test("refuses the preview when the membership check fails", async (context) => {
+  const { ciWatches, handler, github, membership, previews, traces } =
+    setup(context);
+  reportGreen(ciWatches);
+
+  membership.result = { verified: false, reason: "membership_check_failed" };
+  const result = await handler.handle(request());
+
+  assert.equal(result.outcome, "answered");
+  assert.match(result.report, /No s'ha pogut verificar la pertinença/u);
+  assert.match(result.report, /torna-ho a demanar/u);
+  assert.deepEqual(github.posts, []);
+  assert.equal(previews.state(20), undefined);
+  assert.deepEqual(actions(traces), ["preview_requested", "preview_refused"]);
+  assert.equal(traces[1].detail, "membership_unavailable");
+});
+
+/** A Telegram member read that only ends when its signal aborts. */
+function hangingMemberTelegram() {
+  return {
+    async getChatMember({ signal }) {
+      await new Promise((resolve, reject) => {
+        signal.addEventListener("abort", () => reject(signal.reason), {
+          once: true,
+        });
+      });
+    },
+  };
+}
+
+/**
+ * The membership check wired as `main.mjs` does, with a deadline the test can
+ * shorten: the service signal stops the read, the read's own deadline fails it.
+ */
+function boundedMembership(timeoutMilliseconds) {
+  const memberTelegram = hangingMemberTelegram();
+  return (authorIdentifier, signal) =>
+    verifyMembership({
+      telegram: memberTelegram,
+      groupIdentifier,
+      authorIdentifier,
+      signal: requestSignal(signal, timeoutMilliseconds),
+    });
+}
+
+test("a service stop during the membership read aborts instead of refusing", async (context) => {
+  const { ciWatches, github, previews, traces, buildHandler } = setup(context);
+  reportGreen(ciWatches);
+  const controller = new AbortController();
+  const handler = buildHandler({
+    verifyMembership: boundedMembership(60_000),
+  });
+
+  const pending = handler.handle(request(), { signal: controller.signal });
+  await new Promise((resolve) => setImmediate(resolve));
+  controller.abort();
+
+  await assert.rejects(pending, { name: "AbortError" });
+  assert.deepEqual(github.posts, []);
+  assert.equal(previews.state(20), undefined);
+  assert.deepEqual(actions(traces), ["preview_requested"]);
+});
+
+test("a membership read that runs out of its deadline refuses and asks to retry", async (context) => {
+  const { ciWatches, github, previews, traces, buildHandler } = setup(context);
+  reportGreen(ciWatches);
+  const handler = buildHandler({ verifyMembership: boundedMembership(10) });
+
+  const result = await handler.handle(request());
+
+  assert.equal(result.outcome, "answered");
+  assert.match(result.report, /No s'ha pogut verificar la pertinença/u);
+  assert.match(result.report, /torna-ho a demanar/u);
+  assert.deepEqual(github.posts, []);
+  assert.equal(previews.state(20), undefined);
+  assert.deepEqual(
+    traces.map((entry) => [entry.action, entry.detail]),
+    [
+      ["preview_requested", "#200 aaaaaaa"],
+      ["preview_refused", "membership_unavailable"],
+    ],
+  );
 });
 
 test("refuses without a commit reported green in the topic", async (context) => {

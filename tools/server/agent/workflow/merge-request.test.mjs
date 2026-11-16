@@ -3,12 +3,15 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
+import { verifyMembership } from "telegram-pi-bridge/telegram";
 import { CiWatchStore } from "../repository/ci-watch-store.mjs";
 import { GitHubResponseError } from "../repository/github.mjs";
 import { MergeRequestStore } from "../repository/merge-request-store.mjs";
+import { requestSignal } from "../repository/request-signal.mjs";
 import { createMergeRequests, parseMergeCommand } from "./merge-request.mjs";
 
 const repository = "rboixaderg/mountain-runners";
+const groupIdentifier = "-1001234567890";
 const commit = "a".repeat(40);
 const mergeCommit = "b".repeat(40);
 const sessionKey = "-1001234567890:7";
@@ -387,6 +390,72 @@ test("verifies the membership again when the command runs", async (context) => {
   assert.deepEqual(
     traces.map((entry) => entry.detail),
     ["membership_revoked", "membership_unavailable"],
+  );
+});
+
+/** A Telegram member read that only ends when its signal aborts. */
+function hangingMemberTelegram() {
+  return {
+    async getChatMember({ signal }) {
+      await new Promise((resolve, reject) => {
+        signal.addEventListener("abort", () => reject(signal.reason), {
+          once: true,
+        });
+      });
+    },
+  };
+}
+
+/**
+ * The membership check wired as `main.mjs` does, with a deadline the test can
+ * shorten: the service signal stops the read, the read's own deadline fails it.
+ */
+function boundedMembership(timeoutMilliseconds) {
+  const memberTelegram = hangingMemberTelegram();
+  return (authorIdentifier, signal) =>
+    verifyMembership({
+      telegram: memberTelegram,
+      groupIdentifier,
+      authorIdentifier,
+      signal: requestSignal(signal, timeoutMilliseconds),
+    });
+}
+
+test("a service stop during the membership read aborts instead of refusing", async (context) => {
+  const { ciWatches, github, merges, traces, buildHandler } = setup(context);
+  report(ciWatches);
+  const controller = new AbortController();
+  const handler = buildHandler({
+    verifyMembership: boundedMembership(60_000),
+  });
+
+  const pending = handler.handle(request(), bareCommand, {
+    signal: controller.signal,
+  });
+  await new Promise((resolve) => setImmediate(resolve));
+  controller.abort();
+
+  await assert.rejects(pending, { name: "AbortError" });
+  assert.deepEqual(github.merges, []);
+  assert.equal(merges.state(20), undefined);
+  assert.deepEqual(actions(traces), []);
+});
+
+test("a membership read that runs out of its deadline refuses and asks to retry", async (context) => {
+  const { ciWatches, github, merges, traces, buildHandler } = setup(context);
+  report(ciWatches);
+  const handler = buildHandler({ verifyMembership: boundedMembership(10) });
+
+  const result = await handler.handle(request(), bareCommand);
+
+  assert.equal(result.outcome, "answered");
+  assert.match(result.report, /No s'ha pogut verificar la pertinença/u);
+  assert.match(result.report, /torna-ho a demanar/u);
+  assert.deepEqual(github.merges, []);
+  assert.equal(merges.state(20), undefined);
+  assert.deepEqual(
+    traces.map((entry) => [entry.action, entry.detail]),
+    [["merge_refused", "membership_unavailable"]],
   );
 });
 

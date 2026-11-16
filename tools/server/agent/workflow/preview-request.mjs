@@ -9,6 +9,9 @@
 // guessed: only the publisher's own comment, written after the request and
 // naming the pinned commit, is reported.
 //
+// The author's membership is asked again when the request runs, as the merge
+// does: a preview publishes the pull request, so it is not ordinary queued work.
+//
 // Nothing here runs without a request: a green CI, a new pull request or a
 // repair publication never asks for a preview.
 
@@ -29,6 +32,8 @@ import { previewCommand, previewReports } from "../policy/development.mjs";
 import { ciResults } from "./ci-watch.mjs";
 
 const refusals = {
+  membershipRevoked: "membership_revoked",
+  membershipUnavailable: "membership_unavailable",
   noReportedCommit: "no_reported_commit",
   alreadyInProgress: "already_in_progress",
   alreadyHandled: "already_handled",
@@ -45,6 +50,7 @@ function describeTarget({ pullRequestNumber, commit }) {
 export function createPreviewRequests({
   store,
   reportedCommits,
+  verifyMembership,
   github,
   repository,
   requiredChecks,
@@ -134,6 +140,32 @@ export function createPreviewRequests({
       authorIdentifier: request.authorIdentifier,
       sessionKey: request.sessionKey,
       action: "preview_requested",
+      detail: describeTarget(target),
+    });
+
+    const membership = await verifyMembership(request.authorIdentifier, signal);
+    // A service stop is an abort, not a refusal; a read that ran out of its own
+    // deadline is a failed check below and asks the person to try again.
+    signal?.throwIfAborted();
+    if (!membership.verified) {
+      if (membership.reason === "membership_check_failed") {
+        return refuse(
+          request,
+          refusals.membershipUnavailable,
+          previewReports.membershipUnavailable,
+        );
+      }
+      return refuse(
+        request,
+        refusals.membershipRevoked,
+        previewReports.membershipRevoked,
+      );
+    }
+    safeTrace({
+      updateIdentifier: request.updateIdentifier,
+      authorIdentifier: request.authorIdentifier,
+      sessionKey: request.sessionKey,
+      action: "preview_membership_verified",
       detail: describeTarget(target),
     });
 

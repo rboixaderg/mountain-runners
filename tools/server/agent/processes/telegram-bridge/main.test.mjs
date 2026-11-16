@@ -965,3 +965,146 @@ test("refuses the merge while an automatic repair is reserved for the topic", as
   assert.deepEqual(merges, []);
   assert.match(replies.at(-1), /feina més nova que l'últim avís/u);
 });
+
+function implementationUpdate(updateIdentifier) {
+  return {
+    update_id: updateIdentifier,
+    message: {
+      message_id: updateIdentifier,
+      chat: { id: -1001234567890 },
+      message_thread_id: 7,
+      is_topic_message: true,
+      from: { id: 555, is_bot: false },
+      text: "@mountain_agent_bot implementa el canvi",
+      entities: [{ type: "mention", offset: 0, length: 19 }],
+    },
+  };
+}
+
+test("still runs an instruction admitted before its author left the group", async (context) => {
+  const { environment } = environmentFor(context);
+  const updates = [implementationUpdate(100)];
+  const replies = [];
+  const membershipChecks = [];
+  const executed = [];
+  const service = await startService({
+    environment,
+    telegram: {
+      ...telegramStub(),
+      async getUpdates() {
+        return updates.splice(0);
+      },
+      async getChatMember() {
+        membershipChecks.push("checked");
+        // Admitted as a member; the author has left by the time it runs.
+        return { status: membershipChecks.length === 1 ? "member" : "left" };
+      },
+      async sendMessage(message) {
+        replies.push(message.text);
+      },
+    },
+    github: {},
+    runner: async (request) => {
+      executed.push(request.updateIdentifier);
+      return { outcome: "answered", report: "Canvi publicat." };
+    },
+  });
+  context.after(() => {
+    service.ciWatches.close();
+    service.queue.close();
+  });
+
+  await service.bridge.pollOnce();
+  await service.bridge.executeNext();
+
+  assert.equal(membershipChecks.length, 1);
+  assert.deepEqual(executed, [100]);
+  assert.ok(replies.some((reply) => /Canvi publicat/u.test(reply)));
+});
+
+test("verifies the membership again when the preview request runs", async (context) => {
+  const { environment } = environmentFor(context);
+  const commit = "a".repeat(40);
+  const posted = [];
+  const membershipReads = [];
+  const memberStatus = { value: "left" };
+  const service = await startService({
+    environment,
+    telegram: {
+      ...telegramStub(),
+      async getChatMember({ chatIdentifier, userIdentifier }) {
+        membershipReads.push({ chatIdentifier, userIdentifier });
+        return { status: memberStatus.value };
+      },
+    },
+    github: {
+      async getPullRequest() {
+        return {
+          state: "open",
+          headSha: commit,
+          headRepository: "rboixaderg/mountain-runners",
+        };
+      },
+      async getCommitCheckRuns() {
+        return [
+          { name: "Validate", status: "completed", conclusion: "success" },
+        ];
+      },
+      async getCommitStatuses() {
+        return [];
+      },
+      async commentOnPullRequest({ number, body }) {
+        posted.push({ number, body });
+        return { createdAt: "2026-11-14T10:00:00Z" };
+      },
+    },
+    runner: async () => ({}),
+  });
+  context.after(() => {
+    service.previewRequests.close();
+    service.ciWatches.close();
+    service.queue.close();
+  });
+  service.ciWatches.add({
+    updateIdentifier: 10,
+    sessionKey: "-1001234567890:7",
+    pullRequestNumber: 200,
+    commitSha: commit,
+  });
+  service.ciWatches.beginSend(10, "success");
+  service.ciWatches.finishSend(10);
+  const previewRequest = (updateIdentifier) => ({
+    updateIdentifier,
+    sessionKey: "-1001234567890:7",
+    authorIdentifier: 555,
+    instruction: "obre la preview",
+  });
+
+  const revoked = await service.previewWorker.handle(previewRequest(20));
+
+  const refusal = service.queue
+    .traceEntries()
+    .find((entry) => entry.action === "preview_refused");
+  assert.match(revoked.report, /Ja no consten com a membre verificat/u);
+  assert.deepEqual(posted, []);
+  assert.equal(service.previewRequests.state(20), undefined);
+  assert.equal(refusal.detail, "membership_revoked");
+
+  memberStatus.value = "member";
+  const verified = await service.previewWorker.handle(previewRequest(21));
+  const verifiedTrace = service.queue
+    .traceEntries()
+    .find((entry) => entry.action === "preview_membership_verified");
+
+  assert.match(verified.report, /Preview demanada/u);
+  assert.deepEqual(posted, [{ number: 200, body: "/preview" }]);
+  assert.equal(service.previewRequests.state(21), "awaiting");
+  assert.equal(verifiedTrace.detail, `#200 ${"a".repeat(7)}`);
+  assert.equal(verifiedTrace.author_identifier, 555);
+  // Only the configured group and the request author are asked, twice: once
+  // for the refused request and once for the accepted one.
+  assert.deepEqual(membershipReads, [
+    { chatIdentifier: "-1001234567890", userIdentifier: 555 },
+    { chatIdentifier: "-1001234567890", userIdentifier: 555 },
+  ]);
+});
