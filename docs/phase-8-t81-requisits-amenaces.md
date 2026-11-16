@@ -70,6 +70,12 @@ aplicant-se fins que s'esmenin.
   intenta aturar els processos associats i informa si l'aturada no es pot
   confirmar. Conserva canvis, branca i PR; no tanca la PR ni elimina feina no
   fusionada automàticament.
+
+  **Nota del pilot (T8.6).** Aquest requisit no està implementat al pilot:
+  l'única aturada és la de la persona operadora amb
+  `systemctl stop mountain-agent`, segons l'[ADR 0014](decisions/0014-operator-stop-and-repeatable-telegram-notices.md).
+  El requisit original es manté com a objectiu d'una ampliació posterior.
+
 - Una acció externa ja enviada pot haver acabat tot i l'aturada o un reinici.
   Abans de repetir-la, el servei consulta l'estat real de Git o GitHub. Si no
   pot determinar el resultat, ho comunica i no declara que s'ha completat.
