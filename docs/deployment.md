@@ -605,6 +605,11 @@ sandbox pugui llegir.
 
 ### Aturada i reinici
 
+L'aturada del servei la fa la persona operadora amb `systemctl stop mountain-agent`.
+El tema de Telegram no té cap comanda d'aturada: un membre que vulgui aturar la
+feina ho demana a la persona mantenidora ([ADR 0014](decisions/0014-operator-stop-and-repeatable-telegram-notices.md)).
+L'aturada conserva la feina, la branca i la PR.
+
 El contenidor de cada ordre s'executa amb `--rm`: conmon l'elimina sol quan el
 procés mor. Una aturada ordenada i una mort sobtada del pont deixen el mateix
 resultat, cap contenidor ni cap registre residual. El contenidor viu dins del
@@ -826,7 +831,9 @@ privada.
 
 - **Avís de confirmació.** L'avís s'envia abans de tancar la petició i només
   es tanca si l'enviament ha anat bé; si falla, es reintenta al cicle següent.
-  Una caiguda entre l'enviament i el tancament pot duplicar l'avís. Una lectura
+  Una caiguda entre l'enviament i el tancament pot duplicar l'avís. La duplicació
+  d'aquest avís de Telegram és una excepció acceptada ([ADR 0014](decisions/0014-operator-stop-and-repeatable-telegram-notices.md)): el
+  comentari `/preview` de GitHub no es repeteix. Una lectura
   fallida de comentaris mai tanca una petició: el termini només s'aplica després
   d'una lectura correcta.
 - **Repetició pel mateix commit.** Confia que GitHub actualitza el camp
@@ -910,7 +917,10 @@ proteccions, ni tancament de la PR.
   - Si no la mostra fusionada, el tema rep una vegada per petició (a
     l'arrencada, o a la resposta si el resultat desconegut ha sorgit en
     executar-se) l'avís que GitHub no la mostra fusionada, oberta o tancada
-    sense fusionar. Una `/merge` o `/merge <PR>` mai no desbloqueja res: demana
+    sense fusionar. Un lliurament desconegut pot enviar aquest avís dues
+    vegades; és l'excepció acceptada de l'[ADR 0014](decisions/0014-operator-stop-and-repeatable-telegram-notices.md) i no
+    repeteix cap efecte de GitHub. Una `/merge` o `/merge <PR>` mai no
+    desbloqueja res: demana
     la forma estricta `/merge <PR> <SHA>`.
   - Quan una persona verificada escriu `/merge <PR> <SHA>` amb el SHA del commit
     fixat de la petició `uncertain`, i una lectura nova continua mostrant la PR

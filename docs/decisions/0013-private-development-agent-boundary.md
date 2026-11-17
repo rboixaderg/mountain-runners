@@ -10,6 +10,8 @@ L'esmena substitueix la proposta anterior, que reservava el merge a una persona 
 
 La mateixa revisió esmena l'[ADR 0009](0009-pr-previews-same-domain-and-own-branches.md) per delegar-hi la petició de preview. El xat públic de l'[ADR 0002](0002-public-chat-and-private-editor.md) continua sense canvis i separat d'aquest servei.
 
+Esmenada el 16 de novembre de 2026 per l'[ADR 0014](0014-operator-stop-and-repeatable-telegram-notices.md), només en dos punts: l'aturada de l'execució activa és de la persona operadora i un avís de Telegram es pot repetir després d'un lliurament desconegut. La resta d'aquest ADR no canvia.
+
 ## Context
 
 La fase 8 proposa ampliar el futur assistent editorial privat a consultes i canvis de codi, mantenint una persona com a responsable de la revisió i el merge. El grup privat de Telegram seria la frontera d'accés humana. Cada tema seria una sessió compartida i podria contenir més d'una feina. La petició explícita d'una persona membre autoritza una implementació fins a una PR. Qui ha validat el resultat pot demanar després el merge d'aquella PR; sense aquesta petició, l'agent no fusiona, i no desplega mai.
