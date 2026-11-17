@@ -497,6 +497,13 @@ la sessió; si no es pot confirmar, l'execució queda fallida o incerta.
   d'executar-la, i no inclou cap credencial. Si Telegram no accepta l'avís, la
   feina continua i només es registra `reply_failed`; la resposta final arriba
   igualment en aquell tema.
+- Tota petició del client de Telegram té un termini propi, combinat amb el
+  senyal d'aturada del servei: 30 s per defecte i, al long polling, els 25 s
+  demanats al servidor més 15 s de marge. Un termini esgotat és un error del
+  client que no conté cap URL ni el token; una aturada continua sent una
+  aturada. Un enviament que s'esgota és un lliurament desconegut: l'avís de
+  recepció només deixa `reply_failed` i la feina continua, i l'avís de CI deixa
+  el seguiment incert i avorta la reserva de reparació.
 - La revocació talla només el que encara no s'ha admès. Una persona que deixa
   el grup o és expulsada no pot donar instruccions noves, però la feina
   ordinària ja acceptada (implementacions, continuacions, consultes i

@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
 import { AdmissionQueue } from "../../src/sessions/queue.mjs";
+import { TelegramApi } from "../../src/telegram/api.mjs";
 import {
   AgentBridge,
   defaultBridgeMessages,
@@ -69,6 +70,46 @@ function telegramStub({ batches, members = { 42: "member" } }) {
     async sendMessage({ chatIdentifier, messageThreadIdentifier, text }) {
       this.sent.push({ chatIdentifier, messageThreadIdentifier, text });
     },
+  };
+}
+
+/** A real client whose long poll and membership answer, and whose send hangs. */
+function telegramApiWithHangingSend({ batches }) {
+  const pendingBatches = [...batches];
+  const requestedMethods = [];
+  const fetchImpl = async (url, init) => {
+    const method = url.slice(url.lastIndexOf("/") + 1);
+    requestedMethods.push(method);
+    if (method === "getUpdates") {
+      return {
+        status: 200,
+        async json() {
+          return { ok: true, result: pendingBatches.shift() ?? [] };
+        },
+      };
+    }
+    if (method === "getChatMember") {
+      return {
+        status: 200,
+        async json() {
+          return { ok: true, result: { status: "member" } };
+        },
+      };
+    }
+    // The acknowledgement never answers: only the client deadline ends it.
+    return new Promise((resolve, reject) => {
+      init.signal.addEventListener("abort", () => reject(init.signal.reason), {
+        once: true,
+      });
+    });
+  };
+  return {
+    requestedMethods,
+    api: new TelegramApi({
+      botToken: "123:synthetic-token",
+      fetchImpl,
+      requestTimeoutMilliseconds: 100,
+    }),
   };
 }
 
@@ -224,6 +265,35 @@ test("runs the instruction when the acknowledgement cannot be sent", async (t) =
 
   assert.equal(queue.status(10), "done");
   assert.ok(events.includes("reply_failed"));
+});
+
+test("advances the offset after an acknowledgement that reaches its deadline", async (t) => {
+  const { queue } = context(t);
+  const { api, requestedMethods } = telegramApiWithHangingSend({
+    batches: [[instructionUpdate(10, 7)]],
+  });
+  const events = [];
+  const bridge = bridgeFor({
+    queue,
+    telegram: api,
+    logger: (event) => events.push(event),
+    runInstruction: async () => ({ outcome: "answered", report: "fet" }),
+  });
+
+  assert.equal(await bridge.pollOnce(), 1);
+
+  // The instruction is durable even though its acknowledgement timed out, so
+  // the offset moves on and the next read continues from it.
+  assert.equal(queue.status(10), "pending");
+  assert.equal(queue.readOffset(), 11);
+  assert.deepEqual(events, ["reply_failed"]);
+  assert.equal(await bridge.pollOnce(), 0);
+  assert.deepEqual(requestedMethods, [
+    "getUpdates",
+    "getChatMember",
+    "sendMessage",
+    "getUpdates",
+  ]);
 });
 
 test("keeps the acknowledgement to one short line", () => {

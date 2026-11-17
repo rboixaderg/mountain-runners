@@ -4,6 +4,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
+import { TelegramApi } from "telegram-pi-bridge/telegram";
 import { CiWatchStore } from "../repository/ci-watch-store.mjs";
 import { defaultRequestTimeoutMilliseconds } from "../repository/request-signal.mjs";
 import { maximumAutomaticRepairs } from "../policy/development.mjs";
@@ -673,6 +674,46 @@ test("treats a failed delivery as uncertain and never resends it on its own", as
   assert.equal(attempts, 1);
   assert.deepEqual(events, ["ci_notification_uncertain"]);
   assert.equal(store.state(registration.updateIdentifier), "uncertain");
+});
+
+test("treats a notice that reaches its deadline as uncertain and aborts the repair", async (context) => {
+  const { store } = fixture(context);
+  createCiWatchRegistration({ store })(registration);
+  const events = [];
+  const traces = [];
+  // A Telegram client that never answers: only its request deadline ends it.
+  const telegram = new TelegramApi({
+    botToken: "123:synthetic-token",
+    fetchImpl: async (url, init) =>
+      new Promise((resolve, reject) => {
+        init.signal.addEventListener(
+          "abort",
+          () => reject(init.signal.reason),
+          { once: true },
+        );
+      }),
+    requestTimeoutMilliseconds: 100,
+  });
+
+  await workerFor({
+    store,
+    github: fakeGithub({
+      checkRuns: [checkRun("Validate", "completed", "failure")],
+    }),
+    telegram,
+    logger: (event) => events.push(event),
+    recordTrace: (entry) => traces.push(entry),
+  }).runOnce();
+
+  assert.deepEqual(events, ["ci_notification_uncertain"]);
+  assert.equal(store.state(registration.updateIdentifier), "uncertain");
+  assert.equal(store.repair(1).status, "aborted");
+  assert.equal(store.repair(1).outcome, "announcement_failed");
+  assert.equal(store.claimNextRepair(), null);
+  assert.deepEqual(
+    traces.map((entry) => entry.action),
+    ["ci_repair_not_announced"],
+  );
 });
 
 test("keeps the watch pending when GitHub cannot answer", async (context) => {

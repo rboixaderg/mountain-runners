@@ -163,7 +163,13 @@ Els missatges es poden substituir parcialment amb
 `attachmentTooLarge` rep la mida en MB i la resta són cadenes. La recepció s'envia només quan la instrucció ja és duradora
 a la cua, abans d'executar-la, i un error d'enviament no atura la feina: es
 registra com a `reply_failed`. El transport admet `fetchImpl` i
-`baseUrl` per proves; el seu origen per defecte és l'API HTTPS de Telegram.
+`baseUrl` per proves; el seu origen per defecte és l'API HTTPS de Telegram. Tota
+petició té un termini propi que cobreix la connexió i la lectura del cos,
+combinat amb el senyal del procés: 30 s per defecte
+(`requestTimeoutMilliseconds`) i, al long polling, el temps demanat al servidor
+més 15 s de marge (`longPollMarginMilliseconds`). Un termini esgotat és un
+`TelegramApiError` sense URL ni token; una aturada del procés continua com a
+`AbortError`.
 
 ### Torn de Pi
 
