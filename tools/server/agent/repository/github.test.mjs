@@ -1,11 +1,18 @@
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { promisify } from "node:util";
 import { test } from "node:test";
 import { GitHubTrust, PublishRefusedError } from "./github.mjs";
+import { GitInterruptedError, primaryRepository } from "./trusted-git.mjs";
 import { createBranch, ensureSessionWorktree } from "./worktrees.mjs";
 
 const executeFile = promisify(execFile);
@@ -63,6 +70,56 @@ async function repositoryFixture(context) {
     `https://github.com/${repository}.git`,
   ]);
   return { directory, origin, clone, worktreeRoot };
+}
+
+/**
+ * A fake `git` on a temporary PATH. It answers the pre-push checks of the
+ * trusted component, marks the start of the push and then never answers, so the
+ * only way the push ends is the instruction signal reaching the subprocess.
+ */
+function fakeGitFixture(context) {
+  const directory = mkdtempSync(join(tmpdir(), "mr-agent-fake-git-"));
+  context.after(() =>
+    rmSync(directory, {
+      recursive: true,
+      force: true,
+      maxRetries: 5,
+      retryDelay: 100,
+    }),
+  );
+  mkdirSync(join(directory, ".git"));
+  const pushStarted = join(directory, "push-started");
+  writeFileSync(
+    join(directory, "git"),
+    [
+      "#!/bin/sh",
+      'case " $* " in',
+      `  *" config --get remote.origin.url "*) printf '%s\\n' "https://github.com/${repository}.git"; exit 0 ;;`,
+      `  *" rev-parse HEAD "*) printf '%s\\n' "${"a".repeat(40)}"; exit 0 ;;`,
+      '  *" rev-list "*) exit 0 ;;',
+      `  *" push "*) : > "${pushStarted}"; exec sleep 10 ;;`,
+      "  *) exit 0 ;;",
+      "esac",
+      "",
+    ].join("\n"),
+    { mode: 0o755 },
+  );
+  const originalPath = process.env.PATH;
+  process.env.PATH = `${directory}:${originalPath}`;
+  context.after(() => {
+    process.env.PATH = originalPath;
+  });
+  return { directory, pushStarted };
+}
+
+async function waitForFile(path, timeoutMilliseconds = 5000) {
+  const deadline = Date.now() + timeoutMilliseconds;
+  while (!existsSync(path)) {
+    if (Date.now() > deadline) {
+      throw new Error("The fake Git push never started.");
+    }
+    await new Promise((resolve) => setTimeout(resolve, 10));
+  }
 }
 
 async function branchWorktree({ repository, worktreeRoot, branch, name }) {
@@ -429,6 +486,83 @@ test("reuses an open pull request and creates one only when absent", async (cont
     calls.filter((call) => call.options.method === "POST").length,
     1,
   );
+});
+
+test("stops a running push when the instruction signal aborts", async (context) => {
+  const { directory, pushStarted } = fakeGitFixture(context);
+  const worktree = primaryRepository(directory);
+  const requests = [];
+  const component = trust({
+    fetchImpl: async (url) => {
+      requests.push(url);
+      return { ok: true, json: async () => [] };
+    },
+  });
+  const controller = new AbortController();
+
+  const pending = component.pushBranch({
+    worktree,
+    branch,
+    secrets: [githubToken],
+    signal: controller.signal,
+  });
+  await waitForFile(pushStarted);
+  const stoppedAt = Date.now();
+  controller.abort();
+
+  await assert.rejects(pending, GitInterruptedError);
+  assert.ok(Date.now() - stoppedAt < 5000);
+  assert.equal(existsSync(pushStarted), true);
+  assert.deepEqual(requests, []);
+});
+
+test("bounds an API request that the caller did not bound", async () => {
+  const signals = [];
+  const component = trust({
+    requestTimeoutMilliseconds: 20,
+    fetchImpl: (url, options) => {
+      signals.push(options.signal);
+      return new Promise((resolve, reject) => {
+        options.signal.addEventListener(
+          "abort",
+          () => reject(options.signal.reason),
+          {
+            once: true,
+          },
+        );
+      });
+    },
+  });
+
+  await assert.rejects(component.findOpenPullRequest({ branch }), {
+    name: "TimeoutError",
+  });
+  assert.equal(signals.length, 1);
+});
+
+test("stops an API request when the caller signal aborts", async () => {
+  const component = trust({
+    fetchImpl: (url, options) =>
+      new Promise((resolve, reject) => {
+        options.signal.addEventListener(
+          "abort",
+          () => reject(options.signal.reason),
+          {
+            once: true,
+          },
+        );
+      }),
+  });
+  const controller = new AbortController();
+  const pending = component.ensurePullRequest({
+    branch,
+    title: "feat(phase-8-t8.6): deadlines",
+    body: "Descripció",
+    signal: controller.signal,
+  });
+  controller.abort();
+
+  await assert.rejects(pending, { name: "AbortError" });
 });
 
 test("reports a pull request API failure without exposing the token", async () => {

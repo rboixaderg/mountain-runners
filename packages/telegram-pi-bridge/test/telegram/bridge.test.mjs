@@ -79,6 +79,7 @@ function bridgeFor({
   runWhenIdle,
   messages,
   logger = () => {},
+  membershipTimeoutMilliseconds,
 }) {
   return new AgentBridge({
     groupIdentifier,
@@ -91,7 +92,23 @@ function bridgeFor({
     botIdentifier,
     logger,
     pollTimeoutSeconds: 1,
+    membershipTimeoutMilliseconds,
   });
+}
+
+/** A membership read that only ends when its bounded signal aborts. */
+function hangingMembershipTelegram({ batches }) {
+  const telegram = telegramStub({ batches });
+  telegram.membershipSignals = [];
+  telegram.getChatMember = ({ signal }) => {
+    telegram.membershipSignals.push(signal);
+    return new Promise((resolve, reject) => {
+      signal.addEventListener("abort", () => reject(signal.reason), {
+        once: true,
+      });
+    });
+  };
+  return telegram;
 }
 
 test("executes an admitted instruction once and reports in its topic", async (t) => {
@@ -382,6 +399,48 @@ test("tells the author to retry when Telegram cannot verify membership", async (
     telegram.sent[0].text,
     defaultBridgeMessages.membershipUnavailable,
   );
+});
+
+test("denies an instruction when the membership read runs out of its deadline", async (t) => {
+  const { queue } = context(t);
+  const telegram = hangingMembershipTelegram({
+    batches: [[instructionUpdate(10, 7)]],
+  });
+  const bridge = bridgeFor({
+    queue,
+    telegram,
+    membershipTimeoutMilliseconds: 10,
+  });
+
+  assert.equal(await bridge.pollOnce(), 1);
+
+  assert.equal(telegram.membershipSignals.length, 1);
+  assert.ok(telegram.membershipSignals[0] instanceof AbortSignal);
+  assert.equal(queue.pendingCount(), 0);
+  assert.equal(queue.readOffset(), 11);
+  assert.equal(telegram.sent.length, 1);
+  assert.equal(
+    telegram.sent[0].text,
+    defaultBridgeMessages.membershipUnavailable,
+  );
+});
+
+test("keeps the update unread when the service stops during the membership read", async (t) => {
+  const { queue } = context(t);
+  const telegram = hangingMembershipTelegram({
+    batches: [[instructionUpdate(10, 7)]],
+  });
+  const controller = new AbortController();
+  const bridge = bridgeFor({ queue, telegram });
+
+  const pending = bridge.pollOnce({ signal: controller.signal });
+  await new Promise((resolve) => setImmediate(resolve));
+  controller.abort();
+
+  assert.equal(await pending, 0);
+  assert.equal(queue.pendingCount(), 0);
+  assert.equal(queue.readOffset(), 0);
+  assert.deepEqual(telegram.sent, []);
 });
 
 test("processes two topics in arrival order", async (t) => {

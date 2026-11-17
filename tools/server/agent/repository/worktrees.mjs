@@ -11,8 +11,10 @@ import {
 } from "node:fs";
 import { basename, dirname, join } from "node:path";
 import {
+  GitInterruptedError,
   primaryRepository,
   registeredWorktree,
+  remoteGitTimeoutMilliseconds,
   runGit,
 } from "./trusted-git.mjs";
 
@@ -52,8 +54,10 @@ export function assertWorkBranch(branch) {
   return branch;
 }
 
-async function worktreePaths(repository) {
-  const output = await runGit(repository, ["worktree", "list", "--porcelain"]);
+async function worktreePaths(repository, { signal } = {}) {
+  const output = await runGit(repository, ["worktree", "list", "--porcelain"], {
+    signal,
+  });
   return output
     .split("\n")
     .filter((line) => line.startsWith("worktree "))
@@ -61,8 +65,10 @@ async function worktreePaths(repository) {
 }
 
 /** Every registered worktree with the branch it holds, or null when detached. */
-async function worktreesByBranch(repository) {
-  const output = await runGit(repository, ["worktree", "list", "--porcelain"]);
+async function worktreesByBranch(repository, { signal } = {}) {
+  const output = await runGit(repository, ["worktree", "list", "--porcelain"], {
+    signal,
+  });
   const entries = [];
   let entry = null;
   for (const line of output.split("\n")) {
@@ -84,6 +90,7 @@ export async function ensureSessionWorktree({
   name,
   baseBranch = "main",
   newTaskIdentifier,
+  signal,
 }) {
   if (baseBranch !== "main") {
     throw new Error("The agent only starts work from main.");
@@ -100,39 +107,44 @@ export async function ensureSessionWorktree({
   mkdirSync(worktreeRoot, { recursive: true });
   const worktreePath = join(realpathSync(worktreeRoot), name);
   const repository = primaryRepository(repositoryPath);
-  let existing = (await worktreePaths(repository)).some(
+  let existing = (await worktreePaths(repository, { signal })).some(
     (path) => path === worktreePath,
   );
 
-  await runGit(repository, ["fetch", "--prune", "origin", baseBranch]);
+  await runGit(repository, ["fetch", "--prune", "origin", baseBranch], {
+    signal,
+    timeoutMilliseconds: remoteGitTimeoutMilliseconds,
+  });
   if (existing && newTaskIdentifier !== undefined) {
     const previous = registeredWorktree(repositoryPath, worktreePath);
     // Check the untrusted Git marker before moving the registered worktree.
     // Even a clean tree may contain ignored artifacts from a previous task.
-    await listChangedPaths(previous);
+    await listChangedPaths(previous, { signal });
     const archivePath = join(
       realpathSync(worktreeRoot),
       `${name}-before-${newTaskIdentifier}`,
     );
-    await runGit(repository, ["worktree", "move", worktreePath, archivePath]);
+    await runGit(repository, ["worktree", "move", worktreePath, archivePath], {
+      signal,
+    });
     existing = false;
   }
   if (!existing) {
-    await runGit(repository, [
-      "worktree",
-      "add",
-      "--detach",
-      worktreePath,
-      `origin/${baseBranch}`,
-    ]);
+    await runGit(
+      repository,
+      ["worktree", "add", "--detach", worktreePath, `origin/${baseBranch}`],
+      { signal },
+    );
   }
   const worktree = registeredWorktree(repositoryPath, worktreePath);
   if (
     existing &&
-    (await listChangedPaths(worktree)).length === 0 &&
-    !(await hasUnpublishedCommit(worktree))
+    (await listChangedPaths(worktree, { signal })).length === 0 &&
+    !(await hasUnpublishedCommit(worktree, { signal }))
   ) {
-    await runGit(worktree, ["checkout", "--detach", `origin/${baseBranch}`]);
+    await runGit(worktree, ["checkout", "--detach", `origin/${baseBranch}`], {
+      signal,
+    });
   }
   return { ...worktree, reused: existing };
 }
@@ -146,6 +158,7 @@ export async function findSessionWorktree({
   repositoryPath,
   worktreeRoot,
   name,
+  signal,
 }) {
   if (!/^[a-z0-9][a-z0-9._-]*$/u.test(name)) {
     throw new Error(`Invalid worktree name ${name}.`);
@@ -155,7 +168,7 @@ export async function findSessionWorktree({
   }
   const worktreePath = join(realpathSync(worktreeRoot), name);
   const repository = primaryRepository(repositoryPath);
-  const registered = (await worktreePaths(repository)).some(
+  const registered = (await worktreePaths(repository, { signal })).some(
     (path) => path === worktreePath,
   );
   if (!registered || !existsSync(worktreePath)) {
@@ -180,6 +193,7 @@ export async function resumeWorkBranch({
   branch,
   headSha,
   newTaskIdentifier,
+  signal,
 }) {
   if (!/^[a-z0-9][a-z0-9._-]*$/u.test(name)) {
     throw new Error(`Invalid worktree name ${name}.`);
@@ -197,15 +211,17 @@ export async function resumeWorkBranch({
   const repository = primaryRepository(repositoryPath);
 
   // Every read and validation happens before the first local change.
-  await runGit(repository, ["fetch", "--prune", "origin", "main"]);
-  await runGit(repository, [
-    "fetch",
-    "--prune",
-    "origin",
-    `refs/heads/${branch}`,
-  ]);
+  await runGit(repository, ["fetch", "--prune", "origin", "main"], {
+    signal,
+    timeoutMilliseconds: remoteGitTimeoutMilliseconds,
+  });
+  await runGit(
+    repository,
+    ["fetch", "--prune", "origin", `refs/heads/${branch}`],
+    { signal, timeoutMilliseconds: remoteGitTimeoutMilliseconds },
+  );
   const fetched = (
-    await runGit(repository, ["rev-parse", "FETCH_HEAD"])
+    await runGit(repository, ["rev-parse", "FETCH_HEAD"], { signal })
   ).trim();
   if (fetched !== headSha) {
     return { refusal: workBranchRefusals.movedHead };
@@ -214,19 +230,19 @@ export async function resumeWorkBranch({
     await runGit(
       repository,
       ["rev-parse", "--verify", "--quiet", `refs/heads/${branch}`],
-      { allowFailure: true },
+      { allowFailure: true, signal },
     )
   ).trim();
   const holders = [];
-  for (const entry of await worktreesByBranch(repository)) {
+  for (const entry of await worktreesByBranch(repository, { signal })) {
     if (entry.branch !== branch || !existsSync(entry.path)) {
       continue;
     }
     const holder = registeredWorktree(repositoryPath, entry.path);
-    if ((await listChangedPaths(holder)).length > 0) {
+    if ((await listChangedPaths(holder, { signal })).length > 0) {
       return { refusal: workBranchRefusals.dirtyWorktree };
     }
-    if (await hasUnpublishedCommit(holder)) {
+    if (await hasUnpublishedCommit(holder, { signal })) {
       return { refusal: workBranchRefusals.unpublishedCommits };
     }
     holders.push(holder);
@@ -235,6 +251,7 @@ export async function resumeWorkBranch({
     const mergeBase = (
       await runGit(repository, ["merge-base", localBranch, headSha], {
         allowFailure: true,
+        signal,
       })
     ).trim();
     if (mergeBase !== localBranch) {
@@ -244,35 +261,40 @@ export async function resumeWorkBranch({
 
   // Only the release moves local state: every refusal is already decided.
   for (const holder of holders) {
-    await runGit(holder, ["checkout", "--detach"]);
+    await runGit(holder, ["checkout", "--detach"], { signal });
   }
 
-  if ((await worktreePaths(repository)).includes(worktreePath)) {
+  if ((await worktreePaths(repository, { signal })).includes(worktreePath)) {
     const previous = registeredWorktree(repositoryPath, worktreePath);
     // Check the untrusted Git marker before moving the registered worktree.
-    await listChangedPaths(previous);
-    await runGit(repository, [
-      "worktree",
-      "move",
-      worktreePath,
-      join(root, `${name}-before-${newTaskIdentifier}`),
-    ]);
+    await listChangedPaths(previous, { signal });
+    await runGit(
+      repository,
+      [
+        "worktree",
+        "move",
+        worktreePath,
+        join(root, `${name}-before-${newTaskIdentifier}`),
+      ],
+      { signal },
+    );
   }
-  await runGit(repository, ["branch", "-f", branch, headSha]);
-  await runGit(repository, ["worktree", "add", worktreePath, branch]);
+  await runGit(repository, ["branch", "-f", branch, headSha], { signal });
+  await runGit(repository, ["worktree", "add", worktreePath, branch], {
+    signal,
+  });
   const worktree = registeredWorktree(repositoryPath, worktreePath);
   // The head is published already: an unchanged resume never republishes it.
   recordPublication(worktree, headSha);
   return { worktree };
 }
 
-export async function listChangedPaths(worktree) {
-  const output = await runGit(worktree, [
-    "status",
-    "--porcelain",
-    "--untracked-files=all",
-    "-z",
-  ]);
+export async function listChangedPaths(worktree, { signal } = {}) {
+  const output = await runGit(
+    worktree,
+    ["status", "--porcelain", "--untracked-files=all", "-z"],
+    { signal },
+  );
   const entries = output.split("\0");
   const changedPaths = [];
   for (let index = 0; index < entries.length; index += 1) {
@@ -299,10 +321,15 @@ export async function listOtherTopicWorktrees({
   repositoryPath,
   worktreeRoot,
   excludeName,
+  signal,
 }) {
   const root = realpathSync(worktreeRoot);
   const worktrees = [];
-  for (const path of await worktreePaths(primaryRepository(repositoryPath))) {
+  const registeredPaths = await worktreePaths(
+    primaryRepository(repositoryPath),
+    { signal },
+  );
+  for (const path of registeredPaths) {
     const resolvedPath = realpathSync(path);
     const name = basename(resolvedPath);
     if (
@@ -325,34 +352,34 @@ export async function listOtherTopicWorktrees({
  * committed yet. A rename counts on both sides, so an overlap with the old
  * name is visible too.
  */
-export async function changedPathsAgainstMain(worktree) {
-  const committed = await runGit(worktree, [
-    "diff",
-    "--name-only",
-    "-z",
-    "--no-renames",
-    "origin/main...HEAD",
-  ]);
-  const pending = await listChangedPaths(worktree);
+export async function changedPathsAgainstMain(worktree, { signal } = {}) {
+  const committed = await runGit(
+    worktree,
+    ["diff", "--name-only", "-z", "--no-renames", "origin/main...HEAD"],
+    { signal },
+  );
+  const pending = await listChangedPaths(worktree, { signal });
   return [...new Set([...committed.split("\0").filter(Boolean), ...pending])];
 }
 
-export async function currentBranch(worktree) {
+export async function currentBranch(worktree, { signal } = {}) {
   const branch = await runGit(
     worktree,
     ["symbolic-ref", "--short", "-q", "HEAD"],
-    { allowFailure: true },
+    { allowFailure: true, signal },
   );
   return branch.trim() || null;
 }
 
-export async function headCommit(worktree) {
-  return (await runGit(worktree, ["rev-parse", "HEAD"])).trim();
+export async function headCommit(worktree, { signal } = {}) {
+  return (await runGit(worktree, ["rev-parse", "HEAD"], { signal })).trim();
 }
 
-export async function commitSubject(worktree, commit) {
+export async function commitSubject(worktree, commit, { signal } = {}) {
   return (
-    await runGit(worktree, ["log", "-1", "--format=%s", commit, "--"])
+    await runGit(worktree, ["log", "-1", "--format=%s", commit, "--"], {
+      signal,
+    })
   ).trim();
 }
 
@@ -365,6 +392,7 @@ export async function changeDiff({
   worktree,
   baseBranch = "main",
   maximumBytes = 256 * 1024,
+  signal,
 }) {
   if (baseBranch !== "main") {
     throw new Error("The agent only diffs against main.");
@@ -373,10 +401,14 @@ export async function changeDiff({
     const diff = await runGit(
       worktree,
       ["diff", "--no-color", "--no-ext-diff", `origin/${baseBranch}...HEAD`],
-      { maxBuffer: maximumBytes },
+      { maxBuffer: maximumBytes, signal },
     );
     return diff.slice(0, maximumBytes);
   } catch (error) {
+    // A stopped or killed command is not a diff Git could not produce.
+    if (error instanceof GitInterruptedError) {
+      throw error;
+    }
     // Node keeps the output read before the buffer overflowed.
     if (error.cause?.code === "ERR_CHILD_PROCESS_STDIO_MAXBUFFER") {
       return error.cause.stdout.slice(0, maximumBytes);
@@ -385,43 +417,52 @@ export async function changeDiff({
   }
 }
 
-export async function createBranch({ worktree, branch }) {
+export async function createBranch({ worktree, branch, signal }) {
   assertWorkBranch(branch);
-  await runGit(worktree, ["checkout", "-b", branch]);
+  await runGit(worktree, ["checkout", "-b", branch], { signal });
   return branch;
 }
 
-export async function commitAll({ worktree, message }) {
-  await runGit(worktree, ["add", "--all"]);
-  if (
-    (await runGit(worktree, ["diff", "--cached", "--name-only", "-z"])) !== ""
-  ) {
-    await runGit(worktree, [
-      "-c",
-      "user.name=Mountain Runners Agent",
-      "-c",
-      "user.email=agent@mountainrunners.cat",
-      "commit",
-      "-m",
-      message,
-    ]);
+export async function commitAll({ worktree, message, signal }) {
+  await runGit(worktree, ["add", "--all"], { signal });
+  const staged = await runGit(
+    worktree,
+    ["diff", "--cached", "--name-only", "-z"],
+    { signal },
+  );
+  if (staged !== "") {
+    await runGit(
+      worktree,
+      [
+        "-c",
+        "user.name=Mountain Runners Agent",
+        "-c",
+        "user.email=agent@mountainrunners.cat",
+        "commit",
+        "-m",
+        message,
+      ],
+      { signal },
+    );
   }
-  return (await runGit(worktree, ["rev-parse", "HEAD"])).trim();
+  return (await runGit(worktree, ["rev-parse", "HEAD"], { signal })).trim();
 }
 
-export async function hasUnpublishedCommit(worktree) {
-  if (!(await currentBranch(worktree))) {
+export async function hasUnpublishedCommit(worktree, { signal } = {}) {
+  if (!(await currentBranch(worktree, { signal }))) {
     return false;
   }
-  const commit = (await runGit(worktree, ["rev-parse", "HEAD"])).trim();
+  const commit = (
+    await runGit(worktree, ["rev-parse", "HEAD"], { signal })
+  ).trim();
   if (publishedCommit(worktree) === commit) {
     return false;
   }
-  const count = await runGit(worktree, [
-    "rev-list",
-    "--count",
-    "origin/main..HEAD",
-  ]);
+  const count = await runGit(
+    worktree,
+    ["rev-list", "--count", "origin/main..HEAD"],
+    { signal },
+  );
   return count.trim() !== "0";
 }
 
@@ -434,13 +475,12 @@ export function publishedCommit(worktree) {
   return readFileSync(publicationPath, "utf8").trim();
 }
 
-export async function committedPaths(worktree) {
-  const output = await runGit(worktree, [
-    "diff",
-    "--name-only",
-    "-z",
-    "origin/main...HEAD",
-  ]);
+export async function committedPaths(worktree, { signal } = {}) {
+  const output = await runGit(
+    worktree,
+    ["diff", "--name-only", "-z", "origin/main...HEAD"],
+    { signal },
+  );
   return output.split("\0").filter(Boolean);
 }
 

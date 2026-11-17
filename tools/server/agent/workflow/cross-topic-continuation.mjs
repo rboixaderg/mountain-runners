@@ -256,10 +256,14 @@ export function createCrossTopicContinuation({
       repositoryPath,
       worktreeRoot,
       name: identifier,
+      signal,
     });
     // The topic already has that branch: the pending work of the topic is the
     // pull request, and the existing same-topic path continues it.
-    if (worktree !== null && (await currentBranch(worktree)) === branch) {
+    if (
+      worktree !== null &&
+      (await currentBranch(worktree, { signal })) === branch
+    ) {
       return null;
     }
     if (
@@ -303,6 +307,7 @@ export function createCrossTopicContinuation({
       branch,
       headSha: pullRequest.headSha,
       newTaskIdentifier: request.updateIdentifier,
+      signal,
     });
     if (resumed.refusal !== undefined) {
       return refuse(
@@ -326,7 +331,7 @@ export function createCrossTopicContinuation({
           pullRequestNumber,
           branch,
           baseHeadSha: pullRequest.headSha,
-          diff: await changeDiff({ worktree: resumed.worktree }),
+          diff: await changeDiff({ worktree: resumed.worktree, signal }),
           comments: context.comments,
           checks: context.checks,
           request: request.instruction,

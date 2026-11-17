@@ -34,6 +34,16 @@ export const defaultBridgeMessages = {
 export const maximumReportLength = 4000;
 export const maximumAcknowledgementExcerptLength = 120;
 
+// A Telegram API that never answers must not hold the single global execution.
+// The admission read combines the stop signal of the service with its own
+// deadline, like every other bounded request of the project.
+export const defaultMembershipTimeoutMilliseconds = 30 * 1000;
+
+function boundedSignal(signal, milliseconds) {
+  const timeout = AbortSignal.timeout(milliseconds);
+  return signal ? AbortSignal.any([signal, timeout]) : timeout;
+}
+
 /** One public, single-line excerpt of the instruction for the acknowledgement. */
 export function instructionExcerpt(
   instruction,
@@ -80,6 +90,7 @@ export class AgentBridge {
   #botIdentifier;
   #pollTimeoutSeconds;
   #backoffMilliseconds;
+  #membershipTimeoutMilliseconds;
 
   constructor({
     groupIdentifier,
@@ -93,6 +104,7 @@ export class AgentBridge {
     logger = () => {},
     pollTimeoutSeconds = 25,
     backoffMilliseconds = 5000,
+    membershipTimeoutMilliseconds = defaultMembershipTimeoutMilliseconds,
   }) {
     if (!Number.isSafeInteger(botIdentifier)) {
       throw new Error("The bot identifier is required.");
@@ -108,6 +120,7 @@ export class AgentBridge {
     this.#logger = logger;
     this.#pollTimeoutSeconds = pollTimeoutSeconds;
     this.#backoffMilliseconds = backoffMilliseconds;
+    this.#membershipTimeoutMilliseconds = membershipTimeoutMilliseconds;
   }
 
   async #reply(sessionKey, text, { signal } = {}) {
@@ -174,7 +187,8 @@ export class AgentBridge {
   /**
    * Read one Telegram batch, verify and admit each instruction, and advance the
    * durable offset only after the instruction is recorded. Returns how many
-   * updates were consumed.
+   * updates were consumed. A service stop leaves the batch update unconsumed, so
+   * the same offset is read again on the next start.
    */
   async pollOnce({ signal } = {}) {
     const offset = this.#queue.readOffset();
@@ -184,7 +198,11 @@ export class AgentBridge {
       signal,
     });
 
+    let consumed = 0;
     for (const update of updates) {
+      if (signal?.aborted) {
+        return consumed;
+      }
       const nextOffset = update.update_id + 1;
       const classification = classifyInstruction(update, {
         groupIdentifier: this.#groupIdentifier,
@@ -200,7 +218,14 @@ export class AgentBridge {
           telegram: this.#telegram,
           groupIdentifier: this.#groupIdentifier,
           authorIdentifier: classification.authorIdentifier,
+          signal: boundedSignal(signal, this.#membershipTimeoutMilliseconds),
         });
+
+        // The service is stopping: the update was not consumed, so it is read
+        // again on the next start instead of being recorded as a denial.
+        if (signal?.aborted) {
+          return consumed;
+        }
 
         if (!membership.verified) {
           this.#queue.recordTrace({
@@ -258,9 +283,10 @@ export class AgentBridge {
       }
 
       this.#queue.writeOffset(nextOffset);
+      consumed += 1;
     }
 
-    return updates.length;
+    return consumed;
   }
 
   /**

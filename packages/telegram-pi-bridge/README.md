@@ -111,7 +111,10 @@ await bridge.run({ signal });
 Només s'admeten missatges de persones verificades del grup configurat, dins d'un
 tema, que mencionen el bot o responen a un missatge seu. La pertinença es
 consulta per instrucció, sense memòria cau; un error denega l'admissió i avisa
-l'autor perquè torni a enviar la petició. Els
+l'autor perquè torni a enviar la petició. La consulta té un termini (30 s per
+defecte, `membershipTimeoutMilliseconds`) i respecta el senyal del procés: un
+termini esgotat denega la instrucció, i una aturada la deixa sense consumir, de
+manera que l'offset de Telegram no avança. Els
 autors anònims, reenviaments i missatges fora del tema no s'admeten.
 
 Un document només s'admet com a adjunt si és una imatge JPEG, PNG o WebP
