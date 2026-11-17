@@ -43,7 +43,7 @@ test(
     const identifier = "synthetic_profile_smoke";
     const profile = await preparePiProfile({
       profileRoot: join(directory, "profiles"),
-      sessionIdentifier: identifier,
+      profileIdentifier: identifier,
     });
     writeFileSync(
       join(profile, "extensions", "zzz-test-probe.ts"),
@@ -62,6 +62,7 @@ test(
       config,
       profileDirectory: profile,
       sessionIdentifier: identifier,
+      sandboxIdentifier: "topic-0123456789abcdef",
       worktreePath: workspace,
       environment: { PATH: process.env.PATH, HOME: directory },
     });

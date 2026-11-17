@@ -13,7 +13,6 @@
 // requests, never another topic, an author or a path outside the change. It
 // never blocks, and the caller ignores and logs any error.
 
-import { sessionIdentifier } from "telegram-pi-bridge/sessions";
 import {
   assertWorkBranch,
   changedPathsAgainstMain,
@@ -28,6 +27,7 @@ import { overlapWarningReport } from "../policy/development.mjs";
 export function createOverlapWarning({
   repositoryPath,
   worktreeRoot,
+  identifiers,
   listPullRequests,
   recordTrace = () => {},
 }) {
@@ -41,7 +41,7 @@ export function createOverlapWarning({
     { worktreesByTopic, branch, signal },
   ) {
     const ownerWorktree = worktreesByTopic.get(
-      sessionIdentifier(published.session_key),
+      identifiers.worktreeName(published.session_key),
     );
     if (ownerWorktree === undefined) {
       return null;
@@ -85,7 +85,7 @@ export function createOverlapWarning({
     const otherWorktrees = await listOtherTopicWorktrees({
       repositoryPath,
       worktreeRoot,
-      excludeName: sessionIdentifier(sessionKey),
+      excludeName: identifiers.worktreeName(sessionKey),
       signal,
     });
     const worktreesByTopic = new Map(
@@ -97,7 +97,7 @@ export function createOverlapWarning({
     const attributedTopics = new Set();
     const works = [];
     for (const published of listPullRequests()) {
-      const ownerTopic = sessionIdentifier(published.session_key);
+      const ownerTopic = identifiers.worktreeName(published.session_key);
       if (published.session_key === sessionKey) {
         attributedTopics.add(ownerTopic);
         continue;

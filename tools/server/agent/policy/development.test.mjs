@@ -83,9 +83,16 @@ test("builds branch names that match the repository rules", () => {
     branchNameForChange({
       summary: null,
       instruction: "afegeix una prova",
-      updateIdentifier: 7,
+      suffix: "0a1b2c3d",
     }),
-    "feat/agent-change-7",
+    "feat/agent-change-0a1b2c3d",
+  );
+  assert.equal(
+    branchNameForChange({
+      summary: "feat(tools): afegeix una prova",
+      suffix: "0a1b2c3d",
+    }),
+    "feat/tools-afegeix-una-prova-0a1b2c3d",
   );
 });
 

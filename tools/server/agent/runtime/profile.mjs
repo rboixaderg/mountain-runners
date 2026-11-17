@@ -5,8 +5,8 @@ import { cp, mkdir, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 
-export async function preparePiProfile({ profileRoot, sessionIdentifier }) {
-  const profileDirectory = join(profileRoot, sessionIdentifier);
+export async function preparePiProfile({ profileRoot, profileIdentifier }) {
+  const profileDirectory = join(profileRoot, profileIdentifier);
   await rm(profileDirectory, { recursive: true, force: true });
   const extensionsDirectory = join(profileDirectory, "extensions");
   await mkdir(extensionsDirectory, { recursive: true, mode: 0o700 });

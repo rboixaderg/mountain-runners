@@ -108,12 +108,12 @@ export function slugify(text, maximumLength = 40) {
   return slug === "" ? "agent-change" : slug;
 }
 
-export function branchNameForChange({ summary, updateIdentifier }) {
+export function branchNameForChange({ summary, suffix }) {
   const parsed = summary ? summaryPattern.exec(summary) : null;
-  if (!parsed) return `feat/agent-change-${updateIdentifier}`;
+  if (!parsed) return `feat/agent-change-${suffix}`;
   const type = parsed[1];
   const scope = parsed[2];
-  return `${type}/${slugify(`${scope} ${parsed[3]}`)}-${updateIdentifier}`;
+  return `${type}/${slugify(`${scope} ${parsed[3]}`)}-${suffix}`;
 }
 
 export function fallbackTitle({ summary }) {

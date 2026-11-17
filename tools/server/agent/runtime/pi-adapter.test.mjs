@@ -17,6 +17,7 @@ test("keeps project credentials out of Pi and explicitly enables only the isolat
     },
     profileDirectory: "/private/profile",
     sessionIdentifier: "synthetic_topic_7",
+    sandboxIdentifier: "topic-0123456789abcdef",
     worktreePath: "/private/worktrees/topic",
     readOnly: true,
     environment: {
@@ -36,6 +37,11 @@ test("keeps project credentials out of Pi and explicitly enables only the isolat
   assert.equal(options.environment.GITHUB_TOKEN, undefined);
   assert.equal(options.environment.TELEGRAM_BOT_TOKEN, undefined);
   assert.equal(options.environment.MR_AGENT_READ_ONLY, "true");
+  assert.equal(
+    options.environment.MR_AGENT_SESSION_IDENTIFIER,
+    "topic-0123456789abcdef",
+    "the extension labels containers with the opaque worktree name",
+  );
   assert.deepEqual(options.tools, ["sandbox_bash"]);
   assert.deepEqual(options.extensions, [
     "/private/profile/extensions/sandbox-bash.ts",
@@ -48,5 +54,5 @@ test("keeps project credentials out of Pi and explicitly enables only the isolat
     "sandbox_bash",
   );
   await options.onInterrupted();
-  assert.deepEqual(stopped, ["synthetic_topic_7"]);
+  assert.deepEqual(stopped, ["topic-0123456789abcdef"]);
 });

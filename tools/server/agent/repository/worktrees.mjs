@@ -4,9 +4,13 @@
 
 import {
   existsSync,
+  lstatSync,
   mkdirSync,
+  readdirSync,
   readFileSync,
   realpathSync,
+  renameSync,
+  statSync,
   writeFileSync,
 } from "node:fs";
 import { basename, dirname, join } from "node:path";
@@ -17,13 +21,23 @@ import {
   remoteGitTimeoutMilliseconds,
   runGit,
 } from "./trusted-git.mjs";
+import { parseLegacyWorktreeName } from "./identifiers.mjs";
 
 const protectedBranches = new Set(["main", "master"]);
 const branchPattern =
   /^(feat|fix|docs|refactor|test|build|ci|chore|security)\/[a-z0-9]+(?:[._-][a-z0-9]+)*$/u;
 const fullCommitPattern = /^[a-f0-9]{40}$/u;
-// The session identifier of a topic, never an archived `<name>-before-<update>`.
-const topicWorktreePattern = /^topic_[0-9n]+_\d+$/u;
+// The opaque name of a topic worktree, never an archive `<name>-before-<suffix>`.
+const topicWorktreePattern = /^topic-[0-9a-f]{16}$/u;
+const archiveSuffixPattern = /^[0-9a-f]{8}$/u;
+const worktreeNamePattern = /^[a-z0-9][a-z0-9._-]*$/u;
+
+function assertWorktreeName(name) {
+  if (!worktreeNamePattern.test(name)) {
+    throw new Error(`Invalid worktree name ${name}.`);
+  }
+  return name;
+}
 
 // Why a branch that another topic published was not released. The caller turns
 // each one into the report of the continued instruction: nothing is reset,
@@ -89,20 +103,18 @@ export async function ensureSessionWorktree({
   worktreeRoot,
   name,
   baseBranch = "main",
-  newTaskIdentifier,
+  newTaskSuffix,
   signal,
 }) {
   if (baseBranch !== "main") {
     throw new Error("The agent only starts work from main.");
   }
-  if (!/^[a-z0-9][a-z0-9._-]*$/u.test(name)) {
-    throw new Error(`Invalid worktree name ${name}.`);
-  }
+  assertWorktreeName(name);
   if (
-    newTaskIdentifier !== undefined &&
-    (!Number.isSafeInteger(newTaskIdentifier) || newTaskIdentifier < 0)
+    newTaskSuffix !== undefined &&
+    !archiveSuffixPattern.test(newTaskSuffix)
   ) {
-    throw new Error("A new task requires a valid update identifier.");
+    throw new Error("A new task requires a valid opaque archive suffix.");
   }
   mkdirSync(worktreeRoot, { recursive: true });
   const worktreePath = join(realpathSync(worktreeRoot), name);
@@ -115,14 +127,14 @@ export async function ensureSessionWorktree({
     signal,
     timeoutMilliseconds: remoteGitTimeoutMilliseconds,
   });
-  if (existing && newTaskIdentifier !== undefined) {
+  if (existing && newTaskSuffix !== undefined) {
     const previous = registeredWorktree(repositoryPath, worktreePath);
     // Check the untrusted Git marker before moving the registered worktree.
     // Even a clean tree may contain ignored artifacts from a previous task.
     await listChangedPaths(previous, { signal });
     const archivePath = join(
       realpathSync(worktreeRoot),
-      `${name}-before-${newTaskIdentifier}`,
+      `${name}-before-${newTaskSuffix}`,
     );
     await runGit(repository, ["worktree", "move", worktreePath, archivePath], {
       signal,
@@ -160,9 +172,7 @@ export async function findSessionWorktree({
   name,
   signal,
 }) {
-  if (!/^[a-z0-9][a-z0-9._-]*$/u.test(name)) {
-    throw new Error(`Invalid worktree name ${name}.`);
-  }
+  assertWorktreeName(name);
   if (!existsSync(worktreeRoot)) {
     return null;
   }
@@ -192,18 +202,16 @@ export async function resumeWorkBranch({
   name,
   branch,
   headSha,
-  newTaskIdentifier,
+  newTaskSuffix,
   signal,
 }) {
-  if (!/^[a-z0-9][a-z0-9._-]*$/u.test(name)) {
-    throw new Error(`Invalid worktree name ${name}.`);
-  }
+  assertWorktreeName(name);
   assertWorkBranch(branch);
   if (typeof headSha !== "string" || !fullCommitPattern.test(headSha)) {
     throw new Error("A full commit SHA is required to resume a work branch.");
   }
-  if (!Number.isSafeInteger(newTaskIdentifier) || newTaskIdentifier < 0) {
-    throw new Error("A resumed branch requires a valid update identifier.");
+  if (!archiveSuffixPattern.test(newTaskSuffix ?? "")) {
+    throw new Error("A resumed branch requires a valid opaque archive suffix.");
   }
   mkdirSync(worktreeRoot, { recursive: true });
   const root = realpathSync(worktreeRoot);
@@ -274,7 +282,7 @@ export async function resumeWorkBranch({
         "worktree",
         "move",
         worktreePath,
-        join(root, `${name}-before-${newTaskIdentifier}`),
+        join(root, `${name}-before-${newTaskSuffix}`),
       ],
       { signal },
     );
@@ -287,6 +295,196 @@ export async function resumeWorkBranch({
   // The head is published already: an unchanged resume never republishes it.
   recordPublication(worktree, headSha);
   return { worktree };
+}
+
+/**
+ * The private key a worktree still carries in its directory name or in the
+ * name of its Git administrative directory, or null when both are opaque.
+ */
+function legacyWorktreeKey({ name, gitDirectory, markerAdminPath }) {
+  return (
+    parseLegacyWorktreeName(name) ??
+    parseLegacyWorktreeName(basename(gitDirectory)) ??
+    (markerAdminPath === null
+      ? null
+      : parseLegacyWorktreeName(basename(markerAdminPath)))
+  );
+}
+
+function opaqueWorktreeNameFor(identifiers, legacy) {
+  const opaqueWorktreeName = identifiers.worktreeName(legacy.sessionKey);
+  return legacy.updateIdentifier === null
+    ? opaqueWorktreeName
+    : identifiers.archiveName(opaqueWorktreeName, legacy.updateIdentifier);
+}
+
+/** The admin path the Git marker of a linked worktree names, or null. */
+function markerAdminPath(worktreePath) {
+  const markerPath = join(worktreePath, ".git");
+  if (!existsSync(markerPath) || !lstatSync(markerPath).isFile()) {
+    return null;
+  }
+  const marker = readFileSync(markerPath, "utf8").trim();
+  return marker.startsWith("gitdir: ") ? marker.slice("gitdir: ".length) : null;
+}
+
+/**
+ * The marker is the only pointer the sandbox can read, and Git must see it
+ * byte-for-byte. It is one short line, written in place: an interrupted write
+ * leaves a marker the next start repairs from the trusted registry.
+ */
+function writeMarker(worktreePath, gitDirectory) {
+  const markerPath = join(worktreePath, ".git");
+  const mode = existsSync(markerPath)
+    ? statSync(markerPath).mode & 0o777
+    : 0o644;
+  writeFileSync(markerPath, `gitdir: ${gitDirectory}\n`, { mode });
+}
+
+async function migrateWorktree({
+  repository,
+  repositoryPath,
+  root,
+  worktreePath,
+  identifiers,
+  signal,
+}) {
+  let worktree = registeredWorktree(repositoryPath, worktreePath);
+  const marker = markerAdminPath(worktreePath);
+  const legacyOuter = parseLegacyWorktreeName(basename(worktreePath));
+  const legacy = legacyWorktreeKey({
+    name: basename(worktreePath),
+    gitDirectory: worktree.gitDirectory,
+    markerAdminPath: marker,
+  });
+  if (legacy === null && marker === worktree.gitDirectory) {
+    return null;
+  }
+  // A marker the previous start left half-written has no legacy name left to
+  // migrate: its own registry entry is the opaque name to restore.
+  const opaqueName =
+    legacy === null
+      ? basename(worktree.gitDirectory)
+      : opaqueWorktreeNameFor(identifiers, legacy);
+  const renamedFrom = basename(worktreePath);
+
+  // The directory Git registers in `.git/worktrees/` keeps the basename it had
+  // at creation, so moving the worktree renames only the mounted directory.
+  if (legacyOuter !== null) {
+    const targetPath = join(root, opaqueName);
+    if (existsSync(targetPath)) {
+      // Git would move the worktree inside an existing directory.
+      throw new Error(`The worktree ${opaqueName} already exists.`);
+    }
+    await runGit(repository, ["worktree", "move", worktreePath, targetPath], {
+      signal,
+    });
+    worktreePath = targetPath;
+    worktree = registeredWorktree(repositoryPath, worktreePath);
+  }
+
+  const targetGitDirectory = join(dirname(worktree.gitDirectory), opaqueName);
+  if (worktree.gitDirectory !== targetGitDirectory) {
+    if (existsSync(worktree.gitDirectory)) {
+      if (existsSync(targetGitDirectory)) {
+        throw new Error(
+          `The Git metadata directory ${opaqueName} already exists.`,
+        );
+      }
+      renameSync(worktree.gitDirectory, targetGitDirectory);
+    } else if (!existsSync(targetGitDirectory)) {
+      throw new Error(
+        `The Git metadata directory of ${basename(worktreePath)} is missing.`,
+      );
+    }
+  }
+  writeMarker(worktreePath, targetGitDirectory);
+  return { from: renamedFrom, to: opaqueName };
+}
+
+/**
+ * Rename the worktrees the previous naming scheme created.
+ *
+ * The old directory name encoded the chat and the topic, the old archive suffix
+ * encoded the update, and `git worktree move` keeps the old name in
+ * `.git/worktrees/` and in the `.git` file the sandbox mounts. The migration
+ * renames the mounted directory, renames the Git administrative directory and
+ * rewrites the marker, so no private name survives inside `/work`.
+ *
+ * It is restartable: every step is idempotent, and a start after an
+ * interruption finishes whatever is left. A registered worktree is never
+ * removed, its branch, changes and published marker stay, and a failure stops
+ * the caller instead of leaving half of the volume under a private name.
+ */
+export async function renameLegacyWorktrees({
+  repositoryPath,
+  worktreeRoot,
+  identifiers,
+  signal,
+  logger = () => {},
+}) {
+  if (!existsSync(worktreeRoot)) {
+    return [];
+  }
+  const root = realpathSync(worktreeRoot);
+  if (readdirSync(root).length === 0) {
+    return [];
+  }
+  const repository = primaryRepository(repositoryPath);
+  const renamed = [];
+  for (const path of await worktreePaths(repository, { signal })) {
+    if (!existsSync(path)) {
+      continue;
+    }
+    const worktreePath = realpathSync(path);
+    if (dirname(worktreePath) !== root) {
+      continue;
+    }
+    const migrated = await migrateWorktree({
+      repository,
+      repositoryPath,
+      root,
+      worktreePath,
+      identifiers,
+      signal,
+    });
+    if (migrated === null) {
+      continue;
+    }
+    renamed.push(migrated);
+    logger("worktree_migrated", migrated.to);
+  }
+  for (const name of readdirSync(root)) {
+    // Git does not register this directory, so it is not a worktree: a plain
+    // rename would break the metadata another registration owns.
+    if (parseLegacyWorktreeName(name) !== null) {
+      logger("worktree_migration_unregistered", name);
+    }
+  }
+  return renamed;
+}
+
+/**
+ * The private names still present in the worktree root or in the Git registry,
+ * without running Git. The operator reconciliation uses it to refuse a case it
+ * cannot attribute to the right worktree.
+ */
+export function listLegacyIdentifierNames({ repositoryPath, worktreeRoot }) {
+  const names = [];
+  for (const directory of [
+    worktreeRoot,
+    join(repositoryPath, ".git", "worktrees"),
+  ]) {
+    if (!existsSync(directory)) {
+      continue;
+    }
+    for (const name of readdirSync(directory)) {
+      if (parseLegacyWorktreeName(name) !== null) {
+        names.push(name);
+      }
+    }
+  }
+  return [...new Set(names)];
 }
 
 export async function listChangedPaths(worktree, { signal } = {}) {
@@ -314,7 +512,7 @@ export async function listChangedPaths(worktree, { signal } = {}) {
 
 /**
  * The current worktree of every other topic. Archived worktrees keep the name
- * of their topic but end in `-before-<update>`, so they never count as active
+ * of their topic but end in `-before-<suffix>`, so they never count as active
  * work.
  */
 export async function listOtherTopicWorktrees({

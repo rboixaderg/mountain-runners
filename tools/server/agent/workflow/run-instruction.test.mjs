@@ -10,7 +10,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { basename, join } from "node:path";
 import { promisify } from "node:util";
 import { test } from "node:test";
 import { PublishRefusedError } from "../repository/github.mjs";
@@ -28,6 +28,7 @@ import {
   hasUnpublishedCommit,
   recordPublication,
 } from "../repository/worktrees.mjs";
+import { openIdentifierNames } from "../repository/identifiers.mjs";
 import { SandboxCleanupError } from "../sandbox/errors.mjs";
 
 const executeFile = promisify(execFile);
@@ -100,6 +101,36 @@ function configFor(paths) {
       sandboxCpuCount: 1,
     },
   };
+}
+
+const topicSessionKey = "-1001234567890:7";
+const otherSessionKey = "-1009999999999:3";
+
+/** The installation names of the fixture: the runner reads the same salt file. */
+function identifiersFor(paths) {
+  return openIdentifierNames(paths.state);
+}
+
+function topicWorktreePath(paths, sessionKey = topicSessionKey) {
+  return join(paths.worktrees, identifiersFor(paths).worktreeName(sessionKey));
+}
+
+function archivedTopicWorktreePath(
+  paths,
+  updateIdentifier,
+  sessionKey = topicSessionKey,
+) {
+  return join(
+    paths.worktrees,
+    identifiersFor(paths).archiveName(
+      identifiersFor(paths).worktreeName(sessionKey),
+      updateIdentifier,
+    ),
+  );
+}
+
+function branchSuffix(paths, updateIdentifier) {
+  return identifiersFor(paths).changeSuffix(updateIdentifier);
 }
 
 function request(overrides = {}) {
@@ -266,7 +297,10 @@ test("publishes a small change as a pull request after the checks pass", async (
   assert.match(result.report, /pull\/200/u);
   assert.equal(checks.length, 1);
   assert.equal(github.pushes.length, 1);
-  assert.equal(github.pushes[0].branch, "feat/tools-add-synthetic-change-1001");
+  assert.equal(
+    github.pushes[0].branch,
+    `feat/tools-add-synthetic-change-${branchSuffix(paths, 1001)}`,
+  );
   assert.deepEqual(github.pushes[0].secrets, [
     "telegram-secret",
     "github-secret",
@@ -276,7 +310,7 @@ test("publishes a small change as a pull request after the checks pass", async (
   assert.match(github.pulls[0].body, /change\.txt/u);
   assert.match(github.pulls[0].body, /pnpm check/u);
 
-  const committed = await git(join(paths.worktrees, "topic_n1001234567890_7"), [
+  const committed = await git(topicWorktreePath(paths), [
     "log",
     "-1",
     "--format=%s",
@@ -312,10 +346,7 @@ test("registers the CI watch for the published commit without waiting for CI", a
 
   assert.equal(result.outcome, "pull_request_created");
   assert.match(result.report, /Seguiment de la CI de GitHub/u);
-  const published = await git(join(paths.worktrees, "topic_n1001234567890_7"), [
-    "rev-parse",
-    "HEAD",
-  ]);
+  const published = await git(topicWorktreePath(paths), ["rev-parse", "HEAD"]);
   const [watch] = ciWatches.pending();
   assert.equal(watch.commit_sha, published);
   assert.equal(watch.pull_request_number, 200);
@@ -371,10 +402,7 @@ test("keeps the worktree and publishes nothing when the checks fail", async (con
   assert.equal(result.outcome, "failed");
   assert.match(result.report, /No s'ha fet cap push/u);
   assert.deepEqual(github.pushes, []);
-  assert.equal(
-    existsSync(join(paths.worktrees, "topic_n1001234567890_7")),
-    true,
-  );
+  assert.equal(existsSync(topicWorktreePath(paths)), true);
 });
 
 test("reports a timed-out local run as failed and keeps the work", async (context) => {
@@ -392,10 +420,7 @@ test("reports a timed-out local run as failed and keeps the work", async (contex
 
   assert.equal(result.outcome, "failed");
   assert.deepEqual(github.pushes, []);
-  assert.equal(
-    existsSync(join(paths.worktrees, "topic_n1001234567890_7")),
-    true,
-  );
+  assert.equal(existsSync(topicWorktreePath(paths)), true);
 });
 
 for (const failureStage of [
@@ -523,15 +548,18 @@ test("starts an unrelated task independently while preserving previous failed wo
     ).outcome,
     "pull_request_created",
   );
-  assert.equal(github.pushes[0].branch, "fix/agent-implement-a-task-1002");
-  const archived = join(paths.worktrees, "topic_n1001234567890_7-before-1002");
+  assert.equal(
+    github.pushes[0].branch,
+    `fix/agent-implement-a-task-${branchSuffix(paths, 1002)}`,
+  );
+  const archived = archivedTopicWorktreePath(paths, 1002);
   assert.equal(
     readFileSync(join(archived, "previous.txt"), "utf8"),
     "preserved\n",
   );
   assert.equal(
     await git(archived, ["branch", "--show-current"]),
-    "fix/agent-implement-a-task-1001",
+    `fix/agent-implement-a-task-${branchSuffix(paths, 1001)}`,
   );
   assert.doesNotMatch(github.pulls[0].body, /previous\.txt/u);
 });
@@ -561,7 +589,7 @@ test("does not carry ignored artifacts from a completed task into a new task", a
   );
   assert.equal(
     readFileSync(
-      join(paths.worktrees, "topic_n1001234567890_7-before-1002", "cache.bin"),
+      join(archivedTopicWorktreePath(paths, 1002), "cache.bin"),
       "utf8",
     ),
     "previous cache\n",
@@ -609,7 +637,10 @@ test("uses a conventional fallback when the model omits the summary", async (con
   await runner(request());
 
   assert.equal(github.pulls[0].title, "feat(agent): update project");
-  assert.equal(github.pushes[0].branch, "feat/agent-change-1001");
+  assert.equal(
+    github.pushes[0].branch,
+    `feat/agent-change-${branchSuffix(paths, 1001)}`,
+  );
 });
 
 test("keeps one worktree per topic so the Pi session continues", async (context) => {
@@ -631,7 +662,53 @@ test("keeps one worktree per topic so the Pi session continues", async (context)
 
   assert.equal(seen.length, 2);
   assert.equal(seen[0], seen[1]);
-  assert.match(seen[0], /topic_n1001234567890_7$/u);
+  assert.equal(basename(seen[0]), basename(topicWorktreePath(paths)));
+});
+
+test("gives the sandbox an opaque name that carries no chat or topic", async (context) => {
+  const paths = await fixture(context);
+  const seen = [];
+  const runner = createProjectRunner({
+    config: configFor(paths),
+    classifyRequest: async () => "implementation",
+    github: githubStub(),
+    runModel: async (modelContext) => {
+      seen.push(modelContext);
+      writeFileSync(join(modelContext.worktreePath, "change.txt"), "canvi\n");
+      return { text: "SUMMARY: feat(tools): change a file" };
+    },
+    runChecks: async (checkContext) => {
+      seen.push(checkContext);
+      return { exitCode: 0 };
+    },
+  });
+
+  await runner(request());
+
+  const [modelContext, checkContext] = seen;
+  const opaqueName = identifiersFor(paths).worktreeName(topicSessionKey);
+  assert.equal(modelContext.sandboxIdentifier, opaqueName);
+  assert.equal(checkContext.sandboxIdentifier, opaqueName);
+  assert.match(opaqueName, /^topic-[0-9a-f]{16}$/u);
+  assert.equal(opaqueName.includes("1001234567890"), false);
+  assert.equal(
+    modelContext.sessionIdentifier,
+    "topic_n1001234567890_7",
+    "the Pi session file keeps the private identifier outside the sandbox",
+  );
+  assert.equal(basename(modelContext.worktreePath), opaqueName);
+  const gitMarker = readFileSync(
+    join(modelContext.worktreePath, ".git"),
+    "utf8",
+  );
+  assert.doesNotMatch(gitMarker, /1001234567890/u);
+  assert.doesNotMatch(gitMarker, /topic_n/u);
+  // `git worktree add` names the administrative directory after the worktree,
+  // so a worktree created after the migration is opaque from the start.
+  assert.equal(
+    gitMarker.trim(),
+    `gitdir: ${join(paths.repository, ".git", "worktrees", opaqueName)}`,
+  );
 });
 
 test("continues the unpublished branch when the previous checks failed", async (context) => {
@@ -669,7 +746,7 @@ test("continues the unpublished branch when the previous checks failed", async (
   assert.equal(github.pushes.length, 1);
   assert.equal(
     github.pushes[0].branch,
-    "fix/tools-repair-the-change-1001",
+    `fix/tools-repair-the-change-${branchSuffix(paths, 1001)}`,
     "the retry continues the branch of the failed instruction",
   );
 });
@@ -707,7 +784,7 @@ test("starts a new branch from the latest main after a published change", async 
   await runner(request({ updateIdentifier: 1002 }));
 
   const secondBranch = github.pushes[1].branch;
-  assert.equal(secondBranch, "feat/agent-change-1002");
+  assert.equal(secondBranch, `feat/agent-change-${branchSuffix(paths, 1002)}`);
   const ancestry = await executeFile("git", [
     "-C",
     paths.repository,
@@ -780,7 +857,7 @@ test("retries a locally refused publication without losing or duplicating the co
     runChecks: async () => ({ exitCode: 0 }),
   });
   const first = await runner(request({ updateIdentifier: 1001 }));
-  const worktreePath = join(paths.worktrees, "topic_n1001234567890_7");
+  const worktreePath = topicWorktreePath(paths);
   const commit = await git(worktreePath, ["rev-parse", "HEAD"]);
   const second = await runner(
     request({
@@ -793,7 +870,7 @@ test("retries a locally refused publication without losing or duplicating the co
   assert.equal(github.pushes.length, 1);
   assert.equal(
     github.pushes[0].branch,
-    "fix/agent-preserve-the-unpublished-commit-1001",
+    `fix/agent-preserve-the-unpublished-commit-${branchSuffix(paths, 1001)}`,
   );
   assert.equal(await git(worktreePath, ["rev-parse", "HEAD"]), commit);
 });
@@ -970,10 +1047,7 @@ async function publishedWorktree(context, paths, github, ciWatches) {
     runChecks: async () => ({ exitCode: 0, stdout: "", stderr: "" }),
   });
   await runner(request());
-  return git(join(paths.worktrees, "topic_n1001234567890_7"), [
-    "rev-parse",
-    "HEAD",
-  ]);
+  return git(topicWorktreePath(paths), ["rev-parse", "HEAD"]);
 }
 
 test("repairs the published commit on its branch with the failure context", async (context) => {
@@ -1030,8 +1104,11 @@ test("repairs the published commit on its branch with the failure context", asyn
     /Published change summary: feat\(tools\): add synthetic change/u,
   );
   assert.equal(github.pushes.length, 2);
-  assert.equal(github.pushes[1].branch, "feat/tools-add-synthetic-change-1001");
-  const head = await git(join(paths.worktrees, "topic_n1001234567890_7"), [
+  assert.equal(
+    github.pushes[1].branch,
+    `feat/tools-add-synthetic-change-${branchSuffix(paths, 1001)}`,
+  );
+  const head = await git(topicWorktreePath(paths), [
     "log",
     "-2",
     "--format=%s",
@@ -1044,10 +1121,7 @@ test("repairs the published commit on its branch with the failure context", asyn
   assert.equal(watch.update_identifier, 1001);
   assert.equal(
     watch.commit_sha,
-    await git(join(paths.worktrees, "topic_n1001234567890_7"), [
-      "rev-parse",
-      "HEAD",
-    ]),
+    await git(topicWorktreePath(paths), ["rev-parse", "HEAD"]),
   );
   assert.notEqual(watch.commit_sha, published);
 });
@@ -1089,10 +1163,7 @@ test("refuses to repair a worktree with leftovers of a later instruction", async
   const paths = await fixture(context);
   const github = githubStub();
   const published = await publishedWorktree(context, paths, github);
-  writeFileSync(
-    join(paths.worktrees, "topic_n1001234567890_7", "leftover.txt"),
-    "pendent\n",
-  );
+  writeFileSync(join(topicWorktreePath(paths), "leftover.txt"), "pendent\n");
   const runner = createProjectRunner({
     config: configFor(paths),
     github,
@@ -1322,7 +1393,11 @@ test("a merge store failure reaches the runner failure report", async (context) 
 // without a published pull request registered in the CI watches.
 async function otherTopicWorktree(
   paths,
-  { name = "topic_n1009999999999_3", branch, changedPaths = ["shared.txt"] },
+  {
+    name = identifiersFor(paths).worktreeName(otherSessionKey),
+    branch,
+    changedPaths = ["shared.txt"],
+  },
 ) {
   const worktree = await ensureSessionWorktree({
     repositoryPath: paths.repository,
@@ -1572,7 +1647,7 @@ test("stops before committing when the signal aborts during the overlap warning"
   assert.match(result.report, /interromput/u);
   assert.deepEqual(github.pushes, []);
   assert.deepEqual(github.pulls, []);
-  const worktree = join(paths.worktrees, "topic_n1001234567890_7");
+  const worktree = topicWorktreePath(paths);
   assert.equal(
     await git(worktree, ["rev-parse", "HEAD"]),
     await git(paths.repository, ["rev-parse", "origin/main"]),
@@ -1590,7 +1665,7 @@ test("never warns when another topic continues its own published pull request", 
   const topicA = await ensureSessionWorktree({
     repositoryPath: paths.repository,
     worktreeRoot: paths.worktrees,
-    name: "topic_n1009999999999_3",
+    name: identifiersFor(paths).worktreeName(otherSessionKey),
   });
   await createBranch({
     worktree: topicA,
@@ -1719,7 +1794,7 @@ test("places an attached image and appends the service text to the instruction",
   const result = await runner(attachmentRequest());
 
   assert.equal(result.outcome, "pull_request_created");
-  const worktreePath = join(paths.worktrees, "topic_n1001234567890_7");
+  const worktreePath = topicWorktreePath(paths);
   assert.equal(existsSync(join(worktreePath, ".agent-attachments")), false);
   assert.match(instructions[0], /^usa la imatge adjunta a la portada/u);
   assert.match(instructions[0], /\.agent-attachments\/portada\.png/u);
@@ -1776,9 +1851,7 @@ test("ignores an attached image in a consultation and says so once", async (cont
     /No s'ha fet servir l'adjunt: només una implementació o una continuació apliquen una imatge\.$/u,
   );
   assert.equal(
-    existsSync(
-      join(paths.worktrees, "topic_n1001234567890_7", ".agent-attachments"),
-    ),
+    existsSync(join(topicWorktreePath(paths), ".agent-attachments")),
     false,
   );
 });
@@ -1817,9 +1890,7 @@ test("reports a refused attachment without starting the model", async (context) 
     true,
   );
   assert.equal(
-    existsSync(
-      join(paths.worktrees, "topic_n1001234567890_7", ".agent-attachments"),
-    ),
+    existsSync(join(topicWorktreePath(paths), ".agent-attachments")),
     false,
   );
 });
@@ -1851,7 +1922,7 @@ test("never commits an attachment on a branch without the ignore rule", async (c
   const result = await runner(attachmentRequest());
 
   assert.equal(result.outcome, "pull_request_created");
-  const worktreePath = join(paths.worktrees, "topic_n1001234567890_7");
+  const worktreePath = topicWorktreePath(paths);
   assert.equal(existsSync(join(worktreePath, ".agent-attachments")), false);
   const committed = await git(worktreePath, [
     "show",
@@ -1885,7 +1956,7 @@ test("publishes nothing when the model only asks for the image rights", async (c
 
   assert.equal(result.outcome, "answered");
   assert.match(result.report, /origen/u);
-  const worktreePath = join(paths.worktrees, "topic_n1001234567890_7");
+  const worktreePath = topicWorktreePath(paths);
   assert.equal(existsSync(join(worktreePath, ".agent-attachments")), false);
   assert.equal(await git(worktreePath, ["status", "--porcelain"]), "");
   assert.deepEqual(github.pushes, []);
@@ -1935,7 +2006,7 @@ test("continues a branch created before the ignore rule without publishing the a
   );
 
   assert.equal(result.outcome, "pull_request_created");
-  const worktreePath = join(paths.worktrees, "topic_n1001234567890_7");
+  const worktreePath = topicWorktreePath(paths);
   assert.equal(existsSync(join(worktreePath, ".agent-attachments")), false);
   const committed = await git(worktreePath, [
     "show",
