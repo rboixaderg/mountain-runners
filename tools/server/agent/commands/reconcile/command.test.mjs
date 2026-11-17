@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { test } from "node:test";
 import { AdmissionQueue } from "telegram-pi-bridge/sessions";
 import { CiWatchStore } from "../../repository/ci-watch-store.mjs";
+import { openIdentifierNames } from "../../repository/identifiers.mjs";
 import { runReconcileCommand } from "./command.mjs";
 
 const sessionKey = "-1001234567890:7";
@@ -21,6 +22,8 @@ function serviceFixture(context) {
   );
   const statePath = join(directory, "state");
   mkdirSync(statePath);
+  // The installation already ran the identifier migration.
+  openIdentifierNames(statePath);
   return {
     statePath,
     environment: {

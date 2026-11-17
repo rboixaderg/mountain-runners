@@ -22,13 +22,13 @@ function fixture(context) {
       retryDelay: 100,
     }),
   );
-  return { profileRoot, sessionIdentifier: "topic_n1001234567890_7" };
+  return { profileRoot, profileIdentifier: "topic-0123456789abcdef" };
 }
 
 test("assembles only trusted runtime files and enables only the sandbox tool", async (context) => {
   const paths = fixture(context);
   const profile = await preparePiProfile(paths);
-  assert.equal(profile, join(paths.profileRoot, paths.sessionIdentifier));
+  assert.equal(profile, join(paths.profileRoot, paths.profileIdentifier));
   assert.deepEqual(
     JSON.parse(readFileSync(join(profile, "settings.json"), "utf8")),
     {

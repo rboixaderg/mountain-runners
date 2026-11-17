@@ -12,13 +12,15 @@ import {
   recordPublication,
 } from "../repository/worktrees.mjs";
 import { createOverlapWarning } from "./overlap-warning.mjs";
+import { createIdentifierNames } from "../repository/identifiers.mjs";
 
 const executeFile = promisify(execFile);
 
+const identifiers = createIdentifierNames({ salt: "a".repeat(64) });
 const requestingSessionKey = "-1001234567890:7";
-const requestingWorktreeName = "topic_n1001234567890_7";
+const requestingWorktreeName = identifiers.worktreeName(requestingSessionKey);
 const otherSessionKey = "-1009999999999:3";
-const otherWorktreeName = "topic_n1009999999999_3";
+const otherWorktreeName = identifiers.worktreeName(otherSessionKey);
 
 async function git(directory, argumentsList) {
   const { stdout } = await executeFile("git", [
@@ -108,6 +110,7 @@ test("warns about the shared files of a published pull request of another topic"
   const warnAboutOverlaps = createOverlapWarning({
     repositoryPath: paths.repository,
     worktreeRoot: paths.worktreeRoot,
+    identifiers,
     listPullRequests: () => [activePullRequest()],
     recordTrace: (entry) => traces.push(entry),
   });
@@ -155,6 +158,7 @@ test("names a local work without naming its topic", async (context) => {
   const warnAboutOverlaps = createOverlapWarning({
     repositoryPath: paths.repository,
     worktreeRoot: paths.worktreeRoot,
+    identifiers,
     listPullRequests: () => [],
     recordTrace: (entry) => traces.push(entry),
   });
@@ -193,6 +197,7 @@ test("warns about nothing when no other work shares a path", async (context) => 
   const warnAboutOverlaps = createOverlapWarning({
     repositoryPath: paths.repository,
     worktreeRoot: paths.worktreeRoot,
+    identifiers,
     listPullRequests: () => [activePullRequest()],
     recordTrace: (entry) => traces.push(entry),
   });
@@ -220,6 +225,7 @@ test("never counts the worktree of the requesting topic", async (context) => {
   const warnAboutOverlaps = createOverlapWarning({
     repositoryPath: paths.repository,
     worktreeRoot: paths.worktreeRoot,
+    identifiers,
     listPullRequests: () => [
       { ...activePullRequest(), session_key: requestingSessionKey },
     ],
@@ -255,6 +261,7 @@ test("never names the pull request the current change continues", async (context
   const warnAboutOverlaps = createOverlapWarning({
     repositoryPath: paths.repository,
     worktreeRoot: paths.worktreeRoot,
+    identifiers,
     listPullRequests: () => [activePullRequest()],
     recordTrace: () => {},
   });
@@ -298,6 +305,7 @@ test("never counts an archived worktree of another topic", async (context) => {
   const warnAboutOverlaps = createOverlapWarning({
     repositoryPath: paths.repository,
     worktreeRoot: paths.worktreeRoot,
+    identifiers,
     listPullRequests: () => [],
     recordTrace: () => assert.fail("there is nothing to warn about"),
   });
@@ -332,6 +340,7 @@ test("keeps counting the new local work of a topic whose pull request is closed"
   const warnAboutOverlaps = createOverlapWarning({
     repositoryPath: paths.repository,
     worktreeRoot: paths.worktreeRoot,
+    identifiers,
     listPullRequests: () => [
       activePullRequest({ result: "pull-request-closed" }),
     ],
@@ -370,6 +379,7 @@ test("warns about a pull request whose latest notice is not delivered yet", asyn
   const warnAboutOverlaps = createOverlapWarning({
     repositoryPath: paths.repository,
     worktreeRoot: paths.worktreeRoot,
+    identifiers,
     // A notice still being delivered proves nothing, closed or not.
     listPullRequests: () => [activePullRequest({ result: null })],
     recordTrace: (entry) => traces.push(entry),
@@ -406,6 +416,7 @@ test("never counts twice a topic reported as its published pull request", async 
   const warnAboutOverlaps = createOverlapWarning({
     repositoryPath: paths.repository,
     worktreeRoot: paths.worktreeRoot,
+    identifiers,
     listPullRequests: () => [activePullRequest()],
     recordTrace: (entry) => traces.push(entry),
   });
@@ -442,6 +453,7 @@ test("skips a pull request that is not the newest publication of its topic", asy
   const warnAboutOverlaps = createOverlapWarning({
     repositoryPath: paths.repository,
     worktreeRoot: paths.worktreeRoot,
+    identifiers,
     listPullRequests: () => [
       { ...activePullRequest(), is_owner_latest: 0 },
       { ...activePullRequest({ number: 322 }), is_owner_latest: 1 },
@@ -480,6 +492,7 @@ test("never attributes a published pull request to a foreign branch", async (con
   const warnAboutOverlaps = createOverlapWarning({
     repositoryPath: paths.repository,
     worktreeRoot: paths.worktreeRoot,
+    identifiers,
     listPullRequests: () => [activePullRequest()],
   });
 
@@ -516,6 +529,7 @@ test("counts local work only while it has something to publish", async (context)
   const warnAboutOverlaps = createOverlapWarning({
     repositoryPath: paths.repository,
     worktreeRoot: paths.worktreeRoot,
+    identifiers,
     listPullRequests: () => [],
   });
   const warningRequest = {
@@ -563,7 +577,7 @@ test("lists ten sorted paths from every work and the count of the rest", async (
   await topicWorktree({
     repository: paths.repository,
     worktreeRoot: paths.worktreeRoot,
-    name: "topic_n1009999999998_5",
+    name: identifiers.worktreeName("-1009999999998:5"),
     branch: "feat/tools-third-change",
     paths: [
       "path-09.txt",
@@ -579,6 +593,7 @@ test("lists ten sorted paths from every work and the count of the rest", async (
   const warnAboutOverlaps = createOverlapWarning({
     repositoryPath: paths.repository,
     worktreeRoot: paths.worktreeRoot,
+    identifiers,
     listPullRequests: () => [],
   });
 
@@ -621,6 +636,7 @@ test("counts both sides of a rename", async (context) => {
   const warnAboutOverlaps = createOverlapWarning({
     repositoryPath: paths.repository,
     worktreeRoot: paths.worktreeRoot,
+    identifiers,
     listPullRequests: () => [],
     recordTrace: (entry) => traces.push(entry),
   });
@@ -665,6 +681,7 @@ test("counts both sides of an uncommitted rename", async (context) => {
   const warnAboutOverlaps = createOverlapWarning({
     repositoryPath: paths.repository,
     worktreeRoot: paths.worktreeRoot,
+    identifiers,
     listPullRequests: () => [],
   });
 

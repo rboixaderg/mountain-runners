@@ -13,10 +13,7 @@
 // a preview or a notice lives in another database: the trace is written first
 // and a failure changes nothing.
 
-import {
-  parseSessionKey,
-  sessionIdentifier,
-} from "telegram-pi-bridge/sessions";
+import { parseSessionKey } from "telegram-pi-bridge/sessions";
 import {
   previewCommand,
   reconcileReports,
@@ -24,9 +21,14 @@ import {
   shortCommit,
 } from "../../policy/development.mjs";
 import {
+  createIdentifierNames,
+  readIdentifierSalt,
+} from "../../repository/identifiers.mjs";
+import {
   currentBranch,
   findSessionWorktree,
   headCommit,
+  listLegacyIdentifierNames,
   publishedCommit,
   recordPublication,
 } from "../../repository/worktrees.mjs";
@@ -84,8 +86,37 @@ function messageOf(error) {
   return error instanceof Error ? error.message : "unknown error";
 }
 
+// An instruction that is uncertain belongs to a worktree. The command cannot
+// attribute it before the installation has its salt and every worktree has an
+// opaque name, and it never creates the salt or migrates by itself: the
+// operator decides when the migration runs.
+const migrationRequired =
+  "The identifier migration has not run. Execute the migrate-identifiers command before listing or resolving an instruction case.";
+
+/**
+ * The naming source of this installation for an instruction case. A missing
+ * salt or a worktree that still carries a private name stops the case instead
+ * of closing a publication that could not be marked.
+ */
+function instructionIdentifiers(config) {
+  let salt;
+  try {
+    salt = readIdentifierSalt(config.paths.state);
+  } catch {
+    throw new ReconcileCaseError(migrationRequired);
+  }
+  const legacyNames = listLegacyIdentifierNames({
+    repositoryPath: config.paths.repository,
+    worktreeRoot: config.paths.worktrees,
+  });
+  if (legacyNames.length > 0) {
+    throw new ReconcileCaseError(migrationRequired);
+  }
+  return createIdentifierNames({ salt });
+}
+
 /** The facts of an interrupted instruction: its worktree and its open PR. */
-async function instructionCase({ config, row, github }) {
+async function instructionCase({ config, identifiers, row, github }) {
   const facts = {
     kind: caseKinds.instruction,
     update_identifier: row.update_identifier,
@@ -98,7 +129,7 @@ async function instructionCase({ config, row, github }) {
   const worktree = await findSessionWorktree({
     repositoryPath: config.paths.repository,
     worktreeRoot: config.paths.worktrees,
-    name: sessionIdentifier(row.session_key),
+    name: identifiers.worktreeName(row.session_key),
   });
   if (worktree === null) {
     return facts;
@@ -212,9 +243,12 @@ function noticeCase({ row }) {
  * case of its kind and is never created.
  */
 export async function listUncertainCases({ config, stores, github }) {
+  const instructions = stores.instructions?.uncertain() ?? [];
+  const identifiers =
+    instructions.length === 0 ? null : instructionIdentifiers(config);
   const cases = [];
-  for (const row of stores.instructions?.uncertain() ?? []) {
-    cases.push(await instructionCase({ config, row, github }));
+  for (const row of instructions) {
+    cases.push(await instructionCase({ config, identifiers, row, github }));
   }
   for (const row of stores.repairs?.uncertainRepairs() ?? []) {
     cases.push(await repairCase({ row, github }));
@@ -314,11 +348,16 @@ function registerConfirmedWatch({
  * case uncertain for a later attempt, and a marker of a confirmed commit is
  * never wrong. Any other local state is left untouched for a continuation.
  */
-async function recordConfirmedPublication({ config, sessionKey, commit }) {
+async function recordConfirmedPublication({
+  config,
+  identifiers,
+  sessionKey,
+  commit,
+}) {
   const worktree = await findSessionWorktree({
     repositoryPath: config.paths.repository,
     worktreeRoot: config.paths.worktrees,
-    name: sessionIdentifier(sessionKey),
+    name: identifiers.worktreeName(sessionKey),
   });
   if (worktree === null) {
     return;
@@ -332,6 +371,7 @@ async function recordConfirmedPublication({ config, sessionKey, commit }) {
 async function resolveInstruction({
   config,
   stores,
+  identifiers,
   updateIdentifier,
   resolution,
   commit,
@@ -366,6 +406,7 @@ async function resolveInstruction({
     });
     await recordConfirmedPublication({
       config,
+      identifiers,
       sessionKey: row.session_key,
       commit,
     });
@@ -558,6 +599,7 @@ function resolveCase({
       return resolveInstruction({
         config,
         stores,
+        identifiers: instructionIdentifiers(config),
         updateIdentifier,
         resolution,
         commit,

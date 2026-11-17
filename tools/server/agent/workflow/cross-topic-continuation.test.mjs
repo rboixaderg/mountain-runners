@@ -17,13 +17,18 @@ import { CiWatchStore } from "../repository/ci-watch-store.mjs";
 import { requestSignal } from "../repository/request-signal.mjs";
 import { instructionReports } from "../policy/development.mjs";
 import { createProjectRunner } from "./project-runner.mjs";
+import { openIdentifierNames } from "../repository/identifiers.mjs";
 
 const executeFile = promisify(execFile);
 const repository = "rboixaderg/mountain-runners";
 const topicA = "-1001234567890:7";
 const topicB = "-1001234567890:8";
 const pullRequestNumber = 200;
-const changeBranch = "feat/tools-shared-change-1001";
+// The published branch of the fixture: the service derives its suffix from the
+// installation salt, so the test asks for the same name the runner will use.
+function changeBranchOf(paths) {
+  return `feat/tools-shared-change-${openIdentifierNames(paths.state).changeSuffix(1001)}`;
+}
 const changeSummary = "SUMMARY: feat(tools): shared change";
 
 async function git(directory, argumentsList) {
@@ -93,6 +98,22 @@ function configFor(paths) {
   };
 }
 
+/** The opaque worktree the runner uses: it reads the salt of the same state. */
+function worktreeOf(paths, sessionKey) {
+  return join(
+    paths.worktrees,
+    openIdentifierNames(paths.state).worktreeName(sessionKey),
+  );
+}
+
+function archiveOf(paths, sessionKey, updateIdentifier) {
+  const names = openIdentifierNames(paths.state);
+  return join(
+    paths.worktrees,
+    names.archiveName(names.worktreeName(sessionKey), updateIdentifier),
+  );
+}
+
 function request(overrides = {}) {
   return {
     updateIdentifier: 1001,
@@ -105,7 +126,7 @@ function request(overrides = {}) {
 }
 
 /** The trusted GitHub component, replaced by the same observable behaviour. */
-function githubStub({ origin }) {
+function githubStub({ origin, state }) {
   const stub = {
     pushes: [],
     created: [],
@@ -113,7 +134,7 @@ function githubStub({ origin }) {
     reused: [],
     comments: [],
     pullRequestReads: 0,
-    pull: { number: pullRequestNumber, branch: changeBranch },
+    pull: { number: pullRequestNumber, branch: changeBranchOf({ state }) },
     async getPullRequest({ number }) {
       stub.pullRequestReads += 1;
       assert.equal(number, stub.pull.number);
@@ -261,16 +282,13 @@ test("continues another topic's pull request and updates it without opening anot
   assert.match(modelCalls[0].instruction, /Revisa el lint/u);
   assert.match(modelCalls[0].instruction, /Failing required checks: Validate/u);
   assert.equal(github.pushes.length, 2);
-  assert.equal(github.pushes[1].branch, changeBranch);
+  assert.equal(github.pushes[1].branch, changeBranchOf(paths));
   assert.equal(github.created.length, 1, "the continuation never opens a PR");
   assert.equal(github.reused.length, 1);
-  assert.equal(github.reused[0].branch, changeBranch);
+  assert.equal(github.reused[0].branch, changeBranchOf(paths));
   assert.match(github.reused[0].body, /second\.txt/u);
   assert.equal(
-    await git(join(paths.worktrees, "topic_n1001234567890_8"), [
-      "rev-parse",
-      "HEAD~1",
-    ]),
+    await git(worktreeOf(paths, topicB), ["rev-parse", "HEAD~1"]),
     head,
   );
   assert.equal(notices.length, 1);
@@ -411,6 +429,7 @@ for (const scenario of [
     context.after(() => ciWatches.close());
     await publishFromTopicA({ paths, github, ciWatches });
     Object.assign(github.pull, scenario.pull);
+    const changeBranch = changeBranchOf(paths);
     const headRef = scenario.pull.headRef ?? changeBranch;
     const headSha = await git(paths.origin, [
       "rev-parse",
@@ -439,10 +458,7 @@ for (const scenario of [
     assert.equal(result.outcome, "answered");
     assert.match(result.report, scenario.report);
     assert.equal(github.pushes.length, 1);
-    assert.equal(
-      existsSync(join(paths.worktrees, "topic_n1001234567890_8")),
-      false,
-    );
+    assert.equal(existsSync(worktreeOf(paths, topicB)), false);
     assert.deepEqual(
       traces.map((entry) => [entry.action, entry.detail]),
       [
@@ -546,7 +562,7 @@ test("keeps the pending work of the same topic when it already has the branch", 
   const ciWatches = stateStore(paths);
   context.after(() => ciWatches.close());
   await publishFromTopicA({ paths, github, ciWatches });
-  const worktreeA = join(paths.worktrees, "topic_n1001234567890_7");
+  const worktreeA = worktreeOf(paths, topicA);
   writeFileSync(join(worktreeA, "pending.txt"), "pendent\n");
   const notices = [];
   const modelCalls = [];
@@ -573,9 +589,9 @@ test("keeps the pending work of the same topic when it already has the branch", 
 
   assert.equal(result.outcome, "pull_request_updated");
   assert.equal(modelCalls[0].worktreePath, realpathSync(worktreeA));
-  assert.equal(github.pushes[1].branch, changeBranch);
+  assert.equal(github.pushes[1].branch, changeBranchOf(paths));
   assert.equal(
-    existsSync(join(paths.worktrees, "topic_n1001234567890_7-before-1002")),
+    existsSync(archiveOf(paths, topicA, 1002)),
     false,
     "the same-topic path never archives the worktree",
   );
@@ -592,10 +608,7 @@ test("refuses a resume when an unpushed worktree holds the branch", async (conte
   const ciWatches = stateStore(paths);
   context.after(() => ciWatches.close());
   await publishFromTopicA({ paths, github, ciWatches });
-  writeFileSync(
-    join(paths.worktrees, "topic_n1001234567890_7", "pending.txt"),
-    "pendent\n",
-  );
+  writeFileSync(join(worktreeOf(paths, topicA), "pending.txt"), "pendent\n");
   const runner = runnerFor({
     paths,
     github,
@@ -616,15 +629,9 @@ test("refuses a resume when an unpushed worktree holds the branch", async (conte
 
   assert.match(result.report, /canvis sense publicar/u);
   assert.equal(github.pushes.length, 1);
+  assert.equal(existsSync(worktreeOf(paths, topicB)), false);
   assert.equal(
-    existsSync(join(paths.worktrees, "topic_n1001234567890_8")),
-    false,
-  );
-  assert.equal(
-    readFileSync(
-      join(paths.worktrees, "topic_n1001234567890_7", "pending.txt"),
-      "utf8",
-    ),
+    readFileSync(join(worktreeOf(paths, topicA), "pending.txt"), "utf8"),
     "pendent\n",
     "nothing is overwritten",
   );
@@ -704,6 +711,7 @@ test("continues from the head a person pushed after the service", async (context
   await publishFromTopicA({ paths, github, ciWatches });
   const person = join(paths.directory, "person");
   await executeFile("git", ["clone", paths.origin, person]);
+  const changeBranch = changeBranchOf(paths);
   await git(person, ["checkout", changeBranch]);
   writeFileSync(join(person, "person.txt"), "canvi d'una persona\n");
   await git(person, ["add", "person.txt"]);
@@ -741,13 +749,10 @@ test("continues from the head a person pushed after the service", async (context
   );
   assert.match(modelCalls[0].instruction, /person\.txt/u);
   assert.equal(
-    await git(join(paths.worktrees, "topic_n1001234567890_8"), [
-      "rev-parse",
-      "HEAD~1",
-    ]),
+    await git(worktreeOf(paths, topicB), ["rev-parse", "HEAD~1"]),
     personHead,
   );
-  assert.equal(github.pushes[1].branch, changeBranch);
+  assert.equal(github.pushes[1].branch, changeBranchOf(paths));
 });
 
 test("keeps the instruction when the handover notice fails", async (context) => {
@@ -800,11 +805,11 @@ test("refuses a fork that reuses the branch of this topic's pull request", async
   const ciWatches = stateStore(paths);
   context.after(() => ciWatches.close());
   const { head } = await publishFromTopicA({ paths, github, ciWatches });
-  const worktreeA = join(paths.worktrees, "topic_n1001234567890_7");
+  const worktreeA = worktreeOf(paths, topicA);
   writeFileSync(join(worktreeA, "pending.txt"), "pendent\n");
   github.pull = {
     number: pullRequestNumber + 1,
-    headRef: changeBranch,
+    headRef: changeBranchOf(paths),
     headRepository: "someone/mountain-runners",
   };
   const traces = [];

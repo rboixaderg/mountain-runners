@@ -43,6 +43,9 @@ tools/server/agent/               aplicació de Mountain Runners
 │   ├── cli.mjs                   embolcall de procés: umask privat i codi de sortida
 │   ├── command.mjs               ordre d'operador, amb clients de GitHub i Telegram injectables
 │   └── uncertain-cases.mjs       fets i resolució d'una instrucció, reparació, preview o avís
+├── commands/migrate-identifiers/
+│   ├── cli.mjs                   migració dels noms antics, sense arrencar el servei
+│   └── command.mjs               la mateixa migració que fa l'arrencada, idempotent
 ├── processes/telegram-bridge/
 │   └── main.mjs                  connecta paquet i flux de desenvolupament
 ├── policy/
@@ -68,6 +71,7 @@ tools/server/agent/               aplicació de Mountain Runners
 │   └── errors.mjs                aturada no confirmada que bloqueja el servei
 └── repository/
     ├── trusted-git.mjs            metadades explícites i entorn restringit
+    ├── identifiers.mjs            noms opacs de worktree, arxiu i branca
     ├── worktrees.mjs              worktree, branca, commit i estat publicat
     ├── secret-scan.mjs            historial, rutes i credencials conegudes
     ├── publisher.mjs              push, PR i confirmació de l'estat publicat
@@ -116,17 +120,28 @@ al servidor. El nom local encara no representa una publicació a npm.
    informa l'autor; no admet la instrucció per defecte.
 2. `workflow` interpreta la petició amb una crida efímera sense eines, historial
    ni context del repositori. Si no és clara, demana aclariment.
-3. El servei prepara el worktree actual del tema. Una feina nova preserva
-   l'anterior a `<tema>-before-<update>` i crea un worktree des de `origin/main`,
-   sense arrossegar fitxers ignorats d'una feina anterior.
+3. El servei prepara el worktree actual del tema. El directori es diu
+   `topic-<16hex>` i no conté ni el grup ni el tema: surt d'un HMAC-SHA256 amb
+   un salt privat de la instal·lació (`state/identifier-salt`). Una feina nova
+   preserva l'anterior a `topic-<16hex>-before-<8hex>` i crea un worktree des de
+   `origin/main`, sense arrossegar fitxers ignorats d'una feina anterior.
    Només una continuació explícita reutilitza la feina pendent actual o, si
    nomena una sola PR que el servei va publicar, la reprèn a
    `workflow/cross-topic-continuation.mjs` (vegeu el punt 11).
-   A l'arrencada, `repository/retention.mjs` esborra només els worktrees
-   arxivats que no tenen res a perdre: cap commit per davant d'`origin/main` i
-   cap canvi sense cometre. Conserva sempre l'arxiu més recent de cada tema i no
-   toca mai el worktree actiu. Si la retenció falla, ho registra i el servei
-   continua.
+   A l'arrencada, abans de qualsevol altra feina, `repository/worktrees.mjs`
+   renombra els worktrees i arxius amb el nom antic `topic_<chat>_<tema>`: el
+   directori muntat, el directori administratiu `.git/worktrees/<nom>` i el
+   fitxer `.git` del worktree, perquè dins de `/work` no hi quedi cap nom
+   privat. És idempotent i reprèn el que una interrupció hagi deixat a mitges;
+   si no pot, ho registra i el servei no arrenca. L'ordre d'actualització és
+   actualitzar, executar `commands/migrate-identifiers/cli.mjs`, reconciliar i
+   arrencar. També a
+   l'arrencada, `repository/retention.mjs` esborra només els worktrees arxivats
+   que no tenen res a perdre: cap commit per davant d'`origin/main` i cap canvi
+   sense cometre. Conserva sempre l'arxiu més recent de cada tema i no toca mai
+   el worktree actiu. Com que el sufix de l'arxiu és opac, l'ordre surt de la
+   data de naixement del directori. Si la retenció falla, ho registra i el
+   servei continua.
    `runtime/pi-adapter` tria
    explícitament el perfil, l'entorn, `sandbox_bash` i la neteja dels processos.
    El paquet només executa el protocol RPC amb aquestes opcions.
@@ -306,6 +321,10 @@ política ni pot autoritzar per si sol una publicació.
   `sandbox_bash`. Ni un perfil antic ni el repositori hi poden afegir eines.
 - El model llegeix `AGENTS.md`, skills i documentació dins del contenidor. Pi
   no els carrega al host ni manté còpies que puguin seguir symlinks cap a secrets.
+- L'etiqueta `mountain-agent.session` dels contenidors i
+  `MR_AGENT_SESSION_IDENTIFIER`, que rep Pi, porten el nom opac del worktree. El
+  fitxer de sessió de Pi conserva l'identificador privat perquè viu fora del
+  sandbox.
 - Podman s'executa localment sense root ni dimoni, amb `--remote=false` i
   `--userns=keep-id`. Conserva l'UID/GID del worktree i `UMask=0077`. Ni el pont
   ni Pi tenen grup Docker o socket de contenidors del host. El contenidor no
@@ -318,7 +337,9 @@ política ni pot autoritzar per si sol una publicació.
   objectes de més de 2 MiB o un total superior a 32 MiB. També rebutja canvis
   a `.github/**` i `CODEOWNERS` en qualsevol commit del rang. El push usa el
   SHA inspeccionat. Cal una credencial sense `Workflows: write`.
-- Sense `SUMMARY` vàlid, la branca usa `feat/agent-change-<update>` i el títol
+- El nom públic de la branca acaba en un sufix opac de vuit caràcters
+  hexadecimals, derivat de l'identificador d'actualització amb el mateix salt.
+  Sense `SUMMARY` vàlid, la branca usa `feat/agent-change-<sufix>` i el títol
   usa `feat(agent): update project`. No es deriva cap fallback del text privat.
   El prompt indica els tipus acceptats (`feat`, `fix`, `docs`, `refactor`,
   `test`, `build`, `ci`, `chore`, `security`) perquè el model no n'inventi cap

@@ -12,9 +12,10 @@ import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { promisify } from "node:util";
 import { test } from "node:test";
-import { AdmissionQueue, sessionIdentifier } from "telegram-pi-bridge/sessions";
+import { AdmissionQueue } from "telegram-pi-bridge/sessions";
 import { reconcileResolutions } from "../../policy/development.mjs";
 import { CiWatchStore } from "../../repository/ci-watch-store.mjs";
+import { openIdentifierNames } from "../../repository/identifiers.mjs";
 import {
   PreviewRequestStore,
   previewStates,
@@ -62,6 +63,9 @@ async function fixture(context, { previewNow } = {}) {
   const worktreeRoot = join(directory, "worktrees");
   const state = join(directory, "state");
   mkdirSync(state);
+  // The installation already ran the identifier migration: instruction cases
+  // can be attributed without the command creating anything.
+  openIdentifierNames(state);
 
   await executeFile("git", ["init", "--bare", "--initial-branch=main", origin]);
   await executeFile("git", ["clone", origin, repository]);
@@ -102,19 +106,15 @@ async function fixture(context, { previewNow } = {}) {
 }
 
 // The topic worktree holds one commit on its own work branch.
-async function topicWorktree({
-  repository,
-  worktreeRoot,
-  sessionKey,
-  updateIdentifier,
-}) {
+async function topicWorktree({ config, sessionKey, updateIdentifier }) {
+  const names = openIdentifierNames(config.paths.state);
   const worktree = await ensureSessionWorktree({
-    repositoryPath: repository,
-    worktreeRoot,
-    name: sessionIdentifier(sessionKey),
-    newTaskIdentifier: updateIdentifier,
+    repositoryPath: config.paths.repository,
+    worktreeRoot: config.paths.worktrees,
+    name: names.worktreeName(sessionKey),
+    newTaskSuffix: names.changeSuffix(updateIdentifier),
   });
-  const branch = `feat/agent-change-${updateIdentifier}`;
+  const branch = `feat/agent-change-${names.changeSuffix(updateIdentifier)}`;
   await createBranch({ worktree, branch });
   writeFileSync(
     join(worktree.path, "task.txt"),
@@ -243,10 +243,9 @@ function reconcile(config, stores, telegram, command) {
 }
 
 test("lists an uncertain instruction with its worktree and open pull request", async (context) => {
-  const { config, stores, repository, worktreeRoot } = await fixture(context);
+  const { config, stores } = await fixture(context);
   const { branch, commit } = await topicWorktree({
-    repository,
-    worktreeRoot,
+    config,
     sessionKey: sessionKeyOne,
     updateIdentifier: 11,
   });
@@ -394,10 +393,9 @@ test("ignores a preview comment created in the request's own second", async (con
 });
 
 test("marks a failed GitHub read and still lists the remaining cases", async (context) => {
-  const { config, stores, repository, worktreeRoot } = await fixture(context);
+  const { config, stores } = await fixture(context);
   await topicWorktree({
-    repository,
-    worktreeRoot,
+    config,
     sessionKey: sessionKeyOne,
     updateIdentifier: 11,
   });
@@ -433,10 +431,9 @@ test("marks a failed GitHub read and still lists the remaining cases", async (co
 });
 
 test("resolves a published instruction and records the confirmed head as published", async (context) => {
-  const { config, stores, repository, worktreeRoot } = await fixture(context);
+  const { config, stores } = await fixture(context);
   const { worktree, commit } = await topicWorktree({
-    repository,
-    worktreeRoot,
+    config,
     sessionKey: sessionKeyOne,
     updateIdentifier: 11,
   });
@@ -522,10 +519,9 @@ test("keeps the instruction uncertain when the CI watch of the publication canno
 });
 
 test("keeps the instruction uncertain when the publication marker cannot be written", async (context) => {
-  const { config, stores, repository, worktreeRoot } = await fixture(context);
+  const { config, stores } = await fixture(context);
   const { worktree, commit } = await topicWorktree({
-    repository,
-    worktreeRoot,
+    config,
     sessionKey: sessionKeyOne,
     updateIdentifier: 11,
   });
@@ -567,10 +563,9 @@ test("keeps the instruction uncertain when the publication marker cannot be writ
 });
 
 test("records no publication when the confirmed commit is not the worktree head", async (context) => {
-  const { config, stores, repository, worktreeRoot } = await fixture(context);
+  const { config, stores } = await fixture(context);
   const { worktree, commit } = await topicWorktree({
-    repository,
-    worktreeRoot,
+    config,
     sessionKey: sessionKeyOne,
     updateIdentifier: 11,
   });
@@ -590,10 +585,9 @@ test("records no publication when the confirmed commit is not the worktree head"
 });
 
 test("resolves a not published instruction and keeps the local work", async (context) => {
-  const { config, stores, repository, worktreeRoot } = await fixture(context);
+  const { config, stores } = await fixture(context);
   const { worktree, commit } = await topicWorktree({
-    repository,
-    worktreeRoot,
+    config,
     sessionKey: sessionKeyOne,
     updateIdentifier: 11,
   });
@@ -977,10 +971,9 @@ test("refuses a case that is no longer uncertain", async (context) => {
 });
 
 test("traces each resolution without the instruction text and notifies once per topic", async (context) => {
-  const { config, stores, repository, worktreeRoot } = await fixture(context);
+  const { config, stores } = await fixture(context);
   const { commit } = await topicWorktree({
-    repository,
-    worktreeRoot,
+    config,
     sessionKey: sessionKeyOne,
     updateIdentifier: 11,
   });
