@@ -1,0 +1,23 @@
+tools/server/agent/processes/telegram-bridge/main.test.mjs
+  s_d53bcdb5de9fd8::t_7063262c3821d6 5-6,14,1435-1547
+tools/server/agent/repository/trusted-git.mjs
+  s_d53bcdb5de9fd8::t_7749f82420c53f 53-63,76-78,80-81
+tools/server/agent/repository/worktrees.test.mjs
+  s_d53bcdb5de9fd8::t_79769a339583f6 4,6,9,15,19,530-540,553-566,571-654,699-803
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "06ca5f2fdb12ddc6db411bcc44909fcfb66d6f39",
+  "prompts": {},
+  "sessions": {
+    "s_d53bcdb5de9fd8": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a1e959-6fc1-7452-ad59-0e347637f1be",
+        "model": "deepseek-v4.1-flash"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
