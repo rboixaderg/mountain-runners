@@ -1,5 +1,5 @@
 # Build from a reviewed repository snapshot, never from a live worktree.
-FROM node:24.11.0-bookworm@sha256:e5bbac0e9b8a6e3b96a86a82bbbcf4c533a879694fd613ed616bae5116f6f243
+FROM node:24.22.3-bookworm@sha256:9d266751ca3d7fdbe651c878ffd5ad0a42fed49a18c283509267c97f025b7496
 
 ENV COREPACK_HOME=/opt/mountain-agent/corepack \
     COREPACK_ENABLE_NETWORK=0 \

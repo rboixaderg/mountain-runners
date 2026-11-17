@@ -21,7 +21,7 @@ sobre Cloudflare s'han separat a la fase 6.
 
 ## Desenvolupament Local
 
-Cal utilitzar Node 24.11.0, pnpm 10.33.0 mitjançant Corepack i Gitleaks 8.30.1
+Cal utilitzar Node 24.22.3, pnpm 10.33.0 mitjançant Corepack i Gitleaks 8.30.1
 per als hooks locals. Consulta les [instruccions d'instal·lació de Gitleaks a
 cada sistema operatiu](CONTRIBUTING.md#eines-locals).
 

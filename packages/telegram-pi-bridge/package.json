@@ -6,7 +6,7 @@
   "type": "module",
   "license": "MIT",
   "engines": {
-    "node": ">=24.11.0"
+    "node": ">=24.22.3"
   },
   "exports": {
     ".": "./src/index.mjs",

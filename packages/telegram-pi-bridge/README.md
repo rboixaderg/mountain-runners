@@ -45,7 +45,8 @@ pot continuar. Una excepció no classificada es tracta amb cautela i bloqueja.
 
 ## Requisits
 
-- Node 24.11.0 o posterior. `node:sqlite` encara és experimental en Node 24.11.0.
+- Node 24.22.3 o posterior. `node:sqlite` ja no imprimeix cap avís
+  experimental en aquesta versió.
 - Un executable Pi amb RPC JSONL i l'esdeveniment `agent_settled` per usar
   `runPiPrompt`. Pi no s'inclou al paquet ni s'instal·la automàticament.
 - Per operar amb Telegram: bot i grup privat amb temes. Cal assegurar que el

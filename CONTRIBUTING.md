@@ -7,7 +7,7 @@ canvi prou acotat per poder-lo revisar de manera independent.
 
 ## Eines Locals
 
-Cal tenir Node 24.11.0, pnpm 10.33.0 mitjançant Corepack, Gitleaks 8.30.1 i els
+Cal tenir Node 24.22.3, pnpm 10.33.0 mitjançant Corepack, Gitleaks 8.30.1 i els
 navegadors fixats per Playwright. Gitleaks és obligatori: el hook de pre-commit
 l'executa abans de crear cada commit per detectar secrets en els fitxers staged.
 
