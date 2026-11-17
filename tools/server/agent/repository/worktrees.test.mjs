@@ -1,18 +1,22 @@
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
 import {
+  closeSync,
   existsSync,
+  lstatSync,
   mkdirSync,
   mkdtempSync,
+  openSync,
   readFileSync,
   readdirSync,
   realpathSync,
   rmSync,
   statSync,
+  symlinkSync,
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
-import { basename, join } from "node:path";
+import { basename, dirname, join } from "node:path";
 import { promisify } from "node:util";
 import { test } from "node:test";
 import {
@@ -523,6 +527,17 @@ test("finishes a migration interrupted before the marker was rewritten", async (
     join(migrated.path, ".git"),
     `gitdir: ${join(repository, ".git", "worktrees", "topic_n1001234567890_7")}\n`,
   );
+  const markerPath = join(migrated.path, ".git");
+  const pendingMarker = readFileSync(markerPath, "utf8");
+  const markerDescriptor = openSync(markerPath, "r");
+  context.after(() => closeSync(markerDescriptor));
+  const pendingInode = statSync(markerPath).ino;
+  // A previous start died before the rename and left its temporary file with
+  // the exact marker it was about to write.
+  writeFileSync(
+    join(migrated.path, ".git.agent-marker-tmp"),
+    `gitdir: ${migrated.gitDirectory}\n`,
+  );
 
   const renamed = await renameLegacyWorktrees({
     repositoryPath: repository,
@@ -535,8 +550,106 @@ test("finishes a migration interrupted before the marker was rewritten", async (
     readFileSync(join(migrated.path, ".git"), "utf8"),
     `gitdir: ${migrated.gitDirectory}\n`,
   );
+  // The repair replaces the marker with an atomic rename: the new entry has a
+  // different inode and the old one keeps the pending bytes.
+  assert.notEqual(
+    statSync(markerPath).ino,
+    pendingInode,
+    "the marker is replaced, not written in place",
+  );
+  assert.equal(
+    readFileSync(markerDescriptor, "utf8"),
+    pendingMarker,
+    "the replaced inode keeps its bytes",
+  );
+  assert.equal((statSync(markerPath).mode & 0o777).toString(8), "644");
+  assert.equal(existsSync(join(migrated.path, ".git.agent-marker-tmp")), false);
   assert.equal(await currentBranch(migrated), null);
   assert.equal(await git(migrated.path, ["status", "--porcelain"]), "");
+});
+
+test("keeps the files of the task and replaces only its own marker temporary", async (context) => {
+  const { repository, worktreeRoot } = await repositoryFixture(context);
+  const worktree = await ensureSessionWorktree({
+    repositoryPath: repository,
+    worktreeRoot,
+    name: "topic_n1001234567890_7",
+  });
+  const worktreeName = identifiers.worktreeName("-1001234567890:7");
+  const targetGitDirectory = join(dirname(worktree.gitDirectory), worktreeName);
+  writeFileSync(join(worktree.path, ".git-agent-notes.md"), "pending notes\n");
+  writeFileSync(
+    join(worktree.path, ".git.agent-marker-tmp"),
+    `gitdir: ${targetGitDirectory}\n`,
+  );
+
+  const renamed = await renameLegacyWorktrees({
+    repositoryPath: repository,
+    worktreeRoot,
+    identifiers,
+  });
+
+  const migrated = await findSessionWorktree({
+    repositoryPath: repository,
+    worktreeRoot,
+    name: worktreeName,
+  });
+  assert.deepEqual(renamed, [
+    { from: "topic_n1001234567890_7", to: worktreeName },
+  ]);
+  assert.equal(
+    readFileSync(join(migrated.path, ".git-agent-notes.md"), "utf8"),
+    "pending notes\n",
+  );
+  assert.equal(existsSync(join(migrated.path, ".git.agent-marker-tmp")), false);
+  assert.equal(
+    readFileSync(join(migrated.path, ".git"), "utf8"),
+    `gitdir: ${migrated.gitDirectory}\n`,
+  );
+});
+
+test("refuses a foreign marker temporary and touches nothing", async (context) => {
+  const { repository, worktreeRoot } = await repositoryFixture(context);
+  const worktree = await ensureSessionWorktree({
+    repositoryPath: repository,
+    worktreeRoot,
+    name: "topic_n1001234567890_7",
+  });
+  writeFileSync(join(worktree.path, ".git-agent-notes.md"), "pending notes\n");
+  writeFileSync(join(worktree.path, ".git.agent-marker-tmp"), "user data\n");
+  const events = [];
+
+  await assert.rejects(
+    renameLegacyWorktrees({
+      repositoryPath: repository,
+      worktreeRoot,
+      identifiers,
+      logger: (event, detail) => events.push([event, detail]),
+    }),
+    { message: /not a leftover/u },
+  );
+
+  assert.deepEqual(events, [
+    ["worktree_marker_untrusted", identifiers.worktreeName("-1001234567890:7")],
+  ]);
+  assert.equal(
+    existsSync(join(worktreeRoot, "topic_n1001234567890_7")),
+    true,
+    "the worktree is not moved",
+  );
+  assert.equal(
+    readFileSync(join(worktree.path, ".git.agent-marker-tmp"), "utf8"),
+    "user data\n",
+  );
+  assert.equal(
+    readFileSync(join(worktree.path, ".git-agent-notes.md"), "utf8"),
+    "pending notes\n",
+  );
+  assert.equal(
+    readFileSync(join(worktree.path, ".git"), "utf8"),
+    `gitdir: ${worktree.gitDirectory}\n`,
+    "the marker is untouched",
+  );
 });
 
 test("skips a legacy directory Git does not register", async (context) => {
@@ -582,4 +695,109 @@ test("fails the migration instead of overwriting an existing opaque worktree", a
     true,
     "the legacy worktree is still there",
   );
+});
+
+/** A private file outside every worktree, as the sandbox would aim at state. */
+function witnessFixture(context, directory) {
+  const witness = join(directory, "private-state.sqlite");
+  writeFileSync(witness, "private\n");
+  return witness;
+}
+
+test("refuses an opaque worktree whose Git marker is a symbolic link", async (context) => {
+  const { directory, repository, worktreeRoot } =
+    await repositoryFixture(context);
+  const worktree = await ensureSessionWorktree({
+    repositoryPath: repository,
+    worktreeRoot,
+    name: "topic-0123456789abcdef",
+  });
+  const witness = witnessFixture(context, directory);
+  rmSync(join(worktree.path, ".git"));
+  symlinkSync(witness, join(worktree.path, ".git"));
+  const events = [];
+
+  await assert.rejects(
+    renameLegacyWorktrees({
+      repositoryPath: repository,
+      worktreeRoot,
+      identifiers,
+      logger: (event, detail) => events.push([event, detail]),
+    }),
+    { message: /not a regular file/u },
+  );
+
+  assert.deepEqual(events, [
+    ["worktree_marker_untrusted", "topic-0123456789abcdef"],
+  ]);
+  assert.equal(readFileSync(witness, "utf8"), "private\n");
+  assert.equal(lstatSync(join(worktree.path, ".git")).isSymbolicLink(), true);
+});
+
+test("refuses a legacy worktree whose Git marker is a symbolic link", async (context) => {
+  const { directory, repository, worktreeRoot } =
+    await repositoryFixture(context);
+  const worktree = await ensureSessionWorktree({
+    repositoryPath: repository,
+    worktreeRoot,
+    name: "topic_n1001234567890_7",
+  });
+  const witness = witnessFixture(context, directory);
+  rmSync(join(worktree.path, ".git"));
+  symlinkSync(witness, join(worktree.path, ".git"));
+  const events = [];
+
+  await assert.rejects(
+    renameLegacyWorktrees({
+      repositoryPath: repository,
+      worktreeRoot,
+      identifiers,
+      logger: (event, detail) => events.push([event, detail]),
+    }),
+    { message: /not a regular file/u },
+  );
+
+  assert.deepEqual(events, [
+    ["worktree_marker_untrusted", identifiers.worktreeName("-1001234567890:7")],
+  ]);
+  assert.equal(readFileSync(witness, "utf8"), "private\n");
+  assert.equal(
+    existsSync(join(worktreeRoot, "topic_n1001234567890_7")),
+    true,
+    "the legacy worktree is not moved",
+  );
+  assert.deepEqual(readdirSync(join(repository, ".git", "worktrees")), [
+    "topic_n1001234567890_7",
+  ]);
+});
+
+test("refuses an administrative gitdir file that is a symbolic link", async (context) => {
+  const { directory, repository, worktreeRoot } =
+    await repositoryFixture(context);
+  const worktree = await ensureSessionWorktree({
+    repositoryPath: repository,
+    worktreeRoot,
+    name: "topic-0123456789abcdef",
+  });
+  const witness = witnessFixture(context, directory);
+  const gitdirPath = join(worktree.gitDirectory, "gitdir");
+  rmSync(gitdirPath);
+  symlinkSync(witness, gitdirPath);
+  const events = [];
+
+  await assert.rejects(
+    renameLegacyWorktrees({
+      repositoryPath: repository,
+      worktreeRoot,
+      identifiers,
+      logger: (event, detail) => events.push([event, detail]),
+    }),
+    { message: /not a regular file/u },
+  );
+
+  assert.deepEqual(events, [
+    ["worktree_marker_untrusted", "topic-0123456789abcdef"],
+  ]);
+  assert.equal(readFileSync(witness, "utf8"), "private\n");
+  assert.equal(existsSync(worktree.path), true);
 });

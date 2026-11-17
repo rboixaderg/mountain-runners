@@ -8,6 +8,7 @@ import {
   readFileSync,
   readdirSync,
   rmSync,
+  symlinkSync,
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
@@ -21,7 +22,10 @@ import {
   resolveUncertainCase,
 } from "../reconcile/uncertain-cases.mjs";
 import { reconcileResolutions } from "../../policy/development.mjs";
-import { readIdentifierSalt } from "../../repository/identifiers.mjs";
+import {
+  createIdentifierNames,
+  readIdentifierSalt,
+} from "../../repository/identifiers.mjs";
 import {
   commitAll,
   createBranch,
@@ -246,6 +250,62 @@ test("finishes a migration interrupted before the marker was rewritten", async (
     await git(migratedPath, ["status", "--porcelain"]),
     "?? pending.txt",
   );
+});
+
+test("refuses a worktree whose Git marker is a symbolic link", async (context) => {
+  const paths = await fixture(context);
+  const { worktree } = await legacyWorktree(paths);
+  const witness = join(paths.directory, "private-state.sqlite");
+  writeFileSync(witness, "private\n");
+  rmSync(join(worktree.path, ".git"));
+  symlinkSync(witness, join(worktree.path, ".git"));
+
+  const result = await runCommand(paths.environment);
+
+  const names = createIdentifierNames({
+    salt: readIdentifierSalt(paths.state),
+  });
+  const opaqueName = names.worktreeName(sessionKey);
+  assert.equal(result.status, 1);
+  assert.match(
+    result.output,
+    new RegExp(`worktree_marker_untrusted ${opaqueName}`, "u"),
+  );
+  assert.match(result.errors.join("\n"), /not a regular file/u);
+  assert.match(result.errors.join("\n"), new RegExp(opaqueName, "u"));
+  assert.equal(readFileSync(witness, "utf8"), "private\n");
+  assert.equal(lstatSync(join(worktree.path, ".git")).isSymbolicLink(), true);
+  assert.equal(
+    existsSync(join(paths.worktrees, legacyWorktreeName)),
+    true,
+    "the legacy worktree is not moved",
+  );
+});
+
+test("refuses an opaque worktree whose Git marker is a symbolic link", async (context) => {
+  const paths = await fixture(context);
+  const opaqueName = "topic-0123456789abcdef";
+  const worktree = await ensureSessionWorktree({
+    repositoryPath: paths.repository,
+    worktreeRoot: paths.worktrees,
+    name: opaqueName,
+  });
+  const witness = join(paths.directory, "private-state.sqlite");
+  writeFileSync(witness, "private\n");
+  rmSync(join(worktree.path, ".git"));
+  symlinkSync(witness, join(worktree.path, ".git"));
+
+  const result = await runCommand(paths.environment);
+
+  assert.equal(result.status, 1);
+  assert.match(
+    result.output,
+    new RegExp(`worktree_marker_untrusted ${opaqueName}`, "u"),
+  );
+  assert.match(result.errors.join("\n"), /not a regular file/u);
+  assert.equal(readFileSync(witness, "utf8"), "private\n");
+  assert.equal(lstatSync(join(worktree.path, ".git")).isSymbolicLink(), true);
+  assert.equal(existsSync(join(paths.worktrees, opaqueName)), true);
 });
 
 test("refuses an instruction case before the migration and resolves it after", async (context) => {
