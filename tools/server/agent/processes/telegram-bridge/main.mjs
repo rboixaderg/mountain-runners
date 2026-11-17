@@ -128,6 +128,19 @@ export async function startService({
     });
   }
 
+  // A reservation that a restart found unannounced never reached the queue. It
+  // is closed instead of blocking the topic with a result that will not come.
+  for (const repair of ciWatches.abortInterruptedReservations(
+    "interrupted_before_queue",
+  )) {
+    queue.recordTrace({
+      updateIdentifier: repair.update_identifier,
+      sessionKey: repair.session_key,
+      action: "ci_repair_not_queued",
+      detail: `#${repair.pull_request_number} ${repair.commit_sha.slice(0, 7)}`,
+    });
+  }
+
   // An interrupted preview comment may or may not exist. Like an interrupted
   // repair, it is never posted again automatically: the service refuses to
   // start until a person reconciles the real state.

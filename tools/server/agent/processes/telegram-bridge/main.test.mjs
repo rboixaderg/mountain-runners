@@ -327,6 +327,43 @@ test("refuses to start with an interrupted CI repair of unknown result", async (
   reopened.close();
 });
 
+test("closes an unannounced reservation at startup instead of blocking the topic", async (context) => {
+  const { environment, statePath } = environmentFor(context);
+  mkdirSync(statePath, { recursive: true });
+  const stateStore = new CiWatchStore(join(statePath, "ci-watch.sqlite"));
+  const reserved = stateStore.requestRepair({
+    updateIdentifier: 10,
+    sessionKey: "-1001234567890:7",
+    pullRequestNumber: 200,
+    failureFingerprint: JSON.stringify(["Validate"]),
+    failedChecks: ["Validate"],
+    evidence: [],
+    commitSha: "a".repeat(40),
+    maximumAttempts: 2,
+  });
+  stateStore.close();
+
+  const service = await startService({
+    environment,
+    telegram: telegramStub(),
+    github: {},
+    runner: async () => ({}),
+  });
+
+  const repair = service.ciWatches.repair(reserved.sequence);
+  assert.equal(repair.status, "aborted");
+  assert.equal(repair.outcome, "interrupted_before_queue");
+  assert.equal(service.ciWatches.hasUnreportedWork("-1001234567890:7"), false);
+  assert.equal(service.ciWatches.claimNextRepair(), null);
+  const trace = service.queue
+    .traceEntries()
+    .find((entry) => entry.action === "ci_repair_not_queued");
+  assert.equal(trace.update_identifier, 10);
+  assert.equal(trace.detail, `#200 ${"a".repeat(7)}`);
+  service.ciWatches.close();
+  service.queue.close();
+});
+
 test("runs a queued CI repair when the instruction queue is idle", async (context) => {
   const { environment, statePath } = environmentFor(context);
   const { ciWatches } = repairFixture(environment, statePath);
@@ -964,6 +1001,149 @@ test("refuses the merge while an automatic repair is reserved for the topic", as
 
   assert.deepEqual(merges, []);
   assert.match(replies.at(-1), /feina més nova que l'últim avís/u);
+});
+
+test("keeps the older notice blocked after reconciling a publication without a watch", async (context) => {
+  const { directory, environment, statePath } = environmentFor(context);
+  mkdirSync(statePath, { recursive: true });
+  const topic = "-1001234567890:7";
+  const greenCommit = "a".repeat(40);
+  const publishedCommit = "c".repeat(40);
+  const publishedPullRequest = 201;
+
+  // A's green notice was delivered.
+  const watches = new CiWatchStore(join(statePath, "ci-watch.sqlite"));
+  watches.add({
+    updateIdentifier: 10,
+    sessionKey: topic,
+    pullRequestNumber: 200,
+    commitSha: greenCommit,
+  });
+  watches.beginSend(10, "success");
+  watches.finishSend(10);
+  watches.close();
+  // B was published, but registering its watch failed: the instruction is
+  // unknown until a person reconciles it.
+  const queue = new AdmissionQueue(join(statePath, "admission.sqlite"), {
+    maxPending: 10,
+  });
+  queue.admit({
+    updateIdentifier: 20,
+    messageIdentifier: 2020,
+    sessionKey: topic,
+    authorIdentifier: 42,
+    instruction: "synthetic private instruction",
+  });
+  queue.next();
+  queue.markUncertain(20, "uncertain");
+  queue.close();
+
+  // The operator confirms the publication with its pull request: the command
+  // restores the watch the failed registration lost.
+  const reconcileStores = {
+    instructions: new AdmissionQueue(join(statePath, "admission.sqlite"), {
+      maxPending: 10,
+    }),
+    repairs: new CiWatchStore(join(statePath, "ci-watch.sqlite")),
+    previews: null,
+  };
+  await resolveUncertainCase({
+    config: {
+      paths: {
+        repository: join(directory, "repository"),
+        worktrees: join(directory, "worktrees"),
+        state: statePath,
+      },
+    },
+    stores: reconcileStores,
+    telegram: { async sendMessage() {} },
+    kind: "instruction",
+    updateIdentifier: 20,
+    resolution: reconcileResolutions.published,
+    commit: publishedCommit,
+    pullRequestNumber: publishedPullRequest,
+  });
+  assert.deepEqual(
+    reconcileStores.repairs
+      .pending()
+      .map((row) => [
+        row.update_identifier,
+        row.pull_request_number,
+        row.commit_sha,
+      ]),
+    [[20, publishedPullRequest, publishedCommit]],
+  );
+  reconcileStores.repairs.close();
+  reconcileStores.instructions.close();
+
+  async function mergeOnce(updateIdentifier) {
+    const merges = [];
+    const replies = [];
+    const service = await startService({
+      environment,
+      telegram: {
+        ...telegramStub(),
+        async getUpdates() {
+          return [mergeCommandUpdate(updateIdentifier)];
+        },
+        async getChatMember() {
+          return { status: "member" };
+        },
+        async sendMessage(message) {
+          replies.push(message.text);
+        },
+      },
+      github: {
+        async getPullRequest() {
+          return {
+            state: "open",
+            headSha: publishedCommit,
+            headRepository: "rboixaderg/mountain-runners",
+            draft: false,
+            baseRef: "main",
+            mergeableState: "clean",
+            merged: false,
+            mergeCommitSha: null,
+          };
+        },
+        async getCommitCheckRuns() {
+          return [
+            { name: "Validate", status: "completed", conclusion: "success" },
+          ];
+        },
+        async getCommitStatuses() {
+          return [];
+        },
+        async mergePullRequest({ number, sha }) {
+          merges.push({ number, sha });
+          return { mergeCommitSha: "b".repeat(40) };
+        },
+      },
+    });
+    await service.bridge.pollOnce();
+    await service.bridge.executeNext();
+    service.mergeRequests.close();
+    service.ciWatches.close();
+    service.queue.close();
+    return { merges, replies };
+  }
+
+  // The confirmed publication is still unreported: A must not be merged.
+  const refused = await mergeOnce(100);
+  assert.deepEqual(refused.merges, []);
+  assert.match(refused.replies.at(-1), /feina més nova que l'últim avís/u);
+
+  // The restored watch reports the publication; only then the merge resolves.
+  const delivered = new CiWatchStore(join(statePath, "ci-watch.sqlite"));
+  assert.equal(delivered.beginSend(20, "success"), true);
+  assert.equal(delivered.finishSend(20), true);
+  delivered.close();
+
+  const resolved = await mergeOnce(200);
+  assert.deepEqual(resolved.merges, [
+    { number: publishedPullRequest, sha: publishedCommit },
+  ]);
+  assert.match(resolved.replies.at(-1), /PR #201 fusionada/u);
 });
 
 function implementationUpdate(updateIdentifier) {

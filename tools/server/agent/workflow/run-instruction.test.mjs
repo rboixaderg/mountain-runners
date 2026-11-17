@@ -322,7 +322,7 @@ test("registers the CI watch for the published commit without waiting for CI", a
   assert.equal(watch.session_key, request().sessionKey);
 });
 
-test("reports an unregistered CI watch without losing the publication", async (context) => {
+test("ends the instruction unknown when the CI watch cannot be registered", async (context) => {
   const paths = await fixture(context);
   const github = githubStub();
   const runner = createProjectRunner({
@@ -343,9 +343,13 @@ test("reports an unregistered CI watch without losing the publication", async (c
 
   const result = await runner(request());
 
-  assert.equal(result.outcome, "pull_request_created");
+  // The publication is real, so it is not repeated; the missing durable watch
+  // blocks the service until a person reconciles it.
+  assert.equal(result.outcome, "uncertain");
   assert.match(result.report, /pull\/200/u);
   assert.match(result.report, /No s'ha pogut registrar el seguiment de la CI/u);
+  assert.match(result.report, /No s'ha pogut desar el seguiment posterior/u);
+  assert.deepEqual(github.pushes.length, 1);
 });
 
 test("keeps the worktree and publishes nothing when the checks fail", async (context) => {

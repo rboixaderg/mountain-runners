@@ -3,8 +3,8 @@
 // Usage, on the VPS with the service stopped, as the service identity:
 //   node commands/reconcile/cli.mjs list
 //   node commands/reconcile/cli.mjs resolve --kind <kind> --update <id>
-//     --resolution <value> [--commit <40-hex SHA>] [--sequence <id>
-//     --failed-commit <40-hex SHA>]
+//     --resolution <value> [--commit <40-hex SHA>] [--pull-request <n>]
+//     [--sequence <id> --failed-commit <40-hex SHA>]
 //
 // The command reads the same configuration as the service, because it needs the
 // GitHub and Telegram credentials. It never resolves a case on its own: a person
@@ -34,18 +34,21 @@ import {
 
 const usage = `Usage: node commands/reconcile/cli.mjs list
        node commands/reconcile/cli.mjs resolve --kind <kind> --update <id>
-         --resolution <value> [--commit <sha>] [--sequence <id>
-         --failed-commit <sha>]
+         --resolution <value> [--commit <sha>] [--pull-request <n>]
+         [--sequence <id> --failed-commit <sha>]
 
 Reconcile the cases that keep the service from starting because an external
 result is unknown. The service must be stopped.
 
 Options:
-  --kind <kind>           instruction, repair or preview
+  --kind <kind>           instruction, repair, preview or notice
   --update <id>           Telegram update printed by list for that case
   --resolution <value>    instruction and repair: published, not_published
                           preview: commented, not_commented
+                          notice: delivered, resend
   --commit <sha>          full commit SHA, required by --resolution published
+  --pull-request <n>      pull request of a published instruction; the command
+                          restores the CI watch the failed registration lost
   --sequence <id>         repair row sequence printed by list
   --failed-commit <sha>   failed commit printed by list, required for a repair`;
 
@@ -98,6 +101,19 @@ function parseResolve(values) {
       "--commit is only accepted with --resolution published.",
     );
   }
+  // A published instruction needs the pull request of the confirmed
+  // publication: the command follows that commit again before unblocking.
+  const followPublishedInstruction =
+    kind === caseKinds.instruction &&
+    resolution === reconcileResolutions.published;
+  if (!followPublishedInstruction && values["pull-request"] !== undefined) {
+    throw new ReconcileInputError(
+      "--pull-request is only accepted with --kind instruction and --resolution published.",
+    );
+  }
+  const pullRequestNumber = followPublishedInstruction
+    ? readPositiveInteger(values["pull-request"], "--pull-request")
+    : null;
   if (kind === caseKinds.repair) {
     return {
       command: "resolve",
@@ -114,7 +130,14 @@ function parseResolve(values) {
       "--sequence and --failed-commit are only accepted with --kind repair.",
     );
   }
-  return { command: "resolve", kind, updateIdentifier, resolution, commit };
+  return {
+    command: "resolve",
+    kind,
+    updateIdentifier,
+    resolution,
+    commit,
+    pullRequestNumber,
+  };
 }
 
 /** Parse the command line without reading the environment or any store. */
@@ -128,6 +151,7 @@ function parseCommandArguments(argv) {
         update: { type: "string" },
         resolution: { type: "string" },
         commit: { type: "string" },
+        "pull-request": { type: "string" },
         sequence: { type: "string" },
         "failed-commit": { type: "string" },
       },
@@ -253,6 +277,7 @@ export async function runReconcileCommand({
       failedCommit: command.failedCommit,
       resolution: command.resolution,
       commit: command.commit,
+      pullRequestNumber: command.pullRequestNumber,
       warn,
     });
     write(`${JSON.stringify(resolvedJson(resolved))}\n`);

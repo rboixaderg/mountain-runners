@@ -208,6 +208,56 @@ test("posts exactly /preview once for the reported green commit", async (context
   assert.equal(traces[2].detail, "#200 aaaaaaa");
 });
 
+test("refuses the older green notice while a newer publication is unknown", async (context) => {
+  const { ciWatches, handler, github, membership, previews, traces } =
+    setup(context);
+  reportGreen(ciWatches);
+  // A newer publication was pushed, but its notice ended unknown.
+  ciWatches.add({
+    updateIdentifier: 11,
+    sessionKey,
+    pullRequestNumber: 202,
+    commitSha: "b".repeat(40),
+  });
+  ciWatches.beginSend(11, "success");
+  ciWatches.markUncertain(11);
+
+  const result = await handler.handle(request());
+
+  assert.equal(result.outcome, "answered");
+  assert.match(result.report, /una publicació més nova que l'últim avís/u);
+  assert.match(result.report, /PR #200/u);
+  assert.match(result.report, /No s'ha demanat cap preview/u);
+  assert.deepEqual(github.posts, []);
+  assert.deepEqual(membership.calls, []);
+  assert.equal(previews.state(20), undefined);
+  assert.deepEqual(actions(traces), ["preview_refused"]);
+  assert.equal(traces[0].detail, "newer_work #200 aaaaaaa");
+});
+
+test("refuses even when the unknown notice is older than the delivered one", async (context) => {
+  const { ciWatches, handler, github, previews, traces } = setup(context);
+  // An earlier publication was never confirmed.
+  ciWatches.add({
+    updateIdentifier: 9,
+    sessionKey,
+    pullRequestNumber: 198,
+    commitSha: "c".repeat(40),
+  });
+  ciWatches.beginSend(9, "success");
+  ciWatches.markUncertain(9);
+  reportGreen(ciWatches);
+
+  const result = await handler.handle(request());
+
+  assert.equal(result.outcome, "answered");
+  assert.match(result.report, /una publicació més nova que l'últim avís/u);
+  assert.deepEqual(github.posts, []);
+  assert.equal(previews.state(20), undefined);
+  assert.deepEqual(actions(traces), ["preview_refused"]);
+  assert.equal(traces[0].detail, "newer_work #200 aaaaaaa");
+});
+
 test("refuses the preview when the author left the group before it ran", async (context) => {
   const { ciWatches, handler, github, membership, previews, traces } =
     setup(context);

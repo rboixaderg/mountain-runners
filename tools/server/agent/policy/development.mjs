@@ -311,6 +311,8 @@ export const instructionReports = {
     "L'execució local ha fallat. No s'ha fet cap push; el treball es conserva i la cua pot continuar.",
   publicationUncertain:
     "No s'ha pogut confirmar el resultat de la publicació. El servei queda bloquejat fins que es revisi l'estat real.",
+  ciWatchUnavailable:
+    "No s'ha pogut desar el seguiment posterior d'aquesta publicació. El servei queda bloquejat fins que una persona revisi l'estat real.",
   sandboxUncertain:
     "No s'ha pogut confirmar l'aturada del contenidor. El servei queda bloquejat fins que es revisi l'estat real.",
   clarification:
@@ -499,6 +501,8 @@ export const ciReports = {
     maximumAttempts,
   }) =>
     `CI fallida al commit ${shortCommit(commit)} (PR #${pullRequestNumber}): ${failedChecks.join(", ")} no ha acabat correctament. Reparació automàtica ${attemptNumber}/${maximumAttempts} en curs; rebràs el resultat en aquest mateix tema.`,
+  repairNotRun: ({ pullRequestNumber, commit, failedChecks }) =>
+    `CI fallida al commit ${shortCommit(commit)} (PR #${pullRequestNumber}): ${failedChecks.join(", ")} no ha acabat correctament. No s'executarà cap reparació automàtica d'aquest intent; dona una instrucció nova en aquest tema si vols que es corregeixi.`,
   repairBlocked: ({ pullRequestNumber, commit, failedChecks }) =>
     `CI fallida al commit ${shortCommit(commit)} (PR #${pullRequestNumber}): ${failedChecks.join(", ")} no ha acabat correctament. No es fa cap reparació automàtica mentre hi hagi un resultat desconegut pendent de revisió; cal revisar l'estat real abans de tornar-ho a intentar.`,
   repairLimit: ({ pullRequestNumber, commit, failedChecks, maximumAttempts }) =>
@@ -524,6 +528,8 @@ export const previewReports = {
     `Preview demanada per al commit ${shortCommit(commit)} (PR #${pullRequestNumber}). Esperant la confirmació del publicador; rebràs l'URL en aquest mateix tema.`,
   noReportedCommit:
     "Aquest tema no té cap commit informat amb les comprovacions obligatòries en verd. No s'ha demanat cap preview.",
+  newerWork: ({ pullRequestNumber, commit }) =>
+    `Aquest tema té una publicació més nova que l'últim avís (PR #${pullRequestNumber}, commit ${shortCommit(commit)}) sense informe confirmat. No s'ha demanat cap preview; espera el nou informe i torna-ho a demanar.`,
   alreadyInProgress: ({ pullRequestNumber, commit }) =>
     `Ja hi ha una preview demanada per al commit ${shortCommit(commit)} (PR #${pullRequestNumber}) que encara no ha acabat o que té un resultat desconegut. No se'n demana cap altra.`,
   alreadyHandled:
@@ -639,6 +645,8 @@ export const reconcileResolutions = {
   notPublished: "not_published",
   commented: "commented",
   notCommented: "not_commented",
+  delivered: "delivered",
+  resend: "resend",
 };
 
 const reconcileResolutionResults = {

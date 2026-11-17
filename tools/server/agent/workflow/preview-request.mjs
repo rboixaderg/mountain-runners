@@ -35,6 +35,7 @@ const refusals = {
   membershipRevoked: "membership_revoked",
   membershipUnavailable: "membership_unavailable",
   noReportedCommit: "no_reported_commit",
+  newerWork: "newer_work",
   alreadyInProgress: "already_in_progress",
   alreadyHandled: "already_handled",
   notApplicable: "not_applicable",
@@ -135,6 +136,17 @@ export function createPreviewRequests({
       pullRequestNumber: reported.pull_request_number,
       commit: reported.commit_sha,
     };
+    // A publication newer than the reported notice, including one whose notice
+    // was never confirmed, owns the topic: the older commit can no longer be
+    // previewed.
+    if (reportedCommits.hasUnreportedWork(request.sessionKey)) {
+      return refuse(
+        request,
+        refusals.newerWork,
+        previewReports.newerWork(target),
+        target,
+      );
+    }
     safeTrace({
       updateIdentifier: request.updateIdentifier,
       authorIdentifier: request.authorIdentifier,

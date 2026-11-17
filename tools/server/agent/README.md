@@ -42,7 +42,7 @@ tools/server/agent/               aplicació de Mountain Runners
 ├── commands/reconcile/
 │   ├── cli.mjs                   embolcall de procés: umask privat i codi de sortida
 │   ├── command.mjs               ordre d'operador, amb clients de GitHub i Telegram injectables
-│   └── uncertain-cases.mjs       fets i resolució d'una instrucció, reparació o preview
+│   └── uncertain-cases.mjs       fets i resolució d'una instrucció, reparació, preview o avís
 ├── processes/telegram-bridge/
 │   └── main.mjs                  connecta paquet i flux de desenvolupament
 ├── policy/
@@ -147,9 +147,17 @@ al servidor. El nom local encara no representa una publicació a npm.
    publicat. Un bucle en segon pla llegeix els check runs i els estats de commit
    d'aquell SHA i, quan les comprovacions obligatòries acaben, envia el resultat
    al mateix tema. El bucle no bloqueja la cua; un enviament no confirmat queda
-   com a incert i no es repeteix sol.
+   com a incert i no es repeteix sol. Si el seguiment no es pot desar després
+   d'una publicació confirmada, la instrucció acaba com a incerta: la publicació
+   s'ha fet, però cap avís durador la pot autoritzar, i una persona ho
+   reconcilia. Mentre el tema tingui cap avís incert, el tema té feina sense
+   informar: `/merge` i `/preview` no resolen res, encara que un avís posterior
+   s'hagi lliurat abans.
 8. Si les comprovacions obligatòries fallen, `workflow/ci-watch.mjs` reserva una
-   reparació automàtica abans d'avisar i tanca el seguiment. `ci-repair.mjs`
+   reparació automàtica abans d'avisar i tanca el seguiment. Si l'avís «en curs»
+   no es lliura, la reserva es tanca de seguida com a `aborted` amb el motiu
+   `announcement_failed` (traça `ci_repair_not_announced`): no s'executa mai i no
+   bloqueja el tema. `ci-repair.mjs`
    executa l'intent quan la cua d'instruccions és buida i no està bloquejada per
    un resultat incert, pel mateix camí de model, comprovació, commit i publicació
    que una implementació. Abans de tocar la branca torna a llegir la PR i les
@@ -161,7 +169,14 @@ al servidor. El nom local encara no representa una publicació a npm.
    conjunt de noms de les comprovacions fallides: el missatge i el SHA són
    evidència, no identitat. Només compta l'intent que s'ha arribat a agafar. Una
    reparació que no canvia res, o que no pot confirmar el resultat, es tanca i es
-   comunica sense reintentar-se.
+   comunica sense reintentar-se. Si una fallada reutilitza un intent que ja ha
+   acabat, el tema rep l'avís que no s'executarà cap reparació i que cal una
+   instrucció nova (traça `ci_repair_not_run`); `ci_repair_requested` només es
+   traça quan l'intent ha arribat a la cua. A l'arrencada, qualsevol reserva que no va
+   arribar a la cua es tanca com a `aborted` amb el motiu
+   `interrupted_before_queue` (traça `ci_repair_not_queued`) i no s'executa. Una
+   CI verda o una publicació humana nova també donen per obsoletes les reserves
+   que mai no han corregut.
 
 9. Una persona verificada pot demanar la preview en llenguatge natural. El
    classificador només etiqueta la petició com a `preview`: el model no s'inicia
@@ -171,7 +186,8 @@ al servidor. El nom local encara no representa una publicació a npm.
    PR o un SHA escrits per la persona) i torna a llegir la PR i les
    comprovacions obligatòries:
    PR oberta, cap igual al commit fixat, branca del repositori principal i
-   comprovacions obligatòries totes en verd. Si l'autor ja no és membre, si la
+   comprovacions obligatòries totes en verd. Si el tema té una publicació més
+   nova sense informe confirmat, refusa. Si l'autor ja no és membre, si la
    consulta de pertinença falla, si hi ha qualsevol dubte o un error de lectura,
    refusa i ho diu. Només llavors desa la petició (`commenting`),
    comenta exactament `/preview` amb la credencial del servei i passa a
@@ -193,7 +209,7 @@ al servidor. El nom local encara no representa una publicació a npm.
     no fusiona res. `workflow/merge-request.mjs` torna a verificar la pertinença,
     fixa la petició a la PR i al commit de l'últim avís de CI en verd lliurat al
     tema i refusa si el tema té feina més nova que aquell avís (instrucció,
-    reparació o seguiment encara sense informar). Rellegeix la PR en fallada tancada
+    reparació o avís encara sense informar, incert inclòs). Rellegeix la PR en fallada tancada
     (oberta, no esborrany, base `main`, repositori principal, cap igual al commit
     fixat, comprovacions obligatòries en verd i `mergeable_state` `clean`) i desa
     la petició (`merging`) abans de la crida. Només llavors demana a GitHub un
@@ -221,8 +237,9 @@ al servidor. El nom local encara no representa una publicació a npm.
     últims vint comentaris i l'estat de les comprovacions com a dades no fiables.
     La publicació només actualitza aquella PR, el tema nou registra el seu propi
     avís i passa a ser-ne el propietari, i el tema anterior rep un avís curt. Si
-    la fila no es pot desar, la publicació es manté i el tema anterior conserva
-    els avisos. Un avís que falla o que esgota el termini es registra a la traça
+    la fila no es pot desar, la publicació es manté, el tema anterior conserva
+    els avisos i la instrucció acaba com a incerta. Un avís que falla o que
+    esgota el termini es registra a la traça
     i no fa fallar la instrucció. El detall
     és a [`docs/deployment.md`](../../../docs/deployment.md).
 
@@ -258,7 +275,11 @@ Amb el servei en marxa,
 una reparació amb resultat desconegut atura les reparacions automàtiques mentre
 les instruccions del tema continuen. La reconciliació d'un resultat desconegut
 no és automàtica: una persona llegeix l'estat real i el tanca amb
-`commands/reconcile/cli.mjs`, amb el servei aturat i la identitat del servei.
+`commands/reconcile/cli.mjs`, amb el servei aturat i la identitat del servei. Un
+avís de CI incert també es reconcilia així (`--kind notice`), sense cap avís nou
+al tema. Una instrucció publicada exigeix `--pull-request`: la comanda torna a
+desar el seguiment de CI pendent d'aquell commit abans de desbloquejar-la, i si
+no el pot desar la instrucció continua incerta.
 Cada resolució es desa amb la seva traça o no es desa, i la comanda no crea cap
 base de dades. El procediment és a
 [`docs/deployment.md`](../../../docs/deployment.md#reconciliació-de-resultats-desconeguts-t85).
