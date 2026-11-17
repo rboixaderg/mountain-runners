@@ -459,6 +459,19 @@ d'administració. El rol administrador del compte no prova els permisos del
 token. Abans del pilot cal verificar els permisos reals i les regles de branca
 dels entorns `previews` i `production`; aquestes proves locals no ho demostren.
 
+Tota ordre Git de confiança té termini i aturada: 120 s per a una operació local
+i 300 s per a un `fetch` o un `push`. En esgotar-se el termini, o quan s'atura el
+servei, `execFile` mata el procés amb `SIGKILL` i l'ordre falla; una ordre morta
+no compta com un refús innocent. El senyal de la instrucció arriba a totes les
+ordres Git i a totes les crides a l'API de GitHub que fa la instrucció, i una
+crida a l'API sense senyal del cridant agafa el termini de petició de 30 s. Un
+timeout o una aturada abans de la primera escriptura remota és una fallada
+local. Si arriba després del push o de la petició de PR, la instrucció queda
+incerta i no es repeteix. La lectura de la PR que el publicador fa abans del
+push d'una reparació o d'una continuació és dins de la primera part: un termini
+esgotat allà es comunica com a refús local amb el seu avís, i una aturada no es
+converteix en incertesa.
+
 Un timeout o una cancel·lació de Pi també espera l'aturada dels contenidors de
 la sessió; si no es pot confirmar, l'execució queda fallida o incerta.
 
@@ -472,6 +485,10 @@ la sessió; si no es pot confirmar, l'execució queda fallida o incerta.
   anònims, els altres grups i els missatges privats s'ignoren. La pertinença es
   consulta a Telegram per a cada instrucció, sense memòria cau. Una fallada
   de la consulta denega la instrucció i informa l'autor perquè ho torni a provar.
+  La consulta té un termini de 30 s i respecta l'aturada del servei. Un termini
+  esgotat denega la instrucció pel camí `membership_check_failed`; una aturada
+  no avança l'offset de Telegram, així que l'update es torna a llegir a la
+  propera arrencada.
 - L'admissió és duradora abans d'avançar l'offset de Telegram. Els updates es
   dedupliquen, la cua admet deu instruccions pendents i només hi ha una
   execució global. Una cua plena es registra i es comunica al tema.

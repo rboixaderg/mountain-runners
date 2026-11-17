@@ -36,7 +36,10 @@ export function createOverlapWarning({
    * A branch the service never created is never attributed, so a foreign
    * worktree is not reported as this pull request.
    */
-  async function publishedWork(published, { worktreesByTopic, branch }) {
+  async function publishedWork(
+    published,
+    { worktreesByTopic, branch, signal },
+  ) {
     const ownerWorktree = worktreesByTopic.get(
       sessionIdentifier(published.session_key),
     );
@@ -45,7 +48,9 @@ export function createOverlapWarning({
     }
     let ownerBranch;
     try {
-      ownerBranch = assertWorkBranch(await currentBranch(ownerWorktree));
+      ownerBranch = assertWorkBranch(
+        await currentBranch(ownerWorktree, { signal }),
+      );
     } catch {
       return null;
     }
@@ -54,15 +59,15 @@ export function createOverlapWarning({
     }
     return {
       pullRequestNumber: published.pull_request_number,
-      paths: await changedPathsAgainstMain(ownerWorktree),
+      paths: await changedPathsAgainstMain(ownerWorktree, { signal }),
     };
   }
 
   /** Uncommitted changes or commits the service never published. */
-  async function hasPendingWork(worktree) {
+  async function hasPendingWork(worktree, { signal }) {
     return (
-      (await listChangedPaths(worktree)).length > 0 ||
-      (await hasUnpublishedCommit(worktree))
+      (await listChangedPaths(worktree, { signal })).length > 0 ||
+      (await hasUnpublishedCommit(worktree, { signal }))
     );
   }
 
@@ -72,12 +77,16 @@ export function createOverlapWarning({
     worktree,
     branch,
     continuedPullRequestNumber,
+    signal,
   }) {
-    const currentPaths = new Set(await changedPathsAgainstMain(worktree));
+    const currentPaths = new Set(
+      await changedPathsAgainstMain(worktree, { signal }),
+    );
     const otherWorktrees = await listOtherTopicWorktrees({
       repositoryPath,
       worktreeRoot,
       excludeName: sessionIdentifier(sessionKey),
+      signal,
     });
     const worktreesByTopic = new Map(
       otherWorktrees.map((entry) => [entry.name, entry.worktree]),
@@ -100,7 +109,11 @@ export function createOverlapWarning({
       ) {
         continue;
       }
-      const work = await publishedWork(published, { worktreesByTopic, branch });
+      const work = await publishedWork(published, {
+        worktreesByTopic,
+        branch,
+        signal,
+      });
       if (work === null) {
         continue;
       }
@@ -111,12 +124,12 @@ export function createOverlapWarning({
       if (attributedTopics.has(entry.name)) {
         continue;
       }
-      if (!(await hasPendingWork(entry.worktree))) {
+      if (!(await hasPendingWork(entry.worktree, { signal }))) {
         continue;
       }
       works.push({
         pullRequestNumber: null,
-        paths: await changedPathsAgainstMain(entry.worktree),
+        paths: await changedPathsAgainstMain(entry.worktree, { signal }),
       });
     }
 

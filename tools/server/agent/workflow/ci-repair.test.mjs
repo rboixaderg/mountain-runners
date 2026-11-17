@@ -174,6 +174,8 @@ test("reports a failed repair and never retries it", async (context) => {
 
   assert.equal(store.repair(queued.sequence).status, "done");
   assert.equal(store.repair(queued.sequence).outcome, "failed");
+  // A local failure never blocks the restart, unlike an unknown result.
+  assert.equal(store.uncertainRepairCount(), 0);
   assert.match(telegram.sent[0].text, /no ha publicat cap canvi/u);
   assert.deepEqual(
     traces.map((entry) => entry.action),

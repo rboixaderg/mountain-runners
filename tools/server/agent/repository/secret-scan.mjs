@@ -37,9 +37,14 @@ function isAttachmentPath(path) {
   );
 }
 
-export async function assertPublishableHistory({ worktree, commit, secrets }) {
+export async function assertPublishableHistory({
+  worktree,
+  commit,
+  secrets,
+  signal,
+}) {
   const range = `origin/main..${commit}`;
-  const commits = await runGit(worktree, ["rev-list", range]);
+  const commits = await runGit(worktree, ["rev-list", range], { signal });
   if (commits === "") {
     return;
   }
@@ -59,7 +64,7 @@ export async function assertPublishableHistory({ worktree, commit, secrets }) {
       "--no-renames",
       "-z",
     ],
-    { input: commits },
+    { input: commits, signal },
   );
   const changed = changedPaths.split("\0");
   if (changed.some(isAttachmentPath)) {
@@ -71,16 +76,15 @@ export async function assertPublishableHistory({ worktree, commit, secrets }) {
     );
   }
 
-  const objects = await runGit(worktree, [
-    "rev-list",
-    "--objects",
-    "--no-object-names",
-    range,
-  ]);
+  const objects = await runGit(
+    worktree,
+    ["rev-list", "--objects", "--no-object-names", range],
+    { signal },
+  );
   const metadata = await runGit(
     worktree,
     ["cat-file", "--batch-check=%(objectname) %(objecttype) %(objectsize)"],
-    { input: objects },
+    { input: objects, signal },
   );
   const candidates = secrets
     .filter((secret) => typeof secret === "string" && secret.length > 0)
@@ -103,6 +107,7 @@ export async function assertPublishableHistory({ worktree, commit, secrets }) {
     const content = await runGit(worktree, ["cat-file", type, identifier], {
       encoding: "buffer",
       maxBuffer: maximumObjectBytes + 1,
+      signal,
     });
     inspectedBytes += size;
     if (candidates.some((secret) => content.includes(secret))) {

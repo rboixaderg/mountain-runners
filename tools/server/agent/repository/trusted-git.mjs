@@ -10,6 +10,31 @@ import { promisify } from "node:util";
 
 const executeFile = promisify(execFile);
 
+// A local Git command that never answers would hold the single global
+// execution of the service. Every invocation therefore has a deadline and
+// honours the stop signal of the instruction that started it. A remote
+// operation may legitimately take longer than a local one.
+export const localGitTimeoutMilliseconds = 120 * 1000;
+export const remoteGitTimeoutMilliseconds = 300 * 1000;
+
+// Node reports a timeout with `killed` and the signal that ended the child, and
+// an aborted request with `AbortError`. A killed command never answers, so it is
+// not the benign refusal `allowFailure` describes.
+function gitWasInterrupted(error) {
+  return error?.name === "AbortError" || error?.killed === true;
+}
+
+/**
+ * A Git command that its deadline or the stop signal killed. It is not an
+ * answer Git gave, so callers must not read it as an ordinary result.
+ */
+export class GitInterruptedError extends Error {
+  constructor(message, options) {
+    super(message, options);
+    this.name = "GitInterruptedError";
+  }
+}
+
 export function primaryRepository(repositoryPath) {
   const path = realpathSync(repositoryPath);
   return {
@@ -66,6 +91,8 @@ export async function runGit(
     input,
     encoding = "utf8",
     maxBuffer = 1024 * 1024,
+    signal,
+    timeoutMilliseconds = localGitTimeoutMilliseconds,
   } = {},
 ) {
   assertWorktreeMarker(worktree);
@@ -95,6 +122,9 @@ export async function runGit(
         env: gitEnvironment(environment),
         encoding,
         maxBuffer,
+        signal,
+        timeout: timeoutMilliseconds,
+        killSignal: "SIGKILL",
       },
     );
     if (input !== undefined) {
@@ -104,6 +134,12 @@ export async function runGit(
     // Callers parsing porcelain/-z need every byte, including leading spaces.
     return stdout;
   } catch (error) {
+    if (gitWasInterrupted(error)) {
+      throw new GitInterruptedError(
+        `git ${argumentsList[0]} did not finish: ${error.signal ?? error.name}.`,
+        { cause: error },
+      );
+    }
     if (allowFailure) {
       return "";
     }

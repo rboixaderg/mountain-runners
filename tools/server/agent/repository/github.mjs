@@ -16,8 +16,12 @@
 import { previewCommand } from "../policy/development.mjs";
 import { assertWorkBranch } from "./worktrees.mjs";
 import { assertPublishableHistory } from "./secret-scan.mjs";
+import {
+  defaultRequestTimeoutMilliseconds,
+  requestSignal,
+} from "./request-signal.mjs";
 
-import { runGit } from "./trusted-git.mjs";
+import { remoteGitTimeoutMilliseconds, runGit } from "./trusted-git.mjs";
 
 function repositoryUrl(repository) {
   return `https://github.com/${repository}.git`;
@@ -83,6 +87,7 @@ export class GitHubTrust {
   #baseBranch;
   #fetch;
   #apiBaseUrl;
+  #requestTimeoutMilliseconds;
 
   constructor({
     token,
@@ -90,6 +95,7 @@ export class GitHubTrust {
     baseBranch = "main",
     fetchImpl = fetch,
     apiBaseUrl = "https://api.github.com",
+    requestTimeoutMilliseconds = defaultRequestTimeoutMilliseconds,
   }) {
     if (!token) {
       throw new Error("A GitHub token is required.");
@@ -102,11 +108,27 @@ export class GitHubTrust {
     this.#baseBranch = baseBranch;
     this.#fetch = fetchImpl;
     this.#apiBaseUrl = apiBaseUrl;
+    this.#requestTimeoutMilliseconds = requestTimeoutMilliseconds;
   }
 
-  async #git(worktree, argumentsList, environment = {}) {
+  /**
+   * Every Git command honours the instruction signal and has a deadline: local
+   * reads and checks are bounded, and the remote push gets its own longer one.
+   */
+  async #git(
+    worktree,
+    argumentsList,
+    environment = {},
+    { signal, timeoutMilliseconds } = {},
+  ) {
     try {
-      return (await runGit(worktree, argumentsList, { environment })).trim();
+      return (
+        await runGit(worktree, argumentsList, {
+          environment,
+          signal,
+          timeoutMilliseconds,
+        })
+      ).trim();
     } catch (error) {
       error.message = String(error.message).replaceAll(this.#token, "***");
       // execFile's original error may retain an unredacted remote URL.
@@ -115,12 +137,13 @@ export class GitHubTrust {
     }
   }
 
-  async #assertOrigin(worktree) {
-    const remote = await this.#git(worktree, [
-      "config",
-      "--get",
-      "remote.origin.url",
-    ]);
+  async #assertOrigin(worktree, { signal } = {}) {
+    const remote = await this.#git(
+      worktree,
+      ["config", "--get", "remote.origin.url"],
+      {},
+      { signal },
+    );
     const accepted = new Set([
       repositoryUrl(this.#repository),
       `git@github.com:${this.#repository}.git`,
@@ -133,7 +156,16 @@ export class GitHubTrust {
     }
   }
 
+  /**
+   * One bounded API call. A caller with its own deadline passes `signal`; any
+   * other request still gets the service request deadline, so an API that never
+   * answers cannot hold the global execution.
+   */
   async #request(method, path, body, { signal } = {}) {
+    const boundedSignal = requestSignal(
+      signal,
+      this.#requestTimeoutMilliseconds,
+    );
     const response = await this.#fetch(`${this.#apiBaseUrl}${path}`, {
       method,
       headers: {
@@ -144,7 +176,7 @@ export class GitHubTrust {
         ...(body ? { "content-type": "application/json" } : {}),
       },
       body: body ? JSON.stringify(body) : undefined,
-      signal,
+      signal: boundedSignal,
     });
 
     if (!response.ok) {
@@ -158,13 +190,13 @@ export class GitHubTrust {
    * Git command runs. All outgoing history is checked for protected paths,
    * live credentials and inspection limits before the first remote write.
    */
-  async pushBranch({ worktree, branch, secrets = [] }) {
+  async pushBranch({ worktree, branch, secrets = [], signal }) {
     let commit;
     try {
       assertWorkBranch(branch);
-      await this.#assertOrigin(worktree);
-      commit = await this.#git(worktree, ["rev-parse", "HEAD"]);
-      await assertPublishableHistory({ worktree, commit, secrets });
+      await this.#assertOrigin(worktree, { signal });
+      commit = await this.#git(worktree, ["rev-parse", "HEAD"], {}, { signal });
+      await assertPublishableHistory({ worktree, commit, secrets, signal });
     } catch (error) {
       throw new PublishRefusedError(
         error instanceof Error ? error.message : "Publication refused.",
@@ -180,6 +212,7 @@ export class GitHubTrust {
         GIT_CONFIG_KEY_0: `url.https://x-access-token:${this.#token}@github.com/.insteadOf`,
         GIT_CONFIG_VALUE_0: "https://github.com/",
       },
+      { signal, timeoutMilliseconds: remoteGitTimeoutMilliseconds },
     );
     return { branch, commit };
   }
@@ -343,12 +376,14 @@ export class GitHubTrust {
     throw new Error("GitHub comments pagination limit exceeded.");
   }
 
-  async findOpenPullRequest({ branch }) {
+  async findOpenPullRequest({ branch, signal }) {
     assertWorkBranch(branch);
     const owner = this.#repository.split("/")[0];
     const pulls = await this.#request(
       "GET",
       `/repos/${this.#repository}/pulls?state=open&head=${encodeURIComponent(`${owner}:${branch}`)}`,
+      undefined,
+      { signal },
     );
     const pull = pulls[0];
     if (!pull) {
@@ -368,9 +403,15 @@ export class GitHubTrust {
    * agent never opens a second PR for a resumed branch. Without `createMissing`
    * a missing pull request is reported as `null` instead of being opened.
    */
-  async ensurePullRequest({ branch, title, body, createMissing = true }) {
+  async ensurePullRequest({
+    branch,
+    title,
+    body,
+    createMissing = true,
+    signal,
+  }) {
     assertWorkBranch(branch);
-    const existing = await this.findOpenPullRequest({ branch });
+    const existing = await this.findOpenPullRequest({ branch, signal });
     if (existing) {
       return { pullRequest: existing, created: false };
     }
@@ -382,6 +423,7 @@ export class GitHubTrust {
       "POST",
       `/repos/${this.#repository}/pulls`,
       { title, body, head: branch, base: this.#baseBranch, draft: false },
+      { signal },
     );
     return {
       pullRequest: {

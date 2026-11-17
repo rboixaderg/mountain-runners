@@ -1,5 +1,7 @@
 // Trusted remote publication. The workflow passes public metadata, not tokens
 // or GitHub API details. Unknown remote effects still throw and are not retried.
+// The instruction signal reaches every remote read and write, so a stop ends the
+// publication instead of holding the single global execution.
 
 import { PublishRefusedError } from "./github.mjs";
 import { recordPublication } from "./worktrees.mjs";
@@ -9,6 +11,10 @@ export function createPublisher({ github, secrets }) {
    * A repair never creates a pull request: it pushes only while the pull
    * request it continues is still open at the failed commit, and it does not
    * report a publication when that pull request disappeared meanwhile.
+   *
+   * `onPublicationStarted` runs immediately before the first remote write, so
+   * the caller only treats the instruction as possibly published from that
+   * point on.
    */
   return async function publishChange({
     worktree,
@@ -16,11 +22,24 @@ export function createPublisher({ github, secrets }) {
     title,
     body,
     repair,
+    signal,
+    onPublicationStarted,
   }) {
     if (repair) {
-      const pullRequest = await github.getPullRequest({
-        number: repair.pullRequestNumber,
-      });
+      let pullRequest;
+      try {
+        pullRequest = await github.getPullRequest({
+          number: repair.pullRequestNumber,
+          signal,
+        });
+      } catch (error) {
+        // A stop ends the instruction without a refusal report. Anything else
+        // is a local failure: nothing has reached GitHub yet.
+        if (signal?.aborted) {
+          throw error;
+        }
+        return { refused: true, readFailed: true };
+      }
       if (
         pullRequest.state !== "open" ||
         pullRequest.headSha !== repair.commit
@@ -30,7 +49,8 @@ export function createPublisher({ github, secrets }) {
     }
     let pushed;
     try {
-      pushed = await github.pushBranch({ worktree, branch, secrets });
+      onPublicationStarted?.();
+      pushed = await github.pushBranch({ worktree, branch, secrets, signal });
     } catch (error) {
       if (error instanceof PublishRefusedError) {
         return { refused: true };
@@ -42,6 +62,7 @@ export function createPublisher({ github, secrets }) {
       title,
       body,
       createMissing: !repair,
+      signal,
     });
     recordPublication(worktree, pushed.commit);
     if (pullRequest === null) {
