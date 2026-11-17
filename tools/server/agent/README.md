@@ -408,7 +408,7 @@ temporals, repositoris locals i fronteres externes simulades.
 independent, prova el tarball des d'un consumidor extern i verifica la disposició
 instal·lada del servei. No s'hi fan peticions reals ni es necessiten credencials.
 
-Des de l'arrel, amb Node 24.11.0 i pnpm 10.33.0:
+Des de l'arrel, amb Node 24.22.3 i pnpm 10.33.0:
 
 ```sh
 pnpm --filter telegram-pi-bridge test

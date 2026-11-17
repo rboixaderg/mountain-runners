@@ -1428,7 +1428,7 @@ comprovar que `podman --remote=false info --format '{{.Host.Security.Rootless}}'
 retorna `true` com a `mountain-agent`, i demostrar els límits dins del cgroup
 delegat de la unitat. No s'han fet aquestes operacions al VPS.
 
-La imatge aïllada ha d'incloure Node 24.11.0, pnpm, git, Chromium i les
+La imatge aïllada ha d'incloure Node 24.22.3, pnpm, git, Chromium i les
 altres dependències que necessita `pnpm check`, perquè el contenidor no té xarxa.
 El perfil de l'agent executa les proves de navegador només amb Chromium abans
 de publicar la PR. La CI executa la prova completa i els E2E també amb Firefox
@@ -1438,6 +1438,13 @@ La disposició instal·lada del servei i del paquet es comprova amb una prova
 local sense symlinks al workspace; no equival a haver-lo desplegat.
 El clon del servei no comparteix el worktree principal de la persona mantenidora ni el de cap altra
 feina local.
+
+La versió de Node és la mateixa a tot arreu: `.node-version`, el VPS i la imatge
+del sandbox. El VPS usa Node 24.22.3 del repositori apt `node_24.x` de
+NodeSource. Actualitzar Node és un sol canvi: puja la versió a `.node-version` i
+a l'apartat `engines.node`, reconstrueix la imatge del sandbox a partir del
+`sandbox/Containerfile` i canvia `MOUNTAIN_AGENT_SANDBOX_IMAGE` abans d'arrencar
+el servei.
 
 ### Verificació
 
