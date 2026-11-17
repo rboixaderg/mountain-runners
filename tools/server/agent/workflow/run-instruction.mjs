@@ -41,6 +41,7 @@ import {
 export function createInstructionRunner({
   repositoryPath,
   worktreeRoot,
+  identifiers,
   classifyRequest,
   runModel,
   runChecks,
@@ -59,11 +60,11 @@ export function createInstructionRunner({
    * already exist and stay at that commit. The service never creates, resets or
    * moves anything to repair a failure.
    */
-  async function repairTarget(request, identifier, signal) {
+  async function repairTarget(request, worktreeName, signal) {
     const worktree = await findSessionWorktree({
       repositoryPath,
       worktreeRoot,
-      name: identifier,
+      name: worktreeName,
       signal,
     });
     if (worktree === null) {
@@ -139,7 +140,11 @@ export function createInstructionRunner({
   }
 
   return async function runInstruction(request, { signal } = {}) {
-    const identifier = sessionIdentifier(request.sessionKey);
+    // The Pi session file keeps the session identifier: it lives outside the
+    // sandbox. Every name the sandbox can read is opaque.
+    const piSessionIdentifier = sessionIdentifier(request.sessionKey);
+    const worktreeName = identifiers.worktreeName(request.sessionKey);
+    const newTaskSuffix = identifiers.changeSuffix(request.updateIdentifier);
     const repair = request.kind === repairRequestKind;
     const attachment = request.attachment ?? null;
     // Only an implementation and a continuation use an attached image. Every
@@ -185,7 +190,7 @@ export function createInstructionRunner({
         };
       }
       const target = repair
-        ? await repairTarget(request, identifier, signal)
+        ? await repairTarget(request, worktreeName, signal)
         : null;
       if (target?.report) {
         return { outcome: "failed", report: target.report };
@@ -216,9 +221,8 @@ export function createInstructionRunner({
         worktree = await ensureSessionWorktree({
           repositoryPath,
           worktreeRoot,
-          name: identifier,
-          newTaskIdentifier:
-            kind === "implementation" ? request.updateIdentifier : undefined,
+          name: worktreeName,
+          newTaskSuffix: kind === "implementation" ? newTaskSuffix : undefined,
           signal,
         });
       }
@@ -260,7 +264,8 @@ export function createInstructionRunner({
         instruction = applied.instruction;
       }
       const modelResult = await runModel({
-        sessionIdentifier: identifier,
+        sessionIdentifier: piSessionIdentifier,
+        sandboxIdentifier: worktreeName,
         sessionKey: request.sessionKey,
         instruction,
         kind,
@@ -274,7 +279,7 @@ export function createInstructionRunner({
         };
       }
       if (modelResult.timedOut) {
-        logger("execution_timed_out", identifier);
+        logger("execution_timed_out", worktreeName);
         return { outcome: "failed", report: instructionReports.modelTimedOut };
       }
       signal?.throwIfAborted();
@@ -312,15 +317,12 @@ export function createInstructionRunner({
         : await currentBranch(worktree, { signal });
       const branch = existingBranch
         ? assertWorkBranch(existingBranch)
-        : branchNameForChange({
-            summary,
-            updateIdentifier: request.updateIdentifier,
-          });
+        : branchNameForChange({ summary, suffix: newTaskSuffix });
       if (!existingBranch) {
         await createBranch({ worktree, branch, signal });
       }
       const checks = await runChecks({
-        sessionIdentifier: identifier,
+        sandboxIdentifier: worktreeName,
         worktreePath: worktree.path,
         signal,
       });
@@ -328,7 +330,7 @@ export function createInstructionRunner({
         return { outcome: "failed", report: instructionReports.checksTimedOut };
       }
       if (checks.exitCode !== 0) {
-        logger("checks_failed", identifier);
+        logger("checks_failed", worktreeName);
         return { outcome: "failed", report: instructionReports.checksFailed };
       }
       signal?.throwIfAborted();
@@ -393,13 +395,13 @@ export function createInstructionRunner({
       });
       if (publication.refused) {
         if (publication.readFailed) {
-          logger("publication_read_failed", identifier);
+          logger("publication_read_failed", worktreeName);
           return {
             outcome: "failed",
             report: instructionReports.publicationReadFailed,
           };
         }
-        logger("publication_refused", identifier);
+        logger("publication_refused", worktreeName);
         return {
           outcome: "failed",
           report: instructionReports.publicationRefused,

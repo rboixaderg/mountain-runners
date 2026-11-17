@@ -177,7 +177,7 @@ test(
     });
     service.ciWatches.close();
     service.queue.close();
-    const profile=await preparePiProfile({profileRoot:join(root,'profiles'),sessionIdentifier:'synthetic'});
+    const profile=await preparePiProfile({profileRoot:join(root,'profiles'),profileIdentifier:'topic-0123456789abcdef'});
     assert.ok(profile);
   `,
     );

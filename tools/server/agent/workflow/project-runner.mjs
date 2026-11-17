@@ -4,6 +4,7 @@
 import { runAgent } from "../runtime/agent.mjs";
 import { classifyRequest as classifyWithModel } from "../runtime/request-kind.mjs";
 import { agentSecrets } from "../config.mjs";
+import { openIdentifierNames } from "../repository/identifiers.mjs";
 import {
   runSandboxedCommand,
   stopSandboxedCommands,
@@ -44,7 +45,7 @@ export function createProjectRunner({
         worktreeRoot: config.paths.worktrees,
         command: ["bash", "-lc", sandboxPrepareCommand],
         limits: config.limits,
-        sessionIdentifier: context.sessionIdentifier,
+        sessionIdentifier: context.sandboxIdentifier,
         timeoutMilliseconds: config.limits.executionTimeoutMs,
         signal: context.signal,
       });
@@ -71,15 +72,19 @@ export function createProjectRunner({
       worktreeRoot: config.paths.worktrees,
       command: ["bash", "-lc", sandboxCheckCommand],
       limits: config.limits,
-      sessionIdentifier: context.sessionIdentifier,
+      sessionIdentifier: context.sandboxIdentifier,
       timeoutMilliseconds: config.limits.executionTimeoutMs,
       signal: context.signal,
     }),
   logger,
 }) {
+  // One installation salt names every worktree and every public branch suffix:
+  // the workflow never derives a name from a Telegram identifier itself.
+  const identifiers = openIdentifierNames(config.paths.state);
   return createInstructionRunner({
     repositoryPath: config.paths.repository,
     worktreeRoot: config.paths.worktrees,
+    identifiers,
     classifyRequest,
     runModel,
     runChecks,
@@ -98,6 +103,7 @@ export function createProjectRunner({
     continueFromPullRequest: createCrossTopicContinuation({
       repositoryPath: config.paths.repository,
       worktreeRoot: config.paths.worktrees,
+      identifiers,
       repositoryName: config.github.repository,
       readPullRequest: ({ number, signal }) =>
         github.getPullRequest({ number, signal }),
@@ -119,6 +125,7 @@ export function createProjectRunner({
       ? createOverlapWarning({
           repositoryPath: config.paths.repository,
           worktreeRoot: config.paths.worktrees,
+          identifiers,
           listPullRequests: () => ciWatches.latestPublications(),
           recordTrace,
         })

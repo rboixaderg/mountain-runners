@@ -15,7 +15,6 @@
 // registers its own watch and becomes the owner. The previous topic receives one
 // short notice; a notice that cannot be sent is logged and traced, never failed.
 
-import { sessionIdentifier } from "telegram-pi-bridge/sessions";
 import {
   assertWorkBranch,
   changeDiff,
@@ -89,6 +88,7 @@ function commentEntries(comments) {
 export function createCrossTopicContinuation({
   repositoryPath,
   worktreeRoot,
+  identifiers,
   repositoryName,
   readPullRequest,
   readComments,
@@ -251,11 +251,11 @@ export function createCrossTopicContinuation({
         pullRequest.headSha,
       );
     }
-    const identifier = sessionIdentifier(request.sessionKey);
+    const worktreeName = identifiers.worktreeName(request.sessionKey);
     const worktree = await findSessionWorktree({
       repositoryPath,
       worktreeRoot,
-      name: identifier,
+      name: worktreeName,
       signal,
     });
     // The topic already has that branch: the pending work of the topic is the
@@ -303,10 +303,10 @@ export function createCrossTopicContinuation({
     const resumed = await resumeWorkBranch({
       repositoryPath,
       worktreeRoot,
-      name: identifier,
+      name: worktreeName,
       branch,
       headSha: pullRequest.headSha,
-      newTaskIdentifier: request.updateIdentifier,
+      newTaskSuffix: identifiers.changeSuffix(request.updateIdentifier),
       signal,
     });
     if (resumed.refusal !== undefined) {

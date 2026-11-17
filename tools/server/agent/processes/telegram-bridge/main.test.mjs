@@ -1,7 +1,19 @@
 import assert from "node:assert/strict";
-import { mkdirSync, mkdtempSync, rmSync } from "node:fs";
+import { execFile } from "node:child_process";
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  readdirSync,
+  realpathSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { promisify } from "node:util";
 import { test } from "node:test";
 import { AdmissionQueue } from "telegram-pi-bridge/sessions";
 import { reconcileResolutions } from "../../policy/development.mjs";
@@ -12,7 +24,50 @@ import {
 import { CiWatchStore } from "../../repository/ci-watch-store.mjs";
 import { MergeRequestStore } from "../../repository/merge-request-store.mjs";
 import { PreviewRequestStore } from "../../repository/preview-request-store.mjs";
+import { openIdentifierNames } from "../../repository/identifiers.mjs";
+import { ensureSessionWorktree } from "../../repository/worktrees.mjs";
 import { runBridgeWithCiWatcher, startService } from "./main.mjs";
+
+const executeFile = promisify(execFile);
+
+/** A clone with an initial commit, plus the legacy worktree of one topic. */
+async function repositoryWithLegacyWorktree(environment) {
+  const repository = environment.MOUNTAIN_AGENT_REPOSITORY_PATH;
+  const worktreeRoot = environment.MOUNTAIN_AGENT_WORKTREE_PATH;
+  const origin = `${repository}-origin.git`;
+  await executeFile("git", ["init", "--bare", "--initial-branch=main", origin]);
+  await executeFile("git", ["clone", origin, repository]);
+  writeFileSync(join(repository, "README.md"), "synthetic\n");
+  await executeFile("git", [
+    "-C",
+    repository,
+    "-c",
+    "user.name=Synthetic",
+    "-c",
+    "user.email=synthetic@example.test",
+    "add",
+    "README.md",
+  ]);
+  await executeFile("git", [
+    "-C",
+    repository,
+    "-c",
+    "user.name=Synthetic",
+    "-c",
+    "user.email=synthetic@example.test",
+    "commit",
+    "-m",
+    "chore: initial",
+  ]);
+  await executeFile("git", ["-C", repository, "push", "origin", "main"]);
+  const worktree = await ensureSessionWorktree({
+    repositoryPath: repository,
+    worktreeRoot,
+    name: "topic_n1001234567890_7",
+  });
+  writeFileSync(join(worktree.path, "pending.txt"), "preserved\n");
+  return worktree;
+}
 
 function environmentFor(context) {
   const directory = mkdtempSync(join(tmpdir(), "mr-agent-service-"));
@@ -1006,6 +1061,8 @@ test("refuses the merge while an automatic repair is reserved for the topic", as
 test("keeps the older notice blocked after reconciling a publication without a watch", async (context) => {
   const { directory, environment, statePath } = environmentFor(context);
   mkdirSync(statePath, { recursive: true });
+  // The installation already ran the identifier migration.
+  openIdentifierNames(statePath);
   const topic = "-1001234567890:7";
   const greenCommit = "a".repeat(40);
   const publishedCommit = "c".repeat(40);
@@ -1287,4 +1344,88 @@ test("verifies the membership again when the preview request runs", async (conte
     { chatIdentifier: "-1001234567890", userIdentifier: 555 },
     { chatIdentifier: "-1001234567890", userIdentifier: 555 },
   ]);
+});
+
+test("renames a legacy worktree and creates the private salt before serving", async (context) => {
+  const { directory, environment, statePath } = environmentFor(context);
+  const legacy = await repositoryWithLegacyWorktree(environment);
+  const service = await startService({
+    environment,
+    signal: new AbortController().signal,
+    telegram: telegramStub(),
+    github: {},
+    runner: async () => ({ outcome: "answered", report: "ok" }),
+  });
+
+  try {
+    const names = openIdentifierNames(statePath);
+    const migrated = join(
+      environment.MOUNTAIN_AGENT_WORKTREE_PATH,
+      names.worktreeName("-1001234567890:7"),
+    );
+    assert.equal(existsSync(migrated), true);
+    assert.equal(existsSync(legacy.path), false);
+    assert.equal(
+      existsSync(join(migrated, "pending.txt")),
+      true,
+      "the worktree keeps its work",
+    );
+    const worktreeName = names.worktreeName("-1001234567890:7");
+    assert.equal(
+      readFileSync(join(migrated, ".git"), "utf8"),
+      `gitdir: ${join(
+        realpathSync(environment.MOUNTAIN_AGENT_REPOSITORY_PATH),
+        ".git",
+        "worktrees",
+        worktreeName,
+      )}\n`,
+      "the marker the sandbox reads names the opaque administrative directory",
+    );
+    assert.deepEqual(
+      readdirSync(
+        join(environment.MOUNTAIN_AGENT_REPOSITORY_PATH, ".git", "worktrees"),
+      ),
+      [worktreeName],
+    );
+    const saltPath = join(statePath, "identifier-salt");
+    assert.equal((statSync(saltPath).mode & 0o777).toString(8), "600");
+    assert.equal(
+      readFileSync(saltPath, "utf8").includes("1001234567890"),
+      false,
+      "the salt is random and carries no identifier",
+    );
+    assert.equal(directory.includes("topic_"), false);
+  } finally {
+    service.ciWatches.close();
+    service.previewRequests.close();
+    service.mergeRequests.close();
+    service.queue.close();
+  }
+});
+
+test("refuses to start when a legacy worktree cannot be renamed", async (context) => {
+  const { environment, statePath } = environmentFor(context);
+  await repositoryWithLegacyWorktree(environment);
+  const names = openIdentifierNames(statePath);
+  mkdirSync(
+    join(
+      environment.MOUNTAIN_AGENT_WORKTREE_PATH,
+      names.worktreeName("-1001234567890:7"),
+    ),
+    { recursive: true },
+  );
+  const events = [];
+
+  await assert.rejects(
+    startService({
+      environment,
+      signal: new AbortController().signal,
+      logger: (event) => events.push(event),
+      telegram: telegramStub(),
+      github: {},
+      runner: async () => ({ outcome: "answered", report: "ok" }),
+    }),
+    { message: /could not be renamed/u },
+  );
+  assert.deepEqual(events, ["worktree_migration_failed"]);
 });

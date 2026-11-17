@@ -519,8 +519,8 @@ la sessió; si no es pot confirmar, l'execució queda fallida o incerta.
   pendent també demana aclariment.
 - Una consulta munta el worktree en mode de només lectura, sense crear cap
   branca ni publicar feina anterior pendent. Una feina nova preserva el worktree
-  anterior, inclosos els fitxers ignorats, a `<tema>-before-<update>` i comença des de `origin/main` en
-  una branca pròpia. Una continuació explícita reutilitza només la feina
+  anterior, inclosos els fitxers ignorats, a `topic-<16hex>-before-<8hex>` i
+  comença des de `origin/main` en una branca pròpia. Una continuació explícita reutilitza només la feina
   pendent actual o, si nomena una sola PR que el servei va publicar, la reprèn
   (vegeu «Continuació d'una PR des d'un altre tema»); no incorpora
   automàticament altres treballs arxivats. Les operacions executen `pnpm check`
@@ -543,11 +543,65 @@ la sessió; si no es pot confirmar, l'execució queda fallida o incerta.
 - Cada worktree arxivat conserva la seva còpia de dependències, així que el
   volum acotat s'omple amb les iteracions. A l'arrencada el servei elimina només
   els worktrees arxivats sense commits per davant d'`origin/main` i sense canvis
-  pendents, i sempre conserva l'arxiu més recent de cada tema. La comanda
+  pendents, i sempre conserva l'arxiu més recent de cada tema. Com que el sufix
+  de l'arxiu és opac, l'antiguitat surt de la data de naixement del directori,
+  que el reanomenament conserva i una escriptura a dins no canvia. La comanda
   `node storage/prune-worktrees.mjs --dry-run`, executada com la identitat del
   servei, mostra la mateixa decisió sense esborrar res; sense `--dry-run`
   l'aplica. Un worktree amb treball no publicat o sense cometre no s'esborra
   mai, i el worktree actiu del tema tampoc.
+
+### Noms opacs i migració
+
+Els identificadors de Telegram no arriben a cap nom públic ni a cap nom que el
+sandbox pugui llegir.
+
+- **Salt.** `state/identifier-salt` és un valor aleatori de 32 bytes amb mode
+  `0600` que el servei crea una sola vegada a l'arrencada si no existeix. No
+  viatja al repositori, a la traça, als logs ni a l'entorn de Pi. Una altra
+  instal·lació produeix altres noms. Sense aquest fitxer no es poden
+  reconstruir els noms dels worktrees existents: entra a la còpia de seguretat
+  de `state/`.
+- **Worktree.** El directori és `topic-<16hex>`, un HMAC-SHA256 del salt i de la
+  clau de sessió (`<chat>:<tema>`). El fitxer `/work/.git`, l'etiqueta
+  `mountain-agent.session` dels contenidors i `MR_AGENT_SESSION_IDENTIFIER`, que
+  rep Pi, porten només aquest valor.
+- **Arxiu.** Un arxiu és `topic-<16hex>-before-<8hex>`, amb el mateix HMAC sobre
+  l'identificador d'actualització. No porta ni l'identificador ni cap ordre.
+- **Branca i PR.** El sufix públic de la branca és aquest HMAC de vuit
+  caràcters: `feat/agent-change-<8hex>` o `<tipus>/<slug>-<8hex>`. És estable
+  per a la mateixa actualització i canvia amb el salt.
+- **Sessió de Pi.** El fitxer de sessió conserva `topic_<chat>_<tema>` per no
+  perdre l'historial, però no arriba mai al sandbox. El perfil de Pi es
+  reconstrueix a `state/profiles/topic-<16hex>` a cada execució i arriba a Pi com
+  a `PI_CODING_AGENT_DIR`; els perfils antics amb el nom privat no es fan
+  servir.
+- **Migració.** Canvia tres noms, perquè `git worktree move` només reanomena el
+  directori muntat: el directori del worktree, el directori administratiu
+  `.git/worktrees/<nom>` i el fitxer `.git` que el sandbox llegeix. Conserva la
+  branca, l'índex, els canvis sense cometre i el marcador de publicació. És
+  idempotent i reprensible: si s'interromp, la propera execució acaba el que
+  falta. Un directori amb el nom antic que Git no registra no és un worktree: es
+  registra com a `worktree_migration_unregistered` i es deixa igual. Si un
+  reanomenament falla, per exemple perquè el nom opac ja existeix, el servei
+  registra `worktree_migration_failed` i no arrenca: no es perd res i no queda
+  mig volum amb un nom privat.
+- **Ordre d'actualització.** Actualitza el codi, executa la migració com a pas
+  d'operador, reconcilia els casos que bloquegen l'arrencada i arrenca el
+  servei. La migració no necessita el servei en marxa:
+
+  ```sh
+  systemd-run --pipe --wait --uid=mountain-agent --gid=mountain-agent \
+    -p EnvironmentFile=/etc/mountain-runners-agent/agent.env -p UMask=0077 \
+    /usr/bin/node /usr/local/lib/mountain-runners/agent/commands/migrate-identifiers/cli.mjs
+  ```
+
+  Des del repositori, el mateix programa és
+  `node tools/server/agent/commands/migrate-identifiers/cli.mjs`. La
+  reconciliació no crea el salt ni migra res: si el salt no existeix o queda
+  cap worktree amb un nom antic, `list` i `resolve` d'una instrucció fallen amb
+  codi 1 i demanen executar la migració abans. Els casos de reparació, preview i
+  avís no en depenen.
 
 ### Aturada i reinici
 
@@ -586,7 +640,7 @@ propietat de la identitat del servei. La instal·lació prevista és:
 ├── repository/                            clon amb origin i main
 ├── worktrees/                             worktree actual per tema i feina preservada
 ├── sessions/                              historial de Pi per tema
-└── state/                                 admission.sqlite, ci-watch.sqlite (avisos i reparacions), preview-request.sqlite (peticions de preview), merge-request.sqlite (peticions de merge), perfils i traça
+└── state/                                 identifier-salt, admission.sqlite, ci-watch.sqlite (avisos i reparacions), preview-request.sqlite (peticions de preview), merge-request.sqlite (peticions de merge), perfils i traça
 /etc/mountain-runners-agent/agent.env      0600  credencials del servei
 /usr/local/lib/mountain-runners/agent/     aplicació instal·lada
 /usr/local/lib/mountain-runners/node_modules/
@@ -934,7 +988,7 @@ transferència de converses: el context viatja amb la PR.
   deixa en `--detach` al seu HEAD per alliberar la branca. Si la branca local
   existeix i la seva punta no és avantpassada del cap de la PR, refusa per
   història local no publicada. El worktree del tema es preserva com
-  `<nom>-before-<update>` com en una feina nova; després es baixa
+  `topic-<16hex>-before-<8hex>` com en una feina nova; després es baixa
   `refs/heads/<branca>` d'`origin`, es comprova que el SHA baixat és el cap que
   ha retornat GitHub (si no, el cap s'ha mogut i es refusa per tornar-ho a
   provar), es fixa la branca local en aquell SHA i es fa `git worktree add`.
@@ -966,7 +1020,7 @@ calcular-lo es registra i s'ignora.
 - **Què compta.** L'última fila de `ci_watches` de cada PR que el servei va
   publicar, llevat que l'últim avís lliurat digui que la PR s'ha tancat, i el
   worktree actual de cada altre tema amb canvis sense cometre o commits sense
-  publicar. Mai les carpetes `-before-<update>`, mai el tema que fa la petició, i
+  publicar. Mai les carpetes `-before-<8hex>`, mai el tema que fa la petició, i
   mai la PR que aquell canvi continua o repara. Un worktree net o ja publicat
   sense res pendent no compta; un tema amb una PR tancada o no situada en una
   branca de treball conserva la seva feina pendent com a feina local.
@@ -1134,6 +1188,12 @@ arribar al tema no bloqueja l'arrencada, però bloqueja la resolució d'un merge
 d'una preview a partir de l'avís anterior. La decisió és d'una persona: l'ordre
 no repeteix l'acció, no fa push, no comenta i no fusiona res.
 
+Després d'una actualització amb worktrees antics, executa abans la migració
+d'identificadors (vegeu «Noms opacs i migració»). Una instrucció incerta no es
+pot atribuir al seu worktree fins que la migració ha acabat, així que `list` i
+`resolve` la refusen amb codi 1 en lloc de tancar una publicació sense marcar el
+commit confirmat.
+
 **Precondició.** Atura el servei abans de fer res:
 
 ```sh
@@ -1266,7 +1326,8 @@ neteja que preserva treball no publicat (`storage/prune-worktrees.mjs`).
   persona demani esborrar les seves dades.
 - **Còpies.** Si hi ha còpies de seguretat del VPS, també contenen la traça i
   l'historial. Esborrar l'original no esborra les còpies; la revisió les ha
-  d'incloure.
+  d'incloure. La còpia de `state/` ha d'incloure `identifier-salt`: sense aquest
+  fitxer canvien els noms opacs i els worktrees existents queden orfes.
 
 ### Instal·lació prevista
 

@@ -7,6 +7,7 @@ import { fileURLToPath } from "node:url";
 import { test } from "node:test";
 import { AdmissionQueue } from "telegram-pi-bridge/sessions";
 import { CiWatchStore } from "../../repository/ci-watch-store.mjs";
+import { openIdentifierNames } from "../../repository/identifiers.mjs";
 
 const cliPath = join(dirname(fileURLToPath(import.meta.url)), "cli.mjs");
 const sessionKey = "-1001234567890:7";
@@ -46,6 +47,12 @@ function runCli(argumentsList, environment = { PATH: process.env.PATH }) {
     encoding: "utf8",
     env: environment,
   });
+}
+
+// The installation already ran the identifier migration: the instruction case
+// can be attributed and the command does not need to create the salt.
+function createInstallationIdentity(state) {
+  openIdentifierNames(state);
 }
 
 // An interrupted instruction whose topic worktree does not exist locally: the
@@ -117,6 +124,7 @@ test("lists an uncertain instruction without the network", (context) => {
   const directory = temporaryDirectory(context);
   const state = join(directory, "state");
   mkdirSync(state);
+  createInstallationIdentity(state);
   createUncertainInstruction(state);
 
   const result = runCli(["list"], serviceEnvironment(directory, state));
@@ -158,6 +166,7 @@ test("exits with code 1 when the case is already resolved", (context) => {
   const directory = temporaryDirectory(context);
   const state = join(directory, "state");
   mkdirSync(state);
+  createInstallationIdentity(state);
   createResolvedInstruction(state);
   createUncertainInstruction(state);
 

@@ -33,6 +33,8 @@ import {
   requestSignal,
 } from "../../repository/request-signal.mjs";
 import { pruneArchivedWorktrees } from "../../repository/retention.mjs";
+import { openIdentifierNames } from "../../repository/identifiers.mjs";
+import { renameLegacyWorktrees } from "../../repository/worktrees.mjs";
 import { createCiRepairExecutor } from "../../workflow/ci-repair.mjs";
 import {
   createCiWatchWorker,
@@ -64,6 +66,32 @@ export async function startService({
     config.paths.worktrees,
   ]) {
     mkdirSync(directory, { recursive: true });
+  }
+
+  // The installation salt names every worktree and every public branch suffix.
+  // It is created once in the private state directory and never leaves it.
+  const identifiers = openIdentifierNames(config.paths.state);
+
+  // A worktree or an archive named after a Telegram chat and topic is renamed
+  // before anything uses it. A failure refuses the start: renaming nothing is
+  // better than half of the volume keeping a private name.
+  try {
+    await renameLegacyWorktrees({
+      repositoryPath: config.paths.repository,
+      worktreeRoot: config.paths.worktrees,
+      identifiers,
+      signal,
+      logger,
+    });
+  } catch (error) {
+    logger(
+      "worktree_migration_failed",
+      error instanceof Error ? error.message : "unknown",
+    );
+    throw new Error(
+      "Refusing to start: the worktrees of the previous naming scheme could not be renamed.",
+      { cause: error },
+    );
   }
 
   const queue = new AdmissionQueue(

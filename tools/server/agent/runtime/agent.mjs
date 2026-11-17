@@ -6,14 +6,17 @@ import { preparePiProfile } from "./profile.mjs";
 import { runProjectPrompt } from "./pi-adapter.mjs";
 
 export async function runAgent(config, context) {
+  // The profile directory reaches Pi as PI_CODING_AGENT_DIR, so it carries the
+  // opaque name. The private session identifier stays only in the history file.
   const profileDirectory = await preparePiProfile({
     profileRoot: join(config.paths.state, "profiles"),
-    sessionIdentifier: context.sessionIdentifier,
+    profileIdentifier: context.sandboxIdentifier,
   });
   return runProjectPrompt({
     config,
     profileDirectory,
     sessionIdentifier: context.sessionIdentifier,
+    sandboxIdentifier: context.sandboxIdentifier,
     message: context.message,
     environment: context.environment,
     stopCommands: context.stopCommands,

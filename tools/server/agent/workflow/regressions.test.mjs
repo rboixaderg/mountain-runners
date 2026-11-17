@@ -23,6 +23,7 @@ import {
   ensureSessionWorktree,
   listChangedPaths,
 } from "../repository/worktrees.mjs";
+import { openIdentifierNames } from "../repository/identifiers.mjs";
 import { createProjectRunner } from "./project-runner.mjs";
 import { SandboxCleanupError } from "../sandbox/errors.mjs";
 
@@ -91,7 +92,7 @@ async function repositoryFixture(context) {
   const worktree = await ensureSessionWorktree({
     repositoryPath: repository,
     worktreeRoot: config.paths.worktrees,
-    name: "topic_n100_7",
+    name: openIdentifierNames(config.paths.state).worktreeName("-100:7"),
   });
   return { directory, repository, config, worktree };
 }
@@ -121,7 +122,7 @@ test("preserves a clean branch with an unpublished commit", async (context) => {
   await ensureSessionWorktree({
     repositoryPath: config.paths.repository,
     worktreeRoot: config.paths.worktrees,
-    name: "topic_n100_7",
+    name: openIdentifierNames(config.paths.state).worktreeName("-100:7"),
   });
   assert.equal(await currentBranch(worktree), "fix/unpublished-change");
 });
@@ -189,13 +190,18 @@ test("kills the session containers as well as Pi on a model deadline", async (co
     config,
     profileDirectory: directory,
     sessionIdentifier: "topic_n100_7",
+    sandboxIdentifier: "topic-0123456789abcdef",
     message: "synthetic",
     worktreePath: directory,
     environment: { PATH: process.env.PATH, HOME: directory },
     stopCommands: async (identifier) => stopped.push(identifier),
   });
   assert.equal(result.timedOut, true);
-  assert.deepEqual(stopped, ["topic_n100_7"]);
+  assert.deepEqual(
+    stopped,
+    ["topic-0123456789abcdef"],
+    "the sandbox is stopped by its opaque name, never by the session identifier",
+  );
 });
 
 for (const cleanupFails of [false, true]) {
@@ -220,7 +226,8 @@ for (const cleanupFails of [false, true]) {
         limits: { ...limits, executionTimeoutMs: 5000 },
       },
       profileDirectory: directory,
-      sessionIdentifier: "topic-cleanup",
+      sessionIdentifier: "topic_synthetic_cleanup",
+      sandboxIdentifier: "topic-0123456789abcdef",
       message: "synthetic",
       worktreePath: directory,
       stopCommands: async () => {
@@ -311,7 +318,9 @@ process.stdin.once("data", () => {
     instruction: "Corregeix el README.",
   });
   assert.equal(result.outcome, "pull_request_created");
-  assert.deepEqual(calls, ["fix/agent-verify-the-real-runtime-wiring-13"]);
+  assert.deepEqual(calls, [
+    `fix/agent-verify-the-real-runtime-wiring-${openIdentifierNames(config.paths.state).changeSuffix(13)}`,
+  ]);
 });
 
 test("rejects a forged Git marker before any host Git command", async (context) => {
