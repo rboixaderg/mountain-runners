@@ -1,0 +1,123 @@
+docs/deployment.md
+  s_cc73cea25c9d15::t_20f50bddad897c 505-506,529-531,537-588,626,949,981,1147-1152,1268-1269
+tools/server/agent/README.md
+  s_cc73cea25c9d15::t_f4fcaaf9fc6c48 46-48,74,123-127,131-144,294-297,310-312
+tools/server/agent/commands/migrate-identifiers/cli.mjs
+  s_15cb8c1865fc78::t_3342fa261a00f7 1-14
+tools/server/agent/commands/migrate-identifiers/cli.test.mjs
+  s_034dfc177e5f19::t_97e46609f50796 1-72
+tools/server/agent/commands/migrate-identifiers/command.mjs
+  s_2155bc7c379951::t_bc3b8320b17bd1 1-51
+tools/server/agent/commands/migrate-identifiers/command.test.mjs
+  s_cc73cea25c9d15::t_304f0ebbd027e8 1-319
+tools/server/agent/commands/reconcile/cli.test.mjs
+  s_cc73cea25c9d15::t_a1ce9755b7443b 9,51-56,112,134
+tools/server/agent/commands/reconcile/command.test.mjs
+  s_cc73cea25c9d15::t_7dd9792d192c00 7,24-25
+tools/server/agent/commands/reconcile/uncertain-cases.mjs
+  s_cc73cea25c9d15::t_3f53843bca4364 16,23-26,31,84-112,114,127,225-227,229-230,296-301,305,319,345,493
+tools/server/agent/commands/reconcile/uncertain-cases.test.mjs
+  s_cc73cea25c9d15::t_aeb9b7e34dafc0 15,18,66-68,109-110,112-115,117,226,228,376,378,414,416,450,452,487,489,508,510,781,783
+tools/server/agent/policy/development.mjs
+  s_2155bc7c379951::t_5f5eacd1030541 111,113,116
+tools/server/agent/policy/development.test.mjs
+  s_2212983f284fd4::t_8f396fd9e8fdcd 86,88-95
+tools/server/agent/processes/telegram-bridge/main.mjs
+  s_cc73cea25c9d15::t_d70854a9c62169 36-37,71-95
+tools/server/agent/processes/telegram-bridge/main.test.mjs
+  s_cc73cea25c9d15::t_e7f304d7b987d3 2-13,16,27-28,31-71,1166-1249
+tools/server/agent/repository/identifiers.mjs
+  s_cc73cea25c9d15::t_0c392c39ae56e4 1-136
+tools/server/agent/repository/identifiers.test.mjs
+  s_cc73cea25c9d15::t_a3101319c3b7f0 1-107
+tools/server/agent/repository/retention.mjs
+  s_2212983f284fd4::t_d6649ab32ea608 3-8,10,18-22,25-31,54,61-69,74
+tools/server/agent/repository/retention.test.mjs
+  s_cc73cea25c9d15::t_cd07a390a596c4 16,19-20,62,71,91-94,159-162,171-200
+tools/server/agent/repository/worktrees.mjs
+  s_cc73cea25c9d15::t_4bd687ede94516 7,9,12-13,22,28-38,100,105,107-108,110,120,127,162,192,194,199-200,266,277-461,488
+tools/server/agent/repository/worktrees.test.mjs
+  s_cc73cea25c9d15::t_afc8401a72b866 5,8,15,25,28,32-34,81,86,101,112,129,142,217,236,292,305-309,331,377,404,414-585
+tools/server/agent/runtime/agent.mjs
+  s_cc73cea25c9d15::t_a5debb1240b5d0 9-10,13,19
+tools/server/agent/runtime/agent.test.mjs
+  s_cc73cea25c9d15::t_a8dd86ddd957e0 1-74
+tools/server/agent/runtime/pi-adapter.mjs
+  s_2155bc7c379951::t_5300c79c920419 13,25-27,42,68,78
+tools/server/agent/runtime/pi-adapter.test.mjs
+  s_cc73cea25c9d15::t_2869ecc3217bad 20,40-44,57
+tools/server/agent/runtime/profile-smoke.test.mjs
+  s_cc73cea25c9d15::t_f100fa26377bfd 46,65
+tools/server/agent/runtime/profile.mjs
+  s_cc73cea25c9d15::t_4993be2f947ba5 8-9
+tools/server/agent/runtime/profile.test.mjs
+  s_cc73cea25c9d15::t_9a102b419a5bdb 25,31
+tools/server/agent/workflow/bridge-package.test.mjs
+  s_cc73cea25c9d15::t_ab95d1f5fa7c39 180
+tools/server/agent/workflow/cross-topic-continuation.mjs
+  s_2155bc7c379951::t_5c42a67fe6cf93 91,254,258,302,305
+tools/server/agent/workflow/cross-topic-continuation.test.mjs
+  s_cc73cea25c9d15::t_60afaceab34297 20,27-31,101-116,129,137,285,288,291,367,396,485,512,514,531,552,554,634,672,675,728,732
+tools/server/agent/workflow/journey.test.mjs
+  s_cc73cea25c9d15::t_22aa7f4bfccc7c 17,212-213,216-219
+tools/server/agent/workflow/overlap-warning.mjs
+  s_2155bc7c379951::t_9fe13cb16c3881 30,41,80,91
+tools/server/agent/workflow/overlap-warning.test.mjs
+  s_cc73cea25c9d15::t_99cd0be9c21321 15,19,21,23,113,161,200,228,264,308,343,382,419,456,495,532,580,596,639,684
+tools/server/agent/workflow/project-runner.mjs
+  s_2155bc7c379951::t_2e011a1605367d 7,48,75,81-83,87,106,128
+tools/server/agent/workflow/regressions.test.mjs
+  s_cc73cea25c9d15::t_1dc0ea5fb73b5c 26,95,125,193,200-204,229-230,321-323
+tools/server/agent/workflow/run-instruction.mjs
+  s_cc73cea25c9d15::t_d0241f1b6c47ef 44,63,67,137-141,187,218-219,260-261,275,313,318,326,383
+tools/server/agent/workflow/run-instruction.test.mjs
+  s_cc73cea25c9d15::t_e6bbaad2ebf49e 13,30,105-134,299-302,312,348,400,418,546-550,557,587,635-638,660-706,744,782,855,868,933,990-994,1007,1049,1279-1283,1533,1551,1680,1737,1776,1808,1842,1892
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "2dc51cf620027896e48abfc01e3381ce4c732cdc",
+  "prompts": {},
+  "sessions": {
+    "s_034dfc177e5f19": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a1ddfd-1630-7799-b4a1-7d3899d76ddb",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    },
+    "s_15cb8c1865fc78": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a1e588-1a7b-7724-9629-5fa9f987e630",
+        "model": "deepseek-v4.1-flash"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    },
+    "s_2155bc7c379951": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a1e57a-0adf-7404-aca6-34671f3b333c",
+        "model": "deepseek-v4.1-flash"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    },
+    "s_2212983f284fd4": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a1e56f-c580-7270-a538-0e257a3f877c",
+        "model": "deepseek-v4.1-flash"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    },
+    "s_cc73cea25c9d15": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a1e588-1a75-7440-89e9-e6ebff8f1bbd",
+        "model": "deepseek-v4.1-flash"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
