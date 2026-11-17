@@ -16,7 +16,7 @@ const commit = "a".repeat(40);
 const mergeCommit = "b".repeat(40);
 const sessionKey = "-1001234567890:7";
 
-function fixture(context) {
+function fixture(context, { now } = {}) {
   const directory = mkdtempSync(join(tmpdir(), "mr-merge-request-"));
   context.after(() =>
     rmSync(directory, {
@@ -26,7 +26,9 @@ function fixture(context) {
       retryDelay: 100,
     }),
   );
-  const ciWatches = new CiWatchStore(join(directory, "ci-watch.sqlite"));
+  const ciWatches = new CiWatchStore(join(directory, "ci-watch.sqlite"), {
+    now,
+  });
   const merges = new MergeRequestStore(join(directory, "merge.sqlite"));
   context.after(() => {
     ciWatches.close();
@@ -56,6 +58,8 @@ function fakeGithub(state = {}) {
     checkReads: 0,
     pullRequest: openPullRequest(),
     pullRequestSequence: null,
+    // The pull requests of a scenario with more than one published pull request.
+    pullRequests: null,
     checkRuns: [
       { name: "Validate", status: "completed", conclusion: "success" },
     ],
@@ -66,12 +70,15 @@ function fakeGithub(state = {}) {
     beforeMerge: null,
     ...state,
     async getPullRequest({ number }) {
-      assert.equal(number, 200, "only the bound pull request may be read");
       github.reads += 1;
       if (github.readError) throw github.readError;
       if (github.pullRequestSequence) {
         return github.pullRequestSequence.shift() ?? github.pullRequest;
       }
+      if (github.pullRequests !== null) {
+        return github.pullRequests[number];
+      }
+      assert.equal(number, 200, "only the bound pull request may be read");
       return github.pullRequest;
     },
     async getCommitCheckRuns() {
@@ -82,7 +89,9 @@ function fakeGithub(state = {}) {
       return github.statuses;
     },
     async mergePullRequest({ number, sha }) {
-      assert.equal(number, 200, "only the bound pull request may be merged");
+      if (github.pullRequests === null) {
+        assert.equal(number, 200, "only the bound pull request may be merged");
+      }
       github.beforeMerge?.();
       github.merges.push({ number, sha });
       if (github.mergeError) throw github.mergeError;
@@ -114,8 +123,8 @@ function mergedPullRequest() {
   });
 }
 
-function setup(context, { github = fakeGithub() } = {}) {
-  const { ciWatches, merges } = fixture(context);
+function setup(context, { github = fakeGithub(), now } = {}) {
+  const { ciWatches, merges } = fixture(context, { now });
   const sent = [];
   const traces = [];
   const membership = {
@@ -371,6 +380,125 @@ test("refuses while the topic has newer work than its last notice", async (conte
   assert.deepEqual(newerWork.calls, [{ sessionKey, updateIdentifier: 20 }]);
   assert.deepEqual(github.merges, []);
   assert.equal(traces[0].detail, "newer_work #200 aaaaaaa");
+});
+
+test("refuses the older green notice while a newer publication is unknown", async (context) => {
+  const greenCommit = "d".repeat(40);
+  const newerCommit = "e".repeat(40);
+  const github = fakeGithub();
+  github.pullRequests = {
+    200: openPullRequest({ headSha: greenCommit }),
+    202: openPullRequest({ headSha: newerCommit }),
+  };
+  const { ciWatches, github: fake, buildHandler } = setup(context, { github });
+  ciWatches.add({
+    updateIdentifier: 10,
+    sessionKey,
+    pullRequestNumber: 200,
+    commitSha: greenCommit,
+  });
+  ciWatches.beginSend(10, "success");
+  ciWatches.finishSend(10);
+  // A newer publication was pushed, but its notice ended unknown.
+  ciWatches.add({
+    updateIdentifier: 11,
+    sessionKey,
+    pullRequestNumber: 202,
+    commitSha: newerCommit,
+  });
+  ciWatches.beginSend(11, "success");
+  ciWatches.markUncertain(11);
+  const handler = buildHandler({
+    hasNewerWork: ({ sessionKey: topic }) => ciWatches.hasUnreportedWork(topic),
+  });
+
+  const bare = await handler.handle(request(20), bareCommand);
+  assert.match(bare.report, /feina més nova que l'últim avís/u);
+  assert.match(bare.report, /PR #200/u);
+  const withNumber = await handler.handle(request(21), {
+    valid: true,
+    pullRequestNumber: 200,
+  });
+  assert.match(withNumber.report, /feina més nova que l'últim avís/u);
+  assert.deepEqual(fake.merges, []);
+
+  // A person confirms the newer notice was delivered: it becomes the topic's
+  // last report and the merge resolves from it.
+  ciWatches.resolveUncertainNoticeDelivered(11);
+  const resolved = await handler.handle(request(22), bareCommand);
+  assert.match(resolved.report, /PR #202 fusionada/u);
+  assert.deepEqual(fake.merges, [{ number: 202, sha: newerCommit }]);
+});
+
+test("refuses the last delivered notice while an out-of-order notice is unknown", async (context) => {
+  let instant = Date.parse("2026-11-16T10:00:00Z");
+  const tick = () => {
+    instant += 1000;
+  };
+  const greenCommit = "d".repeat(40);
+  const unknownCommit = "e".repeat(40);
+  const laterCommit = "f".repeat(40);
+  const github = fakeGithub();
+  github.pullRequests = {
+    200: openPullRequest({ headSha: greenCommit }),
+    202: openPullRequest({ headSha: unknownCommit }),
+    203: openPullRequest({ headSha: laterCommit }),
+  };
+  const {
+    ciWatches,
+    github: fake,
+    buildHandler,
+  } = setup(context, {
+    github,
+    now: () => new Date(instant),
+  });
+  // A, B and C are published in that order.
+  ciWatches.add({
+    updateIdentifier: 10,
+    sessionKey,
+    pullRequestNumber: 200,
+    commitSha: greenCommit,
+  });
+  ciWatches.add({
+    updateIdentifier: 11,
+    sessionKey,
+    pullRequestNumber: 202,
+    commitSha: unknownCommit,
+  });
+  ciWatches.add({
+    updateIdentifier: 12,
+    sessionKey,
+    pullRequestNumber: 203,
+    commitSha: laterCommit,
+  });
+  // C's notice arrives first, then A's; B's may or may not have arrived.
+  tick();
+  ciWatches.beginSend(12, "success");
+  tick();
+  ciWatches.finishSend(12);
+  tick();
+  ciWatches.beginSend(10, "success");
+  tick();
+  ciWatches.finishSend(10);
+  tick();
+  ciWatches.beginSend(11, "success");
+  tick();
+  ciWatches.markUncertain(11);
+
+  const handler = buildHandler({
+    hasNewerWork: ({ sessionKey: topic }) => ciWatches.hasUnreportedWork(topic),
+  });
+  assert.equal(ciWatches.lastReported(sessionKey).commit_sha, greenCommit);
+
+  const bare = await handler.handle(request(20), bareCommand);
+  assert.match(bare.report, /feina més nova que l'últim avís/u);
+  assert.match(bare.report, /PR #200/u);
+  const withNumber = await handler.handle(request(21), {
+    valid: true,
+    pullRequestNumber: 200,
+  });
+  assert.match(withNumber.report, /feina més nova que l'últim avís/u);
+  assert.deepEqual(fake.merges, []);
 });
 
 test("verifies the membership again when the command runs", async (context) => {
