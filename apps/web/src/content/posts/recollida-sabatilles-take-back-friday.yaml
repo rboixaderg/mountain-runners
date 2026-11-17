@@ -1,0 +1,31 @@
+id: recollida-sabatilles-take-back-friday
+type: news
+published: false
+slug:
+  ca: recollida-sabatilles-take-back-friday
+title:
+  ca: El club recull sabatilles usades per al Take Back Friday de NNormal
+summary:
+  ca: Pots portar sabatilles de córrer d'asfalt o de muntanya, de qualsevol marca, al local social fins al 29 de novembre de 2026.
+lead:
+  ca: Mountain Runners del Berguedà continua col·laborant amb la iniciativa Take Back Friday de NNormal, una campanya que recull sabatilles de córrer usades per donar-los una segona vida. Les sabatilles es poden deixar al local social del club, a la plaça de Sant Joan, 15, baixos, de Berga, fins al 29 de novembre de 2026.
+sections:
+  - heading:
+      ca: Quines sabatilles s'hi poden portar
+    body:
+      ca: S'accepten sabatilles de córrer d'asfalt i de muntanya, de qualsevol marca.
+  - heading:
+      ca: On i fins quan
+    body:
+      ca: |
+        Punt de recollida: local social del club, a la plaça de Sant Joan, 15, baixos, de Berga.
+
+        El termini acaba el 29 de novembre de 2026.
+  - heading:
+      ca: Per què
+    body:
+      ca: La campanya redueix residus i dóna una segona vida a les sabatilles usades.
+author:
+  type: organization
+  name: Mountain Runners
+createdAt: 2026-11-17
