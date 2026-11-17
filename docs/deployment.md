@@ -586,6 +586,18 @@ sandbox pugui llegir.
   reanomenament falla, per exemple perquè el nom opac ja existeix, el servei
   registra `worktree_migration_failed` i no arrenca: no es perd res i no queda
   mig volum amb un nom privat.
+- **Marcador no fiable.** El fitxer `.git` del worktree es reescriu només amb la
+  ruta del registre de confiança, en un temporal exclusiu dins del mateix
+  directori i amb un `rename` atòmic. La migració no llegeix ni repara cap `.git`
+  ni cap `gitdir` del registre que no sigui un fitxer regular amb un sol enllaç.
+  Un enllaç físic tampoc no és de confiança: `git worktree move` reescriu els dos
+  fitxers in situ i el destinatari de l'enllaç rebria l'escriptura. El temporal
+  fix `.git.agent-marker-tmp` només s'esborra si és un fitxer regular amb un sol
+  enllaç i el contingut exacte del marcador que es vol escriure; qualsevol altre
+  fitxer es conserva i la migració es refusa. Quan refusa, registra
+  `worktree_marker_untrusted` amb el nom opac, no toca res i el servei no
+  arrenca. L'ordre d'operador fa el mateix i surt amb codi 1. Ho revisa una
+  persona.
 - **Ordre d'actualització.** Actualitza el codi, executa la migració com a pas
   d'operador, reconcilia els casos que bloquegen l'arrencada i arrenca el
   servei. La migració no necessita el servei en marxa:

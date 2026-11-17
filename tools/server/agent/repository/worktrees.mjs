@@ -3,14 +3,17 @@
 // A clean worktree is reusable only after its publication was acknowledged.
 
 import {
+  closeSync,
   existsSync,
+  fchmodSync,
   lstatSync,
   mkdirSync,
+  openSync,
   readdirSync,
   readFileSync,
   realpathSync,
   renameSync,
-  statSync,
+  rmSync,
   writeFileSync,
 } from "node:fs";
 import { basename, dirname, join } from "node:path";
@@ -31,6 +34,9 @@ const fullCommitPattern = /^[a-f0-9]{40}$/u;
 const topicWorktreePattern = /^topic-[0-9a-f]{16}$/u;
 const archiveSuffixPattern = /^[0-9a-f]{8}$/u;
 const worktreeNamePattern = /^[a-z0-9][a-z0-9._-]*$/u;
+// The marker is replaced through one fixed temporary file next to it, so a
+// leftover of an interrupted write is recognised by its name and its content.
+const markerTemporaryName = ".git.agent-marker-tmp";
 
 function assertWorktreeName(name) {
   if (!worktreeNamePattern.test(name)) {
@@ -318,27 +324,120 @@ function opaqueWorktreeNameFor(identifiers, legacy) {
     : identifiers.archiveName(opaqueWorktreeName, legacy.updateIdentifier);
 }
 
-/** The admin path the Git marker of a linked worktree names, or null. */
-function markerAdminPath(worktreePath) {
-  const markerPath = join(worktreePath, ".git");
-  if (!existsSync(markerPath) || !lstatSync(markerPath).isFile()) {
-    return null;
+/**
+ * The opaque name of a worktree from the names the trusted registry already
+ * holds, without reading the marker the sandbox can replace.
+ */
+function opaqueNameOf({ identifiers, name, gitDirectory }) {
+  const legacy = legacyWorktreeKey({
+    name,
+    gitDirectory,
+    markerAdminPath: null,
+  });
+  return legacy === null
+    ? basename(gitDirectory)
+    : opaqueWorktreeNameFor(identifiers, legacy);
+}
+
+/** A path inspected without following its final symbolic link, or null. */
+function lstatOrNull(path) {
+  try {
+    return lstatSync(path);
+  } catch (error) {
+    if (error.code === "ENOENT") {
+      return null;
+    }
+    throw error;
   }
-  const marker = readFileSync(markerPath, "utf8").trim();
-  return marker.startsWith("gitdir: ") ? marker.slice("gitdir: ".length) : null;
+}
+
+/** The exact marker Git must see for one administrative directory. */
+function markerContent(gitDirectory) {
+  return `gitdir: ${gitDirectory}\n`;
 }
 
 /**
- * The marker is the only pointer the sandbox can read, and Git must see it
- * byte-for-byte. It is one short line, written in place: an interrupted write
- * leaves a marker the next start repairs from the trusted registry.
+ * `git worktree move` rewrites the worktree `.git` file and the administrative
+ * `gitdir` file in place, so a hard link to either one receives that write.
+ * The migration therefore trusts neither entry unless it is a regular file with
+ * a single link. A sandbox can only link a file it already sees inside `/work`.
+ */
+function isTrustedGitMetadataFile(stats) {
+  return stats.isFile() && stats.nlink === 1;
+}
+
+/**
+ * The Git marker of a linked worktree: the admin path it names (null when the
+ * marker is missing) and whether the marker is a regular file with one link.
+ * Only such a marker is read: the sandbox can replace it with a link to any
+ * file the service may write.
+ */
+function readWorktreeMarker(worktreePath) {
+  const markerPath = join(worktreePath, ".git");
+  const markerStats = lstatOrNull(markerPath);
+  if (markerStats === null) {
+    return { adminPath: null, trusted: true };
+  }
+  if (!isTrustedGitMetadataFile(markerStats)) {
+    return { adminPath: null, trusted: false };
+  }
+  const marker = readFileSync(markerPath, "utf8").trim();
+  return {
+    adminPath: marker.startsWith("gitdir: ")
+      ? marker.slice("gitdir: ".length)
+      : null,
+    trusted: true,
+  };
+}
+
+/**
+ * Remove the fixed temporary file only when it is a leftover of an interrupted
+ * write: a regular file with one link whose content is exactly the marker the
+ * migration is about to write. Any other entry belongs to the task or to the
+ * sandbox, so it is refused instead of deleted.
+ */
+function removeMarkerTemporaryIfLeftover(worktreePath, content) {
+  const temporaryPath = join(worktreePath, markerTemporaryName);
+  const temporaryStats = lstatOrNull(temporaryPath);
+  if (temporaryStats === null) {
+    return true;
+  }
+  if (
+    !isTrustedGitMetadataFile(temporaryStats) ||
+    temporaryStats.size !== Buffer.byteLength(content) ||
+    readFileSync(temporaryPath, "utf8") !== content
+  ) {
+    return false;
+  }
+  rmSync(temporaryPath);
+  return true;
+}
+
+/**
+ * Rewrite the marker from the trusted registry path, never through the entry
+ * the sandbox may have left at `.git`: an exclusive temporary file in the same
+ * directory replaces it with an atomic rename. An interrupted write leaves a
+ * regular file the next start recognises and replaces the same way.
  */
 function writeMarker(worktreePath, gitDirectory) {
-  const markerPath = join(worktreePath, ".git");
-  const mode = existsSync(markerPath)
-    ? statSync(markerPath).mode & 0o777
-    : 0o644;
-  writeFileSync(markerPath, `gitdir: ${gitDirectory}\n`, { mode });
+  const temporaryPath = join(worktreePath, markerTemporaryName);
+  const descriptor = openSync(temporaryPath, "wx", 0o644);
+  let renamed = false;
+  try {
+    try {
+      // The service runs with umask 0077; Git and the sandbox read mode 0644.
+      fchmodSync(descriptor, 0o644);
+      writeFileSync(descriptor, markerContent(gitDirectory));
+    } finally {
+      closeSync(descriptor);
+    }
+    renameSync(temporaryPath, join(worktreePath, ".git"));
+    renamed = true;
+  } finally {
+    if (!renamed) {
+      rmSync(temporaryPath, { force: true });
+    }
+  }
 }
 
 async function migrateWorktree({
@@ -347,32 +446,53 @@ async function migrateWorktree({
   root,
   worktreePath,
   identifiers,
+  logger,
   signal,
 }) {
   let worktree = registeredWorktree(repositoryPath, worktreePath);
-  const marker = markerAdminPath(worktreePath);
+  const marker = readWorktreeMarker(worktreePath);
   const legacyOuter = parseLegacyWorktreeName(basename(worktreePath));
   const legacy = legacyWorktreeKey({
     name: basename(worktreePath),
     gitDirectory: worktree.gitDirectory,
-    markerAdminPath: marker,
+    markerAdminPath: marker.adminPath,
   });
-  if (legacy === null && marker === worktree.gitDirectory) {
-    return null;
-  }
   // A marker the previous start left half-written has no legacy name left to
   // migrate: its own registry entry is the opaque name to restore.
   const opaqueName =
     legacy === null
       ? basename(worktree.gitDirectory)
       : opaqueWorktreeNameFor(identifiers, legacy);
+  if (!marker.trusted) {
+    // Rewriting it would follow a link or write through a hard link the sandbox
+    // left behind. Nothing of this worktree is moved: a person inspects it.
+    logger("worktree_marker_untrusted", opaqueName);
+    throw new Error(
+      `The .git marker of the worktree ${opaqueName} is not a regular file with one link; a person must inspect it.`,
+    );
+  }
+  const targetGitDirectory = join(dirname(worktree.gitDirectory), opaqueName);
+  if (
+    !removeMarkerTemporaryIfLeftover(
+      worktreePath,
+      markerContent(targetGitDirectory),
+    )
+  ) {
+    logger("worktree_marker_untrusted", opaqueName);
+    throw new Error(
+      `The marker temporary file of the worktree ${opaqueName} is not a leftover of an interrupted migration; a person must inspect it.`,
+    );
+  }
+  if (legacy === null && marker.adminPath === worktree.gitDirectory) {
+    return null;
+  }
   const renamedFrom = basename(worktreePath);
 
   // The directory Git registers in `.git/worktrees/` keeps the basename it had
   // at creation, so moving the worktree renames only the mounted directory.
   if (legacyOuter !== null) {
     const targetPath = join(root, opaqueName);
-    if (existsSync(targetPath)) {
+    if (lstatOrNull(targetPath) !== null) {
       // Git would move the worktree inside an existing directory.
       throw new Error(`The worktree ${opaqueName} already exists.`);
     }
@@ -383,16 +503,21 @@ async function migrateWorktree({
     worktree = registeredWorktree(repositoryPath, worktreePath);
   }
 
-  const targetGitDirectory = join(dirname(worktree.gitDirectory), opaqueName);
   if (worktree.gitDirectory !== targetGitDirectory) {
-    if (existsSync(worktree.gitDirectory)) {
-      if (existsSync(targetGitDirectory)) {
+    const sourceDirectory = lstatOrNull(worktree.gitDirectory);
+    if (sourceDirectory !== null && !sourceDirectory.isDirectory()) {
+      throw new Error(
+        `The Git metadata of ${opaqueName} is not a directory; a person must inspect it.`,
+      );
+    }
+    if (sourceDirectory !== null) {
+      if (lstatOrNull(targetGitDirectory) !== null) {
         throw new Error(
           `The Git metadata directory ${opaqueName} already exists.`,
         );
       }
       renameSync(worktree.gitDirectory, targetGitDirectory);
-    } else if (!existsSync(targetGitDirectory)) {
+    } else if (lstatOrNull(targetGitDirectory) === null) {
       throw new Error(
         `The Git metadata directory of ${basename(worktreePath)} is missing.`,
       );
@@ -400,6 +525,41 @@ async function migrateWorktree({
   }
   writeMarker(worktreePath, targetGitDirectory);
   return { from: renamedFrom, to: opaqueName };
+}
+
+/**
+ * Every registered worktree has one `gitdir` file in the trusted clone. The
+ * migration never reads a registration Git did not write as a regular file,
+ * and it stops before Git or the service follows it. Git itself skips a
+ * worktree whose registration points elsewhere, so the check runs before
+ * listing them.
+ */
+function assertTrustedWorktreeRegistry({ repository, identifiers, logger }) {
+  const registry = join(repository.gitDirectory, "worktrees");
+  const registryStats = lstatOrNull(registry);
+  if (registryStats === null) {
+    return;
+  }
+  if (!registryStats.isDirectory()) {
+    throw new Error(
+      "The Git worktree registry is not a directory; a person must inspect it.",
+    );
+  }
+  for (const entry of readdirSync(registry)) {
+    const gitdirStats = lstatOrNull(join(registry, entry, "gitdir"));
+    if (gitdirStats !== null && isTrustedGitMetadataFile(gitdirStats)) {
+      continue;
+    }
+    const opaqueName = opaqueNameOf({
+      identifiers,
+      name: entry,
+      gitDirectory: join(registry, entry),
+    });
+    logger("worktree_marker_untrusted", opaqueName);
+    throw new Error(
+      `The Git registration of the worktree ${opaqueName} is not a regular file with one link; a person must inspect it.`,
+    );
+  }
 }
 
 /**
@@ -431,6 +591,7 @@ export async function renameLegacyWorktrees({
     return [];
   }
   const repository = primaryRepository(repositoryPath);
+  assertTrustedWorktreeRegistry({ repository, identifiers, logger });
   const renamed = [];
   for (const path of await worktreePaths(repository, { signal })) {
     if (!existsSync(path)) {
@@ -446,6 +607,7 @@ export async function renameLegacyWorktrees({
       root,
       worktreePath,
       identifiers,
+      logger,
       signal,
     });
     if (migrated === null) {
