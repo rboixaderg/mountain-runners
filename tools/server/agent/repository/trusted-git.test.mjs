@@ -4,7 +4,15 @@
 // Git operation.
 
 import assert from "node:assert/strict";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
@@ -74,4 +82,40 @@ test("stops a Git command when the instruction signal aborts", async (context) =
   await assert.rejects(pending, {
     message: /git fetch did not finish: AbortError/u,
   });
+});
+
+test("refuses a worktree whose Git marker is a symbolic link", async (context) => {
+  const { directory } = fixture(context);
+  const worktreePath = join(directory, "worktree");
+  mkdirSync(worktreePath);
+  const linkedWorktree = {
+    path: worktreePath,
+    gitDirectory: join(directory, "administrative"),
+    primary: false,
+  };
+  // The link target holds exactly the marker the ordinary path accepts, so only
+  // the `lstat` check (a link is not a regular file) can refuse it.
+  const markerContent = `gitdir: ${linkedWorktree.gitDirectory}\n`;
+  const witness = join(directory, "private-state.sqlite");
+  writeFileSync(witness, markerContent);
+  symlinkSync(witness, join(worktreePath, ".git"));
+  const executed = join(directory, "git-executed");
+  writeFileSync(
+    join(directory, "git"),
+    '#!/bin/sh\ntouch "$GIT_WAS_EXECUTED"\n',
+    { mode: 0o755 },
+  );
+
+  await assert.rejects(
+    runGit(linkedWorktree, ["status"], {
+      environment: {
+        PATH: `${directory}:${process.env.PATH}`,
+        GIT_WAS_EXECUTED: executed,
+      },
+    }),
+    { message: /The worktree Git marker was modified; refusing host Git/u },
+  );
+
+  assert.equal(existsSync(executed), false, "no Git command ran");
+  assert.equal(readFileSync(witness, "utf8"), markerContent);
 });

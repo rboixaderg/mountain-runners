@@ -50,7 +50,17 @@ export function registeredWorktree(repositoryPath, worktreePath) {
   const path = realpathSync(worktreePath);
   for (const entry of readdirSync(registry)) {
     const gitDirectory = join(registry, entry);
-    const marker = readFileSync(join(gitDirectory, "gitdir"), "utf8").trim();
+    const gitdirPath = join(gitDirectory, "gitdir");
+    // The registration is read only as the regular file Git writes: a link
+    // would point the trusted path at metadata the service never chose, and a
+    // hard link receives the in-place write of `git worktree move`.
+    const gitdirStats = lstatSync(gitdirPath);
+    if (!gitdirStats.isFile() || gitdirStats.nlink > 1) {
+      throw new Error(
+        "The Git metadata of a worktree is not a trusted file; refusing host Git.",
+      );
+    }
+    const marker = readFileSync(gitdirPath, "utf8").trim();
     if (dirname(marker) === path) {
       return { path, gitDirectory, primary: false };
     }
@@ -63,8 +73,12 @@ function assertWorktreeMarker(worktree) {
     return;
   }
   const marker = join(worktree.path, ".git");
+  const markerStats = lstatSync(marker);
+  // A regular file with one link is the only marker Git writes; a symbolic or
+  // hard link is a path the sandbox chose, not the registry entry.
   if (
-    !lstatSync(marker).isFile() ||
+    !markerStats.isFile() ||
+    markerStats.nlink > 1 ||
     readFileSync(marker, "utf8").trim() !== `gitdir: ${worktree.gitDirectory}`
   ) {
     throw new Error("The worktree Git marker was modified; refusing host Git.");

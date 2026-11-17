@@ -136,7 +136,12 @@ al servidor. El nom local encara no representa una publicació a npm.
    renombra els worktrees i arxius amb el nom antic `topic_<chat>_<tema>`: el
    directori muntat, el directori administratiu `.git/worktrees/<nom>` i el
    fitxer `.git` del worktree, perquè dins de `/work` no hi quedi cap nom
-   privat. És idempotent i reprèn el que una interrupció hagi deixat a mitges;
+   privat. El fitxer `.git` es reescriu amb un fitxer temporal exclusiu i un
+   `rename` atòmic, mai a través del path existent. Un `.git` o un `gitdir` del
+   registre que no sigui un fitxer regular amb un sol enllaç no es llegeix ni es
+   repara: es registra `worktree_marker_untrusted` amb el nom opac i el servei no
+   arrenca.
+   És idempotent i reprèn el que una interrupció hagi deixat a mitges;
    si no pot, ho registra i el servei no arrenca. L'ordre d'actualització és
    actualitzar, executar `commands/migrate-identifiers/cli.mjs`, reconciliar i
    arrencar. També a

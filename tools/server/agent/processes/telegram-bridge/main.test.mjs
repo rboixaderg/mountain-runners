@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
 import {
   existsSync,
+  linkSync,
+  lstatSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
@@ -9,6 +11,7 @@ import {
   realpathSync,
   rmSync,
   statSync,
+  symlinkSync,
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
@@ -1428,4 +1431,117 @@ test("refuses to start when a legacy worktree cannot be renamed", async (context
     { message: /could not be renamed/u },
   );
   assert.deepEqual(events, ["worktree_migration_failed"]);
+});
+
+test("refuses to start when a worktree Git marker is a symbolic link", async (context) => {
+  const { directory, environment, statePath } = environmentFor(context);
+  const worktree = await repositoryWithLegacyWorktree(environment);
+  const witness = join(directory, "private-state.sqlite");
+  writeFileSync(witness, "private\n");
+  rmSync(join(worktree.path, ".git"));
+  symlinkSync(witness, join(worktree.path, ".git"));
+  const events = [];
+  const details = [];
+
+  await assert.rejects(
+    startService({
+      environment,
+      signal: new AbortController().signal,
+      logger: (event, detail) => {
+        events.push(event);
+        details.push(detail);
+      },
+      telegram: telegramStub(),
+      github: {},
+      runner: async () => ({ outcome: "answered", report: "ok" }),
+    }),
+    { message: /could not be renamed/u },
+  );
+  const names = openIdentifierNames(statePath);
+  assert.deepEqual(events, [
+    "worktree_marker_untrusted",
+    "worktree_migration_failed",
+  ]);
+  assert.equal(details[0], names.worktreeName("-1001234567890:7"));
+  assert.match(details[1], /not a regular file/u);
+  assert.equal(readFileSync(witness, "utf8"), "private\n");
+  assert.equal(lstatSync(join(worktree.path, ".git")).isSymbolicLink(), true);
+  assert.equal(
+    existsSync(
+      join(environment.MOUNTAIN_AGENT_WORKTREE_PATH, "topic_n1001234567890_7"),
+    ),
+    true,
+    "nothing is renamed",
+  );
+});
+
+/** The start refusal shared by an untrusted marker and an untrusted gitdir. */
+async function assertStartRefused({ environment, statePath, events, details }) {
+  await assert.rejects(
+    startService({
+      environment,
+      signal: new AbortController().signal,
+      logger: (event, detail) => {
+        events.push(event);
+        details.push(detail);
+      },
+      telegram: telegramStub(),
+      github: {},
+      runner: async () => ({ outcome: "answered", report: "ok" }),
+    }),
+    { message: /could not be renamed/u },
+  );
+  const names = openIdentifierNames(statePath);
+  assert.deepEqual(events, [
+    "worktree_marker_untrusted",
+    "worktree_migration_failed",
+  ]);
+  assert.equal(details[0], names.worktreeName("-1001234567890:7"));
+  assert.match(details[1], /not a regular file with one link/u);
+  assert.equal(
+    existsSync(
+      join(environment.MOUNTAIN_AGENT_WORKTREE_PATH, "topic_n1001234567890_7"),
+    ),
+    true,
+    "nothing is renamed",
+  );
+}
+
+test("refuses to start when the worktree Git marker is a hard link", async (context) => {
+  const { directory, environment, statePath } = environmentFor(context);
+  const worktree = await repositoryWithLegacyWorktree(environment);
+  const markerPath = join(worktree.path, ".git");
+  const witness = join(directory, "private-state.sqlite");
+  writeFileSync(witness, `gitdir: ${worktree.gitDirectory}\n`);
+  rmSync(markerPath);
+  linkSync(witness, markerPath);
+  const events = [];
+  const details = [];
+
+  await assertStartRefused({ environment, statePath, events, details });
+
+  assert.equal(
+    readFileSync(witness, "utf8"),
+    `gitdir: ${worktree.gitDirectory}\n`,
+  );
+  assert.equal(statSync(markerPath).nlink, 2);
+  assert.equal(lstatSync(markerPath).isFile(), true);
+});
+
+test("refuses to start when the administrative gitdir file is a hard link", async (context) => {
+  const { directory, environment, statePath } = environmentFor(context);
+  const worktree = await repositoryWithLegacyWorktree(environment);
+  const gitdirPath = join(worktree.gitDirectory, "gitdir");
+  const registration = readFileSync(gitdirPath, "utf8");
+  const witness = join(directory, "private-state.sqlite");
+  writeFileSync(witness, registration);
+  rmSync(gitdirPath);
+  linkSync(witness, gitdirPath);
+  const events = [];
+  const details = [];
+
+  await assertStartRefused({ environment, statePath, events, details });
+
+  assert.equal(readFileSync(witness, "utf8"), registration);
+  assert.equal(statSync(gitdirPath).nlink, 2);
 });
