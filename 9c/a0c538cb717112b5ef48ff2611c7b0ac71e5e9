@@ -1,0 +1,45 @@
+docs/deployment.md
+  s_d53bcdb5de9fd8::t_b36de25f9471f9 500-506
+packages/telegram-pi-bridge/src/telegram/api.mjs
+  s_278fde47e58559::t_9b7e05e8a62563 9-17,76-85,92-107,110-138,147,151,157-161,188-192,210-213,218,221,229
+packages/telegram-pi-bridge/src/telegram/index.mjs
+  s_034dfc177e5f19::t_18a15a002afb6d 5-6
+packages/telegram-pi-bridge/test/telegram/api.test.mjs
+  s_034dfc177e5f19::t_142ccf3933c3ca 6,10-20,138-439
+packages/telegram-pi-bridge/test/telegram/bridge.test.mjs
+  s_034dfc177e5f19::t_6c68f0ab3a5372 7,76-115,270-298
+tools/server/agent/README.md
+  s_d53bcdb5de9fd8::t_8c3daea5eb7441 120-124,168-170
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "9ca0c538cb717112b5ef48ff2611c7b0ac71e5e9",
+  "prompts": {},
+  "sessions": {
+    "s_034dfc177e5f19": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a1ddfd-1630-7799-b4a1-7d3899d76ddb",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    },
+    "s_278fde47e58559": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a1e959-6fd1-7068-9424-b43500e69807",
+        "model": "deepseek-v4.1-flash"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    },
+    "s_d53bcdb5de9fd8": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a1e959-6fc1-7452-ad59-0e347637f1be",
+        "model": "deepseek-v4.1-flash"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
