@@ -117,7 +117,11 @@ al servidor. El nom local encara no representa una publicació a npm.
    instrucció abans d'avançar l'offset i la deduplica. Només hi ha una execució
    global; un resultat incert bloqueja les següents. Les peticions noves durant
    el bloqueig es refusen amb avís. Un error de consulta de pertinença també
-   informa l'autor; no admet la instrucció per defecte.
+   informa l'autor; no admet la instrucció per defecte. Tota petició del client
+   de Telegram té termini propi, combinat amb el senyal d'aturada: 30 s per
+   defecte i, al long polling, el temps demanat al servidor més 15 s de marge.
+   Un termini esgotat és un error del client, sense URL ni token; una aturada
+   continua sent una aturada.
 2. `workflow` interpreta la petició amb una crida efímera sense eines, historial
    ni context del repositori. Si no és clara, demana aclariment.
 3. El servei prepara el worktree actual del tema. El directori es diu
@@ -161,8 +165,9 @@ al servidor. El nom local encara no representa una publicació a npm.
 7. Abans de respondre, `workflow` desa un seguiment de CI vinculat al SHA
    publicat. Un bucle en segon pla llegeix els check runs i els estats de commit
    d'aquell SHA i, quan les comprovacions obligatòries acaben, envia el resultat
-   al mateix tema. El bucle no bloqueja la cua; un enviament no confirmat queda
-   com a incert i no es repeteix sol. Si el seguiment no es pot desar després
+   al mateix tema. El bucle no bloqueja la cua; un enviament no confirmat, també
+   el que s'esgota dins del termini del client, queda com a incert i no es
+   repeteix sol. Si el seguiment no es pot desar després
    d'una publicació confirmada, la instrucció acaba com a incerta: la publicació
    s'ha fet, però cap avís durador la pot autoritzar, i una persona ho
    reconcilia. Mentre el tema tingui cap avís incert, el tema té feina sense
