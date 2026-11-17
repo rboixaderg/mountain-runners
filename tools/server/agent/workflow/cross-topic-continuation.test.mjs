@@ -390,7 +390,11 @@ for (const scenario of [
   });
 }
 
-for (const scenario of ["another instruction", "unreported CI work"]) {
+for (const scenario of [
+  "another instruction",
+  "unreported CI work",
+  "an unknown CI notice",
+]) {
   test(`refuses to resume while the owner topic has ${scenario}`, async (context) => {
     const paths = await fixture(context);
     const github = githubStub(paths);
@@ -409,6 +413,17 @@ for (const scenario of ["another instruction", "unreported CI work"]) {
         pullRequestNumber,
         commitSha: head,
       });
+    }
+    if (scenario === "an unknown CI notice") {
+      // An older notice of the owner topic was never confirmed: it blocks the
+      // handover even though a later notice was delivered.
+      ciWatches.add({
+        updateIdentifier: 999,
+        sessionKey: topicA,
+        pullRequestNumber,
+        commitSha: head,
+      });
+      ciWatches.markUncertain(999);
     }
     const runner = runnerFor({
       paths,
@@ -798,7 +813,9 @@ test("does not move the owner when the new watch cannot be registered", async (c
     }),
   );
 
-  assert.equal(result.outcome, "pull_request_updated");
+  // Without a durable watch the instruction ends unknown, and the previous
+  // topic keeps the ownership of the pull request.
+  assert.equal(result.outcome, "uncertain");
   assert.match(result.report, /no s'ha pogut registrar el canvi de tema/u);
   assert.equal(github.pushes.length, 2);
   assert.deepEqual(notices, []);

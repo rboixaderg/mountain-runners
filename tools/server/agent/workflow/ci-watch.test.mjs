@@ -998,9 +998,10 @@ test("makes the repair claimable only after the announcement and a reopenable wa
   assert.equal(store.pending()[0].commit_sha, nextCommit);
 });
 
-test("never runs a repair whose announcement was not delivered", async (context) => {
+test("closes a repair whose announcement was not delivered so the topic is not blocked", async (context) => {
   const { store } = fixture(context);
   createCiWatchRegistration({ store })(registration);
+  const traces = [];
 
   await workerFor({
     store,
@@ -1012,10 +1013,80 @@ test("never runs a repair whose announcement was not delivered", async (context)
         throw new Error("network down");
       },
     },
+    recordTrace: (entry) => traces.push(entry),
   }).runOnce();
 
   assert.equal(store.state(registration.updateIdentifier), "uncertain");
   assert.equal(store.claimNextRepair(), null);
+  const [repair] = store.uncertainRepairs();
+  assert.equal(repair, undefined);
+  assert.deepEqual(
+    traces.map((entry) => entry.action),
+    ["ci_repair_not_announced"],
+  );
+
+  // Once the unknown notice is delivered, the failure is not blocked by a
+  // reservation that will never run.
+  store.resolveUncertainNoticeDelivered(registration.updateIdentifier);
+  assert.equal(store.hasUnreportedWork(registration.sessionKey), false);
+  assert.equal(store.claimNextRepair(), null);
+});
+
+test("announces that an aborted repair will not run when its notice is re-sent", async (context) => {
+  const { store } = fixture(context);
+  createCiWatchRegistration({ store })(registration);
+  const failing = fakeGithub({
+    checkRuns: [checkRun("Validate", "completed", "failure")],
+  });
+  const firstTraces = [];
+  await workerFor({
+    store,
+    github: failing,
+    telegram: {
+      async sendMessage() {
+        throw new Error("network down");
+      },
+    },
+    recordTrace: (entry) => firstTraces.push(entry),
+  }).runOnce();
+  assert.equal(store.repair(1).status, "aborted");
+  assert.equal(store.repair(1).outcome, "announcement_failed");
+
+  // The person decides the announcement is sent again.
+  store.resolveUncertainNoticeResend(registration.updateIdentifier);
+
+  const telegram = fakeTelegram();
+  const traces = [];
+  await workerFor({
+    store,
+    github: failing,
+    telegram,
+    recordTrace: (entry) => traces.push(entry),
+  }).runOnce();
+
+  assert.equal(telegram.sent.length, 1);
+  assert.match(telegram.sent[0].text, /Validate no ha acabat correctament/u);
+  assert.match(
+    telegram.sent[0].text,
+    /No s'executarà cap reparació automàtica d'aquest intent/u,
+  );
+  assert.match(telegram.sent[0].text, /dona una instrucció nova/u);
+  assert.equal(store.state(registration.updateIdentifier), "sent");
+  assert.equal(store.claimNextRepair(), null);
+  assert.equal(store.repair(1).status, "aborted");
+  assert.deepEqual(
+    traces.map((entry) => [entry.action, entry.detail]),
+    [
+      [
+        "ci_repair_not_run",
+        `#${registration.pullRequestNumber} ${commit.slice(0, 7)} aborted`,
+      ],
+    ],
+  );
+  assert.equal(
+    firstTraces.some((entry) => entry.action === "ci_repair_requested"),
+    false,
+  );
 });
 
 test("names the failed checks when the deadline ends an incomplete failure", async (context) => {

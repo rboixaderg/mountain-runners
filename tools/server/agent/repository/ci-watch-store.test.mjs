@@ -223,7 +223,7 @@ test("refuses to close a repair that never started", (context) => {
   store.close();
 });
 
-test("forgets a finished repair budget but keeps a running or queued attempt", (context) => {
+test("forgets a finished or reserved repair but keeps a running or queued attempt", (context) => {
   const store = new CiWatchStore(fixture(context));
   const finished = requestQueued(store, repairRequest);
   store.claimNextRepair();
@@ -241,6 +241,11 @@ test("forgets a finished repair budget but keeps a running or queued attempt", (
     failureFingerprint: JSON.stringify(["CodeQL"]),
     failedChecks: ["CodeQL"],
   });
+  const reserved = store.requestRepair({
+    ...repairRequest,
+    failureFingerprint: JSON.stringify(["Cypress"]),
+    failedChecks: ["Cypress"],
+  });
   store.claimNextRepair();
 
   store.resetRepairs(repairRequest.pullRequestNumber);
@@ -248,7 +253,20 @@ test("forgets a finished repair budget but keeps a running or queued attempt", (
   // The topic already received these attempts and their result must arrive.
   assert.equal(store.repair(running.sequence).status, "running");
   assert.equal(store.repair(queued.sequence).status, "queued");
+  // A reservation that never ran is superseded by the new publication.
+  assert.equal(store.repair(reserved.sequence), undefined);
   assert.equal(store.repair(finished.sequence), undefined);
+  store.close();
+});
+
+test("a green CI or a new publication unblocks a topic whose only repair never ran", (context) => {
+  const store = new CiWatchStore(fixture(context));
+  store.requestRepair(repairRequest);
+  assert.equal(store.hasUnreportedWork(request.sessionKey), true);
+
+  store.resetRepairs(repairRequest.pullRequestNumber);
+
+  assert.equal(store.hasUnreportedWork(request.sessionKey), false);
   store.close();
 });
 
@@ -355,6 +373,69 @@ test("keeps a reservation unclaimable until its announcement is queued", (contex
   store.close();
 });
 
+test("closes a reservation whose announcement failed and counts the attempt", (context) => {
+  const store = new CiWatchStore(fixture(context));
+  const reserved = store.requestRepair(repairRequest);
+
+  assert.equal(
+    store.abortReservedRepair(reserved.sequence, "announcement_failed"),
+    true,
+  );
+  // Only a reservation can be aborted, and only once.
+  assert.equal(
+    store.abortReservedRepair(reserved.sequence, "announcement_failed"),
+    false,
+  );
+  const row = store.repair(reserved.sequence);
+  assert.equal(row.status, "aborted");
+  assert.equal(row.outcome, "announcement_failed");
+  assert.equal(store.claimNextRepair(), null);
+  assert.equal(store.hasUnreportedWork(request.sessionKey), false);
+
+  // The attempt was taken: it spends the budget of the same failure.
+  assert.equal(
+    store.requestRepair({
+      ...repairRequest,
+      commitSha: "b".repeat(40),
+    }).attemptNumber,
+    2,
+  );
+  store.close();
+});
+
+test("aborts every reservation a restart found unannounced", (context) => {
+  const path = fixture(context);
+  let store = new CiWatchStore(path);
+  const reserved = store.requestRepair(repairRequest);
+  const queued = requestQueued(store, {
+    ...repairRequest,
+    failureFingerprint: JSON.stringify(["Gitleaks"]),
+    failedChecks: ["Gitleaks"],
+  });
+  store.close();
+
+  store = new CiWatchStore(path);
+  const interrupted = store.abortInterruptedReservations(
+    "interrupted_before_queue",
+  );
+  assert.deepEqual(
+    interrupted.map((row) => row.sequence),
+    [reserved.sequence],
+  );
+  assert.equal(store.repair(reserved.sequence).status, "aborted");
+  assert.equal(
+    store.repair(reserved.sequence).outcome,
+    "interrupted_before_queue",
+  );
+  // An announced repair keeps waiting for its turn.
+  assert.equal(store.repair(queued.sequence).status, "queued");
+  assert.deepEqual(
+    store.abortInterruptedReservations("interrupted_before_queue"),
+    [],
+  );
+  store.close();
+});
+
 test("reuses an unannounced reservation after a restart without spending another attempt", (context) => {
   const path = fixture(context);
   let store = new CiWatchStore(path);
@@ -428,6 +509,162 @@ test("tells whether the topic has work newer than its last notice", (context) =>
   assert.equal(store.hasUnreportedWork(topic), true);
   store.finishRepair(repair.sequence, { status: "done", outcome: "published" });
   assert.equal(store.hasUnreportedWork(topic), false);
+  store.close();
+});
+
+test("counts an unknown notice as unreported work until a person reconciles it", (context) => {
+  const store = new CiWatchStore(fixture(context));
+  const topic = "-100123:7";
+  store.add(request);
+  store.beginSend(12, "success");
+  store.finishSend(12);
+
+  // A newer publication may or may not have reached the topic.
+  store.add({ ...request, updateIdentifier: 13, commitSha: "b".repeat(40) });
+  store.beginSend(13, "success");
+  store.markUncertain(13);
+
+  assert.equal(store.state(13), "uncertain");
+  assert.equal(store.hasUnreportedWork(topic), true);
+  assert.equal(store.hasUnreportedWork("-100123:8"), false);
+
+  // Only the person's decision clears it, and the old notice stays the last one
+  // until then.
+  assert.equal(store.lastReported(topic).commit_sha, request.commitSha);
+  store.resolveUncertainNoticeDelivered(13);
+  assert.equal(store.state(13), "sent");
+  assert.equal(store.lastReported(topic).commit_sha, "b".repeat(40));
+  assert.equal(store.hasUnreportedWork(topic), false);
+  store.close();
+});
+
+test("counts an unknown notice even when the notices arrived out of order", (context) => {
+  let instant = Date.parse("2026-11-16T10:00:00Z");
+  const store = new CiWatchStore(fixture(context), {
+    now: () => new Date(instant),
+  });
+  const topic = "-100123:7";
+  const nextInstant = () => {
+    instant += 1000;
+    return store;
+  };
+  const add = (updateIdentifier) => {
+    nextInstant().add({
+      ...request,
+      updateIdentifier,
+      commitSha: String(updateIdentifier).padStart(40, "a"),
+    });
+  };
+  // A, B and C are published, in that order.
+  add(10);
+  add(11);
+  add(12);
+  // C is reported first and A afterwards; B may or may not have been reported.
+  nextInstant().beginSend(12, "success");
+  nextInstant().finishSend(12);
+  nextInstant().beginSend(10, "success");
+  nextInstant().finishSend(10);
+  nextInstant().beginSend(11, "success");
+  nextInstant().markUncertain(11);
+
+  // The last delivered notice is A, and the older unknown notice still blocks
+  // it: the reference of `lastReported` is not compared with the unknown one.
+  assert.equal(store.lastReported(topic).pull_request_number, 123);
+  assert.equal(store.lastReported(topic).commit_sha, "10".padStart(40, "a"));
+  assert.equal(store.hasUnreportedWork(topic), true);
+
+  nextInstant().resolveUncertainNoticeDelivered(11);
+  assert.equal(store.hasUnreportedWork(topic), false);
+  store.close();
+});
+
+test("keeps the delivered order when a person confirms an older notice", (context) => {
+  const store = new CiWatchStore(fixture(context));
+  const topic = "-100123:7";
+  // The older publication ended unknown.
+  store.add(request);
+  store.beginSend(12, "success");
+  store.markUncertain(12);
+  // A newer publication was delivered afterwards.
+  store.add({ ...request, updateIdentifier: 13, commitSha: "b".repeat(40) });
+  store.beginSend(13, "success");
+  store.finishSend(13);
+
+  store.resolveUncertainNoticeDelivered(12);
+
+  assert.equal(store.state(12), "sent");
+  // The newer notice is still the last one the topic received.
+  assert.equal(store.lastReported(topic).commit_sha, "b".repeat(40));
+  assert.equal(store.hasUnreportedWork(topic), false);
+  store.close();
+});
+
+test("reports the status of the attempt a repeated failure reuses", (context) => {
+  const store = new CiWatchStore(fixture(context));
+  const reserved = store.requestRepair(repairRequest);
+  assert.equal(reserved.status, "reserved");
+  assert.equal(store.requestRepair(repairRequest).status, "reserved");
+
+  store.abortReservedRepair(reserved.sequence, "announcement_failed");
+
+  // The same watch, commit and failure reuse the aborted attempt instead of
+  // reserving a new one.
+  const repeated = store.requestRepair(repairRequest);
+  assert.equal(repeated.sequence, reserved.sequence);
+  assert.equal(repeated.status, "aborted");
+  store.close();
+});
+
+test("counts an unknown notice older than the last delivered one", (context) => {
+  const store = new CiWatchStore(fixture(context));
+  store.add(request);
+  store.beginSend(12, "success");
+  store.markUncertain(12);
+  store.add({ ...request, updateIdentifier: 13, commitSha: "b".repeat(40) });
+  store.beginSend(13, "success");
+  store.finishSend(13);
+
+  assert.equal(store.hasUnreportedWork(request.sessionKey), true);
+  store.close();
+});
+
+test("lists the unknown notices of every topic, oldest first", (context) => {
+  const store = new CiWatchStore(fixture(context));
+  assert.deepEqual(store.uncertainNotices(), []);
+
+  store.add({ ...request, updateIdentifier: 13, commitSha: "b".repeat(40) });
+  store.beginSend(13, "failure");
+  store.markUncertain(13);
+  store.add(request);
+  store.markUncertain(12);
+
+  const [first, second] = store.uncertainNotices();
+  assert.equal(first.update_identifier, 12);
+  assert.equal(first.session_key, request.sessionKey);
+  assert.equal(first.pull_request_number, request.pullRequestNumber);
+  assert.equal(first.commit_sha, request.commitSha);
+  assert.equal(first.result, null);
+  assert.equal(second.update_identifier, 13);
+  assert.equal(second.result, "failure");
+  store.close();
+});
+
+test("queues an unknown notice for a new delivery only when a person asks for it", (context) => {
+  const store = new CiWatchStore(fixture(context));
+  store.add(request);
+  store.beginSend(12, "success");
+  store.markUncertain(12);
+
+  assert.deepEqual(store.pending(), []);
+  const resolved = store.resolveUncertainNoticeResend(12);
+  assert.equal(resolved.update_identifier, 12);
+  assert.deepEqual(
+    store.pending().map((row) => row.update_identifier),
+    [12],
+  );
+  // The decision is guarded by the uncertain state.
+  assert.equal(store.resolveUncertainNoticeResend(12), null);
+  assert.equal(store.resolveUncertainNoticeDelivered(12), null);
   store.close();
 });
 

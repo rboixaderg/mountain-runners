@@ -13,7 +13,13 @@
 // automatically more than twice in a row. Only an attempt that was taken counts,
 // and the same watch, commit and failure is reserved once. A reservation cannot
 // run: it becomes claimable (`queued`) only once its announcement is delivered,
-// so the result can never reach the topic before the notice.
+// so the result can never reach the topic before the notice. A reservation that
+// never reaches the queue is closed as `aborted` with its reason: an unannounced
+// attempt cannot be retried and must not block the topic forever.
+//
+// An unknown delivery is never treated as a delivered notice: while the topic
+// has an uncertain notice, it has unreported work and neither a merge nor a
+// preview can be resolved, whatever the other notices of the topic say.
 
 import { DatabaseSync } from "node:sqlite";
 
@@ -48,6 +54,15 @@ const schema = `
 `;
 
 const finishedRepairStatuses = new Set(["done", "aborted", "uncertain"]);
+
+/**
+ * Whether a reserved attempt with this status will never run: it already ended
+ * or its result is unknown, so a repeated failure needs a new instruction
+ * instead of a new announcement.
+ */
+export function repairWillNotRun(status) {
+  return finishedRepairStatuses.has(status);
+}
 
 export class CiWatchStore {
   #database;
@@ -169,8 +184,12 @@ export class CiWatchStore {
 
   /**
    * Whether the topic has work newer than its last notice: a publication whose
-   * notice is not delivered yet, or an automatic repair that is reserved,
-   * queued or running. Either one will end with a new report.
+   * notice is not delivered yet, a publication whose delivery is unknown, or an
+   * automatic repair that is reserved, queued or running. Each one will end
+   * with a new report, so an older notice cannot authorize a merge or a
+   * preview. An unknown delivery is never compared with the delivered notices:
+   * it blocks until a person reconciles it, even when a later notice arrived
+   * first.
    */
   hasUnreportedWork(sessionKey) {
     return (
@@ -178,7 +197,7 @@ export class CiWatchStore {
         .prepare(
           `SELECT 1 WHERE EXISTS (
              SELECT 1 FROM ci_watches
-             WHERE session_key = ? AND state IN ('pending', 'sending')
+             WHERE session_key = ? AND state IN ('pending', 'sending', 'uncertain')
            ) OR EXISTS (
              SELECT 1 FROM ci_repairs
              WHERE session_key = ? AND status IN ('reserved', 'queued', 'running')
@@ -186,6 +205,58 @@ export class CiWatchStore {
         )
         .get(sessionKey, sessionKey) !== undefined
     );
+  }
+
+  /** Notices whose delivery is unknown, oldest first, for the operator. */
+  uncertainNotices() {
+    return this.#database
+      .prepare(
+        `SELECT update_identifier, session_key, pull_request_number, commit_sha,
+                result, created_at
+         FROM ci_watches WHERE state = 'uncertain' ORDER BY update_identifier`,
+      )
+      .all();
+  }
+
+  /**
+   * A person confirmed the topic received the unknown notice: it was delivered
+   * and its stored result becomes the topic's last report.
+   */
+  resolveUncertainNoticeDelivered(updateIdentifier) {
+    return this.#resolveUncertainNotice(updateIdentifier, "sent");
+  }
+
+  /**
+   * A person decided the unknown notice must be sent again: the ordinary worker
+   * sends it as a pending notice, so the retry is an explicit decision.
+   */
+  resolveUncertainNoticeResend(updateIdentifier) {
+    return this.#resolveUncertainNotice(updateIdentifier, "pending");
+  }
+
+  #resolveUncertainNotice(updateIdentifier, state) {
+    return this.#transaction(() => {
+      // The decision changes the state, not the moment of the notice: the last
+      // delivered notice is ordered by `updated_at`, so confirming an older
+      // notice must not move it after a newer one that was delivered later.
+      const changed =
+        this.#database
+          .prepare(
+            `UPDATE ci_watches SET state = ?
+             WHERE update_identifier = ? AND state = 'uncertain'`,
+          )
+          .run(state, updateIdentifier).changes === 1;
+      if (!changed) {
+        return null;
+      }
+      return this.#database
+        .prepare(
+          `SELECT update_identifier, session_key, pull_request_number, commit_sha,
+                  result, created_at
+           FROM ci_watches WHERE update_identifier = ?`,
+        )
+        .get(updateIdentifier);
+    });
   }
 
   /** Claim one result for delivery. A second claim never succeeds. */
@@ -282,7 +353,8 @@ export class CiWatchStore {
    * when the consecutive budget is exhausted. Counting before the attempt is
    * what bounds a restart or a repeated cycle. The same watch, commit and
    * failure can be reserved only once: a restart between the reservation and
-   * the notice reuses the attempt instead of spending another one.
+   * the notice reuses the attempt instead of spending another one, and its
+   * status tells the caller whether that attempt can still run.
    */
   requestRepair({
     updateIdentifier,
@@ -297,7 +369,7 @@ export class CiWatchStore {
     return this.#transaction(() => {
       const existing = this.#database
         .prepare(
-          `SELECT sequence, attempt_number FROM ci_repairs
+          `SELECT sequence, attempt_number, status FROM ci_repairs
            WHERE update_identifier = ? AND commit_sha = ? AND failure_fingerprint = ?`,
         )
         .get(updateIdentifier, commitSha, failureFingerprint);
@@ -305,6 +377,7 @@ export class CiWatchStore {
         return {
           sequence: existing.sequence,
           attemptNumber: existing.attempt_number,
+          status: existing.status,
         };
       }
       // Only an attempt that was taken counts: a reserved or queued attempt
@@ -340,7 +413,51 @@ export class CiWatchStore {
           timestamp,
           timestamp,
         );
-      return { sequence: Number(lastInsertRowid), attemptNumber: count + 1 };
+      return {
+        sequence: Number(lastInsertRowid),
+        attemptNumber: count + 1,
+        status: "reserved",
+      };
+    });
+  }
+
+  /**
+   * Close a reservation that will never run, with its reason. The attempt was
+   * taken, so it still counts towards the budget of the failure.
+   */
+  abortReservedRepair(sequence, outcome) {
+    return (
+      this.#database
+        .prepare(
+          `UPDATE ci_repairs SET status = 'aborted', outcome = ?, updated_at = ?
+           WHERE sequence = ? AND status = 'reserved'`,
+        )
+        .run(outcome, this.#now().toISOString(), sequence).changes === 1
+    );
+  }
+
+  /**
+   * A restart cannot finish announcing a reservation. Every reserved repair is
+   * closed as aborted and returned, so the caller attributes each one: none of
+   * them ever runs.
+   */
+  abortInterruptedReservations(outcome) {
+    return this.#transaction(() => {
+      const interrupted = this.#database
+        .prepare(
+          `SELECT sequence, update_identifier, session_key, pull_request_number, commit_sha
+           FROM ci_repairs WHERE status = 'reserved' ORDER BY sequence`,
+        )
+        .all();
+      if (interrupted.length > 0) {
+        this.#database
+          .prepare(
+            `UPDATE ci_repairs SET status = 'aborted', outcome = ?, updated_at = ?
+             WHERE status = 'reserved'`,
+          )
+          .run(outcome, this.#now().toISOString());
+      }
+      return interrupted;
     });
   }
 
@@ -496,15 +613,16 @@ export class CiWatchStore {
 
   /**
    * Forget the automatic repair budget of a pull request: a green CI or a new
-   * human publication starts the next failure from scratch. A running, queued or
-   * reserved attempt is preserved, so the topic still receives its result, and an
-   * uncertain one keeps blocking the service until a person reconciles it.
+   * human publication starts the next failure from scratch and supersedes every
+   * reservation that never ran. A running or queued attempt is preserved, so the
+   * topic still receives its result, and an uncertain one keeps blocking the
+   * service until a person reconciles it.
    */
   resetRepairs(pullRequestNumber) {
     this.#database
       .prepare(
         `DELETE FROM ci_repairs
-         WHERE pull_request_number = ? AND status IN ('done', 'aborted')`,
+         WHERE pull_request_number = ? AND status IN ('done', 'aborted', 'reserved')`,
       )
       .run(pullRequestNumber);
   }
