@@ -1,0 +1,19 @@
+docs/specs/phase-8-editorial-assistance.md
+  s_010e295ced0781::t_ee8d3e1e0dcc0f 158-159,184,356-386,445-486,584-588,683,717-720
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "f02b22a7ab4e62ef686b20d5b3fef8fac9b6cd4a",
+  "prompts": {},
+  "sessions": {
+    "s_010e295ced0781": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a1ed3f-1b06-7799-b4a1-7d3fffa0d456",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
