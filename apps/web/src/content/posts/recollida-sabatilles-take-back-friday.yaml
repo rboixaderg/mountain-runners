@@ -29,3 +29,11 @@ author:
   type: organization
   name: Mountain Runners
 createdAt: 2026-11-17
+cover:
+  resource:
+    kind: local
+    path: src/content-assets/posts/recollida-sabatilles-take-back-friday/cartell-take-back-friday.jpg
+  alt:
+    ca: Cartell de la campanya Take Back Friday de NNormal per a la recollida de sabatilles de córrer usades.
+  attribution:
+    ca: Mountain Runners
