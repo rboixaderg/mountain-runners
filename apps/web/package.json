@@ -15,7 +15,7 @@
     "@inlang/paraglide-js": "3.2.0",
     "@inlang/plugin-message-format": "4.6.0",
     "@tailwindcss/vite": "4.3.5",
-    "astro": "7.4.11",
+    "astro": "7.4.12",
     "remark-parse": "11.0.0",
     "sharp": "0.35.5",
     "tailwindcss": "4.3.5",
