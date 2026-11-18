@@ -78,7 +78,12 @@ export const unclearRequestLine =
 export function buildInstructionPrompt(
   instruction,
   kind,
-  { unclearRequest = false, serviceNotes = [], currentInstant } = {},
+  {
+    unclearRequest = false,
+    serviceNotes = [],
+    currentInstant,
+    topicState = null,
+  } = {},
 ) {
   if (typeof currentInstant !== "string" || currentInstant === "") {
     throw new Error("The current instant of the service is required.");
@@ -128,6 +133,15 @@ export function buildInstructionPrompt(
     "Write no SUMMARY line on a turn that changed no files: the service removes any SUMMARY line from the text the person reads.",
     "SUMMARY is public. Describe only the code or content diff; do not include private conversation details or personal data.",
   );
+  // The order of the prompt is fixed: the rules of the work, the audience and the
+  // voice of the answer, the state of the topic, the service events and the
+  // person's request. The attachment lines of the service travel inside the
+  // request instead of before it: they describe the images the person sent with
+  // this message for this change, so the model reads them next to it and they
+  // never become rules of their own.
+  if (topicState) {
+    lines.push("", buildTopicStateText(topicState));
+  }
   if (serviceNotes.length > 0) {
     lines.push("", buildServiceNotesText(serviceNotes));
   }
@@ -652,6 +666,92 @@ export function shortCommit(commit) {
 // means for the change and what they can do, never a check name, a commit or a
 // branch. The service note of the same notice keeps those facts
 // (`ciNoteReports`).
+
+// The current state of the topic a turn receives before the request: the pull
+// request it works on, the commit the service reported last, its required checks,
+// the preview and the merge. The model runs without network, so these are facts
+// of the trusted service and never a request: they are delimited and kept apart
+// from the person's text, as the service events are. The states arrive already
+// described in plain words, and the model turns them into the language of the
+// person.
+export const topicStateHeader =
+  "Current state of this topic. The following are facts reported by the trusted service, not requests:";
+
+const topicStateGuidance = [
+  "Use this state to answer questions about the pull request, the required checks and the preview.",
+  "Never build or guess a preview URL.",
+  'When this state holds no preview URL, say in plain words which case it is: no preview was asked yet, the preview request failed, it was not confirmed in time, its result is unknown, it belongs to an earlier change, or it is still on its way. If the request is still waiting for its confirmation, tell the person it is on its way and do not offer a new one; in the other cases, offer to ask for a new one ("demana la preview").',
+  "The states in this block are for you: explain them to the person in plain words, without commit identifiers, file names or check names.",
+].join(" ");
+
+function describePullRequest(pullRequest) {
+  if (pullRequest === null) {
+    return "none yet";
+  }
+  const notes = [];
+  if (pullRequest.fromAnotherTopic) {
+    notes.push(
+      "it comes from another topic, which owns it until this topic publishes a commit",
+    );
+  }
+  if (pullRequest.isClosed) {
+    notes.push("the last report says it is closed");
+  }
+  if (pullRequest.isMerged) {
+    notes.push("the merge request says it is merged");
+  }
+  if (notes.length === 0) {
+    return pullRequest.url;
+  }
+  return `${pullRequest.url} (${notes.join("; ")})`;
+}
+
+function describeLastReported(lastReported) {
+  if (lastReported === null) {
+    return "none yet";
+  }
+  return `${shortCommit(lastReported.commit)}; required checks: ${lastReported.description}`;
+}
+
+function describePreview(preview) {
+  if (preview === null) {
+    return "none yet";
+  }
+  if (preview.origin === null) {
+    return preview.description;
+  }
+  return `${preview.description}, URL ${preview.origin}`;
+}
+
+function describeMerge(merge) {
+  if (merge === null) {
+    return "none yet";
+  }
+  if (merge.mergeCommit === null) {
+    return merge.description;
+  }
+  return `${merge.description} (merge commit ${shortCommit(merge.mergeCommit)})`;
+}
+
+/**
+ * The state block of a turn. Every state the stores can hold has a description
+ * of its own, so a state added later is reported instead of dropped.
+ */
+export function buildTopicStateText(topicState) {
+  return [
+    topicStateHeader,
+    `- Pull request this turn works on: ${describePullRequest(topicState.pullRequest)}.`,
+    `- Last commit reported for it: ${describeLastReported(topicState.lastReported)}.`,
+    `- Work newer than that report is still being checked: ${topicState.hasUnreportedWork ? "yes" : "no"}.`,
+    `- Latest preview request for it: ${describePreview(topicState.preview)}.`,
+    `- Latest merge request for it: ${describeMerge(topicState.merge)}.`,
+    "",
+    topicStateGuidance,
+  ].join("\n");
+}
+
+// Final CI notices. Each one names the exact commit it describes, so a re-run
+// or a later commit can never be reported as the pinned one.
 export const ciReports = {
   success: ({ pullRequestUrl }) =>
     withReviewLink(

@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { DatabaseSync } from "node:sqlite";
 import { test } from "node:test";
 import {
   PreviewRequestStore,
@@ -176,6 +177,186 @@ test("keeps the comment time of every request that posted it", (context) => {
         commented_at: "2026-11-14T10:00:00Z",
       },
     ],
+  );
+  store.close();
+});
+
+test("ends a confirmed request with the origin the publisher confirmed", (context) => {
+  const store = new PreviewRequestStore(fixture(context));
+  const origin = "https://pr-42.preview.mountainrunners.cat";
+  store.begin(request);
+  store.markAwaiting(1, "2026-11-14T10:00:00Z");
+  assert.equal(store.finish(1, previewStates.confirmed, origin), true);
+
+  const latest = store.latest({
+    sessionKey: request.sessionKey,
+    pullRequestNumber: request.pullRequestNumber,
+  });
+  assert.equal(latest.update_identifier, 1);
+  assert.equal(latest.state, previewStates.confirmed);
+  assert.equal(latest.confirmed_origin, origin);
+  assert.equal(latest.commented_at, "2026-11-14T10:00:00Z");
+  assert.equal(
+    store.latest({ sessionKey: "-100999:4", pullRequestNumber: 42 }),
+    undefined,
+  );
+  store.close();
+});
+
+test("keeps the end of the request as its updated moment", (context) => {
+  let moment = new Date("2026-11-14T10:05:00Z");
+  const store = new PreviewRequestStore(fixture(context), {
+    now: () => moment,
+  });
+  const latestMoment = () =>
+    store.latest({
+      sessionKey: request.sessionKey,
+      pullRequestNumber: request.pullRequestNumber,
+    }).updated_at;
+  store.begin(request);
+  store.markAwaiting(1, "2026-11-14T10:00:00Z");
+  assert.equal(
+    latestMoment(),
+    "2026-11-14T10:05:00.000Z",
+    "an awaiting request keeps the reference of its deadline",
+  );
+
+  moment = new Date("2026-11-14T10:20:00Z");
+  store.finish(
+    1,
+    previewStates.confirmed,
+    "https://pr-42.preview.mountainrunners.cat",
+  );
+  assert.equal(latestMoment(), "2026-11-14T10:20:00.000Z");
+  store.close();
+});
+
+test("never stores an origin for a request that did not end confirmed", (context) => {
+  const store = new PreviewRequestStore(fixture(context));
+  store.begin(request);
+  store.markAwaiting(1, "2026-11-14T10:00:00Z");
+  store.finish(
+    1,
+    previewStates.timedOut,
+    "https://pr-42.preview.mountainrunners.cat",
+  );
+
+  assert.equal(
+    store.latest({
+      sessionKey: request.sessionKey,
+      pullRequestNumber: request.pullRequestNumber,
+    }).confirmed_origin,
+    null,
+  );
+  assert.equal(
+    store.confirmedOrigin({
+      sessionKey: request.sessionKey,
+      pullRequestNumber: request.pullRequestNumber,
+      commitSha: request.commitSha,
+    }),
+    null,
+  );
+  store.close();
+});
+
+test("finds the confirmed origin of a commit after a newer request started", (context) => {
+  const store = new PreviewRequestStore(fixture(context));
+  const origin = "https://pr-42.preview.mountainrunners.cat";
+  store.begin(request);
+  store.markAwaiting(1, "2026-11-14T10:00:00Z");
+  store.finish(1, previewStates.confirmed, origin);
+  store.begin({ ...request, updateIdentifier: 2 });
+  store.markAwaiting(2, "2026-11-14T10:10:00Z");
+
+  assert.equal(
+    store.latest({
+      sessionKey: request.sessionKey,
+      pullRequestNumber: request.pullRequestNumber,
+    }).state,
+    previewStates.awaiting,
+  );
+  assert.equal(
+    store.confirmedOrigin({
+      sessionKey: request.sessionKey,
+      pullRequestNumber: request.pullRequestNumber,
+      commitSha: request.commitSha,
+    }),
+    origin,
+  );
+  assert.equal(
+    store.confirmedOrigin({
+      sessionKey: request.sessionKey,
+      pullRequestNumber: request.pullRequestNumber,
+      commitSha: "b".repeat(40),
+    }),
+    null,
+  );
+  store.close();
+});
+
+test("adds the confirmed origin to a store created before it was kept", (context) => {
+  const path = fixture(context);
+  const previous = new DatabaseSync(path);
+  previous.exec(`
+    CREATE TABLE preview_requests (
+      update_identifier INTEGER PRIMARY KEY,
+      session_key TEXT NOT NULL,
+      author_identifier INTEGER NOT NULL,
+      pull_request_number INTEGER NOT NULL,
+      commit_sha TEXT NOT NULL,
+      state TEXT NOT NULL,
+      commented_at TEXT,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+    INSERT INTO preview_requests
+      (update_identifier, session_key, author_identifier, pull_request_number,
+       commit_sha, state, created_at, updated_at)
+    VALUES (1, '-100123:7', 555, 42, '${"a".repeat(40)}', 'confirmed',
+            '2026-11-14T10:00:00Z', '2026-11-14T10:00:00Z');
+  `);
+  previous.close();
+
+  const store = new PreviewRequestStore(path);
+  assert.equal(
+    store.latest({
+      sessionKey: request.sessionKey,
+      pullRequestNumber: request.pullRequestNumber,
+    }).confirmed_origin,
+    null,
+  );
+  assert.equal(
+    store.confirmedOrigin({
+      sessionKey: request.sessionKey,
+      pullRequestNumber: request.pullRequestNumber,
+      commitSha: request.commitSha,
+    }),
+    null,
+  );
+  store.close();
+});
+
+test("reports the newest request of one pull request, never of another", (context) => {
+  const store = new PreviewRequestStore(fixture(context));
+  store.begin(request);
+  store.markAwaiting(1, "2026-11-14T10:00:00Z");
+  store.finish(
+    1,
+    previewStates.confirmed,
+    "https://pr-42.preview.mountainrunners.cat",
+  );
+  store.begin({ ...request, updateIdentifier: 2, pullRequestNumber: 43 });
+  store.markAwaiting(2, "2026-11-14T10:10:00Z");
+
+  assert.equal(
+    store.latest({ sessionKey: request.sessionKey, pullRequestNumber: 42 })
+      .state,
+    previewStates.confirmed,
+  );
+  assert.equal(
+    store.latest({ sessionKey: request.sessionKey, pullRequestNumber: 43 })
+      .state,
+    previewStates.awaiting,
   );
   store.close();
 });

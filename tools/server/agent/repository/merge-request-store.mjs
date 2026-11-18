@@ -191,6 +191,22 @@ export class MergeRequestStore {
       .get(updateIdentifier)?.state;
   }
 
+  /**
+   * The newest request of a topic for one pull request: the state its next turn
+   * reports. A request of another pull request never describes this one.
+   */
+  latest({ sessionKey, pullRequestNumber }) {
+    return this.#database
+      .prepare(
+        `SELECT update_identifier, pull_request_number, commit_sha, state,
+                merge_commit_sha, created_at
+         FROM merge_requests
+         WHERE session_key = ? AND pull_request_number = ?
+         ORDER BY created_at DESC, update_identifier DESC LIMIT 1`,
+      )
+      .get(sessionKey, pullRequestNumber);
+  }
+
   /** Requests whose result is unknown, oldest first. */
   uncertain() {
     return this.#database

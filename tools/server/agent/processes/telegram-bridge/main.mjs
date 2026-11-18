@@ -366,6 +366,8 @@ export async function startService({
       environment,
       logger,
       ciWatches,
+      previewRequests,
+      mergeRequests,
       requestPreview: previewWorker.handle,
       requestMerge: mergeWorker.handle,
       readCiState,

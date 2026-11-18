@@ -10,6 +10,10 @@
 // One Telegram update is one row, so a duplicate update never posts twice. A new
 // request for the same pull request and commit is allowed only after the
 // previous one ended.
+//
+// The origin the trusted publisher confirmed is stored with the request, because
+// the model of the topic never builds or guesses a preview URL and cannot read
+// GitHub from its sandbox.
 
 import { DatabaseSync } from "node:sqlite";
 
@@ -22,10 +26,26 @@ const schema = `
     commit_sha TEXT NOT NULL,
     state TEXT NOT NULL CHECK (state IN ('commenting', 'awaiting', 'confirmed', 'timed_out', 'failed', 'uncertain')),
     commented_at TEXT,
+    confirmed_origin TEXT,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL
   );
 `;
+
+/**
+ * A store created before the confirmed origin was kept gets the column added. It
+ * is null for every request that ended before, and a confirmed request without
+ * it simply reports no URL.
+ */
+function ensureConfirmedOriginColumn(database) {
+  const columns = database.prepare("PRAGMA table_info(preview_requests)").all();
+  if (columns.some((column) => column.name === "confirmed_origin")) {
+    return;
+  }
+  database.exec(
+    "ALTER TABLE preview_requests ADD COLUMN confirmed_origin TEXT",
+  );
+}
 
 export const previewStates = {
   commenting: "commenting",
@@ -56,6 +76,7 @@ export class PreviewRequestStore {
   constructor(path, { now = () => new Date() } = {}) {
     this.#database = new DatabaseSync(path);
     this.#database.exec(schema);
+    ensureConfirmedOriginColumn(this.#database);
     this.#now = now;
   }
 
@@ -120,7 +141,31 @@ export class PreviewRequestStore {
     });
   }
 
-  #transition(updateIdentifier, fromState, toState, commentedAt = null) {
+  #transition(updateIdentifier, fromState, toState, origin = null) {
+    return (
+      this.#database
+        .prepare(
+          `UPDATE preview_requests
+           SET state = ?, confirmed_origin = COALESCE(?, confirmed_origin), updated_at = ?
+           WHERE update_identifier = ? AND state = ?`,
+        )
+        .run(
+          toState,
+          origin,
+          this.#now().toISOString(),
+          updateIdentifier,
+          fromState,
+        ).changes === 1
+    );
+  }
+
+  /**
+   * The comment was posted at `commentedAt`, the time GitHub reported. The
+   * comment moment is kept apart from `updated_at`, which while the request
+   * awaits is the reference of the confirmation deadline and only becomes the
+   * end moment when the request ends.
+   */
+  markAwaiting(updateIdentifier, commentedAt) {
     return (
       this.#database
         .prepare(
@@ -129,22 +174,12 @@ export class PreviewRequestStore {
            WHERE update_identifier = ? AND state = ?`,
         )
         .run(
-          toState,
+          previewStates.awaiting,
           commentedAt,
           this.#now().toISOString(),
           updateIdentifier,
-          fromState,
+          previewStates.commenting,
         ).changes === 1
-    );
-  }
-
-  /** The comment was posted at `commentedAt`, the time GitHub reported. */
-  markAwaiting(updateIdentifier, commentedAt) {
-    return this.#transition(
-      updateIdentifier,
-      previewStates.commenting,
-      previewStates.awaiting,
-      commentedAt,
     );
   }
 
@@ -166,9 +201,22 @@ export class PreviewRequestStore {
     );
   }
 
-  /** End an awaiting request. A second claim never succeeds. */
-  finish(updateIdentifier, state) {
-    return this.#transition(updateIdentifier, previewStates.awaiting, state);
+  /**
+   * End an awaiting request. The confirmed origin is written with the state, in
+   * one statement: a confirmation never ends without the URL the publisher
+   * confirmed, and `updated_at` becomes the moment the request ended. A second
+   * claim never succeeds.
+   */
+  finish(updateIdentifier, state, origin = null) {
+    // Only a confirmed request keeps an origin: a request that ended another way
+    // never leaves a URL behind.
+    const confirmedOrigin = state === previewStates.confirmed ? origin : null;
+    return this.#transition(
+      updateIdentifier,
+      previewStates.awaiting,
+      state,
+      confirmedOrigin,
+    );
   }
 
   awaiting() {
@@ -257,6 +305,42 @@ export class PreviewRequestStore {
     return this.#database
       .prepare("SELECT state FROM preview_requests WHERE update_identifier = ?")
       .get(updateIdentifier)?.state;
+  }
+
+  /**
+   * The origin the trusted publisher confirmed for this commit of the pull
+   * request, or null. A later request for the same commit neither removes nor
+   * hides it.
+   */
+  confirmedOrigin({ sessionKey, pullRequestNumber, commitSha }) {
+    return (
+      this.#database
+        .prepare(
+          `SELECT confirmed_origin FROM preview_requests
+           WHERE session_key = ? AND pull_request_number = ?
+             AND commit_sha = ? AND state = ?
+             AND confirmed_origin IS NOT NULL
+           ORDER BY created_at DESC, update_identifier DESC LIMIT 1`,
+        )
+        .get(sessionKey, pullRequestNumber, commitSha, previewStates.confirmed)
+        ?.confirmed_origin ?? null
+    );
+  }
+
+  /**
+   * The newest request of a topic for one pull request: the state its next turn
+   * reports. A request of another pull request never describes this one.
+   */
+  latest({ sessionKey, pullRequestNumber }) {
+    return this.#database
+      .prepare(
+        `SELECT update_identifier, pull_request_number, commit_sha, state,
+                confirmed_origin, commented_at, created_at, updated_at
+         FROM preview_requests
+         WHERE session_key = ? AND pull_request_number = ?
+         ORDER BY created_at DESC, update_identifier DESC LIMIT 1`,
+      )
+      .get(sessionKey, pullRequestNumber);
   }
 
   /**

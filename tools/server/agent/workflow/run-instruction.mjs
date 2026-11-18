@@ -75,6 +75,9 @@ export function createInstructionRunner({
   // The pull request the topic published and still owns, or null. Without the
   // CI watches the service knows no published pull request.
   findTopicPullRequest = () => null,
+  // The state of the topic every turn receives, read from the same stores. The
+  // model cannot read it from the sandbox.
+  readTopicState = undefined,
   recordTrace = () => {},
   logger = () => {},
 }) {
@@ -165,6 +168,28 @@ export function createInstructionRunner({
       // topic and logs the real failure.
       logger(
         "topic_pull_request_failed",
+        error instanceof Error ? error.name : "unknown",
+      );
+      return null;
+    }
+  }
+
+  /**
+   * The state of the topic the model cannot read inside the sandbox. A state
+   * that cannot be read never stops a turn: it is logged and the turn runs
+   * without the block, exactly as the classifier runs without the pull request.
+   * A turn that continues another topic's pull request reports that pull
+   * request and the facts of the topic that owns it.
+   */
+  function topicStateOf(sessionKey, { continuedPullRequestNumber }) {
+    if (readTopicState === undefined) {
+      return null;
+    }
+    try {
+      return readTopicState(sessionKey, { continuedPullRequestNumber });
+    } catch (error) {
+      logger(
+        "topic_state_failed",
         error instanceof Error ? error.name : "unknown",
       );
       return null;
@@ -493,6 +518,13 @@ export function createInstructionRunner({
       // cleanup failure wins over an error of the launch or of the stop.
       let claimedNotes = null;
       let promptSent = false;
+      // Every turn of the topic receives the state the service already holds,
+      // as data, so the model never answers that it has no access or guesses a
+      // preview URL. A continuation into another topic's pull request reports
+      // that pull request until this topic owns it.
+      const topicState = topicStateOf(request.sessionKey, {
+        continuedPullRequestNumber,
+      });
       const claimServiceNotes = () => {
         if (claimedNotes === null) {
           claimedNotes =
@@ -516,6 +548,7 @@ export function createInstructionRunner({
           worktreePrepared,
           kind,
           unclearRequest,
+          topicState,
           claimServiceNotes,
           // The runtime calls this immediately before it writes the prompt: it
           // is the one fact that says a prompt may have reached Pi.

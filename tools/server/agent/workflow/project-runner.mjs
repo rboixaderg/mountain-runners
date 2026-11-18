@@ -22,12 +22,18 @@ import {
 import { createInstructionRunner } from "./run-instruction.mjs";
 import { createCrossTopicContinuation } from "./cross-topic-continuation.mjs";
 import { createOverlapWarning } from "./overlap-warning.mjs";
+import {
+  createTopicPullRequestFinder,
+  createTopicStateReader,
+} from "./topic-state.mjs";
 
 export function createProjectRunner({
   config,
   github,
   environment = process.env,
   ciWatches,
+  previewRequests,
+  mergeRequests,
   requestPreview,
   requestMerge,
   readCiState,
@@ -79,6 +85,7 @@ export function createProjectRunner({
           unclearRequest: context.unclearRequest,
           serviceNotes,
           currentInstant: formatMadridInstant(now()),
+          topicState: context.topicState,
         }),
       readOnly: context.kind === "consultation",
     });
@@ -120,6 +127,11 @@ export function createProjectRunner({
   // One installation salt names every worktree and every public branch suffix:
   // the workflow never derives a name from a Telegram identifier itself.
   const identifiers = openIdentifierNames(config.paths.state);
+  // The pull request this topic published last and still owns, from the CI
+  // watches: without them the service knows none.
+  const findTopicPullRequest = ciWatches
+    ? createTopicPullRequestFinder(ciWatches)
+    : undefined;
   return createInstructionRunner({
     repositoryPath: config.paths.repository,
     worktreeRoot: config.paths.worktrees,
@@ -135,18 +147,20 @@ export function createProjectRunner({
     attachmentStore,
     sessionNotes,
     recordTrace,
-    // The pull request this topic published last and still owns, from the CI
-    // watches: without them the service knows none.
-    findTopicPullRequest: ciWatches
-      ? (sessionKey) =>
-          ciWatches
-            .latestPublications()
-            .find(
-              (publication) =>
-                publication.session_key === sessionKey &&
-                publication.is_owner_latest,
-            )?.pull_request_number ?? null
-      : undefined,
+    findTopicPullRequest,
+    // The state of the topic every turn receives, from the service's own stores:
+    // the model cannot read the pull request, its checks or the preview inside
+    // the sandbox.
+    readTopicState:
+      ciWatches && previewRequests && mergeRequests
+        ? createTopicStateReader({
+            ciWatches,
+            previewRequests,
+            mergeRequests,
+            findTopicPullRequest,
+            repositoryName: config.github.repository,
+          })
+        : undefined,
     registerCiWatch: ciWatches
       ? createCiWatchRegistration({ store: ciWatches, logger })
       : undefined,

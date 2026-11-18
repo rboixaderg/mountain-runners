@@ -14,6 +14,8 @@ import { join } from "node:path";
 import { promisify } from "node:util";
 import { test } from "node:test";
 import { CiWatchStore } from "../repository/ci-watch-store.mjs";
+import { MergeRequestStore } from "../repository/merge-request-store.mjs";
+import { PreviewRequestStore } from "../repository/preview-request-store.mjs";
 import { SessionNoteStore } from "../repository/session-note-store.mjs";
 import { requestSignal } from "../repository/request-signal.mjs";
 import { instructionReports } from "../policy/development.mjs";
@@ -187,6 +189,8 @@ function runnerFor({
   paths,
   github,
   ciWatches,
+  previewRequests,
+  mergeRequests,
   classifyRequest,
   runModel,
   runChecks = async () => ({ exitCode: 0 }),
@@ -200,6 +204,8 @@ function runnerFor({
     config: configFor(paths),
     github,
     ciWatches,
+    previewRequests,
+    mergeRequests,
     classifyRequest,
     runModel,
     runChecks,
@@ -247,6 +253,16 @@ test("continues another topic's pull request and updates it without opening anot
   const github = githubStub(paths);
   const ciWatches = stateStore(paths);
   context.after(() => ciWatches.close());
+  const previewRequests = new PreviewRequestStore(
+    join(paths.state, "preview-request.sqlite"),
+  );
+  const mergeRequests = new MergeRequestStore(
+    join(paths.state, "merge-request.sqlite"),
+  );
+  context.after(() => {
+    mergeRequests.close();
+    previewRequests.close();
+  });
   const notices = [];
   const traces = [];
   const { head } = await publishFromTopicA({ paths, github, ciWatches });
@@ -265,6 +281,8 @@ test("continues another topic's pull request and updates it without opening anot
     paths,
     github,
     ciWatches,
+    previewRequests,
+    mergeRequests,
     traces,
     sessionNotes: notes,
     classifyRequest: async () => "continuation",
@@ -310,6 +328,18 @@ test("continues another topic's pull request and updates it without opening anot
   assert.match(modelCalls[0].instruction, /untrusted data/u);
   assert.match(modelCalls[0].instruction, /Revisa el lint/u);
   assert.match(modelCalls[0].instruction, /Failing required checks: Validate/u);
+  // The turn works on another topic's pull request: the state block describes
+  // that pull request and the facts of the topic that still owns it.
+  assert.deepEqual(modelCalls[0].topicState.pullRequest, {
+    url: `https://github.com/${repository}/pull/${pullRequestNumber}`,
+    fromAnotherTopic: true,
+    isClosed: false,
+    isMerged: false,
+  });
+  assert.deepEqual(modelCalls[0].topicState.lastReported, {
+    commit: head,
+    description: "failed",
+  });
   assert.equal(github.pushes.length, 2);
   assert.equal(github.pushes[1].branch, changeBranchOf(paths));
   assert.equal(github.created.length, 1, "the continuation never opens a PR");

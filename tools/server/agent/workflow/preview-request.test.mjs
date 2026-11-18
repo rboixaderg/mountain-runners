@@ -666,7 +666,7 @@ test("an unknown post result is uncertain and never retried", async (context) =>
 });
 
 test("confirms through the publisher comment and reports the confirmed address", async (context) => {
-  const { ciWatches, handler, github, sent, traces } = setup(context);
+  const { ciWatches, handler, github, previews, sent, traces } = setup(context);
   reportGreen(ciWatches);
   await handler.handle(request());
 
@@ -698,6 +698,11 @@ test("confirms through the publisher comment and reports the confirmed address",
   );
   assert.equal(confirmation.authorIdentifier, 555);
   assert.equal(confirmation.detail, "#200 aaaaaaa");
+  assert.equal(
+    previews.latest({ sessionKey, pullRequestNumber: 200 }).confirmed_origin,
+    "https://pr-200.preview.mountainrunners.cat",
+    "the confirmed URL is kept for the next turn of the topic",
+  );
 });
 
 test("records one note for a preview notice that is retried", async (context) => {
