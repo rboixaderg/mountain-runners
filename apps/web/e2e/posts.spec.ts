@@ -1,5 +1,18 @@
 import { expect, test } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
+import {
+  getHomepagePostVariants,
+  type PostVariant,
+} from "../src/lib/content/posts";
+import { loadPreviewPostVariants } from "../src/test/support/publication-catalog";
+
+// Mirrors `getBuildPostVariants`: a preview build also renders complete drafts
+// (ADR 0011), the public build never renders them. The expectation comes from
+// the source, never from the page under test.
+async function loadRenderedPostVariants(): Promise<PostVariant[]> {
+  if (process.env.PUBLIC_PREVIEW !== "true") return [];
+  return loadPreviewPostVariants();
+}
 
 test("editorial menu clicks emit labeled actions without depending on Plausible", async ({
   page,
@@ -88,17 +101,20 @@ test("editorial hubs are discoverable and have localized empty states", async ({
 const pilots = [
   {
     hub: "/ca/noticies/",
+    kind: "news",
     path: "/ca/noticies/inauguracio-nou-local/",
     title: "Mountain Runners del Berguedà estrena nou local a Berga",
   },
   {
     hub: "/ca/blog/",
+    kind: "blog",
     path: "/ca/blog/com-fer-te-soci/",
     title:
       "Com fer-te soci o sòcia de Mountain Runners del Berguedà, pas a pas",
   },
   {
     hub: "/ca/blog/",
+    kind: "blog",
     path: "/ca/blog/com-registrar-te-a-playoff/",
     title:
       "Aplicació mòbil per als socis del club, com registrar-te i accedir-hi",
@@ -113,9 +129,15 @@ for (const pilot of pilots) {
     const response = await request.get(pilot.path);
     expect(response.status()).toBe(200);
     await page.goto(pilot.hub);
+    const hubHasDrafts = (await loadRenderedPostVariants()).some(
+      (variant) =>
+        !variant.entry.published &&
+        variant.locale === "ca" &&
+        variant.kind === pilot.kind,
+    );
     await expect(
       page.getByRole("heading", { name: "Esborranys", exact: true }),
-    ).toHaveCount(0);
+    ).toHaveCount(hubHasDrafts ? 1 : 0);
     const titleLink = page.getByRole("link", {
       name: pilot.title,
       exact: true,
@@ -228,12 +250,11 @@ test("homepage combines news and blog with manual scrolling and locale isolation
     "Actualitat del club",
   );
   const list = section.getByRole("list", { name: "Entrades d'actualitat" });
-  await expect(list.getByRole("listitem")).toHaveCount(3);
-  await expect(list.getByRole("heading", { level: 3 })).toHaveText([
-    "Com fer-te soci o sòcia de Mountain Runners del Berguedà, pas a pas",
-    "Aplicació mòbil per als socis del club, com registrar-te i accedir-hi",
-    "Mountain Runners del Berguedà estrena nou local a Berga",
-  ]);
+  for (const pilot of pilots) {
+    await expect(
+      list.getByRole("heading", { level: 3, name: pilot.title, exact: true }),
+    ).toBeVisible();
+  }
   await expect(
     section.getByRole("link", { name: "Totes les notícies", exact: true }),
   ).toHaveAttribute("href", "/ca/noticies/");
@@ -243,9 +264,16 @@ test("homepage combines news and blog with manual scrolling and locale isolation
       exact: true,
     }),
   ).toHaveAttribute("href", "/ca/blog/");
-  await expect(
-    list.getByText("Esborrany · No publicat a la web pública", { exact: true }),
-  ).toHaveCount(0);
+  const draftStatus = list.getByText(
+    "Esborrany · No publicat a la web pública",
+    {
+      exact: true,
+    },
+  );
+  const homepageDrafts = getHomepagePostVariants(
+    (await loadRenderedPostVariants()).filter(({ locale }) => locale === "ca"),
+  ).filter(({ entry }) => !entry.published);
+  await expect(draftStatus).toHaveCount(homepageDrafts.length);
   const previous = section.getByRole("button", { name: "Entrades anteriors" });
   const next = section.getByRole("button", { name: "Entrades següents" });
   const overflows = await list.evaluate(
@@ -381,7 +409,11 @@ test.describe("editorial navigation without JavaScript", () => {
     await page.goto("/ca/");
     const section = page.getByRole("region", { name: "Actualitat del club" });
     const list = section.getByRole("list", { name: "Entrades d'actualitat" });
-    await expect(list.getByRole("listitem")).toHaveCount(3);
+    for (const pilot of pilots) {
+      await expect(
+        list.getByRole("link", { name: pilot.title, exact: true }),
+      ).toBeVisible();
+    }
     await expect(section.getByRole("button")).toHaveCount(0);
     const overflows = await list.evaluate(
       (element) => element.scrollWidth > element.clientWidth + 1,

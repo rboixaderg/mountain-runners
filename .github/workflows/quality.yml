@@ -38,6 +38,10 @@ jobs:
         run: pnpm check
       - name: Run E2E suite
         run: pnpm test:e2e
+      - name: Verify preview-only pages
+        env:
+          PUBLIC_PREVIEW: "true"
+        run: pnpm build && pnpm exec playwright test apps/web/e2e/preview.spec.ts apps/web/e2e/posts.spec.ts
       - name: Upload Playwright report
         if: failure()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
