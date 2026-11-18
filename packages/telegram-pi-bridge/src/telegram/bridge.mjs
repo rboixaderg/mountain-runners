@@ -86,6 +86,7 @@ export class AgentBridge {
   #queue;
   #runInstruction;
   #runWhenIdle;
+  #onServiceReport;
   #logger;
   #botIdentifier;
   #pollTimeoutSeconds;
@@ -99,6 +100,7 @@ export class AgentBridge {
     telegram,
     queue,
     runInstruction,
+    onServiceReport = () => {},
     runWhenIdle = async () => false,
     botIdentifier,
     logger = () => {},
@@ -115,6 +117,7 @@ export class AgentBridge {
     this.#telegram = telegram;
     this.#queue = queue;
     this.#runInstruction = runInstruction;
+    this.#onServiceReport = onServiceReport;
     this.#runWhenIdle = runWhenIdle;
     this.#botIdentifier = botIdentifier;
     this.#logger = logger;
@@ -154,7 +157,9 @@ export class AgentBridge {
   }
 
   // A refused attachment is answered when it arrives: it is never queued. The
-  // report names the reason, never the original file name.
+  // report names the reason, never the original file name. The text is also
+  // reported to the owner of the topic, which keeps it for the next turn of the
+  // model: the refusal is an effect of the service.
   async #refuseAttachment(classification, { signal } = {}) {
     this.#queue.recordTrace({
       updateIdentifier: classification.updateIdentifier,
@@ -163,11 +168,22 @@ export class AgentBridge {
       action: "attachment_refused",
       detail: attachmentRefusalDetail(classification),
     });
-    await this.#reply(
-      classification.sessionKey,
-      this.#attachmentRefusalText(classification),
-      { signal },
-    );
+    const text = this.#attachmentRefusalText(classification);
+    try {
+      await this.#onServiceReport({
+        sessionKey: classification.sessionKey,
+        text,
+        // One update has one refusal: a redelivered update never records it
+        // twice.
+        effectKey: `attachment-refusal:${classification.updateIdentifier}`,
+      });
+    } catch (error) {
+      this.#logger(
+        "service_report_failed",
+        error instanceof Error ? error.name : "unknown",
+      );
+    }
+    await this.#reply(classification.sessionKey, text, { signal });
   }
 
   #attachmentRefusalText(classification) {

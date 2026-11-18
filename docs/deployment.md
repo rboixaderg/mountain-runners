@@ -521,9 +521,11 @@ la sessió; si no es pot confirmar, l'execució queda fallida o incerta.
   d'operador de [Reconciliació de resultats desconeguts (T8.5)](#reconciliació-de-resultats-desconeguts-t85).
 - Una primera crida efímera al model classifica només la petició verificada,
   sense eines, historial ni context del repositori. Distingeix consulta, feina
-  nova i continuació explícita de la feina pendent. Una resposta invàlida demana
-  aclariment, no habilita escriptures. Una petició de continuació sense feina
-  pendent també demana aclariment.
+  nova i continuació de la feina pendent, i rep només el context acotat del tema
+  descrit a [Continuïtat de la conversa d'un tema (T8.7)](#continuïtat-de-la-conversa-dun-tema-t87).
+  Una resposta invàlida no habilita escriptures: el torn és una consulta i el
+  text fix d'aclariment només respon si el model no diu res. Una petició de
+  continuació sense feina pendent ni PR del tema també és una consulta.
 - Una consulta munta el worktree en mode de només lectura, sense crear cap
   branca ni publicar feina anterior pendent. Una feina nova preserva el worktree
   anterior, inclosos els fitxers ignorats, a `topic-<16hex>-before-<8hex>` i
@@ -664,7 +666,7 @@ propietat de la identitat del servei. La instal·lació prevista és:
 ├── repository/                            clon amb origin i main
 ├── worktrees/                             worktree actual per tema i feina preservada
 ├── sessions/                              historial de Pi per tema
-└── state/                                 identifier-salt, admission.sqlite, ci-watch.sqlite (avisos i reparacions), preview-request.sqlite (peticions de preview), merge-request.sqlite (peticions de merge), perfils i traça
+└── state/                                 identifier-salt, admission.sqlite, ci-watch.sqlite (avisos i reparacions), preview-request.sqlite (peticions de preview), merge-request.sqlite (peticions de merge), session-notes.sqlite (efectes i última resposta de cada tema), perfils i traça
 /etc/mountain-runners-agent/agent.env      0600  credencials del servei
 /usr/local/lib/mountain-runners/agent/     aplicació instal·lada
 /usr/local/lib/mountain-runners/node_modules/
@@ -988,7 +990,9 @@ transferència de converses: el context viatja amb la PR.
 - **Destí.** Només quan el classificador diu `continuation` i el text conté
   exactament un testimoni sencer `#<número>`, que parseja el servei i mai el
   model. Dos números diferents responen amb una petició d'aclariment. Sense
-  número, el comportament és l'habitual: la feina pendent del tema.
+  número, el comportament és la feina pendent del tema o, si no n'hi ha i el
+  tema té una PR oberta pròpia, aquella PR (vegeu «Continuïtat de la conversa
+  d'un tema»).
 - **Elegibilitat, rellegida a GitHub.** PR oberta, no esborrany, base `main`,
   repositori del cap igual al configurat (sense forks), branca que supera
   `assertWorkBranch` i almenys una fila de `ci_watches` amb aquell número: les PR
@@ -1129,6 +1133,76 @@ la descarrega quan executa la instrucció, mai en admetre-la.
   `attachment_refused` (motiu i, quan es coneix, el tipus declarat i la mida),
   també quan el refús és en admetre la instrucció; mai el nom original ni el
   contingut.
+
+### Continuïtat de la conversa d'un tema (T8.7)
+
+Cada tema té una sola sessió de Pi i Pi conserva l'historial entre torns. El
+servei hi manté, però, estat propi perquè cap missatge acceptat ni cap efecte
+seu no quedi fora de la sessió.
+
+- **Un torn per missatge acceptat.** Tota instrucció admesa que no és `/merge`
+  ni una preview executa un torn de Pi a la sessió del tema. Si el classificador
+  retorna aclariment, o una continuació no té feina pendent ni PR del tema, el
+  torn és una consulta: worktree de només lectura, sense branca ni publicació, i
+  una línia del prompt que diu que el servei no ha pogut distingir si la persona
+  vol un canvi. El text fix d'aclariment només es fa servir si el model no
+  respon.
+- **Efectes del servei.** `repository/session-note-store.mjs` desa a
+  `state/session-notes.sqlite`, per tema, el text de cada efecte que decideix el
+  servei i que no és la resposta del model: l'informe de publicació i qualsevol
+  altre informe d'instrucció, els avisos de CI i de reparació, la preview, el
+  merge, el traspàs de tema, l'adjunt refusat (també el que es refusa en
+  admetre'l) i la resolució d'un resultat desconegut. Una nota només conté text
+  escrit pel servei: si un avís seu incorpora text del model, la nota en guarda
+  només la part del servei, i les paraules del model només queden com a última
+  resposta del tema. La nota es desa quan el servei decideix el text, abans de
+  l'enviament: l'efecte existeix encara que l'avís falli. Cada efecte té una
+  identitat duradora (`preview:<id>:<estat>`, `merge:<id>:<estat>`,
+  `ci:<id>:<commit>:<estat de l'avís>`,
+  `repair:<id>:<commit>:<instant de l'intent>:<estat>`, `handover:<id>`,
+  `instruction:<id>`, `reconcile:<tipus>:<id>`): dos avisos diferents del mateix
+  commit són dos efectes, i la identitat d'una reparació no depèn d'una fila que
+  es pot reutilitzar. Així, un reenviament de Telegram no duplica la nota i una
+  identitat ja lliurada no es reviu. Les identitats lliurades es conserven sense
+  poda: qualsevol reintent pot arribar molt més tard, i la taula només té una
+  clau curta per efecte. Un informe que barreja text del servei i text del model
+  (per exemple la línia de represa seguida de la resposta del model) només desa
+  la part del servei com a nota, i el text complet queda com a última resposta
+  del tema. Cada nota es retalla a 1.500 caràcters i el tema conserva les 20 més
+  noves sense lliurar.
+- **Lliurament únic.** Les notes es reclamen al darrer moment, després de la
+  preparació del sandbox i del perfil de Pi i just abans que Pi rebi el prompt,
+  i es posen davant de la petició en un bloc de servei separat («Service events
+  since your previous turn...»). Qualsevol fallada anterior a aquest punt
+  (preparació, perfil o aturada) deixa les notes pendents. Un cop reclamades,
+  s'esborren quan el torn acaba o falla, perquè el prompt pot haver arribat a
+  Pi. L'única excepció és que el prompt no s'hagi escrit mai (el servei ho sap
+  pel fet d'enviament, `onPromptSent`, encara que després falli també la neteja
+  del sandbox o l'error de llançament quedi substituït): llavors les notes tornen
+  a quedar pendents, perquè cap prompt no hi ha arribat. Un reinici conserva les
+  pendents i no repeteix cap nota d'un torn interromput: una reclamació que el
+  reinici troba oberta compta com a lliurada i la seva identitat es desa abans
+  d'esborrar la fila. El classificador no rep mai aquest bloc. La reparació
+  automàtica també és un torn del tema i rep les notes.
+- **Context del classificador.** La crida efímera continua sense eines,
+  historial ni repositori. Rep, com a dada JSON, l'última resposta del tema
+  retallada a 800 caràcters (resposta del model o informe del servei), si el
+  worktree del tema té canvis o commits sense publicar (lectura de Git, sense
+  fetch ni worktree nou) i el número de la PR que el tema va publicar i encara
+  té. Una petició que respon aquella resposta o que aporta dades, correccions o
+  fitxers per a la feina pendent o per a aquella PR és una continuació; una
+  feina nova i independent és una implementació. Cada classificació es traça com
+  a `instruction_classified`, amb el tipus com a detall.
+- **Continuació sobre la PR del tema.** Si una continuació no nomena cap `#N`,
+  no té canvis locals ni commits pendents i el tema té una PR oberta pròpia, el
+  servei la reprèn amb les comprovacions de «Continuació d'una PR des d'un altre
+  tema». Si el worktree ja té aquella branca al cap de la PR, continua allà
+  mateix sense moure res, i la publicació fixa aquella PR i aquell cap: els
+  revalida abans del push i no n'obre mai una altra. Si té una
+  altra branca, usa el camí de represa i arxiva el worktree com en una feina
+  nova. Un refús s'informa com sempre; una PR fusionada o tancada deixa la
+  petició com a consulta. Un adjunt de la continuació s'aplica al worktree
+  corresponent.
 
 Els límits numèrics (CPU, memòria, processos, temps d'execució i cua) tenen valors
 inicials al codi. La unitat limita el conjunt del servei i els seus contenidors a 1,5 CPU,
@@ -1310,7 +1384,10 @@ compta com que no hi ha cap cas d'aquell tipus.
    avís neutre («Una operació interrompuda s'ha revisat i tancada (resultat:
    ...)»), excepte amb `--kind notice`: `delivered` confirma un avís que el tema
    ja tenia i `resend` encarrega l'enviament al treballador, així que la comanda
-   no hi afegeix cap avís propi. Si l'avís falla, s'escriu a stderr i es traça com a
+   no hi afegeix cap avís propi. L'avís també és un efecte del servei: es desa a
+   `state/session-notes.sqlite` abans d'enviar-lo, amb la identitat
+   `reconcile:<tipus>:<id>`, perquè el torn següent del tema el rebi encara que
+   l'enviament falli. Si l'avís falla, s'escriu a stderr i es traça com a
    `uncertain_reconciled_notice_failed`; la resolució es manté. Mai es desa una
    resolució sense traça: en una instrucció, el canvi d'estat i la traça són una
    sola transacció; en una reparació o una preview, la traça s'escriu abans del
@@ -1339,7 +1416,10 @@ altre cas, `--sequence` o `--failed-commit` fora d'una reparació).
 
 Decisió de la persona mantenidora: per ara no s'esborra res automàticament. La
 traça privada, les bases de dades de `state/` i l'historial de Pi de `sessions/`
-es conserven fins a una revisió explícita. Els worktrees arxivats segueixen la
+es conserven fins a una revisió explícita. Les identitats dels efectes ja
+lliurats a la sessió (`session_delivered_effects`) tampoc no es poden: cada
+reintent d'un avís les consulta, i la mida és d'unes poques desenes de bytes per
+efecte. Els worktrees arxivats segueixen la
 neteja que preserva treball no publicat (`storage/prune-worktrees.mjs`).
 
 - **Cost estimat.** La traça i les bases de `state/` creixen pocs MB l'any i

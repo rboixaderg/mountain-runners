@@ -31,6 +31,7 @@ export function createProjectRunner({
   hasOtherInstructions,
   notifyHandover,
   prepareAttachment,
+  sessionNotes,
   recordTrace,
   stopCommands = stopSandboxedCommands,
   executeSandbox = runSandboxedCommand,
@@ -57,11 +58,18 @@ export function createProjectRunner({
         return { preparationFailed: true };
       }
     }
+    // The turn starts inside the runtime, after the profile is ready and right
+    // before Pi receives the prompt: the message is built there with the effects
+    // of the topic, and a preparation that failed keeps them undelivered.
     return executeAgent(config, {
       ...context,
       environment,
       stopCommands,
-      message: buildInstructionPrompt(context.instruction, context.kind),
+      buildMessage: (serviceNotes) =>
+        buildInstructionPrompt(context.instruction, context.kind, {
+          unclearRequest: context.unclearRequest,
+          serviceNotes,
+        }),
       readOnly: context.kind === "consultation",
     });
   },
@@ -92,7 +100,20 @@ export function createProjectRunner({
     requestPreview,
     requestMerge,
     prepareAttachment,
+    sessionNotes,
     recordTrace,
+    // The pull request this topic published last and still owns, from the CI
+    // watches: without them the service knows none.
+    findTopicPullRequest: ciWatches
+      ? (sessionKey) =>
+          ciWatches
+            .latestPublications()
+            .find(
+              (publication) =>
+                publication.session_key === sessionKey &&
+                publication.is_owner_latest,
+            )?.pull_request_number ?? null
+      : undefined,
     registerCiWatch: ciWatches
       ? createCiWatchRegistration({ store: ciWatches, logger })
       : undefined,

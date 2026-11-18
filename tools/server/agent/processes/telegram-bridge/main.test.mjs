@@ -996,6 +996,20 @@ test("merges through the bridge after verifying the membership again at executio
   assert.match(replies.at(-1), /PR #200 fusionada/u);
 });
 
+test("keeps the result of a merge for the next turn of the session", async (context) => {
+  const { service } = await runMergeCommand(context, {});
+
+  const notes = service.sessionNotes.claim("-1001234567890:7");
+  assert.equal(notes.length, 1);
+  assert.match(notes[0].text, /PR #200 fusionada/u);
+  assert.equal(
+    service.sessionNotes.lastReply("-1001234567890:7"),
+    notes[0].text,
+    "the service report is also the last text of the topic",
+  );
+  service.sessionNotes.close();
+});
+
 test("does not merge when the author left the group between admission and execution", async (context) => {
   const { replies, membershipChecks, merges } = await runMergeCommand(context, {
     membershipAtExecution: "left",

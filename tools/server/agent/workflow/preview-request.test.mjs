@@ -7,6 +7,7 @@ import { verifyMembership } from "telegram-pi-bridge/telegram";
 import { CiWatchStore } from "../repository/ci-watch-store.mjs";
 import { GitHubResponseError } from "../repository/github.mjs";
 import { PreviewRequestStore } from "../repository/preview-request-store.mjs";
+import { SessionNoteStore } from "../repository/session-note-store.mjs";
 import { requestSignal } from "../repository/request-signal.mjs";
 import { createCiWatchRegistration, createCiWatchWorker } from "./ci-watch.mjs";
 import { createPreviewRequests } from "./preview-request.mjs";
@@ -601,6 +602,60 @@ test("confirms through the publisher comment and reports URL, commit and PR", as
     (entry) => entry.action === "preview_confirmed",
   );
   assert.equal(confirmation.authorIdentifier, 555);
+});
+
+test("records one note for a preview notice that is retried", async (context) => {
+  const directory = mkdtempSync(join(tmpdir(), "mr-preview-notes-"));
+  context.after(() =>
+    rmSync(directory, { recursive: true, force: true, maxRetries: 5 }),
+  );
+  const notes = new SessionNoteStore(join(directory, "session-notes.sqlite"));
+  context.after(() => notes.close());
+  const { ciWatches, buildHandler, github, telegram, sent } = setup(context);
+  const handler = buildHandler({
+    recordServiceNote: ({ sessionKey: key, text: noteText, effectKey }) =>
+      notes.addNote({ sessionKey: key, text: noteText, effectKey }),
+  });
+  reportGreen(ciWatches);
+  await handler.handle(request());
+  github.comments = [publisherComment()];
+
+  telegram.sendError = new Error("telegram is down");
+  await handler.runOnce();
+  telegram.sendError = null;
+  await handler.runOnce();
+
+  assert.equal(sent.length, 1, "the retry is the one that reaches the topic");
+  assert.equal(notes.lastReply(sessionKey), sent[0].text);
+  assert.deepEqual(
+    notes.claim(sessionKey).map((note) => note.text),
+    [sent[0].text],
+    "the session receives the retried effect once",
+  );
+  assert.equal(ciWatches.lastReported(sessionKey).result, "success");
+});
+
+test("keeps the preview confirmation as a service event of its session", async (context) => {
+  const { ciWatches, buildHandler, github, sent } = setup(context);
+  const notes = [];
+  const handler = buildHandler({
+    recordServiceNote: (note) => notes.push(note),
+  });
+  reportGreen(ciWatches);
+  await handler.handle(request());
+  assert.deepEqual(
+    notes,
+    [],
+    "the synchronous report is the instruction result",
+  );
+
+  github.comments = [publisherComment()];
+  await handler.runOnce();
+
+  assert.equal(sent.length, 1);
+  assert.deepEqual(notes, [
+    { sessionKey, text: sent[0].text, effectKey: "preview:20:confirmed" },
+  ]);
 });
 
 test("reports an unconfirmed preview at the deadline without guessing a URL", async (context) => {

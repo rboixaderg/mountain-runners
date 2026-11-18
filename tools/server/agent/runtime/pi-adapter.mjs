@@ -45,6 +45,7 @@ export function projectPiOptions({
   environment = process.env,
   timeoutMilliseconds = config.limits.executionTimeoutMs,
   signal,
+  onPromptSent,
   stopCommands = stopSandboxedCommands,
   readOnly = false,
   classifyOnly = false,
@@ -63,6 +64,7 @@ export function projectPiOptions({
     message,
     timeoutMilliseconds,
     signal,
+    onPromptSent,
     onInterrupted: classifyOnly
       ? undefined
       : () => stopCommands(sandboxIdentifier),

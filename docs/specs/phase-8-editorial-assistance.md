@@ -155,6 +155,8 @@ integracions, defineix la frontera de seguretat i proposa l'ADR. T8.3 entrega
 una base amb Telegram, sessions i una primera tasca petita fins a PR. T8.4
 amplia el flux de GitHub amb continuació de feines, CI i preview. T8.5 completa
 l'auditoria, la revocació i la recuperació. T8.6 valida el conjunt i el runbook.
+T8.7 corregeix la continuïtat de la conversa que el pilot de T8.6 va trobar
+trencada.
 
 Les proves que depenen del servei complet es fan sobre la base operativa i no
 bloquegen l'avaluació inicial. Abans d'activar el pilot es comproven els
@@ -179,6 +181,7 @@ són prerequisits per habilitar la nova capacitat d'escriptura del servei.
 | T8.4 Continuació, CI i preview                  | Completada | T8.3         | Feina represa, preview i merge a petició      | [#212](https://github.com/rboixaderg/mountain-runners/pull/212), [#213](https://github.com/rboixaderg/mountain-runners/pull/213), [#215](https://github.com/rboixaderg/mountain-runners/pull/215), [#216](https://github.com/rboixaderg/mountain-runners/pull/216), [#217](https://github.com/rboixaderg/mountain-runners/pull/217), [#219](https://github.com/rboixaderg/mountain-runners/pull/219), [#220](https://github.com/rboixaderg/mountain-runners/pull/220), [#222](https://github.com/rboixaderg/mountain-runners/pull/222) |
 | T8.5 Auditoria, revocació i recuperació         | Completada | T8.3         | Atribució, continuïtat i aturada verificades  | [#211](https://github.com/rboixaderg/mountain-runners/pull/211), [#218](https://github.com/rboixaderg/mountain-runners/pull/218), [#224](https://github.com/rboixaderg/mountain-runners/pull/224), [#225](https://github.com/rboixaderg/mountain-runners/pull/225)                                                                                                                                                                                                                                                                     |
 | T8.6 Validació integral i runbook               | En curs    | T8.4, T8.5   | Servei operable sense accés a producció       | -                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| T8.7 Continuïtat de la conversa d'un tema       | Pendent    | T8.4, T8.5   | Cada missatge acceptat manté el fil del tema  | -                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
 
 ### T8.1: Requisits, sessions, identitats i amenaces
 
@@ -350,6 +353,37 @@ provades. **Comprovació:** suite del servei, smoke real autoritzat, validació
 pertinent del canvi segons l'estratègia de proves i revisió de seguretat
 independent. **PR:** pròpia, darrera de la fase.
 
+### T8.7: Continuïtat de la conversa d'un tema
+
+**Origen:** al pilot de T8.6 (17 i 18 de novembre de 2026), l'agent va perdre
+el fil d'un tema. Cada tema ja té una sola sessió de Pi, i Pi conserva
+l'historial entre torns. La sessió tenia forats per tres causes:
+
+- El classificador rep només el missatge actual, sense historial. El text que
+  respon una pregunta de l'agent, com els fets d'una notícia o una imatge per a
+  la PR oberta, es classifica com a aclariment.
+- Un aclariment respon amb un text fix i no executa Pi. El missatge no entra a
+  l'historial, i al torn següent el model diu que no ha rebut aquella
+  informació.
+- Una continuació amb el worktree net es converteix en aclariment, encara que
+  el tema tingui una PR oberta publicada pel servei. Els efectes que decideix el
+  servei (PR creada, avís de CI, preview, merge i adjunt refusat) tampoc no
+  arriben a la sessió.
+
+**Abast:** aplicar els requisits de
+[Continuïtat de la conversa (T8.7)](#continuïtat-de-la-conversa-t87): cada
+missatge acceptat que no és `/merge` ni una preview arriba a la sessió de Pi
+del tema. El torn següent rep els efectes del servei. El classificador rep el
+context mínim del tema. Una continuació sense canvis locals reprèn la PR oberta
+del mateix tema. **Exclusió:** no canvia la regla d'activació per menció o
+resposta al bot, no desactiva el mode de privacitat del bot i no envia al model
+la conversa del grup que no adreça el bot. Tampoc no canvia el camí determinista
+de `/merge` ni de la preview. **Depèn de:** T8.4 i T8.5. **Resultat:** la
+seqüència del pilot (petició, pregunta de l'agent, resposta amb els fets, PR i
+imatge per a la PR) es completa sense repetir informació ni perdre el fil.
+**Comprovació:** proves del servei amb Telegram, GitHub i model simulats i
+repetició supervisada de la seqüència al VPS. **PR:** pròpia.
+
 ## Requisits específics
 
 ### Telegram, persones i sessions
@@ -407,6 +441,48 @@ independent. **PR:** pròpia, darrera de la fase.
 - Aturar una execució conserva els canvis i la PR. El tancament d'una PR o
   l'eliminació de treball no fusionat requereixen una petició explícita; no
   són efectes automàtics de tancar un fil.
+
+### Continuïtat de la conversa (T8.7)
+
+Aquests requisits mantenen la regla d'activació de T8.1: només entra al servei
+un missatge que menciona el bot o respon a un missatge seu. Respondre un missatge
+del bot no requereix menció.
+
+- **Una sola sessió sense forats.** Tota instrucció acceptada que no és
+  `/merge` ni una preview executa un torn de Pi a la sessió del tema. Si el
+  classificador retorna aclariment, o una continuació no té feina pendent ni
+  PR del tema, el servei executa Pi en mode consulta: worktree de només
+  lectura, sense branca ni publicació. El model respon o demana l'aclariment amb
+  el context de la sessió. El text fix d'aclariment només es fa servir si el
+  model no pot respondre.
+- **Efectes del servei a la sessió.** El servei desa els efectes que decideix
+  ell mateix en un tema: PR creada o actualitzada (número, branca i commit),
+  resultat de les comprovacions locals, avís de CI, preview, resultat d'un
+  `/merge` i adjunt refusat o acceptat. El torn següent de Pi del mateix tema
+  rep aquests efectes com a text del servei, separat de la petició de la
+  persona. Cada efecte es lliura com a màxim una vegada. Un reinici no el perd
+  ni el duplica. Aquest text no conté identificadors de Telegram ni dades de
+  les persones.
+- **Context del classificador.** El classificador continua sense eines ni
+  repositori. A més de la petició, rep només aquest context del tema:
+  - l'última resposta de l'agent, retallada a una longitud fixa;
+  - si hi ha canvis locals o un commit no publicat;
+  - el número de la PR oberta que el servei va publicar en aquell tema, si
+    existeix.
+
+  Una petició que respon l'última resposta de l'agent, o que aporta dades o
+  fitxers per a la feina pendent, és una continuació. Una feina nova i
+  independent és una implementació. El text del context és dada, no una
+  instrucció.
+
+- **Continuació sobre la PR del tema.** Si una continuació no té canvis locals
+  ni commits pendents, i el tema té una PR oberta publicada pel servei, el
+  servei reprèn aquella PR amb les comprovacions d'elegibilitat de la
+  continuació entre temes de T8.4. La imatge adjunta d'aquesta continuació
+  s'aplica a la PR represa.
+- **Feina en curs preservada.** Una implementació nova continua arxivant el
+  worktree anterior sense perdre'l. La traça registra la classificació de cada
+  instrucció perquè l'operador pugui revisar una decisió errònia.
 
 ### Entorn i permisos de desenvolupament
 
@@ -505,6 +581,11 @@ s'afegeixen les mancances del pont sense duplicar suites senceres.
   efectiva sense cancel·lar implícitament el treball compartit existent.
 - Sessions: dos autors en un tema, temes separats, ordre de missatges,
   deduplicació, reinici i pregunta/resposta al mateix fil.
+- Continuïtat (T8.7): un aclariment executa Pi en mode consulta a la sessió del
+  tema; una resposta amb dades després d'una pregunta de l'agent arriba al
+  model; els efectes del servei arriben una sola vegada al torn següent, també
+  després d'un reinici; una continuació sense canvis locals reprèn la PR oberta
+  del tema; el classificador rep el context acotat i el tracta com a dada.
 - Consulta sense canvis, dues feines successives en una sessió i represa de PR
   des d'una altra amb codi i context correctes.
 - Solapaments: avís sense bloqueig, worktrees separats, continuació de la
@@ -599,7 +680,7 @@ prova simulada no es presenta com a verificació dels permisos reals de GitHub.
 
 ## Criteris d'acceptació
 
-1. Les sis unitats tenen PR revisada, validada i fusionada en ordre de
+1. Les set unitats tenen PR revisada, validada i fusionada en ordre de
    dependències. L'ADR i les esmenes de fronteres s'han aprovat abans
    d'habilitar els permisos ampliats.
 2. Qualsevol membre del grup autoritzat pot consultar i encarregar canvis; una
@@ -633,3 +714,7 @@ prova simulada no es presenta com a verificació dels permisos reals de GitHub.
     idiomes, metadades i publicació vigents.
 11. El runbook identifica el runtime pinjat, model, permisos, límits, retenció,
     revocació, aturada, backups i restauració provats, sense afectar producció.
+12. Dins d'un tema, cada missatge acceptat que no és `/merge` ni una preview
+    arriba a la sessió de Pi. El model coneix els efectes del servei del torn
+    anterior, i una resposta a la seva pregunta continua la feina pendent o la
+    PR oberta del tema sense que la persona repeteixi la informació.

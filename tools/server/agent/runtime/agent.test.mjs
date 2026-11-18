@@ -3,6 +3,7 @@
 import assert from "node:assert/strict";
 import {
   chmodSync,
+  mkdirSync,
   mkdtempSync,
   readFileSync,
   rmSync,
@@ -52,14 +53,21 @@ process.stdin.once("data", () => {
   };
   const sandboxIdentifier = "topic-0123456789abcdef";
 
+  const claimed = [];
   const result = await runAgent(config, {
     sessionIdentifier: "topic_n1001234567890_7",
     sandboxIdentifier,
-    message: "synthetic",
+    claimServiceNotes: () => {
+      claimed.push("claimed");
+      return ["Un efecte del servei."];
+    },
+    buildMessage: (serviceNotes) => ["synthetic", ...serviceNotes].join("\n"),
     worktreePath: directory,
     environment: { PATH: process.env.PATH, HOME: directory },
     stopCommands: async () => {},
   });
+
+  assert.deepEqual(claimed, ["claimed"], "the effects reach the prompt");
 
   assert.equal(result.aborted, false);
   const environment = JSON.parse(readFileSync(environmentDump, "utf8"));
@@ -71,4 +79,61 @@ process.stdin.once("data", () => {
     environment.PI_CODING_AGENT_DIR,
     join(config.paths.state, "profiles", sandboxIdentifier),
   );
+});
+
+test("claims the service events only when Pi is about to receive the prompt", async (context) => {
+  const directory = mkdtempSync(join(tmpdir(), "mr-agent-order-"));
+  context.after(() =>
+    rmSync(directory, {
+      recursive: true,
+      force: true,
+      maxRetries: 5,
+      retryDelay: 100,
+    }),
+  );
+  // A file where the profile root belongs: preparing the profile fails before
+  // any prompt exists.
+  mkdirSync(join(directory, "state"));
+  writeFileSync(join(directory, "state", "profiles"), "not a directory");
+  const config = {
+    paths: {
+      state: join(directory, "state"),
+      sessions: join(directory, "sessions"),
+      worktrees: join(directory, "worktrees"),
+    },
+    model: {
+      identifier: "synthetic",
+      piCommand: join(directory, "missing-pi"),
+      providerEnvironmentVariables: [],
+      sandboxImage: "synthetic:1",
+    },
+    limits: { executionTimeoutMs: 5000 },
+  };
+  const claims = [];
+  const contextFor = () => ({
+    sessionIdentifier: "topic_n1001234567890_7",
+    sandboxIdentifier: "topic-0123456789abcdef",
+    claimServiceNotes: () => {
+      claims.push("claimed");
+      return [];
+    },
+    buildMessage: () => "synthetic",
+    worktreePath: directory,
+    environment: { PATH: process.env.PATH, HOME: directory },
+    stopCommands: async () => {},
+  });
+
+  await assert.rejects(runAgent(config, contextFor()));
+  assert.deepEqual(
+    claims,
+    [],
+    "a profile that cannot be prepared never consumes an effect",
+  );
+
+  const controller = new AbortController();
+  controller.abort();
+  await assert.rejects(
+    runAgent(config, { ...contextFor(), signal: controller.signal }),
+  );
+  assert.deepEqual(claims, [], "a stopped turn never consumes an effect");
 });

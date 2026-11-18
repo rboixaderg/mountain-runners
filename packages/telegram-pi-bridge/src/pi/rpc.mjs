@@ -78,6 +78,8 @@ function assistantText(message) {
 
 /**
  * Return completed assistant text after agent_settled.
+ * `onPromptSent` runs once, immediately before the prompt is written: when it
+ * is not called, no prompt reached Pi.
  * onInterrupted lets the caller stop its own external execution resources;
  * killing Pi alone cannot stop containers, remote jobs or other descendants.
  */
@@ -93,6 +95,7 @@ export async function runPiPrompt({
   environment = {},
   timeoutMilliseconds = 30 * 60 * 1000,
   signal,
+  onPromptSent,
   onInterrupted,
   spawnImpl = spawn,
   message,
@@ -214,6 +217,9 @@ export async function runPiPrompt({
       }
     });
 
+    // The child emits `spawn` once the process exists. The prompt is written
+    // only then, and only while the turn is still wanted.
+    child.on("spawn", () => sendPrompt());
     child.on("error", (error) => finish(() => rejectPromise(error)));
     child.on("close", (exitCode) => {
       if (settled) {
@@ -240,9 +246,20 @@ export async function runPiPrompt({
     });
 
     child.stdin.on("error", (error) => finish(() => rejectPromise(error)));
-    child.stdin.write(
-      `${JSON.stringify({ id: "prompt-1", type: "prompt", message })}\n`,
-    );
+    function sendPrompt() {
+      // A process that is already gone, or a turn that is no longer wanted,
+      // cannot receive the prompt: the close or abort handler reports why it
+      // ended. The caller hears about the prompt only here.
+      if (finished || aborted || timedOut) return;
+      onPromptSent?.();
+      try {
+        child.stdin.write(
+          `${JSON.stringify({ id: "prompt-1", type: "prompt", message })}\n`,
+        );
+      } catch (error) {
+        finish(() => rejectPromise(error));
+      }
+    }
   });
 
   try {
