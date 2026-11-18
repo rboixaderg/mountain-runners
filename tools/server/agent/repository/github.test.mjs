@@ -646,6 +646,7 @@ test("exposes only branch publication, the preview comment, the pinned merge and
     "getCommitStatuses",
     "getPullRequest",
     "listIssueComments",
+    "listPreviewWorkflowRuns",
     "mergePullRequest",
     "pushBranch",
   ]);

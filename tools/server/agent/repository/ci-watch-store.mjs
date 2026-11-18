@@ -192,19 +192,34 @@ export class CiWatchStore {
    * first.
    */
   hasUnreportedWork(sessionKey) {
-    return (
-      this.#database
-        .prepare(
-          `SELECT 1 WHERE EXISTS (
-             SELECT 1 FROM ci_watches
-             WHERE session_key = ? AND state IN ('pending', 'sending', 'uncertain')
-           ) OR EXISTS (
-             SELECT 1 FROM ci_repairs
-             WHERE session_key = ? AND status IN ('reserved', 'queued', 'running')
-           )`,
-        )
-        .get(sessionKey, sessionKey) !== undefined
-    );
+    return this.newestUnreportedWork(sessionKey) !== undefined;
+  }
+
+  /**
+   * The newest work of the topic that was not reported yet, which is what makes
+   * an older notice stale. It names the publication that must be reported, not
+   * the notice that already was, so a preview refusal cannot blame the wrong
+   * commit. `kind` is `notice` for a publication and `repair` for an automatic
+   * repair, which publishes a new commit that does not exist yet. Of several
+   * rows of the same instant, a notice wins over a repair: it already has the
+   * commit that the person can be told about.
+   */
+  newestUnreportedWork(sessionKey) {
+    return this.#database
+      .prepare(
+        `SELECT kind, pull_request_number, commit_sha, created_at FROM (
+           SELECT 'notice' AS kind, pull_request_number, commit_sha, created_at
+           FROM ci_watches
+           WHERE session_key = ? AND state IN ('pending', 'sending', 'uncertain')
+           UNION ALL
+           SELECT 'repair' AS kind, pull_request_number, NULL AS commit_sha,
+                  created_at
+           FROM ci_repairs
+           WHERE session_key = ? AND status IN ('reserved', 'queued', 'running')
+         )
+         ORDER BY created_at DESC, kind LIMIT 1`,
+      )
+      .get(sessionKey, sessionKey);
   }
 
   /** Notices whose delivery is unknown, oldest first, for the operator. */

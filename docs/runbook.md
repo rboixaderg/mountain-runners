@@ -1303,11 +1303,11 @@ formatar cap volum amb dades.
 Els valors no es mostren mai en aquest runbook, al tema, a la PR ni a la sortida
 d'una ordre. Edita `agent.env` com a root i comprova que conserva el mode `0600`.
 
-| Credencial                | On es genera               | Abast                                                                                                                      |
-| ------------------------- | -------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
-| Token del bot de Telegram | BotFather                  | Només el bot del grup configurat                                                                                           |
-| Token de GitHub           | Compte de l'agent a GitHub | `Contents: write`, `Pull requests: write`, lectura de checks i estats; sense `Workflows: write` ni lectura d'administració |
-| Credencial del model      | Proveïdor del model        | Només la crida al model; arriba a Pi i no al pont                                                                          |
+| Credencial                | On es genera               | Abast                                                                                                                                                              |
+| ------------------------- | -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Token del bot de Telegram | BotFather                  | Només el bot del grup configurat                                                                                                                                   |
+| Token de GitHub           | Compte de l'agent a GitHub | `Contents: write`, `Pull requests: write`, lectura de checks, estats i execucions de fluxos (`Actions: read`); sense `Workflows: write` ni lectura d'administració |
+| Credencial del model      | Proveïdor del model        | Només la crida al model; arriba a Pi i no al pont                                                                                                                  |
 
 1. Genera la credencial nova a l'emissor i no revoquis l'antiga encara. El token
    de Telegram és l'excepció: el bot en té un de sol i revocar-lo invalida
@@ -1386,6 +1386,9 @@ aturat.
 - **Reconciliació.** Amb el servei aturat: `list`, comprova l'estat real a
   GitHub, `resolve` cas per cas i torna a arrencar, segons la
   [reconciliació](deployment.md#reconciliació-de-resultats-desconeguts-t85).
+  Només cal reconciliar els resultats desconeguts: una preview que ha acabat
+  bé, que ha esgotat el termini o que ha fallat es tanca sola, i una preview
+  fallida no es reintenta.
 
 ### Validació Del Pilot (T8.6)
 
@@ -1413,7 +1416,8 @@ de la persona mantenidora consta a l'especificació.
      incerts.
 1. **Credencial de GitHub i protecció de `main`.**
    - Fer: revisa el token del compte de l'agent: `Contents: write`,
-     `Pull requests: write`, lectura de checks i estats, sense escriptura a
+     `Pull requests: write`, lectura de checks i estats, lectura d'execucions
+     de fluxos (`Actions: read`), sense escriptura a
      `.github/workflows` i sense lectura d'administració. Comprova que el compte
      de l'agent és col·laborador del repositori, que
      `MOUNTAIN_AGENT_REQUIRED_CHECKS` coincideix amb la protecció de `main` amb la

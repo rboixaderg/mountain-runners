@@ -186,8 +186,15 @@ export const requestKinds = [
 export const previewCommand = "/preview";
 
 // The deterministic handler waits this long for the trusted publisher to
-// confirm the preview before it reports the request as unconfirmed.
-export const previewConfirmationTimeoutMilliseconds = 15 * 60 * 1000;
+// confirm the preview before it reports the request as unconfirmed. A real
+// preview took about twelve minutes in the pilot, so the old fifteen minutes
+// left no room for a slow build after the fixes of T8.8.
+export const previewConfirmationTimeoutMilliseconds = 25 * 60 * 1000;
+
+// A credential that GitHub refused to let read the runs of the preview workflow
+// is asked again at most once an hour: granting `Actions: read` must not need a
+// restart of the service, and the log does not repeat the refusal every poll.
+export const previewRunsRetryMilliseconds = 60 * 60 * 1000;
 
 // An internal kind, never produced by the classifier: an automatic repair of a
 // published commit whose required CI checks failed.
@@ -553,39 +560,136 @@ export const ciReports = {
     `La PR #${pullRequestNumber} ja no està oberta. No s'informa de la CI del commit ${shortCommit(commit)}.`,
 };
 
+// The address the service shows for reviewing a pull request. It is built from
+// the configured repository, never from the text of a request.
+export function pullRequestReviewUrl({ repository, pullRequestNumber }) {
+  return `https://github.com/${repository}/pull/${pullRequestNumber}`;
+}
+
+// The pull request of a preview report is named only through this last line,
+// which is the only technical reference a member of the club needs.
+function withReviewLink(text, reviewUrl) {
+  return `${text}\nEnllaç per a revisió: ${reviewUrl}`;
+}
+
 // Replies of the deterministic /preview handler. A preview is only ever
-// requested for the commit this topic last reported as green.
+// requested for the commit this topic last reported as green. Every text is
+// written for a member of the club who does not work with Git: it says what
+// happened and what can be done next, without paths, commits, check names or
+// commands. The confirmed preview always carries its own address.
 export const previewReports = {
-  membershipRevoked:
-    "Ja no consten com a membre verificat del grup i una preview necessita que l'autor encara ho sigui. No s'ha demanat cap preview.",
-  membershipUnavailable:
-    "No s'ha pogut verificar la pertinença al grup. No s'ha demanat cap preview; torna-ho a demanar.",
-  requested: ({ pullRequestNumber, commit }) =>
-    `Preview demanada per al commit ${shortCommit(commit)} (PR #${pullRequestNumber}). Esperant la confirmació del publicador; rebràs l'URL en aquest mateix tema.`,
+  membershipRevoked: ({ reviewUrl }) =>
+    withReviewLink(
+      "Ara mateix no constes com a membre i no puc demanar la preview. Demana a la persona que gestiona el grup que t'hi torni a afegir.",
+      reviewUrl,
+    ),
+  membershipUnavailable: ({ reviewUrl }) =>
+    withReviewLink(
+      "No s'ha pogut comprovar que siguis al grup. No s'ha demanat cap preview; torna-ho a demanar d'aquí a una estona.",
+      reviewUrl,
+    ),
+  requested: ({ reviewUrl }) =>
+    withReviewLink(
+      "Ja hem demanat la preview d'aquest canvi. Quan estigui a punt, en aquest mateix tema trobaràs l'adreça per veure-la.",
+      reviewUrl,
+    ),
   noReportedCommit:
-    "Aquest tema no té cap commit informat amb les comprovacions obligatòries en verd. No s'ha demanat cap preview.",
-  newerWork: ({ pullRequestNumber, commit }) =>
-    `Aquest tema té una publicació més nova que l'últim avís (PR #${pullRequestNumber}, commit ${shortCommit(commit)}) sense informe confirmat. No s'ha demanat cap preview; espera el nou informe i torna-ho a demanar.`,
-  alreadyInProgress: ({ pullRequestNumber, commit }) =>
-    `Ja hi ha una preview demanada per al commit ${shortCommit(commit)} (PR #${pullRequestNumber}) que encara no ha acabat o que té un resultat desconegut. No se'n demana cap altra.`,
-  alreadyHandled:
-    "Aquesta petició de preview ja s'havia tramitat. No s'ha demanat res de nou.",
-  notApplicable: ({ pullRequestNumber, commit }) =>
-    `La PR #${pullRequestNumber} ja no està oberta o el seu cap ja no és el commit ${shortCommit(commit)}. No s'ha demanat cap preview.`,
-  notMainRepository: ({ pullRequestNumber }) =>
-    `La PR #${pullRequestNumber} no ve d'una branca del repositori principal. No s'ha demanat cap preview.`,
-  checksNotGreen: ({ pullRequestNumber, commit }) =>
-    `Les comprovacions obligatòries del commit ${shortCommit(commit)} (PR #${pullRequestNumber}) no estan totes en verd ara mateix. No s'ha demanat cap preview.`,
-  unreadable: ({ pullRequestNumber, commit }) =>
-    `No s'ha pogut llegir l'estat de la PR #${pullRequestNumber} o de les comprovacions del commit ${shortCommit(commit)}. No s'ha demanat cap preview.`,
-  uncertain: ({ pullRequestNumber, commit }) =>
-    `No s'ha pogut confirmar si s'ha publicat el comentari /preview a la PR #${pullRequestNumber} (commit ${shortCommit(commit)}). El servei queda bloquejat fins que es revisi l'estat real.`,
-  failed: ({ pullRequestNumber, commit, statusClass }) =>
-    `GitHub ha rebutjat el comentari /preview a la PR #${pullRequestNumber} (commit ${shortCommit(commit)}, HTTP ${statusClass}): no s'ha pogut demanar la preview. Revisa els permisos del servei o l'estat de la PR i torna-ho a demanar.`,
+    "En aquest tema encara no hi ha cap canvi amb totes les comprovacions correctes. Quan arribi l'informe del canvi, podràs demanar la preview.",
+  // The work that is not reported yet is named, never the notice that was
+  // already reported: the person has to understand which change is waiting, and
+  // a change that only an automatic repair will publish has no commit yet. It is
+  // "pendent de comprovar", because an unreported notice can also be older than
+  // the delivered one and still own the topic.
+  newerWork: ({ reviewUrl, beingPrepared }) =>
+    withReviewLink(
+      beingPrepared
+        ? "En aquest tema s'està preparant un canvi pendent de comprovar. No s'ha demanat cap preview; quan estigui a punt, torna-ho a demanar."
+        : "En aquest tema hi ha un canvi pendent de comprovar. No s'ha demanat cap preview; quan arribi el seu informe, torna-ho a demanar.",
+      reviewUrl,
+    ),
+  alreadyInProgress: ({ reviewUrl }) =>
+    withReviewLink(
+      "La preview d'aquest canvi ja està demanada i encara no ha acabat. No se n'ha demanat cap altra.",
+      reviewUrl,
+    ),
+  alreadyHandled: ({ reviewUrl }) =>
+    withReviewLink(
+      "Aquesta petició de preview ja s'havia atès. No s'ha demanat res de nou.",
+      reviewUrl,
+    ),
+  notApplicable: ({ reviewUrl }) =>
+    withReviewLink(
+      "Aquest canvi ja no es pot previsualitzar perquè la revisió s'ha tancat o hi ha canvis més nous. No s'ha demanat cap preview.",
+      reviewUrl,
+    ),
+  notMainRepository: ({ reviewUrl }) =>
+    withReviewLink(
+      "Aquest canvi no ve del repositori del club. No s'ha demanat cap preview.",
+      reviewUrl,
+    ),
+  checksNotGreen: ({ reviewUrl }) =>
+    withReviewLink(
+      "Les comprovacions d'aquest canvi encara no estan totes correctes. No s'ha demanat cap preview; torna-ho a demanar quan ho estiguin.",
+      reviewUrl,
+    ),
+  unreadable: ({ reviewUrl }) =>
+    withReviewLink(
+      "No hem pogut llegir l'estat d'aquest canvi. No s'ha demanat cap preview; torna-ho a demanar d'aquí a una estona.",
+      reviewUrl,
+    ),
+  uncertain: ({ reviewUrl }) =>
+    withReviewLink(
+      "No sabem si la petició de preview ha arribat a GitHub, així que no es repetirà tota sola. Una persona del club ho ha de revisar abans de tornar-ho a demanar.",
+      reviewUrl,
+    ),
+  failed: ({ reviewUrl }) =>
+    withReviewLink(
+      "GitHub no ha acceptat la petició de preview i no s'ha publicat res. Digues-m'ho i ho miro amb la persona que manté el servei.",
+      reviewUrl,
+    ),
+  failedRun: ({ reviewUrl }) =>
+    withReviewLink(
+      "La preview no s'ha pogut preparar i no s'ha publicat res. Si vols, digues-m'ho i ho miro.",
+      reviewUrl,
+    ),
+  confirmed: ({ origin, reviewUrl }) =>
+    withReviewLink(`La preview ja està a punt: ${origin}`, reviewUrl),
+  unconfirmed: ({ reviewUrl }) =>
+    withReviewLink(
+      "No hem pogut confirmar que la preview estigui a punt i no tenim cap adreça per donar-te. Si vols, digues-m'ho i ho miro.",
+      reviewUrl,
+    ),
+};
+
+// The ending of a preview workflow run, in the plain words the note uses. It
+// says the same as the GitHub conclusion without making the model read a token;
+// an unknown one is kept between quotes.
+const previewRunEndings = {
+  failure: "una fallada",
+  cancelled: "una cancel·lació",
+  timed_out: "un temps esgotat",
+  action_required: "una acció pendent",
+  neutral: "un resultat neutre",
+  stale: "una execució obsoleta",
+  skipped: "una execució omesa",
+  startup_failure: "una fallada d'inici",
+};
+
+function previewRunEnding(conclusion) {
+  return previewRunEndings[conclusion] ?? `«${conclusion}»`;
+}
+
+// The effect a preview report leaves in the session of the topic. The text the
+// person reads is plain, so the facts the next turn of the model needs live
+// here: what happened, the pull request, the commit and the confirmed address.
+// A note may carry more than the message; it is never a message of its own.
+export const previewNotes = {
   confirmed: ({ pullRequestNumber, commit, origin }) =>
-    `Preview publicada: ${origin}\nCommit ${shortCommit(commit)} (PR #${pullRequestNumber}).`,
+    `Preview de la PR #${pullRequestNumber} (commit ${shortCommit(commit)}) publicada a ${origin}.`,
+  failedRun: ({ pullRequestNumber, commit, conclusion }) =>
+    `Preview de la PR #${pullRequestNumber} (commit ${shortCommit(commit)}) no publicada: el flux de preview ha acabat amb ${previewRunEnding(conclusion)} i no hi ha cap adreça. No s'ha reintentat automàticament.`,
   unconfirmed: ({ pullRequestNumber, commit }) =>
-    `No s'ha pogut confirmar la preview del commit ${shortCommit(commit)} (PR #${pullRequestNumber}) dins del termini. Consulta la PR a GitHub; no es reintenta automàticament.`,
+    `Preview de la PR #${pullRequestNumber} (commit ${shortCommit(commit)}) sense confirmació dins del termini: no hi ha cap adreça confirmada.`,
 };
 
 // Replies of the deterministic /merge handler. Each one that concerns a pull

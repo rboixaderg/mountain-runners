@@ -754,6 +754,12 @@ test("resumes a preview awaiting the publisher after a restart", async (context)
           },
         ];
       },
+      async listPreviewWorkflowRuns() {
+        return [];
+      },
+      async getAuthenticatedLogin() {
+        return "mountain-agent-bot";
+      },
     },
     runner: async () => ({}),
   });
@@ -1339,7 +1345,7 @@ test("verifies the membership again when the preview request runs", async (conte
   const refusal = service.queue
     .traceEntries()
     .find((entry) => entry.action === "preview_refused");
-  assert.match(revoked.report, /Ja no consten com a membre verificat/u);
+  assert.match(revoked.report, /no constes com a membre/u);
   assert.deepEqual(posted, []);
   assert.equal(service.previewRequests.state(20), undefined);
   assert.equal(refusal.detail, "membership_revoked");
@@ -1350,7 +1356,7 @@ test("verifies the membership again when the preview request runs", async (conte
     .traceEntries()
     .find((entry) => entry.action === "preview_membership_verified");
 
-  assert.match(verified.report, /Preview demanada/u);
+  assert.match(verified.report, /Ja hem demanat la preview/u);
   assert.deepEqual(posted, [{ number: 200, body: "/preview" }]);
   assert.equal(service.previewRequests.state(21), "awaiting");
   assert.equal(verifiedTrace.detail, `#200 ${"a".repeat(7)}`);

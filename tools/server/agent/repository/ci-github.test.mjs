@@ -4,6 +4,7 @@ import {
   GitHubResponseError,
   GitHubTrust,
   isDefiniteRejection,
+  isPermissionRejection,
 } from "./github.mjs";
 
 const commit = "a".repeat(40);
@@ -490,5 +491,195 @@ test("reads every page of pull request comments and fails closed past the limit"
   await assert.rejects(
     invalid.listIssueComments({ number: 123, since: "2026-11-14T10:00:00Z" }),
     /invalid comments response/u,
+  );
+});
+
+function workflowRunResponse(url) {
+  return {
+    workflow_runs:
+      pageOf(url) === "1"
+        ? Array.from({ length: 100 }, (_, index) => ({
+            id: index + 1,
+            event: "issue_comment",
+            created_at: "2026-11-18T09:00:00Z",
+            status: "completed",
+            conclusion: "failure",
+            head_sha: commit,
+            actor: { login: "mountain-agent-bot" },
+            triggering_actor: { login: "mountain-agent-bot" },
+          }))
+        : [
+            {
+              id: 101,
+              event: "issue_comment",
+              created_at: "2026-11-18T09:05:00Z",
+              status: "in_progress",
+              conclusion: null,
+              head_sha: commit,
+              actor: { login: "mountain-agent-bot" },
+              triggering_actor: { login: "a-maintainer" },
+            },
+          ],
+  };
+}
+
+test("reads the preview workflow runs created after the request comment", async () => {
+  const requested = [];
+  const github = new GitHubTrust({
+    token: "synthetic",
+    repository: "example/project",
+    fetchImpl: async (url) => {
+      requested.push(url);
+      return { ok: true, json: async () => workflowRunResponse(url) };
+    },
+  });
+
+  const runs = await github.listPreviewWorkflowRuns({
+    createdSince: "2026-11-18T09:00:00.000Z",
+  });
+
+  assert.equal(runs.length, 101);
+  assert.deepEqual(runs[100], {
+    identifier: 101,
+    event: "issue_comment",
+    createdAt: "2026-11-18T09:05:00Z",
+    status: "in_progress",
+    conclusion: null,
+    actor: "mountain-agent-bot",
+    triggeringActor: "a-maintainer",
+  });
+  for (const url of requested) {
+    const parsed = new URL(url);
+    assert.match(
+      parsed.pathname,
+      /^\/repos\/example\/project\/actions\/workflows\/preview\.yml\/runs$/u,
+    );
+    assert.equal(parsed.searchParams.get("event"), "issue_comment");
+    assert.equal(
+      parsed.searchParams.get("created"),
+      ">=2026-11-18T09:00:00.000Z",
+    );
+  }
+});
+
+test("fails closed on an unreadable or endless preview run list", async () => {
+  const invalid = new GitHubTrust({
+    token: "synthetic",
+    repository: "example/project",
+    fetchImpl: async () => ({ ok: true, json: async () => ({}) }),
+  });
+  await assert.rejects(
+    invalid.listPreviewWorkflowRuns({ createdSince: "2026-11-18T09:00:00Z" }),
+    /invalid workflow runs response/u,
+  );
+
+  await assert.rejects(
+    invalid.listPreviewWorkflowRuns({ createdSince: "not a timestamp" }),
+    /ISO timestamp/u,
+  );
+
+  const malformed = new GitHubTrust({
+    token: "synthetic",
+    repository: "example/project",
+    fetchImpl: async () => ({
+      ok: true,
+      json: async () => ({ workflow_runs: [{ id: "not a number" }] }),
+    }),
+  });
+  await assert.rejects(
+    malformed.listPreviewWorkflowRuns({ createdSince: "2026-11-18T09:00:00Z" }),
+    /invalid workflow run/u,
+  );
+
+  const unparsableTime = new GitHubTrust({
+    token: "synthetic",
+    repository: "example/project",
+    fetchImpl: async () => ({
+      ok: true,
+      json: async () => ({
+        workflow_runs: [
+          {
+            id: 1,
+            event: "issue_comment",
+            created_at: "yesterday",
+            status: "completed",
+            conclusion: "failure",
+          },
+        ],
+      }),
+    }),
+  });
+  await assert.rejects(
+    unparsableTime.listPreviewWorkflowRuns({
+      createdSince: "2026-11-18T09:00:00Z",
+    }),
+    /invalid workflow run/u,
+  );
+
+  const anonymousActor = new GitHubTrust({
+    token: "synthetic",
+    repository: "example/project",
+    fetchImpl: async () => ({
+      ok: true,
+      json: async () => ({
+        workflow_runs: [
+          {
+            id: 1,
+            event: "issue_comment",
+            created_at: "2026-11-18T09:00:00Z",
+            status: "completed",
+            conclusion: "success",
+            actor: { login: "" },
+          },
+        ],
+      }),
+    }),
+  });
+  await assert.rejects(
+    anonymousActor.listPreviewWorkflowRuns({
+      createdSince: "2026-11-18T09:00:00Z",
+    }),
+    /invalid workflow run/u,
+  );
+
+  const endless = new GitHubTrust({
+    token: "synthetic",
+    repository: "example/project",
+    fetchImpl: async () => ({
+      ok: true,
+      json: async () => ({
+        workflow_runs: Array.from({ length: 100 }, (_, index) => ({
+          id: index + 1,
+          event: "issue_comment",
+          created_at: "2026-11-18T09:00:00Z",
+          status: "completed",
+          conclusion: "success",
+        })),
+      }),
+    }),
+  });
+  await assert.rejects(
+    endless.listPreviewWorkflowRuns({ createdSince: "2026-11-18T09:00:00Z" }),
+    /pagination limit exceeded/u,
+  );
+});
+
+test("tells a permission refusal apart from a definite write rejection", () => {
+  assert.equal(
+    isPermissionRejection(new GitHubResponseError("GET", "/runs", 403)),
+    true,
+  );
+  assert.equal(
+    isPermissionRejection(new GitHubResponseError("GET", "/runs", 404)),
+    true,
+  );
+  assert.equal(
+    isPermissionRejection(new GitHubResponseError("POST", "/x", 422)),
+    false,
+  );
+  assert.equal(isPermissionRejection(new TypeError("fetch failed")), false);
+  assert.equal(
+    isDefiniteRejection(new GitHubResponseError("GET", "/runs", 403)),
+    true,
   );
 });
