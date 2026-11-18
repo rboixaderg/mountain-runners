@@ -1,0 +1,14 @@
+.github/workflows/security.yml
+  h_1727aeeb492b30 60
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "1ae191e2414d9b90c7b71ff874649a1a13c6178e",
+  "prompts": {},
+  "humans": {
+    "h_1727aeeb492b30": {
+      "author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
