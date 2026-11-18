@@ -1,0 +1,113 @@
+docs/deployment.md
+  s_11c2c00a00b566::t_0431c0d99e1c47 408-409,414-417,672,1079-1099,1121-1150,1152-1160,1465-1467,1539-1542
+docs/runbook.md
+  s_11c2c00a00b566::t_63bf7b8e9cfc09 1486-1497,1499-1503
+packages/telegram-pi-bridge/README.md
+  s_11c2c00a00b566::t_e58c08db6a1e88 20-22,77-93,126-145,188,190-191,216-217,227-231
+packages/telegram-pi-bridge/src/pi/rpc.mjs
+  s_11c2c00a00b566::t_d60c2d9a142ad2 102,256-261,263
+packages/telegram-pi-bridge/src/sessions/queue.mjs
+  s_11c2c00a00b566::t_1aa00bddeb1fbf 27,64-65,70,73-78,115,143,152,178,200-201,329-339
+packages/telegram-pi-bridge/src/telegram/albums.mjs
+  s_11c2c00a00b566::t_5f984f180d01ae 1-157
+packages/telegram-pi-bridge/src/telegram/attachments.mjs
+  s_11c2c00a00b566::t_74dc2023a26b1d 1,3-10,16-20,43,51,53,129-188,204-218,221
+packages/telegram-pi-bridge/src/telegram/attribution.mjs
+  s_11c2c00a00b566::t_dc57cab15fd93c 15-18,87-89,91,94-105,111-121,123-133,138-173,178-180,191-193,196,203,210,213-246,248-249,251-303,305,308-332,341
+packages/telegram-pi-bridge/src/telegram/bridge.mjs
+  s_11c2c00a00b566::t_7348c845c6d8f4 8-14,34-36,38-40,50-62,90-93,120-125,141-143,161-173,211-219,246-247,254-256,262-468,474-477,480-484,488,497-511,513-514,516,518-527,531-540,638
+packages/telegram-pi-bridge/src/telegram/index.mjs
+  s_11c2c00a00b566::t_d23bbc76584481 8-19,30,32-34
+packages/telegram-pi-bridge/test/pi/rpc.test.mjs
+  s_11c2c00a00b566::t_1ba0de906227df 439-471
+packages/telegram-pi-bridge/test/sessions/queue.test.mjs
+  s_11c2c00a00b566::t_3a60b124b1e608 192,194-214,221,225,236,245-246,254-261,268-277,280-291,364-386
+packages/telegram-pi-bridge/test/telegram/albums.test.mjs
+  s_11c2c00a00b566::t_ed40fd6b601e96 1-107
+packages/telegram-pi-bridge/test/telegram/attribution.test.mjs
+  s_11c2c00a00b566::t_76b95dd4fffa84 4,6,279-288,303,323-324,345,361,367,370,378-391,397-409,446,465-467,470-471,473,480,514-557
+packages/telegram-pi-bridge/test/telegram/bridge.test.mjs
+  s_11c2c00a00b566::t_6a743fe2d2ece8 125-127,142-144,722-731,739,752-765,771,775-777,782,786,788-795,798-801,851,868,875,917-1408
+tools/server/agent/README.md
+  s_11c2c00a00b566::t_270b56c3f307c4 35-41,71,164-165,314-345,394-398
+tools/server/agent/attachments/destination.mjs
+  s_11c2c00a00b566::t_9aabe8791b977c 1,3-6,8,16
+tools/server/agent/attachments/destination.test.mjs
+  s_11c2c00a00b566::t_471ff4c33f80f1 32-34,38-39
+tools/server/agent/attachments/image-file.mjs
+  s_11c2c00a00b566::t_915843bfcae909 5-7,24
+tools/server/agent/attachments/image-file.test.mjs
+  s_11c2c00a00b566::t_36b9b858be27c0 159,164,170-171
+tools/server/agent/attachments/prepare.mjs
+  s_24a988b5beae24::t_50201735e9c8c4 1,5-9,28,60-62
+tools/server/agent/attachments/prepare.test.mjs
+  s_11c2c00a00b566::t_610378156068aa 74,89,92,95-96,98-101,203
+tools/server/agent/attachments/read.mjs
+  s_11c2c00a00b566::t_a3e7122c7c5aeb 1-74
+tools/server/agent/attachments/read.test.mjs
+  s_11c2c00a00b566::t_61dcd22c98b4f2 1-172
+tools/server/agent/attachments/refusals.mjs
+  s_11c2c00a00b566::t_95775a22848723 11
+tools/server/agent/attachments/safe-read.mjs
+  s_11c2c00a00b566::t_26b9749fad8ddd 1-35
+tools/server/agent/attachments/scale-isolation.test.mjs
+  s_11c2c00a00b566::t_4898b0a8e6875a 1-114
+tools/server/agent/attachments/scale.mjs
+  s_11c2c00a00b566::t_8d76ec21ff173a 1-189
+tools/server/agent/attachments/scale.test.mjs
+  s_11c2c00a00b566::t_91ddfbee73dc3e 1-232
+tools/server/agent/attachments/store.mjs
+  s_11c2c00a00b566::t_140672f27cd3cb 1-303
+tools/server/agent/attachments/store.test.mjs
+  s_11c2c00a00b566::t_fae5534c0de88d 1-172
+tools/server/agent/policy/development.mjs
+  s_11c2c00a00b566::t_2f51875f4f7797 18-20,22-24,709,712,715-722,724,729,731-733,735,737-739,755-758,760-763,765-768,770-790
+tools/server/agent/processes/telegram-bridge/main.mjs
+  s_11c2c00a00b566::t_d20779dd9ff0e9 36-39,270-287
+tools/server/agent/repository/retention.mjs
+  s_11c2c00a00b566::t_d3765e0c16fbf2 12,82-92
+tools/server/agent/runtime/agent.mjs
+  s_11c2c00a00b566::t_ec053d48840c4e 28-29
+tools/server/agent/runtime/extensions/sandbox-bash.ts
+  s_11c2c00a00b566::t_d6ec91895ca2e2 1,4,7-31,38,40-44,85-137
+tools/server/agent/runtime/pi-adapter.mjs
+  s_11c2c00a00b566::t_36613c1277a13e 6,15-16,38-49,59-60,77,82,99-100
+tools/server/agent/runtime/pi-adapter.test.mjs
+  s_11c2c00a00b566::t_98ebf71dfafe6a 22-25,44-51,57,66
+tools/server/agent/runtime/profile-smoke.test.mjs
+  s_11c2c00a00b566::t_36b69d2d567df6 104
+tools/server/agent/runtime/profile.mjs
+  s_11c2c00a00b566::t_05eb5a5652fab4 18-22,31-38
+tools/server/agent/runtime/profile.test.mjs
+  s_11c2c00a00b566::t_c1593e6efb1c63 36,45-52
+tools/server/agent/workflow/project-runner.mjs
+  s_11c2c00a00b566::t_9ff72e291f2b7c 13-14,36-38,47,81-101,129-130
+tools/server/agent/workflow/run-instruction.mjs
+  s_11c2c00a00b566::t_dbc737d6e4d84c 15-16,37,46,66-69,196-199,201-202,205-206,209-268,273-279,282-286,288-295,306,310-312,456-458,461-472,475-476,483-485,513-515,546-556,570-571,674-682,708-720
+tools/server/agent/workflow/run-instruction.test.mjs
+  s_11c2c00a00b566::t_596c885ac3b912 26,1809-1818,1852,1867-1868,1871,1873-1878,1923,1954,1983,1985,2052,2066,2068,2605,2879-3113
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "d35f8b2f1bf0cb078d04a582990bdd13a4c15021",
+  "prompts": {},
+  "sessions": {
+    "s_11c2c00a00b566": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a1f097-1594-7748-89be-29b7ac9aa1fb",
+        "model": "deepseek-v4.1-flash"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    },
+    "s_24a988b5beae24": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a1f04a-c6a1-7799-b4a1-7d4165119546",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
