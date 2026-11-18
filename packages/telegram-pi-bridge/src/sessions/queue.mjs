@@ -24,7 +24,7 @@ const schema = `
     session_key TEXT NOT NULL,
     author_identifier INTEGER NOT NULL,
     instruction TEXT NOT NULL,
-    attachment TEXT,
+    attachments TEXT,
     status TEXT NOT NULL CHECK (status IN ('pending', 'running', 'uncertain', 'done', 'rejected')),
     outcome TEXT,
     created_at TEXT NOT NULL
@@ -61,15 +61,21 @@ export class AdmissionQueue {
   }
 
   // An existing database predates the attachment column. The migration is
-  // idempotent: it only adds the column that is missing.
+  // idempotent: it adds the column when it is missing and copies a single image
+  // into the list the queue now stores.
   #migrate() {
     const columns = this.#database
       .prepare("PRAGMA table_info(instructions)")
       .all();
-    if (columns.some((column) => column.name === "attachment")) {
+    if (columns.some((column) => column.name === "attachments")) {
       return;
     }
-    this.#database.exec("ALTER TABLE instructions ADD COLUMN attachment TEXT");
+    this.#database.exec("ALTER TABLE instructions ADD COLUMN attachments TEXT");
+    if (columns.some((column) => column.name === "attachment")) {
+      this.#database.exec(
+        "UPDATE instructions SET attachments = '[' || attachment || ']' WHERE attachment IS NOT NULL",
+      );
+    }
   }
 
   #transaction(callback) {
@@ -106,7 +112,7 @@ export class AdmissionQueue {
     sessionKey,
     authorIdentifier,
     instruction,
-    attachment = null,
+    attachments = [],
   }) {
     return this.#transaction(() => {
       const existing = this.#database
@@ -134,7 +140,7 @@ export class AdmissionQueue {
       this.#database
         .prepare(
           `INSERT INTO instructions
-             (update_identifier, message_identifier, session_key, author_identifier, instruction, attachment, status, outcome, created_at)
+             (update_identifier, message_identifier, session_key, author_identifier, instruction, attachments, status, outcome, created_at)
            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         )
         .run(
@@ -143,7 +149,7 @@ export class AdmissionQueue {
           sessionKey,
           authorIdentifier,
           instruction,
-          attachment === null ? null : JSON.stringify(attachment),
+          attachments.length === 0 ? null : JSON.stringify(attachments),
           status,
           outcome,
           this.#now().toISOString(),
@@ -169,7 +175,7 @@ export class AdmissionQueue {
       const request = this.#database
         .prepare(
           `SELECT sequence, update_identifier, message_identifier, session_key,
-                  author_identifier, instruction, attachment
+                  author_identifier, instruction, attachments
            FROM instructions
            WHERE status = 'pending'
            ORDER BY sequence
@@ -191,8 +197,8 @@ export class AdmissionQueue {
         sessionKey: request.session_key,
         authorIdentifier: request.author_identifier,
         instruction: request.instruction,
-        attachment:
-          request.attachment === null ? null : JSON.parse(request.attachment),
+        attachments:
+          request.attachments === null ? [] : JSON.parse(request.attachments),
       };
     });
   }
@@ -317,6 +323,17 @@ export class AdmissionQueue {
            LIMIT 1`,
         )
         .get(sessionKey, updateIdentifier) !== undefined
+    );
+  }
+
+  /** Whether an update already has a trace entry with this action. */
+  hasTrace({ updateIdentifier, action }) {
+    return (
+      this.#database
+        .prepare(
+          "SELECT 1 FROM trace WHERE update_identifier = ? AND action = ? LIMIT 1",
+        )
+        .get(updateIdentifier, action) !== undefined
     );
   }
 

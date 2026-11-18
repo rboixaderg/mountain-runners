@@ -1,7 +1,9 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
+  classifyAlbum,
   classifyInstruction,
+  isAlbumMember,
   verifyMembership,
 } from "../../src/telegram/attribution.mjs";
 
@@ -274,14 +276,16 @@ test("accepts an image document with the mention in its caption", () => {
 
   assert.equal(result.decision, "instruction");
   assert.equal(result.text, "usa aquesta imatge");
-  assert.deepEqual(result.attachment, {
-    fileIdentifier: "telegram-file",
-    fileUniqueIdentifier: "telegram-unique-file",
-    fileName: "portada.png",
-    mimeType: "image/png",
-    fileSize: 1200000,
-    origin: "message",
-  });
+  assert.deepEqual(result.attachments, [
+    {
+      fileIdentifier: "telegram-file",
+      fileUniqueIdentifier: "telegram-unique-file",
+      fileName: "portada.png",
+      mimeType: "image/png",
+      fileSize: 1200000,
+      origin: "message",
+    },
+  ]);
 });
 
 test("accepts a document that replies to the bot and takes its caption", () => {
@@ -296,7 +300,7 @@ test("accepts a document that replies to the bot and takes its caption", () => {
 
   assert.equal(result.decision, "instruction");
   assert.equal(result.text, "usa aquesta imatge");
-  assert.equal(result.attachment?.origin, "message");
+  assert.equal(result.attachments[0]?.origin, "message");
 });
 
 test("accepts the document of the message the instruction replies to", () => {
@@ -316,8 +320,8 @@ test("accepts the document of the message the instruction replies to", () => {
 
   assert.equal(result.decision, "instruction");
   assert.equal(result.text, "revisa el README");
-  assert.equal(result.attachment?.origin, "reply");
-  assert.equal(result.attachment?.fileIdentifier, "telegram-file");
+  assert.equal(result.attachments[0]?.origin, "reply");
+  assert.equal(result.attachments[0]?.fileIdentifier, "telegram-file");
 });
 
 test("accepts a reply to the document message that answers with the rights", () => {
@@ -338,7 +342,7 @@ test("accepts a reply to the document message that answers with the rights", () 
     result.text,
     "l'origen és propi, els drets són de l'entitat i el crèdit és seu",
   );
-  assert.equal(result.attachment?.origin, "reply");
+  assert.equal(result.attachments[0]?.origin, "reply");
 });
 
 test("ignores a document quoted from another topic", () => {
@@ -354,16 +358,16 @@ test("ignores a document quoted from another topic", () => {
   const result = classifyInstruction(update, context);
 
   assert.equal(result.decision, "instruction");
-  assert.equal(result.attachment, null);
+  assert.deepEqual(result.attachments, []);
 });
 
 test("keeps a text instruction without an attachment", () => {
   const result = classifyInstruction(baseUpdate(), context);
 
-  assert.equal(result.attachment, null);
+  assert.deepEqual(result.attachments, []);
 });
 
-test("refuses a compressed photo and asks for a file", () => {
+test("accepts a compressed photo with its largest size", () => {
   const result = classifyInstruction(
     baseUpdate({
       text: undefined,
@@ -371,15 +375,38 @@ test("refuses a compressed photo and asks for a file", () => {
       caption: `@${botUsername} usa aquesta foto`,
       caption_entities: [mentionEntity()],
       photo: [
-        { file_id: "small", file_unique_id: "small-unique", width: 90 },
-        { file_id: "large", file_unique_id: "large-unique", width: 1280 },
+        {
+          file_id: "small",
+          file_unique_id: "small-unique",
+          width: 90,
+          height: 90,
+          file_size: 1000,
+        },
+        {
+          file_id: "large",
+          file_unique_id: "large-unique",
+          width: 1280,
+          height: 960,
+          file_size: 200000,
+        },
       ],
     }),
     context,
   );
 
-  assert.equal(result.decision, "refuse");
-  assert.equal(result.reason, "photo");
+  assert.equal(result.decision, "instruction");
+  assert.deepEqual(result.attachments, [
+    {
+      fileIdentifier: "large",
+      fileUniqueIdentifier: "large-unique",
+      fileName: "foto.jpg",
+      mimeType: "image/jpeg",
+      fileSize: 200000,
+      origin: "message",
+      width: 1280,
+      height: 960,
+    },
+  ]);
   assert.equal(result.sessionKey, "-1001234567890:7");
   assert.equal(result.authorIdentifier, 42);
 });
@@ -416,7 +443,7 @@ test("never echoes a declared type that is not a plain MIME token", () => {
   assert.equal(result.type, undefined);
 });
 
-test("refuses a compressed photo even when it replies to a document", () => {
+test("the photo of the message wins over a replied document", () => {
   const result = classifyInstruction(
     documentUpdate({
       text: undefined,
@@ -435,22 +462,22 @@ test("refuses a compressed photo even when it replies to a document", () => {
     context,
   );
 
-  assert.equal(result.decision, "refuse");
-  assert.equal(result.reason, "photo");
+  assert.equal(result.decision, "instruction");
+  assert.equal(result.attachments[0].fileIdentifier, "large");
+  assert.equal(result.attachments[0].mimeType, "image/jpeg");
 });
 
-test("refuses a declared image above the size limit with its size", () => {
+test("refuses an image above the 20 MB input limit with its size", () => {
+  const fileSize = 21 * 1024 * 1024;
   const result = classifyInstruction(
-    documentUpdate({
-      document: imageDocument({ file_size: 3 * 1024 * 1024 }),
-    }),
+    documentUpdate({ document: imageDocument({ file_size: fileSize }) }),
     context,
   );
 
   assert.equal(result.decision, "refuse");
   assert.equal(result.reason, "declared_too_large");
   assert.equal(result.type, "png");
-  assert.equal(result.bytes, 3 * 1024 * 1024);
+  assert.equal(result.bytes, fileSize);
 });
 
 test("ignores a forwarded document message", () => {
@@ -480,6 +507,50 @@ test("ignores a document that does not address the bot", () => {
     documentUpdate({ caption: "mira aquesta imatge", caption_entities: [] }),
     context,
   );
+
+  assert.equal(result.decision, "ignore");
+  assert.equal(result.reason, "not_addressed_to_bot");
+});
+
+function albumMember(updateIdentifier, overrides = {}) {
+  const update = baseUpdate({
+    media_group_id: "album-1",
+    photo: [
+      {
+        file_id: `photo-${updateIdentifier}`,
+        file_unique_id: `unique-${updateIdentifier}`,
+        width: 1280,
+        height: 960,
+        file_size: 200000,
+      },
+    ],
+    ...overrides,
+  });
+  update.update_id = updateIdentifier;
+  update.message.message_id = updateIdentifier + 1000;
+  return update;
+}
+
+test("recognises an album member and uses the smallest update identifier as key", () => {
+  const updates = [albumMember(12), albumMember(10), albumMember(11)];
+
+  assert.equal(isAlbumMember(updates[0], context), true);
+  const result = classifyAlbum(updates, context);
+
+  assert.equal(result.decision, "instruction");
+  assert.equal(result.updateIdentifier, 10);
+  assert.equal(result.attachments.length, 3);
+});
+
+test("ignores an album that does not address the bot before any refusal", () => {
+  const updates = [10, 11, 12, 13, 14, 15].map((updateIdentifier) =>
+    albumMember(updateIdentifier, {
+      text: "no adreçat al bot",
+      entities: [],
+    }),
+  );
+
+  const result = classifyAlbum(updates, context);
 
   assert.equal(result.decision, "ignore");
   assert.equal(result.reason, "not_addressed_to_bot");

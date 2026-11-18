@@ -189,30 +189,40 @@ test("tells whether the session has another instruction pending or running", (co
   queue.close();
 });
 
-test("stores the attachment with the admitted instruction", (context) => {
+test("stores the attachments with the admitted instruction", (context) => {
   const queue = new AdmissionQueue(databasePath(context), { maxPending: 10 });
-  const attachment = {
-    fileIdentifier: "telegram-file",
-    fileUniqueIdentifier: "telegram-unique-file",
-    fileName: "portada.png",
-    mimeType: "image/png",
-    fileSize: 1200000,
-    origin: "message",
-  };
+  const attachments = [
+    {
+      fileIdentifier: "telegram-file",
+      fileUniqueIdentifier: "telegram-unique-file",
+      fileName: "imatge-1.png",
+      mimeType: "image/png",
+      fileSize: 1200000,
+      origin: "message",
+    },
+    {
+      fileIdentifier: "telegram-file-2",
+      fileUniqueIdentifier: "telegram-unique-file-2",
+      fileName: "foto.jpg",
+      mimeType: "image/jpeg",
+      fileSize: 900000,
+      origin: "message",
+    },
+  ];
 
-  assert.equal(queue.admit(request(1, { attachment })), "accepted");
-  assert.deepEqual(queue.next().attachment, attachment);
+  assert.equal(queue.admit(request(1, { attachments })), "accepted");
+  assert.deepEqual(queue.next().attachments, attachments);
   queue.close();
 });
 
 test("returns no attachment for an instruction without one", (context) => {
   const queue = new AdmissionQueue(databasePath(context), { maxPending: 10 });
   assert.equal(queue.admit(request(1)), "accepted");
-  assert.equal(queue.next().attachment, null);
+  assert.deepEqual(queue.next().attachments, []);
   queue.close();
 });
 
-test("adds the attachment column to an existing database", (context) => {
+test("migrates the single attachment column into a list", (context) => {
   const path = databasePath(context);
   const database = new DatabaseSync(path);
   database.exec(`
@@ -223,6 +233,7 @@ test("adds the attachment column to an existing database", (context) => {
       session_key TEXT NOT NULL,
       author_identifier INTEGER NOT NULL,
       instruction TEXT NOT NULL,
+      attachment TEXT,
       status TEXT NOT NULL CHECK (status IN ('pending', 'running', 'uncertain', 'done', 'rejected')),
       outcome TEXT,
       created_at TEXT NOT NULL
@@ -231,8 +242,8 @@ test("adds the attachment column to an existing database", (context) => {
   database
     .prepare(
       `INSERT INTO instructions
-         (update_identifier, message_identifier, session_key, author_identifier, instruction, status, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+         (update_identifier, message_identifier, session_key, author_identifier, instruction, attachment, status, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
     )
     .run(
       1,
@@ -240,25 +251,44 @@ test("adds the attachment column to an existing database", (context) => {
       "-1001234567890:7",
       42,
       "instruction 1",
+      JSON.stringify({
+        fileIdentifier: "telegram-file",
+        fileUniqueIdentifier: "telegram-unique-file",
+        fileName: "portada.png",
+        mimeType: "image/png",
+        fileSize: 1200000,
+        origin: "message",
+      }),
       "pending",
       "2026-01-01T00:00:00.000Z",
     );
   database.close();
 
   const queue = new AdmissionQueue(path, { maxPending: 10 });
-  assert.equal(queue.next().attachment, null);
+  assert.deepEqual(queue.next().attachments, [
+    {
+      fileIdentifier: "telegram-file",
+      fileUniqueIdentifier: "telegram-unique-file",
+      fileName: "portada.png",
+      mimeType: "image/png",
+      fileSize: 1200000,
+      origin: "message",
+    },
+  ]);
   queue.complete(1, "answered");
 
-  const attachment = {
-    fileIdentifier: "telegram-file",
-    fileUniqueIdentifier: "telegram-unique-file",
-    fileName: "foto.jpg",
-    mimeType: "image/jpeg",
-    fileSize: 900000,
-    origin: "reply",
-  };
-  assert.equal(queue.admit(request(2, { attachment })), "accepted");
-  assert.deepEqual(queue.next().attachment, attachment);
+  const attachments = [
+    {
+      fileIdentifier: "telegram-file",
+      fileUniqueIdentifier: "telegram-unique-file",
+      fileName: "foto.jpg",
+      mimeType: "image/jpeg",
+      fileSize: 900000,
+      origin: "reply",
+    },
+  ];
+  assert.equal(queue.admit(request(2, { attachments })), "accepted");
+  assert.deepEqual(queue.next().attachments, attachments);
   queue.close();
 });
 
@@ -329,5 +359,28 @@ test("keeps an instruction uncertain when its trace cannot be written", (context
     }),
   );
   assert.equal(queue.status(1), "uncertain");
+  queue.close();
+});
+
+test("finds a trace entry of an update by action", (context) => {
+  const queue = new AdmissionQueue(databasePath(context), { maxPending: 10 });
+  queue.recordTrace({
+    updateIdentifier: 10,
+    action: "attachment_refused",
+    detail: "reason=too_large",
+  });
+
+  assert.equal(
+    queue.hasTrace({ updateIdentifier: 10, action: "attachment_refused" }),
+    true,
+  );
+  assert.equal(
+    queue.hasTrace({ updateIdentifier: 10, action: "instruction_completed" }),
+    false,
+  );
+  assert.equal(
+    queue.hasTrace({ updateIdentifier: 11, action: "attachment_refused" }),
+    false,
+  );
   queue.close();
 });

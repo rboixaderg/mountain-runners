@@ -23,6 +23,7 @@ import {
   unclearRequestLine,
 } from "../policy/development.mjs";
 import { createAttachmentPreparation } from "../attachments/prepare.mjs";
+import { createAttachmentStore } from "../attachments/store.mjs";
 import {
   jpegImage,
   pngImage,
@@ -1805,14 +1806,16 @@ test("never warns when another topic continues its own published pull request", 
 function attachmentRequest(overrides = {}) {
   return request({
     instruction: "usa la imatge adjunta a la portada",
-    attachment: {
-      fileIdentifier: "telegram-file",
-      fileUniqueIdentifier: "telegram-unique-file",
-      fileName: "Portada.PNG",
-      mimeType: "image/png",
-      fileSize: 1200000,
-      origin: "message",
-    },
+    attachments: [
+      {
+        fileIdentifier: "telegram-file",
+        fileUniqueIdentifier: "telegram-unique-file",
+        fileName: "Portada.PNG",
+        mimeType: "image/png",
+        fileSize: 1200000,
+        origin: "message",
+      },
+    ],
     ...overrides,
   });
 }
@@ -1846,7 +1849,7 @@ test("places an attached image and appends the service text to the instruction",
       // The cleaned file is available while the model works and is removed
       // before the checks and the commit.
       assert.deepEqual(
-        readFileSync(join(worktreePath, ".agent-attachments", "portada.png")),
+        readFileSync(join(worktreePath, ".agent-attachments", "imatge-1.png")),
         image,
       );
       writeFileSync(join(worktreePath, "change.txt"), "canvi\n");
@@ -1861,13 +1864,18 @@ test("places an attached image and appends the service text to the instruction",
   const worktreePath = topicWorktreePath(paths);
   assert.equal(existsSync(join(worktreePath, ".agent-attachments")), false);
   assert.match(instructions[0], /^usa la imatge adjunta a la portada/u);
-  assert.match(instructions[0], /\.agent-attachments\/portada\.png/u);
-  assert.match(instructions[0], /image\/png; dimensions: 1200×800 px\./u);
-  assert.match(instructions[0], /unknown origin and rights/u);
+  assert.match(instructions[0], /imatge-1\.png: 1200×800 px \(new\)/u);
+  assert.match(instructions[0], /attached to this prompt as image input/u);
   assert.match(
     instructions[0],
-    /reply to the message that contains the image, mentioning the bot, with the origin, the rights and the credit/u,
+    /belongs to the club, with the credit «Mountain Runners»/u,
   );
+  assert.match(instructions[0], /view_attachment/u);
+  assert.match(
+    instructions[0],
+    /smaller than the recommended cover \(1200×675 px\)/u,
+  );
+  assert.match(instructions[0], /vertical poster is used whole/u);
   assert.deepEqual(
     traces.filter((entry) => entry.action === "attachment_accepted"),
     [
@@ -1912,7 +1920,7 @@ test("ignores an attached image in a consultation and says so once", async (cont
   assert.match(result.report, /El worktree és/u);
   assert.match(
     result.report,
-    /No s'ha fet servir l'adjunt: només una implementació o una continuació apliquen una imatge\.$/u,
+    /No s'ha fet servir la imatge en aquesta resposta\. Envia-la amb la feina on la vols aplicar\.$/u,
   );
   assert.equal(
     existsSync(join(topicWorktreePath(paths), ".agent-attachments")),
@@ -1943,7 +1951,7 @@ test("reports a refused attachment without starting the model", async (context) 
   const result = await runner(attachmentRequest());
 
   assert.equal(result.outcome, "failed");
-  assert.match(result.report, /no coincideix amb el nom ni el tipus/u);
+  assert.match(result.report, /no és la imatge que sembla/u);
   assert.equal(modelStarted, false);
   assert.equal(
     traces.some(
@@ -1972,9 +1980,9 @@ test("never commits an attachment on a branch without the ignore rule", async (c
       telegram: telegramAttachment(image),
     }),
     runModel: async ({ instruction, worktreePath }) => {
-      assert.match(instruction, /\.agent-attachments\/portada\.png/u);
+      assert.match(instruction, /imatge-1\.png: 200×100 px \(new\)/u);
       assert.equal(
-        existsSync(join(worktreePath, ".agent-attachments", "portada.png")),
+        existsSync(join(worktreePath, ".agent-attachments", "imatge-1.png")),
         true,
       );
       writeFileSync(join(worktreePath, "change.txt"), "canvi\n");
@@ -2041,7 +2049,7 @@ test("continues a branch created before the ignore rule without publishing the a
     },
     runChecks: async () => ({ exitCode: 1, stdout: "", stderr: "" }),
   });
-  const failed = await first(attachmentRequest({ attachment: null }));
+  const failed = await first(attachmentRequest({ attachments: [] }));
 
   assert.equal(failed.outcome, "failed");
   assert.deepEqual(github.pushes, []);
@@ -2055,9 +2063,9 @@ test("continues a branch created before the ignore rule without publishing the a
       telegram: telegramAttachment(image),
     }),
     runModel: async ({ instruction, worktreePath }) => {
-      assert.match(instruction, /\.agent-attachments\/portada\.png/u);
+      assert.match(instruction, /imatge-1\.png: 200×100 px \(new\)/u);
       assert.equal(
-        existsSync(join(worktreePath, ".agent-attachments", "portada.png")),
+        existsSync(join(worktreePath, ".agent-attachments", "imatge-1.png")),
         true,
       );
       return { text: "No he canviat cap fitxer." };
@@ -2594,7 +2602,7 @@ test("applies the image of a continuation to the pull request of the topic", asy
       }
       assert.deepEqual(
         readFileSync(
-          join(options.worktreePath, ".agent-attachments", "portada.png"),
+          join(options.worktreePath, ".agent-attachments", "imatge-1.png"),
         ),
         image,
         "the continuation applies the image to the same worktree",
@@ -2867,4 +2875,239 @@ test("keeps the service events when the turn stops before the prompt is written"
     "Efecte pendent.",
     "a prompt that was never written never reached Pi",
   );
+});
+
+// T8.8: the topic keeps its images and the model receives them as image input.
+
+test("keeps listing the stored image on a later turn without a new attachment", async (context) => {
+  const paths = await fixture(context);
+  const github = githubStub();
+  const prompts = [];
+  const runner = createProjectRunner({
+    config: configFor(paths),
+    github,
+    classifyRequest: async () => "implementation",
+    prepareAttachment: createAttachmentPreparation({
+      telegram: telegramAttachment(pngImage({ width: 200, height: 100 })),
+    }),
+    runModel: async ({ instruction, worktreePath, images }) => {
+      prompts.push({ instruction, images });
+      const staged = join(worktreePath, ".agent-attachments", "imatge-1.png");
+      assert.equal(
+        existsSync(staged),
+        true,
+        "the stored image is staged again",
+      );
+      writeFileSync(
+        join(worktreePath, `change-${prompts.length}.txt`),
+        "canvi\n",
+      );
+      return {
+        text: `Canvi.\nSUMMARY: feat(content): change ${prompts.length}`,
+      };
+    },
+    runChecks: async () => ({ exitCode: 0, stdout: "", stderr: "" }),
+  });
+
+  const first = await runner(attachmentRequest());
+  assert.equal(first.outcome, "pull_request_created");
+  assert.equal(prompts[0].images.length, 1);
+
+  const second = await runner(
+    request({ updateIdentifier: 1002, instruction: "fes un altre canvi" }),
+  );
+
+  assert.equal(second.outcome, "pull_request_created", second.report);
+  assert.match(prompts[1].instruction, /imatge-1\.png: 200×100 px/u);
+  assert.doesNotMatch(
+    prompts[1].instruction,
+    /imatge-1\.png: 200×100 px \(new\)/u,
+  );
+  assert.deepEqual(
+    prompts[1].images,
+    [],
+    "an older image is listed but not sent again as image input",
+  );
+});
+
+test("sends the prepared image of the turn as image input of the prompt", async (context) => {
+  const paths = await fixture(context);
+  const image = pngImage({ width: 1200, height: 800 });
+  let receivedImages = null;
+  const runner = createProjectRunner({
+    config: configFor(paths),
+    github: githubStub(),
+    classifyRequest: async () => "implementation",
+    prepareAttachment: createAttachmentPreparation({
+      telegram: telegramAttachment(image),
+    }),
+    runModel: async ({ images, worktreePath }) => {
+      receivedImages = images;
+      writeFileSync(join(worktreePath, "change.txt"), "canvi\n");
+      return { text: "Canvi.\nSUMMARY: feat(content): use the image" };
+    },
+    runChecks: async () => ({ exitCode: 0, stdout: "", stderr: "" }),
+  });
+
+  const result = await runner(attachmentRequest());
+
+  assert.equal(result.outcome, "pull_request_created");
+  assert.equal(receivedImages.length, 1);
+  assert.equal(receivedImages[0].type, "image");
+  assert.equal(receivedImages[0].mimeType, "image/png");
+  assert.deepEqual(Buffer.from(receivedImages[0].data, "base64"), image);
+});
+
+test("stores the downscaled image that the sandbox returned", async (context) => {
+  const paths = await fixture(context);
+  const original = pngImage({ width: 3000, height: 2000 });
+  const downscaled = pngImage({ width: 2400, height: 1600 });
+  const scaledInputs = [];
+  let prompt = null;
+  const runner = createProjectRunner({
+    config: configFor(paths),
+    github: githubStub(),
+    classifyRequest: async () => "implementation",
+    prepareAttachment: createAttachmentPreparation({
+      telegram: telegramAttachment(original),
+    }),
+    scaleAttachments: async ({ images }) => {
+      scaledInputs.push(...images);
+      return {
+        images: [
+          { ...images[0], bytes: downscaled, width: 2400, height: 1600 },
+        ],
+      };
+    },
+    runModel: async ({ instruction, images, worktreePath }) => {
+      prompt = { instruction, images };
+      const staged = readFileSync(
+        join(worktreePath, ".agent-attachments", "imatge-1.png"),
+      );
+      assert.deepEqual(staged, downscaled);
+      writeFileSync(join(worktreePath, "change.txt"), "canvi\n");
+      return { text: "Canvi.\nSUMMARY: feat(content): use the image" };
+    },
+    runChecks: async () => ({ exitCode: 0, stdout: "", stderr: "" }),
+  });
+
+  const result = await runner(attachmentRequest());
+
+  assert.equal(result.outcome, "pull_request_created");
+  assert.equal(scaledInputs.length, 1);
+  assert.equal(scaledInputs[0].width, 3000);
+  assert.match(prompt.instruction, /imatge-1\.png: 2400×1600 px/u);
+  assert.deepEqual(Buffer.from(prompt.images[0].data, "base64"), downscaled);
+});
+
+test("skips the runtime preparation when the sandbox already installed the worktree", async (context) => {
+  const paths = await fixture(context);
+  const original = pngImage({ width: 3000, height: 2000 });
+  const downscaled = pngImage({ width: 2400, height: 1600 });
+  const sandboxCommands = [];
+  const runner = createProjectRunner({
+    config: configFor(paths),
+    github: githubStub(),
+    classifyRequest: async () => "implementation",
+    prepareAttachment: createAttachmentPreparation({
+      telegram: telegramAttachment(original),
+    }),
+    scaleAttachments: async ({ images }) => ({
+      images: [{ ...images[0], bytes: downscaled, width: 2400, height: 1600 }],
+    }),
+    executeSandbox: async ({ command }) => {
+      sandboxCommands.push(command);
+      return { exitCode: 0, timedOut: false };
+    },
+    executeAgent: async () => ({ text: "No he canviat cap fitxer." }),
+    runChecks: async () => assert.fail("no checks without changes"),
+  });
+
+  const result = await runner(attachmentRequest());
+
+  assert.equal(result.outcome, "answered");
+  assert.deepEqual(
+    sandboxCommands,
+    [],
+    "the downscale already ran the offline install",
+  );
+});
+
+test("logs a post-publication store failure without changing the result", async (context) => {
+  const paths = await fixture(context);
+  const image = pngImage({ width: 200, height: 100 });
+  const store = createAttachmentStore({ stateDirectory: paths.state });
+  const events = [];
+  const runner = createProjectRunner({
+    config: configFor(paths),
+    github: githubStub(),
+    attachmentStore: {
+      ...store,
+      remove: () => {
+        throw new Error("synthetic manifest failure");
+      },
+    },
+    classifyRequest: async () => "implementation",
+    prepareAttachment: createAttachmentPreparation({
+      telegram: telegramAttachment(image),
+    }),
+    logger: (event) => events.push(event),
+    runModel: async ({ worktreePath }) => {
+      writeFileSync(join(worktreePath, "cover.png"), image);
+      return { text: "Canvi.\nSUMMARY: feat(content): use the cover" };
+    },
+    runChecks: async () => ({ exitCode: 0, stdout: "", stderr: "" }),
+  });
+
+  const result = await runner(attachmentRequest());
+
+  assert.equal(result.outcome, "pull_request_created", result.report);
+  assert.deepEqual(events, ["attachment_store_failed"]);
+});
+
+test("omits the image that does not fit the prompt byte budget and names it", async (context) => {
+  const paths = await fixture(context);
+  const image = pngImage({ width: 800, height: 600, filler: 4_500_000 });
+  let prompt = null;
+  const runner = createProjectRunner({
+    config: configFor(paths),
+    github: githubStub(),
+    classifyRequest: async () => "implementation",
+    prepareAttachment: createAttachmentPreparation({
+      telegram: {
+        async getFile({ fileIdentifier }) {
+          return { file_id: fileIdentifier, file_path: "documents/file.png" };
+        },
+        async downloadFile() {
+          return image;
+        },
+      },
+    }),
+    runModel: async ({ instruction, images, worktreePath }) => {
+      prompt = { instruction, images };
+      writeFileSync(join(worktreePath, "change.txt"), "canvi\n");
+      return { text: "Canvi.\nSUMMARY: feat(content): use the images" };
+    },
+    runChecks: async () => ({ exitCode: 0, stdout: "", stderr: "" }),
+  });
+  const attachment = (fileIdentifier) => ({
+    fileIdentifier,
+    fileUniqueIdentifier: `${fileIdentifier}-unique`,
+    fileName: "portada.png",
+    mimeType: "image/png",
+    fileSize: image.length,
+    origin: "message",
+  });
+
+  const result = await runner(
+    request({
+      instruction: "usa les imatges adjuntes",
+      attachments: [attachment("first"), attachment("second")],
+    }),
+  );
+
+  assert.equal(result.outcome, "pull_request_created", result.report);
+  assert.equal(prompt.images.length, 1);
+  assert.match(prompt.instruction, /too large to send as image input/u);
+  assert.match(prompt.instruction, /imatge-2\.png/u);
 });

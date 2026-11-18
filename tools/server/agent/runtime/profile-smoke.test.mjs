@@ -101,7 +101,7 @@ test(
       .filter((line) => line.startsWith("{"))
       .map((line) => JSON.parse(line));
     const tools = records.find((record) => record.type === "test_tools");
-    assert.deepEqual(tools?.names, ["sandbox_bash"], stderr);
+    assert.deepEqual(tools?.names, ["sandbox_bash", "view_attachment"], stderr);
     assert.equal(existsSync(marker), false);
     assert.doesNotMatch(stderr, /Failed to load extension/u);
   },

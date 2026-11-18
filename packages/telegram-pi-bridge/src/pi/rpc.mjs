@@ -99,6 +99,7 @@ export async function runPiPrompt({
   onInterrupted,
   spawnImpl = spawn,
   message,
+  images = [],
 }) {
   signal?.throwIfAborted();
   if (!isAbsolute(profileDirectory)) {
@@ -252,10 +253,14 @@ export async function runPiPrompt({
       // ended. The caller hears about the prompt only here.
       if (finished || aborted || timedOut) return;
       onPromptSent?.();
+      const prompt = { id: "prompt-1", type: "prompt", message };
+      // Images are already cleaned and bounded by the caller; the transport
+      // only forwards them in the format the RPC accepts.
+      if (images.length > 0) {
+        prompt.images = images;
+      }
       try {
-        child.stdin.write(
-          `${JSON.stringify({ id: "prompt-1", type: "prompt", message })}\n`,
-        );
+        child.stdin.write(`${JSON.stringify(prompt)}\n`);
       } catch (error) {
         finish(() => rejectPromise(error));
       }

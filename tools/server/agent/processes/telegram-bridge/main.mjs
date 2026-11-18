@@ -33,7 +33,10 @@ import {
   defaultRequestTimeoutMilliseconds,
   requestSignal,
 } from "../../repository/request-signal.mjs";
-import { pruneArchivedWorktrees } from "../../repository/retention.mjs";
+import {
+  pruneArchivedWorktrees,
+  pruneStoredAttachments,
+} from "../../repository/retention.mjs";
 import { openIdentifierNames } from "../../repository/identifiers.mjs";
 import { renameLegacyWorktrees } from "../../repository/worktrees.mjs";
 import { createCiRepairExecutor } from "../../workflow/ci-repair.mjs";
@@ -260,6 +263,24 @@ export async function startService({
   } catch (error) {
     logger(
       "worktree_retention_failed",
+      error instanceof Error ? error.message : "unknown",
+    );
+  }
+
+  // An attachment stays available to its topic until it is published or for
+  // seven days. The store lives in the private state directory, outside the
+  // worktree and outside Git.
+  try {
+    const prunedAttachments = pruneStoredAttachments({
+      statePath: config.paths.state,
+      logger,
+    });
+    if (prunedAttachments.length > 0) {
+      logger("attachment_retention_applied", String(prunedAttachments.length));
+    }
+  } catch (error) {
+    logger(
+      "attachment_retention_failed",
       error instanceof Error ? error.message : "unknown",
     );
   }

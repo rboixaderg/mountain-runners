@@ -2,9 +2,9 @@
 //
 // The bytes are the authority: the container is detected from its signature and
 // must match the declared extension and MIME type, the dimensions are read from
-// the headers, and the metadata containers are removed. Nothing is resized or
-// re-encoded, so a file above a limit is refused with its real size and
-// dimensions instead of being silently changed.
+// the headers, and the metadata containers are removed. No pixel is decoded
+// here and nothing is re-encoded: a large image is downscaled later inside the
+// sandbox, never in the trusted process.
 //
 // The accepted table and the byte limit come from the bridge, which applies the
 // same contract to the declared metadata at admission.
@@ -21,7 +21,7 @@ import {
 } from "./image-format.mjs";
 import { attachmentRefusalReasons } from "./refusals.mjs";
 
-// A long side above this needs a different export, not a larger image.
+// A longer side is downscaled inside the sandbox, never in this process.
 export const maximumAttachmentLongSide = 2400;
 
 function matchesDeclaredType(documentType, { fileName, mimeType }) {
@@ -75,20 +75,6 @@ export function prepareImageAttachment({ bytes, fileName, mimeType }) {
       refusal: {
         reason: attachmentRefusalReasons.damagedImage,
         type,
-        bytes: byteSize,
-      },
-    };
-  }
-  if (
-    inspected.width > maximumAttachmentLongSide ||
-    inspected.height > maximumAttachmentLongSide
-  ) {
-    return {
-      refusal: {
-        reason: attachmentRefusalReasons.dimensionsAboveLimit,
-        type,
-        width: inspected.width,
-        height: inspected.height,
         bytes: byteSize,
       },
     };

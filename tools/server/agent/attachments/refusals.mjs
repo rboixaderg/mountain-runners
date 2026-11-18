@@ -7,8 +7,6 @@ export const attachmentRefusalReasons = {
   damagedImage: "damaged_image",
   fakeType: "fake_type",
   tooLarge: "too_large",
-  dimensionsAboveLimit: "dimensions_above_limit",
   downloadFailed: "download_failed",
-  destinationExists: "destination_exists",
-  destinationUnavailable: "destination_unavailable",
+  scaleFailed: "scale_failed",
 };
