@@ -1,0 +1,177 @@
+.agents/skills/plausible-analytics/SKILL.md
+  s_1b3f8a4865c279::t_dbda148c4ef1af 4
+.node-version
+  s_1b3f8a4865c279::t_64d4105d8f7201 1
+CONTRIBUTING.md
+  s_1b3f8a4865c279::t_247b1f28dffc1b 10
+README.md
+  s_1b3f8a4865c279::t_0b18565e143419 24
+apps/web/package.json
+  s_1b3f8a4865c279::t_0dd458083cc544 30,32
+docs/decisions/0013-private-development-agent-boundary.md
+  s_1b3f8a4865c279::t_f7f3f616913dc6 13-14
+docs/decisions/0014-operator-stop-and-repeatable-telegram-notices.md
+  s_1b3f8a4865c279::t_b86fae65031793 1-75
+docs/deployment.md
+  s_1b3f8a4865c279::t_9a098626d5af40 462-474,488-491,500-506,524-528,531-532,555-557,563-626,629-633,669,696-706,756-766,782-786,804-805,855-857,898-899,941-944,993-995,1011-1013,1024,1056,1137-1206,1289-1298,1319-1320,1330-1331,1346-1347,1353-1354,1357-1374,1385-1390,1396-1398,1412-1413,1419-1422,1438-1439,1511,1522-1528
+docs/phase-8-t81-requisits-amenaces.md
+  s_1b3f8a4865c279::t_29ad936adfb600 73-78
+docs/runbook.md
+  s_1b3f8a4865c279::t_f4ccbee7464ec6 1223-1228,1334-1341
+docs/specs/phase-8-editorial-assistance.md
+  s_1b3f8a4865c279::t_09b74dd13fb7ad 158-159,184,356-386,445-486,584-588,683,717-720
+package.json
+  s_1b3f8a4865c279::t_3fd9ea89a4a90a 7,62,66
+packages/telegram-pi-bridge/README.md
+  s_1b3f8a4865c279::t_1651e21c2044be 48-49,84,108,116-119,161-169,176-182,216-222
+packages/telegram-pi-bridge/package.json
+  s_1b3f8a4865c279::t_eb62b98cb33e71 9
+packages/telegram-pi-bridge/src/pi/rpc.mjs
+  s_1b3f8a4865c279::t_bfdccf343ca570 81-82,98,220-222,249-262
+packages/telegram-pi-bridge/src/telegram/api.mjs
+  s_1b3f8a4865c279::t_526d4f8bdd6bc2 9-17,76-85,92-107,110-138,147,151,157-161,188-192,210-213,218,221,229
+packages/telegram-pi-bridge/src/telegram/bridge.mjs
+  s_1b3f8a4865c279::t_117032b1add950 37-46,89,94,103,109,120,126,160-162,171-186,206-207,217,219-221,237,240-245,302,305
+packages/telegram-pi-bridge/src/telegram/index.mjs
+  s_1b3f8a4865c279::t_1a7859ff9607f9 5-6
+packages/telegram-pi-bridge/test/pi/rpc.test.mjs
+  s_1b3f8a4865c279::t_bc61d73669844c 10,14,317,319,327,331-437
+packages/telegram-pi-bridge/test/telegram/api.test.mjs
+  s_1b3f8a4865c279::t_3f886a0164d2cd 6,10-20,138-439
+packages/telegram-pi-bridge/test/telegram/bridge.test.mjs
+  s_1b3f8a4865c279::t_b7ef430fd2dec8 7,76-115,122,124,134,138,142-156,272-300,476-517,784-819
+pnpm-lock.yaml
+  s_1b3f8a4865c279::t_123e8fc9c01f9d 51,71-72,75,78,83-84,93,99,101-102,124,132-133,138-139,142,229-230,244-245,268-269,276-277,281-282,422-423,426-427,555-558,1134-1136,1171-1172,1174,1183-1184,1187,1195-1196,1198,1207-1208,1211,1219-1220,1222-1223,1231-1232,1234,1244-1245,1249,1258-1259,1261,1263,1272-1273,1275,1286-1287,1289,1300-1301,1305,1314-1315,1317-1319,1327-1332,1338-1341,1349-1350,1352,1361-1366,1594-1595,1598,1602-1603,1609-1610,1619-1624,1629-1630,1640-1645,1650-1651,1661-1664,1829-1830,1942-1943,2750-2751,3010-3011,3046-3047,3146-3147,3152-3154,3275-3276,3358-3359,3363-3364,3407-3411,3466-3467,3591-3593,3597-3598,3657-3658,3810-3811,4146,4148,4209,4220,4233,4240-4241,4246,4248,4259,4279,4283,4285,4287,4289,4400,4403,4405,4407,4410,4572-4573,4751,4765,4971-4972,4993,4999,5005,5011,5017,5023,5029,5035,5041,5047,5053,5059,5065-5067,5075-5079,5085,5091-5093,5253,5258,5314,5316-5321,5330,5332-5335,5342,5344-5345,5356-5361,5365,5367-5369,5379-5381,5383-5386,5389,5396,5399-5401,5412-5416,5419,5426,5590,5602,5604-5606,5609,5614-5616,5632,5639,5651-5652,5654,5793,6137,6150,6152,6380,6664,6674-6675,6845-6846,7033,7058,7216,7218,7224-7227,7270,7274,7277,7279,7281,7283,7396-7417,7472-7473,7576,7706-7707,7712,7714,7718,7780,7782,7784-7787,7898,7903,7911,7913,7915,7918,7929,7934,7963,7968,7979,8149
+tools/server/agent/README.md
+  s_1b3f8a4865c279::t_bbcfa0404af689 7-8,45-48,74,84,121-136,140-158,164-168,174-178,182-189,191-194,206-213,223-224,246,274-282,285-308,323-327,341-345,347-348,373-376,389-391,441-444,453
+tools/server/agent/commands/migrate-identifiers/cli.mjs
+  s_1b3f8a4865c279::t_ce201abad0292f 1-14
+tools/server/agent/commands/migrate-identifiers/cli.test.mjs
+  s_1b3f8a4865c279::t_be0d77986ed165 1-72
+tools/server/agent/commands/migrate-identifiers/command.mjs
+  s_1b3f8a4865c279::t_76c9002ceb34b9 1-51
+tools/server/agent/commands/migrate-identifiers/command.test.mjs
+  s_1b3f8a4865c279::t_a6bcd52af12250 1-394
+tools/server/agent/commands/reconcile/cli.test.mjs
+  s_1b3f8a4865c279::t_ecb6c77dca012f 9-10,52-57,76-89,127,145-164,169,369-498
+tools/server/agent/commands/reconcile/command.mjs
+  s_1b3f8a4865c279::t_eecbd7c8b8d48a 6-7,28,38-39,45,49,51-52,105-117,134-141,155,187,198-200,205,286
+tools/server/agent/commands/reconcile/command.test.mjs
+  s_1b3f8a4865c279::t_4b5939f8f8682d 7-9,26-27,63-191,241-326
+tools/server/agent/commands/reconcile/uncertain-cases.mjs
+  s_1b3f8a4865c279::t_4774e2ad0f6825 3-9,12-14,16,23-26,31,40,63-66,89-117,119,132,223-238,246-248,250-251,259-261,313-343,351-356,360,374,378,388,394,399-406,409,535-578,589,602,606,625-626,632-637,639-650,658,676-678,690,703,705-707
+tools/server/agent/commands/reconcile/uncertain-cases.test.mjs
+  s_1b3f8a4865c279::t_fc2d21953112db 15,18,66-68,109-110,112-115,117,180-199,246,248,396,398,434,436,448,452-459,478-520,522,524,539,553,557-561,566,568,579,588,590,835-947,974,976,990,1011
+tools/server/agent/policy/development.mjs
+  s_1b3f8a4865c279::t_f301cb5d9bad9c 57-80,101-103,109-112,138,140,143,324-331,333-337,350-351,366-367,540-541,567-568,655-659,661,689-690
+tools/server/agent/policy/development.test.mjs
+  s_1b3f8a4865c279::t_4d9879940272c1 16,18,88,90-97,212-277
+tools/server/agent/processes/telegram-bridge/main.mjs
+  s_1b3f8a4865c279::t_8a03664eb3c6ee 31,37-38,72-97,111-132,135,183-195,275,312,327,354,357-362,365-370,374,389,401,423,440,490,508
+tools/server/agent/processes/telegram-bridge/main.test.mjs
+  s_1b3f8a4865c279::t_e9d19ba2d0b50d 2-16,19,30-31,34-74,388-424,999-1012,1078-1222,1365-1561
+tools/server/agent/repository/ci-watch-store.mjs
+  s_1b3f8a4865c279::t_c9b3e3045c45f8 16-22,58-66,187-192,200,210-261,356-357,372,380,416-460,616-619,625
+tools/server/agent/repository/ci-watch-store.test.mjs
+  s_1b3f8a4865c279::t_0ee540f9d253d2 226,244-248,256-257,262-272,376-438,515-670
+tools/server/agent/repository/github.mjs
+  s_1b3f8a4865c279::t_2b0c040b35763e 19-22,24,90,98,111,114-123,125-131,140-146,159-163,165-168,179,193,197-199,215,379,385-386,406-412,414,426
+tools/server/agent/repository/github.test.mjs
+  s_1b3f8a4865c279::t_1f3d8197681537 3-9,15,75-124,491-567
+tools/server/agent/repository/identifiers.mjs
+  s_1b3f8a4865c279::t_f7d77a3ec06af0 1-136
+tools/server/agent/repository/identifiers.test.mjs
+  s_1b3f8a4865c279::t_60b07e90244551 1-107
+tools/server/agent/repository/publisher.mjs
+  s_1b3f8a4865c279::t_5efa142d776f50 3-4,14-17,25-26,29-42,52-53,65
+tools/server/agent/repository/publisher.test.mjs
+  s_1b3f8a4865c279::t_098e01b9407933 1-184
+tools/server/agent/repository/retention.mjs
+  s_1b3f8a4865c279::t_22e27333a27fdb 3-8,10,18-22,25-31,54,61-69,74
+tools/server/agent/repository/retention.test.mjs
+  s_1b3f8a4865c279::t_d7298ab496a0db 16,19-20,62,71,91-94,159-162,171-200
+tools/server/agent/repository/secret-scan.mjs
+  s_1b3f8a4865c279::t_dc70d0fc2f88a7 40-45,47,67,79-83,87,110
+tools/server/agent/repository/session-note-store.mjs
+  s_1b3f8a4865c279::t_cf044f3ef67f66 1-288
+tools/server/agent/repository/session-note-store.test.mjs
+  s_1b3f8a4865c279::t_fe07c375a26100 1-266
+tools/server/agent/repository/trusted-git.mjs
+  s_1b3f8a4865c279::t_ca46d3ebebab71 13-37,53-63,76-78,80-81,108-109,139-141,151-156
+tools/server/agent/repository/trusted-git.test.mjs
+  s_1b3f8a4865c279::t_9d6aabebf58e1e 1-121
+tools/server/agent/repository/worktrees.mjs
+  s_1b3f8a4865c279::t_d276bb6763bf88 6,8-9,11-12,15-16,21,24,27,33-46,77-80,88-91,112-113,118,120-121,123,128,132-136,140,143,145-147,151-155,160-161,163-165,179,181,187,211-212,214,219-220,228-236,238,247,251,256,259,268,278,281,284-294,296-299,306-657,677,684,688-692,715-721,725,729,734-735,738,740-742,755,764,768-771,780,782,786-806,808,811-812,815-817,821-825,838-843
+tools/server/agent/repository/worktrees.test.mjs
+  s_1b3f8a4865c279::t_095754b037b485 4,6-7,9,11,15,19,29,32,36-38,85,90,105,116,133,146,221,240,296,309-313,335,381,408,418-803
+tools/server/agent/runtime/agent.mjs
+  s_1b3f8a4865c279::t_d554f13f359a32 9-10,13,15-21,26-27,29
+tools/server/agent/runtime/agent.test.mjs
+  s_1b3f8a4865c279::t_fa159c6a8105a4 1-139
+tools/server/agent/runtime/pi-adapter.mjs
+  s_1b3f8a4865c279::t_2e4cca416c8f56 13,25-27,42,48,67,70,80
+tools/server/agent/runtime/pi-adapter.test.mjs
+  s_1b3f8a4865c279::t_c998c05cd8678b 20,40-44,57
+tools/server/agent/runtime/profile-smoke.test.mjs
+  s_1b3f8a4865c279::t_fe1cd54476f5b0 46,65
+tools/server/agent/runtime/profile.mjs
+  s_1b3f8a4865c279::t_7d8b9d568e0fd0 8-9
+tools/server/agent/runtime/profile.test.mjs
+  s_1b3f8a4865c279::t_b569a7fa57c8c3 25,31
+tools/server/agent/runtime/request-kind.mjs
+  s_1b3f8a4865c279::t_e2b2043144ed69 4-8,20,31
+tools/server/agent/sandbox/Containerfile
+  s_1b3f8a4865c279::t_541184c405d49e 2
+tools/server/agent/workflow/bridge-package.test.mjs
+  s_1b3f8a4865c279::t_d872674b06500f 180
+tools/server/agent/workflow/ci-repair.mjs
+  s_1b3f8a4865c279::t_51afb3100edbd1 48-49,56-78,164-166,179-182,195-198,216-218,239-242,245-248,250-253,255,280-282,298,312-318,330-332,343
+tools/server/agent/workflow/ci-repair.test.mjs
+  s_1b3f8a4865c279::t_fbb388cb3209ff 7,63,81,180-181,314-345,575-622
+tools/server/agent/workflow/ci-watch.mjs
+  s_1b3f8a4865c279::t_61edf93bb3acee 19,32,196-209,230-234,267-268,307-313,372-375,402-415,425-444
+tools/server/agent/workflow/ci-watch.test.mjs
+  s_1b3f8a4865c279::t_8c84ccd4750736 7,9,85,102,190-213,706-745,1069,1072,1084,1089-1203
+tools/server/agent/workflow/cross-topic-continuation.mjs
+  s_1b3f8a4865c279::t_9aaf290a4bd0bb 23,92,132,155,184-188,261,265-266,269-288,327,330-331,355,382-387,389-392,398-408,411
+tools/server/agent/workflow/cross-topic-continuation.test.mjs
+  s_1b3f8a4865c279::t_588bdf356563af 17,21,28-32,102-117,130,138,195,209-210,240-244,293,296,299,330-394,440,469,471,482-486,506-516,562,573,600,602,619,640,642,722,760,763,816,820,845,894-896,1002,1016,1029,1033,1058,1062-1339
+tools/server/agent/workflow/journey.test.mjs
+  s_1b3f8a4865c279::t_0cc7ea35e89132 17,212-213,216-219
+tools/server/agent/workflow/merge-request.mjs
+  s_1b3f8a4865c279::t_3c72944f52f8cb 114-115,584-589,593-597,627,637
+tools/server/agent/workflow/merge-request.test.mjs
+  s_1b3f8a4865c279::t_52e7c9071ae572 19,29-31,61-62,78-81,92-94,126-127,385-503,997-1013
+tools/server/agent/workflow/overlap-warning.mjs
+  s_1b3f8a4865c279::t_b6e395899620be 30,39-42,44,51-53,62,67,69-70,80,82-84,88-89,100,112-116,127,132
+tools/server/agent/workflow/overlap-warning.test.mjs
+  s_1b3f8a4865c279::t_54c028bbd01c2c 15,19,21,23,113,161,200,228,264,308,343,382,419,456,495,532,580,596,639,684
+tools/server/agent/workflow/preview-request.mjs
+  s_1b3f8a4865c279::t_4a65b7fb6d39bc 38,63-64,141-151,277-282,286-290,356
+tools/server/agent/workflow/preview-request.test.mjs
+  s_1b3f8a4865c279::t_9e538b6aeab07d 10,212-261,607-660
+tools/server/agent/workflow/project-runner.mjs
+  s_1b3f8a4865c279::t_71d1fe24d1c7f4 7,34,49,61-63,68-72,83,89-91,95,103,105-116,127,149
+tools/server/agent/workflow/regressions.test.mjs
+  s_1b3f8a4865c279::t_68ee8b841d8378 26,95,125,193,200-204,229-230,321-323
+tools/server/agent/workflow/run-instruction.mjs
+  s_1b3f8a4865c279::t_3c0b8322184296 3-10,52,63-69,72-103,109,113-114,119-123,128,139-141,144,149-187,227-232,253-286,293-295,302-303,306,312-314,316-321,326-328,337-344,346-348,356-358,364-366,368-371,399-440,448,456-464,467-469,477,480,482-488,491-493,500,503,505,508,516,533,544,547,559-562,564-565,568-570,577-580,583-590,638-646,677-729
+tools/server/agent/workflow/run-instruction.test.mjs
+  s_1b3f8a4865c279::t_f49b36010debf9 13,18-24,30-31,39,114-162,327-330,340,376,383,391,405-407,410-411,433,451,536,538-539,542,544-548,550-563,598-602,609,639,687-690,712-758,796,834,907,920,957-1068,1097,1154-1158,1171,1213,1407,1418,1444-1448,1496,1498-1499,1523-1527,1543,1548-1551,1638,1672-1675,1683-1685,1692-1695,1714,1732,1861,1918,1957,1989,2023,2073,2085-2870
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "2b02beeed5cc3fd6e134f0a9e2a5d900d293cb72",
+  "prompts": {},
+  "sessions": {
+    "s_1b3f8a4865c279": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a1ef89-4be8-7776-b16b-6ea199b2da9d",
+        "model": "deepseek-v4.1-flash"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
