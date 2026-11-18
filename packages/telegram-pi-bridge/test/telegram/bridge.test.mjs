@@ -119,6 +119,7 @@ function bridgeFor({
   runInstruction = async () => ({}),
   runWhenIdle,
   messages,
+  onServiceReport,
   logger = () => {},
   membershipTimeoutMilliseconds,
 }) {
@@ -130,6 +131,7 @@ function bridgeFor({
     queue,
     runInstruction,
     runWhenIdle,
+    onServiceReport,
     botIdentifier,
     logger,
     pollTimeoutSeconds: 1,
@@ -777,6 +779,42 @@ test("refuses a compressed photo without queuing it", async (t) => {
   assert.equal(refusals[0].author_identifier, 42);
   assert.equal(refusals[0].session_key, "-1001234567890:7");
   assert.equal(refusals[0].detail, "reason=photo");
+});
+
+test("reports the refusal of an attachment to the owner of the topic", async (t) => {
+  const { queue } = context(t);
+  const telegram = telegramStub({
+    batches: [
+      [
+        documentUpdate(10, 7, {
+          document: {
+            file_id: "file",
+            file_unique_id: "unique",
+            file_name: "photo.gif",
+            mime_type: "image/gif",
+            file_size: 1024,
+          },
+        }),
+      ],
+    ],
+  });
+  const reports = [];
+  const bridge = bridgeFor({
+    queue,
+    telegram,
+    onServiceReport: ({ sessionKey, text, effectKey }) =>
+      reports.push({ sessionKey, text, effectKey }),
+  });
+
+  assert.equal(await bridge.pollOnce(), 1);
+
+  assert.deepEqual(reports, [
+    {
+      sessionKey: "-1001234567890:7",
+      text: telegram.sent[0].text,
+      effectKey: "attachment-refusal:10",
+    },
+  ]);
 });
 
 test("refuses an oversized document with the real size", async (t) => {

@@ -629,7 +629,25 @@ function resolveCase({
   }
 }
 
+/**
+ * Tell the topic that the case was resolved. The text is the effect of the
+ * service, so it is kept for the next turn of the session before it is sent: a
+ * failed notice never loses it, and its identity makes a repeated resolution
+ * idempotent. A note failure never stops the notice.
+ */
 async function notify({ stores, telegram, resolved, warn }) {
+  const text = reconcileReports.reconciled({ resolution: resolved.resolution });
+  try {
+    stores.notes?.addNote({
+      sessionKey: resolved.sessionKey,
+      text,
+      effectKey: `reconcile:${resolved.kind}:${resolved.updateIdentifier}`,
+    });
+  } catch (error) {
+    warn(
+      `The resolution is kept, but its effect could not be stored for the session: ${messageOf(error)}`,
+    );
+  }
   try {
     const { chatIdentifier, threadIdentifier } = parseSessionKey(
       resolved.sessionKey,
@@ -637,7 +655,7 @@ async function notify({ stores, telegram, resolved, warn }) {
     await telegram.sendMessage({
       chatIdentifier,
       messageThreadIdentifier: threadIdentifier,
-      text: reconcileReports.reconciled({ resolution: resolved.resolution }),
+      text,
     });
   } catch (error) {
     warn(

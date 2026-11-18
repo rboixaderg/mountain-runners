@@ -994,6 +994,23 @@ function interruptedMerge(merges) {
   merges.recoverMerging();
 }
 
+test("keeps the startup notice of a merge as a service event of its session", async (context) => {
+  const github = fakeGithub({ pullRequest: mergedPullRequest() });
+  const notes = [];
+  const { merges, sent, buildHandler } = setup(context, { github });
+  const handler = buildHandler({
+    recordServiceNote: (note) => notes.push(note),
+  });
+  interruptedMerge(merges);
+
+  await handler.reconcileUncertain();
+
+  assert.equal(sent.length, 1);
+  assert.deepEqual(notes, [
+    { sessionKey, text: sent[0].text, effectKey: "merge:20:reconciled" },
+  ]);
+});
+
 test("startup tells the topic once about an unknown result of an open pull request", async (context) => {
   const { handler, merges, sent, traces } = setup(context);
   interruptedMerge(merges);
