@@ -193,6 +193,20 @@ function unconfirmedNotice(common, failedChecks) {
   return ciReports.unconfirmedFailure({ ...common, failedChecks });
 }
 
+/**
+ * The kind of notice an outcome produces. Two notices of the same commit can be
+ * different effects (`repairing` and `repair-not-run`, or a plain `unknown` and
+ * an unconfirmed failure), so the note identity is not only update and commit.
+ */
+function noticeKind(outcome) {
+  if (outcome.result === ciResults.unknown) {
+    return outcome.failedChecks?.length > 0
+      ? "unconfirmed-failure"
+      : ciResults.unknown;
+  }
+  return outcome.result;
+}
+
 function noticeFor({
   watch,
   outcome,
@@ -250,6 +264,8 @@ export function createCiWatchWorker({
   maximumAutomaticRepairs,
   secrets = [],
   recordTrace = () => {},
+  // The text of a notice is an effect the next turn of the topic must know.
+  recordServiceNote = () => {},
   logger = () => {},
   now = () => new Date(),
 }) {
@@ -288,6 +304,13 @@ export function createCiWatchWorker({
       return false;
     }
 
+    // The effect is decided here, so the topic keeps it even when the send
+    // fails: the next turn of its session must know it.
+    recordServiceNote({
+      sessionKey: watch.session_key,
+      text: message.text,
+      effectKey: `ci:${watch.update_identifier}:${watch.commit_sha}:${noticeKind(outcome)}`,
+    });
     if (!store.beginSend(watch.update_identifier, outcome.result)) {
       return false;
     }

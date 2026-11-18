@@ -60,6 +60,8 @@ export function createPreviewRequests({
   confirmationTimeoutMilliseconds,
   requestTimeoutMilliseconds = defaultRequestTimeoutMilliseconds,
   recordTrace = () => {},
+  // The text of a report is an effect the next turn of the topic must know.
+  recordServiceNote = () => {},
   logger = () => {},
   now = () => new Date(),
 }) {
@@ -272,11 +274,20 @@ export function createPreviewRequests({
     return { outcome: "answered", report: previewReports.requested(target) };
   }
 
-  /** Whether the report reached Telegram. */
-  async function report(row, text, signal) {
+  /**
+   * Whether the report reached Telegram. A failed send is retried by the next
+   * cycle, so the note carries the identity of the effect: the session receives
+   * it once, whatever the number of attempts.
+   */
+  async function report(row, text, { signal, state }) {
     const { chatIdentifier, threadIdentifier } = parseSessionKey(
       row.session_key,
     );
+    recordServiceNote({
+      sessionKey: row.session_key,
+      text,
+      effectKey: `preview:${row.update_identifier}:${state}`,
+    });
     try {
       await telegram.sendMessage({
         chatIdentifier,
@@ -342,7 +353,7 @@ export function createPreviewRequests({
         confirmed
           ? previewReports.confirmed({ ...target, origin })
           : previewReports.unconfirmed(target),
-        signal,
+        { signal, state: confirmed ? "confirmed" : "unconfirmed" },
       );
       if (!sent) continue;
       const ended = store.finish(

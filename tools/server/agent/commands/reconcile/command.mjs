@@ -25,6 +25,7 @@ import { reconcileResolutions } from "../../policy/development.mjs";
 import { CiWatchStore } from "../../repository/ci-watch-store.mjs";
 import { GitHubTrust } from "../../repository/github.mjs";
 import { PreviewRequestStore } from "../../repository/preview-request-store.mjs";
+import { SessionNoteStore } from "../../repository/session-note-store.mjs";
 import {
   caseKinds,
   listUncertainCases,
@@ -183,6 +184,7 @@ function openStores(config) {
   const admissionPath = databasePath("admission.sqlite");
   const ciWatchPath = databasePath("ci-watch.sqlite");
   const previewPath = databasePath("preview-request.sqlite");
+  const sessionNotesPath = databasePath("session-notes.sqlite");
   return {
     instructions: existsSync(admissionPath)
       ? new AdmissionQueue(admissionPath, {
@@ -193,10 +195,14 @@ function openStores(config) {
     previews: existsSync(previewPath)
       ? new PreviewRequestStore(previewPath)
       : null,
+    notes: existsSync(sessionNotesPath)
+      ? new SessionNoteStore(sessionNotesPath)
+      : null,
   };
 }
 
 function closeStores(stores) {
+  stores.notes?.close();
   stores.previews?.close();
   stores.repairs?.close();
   stores.instructions?.close();

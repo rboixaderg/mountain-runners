@@ -4,8 +4,8 @@ Aplicació de Mountain Runners que porta una petició de Telegram fins a una PR.
 El servei **no està desplegat ni activat**. Aquesta branca afegeix l'avís de CI
 de T8.4 vinculat al SHA publicat, la reparació automàtica acotada d'una CI
 vermella, la preview demanada al tema, el merge demanat amb `/merge`, la
-continuació d'una PR des d'un altre tema, l'avís de solapaments i els adjunts
-d'imatge. Cap canvi d'aquesta branca autoritza
+continuació d'una PR des d'un altre tema, l'avís de solapaments, els adjunts
+d'imatge i la continuïtat de la conversa d'un tema de T8.7. Cap canvi d'aquesta branca autoritza
 instal·lacions ni operacions remotes.
 
 ## Nucli reutilitzable i aplicació
@@ -81,6 +81,7 @@ tools/server/agent/               aplicació de Mountain Runners
     ├── preview-comment.mjs        comentari de confirmació del publicador de confiança
     ├── preview-request-store.mjs  peticions de preview durables
     ├── merge-request-store.mjs    peticions de merge durables
+    ├── session-note-store.mjs     efectes del servei pendents i última resposta del tema
     └── ci-watch-store.mjs         avís de CI i intents de reparació duradors
 ```
 
@@ -122,8 +123,12 @@ al servidor. El nom local encara no representa una publicació a npm.
    defecte i, al long polling, el temps demanat al servidor més 15 s de marge.
    Un termini esgotat és un error del client, sense URL ni token; una aturada
    continua sent una aturada.
-2. `workflow` interpreta la petició amb una crida efímera sense eines, historial
-   ni context del repositori. Si no és clara, demana aclariment.
+2. `workflow` interpreta la petició amb una crida efímera sense eines i sense
+   historial. A més del text, rep com a dada l'última resposta del tema
+   (retallada), si el worktree del tema té feina sense publicar i el número de la
+   PR que el tema va publicar i encara té. La classificació queda a la traça
+   (`instruction_classified`). Si no és clara, el torn és una consulta (punt 4) i
+   no una resposta fixa.
 3. El servei prepara el worktree actual del tema. El directori es diu
    `topic-<16hex>` i no conté ni el grup ni el tema: surt d'un HMAC-SHA256 amb
    un salt privat de la instal·lació (`state/identifier-salt`). Una feina nova
@@ -156,7 +161,11 @@ al servidor. El nom local encara no representa una publicació a npm.
    El paquet només executa el protocol RPC amb aquestes opcions.
 4. Una consulta munta `/work` en mode de només lectura i retorna la resposta,
    sense publicar canvis anteriors pendents. Una implementació pot editar i
-   provar dins del mateix sandbox.
+   provar dins del mateix sandbox. També és una consulta la petició que el
+   classificador no sap situar i la continuació que no té feina pendent ni PR del
+   tema: el prompt hi afegeix una línia que diu que el servei no ha pogut
+   distingir si la persona vol un canvi, i el text fix d'aclariment només es fa
+   servir si el model no respon.
 5. Si hi ha canvis o commits pendents, `workflow` crea o continua la branca i
    executa `pnpm check` dins del contenidor. Una fallada conserva la feina.
 6. `repository` fa commit, escaneja les credencials conegudes, publica la branca
@@ -265,8 +274,37 @@ al servidor. El nom local encara no representa una publicació a npm.
     la fila no es pot desar, la publicació es manté, el tema anterior conserva
     els avisos i la instrucció acaba com a incerta. Un avís que falla o que
     esgota el termini es registra a la traça
-    i no fa fallar la instrucció. El detall
+    i no fa fallar la instrucció. Si la continuació no nomena cap número, el
+    servei reprèn la PR oberta que el tema va publicar i encara té: continua
+    aquí mateix si el worktree ja té aquella branca al cap de la PR, i la
+    publicació fixa aquella PR i aquell cap (els revalida abans del push i no
+    n'obre mai una altra), o pel camí de represa si en té una altra. Una PR
+    fusionada o tancada deixa la petició com a consulta. El detall
     és a [`docs/deployment.md`](../../../docs/deployment.md).
+
+12. Cada instrucció admesa que no és `/merge` ni una preview executa un torn de
+    Pi a la sessió del tema, i el torn següent rep els efectes que el servei ha
+    decidit mentrestant. `repository/session-note-store.mjs` desa a
+    `state/session-notes.sqlite`, per tema, el text de cada informe del servei
+    (publicació, comprovacions, CI, reparació, preview, merge, traspàs, adjunt
+    refusat i resolució d'un resultat desconegut) abans d'enviar-lo, retallat a
+    1500 caràcters i amb un màxim de 20 notes sense lliurar. Una nota només
+    conté text escrit pel servei: quan un avís seu incorpora text del model, la
+    nota en guarda només la part del servei i les paraules del model només
+    queden com a última resposta del tema. Cada efecte té una identitat
+    duradora, així que un reenviament de Telegram no duplica la nota i una
+    identitat ja lliurada no es reviu, i les identitats lliurades no es poden.
+    Les notes es reclamen al darrer moment, quan el perfil de Pi ja està
+    preparat i Pi és a punt de rebre el prompt: qualsevol fallada anterior les
+    deixa pendents. Un cop reclamades, s'esborren quan el torn acaba o falla,
+    perquè el prompt pot haver arribat a Pi; només les torna a pendents que el
+    prompt no s'hagi escrit mai (el fet d'enviament `onPromptSent`, encara que
+    després falli també la neteja del sandbox). Un reinici
+    conserva les pendents i no repeteix cap nota
+    d'un torn interromput (una reclamació oberta compta com a lliurada). Un
+    informe que barreja text del servei i del model només desa la part del
+    servei com a nota. El classificador no rep mai aquest bloc. El mateix store
+    desa l'última resposta del tema, que el classificador llegeix com a dada.
 
 Un adjunt admès només s'aplica a una implementació o una continuació.
 `attachments/prepare.mjs` el descarrega al directori temporal del servei, en
@@ -306,7 +344,8 @@ al tema. Una instrucció publicada exigeix `--pull-request`: la comanda torna a
 desar el seguiment de CI pendent d'aquell commit abans de desbloquejar-la, i si
 no el pot desar la instrucció continua incerta.
 Cada resolució es desa amb la seva traça o no es desa, i la comanda no crea cap
-base de dades. El procediment és a
+base de dades. L'avís al tema també es desa al magatzem de notes del tema abans
+d'enviar-lo (identitat `reconcile:<tipus>:<id>`), encara que l'enviament falli. El procediment és a
 [`docs/deployment.md`](../../../docs/deployment.md#reconciliació-de-resultats-desconeguts-t85).
 
 La classificació semàntica no substitueix l'autorització, els muntatges de només
@@ -399,7 +438,10 @@ Telegram, cua, sessions i RPC. L'aplicació prova la política, el sandbox i Git
 simulades. `repository/ci-status.test.mjs` cobreix la classificació de la CI i la
 identitat de la fallada; `workflow/ci-watch.test.mjs`, la reserva de reparacions;
 i `workflow/ci-repair.test.mjs`, l'execució, el límit, el resultat desconegut i
-l'aturada. `commands/reconcile/uncertain-cases.test.mjs` cobreix els fets i la
+l'aturada. `repository/session-note-store.test.mjs` cobreix la durabilitat, el
+lliurament únic, la retenció i els límits de les notes del tema, i
+`workflow/run-instruction.test.mjs` el torn de consulta, el context del
+classificador i el bloc de servei del prompt. `commands/reconcile/uncertain-cases.test.mjs` cobreix els fets i la
 resolució de cada tipus de resultat desconegut, `commands/reconcile/command.test.mjs`
 una resolució completa amb clients simulats i `commands/reconcile/cli.test.mjs`
 el cablejat, els codis de sortida i l'absència de fitxers nous, amb stores SQLite

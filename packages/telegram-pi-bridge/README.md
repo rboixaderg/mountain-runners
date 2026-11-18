@@ -81,7 +81,7 @@ les exportacions i carrega tots els mòduls, inclòs SQLite.
 | `readTraceEntries`                                                          | Consulta de només lectura de la traça privada; `parseTraceFilters` valida els filtres i llança `TraceQueryInputError`      |
 | `AgentBridge`                                                               | Connecta transport, comprovació de membres, cua, callback d'execució i treball propi de l'aplicació quan la cua és buida   |
 | `parseSessionKey`, `sessionIdentifier`                                      | Identitat estable a partir de grup i tema                                                                                  |
-| `runPiPrompt`, `buildPiArguments`                                           | Torn RPC i construcció explícita dels arguments de Pi                                                                      |
+| `runPiPrompt`, `buildPiArguments`                                           | Torn RPC, arguments explícits de Pi i `onPromptSent` per saber si el prompt s'ha escrit                                    |
 | `defaultBridgeMessages`                                                     | Missatges operatius en anglès; l'aplicació pot substituir-los                                                              |
 | `instructionExcerpt`                                                        | Retall d'una línia de la instrucció per al missatge de recepció                                                            |
 | `acceptedImageDocuments`, `attachmentOrigins`, `attachmentRefusalReasons`   | Contracte dels documents d'imatge: tipus, extensions, MIME i origen del document (`message` o `reply`)                     |
@@ -105,6 +105,7 @@ const bridge = new AgentBridge({
   queue,
   runInstruction,
   runWhenIdle,
+  onServiceReport,
 });
 await bridge.run({ signal });
 ```
@@ -131,7 +132,6 @@ limitat a 4.000 caràcters; no publica passos intermedis ni fa streaming. Les
 instruccions es dedupliquen per update i s'executen en ordre. El polling i
 l'execució són seqüencials; no hi ha un canal de cancel·lació per missatges
 mentre el callback treballa. El `signal` del procés sí que arriba al callback.
-
 `isBlocked()` indica si hi ha una instrucció en execució o amb un resultat extern
 desconegut. Un consumidor que faci feina externa pròpia ha de consultar-lo abans
 de començar-ne.
@@ -157,6 +157,15 @@ necessita un segon executor ni un pany propi, i es conserva una sola execució
 global. Una excepció es registra com a `idle_work_failed` i no atura el pont.
 El pont no desa ni recupera aquesta feina: la durabilitat és responsabilitat de
 l'aplicació.
+
+`onServiceReport({ sessionKey, text, effectKey })` és opcional i s'executa per
+als textos que el pont decideix i envia al tema sense passar per
+`runInstruction` (avui, el refús d'un adjunt en admetre la instrucció).
+`effectKey` identifica l'efecte (un refús per actualització), perquè
+l'aplicació el desi una sola vegada encara que Telegram repeteixi
+l'actualització. El consumeix l'aplicació perquè el torn següent del model
+conegui l'efecte. Un error es registra com a `service_report_failed` i no
+impedeix la resposta.
 
 Els missatges es poden substituir parcialment amb
 `messages: { acknowledgement, queueFull, queueBlocked, membershipUnavailable, unknownResult, attachmentPhoto, attachmentUnsupported, attachmentTooLarge }`.
@@ -203,6 +212,13 @@ línia. El timeout per defecte és de 30 minuts. La sortida conjunta de stdout i
 stderr té un límit d'1 MiB per torn, inclòs JSONL incomplet o no vàlid. Un excés
 mata el procés, espera que es tanqui i executa `onInterrupted` abans de rebutjar
 la crida; no retorna una resposta parcial com si fos completa.
+
+`onPromptSent` és opcional i s'executa una sola vegada, immediatament abans
+d'escriure el prompt a l'entrada de Pi. És el fet que permet al consumidor
+distingir un prompt que s'ha intentat enviar d'un torn que s'ha aturat abans
+—llançament fallit, executable inexistent o sense permís, aturada o termini
+abans de l'escriptura—, encara que una neteja que també falla substitueixi
+l'error original. Si no s'executa, cap prompt no ha arribat a Pi.
 
 Per defecte no hi ha eines, extensions, MCP, skills, templates ni càrrega
 automàtica d'instruccions del directori. `tools` només admet noms explícits,

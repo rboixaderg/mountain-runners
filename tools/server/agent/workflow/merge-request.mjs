@@ -111,6 +111,8 @@ export function createMergeRequests({
   retryDelayMilliseconds = 2000,
   requestTimeoutMilliseconds = defaultRequestTimeoutMilliseconds,
   recordTrace = () => {},
+  // The text of a report is an effect the next turn of the topic must know.
+  recordServiceNote = () => {},
   logger = () => {},
 }) {
   function safeTrace(entry) {
@@ -579,10 +581,20 @@ export function createMergeRequests({
     return requestMerge(request, target, signal);
   }
 
-  async function sendToTopic(row, text, signal) {
+  /**
+   * Tell the topic an unknown result it must decide on. A failed send is retried
+   * on the next start, so the note carries the identity of the effect: the
+   * session receives it once, whatever the number of attempts.
+   */
+  async function sendToTopic(row, text, { signal, state }) {
     const { chatIdentifier, threadIdentifier } = parseSessionKey(
       row.session_key,
     );
+    recordServiceNote({
+      sessionKey: row.session_key,
+      text,
+      effectKey: `merge:${row.update_identifier}:${state}`,
+    });
     await telegram.sendMessage({
       chatIdentifier,
       messageThreadIdentifier: threadIdentifier,
@@ -612,7 +624,7 @@ export function createMergeRequests({
               pullRequestNumber: row.pull_request_number,
               mergeCommit: pullRequest.mergeCommitSha,
             }),
-            signal,
+            { signal, state: "reconciled" },
           );
           closeAsReconciled(row, pullRequest.mergeCommitSha);
           continue;
@@ -622,7 +634,7 @@ export function createMergeRequests({
           pullRequest.state === "open"
             ? mergeReports.uncertainOpen(confirmationTarget(row, pullRequest))
             : mergeReports.uncertainClosed(rowTarget(row));
-        await sendToTopic(row, text, signal);
+        await sendToTopic(row, text, { signal, state: "uncertain" });
         store.markNotified(row.update_identifier);
       } catch (error) {
         logger(
