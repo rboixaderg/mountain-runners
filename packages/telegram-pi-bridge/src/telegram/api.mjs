@@ -6,6 +6,15 @@
 
 const defaultBaseUrl = "https://api.telegram.org";
 
+// A request that never answers would hold the admission loop, the CI worker or
+// the download. Every call carries a client deadline that covers the connection
+// and the body read, on top of the caller's stop signal.
+export const defaultRequestTimeoutMilliseconds = 30 * 1000;
+
+// getUpdates asks the server to hold the response for `timeout` seconds, so its
+// deadline is that wait plus room for the connection and the body read.
+export const defaultLongPollMarginMilliseconds = 15 * 1000;
+
 export class TelegramApiError extends Error {
   constructor(method, description) {
     super(`Telegram ${method} failed: ${description}`);
@@ -64,17 +73,69 @@ export class TelegramApi {
   #botToken;
   #baseUrl;
   #fetch;
+  #requestTimeoutMilliseconds;
+  #longPollMarginMilliseconds;
 
-  constructor({ botToken, baseUrl = defaultBaseUrl, fetchImpl = fetch }) {
+  constructor({
+    botToken,
+    baseUrl = defaultBaseUrl,
+    fetchImpl = fetch,
+    requestTimeoutMilliseconds = defaultRequestTimeoutMilliseconds,
+    longPollMarginMilliseconds = defaultLongPollMarginMilliseconds,
+  }) {
     if (!botToken) {
       throw new Error("A bot token is required.");
     }
     this.#botToken = botToken;
     this.#baseUrl = baseUrl;
     this.#fetch = fetchImpl;
+    this.#requestTimeoutMilliseconds = requestTimeoutMilliseconds;
+    this.#longPollMarginMilliseconds = longPollMarginMilliseconds;
   }
 
-  async #call(method, body = {}, { signal } = {}) {
+  /**
+   * Compose the caller signal with a client deadline, so a request that never
+   * answers cannot hold the admission loop, the CI worker or the download.
+   */
+  #boundedRequest(signal, timeoutMilliseconds) {
+    const deadline = AbortSignal.timeout(timeoutMilliseconds);
+    return {
+      callerSignal: signal,
+      deadline,
+      requestSignal: signal ? AbortSignal.any([signal, deadline]) : deadline,
+      timeoutMilliseconds,
+    };
+  }
+
+  /**
+   * A deadline expiry is a TelegramApiError, so a slow send stays an unknown
+   * delivery; the caller's stop keeps propagating as an AbortError.
+   */
+  #requestFailure(method, error, bounded) {
+    if (error instanceof TelegramApiError) {
+      return error;
+    }
+    if (bounded.callerSignal?.aborted) {
+      return error;
+    }
+    if (bounded.deadline.aborted) {
+      return new TelegramApiError(
+        method,
+        `no answer within ${bounded.timeoutMilliseconds} ms`,
+      );
+    }
+    if (error instanceof Error && error.name === "AbortError") {
+      return error;
+    }
+    return new TelegramApiError(method, "network error");
+  }
+
+  async #call(
+    method,
+    body = {},
+    { signal, timeoutMilliseconds = this.#requestTimeoutMilliseconds } = {},
+  ) {
+    const bounded = this.#boundedRequest(signal, timeoutMilliseconds);
     let response;
     try {
       response = await this.#fetch(
@@ -83,21 +144,21 @@ export class TelegramApi {
           method: "POST",
           headers: { "content-type": "application/json" },
           body: JSON.stringify(body),
-          signal,
+          signal: bounded.requestSignal,
         },
       );
     } catch (error) {
-      if (error instanceof Error && error.name === "AbortError") {
-        throw error;
-      }
-      throw new TelegramApiError(method, "network error");
+      throw this.#requestFailure(method, error, bounded);
     }
 
     let payload;
     try {
       payload = await response.json();
-    } catch {
-      throw new TelegramApiError(method, `HTTP ${response.status}`);
+    } catch (error) {
+      if (!bounded.requestSignal.aborted) {
+        throw new TelegramApiError(method, `HTTP ${response.status}`);
+      }
+      throw this.#requestFailure(method, error, bounded);
     }
 
     if (!payload || payload.ok !== true) {
@@ -124,7 +185,11 @@ export class TelegramApi {
         timeout: timeoutSeconds,
         allowed_updates: ["message"],
       },
-      { signal },
+      {
+        signal,
+        timeoutMilliseconds:
+          timeoutSeconds * 1000 + this.#longPollMarginMilliseconds,
+      },
     );
   }
 
@@ -142,17 +207,18 @@ export class TelegramApi {
     if (typeof filePath !== "string" || filePath === "") {
       throw new TelegramApiError("downloadFile", "the file path is missing");
     }
+    const bounded = this.#boundedRequest(
+      signal,
+      this.#requestTimeoutMilliseconds,
+    );
     let response;
     try {
       response = await this.#fetch(
         `${this.#baseUrl}/file/bot${this.#botToken}/${filePath}`,
-        { method: "GET", redirect: "error", signal },
+        { method: "GET", redirect: "error", signal: bounded.requestSignal },
       );
     } catch (error) {
-      if (error instanceof Error && error.name === "AbortError") {
-        throw error;
-      }
-      throw new TelegramApiError("downloadFile", "network error");
+      throw this.#requestFailure("downloadFile", error, bounded);
     }
     if (!response.ok || response.body === null) {
       throw new TelegramApiError("downloadFile", `HTTP ${response.status}`);
@@ -160,13 +226,7 @@ export class TelegramApi {
     try {
       return await readBoundedBody(response, maximumBytes);
     } catch (error) {
-      if (error instanceof TelegramApiError) {
-        throw error;
-      }
-      if (error instanceof Error && error.name === "AbortError") {
-        throw error;
-      }
-      throw new TelegramApiError("downloadFile", "network error");
+      throw this.#requestFailure("downloadFile", error, bounded);
     }
   }
 

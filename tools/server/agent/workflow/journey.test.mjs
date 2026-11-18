@@ -14,6 +14,7 @@ import { test } from "node:test";
 import { AdmissionQueue } from "telegram-pi-bridge/sessions";
 import { AgentBridge } from "telegram-pi-bridge/telegram";
 import { GitHubTrust } from "../repository/github.mjs";
+import { openIdentifierNames } from "../repository/identifiers.mjs";
 import { createProjectRunner } from "./project-runner.mjs";
 
 const executeFile = promisify(execFile);
@@ -208,13 +209,14 @@ test("a natural request reaches a pull request from Telegram", async (context) =
   );
   assert.match(telegram.sent[1].text, /Comprovacions: pnpm check correcte/u);
 
-  const branch = "feat/agent-reach-a-pull-request-500";
+  const names = openIdentifierNames(paths.state);
+  const branch = `feat/agent-reach-a-pull-request-${names.changeSuffix(500)}`;
   assert.equal(
     await git(paths.origin, ["rev-parse", branch]),
-    await git(join(paths.worktrees, "topic_n1001234567890_7"), [
-      "rev-parse",
-      "HEAD",
-    ]),
+    await git(
+      join(paths.worktrees, names.worktreeName(`${groupIdentifier}:7`)),
+      ["rev-parse", "HEAD"],
+    ),
   );
 
   const creation = apiCalls.find((call) => call.options.method === "POST");

@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
 import { CiWatchStore } from "../repository/ci-watch-store.mjs";
+import { SessionNoteStore } from "../repository/session-note-store.mjs";
 import { createCiRepairExecutor } from "./ci-repair.mjs";
 
 const repairRequest = {
@@ -59,6 +60,7 @@ function executorFor({
   telegram,
   logger,
   recordTrace,
+  recordServiceNote = () => {},
   readPullRequest = async (options) => openPullRequest(options),
   readCiState = async () => ({
     state: "failure",
@@ -76,6 +78,7 @@ function executorFor({
     telegram,
     logger,
     recordTrace,
+    recordServiceNote,
   });
 }
 
@@ -174,6 +177,8 @@ test("reports a failed repair and never retries it", async (context) => {
 
   assert.equal(store.repair(queued.sequence).status, "done");
   assert.equal(store.repair(queued.sequence).outcome, "failed");
+  // A local failure never blocks the restart, unlike an unknown result.
+  assert.equal(store.uncertainRepairCount(), 0);
   assert.match(telegram.sent[0].text, /no ha publicat cap canvi/u);
   assert.deepEqual(
     traces.map((entry) => entry.action),
@@ -304,6 +309,38 @@ test("never repairs a pull request that was closed or moved while queued", async
   assert.equal(executed, false);
   assert.match(telegram.sent[0].text, /ja no està oberta/u);
   assert.equal(store.repair(queued.sequence).outcome, "declined");
+});
+
+test("keeps the report of a repair as a service event of its session", async (context) => {
+  const store = fixture(context);
+  queueRepair(store, repairRequest);
+  const telegram = fakeTelegram();
+  const notes = [];
+  const executor = executorFor({
+    store,
+    telegram,
+    recordServiceNote: (note) => notes.push(note),
+    runInstruction: async () =>
+      assert.fail("a closed pull request is repaired"),
+    readPullRequest: async () => ({ state: "closed", headSha: "c".repeat(40) }),
+  });
+
+  await executor.runNext();
+
+  assert.equal(telegram.sent.length, 1);
+  assert.equal(notes.length, 1);
+  assert.equal(notes[0].sessionKey, repairRequest.sessionKey);
+  assert.equal(notes[0].text, telegram.sent[0].text);
+  assert.equal(notes[0].receivedText, telegram.sent[0].text);
+  assert.match(
+    notes[0].effectKey,
+    new RegExp(
+      `^repair:${repairRequest.updateIdentifier}:${repairRequest.commitSha}:.+:not_applicable$`,
+      "u",
+    ),
+    "the identity names the attempt, never a reusable row number",
+  );
+  assert.match(notes[0].text, /No s'ha intentat cap reparació automàtica/u);
 });
 
 test("does not repair when the pull request state cannot be read", async (context) => {
@@ -534,4 +571,52 @@ test("informs the topic even when the attempt cannot be closed", async (context)
   );
   assert.equal(store.repair(1).status, "running");
   assert.equal(store.claimNextRepair(), null);
+});
+
+test("keeps the notes of two attempts whose row identity is reused", async (context) => {
+  const directory = mkdtempSync(join(tmpdir(), "mr-ci-repair-notes-"));
+  context.after(() =>
+    rmSync(directory, { recursive: true, force: true, maxRetries: 5 }),
+  );
+  const notes = new SessionNoteStore(join(directory, "session-notes.sqlite"));
+  context.after(() => notes.close());
+  const store = fixture(context);
+  const recordServiceNote = ({ sessionKey, text: noteText, effectKey }) =>
+    notes.addNote({ sessionKey, text: noteText, effectKey });
+  const committed = (commitSha) => async () => ({
+    state: "closed",
+    headSha: commitSha,
+  });
+  const telegram = fakeTelegram();
+  const executor = (commitSha) =>
+    executorFor({
+      store,
+      telegram,
+      recordServiceNote,
+      runInstruction: async () => assert.fail("a closed PR is never repaired"),
+      readPullRequest: committed(commitSha),
+    });
+
+  queueRepair(store, repairRequest);
+  await executor(repairRequest.commitSha).runNext();
+  // The store drops the finished row; the next attempt of another commit reuses
+  // the row identity `1`.
+  store.resetRepairs(repairRequest.pullRequestNumber);
+  const secondCommit = "c".repeat(40);
+  const second = {
+    ...repairRequest,
+    commitSha: secondCommit,
+    failureFingerprint: JSON.stringify(["Validate", "Lint"]),
+    failedChecks: ["Validate", "Lint"],
+  };
+  queueRepair(store, second);
+  assert.equal(store.repair(1).commit_sha, secondCommit);
+  await executor(secondCommit).runNext();
+
+  assert.equal(telegram.sent.length, 2);
+  assert.deepEqual(
+    notes.claim(repairRequest.sessionKey).map((note) => note.text),
+    telegram.sent.map((message) => message.text),
+    "the second attempt of a reused row is its own effect",
+  );
 });

@@ -28,11 +28,14 @@ import { GitHubTrust } from "../../repository/github.mjs";
 import { CiWatchStore } from "../../repository/ci-watch-store.mjs";
 import { MergeRequestStore } from "../../repository/merge-request-store.mjs";
 import { PreviewRequestStore } from "../../repository/preview-request-store.mjs";
+import { SessionNoteStore } from "../../repository/session-note-store.mjs";
 import {
   defaultRequestTimeoutMilliseconds,
   requestSignal,
 } from "../../repository/request-signal.mjs";
 import { pruneArchivedWorktrees } from "../../repository/retention.mjs";
+import { openIdentifierNames } from "../../repository/identifiers.mjs";
+import { renameLegacyWorktrees } from "../../repository/worktrees.mjs";
 import { createCiRepairExecutor } from "../../workflow/ci-repair.mjs";
 import {
   createCiWatchWorker,
@@ -66,6 +69,32 @@ export async function startService({
     mkdirSync(directory, { recursive: true });
   }
 
+  // The installation salt names every worktree and every public branch suffix.
+  // It is created once in the private state directory and never leaves it.
+  const identifiers = openIdentifierNames(config.paths.state);
+
+  // A worktree or an archive named after a Telegram chat and topic is renamed
+  // before anything uses it. A failure refuses the start: renaming nothing is
+  // better than half of the volume keeping a private name.
+  try {
+    await renameLegacyWorktrees({
+      repositoryPath: config.paths.repository,
+      worktreeRoot: config.paths.worktrees,
+      identifiers,
+      signal,
+      logger,
+    });
+  } catch (error) {
+    logger(
+      "worktree_migration_failed",
+      error instanceof Error ? error.message : "unknown",
+    );
+    throw new Error(
+      "Refusing to start: the worktrees of the previous naming scheme could not be renamed.",
+      { cause: error },
+    );
+  }
+
   const queue = new AdmissionQueue(
     join(config.paths.state, "admission.sqlite"),
     { maxPending: config.limits.maxPendingInstructions },
@@ -79,8 +108,31 @@ export async function startService({
   const mergeRequests = new MergeRequestStore(
     join(config.paths.state, "merge-request.sqlite"),
   );
+  // The conversation state of every topic: the service effects the next Pi turn
+  // must receive and the last text the topic received.
+  const sessionNotes = new SessionNoteStore(
+    join(config.paths.state, "session-notes.sqlite"),
+  );
+
+  // A text the service decides for a topic is kept before it is sent, so the
+  // next turn of its session knows the effect even when the send fails. The
+  // notes are bookkeeping: a store failure is logged and never stops a report.
+  // `effectKey` makes a repeated notice idempotent; `text` is the service-written
+  // part (the model's own words are never a note) and `receivedText` the full
+  // text the topic received when the two differ.
+  function recordServiceNote({ sessionKey, text, effectKey, receivedText }) {
+    try {
+      sessionNotes.addNote({ sessionKey, text, effectKey, receivedText });
+    } catch (error) {
+      logger(
+        "session_note_failed",
+        error instanceof Error ? error.name : "unknown",
+      );
+    }
+  }
 
   function closeStateStores() {
+    sessionNotes.close();
     mergeRequests.close();
     previewRequests.close();
     ciWatches.close();
@@ -124,6 +176,19 @@ export async function startService({
       updateIdentifier: repair.update_identifier,
       sessionKey: repair.session_key,
       action: "ci_repair_uncertain",
+      detail: `#${repair.pull_request_number} ${repair.commit_sha.slice(0, 7)}`,
+    });
+  }
+
+  // A reservation that a restart found unannounced never reached the queue. It
+  // is closed instead of blocking the topic with a result that will not come.
+  for (const repair of ciWatches.abortInterruptedReservations(
+    "interrupted_before_queue",
+  )) {
+    queue.recordTrace({
+      updateIdentifier: repair.update_identifier,
+      sessionKey: repair.session_key,
+      action: "ci_repair_not_queued",
       detail: `#${repair.pull_request_number} ${repair.commit_sha.slice(0, 7)}`,
     });
   }
@@ -207,6 +272,7 @@ export async function startService({
     identity.username.toLowerCase() !==
       config.telegram.botUsername.toLowerCase()
   ) {
+    sessionNotes.close();
     mergeRequests.close();
     previewRequests.close();
     ciWatches.close();
@@ -243,6 +309,7 @@ export async function startService({
     pollIntervalMilliseconds: config.limits.ciPollIntervalMs,
     confirmationTimeoutMilliseconds: previewConfirmationTimeoutMilliseconds,
     recordTrace: (entry) => queue.recordTrace(entry),
+    recordServiceNote,
     logger,
   });
   const mergeWorker = createMergeRequests({
@@ -257,6 +324,7 @@ export async function startService({
     requiredChecks: config.github.requiredChecks,
     telegram,
     recordTrace: (entry) => queue.recordTrace(entry),
+    recordServiceNote,
     logger,
   });
   await mergeWorker.reconcileUncertain({ signal });
@@ -283,15 +351,27 @@ export async function startService({
       // The raw download only touches the service temporary directory, so the
       // downloaded image is cleaned before it reaches a worktree.
       prepareAttachment: createAttachmentPreparation({ telegram, logger }),
+      sessionNotes,
       hasOtherInstructions: (sessionKey, updateIdentifier) =>
         queue.hasOtherInstructions(sessionKey, updateIdentifier),
-      notifyHandover: async ({ sessionKey, pullRequestNumber, signal }) => {
+      notifyHandover: async ({
+        updateIdentifier,
+        sessionKey,
+        pullRequestNumber,
+        signal,
+      }) => {
         const { chatIdentifier, threadIdentifier } =
           parseSessionKey(sessionKey);
+        const text = continuationReports.handover({ pullRequestNumber });
+        recordServiceNote({
+          sessionKey,
+          text,
+          effectKey: `handover:${updateIdentifier}`,
+        });
         await telegram.sendMessage({
           chatIdentifier,
           messageThreadIdentifier: threadIdentifier,
-          text: continuationReports.handover({ pullRequestNumber }),
+          text,
           signal: requestSignal(signal, defaultRequestTimeoutMilliseconds),
         });
       },
@@ -306,6 +386,7 @@ export async function startService({
     readCiState,
     telegram,
     recordTrace: (entry) => queue.recordTrace(entry),
+    recordServiceNote,
     logger,
   });
 
@@ -317,6 +398,7 @@ export async function startService({
     queue,
     runInstruction: runner,
     botIdentifier: identity.id,
+    onServiceReport: recordServiceNote,
     logger,
     // A repair continues a published change. It runs only when no admitted
     // instruction is executing, and never while the queue is blocked by an
@@ -338,6 +420,7 @@ export async function startService({
     maximumAutomaticRepairs,
     secrets: agentSecrets(config, environment),
     recordTrace: (entry) => queue.recordTrace(entry),
+    recordServiceNote,
     logger,
   });
 
@@ -354,6 +437,7 @@ export async function startService({
     mergeRequests,
     mergeWorker,
     ciRepairExecutor,
+    sessionNotes,
     logger,
   };
 }
@@ -403,6 +487,7 @@ export async function main({ environment = process.env } = {}) {
     previewRequests,
     previewWorker,
     mergeRequests,
+    sessionNotes,
     logger,
   } = await startService({
     environment,
@@ -420,6 +505,7 @@ export async function main({ environment = process.env } = {}) {
     });
   } finally {
     await stopAllSandboxedCommands();
+    sessionNotes.close();
     mergeRequests.close();
     previewRequests.close();
     ciWatches.close();

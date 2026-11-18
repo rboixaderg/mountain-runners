@@ -10,7 +10,7 @@ export function buildPiEnvironment({
   profileDirectory,
   providerEnvironmentVariables,
   sandbox,
-  sessionIdentifier,
+  sandboxIdentifier,
   readOnly = false,
 }) {
   const allowedEnvironment = {
@@ -22,7 +22,9 @@ export function buildPiEnvironment({
     MR_AGENT_SANDBOX_IMAGE: sandbox.image,
     MR_AGENT_WORKTREE_ROOT: sandbox.worktreeRoot,
     MR_AGENT_SANDBOX_LIMITS: JSON.stringify(sandbox.limits),
-    MR_AGENT_SESSION_IDENTIFIER: sessionIdentifier,
+    // The extension labels and cleans its containers with this value, so it is
+    // the opaque worktree name: never the Telegram session identifier.
+    MR_AGENT_SESSION_IDENTIFIER: sandboxIdentifier,
     MR_AGENT_READ_ONLY: String(readOnly),
   };
   for (const name of providerEnvironmentVariables) {
@@ -37,11 +39,13 @@ export function projectPiOptions({
   config,
   profileDirectory,
   sessionIdentifier,
+  sandboxIdentifier,
   message,
   worktreePath,
   environment = process.env,
   timeoutMilliseconds = config.limits.executionTimeoutMs,
   signal,
+  onPromptSent,
   stopCommands = stopSandboxedCommands,
   readOnly = false,
   classifyOnly = false,
@@ -60,9 +64,10 @@ export function projectPiOptions({
     message,
     timeoutMilliseconds,
     signal,
+    onPromptSent,
     onInterrupted: classifyOnly
       ? undefined
-      : () => stopCommands(sessionIdentifier),
+      : () => stopCommands(sandboxIdentifier),
     environment: buildPiEnvironment({
       environment,
       profileDirectory,
@@ -72,7 +77,7 @@ export function projectPiOptions({
         worktreeRoot: config.paths.worktrees,
         limits: config.limits,
       },
-      sessionIdentifier,
+      sandboxIdentifier,
       readOnly,
     }),
   };

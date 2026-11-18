@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
 import { AdmissionQueue } from "../../src/sessions/queue.mjs";
+import { TelegramApi } from "../../src/telegram/api.mjs";
 import {
   AgentBridge,
   defaultBridgeMessages,
@@ -72,13 +73,55 @@ function telegramStub({ batches, members = { 42: "member" } }) {
   };
 }
 
+/** A real client whose long poll and membership answer, and whose send hangs. */
+function telegramApiWithHangingSend({ batches }) {
+  const pendingBatches = [...batches];
+  const requestedMethods = [];
+  const fetchImpl = async (url, init) => {
+    const method = url.slice(url.lastIndexOf("/") + 1);
+    requestedMethods.push(method);
+    if (method === "getUpdates") {
+      return {
+        status: 200,
+        async json() {
+          return { ok: true, result: pendingBatches.shift() ?? [] };
+        },
+      };
+    }
+    if (method === "getChatMember") {
+      return {
+        status: 200,
+        async json() {
+          return { ok: true, result: { status: "member" } };
+        },
+      };
+    }
+    // The acknowledgement never answers: only the client deadline ends it.
+    return new Promise((resolve, reject) => {
+      init.signal.addEventListener("abort", () => reject(init.signal.reason), {
+        once: true,
+      });
+    });
+  };
+  return {
+    requestedMethods,
+    api: new TelegramApi({
+      botToken: "123:synthetic-token",
+      fetchImpl,
+      requestTimeoutMilliseconds: 100,
+    }),
+  };
+}
+
 function bridgeFor({
   queue,
   telegram,
   runInstruction = async () => ({}),
   runWhenIdle,
   messages,
+  onServiceReport,
   logger = () => {},
+  membershipTimeoutMilliseconds,
 }) {
   return new AgentBridge({
     groupIdentifier,
@@ -88,10 +131,27 @@ function bridgeFor({
     queue,
     runInstruction,
     runWhenIdle,
+    onServiceReport,
     botIdentifier,
     logger,
     pollTimeoutSeconds: 1,
+    membershipTimeoutMilliseconds,
   });
+}
+
+/** A membership read that only ends when its bounded signal aborts. */
+function hangingMembershipTelegram({ batches }) {
+  const telegram = telegramStub({ batches });
+  telegram.membershipSignals = [];
+  telegram.getChatMember = ({ signal }) => {
+    telegram.membershipSignals.push(signal);
+    return new Promise((resolve, reject) => {
+      signal.addEventListener("abort", () => reject(signal.reason), {
+        once: true,
+      });
+    });
+  };
+  return telegram;
 }
 
 test("executes an admitted instruction once and reports in its topic", async (t) => {
@@ -207,6 +267,35 @@ test("runs the instruction when the acknowledgement cannot be sent", async (t) =
 
   assert.equal(queue.status(10), "done");
   assert.ok(events.includes("reply_failed"));
+});
+
+test("advances the offset after an acknowledgement that reaches its deadline", async (t) => {
+  const { queue } = context(t);
+  const { api, requestedMethods } = telegramApiWithHangingSend({
+    batches: [[instructionUpdate(10, 7)]],
+  });
+  const events = [];
+  const bridge = bridgeFor({
+    queue,
+    telegram: api,
+    logger: (event) => events.push(event),
+    runInstruction: async () => ({ outcome: "answered", report: "fet" }),
+  });
+
+  assert.equal(await bridge.pollOnce(), 1);
+
+  // The instruction is durable even though its acknowledgement timed out, so
+  // the offset moves on and the next read continues from it.
+  assert.equal(queue.status(10), "pending");
+  assert.equal(queue.readOffset(), 11);
+  assert.deepEqual(events, ["reply_failed"]);
+  assert.equal(await bridge.pollOnce(), 0);
+  assert.deepEqual(requestedMethods, [
+    "getUpdates",
+    "getChatMember",
+    "sendMessage",
+    "getUpdates",
+  ]);
 });
 
 test("keeps the acknowledgement to one short line", () => {
@@ -382,6 +471,48 @@ test("tells the author to retry when Telegram cannot verify membership", async (
     telegram.sent[0].text,
     defaultBridgeMessages.membershipUnavailable,
   );
+});
+
+test("denies an instruction when the membership read runs out of its deadline", async (t) => {
+  const { queue } = context(t);
+  const telegram = hangingMembershipTelegram({
+    batches: [[instructionUpdate(10, 7)]],
+  });
+  const bridge = bridgeFor({
+    queue,
+    telegram,
+    membershipTimeoutMilliseconds: 10,
+  });
+
+  assert.equal(await bridge.pollOnce(), 1);
+
+  assert.equal(telegram.membershipSignals.length, 1);
+  assert.ok(telegram.membershipSignals[0] instanceof AbortSignal);
+  assert.equal(queue.pendingCount(), 0);
+  assert.equal(queue.readOffset(), 11);
+  assert.equal(telegram.sent.length, 1);
+  assert.equal(
+    telegram.sent[0].text,
+    defaultBridgeMessages.membershipUnavailable,
+  );
+});
+
+test("keeps the update unread when the service stops during the membership read", async (t) => {
+  const { queue } = context(t);
+  const telegram = hangingMembershipTelegram({
+    batches: [[instructionUpdate(10, 7)]],
+  });
+  const controller = new AbortController();
+  const bridge = bridgeFor({ queue, telegram });
+
+  const pending = bridge.pollOnce({ signal: controller.signal });
+  await new Promise((resolve) => setImmediate(resolve));
+  controller.abort();
+
+  assert.equal(await pending, 0);
+  assert.equal(queue.pendingCount(), 0);
+  assert.equal(queue.readOffset(), 0);
+  assert.deepEqual(telegram.sent, []);
 });
 
 test("processes two topics in arrival order", async (t) => {
@@ -648,6 +779,42 @@ test("refuses a compressed photo without queuing it", async (t) => {
   assert.equal(refusals[0].author_identifier, 42);
   assert.equal(refusals[0].session_key, "-1001234567890:7");
   assert.equal(refusals[0].detail, "reason=photo");
+});
+
+test("reports the refusal of an attachment to the owner of the topic", async (t) => {
+  const { queue } = context(t);
+  const telegram = telegramStub({
+    batches: [
+      [
+        documentUpdate(10, 7, {
+          document: {
+            file_id: "file",
+            file_unique_id: "unique",
+            file_name: "photo.gif",
+            mime_type: "image/gif",
+            file_size: 1024,
+          },
+        }),
+      ],
+    ],
+  });
+  const reports = [];
+  const bridge = bridgeFor({
+    queue,
+    telegram,
+    onServiceReport: ({ sessionKey, text, effectKey }) =>
+      reports.push({ sessionKey, text, effectKey }),
+  });
+
+  assert.equal(await bridge.pollOnce(), 1);
+
+  assert.deepEqual(reports, [
+    {
+      sessionKey: "-1001234567890:7",
+      text: telegram.sent[0].text,
+      effectKey: "attachment-refusal:10",
+    },
+  ]);
 });
 
 test("refuses an oversized document with the real size", async (t) => {

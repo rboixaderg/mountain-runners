@@ -6,16 +6,27 @@ import { preparePiProfile } from "./profile.mjs";
 import { runProjectPrompt } from "./pi-adapter.mjs";
 
 export async function runAgent(config, context) {
+  // The profile directory reaches Pi as PI_CODING_AGENT_DIR, so it carries the
+  // opaque name. The private session identifier stays only in the history file.
   const profileDirectory = await preparePiProfile({
     profileRoot: join(config.paths.state, "profiles"),
-    sessionIdentifier: context.sessionIdentifier,
+    profileIdentifier: context.sandboxIdentifier,
   });
+  // Pi receives the prompt immediately after this point. The effects the topic
+  // has not been told yet are claimed here, at the last moment, so anything that
+  // failed before it (sandbox preparation, profile preparation, an abort) leaves
+  // them undelivered. Once claimed, the caller returns them only when the prompt
+  // was never written: `onPromptSent` is that fact.
+  context.signal?.throwIfAborted();
+  const serviceNotes = context.claimServiceNotes();
   return runProjectPrompt({
     config,
     profileDirectory,
     sessionIdentifier: context.sessionIdentifier,
-    message: context.message,
+    sandboxIdentifier: context.sandboxIdentifier,
+    message: context.buildMessage(serviceNotes),
     environment: context.environment,
+    onPromptSent: context.onPromptSent,
     stopCommands: context.stopCommands,
     readOnly: context.readOnly,
     worktreePath: context.worktreePath,

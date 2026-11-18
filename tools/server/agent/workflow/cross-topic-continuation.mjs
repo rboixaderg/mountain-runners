@@ -15,12 +15,12 @@
 // registers its own watch and becomes the owner. The previous topic receives one
 // short notice; a notice that cannot be sent is logged and traced, never failed.
 
-import { sessionIdentifier } from "telegram-pi-bridge/sessions";
 import {
   assertWorkBranch,
   changeDiff,
   currentBranch,
   findSessionWorktree,
+  headCommit,
   resumeWorkBranch,
 } from "../repository/worktrees.mjs";
 import {
@@ -89,6 +89,7 @@ function commentEntries(comments) {
 export function createCrossTopicContinuation({
   repositoryPath,
   worktreeRoot,
+  identifiers,
   repositoryName,
   readPullRequest,
   readComments,
@@ -128,6 +129,7 @@ export function createCrossTopicContinuation({
         : `${reason} #${pullRequestNumber} ${shortCommit(headSha)}`;
     trace(request, "continuation_refused", detail);
     return {
+      reason,
       report: refusalReports[reason]({ pullRequestNumber }),
     };
   }
@@ -150,6 +152,7 @@ export function createCrossTopicContinuation({
     const detail = `#${pullRequestNumber} ${shortCommit(commit)}`;
     try {
       await notifyHandover({
+        updateIdentifier: request.updateIdentifier,
         sessionKey: ownerSessionKey,
         pullRequestNumber,
         signal,
@@ -178,7 +181,11 @@ export function createCrossTopicContinuation({
   }
 
   /** Resolve, validate and resume the named pull request, or refuse it. */
-  async function resume(request, pullRequestNumber, signal) {
+  async function resume(
+    request,
+    pullRequestNumber,
+    { signal, continueInPlace = false } = {},
+  ) {
     let pullRequest;
     try {
       pullRequest = await readPullRequest({
@@ -251,16 +258,34 @@ export function createCrossTopicContinuation({
         pullRequest.headSha,
       );
     }
-    const identifier = sessionIdentifier(request.sessionKey);
+    const worktreeName = identifiers.worktreeName(request.sessionKey);
     const worktree = await findSessionWorktree({
       repositoryPath,
       worktreeRoot,
-      name: identifier,
+      name: worktreeName,
+      signal,
     });
     // The topic already has that branch: the pending work of the topic is the
-    // pull request, and the existing same-topic path continues it.
-    if (worktree !== null && (await currentBranch(worktree)) === branch) {
-      return null;
+    // pull request, and the existing same-topic path continues it. When the
+    // service resumed the request for the topic's own pull request, that path
+    // only applies at the head the pull request reports: an older local head is
+    // resumed below, at the published head.
+    if (
+      worktree !== null &&
+      (await currentBranch(worktree, { signal })) === branch
+    ) {
+      if (!continueInPlace) {
+        return null;
+      }
+      if ((await headCommit(worktree, { signal })) === pullRequest.headSha) {
+        // The validated pull request and head travel with the result: the
+        // publication revalidates them and never opens another pull request.
+        return {
+          inPlace: true,
+          pullRequestNumber,
+          baseHeadSha: pullRequest.headSha,
+        };
+      }
     }
     if (
       hasPendingWork({
@@ -299,10 +324,11 @@ export function createCrossTopicContinuation({
     const resumed = await resumeWorkBranch({
       repositoryPath,
       worktreeRoot,
-      name: identifier,
+      name: worktreeName,
       branch,
       headSha: pullRequest.headSha,
-      newTaskIdentifier: request.updateIdentifier,
+      newTaskSuffix: identifiers.changeSuffix(request.updateIdentifier),
+      signal,
     });
     if (resumed.refusal !== undefined) {
       return refuse(
@@ -326,7 +352,7 @@ export function createCrossTopicContinuation({
           pullRequestNumber,
           branch,
           baseHeadSha: pullRequest.headSha,
-          diff: await changeDiff({ worktree: resumed.worktree }),
+          diff: await changeDiff({ worktree: resumed.worktree, signal }),
           comments: context.comments,
           checks: context.checks,
           request: request.instruction,
@@ -353,16 +379,35 @@ export function createCrossTopicContinuation({
    * Prepare a continuation of another topic's pull request. Returns null when
    * the request must keep the existing behaviour: no number, or the pending
    * work of this same topic is the pull request it names.
+   *
+   * `unnamedTopicPullRequest` is the open pull request the service published in
+   * this topic (T8.7). A continuation that names none resumes it with the same
+   * checks, as if the request had named it. A pull request that is merged or
+   * closed is no pending work of the topic, so the caller answers the request as
+   * a consultation instead of refusing it.
    */
-  return async function prepare(request, { signal } = {}) {
+  return async function prepare(
+    request,
+    { signal, unnamedTopicPullRequest = null } = {},
+  ) {
     const numbers = pullRequestNumbers(request.instruction);
     if (numbers.length > 1) {
       trace(request, "continuation_refused", refusals.multiplePullRequests);
       return { report: continuationReports.multiplePullRequests };
     }
-    if (numbers.length === 0) {
+    if (numbers.length > 0) {
+      return resume(request, numbers[0], { signal });
+    }
+    if (unnamedTopicPullRequest === null) {
       return null;
     }
-    return resume(request, numbers[0], signal);
+    const continued = await resume(request, unnamedTopicPullRequest, {
+      signal,
+      continueInPlace: true,
+    });
+    if (continued?.reason === refusals.notOpen) {
+      return null;
+    }
+    return continued;
   };
 }

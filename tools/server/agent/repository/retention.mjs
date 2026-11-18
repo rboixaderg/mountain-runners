@@ -1,13 +1,13 @@
 // Archived worktree retention for the private agent.
 //
-// A new task archives the previous topic worktree as <topic>-before-<update>,
-// so the bounded volume keeps every dependency tree it ever installed. This
-// module removes only archived worktrees that have nothing left to lose: no
-// commit ahead of origin/main and no uncommitted change. The newest archived
-// worktree of each topic is always preserved, and the active topic worktree is
-// never a candidate.
+// A new task archives the previous topic worktree as
+// `<opaque name>-before-<opaque suffix>`, so the bounded volume keeps every
+// dependency tree it ever installed. This module removes only archived
+// worktrees that have nothing left to lose: no commit ahead of origin/main and
+// no uncommitted change. The newest archived worktree of each topic is always
+// preserved, and the active topic worktree is never a candidate.
 
-import { realpathSync } from "node:fs";
+import { realpathSync, statSync } from "node:fs";
 import { basename } from "node:path";
 import {
   primaryRepository,
@@ -15,8 +15,19 @@ import {
   runGit,
 } from "./trusted-git.mjs";
 
-const archivedPattern = /^(.*)-before-(\d+)$/u;
+// Both parts are opaque: the suffix is an HMAC of the update identifier, so it
+// carries no order. Archives of one topic are ordered by their birth time
+// instead: `git worktree move` renames the directory, which keeps it, while
+// writing inside the archive does not change it.
+const archivedPattern = /^(topic-[0-9a-f]{16})-before-[0-9a-f]{8}$/u;
 const protectedBranches = new Set(["main", "master"]);
+
+function archivedAt(path) {
+  const status = statSync(path);
+  // A filesystem without birth time reports zero; the inode change time still
+  // moves with the rename and keeps the choice deterministic.
+  return status.birthtimeMs > 0 ? status.birthtimeMs : status.ctimeMs;
+}
 
 async function worktreePaths(repository) {
   const output = await runGit(repository, ["worktree", "list", "--porcelain"]);
@@ -40,18 +51,27 @@ function archivedCandidates(paths, worktreeRoot) {
     }
     candidates.push({
       topic: match[1],
-      updateIdentifier: Number(match[2]),
+      archivedAt: archivedAt(resolvedPath),
       path: resolvedPath,
     });
   }
   return candidates;
 }
 
+function isNewer(candidate, current) {
+  if (candidate.archivedAt !== current.archivedAt) {
+    return candidate.archivedAt > current.archivedAt;
+  }
+  // Equal timestamps keep the choice stable instead of depending on the order
+  // Git listed the worktrees.
+  return candidate.path > current.path;
+}
+
 function newestByTopic(candidates) {
   const newest = new Map();
   for (const candidate of candidates) {
     const current = newest.get(candidate.topic);
-    if (!current || candidate.updateIdentifier > current.updateIdentifier) {
+    if (current === undefined || isNewer(candidate, current)) {
       newest.set(candidate.topic, candidate);
     }
   }

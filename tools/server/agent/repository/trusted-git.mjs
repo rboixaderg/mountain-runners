@@ -10,6 +10,31 @@ import { promisify } from "node:util";
 
 const executeFile = promisify(execFile);
 
+// A local Git command that never answers would hold the single global
+// execution of the service. Every invocation therefore has a deadline and
+// honours the stop signal of the instruction that started it. A remote
+// operation may legitimately take longer than a local one.
+export const localGitTimeoutMilliseconds = 120 * 1000;
+export const remoteGitTimeoutMilliseconds = 300 * 1000;
+
+// Node reports a timeout with `killed` and the signal that ended the child, and
+// an aborted request with `AbortError`. A killed command never answers, so it is
+// not the benign refusal `allowFailure` describes.
+function gitWasInterrupted(error) {
+  return error?.name === "AbortError" || error?.killed === true;
+}
+
+/**
+ * A Git command that its deadline or the stop signal killed. It is not an
+ * answer Git gave, so callers must not read it as an ordinary result.
+ */
+export class GitInterruptedError extends Error {
+  constructor(message, options) {
+    super(message, options);
+    this.name = "GitInterruptedError";
+  }
+}
+
 export function primaryRepository(repositoryPath) {
   const path = realpathSync(repositoryPath);
   return {
@@ -25,7 +50,17 @@ export function registeredWorktree(repositoryPath, worktreePath) {
   const path = realpathSync(worktreePath);
   for (const entry of readdirSync(registry)) {
     const gitDirectory = join(registry, entry);
-    const marker = readFileSync(join(gitDirectory, "gitdir"), "utf8").trim();
+    const gitdirPath = join(gitDirectory, "gitdir");
+    // The registration is read only as the regular file Git writes: a link
+    // would point the trusted path at metadata the service never chose, and a
+    // hard link receives the in-place write of `git worktree move`.
+    const gitdirStats = lstatSync(gitdirPath);
+    if (!gitdirStats.isFile() || gitdirStats.nlink > 1) {
+      throw new Error(
+        "The Git metadata of a worktree is not a trusted file; refusing host Git.",
+      );
+    }
+    const marker = readFileSync(gitdirPath, "utf8").trim();
     if (dirname(marker) === path) {
       return { path, gitDirectory, primary: false };
     }
@@ -38,8 +73,12 @@ function assertWorktreeMarker(worktree) {
     return;
   }
   const marker = join(worktree.path, ".git");
+  const markerStats = lstatSync(marker);
+  // A regular file with one link is the only marker Git writes; a symbolic or
+  // hard link is a path the sandbox chose, not the registry entry.
   if (
-    !lstatSync(marker).isFile() ||
+    !markerStats.isFile() ||
+    markerStats.nlink > 1 ||
     readFileSync(marker, "utf8").trim() !== `gitdir: ${worktree.gitDirectory}`
   ) {
     throw new Error("The worktree Git marker was modified; refusing host Git.");
@@ -66,6 +105,8 @@ export async function runGit(
     input,
     encoding = "utf8",
     maxBuffer = 1024 * 1024,
+    signal,
+    timeoutMilliseconds = localGitTimeoutMilliseconds,
   } = {},
 ) {
   assertWorktreeMarker(worktree);
@@ -95,6 +136,9 @@ export async function runGit(
         env: gitEnvironment(environment),
         encoding,
         maxBuffer,
+        signal,
+        timeout: timeoutMilliseconds,
+        killSignal: "SIGKILL",
       },
     );
     if (input !== undefined) {
@@ -104,6 +148,12 @@ export async function runGit(
     // Callers parsing porcelain/-z need every byte, including leading spaces.
     return stdout;
   } catch (error) {
+    if (gitWasInterrupted(error)) {
+      throw new GitInterruptedError(
+        `git ${argumentsList[0]} did not finish: ${error.signal ?? error.name}.`,
+        { cause: error },
+      );
+    }
     if (allowFailure) {
       return "";
     }

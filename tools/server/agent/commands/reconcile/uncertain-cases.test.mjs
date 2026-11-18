@@ -12,9 +12,10 @@ import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { promisify } from "node:util";
 import { test } from "node:test";
-import { AdmissionQueue, sessionIdentifier } from "telegram-pi-bridge/sessions";
+import { AdmissionQueue } from "telegram-pi-bridge/sessions";
 import { reconcileResolutions } from "../../policy/development.mjs";
 import { CiWatchStore } from "../../repository/ci-watch-store.mjs";
+import { openIdentifierNames } from "../../repository/identifiers.mjs";
 import {
   PreviewRequestStore,
   previewStates,
@@ -62,6 +63,9 @@ async function fixture(context, { previewNow } = {}) {
   const worktreeRoot = join(directory, "worktrees");
   const state = join(directory, "state");
   mkdirSync(state);
+  // The installation already ran the identifier migration: instruction cases
+  // can be attributed without the command creating anything.
+  openIdentifierNames(state);
 
   await executeFile("git", ["init", "--bare", "--initial-branch=main", origin]);
   await executeFile("git", ["clone", origin, repository]);
@@ -102,19 +106,15 @@ async function fixture(context, { previewNow } = {}) {
 }
 
 // The topic worktree holds one commit on its own work branch.
-async function topicWorktree({
-  repository,
-  worktreeRoot,
-  sessionKey,
-  updateIdentifier,
-}) {
+async function topicWorktree({ config, sessionKey, updateIdentifier }) {
+  const names = openIdentifierNames(config.paths.state);
   const worktree = await ensureSessionWorktree({
-    repositoryPath: repository,
-    worktreeRoot,
-    name: sessionIdentifier(sessionKey),
-    newTaskIdentifier: updateIdentifier,
+    repositoryPath: config.paths.repository,
+    worktreeRoot: config.paths.worktrees,
+    name: names.worktreeName(sessionKey),
+    newTaskSuffix: names.changeSuffix(updateIdentifier),
   });
-  const branch = `feat/agent-change-${updateIdentifier}`;
+  const branch = `feat/agent-change-${names.changeSuffix(updateIdentifier)}`;
   await createBranch({ worktree, branch });
   writeFileSync(
     join(worktree.path, "task.txt"),
@@ -177,6 +177,26 @@ function interruptPreview(store, updateIdentifier, sessionKey, commitSha) {
   store.markUncertain(updateIdentifier);
 }
 
+// A publication whose notice may or may not have reached the topic.
+function uncertainNotice(
+  store,
+  {
+    updateIdentifier = 31,
+    commitSha = "f".repeat(40),
+    result = "success",
+  } = {},
+) {
+  store.add({
+    updateIdentifier,
+    sessionKey: sessionKeyOne,
+    pullRequestNumber,
+    commitSha,
+  });
+  store.beginSend(updateIdentifier, result);
+  store.markUncertain(updateIdentifier);
+  return updateIdentifier;
+}
+
 // A finished CI notification of the pull request: resolving a repair must leave
 // it exactly as it was.
 function finishedWatch(store) {
@@ -223,10 +243,9 @@ function reconcile(config, stores, telegram, command) {
 }
 
 test("lists an uncertain instruction with its worktree and open pull request", async (context) => {
-  const { config, stores, repository, worktreeRoot } = await fixture(context);
+  const { config, stores } = await fixture(context);
   const { branch, commit } = await topicWorktree({
-    repository,
-    worktreeRoot,
+    config,
     sessionKey: sessionKeyOne,
     updateIdentifier: 11,
   });
@@ -374,10 +393,9 @@ test("ignores a preview comment created in the request's own second", async (con
 });
 
 test("marks a failed GitHub read and still lists the remaining cases", async (context) => {
-  const { config, stores, repository, worktreeRoot } = await fixture(context);
+  const { config, stores } = await fixture(context);
   await topicWorktree({
-    repository,
-    worktreeRoot,
+    config,
     sessionKey: sessionKeyOne,
     updateIdentifier: 11,
   });
@@ -413,10 +431,9 @@ test("marks a failed GitHub read and still lists the remaining cases", async (co
 });
 
 test("resolves a published instruction and records the confirmed head as published", async (context) => {
-  const { config, stores, repository, worktreeRoot } = await fixture(context);
+  const { config, stores } = await fixture(context);
   const { worktree, commit } = await topicWorktree({
-    repository,
-    worktreeRoot,
+    config,
     sessionKey: sessionKeyOne,
     updateIdentifier: 11,
   });
@@ -428,9 +445,18 @@ test("resolves a published instruction and records the confirmed head as publish
     updateIdentifier: 11,
     resolution: reconcileResolutions.published,
     commit,
+    pullRequestNumber: 42,
   });
 
   assert.equal(resolved.commit, commit);
+  assert.equal(resolved.pullRequestNumber, 42);
+  // The confirmed publication is followed again, so the topic receives its
+  // notice before anything can resolve from the older one.
+  const [watch] = stores.repairs.pending();
+  assert.equal(watch.update_identifier, 11);
+  assert.equal(watch.session_key, sessionKeyOne);
+  assert.equal(watch.pull_request_number, 42);
+  assert.equal(watch.commit_sha, commit);
   assert.equal(stores.instructions.status(11), "done");
   assert.equal(
     readRow(
@@ -449,11 +475,53 @@ test("resolves a published instruction and records the confirmed head as publish
   );
 });
 
+test("keeps the instruction uncertain when the CI watch of the publication cannot be written", async (context) => {
+  const { config, stores } = await fixture(context);
+  interruptInstruction(stores.instructions, 11, sessionKeyOne);
+
+  await assert.rejects(
+    reconcile(config, { ...stores, repairs: null }, fakeTelegram(), {
+      kind: "instruction",
+      updateIdentifier: 11,
+      resolution: reconcileResolutions.published,
+      commit: publishedCommitSha,
+      pullRequestNumber: 42,
+    }),
+    { message: /CI watch database is missing/u },
+  );
+  assert.equal(stores.instructions.status(11), "uncertain");
+
+  await assert.rejects(
+    reconcile(
+      config,
+      {
+        ...stores,
+        repairs: {
+          state: () => undefined,
+          add() {
+            throw new Error("state volume full");
+          },
+        },
+      },
+      fakeTelegram(),
+      {
+        kind: "instruction",
+        updateIdentifier: 11,
+        resolution: reconcileResolutions.published,
+        commit: publishedCommitSha,
+        pullRequestNumber: 42,
+      },
+    ),
+    { message: /state volume full/u },
+  );
+  assert.equal(stores.instructions.status(11), "uncertain");
+  assert.deepEqual(stores.instructions.traceEntries(), []);
+});
+
 test("keeps the instruction uncertain when the publication marker cannot be written", async (context) => {
-  const { config, stores, repository, worktreeRoot } = await fixture(context);
+  const { config, stores } = await fixture(context);
   const { worktree, commit } = await topicWorktree({
-    repository,
-    worktreeRoot,
+    config,
     sessionKey: sessionKeyOne,
     updateIdentifier: 11,
   });
@@ -468,6 +536,7 @@ test("keeps the instruction uncertain when the publication marker cannot be writ
       updateIdentifier: 11,
       resolution: reconcileResolutions.published,
       commit,
+      pullRequestNumber: 42,
     }),
   );
   assert.equal(stores.instructions.status(11), "uncertain");
@@ -481,17 +550,22 @@ test("keeps the instruction uncertain when the publication marker cannot be writ
     updateIdentifier: 11,
     resolution: reconcileResolutions.published,
     commit,
+    pullRequestNumber: 42,
   });
   assert.equal(stores.instructions.status(11), "done");
   assert.equal(publishedCommit(worktree), commit);
+  // The retry reused the watch the first attempt wrote instead of failing.
+  assert.deepEqual(
+    stores.repairs.pending().map((row) => row.update_identifier),
+    [11],
+  );
   assert.equal(telegram.messages.length, 1);
 });
 
 test("records no publication when the confirmed commit is not the worktree head", async (context) => {
-  const { config, stores, repository, worktreeRoot } = await fixture(context);
+  const { config, stores } = await fixture(context);
   const { worktree, commit } = await topicWorktree({
-    repository,
-    worktreeRoot,
+    config,
     sessionKey: sessionKeyOne,
     updateIdentifier: 11,
   });
@@ -502,6 +576,7 @@ test("records no publication when the confirmed commit is not the worktree head"
     updateIdentifier: 11,
     resolution: reconcileResolutions.published,
     commit: publishedCommitSha,
+    pullRequestNumber: 42,
   });
 
   assert.equal(stores.instructions.status(11), "done");
@@ -510,10 +585,9 @@ test("records no publication when the confirmed commit is not the worktree head"
 });
 
 test("resolves a not published instruction and keeps the local work", async (context) => {
-  const { config, stores, repository, worktreeRoot } = await fixture(context);
+  const { config, stores } = await fixture(context);
   const { worktree, commit } = await topicWorktree({
-    repository,
-    worktreeRoot,
+    config,
     sessionKey: sessionKeyOne,
     updateIdentifier: 11,
   });
@@ -758,6 +832,119 @@ test("traces a preview transition that another writer won", async (context) => {
   assert.equal(stores.previews.state(21), previewStates.uncertain);
 });
 
+test("lists an unknown CI notice with what it reported", async (context) => {
+  const { config, stores } = await fixture(context);
+  const updateIdentifier = uncertainNotice(stores.repairs);
+
+  const cases = await listUncertainCases({
+    config,
+    stores,
+    github: {
+      async getPullRequest() {
+        assert.fail("a notice needs no GitHub read");
+      },
+    },
+  });
+
+  assert.equal(cases.length, 1);
+  const [facts] = cases;
+  assert.deepEqual(facts, {
+    kind: "notice",
+    update_identifier: updateIdentifier,
+    session_key: sessionKeyOne,
+    created_at: facts.created_at,
+    pull_request_number: pullRequestNumber,
+    commit: "f".repeat(40),
+    result: "success",
+  });
+});
+
+test("closes a delivered notice without telling the topic again", async (context) => {
+  const { config, stores } = await fixture(context);
+  const updateIdentifier = uncertainNotice(stores.repairs);
+  const telegram = fakeTelegram();
+
+  await reconcile(config, stores, telegram, {
+    kind: "notice",
+    updateIdentifier,
+    resolution: reconcileResolutions.delivered,
+  });
+
+  assert.equal(stores.repairs.state(updateIdentifier), "sent");
+  assert.equal(stores.repairs.lastReported(sessionKeyOne).result, "success");
+  assert.deepEqual(stores.repairs.pending(), []);
+  // The topic already received the notice: the command sends nothing.
+  assert.deepEqual(telegram.messages, []);
+  const trace = stores.instructions
+    .traceEntries()
+    .find((entry) => entry.action === "uncertain_reconciled");
+  assert.equal(trace.detail, `notice delivered #${pullRequestNumber} fffffff`);
+  assert.equal(trace.session_key, sessionKeyOne);
+});
+
+test("queues an unknown notice for the ordinary worker on request", async (context) => {
+  const { config, stores } = await fixture(context);
+  const updateIdentifier = uncertainNotice(stores.repairs);
+  const telegram = fakeTelegram();
+
+  await reconcile(config, stores, telegram, {
+    kind: "notice",
+    updateIdentifier,
+    resolution: reconcileResolutions.resend,
+  });
+
+  // The decision only returns the notice to the pending queue: the worker
+  // sends it, not the command.
+  assert.equal(stores.repairs.state(updateIdentifier), "pending");
+  assert.deepEqual(
+    stores.repairs.pending().map((row) => row.update_identifier),
+    [updateIdentifier],
+  );
+  assert.deepEqual(telegram.messages, []);
+  assert.deepEqual(
+    stores.instructions.traceEntries().map((entry) => entry.action),
+    ["uncertain_reconciled"],
+  );
+});
+
+test("changes nothing when a notice has no trace database", async (context) => {
+  const { config, stores } = await fixture(context);
+  const updateIdentifier = uncertainNotice(stores.repairs);
+
+  await assert.rejects(
+    reconcile(config, { ...stores, instructions: null }, fakeTelegram(), {
+      kind: "notice",
+      updateIdentifier,
+      resolution: reconcileResolutions.delivered,
+    }),
+    { message: /trace database is missing/u },
+  );
+  assert.equal(stores.repairs.state(updateIdentifier), "uncertain");
+});
+
+test("refuses a notice that is no longer uncertain", async (context) => {
+  const { config, stores } = await fixture(context);
+  const updateIdentifier = uncertainNotice(stores.repairs);
+  const telegram = fakeTelegram();
+  const command = {
+    kind: "notice",
+    updateIdentifier,
+    resolution: reconcileResolutions.delivered,
+  };
+
+  await reconcile(config, stores, telegram, command);
+
+  await assert.rejects(
+    reconcile(config, stores, telegram, command),
+    ReconcileCaseError,
+  );
+  assert.equal(stores.repairs.state(updateIdentifier), "sent");
+  assert.deepEqual(
+    stores.instructions.traceEntries().map((entry) => entry.action),
+    ["uncertain_reconciled"],
+  );
+});
+
 test("refuses a case that is no longer uncertain", async (context) => {
   const { config, stores } = await fixture(context);
   const repair = interruptRepair(stores.repairs, sessionKeyOne);
@@ -784,10 +971,9 @@ test("refuses a case that is no longer uncertain", async (context) => {
 });
 
 test("traces each resolution without the instruction text and notifies once per topic", async (context) => {
-  const { config, stores, repository, worktreeRoot } = await fixture(context);
+  const { config, stores } = await fixture(context);
   const { commit } = await topicWorktree({
-    repository,
-    worktreeRoot,
+    config,
     sessionKey: sessionKeyOne,
     updateIdentifier: 11,
   });
@@ -801,6 +987,7 @@ test("traces each resolution without the instruction text and notifies once per 
     updateIdentifier: 11,
     resolution: reconcileResolutions.published,
     commit,
+    pullRequestNumber: 42,
   });
   await reconcile(config, stores, telegram, {
     kind: "repair",
@@ -821,7 +1008,7 @@ test("traces each resolution without the instruction text and notifies once per 
   assert.deepEqual(
     reconciled.map((entry) => entry.detail),
     [
-      `instruction published ${commit.slice(0, 7)}`,
+      `instruction published #${pullRequestNumber} ${commit.slice(0, 7)}`,
       `repair not_published #${pullRequestNumber} ${failedCommit.slice(0, 7)}`,
       `preview commented #${pullRequestNumber} ${failedCommit.slice(0, 7)}`,
     ],

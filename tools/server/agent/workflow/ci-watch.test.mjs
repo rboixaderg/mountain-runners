@@ -4,7 +4,9 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
+import { TelegramApi } from "telegram-pi-bridge/telegram";
 import { CiWatchStore } from "../repository/ci-watch-store.mjs";
+import { SessionNoteStore } from "../repository/session-note-store.mjs";
 import { defaultRequestTimeoutMilliseconds } from "../repository/request-signal.mjs";
 import { maximumAutomaticRepairs } from "../policy/development.mjs";
 import { createCiWatchRegistration, createCiWatchWorker } from "./ci-watch.mjs";
@@ -80,6 +82,7 @@ function workerFor({
   logger,
   now,
   recordTrace = () => {},
+  recordServiceNote = () => {},
   secrets = [],
   requiredChecks: checks = requiredChecks,
   requestTimeoutMilliseconds = defaultRequestTimeoutMilliseconds,
@@ -96,6 +99,7 @@ function workerFor({
     secrets,
     requestTimeoutMilliseconds,
     recordTrace,
+    recordServiceNote,
     logger,
     now,
   });
@@ -181,6 +185,30 @@ test("sends the green result once for the pinned commit and pull request", async
   });
   assert.deepEqual(logger, ["ci_notification_sent"]);
   assert.equal(store.state(registration.updateIdentifier), "sent");
+});
+
+test("keeps the CI notice as a service event of the session", async (context) => {
+  const { store } = fixture(context);
+  createCiWatchRegistration({ store })(registration);
+  const telegram = fakeTelegram();
+  const notes = [];
+  const worker = workerFor({
+    store,
+    github: fakeGithub(),
+    telegram,
+    recordServiceNote: (note) => notes.push(note),
+  });
+
+  await worker.runOnce();
+
+  assert.equal(telegram.sent.length, 1);
+  assert.deepEqual(notes, [
+    {
+      sessionKey: registration.sessionKey,
+      text: telegram.sent[0].text,
+      effectKey: `ci:${registration.updateIdentifier}:${commit}:success`,
+    },
+  ]);
 });
 
 test("waits while a required check is still running", async (context) => {
@@ -675,6 +703,46 @@ test("treats a failed delivery as uncertain and never resends it on its own", as
   assert.equal(store.state(registration.updateIdentifier), "uncertain");
 });
 
+test("treats a notice that reaches its deadline as uncertain and aborts the repair", async (context) => {
+  const { store } = fixture(context);
+  createCiWatchRegistration({ store })(registration);
+  const events = [];
+  const traces = [];
+  // A Telegram client that never answers: only its request deadline ends it.
+  const telegram = new TelegramApi({
+    botToken: "123:synthetic-token",
+    fetchImpl: async (url, init) =>
+      new Promise((resolve, reject) => {
+        init.signal.addEventListener(
+          "abort",
+          () => reject(init.signal.reason),
+          { once: true },
+        );
+      }),
+    requestTimeoutMilliseconds: 100,
+  });
+
+  await workerFor({
+    store,
+    github: fakeGithub({
+      checkRuns: [checkRun("Validate", "completed", "failure")],
+    }),
+    telegram,
+    logger: (event) => events.push(event),
+    recordTrace: (entry) => traces.push(entry),
+  }).runOnce();
+
+  assert.deepEqual(events, ["ci_notification_uncertain"]);
+  assert.equal(store.state(registration.updateIdentifier), "uncertain");
+  assert.equal(store.repair(1).status, "aborted");
+  assert.equal(store.repair(1).outcome, "announcement_failed");
+  assert.equal(store.claimNextRepair(), null);
+  assert.deepEqual(
+    traces.map((entry) => entry.action),
+    ["ci_repair_not_announced"],
+  );
+});
+
 test("keeps the watch pending when GitHub cannot answer", async (context) => {
   const { store } = fixture(context);
   createCiWatchRegistration({ store })(registration);
@@ -998,9 +1066,10 @@ test("makes the repair claimable only after the announcement and a reopenable wa
   assert.equal(store.pending()[0].commit_sha, nextCommit);
 });
 
-test("never runs a repair whose announcement was not delivered", async (context) => {
+test("closes a repair whose announcement was not delivered so the topic is not blocked", async (context) => {
   const { store } = fixture(context);
   createCiWatchRegistration({ store })(registration);
+  const traces = [];
 
   await workerFor({
     store,
@@ -1012,10 +1081,126 @@ test("never runs a repair whose announcement was not delivered", async (context)
         throw new Error("network down");
       },
     },
+    recordTrace: (entry) => traces.push(entry),
   }).runOnce();
 
   assert.equal(store.state(registration.updateIdentifier), "uncertain");
   assert.equal(store.claimNextRepair(), null);
+  const [repair] = store.uncertainRepairs();
+  assert.equal(repair, undefined);
+  assert.deepEqual(
+    traces.map((entry) => entry.action),
+    ["ci_repair_not_announced"],
+  );
+
+  // Once the unknown notice is delivered, the failure is not blocked by a
+  // reservation that will never run.
+  store.resolveUncertainNoticeDelivered(registration.updateIdentifier);
+  assert.equal(store.hasUnreportedWork(registration.sessionKey), false);
+  assert.equal(store.claimNextRepair(), null);
+});
+
+test("tells the two notices of one commit apart in the session", async (context) => {
+  const directory = mkdtempSync(join(tmpdir(), "mr-ci-watch-notes-"));
+  context.after(() =>
+    rmSync(directory, { recursive: true, force: true, maxRetries: 5 }),
+  );
+  const notes = new SessionNoteStore(join(directory, "session-notes.sqlite"));
+  context.after(() => notes.close());
+  const { store } = fixture(context);
+  createCiWatchRegistration({ store })(registration);
+  const failing = fakeGithub({
+    checkRuns: [checkRun("Validate", "completed", "failure")],
+  });
+  const recordServiceNote = ({ sessionKey, text: noteText, effectKey }) =>
+    notes.addNote({ sessionKey, text: noteText, effectKey });
+
+  await workerFor({
+    store,
+    github: failing,
+    telegram: {
+      async sendMessage() {
+        throw new Error("network down");
+      },
+    },
+    recordServiceNote,
+  }).runOnce();
+  const telegram = fakeTelegram();
+  store.resolveUncertainNoticeResend(registration.updateIdentifier);
+  await workerFor({
+    store,
+    github: failing,
+    telegram,
+    recordServiceNote,
+  }).runOnce();
+
+  assert.equal(telegram.sent.length, 1);
+  assert.match(telegram.sent[0].text, /No s'executarà cap reparació/u);
+  assert.deepEqual(
+    notes.claim(registration.sessionKey).map((note) => note.text),
+    [
+      "CI fallida al commit bbbbbbb (PR #200): Validate no ha acabat correctament. Reparació automàtica 1/2 en curs; rebràs el resultat en aquest mateix tema.",
+      telegram.sent[0].text,
+    ],
+    "the announcement and the news that it will not run are two effects",
+  );
+});
+
+test("announces that an aborted repair will not run when its notice is re-sent", async (context) => {
+  const { store } = fixture(context);
+  createCiWatchRegistration({ store })(registration);
+  const failing = fakeGithub({
+    checkRuns: [checkRun("Validate", "completed", "failure")],
+  });
+  const firstTraces = [];
+  await workerFor({
+    store,
+    github: failing,
+    telegram: {
+      async sendMessage() {
+        throw new Error("network down");
+      },
+    },
+    recordTrace: (entry) => firstTraces.push(entry),
+  }).runOnce();
+  assert.equal(store.repair(1).status, "aborted");
+  assert.equal(store.repair(1).outcome, "announcement_failed");
+
+  // The person decides the announcement is sent again.
+  store.resolveUncertainNoticeResend(registration.updateIdentifier);
+
+  const telegram = fakeTelegram();
+  const traces = [];
+  await workerFor({
+    store,
+    github: failing,
+    telegram,
+    recordTrace: (entry) => traces.push(entry),
+  }).runOnce();
+
+  assert.equal(telegram.sent.length, 1);
+  assert.match(telegram.sent[0].text, /Validate no ha acabat correctament/u);
+  assert.match(
+    telegram.sent[0].text,
+    /No s'executarà cap reparació automàtica d'aquest intent/u,
+  );
+  assert.match(telegram.sent[0].text, /dona una instrucció nova/u);
+  assert.equal(store.state(registration.updateIdentifier), "sent");
+  assert.equal(store.claimNextRepair(), null);
+  assert.equal(store.repair(1).status, "aborted");
+  assert.deepEqual(
+    traces.map((entry) => [entry.action, entry.detail]),
+    [
+      [
+        "ci_repair_not_run",
+        `#${registration.pullRequestNumber} ${commit.slice(0, 7)} aborted`,
+      ],
+    ],
+  );
+  assert.equal(
+    firstTraces.some((entry) => entry.action === "ci_repair_requested"),
+    false,
+  );
 });
 
 test("names the failed checks when the deadline ends an incomplete failure", async (context) => {

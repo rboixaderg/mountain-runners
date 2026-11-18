@@ -3,8 +3,20 @@ import { createServer } from "node:http";
 import { test } from "node:test";
 import {
   TelegramApi,
+  TelegramApiError,
   TelegramFileTooLargeError,
 } from "../../src/telegram/api.mjs";
+
+/** A transport that only settles when its signal aborts, like a stuck request. */
+function hangingFetch() {
+  return async function fetchImpl(url, init) {
+    return new Promise((resolve, reject) => {
+      init.signal.addEventListener("abort", () => reject(init.signal.reason), {
+        once: true,
+      });
+    });
+  };
+}
 
 async function withFakeTelegram(handler, run) {
   const requests = [];
@@ -120,6 +132,308 @@ test("reports an unreachable API without leaking the bot token", async () => {
     assert.match(error.message, /network error/u);
     assert.equal(error.message.includes("synthetic-token"), false);
     return true;
+  });
+});
+
+test("ends a request that reaches its deadline without leaking the token", async () => {
+  const api = new TelegramApi({
+    botToken: "123:synthetic-token",
+    fetchImpl: hangingFetch(),
+    requestTimeoutMilliseconds: 100,
+  });
+
+  await assert.rejects(api.getMe(), (error) => {
+    assert.equal(error instanceof TelegramApiError, true);
+    assert.match(error.message, /no answer within 100 ms/u);
+    assert.equal(error.message.includes("synthetic-token"), false);
+    return true;
+  });
+});
+
+test("ends a download that reaches its deadline", async () => {
+  const api = new TelegramApi({
+    botToken: "123:synthetic-token",
+    fetchImpl: hangingFetch(),
+    requestTimeoutMilliseconds: 100,
+  });
+
+  await assert.rejects(
+    api.downloadFile({ filePath: "documents/file_6.png", maximumBytes: 5 }),
+    (error) => {
+      assert.equal(error instanceof TelegramApiError, true);
+      assert.match(error.message, /no answer within 100 ms/u);
+      assert.equal(error.message.includes("synthetic-token"), false);
+      return true;
+    },
+  );
+});
+
+test("adds the long-poll margin to the requested server wait", async () => {
+  const api = new TelegramApi({
+    botToken: "123:synthetic-token",
+    fetchImpl: hangingFetch(),
+    longPollMarginMilliseconds: 50,
+  });
+
+  // Half a second of server wait keeps the deadline assertable under a second.
+  await assert.rejects(
+    api.getUpdates({ offset: 0, timeoutSeconds: 0.5 }),
+    (error) => {
+      assert.equal(error instanceof TelegramApiError, true);
+      assert.match(error.message, /no answer within 550 ms/u);
+      return true;
+    },
+  );
+});
+
+test("propagates a stop during a send as an abort", async () => {
+  const api = new TelegramApi({
+    botToken: "123:synthetic-token",
+    fetchImpl: hangingFetch(),
+    requestTimeoutMilliseconds: 60 * 1000,
+  });
+  const controller = new AbortController();
+  const sending = api.sendMessage({
+    chatIdentifier: "-1001234567890",
+    messageThreadIdentifier: 7,
+    text: "Fet: PR #200",
+    signal: controller.signal,
+  });
+  setTimeout(() => controller.abort(), 10);
+
+  await assert.rejects(sending, (error) => {
+    assert.equal(error.name, "AbortError");
+    assert.equal(error instanceof TelegramApiError, false);
+    return true;
+  });
+});
+
+/**
+ * A server that sends the headers and the first bytes of the body, then never
+ * finishes. The request is stuck in the body read, not in the connection.
+ */
+async function withPartialBody(t, run) {
+  const sockets = new Set();
+  const server = createServer((request, response) => {
+    response.writeHead(200, { "content-type": "application/json" });
+    response.write('{"ok":');
+  });
+  server.on("connection", (socket) => {
+    sockets.add(socket);
+    socket.on("close", () => sockets.delete(socket));
+  });
+  await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const { port } = server.address();
+  t.after(async () => {
+    for (const socket of sockets) {
+      socket.destroy();
+    }
+    await new Promise((resolve) => server.close(resolve));
+  });
+  await run({ baseUrl: `http://127.0.0.1:${port}` });
+}
+
+/** A transport that reports when the response headers were received. */
+function fetchReportingHeaders() {
+  let reportHeaders;
+  const headersReceived = new Promise((resolve) => {
+    reportHeaders = resolve;
+  });
+  return {
+    headersReceived,
+    async fetchImpl(url, init) {
+      const response = await fetch(url, init);
+      reportHeaders();
+      return response;
+    },
+  };
+}
+
+/** The real download stream, reporting when its reader starts pulling. */
+function bodyReportingRead(body, reportBodyRead) {
+  const reader = body.getReader();
+  return {
+    getReader() {
+      return {
+        read() {
+          const reading = reader.read();
+          reportBodyRead();
+          return reading;
+        },
+        cancel(reason) {
+          return reader.cancel(reason);
+        },
+        releaseLock() {
+          reader.releaseLock();
+        },
+      };
+    },
+    cancel(reason) {
+      return body.cancel(reason);
+    },
+  };
+}
+
+/**
+ * A transport that reports when the caller starts reading the body: `json()` has
+ * been called, or the download reader has pulled its first chunk. The headers
+ * are not enough, because the read starts after them.
+ */
+function fetchReportingBodyRead() {
+  let reportBodyRead;
+  const bodyReadStarted = new Promise((resolve) => {
+    reportBodyRead = resolve;
+  });
+  return {
+    bodyReadStarted,
+    async fetchImpl(url, init) {
+      const response = await fetch(url, init);
+      let body;
+      return {
+        status: response.status,
+        ok: response.ok,
+        headers: response.headers,
+        async json() {
+          const reading = response.json();
+          reportBodyRead();
+          return reading;
+        },
+        get body() {
+          body ??= bodyReportingRead(response.body, reportBodyRead);
+          return body;
+        },
+      };
+    },
+  };
+}
+
+function assertNoTokenOrUrl(error, baseUrl) {
+  assert.equal(error.message.includes("synthetic-token"), false);
+  assert.equal(error.message.includes(baseUrl), false);
+  return true;
+}
+
+/**
+ * Await a request that must settle. A signal disconnected after the headers are
+ * received leaves the body read pending, so this fails instead of hanging.
+ */
+async function settledWithin(request, milliseconds) {
+  let timer;
+  const limit = new Promise((resolve, reject) => {
+    timer = setTimeout(
+      () =>
+        reject(
+          new Error(`the request did not settle within ${milliseconds} ms`),
+        ),
+      milliseconds,
+    );
+  });
+  try {
+    return await Promise.race([request, limit]);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+test("ends a reply whose body never finishes", async (t) => {
+  await withPartialBody(t, async ({ baseUrl }) => {
+    const transport = fetchReportingHeaders();
+    const api = new TelegramApi({
+      botToken: "123:synthetic-token",
+      baseUrl,
+      fetchImpl: transport.fetchImpl,
+      requestTimeoutMilliseconds: 100,
+    });
+    const sending = api.sendMessage({
+      chatIdentifier: "-1001234567890",
+      messageThreadIdentifier: 7,
+      text: "Fet: PR #200",
+    });
+
+    await transport.headersReceived;
+    await assert.rejects(settledWithin(sending, 900), (error) => {
+      assert.equal(error instanceof TelegramApiError, true);
+      assert.match(error.message, /no answer within 100 ms/u);
+      return assertNoTokenOrUrl(error, baseUrl);
+    });
+  });
+});
+
+test("keeps a stop during the body read as an abort", async (t) => {
+  await withPartialBody(t, async ({ baseUrl }) => {
+    const transport = fetchReportingBodyRead();
+    const api = new TelegramApi({
+      botToken: "123:synthetic-token",
+      baseUrl,
+      fetchImpl: transport.fetchImpl,
+      requestTimeoutMilliseconds: 60 * 1000,
+    });
+    const controller = new AbortController();
+    const sending = api.sendMessage({
+      chatIdentifier: "-1001234567890",
+      messageThreadIdentifier: 7,
+      text: "Fet: PR #200",
+      signal: controller.signal,
+    });
+
+    // The stop lands while `response.json()` is already waiting for the rest.
+    await transport.bodyReadStarted;
+    controller.abort();
+    await assert.rejects(settledWithin(sending, 900), (error) => {
+      assert.equal(error.name, "AbortError");
+      assert.equal(error instanceof TelegramApiError, false);
+      return assertNoTokenOrUrl(error, baseUrl);
+    });
+  });
+});
+
+test("ends a download whose body never finishes", async (t) => {
+  await withPartialBody(t, async ({ baseUrl }) => {
+    const transport = fetchReportingHeaders();
+    const api = new TelegramApi({
+      botToken: "123:synthetic-token",
+      baseUrl,
+      fetchImpl: transport.fetchImpl,
+      requestTimeoutMilliseconds: 100,
+    });
+    const downloading = api.downloadFile({
+      filePath: "documents/file_7.png",
+      maximumBytes: 2097152,
+    });
+
+    await transport.headersReceived;
+    await assert.rejects(settledWithin(downloading, 900), (error) => {
+      assert.equal(error instanceof TelegramApiError, true);
+      assert.match(error.message, /no answer within 100 ms/u);
+      return assertNoTokenOrUrl(error, baseUrl);
+    });
+  });
+});
+
+test("keeps a stop during a download body as an abort", async (t) => {
+  await withPartialBody(t, async ({ baseUrl }) => {
+    const transport = fetchReportingBodyRead();
+    const api = new TelegramApi({
+      botToken: "123:synthetic-token",
+      baseUrl,
+      fetchImpl: transport.fetchImpl,
+      requestTimeoutMilliseconds: 60 * 1000,
+    });
+    const controller = new AbortController();
+    const downloading = api.downloadFile({
+      filePath: "documents/file_8.png",
+      maximumBytes: 2097152,
+      signal: controller.signal,
+    });
+
+    // The stop lands while the download reader is already waiting for more.
+    await transport.bodyReadStarted;
+    controller.abort();
+    await assert.rejects(settledWithin(downloading, 900), (error) => {
+      assert.equal(error.name, "AbortError");
+      assert.equal(error instanceof TelegramApiError, false);
+      return assertNoTokenOrUrl(error, baseUrl);
+    });
   });
 });
 

@@ -4,8 +4,8 @@ Aplicació de Mountain Runners que porta una petició de Telegram fins a una PR.
 El servei **no està desplegat ni activat**. Aquesta branca afegeix l'avís de CI
 de T8.4 vinculat al SHA publicat, la reparació automàtica acotada d'una CI
 vermella, la preview demanada al tema, el merge demanat amb `/merge`, la
-continuació d'una PR des d'un altre tema, l'avís de solapaments i els adjunts
-d'imatge. Cap canvi d'aquesta branca autoritza
+continuació d'una PR des d'un altre tema, l'avís de solapaments, els adjunts
+d'imatge i la continuïtat de la conversa d'un tema de T8.7. Cap canvi d'aquesta branca autoritza
 instal·lacions ni operacions remotes.
 
 ## Nucli reutilitzable i aplicació
@@ -42,7 +42,10 @@ tools/server/agent/               aplicació de Mountain Runners
 ├── commands/reconcile/
 │   ├── cli.mjs                   embolcall de procés: umask privat i codi de sortida
 │   ├── command.mjs               ordre d'operador, amb clients de GitHub i Telegram injectables
-│   └── uncertain-cases.mjs       fets i resolució d'una instrucció, reparació o preview
+│   └── uncertain-cases.mjs       fets i resolució d'una instrucció, reparació, preview o avís
+├── commands/migrate-identifiers/
+│   ├── cli.mjs                   migració dels noms antics, sense arrencar el servei
+│   └── command.mjs               la mateixa migració que fa l'arrencada, idempotent
 ├── processes/telegram-bridge/
 │   └── main.mjs                  connecta paquet i flux de desenvolupament
 ├── policy/
@@ -68,6 +71,7 @@ tools/server/agent/               aplicació de Mountain Runners
 │   └── errors.mjs                aturada no confirmada que bloqueja el servei
 └── repository/
     ├── trusted-git.mjs            metadades explícites i entorn restringit
+    ├── identifiers.mjs            noms opacs de worktree, arxiu i branca
     ├── worktrees.mjs              worktree, branca, commit i estat publicat
     ├── secret-scan.mjs            historial, rutes i credencials conegudes
     ├── publisher.mjs              push, PR i confirmació de l'estat publicat
@@ -77,6 +81,7 @@ tools/server/agent/               aplicació de Mountain Runners
     ├── preview-comment.mjs        comentari de confirmació del publicador de confiança
     ├── preview-request-store.mjs  peticions de preview durables
     ├── merge-request-store.mjs    peticions de merge durables
+    ├── session-note-store.mjs     efectes del servei pendents i última resposta del tema
     └── ci-watch-store.mjs         avís de CI i intents de reparació duradors
 ```
 
@@ -113,38 +118,80 @@ al servidor. El nom local encara no representa una publicació a npm.
    instrucció abans d'avançar l'offset i la deduplica. Només hi ha una execució
    global; un resultat incert bloqueja les següents. Les peticions noves durant
    el bloqueig es refusen amb avís. Un error de consulta de pertinença també
-   informa l'autor; no admet la instrucció per defecte.
-2. `workflow` interpreta la petició amb una crida efímera sense eines, historial
-   ni context del repositori. Si no és clara, demana aclariment.
-3. El servei prepara el worktree actual del tema. Una feina nova preserva
-   l'anterior a `<tema>-before-<update>` i crea un worktree des de `origin/main`,
-   sense arrossegar fitxers ignorats d'una feina anterior.
+   informa l'autor; no admet la instrucció per defecte. Tota petició del client
+   de Telegram té termini propi, combinat amb el senyal d'aturada: 30 s per
+   defecte i, al long polling, el temps demanat al servidor més 15 s de marge.
+   Un termini esgotat és un error del client, sense URL ni token; una aturada
+   continua sent una aturada.
+2. `workflow` interpreta la petició amb una crida efímera sense eines i sense
+   historial. A més del text, rep com a dada l'última resposta del tema
+   (retallada), si el worktree del tema té feina sense publicar i el número de la
+   PR que el tema va publicar i encara té. La classificació queda a la traça
+   (`instruction_classified`). Si no és clara, el torn és una consulta (punt 4) i
+   no una resposta fixa.
+3. El servei prepara el worktree actual del tema. El directori es diu
+   `topic-<16hex>` i no conté ni el grup ni el tema: surt d'un HMAC-SHA256 amb
+   un salt privat de la instal·lació (`state/identifier-salt`). Una feina nova
+   preserva l'anterior a `topic-<16hex>-before-<8hex>` i crea un worktree des de
+   `origin/main`, sense arrossegar fitxers ignorats d'una feina anterior.
    Només una continuació explícita reutilitza la feina pendent actual o, si
    nomena una sola PR que el servei va publicar, la reprèn a
    `workflow/cross-topic-continuation.mjs` (vegeu el punt 11).
-   A l'arrencada, `repository/retention.mjs` esborra només els worktrees
-   arxivats que no tenen res a perdre: cap commit per davant d'`origin/main` i
-   cap canvi sense cometre. Conserva sempre l'arxiu més recent de cada tema i no
-   toca mai el worktree actiu. Si la retenció falla, ho registra i el servei
-   continua.
+   A l'arrencada, abans de qualsevol altra feina, `repository/worktrees.mjs`
+   renombra els worktrees i arxius amb el nom antic `topic_<chat>_<tema>`: el
+   directori muntat, el directori administratiu `.git/worktrees/<nom>` i el
+   fitxer `.git` del worktree, perquè dins de `/work` no hi quedi cap nom
+   privat. El fitxer `.git` es reescriu amb un fitxer temporal exclusiu i un
+   `rename` atòmic, mai a través del path existent. Un `.git` o un `gitdir` del
+   registre que no sigui un fitxer regular amb un sol enllaç no es llegeix ni es
+   repara: es registra `worktree_marker_untrusted` amb el nom opac i el servei no
+   arrenca.
+   És idempotent i reprèn el que una interrupció hagi deixat a mitges;
+   si no pot, ho registra i el servei no arrenca. L'ordre d'actualització és
+   actualitzar, executar `commands/migrate-identifiers/cli.mjs`, reconciliar i
+   arrencar. També a
+   l'arrencada, `repository/retention.mjs` esborra només els worktrees arxivats
+   que no tenen res a perdre: cap commit per davant d'`origin/main` i cap canvi
+   sense cometre. Conserva sempre l'arxiu més recent de cada tema i no toca mai
+   el worktree actiu. Com que el sufix de l'arxiu és opac, l'ordre surt de la
+   data de naixement del directori. Si la retenció falla, ho registra i el
+   servei continua.
    `runtime/pi-adapter` tria
    explícitament el perfil, l'entorn, `sandbox_bash` i la neteja dels processos.
    El paquet només executa el protocol RPC amb aquestes opcions.
 4. Una consulta munta `/work` en mode de només lectura i retorna la resposta,
    sense publicar canvis anteriors pendents. Una implementació pot editar i
-   provar dins del mateix sandbox.
+   provar dins del mateix sandbox. També és una consulta la petició que el
+   classificador no sap situar i la continuació que no té feina pendent ni PR del
+   tema: el prompt hi afegeix una línia que diu que el servei no ha pogut
+   distingir si la persona vol un canvi, i el text fix d'aclariment només es fa
+   servir si el model no respon.
 5. Si hi ha canvis o commits pendents, `workflow` crea o continua la branca i
    executa `pnpm check` dins del contenidor. Una fallada conserva la feina.
 6. `repository` fa commit, escaneja les credencials conegudes, publica la branca
    i obre o reutilitza la PR. Només després de confirmar push i PR registra el
    commit publicat fora del muntatge. El paquet retorna el resultat al tema.
+   Totes les ordres Git i totes les crides a l'API de GitHub tenen termini i
+   reben el senyal de la instrucció: 120 s per a una ordre Git local, 300 s per
+   a `fetch` i `push`, i 30 s per a una crida a l'API que no porti termini propi.
+   Una ordre que s'esgota o s'atura es mata amb `SIGKILL` i no compta com un
+   refús local.
 7. Abans de respondre, `workflow` desa un seguiment de CI vinculat al SHA
    publicat. Un bucle en segon pla llegeix els check runs i els estats de commit
    d'aquell SHA i, quan les comprovacions obligatòries acaben, envia el resultat
-   al mateix tema. El bucle no bloqueja la cua; un enviament no confirmat queda
-   com a incert i no es repeteix sol.
+   al mateix tema. El bucle no bloqueja la cua; un enviament no confirmat, també
+   el que s'esgota dins del termini del client, queda com a incert i no es
+   repeteix sol. Si el seguiment no es pot desar després
+   d'una publicació confirmada, la instrucció acaba com a incerta: la publicació
+   s'ha fet, però cap avís durador la pot autoritzar, i una persona ho
+   reconcilia. Mentre el tema tingui cap avís incert, el tema té feina sense
+   informar: `/merge` i `/preview` no resolen res, encara que un avís posterior
+   s'hagi lliurat abans.
 8. Si les comprovacions obligatòries fallen, `workflow/ci-watch.mjs` reserva una
-   reparació automàtica abans d'avisar i tanca el seguiment. `ci-repair.mjs`
+   reparació automàtica abans d'avisar i tanca el seguiment. Si l'avís «en curs»
+   no es lliura, la reserva es tanca de seguida com a `aborted` amb el motiu
+   `announcement_failed` (traça `ci_repair_not_announced`): no s'executa mai i no
+   bloqueja el tema. `ci-repair.mjs`
    executa l'intent quan la cua d'instruccions és buida i no està bloquejada per
    un resultat incert, pel mateix camí de model, comprovació, commit i publicació
    que una implementació. Abans de tocar la branca torna a llegir la PR i les
@@ -156,7 +203,14 @@ al servidor. El nom local encara no representa una publicació a npm.
    conjunt de noms de les comprovacions fallides: el missatge i el SHA són
    evidència, no identitat. Només compta l'intent que s'ha arribat a agafar. Una
    reparació que no canvia res, o que no pot confirmar el resultat, es tanca i es
-   comunica sense reintentar-se.
+   comunica sense reintentar-se. Si una fallada reutilitza un intent que ja ha
+   acabat, el tema rep l'avís que no s'executarà cap reparació i que cal una
+   instrucció nova (traça `ci_repair_not_run`); `ci_repair_requested` només es
+   traça quan l'intent ha arribat a la cua. A l'arrencada, qualsevol reserva que no va
+   arribar a la cua es tanca com a `aborted` amb el motiu
+   `interrupted_before_queue` (traça `ci_repair_not_queued`) i no s'executa. Una
+   CI verda o una publicació humana nova també donen per obsoletes les reserves
+   que mai no han corregut.
 
 9. Una persona verificada pot demanar la preview en llenguatge natural. El
    classificador només etiqueta la petició com a `preview`: el model no s'inicia
@@ -166,7 +220,8 @@ al servidor. El nom local encara no representa una publicació a npm.
    PR o un SHA escrits per la persona) i torna a llegir la PR i les
    comprovacions obligatòries:
    PR oberta, cap igual al commit fixat, branca del repositori principal i
-   comprovacions obligatòries totes en verd. Si l'autor ja no és membre, si la
+   comprovacions obligatòries totes en verd. Si el tema té una publicació més
+   nova sense informe confirmat, refusa. Si l'autor ja no és membre, si la
    consulta de pertinença falla, si hi ha qualsevol dubte o un error de lectura,
    refusa i ho diu. Només llavors desa la petició (`commenting`),
    comenta exactament `/preview` amb la credencial del servei i passa a
@@ -188,7 +243,7 @@ al servidor. El nom local encara no representa una publicació a npm.
     no fusiona res. `workflow/merge-request.mjs` torna a verificar la pertinença,
     fixa la petició a la PR i al commit de l'últim avís de CI en verd lliurat al
     tema i refusa si el tema té feina més nova que aquell avís (instrucció,
-    reparació o seguiment encara sense informar). Rellegeix la PR en fallada tancada
+    reparació o avís encara sense informar, incert inclòs). Rellegeix la PR en fallada tancada
     (oberta, no esborrany, base `main`, repositori principal, cap igual al commit
     fixat, comprovacions obligatòries en verd i `mergeable_state` `clean`) i desa
     la petició (`merging`) abans de la crida. Només llavors demana a GitHub un
@@ -216,10 +271,40 @@ al servidor. El nom local encara no representa una publicació a npm.
     últims vint comentaris i l'estat de les comprovacions com a dades no fiables.
     La publicació només actualitza aquella PR, el tema nou registra el seu propi
     avís i passa a ser-ne el propietari, i el tema anterior rep un avís curt. Si
-    la fila no es pot desar, la publicació es manté i el tema anterior conserva
-    els avisos. Un avís que falla o que esgota el termini es registra a la traça
-    i no fa fallar la instrucció. El detall
+    la fila no es pot desar, la publicació es manté, el tema anterior conserva
+    els avisos i la instrucció acaba com a incerta. Un avís que falla o que
+    esgota el termini es registra a la traça
+    i no fa fallar la instrucció. Si la continuació no nomena cap número, el
+    servei reprèn la PR oberta que el tema va publicar i encara té: continua
+    aquí mateix si el worktree ja té aquella branca al cap de la PR, i la
+    publicació fixa aquella PR i aquell cap (els revalida abans del push i no
+    n'obre mai una altra), o pel camí de represa si en té una altra. Una PR
+    fusionada o tancada deixa la petició com a consulta. El detall
     és a [`docs/deployment.md`](../../../docs/deployment.md).
+
+12. Cada instrucció admesa que no és `/merge` ni una preview executa un torn de
+    Pi a la sessió del tema, i el torn següent rep els efectes que el servei ha
+    decidit mentrestant. `repository/session-note-store.mjs` desa a
+    `state/session-notes.sqlite`, per tema, el text de cada informe del servei
+    (publicació, comprovacions, CI, reparació, preview, merge, traspàs, adjunt
+    refusat i resolució d'un resultat desconegut) abans d'enviar-lo, retallat a
+    1500 caràcters i amb un màxim de 20 notes sense lliurar. Una nota només
+    conté text escrit pel servei: quan un avís seu incorpora text del model, la
+    nota en guarda només la part del servei i les paraules del model només
+    queden com a última resposta del tema. Cada efecte té una identitat
+    duradora, així que un reenviament de Telegram no duplica la nota i una
+    identitat ja lliurada no es reviu, i les identitats lliurades no es poden.
+    Les notes es reclamen al darrer moment, quan el perfil de Pi ja està
+    preparat i Pi és a punt de rebre el prompt: qualsevol fallada anterior les
+    deixa pendents. Un cop reclamades, s'esborren quan el torn acaba o falla,
+    perquè el prompt pot haver arribat a Pi; només les torna a pendents que el
+    prompt no s'hagi escrit mai (el fet d'enviament `onPromptSent`, encara que
+    després falli també la neteja del sandbox). Un reinici
+    conserva les pendents i no repeteix cap nota
+    d'un torn interromput (una reclamació oberta compta com a lliurada). Un
+    informe que barreja text del servei i del model només desa la part del
+    servei com a nota. El classificador no rep mai aquest bloc. El mateix store
+    desa l'última resposta del tema, que el classificador llegeix com a dada.
 
 Un adjunt admès només s'aplica a una implementació o una continuació.
 `attachments/prepare.mjs` el descarrega al directori temporal del servei, en
@@ -235,7 +320,11 @@ sota `.agent-attachments/`: l'adjunt no es publica ni en una branca amb un
 frase.
 
 Un error local conegut, un timeout o una cancel·lació amb neteja confirmada
-retornen una fallada sense bloquejar la cua. L'avís de CI tampoc no bloqueja la
+retornen una fallada sense bloquejar la cua. Un termini o una aturada abans de
+la primera escriptura remota és una fallada local, i la lectura de la PR que el
+publicador fa abans del push també hi entra: un termini esgotat allà té el seu
+avís propi. Després d'un push o d'una petició de PR, la instrucció queda
+incerta. L'avís de CI tampoc no bloqueja la
 cua: només es declaren verdes les comprovacions obligatòries presents i
 correctes del SHA exacte, i un resultat no confirmat es comunica sense
 reintentar-lo. Un error després d'iniciar la
@@ -249,9 +338,14 @@ Amb el servei en marxa,
 una reparació amb resultat desconegut atura les reparacions automàtiques mentre
 les instruccions del tema continuen. La reconciliació d'un resultat desconegut
 no és automàtica: una persona llegeix l'estat real i el tanca amb
-`commands/reconcile/cli.mjs`, amb el servei aturat i la identitat del servei.
+`commands/reconcile/cli.mjs`, amb el servei aturat i la identitat del servei. Un
+avís de CI incert també es reconcilia així (`--kind notice`), sense cap avís nou
+al tema. Una instrucció publicada exigeix `--pull-request`: la comanda torna a
+desar el seguiment de CI pendent d'aquell commit abans de desbloquejar-la, i si
+no el pot desar la instrucció continua incerta.
 Cada resolució es desa amb la seva traça o no es desa, i la comanda no crea cap
-base de dades. El procediment és a
+base de dades. L'avís al tema també es desa al magatzem de notes del tema abans
+d'enviar-lo (identitat `reconcile:<tipus>:<id>`), encara que l'enviament falli. El procediment és a
 [`docs/deployment.md`](../../../docs/deployment.md#reconciliació-de-resultats-desconeguts-t85).
 
 La classificació semàntica no substitueix l'autorització, els muntatges de només
@@ -276,6 +370,10 @@ política ni pot autoritzar per si sol una publicació.
   `sandbox_bash`. Ni un perfil antic ni el repositori hi poden afegir eines.
 - El model llegeix `AGENTS.md`, skills i documentació dins del contenidor. Pi
   no els carrega al host ni manté còpies que puguin seguir symlinks cap a secrets.
+- L'etiqueta `mountain-agent.session` dels contenidors i
+  `MR_AGENT_SESSION_IDENTIFIER`, que rep Pi, porten el nom opac del worktree. El
+  fitxer de sessió de Pi conserva l'identificador privat perquè viu fora del
+  sandbox.
 - Podman s'executa localment sense root ni dimoni, amb `--remote=false` i
   `--userns=keep-id`. Conserva l'UID/GID del worktree i `UMask=0077`. Ni el pont
   ni Pi tenen grup Docker o socket de contenidors del host. El contenidor no
@@ -288,7 +386,9 @@ política ni pot autoritzar per si sol una publicació.
   objectes de més de 2 MiB o un total superior a 32 MiB. També rebutja canvis
   a `.github/**` i `CODEOWNERS` en qualsevol commit del rang. El push usa el
   SHA inspeccionat. Cal una credencial sense `Workflows: write`.
-- Sense `SUMMARY` vàlid, la branca usa `feat/agent-change-<update>` i el títol
+- El nom públic de la branca acaba en un sufix opac de vuit caràcters
+  hexadecimals, derivat de l'identificador d'actualització amb el mateix salt.
+  Sense `SUMMARY` vàlid, la branca usa `feat/agent-change-<sufix>` i el títol
   usa `feat(agent): update project`. No es deriva cap fallback del text privat.
   El prompt indica els tipus acceptats (`feat`, `fix`, `docs`, `refactor`,
   `test`, `build`, `ci`, `chore`, `security`) perquè el model no n'inventi cap
@@ -338,7 +438,10 @@ Telegram, cua, sessions i RPC. L'aplicació prova la política, el sandbox i Git
 simulades. `repository/ci-status.test.mjs` cobreix la classificació de la CI i la
 identitat de la fallada; `workflow/ci-watch.test.mjs`, la reserva de reparacions;
 i `workflow/ci-repair.test.mjs`, l'execució, el límit, el resultat desconegut i
-l'aturada. `commands/reconcile/uncertain-cases.test.mjs` cobreix els fets i la
+l'aturada. `repository/session-note-store.test.mjs` cobreix la durabilitat, el
+lliurament únic, la retenció i els límits de les notes del tema, i
+`workflow/run-instruction.test.mjs` el torn de consulta, el context del
+classificador i el bloc de servei del prompt. `commands/reconcile/uncertain-cases.test.mjs` cobreix els fets i la
 resolució de cada tipus de resultat desconegut, `commands/reconcile/command.test.mjs`
 una resolució completa amb clients simulats i `commands/reconcile/cli.test.mjs`
 el cablejat, els codis de sortida i l'absència de fitxers nous, amb stores SQLite
@@ -347,7 +450,7 @@ temporals, repositoris locals i fronteres externes simulades.
 independent, prova el tarball des d'un consumidor extern i verifica la disposició
 instal·lada del servei. No s'hi fan peticions reals ni es necessiten credencials.
 
-Des de l'arrel, amb Node 24.11.0 i pnpm 10.33.0:
+Des de l'arrel, amb Node 24.22.3 i pnpm 10.33.0:
 
 ```sh
 pnpm --filter telegram-pi-bridge test

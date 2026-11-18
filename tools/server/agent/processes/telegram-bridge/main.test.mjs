@@ -1,7 +1,22 @@
 import assert from "node:assert/strict";
-import { mkdirSync, mkdtempSync, rmSync } from "node:fs";
+import { execFile } from "node:child_process";
+import {
+  existsSync,
+  linkSync,
+  lstatSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  readdirSync,
+  realpathSync,
+  rmSync,
+  statSync,
+  symlinkSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { promisify } from "node:util";
 import { test } from "node:test";
 import { AdmissionQueue } from "telegram-pi-bridge/sessions";
 import { reconcileResolutions } from "../../policy/development.mjs";
@@ -12,7 +27,50 @@ import {
 import { CiWatchStore } from "../../repository/ci-watch-store.mjs";
 import { MergeRequestStore } from "../../repository/merge-request-store.mjs";
 import { PreviewRequestStore } from "../../repository/preview-request-store.mjs";
+import { openIdentifierNames } from "../../repository/identifiers.mjs";
+import { ensureSessionWorktree } from "../../repository/worktrees.mjs";
 import { runBridgeWithCiWatcher, startService } from "./main.mjs";
+
+const executeFile = promisify(execFile);
+
+/** A clone with an initial commit, plus the legacy worktree of one topic. */
+async function repositoryWithLegacyWorktree(environment) {
+  const repository = environment.MOUNTAIN_AGENT_REPOSITORY_PATH;
+  const worktreeRoot = environment.MOUNTAIN_AGENT_WORKTREE_PATH;
+  const origin = `${repository}-origin.git`;
+  await executeFile("git", ["init", "--bare", "--initial-branch=main", origin]);
+  await executeFile("git", ["clone", origin, repository]);
+  writeFileSync(join(repository, "README.md"), "synthetic\n");
+  await executeFile("git", [
+    "-C",
+    repository,
+    "-c",
+    "user.name=Synthetic",
+    "-c",
+    "user.email=synthetic@example.test",
+    "add",
+    "README.md",
+  ]);
+  await executeFile("git", [
+    "-C",
+    repository,
+    "-c",
+    "user.name=Synthetic",
+    "-c",
+    "user.email=synthetic@example.test",
+    "commit",
+    "-m",
+    "chore: initial",
+  ]);
+  await executeFile("git", ["-C", repository, "push", "origin", "main"]);
+  const worktree = await ensureSessionWorktree({
+    repositoryPath: repository,
+    worktreeRoot,
+    name: "topic_n1001234567890_7",
+  });
+  writeFileSync(join(worktree.path, "pending.txt"), "preserved\n");
+  return worktree;
+}
 
 function environmentFor(context) {
   const directory = mkdtempSync(join(tmpdir(), "mr-agent-service-"));
@@ -325,6 +383,43 @@ test("refuses to start with an interrupted CI repair of unknown result", async (
   const reopened = new CiWatchStore(join(statePath, "ci-watch.sqlite"));
   assert.equal(reopened.claimNextRepair(), null);
   reopened.close();
+});
+
+test("closes an unannounced reservation at startup instead of blocking the topic", async (context) => {
+  const { environment, statePath } = environmentFor(context);
+  mkdirSync(statePath, { recursive: true });
+  const stateStore = new CiWatchStore(join(statePath, "ci-watch.sqlite"));
+  const reserved = stateStore.requestRepair({
+    updateIdentifier: 10,
+    sessionKey: "-1001234567890:7",
+    pullRequestNumber: 200,
+    failureFingerprint: JSON.stringify(["Validate"]),
+    failedChecks: ["Validate"],
+    evidence: [],
+    commitSha: "a".repeat(40),
+    maximumAttempts: 2,
+  });
+  stateStore.close();
+
+  const service = await startService({
+    environment,
+    telegram: telegramStub(),
+    github: {},
+    runner: async () => ({}),
+  });
+
+  const repair = service.ciWatches.repair(reserved.sequence);
+  assert.equal(repair.status, "aborted");
+  assert.equal(repair.outcome, "interrupted_before_queue");
+  assert.equal(service.ciWatches.hasUnreportedWork("-1001234567890:7"), false);
+  assert.equal(service.ciWatches.claimNextRepair(), null);
+  const trace = service.queue
+    .traceEntries()
+    .find((entry) => entry.action === "ci_repair_not_queued");
+  assert.equal(trace.update_identifier, 10);
+  assert.equal(trace.detail, `#200 ${"a".repeat(7)}`);
+  service.ciWatches.close();
+  service.queue.close();
 });
 
 test("runs a queued CI repair when the instruction queue is idle", async (context) => {
@@ -901,6 +996,20 @@ test("merges through the bridge after verifying the membership again at executio
   assert.match(replies.at(-1), /PR #200 fusionada/u);
 });
 
+test("keeps the result of a merge for the next turn of the session", async (context) => {
+  const { service } = await runMergeCommand(context, {});
+
+  const notes = service.sessionNotes.claim("-1001234567890:7");
+  assert.equal(notes.length, 1);
+  assert.match(notes[0].text, /PR #200 fusionada/u);
+  assert.equal(
+    service.sessionNotes.lastReply("-1001234567890:7"),
+    notes[0].text,
+    "the service report is also the last text of the topic",
+  );
+  service.sessionNotes.close();
+});
+
 test("does not merge when the author left the group between admission and execution", async (context) => {
   const { replies, membershipChecks, merges } = await runMergeCommand(context, {
     membershipAtExecution: "left",
@@ -964,6 +1073,151 @@ test("refuses the merge while an automatic repair is reserved for the topic", as
 
   assert.deepEqual(merges, []);
   assert.match(replies.at(-1), /feina més nova que l'últim avís/u);
+});
+
+test("keeps the older notice blocked after reconciling a publication without a watch", async (context) => {
+  const { directory, environment, statePath } = environmentFor(context);
+  mkdirSync(statePath, { recursive: true });
+  // The installation already ran the identifier migration.
+  openIdentifierNames(statePath);
+  const topic = "-1001234567890:7";
+  const greenCommit = "a".repeat(40);
+  const publishedCommit = "c".repeat(40);
+  const publishedPullRequest = 201;
+
+  // A's green notice was delivered.
+  const watches = new CiWatchStore(join(statePath, "ci-watch.sqlite"));
+  watches.add({
+    updateIdentifier: 10,
+    sessionKey: topic,
+    pullRequestNumber: 200,
+    commitSha: greenCommit,
+  });
+  watches.beginSend(10, "success");
+  watches.finishSend(10);
+  watches.close();
+  // B was published, but registering its watch failed: the instruction is
+  // unknown until a person reconciles it.
+  const queue = new AdmissionQueue(join(statePath, "admission.sqlite"), {
+    maxPending: 10,
+  });
+  queue.admit({
+    updateIdentifier: 20,
+    messageIdentifier: 2020,
+    sessionKey: topic,
+    authorIdentifier: 42,
+    instruction: "synthetic private instruction",
+  });
+  queue.next();
+  queue.markUncertain(20, "uncertain");
+  queue.close();
+
+  // The operator confirms the publication with its pull request: the command
+  // restores the watch the failed registration lost.
+  const reconcileStores = {
+    instructions: new AdmissionQueue(join(statePath, "admission.sqlite"), {
+      maxPending: 10,
+    }),
+    repairs: new CiWatchStore(join(statePath, "ci-watch.sqlite")),
+    previews: null,
+  };
+  await resolveUncertainCase({
+    config: {
+      paths: {
+        repository: join(directory, "repository"),
+        worktrees: join(directory, "worktrees"),
+        state: statePath,
+      },
+    },
+    stores: reconcileStores,
+    telegram: { async sendMessage() {} },
+    kind: "instruction",
+    updateIdentifier: 20,
+    resolution: reconcileResolutions.published,
+    commit: publishedCommit,
+    pullRequestNumber: publishedPullRequest,
+  });
+  assert.deepEqual(
+    reconcileStores.repairs
+      .pending()
+      .map((row) => [
+        row.update_identifier,
+        row.pull_request_number,
+        row.commit_sha,
+      ]),
+    [[20, publishedPullRequest, publishedCommit]],
+  );
+  reconcileStores.repairs.close();
+  reconcileStores.instructions.close();
+
+  async function mergeOnce(updateIdentifier) {
+    const merges = [];
+    const replies = [];
+    const service = await startService({
+      environment,
+      telegram: {
+        ...telegramStub(),
+        async getUpdates() {
+          return [mergeCommandUpdate(updateIdentifier)];
+        },
+        async getChatMember() {
+          return { status: "member" };
+        },
+        async sendMessage(message) {
+          replies.push(message.text);
+        },
+      },
+      github: {
+        async getPullRequest() {
+          return {
+            state: "open",
+            headSha: publishedCommit,
+            headRepository: "rboixaderg/mountain-runners",
+            draft: false,
+            baseRef: "main",
+            mergeableState: "clean",
+            merged: false,
+            mergeCommitSha: null,
+          };
+        },
+        async getCommitCheckRuns() {
+          return [
+            { name: "Validate", status: "completed", conclusion: "success" },
+          ];
+        },
+        async getCommitStatuses() {
+          return [];
+        },
+        async mergePullRequest({ number, sha }) {
+          merges.push({ number, sha });
+          return { mergeCommitSha: "b".repeat(40) };
+        },
+      },
+    });
+    await service.bridge.pollOnce();
+    await service.bridge.executeNext();
+    service.mergeRequests.close();
+    service.ciWatches.close();
+    service.queue.close();
+    return { merges, replies };
+  }
+
+  // The confirmed publication is still unreported: A must not be merged.
+  const refused = await mergeOnce(100);
+  assert.deepEqual(refused.merges, []);
+  assert.match(refused.replies.at(-1), /feina més nova que l'últim avís/u);
+
+  // The restored watch reports the publication; only then the merge resolves.
+  const delivered = new CiWatchStore(join(statePath, "ci-watch.sqlite"));
+  assert.equal(delivered.beginSend(20, "success"), true);
+  assert.equal(delivered.finishSend(20), true);
+  delivered.close();
+
+  const resolved = await mergeOnce(200);
+  assert.deepEqual(resolved.merges, [
+    { number: publishedPullRequest, sha: publishedCommit },
+  ]);
+  assert.match(resolved.replies.at(-1), /PR #201 fusionada/u);
 });
 
 function implementationUpdate(updateIdentifier) {
@@ -1107,4 +1361,201 @@ test("verifies the membership again when the preview request runs", async (conte
     { chatIdentifier: "-1001234567890", userIdentifier: 555 },
     { chatIdentifier: "-1001234567890", userIdentifier: 555 },
   ]);
+});
+
+test("renames a legacy worktree and creates the private salt before serving", async (context) => {
+  const { directory, environment, statePath } = environmentFor(context);
+  const legacy = await repositoryWithLegacyWorktree(environment);
+  const service = await startService({
+    environment,
+    signal: new AbortController().signal,
+    telegram: telegramStub(),
+    github: {},
+    runner: async () => ({ outcome: "answered", report: "ok" }),
+  });
+
+  try {
+    const names = openIdentifierNames(statePath);
+    const migrated = join(
+      environment.MOUNTAIN_AGENT_WORKTREE_PATH,
+      names.worktreeName("-1001234567890:7"),
+    );
+    assert.equal(existsSync(migrated), true);
+    assert.equal(existsSync(legacy.path), false);
+    assert.equal(
+      existsSync(join(migrated, "pending.txt")),
+      true,
+      "the worktree keeps its work",
+    );
+    const worktreeName = names.worktreeName("-1001234567890:7");
+    assert.equal(
+      readFileSync(join(migrated, ".git"), "utf8"),
+      `gitdir: ${join(
+        realpathSync(environment.MOUNTAIN_AGENT_REPOSITORY_PATH),
+        ".git",
+        "worktrees",
+        worktreeName,
+      )}\n`,
+      "the marker the sandbox reads names the opaque administrative directory",
+    );
+    assert.deepEqual(
+      readdirSync(
+        join(environment.MOUNTAIN_AGENT_REPOSITORY_PATH, ".git", "worktrees"),
+      ),
+      [worktreeName],
+    );
+    const saltPath = join(statePath, "identifier-salt");
+    assert.equal((statSync(saltPath).mode & 0o777).toString(8), "600");
+    assert.equal(
+      readFileSync(saltPath, "utf8").includes("1001234567890"),
+      false,
+      "the salt is random and carries no identifier",
+    );
+    assert.equal(directory.includes("topic_"), false);
+  } finally {
+    service.ciWatches.close();
+    service.previewRequests.close();
+    service.mergeRequests.close();
+    service.queue.close();
+  }
+});
+
+test("refuses to start when a legacy worktree cannot be renamed", async (context) => {
+  const { environment, statePath } = environmentFor(context);
+  await repositoryWithLegacyWorktree(environment);
+  const names = openIdentifierNames(statePath);
+  mkdirSync(
+    join(
+      environment.MOUNTAIN_AGENT_WORKTREE_PATH,
+      names.worktreeName("-1001234567890:7"),
+    ),
+    { recursive: true },
+  );
+  const events = [];
+
+  await assert.rejects(
+    startService({
+      environment,
+      signal: new AbortController().signal,
+      logger: (event) => events.push(event),
+      telegram: telegramStub(),
+      github: {},
+      runner: async () => ({ outcome: "answered", report: "ok" }),
+    }),
+    { message: /could not be renamed/u },
+  );
+  assert.deepEqual(events, ["worktree_migration_failed"]);
+});
+
+test("refuses to start when a worktree Git marker is a symbolic link", async (context) => {
+  const { directory, environment, statePath } = environmentFor(context);
+  const worktree = await repositoryWithLegacyWorktree(environment);
+  const witness = join(directory, "private-state.sqlite");
+  writeFileSync(witness, "private\n");
+  rmSync(join(worktree.path, ".git"));
+  symlinkSync(witness, join(worktree.path, ".git"));
+  const events = [];
+  const details = [];
+
+  await assert.rejects(
+    startService({
+      environment,
+      signal: new AbortController().signal,
+      logger: (event, detail) => {
+        events.push(event);
+        details.push(detail);
+      },
+      telegram: telegramStub(),
+      github: {},
+      runner: async () => ({ outcome: "answered", report: "ok" }),
+    }),
+    { message: /could not be renamed/u },
+  );
+  const names = openIdentifierNames(statePath);
+  assert.deepEqual(events, [
+    "worktree_marker_untrusted",
+    "worktree_migration_failed",
+  ]);
+  assert.equal(details[0], names.worktreeName("-1001234567890:7"));
+  assert.match(details[1], /not a regular file/u);
+  assert.equal(readFileSync(witness, "utf8"), "private\n");
+  assert.equal(lstatSync(join(worktree.path, ".git")).isSymbolicLink(), true);
+  assert.equal(
+    existsSync(
+      join(environment.MOUNTAIN_AGENT_WORKTREE_PATH, "topic_n1001234567890_7"),
+    ),
+    true,
+    "nothing is renamed",
+  );
+});
+
+/** The start refusal shared by an untrusted marker and an untrusted gitdir. */
+async function assertStartRefused({ environment, statePath, events, details }) {
+  await assert.rejects(
+    startService({
+      environment,
+      signal: new AbortController().signal,
+      logger: (event, detail) => {
+        events.push(event);
+        details.push(detail);
+      },
+      telegram: telegramStub(),
+      github: {},
+      runner: async () => ({ outcome: "answered", report: "ok" }),
+    }),
+    { message: /could not be renamed/u },
+  );
+  const names = openIdentifierNames(statePath);
+  assert.deepEqual(events, [
+    "worktree_marker_untrusted",
+    "worktree_migration_failed",
+  ]);
+  assert.equal(details[0], names.worktreeName("-1001234567890:7"));
+  assert.match(details[1], /not a regular file with one link/u);
+  assert.equal(
+    existsSync(
+      join(environment.MOUNTAIN_AGENT_WORKTREE_PATH, "topic_n1001234567890_7"),
+    ),
+    true,
+    "nothing is renamed",
+  );
+}
+
+test("refuses to start when the worktree Git marker is a hard link", async (context) => {
+  const { directory, environment, statePath } = environmentFor(context);
+  const worktree = await repositoryWithLegacyWorktree(environment);
+  const markerPath = join(worktree.path, ".git");
+  const witness = join(directory, "private-state.sqlite");
+  writeFileSync(witness, `gitdir: ${worktree.gitDirectory}\n`);
+  rmSync(markerPath);
+  linkSync(witness, markerPath);
+  const events = [];
+  const details = [];
+
+  await assertStartRefused({ environment, statePath, events, details });
+
+  assert.equal(
+    readFileSync(witness, "utf8"),
+    `gitdir: ${worktree.gitDirectory}\n`,
+  );
+  assert.equal(statSync(markerPath).nlink, 2);
+  assert.equal(lstatSync(markerPath).isFile(), true);
+});
+
+test("refuses to start when the administrative gitdir file is a hard link", async (context) => {
+  const { directory, environment, statePath } = environmentFor(context);
+  const worktree = await repositoryWithLegacyWorktree(environment);
+  const gitdirPath = join(worktree.gitDirectory, "gitdir");
+  const registration = readFileSync(gitdirPath, "utf8");
+  const witness = join(directory, "private-state.sqlite");
+  writeFileSync(witness, registration);
+  rmSync(gitdirPath);
+  linkSync(witness, gitdirPath);
+  const events = [];
+  const details = [];
+
+  await assertStartRefused({ environment, statePath, events, details });
+
+  assert.equal(readFileSync(witness, "utf8"), registration);
+  assert.equal(statSync(gitdirPath).nlink, 2);
 });

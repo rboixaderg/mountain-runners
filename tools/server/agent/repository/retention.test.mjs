@@ -13,9 +13,11 @@ import { promisify } from "node:util";
 import { test } from "node:test";
 import { ensureSessionWorktree } from "./worktrees.mjs";
 import { pruneArchivedWorktrees } from "./retention.mjs";
+import { createIdentifierNames } from "./identifiers.mjs";
 
 const executeFile = promisify(execFile);
-const topic = "topic_n1001234567890_7";
+const topic = "topic-0123456789abcdef";
+const identifiers = createIdentifierNames({ salt: "a".repeat(64) });
 
 async function git(directory, argumentsList) {
   const { stdout } = await executeFile("git", [
@@ -57,7 +59,7 @@ async function repositoryFixture(context) {
 function archivePath(paths, updateIdentifier) {
   return join(
     realpathSync(paths.worktreeRoot),
-    `${topic}-before-${updateIdentifier}`,
+    identifiers.archiveName(topic, updateIdentifier),
   );
 }
 
@@ -66,7 +68,7 @@ function newTask(paths, updateIdentifier) {
     repositoryPath: paths.repository,
     worktreeRoot: paths.worktreeRoot,
     name: topic,
-    newTaskIdentifier: updateIdentifier,
+    newTaskSuffix: identifiers.changeSuffix(updateIdentifier),
   });
 }
 
@@ -86,10 +88,10 @@ test("removes an older empty archive and keeps the newest one per topic", async 
     worktreeRoot: paths.worktreeRoot,
   });
 
-  assert.deepEqual(report.removed.map((entry) => entry.path).sort(), [
-    archivePath(paths, 100),
-    archivePath(paths, 200),
-  ]);
+  assert.deepEqual(
+    report.removed.map((entry) => entry.path).sort(),
+    [archivePath(paths, 100), archivePath(paths, 200)].sort(),
+  );
   assert.equal(existsSync(archivePath(paths, 100)), false);
   assert.equal(existsSync(archivePath(paths, 200)), false);
   assert.equal(existsSync(archivePath(paths, 300)), true);
@@ -154,10 +156,10 @@ test("never removes the active worktree and honours a dry run", async (context) 
     dryRun: true,
   });
 
-  assert.deepEqual(planned.removed.map((entry) => entry.path).sort(), [
-    archivePath(paths, 100),
-    archivePath(paths, 200),
-  ]);
+  assert.deepEqual(
+    planned.removed.map((entry) => entry.path).sort(),
+    [archivePath(paths, 100), archivePath(paths, 200)].sort(),
+  );
   assert.equal(
     existsSync(archivePath(paths, 100)),
     true,
@@ -165,4 +167,34 @@ test("never removes the active worktree and honours a dry run", async (context) 
   );
   assert.equal(existsSync(archivePath(paths, 300)), true);
   assert.equal(existsSync(active.path), true);
+});
+
+test("keeps the most recently archived worktree of a topic, not the biggest suffix", async (context) => {
+  const paths = await repositoryFixture(context);
+  await ensureSessionWorktree({
+    repositoryPath: paths.repository,
+    worktreeRoot: paths.worktreeRoot,
+    name: topic,
+  });
+  // The suffixes are opaque HMAC values: creation order and suffix order do not
+  // match, so the newest archive can only be recognised by the directory.
+  await newTask(paths, 300);
+  await newTask(paths, 200);
+  const newest = await newTask(paths, 100);
+
+  const report = await pruneArchivedWorktrees({
+    repositoryPath: paths.repository,
+    worktreeRoot: paths.worktreeRoot,
+  });
+
+  assert.deepEqual(
+    report.removed.map((entry) => entry.path).sort(),
+    [archivePath(paths, 200), archivePath(paths, 300)].sort(),
+  );
+  assert.deepEqual(
+    report.kept.map((entry) => entry.path),
+    [archivePath(paths, 100)],
+  );
+  assert.equal(existsSync(archivePath(paths, 100)), true);
+  assert.equal(existsSync(newest.path), true);
 });

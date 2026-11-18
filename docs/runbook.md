@@ -1220,6 +1220,12 @@ producció i no comparteix credencials amb les releases, Caddy ni les previews.
 | Model                     | `MOUNTAIN_AGENT_MODEL`; si no s'informa, el servei usa `opencode-go/glm-5.3-flash`                                                  |
 | Límits de la unitat       | 1,5 CPU, 2560 MiB, 384 tasques i `TimeoutStopSec=30`                                                                                |
 
+El VPS usa Node 24.22.3 del repositori apt `node_24.x` de NodeSource. La versió
+de Node és la mateixa a `.node-version`, al VPS i a la imatge del sandbox, i les
+tres peces es mouen juntes: actualitzar Node vol dir reconstruir la imatge a
+partir de `tools/server/agent/sandbox/Containerfile` i canviar
+`MOUNTAIN_AGENT_SANDBOX_IMAGE` abans d'arrencar el servei.
+
 Les credencials es declaren només pel nom: `MOUNTAIN_AGENT_TELEGRAM_BOT_TOKEN`,
 `MOUNTAIN_AGENT_GITHUB_TOKEN` i les que llista
 `MOUNTAIN_AGENT_PROVIDER_ENVIRONMENT_VARIABLES` per al proveïdor del model. Els
@@ -1325,14 +1331,14 @@ mantenidora.
 Atura el servei abans de copiar l'estat o les sessions; així les bases de dades
 són coherents. Copia:
 
-| Element       | Contingut                                                                                                      | Criteri                                                                                                                                             |
-| ------------- | -------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `state/`      | `admission.sqlite` (cua i traça), `ci-watch.sqlite`, `preview-request.sqlite`, `merge-request.sqlite`, perfils | Imprescindible: és la memòria recuperable del servei                                                                                                |
-| `sessions/`   | Historial de Pi per tema                                                                                       | Imprescindible si es vol conservar el context conversacional                                                                                        |
-| `worktrees/`  | Feina en curs i feina preservada                                                                               | Copia els worktrees amb commits sense publicar o canvis sense cometre; un worktree net i sense commits per davant de `origin/main` es pot descartar |
-| `repository/` | Clon amb `origin` i `main`                                                                                     | Es pot tornar a clonar                                                                                                                              |
-| `agent.env`   | Credencials                                                                                                    | Copia'l com un secret, mai al costat de les dades ni al repositori                                                                                  |
-| Unitats       | `mountain-agent.service` i les dues unitats de muntatge dels volums                                            | Es tornen a instal·lar des del commit revisat                                                                                                       |
+| Element       | Contingut                                                                                                                              | Criteri                                                                                                                                             |
+| ------------- | -------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `state/`      | `admission.sqlite` (cua i traça), `ci-watch.sqlite`, `preview-request.sqlite`, `merge-request.sqlite`, `session-notes.sqlite`, perfils | Imprescindible: és la memòria recuperable del servei                                                                                                |
+| `sessions/`   | Historial de Pi per tema                                                                                                               | Imprescindible si es vol conservar el context conversacional                                                                                        |
+| `worktrees/`  | Feina en curs i feina preservada                                                                                                       | Copia els worktrees amb commits sense publicar o canvis sense cometre; un worktree net i sense commits per davant de `origin/main` es pot descartar |
+| `repository/` | Clon amb `origin` i `main`                                                                                                             | Es pot tornar a clonar                                                                                                                              |
+| `agent.env`   | Credencials                                                                                                                            | Copia'l com un secret, mai al costat de les dades ni al repositori                                                                                  |
+| Unitats       | `mountain-agent.service` i les dues unitats de muntatge dels volums                                                                    | Es tornen a instal·lar des del commit revisat                                                                                                       |
 
 Ordre de restauració:
 

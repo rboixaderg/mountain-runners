@@ -6,6 +6,8 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { test } from "node:test";
 import { AdmissionQueue } from "telegram-pi-bridge/sessions";
+import { CiWatchStore } from "../../repository/ci-watch-store.mjs";
+import { openIdentifierNames } from "../../repository/identifiers.mjs";
 
 const cliPath = join(dirname(fileURLToPath(import.meta.url)), "cli.mjs");
 const sessionKey = "-1001234567890:7";
@@ -47,6 +49,12 @@ function runCli(argumentsList, environment = { PATH: process.env.PATH }) {
   });
 }
 
+// The installation already ran the identifier migration: the instruction case
+// can be attributed and the command does not need to create the salt.
+function createInstallationIdentity(state) {
+  openIdentifierNames(state);
+}
+
 // An interrupted instruction whose topic worktree does not exist locally: the
 // GitHub read is skipped, so the command never needs the network.
 function createUncertainInstruction(state) {
@@ -63,6 +71,20 @@ function createUncertainInstruction(state) {
   queue.next();
   queue.markUncertain(11, "uncertain");
   queue.close();
+}
+
+// A publication whose notice may or may not have reached the topic.
+function createUncertainNotice(state) {
+  const store = new CiWatchStore(join(state, "ci-watch.sqlite"));
+  store.add({
+    updateIdentifier: 31,
+    sessionKey,
+    pullRequestNumber: 200,
+    commitSha: "a".repeat(40),
+  });
+  store.beginSend(31, "success");
+  store.markUncertain(31);
+  store.close();
 }
 
 // A case a person already resolved: it must be refused, never overwritten.
@@ -102,6 +124,7 @@ test("lists an uncertain instruction without the network", (context) => {
   const directory = temporaryDirectory(context);
   const state = join(directory, "state");
   mkdirSync(state);
+  createInstallationIdentity(state);
   createUncertainInstruction(state);
 
   const result = runCli(["list"], serviceEnvironment(directory, state));
@@ -119,10 +142,31 @@ test("lists an uncertain instruction without the network", (context) => {
   assert.doesNotMatch(result.stdout, /synthetic private instruction/u);
 });
 
+test("lists an uncertain CI notice without the network", (context) => {
+  const directory = temporaryDirectory(context);
+  const state = join(directory, "state");
+  mkdirSync(state);
+  createUncertainNotice(state);
+
+  const result = runCli(["list"], serviceEnvironment(directory, state));
+
+  assert.equal(result.status, 0, result.stderr);
+  const lines = result.stdout.trimEnd().split("\n");
+  assert.equal(lines.length, 1);
+  const facts = JSON.parse(lines[0]);
+  assert.equal(facts.kind, "notice");
+  assert.equal(facts.update_identifier, 31);
+  assert.equal(facts.session_key, sessionKey);
+  assert.equal(facts.pull_request_number, 200);
+  assert.equal(facts.commit, "a".repeat(40));
+  assert.equal(facts.result, "success");
+});
+
 test("exits with code 1 when the case is already resolved", (context) => {
   const directory = temporaryDirectory(context);
   const state = join(directory, "state");
   mkdirSync(state);
+  createInstallationIdentity(state);
   createResolvedInstruction(state);
   createUncertainInstruction(state);
 
@@ -322,6 +366,136 @@ const usageCases = [
       "not_published",
     ],
   },
+  {
+    argumentsList: [
+      "resolve",
+      "--kind",
+      "notice",
+      "--update",
+      "1",
+      "--resolution",
+      "commented",
+    ],
+  },
+  {
+    argumentsList: [
+      "resolve",
+      "--kind",
+      "notice",
+      "--update",
+      "1",
+      "--resolution",
+      "delivered",
+      "--commit",
+      "a".repeat(40),
+    ],
+  },
+  {
+    argumentsList: [
+      "resolve",
+      "--kind",
+      "notice",
+      "--update",
+      "1",
+      "--sequence",
+      "1",
+      "--resolution",
+      "resend",
+    ],
+  },
+  {
+    argumentsList: ["resolve", "--kind", "notice", "--update", "1"],
+  },
+  {
+    // A published instruction needs the pull request of the publication.
+    argumentsList: [
+      "resolve",
+      "--kind",
+      "instruction",
+      "--update",
+      "1",
+      "--resolution",
+      "published",
+      "--commit",
+      "a".repeat(40),
+    ],
+  },
+  {
+    argumentsList: [
+      "resolve",
+      "--kind",
+      "instruction",
+      "--update",
+      "1",
+      "--resolution",
+      "published",
+      "--commit",
+      "a".repeat(40),
+      "--pull-request",
+      "0",
+    ],
+  },
+  {
+    argumentsList: [
+      "resolve",
+      "--kind",
+      "instruction",
+      "--update",
+      "1",
+      "--resolution",
+      "published",
+      "--commit",
+      "a".repeat(40),
+      "--pull-request",
+      "twelve",
+    ],
+  },
+  {
+    argumentsList: [
+      "resolve",
+      "--kind",
+      "instruction",
+      "--update",
+      "1",
+      "--resolution",
+      "not_published",
+      "--pull-request",
+      "5",
+    ],
+  },
+  {
+    argumentsList: [
+      "resolve",
+      "--kind",
+      "repair",
+      "--update",
+      "1",
+      "--sequence",
+      "1",
+      "--failed-commit",
+      "a".repeat(40),
+      "--resolution",
+      "published",
+      "--commit",
+      "a".repeat(40),
+      "--pull-request",
+      "5",
+    ],
+  },
+  {
+    argumentsList: [
+      "resolve",
+      "--kind",
+      "notice",
+      "--update",
+      "1",
+      "--resolution",
+      "delivered",
+      "--pull-request",
+      "5",
+    ],
+  },
+  { argumentsList: ["list", "--pull-request", "5"] },
 ];
 
 test("exits with code 2 on every usage error", () => {

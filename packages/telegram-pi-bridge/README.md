@@ -45,7 +45,8 @@ pot continuar. Una excepció no classificada es tracta amb cautela i bloqueja.
 
 ## Requisits
 
-- Node 24.11.0 o posterior. `node:sqlite` encara és experimental en Node 24.11.0.
+- Node 24.22.3 o posterior. `node:sqlite` ja no imprimeix cap avís
+  experimental en aquesta versió.
 - Un executable Pi amb RPC JSONL i l'esdeveniment `agent_settled` per usar
   `runPiPrompt`. Pi no s'inclou al paquet ni s'instal·la automàticament.
 - Per operar amb Telegram: bot i grup privat amb temes. Cal assegurar que el
@@ -80,7 +81,7 @@ les exportacions i carrega tots els mòduls, inclòs SQLite.
 | `readTraceEntries`                                                          | Consulta de només lectura de la traça privada; `parseTraceFilters` valida els filtres i llança `TraceQueryInputError`      |
 | `AgentBridge`                                                               | Connecta transport, comprovació de membres, cua, callback d'execució i treball propi de l'aplicació quan la cua és buida   |
 | `parseSessionKey`, `sessionIdentifier`                                      | Identitat estable a partir de grup i tema                                                                                  |
-| `runPiPrompt`, `buildPiArguments`                                           | Torn RPC i construcció explícita dels arguments de Pi                                                                      |
+| `runPiPrompt`, `buildPiArguments`                                           | Torn RPC, arguments explícits de Pi i `onPromptSent` per saber si el prompt s'ha escrit                                    |
 | `defaultBridgeMessages`                                                     | Missatges operatius en anglès; l'aplicació pot substituir-los                                                              |
 | `instructionExcerpt`                                                        | Retall d'una línia de la instrucció per al missatge de recepció                                                            |
 | `acceptedImageDocuments`, `attachmentOrigins`, `attachmentRefusalReasons`   | Contracte dels documents d'imatge: tipus, extensions, MIME i origen del document (`message` o `reply`)                     |
@@ -104,6 +105,7 @@ const bridge = new AgentBridge({
   queue,
   runInstruction,
   runWhenIdle,
+  onServiceReport,
 });
 await bridge.run({ signal });
 ```
@@ -111,7 +113,10 @@ await bridge.run({ signal });
 Només s'admeten missatges de persones verificades del grup configurat, dins d'un
 tema, que mencionen el bot o responen a un missatge seu. La pertinença es
 consulta per instrucció, sense memòria cau; un error denega l'admissió i avisa
-l'autor perquè torni a enviar la petició. Els
+l'autor perquè torni a enviar la petició. La consulta té un termini (30 s per
+defecte, `membershipTimeoutMilliseconds`) i respecta el senyal del procés: un
+termini esgotat denega la instrucció, i una aturada la deixa sense consumir, de
+manera que l'offset de Telegram no avança. Els
 autors anònims, reenviaments i missatges fora del tema no s'admeten.
 
 Un document només s'admet com a adjunt si és una imatge JPEG, PNG o WebP
@@ -127,7 +132,6 @@ limitat a 4.000 caràcters; no publica passos intermedis ni fa streaming. Les
 instruccions es dedupliquen per update i s'executen en ordre. El polling i
 l'execució són seqüencials; no hi ha un canal de cancel·lació per missatges
 mentre el callback treballa. El `signal` del procés sí que arriba al callback.
-
 `isBlocked()` indica si hi ha una instrucció en execució o amb un resultat extern
 desconegut. Un consumidor que faci feina externa pròpia ha de consultar-lo abans
 de començar-ne.
@@ -154,13 +158,28 @@ global. Una excepció es registra com a `idle_work_failed` i no atura el pont.
 El pont no desa ni recupera aquesta feina: la durabilitat és responsabilitat de
 l'aplicació.
 
+`onServiceReport({ sessionKey, text, effectKey })` és opcional i s'executa per
+als textos que el pont decideix i envia al tema sense passar per
+`runInstruction` (avui, el refús d'un adjunt en admetre la instrucció).
+`effectKey` identifica l'efecte (un refús per actualització), perquè
+l'aplicació el desi una sola vegada encara que Telegram repeteixi
+l'actualització. El consumeix l'aplicació perquè el torn següent del model
+conegui l'efecte. Un error es registra com a `service_report_failed` i no
+impedeix la resposta.
+
 Els missatges es poden substituir parcialment amb
 `messages: { acknowledgement, queueFull, queueBlocked, membershipUnavailable, unknownResult, attachmentPhoto, attachmentUnsupported, attachmentTooLarge }`.
 `acknowledgement` és una funció que rep el retall d'una línia de la instrucció,
 `attachmentTooLarge` rep la mida en MB i la resta són cadenes. La recepció s'envia només quan la instrucció ja és duradora
 a la cua, abans d'executar-la, i un error d'enviament no atura la feina: es
 registra com a `reply_failed`. El transport admet `fetchImpl` i
-`baseUrl` per proves; el seu origen per defecte és l'API HTTPS de Telegram.
+`baseUrl` per proves; el seu origen per defecte és l'API HTTPS de Telegram. Tota
+petició té un termini propi que cobreix la connexió i la lectura del cos,
+combinat amb el senyal del procés: 30 s per defecte
+(`requestTimeoutMilliseconds`) i, al long polling, el temps demanat al servidor
+més 15 s de marge (`longPollMarginMilliseconds`). Un termini esgotat és un
+`TelegramApiError` sense URL ni token; una aturada del procés continua com a
+`AbortError`.
 
 ### Torn de Pi
 
@@ -193,6 +212,13 @@ línia. El timeout per defecte és de 30 minuts. La sortida conjunta de stdout i
 stderr té un límit d'1 MiB per torn, inclòs JSONL incomplet o no vàlid. Un excés
 mata el procés, espera que es tanqui i executa `onInterrupted` abans de rebutjar
 la crida; no retorna una resposta parcial com si fos completa.
+
+`onPromptSent` és opcional i s'executa una sola vegada, immediatament abans
+d'escriure el prompt a l'entrada de Pi. És el fet que permet al consumidor
+distingir un prompt que s'ha intentat enviar d'un torn que s'ha aturat abans
+—llançament fallit, executable inexistent o sense permís, aturada o termini
+abans de l'escriptura—, encara que una neteja que també falla substitueixi
+l'error original. Si no s'executa, cap prompt no ha arribat a Pi.
 
 Per defecte no hi ha eines, extensions, MCP, skills, templates ni càrrega
 automàtica d'instruccions del directori. `tools` només admet noms explícits,
