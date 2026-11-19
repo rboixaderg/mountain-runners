@@ -1,0 +1,19 @@
+tools/server/agent/workflow/cross-topic-continuation.test.mjs
+  s_cf2201d37d338e::t_0cd1205e9ec085 1443-1631
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "349ad0548cf05d396fa5641122d27eae1e570f3e",
+  "prompts": {},
+  "sessions": {
+    "s_cf2201d37d338e": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e0a2ba151ffeZzZAUeI3WzEmLn",
+        "model": "unknown"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
