@@ -78,12 +78,24 @@ function pullRequestNumbers(text) {
   return [...numbers];
 }
 
-/** The GitHub comments reduced to the author and the text the prompt shows. */
+// The GitHub comments reduced to the author and the text the prompt shows. The
+// association is a bounded GitHub label: it tells the model whether the author
+// belongs to the repository and never becomes free text.
 function commentEntries(comments) {
-  return comments.map((comment) => ({
-    login: typeof comment?.user?.login === "string" ? comment.user.login : "",
-    body: typeof comment?.body === "string" ? comment.body : "",
-  }));
+  return comments.map((comment) => {
+    const entry = {
+      login: typeof comment?.user?.login === "string" ? comment.user.login : "",
+      body: typeof comment?.body === "string" ? comment.body : "",
+    };
+    const association = comment?.author_association;
+    if (
+      typeof association === "string" &&
+      /^[A-Z_]{1,32}$/u.test(association)
+    ) {
+      entry.association = association;
+    }
+    return entry;
+  });
 }
 
 export function createCrossTopicContinuation({
@@ -396,7 +408,9 @@ export function createCrossTopicContinuation({
       return { report: continuationReports.multiplePullRequests };
     }
     if (numbers.length > 0) {
-      return resume(request, numbers[0], { signal });
+      // The topic may name its own pull request: when its worktree already
+      // holds that branch at the reported head, it continues there in place.
+      return resume(request, numbers[0], { signal, continueInPlace: true });
     }
     if (unnamedTopicPullRequest === null) {
       return null;

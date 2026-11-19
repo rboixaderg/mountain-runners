@@ -607,7 +607,7 @@ test("lists ten sorted paths from every work and the count of the rest", async (
   const shownPaths = sharedPaths.slice(0, 10).map((path) => `\`${path}\``);
   assert.equal(
     report.split("\n")[0],
-    `Avis de solapament: aquests fitxers també apareixen en feines actives conegudes: ${shownPaths.join(", ")} i 2 més.`,
+    `Avís de solapament: aquests fitxers també apareixen en feines actives conegudes: ${shownPaths.join(", ")} i 2 més.`,
   );
 });
 
