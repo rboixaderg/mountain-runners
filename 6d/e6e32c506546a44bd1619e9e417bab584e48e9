@@ -1,0 +1,69 @@
+docs/deployment.md
+  s_883ac1537a0e5e::t_0cacb7bc6a6bdd 670,1248-1296
+docs/runbook.md
+  s_883ac1537a0e5e::t_564e71c075bb53 1239-1260,1356-1363
+tools/server/agent/README.md
+  s_883ac1537a0e5e::t_e3d0c7a1a09e9e 8-9,62,84,339-363,499-501
+tools/server/agent/policy/development.mjs
+  s_883ac1537a0e5e::t_05478a7706bfad 79,109-111,537-619
+tools/server/agent/policy/development.test.mjs
+  s_883ac1537a0e5e::t_5f550168450d35 9,19,385-461
+tools/server/agent/processes/telegram-bridge/main.mjs
+  s_24a988b5beae24::t_4e8d9471e7d20a 348-349
+tools/server/agent/repository/ci-watch-store.mjs
+  s_24a988b5beae24::t_8ada6b89a6a024 185-200
+tools/server/agent/repository/ci-watch-store.test.mjs
+  s_883ac1537a0e5e::t_739cb2e874c42c 491-534
+tools/server/agent/repository/merge-request-store.mjs
+  s_11c2c00a00b566::t_e194ec3e814d98 193-208
+tools/server/agent/repository/merge-request-store.test.mjs
+  s_883ac1537a0e5e::t_aae17cf63e45d3 166-197
+tools/server/agent/repository/preview-request-store.mjs
+  s_883ac1537a0e5e::t_c4732a3952bab3 13-16,29,35-49,79,144,149,154,162-167,169-182,204-219,310-345
+tools/server/agent/repository/preview-request-store.test.mjs
+  s_883ac1537a0e5e::t_432142b1cb7f6b 5,150,184-362
+tools/server/agent/workflow/cross-topic-continuation.test.mjs
+  s_883ac1537a0e5e::t_230cac676f5e01 17-18,192-193,207-208,256-265,278-279,310-321
+tools/server/agent/workflow/preview-request.test.mjs
+  s_11c2c00a00b566::t_a6bb1958e7be5a 668,700-704
+tools/server/agent/workflow/project-runner.mjs
+  s_24a988b5beae24::t_0c3b03d3300c66 22-25,32-33,78,99-103,117-130
+tools/server/agent/workflow/run-instruction.mjs
+  s_11c2c00a00b566::t_066b5b3a440814 69-71,168-189,432-438,459
+tools/server/agent/workflow/topic-state.mjs
+  s_883ac1537a0e5e::t_f32fce6d3357e9 1-212
+tools/server/agent/workflow/topic-state.test.mjs
+  s_883ac1537a0e5e::t_0bb6ca56d69b2b 1-270,292-631
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "6de6e32c506546a44bd1619e9e417bab584e48e9",
+  "prompts": {},
+  "sessions": {
+    "s_11c2c00a00b566": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a1f097-1594-7748-89be-29b7ac9aa1fb",
+        "model": "deepseek-v4.1-flash"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    },
+    "s_24a988b5beae24": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a1f04a-c6a1-7799-b4a1-7d4165119546",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    },
+    "s_883ac1537a0e5e": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a1f097-1580-7506-8426-f25cca8cfacb",
+        "model": "deepseek-v4.1-flash"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
