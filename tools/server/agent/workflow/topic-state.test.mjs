@@ -238,10 +238,16 @@ test("shows the confirmed URL while a newer request for the same commit waits", 
   });
 });
 
-test("hides a preview URL confirmed for an older commit", (context) => {
+test("hides a preview URL confirmed before a newer publication of the topic", (context) => {
   const { ciWatches, previewRequests, readTopicState } = storeFixture(context);
-  reportChecks(ciWatches);
-  confirmPreview(previewRequests, { commit: olderCommit });
+  reportChecks(ciWatches, { updateIdentifier: 500, commit: olderCommit });
+  confirmPreview(previewRequests, {
+    updateIdentifier: 600,
+    commit: olderCommit,
+  });
+  // The topic publishes a newer commit afterwards: its notice is the one the
+  // block prints, so the confirmed preview describes an earlier change.
+  reportChecks(ciWatches, { updateIdentifier: 601, commit: reportedCommit });
   const topicState = readTopicState(sessionKey);
 
   assert.deepEqual(topicState.preview, {
@@ -251,6 +257,27 @@ test("hides a preview URL confirmed for an older commit", (context) => {
   });
   const text = buildTopicStateText(topicState);
   assert.doesNotMatch(text, /pr-239\.preview/u);
+});
+
+test("shows the URL of a preview pinned to a head newer than the reported commit", (context) => {
+  const { ciWatches, previewRequests, readTopicState } = storeFixture(context);
+  reportChecks(ciWatches, { updateIdentifier: 500 });
+  // A maintainer updated the pull request on GitHub, and the request was pinned
+  // to that head: it belongs to the change the block prints.
+  confirmPreview(previewRequests, {
+    updateIdentifier: 600,
+    commit: newerCommit,
+  });
+  const topicState = readTopicState(sessionKey);
+
+  assert.deepEqual(topicState.preview, {
+    description: "confirmed",
+    origin: previewOrigin,
+  });
+  assert.match(
+    buildTopicStateText(topicState),
+    /^- Latest preview request for it: confirmed, URL https:\/\/pr-239\.preview\.mountainrunners\.cat\.$/mu,
+  );
 });
 
 test("reports a preview request that ran out of its deadline", (context) => {
@@ -641,12 +668,13 @@ test("a turn continues without the block when the state cannot be read", async (
   );
 });
 
-test("never reports the preview of another commit as the state of the report", (context) => {
+test("never reports the preview of an earlier change as the state of the report", (context) => {
   const { ciWatches, previewRequests, readTopicState } = storeFixture(context);
-  reportChecks(ciWatches);
-  // A request of an earlier commit is still awaiting the publisher. It says
-  // nothing about the commit this topic reported last.
-  beginPreview(previewRequests, { commit: olderCommit });
+  // The previous commit of the pull request was previewed and is still awaiting
+  // the publisher; a newer publication of the topic is reported afterwards.
+  reportChecks(ciWatches, { updateIdentifier: 500, commit: olderCommit });
+  beginPreview(previewRequests, { updateIdentifier: 600, commit: olderCommit });
+  reportChecks(ciWatches, { updateIdentifier: 601, commit: reportedCommit });
 
   assert.equal(readTopicState(sessionKey).preview, null);
 });

@@ -245,12 +245,15 @@ export class CiWatchStore {
    * The newest delivered notice of one pull request. A topic that published
    * several pull requests keeps one report per pull request, so a notice of
    * another one never describes this pull request. The order is again the
-   * publication order, not the delivery order.
+   * publication order, not the delivery order. `update_identifier` is the update
+   * that published the commit, so a later request of the same pull request can
+   * tell whether it came after this notice.
    */
   lastReportedForPullRequest({ sessionKey, pullRequestNumber }) {
     return this.#database
       .prepare(
-        `SELECT pull_request_number, commit_sha, result FROM ci_watches
+        `SELECT update_identifier, pull_request_number, commit_sha, result
+         FROM ci_watches
          WHERE session_key = ? AND pull_request_number = ? AND state = 'sent'
          ORDER BY created_at DESC, update_identifier DESC LIMIT 1`,
       )
