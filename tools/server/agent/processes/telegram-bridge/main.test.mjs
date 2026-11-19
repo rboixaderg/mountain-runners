@@ -29,7 +29,13 @@ import { MergeRequestStore } from "../../repository/merge-request-store.mjs";
 import { PreviewRequestStore } from "../../repository/preview-request-store.mjs";
 import { openIdentifierNames } from "../../repository/identifiers.mjs";
 import { ensureSessionWorktree } from "../../repository/worktrees.mjs";
-import { runBridgeWithCiWatcher, startService } from "./main.mjs";
+import {
+  retentionIntervalMilliseconds,
+  runBridgeWithCiWatcher,
+  scheduleRetention,
+  startService,
+  stopService,
+} from "./main.mjs";
 
 const executeFile = promisify(execFile);
 
@@ -175,8 +181,131 @@ test("starts the bridge with the configured bot and an empty queue", async (cont
   assert.equal(service.config.telegram.groupIdentifier, "-1001234567890");
   assert.deepEqual(service.config.github.requiredChecks, ["Validate"]);
   assert.deepEqual(service.ciWatches.pending(), []);
-  service.ciWatches.close();
-  service.queue.close();
+  service.closeStateStores();
+});
+
+test("closes the state stores when the bot identity cannot be read", async (context) => {
+  const { environment } = environmentFor(context);
+
+  await assert.rejects(
+    startService({
+      environment,
+      telegram: {
+        async getMe() {
+          throw new Error("telegram is unreachable");
+        },
+      },
+      github: {},
+      runner: async () => ({}),
+    }),
+    { message: /telegram is unreachable/u },
+  );
+
+  // The failed start released every store: the same state opens and serves.
+  const service = await startService({
+    environment,
+    telegram: telegramStub(),
+    github: {},
+    runner: async () => ({ outcome: "answered", report: "ok" }),
+  });
+  assert.equal(service.queue.isBlocked(), false);
+  service.closeStateStores();
+});
+
+test("closes the state stores even when stopping the sandbox fails", async () => {
+  let closed = false;
+
+  await assert.rejects(
+    stopService({
+      stopSandboxedCommands: async () => {
+        throw new Error("sandbox stop failed");
+      },
+      closeStateStores: () => {
+        closed = true;
+      },
+      logger: () => {},
+    }),
+    { message: /sandbox stop failed/u },
+  );
+
+  assert.equal(closed, true);
+});
+
+test("runs retention periodically until the signal aborts", async () => {
+  const controller = new AbortController();
+  let runs = 0;
+  const stop = scheduleRetention({
+    runRetention: async () => {
+      runs += 1;
+    },
+    signal: controller.signal,
+    intervalMilliseconds: 5,
+    logger: () => {},
+  });
+
+  await new Promise((resolve) => setTimeout(resolve, 50));
+  assert.ok(runs >= 2, `retention ran ${runs} times`);
+  controller.abort();
+  const settled = runs;
+  await new Promise((resolve) => setTimeout(resolve, 30));
+  assert.equal(runs, settled, "an aborted signal stops the interval");
+  stop();
+});
+
+test("logs a retention failure instead of crashing the bridge", async () => {
+  const controller = new AbortController();
+  const events = [];
+  scheduleRetention({
+    runRetention: async () => {
+      throw new Error("synthetic retention failure");
+    },
+    signal: controller.signal,
+    intervalMilliseconds: 5,
+    logger: (event, detail) => events.push({ event, detail }),
+  });
+
+  await new Promise((resolve) => setTimeout(resolve, 25));
+  controller.abort();
+
+  assert.ok(
+    events.some(
+      ({ event, detail }) =>
+        event === "retention_failed" &&
+        detail === "synthetic retention failure",
+    ),
+  );
+});
+
+test("removes its abort listener when stopped manually", () => {
+  const listeners = new Set();
+  const signal = {
+    aborted: false,
+    addEventListener(event, listener) {
+      if (event === "abort") {
+        listeners.add(listener);
+      }
+    },
+    removeEventListener(event, listener) {
+      if (event === "abort") {
+        listeners.delete(listener);
+      }
+    },
+  };
+  const stop = scheduleRetention({
+    runRetention: async () => {},
+    signal,
+    intervalMilliseconds: 1000,
+    logger: () => {},
+  });
+  assert.equal(listeners.size, 1);
+
+  stop();
+
+  assert.equal(listeners.size, 0);
+});
+
+test("measures the periodic retention in hours", () => {
+  assert.equal(retentionIntervalMilliseconds, 6 * 60 * 60 * 1000);
 });
 
 test("refuses a bot token that belongs to another username", async (context) => {

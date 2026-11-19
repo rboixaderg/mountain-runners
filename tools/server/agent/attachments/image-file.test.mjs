@@ -30,6 +30,73 @@ function refusal({ bytes, fileName, mimeType }) {
   return result.refusal;
 }
 
+const jpegDefaultScanData = Buffer.from([
+  0x11, 0xff, 0x00, 0x22, 0xff, 0xd0, 0x33,
+]);
+
+function jpegWithScanData(scanData) {
+  const base = jpegImage({ width: 100, height: 100 });
+  const scanStart = base.indexOf(jpegDefaultScanData);
+  return Buffer.concat([
+    base.subarray(0, scanStart),
+    scanData,
+    base.subarray(scanStart + jpegDefaultScanData.length),
+  ]);
+}
+
+// A frame header shorter than the eight bytes the marker requires.
+function jpegWithShortFrameSegment() {
+  const base = jpegImage({ width: 100, height: 100 });
+  const frameStart = base.indexOf(Buffer.from([0xff, 0xc0]));
+  const frame = Buffer.alloc(2 + 7);
+  frame[0] = 0xff;
+  frame[1] = 0xc0;
+  frame.writeUInt16BE(7, 2);
+  // Precision, height and width, without the component count.
+  base.copy(frame, 4, frameStart + 4, frameStart + 9);
+  return Buffer.concat([
+    base.subarray(0, frameStart),
+    frame,
+    base.subarray(frameStart + 19),
+  ]);
+}
+
+// A frame header that describes no component at all.
+function jpegWithoutFrameComponents() {
+  const base = jpegImage({ width: 100, height: 100 });
+  const frameStart = base.indexOf(Buffer.from([0xff, 0xc0]));
+  const frame = Buffer.alloc(2 + 8);
+  frame[0] = 0xff;
+  frame[1] = 0xc0;
+  frame.writeUInt16BE(8, 2);
+  base.copy(frame, 4, frameStart + 4, frameStart + 9);
+  frame[9] = 0;
+  return Buffer.concat([
+    base.subarray(0, frameStart),
+    frame,
+    base.subarray(frameStart + 19),
+  ]);
+}
+
+function webpChunk(fourcc, payload) {
+  const header = Buffer.alloc(8);
+  header.write(fourcc, 0, "ascii");
+  header.writeUInt32LE(payload.length, 4);
+  return Buffer.concat([header, payload, Buffer.alloc(payload.length % 2)]);
+}
+
+function webpWithChunks(bytes, ...chunks) {
+  return webpFileFromChunks([bytes.subarray(12), ...chunks]);
+}
+
+function webpFileFromChunks(chunks) {
+  const body = Buffer.concat([Buffer.from("WEBP", "ascii"), ...chunks]);
+  const header = Buffer.alloc(8);
+  header.write("RIFF", 0, "ascii");
+  header.writeUInt32LE(body.length, 4);
+  return Buffer.concat([header, body]);
+}
+
 test("accepts a JPEG, a PNG and both WebP encodings with their dimensions", () => {
   const cases = [
     {
@@ -466,4 +533,143 @@ test("removes metadata between the scans of a progressive JPEG", () => {
   assert.deepEqual(Buffer.from(image.bytes), reference);
   assert.equal(image.width, 300);
   assert.equal(image.height, 200);
+});
+
+test("removes JPEG APP2 multi-picture and APP12 segments", () => {
+  const metadata = [
+    { marker: 0xe2, data: Buffer.from("MPF\0synthetic-thumbnail") },
+    { marker: 0xec, data: Buffer.from("Ducky\0synthetic-app12") },
+  ];
+  const original = jpegImage({ width: 300, height: 200, metadata });
+  const reference = jpegImage({ width: 300, height: 200 });
+
+  const image = accept({
+    bytes: original,
+    fileName: "foto.jpg",
+    mimeType: "image/jpeg",
+  });
+
+  assert.deepEqual(Buffer.from(image.bytes), reference);
+});
+
+test("accepts fill bytes before a restart marker in a scan", () => {
+  const bytes = jpegWithScanData(
+    Buffer.from([0x11, 0xff, 0x00, 0x22, 0xff, 0xff, 0xd0, 0x33]),
+  );
+
+  const image = accept({
+    bytes,
+    fileName: "foto.jpg",
+    mimeType: "image/jpeg",
+  });
+
+  assert.deepEqual(Buffer.from(image.bytes), bytes);
+  assert.equal(image.width, 100);
+});
+
+test("refuses a JPEG frame segment that is not a complete header", () => {
+  for (const bytes of [
+    jpegWithShortFrameSegment(),
+    jpegWithoutFrameComponents(),
+  ]) {
+    const result = refusal({
+      bytes,
+      fileName: "foto.jpg",
+      mimeType: "image/jpeg",
+    });
+
+    assert.equal(result.reason, "damaged_image");
+  }
+});
+
+test("removes PNG private and unlisted ancillary chunks", () => {
+  const metadata = [
+    { type: "prVW", data: Buffer.alloc(16, 7) },
+    { type: "pHYs", data: Buffer.alloc(9, 1) },
+    { type: "iCCP", data: Buffer.from("synthetic-profile") },
+  ];
+  const original = pngImage({ width: 320, height: 240, metadata });
+  const reference = pngImage({ width: 320, height: 240 });
+
+  const image = accept({
+    bytes: original,
+    fileName: "portada.png",
+    mimeType: "image/png",
+  });
+
+  assert.deepEqual(Buffer.from(image.bytes), reference);
+});
+
+test("strips a WebP chunk outside the allowlist", () => {
+  const reference = webpExtendedImage({ width: 500, height: 400 });
+  const original = webpWithChunks(
+    reference,
+    webpChunk("JUNK", Buffer.from("private")),
+  );
+
+  const image = accept({
+    bytes: original,
+    fileName: "foto.webp",
+    mimeType: "image/webp",
+  });
+
+  assert.deepEqual(Buffer.from(image.bytes), reference);
+});
+
+test("refuses a WebP with more than one VP8X chunk", () => {
+  const original = webpWithChunks(
+    webpExtendedImage({ width: 100, height: 100 }),
+    webpChunk("VP8X", Buffer.alloc(10)),
+  );
+
+  const result = refusal({
+    bytes: original,
+    fileName: "foto.webp",
+    mimeType: "image/webp",
+  });
+
+  assert.equal(result.reason, "damaged_image");
+});
+
+test("refuses a WebP whose VP8X chunk is not the first one", () => {
+  const lossy = webpLossyImage({ width: 100, height: 100 });
+  const original = webpWithChunks(lossy, webpChunk("VP8X", Buffer.alloc(10)));
+
+  const result = refusal({
+    bytes: original,
+    fileName: "foto.webp",
+    mimeType: "image/webp",
+  });
+
+  assert.equal(result.reason, "damaged_image");
+});
+
+test("refuses a WebP whose VP8X chunk is not ten bytes", () => {
+  const lossy = webpLossyImage({ width: 100, height: 100 });
+  const original = webpFileFromChunks([
+    webpChunk("VP8X", Buffer.alloc(12)),
+    lossy.subarray(12),
+  ]);
+
+  const result = refusal({
+    bytes: original,
+    fileName: "foto.webp",
+    mimeType: "image/webp",
+  });
+
+  assert.equal(result.reason, "damaged_image");
+});
+
+test("refuses a WebP whose VP8 frame is not a key frame", () => {
+  const bytes = Buffer.from(webpLossyImage({ width: 100, height: 100 }));
+  // The frame tag starts right after the RIFF header and the chunk header.
+  bytes[20] |= 1;
+
+  const result = refusal({
+    bytes,
+    fileName: "foto.webp",
+    mimeType: "image/webp",
+  });
+
+  assert.equal(result.reason, "damaged_image");
 });

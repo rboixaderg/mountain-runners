@@ -3,10 +3,10 @@
 // A clean worktree is reusable only after its publication was acknowledged.
 
 import {
+  chmodSync,
   closeSync,
   existsSync,
   fchmodSync,
-  lstatSync,
   mkdirSync,
   openSync,
   readdirSync,
@@ -19,6 +19,7 @@ import {
 import { basename, dirname, join } from "node:path";
 import {
   GitInterruptedError,
+  lstatOrNull,
   primaryRepository,
   registeredWorktree,
   remoteGitTimeoutMilliseconds,
@@ -142,6 +143,9 @@ export async function ensureSessionWorktree({
       realpathSync(worktreeRoot),
       `${name}-before-${newTaskSuffix}`,
     );
+    if (lstatOrNull(archivePath) !== null) {
+      throw new Error(`The archive ${basename(archivePath)} already exists.`);
+    }
     await runGit(repository, ["worktree", "move", worktreePath, archivePath], {
       signal,
     });
@@ -273,25 +277,26 @@ export async function resumeWorkBranch({
     }
   }
 
+  const sessionWorktreeExists = (
+    await worktreePaths(repository, { signal })
+  ).includes(worktreePath);
+  const archivePath = join(root, `${name}-before-${newTaskSuffix}`);
+  if (sessionWorktreeExists && lstatOrNull(archivePath) !== null) {
+    throw new Error(`The archive ${basename(archivePath)} already exists.`);
+  }
+
   // Only the release moves local state: every refusal is already decided.
   for (const holder of holders) {
     await runGit(holder, ["checkout", "--detach"], { signal });
   }
 
-  if ((await worktreePaths(repository, { signal })).includes(worktreePath)) {
+  if (sessionWorktreeExists) {
     const previous = registeredWorktree(repositoryPath, worktreePath);
     // Check the untrusted Git marker before moving the registered worktree.
     await listChangedPaths(previous, { signal });
-    await runGit(
-      repository,
-      [
-        "worktree",
-        "move",
-        worktreePath,
-        join(root, `${name}-before-${newTaskSuffix}`),
-      ],
-      { signal },
-    );
+    await runGit(repository, ["worktree", "move", worktreePath, archivePath], {
+      signal,
+    });
   }
   await runGit(repository, ["branch", "-f", branch, headSha], { signal });
   await runGit(repository, ["worktree", "add", worktreePath, branch], {
@@ -339,18 +344,6 @@ function opaqueNameOf({ identifiers, name, gitDirectory }) {
     : opaqueWorktreeNameFor(identifiers, legacy);
 }
 
-/** A path inspected without following its final symbolic link, or null. */
-function lstatOrNull(path) {
-  try {
-    return lstatSync(path);
-  } catch (error) {
-    if (error.code === "ENOENT") {
-      return null;
-    }
-    throw error;
-  }
-}
-
 /** The exact marker Git must see for one administrative directory. */
 function markerContent(gitDirectory) {
   return `gitdir: ${gitDirectory}\n`;
@@ -392,8 +385,9 @@ function readWorktreeMarker(worktreePath) {
 
 /**
  * Remove the fixed temporary file only when it is a leftover of an interrupted
- * write: a regular file with one link whose content is exactly the marker the
- * migration is about to write. Any other entry belongs to the task or to the
+ * write: a regular file with one link whose content is the marker or a prefix of
+ * it. A crash can leave the file empty or half-written, and the next start must
+ * still be able to replace it. Any other entry belongs to the task or to the
  * sandbox, so it is refused instead of deleted.
  */
 function removeMarkerTemporaryIfLeftover(worktreePath, content) {
@@ -404,9 +398,12 @@ function removeMarkerTemporaryIfLeftover(worktreePath, content) {
   }
   if (
     !isTrustedGitMetadataFile(temporaryStats) ||
-    temporaryStats.size !== Buffer.byteLength(content) ||
-    readFileSync(temporaryPath, "utf8") !== content
+    temporaryStats.size > Buffer.byteLength(content)
   ) {
+    return false;
+  }
+  const written = readFileSync(temporaryPath, "utf8");
+  if (written !== "" && !content.startsWith(written)) {
     return false;
   }
   rmSync(temporaryPath);
@@ -683,6 +680,9 @@ export async function listOtherTopicWorktrees({
   excludeName,
   signal,
 }) {
+  if (!existsSync(worktreeRoot)) {
+    return [];
+  }
   const root = realpathSync(worktreeRoot);
   const worktrees = [];
   const registeredPaths = await worktreePaths(
@@ -690,6 +690,11 @@ export async function listOtherTopicWorktrees({
     { signal },
   );
   for (const path of registeredPaths) {
+    // A registered worktree whose directory is gone is not a worktree of
+    // another topic: nothing about it can overlap this one.
+    if (!existsSync(path)) {
+      continue;
+    }
     const resolvedPath = realpathSync(path);
     const name = basename(resolvedPath);
     if (
@@ -845,9 +850,11 @@ export async function committedPaths(worktree, { signal } = {}) {
 }
 
 export function recordPublication(worktree, commit) {
-  writeFileSync(
-    join(worktree.gitDirectory, "agent-published-head"),
-    `${commit}\n`,
-    { mode: 0o600 },
-  );
+  const publicationPath = join(worktree.gitDirectory, "agent-published-head");
+  const temporaryPath = `${publicationPath}.tmp`;
+  writeFileSync(temporaryPath, `${commit}\n`, { mode: 0o600 });
+  // A leftover temporary from a crash keeps the mode it had; the record is
+  // private whatever the file was.
+  chmodSync(temporaryPath, 0o600);
+  renameSync(temporaryPath, publicationPath);
 }

@@ -35,7 +35,8 @@ export function pngSignature() {
 
 /**
  * A PNG with an optional metadata chunk list before the image data. `filler`
- * pads an unknown ancillary chunk to reach an exact total size.
+ * pads the image data with a second IDAT chunk to reach an exact total size;
+ * the parser only needs image data to be present.
  */
 export function pngImage({ width, height, metadata = [], filler = 0 }) {
   const header = Buffer.alloc(13);
@@ -49,7 +50,7 @@ export function pngImage({ width, height, metadata = [], filler = 0 }) {
   }
   chunks.push(pngChunk("IDAT", Buffer.from([0x78, 0x9c, 0x01, 0x02])));
   if (filler > 0) {
-    chunks.push(pngChunk("zzZz", Buffer.alloc(filler)));
+    chunks.push(pngChunk("IDAT", Buffer.alloc(filler)));
   }
   chunks.push(pngChunk("IEND", Buffer.alloc(0)));
   return Buffer.concat([pngSignature(), ...chunks]);
