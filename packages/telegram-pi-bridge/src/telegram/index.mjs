@@ -9,6 +9,7 @@ export {
   AgentBridge,
   defaultAlbumWaitMilliseconds,
   defaultBridgeMessages,
+  instructionExcerpt,
 } from "./bridge.mjs";
 export {
   classifyAlbum,

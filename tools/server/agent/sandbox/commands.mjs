@@ -18,6 +18,18 @@ import { SandboxCleanupError } from "./errors.mjs";
 
 const maximumOutputBytes = 1024 * 1024;
 
+// Cleanup commands must end: a stuck client would hold the single execution.
+const runtimeCommandTimeoutMilliseconds = 30 * 1000;
+
+// Rootless Podman with cgroupfs is the one runtime that runs the sandbox; every
+// invocation uses the same flags as the run itself.
+function podmanArguments(...argumentsList) {
+  return ["--remote=false", "--cgroup-manager=cgroupfs", ...argumentsList];
+}
+
+const missingContainerPattern =
+  /no such container|container is not running|does not exist/iu;
+
 const executeFile = promisify(execFile);
 
 // Local rootless Podman needs its storage/runtime paths, not bridge credentials.
@@ -35,27 +47,41 @@ function podmanEnvironment() {
 
 async function cleanSandboxContainers(label) {
   const environment = podmanEnvironment();
+  const options = {
+    env: environment,
+    timeout: runtimeCommandTimeoutMilliseconds,
+  };
   async function listContainers(includeStopped) {
-    const argumentsList = ["--remote=false", "ps", "--quiet"];
+    const argumentsList = ["ps", "--quiet"];
     if (includeStopped) argumentsList.push("--all");
     argumentsList.push("--filter", label);
-    const { stdout } = await executeFile("podman", argumentsList, {
-      env: environment,
-    });
+    const { stdout } = await executeFile(
+      "podman",
+      podmanArguments(...argumentsList),
+      options,
+    );
     return stdout.split("\n").filter(Boolean);
   }
 
   const running = await listContainers(false);
   if (running.length > 0) {
-    await executeFile("podman", ["--remote=false", "kill", ...running], {
-      env: environment,
-    });
+    try {
+      await executeFile("podman", podmanArguments("kill", ...running), options);
+    } catch (error) {
+      // `--rm` may have removed a container between the list and the kill.
+      const output = `${error?.stderr ?? ""} ${error?.message ?? ""}`;
+      if (!missingContainerPattern.test(output)) {
+        throw error;
+      }
+    }
   }
   const remaining = await listContainers(true);
   if (remaining.length > 0) {
-    await executeFile("podman", ["--remote=false", "rm", ...remaining], {
-      env: environment,
-    });
+    await executeFile(
+      "podman",
+      podmanArguments("rm", "--force", "--ignore", ...remaining),
+      options,
+    );
   }
   if ((await listContainers(true)).length > 0) {
     throw new Error("Sandbox containers remain after cleanup.");
@@ -103,20 +129,43 @@ export async function runSandboxedCommand({
   });
 
   let timedOut = false;
+  const environment = podmanEnvironment();
   const child = spawn("podman", argumentsList, {
-    env: podmanEnvironment(),
+    env: environment,
     stdio: ["ignore", "pipe", "pipe"],
   });
   const stdout = [];
   const stderr = [];
   let outputBytes = 0;
   let outputLimitExceeded = false;
+
+  // Killing the client does not stop its container, and `conmon` can keep the
+  // client pipes open. The container is stopped explicitly and the local pipe
+  // ends are destroyed so `close` still confirms the client ended.
+  async function stopContainer() {
+    try {
+      await executeFile("podman", podmanArguments("kill", containerName), {
+        env: environment,
+        timeout: runtimeCommandTimeoutMilliseconds,
+      });
+    } catch {
+      // The `--rm` container may already be gone; the final list is the proof.
+    }
+  }
+
+  function stopClient() {
+    child.kill("SIGKILL");
+    child.stdout.destroy();
+    child.stderr.destroy();
+  }
+
   function retainOutput(chunks, chunk) {
     if (outputLimitExceeded) return;
     outputBytes += chunk.length;
     if (outputBytes > maximumOutputBytes) {
       outputLimitExceeded = true;
-      child.kill("SIGKILL");
+      stopClient();
+      void stopContainer();
       return;
     }
     chunks.push(chunk);
@@ -126,11 +175,13 @@ export async function runSandboxedCommand({
 
   const timer = setTimeout(() => {
     timedOut = true;
-    child.kill("SIGKILL");
+    stopClient();
+    void stopContainer();
   }, timeoutMilliseconds);
 
   const abortHandler = () => {
-    child.kill("SIGKILL");
+    stopClient();
+    void stopContainer();
     // The finally block waits for termination and reports an unconfirmed stop.
   };
   signal?.addEventListener("abort", abortHandler, { once: true });

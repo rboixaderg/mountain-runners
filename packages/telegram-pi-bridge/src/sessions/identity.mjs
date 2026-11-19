@@ -5,6 +5,10 @@
 // identifier used for the Pi session file must contain only the characters Pi
 // accepts (`letters`, `numbers`, `.`, `_` and `-`).
 
+// Both parts are plain base-10 integers. `Number` alone would also accept
+// whitespace, hexadecimal and exponential notation, which are not session keys.
+const integerPartPattern = /^-?\d+$/u;
+
 export function parseSessionKey(sessionKey) {
   const separator = sessionKey.lastIndexOf(":");
   if (separator === -1) {
@@ -15,8 +19,8 @@ export function parseSessionKey(sessionKey) {
   const chatIdentifier = Number(chatPart);
   const threadIdentifier = Number(threadPart);
   if (
-    chatPart === "" ||
-    threadPart === "" ||
+    !integerPartPattern.test(chatPart) ||
+    !integerPartPattern.test(threadPart) ||
     !Number.isSafeInteger(chatIdentifier) ||
     !Number.isSafeInteger(threadIdentifier)
   ) {

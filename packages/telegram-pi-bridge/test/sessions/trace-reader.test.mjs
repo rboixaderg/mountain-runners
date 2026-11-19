@@ -1,7 +1,9 @@
 import assert from "node:assert/strict";
+import { spawn } from "node:child_process";
 import { chmodSync, existsSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { DatabaseSync } from "node:sqlite";
 import { test } from "node:test";
 import { AdmissionQueue } from "../../src/sessions/queue.mjs";
 import {
@@ -320,6 +322,25 @@ test("rejects a timestamp that is not a real date or clock time", (context) => {
   }
 });
 
+test("rejects a timestamp with a time but no timezone", (context) => {
+  const directory = temporaryDirectory(context);
+  const path = join(directory, "missing.sqlite");
+  const invalidTimestamps = [
+    "2026-03-01T10:00",
+    "2026-03-01T10:00:00",
+    "2026-03-01T10:00:00.123",
+    "2026-03-01 10:00:00",
+  ];
+
+  for (const value of invalidTimestamps) {
+    assert.throws(
+      () => readTraceEntries(path, { since: value }),
+      TraceQueryInputError,
+      value,
+    );
+  }
+});
+
 test("rejects an empty topic or action before touching the file system", (context) => {
   const directory = temporaryDirectory(context);
   const path = join(directory, "missing.sqlite");
@@ -345,6 +366,42 @@ test("refuses a missing database and never creates it", (context) => {
 
   assert.throws(() => readTraceEntries(path), /Trace database not found/u);
   assert.equal(existsSync(path), false);
+});
+
+test("waits for a concurrent writer instead of failing at once", async (context) => {
+  const path = createTraceDatabase(context);
+  const holder = new DatabaseSync(path);
+  holder.exec("BEGIN EXCLUSIVE");
+
+  const moduleUrl = new URL(
+    "../../src/sessions/trace-reader.mjs",
+    import.meta.url,
+  ).href;
+  const code = `
+    import { readTraceEntries } from ${JSON.stringify(moduleUrl)};
+    process.stdout.write(String(readTraceEntries(process.argv[1]).length));
+  `;
+  const child = spawn(
+    process.execPath,
+    ["--input-type=module", "-e", code, path],
+    { env: { PATH: process.env.PATH } },
+  );
+  let output = "";
+  let errorOutput = "";
+  child.stdout.on("data", (chunk) => {
+    output += chunk;
+  });
+  child.stderr.on("data", (chunk) => {
+    errorOutput += chunk;
+  });
+
+  await new Promise((resolve) => setTimeout(resolve, 300));
+  holder.exec("COMMIT");
+  holder.close();
+
+  const exitCode = await new Promise((resolve) => child.on("close", resolve));
+  assert.equal(exitCode, 0, errorOutput);
+  assert.equal(output, "5");
 });
 
 test("reads a database file the caller cannot write", (context) => {
