@@ -492,9 +492,9 @@ del bot no requereix menció.
   `/merge` ni una preview executa un torn de Pi a la sessió del tema. Si el
   classificador retorna aclariment, o una continuació no té feina pendent ni
   PR del tema, el servei executa Pi en mode consulta: worktree de només
-  lectura, sense branca ni publicació. El model respon o demana l'aclariment amb
-  el context de la sessió. El text fix d'aclariment només es fa servir si el
-  model no pot respondre.
+  lectura, sense crear cap branca ni publicar. El model respon o demana
+  l'aclariment amb el context de la sessió. El text fix d'aclariment només es fa
+  servir si el model no pot respondre.
 - **Efectes del servei a la sessió.** El servei desa els efectes que decideix
   ell mateix en un tema: PR creada o actualitzada (número, branca i commit),
   resultat de les comprovacions locals, avís de CI, preview, resultat d'un
@@ -520,6 +520,13 @@ del bot no requereix menció.
   servei reprèn aquella PR amb les comprovacions d'elegibilitat de la
   continuació entre temes de T8.4. La imatge adjunta d'aquesta continuació
   s'aplica a la PR represa.
+- **Consulta sobre la feina publicada.** Si una consulta no té canvis locals ni
+  commits pendents, i el tema té una PR oberta publicada pel servei, el servei
+  situa el worktree al cap d'aquella PR perquè el model llegeixi el contingut
+  publicat en lloc de respondre des de `main`. El torn continua sent de només
+  lectura i conserva la petició de la persona: no publica res i no obre cap PR.
+  Si la represa es refusa, la consulta respon com abans, amb el worktree de la
+  feina nova.
 - **Feina en curs preservada.** Una implementació nova continua arxivant el
   worktree anterior sense perdre'l. La traça registra la classificació de cada
   instrucció perquè l'operador pugui revisar una decisió errònia.
