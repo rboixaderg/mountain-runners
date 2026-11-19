@@ -19,6 +19,10 @@ function mentionEntity(offset = 0) {
   };
 }
 
+function botCommandEntity(command, offset = 0) {
+  return { type: "bot_command", offset, length: command.length };
+}
+
 function baseUpdate(overrides = {}) {
   return {
     update_id: 1001,
@@ -170,6 +174,75 @@ test("rejects an empty instruction after the mention", () => {
 
   assert.equal(result.decision, "ignore");
   assert.equal(result.reason, "empty_instruction");
+});
+
+test("accepts a slash command that names the bot and keeps its arguments", () => {
+  const command = `/merge@${botUsername}`;
+  const result = classifyInstruction(
+    baseUpdate({
+      text: `${command} 12`,
+      entities: [botCommandEntity(command)],
+    }),
+    context,
+  );
+
+  assert.equal(result.decision, "instruction");
+  assert.equal(result.text, "/merge 12");
+});
+
+test("accepts a slash command that names the bot regardless of its case", () => {
+  const command = `/merge@${botUsername.toUpperCase()}`;
+  const result = classifyInstruction(
+    baseUpdate({
+      text: `${command} 12`,
+      entities: [botCommandEntity(command)],
+    }),
+    context,
+  );
+
+  assert.equal(result.decision, "instruction");
+  assert.equal(result.text, "/merge 12");
+});
+
+test("rejects a slash command that names another bot", () => {
+  const command = "/merge@altre_agent_bot";
+  const result = classifyInstruction(
+    baseUpdate({ text: command, entities: [botCommandEntity(command)] }),
+    context,
+  );
+
+  assert.equal(result.decision, "ignore");
+  assert.equal(result.reason, "not_addressed_to_bot");
+});
+
+test("does not treat a reply to a forum topic creation as a reply to the bot", () => {
+  const update = baseUpdate({
+    text: "hola",
+    entities: [],
+    reply_to_message: {
+      message_id: 49,
+      from: { id: botIdentifier },
+      forum_topic_created: { name: "Tema" },
+    },
+  });
+
+  const result = classifyInstruction(update, context);
+
+  assert.equal(result.decision, "ignore");
+  assert.equal(result.reason, "not_addressed_to_bot");
+});
+
+test("rejects a legacy forwarded message", () => {
+  for (const forwarded of [
+    { forward_from: { id: 7 } },
+    { forward_sender_name: "Algú" },
+    { forward_date: 1763000000 },
+  ]) {
+    const result = classifyInstruction(baseUpdate(forwarded), context);
+
+    assert.equal(result.decision, "ignore");
+    assert.equal(result.reason, "forwarded_message");
+  }
 });
 
 test("accepts the member states of the configured group", async () => {
@@ -411,6 +484,36 @@ test("accepts a compressed photo with its largest size", () => {
   assert.equal(result.authorIdentifier, 42);
 });
 
+test("accepts an image-only reply to the bot as an instruction", () => {
+  const result = classifyInstruction(
+    baseUpdate({
+      text: undefined,
+      entities: undefined,
+      photo: [{ file_id: "large", file_unique_id: "large-unique" }],
+      reply_to_message: { message_id: 49, from: { id: botIdentifier } },
+    }),
+    context,
+  );
+
+  assert.equal(result.decision, "instruction");
+  assert.equal(result.text, "");
+  assert.equal(result.attachments.length, 1);
+});
+
+test("accepts a caption that only mentions the bot when it carries an image", () => {
+  const result = classifyInstruction(
+    documentUpdate({
+      caption: `@${botUsername}`,
+      caption_entities: [mentionEntity()],
+    }),
+    context,
+  );
+
+  assert.equal(result.decision, "instruction");
+  assert.equal(result.text, "");
+  assert.equal(result.attachments.length, 1);
+});
+
 test("refuses a document that is not an accepted image", () => {
   const result = classifyInstruction(
     documentUpdate({
@@ -540,6 +643,10 @@ test("recognises an album member and uses the smallest update identifier as key"
   assert.equal(result.decision, "instruction");
   assert.equal(result.updateIdentifier, 10);
   assert.equal(result.attachments.length, 3);
+  assert.deepEqual(
+    result.attachments.map((attachment) => attachment.fileIdentifier),
+    ["photo-10", "photo-11", "photo-12"],
+  );
 });
 
 test("ignores an album that does not address the bot before any refusal", () => {
@@ -554,4 +661,92 @@ test("ignores an album that does not address the bot before any refusal", () => 
 
   assert.equal(result.decision, "ignore");
   assert.equal(result.reason, "not_addressed_to_bot");
+});
+
+test("ignores an album without updates or without a message", () => {
+  assert.deepEqual(classifyAlbum([], context), {
+    decision: "ignore",
+    reason: "not_text",
+  });
+  assert.deepEqual(
+    classifyAlbum([{ update_id: 10 }, { update_id: 11 }], context),
+    { decision: "ignore", reason: "not_text" },
+  );
+});
+
+test("rejects an album whose members have different identities", () => {
+  for (const overrides of [
+    { message_thread_id: 8 },
+    { from: { id: 43, is_bot: false } },
+  ]) {
+    const result = classifyAlbum(
+      [albumMember(10), albumMember(11, overrides)],
+      context,
+    );
+
+    assert.equal(result.decision, "ignore");
+    assert.equal(result.reason, "mixed_album_identity");
+  }
+});
+
+test("prefers the album caption that mentions the bot", () => {
+  const updates = [
+    albumMember(10, {
+      text: undefined,
+      entities: undefined,
+      caption: "usa aquestes fotos",
+      caption_entities: [],
+    }),
+    albumMember(11, {
+      text: undefined,
+      entities: undefined,
+      caption: `@${botUsername} fes això`,
+      caption_entities: [mentionEntity()],
+    }),
+  ];
+
+  const result = classifyAlbum(updates, context);
+
+  assert.equal(result.decision, "instruction");
+  assert.equal(result.text, "fes això");
+});
+
+test("uses the first non-empty album caption when none mentions the bot", () => {
+  const updates = [
+    albumMember(10, {
+      text: undefined,
+      entities: undefined,
+      caption: "   ",
+      caption_entities: [],
+      reply_to_message: { message_id: 49, from: { id: botIdentifier } },
+    }),
+    albumMember(11, {
+      text: undefined,
+      entities: undefined,
+      caption: "  usa la segona  ",
+      caption_entities: [],
+    }),
+  ];
+
+  const result = classifyAlbum(updates, context);
+
+  assert.equal(result.decision, "instruction");
+  assert.equal(result.text, "usa la segona");
+});
+
+test("accepts an image-only album that replies to the bot", () => {
+  const updates = [
+    albumMember(10, {
+      text: undefined,
+      entities: undefined,
+      reply_to_message: { message_id: 49, from: { id: botIdentifier } },
+    }),
+    albumMember(11, { text: undefined, entities: undefined }),
+  ];
+
+  const result = classifyAlbum(updates, context);
+
+  assert.equal(result.decision, "instruction");
+  assert.equal(result.text, "");
+  assert.equal(result.attachments.length, 2);
 });

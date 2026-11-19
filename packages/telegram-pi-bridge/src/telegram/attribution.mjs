@@ -24,28 +24,53 @@ function entityText(text, entity) {
   return text.slice(entity.offset, entity.offset + entity.length);
 }
 
-function mentionEntities(text, entities, botUsername, botIdentifier) {
-  return entities.filter((entity) => {
-    if (entity.type === "text_mention") {
-      return (
-        typeof botIdentifier === "number" && entity.user?.id === botIdentifier
-      );
+// The text range of a mention, or null. A bot command that names the bot only
+// loses the `@username` suffix: `/merge@bot 12` keeps `/merge 12`.
+function mentionRange(text, entity, botUsername, botIdentifier) {
+  if (entity.type === "text_mention") {
+    if (
+      typeof botIdentifier !== "number" ||
+      entity.user?.id !== botIdentifier
+    ) {
+      return null;
     }
-    if (entity.type !== "mention") {
-      return false;
-    }
-    return (
-      entityText(text, entity).toLowerCase() === `@${botUsername.toLowerCase()}`
-    );
-  });
+    return { offset: entity.offset, length: entity.length };
+  }
+  if (entity.type === "mention") {
+    const mention = entityText(text, entity);
+    return mention.toLowerCase() === `@${botUsername.toLowerCase()}`
+      ? { offset: entity.offset, length: entity.length }
+      : null;
+  }
+  if (entity.type !== "bot_command") {
+    return null;
+  }
+  const command = entityText(text, entity);
+  const suffixStart = command.lastIndexOf("@");
+  if (suffixStart === -1) {
+    return null;
+  }
+  const suffix = command.slice(suffixStart);
+  return suffix.toLowerCase() === `@${botUsername.toLowerCase()}`
+    ? { offset: entity.offset + suffixStart, length: suffix.length }
+    : null;
+}
+
+function mentionRanges(text, entities, botUsername, botIdentifier) {
+  return entities
+    .map((entity) => mentionRange(text, entity, botUsername, botIdentifier))
+    .filter((range) => range !== null);
 }
 
 function isReplyToBot(message, botIdentifier) {
-  const repliedAuthor = message.reply_to_message?.from;
+  const replied = message.reply_to_message;
+  // The creation of a forum topic is a service message the bot may author, but
+  // a reply to it is not a reply to the bot.
+  if (replied?.forum_topic_created !== undefined) {
+    return false;
+  }
   return (
-    typeof botIdentifier === "number" &&
-    Boolean(repliedAuthor) &&
-    repliedAuthor.id === botIdentifier
+    typeof botIdentifier === "number" && replied?.from?.id === botIdentifier
   );
 }
 
@@ -123,7 +148,13 @@ function baseRejection(message, { groupIdentifier }) {
   if (message.sender_chat || !message.from || message.from.is_bot) {
     return "no_person_author";
   }
-  if (message.forward_origin || message.forward_from_chat) {
+  if (
+    message.forward_origin ||
+    message.forward_from_chat ||
+    message.forward_from !== undefined ||
+    message.forward_sender_name !== undefined ||
+    message.forward_date !== undefined
+  ) {
     return "forwarded_message";
   }
   if (
@@ -139,7 +170,7 @@ function mentionsIn(content, context) {
   if (content === null) {
     return [];
   }
-  return mentionEntities(
+  return mentionRanges(
     content.text,
     content.entities,
     context.botUsername,
@@ -220,7 +251,9 @@ export function classifyInstruction(
   }
 
   const text = content === null ? "" : instructionText(content.text, mentions);
-  if (text === "") {
+  // An image alone is a valid instruction when the person replies to the bot or
+  // captions it with only the mention of the bot.
+  if (text === "" && attachments.length === 0) {
     return { decision: "ignore", reason: "empty_instruction" };
   }
 
@@ -257,30 +290,51 @@ export function classifyAlbum(
   updates,
   { groupIdentifier, botUsername, botIdentifier },
 ) {
+  // Telegram normally delivers the members in order, but the classifier also
+  // accepts an unsorted list: the order decides the stable album key and the
+  // attachment order. Updates without a message cannot be a member.
+  const orderedUpdates = updates
+    .filter((update) => update.message !== undefined)
+    .toSorted((first, second) => first.update_id - second.update_id);
+  if (orderedUpdates.length === 0) {
+    return { decision: "ignore", reason: "not_text" };
+  }
+  const sessionMessage = orderedUpdates[0].message;
+
   let textContent = null;
   let textMentions = [];
   let answered = false;
   let replyToBot = false;
   const attachments = [];
   let refusals = null;
-  let sessionMessage = null;
 
-  for (const update of updates) {
+  for (const update of orderedUpdates) {
     const message = update.message;
-    if (message === undefined) {
-      continue;
-    }
     const rejection = baseRejection(message, { groupIdentifier });
     if (rejection !== null) {
       return { decision: "ignore", reason: rejection };
     }
-    sessionMessage ??= message;
+    // One album has one author, chat and topic. A media group identifier that
+    // repeats across them must never merge two people's images.
+    if (
+      message.chat.id !== sessionMessage.chat.id ||
+      message.message_thread_id !== sessionMessage.message_thread_id ||
+      message.from.id !== sessionMessage.from.id
+    ) {
+      return { decision: "ignore", reason: "mixed_album_identity" };
+    }
     const content = messageContent(message);
     const contentMentions =
       content === null
         ? []
         : mentionsIn(content, { botUsername, botIdentifier });
-    if (content !== null && textContent === null) {
+    if (
+      content !== null &&
+      (textContent === null ||
+        (textMentions.length === 0 &&
+          (contentMentions.length > 0 ||
+            (textContent.text.trim() === "" && content.text.trim() !== ""))))
+    ) {
       textContent = content;
       textMentions = contentMentions;
     }
@@ -308,7 +362,7 @@ export function classifyAlbum(
   const identity = {
     // A stable key: a member that arrives after a crash does not change it, so
     // the queue recognises the same album instead of admitting it twice.
-    updateIdentifier: Math.min(...updates.map((update) => update.update_id)),
+    updateIdentifier: orderedUpdates[0].update_id,
     ...identityOf(sessionMessage),
   };
 
@@ -330,7 +384,7 @@ export function classifyAlbum(
   }
   const text =
     textContent === null ? "" : instructionText(textContent.text, textMentions);
-  if (text === "") {
+  if (text === "" && attachments.length === 0) {
     return { decision: "ignore", reason: "empty_instruction" };
   }
 
