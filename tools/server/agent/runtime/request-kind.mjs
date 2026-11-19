@@ -15,6 +15,18 @@ import {
   parseRequestKind,
 } from "../policy/development.mjs";
 
+// The classifier is one short question. A stalled model must not hold the
+// instruction queue for the full execution deadline, so its own bound is far
+// shorter and never exceeds the configured one.
+export const maximumClassificationTimeoutMilliseconds = 60 * 1000;
+
+export function classificationTimeoutMilliseconds(config) {
+  return Math.min(
+    maximumClassificationTimeoutMilliseconds,
+    config.limits.executionTimeoutMs,
+  );
+}
+
 export async function classifyRequest(
   config,
   { instruction, context, signal, environment },
@@ -28,6 +40,7 @@ export async function classifyRequest(
     classifyOnly: true,
     environment,
     signal,
+    timeoutMilliseconds: classificationTimeoutMilliseconds(config),
     message: buildClassificationPrompt(instruction, context),
   });
   if (result.timedOut || result.aborted) {

@@ -1175,6 +1175,54 @@ test("continues the open pull request of the topic in place at its published hea
   assert.deepEqual(workflowTraces(traces), []);
 });
 
+test("continues in place when the topic names its own open pull request", async (context) => {
+  const paths = await fixture(context);
+  const github = githubStub(paths);
+  const ciWatches = stateStore(paths);
+  context.after(() => ciWatches.close());
+  const { head } = await publishFromTopicA({ paths, github, ciWatches });
+  const modelCalls = [];
+  const runner = runnerFor({
+    paths,
+    github,
+    ciWatches,
+    classifyRequest: async () => "continuation",
+    runModel: async (modelRequest) => {
+      modelCalls.push(modelRequest);
+      writeFileSync(join(modelRequest.worktreePath, "second.txt"), "segon\n");
+      return {
+        text: "Continuat.\nSUMMARY: fix(tools): finish the shared change",
+      };
+    },
+  });
+
+  const result = await runner(
+    request({
+      updateIdentifier: 1002,
+      instruction: "Continua la PR #200 i canvia el segon fitxer",
+    }),
+  );
+
+  assert.equal(result.outcome, "pull_request_updated", result.report);
+  assert.equal(modelCalls[0].kind, "continuation");
+  assert.equal(
+    modelCalls[0].worktreePath,
+    realpathSync(worktreeOf(paths, topicA)),
+    "the named pull request of the topic continues in its own worktree",
+  );
+  assert.equal(
+    await git(worktreeOf(paths, topicA), ["branch", "--show-current"]),
+    changeBranchOf(paths),
+    "the worktree never detaches to origin/main",
+  );
+  assert.equal(
+    await git(worktreeOf(paths, topicA), ["rev-parse", "HEAD~1"]),
+    head,
+  );
+  assert.equal(github.created.length, 1, "no second pull request is opened");
+  assert.equal(github.pushes[1].branch, changeBranchOf(paths));
+});
+
 test("answers the continuation as a consultation when the pull request of the topic is closed", async (context) => {
   const paths = await fixture(context);
   const github = githubStub(paths);

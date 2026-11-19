@@ -338,6 +338,9 @@ export function createInstructionRunner({
         ? report
         : `${report}\n${attachmentReports.ignored}`;
     let publicationStarted = false;
+    // The worktree whose ignored attachment directory this turn staged, so the
+    // copy disappears even when the model fails, times out or is aborted.
+    let stagedAttachmentPath = null;
     try {
       signal?.throwIfAborted();
       // A merge is recognised from the literal command before the classifier,
@@ -359,6 +362,10 @@ export function createInstructionRunner({
       const topicPullRequest = repair
         ? null
         : topicPullRequestNumber(request.sessionKey);
+      const lastAgentReply =
+        repair || sessionNotes === undefined
+          ? null
+          : safelyWithNotes(() => sessionNotes.lastReply(request.sessionKey));
       let kind;
       if (repair) {
         kind = repairRequestKind;
@@ -366,17 +373,27 @@ export function createInstructionRunner({
         kind = await classifyRequest({
           instruction: request.instruction,
           context: {
-            lastAgentReply:
-              sessionNotes === undefined
-                ? null
-                : safelyWithNotes(() =>
-                    sessionNotes.lastReply(request.sessionKey),
-                  ),
+            lastAgentReply,
             pendingLocalWork: topic.pendingWork,
             topicPullRequest,
           },
           signal,
         });
+        // The last reply is untrusted text: it may describe a preview, but it
+        // can never authorise one. When it was part of the context, the
+        // classifier must reach the same label without it, or the preview is
+        // decided from the current request alone.
+        if (kind === previewRequestKind && lastAgentReply !== null) {
+          kind = await classifyRequest({
+            instruction: request.instruction,
+            context: {
+              lastAgentReply: null,
+              pendingLocalWork: topic.pendingWork,
+              topicPullRequest,
+            },
+            signal,
+          });
+        }
         recordTrace({
           updateIdentifier: request.updateIdentifier,
           authorIdentifier: request.authorIdentifier,
@@ -462,11 +479,15 @@ export function createInstructionRunner({
         kind === "continuation" &&
         resumed === null &&
         !continuesInPlace &&
+        lastAgentReply === null &&
+        attachments.length === 0 &&
         (await listChangedPaths(worktree, { signal })).length === 0 &&
         !(await hasUnpublishedCommit(worktree, { signal }))
       ) {
-        // Nothing to continue: the request is answered as a consultation, in
-        // the same session, instead of with the fixed clarification text.
+        // Nothing to continue and nothing that answers a previous turn: the
+        // request is answered as a consultation, in the same session, instead
+        // of with the fixed clarification text. A reply of the topic or an
+        // image is a real answer, so it keeps the writable turn.
         kind = "consultation";
         unclearRequest = true;
       }
@@ -490,10 +511,16 @@ export function createInstructionRunner({
       const hasStoredAttachments =
         attachmentStore !== undefined &&
         attachmentStore.list(worktreeName).length > 0;
+      // A consultation never takes a new attachment, but it may look again at
+      // the images the topic already stored: they are staged read-only for the
+      // view_attachment tool and removed with the turn.
+      const consultationUsesStoredAttachments =
+        kind === "consultation" && hasStoredAttachments;
       if (
         kindUsesAttachment &&
         (attachments.length > 0 || hasStoredAttachments)
       ) {
+        stagedAttachmentPath = worktree.path;
         const applied = await applyAttachments({
           attachments,
           instruction,
@@ -509,6 +536,17 @@ export function createInstructionRunner({
         stagedAttachments = applied.attachments;
         promptImages = applied.images;
         worktreePrepared = applied.scaledInSandbox === true;
+      } else if (consultationUsesStoredAttachments) {
+        stagedAttachmentPath = worktree.path;
+        stagedAttachments = attachmentStore.stage(worktreeName, worktree.path);
+        if (stagedAttachments.length > 0) {
+          // The model receives the exact names the service staged: it cannot
+          // list the directory by itself in a read-only turn.
+          instruction = `${instruction}\n\n${buildAttachmentsInstruction({
+            attachments: stagedAttachments,
+            newNames: [],
+          })}`;
+        }
       }
       // The effects of the service are claimed at the one point where the turn
       // really starts: the sandbox and the profile are ready and Pi is about to
@@ -579,15 +617,20 @@ export function createInstructionRunner({
       }
       // The model copies an image it uses to a content path. Before the copy in
       // the ignored directory disappears, the service remembers which stored
-      // images reached the worktree outside it; a published change closes them.
+      // images reached the worktree outside it, including the ones a previous
+      // attempt already committed and this publication retries. A published
+      // change closes them.
+      const attachmentPaths =
+        kind === "consultation" || attachmentStore === undefined
+          ? []
+          : [
+              ...(await listChangedPaths(worktree, { signal })),
+              ...(await committedPaths(worktree, { signal })),
+            ];
       const usedAttachmentNames =
         kind === "consultation" || attachmentStore === undefined
           ? []
-          : attachmentStore.used(
-              worktreeName,
-              worktree.path,
-              await listChangedPaths(worktree, { signal }),
-            );
+          : attachmentStore.used(worktreeName, worktree.path, attachmentPaths);
       // The person reads the model's answer, never its change summary: the
       // service owns the summary and strips the line from every text.
       const answer = stripChangeSummary(modelResult.text);
@@ -613,6 +656,7 @@ export function createInstructionRunner({
       // commit or a publication, even on a branch whose .gitignore lacks the
       // rule.
       removeAttachmentDirectory({ worktreePath: worktree.path });
+      stagedAttachmentPath = null;
       const changedPaths = await listChangedPaths(worktree, { signal });
       if (
         changedPaths.length === 0 &&
@@ -706,15 +750,6 @@ export function createInstructionRunner({
       // The instruction only becomes possibly published when the publisher is
       // about to write to GitHub: a read of the pull request that fails before
       // the push is a local failure, never an unknown result.
-      if (usedAttachmentNames.length > 0) {
-        recordTrace({
-          updateIdentifier: request.updateIdentifier,
-          authorIdentifier: request.authorIdentifier,
-          sessionKey: request.sessionKey,
-          action: "attachment_used",
-          detail: usedAttachmentNames.join(","),
-        });
-      }
       const publication = await publishChange({
         worktree,
         branch,
@@ -739,6 +774,17 @@ export function createInstructionRunner({
           outcome: "failed",
           report: instructionReports.publicationRefused,
         };
+      }
+      // The image is used only once the publication is confirmed: a refused or
+      // unknown publication keeps it available for the next turn.
+      if (usedAttachmentNames.length > 0) {
+        recordTrace({
+          updateIdentifier: request.updateIdentifier,
+          authorIdentifier: request.authorIdentifier,
+          sessionKey: request.sessionKey,
+          action: "attachment_used",
+          detail: usedAttachmentNames.join(","),
+        });
       }
       // The image is part of a published change: it no longer needs to stay in
       // the topic store. A refused publication keeps it for the next turn. The
@@ -823,7 +869,7 @@ export function createInstructionRunner({
     } catch (error) {
       logger(
         "instruction_failed",
-        error instanceof Error ? `${error.name}: ${error.message}` : "unknown",
+        error instanceof Error ? error.name : "unknown",
       );
       if (error instanceof SandboxCleanupError) {
         return {
@@ -843,6 +889,19 @@ export function createInstructionRunner({
           ? instructionReports.aborted
           : instructionReports.executionFailed,
       };
+    } finally {
+      if (stagedAttachmentPath !== null) {
+        try {
+          removeAttachmentDirectory({ worktreePath: stagedAttachmentPath });
+        } catch (error) {
+          // The copy is best-effort bookkeeping: a directory the model or the
+          // runtime already removed is the wanted state.
+          logger(
+            "attachment_cleanup_failed",
+            error instanceof Error ? error.name : "unknown",
+          );
+        }
+      }
     }
   }
 

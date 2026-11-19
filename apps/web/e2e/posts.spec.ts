@@ -4,14 +4,24 @@ import {
   getHomepagePostVariants,
   type PostVariant,
 } from "../src/lib/content/posts";
-import { loadPreviewPostVariants } from "../src/test/support/publication-catalog";
+import { getVariantPath } from "../src/lib/content/routes";
+import {
+  loadPreviewPostVariants,
+  loadPublishedPostVariants,
+} from "../src/test/support/publication-catalog";
 
 // Mirrors `getBuildPostVariants`: a preview build also renders complete drafts
 // (ADR 0011), the public build never renders them. The expectation comes from
 // the source, never from the page under test.
 async function loadRenderedPostVariants(): Promise<PostVariant[]> {
-  if (process.env.PUBLIC_PREVIEW !== "true") return [];
+  if (process.env.PUBLIC_PREVIEW !== "true") {
+    return loadPublishedPostVariants();
+  }
   return loadPreviewPostVariants();
+}
+
+function escapedPathPattern(path: string): RegExp {
+  return new RegExp(`${path.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&")}$`, "u");
 }
 
 test("editorial menu clicks emit labeled actions without depending on Plausible", async ({
@@ -92,10 +102,29 @@ test("editorial hubs are discoverable and have localized empty states", async ({
   await expect(
     page.getByRole("heading", { level: 1, name: "Noticias" }),
   ).toBeVisible();
+  // The empty state belongs to the source, not to the current content: adding
+  // an English translation must never break this journey.
+  const englishBlogVariants = (await loadRenderedPostVariants()).filter(
+    (variant) => variant.locale === "en" && variant.kind === "blog",
+  );
   await page.goto("/en/blog/");
   await expect(
-    page.getByText("There are no publications in this language yet."),
+    page.getByRole("heading", { level: 1, name: "Blog" }),
   ).toBeVisible();
+  if (englishBlogVariants.length === 0) {
+    await expect(
+      page.getByText("There are no publications in this language yet."),
+    ).toBeVisible();
+  } else {
+    for (const variant of englishBlogVariants) {
+      await expect(
+        page.getByRole("link", {
+          name: variant.entry.title[variant.locale],
+          exact: true,
+        }),
+      ).toBeVisible();
+    }
+  }
 });
 
 const pilots = [
@@ -250,9 +279,19 @@ test("homepage combines news and blog with manual scrolling and locale isolation
     "Actualitat del club",
   );
   const list = section.getByRole("list", { name: "Entrades d'actualitat" });
-  for (const pilot of pilots) {
+  const renderedVariants = await loadRenderedPostVariants();
+  // The carousel mixes news and blog and keeps six entries: what it shows comes
+  // from the source, so a seventh post or a new translation never breaks this.
+  const homepageVariants = getHomepagePostVariants(
+    renderedVariants.filter(({ locale }) => locale === "ca"),
+  );
+  for (const variant of homepageVariants) {
     await expect(
-      list.getByRole("heading", { level: 3, name: pilot.title, exact: true }),
+      list.getByRole("heading", {
+        level: 3,
+        name: variant.entry.title[variant.locale],
+        exact: true,
+      }),
     ).toBeVisible();
   }
   await expect(
@@ -270,9 +309,9 @@ test("homepage combines news and blog with manual scrolling and locale isolation
       exact: true,
     },
   );
-  const homepageDrafts = getHomepagePostVariants(
-    (await loadRenderedPostVariants()).filter(({ locale }) => locale === "ca"),
-  ).filter(({ entry }) => !entry.published);
+  const homepageDrafts = homepageVariants.filter(
+    ({ entry }) => !entry.published,
+  );
   await expect(draftStatus).toHaveCount(homepageDrafts.length);
   const previous = section.getByRole("button", { name: "Entrades anteriors" });
   const next = section.getByRole("button", { name: "Entrades següents" });
@@ -323,21 +362,32 @@ test("homepage combines news and blog with manual scrolling and locale isolation
     await expect(previous).toBeHidden();
     await expect(next).toBeHidden();
   }
+  const targetVariant = homepageVariants[0];
+  if (targetVariant === undefined) {
+    throw new Error("The homepage renders no post to open.");
+  }
   await list
     .getByRole("link", {
-      name: "Aplicació mòbil per als socis del club, com registrar-te i accedir-hi",
+      name: targetVariant.entry.title[targetVariant.locale],
       exact: true,
     })
     .click();
-  await expect(page).toHaveURL(/\/ca\/blog\/com-registrar-te-a-playoff\/$/u);
-  for (const path of ["/es/", "/en/"]) {
-    await page.goto(path);
+  await expect(page).toHaveURL(
+    escapedPathPattern(getVariantPath(targetVariant)),
+  );
+  // Each locale only shows the entries its own source renders: a new Spanish
+  // or English translation turns the section on instead of breaking the test.
+  for (const locale of ["es", "en"] as const) {
+    const localeHomepageVariants = getHomepagePostVariants(
+      renderedVariants.filter((variant) => variant.locale === locale),
+    );
+    await page.goto(`/${locale}/`);
     await expect(
       page.getByRole("heading", {
         level: 2,
         name: /Actualidad del club|Club updates/u,
       }),
-    ).toHaveCount(0);
+    ).toHaveCount(localeHomepageVariants.length > 0 ? 1 : 0);
   }
 });
 
@@ -409,9 +459,17 @@ test.describe("editorial navigation without JavaScript", () => {
     await page.goto("/ca/");
     const section = page.getByRole("region", { name: "Actualitat del club" });
     const list = section.getByRole("list", { name: "Entrades d'actualitat" });
-    for (const pilot of pilots) {
+    const homepageVariants = getHomepagePostVariants(
+      (await loadRenderedPostVariants()).filter(
+        ({ locale }) => locale === "ca",
+      ),
+    );
+    for (const variant of homepageVariants) {
       await expect(
-        list.getByRole("link", { name: pilot.title, exact: true }),
+        list.getByRole("link", {
+          name: variant.entry.title[variant.locale],
+          exact: true,
+        }),
       ).toBeVisible();
     }
     await expect(section.getByRole("button")).toHaveCount(0);
@@ -425,13 +483,19 @@ test.describe("editorial navigation without JavaScript", () => {
         .poll(() => list.evaluate((element) => element.scrollLeft))
         .toBeGreaterThan(0);
     }
+    const targetVariant = homepageVariants[0];
+    if (targetVariant === undefined) {
+      throw new Error("The homepage renders no post to open.");
+    }
     const articleLink = list.getByRole("link", {
-      name: "Aplicació mòbil per als socis del club, com registrar-te i accedir-hi",
+      name: targetVariant.entry.title[targetVariant.locale],
       exact: true,
     });
     await articleLink.focus();
     await articleLink.press("Enter");
-    await expect(page).toHaveURL(/\/ca\/blog\/com-registrar-te-a-playoff\/$/u);
+    await expect(page).toHaveURL(
+      escapedPathPattern(getVariantPath(targetVariant)),
+    );
   });
 
   test("image link opens the larger derivative", async ({ page }) => {
