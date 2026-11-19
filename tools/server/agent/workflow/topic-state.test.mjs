@@ -3,6 +3,7 @@ import { execFile } from "node:child_process";
 import { mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { DatabaseSync } from "node:sqlite";
 import { promisify } from "node:util";
 import { test } from "node:test";
 import { CiWatchStore } from "../repository/ci-watch-store.mjs";
@@ -52,6 +53,7 @@ function storeFixture(context) {
   });
   const findTopicPullRequest = createTopicPullRequestFinder(ciWatches);
   return {
+    directory,
     ciWatches,
     previewRequests,
     mergeRequests,
@@ -396,12 +398,21 @@ test("describes only the pull request it prints, never an earlier one of the top
 });
 
 test("says that the link of a confirmed preview is not stored", (context) => {
-  const { ciWatches, previewRequests, readTopicState } = storeFixture(context);
+  const { ciWatches, previewRequests, readTopicState, directory } =
+    storeFixture(context);
   reportChecks(ciWatches);
   // A confirmation stored before the origin was kept: the state is confirmed
-  // for the reported commit, but the URL was never written.
+  // for the reported commit, but the URL was never written. Ending a request as
+  // confirmed now always carries its origin, so the legacy row is written
+  // directly.
   beginPreview(previewRequests);
-  previewRequests.finish(600, previewStates.confirmed);
+  const legacy = new DatabaseSync(join(directory, "preview-request.sqlite"));
+  legacy
+    .prepare(
+      "UPDATE preview_requests SET state = ? WHERE update_identifier = ?",
+    )
+    .run(previewStates.confirmed, 600);
+  legacy.close();
 
   const topicState = readTopicState(sessionKey);
   assert.deepEqual(topicState.preview, {
@@ -628,4 +639,50 @@ test("a turn continues without the block when the state cannot be read", async (
     null,
     "the turn runs without the state block",
   );
+});
+
+test("never reports the preview of another commit as the state of the report", (context) => {
+  const { ciWatches, previewRequests, readTopicState } = storeFixture(context);
+  reportChecks(ciWatches);
+  // A request of an earlier commit is still awaiting the publisher. It says
+  // nothing about the commit this topic reported last.
+  beginPreview(previewRequests, { commit: olderCommit });
+
+  assert.equal(readTopicState(sessionKey).preview, null);
+});
+
+test("gives the classifier only a pull request the topic can continue", (context) => {
+  const { ciWatches, mergeRequests } = storeFixture(context);
+  reportChecks(ciWatches, { result: "pull-request-closed" });
+  const openOnly = createTopicPullRequestFinder(ciWatches, {
+    includeEnded: false,
+    mergeRequests,
+  });
+
+  // The state block still describes the change; the classifier does not receive
+  // a closed pull request as the topic's active one.
+  assert.equal(openOnly(sessionKey), null);
+  assert.equal(
+    createTopicPullRequestFinder(ciWatches)(sessionKey),
+    ciWatches.latestPublications()[0].pull_request_number,
+  );
+});
+
+test("gives the classifier no pull request that is already merged", (context) => {
+  const { ciWatches, mergeRequests } = storeFixture(context);
+  reportChecks(ciWatches);
+  mergeRequests.begin({
+    updateIdentifier: 700,
+    sessionKey,
+    authorIdentifier: 42,
+    pullRequestNumber: 239,
+    commitSha: reportedCommit,
+  });
+  mergeRequests.markMerged(700, mergeCommit);
+  const openOnly = createTopicPullRequestFinder(ciWatches, {
+    includeEnded: false,
+    mergeRequests,
+  });
+
+  assert.equal(openOnly(sessionKey), null);
 });

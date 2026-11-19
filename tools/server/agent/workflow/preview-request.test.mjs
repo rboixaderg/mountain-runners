@@ -759,6 +759,7 @@ test("keeps the preview confirmation as a service event of its session", async (
     {
       sessionKey,
       text: `Preview de la PR #200 (commit aaaaaaa) publicada a ${origin}.`,
+      receivedText: sent[0].text,
       effectKey: "preview:20:confirmed",
     },
   ]);
@@ -848,6 +849,9 @@ test("reports a preview run that ended badly and ends the request as failed", as
     {
       sessionKey,
       text: "Preview de la PR #200 (commit aaaaaaa) no publicada: el flux de preview ha acabat amb una fallada i no hi ha cap adreça. No s'ha reintentat automàticament.",
+      // The last text of the topic is what the person read: the plain reply,
+      // never the technical note.
+      receivedText: sent[0].text,
       effectKey: "preview:20:failed_run",
     },
   ]);
@@ -1227,6 +1231,7 @@ test("an unconfirmed note keeps the facts of the session", async (context) => {
     {
       sessionKey,
       text: "Preview de la PR #200 (commit aaaaaaa) sense confirmació dins del termini: no hi ha cap adreça confirmada.",
+      receivedText: sent[0].text,
       effectKey: "preview:20:unconfirmed",
     },
   ]);
@@ -1415,7 +1420,9 @@ test("confirms a reconciled request from a publisher comment written after it", 
   github.postError = null;
   setClock("2026-11-14T11:00:00Z");
   previews.resolveUncertainCommented(20);
-  assert.equal(previews.awaiting()[0].commented_at, "2026-11-14T11:00:00.000Z");
+  // The comment keeps the moment of the request, not the moment a person
+  // reconciled it: the runs of the request stay inside its own window.
+  assert.equal(previews.awaiting()[0].commented_at, "2026-11-14T10:00:00.000Z");
 
   github.comments = [
     publisherComment({
@@ -1434,4 +1441,64 @@ test("confirms a reconciled request from a publisher comment written after it", 
   assert.deepEqual(github.posts, []);
   assert.deepEqual(github.listings, ["2026-11-14T10:00:00.000Z"]);
   assert.ok(actions(traces).includes("preview_confirmed"));
+});
+
+test("never lends the run of one request to another of its burst", async (context) => {
+  const { ciWatches, handler, github, previews, traces } = setup(context);
+  reportGreen(ciWatches);
+  await handler.handle(request(20));
+
+  // A newer commit asks in the same second: both comments share their window.
+  const newCommit = "b".repeat(40);
+  github.pullRequest = { ...github.pullRequest, headSha: newCommit };
+  reportGreen(ciWatches, 11, newCommit);
+  await handler.handle(request(21));
+  // The first run of the burst is still going, and only the second one ended
+  // badly. It belongs to the second request, never to the first one.
+  github.runs = [
+    workflowRun({
+      identifier: 901,
+      createdAt: "2026-11-14T10:00:10Z",
+      status: "in_progress",
+      conclusion: null,
+    }),
+    workflowRun({
+      identifier: 900,
+      createdAt: "2026-11-14T10:00:20Z",
+      conclusion: "failure",
+    }),
+  ];
+
+  await handler.runOnce();
+
+  assert.equal(previews.state(20), "awaiting", "its own run has not ended");
+  assert.equal(previews.state(21), "failed");
+  const details = traces
+    .filter((entry) => entry.action === "preview_failed_run")
+    .map((entry) => entry.detail);
+  assert.deepEqual(details, ["#200 bbbbbbb failure run 900"]);
+});
+
+test("keeps the plain reply as the last text of the topic", async (context) => {
+  const { ciWatches, handler, github, notes } = (() => {
+    const environment = setup(context);
+    const collected = [];
+    return {
+      ...environment,
+      notes: collected,
+      handler: environment.buildHandler({
+        recordServiceNote: (note) => collected.push(note),
+      }),
+    };
+  })();
+  reportGreen(ciWatches);
+  await handler.handle(request());
+  github.comments = [publisherComment()];
+
+  await handler.runOnce();
+
+  const note = notes.at(-1);
+  assert.match(note.text, /publicada a/u);
+  assert.match(note.receivedText, /La preview ja està a punt/u);
+  assert.notEqual(note.receivedText, note.text);
 });

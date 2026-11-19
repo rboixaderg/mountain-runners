@@ -216,3 +216,20 @@ test("describes failing check runs and legacy statuses with bounded text", () =>
   });
   assert.ok(long.detail.length <= 1200);
 });
+
+test("keeps a context ambiguous once a status timestamp cannot be read", () => {
+  // An unreadable row says the order of that context is unknown. A later
+  // readable row must not turn it into a confident newest status.
+  const result = classifyCommitStatus({
+    requiredChecks: ["ci/validate"],
+    checkRuns: [],
+    statuses: [
+      status("ci/validate", "success", "2026-11-14T10:00:00Z"),
+      { context: "ci/validate", state: "failure" },
+      status("ci/validate", "success", "2026-11-14T10:05:00Z"),
+    ],
+  });
+
+  assert.equal(result.state, "unknown");
+  assert.deepEqual(result.ambiguous, ["ci/validate"]);
+});

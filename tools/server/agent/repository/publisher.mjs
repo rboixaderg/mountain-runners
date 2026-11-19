@@ -64,10 +64,13 @@ export function createPublisher({ github, secrets }) {
       createMissing: !repair,
       signal,
     });
-    recordPublication(worktree, pushed.commit);
+    // Only a publication with its pull request is recorded: a repair whose pull
+    // request disappeared meanwhile is a refusal, not a publication the service
+    // must follow.
     if (pullRequest === null) {
       return { refused: true };
     }
+    recordPublication(worktree, pushed.commit);
     return { created, pullRequest, commit: pushed.commit };
   };
 }

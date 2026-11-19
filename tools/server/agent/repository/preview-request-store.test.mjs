@@ -24,6 +24,8 @@ const request = {
   commitSha: "a".repeat(40),
 };
 
+const previewOrigin = "https://pr-42.preview.mountainrunners.cat";
+
 test("records a request as commenting before anything is posted", (context) => {
   const store = new PreviewRequestStore(fixture(context));
   assert.equal(store.begin(request), previewBeginResults.begun);
@@ -51,7 +53,7 @@ test("never begins the same update twice", (context) => {
   const store = new PreviewRequestStore(fixture(context));
   store.begin(request);
   store.markAwaiting(1, "2026-11-14T10:00:00Z");
-  store.finish(1, previewStates.confirmed);
+  store.finish(1, previewStates.confirmed, previewOrigin);
   assert.equal(store.begin(request), previewBeginResults.duplicate);
   store.close();
 });
@@ -63,7 +65,7 @@ test("blocks a new request for the commit until the previous one ended", (contex
   assert.equal(store.begin(repeated), previewBeginResults.open);
   store.markAwaiting(1, "2026-11-14T10:00:00Z");
   assert.equal(store.begin(repeated), previewBeginResults.open);
-  store.finish(1, previewStates.confirmed);
+  store.finish(1, previewStates.confirmed, previewOrigin);
   assert.equal(store.begin(repeated), previewBeginResults.begun);
   store.markAwaiting(2, "2026-11-14T11:00:00Z");
   store.finish(2, previewStates.timedOut);
@@ -141,9 +143,9 @@ test("an awaiting request survives a restart with its deadline reference", (cont
 test("ends an awaiting request only once", (context) => {
   const store = new PreviewRequestStore(fixture(context));
   store.begin(request);
-  assert.equal(store.finish(1, previewStates.confirmed), false);
+  assert.equal(store.finish(1, previewStates.confirmed, previewOrigin), false);
   store.markAwaiting(1, "2026-11-14T10:00:00Z");
-  assert.equal(store.finish(1, previewStates.confirmed), true);
+  assert.equal(store.finish(1, previewStates.confirmed, previewOrigin), true);
   assert.equal(store.finish(1, previewStates.timedOut), false);
   store.close();
 });
@@ -357,6 +359,77 @@ test("reports the newest request of one pull request, never of another", (contex
     store.latest({ sessionKey: request.sessionKey, pullRequestNumber: 43 })
       .state,
     previewStates.awaiting,
+  );
+  store.close();
+});
+
+test("ends a request only in a terminal state and never without its origin", (context) => {
+  const store = new PreviewRequestStore(fixture(context));
+  store.begin(request);
+  store.markAwaiting(1, "2026-11-14T10:00:00Z");
+
+  assert.throws(
+    () => store.finish(1, previewStates.awaiting),
+    /Invalid preview end state/u,
+  );
+  assert.throws(
+    () => store.finish(1, previewStates.confirmed),
+    /requires the origin/u,
+  );
+  assert.equal(store.state(1), previewStates.awaiting);
+  assert.equal(store.finish(1, previewStates.confirmed, previewOrigin), true);
+  store.close();
+});
+
+test("keeps the request moment as the comment of a reconciled post", (context) => {
+  const path = fixture(context);
+  let store = new PreviewRequestStore(path, {
+    now: () => new Date("2026-11-14T10:00:00Z"),
+  });
+  store.begin(request);
+  store.markUncertain(1);
+  store.close();
+
+  // The person confirms the comment much later: the attribution window of the
+  // request still starts when the request did, not when it was reconciled.
+  store = new PreviewRequestStore(path, {
+    now: () => new Date("2026-11-14T12:00:00Z"),
+  });
+  const resolved = store.resolveUncertainCommented(1);
+  assert.equal(resolved.update_identifier, 1);
+  assert.equal(store.state(1), previewStates.awaiting);
+  assert.equal(store.awaiting()[0].commented_at, "2026-11-14T10:00:00.000Z");
+  assert.equal(store.awaiting()[0].updated_at, "2026-11-14T12:00:00.000Z");
+  store.close();
+});
+
+test("bounds the posted comments by the oldest request that still waits", (context) => {
+  const store = new PreviewRequestStore(fixture(context));
+  store.begin({ ...request, updateIdentifier: 1 });
+  store.markAwaiting(1, "2026-11-14T09:00:00Z");
+  store.finish(1, previewStates.timedOut);
+  store.begin({ ...request, updateIdentifier: 2, commitSha: "b".repeat(40) });
+  store.markAwaiting(2, "2026-11-14T10:00:00Z");
+  store.begin({ ...request, updateIdentifier: 3, commitSha: "c".repeat(40) });
+  store.markAwaiting(3, "2026-11-14T10:00:00Z");
+
+  assert.deepEqual(
+    store
+      .commented({ since: "2026-11-14T10:00:00.000Z" })
+      .map((row) => row.update_identifier),
+    [2, 3],
+    "an older comment cannot bound a request that waits",
+  );
+  assert.deepEqual(
+    store.commented().map((row) => row.update_identifier),
+    [1, 2, 3],
+  );
+  // A bound that cannot be read says nothing: every comment is kept.
+  assert.deepEqual(
+    store
+      .commented({ since: "not a timestamp" })
+      .map((row) => row.update_identifier),
+    [1, 2, 3],
   );
   store.close();
 });

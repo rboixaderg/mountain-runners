@@ -1125,3 +1125,57 @@ test("the service startup check no longer refuses once every case is resolved", 
   assert.deepEqual(stores.repairs.uncertainRepairs(), []);
   assert.deepEqual(stores.previews.uncertain(), []);
 });
+
+test("marks the published commit of a repair in the topic worktree", async (context) => {
+  const { config, stores } = await fixture(context);
+  const { worktree, commit } = await topicWorktree({
+    config,
+    sessionKey: sessionKeyOne,
+    updateIdentifier: 12,
+  });
+  const repair = interruptRepair(stores.repairs, sessionKeyOne);
+
+  await reconcile(config, stores, fakeTelegram(), {
+    kind: "repair",
+    updateIdentifier: repair.updateIdentifier,
+    sequence: repair.sequence,
+    failedCommit: repair.failedCommit,
+    resolution: reconcileResolutions.published,
+    commit,
+  });
+
+  assert.equal(stores.repairs.repair(repair.sequence).status, "done");
+  // The same commit is never published twice: the worktree keeps the marker.
+  assert.equal(publishedCommit(worktree), commit);
+});
+
+test("lists every case when one worktree cannot be read", async (context) => {
+  const { config, stores } = await fixture(context);
+  const broken = await topicWorktree({
+    config,
+    sessionKey: sessionKeyOne,
+    updateIdentifier: 11,
+  });
+  // A damaged worktree: its Git directory is gone.
+  rmSync(join(broken.worktree.path, ".git"), { recursive: true, force: true });
+  interruptInstruction(stores.instructions, 11, sessionKeyOne);
+  const repair = interruptRepair(stores.repairs, sessionKeyTwo);
+  const github = {
+    async findOpenPullRequest() {
+      return null;
+    },
+    async getPullRequest() {
+      return { state: "open", headSha: publishedCommitSha };
+    },
+  };
+
+  const cases = await listUncertainCases({ config, stores, github });
+
+  assert.equal(cases.length, 2);
+  const brokenCase = cases.find((entry) => entry.kind === "instruction");
+  assert.ok(brokenCase.worktree_error !== null);
+  assert.equal(brokenCase.worktree, null);
+  const repairCase = cases.find((entry) => entry.kind === "repair");
+  assert.equal(repairCase.sequence, repair.sequence);
+  assert.equal(repairCase.github, "ok");
+});
