@@ -1,0 +1,21 @@
+tools/server/agent/workflow/topic-state.test.mjs
+  s_883ac1537a0e5e::t_39e9cf202ed703 281,287
+tools/server/agent/workflow/topic-state.mjs
+  s_883ac1537a0e5e::t_f32fce6d3357e9 43
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "171c761d20927a43ceb5dc3c77cdfe5127c49708",
+  "prompts": {},
+  "sessions": {
+    "s_883ac1537a0e5e": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a1f097-1580-7506-8426-f25cca8cfacb",
+        "model": "deepseek-v4.1-flash"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
