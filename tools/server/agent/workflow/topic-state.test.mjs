@@ -248,7 +248,7 @@ test("hides a preview URL confirmed for an older commit", (context) => {
     origin: null,
   });
   const text = buildTopicStateText(topicState);
-  assert.equal(text.includes(previewOrigin), false);
+  assert.doesNotMatch(text, /pr-239\.preview/u);
 });
 
 test("reports a preview request that ran out of its deadline", (context) => {
