@@ -1,0 +1,75 @@
+tools/server/agent/commands/reconcile/command.mjs
+  s_82a8eb64da656c::t_e903a0246145ea 119-127,132-133,190-193,199-206,210-214,216-227,285-290,292-295,298-303,310-311
+tools/server/agent/commands/reconcile/command.test.mjs
+  s_82a8eb64da656c::t_2ac40415d5a7d1 5,328-422
+tools/server/agent/commands/reconcile/uncertain-cases.mjs
+  s_5b11e37152c924::t_7af92451d8329c 127,130-142,146-154,446-447,449,485-495,639,641-646,680-686
+tools/server/agent/repository/ci-status.mjs
+  s_82a8eb64da656c::t_980f91f7c3bcd4 45-47,52-55,61,65-67
+tools/server/agent/repository/ci-status.test.mjs
+  s_82a8eb64da656c::t_2e3a81454ebe17 219-235
+tools/server/agent/repository/github.mjs
+  s_82a8eb64da656c::t_f7d3d1fb8cb384 24-28,104-128,230-234,302-310,473,520-525,535,539-541,546,577
+tools/server/agent/repository/github.test.mjs
+  s_5b11e37152c924::t_eb5c9de5ea6d7c 452,654-772
+tools/server/agent/repository/merge-request-store.mjs
+  s_82a8eb64da656c::t_cbfc1f4cb41f02 13,28-29,54,60,144-146,149-157
+tools/server/agent/repository/preview-comment.mjs
+  s_82a8eb64da656c::t_ad30bf024970c6 13-15,17-18,20
+tools/server/agent/repository/preview-comment.test.mjs
+  s_82a8eb64da656c::t_5854430293df54 123-143
+tools/server/agent/repository/preview-request-store.mjs
+  s_82a8eb64da656c::t_66f03adbdbf454 18,33-36,69-76,89,96,212-213,216-221,247-251,253-256,261-263,266,284-287,289-294,303,306,308-314,317-331
+tools/server/agent/repository/preview-request-store.test.mjs
+  s_82a8eb64da656c::t_717412d939e610 27-28,56,68,146,148,365-435
+tools/server/agent/repository/publisher.mjs
+  s_82a8eb64da656c::t_ed75b587448fa3 67-69,73
+tools/server/agent/repository/publisher.test.mjs
+  s_82a8eb64da656c::t_d46fe82ddc1b1a 185-211
+tools/server/agent/repository/session-note-store.mjs
+  s_82a8eb64da656c::t_6ec0ccaa39a7f4 31,71-77,80-95,190-191
+tools/server/agent/repository/sqlite.mjs
+  s_82a8eb64da656c::t_91609d7df839da 1-35
+tools/server/agent/workflow/ci-repair.mjs
+  s_82a8eb64da656c::t_5792d9c7deffd0 267
+tools/server/agent/workflow/ci-watch.mjs
+  s_82a8eb64da656c::t_8b5845c2594279 363-368,372-382,404
+tools/server/agent/workflow/overlap-warning.mjs
+  s_82a8eb64da656c::t_8a0e6c784d6cf6 32-34,111-112
+tools/server/agent/workflow/overlap-warning.test.mjs
+  s_5b11e37152c924::t_2736e9a11c0306 698-737
+tools/server/agent/workflow/preview-request.mjs
+  s_82a8eb64da656c::t_8cad33626d3236 84-86,89-97,99-108,111-120,129-134,137,160,165-177,438-440,444,477,479-482,536-539,542-544,547
+tools/server/agent/workflow/preview-request.test.mjs
+  s_82a8eb64da656c::t_bfbe6118d20f23 762,852-854,1234,1423-1425,1445-1504
+tools/server/agent/workflow/project-runner.mjs
+  s_82a8eb64da656c::t_d7fbbf08191f02 16,133-136,139-144,170,208-212
+tools/server/agent/workflow/topic-state.mjs
+  s_82a8eb64da656c::t_be46934452a33a 22,63-67,69-72,79-94,174-179,221-224
+tools/server/agent/workflow/topic-state.test.mjs
+  s_82a8eb64da656c::t_cd3f47af8539b6 6,56,401-402,405-407,409-415,643-688
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "55cd6e97faff0e07df04725153b1a22cf2d646ae",
+  "prompts": {},
+  "sessions": {
+    "s_5b11e37152c924": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e0b016df6ffeQeU6HqNovDkOr5",
+        "model": "unknown"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    },
+    "s_82a8eb64da656c": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e0b016de9ffeksSCDYec4NhQhI",
+        "model": "unknown"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
