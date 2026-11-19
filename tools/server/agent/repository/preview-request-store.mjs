@@ -179,6 +179,24 @@ export class PreviewRequestStore {
       .all();
   }
 
+  /**
+   * Every request whose `/preview` comment was posted, oldest first. It is read
+   * to bound the runs of a request with the comment of the next one, whatever
+   * state either of them is in: a request that already ended still separates the
+   * runs of its neighbours, so the bound never depends on which rows are still
+   * awaiting.
+   */
+  commented() {
+    return this.#database
+      .prepare(
+        `SELECT update_identifier, session_key, pull_request_number, commit_sha,
+                state, commented_at, created_at
+         FROM preview_requests WHERE commented_at IS NOT NULL
+         ORDER BY commented_at, update_identifier`,
+      )
+      .all();
+  }
+
   /** Requests whose post may or may not have happened, oldest first. */
   uncertain() {
     return this.#database

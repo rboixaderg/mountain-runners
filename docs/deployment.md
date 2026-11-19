@@ -454,7 +454,8 @@ Qualsevol commit del rang que afegeixi, modifiqui, mogui o esborri `.github/**`
 o un fitxer `CODEOWNERS` refusa la publicació, encara que un commit posterior
 reverteixi el canvi. El push publica exactament el SHA inspeccionat, sense
 forçar-lo. La credencial de GitHub ha de ser un token acotat al repositori amb
-`Contents: write` i `Pull requests: write`, sense `Workflows: write` ni permisos
+`Contents: write`, `Pull requests: write` i `Actions: read` (per llegir el
+resultat de la preview), sense `Workflows: write` ni permisos
 d'administració. El rol administrador del compte no prova els permisos del
 token. Abans del pilot cal verificar els permisos reals i les regles de branca
 dels entorns `previews` i `production`; aquestes proves locals no ho demostren.
@@ -820,33 +821,69 @@ privada.
 - **Comentari.** El servei publica exactament `/preview`. L'entorn aïllat i el
   model no tenen accés a l'API de GitHub.
 - **Estats** (`state/preview-request.sqlite`): `commenting` (desat abans de
-  publicar), `awaiting`, `confirmed`, `timed_out`, `failed` (GitHub ha rebutjat el comentari
-  amb un 4xx definitiu que no és 408 ni 429: no s'ha creat res i no bloqueja el
-  servei) i `uncertain` (error de xarxa, temps esgotat, 408, 429, 5xx o resposta
+  publicar), `awaiting`, `confirmed`, `timed_out`, `failed` (no s'ha publicat
+  res i no bloqueja el servei: GitHub ha rebutjat el comentari amb un 4xx
+  definitiu que no és 408 ni 429, o l'execució de la preview ha acabat sense
+  èxit) i `uncertain` (error de xarxa, temps esgotat, 408, 429, 5xx o resposta
   mal formada: bloqueja fins que una persona reconciliï). Una actualització
   de Telegram només es tramita una vegada. Es refusa una petició nova pel mateix
   PR i commit mentre n'hi hagi una en `commenting`, `awaiting` o `uncertain`; es
   permet quan l'anterior ha acabat com a `confirmed`, `failed` o `timed_out` (per exemple per tornar a publicar després de
   retirar la preview). Un commit verd nou sempre permet una petició nova.
+- **Resultat de l'execució.** Mentre la petició espera, el bucle llegeix les
+  execucions del flux `preview.yml` creades pel comentari a la PR
+  (`Actions: read`). El flux s'executa per a cada comentari de cada PR, així que
+  una execució només compta quan l'ha iniciada la identitat de GitHub del servei
+  (`actor` o `triggering_actor`, llegida una vegada amb `GET /user`) i quan és
+  dins de la finestra de la petició: creada després del comentari del servei i
+  abans del comentari de la petició següent. Un `issue_comment` porta
+  el commit de `main` a `head_sha`, així que ni el commit ni la PR es poden
+  llegir de l'execució. L'execució s'identifica per l'autor i pel moment; el
+  comentari del publicador és el que lliga l'URL al commit. La finestra d'una
+  petició va del seu comentari al comentari de la petició següent, també quan
+  aquella petició ja ha acabat, així que les finestres no es mouen ni deixen cap
+  forat. Dins de la finestra només decideix la primera execució acabada: si no ha
+  acabat bé, la petició acaba com a `failed` (traça `preview_failed_run`, amb
+  l'execució) amb un avís planer, sense reparació ni reintent automàtics, i una
+  execució posterior de la mateixa finestra no canvia res. Una execució correcta
+  no confirma res per si sola, i una execució acabada sense conclusió calculada
+  (`null`) tampoc no decideix: la petició continua esperant. El comentari del
+  publicador es llegeix abans que les execucions, així que una confirmació
+  existent sempre guanya. Dues peticions del mateix segon comparteixen la
+  finestra, perquè GitHub només dona precisió de segon, i les seves execucions
+  s'assignen per ordre: primer la de la petició amb l'identificador més baix. Una
+  execució que no encaixa en cap finestra s'ignora, i un encert equivocat només
+  pot acabar la petició com a fallada, mai confirmar cap adreça. Si la credencial
+  no pot llegir execucions (403 o 404) o la seva identitat, el servei es queda
+  amb el comentari del publicador i ho registra
+  (`preview_runs_permission_denied` o `preview_identity_read_failed`); torna a
+  provar la lectura com a màxim un cop l'hora, així que concedir `Actions: read`
+  no necessita reiniciar el servei. Qualsevol altre error de lectura deixa el
+  cicle amb el comentari sol i es registra (`preview_run_read_failed`).
 - **Confirmació.** Un bucle en segon pla llegeix els comentaris de la PR i
   només accepta el del publicador de la fase 6: autor `github-actions[bot]`,
   marcador, origen exacte `https://pr-<n>.preview.mountainrunners.cat`, SHA igual
   al fixat i comentari escrit o actualitzat després de la petició. La
   confirmació es valida sempre contra el moment de la petició (`created_at`),
-  també quan una persona la reconcilia després. Retorna URL, SHA curt i PR al
-  tema. Si en 15 minuts no hi ha confirmació, ho comunica com a no confirmada;
+  també quan una persona la reconcilia després. Retorna l'URL confirmada al
+  tema. Si en 25 minuts no hi ha confirmació, ho comunica com a no confirmada;
   mai construeix ni suposa l'URL.
 - **Reinicis.** Una petició en `commenting` passa a `uncertain` i no es torna a
   publicar mai sola; com amb una reparació interrompuda, el servei refusa
   arrencar fins que una persona reconciliï l'estat real a GitHub, amb
   [Reconciliació de resultats desconeguts (T8.5)](#reconciliació-de-resultats-desconeguts-t85).
-  Una petició en `awaiting` reprèn la lectura de comentaris amb el termini
-  original.
+  Una petició en `awaiting` reprèn la lectura de comentaris i d'execucions amb
+  el termini original.
 - **Traça privada.** `preview_requested`, `preview_membership_verified`,
-  `preview_refused` (amb el motiu),
+  `preview_refused` (amb el motiu i la feina nova no informada si és el cas),
   `preview_commented`, `preview_confirmed`, `preview_unconfirmed`,
-  `preview_failed` i `preview_uncertain`, amb la PR i el commit i l'autor, sense text de conversa
+  `preview_failed`, `preview_failed_run` i `preview_uncertain`, amb la PR i el commit i l'autor, sense text de conversa
   ni credencials.
+- **Llenguatge.** L'avís al tema és curt i planer, per a una persona que no
+  treballa amb Git: diu què ha passat i què pot fer. El número de la PR només
+  apareix a l'última línia, com a `Enllaç per a revisió: <URL>`; la preview
+  confirmada sempre porta la seva adreça. El detall tècnic (estat, commit, PR i
+  adreça) queda a la traça privada i a la nota del tema que rep el model.
 - **Mai automàtic.** Ni una CI verda, ni crear una PR, ni publicar una reparació
   demanen cap preview.
 
@@ -855,8 +892,11 @@ privada.
   Una caiguda entre l'enviament i el tancament pot duplicar l'avís. La duplicació
   d'aquest avís de Telegram és una excepció acceptada ([ADR 0014](decisions/0014-operator-stop-and-repeatable-telegram-notices.md)): el
   comentari `/preview` de GitHub no es repeteix. Una lectura
-  fallida de comentaris mai tanca una petició: el termini només s'aplica després
-  d'una lectura correcta.
+  fallida de comentaris no tanca la petició i el termini només s'aplica després
+  d'una lectura correcta de comentaris. Una lectura fallida d'execucions no
+  tanca res per si sola: el cicle continua amb el comentari del publicador i el
+  termini, així que la petició pot acabar com a no confirmada sense el resultat
+  de l'execució.
 - **Repetició pel mateix commit.** Confia que GitHub actualitza el camp
   `updated_at` del comentari del publicador quan el torna a escriure. Si no ho
   fa, la petició acaba com a no confirmada tot i que la preview pot estar
@@ -872,8 +912,9 @@ privada.
   confirmada perquè el SHA no coincideix.
 
 L'activació continua depenent de la verificació del pilot: la credencial ha de
-tenir escriptura a Pull requests (per comentar), lectura de Checks i Statuses i
-cap escriptura a Workflows; la identitat de GitHub de l'agent ha de ser col·laboradora del repositori, perquè el publicador de la fase 6 en comprova l'autor del comentari. El flux de la fase 6 ha de tenir configurats els
+tenir escriptura a Pull requests (per comentar), lectura de Checks i Statuses,
+lectura d'execucions de fluxos (`Actions: read`, per llegir el resultat de la
+preview) i cap escriptura a Workflows; la identitat de GitHub de l'agent ha de ser col·laboradora del repositori, perquè el publicador de la fase 6 en comprova l'autor del comentari. El flux de la fase 6 ha de tenir configurats els
 secrets `PREVIEW_*`, l'entorn `previews` i el DNS de `*.preview.mountainrunners.cat`.
 Aquesta implementació no activa res.
 

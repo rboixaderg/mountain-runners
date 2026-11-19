@@ -221,21 +221,46 @@ al servidor. El nom local encara no representa una publicació a npm.
    comprovacions obligatòries:
    PR oberta, cap igual al commit fixat, branca del repositori principal i
    comprovacions obligatòries totes en verd. Si el tema té una publicació més
-   nova sense informe confirmat, refusa. Si l'autor ja no és membre, si la
+   nova sense informe confirmat, refusa i nomena la feina nova, no l'avís ja
+   informat. Si l'autor ja no és membre, si la
    consulta de pertinença falla, si hi ha qualsevol dubte o un error de lectura,
    refusa i ho diu. Només llavors desa la petició (`commenting`),
    comenta exactament `/preview` amb la credencial del servei i passa a
    `awaiting`. Un bucle en segon pla llegeix els comentaris de la PR i només
    accepta el del publicador de la fase 6 (`github-actions[bot]`, marcador,
    origen exacte `https://pr-<n>.preview.mountainrunners.cat`, el SHA fixat i
-   escrit o actualitzat després de la petició). Retorna URL, SHA curt i PR al
-   tema; si el termini s'esgota, ho comunica com a no confirmat sense
-   construir cap URL. Un rebuig definitiu de GitHub (4xx, llevat de 408 i 429) acaba la petició
+   escrit o actualitzat després de la petició). Retorna l'URL confirmada al
+   tema; si el termini de 25 minuts s'esgota, ho comunica com a no confirmat
+   sense construir cap URL. Un rebuig definitiu de GitHub (4xx, llevat de 408 i 429) acaba la petició
    com a `failed` (traça `preview_failed`) sense bloquejar el servei; qualsevol
    altre error deixa la petició `uncertain`. La identitat de GitHub de l'agent ha
    de ser col·laboradora del repositori. Es pot repetir `/preview` pel mateix commit només quan la
    petició anterior ha acabat. Una CI verda, una PR nova o una reparació no
    demanen mai cap preview.
+
+   Mentre espera, el mateix bucle llegeix les execucions del flux `preview.yml`
+   que ha provocat el comentari (`repository/github.mjs#listPreviewWorkflowRuns`,
+   permís `Actions: read`). El flux s'executa per a cada comentari de cada PR,
+   així que només compta una execució iniciada per la identitat de GitHub del
+   servei (`actor` o `triggering_actor`, llegida una vegada amb
+   `getAuthenticatedLogin`) i dins de la finestra de la petició: creada després
+   del comentari del servei i abans del comentari de la petició següent. La
+   finestra va del comentari de la petició al de la petició següent, també quan
+   aquella ja ha acabat, i dues peticions del mateix segon es resolen per l'ordre
+   dels identificadors. El bucle llegeix primer el comentari del
+   publicador, que sempre guanya i és l'únic que lliga l'URL al commit. Dins de la
+   finestra només decideix la primera execució acabada: si no ha acabat bé, la
+   petició acaba com a `failed` (traça `preview_failed_run`, amb l'execució) amb
+   un avís planer, i una execució posterior no canvia res. Una execució correcta,
+   o acabada sense conclusió calculada, continua exigint el comentari del
+   publicador. Una lectura fallida d'execucions deixa el cicle amb el comentari
+   del publicador i el termini, i no tanca res per si sola. Si la credencial no
+   pot llegir execucions (403 o 404) o la seva pròpia identitat, el servei es
+   queda amb el comentari del publicador, ho registra
+   (`preview_runs_permission_denied` o `preview_identity_read_failed`) i ho torna
+   a provar com a màxim un cop l'hora, sense reiniciar. Una execució que no
+   encaixa en cap finestra s'ignora, i un encert equivocat només pot acabar la
+   petició com a fallada, perquè una execució correcta no confirma cap URL.
 
 10. Una persona verificada pot demanar el merge amb la comanda literal `/merge`,
     `/merge <PR>` o `/merge <PR> <SHA>` completa. `run-instruction.mjs` la reconeix
@@ -288,7 +313,10 @@ al servidor. El nom local encara no representa una publicació a npm.
     `state/session-notes.sqlite`, per tema, el text de cada informe del servei
     (publicació, comprovacions, CI, reparació, preview, merge, traspàs, adjunt
     refusat i resolució d'un resultat desconegut) abans d'enviar-lo, retallat a
-    1500 caràcters i amb un màxim de 20 notes sense lliurar. Una nota només
+    1500 caràcters i amb un màxim de 20 notes sense lliurar. La nota d'una
+    preview pot portar més fets que el missatge del tema: l'estat, la PR, el
+    commit, l'adreça confirmada i el final de l'execució en paraules planeres,
+    perquè el torn següent no hagi d'interpretar cap token de GitHub. Una nota només
     conté text escrit pel servei: quan un avís seu incorpora text del model, la
     nota en guarda només la part del servei i les paraules del model només
     queden com a última resposta del tema. Cada efecte té una identitat
