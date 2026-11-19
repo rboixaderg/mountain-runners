@@ -1,0 +1,14 @@
+packages/telegram-pi-bridge/src/telegram/api.mjs
+  h_1727aeeb492b30 9-18,113
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "ead5bf4868533e4d535b1d14fff0a3eb69f396ab",
+  "prompts": {},
+  "humans": {
+    "h_1727aeeb492b30": {
+      "author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
