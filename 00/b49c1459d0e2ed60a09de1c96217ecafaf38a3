@@ -1,0 +1,25 @@
+tools/server/agent/repository/secret-scan.mjs
+  s_2116a861b82201::t_c52dd162e7c200 52-56,63
+tools/server/agent/workflow/run-instruction.test.mjs
+  s_2116a861b82201::t_b75eb09311b8e9 1005-1008,1403-1406
+tools/server/agent/repository/github.test.mjs
+  s_2116a861b82201::t_b00c5325c6eff1 297-410
+tools/server/agent/workflow/cross-topic-continuation.test.mjs
+  s_2116a861b82201::t_b89dafb71c2e00 1347-1350
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "00b49c1459d0e2ed60a09de1c96217ecafaf38a3",
+  "prompts": {},
+  "sessions": {
+    "s_2116a861b82201": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e0a2c50b4ffeFxCFRjt4aG3b15",
+        "model": "unknown"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
