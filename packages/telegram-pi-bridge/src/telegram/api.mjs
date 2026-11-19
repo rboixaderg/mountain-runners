@@ -6,6 +6,16 @@
 
 const defaultBaseUrl = "https://api.telegram.org";
 
+// Strip the trailing slashes of the configured base URL, so every request
+// joins the path with exactly one "/".
+function stripTrailingSlashes(value) {
+  let end = value.length;
+  while (end > 0 && value.at(end - 1) === "/") {
+    end -= 1;
+  }
+  return value.slice(0, end);
+}
+
 // A stored file path comes from Telegram and is used as one URL segment: it
 // never traverses, carries a query or a fragment, starts an absolute path or
 // contains a control character.
@@ -100,7 +110,7 @@ export class TelegramApi {
       throw new Error("A bot token is required.");
     }
     this.#botToken = botToken;
-    this.#baseUrl = baseUrl.replace(/\/+$/u, "");
+    this.#baseUrl = stripTrailingSlashes(baseUrl);
     this.#fetch = fetchImpl;
     this.#requestTimeoutMilliseconds = requestTimeoutMilliseconds;
     this.#longPollMarginMilliseconds = longPollMarginMilliseconds;
