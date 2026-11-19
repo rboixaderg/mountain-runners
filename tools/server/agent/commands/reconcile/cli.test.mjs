@@ -496,6 +496,24 @@ const usageCases = [
     ],
   },
   { argumentsList: ["list", "--pull-request", "5"] },
+  {
+    // The published commit of a repair is a different commit than the failed one.
+    argumentsList: [
+      "resolve",
+      "--kind",
+      "repair",
+      "--update",
+      "12",
+      "--sequence",
+      "1",
+      "--failed-commit",
+      "a".repeat(40),
+      "--resolution",
+      "published",
+      "--commit",
+      "a".repeat(40),
+    ],
+  },
 ];
 
 test("exits with code 2 on every usage error", () => {

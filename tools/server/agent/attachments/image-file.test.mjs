@@ -5,6 +5,7 @@ import {
   maximumAttachmentLongSide,
   prepareImageAttachment,
 } from "./image-file.mjs";
+import { inspectImage } from "./image-format.mjs";
 import {
   jpegImage,
   jpegProgressiveImage,
@@ -285,6 +286,40 @@ test("removes JPEG metadata and keeps the image data byte for byte", () => {
   });
 
   assert.deepEqual(Buffer.from(image.bytes), reference);
+});
+
+test("keeps the EXIF orientation before stripping every metadata container", () => {
+  // A minimal big-endian TIFF: one IFD entry, the orientation tag, SHORT, 1.
+  const tiff = Buffer.alloc(26);
+  tiff.write("MM", 0, "ascii");
+  tiff.writeUInt16BE(42, 2);
+  tiff.writeUInt32BE(8, 4);
+  tiff.writeUInt16BE(1, 8);
+  tiff.writeUInt16BE(0x0112, 10);
+  tiff.writeUInt16BE(3, 12);
+  tiff.writeUInt32BE(1, 14);
+  tiff.writeUInt16BE(6, 18);
+  const original = jpegImage({
+    width: 320,
+    height: 240,
+    metadata: [
+      {
+        marker: 0xe1,
+        data: Buffer.concat([Buffer.from("Exif\0\0", "latin1"), tiff]),
+      },
+    ],
+  });
+
+  const image = accept({
+    bytes: original,
+    fileName: "foto.jpg",
+    mimeType: "image/jpeg",
+  });
+
+  assert.equal(image.orientation, 6);
+  assert.equal(image.width, 320);
+  assert.equal(image.height, 240);
+  assert.equal(inspectImage(image.bytes).hasMetadata, false);
 });
 
 test("removes PNG text and EXIF chunks and keeps the image data byte for byte", () => {

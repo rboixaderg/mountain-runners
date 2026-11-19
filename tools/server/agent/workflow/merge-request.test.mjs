@@ -498,17 +498,33 @@ test("refuses the last delivered notice while an out-of-order notice is unknown"
   const handler = buildHandler({
     hasNewerWork: ({ sessionKey: topic }) => ciWatches.hasUnreportedWork(topic),
   });
-  assert.equal(ciWatches.lastReported(sessionKey).commit_sha, greenCommit);
+  // The report of the topic is the newest publication, C, even though A was
+  // delivered after it.
+  assert.equal(ciWatches.lastReported(sessionKey).commit_sha, laterCommit);
 
   const bare = await handler.handle(request(20), bareCommand);
   assert.match(bare.report, /feina més nova que l'últim avís/u);
-  assert.match(bare.report, /proposta #200/u);
+  assert.match(bare.report, /proposta #203/u);
   const withNumber = await handler.handle(request(21), {
     valid: true,
-    pullRequestNumber: 200,
+    pullRequestNumber: 203,
   });
   assert.match(withNumber.report, /feina més nova que l'últim avís/u);
   assert.deepEqual(fake.merges, []);
+});
+
+test("verifies the membership before any pull request is read", async (context) => {
+  const { ciWatches, handler, github, membership } = setup(context, {
+    github: fakeGithub({ pullRequest: mergedPullRequest() }),
+  });
+  report(ciWatches, { result: "pull-request-closed" });
+  membership.result = { verified: false, reason: "not_a_group_member" };
+
+  const result = await handler.handle(request(20), bareCommand);
+
+  assert.match(result.report, /Ja no constes com a membre del grup/u);
+  assert.equal(github.reads, 0, "no GitHub read for a revoked member");
+  assert.deepEqual(github.merges, []);
 });
 
 test("verifies the membership again when the command runs", async (context) => {
@@ -1055,10 +1071,14 @@ test("startup tells the topic that an unmerged closed pull request cannot be mer
   interruptedMerge(merges);
 
   await handler.reconcileUncertain();
+  await handler.reconcileUncertain();
 
   assert.equal(sent.length, 1);
   assert.match(sent[0].text, /tancada sense fusionar/u);
   assert.match(sent[0].text, /no es pot fusionar/u);
+  // The merge can never happen, so the row ends instead of blocking every start.
+  assert.equal(merges.state(20), "not_merged");
+  assert.deepEqual(merges.uncertain(), []);
 });
 
 test("startup does not repeat the notice of a result the topic was already told", async (context) => {
@@ -1174,6 +1194,29 @@ test("a person's strict form clears an unknown result and runs the full request"
   assert.equal(cleared.detail, "#200 aaaaaaa");
 });
 
+test("keeps the unknown result open when its row cannot be closed", async (context) => {
+  const { handler, github, merges, traces } = await uncertainOpenMerge(context);
+  merges.markNotMerged = () => {
+    throw new Error("disk full");
+  };
+
+  const result = await handler.handle(request(21), {
+    valid: true,
+    pullRequestNumber: 200,
+    commit,
+  });
+
+  // The row is still uncertain, so the request never goes on to merge.
+  assert.match(result.report, /i GitHub la mostra oberta/u);
+  assert.ok(result.report.includes(`\`/merge 200 ${commit}\``));
+  assert.equal(merges.state(20), "uncertain");
+  assert.equal(github.merges.length, 1);
+  assert.ok(
+    !traces.some((entry) => entry.action === "merge_uncertain_cleared"),
+    "a row that could not be closed is never reported as cleared",
+  );
+});
+
 test("a moved head is confirmed with its own commit, which the full request still binds", async (context) => {
   const movedCommit = "b".repeat(40);
   const { handler, github, merges, traces, ciWatches } =
@@ -1215,6 +1258,52 @@ test("a moved head is confirmed with its own commit, which the full request stil
   assert.ok(traces.some((entry) => entry.action === "merge_uncertain_cleared"));
 });
 
+test("a strict form of the new head clears the unknown result before its report", async (context) => {
+  const movedCommit = "b".repeat(40);
+  const { ciWatches, handler, github, merges, traces } =
+    await uncertainOpenMerge(context);
+  // The head moved and its green report has not arrived: the last report still
+  // names the previous commit.
+  github.pullRequest = openPullRequest({ headSha: movedCommit });
+
+  const cleared = await handler.handle(request(21), {
+    valid: true,
+    pullRequestNumber: 200,
+    commit: movedCommit,
+  });
+
+  assert.match(cleared.report, /ha canviat des que te la vaig informar/u);
+  assert.match(cleared.report, /espera el nou avís/u);
+  assert.equal(merges.state(20), "not_merged");
+  assert.equal(github.merges.length, 1, "nothing new was merged");
+  assert.ok(traces.some((entry) => entry.action === "merge_uncertain_cleared"));
+
+  // The green report of the new head arrives: the same strict form merges it.
+  report(ciWatches, { updateIdentifier: 11, commitSha: movedCommit });
+  const merged = await handler.handle(request(22), {
+    valid: true,
+    pullRequestNumber: 200,
+    commit: movedCommit,
+  });
+
+  assert.match(merged.report, /proposta #200 ja està fusionada/u);
+  assert.equal(merges.state(20), "not_merged");
+  assert.equal(merges.state(22), "merged");
+  assert.deepEqual(github.merges.at(-1), { number: 200, sha: movedCommit });
+});
+
+test("refuses a live pull request that GitHub shows merged", async (context) => {
+  const { ciWatches, handler, github, traces } = setup(context);
+  report(ciWatches);
+  github.pullRequest = mergedPullRequest();
+
+  const result = await handler.handle(request(20), bareCommand);
+
+  assert.match(result.report, /proposta #200 ja està fusionada/u);
+  assert.deepEqual(github.merges, []);
+  assert.equal(traces.at(-1).detail, "already_merged #200 aaaaaaa");
+});
+
 test("a cleared unknown result is still refused when the live checks fail", async (context) => {
   const { handler, github, merges } = await uncertainOpenMerge(context);
   github.checkRuns = [];
@@ -1241,7 +1330,9 @@ test("an unknown result of a closed unmerged pull request cannot be cleared", as
   });
 
   assert.match(result.report, /tancada sense fusionar/u);
-  assert.equal(merges.state(20), "uncertain");
+  // A pull request closed without merging can never be merged: the row ends
+  // instead of blocking the topic on every start.
+  assert.equal(merges.state(20), "not_merged");
   assert.equal(github.merges.length, 1);
 });
 

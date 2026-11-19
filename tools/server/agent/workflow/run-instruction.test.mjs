@@ -603,9 +603,7 @@ test("logs the reason of a local failure for the operator", async (context) => {
   const result = await runner(request());
 
   assert.equal(result.outcome, "failed");
-  assert.deepEqual(entries, [
-    ["instruction_failed", "Error: Synthetic model failure"],
-  ]);
+  assert.deepEqual(entries, [["instruction_failed", "Error"]]);
 });
 
 test("blocks after an unconfirmed sandbox stop even before publication", async (context) => {
@@ -655,6 +653,48 @@ test("answers a continuation without pending work as a consultation turn", async
     "",
     "a consultation creates no branch",
   );
+});
+
+test("publishes the answer of a continuation on a clean topic that asked a question", async (context) => {
+  const paths = await fixture(context);
+  const notes = noteStore(context, paths);
+  const github = githubStub();
+  const kinds = [];
+  let turn = 0;
+  const runner = createProjectRunner({
+    config: configFor(paths),
+    github,
+    sessionNotes: notes,
+    classifyRequest: async () =>
+      turn === 0 ? "implementation" : "continuation",
+    runModel: async ({ worktreePath, kind }) => {
+      kinds.push(kind);
+      turn += 1;
+      if (turn === 1) {
+        return { text: "Quants participants hi havia?" };
+      }
+      writeFileSync(join(worktreePath, "facts.txt"), "42 participants\n");
+      return { text: "SUMMARY: feat(content): add the facts" };
+    },
+    runChecks: async () => ({ exitCode: 0 }),
+  });
+
+  const first = await runner(request());
+  const second = await runner(
+    request({
+      updateIdentifier: 1002,
+      instruction: "hi havia 42 participants",
+    }),
+  );
+
+  assert.equal(first.outcome, "answered");
+  assert.equal(
+    second.outcome,
+    "pull_request_created",
+    "the answer to the question keeps the writable turn",
+  );
+  assert.deepEqual(kinds, ["implementation", "continuation"]);
+  assert.equal(github.pulls.length, 1);
 });
 
 test("starts an unrelated task independently while preserving previous failed work", async (context) => {
@@ -1469,6 +1509,50 @@ test("a preview store failure reaches the runner failure report", async (context
   const result = await runner(request());
 
   assert.equal(result.outcome, "failed");
+});
+
+test("never lets the last reply of the topic turn a request into a preview", async (context) => {
+  const paths = await fixture(context);
+  const notes = noteStore(context, paths);
+  notes.recordReply({
+    sessionKey: topicSessionKey,
+    text: "Quan vulguis, demana la preview d'aquest canvi.",
+  });
+  const lastReplies = [];
+  const previewRequests = [];
+  const runner = createProjectRunner({
+    config: configFor(paths),
+    github: githubStub(),
+    sessionNotes: notes,
+    classifyRequest: async ({ context: classification }) => {
+      lastReplies.push(classification.lastAgentReply);
+      // A hostile last reply is the only reason this classifier sees a preview.
+      return classification.lastAgentReply === null
+        ? "consultation"
+        : "preview";
+    },
+    requestPreview: async (previewRequest) => {
+      previewRequests.push(previewRequest.updateIdentifier);
+      return { outcome: "answered", report: "Preview demanada" };
+    },
+    runModel: async () => ({ text: "Aquest tema encara no té cap canvi." }),
+    runChecks: async () =>
+      assert.fail("checks must not run for a consultation"),
+  });
+
+  const result = await runner(request({ instruction: "i ara què passa?" }));
+
+  assert.equal(result.outcome, "answered");
+  assert.equal(result.report, "Aquest tema encara no té cap canvi.");
+  assert.deepEqual(
+    previewRequests,
+    [],
+    "untrusted text never requests a preview",
+  );
+  assert.deepEqual(lastReplies, [
+    "Quan vulguis, demana la preview d'aquest canvi.",
+    null,
+  ]);
 });
 
 test("routes a literal /merge command to the service before the classifier and the model", async (context) => {
@@ -3148,6 +3232,179 @@ test("keeps listing the stored image on a later turn without a new attachment", 
   );
 });
 
+test("lets a consultation look again at a stored image without taking a new one", async (context) => {
+  const paths = await fixture(context);
+  const github = githubStub();
+  const modelAttachments = [];
+  const instructions = [];
+  let downloads = 0;
+  let turn = 0;
+  const runner = createProjectRunner({
+    config: configFor(paths),
+    github,
+    classifyRequest: async () =>
+      turn === 0 ? "implementation" : "consultation",
+    prepareAttachment: createAttachmentPreparation({
+      telegram: {
+        async getFile() {
+          downloads += 1;
+          return {
+            file_id: "telegram-file",
+            file_path: "documents/file_1.png",
+          };
+        },
+        async downloadFile() {
+          return pngImage({ width: 200, height: 100 });
+        },
+      },
+    }),
+    runModel: async ({ worktreePath, attachments, instruction }) => {
+      turn += 1;
+      modelAttachments.push(attachments.map((attachment) => attachment.name));
+      instructions.push(instruction);
+      const staged = join(worktreePath, ".agent-attachments", "imatge-1.png");
+      assert.equal(existsSync(staged), true, "the stored image is staged");
+      if (turn === 1) {
+        writeFileSync(join(worktreePath, "change.txt"), "canvi\n");
+        return { text: "SUMMARY: feat(content): keep the stored image" };
+      }
+      return { text: "La imatge mostra una portada." };
+    },
+    runChecks: async () => ({ exitCode: 0, stdout: "", stderr: "" }),
+  });
+
+  const first = await runner(attachmentRequest());
+  const second = await runner(
+    request({ updateIdentifier: 1002, instruction: "què es veu a la imatge?" }),
+  );
+  // A consultation that also carries a new attachment still inspects the stored
+  // ones; the new file is ignored, as every consultation does.
+  const third = await runner(
+    attachmentRequest({
+      updateIdentifier: 1003,
+      instruction: "i aquesta altra?",
+    }),
+  );
+
+  assert.equal(first.outcome, "pull_request_created");
+  assert.equal(second.outcome, "answered");
+  assert.equal(second.report, "La imatge mostra una portada.");
+  assert.equal(third.outcome, "answered");
+  assert.match(third.report, new RegExp(attachmentReports.ignored, "u"));
+  assert.equal(downloads, 1, "a consultation never downloads a new attachment");
+  assert.deepEqual(modelAttachments, [
+    ["imatge-1.png"],
+    ["imatge-1.png"],
+    ["imatge-1.png"],
+  ]);
+  assert.match(instructions[1], /imatge-1\.png: 200×100 px/u);
+  assert.match(instructions[1], /view_attachment tool and the exact name/u);
+  assert.match(instructions[2], /imatge-1\.png: 200×100 px/u);
+  assert.equal(
+    existsSync(join(topicWorktreePath(paths), ".agent-attachments")),
+    false,
+    "the closed turn removes the staged copy",
+  );
+});
+
+test("removes the staged image when the model fails", async (context) => {
+  const paths = await fixture(context);
+  const runner = createProjectRunner({
+    config: configFor(paths),
+    github: githubStub(),
+    classifyRequest: async () => "implementation",
+    prepareAttachment: createAttachmentPreparation({
+      telegram: telegramAttachment(pngImage({ width: 200, height: 100 })),
+    }),
+    runModel: async ({ worktreePath }) => {
+      assert.equal(
+        existsSync(join(worktreePath, ".agent-attachments", "imatge-1.png")),
+        true,
+      );
+      throw new Error("Synthetic model failure");
+    },
+    runChecks: async () => assert.fail("checks must not start"),
+  });
+
+  const result = await runner(attachmentRequest());
+
+  assert.equal(result.outcome, "failed");
+  assert.equal(
+    existsSync(join(topicWorktreePath(paths), ".agent-attachments")),
+    false,
+  );
+});
+
+test("finds the image already committed when a publication is retried", async (context) => {
+  const paths = await fixture(context);
+  const github = githubStub();
+  const publish = github.pushBranch.bind(github);
+  let attempts = 0;
+  github.pushBranch = async (parameters) => {
+    attempts += 1;
+    if (attempts === 1) {
+      throw new PublishRefusedError("Synthetic local refusal.");
+    }
+    return publish(parameters);
+  };
+  const store = createAttachmentStore({ stateDirectory: paths.state });
+  const traces = [];
+  let turns = 0;
+  const runner = createProjectRunner({
+    config: configFor(paths),
+    github,
+    attachmentStore: store,
+    recordTrace: (entry) => traces.push(entry),
+    classifyRequest: async ({ instruction }) =>
+      instruction === "Torna a provar la publicació pendent."
+        ? "continuation"
+        : "implementation",
+    prepareAttachment: createAttachmentPreparation({
+      telegram: telegramAttachment(pngImage({ width: 1200, height: 800 })),
+    }),
+    runModel: async ({ worktreePath }) => {
+      turns += 1;
+      if (turns === 1) {
+        writeFileSync(
+          join(worktreePath, "cover.png"),
+          readFileSync(
+            join(worktreePath, ".agent-attachments", "imatge-1.png"),
+          ),
+        );
+      }
+      return { text: "SUMMARY: feat(content): publish the cover" };
+    },
+    runChecks: async () => ({ exitCode: 0 }),
+  });
+
+  const first = await runner(attachmentRequest());
+  const topicName = basename(topicWorktreePath(paths));
+  assert.equal(first.outcome, "failed");
+  assert.deepEqual(
+    traces.filter((entry) => entry.action === "attachment_used"),
+    [],
+    "a refused publication never marks the image as used",
+  );
+  assert.equal(store.list(topicName).length, 1);
+
+  const second = await runner(
+    request({
+      updateIdentifier: 1002,
+      instruction: "Torna a provar la publicació pendent.",
+    }),
+  );
+
+  assert.equal(second.outcome, "pull_request_created");
+  assert.deepEqual(
+    traces
+      .filter((entry) => entry.action === "attachment_used")
+      .map((entry) => entry.detail),
+    ["imatge-1.png"],
+    "the retry finds the image in origin/main..HEAD",
+  );
+  assert.deepEqual(store.list(topicName), []);
+});
+
 test("sends the prepared image of the turn as image input of the prompt", async (context) => {
   const paths = await fixture(context);
   const image = pngImage({ width: 1200, height: 800 });
@@ -3301,6 +3558,9 @@ test("omits the image that does not fit the prompt byte budget and names it", as
         },
       },
     }),
+    // The sandbox downscale keeps this fixture as it is: the test is about the
+    // prompt byte budget, not about re-encoding.
+    scaleAttachments: async ({ images }) => ({ images }),
     runModel: async ({ instruction, images, worktreePath }) => {
       prompt = { instruction, images };
       writeFileSync(join(worktreePath, "change.txt"), "canvi\n");

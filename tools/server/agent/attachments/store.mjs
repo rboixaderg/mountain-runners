@@ -27,7 +27,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import { createHash, randomUUID } from "node:crypto";
-import { join, resolve, sep } from "node:path";
+import { join, relative, resolve, sep } from "node:path";
 import {
   attachmentDirectoryName,
   removeAttachmentDirectory,
@@ -37,7 +37,15 @@ import { readRegularFileNoFollow } from "./safe-read.mjs";
 export const attachmentRetentionMilliseconds = 7 * 24 * 60 * 60 * 1000;
 export const attachmentStoreDirectoryName = "attachments";
 export const attachmentNamePattern = /^imatge-\d+\.(jpg|png|webp)$/u;
+// The state volume is 1 GiB and also holds the SQLite stores, the sessions and
+// the identifier salt. A topic keeps at most 20 images and 50 MiB; every topic
+// together keeps at most 256 MiB. The oldest image is evicted before a new one
+// is refused, so a burst of ordinary albums never fails a turn.
+const defaultMaximumTopicAttachments = 20;
+const defaultMaximumTopicBytes = 50 * 1024 * 1024;
+const defaultMaximumTotalBytes = 256 * 1024 * 1024;
 const topicNamePattern = /^topic-[0-9a-f]{16}$/u;
+const manifestTemporaryPattern = /^\.manifest-[0-9a-f-]+\.tmp$/u;
 const maximumStoredBytes = 20 * 1024 * 1024;
 
 function assertTopicName(topicName) {
@@ -90,12 +98,24 @@ function removeFile(directory, name) {
 }
 
 function regularFile(path) {
+  const entry = existingEntry(path);
+  return entry !== null && entry.isFile() && entry.size <= maximumStoredBytes;
+}
+
+/** The entry at `path` without following its final link, or null when missing. */
+function existingEntry(path) {
   try {
-    const stats = lstatSync(path);
-    return stats.isFile() && stats.size <= maximumStoredBytes;
-  } catch {
-    return false;
+    return lstatSync(path);
+  } catch (error) {
+    if (error.code === "ENOENT") {
+      return null;
+    }
+    throw error;
   }
+}
+
+function entryBytes(entry) {
+  return Number.isSafeInteger(entry.bytes) && entry.bytes > 0 ? entry.bytes : 0;
 }
 
 /** The image bytes of a stored attachment, or null when it cannot be read. */
@@ -114,6 +134,9 @@ export function createAttachmentStore({
   stateDirectory,
   now = () => new Date(),
   retentionMilliseconds = attachmentRetentionMilliseconds,
+  maximumTopicAttachments = defaultMaximumTopicAttachments,
+  maximumTopicBytes = defaultMaximumTopicBytes,
+  maximumTotalBytes = defaultMaximumTotalBytes,
 }) {
   const root = join(stateDirectory, attachmentStoreDirectoryName);
   mkdirSync(root, { recursive: true, mode: 0o700 });
@@ -130,16 +153,144 @@ export function createAttachmentStore({
     );
   }
 
+  /** Every other topic store with its manifest, for the total quota. */
+  function otherTopicManifests(excludedDirectory) {
+    const stores = [];
+    for (const topic of readdirSync(root, { withFileTypes: true })) {
+      if (!topic.isDirectory() || !topicNamePattern.test(topic.name)) {
+        continue;
+      }
+      const directory = join(root, topic.name);
+      if (directory === excludedDirectory) {
+        continue;
+      }
+      stores.push({
+        directory,
+        manifest: readManifest(directory),
+        changed: false,
+      });
+    }
+    return stores;
+  }
+
+  /**
+   * Evict the oldest stored images until the new one fits the topic and total
+   * quotas. The topic quota is paid by the topic itself first: a busy topic
+   * never removes the images of another one. Only a full total quota reaches
+   * the other topics, oldest image first. A file removed here is gone for good:
+   * every manifest entry is an image the model has not published yet.
+   */
+  function evictForQuota(directory, manifest, incomingBytes) {
+    if (
+      maximumTopicAttachments < 1 ||
+      incomingBytes > maximumTopicBytes ||
+      incomingBytes > maximumTotalBytes
+    ) {
+      return false;
+    }
+    const stores = [
+      { directory, manifest, changed: false },
+      ...otherTopicManifests(directory),
+    ];
+    const timeOf = (entry) => {
+      const time = Date.parse(entry.addedAt);
+      return Number.isNaN(time) ? 0 : time;
+    };
+    const byOldest = (first, second) =>
+      timeOf(first.attachment) - timeOf(second.attachment);
+    const evicted = [];
+    function evict(record) {
+      record.store.manifest.attachments =
+        record.store.manifest.attachments.filter(
+          (entry) => entry !== record.attachment,
+        );
+      record.store.changed = true;
+      evicted.push({
+        directory: record.store.directory,
+        name: record.attachment.name,
+      });
+      return entryBytes(record.attachment);
+    }
+
+    let topicAttachments = manifest.attachments.length;
+    let topicBytes = manifest.attachments.reduce(
+      (sum, entry) => sum + entryBytes(entry),
+      0,
+    );
+    const topicFits = () =>
+      topicAttachments + 1 <= maximumTopicAttachments &&
+      topicBytes + incomingBytes <= maximumTopicBytes;
+
+    // The topic pays its own quota first.
+    const topicRecords = manifest.attachments
+      .map((attachment) => ({ store: stores[0], attachment }))
+      .sort(byOldest);
+    for (const record of topicRecords) {
+      if (topicFits()) {
+        break;
+      }
+      topicBytes -= evict(record);
+      topicAttachments -= 1;
+    }
+
+    // Only a full total quota reaches the other topics.
+    const remaining = [];
+    for (const store of stores) {
+      for (const attachment of store.manifest.attachments) {
+        remaining.push({ store, attachment });
+      }
+    }
+    remaining.sort(byOldest);
+    let totalBytes = remaining.reduce(
+      (sum, record) => sum + entryBytes(record.attachment),
+      0,
+    );
+    for (const record of remaining) {
+      if (totalBytes + incomingBytes <= maximumTotalBytes) {
+        break;
+      }
+      totalBytes -= evict(record);
+    }
+
+    for (const entry of evicted) {
+      removeFile(entry.directory, entry.name);
+    }
+    for (const store of stores) {
+      if (!store.changed || store.directory === directory) {
+        continue;
+      }
+      if (store.manifest.attachments.length === 0) {
+        rmSync(store.directory, { recursive: true, force: true });
+        continue;
+      }
+      writeManifest(store.directory, store.manifest);
+    }
+    const storedTopicBytes = manifest.attachments.reduce(
+      (sum, entry) => sum + entryBytes(entry),
+      0,
+    );
+    return (
+      manifest.attachments.length + 1 <= maximumTopicAttachments &&
+      storedTopicBytes + incomingBytes <= maximumTopicBytes &&
+      totalBytes + incomingBytes <= maximumTotalBytes
+    );
+  }
+
   function add(topicName, image) {
     const directory = topicDirectory(topicName);
     mkdirSync(directory, { recursive: true, mode: 0o700 });
     const manifest = readManifest(directory);
+    if (!evictForQuota(directory, manifest, image.bytes.length)) {
+      throw new Error(
+        `The attachment store of the topic is out of quota for ${image.bytes.length} bytes.`,
+      );
+    }
     let counter = manifest.counter;
     let name;
     do {
       counter += 1;
       name = `imatge-${counter}${image.extension}`;
-    } while (regularFile(join(directory, name)));
+    } while (existingEntry(join(directory, name)) !== null);
     const target = join(directory, name);
     const descriptor = openSync(target, "wx", 0o600);
     try {
@@ -166,19 +317,28 @@ export function createAttachmentStore({
 
   function remove(topicName, names) {
     const directory = topicDirectory(topicName);
-    const manifest = readManifest(directory);
-    const removed = new Set(names);
-    if (removed.size === 0) {
+    const manifest =
+      existingEntry(directory) === null
+        ? emptyManifest()
+        : readManifest(directory);
+    const requested = new Set(names);
+    if (requested.size === 0) {
+      return [];
+    }
+    const removed = manifest.attachments
+      .filter((entry) => requested.has(entry.name))
+      .map((entry) => entry.name);
+    if (removed.length === 0) {
       return [];
     }
     for (const name of removed) {
       removeFile(directory, name);
     }
     manifest.attachments = manifest.attachments.filter(
-      (entry) => !removed.has(entry.name),
+      (entry) => !requested.has(entry.name),
     );
     writeManifest(directory, manifest);
-    return [...removed];
+    return removed;
   }
 
   // Copy every stored image into the worktree for one turn. The directory is
@@ -228,9 +388,13 @@ export function createAttachmentStore({
     const digests = new Map();
     for (const entry of entries) {
       const bytes = bytesOf(topicName, entry.name);
-      if (bytes !== null) {
-        digests.set(digest(bytes), entry.name);
+      if (bytes === null) {
+        continue;
       }
+      const key = digest(bytes);
+      const names = digests.get(key) ?? [];
+      names.push(entry.name);
+      digests.set(key, names);
     }
     const worktree = resolve(worktreePath);
     const found = new Set();
@@ -239,9 +403,12 @@ export function createAttachmentStore({
       if (!target.startsWith(`${worktree}${sep}`)) {
         continue;
       }
+      // Normalise before comparing: `./.agent-attachments/x` names the ignored
+      // directory as surely as `.agent-attachments/x` does.
+      const relativePath = relative(worktree, target);
       if (
-        path === attachmentDirectoryName ||
-        path.startsWith(`${attachmentDirectoryName}${sep}`)
+        relativePath === attachmentDirectoryName ||
+        relativePath.startsWith(`${attachmentDirectoryName}${sep}`)
       ) {
         continue;
       }
@@ -249,8 +416,7 @@ export function createAttachmentStore({
       if (bytes === null) {
         continue;
       }
-      const name = digests.get(digest(bytes));
-      if (name !== undefined) {
+      for (const name of digests.get(digest(bytes)) ?? []) {
         found.add(name);
       }
     }
@@ -258,8 +424,9 @@ export function createAttachmentStore({
   }
 
   /**
-   * Remove the images that stayed unused for the retention period. Missing
-   * files are dropped from the manifest too. Called at service start.
+   * Remove the images that stayed unused for the retention period, the files a
+   * topic directory keeps without a manifest entry and the temporary manifests
+   * an interrupted write left behind. Called at service start and periodically.
    */
   function prune({ logger = () => {} } = {}) {
     const removed = [];
@@ -287,14 +454,40 @@ export function createAttachmentStore({
         }
         kept.push(entry);
       }
-      manifest.attachments = kept;
-      writeManifest(directory, manifest);
       if (kept.length === 0) {
         rmSync(directory, { recursive: true, force: true });
+        continue;
       }
+      manifest.attachments = kept;
+      writeManifest(directory, manifest);
+      removed.push(...removeOrphans(directory, kept, topic.name));
     }
     for (const entry of removed) {
       logger("attachment_pruned", entry.name);
+    }
+    return removed;
+  }
+
+  /** Files no manifest entry names, plus the temporary manifests of a crash. */
+  function removeOrphans(directory, kept, topicName) {
+    const names = new Set(kept.map((entry) => entry.name));
+    const removed = [];
+    for (const name of readdirSync(directory)) {
+      if (name === "manifest.json" || names.has(name)) {
+        continue;
+      }
+      const temporary = manifestTemporaryPattern.test(name);
+      if (!temporary && !attachmentNamePattern.test(name)) {
+        continue;
+      }
+      try {
+        unlinkSync(join(directory, name));
+      } catch {
+        continue;
+      }
+      if (!temporary) {
+        removed.push({ topic: topicName, name });
+      }
     }
     return removed;
   }

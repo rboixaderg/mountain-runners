@@ -27,8 +27,8 @@
 // stored per topic and overwritten every time: the classifier reads it as data,
 // never as history.
 
-import { DatabaseSync } from "node:sqlite";
 import { clipText } from "../policy/development.mjs";
+import { openDatabase, runTransaction } from "./sqlite.mjs";
 
 export const noteLimits = {
   characters: 1500,
@@ -68,14 +68,31 @@ export class SessionNoteStore {
   #database;
   #now;
 
-  constructor(path, { now = () => new Date() } = {}) {
-    this.#database = new DatabaseSync(path);
+  /**
+   * `recoverClaimed` is the recovery a restart needs: a claim only lives inside
+   * the turn that made it. A read-only caller, such as the operator command that
+   * lists the cases, passes `false` and never mutates the store by opening it.
+   */
+  constructor(path, { now = () => new Date(), recoverClaimed = true } = {}) {
+    this.#database = openDatabase(path);
     this.#database.exec(schema);
     this.#now = now;
-    // A claim only lives inside the turn that made it: a restart found a turn
-    // that never finished, so its notes must not reach a later turn. Their
-    // identities count as delivered before the rows disappear, atomically, so a
-    // retried notice never duplicates an effect the model may already have.
+    if (recoverClaimed) {
+      this.recoverClaimed();
+    }
+  }
+
+  #transaction(callback) {
+    return runTransaction(this.#database, callback);
+  }
+
+  /**
+   * A restart found a turn that never finished, so its notes must not reach a
+   * later turn. Their identities count as delivered before the rows disappear,
+   * atomically, so a retried notice never duplicates an effect the model may
+   * already have.
+   */
+  recoverClaimed() {
     const remember = this.#database.prepare(
       `INSERT INTO session_delivered_effects
          (session_key, effect_key, delivered_at)
@@ -97,18 +114,6 @@ export class SessionNoteStore {
         .prepare("DELETE FROM session_notes WHERE state = 'claimed'")
         .run();
     });
-  }
-
-  #transaction(callback) {
-    this.#database.exec("BEGIN IMMEDIATE");
-    try {
-      const result = callback();
-      this.#database.exec("COMMIT");
-      return result;
-    } catch (error) {
-      this.#database.exec("ROLLBACK");
-      throw error;
-    }
   }
 
   #recordLastReply(sessionKey, text) {
@@ -182,7 +187,8 @@ export class SessionNoteStore {
              WHERE session_key = ? AND state = 'undelivered'
                AND sequence NOT IN (
                  SELECT sequence FROM session_notes
-                 WHERE session_key = ? ORDER BY sequence DESC LIMIT ?
+                 WHERE session_key = ? AND state = 'undelivered'
+                 ORDER BY sequence DESC LIMIT ?
                )`,
           )
           .run(sessionKey, sessionKey, noteLimits.perSession);

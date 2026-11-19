@@ -157,6 +157,19 @@ export function createMergeRequests({
     [refusals.unreadable]: mergeReports.unreadable,
   };
 
+  function alreadyMergedAnswer(request, target, pullRequest) {
+    return refuse(
+      request,
+      refusals.alreadyMerged,
+      mergeReports.alreadyMerged({
+        pullRequestNumber: target.pullRequestNumber,
+        mergeCommit: pullRequest.mergeCommitSha,
+        pullRequestUrl: pullRequest.htmlUrl,
+      }),
+      target,
+    );
+  }
+
   /** Read the pull request, reading again while GitHub still computes it. */
   async function readPullRequest(number, signal) {
     let pullRequest;
@@ -181,6 +194,9 @@ export function createMergeRequests({
    * Unknown mergeability after the retries is unreadable.
    */
   async function refusalFor(pullRequest, target, signal) {
+    // A merged pull request is not simply "not open": the person must learn that
+    // the change is already in the project, not that it can never be merged.
+    if (pullRequest.merged === true) return refusals.alreadyMerged;
     if (pullRequest.state !== "open") return refusals.notOpen;
     if (pullRequest.draft) return refusals.draft;
     if (pullRequest.baseRef !== "main") return refusals.notMainBase;
@@ -264,21 +280,30 @@ export function createMergeRequests({
   /**
    * The request this one must settle before anything else: an earlier merge of
    * the same pull request with an unknown result. Reading the pull request
-   * decides: merged closes the row; not merged waits for the person, who clears
-   * it with the strict `/merge <PR> <SHA>` of the row's commit, or of the current
-   * head once it has moved. Returns
-   * the answer, or null when the request may go on.
+   * decides: merged closes the row; closed without merging closes it for good; an
+   * open one waits for the person, who clears it with the strict
+   * `/merge <PR> <SHA>` of the row's commit, or of the current head once it has
+   * moved.
+   *
+   * Returns `{ answer }` when the request ends here, `{ cleared }` with the
+   * confirmed target when the row was cleared, or null when the pull request has
+   * no unknown result. With `clearOnly`, an open pull request whose target the
+   * person did not confirm returns null: the caller's own refusal of the
+   * reported commit is then the answer, never the unknown-result reminder.
    */
-  async function settleUncertain(request, target, command, signal) {
+  async function settleUncertain(
+    request,
+    pullRequestNumber,
+    command,
+    { signal, clearOnly = false } = {},
+  ) {
     const row = store
       .uncertain()
-      .find(
-        (candidate) =>
-          candidate.pull_request_number === target.pullRequestNumber,
-      );
+      .find((candidate) => candidate.pull_request_number === pullRequestNumber);
     if (row === undefined) {
       return null;
     }
+    const target = rowTarget(row);
     let pullRequest;
     try {
       pullRequest = await readPullRequestOf(row.pull_request_number, signal);
@@ -288,50 +313,75 @@ export function createMergeRequests({
         "merge_read_failed",
         error instanceof Error ? error.name : "unknown",
       );
-      return refuse(
-        request,
-        refusals.unreadable,
-        mergeReports.unreadable(target),
-        target,
-      );
+      return {
+        answer: refuse(
+          request,
+          refusals.unreadable,
+          mergeReports.unreadable(target),
+          target,
+        ),
+      };
     }
     if (pullRequest.merged) {
-      closeAsReconciled(row, pullRequest.mergeCommitSha);
+      tryRecord(() => closeAsReconciled(row, pullRequest.mergeCommitSha));
       return {
-        outcome: "answered",
-        report: mergeReports.reconciled({
-          pullRequestNumber: target.pullRequestNumber,
-          mergeCommit: pullRequest.mergeCommitSha,
-          pullRequestUrl: pullRequest.htmlUrl,
-        }),
+        answer: {
+          outcome: "answered",
+          report: mergeReports.reconciled({
+            pullRequestNumber: row.pull_request_number,
+            mergeCommit: pullRequest.mergeCommitSha,
+            pullRequestUrl: pullRequest.htmlUrl,
+          }),
+        },
       };
     }
     if (pullRequest.state !== "open") {
-      return refuse(
-        request,
-        refusals.uncertainClosed,
-        mergeReports.uncertainClosed(rowTarget(row)),
-        target,
-      );
+      // The pull request is closed without merging: that merge can never happen,
+      // so it never waits for a person again on every start.
+      tryRecord(() => store.markNotMerged(row.update_identifier));
+      return {
+        answer: refuse(
+          request,
+          refusals.uncertainClosed,
+          mergeReports.uncertainClosed(target),
+          target,
+        ),
+      };
     }
     const confirmation = confirmationTarget(row, pullRequest);
     if (command.commit !== confirmation.commit) {
-      return refuse(
-        request,
-        refusals.uncertainPending,
-        mergeReports.uncertainOpen(confirmation),
-        target,
-      );
+      if (clearOnly) {
+        return null;
+      }
+      return {
+        answer: refuse(
+          request,
+          refusals.uncertainPending,
+          mergeReports.uncertainOpen(confirmation),
+          target,
+        ),
+      };
     }
     // The person confirmed the commit: GitHub does not show the unknown result
-    // merged, so the row ends and the full request goes on from scratch.
-    store.markNotMerged(row.update_identifier);
+    // merged, so the row ends and the full request goes on from scratch. A row
+    // that cannot be closed still blocks the request: it must never be passed
+    // with the unknown result still open.
+    if (!tryRecord(() => store.markNotMerged(row.update_identifier))) {
+      return {
+        answer: refuse(
+          request,
+          refusals.uncertainPending,
+          mergeReports.uncertainOpen(confirmation),
+          target,
+        ),
+      };
+    }
     traceRequest(
       request,
       "merge_uncertain_cleared",
       describeTarget(rowTarget(row)),
     );
-    return null;
+    return { cleared: confirmation };
   }
 
   /** The merge commit of a pull request GitHub shows merged, or null. */
@@ -350,8 +400,7 @@ export function createMergeRequests({
   }
 
   /** Resolve the pull request and commit this topic last reported as green. */
-  async function resolveReported(request, command, signal) {
-    const reported = reportedCommits.lastReported(request.sessionKey);
+  async function resolveReported(request, command, reported, signal) {
     if (reported === undefined) {
       return {
         answer: refuse(
@@ -467,10 +516,7 @@ export function createMergeRequests({
       if (tryRecord(() => store.markFailed(request.updateIdentifier))) {
         return {
           outcome: "answered",
-          report: mergeReports.failed({
-            ...target,
-            statusClass: statusClass(error.status),
-          }),
+          report: mergeReports.failed(target),
         };
       }
       return { outcome: "answered", report: mergeReports.uncertain(target) };
@@ -523,10 +569,9 @@ export function createMergeRequests({
     if (!command.valid) {
       return refuse(request, refusals.usage, mergeReports.usage);
     }
-    const { target, answer } = await resolveReported(request, command, signal);
-    if (answer) {
-      return answer;
-    }
+    // The membership is verified before GitHub is asked anything: a person who
+    // left the group can neither merge nor make the service read a pull request
+    // for them.
     const membership = await verifyMembership(request.authorIdentifier, signal);
     // A service stop is an abort, not a refusal; a read that ran out of its own
     // deadline is a failed check below and asks the person to try again.
@@ -545,11 +590,48 @@ export function createMergeRequests({
         mergeReports.membershipRevoked,
       );
     }
+
+    const reported = reportedCommits.lastReported(request.sessionKey);
+    const { target, answer } = await resolveReported(
+      request,
+      command,
+      reported,
+      signal,
+    );
+    if (answer) {
+      // A strict form that names the current head clears the unknown result even
+      // when the last report still names the previous commit. The head moved
+      // before its own report, so without this the person could never settle the
+      // row; the new head still needs its green report to be merged.
+      if (command.commit !== undefined) {
+        const settled = await settleUncertain(
+          request,
+          command.pullRequestNumber,
+          command,
+          { signal, clearOnly: true },
+        );
+        if (settled?.answer) return settled.answer;
+        if (settled?.cleared) {
+          return refuse(
+            request,
+            refusals.headMoved,
+            mergeReports.headMoved(settled.cleared),
+            settled.cleared,
+          );
+        }
+      }
+      return answer;
+    }
     traceRequest(request, "merge_membership_verified", describeTarget(target));
 
-    const settled = await settleUncertain(request, target, command, signal);
-    if (settled !== null) {
-      return settled;
+    const settled = await settleUncertain(
+      request,
+      target.pullRequestNumber,
+      command,
+      { signal },
+    );
+    if (settled?.answer) {
+      return settled.answer;
     }
 
     let mergeState;
@@ -562,6 +644,9 @@ export function createMergeRequests({
         error instanceof Error ? error.name : "unknown",
       );
       mergeState = { pullRequest: null, refusal: refusals.unreadable };
+    }
+    if (mergeState.refusal === refusals.alreadyMerged) {
+      return alreadyMergedAnswer(request, target, mergeState.pullRequest);
     }
     if (mergeState.refusal !== null) {
       return refuse(
@@ -649,15 +734,29 @@ export function createMergeRequests({
             }),
             { signal, state: "reconciled" },
           );
-          closeAsReconciled(row, pullRequest.mergeCommitSha);
+          tryRecord(() => closeAsReconciled(row, pullRequest.mergeCommitSha));
+          continue;
+        }
+        if (pullRequest.state !== "open") {
+          // Closed without merging: that merge can never happen, so the row ends
+          // instead of staying uncertain on every start.
+          if (row.notified_at === null) {
+            await sendToTopic(
+              row,
+              mergeReports.uncertainClosed(rowTarget(row)),
+              { signal, state: "uncertain" },
+            );
+            store.markNotified(row.update_identifier);
+          }
+          tryRecord(() => store.markNotMerged(row.update_identifier));
           continue;
         }
         if (row.notified_at !== null) continue;
-        const text =
-          pullRequest.state === "open"
-            ? mergeReports.uncertainOpen(confirmationTarget(row, pullRequest))
-            : mergeReports.uncertainClosed(rowTarget(row));
-        await sendToTopic(row, text, { signal, state: "uncertain" });
+        await sendToTopic(
+          row,
+          mergeReports.uncertainOpen(confirmationTarget(row, pullRequest)),
+          { signal, state: "uncertain" },
+        );
         store.markNotified(row.update_identifier);
       } catch (error) {
         logger(

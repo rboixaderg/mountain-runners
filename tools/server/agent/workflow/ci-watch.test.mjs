@@ -1301,3 +1301,25 @@ test("names the failed checks in the service note when the deadline ends an inco
   assert.equal(store.claimNextRepair(), null);
   assert.equal(store.state(registration.updateIdentifier), "sent");
 });
+
+test("keeps the notice when the note of its effect cannot be stored", async (context) => {
+  const { store } = fixture(context);
+  createCiWatchRegistration({ store })(registration);
+  const telegram = fakeTelegram();
+  const events = [];
+  const worker = workerFor({
+    store,
+    github: fakeGithub(),
+    telegram,
+    recordServiceNote: () => {
+      throw new Error("the note store is unavailable");
+    },
+    logger: (event) => events.push(event),
+  });
+
+  await worker.runOnce();
+
+  assert.equal(telegram.sent.length, 1);
+  assert.equal(store.state(registration.updateIdentifier), "sent");
+  assert.deepEqual(events, ["ci_note_failed", "ci_notification_sent"]);
+});

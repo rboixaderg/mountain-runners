@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { mkdirSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { DatabaseSync } from "node:sqlite";
 import { test } from "node:test";
 import { AdmissionQueue } from "telegram-pi-bridge/sessions";
 import { CiWatchStore } from "../../repository/ci-watch-store.mjs";
@@ -323,4 +324,99 @@ test("keeps the notice of a resolution that Telegram cannot deliver", async (con
     "the effect is kept even when its notice fails",
   );
   reopened.close();
+});
+
+test("lists without recovering the claim of a previous turn", async (context) => {
+  const { environment, statePath } = serviceFixture(context);
+  const notes = new SessionNoteStore(join(statePath, "session-notes.sqlite"));
+  notes.addNote({ sessionKey, text: "Efecte en curs." });
+  notes.claim(sessionKey);
+  notes.close();
+
+  const exitCode = await runReconcileCommand({
+    argv: ["list"],
+    environment,
+    github: {
+      async findOpenPullRequest() {
+        return null;
+      },
+      async getPullRequest() {
+        return { state: "open", headSha: "a".repeat(40) };
+      },
+      async getAuthenticatedLogin() {
+        return "synthetic-bot";
+      },
+      async listIssueComments() {
+        return [];
+      },
+    },
+    write: () => {},
+    warn: () => {},
+  });
+
+  assert.equal(exitCode, 0);
+  const database = new DatabaseSync(join(statePath, "session-notes.sqlite"), {
+    readOnly: true,
+  });
+  const row = database.prepare("SELECT state FROM session_notes").get();
+  database.close();
+  assert.equal(row.state, "claimed", "a read-only list changed nothing");
+});
+
+test("names the repair sequence in the effect of its resolution", async (context) => {
+  const { environment, statePath } = serviceFixture(context);
+  new AdmissionQueue(join(statePath, "admission.sqlite"), {
+    maxPending: 10,
+  }).close();
+  new SessionNoteStore(join(statePath, "session-notes.sqlite")).close();
+  const store = new CiWatchStore(join(statePath, "ci-watch.sqlite"));
+  const requested = store.requestRepair({
+    updateIdentifier: 12,
+    sessionKey,
+    pullRequestNumber: 200,
+    failureFingerprint: JSON.stringify(["Validate"]),
+    failedChecks: ["Validate"],
+    evidence: [],
+    commitSha: "a".repeat(40),
+    maximumAttempts: 2,
+  });
+  store.queueRepair(requested.sequence);
+  store.claimNextRepair();
+  store.interruptRepairs();
+  store.close();
+
+  const exitCode = await runReconcileCommand({
+    argv: [
+      "resolve",
+      "--kind",
+      "repair",
+      "--update",
+      "12",
+      "--sequence",
+      String(requested.sequence),
+      "--failed-commit",
+      "a".repeat(40),
+      "--resolution",
+      "not_published",
+    ],
+    environment,
+    github: {},
+    telegram: { async sendMessage() {} },
+    write: () => {},
+    warn: () => {},
+  });
+
+  assert.equal(exitCode, 0);
+  const database = new DatabaseSync(join(statePath, "session-notes.sqlite"), {
+    readOnly: true,
+  });
+  const row = database
+    .prepare("SELECT effect_key FROM session_notes WHERE session_key = ?")
+    .get(sessionKey);
+  database.close();
+  assert.equal(
+    row.effect_key,
+    `reconcile:repair:12:${requested.sequence}`,
+    "two attempts of the same instruction are two different effects",
+  );
 });

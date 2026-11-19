@@ -65,7 +65,6 @@ function context(
     events,
     prepareAttachment: createAttachmentPreparation({
       telegram,
-      temporaryDirectory,
       logger: (event) => events.push(event),
     }),
   };
@@ -92,6 +91,7 @@ test("downloads and cleans the attachment without writing it to the worktree", a
     extension: ".png",
     width: 200,
     height: 100,
+    orientation: 1,
     bytes: original,
     origin: "message",
   });
@@ -191,7 +191,6 @@ test("refuses an undeclared oversized download with the real size", async (conte
   });
   const prepareThroughApi = createAttachmentPreparation({
     telegram: downloadApi,
-    temporaryDirectory,
   });
 
   const result = await prepareThroughApi({
