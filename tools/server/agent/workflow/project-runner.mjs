@@ -117,7 +117,7 @@ export function createProjectRunner({
       image: config.model.sandboxImage,
       workspacePath: context.worktreePath,
       worktreeRoot: config.paths.worktrees,
-      command: ["bash", "-lc", sandboxCheckCommand],
+      command: ["bash", "-lc", sandboxCheckCommand(context.checkCommand)],
       limits: config.limits,
       sessionIdentifier: context.sandboxIdentifier,
       timeoutMilliseconds: config.limits.executionTimeoutMs,

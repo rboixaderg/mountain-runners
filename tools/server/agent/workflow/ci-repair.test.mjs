@@ -6,6 +6,7 @@ import { test } from "node:test";
 import { CiWatchStore } from "../repository/ci-watch-store.mjs";
 import { SessionNoteStore } from "../repository/session-note-store.mjs";
 import {
+  checkCommands,
   ciWatchOutcomes,
   publicationNoteText,
 } from "../policy/development.mjs";
@@ -148,6 +149,7 @@ test("keeps the service facts of a published repair and never the model's words"
     pullRequest: { number: 200, htmlUrl: "https://github.com/o/r/pull/200" },
     branch: "fix/tools-repair-the-synthetic-check",
     commit: "c".repeat(40),
+    checkCommand: checkCommands.full,
     ciWatch: ciWatchOutcomes.registered,
   });
   const modelAnswer = "He arreglat la comprovació que fallava.";

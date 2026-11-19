@@ -537,7 +537,10 @@ la sessió; si no es pot confirmar, l'execució queda fallida o incerta.
   pendent actual o, si nomena una sola PR que el servei va publicar, la reprèn
   (vegeu «Continuació d'una PR des d'un altre tema»); no incorpora
   automàticament altres treballs arxivats. Les operacions executen `pnpm check`
-  al contenidor abans de commit, push i PR.
+  al contenidor abans de commit, push i PR; si tots els camins que la publicació
+  contindria són dins de `apps/web/src/content` o `apps/web/src/content-assets`,
+  executen `pnpm check:local`, i qualsevol altre camí manté `pnpm check`
+  (ADR 0012).
 - Un error local, un timeout o una cancel·lació confirmada no bloquegen la cua.
   Un error després d'iniciar la publicació queda incert, excepte un refús local
   identificat pel publicador. Una aturada de contenidors no confirmada també
