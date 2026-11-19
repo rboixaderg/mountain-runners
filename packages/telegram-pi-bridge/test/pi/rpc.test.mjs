@@ -436,3 +436,36 @@ test("reports the prompt right before it is written and after the spawn", async 
     "the fact is reported immediately before the write",
   );
 });
+
+test("writes the image input of the prompt in the RPC record", async (context) => {
+  const directory = fixture(context);
+  const promptPath = join(directory.directory, "prompt.json");
+  const { executable } = fakePi(context, {
+    script: `
+process.stdin.once("data", (chunk) => {
+  require("node:fs").writeFileSync(${JSON.stringify(promptPath)}, chunk);
+  process.stdout.write(JSON.stringify({ type: "agent_settled", aborted: false }) + "\\n");
+});
+`,
+  });
+  const images = [
+    { type: "image", data: "c3ludGhldGlj", mimeType: "image/jpeg" },
+  ];
+
+  const result = await runPiPrompt({
+    ...optionsFor(executable),
+    profileDirectory: directory.profile,
+    message: "mira la imatge",
+    images,
+    cwd: directory.worktreePath,
+    environment: { PATH: process.env.PATH, HOME: directory.directory },
+  });
+
+  assert.equal(result.text, "");
+  assert.deepEqual(JSON.parse(readFileSync(promptPath, "utf8")), {
+    id: "prompt-1",
+    type: "prompt",
+    message: "mira la imatge",
+    images,
+  });
+});

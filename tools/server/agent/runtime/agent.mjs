@@ -25,6 +25,8 @@ export async function runAgent(config, context) {
     sessionIdentifier: context.sessionIdentifier,
     sandboxIdentifier: context.sandboxIdentifier,
     message: context.buildMessage(serviceNotes),
+    images: context.images ?? [],
+    attachments: context.attachments ?? [],
     environment: context.environment,
     onPromptSent: context.onPromptSent,
     stopCommands: context.stopCommands,

@@ -405,13 +405,16 @@ càrrega automàtica d'extensions. L'adaptador selecciona l'extensió aïllada
 instal·lada i proporciona el callback de neteja dels contenidors de Podman.
 
 Pi no exposa la `bash` del host. El model només pot executar ordres amb
-`sandbox_bash`, una extensió del perfil de confiança que aplica el mateix
+`sandbox_bash` i tornar a mirar un adjunt amb `view_attachment`, una extensió del
+perfil de confiança que aplica el mateix
 constructor d'arguments que el component de confiança: contenidor no
 privilegiat, `--network=none`, `--read-only`, `--cap-drop=ALL`,
 `--security-opt=no-new-privileges`, límits de CPU, memòria i processos i
 l'UID/GID no root del propietari del worktree. Només munta el worktree a `/work`,
-en mode de només lectura per a consultes. No exposa eines natives de fitxers del
-host. El pont i Pi executen Podman local sense root, amb `--remote=false`
+en mode de només lectura per a consultes. `view_attachment` llegeix el fitxer
+dins del worktree amb `O_NOFOLLOW`, comprova que és un fitxer regular dins la
+mida i en revalida la capçalera; no accepta cap camí lliure. No exposa eines
+natives de fitxers del host. El pont i Pi executen Podman local sense root, amb `--remote=false`
 i `--userns=keep-id`. No pertanyen al grup Docker ni reben cap socket de
 contenidors del host. La unitat també fa inaccessibles els sockets habituals
 de Docker i Podman amb root.
@@ -667,7 +670,7 @@ propietat de la identitat del servei. La instal·lació prevista és:
 ├── repository/                            clon amb origin i main
 ├── worktrees/                             worktree actual per tema i feina preservada
 ├── sessions/                              historial de Pi per tema
-└── state/                                 identifier-salt, admission.sqlite, ci-watch.sqlite (avisos i reparacions), preview-request.sqlite (peticions de preview), merge-request.sqlite (peticions de merge), session-notes.sqlite (efectes i última resposta de cada tema), perfils i traça
+└── state/                                 identifier-salt, admission.sqlite, ci-watch.sqlite (avisos i reparacions), preview-request.sqlite (peticions de preview), merge-request.sqlite (peticions de merge), session-notes.sqlite (efectes i última resposta de cada tema), attachments/ (imatges per tema, 7 dies), perfils i traça
 /etc/mountain-runners-agent/agent.env      0600  credencials del servei
 /usr/local/lib/mountain-runners/agent/     aplicació instal·lada
 /usr/local/lib/mountain-runners/node_modules/
@@ -1114,26 +1117,30 @@ calcular-lo es registra i s'ignora.
   feines locals i de fitxers; cap nom de fitxer ni cap clau de tema. Sense
   solapament no es traça res.
 
-### Adjunts (T8.4)
+### Adjunts (T8.8)
 
-Una implementació o una continuació poden rebre una imatge del tema. El servei
-la descarrega quan executa la instrucció, mai en admetre-la.
+Una implementació o una continuació poden rebre imatges del tema. El servei
+les descarrega quan executa la instrucció, mai en admetre-la.
 
-- **Què s'accepta.** Només imatges JPEG, PNG i WebP enviades com a fitxer
-  (`message.document`), una per instrucció. Una foto comprimida es refusa amb
-  l'avís de tornar-la a enviar com a fitxer, i qualsevol altre document (PDF,
-  vídeo, arxiu, SVG, GIF, HEIC...) també. Els grups de mitjans queden fora
-  d'abast.
-- **Com s'envia.** El fitxer ha de ser al missatge que menciona el bot (menció a
+- **Què s'accepta.** Fotos comprimides de Telegram i documents JPEG, PNG i
+  WebP. D'una foto es pren la mida més gran, que Telegram envia com a JPEG. El
+  límit d'entrada és de 20 MB, el màxim de descàrrega de la Bot API. Cada
+  missatge o àlbum admet fins a cinc imatges. Una foto o un document d'un altre
+  tipus es refusa amb un avís i no ocupa la cua.
+- **Àlbum.** Telegram envia cada imatge d'un àlbum com una actualització pròpia
+  amb el mateix `media_group_id`, i sovint només una porta la llegenda. El pont
+  les recull durant una espera acotada d'un segon i les classifica com una sola
+  instrucció; la menció o la llegenda poden ser en qualsevol imatge. Més de cinc
+  imatges es refusen. L'àlbum és una unitat: si una imatge no s'accepta, es
+  refusa el conjunt i no se'n desa cap. Mentre l'àlbum espera, l'offset de Telegram no avança més
+  enllà de la primera imatge, així que un reinici torna a llegir el grup i la
+  reentrega no reinicia l'espera. Els missatges d'altres sessions s'admeten
+  sense esperar; els de la mateixa sessió esperen darrere l'àlbum per conservar
+  l'ordre.
+- **Com s'envia.** La imatge ha de ser al missatge que menciona el bot (menció a
   la llegenda) o que respon a un missatge seu, o al missatge que la mateixa
   instrucció respon, dins del tema. Els reenviaments s'ignoren i la instrucció
   necessita text: la llegenda o el missatge.
-- **Límits.** 2 MB i 2.400 px de costat llarg. El servei no redimensiona ni
-  recodifica: per sobre d'un límit refusa i diu la mida i les dimensions reals
-  perquè la persona exporti la imatge dins dels límits. La mida declarada es
-  comprova en admetre la instrucció, i la descàrrega s'atura i es cancel·la si
-  supera el límit encara que Telegram no l'hagi declarada; el refús és el mateix
-  i porta la mida real.
 - **Validació.** El tipus real surt dels bytes i ha de coincidir amb l'extensió
   i el tipus que ha declarat Telegram. Les dimensions es llegeixen només de les
   capçaleres (PNG `IHDR`, JPEG SOF0–SOF15, WebP `VP8`, `VP8L` i `VP8X`), sense
@@ -1152,28 +1159,46 @@ la descarrega quan executa la instrucció, mai en admetre-la.
   Després de reescriure es torna a llegir el resultat i es comprova que el tipus,
   les dimensions i la resta de dades d'imatge no canvien i que no hi queda cap
   metadada.
-- **Destinació.** El fitxer net es desa a `.agent-attachments/<nom>` del
-  worktree, amb el nom normalitzat i l'extensió canònica (`.jpg`, `.png`,
-  `.webp`). La creació és exclusiva, amb mode 0644 exacte i sense seguir
-  symlinks. La descàrrega original només viu al directori temporal del servei i
-  s'esborra sempre. El model el mou al camí de contingut que demana la guia
-  editorial i, abans de les comprovacions i del commit, el servei esborra el
-  directori sencer: no publica l'adjunt ni en una branca el `.gitignore` de la
-  qual sigui anterior a aquest canvi. La publicació també refusa qualsevol
-  història que contingui una ruta sota `.agent-attachments/`.
-- **Què rep el model.** El camí relatiu, el tipus i les dimensions, afegits pel
-  servei a la instrucció com a text de servei. El text diu que el fitxer té
-  origen i drets desconeguts: si la petició no els indica, el model no ha de
-  canviar cap fitxer i ha de demanar que la persona respongui al missatge que
-  conté la imatge, mencionant el bot, amb l'origen, els drets i el crèdit; aquesta
-  resposta arriba com un adjunt nou i el servei la torna a validar. No s'hi posen
+- **Reducció.** Si el costat llarg supera 2.400 px, `attachments/scale.mjs` posa
+  la imatge neta en un directori temporal ignorat del worktree i executa un
+  script dins del sandbox amb el `sharp` que la imatge ja té al store fora de
+  línia. El procés de confiança no descodifica cap píxel. Després torna a llegir
+  la sortida sense seguir enllaços simbòlics i amb un màxim de 20 MB, i la valida
+  amb el lector de capçaleres: tipus, dimensions de 2.400 px com a màxim i cap
+  metadada. Si no quadra, refusa. Una imatge més petita que la
+  portada recomanada (1200 × 675 px) s'accepta i el model ho diu en una frase.
+- **Destinació i retenció.** El magatzem és
+  `state/attachments/topic-<hex>/`, fora del worktree i de Git, amb noms curts i
+  estables (`imatge-1.jpg`, `imatge-2.png`). Un adjunt hi és fins que es
+  publica o durant set dies; a l'arrencada s'esborren els vençuts. Cada torn
+  copia el magatzem a `.agent-attachments/` del worktree perquè el sandbox el
+  pugui llegir. Abans de les comprovacions i del commit, el servei esborra la
+  còpia. Una imatge s'ha utilitzat quan el worktree conté, fora de
+  `.agent-attachments/`, un fitxer regular amb els mateixos bytes (mateix
+  SHA-256); si la publicació acaba bé, llavors la treu del magatzem. La publicació també refusa qualsevol història que
+  contingui una ruta sota `.agent-attachments/`. El fitxer original només viu
+  al directori temporal del servei i s'esborra sempre.
+- **Què rep el model.** La llista d'imatges del tema amb el nom, les dimensions
+  i si són noves en aquest missatge; les noves arriben com a entrada d'imatge
+  del prompt i la resta es poden tornar a mirar amb l'eina `view_attachment`.
+  Les imatges noves d'un prompt sumen com a màxim 8 MB; les que no hi caben no
+  s'envien com a entrada i el text diu al model que les miri amb l'eina.
+  El text de servei fixa els drets: una imatge que envia un membre verificat
+  sense cap altra indicació és del club, amb el crèdit «Mountain Runners», i
+  només es pregunta quan sembla de tercers. Amb diverses imatges noves, la
+  persona diu on va cada una o el model fa una sola pregunta. Un cartell
+  vertical es mostra sencer. El text alternatiu surt del que mostra la imatge i
+  el model compara el text del cartell amb els fets de l'entrada. No s'hi posen
   consentiments ni dades personals.
-- **Abast i traça.** Només una implementació i una continuació apliquen
-  l'adjunt; qualsevol altra instrucció l'ignora i ho diu en una frase. La traça
-  privada registra `attachment_accepted` (tipus, dimensions i bytes) i
-  `attachment_refused` (motiu i, quan es coneix, el tipus declarat i la mida),
-  també quan el refús és en admetre la instrucció; mai el nom original ni el
-  contingut.
+- **Eina de consulta.** `view_attachment` només accepta un nom de la llista del
+  servei, obre el fitxer amb `O_NOFOLLOW`, comprova que és un fitxer regular
+  dins la mida i revalida la capçalera abans de retornar-lo. Un enllaç
+  simbòlic, una ruta o un nom desconegut es refusen.
+- **Abast i traça.** Només una implementació i una continuació apliquen les
+  imatges; qualsevol altra instrucció les ignora i ho diu en una frase. La traça
+  privada registra `attachment_accepted` (tipus, dimensions i bytes),
+  `attachment_refused` (motiu i, quan es coneix, el tipus declarat i la mida) i
+  `attachment_used` (noms utilitzats), mai el nom original ni el contingut.
 
 ### Continuïtat de la conversa d'un tema (T8.7)
 
@@ -1478,6 +1503,9 @@ neteja que preserva treball no publicat (`storage/prune-worktrees.mjs`).
   l'historial. Esborrar l'original no esborra les còpies; la revisió les ha
   d'incloure. La còpia de `state/` ha d'incloure `identifier-salt`: sense aquest
   fitxer canvien els noms opacs i els worktrees existents queden orfes.
+  `state/attachments/` conté imatges privades dels temes; s'esborren en
+  publicar-se o al cap de set dies, però una còpia de seguretat anterior encara
+  les pot contenir.
 
 ### Instal·lació prevista
 
@@ -1549,8 +1577,10 @@ comprovar que `podman --remote=false info --format '{{.Host.Security.Rootless}}'
 retorna `true` com a `mountain-agent`, i demostrar els límits dins del cgroup
 delegat de la unitat. No s'han fet aquestes operacions al VPS.
 
-La imatge aïllada ha d'incloure Node 24.22.3, pnpm, git, Chromium i les
-altres dependències que necessita `pnpm check`, perquè el contenidor no té xarxa.
+La imatge aïllada ha d'incloure Node 24.22.3, pnpm, git, Chromium, `sharp` de
+`apps/web` i les altres dependències que necessita `pnpm check`, perquè el
+contenidor no té xarxa. `sharp` arriba al store fora de línia com la resta de
+dependències i el servei el fa servir per reduir imatges dins del sandbox.
 El perfil de l'agent executa les proves de navegador només amb Chromium abans
 de publicar la PR. La CI executa la prova completa i els E2E també amb Firefox
 i WebKit; la protecció de `main` ha d'exigir que la CI passi abans del merge.

@@ -1487,16 +1487,24 @@ de la persona mantenidora consta a l'especificació.
    - Si falla: anota-ho; l'avís no és un control de seguretat i la resta de la
      validació pot continuar.
 8. **Adjunts.**
-   - Fer: adjunta un JPEG i un PNG com a fitxer en una implementació; adjunta una
-     foto comprimida, un fitxer de més de 2 MB i una imatge de més de 2.400 px.
-     Quan la imatge vàlida arribi a la PR, executa `exiftool` o una eina
-     equivalent sobre el fitxer publicat.
-   - Esperat: el JPEG i el PNG s'accepten. La foto comprimida es refusa amb
-     l'avís de tornar-la a enviar com a fitxer, i els límits es refusen amb la
-     mida i les dimensions reals. La imatge publicada no té EXIF, GPS ni cap
-     altra metadada, i `.agent-attachments/` no apareix a la PR.
+   - Fer: en una implementació, adjunta una foto comprimida de Telegram, un JPEG
+     i un PNG com a fitxer. En un altre missatge, envia un àlbum de tres imatges
+     amb la llegenda en una de les del mig. Després envia sis imatges juntes i un
+     fitxer de més de 20 MB. Demana al model que torni a mirar una imatge del
+     tema en un torn posterior. Quan una imatge arribi a la PR, executa
+     `exiftool` o una eina equivalent sobre el fitxer publicat.
+   - Esperat: la foto, el JPEG i el PNG s'accepten. L'àlbum de tres és una sola
+     instrucció i el model en rep les tres imatges. Les sis imatges i el fitxer
+     de més de 20 MB es refusen amb un avís planer. El torn posterior llista la
+     imatge desada i `view_attachment` la torna a mostrar. La imatge publicada
+     no té EXIF, GPS ni cap altra metadada, fa com a màxim 2.400 px de costat
+     llarg i `.agent-attachments/` no apareix a la PR.
    - Si falla: no afegeixis la imatge a mà; atura el servei i revisa la traça
-     (`attachment_refused`).
+     (`attachment_refused`, `attachment_used`) i els fitxers de
+     `state/attachments/`. Un refús o una denegació de pertinença ja traçats no
+     es repeteixen després d'un reinici, perquè la traça és duradora; si el
+     reinici cau entre la traça i l'avís, l'avís no es repeteix. Les imatges noves d'un prompt sumen com a
+     màxim 8 MB; la resta queda al magatzem del tema.
 9. **Aturada i reinici.**
    - Fer: amb una implementació en curs, atura el servei amb
      `sudo systemctl stop mountain-agent`. Amb una altra execució en curs, fes

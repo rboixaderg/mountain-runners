@@ -14,12 +14,14 @@ export const bridgeMessages = {
     "No s'ha pogut verificar la pertinença al grup. La instrucció no s'ha admès; torna-ho a provar.",
   unknownResult:
     "El resultat d'una acció externa és desconegut. El servei s'atura sense repetir-la; cal revisar l'estat real.",
-  attachmentPhoto:
-    "Les fotos comprimides no s'accepten. Torna a enviar la imatge com a fitxer, amb la instrucció a la llegenda o com a resposta en aquest tema.",
   attachmentUnsupported:
-    "Només s'accepten imatges JPEG, PNG o WebP enviades com a fitxer. Aquest adjunt no és compatible; no s'ha admès la instrucció.",
+    "Aquest tipus de fitxer no serveix. Envia una imatge JPEG, PNG o WebP.",
+  attachmentInvalidPhoto:
+    "No s'ha pogut llegir la foto. No s'ha desat res; torna-la a enviar.",
   attachmentTooLarge: (megabytes) =>
-    `La imatge adjunta fa ${megabytes} MB; el límit és 2 MB i 2.400 px de costat llarg. Exporta-la de nou dins d'aquests límits i envia-la com a fitxer; no s'ha admès la instrucció.`,
+    `La imatge fa ${megabytes} MB i el màxim és 20 MB. No s'ha desat res; envia'n una còpia més petita.`,
+  attachmentTooManyImages: (count) =>
+    `Un missatge pot portar com a màxim 5 imatges i aquest en portava ${count}. No s'ha desat res; envia'n com a màxim 5.`,
 };
 export const checkCommand = "pnpm check";
 export const sandboxPrepareCommand = [
@@ -808,33 +810,37 @@ export const reconcileReports = {
 };
 
 // An image attachment only feeds an implementation or a continuation. Any other
-// instruction ignores the file and says so once.
+// instruction ignores the files and says so once.
 export const attachmentReports = {
   ignored:
-    "No s'ha fet servir l'adjunt: només una implementació o una continuació apliquen una imatge.",
+    "No s'ha fet servir la imatge en aquesta resposta. Envia-la amb la feina on la vols aplicar.",
 };
 
+// The editorial guide recommends this minimum for a cover photograph. It is a
+// recommendation, not a refusal: the model warns in one plain sentence.
+export const recommendedCoverMinimum = { width: 1200, height: 675 };
+
+// One prompt line carries all the new images. Eight megabytes of cleaned bytes
+// stay well inside the RPC output budget while leaving room for the text.
+export const maximumPromptImageBytes = 8 * 1024 * 1024;
+
 function attachmentMegabytes(bytes) {
-  return (bytes / (1024 * 1024)).toFixed(1);
+  return (bytes / (1024 * 1024)).toFixed(1).replace(".", ",");
 }
 
 const attachmentRefusalMessages = {
   [attachmentRefusalReasons.unsupportedType]: () =>
-    "L'adjunt no és una imatge JPEG, PNG o WebP. No s'ha desat cap fitxer; envia-la com a fitxer.",
+    "Aquest tipus de fitxer no serveix. Envia una imatge JPEG, PNG o WebP.",
   [attachmentRefusalReasons.damagedImage]: () =>
-    "No s'ha pogut llegir l'estructura de la imatge adjunta. No s'ha desat cap fitxer; torna a exportar-la i envia-la com a fitxer.",
-  [attachmentRefusalReasons.fakeType]: ({ type }) =>
-    `El contingut de l'adjunt és ${type.toUpperCase()} i no coincideix amb el nom ni el tipus que ha declarat Telegram. No s'ha desat cap fitxer; envia la imatge original com a fitxer.`,
+    "No s'ha pogut llegir la imatge adjunta. No s'ha desat res; torna-la a enviar.",
+  [attachmentRefusalReasons.fakeType]: () =>
+    "El fitxer no és la imatge que sembla. No s'ha desat res; comprova'l i envia una imatge JPEG, PNG o WebP.",
   [attachmentRefusalReasons.tooLarge]: ({ bytes }) =>
-    `La imatge adjunta fa ${attachmentMegabytes(bytes)} MB; el límit és 2 MB i 2.400 px de costat llarg, sense redimensionar. No s'ha desat cap fitxer; exporta-la dins d'aquests límits i torna-la a enviar com a fitxer.`,
-  [attachmentRefusalReasons.dimensionsAboveLimit]: ({ width, height, bytes }) =>
-    `La imatge adjunta fa ${width}×${height} px i ${attachmentMegabytes(bytes)} MB; el límit és 2.400 px de costat llarg i 2 MB, sense redimensionar. No s'ha desat cap fitxer; exporta-la dins d'aquests límits i torna-la a enviar com a fitxer.`,
+    `La imatge fa ${attachmentMegabytes(bytes)} MB i el màxim és 20 MB. No s'ha desat res; envia'n una còpia més petita.`,
   [attachmentRefusalReasons.downloadFailed]: () =>
-    "No s'ha pogut descarregar la imatge adjunta de Telegram. No s'ha desat cap fitxer; torna-la a enviar com a fitxer.",
-  [attachmentRefusalReasons.destinationExists]: ({ path }) =>
-    `Ja hi ha un fitxer a ${path}. No s'ha sobreescrit res; canvia el nom de la imatge i torna-la a enviar com a fitxer.`,
-  [attachmentRefusalReasons.destinationUnavailable]: () =>
-    "No s'ha pogut desar la imatge adjunta al worktree. No s'ha desat res; cal revisar-ho.",
+    "No s'ha pogut descarregar la imatge adjunta. No s'ha desat res; torna-la a enviar.",
+  [attachmentRefusalReasons.scaleFailed]: () =>
+    "No s'ha pogut preparar la imatge adjunta. No s'ha desat res; torna-la a enviar.",
 };
 
 /** The public report of a refused attachment, always with its real reason. */
@@ -850,24 +856,40 @@ export function attachmentAcceptedDetail({ type, width, height, bytes }) {
   return `type=${type} width=${width} height=${height} bytes=${bytes}`;
 }
 
+function dimensionLine(attachment) {
+  return `${attachment.width}×${attachment.height} px`;
+}
+
 /**
- * Service text appended to the person's request when an image is attached. The
- * file has unknown origin and rights, so the model must ask for them instead of
- * using it, and it must never publish consent or personal data.
+ * Service text appended to the person's request when images are attached. It
+ * lists every image available to the topic, marks the ones sent with this
+ * message, and states the rights, destination, poster and alt-text rules. The
+ * images themselves are sent as image input of the prompt.
  */
-export function buildAttachmentInstruction({
-  relativePath,
-  mimeType,
-  width,
-  height,
+export function buildAttachmentsInstruction({
+  attachments,
+  newNames,
+  omittedImageNames = [],
 }) {
-  return [
-    "Attached image provided by the service:",
-    `- Path inside this worktree: ${relativePath}`,
-    `- Type: ${mimeType}; dimensions: ${width}×${height} px.`,
-    "Telegram metadata has been removed, but the file has unknown origin and rights.",
-    "If the request does not state the origin, the rights and the credit of the image, do not use it: change no file and ask the person to reply to the message that contains the image, mentioning the bot, with the origin, the rights and the credit.",
-    "Never put consent or personal data in the repository.",
-    "The file stays ignored by Git where it is. If you use it, copy it to the content path that the editorial guide requires; never publish it from that directory.",
-  ].join("\n");
+  const newAttachmentNames = new Set(newNames);
+  const lines = [
+    "Images provided by the service for this topic:",
+    ...attachments.map((attachment) => {
+      const added = newAttachmentNames.has(attachment.name) ? " (new)" : "";
+      return `- ${attachment.name}: ${dimensionLine(attachment)}${added}`;
+    }),
+    "The new images are attached to this prompt as image input. You can look again at any stored image with the view_attachment tool and the exact name.",
+    ...(omittedImageNames.length === 0
+      ? []
+      : [
+          `These new images were too large to send as image input and are only stored: ${omittedImageNames.join(", ")}. Use view_attachment to look at them.`,
+        ]),
+    "The files are also inside .agent-attachments/ in this worktree, ignored by Git. Copy an image you use to the content path that the editorial guide requires; never publish it from that directory.",
+    `If an image is smaller than the recommended cover (${recommendedCoverMinimum.width}×${recommendedCoverMinimum.height} px), tell the person in one plain sentence and continue.`,
+    "Rights: an image that a verified group member sends with no other indication belongs to the club, with the credit \u00abMountain Runners\u00bb. Ask only when the image looks like a third party's: a logo, a press photo or another author's credit. Never put consent or personal data in the repository.",
+    "If several new images arrive and the person did not say where each one goes, ask one question: cover or section. Do not send a list of questions.",
+    "A vertical poster is used whole: never crop or distort it.",
+    "Write the alt text from what the image shows. Compare the text of a poster with the facts of the post and tell the person about any difference.",
+  ];
+  return lines.join("\n");
 }

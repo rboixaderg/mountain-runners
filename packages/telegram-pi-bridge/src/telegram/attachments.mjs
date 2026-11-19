@@ -1,17 +1,23 @@
-// Image documents sent to a topic.
+// Image attachments sent to a topic.
 //
-// A compressed photo is refused: Telegram has already re-encoded it and the
-// bridge never re-encodes. The declared type and file size are checked here, so
-// an unsupported or oversized file is answered when it arrives instead of
-// occupying the queue. The real bytes are validated by the application when the
-// instruction runs: downloading at admission would keep the file before anyone
-// uses it.
+// A compressed photo and an image document are admitted the same way: the
+// declared type and file size are checked here, so an unsupported or oversized
+// file is answered when it arrives instead of occupying the queue. The real
+// bytes are validated by the application when the instruction runs: downloading
+// at admission would keep the file before anyone uses it.
+//
+// Telegram delivers a compressed photo as several sizes of a JPEG and without
+// a file name or MIME type. The largest size is the one the person sent.
 //
 // This table is the shared contract between admission and that later
 // validation, which compares the real bytes with the declared extension and
 // MIME type.
 
-export const maximumAttachmentBytes = 2 * 1024 * 1024;
+// The Telegram Bot API refuses to download a file above 20 MB.
+export const maximumAttachmentBytes = 20 * 1024 * 1024;
+
+// One album addressed to the bot is one instruction with at most five images.
+export const maximumImagesPerInstruction = 5;
 
 export const acceptedImageDocuments = [
   {
@@ -34,16 +40,17 @@ export const acceptedImageDocuments = [
   },
 ];
 
-/** Where the document of an instruction comes from. */
+/** Where the image of an instruction comes from. */
 export const attachmentOrigins = {
   message: "message",
   reply: "reply",
 };
 
 export const attachmentRefusalReasons = {
-  photo: "photo",
   unsupportedDocument: "unsupported_document",
+  invalidPhoto: "invalid_photo",
   declaredTooLarge: "declared_too_large",
+  tooManyImages: "too_many_images",
 };
 
 // A declared MIME type reaches a private trace, so only a plain token survives.
@@ -119,7 +126,66 @@ export function imageDocumentRefusal(document) {
   return null;
 }
 
-/** The durable description of an admitted attachment. */
+// Telegram does not order the sizes; the largest one is the image the person
+// sent. The area is enough, with the declared size as a stable tie-break.
+function photoArea(size) {
+  if (
+    !Number.isSafeInteger(size?.width) ||
+    !Number.isSafeInteger(size?.height)
+  ) {
+    return 0;
+  }
+  return size.width * size.height;
+}
+
+/** The photo size that carries the whole image, or null. */
+export function largestPhotoSize(photo) {
+  if (!Array.isArray(photo)) {
+    return null;
+  }
+  let largest = null;
+  for (const size of photo) {
+    if (typeof size?.file_id !== "string") {
+      continue;
+    }
+    if (largest === null || photoArea(size) > photoArea(largest)) {
+      largest = size;
+      continue;
+    }
+    if (
+      photoArea(size) === photoArea(largest) &&
+      Number.isSafeInteger(size.file_size) &&
+      (!Number.isSafeInteger(largest.file_size) ||
+        size.file_size > largest.file_size)
+    ) {
+      largest = size;
+    }
+  }
+  return largest;
+}
+
+/**
+ * Why a compressed photo cannot be admitted, or null when it can. Telegram
+ * already re-encoded it as a JPEG, so only the size can be wrong.
+ */
+export function photoRefusal(size) {
+  if (size === null) {
+    return { reason: attachmentRefusalReasons.invalidPhoto };
+  }
+  if (
+    Number.isSafeInteger(size.file_size) &&
+    size.file_size > maximumAttachmentBytes
+  ) {
+    return {
+      reason: attachmentRefusalReasons.declaredTooLarge,
+      type: "jpeg",
+      bytes: size.file_size,
+    };
+  }
+  return null;
+}
+
+/** The durable description of an admitted image document. */
 export function imageDocumentAttachment(document, origin) {
   return {
     fileIdentifier: document.file_id,
@@ -135,9 +201,24 @@ export function imageDocumentAttachment(document, origin) {
   };
 }
 
+/** The durable description of an admitted compressed photo. */
+export function photoAttachment(size, origin) {
+  return {
+    fileIdentifier: size.file_id,
+    fileUniqueIdentifier: size.file_unique_id,
+    // Telegram omits the name and the type of a compressed photo. It is a JPEG.
+    fileName: "foto.jpg",
+    mimeType: "image/jpeg",
+    fileSize: Number.isSafeInteger(size.file_size) ? size.file_size : null,
+    origin,
+    width: Number.isSafeInteger(size.width) ? size.width : null,
+    height: Number.isSafeInteger(size.height) ? size.height : null,
+  };
+}
+
 /** Bytes rendered for a person, with one decimal and never the file name. */
 export function attachmentMegabytes(bytes) {
-  return (bytes / (1024 * 1024)).toFixed(1);
+  return (bytes / (1024 * 1024)).toFixed(1).replace(".", ",");
 }
 
 /**

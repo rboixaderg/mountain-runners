@@ -32,9 +32,13 @@ tools/server/agent/               aplicació de Mountain Runners
 ├── config.mjs                    configuració i credencials del servei
 ├── attachments/
 │   ├── image-format.mjs          capçaleres, dimensions i metadades d'imatge
-│   ├── image-file.mjs            tipus real, límits i neteja de l'adjunt
-│   ├── destination.mjs           nom normalitzat i escriptura al worktree
-│   ├── prepare.mjs               descàrrega temporal, validació i destí
+│   ├── image-file.mjs            tipus real, límit de 20 MB i neteja de capçaleres
+│   ├── destination.mjs           directori ignorat del worktree i neteja segura
+│   ├── prepare.mjs               descàrrega temporal i validació de l'adjunt
+│   ├── scale.mjs                 reducció a 2.400 px dins del sandbox
+│   ├── store.mjs                 magatzem durador per tema i retenció de 7 dies
+│   ├── read.mjs                  lectura segura d'un adjunt per a `view_attachment`
+│   ├── safe-read.mjs             lectura acotada sense seguir enllaços simbòlics
 │   ├── refusals.mjs              motius de refús compartits
 │   └── test-support/             imatges sintètiques de les proves
 ├── commands/trace/
@@ -64,7 +68,7 @@ tools/server/agent/               aplicació de Mountain Runners
 │   ├── agent.mjs                 prepara el perfil i inicia el torn
 │   ├── pi-adapter.mjs            entorn, eina aïllada i neteja de Podman
 │   ├── profile.mjs               prepara recursos de confiança
-│   └── extensions/sandbox-bash.ts única eina del model
+│   └── extensions/sandbox-bash.ts eines del model: sandbox i adjunts
 ├── sandbox/
 │   ├── arguments.mjs             muntatge, identitat i límits de Podman
 │   ├── commands.mjs              execució i aturada dels contenidors
@@ -157,7 +161,8 @@ al servidor. El nom local encara no representa una publicació a npm.
    data de naixement del directori. Si la retenció falla, ho registra i el
    servei continua.
    `runtime/pi-adapter` tria
-   explícitament el perfil, l'entorn, `sandbox_bash` i la neteja dels processos.
+   explícitament el perfil, l'entorn, `sandbox_bash` i `view_attachment`, la
+   llista d'adjunts del tema i la neteja dels processos.
    El paquet només executa el protocol RPC amb aquestes opcions.
 4. Una consulta munta `/work` en mode de només lectura i retorna la resposta,
    sense publicar canvis anteriors pendents. Una implementació pot editar i
@@ -334,18 +339,38 @@ al servidor. El nom local encara no representa una publicació a npm.
     servei com a nota. El classificador no rep mai aquest bloc. El mateix store
     desa l'última resposta del tema, que el classificador llegeix com a dada.
 
-Un adjunt admès només s'aplica a una implementació o una continuació.
-`attachments/prepare.mjs` el descarrega al directori temporal del servei, en
-valida el tipus real contra l'extensió i el MIME declarats, en comprova
-l'estructura i les dimensions de les capçaleres, n'elimina les metadades i el
-desa a `.agent-attachments/` del worktree. El model rep el camí, el tipus i les
-dimensions com a text de servei, amb l'avís que l'origen i els drets són
-desconeguts i que ha de demanar-los responent al missatge de la imatge. Abans
-de les comprovacions i del commit, el servei esborra el directori, i
-`repository/secret-scan.mjs` refusa qualsevol història que contingui una ruta
-sota `.agent-attachments/`: l'adjunt no es publica ni en una branca amb un
-`.gitignore` anterior. La resta d'instruccions l'ignoren i ho diuen en una
-frase.
+Les imatges d'una implementació o una continuació segueixen aquest camí.
+`attachments/prepare.mjs` descarrega cada fitxer al directori temporal del
+servei, en valida el tipus real contra l'extensió i el MIME declarats, en
+comprova l'estructura i les dimensions de les capçaleres i n'elimina les
+metadades, sense descodificar cap píxel. Les imatges noves d'un prompt sumen
+com a màxim 8 MB de bytes nets; les que no hi caben no s'envien com a entrada i
+el text indica al model que les miri amb `view_attachment`. Si el costat llarg
+supera 2.400 px,
+`attachments/scale.mjs` posa els bytes en un directori temporal ignorat dins
+del worktree i executa un script a l'entorn aïllat, amb el `sharp` que el
+repositori ja instal·la fora de línia; el procés de confiança torna a validar
+la sortida amb el lector de capçaleres abans de fer-la servir.
+
+`attachments/store.mjs` desa cada imatge a `state/attachments/topic-<hex>/`,
+fora del worktree i de Git, amb un nom estable (`imatge-1.jpg`,
+`imatge-2.png`). Un adjunt hi és fins que es publica o durant set dies;
+l'arrencada n'esborra els vençuts. Cada torn copia el magatzem a
+`.agent-attachments/` del worktree perquè el sandbox el pugui llegir. El model
+rep la llista d'imatges amb nom i dimensions, les noves com a entrada d'imatge
+del prompt i la resta disponibles amb l'eina `view_attachment`; l'eina només
+accepta un nom de la llista, obre el fitxer sense seguir enllaços simbòlics i
+en revalida la capçalera. Les regles de drets (una imatge d'un membre verificat
+és del club, crèdit «Mountain Runners»), destinació, cartell vertical i text
+alternatiu van al text de servei.
+
+Abans de les comprovacions i del commit, el servei esborra la còpia del
+worktree. Una imatge s'ha utilitzat quan hi ha un fitxer regular fora de
+`.agent-attachments/` amb els mateixos bytes (mateix SHA-256); si la publicació
+acaba bé, aleshores deixa el magatzem. `repository/secret-scan.mjs` refusa qualsevol
+història que contingui una ruta sota `.agent-attachments/`: l'adjunt no es
+publica ni en una branca amb un `.gitignore` anterior. La resta d'instruccions
+l'ignoren i ho diuen en una frase.
 
 Un error local conegut, un timeout o una cancel·lació amb neteja confirmada
 retornen una fallada sense bloquejar la cua. Un termini o una aturada abans de
@@ -394,8 +419,11 @@ política ni pot autoritzar per si sol una publicació.
   diff. Els controls són el límit d'intents, la comprovació del cap de la PR,
   `pnpm check` i la revisió humana de la PR.
 - El paquet desactiva les eines i la càrrega automàtica de recursos per defecte.
-  L'aplicació selecciona explícitament l'extensió instal·lada de confiança i
-  `sandbox_bash`. Ni un perfil antic ni el repositori hi poden afegir eines.
+  L'aplicació selecciona explícitament l'extensió instal·lada de confiança,
+  `sandbox_bash` i `view_attachment`. Ni un perfil antic ni el repositori hi
+  poden afegir eines. `view_attachment` només obre un nom que el servei ha
+  llistat, sense seguir enllaços simbòlics, i revalida la capçalera de la imatge
+  abans de retornar-la al model.
 - El model llegeix `AGENTS.md`, skills i documentació dins del contenidor. Pi
   no els carrega al host ni manté còpies que puguin seguir symlinks cap a secrets.
 - L'etiqueta `mountain-agent.session` dels contenidors i

@@ -5,8 +5,18 @@ export {
   defaultLongPollMarginMilliseconds,
   defaultRequestTimeoutMilliseconds,
 } from "./api.mjs";
-export { AgentBridge, defaultBridgeMessages } from "./bridge.mjs";
-export { verifyMembership } from "./attribution.mjs";
+export {
+  AgentBridge,
+  defaultAlbumWaitMilliseconds,
+  defaultBridgeMessages,
+} from "./bridge.mjs";
+export {
+  classifyAlbum,
+  classifyInstruction,
+  isAlbumMember,
+  verifyMembership,
+} from "./attribution.mjs";
+export { AlbumCollector } from "./albums.mjs";
 export {
   acceptedImageDocuments,
   attachmentMegabytes,
@@ -17,5 +27,9 @@ export {
   fileNameExtension,
   imageDocumentAttachment,
   imageDocumentRefusal,
+  largestPhotoSize,
   maximumAttachmentBytes,
+  maximumImagesPerInstruction,
+  photoAttachment,
+  photoRefusal,
 } from "./attachments.mjs";

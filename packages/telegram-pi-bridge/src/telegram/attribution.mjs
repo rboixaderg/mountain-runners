@@ -12,6 +12,10 @@ import {
   attachmentRefusalReasons,
   imageDocumentAttachment,
   imageDocumentRefusal,
+  largestPhotoSize,
+  maximumImagesPerInstruction,
+  photoAttachment,
+  photoRefusal,
 } from "./attachments.mjs";
 
 export const memberStatuses = new Set(["creator", "administrator", "member"]);
@@ -80,38 +84,100 @@ function hasPhoto(entry) {
   return Array.isArray(entry?.photo) && entry.photo.length > 0;
 }
 
-// The media of the addressed message wins over the media of the one it replies
-// to, and a compressed photo wins over a replied document: it is the file the
-// person has just sent. A reply can quote a message from another topic, and that
-// media is never this topic's attachment.
-function messageMedia(message) {
+// The media this exact message carries. A compressed photo wins over a document
+// because Telegram never sends both.
+function ownMedia(message) {
   if (hasPhoto(message)) {
-    return { photo: true };
+    return { kind: "photo", size: largestPhotoSize(message.photo) };
   }
   if (message.document) {
-    return { document: message.document, origin: attachmentOrigins.message };
+    return { kind: "document", document: message.document };
+  }
+  return null;
+}
+
+// The media of the addressed message wins over the media of the one it replies
+// to: it is the file the person has just sent. A reply can quote a message from
+// another topic, and that media is never this topic's attachment.
+function messageMedia(message) {
+  const own = ownMedia(message);
+  if (own !== null) {
+    return { ...own, origin: attachmentOrigins.message };
   }
   const replied = message.reply_to_message;
   if (!replied || replied.message_thread_id !== message.message_thread_id) {
     return null;
   }
-  if (hasPhoto(replied)) {
-    return { photo: true };
+  const quoted = ownMedia(replied);
+  return quoted === null
+    ? null
+    : { ...quoted, origin: attachmentOrigins.reply };
+}
+
+// The checks that make a message part of the configured private forum topic.
+// `null` means the message can be classified; otherwise it is ignored.
+function baseRejection(message, { groupIdentifier }) {
+  if (String(message.chat?.id) !== groupIdentifier) {
+    return "other_chat";
   }
-  if (replied.document) {
-    return { document: replied.document, origin: attachmentOrigins.reply };
+  if (message.sender_chat || !message.from || message.from.is_bot) {
+    return "no_person_author";
+  }
+  if (message.forward_origin || message.forward_from_chat) {
+    return "forwarded_message";
+  }
+  if (
+    !message.is_topic_message ||
+    typeof message.message_thread_id !== "number"
+  ) {
+    return "not_a_forum_topic";
   }
   return null;
+}
+
+function mentionsIn(content, context) {
+  if (content === null) {
+    return [];
+  }
+  return mentionEntities(
+    content.text,
+    content.entities,
+    context.botUsername,
+    context.botIdentifier,
+  );
+}
+
+// The attachment of one media item, or the refusal it deserves.
+function mediaAttachment(media) {
+  if (media.kind === "photo") {
+    const refusal = photoRefusal(media.size);
+    return refusal === null
+      ? { attachment: photoAttachment(media.size, media.origin) }
+      : { refusal };
+  }
+  const refusal = imageDocumentRefusal(media.document);
+  return refusal === null
+    ? {
+        attachment: imageDocumentAttachment(media.document, media.origin),
+      }
+    : { refusal };
+}
+
+function identityOf(message) {
+  return {
+    messageIdentifier: message.message_id,
+    sessionKey: `${message.chat.id}:${message.message_thread_id}`,
+    authorIdentifier: message.from.id,
+  };
 }
 
 /**
  * Decide whether an update is an instruction for the agent.
  *
  * `botIdentifier` is the Telegram user identifier of the bot (from getMe), used
- * only to recognise replies to its own messages. An addressed photo is answered
- * with a refusal instead of being ignored, so its author knows to resend it as
- * a file; a document that is not an accepted image is refused the same way and
- * never queued.
+ * only to recognise replies to its own messages. A compressed photo is admitted
+ * like an image document; both are refused when their type or size is not
+ * accepted, before the instruction is queued.
  */
 export function classifyInstruction(
   update,
@@ -122,65 +188,35 @@ export function classifyInstruction(
     return { decision: "ignore", reason: "not_a_message" };
   }
 
-  if (String(message.chat?.id) !== groupIdentifier) {
-    return { decision: "ignore", reason: "other_chat" };
+  const rejection = baseRejection(message, { groupIdentifier });
+  if (rejection !== null) {
+    return { decision: "ignore", reason: rejection };
   }
 
-  if (message.sender_chat || !message.from || message.from.is_bot) {
-    return { decision: "ignore", reason: "no_person_author" };
-  }
-
-  if (message.forward_origin || message.forward_from_chat) {
-    return { decision: "ignore", reason: "forwarded_message" };
-  }
-
-  if (
-    !message.is_topic_message ||
-    typeof message.message_thread_id !== "number"
-  ) {
-    return { decision: "ignore", reason: "not_a_forum_topic" };
-  }
-
+  const context = { groupIdentifier, botUsername, botIdentifier };
   const content = messageContent(message);
   const media = messageMedia(message);
-  const compressedPhoto = media?.photo === true;
   if (content === null && media === null) {
     return { decision: "ignore", reason: "not_text" };
   }
 
-  const mentions =
-    content === null
-      ? []
-      : mentionEntities(
-          content.text,
-          content.entities,
-          botUsername,
-          botIdentifier,
-        );
+  const mentions = mentionsIn(content, context);
   if (mentions.length === 0 && !isReplyToBot(message, botIdentifier)) {
     return { decision: "ignore", reason: "not_addressed_to_bot" };
   }
 
   const identity = {
     updateIdentifier: update.update_id,
-    messageIdentifier: message.message_id,
-    sessionKey: `${message.chat.id}:${message.message_thread_id}`,
-    authorIdentifier: message.from.id,
+    ...identityOf(message),
   };
 
-  if (compressedPhoto) {
-    return {
-      decision: "refuse",
-      reason: attachmentRefusalReasons.photo,
-      ...identity,
-    };
-  }
-
-  if (media?.document) {
-    const refusal = imageDocumentRefusal(media.document);
-    if (refusal !== null) {
-      return { decision: "refuse", ...identity, ...refusal };
+  const attachments = [];
+  if (media !== null) {
+    const admitted = mediaAttachment(media);
+    if (admitted.refusal) {
+      return { decision: "refuse", ...identity, ...admitted.refusal };
     }
+    attachments.push(admitted.attachment);
   }
 
   const text = content === null ? "" : instructionText(content.text, mentions);
@@ -192,10 +228,117 @@ export function classifyInstruction(
     decision: "instruction",
     ...identity,
     text,
-    attachment:
-      media?.document === undefined
-        ? null
-        : imageDocumentAttachment(media.document, media.origin),
+    attachments,
+  };
+}
+
+/**
+ * Whether an update can be one image of an album addressed to the bot. Album
+ * members are recognised before their text, because the caption and the mention
+ * may travel with any of them. The remaining checks happen once per group.
+ */
+export function isAlbumMember(update, { groupIdentifier }) {
+  const message = update.message;
+  if (!message || typeof message.media_group_id !== "string") {
+    return false;
+  }
+  if (baseRejection(message, { groupIdentifier }) !== null) {
+    return false;
+  }
+  return ownMedia(message) !== null;
+}
+
+/**
+ * Classify the updates of one album as a single instruction. The caption, the
+ * mention and the reply to the bot may be on any member; the images are the
+ * ones each member carries, up to the album limit.
+ */
+export function classifyAlbum(
+  updates,
+  { groupIdentifier, botUsername, botIdentifier },
+) {
+  let textContent = null;
+  let textMentions = [];
+  let answered = false;
+  let replyToBot = false;
+  const attachments = [];
+  let refusals = null;
+  let sessionMessage = null;
+
+  for (const update of updates) {
+    const message = update.message;
+    if (message === undefined) {
+      continue;
+    }
+    const rejection = baseRejection(message, { groupIdentifier });
+    if (rejection !== null) {
+      return { decision: "ignore", reason: rejection };
+    }
+    sessionMessage ??= message;
+    const content = messageContent(message);
+    const contentMentions =
+      content === null
+        ? []
+        : mentionsIn(content, { botUsername, botIdentifier });
+    if (content !== null && textContent === null) {
+      textContent = content;
+      textMentions = contentMentions;
+    }
+    if (contentMentions.length > 0) {
+      answered = true;
+    }
+    if (isReplyToBot(message, botIdentifier)) {
+      replyToBot = true;
+    }
+    const media = ownMedia(message);
+    if (media === null) {
+      continue;
+    }
+    const admitted = mediaAttachment({
+      ...media,
+      origin: attachmentOrigins.message,
+    });
+    if (admitted.refusal) {
+      refusals ??= admitted.refusal;
+      continue;
+    }
+    attachments.push(admitted.attachment);
+  }
+
+  const identity = {
+    // A stable key: a member that arrives after a crash does not change it, so
+    // the queue recognises the same album instead of admitting it twice.
+    updateIdentifier: Math.min(...updates.map((update) => update.update_id)),
+    ...identityOf(sessionMessage),
+  };
+
+  // An album that does not address the bot is not this topic's instruction, so
+  // it is ignored before any refusal.
+  if (!answered && !replyToBot) {
+    return { decision: "ignore", reason: "not_addressed_to_bot" };
+  }
+  if (refusals !== null) {
+    return { decision: "refuse", ...identity, ...refusals };
+  }
+  if (attachments.length > maximumImagesPerInstruction) {
+    return {
+      decision: "refuse",
+      ...identity,
+      reason: attachmentRefusalReasons.tooManyImages,
+      count: attachments.length,
+    };
+  }
+  const text =
+    textContent === null ? "" : instructionText(textContent.text, textMentions);
+  if (text === "") {
+    return { decision: "ignore", reason: "empty_instruction" };
+  }
+
+  return {
+    decision: "instruction",
+    ...identity,
+    text,
+    attachments,
   };
 }
 

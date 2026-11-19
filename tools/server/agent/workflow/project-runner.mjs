@@ -10,6 +10,8 @@ import {
   stopSandboxedCommands,
 } from "../sandbox/commands.mjs";
 import { createPublisher } from "../repository/publisher.mjs";
+import { createAttachmentStore } from "../attachments/store.mjs";
+import { scaleImageAttachments } from "../attachments/scale.mjs";
 import { createCiWatchRegistration } from "./ci-watch.mjs";
 import {
   buildInstructionPrompt,
@@ -31,6 +33,9 @@ export function createProjectRunner({
   hasOtherInstructions,
   notifyHandover,
   prepareAttachment,
+  attachmentStore = createAttachmentStore({
+    stateDirectory: config.paths.state,
+  }),
   sessionNotes,
   recordTrace,
   stopCommands = stopSandboxedCommands,
@@ -39,7 +44,7 @@ export function createProjectRunner({
   classifyRequest = (context) =>
     classifyWithModel(config, { ...context, environment }),
   runModel = async (context) => {
-    if (context.kind !== "consultation") {
+    if (context.kind !== "consultation" && !context.worktreePrepared) {
       const preparation = await executeSandbox({
         image: config.model.sandboxImage,
         workspacePath: context.worktreePath,
@@ -73,6 +78,27 @@ export function createProjectRunner({
       readOnly: context.kind === "consultation",
     });
   },
+  // Reading the pixels of an untrusted image happens only inside the sandbox.
+  // The command installs the offline dependencies first, so the runtime turn
+  // that follows does not repeat the preparation.
+  scaleAttachments = ({ images, worktreePath, sandboxIdentifier, signal }) =>
+    scaleImageAttachments({
+      images,
+      worktreePath,
+      signal,
+      prepareCommand: sandboxPrepareCommand,
+      execute: (command, { signal: commandSignal }) =>
+        executeSandbox({
+          image: config.model.sandboxImage,
+          workspacePath: worktreePath,
+          worktreeRoot: config.paths.worktrees,
+          command,
+          limits: config.limits,
+          sessionIdentifier: sandboxIdentifier,
+          timeoutMilliseconds: config.limits.executionTimeoutMs,
+          signal: commandSignal,
+        }),
+    }),
   runChecks = (context) =>
     executeSandbox({
       image: config.model.sandboxImage,
@@ -100,6 +126,8 @@ export function createProjectRunner({
     requestPreview,
     requestMerge,
     prepareAttachment,
+    scaleAttachments,
+    attachmentStore,
     sessionNotes,
     recordTrace,
     // The pull request this topic published last and still owns, from the CI

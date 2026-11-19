@@ -12,6 +12,8 @@
 import { sessionIdentifier } from "telegram-pi-bridge/sessions";
 import { attachmentRefusalDetail } from "telegram-pi-bridge/telegram";
 import { removeAttachmentDirectory } from "../attachments/destination.mjs";
+import { attachmentRefusalReasons } from "../attachments/refusals.mjs";
+import { needsDownscale } from "../attachments/scale.mjs";
 import {
   assertWorkBranch,
   commitAll,
@@ -32,7 +34,7 @@ import {
   attachmentAcceptedDetail,
   attachmentRefusalReport,
   attachmentReports,
-  buildAttachmentInstruction,
+  buildAttachmentsInstruction,
   buildRepairInstruction,
   ciWatchOutcomes,
   continuationReports,
@@ -41,6 +43,7 @@ import {
   fallbackTitle,
   pullRequestBody,
   instructionReports,
+  maximumPromptImageBytes,
   publicationReport,
   previewRequestKind,
   repairRequestKind,
@@ -60,6 +63,10 @@ export function createInstructionRunner({
   continueFromPullRequest,
   warnAboutOverlaps,
   prepareAttachment,
+  scaleAttachments = () => ({
+    refusal: { reason: attachmentRefusalReasons.scaleFailed },
+  }),
+  attachmentStore,
   // Durable conversation state of the topic: the effects it has not been told
   // yet and the last text it received. Without it the service keeps neither.
   sessionNotes,
@@ -186,41 +193,106 @@ export function createInstructionRunner({
   }
 
   /**
-   * Download, validate and place the attached image of an implementation or a
-   * continuation. A refusal returns the report that tells the person why, and
-   * the file is never used without its origin, rights and credit.
+   * Download, validate, downscale inside the sandbox and store the images of an
+   * implementation or a continuation. The topic keeps them until they are used
+   * or for seven days; this turn receives a copy in the ignored directory of
+   * the worktree and the new ones as image input of the prompt.
    */
-  async function applyAttachment({
-    attachment,
+  async function applyAttachments({
+    attachments,
     instruction,
     request,
-    worktreePath,
+    worktree,
+    worktreeName,
     signal,
   }) {
-    const prepared = await prepareAttachment({
-      attachment,
-      worktreePath,
-      signal,
-    });
-    if (prepared.refusal) {
+    const preparedImages = [];
+    for (const attachment of attachments) {
+      const prepared = await prepareAttachment({
+        attachment,
+        signal,
+      });
+      if (prepared.refusal) {
+        recordTrace({
+          updateIdentifier: request.updateIdentifier,
+          authorIdentifier: request.authorIdentifier,
+          sessionKey: request.sessionKey,
+          action: "attachment_refused",
+          detail: attachmentRefusalDetail(prepared.refusal),
+        });
+        return { report: attachmentRefusalReport(prepared.refusal) };
+      }
+      preparedImages.push(prepared.image);
+    }
+
+    let finalImages = preparedImages;
+    let scaledInSandbox = false;
+    if (preparedImages.some(needsDownscale)) {
+      const scaled = await scaleAttachments({
+        images: preparedImages,
+        worktreePath: worktree.path,
+        sandboxIdentifier: worktreeName,
+        signal,
+      });
+      if (scaled.refusal) {
+        recordTrace({
+          updateIdentifier: request.updateIdentifier,
+          authorIdentifier: request.authorIdentifier,
+          sessionKey: request.sessionKey,
+          action: "attachment_refused",
+          detail: attachmentRefusalDetail(scaled.refusal),
+        });
+        return { report: attachmentRefusalReport(scaled.refusal) };
+      }
+      finalImages = scaled.images;
+      scaledInSandbox = true;
+    }
+
+    const newNames = [];
+    const images = [];
+    const omittedImageNames = [];
+    let promptImageBytes = 0;
+    for (const image of finalImages) {
+      const stored = attachmentStore.add(worktreeName, image);
+      newNames.push(stored.name);
+      // One prompt line carries all the images: keep the whole request bounded.
+      if (promptImageBytes + image.bytes.length <= maximumPromptImageBytes) {
+        images.push({
+          type: "image",
+          data: image.bytes.toString("base64"),
+          mimeType: image.mimeType,
+        });
+        promptImageBytes += image.bytes.length;
+      } else {
+        omittedImageNames.push(stored.name);
+      }
       recordTrace({
         updateIdentifier: request.updateIdentifier,
         authorIdentifier: request.authorIdentifier,
         sessionKey: request.sessionKey,
-        action: "attachment_refused",
-        detail: attachmentRefusalDetail(prepared.refusal),
+        action: "attachment_accepted",
+        detail: attachmentAcceptedDetail({
+          type: stored.type,
+          width: stored.width,
+          height: stored.height,
+          bytes: stored.bytes,
+        }),
       });
-      return { report: attachmentRefusalReport(prepared.refusal) };
     }
-    recordTrace({
-      updateIdentifier: request.updateIdentifier,
-      authorIdentifier: request.authorIdentifier,
-      sessionKey: request.sessionKey,
-      action: "attachment_accepted",
-      detail: attachmentAcceptedDetail(prepared.prepared),
-    });
+
+    const stored = attachmentStore.stage(worktreeName, worktree.path);
+    if (stored.length === 0) {
+      return { attachments: [], images: [], instruction };
+    }
     return {
-      instruction: `${instruction}\n\n${buildAttachmentInstruction(prepared.prepared)}`,
+      attachments: stored,
+      images,
+      scaledInSandbox,
+      instruction: `${instruction}\n\n${buildAttachmentsInstruction({
+        attachments: stored,
+        newNames,
+        omittedImageNames,
+      })}`,
     };
   }
 
@@ -231,11 +303,13 @@ export function createInstructionRunner({
     const worktreeName = identifiers.worktreeName(request.sessionKey);
     const newTaskSuffix = identifiers.changeSuffix(request.updateIdentifier);
     const repair = request.kind === repairRequestKind;
-    const attachment = request.attachment ?? null;
+    const attachments = request.attachments ?? [];
     // Only an implementation and a continuation use an attached image. Every
     // other request ignores it, and its report says so in one sentence.
     const ignoringAttachment = (report) =>
-      attachment === null ? report : `${report}\n${attachmentReports.ignored}`;
+      attachments.length === 0
+        ? report
+        : `${report}\n${attachmentReports.ignored}`;
     let publicationStarted = false;
     try {
       signal?.throwIfAborted();
@@ -379,22 +453,36 @@ export function createInstructionRunner({
       if (resumed !== null) {
         instruction = resumed.instruction;
       }
-      // The attachment reaches the model as service text appended to the
-      // instruction: its path, its type and its dimensions, never its content.
+      // The images reach the model as service text appended to the instruction
+      // and, for the new ones, as image input of the prompt. The topic keeps the
+      // stored copies for its later turns.
       const kindUsesAttachment =
         kind === "implementation" || kind === "continuation";
-      if (attachment !== null && kindUsesAttachment) {
-        const applied = await applyAttachment({
-          attachment,
+      let stagedAttachments = [];
+      let promptImages = [];
+      let worktreePrepared = false;
+      const hasStoredAttachments =
+        attachmentStore !== undefined &&
+        attachmentStore.list(worktreeName).length > 0;
+      if (
+        kindUsesAttachment &&
+        (attachments.length > 0 || hasStoredAttachments)
+      ) {
+        const applied = await applyAttachments({
+          attachments,
           instruction,
           request,
-          worktreePath: worktree.path,
+          worktree,
+          worktreeName,
           signal,
         });
         if (applied.report) {
           return { outcome: "failed", report: applied.report };
         }
         instruction = applied.instruction;
+        stagedAttachments = applied.attachments;
+        promptImages = applied.images;
+        worktreePrepared = applied.scaledInSandbox === true;
       }
       // The effects of the service are claimed at the one point where the turn
       // really starts: the sandbox and the profile are ready and Pi is about to
@@ -422,6 +510,9 @@ export function createInstructionRunner({
           sandboxIdentifier: worktreeName,
           sessionKey: request.sessionKey,
           instruction,
+          images: promptImages,
+          attachments: stagedAttachments,
+          worktreePrepared,
           kind,
           unclearRequest,
           claimServiceNotes,
@@ -452,6 +543,17 @@ export function createInstructionRunner({
       if (modelResult.aborted) {
         return { outcome: "failed", report: instructionReports.aborted };
       }
+      // The model copies an image it uses to a content path. Before the copy in
+      // the ignored directory disappears, the service remembers which stored
+      // images reached the worktree outside it; a published change closes them.
+      const usedAttachmentNames =
+        kind === "consultation" || attachmentStore === undefined
+          ? []
+          : attachmentStore.used(
+              worktreeName,
+              worktree.path,
+              await listChangedPaths(worktree, { signal }),
+            );
       if (kind === "consultation") {
         const answer = modelResult.text.trim();
         // The model's own answer is only the last text of the topic: it never
@@ -465,7 +567,8 @@ export function createInstructionRunner({
         return {
           outcome: "answered",
           modelAnswer: answer !== "",
-          serviceText: attachment === null ? null : attachmentReports.ignored,
+          serviceText:
+            attachments.length === 0 ? null : attachmentReports.ignored,
           report: ignoringAttachment(answer === "" ? fixedText : answer),
         };
       }
@@ -568,6 +671,15 @@ export function createInstructionRunner({
       // The instruction only becomes possibly published when the publisher is
       // about to write to GitHub: a read of the pull request that fails before
       // the push is a local failure, never an unknown result.
+      if (usedAttachmentNames.length > 0) {
+        recordTrace({
+          updateIdentifier: request.updateIdentifier,
+          authorIdentifier: request.authorIdentifier,
+          sessionKey: request.sessionKey,
+          action: "attachment_used",
+          detail: usedAttachmentNames.join(","),
+        });
+      }
       const publication = await publishChange({
         worktree,
         branch,
@@ -592,6 +704,19 @@ export function createInstructionRunner({
           outcome: "failed",
           report: instructionReports.publicationRefused,
         };
+      }
+      // The image is part of a published change: it no longer needs to stay in
+      // the topic store. A refused publication keeps it for the next turn. The
+      // publication is already done, so a bookkeeping failure only logs.
+      if (attachmentStore !== undefined && usedAttachmentNames.length > 0) {
+        try {
+          attachmentStore.remove(worktreeName, usedAttachmentNames);
+        } catch (error) {
+          logger(
+            "attachment_store_failed",
+            error instanceof Error ? error.name : "unknown",
+          );
+        }
       }
       // The watch is durable before the report is sent, and it never waits for
       // the CI of the commit: the queue keeps executing other instructions. A

@@ -156,20 +156,19 @@ test("refuses an image above the byte limit before parsing it", () => {
   assert.equal(result.bytes, bytes.length);
 });
 
-test("refuses an image above the long side limit on either side", () => {
+test("accepts an image above the long side because the sandbox downscales it", () => {
   for (const [width, height] of [
     [maximumAttachmentLongSide + 1, 10],
     [10, maximumAttachmentLongSide + 1],
   ]) {
-    const result = refusal({
+    const image = accept({
       bytes: pngImage({ width, height }),
       fileName: "portada.png",
       mimeType: "image/png",
     });
 
-    assert.equal(result.reason, "dimensions_above_limit");
-    assert.equal(result.width, width);
-    assert.equal(result.height, height);
+    assert.equal(image.width, width);
+    assert.equal(image.height, height);
   }
 });
 
