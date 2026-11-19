@@ -1,9 +1,12 @@
-// Service preparation of an admitted attachment (T8.4).
+// Service preparation of an admitted attachment (T8.4, T8.8).
 //
 // The download happens when the instruction runs, never at admission. The raw
 // bytes only exist in the service temporary directory and are removed in a
-// `finally`; the cleaned file is the only copy that reaches the worktree. A
-// failure is a refusal with a reason, never an exception that hides the
+// `finally`; nothing is decoded or written to the worktree here. The cleaned
+// image is returned in memory, and the caller downscales it inside the sandbox
+// and stores it in the topic's attachment store.
+//
+// A failure is a refusal with a reason, never an exception that hides the
 // instruction result.
 
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
@@ -14,7 +17,6 @@ import {
   TelegramFileTooLargeError,
 } from "telegram-pi-bridge/telegram";
 import { requestSignal } from "../repository/request-signal.mjs";
-import { attachmentFileName, writeAttachmentFile } from "./destination.mjs";
 import { prepareImageAttachment } from "./image-file.mjs";
 import { attachmentRefusalReasons } from "./refusals.mjs";
 
@@ -23,11 +25,7 @@ export function createAttachmentPreparation({
   temporaryDirectory = tmpdir(),
   logger = () => {},
 }) {
-  return async function prepareAttachment({
-    attachment,
-    worktreePath,
-    signal,
-  }) {
+  return async function prepareAttachment({ attachment, signal }) {
     let directory = null;
     // A stalled read must not hold the instruction loop behind it; the same
     // deadline bounds the lookup and the download.
@@ -58,26 +56,10 @@ export function createAttachmentPreparation({
       if (prepared.refusal) {
         return prepared;
       }
-      const fileName = attachmentFileName({
-        fileName: attachment.fileName,
-        extension: prepared.image.extension,
-      });
-      const written = writeAttachmentFile({
-        worktreePath,
-        fileName,
-        bytes: prepared.image.bytes,
-      });
-      if (written.refusal) {
-        return written;
-      }
       return {
-        prepared: {
-          relativePath: written.relativePath,
-          type: prepared.image.type,
-          mimeType: prepared.image.mimeType,
-          width: prepared.image.width,
-          height: prepared.image.height,
-          bytes: prepared.image.bytes.length,
+        image: {
+          ...prepared.image,
+          origin: attachment.origin,
         },
       };
     } catch (error) {

@@ -42,6 +42,61 @@ function assertPullRequestNumber(number) {
   }
 }
 
+// The preview workflow of phase 6 is the only workflow whose runs this service
+// reads: its result is what tells a `/preview` request whether the preview was
+// built, because the trusted publisher only comments when it succeeded.
+const previewWorkflowFile = "preview.yml";
+
+function assertIsoTimestamp(timestamp) {
+  if (typeof timestamp !== "string" || Number.isNaN(Date.parse(timestamp))) {
+    throw new Error("An ISO timestamp is required.");
+  }
+}
+
+/**
+ * The login of one actor of a run, or `null` when GitHub does not name it. A run
+ * is only ever attributed to the service's own identity, so a missing login makes
+ * that run unusable; it does not make the whole list unreadable.
+ */
+function workflowRunActorLogin(actor) {
+  if (actor === null || actor === undefined) return null;
+  if (typeof actor.login !== "string" || actor.login === "") {
+    throw new Error("GitHub returned an invalid workflow run.");
+  }
+  return actor.login;
+}
+
+/**
+ * One run of the preview workflow, reduced to what a request needs. The run's
+ * `head_sha` is the default branch commit, so it is not kept: it says nothing
+ * about the pull request. Who triggered the run is kept, because the workflow
+ * runs for the comment of any pull request and only a run of the service's own
+ * comment may be attributed to a request.
+ */
+function previewWorkflowRun(run) {
+  if (
+    !Number.isSafeInteger(run?.id) ||
+    typeof run.created_at !== "string" ||
+    Number.isNaN(Date.parse(run.created_at)) ||
+    typeof run.event !== "string" ||
+    typeof run.status !== "string" ||
+    (run.conclusion !== null && typeof run.conclusion !== "string")
+  ) {
+    throw new Error("GitHub returned an invalid workflow run.");
+  }
+  return {
+    identifier: run.id,
+    event: run.event,
+    createdAt: run.created_at,
+    status: run.status,
+    conclusion: run.conclusion,
+    // `actor` is the account whose action started the run; a re-run keeps it and
+    // names the account that repeated it in `triggering_actor`.
+    actor: workflowRunActorLogin(run.actor),
+    triggeringActor: workflowRunActorLogin(run.triggering_actor),
+  };
+}
+
 /**
  * A publish refused by a local rule (branch, origin or credential scan). Nothing
  * reached GitHub, so the caller reports a normal failure instead of stopping
@@ -74,6 +129,18 @@ export function isDefiniteRejection(error) {
     error.status >= 400 &&
     error.status < 500 &&
     !retryableClientStatuses.has(error.status)
+  );
+}
+
+/**
+ * Whether GitHub refused to let this token read something. The preview run list
+ * falls back to the publisher comment alone instead of failing every request
+ * when the credential lacks `Actions: read`.
+ */
+export function isPermissionRejection(error) {
+  return (
+    error instanceof GitHubResponseError &&
+    (error.status === 403 || error.status === 404)
   );
 }
 
@@ -281,6 +348,7 @@ export class GitHubTrust {
     }
     return {
       state: pull.state,
+      htmlUrl: pull.html_url,
       headSha: pull.head.sha,
       headRef: pull.head.ref,
       // A fork whose repository was deleted has no head repository.
@@ -374,6 +442,39 @@ export class GitHubTrust {
       if (response.length < 100) return comments;
     }
     throw new Error("GitHub comments pagination limit exceeded.");
+  }
+
+  /**
+   * The runs of the preview workflow that a pull request comment triggered and
+   * that were created at or after `createdSince` (an ISO timestamp), newest
+   * first as GitHub returns them. The event filter is part of the request and is
+   * checked again on every run, and neither the pull request nor the commit of a
+   * request can be read from a run: an `issue_comment` run always carries the
+   * default branch commit. Each run names the accounts that triggered it, so the
+   * caller can keep only the runs of the service's own comments. Reading runs
+   * needs `Actions: read`; without it GitHub answers 403 or 404 and the caller
+   * keeps the publisher comment alone.
+   */
+  async listPreviewWorkflowRuns({ createdSince, signal }) {
+    assertIsoTimestamp(createdSince);
+    const created = encodeURIComponent(`>=${createdSince}`);
+    const runs = [];
+    for (let page = 1; page <= maximumPageCount; page += 1) {
+      const response = await this.#request(
+        "GET",
+        `/repos/${this.#repository}/actions/workflows/${previewWorkflowFile}/runs?event=issue_comment&created=${created}&per_page=100&page=${page}`,
+        undefined,
+        { signal },
+      );
+      if (!Array.isArray(response?.workflow_runs)) {
+        throw new Error("GitHub returned an invalid workflow runs response.");
+      }
+      for (const run of response.workflow_runs) {
+        runs.push(previewWorkflowRun(run));
+      }
+      if (response.workflow_runs.length < 100) return runs;
+    }
+    throw new Error("GitHub workflow runs pagination limit exceeded.");
   }
 
   async findOpenPullRequest({ branch, signal }) {

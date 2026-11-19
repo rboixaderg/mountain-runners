@@ -23,7 +23,11 @@ import {
   sleep,
 } from "../repository/request-signal.mjs";
 import { redactSecrets } from "../repository/secret-scan.mjs";
-import { ciReports, ciWatchOutcomes } from "../policy/development.mjs";
+import {
+  ciNoteReports,
+  ciReports,
+  ciWatchOutcomes,
+} from "../policy/development.mjs";
 
 export const ciResults = {
   success: "success",
@@ -161,7 +165,7 @@ async function evaluateWatch({
     return { result: ciResults.headChanged, headSha: pullRequest.headSha };
   }
   if (classification.state === "success") {
-    return { result: ciResults.success };
+    return { result: ciResults.success, pullRequestUrl: pullRequest.htmlUrl };
   }
   // A failure is decisive only when the whole required set is known and no
   // required check is still running: the identity of the failure and the repair
@@ -188,11 +192,48 @@ async function evaluateWatch({
 
 function unconfirmedNotice(common, failedChecks) {
   if (failedChecks.length === 0) {
-    return ciReports.unknown(common);
+    return {
+      person: ciReports.unknown,
+      note: ciNoteReports.unknown(common),
+    };
   }
-  return ciReports.unconfirmedFailure({ ...common, failedChecks });
+  return {
+    person: ciReports.unconfirmedFailure,
+    note: ciNoteReports.unconfirmedFailure({ ...common, failedChecks }),
+  };
 }
 
+/**
+ * The facts of one notice for the private log: the pull request, the exact
+ * commit and the names of the checks it talks about.
+ */
+function describeNotice(watch, outcome, requiredChecks) {
+  // The configured list is never empty, and a failure always names its own
+  // failing checks, so one of the two always has at least one name.
+  const checks =
+    outcome.failedChecks?.length > 0 ? outcome.failedChecks : requiredChecks;
+  return `${describe(watch)} ${outcome.result} ${checks.join(",")}`;
+}
+
+/**
+ * The kind of notice an outcome produces. Two notices of the same commit can be
+ * different effects (`repairing` and `repair-not-run`, or a plain `unknown` and
+ * an unconfirmed failure), so the note identity is not only update and commit.
+ */
+function noticeKind(outcome) {
+  if (outcome.result === ciResults.unknown) {
+    return outcome.failedChecks?.length > 0
+      ? "unconfirmed-failure"
+      : ciResults.unknown;
+  }
+  return outcome.result;
+}
+
+/**
+ * The two texts of one notice: the plain one the person reads in the topic, and
+ * the technical one that stays in the private trace and in the service note of
+ * the session.
+ */
 function noticeFor({
   watch,
   outcome,
@@ -205,34 +246,58 @@ function noticeFor({
   };
   switch (outcome.result) {
     case ciResults.success:
-      return ciReports.success({ ...common, requiredChecks });
+      return {
+        person: ciReports.success({ pullRequestUrl: outcome.pullRequestUrl }),
+        note: ciNoteReports.success({ ...common, requiredChecks }),
+      };
     case ciResults.repairing:
-      return ciReports.repairing({
-        ...common,
-        failedChecks: outcome.failedChecks,
-        attemptNumber: outcome.attemptNumber,
-        maximumAttempts: maximumAutomaticRepairs,
-      });
+      return {
+        person: ciReports.repairing,
+        note: ciNoteReports.repairing({
+          ...common,
+          failedChecks: outcome.failedChecks,
+          attemptNumber: outcome.attemptNumber,
+          maximumAttempts: maximumAutomaticRepairs,
+        }),
+      };
     case ciResults.repairNotRun:
-      return ciReports.repairNotRun({
-        ...common,
-        failedChecks: outcome.failedChecks,
-      });
+      return {
+        person: ciReports.repairNotRun,
+        note: ciNoteReports.repairNotRun({
+          ...common,
+          failedChecks: outcome.failedChecks,
+        }),
+      };
     case ciResults.repairBlocked:
-      return ciReports.repairBlocked({
-        ...common,
-        failedChecks: outcome.failedChecks,
-      });
+      return {
+        person: ciReports.repairBlocked,
+        note: ciNoteReports.repairBlocked({
+          ...common,
+          failedChecks: outcome.failedChecks,
+        }),
+      };
     case ciResults.repairLimit:
-      return ciReports.repairLimit({
-        ...common,
-        failedChecks: outcome.failedChecks,
-        maximumAttempts: maximumAutomaticRepairs,
-      });
+      return {
+        person: ciReports.repairLimit,
+        note: ciNoteReports.repairLimit({
+          ...common,
+          failedChecks: outcome.failedChecks,
+          maximumAttempts: maximumAutomaticRepairs,
+        }),
+      };
     case ciResults.headChanged:
-      return ciReports.headChanged({ ...common, headSha: outcome.headSha });
+      return {
+        person: ciReports.headChanged,
+        note: ciNoteReports.headChanged({
+          ...common,
+          headSha: outcome.headSha,
+        }),
+      };
     case ciResults.pullRequestClosed:
-      return ciReports.pullRequestClosed(common);
+      return {
+        person: ciReports.pullRequestClosed,
+        note: ciNoteReports.pullRequestClosed(common),
+      };
     default:
       return unconfirmedNotice(common, outcome.failedChecks);
   }
@@ -250,6 +315,8 @@ export function createCiWatchWorker({
   maximumAutomaticRepairs,
   secrets = [],
   recordTrace = () => {},
+  // The text of a notice is an effect the next turn of the topic must know.
+  recordServiceNote = () => {},
   logger = () => {},
   now = () => new Date(),
 }) {
@@ -266,19 +333,24 @@ export function createCiWatchWorker({
   /** Resolve to true only when the notice reached Telegram and was recorded. */
   async function deliver(watch, outcome, { signal } = {}) {
     let message;
+    let personText;
+    let noteText;
     try {
       const { chatIdentifier, threadIdentifier } = parseSessionKey(
         watch.session_key,
       );
+      const notice = noticeFor({
+        watch,
+        outcome,
+        requiredChecks,
+        maximumAutomaticRepairs,
+      });
+      personText = notice.person;
+      noteText = notice.note;
       message = {
         chatIdentifier,
         messageThreadIdentifier: threadIdentifier,
-        text: noticeFor({
-          watch,
-          outcome,
-          requiredChecks,
-          maximumAutomaticRepairs,
-        }),
+        text: personText,
       };
     } catch {
       // Nothing was sent, and the notice can never be produced: end the watch
@@ -288,6 +360,15 @@ export function createCiWatchWorker({
       return false;
     }
 
+    // The effect is decided here, so the topic keeps it even when the send
+    // fails: the next turn of its session must know it. The note keeps the
+    // technical facts the person never reads.
+    recordServiceNote({
+      sessionKey: watch.session_key,
+      text: noteText,
+      receivedText: personText,
+      effectKey: `ci:${watch.update_identifier}:${watch.commit_sha}:${noticeKind(outcome)}`,
+    });
     if (!store.beginSend(watch.update_identifier, outcome.result)) {
       return false;
     }
@@ -303,7 +384,10 @@ export function createCiWatchWorker({
       return false;
     }
     store.finishSend(watch.update_identifier);
-    logger("ci_notification_sent", outcome.result);
+    logger(
+      "ci_notification_sent",
+      describeNotice(watch, outcome, requiredChecks),
+    );
     return true;
   }
 

@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { test } from "node:test";
 import { AdmissionQueue } from "telegram-pi-bridge/sessions";
 import { CiWatchStore } from "../../repository/ci-watch-store.mjs";
+import { SessionNoteStore } from "../../repository/session-note-store.mjs";
 import { openIdentifierNames } from "../../repository/identifiers.mjs";
 import { runReconcileCommand } from "./command.mjs";
 
@@ -236,4 +237,90 @@ test("resolves one case in-process and refuses to repeat it without a second not
   assert.match(warnings[0], /not an uncertain case/u);
   assert.equal(messages.length, 1);
   assert.equal(output.join("").trimEnd().split("\n").length, 1);
+});
+
+test("keeps the notice of a resolution for the next turn of the session", async (context) => {
+  const { environment, statePath } = serviceFixture(context);
+  interruptInstruction(statePath);
+  new CiWatchStore(join(statePath, "ci-watch.sqlite")).close();
+  // The service already created its conversation state.
+  const notes = new SessionNoteStore(join(statePath, "session-notes.sqlite"));
+  notes.close();
+  const messages = [];
+
+  const exitCode = await runReconcileCommand({
+    argv: [
+      "resolve",
+      "--kind",
+      "instruction",
+      "--update",
+      "11",
+      "--resolution",
+      "not_published",
+    ],
+    environment,
+    github: {},
+    telegram: {
+      async sendMessage(message) {
+        messages.push(message);
+      },
+    },
+    write: () => {},
+    warn: () => {},
+  });
+
+  assert.equal(exitCode, 0);
+  assert.equal(messages.length, 1);
+  const reopened = new SessionNoteStore(
+    join(statePath, "session-notes.sqlite"),
+  );
+  assert.equal(reopened.lastReply(sessionKey), messages[0].text);
+  assert.deepEqual(
+    reopened.claim(sessionKey).map((note) => note.text),
+    [messages[0].text],
+    "the resolution reaches the next turn once",
+  );
+  reopened.close();
+});
+
+test("keeps the notice of a resolution that Telegram cannot deliver", async (context) => {
+  const { environment, statePath } = serviceFixture(context);
+  interruptInstruction(statePath);
+  new CiWatchStore(join(statePath, "ci-watch.sqlite")).close();
+  new SessionNoteStore(join(statePath, "session-notes.sqlite")).close();
+  const warnings = [];
+
+  const exitCode = await runReconcileCommand({
+    argv: [
+      "resolve",
+      "--kind",
+      "instruction",
+      "--update",
+      "11",
+      "--resolution",
+      "not_published",
+    ],
+    environment,
+    github: {},
+    telegram: {
+      async sendMessage() {
+        throw new Error("telegram is down");
+      },
+    },
+    write: () => {},
+    warn: (message) => warnings.push(message),
+  });
+
+  assert.equal(exitCode, 0);
+  assert.equal(warnings.length, 1);
+  assert.match(warnings[0], /could not be sent/u);
+  const reopened = new SessionNoteStore(
+    join(statePath, "session-notes.sqlite"),
+  );
+  assert.equal(
+    reopened.claim(sessionKey).length,
+    1,
+    "the effect is kept even when its notice fails",
+  );
+  reopened.close();
 });

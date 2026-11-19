@@ -183,6 +183,22 @@ export class CiWatchStore {
   }
 
   /**
+   * The commit a topic was last told about for one pull request: the most
+   * recently delivered notice of that pull request. A topic that published
+   * several pull requests keeps one report per pull request, so a notice of
+   * another one never describes this pull request.
+   */
+  lastReportedForPullRequest({ sessionKey, pullRequestNumber }) {
+    return this.#database
+      .prepare(
+        `SELECT pull_request_number, commit_sha, result FROM ci_watches
+         WHERE session_key = ? AND pull_request_number = ? AND state = 'sent'
+         ORDER BY updated_at DESC, update_identifier DESC LIMIT 1`,
+      )
+      .get(sessionKey, pullRequestNumber);
+  }
+
+  /**
    * Whether the topic has work newer than its last notice: a publication whose
    * notice is not delivered yet, a publication whose delivery is unknown, or an
    * automatic repair that is reserved, queued or running. Each one will end
@@ -192,19 +208,34 @@ export class CiWatchStore {
    * first.
    */
   hasUnreportedWork(sessionKey) {
-    return (
-      this.#database
-        .prepare(
-          `SELECT 1 WHERE EXISTS (
-             SELECT 1 FROM ci_watches
-             WHERE session_key = ? AND state IN ('pending', 'sending', 'uncertain')
-           ) OR EXISTS (
-             SELECT 1 FROM ci_repairs
-             WHERE session_key = ? AND status IN ('reserved', 'queued', 'running')
-           )`,
-        )
-        .get(sessionKey, sessionKey) !== undefined
-    );
+    return this.newestUnreportedWork(sessionKey) !== undefined;
+  }
+
+  /**
+   * The newest work of the topic that was not reported yet, which is what makes
+   * an older notice stale. It names the publication that must be reported, not
+   * the notice that already was, so a preview refusal cannot blame the wrong
+   * commit. `kind` is `notice` for a publication and `repair` for an automatic
+   * repair, which publishes a new commit that does not exist yet. Of several
+   * rows of the same instant, a notice wins over a repair: it already has the
+   * commit that the person can be told about.
+   */
+  newestUnreportedWork(sessionKey) {
+    return this.#database
+      .prepare(
+        `SELECT kind, pull_request_number, commit_sha, created_at FROM (
+           SELECT 'notice' AS kind, pull_request_number, commit_sha, created_at
+           FROM ci_watches
+           WHERE session_key = ? AND state IN ('pending', 'sending', 'uncertain')
+           UNION ALL
+           SELECT 'repair' AS kind, pull_request_number, NULL AS commit_sha,
+                  created_at
+           FROM ci_repairs
+           WHERE session_key = ? AND status IN ('reserved', 'queued', 'running')
+         )
+         ORDER BY created_at DESC, kind LIMIT 1`,
+      )
+      .get(sessionKey, sessionKey);
   }
 
   /** Notices whose delivery is unknown, oldest first, for the operator. */

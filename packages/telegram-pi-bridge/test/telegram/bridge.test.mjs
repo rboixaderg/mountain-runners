@@ -119,8 +119,12 @@ function bridgeFor({
   runInstruction = async () => ({}),
   runWhenIdle,
   messages,
+  onServiceReport,
   logger = () => {},
   membershipTimeoutMilliseconds,
+  albumWaitMilliseconds,
+  now,
+  sleepImpl,
 }) {
   return new AgentBridge({
     groupIdentifier,
@@ -130,10 +134,14 @@ function bridgeFor({
     queue,
     runInstruction,
     runWhenIdle,
+    onServiceReport,
     botIdentifier,
     logger,
     pollTimeoutSeconds: 1,
     membershipTimeoutMilliseconds,
+    albumWaitMilliseconds,
+    now,
+    sleepImpl,
   });
 }
 
@@ -711,14 +719,16 @@ test("admits an image document and hands it to the execution", async (t) => {
   assert.equal((await bridge.executeNext()) !== null, true);
 
   assert.equal(executed[0].instruction, "usa aquesta imatge");
-  assert.deepEqual(executed[0].attachment, {
-    fileIdentifier: "telegram-file",
-    fileUniqueIdentifier: "telegram-unique-file",
-    fileName: "portada.png",
-    mimeType: "image/png",
-    fileSize: 1200000,
-    origin: "message",
-  });
+  assert.deepEqual(executed[0].attachments, [
+    {
+      fileIdentifier: "telegram-file",
+      fileUniqueIdentifier: "telegram-unique-file",
+      fileName: "portada.png",
+      mimeType: "image/png",
+      fileSize: 1200000,
+      origin: "message",
+    },
+  ]);
   assert.equal(
     telegram.sent[0].text,
     defaultBridgeMessages.acknowledgement("usa aquesta imatge"),
@@ -726,7 +736,7 @@ test("admits an image document and hands it to the execution", async (t) => {
   assert.equal(queue.status(10), "done");
 });
 
-test("refuses a compressed photo without queuing it", async (t) => {
+test("admits a compressed photo with its largest size", async (t) => {
   const { queue } = context(t);
   const telegram = telegramStub({
     batches: [
@@ -739,44 +749,92 @@ test("refuses a compressed photo without queuing it", async (t) => {
             { type: "mention", offset: 0, length: botUsername.length + 1 },
           ],
           photo: [
-            { file_id: "small", file_unique_id: "small-unique", width: 90 },
-            { file_id: "large", file_unique_id: "large-unique", width: 1280 },
+            {
+              file_id: "small",
+              file_unique_id: "small-unique",
+              width: 90,
+              height: 90,
+              file_size: 1000,
+            },
+            {
+              file_id: "large",
+              file_unique_id: "large-unique",
+              width: 1280,
+              height: 960,
+              file_size: 200000,
+            },
           ],
         }),
       ],
     ],
   });
-  let executions = 0;
+  const executed = [];
   const bridge = bridgeFor({
     queue,
     telegram,
-    runInstruction: async () => {
-      executions += 1;
-      return { outcome: "answered", report: "unexpected" };
+    runInstruction: async (request) => {
+      executed.push(request);
+      return { outcome: "answered", report: "Resposta al fil." };
     },
   });
 
   assert.equal(await bridge.pollOnce(), 1);
+  assert.equal((await bridge.executeNext()) !== null, true);
 
   assert.equal(queue.pendingCount(), 0);
   assert.equal(queue.readOffset(), 11);
-  assert.deepEqual(telegram.sent, [
+  assert.deepEqual(executed[0].attachments, [
     {
-      chatIdentifier: -1001234567890,
-      messageThreadIdentifier: 7,
-      text: defaultBridgeMessages.attachmentPhoto,
+      fileIdentifier: "large",
+      fileUniqueIdentifier: "large-unique",
+      fileName: "foto.jpg",
+      mimeType: "image/jpeg",
+      fileSize: 200000,
+      origin: "message",
+      width: 1280,
+      height: 960,
     },
   ]);
-  assert.equal(await bridge.executeNext(), null);
-  assert.equal(executions, 0);
-  const refusals = queue
-    .traceEntries()
-    .filter((entry) => entry.action === "attachment_refused");
-  assert.equal(refusals.length, 1);
-  assert.equal(refusals[0].update_identifier, 10);
-  assert.equal(refusals[0].author_identifier, 42);
-  assert.equal(refusals[0].session_key, "-1001234567890:7");
-  assert.equal(refusals[0].detail, "reason=photo");
+  assert.equal(
+    telegram.sent[0].text,
+    defaultBridgeMessages.acknowledgement("usa aquesta foto"),
+  );
+});
+
+test("reports the refusal of an attachment to the owner of the topic", async (t) => {
+  const { queue } = context(t);
+  const telegram = telegramStub({
+    batches: [
+      [
+        documentUpdate(10, 7, {
+          document: {
+            file_id: "file",
+            file_unique_id: "unique",
+            file_name: "photo.gif",
+            mime_type: "image/gif",
+            file_size: 1024,
+          },
+        }),
+      ],
+    ],
+  });
+  const reports = [];
+  const bridge = bridgeFor({
+    queue,
+    telegram,
+    onServiceReport: ({ sessionKey, text, effectKey }) =>
+      reports.push({ sessionKey, text, effectKey }),
+  });
+
+  assert.equal(await bridge.pollOnce(), 1);
+
+  assert.deepEqual(reports, [
+    {
+      sessionKey: "-1001234567890:7",
+      text: telegram.sent[0].text,
+      effectKey: "attachment-refusal:10",
+    },
+  ]);
 });
 
 test("refuses an oversized document with the real size", async (t) => {
@@ -790,7 +848,7 @@ test("refuses an oversized document with the real size", async (t) => {
             file_unique_id: "telegram-unique-file",
             file_name: "portada.png",
             mime_type: "image/png",
-            file_size: 3 * 1024 * 1024,
+            file_size: 21 * 1024 * 1024,
           },
         }),
       ],
@@ -807,14 +865,14 @@ test("refuses an oversized document with the real size", async (t) => {
   assert.equal(queue.pendingCount(), 0);
   assert.equal(
     telegram.sent[0].text,
-    defaultBridgeMessages.attachmentTooLarge("3.0"),
+    defaultBridgeMessages.attachmentTooLarge("21,0"),
   );
   const [refusal] = queue
     .traceEntries()
     .filter((entry) => entry.action === "attachment_refused");
   assert.equal(
     refusal.detail,
-    "reason=declared_too_large type=png bytes=3145728",
+    `reason=declared_too_large type=png bytes=${21 * 1024 * 1024}`,
   );
 });
 
@@ -854,5 +912,497 @@ test("traces the declared type of an unsupported document", async (t) => {
   assert.equal(
     refusal.detail,
     "reason=unsupported_document type=application/pdf",
+  );
+});
+
+function albumUpdate(updateIdentifier, threadIdentifier, overrides = {}) {
+  return instructionUpdate(updateIdentifier, threadIdentifier, {
+    text: undefined,
+    entities: undefined,
+    media_group_id: "album-1",
+    photo: [
+      {
+        file_id: `photo-${updateIdentifier}`,
+        file_unique_id: `unique-${updateIdentifier}`,
+        width: 1280,
+        height: 960,
+        file_size: 200000,
+      },
+    ],
+    ...overrides,
+  });
+}
+
+function captionFor(text) {
+  return {
+    caption: `@${botUsername} ${text}`,
+    caption_entities: [
+      { type: "mention", offset: 0, length: botUsername.length + 1 },
+    ],
+  };
+}
+
+test("groups three album photos into one instruction with the caption of any of them", async (t) => {
+  const { queue } = context(t);
+  const telegram = telegramStub({
+    batches: [
+      [
+        albumUpdate(10, 7),
+        albumUpdate(11, 7, captionFor("usa aquestes fotos")),
+        albumUpdate(12, 7),
+      ],
+    ],
+  });
+  const executed = [];
+  const bridge = bridgeFor({
+    queue,
+    telegram,
+    albumWaitMilliseconds: 0,
+    sleepImpl: async () => {},
+    runInstruction: async (request) => {
+      executed.push(request);
+      return { outcome: "answered", report: "Resposta al fil." };
+    },
+  });
+
+  await bridge.pollOnce();
+
+  assert.equal(queue.pendingCount(), 1);
+  assert.equal(queue.readOffset(), 13);
+  assert.equal((await bridge.executeNext()) !== null, true);
+  assert.equal(executed[0].instruction, "usa aquestes fotos");
+  assert.equal(executed[0].updateIdentifier, 10, "the album key is stable");
+  assert.deepEqual(
+    executed[0].attachments.map((attachment) => attachment.fileIdentifier),
+    ["photo-10", "photo-11", "photo-12"],
+  );
+  assert.equal(telegram.sent.length, 2);
+});
+
+test("refuses an album of six photos as one instruction", async (t) => {
+  const { queue } = context(t);
+  const telegram = telegramStub({
+    batches: [
+      [
+        albumUpdate(10, 7),
+        albumUpdate(11, 7),
+        albumUpdate(12, 7, captionFor("sis fotos")),
+        albumUpdate(13, 7),
+        albumUpdate(14, 7),
+        albumUpdate(15, 7),
+      ],
+    ],
+  });
+  const bridge = bridgeFor({
+    queue,
+    telegram,
+    albumWaitMilliseconds: 0,
+    sleepImpl: async () => {},
+  });
+
+  await bridge.pollOnce();
+
+  assert.equal(queue.pendingCount(), 0);
+  assert.equal(await bridge.executeNext(), null);
+  assert.equal(
+    telegram.sent[0].text,
+    defaultBridgeMessages.attachmentTooManyImages(6),
+  );
+  const [refusal] = queue
+    .traceEntries()
+    .filter((entry) => entry.action === "attachment_refused");
+  assert.equal(refusal.detail, "reason=too_many_images");
+});
+
+test("does not delay another session behind an album", async (t) => {
+  const { queue } = context(t);
+  const telegram = telegramStub({
+    batches: [
+      [
+        albumUpdate(10, 7),
+        instructionUpdate(11, 8, {
+          text: `@${botUsername} fes una altra cosa`,
+          entities: [
+            { type: "mention", offset: 0, length: botUsername.length + 1 },
+          ],
+        }),
+      ],
+    ],
+  });
+  const executed = [];
+  const bridge = bridgeFor({
+    queue,
+    telegram,
+    albumWaitMilliseconds: 60_000,
+    sleepImpl: async () => {},
+    runInstruction: async (request) => {
+      executed.push(request);
+      return { outcome: "answered", report: "fet" };
+    },
+  });
+
+  assert.equal(await bridge.pollOnce(), 1);
+  assert.equal((await bridge.executeNext()) !== null, true);
+  assert.equal(executed[0].instruction, "fes una altra cosa");
+  // The offset waits for the album, so the whole group is read again on restart.
+  assert.equal(queue.readOffset(), 10);
+});
+
+test("keeps a later message of the album session behind the album", async (t) => {
+  const { queue } = context(t);
+  const telegram = telegramStub({
+    batches: [
+      [
+        albumUpdate(10, 7, captionFor("aquí tens la foto")),
+        instructionUpdate(11, 7, {
+          text: `@${botUsername} posa-la a la portada`,
+          entities: [
+            { type: "mention", offset: 0, length: botUsername.length + 1 },
+          ],
+        }),
+      ],
+    ],
+  });
+  const executed = [];
+  const bridge = bridgeFor({
+    queue,
+    telegram,
+    albumWaitMilliseconds: 0,
+    sleepImpl: async () => {},
+    runInstruction: async (request) => {
+      executed.push(request);
+      return { outcome: "answered", report: "fet" };
+    },
+  });
+
+  await bridge.pollOnce();
+  assert.equal(queue.pendingCount(), 2);
+  await bridge.executeNext();
+  await bridge.executeNext();
+
+  assert.deepEqual(
+    executed.map((request) => request.updateIdentifier),
+    [10, 11],
+    "the album is admitted before the message that arrived after it",
+  );
+});
+
+test("admits an album once its bounded wait ends across polls", async (t) => {
+  const { queue } = context(t);
+  let clock = 0;
+  const telegram = telegramStub({
+    batches: [[albumUpdate(10, 7, captionFor("una foto"))], [], []],
+  });
+  const bridge = bridgeFor({
+    queue,
+    telegram,
+    albumWaitMilliseconds: 1000,
+    now: () => clock,
+    sleepImpl: async () => {},
+  });
+
+  await bridge.pollOnce();
+  assert.equal(queue.pendingCount(), 0);
+  assert.equal(queue.readOffset(), 10);
+
+  clock = 1001;
+  await bridge.pollOnce();
+  assert.equal(queue.pendingCount(), 1);
+  assert.equal(queue.readOffset(), 11);
+});
+
+/** The real Bot API returns every update with an identifier at or above the offset. */
+function redeliveringTelegram(updates) {
+  return {
+    sent: [],
+    requestedOffsets: [],
+    async getUpdates({ offset }) {
+      this.requestedOffsets.push(offset);
+      return updates.filter((update) => update.update_id >= offset);
+    },
+    async getChatMember() {
+      return { status: "member" };
+    },
+    async sendMessage({ chatIdentifier, messageThreadIdentifier, text }) {
+      this.sent.push({ chatIdentifier, messageThreadIdentifier, text });
+    },
+  };
+}
+
+test("admits an album even though Telegram re-delivers the same updates", async (t) => {
+  const { queue } = context(t);
+  const updates = [
+    albumUpdate(10, 7),
+    albumUpdate(11, 7, captionFor("usa aquestes fotos")),
+    albumUpdate(12, 7),
+  ];
+  const telegram = redeliveringTelegram(updates);
+  let clock = 0;
+  const bridge = bridgeFor({
+    queue,
+    telegram,
+    albumWaitMilliseconds: 1000,
+    now: () => clock,
+    sleepImpl: async (milliseconds) => {
+      clock += Math.max(milliseconds, 250);
+    },
+  });
+
+  for (let poll = 0; poll < 20 && queue.readOffset() < 13; poll += 1) {
+    await bridge.pollOnce();
+  }
+
+  assert.equal(queue.pendingCount(), 1);
+  assert.equal(queue.readOffset(), 13);
+  assert.equal(telegram.sent.length, 1);
+  assert.equal(
+    telegram.sent[0].text,
+    defaultBridgeMessages.acknowledgement("usa aquestes fotos"),
+  );
+});
+
+test("ignores an album that does not address the bot without a refusal", async (t) => {
+  const { queue } = context(t);
+  const telegram = telegramStub({
+    batches: [
+      [
+        albumUpdate(10, 7, { caption: "no adreçat al bot" }),
+        albumUpdate(11, 7),
+        albumUpdate(12, 7),
+        albumUpdate(13, 7),
+        albumUpdate(14, 7),
+        albumUpdate(15, 7),
+      ],
+    ],
+  });
+  const bridge = bridgeFor({
+    queue,
+    telegram,
+    albumWaitMilliseconds: 0,
+    sleepImpl: async () => {},
+  });
+
+  await bridge.pollOnce();
+
+  assert.equal(queue.pendingCount(), 0);
+  assert.deepEqual(telegram.sent, []);
+  assert.deepEqual(
+    queue
+      .traceEntries()
+      .filter((entry) => entry.action === "attachment_refused"),
+    [],
+  );
+});
+
+test("refuses a compressed photo above the 20 MB limit", async (t) => {
+  const { queue } = context(t);
+  const telegram = telegramStub({
+    batches: [
+      [
+        instructionUpdate(10, 7, {
+          text: undefined,
+          entities: undefined,
+          ...captionFor("usa aquesta foto"),
+          photo: [
+            {
+              file_id: "large",
+              file_unique_id: "large-unique",
+              width: 4096,
+              height: 3072,
+              file_size: 21 * 1024 * 1024,
+            },
+          ],
+        }),
+      ],
+    ],
+  });
+  const bridge = bridgeFor({ queue, telegram });
+
+  await bridge.pollOnce();
+
+  assert.equal(queue.pendingCount(), 0);
+  assert.equal(
+    telegram.sent[0].text,
+    defaultBridgeMessages.attachmentTooLarge("21,0"),
+  );
+  const [refusal] = queue
+    .traceEntries()
+    .filter((entry) => entry.action === "attachment_refused");
+  assert.equal(
+    refusal.detail,
+    `reason=declared_too_large type=jpeg bytes=${21 * 1024 * 1024}`,
+  );
+});
+
+test("does not send the same refusal again after a restart", async (t) => {
+  const { queue } = context(t);
+  const updates = [
+    albumUpdate(10, 7, captionFor("aquí tens les fotos")),
+    documentUpdate(11, 8, {
+      document: {
+        file_id: "bad",
+        file_unique_id: "bad-unique",
+        file_name: "cartell.gif",
+        mime_type: "image/gif",
+        file_size: 1000,
+      },
+    }),
+  ];
+  const telegram = redeliveringTelegram(updates);
+  let clock = 0;
+  const bridgeOptions = {
+    queue,
+    telegram,
+    albumWaitMilliseconds: 1000,
+    now: () => clock,
+    sleepImpl: async (milliseconds) => {
+      clock += Math.max(milliseconds, 250);
+    },
+  };
+
+  const first = bridgeFor(bridgeOptions);
+  await first.pollOnce();
+  assert.equal(
+    telegram.sent.filter(
+      (message) => message.text === defaultBridgeMessages.attachmentUnsupported,
+    ).length,
+    1,
+  );
+  assert.equal(queue.readOffset(), 10);
+
+  const second = bridgeFor(bridgeOptions);
+  for (let poll = 0; poll < 20 && queue.readOffset() < 12; poll += 1) {
+    await second.pollOnce();
+  }
+  assert.equal(
+    telegram.sent.filter(
+      (message) => message.text === defaultBridgeMessages.attachmentUnsupported,
+    ).length,
+    1,
+    "the durable trace prevents the repeated refusal",
+  );
+  assert.equal(queue.readOffset(), 12);
+});
+
+test("does not send the same membership notice again after a restart", async (t) => {
+  const { queue } = context(t);
+  const updates = [
+    albumUpdate(10, 7, captionFor("aquí tens les fotos")),
+    instructionUpdate(11, 8, {
+      from: { id: 43, is_bot: false },
+      text: `@${botUsername} fes una altra cosa`,
+      entities: [
+        { type: "mention", offset: 0, length: botUsername.length + 1 },
+      ],
+    }),
+  ];
+  const telegram = redeliveringTelegram(updates);
+  telegram.getChatMember = async ({ userIdentifier }) => {
+    if (userIdentifier === 43) {
+      throw new Error("unverifiable");
+    }
+    return { status: "member" };
+  };
+  let clock = 0;
+  const bridgeOptions = {
+    queue,
+    telegram,
+    albumWaitMilliseconds: 1000,
+    now: () => clock,
+    sleepImpl: async (milliseconds) => {
+      clock += Math.max(milliseconds, 250);
+    },
+  };
+
+  const first = bridgeFor(bridgeOptions);
+  await first.pollOnce();
+  assert.equal(
+    telegram.sent.filter(
+      (message) => message.text === defaultBridgeMessages.membershipUnavailable,
+    ).length,
+    1,
+  );
+
+  const second = bridgeFor(bridgeOptions);
+  for (let poll = 0; poll < 20 && queue.readOffset() < 12; poll += 1) {
+    await second.pollOnce();
+  }
+  assert.equal(
+    telegram.sent.filter(
+      (message) => message.text === defaultBridgeMessages.membershipUnavailable,
+    ).length,
+    1,
+    "the durable denial prevents the repeated notice",
+  );
+});
+
+test("refuses a photo whose largest size cannot be read", async (t) => {
+  const { queue } = context(t);
+  const telegram = telegramStub({
+    batches: [
+      [
+        instructionUpdate(10, 7, {
+          text: undefined,
+          entities: undefined,
+          ...captionFor("usa aquesta foto"),
+          photo: [{}],
+        }),
+      ],
+    ],
+  });
+  const bridge = bridgeFor({ queue, telegram });
+
+  await bridge.pollOnce();
+
+  assert.equal(queue.pendingCount(), 0);
+  assert.equal(
+    telegram.sent[0].text,
+    defaultBridgeMessages.attachmentInvalidPhoto,
+  );
+  const [refusal] = queue
+    .traceEntries()
+    .filter((entry) => entry.action === "attachment_refused");
+  assert.equal(refusal.detail, "reason=invalid_photo");
+});
+
+test("keeps arrival order with two albums and a message of one session", async (t) => {
+  const { queue } = context(t);
+  const telegram = telegramStub({
+    batches: [
+      [
+        albumUpdate(10, 7, captionFor("primer album")),
+        instructionUpdate(11, 7, {
+          text: `@${botUsername} i després això`,
+          entities: [
+            { type: "mention", offset: 0, length: botUsername.length + 1 },
+          ],
+        }),
+        albumUpdate(12, 7, {
+          media_group_id: "album-2",
+          ...captionFor("segon album"),
+        }),
+      ],
+    ],
+  });
+  const executed = [];
+  const bridge = bridgeFor({
+    queue,
+    telegram,
+    albumWaitMilliseconds: 0,
+    sleepImpl: async () => {},
+    runInstruction: async (request) => {
+      executed.push(request);
+      return { outcome: "answered", report: "fet" };
+    },
+  });
+
+  await bridge.pollOnce();
+  while (await bridge.executeNext()) {
+    // drain the queue
+  }
+
+  assert.deepEqual(
+    executed.map((request) => request.updateIdentifier),
+    [10, 11, 12],
   );
 });

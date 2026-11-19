@@ -488,6 +488,50 @@ test("reports the last delivered notice of the session, never a pending one", (c
   store.close();
 });
 
+test("reports the last delivered notice of one pull request, never of another", (context) => {
+  const store = new CiWatchStore(fixture(context));
+  store.add(request);
+  store.beginSend(12, "success");
+  store.finishSend(12);
+  store.add({
+    ...request,
+    updateIdentifier: 13,
+    pullRequestNumber: 124,
+    commitSha: "b".repeat(40),
+  });
+  store.beginSend(13, "failure");
+  store.finishSend(13);
+
+  assert.deepEqual(
+    {
+      ...store.lastReportedForPullRequest({
+        sessionKey: request.sessionKey,
+        pullRequestNumber: 123,
+      }),
+    },
+    {
+      pull_request_number: 123,
+      commit_sha: request.commitSha,
+      result: "success",
+    },
+  );
+  assert.equal(
+    store.lastReportedForPullRequest({
+      sessionKey: request.sessionKey,
+      pullRequestNumber: 124,
+    }).commit_sha,
+    "b".repeat(40),
+  );
+  assert.equal(
+    store.lastReportedForPullRequest({
+      sessionKey: request.sessionKey,
+      pullRequestNumber: 125,
+    }),
+    undefined,
+  );
+  store.close();
+});
+
 test("tells whether the topic has work newer than its last notice", (context) => {
   const store = new CiWatchStore(fixture(context));
   const topic = "-100123:7";
@@ -509,6 +553,54 @@ test("tells whether the topic has work newer than its last notice", (context) =>
   assert.equal(store.hasUnreportedWork(topic), true);
   store.finishRepair(repair.sequence, { status: "done", outcome: "published" });
   assert.equal(store.hasUnreportedWork(topic), false);
+  store.close();
+});
+
+test("names the newest work that the topic was not reported yet", (context) => {
+  let current = new Date("2026-11-14T10:00:00Z");
+  const store = new CiWatchStore(fixture(context), { now: () => current });
+  const topic = "-100123:7";
+  assert.equal(store.newestUnreportedWork(topic), undefined);
+
+  // A delivered notice is reported work: it cannot be named as newer.
+  store.add(request);
+  store.beginSend(12, "success");
+  store.finishSend(12);
+  assert.equal(store.newestUnreportedWork(topic), undefined);
+
+  current = new Date("2026-11-14T10:01:00Z");
+  store.add({ ...request, updateIdentifier: 13, commitSha: "b".repeat(40) });
+  assert.deepEqual(
+    { ...store.newestUnreportedWork(topic) },
+    {
+      kind: "notice",
+      pull_request_number: 123,
+      commit_sha: "b".repeat(40),
+      created_at: "2026-11-14T10:01:00.000Z",
+    },
+  );
+
+  // A repair publishes a new commit that does not exist yet: the older commit
+  // it repairs is not the newer work.
+  current = new Date("2026-11-14T10:02:00Z");
+  store.requestRepair(repairRequest);
+  assert.deepEqual(
+    { ...store.newestUnreportedWork(topic) },
+    {
+      kind: "repair",
+      pull_request_number: 123,
+      commit_sha: null,
+      created_at: "2026-11-14T10:02:00.000Z",
+    },
+  );
+  // Of two rows of the same instant, the notice wins: it already has the commit
+  // the person can be told about.
+  current = new Date("2026-11-14T10:02:00Z");
+  store.add({ ...request, updateIdentifier: 14, commitSha: "c".repeat(40) });
+  assert.equal(store.newestUnreportedWork(topic).kind, "notice");
+  assert.equal(store.newestUnreportedWork(topic).commit_sha, "c".repeat(40));
+
+  assert.equal(store.newestUnreportedWork("-100123:8"), undefined);
   store.close();
 });
 

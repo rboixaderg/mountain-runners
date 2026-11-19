@@ -163,3 +163,35 @@ test("restart never reopens a request that ended", (context) => {
   assert.deepEqual(second.uncertain(), []);
   second.close();
 });
+
+test("reports the newest request of one pull request, never of another", (context) => {
+  const store = new MergeRequestStore(fixture(context));
+  store.begin(request);
+  store.markMerged(1, "b".repeat(40));
+  store.begin({ ...request, updateIdentifier: 2, pullRequestNumber: 43 });
+
+  const merged = store.latest({
+    sessionKey: request.sessionKey,
+    pullRequestNumber: request.pullRequestNumber,
+  });
+  assert.equal(merged.update_identifier, 1);
+  assert.equal(merged.state, mergeStates.merged);
+  assert.equal(merged.merge_commit_sha, "b".repeat(40));
+  const second = store.latest({
+    sessionKey: request.sessionKey,
+    pullRequestNumber: 43,
+  });
+  assert.equal(second.update_identifier, 2);
+  assert.equal(second.state, mergeStates.merging);
+  store.markFailed(2);
+  assert.equal(
+    store.latest({ sessionKey: request.sessionKey, pullRequestNumber: 43 })
+      .state,
+    mergeStates.failed,
+  );
+  assert.equal(
+    store.latest({ sessionKey: "-100999:4", pullRequestNumber: 42 }),
+    undefined,
+  );
+  store.close();
+});

@@ -3,6 +3,7 @@
 
 import { join } from "node:path";
 import { runPiPrompt } from "telegram-pi-bridge/pi";
+import { attachmentDirectoryName } from "../attachments/destination.mjs";
 import { stopSandboxedCommands } from "../sandbox/commands.mjs";
 
 export function buildPiEnvironment({
@@ -11,6 +12,8 @@ export function buildPiEnvironment({
   providerEnvironmentVariables,
   sandbox,
   sandboxIdentifier,
+  worktreePath,
+  attachments = [],
   readOnly = false,
 }) {
   const allowedEnvironment = {
@@ -32,6 +35,18 @@ export function buildPiEnvironment({
       allowedEnvironment[name] = environment[name];
     }
   }
+  // The view_attachment tool reads the copy in the worktree, never the store in
+  // the state directory. The names are the service list; a free path is not
+  // accepted. The classifier runs without a worktree and without tools.
+  if (typeof worktreePath === "string") {
+    allowedEnvironment.MR_AGENT_ATTACHMENT_PATH = join(
+      worktreePath,
+      attachmentDirectoryName,
+    );
+    allowedEnvironment.MR_AGENT_ATTACHMENT_NAMES = JSON.stringify(
+      attachments.map((attachment) => attachment.name),
+    );
+  }
   return allowedEnvironment;
 }
 
@@ -41,10 +56,13 @@ export function projectPiOptions({
   sessionIdentifier,
   sandboxIdentifier,
   message,
+  images = [],
+  attachments = [],
   worktreePath,
   environment = process.env,
   timeoutMilliseconds = config.limits.executionTimeoutMs,
   signal,
+  onPromptSent,
   stopCommands = stopSandboxedCommands,
   readOnly = false,
   classifyOnly = false,
@@ -56,13 +74,15 @@ export function projectPiOptions({
     profileDirectory,
     sessionIdentifier: classifyOnly ? undefined : sessionIdentifier,
     sessionDirectory: classifyOnly ? undefined : config.paths.sessions,
-    tools: classifyOnly ? [] : ["sandbox_bash"],
+    tools: classifyOnly ? [] : ["sandbox_bash", "view_attachment"],
     extensions: classifyOnly
       ? []
       : [join(profileDirectory, "extensions", "sandbox-bash.ts")],
     message,
+    images,
     timeoutMilliseconds,
     signal,
+    onPromptSent,
     onInterrupted: classifyOnly
       ? undefined
       : () => stopCommands(sandboxIdentifier),
@@ -76,6 +96,8 @@ export function projectPiOptions({
         limits: config.limits,
       },
       sandboxIdentifier,
+      worktreePath,
+      attachments,
       readOnly,
     }),
   };

@@ -19,7 +19,9 @@ import {
   type School,
 } from "../../lib/content/models";
 import {
+  createPreviewPostVariants,
   createPublishedPostVariants,
+  type PostSource,
   type PostVariant,
 } from "../../lib/content/posts";
 import {
@@ -70,16 +72,20 @@ export async function loadPublicationCatalog(): Promise<PublicationCatalog> {
   return createPublicationCatalog(await loadContentSource());
 }
 
-export async function loadPublishedPostVariants(): Promise<PostVariant[]> {
+async function loadPostSource(): Promise<PostSource> {
   const [posts, events] = await Promise.all([
     loadCollection<Post>("posts", collectionSchemas.posts),
     loadCollection<Event>("events", collectionSchemas.events),
   ]);
-  return createPublishedPostVariants(
-    {
-      posts,
-      eventIds: new Set(events.map(({ id }) => id)),
-    },
-    buildToday(),
-  );
+  return { posts, eventIds: new Set(events.map(({ id }) => id)) };
+}
+
+export async function loadPublishedPostVariants(): Promise<PostVariant[]> {
+  return createPublishedPostVariants(await loadPostSource(), buildToday());
+}
+
+// Mirrors `getBuildPostVariants` under `PUBLIC_PREVIEW=true`, so a test can tell
+// which drafts the build renders without reading them from the page.
+export async function loadPreviewPostVariants(): Promise<PostVariant[]> {
+  return createPreviewPostVariants(await loadPostSource(), buildToday());
 }

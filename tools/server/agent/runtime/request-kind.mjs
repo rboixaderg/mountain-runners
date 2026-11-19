@@ -1,6 +1,11 @@
 // Interpret only the verified person's current request. This ephemeral model
 // call has no history, repository context, skills, extensions or tools. It does
 // not accept instructions discovered while reading repository content.
+//
+// The topic context (the last reply of the agent, the pending local work and the
+// pull request of the topic) is data the service reads read-only: it tells the
+// classifier whether the request continues the conversation, and it is never a
+// request.
 
 import { mkdir } from "node:fs/promises";
 import { join } from "node:path";
@@ -12,7 +17,7 @@ import {
 
 export async function classifyRequest(
   config,
-  { instruction, signal, environment },
+  { instruction, context, signal, environment },
 ) {
   const directory = join(config.paths.state, "request-classifier");
   await mkdir(directory, { recursive: true, mode: 0o700 });
@@ -23,7 +28,7 @@ export async function classifyRequest(
     classifyOnly: true,
     environment,
     signal,
-    message: buildClassificationPrompt(instruction),
+    message: buildClassificationPrompt(instruction, context),
   });
   if (result.timedOut || result.aborted) {
     throw new Error("The request classification did not complete.");

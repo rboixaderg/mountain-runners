@@ -45,16 +45,37 @@ export function createCiRepairExecutor({
   readCiState,
   telegram,
   recordTrace = () => {},
+  // The text of a report is an effect the next turn of the topic must know.
+  recordServiceNote = () => {},
   logger = () => {},
 }) {
   // Set when a result could not be stored: the `running` row blocks every
   // later claim until a restart, so each report from then on says so.
   let queueStalled = false;
 
-  async function report(repair, reportText, { signal } = {}) {
-    const text = queueStalled
-      ? `${reportText}\n\n${ciRepairReports.queueStalled}`
-      : reportText;
+  /**
+   * Tell the topic what happened. The note is only the service-written part of
+   * the text (`noteText`), because the model's own words already live in its
+   * session and a note is presented as trusted service data. `state` gives the
+   * report a durable identity, so a repeated report of the same attempt never
+   * duplicates the effect.
+   */
+  async function report(
+    repair,
+    reportText,
+    { signal, state, noteText = reportText } = {},
+  ) {
+    const suffix = queueStalled ? `\n\n${ciRepairReports.queueStalled}` : "";
+    const text = `${reportText}${suffix}`;
+    recordServiceNote({
+      sessionKey: repair.session_key,
+      text: `${noteText}${suffix}`,
+      receivedText: text,
+      // `sequence` is a row identity that `resetRepairs` can reuse, so the
+      // effect is named after columns that survive it: the update, the commit
+      // and the moment the attempt was created.
+      effectKey: `repair:${repair.update_identifier}:${repair.commit_sha}:${repair.created_at}:${state}`,
+    });
     try {
       const { chatIdentifier, threadIdentifier } = parseSessionKey(
         repair.session_key,
@@ -140,7 +161,9 @@ export function createCiRepairExecutor({
           traceAction: "ci_repair_aborted",
         });
         // The stop signal is already aborted: the notice needs its own attempt.
-        await report(repair, ciRepairReports.interrupted(common));
+        await report(repair, ciRepairReports.interrupted(common), {
+          state: "interrupted",
+        });
         return true;
       }
       logger(
@@ -153,7 +176,10 @@ export function createCiRepairExecutor({
         traceAction: "ci_repair_not_published",
         detail: `${describe(repair)} pull request unreadable`,
       });
-      await report(repair, ciRepairReports.stateUnknown(common), { signal });
+      await report(repair, ciRepairReports.stateUnknown(common), {
+        signal,
+        state: "state_unknown",
+      });
       return true;
     }
     if (
@@ -166,7 +192,10 @@ export function createCiRepairExecutor({
         traceAction: "ci_repair_not_published",
         detail: `${describe(repair)} not applicable`,
       });
-      await report(repair, ciRepairReports.notApplicable(common), { signal });
+      await report(repair, ciRepairReports.notApplicable(common), {
+        signal,
+        state: "not_applicable",
+      });
       return true;
     }
     // The queued attempt may be old: repairing a commit whose required checks
@@ -184,7 +213,9 @@ export function createCiRepairExecutor({
           outcome: "aborted",
           traceAction: "ci_repair_aborted",
         });
-        await report(repair, ciRepairReports.interrupted(common));
+        await report(repair, ciRepairReports.interrupted(common), {
+          state: "interrupted",
+        });
         return true;
       }
       logger(
@@ -205,14 +236,23 @@ export function createCiRepairExecutor({
       });
       const notice = (() => {
         if (classification === null) {
-          return ciRepairReports.checksUnreadable(common);
+          return {
+            state: "checks_unreadable",
+            text: ciRepairReports.checksUnreadable(common),
+          };
         }
         if (classification.state === "success") {
-          return ciRepairReports.checksNotFailing(common);
+          return {
+            state: "checks_not_failing",
+            text: ciRepairReports.checksNotFailing(common),
+          };
         }
-        return ciRepairReports.checksNotDecisive(common);
+        return {
+          state: "checks_not_decisive",
+          text: ciRepairReports.checksNotDecisive(common),
+        };
       })();
-      await report(repair, notice, { signal });
+      await report(repair, notice.text, { signal, state: notice.state });
       return true;
     }
     let result;
@@ -237,7 +277,9 @@ export function createCiRepairExecutor({
       });
       // The process may already be stopping: the uncertain result must reach
       // the topic anyway.
-      await report(repair, ciRepairReports.uncertain(common));
+      await report(repair, ciRepairReports.uncertain(common), {
+        state: "uncertain",
+      });
       return true;
     }
     if (publishedOutcomes.has(result.outcome)) {
@@ -253,7 +295,17 @@ export function createCiRepairExecutor({
           pullRequestNumber: repair.pull_request_number,
           report: result.report,
         }),
-        { signal },
+        {
+          signal,
+          state: "published",
+          // The note keeps only what the service wrote about the publication:
+          // the pull request, the branch, the published commit and the local
+          // checks. The model's words stay in the text of the topic.
+          noteText: ciRepairReports.publishedNote({
+            pullRequestNumber: repair.pull_request_number,
+            publicationNote: result.serviceText ?? null,
+          }),
+        },
       );
       return true;
     }
@@ -267,7 +319,13 @@ export function createCiRepairExecutor({
       await report(
         repair,
         ciRepairReports.unchanged({ ...common, detail: result.report }),
-        { signal },
+        {
+          signal,
+          state: "unchanged",
+          // Only the service sentence is the note: the detail is the model's
+          // own explanation and stays in its session.
+          noteText: ciRepairReports.unchangedNotice(common),
+        },
       );
       return true;
     }
@@ -279,7 +337,9 @@ export function createCiRepairExecutor({
       });
       // The stop signal is already aborted: the notice uses its own transport
       // attempt, or the topic would never learn that the repair stopped.
-      await report(repair, ciRepairReports.interrupted(common));
+      await report(repair, ciRepairReports.interrupted(common), {
+        state: "interrupted",
+      });
       return true;
     }
     close(repair, {
@@ -290,7 +350,7 @@ export function createCiRepairExecutor({
     await report(
       repair,
       ciRepairReports.failed({ ...common, detail: result.report }),
-      { signal },
+      { signal, state: "failed" },
     );
     return true;
   }

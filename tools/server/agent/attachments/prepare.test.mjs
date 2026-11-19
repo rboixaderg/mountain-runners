@@ -4,7 +4,6 @@ import {
   mkdirSync,
   mkdtempSync,
   readdirSync,
-  readFileSync,
   rmSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
@@ -72,7 +71,7 @@ function context(
   };
 }
 
-test("downloads, cleans and places the attachment in the worktree", async (context_) => {
+test("downloads and cleans the attachment without writing it to the worktree", async (context_) => {
   const {
     prepareAttachment,
     worktreePath,
@@ -84,21 +83,22 @@ test("downloads, cleans and places the attachment in the worktree", async (conte
 
   const result = await prepareAttachment({
     attachment: attachment(),
-    worktreePath,
   });
 
   assert.equal(result.refusal, undefined);
-  assert.deepEqual(result.prepared, {
-    relativePath: ".agent-attachments/portada.png",
+  assert.deepEqual(result.image, {
     type: "png",
     mimeType: "image/png",
+    extension: ".png",
     width: 200,
     height: 100,
-    bytes: original.length,
+    bytes: original,
+    origin: "message",
   });
-  assert.deepEqual(
-    readFileSync(join(worktreePath, ".agent-attachments", "portada.png")),
-    original,
+  assert.equal(
+    existsSync(join(worktreePath, ".agent-attachments")),
+    false,
+    "the trusted preparation never writes the image to the worktree",
   );
   assert.equal(telegram.downloads.length, 1);
   // The caller of the bridge chooses the limit; the download is bounded anyway.
@@ -196,13 +196,11 @@ test("refuses an undeclared oversized download with the real size", async (conte
 
   const result = await prepareThroughApi({
     attachment: attachment({ fileSize: null }),
-    worktreePath,
   });
 
   assert.equal(result.refusal.reason, "too_large");
   assert.equal(result.refusal.bytes, oversized);
-  assert.match(attachmentRefusalReport(result.refusal), /2\.0 MB/u);
-  assert.match(attachmentRefusalReport(result.refusal), /2\.400 px/u);
+  assert.match(attachmentRefusalReport(result.refusal), /20 MB/u);
   assert.deepEqual(readdirSync(temporaryDirectory), []);
   assert.equal(existsSync(join(worktreePath, ".agent-attachments")), false);
 });

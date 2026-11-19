@@ -9,6 +9,13 @@
 // guessed: only the publisher's own comment, written after the request and
 // naming the pinned commit, is reported.
 //
+// Waiting also reads the runs of the preview workflow (T8.8): a run that ended
+// badly ends the request as failed and says so in plain words, instead of
+// letting the person wait for a preview that will never be published. Only the
+// runs that the service's own identity started are considered, and the publisher
+// comment is read first: a run never confirms an address, and the comment is what
+// binds the URL to the commit.
+//
 // The author's membership is asked again when the request runs, as the merge
 // does: a preview publishes the pull request, so it is not ordinary queued work.
 //
@@ -16,7 +23,11 @@
 // repair publication never asks for a preview.
 
 import { parseSessionKey } from "telegram-pi-bridge/sessions";
-import { isDefiniteRejection, statusClass } from "../repository/github.mjs";
+import {
+  isDefiniteRejection,
+  isPermissionRejection,
+  statusClass,
+} from "../repository/github.mjs";
 import { classifyCommitStatus } from "../repository/ci-status.mjs";
 import { confirmedPreviewOrigin } from "../repository/preview-comment.mjs";
 import {
@@ -28,7 +39,13 @@ import {
   requestSignal,
   sleep,
 } from "../repository/request-signal.mjs";
-import { previewCommand, previewReports } from "../policy/development.mjs";
+import {
+  previewCommand,
+  previewNotes,
+  previewReports,
+  previewRunsRetryMilliseconds,
+  pullRequestReviewUrl,
+} from "../policy/development.mjs";
 import { ciResults } from "./ci-watch.mjs";
 
 const refusals = {
@@ -48,6 +65,90 @@ function describeTarget({ pullRequestNumber, commit }) {
   return `#${pullRequestNumber} ${commit.slice(0, 7)}`;
 }
 
+/**
+ * The window in which a run can belong to each request, read from every request
+ * that posted its `/preview` comment. A request's window starts at its own
+ * comment and ends at the comment of the next request, whatever state that
+ * request is in: a request that already ended still separates the runs of its
+ * neighbours, so the bounds never move and never leave a gap.
+ *
+ * GitHub timestamps have second granularity, so two requests of the same second
+ * share their window. They are resolved by request identifier, which is the
+ * order in which the service posted the comments: the request with the lower
+ * identifier takes the first run of that burst (`rank`), the next one takes the
+ * second, and so on. Runs are ordered by creation time and then by run
+ * identifier. The order is a best available guess that GitHub gives us no
+ * comment on a run to remove: a wrong match can only end a request as failed,
+ * never confirm an address, because the publisher comment is read first and is
+ * the only source of the URL.
+ */
+function previewRunWindows(requests) {
+  const ordered = [...requests].sort((left, right) => {
+    const byComment =
+      Date.parse(left.commented_at) - Date.parse(right.commented_at);
+    return byComment === 0
+      ? left.update_identifier - right.update_identifier
+      : byComment;
+  });
+  const windows = new Map();
+  for (const [index, request] of ordered.entries()) {
+    const from = request.commented_at;
+    // The next comment of another request that is strictly later; the request
+    // of the same second belongs to the same burst and does not bound it.
+    const next = ordered
+      .slice(index + 1)
+      .find((later) => Date.parse(later.commented_at) > Date.parse(from));
+    const rank = ordered
+      .slice(0, index)
+      .filter((earlier) => earlier.commented_at === from).length;
+    windows.set(request.update_identifier, {
+      from,
+      until: next === undefined ? null : next.commented_at,
+      rank,
+    });
+  }
+  return windows;
+}
+
+/**
+ * The run that decides the request. Only runs that the service's own identity
+ * started count: the workflow runs for every new comment of every pull request,
+ * so a run of another person's `/preview` is never a result of this request.
+ * Among those inside the window, the first one that already ended decides; a run
+ * still queued or running, and a run whose conclusion GitHub did not compute
+ * (`null`), are no result yet. A run ordered after that first one changes
+ * nothing. Runs are ordered by creation time and, on an equal timestamp, by run
+ * identifier, so the order never depends on the order GitHub returns.
+ */
+function endedPreviewRun({ runs, window, serviceLogin }) {
+  const from = Date.parse(window.from);
+  const until = window.until === null ? null : Date.parse(window.until);
+  // A bound that cannot be read says nothing: never guess a window from it.
+  if (!Number.isFinite(from)) return null;
+  if (until !== null && !Number.isFinite(until)) return null;
+  const candidates = runs
+    .filter((run) => run.event === "issue_comment")
+    .filter(
+      (run) =>
+        run.actor === serviceLogin || run.triggeringActor === serviceLogin,
+    )
+    .filter((run) => run.status === "completed")
+    .filter((run) => {
+      const createdAt = Date.parse(run.createdAt);
+      if (!Number.isFinite(createdAt)) return false;
+      if (createdAt < from) return false;
+      return until === null || createdAt < until;
+    })
+    .sort((left, right) => {
+      const byTime = Date.parse(left.createdAt) - Date.parse(right.createdAt);
+      return byTime === 0 ? left.identifier - right.identifier : byTime;
+    });
+  const run = candidates[window.rank];
+  if (run === undefined) return null;
+  if (run.conclusion === "success" || run.conclusion === null) return null;
+  return run;
+}
+
 export function createPreviewRequests({
   store,
   reportedCommits,
@@ -60,6 +161,8 @@ export function createPreviewRequests({
   confirmationTimeoutMilliseconds,
   requestTimeoutMilliseconds = defaultRequestTimeoutMilliseconds,
   recordTrace = () => {},
+  // The text of a report is an effect the next turn of the topic must know.
+  recordServiceNote = () => {},
   logger = () => {},
   now = () => new Date(),
 }) {
@@ -74,13 +177,13 @@ export function createPreviewRequests({
     }
   }
 
-  function refuse(request, reason, text, target) {
+  function refuse(request, reason, text, detail) {
     safeTrace({
       updateIdentifier: request.updateIdentifier,
       authorIdentifier: request.authorIdentifier,
       sessionKey: request.sessionKey,
       action: "preview_refused",
-      detail: target ? `${reason} ${describeTarget(target)}` : reason,
+      detail: detail ?? reason,
     });
     return { outcome: "answered", report: text };
   }
@@ -136,15 +239,31 @@ export function createPreviewRequests({
       pullRequestNumber: reported.pull_request_number,
       commit: reported.commit_sha,
     };
+    const reviewUrl = pullRequestReviewUrl({
+      repository,
+      pullRequestNumber: target.pullRequestNumber,
+    });
     // A publication newer than the reported notice, including one whose notice
     // was never confirmed, owns the topic: the older commit can no longer be
-    // previewed.
-    if (reportedCommits.hasUnreportedWork(request.sessionKey)) {
+    // previewed. The refusal names that newer work, never the notice that was
+    // already reported.
+    const newerWork = reportedCommits.newestUnreportedWork(request.sessionKey);
+    if (newerWork !== undefined) {
+      const beingPrepared = newerWork.kind === "repair";
+      const detail = beingPrepared
+        ? `${refusals.newerWork} #${newerWork.pull_request_number} repair`
+        : `${refusals.newerWork} #${newerWork.pull_request_number} ${newerWork.commit_sha.slice(0, 7)}`;
       return refuse(
         request,
         refusals.newerWork,
-        previewReports.newerWork(target),
-        target,
+        previewReports.newerWork({
+          reviewUrl: pullRequestReviewUrl({
+            repository,
+            pullRequestNumber: newerWork.pull_request_number,
+          }),
+          beingPrepared,
+        }),
+        detail,
       );
     }
     safeTrace({
@@ -164,13 +283,13 @@ export function createPreviewRequests({
         return refuse(
           request,
           refusals.membershipUnavailable,
-          previewReports.membershipUnavailable,
+          previewReports.membershipUnavailable({ reviewUrl }),
         );
       }
       return refuse(
         request,
         refusals.membershipRevoked,
-        previewReports.membershipRevoked,
+        previewReports.membershipRevoked({ reviewUrl }),
       );
     }
     safeTrace({
@@ -193,7 +312,12 @@ export function createPreviewRequests({
       refusal = refusals.unreadable;
     }
     if (refusal !== null) {
-      return refuse(request, refusal, refusalTexts[refusal](target), target);
+      return refuse(
+        request,
+        refusal,
+        refusalTexts[refusal]({ reviewUrl }),
+        `${refusal} ${describeTarget(target)}`,
+      );
     }
 
     const begun = store.begin({
@@ -207,16 +331,16 @@ export function createPreviewRequests({
       return refuse(
         request,
         refusals.alreadyHandled,
-        previewReports.alreadyHandled,
-        target,
+        previewReports.alreadyHandled({ reviewUrl }),
+        `${refusals.alreadyHandled} ${describeTarget(target)}`,
       );
     }
     if (begun === previewBeginResults.open) {
       return refuse(
         request,
         refusals.alreadyInProgress,
-        previewReports.alreadyInProgress(target),
-        target,
+        previewReports.alreadyInProgress({ reviewUrl }),
+        `${refusals.alreadyInProgress} ${describeTarget(target)}`,
       );
     }
 
@@ -240,10 +364,7 @@ export function createPreviewRequests({
         });
         return {
           outcome: "answered",
-          report: previewReports.failed({
-            ...target,
-            statusClass: statusClass(error.status),
-          }),
+          report: previewReports.failed({ reviewUrl }),
         };
       }
       // The comment may or may not exist: it is never posted again blindly.
@@ -259,7 +380,10 @@ export function createPreviewRequests({
         action: "preview_uncertain",
         detail: describeTarget(target),
       });
-      return { outcome: "uncertain", report: previewReports.uncertain(target) };
+      return {
+        outcome: "uncertain",
+        report: previewReports.uncertain({ reviewUrl }),
+      };
     }
     store.markAwaiting(request.updateIdentifier, comment.createdAt);
     safeTrace({
@@ -269,14 +393,27 @@ export function createPreviewRequests({
       action: "preview_commented",
       detail: describeTarget(target),
     });
-    return { outcome: "answered", report: previewReports.requested(target) };
+    return {
+      outcome: "answered",
+      report: previewReports.requested({ reviewUrl }),
+    };
   }
 
-  /** Whether the report reached Telegram. */
-  async function report(row, text, signal) {
+  /**
+   * Whether the report reached Telegram. A failed send is retried by the next
+   * cycle, so the note carries the identity of the effect: the session receives
+   * it once, whatever the number of attempts. The note keeps the facts the next
+   * turn of the model needs; the text sent to the topic stays plain.
+   */
+  async function report(row, text, { signal, state, note }) {
     const { chatIdentifier, threadIdentifier } = parseSessionKey(
       row.session_key,
     );
+    recordServiceNote({
+      sessionKey: row.session_key,
+      text: note,
+      effectKey: `preview:${row.update_identifier}:${state}`,
+    });
     try {
       await telegram.sendMessage({
         chatIdentifier,
@@ -295,21 +432,103 @@ export function createPreviewRequests({
   }
 
   /**
+   * The runs of the preview workflow that the service itself triggered after the
+   * oldest awaiting comment, or `null` when this cycle has to keep the publisher
+   * comment alone. Reading runs needs `Actions: read` and a login to tell the
+   * service's own comments apart; GitHub answers 403 or 404 without the
+   * permission, and any other read failure hides the runs of one cycle. Neither
+   * ends a request: the comment read and the deadline still run. A refusal by the
+   * credential is asked again at most once an hour, so granting the permission
+   * needs no restart.
+   */
+  let serviceLogin;
+  let previewRunsRetryAfter = 0;
+
+  async function readPreviewRuns({ rows, signal }) {
+    if (now().getTime() < previewRunsRetryAfter) return null;
+    const boundedSignal = requestSignal(signal, requestTimeoutMilliseconds);
+    if (serviceLogin === undefined) {
+      try {
+        serviceLogin = await github.getAuthenticatedLogin({
+          signal: boundedSignal,
+        });
+      } catch (error) {
+        // Without the identity of the service, no run can be attributed safely.
+        // It is asked again with the same backoff as a refused read, so a
+        // credential that cannot answer does not fill the log every cycle.
+        previewRunsRetryAfter = now().getTime() + previewRunsRetryMilliseconds;
+        logger(
+          "preview_identity_read_failed",
+          error instanceof Error ? error.name : "unknown",
+        );
+        return null;
+      }
+    }
+    // The bound is the earliest comment instant. It is compared as an instant,
+    // not as a string: GitHub timestamps have second granularity and the store
+    // writes milliseconds, so a lexicographic minimum can be the later moment of
+    // the same second and hide the run created in between.
+    const earliestCommentedAt = rows
+      .map((request) => Date.parse(request.commented_at))
+      .reduce((earliest, moment) => (moment < earliest ? moment : earliest));
+    if (!Number.isFinite(earliestCommentedAt)) {
+      logger("preview_run_read_failed", "invalid_comment_time");
+      return null;
+    }
+    const createdSince = new Date(earliestCommentedAt).toISOString();
+    try {
+      const runs = await github.listPreviewWorkflowRuns({
+        createdSince,
+        signal: boundedSignal,
+      });
+      return { runs, serviceLogin };
+    } catch (error) {
+      if (isPermissionRejection(error)) {
+        previewRunsRetryAfter = now().getTime() + previewRunsRetryMilliseconds;
+        logger("preview_runs_permission_denied", statusClass(error.status));
+      } else {
+        logger(
+          "preview_run_read_failed",
+          error instanceof Error ? error.name : "unknown",
+        );
+      }
+      return null;
+    }
+  }
+
+  /**
    * One cycle over the requests awaiting the trusted publisher. A row ends only
    * after its report was sent, so a failed send is retried on the next cycle. A
    * crash between the send and the end of the row can repeat the notice once:
-   * that is accepted over losing it. A failed read never ends a row, and the
-   * deadline is applied only after a successful read. The confirmation is
-   * always validated against the request, never against a later reconciliation:
-   * a publisher comment written after the request still confirms it.
+   * that is accepted over losing it. A failed read never ends a row by itself,
+   * and the deadline is applied only after a successful read of comments. The
+   * confirmation is always validated against the request, never against a later
+   * reconciliation: a publisher comment written after the request still confirms
+   * it. The three endings share one shape: check the stop, send, finish the row,
+   * record the trace. A successful send always finishes the row, because the
+   * SQLite transition is safe during a shutdown and the notice was delivered.
    */
   async function runOnce({ signal } = {}) {
-    for (const row of store.awaiting()) {
+    const rows = store.awaiting();
+    if (rows.length === 0) return;
+    // The window of a request is bounded by the comment of the next request,
+    // including the ones that are not awaiting any more.
+    const runWindows = previewRunWindows(store.commented());
+    // A run list that cannot be read leaves this cycle with the publisher
+    // comment alone, exactly as before T8.8: it never ends a request by itself.
+    const previewRuns = await readPreviewRuns({ rows, signal });
+
+    for (const row of rows) {
       if (signal?.aborted) return;
       const target = {
         pullRequestNumber: row.pull_request_number,
         commit: row.commit_sha,
       };
+      const reviewUrl = pullRequestReviewUrl({
+        repository,
+        pullRequestNumber: row.pull_request_number,
+      });
+
       let comments;
       try {
         comments = await github.listIssueComments({
@@ -330,31 +549,99 @@ export function createPreviewRequests({
         commit: row.commit_sha,
         requestedAt: row.created_at,
       });
+      // The publisher's comment is read first and always wins: only it names the
+      // address, and a run can never contradict a published preview.
+      if (origin !== null) {
+        if (signal?.aborted) return;
+        const sent = await report(
+          row,
+          previewReports.confirmed({ origin, reviewUrl }),
+          {
+            signal,
+            state: "confirmed",
+            note: previewNotes.confirmed({ ...target, origin }),
+          },
+        );
+        if (!sent) continue;
+        // The state and the origin the publisher confirmed are written together:
+        // a confirmation never ends without the URL, and the next turn of the
+        // topic cannot read GitHub and never builds it.
+        const ended = store.finish(
+          row.update_identifier,
+          previewStates.confirmed,
+          origin,
+        );
+        if (!ended) continue;
+        safeTrace({
+          updateIdentifier: row.update_identifier,
+          authorIdentifier: row.author_identifier,
+          sessionKey: row.session_key,
+          action: "preview_confirmed",
+          detail: describeTarget(target),
+        });
+        continue;
+      }
+
+      const run =
+        previewRuns === null
+          ? null
+          : endedPreviewRun({
+              runs: previewRuns.runs,
+              window: runWindows.get(row.update_identifier),
+              serviceLogin: previewRuns.serviceLogin,
+            });
+      if (run !== null) {
+        if (signal?.aborted) return;
+        const sentFailedRun = await report(
+          row,
+          previewReports.failedRun({ reviewUrl }),
+          {
+            signal,
+            state: "failed_run",
+            note: previewNotes.failedRun({
+              ...target,
+              conclusion: run.conclusion,
+            }),
+          },
+        );
+        if (!sentFailedRun) continue;
+        // The request ended as `failed`, the same state as a refused comment:
+        // nothing was published and a later request is allowed. The trace keeps
+        // which of the two it was and the run, so a person can check the match.
+        const ended = store.finish(row.update_identifier, previewStates.failed);
+        if (!ended) continue;
+        safeTrace({
+          updateIdentifier: row.update_identifier,
+          authorIdentifier: row.author_identifier,
+          sessionKey: row.session_key,
+          action: "preview_failed_run",
+          detail: `${describeTarget(target)} ${run.conclusion} run ${run.identifier}`,
+        });
+        continue;
+      }
+
       const expired =
         now().getTime() - Date.parse(row.updated_at) >=
         confirmationTimeoutMilliseconds;
-      if (origin === null && !expired) continue;
+      if (!expired) continue;
       if (signal?.aborted) return;
-
-      const confirmed = origin !== null;
       const sent = await report(
         row,
-        confirmed
-          ? previewReports.confirmed({ ...target, origin })
-          : previewReports.unconfirmed(target),
-        signal,
+        previewReports.unconfirmed({ reviewUrl }),
+        {
+          signal,
+          state: "unconfirmed",
+          note: previewNotes.unconfirmed(target),
+        },
       );
       if (!sent) continue;
-      const ended = store.finish(
-        row.update_identifier,
-        confirmed ? previewStates.confirmed : previewStates.timedOut,
-      );
+      const ended = store.finish(row.update_identifier, previewStates.timedOut);
       if (!ended) continue;
       safeTrace({
         updateIdentifier: row.update_identifier,
         authorIdentifier: row.author_identifier,
         sessionKey: row.session_key,
-        action: confirmed ? "preview_confirmed" : "preview_unconfirmed",
+        action: "preview_unconfirmed",
         detail: describeTarget(target),
       });
     }

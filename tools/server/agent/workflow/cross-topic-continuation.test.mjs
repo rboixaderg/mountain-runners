@@ -14,6 +14,9 @@ import { join } from "node:path";
 import { promisify } from "node:util";
 import { test } from "node:test";
 import { CiWatchStore } from "../repository/ci-watch-store.mjs";
+import { MergeRequestStore } from "../repository/merge-request-store.mjs";
+import { PreviewRequestStore } from "../repository/preview-request-store.mjs";
+import { SessionNoteStore } from "../repository/session-note-store.mjs";
 import { requestSignal } from "../repository/request-signal.mjs";
 import { instructionReports } from "../policy/development.mjs";
 import { createProjectRunner } from "./project-runner.mjs";
@@ -186,11 +189,14 @@ function runnerFor({
   paths,
   github,
   ciWatches,
+  previewRequests,
+  mergeRequests,
   classifyRequest,
   runModel,
   runChecks = async () => ({ exitCode: 0 }),
   notifyHandover = async () => {},
   hasOtherInstructions = () => false,
+  sessionNotes,
   traces,
   readCiState = async () => ({ state: "failure", failed: ["Validate"] }),
 }) {
@@ -198,13 +204,16 @@ function runnerFor({
     config: configFor(paths),
     github,
     ciWatches,
+    previewRequests,
+    mergeRequests,
     classifyRequest,
     runModel,
     runChecks,
     readCiState,
     hasOtherInstructions,
     notifyHandover,
-    recordTrace: (entry) => traces.push(entry),
+    sessionNotes,
+    recordTrace: (entry) => traces?.push(entry),
     logger: () => {},
   });
 }
@@ -234,14 +243,35 @@ function stateStore(paths) {
   return new CiWatchStore(join(paths.state, "ci-watch.sqlite"));
 }
 
+/** The workflow traces of a run, without the classification of each request. */
+function workflowTraces(traces) {
+  return traces.filter((entry) => entry.action !== "instruction_classified");
+}
+
 test("continues another topic's pull request and updates it without opening another", async (context) => {
   const paths = await fixture(context);
   const github = githubStub(paths);
   const ciWatches = stateStore(paths);
   context.after(() => ciWatches.close());
+  const previewRequests = new PreviewRequestStore(
+    join(paths.state, "preview-request.sqlite"),
+  );
+  const mergeRequests = new MergeRequestStore(
+    join(paths.state, "merge-request.sqlite"),
+  );
+  context.after(() => {
+    mergeRequests.close();
+    previewRequests.close();
+  });
   const notices = [];
   const traces = [];
   const { head } = await publishFromTopicA({ paths, github, ciWatches });
+  const directory = mkdtempSync(join(tmpdir(), "mr-continuation-note-"));
+  context.after(() =>
+    rmSync(directory, { recursive: true, force: true, maxRetries: 5 }),
+  );
+  const notes = new SessionNoteStore(join(directory, "session-notes.sqlite"));
+  context.after(() => notes.close());
   github.comments = [
     { user: { login: "someone" }, body: "Revisa el lint abans de continuar." },
   ];
@@ -251,7 +281,10 @@ test("continues another topic's pull request and updates it without opening anot
     paths,
     github,
     ciWatches,
+    previewRequests,
+    mergeRequests,
     traces,
+    sessionNotes: notes,
     classifyRequest: async () => "continuation",
     notifyHandover: async (notice) => notices.push(notice),
     runModel: async (modelRequest) => {
@@ -272,15 +305,41 @@ test("continues another topic's pull request and updates it without opening anot
   );
 
   assert.equal(result.outcome, "pull_request_updated");
-  assert.match(result.report, /Continuació de la PR #200/u);
-  assert.match(result.report, new RegExp(head.slice(0, 7), "u"));
-  assert.match(result.report, /Pull request actualitzada/u);
+  assert.match(result.report, /Continuo la proposta #200/u);
+  assert.match(result.report, /El canvi està publicat i l'estic comprovant/u);
+  assert.doesNotMatch(result.report, new RegExp(head.slice(0, 7), "u"));
+  // The note the next turn receives keeps the facts of the publication: the
+  // number, the branch, the published commit and the result of the local checks.
+  const [{ text: publicationNote }] = notes.claim(topicB);
+  assert.match(
+    publicationNote,
+    /Pull request actualitzada: #200 https:\/\//u,
+    "the note keeps the pull request number",
+  );
+  assert.match(
+    publicationNote,
+    /Branca feat\/tools-shared-change-\w+, commit [0-9a-f]{40}\./u,
+    "the note keeps the branch and the published commit",
+  );
+  assert.match(publicationNote, /Comprovacions: pnpm check correcte\./u);
   assert.equal(modelCalls.length, 1);
   assert.equal(modelCalls[0].kind, "continuation");
   assert.match(modelCalls[0].instruction, /pull request #200/u);
   assert.match(modelCalls[0].instruction, /untrusted data/u);
   assert.match(modelCalls[0].instruction, /Revisa el lint/u);
   assert.match(modelCalls[0].instruction, /Failing required checks: Validate/u);
+  // The turn works on another topic's pull request: the state block describes
+  // that pull request and the facts of the topic that still owns it.
+  assert.deepEqual(modelCalls[0].topicState.pullRequest, {
+    url: `https://github.com/${repository}/pull/${pullRequestNumber}`,
+    fromAnotherTopic: true,
+    isClosed: false,
+    isMerged: false,
+  });
+  assert.deepEqual(modelCalls[0].topicState.lastReported, {
+    commit: head,
+    description: "failed",
+  });
   assert.equal(github.pushes.length, 2);
   assert.equal(github.pushes[1].branch, changeBranchOf(paths));
   assert.equal(github.created.length, 1, "the continuation never opens a PR");
@@ -400,25 +459,25 @@ for (const scenario of [
   {
     name: "another base branch",
     pull: { baseRef: "develop" },
-    report: /no apunta a la branca main/u,
+    report: /no apunta a la branca principal del projecte/u,
     reason: "not_main_base",
   },
   {
     name: "a fork",
     pull: { headRepository: "someone/mountain-runners" },
-    report: /repositori principal/u,
+    report: /no és d'aquest projecte/u,
     reason: "not_main_repository",
   },
   {
     name: "a branch the service never writes",
     pull: { headRef: "main" },
-    report: /no és una branca de treball/u,
+    report: /no és d'una feina d'aquest servei/u,
     reason: "not_work_branch",
   },
   {
     name: "a pull request of another number",
     pull: { number: pullRequestNumber + 1 },
-    report: /no la va publicar aquest servei/u,
+    report: /no la va preparar aquest servei/u,
     reason: "not_published_by_service",
   },
 ]) {
@@ -460,7 +519,7 @@ for (const scenario of [
     assert.equal(github.pushes.length, 1);
     assert.equal(existsSync(worktreeOf(paths, topicB)), false);
     assert.deepEqual(
-      traces.map((entry) => [entry.action, entry.detail]),
+      workflowTraces(traces).map((entry) => [entry.action, entry.detail]),
       [
         [
           "continuation_refused",
@@ -549,9 +608,9 @@ test("asks for one pull request when a continuation names two", async (context) 
   );
 
   assert.equal(result.outcome, "answered");
-  assert.match(result.report, /més d'una pull request/u);
+  assert.match(result.report, /nomena més d'una proposta/u);
   assert.deepEqual(
-    traces.map((entry) => [entry.action, entry.detail]),
+    workflowTraces(traces).map((entry) => [entry.action, entry.detail]),
     [["continuation_refused", "multiple_pull_requests"]],
   );
 });
@@ -662,7 +721,7 @@ test("refuses a resume whose head moved before the branch was fetched", async (c
     }),
   );
 
-  assert.match(result.report, /ha canviat mentre es reprenia/u);
+  assert.match(result.report, /ha canviat mentre la reprenia/u);
   assert.equal(github.pushes.length, 1);
 });
 
@@ -671,7 +730,7 @@ test("publishes nothing when the resumed pull request does not change", async (c
   const github = githubStub(paths);
   const ciWatches = stateStore(paths);
   context.after(() => ciWatches.close());
-  const { head } = await publishFromTopicA({ paths, github, ciWatches });
+  await publishFromTopicA({ paths, github, ciWatches });
   const runner = runnerFor({
     paths,
     github,
@@ -693,7 +752,7 @@ test("publishes nothing when the resumed pull request does not change", async (c
   assert.equal(result.outcome, "answered");
   assert.equal(
     result.report,
-    `Continuació de la PR #200 des del commit ${head.slice(0, 7)}.\nJa està tot fet.`,
+    "Continuo la proposta #200, des del punt que ja teníem.\nJa està tot fet.",
   );
   assert.equal(github.pushes.length, 1);
   assert.equal(github.reused.length, 0);
@@ -742,7 +801,8 @@ test("continues from the head a person pushed after the service", async (context
   );
 
   assert.equal(result.outcome, "pull_request_updated");
-  assert.match(result.report, new RegExp(personHead.slice(0, 7), "u"));
+  assert.doesNotMatch(result.report, new RegExp(personHead.slice(0, 7), "u"));
+  assert.match(result.report, /Continuo la proposta #200/u);
   assert.equal(
     readFileSync(join(modelCalls[0].worktreePath, "person.txt"), "utf8"),
     "canvi d'una persona\n",
@@ -831,10 +891,10 @@ test("refuses a fork that reuses the branch of this topic's pull request", async
   );
 
   assert.equal(result.outcome, "answered");
-  assert.match(result.report, /repositori principal/u);
+  assert.match(result.report, /no és d'aquest projecte/u);
   assert.equal(github.pushes.length, 1);
   assert.deepEqual(
-    traces.map((entry) => entry.detail),
+    workflowTraces(traces).map((entry) => entry.detail),
     [`not_main_repository #201 ${head.slice(0, 7)}`],
   );
   assert.equal(
@@ -886,7 +946,10 @@ test("does not move the owner when the new watch cannot be registered", async (c
   // Without a durable watch the instruction ends unknown, and the previous
   // topic keeps the ownership of the pull request.
   assert.equal(result.outcome, "uncertain");
-  assert.match(result.report, /no s'ha pogut registrar el canvi de tema/u);
+  assert.match(
+    result.report,
+    /els avisos de les comprovacions continuaran arribant al tema anterior/u,
+  );
   assert.equal(github.pushes.length, 2);
   assert.deepEqual(notices, []);
   assert.equal(
@@ -988,10 +1051,10 @@ test("omits the head SHA when the pull request cannot be read", async (context) 
 
   const result = await runner(request({ instruction: "Continua la PR #200" }));
 
-  assert.match(result.report, /No s'ha pogut llegir la PR #200/u);
+  assert.match(result.report, /No he pogut llegir la proposta #200/u);
   assert.equal(github.pullRequestReads, 1);
   assert.deepEqual(
-    traces.map((entry) => entry.detail),
+    workflowTraces(traces).map((entry) => entry.detail),
     ["unreadable #200"],
   );
 });
@@ -1005,7 +1068,7 @@ test("ignores a number that is part of another token", async (context) => {
     github,
     traces,
     classifyRequest: async () => "continuation",
-    runModel: async () => assert.fail("there is no pending work to resume"),
+    runModel: async () => ({ text: "No hi ha cap PR per continuar." }),
   });
 
   let updateIdentifier = 1001;
@@ -1018,11 +1081,11 @@ test("ignores a number that is part of another token", async (context) => {
     const result = await runner(request({ updateIdentifier, instruction }));
     updateIdentifier += 1;
     assert.equal(result.outcome, "answered");
-    assert.equal(result.report, instructionReports.clarification);
+    assert.equal(result.report, "No hi ha cap PR per continuar.");
   }
 
   assert.equal(github.pullRequestReads, 0);
-  assert.deepEqual(traces, []);
+  assert.deepEqual(workflowTraces(traces), []);
 });
 
 test("reads a repeated pull request number as one target", async (context) => {
@@ -1044,10 +1107,288 @@ test("reads a repeated pull request number as one target", async (context) => {
     request({ instruction: "Continua #200 i després #200" }),
   );
 
-  assert.match(result.report, /no és una branca de treball/u);
+  assert.match(result.report, /no és d'una feina d'aquest servei/u);
   assert.equal(github.pullRequestReads, 1);
   assert.deepEqual(
-    traces.map((entry) => [entry.action, entry.detail]),
+    workflowTraces(traces).map((entry) => [entry.action, entry.detail]),
     [["continuation_refused", `not_work_branch #200 ${headSha.slice(0, 7)}`]],
   );
+});
+
+// T8.7: a continuation without pending work resumes the pull request the topic
+// published, instead of answering with the fixed clarification text.
+
+test("continues the open pull request of the topic in place at its published head", async (context) => {
+  const paths = await fixture(context);
+  const github = githubStub(paths);
+  const ciWatches = stateStore(paths);
+  context.after(() => ciWatches.close());
+  const { head } = await publishFromTopicA({ paths, github, ciWatches });
+  const traces = [];
+  const modelCalls = [];
+  const runner = runnerFor({
+    paths,
+    github,
+    ciWatches,
+    traces,
+    classifyRequest: async () => "continuation",
+    runModel: async (modelRequest) => {
+      modelCalls.push(modelRequest);
+      writeFileSync(join(modelRequest.worktreePath, "second.txt"), "segon\n");
+      return {
+        text: "Continuat.\nSUMMARY: fix(tools): finish the shared change",
+      };
+    },
+  });
+
+  const result = await runner(
+    request({
+      updateIdentifier: 1002,
+      instruction: "canvia també el segon fitxer",
+    }),
+  );
+
+  assert.equal(result.outcome, "pull_request_updated", result.report);
+  assert.equal(modelCalls.length, 1);
+  assert.equal(modelCalls[0].kind, "continuation");
+  assert.equal(
+    modelCalls[0].instruction,
+    "canvia també el segon fitxer",
+    "an in-place continuation keeps the request of the person",
+  );
+  assert.equal(
+    modelCalls[0].worktreePath,
+    realpathSync(worktreeOf(paths, topicA)),
+  );
+  assert.doesNotMatch(result.report, /Continuo la proposta/u);
+  assert.equal(github.pushes.length, 2);
+  assert.equal(github.pushes[1].branch, changeBranchOf(paths));
+  assert.equal(
+    github.created.length,
+    1,
+    "the pull request is updated, not reopened",
+  );
+  assert.equal(
+    await git(worktreeOf(paths, topicA), ["rev-parse", "HEAD~1"]),
+    head,
+  );
+  assert.deepEqual(workflowTraces(traces), []);
+});
+
+test("answers the continuation as a consultation when the pull request of the topic is closed", async (context) => {
+  const paths = await fixture(context);
+  const github = githubStub(paths);
+  const ciWatches = stateStore(paths);
+  context.after(() => ciWatches.close());
+  await publishFromTopicA({ paths, github, ciWatches });
+  github.pull.state = "closed";
+  const modelCalls = [];
+  const runner = runnerFor({
+    paths,
+    github,
+    ciWatches,
+    classifyRequest: async () => "continuation",
+    runModel: async (modelRequest) => {
+      modelCalls.push(modelRequest);
+      return { text: "La PR ja està tancada; què vols fer?" };
+    },
+  });
+
+  const result = await runner(
+    request({ updateIdentifier: 1002, instruction: "continua la feina" }),
+  );
+
+  assert.equal(result.outcome, "answered");
+  assert.equal(result.report, "La PR ja està tancada; què vols fer?");
+  assert.equal(modelCalls.length, 1);
+  assert.equal(modelCalls[0].kind, "consultation");
+  assert.equal(modelCalls[0].unclearRequest, true);
+  assert.equal(github.pushes.length, 1, "a consultation publishes nothing");
+});
+
+test("resumes the pull request of the topic when the worktree holds another branch", async (context) => {
+  const paths = await fixture(context);
+  const github = githubStub(paths);
+  const ciWatches = stateStore(paths);
+  context.after(() => ciWatches.close());
+  const { head } = await publishFromTopicA({ paths, github, ciWatches });
+  const topicWorktree = worktreeOf(paths, topicA);
+  await git(topicWorktree, [
+    "checkout",
+    "-b",
+    "feat/tools-another-pending-task",
+  ]);
+  const traces = [];
+  const modelCalls = [];
+  const runner = runnerFor({
+    paths,
+    github,
+    ciWatches,
+    traces,
+    classifyRequest: async () => "continuation",
+    runModel: async (modelRequest) => {
+      modelCalls.push(modelRequest);
+      writeFileSync(join(modelRequest.worktreePath, "third.txt"), "tercer\n");
+      return {
+        text: "Continuat.\nSUMMARY: fix(tools): finish the shared change",
+      };
+    },
+  });
+
+  const result = await runner(
+    request({ updateIdentifier: 1002, instruction: "afegeix una cosa més" }),
+  );
+
+  assert.equal(result.outcome, "pull_request_updated", result.report);
+  assert.equal(modelCalls.length, 1);
+  assert.match(modelCalls[0].instruction, /Continue pull request #200/u);
+  assert.match(result.report, /Continuo la proposta #200/u);
+  assert.equal(github.pushes.length, 2);
+  assert.equal(github.pushes[1].branch, changeBranchOf(paths));
+  assert.equal(
+    github.reused.length,
+    1,
+    "the resumed publication updates the PR",
+  );
+  assert.equal(
+    await git(topicWorktree, ["rev-parse", "HEAD~1"]),
+    head,
+    "the branch starts at the published head",
+  );
+  assert.equal(
+    existsSync(archiveOf(paths, topicA, 1002)),
+    true,
+    "the previous worktree is preserved",
+  );
+  assert.deepEqual(
+    workflowTraces(traces).map((entry) => entry.action),
+    ["continuation_resumed"],
+  );
+});
+
+test("updates the pull request of the topic even when it closes during the turn", async (context) => {
+  const paths = await fixture(context);
+  const github = githubStub(paths);
+  const ciWatches = stateStore(paths);
+  context.after(() => ciWatches.close());
+  const { head } = await publishFromTopicA({ paths, github, ciWatches });
+  const runner = runnerFor({
+    paths,
+    github,
+    ciWatches,
+    classifyRequest: async () => "continuation",
+    runModel: async (modelRequest) => {
+      // The topic validated the pull request before the turn; it closes while
+      // the model is working.
+      github.pull.state = "closed";
+      writeFileSync(join(modelRequest.worktreePath, "second.txt"), "segon\n");
+      return {
+        text: "Continuat.\nSUMMARY: fix(tools): finish the shared change",
+      };
+    },
+  });
+
+  const result = await runner(
+    request({
+      updateIdentifier: 1002,
+      instruction: "canvia també el segon fitxer",
+    }),
+  );
+
+  assert.equal(result.outcome, "failed");
+  assert.match(result.report, /una regla del projecte ho ha impedit/u);
+  assert.equal(github.pushes.length, 1, "nothing is pushed to a closed PR");
+  assert.equal(github.created.length, 1, "no other pull request is opened");
+  assert.equal(github.openedBranches.length, 1);
+  assert.equal(github.reused.length, 0);
+  assert.notEqual(
+    await git(worktreeOf(paths, topicA), ["rev-parse", "HEAD"]),
+    head,
+    "the work of the turn is kept locally",
+  );
+});
+
+test("keeps the resume line as the service part of a mixed answer", async (context) => {
+  const paths = await fixture(context);
+  const github = githubStub(paths);
+  const ciWatches = stateStore(paths);
+  context.after(() => ciWatches.close());
+  await publishFromTopicA({ paths, github, ciWatches });
+  const directory = mkdtempSync(join(tmpdir(), "mr-continuation-notes-"));
+  context.after(() =>
+    rmSync(directory, { recursive: true, force: true, maxRetries: 5 }),
+  );
+  const notes = new SessionNoteStore(join(directory, "session-notes.sqlite"));
+  context.after(() => notes.close());
+  const runner = runnerFor({
+    paths,
+    github,
+    ciWatches,
+    sessionNotes: notes,
+    classifyRequest: async () => "continuation",
+    runModel: async () => ({ text: "Ja està tot fet." }),
+  });
+
+  const result = await runner(
+    request({
+      updateIdentifier: 1002,
+      sessionKey: topicB,
+      instruction: "Continua la PR #200",
+    }),
+  );
+
+  assert.equal(result.outcome, "answered");
+  assert.match(result.report, /Continuo la proposta #200/u);
+  assert.match(result.report, /Ja està tot fet\./u);
+  assert.deepEqual(
+    notes.claim(topicB).map((note) => note.text),
+    ["Continuo la proposta #200, des del punt que ja teníem."],
+    "only the line the service wrote becomes a note",
+  );
+  assert.equal(
+    notes.lastReply(topicB),
+    result.report,
+    "the classifier reads the whole text the topic received",
+  );
+});
+
+test("keeps the resume line when a resumed turn answers nothing", async (context) => {
+  const paths = await fixture(context);
+  const github = githubStub(paths);
+  const ciWatches = stateStore(paths);
+  context.after(() => ciWatches.close());
+  await publishFromTopicA({ paths, github, ciWatches });
+  const directory = mkdtempSync(join(tmpdir(), "mr-continuation-blank-"));
+  context.after(() =>
+    rmSync(directory, { recursive: true, force: true, maxRetries: 5 }),
+  );
+  const notes = new SessionNoteStore(join(directory, "session-notes.sqlite"));
+  context.after(() => notes.close());
+  const runner = runnerFor({
+    paths,
+    github,
+    ciWatches,
+    sessionNotes: notes,
+    classifyRequest: async () => "continuation",
+    runModel: async () => ({ text: "   " }),
+  });
+
+  const result = await runner(
+    request({
+      updateIdentifier: 1002,
+      sessionKey: topicB,
+      instruction: "Continua la PR #200",
+    }),
+  );
+
+  const resumeLine = "Continuo la proposta #200, des del punt que ja teníem.";
+  assert.equal(result.outcome, "answered");
+  assert.match(result.report, new RegExp(resumeLine, "u"));
+  assert.match(result.report, /No he pogut preparar cap resposta/u);
+  assert.deepEqual(
+    notes.claim(topicB).map((note) => note.text),
+    [resumeLine],
+    "the service line of the resume survives an empty answer",
+  );
+  assert.equal(notes.lastReply(topicB), result.report);
 });

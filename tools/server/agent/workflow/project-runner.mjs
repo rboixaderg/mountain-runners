@@ -10,35 +10,51 @@ import {
   stopSandboxedCommands,
 } from "../sandbox/commands.mjs";
 import { createPublisher } from "../repository/publisher.mjs";
+import { createAttachmentStore } from "../attachments/store.mjs";
+import { scaleImageAttachments } from "../attachments/scale.mjs";
 import { createCiWatchRegistration } from "./ci-watch.mjs";
 import {
   buildInstructionPrompt,
+  formatMadridInstant,
   sandboxCheckCommand,
   sandboxPrepareCommand,
 } from "../policy/development.mjs";
 import { createInstructionRunner } from "./run-instruction.mjs";
 import { createCrossTopicContinuation } from "./cross-topic-continuation.mjs";
 import { createOverlapWarning } from "./overlap-warning.mjs";
+import {
+  createTopicPullRequestFinder,
+  createTopicStateReader,
+} from "./topic-state.mjs";
 
 export function createProjectRunner({
   config,
   github,
   environment = process.env,
   ciWatches,
+  previewRequests,
+  mergeRequests,
   requestPreview,
   requestMerge,
   readCiState,
   hasOtherInstructions,
   notifyHandover,
   prepareAttachment,
+  attachmentStore = createAttachmentStore({
+    stateDirectory: config.paths.state,
+  }),
+  sessionNotes,
   recordTrace,
+  // The service fixes the instant a post is published with: the sandbox clock
+  // is not trusted for it.
+  now = () => new Date(),
   stopCommands = stopSandboxedCommands,
   executeSandbox = runSandboxedCommand,
   executeAgent = runAgent,
   classifyRequest = (context) =>
     classifyWithModel(config, { ...context, environment }),
   runModel = async (context) => {
-    if (context.kind !== "consultation") {
+    if (context.kind !== "consultation" && !context.worktreePrepared) {
       const preparation = await executeSandbox({
         image: config.model.sandboxImage,
         workspacePath: context.worktreePath,
@@ -57,14 +73,44 @@ export function createProjectRunner({
         return { preparationFailed: true };
       }
     }
+    // The turn starts inside the runtime, after the profile is ready and right
+    // before Pi receives the prompt: the message is built there with the effects
+    // of the topic, and a preparation that failed keeps them undelivered.
     return executeAgent(config, {
       ...context,
       environment,
       stopCommands,
-      message: buildInstructionPrompt(context.instruction, context.kind),
+      buildMessage: (serviceNotes) =>
+        buildInstructionPrompt(context.instruction, context.kind, {
+          unclearRequest: context.unclearRequest,
+          serviceNotes,
+          currentInstant: formatMadridInstant(now()),
+          topicState: context.topicState,
+        }),
       readOnly: context.kind === "consultation",
     });
   },
+  // Reading the pixels of an untrusted image happens only inside the sandbox.
+  // The command installs the offline dependencies first, so the runtime turn
+  // that follows does not repeat the preparation.
+  scaleAttachments = ({ images, worktreePath, sandboxIdentifier, signal }) =>
+    scaleImageAttachments({
+      images,
+      worktreePath,
+      signal,
+      prepareCommand: sandboxPrepareCommand,
+      execute: (command, { signal: commandSignal }) =>
+        executeSandbox({
+          image: config.model.sandboxImage,
+          workspacePath: worktreePath,
+          worktreeRoot: config.paths.worktrees,
+          command,
+          limits: config.limits,
+          sessionIdentifier: sandboxIdentifier,
+          timeoutMilliseconds: config.limits.executionTimeoutMs,
+          signal: commandSignal,
+        }),
+    }),
   runChecks = (context) =>
     executeSandbox({
       image: config.model.sandboxImage,
@@ -81,6 +127,11 @@ export function createProjectRunner({
   // One installation salt names every worktree and every public branch suffix:
   // the workflow never derives a name from a Telegram identifier itself.
   const identifiers = openIdentifierNames(config.paths.state);
+  // The pull request this topic published last and still owns, from the CI
+  // watches: without them the service knows none.
+  const findTopicPullRequest = ciWatches
+    ? createTopicPullRequestFinder(ciWatches)
+    : undefined;
   return createInstructionRunner({
     repositoryPath: config.paths.repository,
     worktreeRoot: config.paths.worktrees,
@@ -92,7 +143,24 @@ export function createProjectRunner({
     requestPreview,
     requestMerge,
     prepareAttachment,
+    scaleAttachments,
+    attachmentStore,
+    sessionNotes,
     recordTrace,
+    findTopicPullRequest,
+    // The state of the topic every turn receives, from the service's own stores:
+    // the model cannot read the pull request, its checks or the preview inside
+    // the sandbox.
+    readTopicState:
+      ciWatches && previewRequests && mergeRequests
+        ? createTopicStateReader({
+            ciWatches,
+            previewRequests,
+            mergeRequests,
+            findTopicPullRequest,
+            repositoryName: config.github.repository,
+          })
+        : undefined,
     registerCiWatch: ciWatches
       ? createCiWatchRegistration({ store: ciWatches, logger })
       : undefined,

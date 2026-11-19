@@ -7,10 +7,11 @@ import {
   rmSync,
   writeFileSync,
 } from "node:fs";
+import { EventEmitter } from "node:events";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
-import { runPiPrompt, buildPiArguments } from "../../src/pi/rpc.mjs";
+import { buildPiArguments, runPiPrompt } from "../../src/pi/rpc.mjs";
 
 function fixture(context) {
   const directory = mkdtempSync(join(tmpdir(), "telegram-pi-pi-"));
@@ -313,8 +314,9 @@ for (const stream of ["stdout", "stderr", "combined"]) {
   });
 }
 
-test("rejects an unavailable Pi executable without starting any external action", async (context) => {
+test("never reports a sent prompt for an unavailable Pi executable", async (context) => {
   const directory = fixture(context);
+  const sent = [];
   await assert.rejects(
     runPiPrompt({
       command: join(directory.directory, "missing-pi"),
@@ -322,7 +324,148 @@ test("rejects an unavailable Pi executable without starting any external action"
       cwd: directory.directory,
       profileDirectory: directory.profile,
       message: "question",
+      onPromptSent: () => sent.push("prompt-sent"),
     }),
     { code: "ENOENT" },
   );
+  assert.deepEqual(sent, [], "the prompt never reached a process");
+});
+
+test("never reports a sent prompt when the turn stops before the write", async (context) => {
+  const directory = fixture(context);
+  const writes = [];
+  const sent = [];
+  const controller = new AbortController();
+  const running = runPiPrompt({
+    command: "pi",
+    model: "example/model",
+    cwd: directory.directory,
+    profileDirectory: directory.profile,
+    message: "question",
+    timeoutMilliseconds: 5000,
+    signal: controller.signal,
+    onPromptSent: () => sent.push("prompt-sent"),
+    spawnImpl: () => {
+      const child = fakeChild({
+        events: writes,
+        writeEvent: "prompt",
+      });
+      setImmediate(() => child.emit("spawn"));
+      return child;
+    },
+  });
+  // The stop lands after the process exists and before the prompt is written.
+  controller.abort();
+
+  await assert.rejects(running, { message: /aborted/u });
+  assert.deepEqual(writes, [], "nothing is written to a stopped turn");
+  assert.deepEqual(sent, [], "a prompt that is not written was not sent");
+});
+
+// A child that never spawns a process: the caller decides which events it emits.
+function fakeChild({ events, writeEvent = "write" }) {
+  const child = new EventEmitter();
+  child.stdout = Object.assign(new EventEmitter(), { setEncoding: () => {} });
+  child.stderr = Object.assign(new EventEmitter(), { setEncoding: () => {} });
+  child.stdin = Object.assign(new EventEmitter(), {
+    write: () => events.push(writeEvent),
+    end: () => {},
+  });
+  // A killed child reports that it closed, like the real one.
+  child.kill = () => {
+    setImmediate(() => child.emit("close", null));
+  };
+  return child;
+}
+
+test("reports the prompt right before it is written and after the spawn", async (context) => {
+  const directory = fixture(context);
+  const launchError = new Error("synthetic spawn failure");
+  launchError.code = "EACCES";
+  const events = [];
+  await assert.rejects(
+    runPiPrompt({
+      command: "pi",
+      model: "example/model",
+      cwd: directory.directory,
+      profileDirectory: directory.profile,
+      message: "question",
+      timeoutMilliseconds: 5000,
+      onPromptSent: () => events.push("prompt-sent"),
+      spawnImpl: () => {
+        const child = fakeChild({ events });
+        setImmediate(() => {
+          child.emit("error", launchError);
+        });
+        return child;
+      },
+    }),
+    launchError,
+  );
+  assert.deepEqual(
+    events,
+    [],
+    "a process that never existed receives no prompt",
+  );
+
+  const runtimeError = new Error("synthetic failure after spawn");
+  const afterSpawn = [];
+  await assert.rejects(
+    runPiPrompt({
+      command: "pi",
+      model: "example/model",
+      cwd: directory.directory,
+      profileDirectory: directory.profile,
+      message: "question",
+      timeoutMilliseconds: 5000,
+      onPromptSent: () => afterSpawn.push("prompt-sent"),
+      spawnImpl: () => {
+        const child = fakeChild({ events: afterSpawn, writeEvent: "prompt" });
+        setImmediate(() => {
+          child.emit("spawn");
+          child.emit("error", runtimeError);
+        });
+        return child;
+      },
+    }),
+    runtimeError,
+  );
+  assert.deepEqual(
+    afterSpawn,
+    ["prompt-sent", "prompt"],
+    "the fact is reported immediately before the write",
+  );
+});
+
+test("writes the image input of the prompt in the RPC record", async (context) => {
+  const directory = fixture(context);
+  const promptPath = join(directory.directory, "prompt.json");
+  const { executable } = fakePi(context, {
+    script: `
+process.stdin.once("data", (chunk) => {
+  require("node:fs").writeFileSync(${JSON.stringify(promptPath)}, chunk);
+  process.stdout.write(JSON.stringify({ type: "agent_settled", aborted: false }) + "\\n");
+});
+`,
+  });
+  const images = [
+    { type: "image", data: "c3ludGhldGlj", mimeType: "image/jpeg" },
+  ];
+
+  const result = await runPiPrompt({
+    ...optionsFor(executable),
+    profileDirectory: directory.profile,
+    message: "mira la imatge",
+    images,
+    cwd: directory.worktreePath,
+    environment: { PATH: process.env.PATH, HOME: directory.directory },
+  });
+
+  assert.equal(result.text, "");
+  assert.deepEqual(JSON.parse(readFileSync(promptPath, "utf8")), {
+    id: "prompt-1",
+    type: "prompt",
+    message: "mira la imatge",
+    images,
+  });
 });

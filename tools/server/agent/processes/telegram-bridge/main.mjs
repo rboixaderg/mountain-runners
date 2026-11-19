@@ -28,11 +28,15 @@ import { GitHubTrust } from "../../repository/github.mjs";
 import { CiWatchStore } from "../../repository/ci-watch-store.mjs";
 import { MergeRequestStore } from "../../repository/merge-request-store.mjs";
 import { PreviewRequestStore } from "../../repository/preview-request-store.mjs";
+import { SessionNoteStore } from "../../repository/session-note-store.mjs";
 import {
   defaultRequestTimeoutMilliseconds,
   requestSignal,
 } from "../../repository/request-signal.mjs";
-import { pruneArchivedWorktrees } from "../../repository/retention.mjs";
+import {
+  pruneArchivedWorktrees,
+  pruneStoredAttachments,
+} from "../../repository/retention.mjs";
 import { openIdentifierNames } from "../../repository/identifiers.mjs";
 import { renameLegacyWorktrees } from "../../repository/worktrees.mjs";
 import { createCiRepairExecutor } from "../../workflow/ci-repair.mjs";
@@ -107,8 +111,31 @@ export async function startService({
   const mergeRequests = new MergeRequestStore(
     join(config.paths.state, "merge-request.sqlite"),
   );
+  // The conversation state of every topic: the service effects the next Pi turn
+  // must receive and the last text the topic received.
+  const sessionNotes = new SessionNoteStore(
+    join(config.paths.state, "session-notes.sqlite"),
+  );
+
+  // A text the service decides for a topic is kept before it is sent, so the
+  // next turn of its session knows the effect even when the send fails. The
+  // notes are bookkeeping: a store failure is logged and never stops a report.
+  // `effectKey` makes a repeated notice idempotent; `text` is the service-written
+  // part (the model's own words are never a note) and `receivedText` the full
+  // text the topic received when the two differ.
+  function recordServiceNote({ sessionKey, text, effectKey, receivedText }) {
+    try {
+      sessionNotes.addNote({ sessionKey, text, effectKey, receivedText });
+    } catch (error) {
+      logger(
+        "session_note_failed",
+        error instanceof Error ? error.name : "unknown",
+      );
+    }
+  }
 
   function closeStateStores() {
+    sessionNotes.close();
     mergeRequests.close();
     previewRequests.close();
     ciWatches.close();
@@ -240,6 +267,24 @@ export async function startService({
     );
   }
 
+  // An attachment stays available to its topic until it is published or for
+  // seven days. The store lives in the private state directory, outside the
+  // worktree and outside Git.
+  try {
+    const prunedAttachments = pruneStoredAttachments({
+      statePath: config.paths.state,
+      logger,
+    });
+    if (prunedAttachments.length > 0) {
+      logger("attachment_retention_applied", String(prunedAttachments.length));
+    }
+  } catch (error) {
+    logger(
+      "attachment_retention_failed",
+      error instanceof Error ? error.message : "unknown",
+    );
+  }
+
   const telegram =
     telegramOverride ?? new TelegramApi({ botToken: config.telegram.botToken });
   const identity = await telegram.getMe({ signal });
@@ -248,6 +293,7 @@ export async function startService({
     identity.username.toLowerCase() !==
       config.telegram.botUsername.toLowerCase()
   ) {
+    sessionNotes.close();
     mergeRequests.close();
     previewRequests.close();
     ciWatches.close();
@@ -284,6 +330,7 @@ export async function startService({
     pollIntervalMilliseconds: config.limits.ciPollIntervalMs,
     confirmationTimeoutMilliseconds: previewConfirmationTimeoutMilliseconds,
     recordTrace: (entry) => queue.recordTrace(entry),
+    recordServiceNote,
     logger,
   });
   const mergeWorker = createMergeRequests({
@@ -298,6 +345,7 @@ export async function startService({
     requiredChecks: config.github.requiredChecks,
     telegram,
     recordTrace: (entry) => queue.recordTrace(entry),
+    recordServiceNote,
     logger,
   });
   await mergeWorker.reconcileUncertain({ signal });
@@ -318,21 +366,35 @@ export async function startService({
       environment,
       logger,
       ciWatches,
+      previewRequests,
+      mergeRequests,
       requestPreview: previewWorker.handle,
       requestMerge: mergeWorker.handle,
       readCiState,
       // The raw download only touches the service temporary directory, so the
       // downloaded image is cleaned before it reaches a worktree.
       prepareAttachment: createAttachmentPreparation({ telegram, logger }),
+      sessionNotes,
       hasOtherInstructions: (sessionKey, updateIdentifier) =>
         queue.hasOtherInstructions(sessionKey, updateIdentifier),
-      notifyHandover: async ({ sessionKey, pullRequestNumber, signal }) => {
+      notifyHandover: async ({
+        updateIdentifier,
+        sessionKey,
+        pullRequestNumber,
+        signal,
+      }) => {
         const { chatIdentifier, threadIdentifier } =
           parseSessionKey(sessionKey);
+        const text = continuationReports.handover({ pullRequestNumber });
+        recordServiceNote({
+          sessionKey,
+          text,
+          effectKey: `handover:${updateIdentifier}`,
+        });
         await telegram.sendMessage({
           chatIdentifier,
           messageThreadIdentifier: threadIdentifier,
-          text: continuationReports.handover({ pullRequestNumber }),
+          text,
           signal: requestSignal(signal, defaultRequestTimeoutMilliseconds),
         });
       },
@@ -347,6 +409,7 @@ export async function startService({
     readCiState,
     telegram,
     recordTrace: (entry) => queue.recordTrace(entry),
+    recordServiceNote,
     logger,
   });
 
@@ -358,6 +421,7 @@ export async function startService({
     queue,
     runInstruction: runner,
     botIdentifier: identity.id,
+    onServiceReport: recordServiceNote,
     logger,
     // A repair continues a published change. It runs only when no admitted
     // instruction is executing, and never while the queue is blocked by an
@@ -379,6 +443,7 @@ export async function startService({
     maximumAutomaticRepairs,
     secrets: agentSecrets(config, environment),
     recordTrace: (entry) => queue.recordTrace(entry),
+    recordServiceNote,
     logger,
   });
 
@@ -395,6 +460,7 @@ export async function startService({
     mergeRequests,
     mergeWorker,
     ciRepairExecutor,
+    sessionNotes,
     logger,
   };
 }
@@ -444,6 +510,7 @@ export async function main({ environment = process.env } = {}) {
     previewRequests,
     previewWorker,
     mergeRequests,
+    sessionNotes,
     logger,
   } = await startService({
     environment,
@@ -461,6 +528,7 @@ export async function main({ environment = process.env } = {}) {
     });
   } finally {
     await stopAllSandboxedCommands();
+    sessionNotes.close();
     mergeRequests.close();
     previewRequests.close();
     ciWatches.close();

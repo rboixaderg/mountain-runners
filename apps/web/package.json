@@ -12,10 +12,10 @@
     "typecheck": "pnpm paraglide:generate && astro check"
   },
   "dependencies": {
-    "@inlang/paraglide-js": "3.2.0",
+    "@inlang/paraglide-js": "3.2.2",
     "@inlang/plugin-message-format": "4.6.0",
     "@tailwindcss/vite": "4.3.5",
-    "astro": "7.4.7",
+    "astro": "7.4.12",
     "remark-parse": "11.0.0",
     "sharp": "0.35.5",
     "tailwindcss": "4.3.5",
@@ -30,6 +30,6 @@
     "jsdom": "31.0.1",
     "typescript": "6.0.3",
     "vite": "8.3.8",
-    "vitest": "5.1.0"
+    "vitest": "5.1.1"
   }
 }

@@ -1236,6 +1236,28 @@ es copien mai al repositori, al tema, a la PR ni a un registre. El token de
 Telegram i el de GitHub no arriben a Pi, al contenidor ni al model, i el del
 proveïdor només arriba a Pi.
 
+### Estat Del Tema
+
+Cada torn del model —consulta, implementació, continuació o reparació— rep
+abans de la petició un bloc amb l'estat que el servei ja té desat: la PR que
+treballa el torn (o la d'un altre tema que el torn continua) amb el seu enllaç,
+l'últim commit informat i el resultat de les comprovacions, si hi ha feina més
+nova sense informar, l'última petició de preview i l'última de merge. El bloc
+surt dels magatzems de `state/`, sense cap crida a GitHub.
+
+- L'URL de la preview només hi apareix si el publicador de confiança l'ha
+  confirmada per al commit informat; el servei no la construeix mai. La columna
+  `confirmed_origin` de `preview-request.sqlite` la desa juntament amb el final
+  de la petició i s'afegeix sola en arrencar sobre una base de dades anterior.
+- Cada fet del bloc és d'aquella PR: una fila d'una altra PR del mateix tema no
+  s'hi fa servir.
+- Els estats interiors es descriuen en paraules planes i el model les explica a
+  la persona sense identificadors de commit ni noms de comprovació.
+- El bloc no conté cap identificador de Telegram ni cap dada de les persones, no
+  amplia el context del classificador i no canvia cap permís del sandbox.
+- Si l'estat no es pot llegir, el servei ho registra al journal
+  (`topic_state_failed`) i el torn continua sense el bloc.
+
 ### Activar, Aturar I Reiniciar
 
 ```sh
@@ -1303,11 +1325,11 @@ formatar cap volum amb dades.
 Els valors no es mostren mai en aquest runbook, al tema, a la PR ni a la sortida
 d'una ordre. Edita `agent.env` com a root i comprova que conserva el mode `0600`.
 
-| Credencial                | On es genera               | Abast                                                                                                                      |
-| ------------------------- | -------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
-| Token del bot de Telegram | BotFather                  | Només el bot del grup configurat                                                                                           |
-| Token de GitHub           | Compte de l'agent a GitHub | `Contents: write`, `Pull requests: write`, lectura de checks i estats; sense `Workflows: write` ni lectura d'administració |
-| Credencial del model      | Proveïdor del model        | Només la crida al model; arriba a Pi i no al pont                                                                          |
+| Credencial                | On es genera               | Abast                                                                                                                                                              |
+| ------------------------- | -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Token del bot de Telegram | BotFather                  | Només el bot del grup configurat                                                                                                                                   |
+| Token de GitHub           | Compte de l'agent a GitHub | `Contents: write`, `Pull requests: write`, lectura de checks, estats i execucions de fluxos (`Actions: read`); sense `Workflows: write` ni lectura d'administració |
+| Credencial del model      | Proveïdor del model        | Només la crida al model; arriba a Pi i no al pont                                                                                                                  |
 
 1. Genera la credencial nova a l'emissor i no revoquis l'antiga encara. El token
    de Telegram és l'excepció: el bot en té un de sol i revocar-lo invalida
@@ -1331,14 +1353,14 @@ mantenidora.
 Atura el servei abans de copiar l'estat o les sessions; així les bases de dades
 són coherents. Copia:
 
-| Element       | Contingut                                                                                                      | Criteri                                                                                                                                             |
-| ------------- | -------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `state/`      | `admission.sqlite` (cua i traça), `ci-watch.sqlite`, `preview-request.sqlite`, `merge-request.sqlite`, perfils | Imprescindible: és la memòria recuperable del servei                                                                                                |
-| `sessions/`   | Historial de Pi per tema                                                                                       | Imprescindible si es vol conservar el context conversacional                                                                                        |
-| `worktrees/`  | Feina en curs i feina preservada                                                                               | Copia els worktrees amb commits sense publicar o canvis sense cometre; un worktree net i sense commits per davant de `origin/main` es pot descartar |
-| `repository/` | Clon amb `origin` i `main`                                                                                     | Es pot tornar a clonar                                                                                                                              |
-| `agent.env`   | Credencials                                                                                                    | Copia'l com un secret, mai al costat de les dades ni al repositori                                                                                  |
-| Unitats       | `mountain-agent.service` i les dues unitats de muntatge dels volums                                            | Es tornen a instal·lar des del commit revisat                                                                                                       |
+| Element       | Contingut                                                                                                                                                           | Criteri                                                                                                                                             |
+| ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `state/`      | `admission.sqlite` (cua i traça), `ci-watch.sqlite`, `preview-request.sqlite` (peticions i URL confirmada), `merge-request.sqlite`, `session-notes.sqlite`, perfils | Imprescindible: és la memòria recuperable del servei                                                                                                |
+| `sessions/`   | Historial de Pi per tema                                                                                                                                            | Imprescindible si es vol conservar el context conversacional                                                                                        |
+| `worktrees/`  | Feina en curs i feina preservada                                                                                                                                    | Copia els worktrees amb commits sense publicar o canvis sense cometre; un worktree net i sense commits per davant de `origin/main` es pot descartar |
+| `repository/` | Clon amb `origin` i `main`                                                                                                                                          | Es pot tornar a clonar                                                                                                                              |
+| `agent.env`   | Credencials                                                                                                                                                         | Copia'l com un secret, mai al costat de les dades ni al repositori                                                                                  |
+| Unitats       | `mountain-agent.service` i les dues unitats de muntatge dels volums                                                                                                 | Es tornen a instal·lar des del commit revisat                                                                                                       |
 
 Ordre de restauració:
 
@@ -1386,6 +1408,9 @@ aturat.
 - **Reconciliació.** Amb el servei aturat: `list`, comprova l'estat real a
   GitHub, `resolve` cas per cas i torna a arrencar, segons la
   [reconciliació](deployment.md#reconciliació-de-resultats-desconeguts-t85).
+  Només cal reconciliar els resultats desconeguts: una preview que ha acabat
+  bé, que ha esgotat el termini o que ha fallat es tanca sola, i una preview
+  fallida no es reintenta.
 
 ### Validació Del Pilot (T8.6)
 
@@ -1413,7 +1438,8 @@ de la persona mantenidora consta a l'especificació.
      incerts.
 1. **Credencial de GitHub i protecció de `main`.**
    - Fer: revisa el token del compte de l'agent: `Contents: write`,
-     `Pull requests: write`, lectura de checks i estats, sense escriptura a
+     `Pull requests: write`, lectura de checks i estats, lectura d'execucions
+     de fluxos (`Actions: read`), sense escriptura a
      `.github/workflows` i sense lectura d'administració. Comprova que el compte
      de l'agent és col·laborador del repositori, que
      `MOUNTAIN_AGENT_REQUIRED_CHECKS` coincideix amb la protecció de `main` amb la
@@ -1428,10 +1454,19 @@ de la persona mantenidora consta a l'especificació.
 2. **Flux bàsic.**
    - Fer: al tema, fes una consulta sobre el codi i després una implementació
      petita fins a PR, per exemple una correcció de documentació. Espera l'avís
-     de CI.
-   - Esperat: la consulta respon sense crear cap branca. La implementació crea
-     una branca, un sol commit i una PR amb la identitat de l'agent; el tema rep
-     l'avís de CI, que anomena la llista configurada i no tota la CI de la PR.
+     de CI. Després demana una notícia curta amb una foto i, quan estigui a punt,
+     demana-la publicada amb «publica-la».
+   - Esperat: la consulta respon sense crear cap branca i sense rutes, noms de
+     fitxer, camps YAML, ordres, recomptes de proves, commits ni noms de
+     comprovació, i fa com a màxim una pregunta. La implementació crea una
+     branca, un sol commit i una PR amb la identitat de l'agent. El tema rep la
+     resposta del model, una línia curta que diu que el canvi s'està comprovant i
+     l'enllaç de revisió com a darrera línia. Amb les comprovacions obligatòries
+     en verd arriba un sol avís, que convida a demanar la preview, i no un
+     missatge per la PR, pel seguiment i pel verd. La notícia es crea com a
+     esborrany; «publica-la» la marca com a publicada amb l'hora de la petició,
+     que és la seva aprovació editorial. El merge continua sent humà. Sense
+     petició no s'escriuen les variants en castellà ni en anglès.
    - Si falla: atura el servei i anota la instrucció; no repeteixis cap
      publicació. Si el resultat és desconegut, reconcilia'l.
 3. **Reparació de CI.**
@@ -1461,7 +1496,8 @@ de la persona mantenidora consta a l'especificació.
      inofensiu amb `/merge` o `/merge <PR>`.
    - Esperat: cada rebuig respon amb el motiu i no fusiona res. El merge real
      fusiona exactament el commit informat, amb squash, i la resposta nomena la
-     PR i el commit de merge.
+     proposta fusionada; l'última línia és l'enllaç de revisió amb el canvi
+     fusionat, amb el SHA curt.
    - Si falla: atura el servei i no tornis a escriure `/merge`. Un resultat
      desconegut es reconcilia llegint la PR; només una persona verificada el pot
      tancar amb `/merge <PR> <SHA>`.
@@ -1483,16 +1519,24 @@ de la persona mantenidora consta a l'especificació.
    - Si falla: anota-ho; l'avís no és un control de seguretat i la resta de la
      validació pot continuar.
 8. **Adjunts.**
-   - Fer: adjunta un JPEG i un PNG com a fitxer en una implementació; adjunta una
-     foto comprimida, un fitxer de més de 2 MB i una imatge de més de 2.400 px.
-     Quan la imatge vàlida arribi a la PR, executa `exiftool` o una eina
-     equivalent sobre el fitxer publicat.
-   - Esperat: el JPEG i el PNG s'accepten. La foto comprimida es refusa amb
-     l'avís de tornar-la a enviar com a fitxer, i els límits es refusen amb la
-     mida i les dimensions reals. La imatge publicada no té EXIF, GPS ni cap
-     altra metadada, i `.agent-attachments/` no apareix a la PR.
+   - Fer: en una implementació, adjunta una foto comprimida de Telegram, un JPEG
+     i un PNG com a fitxer. En un altre missatge, envia un àlbum de tres imatges
+     amb la llegenda en una de les del mig. Després envia sis imatges juntes i un
+     fitxer de més de 20 MB. Demana al model que torni a mirar una imatge del
+     tema en un torn posterior. Quan una imatge arribi a la PR, executa
+     `exiftool` o una eina equivalent sobre el fitxer publicat.
+   - Esperat: la foto, el JPEG i el PNG s'accepten. L'àlbum de tres és una sola
+     instrucció i el model en rep les tres imatges. Les sis imatges i el fitxer
+     de més de 20 MB es refusen amb un avís planer. El torn posterior llista la
+     imatge desada i `view_attachment` la torna a mostrar. La imatge publicada
+     no té EXIF, GPS ni cap altra metadada, fa com a màxim 2.400 px de costat
+     llarg i `.agent-attachments/` no apareix a la PR.
    - Si falla: no afegeixis la imatge a mà; atura el servei i revisa la traça
-     (`attachment_refused`).
+     (`attachment_refused`, `attachment_used`) i els fitxers de
+     `state/attachments/`. Un refús o una denegació de pertinença ja traçats no
+     es repeteixen després d'un reinici, perquè la traça és duradora; si el
+     reinici cau entre la traça i l'avís, l'avís no es repeteix. Les imatges noves d'un prompt sumen com a
+     màxim 8 MB; la resta queda al magatzem del tema.
 9. **Aturada i reinici.**
    - Fer: amb una implementació en curs, atura el servei amb
      `sudo systemctl stop mountain-agent`. Amb una altra execució en curs, fes

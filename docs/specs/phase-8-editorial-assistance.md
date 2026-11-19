@@ -113,7 +113,9 @@ per part de l'agent i amb el merge només a petició verificada d'una persona.
   [guia editorial](../editorial/guide.md): nou contingut en esborrany,
   correccions que preserven l'estat publicat i traduccions completes en els
   idiomes afectats. Ampliar l'accés al codi no autoritza saltar-se la revisió
-  editorial ni publicar des del xat.
+  editorial. La publicació d'una entrada es regeix pel requisit de T8.8: la
+  petició d'un membre verificat n'és l'aprovació editorial i el merge continua
+  sent humà.
 - Es conserva OpenCode Go com a font de model prevista, pendent de validar amb
   el runtime i amb tasques de codi i contingut. La subscripció és el límit
   econòmic previst, sense pressupost addicional per tokens. Això no substitueix
@@ -155,6 +157,9 @@ integracions, defineix la frontera de seguretat i proposa l'ADR. T8.3 entrega
 una base amb Telegram, sessions i una primera tasca petita fins a PR. T8.4
 amplia el flux de GitHub amb continuació de feines, CI i preview. T8.5 completa
 l'auditoria, la revocació i la recuperació. T8.6 valida el conjunt i el runbook.
+T8.7 corregeix la continuïtat de la conversa que el pilot de T8.6 va trobar
+trencada. T8.8 corregeix l'experiència d'edició que el mateix pilot va trobar
+feixuga per a una persona no tècnica.
 
 Les proves que depenen del servei complet es fan sobre la base operativa i no
 bloquegen l'avaluació inicial. Abans d'activar el pilot es comproven els
@@ -171,14 +176,16 @@ són prerequisits per habilitar la nova capacitat d'escriptura del servei.
 
 ## Tasques, entregues i seguiment
 
-| Unitat                                          | Estat      | Dependències | Resultat verificable                          | PR                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
-| ----------------------------------------------- | ---------- | ------------ | --------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| T8.1 Requisits, sessions, identitats i amenaces | Completada | Fases 5 i 6  | Contracte operatiu i riscos revisats          | [#180](https://github.com/rboixaderg/mountain-runners/pull/180)                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
-| T8.2 Avaluació, runtime, permisos i ADR         | Completada | T8.1         | Solució mínima verificada i frontera aprovada | [#182](https://github.com/rboixaderg/mountain-runners/pull/182), [#183](https://github.com/rboixaderg/mountain-runners/pull/183)                                                                                                                                                                                                                                                                                                                                                                                                       |
-| T8.3 Base operativa de Telegram fins a PR       | Completada | T8.2         | Una tasca petita arriba a PR des de Telegram  | [#197](https://github.com/rboixaderg/mountain-runners/pull/197), [#206](https://github.com/rboixaderg/mountain-runners/pull/206), [#207](https://github.com/rboixaderg/mountain-runners/pull/207)                                                                                                                                                                                                                                                                                                                                      |
-| T8.4 Continuació, CI i preview                  | Completada | T8.3         | Feina represa, preview i merge a petició      | [#212](https://github.com/rboixaderg/mountain-runners/pull/212), [#213](https://github.com/rboixaderg/mountain-runners/pull/213), [#215](https://github.com/rboixaderg/mountain-runners/pull/215), [#216](https://github.com/rboixaderg/mountain-runners/pull/216), [#217](https://github.com/rboixaderg/mountain-runners/pull/217), [#219](https://github.com/rboixaderg/mountain-runners/pull/219), [#220](https://github.com/rboixaderg/mountain-runners/pull/220), [#222](https://github.com/rboixaderg/mountain-runners/pull/222) |
-| T8.5 Auditoria, revocació i recuperació         | Completada | T8.3         | Atribució, continuïtat i aturada verificades  | [#211](https://github.com/rboixaderg/mountain-runners/pull/211), [#218](https://github.com/rboixaderg/mountain-runners/pull/218), [#224](https://github.com/rboixaderg/mountain-runners/pull/224), [#225](https://github.com/rboixaderg/mountain-runners/pull/225)                                                                                                                                                                                                                                                                     |
-| T8.6 Validació integral i runbook               | En curs    | T8.4, T8.5   | Servei operable sense accés a producció       | -                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| Unitat                                          | Estat      | Dependències | Resultat verificable                                   | PR                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| ----------------------------------------------- | ---------- | ------------ | ------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| T8.1 Requisits, sessions, identitats i amenaces | Completada | Fases 5 i 6  | Contracte operatiu i riscos revisats                   | [#180](https://github.com/rboixaderg/mountain-runners/pull/180)                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| T8.2 Avaluació, runtime, permisos i ADR         | Completada | T8.1         | Solució mínima verificada i frontera aprovada          | [#182](https://github.com/rboixaderg/mountain-runners/pull/182), [#183](https://github.com/rboixaderg/mountain-runners/pull/183)                                                                                                                                                                                                                                                                                                                                                                                                       |
+| T8.3 Base operativa de Telegram fins a PR       | Completada | T8.2         | Una tasca petita arriba a PR des de Telegram           | [#197](https://github.com/rboixaderg/mountain-runners/pull/197), [#206](https://github.com/rboixaderg/mountain-runners/pull/206), [#207](https://github.com/rboixaderg/mountain-runners/pull/207)                                                                                                                                                                                                                                                                                                                                      |
+| T8.4 Continuació, CI i preview                  | Completada | T8.3         | Feina represa, preview i merge a petició               | [#212](https://github.com/rboixaderg/mountain-runners/pull/212), [#213](https://github.com/rboixaderg/mountain-runners/pull/213), [#215](https://github.com/rboixaderg/mountain-runners/pull/215), [#216](https://github.com/rboixaderg/mountain-runners/pull/216), [#217](https://github.com/rboixaderg/mountain-runners/pull/217), [#219](https://github.com/rboixaderg/mountain-runners/pull/219), [#220](https://github.com/rboixaderg/mountain-runners/pull/220), [#222](https://github.com/rboixaderg/mountain-runners/pull/222) |
+| T8.5 Auditoria, revocació i recuperació         | Completada | T8.3         | Atribució, continuïtat i aturada verificades           | [#211](https://github.com/rboixaderg/mountain-runners/pull/211), [#218](https://github.com/rboixaderg/mountain-runners/pull/218), [#224](https://github.com/rboixaderg/mountain-runners/pull/224), [#225](https://github.com/rboixaderg/mountain-runners/pull/225)                                                                                                                                                                                                                                                                     |
+| T8.6 Validació integral i runbook               | En curs    | T8.4, T8.5   | Servei operable sense accés a producció                | -                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| T8.7 Continuïtat de la conversa d'un tema       | Pendent    | T8.4, T8.5   | Cada missatge acceptat manté el fil del tema           | -                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| T8.8 Experiència de les persones editores       | En curs    | T8.7         | Seqüència del pilot completa sense respostes tècniques | [#244](https://github.com/rboixaderg/mountain-runners/pull/244), [#245](https://github.com/rboixaderg/mountain-runners/pull/245), [#246](https://github.com/rboixaderg/mountain-runners/pull/246), [#247](https://github.com/rboixaderg/mountain-runners/pull/247), [#248](https://github.com/rboixaderg/mountain-runners/pull/248), [#249](https://github.com/rboixaderg/mountain-runners/pull/249)                                                                                                                                   |
 
 ### T8.1: Requisits, sessions, identitats i amenaces
 
@@ -310,8 +317,8 @@ rebuig de merge sense comanda o amb commits posteriors a l'informe. **PR:** prò
 demanada ([#215](https://github.com/rboixaderg/mountain-runners/pull/215)), el merge amb `/merge` ([#216](https://github.com/rboixaderg/mountain-runners/pull/216),
 [#217](https://github.com/rboixaderg/mountain-runners/pull/217)), la continuació d'una PR des d'un altre tema
 ([#219](https://github.com/rboixaderg/mountain-runners/pull/219)), l'avís de solapaments ([#220](https://github.com/rboixaderg/mountain-runners/pull/220)) i els
-adjunts d'imatge ([#222](https://github.com/rboixaderg/mountain-runners/pull/222)). Els límits d'entrada de les imatges
-passen a 2 MB i 2.400 píxels, sense redimensionar al servei. Les comprovacions
+adjunts d'imatge ([#222](https://github.com/rboixaderg/mountain-runners/pull/222)). Aquella entrega va fixar un límit d'entrada de 2 MB i 2.400 píxels, sense
+redimensionar al servei; T8.8 el substitueix. Les comprovacions
 de la unitat són proves del servei amb Git local i GitHub i Telegram simulats.
 Cap d'aquestes capacitats no s'ha activat al pilot: cada PR recull la
 verificació manual pendent abans d'activar-la, que es fa a T8.6.
@@ -349,6 +356,73 @@ T8.4 i T8.5. **Resultat:** servei operable amb responsables i fronteres
 provades. **Comprovació:** suite del servei, smoke real autoritzat, validació
 pertinent del canvi segons l'estratègia de proves i revisió de seguretat
 independent. **PR:** pròpia, darrera de la fase.
+
+### T8.7: Continuïtat de la conversa d'un tema
+
+**Origen:** al pilot de T8.6 (17 i 18 de novembre de 2026), l'agent va perdre
+el fil d'un tema. Cada tema ja té una sola sessió de Pi, i Pi conserva
+l'historial entre torns. La sessió tenia forats per tres causes:
+
+- El classificador rep només el missatge actual, sense historial. El text que
+  respon una pregunta de l'agent, com els fets d'una notícia o una imatge per a
+  la PR oberta, es classifica com a aclariment.
+- Un aclariment respon amb un text fix i no executa Pi. El missatge no entra a
+  l'historial, i al torn següent el model diu que no ha rebut aquella
+  informació.
+- Una continuació amb el worktree net es converteix en aclariment, encara que
+  el tema tingui una PR oberta publicada pel servei. Els efectes que decideix el
+  servei (PR creada, avís de CI, preview, merge i adjunt refusat) tampoc no
+  arriben a la sessió.
+
+**Abast:** aplicar els requisits de
+[Continuïtat de la conversa (T8.7)](#continuïtat-de-la-conversa-t87): cada
+missatge acceptat que no és `/merge` ni una preview arriba a la sessió de Pi
+del tema. El torn següent rep els efectes del servei. El classificador rep el
+context mínim del tema. Una continuació sense canvis locals reprèn la PR oberta
+del mateix tema. **Exclusió:** no canvia la regla d'activació per menció o
+resposta al bot, no desactiva el mode de privacitat del bot i no envia al model
+la conversa del grup que no adreça el bot. Tampoc no canvia el camí determinista
+de `/merge` ni de la preview. **Depèn de:** T8.4 i T8.5. **Resultat:** la
+seqüència del pilot (petició, pregunta de l'agent, resposta amb els fets, PR i
+imatge per a la PR) es completa sense repetir informació ni perdre el fil.
+**Comprovació:** proves del servei amb Telegram, GitHub i model simulats i
+repetició supervisada de la seqüència al VPS. **PR:** pròpia.
+
+### T8.8: Experiència de les persones editores
+
+**Origen:** al mateix pilot (17 i 18 de novembre de 2026), una persona no
+tècnica del club no va poder completar la feina sense ajuda:
+
+- Tota PR que afegeix una entrada en esborrany fa fallar la seva preview.
+  `apps/web/e2e/posts.spec.ts` espera tres entrades exactes a la portada i cap
+  secció d'esborranys, i el flux de preview l'executa en mode preview. La CI
+  ordinària no executa aquell recorregut en mode preview, així que la CI queda
+  verda i la preview falla després.
+- El servei no llegeix el resultat del flux de preview. Espera fins al termini i
+  informa que no ha pogut confirmar la preview. El rebuig per feina més nova
+  nomena el commit informat com si fos el més nou.
+- L'agent no llegeix l'estat de la PR, la CI ni la preview, i respon que no hi
+  té accés o endevina l'URL.
+- Les fotos comprimides de Telegram es refusen, el límit d'entrada és de 2 MB i
+  l'adjunt només existeix durant un torn, així que la persona va enviar la
+  mateixa imatge dues vegades. El model no veu la imatge, només en rep la ruta,
+  i no pot escriure l'alt ni llegir el cartell.
+- Les respostes i els avisos del servei són tècnics: rutes, camps YAML,
+  recomptes de proves, ADR, commits, noms de branca i de comprovació.
+
+**Abast:** aplicar els requisits d'[Experiència de les persones editores
+(T8.8)](#experiència-de-les-persones-editores-t88) a la preview, l'estat del
+tema, el llenguatge i els avisos, la publicació i les traduccions, i les
+imatges. **Exclusió:** no canvia l'activació per menció o resposta, el camí
+determinista de `/merge`, els permisos de GitHub, el desplegament a producció
+ni l'aïllament de xarxa i credencials del sandbox. No afegeix ingesta d'imatges
+per URL ni canvia el model configurat. **Depèn de:** T8.7. **Resultat:** una
+persona no tècnica completa la seqüència del pilot (text d'una notícia, foto
+corrent, preview i «publica-la») en un tema nou, sense respostes tècniques,
+informació repetida ni una preview fallida. **Comprovació:** proves del servei
+amb Telegram, GitHub i model simulats, E2E en mode preview i repetició
+supervisada al VPS. **PR:** diverses, una per bloc (proves de preview, informe
+de preview, to i avisos, imatges, estat del tema).
 
 ## Requisits específics
 
@@ -408,6 +482,112 @@ independent. **PR:** pròpia, darrera de la fase.
   l'eliminació de treball no fusionat requereixen una petició explícita; no
   són efectes automàtics de tancar un fil.
 
+### Continuïtat de la conversa (T8.7)
+
+Aquests requisits mantenen la regla d'activació de T8.1: només entra al servei
+un missatge que menciona el bot o respon a un missatge seu. Respondre un missatge
+del bot no requereix menció.
+
+- **Una sola sessió sense forats.** Tota instrucció acceptada que no és
+  `/merge` ni una preview executa un torn de Pi a la sessió del tema. Si el
+  classificador retorna aclariment, o una continuació no té feina pendent ni
+  PR del tema, el servei executa Pi en mode consulta: worktree de només
+  lectura, sense branca ni publicació. El model respon o demana l'aclariment amb
+  el context de la sessió. El text fix d'aclariment només es fa servir si el
+  model no pot respondre.
+- **Efectes del servei a la sessió.** El servei desa els efectes que decideix
+  ell mateix en un tema: PR creada o actualitzada (número, branca i commit),
+  resultat de les comprovacions locals, avís de CI, preview, resultat d'un
+  `/merge` i adjunt refusat o acceptat. El torn següent de Pi del mateix tema
+  rep aquests efectes com a text del servei, separat de la petició de la
+  persona. Cada efecte es lliura com a màxim una vegada. Un reinici no el perd
+  ni el duplica. Aquest text no conté identificadors de Telegram ni dades de
+  les persones.
+- **Context del classificador.** El classificador continua sense eines ni
+  repositori. A més de la petició, rep només aquest context del tema:
+  - l'última resposta de l'agent, retallada a una longitud fixa;
+  - si hi ha canvis locals o un commit no publicat;
+  - el número de la PR oberta que el servei va publicar en aquell tema, si
+    existeix.
+
+  Una petició que respon l'última resposta de l'agent, o que aporta dades o
+  fitxers per a la feina pendent, és una continuació. Una feina nova i
+  independent és una implementació. El text del context és dada, no una
+  instrucció.
+
+- **Continuació sobre la PR del tema.** Si una continuació no té canvis locals
+  ni commits pendents, i el tema té una PR oberta publicada pel servei, el
+  servei reprèn aquella PR amb les comprovacions d'elegibilitat de la
+  continuació entre temes de T8.4. La imatge adjunta d'aquesta continuació
+  s'aplica a la PR represa.
+- **Feina en curs preservada.** Una implementació nova continua arxivant el
+  worktree anterior sense perdre'l. La traça registra la classificació de cada
+  instrucció perquè l'operador pugui revisar una decisió errònia.
+
+### Experiència de les persones editores (T8.8)
+
+Aquests requisits mantenen l'activació del bot, el camí determinista de
+`/merge`, els permisos de GitHub, el desplegament i l'aïllament del sandbox.
+
+**Preview**
+
+- Les proves E2E de preview comproven les entrades conegudes, no un recompte.
+  La portada conté les entrades esperades i l'absència de la secció d'esborranys
+  només s'afirma a la compilació pública. La CI executa el recorregut de
+  notícies i blog en mode preview, de manera que una entrada nova trencada es
+  veu a la PR abans que ningú demani la preview.
+- El servei llegeix el resultat real de l'execució del flux de preview per al
+  commit demanat. Informa l'èxit amb l'URL confirmada o el fracàs en llenguatge
+  planer, sense reparar automàticament una preview fallida. El termini per
+  confirmar-la és de 25 minuts.
+- El rebuig per feina més nova nomena el commit nou no informat, no el commit
+  que ja s'havia informat.
+
+**Estat del tema**
+
+- Cada torn del model rep del servei l'estat del tema com a dada: número i
+  enllaç de la PR oberta, últim commit informat, resultat de la CI, estat de la
+  preview i URL confirmada, si existeix. El sandbox continua sense xarxa ni
+  credencials.
+
+**Llenguatge i to**
+
+- L'agent respon en la llengua de la persona, català per defecte, per a un
+  públic no tècnic: frases curtes i paraules planeres, sense rutes, noms de
+  fitxer, camps YAML, ordres, recomptes de proves, commits ni referències a ADR,
+  tret que la persona demani detall tècnic.
+- Redacta amb els fets que té i fa com a màxim una pregunta quan en falta un
+  d'essencial. No fa una llista de preguntes.
+- Sempre dona l'enllaç de la preview quan n'hi ha. L'enllaç de la PR apareix
+  només com a darrera línia, amb la forma «Enllaç per a revisió: …».
+- Avisos automàtics: un quan el canvi està a punt, amb la publicació i les
+  comprovacions en verd, que convida a demanar la preview, i un de clar quan una
+  cosa falla. No hi ha avisos separats per a la PR actualitzada, l'inici del
+  seguiment de la CI i les comprovacions en verd. Els noms de branca, commit i
+  comprovació queden a la traça privada i a la PR, no al tema.
+- El model emet la línia de resum pública només quan el torn ha canviat fitxers.
+
+**Publicació i traduccions**
+
+- Una entrada és sempre un esborrany per defecte. Qualsevol membre verificat del
+  grup pot demanar-ne la publicació amb «publica-la»: l'agent la marca com a
+  publicada i hi posa la data i l'hora de la petició com a instant de
+  publicació. Aquesta petició és l'aprovació editorial d'aquella entrada, i el
+  merge continua sent humà, amb les regles de `/merge`.
+- La [guia editorial](../editorial/guide.md) reserva avui l'aprovació de la
+  publicació a la persona mantenidora, i l'[ADR 0011](../decisions/0011-news-blog-editorial-previews.md)
+  li encarrega la revisió dels continguts. La implementació de T8.8 actualitza
+  la guia i proposa l'esmena de l'ADR; aquesta revisió no toca cap dels dos
+  documents.
+- Les variants en castellà i anglès s'escriuen només quan algú les demana.
+
+**Imatges**
+
+- Els límits d'entrada, la reducció, la neteja de metadades, els drets, la
+  retenció, l'àlbum, el cartell vertical i l'entrada d'imatge al model són a
+  [Codi, contingut i adjunts](#codi-contingut-i-adjunts), actualitzat per
+  aquesta unitat.
+
 ### Entorn i permisos de desenvolupament
 
 - El servei té usuari i unitat propis al VPS; el runtime s'executa en un
@@ -438,13 +618,33 @@ independent. **PR:** pròpia, darrera de la fase.
   els requisits de traducció. No s'inventen fets ni s'utilitza fallback per
   donar per completa una variant incompleta.
 - Els adjunts s'accepten des de Telegram amb validació de tipus real, extensió,
-  mida i destinació. Les imatges tenen un límit de 2 MB d'entrada i 2.400
-  píxels de costat llarg, sense redimensionar al servei, eliminació d'EXIF i
-  geolocalització i pressupost de 300 KiB per variant generada pel build.
-- Els originals de portada s'envien com a fitxer, no com a foto comprimida.
-  L'origen i els drets queden revisables a la PR sense publicar consentiments
-  personals. No s'incorporen captures amb dades personals o financeres sense
-  sanititzar. La ingesta automàtica d'imatges per URL queda fora d'abast.
+  mida i destinació. S'accepten les fotos comprimides de Telegram i els fitxers
+  d'imatge. El límit d'entrada és de 20 MB, el màxim de descàrrega de Telegram,
+  i l'agent avisa quan la imatge és més petita que la portada recomanada.
+- El servei redueix la imatge desada a 2.400 píxels del costat llarg i n'elimina
+  les metadades EXIF i la geolocalització. Es manté el pressupost de 300 KiB per
+  variant generada pel build. Els cartells verticals es mostren sencers, sense
+  retallar ni deformar.
+- Un adjunt continua disponible per al seu tema fins que s'utilitza o durant 7
+  dies. Cada missatge pot portar fins a 5 imatges, com un àlbum. Amb diverses
+  imatges, la persona diu on va cada una, a la portada o a una secció; si no ho
+  diu, l'agent fa una pregunta. El model de contingut admet una portada i fins a
+  deu imatges per secció.
+- El model rep la imatge com a entrada d'imatge, perquè el model configurat
+  accepta imatges. Escriu l'alt a partir del que veu i comprova el text del
+  cartell amb l'entrada. Una eina li permet tornar a mirar un adjunt desat del
+  seu tema.
+- Drets: una imatge que envia un membre verificat sense cap indicació més és del
+  club, amb el crèdit «Mountain Runners», i queda registrada a la PR. L'agent
+  pregunta només quan la imatge sembla de tercers, com un logotip, una foto de
+  premsa o el crèdit d'una altra autoria. L'origen i els drets queden revisables
+  a la PR sense publicar consentiments personals, i els consentiments no
+  s'emmagatzemen mai al repositori. No s'incorporen captures amb dades personals
+  o financeres sense sanititzar. La ingesta automàtica d'imatges per URL queda
+  fora d'abast.
+- La implementació de T8.8 actualitza els límits d'adjunts de
+  `docs/deployment.md` i `docs/runbook.md`, que encara descriuen el límit
+  anterior.
 
 ### Git, comprovacions, PR i preview
 
@@ -505,6 +705,19 @@ s'afegeixen les mancances del pont sense duplicar suites senceres.
   efectiva sense cancel·lar implícitament el treball compartit existent.
 - Sessions: dos autors en un tema, temes separats, ordre de missatges,
   deduplicació, reinici i pregunta/resposta al mateix fil.
+- Continuïtat (T8.7): un aclariment executa Pi en mode consulta a la sessió del
+  tema; una resposta amb dades després d'una pregunta de l'agent arriba al
+  model; els efectes del servei arriben una sola vegada al torn següent, també
+  després d'un reinici; una continuació sense canvis locals reprèn la PR oberta
+  del tema; el classificador rep el context acotat i el tracta com a dada.
+- Experiència d'edició (T8.8): el recorregut de notícies i blog en mode preview
+  amb una entrada nova comprova entrades conegudes i deixa l'absència
+  d'esborranys a la compilació pública; l'informe de preview confirma l'URL
+  real, fracassa en llenguatge planer i respecta el termini; el rebuig per feina
+  més nova nomena el commit nou. També: estat del tema a cada torn, llengua i
+  to, com a màxim una pregunta, enllaços de preview i de revisió, avisos únics,
+  publicació per petició amb la data de la petició i traduccions només
+  demanades.
 - Consulta sense canvis, dues feines successives en una sessió i represa de PR
   des d'una altra amb codi i context correctes.
 - Solapaments: avís sense bloqueig, worktrees separats, continuació de la
@@ -513,7 +726,10 @@ s'afegeixen les mancances del pont sense duplicar suites senceres.
   intents d'escapada per paths o symlinks, secrets i fitxers del host
   inaccessibles. Els controls no depenen del criteri d'un model real.
 - Adjunts: tipus fals, límits, metadades, path traversal i rebuig d'imatges no
-  admeses; validació editorial existent sense reimplementar esquemes.
+  admeses; foto comprimida acceptada, avís per sota de la portada recomanada,
+  drets per defecte del club, retenció de l'adjunt, àlbum amb destinació per
+  imatge i model que rep la imatge; validació editorial existent sense
+  reimplementar esquemes.
 - Integració amb repositori temporal, Telegram i GitHub simulats: ordre natural
   → canvi de codi → prova → commit → push → PR → CI → petició humana al fil
   → preview. Comprovar també que no es demana preview sense petició. Fallades de
@@ -592,14 +808,15 @@ prova simulada no es presenta com a verificació dels permisos reals de GitHub.
   única. No es força un procés editorial per poder preguntar sobre el codi.
 - Execució arbitrària fora del sandbox, connectors sense justificar i ampliació
   de permisos del servei des del xat.
-- Publicar contingut des de la conversa o eliminar les validacions i revisions
-  editorials; ingesta automàtica d'imatges per URL.
+- Publicar contingut sense la petició d'un membre verificat, eliminar les
+  validacions i revisions editorials o saltar-se el merge humà; ingesta
+  automàtica d'imatges per URL.
 - Pressupostos de tokens o facturació addicional, terminis de retenció inventats
   abans d'avaluar l'eina i memòria autònoma obligatòria.
 
 ## Criteris d'acceptació
 
-1. Les sis unitats tenen PR revisada, validada i fusionada en ordre de
+1. Les vuit unitats tenen PR revisada, validada i fusionada en ordre de
    dependències. L'ADR i les esmenes de fronteres s'han aprovat abans
    d'habilitar els permisos ampliats.
 2. Qualsevol membre del grup autoritzat pot consultar i encarregar canvis; una
@@ -633,3 +850,12 @@ prova simulada no es presenta com a verificació dels permisos reals de GitHub.
     idiomes, metadades i publicació vigents.
 11. El runbook identifica el runtime pinjat, model, permisos, límits, retenció,
     revocació, aturada, backups i restauració provats, sense afectar producció.
+12. Dins d'un tema, cada missatge acceptat que no és `/merge` ni una preview
+    arriba a la sessió de Pi. El model coneix els efectes del servei del torn
+    anterior, i una resposta a la seva pregunta continua la feina pendent o la
+    PR oberta del tema sense que la persona repeteixi la informació.
+13. Una persona no tècnica completa en un tema nou la seqüència del pilot (text
+    d'una notícia, foto corrent, preview i «publica-la») sense respostes
+    tècniques, informació repetida ni una preview fallida. L'informe de preview
+    confirma l'URL real o fracassa en llenguatge planer, el model rep l'estat
+    del tema i la imatge, i la publicació per petició manté el merge humà.

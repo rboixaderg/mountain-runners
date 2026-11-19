@@ -33,7 +33,7 @@ test("assembles only trusted runtime files and enables only the sandbox tool", a
     JSON.parse(readFileSync(join(profile, "settings.json"), "utf8")),
     {
       defaultProjectTrust: "never",
-      defaultTools: ["sandbox_bash"],
+      defaultTools: ["sandbox_bash", "view_attachment"],
     },
   );
   assert.equal(
@@ -42,6 +42,14 @@ test("assembles only trusted runtime files and enables only the sandbox tool", a
   );
   assert.equal(existsSync(join(profile, "extensions", "arguments.mjs")), true);
   assert.equal(existsSync(join(profile, "extensions", "commands.mjs")), true);
+  assert.equal(
+    existsSync(join(profile, "extensions", "attachment-read.mjs")),
+    true,
+  );
+  assert.equal(
+    existsSync(join(profile, "extensions", "image-format.mjs")),
+    true,
+  );
   assert.equal(existsSync(join(profile, "skills")), false);
 });
 

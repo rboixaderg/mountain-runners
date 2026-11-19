@@ -9,6 +9,7 @@
 
 import { realpathSync, statSync } from "node:fs";
 import { basename } from "node:path";
+import { createAttachmentStore } from "../attachments/store.mjs";
 import {
   primaryRepository,
   registeredWorktree,
@@ -76,6 +77,17 @@ function newestByTopic(candidates) {
     }
   }
   return newest;
+}
+
+/**
+ * Remove the topic attachments that stayed unused for seven days. The images
+ * live outside the worktree, in the private state directory; the startup runs
+ * this next to the worktree retention and never blocks the service.
+ */
+export function pruneStoredAttachments({ statePath, logger = () => {} }) {
+  return createAttachmentStore({ stateDirectory: statePath }).prune({
+    logger,
+  });
 }
 
 export async function pruneArchivedWorktrees({
