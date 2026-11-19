@@ -5,23 +5,23 @@ import { attachmentRefusalReasons } from "../attachments/refusals.mjs";
 
 export const bridgeMessages = {
   acknowledgement: (excerpt) =>
-    `Petició rebuda. Hi estem treballant: «${excerpt}». Et respondré en aquest mateix tema quan acabi.`,
+    `Petició rebuda. Hi estic treballant: «${excerpt}». Et respondré en aquest mateix tema quan acabi.`,
   queueFull:
-    "La cua és plena. La instrucció no s'ha admès; torna-ho a provar quan acabi la feina en curs.",
+    "Ara mateix hi ha massa feina a la cua i no he pogut començar aquesta petició. Torna-ho a provar quan acabi la feina en curs.",
   queueBlocked:
-    "El servei està bloquejat per un resultat incert. La instrucció no s'ha admès; cal revisar l'estat abans de tornar-ho a provar.",
+    "Hi ha una feina anterior que ha quedat a mitges i s'ha de revisar abans de continuar. No he començat aquesta petició; torna-ho a provar més tard.",
   membershipUnavailable:
-    "No s'ha pogut verificar la pertinença al grup. La instrucció no s'ha admès; torna-ho a provar.",
+    "Ara mateix no he pogut comprovar que siguis membre del grup. No he començat la petició; torna-ho a provar d'aquí una estona.",
   unknownResult:
-    "El resultat d'una acció externa és desconegut. El servei s'atura sense repetir-la; cal revisar l'estat real.",
+    "No sé si l'última acció s'ha completat. No la repeteixo i ho ha de revisar la persona que manté el servei.",
   attachmentUnsupported:
-    "Aquest tipus de fitxer no serveix. Envia una imatge JPEG, PNG o WebP.",
+    "Aquest tipus de fitxer no em serveix. Envia'm una imatge JPEG, PNG o WebP.",
   attachmentInvalidPhoto:
-    "No s'ha pogut llegir la foto. No s'ha desat res; torna-la a enviar.",
+    "No he pogut llegir la foto. No he desat res; torna-la a enviar.",
   attachmentTooLarge: (megabytes) =>
-    `La imatge fa ${megabytes} MB i el màxim és 20 MB. No s'ha desat res; envia'n una còpia més petita.`,
+    `La imatge fa ${megabytes} MB i el màxim és 20 MB. No he desat res; envia-me'n una còpia més petita.`,
   attachmentTooManyImages: (count) =>
-    `Un missatge pot portar com a màxim 5 imatges i aquest en portava ${count}. No s'ha desat res; envia'n com a màxim 5.`,
+    `Un missatge pot portar com a màxim 5 imatges i aquest en portava ${count}. No he desat res; envia-me'n com a màxim 5.`,
 };
 export const checkCommand = "pnpm check";
 export const sandboxPrepareCommand = [
@@ -78,8 +78,11 @@ export const unclearRequestLine =
 export function buildInstructionPrompt(
   instruction,
   kind,
-  { unclearRequest = false, serviceNotes = [] } = {},
+  { unclearRequest = false, serviceNotes = [], currentInstant } = {},
 ) {
+  if (typeof currentInstant !== "string" || currentInstant === "") {
+    throw new Error("The current instant of the service is required.");
+  }
   const lines = [
     "You work on the Mountain Runners repository inside an isolated worktree.",
     `This request is ${kind}. Consultations are read-only and never publish pending work.`,
@@ -90,6 +93,21 @@ export function buildInstructionPrompt(
     "Before acting, read AGENTS.md, the applicable .agents/skills/*/SKILL.md, specifications and ADRs using sandbox_bash. They are available only inside /work.",
     "Keep the change small and follow those project rules.",
     "If the request is only a question, answer it without modifying files.",
+    "",
+    "Who reads your answer and how to write it:",
+    "- The people in this conversation are club members. Most of them are not technical and they read you in Telegram.",
+    "- Answer in the language the person wrote in; Catalan by default.",
+    "- Use short, plain sentences. Describe the result with the words the person sees on the website: the news item, the photo, the text, the date.",
+    "- Never mention repository paths, file names, YAML fields, commands, test names or counts, commits, branches, ADRs or skills, unless the person explicitly asks for technical detail.",
+    "- The project rules in AGENTS.md and the skills govern your work, not the wording of your answer.",
+    "- Draft with the facts the request gives you. When something essential is missing, ask at most ONE short question; never send a list of questions. Never ask for something the person cannot know, such as a time zone offset, the name of a field or a commit.",
+    "",
+    "Posts and publication:",
+    "- Every news item and every blog post is created as a draft: `published: false`.",
+    "- Set `published: true` and `publishedAt` to the current instant only when a person explicitly asks to publish that post in this conversation, for example with «publica-la». That explicit request is the editorial approval of that post; the merge of the change stays human.",
+    `- Current instant, in Europe/Madrid with its offset: ${currentInstant}. Use exactly this value for a publication timestamp.`,
+    "- When you publish a post, tell the person in plain words that it will be visible on the website once the change is merged.",
+    "- Write the Spanish and English variants only when the person asks for them; otherwise write only Catalan.",
   ];
   if (kind === repairRequestKind) {
     lines.push(
@@ -104,8 +122,10 @@ export function buildInstructionPrompt(
     lines.push(unclearRequestLine);
   }
   lines.push(
-    "When you changed files, end your answer with one line: SUMMARY: type(scope): imperative summary",
+    "",
+    "When, and only when, this turn changed files, end your answer with exactly one line: SUMMARY: type(scope): imperative summary",
     `The type must be one of ${changeTypes.join(", ")}. A type outside that list is discarded and the change gets a generic title.`,
+    "Write no SUMMARY line on a turn that changed no files: the service removes any SUMMARY line from the text the person reads.",
     "SUMMARY is public. Describe only the code or content diff; do not include private conversation details or personal data.",
   );
   if (serviceNotes.length > 0) {
@@ -115,13 +135,54 @@ export function buildInstructionPrompt(
   return lines.join("\n");
 }
 
+/**
+ * The current instant in Europe/Madrid with its offset, as the post schema
+ * requires it. The sandbox clock is not trusted, so the service fixes it.
+ */
+export function formatMadridInstant(date) {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Europe/Madrid",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hourCycle: "h23",
+    timeZoneName: "longOffset",
+  }).formatToParts(date);
+  const value = (type) => parts.find((part) => part.type === type)?.value;
+  const offset = value("timeZoneName").replace(/^GMT/u, "");
+  return `${value("year")}-${value("month")}-${value("day")}T${value("hour")}:${value("minute")}:${value("second")}${offset}`;
+}
+
+const changeSummaryLinePattern = /^[ \t]*SUMMARY:/u;
+
+/**
+ * The answer without its change summary. The service owns the summary and
+ * parses it; a person never reads it, whatever the turn did.
+ */
+export function stripChangeSummary(text) {
+  return text
+    .split("\n")
+    .filter((line) => !changeSummaryLinePattern.test(line))
+    .join("\n")
+    .replace(/\n{3,}/gu, "\n\n")
+    .trim();
+}
+
+// The summary line accepts the same leading whitespace the person-facing text
+// strips, so an indented but valid summary still names the commit and the
+// branch instead of being silently discarded.
+const changeSummaryLine = /^[ \t]*SUMMARY:\s+/u;
+
 export function parseChangeSummary(text) {
   const lines = text.split("\n");
-  const summaryLine = lines.findLast((line) => /^SUMMARY:\s+/u.test(line));
+  const summaryLine = lines.findLast((line) => changeSummaryLine.test(line));
   if (!summaryLine) {
     return null;
   }
-  const candidate = summaryLine.replace(/^SUMMARY:\s+/u, "").trim();
+  const candidate = summaryLine.replace(changeSummaryLine, "").trim();
   return summaryPattern.test(candidate) ? candidate : null;
 }
 
@@ -351,35 +412,35 @@ export function buildClassificationPrompt(
 
 export const instructionReports = {
   preparationFailed:
-    "No s'han pogut preparar les dependències offline. Cal revisar el lockfile i la versió de pnpm de la imatge; no s'ha fet cap push.",
+    "No he pogut preparar l'entorn de treball, així que no he començat la feina. No s'ha publicat res; ho ha de revisar la persona que manté el servei.",
   executionFailed:
-    "L'execució local ha fallat. No s'ha fet cap push; el treball es conserva i la cua pot continuar.",
+    "No he pogut acabar la feina. No s'ha publicat res i el treball que hi havia es conserva. Pots tornar-ho a demanar en aquest tema.",
   publicationUncertain:
-    "No s'ha pogut confirmar el resultat de la publicació. El servei queda bloquejat fins que es revisi l'estat real.",
-  ciWatchUnavailable:
-    "No s'ha pogut desar el seguiment posterior d'aquesta publicació. El servei queda bloquejat fins que una persona revisi l'estat real.",
+    "No sé si el canvi s'ha publicat. No el torno a publicar sol; ho ha de revisar la persona que manté el servei.",
   sandboxUncertain:
-    "No s'ha pogut confirmar l'aturada del contenidor. El servei queda bloquejat fins que es revisi l'estat real.",
+    "No he pogut aturar del tot l'entorn de treball. Per seguretat no continuo; ho ha de revisar la persona que manté el servei.",
   clarification:
-    "Vols una explicació o que implementi un canvi? Concreta què vols modificar.",
+    "No sé si vols una explicació o un canvi. Digues-me què vols canviar i ho preparo.",
   modelTimedOut:
-    "L'execució ha superat el límit de temps. Es conserva el treball i no es repeteix automàticament.",
-  aborted: "L'execució s'ha interromput. No es publica cap canvi.",
-  noAnswer: "La consulta no ha produït cap resposta.",
+    "La feina ha durat més del que puc esperar i l'he aturada. El treball es conserva i no es repeteix sol; pots tornar-ho a demanar.",
+  aborted:
+    "La feina s'ha interromput abans d'acabar. No s'ha publicat res; pots tornar-ho a demanar.",
+  noAnswer:
+    "No he pogut preparar cap resposta. Torna-ho a demanar en aquest tema.",
   checksTimedOut:
-    "Les comprovacions han superat el límit de temps. Es conserva el treball i no es repeteix automàticament.",
+    "Les comprovacions automàtiques han durat més del que puc esperar. El treball es conserva i no es repeteix sol.",
   checksFailed:
-    "Les comprovacions del projecte fallen. No s'ha fet cap push; el treball es conserva per revisar-lo.",
+    "El canvi no passa les comprovacions automàtiques, així que no s'ha publicat res. El treball es conserva; si vols que ho mirem, demana-ho en aquest tema.",
   publicationRefused:
-    "La publicació s'ha refusat per una regla local. No s'ha enviat res a GitHub; el treball es conserva per revisar-lo.",
+    "No s'ha publicat res: una regla del projecte ho ha impedit. El treball es conserva; demana-ho en aquest tema si vols que ho revisem.",
   publicationReadFailed:
-    "No s'ha pogut llegir l'estat de la pull request abans de publicar. No s'ha enviat res a GitHub; el treball es conserva i la cua pot continuar.",
+    "No he pogut mirar com està la proposta abans de publicar, així que no he enviat res. El treball es conserva; torna-ho a demanar d'aquí una estona.",
   repairWorktreeMissing:
-    "No s'ha trobat el worktree de la feina publicada. No s'ha intentat cap reparació automàtica; el treball es conserva i cal revisar-ho.",
+    "No he trobat la feina que calia corregir, així que no he tocat res. Ho ha de revisar la persona que manté el servei.",
   repairCommitChanged:
-    "El worktree de la feina no és al commit que va fallar. No s'ha intentat cap reparació automàtica; cal revisar-ho.",
+    "La feina ha canviat des del punt que calia corregir, així que no he tocat res. Ho ha de revisar la persona que manté el servei.",
   repairWorktreeDirty:
-    "El worktree de la feina té canvis sense publicar d'una instrucció posterior. No s'ha intentat cap reparació automàtica perquè no es publiquin; el treball es conserva i cal revisar-ho.",
+    "Hi ha canvis nous sense publicar sobre la feina que calia corregir, així que no he tocat res per no barrejar-los. El treball es conserva; ho ha de revisar la persona que manté el servei.",
 };
 
 // Replies of a continuation that names another topic's pull request. Each
@@ -387,37 +448,37 @@ export const instructionReports = {
 // topics never write the same branch by accident.
 export const continuationReports = {
   multiplePullRequests:
-    "La petició nomena més d'una pull request. Concreta'n només una amb el número (#N); no s'ha reprès cap feina.",
+    "La petició nomena més d'una proposta. Digues-me'n només una, amb el número; no he reprès cap feina.",
   unreadable: ({ pullRequestNumber }) =>
-    `No s'ha pogut llegir la PR #${pullRequestNumber}. No s'ha reprès cap feina; torna-ho a provar.`,
+    `No he pogut llegir la proposta #${pullRequestNumber}. No he reprès cap feina; torna-ho a provar.`,
   notOpen: ({ pullRequestNumber }) =>
-    `La PR #${pullRequestNumber} ja no està oberta. No s'ha reprès cap feina.`,
+    `La proposta #${pullRequestNumber} ja no està oberta. No he reprès cap feina.`,
   draft: ({ pullRequestNumber }) =>
-    `La PR #${pullRequestNumber} és un esborrany. No s'ha reprès cap feina.`,
+    `La proposta #${pullRequestNumber} encara és un esborrany. No he reprès cap feina.`,
   notMainBase: ({ pullRequestNumber }) =>
-    `La PR #${pullRequestNumber} no apunta a la branca main. No s'ha reprès cap feina.`,
+    `La proposta #${pullRequestNumber} no apunta a la branca principal del projecte. No he reprès cap feina.`,
   notMainRepository: ({ pullRequestNumber }) =>
-    `La PR #${pullRequestNumber} no ve d'una branca del repositori principal. No s'ha reprès cap feina.`,
+    `La proposta #${pullRequestNumber} no és d'aquest projecte. No he reprès cap feina.`,
   notWorkBranch: ({ pullRequestNumber }) =>
-    `La branca de la PR #${pullRequestNumber} no és una branca de treball del servei. No s'ha reprès cap feina.`,
+    `La proposta #${pullRequestNumber} no és d'una feina d'aquest servei. No he reprès cap feina.`,
   notPublishedByService: ({ pullRequestNumber }) =>
-    `La PR #${pullRequestNumber} no la va publicar aquest servei. Només es reprenen les PR que ha publicat; no s'ha reprès cap feina.`,
+    `La proposta #${pullRequestNumber} no la va preparar aquest servei. Només continuo les propostes que he preparat jo; no he reprès cap feina.`,
   ownerBusy: ({ pullRequestNumber }) =>
-    `El tema que treballa la PR #${pullRequestNumber} encara té feina pendent o un avís de CI sense informar. No s'ha reprès cap feina; espera que acabi i torna-ho a provar.`,
+    `El tema que treballa la proposta #${pullRequestNumber} encara té feina pendent o un avís de comprovacions per rebre. No he reprès cap feina; espera que acabi i torna-ho a demanar.`,
   dirtyWorktree: ({ pullRequestNumber }) =>
-    `Hi ha canvis sense publicar en un worktree amb la branca de la PR #${pullRequestNumber}. No s'ha reprès la feina ni s'ha sobreescrit res; publica'ls o descarta'ls tu mateix.`,
+    `Hi ha canvis sense publicar en una feina de la proposta #${pullRequestNumber}. No he reprès res ni he sobreescrit res; ho ha de revisar la persona que manté el servei.`,
   unpublishedCommits: ({ pullRequestNumber }) =>
-    `Hi ha commits sense publicar en un worktree amb la branca de la PR #${pullRequestNumber}. No s'ha reprès la feina ni s'ha sobreescrit res; publica'ls tu mateix.`,
+    `Hi ha feina feta i no publicada en una feina de la proposta #${pullRequestNumber}. No he reprès res ni he sobreescrit res; ho ha de revisar la persona que manté el servei.`,
   divergedBranch: ({ pullRequestNumber }) =>
-    `La branca local de la PR #${pullRequestNumber} té història que no és al cap de la PR. No s'ha reprès la feina ni s'ha mogut la branca.`,
+    `La feina local de la proposta #${pullRequestNumber} té canvis que no són a la proposta. No he reprès res ni he mogut res; ho ha de revisar la persona que manté el servei.`,
   movedHead: ({ pullRequestNumber }) =>
-    `El cap de la PR #${pullRequestNumber} ha canviat mentre es reprenia. No s'ha reprès cap feina; torna-ho a provar.`,
-  resumed: ({ pullRequestNumber, baseHeadSha }) =>
-    `Continuació de la PR #${pullRequestNumber} des del commit ${shortCommit(baseHeadSha)}.`,
+    `La proposta #${pullRequestNumber} ha canviat mentre la reprenia. No he reprès cap feina; torna-ho a demanar.`,
+  resumed: ({ pullRequestNumber }) =>
+    `Continuo la proposta #${pullRequestNumber}, des del punt que ja teníem.`,
   ownerUnregistered: ({ pullRequestNumber }) =>
-    `La publicació de la PR #${pullRequestNumber} s'ha fet, però no s'ha pogut registrar el canvi de tema: el tema anterior continua rebent els avisos de CI.`,
+    `La proposta #${pullRequestNumber} s'ha publicat, però els avisos de les comprovacions continuaran arribant al tema anterior.`,
   handover: ({ pullRequestNumber }) =>
-    `La feina de la PR #${pullRequestNumber} continua en un altre tema.`,
+    `La feina de la proposta #${pullRequestNumber} continua en un altre tema.`,
 };
 
 // The overlap warning of an implementation or a continuation. It names the
@@ -504,28 +565,82 @@ export const ciWatchOutcomes = {
   unavailable: "unavailable",
 };
 
-export function publicationReport({
+/**
+ * The last line of a merge reply: the review link and the short merge commit.
+ * A missing URL drops the link only, never the merged change.
+ */
+export function mergedReviewLineText({ pullRequestUrl, mergeCommit }) {
+  const linkLine = reviewLinkLine(pullRequestUrl);
+  if (linkLine === null) {
+    return `Canvi fusionat ${shortCommit(mergeCommit)}.`;
+  }
+  return `${linkLine} (canvi fusionat ${shortCommit(mergeCommit)})`;
+}
+
+/**
+ * The service-written part of a publication: the notices the service decided
+ * around it, one short line that says what happens with the change, and the
+ * review link as the last line. Without a CI watch the service promises no
+ * follow-up message.
+ */
+export function publicationNoticesText({ pullRequest, ciWatch, notices = [] }) {
+  const lines = [...notices];
+  if (ciWatch === ciWatchOutcomes.registered) {
+    lines.push(
+      "El canvi està publicat i l'estic comprovant. T'avisaré en aquest tema quan estigui a punt.",
+    );
+  } else if (ciWatch === ciWatchOutcomes.unavailable) {
+    lines.push(
+      "El canvi està publicat, però no podré avisar-te'n en aquest tema. Ho ha de revisar la persona que manté el servei.",
+    );
+  } else {
+    lines.push("El canvi està publicat.");
+  }
+  return withReviewLink(lines.join("\n"), pullRequest.htmlUrl);
+}
+
+// The transport clips a report at 4000 characters from the end
+// (`maximumReportLength`). The answer is clipped here, with headroom, so the
+// review link is the last line even after a very long answer.
+export const publicationReportLimits = { characters: 3800 };
+
+/** The text a topic receives after a publication: the model's own answer and
+ * the service notices of the publication. */
+export function publicationReport({ answer, ...publication }) {
+  const notices = publicationNoticesText(publication);
+  if (answer === "") {
+    return notices;
+  }
+  const answerCharacters = Math.max(
+    1,
+    publicationReportLimits.characters - notices.length - 2,
+  );
+  return `${clipText(answer, answerCharacters)}\n\n${notices}`;
+}
+
+/**
+ * The technical note of a publication for the session of the topic: the pull
+ * request, its branch, the published commit and the result of the local checks.
+ * The person reads the plain report; the next turn of the model needs these
+ * facts, which is why they come first, before the notices the person read.
+ */
+export function publicationNoteText({
   created,
   pullRequest,
   branch,
   commit,
   ciWatch,
+  notices = [],
 }) {
   const lines = [
-    `${created ? "Pull request creada" : "Pull request actualitzada"}: ${pullRequest.htmlUrl}`,
+    `${created ? "Pull request creada" : "Pull request actualitzada"}: #${pullRequest.number} ${pullRequest.htmlUrl}`,
     `Branca ${branch}, commit ${commit}.`,
     `Comprovacions: ${checkCommand} correcte.`,
   ];
-  if (ciWatch === ciWatchOutcomes.registered) {
-    lines.push(
-      "Seguiment de la CI de GitHub: t'avisaré en aquest tema quan acabi.",
-    );
-  }
   if (ciWatch === ciWatchOutcomes.unavailable) {
-    lines.push(
-      "No s'ha pogut registrar el seguiment de la CI; consulta-la a GitHub.",
-    );
+    lines.push("No s'ha pogut desar el seguiment de la CI d'aquest commit.");
   }
+  lines.push(...notices);
   return lines.join("\n");
 }
 
@@ -533,9 +648,38 @@ export function shortCommit(commit) {
   return commit.slice(0, 7);
 }
 
-// Final CI notices. Each one names the exact commit it describes, so a re-run
-// or a later commit can never be reported as the pinned one.
+// The result of the required checks, as the person reads it: what the result
+// means for the change and what they can do, never a check name, a commit or a
+// branch. The service note of the same notice keeps those facts
+// (`ciNoteReports`).
 export const ciReports = {
+  success: ({ pullRequestUrl }) =>
+    withReviewLink(
+      "La proposta està llesta. Vols veure com queda? Demana la preview.",
+      pullRequestUrl,
+    ),
+  repairing:
+    "Una part de les comprovacions del canvi no ha passat. L'estic corregint; no cal que facis res. T'avisaré en aquest tema quan estigui a punt.",
+  repairNotRun:
+    "Una part de les comprovacions del canvi no ha passat i aquesta vegada no l'he corregit automàticament. El treball es conserva; si vols que hi torni, demana-ho en aquest tema.",
+  repairBlocked:
+    "Una part de les comprovacions del canvi no ha passat. Hi ha una revisió pendent del servei i ara mateix no el puc corregir sol; demana-ho en aquest tema quan estigui revisada.",
+  repairLimit:
+    "Una part de les comprovacions del canvi no ha passat i ja he fet els intents de correcció automàtica que tinc previstos. El treball es conserva; digues-me què vols fer o demana una correcció en aquest tema.",
+  unknown:
+    "No he pogut confirmar com han anat les comprovacions del canvi. El treball es conserva; demana-ho en aquest tema i ho torno a mirar.",
+  unconfirmedFailure:
+    "No he pogut confirmar del tot les comprovacions del canvi, però una part no ha passat. No l'he corregit automàticament; demana-ho en aquest tema i ho torno a mirar.",
+  headChanged:
+    "El canvi té una versió més nova que la que estava comprovant, i les comprovacions d'aquesta versió nova no les miro jo tot sol. Demana'm en aquest tema que comprovi com ha quedat; si més endavant vols veure'n la preview, demana-la quan el canvi torni a estar a punt.",
+  pullRequestClosed:
+    "La proposta ja no està oberta, així que no et puc donar el resultat de les comprovacions. Si vols recuperar la feina, demana-ho en aquest tema.",
+};
+
+// The same notice as the private trace and the service note of the topic need
+// it: the exact commit it describes, so a re-run or a later commit is never
+// reported as the pinned one, and the names of the required checks.
+export const ciNoteReports = {
   success: ({ pullRequestNumber, commit, requiredChecks }) =>
     `Comprovacions obligatòries configurades en verd al commit ${shortCommit(commit)} (PR #${pullRequestNumber}): ${requiredChecks.join(", ")}.`,
   repairing: ({
@@ -568,10 +712,22 @@ export function pullRequestReviewUrl({ repository, pullRequestNumber }) {
   return `https://github.com/${repository}/pull/${pullRequestNumber}`;
 }
 
-// The pull request of a preview report is named only through this last line,
-// which is the only technical reference a member of the club needs.
+// The pull request of a report is named only through this last line, which is
+// the only technical reference a member of the club needs.
+function reviewLinkLine(reviewUrl) {
+  if (typeof reviewUrl !== "string" || reviewUrl === "") {
+    return null;
+  }
+  return `Enllaç per a revisió: ${reviewUrl}`;
+}
+
+/**
+ * The text with the review link as its last line. A missing URL drops only that
+ * line: every other fact of the report stays.
+ */
 function withReviewLink(text, reviewUrl) {
-  return `${text}\nEnllaç per a revisió: ${reviewUrl}`;
+  const linkLine = reviewLinkLine(reviewUrl);
+  return linkLine === null ? text : `${text}\n${linkLine}`;
 }
 
 // Replies of the deterministic /preview handler. A preview is only ever
@@ -587,12 +743,12 @@ export const previewReports = {
     ),
   membershipUnavailable: ({ reviewUrl }) =>
     withReviewLink(
-      "No s'ha pogut comprovar que siguis al grup. No s'ha demanat cap preview; torna-ho a demanar d'aquí a una estona.",
+      "No he pogut comprovar que siguis al grup. No he demanat cap preview; torna-ho a demanar d'aquí a una estona.",
       reviewUrl,
     ),
   requested: ({ reviewUrl }) =>
     withReviewLink(
-      "Ja hem demanat la preview d'aquest canvi. Quan estigui a punt, en aquest mateix tema trobaràs l'adreça per veure-la.",
+      "Ja he demanat la preview d'aquest canvi. Quan estigui a punt, en aquest mateix tema trobaràs l'adreça per veure-la.",
       reviewUrl,
     ),
   noReportedCommit:
@@ -636,12 +792,12 @@ export const previewReports = {
     ),
   unreadable: ({ reviewUrl }) =>
     withReviewLink(
-      "No hem pogut llegir l'estat d'aquest canvi. No s'ha demanat cap preview; torna-ho a demanar d'aquí a una estona.",
+      "No he pogut llegir l'estat d'aquest canvi. No he demanat cap preview; torna-ho a demanar d'aquí a una estona.",
       reviewUrl,
     ),
   uncertain: ({ reviewUrl }) =>
     withReviewLink(
-      "No sabem si la petició de preview ha arribat a GitHub, així que no es repetirà tota sola. Una persona del club ho ha de revisar abans de tornar-ho a demanar.",
+      "No sé si la petició de preview ha arribat a GitHub, així que no la repeteixo sola. Una persona del club ho ha de revisar abans de tornar-ho a demanar.",
       reviewUrl,
     ),
   failed: ({ reviewUrl }) =>
@@ -658,7 +814,7 @@ export const previewReports = {
     withReviewLink(`La preview ja està a punt: ${origin}`, reviewUrl),
   unconfirmed: ({ reviewUrl }) =>
     withReviewLink(
-      "No hem pogut confirmar que la preview estigui a punt i no tenim cap adreça per donar-te. Si vols, digues-m'ho i ho miro.",
+      "No he pogut confirmar que la preview estigui a punt i no tinc cap adreça per donar-te. Si vols, digues-m'ho i ho miro.",
       reviewUrl,
     ),
 };
@@ -694,95 +850,118 @@ export const previewNotes = {
     `Preview de la PR #${pullRequestNumber} (commit ${shortCommit(commit)}) sense confirmació dins del termini: no hi ha cap adreça confirmada.`,
 };
 
-// Replies of the deterministic /merge handler. Each one that concerns a pull
-// request names it, and a merge always names the merge commit.
+// Replies of the deterministic /merge handler. Each one that concerns a change
+// names its proposal number, and a merge says that the proposal is merged. The
+// merge commit and the checks stay in the private trace and in the service note.
 export const mergeReports = {
   usage:
-    "La comanda de merge és `/merge`, `/merge <PR>` o `/merge <PR> <SHA>` (SHA complet de 40 caràcters). No s'ha fusionat res.",
+    "Per fusionar, escriu `/merge` o `/merge` amb el número de la proposta. Si el servei et demana confirmar un intent anterior, copia i envia exactament la comanda que t'ha donat, amb el número de la proposta i el codi del canvi. No s'ha fusionat res.",
   membershipRevoked:
-    "Ja no consten com a membre verificat del grup. No s'ha fusionat res.",
+    "Ja no constes com a membre del grup. No s'ha fusionat res.",
   membershipUnavailable:
-    "No s'ha pogut verificar la pertinença al grup. No s'ha fusionat res; torna-ho a demanar.",
+    "Ara mateix no he pogut comprovar que siguis membre del grup. No s'ha fusionat res; torna-ho a demanar.",
   noReportedCommit:
-    "Aquest tema no té cap avís de CI lliurat. No s'ha fusionat res; espera l'avís amb les comprovacions en verd i torna a demanar `/merge`.",
-  notGreen: ({ pullRequestNumber, commit }) =>
-    `L'últim avís d'aquest tema (PR #${pullRequestNumber}, commit ${shortCommit(commit)}) no deia que les comprovacions estiguessin en verd. No s'ha fusionat res; espera un avís en verd i torna a demanar \`/merge\`.`,
+    "En aquest tema encara no tinc cap canvi amb les comprovacions en verd. No s'ha fusionat res; espera l'avís i torna a demanar `/merge`.",
+  notGreen: ({ pullRequestNumber }) =>
+    `L'última proposta d'aquest tema (#${pullRequestNumber}) encara no tenia les comprovacions en verd. No s'ha fusionat res; espera l'avís i torna a demanar \`/merge\`.`,
   otherPullRequest: ({ requestedNumber, pullRequestNumber }) =>
-    `L'última PR informada en aquest tema és la #${pullRequestNumber}, no la #${requestedNumber}. No s'ha fusionat res; només es pot fusionar l'última PR informada.`,
-  commitMismatch: ({ pullRequestNumber, commit }) =>
-    `El commit indicat no és el de l'últim avís de la PR #${pullRequestNumber} (${shortCommit(commit)}). No s'ha fusionat res.`,
-  newerWork: ({ pullRequestNumber, commit }) =>
-    `Aquest tema té feina més nova que l'últim avís (PR #${pullRequestNumber}, commit ${shortCommit(commit)}): una instrucció, una reparació o una publicació encara no informada. No s'ha fusionat res; espera el nou informe i torna a demanar \`/merge\`.`,
+    `En aquest tema l'última proposta informada és la #${pullRequestNumber}, no la #${requestedNumber}. No s'ha fusionat res; només es pot fusionar l'última que t'he informat.`,
+  commitMismatch: ({ pullRequestNumber }) =>
+    `El codi del canvi que has escrit no és el de l'última proposta informada (#${pullRequestNumber}). No s'ha fusionat res.`,
+  newerWork: ({ pullRequestNumber }) =>
+    `En aquest tema hi ha feina més nova que l'últim avís (proposta #${pullRequestNumber}) que encara no t'he informat. No s'ha fusionat res; espera el nou avís i torna a demanar \`/merge\`.`,
   alreadyHandled:
-    "Aquesta petició de merge ja s'havia tramitat. No s'ha fusionat res de nou.",
+    "Aquesta petició de merge ja s'havia atès. No s'ha fusionat res de nou.",
   alreadyInProgress: ({ pullRequestNumber }) =>
-    `Ja hi ha un merge de la PR #${pullRequestNumber} en curs. No s'ha fusionat res de nou.`,
+    `Ja hi ha un merge de la proposta #${pullRequestNumber} en curs. No s'ha fusionat res de nou.`,
   uncertainOpen: ({ pullRequestNumber, commit }) =>
-    `Un merge anterior de la PR #${pullRequestNumber} (commit ${shortCommit(commit)}) té un resultat desconegut i GitHub no la mostra fusionada: és oberta. No s'ha fusionat res. Si vols un nou intent, confirma-ho amb \`/merge ${pullRequestNumber} ${commit}\`.`,
-  uncertainClosed: ({ pullRequestNumber, commit }) =>
-    `Un merge anterior de la PR #${pullRequestNumber} (commit ${shortCommit(commit)}) té un resultat desconegut i GitHub la mostra tancada sense fusionar. No s'ha fusionat res i no es pot fusionar.`,
-  alreadyMerged: ({ pullRequestNumber, mergeCommit }) =>
-    `La PR #${pullRequestNumber} ja està fusionada (commit ${shortCommit(mergeCommit)}). No s'ha fet res més.`,
+    [
+      `No sé si un merge anterior de la proposta #${pullRequestNumber} s'ha fet, i GitHub la mostra oberta. No s'ha fusionat res.`,
+      `Si vols confirmar-ho i tornar-ho a provar, copia i envia: \`/merge ${pullRequestNumber} ${commit}\``,
+    ].join("\n"),
+  uncertainClosed: ({ pullRequestNumber }) =>
+    `No sé si un merge anterior de la proposta #${pullRequestNumber} s'ha fet, i GitHub la mostra tancada sense fusionar. No s'ha fusionat res i no es pot fusionar.`,
+  alreadyMerged: ({ pullRequestNumber, mergeCommit, pullRequestUrl }) =>
+    [
+      `La proposta #${pullRequestNumber} ja està fusionada. No he fet res més.`,
+      mergedReviewLineText({ pullRequestUrl, mergeCommit }),
+    ].join("\n"),
   notOpen: ({ pullRequestNumber }) =>
-    `La PR #${pullRequestNumber} ja no està oberta. No s'ha fusionat res.`,
+    `La proposta #${pullRequestNumber} ja no està oberta. No s'ha fusionat res.`,
   draft: ({ pullRequestNumber }) =>
-    `La PR #${pullRequestNumber} és un esborrany. No s'ha fusionat res.`,
+    `La proposta #${pullRequestNumber} encara és un esborrany. No s'ha fusionat res.`,
   notMainBase: ({ pullRequestNumber }) =>
-    `La PR #${pullRequestNumber} no apunta a la branca main. No s'ha fusionat res.`,
+    `La proposta #${pullRequestNumber} no apunta a la branca principal del projecte. No s'ha fusionat res.`,
   notMainRepository: ({ pullRequestNumber }) =>
-    `La PR #${pullRequestNumber} no ve d'una branca del repositori principal. No s'ha fusionat res.`,
-  headMoved: ({ pullRequestNumber, commit }) =>
-    `El cap de la PR #${pullRequestNumber} ja no és el commit validat ${shortCommit(commit)}. No s'ha fusionat res; espera el nou informe i torna a demanar \`/merge\`.`,
-  checksNotGreen: ({ pullRequestNumber, commit }) =>
-    `Les comprovacions obligatòries del commit ${shortCommit(commit)} (PR #${pullRequestNumber}) no estan totes en verd ara mateix. No s'ha fusionat res.`,
+    `La proposta #${pullRequestNumber} no és d'aquest projecte. No s'ha fusionat res.`,
+  headMoved: ({ pullRequestNumber }) =>
+    `La proposta #${pullRequestNumber} ha canviat des que te la vaig informar. No s'ha fusionat res; espera el nou avís i torna a demanar \`/merge\`.`,
+  checksNotGreen: ({ pullRequestNumber }) =>
+    `Les comprovacions de la proposta #${pullRequestNumber} encara no estan totes en verd. No s'ha fusionat res.`,
   behind: ({ pullRequestNumber }) =>
-    `La branca de la PR #${pullRequestNumber} no està al dia respecte de main. No s'ha fusionat res; actualitza la branca i espera el nou informe.`,
+    `La proposta #${pullRequestNumber} no està al dia amb la resta del projecte. No s'ha fusionat res; ho ha de revisar la persona que manté el servei.`,
   notClean: ({ pullRequestNumber }) =>
-    `GitHub no considera la PR #${pullRequestNumber} a punt per fusionar (conflictes, proteccions o comprovacions no satisfetes). No s'ha fusionat res; revisa-la a GitHub.`,
-  unreadable: ({ pullRequestNumber, commit }) =>
-    `No s'ha pogut llegir l'estat de la PR #${pullRequestNumber} o de les comprovacions del commit ${shortCommit(commit)}. No s'ha fusionat res.`,
-  merged: ({ pullRequestNumber, mergeCommit }) =>
-    `PR #${pullRequestNumber} fusionada (squash). Commit de merge ${shortCommit(mergeCommit)}.`,
-  mergedUnsaved: ({ pullRequestNumber, mergeCommit }) =>
-    `PR #${pullRequestNumber} fusionada (squash). Commit de merge ${shortCommit(mergeCommit)}. No s'ha pogut desar l'estat; el servei el tancarà en reiniciar-se.`,
-  failed: ({ pullRequestNumber, commit, statusClass }) =>
-    `GitHub ha rebutjat el merge de la PR #${pullRequestNumber} (commit ${shortCommit(commit)}, HTTP ${statusClass}): no s'ha fusionat res. Revisa l'estat de la PR i torna-ho a demanar.`,
-  uncertain: ({ pullRequestNumber, commit }) =>
-    `No s'ha pogut confirmar si la PR #${pullRequestNumber} (commit ${shortCommit(commit)}) s'ha fusionat. No es repeteix el merge: la propera petició llegirà l'estat real de la PR abans de fer res i, si no la mostra fusionada, et demanarà confirmar-ho amb \`/merge <PR> <SHA>\`.`,
-  reconciled: ({ pullRequestNumber, mergeCommit }) =>
-    `GitHub mostra la PR #${pullRequestNumber} fusionada (commit ${shortCommit(mergeCommit)}). Un merge anterior tenia un resultat desconegut.`,
+    `GitHub no considera la proposta #${pullRequestNumber} a punt per fusionar, perquè hi ha conflictes o comprovacions pendents. No s'ha fusionat res; ho ha de revisar la persona que manté el servei.`,
+  unreadable: ({ pullRequestNumber }) =>
+    `No he pogut llegir com està la proposta #${pullRequestNumber}. No s'ha fusionat res.`,
+  merged: ({ pullRequestNumber, mergeCommit, pullRequestUrl }) =>
+    [
+      `La proposta #${pullRequestNumber} ja està fusionada i el canvi és al projecte.`,
+      mergedReviewLineText({ pullRequestUrl, mergeCommit }),
+    ].join("\n"),
+  mergedUnsaved: ({ pullRequestNumber, mergeCommit, pullRequestUrl }) =>
+    [
+      `La proposta #${pullRequestNumber} ja està fusionada i el canvi és al projecte. No he pogut desar aquest resultat; el servei ho acabarà de tancar quan es reiniciï.`,
+      mergedReviewLineText({ pullRequestUrl, mergeCommit }),
+    ].join("\n"),
+  failed: ({ pullRequestNumber }) =>
+    `GitHub ha refusat el merge de la proposta #${pullRequestNumber}. No s'ha fusionat res; revisa com està la proposta i torna-ho a demanar.`,
+  uncertain: ({ pullRequestNumber }) =>
+    `No sé si la proposta #${pullRequestNumber} s'ha fusionat. No repeteixo el merge: la propera petició llegirà com està la proposta i, si no la mostra fusionada, et donarà la comanda exacta per confirmar-ho.`,
+  reconciled: ({ pullRequestNumber, mergeCommit, pullRequestUrl }) =>
+    [
+      `GitHub mostra la proposta #${pullRequestNumber} fusionada. Un merge anterior havia quedat sense confirmar.`,
+      mergedReviewLineText({ pullRequestUrl, mergeCommit }),
+    ].join("\n"),
 };
 
 // Results of an automatic repair, sent by the service when it finishes an
 // attempt. The attempt itself is durable before any of these texts exist.
 export const ciRepairReports = {
   published: ({ pullRequestNumber, report }) =>
-    `Reparació automàtica publicada (PR #${pullRequestNumber}):\n${report}`,
+    `He corregit el canvi de la proposta #${pullRequestNumber}. Això és el que he fet:\n${report}`,
+  // The note of a published repair: the service-only facts of the publication it
+  // produced (the pull request, the branch, the published commit and the local
+  // checks). A runner that reports none gets a service sentence, never the words
+  // of the model.
+  publishedNote: ({ pullRequestNumber, publicationNote }) =>
+    publicationNote ??
+    `He publicat la correcció de la proposta #${pullRequestNumber}.`,
   // The service-written part of the report. The detail of `unchanged` is the
   // model's own explanation: it reaches the topic, but it is never a note,
   // because a note is presented to the next turn as trusted service data.
-  unchangedNotice: ({ pullRequestNumber, commit }) =>
-    `No s'ha publicat cap canvi automàtic per la CI fallida del commit ${shortCommit(commit)} (PR #${pullRequestNumber}). El treball es conserva; revisa-ho o dona una instrucció nova.`,
-  unchanged: ({ pullRequestNumber, commit, detail }) =>
-    `${ciRepairReports.unchangedNotice({ pullRequestNumber, commit })}\n\n${clipText(detail, 1000)}`,
-  failed: ({ pullRequestNumber, commit, detail }) =>
-    `La reparació automàtica de la CI fallida al commit ${shortCommit(commit)} (PR #${pullRequestNumber}) no ha publicat cap canvi. ${clipText(detail, 1000)}`,
-  interrupted: ({ pullRequestNumber, commit }) =>
-    `La reparació automàtica de la CI fallida al commit ${shortCommit(commit)} (PR #${pullRequestNumber}) s'ha interromput. No es repeteix automàticament.`,
-  uncertain: ({ pullRequestNumber, commit }) =>
-    `No s'ha pogut confirmar el resultat de la reparació automàtica de la CI fallida al commit ${shortCommit(commit)} (PR #${pullRequestNumber}). No es faran més reparacions automàtiques fins que es revisi l'estat real.`,
-  notApplicable: ({ pullRequestNumber, commit }) =>
-    `La PR #${pullRequestNumber} ja no està oberta o el seu cap ja no és el commit ${shortCommit(commit)}. No s'ha intentat cap reparació automàtica.`,
-  checksNotFailing: ({ pullRequestNumber, commit }) =>
-    `No s'ha reparat el commit ${shortCommit(commit)} de la PR #${pullRequestNumber}: les comprovacions obligatòries configurades ja hi són en verd. El treball es conserva.`,
-  checksNotDecisive: ({ pullRequestNumber, commit }) =>
-    `No s'ha reparat el commit ${shortCommit(commit)} de la PR #${pullRequestNumber}: l'estat de les comprovacions obligatòries encara no és concloent, perquè n'hi ha en curs, absents o duplicades. No s'ha intentat cap canvi; revisa-ho a GitHub.`,
-  checksUnreadable: ({ pullRequestNumber, commit }) =>
-    `No s'ha pogut llegir l'estat de les comprovacions obligatòries del commit ${shortCommit(commit)} (PR #${pullRequestNumber}). No s'ha intentat cap reparació; revisa-ho a GitHub.`,
+  unchangedNotice: ({ pullRequestNumber }) =>
+    `No he publicat cap canvi per corregir les comprovacions de la proposta #${pullRequestNumber}. El treball es conserva; digues-me què vols fer o demana una correcció en aquest tema.`,
+  unchanged: ({ pullRequestNumber, detail }) =>
+    `${ciRepairReports.unchangedNotice({ pullRequestNumber })}\n\n${clipText(detail, 1000)}`,
+  failed: ({ pullRequestNumber, detail }) =>
+    `No he pogut corregir les comprovacions de la proposta #${pullRequestNumber}. ${clipText(detail, 1000)}`,
+  interrupted: ({ pullRequestNumber }) =>
+    `La correcció automàtica de la proposta #${pullRequestNumber} s'ha interromput. No la repeteixo sol; ho ha de revisar la persona que manté el servei.`,
+  uncertain: ({ pullRequestNumber }) =>
+    `No sé si la correcció automàtica de la proposta #${pullRequestNumber} ha publicat cap canvi. No en faré més fins que ho revisi la persona que manté el servei.`,
+  notApplicable: ({ pullRequestNumber }) =>
+    `La proposta #${pullRequestNumber} ja no està oberta o ha canviat. No he intentat cap correcció automàtica.`,
+  checksNotFailing: ({ pullRequestNumber }) =>
+    `No he corregit la proposta #${pullRequestNumber} perquè les comprovacions ja hi estan en verd. El treball es conserva.`,
+  checksNotDecisive: ({ pullRequestNumber }) =>
+    `No he corregit la proposta #${pullRequestNumber} perquè les comprovacions encara no han acabat del tot. No he tocat res; si la cosa no va bé, demana-ho en aquest tema.`,
+  checksUnreadable: ({ pullRequestNumber }) =>
+    `No he pogut llegir les comprovacions de la proposta #${pullRequestNumber}. No he intentat cap correcció; demana-ho en aquest tema si vols que ho torni a mirar.`,
   queueStalled:
-    "No s'ha pogut desar el resultat d'aquest intent. Les reparacions automàtiques queden aturades fins que el servei es reiniciï i una persona revisi l'estat.",
-  stateUnknown: ({ pullRequestNumber, commit }) =>
-    `No s'ha pogut llegir l'estat de la PR #${pullRequestNumber} abans de reparar el commit ${shortCommit(commit)}. No s'ha intentat cap reparació automàtica.`,
+    "No he pogut desar el resultat d'aquest intent. Les correccions automàtiques queden aturades fins que el servei es reiniciï i ho revisi la persona que el manté.",
+  stateUnknown: ({ pullRequestNumber }) =>
+    `No he pogut llegir com està la proposta #${pullRequestNumber} abans de corregir-la. No he intentat cap correcció automàtica.`,
 };
 
 // Resolutions of an interrupted external result. A person chooses one after
@@ -796,24 +975,26 @@ export const reconcileResolutions = {
   resend: "resend",
 };
 
+// Only the four resolved cases of an instruction, a repair or a preview get a
+// notice: a reconciled notice is not told to the topic.
 const reconcileResolutionResults = {
-  [reconcileResolutions.published]: "publicat",
-  [reconcileResolutions.notPublished]: "no publicat",
-  [reconcileResolutions.commented]: "comentari publicat",
-  [reconcileResolutions.notCommented]: "comentari no publicat",
+  [reconcileResolutions.published]: "la feina s'ha publicat",
+  [reconcileResolutions.notPublished]: "la feina no s'ha publicat",
+  [reconcileResolutions.commented]: "la preview s'ha demanat",
+  [reconcileResolutions.notCommented]: "la preview no s'ha demanat",
 };
 
 // One neutral notice per reconciliation. It never repeats the instruction text.
 export const reconcileReports = {
   reconciled: ({ resolution }) =>
-    `Una operació interrompuda s'ha revisat i tancada (resultat: ${reconcileResolutionResults[resolution]}). Si cal continuar la feina, demana-ho de nou.`,
+    `Ja està resolt el que havia quedat a mitges: ${reconcileResolutionResults[resolution]}. Si cal continuar la feina, demana-ho de nou en aquest tema.`,
 };
 
 // An image attachment only feeds an implementation or a continuation. Any other
 // instruction ignores the files and says so once.
 export const attachmentReports = {
   ignored:
-    "No s'ha fet servir la imatge en aquesta resposta. Envia-la amb la feina on la vols aplicar.",
+    "No he fet servir la imatge en aquesta resposta. Envia-la amb la feina on la vols aplicar.",
 };
 
 // The editorial guide recommends this minimum for a cover photograph. It is a
@@ -830,17 +1011,17 @@ function attachmentMegabytes(bytes) {
 
 const attachmentRefusalMessages = {
   [attachmentRefusalReasons.unsupportedType]: () =>
-    "Aquest tipus de fitxer no serveix. Envia una imatge JPEG, PNG o WebP.",
+    "Aquest tipus de fitxer no em serveix. Envia'm una imatge JPEG, PNG o WebP.",
   [attachmentRefusalReasons.damagedImage]: () =>
-    "No s'ha pogut llegir la imatge adjunta. No s'ha desat res; torna-la a enviar.",
+    "No he pogut llegir la imatge adjunta. No he desat res; torna-la a enviar.",
   [attachmentRefusalReasons.fakeType]: () =>
-    "El fitxer no és la imatge que sembla. No s'ha desat res; comprova'l i envia una imatge JPEG, PNG o WebP.",
+    "El fitxer no és la imatge que sembla. No he desat res; comprova'l i envia'm una imatge JPEG, PNG o WebP.",
   [attachmentRefusalReasons.tooLarge]: ({ bytes }) =>
-    `La imatge fa ${attachmentMegabytes(bytes)} MB i el màxim és 20 MB. No s'ha desat res; envia'n una còpia més petita.`,
+    `La imatge fa ${attachmentMegabytes(bytes)} MB i el màxim és 20 MB. No he desat res; envia-me'n una còpia més petita.`,
   [attachmentRefusalReasons.downloadFailed]: () =>
-    "No s'ha pogut descarregar la imatge adjunta. No s'ha desat res; torna-la a enviar.",
+    "No he pogut descarregar la imatge adjunta. No he desat res; torna-la a enviar.",
   [attachmentRefusalReasons.scaleFailed]: () =>
-    "No s'ha pogut preparar la imatge adjunta. No s'ha desat res; torna-la a enviar.",
+    "No he pogut preparar la imatge adjunta. No he desat res; torna-la a enviar.",
 };
 
 /** The public report of a refused attachment, always with its real reason. */

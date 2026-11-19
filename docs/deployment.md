@@ -713,8 +713,10 @@ L'interval de consulta i el termini del seguiment tenen valors inicials al codi
 (`MOUNTAIN_AGENT_CI_POLL_INTERVAL_MS`, `MOUNTAIN_AGENT_CI_WATCH_TIMEOUT_MS`).
 Si canvia la protecció de `main`, actualitza la llista al mateix moment: el
 servei no la pot contrastar i l'avís només confirma les comprovacions que hi
-consten. L'avís diu explícitament que es refereix a aquesta llista configurada,
-no a tota la CI de la PR.
+consten. El tema rep un avís planer sense noms de comprovació; el detall amb el
+commit i els noms queda al registre privat `ci_notification_sent` i a la nota del
+servei. Una fallada que arriba a una reparació automàtica desa a més la seva
+evidència a `state/ci-watch.sqlite`.
 
 Quan una comprovació obligatòria falla, el servei intenta reparar-la sol, amb un
 límit de dues reparacions consecutives per conjunt de comprovacions fallides. La
@@ -782,7 +784,8 @@ de resultat que no es pugui confirmar no es reenvia. Si el resultat d'un intent
 no es pot desar, l'intent queda en curs i atura la cua de reparacions fins al
 reinici, que el marca com a desconegut; el tema ho rep amb el resultat. Si el
 termini del seguiment s'esgota amb comprovacions fallides però el conjunt no és
-concloent, l'avís en dona els noms i no s'inicia cap reparació. La traça privada registra
+concloent, la nota del servei en dona els noms, el tema rep un avís planer i no
+s'inicia cap reparació. La traça privada registra
 `ci_repair_requested` (només quan l'intent ha arribat a la cua),
 `ci_repair_not_announced`, `ci_repair_not_queued`, `ci_repair_not_run`,
 `ci_repair_blocked`, `ci_repair_limit_reached`, `ci_repair_published`,
@@ -940,7 +943,7 @@ proteccions, ni tancament de la PR.
   avís no és verd; el número no és el de l'últim avís; o el tema té feina més
   nova (una altra instrucció pendent o en curs, una reparació reservada, en cua o
   en curs, un seguiment de CI encara sense informar o un avís de CI amb resultat
-  desconegut més nou que l'últim lliurat). La resposta nomena la PR
+  desconegut més nou que l'últim lliurat). La resposta nomena la proposta
   i demana esperar l'informe nou i tornar a escriure `/merge`.
 - **Pertinença.** Es torna a consultar a Telegram en el moment d'executar la
   comanda, a més de l'admissió; una fallada de la consulta o un autor que ja no
@@ -953,7 +956,8 @@ proteccions, ni tancament de la PR.
   esborrany, base `main`, repositori del cap igual al configurat (sense forks),
   cap igual al commit fixat, comprovacions obligatòries totes en verd amb el
   classificador de la CI i `mergeable_state` igual a `clean` (branca al dia i sense
-  bloquejos). `behind` demana actualitzar la branca; `unknown` es torna a llegir un
+  bloquejos). `behind` refusa i ho ha de revisar la persona que manté el servei;
+  `unknown` es torna a llegir un
   màxim de tres vegades i després es refusa com a no llegible, sense llegir
   abans les comprovacions; `blocked`,
   `dirty`, `unstable`, `has_hooks` i qualsevol altre valor refusen. Un error de
@@ -977,16 +981,19 @@ proteccions, ni tancament de la PR.
   llegir la PR. Amb una petició `uncertain`, el `/merge` següent d'aquella PR i
   l'arrencada del servei llegeixen la PR:
   - Si GitHub la mostra fusionada, la petició es tanca com a `merged` i el tema
-    rep «GitHub mostra la PR #N fusionada (commit …)», sense afirmar qui l'ha
-    fusionada (pot haver estat per una altra via).
+    rep «GitHub mostra la proposta #N fusionada. Un merge anterior havia quedat
+    sense confirmar.», sense afirmar qui l'ha fusionada (pot haver estat per una
+    altra via). L'última línia és l'enllaç de revisió amb el canvi fusionat:
+    «Enllaç per a revisió: <URL> (canvi fusionat <SHA curt>)». Si no es pot
+    llegir l'URL, només s'omet l'enllaç.
   - Si no la mostra fusionada, el tema rep una vegada per petició (a
     l'arrencada, o a la resposta si el resultat desconegut ha sorgit en
     executar-se) l'avís que GitHub no la mostra fusionada, oberta o tancada
     sense fusionar. Un lliurament desconegut pot enviar aquest avís dues
     vegades; és l'excepció acceptada de l'[ADR 0014](decisions/0014-operator-stop-and-repeatable-telegram-notices.md) i no
     repeteix cap efecte de GitHub. Una `/merge` o `/merge <PR>` mai no
-    desbloqueja res: demana
-    la forma estricta `/merge <PR> <SHA>`.
+    desbloqueja res: dona la forma estricta `/merge <PR> <SHA>` amb el commit
+    fixat, per copiar i enganxar.
   - Quan una persona verificada escriu `/merge <PR> <SHA>` amb el SHA del commit
     fixat de la petició `uncertain`, i una lectura nova continua mostrant la PR
     oberta i no fusionada, aquesta és la seva decisió: la petició es tanca com a
@@ -1003,7 +1010,10 @@ proteccions, ni tancament de la PR.
     mateixa PR. Si la lectura no és possible, la petició continua `uncertain` i es
     torna a intentar. Una petició `merging` interrompuda per un reinici passa a
     `uncertain`.
-- **Resposta.** Nomena sempre la PR fusionada i el commit de merge (SHA curt).
+- **Resposta.** Nomena sempre la proposta fusionada i el canvi fusionat (SHA
+  curt) a l'última línia, després de l'enllaç de revisió:
+  «Enllaç per a revisió: <URL> (canvi fusionat <SHA curt>)». Si l'URL no és
+  llegible, l'última línia és «Canvi fusionat <SHA curt>.».
 - **Traça privada.** `merge_membership_verified` (autor, PR i SHA),
   `merge_requested`, `merge_refused` (amb el motiu), `merge_completed` (autor,
   PR, SHA fixat, mètode i commit de merge), `merge_failed`, `merge_uncertain`,
@@ -1012,8 +1022,9 @@ proteccions, ni tancament de la PR.
 - **Després del merge.** La PR queda tancada: el seguiment de CI i la reparació
   ja es detenen amb una PR no oberta, i la preview la refusa. L'avís «la PR ja no
   està oberta» passa a ser l'últim del tema; un `/merge` posterior (amb o sense
-  número) llegeix la PR i, si és fusionada, respon «La PR #N ja està fusionada
-  (commit …)» en lloc de refusar-se com a no verda.
+  número) llegeix la PR i, si és fusionada, respon «La proposta #N ja està
+  fusionada. No he fet res més.» i la línia de revisió amb el canvi fusionat, en
+  lloc de refusar-se com a no verda.
 
 Bloquejos d'activació, per a una persona. El permís `Contents: write` del token
 permet usar l'API de merge i el compte és administrador: l'API REST podria
@@ -1055,7 +1066,7 @@ transferència de converses: el context viatja amb la PR.
   `continuation_owner_unregistered`, la resposta diu que el canvi de tema no
   s'ha pogut registrar i la instrucció acaba com a incerta: cap seguiment
   durador pot autoritzar la publicació i una persona la reconcilia. Si el propietari anterior és un altre tema, rep un avís
-  curt («La feina de la PR #N continua en un altre tema.»), sense dades
+  curt («La feina de la proposta #N continua en un altre tema.»), sense dades
   personals ni autoria. L'enviament té el mateix termini que les altres
   lectures i respecta l'aturada del servei: un temps esgotat o una aturada es
   traça com a fallit i no canvia el resultat publicat.
@@ -1270,6 +1281,54 @@ seu no quedi fora de la sessió.
   petició com a consulta. Un adjunt de la continuació s'aplica al worktree
   corresponent.
 
+### Llengua, avisos i publicació (T8.8)
+
+El prompt de cada torn inclou un bloc fix amb el públic i el to de la resposta:
+les persones del tema són membres del club i majoritàriament no tècniques, la
+resposta va en la seva llengua amb el català per defecte, amb frases curtes, i no
+s'esmenten rutes, noms de fitxer, camps YAML, ordres, proves, commits, branques,
+ADR ni skills si la persona no demana detall tècnic. El model redacta amb els
+fets que té i fa com a màxim una pregunta.
+
+El prompt rep l'instant actual en Europe/Madrid amb el seu desplaçament
+(`formatMadridInstant`), no del rellotge del sandbox. Una entrada es crea sempre
+com a esborrany; `published: true` i `publishedAt` amb aquell instant només
+s'apliquen quan una persona verificada demana explícitament de publicar l'entrada
+al tema. Aquesta petició és l'aprovació editorial d'aquella entrada. El merge
+continua sent humà i el desplegament no canvia. Les variants en castellà i anglès
+només s'escriuen quan algú les demana.
+
+`stripChangeSummary` elimina qualsevol línia `SUMMARY`, també amb espais al
+davant, del text que arriba a Telegram; `parseChangeSummary` continua llegint la
+línia vàlida per al títol i la branca.
+
+Després d'una publicació, el tema rep la resposta del model, una línia curta sobre
+el que passa amb el canvi i l'enllaç de revisió com a darrera línia. La línia
+curta diu que el canvi s'està comprovant i que el tema rebrà un avís quan estigui
+a punt només si el seguiment de CI s'ha desat; si no s'ha pogut desar, diu que no
+hi haurà avís i que ho ha de revisar una persona; sense cap seguiment, diu només
+que el canvi està publicat. La resposta del model es retalla perquè l'enllaç no
+es perdi mai pel límit de 4000 caràcters del transport. Amb les comprovacions
+obligatòries en verd rep un sol avís, que convida a demanar la preview, amb el
+mateix enllaç. Una fallada, una reparació en curs, el límit de reparacions, un
+resultat desconegut, un cap canviat o una PR tancada tenen cada un un avís
+planer.
+
+Els noms de les comprovacions i el commit queden al registre privat del servei
+(`ci_notification_sent`) i a la nota del servei de
+`state/session-notes.sqlite`, que és l'única que veu el model; l'evidència d'un
+intent de reparació es desa a `state/ci-watch.sqlite`. La nota de la publicació és
+tècnica i separada del text planer: `publicationNoteText` hi desa el número de la
+proposta, la branca, el commit publicat i el resultat de les comprovacions
+locals. També la publicació d'una reparació automàtica desa aquesta nota
+(`ciRepairReports.publishedNote`): les paraules del model arriben al tema, però
+no són mai text de servei. La fixació al commit, el lliurament com a màxim una
+vegada i el tractament d'un resultat desconegut no canvien.
+
+Quan el seguiment veu que el cap de la proposta ha canviat, ho diu i no promet cap
+avís nou: les comprovacions de la versió nova no es fan totes soles, i la persona
+ha de demanar en aquell tema que es revisin o, més endavant, la preview.
+
 Els límits numèrics (CPU, memòria, processos, temps d'execució i cua) tenen valors
 inicials al codi. La unitat limita el conjunt del servei i els seus contenidors a 1,5 CPU,
 2560 MiB de memòria, sense swap i 384 processos. Cada contenidor té inicialment
@@ -1447,8 +1506,9 @@ compta com que no hi ha cap cas d'aquell tipus.
 4. **Avís i traça.** Cada resolució registra `uncertain_reconciled` a la traça
    privada amb el tipus, la resolució, la PR i el SHA curt quan es coneixen, sense
    text de conversa ni identitat de l'operador. Després envia al tema un únic
-   avís neutre («Una operació interrompuda s'ha revisat i tancada (resultat:
-   ...)»), excepte amb `--kind notice`: `delivered` confirma un avís que el tema
+   avís neutre («Ja està resolt el que havia quedat a mitges: la feina s'ha
+   publicat. Si cal continuar la feina, demana-ho de nou en aquest tema.»),
+   excepte amb `--kind notice`: `delivered` confirma un avís que el tema
    ja tenia i `resend` encarrega l'enviament al treballador, així que la comanda
    no hi afegeix cap avís propi. L'avís també és un efecte del servei: es desa a
    `state/session-notes.sqlite` abans d'enviar-lo, amb la identitat

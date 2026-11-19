@@ -277,7 +277,12 @@ test("notifies CI only when the configured required checks are green", async (co
         return [];
       },
       async getPullRequest() {
-        return { number: 200, state: "open", headSha: commit };
+        return {
+          number: 200,
+          state: "open",
+          headSha: commit,
+          htmlUrl: "https://github.com/example/project/pull/200",
+        };
       },
     },
     runner: async () => ({}),
@@ -295,7 +300,7 @@ test("notifies CI only when the configured required checks are green", async (co
   await service.ciWorker.runOnce();
   assert.equal(sent.length, 1);
   assert.equal(sent[0].messageThreadIdentifier, 7);
-  assert.match(sent[0].text, /Validate\./u);
+  assert.match(sent[0].text, /La proposta està llesta/u);
   assert.equal(service.ciWatches.state(10), "sent");
 });
 
@@ -466,7 +471,7 @@ test("runs a queued CI repair when the instruction queue is idle", async (contex
   assert.equal(executed[0].commit, "a".repeat(40));
   assert.equal(sent.length, 1);
   assert.equal(sent[0].messageThreadIdentifier, 7);
-  assert.match(sent[0].text, /Reparació automàtica publicada/u);
+  assert.match(sent[0].text, /He corregit el canvi de la proposta #200/u);
   service.ciWatches.close();
   service.queue.close();
 });
@@ -808,6 +813,7 @@ test("runs the preview watcher beside the bridge and stops it with the service",
 
 const mergedPullRequest = {
   state: "closed",
+  htmlUrl: "https://github.com/example/project/pull/200",
   headSha: "a".repeat(40),
   headRepository: "rboixaderg/mountain-runners",
   draft: false,
@@ -852,7 +858,10 @@ test("keeps an interrupted merge uncertain, attributed in the trace, and still s
 
   assert.equal(service.mergeRequests.state(40), "uncertain");
   assert.equal(sent.length, 1);
-  assert.ok(sent[0].text.includes(`/merge 200 ${"a".repeat(40)}`));
+  assert.ok(
+    sent[0].text.includes(`\`/merge 200 ${"a".repeat(40)}\``),
+    "the topic carries the exact command to confirm the unknown result",
+  );
   assert.notEqual(service.mergeRequests.uncertain()[0].notified_at, null);
   const trace = service.queue
     .traceEntries()
@@ -887,8 +896,7 @@ test("closes an interrupted merge that GitHub shows as merged and tells the topi
 
   assert.equal(service.mergeRequests.state(40), "merged");
   assert.equal(sent.length, 1);
-  assert.match(sent[0].text, /PR #200/u);
-  assert.match(sent[0].text, /bbbbbbb/u);
+  assert.match(sent[0].text, /proposta #200 fusionada/u);
   assert.equal(
     service.queue
       .traceEntries()
@@ -999,7 +1007,7 @@ test("merges through the bridge after verifying the membership again at executio
 
   assert.equal(membershipChecks.length, 2);
   assert.deepEqual(merges, [{ number: 200, sha: "a".repeat(40) }]);
-  assert.match(replies.at(-1), /PR #200 fusionada/u);
+  assert.match(replies.at(-1), /La proposta #200 ja està fusionada/u);
 });
 
 test("keeps the result of a merge for the next turn of the session", async (context) => {
@@ -1007,7 +1015,7 @@ test("keeps the result of a merge for the next turn of the session", async (cont
 
   const notes = service.sessionNotes.claim("-1001234567890:7");
   assert.equal(notes.length, 1);
-  assert.match(notes[0].text, /PR #200 fusionada/u);
+  assert.match(notes[0].text, /La proposta #200 ja està fusionada/u);
   assert.equal(
     service.sessionNotes.lastReply("-1001234567890:7"),
     notes[0].text,
@@ -1023,7 +1031,7 @@ test("does not merge when the author left the group between admission and execut
 
   assert.equal(membershipChecks.length, 2);
   assert.deepEqual(merges, []);
-  assert.match(replies.at(-1), /Ja no consten com a membre verificat/u);
+  assert.match(replies.at(-1), /Ja no constes com a membre del grup/u);
 });
 
 test("never reaches the merge for a command outside the configured group topic or from a non-member", async (context) => {
@@ -1223,7 +1231,7 @@ test("keeps the older notice blocked after reconciling a publication without a w
   assert.deepEqual(resolved.merges, [
     { number: publishedPullRequest, sha: publishedCommit },
   ]);
-  assert.match(resolved.replies.at(-1), /PR #201 fusionada/u);
+  assert.match(resolved.replies.at(-1), /La proposta #201 ja està fusionada/u);
 });
 
 function implementationUpdate(updateIdentifier) {
@@ -1356,7 +1364,7 @@ test("verifies the membership again when the preview request runs", async (conte
     .traceEntries()
     .find((entry) => entry.action === "preview_membership_verified");
 
-  assert.match(verified.report, /Ja hem demanat la preview/u);
+  assert.match(verified.report, /Ja he demanat la preview/u);
   assert.deepEqual(posted, [{ number: 200, body: "/preview" }]);
   assert.equal(service.previewRequests.state(21), "awaiting");
   assert.equal(verifiedTrace.detail, `#200 ${"a".repeat(7)}`);

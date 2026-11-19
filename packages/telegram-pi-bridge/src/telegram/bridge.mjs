@@ -23,21 +23,21 @@ export const defaultBridgeMessages = {
   acknowledgement: (excerpt) =>
     `Instruction received. Working on "${excerpt}". The result will arrive in this topic.`,
   queueFull:
-    "The queue is full. This instruction was not accepted; try again after the current work finishes.",
+    "There is too much work queued right now, so this request did not start. Please try again when the current work finishes.",
   queueBlocked:
-    "Execution is blocked by an uncertain result. This instruction was not accepted; an operator must reconcile the state before you retry.",
+    "An earlier task stopped halfway and a person must check it before anything else runs. This request did not start; please try again later.",
   membershipUnavailable:
-    "Group membership could not be verified. This instruction was not accepted; please retry.",
+    "Right now the group membership could not be checked, so this request did not start. Please try again in a moment.",
   unknownResult:
-    "The result is unknown. Execution is blocked until an operator checks the actual state.",
+    "It is not known whether the last action finished. It is not repeated, and a person who runs the service must check it.",
   attachmentUnsupported:
-    "That kind of file cannot be used. Send a JPEG, PNG or WebP image.",
+    "I cannot use that kind of file. Send me a JPEG, PNG or WebP image.",
   attachmentInvalidPhoto:
-    "That photo cannot be read. Nothing was saved; send it again.",
+    "I could not read that photo. I did not save anything; send it again.",
   attachmentTooLarge: (megabytes) =>
-    `The image is ${megabytes} MB; the limit is 20 MB. Nothing was saved; send a smaller copy.`,
+    `The image is ${megabytes} MB and the limit is 20 MB. I did not save anything; send a smaller copy.`,
   attachmentTooManyImages: (count) =>
-    `One message can carry at most 5 images and this one carried ${count}. Nothing was saved; send at most 5.`,
+    `One message can carry at most 5 images and this one carried ${count}. I did not save anything; send at most 5.`,
 };
 export const maximumReportLength = 4000;
 export const maximumAcknowledgementExcerptLength = 120;

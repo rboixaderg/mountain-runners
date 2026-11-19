@@ -5,6 +5,10 @@ import { join } from "node:path";
 import { test } from "node:test";
 import { CiWatchStore } from "../repository/ci-watch-store.mjs";
 import { SessionNoteStore } from "../repository/session-note-store.mjs";
+import {
+  ciWatchOutcomes,
+  publicationNoteText,
+} from "../policy/development.mjs";
 import { createCiRepairExecutor } from "./ci-repair.mjs";
 
 const repairRequest = {
@@ -122,7 +126,7 @@ test("runs a queued repair through the instruction runner and reports the public
   assert.equal(telegram.sent[0].messageThreadIdentifier, 7);
   assert.equal(
     telegram.sent[0].text,
-    "Reparació automàtica publicada (PR #200):\nPull request actualitzada: https://github.com/o/r/pull/200",
+    "He corregit el canvi de la proposta #200. Això és el que he fet:\nPull request actualitzada: https://github.com/o/r/pull/200",
   );
   assert.deepEqual(traces, [
     {
@@ -132,6 +136,60 @@ test("runs a queued repair through the instruction runner and reports the public
       detail: `#200 ${"b".repeat(7)} pull_request_updated`,
     },
   ]);
+});
+
+test("keeps the service facts of a published repair and never the model's words", async (context) => {
+  const store = fixture(context);
+  queueRepair(store, repairRequest);
+  const telegram = fakeTelegram();
+  const notes = [];
+  const publicationNote = publicationNoteText({
+    created: false,
+    pullRequest: { number: 200, htmlUrl: "https://github.com/o/r/pull/200" },
+    branch: "fix/tools-repair-the-synthetic-check",
+    commit: "c".repeat(40),
+    ciWatch: ciWatchOutcomes.registered,
+  });
+  const modelAnswer = "He arreglat la comprovació que fallava.";
+  const executor = executorFor({
+    store,
+    telegram,
+    recordServiceNote: (note) => notes.push(note),
+    runInstruction: async () => ({
+      outcome: "pull_request_updated",
+      report: `${modelAnswer}\n\nEl canvi està publicat i l'estic comprovant.`,
+      serviceText: publicationNote,
+    }),
+  });
+
+  await executor.runNext();
+
+  assert.equal(notes.length, 1);
+  assert.equal(
+    notes[0].text,
+    publicationNote,
+    "the note is the service-only part of the publication",
+  );
+  assert.match(
+    notes[0].text,
+    /Pull request actualitzada: #200 https:\/\/github\.com\/o\/r\/pull\/200/u,
+  );
+  assert.match(
+    notes[0].text,
+    /Branca fix\/tools-repair-the-synthetic-check, commit c{40}\./u,
+  );
+  assert.match(notes[0].text, /Comprovacions: pnpm check correcte\./u);
+  assert.doesNotMatch(
+    notes[0].text,
+    /He arreglat|estic comprovant/u,
+    "the model's words never become a trusted service note",
+  );
+  assert.match(
+    telegram.sent[0].text,
+    /He arreglat la comprovació que fallava/u,
+    "the person still reads the model's answer",
+  );
+  assert.equal(notes[0].receivedText, telegram.sent[0].text);
 });
 
 test("reports a repair that published nothing instead of pretending it worked", async (context) => {
@@ -153,7 +211,10 @@ test("reports a repair that published nothing instead of pretending it worked", 
   assert.equal(store.repair(queued.sequence).status, "done");
   assert.equal(store.repair(queued.sequence).outcome, "declined");
   assert.equal(telegram.sent.length, 1);
-  assert.match(telegram.sent[0].text, /No s'ha publicat cap canvi automàtic/u);
+  assert.match(
+    telegram.sent[0].text,
+    /No he publicat cap canvi per corregir les comprovacions/u,
+  );
   assert.match(telegram.sent[0].text, /dependència externa/u);
 });
 
@@ -179,7 +240,10 @@ test("reports a failed repair and never retries it", async (context) => {
   assert.equal(store.repair(queued.sequence).outcome, "failed");
   // A local failure never blocks the restart, unlike an unknown result.
   assert.equal(store.uncertainRepairCount(), 0);
-  assert.match(telegram.sent[0].text, /no ha publicat cap canvi/u);
+  assert.match(
+    telegram.sent[0].text,
+    /No he pogut corregir les comprovacions/u,
+  );
   assert.deepEqual(
     traces.map((entry) => entry.action),
     ["ci_repair_not_published"],
@@ -236,7 +300,10 @@ test("keeps an unknown repair result out of the queue", async (context) => {
 
   assert.equal(store.repair(queued.sequence).status, "uncertain");
   assert.equal(store.repair(queued.sequence).outcome, "uncertain");
-  assert.match(telegram.sent[0].text, /No s'ha pogut confirmar/u);
+  assert.match(
+    telegram.sent[0].text,
+    /No sé si la correcció automàtica de la proposta #200/u,
+  );
 });
 
 test("closes the attempt even when the report cannot be delivered", async (context) => {
@@ -340,7 +407,7 @@ test("keeps the report of a repair as a service event of its session", async (co
     ),
     "the identity names the attempt, never a reusable row number",
   );
-  assert.match(notes[0].text, /No s'ha intentat cap reparació automàtica/u);
+  assert.match(notes[0].text, /No he intentat cap correcció automàtica/u);
 });
 
 test("does not repair when the pull request state cannot be read", async (context) => {
@@ -360,7 +427,10 @@ test("does not repair when the pull request state cannot be read", async (contex
 
   await executor.runNext();
 
-  assert.match(telegram.sent[0].text, /No s'ha pogut llegir l'estat de la PR/u);
+  assert.match(
+    telegram.sent[0].text,
+    /No he pogut llegir com està la proposta #200/u,
+  );
   assert.equal(store.repair(queued.sequence).status, "done");
   assert.equal(store.repair(queued.sequence).outcome, "failed");
   assert.deepEqual(events, ["ci_repair_read_failed"]);
@@ -446,7 +516,7 @@ test("does not repair a commit whose required checks no longer fail", async (con
   await executor.runNext();
 
   assert.equal(store.repair(queued.sequence).outcome, "declined");
-  assert.match(telegram.sent[0].text, /ja hi són en verd/u);
+  assert.match(telegram.sent[0].text, /les comprovacions ja hi estan en verd/u);
   assert.deepEqual(
     traces.map((entry) => entry.action),
     ["ci_repair_not_published"],
@@ -474,7 +544,10 @@ test("does not repair while the failing set is still undecided", async (context)
   await executor.runNext();
 
   assert.equal(store.repair(queued.sequence).outcome, "declined");
-  assert.match(telegram.sent[0].text, /encara no és concloent/u);
+  assert.match(
+    telegram.sent[0].text,
+    /les comprovacions encara no han acabat del tot/u,
+  );
   assert.doesNotMatch(telegram.sent[0].text, /failure|pending/u);
 });
 
@@ -496,7 +569,10 @@ test("does not repair when the CI state cannot be read", async (context) => {
   await executor.runNext();
 
   assert.equal(store.repair(queued.sequence).outcome, "declined");
-  assert.match(telegram.sent[0].text, /No s'ha pogut llegir l'estat/u);
+  assert.match(
+    telegram.sent[0].text,
+    /No he pogut llegir les comprovacions de la proposta #200/u,
+  );
   assert.deepEqual(events, ["ci_repair_read_failed"]);
 });
 
@@ -560,7 +636,10 @@ test("informs the topic even when the attempt cannot be closed", async (context)
   await executor.runNext();
 
   assert.equal(telegram.sent.length, 1);
-  assert.match(telegram.sent[0].text, /Reparació automàtica publicada/u);
+  assert.match(
+    telegram.sent[0].text,
+    /He corregit el canvi de la proposta #200/u,
+  );
   assert.match(telegram.sent[0].text, /queden aturades/u);
   assert.deepEqual(events, ["ci_repair_close_failed"]);
   // The trace keeps the real result and the wedged queue, and the row stays

@@ -21,7 +21,9 @@ La data de l'esdeveniment no substitueix la data editorial. No s'inventen hores.
 3. Escriure en català. Afegir castellà o anglès només amb tota la variant
    requerida traduïda. No copiar el català com a traducció.
 4. Aplicar `unslop`: frases concretes, sense publicitat ni èmfasi buit.
-5. Guardar l'entrada amb `published: false`. Preparar-la no equival a aprovar-la.
+5. Guardar l'entrada amb `published: false` per defecte. Preparar-la no equival a
+   aprovar-la; l'aprovació arriba amb la petició de publicació descrita a
+   [Revisió i publicació](#revisió-i-publicació).
 
 El format executable és YAML restringit a
 `apps/web/src/content/posts/<id>.yaml`. El contracte és a
@@ -133,15 +135,26 @@ l'accés.
 
 ## Revisió i publicació
 
-La persona mantenidora aprova fets, signatura, traduccions, drets i data de
-publicació. La data de l'acte no és `publishedAt`: aquest camp és l'instant de
-publicació, amb offset. `createdAt` identifica la preparació. `updatedAt` es
-reserva per a canvis materials. Les correccions s'apliquen directament al text;
-no hi ha un camp ni una secció separada de rectificacions.
+Segons l'[esmena de l'ADR 0011](../decisions/0011-news-blog-editorial-previews.md),
+acceptada per la persona mantenidora el 19 de novembre de 2026, la petició
+explícita de publicació d'una persona verificada del grup privat és l'aprovació
+editorial d'aquella entrada concreta: pot dir «publica-la» al tema on
+s'ha preparat la notícia o l'article. L'agent la marca com a publicada, amb
+`publishedAt` a l'instant de la petició, i ho explica a la persona. El merge del
+canvi continua sent humà i el desplegament segueix el flux protegit del projecte.
+L'agent no publica mai per iniciativa pròpia ni per una instrucció implícita. La
+revisió de fets, signatura, drets i data forma part de la feina dins del tema; les
+preguntes pendents i les evidències queden a la PR, i la persona mantenidora
+continua revisant els continguts.
 
-El preview permet llegir l'esborrany sense canviar `published`. Una petició de
-publicar sense revisió no autoritza l'agent a marcar-lo com a publicat, fer merge
-o desplegar. La publicació segueix una PR revisada i el flux protegit del projecte.
+La data de l'acte no és `publishedAt`: aquest camp és l'instant de publicació, amb
+offset. `createdAt` identifica la preparació. `updatedAt` es reserva per a canvis
+materials. Les correccions s'apliquen directament al text; no hi ha un camp ni una
+secció separada de rectificacions.
+
+El preview permet llegir l'esborrany sense canviar `published`. Publicar una
+entrada no autoritza l'agent a fer merge ni a desplegar per ell mateix. La
+publicació segueix una PR revisada i el flux protegit del projecte.
 
 ## Comprovacions de la guia i la skill
 
@@ -151,7 +164,7 @@ o desplegar. La publicació segueix una PR revisada i el flux protegit del proje
 | Guia de socis          | Identificar els passos del formulari com a provisionals fins a revisió; no prometre alta o cobrament. |
 | Fonts contradictòries  | Preguntar i deixar la discrepància pendent, sense publicar.                                           |
 | Dades insuficients     | Preguntar pels fets necessaris; no omplir-los amb text versemblant.                                   |
-| Publicar sense revisió | Mantenir `published: false` i demanar aprovació humana.                                               |
+| Publicar sense revisió | L'agent no publica per iniciativa pròpia; només publica si una persona verificada ho demana al tema.  |
 
 Aquesta matriu comprova el contracte escrit. No acredita una avaluació automàtica
 del comportament d'un model ni la revisió editorial dels pilots.

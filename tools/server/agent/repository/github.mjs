@@ -348,6 +348,7 @@ export class GitHubTrust {
     }
     return {
       state: pull.state,
+      htmlUrl: pull.html_url,
       headSha: pull.head.sha,
       headRef: pull.head.ref,
       // A fork whose repository was deleted has no head repository.

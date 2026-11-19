@@ -250,6 +250,12 @@ test("continues another topic's pull request and updates it without opening anot
   const notices = [];
   const traces = [];
   const { head } = await publishFromTopicA({ paths, github, ciWatches });
+  const directory = mkdtempSync(join(tmpdir(), "mr-continuation-note-"));
+  context.after(() =>
+    rmSync(directory, { recursive: true, force: true, maxRetries: 5 }),
+  );
+  const notes = new SessionNoteStore(join(directory, "session-notes.sqlite"));
+  context.after(() => notes.close());
   github.comments = [
     { user: { login: "someone" }, body: "Revisa el lint abans de continuar." },
   ];
@@ -260,6 +266,7 @@ test("continues another topic's pull request and updates it without opening anot
     github,
     ciWatches,
     traces,
+    sessionNotes: notes,
     classifyRequest: async () => "continuation",
     notifyHandover: async (notice) => notices.push(notice),
     runModel: async (modelRequest) => {
@@ -280,9 +287,23 @@ test("continues another topic's pull request and updates it without opening anot
   );
 
   assert.equal(result.outcome, "pull_request_updated");
-  assert.match(result.report, /Continuació de la PR #200/u);
-  assert.match(result.report, new RegExp(head.slice(0, 7), "u"));
-  assert.match(result.report, /Pull request actualitzada/u);
+  assert.match(result.report, /Continuo la proposta #200/u);
+  assert.match(result.report, /El canvi està publicat i l'estic comprovant/u);
+  assert.doesNotMatch(result.report, new RegExp(head.slice(0, 7), "u"));
+  // The note the next turn receives keeps the facts of the publication: the
+  // number, the branch, the published commit and the result of the local checks.
+  const [{ text: publicationNote }] = notes.claim(topicB);
+  assert.match(
+    publicationNote,
+    /Pull request actualitzada: #200 https:\/\//u,
+    "the note keeps the pull request number",
+  );
+  assert.match(
+    publicationNote,
+    /Branca feat\/tools-shared-change-\w+, commit [0-9a-f]{40}\./u,
+    "the note keeps the branch and the published commit",
+  );
+  assert.match(publicationNote, /Comprovacions: pnpm check correcte\./u);
   assert.equal(modelCalls.length, 1);
   assert.equal(modelCalls[0].kind, "continuation");
   assert.match(modelCalls[0].instruction, /pull request #200/u);
@@ -408,25 +429,25 @@ for (const scenario of [
   {
     name: "another base branch",
     pull: { baseRef: "develop" },
-    report: /no apunta a la branca main/u,
+    report: /no apunta a la branca principal del projecte/u,
     reason: "not_main_base",
   },
   {
     name: "a fork",
     pull: { headRepository: "someone/mountain-runners" },
-    report: /repositori principal/u,
+    report: /no és d'aquest projecte/u,
     reason: "not_main_repository",
   },
   {
     name: "a branch the service never writes",
     pull: { headRef: "main" },
-    report: /no és una branca de treball/u,
+    report: /no és d'una feina d'aquest servei/u,
     reason: "not_work_branch",
   },
   {
     name: "a pull request of another number",
     pull: { number: pullRequestNumber + 1 },
-    report: /no la va publicar aquest servei/u,
+    report: /no la va preparar aquest servei/u,
     reason: "not_published_by_service",
   },
 ]) {
@@ -557,7 +578,7 @@ test("asks for one pull request when a continuation names two", async (context) 
   );
 
   assert.equal(result.outcome, "answered");
-  assert.match(result.report, /més d'una pull request/u);
+  assert.match(result.report, /nomena més d'una proposta/u);
   assert.deepEqual(
     workflowTraces(traces).map((entry) => [entry.action, entry.detail]),
     [["continuation_refused", "multiple_pull_requests"]],
@@ -670,7 +691,7 @@ test("refuses a resume whose head moved before the branch was fetched", async (c
     }),
   );
 
-  assert.match(result.report, /ha canviat mentre es reprenia/u);
+  assert.match(result.report, /ha canviat mentre la reprenia/u);
   assert.equal(github.pushes.length, 1);
 });
 
@@ -679,7 +700,7 @@ test("publishes nothing when the resumed pull request does not change", async (c
   const github = githubStub(paths);
   const ciWatches = stateStore(paths);
   context.after(() => ciWatches.close());
-  const { head } = await publishFromTopicA({ paths, github, ciWatches });
+  await publishFromTopicA({ paths, github, ciWatches });
   const runner = runnerFor({
     paths,
     github,
@@ -701,7 +722,7 @@ test("publishes nothing when the resumed pull request does not change", async (c
   assert.equal(result.outcome, "answered");
   assert.equal(
     result.report,
-    `Continuació de la PR #200 des del commit ${head.slice(0, 7)}.\nJa està tot fet.`,
+    "Continuo la proposta #200, des del punt que ja teníem.\nJa està tot fet.",
   );
   assert.equal(github.pushes.length, 1);
   assert.equal(github.reused.length, 0);
@@ -750,7 +771,8 @@ test("continues from the head a person pushed after the service", async (context
   );
 
   assert.equal(result.outcome, "pull_request_updated");
-  assert.match(result.report, new RegExp(personHead.slice(0, 7), "u"));
+  assert.doesNotMatch(result.report, new RegExp(personHead.slice(0, 7), "u"));
+  assert.match(result.report, /Continuo la proposta #200/u);
   assert.equal(
     readFileSync(join(modelCalls[0].worktreePath, "person.txt"), "utf8"),
     "canvi d'una persona\n",
@@ -839,7 +861,7 @@ test("refuses a fork that reuses the branch of this topic's pull request", async
   );
 
   assert.equal(result.outcome, "answered");
-  assert.match(result.report, /repositori principal/u);
+  assert.match(result.report, /no és d'aquest projecte/u);
   assert.equal(github.pushes.length, 1);
   assert.deepEqual(
     workflowTraces(traces).map((entry) => entry.detail),
@@ -894,7 +916,10 @@ test("does not move the owner when the new watch cannot be registered", async (c
   // Without a durable watch the instruction ends unknown, and the previous
   // topic keeps the ownership of the pull request.
   assert.equal(result.outcome, "uncertain");
-  assert.match(result.report, /no s'ha pogut registrar el canvi de tema/u);
+  assert.match(
+    result.report,
+    /els avisos de les comprovacions continuaran arribant al tema anterior/u,
+  );
   assert.equal(github.pushes.length, 2);
   assert.deepEqual(notices, []);
   assert.equal(
@@ -996,7 +1021,7 @@ test("omits the head SHA when the pull request cannot be read", async (context) 
 
   const result = await runner(request({ instruction: "Continua la PR #200" }));
 
-  assert.match(result.report, /No s'ha pogut llegir la PR #200/u);
+  assert.match(result.report, /No he pogut llegir la proposta #200/u);
   assert.equal(github.pullRequestReads, 1);
   assert.deepEqual(
     workflowTraces(traces).map((entry) => entry.detail),
@@ -1052,7 +1077,7 @@ test("reads a repeated pull request number as one target", async (context) => {
     request({ instruction: "Continua #200 i després #200" }),
   );
 
-  assert.match(result.report, /no és una branca de treball/u);
+  assert.match(result.report, /no és d'una feina d'aquest servei/u);
   assert.equal(github.pullRequestReads, 1);
   assert.deepEqual(
     workflowTraces(traces).map((entry) => [entry.action, entry.detail]),
@@ -1105,7 +1130,7 @@ test("continues the open pull request of the topic in place at its published hea
     modelCalls[0].worktreePath,
     realpathSync(worktreeOf(paths, topicA)),
   );
-  assert.doesNotMatch(result.report, /Continuació de la PR/u);
+  assert.doesNotMatch(result.report, /Continuo la proposta/u);
   assert.equal(github.pushes.length, 2);
   assert.equal(github.pushes[1].branch, changeBranchOf(paths));
   assert.equal(
@@ -1187,7 +1212,7 @@ test("resumes the pull request of the topic when the worktree holds another bran
   assert.equal(result.outcome, "pull_request_updated", result.report);
   assert.equal(modelCalls.length, 1);
   assert.match(modelCalls[0].instruction, /Continue pull request #200/u);
-  assert.match(result.report, /Continuació de la PR #200/u);
+  assert.match(result.report, /Continuo la proposta #200/u);
   assert.equal(github.pushes.length, 2);
   assert.equal(github.pushes[1].branch, changeBranchOf(paths));
   assert.equal(
@@ -1241,7 +1266,7 @@ test("updates the pull request of the topic even when it closes during the turn"
   );
 
   assert.equal(result.outcome, "failed");
-  assert.match(result.report, /s'ha refusat/u);
+  assert.match(result.report, /una regla del projecte ho ha impedit/u);
   assert.equal(github.pushes.length, 1, "nothing is pushed to a closed PR");
   assert.equal(github.created.length, 1, "no other pull request is opened");
   assert.equal(github.openedBranches.length, 1);
@@ -1258,7 +1283,7 @@ test("keeps the resume line as the service part of a mixed answer", async (conte
   const github = githubStub(paths);
   const ciWatches = stateStore(paths);
   context.after(() => ciWatches.close());
-  const { head } = await publishFromTopicA({ paths, github, ciWatches });
+  await publishFromTopicA({ paths, github, ciWatches });
   const directory = mkdtempSync(join(tmpdir(), "mr-continuation-notes-"));
   context.after(() =>
     rmSync(directory, { recursive: true, force: true, maxRetries: 5 }),
@@ -1283,11 +1308,11 @@ test("keeps the resume line as the service part of a mixed answer", async (conte
   );
 
   assert.equal(result.outcome, "answered");
-  assert.match(result.report, /Continuació de la PR #200/u);
+  assert.match(result.report, /Continuo la proposta #200/u);
   assert.match(result.report, /Ja està tot fet\./u);
   assert.deepEqual(
     notes.claim(topicB).map((note) => note.text),
-    [`Continuació de la PR #200 des del commit ${head.slice(0, 7)}.`],
+    ["Continuo la proposta #200, des del punt que ja teníem."],
     "only the line the service wrote becomes a note",
   );
   assert.equal(
@@ -1302,7 +1327,7 @@ test("keeps the resume line when a resumed turn answers nothing", async (context
   const github = githubStub(paths);
   const ciWatches = stateStore(paths);
   context.after(() => ciWatches.close());
-  const { head } = await publishFromTopicA({ paths, github, ciWatches });
+  await publishFromTopicA({ paths, github, ciWatches });
   const directory = mkdtempSync(join(tmpdir(), "mr-continuation-blank-"));
   context.after(() =>
     rmSync(directory, { recursive: true, force: true, maxRetries: 5 }),
@@ -1326,10 +1351,10 @@ test("keeps the resume line when a resumed turn answers nothing", async (context
     }),
   );
 
-  const resumeLine = `Continuació de la PR #200 des del commit ${head.slice(0, 7)}.`;
+  const resumeLine = "Continuo la proposta #200, des del punt que ja teníem.";
   assert.equal(result.outcome, "answered");
   assert.match(result.report, new RegExp(resumeLine, "u"));
-  assert.match(result.report, /La consulta no ha produït cap resposta/u);
+  assert.match(result.report, /No he pogut preparar cap resposta/u);
   assert.deepEqual(
     notes.claim(topicB).map((note) => note.text),
     [resumeLine],

@@ -177,11 +177,10 @@ export function createMergeRequests({
   }
 
   /**
-   * Re-read the live state of the pinned commit. Any picture that is not clearly
-   * mergeable is a refusal; unknown mergeability after the retries is unreadable.
+   * The refusal of a live pull request that is not clearly mergeable, or null.
+   * Unknown mergeability after the retries is unreadable.
    */
-  async function findRefusal(target, signal) {
-    const pullRequest = await readPullRequest(target.pullRequestNumber, signal);
+  async function refusalFor(pullRequest, target, signal) {
     if (pullRequest.state !== "open") return refusals.notOpen;
     if (pullRequest.draft) return refusals.draft;
     if (pullRequest.baseRef !== "main") return refusals.notMainBase;
@@ -214,6 +213,16 @@ export function createMergeRequests({
       default:
         return refusals.notClean;
     }
+  }
+
+  /**
+   * Re-read the live state of the pinned commit. The pull request is returned
+   * with its refusal so the reply can use its review URL without a second read.
+   */
+  async function readMergeState(target, signal) {
+    const pullRequest = await readPullRequest(target.pullRequestNumber, signal);
+    const refusal = await refusalFor(pullRequest, target, signal);
+    return { pullRequest, refusal };
   }
 
   function readPullRequestOf(pullRequestNumber, signal) {
@@ -293,6 +302,7 @@ export function createMergeRequests({
         report: mergeReports.reconciled({
           pullRequestNumber: target.pullRequestNumber,
           mergeCommit: pullRequest.mergeCommitSha,
+          pullRequestUrl: pullRequest.htmlUrl,
         }),
       };
     }
@@ -325,10 +335,10 @@ export function createMergeRequests({
   }
 
   /** The merge commit of a pull request GitHub shows merged, or null. */
-  async function readMergedCommit(pullRequestNumber, signal) {
+  async function readMergedPullRequest(pullRequestNumber, signal) {
     try {
       const pullRequest = await readPullRequestOf(pullRequestNumber, signal);
-      return pullRequest.merged ? pullRequest.mergeCommitSha : null;
+      return pullRequest.merged ? pullRequest : null;
     } catch (error) {
       signal?.throwIfAborted();
       logger(
@@ -357,18 +367,19 @@ export function createMergeRequests({
     };
     // After a merge the closed-pull-request notice is the topic's last one.
     if (reported.result === ciResults.pullRequestClosed) {
-      const mergeCommit = await readMergedCommit(
+      const mergedPullRequest = await readMergedPullRequest(
         target.pullRequestNumber,
         signal,
       );
-      if (mergeCommit !== null) {
+      if (mergedPullRequest !== null) {
         return {
           answer: refuse(
             request,
             refusals.alreadyMerged,
             mergeReports.alreadyMerged({
               pullRequestNumber: target.pullRequestNumber,
-              mergeCommit,
+              mergeCommit: mergedPullRequest.mergeCommitSha,
+              pullRequestUrl: mergedPullRequest.htmlUrl,
             }),
             target,
           ),
@@ -472,7 +483,7 @@ export function createMergeRequests({
     return { outcome: "answered", report: mergeReports.uncertain(target) };
   }
 
-  async function requestMerge(request, target, signal) {
+  async function requestMerge(request, target, signal, pullRequestUrl) {
     traceRequest(request, "merge_requested", describeTarget(target));
     let merged;
     try {
@@ -492,6 +503,7 @@ export function createMergeRequests({
     const report = {
       pullRequestNumber: target.pullRequestNumber,
       mergeCommit: merged.mergeCommitSha,
+      pullRequestUrl,
     };
     // The merge happened. If the end cannot be saved the row stays `merging` and
     // the restart reads the pull request and closes it as merged.
@@ -540,19 +552,24 @@ export function createMergeRequests({
       return settled;
     }
 
-    let refusal;
+    let mergeState;
     try {
-      refusal = await findRefusal(target, signal);
+      mergeState = await readMergeState(target, signal);
     } catch (error) {
       signal?.throwIfAborted();
       logger(
         "merge_read_failed",
         error instanceof Error ? error.name : "unknown",
       );
-      refusal = refusals.unreadable;
+      mergeState = { pullRequest: null, refusal: refusals.unreadable };
     }
-    if (refusal !== null) {
-      return refuse(request, refusal, refusalTexts[refusal](target), target);
+    if (mergeState.refusal !== null) {
+      return refuse(
+        request,
+        mergeState.refusal,
+        refusalTexts[mergeState.refusal](target),
+        target,
+      );
     }
 
     const begun = store.begin({
@@ -578,7 +595,12 @@ export function createMergeRequests({
         target,
       );
     }
-    return requestMerge(request, target, signal);
+    return requestMerge(
+      request,
+      target,
+      signal,
+      mergeState.pullRequest.htmlUrl,
+    );
   }
 
   /**
@@ -623,6 +645,7 @@ export function createMergeRequests({
             mergeReports.reconciled({
               pullRequestNumber: row.pull_request_number,
               mergeCommit: pullRequest.mergeCommitSha,
+              pullRequestUrl: pullRequest.htmlUrl,
             }),
             { signal, state: "reconciled" },
           );

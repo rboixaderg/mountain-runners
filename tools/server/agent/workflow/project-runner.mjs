@@ -15,6 +15,7 @@ import { scaleImageAttachments } from "../attachments/scale.mjs";
 import { createCiWatchRegistration } from "./ci-watch.mjs";
 import {
   buildInstructionPrompt,
+  formatMadridInstant,
   sandboxCheckCommand,
   sandboxPrepareCommand,
 } from "../policy/development.mjs";
@@ -38,6 +39,9 @@ export function createProjectRunner({
   }),
   sessionNotes,
   recordTrace,
+  // The service fixes the instant a post is published with: the sandbox clock
+  // is not trusted for it.
+  now = () => new Date(),
   stopCommands = stopSandboxedCommands,
   executeSandbox = runSandboxedCommand,
   executeAgent = runAgent,
@@ -74,6 +78,7 @@ export function createProjectRunner({
         buildInstructionPrompt(context.instruction, context.kind, {
           unclearRequest: context.unclearRequest,
           serviceNotes,
+          currentInstant: formatMadridInstant(now()),
         }),
       readOnly: context.kind === "consultation",
     });

@@ -200,6 +200,30 @@ function githubStub() {
   };
 }
 
+test("gives the prompt the current instant of the service in Europe/Madrid", async (context) => {
+  const paths = await fixture(context);
+  const prompts = [];
+  const runner = createProjectRunner({
+    config: configFor(paths),
+    github: githubStub(),
+    classifyRequest: async () => "consultation",
+    now: () => new Date("2026-11-18T09:32:05.000Z"),
+    executeAgent: async (_config, options) => {
+      prompts.push(promptOf(options));
+      return { text: "Resposta." };
+    },
+  });
+
+  await runner(request());
+
+  assert.match(
+    prompts[0],
+    /Current instant, in Europe\/Madrid with its offset: 2026-11-18T10:32:05\+01:00\./u,
+    "the prompt carries the instant the service fixed, not the sandbox clock",
+  );
+  assert.doesNotMatch(prompts[0], /undefined/u);
+});
+
 test("answers a consultation without creating a branch or a remote effect", async (context) => {
   const paths = await fixture(context);
   const github = githubStub();
@@ -221,6 +245,24 @@ test("answers a consultation without creating a branch or a remote effect", asyn
   assert.deepEqual(github.pulls, []);
   assert.equal(existsSync(join(paths.worktrees, "scratch-1001")), false);
   assert.equal(await git(paths.repository, ["branch", "--list", "feat/*"]), "");
+});
+
+test("strips the change summary from a consultation answer", async (context) => {
+  const paths = await fixture(context);
+  const runner = createProjectRunner({
+    config: configFor(paths),
+    github: githubStub(),
+    classifyRequest: async () => "consultation",
+    runModel: async () => ({
+      text: "La notícia ja hi és.\nSUMMARY: content(posts): add the news",
+    }),
+  });
+
+  const result = await runner(request());
+
+  assert.equal(result.outcome, "answered");
+  assert.equal(result.report, "La notícia ja hi és.");
+  assert.doesNotMatch(result.report, /SUMMARY|content\(posts\)/u);
 });
 
 test("prepares dependencies before the model for an implementation", async (context) => {
@@ -280,7 +322,7 @@ test("does not start the model when offline preparation fails", async (context) 
   });
   const result = await runner(request());
   assert.equal(result.outcome, "failed");
-  assert.match(result.report, /preparar les dependències/u);
+  assert.match(result.report, /No he pogut preparar l'entorn de treball/u);
   assert.equal(modelStarted, false);
   assert.deepEqual(github.pushes, []);
 });
@@ -296,7 +338,7 @@ test("reports a timed-out preparation without starting the model", async (contex
   });
   const result = await runner(request());
   assert.equal(result.outcome, "failed");
-  assert.match(result.report, /superat el límit de temps/u);
+  assert.match(result.report, /La feina ha durat més del que puc esperar/u);
 });
 
 test("publishes a small change as a pull request after the checks pass", async (context) => {
@@ -346,6 +388,45 @@ test("publishes a small change as a pull request after the checks pass", async (
   assert.equal(committed, "feat(tools): add synthetic change");
 });
 
+test("sends the model answer with one plain notice and the review link after a publication", async (context) => {
+  const paths = await fixture(context);
+  const github = githubStub();
+  const runner = createProjectRunner({
+    config: configFor(paths),
+    classifyRequest: async () => "implementation",
+    github,
+    runModel: async ({ worktreePath }) => {
+      writeFileSync(join(worktreePath, "change.txt"), "canvi\n");
+      return {
+        text: "He afegit la notícia del campionat.\nSUMMARY: feat(content): add the news",
+      };
+    },
+    runChecks: async () => ({ exitCode: 0, stdout: "", stderr: "" }),
+  });
+
+  const result = await runner(request());
+
+  assert.equal(result.outcome, "pull_request_created");
+  assert.equal(
+    result.report,
+    [
+      "He afegit la notícia del campionat.",
+      "",
+      "El canvi està publicat.",
+      "Enllaç per a revisió: https://github.com/rboixaderg/mountain-runners/pull/200",
+    ].join("\n"),
+  );
+  assert.doesNotMatch(
+    result.report,
+    /SUMMARY|feat\(content\)|Branca|commit|pnpm|Validate/u,
+  );
+  assert.doesNotMatch(
+    result.report,
+    /avisar[ée]/u,
+    "without a CI watch the service promises no follow-up message",
+  );
+});
+
 test("registers the CI watch for the published commit without waiting for CI", async (context) => {
   const paths = await fixture(context);
   mkdirSync(paths.state, { recursive: true });
@@ -373,7 +454,13 @@ test("registers the CI watch for the published commit without waiting for CI", a
   const result = await runner(request());
 
   assert.equal(result.outcome, "pull_request_created");
-  assert.match(result.report, /Seguiment de la CI de GitHub/u);
+  assert.match(result.report, /Canvi fet\./u);
+  assert.match(result.report, /El canvi està publicat i l'estic comprovant/u);
+  assert.match(
+    result.report,
+    /Enllaç per a revisió: https:\/\/github\.com\/rboixaderg\/mountain-runners\/pull\/200$/u,
+  );
+  assert.doesNotMatch(result.report, /SUMMARY|feat\(tools\)|Branca|commit/u);
   const published = await git(topicWorktreePath(paths), ["rev-parse", "HEAD"]);
   const [watch] = ciWatches.pending();
   assert.equal(watch.commit_sha, published);
@@ -406,9 +493,12 @@ test("ends the instruction unknown when the CI watch cannot be registered", asyn
   // The publication is real, so it is not repeated; the missing durable watch
   // blocks the service until a person reconciles it.
   assert.equal(result.outcome, "uncertain");
+  assert.match(result.report, /Canvi fet\./u);
+  assert.match(
+    result.report,
+    /El canvi està publicat, però no podré avisar-te'n en aquest tema/u,
+  );
   assert.match(result.report, /pull\/200/u);
-  assert.match(result.report, /No s'ha pogut registrar el seguiment de la CI/u);
-  assert.match(result.report, /No s'ha pogut desar el seguiment posterior/u);
   assert.deepEqual(github.pushes.length, 1);
 });
 
@@ -429,7 +519,7 @@ test("keeps the worktree and publishes nothing when the checks fail", async (con
   const result = await runner(request());
 
   assert.equal(result.outcome, "failed");
-  assert.match(result.report, /No s'ha fet cap push/u);
+  assert.match(result.report, /no passa les comprovacions automàtiques/u);
   assert.deepEqual(github.pushes, []);
   assert.equal(existsSync(topicWorktreePath(paths)), true);
 });
@@ -869,7 +959,7 @@ test("reports a local publication refusal as a failure, not an unknown result", 
   const result = await runner(request());
 
   assert.equal(result.outcome, "failed");
-  assert.match(result.report, /regla local/u);
+  assert.match(result.report, /una regla del projecte ho ha impedit/u);
   assert.deepEqual(github.pulls, []);
 });
 
@@ -1138,6 +1228,20 @@ test("repairs the published commit on its branch with the failure context", asyn
 
   assert.equal(result.outcome, "pull_request_updated");
   assert.match(result.report, /pull\/200/u);
+  // The repair executor writes the note from this service-only part: the model's
+  // answer never becomes trusted service text.
+  assert.match(
+    result.serviceText,
+    /Pull request actualitzada: #200 https:\/\//u,
+  );
+  assert.match(
+    result.serviceText,
+    /Branca .+, commit [0-9a-f]{40}\./u,
+    "the note keeps the branch and the published commit",
+  );
+  assert.match(result.serviceText, /Comprovacions: pnpm check correcte\./u);
+  assert.doesNotMatch(result.serviceText, /Arreglat/u);
+  assert.match(result.report, /Arreglat\./u);
   assert.equal(modelCalls.length, 1);
   assert.equal(modelCalls[0].kind, "repair");
   assert.match(
@@ -1187,7 +1291,10 @@ test("refuses to repair a worktree that is not at the failed commit", async (con
   const result = await runner(repairRequest("f".repeat(40)));
 
   assert.equal(result.outcome, "failed");
-  assert.match(result.report, /no és al commit que va fallar/u);
+  assert.match(
+    result.report,
+    /La feina ha canviat des del punt que calia corregir/u,
+  );
   assert.equal(github.pushes.length, 1);
 });
 
@@ -1203,7 +1310,7 @@ test("refuses to repair without the session worktree", async (context) => {
   const result = await runner(repairRequest("f".repeat(40)));
 
   assert.equal(result.outcome, "failed");
-  assert.match(result.report, /No s'ha trobat el worktree/u);
+  assert.match(result.report, /No he trobat la feina que calia corregir/u);
   assert.equal(github.pushes.length, 0);
 });
 
@@ -1221,7 +1328,7 @@ test("refuses to repair a worktree with leftovers of a later instruction", async
   const result = await runner(repairRequest(published));
 
   assert.equal(result.outcome, "failed");
-  assert.match(result.report, /canvis sense publicar/u);
+  assert.match(result.report, /Hi ha canvis nous sense publicar/u);
   assert.equal(github.pushes.length, 1);
 });
 
@@ -1247,7 +1354,7 @@ for (const [label, pullRequest] of [
     const result = await runner(repairRequest(published));
 
     assert.equal(result.outcome, "failed");
-    assert.match(result.report, /refusat/u);
+    assert.match(result.report, /una regla del projecte ho ha impedit/u);
     assert.equal(github.pushes.length, 1);
     assert.equal(github.pulls.length, 1);
   });
@@ -1895,6 +2002,49 @@ test("places an attached image and appends the service text to the instruction",
   );
 });
 
+test("carries the audience rules and the attachment lines in the same prompt", async (context) => {
+  const paths = await fixture(context);
+  const image = pngImage({ width: 1200, height: 800 });
+  const prompts = [];
+  const runner = createProjectRunner({
+    config: configFor(paths),
+    github: githubStub(),
+    classifyRequest: async () => "implementation",
+    prepareAttachment: createAttachmentPreparation({
+      telegram: telegramAttachment(image),
+    }),
+    stopCommands: async () => {},
+    executeSandbox: async () => ({ exitCode: 0, timedOut: false }),
+    executeAgent: async (_config, options) => {
+      prompts.push(promptOf(options));
+      writeFileSync(join(options.worktreePath, "change.txt"), "canvi\n");
+      return { text: "Fet.\nSUMMARY: feat(content): use the cover" };
+    },
+    runChecks: async () => ({ exitCode: 0, stdout: "", stderr: "" }),
+  });
+
+  const result = await runner(attachmentRequest());
+
+  assert.equal(result.outcome, "pull_request_created", result.report);
+  assert.equal(prompts.length, 1);
+  assert.match(prompts[0], /Who reads your answer and how to write it:/u);
+  assert.match(
+    prompts[0],
+    /Answer in the language the person wrote in; Catalan by default\./u,
+  );
+  assert.match(prompts[0], /Images provided by the service for this topic:/u);
+  assert.match(prompts[0], /imatge-1\.png: 1200×800 px \(new\)/u);
+  assert.match(prompts[0], /view_attachment/u);
+  assert.match(
+    prompts[0],
+    /belongs to the club, with the credit «Mountain Runners»/u,
+  );
+  assert.match(
+    prompts[0],
+    /Current instant, in Europe\/Madrid with its offset: \d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}[+-]\d{2}:\d{2}\./u,
+  );
+});
+
 test("ignores an attached image in a consultation and says so once", async (context) => {
   const paths = await fixture(context);
   const instructions = [];
@@ -1920,7 +2070,7 @@ test("ignores an attached image in a consultation and says so once", async (cont
   assert.match(result.report, /El worktree és/u);
   assert.match(
     result.report,
-    /No s'ha fet servir la imatge en aquesta resposta\. Envia-la amb la feina on la vols aplicar\.$/u,
+    /No he fet servir la imatge en aquesta resposta\. Envia-la amb la feina on la vols aplicar\.$/u,
   );
   assert.equal(
     existsSync(join(topicWorktreePath(paths), ".agent-attachments")),
@@ -2196,7 +2346,7 @@ test("gives the classifier the last reply and the pending local work", async (co
   );
   assert.match(
     contexts[1].lastAgentReply,
-    /Les comprovacions del projecte fallen/u,
+    /no passa les comprovacions automàtiques/u,
     "the classifier reads the last text the topic received",
   );
   assert.equal(contexts[1].pendingLocalWork, true);
@@ -2366,7 +2516,7 @@ test("keeps the service events when the sandbox preparation runs out of time", a
   const result = await runner(request());
 
   assert.equal(result.outcome, "failed");
-  assert.match(result.report, /superat el límit de temps/u);
+  assert.match(result.report, /La feina ha durat més del que puc esperar/u);
   const undelivered = notes.claim(topicSessionKey).map((note) => note.text);
   assert.equal(
     undelivered[0],
@@ -2503,7 +2653,7 @@ test("never turns the words of the model into trusted service text", async (cont
 
   assert.match(
     prompts[0],
-    /No s'ha publicat cap canvi automàtic/u,
+    /No he publicat cap canvi per corregir les comprovacions/u,
     "the service sentence reaches the next turn",
   );
   assert.doesNotMatch(
@@ -2651,7 +2801,9 @@ test("applies the image of a continuation to the pull request of the topic", asy
 
   assert.equal(second.outcome, "pull_request_updated", second.report);
   assert.equal(
-    classifications[1].lastAgentReply.includes("Pull request creada"),
+    classifications[1].lastAgentReply.includes(
+      "El canvi està publicat i l'estic comprovant",
+    ),
     true,
     "the classifier reads the publication report",
   );
@@ -2659,9 +2811,20 @@ test("applies the image of a continuation to the pull request of the topic", asy
   assert.equal(classifications[1].topicPullRequest, 200);
   assert.match(prompts[1].message, new RegExp(serviceNotesHeader, "u"));
   assert.equal(
-    (prompts[1].message.match(/Pull request creada/gu) ?? []).length,
+    (prompts[1].message.match(/Pull request (creada|actualitzada)/gu) ?? [])
+      .length,
     1,
-    "the publication report reached that turn exactly once",
+    "the publication note reached that turn exactly once",
+  );
+  assert.match(
+    prompts[1].message,
+    /Branca .+, commit [0-9a-f]{40}\./u,
+    "the note keeps the branch and the published commit",
+  );
+  assert.match(
+    prompts[1].message,
+    /Comprovacions: pnpm check correcte\./u,
+    "the note keeps the result of the local checks",
   );
   assert.ok(
     prompts[1].message.indexOf(serviceNotesHeader) <
@@ -2681,7 +2844,14 @@ test("applies the image of a continuation to the pull request of the topic", asy
   );
   const remaining = notes.claim(topicSessionKey).map((note) => note.text);
   assert.equal(remaining.length, 1, "only the new publication is pending");
-  assert.match(remaining[0], /Pull request actualitzada/u);
+  assert.match(remaining[0], /Pull request actualitzada: #200 https:\/\//u);
+  assert.match(remaining[0], /Branca .+, commit [0-9a-f]{40}\./u);
+  assert.match(remaining[0], /Comprovacions: pnpm check correcte\./u);
+  assert.doesNotMatch(
+    remaining[0],
+    /El canvi està publicat/u,
+    "the person's plain line is not a service note",
+  );
 });
 
 test("keeps the service events when the Pi profile cannot be prepared", async (context) => {
@@ -2827,7 +2997,10 @@ test("keeps the service events when Pi never starts and the cleanup also fails",
   const result = await runner(request());
 
   assert.equal(result.outcome, "uncertain");
-  assert.match(result.report, /contenidor/u);
+  assert.match(
+    result.report,
+    /No he pogut aturar del tot l'entorn de treball/u,
+  );
   const undelivered = notes.claim(topicSessionKey).map((note) => note.text);
   assert.equal(
     undelivered[0],
