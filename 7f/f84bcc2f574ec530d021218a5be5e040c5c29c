@@ -1,0 +1,63 @@
+packages/telegram-pi-bridge/README.md
+  s_82a8eb64da656c::t_45c970414fd9bf 188
+packages/telegram-pi-bridge/src/pi/rpc.mjs
+  s_5b11e37152c924::t_7f0746ffe6f590 74-80,85-105,187-189,198-238,250,252,255-262,299-305,319-321
+packages/telegram-pi-bridge/src/sessions/identity.mjs
+  s_82a8eb64da656c::t_a190863ddc0187 8-11,22-23
+packages/telegram-pi-bridge/src/sessions/queue.mjs
+  s_82a8eb64da656c::t_980e4dc7c6bed2 45-48,51-54,65,76-84,86,88-93,103-109
+packages/telegram-pi-bridge/src/sessions/trace-reader.mjs
+  s_82a8eb64da656c::t_00d5b8a5bd3908 25-28,30-32,34,198
+packages/telegram-pi-bridge/src/telegram/attachments.mjs
+  s_5b11e37152c924::t_c277ca82111074 109-113,139-141,155,226-229,231-233
+packages/telegram-pi-bridge/src/telegram/bridge.mjs
+  s_5b11e37152c924::t_55af4ad1ae4803 90,94-102,125,356-359,361-377,382-394,400-416,447,453-457,461-496,499-500,506-511,521-526,602-604,615,670-684,687-693
+packages/telegram-pi-bridge/src/telegram/index.mjs
+  s_82a8eb64da656c::t_47037947c2008d 12
+packages/telegram-pi-bridge/test/entries.test.mjs
+  s_82a8eb64da656c::t_bcc8503acde151 27
+packages/telegram-pi-bridge/test/pi/rpc.test.mjs
+  s_5b11e37152c924::t_27519cff89e415 366,376,472-604
+packages/telegram-pi-bridge/test/sessions/identity.test.mjs
+  s_5b11e37152c924::t_35be13fc43bfba 25-51
+packages/telegram-pi-bridge/test/sessions/queue.test.mjs
+  s_5b11e37152c924::t_72038459230f27 5,147-271
+packages/telegram-pi-bridge/test/sessions/trace-reader.test.mjs
+  s_5b11e37152c924::t_71e0dff0e82d3f 2,6,325-343,371-406
+packages/telegram-pi-bridge/test/telegram/api.test.mjs
+  s_5b11e37152c924::t_f3c58270ca29ee 559-681
+packages/telegram-pi-bridge/test/telegram/attachments.test.mjs
+  s_5b11e37152c924::t_df6a2f70a7f478 1-49
+packages/telegram-pi-bridge/test/telegram/bridge.test.mjs
+  s_5b11e37152c924::t_4a7a2df28ee682 2,1410-1669
+tools/server/agent/runtime/extensions/sandbox-bash.ts
+  s_82a8eb64da656c::t_4c87310722f64f 74-85,90,93-97
+tools/server/agent/sandbox/arguments.mjs
+  s_82a8eb64da656c::t_163d5853a7e639 132
+tools/server/agent/sandbox/commands.mjs
+  s_5b11e37152c924::t_f570fff946eb82 21-32,50-53,55,58-62,68-76,80-84,132,134,141-161,167-168,178-179,183-184
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "7ff84bcc2f574ec530d021218a5be5e040c5c29c",
+  "prompts": {},
+  "sessions": {
+    "s_5b11e37152c924": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e0b016df6ffeQeU6HqNovDkOr5",
+        "model": "unknown"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    },
+    "s_82a8eb64da656c": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e0b016de9ffeksSCDYec4NhQhI",
+        "model": "unknown"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
