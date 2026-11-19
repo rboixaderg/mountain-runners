@@ -24,7 +24,7 @@ const worktreeNameLength = 16;
 const changeSuffixLength = 8;
 // The one naming scheme this service wrote before the opaque names. Only the
 // startup migration reads it.
-const legacyWorktreePattern = /^topic_([0-9n]+)_(\d+)(?:-before-(\d+))?$/u;
+const legacyWorktreePattern = /^topic_(n?\d+)_(\d+)(?:-before-(\d+))?$/u;
 
 export function identifierSaltPath(stateDirectory) {
   return join(stateDirectory, identifierSaltFileName);

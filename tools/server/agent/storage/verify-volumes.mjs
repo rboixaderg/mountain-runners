@@ -119,12 +119,30 @@ export function verifyAgentVolumes(environment = process.env) {
   );
 }
 
-if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
+/**
+ * Whether this module is the program the interpreter started. A symlinked
+ * invocation reaches the same entry through a different path, so both sides are
+ * resolved before they are compared.
+ */
+export function isMainModule(moduleUrl, argument = process.argv[1]) {
+  if (argument === undefined) {
+    return false;
+  }
+  try {
+    return realpathSync(fileURLToPath(moduleUrl)) === realpathSync(argument);
+  } catch {
+    return false;
+  }
+}
+
+if (isMainModule(import.meta.url)) {
   try {
     verifyAgentVolumes();
-  } catch {
+  } catch (error) {
     process.stderr.write(
-      "Agent storage verification failed; refusing to start.\n",
+      `Agent storage verification failed; refusing to start: ${
+        error instanceof Error ? error.message : "unknown"
+      }\n`,
     );
     process.exitCode = 1;
   }

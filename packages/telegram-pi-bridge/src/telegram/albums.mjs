@@ -19,6 +19,14 @@
 
 const defaultMaximumWaitMilliseconds = 5000;
 
+// A burst of albums must not grow the collector without limit. A new album is
+// ignored when the first cap is reached, so a flood cannot evict an album that
+// is already waiting; the pending groups expire within seconds and free the
+// slots. The second cap ignores extra members of one album, which is far above
+// the image limit.
+const maximumPendingGroups = 200;
+const maximumUpdatesPerGroup = 20;
+
 function sessionKeyOf(update) {
   const message = update.message;
   const chatIdentifier = message?.chat?.id;
@@ -27,6 +35,14 @@ function sessionKeyOf(update) {
     return null;
   }
   return `${chatIdentifier}:${threadIdentifier}`;
+}
+
+// A media group identifier is chosen by Telegram and is not unique across
+// chats, topics or authors. The key includes every identity the album must
+// share, so updates that cannot belong to one album never merge.
+function groupIdentifierOf(update) {
+  const message = update.message;
+  return `${sessionKeyOf(update)}:${message?.from?.id}:${message?.media_group_id}`;
 }
 
 export class AlbumCollector {
@@ -61,10 +77,13 @@ export class AlbumCollector {
 
   /** Add one member. A re-delivered member never moves the deadline. */
   add(update) {
-    const groupIdentifier = update.message.media_group_id;
+    const groupIdentifier = groupIdentifierOf(update);
     let group = this.#groups.get(groupIdentifier);
     const now = this.#now();
     if (group === undefined) {
+      if (this.#groups.size >= maximumPendingGroups) {
+        return;
+      }
       group = {
         identifier: groupIdentifier,
         sessionKey: sessionKeyOf(update),
@@ -75,6 +94,9 @@ export class AlbumCollector {
       this.#groups.set(groupIdentifier, group);
     }
     if (group.updates.has(update.update_id)) {
+      return;
+    }
+    if (group.updates.size >= maximumUpdatesPerGroup) {
       return;
     }
     group.updates.set(update.update_id, update);

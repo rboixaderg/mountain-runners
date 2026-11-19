@@ -7,7 +7,7 @@
 // no uncommitted change. The newest archived worktree of each topic is always
 // preserved, and the active topic worktree is never a candidate.
 
-import { realpathSync, statSync } from "node:fs";
+import { existsSync, realpathSync, statSync } from "node:fs";
 import { basename } from "node:path";
 import { createAttachmentStore } from "../attachments/store.mjs";
 import {
@@ -39,9 +39,17 @@ async function worktreePaths(repository) {
 }
 
 function archivedCandidates(paths, worktreeRoot) {
+  if (!existsSync(worktreeRoot)) {
+    return [];
+  }
   const root = realpathSync(worktreeRoot);
   const candidates = [];
   for (const path of paths) {
+    // Git keeps a worktree registered after its directory disappeared. It is
+    // not a candidate: there is nothing to measure or to remove.
+    if (!existsSync(path)) {
+      continue;
+    }
     const resolvedPath = realpathSync(path);
     if (!resolvedPath.startsWith(`${root}/`)) {
       continue;
@@ -119,36 +127,50 @@ export async function pruneArchivedWorktrees({
       continue;
     }
 
-    const ahead = Number(
-      (
-        await runGit(worktree, ["rev-list", "--count", "origin/main..HEAD"])
-      ).trim(),
-    );
-    if (ahead > 0) {
-      kept.push({ path: candidate.path, reason: "unpublished_commits" });
-      continue;
-    }
+    let branch;
+    try {
+      const ahead = Number(
+        (
+          await runGit(worktree, ["rev-list", "--count", "origin/main..HEAD"])
+        ).trim(),
+      );
+      if (ahead > 0) {
+        kept.push({ path: candidate.path, reason: "unpublished_commits" });
+        continue;
+      }
 
-    if ((await runGit(worktree, ["status", "--porcelain"])).trim() !== "") {
-      kept.push({ path: candidate.path, reason: "uncommitted_changes" });
-      continue;
-    }
+      if ((await runGit(worktree, ["status", "--porcelain"])).trim() !== "") {
+        kept.push({ path: candidate.path, reason: "uncommitted_changes" });
+        continue;
+      }
 
-    const branch = (
-      await runGit(worktree, ["symbolic-ref", "--short", "-q", "HEAD"], {
-        allowFailure: true,
-      })
-    ).trim();
-
-    logger("worktree_pruned", candidate.path);
-    if (!dryRun) {
-      await runGit(repository, ["worktree", "remove", candidate.path]);
-      if (branch !== "" && !protectedBranches.has(branch)) {
-        await runGit(repository, ["branch", "-D", branch], {
+      branch = (
+        await runGit(worktree, ["symbolic-ref", "--short", "-q", "HEAD"], {
           allowFailure: true,
-        });
+        })
+      ).trim();
+    } catch {
+      // One damaged archive must not stop the retention of the rest.
+      logger("worktree_inspection_failed", candidate.path);
+      kept.push({ path: candidate.path, reason: "inspection_failed" });
+      continue;
+    }
+
+    if (!dryRun) {
+      try {
+        await runGit(repository, ["worktree", "remove", candidate.path]);
+        if (branch !== "" && !protectedBranches.has(branch)) {
+          await runGit(repository, ["branch", "-D", branch], {
+            allowFailure: true,
+          });
+        }
+      } catch {
+        logger("worktree_removal_failed", candidate.path);
+        kept.push({ path: candidate.path, reason: "removal_failed" });
+        continue;
       }
     }
+    logger("worktree_pruned", candidate.path);
     removed.push({ path: candidate.path, branch });
   }
 
