@@ -1,0 +1,55 @@
+apps/web/e2e/posts.spec.ts
+  s_a7ec4e84b69ed9::t_2e29c0424a3d12 7-11,17-19,23-26,105-109,112,114-127,282-288,290-294,312-314,365-368,371,375-384,390,462-467,469-472,486-489,491,496-498
+tools/server/agent/attachments/image-file.mjs
+  s_82a8eb64da656c::t_ac41aba6e046fd 22,84-86,121
+tools/server/agent/attachments/image-file.test.mjs
+  s_82a8eb64da656c::t_1420341377a3fe 8,224-257
+tools/server/agent/attachments/prepare.mjs
+  s_82a8eb64da656c::t_04da7e0cf701ff 4-7,20,41
+tools/server/agent/attachments/prepare.test.mjs
+  s_82a8eb64da656c::t_eceaab7333ad03 94
+tools/server/agent/runtime/pi-adapter.mjs
+  s_82a8eb64da656c::t_f9d717dbea158f 18,26-32,35-37,46,107
+tools/server/agent/runtime/request-kind.mjs
+  s_82a8eb64da656c::t_cec0b8700beea4 18-29,43
+tools/server/agent/runtime/request-kind.test.mjs
+  s_82a8eb64da656c::t_7d9a0cc90d9c47 6-9,12-17,19-28,40-61
+tools/server/agent/workflow/cross-topic-continuation.mjs
+  s_a7ec4e84b69ed9::t_fa4d0d5a612694 81-83,85-98,411-413
+tools/server/agent/workflow/cross-topic-continuation.test.mjs
+  s_82a8eb64da656c::t_9999a35721c96d 1178-1225
+tools/server/agent/workflow/overlap-warning.test.mjs
+  s_5b11e37152c924::t_f4274563aed5f2 610
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "e54eeb6071af404c61dbe62bfd3617f9e81d743c",
+  "prompts": {},
+  "sessions": {
+    "s_5b11e37152c924": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e0b016df6ffeQeU6HqNovDkOr5",
+        "model": "unknown"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    },
+    "s_82a8eb64da656c": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e0b016de9ffeksSCDYec4NhQhI",
+        "model": "unknown"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    },
+    "s_a7ec4e84b69ed9": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e0b016debffegyJZ2QulmHVJQ9",
+        "model": "unknown"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
