@@ -278,13 +278,13 @@ test("reports a preview that a run ended as failed, without a URL", (context) =>
   const topicState = readTopicState(sessionKey);
 
   assert.deepEqual(topicState.preview, {
-    description: "the request was rejected",
+    description: "the preview failed",
     origin: null,
   });
   const text = buildTopicStateText(topicState);
   assert.match(
     text,
-    /^- Latest preview request for it: the request was rejected\.$/mu,
+    /^- Latest preview request for it: the preview failed\.$/mu,
   );
   assert.equal(text.includes("preview.mountainrunners.cat"), false);
 });

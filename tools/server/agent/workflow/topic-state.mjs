@@ -40,7 +40,7 @@ const previewDescriptions = {
   [previewStates.awaiting]: "waiting for the trusted publisher to confirm it",
   [previewStates.confirmed]: "confirmed",
   [previewStates.timedOut]: "not confirmed in time",
-  [previewStates.failed]: "the request was rejected",
+  [previewStates.failed]: "the preview failed",
   [previewStates.uncertain]: "the result is unknown",
 };
 
