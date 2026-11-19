@@ -1,0 +1,51 @@
+tools/server/agent/workflow/preview-request.mjs
+  s_2116a861b82201::t_404b9157ff9264 5-12,220-223,231-232,237,239-241,243-244,251-255,340,342,349,351-352,355-357,361-365,370-371,378,386,393,406,424,437
+tools/server/agent/workflow/preview-request.test.mjs
+  s_cf2201d37d338e::t_8ae68db2d73de4 105,123-124,537,579-682
+tools/server/agent/workflow/topic-state.mjs
+  s_47174a29ccc61f::t_0336f6cc9baa4e 17-19,145-165,168-171,181,183,188,196-199,203-204,208-215,217-223,228,269
+tools/server/agent/repository/ci-watch-store.mjs
+  s_090ac0efd060f2::t_b9dbf0912ad66a 248-250,255-256
+tools/server/agent/repository/ci-watch-store.test.mjs
+  s_090ac0efd060f2::t_1e71c9d1ff9624 614
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "ad43e81be97d32b87c41cba57b79d7c21a5e6693",
+  "prompts": {},
+  "sessions": {
+    "s_090ac0efd060f2": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "bb88c6df-c20c-4a69-9336-9286f5e1d303",
+        "model": "unknown"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    },
+    "s_2116a861b82201": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e0a2c50b4ffeFxCFRjt4aG3b15",
+        "model": "unknown"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    },
+    "s_47174a29ccc61f": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e0a2c119cffezJFVNi8Wz1xYjs",
+        "model": "unknown"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    },
+    "s_cf2201d37d338e": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e0a2ba151ffeZzZAUeI3WzEmLn",
+        "model": "unknown"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
