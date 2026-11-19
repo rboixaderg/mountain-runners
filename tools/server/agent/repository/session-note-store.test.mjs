@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { DatabaseSync } from "node:sqlite";
 import { test } from "node:test";
 import { noteLimits, SessionNoteStore } from "./session-note-store.mjs";
 
@@ -263,4 +264,60 @@ test("never forgets a delivered identity after many later deliveries", (context)
     "a late retry is still the same effect",
   );
   assert.deepEqual(store.claim(topicSessionKey), []);
+});
+
+test("keeps the undelivered limit apart from an interrupted claim", (context) => {
+  const path = fixture(context);
+  const store = new SessionNoteStore(path);
+  context.after(() => store.close());
+  for (let index = 0; index < noteLimits.perSession; index += 1) {
+    store.addNote({
+      sessionKey: topicSessionKey,
+      text: `nota ${index}`,
+    });
+  }
+  // A claim a turn made and never delivered is newer than these notes. It is
+  // not an undelivered note, so it never spends a place of their limit.
+  const database = new DatabaseSync(path);
+  database
+    .prepare(
+      `INSERT INTO session_notes
+         (session_key, text, effect_key, state, created_at)
+       VALUES (?, ?, NULL, 'claimed', ?)`,
+    )
+    .run(topicSessionKey, "reclamada", "2026-11-18T10:00:00Z");
+  database.close();
+  store.addNote({ sessionKey: topicSessionKey, text: "nota nova" });
+
+  const claimed = store.claim(topicSessionKey);
+  assert.equal(claimed.length, noteLimits.perSession);
+  assert.equal(claimed.at(-1).text, "nota nova");
+  assert.equal(
+    claimed[0].text,
+    "nota 1",
+    "only the oldest undelivered note is dropped",
+  );
+});
+
+test("opens a store for reading without recovering an interrupted claim", (context) => {
+  const path = fixture(context);
+  const first = new SessionNoteStore(path);
+  first.addNote({ sessionKey: topicSessionKey, text: "Efecte en curs." });
+  first.claim(topicSessionKey);
+  first.close();
+
+  const readOnly = new SessionNoteStore(path, { recoverClaimed: false });
+  const database = new DatabaseSync(path, { readOnly: true });
+  const row = database
+    .prepare("SELECT state FROM session_notes WHERE session_key = ?")
+    .get(topicSessionKey);
+  database.close();
+  assert.equal(row.state, "claimed", "opening the store changed nothing");
+  // The read-only opener never recovers by itself: a later open still does.
+  assert.deepEqual(readOnly.claim(topicSessionKey), []);
+  readOnly.close();
+
+  const restarted = new SessionNoteStore(path);
+  context.after(() => restarted.close());
+  assert.deepEqual(restarted.claim(topicSessionKey), []);
 });

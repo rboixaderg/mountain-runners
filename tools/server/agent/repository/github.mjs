@@ -21,7 +21,11 @@ import {
   requestSignal,
 } from "./request-signal.mjs";
 
-import { remoteGitTimeoutMilliseconds, runGit } from "./trusted-git.mjs";
+import {
+  remoteGitTimeoutMilliseconds,
+  runGit,
+  GitInterruptedError,
+} from "./trusted-git.mjs";
 
 function repositoryUrl(repository) {
   return `https://github.com/${repository}.git`;
@@ -94,6 +98,31 @@ function previewWorkflowRun(run) {
     // names the account that repeated it in `triggering_actor`.
     actor: workflowRunActorLogin(run.actor),
     triggeringActor: workflowRunActorLogin(run.triggering_actor),
+  };
+}
+
+/**
+ * The summary of a pull request that publication needs. A response missing a
+ * field it reads is invalid: reducing it would let a later step treat an absent
+ * pull request as a real one.
+ */
+function pullRequestSummary(pull) {
+  if (
+    !Number.isSafeInteger(pull?.number) ||
+    pull.number < 1 ||
+    typeof pull.html_url !== "string" ||
+    typeof pull.head?.sha !== "string" ||
+    typeof pull.draft !== "boolean" ||
+    typeof pull.base?.ref !== "string"
+  ) {
+    throw new Error("GitHub returned an invalid pull request response.");
+  }
+  return {
+    number: pull.number,
+    htmlUrl: pull.html_url,
+    headSha: pull.head.sha,
+    draft: pull.draft,
+    baseBranch: pull.base.ref,
   };
 }
 
@@ -198,6 +227,11 @@ export class GitHubTrust {
       ).trim();
     } catch (error) {
       error.message = String(error.message).replaceAll(this.#token, "***");
+      // The stack carries the command and its arguments too: it is redacted
+      // with the same care as the message.
+      if (typeof error.stack === "string") {
+        error.stack = error.stack.replaceAll(this.#token, "***");
+      }
       // execFile's original error may retain an unredacted remote URL.
       delete error.cause;
       throw error;
@@ -265,6 +299,15 @@ export class GitHubTrust {
       commit = await this.#git(worktree, ["rev-parse", "HEAD"], {}, { signal });
       await assertPublishableHistory({ worktree, commit, secrets, signal });
     } catch (error) {
+      // A stop is not a refusal: nothing may have reached GitHub yet, and the
+      // caller must see the interruption instead of reporting a failed work.
+      if (
+        signal?.aborted ||
+        error instanceof GitInterruptedError ||
+        error?.name === "AbortError"
+      ) {
+        throw error;
+      }
       throw new PublishRefusedError(
         error instanceof Error ? error.message : "Publication refused.",
         { cause: error },
@@ -427,6 +470,7 @@ export class GitHubTrust {
    */
   async listIssueComments({ number, since, signal }) {
     assertPullRequestNumber(number);
+    assertIsoTimestamp(since);
     const comments = [];
     for (let page = 1; page <= maximumPageCount; page += 1) {
       const response = await this.#request(
@@ -473,6 +517,12 @@ export class GitHubTrust {
         runs.push(previewWorkflowRun(run));
       }
       if (response.workflow_runs.length < 100) return runs;
+      // A complete page can still be the last one: the total says so without
+      // another read, so a bounded list never fails as endless.
+      const total = response.total_count;
+      if (Number.isSafeInteger(total) && runs.length >= total) {
+        return runs;
+      }
     }
     throw new Error("GitHub workflow runs pagination limit exceeded.");
   }
@@ -482,21 +532,18 @@ export class GitHubTrust {
     const owner = this.#repository.split("/")[0];
     const pulls = await this.#request(
       "GET",
-      `/repos/${this.#repository}/pulls?state=open&head=${encodeURIComponent(`${owner}:${branch}`)}`,
+      `/repos/${this.#repository}/pulls?state=open&base=${encodeURIComponent(this.#baseBranch)}&head=${encodeURIComponent(`${owner}:${branch}`)}`,
       undefined,
       { signal },
     );
+    if (!Array.isArray(pulls)) {
+      throw new Error("GitHub returned an invalid pull request list response.");
+    }
     const pull = pulls[0];
     if (!pull) {
       return null;
     }
-    return {
-      number: pull.number,
-      htmlUrl: pull.html_url,
-      headSha: pull.head.sha,
-      draft: pull.draft,
-      baseBranch: pull.base.ref,
-    };
+    return pullRequestSummary(pull);
   }
 
   /**
@@ -527,13 +574,7 @@ export class GitHubTrust {
       { signal },
     );
     return {
-      pullRequest: {
-        number: pull.number,
-        htmlUrl: pull.html_url,
-        headSha: pull.head.sha,
-        draft: pull.draft,
-        baseBranch: pull.base.ref,
-      },
+      pullRequest: pullRequestSummary(pull),
       created: true,
     };
   }

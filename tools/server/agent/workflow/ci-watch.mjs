@@ -360,17 +360,26 @@ export function createCiWatchWorker({
       return false;
     }
 
+    // The claim comes first: a watch that is no longer pending (superseded by a
+    // newer commit, or already claimed) produces no notice, so it must not add a
+    // note or overwrite the last text of the topic either.
+    if (!store.beginSend(watch.update_identifier, outcome.result)) {
+      return false;
+    }
     // The effect is decided here, so the topic keeps it even when the send
     // fails: the next turn of its session must know it. The note keeps the
     // technical facts the person never reads.
-    recordServiceNote({
-      sessionKey: watch.session_key,
-      text: noteText,
-      receivedText: personText,
-      effectKey: `ci:${watch.update_identifier}:${watch.commit_sha}:${noticeKind(outcome)}`,
-    });
-    if (!store.beginSend(watch.update_identifier, outcome.result)) {
-      return false;
+    try {
+      recordServiceNote({
+        sessionKey: watch.session_key,
+        text: noteText,
+        receivedText: personText,
+        effectKey: `ci:${watch.update_identifier}:${watch.commit_sha}:${noticeKind(outcome)}`,
+      });
+    } catch (error) {
+      // The notice matters more than its note: a store failure is logged and
+      // never costs the delivery.
+      logger("ci_note_failed", error instanceof Error ? error.name : "unknown");
     }
     try {
       await telegram.sendMessage({ ...message, signal });
@@ -392,10 +401,7 @@ export function createCiWatchWorker({
   }
 
   function logFailure(error) {
-    logger(
-      "ci_watch_failed",
-      error instanceof Error ? error.message : "unknown",
-    );
+    logger("ci_watch_failed", error instanceof Error ? error.name : "unknown");
   }
 
   /**

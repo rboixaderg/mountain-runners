@@ -120,3 +120,24 @@ test("finds the valid comment among unrelated ones", () => {
     origin,
   );
 });
+
+test("accepts a publisher comment separated by CRLF", () => {
+  const crlf = publisherComment().body.replaceAll("\n", "\r\n");
+  assert.equal(confirmed(publisherComment({ body: crlf })), origin);
+});
+
+test("rejects a pull request number that is not a positive integer", () => {
+  for (const invalid of [0, -1, 1.5, "42", undefined]) {
+    assert.throws(
+      () =>
+        confirmedPreviewOrigin({
+          comments: [publisherComment()],
+          pullRequestNumber: invalid,
+          commit,
+          requestedAt,
+        }),
+      /positive pull request number/u,
+      String(invalid),
+    );
+  }
+});

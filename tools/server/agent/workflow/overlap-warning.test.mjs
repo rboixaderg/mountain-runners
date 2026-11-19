@@ -695,3 +695,43 @@ test("counts both sides of an uncommitted rename", async (context) => {
   assert.match(report, /`original\.txt`/u);
   assert.match(report, /`renamed\.txt`/u);
 });
+
+test("never warns about the work of a merged pull request", async (context) => {
+  const paths = await fixture(context);
+  const current = await topicWorktree({
+    repository: paths.repository,
+    worktreeRoot: paths.worktreeRoot,
+    name: requestingWorktreeName,
+    branch: "feat/tools-current-change",
+    paths: ["shared.txt"],
+  });
+  await topicWorktree({
+    repository: paths.repository,
+    worktreeRoot: paths.worktreeRoot,
+    name: otherWorktreeName,
+    branch: "feat/tools-other-change",
+    paths: ["shared.txt"],
+  });
+  const traced = [];
+  const warnAboutOverlaps = createOverlapWarning({
+    repositoryPath: paths.repository,
+    worktreeRoot: paths.worktreeRoot,
+    identifiers,
+    listPullRequests: () => [activePullRequest()],
+    // The change is already in the project: its old branch is not active work.
+    isMerged: () => true,
+    recordTrace: (entry) => traced.push(entry),
+  });
+
+  const report = await warnAboutOverlaps({
+    updateIdentifier: 1001,
+    sessionKey: requestingSessionKey,
+    worktree: current,
+    branch: "feat/tools-current-change",
+  });
+
+  // The merged pull request is not named as active work. The other worktree is
+  // reported as local work, because no active pull request explains it.
+  assert.doesNotMatch(report, /PR #321/u);
+  assert.match(report, /una feina local/u);
+});
