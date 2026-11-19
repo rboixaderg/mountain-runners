@@ -6,9 +6,9 @@ Acceptada per la persona mantenidora el 2 d'octubre de 2026. Implementació a la
 PR #140, pendent de revisió i merge humà. Aquesta decisió no autoritza cap
 activació remota; les previews requereixen una petició explícita separada.
 
-Té una esmena proposada el 18 de novembre de 2026 (T8.8) sobre qui aprova la
-publicació d'una entrada. Es proposa, no és acceptada: queda pendent de
-l'aprovació de la persona mantenidora a la revisió de la PR.
+Esmenada el 18 de novembre de 2026 (T8.8) sobre qui aprova la publicació d'una
+entrada. La persona mantenidora va aprovar l'esmena el 19 de novembre de 2026;
+aquesta és acceptada i forma part de la decisió.
 
 ## Decisió
 
@@ -79,14 +79,15 @@ col·leccions. NB-08 de l'especificació en fixa el límit i la navegació manua
 
 ## Esmena del 18 de novembre de 2026 (T8.8)
 
-**Proposada.** Aquesta esmena queda pendent de l'aprovació de la persona
-mantenidora a la revisió de la PR de T8.8 i no és acceptada fins que es fusioni.
+**Acceptada per la persona mantenidora el 19 de novembre de 2026.** Substitueix
+el criteri anterior, que reservava l'aprovació de la publicació a la persona
+mantenidora, i no canvia la resta de l'ADR.
 
 La petició explícita de publicació d'una persona verificada del grup privat és
 l'aprovació editorial d'aquella entrada. El pilot (17 i 18 de novembre de 2026)
 va fer evident que reservar l'aprovació a la persona mantenidora bloquejava una
 persona editora no tècnica: l'entrada quedava sempre en esborrany i la publicació
-depenava d'una conversa fora del tema.
+depenia d'una conversa fora del tema.
 
 - Una entrada es crea sempre amb `published: false`. La petició explícita al tema
   on s'ha preparat, com «publica-la», la marca com a publicada i fixa `publishedAt`

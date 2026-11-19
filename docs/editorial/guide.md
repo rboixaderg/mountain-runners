@@ -135,9 +135,10 @@ l'accés.
 
 ## Revisió i publicació
 
-Des del 18 de novembre de 2026, i segons l'[esmena de l'ADR 0011](../decisions/0011-news-blog-editorial-previews.md),
-la petició explícita de publicació d'una persona verificada del grup privat és
-l'aprovació editorial d'aquella entrada concreta: pot dir «publica-la» al tema on
+Segons l'[esmena de l'ADR 0011](../decisions/0011-news-blog-editorial-previews.md),
+acceptada per la persona mantenidora el 19 de novembre de 2026, la petició
+explícita de publicació d'una persona verificada del grup privat és l'aprovació
+editorial d'aquella entrada concreta: pot dir «publica-la» al tema on
 s'ha preparat la notícia o l'article. L'agent la marca com a publicada, amb
 `publishedAt` a l'instant de la petició, i ho explica a la persona. El merge del
 canvi continua sent humà i el desplegament segueix el flux protegit del projecte.
