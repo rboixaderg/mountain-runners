@@ -1,0 +1,43 @@
+docs/deployment.md
+  s_cf2201d37d338e::t_f5677ffaa4982e 540-543
+tools/server/agent/README.md
+  s_47174a29ccc61f::t_088cc6494372ff 178-180,557-559
+tools/server/agent/policy/development.mjs
+  s_99d09653eb1428::t_ad8e61b7692486 26-33,41-64,255,700
+tools/server/agent/policy/development.test.mjs
+  s_99d09653eb1428::t_642c9428ee0d3e 12-13,29,314,336,343-378
+tools/server/agent/workflow/run-instruction.test.mjs
+  s_99d09653eb1428::t_d091d2df593164 394-467
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "2f78c6125c08a51f846bba3e8c8e7b3892c811a7",
+  "prompts": {},
+  "sessions": {
+    "s_47174a29ccc61f": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e0a2c119cffezJFVNi8Wz1xYjs",
+        "model": "unknown"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    },
+    "s_99d09653eb1428": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e0a2b5b09ffeNUaaVtCVl6ip1l",
+        "model": "unknown"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    },
+    "s_cf2201d37d338e": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e0a2ba151ffeZzZAUeI3WzEmLn",
+        "model": "unknown"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
