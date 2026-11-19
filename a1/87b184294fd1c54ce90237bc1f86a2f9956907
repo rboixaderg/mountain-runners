@@ -1,0 +1,75 @@
+docs/specs/phase-8-editorial-assistance.md
+  s_a7ec4e84b69ed9::t_ec5ec407859ece 187
+tools/server/agent/attachments/store.mjs
+  s_5b11e37152c924::t_9129636560ba6a 30,40-46,48,101-106,108-113,117-120,137-139,156-278,283-287,293,320-331,338,341,391-392,394-397,406-408,410-411,419,427-429,459,461-463,471-494
+tools/server/agent/attachments/store.test.mjs
+  s_5b11e37152c924::t_44d7f7c3782da3 9,174-439
+tools/server/agent/commands/trace/cli.mjs
+  s_82a8eb64da656c::t_68256e7d79a510 45-46,51-56
+tools/server/agent/commands/trace/cli.test.mjs
+  s_82a8eb64da656c::t_ef697728a82826 141-157
+tools/server/agent/config.mjs
+  s_82a8eb64da656c::t_1f158b5755ed20 17,50-56,59
+tools/server/agent/config.test.mjs
+  s_82a8eb64da656c::t_e742f19d757369 106-126
+tools/server/agent/processes/telegram-bridge/main.mjs
+  s_5b11e37152c924::t_3ac5580efd8dd4 58-92,288-306,308-320,324-325,328-334,340,391-396,406-428,430-453,515-516,552-569,580-581,588-593,604-605
+tools/server/agent/processes/telegram-bridge/main.test.mjs
+  s_5b11e37152c924::t_fdfb822d6a604f 32-38,184-308
+tools/server/agent/repository/identifiers.mjs
+  s_82a8eb64da656c::t_76dbc77c010257 27
+tools/server/agent/repository/identifiers.test.mjs
+  s_82a8eb64da656c::t_6182a47754cfd4 105-108,112-122
+tools/server/agent/repository/retention.mjs
+  s_82a8eb64da656c::t_d40e735d3741cb 10,42-44,48-52,130-140,142-155,160-170,173
+tools/server/agent/repository/retention.test.mjs
+  s_82a8eb64da656c::t_264e538ca07167 201-252
+tools/server/agent/repository/trusted-git.mjs
+  s_5b11e37152c924::t_19847f3db29925 7-17,57-68,73-85,91-94,108-111,116-153
+tools/server/agent/repository/trusted-git.test.mjs
+  s_5b11e37152c924::t_518fc395d69b27 7,10,14,22-26,129-282
+tools/server/agent/repository/worktrees.mjs
+  s_82a8eb64da656c::t_26a94259a8bacf 6,22,146-148,280-287,293,297-299,388-390,401,405-408,683-685,693-697,853-859
+tools/server/agent/repository/worktrees.test.mjs
+  s_82a8eb64da656c::t_80de82136a9431 31,805-955
+tools/server/agent/storage/prune-worktrees.mjs
+  s_82a8eb64da656c::t_a31ef61a64a09a 11,15,17-51,53-55
+tools/server/agent/storage/prune-worktrees.test.mjs
+  s_82a8eb64da656c::t_242a93e80253f8 1-38
+tools/server/agent/storage/verify-volumes.mjs
+  s_82a8eb64da656c::t_0d3ec2c490fa42 122-130,132,134-141,143-145
+tools/server/agent/storage/verify-volumes.test.mjs
+  s_82a8eb64da656c::t_ad7737735494a8 1-45
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "a187b184294fd1c54ce90237bc1f86a2f9956907",
+  "prompts": {},
+  "sessions": {
+    "s_5b11e37152c924": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e0b016df6ffeQeU6HqNovDkOr5",
+        "model": "unknown"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    },
+    "s_82a8eb64da656c": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e0b016de9ffeksSCDYec4NhQhI",
+        "model": "unknown"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    },
+    "s_a7ec4e84b69ed9": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e0b016debffegyJZ2QulmHVJQ9",
+        "model": "unknown"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
