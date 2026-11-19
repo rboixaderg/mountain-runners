@@ -71,14 +71,30 @@ export default function (pi: {
         readOnly: settings.readOnly,
         signal,
       });
+      // A stopped command must say why: an exit code alone does not tell the
+      // model whether the deadline or the output budget ended the run.
+      const notices: string[] = [];
+      if (result.timedOut) {
+        notices.push(
+          "The command reached its execution deadline and was stopped.",
+        );
+      }
+      if (result.outputLimitExceeded) {
+        notices.push("The command exceeded the output limit and was stopped.");
+      }
+      const notice = notices.length === 0 ? "" : `${notices.join("\n")}\n`;
       return {
         content: [
           {
             type: "text",
-            text: `exit code: ${result.exitCode}\n${result.stdout}\n${result.stderr}`,
+            text: `${notice}exit code: ${result.exitCode}\n${result.stdout}\n${result.stderr}`,
           },
         ],
-        details: { exitCode: result.exitCode, timedOut: result.timedOut },
+        details: {
+          exitCode: result.exitCode,
+          timedOut: result.timedOut,
+          outputLimitExceeded: result.outputLimitExceeded,
+        },
       };
     },
   });

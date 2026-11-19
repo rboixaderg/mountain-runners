@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { getEventListeners } from "node:events";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -1404,5 +1405,265 @@ test("keeps arrival order with two albums and a message of one session", async (
   assert.deepEqual(
     executed.map((request) => request.updateIdentifier),
     [10, 11, 12],
+  );
+});
+
+test("does not keep an abort listener on the service signal after an album wait", async (t) => {
+  const { queue } = context(t);
+  const telegram = telegramStub({ batches: [[albumUpdate(10, 7)], []] });
+  const controller = new AbortController();
+  const bridge = bridgeFor({
+    queue,
+    telegram,
+    albumWaitMilliseconds: 60_000,
+  });
+
+  assert.equal(await bridge.pollOnce({ signal: controller.signal }), 0);
+  assert.deepEqual(getEventListeners(controller.signal, "abort"), []);
+});
+
+test("marks an instruction uncertain when the execution returns no result", async (t) => {
+  const { queue } = context(t);
+  const telegram = telegramStub({ batches: [[instructionUpdate(10, 7)]] });
+  const bridge = bridgeFor({
+    queue,
+    telegram,
+    runInstruction: async () => null,
+  });
+
+  await bridge.pollOnce();
+  await bridge.executeNext();
+
+  assert.equal(queue.status(10), "uncertain");
+  const [uncertain] = queue
+    .traceEntries()
+    .filter((entry) => entry.action === "instruction_uncertain");
+  assert.equal(uncertain.detail, "unexpected_result");
+  assert.equal(telegram.sent[1].text, defaultBridgeMessages.unknownResult);
+});
+
+test("traces an uncertain result so a person can reconcile it", async (t) => {
+  const { queue } = context(t);
+  const telegram = telegramStub({ batches: [[instructionUpdate(10, 7)]] });
+  const bridge = bridgeFor({
+    queue,
+    telegram,
+    runInstruction: async () => ({ outcome: "uncertain", report: "unknown" }),
+  });
+
+  await bridge.pollOnce();
+  await bridge.executeNext();
+
+  assert.equal(queue.status(10), "uncertain");
+  const [uncertain] = queue
+    .traceEntries()
+    .filter((entry) => entry.action === "instruction_uncertain");
+  assert.equal(uncertain.update_identifier, 10);
+  assert.equal(uncertain.detail, "uncertain");
+});
+
+test("a re-delivered album never becomes a second instruction while the offset waits", async (t) => {
+  const { queue } = context(t);
+  let clock = 0;
+  const firstAlbum = [albumUpdate(10, 7, captionFor("primer album"))];
+  const firstAlbumWithSecondPhoto = [
+    albumUpdate(10, 7, captionFor("primer album")),
+    albumUpdate(12, 7),
+  ];
+  const secondAlbum = [
+    albumUpdate(11, 8, {
+      media_group_id: "album-2",
+      ...captionFor("segon album"),
+    }),
+  ];
+  const telegram = telegramStub({
+    batches: [
+      firstAlbum,
+      secondAlbum,
+      [albumUpdate(12, 7)],
+      [...firstAlbumWithSecondPhoto, ...secondAlbum],
+      [...firstAlbumWithSecondPhoto, ...secondAlbum],
+      [],
+    ],
+  });
+  const bridge = bridgeFor({
+    queue,
+    telegram,
+    albumWaitMilliseconds: 1000,
+    now: () => clock,
+    sleepImpl: async () => {},
+  });
+
+  // The first album waits while the second one is admitted behind it.
+  await bridge.pollOnce();
+  clock = 800;
+  await bridge.pollOnce();
+  clock = 900;
+  await bridge.pollOnce();
+  clock = 1800;
+  await bridge.pollOnce();
+  clock = 1900;
+  await bridge.pollOnce();
+  clock = 2800;
+  await bridge.pollOnce();
+
+  assert.equal(queue.pendingCount(), 2);
+  assert.equal(queue.readOffset(), 13);
+  assert.equal(telegram.sent.length, 2);
+  assert.deepEqual(
+    queue
+      .traceEntries()
+      .filter((entry) => entry.action === "instruction_duplicate"),
+    [],
+    "the re-delivered album was not collected again",
+  );
+});
+
+test("a newer album of the same session waits for the older one", async (t) => {
+  const { queue } = context(t);
+  let clock = 0;
+  const telegram = telegramStub({
+    batches: [
+      [albumUpdate(10, 7, captionFor("primer album"))],
+      [
+        albumUpdate(11, 7, {
+          media_group_id: "album-2",
+          ...captionFor("segon album"),
+        }),
+      ],
+      [albumUpdate(12, 7)],
+      [],
+      [],
+    ],
+  });
+  const executed = [];
+  const bridge = bridgeFor({
+    queue,
+    telegram,
+    albumWaitMilliseconds: 1000,
+    now: () => clock,
+    sleepImpl: async () => {},
+    runInstruction: async (request) => {
+      executed.push(request.updateIdentifier);
+      return { outcome: "answered", report: "fet" };
+    },
+  });
+
+  await bridge.pollOnce();
+  clock = 800;
+  await bridge.pollOnce();
+  clock = 900;
+  await bridge.pollOnce();
+  clock = 1800;
+  await bridge.pollOnce();
+
+  assert.equal(
+    queue.pendingCount(),
+    0,
+    "the newer album did not overtake the older one",
+  );
+
+  clock = 1900;
+  await bridge.pollOnce();
+  while (await bridge.executeNext()) {
+    // drain the queue
+  }
+
+  assert.deepEqual(executed, [10, 11]);
+  assert.equal(queue.readOffset(), 13);
+});
+
+test("keeps the deferred updates of a session across the pagination boundary", async (t) => {
+  const { queue } = context(t, { maxPending: 1000 });
+  let clock = 0;
+  const instructions = Array.from({ length: 500 }, (unused, index) =>
+    instructionUpdate(11 + index, 7),
+  );
+  const telegram = telegramStub({
+    batches: [
+      [albumUpdate(10, 7, captionFor("primer album")), ...instructions],
+      [instructionUpdate(11, 7)],
+      [],
+    ],
+  });
+  const bridge = bridgeFor({
+    queue,
+    telegram,
+    albumWaitMilliseconds: 1000,
+    now: () => clock,
+    sleepImpl: async () => {},
+  });
+
+  await bridge.pollOnce();
+  // A re-delivered deferred update never evicts an older one.
+  await bridge.pollOnce();
+  clock = 1001;
+  await bridge.pollOnce();
+
+  assert.equal(queue.pendingCount(), 501);
+  assert.equal(queue.readOffset(), 511);
+  for (
+    let updateIdentifier = 11;
+    updateIdentifier <= 510;
+    updateIdentifier += 1
+  ) {
+    assert.equal(
+      queue.status(updateIdentifier),
+      "pending",
+      String(updateIdentifier),
+    );
+  }
+});
+
+test("advances the overflow offset page by page without skipping updates", async (t) => {
+  const { queue } = context(t, { maxPending: 1000 });
+  let clock = 0;
+  // More than the deferred cap: the evicted range spans several pages.
+  const instructions = Array.from({ length: 550 }, (unused, index) =>
+    instructionUpdate(100 + index, 7),
+  );
+  const telegram = telegramStub({
+    batches: [
+      [albumUpdate(10, 7, captionFor("primer album")), ...instructions],
+      // Another session moves the consumed identifier far ahead of the pages.
+      [instructionUpdate(750, 8)],
+      instructions.slice(0, 100),
+      instructions.slice(100),
+      [],
+    ],
+  });
+  const bridge = bridgeFor({
+    queue,
+    telegram,
+    albumWaitMilliseconds: 1000,
+    now: () => clock,
+    sleepImpl: async () => {},
+  });
+
+  await bridge.pollOnce();
+  clock = 1001;
+  await bridge.pollOnce();
+
+  assert.equal(queue.readOffset(), 100);
+  assert.equal(queue.pendingCount(), 2);
+
+  // The first page advances the held offset only to the next page.
+  await bridge.pollOnce();
+  assert.equal(queue.readOffset(), 200);
+  assert.equal(queue.pendingCount(), 102);
+
+  // The last page releases the offset, which is already ahead from the other
+  // session, and every update was admitted exactly once.
+  await bridge.pollOnce();
+  assert.equal(queue.readOffset(), 751);
+  assert.equal(queue.pendingCount(), 552);
+  for (const updateIdentifier of [100, 199, 200, 649]) {
+    assert.equal(queue.status(updateIdentifier), "pending");
+  }
+  assert.deepEqual(
+    queue
+      .traceEntries()
+      .filter((entry) => entry.action === "instruction_duplicate"),
+    [],
   );
 });

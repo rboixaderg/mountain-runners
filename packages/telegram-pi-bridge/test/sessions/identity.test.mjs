@@ -22,3 +22,30 @@ test("rejects a session key without two numeric parts", () => {
     assert.throws(() => parseSessionKey(sessionKey), Error, sessionKey);
   }
 });
+
+test("accepts only decimal integer tokens", () => {
+  for (const sessionKey of ["-1001234567890:7", "0:0", "-1:-1"]) {
+    assert.deepEqual(parseSessionKey(sessionKey), {
+      chatIdentifier: Number(sessionKey.slice(0, sessionKey.lastIndexOf(":"))),
+      threadIdentifier: Number(
+        sessionKey.slice(sessionKey.lastIndexOf(":") + 1),
+      ),
+    });
+  }
+});
+
+test("rejects whitespace, hexadecimal and exponential tokens", () => {
+  for (const sessionKey of [
+    " -1001234567890:7",
+    "-1001234567890: 7",
+    "-1001234567890:7 ",
+    "0x10:7",
+    "1e3:7",
+    "-0x1:7",
+    "+5:6",
+    "1.0:7",
+    "1_000:7",
+  ]) {
+    assert.throws(() => parseSessionKey(sessionKey), Error, sessionKey);
+  }
+});

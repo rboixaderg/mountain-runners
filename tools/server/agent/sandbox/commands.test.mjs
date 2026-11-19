@@ -30,6 +30,7 @@ import {
 const image = process.env.MR_ISOLATION_TEST_IMAGE;
 
 const limits = {
+  executionTimeoutMs: 30 * 60 * 1000,
   sandboxProcessLimit: 64,
   sandboxMemoryMegabytes: 256,
   sandboxCpuCount: 1,
@@ -188,20 +189,23 @@ if (process.argv.includes('ps') && (!process.argv.includes('--all') || !fs.exist
   assert.equal(calls.length, 16);
   for (const call of calls) {
     assert.equal(call.executable, "podman");
-    assert.equal(call.arguments[0], "--remote=false");
+    assert.deepEqual(call.arguments.slice(0, 2), [
+      "--remote=false",
+      "--cgroup-manager=cgroupfs",
+    ]);
     // macOS adds this platform variable when starting a process.
     const expectedEnvironment = ["HOME", "PATH", "TMPDIR", "XDG_RUNTIME_DIR"];
     if (process.platform === "darwin")
       expectedEnvironment.push("__CF_USER_TEXT_ENCODING");
     assert.deepEqual(call.environment, expectedEnvironment);
   }
-  assert.deepEqual(calls[1].arguments.slice(1), [
+  assert.deepEqual(calls[1].arguments.slice(2), [
     "ps",
     "--quiet",
     "--filter",
     "label=mountain-agent.session=topic-test",
   ]);
-  assert.deepEqual(calls[11].arguments.slice(1), [
+  assert.deepEqual(calls[11].arguments.slice(2), [
     "ps",
     "--quiet",
     "--filter",
@@ -234,7 +238,10 @@ if (args.includes("rm")) fs.writeFileSync(${JSON.stringify(removedPath)}, "remov
   });
 
   assert.equal(await stopSandboxedCommands("topic-cleanup"), 0);
-  assert.match(readFileSync(callsPath, "utf8"), /rm stopped-container/u);
+  assert.match(
+    readFileSync(callsPath, "utf8"),
+    /rm --force --ignore stopped-container/u,
+  );
   assert.equal(existsSync(removedPath), true);
 });
 
@@ -290,6 +297,35 @@ if (process.argv.includes("rm")) process.exit(125);
   await assert.rejects(stopSandboxedCommands("topic-cleanup"), {
     name: "SandboxCleanupError",
   });
+});
+
+test("ignores a container that the automatic removal already deleted", async (context) => {
+  const { directory } = workspaceFixture(context);
+  const callsPath = join(directory, "race-calls");
+  const executable = join(directory, "podman");
+  writeFileSync(
+    executable,
+    `#!${process.execPath}
+const fs = require("node:fs");
+const args = process.argv.slice(2);
+fs.appendFileSync(${JSON.stringify(callsPath)}, args.join(" ") + "\\n");
+if (args.includes("ps") && !args.includes("--all")) {
+  process.stdout.write("vanishing-container\\n");
+} else if (args.includes("kill")) {
+  process.stderr.write("Error: no such container vanishing-container\\n");
+  process.exit(125);
+}
+`,
+  );
+  chmodSync(executable, 0o755);
+  const originalPath = process.env.PATH;
+  process.env.PATH = directory;
+  context.after(() => {
+    process.env.PATH = originalPath;
+  });
+
+  assert.equal(await stopSandboxedCommands("topic-race"), 1);
+  assert.match(readFileSync(callsPath, "utf8"), /kill vanishing-container/u);
 });
 
 test("reports an uncertain stop if a container remains after removal", async (context) => {
@@ -356,6 +392,78 @@ if (process.argv.includes("run")) {
       1024 * 1024,
   );
   assert.match(readFileSync(callsPath, "utf8"), /kill synthetic-container/u);
+});
+
+test("stops the container and settles when a timed-out client keeps its output open", async (context) => {
+  const { directory, worktreeRoot, workspace } = workspaceFixture(context);
+  const callsPath = join(directory, "timeout-calls");
+  const grandchildPidPath = join(directory, "grandchild-pid");
+  const executable = join(directory, "podman");
+  writeFileSync(
+    executable,
+    `#!${process.execPath}
+const fs = require("node:fs");
+const args = process.argv.slice(2);
+fs.appendFileSync(${JSON.stringify(callsPath)}, args.join(" ") + "\\n");
+if (args.includes("run")) {
+  // A surviving descendant keeps the client pipes open, like conmon does.
+  const grandchild = require("node:child_process").spawn(
+    process.execPath,
+    ["-e", "setInterval(()=>{},1000)"],
+    { stdio: ["ignore", "inherit", "inherit"] },
+  );
+  fs.writeFileSync(${JSON.stringify(grandchildPidPath)}, String(grandchild.pid));
+  process.stdout.write("started\\n");
+  setInterval(()=>{},1000);
+}
+`,
+  );
+  chmodSync(executable, 0o755);
+  const originalPath = process.env.PATH;
+  process.env.PATH = directory;
+  context.after(() => {
+    process.env.PATH = originalPath;
+    if (!existsSync(grandchildPidPath)) return;
+    try {
+      process.kill(Number(readFileSync(grandchildPidPath, "utf8")), "SIGKILL");
+    } catch {
+      // The descendant already ended.
+    }
+  });
+
+  const startedAt = Date.now();
+  const result = await runSandboxedCommand({
+    image: "synthetic:1",
+    workspacePath: workspace,
+    worktreeRoot,
+    command: ["true"],
+    limits,
+    sessionIdentifier: "topic-timeout",
+    timeoutMilliseconds: 2000,
+  });
+
+  assert.equal(result.timedOut, true);
+  assert.equal(
+    existsSync(grandchildPidPath),
+    true,
+    "the descendant that held the pipes was running",
+  );
+  assert.ok(
+    Date.now() - startedAt < 6000,
+    "the surviving descendant kept the call open",
+  );
+  for (
+    let attempt = 0;
+    attempt < 20 &&
+    !readFileSync(callsPath, "utf8").includes("kill mountain-agent-");
+    attempt += 1
+  ) {
+    await new Promise((resolve) => setTimeout(resolve, 10));
+  }
+  assert.match(
+    readFileSync(callsPath, "utf8"),
+    /--cgroup-manager=cgroupfs kill mountain-agent-/u,
+  );
 });
 
 test("refuses to start the container runtime as root", async (context) => {
@@ -524,6 +632,29 @@ test("reads the extension sandbox configuration and rejects an invalid one", () 
         }),
       }),
     { message: /sandboxMemoryMegabytes/u },
+  );
+  assert.throws(
+    () =>
+      readSandboxSettings({
+        ...validEnvironment,
+        MR_AGENT_SANDBOX_LIMITS: JSON.stringify({
+          ...limits,
+          executionTimeoutMs: 0,
+        }),
+      }),
+    { message: /executionTimeoutMs/u },
+  );
+  assert.throws(
+    () =>
+      readSandboxSettings({
+        ...validEnvironment,
+        MR_AGENT_SANDBOX_LIMITS: JSON.stringify({
+          sandboxProcessLimit: limits.sandboxProcessLimit,
+          sandboxMemoryMegabytes: limits.sandboxMemoryMegabytes,
+          sandboxCpuCount: limits.sandboxCpuCount,
+        }),
+      }),
+    { message: /executionTimeoutMs/u },
   );
 });
 

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { spawnSync } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { DatabaseSync } from "node:sqlite";
 import { test } from "node:test";
 import { AdmissionQueue } from "../../src/sessions/queue.mjs";
@@ -142,6 +142,131 @@ test("marks an instruction uncertain when its process is killed during execution
   assert.equal(queue.status(7), "uncertain");
   assert.equal(queue.next(), null);
   queue.close();
+});
+
+test("waits for a concurrent writer instead of failing at once", async (context) => {
+  const path = databasePath(context);
+  const queue = new AdmissionQueue(path, { maxPending: 10 });
+  queue.close();
+  const holder = new DatabaseSync(path);
+  holder.exec("BEGIN IMMEDIATE");
+
+  const moduleUrl = new URL("../../src/sessions/queue.mjs", import.meta.url)
+    .href;
+  const code = `
+    import { AdmissionQueue } from ${JSON.stringify(moduleUrl)};
+    const queue = new AdmissionQueue(process.argv[1], { maxPending: 10 });
+    queue.admit({
+      updateIdentifier: 1,
+      messageIdentifier: 1001,
+      sessionKey: "-1001234567890:7",
+      authorIdentifier: 42,
+      instruction: "synthetic instruction"
+    });
+    process.stdout.write("accepted");
+    queue.close();
+  `;
+  const child = spawn(
+    process.execPath,
+    ["--input-type=module", "-e", code, path],
+    { env: { PATH: process.env.PATH } },
+  );
+  let output = "";
+  let errorOutput = "";
+  child.stdout.on("data", (chunk) => {
+    output += chunk;
+  });
+  child.stderr.on("data", (chunk) => {
+    errorOutput += chunk;
+  });
+
+  // The writer holds the lock until the admission is already waiting.
+  await new Promise((resolve) => setTimeout(resolve, 300));
+  holder.exec("COMMIT");
+  holder.close();
+
+  const exitCode = await new Promise((resolve) => child.on("close", resolve));
+  assert.equal(exitCode, 0, errorOutput);
+  assert.equal(output, "accepted");
+});
+
+test("creates the indexes that back the queue queries", (context) => {
+  const path = databasePath(context);
+  const queue = new AdmissionQueue(path, { maxPending: 10 });
+  queue.close();
+
+  const database = new DatabaseSync(path);
+  try {
+    const names = database
+      .prepare("SELECT name FROM sqlite_master WHERE type = 'index'")
+      .all()
+      .map((row) => row.name);
+    for (const name of [
+      "instructions_status",
+      "instructions_session_status",
+      "trace_update_action",
+      "trace_session_created",
+    ]) {
+      assert.equal(names.includes(name), true, name);
+    }
+  } finally {
+    database.close();
+  }
+});
+
+test("rolls the migration back when it fails", (context) => {
+  const path = databasePath(context);
+  const database = new DatabaseSync(path);
+  database.exec(`
+    CREATE TABLE instructions (
+      sequence INTEGER PRIMARY KEY,
+      update_identifier INTEGER NOT NULL UNIQUE,
+      message_identifier INTEGER NOT NULL,
+      session_key TEXT NOT NULL,
+      author_identifier INTEGER NOT NULL,
+      instruction TEXT NOT NULL,
+      attachment TEXT,
+      status TEXT NOT NULL CHECK (status IN ('pending', 'running', 'uncertain', 'done', 'rejected')),
+      outcome TEXT,
+      created_at TEXT NOT NULL
+    );
+    CREATE TRIGGER refuse_migration BEFORE UPDATE ON instructions
+    BEGIN SELECT RAISE(ABORT, 'synthetic migration failure'); END;
+  `);
+  database
+    .prepare(
+      `INSERT INTO instructions
+         (update_identifier, message_identifier, session_key, author_identifier, instruction, attachment, status, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    )
+    .run(
+      1,
+      1001,
+      "-1001234567890:7",
+      42,
+      "instruction 1",
+      "{}",
+      "pending",
+      "2026-01-01T00:00:00.000Z",
+    );
+  database.close();
+
+  assert.throws(
+    () => new AdmissionQueue(path, { maxPending: 10 }),
+    /synthetic migration failure/u,
+  );
+
+  const check = new DatabaseSync(path);
+  try {
+    const columns = check.prepare("PRAGMA table_info(instructions)").all();
+    assert.equal(
+      columns.some((column) => column.name === "attachments"),
+      false,
+      "the failed migration left the old schema",
+    );
+  } finally {
+    check.close();
+  }
 });
 
 test("persists the Telegram offset and appends private trace entries", (context) => {
