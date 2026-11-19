@@ -44,9 +44,11 @@ import {
   pullRequestBody,
   instructionReports,
   maximumPromptImageBytes,
+  publicationNoteText,
   publicationReport,
   previewRequestKind,
   repairRequestKind,
+  stripChangeSummary,
 } from "../policy/development.mjs";
 
 export function createInstructionRunner({
@@ -406,7 +408,6 @@ export function createInstructionRunner({
           ? null
           : continuationReports.resumed({
               pullRequestNumber: resumed.pullRequestNumber,
-              baseHeadSha: resumed.baseHeadSha,
             });
       // The pull request a continuation of this topic must update: the resumed
       // one, or the one it continues in place. Null keeps a new change.
@@ -554,8 +555,10 @@ export function createInstructionRunner({
               worktree.path,
               await listChangedPaths(worktree, { signal }),
             );
+      // The person reads the model's answer, never its change summary: the
+      // service owns the summary and strips the line from every text.
+      const answer = stripChangeSummary(modelResult.text);
       if (kind === "consultation") {
-        const answer = modelResult.text.trim();
         // The model's own answer is only the last text of the topic: it never
         // becomes a service note, because the session already holds it. Only the
         // notice of an ignored attachment is written by the service, and an
@@ -582,7 +585,6 @@ export function createInstructionRunner({
         changedPaths.length === 0 &&
         !(await hasUnpublishedCommit(worktree, { signal }))
       ) {
-        const answer = modelResult.text.trim();
         // The resume line is written by the service and stays in the report; an
         // empty answer is reported with the fixed text instead of nothing.
         const report =
@@ -744,36 +746,46 @@ export function createInstructionRunner({
           resumed.recordOwnerUnregistered(publication.commit);
         }
       }
-      let publicationText = publicationReport({
-        ...publication,
-        branch,
+      // The person reads what the model did, then the notices of the service:
+      // the resumed pull request, the owner that could not be told and the
+      // overlap warning, if any. The review link is the last line.
+      const publicationNotices = {
+        pullRequest: publication.pullRequest,
         ciWatch,
+        notices: [
+          ...(resumedLine === null ? [] : [resumedLine]),
+          ...(resumed !== null && !ownersMoved
+            ? [
+                continuationReports.ownerUnregistered({
+                  pullRequestNumber: resumed.pullRequestNumber,
+                }),
+              ]
+            : []),
+          ...(overlapWarning === null ? [] : [overlapWarning]),
+        ],
+      };
+      const publicationText = publicationReport({
+        ...publicationNotices,
+        answer,
       });
-      if (resumedLine !== null) {
-        publicationText = `${resumedLine}\n${publicationText}`;
-      }
-      if (resumed !== null && !ownersMoved) {
-        publicationText = `${publicationText}\n${continuationReports.ownerUnregistered(
-          { pullRequestNumber: resumed.pullRequestNumber },
-        )}`;
-      }
-      if (overlapWarning !== null) {
-        publicationText = `${publicationText}\n${overlapWarning}`;
-      }
       // The publication happened, but no durable CI watch records it: an older
       // notice of the topic must not authorize anything from now on, so the
       // instruction ends unknown and a person reconciles it.
+      let outcome = publication.created
+        ? "pull_request_created"
+        : "pull_request_updated";
       if (ciWatch === ciWatchOutcomes.unavailable) {
-        return {
-          outcome: "uncertain",
-          report: `${publicationText}\n${instructionReports.ciWatchUnavailable}`,
-        };
+        outcome = "uncertain";
       }
       return {
-        outcome: publication.created
-          ? "pull_request_created"
-          : "pull_request_updated",
+        outcome,
         report: publicationText,
+        serviceText: publicationNoteText({
+          ...publicationNotices,
+          created: publication.created,
+          branch,
+          commit: publication.commit,
+        }),
       };
     } catch (error) {
       logger(
@@ -814,13 +826,14 @@ export function createInstructionRunner({
       serviceText = null,
       ...result
     } = await execute(request, options);
-    if (
-      sessionNotes === undefined ||
-      typeof result.report !== "string" ||
+    if (request.kind === repairRequestKind) {
       // An automatic repair sends the text the topic receives from its own
-      // executor, which wraps this report and records that text.
-      request.kind === repairRequestKind
-    ) {
+      // executor, which wraps this report and records that text. That executor
+      // also writes the note, so the service-only part of this turn travels
+      // with the result and never becomes the model's words.
+      return serviceText === null ? result : { ...result, serviceText };
+    }
+    if (sessionNotes === undefined || typeof result.report !== "string") {
       return result;
     }
     const effectKey = `instruction:${request.updateIdentifier}`;

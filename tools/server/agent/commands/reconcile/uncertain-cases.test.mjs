@@ -1033,7 +1033,11 @@ test("traces each resolution without the instruction text and notifies once per 
     ],
   );
   for (const message of telegram.messages) {
-    assert.match(message.text, /^Una operació interrompuda/u);
+    assert.match(
+      message.text,
+      /^Ja està resolt el que havia quedat a mitges:/u,
+    );
+    assert.doesNotMatch(message.text, /comentari publicat|GitHub/u);
   }
   assert.equal(
     new Set(telegram.messages.map((message) => message.text)).size,

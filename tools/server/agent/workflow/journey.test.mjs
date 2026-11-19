@@ -13,6 +13,7 @@ import { promisify } from "node:util";
 import { test } from "node:test";
 import { AdmissionQueue } from "telegram-pi-bridge/sessions";
 import { AgentBridge } from "telegram-pi-bridge/telegram";
+import { CiWatchStore } from "../repository/ci-watch-store.mjs";
 import { GitHubTrust } from "../repository/github.mjs";
 import { openIdentifierNames } from "../repository/identifiers.mjs";
 import { createProjectRunner } from "./project-runner.mjs";
@@ -162,10 +163,14 @@ test("a natural request reaches a pull request from Telegram", async (context) =
     },
   });
 
+  mkdirSync(paths.state, { recursive: true });
+  const ciWatches = new CiWatchStore(join(paths.state, "ci-watch.sqlite"));
+  context.after(() => ciWatches.close());
   const runner = createProjectRunner({
     config,
     classifyRequest: async () => "implementation",
     github,
+    ciWatches,
     runModel: async ({ worktreePath }) => {
       writeFileSync(join(worktreePath, "journey.txt"), "synthetic change\n");
       return { text: "Fet.\nSUMMARY: feat(agent): reach a pull request" };
@@ -173,7 +178,6 @@ test("a natural request reaches a pull request from Telegram", async (context) =
     runChecks: async () => ({ exitCode: 0, stdout: "", stderr: "" }),
   });
 
-  mkdirSync(paths.state, { recursive: true });
   const queue = new AdmissionQueue(join(paths.state, "admission.sqlite"), {
     maxPending: 10,
   });
@@ -207,7 +211,12 @@ test("a natural request reaches a pull request from Telegram", async (context) =
     telegram.sent[1].text,
     /https:\/\/github\.com\/rboixaderg\/mountain-runners\/pull\/200/u,
   );
-  assert.match(telegram.sent[1].text, /Comprovacions: pnpm check correcte/u);
+  assert.match(
+    telegram.sent[1].text,
+    /El canvi està publicat i l'estic comprovant/u,
+  );
+  assert.doesNotMatch(telegram.sent[1].text, /SUMMARY|feat\(agent\)/u);
+  assert.equal(ciWatches.pending().length, 1, "the CI notice is durable");
 
   const names = openIdentifierNames(paths.state);
   const branch = `feat/agent-reach-a-pull-request-${names.changeSuffix(500)}`;

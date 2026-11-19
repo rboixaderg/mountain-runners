@@ -97,6 +97,7 @@ function fakeGithub(state = {}) {
       state: "open",
       headSha: commit,
       headRepository: repository,
+      htmlUrl: `https://github.com/${repository}/pull/200`,
     },
     checkRuns: [
       { name: "Validate", status: "completed", conclusion: "success" },
@@ -230,7 +231,7 @@ test("posts exactly /preview once for the reported green commit", async (context
   const result = await handler.handle(request());
 
   assert.equal(result.outcome, "answered");
-  assert.match(result.report, /Ja hem demanat la preview/u);
+  assert.match(result.report, /Ja he demanat la preview/u);
   assert.match(
     result.report,
     /Enllaç per a revisió: https:\/\/github\.com\/rboixaderg\/mountain-runners\/pull\/200/u,
@@ -371,7 +372,7 @@ test("refuses the preview when the membership check fails", async (context) => {
   const result = await handler.handle(request());
 
   assert.equal(result.outcome, "answered");
-  assert.match(result.report, /No s'ha pogut comprovar que siguis al grup/u);
+  assert.match(result.report, /No he pogut comprovar que siguis al grup/u);
   assert.match(result.report, /torna-ho a demanar/u);
   assert.deepEqual(github.posts, []);
   assert.equal(previews.state(20), undefined);
@@ -433,7 +434,7 @@ test("a membership read that runs out of its deadline refuses and asks to retry"
   const result = await handler.handle(request());
 
   assert.equal(result.outcome, "answered");
-  assert.match(result.report, /No s'ha pogut comprovar que siguis al grup/u);
+  assert.match(result.report, /No he pogut comprovar que siguis al grup/u);
   assert.match(result.report, /torna-ho a demanar/u);
   assert.deepEqual(github.posts, []);
   assert.equal(previews.state(20), undefined);
@@ -563,7 +564,7 @@ const refusalCases = [
   [
     "unreadable state",
     { readError: new Error("HTTP 500") },
-    /No hem pogut llegir/u,
+    /No he pogut llegir/u,
   ],
 ];
 
@@ -616,7 +617,7 @@ test("allows a repeat for the same commit after the previous one was confirmed",
 
   const repeated = await handler.handle(request(21));
 
-  assert.match(repeated.report, /Ja hem demanat la preview/u);
+  assert.match(repeated.report, /Ja he demanat la preview/u);
   assert.equal(github.posts.length, 2);
 });
 
@@ -654,7 +655,7 @@ test("an unknown post result is uncertain and never retried", async (context) =>
   const result = await handler.handle(request());
 
   assert.equal(result.outcome, "uncertain");
-  assert.match(result.report, /No sabem si la petició de preview ha arribat/u);
+  assert.match(result.report, /No sé si la petició de preview ha arribat/u);
   assert.equal(previews.state(20), "uncertain");
   assert.equal(previews.uncertainCount(), 1);
   github.postError = null;
@@ -777,7 +778,7 @@ test("reports an unconfirmed preview at the deadline without guessing a URL", as
   await handler.runOnce();
 
   assert.equal(sent.length, 1);
-  assert.match(sent[0].text, /No hem pogut confirmar que la preview/u);
+  assert.match(sent[0].text, /No he pogut confirmar que la preview/u);
   assert.match(sent[0].text, /Si vols, digues-m'ho i ho miro/u);
   assert.doesNotMatch(sent[0].text, /preview\.mountainrunners\.cat/u);
   assert.equal(previews.state(20), "timed_out");
@@ -816,7 +817,7 @@ test("the deadline survives a restart and is not reset by it", async (context) =
   await restarted.runOnce();
 
   assert.equal(sent.length, 1);
-  assert.match(sent[0].text, /No hem pogut confirmar que la preview/u);
+  assert.match(sent[0].text, /No he pogut confirmar que la preview/u);
 });
 
 test("reports a preview run that ended badly and ends the request as failed", async (context) => {
@@ -981,7 +982,7 @@ test("a successful run that the publisher never confirms ends unconfirmed", asyn
   await handler.runOnce();
 
   assert.equal(sent.length, 1);
-  assert.match(sent[0].text, /No hem pogut confirmar que la preview/u);
+  assert.match(sent[0].text, /No he pogut confirmar que la preview/u);
   assert.equal(previews.state(20), "timed_out");
 });
 
@@ -1313,7 +1314,7 @@ for (const status of [403, 404, 422]) {
 
     github.postError = null;
     const later = await handler.handle(request(21));
-    assert.match(later.report, /Ja hem demanat la preview/u);
+    assert.match(later.report, /Ja he demanat la preview/u);
   });
 }
 
@@ -1388,7 +1389,12 @@ test("never requests a preview when CI turns green or a pull request is publishe
   await worker.runOnce();
 
   assert.equal(sent.length, 1);
-  assert.match(sent[0].text, /en verd/u);
+  assert.match(sent[0].text, /La proposta està llesta/u);
+  assert.match(
+    sent[0].text,
+    /Enllaç per a revisió: https:\/\/github\.com\/rboixaderg\/mountain-runners\/pull\/200/u,
+  );
+  assert.doesNotMatch(sent[0].text, /Validate|bbbbbbb|PR #/u);
   assert.deepEqual(github.posts, []);
 });
 

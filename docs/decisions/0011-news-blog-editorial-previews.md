@@ -6,6 +6,10 @@ Acceptada per la persona mantenidora el 2 d'octubre de 2026. Implementació a la
 PR #140, pendent de revisió i merge humà. Aquesta decisió no autoritza cap
 activació remota; les previews requereixen una petició explícita separada.
 
+Té una esmena proposada el 18 de novembre de 2026 (T8.8) sobre qui aprova la
+publicació d'una entrada. Es proposa, no és acceptada: queda pendent de
+l'aprovació de la persona mantenidora a la revisió de la PR.
+
 ## Decisió
 
 Afegir una col·lecció `posts` de YAML restringit amb dos tipus, `news` i `blog`.
@@ -73,6 +77,34 @@ notícies i blog, dins de la PR #140. La superfície nova reutilitza la selecci�
 pública o de preview i identifica els esborranys; no amplia l'excepció a altres
 col·leccions. NB-08 de l'especificació en fixa el límit i la navegació manual.
 
+## Esmena del 18 de novembre de 2026 (T8.8)
+
+**Proposada.** Aquesta esmena queda pendent de l'aprovació de la persona
+mantenidora a la revisió de la PR de T8.8 i no és acceptada fins que es fusioni.
+
+La petició explícita de publicació d'una persona verificada del grup privat és
+l'aprovació editorial d'aquella entrada. El pilot (17 i 18 de novembre de 2026)
+va fer evident que reservar l'aprovació a la persona mantenidora bloquejava una
+persona editora no tècnica: l'entrada quedava sempre en esborrany i la publicació
+depenava d'una conversa fora del tema.
+
+- Una entrada es crea sempre amb `published: false`. La petició explícita al tema
+  on s'ha preparat, com «publica-la», la marca com a publicada i fixa `publishedAt`
+  a l'instant de la petició, en Europe/Madrid amb el desplaçament que dona el
+  servei.
+- La petició és l'aprovació editorial d'aquella entrada concreta, no de cap altra
+  ni de cap canvi posterior.
+- El merge continua sent una decisió humana, amb les regles de `/merge` de
+  l'[ADR 0013](0013-private-development-agent-boundary.md), i el desplegament no
+  canvia: només el pipeline protegit publica el lloc.
+- L'agent no publica mai per iniciativa pròpia ni per una instrucció implícita.
+- Les variants en castellà i anglès només s'escriuen quan algú les demana.
+
+La guia editorial recull el mateix criteri. Aquesta esmena no canvia la resta de
+l'ADR 0011: la preview continua sent explícita, els esborranys continuen sent
+segurs de compartir i `published: true` en una PR no demostra que aquella versió
+ja sigui pública.
+
 ## Conseqüències
 
 - Les comprovacions de producció han d'excloure també els textos i recursos
@@ -81,6 +113,8 @@ col·leccions. NB-08 de l'especificació en fixa el límit i la navegació manua
   pública. El preview la identifica com a "Marcat per publicar".
 - Sitemap i altres sortides d'indexació continuen utilitzant contingut publicat.
 - La persona mantenidora revisa els continguts. Una skill pot preparar-los, però
-  no substitueix l'aprovació editorial ni el flux de Git.
+  no substitueix l'aprovació editorial ni el flux de Git. Des de l'esmena del 18
+  de novembre de 2026, una persona verificada del grup privat pot aprovar la
+  publicació d'una entrada demanant-la explícitament al tema.
 - El comportament només existeix quan s'implementin i revisin les tasques de
   l'[especificació de notícies i blog](../specs/news-and-blog.md).

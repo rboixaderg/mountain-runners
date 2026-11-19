@@ -104,6 +104,7 @@ function fakeGithub(state = {}) {
 function openPullRequest(overrides = {}) {
   return {
     state: "open",
+    htmlUrl: `https://github.com/${repository}/pull/200`,
     headSha: commit,
     headRepository: repository,
     draft: false,
@@ -260,7 +261,10 @@ test("merges the reported green commit and records it before the call", async (c
   assert.equal(result.outcome, "answered");
   assert.equal(
     result.report,
-    "PR #200 fusionada (squash). Commit de merge bbbbbbb.",
+    [
+      "La proposta #200 ja està fusionada i el canvi és al projecte.",
+      `Enllaç per a revisió: https://github.com/${repository}/pull/200 (canvi fusionat bbbbbbb)`,
+    ].join("\n"),
   );
   assert.deepEqual(github.merges, [{ number: 200, sha: commit }]);
   assert.equal(stateDuringMerge, "merging");
@@ -312,7 +316,7 @@ test("resolves the pull request from the last delivered notice of the topic", as
 
   const result = await handler.handle(request(), bareCommand);
 
-  assert.match(result.report, /no deia que les comprovacions/u);
+  assert.match(result.report, /encara no tenia les comprovacions en verd/u);
   assert.deepEqual(github.merges, []);
 });
 
@@ -321,7 +325,7 @@ test("refuses a command that is not one of the accepted forms", async (context) 
 
   const result = await handler.handle(request(), { valid: false });
 
-  assert.match(result.report, /La comanda de merge és/u);
+  assert.match(result.report, /Per fusionar, escriu/u);
   assert.deepEqual(github.merges, []);
   assert.equal(github.reads, 0);
   assert.deepEqual(membership.calls, []);
@@ -333,12 +337,15 @@ test("refuses when the topic has no notice or the last notice is not green", asy
   const { ciWatches, handler, github, traces } = setup(context);
 
   const none = await handler.handle(request(20), bareCommand);
-  assert.match(none.report, /no té cap avís de CI/u);
+  assert.match(
+    none.report,
+    /encara no tinc cap canvi amb les comprovacions en verd/u,
+  );
 
   report(ciWatches, { result: "failure" });
   const failed = await handler.handle(request(21), bareCommand);
-  assert.match(failed.report, /PR #200/u);
-  assert.match(failed.report, /no deia que les comprovacions/u);
+  assert.match(failed.report, /L'última proposta d'aquest tema \(#200\)/u);
+  assert.match(failed.report, /encara no tenia les comprovacions en verd/u);
 
   assert.deepEqual(github.merges, []);
   assert.deepEqual(actions(traces), ["merge_refused", "merge_refused"]);
@@ -354,7 +361,7 @@ test("refuses another pull request or another commit than the reported one", asy
     valid: true,
     pullRequestNumber: 201,
   });
-  assert.match(other.report, /última PR informada en aquest tema és la #200/u);
+  assert.match(other.report, /l'última proposta informada és la #200/u);
   assert.match(other.report, /#201/u);
 
   const moved = await handler.handle(request(21), {
@@ -362,7 +369,10 @@ test("refuses another pull request or another commit than the reported one", asy
     pullRequestNumber: 200,
     commit: "c".repeat(40),
   });
-  assert.match(moved.report, /no és el de l'últim avís de la PR #200/u);
+  assert.match(
+    moved.report,
+    /no és el de l'última proposta informada \(#200\)/u,
+  );
 
   assert.deepEqual(github.merges, []);
 });
@@ -375,7 +385,7 @@ test("refuses while the topic has newer work than its last notice", async (conte
   const result = await handler.handle(request(), bareCommand);
 
   assert.match(result.report, /feina més nova que l'últim avís/u);
-  assert.match(result.report, /PR #200/u);
+  assert.match(result.report, /proposta #200/u);
   assert.match(result.report, /torna a demanar `\/merge`/u);
   assert.deepEqual(newerWork.calls, [{ sessionKey, updateIdentifier: 20 }]);
   assert.deepEqual(github.merges, []);
@@ -414,7 +424,7 @@ test("refuses the older green notice while a newer publication is unknown", asyn
 
   const bare = await handler.handle(request(20), bareCommand);
   assert.match(bare.report, /feina més nova que l'últim avís/u);
-  assert.match(bare.report, /PR #200/u);
+  assert.match(bare.report, /proposta #200/u);
   const withNumber = await handler.handle(request(21), {
     valid: true,
     pullRequestNumber: 200,
@@ -426,7 +436,7 @@ test("refuses the older green notice while a newer publication is unknown", asyn
   // last report and the merge resolves from it.
   ciWatches.resolveUncertainNoticeDelivered(11);
   const resolved = await handler.handle(request(22), bareCommand);
-  assert.match(resolved.report, /PR #202 fusionada/u);
+  assert.match(resolved.report, /proposta #202 ja està fusionada/u);
   assert.deepEqual(fake.merges, [{ number: 202, sha: newerCommit }]);
 });
 
@@ -492,7 +502,7 @@ test("refuses the last delivered notice while an out-of-order notice is unknown"
 
   const bare = await handler.handle(request(20), bareCommand);
   assert.match(bare.report, /feina més nova que l'últim avís/u);
-  assert.match(bare.report, /PR #200/u);
+  assert.match(bare.report, /proposta #200/u);
   const withNumber = await handler.handle(request(21), {
     valid: true,
     pullRequestNumber: 200,
@@ -507,11 +517,14 @@ test("verifies the membership again when the command runs", async (context) => {
 
   membership.result = { verified: false, reason: "not_a_group_member" };
   const revoked = await handler.handle(request(20), bareCommand);
-  assert.match(revoked.report, /Ja no consten com a membre verificat/u);
+  assert.match(revoked.report, /Ja no constes com a membre del grup/u);
 
   membership.result = { verified: false, reason: "membership_check_failed" };
   const unavailable = await handler.handle(request(21), bareCommand);
-  assert.match(unavailable.report, /No s'ha pogut verificar la pertinença/u);
+  assert.match(
+    unavailable.report,
+    /Ara mateix no he pogut comprovar que siguis membre del grup/u,
+  );
 
   assert.deepEqual(github.merges, []);
   assert.equal(github.reads, 0);
@@ -577,7 +590,10 @@ test("a membership read that runs out of its deadline refuses and asks to retry"
   const result = await handler.handle(request(), bareCommand);
 
   assert.equal(result.outcome, "answered");
-  assert.match(result.report, /No s'ha pogut verificar la pertinença/u);
+  assert.match(
+    result.report,
+    /Ara mateix no he pogut comprovar que siguis membre/u,
+  );
   assert.match(result.report, /torna-ho a demanar/u);
   assert.deepEqual(github.merges, []);
   assert.equal(merges.state(20), undefined);
@@ -604,25 +620,25 @@ const liveRefusals = [
     "another base branch",
     { pullRequest: openPullRequest({ baseRef: "release" }) },
     "not_main_base",
-    /no apunta a la branca main/u,
+    /no apunta a la branca principal del projecte/u,
   ],
   [
     "a fork",
     { pullRequest: openPullRequest({ headRepository: "someone/fork" }) },
     "not_main_repository",
-    /repositori principal/u,
+    /no és d'aquest projecte/u,
   ],
   [
     "a deleted fork",
     { pullRequest: openPullRequest({ headRepository: null }) },
     "not_main_repository",
-    /repositori principal/u,
+    /no és d'aquest projecte/u,
   ],
   [
     "a moved head",
     { pullRequest: openPullRequest({ headSha: "c".repeat(40) }) },
     "head_moved",
-    /ja no és el commit validat/u,
+    /ha canviat des que te la vaig informar/u,
   ],
   [
     "a red required check",
@@ -674,19 +690,19 @@ const liveRefusals = [
     "a pull request without a mergeable state",
     { pullRequest: openPullRequest({ mergeableState: undefined }) },
     "not_clean",
-    /no considera la PR #200 a punt/u,
+    /no considera la proposta #200 a punt/u,
   ],
   [
     "a branch behind main",
     { pullRequest: openPullRequest({ mergeableState: "behind" }) },
     "behind",
-    /actualitza la branca/u,
+    /no està al dia amb la resta del projecte/u,
   ],
   [
     "a blocked pull request",
     { pullRequest: openPullRequest({ mergeableState: "blocked" }) },
     "not_clean",
-    /no considera la PR #200 a punt/u,
+    /no considera la proposta #200 a punt/u,
   ],
   [
     "a conflicting pull request",
@@ -710,7 +726,7 @@ const liveRefusals = [
     "an unreadable pull request",
     { readError: new Error("network down") },
     "unreadable",
-    /No s'ha pogut llegir/u,
+    /No he pogut llegir com està la proposta/u,
   ],
 ];
 
@@ -743,7 +759,7 @@ test("reads a pull request again while mergeability is unknown and then refuses 
 
   const result = await handler.handle(request(), bareCommand);
 
-  assert.match(result.report, /No s'ha pogut llegir/u);
+  assert.match(result.report, /No he pogut llegir com està la proposta/u);
   assert.equal(github.reads, 3);
   assert.equal(github.checkReads, 0);
   assert.deepEqual(github.merges, []);
@@ -817,8 +833,11 @@ for (const status of [405, 409, 422]) {
     const result = await handler.handle(request(20), bareCommand);
 
     assert.equal(result.outcome, "answered");
-    assert.match(result.report, /HTTP 4xx/u);
-    assert.match(result.report, /no s'ha fusionat res/u);
+    assert.match(
+      result.report,
+      /GitHub ha refusat el merge de la proposta #200/u,
+    );
+    assert.match(result.report, /No s'ha fusionat res/u);
     assert.equal(merges.state(20), "failed");
     assert.equal(traces.at(-1).action, "merge_failed");
     assert.equal(traces.at(-1).detail, "#200 aaaaaaa HTTP 4xx");
@@ -855,7 +874,7 @@ for (const [name, error] of unknownResults) {
     const result = await handler.handle(request(20), bareCommand);
 
     assert.equal(result.outcome, "answered");
-    assert.match(result.report, /No s'ha pogut confirmar si la PR #200/u);
+    assert.match(result.report, /No sé si la proposta #200 s'ha fusionat/u);
     assert.equal(merges.state(20), "uncertain");
     assert.equal(traces.at(-1).action, "merge_uncertain");
     assert.equal(traces.at(-1).authorIdentifier, 555);
@@ -864,7 +883,7 @@ for (const [name, error] of unknownResults) {
     // The pull request is still open: a person decides, nothing is repeated.
     github.mergeError = null;
     const again = await handler.handle(request(21), bareCommand);
-    assert.match(again.report, /GitHub no la mostra fusionada: és oberta/u);
+    assert.match(again.report, /i GitHub la mostra oberta/u);
     assert.equal(github.merges.length, 1);
     assert.equal(merges.state(21), undefined);
     assert.equal(traces.at(-1).detail, "uncertain_pending #200 aaaaaaa");
@@ -896,8 +915,7 @@ test("an uncertain merge that GitHub shows as merged is closed and reported", as
   const result = await handler.handle(request(21), bareCommand);
 
   assert.equal(result.outcome, "answered");
-  assert.match(result.report, /GitHub mostra la PR #200 fusionada/u);
-  assert.match(result.report, /bbbbbbb/u);
+  assert.match(result.report, /GitHub mostra la proposta #200 fusionada/u);
   assert.equal(merges.state(20), "merged");
   assert.equal(github.merges.length, 1);
   const reconciled = traces.at(-1);
@@ -916,7 +934,7 @@ test("an uncertain merge whose pull request cannot be read refuses as unreadable
   github.readError = new Error("network down");
   const result = await handler.handle(request(21), bareCommand);
 
-  assert.match(result.report, /No s'ha pogut llegir/u);
+  assert.match(result.report, /No he pogut llegir com està la proposta/u);
   assert.equal(merges.state(20), "uncertain");
   assert.equal(github.merges.length, 1);
 });
@@ -936,7 +954,7 @@ test("never merges the same update twice", async (context) => {
 
   const result = await handler.handle(request(20), bareCommand);
 
-  assert.match(result.report, /ja s'havia tramitat/u);
+  assert.match(result.report, /Aquesta petició de merge ja s'havia atès/u);
   assert.deepEqual(github.merges, []);
   assert.equal(traces.at(-1).detail, "already_handled #200 aaaaaaa");
 });
@@ -954,7 +972,7 @@ test("refuses a second merge of a pull request that is already merging", async (
 
   const result = await handler.handle(request(20), bareCommand);
 
-  assert.match(result.report, /merge de la PR #200 en curs/u);
+  assert.match(result.report, /Ja hi ha un merge de la proposta #200 en curs/u);
   assert.deepEqual(github.merges, []);
 });
 
@@ -976,9 +994,8 @@ test("startup closes an uncertain merge that GitHub shows as merged and tells th
   assert.equal(sent.length, 1);
   assert.equal(sent[0].chatIdentifier, -1001234567890);
   assert.equal(sent[0].messageThreadIdentifier, 7);
-  assert.match(sent[0].text, /GitHub mostra la PR #200 fusionada/u);
+  assert.match(sent[0].text, /GitHub mostra la proposta #200 fusionada/u);
   assert.ok(sent[0].signal instanceof AbortSignal);
-  assert.match(sent[0].text, /bbbbbbb/u);
   assert.deepEqual(actions(traces), ["merge_reconciled"]);
   assert.deepEqual(github.merges, []);
 });
@@ -1021,8 +1038,11 @@ test("startup tells the topic once about an unknown result of an open pull reque
   assert.equal(merges.state(20), "uncertain");
   assert.equal(sent.length, 1);
   assert.equal(sent[0].messageThreadIdentifier, 7);
-  assert.match(sent[0].text, /GitHub no la mostra fusionada: és oberta/u);
-  assert.ok(sent[0].text.includes(`/merge 200 ${commit}`));
+  assert.match(sent[0].text, /i GitHub la mostra oberta/u);
+  assert.ok(
+    sent[0].text.includes(`\`/merge 200 ${commit}\``),
+    "the topic carries the exact command to confirm the unknown result",
+  );
   assert.ok(sent[0].signal instanceof AbortSignal);
   assert.deepEqual(traces, []);
 });
@@ -1099,8 +1119,8 @@ test("asks for the strict form while an unknown result is still open and merges 
     [22, { valid: true, pullRequestNumber: 200 }],
   ]) {
     const result = await handler.handle(request(updateIdentifier), command);
-    assert.match(result.report, /GitHub no la mostra fusionada: és oberta/u);
-    assert.ok(result.report.includes(`/merge 200 ${commit}`));
+    assert.match(result.report, /i GitHub la mostra oberta/u);
+    assert.ok(result.report.includes(`\`/merge 200 ${commit}\``));
   }
 
   assert.equal(github.merges.length, 1);
@@ -1117,7 +1137,10 @@ test("refuses a strict form with another commit while an unknown result is open"
     commit: "c".repeat(40),
   });
 
-  assert.match(result.report, /no és el de l'últim avís/u);
+  assert.match(
+    result.report,
+    /no és el de l'última proposta informada \(#200\)/u,
+  );
   assert.equal(github.merges.length, 1);
   assert.equal(merges.state(20), "uncertain");
 });
@@ -1135,7 +1158,7 @@ test("a person's strict form clears an unknown result and runs the full request"
     commit,
   });
 
-  assert.match(result.report, /PR #200 fusionada/u);
+  assert.match(result.report, /proposta #200 ja està fusionada/u);
   assert.equal(merges.state(20), "not_merged");
   assert.equal(merges.state(21), "merged");
   assert.equal(github.merges.length, 2);
@@ -1159,7 +1182,11 @@ test("a moved head is confirmed with its own commit, which the full request stil
   report(ciWatches, { updateIdentifier: 11, commitSha: movedCommit });
 
   const asked = await handler.handle(request(21), bareCommand);
-  assert.ok(asked.report.includes(`/merge 200 ${movedCommit}`));
+  assert.match(asked.report, /i GitHub la mostra oberta/u);
+  assert.ok(
+    asked.report.includes(`\`/merge 200 ${movedCommit}\``),
+    "the command asks for the commit of the current head",
+  );
   assert.ok(!asked.report.includes(commit));
 
   const stale = await handler.handle(request(22), {
@@ -1167,7 +1194,10 @@ test("a moved head is confirmed with its own commit, which the full request stil
     pullRequestNumber: 200,
     commit,
   });
-  assert.match(stale.report, /no és el de l'últim avís/u);
+  assert.match(
+    stale.report,
+    /no és el de l'última proposta informada \(#200\)/u,
+  );
   assert.equal(github.merges.length, 1);
   assert.equal(merges.state(20), "uncertain");
 
@@ -1177,7 +1207,7 @@ test("a moved head is confirmed with its own commit, which the full request stil
     commit: movedCommit,
   });
 
-  assert.match(result.report, /PR #200 fusionada/u);
+  assert.match(result.report, /proposta #200 ja està fusionada/u);
   assert.equal(merges.state(20), "not_merged");
   assert.equal(merges.state(23), "merged");
   assert.equal(github.merges.length, 2);
@@ -1225,7 +1255,7 @@ test("an unknown result that GitHub shows merged is reconciled even for the stri
     commit,
   });
 
-  assert.match(result.report, /GitHub mostra la PR #200 fusionada/u);
+  assert.match(result.report, /GitHub mostra la proposta #200 fusionada/u);
   assert.equal(merges.state(20), "merged");
   assert.equal(github.merges.length, 1);
 });
@@ -1243,7 +1273,10 @@ test("answers that the pull request is already merged when the last notice is th
     const result = await handler.handle(request(updateIdentifier), command);
     assert.equal(
       result.report,
-      "La PR #200 ja està fusionada (commit bbbbbbb). No s'ha fet res més.",
+      [
+        "La proposta #200 ja està fusionada. No he fet res més.",
+        `Enllaç per a revisió: https://github.com/${repository}/pull/200 (canvi fusionat bbbbbbb)`,
+      ].join("\n"),
     );
   }
 
@@ -1259,11 +1292,11 @@ test("keeps the refusal when the closed notice is not a merged or readable pull 
   report(ciWatches, { result: "pull-request-closed" });
 
   const closed = await handler.handle(request(20), bareCommand);
-  assert.match(closed.report, /no deia que les comprovacions/u);
+  assert.match(closed.report, /encara no tenia les comprovacions en verd/u);
 
   github.readError = new Error("network down");
   const unreadable = await handler.handle(request(21), bareCommand);
-  assert.match(unreadable.report, /no deia que les comprovacions/u);
+  assert.match(unreadable.report, /encara no tenia les comprovacions en verd/u);
   assert.deepEqual(github.merges, []);
 });
 
@@ -1278,9 +1311,9 @@ test("reports a merge that happened even when its end cannot be saved", async (c
 
   assert.match(
     result.report,
-    /PR #200 fusionada \(squash\)\. Commit de merge bbbbbbb\./u,
+    /La proposta #200 ja està fusionada i el canvi és al projecte\./u,
   );
-  assert.match(result.report, /No s'ha pogut desar l'estat/u);
+  assert.match(result.report, /No he pogut desar aquest resultat/u);
   assert.equal(merges.state(20), "merging");
   assert.equal(traces.at(-1).action, "merge_completed");
 
@@ -1303,7 +1336,7 @@ for (const [name, method, error] of [
 
     const result = await handler.handle(request(20), bareCommand);
 
-    assert.match(result.report, /No s'ha pogut confirmar si la PR #200/u);
+    assert.match(result.report, /No sé si la proposta #200 s'ha fusionat/u);
     assert.doesNotMatch(result.report, /No s'ha fet cap push/u);
     assert.equal(merges.state(20), "merging");
   });

@@ -1432,10 +1432,19 @@ de la persona mantenidora consta a l'especificació.
 2. **Flux bàsic.**
    - Fer: al tema, fes una consulta sobre el codi i després una implementació
      petita fins a PR, per exemple una correcció de documentació. Espera l'avís
-     de CI.
-   - Esperat: la consulta respon sense crear cap branca. La implementació crea
-     una branca, un sol commit i una PR amb la identitat de l'agent; el tema rep
-     l'avís de CI, que anomena la llista configurada i no tota la CI de la PR.
+     de CI. Després demana una notícia curta amb una foto i, quan estigui a punt,
+     demana-la publicada amb «publica-la».
+   - Esperat: la consulta respon sense crear cap branca i sense rutes, noms de
+     fitxer, camps YAML, ordres, recomptes de proves, commits ni noms de
+     comprovació, i fa com a màxim una pregunta. La implementació crea una
+     branca, un sol commit i una PR amb la identitat de l'agent. El tema rep la
+     resposta del model, una línia curta que diu que el canvi s'està comprovant i
+     l'enllaç de revisió com a darrera línia. Amb les comprovacions obligatòries
+     en verd arriba un sol avís, que convida a demanar la preview, i no un
+     missatge per la PR, pel seguiment i pel verd. La notícia es crea com a
+     esborrany; «publica-la» la marca com a publicada amb l'hora de la petició,
+     que és la seva aprovació editorial. El merge continua sent humà. Sense
+     petició no s'escriuen les variants en castellà ni en anglès.
    - Si falla: atura el servei i anota la instrucció; no repeteixis cap
      publicació. Si el resultat és desconegut, reconcilia'l.
 3. **Reparació de CI.**
@@ -1465,7 +1474,8 @@ de la persona mantenidora consta a l'especificació.
      inofensiu amb `/merge` o `/merge <PR>`.
    - Esperat: cada rebuig respon amb el motiu i no fusiona res. El merge real
      fusiona exactament el commit informat, amb squash, i la resposta nomena la
-     PR i el commit de merge.
+     proposta fusionada; l'última línia és l'enllaç de revisió amb el canvi
+     fusionat, amb el SHA curt.
    - Si falla: atura el servei i no tornis a escriure `/merge`. Un resultat
      desconegut es reconcilia llegint la PR; només una persona verificada el pot
      tancar amb `/merge <PR> <SHA>`.

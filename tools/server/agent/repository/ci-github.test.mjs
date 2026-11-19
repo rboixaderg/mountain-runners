@@ -21,6 +21,7 @@ function pullRequestResponse(overrides = {}) {
       repo: { full_name: "example/project" },
     },
     base: { ref: "main" },
+    html_url: "https://github.com/example/project/pull/123",
     ...overrides,
   };
 }
@@ -176,6 +177,7 @@ test("reads one pull request to pin the reported commit to its head", async () =
   });
   assert.deepEqual(await github.getPullRequest({ number: 123 }), {
     state: "open",
+    htmlUrl: "https://github.com/example/project/pull/123",
     headSha: commit,
     headRef: "feat/example",
     headRepository: "example/project",
@@ -187,6 +189,30 @@ test("reads one pull request to pin the reported commit to its head", async () =
   });
   assert.equal(requested.length, 1);
   assert.ok(new URL(requested[0]).pathname.endsWith("/pulls/123"));
+});
+
+test("reads a pull request without a review URL instead of failing", async () => {
+  const github = new GitHubTrust({
+    token: "synthetic",
+    repository: "example/project",
+    fetchImpl: async () => ({
+      ok: true,
+      json: async () => {
+        const response = pullRequestResponse();
+        delete response.html_url;
+        return response;
+      },
+    }),
+  });
+
+  const pullRequest = await github.getPullRequest({ number: 123 });
+
+  assert.equal(pullRequest.state, "open");
+  assert.equal(
+    pullRequest.htmlUrl,
+    undefined,
+    "the review link is optional; the caller drops only that line",
+  );
 });
 
 test("rejects an invalid pull request number or response", async () => {

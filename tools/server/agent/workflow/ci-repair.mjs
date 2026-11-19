@@ -295,7 +295,17 @@ export function createCiRepairExecutor({
           pullRequestNumber: repair.pull_request_number,
           report: result.report,
         }),
-        { signal, state: "published" },
+        {
+          signal,
+          state: "published",
+          // The note keeps only what the service wrote about the publication:
+          // the pull request, the branch, the published commit and the local
+          // checks. The model's words stay in the text of the topic.
+          noteText: ciRepairReports.publishedNote({
+            pullRequestNumber: repair.pull_request_number,
+            publicationNote: result.serviceText ?? null,
+          }),
+        },
       );
       return true;
     }

@@ -5,7 +5,8 @@ El servei **no està desplegat ni activat**. Aquesta branca afegeix l'avís de C
 de T8.4 vinculat al SHA publicat, la reparació automàtica acotada d'una CI
 vermella, la preview demanada al tema, el merge demanat amb `/merge`, la
 continuació d'una PR des d'un altre tema, l'avís de solapaments, els adjunts
-d'imatge i la continuïtat de la conversa d'un tema de T8.7. Cap canvi d'aquesta branca autoritza
+d'imatge i la continuïtat de la conversa d'un tema de T8.7, i el llenguatge
+planer, els avisos únics i la publicació per petició de T8.8. Cap canvi d'aquesta branca autoritza
 instal·lacions ni operacions remotes.
 
 ## Nucli reutilitzable i aplicació
@@ -287,7 +288,8 @@ al servidor. El nom local encara no representa una publicació a npm.
     com a `not_merged` (`merge_uncertain_cleared`) i repeteix tot el flux des de
     zero (si el cap de la PR s'ha mogut, amb el SHA del cap actual, que ha de ser l'últim informat en verd); `/merge` i `/merge <PR>` mai no la desbloquegen i no cal editar SQLite.
     La pertinença superada queda a la traça (`merge_membership_verified`). La
-    resposta nomena la PR i el commit de merge. El detall és a [`docs/deployment.md`](../../../docs/deployment.md).
+    resposta nomena la proposta fusionada i el canvi fusionat (SHA curt), a
+    l'última línia, després de l'enllaç de revisió. El detall és a [`docs/deployment.md`](../../../docs/deployment.md).
 
 11. Una continuació que nomena exactament una PR amb `#<número>` es reconeix pel
     servei, no pel model. `workflow/cross-topic-continuation.mjs` la reprèn si la
@@ -459,6 +461,51 @@ política ni pot autoritzar per si sol una publicació.
   registres aturats i comprova que no en quedi cap. Si Podman no pot completar
   la neteja, el resultat és incert; no esborra worktrees ni sessions.
 
+## Llengua, avisos i publicació (T8.8)
+
+Cada torn de prompt inclou un bloc fix en anglès que fixa el públic i el to de
+la resposta: les persones del tema són membres del club, la majoria no són
+tècniques, i la resposta va en la seva llengua, català per defecte, amb frases
+curtes. No s'esmenten rutes, fitxers, camps YAML, ordres, noms ni recomptes de
+proves, commits, branques, ADR ni skills, tret que la persona demani detall
+tècnic. El model redacta amb els fets que té i fa com a màxim una pregunta;
+les regles del projecte governen la feina, no la redacció de la resposta.
+
+El servei dona al prompt l'instant actual en Europe/Madrid amb el seu desplaçament
+(`formatMadridInstant`), perquè no depengui del rellotge del sandbox. Una entrada
+es crea sempre com a esborrany; `published: true` i `publishedAt` amb aquell
+instant només s'apliquen quan una persona verificada demana explícitament de
+publicar-la al tema. Aquesta petició és l'aprovació editorial d'aquella entrada;
+el merge continua sent humà i el desplegament no canvia. Les variants en castellà
+i anglès només s'escriuen quan algú les demana.
+
+El model continua emetent `SUMMARY` només quan el torn ha canviat fitxers.
+`stripChangeSummary` en treu qualsevol línia de resum, també amb espais al
+davant, del text que arriba a Telegram, i `parseChangeSummary` continua llegint-ne
+el valor per al títol i la branca.
+
+Els avisos públics són planers i cada avís diu què significa per a la persona i
+què pot fer. `publicationReport` envia la resposta del model, retallada perquè
+l'enllaç no es perdi, una línia curta sobre el que passa amb el canvi i, com a
+darrera línia, l'enllaç de revisió. La línia curta només promet un avís quan el
+seguiment de CI s'ha pogut desar, diu que no n'hi haurà si no s'ha pogut desar i,
+sense cap seguiment, només diu que el canvi està publicat. `ciReports` dona el resultat de les
+comprovacions a la persona i `ciNoteReports` el mateix resultat amb el commit i
+els noms de les comprovacions a la nota del servei, que és l'única que veu el
+model. El número de PR, el commit i els noms de les comprovacions queden al
+registre privat del servei (`ci_notification_sent`) i a la nota, no al tema;
+l'evidència d'una fallada que arriba a una reparació es desa a més a
+`state/ci-watch.sqlite`.
+
+`publicationNoteText` és la nota tècnica de la publicació, separada del text
+planer: el número de la proposta, la branca, el commit publicat i el resultat de
+les comprovacions locals. `run-instruction` la retorna també en un torn de
+reparació, i `workflow/ci-repair.mjs` la desa amb
+`ciRepairReports.publishedNote`: la resposta del model no és mai una nota.
+L'avís que el cap ha canviat diu que les comprovacions de la versió nova no es
+fan totes soles i què pot fer la persona; no promet cap avís que el servei no
+enviarà.
+
 ## Imatge experimental per a comprovacions offline
 
 `sandbox/Containerfile` prepara una imatge de Node amb pnpm, el magatzem de
@@ -497,7 +544,11 @@ i `workflow/ci-repair.test.mjs`, l'execució, el límit, el resultat desconegut 
 l'aturada. `repository/session-note-store.test.mjs` cobreix la durabilitat, el
 lliurament únic, la retenció i els límits de les notes del tema, i
 `workflow/run-instruction.test.mjs` el torn de consulta, el context del
-classificador i el bloc de servei del prompt. `commands/reconcile/uncertain-cases.test.mjs` cobreix els fets i la
+classificador, el bloc de servei del prompt, l'absència del resum a la resposta
+i la composició de l'informe de publicació. `workflow/ci-watch.test.mjs` comprova
+que l'avís planer no porta noms de comprovacions ni commits i que la nota del
+servei els conserva. `policy/development.test.mjs` cobreix el bloc de to, la
+regla de publicació amb l'instant injectat i la de traduccions. `commands/reconcile/uncertain-cases.test.mjs` cobreix els fets i la
 resolució de cada tipus de resultat desconegut, `commands/reconcile/command.test.mjs`
 una resolució completa amb clients simulats i `commands/reconcile/cli.test.mjs`
 el cablejat, els codis de sortida i l'absència de fitxers nous, amb stores SQLite
