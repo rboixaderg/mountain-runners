@@ -103,3 +103,24 @@ test("rejects a non-numeric resource limit", () => {
     { message: /positive integer/u },
   );
 });
+
+test("rejects a resource limit that is not a plain decimal integer", () => {
+  for (const value of ["1e3", "0x10", "1.5", "+1", "0", "9007199254740993"]) {
+    assert.throws(
+      () =>
+        readAgentConfig(
+          validEnvironment({ MOUNTAIN_AGENT_MAX_PENDING_INSTRUCTIONS: value }),
+        ),
+      { message: /positive integer/u },
+      value,
+    );
+  }
+});
+
+test("trims the surrounding whitespace of a resource limit", () => {
+  const config = readAgentConfig(
+    validEnvironment({ MOUNTAIN_AGENT_MAX_PENDING_INSTRUCTIONS: " 12 " }),
+  );
+
+  assert.equal(config.limits.maxPendingInstructions, 12);
+});

@@ -138,6 +138,23 @@ test("exits with code 2 on an invalid filter value", (context) => {
   assert.match(result.stderr, /limit must be an integer/u);
 });
 
+test("rejects an integer filter that is not a decimal integer", (context) => {
+  const statePath = createStateDirectory(context);
+  for (const [option, value] of [
+    ["--limit", "1e3"],
+    ["--limit", "0x10"],
+    ["--update", "1.5"],
+    ["--pull-request", "+1"],
+    ["--limit", " 1"],
+  ]) {
+    const result = runCli([option, value], {
+      MOUNTAIN_AGENT_STATE_PATH: statePath,
+    });
+    assert.equal(result.status, 2, `${option} ${value}`);
+    assert.match(result.stderr, /decimal integer/u, `${option} ${value}`);
+  }
+});
+
 test("reports misuse before the missing environment variable", () => {
   const result = runCli(["--limit", "0"], {});
   assert.equal(result.status, 2);

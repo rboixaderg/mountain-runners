@@ -28,6 +28,7 @@ import {
   ensureSessionWorktree,
   findSessionWorktree,
   hasUnpublishedCommit,
+  listOtherTopicWorktrees,
   recordPublication,
   renameLegacyWorktrees,
   resumeWorkBranch,
@@ -800,4 +801,155 @@ test("refuses an administrative gitdir file that is a symbolic link", async (con
   ]);
   assert.equal(readFileSync(witness, "utf8"), "private\n");
   assert.equal(existsSync(worktree.path), true);
+});
+
+test("refuses a new task whose archive directory already exists", async (context) => {
+  const { repository, worktreeRoot } = await repositoryFixture(context);
+  const name = "topic-0123456789abcdef";
+  await ensureSessionWorktree({
+    repositoryPath: repository,
+    worktreeRoot,
+    name,
+  });
+  const archive = join(realpathSync(worktreeRoot), `${name}-before-0000000a`);
+  mkdirSync(archive);
+
+  await assert.rejects(
+    ensureSessionWorktree({
+      repositoryPath: repository,
+      worktreeRoot,
+      name,
+      newTaskSuffix: "0000000a",
+    }),
+    { message: /already exists/u },
+  );
+
+  assert.equal(
+    existsSync(join(realpathSync(worktreeRoot), name)),
+    true,
+    "the active worktree is not moved",
+  );
+});
+
+test("refuses a resume whose archive directory already exists", async (context) => {
+  const { repository, worktreeRoot } = await repositoryFixture(context);
+  const { holder, commit } = await publishedHolder({
+    repository,
+    worktreeRoot,
+    name: "topic-holder",
+  });
+  await ensureSessionWorktree({
+    repositoryPath: repository,
+    worktreeRoot,
+    name: "topic-new",
+  });
+  mkdirSync(join(realpathSync(worktreeRoot), "topic-new-before-0000000b"));
+
+  await assert.rejects(
+    resumeWorkBranch({
+      repositoryPath: repository,
+      worktreeRoot,
+      name: "topic-new",
+      branch: sharedBranch,
+      headSha: commit,
+      newTaskSuffix: "0000000b",
+    }),
+    { message: /already exists/u },
+  );
+
+  assert.equal(
+    await currentBranch(holder),
+    sharedBranch,
+    "the refusal precedes the release of the branch",
+  );
+});
+
+test("records the published commit through an atomic rename", async (context) => {
+  const { repository, worktreeRoot } = await repositoryFixture(context);
+  const worktree = await ensureSessionWorktree({
+    repositoryPath: repository,
+    worktreeRoot,
+    name: "topic-0123456789abcdef",
+  });
+  const publicationPath = join(worktree.gitDirectory, "agent-published-head");
+  writeFileSync(`${publicationPath}.tmp`, "stale\n");
+  const commit = "b".repeat(40);
+
+  recordPublication(worktree, commit);
+
+  assert.equal(readFileSync(publicationPath, "utf8"), `${commit}\n`);
+  assert.equal(existsSync(`${publicationPath}.tmp`), false);
+  assert.equal((statSync(publicationPath).mode & 0o777).toString(8), "600");
+});
+
+for (const [label, leftover] of [
+  ["an empty", ""],
+  ["a partial", "gitdir: "],
+]) {
+  test(`removes ${label} marker temporary left by a crash`, async (context) => {
+    const { repository, worktreeRoot } = await repositoryFixture(context);
+    const worktree = await ensureSessionWorktree({
+      repositoryPath: repository,
+      worktreeRoot,
+      name: "topic_n1001234567890_7",
+    });
+    writeFileSync(join(worktree.path, ".git.agent-marker-tmp"), leftover);
+
+    const renamed = await renameLegacyWorktrees({
+      repositoryPath: repository,
+      worktreeRoot,
+      identifiers,
+    });
+    const migrated = await findSessionWorktree({
+      repositoryPath: repository,
+      worktreeRoot,
+      name: identifiers.worktreeName("-1001234567890:7"),
+    });
+
+    assert.equal(renamed.length, 1);
+    assert.equal(
+      existsSync(join(worktree.path, ".git.agent-marker-tmp")),
+      false,
+    );
+    assert.equal(
+      readFileSync(join(migrated.path, ".git"), "utf8"),
+      `gitdir: ${migrated.gitDirectory}\n`,
+    );
+    assert.equal(await currentBranch(migrated), null);
+  });
+}
+
+test("skips a registered worktree whose directory is gone", async (context) => {
+  const { directory, repository, worktreeRoot } =
+    await repositoryFixture(context);
+  const currentName = "topic-aaaaaaaaaaaaaaaa";
+  const staleName = "topic-bbbbbbbbbbbbbbbb";
+  await ensureSessionWorktree({
+    repositoryPath: repository,
+    worktreeRoot,
+    name: currentName,
+  });
+  const stale = await ensureSessionWorktree({
+    repositoryPath: repository,
+    worktreeRoot,
+    name: staleName,
+  });
+  rmSync(stale.path, { recursive: true, force: true });
+
+  assert.deepEqual(
+    await listOtherTopicWorktrees({
+      repositoryPath: repository,
+      worktreeRoot,
+      excludeName: currentName,
+    }),
+    [],
+  );
+  assert.deepEqual(
+    await listOtherTopicWorktrees({
+      repositoryPath: repository,
+      worktreeRoot: join(directory, "missing"),
+      excludeName: currentName,
+    }),
+    [],
+  );
 });

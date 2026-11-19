@@ -42,12 +42,18 @@ const optionDefinitions = {
   limit: { type: "string" },
 };
 
+const integerPattern = /^\d+$/u;
+
 function readIntegerArgument(text) {
   if (text === undefined) {
     return undefined;
   }
-  if (text.trim() === "") {
-    throw new TraceQueryInputError("An integer argument is empty.");
+  // Only a decimal integer is an integer here: hexadecimal, scientific
+  // notation and surrounding whitespace are reported as misuse.
+  if (!integerPattern.test(text)) {
+    throw new TraceQueryInputError(
+      "An integer argument must be a decimal integer.",
+    );
   }
   return Number(text);
 }
