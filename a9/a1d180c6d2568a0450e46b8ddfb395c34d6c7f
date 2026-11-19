@@ -1,0 +1,35 @@
+packages/telegram-pi-bridge/src/telegram/albums.mjs
+  s_82a8eb64da656c::t_4b8721a3091773 22-29,40-47,80,84-86,99-101
+packages/telegram-pi-bridge/src/telegram/attribution.mjs
+  s_82a8eb64da656c::t_69ad60fe8d039c 27-35,37-62,66-71,73,151-157,173,254-256,293-303,311,317-325,331-337,365,387
+packages/telegram-pi-bridge/test/telegram/albums.test.mjs
+  s_82a8eb64da656c::t_3b7e1df7171742 5-9,15,18,23-24,52,102,108-192
+packages/telegram-pi-bridge/test/telegram/attribution.test.mjs
+  s_82a8eb64da656c::t_03d4f352d41e19 22-25,179-247,487-516,646-649,665-752
+tools/server/agent/attachments/image-file.test.mjs
+  s_82a8eb64da656c::t_6b7e39005539ca 32-98,502-640
+tools/server/agent/attachments/image-format.mjs
+  s_82a8eb64da656c::t_15101cc64797a4 19-32,36-47,122-142,199-204,220,228-235,237,300-301,308-316,325-331,368-372,395-396,410,423-425,427-428,435,442,456,499-507,524,545,547
+tools/server/agent/attachments/safe-read.mjs
+  s_82a8eb64da656c::t_927471db5853cb 4-9,11-29,35-38,47
+tools/server/agent/attachments/safe-read.test.mjs
+  s_82a8eb64da656c::t_5236ebd32459c5 1-52
+tools/server/agent/attachments/test-support/synthetic-images.mjs
+  s_82a8eb64da656c::t_05cb63640b0da8 38-39,53
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "a9a1d180c6d2568a0450e46b8ddfb395c34d6c7f",
+  "prompts": {},
+  "sessions": {
+    "s_82a8eb64da656c": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e0b016de9ffeksSCDYec4NhQhI",
+        "model": "unknown"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
