@@ -1,0 +1,21 @@
+docs/decisions/0011-news-blog-editorial-previews.md
+  s_0768d1b920a807::t_3e0e2e28d90f3d 9-11,82-84,90
+docs/editorial/guide.md
+  s_0768d1b920a807::t_6d36b383a55331 138-141
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "70c67db1fb16ed9f79d9df923b72ea86c3f9b641",
+  "prompts": {},
+  "sessions": {
+    "s_0768d1b920a807": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a1f098-9740-71ef-89e7-e32e1ae2abdb",
+        "model": "deepseek-v4.1-flash"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
