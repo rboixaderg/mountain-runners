@@ -563,9 +563,13 @@ export function createPreviewRequests({
           },
         );
         if (!sent) continue;
+        // The state and the origin the publisher confirmed are written together:
+        // a confirmation never ends without the URL, and the next turn of the
+        // topic cannot read GitHub and never builds it.
         const ended = store.finish(
           row.update_identifier,
           previewStates.confirmed,
+          origin,
         );
         if (!ended) continue;
         safeTrace({

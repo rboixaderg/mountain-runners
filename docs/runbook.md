@@ -1236,6 +1236,28 @@ es copien mai al repositori, al tema, a la PR ni a un registre. El token de
 Telegram i el de GitHub no arriben a Pi, al contenidor ni al model, i el del
 proveïdor només arriba a Pi.
 
+### Estat Del Tema
+
+Cada torn del model —consulta, implementació, continuació o reparació— rep
+abans de la petició un bloc amb l'estat que el servei ja té desat: la PR que
+treballa el torn (o la d'un altre tema que el torn continua) amb el seu enllaç,
+l'últim commit informat i el resultat de les comprovacions, si hi ha feina més
+nova sense informar, l'última petició de preview i l'última de merge. El bloc
+surt dels magatzems de `state/`, sense cap crida a GitHub.
+
+- L'URL de la preview només hi apareix si el publicador de confiança l'ha
+  confirmada per al commit informat; el servei no la construeix mai. La columna
+  `confirmed_origin` de `preview-request.sqlite` la desa juntament amb el final
+  de la petició i s'afegeix sola en arrencar sobre una base de dades anterior.
+- Cada fet del bloc és d'aquella PR: una fila d'una altra PR del mateix tema no
+  s'hi fa servir.
+- Els estats interiors es descriuen en paraules planes i el model les explica a
+  la persona sense identificadors de commit ni noms de comprovació.
+- El bloc no conté cap identificador de Telegram ni cap dada de les persones, no
+  amplia el context del classificador i no canvia cap permís del sandbox.
+- Si l'estat no es pot llegir, el servei ho registra al journal
+  (`topic_state_failed`) i el torn continua sense el bloc.
+
 ### Activar, Aturar I Reiniciar
 
 ```sh
@@ -1331,14 +1353,14 @@ mantenidora.
 Atura el servei abans de copiar l'estat o les sessions; així les bases de dades
 són coherents. Copia:
 
-| Element       | Contingut                                                                                                                              | Criteri                                                                                                                                             |
-| ------------- | -------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `state/`      | `admission.sqlite` (cua i traça), `ci-watch.sqlite`, `preview-request.sqlite`, `merge-request.sqlite`, `session-notes.sqlite`, perfils | Imprescindible: és la memòria recuperable del servei                                                                                                |
-| `sessions/`   | Historial de Pi per tema                                                                                                               | Imprescindible si es vol conservar el context conversacional                                                                                        |
-| `worktrees/`  | Feina en curs i feina preservada                                                                                                       | Copia els worktrees amb commits sense publicar o canvis sense cometre; un worktree net i sense commits per davant de `origin/main` es pot descartar |
-| `repository/` | Clon amb `origin` i `main`                                                                                                             | Es pot tornar a clonar                                                                                                                              |
-| `agent.env`   | Credencials                                                                                                                            | Copia'l com un secret, mai al costat de les dades ni al repositori                                                                                  |
-| Unitats       | `mountain-agent.service` i les dues unitats de muntatge dels volums                                                                    | Es tornen a instal·lar des del commit revisat                                                                                                       |
+| Element       | Contingut                                                                                                                                                           | Criteri                                                                                                                                             |
+| ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `state/`      | `admission.sqlite` (cua i traça), `ci-watch.sqlite`, `preview-request.sqlite` (peticions i URL confirmada), `merge-request.sqlite`, `session-notes.sqlite`, perfils | Imprescindible: és la memòria recuperable del servei                                                                                                |
+| `sessions/`   | Historial de Pi per tema                                                                                                                                            | Imprescindible si es vol conservar el context conversacional                                                                                        |
+| `worktrees/`  | Feina en curs i feina preservada                                                                                                                                    | Copia els worktrees amb commits sense publicar o canvis sense cometre; un worktree net i sense commits per davant de `origin/main` es pot descartar |
+| `repository/` | Clon amb `origin` i `main`                                                                                                                                          | Es pot tornar a clonar                                                                                                                              |
+| `agent.env`   | Credencials                                                                                                                                                         | Copia'l com un secret, mai al costat de les dades ni al repositori                                                                                  |
+| Unitats       | `mountain-agent.service` i les dues unitats de muntatge dels volums                                                                                                 | Es tornen a instal·lar des del commit revisat                                                                                                       |
 
 Ordre de restauració:
 

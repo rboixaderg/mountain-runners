@@ -488,6 +488,50 @@ test("reports the last delivered notice of the session, never a pending one", (c
   store.close();
 });
 
+test("reports the last delivered notice of one pull request, never of another", (context) => {
+  const store = new CiWatchStore(fixture(context));
+  store.add(request);
+  store.beginSend(12, "success");
+  store.finishSend(12);
+  store.add({
+    ...request,
+    updateIdentifier: 13,
+    pullRequestNumber: 124,
+    commitSha: "b".repeat(40),
+  });
+  store.beginSend(13, "failure");
+  store.finishSend(13);
+
+  assert.deepEqual(
+    {
+      ...store.lastReportedForPullRequest({
+        sessionKey: request.sessionKey,
+        pullRequestNumber: 123,
+      }),
+    },
+    {
+      pull_request_number: 123,
+      commit_sha: request.commitSha,
+      result: "success",
+    },
+  );
+  assert.equal(
+    store.lastReportedForPullRequest({
+      sessionKey: request.sessionKey,
+      pullRequestNumber: 124,
+    }).commit_sha,
+    "b".repeat(40),
+  );
+  assert.equal(
+    store.lastReportedForPullRequest({
+      sessionKey: request.sessionKey,
+      pullRequestNumber: 125,
+    }),
+    undefined,
+  );
+  store.close();
+});
+
 test("tells whether the topic has work newer than its last notice", (context) => {
   const store = new CiWatchStore(fixture(context));
   const topic = "-100123:7";

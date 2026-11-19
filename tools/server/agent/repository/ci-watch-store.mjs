@@ -183,6 +183,22 @@ export class CiWatchStore {
   }
 
   /**
+   * The commit a topic was last told about for one pull request: the most
+   * recently delivered notice of that pull request. A topic that published
+   * several pull requests keeps one report per pull request, so a notice of
+   * another one never describes this pull request.
+   */
+  lastReportedForPullRequest({ sessionKey, pullRequestNumber }) {
+    return this.#database
+      .prepare(
+        `SELECT pull_request_number, commit_sha, result FROM ci_watches
+         WHERE session_key = ? AND pull_request_number = ? AND state = 'sent'
+         ORDER BY updated_at DESC, update_identifier DESC LIMIT 1`,
+      )
+      .get(sessionKey, pullRequestNumber);
+  }
+
+  /**
    * Whether the topic has work newer than its last notice: a publication whose
    * notice is not delivered yet, a publication whose delivery is unknown, or an
    * automatic repair that is reserved, queued or running. Each one will end

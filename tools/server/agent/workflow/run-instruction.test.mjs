@@ -15,11 +15,14 @@ import { promisify } from "node:util";
 import { test } from "node:test";
 import { PublishRefusedError } from "../repository/github.mjs";
 import { CiWatchStore } from "../repository/ci-watch-store.mjs";
+import { MergeRequestStore } from "../repository/merge-request-store.mjs";
+import { PreviewRequestStore } from "../repository/preview-request-store.mjs";
 import { SessionNoteStore } from "../repository/session-note-store.mjs";
 import {
   attachmentReports,
   instructionReports,
   serviceNotesHeader,
+  topicStateHeader,
   unclearRequestLine,
 } from "../policy/development.mjs";
 import { createAttachmentPreparation } from "../attachments/prepare.mjs";
@@ -2002,13 +2005,38 @@ test("places an attached image and appends the service text to the instruction",
   );
 });
 
-test("carries the audience rules and the attachment lines in the same prompt", async (context) => {
+test("carries the audience rules, the state of the topic and the attachment lines in the same prompt", async (context) => {
   const paths = await fixture(context);
   const image = pngImage({ width: 1200, height: 800 });
+  mkdirSync(paths.state, { recursive: true });
+  const ciWatches = new CiWatchStore(join(paths.state, "ci-watch.sqlite"));
+  const previewRequests = new PreviewRequestStore(
+    join(paths.state, "preview-request.sqlite"),
+  );
+  const mergeRequests = new MergeRequestStore(
+    join(paths.state, "merge-request.sqlite"),
+  );
+  context.after(() => {
+    mergeRequests.close();
+    previewRequests.close();
+    ciWatches.close();
+  });
+  // The topic already reported a green pull request before this turn.
+  ciWatches.add({
+    updateIdentifier: 900,
+    sessionKey: topicSessionKey,
+    pullRequestNumber: 239,
+    commitSha: "a".repeat(40),
+  });
+  ciWatches.beginSend(900, "success");
+  ciWatches.finishSend(900);
   const prompts = [];
   const runner = createProjectRunner({
     config: configFor(paths),
     github: githubStub(),
+    ciWatches,
+    previewRequests,
+    mergeRequests,
     classifyRequest: async () => "implementation",
     prepareAttachment: createAttachmentPreparation({
       telegram: telegramAttachment(image),
@@ -2027,7 +2055,24 @@ test("carries the audience rules and the attachment lines in the same prompt", a
 
   assert.equal(result.outcome, "pull_request_created", result.report);
   assert.equal(prompts.length, 1);
-  assert.match(prompts[0], /Who reads your answer and how to write it:/u);
+  const audience = prompts[0].indexOf(
+    "Who reads your answer and how to write it:",
+  );
+  const state = prompts[0].indexOf(topicStateHeader);
+  const request = prompts[0].indexOf("Request:");
+  const attachments = prompts[0].indexOf(
+    "Images provided by the service for this topic:",
+  );
+  assert.ok(audience > 0, "the audience rules are present");
+  assert.ok(state > audience, "the state of the topic follows the audience");
+  assert.ok(
+    attachments > request,
+    "the attachment lines travel inside the request",
+  );
+  assert.match(
+    prompts[0].slice(state, request),
+    /^- Pull request this turn works on: https:\/\/github\.com\/rboixaderg\/mountain-runners\/pull\/239\.$/mu,
+  );
   assert.match(
     prompts[0],
     /Answer in the language the person wrote in; Catalan by default\./u,
