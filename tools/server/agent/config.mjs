@@ -14,7 +14,7 @@ import { isAbsolute } from "node:path";
 
 export const repositoryPattern = /^[A-Za-z0-9._-]+\/[A-Za-z0-9._-]+$/u;
 const groupIdentifierPattern = /^-\d+$/u;
-const positiveIntegerPattern = /^[1-9]\d*$/u;
+const positiveIntegerPattern = /^\d+$/u;
 
 export const defaultLimits = {
   maxPendingInstructions: 10,
@@ -47,10 +47,16 @@ function positiveInteger(environment, name, fallback) {
   if (rawValue === undefined || rawValue === "") {
     return fallback;
   }
-  if (!positiveIntegerPattern.test(rawValue)) {
+  const value = rawValue.trim();
+  const parsed = Number(value);
+  if (
+    !positiveIntegerPattern.test(value) ||
+    !Number.isSafeInteger(parsed) ||
+    parsed <= 0
+  ) {
     throw new Error(`Configuration value ${name} must be a positive integer.`);
   }
-  return Number(rawValue);
+  return parsed;
 }
 
 function readNameList(environment, name) {

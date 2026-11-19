@@ -6,6 +6,7 @@ import {
   mkdtempSync,
   readFileSync,
   rmSync,
+  symlinkSync,
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
@@ -169,4 +170,270 @@ test("keeps an attachment for seven days and prunes it after", (context) => {
   assert.equal(store.prune().length, 1);
   assert.deepEqual(store.list(topicName), []);
   assert.equal(existsSync(join(store.root, topicName)), false);
+});
+
+test("evicts the oldest image when a topic exceeds its attachment count", (context) => {
+  const paths = fixture(context);
+  let now = new Date("2026-01-01T00:00:00.000Z");
+  const store = createAttachmentStore({
+    ...paths,
+    now: () => now,
+    maximumTopicAttachments: 2,
+  });
+  store.add(topicName, image("first"));
+  now = new Date(now.getTime() + 1000);
+  store.add(topicName, image("second"));
+  now = new Date(now.getTime() + 1000);
+  store.add(topicName, image("third"));
+
+  assert.deepEqual(
+    store.list(topicName).map((entry) => entry.name),
+    ["imatge-2.jpg", "imatge-3.jpg"],
+  );
+  assert.equal(existsSync(join(store.root, topicName, "imatge-1.jpg")), false);
+});
+
+test("evicts the oldest image when a topic exceeds its byte quota", (context) => {
+  const paths = fixture(context);
+  let now = new Date("2026-01-01T00:00:00.000Z");
+  const store = createAttachmentStore({
+    ...paths,
+    now: () => now,
+    maximumTopicBytes: 8,
+  });
+  const fourBytes = () => ({
+    bytes: Buffer.alloc(4, "a"),
+  });
+  store.add(topicName, image("first", fourBytes()));
+  now = new Date(now.getTime() + 1000);
+  store.add(topicName, image("second", fourBytes()));
+  now = new Date(now.getTime() + 1000);
+  store.add(topicName, image("third", fourBytes()));
+
+  assert.deepEqual(
+    store.list(topicName).map((entry) => entry.name),
+    ["imatge-2.jpg", "imatge-3.jpg"],
+  );
+});
+
+test("pays a topic count quota without evicting another topic", (context) => {
+  const paths = fixture(context);
+  const otherTopic = "topic-fedcba9876543210";
+  let now = new Date("2026-01-01T00:00:00.000Z");
+  const store = createAttachmentStore({
+    ...paths,
+    now: () => now,
+    maximumTopicAttachments: 2,
+    maximumTotalBytes: 1024,
+  });
+  // The other topic holds the oldest images of the store.
+  store.add(otherTopic, image("other-first"));
+  now = new Date(now.getTime() + 1000);
+  store.add(otherTopic, image("other-second"));
+  now = new Date(now.getTime() + 1000);
+  store.add(topicName, image("first"));
+  now = new Date(now.getTime() + 1000);
+  store.add(topicName, image("second"));
+  now = new Date(now.getTime() + 1000);
+  store.add(topicName, image("third"));
+
+  assert.deepEqual(
+    store.list(otherTopic).map((entry) => entry.name),
+    ["imatge-1.jpg", "imatge-2.jpg"],
+  );
+  assert.deepEqual(
+    store.list(topicName).map((entry) => entry.name),
+    ["imatge-2.jpg", "imatge-3.jpg"],
+  );
+});
+
+test("pays a topic byte quota without evicting another topic", (context) => {
+  const paths = fixture(context);
+  const otherTopic = "topic-fedcba9876543210";
+  let now = new Date("2026-01-01T00:00:00.000Z");
+  const store = createAttachmentStore({
+    ...paths,
+    now: () => now,
+    maximumTopicBytes: 8,
+    maximumTotalBytes: 1024,
+  });
+  const fourBytes = () => ({ bytes: Buffer.alloc(4, "d") });
+  store.add(otherTopic, image("other-first", fourBytes()));
+  now = new Date(now.getTime() + 1000);
+  store.add(otherTopic, image("other-second", fourBytes()));
+  now = new Date(now.getTime() + 1000);
+  store.add(topicName, image("first", fourBytes()));
+  now = new Date(now.getTime() + 1000);
+  store.add(topicName, image("second", fourBytes()));
+  now = new Date(now.getTime() + 1000);
+  store.add(topicName, image("third", fourBytes()));
+
+  assert.deepEqual(
+    store.list(otherTopic).map((entry) => entry.name),
+    ["imatge-1.jpg", "imatge-2.jpg"],
+  );
+  assert.deepEqual(
+    store.list(topicName).map((entry) => entry.name),
+    ["imatge-2.jpg", "imatge-3.jpg"],
+  );
+});
+
+test("evicts the oldest image across topics when the total quota is full", (context) => {
+  const paths = fixture(context);
+  const otherTopic = "topic-fedcba9876543210";
+  let now = new Date("2026-01-01T00:00:00.000Z");
+  const store = createAttachmentStore({
+    ...paths,
+    now: () => now,
+    maximumTopicBytes: 100,
+    maximumTotalBytes: 8,
+  });
+  const fourBytes = () => ({ bytes: Buffer.alloc(4, "b") });
+  store.add(topicName, image("first", fourBytes()));
+  now = new Date(now.getTime() + 1000);
+  store.add(topicName, image("second", fourBytes()));
+  now = new Date(now.getTime() + 1000);
+  store.add(otherTopic, image("third", fourBytes()));
+
+  assert.deepEqual(
+    store.list(topicName).map((entry) => entry.name),
+    ["imatge-2.jpg"],
+  );
+  assert.deepEqual(
+    store.list(otherTopic).map((entry) => entry.name),
+    ["imatge-1.jpg"],
+  );
+  assert.equal(existsSync(join(store.root, topicName, "imatge-1.jpg")), false);
+});
+
+test("refuses an image larger than the topic quota without evicting the rest", (context) => {
+  const paths = fixture(context);
+  const store = createAttachmentStore({
+    ...paths,
+    maximumTopicBytes: 8,
+  });
+  store.add(topicName, image("first", { bytes: Buffer.alloc(4, "c") }));
+
+  assert.throws(
+    () =>
+      store.add(topicName, image("second", { bytes: Buffer.alloc(9, "c") })),
+    /out of quota/u,
+  );
+  assert.deepEqual(
+    store.list(topicName).map((entry) => entry.name),
+    ["imatge-1.jpg"],
+  );
+});
+
+test("tracks every stored image that shares the same bytes", (context) => {
+  const paths = fixture(context);
+  mkdirSync(paths.worktreePath);
+  const store = createAttachmentStore(paths);
+  store.add(topicName, image("same"));
+  store.add(topicName, image("same"));
+  copyFileSync(
+    join(store.root, topicName, "imatge-1.jpg"),
+    join(paths.worktreePath, "portada.jpg"),
+  );
+  copyFileSync(
+    join(store.root, topicName, "imatge-2.jpg"),
+    join(paths.worktreePath, "detall.jpg"),
+  );
+
+  const used = store.used(topicName, paths.worktreePath, [
+    "portada.jpg",
+    "detall.jpg",
+  ]);
+
+  assert.deepEqual(used.sort(), ["imatge-1.jpg", "imatge-2.jpg"]);
+});
+
+test("ignores an attachment directory named with a relative prefix", (context) => {
+  const paths = fixture(context);
+  const directory = join(paths.worktreePath, attachmentDirectoryName);
+  mkdirSync(directory, { recursive: true });
+  const store = createAttachmentStore(paths);
+  store.add(topicName, image("first"));
+  copyFileSync(
+    join(store.root, topicName, "imatge-1.jpg"),
+    join(directory, "imatge-1.jpg"),
+  );
+
+  assert.deepEqual(
+    store.used(topicName, paths.worktreePath, [
+      `./${attachmentDirectoryName}/imatge-1.jpg`,
+    ]),
+    [],
+  );
+});
+
+test("returns an empty removal when the topic directory is missing", (context) => {
+  const paths = fixture(context);
+  const store = createAttachmentStore(paths);
+
+  assert.deepEqual(store.remove(topicName, ["imatge-1.jpg"]), []);
+});
+
+test("reports only the names the manifest actually removed", (context) => {
+  const paths = fixture(context);
+  const store = createAttachmentStore(paths);
+  store.add(topicName, image("first"));
+
+  assert.deepEqual(store.remove(topicName, ["imatge-9.jpg", "imatge-1.jpg"]), [
+    "imatge-1.jpg",
+  ]);
+});
+
+test("skips a name already used by a directory or a symbolic link", (context) => {
+  const paths = fixture(context);
+  const store = createAttachmentStore(paths);
+  const directory = join(store.root, topicName);
+  mkdirSync(join(directory, "imatge-1.jpg"), { recursive: true });
+  symlinkSync("/dev/null", join(directory, "imatge-2.jpg"));
+
+  const entry = store.add(topicName, image("first"));
+
+  assert.equal(entry.name, "imatge-3.jpg");
+});
+
+test("prunes orphaned files and temporary manifests from a topic directory", (context) => {
+  const paths = fixture(context);
+  const store = createAttachmentStore(paths);
+  store.add(topicName, image("first"));
+  const directory = join(store.root, topicName);
+  writeFileSync(join(directory, "imatge-9.jpg"), "orphan");
+  writeFileSync(
+    join(directory, ".manifest-0193a5c1-0000-7000-8000-000000000000.tmp"),
+    "{}",
+  );
+  writeFileSync(join(directory, "notes.txt"), "kept");
+
+  assert.deepEqual(store.prune(), [{ topic: topicName, name: "imatge-9.jpg" }]);
+  assert.equal(existsSync(join(directory, "imatge-9.jpg")), false);
+  assert.equal(
+    existsSync(
+      join(directory, ".manifest-0193a5c1-0000-7000-8000-000000000000.tmp"),
+    ),
+    false,
+  );
+  assert.equal(existsSync(join(directory, "notes.txt")), true);
+  assert.deepEqual(
+    store.list(topicName).map((entry) => entry.name),
+    ["imatge-1.jpg"],
+  );
+});
+
+test("removes a topic directory that only holds leftovers", (context) => {
+  const paths = fixture(context);
+  const store = createAttachmentStore(paths);
+  const directory = join(store.root, topicName);
+  mkdirSync(directory, { recursive: true });
+  writeFileSync(
+    join(directory, ".manifest-0193a5c1-0000-7000-8000-000000000000.tmp"),
+    "{}",
+  );
+
+  assert.deepEqual(store.prune(), []);
+
+  assert.equal(existsSync(directory), false);
 });
