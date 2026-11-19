@@ -264,7 +264,7 @@ export function createCiRepairExecutor({
       // reconciles it.
       logger(
         "ci_repair_failed",
-        error instanceof Error ? `${error.name}: ${error.message}` : "unknown",
+        error instanceof Error ? error.name : "unknown",
       );
       result = { outcome: "uncertain" };
     }

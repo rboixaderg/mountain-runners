@@ -81,31 +81,43 @@ function describeTarget({ pullRequestNumber, commit }) {
  * comment on a run to remove: a wrong match can only end a request as failed,
  * never confirm an address, because the publisher comment is read first and is
  * the only source of the URL.
+ *
+ * A comment whose instant cannot be read belongs to no window: guessing one
+ * would attribute a run to the wrong request.
  */
 function previewRunWindows(requests) {
-  const ordered = [...requests].sort((left, right) => {
-    const byComment =
-      Date.parse(left.commented_at) - Date.parse(right.commented_at);
-    return byComment === 0
-      ? left.update_identifier - right.update_identifier
-      : byComment;
-  });
+  const ordered = requests
+    .filter((request) => Number.isFinite(Date.parse(request.commented_at)))
+    .sort((left, right) => {
+      const byComment =
+        Date.parse(left.commented_at) - Date.parse(right.commented_at);
+      return byComment === 0
+        ? left.update_identifier - right.update_identifier
+        : byComment;
+    });
   const windows = new Map();
-  for (const [index, request] of ordered.entries()) {
-    const from = request.commented_at;
+  let burstStart = 0;
+  while (burstStart < ordered.length) {
+    const from = Date.parse(ordered[burstStart].commented_at);
+    let burstEnd = burstStart;
+    while (
+      burstEnd < ordered.length &&
+      Date.parse(ordered[burstEnd].commented_at) === from
+    ) {
+      burstEnd += 1;
+    }
     // The next comment of another request that is strictly later; the request
     // of the same second belongs to the same burst and does not bound it.
-    const next = ordered
-      .slice(index + 1)
-      .find((later) => Date.parse(later.commented_at) > Date.parse(from));
-    const rank = ordered
-      .slice(0, index)
-      .filter((earlier) => earlier.commented_at === from).length;
-    windows.set(request.update_identifier, {
-      from,
-      until: next === undefined ? null : next.commented_at,
-      rank,
-    });
+    const until =
+      burstEnd < ordered.length ? ordered[burstEnd].commented_at : null;
+    for (let index = burstStart; index < burstEnd; index += 1) {
+      windows.set(ordered[index].update_identifier, {
+        from: ordered[index].commented_at,
+        until,
+        rank: index - burstStart,
+      });
+    }
+    burstStart = burstEnd;
   }
   return windows;
 }
@@ -114,13 +126,15 @@ function previewRunWindows(requests) {
  * The run that decides the request. Only runs that the service's own identity
  * started count: the workflow runs for every new comment of every pull request,
  * so a run of another person's `/preview` is never a result of this request.
- * Among those inside the window, the first one that already ended decides; a run
- * still queued or running, and a run whose conclusion GitHub did not compute
- * (`null`), are no result yet. A run ordered after that first one changes
- * nothing. Runs are ordered by creation time and, on an equal timestamp, by run
- * identifier, so the order never depends on the order GitHub returns.
+ * The runs inside the window are ordered first and the one of this request's
+ * `rank` is taken; only then is its status read. A run still queued or running
+ * is no result yet, and it never lets a later run of its burst speak for this
+ * request. A run ordered after that first one changes nothing. Runs are ordered
+ * by creation time and, on an equal timestamp, by run identifier, so the order
+ * never depends on the order GitHub returns.
  */
 function endedPreviewRun({ runs, window, serviceLogin }) {
+  if (window === undefined) return null;
   const from = Date.parse(window.from);
   const until = window.until === null ? null : Date.parse(window.until);
   // A bound that cannot be read says nothing: never guess a window from it.
@@ -132,7 +146,6 @@ function endedPreviewRun({ runs, window, serviceLogin }) {
       (run) =>
         run.actor === serviceLogin || run.triggeringActor === serviceLogin,
     )
-    .filter((run) => run.status === "completed")
     .filter((run) => {
       const createdAt = Date.parse(run.createdAt);
       if (!Number.isFinite(createdAt)) return false;
@@ -144,9 +157,22 @@ function endedPreviewRun({ runs, window, serviceLogin }) {
       return byTime === 0 ? left.identifier - right.identifier : byTime;
     });
   const run = candidates[window.rank];
-  if (run === undefined) return null;
+  if (run === undefined || run.status !== "completed") return null;
   if (run.conclusion === "success" || run.conclusion === null) return null;
   return run;
+}
+
+/**
+ * The earliest instant at which an awaiting request posted its comment, or
+ * `null` when none can be read. It bounds every read a cycle needs: the windows
+ * of the awaiting requests, and the runs the service may have started for them.
+ */
+function earliestCommentInstant(rows) {
+  const earliest = rows.reduce((moment, row) => {
+    const comment = Date.parse(row.commented_at);
+    return Number.isFinite(comment) && comment < moment ? comment : moment;
+  }, Number.POSITIVE_INFINITY);
+  return Number.isFinite(earliest) ? new Date(earliest).toISOString() : null;
 }
 
 export function createPreviewRequests({
@@ -409,9 +435,13 @@ export function createPreviewRequests({
     const { chatIdentifier, threadIdentifier } = parseSessionKey(
       row.session_key,
     );
+    // The note keeps the facts the next turn of the model needs, while the text
+    // sent to the topic stays plain. `receivedText` is that plain reply, so the
+    // last text of the topic reads as the person read it.
     recordServiceNote({
       sessionKey: row.session_key,
       text: note,
+      receivedText: text,
       effectKey: `preview:${row.update_identifier}:${state}`,
     });
     try {
@@ -444,8 +474,12 @@ export function createPreviewRequests({
   let serviceLogin;
   let previewRunsRetryAfter = 0;
 
-  async function readPreviewRuns({ rows, signal }) {
+  async function readPreviewRuns({ createdSince, signal }) {
     if (now().getTime() < previewRunsRetryAfter) return null;
+    if (createdSince === null) {
+      logger("preview_run_read_failed", "invalid_comment_time");
+      return null;
+    }
     const boundedSignal = requestSignal(signal, requestTimeoutMilliseconds);
     if (serviceLogin === undefined) {
       try {
@@ -464,18 +498,6 @@ export function createPreviewRequests({
         return null;
       }
     }
-    // The bound is the earliest comment instant. It is compared as an instant,
-    // not as a string: GitHub timestamps have second granularity and the store
-    // writes milliseconds, so a lexicographic minimum can be the later moment of
-    // the same second and hide the run created in between.
-    const earliestCommentedAt = rows
-      .map((request) => Date.parse(request.commented_at))
-      .reduce((earliest, moment) => (moment < earliest ? moment : earliest));
-    if (!Number.isFinite(earliestCommentedAt)) {
-      logger("preview_run_read_failed", "invalid_comment_time");
-      return null;
-    }
-    const createdSince = new Date(earliestCommentedAt).toISOString();
     try {
       const runs = await github.listPreviewWorkflowRuns({
         createdSince,
@@ -511,12 +533,18 @@ export function createPreviewRequests({
   async function runOnce({ signal } = {}) {
     const rows = store.awaiting();
     if (rows.length === 0) return;
+    // One bound for the whole cycle: the windows of the awaiting requests and
+    // the runs the service may have started for them. Earlier comments cannot
+    // bound any of them, so the poll never loads the whole history.
+    const createdSince = earliestCommentInstant(rows);
     // The window of a request is bounded by the comment of the next request,
     // including the ones that are not awaiting any more.
-    const runWindows = previewRunWindows(store.commented());
+    const runWindows = previewRunWindows(
+      store.commented({ since: createdSince }),
+    );
     // A run list that cannot be read leaves this cycle with the publisher
     // comment alone, exactly as before T8.8: it never ends a request by itself.
-    const previewRuns = await readPreviewRuns({ rows, signal });
+    const previewRuns = await readPreviewRuns({ createdSince, signal });
 
     for (const row of rows) {
       if (signal?.aborted) return;

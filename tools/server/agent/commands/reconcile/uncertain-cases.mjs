@@ -124,18 +124,34 @@ async function instructionCase({ config, identifiers, row, github }) {
     created_at: row.created_at,
     worktree: null,
     pull_request: null,
+    worktree_error: null,
     github: githubReadStates.skipped,
   };
-  const worktree = await findSessionWorktree({
-    repositoryPath: config.paths.repository,
-    worktreeRoot: config.paths.worktrees,
-    name: identifiers.worktreeName(row.session_key),
-  });
+  let worktree;
+  try {
+    worktree = await findSessionWorktree({
+      repositoryPath: config.paths.repository,
+      worktreeRoot: config.paths.worktrees,
+      name: identifiers.worktreeName(row.session_key),
+    });
+  } catch (error) {
+    // One damaged worktree prints its error instead of hiding every remaining
+    // case of the list.
+    facts.worktree_error = messageOf(error);
+    return facts;
+  }
   if (worktree === null) {
     return facts;
   }
-  const head = await headCommit(worktree);
-  const branch = await currentBranch(worktree);
+  let head;
+  let branch;
+  try {
+    head = await headCommit(worktree);
+    branch = await currentBranch(worktree);
+  } catch (error) {
+    facts.worktree_error = messageOf(error);
+    return facts;
+  }
   facts.worktree = {
     branch,
     head,
@@ -427,8 +443,10 @@ async function resolveInstruction({
   return resolved;
 }
 
-function resolveRepair({
+async function resolveRepair({
+  config,
   stores,
+  identifiers,
   updateIdentifier,
   sequence,
   failedCommit,
@@ -464,6 +482,17 @@ function resolveRepair({
   // The trace lives in another database: it is written first, so a failure
   // leaves the repair uncertain.
   recordTrace({ stores, entry: traceEntry(resolved) });
+  if (resolution === reconcileResolutions.published) {
+    // A published repair left its commit in the topic worktree: marking it there
+    // keeps the same commit from being published twice, exactly as a confirmed
+    // instruction does.
+    await recordConfirmedPublication({
+      config,
+      identifiers,
+      sessionKey: row.session_key,
+      commit: resolved.commit,
+    });
+  }
   let applied;
   try {
     applied = stores.repairs.resolveUncertainRepair({
@@ -607,7 +636,14 @@ function resolveCase({
       });
     case caseKinds.repair:
       return resolveRepair({
+        config,
         stores,
+        // Only the publication marker of the topic worktree needs the naming
+        // source: a not published repair never touches it.
+        identifiers:
+          resolution === reconcileResolutions.published
+            ? instructionIdentifiers(config)
+            : null,
         updateIdentifier,
         sequence,
         failedCommit,
@@ -641,7 +677,13 @@ async function notify({ stores, telegram, resolved, warn }) {
     stores.notes?.addNote({
       sessionKey: resolved.sessionKey,
       text,
-      effectKey: `reconcile:${resolved.kind}:${resolved.updateIdentifier}`,
+      // A repair row sequence is reused by a later attempt, so the identity of
+      // the effect names it too: two attempts of the same instruction are two
+      // different results.
+      effectKey:
+        resolved.kind === caseKinds.repair
+          ? `reconcile:${resolved.kind}:${resolved.updateIdentifier}:${resolved.sequence}`
+          : `reconcile:${resolved.kind}:${resolved.updateIdentifier}`,
     });
   } catch (error) {
     warn(

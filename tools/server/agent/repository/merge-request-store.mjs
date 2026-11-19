@@ -10,7 +10,7 @@
 // One Telegram update is one row, so a duplicate update never merges twice, and
 // a pull request has at most one row that has not ended.
 
-import { DatabaseSync } from "node:sqlite";
+import { openDatabase, runTransaction } from "./sqlite.mjs";
 
 const schema = `
   CREATE TABLE IF NOT EXISTS merge_requests (
@@ -25,6 +25,8 @@ const schema = `
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL
   );
+  CREATE INDEX IF NOT EXISTS merge_requests_pull_request
+    ON merge_requests (session_key, pull_request_number);
 `;
 
 export const mergeStates = {
@@ -49,21 +51,13 @@ export class MergeRequestStore {
   #now;
 
   constructor(path, { now = () => new Date() } = {}) {
-    this.#database = new DatabaseSync(path);
+    this.#database = openDatabase(path);
     this.#database.exec(schema);
     this.#now = now;
   }
 
   #transaction(callback) {
-    this.#database.exec("BEGIN IMMEDIATE");
-    try {
-      const result = callback();
-      this.#database.exec("COMMIT");
-      return result;
-    } catch (error) {
-      this.#database.exec("ROLLBACK");
-      throw error;
-    }
+    return runTransaction(this.#database, callback);
   }
 
   /**
@@ -147,15 +141,20 @@ export class MergeRequestStore {
   /**
    * The merge may or may not have happened: it is never repeated blindly. The
    * answer of the request that got here already told the topic.
+   *
+   * The state and the moment it was told are written together: a crash between
+   * the two must not make a restart tell the same unknown result again.
    */
   markUncertain(updateIdentifier) {
-    const changed = this.#transition(
-      updateIdentifier,
-      [mergeStates.merging],
-      mergeStates.uncertain,
-    );
-    if (changed) this.markNotified(updateIdentifier);
-    return changed;
+    return this.#transaction(() => {
+      const changed = this.#transition(
+        updateIdentifier,
+        [mergeStates.merging],
+        mergeStates.uncertain,
+      );
+      if (changed) this.markNotified(updateIdentifier);
+      return changed;
+    });
   }
 
   /** A person confirmed the unknown result as not merged: the request ends. */

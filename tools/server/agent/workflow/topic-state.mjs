@@ -19,6 +19,7 @@
 
 import { mergeStates } from "../repository/merge-request-store.mjs";
 import { previewStates } from "../repository/preview-request-store.mjs";
+import { pullRequestReviewUrl } from "../policy/development.mjs";
 import { ciResults } from "./ci-watch.mjs";
 
 const ciResultDescriptions = {
@@ -59,15 +60,38 @@ function describeState(descriptions, state) {
 /**
  * The pull request the topic published last and still owns, read from the CI
  * watches, or null. Without those watches the service knows none.
+ *
+ * `includeEnded` keeps a closed or merged pull request in the answer: the state
+ * block still describes the change the topic last worked on. The classifier
+ * asks for the open view instead, so it never receives a pull request that can
+ * no longer be continued as the topic's active one.
  */
-export function createTopicPullRequestFinder(ciWatches) {
+export function createTopicPullRequestFinder(
+  ciWatches,
+  { includeEnded = true, mergeRequests = null } = {},
+) {
   return function findTopicPullRequest(sessionKey) {
     const publications = ciWatches.latestPublications();
     const owned = publications.find(
       (publication) =>
         publication.session_key === sessionKey && publication.is_owner_latest,
     );
-    return owned?.pull_request_number ?? null;
+    if (owned === undefined) {
+      return null;
+    }
+    if (includeEnded) {
+      return owned.pull_request_number;
+    }
+    if (owned.delivered_result === ciResults.pullRequestClosed) {
+      return null;
+    }
+    const merge = mergeRequests?.latest({
+      sessionKey,
+      pullRequestNumber: owned.pull_request_number,
+    });
+    return merge?.state === mergeStates.merged
+      ? null
+      : owned.pull_request_number;
   };
 }
 
@@ -147,6 +171,12 @@ export function createTopicStateReader({
       };
     }
     if (preview.state !== previewStates.confirmed) {
+      // A request of another commit is not the preview of the reported one: it
+      // belongs to an earlier change or to work that has no report yet, and the
+      // block never presents it as the state of this commit.
+      if (lastReported !== null && preview.commit_sha !== lastReported.commit) {
+        return null;
+      }
       return {
         description: describeState(previewDescriptions, preview.state),
         origin: null,
@@ -188,7 +218,10 @@ export function createTopicStateReader({
     });
     return {
       pullRequest: {
-        url: `https://github.com/${repositoryName}/pull/${pullRequestNumber}`,
+        url: pullRequestReviewUrl({
+          repository: repositoryName,
+          pullRequestNumber,
+        }),
         fromAnotherTopic: source.fromAnotherTopic,
         isClosed: lastReported.row?.result === ciResults.pullRequestClosed,
         isMerged: merge?.state === mergeStates.merged,

@@ -15,7 +15,7 @@
 // the model of the topic never builds or guesses a preview URL and cannot read
 // GitHub from its sandbox.
 
-import { DatabaseSync } from "node:sqlite";
+import { openDatabase, runTransaction } from "./sqlite.mjs";
 
 const schema = `
   CREATE TABLE IF NOT EXISTS preview_requests (
@@ -30,6 +30,10 @@ const schema = `
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL
   );
+  CREATE INDEX IF NOT EXISTS preview_requests_pull_request
+    ON preview_requests (session_key, pull_request_number);
+  CREATE INDEX IF NOT EXISTS preview_requests_state_commented
+    ON preview_requests (state, commented_at);
 `;
 
 /**
@@ -62,6 +66,14 @@ export const previewBeginResults = {
   open: "open",
 };
 
+// The states a request can end in. A confirmed end also carries the origin the
+// trusted publisher confirmed.
+const terminalStates = new Set([
+  previewStates.confirmed,
+  previewStates.timedOut,
+  previewStates.failed,
+]);
+
 // A request that has not ended: it blocks a new one for the same commit.
 const openStates = [
   previewStates.commenting,
@@ -74,22 +86,14 @@ export class PreviewRequestStore {
   #now;
 
   constructor(path, { now = () => new Date() } = {}) {
-    this.#database = new DatabaseSync(path);
+    this.#database = openDatabase(path);
     this.#database.exec(schema);
     ensureConfirmedOriginColumn(this.#database);
     this.#now = now;
   }
 
   #transaction(callback) {
-    this.#database.exec("BEGIN IMMEDIATE");
-    try {
-      const result = callback();
-      this.#database.exec("COMMIT");
-      return result;
-    } catch (error) {
-      this.#database.exec("ROLLBACK");
-      throw error;
-    }
+    return runTransaction(this.#database, callback);
   }
 
   /**
@@ -205,9 +209,16 @@ export class PreviewRequestStore {
    * End an awaiting request. The confirmed origin is written with the state, in
    * one statement: a confirmation never ends without the URL the publisher
    * confirmed, and `updated_at` becomes the moment the request ended. A second
-   * claim never succeeds.
+   * claim never succeeds. Only a terminal state can end a request, because the
+   * row of an ended request is never described by a state it cannot reach.
    */
   finish(updateIdentifier, state, origin = null) {
+    if (!terminalStates.has(state)) {
+      throw new Error(`Invalid preview end state ${state}.`);
+    }
+    if (state === previewStates.confirmed && origin === null) {
+      throw new Error("A confirmed preview requires the origin it confirmed.");
+    }
     // Only a confirmed request keeps an origin: a request that ended another way
     // never leaves a URL behind.
     const confirmedOrigin = state === previewStates.confirmed ? origin : null;
@@ -233,16 +244,26 @@ export class PreviewRequestStore {
    * state either of them is in: a request that already ended still separates the
    * runs of its neighbours, so the bound never depends on which rows are still
    * awaiting.
+   *
+   * `since` keeps only the comments at or after that instant. The worker polls
+   * this list every cycle and only needs the comments that can bound a request
+   * still awaiting, so it never loads the whole history. An unreadable instant
+   * is ignored: the filter then keeps every row.
    */
-  commented() {
+  commented({ since = null } = {}) {
+    // A bound that cannot be read says nothing: the filter keeps every row.
+    const boundedSince =
+      since !== null && Number.isFinite(Date.parse(since)) ? since : null;
     return this.#database
       .prepare(
         `SELECT update_identifier, session_key, pull_request_number, commit_sha,
                 state, commented_at, created_at
-         FROM preview_requests WHERE commented_at IS NOT NULL
+         FROM preview_requests
+         WHERE commented_at IS NOT NULL
+           AND (? IS NULL OR julianday(commented_at) >= julianday(?))
          ORDER BY commented_at, update_identifier`,
       )
-      .all();
+      .all(boundedSince, boundedSince);
   }
 
   /** Requests whose post may or may not have happened, oldest first. */
@@ -260,11 +281,17 @@ export class PreviewRequestStore {
   /**
    * A person read GitHub and the `/preview` comment exists: the request waits
    * for the publisher as if the post had been confirmed. The deadline restarts
-   * now, because the confirmation is read from this moment on. The guarded
-   * update refuses a case that is no longer uncertain.
+   * now, because the confirmation is read from this moment on, while the comment
+   * keeps the moment of the request: that is the instant a workflow run of this
+   * request is attributed from. The guarded update refuses a case that is no
+   * longer uncertain.
    */
-  resolveUncertainCommented(updateIdentifier) {
-    return this.#resolveUncertain(updateIdentifier, previewStates.awaiting);
+  resolveUncertainCommented(updateIdentifier, commentedAt = null) {
+    return this.#resolveUncertain(
+      updateIdentifier,
+      previewStates.awaiting,
+      commentedAt,
+    );
   }
 
   /**
@@ -273,24 +300,35 @@ export class PreviewRequestStore {
    * that is no longer uncertain.
    */
   resolveUncertainNotCommented(updateIdentifier) {
-    return this.#resolveUncertain(updateIdentifier, previewStates.failed);
+    return this.#resolveUncertain(updateIdentifier, previewStates.failed, null);
   }
 
-  #resolveUncertain(updateIdentifier, state) {
+  #resolveUncertain(updateIdentifier, state, explicitCommentedAt) {
     return this.#transaction(() => {
-      const timestamp = this.#now().toISOString();
-      const commentedAt = state === previewStates.awaiting ? timestamp : null;
-      const changed =
-        this.#database
-          .prepare(
-            `UPDATE preview_requests
-             SET state = ?, commented_at = COALESCE(?, commented_at), updated_at = ?
-             WHERE update_identifier = ? AND state = 'uncertain'`,
-          )
-          .run(state, commentedAt, timestamp, updateIdentifier).changes === 1;
-      if (!changed) {
+      const row = this.#database
+        .prepare(
+          `SELECT created_at FROM preview_requests
+           WHERE update_identifier = ? AND state = 'uncertain'`,
+        )
+        .get(updateIdentifier);
+      if (row === undefined) {
         return null;
       }
+      const timestamp = this.#now().toISOString();
+      // The comment was posted around the moment the request began. Keeping
+      // that moment, instead of the later confirmation, is what puts the run of
+      // this request inside its own attribution window.
+      const commentedAt =
+        state === previewStates.awaiting
+          ? (explicitCommentedAt ?? row.created_at)
+          : null;
+      this.#database
+        .prepare(
+          `UPDATE preview_requests
+           SET state = ?, commented_at = COALESCE(?, commented_at), updated_at = ?
+           WHERE update_identifier = ? AND state = 'uncertain'`,
+        )
+        .run(state, commentedAt, timestamp, updateIdentifier);
       return this.#database
         .prepare(
           `SELECT update_identifier, session_key, pull_request_number, commit_sha,

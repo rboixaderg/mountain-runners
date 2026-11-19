@@ -29,6 +29,9 @@ export function createOverlapWarning({
   worktreeRoot,
   identifiers,
   listPullRequests,
+  // A merged pull request is no longer work another topic is carrying: its
+  // branch can still be read locally, but it must not warn as an active overlap.
+  isMerged = () => false,
   recordTrace = () => {},
 }) {
   /**
@@ -105,7 +108,8 @@ export function createOverlapWarning({
       if (
         published.pull_request_number === continuedPullRequestNumber ||
         published.delivered_result === ciResults.pullRequestClosed ||
-        !published.is_owner_latest
+        !published.is_owner_latest ||
+        isMerged(published)
       ) {
         continue;
       }
