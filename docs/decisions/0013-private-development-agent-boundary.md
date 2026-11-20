@@ -156,6 +156,27 @@ L'[ADR 0009](0009-pr-previews-same-domain-and-own-branches.md) s'esmena en aques
 
 El publicador actual comprova que l'autor del comentari de GitHub sigui col·laborador; no veu la petició de Telegram. La delegació requereix, a més de l'esmena aprovada, proves del flux i dels permisos; fins que es facin, continua vigent el flux de preview amb autorització humana a GitHub.
 
+## Esmena proposada (T8.9, 20 de novembre de 2026)
+
+Proposada fins que es fusioni la PR d'aquesta especificació. Substitueix la
+regla que exigeix una petició explícita de preview: el servei la demana quan
+les comprovacions obligatòries del cap de la PR del tema són verdes. Conserva
+branques pròpies, vinculació al SHA i revalidació del publicador segons
+l'esmena proposada de l'ADR 0009. Un tema té una sola feina i PR; l'estat per
+al model i per a les decisions es llegeix de GitHub, no només dels esdeveniments.
+
+El token acotat del servei necessita `Actions: write` per reexecutar una sola
+vegada una comprovació cancel·lada, esgotada o fallida abans dels passos del
+projecte. Aquest permís també permet altres accions sobre execucions de
+workflows: el compromís del servei o del token augmenta el risc d'abús i consum
+de recursos. El token no entra al sandbox; les crides del servei es limiten al
+reintent autoritzat i es registren. Cal verificar permisos i controls abans de
+l'activació; aquesta esmena no modifica cap credencial.
+
+No canvien la verificació i revocació de membres, el sandbox sense xarxa ni
+credencials, el merge determinista només a petició humana verificada, ni la
+protecció de producció.
+
 ## Comprovacions i punts pendents
 
 L'esmena de merge i l'esmena de l'ADR 0009 ja estan aprovades. Abans d'activar el pilot cal provar els controls essencials d'identitat, aïllament, credencials i protecció de `main`. El compte de GitHub triat és administrador; un compte de prova sense accés al repositori no substitueix les comprovacions de la credencial i del component de confiança que utilitzarà el servei. Les comprovacions de permisos no fusionen cap PR ni fan push a `main`; el merge del pilot s'exercita després, amb autorització explícita.

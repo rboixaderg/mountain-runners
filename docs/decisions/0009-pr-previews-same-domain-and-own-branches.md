@@ -118,6 +118,20 @@ La delegació s'activa amb el pilot de la fase 8, després de verificar-ne els
 permisos i el flux. Fins llavors continua vigent el flux de preview amb
 autorització humana a GitHub.
 
+## Esmena proposada (T8.9, 20 de novembre de 2026)
+
+Proposada fins que es fusioni la PR d'aquesta especificació. Substitueix, per
+l'agent privat, l'exigència de petició explícita al fil de l'esmena T8.2:
+quan les comprovacions obligatòries del cap són verdes, el servei demana la
+preview automàticament amb `/preview` i retorna l'URL confirmada. La persona
+no ha de conèixer aquest mecanisme.
+
+Es mantenen les branques del repositori principal, la vinculació al SHA vigent,
+la revalidació del publicador, la retirada en tancar o revocar la PR i
+`PreviewNotice` amb `PUBLIC_PREVIEW`. La petició automàtica augmenta les
+publicacions de contingut no fiable: els controls d'aïllament i autorització
+continuen sent obligatoris. No s'activa fins que s'hagin verificat els controls.
+
 ## Raonament
 
 La T6.1 (PR #113) modela el contingut d'una PR com a contingut actiu no fiable

@@ -460,7 +460,14 @@ forçar-lo. La credencial de GitHub ha de ser un token acotat al repositori amb
 `Contents: write`, `Pull requests: write` i `Actions: read` (per llegir el
 resultat de la preview), sense `Workflows: write` ni permisos
 d'administració. El rol administrador del compte no prova els permisos del
-token. Abans del pilot cal verificar els permisos reals i les regles de branca
+token. T8.9 proposa substituir `Actions: read` per `Actions: write` per
+reexecutar una sola vegada comprovacions cancel·lades, esgotades o fallides
+abans dels passos del projecte. Aquest permís també permet altres accions sobre
+execucions de workflows i augmenta el risc d'abús i de consum de recursos si es
+compromet el servei o el token. La credencial continua fora del sandbox; el
+servei limita i registra els reintents. El canvi queda pendent de l'aprovació de
+l'esmena de l'ADR 0013 i de verificar els controls; no s'atorga aquí.
+Abans del pilot cal verificar els permisos reals i les regles de branca
 dels entorns `previews` i `production`; aquestes proves locals no ho demostren.
 
 Tota ordre Git de confiança té termini i aturada: 120 s per a una operació local
