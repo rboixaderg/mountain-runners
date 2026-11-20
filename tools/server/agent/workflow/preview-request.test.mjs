@@ -449,34 +449,35 @@ test("a membership read that runs out of its deadline refuses and asks to retry"
   );
 });
 
-test("refuses without a commit reported green in the topic", async (context) => {
-  const { ciWatches, handler, github, traces } = setup(context);
+test("refuses without a pull request reported in the topic", async (context) => {
+  const { handler, github, traces } = setup(context);
 
-  const none = await handler.handle(request());
-  assert.match(none.report, /no hi ha cap canvi amb totes les comprovacions/u);
+  const result = await handler.handle(request());
+  assert.match(
+    result.report,
+    /no hi ha cap canvi amb totes les comprovacions/u,
+  );
+  assert.deepEqual(github.posts, []);
+  assert.equal(traces[0].detail, "no_reported_commit");
+});
 
+test("requests a preview after a human rerun makes a repairing watch green", async (context) => {
+  const { ciWatches, handler, github, previews } = setup(context);
   ciWatches.add({
     updateIdentifier: 10,
     sessionKey,
     pullRequestNumber: 200,
     commitSha: commit,
   });
-  ciWatches.beginSend(10, "failure");
+  ciWatches.beginSend(10, "repairing");
   ciWatches.finishSend(10);
-  const failed = await handler.handle(request(21));
-  assert.match(
-    failed.report,
-    /no hi ha cap canvi amb totes les comprovacions/u,
-  );
 
-  assert.deepEqual(github.posts, []);
-  assert.deepEqual(
-    traces
-      .filter((entry) => entry.action === "preview_refused")
-      .map((entry) => entry.detail),
-    ["no_reported_commit", "no_reported_commit"],
-  );
-  assert.ok(!actions(traces).includes("preview_requested"));
+  const result = await handler.handle(request());
+
+  assert.match(result.report, /Ja he demanat la preview/u);
+  assert.deepEqual(github.posts, [{ number: 200, body: "/preview" }]);
+  assert.equal(previews.state(20), "awaiting");
+  assert.deepEqual(github.checkCommits, [commit]);
 });
 
 test("never accepts a PR or commit from the request text", async (context) => {

@@ -48,7 +48,6 @@ import {
   previewRunsRetryMilliseconds,
   pullRequestReviewUrl,
 } from "../policy/development.mjs";
-import { ciResults } from "./ci-watch.mjs";
 
 const refusals = {
   membershipRevoked: "membership_revoked",
@@ -265,7 +264,7 @@ export function createPreviewRequests({
   /** The instruction runner calls this for a request classified as `preview`. */
   async function handle(request, { signal } = {}) {
     const reported = reportedCommits.lastReported(request.sessionKey);
-    if (reported?.result !== ciResults.success) {
+    if (reported === undefined) {
       return refuse(
         request,
         refusals.noReportedCommit,
