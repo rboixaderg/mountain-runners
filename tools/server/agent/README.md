@@ -64,7 +64,7 @@ tools/server/agent/               aplicació de Mountain Runners
 │   ├── merge-request.mjs           comanda `/merge` determinista i recuperació
 │   ├── cross-topic-continuation.mjs represa d'una PR publicada des d'un altre tema
 │   ├── overlap-warning.mjs         avís dels fitxers que se solapen amb feines actives
-│   ├── topic-state.mjs             estat del tema que rep cada torn, des dels magatzems
+│   ├── topic-state.mjs             estat del tema que rep cada torn, amb lectures de GitHub
 │   └── ci-repair.mjs               executa una reparació quan la cua està inactiva
 ├── runtime/
 │   ├── request-kind.mjs          interpreta la petició actual sense eines
@@ -348,30 +348,14 @@ al servidor. El nom local encara no representa una publicació a npm.
     servei com a nota. El classificador no rep mai aquest bloc. El mateix store
     desa l'última resposta del tema, que el classificador llegeix com a dada.
 
-13. Cada torn del model rep l'estat del tema com a dada. `workflow/topic-state.mjs`
-    el construeix amb els magatzems duradors i sense cap crida a GitHub: la PR que
-    treballa el torn i el seu enllaç, l'últim commit informat amb el resultat de
-    les comprovacions obligatòries, si hi ha feina més nova sense informar,
-    l'última petició de preview (l'estat surt de `previewStates`) i l'última de
-    merge. Les lectures de l'informe, la preview i el merge es filtren per la PR
-    que el bloc imprimeix; el senyal de feina més nova continua sent del tema.
-    `workflow/topic-state.mjs` descriu cada estat en paraules planes —un estat que
-    el codi encara no descriu arriba amb el seu valor, marcat com a tal— i el bloc
-    demana al model que expliqui les paraules a la persona sense identificadors de
-    commit, noms de fitxer ni noms de comprovació. El bloc arriba a consultes,
-    implementacions, continuacions i reparacions, separat de la petició com el
-    bloc d'efectes del punt 12, i no al classificador. Un torn que continua la PR
-    d'un altre tema descriu aquella PR i els fets del tema que encara la té
-    (últim informe, preview i merge) i ho diu, fins que la publicació d'aquest
-    tema en registra el seguiment. L'URL de la preview només s'hi inclou quan el
-    magatzem té l'origen que el publicador de confiança ha confirmat per al
-    commit informat, encara que una petició posterior per al mateix commit
-    estigui en curs; el servei no construeix ni endevina cap URL i, si la
-    confirmació és d'un canvi anterior, ho diu sense URL. La línia de la PR
-    indica quan l'últim informe la dona per tancada o quan el merge consta fet.
-    El bloc no conté identificadors de Telegram ni dades de les persones. Si no
-    es pot llegir l'estat, el servei ho registra (`topic_state_failed`) i el torn
-    continua.
+13. Cada torn rep com a dada l'estat de la PR del tema. El servei la identifica
+    amb els seguiments desats i llegeix de GitHub el cap i les comprovacions
+    obligatòries. Revalida el cap i llegeix la confirmació del publicador per a
+    la preview del cap actual. Si no pot confirmar l'estat, el bloc diu que no
+    es pot comprovar. El sandbox continua sense xarxa ni credencials. La petició
+    explícita de preview també comprova el cap i la CI a GitHub, encara que el
+    resultat desat sigui anterior. La lectura viva de les decisions de merge i
+    reparació resta pendent del bloc 1 de T8.9.
 
 Les imatges d'una implementació o una continuació segueixen aquest camí.
 `attachments/prepare.mjs` descarrega cada fitxer al directori temporal del
