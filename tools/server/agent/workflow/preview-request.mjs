@@ -2,12 +2,14 @@
 //
 // A verified person asks in natural language for the preview of the pull
 // request the topic reported as green. The model is never started for it: the
-// service pins the request to the commit it last reported to that topic,
-// re-reads the pull request and its required checks, posts the constant
-// `/preview` comment with its own GitHub credential and then waits for the
-// trusted publisher of phase 6 to confirm it. The URL is never built or
-// guessed: only the publisher's own comment, written after the request and
-// naming the pinned commit, is reported.
+// service re-reads the pull request and its required checks, pins the request to
+// the current head of that open pull request, posts the constant `/preview`
+// comment with its own GitHub credential and then waits for the trusted
+// publisher of phase 6 to confirm it. The head can be newer than the commit the
+// topic reported, because a maintainer may have updated the pull request
+// outside the agent; the preview is bound anyway to that exact head commit and
+// only to it. The URL is never built or guessed: only the publisher's own
+// comment, written after the request and naming the pinned commit, is reported.
 //
 // Waiting also reads the runs of the preview workflow (T8.8): a run that ended
 // badly ends the request as failed and says so in plain words, instead of
@@ -215,8 +217,10 @@ export function createPreviewRequests({
   }
 
   /**
-   * Re-read the live state of the pinned commit. Any picture that is not clearly
-   * green on the main repository's open pull request is a refusal.
+   * Re-read the live state of the topic's pull request and choose the commit the
+   * preview is bound to: its current head. Any picture that is not clearly green
+   * on the main repository's open pull request is a refusal, and the refusal
+   * carries the commit it was decided for, so every trace names it.
    */
   async function findRefusal(target, signal) {
     const readSignal = requestSignal(signal, requestTimeoutMilliseconds);
@@ -224,24 +228,31 @@ export function createPreviewRequests({
       number: target.pullRequestNumber,
       signal: readSignal,
     });
-    if (pullRequest.state !== "open" || pullRequest.headSha !== target.commit) {
-      return refusals.notApplicable;
+    if (pullRequest.state !== "open") {
+      return { refusal: refusals.notApplicable, commit: target.commit };
     }
     if (
       pullRequest.headRepository?.toLowerCase() !== repository.toLowerCase()
     ) {
-      return refusals.notMainRepository;
+      return { refusal: refusals.notMainRepository, commit: target.commit };
     }
+    // The head is the commit the publisher builds and the comment names, even
+    // when it was updated outside the agent after the reported notice.
+    const commit = pullRequest.headSha;
     const [checkRuns, statuses] = await Promise.all([
-      github.getCommitCheckRuns({ commit: target.commit, signal: readSignal }),
-      github.getCommitStatuses({ commit: target.commit, signal: readSignal }),
+      github.getCommitCheckRuns({ commit, signal: readSignal }),
+      github.getCommitStatuses({ commit, signal: readSignal }),
     ]);
     const classification = classifyCommitStatus({
       requiredChecks,
       checkRuns,
       statuses,
     });
-    return classification.state === "success" ? null : refusals.checksNotGreen;
+    return {
+      refusal:
+        classification.state === "success" ? null : refusals.checksNotGreen,
+      commit,
+    };
   }
 
   const refusalTexts = {
@@ -326,39 +337,45 @@ export function createPreviewRequests({
       detail: describeTarget(target),
     });
 
-    let refusal;
+    let decision;
     try {
-      refusal = await findRefusal(target, signal);
+      decision = await findRefusal(target, signal);
     } catch (error) {
       signal?.throwIfAborted();
       logger(
         "preview_read_failed",
         error instanceof Error ? error.name : "unknown",
       );
-      refusal = refusals.unreadable;
+      decision = { refusal: refusals.unreadable, commit: target.commit };
     }
-    if (refusal !== null) {
+    if (decision.refusal !== null) {
+      const refusedTarget = { ...target, commit: decision.commit };
       return refuse(
         request,
-        refusal,
-        refusalTexts[refusal]({ reviewUrl }),
-        `${refusal} ${describeTarget(target)}`,
+        decision.refusal,
+        refusalTexts[decision.refusal]({ reviewUrl }),
+        `${decision.refusal} ${describeTarget(refusedTarget)}`,
       );
     }
+
+    // Every later step — the stored row, the comment, the confirmation, the
+    // traces and the note — uses this commit, so the preview stays bound to the
+    // exact SHA whose required checks were read.
+    const previewTarget = { ...target, commit: decision.commit };
 
     const begun = store.begin({
       updateIdentifier: request.updateIdentifier,
       sessionKey: request.sessionKey,
       authorIdentifier: request.authorIdentifier,
-      pullRequestNumber: target.pullRequestNumber,
-      commitSha: target.commit,
+      pullRequestNumber: previewTarget.pullRequestNumber,
+      commitSha: previewTarget.commit,
     });
     if (begun === previewBeginResults.duplicate) {
       return refuse(
         request,
         refusals.alreadyHandled,
         previewReports.alreadyHandled({ reviewUrl }),
-        `${refusals.alreadyHandled} ${describeTarget(target)}`,
+        `${refusals.alreadyHandled} ${describeTarget(previewTarget)}`,
       );
     }
     if (begun === previewBeginResults.open) {
@@ -366,14 +383,14 @@ export function createPreviewRequests({
         request,
         refusals.alreadyInProgress,
         previewReports.alreadyInProgress({ reviewUrl }),
-        `${refusals.alreadyInProgress} ${describeTarget(target)}`,
+        `${refusals.alreadyInProgress} ${describeTarget(previewTarget)}`,
       );
     }
 
     let comment;
     try {
       comment = await github.commentOnPullRequest({
-        number: target.pullRequestNumber,
+        number: previewTarget.pullRequestNumber,
         body: previewCommand,
         signal: requestSignal(signal, requestTimeoutMilliseconds),
       });
@@ -386,7 +403,7 @@ export function createPreviewRequests({
           authorIdentifier: request.authorIdentifier,
           sessionKey: request.sessionKey,
           action: "preview_failed",
-          detail: `${describeTarget(target)} HTTP ${statusClass(error.status)}`,
+          detail: `${describeTarget(previewTarget)} HTTP ${statusClass(error.status)}`,
         });
         return {
           outcome: "answered",
@@ -404,7 +421,7 @@ export function createPreviewRequests({
         authorIdentifier: request.authorIdentifier,
         sessionKey: request.sessionKey,
         action: "preview_uncertain",
-        detail: describeTarget(target),
+        detail: describeTarget(previewTarget),
       });
       return {
         outcome: "uncertain",
@@ -417,7 +434,7 @@ export function createPreviewRequests({
       authorIdentifier: request.authorIdentifier,
       sessionKey: request.sessionKey,
       action: "preview_commented",
-      detail: describeTarget(target),
+      detail: describeTarget(previewTarget),
     });
     return {
       outcome: "answered",

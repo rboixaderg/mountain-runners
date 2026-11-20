@@ -905,9 +905,11 @@ export const previewReports = {
       "Aquesta petició de preview ja s'havia atès. No s'ha demanat res de nou.",
       reviewUrl,
     ),
+  // Only the proposal that is no longer open reaches this text: a proposal that
+  // is still open is previewed at its current head, whatever the reported commit.
   notApplicable: ({ reviewUrl }) =>
     withReviewLink(
-      "Aquest canvi ja no es pot previsualitzar perquè la revisió s'ha tancat o hi ha canvis més nous. No s'ha demanat cap preview.",
+      "Aquesta proposta ja està tancada, així que no se'n pot fer la preview. No s'ha demanat cap preview.",
       reviewUrl,
     ),
   notMainRepository: ({ reviewUrl }) =>
