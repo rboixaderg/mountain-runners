@@ -1,0 +1,18 @@
+tools/server/agent/policy/development.mjs
+  h_1727aeeb492b30 827
+tools/server/agent/workflow/cross-topic-continuation.test.mjs
+  h_1727aeeb492b30 159-164,339,341,343-346
+tools/server/agent/workflow/topic-state.mjs
+  h_1727aeeb492b30 163
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "f8ca27cd9114d56de64557bea4ad7f6ba319a6b8",
+  "prompts": {},
+  "humans": {
+    "h_1727aeeb492b30": {
+      "author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
