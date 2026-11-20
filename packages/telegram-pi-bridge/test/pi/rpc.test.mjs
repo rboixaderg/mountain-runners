@@ -529,6 +529,43 @@ process.stdout.write(JSON.stringify({type:"agent_settled",aborted:false})+"\\n")
   assert.equal(result.text, "usable");
 });
 
+test("reports the provider error of a turn that settled without an answer", async (context) => {
+  const directory = fixture(context);
+  const { executable } = fakePi(context, {
+    script: `
+process.stdout.write(JSON.stringify({type:"message_end",message:{role:"assistant",content:[],stopReason:"error",errorMessage:"429: rate limit reached"}})+"\\n");
+process.stdout.write(JSON.stringify({type:"agent_settled",aborted:false})+"\\n");
+`,
+  });
+  const result = await runPiPrompt({
+    ...optionsFor(executable),
+    profileDirectory: directory.profile,
+    cwd: directory.worktreePath,
+    message: "question",
+  });
+  assert.equal(result.text, "");
+  assert.equal(result.errorMessage, "429: rate limit reached");
+});
+
+test("keeps the answer of a turn whose earlier attempt failed", async (context) => {
+  const directory = fixture(context);
+  const { executable } = fakePi(context, {
+    script: `
+process.stdout.write(JSON.stringify({type:"message_end",message:{role:"assistant",content:[],stopReason:"error",errorMessage:"429: rate limit reached"}})+"\\n");
+process.stdout.write(JSON.stringify({type:"message_end",message:{role:"assistant",content:[{type:"text",text:"ANSWER: synthetic"}]}})+"\\n");
+process.stdout.write(JSON.stringify({type:"agent_settled",aborted:false})+"\\n");
+`,
+  });
+  const result = await runPiPrompt({
+    ...optionsFor(executable),
+    profileDirectory: directory.profile,
+    cwd: directory.worktreePath,
+    message: "question",
+  });
+  assert.equal(result.text, "ANSWER: synthetic");
+  assert.equal(result.errorMessage, null);
+});
+
 test("reads a trailing record without a newline at the end of the stream", async (context) => {
   const directory = fixture(context);
   const { executable } = fakePi(context, {

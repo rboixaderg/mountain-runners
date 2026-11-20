@@ -1276,9 +1276,15 @@ seu no quedi fora de la sessió.
   retallada a 800 caràcters (resposta del model o informe del servei), si el
   worktree del tema té canvis o commits sense publicar (lectura de Git, sense
   fetch ni worktree nou) i el número de la PR que el tema va publicar i encara
-  té. Una petició que respon aquella resposta o que aporta dades, correccions o
-  fitxers per a la feina pendent o per a aquella PR és una continuació; una
-  feina nova i independent és una implementació. Cada classificació es traça com
+  té. Una petició que actua sobre el canvi del tema (l'edita, el publica, el
+  reintenta o hi aporta dades, correccions, una aprovació o una resposta) és una
+  continuació; un agraïment, un dubte sobre l'estat o una ordre d'esperar és una
+  consulta, i publicar mai no és una preview. Una feina sobre un altre contingut
+  és una implementació. Un límit de peticions del proveïdor (HTTP 429) es
+  reintenta com a màxim dues vegades amb una espera curta dins del mateix termini
+  de la classificació; si persisteix, la petició falla en lloc de tractar-se com
+  un aclariment. Cap altre error es reintenta i una aturada no ho fa mai. Cada
+  classificació es traça com
   a `instruction_classified`, amb el tipus com a detall; una petició que demana
   la preview juntament amb el canvi ho traça com a `preview_after_change`.
 - **Continuació sobre la PR del tema.** Si una continuació no nomena cap `#N`,

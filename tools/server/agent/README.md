@@ -133,7 +133,10 @@ al servidor. El nom local encara no representa una publicació a npm.
 2. `workflow` interpreta la petició amb una crida efímera sense eines i sense
    historial. A més del text, rep com a dada l'última resposta del tema
    (retallada), si el worktree del tema té feina sense publicar i el número de la
-   PR que el tema va publicar i encara té. La classificació queda a la traça
+   PR que el tema va publicar i encara té. Un límit de peticions del proveïdor
+   (HTTP 429) es reintenta com a màxim dues vegades, amb una espera curta, dins
+   del mateix termini de la classificació; si persisteix, la petició falla.
+   Cap altre error es reintenta i una aturada no ho fa mai. La classificació queda a la traça
    (`instruction_classified`). Si no és clara, el torn és una consulta (punt 4) i
    no una resposta fixa.
 3. El servei prepara el worktree actual del tema. El directori es diu

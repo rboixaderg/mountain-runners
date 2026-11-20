@@ -10,6 +10,7 @@
 import { mkdir } from "node:fs/promises";
 import { join } from "node:path";
 import { runProjectPrompt } from "./pi-adapter.mjs";
+import { sleep } from "../repository/request-signal.mjs";
 import {
   buildClassificationPrompt,
   parsePreviewAfterChange,
@@ -28,23 +29,60 @@ export function classificationTimeoutMilliseconds(config) {
   );
 }
 
+// A provider rate limit is transient and says nothing about the request, so the
+// classification is asked again instead of failing the whole instruction. The
+// waits stay short and every attempt draws from the same deadline.
+export const classificationRetryDelaysMilliseconds = [2000, 5000];
+
+// The provider error of a rate limit, as the transport reports it. It is the
+// only failure worth asking again; any other error is the answer of the service.
+const rateLimitPattern =
+  /(?<![a-z0-9])(?:429|rate.?limit|too many requests)(?![a-z0-9])/iu;
+
+function isRateLimit(errorMessage) {
+  return (
+    typeof errorMessage === "string" && rateLimitPattern.test(errorMessage)
+  );
+}
+
 export async function classifyRequest(
   config,
-  { instruction, context, signal, environment },
+  {
+    instruction,
+    context,
+    signal,
+    environment,
+    retryDelaysMilliseconds = classificationRetryDelaysMilliseconds,
+    runPrompt = runProjectPrompt,
+    wait = sleep,
+  },
 ) {
   const directory = join(config.paths.state, "request-classifier");
   await mkdir(directory, { recursive: true, mode: 0o700 });
-  const result = await runProjectPrompt({
-    config,
-    profileDirectory: directory,
-    worktreePath: directory,
-    classifyOnly: true,
-    environment,
-    signal,
-    timeoutMilliseconds: classificationTimeoutMilliseconds(config),
-    message: buildClassificationPrompt(instruction, context),
-  });
-  if (result.timedOut || result.aborted) {
+  const message = buildClassificationPrompt(instruction, context);
+  const deadline = Date.now() + classificationTimeoutMilliseconds(config);
+  const classifyOnce = () =>
+    runPrompt({
+      config,
+      profileDirectory: directory,
+      worktreePath: directory,
+      classifyOnly: true,
+      environment,
+      signal,
+      timeoutMilliseconds: Math.max(1, deadline - Date.now()),
+      message,
+    });
+  let result = await classifyOnce();
+  for (const delayMilliseconds of retryDelaysMilliseconds) {
+    if (!isRateLimit(result.errorMessage) || signal?.aborted) break;
+    if (Date.now() + delayMilliseconds >= deadline) break;
+    await wait(delayMilliseconds, signal);
+    signal?.throwIfAborted();
+    result = await classifyOnce();
+  }
+  // A rate limit that outlasted the retries is not an answer: reading its empty
+  // text would silently turn the request into a clarification.
+  if (result.timedOut || result.aborted || isRateLimit(result.errorMessage)) {
     throw new Error("The request classification did not complete.");
   }
   return {
