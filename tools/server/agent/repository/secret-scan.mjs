@@ -49,15 +49,18 @@ export async function assertPublishableHistory({
     return;
   }
 
-  // Separate merge-parent diffs and disable rename detection: both the source
-  // and destination of a move must be checked, even for transient changes.
+  // Use the combined diff of a merge, so only paths whose merge result differs
+  // from every parent are listed. A path taken unchanged from a parent is
+  // already covered by that parent, which is either in origin/main or in this
+  // range. Rename detection stays disabled: both the source and destination of
+  // a move must be checked, even for transient changes.
   const changedPaths = await runGit(
     worktree,
     [
       "diff-tree",
       "--stdin",
       "--root",
-      "-m",
+      "-c",
       "-r",
       "--no-commit-id",
       "--name-only",

@@ -294,6 +294,120 @@ for (const protectedPath of [
   });
 }
 
+test("publishes a branch that merged a newer main which changed a workflow", async (context) => {
+  const { origin, clone, worktreeRoot } = await repositoryFixture(context);
+  const worktree = await branchWorktree({
+    repository: clone,
+    worktreeRoot,
+    branch,
+    name: "topic-merged-main",
+  });
+  writeFileSync(join(worktree.path, "change.txt"), "canvi\n");
+  await git(worktree.path, ["add", "--all"]);
+  await git(worktree.path, ["commit", "-m", "feat: synthetic change"]);
+
+  writeFileSync(
+    join(clone, ".github", "workflows", "updated.yml"),
+    "synthetic workflow of main\n",
+  );
+  await git(clone, ["add", "--all"]);
+  await git(clone, ["commit", "-m", "ci: synthetic workflow of main"]);
+  await git(clone, ["push", "origin", "main"]);
+
+  await git(worktree.path, ["fetch", "origin"]);
+  await git(worktree.path, [
+    "merge",
+    "--no-ff",
+    "-m",
+    "Merge origin/main into the branch",
+    "origin/main",
+  ]);
+  writeFileSync(join(worktree.path, "change.txt"), "canvi actualitzat\n");
+  await git(worktree.path, ["add", "--all"]);
+  await git(worktree.path, ["commit", "-m", "feat: synthetic follow-up"]);
+
+  const result = await trust().pushBranch({ worktree, branch });
+
+  assert.equal(result.commit, await git(origin, ["rev-parse", branch]));
+});
+
+test("refuses a merge that changes a protected path with neither parent", async (context) => {
+  const { origin, clone, worktreeRoot } = await repositoryFixture(context);
+  const worktree = await branchWorktree({
+    repository: clone,
+    worktreeRoot,
+    branch,
+    name: "topic-evil-merge",
+  });
+  writeFileSync(join(worktree.path, "change.txt"), "canvi\n");
+  await git(worktree.path, ["add", "--all"]);
+  await git(worktree.path, ["commit", "-m", "feat: synthetic change"]);
+
+  writeFileSync(
+    join(clone, ".github", "workflows", "trusted.yml"),
+    "synthetic workflow of main\n",
+  );
+  await git(clone, ["add", "--all"]);
+  await git(clone, ["commit", "-m", "ci: synthetic workflow of main"]);
+  await git(clone, ["push", "origin", "main"]);
+
+  await git(worktree.path, ["fetch", "origin"]);
+  await git(worktree.path, ["merge", "--no-ff", "--no-commit", "origin/main"]);
+  writeFileSync(
+    join(worktree.path, ".github", "workflows", "trusted.yml"),
+    "synthetic workflow of the merge\n",
+  );
+  await git(worktree.path, ["add", "--all"]);
+  await git(worktree.path, [
+    "commit",
+    "-m",
+    "Merge origin/main into the branch",
+  ]);
+
+  await assert.rejects(
+    trust().pushBranch({ worktree, branch }),
+    PublishRefusedError,
+  );
+  await assert.rejects(git(origin, ["rev-parse", branch]));
+});
+
+test("refuses a branch commit that changes a protected path before merging main", async (context) => {
+  const { origin, clone, worktreeRoot } = await repositoryFixture(context);
+  const worktree = await branchWorktree({
+    repository: clone,
+    worktreeRoot,
+    branch,
+    name: "topic-merged-protected",
+  });
+  mkdirSync(join(worktree.path, ".github", "actions"), { recursive: true });
+  writeFileSync(
+    join(worktree.path, ".github", "actions", "injected.yml"),
+    "synthetic\n",
+  );
+  await git(worktree.path, ["add", "--all"]);
+  await git(worktree.path, ["commit", "-m", "test: introduce protected path"]);
+
+  writeFileSync(join(clone, "main-change.txt"), "synthetic\n");
+  await git(clone, ["add", "--all"]);
+  await git(clone, ["commit", "-m", "test: synthetic main change"]);
+  await git(clone, ["push", "origin", "main"]);
+
+  await git(worktree.path, ["fetch", "origin"]);
+  await git(worktree.path, [
+    "merge",
+    "--no-ff",
+    "-m",
+    "Merge origin/main into the branch",
+    "origin/main",
+  ]);
+
+  await assert.rejects(
+    trust().pushBranch({ worktree, branch }),
+    PublishRefusedError,
+  );
+  await assert.rejects(git(origin, ["rev-parse", branch]));
+});
+
 test("refuses a published history that contains an attachment path", async (context) => {
   const { origin, clone, worktreeRoot } = await repositoryFixture(context);
   const worktree = await branchWorktree({

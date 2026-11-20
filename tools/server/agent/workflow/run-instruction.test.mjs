@@ -1002,7 +1002,10 @@ test("reports a local publication refusal as a failure, not an unknown result", 
   const result = await runner(request());
 
   assert.equal(result.outcome, "failed");
-  assert.match(result.report, /una regla del projecte ho ha impedit/u);
+  assert.match(
+    result.report,
+    /un control de seguretat del servei l'ha aturat/u,
+  );
   assert.deepEqual(github.pulls, []);
 });
 
@@ -1397,7 +1400,10 @@ for (const [label, pullRequest] of [
     const result = await runner(repairRequest(published));
 
     assert.equal(result.outcome, "failed");
-    assert.match(result.report, /una regla del projecte ho ha impedit/u);
+    assert.match(
+      result.report,
+      /un control de seguretat del servei l'ha aturat/u,
+    );
     assert.equal(github.pushes.length, 1);
     assert.equal(github.pulls.length, 1);
   });

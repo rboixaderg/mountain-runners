@@ -102,6 +102,7 @@ function fakeGithub(state = {}) {
     checkRuns: [
       { name: "Validate", status: "completed", conclusion: "success" },
     ],
+    checkCommits: [],
     statuses: [],
     comments: [],
     runs: [],
@@ -119,7 +120,8 @@ function fakeGithub(state = {}) {
       if (github.readError) throw github.readError;
       return github.pullRequest;
     },
-    async getCommitCheckRuns() {
+    async getCommitCheckRuns({ commit }) {
+      github.checkCommits.push(commit);
       return github.checkRuns;
     },
     async getCommitStatuses() {
@@ -524,17 +526,6 @@ const refusalCases = [
     /encara no estan totes correctes/u,
   ],
   [
-    "head moved",
-    {
-      pullRequest: {
-        state: "open",
-        headSha: "b".repeat(40),
-        headRepository: repository,
-      },
-    },
-    /hi ha canvis més nous/u,
-  ],
-  [
     "closed pull request",
     {
       pullRequest: {
@@ -543,7 +534,7 @@ const refusalCases = [
         headRepository: repository,
       },
     },
-    /s'ha tancat/u,
+    /Aquesta proposta ja està tancada/u,
   ],
   [
     "fork",
@@ -584,6 +575,110 @@ for (const [name, state, text] of refusalCases) {
     assert.ok(actions(traces).includes("preview_refused"));
   });
 }
+
+test("previews the current head when a maintainer updated it outside the agent", async (context) => {
+  const { ciWatches, handler, github, previews, sent, traces } = setup(context);
+  reportGreen(ciWatches);
+  // The maintainer merged main into the pull request branch after the reported
+  // notice: the head is newer and its required checks are green.
+  const movedCommit = "b".repeat(40);
+  github.pullRequest = { ...github.pullRequest, headSha: movedCommit };
+
+  const result = await handler.handle(request());
+
+  assert.equal(result.outcome, "answered");
+  assert.match(result.report, /Ja he demanat la preview/u);
+  assert.deepEqual(github.posts, [{ number: 200, body: "/preview" }]);
+  assert.deepEqual(
+    github.checkCommits,
+    [movedCommit],
+    "the required checks are read for the head, not the reported commit",
+  );
+  assert.equal(previews.state(20), "awaiting");
+  assert.equal(
+    previews.awaiting()[0].commit_sha,
+    movedCommit,
+    "the stored request is bound to the head",
+  );
+  assert.deepEqual(
+    traces.map((entry) => entry.detail),
+    ["#200 aaaaaaa", "#200 aaaaaaa", "#200 bbbbbbb"],
+    "the request and the membership name the reported commit; the preview names the head",
+  );
+
+  // The publisher builds and names the head, so only that comment confirms it.
+  github.comments = [
+    publisherComment({
+      body: `<!-- mountain-runners-preview -->\nPreview publicada: ${origin}\nCommit: \`${movedCommit}\`.`,
+    }),
+  ];
+  await handler.runOnce();
+
+  assert.equal(previews.state(20), "confirmed");
+  assert.equal(sent.length, 1);
+  assert.match(sent[0].text, /pr-200\.preview\.mountainrunners\.cat/u);
+  const confirmation = traces.find(
+    (entry) => entry.action === "preview_confirmed",
+  );
+  assert.equal(confirmation.detail, "#200 bbbbbbb");
+});
+
+test("refuses a moved head whose required checks are not green", async (context) => {
+  const { ciWatches, handler, github, previews, traces } = setup(context);
+  reportGreen(ciWatches);
+  const movedCommit = "c".repeat(40);
+  github.pullRequest = { ...github.pullRequest, headSha: movedCommit };
+  github.checkRuns = [
+    { name: "Validate", status: "completed", conclusion: "failure" },
+  ];
+
+  const result = await handler.handle(request());
+
+  assert.equal(result.outcome, "answered");
+  assert.match(result.report, /Les comprovacions d'aquest canvi encara no/u);
+  assert.deepEqual(
+    github.checkCommits,
+    [movedCommit],
+    "the head is the commit whose checks decide",
+  );
+  assert.deepEqual(github.posts, []);
+  assert.equal(previews.state(20), undefined);
+  assert.deepEqual(actions(traces), [
+    "preview_requested",
+    "preview_membership_verified",
+    "preview_refused",
+  ]);
+  assert.equal(traces[2].detail, "checks_not_green #200 ccccccc");
+});
+
+test("refuses a closed proposal without posting anything", async (context) => {
+  const { ciWatches, handler, github, previews, traces } = setup(context, {
+    github: fakeGithub({
+      pullRequest: {
+        state: "closed",
+        headSha: commit,
+        headRepository: repository,
+      },
+    }),
+  });
+  reportGreen(ciWatches);
+
+  const result = await handler.handle(request());
+
+  assert.equal(result.outcome, "answered");
+  assert.match(
+    result.report,
+    /Aquesta proposta ja està tancada, així que no se'n pot fer la preview/u,
+  );
+  assert.deepEqual(github.posts, []);
+  assert.equal(previews.state(20), undefined);
+  assert.deepEqual(actions(traces), [
+    "preview_requested",
+    "preview_membership_verified",
+    "preview_refused",
+  ]);
+  assert.equal(traces[2].detail, "not_applicable #200 aaaaaaa");
+});
 
 test("does not post twice for a duplicate update", async (context) => {
   const { ciWatches, handler, github } = setup(context);

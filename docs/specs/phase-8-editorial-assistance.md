@@ -682,7 +682,10 @@ Aquests requisits mantenen l'activació del bot, el camí determinista de
   ni canvis especulatius per posar la CI en verd.
 - Una CI vermella no activa preview. Amb CI verda i una petició explícita al
   fil d'un membre verificat del grup, l'agent comenta `/preview` amb el seu
-  compte de GitHub pel flux de la fase 6. No cal una llista separada de permisos
+  compte de GitHub pel flux de la fase 6. La petició es fixa al cap actual de la
+  PR oberta encara que sigui més nou que el commit informat al tema, i queda
+  lligada a aquest SHA; si el cap no té les comprovacions obligatòries en verd,
+  es refusa. No cal una llista separada de permisos
   de preview ni vincular cada persona a un compte de GitHub. L'agent retorna
   l'URL i el SHA del publicador de confiança, mai una URL construïda o un estat
   suposat. Sense petició explícita no comenta `/preview`.

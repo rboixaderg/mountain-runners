@@ -611,6 +611,7 @@ test("reports the last delivered notice of one pull request, never of another", 
       }),
     },
     {
+      update_identifier: request.updateIdentifier,
       pull_request_number: 123,
       commit_sha: request.commitSha,
       result: "success",
