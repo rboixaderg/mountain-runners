@@ -428,19 +428,31 @@ export function createInstructionRunner({
       if (target?.report) {
         return { outcome: "failed", report: target.report };
       }
+      // A consultation asks about the content the topic already published, and
+      // that content lives on the branch of its pull request, not on main. While
+      // the topic keeps no pending work, the same resume positions the worktree
+      // at the pull request head: it writes nothing and publishes nothing. A
+      // refused resume never answers the consultation; the turn falls back to
+      // the new task of the topic.
+      const readsTopicPullRequest =
+        kind === "consultation" &&
+        topic !== null &&
+        !topic.pendingWork &&
+        topicPullRequest !== null;
       // A continuation that names another topic's pull request resumes that
       // pull request here. A continuation that names none resumes the open pull
       // request of this topic, but only while the topic keeps no pending work:
       // pending work is the work it must continue.
       const continuation =
-        kind === "continuation"
+        kind === "continuation" || readsTopicPullRequest
           ? await continueFromPullRequest(request, {
               signal,
               unnamedTopicPullRequest:
                 topic !== null && !topic.pendingWork ? topicPullRequest : null,
+              onlyUnnamedPullRequest: readsTopicPullRequest,
             })
           : null;
-      if (continuation?.report) {
+      if (continuation?.report && !readsTopicPullRequest) {
         return { outcome: "answered", report: continuation.report };
       }
       // The topic already holds the branch of its own pull request at the head
@@ -494,12 +506,14 @@ export function createInstructionRunner({
         unclearRequest = true;
       }
       // The service writes the instruction of an automatic repair and of a
-      // resumed pull request; every other request is the person's own text.
+      // resumed pull request; every other request is the person's own text. A
+      // consultation reads the files at the resumed head and keeps the request
+      // of the person: the continuation text asks for a change.
       let instruction = request.instruction;
       if (repair) {
         instruction = target.instruction;
       }
-      if (resumed !== null) {
+      if (resumed !== null && !readsTopicPullRequest) {
         instruction = resumed.instruction;
       }
       // The images reach the model as service text appended to the instruction

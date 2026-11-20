@@ -500,7 +500,7 @@ export const instructionReports = {
   checksFailed:
     "El canvi no passa les comprovacions automàtiques, així que no s'ha publicat res. El treball es conserva; si vols que ho mirem, demana-ho en aquest tema.",
   publicationRefused:
-    "No s'ha publicat res: una regla del projecte ho ha impedit. El treball es conserva; demana-ho en aquest tema si vols que ho revisem.",
+    "El canvi està desat, però no s'ha pogut enviar perquè un control de seguretat del servei l'ha aturat. No és cap error teu i tornar-ho a demanar no ho arreglarà: ho ha de revisar la persona que manté el servei.",
   publicationReadFailed:
     "No he pogut mirar com està la proposta abans de publicar, així que no he enviat res. El treball es conserva; torna-ho a demanar d'aquí una estona.",
   repairWorktreeMissing:
@@ -930,9 +930,11 @@ export const previewReports = {
       "Aquesta petició de preview ja s'havia atès. No s'ha demanat res de nou.",
       reviewUrl,
     ),
+  // Only the proposal that is no longer open reaches this text: a proposal that
+  // is still open is previewed at its current head, whatever the reported commit.
   notApplicable: ({ reviewUrl }) =>
     withReviewLink(
-      "Aquest canvi ja no es pot previsualitzar perquè la revisió s'ha tancat o hi ha canvis més nous. No s'ha demanat cap preview.",
+      "Aquesta proposta ja està tancada, així que no se'n pot fer la preview. No s'ha demanat cap preview.",
       reviewUrl,
     ),
   notMainRepository: ({ reviewUrl }) =>

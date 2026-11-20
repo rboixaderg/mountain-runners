@@ -397,12 +397,22 @@ export function createCrossTopicContinuation({
    * checks, as if the request had named it. A pull request that is merged or
    * closed is no pending work of the topic, so the caller answers the request as
    * a consultation instead of refusing it.
+   *
+   * `onlyUnnamedPullRequest` resumes only that pull request of the topic and
+   * never the one the request names: a read-only turn reads its own published
+   * work and never takes the branch of a pull request another topic owns.
    */
   return async function prepare(
     request,
-    { signal, unnamedTopicPullRequest = null } = {},
+    {
+      signal,
+      unnamedTopicPullRequest = null,
+      onlyUnnamedPullRequest = false,
+    } = {},
   ) {
-    const numbers = pullRequestNumbers(request.instruction);
+    const numbers = onlyUnnamedPullRequest
+      ? []
+      : pullRequestNumbers(request.instruction);
     if (numbers.length > 1) {
       trace(request, "continuation_refused", refusals.multiplePullRequests);
       return { report: continuationReports.multiplePullRequests };

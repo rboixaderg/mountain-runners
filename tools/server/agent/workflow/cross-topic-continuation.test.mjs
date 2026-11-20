@@ -1344,7 +1344,10 @@ test("updates the pull request of the topic even when it closes during the turn"
   );
 
   assert.equal(result.outcome, "failed");
-  assert.match(result.report, /una regla del projecte ho ha impedit/u);
+  assert.match(
+    result.report,
+    /un control de seguretat del servei l'ha aturat/u,
+  );
   assert.equal(github.pushes.length, 1, "nothing is pushed to a closed PR");
   assert.equal(github.created.length, 1, "no other pull request is opened");
   assert.equal(github.openedBranches.length, 1);
@@ -1439,4 +1442,193 @@ test("keeps the resume line when a resumed turn answers nothing", async (context
     "the service line of the resume survives an empty answer",
   );
   assert.equal(notes.lastReply(topicB), result.report);
+});
+
+// A question about the work the topic published reads the pull request: its
+// content lives on that branch, so a new task at main cannot answer it.
+
+/** The worktree of the topic as retention left it: recreated at main. */
+async function worktreeRecreatedAtMain(paths, sessionKey) {
+  const worktree = worktreeOf(paths, sessionKey);
+  await git(paths.repository, ["worktree", "remove", "--force", worktree]);
+  await git(paths.repository, [
+    "worktree",
+    "add",
+    "--detach",
+    worktree,
+    "origin/main",
+  ]);
+}
+
+test("reads the open pull request of the topic in a consultation", async (context) => {
+  const paths = await fixture(context);
+  const github = githubStub(paths);
+  const ciWatches = stateStore(paths);
+  context.after(() => ciWatches.close());
+  const { head } = await publishFromTopicA({ paths, github, ciWatches });
+  await worktreeRecreatedAtMain(paths, topicA);
+  const modelCalls = [];
+  const runner = runnerFor({
+    paths,
+    github,
+    ciWatches,
+    classifyRequest: async () => "consultation",
+    runModel: async (modelRequest) => {
+      modelCalls.push(modelRequest);
+      return { text: "La notícia diu: canvi." };
+    },
+  });
+
+  const result = await runner(
+    request({
+      updateIdentifier: 1002,
+      instruction: "Em pots ensenyar quin text has posat a la notícia?",
+    }),
+  );
+
+  assert.equal(result.outcome, "answered");
+  assert.equal(result.report, "La notícia diu: canvi.");
+  assert.equal(modelCalls.length, 1);
+  assert.equal(modelCalls[0].kind, "consultation");
+  assert.equal(
+    modelCalls[0].worktreePath,
+    realpathSync(worktreeOf(paths, topicA)),
+    "the turn reads the worktree at the published head",
+  );
+  assert.equal(
+    modelCalls[0].instruction,
+    "Em pots ensenyar quin text has posat a la notícia?",
+    "a consultation keeps the request of the person",
+  );
+  assert.equal(
+    readFileSync(join(worktreeOf(paths, topicA), "change.txt"), "utf8"),
+    "canvi\n",
+    "the turn reads the content of the pull request",
+  );
+  assert.equal(
+    await git(worktreeOf(paths, topicA), ["rev-parse", "HEAD"]),
+    head,
+  );
+  assert.doesNotMatch(result.report, /Continuo la proposta/u);
+  assert.equal(github.pushes.length, 1, "a consultation publishes nothing");
+  assert.equal(
+    github.created.length,
+    1,
+    "a consultation opens no pull request",
+  );
+  assert.equal(github.reused.length, 0);
+});
+
+test("answers a consultation normally when the pull request cannot be resumed", async (context) => {
+  const paths = await fixture(context);
+  const github = githubStub(paths);
+  const ciWatches = stateStore(paths);
+  context.after(() => ciWatches.close());
+  await publishFromTopicA({ paths, github, ciWatches });
+  github.pull.draft = true;
+  const modelCalls = [];
+  const runner = runnerFor({
+    paths,
+    github,
+    ciWatches,
+    classifyRequest: async () => "consultation",
+    runModel: async (modelRequest) => {
+      modelCalls.push(modelRequest);
+      return { text: "No sé de quina notícia em parles." };
+    },
+  });
+
+  const result = await runner(
+    request({
+      updateIdentifier: 1002,
+      instruction: "Quin text has posat a la notícia?",
+    }),
+  );
+
+  assert.equal(result.outcome, "answered");
+  assert.equal(result.report, "No sé de quina notícia em parles.");
+  assert.equal(modelCalls.length, 1);
+  assert.equal(modelCalls[0].kind, "consultation");
+  assert.equal(github.pullRequestReads, 1, "the service read the pull request");
+  assert.doesNotMatch(result.report, /esborrany|No he reprès cap feina/u);
+  assert.equal(
+    existsSync(archiveOf(paths, topicA, 1002)),
+    false,
+    "a refused resume moves nothing",
+  );
+  assert.equal(github.pushes.length, 1);
+});
+
+test("keeps the pending work of the topic in a consultation", async (context) => {
+  const paths = await fixture(context);
+  const github = githubStub(paths);
+  const ciWatches = stateStore(paths);
+  context.after(() => ciWatches.close());
+  await publishFromTopicA({ paths, github, ciWatches });
+  writeFileSync(join(worktreeOf(paths, topicA), "pending.txt"), "pendent\n");
+  const modelCalls = [];
+  const runner = runnerFor({
+    paths,
+    github,
+    ciWatches,
+    classifyRequest: async () => "consultation",
+    runModel: async (modelRequest) => {
+      modelCalls.push(modelRequest);
+      return { text: "El canvi pendent diu pendent." };
+    },
+  });
+
+  const result = await runner(
+    request({
+      updateIdentifier: 1002,
+      instruction: "Què hi ha al canvi pendent?",
+    }),
+  );
+
+  assert.equal(result.outcome, "answered");
+  assert.equal(
+    github.pullRequestReads,
+    0,
+    "pending work resumes no pull request",
+  );
+  assert.equal(
+    existsSync(join(modelCalls[0].worktreePath, "pending.txt")),
+    true,
+    "the turn reads the pending work of the topic",
+  );
+  assert.equal(existsSync(archiveOf(paths, topicA, 1002)), false);
+  assert.equal(github.pushes.length, 1);
+});
+
+test("answers a consultation of a topic without a pull request on a new task", async (context) => {
+  const paths = await fixture(context);
+  const github = githubStub(paths);
+  const ciWatches = stateStore(paths);
+  context.after(() => ciWatches.close());
+  const modelCalls = [];
+  const runner = runnerFor({
+    paths,
+    github,
+    ciWatches,
+    classifyRequest: async () => "consultation",
+    runModel: async (modelRequest) => {
+      modelCalls.push(modelRequest);
+      return { text: "Encara no hi ha cap notícia." };
+    },
+  });
+
+  const result = await runner(request());
+
+  assert.equal(result.outcome, "answered");
+  assert.equal(result.report, "Encara no hi ha cap notícia.");
+  assert.equal(
+    github.pullRequestReads,
+    0,
+    "a topic without a pull request reads none",
+  );
+  assert.equal(
+    await git(worktreeOf(paths, topicA), ["branch", "--show-current"]),
+    "",
+    "the turn runs in the new task of the topic",
+  );
 });

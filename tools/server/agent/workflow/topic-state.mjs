@@ -14,8 +14,9 @@
 // The store states are internal names, so each one is described in plain words
 // before it reaches the model. A state added later is still described instead of
 // dropped. The preview URL comes only from the origin the trusted publisher
-// confirmed for the commit that is still the reported head; the service never
-// builds one.
+// confirmed for the change the block prints: its reported commit, or a head
+// newer than that commit which a maintainer pushed outside the agent and the
+// request pinned. The service never builds one.
 
 import { mergeStates } from "../repository/merge-request-store.mjs";
 import { previewStates } from "../repository/preview-request-store.mjs";
@@ -142,11 +143,32 @@ export function createTopicStateReader({
   }
 
   /**
+   * Whether the preview request describes the change the block prints for this
+   * pull request. It does when it was pinned to the reported commit, or to a head
+   * newer than it: the handler always pins the live head, so a request made after
+   * the reported notice belongs to a newer commit of the same change. A request
+   * made before that notice belongs to an earlier change, even when it was
+   * confirmed. The update identifier is the order in which the service handled
+   * both, and it is the tiebreak the stores already use.
+   */
+  function describesReportedChange({ reported, preview }) {
+    if (reported === undefined) {
+      // Nothing is reported for this pull request, so no request is older than a
+      // notice and the newest one describes it.
+      return true;
+    }
+    if (preview.commit_sha === reported.commit_sha) {
+      return true;
+    }
+    return preview.update_identifier > reported.update_identifier;
+  }
+
+  /**
    * The preview of this pull request and the origin the publisher confirmed for
-   * its reported commit. A later request for the same commit does not remove a
-   * confirmation. A confirmation of an earlier change is reported without a URL
-   * because it describes a result the pull request no longer has, and one stored
-   * before the origin was kept says that its link is not stored.
+   * it. A later request for the same commit does not remove a confirmation. A
+   * confirmation of an earlier change is reported without a URL because it
+   * describes a result the pull request no longer has, and one stored before the
+   * origin was kept says that its link is not stored.
    */
   function previewOf({ source, pullRequestNumber, lastReported }) {
     const preview = previewRequests.latest({
@@ -156,13 +178,14 @@ export function createTopicStateReader({
     if (preview === undefined) {
       return null;
     }
+    const reported = lastReported.described;
     const confirmed =
-      lastReported === null
+      reported === null
         ? null
         : previewRequests.confirmedOrigin({
             sessionKey: source,
             pullRequestNumber,
-            commitSha: lastReported.commit,
+            commitSha: reported.commit,
           });
     if (confirmed !== null) {
       return {
@@ -170,27 +193,39 @@ export function createTopicStateReader({
         origin: confirmed,
       };
     }
-    if (preview.state !== previewStates.confirmed) {
-      // A request of another commit is not the preview of the reported one: it
-      // belongs to an earlier change or to work that has no report yet, and the
-      // block never presents it as the state of this commit.
-      if (lastReported !== null && preview.commit_sha !== lastReported.commit) {
+    if (!describesReportedChange({ reported: lastReported.row, preview })) {
+      // A request of an earlier change is not the preview of the reported one:
+      // the block never presents it as the state of this change.
+      if (preview.state !== previewStates.confirmed) {
         return null;
       }
+      return {
+        description:
+          "confirmed for an earlier change, so this block holds no URL for the reported commit",
+        origin: null,
+      };
+    }
+    // The request belongs to the printed change: it is the reported commit or the
+    // newer head the handler pinned instead of it.
+    const previewOrigin = previewRequests.confirmedOrigin({
+      sessionKey: source,
+      pullRequestNumber,
+      commitSha: preview.commit_sha,
+    });
+    if (previewOrigin !== null) {
+      return {
+        description: previewDescriptions[previewStates.confirmed],
+        origin: previewOrigin,
+      };
+    }
+    if (preview.state !== previewStates.confirmed) {
       return {
         description: describeState(previewDescriptions, preview.state),
         origin: null,
       };
     }
-    if (lastReported !== null && preview.commit_sha === lastReported.commit) {
-      return {
-        description: "confirmed, but its link is not stored",
-        origin: null,
-      };
-    }
     return {
-      description:
-        "confirmed for an earlier change, so this block holds no URL for the reported commit",
+      description: "confirmed, but its link is not stored",
       origin: null,
     };
   }
@@ -231,7 +266,7 @@ export function createTopicStateReader({
       preview: previewOf({
         source: source.sessionKey,
         pullRequestNumber,
-        lastReported: lastReported.described,
+        lastReported,
       }),
       merge:
         merge === undefined

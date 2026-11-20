@@ -808,15 +808,18 @@ publicador de la fase 6 continua comprovant que l'autor del comentari és
 col·laborador. La pertinença i l'atribució de la persona només viuen a la traça
 privada.
 
-- **Fixació.** El destí és el commit que el servei va informar en verd en
+- **PR i fixació.** El destí és la PR que el servei va informar en verd en
   aquell tema (la fila de `ci_watches` amb l'avís enviat com a èxit). Mai
-  s'accepta un número de PR ni un SHA escrits per la persona. Sense aquest
-  commit, el servei refusa. Si el tema té una publicació més nova sense informe
+  s'accepta un número de PR ni un SHA escrits per la persona. Sense aquesta fila,
+  el servei refusa. Si el tema té una publicació més nova sense informe
   confirmat, tampoc no la demana: l'avís anterior ha quedat enrere.
-- **Condicions, rellegides en directe.** PR oberta, cap igual al commit fixat,
-  repositori de la branca igual al principal i comprovacions obligatòries totes
-  en verd amb el mateix classificador que la CI. Qualsevol resultat vermell,
-  pendent, absent, ambigu o un error de lectura refusa la petició.
+- **Condicions, rellegides en directe.** PR oberta, repositori de la branca igual
+  al principal i comprovacions obligatòries del cap actual de la PR totes en verd
+  amb el mateix classificador que la CI. El cap pot ser més nou que el commit
+  informat, perquè una persona pot haver actualitzat la PR fora de l'agent: la
+  petició es fixa llavors al cap i queda lligada a aquest SHA exacte. Qualsevol
+  resultat vermell, pendent, absent, ambigu o un error de lectura refusa la
+  petició.
 - **Pertinença.** Es torna a consultar a Telegram en el moment d'executar la
   petició, com al merge i després de resoldre el commit fixat: una preview
   publica la PR en un subdomini públic, així que no és feina ordinària de la
@@ -1363,8 +1366,10 @@ tema que encara la té —últim commit informat, resultat i preview— i ho diu
 tema nou la posseeix quan la seva publicació registra el seguiment.
 
 L'URL de la preview surt només de l'origen que el publicador de confiança ha
-confirmat per al commit informat, encara que hi hagi una petició posterior per
-al mateix commit; si la confirmació és d'un canvi anterior, es diu sense URL. El
+confirmat per al canvi que el bloc imprimeix: el commit informat o un cap més
+nou que la petició va fixar perquè la persona mantenidora havia actualitzat la
+PR fora de l'agent, encara que hi hagi una petició posterior per al mateix
+commit; si la confirmació és d'un canvi anterior, es diu sense URL. El
 servei no construeix ni endevina cap URL. `repository/preview-request-store.mjs`
 desa aquest origen a `preview_requests.confirmed_origin`, en la mateixa escriptura
 que tanca la petició com a confirmada: una confirmació no acaba mai sense
