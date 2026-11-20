@@ -588,7 +588,7 @@ test("a consultation and an implementation receive the state of the topic", asyn
         return { state: "open" };
       },
     },
-    classifyRequest: async () => kind,
+    classifyRequest: async () => ({ kind }),
     executeSandbox: async () => ({ exitCode: 0, timedOut: false }),
     executeAgent: async (_config, options) => {
       prompts.push(promptOf(options));
@@ -636,7 +636,7 @@ test("a turn continues without the block when the state cannot be read", async (
     repositoryPath: fixture.paths.repository,
     worktreeRoot: fixture.paths.worktrees,
     identifiers: fixture.identifiers,
-    classifyRequest: async () => "consultation",
+    classifyRequest: async () => ({ kind: "consultation" }),
     runModel: async (modelRequest) => {
       turns.push(modelRequest);
       return { text: "Resposta sintètica." };

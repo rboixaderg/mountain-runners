@@ -21,6 +21,7 @@ import {
   overlapWarningLimits,
   overlapWarningReport,
   parseChangeSummary,
+  parsePreviewAfterChange,
   parseRequestKind,
   publicationNoteText,
   publicationNoticesText,
@@ -86,6 +87,47 @@ test("accepts a request kind wrapped in a Markdown code fence", () => {
   assert.equal(
     parseRequestKind("```json\nimplementation\n```"),
     "clarification",
+  );
+});
+
+test("reads the preview asked for together with the change only as a literal true", () => {
+  for (const response of [
+    '{"kind":"implementation","previewAfterChange":true}',
+    '```json\n{"kind":"continuation","previewAfterChange":true}\n```',
+  ]) {
+    assert.equal(parsePreviewAfterChange(response), true);
+  }
+  for (const response of [
+    '{"kind":"implementation","previewAfterChange":false}',
+    '{"kind":"implementation"}',
+    '{"kind":"implementation","previewAfterChange":"true"}',
+    '{"kind":"implementation","previewAfterChange":1}',
+    "implementation",
+    "{}",
+    "null",
+    "[]",
+    "",
+  ]) {
+    assert.equal(
+      parsePreviewAfterChange(response),
+      false,
+      "anything that is not the literal boolean is no request",
+    );
+  }
+});
+
+test("asks the classifier for the preview asked together with the change", () => {
+  const prompt = buildClassificationPrompt(
+    "Canvia el títol i ensenya'm la preview",
+  );
+  assert.match(prompt, /previewAfterChange/u);
+  assert.match(
+    prompt,
+    /asks for a change \(implementation or continuation\) and also explicitly asks, in the same message, to see the preview of the result/u,
+  );
+  assert.match(
+    prompt,
+    /including when the last agent reply offers the preview/u,
   );
 });
 

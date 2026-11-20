@@ -897,7 +897,11 @@ privada.
   confirmada sempre porta la seva adreça. El detall tècnic (estat, commit, PR i
   adreça) queda a la traça privada i a la nota del tema que rep el model.
 - **Mai automàtic.** Ni una CI verda, ni crear una PR, ni publicar una reparació
-  demanen cap preview.
+  demanen cap preview. Només quan la mateixa petició que demana el canvi demana
+  explícitament la preview, el servei la demana quan ha enviat l'avís verd, en
+  nom de l'autor desat a la fila de `ci_watches` i amb el mateix tractament
+  determinista; aleshores l'avís diu que la demana en comptes d'invitar-la a
+  demanar, i tornar a tramitar el mateix avís no publica cap `/preview` nou.
 
 - **Avís de confirmació.** L'avís s'envia abans de tancar la petició i només
   es tanca si l'enviament ha anat bé; si falla, es reintenta al cicle següent.
@@ -1275,7 +1279,8 @@ seu no quedi fora de la sessió.
   té. Una petició que respon aquella resposta o que aporta dades, correccions o
   fitxers per a la feina pendent o per a aquella PR és una continuació; una
   feina nova i independent és una implementació. Cada classificació es traça com
-  a `instruction_classified`, amb el tipus com a detall.
+  a `instruction_classified`, amb el tipus com a detall; una petició que demana
+  la preview juntament amb el canvi ho traça com a `preview_after_change`.
 - **Continuació sobre la PR del tema.** Si una continuació no nomena cap `#N`,
   no té canvis locals ni commits pendents i el tema té una PR oberta pròpia, el
   servei la reprèn amb les comprovacions de «Continuació d'una PR des d'un altre

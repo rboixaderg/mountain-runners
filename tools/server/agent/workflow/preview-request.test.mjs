@@ -1466,7 +1466,7 @@ test("the loop isolates a cycle error and stops when aborted", async (context) =
   assert.deepEqual(logs, [["preview_worker_failed", "Error"]]);
 });
 
-test("never requests a preview when CI turns green or a pull request is published", async (context) => {
+test("never requests a preview for a change that did not ask for it", async (context) => {
   const { ciWatches, github } = setup(context);
   const register = createCiWatchRegistration({ store: ciWatches });
   const sent = [];
@@ -1501,6 +1501,58 @@ test("never requests a preview when CI turns green or a pull request is publishe
   );
   assert.doesNotMatch(sent[0].text, /Validate|bbbbbbb|PR #/u);
   assert.deepEqual(github.posts, []);
+});
+
+test("a green watch that asked for the preview posts it once, even when handled again", async (context) => {
+  const { ciWatches, github, handler } = setup(context);
+  const sent = [];
+  const worker = createCiWatchWorker({
+    store: ciWatches,
+    repairs: ciWatches,
+    github,
+    telegram: {
+      async sendMessage(message) {
+        sent.push(message);
+      },
+    },
+    requiredChecks: ["Validate"],
+    pollIntervalMilliseconds: 1,
+    watchTimeoutMilliseconds: 60 * 60 * 1000,
+    maximumAutomaticRepairs: 2,
+    requestPreview: handler.handle,
+  });
+  createCiWatchRegistration({ store: ciWatches })({
+    updateIdentifier: 10,
+    sessionKey,
+    pullRequestNumber: 200,
+    commit,
+    previewAuthorIdentifier: 555,
+  });
+
+  await worker.runOnce();
+  assert.deepEqual(
+    github.posts.map((post) => post.body),
+    ["/preview"],
+  );
+  assert.match(sent[0].text, /Ara demano la preview/u);
+  assert.match(sent[1].text, /Ja he demanat la preview d'aquest canvi/u);
+  assert.deepEqual(github.listings, [], "nothing awaits a confirmation yet");
+
+  // A restart that finds the same publication green handles the watch again:
+  // the preview store already knows that update, so nothing is posted twice.
+  ciWatches.reopen({
+    updateIdentifier: 10,
+    sessionKey,
+    pullRequestNumber: 200,
+    commitSha: commit,
+  });
+  await worker.runOnce();
+
+  assert.deepEqual(
+    github.posts.map((post) => post.body),
+    ["/preview"],
+  );
+  assert.match(sent.at(-1).text, /Aquesta petició de preview ja s'havia atès/u);
 });
 
 test("confirms a reconciled request from a publisher comment written after it", async (context) => {
