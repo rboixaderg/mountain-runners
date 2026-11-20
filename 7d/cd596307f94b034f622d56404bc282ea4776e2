@@ -1,0 +1,21 @@
+tools/server/agent/runtime/request-kind.mjs
+  s_090ac0efd060f2::t_0f4c0f7c0d17fa 13,32-47,50-58,62-85
+tools/server/agent/runtime/request-kind.test.mjs
+  s_090ac0efd060f2::t_bfaa8806a5b929 2-4,10,12,56,69-179
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "7dcd596307f94b034f622d56404bc282ea4776e2",
+  "prompts": {},
+  "sessions": {
+    "s_090ac0efd060f2": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "bb88c6df-c20c-4a69-9336-9286f5e1d303",
+        "model": "unknown"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
