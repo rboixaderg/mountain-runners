@@ -1344,7 +1344,10 @@ test("updates the pull request of the topic even when it closes during the turn"
   );
 
   assert.equal(result.outcome, "failed");
-  assert.match(result.report, /una regla del projecte ho ha impedit/u);
+  assert.match(
+    result.report,
+    /un control de seguretat del servei l'ha aturat/u,
+  );
   assert.equal(github.pushes.length, 1, "nothing is pushed to a closed PR");
   assert.equal(github.created.length, 1, "no other pull request is opened");
   assert.equal(github.openedBranches.length, 1);
