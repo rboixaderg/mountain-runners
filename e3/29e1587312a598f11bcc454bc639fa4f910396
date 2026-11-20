@@ -1,0 +1,27 @@
+tools/server/agent/policy/development.mjs
+  s_baf73bb4b73b37::t_edad6e65999f5a 814-833
+tools/server/agent/workflow/run-instruction.mjs
+  s_baf73bb4b73b37::t_918de4af2fd972 186-189,194-197,606,608
+tools/server/agent/workflow/run-instruction.test.mjs
+  s_baf73bb4b73b37::t_de9381dd0fca69 2295-2296,2298-2312,2350
+tools/server/agent/workflow/topic-state.mjs
+  s_baf73bb4b73b37::t_2ed983eab4c347 25-26,101-175
+tools/server/agent/workflow/topic-state.test.mjs
+  s_baf73bb4b73b37::t_0b18cd3038ea48 25,539-543,572-574,591-608,737-774
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "e329e1587312a598f11bcc454bc639fa4f910396",
+  "prompts": {},
+  "sessions": {
+    "s_baf73bb4b73b37": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a1fac8-95ce-7181-a570-03b44d42593b",
+        "model": "gpt-6.1-terra"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
