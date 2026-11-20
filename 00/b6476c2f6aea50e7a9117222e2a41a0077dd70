@@ -1,0 +1,127 @@
+tools/server/agent/repository/secret-scan.mjs
+  s_2116a861b82201::t_c52dd162e7c200 52-56,63
+tools/server/agent/workflow/run-instruction.test.mjs
+  s_2116a861b82201::t_b75eb09311b8e9 1128-1131,1533-1536
+  s_99d09653eb1428::t_d091d2df593164 394-400,402-441,443-467
+  s_230a2052af1e2a::t_6d93f0f31e9e88 212,235,258,277,301,319,338,353,401,442,473,521,546-591,599,633,655,686,716,735,755,788-790,828,875,909,930,953,975,1022-1027,1064,1116,1151-1156,1202,1236,1349,1450-1454,1595,1613,1636,1666-1669,1695-1732,1773,1847,1881,1909,1980-1985,2020,2060,2157,2213,2301,2360,2395,2434,2473,2501,2517,2560,2598,2622,2677,2729,2754,2817,2848,2952,2985,3050-3054,3178,3200,3238,3264,3304,3339,3372,3426-3428,3497,3540-3545,3599,3629,3670,3709,3734
+tools/server/agent/repository/github.test.mjs
+  s_2116a861b82201::t_b00c5325c6eff1 297-410
+tools/server/agent/workflow/cross-topic-continuation.test.mjs
+  s_2116a861b82201::t_b89dafb71c2e00 1347-1350
+  s_cf2201d37d338e::t_0cd1205e9ec085 1446-1474,1476-1533,1535-1573,1575-1612,1614-1634
+  s_230a2052af1e2a::t_bb0e6caf7373e7 227,288,410,503,573,601,633,676,711,739,787,830,881,930,988,1047,1070,1101,1134,1189,1238,1276,1327,1379,1423,1475,1534,1574,1613
+docs/deployment.md
+  s_cf2201d37d338e::t_f5677ffaa4982e 540-543
+  s_58ff1ec1717dd1::t_f709e26f130c73 900-904,1282-1283
+tools/server/agent/README.md
+  s_47174a29ccc61f::t_088cc6494372ff 178-180,557-559
+tools/server/agent/policy/development.mjs
+  s_99d09653eb1428::t_ad8e61b7692486 26-33,41-64,256,713
+tools/server/agent/policy/development.test.mjs
+  s_99d09653eb1428::t_642c9428ee0d3e 12-13,30,356,378,385-420
+  s_230a2052af1e2a::t_dc0d0034a4c72f 24,93-133
+tools/server/agent/workflow/preview-request.mjs
+  s_2116a861b82201::t_404b9157ff9264 5-12,220-223,231-232,237,239-241,243-244,251-255,340,342,349,351-352,355-357,361-365,370-371,378,386,393,406,424,437
+tools/server/agent/workflow/preview-request.test.mjs
+  s_cf2201d37d338e::t_8ae68db2d73de4 105,123-124,537,579-682
+  s_6cc656f5ef3bf2::t_4a725faf2e51be 1469,1506-1557
+tools/server/agent/workflow/topic-state.mjs
+  s_47174a29ccc61f::t_0336f6cc9baa4e 17-19,145-165,168-171,181,183,188,196-199,203-204,208-215,217-223,228,269
+tools/server/agent/repository/ci-watch-store.mjs
+  s_090ac0efd060f2::t_b9dbf0912ad66a 280-282,287-288
+tools/server/agent/repository/ci-watch-store.test.mjs
+  s_090ac0efd060f2::t_1e71c9d1ff9624 670
+  s_6cc656f5ef3bf2::t_509d49a9411731 31-86
+docs/specs/phase-8-editorial-assistance.md
+  s_e068a9a476ad40::t_0704f09df68100 691-693
+tools/server/agent/workflow/ci-watch.mjs
+  s_230a2052af1e2a::t_96fb2f1ddf7622 11-15,79,99,257-262,328-330,422-478,637-647
+tools/server/agent/workflow/ci-watch.test.mjs
+  s_6cc656f5ef3bf2::t_6ae061d9da5698 93,106,205-317
+tools/server/agent/workflow/journey.test.mjs
+  s_230a2052af1e2a::t_bd393501093dc0 171
+tools/server/agent/workflow/regressions.test.mjs
+  s_230a2052af1e2a::t_03bfa17f15cba5 137
+tools/server/agent/workflow/topic-state.test.mjs
+  s_230a2052af1e2a::t_74323e856892cb 591,639
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "00b6476c2f6aea50e7a9117222e2a41a0077dd70",
+  "prompts": {},
+  "sessions": {
+    "s_090ac0efd060f2": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "bb88c6df-c20c-4a69-9336-9286f5e1d303",
+        "model": "unknown"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    },
+    "s_2116a861b82201": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e0a2c50b4ffeFxCFRjt4aG3b15",
+        "model": "unknown"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    },
+    "s_230a2052af1e2a": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e08942de6ffew42UDf1GeE29R2",
+        "model": "unknown"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    },
+    "s_47174a29ccc61f": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e0a2c119cffezJFVNi8Wz1xYjs",
+        "model": "unknown"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    },
+    "s_58ff1ec1717dd1": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e0a31af90ffe6a6pCSRo1OLx2G",
+        "model": "unknown"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    },
+    "s_6cc656f5ef3bf2": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a1f76e-f97b-7389-8d54-c517030a709f",
+        "model": "deepseek-v4.1-flash"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    },
+    "s_99d09653eb1428": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e0a2b5b09ffeNUaaVtCVl6ip1l",
+        "model": "unknown"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    },
+    "s_cf2201d37d338e": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e0a2ba151ffeZzZAUeI3WzEmLn",
+        "model": "unknown"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    },
+    "s_e068a9a476ad40": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a1f773-fa1f-7324-8a85-b96ad287854e",
+        "model": "deepseek-v4.1-flash"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
