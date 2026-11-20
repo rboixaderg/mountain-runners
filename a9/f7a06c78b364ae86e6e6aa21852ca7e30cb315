@@ -1,0 +1,21 @@
+tools/server/agent/repository/github.mjs
+  s_baf73bb4b73b37::t_0c7f596a2c5ae5 17,181-224
+tools/server/agent/repository/live-pull-request.test.mjs
+  s_baf73bb4b73b37::t_3768e44db5379a 1-65
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "a9f7a06c78b364ae86e6e6aa21852ca7e30cb315",
+  "prompts": {},
+  "sessions": {
+    "s_baf73bb4b73b37": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a1fac8-95ce-7181-a570-03b44d42593b",
+        "model": "gpt-6.1-terra"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
