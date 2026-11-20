@@ -1,22 +1,6 @@
-// The current state of one topic, built from the durable stores of the service.
-//
-// The model runs in a sandbox without network or credentials, so it cannot read
-// the pull request, its required checks, the preview or the merge. Every turn
-// receives instead the facts the service already holds, as data: the pull
-// request the turn works on, the commit its topic reported last and the result,
-// whether newer work is still being checked, the latest preview request and the
-// latest merge request. Building it makes no call to GitHub.
-//
-// A turn that continues another topic's pull request reports that pull request
-// and the facts of the topic that owns it, because this topic owns it only after
-// its own publication registers the watch.
-//
-// The store states are internal names, so each one is described in plain words
-// before it reaches the model. A state added later is still described instead of
-// dropped. The preview URL comes only from the origin the trusted publisher
-// confirmed for the change the block prints: its reported commit, or a head
-// newer than that commit which a maintainer pushed outside the agent and the
-// request pinned. The service never builds one.
+// Build topic state for the sandbox. The live reader uses GitHub for the pull
+// request, checks and trusted preview confirmation. The original store reader
+// remains while the remaining T8.9 workflow changes are in progress.
 
 import { mergeStates } from "../repository/merge-request-store.mjs";
 import { previewStates } from "../repository/preview-request-store.mjs";
