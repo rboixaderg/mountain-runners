@@ -1,0 +1,19 @@
+docs/specs/phase-8-editorial-assistance.md
+  s_acabe1567c9094::t_f1590fd2fbe6f3 11-13,74-76,134-136,197,436-448,477-480,513-516,585-586,602,630-722,808,835-837,939-941,962-969
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "db955c06c5e447f1c10b7bf5821d005bc94fe0e1",
+  "prompts": {},
+  "sessions": {
+    "s_acabe1567c9094": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a1fabb-df56-74e3-b7ab-003354a8c597",
+        "model": "gpt-6.1-terra"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
