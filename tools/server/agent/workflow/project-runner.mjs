@@ -25,7 +25,7 @@ import { createCrossTopicContinuation } from "./cross-topic-continuation.mjs";
 import { createOverlapWarning } from "./overlap-warning.mjs";
 import {
   createTopicPullRequestFinder,
-  createTopicStateReader,
+  createLiveTopicStateReader,
 } from "./topic-state.mjs";
 
 export function createProjectRunner({
@@ -163,7 +163,9 @@ export function createProjectRunner({
     // the sandbox.
     readTopicState:
       ciWatches && previewRequests && mergeRequests
-        ? createTopicStateReader({
+        ? createLiveTopicStateReader({
+            github,
+            requiredChecks: config.github.requiredChecks,
             ciWatches,
             previewRequests,
             mergeRequests,

@@ -22,6 +22,8 @@ import { mergeStates } from "../repository/merge-request-store.mjs";
 import { previewStates } from "../repository/preview-request-store.mjs";
 import { pullRequestReviewUrl } from "../policy/development.mjs";
 import { ciResults } from "./ci-watch.mjs";
+import { readLivePullRequest } from "../repository/github.mjs";
+import { confirmedPreviewOrigin } from "../repository/preview-comment.mjs";
 
 const ciResultDescriptions = {
   [ciResults.success]: "green",
@@ -93,6 +95,81 @@ export function createTopicPullRequestFinder(
     return merge?.state === mergeStates.merged
       ? null
       : owned.pull_request_number;
+  };
+}
+
+export function createLiveTopicStateReader({
+  ciWatches,
+  previewRequests,
+  findTopicPullRequest,
+  repositoryName,
+  github,
+  requiredChecks,
+}) {
+  return async function readTopicState(
+    sessionKey,
+    { continuedPullRequestNumber = null, signal } = {},
+  ) {
+    const number =
+      continuedPullRequestNumber ?? findTopicPullRequest(sessionKey);
+    if (number === null) return { liveState: { noPullRequest: true } };
+    const source =
+      ciWatches.latestPublication(number)?.session_key ?? sessionKey;
+    try {
+      const live = await readLivePullRequest({
+        github,
+        number,
+        requiredChecks,
+        signal,
+      });
+      const request = previewRequests.latest({
+        sessionKey: source,
+        pullRequestNumber: number,
+      });
+      let preview = "no preview requested for the current change";
+      let origin = null;
+      if (
+        request?.commit_sha === live.pullRequest.headSha &&
+        request.commented_at
+      ) {
+        const comments = await github.listIssueComments({
+          number,
+          since: request.commented_at,
+          signal,
+        });
+        origin = confirmedPreviewOrigin({
+          comments,
+          pullRequestNumber: number,
+          commit: live.pullRequest.headSha,
+          requestedAt: request.commented_at,
+        });
+        preview = origin ? "confirmed" : "not confirmed by the publisher";
+      }
+      const confirmed = await github.getPullRequest({ number, signal });
+      if (
+        confirmed.headSha !== live.pullRequest.headSha ||
+        confirmed.state !== live.pullRequest.state ||
+        confirmed.merged !== live.pullRequest.merged
+      ) {
+        throw new Error("The pull request changed while reading its preview.");
+      }
+      return {
+        liveState: {
+          url: pullRequestReviewUrl({
+            repository: repositoryName,
+            pullRequestNumber: number,
+          }),
+          state: confirmed.merged ? "merged" : confirmed.state,
+          head: confirmed.headSha,
+          checks: live.classification.state,
+          preview,
+          origin,
+        },
+      };
+    } catch {
+      signal?.throwIfAborted();
+      return { liveState: { unavailable: true } };
+    }
   };
 }
 

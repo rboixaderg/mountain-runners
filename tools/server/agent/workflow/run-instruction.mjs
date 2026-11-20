@@ -183,12 +183,18 @@ export function createInstructionRunner({
    * A turn that continues another topic's pull request reports that pull
    * request and the facts of the topic that owns it.
    */
-  function topicStateOf(sessionKey, { continuedPullRequestNumber }) {
+  async function topicStateOf(
+    sessionKey,
+    { continuedPullRequestNumber, signal },
+  ) {
     if (readTopicState === undefined) {
       return null;
     }
     try {
-      return readTopicState(sessionKey, { continuedPullRequestNumber });
+      return await readTopicState(sessionKey, {
+        continuedPullRequestNumber,
+        signal,
+      });
     } catch (error) {
       logger(
         "topic_state_failed",
@@ -597,8 +603,9 @@ export function createInstructionRunner({
       // as data, so the model never answers that it has no access or guesses a
       // preview URL. A continuation into another topic's pull request reports
       // that pull request until this topic owns it.
-      const topicState = topicStateOf(request.sessionKey, {
+      const topicState = await topicStateOf(request.sessionKey, {
         continuedPullRequestNumber,
+        signal,
       });
       const claimServiceNotes = () => {
         if (claimedNotes === null) {

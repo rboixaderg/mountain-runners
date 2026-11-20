@@ -811,6 +811,26 @@ function describeMerge(merge) {
  * of its own, so a state added later is reported instead of dropped.
  */
 export function buildTopicStateText(topicState) {
+  if (topicState.liveState) {
+    const live = topicState.liveState;
+    if (live.unavailable) {
+      return `${topicStateHeader}\n- GitHub state is unavailable. Tell the person you cannot check right now; do not guess.`;
+    }
+    if (live.noPullRequest) {
+      return `${topicStateHeader}\n- No pull request is known for this topic.`;
+    }
+    const preview = live.origin
+      ? `${live.preview}, URL ${live.origin}`
+      : live.preview;
+    return [
+      topicStateHeader,
+      `- Pull request: ${live.url}; ${live.state}.`,
+      `- Current head: ${shortCommit(live.head)}; required checks: ${live.checks}.`,
+      `- Preview: ${preview}.`,
+      "",
+      topicStateGuidance,
+    ].join("\n");
+  }
   return [
     topicStateHeader,
     `- Pull request this turn works on: ${describePullRequest(topicState.pullRequest)}.`,

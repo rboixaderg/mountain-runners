@@ -22,6 +22,7 @@ import { createInstructionRunner } from "./run-instruction.mjs";
 import {
   createTopicPullRequestFinder,
   createTopicStateReader,
+  createLiveTopicStateReader,
 } from "./topic-state.mjs";
 
 const executeFile = promisify(execFile);
@@ -535,7 +536,11 @@ async function turnFixture(context) {
     identifiers: openIdentifierNames(paths.state),
     config: {
       telegram: { botToken: "telegram-synthetic-token" },
-      github: { token: "github-synthetic-token", repository: repositoryName },
+      github: {
+        token: "github-synthetic-token",
+        repository: repositoryName,
+        requiredChecks: ["Validate"],
+      },
       model: {
         sandboxImage: "mountain-agent-pi:1.5.0",
         providerEnvironmentVariables: [],
@@ -564,11 +569,9 @@ function promptOf(options) {
 /** The state block a turn of the fixture receives, written out by hand. */
 const expectedStateBlock = [
   topicStateHeader,
-  "- Pull request this turn works on: https://github.com/rboixaderg/mountain-runners/pull/239.",
-  "- Last commit reported for it: aaaaaaa; required checks: green.",
-  "- Work newer than that report is still being checked: no.",
-  `- Latest preview request for it: confirmed, URL ${previewOrigin}.`,
-  "- Latest merge request for it: none yet.",
+  "- Pull request: https://github.com/rboixaderg/mountain-runners/pull/239; open.",
+  "- Current head: aaaaaaa; required checks: success.",
+  `- Preview: confirmed, URL ${previewOrigin}.`,
 ].join("\n");
 
 test("a consultation and an implementation receive the state of the topic", async (context) => {
@@ -585,7 +588,24 @@ test("a consultation and an implementation receive the state of the topic", asyn
     mergeRequests: fixture.mergeRequests,
     github: {
       async getPullRequest() {
-        return { state: "open" };
+        return { state: "open", merged: false, headSha: reportedCommit };
+      },
+      async getCommitCheckRuns() {
+        return [
+          { name: "Validate", status: "completed", conclusion: "success" },
+        ];
+      },
+      async getCommitStatuses() {
+        return [];
+      },
+      async listIssueComments() {
+        return [
+          {
+            user: { login: "github-actions[bot]" },
+            body: `<!-- mountain-runners-preview -->\nPreview publicada: ${previewOrigin}\nCommit: \`${reportedCommit}\`.`,
+            updated_at: "2026-11-18T10:05:00Z",
+          },
+        ];
       },
     },
     classifyRequest: async () => ({ kind }),
@@ -713,4 +733,42 @@ test("gives the classifier no pull request that is already merged", (context) =>
   });
 
   assert.equal(openOnly(sessionKey), null);
+});
+
+test("live topic state recovers from stale reports and fails closed on a read error", async (context) => {
+  const { ciWatches, previewRequests, findTopicPullRequest } =
+    storeFixture(context);
+  reportChecks(ciWatches, { result: "repairing" });
+  let unavailable = false;
+  const github = {
+    async getPullRequest() {
+      if (unavailable) throw new Error("network");
+      return { state: "open", merged: false, headSha: newerCommit };
+    },
+    async getCommitCheckRuns() {
+      return [{ name: "Validate", status: "completed", conclusion: "success" }];
+    },
+    async getCommitStatuses() {
+      return [];
+    },
+  };
+  const read = createLiveTopicStateReader({
+    ciWatches,
+    previewRequests,
+    findTopicPullRequest,
+    repositoryName,
+    github,
+    requiredChecks: ["Validate"],
+  });
+  const state = await read(sessionKey);
+  assert.equal(state.liveState.head, newerCommit);
+  assert.equal(state.liveState.checks, "success");
+  assert.match(
+    buildTopicStateText(state),
+    /Current head: ddddddd; required checks: success/u,
+  );
+  unavailable = true;
+  const failed = await read(sessionKey);
+  assert.deepEqual(failed, { liveState: { unavailable: true } });
+  assert.match(buildTopicStateText(failed), /cannot check right now/u);
 });
