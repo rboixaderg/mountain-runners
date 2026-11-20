@@ -160,6 +160,7 @@ export function createLiveTopicStateReader({
             pullRequestNumber: number,
           }),
           state: confirmed.merged ? "merged" : confirmed.state,
+          fromAnotherTopic: source !== sessionKey,
           head: confirmed.headSha,
           checks: live.classification.state,
           preview,

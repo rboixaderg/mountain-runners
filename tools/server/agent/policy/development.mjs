@@ -824,7 +824,7 @@ export function buildTopicStateText(topicState) {
       : live.preview;
     return [
       topicStateHeader,
-      `- Pull request: ${live.url}; ${live.state}.`,
+      `- Pull request: ${live.url}; ${live.state}${live.fromAnotherTopic ? "; owned by another topic" : ""}.`,
       `- Current head: ${shortCommit(live.head)}; required checks: ${live.checks}.`,
       `- Preview: ${preview}.`,
       "",
