@@ -14,6 +14,7 @@
 // belongs to the same trusted component, because the token never leaves it.
 
 import { previewCommand } from "../policy/development.mjs";
+import { classifyCommitStatus } from "./ci-status.mjs";
 import { assertWorkBranch } from "./worktrees.mjs";
 import { assertPublishableHistory } from "./secret-scan.mjs";
 import {
@@ -175,6 +176,50 @@ export function isPermissionRejection(error) {
 
 export function statusClass(status) {
   return `${Math.floor(status / 100)}xx`;
+}
+
+/** Read checks for the current head and confirm that the head did not move. */
+export async function readLivePullRequest({
+  github,
+  number,
+  requiredChecks,
+  signal,
+}) {
+  const pullRequest = await github.getPullRequest({ number, signal });
+  const [checkRuns, statuses] = await Promise.all([
+    github.getCommitCheckRuns({ commit: pullRequest.headSha, signal }),
+    github.getCommitStatuses({ commit: pullRequest.headSha, signal }),
+  ]);
+  const confirmed = await github.getPullRequest({ number, signal });
+  if (
+    confirmed.headSha !== pullRequest.headSha ||
+    confirmed.state !== pullRequest.state ||
+    confirmed.merged !== pullRequest.merged
+  ) {
+    throw new Error("The pull request changed while reading its state.");
+  }
+  const classification = classifyCommitStatus({
+    requiredChecks,
+    checkRuns,
+    statuses,
+  });
+  const checks = requiredChecks.map((name) => {
+    const result = classifyCommitStatus({
+      requiredChecks: [name],
+      checkRuns,
+      statuses,
+    });
+    let conclusion = result.state;
+    if (result.missing.length > 0) conclusion = "missing";
+    if (result.state === "failure") {
+      const run = checkRuns.find((entry) => entry.name === name);
+      if (run?.conclusion === "cancelled" || run?.conclusion === "timed_out") {
+        conclusion = run.conclusion;
+      }
+    }
+    return { name, conclusion };
+  });
+  return { pullRequest: confirmed, classification, checks };
 }
 
 export class GitHubTrust {
