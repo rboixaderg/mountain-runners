@@ -1,0 +1,29 @@
+tools/server/agent/workflow/preview-request.mjs
+  s_b7ec8f5a705b5b::t_67ba7ab3f7de43 267
+tools/server/agent/workflow/preview-request.test.mjs
+  s_baf73bb4b73b37::t_543cc4a20c1e18 452-453,455-462,464-465,472,475-480
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "b698cf3377c0c0fc2137b95aadf8b4e34232bf6a",
+  "prompts": {},
+  "sessions": {
+    "s_b7ec8f5a705b5b": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a1fab0-8d95-7799-b4a1-7d43e047d790",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    },
+    "s_baf73bb4b73b37": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a1fac8-95ce-7181-a570-03b44d42593b",
+        "model": "gpt-6.1-terra"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
