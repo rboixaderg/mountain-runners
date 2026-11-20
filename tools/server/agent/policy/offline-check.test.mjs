@@ -12,7 +12,7 @@ import {
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
-import { sandboxCheckCommand } from "./development.mjs";
+import { checkCommands, sandboxCheckCommand } from "./development.mjs";
 
 function fixture(context) {
   const directory = mkdtempSync(join(tmpdir(), "mr-offline-check-"));
@@ -34,7 +34,7 @@ printf '%s\\n' "$*" >> "$TEST_CALLS"
 if [ "$1" = install ]; then
   if [ "$TEST_FAIL_INSTALL" = yes ]; then exit 9; fi
   mkdir -p node_modules
-elif [ "$1" = check ]; then
+elif [ "$1" = check ] || [ "$1" = check:local ]; then
   test -d "$TMPDIR" || exit 8
   printf '%s\\n' "$TMPDIR" "$MR_AGENT_BROWSER_PROFILE" >> "$TEST_CALLS"
 fi
@@ -45,8 +45,11 @@ fi
   return { binaries, workspace, log };
 }
 
-function runCheck({ binaries, workspace, log }, failInstall = false) {
-  return execFileSync("bash", ["-c", sandboxCheckCommand], {
+function runCheck(
+  { binaries, workspace, log },
+  { failInstall = false, checkCommand = checkCommands.full } = {},
+) {
+  return execFileSync("bash", ["-c", sandboxCheckCommand(checkCommand)], {
     cwd: workspace,
     encoding: "utf8",
     env: {
@@ -57,17 +60,27 @@ function runCheck({ binaries, workspace, log }, failInstall = false) {
   });
 }
 
-test("installs from the offline store before checking with a private worktree temporary directory", (context) => {
-  const paths = fixture(context);
-  runCheck(paths);
+function assertCheckRun(paths, checkArgument) {
   const lines = readFileSync(paths.log, "utf8").trim().split("\n");
   assert.equal(
     lines[0],
     "install --offline --frozen-lockfile --store-dir /opt/mountain-agent/store",
   );
-  assert.equal(lines[1], "check");
+  assert.equal(lines[1], checkArgument);
   assert.match(lines[2], /^.+\/\.agent-check\.[A-Za-z0-9]+$/u);
   assert.equal(lines[3], "chromium");
+}
+
+test("installs from the offline store before checking with a private worktree temporary directory", (context) => {
+  const paths = fixture(context);
+  runCheck(paths);
+  assertCheckRun(paths, "check");
+});
+
+test("prepares and isolates the content-only checks the same way", (context) => {
+  const paths = fixture(context);
+  runCheck(paths, { checkCommand: checkCommands.contentOnly });
+  assertCheckRun(paths, "check:local");
 });
 
 test("rejects a package-manager version missing from the image before running pnpm install", (context) => {
@@ -82,7 +95,7 @@ test("rejects a package-manager version missing from the image before running pn
 
 test("does not run checks after offline installation fails", (context) => {
   const paths = fixture(context);
-  assert.throws(() => runCheck(paths, true), { status: 9 });
+  assert.throws(() => runCheck(paths, { failInstall: true }), { status: 9 });
   assert.equal(
     readFileSync(paths.log, "utf8").trim(),
     "install --offline --frozen-lockfile --store-dir /opt/mountain-agent/store",

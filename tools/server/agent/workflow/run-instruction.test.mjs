@@ -391,6 +391,80 @@ test("publishes a small change as a pull request after the checks pass", async (
   assert.equal(committed, "feat(tools): add synthetic change");
 });
 
+test("runs the fast gate for a content-only change and names it in the pull request", async (context) => {
+  const paths = await fixture(context);
+  const notes = noteStore(context, paths);
+  const github = githubStub();
+  const commands = [];
+  const runner = createProjectRunner({
+    config: configFor(paths),
+    classifyRequest: async () => "implementation",
+    github,
+    sessionNotes: notes,
+    runModel: async ({ worktreePath }) => {
+      const postDirectory = join(worktreePath, "apps/web/src/content/posts");
+      mkdirSync(postDirectory, { recursive: true });
+      writeFileSync(join(postDirectory, "la-cursa.md"), "---\n---\n");
+      return {
+        text: "Text corregit.\nSUMMARY: content(posts): fix three sentences",
+      };
+    },
+    runChecks: async ({ checkCommand }) => {
+      commands.push(checkCommand);
+      return { exitCode: 0, stdout: "", stderr: "", timedOut: false };
+    },
+  });
+
+  const result = await runner(request());
+
+  assert.equal(result.outcome, "pull_request_created");
+  assert.deepEqual(commands, ["pnpm check:local"]);
+  assert.match(
+    github.pulls[0].body,
+    /- `pnpm check:local` correcte dins l'entorn aïllat\./u,
+  );
+  assert.match(
+    notes
+      .claim(topicSessionKey)
+      .map((note) => note.text)
+      .join("\n"),
+    /Comprovacions: pnpm check:local correcte\./u,
+    "the session note names the command that ran",
+  );
+});
+
+test("runs the full gate when the change also touches code outside the content", async (context) => {
+  const paths = await fixture(context);
+  const github = githubStub();
+  const commands = [];
+  const runner = createProjectRunner({
+    config: configFor(paths),
+    classifyRequest: async () => "implementation",
+    github,
+    runModel: async ({ worktreePath }) => {
+      const postDirectory = join(worktreePath, "apps/web/src/content/posts");
+      const pageDirectory = join(worktreePath, "apps/web/src/pages");
+      mkdirSync(postDirectory, { recursive: true });
+      mkdirSync(pageDirectory, { recursive: true });
+      writeFileSync(join(postDirectory, "la-cursa.md"), "---\n---\n");
+      writeFileSync(join(pageDirectory, "x.astro"), "<p>synthetic</p>\n");
+      return {
+        text: "Text corregit.\nSUMMARY: content(posts): fix three sentences",
+      };
+    },
+    runChecks: async ({ checkCommand }) => {
+      commands.push(checkCommand);
+      return { exitCode: 0, stdout: "", stderr: "", timedOut: false };
+    },
+  });
+
+  const result = await runner(request());
+
+  assert.equal(result.outcome, "pull_request_created");
+  assert.deepEqual(commands, ["pnpm check"]);
+  assert.match(github.pulls[0].body, /- `pnpm check` correcte/u);
+});
+
 test("sends the model answer with one plain notice and the review link after a publication", async (context) => {
   const paths = await fixture(context);
   const github = githubStub();

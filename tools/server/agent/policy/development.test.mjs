@@ -9,6 +9,8 @@ import {
   buildRepairInstruction,
   buildTopicStateText,
   changeTypes,
+  checkCommandForPaths,
+  checkCommands,
   ciNoteReports,
   ciReports,
   ciWatchOutcomes,
@@ -24,6 +26,7 @@ import {
   publicationNoticesText,
   publicationReport,
   publicationReportLimits,
+  pullRequestBody,
   reconcileReports,
   reconcileResolutions,
   repairPromptLimits,
@@ -308,6 +311,7 @@ test("keeps the technical facts of a publication in the service note", () => {
     pullRequest,
     branch: "feat/tools-add-the-news",
     commit: "b".repeat(40),
+    checkCommand: checkCommands.full,
     ciWatch: ciWatchOutcomes.registered,
     notices: ["Continuo la proposta #200, des del punt que ja teníem."],
   });
@@ -329,10 +333,47 @@ test("keeps the technical facts of a publication in the service note", () => {
       pullRequest,
       branch: "feat/tools-add-the-news",
       commit: "b".repeat(40),
+      checkCommand: checkCommands.full,
       ciWatch: ciWatchOutcomes.unavailable,
     }),
     /No s'ha pogut desar el seguiment de la CI d'aquest commit\./u,
   );
+});
+
+test("runs the fast gate only when every published path is content", () => {
+  assert.equal(
+    checkCommandForPaths([
+      "apps/web/src/content/posts/2026-11-18-la-cursa.md",
+      "apps/web/src/content-assets/posts/la-cursa.webp",
+    ]),
+    checkCommands.contentOnly,
+  );
+  for (const path of [
+    "apps/web/src/pages/x.astro",
+    "tools/server/agent/policy/development.mjs",
+    ".github/workflows/quality.yml",
+    "package.json",
+    "apps/web/src/content-extra/x",
+    "apps/web/src/content",
+  ]) {
+    assert.equal(
+      checkCommandForPaths(["apps/web/src/content/posts/la-cursa.md", path]),
+      checkCommands.full,
+      `${path} is not content`,
+    );
+  }
+  assert.equal(checkCommandForPaths([]), checkCommands.full);
+});
+
+test("names the command that ran in the pull request body", () => {
+  const body = pullRequestBody({
+    title: "content(posts): fix three sentences",
+    changedPaths: ["apps/web/src/content/posts/la-cursa.md"],
+    checkCommand: checkCommands.contentOnly,
+  });
+
+  assert.match(body, /- `pnpm check:local` correcte dins l'entorn aïllat\./u);
+  assert.doesNotMatch(body, /`pnpm check`/u);
 });
 
 test("clips a long answer so the review link is always the last line", () => {

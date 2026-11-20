@@ -175,7 +175,9 @@ al servidor. El nom local encara no representa una publicació a npm.
    distingir si la persona vol un canvi, i el text fix d'aclariment només es fa
    servir si el model no respon.
 5. Si hi ha canvis o commits pendents, `workflow` crea o continua la branca i
-   executa `pnpm check` dins del contenidor. Una fallada conserva la feina.
+   executa les comprovacions locals dins del contenidor: `pnpm check:local` si
+   tots els camins són dins del contingut (ADR 0012) i `pnpm check` altrament.
+   Una fallada conserva la feina.
 6. `repository` fa commit, escaneja les credencials conegudes, publica la branca
    i obre o reutilitza la PR. Només després de confirmar push i PR registra el
    commit publicat fora del muntatge. El paquet retorna el resultat al tema.
@@ -552,8 +554,9 @@ les dependències offline perquè el model pugui executar proves. Les consultes 
 instal·len res i conserven el worktree en només lectura. Les ordres
 d'implementació usen un `TMPDIR` ignorat per Git dins del worktree. Abans de
 publicar, el servei torna a instal·lar les dependències del lockfile i executa
-`pnpm check` amb un `TMPDIR` nou. Si la preparació falla, no inicia el model o
-no publica, segons el moment de la fallada.
+`pnpm check`, o `pnpm check:local` si tots els camins de la publicació són dins
+del contingut (ADR 0012), amb un `TMPDIR` nou. Si la preparació falla, no inicia
+el model o no publica, segons el moment de la fallada.
 
 La versió de pnpm del `package.json` ha de coincidir amb la de la imatge. Una
 diferència es refusa sense descarregar cap versió nova. La imatge és

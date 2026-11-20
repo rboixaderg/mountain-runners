@@ -21,6 +21,7 @@ import {
   currentBranch,
   commitSubject,
   changeDiff,
+  changedPathsAgainstMain,
   ensureSessionWorktree,
   findSessionWorktree,
   headCommit,
@@ -36,6 +37,7 @@ import {
   attachmentReports,
   buildAttachmentsInstruction,
   buildRepairInstruction,
+  checkCommandForPaths,
   ciWatchOutcomes,
   continuationReports,
   parseChangeSummary,
@@ -700,9 +702,15 @@ export function createInstructionRunner({
       if (!existingBranch) {
         await createBranch({ worktree, branch, signal });
       }
+      // The gate depends on what the publication would contain: a change that
+      // stays inside the content never runs the operational server tests.
+      const checkCommand = checkCommandForPaths(
+        await changedPathsAgainstMain(worktree, { signal }),
+      );
       const checks = await runChecks({
         sandboxIdentifier: worktreeName,
         worktreePath: worktree.path,
+        checkCommand,
         signal,
       });
       if (checks.timedOut) {
@@ -741,6 +749,7 @@ export function createInstructionRunner({
       const body = pullRequestBody({
         title,
         changedPaths: await committedPaths(worktree, { signal }),
+        checkCommand,
       });
       // A repair and a resumed pull request only update the pull request they
       // continue: the publisher checks it is still open at that commit and
@@ -878,6 +887,7 @@ export function createInstructionRunner({
           created: publication.created,
           branch,
           commit: publication.commit,
+          checkCommand,
         }),
       };
     } catch (error) {

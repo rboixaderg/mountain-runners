@@ -23,7 +23,14 @@ export const bridgeMessages = {
   attachmentTooManyImages: (count) =>
     `Un missatge pot portar com a màxim 5 imatges i aquest en portava ${count}. No he desat res; envia-me'n com a màxim 5.`,
 };
-export const checkCommand = "pnpm check";
+// The two local gates of the repository (ADR 0012). The full gate also runs the
+// operational tests of the server tooling, which no content path can affect.
+export const checkCommands = {
+  full: "pnpm check",
+  contentOnly: "pnpm check:local",
+};
+// The content the fast gate validates on its own.
+const contentRoots = ["apps/web/src/content", "apps/web/src/content-assets"];
 export const sandboxPrepareCommand = [
   "export HOME=/tmp npm_config_manage_package_manager_versions=false",
   "PNPM_VERSION=$(pnpm --version)",
@@ -31,13 +38,30 @@ export const sandboxPrepareCommand = [
   "pnpm install --offline --frozen-lockfile --store-dir /opt/mountain-agent/store",
   "mkdir -p .agent-runtime-tmp",
 ].join(" && ");
-export const sandboxCheckCommand = [
-  sandboxPrepareCommand,
-  'TMPDIR=$(mktemp -d "$PWD/.agent-check.XXXXXXXX")',
-  "export TMPDIR",
-  `trap 'rm -rf "$TMPDIR"' EXIT`,
-  `MR_AGENT_BROWSER_PROFILE=chromium ${checkCommand}`,
-].join(" && ");
+export function sandboxCheckCommand(checkCommand) {
+  return [
+    sandboxPrepareCommand,
+    'TMPDIR=$(mktemp -d "$PWD/.agent-check.XXXXXXXX")',
+    "export TMPDIR",
+    `trap 'rm -rf "$TMPDIR"' EXIT`,
+    `MR_AGENT_BROWSER_PROFILE=chromium ${checkCommand}`,
+  ].join(" && ");
+}
+
+/**
+ * The check a publication runs, from every path it would contain. Only a change
+ * that stays inside the content validates with the fast gate: any other path
+ * keeps the full one. A root matches its own directory only, so
+ * `apps/web/src/content-extra` is not content.
+ */
+export function checkCommandForPaths(paths) {
+  const everyPathIsContent =
+    paths.length > 0 &&
+    paths.every((path) =>
+      contentRoots.some((contentRoot) => path.startsWith(`${contentRoot}/`)),
+    );
+  return everyPathIsContent ? checkCommands.contentOnly : checkCommands.full;
+}
 // Conventional types the repository accepts for a change summary. The prompt
 // offers this list so the model does not invent a type that the parser would
 // discard, leaving the fallback title and a generic branch name.
@@ -228,7 +252,7 @@ export function fallbackTitle({ summary }) {
   return "feat(agent): update project";
 }
 
-export function pullRequestBody({ title, changedPaths }) {
+export function pullRequestBody({ title, changedPaths, checkCommand }) {
   const files = changedPaths.map((path) => `- \`${path}\``).join("\n");
   return [
     "## Objectiu",
@@ -673,6 +697,7 @@ export function publicationNoteText({
   pullRequest,
   branch,
   commit,
+  checkCommand,
   ciWatch,
   notices = [],
 }) {
