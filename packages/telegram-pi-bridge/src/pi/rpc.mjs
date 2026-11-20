@@ -153,6 +153,9 @@ export async function runPiPrompt({
   );
 
   let text = "";
+  // The provider error of a turn that ended without an answer, such as a rate
+  // limit. The transport reports it; only the caller decides what it means.
+  let errorMessage = null;
   let timedOut = false;
   let settled = false;
   let aborted = false;
@@ -228,6 +231,13 @@ export async function runPiPrompt({
         if (answer !== "") {
           if (text !== "") text += "\n\n";
           text += answer;
+          // An answer that arrived after a failed attempt is the turn's result.
+          errorMessage = null;
+        } else if (
+          record.message?.role === "assistant" &&
+          typeof record.message.errorMessage === "string"
+        ) {
+          errorMessage = record.message.errorMessage;
         }
       } else if (record.type === "agent_settled") {
         settled = true;
@@ -312,7 +322,7 @@ export async function runPiPrompt({
 
   try {
     const result = await settle;
-    return { ...result, timedOut, stderr: stderr.join("") };
+    return { ...result, timedOut, errorMessage, stderr: stderr.join("") };
   } finally {
     if (!settled) child.kill("SIGKILL");
     child.stdin.end();
