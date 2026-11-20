@@ -26,6 +26,10 @@
 // An unknown delivery is never treated as a delivered notice: while the topic
 // has an uncertain notice, it has unreported work and neither a merge nor a
 // preview can be resolved, whatever the other notices of the topic say.
+//
+// A publication whose request also asked for the preview of the result keeps
+// that author. Its green notice announces the preview instead of inviting the
+// person to ask, and the watch requests it once the notice was delivered.
 
 import { openDatabase, runTransaction } from "./sqlite.mjs";
 
@@ -37,6 +41,7 @@ const watchesTable = `
     commit_sha TEXT NOT NULL,
     state TEXT NOT NULL CHECK (state IN ('pending', 'sending', 'sent', 'uncertain', 'superseded')),
     result TEXT,
+    preview_author_identifier INTEGER,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL
   );
@@ -102,6 +107,21 @@ function ensureSupersededState(database) {
   });
 }
 
+/**
+ * A store created before a watch could ask for the preview together with its
+ * change gets the column added: null means the request did not ask for it, so
+ * every previous watch keeps behaving as before.
+ */
+function ensurePreviewAuthorColumn(database) {
+  const columns = database.prepare("PRAGMA table_info(ci_watches)").all();
+  if (columns.some((column) => column.name === "preview_author_identifier")) {
+    return;
+  }
+  database.exec(
+    "ALTER TABLE ci_watches ADD COLUMN preview_author_identifier INTEGER",
+  );
+}
+
 const finishedRepairStatuses = new Set(["done", "aborted", "uncertain"]);
 
 /**
@@ -121,6 +141,7 @@ export class CiWatchStore {
     this.#database = openDatabase(path);
     this.#database.exec(schema);
     ensureSupersededState(this.#database);
+    ensurePreviewAuthorColumn(this.#database);
     this.#now = now;
   }
 
@@ -134,8 +155,18 @@ export class CiWatchStore {
    * neither be delivered nor describe the head of the pull request any more, so
    * it must not count as unreported work or become the last report. It is kept
    * as `superseded` for the audit.
+   *
+   * `previewAuthorIdentifier` records that the same request asked for the
+   * preview of the result: the green notice of this watch requests it in the
+   * name of that author. Null means no preview was asked for.
    */
-  add({ updateIdentifier, sessionKey, pullRequestNumber, commitSha }) {
+  add({
+    updateIdentifier,
+    sessionKey,
+    pullRequestNumber,
+    commitSha,
+    previewAuthorIdentifier = null,
+  }) {
     this.#transaction(() => {
       const timestamp = this.#now().toISOString();
       this.#database
@@ -148,14 +179,15 @@ export class CiWatchStore {
       this.#database
         .prepare(
           `INSERT INTO ci_watches
-          (update_identifier, session_key, pull_request_number, commit_sha, state, created_at, updated_at)
-          VALUES (?, ?, ?, ?, 'pending', ?, ?)`,
+          (update_identifier, session_key, pull_request_number, commit_sha, state, preview_author_identifier, created_at, updated_at)
+          VALUES (?, ?, ?, ?, 'pending', ?, ?, ?)`,
         )
         .run(
           updateIdentifier,
           sessionKey,
           pullRequestNumber,
           commitSha,
+          previewAuthorIdentifier,
           timestamp,
           timestamp,
         );

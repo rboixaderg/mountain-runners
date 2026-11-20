@@ -12,6 +12,7 @@ import { join } from "node:path";
 import { runProjectPrompt } from "./pi-adapter.mjs";
 import {
   buildClassificationPrompt,
+  parsePreviewAfterChange,
   parseRequestKind,
 } from "../policy/development.mjs";
 
@@ -46,5 +47,8 @@ export async function classifyRequest(
   if (result.timedOut || result.aborted) {
     throw new Error("The request classification did not complete.");
   }
-  return parseRequestKind(result.text);
+  return {
+    kind: parseRequestKind(result.text),
+    previewAfterChange: parsePreviewAfterChange(result.text),
+  };
 }

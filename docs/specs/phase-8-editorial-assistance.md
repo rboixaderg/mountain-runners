@@ -688,7 +688,9 @@ Aquests requisits mantenen l'activació del bot, el camí determinista de
   es refusa. No cal una llista separada de permisos
   de preview ni vincular cada persona a un compte de GitHub. L'agent retorna
   l'URL i el SHA del publicador de confiança, mai una URL construïda o un estat
-  suposat. Sense petició explícita no comenta `/preview`.
+  suposat. Sense petició explícita no comenta `/preview`. Una petició que demana
+  el canvi i la preview en el mateix missatge compta com a petició explícita i
+  s'atén quan la CI és verda, sense demanar-la una segona vegada.
 - El merge és una acció humana executada pel servei. Un membre verificat el
   demana al fil amb `/merge` (opcionalment `/merge <PR>`) després de validar el
   resultat; el servei resol la PR de l'últim avís verd del fil, i si no pot

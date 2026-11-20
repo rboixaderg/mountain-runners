@@ -492,6 +492,9 @@ export async function startService({
     pollIntervalMilliseconds: config.limits.ciPollIntervalMs,
     watchTimeoutMilliseconds: config.limits.ciWatchTimeoutMs,
     maximumAutomaticRepairs,
+    // A request that asked for the change and its preview in the same message
+    // gets the preview here, through the same handler a person's request uses.
+    requestPreview: previewWorker.handle,
     secrets: agentSecrets(config, environment),
     recordTrace: (entry) => queue.recordTrace(entry),
     recordServiceNote,

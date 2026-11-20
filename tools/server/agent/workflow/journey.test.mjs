@@ -168,7 +168,7 @@ test("a natural request reaches a pull request from Telegram", async (context) =
   context.after(() => ciWatches.close());
   const runner = createProjectRunner({
     config,
-    classifyRequest: async () => "implementation",
+    classifyRequest: async () => ({ kind: "implementation" }),
     github,
     ciWatches,
     runModel: async ({ worktreePath }) => {

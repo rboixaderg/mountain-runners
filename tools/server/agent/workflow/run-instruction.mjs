@@ -369,10 +369,11 @@ export function createInstructionRunner({
           ? null
           : safelyWithNotes(() => sessionNotes.lastReply(request.sessionKey));
       let kind;
+      let previewAfterChange = false;
       if (repair) {
         kind = repairRequestKind;
       } else {
-        kind = await classifyRequest({
+        const classification = await classifyRequest({
           instruction: request.instruction,
           context: {
             lastAgentReply,
@@ -381,12 +382,17 @@ export function createInstructionRunner({
           },
           signal,
         });
+        kind = classification.kind;
+        previewAfterChange = classification.previewAfterChange === true;
         // The last reply is untrusted text: it may describe a preview, but it
         // can never authorise one. When it was part of the context, the
-        // classifier must reach the same label without it, or the preview is
-        // decided from the current request alone.
-        if (kind === previewRequestKind && lastAgentReply !== null) {
-          kind = await classifyRequest({
+        // classifier must reach the same preview labels without it, or the
+        // preview is decided from the current request alone.
+        if (
+          (kind === previewRequestKind || previewAfterChange) &&
+          lastAgentReply !== null
+        ) {
+          const withoutLastReply = await classifyRequest({
             instruction: request.instruction,
             context: {
               lastAgentReply: null,
@@ -395,6 +401,10 @@ export function createInstructionRunner({
             },
             signal,
           });
+          if (kind === previewRequestKind) {
+            kind = withoutLastReply.kind;
+          }
+          previewAfterChange = withoutLastReply.previewAfterChange === true;
         }
         recordTrace({
           updateIdentifier: request.updateIdentifier,
@@ -403,6 +413,17 @@ export function createInstructionRunner({
           action: "instruction_classified",
           detail: kind,
         });
+        // The preview this message asked for together with its change, so a
+        // later cycle can tell which notice announced it.
+        if (previewAfterChange) {
+          recordTrace({
+            updateIdentifier: request.updateIdentifier,
+            authorIdentifier: request.authorIdentifier,
+            sessionKey: request.sessionKey,
+            action: "preview_after_change",
+            detail: kind,
+          });
+        }
       }
       // A preview is decided by the service, never by the model: no worktree
       // is touched and no model run starts.
@@ -832,6 +853,11 @@ export function createInstructionRunner({
         pullRequestNumber: publication.pullRequest.number,
         commit: publication.commit,
         automatic: repair,
+        // Only a person's publication can carry the preview this request asked
+        // for; the watch keeps its author so the green notice can honour it.
+        previewAuthorIdentifier: previewAfterChange
+          ? request.authorIdentifier
+          : null,
       });
       // The new topic owns the pull request only once its watch is durable: the
       // previous topic keeps the CI notices and is not told otherwise. A notice
