@@ -61,8 +61,6 @@ tools/server/agent/               aplicació de Mountain Runners
 │   ├── ci-watch.mjs                avís de CI i reserva de la reparació acotada
 │   ├── preview-request.mjs         petició `/preview` determinista i confirmació
 │   ├── merge-request.mjs           comanda `/merge` determinista i recuperació
-│   ├── cross-topic-continuation.mjs implementació anterior, no cridada pel camí ordinari
-│   ├── overlap-warning.mjs         implementació anterior, no cridada pel camí ordinari
 │   ├── topic-job-migration.mjs      vincula una PR existent quan no hi ha ambigüitat
 │   ├── topic-state.mjs             estat del tema que rep cada torn, amb lectures de GitHub
 │   └── ci-repair.mjs               executa una reparació quan la cua està inactiva
@@ -326,9 +324,8 @@ al servidor. El nom local encara no representa una publicació a npm.
     resposta nomena la proposta fusionada i el canvi fusionat (SHA curt), a
     l'última línia, després de l'enllaç de revisió. El detall és a [`docs/deployment.md`](../../../docs/deployment.md).
 
-11. El camí ordinari no reprèn PR d'altres temes ni genera avisos de
-    solapament. Els mòduls anteriors es mantenen al repositori, però aquest
-    camí ja no els crida. Una PR vinculada es revalida abans del push i no es
+11. El servei no reprèn PR d'altres temes ni genera avisos de solapament:
+    aquest codi s'ha eliminat. Una PR vinculada es revalida abans del push i no es
     crea una segona PR per al tema.
     Abans de cada torn ordinari, el servei llegeix la PR vinculada: si és
     fusionada o tancada, respon «Aquesta feina ja està acabada. Obre un tema nou
