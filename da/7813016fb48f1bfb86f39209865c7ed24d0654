@@ -1,0 +1,49 @@
+docs/deployment.md
+  s_0444d2f70aaa43::t_c7ae7dedfc79ce 422-426,462-463,582-591,604-606,724,1083-1113,1117-1118,1192-1193,1205-1207,1246-1257,1479
+docs/specs/phase-8-editorial-assistance.md
+  s_0444d2f70aaa43::t_3345b1565e9076 197
+tools/server/agent/README.md
+  s_0444d2f70aaa43::t_5c308f5d6052c4 4,6-10,60,64-66,94,117,142-145,148-153,177-180,184-193,317-320,361,540-543
+tools/server/agent/policy/development.test.mjs
+  s_0444d2f70aaa43::t_cbb48b28dbe0b9 9,51-65
+tools/server/agent/processes/telegram-bridge/main.mjs
+  s_0444d2f70aaa43::t_631f634d78457b 13,31,146-148,176,422
+tools/server/agent/repository/topic-job-store.mjs
+  s_0444d2f70aaa43::t_51ffc1db1d7b85 1-53
+tools/server/agent/repository/topic-job-store.test.mjs
+  s_0444d2f70aaa43::t_8f0ad1a6ef5ac9 1-58
+tools/server/agent/repository/worktrees.mjs
+  s_0444d2f70aaa43::t_d2cd99e389cce7 30-35,805-898,902-907,911-935,937-1014
+tools/server/agent/repository/worktrees.test.mjs
+  s_0444d2f70aaa43::t_7ce8b67c6d313c 32,81-113
+tools/server/agent/workflow/cross-topic-continuation-boundary.test.mjs
+  s_0444d2f70aaa43::t_b7b228f3a11ecb 1-89
+tools/server/agent/workflow/project-runner.mjs
+  s_0444d2f70aaa43::t_41e05386cfd7d2 23,36,155-167
+tools/server/agent/workflow/regressions.test.mjs
+  s_0444d2f70aaa43::t_a2616c03ec9f93 130,161-163
+tools/server/agent/workflow/run-instruction.mjs
+  s_0444d2f70aaa43::t_59dfa519d0d614 4-6,27-35,37,45,60-61,84-87,345-611,620,641-651,728,735-772,774,786,793,819,845,881,888,908-913,932-934,938-939,941-960,962-970,1025-1037,1081-1083,1114-1119
+tools/server/agent/workflow/run-instruction.test.mjs
+  s_0444d2f70aaa43::t_a279a50c354523 21,204,263-373,399,401,406-409,411,416-437,465-1332,1334-1339,1341-1345,1347-1349,1352,1354-1356,1358-1386,1390-1407,1409,1412-1417,1419-1427,1429-1431,1433-1443,1445-1478,1895,1915-1916,1964,2899,2928,2931,3031,3070,3073,3107,3111,3130-3133,3342,3344,3349-3355,3361,3530,3538,3552,3554,3616-3617,3647,3824,3925-3932,3938,3945-3952,4028-4029,4039,4172,4198,4236,4257,4265-4268,4275-4278,4299,4340,4418,4468-4469
+tools/server/agent/workflow/topic-job-migration.mjs
+  s_0444d2f70aaa43::t_ffe18fe5958fef 1-48
+tools/server/agent/workflow/topic-job-migration.test.mjs
+  s_0444d2f70aaa43::t_654f49f9ddc549 1-81
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "da7813016fb48f1bfb86f39209865c7ed24d0654",
+  "prompts": {},
+  "sessions": {
+    "s_0444d2f70aaa43": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a1ffdd-49e3-7558-8642-4df9bf760b8c",
+        "model": "claude-sonnet-5-5"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
