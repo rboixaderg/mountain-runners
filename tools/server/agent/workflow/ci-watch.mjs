@@ -691,6 +691,56 @@ export function createCiWatchWorker({
             checkRuns: current.checkRuns,
             signal,
           });
+          let previousRerun = null;
+          for (const { job } of failures) {
+            if (!job) continue;
+            const reservation = store.rerun(job.run_id);
+            if (!reservation) continue;
+            try {
+              const run = await github.getWorkflowRun({
+                runIdentifier: job.run_id,
+                commit: watch.commit_sha,
+                signal,
+              });
+              if (
+                run.run_attempt > reservation.original_attempt &&
+                job.run_attempt === reservation.original_attempt
+              ) {
+                const age = now().getTime() - Date.parse(watch.created_at);
+                previousRerun =
+                  age < watchTimeoutMilliseconds ? "waiting" : "unconfirmed";
+              } else if (
+                run.run_attempt > reservation.original_attempt &&
+                job.run_attempt > reservation.original_attempt
+              ) {
+                previousRerun = "exhausted";
+              } else {
+                previousRerun = "unconfirmed";
+              }
+            } catch {
+              previousRerun = "unconfirmed";
+            }
+            break;
+          }
+          if (previousRerun !== null) {
+            if (previousRerun !== "waiting") {
+              await deliver(
+                watch,
+                { ...current, result: ciResults.repairNotRun },
+                { signal },
+              );
+              safeTrace({
+                updateIdentifier: watch.update_identifier,
+                sessionKey: watch.session_key,
+                action:
+                  previousRerun === "exhausted"
+                    ? "ci_rerun_exhausted"
+                    : "ci_rerun_unconfirmed",
+                detail: describe(watch),
+              });
+            }
+            continue;
+          }
           const nonCodeFailures = failures
             .filter(
               ({ kind }) =>
@@ -725,13 +775,47 @@ export function createCiWatchWorker({
                   originalAttempt: job.run_attempt,
                 })
               ) {
+                try {
+                  await github.getWorkflowRun({
+                    runIdentifier: job.run_id,
+                    commit: watch.commit_sha,
+                    signal,
+                  });
+                } catch {
+                  // The existing reservation is never repeated when it cannot be read.
+                }
                 exhausted = true;
                 break;
               }
-              await github.rerunFailedJobs({
-                runIdentifier: job.run_id,
-                signal,
-              });
+              try {
+                await github.rerunFailedJobs({
+                  runIdentifier: job.run_id,
+                  signal,
+                });
+              } catch {
+                try {
+                  await github.getWorkflowRun({
+                    runIdentifier: job.run_id,
+                    commit: watch.commit_sha,
+                    signal,
+                  });
+                } catch {
+                  // The request may have reached GitHub and cannot be repeated.
+                }
+                await deliver(
+                  watch,
+                  { ...current, result: ciResults.repairNotRun },
+                  { signal },
+                );
+                safeTrace({
+                  updateIdentifier: watch.update_identifier,
+                  sessionKey: watch.session_key,
+                  action: "ci_rerun_unconfirmed",
+                  detail: describe(watch),
+                });
+                exhausted = false;
+                break;
+              }
               safeTrace({
                 updateIdentifier: watch.update_identifier,
                 sessionKey: watch.session_key,

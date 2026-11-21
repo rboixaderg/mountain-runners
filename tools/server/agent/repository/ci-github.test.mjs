@@ -70,6 +70,43 @@ test("reads every page of check runs pinned to the exact commit", async () => {
   );
 });
 
+test("reads the workflow run attempt for the pinned commit", async () => {
+  let calls = 0;
+  const github = new GitHubTrust({
+    token: "synthetic",
+    repository: "example/project",
+    fetchImpl: async (url) => {
+      calls += 1;
+      assert.equal(
+        url,
+        "https://api.github.com/repos/example/project/actions/runs/34",
+      );
+      return {
+        ok: true,
+        json: async () => ({
+          id: 34,
+          head_sha: commit,
+          run_attempt: 2,
+          status: "completed",
+        }),
+      };
+    },
+  });
+  assert.equal(
+    (await github.getWorkflowRun({ runIdentifier: 34, commit })).run_attempt,
+    2,
+  );
+  await assert.rejects(
+    github.getWorkflowRun({ runIdentifier: 0, commit }),
+    /identifier/u,
+  );
+  await assert.rejects(
+    github.getWorkflowRun({ runIdentifier: 34, commit: "b".repeat(40) }),
+    /invalid workflow run/u,
+  );
+  assert.equal(calls, 2);
+});
+
 test("matches a check run to the repository job and exact commit", async () => {
   const github = new GitHubTrust({
     token: "synthetic",

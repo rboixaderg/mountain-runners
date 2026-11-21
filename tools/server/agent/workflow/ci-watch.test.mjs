@@ -75,6 +75,8 @@ function fakeGithub({
     },
     async getCheckRunJob({ checkRun }) {
       return {
+        run_id: 100,
+        run_attempt: 1,
         status: "completed",
         conclusion: checkRun.conclusion,
         steps: [
@@ -194,6 +196,12 @@ test("does not rerun a second cancellation", async (context) => {
     steps: [],
   });
   let calls = 0;
+  github.getWorkflowRun = async () => ({
+    id: 100,
+    run_attempt: attempt,
+    head_sha: commit,
+    status: "completed",
+  });
   github.rerunFailedJobs = async () => {
     calls += 1;
   };
@@ -212,6 +220,117 @@ test("does not rerun a second cancellation", async (context) => {
   assert.equal(store.claimNextRepair(), null);
   assert.equal(telegram.sent.length, 1);
   assert.equal(traces.at(-1).action, "ci_rerun_exhausted");
+});
+
+for (const scenario of ["before-call", "after-call"]) {
+  test(`reconciles a stored rerun after restart: ${scenario}`, async (context) => {
+    const { store, path } = fixture(context);
+    createCiWatchRegistration({ store })(registration);
+    store.reserveRerun({ runIdentifier: 100, originalAttempt: 1 });
+    const restarted = new CiWatchStore(path);
+    context.after(() => restarted.close());
+    let conclusion = "cancelled";
+    const github = fakeGithub();
+    github.getCommitCheckRuns = async () => [
+      checkRun("Validate", "completed", conclusion),
+    ];
+    github.getCheckRunJob = async () => ({
+      run_id: 100,
+      run_attempt: 1,
+      status: "completed",
+      conclusion: "cancelled",
+      steps: [],
+    });
+    let reads = 0;
+    github.getWorkflowRun = async () => {
+      reads += 1;
+      return { run_attempt: scenario === "before-call" ? 1 : 2 };
+    };
+    github.rerunFailedJobs = async () =>
+      assert.fail("a stored reservation is never resent");
+    const telegram = fakeTelegram();
+    const worker = workerFor({ store: restarted, github, telegram });
+    await worker.runOnce();
+    assert.equal(reads, 1);
+    assert.equal(restarted.claimNextRepair(), null);
+    if (scenario === "before-call") {
+      assert.equal(telegram.sent.length, 1);
+      assert.equal(restarted.state(registration.updateIdentifier), "sent");
+    } else {
+      assert.equal(telegram.sent.length, 0);
+      assert.equal(restarted.state(registration.updateIdentifier), "pending");
+      conclusion = "success";
+      await worker.runOnce();
+      assert.equal(
+        restarted.lastReported(registration.sessionKey).result,
+        "success",
+      );
+    }
+  });
+}
+
+test("does not repair a project failure on the rerun attempt", async (context) => {
+  const { store } = fixture(context);
+  createCiWatchRegistration({ store })(registration);
+  store.reserveRerun({ runIdentifier: 100, originalAttempt: 1 });
+  const github = fakeGithub({
+    checkRuns: [checkRun("Validate", "completed", "failure")],
+  });
+  github.getCheckRunJob = async () => ({
+    run_id: 100,
+    run_attempt: 2,
+    status: "completed",
+    conclusion: "failure",
+    steps: [
+      { name: "Check project", status: "completed", conclusion: "failure" },
+    ],
+  });
+  github.getWorkflowRun = async () => ({ run_attempt: 2 });
+  github.rerunFailedJobs = async () => assert.fail("the rerun already failed");
+  const telegram = fakeTelegram();
+  const traces = [];
+  await workerFor({
+    store,
+    github,
+    telegram,
+    recordTrace: (entry) => traces.push(entry),
+  }).runOnce();
+  assert.equal(store.claimNextRepair(), null);
+  assert.equal(telegram.sent.length, 1);
+  assert.equal(traces.at(-1).action, "ci_rerun_exhausted");
+});
+
+test("reports an API error and never repeats the rerun", async (context) => {
+  const { store } = fixture(context);
+  createCiWatchRegistration({ store })(registration);
+  const github = fakeGithub({
+    checkRuns: [checkRun("Validate", "completed", "cancelled")],
+  });
+  github.getCheckRunJob = async () => ({
+    run_id: 100,
+    run_attempt: 1,
+    status: "completed",
+    conclusion: "cancelled",
+    steps: [],
+  });
+  let calls = 0;
+  let reads = 0;
+  github.rerunFailedJobs = async () => {
+    calls += 1;
+    throw new Error("network");
+  };
+  github.getWorkflowRun = async () => {
+    reads += 1;
+    throw new Error("network");
+  };
+  const telegram = fakeTelegram();
+  const worker = workerFor({ store, github, telegram });
+  await worker.runOnce();
+  await worker.runOnce();
+  assert.equal(calls, 1);
+  assert.equal(reads, 1);
+  assert.equal(telegram.sent.length, 1);
+  assert.equal(store.claimNextRepair(), null);
 });
 
 for (const scenario of ["green", "moved", "error"]) {

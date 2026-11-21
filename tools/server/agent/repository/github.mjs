@@ -444,6 +444,29 @@ export class GitHubTrust {
     return job;
   }
 
+  async getWorkflowRun({ runIdentifier, commit, signal }) {
+    assertFullCommit(commit);
+    if (!Number.isSafeInteger(runIdentifier) || runIdentifier < 1) {
+      throw new Error("A positive workflow run identifier is required.");
+    }
+    const run = await this.#request(
+      "GET",
+      `/repos/${this.#repository}/actions/runs/${runIdentifier}`,
+      undefined,
+      { signal },
+    );
+    if (
+      run?.id !== runIdentifier ||
+      run.head_sha !== commit ||
+      !Number.isSafeInteger(run.run_attempt) ||
+      run.run_attempt < 1 ||
+      typeof run.status !== "string"
+    ) {
+      throw new Error("GitHub returned an invalid workflow run.");
+    }
+    return run;
+  }
+
   async getWorkflowJob({ jobIdentifier, signal }) {
     if (!Number.isSafeInteger(jobIdentifier) || jobIdentifier < 1) {
       throw new Error("A positive workflow job identifier is required.");
