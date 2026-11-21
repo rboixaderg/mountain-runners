@@ -555,19 +555,58 @@ test("does not bind a topic when local checks block publication", async (context
   assert.deepEqual(github.pushes, []);
 });
 
-test("records the first confirmed publication without replacing its binding", async (context) => {
+test("two implementation turns publish to the first bound pull request", async (context) => {
   const paths = await fixture(context);
   mkdirSync(paths.state, { recursive: true });
   const topicJobs = new TopicJobStore(join(paths.state, "topic-jobs.sqlite"));
   context.after(() => topicJobs.close());
   const github = githubStub();
+  const pushBranch = github.pushBranch.bind(github);
+  let remoteHead;
+  github.pushBranch = async (options) => {
+    const pushed = await pushBranch(options);
+    remoteHead = pushed.commit;
+    return pushed;
+  };
+  github.getPullRequest = async () => ({
+    state: "open",
+    draft: false,
+    baseRef: "main",
+    headRepository: "rboixaderg/mountain-runners",
+    headRef: github.pushes.at(-1).branch,
+    headSha: remoteHead,
+  });
+  github.ensurePullRequest = async (options) => {
+    github.pulls.push(options);
+    return {
+      pullRequest: {
+        number: 200,
+        htmlUrl: "https://github.com/rboixaderg/mountain-runners/pull/200",
+      },
+      created: github.pulls.length === 1,
+    };
+  };
+  let turn = 0;
   const runner = createProjectRunner({
     config: configFor(paths),
     github,
     topicJobs,
     classifyRequest: async () => ({ kind: "implementation" }),
-    runModel: async ({ worktreePath }) => {
-      writeFileSync(join(worktreePath, "change.txt"), "change\n");
+    prepareAttachment: createAttachmentPreparation({
+      telegram: telegramAttachment(pngImage({ width: 200, height: 100 })),
+    }),
+    runModel: async ({ worktreePath, images }) => {
+      turn += 1;
+      writeFileSync(join(worktreePath, "change.txt"), `change ${turn}\n`);
+      if (turn === 3) {
+        assert.equal(images.length, 1);
+        writeFileSync(
+          join(worktreePath, "cover.png"),
+          readFileSync(
+            join(worktreePath, ".agent-attachments", "imatge-1.png"),
+          ),
+        );
+      }
       return { text: "SUMMARY: feat(tools): add synthetic change" };
     },
     runChecks: async () => ({ exitCode: 0, timedOut: false }),
@@ -581,9 +620,36 @@ test("records the first confirmed publication without replacing its binding", as
   });
   assert.equal(
     (await runner(request({ updateIdentifier: 1002 }))).outcome,
-    "pull_request_created",
+    "pull_request_updated",
   );
-  assert.notEqual(github.pushes[1].branch, binding.branch);
+  assert.equal(github.pushes[1].branch, binding.branch);
+  assert.equal(github.pulls[1].createMissing, false);
+  assert.deepEqual(topicJobs.bindingOf(topicSessionKey), binding);
+
+  const attachmentResult = await runner(
+    attachmentRequest({ updateIdentifier: 1003 }),
+  );
+  assert.equal(attachmentResult.outcome, "pull_request_updated");
+  assert.equal(github.pushes[2].branch, binding.branch);
+  assert.equal(github.pulls[2].createMissing, false);
+  assert.equal(existsSync(join(topicWorktreePath(paths), "cover.png")), true);
+
+  const currentHead = await git(topicWorktreePath(paths), [
+    "rev-parse",
+    "HEAD",
+  ]);
+  github.getPullRequest = async () => ({
+    state: "open",
+    draft: false,
+    baseRef: "main",
+    headRepository: "rboixaderg/mountain-runners",
+    headRef: "feat/agent-other-1234",
+    headSha: currentHead,
+  });
+  const refused = await runner(request({ updateIdentifier: 1004 }));
+  assert.equal(refused.outcome, "failed");
+  assert.equal(turn, 3, "a different remote branch never reaches the model");
+  assert.equal(github.pushes.length, 3);
   assert.deepEqual(topicJobs.bindingOf(topicSessionKey), binding);
 });
 

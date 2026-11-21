@@ -76,6 +76,8 @@ export function createInstructionRunner({
   sessionNotes,
   topicJobs,
   migrateTopicJob,
+  readBoundPullRequest,
+  repositoryName,
   // The pull request the topic published and still owns, or null. Without the
   // CI watches the service knows no published pull request.
   findTopicPullRequest = () => null,
@@ -470,6 +472,58 @@ export function createInstructionRunner({
       if (target?.report) {
         return { outcome: "failed", report: target.report };
       }
+      const binding =
+        !repair && kind === "implementation"
+          ? (topicJobs?.bindingOf(request.sessionKey) ?? null)
+          : null;
+      let boundContinuation = null;
+      if (binding !== null) {
+        if (
+          topic.worktree === null ||
+          (await currentBranch(topic.worktree, { signal })) !== binding.branch
+        ) {
+          return {
+            outcome: "failed",
+            report: continuationReports.movedHead({
+              pullRequestNumber: binding.pullRequestNumber,
+            }),
+          };
+        }
+        let pullRequest;
+        try {
+          pullRequest = await readBoundPullRequest(binding.pullRequestNumber, {
+            signal,
+          });
+        } catch {
+          signal?.throwIfAborted();
+          return {
+            outcome: "failed",
+            report: instructionReports.publicationReadFailed,
+          };
+        }
+        if (
+          pullRequest.state !== "open" ||
+          pullRequest.draft ||
+          pullRequest.baseRef !== "main" ||
+          pullRequest.headRepository?.toLowerCase() !==
+            repositoryName.toLowerCase() ||
+          pullRequest.headRef !== binding.branch ||
+          (await headCommit(topic.worktree, { signal })) !== pullRequest.headSha
+        ) {
+          return {
+            outcome: "failed",
+            report: continuationReports.movedHead({
+              pullRequestNumber: binding.pullRequestNumber,
+            }),
+          };
+        }
+        boundContinuation = {
+          inPlace: true,
+          pullRequestNumber: binding.pullRequestNumber,
+          baseHeadSha: pullRequest.headSha,
+        };
+        kind = "continuation";
+      }
       // A consultation uses the topic's published content, not main. When
       // there is no pending work, resume the topic's pull request before the
       // writable turn. A refused resume must not start a different job.
@@ -483,14 +537,15 @@ export function createInstructionRunner({
       // request of this topic, but only while the topic keeps no pending work:
       // pending work is the work it must continue.
       const continuation =
-        kind === "continuation" || readsTopicPullRequest
+        boundContinuation ??
+        (kind === "continuation" || readsTopicPullRequest
           ? await continueFromPullRequest(request, {
               signal,
               unnamedTopicPullRequest:
                 topic !== null && !topic.pendingWork ? topicPullRequest : null,
               onlyUnnamedPullRequest: readsTopicPullRequest,
             })
-          : null;
+          : null);
       if (continuation?.report) {
         return { outcome: "answered", report: continuation.report };
       }

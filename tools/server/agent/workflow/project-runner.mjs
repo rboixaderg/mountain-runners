@@ -159,6 +159,9 @@ export function createProjectRunner({
     attachmentStore,
     sessionNotes,
     topicJobs,
+    repositoryName: config.github.repository,
+    readBoundPullRequest: (number, { signal }) =>
+      github.getPullRequest({ number, signal }),
     migrateTopicJob:
       topicJobs && ciWatches
         ? createTopicJobMigration({
