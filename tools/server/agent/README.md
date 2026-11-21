@@ -206,8 +206,9 @@ al servidor. El nom local encara no representa una publicació a npm.
    en un pas de preparació abans dels passos de projecte, `workflow/ci-watch.mjs`
    reserva una reexecució dels jobs fallits de l'execució de GitHub. La reserva
    es desa a `state/ci-watch.sqlite` abans de la crida i només permet un intent
-   per execució. El seguiment continua al mateix commit. Si l'intent torna a
-   fallar o no es pot confirmar, el servei avisa i no el repeteix. Després d'un
+   per execució. El seguiment continua al mateix commit i el seu termini torna
+   a comptar des de la reserva. Si l'intent torna a fallar o no es pot confirmar,
+   el servei avisa i no el repeteix. Després d'un
    reinici llegeix l'intent de GitHub abans de decidir; una reserva que no es pot
    confirmar no autoritza una altra crida.
 

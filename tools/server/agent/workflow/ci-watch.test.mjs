@@ -19,7 +19,7 @@ const commit = "b".repeat(40);
 const nextCommit = "c".repeat(40);
 const requiredChecks = ["Validate"];
 
-function fixture(context) {
+function fixture(context, options = {}) {
   const directory = mkdtempSync(join(tmpdir(), "mr-ci-watch-worker-"));
   context.after(() =>
     rmSync(directory, {
@@ -30,7 +30,7 @@ function fixture(context) {
     }),
   );
   const path = join(directory, "ci-watch.sqlite");
-  const store = new CiWatchStore(path);
+  const store = new CiWatchStore(path, options);
   context.after(() => store.close());
   return { store, path };
 }
@@ -345,9 +345,50 @@ test("reports an API error and never repeats the rerun", async (context) => {
   await worker.runOnce();
   await worker.runOnce();
   assert.equal(calls, 1);
-  assert.equal(reads, 1);
+  assert.equal(reads, 0);
   assert.equal(telegram.sent.length, 1);
   assert.equal(store.claimNextRepair(), null);
+});
+
+test("a rerun gets its own durable watch deadline", async (context) => {
+  let instant = Date.parse("2026-11-21T10:00:00Z");
+  const now = () => new Date(instant);
+  const { store, path } = fixture(context, { now });
+  createCiWatchRegistration({ store })(registration);
+  let status = "completed";
+  let conclusion = "cancelled";
+  const github = fakeGithub();
+  github.getCommitCheckRuns = async () => [
+    checkRun("Validate", status, conclusion),
+  ];
+  github.getCheckRunJob = async () => ({
+    run_id: 100,
+    run_attempt: 1,
+    status: "completed",
+    conclusion: "cancelled",
+    steps: [],
+  });
+  github.rerunFailedJobs = async () => {};
+  const telegram = fakeTelegram();
+  instant += 50 * 60 * 1000;
+  await workerFor({ store, github, telegram, now }).runOnce();
+  const restarted = new CiWatchStore(path, { now });
+  context.after(() => restarted.close());
+  status = "in_progress";
+  conclusion = null;
+  instant += 11 * 60 * 1000;
+  const worker = workerFor({ store: restarted, github, telegram, now });
+  await worker.runOnce();
+  assert.equal(restarted.state(registration.updateIdentifier), "pending");
+  assert.equal(telegram.sent.length, 0);
+  instant += 9 * 60 * 1000;
+  status = "completed";
+  conclusion = "success";
+  await worker.runOnce();
+  assert.equal(
+    restarted.lastReported(registration.sessionKey).result,
+    "success",
+  );
 });
 
 for (const scenario of ["green", "moved", "error"]) {

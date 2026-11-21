@@ -731,8 +731,9 @@ evidència a `state/ci-watch.sqlite`.
 Si una comprovació obligatòria es cancel·la, s'esgota o falla en la preparació
 abans dels passos del projecte, el servei reserva a `state/ci-watch.sqlite` una
 sola reexecució dels jobs fallits d'aquella execució de GitHub. Desa la reserva
-abans de la crida i continua seguint el mateix commit. Després d'un reinici
-consulta l'intent de GitHub; si el resultat no es pot confirmar, no torna a fer
+abans de la crida i continua seguint el mateix commit. El termini del seguiment
+torna a comptar des de la reserva duradora. Després d'un reinici consulta
+l'intent de GitHub; si el resultat no es pot confirmar, no torna a fer
 la crida i avisa. Una fallada posterior al reintent també s'avisa sense reparar
 ni tornar a executar. Els noms de passos reconeguts són a
 `tools/server/agent/repository/ci-failure.mjs`.
