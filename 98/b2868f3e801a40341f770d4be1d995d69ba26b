@@ -1,0 +1,45 @@
+.github/workflows/artifact.yml
+  s_9bf17e95daff56::t_e09c23f6ee52fa 43-46
+docs/deployment.md
+  s_9bf17e95daff56::t_563b8d2d88cb32 95-102,1075-1080,1273,1279,1281,1285,1300
+docs/specs/phase-8-editorial-assistance.md
+  s_9bf17e95daff56::t_40ca2d409a47de 197
+tools/server/agent/README.md
+  s_9bf17e95daff56::t_87a0720dfa18e4 333-336,529,539
+tools/server/agent/policy/development.mjs
+  s_9bf17e95daff56::t_0768f228e7596f 18-23,540-543
+tools/server/agent/policy/development.test.mjs
+  s_9bf17e95daff56::t_92ec0e802fdcb4 878
+tools/server/agent/processes/telegram-bridge/main.test.mjs
+  s_9bf17e95daff56::t_ce4cff304d4c96 22,430
+tools/server/agent/workflow/ci-repair.mjs
+  s_9bf17e95daff56::t_b07c9260ab5b09 14-15,85-87,118-124
+tools/server/agent/workflow/ci-repair.test.mjs
+  s_9bf17e95daff56::t_364347c2ac07dc 350,379,383,416,439,472,566,570,627,683,708,710
+tools/server/agent/workflow/ci-watch.mjs
+  s_9bf17e95daff56::t_e155ea26d392f1 42-43,455-465,481-491
+tools/server/agent/workflow/ci-watch.test.mjs
+  s_9bf17e95daff56::t_638b283472d0da 202,502-504,549,572,629,634,883,1185-1186,1220,1222,1230-1233,1353,1395-1398,1503,1565,1741,1797
+tools/server/agent/workflow/preview-request.test.mjs
+  s_9bf17e95daff56::t_08c746e1dc5dca 1544,1579
+tools/server/agent/workflow/run-instruction.mjs
+  s_9bf17e95daff56::t_e46da75d458398 54-55,57,145-148,155-158,163-166,392,396,489-503,630-644,766-770,783-787,906,911-915,919-923,989-993,1013-1017,1028-1032,1079,1086,1147-1149,1183,1190,1197,1202,1234,1237-1244
+tools/server/agent/workflow/run-instruction.test.mjs
+  s_9bf17e95daff56::t_d1f6a9ac070bf0 25,370-502,1939-1942,3132-3136
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "98b2868f3e801a40341f770d4be1d995d69ba26b",
+  "prompts": {},
+  "sessions": {
+    "s_9bf17e95daff56": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a1ffe6-ae25-778d-b11a-9dd5398ed66f",
+        "model": "claude-sonnet-5-5"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
