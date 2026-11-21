@@ -1,0 +1,59 @@
+.github/workflows/preview-cleanup.yml
+  s_b7ec8f5a705b5b::t_da2f273d5075eb 6-8,25-28,35
+.github/workflows/preview.yml
+  s_e9a01d009ad94b::t_f88c45f22fcd2e 134-136,140
+tools/preview/publish-operations.mjs
+  s_e9a01d009ad94b::t_ca7f85a8c84434 14,291-292,295,371,383-389
+tools/preview/publish.mjs
+  s_11490b061e964d::t_23093100aaa571 42-85,91-98,103,112-114,136-141
+tools/preview/publish.test.mjs
+  s_0444d2f70aaa43::t_252ba8815e7067 36,778-779,786-791,962-1025
+tools/preview/reconcile.mjs
+  s_11490b061e964d::t_9d085a41faad72 81-96,113-115,117,119-139,141
+tools/preview/reconcile.test.mjs
+  s_11490b061e964d::t_c908c52bc0afbc 3-7,236-297
+tools/preview/resolve-publish.test.mjs
+  s_11490b061e964d::t_c21ee40ba9119d 24-29,32,36-38,40,42,45,47-49,69,73-76,90-95,140-197
+tools/server/preview/gate.test.mjs
+  s_e9a01d009ad94b::t_33ddafbf969717 31,1223-1228,1248-1256,1285-1292,1312-1324,1326
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "b4e8c392a726ee255bec4be8f7a7eec9b2d1deb1",
+  "prompts": {},
+  "sessions": {
+    "s_0444d2f70aaa43": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a1ffdd-49e3-7558-8642-4df9bf760b8c",
+        "model": "claude-sonnet-5-5"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    },
+    "s_11490b061e964d": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e0023deccffeK9XR9xQTAPuC6M",
+        "model": "unknown"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    },
+    "s_b7ec8f5a705b5b": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a1fab0-8d95-7799-b4a1-7d43e047d790",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    },
+    "s_e9a01d009ad94b": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e00214816ffeEhKUid8KduHUId",
+        "model": "unknown"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
