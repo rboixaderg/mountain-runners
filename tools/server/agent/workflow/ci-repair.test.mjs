@@ -9,6 +9,8 @@ import {
   checkCommands,
   ciWatchOutcomes,
   publicationNoteText,
+  failedMaintainerNotice,
+  savedNotice,
 } from "../policy/development.mjs";
 import { createCiRepairExecutor } from "./ci-repair.mjs";
 
@@ -257,7 +259,7 @@ test("runs a queued repair through the instruction runner and reports the public
   assert.equal(telegram.sent[0].messageThreadIdentifier, 7);
   assert.equal(
     telegram.sent[0].text,
-    "He corregit el canvi de la proposta #200. Això és el que he fet:\nPull request actualitzada: https://github.com/o/r/pull/200",
+    "Pull request actualitzada: https://github.com/o/r/pull/200",
   );
   assert.deepEqual(traces, [
     {
@@ -345,9 +347,9 @@ test("reports a repair that published nothing instead of pretending it worked", 
   assert.equal(telegram.sent.length, 1);
   assert.match(
     telegram.sent[0].text,
-    /No he publicat cap canvi per corregir les comprovacions/u,
+    new RegExp(`^${failedMaintainerNotice}$`, "u"),
   );
-  assert.match(telegram.sent[0].text, /dependència externa/u);
+  assert.doesNotMatch(telegram.sent[0].text, /dependència externa/u);
 });
 
 test("reports a failed repair and never retries it", async (context) => {
@@ -374,11 +376,11 @@ test("reports a failed repair and never retries it", async (context) => {
   assert.equal(store.uncertainRepairCount(), 0);
   assert.match(
     telegram.sent[0].text,
-    /No he pogut corregir les comprovacions/u,
+    new RegExp(`^${failedMaintainerNotice}$`, "u"),
   );
   assert.deepEqual(
     traces.map((entry) => entry.action),
-    ["ci_repair_not_published"],
+    ["ci_repair_not_published", "maintainer_attention"],
   );
 });
 
@@ -408,10 +410,10 @@ test("stops a repair on the stop signal, still informs the topic and never repea
   assert.equal(await executor.runNext(), false);
 
   assert.equal(store.repair(queued.sequence).status, "aborted");
-  assert.match(sent[0].text, /s'ha interromput/u);
+  assert.equal(sent[0].text, failedMaintainerNotice);
   assert.deepEqual(
     traces.map((entry) => entry.action),
-    ["ci_repair_aborted"],
+    ["ci_repair_aborted", "maintainer_attention"],
   );
 });
 
@@ -434,7 +436,7 @@ test("keeps an unknown repair result out of the queue", async (context) => {
   assert.equal(store.repair(queued.sequence).outcome, "uncertain");
   assert.match(
     telegram.sent[0].text,
-    /No sé si la correcció automàtica de la proposta #200/u,
+    new RegExp(`^${failedMaintainerNotice}$`, "u"),
   );
 });
 
@@ -467,7 +469,7 @@ test("closes the attempt even when the report cannot be delivered", async (conte
   await executor.runNext();
 
   assert.equal(store.repair(queued.sequence).status, "done");
-  assert.deepEqual(events, ["ci_repair_report_failed"]);
+  assert.deepEqual(events, ["maintainer_attention", "ci_repair_report_failed"]);
 });
 
 test("does not start a second repair while another one is running", async (context) => {
@@ -506,7 +508,7 @@ test("never repairs a pull request that was closed or moved while queued", async
   await executor.runNext();
 
   assert.equal(executed, false);
-  assert.match(telegram.sent[0].text, /ja no està oberta/u);
+  assert.equal(telegram.sent[0].text, failedMaintainerNotice);
   assert.equal(store.repair(queued.sequence).outcome, "declined");
 });
 
@@ -529,7 +531,7 @@ test("keeps the report of a repair as a service event of its session", async (co
   assert.equal(telegram.sent.length, 1);
   assert.equal(notes.length, 1);
   assert.equal(notes[0].sessionKey, repairRequest.sessionKey);
-  assert.equal(notes[0].text, telegram.sent[0].text);
+  assert.match(notes[0].text, /PR #200 ja no està oberta/u);
   assert.equal(notes[0].receivedText, telegram.sent[0].text);
   assert.match(
     notes[0].effectKey,
@@ -539,7 +541,7 @@ test("keeps the report of a repair as a service event of its session", async (co
     ),
     "the identity names the attempt, never a reusable row number",
   );
-  assert.match(notes[0].text, /No he intentat cap correcció automàtica/u);
+  assert.match(notes[0].text, /No s.ha intentat cap reparació/u);
 });
 
 test("does not repair when the pull request state cannot be read", async (context) => {
@@ -561,11 +563,11 @@ test("does not repair when the pull request state cannot be read", async (contex
 
   assert.match(
     telegram.sent[0].text,
-    /No he pogut llegir com està la proposta #200/u,
+    new RegExp(`^${failedMaintainerNotice}$`, "u"),
   );
   assert.equal(store.repair(queued.sequence).status, "done");
   assert.equal(store.repair(queued.sequence).outcome, "failed");
-  assert.deepEqual(events, ["ci_repair_read_failed"]);
+  assert.deepEqual(events, ["ci_repair_read_failed", "maintainer_attention"]);
 });
 
 test("informs the topic even when the private trace cannot be written", async (context) => {
@@ -619,10 +621,10 @@ test("treats a stop during the pull request read as an interruption", async (con
   assert.equal(await executor.runNext(), false);
 
   assert.equal(store.repair(queued.sequence).status, "aborted");
-  assert.match(sent[0].text, /s'ha interromput/u);
+  assert.equal(sent[0].text, failedMaintainerNotice);
   assert.deepEqual(
     traces.map((entry) => entry.action),
-    ["ci_repair_aborted"],
+    ["ci_repair_aborted", "maintainer_attention"],
   );
 });
 
@@ -648,7 +650,7 @@ test("does not repair a commit whose required checks no longer fail", async (con
   await executor.runNext();
 
   assert.equal(store.repair(queued.sequence).outcome, "declined");
-  assert.match(telegram.sent[0].text, /les comprovacions ja hi estan en verd/u);
+  assert.equal(telegram.sent[0].text, savedNotice);
   assert.deepEqual(
     traces.map((entry) => entry.action),
     ["ci_repair_not_published"],
@@ -678,7 +680,7 @@ test("does not repair while the failing set is still undecided", async (context)
   assert.equal(store.repair(queued.sequence).outcome, "declined");
   assert.match(
     telegram.sent[0].text,
-    /les comprovacions encara no han acabat del tot/u,
+    new RegExp(`^${failedMaintainerNotice}$`, "u"),
   );
   assert.doesNotMatch(telegram.sent[0].text, /failure|pending/u);
 });
@@ -703,9 +705,9 @@ test("does not repair when the CI state cannot be read", async (context) => {
   assert.equal(store.repair(queued.sequence).outcome, "declined");
   assert.match(
     telegram.sent[0].text,
-    /No he pogut llegir les comprovacions de la proposta #200/u,
+    new RegExp(`^${failedMaintainerNotice}$`, "u"),
   );
-  assert.deepEqual(events, ["ci_repair_read_failed"]);
+  assert.deepEqual(events, ["ci_repair_read_failed", "maintainer_attention"]);
 });
 
 test("treats a stop during the CI reread as an interruption", async (context) => {
@@ -731,7 +733,7 @@ test("treats a stop during the CI reread as an interruption", async (context) =>
   await executor.runNext({ signal: controller.signal });
 
   assert.equal(store.repair(queued.sequence).status, "aborted");
-  assert.match(sent[0].text, /s'ha interromput/u);
+  assert.equal(sent[0].text, failedMaintainerNotice);
 });
 
 test("informs the topic even when the attempt cannot be closed", async (context) => {
@@ -769,11 +771,7 @@ test("informs the topic even when the attempt cannot be closed", async (context)
   await executor.runNext();
 
   assert.equal(telegram.sent.length, 1);
-  assert.match(
-    telegram.sent[0].text,
-    /He corregit el canvi de la proposta #200/u,
-  );
-  assert.match(telegram.sent[0].text, /queden aturades/u);
+  assert.doesNotMatch(telegram.sent[0].text, /queden aturades/u);
   assert.deepEqual(events, ["ci_repair_close_failed"]);
   // The trace keeps the real result and the wedged queue, and the row stays
   // `running` so a restart reconciles it as uncertain and never retries it.
@@ -826,9 +824,9 @@ test("keeps the notes of two attempts whose row identity is reused", async (cont
   await executor(secondCommit).runNext();
 
   assert.equal(telegram.sent.length, 2);
-  assert.deepEqual(
-    notes.claim(repairRequest.sessionKey).map((note) => note.text),
-    telegram.sent.map((message) => message.text),
+  assert.equal(
+    notes.claim(repairRequest.sessionKey).length,
+    telegram.sent.length,
     "the second attempt of a reused row is its own effect",
   );
 });

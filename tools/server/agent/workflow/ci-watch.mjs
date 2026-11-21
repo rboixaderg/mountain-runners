@@ -34,6 +34,7 @@ import {
   ciNoteReports,
   ciReports,
   ciWatchOutcomes,
+  maintainerAttentionAction,
 } from "../policy/development.mjs";
 
 export const ciResults = {
@@ -47,6 +48,18 @@ export const ciResults = {
   headChanged: "head-changed",
   pullRequestClosed: "pull-request-closed",
 };
+
+/**
+ * Whether a notice of this outcome is the failure notice that says the case is
+ * noted for the maintainer. The decision comes from the outcome, never from the
+ * rendered text. A success and an automatic repair in progress do not need it.
+ */
+export function needsMaintainerAttention(outcome) {
+  return (
+    outcome.result !== ciResults.success &&
+    outcome.result !== ciResults.repairing
+  );
+}
 
 function describe(watch) {
   return `#${watch.pull_request_number} ${watch.commit_sha.slice(0, 7)}`;
@@ -440,6 +453,17 @@ export function createCiWatchWorker({
     if (!store.beginSend(watch.update_identifier, outcome.result)) {
       return false;
     }
+    if (needsMaintainerAttention(outcome)) {
+      // The notice says the case is noted for the maintainer: this trace and
+      // journal line make that true.
+      safeTrace({
+        updateIdentifier: watch.update_identifier,
+        sessionKey: watch.session_key,
+        action: maintainerAttentionAction,
+        detail: noticeKind(outcome),
+      });
+      logger(maintainerAttentionAction, noticeKind(outcome));
+    }
     // The effect is decided here, so the topic keeps it even when the send
     // fails: the next turn of its session must know it. The note keeps the
     // technical facts the person never reads.
@@ -454,6 +478,17 @@ export function createCiWatchWorker({
       // The notice matters more than its note: a store failure is logged and
       // never costs the delivery.
       logger("ci_note_failed", error instanceof Error ? error.name : "unknown");
+    }
+    // The publication already told the person the change is saved: the green
+    // result stays in the service note and the private trace, so the same
+    // sentence does not arrive twice.
+    if (outcome.result === ciResults.success) {
+      store.finishSend(watch.update_identifier);
+      logger(
+        "ci_notification_sent",
+        describeNotice(watch, outcome, requiredChecks),
+      );
+      return true;
     }
     try {
       await telegram.sendMessage({ ...message, signal });

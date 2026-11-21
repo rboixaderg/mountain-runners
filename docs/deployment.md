@@ -92,12 +92,14 @@ sobreescriure amb qualsevol `YYYY-MM-DD` per reproduir un manifest anterior;
 
 El workflow `Artifact` (`.github/workflows/artifact.yml`) executa el contracte
 a cada push a `main` i de forma manual, amb `BUILD_TODAY` resolt a la data de
-Madrid, i puja el paquet i el manifest com a artefacte del run (retenció de 30
-dies). El job de build no accedeix a cap secret. El job `Deploy to production`
-del mateix workflow, darrere de l'entorn GitHub `production` restringit a
-`main`, descarrega aquest artefacte, en verifica manifest i digests, el
-transfereix amb `mountain-release receive`, l'instal·la i l'activa, i executa
-els smoke tests. El workflow `Rollback production` reverteix sense reconstruir.
+Madrid, i puja el paquet i el manifest com a artefacte del run (retenció de 3
+dies: el job de desplegament del mateix run el descarrega per nom i la reversió
+activa releases ja instal·lades al host). El job de build no accedeix a cap
+secret. El job `Deploy to production` del mateix workflow, darrere de l'entorn
+GitHub `production` restringit a `main`, descarrega aquest artefacte, en
+verifica manifest i digests, el transfereix amb `mountain-release receive`,
+l'instal·la i l'activa, i executa els smoke tests. El workflow `Rollback
+production` reverteix sense reconstruir.
 Tots dos comparteixen el grup de concurrència `production-release` amb
 `cancel-in-progress: false`. L'operació completa és a
 [`docs/runbook.md`](runbook.md).
@@ -552,9 +554,9 @@ la sessió; si no es pot confirmar, l'execució queda fallida o incerta.
 - L'admissió és duradora abans d'avançar l'offset de Telegram. Els updates es
   dedupliquen, la cua admet deu instruccions pendents i només hi ha una
   execució global. Una cua plena es registra i es comunica al tema.
-- Quan una instrucció s'admet, el tema rep de seguida un avís de recepció amb un
-  retall d'una línia de la petició. S'envia després de desar-la i abans
-  d'executar-la, i no inclou cap credencial. Si Telegram no accepta l'avís, la
+- Quan una instrucció s'admet, el tema rep de seguida un avís «Hi estic treballant.»
+  (`workingNotice`). S'envia després de desar-la i abans d'executar-la, i no
+  inclou cap text de la petició ni cap credencial. Si Telegram no accepta l'avís, la
   feina continua i només es registra `reply_failed`; la resposta final arriba
   igualment en aquell tema.
 - Tota petició del client de Telegram té un termini propi, combinat amb el
@@ -952,8 +954,8 @@ traça privada.
   adreça) queda a la traça privada i a la nota del tema que rep el model.
 - **Quan s'informa l'adreça.** Cada push del servei a la PR del tema, també una
   reparació, inicia l'informe de l'adreça del commit pujat, sense esperar la CI.
-  Una persona també el pot iniciar per al cap actual. L'avís verd de CI ja no
-  convida a demanar la preview. La preview en si la demana l'etiqueta.
+  Una persona també el pot iniciar per al cap actual. Una CI verda no
+  envia cap avís ni convida a demanar la preview. La preview en si la demana l'etiqueta.
 - **Avís de confirmació.** L'avís s'envia abans de tancar la petició i només
   es tanca si l'enviament ha anat bé; si falla, es reintenta al cicle següent.
   Una caiguda entre l'enviament i el tancament pot duplicar l'avís. La duplicació
@@ -1090,14 +1092,20 @@ res.
 
 ### Feina vinculada al tema (T8.9)
 
-El camí ordinari no reprèn PR d'un altre tema ni genera avisos de solapament.
-Els mòduls anteriors continuen al repositori, però el camí ordinari no els crida.
+El servei no reprèn PR d'un altre tema ni genera avisos de solapament: el codi
+que ho feia s'ha eliminat.
 
 La primera publicació confirmada desa la branca i la PR a
 `state/topic-jobs.sqlite`. Per a un tema existent sense vinculació, el servei
 consulta les publicacions registrades i l'estat de GitHub. Si hi ha una sola PR
 oberta del servei, la vincula. Si n'hi ha diverses o no es poden llegir, atura
 el torn i demana la revisió de la persona mantenidora, sense triar cap feina.
+
+Abans de cada torn ordinari d'un tema vinculat, el servei llegeix la PR a
+GitHub. Si és fusionada o tancada, respon «Aquesta feina ja està acabada. Obre un
+tema nou per a una altra feina.» sense cap torn de model, branca ni PR. Si no la
+pot llegir, no la dona per oberta i informa del fracàs de lectura. `/merge`
+conserva el seu camí i els seus controls.
 
 Un tema vinculat continua al seu worktree. El servei comprova la branca, el
 repositori i el cap de la PR abans del torn i revalida la PR abans del push. No
@@ -1225,7 +1233,7 @@ seu no quedi fora de la sessió.
   l'enviament: l'efecte existeix encara que l'avís falli. Cada efecte té una
   identitat duradora (`preview:<id>:<estat>`, `merge:<id>:<estat>`,
   `ci:<id>:<commit>:<estat de l'avís>`,
-  `repair:<id>:<commit>:<instant de l'intent>:<estat>`, `handover:<id>`,
+  `repair:<id>:<commit>:<instant de l'intent>:<estat>`,
   `instruction:<id>`, `reconcile:<tipus>:<id>`): dos avisos diferents del mateix
   commit són dos efectes, i la identitat d'una reparació no depèn d'una fila que
   es pot reutilitzar. Així, un reenviament de Telegram no duplica la nota i una
@@ -1284,17 +1292,25 @@ només s'escriuen quan algú les demana.
 davant, del text que arriba a Telegram; `parseChangeSummary` continua llegint la
 línia vàlida per al títol i la branca.
 
-Després d'una publicació, el tema rep la resposta del model, una línia curta sobre
-el que passa amb el canvi i l'enllaç de revisió com a darrera línia. La línia
-curta diu que el canvi s'està comprovant i que el tema rebrà un avís quan estigui
-a punt només si el seguiment de CI s'ha desat; si no s'ha pogut desar, diu que no
-hi haurà avís i que ho ha de revisar una persona; sense cap seguiment, diu només
-que el canvi està publicat. La resposta del model es retalla perquè l'enllaç no
-es perdi mai pel límit de 4000 caràcters del transport. Amb les comprovacions
-obligatòries en verd rep un sol avís amb el mateix enllaç; l'adreça de la
-preview arriba en un avís propi quan el publicador la confirma. Una fallada, una reparació en curs, el límit de reparacions, un
-resultat desconegut, un cap canviat o una PR tancada tenen cada un un avís
-planer.
+La persona només llegeix tres avisos fixos, definits a
+`policy/development.mjs`: «Hi estic treballant.» (`workingNotice`), «Canvi desat.
+Preparo com es veurà; trigarà uns 10 minuts.» (`savedNotice`) i «Alguna cosa ha fallat per part
+nostra. …» amb una de dues accions finals: «Ho torno a intentar.»
+(`failedRetryingNotice`, només quan una reparació automàtica ja és a la cua) o
+«Ho he deixat anotat perquè ho revisi la persona que manté el servei.» (`failedMaintainerNotice`, tota la resta; cada enviament desa l'acció de traça `maintainer_attention` amb el motiu i l'escriu al diari).
+Cap avís demana a la persona que repeteixi, pugi, reintenti o demani la preview, i
+cap no usa «proposta», «comprovacions», «commit» ni «branca».
+
+Després d'una publicació, el tema rep la resposta del model, l'avís «Canvi desat»
+i l'enllaç de revisió com a darrera línia. Si el seguiment de CI no s'ha pogut
+desar, l'avís és el de fallada que deixa el cas anotat per a la persona mantenidora. La resposta del
+model es retalla perquè l'enllaç no es perdi mai pel límit de 4000 caràcters del
+transport. Una CI verda no envia res a la persona, perquè ja ha llegit «Canvi desat»: el resultat només va a la nota del servei i a la traça privada. L'adreça de la
+preview arriba en un avís propi quan el publicador la confirma, sense esperar la CI; l'avís de preview porta la seva adreça (el seu text no canvia en aquesta PR). Una reparació
+en curs envia l'avís de fallada amb «Ho torno a intentar»; el límit de
+reparacions, un resultat desconegut, un cap canviat, una PR tancada i qualsevol
+fallada de la reparació envien l'avís de fallada que deixa el cas anotat per a la persona
+mantenidora. Els textos de reparació publicada reutilitzen el de la publicació.
 
 Els noms de les comprovacions i el commit queden al registre privat del servei
 (`ci_notification_sent`) i a la nota del servei de
@@ -1307,9 +1323,9 @@ locals. També la publicació d'una reparació automàtica desa aquesta nota
 no són mai text de servei. La fixació al commit, el lliurament com a màxim una
 vegada i el tractament d'un resultat desconegut no canvien.
 
-Quan el seguiment veu que el cap de la proposta ha canviat, ho diu i no promet cap
-avís nou: les comprovacions de la versió nova no es fan totes soles, i la persona
-ha de demanar en aquell tema que es revisin o, més endavant, la preview.
+Quan el seguiment veu que el cap de la proposta ha canviat, la persona rep l'avís
+de fallada que deixa el cas anotat per a la persona mantenidora: el servei no segueix la versió nova
+tot sol i no demana res a la persona. La nota tècnica del servei conserva el detall.
 
 ### Estat del tema (T8.8 i T8.9)
 

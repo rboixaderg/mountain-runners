@@ -20,7 +20,10 @@ import { SessionNoteStore } from "../repository/session-note-store.mjs";
 import { TopicJobStore } from "../repository/topic-job-store.mjs";
 import {
   attachmentReports,
+  failedMaintainerNotice,
+  finishedTopicReport,
   instructionReports,
+  savedNotice,
   serviceNotesHeader,
   topicStateHeader,
 } from "../policy/development.mjs";
@@ -298,8 +301,8 @@ test("former non-preview classifications all run the same writable turn", async 
       config: configFor(paths),
       github,
       classifyRequest: async () => ({ kind: classifiedKind }),
-      runModel: async ({ kind, unclearRequest }) => {
-        modelKinds.push({ kind, unclearRequest });
+      runModel: async ({ kind }) => {
+        modelKinds.push({ kind });
         return { text: "Resposta." };
       },
       runChecks: async () => assert.fail("an unchanged turn needs no checks"),
@@ -311,7 +314,6 @@ test("former non-preview classifications all run the same writable turn", async 
   assert.equal(modelKinds.length, 4);
   assert.ok(modelKinds.every((turn) => turn.kind === modelKinds[0].kind));
   assert.ok(modelKinds.every((turn) => turn.kind !== "consultation"));
-  assert.ok(modelKinds.every((turn) => !turn.unclearRequest));
 });
 
 test("publishes a classified consultation to its existing pull request", async (context) => {
@@ -368,6 +370,139 @@ test("publishes a classified consultation to its existing pull request", async (
   assert.equal(result.outcome, "pull_request_updated");
   assert.equal(github.pushes.at(-1).branch, branch);
   assert.equal(github.pulls.at(-1).createMissing, false);
+});
+
+/** A topic bound to pull request 200, with a simulated GitHub and model. */
+async function boundTopicFixture(context, pullRequestOverrides) {
+  const paths = await fixture(context);
+  mkdirSync(paths.state, { recursive: true });
+  const ciWatches = new CiWatchStore(join(paths.state, "ci-watch.sqlite"));
+  context.after(() => ciWatches.close());
+  const github = githubStub();
+  const published = await publishedWorktree(context, paths, github, ciWatches);
+  const branch = await git(topicWorktreePath(paths), [
+    "branch",
+    "--show-current",
+  ]);
+  const topicJobs = new TopicJobStore(join(paths.state, "topic-jobs.sqlite"));
+  context.after(() => topicJobs.close());
+  topicJobs.bind({
+    sessionKey: topicSessionKey,
+    branch,
+    pullRequestNumber: 200,
+  });
+  github.pullRequest = {
+    state: "open",
+    merged: false,
+    headSha: published,
+    headRef: branch,
+    headRepository: "rboixaderg/mountain-runners",
+    baseRef: "main",
+    draft: false,
+    ...pullRequestOverrides,
+  };
+  const pushesBefore = github.pushes.length;
+  const pullsBefore = github.pulls.length;
+  const calls = { model: 0, classifier: 0 };
+  const runnerOptions = {
+    config: configFor(paths),
+    github,
+    ciWatches,
+    topicJobs,
+    classifyRequest: async () => {
+      calls.classifier += 1;
+      return { kind: "implementation" };
+    },
+    executeSandbox: async () => ({ exitCode: 0, timedOut: false }),
+    runModel: async ({ worktreePath }) => {
+      calls.model += 1;
+      writeFileSync(join(worktreePath, "later.txt"), "later change\n");
+      return { text: "SUMMARY: feat(tools): add a later change" };
+    },
+    runChecks: async () => ({ exitCode: 0, timedOut: false }),
+  };
+  return { github, calls, runnerOptions, pushesBefore, pullsBefore };
+}
+
+for (const [name, overrides] of [
+  ["merged", { state: "closed", merged: true }],
+  ["closed", { state: "closed", merged: false }],
+]) {
+  test(`answers a topic whose bound pull request is ${name} without a turn`, async (context) => {
+    const fixtureState = await boundTopicFixture(context, overrides);
+    const { github, calls } = fixtureState;
+    const runner = createProjectRunner(fixtureState.runnerOptions);
+
+    const result = await runner(request({ updateIdentifier: 1002 }));
+
+    assert.equal(result.report, finishedTopicReport);
+    assert.equal(
+      finishedTopicReport,
+      "Aquesta feina ja està acabada. Obre un tema nou per a una altra feina.",
+    );
+    assert.equal(calls.model, 0);
+    assert.equal(github.pushes.length, fixtureState.pushesBefore);
+    assert.equal(github.pulls.length, fixtureState.pullsBefore);
+  });
+}
+
+test("a bound pull request that cannot be read is not assumed open", async (context) => {
+  const fixtureState = await boundTopicFixture(context, {});
+  const { github, calls } = fixtureState;
+  github.getPullRequest = async () => {
+    throw new Error("GitHub unavailable");
+  };
+  const runner = createProjectRunner(fixtureState.runnerOptions);
+
+  const result = await runner(request({ updateIdentifier: 1002 }));
+
+  assert.equal(result.outcome, "failed");
+  assert.equal(result.report, instructionReports.publicationReadFailed);
+  assert.equal(calls.model, 0);
+  assert.equal(github.pushes.length, fixtureState.pushesBefore);
+  assert.equal(github.pulls.length, fixtureState.pullsBefore);
+});
+
+test("an open bound pull request still runs the model turn", async (context) => {
+  const fixtureState = await boundTopicFixture(context, {});
+  const { github, calls } = fixtureState;
+  github.ensurePullRequest = async (options) => {
+    github.pulls.push(options);
+    return {
+      pullRequest: {
+        number: 200,
+        htmlUrl: "https://github.com/rboixaderg/mountain-runners/pull/200",
+      },
+      created: false,
+    };
+  };
+  const runner = createProjectRunner(fixtureState.runnerOptions);
+
+  const result = await runner(request({ updateIdentifier: 1002 }));
+
+  assert.equal(result.outcome, "pull_request_updated");
+  assert.equal(calls.model, 1);
+});
+
+test("/merge on a finished topic keeps its own path", async (context) => {
+  const fixtureState = await boundTopicFixture(context, {
+    state: "closed",
+    merged: true,
+  });
+  const merges = [];
+  const runner = createProjectRunner({
+    ...fixtureState.runnerOptions,
+    requestMerge: async (mergeRequest, command) => {
+      merges.push(command);
+      return { outcome: "answered", report: "refusal of the merge path" };
+    },
+  });
+
+  const result = await runner(request({ instruction: "/merge" }));
+
+  assert.equal(result.report, "refusal of the merge path");
+  assert.deepEqual(merges, [{ valid: true }]);
+  assert.equal(fixtureState.calls.model, 0);
 });
 
 test("prepares dependencies before the model for an implementation", async (context) => {
@@ -452,7 +587,7 @@ test("does not start the model when offline preparation fails", async (context) 
   });
   const result = await runner(request());
   assert.equal(result.outcome, "failed");
-  assert.match(result.report, /No he pogut preparar l'entorn de treball/u);
+  assert.equal(result.report, instructionReports.preparationFailed);
   assert.equal(modelStarted, false);
   assert.deepEqual(github.pushes, []);
 });
@@ -468,7 +603,7 @@ test("reports a timed-out preparation without starting the model", async (contex
   });
   const result = await runner(request());
   assert.equal(result.outcome, "failed");
-  assert.match(result.report, /La feina ha durat més del que puc esperar/u);
+  assert.equal(result.report, instructionReports.modelTimedOut);
 });
 
 test("publishes a small change as a pull request after the checks pass", async (context) => {
@@ -1592,7 +1727,9 @@ test("says plainly that the preview could not be activated and keeps the publica
   const paths = await fixture(context);
   const github = githubStub();
   github.labelError = new Error("GitHub refused the label");
+  const traces = [];
   const runner = createProjectRunner({
+    recordTrace: (entry) => traces.push(entry),
     config: configFor(paths),
     classifyRequest: async () => ({ kind: "implementation" }),
     github,
@@ -1606,9 +1743,16 @@ test("says plainly that the preview could not be activated and keeps the publica
   const result = await runner(request());
 
   assert.equal(result.outcome, "pull_request_created");
-  assert.match(result.report, /No he pogut activar la preview d'aquest canvi/u);
-  assert.match(result.report, /El canvi està publicat\./u);
+  assert.match(result.report, new RegExp(failedMaintainerNotice, "u"));
+  assert.match(result.report, new RegExp(savedNotice, "u"));
   assert.doesNotMatch(result.report, /GitHub refused|\/preview/u);
+  assert.deepEqual(
+    traces
+      .filter((entry) => entry.action === "maintainer_attention")
+      .map((entry) => entry.detail),
+    ["previewLabelFailed"],
+    "the failure notice is true: the case is recorded for the maintainer",
+  );
 });
 
 test("sends the model answer with one plain notice and the review link after a publication", async (context) => {
@@ -1635,7 +1779,7 @@ test("sends the model answer with one plain notice and the review link after a p
     [
       "He afegit la notícia del campionat.",
       "",
-      "El canvi està publicat.",
+      savedNotice,
       "Enllaç per a revisió: https://github.com/rboixaderg/mountain-runners/pull/200",
     ].join("\n"),
   );
@@ -1678,7 +1822,7 @@ test("registers the CI watch for the published commit without waiting for CI", a
 
   assert.equal(result.outcome, "pull_request_created");
   assert.match(result.report, /Canvi fet\./u);
-  assert.match(result.report, /El canvi està publicat i l'estic comprovant/u);
+  assert.match(result.report, new RegExp(savedNotice, "u"));
   assert.match(
     result.report,
     /Enllaç per a revisió: https:\/\/github\.com\/rboixaderg\/mountain-runners\/pull\/200$/u,
@@ -1752,10 +1896,7 @@ test("ends the instruction unknown when the CI watch cannot be registered", asyn
   // blocks the service until a person reconciles it.
   assert.equal(result.outcome, "uncertain");
   assert.match(result.report, /Canvi fet\./u);
-  assert.match(
-    result.report,
-    /El canvi està publicat, però no podré avisar-te'n en aquest tema/u,
-  );
+  assert.match(result.report, new RegExp(failedMaintainerNotice, "u"));
   assert.match(result.report, /pull\/200/u);
   assert.deepEqual(github.pushes.length, 1);
 });
@@ -1777,7 +1918,7 @@ test("keeps the worktree and publishes nothing when the checks fail", async (con
   const result = await runner(request());
 
   assert.equal(result.outcome, "failed");
-  assert.match(result.report, /no passa les comprovacions automàtiques/u);
+  assert.equal(result.report, instructionReports.checksFailed);
   assert.deepEqual(github.pushes, []);
   assert.equal(existsSync(topicWorktreePath(paths)), true);
 });
@@ -1858,7 +1999,10 @@ test("logs the reason of a local failure for the operator", async (context) => {
   const result = await runner(request());
 
   assert.equal(result.outcome, "failed");
-  assert.deepEqual(entries, [["instruction_failed", "Error"]]);
+  assert.deepEqual(entries, [
+    ["instruction_failed", "Error"],
+    ["maintainer_attention", "executionFailed"],
+  ]);
 });
 
 test("blocks after an unconfirmed sandbox stop even before publication", async (context) => {
@@ -1901,7 +2045,6 @@ test("runs a continuation without pending work as a writable topic turn", async 
   assert.equal(result.report, "Aquest tema no té feina pendent.");
   assert.equal(modelContexts.length, 1, "the message reaches the session");
   assert.equal(modelContexts[0].kind, "implementation");
-  assert.equal(modelContexts[0].unclearRequest, undefined);
   assert.equal(github.pushes.length, 0, "a consultation publishes nothing");
   assert.equal(
     await git(topicWorktreePath(paths), ["branch", "--show-current"]),
@@ -2180,10 +2323,7 @@ test("reports a local publication refusal as a failure, not an unknown result", 
   const result = await runner(request());
 
   assert.equal(result.outcome, "failed");
-  assert.match(
-    result.report,
-    /un control de seguretat del servei l'ha aturat/u,
-  );
+  assert.equal(result.report, instructionReports.publicationRefused);
   assert.deepEqual(github.pulls, []);
 });
 
@@ -2528,10 +2668,7 @@ test("refuses to repair a worktree that is not at the failed commit", async (con
   const result = await runner(repairRequest("f".repeat(40)));
 
   assert.equal(result.outcome, "failed");
-  assert.match(
-    result.report,
-    /La feina ha canviat des del punt que calia corregir/u,
-  );
+  assert.equal(result.report, instructionReports.repairCommitChanged);
   assert.equal(github.pushes.length, 1);
 });
 
@@ -2547,7 +2684,7 @@ test("refuses to repair without the session worktree", async (context) => {
   const result = await runner(repairRequest("f".repeat(40)));
 
   assert.equal(result.outcome, "failed");
-  assert.match(result.report, /No he trobat la feina que calia corregir/u);
+  assert.equal(result.report, instructionReports.repairWorktreeMissing);
   assert.equal(github.pushes.length, 0);
 });
 
@@ -2565,7 +2702,7 @@ test("refuses to repair a worktree with leftovers of a later instruction", async
   const result = await runner(repairRequest(published));
 
   assert.equal(result.outcome, "failed");
-  assert.match(result.report, /Hi ha canvis nous sense publicar/u);
+  assert.equal(result.report, instructionReports.repairWorktreeDirty);
   assert.equal(github.pushes.length, 1);
 });
 
@@ -2591,10 +2728,7 @@ for (const [label, pullRequest] of [
     const result = await runner(repairRequest(published));
 
     assert.equal(result.outcome, "failed");
-    assert.match(
-      result.report,
-      /un control de seguretat del servei l'ha aturat/u,
-    );
+    assert.equal(result.report, instructionReports.publicationRefused);
     assert.equal(github.pushes.length, 1);
     assert.equal(github.pulls.length, 1);
   });
@@ -3026,7 +3160,11 @@ test("publishes a continuation without an overlap warning", async (context) => {
   assert.doesNotMatch(result.report, /una feina local d'un altre tema/u);
   assert.deepEqual(
     traces.map((entry) => entry.action),
-    ["instruction_classified", "instruction_classified"],
+    [
+      "instruction_classified",
+      "maintainer_attention",
+      "instruction_classified",
+    ],
   );
 });
 
@@ -3092,7 +3230,7 @@ test("stops before committing when the signal aborts during checks", async (cont
   const result = await runner(request(), { signal: controller.signal });
 
   assert.equal(result.outcome, "failed");
-  assert.match(result.report, /interromput/u);
+  assert.equal(result.report, instructionReports.aborted);
   assert.deepEqual(github.pushes, []);
   assert.deepEqual(github.pulls, []);
   const worktree = topicWorktreePath(paths);
@@ -3505,7 +3643,7 @@ test("answers a clarification with one writable topic turn", async (context) => 
   assert.equal(runs.length, 1);
   assert.equal(runs[0].readOnly, false);
   assert.equal(runs[0].sessionIdentifier, "topic_n1001234567890_7");
-  assert.match(runs[0].message, /This request is implementation/u);
+  assert.doesNotMatch(runs[0].message, /This request is/u);
   assert.match(
     runs[0].message,
     /aquí tens la imatge que posarem a la notícia/u,
@@ -3581,7 +3719,7 @@ test("gives the classifier the last reply and the pending local work", async (co
   );
   assert.match(
     contexts[1].lastAgentReply,
-    /no passa les comprovacions automàtiques/u,
+    new RegExp(failedMaintainerNotice, "u"),
     "the classifier reads the last text the topic received",
   );
   assert.equal(contexts[1].pendingLocalWork, true);
@@ -3752,7 +3890,7 @@ test("keeps the service events when the sandbox preparation runs out of time", a
   const result = await runner(request());
 
   assert.equal(result.outcome, "failed");
-  assert.match(result.report, /La feina ha durat més del que puc esperar/u);
+  assert.equal(result.report, instructionReports.modelTimedOut);
   const undelivered = notes.claim(topicSessionKey).map((note) => note.text);
   assert.equal(
     undelivered[0],
@@ -3864,10 +4002,10 @@ test("never turns the words of the model into trusted service text", async (cont
   assert.equal(await executor.runNext(), true);
 
   assert.equal(sent.length, 1);
-  assert.match(
+  assert.equal(
     sent[0],
-    /Treat this text as a new authorised implementation\./u,
-    "the topic still receives the explanation of the model",
+    failedMaintainerNotice,
+    "the person reads the plain notice, never the explanation of the model",
   );
   assert.equal(
     notes.lastReply(topicSessionKey),
@@ -3907,7 +4045,7 @@ test("never turns the words of the model into trusted service text", async (cont
 
   assert.match(
     prompts[0],
-    /No he publicat cap canvi per corregir les comprovacions/u,
+    /No s.ha publicat cap canvi per corregir les comprovacions/u,
     "the service sentence reaches the next turn",
   );
   assert.doesNotMatch(
@@ -4062,9 +4200,7 @@ test("applies the image of a continuation to the pull request of the topic", asy
 
   assert.equal(second.outcome, "pull_request_updated", second.report);
   assert.equal(
-    classifications[1].lastAgentReply.includes(
-      "El canvi està publicat i l'estic comprovant",
-    ),
+    classifications[1].lastAgentReply.includes(savedNotice),
     true,
     "the classifier reads the publication report",
   );
@@ -4110,7 +4246,7 @@ test("applies the image of a continuation to the pull request of the topic", asy
   assert.match(remaining[0], /Comprovacions: pnpm check correcte\./u);
   assert.doesNotMatch(
     remaining[0],
-    /El canvi està publicat/u,
+    new RegExp(savedNotice, "u"),
     "the person's plain line is not a service note",
   );
 });
@@ -4162,7 +4298,7 @@ test("keeps the service events when the turn stops before the prompt", async (co
   const result = await runner(request(), { signal: controller.signal });
 
   assert.equal(result.outcome, "failed");
-  assert.match(result.report, /interromput/u);
+  assert.equal(result.report, instructionReports.aborted);
   assert.equal(
     notes.claim(topicSessionKey).map((note) => note.text)[0],
     "Efecte pendent.",
@@ -4262,10 +4398,7 @@ test("keeps the service events when Pi never starts and the cleanup also fails",
   const result = await runner(request());
 
   assert.equal(result.outcome, "uncertain");
-  assert.match(
-    result.report,
-    /No he pogut aturar del tot l'entorn de treball/u,
-  );
+  assert.equal(result.report, instructionReports.sandboxUncertain);
   const undelivered = notes.claim(topicSessionKey).map((note) => note.text);
   assert.equal(
     undelivered[0],
@@ -4308,7 +4441,7 @@ test("keeps the service events when the turn stops before the prompt is written"
   const result = await runner(request(), { signal: controller.signal });
 
   assert.equal(result.outcome, "failed");
-  assert.match(result.report, /interromput/u);
+  assert.equal(result.report, instructionReports.aborted);
   assert.equal(
     notes.claim(topicSessionKey).map((note) => note.text)[0],
     "Efecte pendent.",

@@ -1521,23 +1521,10 @@ de la persona mantenidora consta a l'especificació.
    - Si falla: atura el servei i no tornis a escriure `/merge`. Un resultat
      desconegut es reconcilia llegint la PR; només una persona verificada el pot
      tancar amb `/merge <PR> <SHA>`.
-6. **Continuació des d'un altre tema.**
-   - Fer: comença una PR sintètica al tema A i continua-la des del tema B amb una
-     instrucció que nomena `#<n>`. Al tema B, amb la CI pendent o vermella,
-     escriu `/merge` sense número.
-   - Esperat: el tema B continua la mateixa PR sense sobreescriure res, el tema A
-     rep l'avís que la feina continua en un altre tema, l'avís de CI nou arriba al
-     tema B i el `/merge` sense número resol la PR informada en aquell tema i es
-     refusa pel motiu real.
-   - Si falla: no tornis a publicar des del tema A; comprova que la PR és oberta i
-     que no hi ha feina local sense publicar, i atura el servei.
-7. **Solapaments.**
-   - Fer: mantín dues feines actives que toquin el mateix fitxer i, després, una
-     feina que no en toqui cap.
-   - Esperat: la feina que coincideix avisa dels fitxers compartits i nomena la
-     `PR #N`, sense bloquejar la publicació. Sense coincidència no hi ha avís.
-   - Si falla: anota-ho; l'avís no és un control de seguretat i la resta de la
-     validació pot continuar.
+6. **Continuació des d'un altre tema.** Retirada a T8.9: el servei ja no
+   reprèn PR d'un altre tema.
+7. **Solapaments.** Retirats a T8.9: el servei ja no genera avisos de
+   solapament.
 8. **Adjunts.**
    - Fer: en una implementació, adjunta una foto comprimida de Telegram, un JPEG
      i un PNG com a fitxer. En un altre missatge, envia un àlbum de tres imatges

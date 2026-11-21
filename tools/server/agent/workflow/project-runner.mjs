@@ -79,7 +79,6 @@ export function createProjectRunner({
       stopCommands,
       buildMessage: (serviceNotes) =>
         buildInstructionPrompt(context.instruction, context.kind, {
-          unclearRequest: context.unclearRequest,
           serviceNotes,
           currentInstant: formatMadridInstant(now()),
           topicState: context.topicState,

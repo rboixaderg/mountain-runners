@@ -428,9 +428,7 @@ test("notifies CI only when the configured required checks are green", async (co
 
   checkRuns = [gitleaks, validate];
   await service.ciWorker.runOnce();
-  assert.equal(sent.length, 1);
-  assert.equal(sent[0].messageThreadIdentifier, 7);
-  assert.match(sent[0].text, /La proposta està llesta/u);
+  assert.deepEqual(sent, [], "the green result is not sent twice");
   assert.equal(service.ciWatches.state(10), "sent");
 });
 
@@ -633,7 +631,7 @@ test("runs a queued CI repair when the instruction queue is idle", async (contex
   assert.equal(executed[0].commit, "a".repeat(40));
   assert.equal(sent.length, 1);
   assert.equal(sent[0].messageThreadIdentifier, 7);
-  assert.match(sent[0].text, /He corregit el canvi de la proposta #200/u);
+  assert.match(sent[0].text, /Pull request actualitzada/u);
   service.ciWatches.close();
   service.queue.close();
 });
