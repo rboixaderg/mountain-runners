@@ -1,0 +1,19 @@
+tools/server/agent/workflow/ci-watch.test.mjs
+  s_7158699f558f84::t_342341efb93c84 12-16,46-53,76-84,506-561,745
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "10e6129dd6c41a5be7a4e5b71ec2c7fcd32762c1",
+  "prompts": {},
+  "sessions": {
+    "s_7158699f558f84": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a1fd21-3ad5-75f9-a86e-7fe687c730d0",
+        "model": "gpt-6.1-terra"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
