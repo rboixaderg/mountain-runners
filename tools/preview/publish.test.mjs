@@ -33,6 +33,7 @@ import {
   publishPreview,
   resolvePullRequestState,
 } from "./publish-operations.mjs";
+import { publishRequestOf } from "./publish.mjs";
 
 const previewPullNumber = 99;
 const previewCommit = "9".repeat(40);
@@ -774,13 +775,20 @@ test("a label request publishes only while the pull request keeps the preview la
         `label removed at read ${removedAtRead}`,
       );
       assert.equal(commented, false);
-      // Read 4 is the one before the URL comment, after the activation.
+      // Read 4 is the one before the URL comment, after the activation: the
+      // site just activated is retired and disabled before failing.
       assert.equal(
         transport.commands.some((command) =>
           command.startsWith("mountain-preview activate"),
         ),
         removedAtRead === 4,
       );
+      if (removedAtRead === 4) {
+        assert.deepEqual(transport.commands.slice(-2), [
+          `mountain-preview retire ${previewPullNumber}`,
+          `mountain-preview site-disable ${previewPullNumber}`,
+        ]);
+      }
       if (removedAtRead <= 2) {
         assert.equal(
           transport.commands.some((command) =>
@@ -950,4 +958,68 @@ test("publishPreview rejects a manifest built for another pull request", async (
       origin: previewOrigin(98),
     },
   );
+});
+
+// Records the GitHub API URLs the revalidation reads.
+function createRecordingFetch() {
+  const urls = [];
+  const fakeFetch = createFakeFetch();
+  return {
+    urls,
+    fetchImpl: async (url) => {
+      urls.push(url);
+      return fakeFetch(url);
+    },
+  };
+}
+
+test("each request kind is revalidated for its own actor and only the label request needs the label", async () => {
+  const event = {
+    sender: { login: "label-sender" },
+    comment: { user: { login: "comment-author" } },
+  };
+  const cases = [
+    {
+      eventName: "pull_request_target",
+      authorizedBy: "label-sender",
+      requireLabel: true,
+      revalidation: "revalidateActorAuthorization",
+      url: "/collaborators/label-sender/permission",
+    },
+    {
+      eventName: "workflow_dispatch",
+      authorizedBy: "workflow-actor",
+      requireLabel: false,
+      revalidation: "revalidateActorAuthorization",
+      url: "/collaborators/workflow-actor/permission",
+    },
+    {
+      eventName: "issue_comment",
+      authorizedBy: "comment-author",
+      requireLabel: false,
+      revalidation: "revalidateCommentAuthorization",
+      url: "/collaborators/comment-author",
+    },
+  ];
+  for (const expected of cases) {
+    const recording = createRecordingFetch();
+    const request = publishRequestOf({
+      eventName: expected.eventName,
+      event,
+      workflowActor: "workflow-actor",
+      repository: testRepository,
+      fetchImpl: recording.fetchImpl,
+    });
+    assert.equal(request.authorizedBy, expected.authorizedBy);
+    assert.equal(request.requireLabel, expected.requireLabel);
+    assert.deepEqual(
+      Object.keys(request).filter((key) => key.startsWith("revalidate")),
+      [expected.revalidation],
+    );
+    await request[expected.revalidation]();
+    assert.deepEqual(
+      recording.urls.map((url) => new URL(url).pathname),
+      [`/repos/${testRepository}${expected.url}`],
+    );
+  }
 });

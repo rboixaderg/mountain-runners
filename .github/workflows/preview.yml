@@ -131,9 +131,13 @@ jobs:
     timeout-minutes: 15
     environment:
       name: previews
+    # One publication or cleanup at a time; `queue: max` keeps every waiting
+    # job (up to 100) instead of replacing the pending one, so a queued retire
+    # is never evicted by a later publication.
     concurrency:
       group: previews
       cancel-in-progress: false
+      queue: max
     steps:
       - name: Check out main (trusted publisher code)
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

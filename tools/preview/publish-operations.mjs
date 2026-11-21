@@ -11,6 +11,7 @@
 
 import { loadVerifiedArtifact } from "../deploy/artifact.mjs";
 import { RemoteCommandError } from "../deploy/ssh.mjs";
+import { retirePreviewOf } from "./reconcile.mjs";
 import { verifyPreviewSite } from "./smoke.mjs";
 import { signPreviewAuthorization } from "../server/preview/authorization-proof.mjs";
 import {
@@ -287,11 +288,11 @@ export async function publishPreview({
 }) {
   // A label request is valid only while the pull request keeps the label, at
   // every point where the pull request state is read again.
+  const missingLabelMessage =
+    "The pull request no longer has the preview label.";
   async function resolveCurrentState() {
     const state = await resolvePullRequestState();
-    if (requireLabel && !state.labeled) {
-      throw new Error("The pull request no longer has the preview label.");
-    }
+    if (requireLabel && !state.labeled) throw new Error(missingLabelMessage);
     return state;
   }
 
@@ -367,8 +368,7 @@ export async function publishPreview({
         `mountain-preview activate ${pullNumber} ${previousCommit}`,
       );
     } else if (!previousCommit) {
-      await transport.run(`mountain-preview retire ${pullNumber}`);
-      await transport.run(`mountain-preview site-disable ${pullNumber}`);
+      await retirePreviewOf({ transport, pullNumber });
     }
     throw error;
   }
@@ -380,7 +380,13 @@ export async function publishPreview({
     );
   }
   if (onPublished) {
-    const current = await resolveCurrentState();
+    const current = await resolvePullRequestState();
+    // The label was removed after the activation: withdraw the site now
+    // instead of relying only on the cleanup retire queued behind this run.
+    if (requireLabel && !current.labeled) {
+      await retirePreviewOf({ transport, pullNumber });
+      throw new Error(missingLabelMessage);
+    }
     assertPullRequestUnchanged(pullRequest, current);
     await revalidateCommentAuthorization?.();
     await revalidateActorAuthorization?.();

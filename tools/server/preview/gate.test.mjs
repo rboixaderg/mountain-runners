@@ -28,6 +28,7 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
+import { getStaticYAMLValue, parseYAML } from "yaml-eslint-parser";
 
 import {
   makeManifest,
@@ -1219,6 +1220,12 @@ test("the direct invocation (maintainer CLI) runs the same operations", async ()
   });
 });
 
+const previewsConcurrency = {
+  group: "previews",
+  "cancel-in-progress": false,
+  queue: "max",
+};
+
 test("the preview workflow pins actions, separates the trust boundaries and has no approval click", async () => {
   const previewWorkflow = await readFile(
     join(toolDirectory, "../../../.github/workflows/preview.yml"),
@@ -1237,23 +1244,16 @@ test("the preview workflow pins actions, separates the trust boundaries and has 
   );
   assert.doesNotMatch(previewWorkflow, /^ {2}pull_request:/m);
   assert.match(previewWorkflow, /pull-requests: read/);
-  assert.match(
-    previewWorkflow,
-    /github.ref == 'refs\/heads\/main' && github.event.repository.fork == false/,
-  );
   // Only the preview label (just set) or a push to a pull request that has it
-  // continues; every other pull request event is skipped.
-  assert.match(
-    previewWorkflow,
-    /github\.event_name != 'pull_request_target' \|\|/,
-  );
-  assert.match(
-    previewWorkflow,
-    /github\.event\.action == 'labeled' && github\.event\.label\.name == 'preview'/,
-  );
-  assert.match(
-    previewWorkflow,
-    /github\.event\.action == 'synchronize' && contains\(github\.event\.pull_request\.labels\.\*\.name, 'preview'\)/,
+  // continues; every other pull request event is skipped. The exact
+  // expression is asserted: dropping a grouping parenthesis changes it.
+  const previewJobs = getStaticYAMLValue(parseYAML(previewWorkflow)).jobs;
+  assert.equal(
+    previewJobs.authorize.if,
+    "github.ref == 'refs/heads/main' && github.event.repository.fork == false && " +
+      "(github.event_name != 'pull_request_target' || " +
+      "(github.event.action == 'labeled' && github.event.label.name == 'preview') || " +
+      "(github.event.action == 'synchronize' && contains(github.event.pull_request.labels.*.name, 'preview')))",
   );
   assert.doesNotMatch(previewWorkflow, /GITHUB_SHA/);
 
@@ -1267,12 +1267,6 @@ test("the preview workflow pins actions, separates the trust boundaries and has 
   assert.match(authorizeJob, /uses: actions\/checkout@[a-f0-9]{40}(?=\s|$)/);
   assert.doesNotMatch(buildJob, /secrets\./);
   assert.doesNotMatch(buildJob, /environment:/);
-  // A newer request for the same pull request cancels the build; the publish
-  // group stays serial and uninterrupted.
-  assert.match(
-    buildJob,
-    /group: preview-build-\$\{\{ needs\.authorize\.outputs\.pull_number \}\}\n {6}cancel-in-progress: true/,
-  );
   assert.doesNotMatch(buildJob, /permissions:/);
   assert.doesNotMatch(buildJob, /cache:/);
   assert.match(
@@ -1288,8 +1282,14 @@ test("the preview workflow pins actions, separates the trust boundaries and has 
   // (secrets only), the same-run artifact and the publish script.
   assert.match(publishJob, /needs: \[authorize, build\]/);
   assert.match(publishJob, /name: previews/);
-  assert.match(publishJob, /group: previews/);
-  assert.match(publishJob, /cancel-in-progress: false/);
+  // The previews group serialises publications and cleanups and queues every
+  // waiting job, so a pending retire is never replaced.
+  assert.deepEqual(previewJobs.publish.concurrency, previewsConcurrency);
+  // A newer request for the same pull request still cancels the build.
+  assert.deepEqual(previewJobs.build.concurrency, {
+    group: "preview-build-${{ needs.authorize.outputs.pull_number }}",
+    "cancel-in-progress": true,
+  });
   assert.match(publishJob, /secrets\.PREVIEW_SSH_PRIVATE_KEY/);
   assert.match(
     publishJob,
@@ -1309,11 +1309,21 @@ test("the cleanup workflow retires on the preview label removal only", async () 
     /pull_request_target:\n {4}types: \[closed, labeled, unlabeled\]/,
   );
   assert.doesNotMatch(cleanupWorkflow, /^ {2}pull_request:/m);
-  // Removing another label skips the job; other events are not filtered.
-  assert.match(
-    cleanupWorkflow,
-    /github\.event\.action != 'unlabeled' \|\| github\.event\.label\.name == 'preview'/,
+  // Only closing, setting preview-revoked or removing preview continues; any
+  // other label change is skipped by the job condition. The concurrency is
+  // job-level, so a skipped run never joins the previews group.
+  const cleanup = getStaticYAMLValue(parseYAML(cleanupWorkflow));
+  assert.equal(cleanup.concurrency, undefined);
+  assert.equal(
+    cleanup.jobs.reconcile.if,
+    "github.repository == 'rboixaderg/mountain-runners' && " +
+      "github.ref == 'refs/heads/main' && " +
+      "(github.event_name != 'pull_request_target' || " +
+      "github.event.action == 'closed' || " +
+      "(github.event.action == 'labeled' && github.event.label.name == 'preview-revoked') || " +
+      "(github.event.action == 'unlabeled' && github.event.label.name == 'preview'))",
   );
+  assert.deepEqual(cleanup.jobs.reconcile.concurrency, previewsConcurrency);
   // Never checks out the pull request.
   assert.doesNotMatch(cleanupWorkflow, /pull_request\.head/);
 });

@@ -1,6 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { reconcilePreviews, retirePreviewOf } from "./reconcile.mjs";
+import {
+  reconcilePreviews,
+  retirePreviewOf,
+  runCleanup,
+} from "./reconcile.mjs";
 
 const repository = "rboixaderg/mountain-runners";
 const now = Date.parse("2026-09-27T12:00:00.000Z");
@@ -228,4 +232,66 @@ test("the periodic reconciliation keeps open previews published without the labe
     ),
     false,
   );
+});
+
+async function routeCleanup(eventName, event) {
+  const transport = transportFor([]);
+  let reconciled = false;
+  await runCleanup({
+    eventName,
+    event,
+    transport,
+    reconcile: async () => {
+      reconciled = true;
+    },
+  });
+  return { commands: transport.commands, reconciled };
+}
+
+test("a cleanup run retires only on the removal of the preview label", async () => {
+  const pullRequest = { number: 7 };
+  assert.deepEqual(
+    await routeCleanup("pull_request_target", {
+      action: "unlabeled",
+      label: { name: "preview" },
+      pull_request: pullRequest,
+    }),
+    {
+      commands: [
+        "mountain-preview retire 7",
+        "mountain-preview site-disable 7",
+      ],
+      reconciled: false,
+    },
+  );
+  assert.deepEqual(
+    await routeCleanup("pull_request_target", {
+      action: "unlabeled",
+      label: { name: "documentation" },
+      pull_request: pullRequest,
+    }),
+    { commands: [], reconciled: false },
+  );
+});
+
+test("closed, preview-revoked, scheduled and dispatched runs reconcile", async () => {
+  const cases = [
+    ["pull_request_target", { action: "closed", pull_request: { number: 7 } }],
+    [
+      "pull_request_target",
+      {
+        action: "labeled",
+        label: { name: "preview-revoked" },
+        pull_request: { number: 7 },
+      },
+    ],
+    ["schedule", {}],
+    ["workflow_dispatch", {}],
+  ];
+  for (const [eventName, event] of cases) {
+    assert.deepEqual(await routeCleanup(eventName, event), {
+      commands: [],
+      reconciled: true,
+    });
+  }
 });
