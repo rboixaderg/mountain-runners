@@ -10,7 +10,7 @@
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { AdmissionQueue, parseSessionKey } from "telegram-pi-bridge/sessions";
+import { AdmissionQueue } from "telegram-pi-bridge/sessions";
 import {
   AgentBridge,
   TelegramApi,
@@ -18,7 +18,6 @@ import {
 } from "telegram-pi-bridge/telegram";
 import {
   bridgeMessages,
-  continuationReports,
   maximumAutomaticRepairs,
   previewConfirmationTimeoutMilliseconds,
 } from "../../policy/development.mjs";
@@ -29,6 +28,7 @@ import { CiWatchStore } from "../../repository/ci-watch-store.mjs";
 import { MergeRequestStore } from "../../repository/merge-request-store.mjs";
 import { PreviewRequestStore } from "../../repository/preview-request-store.mjs";
 import { SessionNoteStore } from "../../repository/session-note-store.mjs";
+import { TopicJobStore } from "../../repository/topic-job-store.mjs";
 import {
   defaultRequestTimeoutMilliseconds,
   requestSignal,
@@ -143,6 +143,9 @@ export async function startService({
   const previewRequests = new PreviewRequestStore(
     join(config.paths.state, "preview-request.sqlite"),
   );
+  const topicJobs = new TopicJobStore(
+    join(config.paths.state, "topic-jobs.sqlite"),
+  );
   const mergeRequests = new MergeRequestStore(
     join(config.paths.state, "merge-request.sqlite"),
   );
@@ -170,6 +173,7 @@ export async function startService({
   }
 
   function closeStateStores() {
+    topicJobs.close();
     sessionNotes.close();
     mergeRequests.close();
     previewRequests.close();
@@ -416,36 +420,13 @@ export async function startService({
         ciWatches,
         previewRequests,
         mergeRequests,
+        topicJobs,
         requestPreview: previewWorker.handle,
         requestMerge: mergeWorker.handle,
-        readCiState,
         // The raw download only touches the service temporary directory, so the
         // downloaded image is cleaned before it reaches a worktree.
         prepareAttachment: createAttachmentPreparation({ telegram, logger }),
         sessionNotes,
-        hasOtherInstructions: (sessionKey, updateIdentifier) =>
-          queue.hasOtherInstructions(sessionKey, updateIdentifier),
-        notifyHandover: async ({
-          updateIdentifier,
-          sessionKey,
-          pullRequestNumber,
-          signal,
-        }) => {
-          const { chatIdentifier, threadIdentifier } =
-            parseSessionKey(sessionKey);
-          const text = continuationReports.handover({ pullRequestNumber });
-          recordServiceNote({
-            sessionKey,
-            text,
-            effectKey: `handover:${updateIdentifier}`,
-          });
-          await telegram.sendMessage({
-            chatIdentifier,
-            messageThreadIdentifier: threadIdentifier,
-            text,
-            signal: requestSignal(signal, defaultRequestTimeoutMilliseconds),
-          });
-        },
         recordTrace: (entry) => queue.recordTrace(entry),
       });
   } catch (error) {
