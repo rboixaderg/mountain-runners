@@ -8,7 +8,8 @@ la frontera de domini i els controls compensatoris no canvien. Esmenada el 9 de
 novembre de 2026 (T8.2): una petició explícita d'un membre verificat del grup
 privat autoritza l'agent a demanar la preview amb un comentari `/preview`. Vegeu
 l'apartat Esmena. Esmena proposada el 21 de novembre de 2026: l'etiqueta
-`preview` de la PR també demana la preview.
+`preview` de la PR també demana la preview. Esmena proposada posterior: l'etiqueta
+passa a ser l'única autorització i es retira `/preview`.
 
 ## Decisió
 
@@ -156,6 +157,25 @@ no fiable: les col·laboradores que poden fer push són les mateixes que poden
 comentar `/preview`, però cada push publica sense un acte humà nou. No s'activa
 fins que les verificacions pendents de l'especificació es comprovin amb GitHub
 real.
+
+## Esmena proposada (retirada de `/preview`, 21 de novembre de 2026)
+
+Proposada fins que es fusioni la PR de l'[especificació de la retirada de
+`/preview`](../specs/retire-preview-command.md). Depèn de l'esmena de l'etiqueta
+de preview i de les seves verificacions a GitHub real.
+
+- L'etiqueta `preview` de la PR és l'única autorització d'una preview. El
+  comentari `/preview` deixa de ser una petició i el workflow ja no s'executa
+  amb comentaris.
+- L'execució manual es manté només com a reintent: exigeix l'etiqueta, rebutja
+  `preview-revoked` i un actor sense permís `write` o `admin`.
+- La reconciliació periòdica retira la preview de qualsevol PR oberta sense
+  l'etiqueta.
+
+Es mantenen les branques del repositori principal, la vinculació al SHA del cap,
+la revalidació abans d'activar, `preview-revoked` amb precedència, la retirada en
+tancar la PR i `PreviewNotice` amb `PUBLIC_PREVIEW`. Desapareix la comprovació de
+col·laboradora sense nivell del comentari, la més feble de les autoritzacions.
 
 ## Raonament
 
