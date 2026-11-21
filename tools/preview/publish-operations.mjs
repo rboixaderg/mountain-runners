@@ -84,11 +84,11 @@ export async function assertCommentAuthorized({
   }
 }
 
-// A workflow_dispatch run is initially authorized by GitHub's write-access
-// requirement. Recheck that the dispatch actor still has write access before
-// activation; the collaborator endpoint's legacy permission maps maintain to
-// write, while read and none are insufficient.
-export async function assertDispatchActorAuthorized({
+// A workflow_dispatch run or a label request is initially authorized by the
+// actor's repository access. Recheck that the actor still has write access
+// before activation; the collaborator endpoint's legacy permission maps
+// maintain to write, while read and none are insufficient.
+export async function assertActorWritePermission({
   repository,
   apiUrl,
   token,
@@ -99,9 +99,7 @@ export async function assertDispatchActorAuthorized({
     throw new Error("GITHUB_REPOSITORY is required to reach the GitHub API.");
   }
   if (actor === undefined || actor === "") {
-    throw new Error(
-      "GITHUB_ACTOR is required to revalidate workflow dispatch authorization.",
-    );
+    throw new Error("The requesting actor is required to check write access.");
   }
   const response = await fetchImpl(
     `${apiBaseUrl(apiUrl)}/repos/${repository}/collaborators/${actor}/permission`,
@@ -109,20 +107,21 @@ export async function assertDispatchActorAuthorized({
   );
   if (!response.ok) {
     throw new Error(
-      `The workflow dispatch actor does not have current repository write permission (HTTP ${response.status}).`,
+      `The actor ${actor} does not have current repository write permission (HTTP ${response.status}).`,
     );
   }
   const { permission } = await response.json();
   if (permission !== "write" && permission !== "admin") {
     throw new Error(
-      "The workflow dispatch actor no longer has repository write permission.",
+      `The actor ${actor} no longer has repository write permission.`,
     );
   }
 }
 
 // Reads the pull request state from the platform: only an open pull request
 // from this repository (own branches) can be published; returns the head
-// SHA the artifact must match.
+// SHA the artifact must match and whether the pull request carries the
+// `preview` label.
 export async function resolvePullRequestState({
   repository,
   apiUrl,
@@ -151,7 +150,10 @@ export async function resolvePullRequestState({
       "The pull request head repository is not this repository; forks have no previews.",
     );
   }
-  return { headSha: pullRequest.head.sha };
+  return {
+    headSha: pullRequest.head.sha,
+    labeled: pullRequest.labels?.some((label) => label.name === "preview"),
+  };
 }
 
 function assertPullRequestUnchanged(previous, current) {
@@ -275,14 +277,25 @@ export async function publishPreview({
   pullNumber,
   resolvePullRequestState,
   revalidateCommentAuthorization,
-  revalidateDispatchAuthorization,
+  revalidateActorAuthorization,
+  requireLabel = false,
   authorizedBy,
   authorizationPrivateKey,
   transport,
   verifyPreview = verifyPreviewSite,
   onPublished,
 }) {
-  const pullRequest = await resolvePullRequestState();
+  // A label request is valid only while the pull request keeps the label, at
+  // every point where the pull request state is read again.
+  async function resolveCurrentState() {
+    const state = await resolvePullRequestState();
+    if (requireLabel && !state.labeled) {
+      throw new Error("The pull request no longer has the preview label.");
+    }
+    return state;
+  }
+
+  const pullRequest = await resolveCurrentState();
   const artifact = await loadVerifiedArtifact(artifactDirectory, {
     expectedCommit: pullRequest.headSha,
     expectedOrigin: previewOrigin(pullNumber),
@@ -311,10 +324,10 @@ export async function publishPreview({
     pullRequest.headSha,
   );
 
-  const revalidated = await resolvePullRequestState();
+  const revalidated = await resolveCurrentState();
   assertPullRequestUnchanged(pullRequest, revalidated);
   await revalidateCommentAuthorization?.();
-  await revalidateDispatchAuthorization?.();
+  await revalidateActorAuthorization?.();
 
   const authorization = {
     pullRequestNumber: pullNumber,
@@ -339,10 +352,10 @@ export async function publishPreview({
   await transport.run(`mountain-preview site-enable ${pullNumber}`);
   let activated = false;
   try {
-    const beforeActivation = await resolvePullRequestState();
+    const beforeActivation = await resolveCurrentState();
     assertPullRequestUnchanged(pullRequest, beforeActivation);
     await revalidateCommentAuthorization?.();
-    await revalidateDispatchAuthorization?.();
+    await revalidateActorAuthorization?.();
     await activatePreviewRelease(transport, pullNumber, pullRequest.headSha);
     activated = true;
     const health = await transport.run(`mountain-preview health ${pullNumber}`);
@@ -367,10 +380,10 @@ export async function publishPreview({
     );
   }
   if (onPublished) {
-    const current = await resolvePullRequestState();
+    const current = await resolveCurrentState();
     assertPullRequestUnchanged(pullRequest, current);
     await revalidateCommentAuthorization?.();
-    await revalidateDispatchAuthorization?.();
+    await revalidateActorAuthorization?.();
     await onPublished({
       origin: previewOrigin(pullNumber),
       headSha: pullRequest.headSha,

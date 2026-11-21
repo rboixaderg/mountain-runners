@@ -4,7 +4,6 @@ import {
   GitHubResponseError,
   GitHubTrust,
   isDefiniteRejection,
-  isPermissionRejection,
 } from "./github.mjs";
 
 const commit = "a".repeat(40);
@@ -15,6 +14,7 @@ function pullRequestResponse(overrides = {}) {
     draft: false,
     merged: false,
     mergeable_state: "clean",
+    labels: [],
     head: {
       sha: commit,
       ref: "feat/example",
@@ -414,6 +414,7 @@ test("reads one pull request to pin the reported commit to its head", async () =
     headRef: "feat/example",
     headRepository: "example/project",
     draft: false,
+    previewLabeled: false,
     baseRef: "main",
     mergeableState: "clean",
     merged: false,
@@ -634,73 +635,110 @@ test("a definite rejection is a client error other than a timeout or a rate limi
   assert.equal(isDefiniteRejection(new Error("network")), false);
 });
 
-test("posts exactly the preview command and returns the comment identity", async () => {
+function labelsComponent(handler) {
   const requests = [];
   const github = new GitHubTrust({
     token: "synthetic",
     repository: "example/project",
     fetchImpl: async (url, options) => {
       requests.push({ url, options });
-      return {
-        ok: true,
-        json: async () => ({ id: 77, created_at: "2026-11-14T10:00:00Z" }),
-      };
+      return handler(requests.length, options.method);
     },
   });
-  assert.deepEqual(
-    await github.commentOnPullRequest({ number: 123, body: "/preview" }),
-    { createdAt: "2026-11-14T10:00:00Z" },
-  );
+  return { github, requests };
+}
+
+const unknownResult = () => {
+  throw new TypeError("fetch failed");
+};
+
+test("sets exactly the preview label on the pull request", async () => {
+  const { github, requests } = labelsComponent(() => ({
+    ok: true,
+    json: async () => [{ name: "preview" }],
+  }));
+  await github.addPreviewLabel({ number: 123 });
   assert.equal(requests.length, 1);
   assert.equal(requests[0].options.method, "POST");
-  assert.ok(new URL(requests[0].url).pathname.endsWith("/issues/123/comments"));
-  assert.deepEqual(JSON.parse(requests[0].options.body), { body: "/preview" });
+  assert.ok(new URL(requests[0].url).pathname.endsWith("/issues/123/labels"));
+  assert.deepEqual(JSON.parse(requests[0].options.body), {
+    labels: ["preview"],
+  });
 });
 
-test("never posts a comment other than the preview command", async () => {
-  const requests = [];
-  const github = new GitHubTrust({
-    token: "synthetic",
-    repository: "example/project",
-    fetchImpl: async (url) => {
-      requests.push(url);
-      return { ok: true, json: async () => ({}) };
-    },
-  });
+test("refuses an invalid pull request number before calling GitHub", async () => {
+  const { github, requests } = labelsComponent(() => ({ ok: true }));
   await assert.rejects(
-    github.commentOnPullRequest({ number: 123, body: "/merge" }),
-    /Only the preview command/u,
-  );
-  await assert.rejects(
-    github.commentOnPullRequest({ number: 0, body: "/preview" }),
+    github.addPreviewLabel({ number: 0 }),
     /positive pull request number/u,
   );
   assert.deepEqual(requests, []);
 });
 
-test("rejects an invalid comment response after posting", async () => {
-  const github = new GitHubTrust({
-    token: "synthetic",
-    repository: "example/project",
-    fetchImpl: async () => ({ ok: true, json: async () => ({}) }),
+test("reads the labels before repeating after an unknown result and does not duplicate", async () => {
+  const { github, requests } = labelsComponent((count) => {
+    if (count === 1) return unknownResult();
+    return { ok: true, json: async () => [{ name: "preview" }] };
   });
-  await assert.rejects(
-    github.commentOnPullRequest({ number: 123, body: "/preview" }),
-    /invalid comment response/u,
+  await github.addPreviewLabel({ number: 123 });
+  assert.deepEqual(
+    requests.map((request) => request.options.method),
+    ["POST", "GET"],
   );
 });
 
-test("exposes the HTTP status of a rejected response without the token", async () => {
-  const github = new GitHubTrust({
-    token: "synthetic-secret",
-    repository: "example/project",
-    fetchImpl: async () => ({ ok: false, status: 403 }),
+test("repeats once when the unknown result left no label and fails if that fails", async () => {
+  const repeated = labelsComponent((count) => {
+    if (count === 1) return unknownResult();
+    return { ok: true, json: async () => (count === 2 ? [] : [{}]) };
   });
-  await assert.rejects(
-    github.commentOnPullRequest({ number: 123, body: "/preview" }),
-    (error) =>
-      error.status === 403 && !error.message.includes("synthetic-secret"),
+  await repeated.github.addPreviewLabel({ number: 123 });
+  assert.deepEqual(
+    repeated.requests.map((request) => request.options.method),
+    ["POST", "GET", "POST"],
   );
+
+  const failing = labelsComponent((count) => {
+    if (count === 2) return { ok: true, json: async () => [] };
+    return unknownResult();
+  });
+  await assert.rejects(failing.github.addPreviewLabel({ number: 123 }), {
+    name: "TypeError",
+  });
+  assert.equal(failing.requests.length, 3);
+});
+
+test("a definite rejection is never repeated and exposes only the status", async () => {
+  const { github, requests } = labelsComponent(() => ({
+    ok: false,
+    status: 403,
+  }));
+  await assert.rejects(
+    github.addPreviewLabel({ number: 123 }),
+    (error) => error.status === 403 && !error.message.includes("synthetic"),
+  );
+  assert.equal(requests.length, 1);
+});
+
+test("reads the preview label of a pull request", async () => {
+  for (const [labels, expected] of [
+    [[{ name: "preview" }], true],
+    [[{ name: "preview-revoked" }], false],
+    [[], false],
+  ]) {
+    const github = new GitHubTrust({
+      token: "synthetic",
+      repository: "example/project",
+      fetchImpl: async () => ({
+        ok: true,
+        json: async () => pullRequestResponse({ labels }),
+      }),
+    });
+    assert.equal(
+      (await github.getPullRequest({ number: 1 })).previewLabeled,
+      expected,
+    );
+  }
 });
 
 test("reads every page of pull request comments and fails closed past the limit", async () => {
@@ -752,192 +790,18 @@ test("reads every page of pull request comments and fails closed past the limit"
   );
 });
 
-function workflowRunResponse(url) {
-  return {
-    workflow_runs:
-      pageOf(url) === "1"
-        ? Array.from({ length: 100 }, (_, index) => ({
-            id: index + 1,
-            event: "issue_comment",
-            created_at: "2026-11-18T09:00:00Z",
-            status: "completed",
-            conclusion: "failure",
-            head_sha: commit,
-            actor: { login: "mountain-agent-bot" },
-            triggering_actor: { login: "mountain-agent-bot" },
-          }))
-        : [
-            {
-              id: 101,
-              event: "issue_comment",
-              created_at: "2026-11-18T09:05:00Z",
-              status: "in_progress",
-              conclusion: null,
-              head_sha: commit,
-              actor: { login: "mountain-agent-bot" },
-              triggering_actor: { login: "a-maintainer" },
-            },
-          ],
-  };
-}
-
-test("reads the preview workflow runs created after the request comment", async () => {
+test("lists every comment of a pull request when no start is given", async () => {
   const requested = [];
   const github = new GitHubTrust({
     token: "synthetic",
     repository: "example/project",
     fetchImpl: async (url) => {
       requested.push(url);
-      return { ok: true, json: async () => workflowRunResponse(url) };
+      return { ok: true, json: async () => [{ id: 1 }] };
     },
   });
-
-  const runs = await github.listPreviewWorkflowRuns({
-    createdSince: "2026-11-18T09:00:00.000Z",
-  });
-
-  assert.equal(runs.length, 101);
-  assert.deepEqual(runs[100], {
-    identifier: 101,
-    event: "issue_comment",
-    createdAt: "2026-11-18T09:05:00Z",
-    status: "in_progress",
-    conclusion: null,
-    actor: "mountain-agent-bot",
-    triggeringActor: "a-maintainer",
-  });
-  for (const url of requested) {
-    const parsed = new URL(url);
-    assert.match(
-      parsed.pathname,
-      /^\/repos\/example\/project\/actions\/workflows\/preview\.yml\/runs$/u,
-    );
-    assert.equal(parsed.searchParams.get("event"), "issue_comment");
-    assert.equal(
-      parsed.searchParams.get("created"),
-      ">=2026-11-18T09:00:00.000Z",
-    );
-  }
-});
-
-test("fails closed on an unreadable or endless preview run list", async () => {
-  const invalid = new GitHubTrust({
-    token: "synthetic",
-    repository: "example/project",
-    fetchImpl: async () => ({ ok: true, json: async () => ({}) }),
-  });
-  await assert.rejects(
-    invalid.listPreviewWorkflowRuns({ createdSince: "2026-11-18T09:00:00Z" }),
-    /invalid workflow runs response/u,
-  );
-
-  await assert.rejects(
-    invalid.listPreviewWorkflowRuns({ createdSince: "not a timestamp" }),
-    /ISO timestamp/u,
-  );
-
-  const malformed = new GitHubTrust({
-    token: "synthetic",
-    repository: "example/project",
-    fetchImpl: async () => ({
-      ok: true,
-      json: async () => ({ workflow_runs: [{ id: "not a number" }] }),
-    }),
-  });
-  await assert.rejects(
-    malformed.listPreviewWorkflowRuns({ createdSince: "2026-11-18T09:00:00Z" }),
-    /invalid workflow run/u,
-  );
-
-  const unparsableTime = new GitHubTrust({
-    token: "synthetic",
-    repository: "example/project",
-    fetchImpl: async () => ({
-      ok: true,
-      json: async () => ({
-        workflow_runs: [
-          {
-            id: 1,
-            event: "issue_comment",
-            created_at: "yesterday",
-            status: "completed",
-            conclusion: "failure",
-          },
-        ],
-      }),
-    }),
-  });
-  await assert.rejects(
-    unparsableTime.listPreviewWorkflowRuns({
-      createdSince: "2026-11-18T09:00:00Z",
-    }),
-    /invalid workflow run/u,
-  );
-
-  const anonymousActor = new GitHubTrust({
-    token: "synthetic",
-    repository: "example/project",
-    fetchImpl: async () => ({
-      ok: true,
-      json: async () => ({
-        workflow_runs: [
-          {
-            id: 1,
-            event: "issue_comment",
-            created_at: "2026-11-18T09:00:00Z",
-            status: "completed",
-            conclusion: "success",
-            actor: { login: "" },
-          },
-        ],
-      }),
-    }),
-  });
-  await assert.rejects(
-    anonymousActor.listPreviewWorkflowRuns({
-      createdSince: "2026-11-18T09:00:00Z",
-    }),
-    /invalid workflow run/u,
-  );
-
-  const endless = new GitHubTrust({
-    token: "synthetic",
-    repository: "example/project",
-    fetchImpl: async () => ({
-      ok: true,
-      json: async () => ({
-        workflow_runs: Array.from({ length: 100 }, (_, index) => ({
-          id: index + 1,
-          event: "issue_comment",
-          created_at: "2026-11-18T09:00:00Z",
-          status: "completed",
-          conclusion: "success",
-        })),
-      }),
-    }),
-  });
-  await assert.rejects(
-    endless.listPreviewWorkflowRuns({ createdSince: "2026-11-18T09:00:00Z" }),
-    /pagination limit exceeded/u,
-  );
-});
-
-test("tells a permission refusal apart from a definite write rejection", () => {
-  assert.equal(
-    isPermissionRejection(new GitHubResponseError("GET", "/runs", 403)),
-    true,
-  );
-  assert.equal(
-    isPermissionRejection(new GitHubResponseError("GET", "/runs", 404)),
-    true,
-  );
-  assert.equal(
-    isPermissionRejection(new GitHubResponseError("POST", "/x", 422)),
-    false,
-  );
-  assert.equal(isPermissionRejection(new TypeError("fetch failed")), false);
-  assert.equal(
-    isDefiniteRejection(new GitHubResponseError("GET", "/runs", 403)),
-    true,
-  );
+  assert.deepEqual(await github.listIssueComments({ number: 123 }), [
+    { id: 1 },
+  ]);
+  assert.equal(new URL(requested[0]).searchParams.has("since"), false);
 });

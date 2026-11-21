@@ -1,10 +1,11 @@
-// Private, durable tracking of the `/preview` requests of the deterministic
+// Private, durable tracking of the preview requests of the deterministic
 // handler.
 //
-// The row is durable in `commenting` before the comment is posted, so a restart
-// can tell that a post may have happened. Posting to GitHub and committing
-// SQLite cannot be atomic: an interrupted `commenting` row has an unknown
-// result and is never posted again automatically. A request awaiting the
+// Since the `preview` label the service posts nothing: a request goes from
+// `commenting` to `awaiting` in two synchronous writes. The `commenting` and
+// `uncertain` states remain for the rows written while the service still posted
+// `/preview`, whose result was unknown: an interrupted `commenting` row is
+// never posted again automatically, and a person resolves it. A request awaiting the
 // trusted publisher survives a restart and keeps its deadline.
 //
 // One Telegram update is one row, so a duplicate update never posts twice. A new
@@ -236,34 +237,6 @@ export class PreviewRequestStore {
         "SELECT * FROM preview_requests WHERE state = 'awaiting' ORDER BY update_identifier",
       )
       .all();
-  }
-
-  /**
-   * Every request whose `/preview` comment was posted, oldest first. It is read
-   * to bound the runs of a request with the comment of the next one, whatever
-   * state either of them is in: a request that already ended still separates the
-   * runs of its neighbours, so the bound never depends on which rows are still
-   * awaiting.
-   *
-   * `since` keeps only the comments at or after that instant. The worker polls
-   * this list every cycle and only needs the comments that can bound a request
-   * still awaiting, so it never loads the whole history. An unreadable instant
-   * is ignored: the filter then keeps every row.
-   */
-  commented({ since = null } = {}) {
-    // A bound that cannot be read says nothing: the filter keeps every row.
-    const boundedSince =
-      since !== null && Number.isFinite(Date.parse(since)) ? since : null;
-    return this.#database
-      .prepare(
-        `SELECT update_identifier, session_key, pull_request_number, commit_sha,
-                state, commented_at, created_at
-         FROM preview_requests
-         WHERE commented_at IS NOT NULL
-           AND (? IS NULL OR julianday(commented_at) >= julianday(?))
-         ORDER BY commented_at, update_identifier`,
-      )
-      .all(boundedSince, boundedSince);
   }
 
   /** Requests whose post may or may not have happened, oldest first. */

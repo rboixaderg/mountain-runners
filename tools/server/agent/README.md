@@ -60,7 +60,7 @@ tools/server/agent/               aplicació de Mountain Runners
 │   ├── project-runner.mjs          connecta política, model, sandbox i publicador
 │   ├── run-instruction.mjs         coordina consulta, implementació o reparació
 │   ├── ci-watch.mjs                avís de CI i reserva de la reparació acotada
-│   ├── preview-request.mjs         petició `/preview` determinista i confirmació
+│   ├── preview-request.mjs         informe d'adreça de preview determinista i confirmació
 │   ├── merge-request.mjs           comanda `/merge` determinista i recuperació
 │   ├── cross-topic-continuation.mjs represa d'una PR publicada des d'un altre tema
 │   ├── overlap-warning.mjs         avís dels fitxers que se solapen amb feines actives
@@ -246,55 +246,43 @@ al servidor. El nom local encara no representa una publicació a npm.
    CI verda o una publicació humana nova també donen per obsoletes les reserves
    que mai no han corregut.
 
-9. Una persona verificada pot demanar la preview en llenguatge natural. El
+9. El servei no demana mai la preview: quan crea la PR d'un tema, el publicador
+   (`repository/publisher.mjs`) hi posa l'etiqueta `preview` amb
+   `repository/github.mjs#addPreviewLabel`, l'única operació d'etiquetes del
+   component (només `preview`, només a aquella PR, mai per treure'n cap). Si el
+   resultat és desconegut, llegeix les etiquetes abans de repetir-ho una vegada.
+   Si no la pot posar, la publicació es manté i el servei ho diu amb un avís
+   planer; no comenta mai `/preview`. No torna a posar l'etiqueta a una PR
+   existent. Cada push posterior publica la preview amb `synchronize` al flux de
+   la fase 6.
+
+   Una persona verificada pot demanar l'adreça en llenguatge natural. El
    classificador només etiqueta la petició com a `preview`: el model no s'inicia
    ni toca cap worktree. `workflow/preview-request.mjs` torna a verificar la
-   pertinença de l'autor en executar la petició, com el merge, i fixa la
-   petició al commit que el servei va informar en verd en aquell tema (mai una
-   PR o un SHA escrits per la persona) i torna a llegir la PR i les
-   comprovacions obligatòries:
-   PR oberta, cap igual al commit fixat, branca del repositori principal i
-   comprovacions obligatòries totes en verd. Si el tema té una publicació més
-   nova sense informe confirmat, refusa i nomena la feina nova, no l'avís ja
-   informat. Si l'autor ja no és membre, si la
-   consulta de pertinença falla, si hi ha qualsevol dubte o un error de lectura,
-   refusa i ho diu. Només llavors desa la petició (`commenting`),
-   comenta exactament `/preview` amb la credencial del servei i passa a
-   `awaiting`. Un bucle en segon pla llegeix els comentaris de la PR i només
+   pertinença de l'autor en executar la petició, com el merge, fixa la petició
+   al commit que el servei va informar en verd en aquell tema (mai una PR o un
+   SHA escrits per la persona) i torna a llegir la PR: oberta, branca del
+   repositori principal i etiqueta `preview` encara posada. Ja no espera les
+   comprovacions verdes: el `build` de la preview executa `pnpm validate`. Una PR
+   sense l'etiqueta no té preview i el servei no n'anuncia cap. Si el tema té
+   una publicació més nova sense informe confirmat, refusa i nomena la feina
+   nova. Si l'autor ja no és membre, si la consulta de pertinença falla o hi ha
+   un error de lectura, refusa i ho diu. Només llavors desa la petició
+   (`awaiting`). Un bucle en segon pla llegeix els comentaris de la PR i només
    accepta el del publicador de la fase 6 (`github-actions[bot]`, marcador,
-   origen exacte `https://pr-<n>.preview.mountainrunners.cat`, el SHA fixat i
-   escrit o actualitzat després de la petició). Retorna l'URL confirmada al
-   tema; si el termini de 25 minuts s'esgota, ho comunica com a no confirmat
-   sense construir cap URL. Un rebuig definitiu de GitHub (4xx, llevat de 408 i 429) acaba la petició
-   com a `failed` (traça `preview_failed`) sense bloquejar el servei; qualsevol
-   altre error deixa la petició `uncertain`. La identitat de GitHub de l'agent ha
-   de ser col·laboradora del repositori. Es pot repetir `/preview` pel mateix commit només quan la
-   petició anterior ha acabat. Una CI verda, una PR nova o una reparació no
-   demanen mai cap preview.
+   origen exacte `https://pr-<n>.preview.mountainrunners.cat` i el SHA fixat,
+   també si és anterior a la petició, perquè l'etiqueta el publica en pujar el
+   cap). Retorna l'URL confirmada al tema; si el termini de 25 minuts s'esgota,
+   ho comunica com a no confirmat sense construir cap URL. Una petició amb un cap
+   més nou de la mateixa PR acaba sense avís: només s'informa l'adreça del cap
+   final.
 
-   Mentre espera, el mateix bucle llegeix les execucions del flux `preview.yml`
-   que ha provocat el comentari (`repository/github.mjs#listPreviewWorkflowRuns`,
-   permís `Actions: read`). El flux s'executa per a cada comentari de cada PR,
-   així que només compta una execució iniciada per la identitat de GitHub del
-   servei (`actor` o `triggering_actor`, llegida una vegada amb
-   `getAuthenticatedLogin`) i dins de la finestra de la petició: creada després
-   del comentari del servei i abans del comentari de la petició següent. La
-   finestra va del comentari de la petició al de la petició següent, també quan
-   aquella ja ha acabat, i dues peticions del mateix segon es resolen per l'ordre
-   dels identificadors. El bucle llegeix primer el comentari del
-   publicador, que sempre guanya i és l'únic que lliga l'URL al commit. Dins de la
-   finestra només decideix la primera execució acabada: si no ha acabat bé, la
-   petició acaba com a `failed` (traça `preview_failed_run`, amb l'execució) amb
-   un avís planer, i una execució posterior no canvia res. Una execució correcta,
-   o acabada sense conclusió calculada, continua exigint el comentari del
-   publicador. Una lectura fallida d'execucions deixa el cicle amb el comentari
-   del publicador i el termini, i no tanca res per si sola. Si la credencial no
-   pot llegir execucions (403 o 404) o la seva pròpia identitat, el servei es
-   queda amb el comentari del publicador, ho registra
-   (`preview_runs_permission_denied` o `preview_identity_read_failed`) i ho torna
-   a provar com a màxim un cop l'hora, sense reiniciar. Una execució que no
-   encaixa en cap finestra s'ignora, i un encert equivocat només pot acabar la
-   petició com a fallada, perquè una execució correcta no confirma cap URL.
+   El servei ja no llegeix les execucions de `preview.yml`: el run de
+   `pull_request_target` no porta el cap de la PR (`head_sha` és l'últim commit
+   de `main`) i no hi ha cap camp fiable per correlacionar-lo, així que un build
+   fallit s'acaba al termini com a no confirmat. Els estats `commenting` i
+   `uncertain` es conserven només per a les peticions anteriors a l'etiqueta,
+   que bloquegen l'arrencada fins que una persona les reconcilia.
 
 10. Una persona verificada pot demanar el merge amb la comanda literal `/merge`,
     `/merge <PR>` o `/merge <PR> <SHA>` completa. `run-instruction.mjs` la reconeix
@@ -424,8 +412,8 @@ correctes del SHA exacte, i un resultat no confirmat es comunica sense
 reintentar-lo. Un error després d'iniciar la
 publicació, o una aturada de sandbox no confirmada, retornen un resultat incert.
 L'arrencada es refusa mentre quedi qualsevol instrucció incerta, una reparació
-interrompuda o un comentari `/preview` interromput abans de saber si s'ha
-publicat, fins i tot després de diversos reinicis. Abans de refusar, completa
+interrompuda o un comentari `/preview` d'abans de l'etiqueta, interromput abans
+de saber si s'ha publicat, fins i tot després de diversos reinicis. Abans de refusar, completa
 totes les recuperacions locals (instruccions, avisos, reparacions, previews i
 merges), de manera que un sol reinici deixa tots els casos atribuïts a la traça.
 Amb el servei en marxa,

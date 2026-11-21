@@ -3,8 +3,11 @@ name: Preview
 # Untrusted build + trusted publication of pull request previews (T6.3),
 # triggered on demand: a `/preview` comment on the pull request from a
 # repository collaborator (verified via the API — the explicit maintainer
-# authorization), or a manual workflow_dispatch with the pull number.
-# Nothing is built or published automatically on pull request events.
+# authorization), a manual workflow_dispatch with the pull number, or the
+# `preview` label on the pull request (labeled, then every push) set by a user
+# with write access. `pull_request_target` runs this file from `main`: never
+# switch it to `pull_request`, which would run the version of the branch with
+# the secrets of the unprotected `previews` environment.
 #
 # The authorize job runs trusted code from the default branch; the build job
 # checks out the pull request head and receives no secrets, no caches and no
@@ -21,6 +24,8 @@ on:
         type: string
   issue_comment:
     types: [created]
+  pull_request_target:
+    types: [labeled, synchronize]
 
 permissions:
   contents: read
@@ -30,7 +35,13 @@ permissions:
 jobs:
   authorize:
     name: Authorize the publish request
-    if: github.ref == 'refs/heads/main' && github.event.repository.fork == false
+    # A pull request event only continues when the `preview` label was just set
+    # or a push reached a pull request that has it; anything else is skipped.
+    if: >-
+      github.ref == 'refs/heads/main' && github.event.repository.fork == false &&
+      (github.event_name != 'pull_request_target' ||
+      (github.event.action == 'labeled' && github.event.label.name == 'preview') ||
+      (github.event.action == 'synchronize' && contains(github.event.pull_request.labels.*.name, 'preview')))
     runs-on: ubuntu-latest
     timeout-minutes: 5
     outputs:
@@ -59,6 +70,11 @@ jobs:
     if: needs.authorize.outputs.should_publish == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 60
+    # A newer request for the same pull request cancels a build still running.
+    # The publish group below is not touched: a publication is never interrupted.
+    concurrency:
+      group: preview-build-${{ needs.authorize.outputs.pull_number }}
+      cancel-in-progress: true
     env:
       PR_NUMBER: ${{ needs.authorize.outputs.pull_number }}
       PUBLIC_SITE_ORIGIN: https://pr-${{ needs.authorize.outputs.pull_number }}.preview.mountainrunners.cat

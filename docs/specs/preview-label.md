@@ -68,9 +68,9 @@ La persona mantenidora confirma aquestes decisions el 21 de novembre de 2026:
 
 ## Tasques, Entregues I Seguiment
 
-| Tasca | Estat   | Dependències            | Resultat verificable                                      | PR  |
-| ----- | ------- | ----------------------- | --------------------------------------------------------- | --- |
-| T1    | Pendent | Esmenes ADR 0009 i 0013 | L'etiqueta publica i retira la preview, i l'agent la posa | -   |
+| Tasca | Estat   | Dependències            | Resultat verificable                                      | PR                                                              |
+| ----- | ------- | ----------------------- | --------------------------------------------------------- | --------------------------------------------------------------- |
+| T1    | En curs | Esmenes ADR 0009 i 0013 | L'etiqueta publica i retira la preview, i l'agent la posa | [#268](https://github.com/rboixaderg/mountain-runners/pull/268) |
 
 ### T1: Petició De Preview Amb L'Etiqueta
 
