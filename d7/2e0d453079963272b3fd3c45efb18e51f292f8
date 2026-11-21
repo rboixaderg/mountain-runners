@@ -1,0 +1,19 @@
+tools/server/agent/workflow/run-instruction.mjs
+  s_c4d80c64f1444b::t_a0cf1b3050bb85 78,366-376
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "d72e0d453079963272b3fd3c45efb18e51f292f8",
+  "prompts": {},
+  "sessions": {
+    "s_c4d80c64f1444b": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a1fee0-b71b-758d-acf2-917c22d14fc5",
+        "model": "gpt-6.1-terra"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
