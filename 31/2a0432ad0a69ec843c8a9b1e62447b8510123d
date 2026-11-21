@@ -1,0 +1,37 @@
+docs/deployment.md
+  s_b7ec8f5a705b5b::t_68905be3ec9f4f 1076-1082
+tools/server/agent/policy/development.mjs
+  s_b7ec8f5a705b5b::t_ccd432b4de2dee 323,325
+tools/server/agent/policy/development.test.mjs
+  s_b7ec8f5a705b5b::t_81789797e09ae4 9,52,56
+tools/server/agent/repository/worktrees.mjs
+  s_b7ec8f5a705b5b::t_c06e2d066d84d5 821-877,886-891,893,895,901-908,920,928,939-946,950-957,966,983,987-988,992,1000
+tools/server/agent/workflow/run-instruction.mjs
+  s_b7ec8f5a705b5b::t_3dfc8904ac610c 29-34,45,388-468,626,635-711,891-894,896-902,905
+tools/server/agent/workflow/run-instruction.test.mjs
+  s_c4d80c64f1444b::t_1cf0c59dcc4fbd 973-1282,1296-1306,1354,1389-1409
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "312a0432ad0a69ec843c8a9b1e62447b8510123d",
+  "prompts": {},
+  "sessions": {
+    "s_b7ec8f5a705b5b": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a1fab0-8d95-7799-b4a1-7d43e047d790",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    },
+    "s_c4d80c64f1444b": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a1fee0-b71b-758d-acf2-917c22d14fc5",
+        "model": "gpt-6.1-terra"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
