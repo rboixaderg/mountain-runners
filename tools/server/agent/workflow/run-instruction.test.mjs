@@ -1280,6 +1280,69 @@ test("keeps pending work when the remote branch was rewritten", async (context) 
   await assertAdvancedPullRequest(context, { pending: true, diverged: true });
 });
 
+test("a bound pull request that cannot be read before the push fails locally", async (context) => {
+  const paths = await fixture(context);
+  mkdirSync(paths.state, { recursive: true });
+  const topicJobs = new TopicJobStore(join(paths.state, "topic-jobs.sqlite"));
+  context.after(() => topicJobs.close());
+  const github = githubStub();
+  const pushBranch = github.pushBranch.bind(github);
+  let remoteHead;
+  github.pushBranch = async (options) => {
+    const pushed = await pushBranch(options);
+    remoteHead = pushed.commit;
+    return pushed;
+  };
+  const unreadable = unreadablePullRequestRead(10);
+  let reads = 0;
+  github.getPullRequest = (options) => {
+    reads += 1;
+    // The first read is the check before the model turn; the second one is the
+    // publisher's, immediately before the push.
+    if (reads === 2) return unreadable(options);
+    return Promise.resolve({
+      state: "open",
+      draft: false,
+      baseRef: "main",
+      headRepository: "rboixaderg/mountain-runners",
+      headRef: github.pushes[0].branch,
+      headSha: remoteHead,
+    });
+  };
+  github.ensurePullRequest = async (options) => {
+    github.pulls.push(options);
+    return {
+      pullRequest: {
+        number: 200,
+        htmlUrl: "https://github.com/rboixaderg/mountain-runners/pull/200",
+      },
+      created: github.pulls.length === 1,
+    };
+  };
+  let turns = 0;
+  const runner = createProjectRunner({
+    config: configFor(paths),
+    github,
+    topicJobs,
+    classifyRequest: async () => ({ kind: "implementation" }),
+    runModel: async ({ worktreePath }) => {
+      turns += 1;
+      writeFileSync(join(worktreePath, "change.txt"), `change ${turns}\n`);
+      return { text: "SUMMARY: feat(tools): add synthetic change" };
+    },
+    runChecks: async () => ({ exitCode: 0, timedOut: false }),
+  });
+
+  assert.equal((await runner(request())).outcome, "pull_request_created");
+  reads = 0;
+  const result = await runner(request({ updateIdentifier: 1002 }));
+
+  assert.equal(result.outcome, "failed");
+  assert.equal(result.report, instructionReports.publicationReadFailed);
+  assert.equal(github.pushes.length, 1);
+  assert.equal(github.pulls.length, 1);
+});
+
 test("two implementation turns publish to the first bound pull request", async (context) => {
   const paths = await fixture(context);
   mkdirSync(paths.state, { recursive: true });

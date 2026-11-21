@@ -127,7 +127,7 @@ test("preserves a clean branch with an unpublished commit", async (context) => {
   assert.equal(await currentBranch(worktree), "fix/unpublished-change");
 });
 
-test("answers a consultation without publishing a previous failed change", async (context) => {
+test("publishes previous pending work after a question", async (context) => {
   const { config, worktree } = await repositoryFixture(context);
   writeFileSync(join(worktree.path, "README.md"), "pending change\n");
   let checks = 0;
@@ -158,9 +158,9 @@ test("answers a consultation without publishing a previous failed change", async
     sessionKey: "-100:7",
     instruction: "Per què ha fallat abans?",
   });
-  assert.equal(result.outcome, "answered");
-  assert.equal(checks, 0);
-  assert.equal(publications, 0);
+  assert.equal(result.outcome, "pull_request_created");
+  assert.equal(checks, 1);
+  assert.equal(publications, 1);
   assert.equal(
     readFileSync(join(worktree.path, "README.md"), "utf8"),
     "pending change\n",
