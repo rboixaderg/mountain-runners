@@ -74,7 +74,17 @@ const repairsTable = `
     ON ci_repairs (update_identifier, commit_sha, failure_fingerprint);
 `;
 
-const schema = `${watchesTable}${watchesIndexes}${repairsTable}`;
+const rerunsTable = `
+  CREATE TABLE IF NOT EXISTS ci_reruns (
+    run_identifier INTEGER PRIMARY KEY,
+    original_attempt INTEGER NOT NULL,
+    created_at TEXT NOT NULL,
+    watch_update_identifier INTEGER,
+    commit_sha TEXT
+  );
+`;
+
+const schema = `${watchesTable}${watchesIndexes}${repairsTable}${rerunsTable}`;
 
 /**
  * A store created before a watch could be superseded still carries the old
@@ -105,6 +115,19 @@ function ensureSupersededState(database) {
       ${watchesIndexes}
     `);
   });
+}
+
+/** Preserve existing rerun reservations when adding watch attribution. */
+function ensureRerunWatchColumns(database) {
+  const columns = database.prepare("PRAGMA table_info(ci_reruns)").all();
+  if (!columns.some((column) => column.name === "watch_update_identifier")) {
+    database.exec(
+      "ALTER TABLE ci_reruns ADD COLUMN watch_update_identifier INTEGER",
+    );
+  }
+  if (!columns.some((column) => column.name === "commit_sha")) {
+    database.exec("ALTER TABLE ci_reruns ADD COLUMN commit_sha TEXT");
+  }
 }
 
 /**
@@ -142,6 +165,7 @@ export class CiWatchStore {
     this.#database.exec(schema);
     ensureSupersededState(this.#database);
     ensurePreviewAuthorColumn(this.#database);
+    ensureRerunWatchColumns(this.#database);
     this.#now = now;
   }
 
@@ -192,6 +216,44 @@ export class CiWatchStore {
           timestamp,
         );
     });
+  }
+
+  /** Reserve the one automatic rerun before sending any request to GitHub. */
+  reserveRerun({
+    runIdentifier,
+    originalAttempt,
+    updateIdentifier = null,
+    commitSha = null,
+  }) {
+    return (
+      this.#database
+        .prepare(
+          `INSERT OR IGNORE INTO ci_reruns
+           (run_identifier, original_attempt, created_at, watch_update_identifier, commit_sha)
+           VALUES (?, ?, ?, ?, ?)`,
+        )
+        .run(
+          runIdentifier,
+          originalAttempt,
+          this.#now().toISOString(),
+          updateIdentifier,
+          commitSha,
+        ).changes === 1
+    );
+  }
+
+  rerunDeadlineStart({ updateIdentifier, commitSha }) {
+    return this.#database
+      .prepare(
+        "SELECT MAX(created_at) AS created_at FROM ci_reruns WHERE watch_update_identifier = ? AND commit_sha = ?",
+      )
+      .get(updateIdentifier, commitSha).created_at;
+  }
+
+  rerun(runIdentifier) {
+    return this.#database
+      .prepare("SELECT * FROM ci_reruns WHERE run_identifier = ?")
+      .get(runIdentifier);
   }
 
   pending() {

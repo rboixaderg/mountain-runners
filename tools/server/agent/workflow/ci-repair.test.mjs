@@ -69,6 +69,7 @@ function executorFor({
   readPullRequest = async (options) => openPullRequest(options),
   readCiState = async () => ({
     state: "failure",
+    repairable: true,
     failed: ["Validate"],
     pending: [],
     missing: [],
@@ -86,6 +87,29 @@ function executorFor({
     recordServiceNote,
   });
 }
+
+test("does not run a queued repair when live failure evidence is unavailable", async (context) => {
+  const store = fixture(context);
+  queueRepair(store, repairRequest);
+  let executed = false;
+  const executor = executorFor({
+    store,
+    telegram: fakeTelegram(),
+    runInstruction: async () => {
+      executed = true;
+    },
+    readCiState: async () => ({
+      state: "failure",
+      failed: ["Validate"],
+      pending: [],
+      missing: [],
+      ambiguous: [],
+      repairable: false,
+    }),
+  });
+  await executor.runNext();
+  assert.equal(executed, false);
+});
 
 for (const scenario of ["green", "moved", "error"]) {
   test(`rechecks the queued repair and updates its watch: ${scenario}`, async (context) => {
@@ -731,6 +755,7 @@ test("informs the topic even when the attempt cannot be closed", async (context)
       openPullRequest({ pullRequestNumber }),
     readCiState: async () => ({
       state: "failure",
+      repairable: true,
       failed: ["Validate"],
       pending: [],
       missing: [],

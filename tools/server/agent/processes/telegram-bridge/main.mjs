@@ -396,12 +396,13 @@ export async function startService({
   }
   // One read of the required checks of an exact commit, shared by the
   // continuation of a pull request and the automatic repair.
-  const readCiState = ({ commit, signal }) =>
+  const readCiState = ({ commit, signal, requireRepairEvidence }) =>
     readCiCheckState({
       github,
       requiredChecks: config.github.requiredChecks,
       commit,
       signal,
+      requireRepairEvidence,
     });
   let runner;
   try {

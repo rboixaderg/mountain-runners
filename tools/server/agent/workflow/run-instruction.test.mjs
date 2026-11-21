@@ -2930,6 +2930,7 @@ test("never turns the words of the model into trusted service text", async (cont
     }),
     readCiState: async () => ({
       state: "failure",
+      repairable: true,
       failed: ["Validate"],
       pending: [],
       missing: [],
