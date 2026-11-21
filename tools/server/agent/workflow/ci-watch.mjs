@@ -52,12 +52,54 @@ function describe(watch) {
 }
 
 /** Read and classify the required checks of one exact commit. */
-export async function readCiState({ github, requiredChecks, commit, signal }) {
+export async function readCiState({
+  github,
+  requiredChecks,
+  commit,
+  signal,
+  requireRepairEvidence = false,
+}) {
   const [checkRuns, statuses] = await Promise.all([
     github.getCommitCheckRuns({ commit, signal }),
     github.getCommitStatuses({ commit, signal }),
   ]);
-  return classifyCommitStatus({ requiredChecks, checkRuns, statuses });
+  const classification = classifyCommitStatus({
+    requiredChecks,
+    checkRuns,
+    statuses,
+  });
+  if (!requireRepairEvidence || !isDecisiveFailure(classification))
+    return classification;
+  const failures = await classifyFailures({
+    github,
+    commit,
+    failedChecks: classification.failed,
+    checkRuns,
+    signal,
+  });
+  return {
+    ...classification,
+    repairable: failures.every((failure) => failure.kind === "real_failure"),
+  };
+}
+
+async function classifyFailures({
+  github,
+  commit,
+  failedChecks,
+  checkRuns,
+  signal,
+}) {
+  return Promise.all(
+    failedChecks.map(async (name) => {
+      const checkRun = checkRuns.find((entry) => entry.name === name);
+      if (!checkRun || typeof github.getCheckRunJob !== "function")
+        return { kind: "no_output" };
+      const job = await github.getCheckRunJob({ checkRun, commit, signal });
+      const projectOutput = checkRun.output?.summary ?? "";
+      return { job, kind: classifyCiFailure({ checkRun, job, projectOutput }) };
+    }),
+  );
 }
 
 /**
@@ -642,38 +684,22 @@ export function createCiWatchWorker({
             }
             continue;
           }
-          const nonCodeFailures = [];
-          let unknownNonCodeFailure = false;
-          for (const name of current.failedChecks) {
-            const checkRun = current.checkRuns.find(
-              (entry) => entry.name === name,
-            );
-            if (!checkRun || typeof github.getCheckRunJob !== "function")
-              continue;
-            const job = await github.getCheckRunJob({
-              checkRun,
-              commit: watch.commit_sha,
-              signal,
-            });
-            const kind = classifyCiFailure({
-              checkRun,
-              job,
-              projectOutput: "",
-            });
-            if (
-              kind === "cancelled" ||
-              kind === "timed_out" ||
-              kind === "setup_failure"
-            ) {
-              nonCodeFailures.push(job);
-            } else if (
-              checkRun.conclusion === "cancelled" ||
-              checkRun.conclusion === "timed_out"
-            ) {
-              unknownNonCodeFailure = true;
-            }
-          }
-          if (unknownNonCodeFailure) {
+          const failures = await classifyFailures({
+            github,
+            commit: watch.commit_sha,
+            failedChecks: current.failedChecks,
+            checkRuns: current.checkRuns,
+            signal,
+          });
+          const nonCodeFailures = failures
+            .filter(
+              ({ kind }) =>
+                kind === "cancelled" ||
+                kind === "timed_out" ||
+                kind === "setup_failure",
+            )
+            .map(({ job }) => job);
+          if (failures.some(({ kind }) => kind === "no_output")) {
             await deliver(
               watch,
               { ...current, result: ciResults.repairNotRun },

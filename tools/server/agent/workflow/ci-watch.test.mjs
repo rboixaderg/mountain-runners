@@ -9,7 +9,11 @@ import { CiWatchStore } from "../repository/ci-watch-store.mjs";
 import { SessionNoteStore } from "../repository/session-note-store.mjs";
 import { defaultRequestTimeoutMilliseconds } from "../repository/request-signal.mjs";
 import { maximumAutomaticRepairs } from "../policy/development.mjs";
-import { createCiWatchRegistration, createCiWatchWorker } from "./ci-watch.mjs";
+import {
+  createCiWatchRegistration,
+  createCiWatchWorker,
+  readCiState,
+} from "./ci-watch.mjs";
 
 const commit = "b".repeat(40);
 const nextCommit = "c".repeat(40);
@@ -39,7 +43,14 @@ const registration = {
 };
 
 function checkRun(name, status, conclusion) {
-  return { name, status, conclusion };
+  return {
+    name,
+    status,
+    conclusion,
+    ...(conclusion === "failure"
+      ? { output: { summary: "project test failed" } }
+      : {}),
+  };
 }
 
 function fakeGithub({
@@ -61,6 +72,15 @@ function fakeGithub({
     async getCommitStatuses({ commit: readCommit }) {
       reads.push({ kind: "statuses", commit: readCommit });
       return statuses;
+    },
+    async getCheckRunJob({ checkRun }) {
+      return {
+        status: "completed",
+        conclusion: checkRun.conclusion,
+        steps: [
+          { name: "Check project", status: "completed", conclusion: "failure" },
+        ],
+      };
     },
     async getPullRequest({ number }) {
       reads.push({ kind: "pull-request", number });
@@ -483,6 +503,62 @@ test("waits while a required check is still running", async (context) => {
   assert.equal(store.state(registration.updateIdentifier), "pending");
 });
 
+test("revalidates repair evidence from the live failed job", async () => {
+  const withOutput = fakeGithub({
+    checkRuns: [checkRun("Validate", "completed", "failure")],
+  });
+  const withoutOutput = fakeGithub({
+    checkRuns: [
+      { name: "Validate", status: "completed", conclusion: "failure" },
+    ],
+  });
+  assert.equal(
+    (
+      await readCiState({
+        github: withOutput,
+        requiredChecks,
+        commit,
+        requireRepairEvidence: true,
+      })
+    ).repairable,
+    true,
+  );
+  assert.equal(
+    (
+      await readCiState({
+        github: withoutOutput,
+        requiredChecks,
+        commit,
+        requireRepairEvidence: true,
+      })
+    ).repairable,
+    false,
+  );
+});
+
+test("does not repair a project failure without output", async (context) => {
+  const { store } = fixture(context);
+  createCiWatchRegistration({ store })(registration);
+  const telegram = fakeTelegram();
+  const github = fakeGithub({
+    checkRuns: [
+      {
+        name: "Validate",
+        status: "completed",
+        conclusion: "failure",
+        output: { title: "failure" },
+      },
+    ],
+  });
+  await workerFor({ store, github, telegram }).runOnce();
+  assert.equal(store.claimNextRepair(), null);
+  assert.equal(telegram.sent.length, 1);
+  assert.equal(
+    store.lastReported(registration.sessionKey).result,
+    "repair-not-run",
+  );
+});
+
 test("reserves the first automatic repair of the failing checks", async (context) => {
   const { store } = fixture(context);
   createCiWatchRegistration({ store })(registration);
@@ -666,7 +742,7 @@ test("redacts known credentials from the failure evidence", async (context) => {
           name: "Validate",
           status: "completed",
           conclusion: "failure",
-          output: { title: "token ghp_synthetic_secret rejected" },
+          output: { summary: "token ghp_synthetic_secret rejected" },
         },
       ],
     }),
