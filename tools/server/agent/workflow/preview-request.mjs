@@ -28,6 +28,7 @@ import { parseSessionKey } from "telegram-pi-bridge/sessions";
 import {
   isDefiniteRejection,
   isPermissionRejection,
+  readLivePullRequest,
   statusClass,
 } from "../repository/github.mjs";
 import { classifyCommitStatus } from "../repository/ci-status.mjs";
@@ -57,6 +58,7 @@ const refusals = {
   alreadyInProgress: "already_in_progress",
   alreadyHandled: "already_handled",
   notApplicable: "not_applicable",
+  headMoved: "head_moved",
   notMainRepository: "not_main_repository",
   checksNotGreen: "checks_not_green",
   unreadable: "unreadable",
@@ -256,6 +258,7 @@ export function createPreviewRequests({
 
   const refusalTexts = {
     [refusals.notApplicable]: previewReports.notApplicable,
+    [refusals.headMoved]: previewReports.headMoved,
     [refusals.notMainRepository]: previewReports.notMainRepository,
     [refusals.checksNotGreen]: previewReports.checksNotGreen,
     [refusals.unreadable]: previewReports.unreadable,
@@ -383,6 +386,53 @@ export function createPreviewRequests({
         refusals.alreadyInProgress,
         previewReports.alreadyInProgress({ reviewUrl }),
         `${refusals.alreadyInProgress} ${describeTarget(previewTarget)}`,
+      );
+    }
+
+    // The reservation can wait while GitHub changes. Never post for a head or
+    // required-check result different from the one pinned above.
+    let rechecked;
+    try {
+      rechecked = await readLivePullRequest({
+        github,
+        number: previewTarget.pullRequestNumber,
+        requiredChecks,
+        signal: requestSignal(signal, requestTimeoutMilliseconds),
+      });
+    } catch (error) {
+      store.markFailed(request.updateIdentifier);
+      signal?.throwIfAborted();
+      logger(
+        "preview_read_failed",
+        error instanceof Error ? error.name : "unknown",
+      );
+      return refuse(
+        request,
+        refusals.unreadable,
+        previewReports.unreadable({ reviewUrl }),
+        `${refusals.unreadable} ${describeTarget(previewTarget)}`,
+      );
+    }
+    let liveRefusal = null;
+    if (rechecked.pullRequest.state !== "open") {
+      liveRefusal = refusals.notApplicable;
+    } else if (rechecked.pullRequest.headSha !== previewTarget.commit) {
+      liveRefusal = refusals.headMoved;
+    } else if (
+      rechecked.pullRequest.headRepository?.toLowerCase() !==
+      repository.toLowerCase()
+    ) {
+      liveRefusal = refusals.notMainRepository;
+    } else if (rechecked.classification.state !== "success") {
+      liveRefusal = refusals.checksNotGreen;
+    }
+    if (liveRefusal !== null) {
+      store.markFailed(request.updateIdentifier);
+      return refuse(
+        request,
+        liveRefusal,
+        refusalTexts[liveRefusal]({ reviewUrl }),
+        `${liveRefusal} ${describeTarget(previewTarget)}`,
       );
     }
 

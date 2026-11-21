@@ -757,45 +757,6 @@ const topicStateGuidance = [
   "The states in this block are for you: explain them to the person in plain words, without commit identifiers, file names or check names.",
 ].join(" ");
 
-function describePullRequest(pullRequest) {
-  if (pullRequest === null) {
-    return "none yet";
-  }
-  const notes = [];
-  if (pullRequest.fromAnotherTopic) {
-    notes.push(
-      "it comes from another topic, which owns it until this topic publishes a commit",
-    );
-  }
-  if (pullRequest.isClosed) {
-    notes.push("the last report says it is closed");
-  }
-  if (pullRequest.isMerged) {
-    notes.push("the merge request says it is merged");
-  }
-  if (notes.length === 0) {
-    return pullRequest.url;
-  }
-  return `${pullRequest.url} (${notes.join("; ")})`;
-}
-
-function describeLastReported(lastReported) {
-  if (lastReported === null) {
-    return "none yet";
-  }
-  return `${shortCommit(lastReported.commit)}; required checks: ${lastReported.description}`;
-}
-
-function describePreview(preview) {
-  if (preview === null) {
-    return "none yet";
-  }
-  if (preview.origin === null) {
-    return preview.description;
-  }
-  return `${preview.description}, URL ${preview.origin}`;
-}
-
 function describeMerge(merge) {
   if (merge === null) {
     return "none yet";
@@ -811,35 +772,23 @@ function describeMerge(merge) {
  * of its own, so a state added later is reported instead of dropped.
  */
 export function buildTopicStateText(topicState) {
-  if (topicState.liveState) {
-    const live = topicState.liveState;
-    if (live.unavailable) {
-      return `${topicStateHeader}\n- GitHub state is unavailable. Tell the person you cannot check right now; do not guess.`;
-    }
-    if (live.noPullRequest) {
-      return `${topicStateHeader}\n- No pull request is known for this topic.`;
-    }
-    const preview = live.origin
-      ? `${live.preview}, URL ${live.origin}`
-      : live.preview;
-    return [
-      topicStateHeader,
-      `- Pull request: ${live.url}; ${live.state}${live.fromAnotherTopic ? "; owned by another topic" : ""}.`,
-      `- Current head: ${shortCommit(live.head)}; required checks: ${live.checks}.`,
-      `- Work newer than the last report is still being checked: ${live.hasUnreportedWork ? "yes" : "no"}.`,
-      `- Preview: ${preview}.`,
-      `- Latest merge request for it: ${describeMerge(live.merge)}.`,
-      "",
-      topicStateGuidance,
-    ].join("\n");
+  const live = topicState.liveState;
+  if (live.unavailable) {
+    return `${topicStateHeader}\n- GitHub state is unavailable. Tell the person you cannot check right now; do not guess.`;
   }
+  if (live.noPullRequest) {
+    return `${topicStateHeader}\n- No pull request is known for this topic.`;
+  }
+  const preview = live.origin
+    ? `${live.preview}, URL ${live.origin}`
+    : live.preview;
   return [
     topicStateHeader,
-    `- Pull request this turn works on: ${describePullRequest(topicState.pullRequest)}.`,
-    `- Last commit reported for it: ${describeLastReported(topicState.lastReported)}.`,
-    `- Work newer than that report is still being checked: ${topicState.hasUnreportedWork ? "yes" : "no"}.`,
-    `- Latest preview request for it: ${describePreview(topicState.preview)}.`,
-    `- Latest merge request for it: ${describeMerge(topicState.merge)}.`,
+    `- Pull request: ${live.url}; ${live.state}${live.fromAnotherTopic ? "; owned by another topic" : ""}.`,
+    `- Current head: ${shortCommit(live.head)}; required checks: ${live.checks}.`,
+    `- Work newer than the last report is still being checked: ${live.hasUnreportedWork ? "yes" : "no"}.`,
+    `- Preview: ${preview}.`,
+    `- Latest merge request for it: ${describeMerge(live.merge)}.`,
     "",
     topicStateGuidance,
   ].join("\n");
@@ -982,6 +931,11 @@ export const previewReports = {
   notApplicable: ({ reviewUrl }) =>
     withReviewLink(
       "Aquesta proposta ja està tancada, així que no se'n pot fer la preview. No s'ha demanat cap preview.",
+      reviewUrl,
+    ),
+  headMoved: ({ reviewUrl }) =>
+    withReviewLink(
+      "La proposta ha canviat mentre comprovava la preview. No n'he demanat cap; torna-ho a demanar.",
       reviewUrl,
     ),
   notMainRepository: ({ reviewUrl }) =>

@@ -11,6 +11,7 @@ import { parseSessionKey } from "telegram-pi-bridge/sessions";
 import { ciRepairReports, repairRequestKind } from "../policy/development.mjs";
 import { isDecisiveFailure } from "../repository/ci-status.mjs";
 import { requestSignal } from "../repository/request-signal.mjs";
+import { ciResults } from "./ci-watch.mjs";
 
 const publishedOutcomes = new Set([
   "pull_request_created",
@@ -19,6 +20,12 @@ const publishedOutcomes = new Set([
 
 function describe(repair) {
   return `#${repair.pull_request_number} ${repair.commit_sha.slice(0, 7)}`;
+}
+
+function changedPullRequestResult(pullRequest) {
+  return pullRequest.state !== "open"
+    ? ciResults.pullRequestClosed
+    : ciResults.headChanged;
 }
 
 /**
@@ -209,7 +216,7 @@ export function createCiRepairExecutor({
       });
       await reportLiveResult(
         repair,
-        pullRequest.state !== "open" ? "pull-request-closed" : "head-changed",
+        changedPullRequestResult(pullRequest),
         ciRepairReports.notApplicable(common),
         {
           signal,
@@ -242,7 +249,7 @@ export function createCiRepairExecutor({
         });
         await reportLiveResult(
           repair,
-          confirmed.state !== "open" ? "pull-request-closed" : "head-changed",
+          changedPullRequestResult(confirmed),
           ciRepairReports.notApplicable(common),
           { signal, state: "not_applicable" },
         );
@@ -295,7 +302,7 @@ export function createCiRepairExecutor({
         };
       })();
       if (classification?.state === "success") {
-        await reportLiveResult(repair, "success", notice.text, {
+        await reportLiveResult(repair, ciResults.success, notice.text, {
           signal,
           state: notice.state,
         });

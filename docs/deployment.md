@@ -1365,7 +1365,9 @@ no conté identificadors de Telegram ni dades personals, i el classificador no e
 rep. El model el rep dins del sandbox sense xarxa ni credencials.
 
 La petició explícita de preview torna a comprovar la PR i les comprovacions del
-cap encara que l'últim resultat desat no sigui verd. Els treballs pendents i els
+cap encara que l'últim resultat desat no sigui verd. Just abans de publicar el
+comentari, torna a llegir el cap i la CI i refusa la petició si han canviat o no
+es poden llegir. Els treballs pendents i els
 resultats desconeguts continuen bloquejant la petició. Abans d'un merge o una
 reparació, el servei torna a comprovar el cap i la CI; el merge continua fixat
 al commit informat al tema.

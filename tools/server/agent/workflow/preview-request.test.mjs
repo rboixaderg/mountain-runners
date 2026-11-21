@@ -221,6 +221,53 @@ function actions(traces) {
   return traces.map((entry) => entry.action);
 }
 
+for (const scenario of [
+  "head moved",
+  "checks failed",
+  "read failed",
+  "head moved during read",
+]) {
+  test(`refuses before posting when ${scenario}`, async (context) => {
+    const { ciWatches, handler, github, previews, traces } = setup(context);
+    reportGreen(ciWatches);
+    const begin = previews.begin.bind(previews);
+    previews.begin = (input) => {
+      const result = begin(input);
+      if (scenario === "head moved")
+        github.pullRequest.headSha = "b".repeat(40);
+      if (scenario === "checks failed")
+        github.checkRuns = [
+          { name: "Validate", status: "completed", conclusion: "failure" },
+        ];
+      if (scenario === "read failed") github.readError = new Error("network");
+      if (scenario === "head moved during read") {
+        github.getCommitCheckRuns = async () => {
+          github.pullRequest = {
+            ...github.pullRequest,
+            headSha: "b".repeat(40),
+          };
+          return github.checkRuns;
+        };
+      }
+      return result;
+    };
+    const result = await handler.handle(request());
+    assert.equal(result.outcome, "answered");
+    assert.deepEqual(github.posts, []);
+    assert.equal(previews.state(20), "failed");
+    const expected = {
+      "head moved": "head_moved",
+      "checks failed": "checks_not_green",
+      "read failed": "unreadable",
+      "head moved during read": "unreadable",
+    };
+    assert.match(
+      traces.at(-1).detail,
+      new RegExp(`^${expected[scenario]} `, "u"),
+    );
+  });
+}
+
 test("posts exactly /preview once for the reported green commit", async (context) => {
   const { ciWatches, handler, github, membership, previews, traces } =
     setup(context);
@@ -477,7 +524,7 @@ test("requests a preview after a human rerun makes a repairing watch green", asy
   assert.match(result.report, /Ja he demanat la preview/u);
   assert.deepEqual(github.posts, [{ number: 200, body: "/preview" }]);
   assert.equal(previews.state(20), "awaiting");
-  assert.deepEqual(github.checkCommits, [commit]);
+  assert.deepEqual(github.checkCommits, [commit, commit]);
 });
 
 test("never accepts a PR or commit from the request text", async (context) => {
@@ -592,7 +639,7 @@ test("previews the current head when a maintainer updated it outside the agent",
   assert.deepEqual(github.posts, [{ number: 200, body: "/preview" }]);
   assert.deepEqual(
     github.checkCommits,
-    [movedCommit],
+    [movedCommit, movedCommit],
     "the required checks are read for the head, not the reported commit",
   );
   assert.equal(previews.state(20), "awaiting");
