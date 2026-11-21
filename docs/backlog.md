@@ -778,7 +778,9 @@ localitzades, inclosa l'entrada de segments de ruta localitzats.
 
 ### Demanar La Preview Amb Una Etiqueta De La PR
 
-**Estat:** En anàlisi.
+**Estat:** Incorporada a l'[especificació de l'etiqueta de
+preview](specs/preview-label.md) el 21 de novembre de 2026. Les troballes
+següents es conserven com a registre de l'anàlisi.
 
 **Problema:** avui una preview es demana amb un comentari `/preview` o amb un
 `workflow_dispatch` (`.github/workflows/preview.yml`). Cal saber si una etiqueta
@@ -864,3 +866,23 @@ l'agent; interacció amb la T8.9; comprovar a GitHub els punts marcats com a
 
 **Seguiment:**
 [#261](https://github.com/rboixaderg/mountain-runners/issues/261).
+
+### Retirar La Petició De Preview Amb `/preview`
+
+**Estat:** Capturada.
+
+**Problema:** amb l'[especificació de l'etiqueta de
+preview](specs/preview-label.md), l'etiqueta `preview` i el comentari `/preview`
+conviuen. Mantenir dos mecanismes de petició duplica l'autorització, les proves
+i la documentació del publicador.
+
+**Resultat esperat:** quan l'etiqueta funcioni en producció i l'agent de la
+fase 8 ja no comenti `/preview`, retirar el disparador `issue_comment` de
+`.github/workflows/preview.yml`, `assertCommentAuthorized` i la documentació
+associada. `workflow_dispatch` es manté. La reconciliació periòdica pot retirar
+llavors les previews de PR sense etiqueta.
+
+**Dependències i riscos:** les tasques de l'especificació de l'etiqueta
+completades i una esmena de l'ADR 0009 que retiri `/preview` com a petició.
+
+**Seguiment:** pendent de triatge.
