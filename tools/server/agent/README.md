@@ -200,8 +200,25 @@ al servidor. El nom local encara no representa una publicació a npm.
    reconcilia. Mentre el tema tingui cap avís incert, el tema té feina sense
    informar: `/merge` i `/preview` no resolen res, encara que un avís posterior
    s'hagi lliurat abans.
-8. Si les comprovacions obligatòries fallen, `workflow/ci-watch.mjs` reserva una
-   reparació automàtica abans d'avisar i tanca el seguiment. Si l'avís «en curs»
+8. Si una comprovació obligatòria acaba com a `cancelled` o `timed_out`, o falla
+   en un pas de preparació abans dels passos de projecte, `workflow/ci-watch.mjs`
+   reserva una reexecució dels jobs fallits de l'execució de GitHub. La reserva
+   es desa a `state/ci-watch.sqlite` abans de la crida i només permet un intent
+   per execució. El seguiment continua al mateix commit. Si l'intent torna a
+   fallar o no es pot confirmar, el servei avisa i no el repeteix. Després d'un
+   reinici llegeix l'intent de GitHub abans de decidir; una reserva que no es pot
+   confirmar no autoritza una altra crida.
+
+   `repository/ci-failure.mjs` defineix els passos de preparació reconeguts:
+   `Set up job`, `Check out repository`, `Check out repository history`,
+   `Install pnpm`, `Set up Node.js`, `Install dependencies` i
+   `Install browser dependencies`. Un nom nou no s'hi afegeix automàticament.
+   Una fallada només pot passar a reparació si el job confirma un pas de projecte
+   reconegut i el resum de la comprovació conté text. Si falta aquesta evidència,
+   el servei avisa sense executar el model.
+
+   Per a una fallada que compleix aquestes condicions, `workflow/ci-watch.mjs`
+   reserva una reparació automàtica abans d'avisar i tanca el seguiment. Si l'avís «en curs»
    no es lliura, la reserva es tanca de seguida com a `aborted` amb el motiu
    `announcement_failed` (traça `ci_repair_not_announced`): no s'executa mai i no
    bloqueja el tema. `ci-repair.mjs`
