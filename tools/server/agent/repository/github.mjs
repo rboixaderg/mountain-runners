@@ -1,8 +1,8 @@
 // Trusted GitHub component for the private agent (T8.3).
 //
-// Only four writes exist: push the job branch, open (or reuse) its pull
-// request against `main`, post the constant `/preview` comment that asks the
-// phase 6 workflow for a preview and squash-merge a pull request pinned to the
+// The trusted writes are: push the job branch, open (or reuse) its pull
+// request against `main`, post the constant `/preview` comment, rerun failed
+// jobs of a workflow run, and squash-merge a pull request pinned to the
 // head commit the service validated. The merge sends exactly `{ sha,
 // merge_method: "squash" }` to the one pull request merge endpoint: there is no
 // auto-merge, no administrator or protection endpoint, no write to `main` and
@@ -47,9 +47,8 @@ function assertPullRequestNumber(number) {
   }
 }
 
-// The preview workflow of phase 6 is the only workflow whose runs this service
-// reads: its result is what tells a `/preview` request whether the preview was
-// built, because the trusted publisher only comments when it succeeded.
+// A preview request reads this workflow's runs to determine whether its preview
+// was built; the trusted publisher only comments when the build succeeded.
 const previewWorkflowFile = "preview.yml";
 
 function assertIsoTimestamp(timestamp) {
