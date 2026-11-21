@@ -1036,24 +1036,30 @@ afegeixis-la a grups de producció.
 
 ### Publicar una preview
 
-Res no es construeix ni es publica perquè s'obri o s'actualitzi una PR: el
-workflow `Preview` només corre sota demanda.
+Res no es construeix ni es publica perquè s'obri una PR: el workflow `Preview`
+només corre sota demanda, amb una de tres peticions.
 
 1. Una persona col·laboradora amb permisos demana la preview amb un
    **comentari a la PR amb el text exacte `/preview`** (per exemple, via
-   `gh pr comment <n> --body "/preview"`, també des d'un agent). També hi ha
-   via manual: `Preview` (workflow_dispatch amb el número de PR).
+   `gh pr comment <n> --body "/preview"`, també des d'un agent), amb la via
+   manual `Preview` (workflow_dispatch amb el número de PR) o amb l'**etiqueta
+   `preview`** de la PR, que publica el cap actual i cada push posterior sense
+   cap comentari. `/preview` continua vigent. L'etiqueta la posa una persona
+   amb permís `write` o `admin`, o l'agent de la fase 8 en crear la PR d'un tema.
 2. El job `authorize` (codi de confiança des de la branca per defecte)
    comprova els permisos de qui l'ha demanada i identifica el commit vigent de
-   la PR pel seu SHA. La petició queda vinculada a aquest commit, no a tots els
-   futurs canvis de la PR.
+   la PR pel seu SHA. Una petició amb `/preview` o manual queda vinculada a
+   aquest commit, no als futurs canvis de la PR; amb l'etiqueta, cada push
+   publica el cap nou mentre la PR la tingui. Un push a una PR sense l'etiqueta
+   no executa cap build: el run apareix com a omès.
 3. El job `build` (no fiable, sense secrets ni caches) fa checkout del commit
    vigent de la PR, executa `pnpm validate` complet i compila l'artefacte amb
    l'origen `pr-<n>.preview.mountainrunners.cat`; el job `publish` valida manifest,
    mida, fitxers, digests i paths amb els validadors de producció i
    revalida que la PR continua oberta i al mateix commit i que l'autorització
-   encara és vigent (col·laboradora per a `/preview` o permís d'escriptura per
-   a `workflow_dispatch`). El publicador signa l'autorització amb la clau
+   encara és vigent (col·laboradora per a `/preview`, permís d'escriptura per
+   a `workflow_dispatch` o l'etiqueta) i, amb l'etiqueta, que la PR continua
+   tenint `preview`. El publicador signa l'autorització amb la clau
    privada exclusiva del job de confiança. El procés `mountain-preview-site`
    verifica la signatura amb la clau pública del VPS abans de registrar-la.
    La clau SSH de previews per si sola no pot autoritzar una release. El
@@ -1085,9 +1091,13 @@ en un VPS nou requereix una aprovació explícita separada.
 
 El workflow `Preview cleanup` reconcilia cada hora i en tancar una PR. Retira
 previews tancades, revocades, de forks o que portin 14 dies sense
-actualitzar-se. Pujar commits a la branca no retira la preview publicada ni
-en renova la caducitat: continua servint el SHA autoritzat fins que es demana
-una nova preview amb `/preview` o es compleix un criteri de retirada.
+actualitzar-se. Treure l'etiqueta `preview` d'una PR en retira la preview a
+l'acte, també si s'havia publicat amb `/preview`; treure'n qualsevol altra no
+retira res, i la reconciliació horària no retira les previews de PR sense
+etiqueta. Sense l'etiqueta, pujar commits a la branca no retira la preview
+publicada ni en renova la caducitat: continua servint el SHA autoritzat fins
+que es demana una nova preview amb `/preview` o es compleix un criteri de
+retirada. Amb l'etiqueta, cada push publica el cap nou.
 La comprovació del head SHA vigent es manté per a les noves publicacions.
 Els fitxers rebuts però no instal·lats caduquen al cap d'un
 dia. La reconciliació comença amb `mountain-preview cleanup-retired`, que
@@ -1185,7 +1195,7 @@ secrets de previews (`PREVIEW_SSH_PRIVATE_KEY`, `PREVIEW_KNOWN_HOSTS`,
 `PREVIEW_AUTH_PRIVATE_KEY`) viuen
 només a l'entorn `previews`, mai compartits amb producció. El risc residual
 acceptat: qualsevol col·laborador del repositori pot sol·licitar la
-publicació d'una PR pròpia amb `/preview`; el publicador continua rebutjant
+publicació d'una PR pròpia amb `/preview` o amb l'etiqueta `preview` (que exigeix permís `write`); el publicador continua rebutjant
 forks, PRs tancades i caps mouments.
 
 Els canvis de Caddy dels previews requereixen validació completa abans de
@@ -1478,15 +1488,16 @@ de la persona mantenidora consta a l'especificació.
    - Si falla: atura el servei i anota l'intent i el seu SHA a la PR; si un intent
      ha quedat incert, reconcilia'l abans de continuar.
 4. **Preview.**
-   - Fer: demana una preview al tema amb la CI pendent o vermella. Amb la CI
-     verda, comprova que no es demana cap preview sense petició i després demana-la
-     en llenguatge natural.
-   - Esperat: els dos primers casos no publiquen res. Amb la CI verda i la
-     petició, el servei comenta exactament `/preview` i torna l'URL
-     `https://pr-<n>.preview.mountainrunners.cat` i el SHA confirmats pel
-     publicador de la fase 6.
-   - Si falla: no escriguis `/preview` a mà; comprova els secrets `PREVIEW_*`, el
-     DNS i l'estat de la preview, i atura el servei mentre no es confirmi.
+   - Fer: comprova que la PR creada pel servei té l'etiqueta `preview` i que el
+     servei no ha comentat `/preview`. Treu l'etiqueta d'una PR de prova i
+     comprova que el servei no anuncia cap preview; demana l'adreça en llenguatge
+     natural amb l'etiqueta posada.
+   - Esperat: el servei torna només l'URL
+     `https://pr-<n>.preview.mountainrunners.cat` que el publicador de la fase 6
+     confirma per al cap actual, sense cap comentari `/preview`.
+   - Si falla: no escriguis `/preview` a mà; comprova l'etiqueta, els secrets
+     `PREVIEW_*`, el DNS i l'estat de la preview, i atura el servei mentre no es
+     confirmi.
 5. **Merge.**
    - Fer: prova els rebuigs en una PR sintètica: `/merge` sense avís verd
      resoluble, `/merge` amb un commit posterior a l'informe, `/merge` amb la CI
