@@ -1,0 +1,14 @@
+tools/server/agent/repository/github.mjs
+  h_1727aeeb492b30 3-5,50-51
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "995bbec32de4683c1e363f2d3ce234710dced7a7",
+  "prompts": {},
+  "humans": {
+    "h_1727aeeb492b30": {
+      "author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
