@@ -1,0 +1,25 @@
+docs/backlog.md
+  s_11490b061e964d::t_2d4b02365102fa 872-873
+docs/decisions/0009-pr-previews-same-domain-and-own-branches.md
+  s_11490b061e964d::t_4689c827e17621 11-12,161-179
+docs/decisions/0013-private-development-agent-boundary.md
+  s_11490b061e964d::t_299c79ce6c31f7 202-211
+docs/specs/retire-preview-command.md
+  s_11490b061e964d::t_d045d7f29fc7fc 1-203
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "03d11df859f59e0628093a43d015e055dbf7eb9c",
+  "prompts": {},
+  "sessions": {
+    "s_11490b061e964d": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e0023deccffeK9XR9xQTAPuC6M",
+        "model": "unknown"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
