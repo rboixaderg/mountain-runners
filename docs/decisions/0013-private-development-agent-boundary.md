@@ -199,6 +199,16 @@ Es mantenen la URL confirmada pel publicador per al cap actual, l'avís de falla
 planer, el merge determinista només a petició humana verificada i el sandbox sense
 xarxa ni credencials.
 
+## Esmena proposada (retirada de `/preview`, 21 de novembre de 2026)
+
+Proposada fins que es fusioni la PR de l'[especificació de la retirada de
+`/preview`](../specs/retire-preview-command.md). Amb l'esmena corresponent de
+l'[ADR 0009](0009-pr-previews-same-domain-and-own-branches.md), el comentari
+`/preview` deixa de ser una petició de preview. El servei ja no el comenta des de
+l'esmena de l'etiqueta, i retira el codi que reconciliava els comentaris
+`/preview` anteriors, incloent-hi la lectura del compte autenticat del token.
+Aquesta esmena no afegeix cap operació al component de GitHub ni amplia el token.
+
 ## Comprovacions i punts pendents
 
 L'esmena de merge i l'esmena de l'ADR 0009 ja estan aprovades. Abans d'activar el pilot cal provar els controls essencials d'identitat, aïllament, credencials i protecció de `main`. El compte de GitHub triat és administrador; un compte de prova sense accés al repositori no substitueix les comprovacions de la credencial i del component de confiança que utilitzarà el servei. Les comprovacions de permisos no fusionen cap PR ni fan push a `main`; el merge del pilot s'exercita després, amb autorització explícita.
