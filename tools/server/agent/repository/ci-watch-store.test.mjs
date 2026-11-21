@@ -28,6 +28,83 @@ const request = {
   commitSha: "a".repeat(40),
 };
 
+test("reserves one rerun per workflow run across restarts", (context) => {
+  const path = fixture(context);
+  let store = new CiWatchStore(path);
+  assert.equal(
+    store.reserveRerun({ runIdentifier: 123, originalAttempt: 1 }),
+    true,
+  );
+  store.close();
+
+  store = new CiWatchStore(path);
+  assert.equal(store.rerun(123).original_attempt, 1);
+  assert.equal(
+    store.reserveRerun({ runIdentifier: 123, originalAttempt: 1 }),
+    false,
+  );
+  assert.equal(
+    store.reserveRerun({ runIdentifier: 123, originalAttempt: 2 }),
+    false,
+  );
+  assert.equal(
+    store.reserveRerun({ runIdentifier: 124, originalAttempt: 1 }),
+    true,
+  );
+  store.close();
+});
+
+test("migrates existing rerun reservations without resetting their budget", (context) => {
+  const path = fixture(context);
+  const previous = new DatabaseSync(path);
+  previous.exec(`CREATE TABLE ci_reruns (run_identifier INTEGER PRIMARY KEY, original_attempt INTEGER NOT NULL, created_at TEXT NOT NULL);
+    INSERT INTO ci_reruns VALUES (123, 1, '2026-11-21T10:00:00.000Z');`);
+  previous.close();
+  const store = new CiWatchStore(path, {
+    now: () => new Date("2026-11-21T11:00:00Z"),
+  });
+  assert.equal(
+    store.reserveRerun({
+      runIdentifier: 123,
+      originalAttempt: 2,
+      updateIdentifier: 12,
+      commitSha: request.commitSha,
+    }),
+    false,
+  );
+  assert.equal(
+    store.rerunDeadlineStart({
+      updateIdentifier: 12,
+      commitSha: request.commitSha,
+    }),
+    null,
+  );
+  assert.equal(
+    store.reserveRerun({
+      runIdentifier: 124,
+      originalAttempt: 1,
+      updateIdentifier: 12,
+      commitSha: request.commitSha,
+    }),
+    true,
+  );
+  assert.equal(
+    store.rerunDeadlineStart({
+      updateIdentifier: 12,
+      commitSha: request.commitSha,
+    }),
+    "2026-11-21T11:00:00.000Z",
+  );
+  assert.equal(
+    store.rerunDeadlineStart({
+      updateIdentifier: 12,
+      commitSha: "b".repeat(40),
+    }),
+    null,
+  );
+  store.close();
+});
+
 test("keeps the preview a request asked for with its change", (context) => {
   const store = new CiWatchStore(fixture(context));
   store.add(request);

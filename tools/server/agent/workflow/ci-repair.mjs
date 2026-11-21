@@ -231,6 +231,7 @@ export function createCiRepairExecutor({
     try {
       classification = await readCiState({
         commit: repair.commit_sha,
+        requireRepairEvidence: true,
         signal: requestSignal(signal),
       });
       const confirmed = await readPullRequest({
@@ -275,7 +276,8 @@ export function createCiRepairExecutor({
     }
     if (
       classification?.state !== "failure" ||
-      !isDecisiveFailure(classification)
+      !isDecisiveFailure(classification) ||
+      classification.repairable !== true
     ) {
       close(repair, {
         status: "done",

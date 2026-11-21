@@ -82,14 +82,16 @@ tools/server/agent/               aplicació de Mountain Runners
     ├── worktrees.mjs              worktree, branca, commit i estat publicat
     ├── secret-scan.mjs            historial, rutes i credencials conegudes
     ├── publisher.mjs              push, PR i confirmació de l'estat publicat
-    ├── github.mjs                 client de GitHub, push segur i lectura de CI
+    ├── github.mjs                 client de GitHub, push segur i reexecució de CI
     ├── ci-status.mjs              check runs i estats de commit d'un SHA exacte
+    ├── ci-failure.mjs             classificació dels passos fallits de CI
+    ├── ci-job-output.mjs          sortida dins el pas fallit del job
     ├── request-signal.mjs         termini de lectura amb el senyal d'aturada
     ├── preview-comment.mjs        comentari de confirmació del publicador de confiança
     ├── preview-request-store.mjs  peticions de preview durables i URL confirmada
     ├── merge-request-store.mjs    peticions de merge durables
     ├── session-note-store.mjs     efectes del servei pendents i última resposta del tema
-    └── ci-watch-store.mjs         avís de CI i intents de reparació duradors
+    └── ci-watch-store.mjs         avisos, reexecucions i reparacions duradors
 ```
 
 Per seguir el codi, comença per `processes/telegram-bridge/main.mjs`, continua
@@ -200,8 +202,27 @@ al servidor. El nom local encara no representa una publicació a npm.
    reconcilia. Mentre el tema tingui cap avís incert, el tema té feina sense
    informar: `/merge` i `/preview` no resolen res, encara que un avís posterior
    s'hagi lliurat abans.
-8. Si les comprovacions obligatòries fallen, `workflow/ci-watch.mjs` reserva una
-   reparació automàtica abans d'avisar i tanca el seguiment. Si l'avís «en curs»
+8. Si una comprovació obligatòria acaba com a `cancelled` o `timed_out`, o falla
+   en un pas de preparació abans dels passos de projecte, `workflow/ci-watch.mjs`
+   reserva una reexecució dels jobs fallits de l'execució de GitHub. La reserva
+   es desa a `state/ci-watch.sqlite` abans de la crida i només permet un intent
+   per execució. El seguiment continua al mateix commit i el seu termini torna
+   a comptar des de la reserva. Si l'intent torna a fallar o no es pot confirmar,
+   el servei avisa i no el repeteix. Després d'un
+   reinici llegeix l'intent de GitHub abans de decidir; una reserva que no es pot
+   confirmar no autoritza una altra crida.
+
+   `repository/ci-failure.mjs` defineix els passos de preparació reconeguts:
+   `Set up job`, `Check out repository`, `Check out repository history`,
+   `Install pnpm`, `Set up Node.js`, `Install dependencies` i
+   `Install browser dependencies`. Un nom nou no s'hi afegeix automàticament.
+   Una fallada només pot passar a reparació si el job confirma un pas de projecte
+   reconegut i el log del job conté sortida atribuïble a aquell pas. El servei
+   limita la lectura a 1 MiB i exclou els segons de les fronteres i les ordres
+   agrupades del log. Si falta aquesta evidència, avisa sense executar el model.
+
+   Per a una fallada que compleix aquestes condicions, `workflow/ci-watch.mjs`
+   reserva una reparació automàtica abans d'avisar i tanca el seguiment. Si l'avís «en curs»
    no es lliura, la reserva es tanca de seguida com a `aborted` amb el motiu
    `announcement_failed` (traça `ci_repair_not_announced`): no s'executa mai i no
    bloqueja el tema. `ci-repair.mjs`

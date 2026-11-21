@@ -457,16 +457,16 @@ Qualsevol commit del rang que afegeixi, modifiqui, mogui o esborri `.github/**`
 o un fitxer `CODEOWNERS` refusa la publicació, encara que un commit posterior
 reverteixi el canvi. El push publica exactament el SHA inspeccionat, sense
 forçar-lo. La credencial de GitHub ha de ser un token acotat al repositori amb
-`Contents: write`, `Pull requests: write` i `Actions: read` (per llegir el
-resultat de la preview), sense `Workflows: write` ni permisos
-d'administració. El rol administrador del compte no prova els permisos del
-token. T8.9 proposa substituir `Actions: read` per `Actions: write` per
-reexecutar una sola vegada comprovacions cancel·lades, esgotades o fallides
-abans dels passos del projecte. Aquest permís també permet altres accions sobre
-execucions de workflows i augmenta el risc d'abús i de consum de recursos si es
-compromet el servei o el token. La credencial continua fora del sandbox; el
-servei limita i registra els reintents. El canvi queda pendent de l'aprovació de
-l'esmena de l'ADR 0013 i de verificar els controls; no s'atorga aquí.
+`Contents: write`, `Pull requests: write` i `Actions: write`, sense
+`Workflows: write` ni permisos d'administració. `Actions: write` permet llegir el
+resultat de la preview i reexecutar una sola vegada els jobs fallits d'una
+execució cancel·lada, esgotada o fallida en la preparació. Aquest permís també
+permet altres accions sobre execucions de workflows i augmenta el risc d'abús i
+de consum de recursos si es compromet el servei o el token. La credencial
+continua fora del sandbox; el servei limita i registra les reexecucions. El rol
+administrador del compte no prova els permisos del token. Abans d'activar la
+capacitat cal aprovar l'esmena de l'ADR 0013 i verificar els controls; aquest
+document no concedeix cap permís.
 Abans del pilot cal verificar els permisos reals i les regles de branca
 dels entorns `previews` i `production`; aquestes proves locals no ho demostren.
 
@@ -728,8 +728,21 @@ commit i els noms queda al registre privat `ci_notification_sent` i a la nota de
 servei. Una fallada que arriba a una reparació automàtica desa a més la seva
 evidència a `state/ci-watch.sqlite`.
 
-Quan una comprovació obligatòria falla, el servei intenta reparar-la sol, amb un
-límit de dues reparacions consecutives per conjunt de comprovacions fallides. La
+Si una comprovació obligatòria es cancel·la, s'esgota o falla en la preparació
+abans dels passos del projecte, el servei reserva a `state/ci-watch.sqlite` una
+sola reexecució dels jobs fallits d'aquella execució de GitHub. Desa la reserva
+abans de la crida i continua seguint el mateix commit. El termini del seguiment
+torna a comptar des de la reserva duradora. Després d'un reinici consulta
+l'intent de GitHub; si el resultat no es pot confirmar, no torna a fer
+la crida i avisa. Una fallada posterior al reintent també s'avisa sense reparar
+ni tornar a executar. Els noms de passos reconeguts són a
+`tools/server/agent/repository/ci-failure.mjs`.
+
+Per a una fallada d'un pas de projecte reconegut amb sortida atribuïble a
+aquell pas en el log del job, el servei pot intentar reparar-la, amb un límit de
+dues reparacions consecutives per conjunt de comprovacions fallides. La lectura
+del log es limita a 1 MiB i exclou els segons de les fronteres i les ordres
+agrupades. Sense aquesta evidència, avisa sense iniciar el model. La
 identitat de la fallada és aquest conjunt de noms; el missatge de la comprovació
 i el SHA són evidència i abast de l'intent, no identitat, perquè un SHA nou a
 cada reparació faria impossible comptar res i un missatge variable reiniciaria el

@@ -23,6 +23,13 @@ import {
 } from "../repository/ci-status.mjs";
 import { repairWillNotRun } from "../repository/ci-watch-store.mjs";
 import {
+  classifyCiFailure,
+  classifyCiFailureStep,
+  failureKinds,
+  rerunOutcomes,
+} from "../repository/ci-failure.mjs";
+import { projectOutputFromJobLog } from "../repository/ci-job-output.mjs";
+import {
   defaultRequestTimeoutMilliseconds,
   requestSignal,
   sleep,
@@ -51,12 +58,72 @@ function describe(watch) {
 }
 
 /** Read and classify the required checks of one exact commit. */
-export async function readCiState({ github, requiredChecks, commit, signal }) {
+export async function readCiState({
+  github,
+  requiredChecks,
+  commit,
+  signal,
+  requireRepairEvidence = false,
+}) {
   const [checkRuns, statuses] = await Promise.all([
     github.getCommitCheckRuns({ commit, signal }),
     github.getCommitStatuses({ commit, signal }),
   ]);
-  return classifyCommitStatus({ requiredChecks, checkRuns, statuses });
+  const classification = classifyCommitStatus({
+    requiredChecks,
+    checkRuns,
+    statuses,
+  });
+  if (!requireRepairEvidence || !isDecisiveFailure(classification))
+    return classification;
+  const failures = await classifyFailures({
+    github,
+    commit,
+    failedChecks: classification.failed,
+    checkRuns,
+    signal,
+  });
+  return {
+    ...classification,
+    repairable: failures.every(
+      (failure) => failure.kind === failureKinds.realFailure,
+    ),
+  };
+}
+
+async function classifyFailures({
+  github,
+  commit,
+  failedChecks,
+  checkRuns,
+  signal,
+}) {
+  return Promise.all(
+    failedChecks.map(async (name) => {
+      const checkRun = checkRuns.find((entry) => entry.name === name);
+      if (!checkRun) return { name, kind: failureKinds.noOutput };
+      let job;
+      try {
+        job = await github.getCheckRunJob({ checkRun, commit, signal });
+        const preliminary = classifyCiFailureStep({ checkRun, job });
+        if (preliminary !== failureKinds.realFailure)
+          return { name, job, kind: preliminary };
+        const log = await github.getWorkflowJobLog({
+          jobIdentifier: job.id,
+          signal,
+        });
+        const projectOutput = projectOutputFromJobLog({ job, log });
+        return {
+          name,
+          job,
+          projectOutput,
+          kind: classifyCiFailure({ checkRun, job, projectOutput }),
+        };
+      } catch {
+        return { name, job, kind: failureKinds.noOutput };
+      }
+    }),
+  );
 }
 
 /**
@@ -129,6 +196,7 @@ export function createCiWatchRegistration({ store, logger = () => {} }) {
  */
 async function evaluateWatch({
   watch,
+  store,
   github,
   requiredChecks,
   watchTimeoutMilliseconds,
@@ -147,7 +215,12 @@ async function evaluateWatch({
     checkRuns,
     statuses,
   });
-  const age = now().getTime() - Date.parse(watch.created_at);
+  const deadlineStart =
+    store.rerunDeadlineStart({
+      updateIdentifier: watch.update_identifier,
+      commitSha: watch.commit_sha,
+    }) ?? watch.created_at;
+  const age = now().getTime() - Date.parse(deadlineStart);
   // At the deadline an indecisive picture is reported as unconfirmed, still
   // naming the checks that already failed. It never starts a repair.
   const undecided = () =>
@@ -186,6 +259,7 @@ async function evaluateWatch({
   return {
     result: ciResults.failure,
     failedChecks: classification.failed,
+    checkRuns,
     evidence: describeFailedChecks({
       failedChecks: classification.failed,
       checkRuns,
@@ -590,6 +664,115 @@ export function createCiWatchWorker({
     });
   }
 
+  async function previousRerunOutcome(watch, failures, { signal }) {
+    for (const { job } of failures) {
+      if (!job) continue;
+      const reservation = store.rerun(job.run_id);
+      if (!reservation) continue;
+      try {
+        const run = await github.getWorkflowRun({
+          runIdentifier: job.run_id,
+          commit: watch.commit_sha,
+          signal,
+        });
+        if (
+          run.run_attempt > reservation.original_attempt &&
+          job.run_attempt === reservation.original_attempt
+        ) {
+          const age = now().getTime() - Date.parse(reservation.created_at);
+          return age < watchTimeoutMilliseconds
+            ? rerunOutcomes.waiting
+            : rerunOutcomes.unconfirmed;
+        }
+        if (
+          run.run_attempt > reservation.original_attempt &&
+          job.run_attempt > reservation.original_attempt
+        )
+          return rerunOutcomes.exhausted;
+        return rerunOutcomes.unconfirmed;
+      } catch {
+        return rerunOutcomes.unconfirmed;
+      }
+    }
+    return null;
+  }
+
+  async function reportRerunEnd(watch, current, outcome, { signal }) {
+    await deliver(
+      watch,
+      { ...current, result: ciResults.repairNotRun },
+      { signal },
+    );
+    safeTrace({
+      updateIdentifier: watch.update_identifier,
+      sessionKey: watch.session_key,
+      action:
+        outcome === rerunOutcomes.exhausted
+          ? "ci_rerun_exhausted"
+          : "ci_rerun_unconfirmed",
+      detail: describe(watch),
+    });
+  }
+
+  async function requestReruns(watch, current, jobs, { signal }) {
+    const runs = new Map(jobs.map((job) => [job.run_id, job]));
+    for (const job of runs.values()) {
+      if (
+        !store.reserveRerun({
+          runIdentifier: job.run_id,
+          originalAttempt: job.run_attempt,
+          updateIdentifier: watch.update_identifier,
+          commitSha: watch.commit_sha,
+        })
+      ) {
+        await reportRerunEnd(watch, current, rerunOutcomes.exhausted, {
+          signal,
+        });
+        return;
+      }
+      try {
+        await github.rerunFailedJobs({ runIdentifier: job.run_id, signal });
+      } catch {
+        await reportRerunEnd(watch, current, rerunOutcomes.unconfirmed, {
+          signal,
+        });
+        return;
+      }
+      safeTrace({
+        updateIdentifier: watch.update_identifier,
+        sessionKey: watch.session_key,
+        action: "ci_rerun_requested",
+        detail: `${describe(watch)} run ${job.run_id} attempt ${job.run_attempt}`,
+      });
+    }
+  }
+
+  async function handleReruns(watch, current, failures, { signal }) {
+    const previous = await previousRerunOutcome(watch, failures, { signal });
+    if (previous !== null) {
+      if (previous !== rerunOutcomes.waiting)
+        await reportRerunEnd(watch, current, previous, { signal });
+      return true;
+    }
+    if (failures.some(({ kind }) => kind === failureKinds.noOutput)) {
+      await reportRerunEnd(watch, current, rerunOutcomes.unconfirmed, {
+        signal,
+      });
+      return true;
+    }
+    const jobs = failures
+      .filter(
+        ({ kind }) =>
+          kind === failureKinds.cancelled ||
+          kind === failureKinds.timedOut ||
+          kind === failureKinds.setupFailure,
+      )
+      .map(({ job }) => job);
+    if (jobs.length === 0) return false;
+    await requestReruns(watch, current, jobs, { signal });
+    return true;
+  }
+
   /** One cycle over the pending watches. */
   async function runOnce({ signal } = {}) {
     for (const watch of store.pending()) {
@@ -597,6 +780,7 @@ export function createCiWatchWorker({
       try {
         const outcome = await evaluateWatch({
           watch,
+          store,
           github,
           requiredChecks,
           watchTimeoutMilliseconds,
@@ -618,6 +802,7 @@ export function createCiWatchWorker({
           // A human may have rerun CI while the first read was in flight.
           const current = await evaluateWatch({
             watch,
+            store,
             github,
             requiredChecks,
             watchTimeoutMilliseconds,
@@ -640,6 +825,15 @@ export function createCiWatchWorker({
             }
             continue;
           }
+          const failures = await classifyFailures({
+            github,
+            commit: watch.commit_sha,
+            failedChecks: current.failedChecks,
+            checkRuns: current.checkRuns,
+            signal,
+          });
+          if (await handleReruns(watch, current, failures, { signal }))
+            continue;
           if (repairs.uncertainRepairCount() > 0) {
             // An unknown repair blocks every automatic repair until a person
             // reconciles it; the failure is still reported.
@@ -656,7 +850,18 @@ export function createCiWatchWorker({
             });
             continue;
           }
-          await requestRepair(watch, current, { signal });
+          const evidence = describeFailedChecks({
+            failedChecks: current.failedChecks,
+            checkRuns: failures.map(({ name, projectOutput }) => ({
+              name,
+              output: { summary: redactSecrets(projectOutput, secrets) },
+            })),
+            statuses: [],
+          }).map((entry) => ({
+            name: entry.name,
+            detail: redactSecrets(entry.detail, secrets),
+          }));
+          await requestRepair(watch, { ...current, evidence }, { signal });
           continue;
         }
         const delivered = await deliver(watch, outcome, { signal });

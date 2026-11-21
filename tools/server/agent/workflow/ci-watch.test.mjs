@@ -9,13 +9,17 @@ import { CiWatchStore } from "../repository/ci-watch-store.mjs";
 import { SessionNoteStore } from "../repository/session-note-store.mjs";
 import { defaultRequestTimeoutMilliseconds } from "../repository/request-signal.mjs";
 import { maximumAutomaticRepairs } from "../policy/development.mjs";
-import { createCiWatchRegistration, createCiWatchWorker } from "./ci-watch.mjs";
+import {
+  createCiWatchRegistration,
+  createCiWatchWorker,
+  readCiState,
+} from "./ci-watch.mjs";
 
 const commit = "b".repeat(40);
 const nextCommit = "c".repeat(40);
 const requiredChecks = ["Validate"];
 
-function fixture(context) {
+function fixture(context, options = {}) {
   const directory = mkdtempSync(join(tmpdir(), "mr-ci-watch-worker-"));
   context.after(() =>
     rmSync(directory, {
@@ -26,7 +30,7 @@ function fixture(context) {
     }),
   );
   const path = join(directory, "ci-watch.sqlite");
-  const store = new CiWatchStore(path);
+  const store = new CiWatchStore(path, options);
   context.after(() => store.close());
   return { store, path };
 }
@@ -39,7 +43,14 @@ const registration = {
 };
 
 function checkRun(name, status, conclusion) {
-  return { name, status, conclusion };
+  return {
+    name,
+    status,
+    conclusion,
+    ...(conclusion === "failure"
+      ? { output: { summary: "project test failed" } }
+      : {}),
+  };
 }
 
 function fakeGithub({
@@ -61,6 +72,34 @@ function fakeGithub({
     async getCommitStatuses({ commit: readCommit }) {
       reads.push({ kind: "statuses", commit: readCommit });
       return statuses;
+    },
+    async getCheckRunJob({ checkRun }) {
+      return {
+        id: 100,
+        run_id: 100,
+        run_attempt: 1,
+        status: "completed",
+        conclusion: checkRun.conclusion,
+        steps: [
+          {
+            name: "Check project",
+            status: "completed",
+            conclusion: "failure",
+            started_at: "2026-11-21T10:00:00Z",
+            completed_at: "2026-11-21T10:00:05Z",
+          },
+        ],
+      };
+    },
+    async getWorkflowJobLog() {
+      const summary =
+        checkRuns.find((entry) => entry.conclusion === "failure")?.output
+          ?.summary ?? "";
+      return [
+        "2026-11-21T10:00:00.000Z ##[group]Run pnpm check",
+        "2026-11-21T10:00:01.000Z ##[endgroup]",
+        `2026-11-21T10:00:02.000Z ${summary}`,
+      ].join("\n");
     },
     async getPullRequest({ number }) {
       reads.push({ kind: "pull-request", number });
@@ -110,6 +149,247 @@ function workerFor({
     now,
   });
 }
+
+for (const scenario of ["cancelled", "timed_out", "setup_failure"]) {
+  test(`reruns ${scenario} once and watches the same head`, async (context) => {
+    const { store } = fixture(context);
+    createCiWatchRegistration({ store })(registration);
+    let conclusion = scenario === "setup_failure" ? "failure" : scenario;
+    const github = fakeGithub();
+    github.getCommitCheckRuns = async () => [
+      checkRun("Validate", "completed", conclusion),
+    ];
+    github.getCheckRunJob = async () => ({
+      run_id: 100,
+      run_attempt: 1,
+      status: "completed",
+      conclusion,
+      steps:
+        scenario === "setup_failure"
+          ? [
+              {
+                name: "Install browser dependencies",
+                status: "completed",
+                conclusion: "failure",
+              },
+            ]
+          : [],
+    });
+    const reruns = [];
+    github.rerunFailedJobs = async ({ runIdentifier }) =>
+      reruns.push(runIdentifier);
+    const telegram = fakeTelegram();
+    const traces = [];
+    const worker = workerFor({
+      store,
+      github,
+      telegram,
+      recordTrace: (entry) => traces.push(entry),
+    });
+    await worker.runOnce();
+    assert.deepEqual(reruns, [100]);
+    assert.equal(store.state(registration.updateIdentifier), "pending");
+    assert.equal(store.claimNextRepair(), null);
+    assert.equal(traces[0].action, "ci_rerun_requested");
+    conclusion = "success";
+    await worker.runOnce();
+    assert.equal(store.lastReported(registration.sessionKey).result, "success");
+    assert.equal(telegram.sent.length, 1);
+  });
+}
+
+test("does not rerun a second cancellation", async (context) => {
+  const { store } = fixture(context);
+  createCiWatchRegistration({ store })(registration);
+  const github = fakeGithub({
+    checkRuns: [checkRun("Validate", "completed", "cancelled")],
+  });
+  let attempt = 1;
+  github.getCheckRunJob = async () => ({
+    run_id: 100,
+    run_attempt: attempt,
+    status: "completed",
+    conclusion: "cancelled",
+    steps: [],
+  });
+  let calls = 0;
+  github.getWorkflowRun = async () => ({
+    id: 100,
+    run_attempt: attempt,
+    head_sha: commit,
+    status: "completed",
+  });
+  github.rerunFailedJobs = async () => {
+    calls += 1;
+  };
+  const telegram = fakeTelegram();
+  const traces = [];
+  const worker = workerFor({
+    store,
+    github,
+    telegram,
+    recordTrace: (entry) => traces.push(entry),
+  });
+  await worker.runOnce();
+  attempt = 2;
+  await worker.runOnce();
+  assert.equal(calls, 1);
+  assert.equal(store.claimNextRepair(), null);
+  assert.equal(telegram.sent.length, 1);
+  assert.equal(traces.at(-1).action, "ci_rerun_exhausted");
+});
+
+for (const scenario of ["before-call", "after-call"]) {
+  test(`reconciles a stored rerun after restart: ${scenario}`, async (context) => {
+    const { store, path } = fixture(context);
+    createCiWatchRegistration({ store })(registration);
+    store.reserveRerun({ runIdentifier: 100, originalAttempt: 1 });
+    const restarted = new CiWatchStore(path);
+    context.after(() => restarted.close());
+    let conclusion = "cancelled";
+    const github = fakeGithub();
+    github.getCommitCheckRuns = async () => [
+      checkRun("Validate", "completed", conclusion),
+    ];
+    github.getCheckRunJob = async () => ({
+      run_id: 100,
+      run_attempt: 1,
+      status: "completed",
+      conclusion: "cancelled",
+      steps: [],
+    });
+    let reads = 0;
+    github.getWorkflowRun = async () => {
+      reads += 1;
+      return { run_attempt: scenario === "before-call" ? 1 : 2 };
+    };
+    github.rerunFailedJobs = async () =>
+      assert.fail("a stored reservation is never resent");
+    const telegram = fakeTelegram();
+    const worker = workerFor({ store: restarted, github, telegram });
+    await worker.runOnce();
+    assert.equal(reads, 1);
+    assert.equal(restarted.claimNextRepair(), null);
+    if (scenario === "before-call") {
+      assert.equal(telegram.sent.length, 1);
+      assert.equal(restarted.state(registration.updateIdentifier), "sent");
+    } else {
+      assert.equal(telegram.sent.length, 0);
+      assert.equal(restarted.state(registration.updateIdentifier), "pending");
+      conclusion = "success";
+      await worker.runOnce();
+      assert.equal(
+        restarted.lastReported(registration.sessionKey).result,
+        "success",
+      );
+    }
+  });
+}
+
+test("does not repair a project failure on the rerun attempt", async (context) => {
+  const { store } = fixture(context);
+  createCiWatchRegistration({ store })(registration);
+  store.reserveRerun({ runIdentifier: 100, originalAttempt: 1 });
+  const github = fakeGithub({
+    checkRuns: [checkRun("Validate", "completed", "failure")],
+  });
+  github.getCheckRunJob = async () => ({
+    run_id: 100,
+    run_attempt: 2,
+    status: "completed",
+    conclusion: "failure",
+    steps: [
+      { name: "Check project", status: "completed", conclusion: "failure" },
+    ],
+  });
+  github.getWorkflowRun = async () => ({ run_attempt: 2 });
+  github.rerunFailedJobs = async () => assert.fail("the rerun already failed");
+  const telegram = fakeTelegram();
+  const traces = [];
+  await workerFor({
+    store,
+    github,
+    telegram,
+    recordTrace: (entry) => traces.push(entry),
+  }).runOnce();
+  assert.equal(store.claimNextRepair(), null);
+  assert.equal(telegram.sent.length, 1);
+  assert.equal(traces.at(-1).action, "ci_rerun_exhausted");
+});
+
+test("reports an API error and never repeats the rerun", async (context) => {
+  const { store } = fixture(context);
+  createCiWatchRegistration({ store })(registration);
+  const github = fakeGithub({
+    checkRuns: [checkRun("Validate", "completed", "cancelled")],
+  });
+  github.getCheckRunJob = async () => ({
+    run_id: 100,
+    run_attempt: 1,
+    status: "completed",
+    conclusion: "cancelled",
+    steps: [],
+  });
+  let calls = 0;
+  let reads = 0;
+  github.rerunFailedJobs = async () => {
+    calls += 1;
+    throw new Error("network");
+  };
+  github.getWorkflowRun = async () => {
+    reads += 1;
+    throw new Error("network");
+  };
+  const telegram = fakeTelegram();
+  const worker = workerFor({ store, github, telegram });
+  await worker.runOnce();
+  await worker.runOnce();
+  assert.equal(calls, 1);
+  assert.equal(reads, 0);
+  assert.equal(telegram.sent.length, 1);
+  assert.equal(store.claimNextRepair(), null);
+});
+
+test("a rerun gets its own durable watch deadline", async (context) => {
+  let instant = Date.parse("2026-11-21T10:00:00Z");
+  const now = () => new Date(instant);
+  const { store, path } = fixture(context, { now });
+  createCiWatchRegistration({ store })(registration);
+  let status = "completed";
+  let conclusion = "cancelled";
+  const github = fakeGithub();
+  github.getCommitCheckRuns = async () => [
+    checkRun("Validate", status, conclusion),
+  ];
+  github.getCheckRunJob = async () => ({
+    run_id: 100,
+    run_attempt: 1,
+    status: "completed",
+    conclusion: "cancelled",
+    steps: [],
+  });
+  github.rerunFailedJobs = async () => {};
+  const telegram = fakeTelegram();
+  instant += 50 * 60 * 1000;
+  await workerFor({ store, github, telegram, now }).runOnce();
+  const restarted = new CiWatchStore(path, { now });
+  context.after(() => restarted.close());
+  status = "in_progress";
+  conclusion = null;
+  instant += 11 * 60 * 1000;
+  const worker = workerFor({ store: restarted, github, telegram, now });
+  await worker.runOnce();
+  assert.equal(restarted.state(registration.updateIdentifier), "pending");
+  assert.equal(telegram.sent.length, 0);
+  instant += 9 * 60 * 1000;
+  status = "completed";
+  conclusion = "success";
+  await worker.runOnce();
+  assert.equal(
+    restarted.lastReported(registration.sessionKey).result,
+    "success",
+  );
+});
 
 for (const scenario of ["green", "moved", "error"]) {
   test(`rechecks before reserving a repair: ${scenario}`, async (context) => {
@@ -400,6 +680,106 @@ test("waits while a required check is still running", async (context) => {
   assert.equal(store.state(registration.updateIdentifier), "pending");
 });
 
+test("revalidates repair evidence from the live failed job", async () => {
+  const withOutput = fakeGithub({
+    checkRuns: [checkRun("Validate", "completed", "failure")],
+  });
+  const withoutOutput = fakeGithub({
+    checkRuns: [
+      { name: "Validate", status: "completed", conclusion: "failure" },
+    ],
+  });
+  assert.equal(
+    (
+      await readCiState({
+        github: withOutput,
+        requiredChecks,
+        commit,
+        requireRepairEvidence: true,
+      })
+    ).repairable,
+    true,
+  );
+  assert.equal(
+    (
+      await readCiState({
+        github: withoutOutput,
+        requiredChecks,
+        commit,
+        requireRepairEvidence: true,
+      })
+    ).repairable,
+    false,
+  );
+});
+
+test("does not repair a project failure without output", async (context) => {
+  const { store } = fixture(context);
+  createCiWatchRegistration({ store })(registration);
+  const telegram = fakeTelegram();
+  const github = fakeGithub({
+    checkRuns: [
+      {
+        name: "Validate",
+        status: "completed",
+        conclusion: "failure",
+        output: { title: "failure" },
+      },
+    ],
+  });
+  await workerFor({ store, github, telegram }).runOnce();
+  assert.equal(store.claimNextRepair(), null);
+  assert.equal(telegram.sent.length, 1);
+  assert.equal(
+    store.lastReported(registration.sessionKey).result,
+    "repair-not-run",
+  );
+});
+
+test("does not repair from a check summary when the job log cannot be read", async (context) => {
+  const { store } = fixture(context);
+  createCiWatchRegistration({ store })(registration);
+  const telegram = fakeTelegram();
+  const github = fakeGithub({
+    checkRuns: [checkRun("Validate", "completed", "failure")],
+  });
+  github.getWorkflowJobLog = async () => {
+    throw new Error("log unavailable");
+  };
+  const worker = workerFor({ store, github, telegram });
+  await worker.runOnce();
+  assert.equal(store.claimNextRepair(), null);
+  assert.equal(telegram.sent.length, 1);
+  assert.equal(
+    store.lastReported(registration.sessionKey).result,
+    "repair-not-run",
+  );
+});
+
+test("uses the failed project step log instead of the check summary", async (context) => {
+  const { store } = fixture(context);
+  createCiWatchRegistration({ store })(registration);
+  const github = fakeGithub({
+    checkRuns: [checkRun("Validate", "completed", "failure")],
+  });
+  github.getWorkflowJobLog = async () =>
+    [
+      "2026-11-21T10:00:00.000Z ##[group]Run pnpm check",
+      "2026-11-21T10:00:01.000Z ##[endgroup]",
+      "2026-11-21T10:00:02.000Z project output with ghp_synthetic_secret",
+    ].join("\n");
+  await workerFor({
+    store,
+    github,
+    telegram: fakeTelegram(),
+    secrets: ["ghp_synthetic_secret"],
+  }).runOnce();
+  const repair = store.claimNextRepair();
+  assert.deepEqual(JSON.parse(repair.evidence), [
+    { name: "Validate", detail: "project output with ***" },
+  ]);
+});
+
 test("reserves the first automatic repair of the failing checks", async (context) => {
   const { store } = fixture(context);
   createCiWatchRegistration({ store })(registration);
@@ -442,7 +822,7 @@ test("reserves the first automatic repair of the failing checks", async (context
   assert.equal(repair.attempt_number, 1);
   assert.deepEqual(JSON.parse(repair.failed_checks), ["Validate"]);
   assert.deepEqual(JSON.parse(repair.evidence), [
-    { name: "Validate", detail: "pnpm check failed\nsrc/a.ts: error TS2322" },
+    { name: "Validate", detail: "src/a.ts: error TS2322" },
   ]);
   assert.deepEqual(traces, [
     {
@@ -583,7 +963,7 @@ test("redacts known credentials from the failure evidence", async (context) => {
           name: "Validate",
           status: "completed",
           conclusion: "failure",
-          output: { title: "token ghp_synthetic_secret rejected" },
+          output: { summary: "token ghp_synthetic_secret rejected" },
         },
       ],
     }),
