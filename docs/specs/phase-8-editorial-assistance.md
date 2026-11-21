@@ -440,7 +440,7 @@ CI cancel·lada i un estat local desfasat; la persona també havia de demanar la
 preview. **Abast:** una feina i una PR per tema, estat viu de GitHub, reintent
 acotat de CI, preview automàtica i avisos planers. **Exclusió:** no canvia la
 fusió humana, l'aïllament ni la publicació editorial; la petició amb etiqueta
-s'estudia a [#261](https://github.com/rboixaderg/mountain-runners/issues/261).
+la defineix l'[especificació de l'etiqueta de preview](preview-label.md).
 **Depèn de:** T8.7, T8.8 i l'aprovació de les esmenes dels ADR 0009 i 0013.
 **Resultat:** una persona edita i rep l'enllaç sense demanar-lo. **Comprovació:**
 proves del servei amb Telegram, GitHub i model simulats i el recorregut del
@@ -731,7 +731,10 @@ GitHub i model simulats; no s'activa una capacitat abans dels controls previs.
    sincronitza amb `main`. Provar consulta sense canvis, diversos canvis i
    adjunt, publicació bloquejada i represa, branca desfasada, conflicte resolt,
    conflicte no resolt i `/merge` determinista sense passar pel model.
-4. Preview automàtica: `ci-watch.mjs` i `preview-request.mjs` la demanen amb CI
+4. Substituït per l'[especificació de l'etiqueta de
+   preview](preview-label.md): el servei posa l'etiqueta `preview` en crear la
+   PR i no comenta `/preview`. Requisit original: preview automàtica,
+   `ci-watch.mjs` i `preview-request.mjs` la demanen amb CI
    verda. Provar CI pendent o vermella, cap canviat, duplicats, reinici i URL
    confirmada pel publicador.
 5. Avisos i prompt: adaptar `run-instruction.mjs`, `topic-state.mjs` i
@@ -959,8 +962,9 @@ prova simulada no es presenta com a verificació dels permisos reals de GitHub.
 
 ## Fora d'abast
 
-- Explorar la petició de preview amb una etiqueta de PR en lloc del comentari
-  `/preview`: [issue #261](https://github.com/rboixaderg/mountain-runners/issues/261).
+- La petició de preview amb l'etiqueta `preview`: la defineix
+  l'[especificació de l'etiqueta de preview](preview-label.md), que substitueix
+  el bloc 4 de T8.9.
 
 - Auto-merge, push directe a `main`, canvi de proteccions i desplegament
   directe a producció. El merge només entra a l'abast amb una petició
