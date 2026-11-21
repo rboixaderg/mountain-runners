@@ -1,0 +1,21 @@
+tools/server/agent/processes/telegram-bridge/main.mjs
+  s_c4d80c64f1444b::t_b3f5e3c910ef1a 32,147-149,177,424
+tools/server/agent/workflow/run-instruction.mjs
+  s_c4d80c64f1444b::t_b13749d0706c23 77,830-842
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "bea48b64f0f9e2b52101615d6d739150d5734362",
+  "prompts": {},
+  "sessions": {
+    "s_c4d80c64f1444b": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a1fee0-b71b-758d-acf2-917c22d14fc5",
+        "model": "gpt-6.1-terra"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
