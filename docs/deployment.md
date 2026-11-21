@@ -1073,8 +1073,13 @@ el torn i demana la revisió de la persona mantenidora, sense triar cap feina.
 
 Un tema vinculat continua al seu worktree. El servei comprova la branca, el
 repositori i el cap de la PR abans del torn i revalida la PR abans del push. No
-crea una segona PR. Si la branca local no correspon o el cap remot ha canviat,
-refusa el torn i conserva la feina.
+crea una segona PR. Si el cap remot avança i el worktree no té feina pendent,
+comprova el SHA baixat i actualitza la branca només amb fast-forward. Si hi ha
+feina pendent, la conserva en un commit local i integra el cap de la PR quan
+tots dos descendeixen de l'últim commit publicat. Si hi ha conflictes, utilitza
+el mateix procediment de resolució al sandbox que per a `main`. Si no pot
+verificar l'ascendència o la branca no correspon, refusa el torn i conserva la
+feina.
 
 Abans de cada push, el servei consulta `origin/main`. Si la branca va per
 darrere, integra `main` amb un commit de merge, sense rebase ni push forçat, i

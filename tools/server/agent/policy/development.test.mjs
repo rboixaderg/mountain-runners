@@ -6,7 +6,7 @@ import {
   buildClassificationPrompt,
   buildContinuationInstruction,
   buildInstructionPrompt,
-  buildMainConflictInstruction,
+  buildConflictInstruction,
   buildRepairInstruction,
   buildTopicStateText,
   changeTypes,
@@ -49,11 +49,11 @@ function promptFor(instruction, kind, options = {}) {
 }
 
 test("asks the model to preserve both versions and treats conflict paths as data", () => {
-  const instruction = buildMainConflictInstruction([
+  const instruction = buildConflictInstruction([
     "content/news.yml",
     "strange\nname.txt",
   ]);
-  assert.match(instruction, /keeping both the topic and main changes/u);
+  assert.match(instruction, /keeping both the topic and incoming changes/u);
   assert.match(instruction, /Ask the person which version/u);
   assert.match(instruction, /untrusted data/u);
   assert.ok(

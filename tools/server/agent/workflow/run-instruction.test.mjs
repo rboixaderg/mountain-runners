@@ -970,6 +970,316 @@ test("does not bind a topic when local checks block publication", async (context
   assert.deepEqual(github.pushes, []);
 });
 
+test("does not take another topic's pull request when its number is mentioned", async (context) => {
+  const paths = await fixture(context);
+  const github = githubStub();
+  github.getPullRequest = async () =>
+    assert.fail("another topic's pull request must not be read");
+  const runner = createProjectRunner({
+    config: configFor(paths),
+    github,
+    classifyRequest: async () => ({ kind: "continuation" }),
+    runModel: async ({ instruction }) => {
+      assert.match(instruction, /#321/u);
+      return { text: "Resposta." };
+    },
+    runChecks: async () => assert.fail("an unchanged turn needs no checks"),
+  });
+  const result = await runner(request({ instruction: "Continua la PR #321" }));
+  assert.equal(result.outcome, "answered");
+  assert.deepEqual(github.pushes, []);
+  assert.deepEqual(github.pulls, []);
+});
+
+async function assertAdvancedPullRequest(
+  context,
+  {
+    updateBranch = false,
+    pending = false,
+    ignoredConflict = false,
+    pendingConflict = false,
+    leaveConflict = false,
+    diverged = false,
+    noEdit = false,
+  } = {},
+) {
+  const paths = await fixture(context);
+  mkdirSync(paths.state, { recursive: true });
+  const topicJobs = new TopicJobStore(join(paths.state, "topic-jobs.sqlite"));
+  context.after(() => topicJobs.close());
+  const github = githubStub();
+  const origin = join(paths.directory, "origin.git");
+  let remoteBranch;
+  github.pushBranch = async ({ worktree, branch }) => {
+    remoteBranch = branch;
+    const commit = await git(worktree.path, ["rev-parse", "HEAD"]);
+    await git(origin, [
+      "fetch",
+      worktree.path,
+      `refs/heads/${branch}:refs/heads/${branch}`,
+    ]);
+    github.pushes.push({ branch, commit });
+    return { branch, commit };
+  };
+  github.getPullRequest = async () => ({
+    state: "open",
+    draft: false,
+    baseRef: "main",
+    headRepository: "rboixaderg/mountain-runners",
+    headRef: remoteBranch,
+    headSha: await git(origin, ["rev-parse", `refs/heads/${remoteBranch}`]),
+  });
+  github.ensurePullRequest = async (options) => {
+    github.pulls.push(options);
+    return {
+      pullRequest: {
+        number: 200,
+        htmlUrl: "https://github.com/rboixaderg/mountain-runners/pull/200",
+      },
+      created: github.pulls.length === 1,
+    };
+  };
+  let modelTurns = 0;
+  let conflictTurns = 0;
+  const runner = createProjectRunner({
+    config: configFor(paths),
+    github,
+    topicJobs,
+    classifyRequest: async () => ({ kind: "implementation" }),
+    runModel: async ({ worktreePath, instruction }) => {
+      if (pendingConflict && instruction.includes("Conflicted paths")) {
+        conflictTurns += 1;
+        const conflictPath = join(worktreePath, "pending.txt");
+        assert.match(readFileSync(conflictPath, "utf8"), /<<<<<<< /u);
+        if (!leaveConflict)
+          writeFileSync(conflictPath, "pending work\nremote work\n");
+        return { text: "Conflicte revisat." };
+      }
+      modelTurns += 1;
+      if (modelTurns === 2) {
+        assert.equal(
+          readFileSync(join(worktreePath, "human.txt"), "utf8"),
+          "human change\n",
+        );
+        if (pending) {
+          assert.equal(
+            readFileSync(join(worktreePath, "pending.txt"), "utf8"),
+            pendingConflict ? "pending work\nremote work\n" : "pending work\n",
+          );
+        }
+      }
+      if (modelTurns === 2 && noEdit) {
+        return { text: "Resposta." };
+      }
+      writeFileSync(
+        join(worktreePath, `topic-${modelTurns}.txt`),
+        "topic change\n",
+      );
+      return { text: "SUMMARY: feat(tools): add synthetic change" };
+    },
+    runChecks: async () => ({ exitCode: 0, timedOut: false }),
+  });
+
+  assert.equal((await runner(request())).outcome, "pull_request_created");
+  const human = join(paths.directory, "human");
+  await executeFile("git", ["clone", "--branch", remoteBranch, origin, human]);
+  writeFileSync(join(human, "human.txt"), "human change\n");
+  await git(human, ["add", "human.txt"]);
+  if (pendingConflict) {
+    writeFileSync(join(human, "pending.txt"), "remote work\n");
+    await git(human, ["add", "pending.txt"]);
+  }
+  if (ignoredConflict) {
+    mkdirSync(join(human, ".agent-attachments"), { recursive: true });
+    writeFileSync(
+      join(human, ".agent-attachments", "keep.txt"),
+      "remote data\n",
+    );
+    await git(human, ["add", "-f", ".agent-attachments/keep.txt"]);
+  }
+  await git(human, ["commit", "-m", "feat(tools): add human change"]);
+  let humanHead = await git(human, ["rev-parse", "HEAD"]);
+  if (updateBranch) {
+    await git(paths.repository, [
+      "commit",
+      "--allow-empty",
+      "-m",
+      "chore: advance main",
+    ]);
+    const mainHead = await git(paths.repository, ["rev-parse", "HEAD"]);
+    await git(origin, [
+      "fetch",
+      paths.repository,
+      "+refs/heads/main:refs/heads/main",
+    ]);
+    await git(human, ["fetch", "origin", "main"]);
+    const tree = await git(human, ["rev-parse", "HEAD^{tree}"]);
+    const mergeCommit = await git(human, [
+      "commit-tree",
+      tree,
+      "-p",
+      humanHead,
+      "-p",
+      mainHead,
+      "-m",
+      "Merge main",
+    ]);
+    await git(human, ["update-ref", `refs/heads/${remoteBranch}`, mergeCommit]);
+    humanHead = mergeCommit;
+  }
+  if (diverged) {
+    const tree = await git(human, ["rev-parse", "HEAD^{tree}"]);
+    const base = await git(human, ["rev-parse", "origin/main"]);
+    humanHead = await git(human, [
+      "commit-tree",
+      tree,
+      "-p",
+      base,
+      "-m",
+      "feat: rewritten remote",
+    ]);
+    await git(human, [
+      "update-ref",
+      "refs/heads/synthetic-diverged",
+      humanHead,
+    ]);
+    await git(origin, [
+      "fetch",
+      human,
+      "refs/heads/synthetic-diverged:refs/heads/synthetic-diverged",
+    ]);
+    await git(origin, ["update-ref", `refs/heads/${remoteBranch}`, humanHead]);
+  } else {
+    await git(origin, [
+      "fetch",
+      human,
+      `refs/heads/${remoteBranch}:refs/heads/${remoteBranch}`,
+    ]);
+  }
+  if (pending) {
+    writeFileSync(
+      join(topicWorktreePath(paths), "pending.txt"),
+      "pending work\n",
+    );
+  }
+  if (ignoredConflict) {
+    mkdirSync(join(topicWorktreePath(paths), ".agent-attachments"), {
+      recursive: true,
+    });
+    writeFileSync(
+      join(topicWorktreePath(paths), ".agent-attachments", "keep.txt"),
+      "local data\n",
+    );
+  }
+
+  const second = await runner(request({ updateIdentifier: 1002 }));
+
+  if (ignoredConflict) {
+    assert.equal(second.outcome, "failed");
+    assert.equal(modelTurns, 1);
+    assert.equal(github.pushes.length, 1);
+    assert.equal(
+      readFileSync(
+        join(topicWorktreePath(paths), ".agent-attachments", "keep.txt"),
+        "utf8",
+      ),
+      "local data\n",
+    );
+    return;
+  }
+  if (diverged) {
+    assert.equal(second.outcome, "failed");
+    assert.equal(modelTurns, 1);
+    assert.equal(github.pushes.length, 1);
+    assert.equal(
+      readFileSync(join(topicWorktreePath(paths), "pending.txt"), "utf8"),
+      "pending work\n",
+    );
+    return;
+  }
+  if (leaveConflict) {
+    assert.equal(second.outcome, "failed");
+    assert.equal(conflictTurns, 1);
+    assert.equal(modelTurns, 1);
+    assert.equal(github.pushes.length, 1);
+    assert.equal(
+      readFileSync(join(topicWorktreePath(paths), "pending.txt"), "utf8"),
+      "pending work\n",
+    );
+    await assert.rejects(
+      git(topicWorktreePath(paths), ["rev-parse", "--verify", "MERGE_HEAD"]),
+    );
+    return;
+  }
+  if (noEdit) {
+    assert.equal(second.outcome, "answered", second.report);
+    assert.equal(modelTurns, 2);
+    assert.equal(github.pushes.length, 1);
+    assert.equal(
+      await git(topicWorktreePath(paths), ["rev-parse", "HEAD"]),
+      humanHead,
+    );
+    return;
+  }
+  assert.equal(second.outcome, "pull_request_updated", second.report);
+  if (pendingConflict) assert.equal(conflictTurns, 1);
+  assert.equal(modelTurns, 2);
+  assert.equal(github.pushes.length, 2);
+  if (pending) {
+    await git(topicWorktreePath(paths), [
+      "merge-base",
+      "--is-ancestor",
+      humanHead,
+      "HEAD",
+    ]);
+  } else {
+    assert.equal(
+      await git(topicWorktreePath(paths), ["rev-parse", "HEAD^"]),
+      humanHead,
+    );
+  }
+  assert.equal(github.pulls.at(-1).createMissing, false);
+}
+
+test("continues a bound topic after a person advances its pull request", async (context) => {
+  await assertAdvancedPullRequest(context);
+});
+
+test("continues a bound topic after an update-branch merge commit", async (context) => {
+  await assertAdvancedPullRequest(context, { updateBranch: true });
+});
+
+test("does not republish an advanced pull request after an unchanged turn", async (context) => {
+  await assertAdvancedPullRequest(context, { noEdit: true });
+});
+
+test("never overwrites ignored work when the pull request advances", async (context) => {
+  await assertAdvancedPullRequest(context, { ignoredConflict: true });
+});
+
+test("preserves pending work when the bound pull request advances", async (context) => {
+  await assertAdvancedPullRequest(context, { pending: true });
+});
+
+test("resolves a pending topic conflict against the advanced pull request", async (context) => {
+  await assertAdvancedPullRequest(context, {
+    pending: true,
+    pendingConflict: true,
+  });
+});
+
+test("keeps pending topic work when the advanced pull request conflict remains", async (context) => {
+  await assertAdvancedPullRequest(context, {
+    pending: true,
+    pendingConflict: true,
+    leaveConflict: true,
+  });
+});
+
+test("keeps pending work when the remote branch was rewritten", async (context) => {
+  await assertAdvancedPullRequest(context, { pending: true, diverged: true });
+});
+
 test("two implementation turns publish to the first bound pull request", async (context) => {
   const paths = await fixture(context);
   mkdirSync(paths.state, { recursive: true });
@@ -983,14 +1293,17 @@ test("two implementation turns publish to the first bound pull request", async (
     remoteHead = pushed.commit;
     return pushed;
   };
-  github.getPullRequest = async () => ({
-    state: "open",
-    draft: false,
-    baseRef: "main",
-    headRepository: "rboixaderg/mountain-runners",
-    headRef: github.pushes.at(-1).branch,
-    headSha: remoteHead,
-  });
+  github.getPullRequest = async ({ number }) => {
+    assert.equal(number, 200, "a named pull request cannot change the binding");
+    return {
+      state: "open",
+      draft: false,
+      baseRef: "main",
+      headRepository: "rboixaderg/mountain-runners",
+      headRef: github.pushes.at(-1).branch,
+      headSha: remoteHead,
+    };
+  };
   github.ensurePullRequest = async (options) => {
     github.pulls.push(options);
     return {
@@ -1038,7 +1351,7 @@ test("two implementation turns publish to the first bound pull request", async (
       await runner(
         request({
           updateIdentifier: 1002,
-          instruction: "Comença una feina nova i diferent.",
+          instruction: "Comença una feina nova i diferent a la PR #321.",
         }),
       )
     ).outcome,
@@ -1073,6 +1386,27 @@ test("two implementation turns publish to the first bound pull request", async (
   assert.equal(turn, 3, "a different remote branch never reaches the model");
   assert.equal(github.pushes.length, 3);
   assert.deepEqual(topicJobs.bindingOf(topicSessionKey), binding);
+
+  for (const [offset, override] of [
+    { headRepository: "another-owner/fork" },
+    { state: "closed" },
+    { draft: true },
+    { baseRef: "other" },
+  ].entries()) {
+    github.getPullRequest = async () => ({
+      state: "open",
+      draft: false,
+      baseRef: "main",
+      headRepository: "rboixaderg/mountain-runners",
+      headRef: binding.branch,
+      headSha: currentHead,
+      ...override,
+    });
+    const rejected = await runner(request({ updateIdentifier: 1005 + offset }));
+    assert.equal(rejected.outcome, "failed", JSON.stringify(override));
+    assert.equal(turn, 3, "an untrusted pull request never reaches the model");
+    assert.equal(github.pushes.length, 3);
+  }
 });
 
 test("runs the fast gate for a content-only change and names it in the pull request", async (context) => {

@@ -26,9 +26,12 @@ import {
   hasUnpublishedCommit,
   publishedCommit,
   mergeMainIntoBranch,
-  restartMainConflict,
-  abortMainConflict,
-  commitMainConflict,
+  fastForwardPublishedBranch,
+  fetchPublishedBranch,
+  mergeCommitIntoBranch,
+  restartConflictMerge,
+  abortConflictMerge,
+  commitConflictMerge,
   MergeCleanupError,
 } from "../repository/worktrees.mjs";
 import { runGit } from "../repository/trusted-git.mjs";
@@ -39,7 +42,7 @@ import {
   attachmentRefusalReport,
   attachmentReports,
   buildAttachmentsInstruction,
-  buildMainConflictInstruction,
+  buildConflictInstruction,
   buildRepairInstruction,
   checkCommandForPaths,
   ciWatchOutcomes,
@@ -382,6 +385,87 @@ export function createInstructionRunner({
     return null;
   }
 
+  async function resolveConflict({
+    worktree,
+    worktreeName,
+    sessionIdentifier,
+    sessionKey,
+    paths,
+    headSha,
+    topicState,
+    worktreePrepared,
+    signal,
+  }) {
+    const restarted = await restartConflictMerge({
+      worktree,
+      headSha,
+      expectedPaths: paths,
+      signal,
+    });
+    if (!restarted) {
+      return false;
+    }
+    let mergeInProgress = true;
+    try {
+      const binaryDiff = await runGit(
+        worktree,
+        [
+          "--literal-pathspecs",
+          "diff",
+          "--numstat",
+          "-z",
+          "HEAD",
+          headSha,
+          "--",
+          ...paths,
+        ],
+        { signal },
+      );
+      const hasBinaryConflict = binaryDiff
+        .split("\0")
+        .some((entry) => entry.startsWith("-\t-\t"));
+      const resolution = await runModel({
+        sessionIdentifier,
+        sandboxIdentifier: worktreeName,
+        sessionKey,
+        instruction: buildConflictInstruction(paths),
+        images: [],
+        attachments: [],
+        worktreePrepared,
+        kind: "implementation",
+        topicState,
+        claimServiceNotes: () => [],
+        onPromptSent: () => {},
+        worktreePath: worktree.path,
+        signal,
+      });
+      if (
+        resolution.timedOut ||
+        resolution.aborted ||
+        resolution.preparationFailed ||
+        hasBinaryConflict
+      ) {
+        return false;
+      }
+      signal?.throwIfAborted();
+      try {
+        await runGit(worktree, ["diff", "--check"], { signal });
+      } catch {
+        signal?.throwIfAborted();
+        return false;
+      }
+      if (!(await commitConflictMerge({ worktree, signal }))) {
+        return false;
+      }
+      mergeInProgress = false;
+      return true;
+    } finally {
+      if (mergeInProgress) {
+        await abortConflictMerge(worktree);
+      }
+    }
+  }
+
   async function execute(request, { signal } = {}) {
     // The Pi session file keeps the session identifier: it lives outside the
     // sandbox. Every name the sandbox can read is opaque.
@@ -539,13 +623,85 @@ export function createInstructionRunner({
           pullRequest.baseRef !== "main" ||
           pullRequest.headRepository?.toLowerCase() !==
             repositoryName.toLowerCase() ||
-          pullRequest.headRef !== binding.branch ||
-          !(await matchesPublishedHead(
-            topic.worktree,
-            pullRequest.headSha,
-            signal,
-          ))
+          pullRequest.headRef !== binding.branch
         ) {
+          return {
+            outcome: "failed",
+            report: continuationReports.movedHead({
+              pullRequestNumber: binding.pullRequestNumber,
+            }),
+          };
+        }
+        let matchingHead = await matchesPublishedHead(
+          topic.worktree,
+          pullRequest.headSha,
+          signal,
+        );
+        if (!matchingHead && !topic.pendingWork) {
+          matchingHead = await fastForwardPublishedBranch({
+            worktree: topic.worktree,
+            branch: binding.branch,
+            headSha: pullRequest.headSha,
+            signal,
+          });
+        }
+        if (!matchingHead && topic.pendingWork) {
+          const worktree = topic.worktree;
+          const previousHead = publishedCommit(worktree);
+          const fetched = await fetchPublishedBranch({
+            worktree,
+            branch: binding.branch,
+            headSha: pullRequest.headSha,
+            signal,
+          });
+          if (fetched && previousHead !== null) {
+            const remoteBase = (
+              await runGit(
+                worktree,
+                ["merge-base", previousHead, pullRequest.headSha],
+                { signal, allowFailure: true },
+              )
+            ).trim();
+            const localBase = (
+              await runGit(worktree, ["merge-base", previousHead, "HEAD"], {
+                signal,
+                allowFailure: true,
+              })
+            ).trim();
+            if (remoteBase === previousHead && localBase === previousHead) {
+              removeAttachmentDirectory({ worktreePath: worktree.path });
+              await commitAll({
+                worktree,
+                message: "chore(agent): preserve pending topic work",
+                signal,
+              });
+              const merged = await mergeCommitIntoBranch({
+                worktree,
+                headSha: pullRequest.headSha,
+                signal,
+              });
+              matchingHead = !merged.conflict;
+              if (merged.conflict) {
+                const conflictState = await topicStateOf(request.sessionKey, {
+                  continuedPullRequestNumber: binding.pullRequestNumber,
+                  signal,
+                });
+                matchingHead = await resolveConflict({
+                  worktree,
+                  worktreeName,
+                  sessionIdentifier: piSessionIdentifier,
+                  sessionKey: request.sessionKey,
+                  paths: merged.paths,
+                  headSha: pullRequest.headSha,
+                  topicState: conflictState,
+                  worktreePrepared: false,
+                  signal,
+                });
+              }
+            }
+          }
+        }
+        if (!matchingHead) {
           return {
             outcome: "failed",
             report: continuationReports.movedHead({
@@ -732,80 +888,22 @@ export function createInstructionRunner({
       await commitAll({ worktree, message: title, signal });
       const synchronization = await mergeMainIntoBranch({ worktree, signal });
       if (synchronization.conflict) {
-        const restarted = await restartMainConflict({
+        const mainHead = (
+          await runGit(worktree, ["rev-parse", "origin/main"], { signal })
+        ).trim();
+        const resolved = await resolveConflict({
           worktree,
-          expectedPaths: synchronization.paths,
+          worktreeName,
+          sessionIdentifier: piSessionIdentifier,
+          sessionKey: request.sessionKey,
+          paths: synchronization.paths,
+          headSha: mainHead,
+          topicState,
+          worktreePrepared: true,
           signal,
         });
-        if (!restarted) {
+        if (!resolved) {
           return { outcome: "failed", report: instructionReports.checksFailed };
-        }
-        let mergeInProgress = true;
-        try {
-          const binaryDiff = await runGit(
-            worktree,
-            [
-              "--literal-pathspecs",
-              "diff",
-              "--numstat",
-              "-z",
-              "HEAD",
-              "origin/main",
-              "--",
-              ...synchronization.paths,
-            ],
-            { signal },
-          );
-          const hasBinaryConflict = binaryDiff
-            .split("\0")
-            .some((entry) => entry.startsWith("-\t-\t"));
-          const resolution = await runModel({
-            sessionIdentifier: piSessionIdentifier,
-            sandboxIdentifier: worktreeName,
-            sessionKey: request.sessionKey,
-            instruction: buildMainConflictInstruction(synchronization.paths),
-            images: [],
-            attachments: [],
-            worktreePrepared: true,
-            kind: "implementation",
-            topicState,
-            claimServiceNotes: () => [],
-            onPromptSent: () => {},
-            worktreePath: worktree.path,
-            signal,
-          });
-          if (
-            resolution.timedOut ||
-            resolution.aborted ||
-            resolution.preparationFailed ||
-            hasBinaryConflict
-          ) {
-            return {
-              outcome: "failed",
-              report: instructionReports.checksFailed,
-            };
-          }
-          signal?.throwIfAborted();
-          try {
-            await runGit(worktree, ["diff", "--check"], { signal });
-          } catch {
-            signal?.throwIfAborted();
-            return {
-              outcome: "failed",
-              report: instructionReports.checksFailed,
-            };
-          }
-          if (!(await commitMainConflict({ worktree, signal }))) {
-            return {
-              outcome: "failed",
-              report: instructionReports.checksFailed,
-            };
-          }
-          mergeInProgress = false;
-        } finally {
-          if (mergeInProgress) {
-            await abortMainConflict(worktree);
-          }
         }
       }
       if (synchronization.merged || synchronization.conflict) {

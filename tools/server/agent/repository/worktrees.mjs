@@ -818,6 +818,63 @@ export class MergeCleanupError extends Error {
   }
 }
 
+export async function fetchPublishedBranch({
+  worktree,
+  branch,
+  headSha,
+  signal,
+}) {
+  assertWorkBranch(branch);
+  if (!fullCommitPattern.test(headSha)) return false;
+  await runGit(
+    worktree,
+    ["fetch", "--no-tags", "origin", `refs/heads/${branch}`],
+    {
+      signal,
+      timeoutMilliseconds: remoteGitTimeoutMilliseconds,
+    },
+  );
+  const fetchedHead = (
+    await runGit(worktree, ["rev-parse", "FETCH_HEAD"], { signal })
+  ).trim();
+  return fetchedHead === headSha;
+}
+
+export async function fastForwardPublishedBranch({
+  worktree,
+  branch,
+  headSha,
+  signal,
+}) {
+  assertWorkBranch(branch);
+  if (!fullCommitPattern.test(headSha)) return false;
+  if (
+    (await currentBranch(worktree, { signal })) !== branch ||
+    (await listChangedPaths(worktree, { signal })).length > 0 ||
+    (await hasUnpublishedCommit(worktree, { signal }))
+  ) {
+    return false;
+  }
+  const localHead = await headCommit(worktree, { signal });
+  if (!(await fetchPublishedBranch({ worktree, branch, headSha, signal })))
+    return false;
+  const fetchedHead = headSha;
+  const mergeBase = (
+    await runGit(worktree, ["merge-base", localHead, fetchedHead], {
+      signal,
+      allowFailure: true,
+    })
+  ).trim();
+  if (mergeBase !== localHead) return false;
+  await runGit(
+    worktree,
+    ["merge", "--ff-only", "--no-overwrite-ignore", fetchedHead],
+    { signal },
+  );
+  recordPublication(worktree, fetchedHead);
+  return true;
+}
+
 export async function mergeMainIntoBranch({ worktree, signal }) {
   await runGit(worktree, ["fetch", "--prune", "origin", "main"], {
     signal,
@@ -826,16 +883,29 @@ export async function mergeMainIntoBranch({ worktree, signal }) {
   const mainHead = (
     await runGit(worktree, ["rev-parse", "origin/main"], { signal })
   ).trim();
+  return mergeCommitIntoBranch({ worktree, headSha: mainHead, signal });
+}
+
+export async function mergeCommitIntoBranch({ worktree, headSha, signal }) {
+  if (!fullCommitPattern.test(headSha))
+    throw new Error("A full commit SHA is required.");
   const mergeBase = (
-    await runGit(worktree, ["merge-base", "HEAD", mainHead], { signal })
+    await runGit(worktree, ["merge-base", "HEAD", headSha], { signal })
   ).trim();
-  if (mergeBase === mainHead) {
+  if (mergeBase === headSha) {
     return { merged: false };
   }
   try {
     await runGit(
       worktree,
-      [...agentIdentityArguments, "merge", "--no-ff", "--no-edit", mainHead],
+      [
+        ...agentIdentityArguments,
+        "merge",
+        "--no-ff",
+        "--no-edit",
+        "--no-overwrite-ignore",
+        headSha,
+      ],
       { signal },
     );
     return { merged: true };
@@ -847,7 +917,7 @@ export async function mergeMainIntoBranch({ worktree, signal }) {
       ["rev-parse", "--verify", "--quiet", "MERGE_HEAD"],
       { allowFailure: true },
     );
-    if (mergeHead.trim() === mainHead) {
+    if (mergeHead.trim() === headSha) {
       const output = await runGit(worktree, [
         "diff",
         "--name-only",
@@ -855,7 +925,7 @@ export async function mergeMainIntoBranch({ worktree, signal }) {
         "-z",
       ]);
       const paths = output.split("\0").filter(Boolean);
-      await abortMainConflict(worktree);
+      await abortConflictMerge(worktree);
       signal?.throwIfAborted();
       if (paths.length > 0) {
         return { conflict: true, paths };
@@ -866,14 +936,25 @@ export async function mergeMainIntoBranch({ worktree, signal }) {
   }
 }
 
-export async function restartMainConflict({ worktree, expectedPaths, signal }) {
-  const mainHead = (
-    await runGit(worktree, ["rev-parse", "origin/main"], { signal })
-  ).trim();
+export async function restartConflictMerge({
+  worktree,
+  headSha,
+  expectedPaths,
+  signal,
+}) {
+  if (!fullCommitPattern.test(headSha))
+    throw new Error("A full commit SHA is required.");
   try {
     await runGit(
       worktree,
-      [...agentIdentityArguments, "merge", "--no-ff", "--no-commit", mainHead],
+      [
+        ...agentIdentityArguments,
+        "merge",
+        "--no-ff",
+        "--no-commit",
+        "--no-overwrite-ignore",
+        headSha,
+      ],
       { signal },
     );
   } catch (error) {
@@ -882,7 +963,7 @@ export async function restartMainConflict({ worktree, expectedPaths, signal }) {
       ["rev-parse", "--verify", "--quiet", "MERGE_HEAD"],
       { allowFailure: true },
     );
-    if (mergeHead.trim() !== mainHead) {
+    if (mergeHead.trim() !== headSha) {
       throw error;
     }
     const output = await runGit(worktree, [
@@ -899,16 +980,16 @@ export async function restartMainConflict({ worktree, expectedPaths, signal }) {
     ) {
       return true;
     }
-    await abortMainConflict(worktree);
+    await abortConflictMerge(worktree);
     signal?.throwIfAborted();
     return false;
   }
-  // Main changed between attempts: do not silently choose a different merge.
-  await abortMainConflict(worktree);
+  // A changed target must not silently choose a different merge.
+  await abortConflictMerge(worktree);
   return false;
 }
 
-export async function abortMainConflict(worktree) {
+export async function abortConflictMerge(worktree) {
   try {
     await runGit(worktree, ["merge", "--abort"]);
   } catch (error) {
@@ -916,7 +997,7 @@ export async function abortMainConflict(worktree) {
   }
 }
 
-export async function commitMainConflict({ worktree, signal }) {
+export async function commitConflictMerge({ worktree, signal }) {
   await runGit(worktree, ["add", "--all"], { signal });
   const unmerged = await runGit(
     worktree,

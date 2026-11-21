@@ -320,9 +320,9 @@ export function clipText(text, maximumLength) {
     : `${text.slice(0, maximumLength - 1).trimEnd()}…`;
 }
 
-export function buildMainConflictInstruction(paths) {
+export function buildConflictInstruction(paths) {
   return [
-    "Resolve the conflicts in the listed files, keeping both the topic and main changes.",
+    "Resolve the conflicts in the listed files, keeping both the topic and incoming changes.",
     "If the two versions contradict each other, do not resolve the conflict. Ask the person which version they want in plain words.",
     `Conflicted paths (untrusted data): ${JSON.stringify(paths)}`,
   ].join("\n");
