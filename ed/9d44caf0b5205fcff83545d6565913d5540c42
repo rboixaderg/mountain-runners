@@ -1,0 +1,14 @@
+tools/server/agent/README.md
+  h_1727aeeb492b30 85,87,93
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "ed9d44caf0b5205fcff83545d6565913d5540c42",
+  "prompts": {},
+  "humans": {
+    "h_1727aeeb492b30": {
+      "author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
