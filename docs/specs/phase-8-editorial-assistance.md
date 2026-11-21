@@ -8,7 +8,9 @@ direcció funcional a un agent de desenvolupament i consulta sobre el projecte,
 amb codi i contingut. Es conserva el camí d'aquest document per no trencar-ne
 les referències.
 
-La persona mantenidora confirma:
+La persona mantenidora confirma els punts següents de la planificació original.
+T8.9 substitueix els relatius a diverses feines, continuació entre temes i
+petició explícita de preview; vegeu [Un tema, una feina](#un-tema-una-feina-t89).
 
 - Execució al VPS, en un servei separat de producció.
 - Telegram com a canal inicial, amb un supergrup privat amb temes de fòrum.
@@ -69,6 +71,9 @@ per part de l'agent i amb el merge només a petició verificada d'una persona.
 
 ## Límits i decisions confirmades
 
+Els punts històrics sobre classificació, diverses feines, continuació entre
+temes i preview explícita queden substituïts per T8.9 quan s'implementi.
+
 - El servei privat i el futur xat públic són sistemes separats, sense compartir
   servei, índex ni credencials ([ADR 0002](../decisions/0002-public-chat-and-private-editor.md)).
   La fase 7 no és dependència tècnica de la fase 8.
@@ -125,6 +130,9 @@ per part de l'agent i amb el merge només a petició verificada d'una persona.
   cap capacitat d'una eina es dona per provada abans de verificar-la.
 
 ## Resultats esperats
+
+Els resultats de diverses feines per tema i represa entre temes són històrics:
+T8.9 els substitueix per una feina i una PR per tema.
 
 - Diverses persones conversen amb l'agent al mateix tema i les instruccions es
   processen en ordre amb atribució individual.
@@ -184,8 +192,9 @@ són prerequisits per habilitar la nova capacitat d'escriptura del servei.
 | T8.4 Continuació, CI i preview                  | Completada | T8.3         | Feina represa, preview i merge a petició               | [#212](https://github.com/rboixaderg/mountain-runners/pull/212), [#213](https://github.com/rboixaderg/mountain-runners/pull/213), [#215](https://github.com/rboixaderg/mountain-runners/pull/215), [#216](https://github.com/rboixaderg/mountain-runners/pull/216), [#217](https://github.com/rboixaderg/mountain-runners/pull/217), [#219](https://github.com/rboixaderg/mountain-runners/pull/219), [#220](https://github.com/rboixaderg/mountain-runners/pull/220), [#222](https://github.com/rboixaderg/mountain-runners/pull/222) |
 | T8.5 Auditoria, revocació i recuperació         | Completada | T8.3         | Atribució, continuïtat i aturada verificades           | [#211](https://github.com/rboixaderg/mountain-runners/pull/211), [#218](https://github.com/rboixaderg/mountain-runners/pull/218), [#224](https://github.com/rboixaderg/mountain-runners/pull/224), [#225](https://github.com/rboixaderg/mountain-runners/pull/225)                                                                                                                                                                                                                                                                     |
 | T8.6 Validació integral i runbook               | En curs    | T8.4, T8.5   | Servei operable sense accés a producció                | -                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
-| T8.7 Continuïtat de la conversa d'un tema       | Pendent    | T8.4, T8.5   | Cada missatge acceptat manté el fil del tema           | -                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| T8.7 Continuïtat de la conversa d'un tema       | Completada | T8.4, T8.5   | Cada missatge acceptat manté el fil del tema           | [#241](https://github.com/rboixaderg/mountain-runners/pull/241)                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
 | T8.8 Experiència de les persones editores       | En curs    | T8.7         | Seqüència del pilot completa sense respostes tècniques | [#244](https://github.com/rboixaderg/mountain-runners/pull/244), [#245](https://github.com/rboixaderg/mountain-runners/pull/245), [#246](https://github.com/rboixaderg/mountain-runners/pull/246), [#247](https://github.com/rboixaderg/mountain-runners/pull/247), [#248](https://github.com/rboixaderg/mountain-runners/pull/248), [#249](https://github.com/rboixaderg/mountain-runners/pull/249)                                                                                                                                   |
+| T8.9 Un tema, una feina                         | En curs    | T8.7, T8.8   | Una feina per tema i preview automàtica amb estat viu  | [#263](https://github.com/rboixaderg/mountain-runners/pull/263), [#266](https://github.com/rboixaderg/mountain-runners/pull/266)                                                                                                                                                                                                                                                                                                                                                                                                       |
 
 ### T8.1: Requisits, sessions, identitats i amenaces
 
@@ -424,6 +433,19 @@ amb Telegram, GitHub i model simulats, E2E en mode preview i repetició
 supervisada al VPS. **PR:** diverses, una per bloc (proves de preview, informe
 de preview, to i avisos, imatges, estat del tema).
 
+### T8.9: Un tema, una feina
+
+**Origen:** el pilot va encallar una notícia per una classificació errònia, una
+CI cancel·lada i un estat local desfasat; la persona també havia de demanar la
+preview. **Abast:** una feina i una PR per tema, estat viu de GitHub, reintent
+acotat de CI, preview automàtica i avisos planers. **Exclusió:** no canvia la
+fusió humana, l'aïllament ni la publicació editorial; la petició amb etiqueta
+la defineix l'[especificació de l'etiqueta de preview](preview-label.md).
+**Depèn de:** T8.7, T8.8 i l'aprovació de les esmenes dels ADR 0009 i 0013.
+**Resultat:** una persona edita i rep l'enllaç sense demanar-lo. **Comprovació:**
+proves del servei amb Telegram, GitHub i model simulats i el recorregut del
+pilot. **PR:** diverses, en l'ordre definit a T8.9.
+
 ## Requisits específics
 
 ### Telegram, persones i sessions
@@ -451,6 +473,10 @@ de preview, to i avisos, imatges, estat del tema).
   de les intencions.
 
 ### Context, branques i treball concurrent
+
+Requisits històrics: T8.9 substitueix el canvi de feina dins un tema, la
+represa entre temes i els avisos de solapament; conserva l'aïllament entre
+branques, els límits de recursos i la preservació del treball aliè.
 
 - Per reprendre una feina, l'agent consulta la branca i PR referenciades, el
   diff, comentaris, CI i la descripció o especificació i ADR relacionats. Si hi
@@ -484,6 +510,10 @@ de preview, to i avisos, imatges, estat del tema).
 
 ### Continuïtat de la conversa (T8.7)
 
+T8.9 substitueix el classificador, el mode de consulta de només lectura,
+l'arxivament i la represa entre temes. Conserva l'activació, l'ordre i la
+sessió compartida; els esdeveniments ja no són la font de l'estat de GitHub.
+
 Aquests requisits mantenen la regla d'activació de T8.1: només entra al servei
 un missatge que menciona el bot o respon a un missatge seu. Respondre un missatge
 del bot no requereix menció.
@@ -492,9 +522,9 @@ del bot no requereix menció.
   `/merge` ni una preview executa un torn de Pi a la sessió del tema. Si el
   classificador retorna aclariment, o una continuació no té feina pendent ni
   PR del tema, el servei executa Pi en mode consulta: worktree de només
-  lectura, sense branca ni publicació. El model respon o demana l'aclariment amb
-  el context de la sessió. El text fix d'aclariment només es fa servir si el
-  model no pot respondre.
+  lectura, sense crear cap branca ni publicar. El model respon o demana
+  l'aclariment amb el context de la sessió. El text fix d'aclariment només es fa
+  servir si el model no pot respondre.
 - **Efectes del servei a la sessió.** El servei desa els efectes que decideix
   ell mateix en un tema: PR creada o actualitzada (número, branca i commit),
   resultat de les comprovacions locals, avís de CI, preview, resultat d'un
@@ -520,6 +550,13 @@ del bot no requereix menció.
   servei reprèn aquella PR amb les comprovacions d'elegibilitat de la
   continuació entre temes de T8.4. La imatge adjunta d'aquesta continuació
   s'aplica a la PR represa.
+- **Consulta sobre la feina publicada.** Si una consulta no té canvis locals ni
+  commits pendents, i el tema té una PR oberta publicada pel servei, el servei
+  situa el worktree al cap d'aquella PR perquè el model llegeixi el contingut
+  publicat en lloc de respondre des de `main`. El torn continua sent de només
+  lectura i conserva la petició de la persona: no publica res i no obre cap PR.
+  Si la represa es refusa, la consulta respon com abans, amb el worktree de la
+  feina nova.
 - **Feina en curs preservada.** Una implementació nova continua arxivant el
   worktree anterior sense perdre'l. La traça registra la classificació de cada
   instrucció perquè l'operador pugui revisar una decisió errònia.
@@ -545,6 +582,8 @@ Aquests requisits mantenen l'activació del bot, el camí determinista de
 
 **Estat del tema**
 
+T8.9 substitueix l'estat inferit dels esdeveniments per lectures vives de GitHub.
+
 - Cada torn del model rep del servei l'estat del tema com a dada: número i
   enllaç de la PR oberta, últim commit informat, resultat de la CI, estat de la
   preview i URL confirmada, si existeix. El sandbox continua sense xarxa ni
@@ -560,7 +599,7 @@ Aquests requisits mantenen l'activació del bot, el camí determinista de
   d'essencial. No fa una llista de preguntes.
 - Sempre dona l'enllaç de la preview quan n'hi ha. L'enllaç de la PR apareix
   només com a darrera línia, amb la forma «Enllaç per a revisió: …».
-- Avisos automàtics: un quan el canvi està a punt, amb la publicació i les
+- Avisos automàtics (substituïts pels quatre avisos de T8.9): un quan el canvi està a punt, amb la publicació i les
   comprovacions en verd, que convida a demanar la preview, i un de clar quan una
   cosa falla. No hi ha avisos separats per a la PR actualitzada, l'inici del
   seguiment de la CI i les comprovacions en verd. Els noms de branca, commit i
@@ -587,6 +626,125 @@ Aquests requisits mantenen l'activació del bot, el camí determinista de
   retenció, l'àlbum, el cartell vertical i l'entrada d'imatge al model són a
   [Codi, contingut i adjunts](#codi-contingut-i-adjunts), actualitzat per
   aquesta unitat.
+
+### Un tema, una feina (T8.9)
+
+Aquests requisits substitueixen les regles històriques contradictòries d'aquesta
+especificació, incloses la classificació de T8.7, els avisos de T8.8 i la
+petició explícita de preview de T8.4. Les esmenes proposades als
+[ADR 0009](../decisions/0009-pr-previews-same-domain-and-own-branches.md) i
+[ADR 0013](../decisions/0013-private-development-agent-boundary.md) requereixen
+revisió i fusió abans d'activar la capacitat nova.
+
+- Cada tema té una sola feina, branca i PR. El primer canvi crea branca i PR;
+  tots els canvis posteriors actualitzen la mateixa PR, encara que afectin
+  continguts diferents. Una feina independent necessita un tema nou. No es
+  reprèn una PR des d'un altre tema ni s'arxiva una feina per començar-ne una
+  altra. No es generen avisos de solapament; els conflictes reals no autoritzen
+  sobreescriure treball aliè. Una consulta sense canvis no crea PR ni publica.
+  En migrar temes existents, només es vincula automàticament una PR si la
+  correspondència és inequívoca; altrament s'atura el tema i s'avisa la persona
+  mantenidora, sense triar ni descartar feina.
+- Cada missatge acceptat ordinari executa un torn del model amb escriptura al
+  worktree del tema. Si canvia fitxers, el servei valida, fa commit i push i
+  crea o actualitza la PR; sense canvis no publica. No hi ha classificador ni
+  filtre semàntic barat: introduiria el mateix risc de decisions errònies. La
+  menció o resposta, la verificació de membre, els límits i les validacions
+  continuen sent controls deterministes. `/merge` conserva el seu camí
+  determinista i no passa al model. Un esborrany només es publica amb la petició
+  explícita «publica-la» d'un membre verificat.
+- Tot canvi arriba a la PR sense que ningú ho demani. La persona no ha de
+  demanar mai que es pugi, s'envii o es torni a intentar un canvi, i la preview
+  sempre mostra l'últim canvi del tema. Al final de cada torn que ha canviat
+  fitxers, el servei publica el canvi a la PR del tema. Si una comprovació local
+  o una regla de publicació ho impedeix, el servei ho reintenta al torn següent
+  sense que ningú ho demani. Si no ho pot resoldre, ho diu amb l'avís de fallada.
+  El canvi no queda mai només al worktree sense avisar. Un torn sense canvis no
+  publica res. Aquesta regla substitueix la continuació com a manera de publicar
+  feina pendent.
+- Abans de cada push, el servei sincronitza la branca amb `origin/main`. Si la
+  branca va per darrere, hi integra `main` amb un commit de merge, sense rebase
+  ni force-push, i torna a fer les comprovacions locals abans de publicar. Un
+  conflicte que el servei no resol de manera determinista es passa al model, al
+  mateix torn i dins del sandbox, perquè el resolgui conservant els dos canvis.
+  Si hi ha una contradicció de contingut, el model pregunta a la persona en
+  llenguatge planer quina versió vol. Si el conflicte no es pot resoldre, el
+  servei no publica una branca a mig resoldre: conserva el treball i ho diu amb
+  l'avís de fallada. El mateix control es fa quan `main` avança mentre la PR és
+  oberta i abans d'un `/merge`. Una PR desfasada no bloqueja la preview ni el
+  merge si es pot sincronitzar.
+- Abans de cada torn i decisió de preview, merge o reparació, el servei llegeix
+  de GitHub la PR, el cap, les comprovacions obligatòries i el resultat de
+  preview. Els esdeveniments persistits només donen auditoria i idempotència.
+  Si no pot obtenir o confirmar l'estat, falla en tancat i no fa l'acció;
+  reconcilia un resultat desconegut abans de repetir-lo. El sandbox no té xarxa
+  ni credencials. El model rep l'estat com a dada, no com a instrucció.
+- Una comprovació obligatòria `cancelled`, `timed_out` o fallida abans de cap
+  pas del projecte es torna a executar una sola vegada per execució original
+  mitjançant l'API de GitHub. El límit sobreviu als reinicis i als duplicats.
+  Amb resultat desconegut es reconcilia abans de repetir. Només una fallada real
+  amb sortida del projecte pot activar la reparació acotada del model; una
+  causa o sortida no verificable no autoritza reparar. Si el reintent falla o
+  no es pot confirmar, s'avisa la persona mantenidora, sense bucle. T8.9
+  requereix `Actions: write` al token del servei, subjecte a l'esmena i a la
+  verificació de permisos; aquesta especificació no canvia cap token.
+- Quan totes les comprovacions obligatòries del cap actual són verdes, el servei
+  demana `/preview` automàticament i publica al tema només l'URL confirmada pel
+  publicador per aquell SHA. Revalida PR, cap i CI abans de demanar-la; si el
+  cap canvia, descarta el resultat antic i espera el nou. El publicador manté
+  les seves revalidacions, branques pròpies i `PreviewNotice`/`PUBLIC_PREVIEW`.
+  Les peticions i avisos són idempotents per PR i SHA, també després de reinicis.
+  L'avís de preview confirmada registra privadament el SHA informat al fil per
+  al `/merge`, sense mostrar-lo a la persona. Una preview fallida no activa
+  reparació del model.
+- Quatre avisos fixos del servei, en català planer: «Hi estic treballant.»;
+  «Canvi desat. Preparo com es veurà; trigarà uns 10 minuts.»; «Ja ho pots
+  veure: <URL de la preview>»; «Alguna cosa ha fallat per part nostra. Ho torno
+  a intentar o aviso la persona mantenidora.» El servei indica només l'acció
+  que realment fa en el darrer avís. Cap resposta no usa vocabulari de PR,
+  branca, commit o comprovació; l'enllaç de PR pot ser l'última línia amb
+  «Enllaç per a revisió: …». El model pot respondre preguntes i demanar una
+  dada essencial en llenguatge planer, sense inventar estats.
+- Si GitHub informa que la PR és fusionada o tancada, el servei respon «Aquesta
+  feina ja està acabada. Obre un tema nou per a una altra feina.» i no executa
+  cap torn ni crea una altra PR en aquell tema. Si no pot verificar-ho, no
+  assumeix que és oberta. `/merge` conserva els controls i el SHA informat al
+  fil; mai no fusiona per iniciativa pròpia ni amb bypass.
+- El prompt de cada torn es redueix a l'edició per a una persona no tècnica,
+  les regles editorials i les dades necessàries del tema. Les decisions
+  tècniques queden al servei. Es conserven la revocació, l'aïllament, els
+  adjunts, els esborranys i la decisió humana de merge.
+
+**Entregues en ordre:** cada bloc té PR pròpia i proves del servei amb Telegram,
+GitHub i model simulats; no s'activa una capacitat abans dels controls previs.
+
+1. Estat viu: `workflow/topic-state.mjs`, `ci-watch.mjs`, `merge-request.mjs`,
+   `ci-repair.mjs` i `preview-request.mjs` consulten GitHub. Provar canvi de
+   cap, reexecució humana, error de xarxa i reinici sense estat obsolet.
+2. Reintent de CI: `ci-watch.mjs` i `ci-repair.mjs` distingeixen cancel·lació,
+   timeout, fallada prèvia i fallada real. Provar un sol reintent, sortida
+   absent, reintent fallit i resultat desconegut després d'un reinici.
+3. Una feina i cap classificador: `run-instruction.mjs` i `project-runner.mjs`
+   mantenen la mateixa PR i impedeixen crear-ne una altra quan és tancada o
+   fusionada. Cada torn amb canvis publica sense petició i es reintenta al torn
+   següent si no s'ha pogut publicar. Abans de cada push, la branca se
+   sincronitza amb `main`. Provar consulta sense canvis, diversos canvis i
+   adjunt, publicació bloquejada i represa, branca desfasada, conflicte resolt,
+   conflicte no resolt i `/merge` determinista sense passar pel model.
+4. Substituït per l'[especificació de l'etiqueta de
+   preview](preview-label.md): el servei posa l'etiqueta `preview` en crear la
+   PR i no comenta `/preview`. Requisit original: preview automàtica,
+   `ci-watch.mjs` i `preview-request.mjs` la demanen amb CI
+   verda. Provar CI pendent o vermella, cap canviat, duplicats, reinici i URL
+   confirmada pel publicador.
+5. Avisos i prompt: adaptar `run-instruction.mjs`, `topic-state.mjs` i
+   `runtime/profile.mjs`. Provar els quatre textos, respostes del model sense
+   termes tècnics i absència d'afirmacions sobre accions no fetes.
+6. Tema acabat: comprovar PR tancada i fusionada abans de cada torn; provar
+   ambdues, error de lectura i absència de nova PR.
+7. Neteja: retirar només després del nou camí `cross-topic-continuation.mjs`,
+   `overlap-warning.mjs` i `runtime/request-kind.mjs` i el codi mort associat;
+   provar el recorregut complet i les regressions d'identitat i aïllament.
 
 ### Entorn i permisos de desenvolupament
 
@@ -673,12 +831,17 @@ Aquests requisits mantenen l'activació del bot, el camí determinista de
   en superar els límits d'execució; T8.2 fixa els valors de temps i recursos. Un
   error fora de l'abast o un límit assolit es comunica, sense bucles infinits
   ni canvis especulatius per posar la CI en verd.
-- Una CI vermella no activa preview. Amb CI verda i una petició explícita al
+- Requisit històric, substituït per T8.9: una CI vermella no activa preview. Amb CI verda i una petició explícita al
   fil d'un membre verificat del grup, l'agent comenta `/preview` amb el seu
-  compte de GitHub pel flux de la fase 6. No cal una llista separada de permisos
+  compte de GitHub pel flux de la fase 6. La petició es fixa al cap actual de la
+  PR oberta encara que sigui més nou que el commit informat al tema, i queda
+  lligada a aquest SHA; si el cap no té les comprovacions obligatòries en verd,
+  es refusa. No cal una llista separada de permisos
   de preview ni vincular cada persona a un compte de GitHub. L'agent retorna
   l'URL i el SHA del publicador de confiança, mai una URL construïda o un estat
-  suposat. Sense petició explícita no comenta `/preview`.
+  suposat. Sense petició explícita no comenta `/preview`. Una petició que demana
+  el canvi i la preview en el mateix missatge compta com a petició explícita i
+  s'atén quan la CI és verda, sense demanar-la una segona vegada.
 - El merge és una acció humana executada pel servei. Un membre verificat el
   demana al fil amb `/merge` (opcionalment `/merge <PR>`) després de validar el
   resultat; el servei resol la PR de l'últim avís verd del fil, i si no pot
@@ -694,6 +857,9 @@ Aquests requisits mantenen l'activació del bot, el camí determinista de
   s'inspecciona l'estat real de Git i GitHub.
 
 ## Estratègia de tests i qualitat
+
+Els casos històrics de classificació, represa entre temes i preview explícita
+queden substituïts pels casos de T8.9; els altres controls continuen vigents.
 
 Se segueix [l'estratègia de proves](../testing-strategy.md), amb proves
 unitàries per regles i proves operatives per fronteres del servei. Es
@@ -796,6 +962,10 @@ prova simulada no es presenta com a verificació dels permisos reals de GitHub.
 
 ## Fora d'abast
 
+- La petició de preview amb l'etiqueta `preview`: la defineix
+  l'[especificació de l'etiqueta de preview](preview-label.md), que substitueix
+  el bloc 4 de T8.9.
+
 - Auto-merge, push directe a `main`, canvi de proteccions i desplegament
   directe a producció. El merge només entra a l'abast amb una petició
   verificada, mai automàtic.
@@ -815,6 +985,15 @@ prova simulada no es presenta com a verificació dels permisos reals de GitHub.
   abans d'avaluar l'eina i memòria autònoma obligatòria.
 
 ## Criteris d'acceptació
+
+T8.9 substitueix els criteris històrics de classificació, diverses feines,
+represa entre temes i petició explícita de preview. Una persona no tècnica crea
+una notícia, hi afegeix una foto i canvia el text dues vegades al mateix tema:
+cada canvi arriba a la PR sense demanar-ho, encara que `main` hagi avançat, i la
+persona rep l'enllaç per veure-la sense demanar-lo, sense vocabulari tècnic en cap
+resposta. Una comprovació cancel·lada es reexecuta una vegada i no encalla el
+tema quan després queda verda. Els casos negatius i de recuperació de T8.9
+han de passar abans de donar-la per completada.
 
 1. Les vuit unitats tenen PR revisada, validada i fusionada en ordre de
    dependències. L'ADR i les esmenes de fronteres s'han aprovat abans

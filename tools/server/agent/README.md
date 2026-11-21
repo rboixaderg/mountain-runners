@@ -64,7 +64,7 @@ tools/server/agent/               aplicació de Mountain Runners
 │   ├── merge-request.mjs           comanda `/merge` determinista i recuperació
 │   ├── cross-topic-continuation.mjs represa d'una PR publicada des d'un altre tema
 │   ├── overlap-warning.mjs         avís dels fitxers que se solapen amb feines actives
-│   ├── topic-state.mjs             estat del tema que rep cada torn, des dels magatzems
+│   ├── topic-state.mjs             estat del tema que rep cada torn, amb lectures de GitHub
 │   └── ci-repair.mjs               executa una reparació quan la cua està inactiva
 ├── runtime/
 │   ├── request-kind.mjs          interpreta la petició actual sense eines
@@ -82,14 +82,16 @@ tools/server/agent/               aplicació de Mountain Runners
     ├── worktrees.mjs              worktree, branca, commit i estat publicat
     ├── secret-scan.mjs            historial, rutes i credencials conegudes
     ├── publisher.mjs              push, PR i confirmació de l'estat publicat
-    ├── github.mjs                 client de GitHub, push segur i lectura de CI
+    ├── github.mjs                 client de GitHub, push segur i reexecució de CI
     ├── ci-status.mjs              check runs i estats de commit d'un SHA exacte
+    ├── ci-failure.mjs             classificació dels passos fallits de CI
+    ├── ci-job-output.mjs          sortida dins el pas fallit del job
     ├── request-signal.mjs         termini de lectura amb el senyal d'aturada
     ├── preview-comment.mjs        comentari de confirmació del publicador de confiança
     ├── preview-request-store.mjs  peticions de preview durables i URL confirmada
     ├── merge-request-store.mjs    peticions de merge durables
     ├── session-note-store.mjs     efectes del servei pendents i última resposta del tema
-    └── ci-watch-store.mjs         avís de CI i intents de reparació duradors
+    └── ci-watch-store.mjs         avisos, reexecucions i reparacions duradors
 ```
 
 Per seguir el codi, comença per `processes/telegram-bridge/main.mjs`, continua
@@ -133,7 +135,10 @@ al servidor. El nom local encara no representa una publicació a npm.
 2. `workflow` interpreta la petició amb una crida efímera sense eines i sense
    historial. A més del text, rep com a dada l'última resposta del tema
    (retallada), si el worktree del tema té feina sense publicar i el número de la
-   PR que el tema va publicar i encara té. La classificació queda a la traça
+   PR que el tema va publicar i encara té. Un límit de peticions del proveïdor
+   (HTTP 429) es reintenta com a màxim dues vegades, amb una espera curta, dins
+   del mateix termini de la classificació; si persisteix, la petició falla.
+   Cap altre error es reintenta i una aturada no ho fa mai. La classificació queda a la traça
    (`instruction_classified`). Si no és clara, el torn és una consulta (punt 4) i
    no una resposta fixa.
 3. El servei prepara el worktree actual del tema. El directori es diu
@@ -175,7 +180,9 @@ al servidor. El nom local encara no representa una publicació a npm.
    distingir si la persona vol un canvi, i el text fix d'aclariment només es fa
    servir si el model no respon.
 5. Si hi ha canvis o commits pendents, `workflow` crea o continua la branca i
-   executa `pnpm check` dins del contenidor. Una fallada conserva la feina.
+   executa les comprovacions locals dins del contenidor: `pnpm check:local` si
+   tots els camins són dins del contingut (ADR 0012) i `pnpm check` altrament.
+   Una fallada conserva la feina.
 6. `repository` fa commit, escaneja les credencials conegudes, publica la branca
    i obre o reutilitza la PR. Només després de confirmar push i PR registra el
    commit publicat fora del muntatge. El paquet retorna el resultat al tema.
@@ -195,8 +202,27 @@ al servidor. El nom local encara no representa una publicació a npm.
    reconcilia. Mentre el tema tingui cap avís incert, el tema té feina sense
    informar: `/merge` i `/preview` no resolen res, encara que un avís posterior
    s'hagi lliurat abans.
-8. Si les comprovacions obligatòries fallen, `workflow/ci-watch.mjs` reserva una
-   reparació automàtica abans d'avisar i tanca el seguiment. Si l'avís «en curs»
+8. Si una comprovació obligatòria acaba com a `cancelled` o `timed_out`, o falla
+   en un pas de preparació abans dels passos de projecte, `workflow/ci-watch.mjs`
+   reserva una reexecució dels jobs fallits de l'execució de GitHub. La reserva
+   es desa a `state/ci-watch.sqlite` abans de la crida i només permet un intent
+   per execució. El seguiment continua al mateix commit i el seu termini torna
+   a comptar des de la reserva. Si l'intent torna a fallar o no es pot confirmar,
+   el servei avisa i no el repeteix. Després d'un
+   reinici llegeix l'intent de GitHub abans de decidir; una reserva que no es pot
+   confirmar no autoritza una altra crida.
+
+   `repository/ci-failure.mjs` defineix els passos de preparació reconeguts:
+   `Set up job`, `Check out repository`, `Check out repository history`,
+   `Install pnpm`, `Set up Node.js`, `Install dependencies` i
+   `Install browser dependencies`. Un nom nou no s'hi afegeix automàticament.
+   Una fallada només pot passar a reparació si el job confirma un pas de projecte
+   reconegut i el log del job conté sortida atribuïble a aquell pas. El servei
+   limita la lectura a 1 MiB i exclou els segons de les fronteres i les ordres
+   agrupades del log. Si falta aquesta evidència, avisa sense executar el model.
+
+   Per a una fallada que compleix aquestes condicions, `workflow/ci-watch.mjs`
+   reserva una reparació automàtica abans d'avisar i tanca el seguiment. Si l'avís «en curs»
    no es lliura, la reserva es tanca de seguida com a `aborted` amb el motiu
    `announcement_failed` (traça `ci_repair_not_announced`): no s'executa mai i no
    bloqueja el tema. `ci-repair.mjs`
@@ -343,30 +369,17 @@ al servidor. El nom local encara no representa una publicació a npm.
     servei com a nota. El classificador no rep mai aquest bloc. El mateix store
     desa l'última resposta del tema, que el classificador llegeix com a dada.
 
-13. Cada torn del model rep l'estat del tema com a dada. `workflow/topic-state.mjs`
-    el construeix amb els magatzems duradors i sense cap crida a GitHub: la PR que
-    treballa el torn i el seu enllaç, l'últim commit informat amb el resultat de
-    les comprovacions obligatòries, si hi ha feina més nova sense informar,
-    l'última petició de preview (l'estat surt de `previewStates`) i l'última de
-    merge. Les lectures de l'informe, la preview i el merge es filtren per la PR
-    que el bloc imprimeix; el senyal de feina més nova continua sent del tema.
-    `workflow/topic-state.mjs` descriu cada estat en paraules planes —un estat que
-    el codi encara no descriu arriba amb el seu valor, marcat com a tal— i el bloc
-    demana al model que expliqui les paraules a la persona sense identificadors de
-    commit, noms de fitxer ni noms de comprovació. El bloc arriba a consultes,
-    implementacions, continuacions i reparacions, separat de la petició com el
-    bloc d'efectes del punt 12, i no al classificador. Un torn que continua la PR
-    d'un altre tema descriu aquella PR i els fets del tema que encara la té
-    (últim informe, preview i merge) i ho diu, fins que la publicació d'aquest
-    tema en registra el seguiment. L'URL de la preview només s'hi inclou quan el
-    magatzem té l'origen que el publicador de confiança ha confirmat per al
-    commit informat, encara que una petició posterior per al mateix commit
-    estigui en curs; el servei no construeix ni endevina cap URL i, si la
-    confirmació és d'un canvi anterior, ho diu sense URL. La línia de la PR
-    indica quan l'últim informe la dona per tancada o quan el merge consta fet.
-    El bloc no conté identificadors de Telegram ni dades de les persones. Si no
-    es pot llegir l'estat, el servei ho registra (`topic_state_failed`) i el torn
-    continua.
+13. Cada torn rep com a dada l'estat de la PR del tema. El servei la identifica
+    amb els seguiments desats i llegeix de GitHub el cap i les comprovacions
+    obligatòries. Revalida el cap i llegeix la confirmació del publicador per a
+    la preview del cap actual. Si no pot confirmar l'estat, el bloc diu que no
+    es pot comprovar i registra `topic_state_failed` al journal. El bloc no
+    conté identificadors de Telegram ni dades personals, i el classificador no
+    el rep. El sandbox continua sense xarxa ni credencials. La petició explícita
+    de preview també comprova el cap i la CI a GitHub, encara que el resultat
+    desat sigui anterior. Just abans de comentar, torna a comprovar el cap i la
+    CI; si han canviat o no es poden llegir, no comenta. El merge i la reparació
+    també tornen a comprovar el cap i la CI abans d'actuar.
 
 Les imatges d'una implementació o una continuació segueixen aquest camí.
 `attachments/prepare.mjs` descarrega cada fitxer al directori temporal del
@@ -552,8 +565,9 @@ les dependències offline perquè el model pugui executar proves. Les consultes 
 instal·len res i conserven el worktree en només lectura. Les ordres
 d'implementació usen un `TMPDIR` ignorat per Git dins del worktree. Abans de
 publicar, el servei torna a instal·lar les dependències del lockfile i executa
-`pnpm check` amb un `TMPDIR` nou. Si la preparació falla, no inicia el model o
-no publica, segons el moment de la fallada.
+`pnpm check`, o `pnpm check:local` si tots els camins de la publicació són dins
+del contingut (ADR 0012), amb un `TMPDIR` nou. Si la preparació falla, no inicia
+el model o no publica, segons el moment de la fallada.
 
 La versió de pnpm del `package.json` ha de coincidir amb la de la imatge. Una
 diferència es refusa sense descarregar cap versió nova. La imatge és

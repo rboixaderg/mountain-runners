@@ -185,7 +185,7 @@ conegui l'efecte. Un error es registra com a `service_report_failed` i no
 impedeix la resposta.
 
 Els missatges es poden substituir parcialment amb
-`messages: { acknowledgement, queueFull, queueBlocked, membershipUnavailable, unknownResult, attachmentUnsupported, attachmentTooLarge, attachmentTooManyImages }`.
+`messages: { acknowledgement, queueFull, queueBlocked, membershipUnavailable, unknownResult, attachmentUnsupported, attachmentInvalidPhoto, attachmentTooLarge, attachmentTooManyImages }`.
 `acknowledgement` és una funció que rep el retall d'una línia de la instrucció,
 `attachmentTooLarge` rep la mida en MB, `attachmentTooManyImages` el nombre
 d'imatges i la resta són cadenes. La recepció s'envia només quan la instrucció ja és duradora

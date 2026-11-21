@@ -71,9 +71,36 @@ function assistantText(message) {
     return "";
   }
   return message.content
-    .filter((block) => block.type === "text")
+    .filter(
+      (block) =>
+        block !== null &&
+        typeof block === "object" &&
+        block.type === "text" &&
+        typeof block.text === "string",
+    )
     .map((block) => block.text)
     .join("");
+}
+
+// A settled Pi may keep its RPC process alive. The next turn of the same session
+// must not overlap it on the session file, so stdin is closed and the process is
+// required to exit within a short bounded wait.
+async function waitForChildExit(child, milliseconds = 2000) {
+  if (child.exitCode != null || child.signalCode != null) {
+    return;
+  }
+  await new Promise((resolve) => {
+    const onClose = () => {
+      clearTimeout(timer);
+      resolve();
+    };
+    const timer = setTimeout(() => {
+      child.off("close", onClose);
+      child.kill("SIGKILL");
+      resolve();
+    }, milliseconds);
+    child.once("close", onClose);
+  });
 }
 
 /**
@@ -126,6 +153,9 @@ export async function runPiPrompt({
   );
 
   let text = "";
+  // The provider error of a turn that ended without an answer, such as a rate
+  // limit. The transport reports it; only the caller decides what it means.
+  let errorMessage = null;
   let timedOut = false;
   let settled = false;
   let aborted = false;
@@ -157,7 +187,9 @@ export async function runPiPrompt({
     };
 
     const acceptOutput = (chunk) => {
-      if (finished || outputLimitExceeded || aborted) return false;
+      // A timed-out run never becomes a settled one, even when a last line was
+      // already in flight: its result is unknown and cleanup must still run.
+      if (finished || outputLimitExceeded || aborted || timedOut) return false;
       outputBytes += Buffer.byteLength(chunk);
       if (outputBytes > maximumOutputBytes) {
         outputLimitExceeded = true;
@@ -165,6 +197,54 @@ export async function runPiPrompt({
         return false;
       }
       return true;
+    };
+
+    const handleLine = (rawLine) => {
+      const line = rawLine.replace(/\r$/u, "");
+      if (line.trim() === "") {
+        return;
+      }
+      let record;
+      try {
+        record = JSON.parse(line);
+      } catch {
+        return;
+      }
+      if (record === null || typeof record !== "object") {
+        return;
+      }
+      if (record.type === "response" && record.command === "prompt") {
+        if (record.success === false) {
+          finish(() =>
+            rejectPromise(
+              new Error(
+                `Pi rejected the prompt: ${record.error ?? "unknown error"}`,
+              ),
+            ),
+          );
+        } else if (record.data?.disposition === "handled") {
+          settled = true;
+          finish(() => resolvePromise({ text, handled: true, aborted: false }));
+        }
+      } else if (record.type === "message_end") {
+        const answer = assistantText(record.message);
+        if (answer !== "") {
+          if (text !== "") text += "\n\n";
+          text += answer;
+          // An answer that arrived after a failed attempt is the turn's result.
+          errorMessage = null;
+        } else if (
+          record.message?.role === "assistant" &&
+          typeof record.message.errorMessage === "string"
+        ) {
+          errorMessage = record.message.errorMessage;
+        }
+      } else if (record.type === "agent_settled") {
+        settled = true;
+        finish(() =>
+          resolvePromise({ text, aborted: record.aborted === true }),
+        );
+      }
     };
     child.stderr.setEncoding("utf8");
     child.stderr.on("data", (chunk) => {
@@ -177,45 +257,18 @@ export async function runPiPrompt({
       buffer += chunk;
       let separator;
       while (!finished && (separator = buffer.indexOf("\n")) !== -1) {
-        const line = buffer.slice(0, separator).replace(/\r$/u, "");
+        const line = buffer.slice(0, separator);
         buffer = buffer.slice(separator + 1);
-        if (line.trim() === "") {
-          continue;
-        }
-        let record;
-        try {
-          record = JSON.parse(line);
-        } catch {
-          continue;
-        }
-        if (record.type === "response" && record.command === "prompt") {
-          if (record.success === false) {
-            finish(() =>
-              rejectPromise(
-                new Error(
-                  `Pi rejected the prompt: ${record.error ?? "unknown error"}`,
-                ),
-              ),
-            );
-          } else if (record.data?.disposition === "handled") {
-            settled = true;
-            finish(() =>
-              resolvePromise({ text, handled: true, aborted: false }),
-            );
-          }
-        } else if (record.type === "message_end") {
-          const answer = assistantText(record.message);
-          if (answer !== "") {
-            if (text !== "") text += "\n\n";
-            text += answer;
-          }
-        } else if (record.type === "agent_settled") {
-          settled = true;
-          finish(() =>
-            resolvePromise({ text, aborted: record.aborted === true }),
-          );
-        }
+        handleLine(line);
       }
+    });
+    // The last record may arrive without a trailing newline; the end of the
+    // stream is still a complete line boundary.
+    child.stdout.on("end", () => {
+      if (finished || aborted || timedOut || outputLimitExceeded) return;
+      const trailing = buffer;
+      buffer = "";
+      handleLine(trailing);
     });
 
     // The child emits `spawn` once the process exists. The prompt is written
@@ -252,14 +305,14 @@ export async function runPiPrompt({
       // cannot receive the prompt: the close or abort handler reports why it
       // ended. The caller hears about the prompt only here.
       if (finished || aborted || timedOut) return;
-      onPromptSent?.();
-      const prompt = { id: "prompt-1", type: "prompt", message };
-      // Images are already cleaned and bounded by the caller; the transport
-      // only forwards them in the format the RPC accepts.
-      if (images.length > 0) {
-        prompt.images = images;
-      }
       try {
+        onPromptSent?.();
+        const prompt = { id: "prompt-1", type: "prompt", message };
+        // Images are already cleaned and bounded by the caller; the transport
+        // only forwards them in the format the RPC accepts.
+        if (images.length > 0) {
+          prompt.images = images;
+        }
         child.stdin.write(`${JSON.stringify(prompt)}\n`);
       } catch (error) {
         finish(() => rejectPromise(error));
@@ -269,10 +322,13 @@ export async function runPiPrompt({
 
   try {
     const result = await settle;
-    return { ...result, timedOut, stderr: stderr.join("") };
+    return { ...result, timedOut, errorMessage, stderr: stderr.join("") };
   } finally {
     if (!settled) child.kill("SIGKILL");
     child.stdin.end();
+    if (settled) {
+      await waitForChildExit(child);
+    }
     if (!settled || signal?.aborted) {
       await onInterrupted?.();
     }

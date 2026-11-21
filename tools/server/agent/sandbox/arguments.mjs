@@ -129,6 +129,7 @@ export function readSandboxSettings(environment) {
     throw new Error("The sandbox limits are not valid JSON.");
   }
   for (const name of [
+    "executionTimeoutMs",
     "sandboxProcessLimit",
     "sandboxMemoryMegabytes",
     "sandboxCpuCount",

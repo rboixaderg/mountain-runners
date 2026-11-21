@@ -134,7 +134,7 @@ test("answers a consultation without publishing a previous failed change", async
   let publications = 0;
   const runner = createProjectRunner({
     config,
-    classifyRequest: async () => "consultation",
+    classifyRequest: async () => ({ kind: "consultation" }),
     runModel: async () => ({ text: "La feina anterior continua pendent." }),
     runChecks: async () => {
       checks += 1;

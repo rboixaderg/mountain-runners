@@ -42,7 +42,15 @@ const schema = `
     singleton INTEGER PRIMARY KEY CHECK (singleton = 1),
     update_identifier INTEGER NOT NULL
   );
+  CREATE INDEX IF NOT EXISTS instructions_status ON instructions (status);
+  CREATE INDEX IF NOT EXISTS instructions_session_status ON instructions (session_key, status);
+  CREATE INDEX IF NOT EXISTS trace_update_action ON trace (update_identifier, action);
+  CREATE INDEX IF NOT EXISTS trace_session_created ON trace (session_key, created_at);
 `;
+
+// A second process may hold the database for a moment. Waiting for it keeps an
+// admission or a trace read from failing with a transient lock error.
+const busyTimeoutMilliseconds = 5000;
 
 export class AdmissionQueue {
   #database;
@@ -54,6 +62,7 @@ export class AdmissionQueue {
       throw new Error("maxPending must be a positive integer.");
     }
     this.#database = new DatabaseSync(path);
+    this.#database.exec(`PRAGMA busy_timeout = ${busyTimeoutMilliseconds}`);
     this.#database.exec(schema);
     this.#migrate();
     this.#maxPending = maxPending;
@@ -64,18 +73,24 @@ export class AdmissionQueue {
   // idempotent: it adds the column when it is missing and copies a single image
   // into the list the queue now stores.
   #migrate() {
-    const columns = this.#database
-      .prepare("PRAGMA table_info(instructions)")
-      .all();
-    if (columns.some((column) => column.name === "attachments")) {
-      return;
-    }
-    this.#database.exec("ALTER TABLE instructions ADD COLUMN attachments TEXT");
-    if (columns.some((column) => column.name === "attachment")) {
+    // One transaction: a migration that fails leaves the old schema and the old
+    // rows exactly as they were.
+    this.#transaction(() => {
+      const columns = this.#database
+        .prepare("PRAGMA table_info(instructions)")
+        .all();
+      if (columns.some((column) => column.name === "attachments")) {
+        return;
+      }
       this.#database.exec(
-        "UPDATE instructions SET attachments = '[' || attachment || ']' WHERE attachment IS NOT NULL",
+        "ALTER TABLE instructions ADD COLUMN attachments TEXT",
       );
-    }
+      if (columns.some((column) => column.name === "attachment")) {
+        this.#database.exec(
+          "UPDATE instructions SET attachments = '[' || attachment || ']' WHERE attachment IS NOT NULL",
+        );
+      }
+    });
   }
 
   #transaction(callback) {
@@ -85,7 +100,13 @@ export class AdmissionQueue {
       this.#database.exec("COMMIT");
       return result;
     } catch (error) {
-      this.#database.exec("ROLLBACK");
+      // SQLite may already have rolled the transaction back on its own; the
+      // root error is what the caller must see.
+      try {
+        this.#database.exec("ROLLBACK");
+      } catch {
+        // Nothing left to roll back.
+      }
       throw error;
     }
   }

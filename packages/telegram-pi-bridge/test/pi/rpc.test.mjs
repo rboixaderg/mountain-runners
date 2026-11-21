@@ -363,7 +363,7 @@ test("never reports a sent prompt when the turn stops before the write", async (
 });
 
 // A child that never spawns a process: the caller decides which events it emits.
-function fakeChild({ events, writeEvent = "write" }) {
+function fakeChild({ events, writeEvent = "write", closeOnKill = true }) {
   const child = new EventEmitter();
   child.stdout = Object.assign(new EventEmitter(), { setEncoding: () => {} });
   child.stderr = Object.assign(new EventEmitter(), { setEncoding: () => {} });
@@ -373,7 +373,7 @@ function fakeChild({ events, writeEvent = "write" }) {
   });
   // A killed child reports that it closed, like the real one.
   child.kill = () => {
-    setImmediate(() => child.emit("close", null));
+    if (closeOnKill) setImmediate(() => child.emit("close", null));
   };
   return child;
 }
@@ -468,4 +468,174 @@ process.stdin.once("data", (chunk) => {
     message: "mira la imatge",
     images,
   });
+});
+
+test("a timed-out run never settles on a record that arrives after the deadline", async (context) => {
+  const directory = fixture(context);
+  let cleanups = 0;
+
+  const running = runPiPrompt({
+    command: "pi",
+    model: "example/model",
+    cwd: directory.directory,
+    profileDirectory: directory.profile,
+    message: "question",
+    timeoutMilliseconds: 10,
+    onInterrupted: async () => {
+      cleanups += 1;
+    },
+    spawnImpl: () => {
+      const child = fakeChild({ events: [], closeOnKill: false });
+      setImmediate(() => child.emit("spawn"));
+      setTimeout(() => {
+        child.stdout.emit(
+          "data",
+          `${JSON.stringify({ type: "agent_settled", aborted: false })}\n`,
+        );
+        setImmediate(() => child.emit("close", 0));
+      }, 30);
+      return child;
+    },
+  });
+
+  const result = await running;
+  assert.equal(result.timedOut, true);
+  assert.equal(
+    cleanups,
+    1,
+    "the interrupted run still cleaned up its resources",
+  );
+});
+
+test("ignores records that are not JSON objects and text blocks that are not text", async (context) => {
+  const directory = fixture(context);
+  const { executable } = fakePi(context, {
+    script: `
+process.stdout.write("not json\\n");
+process.stdout.write("null\\n");
+process.stdout.write("42\\n");
+process.stdout.write(JSON.stringify({type:"message_end",message:{role:"assistant",content:[null,{type:"text",text:42},{type:"text",text:"usable"}]}})+"\\n");
+process.stdout.write(JSON.stringify({type:"agent_settled",aborted:false})+"\\n");
+`,
+  });
+
+  const result = await runPiPrompt({
+    ...optionsFor(executable),
+    profileDirectory: directory.profile,
+    cwd: directory.worktreePath,
+    message: "question",
+  });
+
+  assert.equal(result.text, "usable");
+});
+
+test("reports the provider error of a turn that settled without an answer", async (context) => {
+  const directory = fixture(context);
+  const { executable } = fakePi(context, {
+    script: `
+process.stdout.write(JSON.stringify({type:"message_end",message:{role:"assistant",content:[],stopReason:"error",errorMessage:"429: rate limit reached"}})+"\\n");
+process.stdout.write(JSON.stringify({type:"agent_settled",aborted:false})+"\\n");
+`,
+  });
+  const result = await runPiPrompt({
+    ...optionsFor(executable),
+    profileDirectory: directory.profile,
+    cwd: directory.worktreePath,
+    message: "question",
+  });
+  assert.equal(result.text, "");
+  assert.equal(result.errorMessage, "429: rate limit reached");
+});
+
+test("keeps the answer of a turn whose earlier attempt failed", async (context) => {
+  const directory = fixture(context);
+  const { executable } = fakePi(context, {
+    script: `
+process.stdout.write(JSON.stringify({type:"message_end",message:{role:"assistant",content:[],stopReason:"error",errorMessage:"429: rate limit reached"}})+"\\n");
+process.stdout.write(JSON.stringify({type:"message_end",message:{role:"assistant",content:[{type:"text",text:"ANSWER: synthetic"}]}})+"\\n");
+process.stdout.write(JSON.stringify({type:"agent_settled",aborted:false})+"\\n");
+`,
+  });
+  const result = await runPiPrompt({
+    ...optionsFor(executable),
+    profileDirectory: directory.profile,
+    cwd: directory.worktreePath,
+    message: "question",
+  });
+  assert.equal(result.text, "ANSWER: synthetic");
+  assert.equal(result.errorMessage, null);
+});
+
+test("reads a trailing record without a newline at the end of the stream", async (context) => {
+  const directory = fixture(context);
+  const { executable } = fakePi(context, {
+    script: `
+process.stdout.write(JSON.stringify({type:"message_end",message:{role:"assistant",content:[{type:"text",text:"first answer"}]}})+"\\n");
+process.stdout.write(JSON.stringify({type:"agent_settled",aborted:false}));
+`,
+  });
+
+  const result = await runPiPrompt({
+    ...optionsFor(executable),
+    profileDirectory: directory.profile,
+    cwd: directory.worktreePath,
+    message: "question",
+  });
+
+  assert.equal(result.text, "first answer");
+  assert.equal(result.timedOut, false);
+});
+
+test("rejects the turn when reporting the sent prompt fails", async (context) => {
+  const directory = fixture(context);
+  const { executable } = fakePi(context, {
+    script: `process.stdin.resume(); setInterval(() => {}, 1000);`,
+  });
+
+  await assert.rejects(
+    runPiPrompt({
+      ...optionsFor(executable),
+      profileDirectory: directory.profile,
+      cwd: directory.worktreePath,
+      message: "question",
+      onPromptSent: () => {
+        throw new Error("synthetic hook failure");
+      },
+    }),
+    /synthetic hook failure/u,
+  );
+});
+
+test("stops a settled Pi process that keeps running", async (context) => {
+  const directory = fixture(context);
+  const pidPath = join(directory.directory, "pi-process-id");
+  const { executable } = fakePi(context, {
+    script: `
+fs.writeFileSync(${JSON.stringify(pidPath)}, String(process.pid));
+process.stdin.once("data", () => {
+  process.stdout.write(JSON.stringify({type:"agent_settled",aborted:false})+"\\n");
+});
+setInterval(()=>{},1000);
+`,
+  });
+
+  await runPiPrompt({
+    ...optionsFor(executable),
+    profileDirectory: directory.profile,
+    cwd: directory.worktreePath,
+    message: "question",
+  });
+
+  const processIdentifier = Number(readFileSync(pidPath, "utf8"));
+  let alive = true;
+  for (let attempt = 0; attempt < 100 && alive; attempt += 1) {
+    try {
+      process.kill(processIdentifier, 0);
+    } catch {
+      alive = false;
+      break;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 10));
+  }
+  assert.equal(alive, false, "the settled Pi process did not exit");
 });

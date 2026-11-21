@@ -116,12 +116,21 @@ function parseResolve(values) {
     ? readPositiveInteger(values["pull-request"], "--pull-request")
     : null;
   if (kind === caseKinds.repair) {
+    const sequence = readPositiveInteger(values.sequence, "--sequence");
+    const failedCommit = readCommit(values["failed-commit"], "--failed-commit");
+    // The published commit is a different commit. Accepting the failed one would
+    // mark as published the commit whose checks failed.
+    if (commit !== undefined && commit === failedCommit) {
+      throw new ReconcileInputError(
+        "--commit must be the published commit, not the failed one.",
+      );
+    }
     return {
       command: "resolve",
       kind,
       updateIdentifier,
-      sequence: readPositiveInteger(values.sequence, "--sequence"),
-      failedCommit: readCommit(values["failed-commit"], "--failed-commit"),
+      sequence,
+      failedCommit,
       resolution,
       commit,
     };
@@ -178,27 +187,44 @@ function parseCommandArguments(argv) {
   throw new ReconcileInputError("Expected the list or resolve command.");
 }
 
-// A missing database has no case of its kind and is never created.
-function openStores(config) {
+// A missing database has no case of its kind and is never created. A store that
+// cannot be opened closes the ones already open, so a failed command never
+// leaves a database locked.
+function openStores(config, { includeNotes }) {
   const databasePath = (fileName) => join(config.paths.state, fileName);
   const admissionPath = databasePath("admission.sqlite");
   const ciWatchPath = databasePath("ci-watch.sqlite");
   const previewPath = databasePath("preview-request.sqlite");
   const sessionNotesPath = databasePath("session-notes.sqlite");
-  return {
-    instructions: existsSync(admissionPath)
+  const stores = {
+    instructions: null,
+    repairs: null,
+    previews: null,
+    notes: null,
+  };
+  try {
+    stores.instructions = existsSync(admissionPath)
       ? new AdmissionQueue(admissionPath, {
           maxPending: config.limits.maxPendingInstructions,
         })
-      : null,
-    repairs: existsSync(ciWatchPath) ? new CiWatchStore(ciWatchPath) : null,
-    previews: existsSync(previewPath)
+      : null;
+    stores.repairs = existsSync(ciWatchPath)
+      ? new CiWatchStore(ciWatchPath)
+      : null;
+    stores.previews = existsSync(previewPath)
       ? new PreviewRequestStore(previewPath)
-      : null,
-    notes: existsSync(sessionNotesPath)
-      ? new SessionNoteStore(sessionNotesPath)
-      : null,
-  };
+      : null;
+    // Listing reads no note: opening the store would recover the claims of a
+    // previous turn and mutate it, which a read-only command never does.
+    stores.notes =
+      includeNotes && existsSync(sessionNotesPath)
+        ? new SessionNoteStore(sessionNotesPath)
+        : null;
+  } catch (error) {
+    closeStores(stores);
+    throw error;
+  }
+  return stores;
 }
 
 function closeStores(stores) {
@@ -256,21 +282,33 @@ export async function runReconcileCommand({
     return 1;
   }
 
-  const stores = openStores(config);
-  const github =
-    githubOverride ??
-    new GitHubTrust({
-      token: config.github.token,
-      repository: config.github.repository,
+  let stores;
+  try {
+    stores = openStores(config, {
+      // A resolution tells the topic, so its note store is needed; a list only
+      // reads the cases.
+      includeNotes: command.command !== "list",
     });
+  } catch (error) {
+    warn(error instanceof Error ? error.message : "unknown error");
+    return 1;
+  }
   try {
     if (command.command === "list") {
+      const github =
+        githubOverride ??
+        new GitHubTrust({
+          token: config.github.token,
+          repository: config.github.repository,
+        });
       const cases = await listUncertainCases({ config, stores, github });
       for (const facts of cases) {
         write(`${JSON.stringify(facts)}\n`);
       }
       return 0;
     }
+    // A resolution reads no pull request: it applies exactly the decision the
+    // person already checked on GitHub.
     const resolved = await resolveUncertainCase({
       config,
       stores,

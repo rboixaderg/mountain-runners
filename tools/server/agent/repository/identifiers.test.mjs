@@ -102,6 +102,21 @@ test("reads back the private key a pre-migration worktree name encodes", () => {
     parseLegacyWorktreeName("topic_n1001234567890_7-before-1001"),
     { sessionKey, updateIdentifier: 1001 },
   );
+  assert.deepEqual(parseLegacyWorktreeName("topic_1001234567890_7"), {
+    sessionKey: "1001234567890:7",
+    updateIdentifier: null,
+  });
   assert.equal(parseLegacyWorktreeName("topic-0123456789abcdef"), null);
   assert.equal(parseLegacyWorktreeName("synthetic"), null);
+});
+
+test("rejects a legacy name that mixes the negative prefix with digits", () => {
+  for (const name of [
+    "topic_nn1001234567890_7",
+    "topic_12n34_7",
+    "topic_n_7",
+    "topic_n-1001234567890_7",
+  ]) {
+    assert.equal(parseLegacyWorktreeName(name), null, name);
+  }
 });

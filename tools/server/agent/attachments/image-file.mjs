@@ -19,6 +19,7 @@ import {
   inspectImage,
   stripImageMetadata,
 } from "./image-format.mjs";
+import { readExifOrientation } from "./exif-orientation.mjs";
 import { attachmentRefusalReasons } from "./refusals.mjs";
 
 // A longer side is downscaled inside the sandbox, never in this process.
@@ -80,6 +81,9 @@ export function prepareImageAttachment({ bytes, fileName, mimeType }) {
     };
   }
   let cleaned;
+  // The orientation is the only metadata the service keeps, and it leaves as an
+  // instruction for the sandbox: the stripped bytes carry no EXIF container.
+  const orientation = readExifOrientation(bytes, type);
   try {
     cleaned = stripImageMetadata(bytes, type);
   } catch {
@@ -114,6 +118,7 @@ export function prepareImageAttachment({ bytes, fileName, mimeType }) {
       extension: documentType.canonicalExtension,
       width: inspected.width,
       height: inspected.height,
+      orientation,
       bytes: cleaned,
     },
   };

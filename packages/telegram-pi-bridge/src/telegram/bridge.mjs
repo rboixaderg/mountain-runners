@@ -87,19 +87,19 @@ function limitReport(report) {
 
 function sleep(milliseconds, signal) {
   return new Promise((resolve) => {
-    if (milliseconds <= 0) {
+    if (milliseconds <= 0 || signal?.aborted) {
       resolve();
       return;
     }
-    const timer = setTimeout(resolve, milliseconds);
-    signal?.addEventListener(
-      "abort",
-      () => {
-        clearTimeout(timer);
-        resolve();
-      },
-      { once: true },
-    );
+    const onAbort = () => {
+      clearTimeout(timer);
+      resolve();
+    };
+    const timer = setTimeout(() => {
+      signal?.removeEventListener("abort", onAbort);
+      resolve();
+    }, milliseconds);
+    signal?.addEventListener("abort", onAbort, { once: true });
   });
 }
 
@@ -122,7 +122,7 @@ export class AgentBridge {
   #lastConsumed = null;
   #processed = new Set();
   #deferred = new Map();
-  #deferredOverflow = null;
+  #deferredOverflow = new Map();
 
   constructor({
     groupIdentifier,
@@ -353,15 +353,43 @@ export class AgentBridge {
   }
 
   #defer(update) {
+    // A re-delivered update is already waiting: it never evicts an older entry.
+    if (this.#deferred.has(update.update_id)) {
+      return;
+    }
     if (this.#deferred.size >= maximumDeferredUpdates) {
-      const oldest = this.#deferred.keys().next().value;
-      this.#deferred.delete(oldest);
-      this.#deferredOverflow =
-        this.#deferredOverflow === null
-          ? oldest
-          : Math.min(this.#deferredOverflow, oldest);
+      const oldestUpdateIdentifier = this.#deferred.keys().next().value;
+      const oldestUpdate = this.#deferred.get(oldestUpdateIdentifier);
+      this.#deferred.delete(oldestUpdateIdentifier);
+      const sessionKey = this.#sessionKeyOf(oldestUpdate);
+      if (sessionKey !== null) {
+        const watermark = this.#deferredOverflow.get(sessionKey);
+        this.#deferredOverflow.set(sessionKey, {
+          min:
+            watermark === undefined
+              ? oldestUpdateIdentifier
+              : Math.min(watermark.min, oldestUpdateIdentifier),
+          max:
+            watermark === undefined
+              ? oldestUpdateIdentifier
+              : Math.max(watermark.max, oldestUpdateIdentifier),
+        });
+      }
     }
     this.#deferred.set(update.update_id, update);
+  }
+
+  #oldestDeferredUpdateIdentifierForSession(sessionKey) {
+    let oldest = this.#deferredOverflow.get(sessionKey)?.min ?? null;
+    for (const update of this.#deferred.values()) {
+      if (this.#sessionKeyOf(update) !== sessionKey) {
+        continue;
+      }
+      if (oldest === null || update.update_id < oldest) {
+        oldest = update.update_id;
+      }
+    }
+    return oldest;
   }
 
   // Updates of a session whose album is still waiting keep their arrival order:
@@ -369,6 +397,23 @@ export class AgentBridge {
   // deferral only waits behind an album whose oldest member arrived before it;
   // a newer album never overtakes it.
   async #flushDeferred(sessionKey, { signal } = {}) {
+    const watermark = this.#deferredOverflow.get(sessionKey);
+    if (watermark !== undefined) {
+      // Older updates of this session were evicted. The offset stays at the
+      // watermark and Telegram re-reads them in order, so running a newer copy
+      // here would let it overtake them. Every dropped copy extends the range
+      // the offset must still cover.
+      for (const [updateIdentifier, update] of this.#deferred) {
+        if (
+          this.#sessionKeyOf(update) === sessionKey &&
+          updateIdentifier > watermark.min
+        ) {
+          this.#deferred.delete(updateIdentifier);
+          watermark.max = Math.max(watermark.max, updateIdentifier);
+        }
+      }
+      return;
+    }
     const deferred = [...this.#deferred.values()]
       .filter((update) => this.#sessionKeyOf(update) === sessionKey)
       .toSorted((first, second) => first.update_id - second.update_id);
@@ -399,21 +444,70 @@ export class AgentBridge {
   }
 
   #oldestDeferredUpdateIdentifier() {
-    let oldest = this.#deferredOverflow;
+    let oldest = null;
     for (const updateIdentifier of this.#deferred.keys()) {
       if (oldest === null || updateIdentifier < oldest) {
         oldest = updateIdentifier;
       }
     }
+    for (const watermark of this.#deferredOverflow.values()) {
+      if (oldest === null || watermark.min < oldest) {
+        oldest = watermark.min;
+      }
+    }
     return oldest;
+  }
+
+  // The offset covers the whole evicted range, page by page: only the update
+  // that reaches the last evicted identifier ends the watermark.
+  #advanceDeferredOverflow(update) {
+    const sessionKey = this.#sessionKeyOf(update);
+    if (sessionKey === null) {
+      return;
+    }
+    const watermark = this.#deferredOverflow.get(sessionKey);
+    if (watermark === undefined) {
+      return;
+    }
+    if (update.update_id >= watermark.max) {
+      this.#deferredOverflow.delete(sessionKey);
+      return;
+    }
+    if (update.update_id >= watermark.min) {
+      watermark.min = update.update_id + 1;
+    }
+  }
+
+  // A group never overtakes an older arrival of its own session: admitting it
+  // first would publish a newer album or message before the older one.
+  #heldBehindOlderArrival(sessionKey, oldestUpdateIdentifier) {
+    if (sessionKey === null) {
+      return false;
+    }
+    const oldestAlbum =
+      this.#albums.oldestUpdateIdentifierForSession(sessionKey);
+    if (oldestAlbum !== null && oldestAlbum < oldestUpdateIdentifier) {
+      return true;
+    }
+    const oldestDeferred =
+      this.#oldestDeferredUpdateIdentifierForSession(sessionKey);
+    return oldestDeferred !== null && oldestDeferred < oldestUpdateIdentifier;
   }
 
   // Admit the albums whose bounded wait ended. An album becomes one
   // instruction, so its images are classified and verified together, once.
+  // A held group stays in the collector and is retried by the next poll, which
+  // long-polls, so the wait costs no busy loop.
   async #admitExpiredAlbums({ signal } = {}) {
     for (const group of this.#albums.expired()) {
       if (signal?.aborted) {
         return;
+      }
+      const oldestUpdateIdentifier = group.updates[0].update_id;
+      if (
+        this.#heldBehindOlderArrival(group.sessionKey, oldestUpdateIdentifier)
+      ) {
+        continue;
       }
       this.#albums.remove(group.identifier);
       const classification = classifyAlbum(
@@ -423,6 +517,12 @@ export class AgentBridge {
       await this.#handleClassification(classification, { signal });
       if (signal?.aborted) {
         return;
+      }
+      // Telegram re-delivers every member at or above the offset. Remembering
+      // all of them keeps an unchanged group from being collected again while
+      // another album holds the offset behind it.
+      for (const update of group.updates) {
+        this.#rememberProcessed(update.update_id);
       }
       this.#lastConsumed = Math.max(
         this.#lastConsumed ?? 0,
@@ -499,6 +599,9 @@ export class AgentBridge {
       }
       if (isAlbumMember(update, { groupIdentifier: this.#groupIdentifier })) {
         this.#albums.add(update);
+        // The collector holds the offset for this member, so it already counts
+        // as consumed for the watermark.
+        this.#advanceDeferredOverflow(update);
         continue;
       }
       // A later message of an album's session waits behind the album; other
@@ -509,12 +612,7 @@ export class AgentBridge {
         continue;
       }
       this.#deferred.delete(update.update_id);
-      if (
-        this.#deferredOverflow !== null &&
-        update.update_id >= this.#deferredOverflow
-      ) {
-        this.#deferredOverflow = null;
-      }
+      this.#advanceDeferredOverflow(update);
       this.#rememberProcessed(update.update_id);
       const classification = classifyInstruction(
         update,
@@ -569,8 +667,30 @@ export class AgentBridge {
       return request;
     }
 
+    if (result === null || typeof result !== "object") {
+      this.#queue.markUncertain(request.updateIdentifier, "unexpected_result");
+      this.#queue.recordTrace({
+        updateIdentifier: request.updateIdentifier,
+        authorIdentifier: request.authorIdentifier,
+        sessionKey: request.sessionKey,
+        action: "instruction_uncertain",
+        detail: "unexpected_result",
+      });
+      await this.#reply(request.sessionKey, this.#messages.unknownResult, {
+        signal,
+      });
+      return request;
+    }
+
     if (result.outcome === "uncertain") {
       this.#queue.markUncertain(request.updateIdentifier, result.outcome);
+      this.#queue.recordTrace({
+        updateIdentifier: request.updateIdentifier,
+        authorIdentifier: request.authorIdentifier,
+        sessionKey: request.sessionKey,
+        action: "instruction_uncertain",
+        detail: result.outcome,
+      });
       await this.#reply(
         request.sessionKey,
         result.report || this.#messages.unknownResult,

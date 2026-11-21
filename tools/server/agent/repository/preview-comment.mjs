@@ -10,9 +10,14 @@ const marker = "<!-- mountain-runners-preview -->";
 const fullCommitPattern = "[a-f0-9]{40}";
 
 function bodyPattern(pullRequestNumber) {
+  if (!Number.isSafeInteger(pullRequestNumber) || pullRequestNumber < 1) {
+    throw new Error("A positive pull request number is required.");
+  }
   const origin = `https://pr-${pullRequestNumber}\\.preview\\.mountainrunners\\.cat`;
+  // GitHub normalises a comment body to LF, but a body read through another
+  // client can still carry CRLF: both separate the same three lines.
   return new RegExp(
-    `^${marker}\\nPreview publicada: (${origin})\\nCommit: \`(${fullCommitPattern})\`\\.$`,
+    `^${marker}\\r?\\nPreview publicada: (${origin})\\r?\\nCommit: \`(${fullCommitPattern})\`\\.$`,
     "u",
   );
 }

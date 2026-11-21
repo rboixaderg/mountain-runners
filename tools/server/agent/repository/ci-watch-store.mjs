@@ -7,6 +7,12 @@
 // interrupted between `sending` and `sent` has an unknown delivery and is never
 // replayed automatically.
 //
+// A newer commit of a pull request supersedes the older pending watch of the
+// same pull request: it can neither be delivered nor describe the current head,
+// so it stops counting as unreported work. The report of a topic is ordered by
+// the publication of its commit, never by the moment a notice happened to be
+// delivered.
+//
 // A repair attempt is durable before the notice is sent and before the worktree
 // is touched. The budget is counted per pull request and failing-check set, so
 // it survives a restart and a new commit: the same failure cannot be repaired
@@ -20,20 +26,35 @@
 // An unknown delivery is never treated as a delivered notice: while the topic
 // has an uncertain notice, it has unreported work and neither a merge nor a
 // preview can be resolved, whatever the other notices of the topic say.
+//
+// A publication whose request also asked for the preview of the result keeps
+// that author. Its green notice announces the preview instead of inviting the
+// person to ask, and the watch requests it once the notice was delivered.
 
-import { DatabaseSync } from "node:sqlite";
+import { openDatabase, runTransaction } from "./sqlite.mjs";
 
-const schema = `
+const watchesTable = `
   CREATE TABLE IF NOT EXISTS ci_watches (
     update_identifier INTEGER PRIMARY KEY,
     session_key TEXT NOT NULL,
     pull_request_number INTEGER NOT NULL,
     commit_sha TEXT NOT NULL,
-    state TEXT NOT NULL CHECK (state IN ('pending', 'sending', 'sent', 'uncertain')),
+    state TEXT NOT NULL CHECK (state IN ('pending', 'sending', 'sent', 'uncertain', 'superseded')),
     result TEXT,
+    preview_author_identifier INTEGER,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL
   );
+`;
+
+const watchesIndexes = `
+  CREATE INDEX IF NOT EXISTS ci_watches_topic_state
+    ON ci_watches (session_key, state);
+  CREATE INDEX IF NOT EXISTS ci_watches_pull_request
+    ON ci_watches (pull_request_number, update_identifier);
+`;
+
+const repairsTable = `
   CREATE TABLE IF NOT EXISTS ci_repairs (
     sequence INTEGER PRIMARY KEY,
     update_identifier INTEGER NOT NULL,
@@ -53,6 +74,77 @@ const schema = `
     ON ci_repairs (update_identifier, commit_sha, failure_fingerprint);
 `;
 
+const rerunsTable = `
+  CREATE TABLE IF NOT EXISTS ci_reruns (
+    run_identifier INTEGER PRIMARY KEY,
+    original_attempt INTEGER NOT NULL,
+    created_at TEXT NOT NULL,
+    watch_update_identifier INTEGER,
+    commit_sha TEXT
+  );
+`;
+
+const schema = `${watchesTable}${watchesIndexes}${repairsTable}${rerunsTable}`;
+
+/**
+ * A store created before a watch could be superseded still carries the old
+ * state check. SQLite cannot widen a check in place, so the table is rebuilt
+ * once, keeping every row. The indexes follow the renamed table, so they are
+ * created again for the new one.
+ */
+function ensureSupersededState(database) {
+  const definition = database
+    .prepare(
+      "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'ci_watches'",
+    )
+    .get()?.sql;
+  if (definition === undefined || definition.includes("'superseded'")) {
+    return;
+  }
+  runTransaction(database, () => {
+    database.exec(`
+      ALTER TABLE ci_watches RENAME TO ci_watches_previous;
+      ${watchesTable}
+      INSERT INTO ci_watches
+        (update_identifier, session_key, pull_request_number, commit_sha, state,
+         result, created_at, updated_at)
+      SELECT update_identifier, session_key, pull_request_number, commit_sha,
+             state, result, created_at, updated_at
+      FROM ci_watches_previous;
+      DROP TABLE ci_watches_previous;
+      ${watchesIndexes}
+    `);
+  });
+}
+
+/** Preserve existing rerun reservations when adding watch attribution. */
+function ensureRerunWatchColumns(database) {
+  const columns = database.prepare("PRAGMA table_info(ci_reruns)").all();
+  if (!columns.some((column) => column.name === "watch_update_identifier")) {
+    database.exec(
+      "ALTER TABLE ci_reruns ADD COLUMN watch_update_identifier INTEGER",
+    );
+  }
+  if (!columns.some((column) => column.name === "commit_sha")) {
+    database.exec("ALTER TABLE ci_reruns ADD COLUMN commit_sha TEXT");
+  }
+}
+
+/**
+ * A store created before a watch could ask for the preview together with its
+ * change gets the column added: null means the request did not ask for it, so
+ * every previous watch keeps behaving as before.
+ */
+function ensurePreviewAuthorColumn(database) {
+  const columns = database.prepare("PRAGMA table_info(ci_watches)").all();
+  if (columns.some((column) => column.name === "preview_author_identifier")) {
+    return;
+  }
+  database.exec(
+    "ALTER TABLE ci_watches ADD COLUMN preview_author_identifier INTEGER",
+  );
+}
+
 const finishedRepairStatuses = new Set(["done", "aborted", "uncertain"]);
 
 /**
@@ -69,40 +161,99 @@ export class CiWatchStore {
   #now;
 
   constructor(path, { now = () => new Date() } = {}) {
-    this.#database = new DatabaseSync(path);
+    this.#database = openDatabase(path);
     this.#database.exec(schema);
+    ensureSupersededState(this.#database);
+    ensurePreviewAuthorColumn(this.#database);
+    ensureRerunWatchColumns(this.#database);
     this.#now = now;
   }
 
   #transaction(callback) {
-    this.#database.exec("BEGIN IMMEDIATE");
-    try {
-      const result = callback();
-      this.#database.exec("COMMIT");
-      return result;
-    } catch (error) {
-      this.#database.exec("ROLLBACK");
-      throw error;
-    }
+    return runTransaction(this.#database, callback);
   }
 
-  /** Register the notification for a confirmed publication. */
-  add({ updateIdentifier, sessionKey, pullRequestNumber, commitSha }) {
-    const timestamp = this.#now().toISOString();
-    this.#database
+  /**
+   * Register the notification for a confirmed publication. A newer commit of
+   * the same pull request supersedes every older pending watch: that watch can
+   * neither be delivered nor describe the head of the pull request any more, so
+   * it must not count as unreported work or become the last report. It is kept
+   * as `superseded` for the audit.
+   *
+   * `previewAuthorIdentifier` records that the same request asked for the
+   * preview of the result: the green notice of this watch requests it in the
+   * name of that author. Null means no preview was asked for.
+   */
+  add({
+    updateIdentifier,
+    sessionKey,
+    pullRequestNumber,
+    commitSha,
+    previewAuthorIdentifier = null,
+  }) {
+    this.#transaction(() => {
+      const timestamp = this.#now().toISOString();
+      this.#database
+        .prepare(
+          `UPDATE ci_watches SET state = 'superseded', updated_at = ?
+           WHERE pull_request_number = ? AND state = 'pending'
+             AND update_identifier != ?`,
+        )
+        .run(timestamp, pullRequestNumber, updateIdentifier);
+      this.#database
+        .prepare(
+          `INSERT INTO ci_watches
+          (update_identifier, session_key, pull_request_number, commit_sha, state, preview_author_identifier, created_at, updated_at)
+          VALUES (?, ?, ?, ?, 'pending', ?, ?, ?)`,
+        )
+        .run(
+          updateIdentifier,
+          sessionKey,
+          pullRequestNumber,
+          commitSha,
+          previewAuthorIdentifier,
+          timestamp,
+          timestamp,
+        );
+    });
+  }
+
+  /** Reserve the one automatic rerun before sending any request to GitHub. */
+  reserveRerun({
+    runIdentifier,
+    originalAttempt,
+    updateIdentifier = null,
+    commitSha = null,
+  }) {
+    return (
+      this.#database
+        .prepare(
+          `INSERT OR IGNORE INTO ci_reruns
+           (run_identifier, original_attempt, created_at, watch_update_identifier, commit_sha)
+           VALUES (?, ?, ?, ?, ?)`,
+        )
+        .run(
+          runIdentifier,
+          originalAttempt,
+          this.#now().toISOString(),
+          updateIdentifier,
+          commitSha,
+        ).changes === 1
+    );
+  }
+
+  rerunDeadlineStart({ updateIdentifier, commitSha }) {
+    return this.#database
       .prepare(
-        `INSERT INTO ci_watches
-        (update_identifier, session_key, pull_request_number, commit_sha, state, created_at, updated_at)
-        VALUES (?, ?, ?, ?, 'pending', ?, ?)`,
+        "SELECT MAX(created_at) AS created_at FROM ci_reruns WHERE watch_update_identifier = ? AND commit_sha = ?",
       )
-      .run(
-        updateIdentifier,
-        sessionKey,
-        pullRequestNumber,
-        commitSha,
-        timestamp,
-        timestamp,
-      );
+      .get(updateIdentifier, commitSha).created_at;
+  }
+
+  rerun(runIdentifier) {
+    return this.#database
+      .prepare("SELECT * FROM ci_reruns WHERE run_identifier = ?")
+      .get(runIdentifier);
   }
 
   pending() {
@@ -168,32 +319,37 @@ export class CiWatchStore {
   }
 
   /**
-   * The commit this topic was last told about: the most recently delivered
-   * notice of the session. Only a delivered notice counts, and its result says
-   * whether that commit was reported as green.
+   * The commit this topic was last told about: the newest published watch that
+   * was delivered. Only a delivered notice counts, and its result says whether
+   * that commit was reported as green. The order is the publication order, never
+   * the delivery order: a slow older watch that finished later can neither
+   * overwrite a newer commit's report nor authorize a merge of an older commit.
    */
   lastReported(sessionKey) {
     return this.#database
       .prepare(
         `SELECT pull_request_number, commit_sha, result FROM ci_watches
          WHERE session_key = ? AND state = 'sent'
-         ORDER BY updated_at DESC, update_identifier DESC LIMIT 1`,
+         ORDER BY created_at DESC, update_identifier DESC LIMIT 1`,
       )
       .get(sessionKey);
   }
 
   /**
-   * The commit a topic was last told about for one pull request: the most
-   * recently delivered notice of that pull request. A topic that published
+   * The newest delivered notice of one pull request. A topic that published
    * several pull requests keeps one report per pull request, so a notice of
-   * another one never describes this pull request.
+   * another one never describes this pull request. The order is again the
+   * publication order, not the delivery order. `update_identifier` is the update
+   * that published the commit, so a later request of the same pull request can
+   * tell whether it came after this notice.
    */
   lastReportedForPullRequest({ sessionKey, pullRequestNumber }) {
     return this.#database
       .prepare(
-        `SELECT pull_request_number, commit_sha, result FROM ci_watches
+        `SELECT update_identifier, pull_request_number, commit_sha, result
+         FROM ci_watches
          WHERE session_key = ? AND pull_request_number = ? AND state = 'sent'
-         ORDER BY updated_at DESC, update_identifier DESC LIMIT 1`,
+         ORDER BY created_at DESC, update_identifier DESC LIMIT 1`,
       )
       .get(sessionKey, pullRequestNumber);
   }
@@ -268,7 +424,7 @@ export class CiWatchStore {
   #resolveUncertainNotice(updateIdentifier, state) {
     return this.#transaction(() => {
       // The decision changes the state, not the moment of the notice: the last
-      // delivered notice is ordered by `updated_at`, so confirming an older
+      // delivered notice is ordered by `created_at`, so confirming an older
       // notice must not move it after a newer one that was delivered later.
       const changed =
         this.#database
@@ -299,6 +455,19 @@ export class CiWatchStore {
            WHERE update_identifier = ? AND state = 'pending'`,
         )
         .run(result, this.#now().toISOString(), updateIdentifier).changes === 1
+    );
+  }
+
+  /** Replace a delivered repair announcement with a new live result. */
+  beginRepairResult(updateIdentifier, commitSha, result) {
+    return (
+      this.#database
+        .prepare(
+          `UPDATE ci_watches SET state = 'sending', result = ?, updated_at = ?
+           WHERE update_identifier = ? AND commit_sha = ? AND state = 'sent' AND result = 'repairing'`,
+        )
+        .run(result, this.#now().toISOString(), updateIdentifier, commitSha)
+        .changes === 1
     );
   }
 
@@ -355,8 +524,9 @@ export class CiWatchStore {
 
   /**
    * Follow the commit an automatic repair published, in the same topic and
-   * conversation slot. Only a finished watch is reopened: a pending or sending
-   * row is never overwritten.
+   * conversation slot. Only a delivered watch is reopened: a pending or sending
+   * row is never overwritten, and an uncertain one stays for the person who must
+   * reconcile it, never silently becoming pending again.
    */
   reopen({ updateIdentifier, sessionKey, pullRequestNumber, commitSha }) {
     const timestamp = this.#now().toISOString();
@@ -366,7 +536,7 @@ export class CiWatchStore {
           `UPDATE ci_watches
            SET session_key = ?, pull_request_number = ?, commit_sha = ?, state = 'pending',
                result = NULL, created_at = ?, updated_at = ?
-           WHERE update_identifier = ? AND state IN ('sent', 'uncertain')`,
+           WHERE update_identifier = ? AND state = 'sent'`,
         )
         .run(
           sessionKey,
@@ -411,13 +581,16 @@ export class CiWatchStore {
           status: existing.status,
         };
       }
-      // Only an attempt that was taken counts: a reserved or queued attempt
-      // that a new publication left behind never ran.
+      // Every attempt that exists counts, including one that is queued and has
+      // not run yet: a burst of announcements can neither reuse the same attempt
+      // number nor spend more attempts than the budget allows. Only a
+      // reservation whose announcement was never delivered is not an attempt:
+      // it never reached the queue and never ran.
       const { count } = this.#database
         .prepare(
           `SELECT COUNT(*) AS count FROM ci_repairs
            WHERE pull_request_number = ? AND failure_fingerprint = ?
-             AND status NOT IN ('reserved', 'queued')`,
+             AND status != 'reserved'`,
         )
         .get(pullRequestNumber, failureFingerprint);
       if (count >= maximumAttempts) {

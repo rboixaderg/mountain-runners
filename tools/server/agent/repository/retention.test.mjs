@@ -198,3 +198,55 @@ test("keeps the most recently archived worktree of a topic, not the biggest suff
   assert.equal(existsSync(archivePath(paths, 100)), true);
   assert.equal(existsSync(newest.path), true);
 });
+
+test("returns an empty report when the worktree root does not exist", async (context) => {
+  const paths = await repositoryFixture(context);
+
+  const report = await pruneArchivedWorktrees({
+    repositoryPath: paths.repository,
+    worktreeRoot: join(paths.worktreeRoot, "missing"),
+  });
+
+  assert.deepEqual(report, { removed: [], kept: [] });
+});
+
+test("keeps pruning after a damaged archive", async (context) => {
+  const paths = await repositoryFixture(context);
+  await ensureSessionWorktree({
+    repositoryPath: paths.repository,
+    worktreeRoot: paths.worktreeRoot,
+    name: topic,
+  });
+  await newTask(paths, 100);
+  await newTask(paths, 200);
+  await newTask(paths, 300);
+  // The archive birth time, not the opaque suffix, decides which one is newest.
+  const planned = await pruneArchivedWorktrees({
+    repositoryPath: paths.repository,
+    worktreeRoot: paths.worktreeRoot,
+    dryRun: true,
+  });
+  const [damaged, prunable] = planned.removed.map((entry) => entry.path).sort();
+  writeFileSync(join(damaged, ".git"), "damaged\n");
+
+  const report = await pruneArchivedWorktrees({
+    repositoryPath: paths.repository,
+    worktreeRoot: paths.worktreeRoot,
+    logger: () => {},
+  });
+
+  assert.deepEqual(
+    report.removed.map((entry) => entry.path),
+    [prunable],
+  );
+  assert.deepEqual(
+    report.kept.filter((entry) => entry.reason === "inspection_failed"),
+    [{ path: damaged, reason: "inspection_failed" }],
+  );
+  assert.equal(
+    existsSync(damaged),
+    true,
+    "the damaged archive is kept for a person",
+  );
+  assert.equal(existsSync(prunable), false);
+});

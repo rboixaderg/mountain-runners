@@ -70,6 +70,238 @@ test("reads every page of check runs pinned to the exact commit", async () => {
   );
 });
 
+test("reads bounded job logs without forwarding credentials to the signed URL", async () => {
+  const requests = [];
+  const github = new GitHubTrust({
+    token: "synthetic",
+    repository: "example/project",
+    fetchImpl: async (url, options) => {
+      requests.push({ url, options });
+      if (requests.length === 1) {
+        return new Response(null, {
+          status: 302,
+          headers: {
+            location:
+              "https://example.blob.core.windows.net/log?signature=synthetic",
+          },
+        });
+      }
+      return new Response("project output");
+    },
+  });
+  assert.equal(
+    await github.getWorkflowJobLog({ jobIdentifier: 12 }),
+    "project output",
+  );
+  assert.equal(
+    requests[0].url,
+    "https://api.github.com/repos/example/project/actions/jobs/12/logs",
+  );
+  assert.equal(requests[0].options.redirect, "manual");
+  assert.equal(requests[1].options.headers, undefined);
+  assert.equal(requests[1].options.redirect, "error");
+});
+
+test("rejects untrusted job log redirects and oversized log bodies", async () => {
+  let calls = 0;
+  const github = new GitHubTrust({
+    token: "synthetic",
+    repository: "example/project",
+    fetchImpl: async () => {
+      calls += 1;
+      return new Response(null, {
+        status: 302,
+        headers: { location: "https://attacker.example/log" },
+      });
+    },
+  });
+  await assert.rejects(
+    github.getWorkflowJobLog({ jobIdentifier: 12 }),
+    /invalid job log location/u,
+  );
+  assert.equal(calls, 1);
+  const oversized = new GitHubTrust({
+    token: "synthetic",
+    repository: "example/project",
+    fetchImpl: async (url) =>
+      url.startsWith("https://api.github.com/")
+        ? new Response(null, {
+            status: 302,
+            headers: { location: "https://example.blob.core.windows.net/log" },
+          })
+        : new Response("x".repeat(1024 * 1024 + 1)),
+  });
+  await assert.rejects(
+    oversized.getWorkflowJobLog({ jobIdentifier: 12 }),
+    /size limit/u,
+  );
+});
+
+test("reads the workflow run attempt for the pinned commit", async () => {
+  let calls = 0;
+  const github = new GitHubTrust({
+    token: "synthetic",
+    repository: "example/project",
+    fetchImpl: async (url) => {
+      calls += 1;
+      assert.equal(
+        url,
+        "https://api.github.com/repos/example/project/actions/runs/34",
+      );
+      return {
+        ok: true,
+        json: async () => ({
+          id: 34,
+          head_sha: commit,
+          run_attempt: 2,
+          status: "completed",
+        }),
+      };
+    },
+  });
+  assert.equal(
+    (await github.getWorkflowRun({ runIdentifier: 34, commit })).run_attempt,
+    2,
+  );
+  await assert.rejects(
+    github.getWorkflowRun({ runIdentifier: 0, commit }),
+    /identifier/u,
+  );
+  await assert.rejects(
+    github.getWorkflowRun({ runIdentifier: 34, commit: "b".repeat(40) }),
+    /invalid workflow run/u,
+  );
+  assert.equal(calls, 2);
+});
+
+test("matches a check run to the repository job and exact commit", async () => {
+  const github = new GitHubTrust({
+    token: "synthetic",
+    repository: "example/project",
+    fetchImpl: async () => ({
+      ok: true,
+      json: async () => ({
+        id: 12,
+        run_id: 34,
+        run_attempt: 1,
+        steps: [],
+        head_sha: commit,
+        check_run_url:
+          "https://api.github.com/repos/example/project/check-runs/56",
+      }),
+    }),
+  });
+  const checkRun = {
+    id: 56,
+    details_url: "https://github.com/example/project/actions/runs/34/job/12",
+  };
+  assert.equal((await github.getCheckRunJob({ checkRun, commit })).id, 12);
+  assert.equal(
+    await github.getCheckRunJob({ checkRun: { ...checkRun, id: 57 }, commit }),
+    null,
+  );
+  assert.equal(
+    await github.getCheckRunJob({
+      checkRun: {
+        ...checkRun,
+        details_url:
+          "https://attacker.example/example/project/actions/runs/34/job/12",
+      },
+      commit,
+    }),
+    null,
+  );
+  assert.equal(
+    await github.getCheckRunJob({ checkRun, commit: "b".repeat(40) }),
+    null,
+  );
+});
+
+test("reads a workflow job and rejects invalid identities", async () => {
+  const requests = [];
+  const github = new GitHubTrust({
+    token: "synthetic",
+    repository: "example/project",
+    fetchImpl: async (url) => {
+      requests.push(url);
+      return {
+        ok: true,
+        json: async () => ({ id: 12, run_id: 34, run_attempt: 1, steps: [] }),
+      };
+    },
+  });
+  await assert.rejects(
+    github.getWorkflowJob({ jobIdentifier: "12" }),
+    /identifier/u,
+  );
+  assert.equal((await github.getWorkflowJob({ jobIdentifier: 12 })).run_id, 34);
+  assert.deepEqual(requests, [
+    "https://api.github.com/repos/example/project/actions/jobs/12",
+  ]);
+  await assert.rejects(
+    github.getWorkflowJob({ jobIdentifier: 13 }),
+    /invalid workflow job/u,
+  );
+});
+
+test("reruns failed jobs only for a valid workflow run identifier", async () => {
+  const requests = [];
+  const github = new GitHubTrust({
+    token: "synthetic",
+    repository: "example/project",
+    fetchImpl: async (url, options) => {
+      requests.push({ url, method: options.method });
+      return { ok: true, status: 204 };
+    },
+  });
+  for (const runIdentifier of [0, -1, "123", 1.5]) {
+    await assert.rejects(
+      github.rerunFailedJobs({ runIdentifier }),
+      /identifier/u,
+    );
+  }
+  assert.equal(requests.length, 0);
+  await github.rerunFailedJobs({ runIdentifier: 123 });
+  assert.deepEqual(requests, [
+    {
+      url: "https://api.github.com/repos/example/project/actions/runs/123/rerun-failed-jobs",
+      method: "POST",
+    },
+  ]);
+});
+
+test("accepts a 201 rerun response without a JSON body", async () => {
+  const github = new GitHubTrust({
+    token: "synthetic",
+    repository: "example/project",
+    fetchImpl: async () => ({
+      ok: true,
+      status: 201,
+      json: async () => {
+        throw new SyntaxError("empty response");
+      },
+    }),
+  });
+  await github.rerunFailedJobs({ runIdentifier: 123 });
+});
+
+test("propagates a rerun API error without repeating the request", async () => {
+  let calls = 0;
+  const github = new GitHubTrust({
+    token: "synthetic",
+    repository: "example/project",
+    fetchImpl: async () => {
+      calls += 1;
+      throw new Error("network unavailable");
+    },
+  });
+  await assert.rejects(
+    github.rerunFailedJobs({ runIdentifier: 123 }),
+    /network unavailable/u,
+  );
+  assert.equal(calls, 1);
+});
+
 test("reads every page of legacy commit statuses pinned to the commit", async () => {
   const requested = [];
   const github = new GitHubTrust({

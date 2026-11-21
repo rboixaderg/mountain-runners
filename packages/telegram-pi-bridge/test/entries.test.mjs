@@ -24,7 +24,7 @@ for (const entry of ["telegram", "sessions", "pi"]) {
         return resolved;
       }});
       const module = await import('telegram-pi-bridge/' + entry);
-      const required = {telegram:['AgentBridge','TelegramApi'],sessions:['AdmissionQueue','sessionIdentifier'],pi:['runPiPrompt','buildPiArguments']};
+      const required = {telegram:['AgentBridge','TelegramApi','instructionExcerpt'],sessions:['AdmissionQueue','sessionIdentifier'],pi:['runPiPrompt','buildPiArguments']};
       for (const name of required[entry]) assert.equal(typeof module[name], 'function');
     `;
     const { stdout } = await executeFile(

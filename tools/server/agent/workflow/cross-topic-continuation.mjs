@@ -78,12 +78,24 @@ function pullRequestNumbers(text) {
   return [...numbers];
 }
 
-/** The GitHub comments reduced to the author and the text the prompt shows. */
+// The GitHub comments reduced to the author and the text the prompt shows. The
+// association is a bounded GitHub label: it tells the model whether the author
+// belongs to the repository and never becomes free text.
 function commentEntries(comments) {
-  return comments.map((comment) => ({
-    login: typeof comment?.user?.login === "string" ? comment.user.login : "",
-    body: typeof comment?.body === "string" ? comment.body : "",
-  }));
+  return comments.map((comment) => {
+    const entry = {
+      login: typeof comment?.user?.login === "string" ? comment.user.login : "",
+      body: typeof comment?.body === "string" ? comment.body : "",
+    };
+    const association = comment?.author_association;
+    if (
+      typeof association === "string" &&
+      /^[A-Z_]{1,32}$/u.test(association)
+    ) {
+      entry.association = association;
+    }
+    return entry;
+  });
 }
 
 export function createCrossTopicContinuation({
@@ -385,18 +397,30 @@ export function createCrossTopicContinuation({
    * checks, as if the request had named it. A pull request that is merged or
    * closed is no pending work of the topic, so the caller answers the request as
    * a consultation instead of refusing it.
+   *
+   * `onlyUnnamedPullRequest` resumes only that pull request of the topic and
+   * never the one the request names: a read-only turn reads its own published
+   * work and never takes the branch of a pull request another topic owns.
    */
   return async function prepare(
     request,
-    { signal, unnamedTopicPullRequest = null } = {},
+    {
+      signal,
+      unnamedTopicPullRequest = null,
+      onlyUnnamedPullRequest = false,
+    } = {},
   ) {
-    const numbers = pullRequestNumbers(request.instruction);
+    const numbers = onlyUnnamedPullRequest
+      ? []
+      : pullRequestNumbers(request.instruction);
     if (numbers.length > 1) {
       trace(request, "continuation_refused", refusals.multiplePullRequests);
       return { report: continuationReports.multiplePullRequests };
     }
     if (numbers.length > 0) {
-      return resume(request, numbers[0], { signal });
+      // The topic may name its own pull request: when its worktree already
+      // holds that branch at the reported head, it continues there in place.
+      return resume(request, numbers[0], { signal, continueInPlace: true });
     }
     if (unnamedTopicPullRequest === null) {
       return null;

@@ -22,10 +22,16 @@ export class TraceQueryInputError extends Error {
 
 const defaultLimit = 100;
 const maximumLimit = 10000;
+// A concurrent writer may hold the database for a moment; the reader waits for
+// it instead of failing. `PRAGMA busy_timeout` is a connection setting, so it
+// also works on a read-only file.
+const busyTimeoutMilliseconds = 5000;
 const daysPerMonth = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
-// Date-only, millisecond precision at most, UTC or explicit offset.
+// Date-only, millisecond precision at most. A time component always carries an
+// explicit timezone: a naive timestamp would be read in the local zone of the
+// operator instead of UTC.
 const isoTimePattern =
-  /^(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{2}):(\d{2})(?::(\d{2})(?:\.(\d{1,3}))?)?(?:Z|[+-]\d{2}:\d{2})?)?$/;
+  /^(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{2}):(\d{2})(?::(\d{2})(?:\.(\d{1,3}))?)?(?:Z|[+-]\d{2}:\d{2}))?$/;
 
 function invalidInput(message) {
   return new TraceQueryInputError(message);
@@ -189,6 +195,7 @@ export function readTraceEntries(databasePath, filters = {}) {
     conditions.length === 0 ? "" : `WHERE ${conditions.join(" AND ")}`;
   const database = new DatabaseSync(databasePath, { readOnly: true });
   try {
+    database.exec(`PRAGMA busy_timeout = ${busyTimeoutMilliseconds}`);
     const rows = database
       .prepare(
         `SELECT sequence, update_identifier, author_identifier, session_key,

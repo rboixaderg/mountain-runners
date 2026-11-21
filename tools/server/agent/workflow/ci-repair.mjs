@@ -11,6 +11,7 @@ import { parseSessionKey } from "telegram-pi-bridge/sessions";
 import { ciRepairReports, repairRequestKind } from "../policy/development.mjs";
 import { isDecisiveFailure } from "../repository/ci-status.mjs";
 import { requestSignal } from "../repository/request-signal.mjs";
+import { ciResults } from "./ci-watch.mjs";
 
 const publishedOutcomes = new Set([
   "pull_request_created",
@@ -19,6 +20,12 @@ const publishedOutcomes = new Set([
 
 function describe(repair) {
   return `#${repair.pull_request_number} ${repair.commit_sha.slice(0, 7)}`;
+}
+
+function changedPullRequestResult(pullRequest) {
+  return pullRequest.state !== "open"
+    ? ciResults.pullRequestClosed
+    : ciResults.headChanged;
 }
 
 /**
@@ -86,12 +93,27 @@ export function createCiRepairExecutor({
         text,
         signal,
       });
+      return true;
     } catch (error) {
       // The attempt is already closed; a lost report never repeats the work.
       logger(
         "ci_repair_report_failed",
         error instanceof Error ? error.name : "unknown",
       );
+      return false;
+    }
+  }
+
+  async function reportLiveResult(repair, result, text, options) {
+    const claimed = repairs.beginRepairResult(
+      repair.update_identifier,
+      repair.commit_sha,
+      result,
+    );
+    const delivered = await report(repair, text, options);
+    if (claimed) {
+      if (delivered) repairs.finishSend(repair.update_identifier);
+      else repairs.markUncertain(repair.update_identifier);
     }
   }
 
@@ -192,10 +214,15 @@ export function createCiRepairExecutor({
         traceAction: "ci_repair_not_published",
         detail: `${describe(repair)} not applicable`,
       });
-      await report(repair, ciRepairReports.notApplicable(common), {
-        signal,
-        state: "not_applicable",
-      });
+      await reportLiveResult(
+        repair,
+        changedPullRequestResult(pullRequest),
+        ciRepairReports.notApplicable(common),
+        {
+          signal,
+          state: "not_applicable",
+        },
+      );
       return true;
     }
     // The queued attempt may be old: repairing a commit whose required checks
@@ -204,8 +231,31 @@ export function createCiRepairExecutor({
     try {
       classification = await readCiState({
         commit: repair.commit_sha,
+        requireRepairEvidence: true,
         signal: requestSignal(signal),
       });
+      const confirmed = await readPullRequest({
+        pullRequestNumber: repair.pull_request_number,
+        signal: requestSignal(signal),
+      });
+      if (
+        confirmed.state !== "open" ||
+        confirmed.headSha !== repair.commit_sha
+      ) {
+        close(repair, {
+          status: "done",
+          outcome: "declined",
+          traceAction: "ci_repair_not_published",
+          detail: `${describe(repair)} not applicable`,
+        });
+        await reportLiveResult(
+          repair,
+          changedPullRequestResult(confirmed),
+          ciRepairReports.notApplicable(common),
+          { signal, state: "not_applicable" },
+        );
+        return true;
+      }
     } catch (error) {
       if (signal?.aborted) {
         close(repair, {
@@ -226,7 +276,8 @@ export function createCiRepairExecutor({
     }
     if (
       classification?.state !== "failure" ||
-      !isDecisiveFailure(classification)
+      !isDecisiveFailure(classification) ||
+      classification.repairable !== true
     ) {
       close(repair, {
         status: "done",
@@ -252,7 +303,14 @@ export function createCiRepairExecutor({
           text: ciRepairReports.checksNotDecisive(common),
         };
       })();
-      await report(repair, notice.text, { signal, state: notice.state });
+      if (classification?.state === "success") {
+        await reportLiveResult(repair, ciResults.success, notice.text, {
+          signal,
+          state: notice.state,
+        });
+      } else {
+        await report(repair, notice.text, { signal, state: notice.state });
+      }
       return true;
     }
     let result;
@@ -264,7 +322,7 @@ export function createCiRepairExecutor({
       // reconciles it.
       logger(
         "ci_repair_failed",
-        error instanceof Error ? `${error.name}: ${error.message}` : "unknown",
+        error instanceof Error ? error.name : "unknown",
       );
       result = { outcome: "uncertain" };
     }

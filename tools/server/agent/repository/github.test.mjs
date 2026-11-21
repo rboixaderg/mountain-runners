@@ -294,6 +294,120 @@ for (const protectedPath of [
   });
 }
 
+test("publishes a branch that merged a newer main which changed a workflow", async (context) => {
+  const { origin, clone, worktreeRoot } = await repositoryFixture(context);
+  const worktree = await branchWorktree({
+    repository: clone,
+    worktreeRoot,
+    branch,
+    name: "topic-merged-main",
+  });
+  writeFileSync(join(worktree.path, "change.txt"), "canvi\n");
+  await git(worktree.path, ["add", "--all"]);
+  await git(worktree.path, ["commit", "-m", "feat: synthetic change"]);
+
+  writeFileSync(
+    join(clone, ".github", "workflows", "updated.yml"),
+    "synthetic workflow of main\n",
+  );
+  await git(clone, ["add", "--all"]);
+  await git(clone, ["commit", "-m", "ci: synthetic workflow of main"]);
+  await git(clone, ["push", "origin", "main"]);
+
+  await git(worktree.path, ["fetch", "origin"]);
+  await git(worktree.path, [
+    "merge",
+    "--no-ff",
+    "-m",
+    "Merge origin/main into the branch",
+    "origin/main",
+  ]);
+  writeFileSync(join(worktree.path, "change.txt"), "canvi actualitzat\n");
+  await git(worktree.path, ["add", "--all"]);
+  await git(worktree.path, ["commit", "-m", "feat: synthetic follow-up"]);
+
+  const result = await trust().pushBranch({ worktree, branch });
+
+  assert.equal(result.commit, await git(origin, ["rev-parse", branch]));
+});
+
+test("refuses a merge that changes a protected path with neither parent", async (context) => {
+  const { origin, clone, worktreeRoot } = await repositoryFixture(context);
+  const worktree = await branchWorktree({
+    repository: clone,
+    worktreeRoot,
+    branch,
+    name: "topic-evil-merge",
+  });
+  writeFileSync(join(worktree.path, "change.txt"), "canvi\n");
+  await git(worktree.path, ["add", "--all"]);
+  await git(worktree.path, ["commit", "-m", "feat: synthetic change"]);
+
+  writeFileSync(
+    join(clone, ".github", "workflows", "trusted.yml"),
+    "synthetic workflow of main\n",
+  );
+  await git(clone, ["add", "--all"]);
+  await git(clone, ["commit", "-m", "ci: synthetic workflow of main"]);
+  await git(clone, ["push", "origin", "main"]);
+
+  await git(worktree.path, ["fetch", "origin"]);
+  await git(worktree.path, ["merge", "--no-ff", "--no-commit", "origin/main"]);
+  writeFileSync(
+    join(worktree.path, ".github", "workflows", "trusted.yml"),
+    "synthetic workflow of the merge\n",
+  );
+  await git(worktree.path, ["add", "--all"]);
+  await git(worktree.path, [
+    "commit",
+    "-m",
+    "Merge origin/main into the branch",
+  ]);
+
+  await assert.rejects(
+    trust().pushBranch({ worktree, branch }),
+    PublishRefusedError,
+  );
+  await assert.rejects(git(origin, ["rev-parse", branch]));
+});
+
+test("refuses a branch commit that changes a protected path before merging main", async (context) => {
+  const { origin, clone, worktreeRoot } = await repositoryFixture(context);
+  const worktree = await branchWorktree({
+    repository: clone,
+    worktreeRoot,
+    branch,
+    name: "topic-merged-protected",
+  });
+  mkdirSync(join(worktree.path, ".github", "actions"), { recursive: true });
+  writeFileSync(
+    join(worktree.path, ".github", "actions", "injected.yml"),
+    "synthetic\n",
+  );
+  await git(worktree.path, ["add", "--all"]);
+  await git(worktree.path, ["commit", "-m", "test: introduce protected path"]);
+
+  writeFileSync(join(clone, "main-change.txt"), "synthetic\n");
+  await git(clone, ["add", "--all"]);
+  await git(clone, ["commit", "-m", "test: synthetic main change"]);
+  await git(clone, ["push", "origin", "main"]);
+
+  await git(worktree.path, ["fetch", "origin"]);
+  await git(worktree.path, [
+    "merge",
+    "--no-ff",
+    "-m",
+    "Merge origin/main into the branch",
+    "origin/main",
+  ]);
+
+  await assert.rejects(
+    trust().pushBranch({ worktree, branch }),
+    PublishRefusedError,
+  );
+  await assert.rejects(git(origin, ["rev-parse", branch]));
+});
+
 test("refuses a published history that contains an attachment path", async (context) => {
   const { origin, clone, worktreeRoot } = await repositoryFixture(context);
   const worktree = await branchWorktree({
@@ -449,7 +563,7 @@ test("reuses an open pull request and creates one only when absent", async (cont
   assert.equal(calls.length, 2);
   assert.equal(
     calls[0].url,
-    `https://api.github.com/repos/${repository}/pulls?state=open&head=rboixaderg%3A${encodeURIComponent(branch)}`,
+    `https://api.github.com/repos/${repository}/pulls?state=open&base=main&head=rboixaderg%3A${encodeURIComponent(branch)}`,
   );
   assert.equal(
     calls[1].url,
@@ -632,7 +746,7 @@ test("refuses an invalid authenticated user response", async () => {
   });
 });
 
-test("exposes only branch publication, the preview comment, the pinned merge and read-only operations", () => {
+test("exposes only the approved GitHub operations", () => {
   const publicOperations = Object.getOwnPropertyNames(GitHubTrust.prototype)
     .filter((name) => name !== "constructor")
     .sort();
@@ -642,12 +756,136 @@ test("exposes only branch publication, the preview comment, the pinned merge and
     "ensurePullRequest",
     "findOpenPullRequest",
     "getAuthenticatedLogin",
+    "getCheckRunJob",
     "getCommitCheckRuns",
     "getCommitStatuses",
     "getPullRequest",
+    "getWorkflowJob",
+    "getWorkflowJobLog",
+    "getWorkflowRun",
     "listIssueComments",
     "listPreviewWorkflowRuns",
     "mergePullRequest",
     "pushBranch",
+    "rerunFailedJobs",
   ]);
+});
+
+test("propagates an interrupted local check instead of a refusal", async (context) => {
+  const { clone, worktreeRoot } = await repositoryFixture(context);
+  const worktree = await branchWorktree({
+    repository: clone,
+    worktreeRoot,
+    branch,
+    name: "topic-interrupted-check",
+  });
+
+  // The stop reaches the history check before the push: nothing was published,
+  // and the caller must see the interruption, not a local refusal.
+  await assert.rejects(
+    trust().pushBranch({
+      worktree,
+      branch,
+      signal: AbortSignal.abort(),
+    }),
+    GitInterruptedError,
+  );
+});
+
+test("redacts the token from the message and the stack of a failed Git read", async (context) => {
+  const directory = mkdtempSync(join(tmpdir(), "mr-agent-token-git-"));
+  context.after(() =>
+    rmSync(directory, {
+      recursive: true,
+      force: true,
+      maxRetries: 5,
+      retryDelay: 100,
+    }),
+  );
+  mkdirSync(join(directory, ".git"));
+  writeFileSync(
+    join(directory, "git"),
+    [
+      "#!/bin/sh",
+      'case " $* " in',
+      `  *" config --get remote.origin.url "*) printf '%s\\n' "https://github.com/${repository}.git"; exit 0 ;;`,
+      `  *" rev-parse HEAD "*) printf '%s\\n' "https://x-access-token:${githubToken}@github.com/${repository}.git" >&2; exit 1 ;;`,
+      "  *) exit 0 ;;",
+      "esac",
+      "",
+    ].join("\n"),
+    { mode: 0o755 },
+  );
+  const originalPath = process.env.PATH;
+  process.env.PATH = `${directory}:${originalPath}`;
+  context.after(() => {
+    process.env.PATH = originalPath;
+  });
+  const worktree = primaryRepository(directory);
+
+  const failure = await trust()
+    .pushBranch({ worktree, branch })
+    .catch((error) => error);
+
+  assert.equal(failure.message.includes(githubToken), false);
+  assert.equal(String(failure.stack).includes(githubToken), false);
+});
+
+test("rejects an unreadable comment bound before reading GitHub", async () => {
+  const requests = [];
+  const component = trust({
+    fetchImpl: async (url) => {
+      requests.push(url);
+      return { ok: true, json: async () => [] };
+    },
+  });
+
+  await assert.rejects(
+    component.listIssueComments({ number: 123, since: "not a timestamp" }),
+    /ISO timestamp/u,
+  );
+  assert.deepEqual(requests, []);
+});
+
+test("never reduces an invalid pull request list to a real pull request", async () => {
+  const responses = [
+    { not: "a list" },
+    [{ number: "200" }],
+    [{ number: 200, html_url: "x", head: {}, draft: false, base: {} }],
+  ];
+  for (const response of responses) {
+    const component = trust({
+      fetchImpl: async () => ({ ok: true, json: async () => response }),
+    });
+    await assert.rejects(component.findOpenPullRequest({ branch }), /invalid/u);
+  }
+});
+
+test("stops at the total a complete page reports", async () => {
+  const requested = [];
+  const component = trust({
+    fetchImpl: async (url) => {
+      requested.push(url);
+      return {
+        ok: true,
+        json: async () => ({
+          total_count: 100,
+          workflow_runs: Array.from({ length: 100 }, (_, index) => ({
+            id: index + 1,
+            event: "issue_comment",
+            created_at: "2026-11-18T09:00:00Z",
+            status: "completed",
+            conclusion: "success",
+          })),
+        }),
+      };
+    },
+  });
+
+  const runs = await component.listPreviewWorkflowRuns({
+    createdSince: "2026-11-18T09:00:00Z",
+  });
+
+  assert.equal(runs.length, 100);
+  assert.equal(requested.length, 1, "a complete list is not read again");
 });

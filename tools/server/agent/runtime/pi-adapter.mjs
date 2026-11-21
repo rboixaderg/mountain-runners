@@ -15,6 +15,7 @@ export function buildPiEnvironment({
   worktreePath,
   attachments = [],
   readOnly = false,
+  classifyOnly = false,
 }) {
   const allowedEnvironment = {
     PATH: environment.PATH,
@@ -22,14 +23,18 @@ export function buildPiEnvironment({
     TMPDIR: environment.TMPDIR,
     XDG_RUNTIME_DIR: environment.XDG_RUNTIME_DIR,
     PI_CODING_AGENT_DIR: profileDirectory,
-    MR_AGENT_SANDBOX_IMAGE: sandbox.image,
-    MR_AGENT_WORKTREE_ROOT: sandbox.worktreeRoot,
-    MR_AGENT_SANDBOX_LIMITS: JSON.stringify(sandbox.limits),
+  };
+  // The classifier runs without a worktree, a sandbox or tools: it receives no
+  // sandbox or attachment configuration that a later turn could inherit.
+  if (!classifyOnly) {
+    allowedEnvironment.MR_AGENT_SANDBOX_IMAGE = sandbox.image;
+    allowedEnvironment.MR_AGENT_WORKTREE_ROOT = sandbox.worktreeRoot;
+    allowedEnvironment.MR_AGENT_SANDBOX_LIMITS = JSON.stringify(sandbox.limits);
     // The extension labels and cleans its containers with this value, so it is
     // the opaque worktree name: never the Telegram session identifier.
-    MR_AGENT_SESSION_IDENTIFIER: sandboxIdentifier,
-    MR_AGENT_READ_ONLY: String(readOnly),
-  };
+    allowedEnvironment.MR_AGENT_SESSION_IDENTIFIER = sandboxIdentifier;
+    allowedEnvironment.MR_AGENT_READ_ONLY = String(readOnly);
+  }
   for (const name of providerEnvironmentVariables) {
     if (environment[name] !== undefined) {
       allowedEnvironment[name] = environment[name];
@@ -38,7 +43,7 @@ export function buildPiEnvironment({
   // The view_attachment tool reads the copy in the worktree, never the store in
   // the state directory. The names are the service list; a free path is not
   // accepted. The classifier runs without a worktree and without tools.
-  if (typeof worktreePath === "string") {
+  if (!classifyOnly && typeof worktreePath === "string") {
     allowedEnvironment.MR_AGENT_ATTACHMENT_PATH = join(
       worktreePath,
       attachmentDirectoryName,
@@ -99,6 +104,7 @@ export function projectPiOptions({
       worktreePath,
       attachments,
       readOnly,
+      classifyOnly,
     }),
   };
 }

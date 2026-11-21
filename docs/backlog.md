@@ -775,3 +775,114 @@ les URLs canòniques, `hreflang`, la pàgina 404 i el selector d'idioma.
 localitzades, inclosa l'entrada de segments de ruta localitzats.
 
 **Seguiment:** pendent de triatge.
+
+### Demanar La Preview Amb Una Etiqueta De La PR
+
+**Estat:** Incorporada a l'[especificació de l'etiqueta de
+preview](specs/preview-label.md) el 21 de novembre de 2026. Les troballes
+següents es conserven com a registre de l'anàlisi.
+
+**Problema:** avui una preview es demana amb un comentari `/preview` o amb un
+`workflow_dispatch` (`.github/workflows/preview.yml`). Cal saber si una etiqueta
+de la PR, per exemple `preview`, seria un mecanisme millor: és idempotent,
+visible a la PR i es pot retirar.
+
+**Resultat esperat:** una recomanació raonada sobre si val la pena i amb quines
+condicions de seguretat. Aquesta entrada no canvia cap ADR, workflow ni codi.
+
+**Troballes:**
+
+- **Disparador.** Ha de ser `pull_request_target` (`labeled` i `synchronize`),
+  mai `pull_request`. Amb `pull_request`, el workflow i el codi de confiança
+  d'`authorize` i `publish` vindrien de la branca de la PR, i l'entorn
+  `previews` no té regles de protecció ni política de branques de desplegament
+  (verificat amb l'API de GitHub el 21 de novembre de 2026), així que una
+  branca del mateix repositori podria llegir els secrets `PREVIEW_*`.
+  `pull_request_target` executa el workflow des de `main`, el mateix context
+  de confiança que `issue_comment`, i `preview-cleanup.yml` ja l'usa amb
+  `labeled`. El job `build` continuaria fent checkout del head SHA exacte,
+  sense secrets, caches ni permisos d'escriptura: el risc d'executar codi de la
+  PR en un context de la branca per defecte és el que `issue_comment` ja
+  accepta. Una condició a nivell de job sobre l'etiqueta
+  evita ocupar un executor a cada push d'una PR sense etiqueta; el run apareix
+  com a omès.
+- **Qui pot etiquetar.** Etiquetar exigeix permís de triatge o escriptura
+  (cal verificar-ho a la documentació de GitHub); els autors de forks no poden.
+  El publicador hauria de validar igualment el `sender` de l'esdeveniment amb
+  `collaborators/{user}/permission` i exigir `write` o `admin`, com ja fa
+  `assertDispatchActorAuthorized` per a `workflow_dispatch`. És més estricte que
+  la comprovació actual de `/preview` (`assertCommentAuthorized`, només
+  col·laboradora).
+- **Canvi d'autorització.** Avui l'autorització és per petició i per commit. Amb
+  l'etiqueta passa a ser permanent per a la PR: cada push posterior publica sense
+  cap acte humà nou. A `synchronize` el `sender` és qui fa el push, no qui va
+  posar l'etiqueta. Només les col·laboradores poden fer push a branques pròpies,
+  així que la població és la mateixa, però l'esmena T6.4 de l'ADR 0009 vincula la
+  publicació a una petició humana (`/preview` o execució manual) i caldria
+  esmenar-la.
+- **Bots.** Els pushes de bots (per exemple Dependabot) reben tokens i secrets
+  restringits en aquests esdeveniments: una PR de Dependabot amb etiqueta podria
+  no publicar (cal verificar).
+- **SHA i revalidació.** `authorize` continuaria resolent el head SHA per API, i
+  `publish` continuaria refusant un head mogut i l'etiqueta `preview-revoked`
+  (`resolvePullRequestState`). Hauria de comprovar a més que l'etiqueta
+  `preview` continua present. En ràfegues de pushes caldria un grup de
+  concurrència per PR amb `cancel-in-progress` per al `build`, perquè no es
+  compili un commit antic després d'un de nou; el grup `previews` de `publish`
+  es mantindria. Tornar a posar una etiqueta que ja hi és no genera cap
+  esdeveniment (cal verificar), així que reintentar una preview fallida exigiria
+  retirar-la i tornar-la a posar, fer un push nou o usar `workflow_dispatch`.
+- **Agent de la fase 8.** Una etiqueta és idempotent, a diferència d'un
+  comentari: podria eliminar els estats `commenting` i `uncertain` i la
+  correlació per finestres de comentari de
+  `tools/server/agent/workflow/preview-request.mjs`. La correlació passaria a
+  l'esdeveniment `pull_request_target` i al número de PR; com omple GitHub
+  `head_sha` en aquests runs, cal verificar-ho. El token del servei necessitaria
+  permís per editar etiquetes (cal verificar quin permís de GitHub), un canvi de
+  permisos de l'ADR 0013 que no es fa aquí.
+- **Interacció amb T8.9.** Amb `synchronize`, el `build` de la preview començaria
+  en paral·lel a les comprovacions de qualitat, no després que siguin verdes com
+  espera la T8.9. El `build` ja executa `pnpm validate`, de manera que un cap
+  vermell no publica, però el treball es duplica.
+- **Volum i neteja.** Cada push a una PR amb etiqueta executaria la validació
+  completa i tres navegadors de Playwright; avui només ho fa una petició
+  explícita. El repositori és públic (verificat amb l'API de GitHub el 21 de
+  novembre de 2026); que els executors estàndard no tinguin cost en minuts cal
+  verificar-ho. La cua i el grup `previews` serialitzarien igualment les
+  publicacions. Treure l'etiqueta (`unlabeled`) podria activar
+  `preview-cleanup.yml`. `reconcile.mjs` també podria retirar les previews de
+  PR sense etiqueta, però només quan `/preview` s'hagi retirat; si no, retiraria
+  les demanades per comentari. `preview-revoked` mantindria la
+  precedència.
+
+**Recomanació:** val la pena com a tasca d'especificació pròpia, amb transició
+amb tots dos mecanismes, després decidir si es retira `/preview` i mantenir
+`workflow_dispatch`. No s'implementa ara.
+
+**Dependències i riscos:** esmena de l'ADR 0009 (autorització permanent per PR,
+etiqueta com a petició, retirada en treure-la); permís nou de l'ADR 0013 per a
+l'agent; interacció amb la T8.9; comprovar a GitHub els punts marcats com a
+"cal verificar".
+
+**Seguiment:**
+[#261](https://github.com/rboixaderg/mountain-runners/issues/261).
+
+### Retirar La Petició De Preview Amb `/preview`
+
+**Estat:** Capturada.
+
+**Problema:** amb l'[especificació de l'etiqueta de
+preview](specs/preview-label.md), l'etiqueta `preview` i el comentari `/preview`
+conviuen. Mantenir dos mecanismes de petició duplica l'autorització, les proves
+i la documentació del publicador.
+
+**Resultat esperat:** quan l'etiqueta funcioni en producció i l'agent de la
+fase 8 ja no comenti `/preview`, retirar el disparador `issue_comment` de
+`.github/workflows/preview.yml`, `assertCommentAuthorized` i la documentació
+associada. `workflow_dispatch` es manté. La reconciliació periòdica pot retirar
+llavors les previews de PR sense etiqueta.
+
+**Dependències i riscos:** les tasques de l'especificació de l'etiqueta
+completades i una esmena de l'ADR 0009 que retiri `/preview` com a petició.
+
+**Seguiment:** pendent de triatge.

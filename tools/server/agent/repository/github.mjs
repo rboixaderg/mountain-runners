@@ -1,8 +1,8 @@
 // Trusted GitHub component for the private agent (T8.3).
 //
-// Only four writes exist: push the job branch, open (or reuse) its pull
-// request against `main`, post the constant `/preview` comment that asks the
-// phase 6 workflow for a preview and squash-merge a pull request pinned to the
+// The trusted writes are: push the job branch, open (or reuse) its pull
+// request against `main`, post the constant `/preview` comment, rerun failed
+// jobs of a workflow run, and squash-merge a pull request pinned to the
 // head commit the service validated. The merge sends exactly `{ sha,
 // merge_method: "squash" }` to the one pull request merge endpoint: there is no
 // auto-merge, no administrator or protection endpoint, no write to `main` and
@@ -14,6 +14,7 @@
 // belongs to the same trusted component, because the token never leaves it.
 
 import { previewCommand } from "../policy/development.mjs";
+import { classifyCommitStatus } from "./ci-status.mjs";
 import { assertWorkBranch } from "./worktrees.mjs";
 import { assertPublishableHistory } from "./secret-scan.mjs";
 import {
@@ -21,7 +22,11 @@ import {
   requestSignal,
 } from "./request-signal.mjs";
 
-import { remoteGitTimeoutMilliseconds, runGit } from "./trusted-git.mjs";
+import {
+  remoteGitTimeoutMilliseconds,
+  runGit,
+  GitInterruptedError,
+} from "./trusted-git.mjs";
 
 function repositoryUrl(repository) {
   return `https://github.com/${repository}.git`;
@@ -29,6 +34,7 @@ function repositoryUrl(repository) {
 
 const fullCommitPattern = /^[a-f0-9]{40}$/u;
 const maximumPageCount = 10;
+const maximumJobLogBytes = 1024 * 1024;
 
 function assertFullCommit(commit) {
   if (typeof commit !== "string" || !fullCommitPattern.test(commit)) {
@@ -42,9 +48,8 @@ function assertPullRequestNumber(number) {
   }
 }
 
-// The preview workflow of phase 6 is the only workflow whose runs this service
-// reads: its result is what tells a `/preview` request whether the preview was
-// built, because the trusted publisher only comments when it succeeded.
+// A preview request reads this workflow's runs to determine whether its preview
+// was built; the trusted publisher only comments when the build succeeded.
 const previewWorkflowFile = "preview.yml";
 
 function assertIsoTimestamp(timestamp) {
@@ -94,6 +99,31 @@ function previewWorkflowRun(run) {
     // names the account that repeated it in `triggering_actor`.
     actor: workflowRunActorLogin(run.actor),
     triggeringActor: workflowRunActorLogin(run.triggering_actor),
+  };
+}
+
+/**
+ * The summary of a pull request that publication needs. A response missing a
+ * field it reads is invalid: reducing it would let a later step treat an absent
+ * pull request as a real one.
+ */
+function pullRequestSummary(pull) {
+  if (
+    !Number.isSafeInteger(pull?.number) ||
+    pull.number < 1 ||
+    typeof pull.html_url !== "string" ||
+    typeof pull.head?.sha !== "string" ||
+    typeof pull.draft !== "boolean" ||
+    typeof pull.base?.ref !== "string"
+  ) {
+    throw new Error("GitHub returned an invalid pull request response.");
+  }
+  return {
+    number: pull.number,
+    htmlUrl: pull.html_url,
+    headSha: pull.head.sha,
+    draft: pull.draft,
+    baseBranch: pull.base.ref,
   };
 }
 
@@ -148,6 +178,39 @@ export function statusClass(status) {
   return `${Math.floor(status / 100)}xx`;
 }
 
+/** Reject a pull request that changed while its dependent state was read. */
+export function confirmPullRequestUnchanged(original, confirmed) {
+  if (
+    confirmed.headSha !== original.headSha ||
+    confirmed.state !== original.state ||
+    confirmed.merged !== original.merged
+  ) {
+    throw new Error("The pull request changed while reading its state.");
+  }
+}
+
+/** Read checks for the current head and confirm that the head did not move. */
+export async function readLivePullRequest({
+  github,
+  number,
+  requiredChecks,
+  signal,
+}) {
+  const pullRequest = await github.getPullRequest({ number, signal });
+  const [checkRuns, statuses] = await Promise.all([
+    github.getCommitCheckRuns({ commit: pullRequest.headSha, signal }),
+    github.getCommitStatuses({ commit: pullRequest.headSha, signal }),
+  ]);
+  const confirmed = await github.getPullRequest({ number, signal });
+  confirmPullRequestUnchanged(pullRequest, confirmed);
+  const classification = classifyCommitStatus({
+    requiredChecks,
+    checkRuns,
+    statuses,
+  });
+  return { pullRequest: confirmed, classification };
+}
+
 export class GitHubTrust {
   #token;
   #repository;
@@ -198,6 +261,11 @@ export class GitHubTrust {
       ).trim();
     } catch (error) {
       error.message = String(error.message).replaceAll(this.#token, "***");
+      // The stack carries the command and its arguments too: it is redacted
+      // with the same care as the message.
+      if (typeof error.stack === "string") {
+        error.stack = error.stack.replaceAll(this.#token, "***");
+      }
       // execFile's original error may retain an unredacted remote URL.
       delete error.cause;
       throw error;
@@ -228,7 +296,12 @@ export class GitHubTrust {
    * other request still gets the service request deadline, so an API that never
    * answers cannot hold the global execution.
    */
-  async #request(method, path, body, { signal } = {}) {
+  async #request(
+    method,
+    path,
+    body,
+    { signal, ignoreResponseBody = false } = {},
+  ) {
     const boundedSignal = requestSignal(
       signal,
       this.#requestTimeoutMilliseconds,
@@ -249,6 +322,7 @@ export class GitHubTrust {
     if (!response.ok) {
       throw new GitHubResponseError(method, path, response.status);
     }
+    if (response.status === 204 || ignoreResponseBody) return null;
     return response.json();
   }
 
@@ -265,6 +339,15 @@ export class GitHubTrust {
       commit = await this.#git(worktree, ["rev-parse", "HEAD"], {}, { signal });
       await assertPublishableHistory({ worktree, commit, secrets, signal });
     } catch (error) {
+      // A stop is not a refusal: nothing may have reached GitHub yet, and the
+      // caller must see the interruption instead of reporting a failed work.
+      if (
+        signal?.aborted ||
+        error instanceof GitInterruptedError ||
+        error?.name === "AbortError"
+      ) {
+        throw error;
+      }
       throw new PublishRefusedError(
         error instanceof Error ? error.message : "Publication refused.",
         { cause: error },
@@ -325,6 +408,179 @@ export class GitHubTrust {
       if (response.length < 100) return statuses;
     }
     throw new Error("GitHub commit statuses pagination limit exceeded.");
+  }
+
+  async getCheckRunJob({ checkRun, commit, signal }) {
+    assertFullCommit(commit);
+    if (!Number.isSafeInteger(checkRun?.id) || checkRun.id < 1) return null;
+    let details;
+    try {
+      details = new URL(checkRun.details_url);
+    } catch {
+      return null;
+    }
+    const prefix = `/${this.#repository}/actions/runs/`;
+    if (
+      details.origin !== "https://github.com" ||
+      !details.pathname.startsWith(prefix)
+    )
+      return null;
+    const match = /^(\d+)\/job\/(\d+)$/u.exec(
+      details.pathname.slice(prefix.length),
+    );
+    if (!match) return null;
+    const runIdentifier = Number(match[1]);
+    const jobIdentifier = Number(match[2]);
+    if (
+      !Number.isSafeInteger(runIdentifier) ||
+      runIdentifier < 1 ||
+      !Number.isSafeInteger(jobIdentifier) ||
+      jobIdentifier < 1
+    )
+      return null;
+    const job = await this.getWorkflowJob({ jobIdentifier, signal });
+    const expectedCheckRunUrl = `https://api.github.com/repos/${this.#repository}/check-runs/${checkRun.id}`;
+    if (
+      job.run_id !== runIdentifier ||
+      job.head_sha !== commit ||
+      job.check_run_url !== expectedCheckRunUrl
+    )
+      return null;
+    return job;
+  }
+
+  async getWorkflowRun({ runIdentifier, commit, signal }) {
+    assertFullCommit(commit);
+    if (!Number.isSafeInteger(runIdentifier) || runIdentifier < 1) {
+      throw new Error("A positive workflow run identifier is required.");
+    }
+    const run = await this.#request(
+      "GET",
+      `/repos/${this.#repository}/actions/runs/${runIdentifier}`,
+      undefined,
+      { signal },
+    );
+    if (
+      run?.id !== runIdentifier ||
+      run.head_sha !== commit ||
+      !Number.isSafeInteger(run.run_attempt) ||
+      run.run_attempt < 1 ||
+      typeof run.status !== "string"
+    ) {
+      throw new Error("GitHub returned an invalid workflow run.");
+    }
+    return run;
+  }
+
+  async getWorkflowJobLog({ jobIdentifier, signal }) {
+    if (!Number.isSafeInteger(jobIdentifier) || jobIdentifier < 1) {
+      throw new Error("A positive workflow job identifier is required.");
+    }
+    const boundedSignal = requestSignal(
+      signal,
+      this.#requestTimeoutMilliseconds,
+    );
+    const path = `/repos/${this.#repository}/actions/jobs/${jobIdentifier}/logs`;
+    const redirect = await this.#fetch(`${this.#apiBaseUrl}${path}`, {
+      method: "GET",
+      headers: {
+        authorization: `Bearer ${this.#token}`,
+        accept: "application/vnd.github+json",
+        "user-agent": "mountain-runners-agent",
+        "x-github-api-version": "2022-11-28",
+      },
+      redirect: "manual",
+      signal: boundedSignal,
+    });
+    if (redirect.status !== 302) {
+      throw new GitHubResponseError("GET", path, redirect.status);
+    }
+    let location;
+    try {
+      location = new URL(redirect.headers.get("location"));
+    } catch {
+      throw new Error("GitHub returned an invalid job log location.");
+    }
+    const approvedHost =
+      location.hostname.endsWith(".blob.core.windows.net") ||
+      location.hostname.endsWith(".actions.githubusercontent.com");
+    if (
+      location.protocol !== "https:" ||
+      !approvedHost ||
+      location.username ||
+      location.password ||
+      location.port
+    ) {
+      throw new Error("GitHub returned an invalid job log location.");
+    }
+    // A signed log URL is a credential. Do not forward the GitHub token or
+    // expose the URL in an exception, trace or model input.
+    let response;
+    try {
+      response = await this.#fetch(location.href, {
+        method: "GET",
+        redirect: "error",
+        signal: boundedSignal,
+      });
+    } catch {
+      throw new Error("The job log could not be read.");
+    }
+    if (!response.ok || !response.body)
+      throw new Error("The job log could not be read.");
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let bytes = 0;
+    let log = "";
+    try {
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        bytes += value.byteLength;
+        if (bytes > maximumJobLogBytes)
+          throw new Error("The job log exceeds the size limit.");
+        log += decoder.decode(value, { stream: true });
+      }
+      return log + decoder.decode();
+    } catch {
+      throw new Error("The job log could not be read within its size limit.");
+    } finally {
+      await reader.cancel().catch(() => {});
+    }
+  }
+
+  async getWorkflowJob({ jobIdentifier, signal }) {
+    if (!Number.isSafeInteger(jobIdentifier) || jobIdentifier < 1) {
+      throw new Error("A positive workflow job identifier is required.");
+    }
+    const job = await this.#request(
+      "GET",
+      `/repos/${this.#repository}/actions/jobs/${jobIdentifier}`,
+      undefined,
+      { signal },
+    );
+    if (
+      job?.id !== jobIdentifier ||
+      !Number.isSafeInteger(job.run_id) ||
+      job.run_id < 1 ||
+      !Number.isSafeInteger(job.run_attempt) ||
+      job.run_attempt < 1 ||
+      !Array.isArray(job.steps)
+    ) {
+      throw new Error("GitHub returned an invalid workflow job.");
+    }
+    return job;
+  }
+
+  async rerunFailedJobs({ runIdentifier, signal }) {
+    if (!Number.isSafeInteger(runIdentifier) || runIdentifier < 1) {
+      throw new Error("A positive workflow run identifier is required.");
+    }
+    await this.#request(
+      "POST",
+      `/repos/${this.#repository}/actions/runs/${runIdentifier}/rerun-failed-jobs`,
+      undefined,
+      { signal, ignoreResponseBody: true },
+    );
   }
 
   async getPullRequest({ number, signal }) {
@@ -427,6 +683,7 @@ export class GitHubTrust {
    */
   async listIssueComments({ number, since, signal }) {
     assertPullRequestNumber(number);
+    assertIsoTimestamp(since);
     const comments = [];
     for (let page = 1; page <= maximumPageCount; page += 1) {
       const response = await this.#request(
@@ -473,6 +730,12 @@ export class GitHubTrust {
         runs.push(previewWorkflowRun(run));
       }
       if (response.workflow_runs.length < 100) return runs;
+      // A complete page can still be the last one: the total says so without
+      // another read, so a bounded list never fails as endless.
+      const total = response.total_count;
+      if (Number.isSafeInteger(total) && runs.length >= total) {
+        return runs;
+      }
     }
     throw new Error("GitHub workflow runs pagination limit exceeded.");
   }
@@ -482,21 +745,18 @@ export class GitHubTrust {
     const owner = this.#repository.split("/")[0];
     const pulls = await this.#request(
       "GET",
-      `/repos/${this.#repository}/pulls?state=open&head=${encodeURIComponent(`${owner}:${branch}`)}`,
+      `/repos/${this.#repository}/pulls?state=open&base=${encodeURIComponent(this.#baseBranch)}&head=${encodeURIComponent(`${owner}:${branch}`)}`,
       undefined,
       { signal },
     );
+    if (!Array.isArray(pulls)) {
+      throw new Error("GitHub returned an invalid pull request list response.");
+    }
     const pull = pulls[0];
     if (!pull) {
       return null;
     }
-    return {
-      number: pull.number,
-      htmlUrl: pull.html_url,
-      headSha: pull.head.sha,
-      draft: pull.draft,
-      baseBranch: pull.base.ref,
-    };
+    return pullRequestSummary(pull);
   }
 
   /**
@@ -527,13 +787,7 @@ export class GitHubTrust {
       { signal },
     );
     return {
-      pullRequest: {
-        number: pull.number,
-        htmlUrl: pull.html_url,
-        headSha: pull.head.sha,
-        draft: pull.draft,
-        baseBranch: pull.base.ref,
-      },
+      pullRequest: pullRequestSummary(pull),
       created: true,
     };
   }

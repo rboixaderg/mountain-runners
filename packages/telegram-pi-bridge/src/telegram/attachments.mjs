@@ -106,6 +106,11 @@ function declaredTypeLabel(document) {
  * only checked when Telegram declares it; the download enforces it again.
  */
 export function imageDocumentRefusal(document) {
+  if (typeof document?.file_id !== "string" || document.file_id.trim() === "") {
+    // Without a file reference Telegram cannot return the bytes, so the image
+    // is as unusable as an unreadable photo.
+    return { reason: attachmentRefusalReasons.invalidPhoto };
+  }
   const declared = declaredImageDocument(document);
   if (declared === null) {
     return {
@@ -131,7 +136,9 @@ export function imageDocumentRefusal(document) {
 function photoArea(size) {
   if (
     !Number.isSafeInteger(size?.width) ||
-    !Number.isSafeInteger(size?.height)
+    !Number.isSafeInteger(size?.height) ||
+    size.width < 1 ||
+    size.height < 1
   ) {
     return 0;
   }
@@ -145,7 +152,7 @@ export function largestPhotoSize(photo) {
   }
   let largest = null;
   for (const size of photo) {
-    if (typeof size?.file_id !== "string") {
+    if (typeof size?.file_id !== "string" || size.file_id.trim() === "") {
       continue;
     }
     if (largest === null || photoArea(size) > photoArea(largest)) {
@@ -216,9 +223,14 @@ export function photoAttachment(size, origin) {
   };
 }
 
-/** Bytes rendered for a person, with one decimal and never the file name. */
+/**
+ * Bytes rendered for a person, with one decimal and never the file name. The
+ * value rounds up so a file just above 20 MB never reads as exactly 20,0 MB.
+ */
 export function attachmentMegabytes(bytes) {
-  return (bytes / (1024 * 1024)).toFixed(1).replace(".", ",");
+  return (Math.ceil((bytes / (1024 * 1024)) * 10) / 10)
+    .toFixed(1)
+    .replace(".", ",");
 }
 
 /**

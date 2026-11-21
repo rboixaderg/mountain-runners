@@ -42,20 +42,29 @@ function timestamp(entry) {
 function latestStatusPerContext(statuses) {
   const latest = new Map();
   const ambiguous = new Set();
+  // A context whose timestamps cannot be read can never become the newest one
+  // with confidence: a later readable row does not recover it.
+  const unreadable = new Set();
   for (const status of statuses) {
     const previous = latest.get(status.context);
     if (previous === undefined) {
       latest.set(status.context, status);
-      if (!Number.isFinite(timestamp(status))) ambiguous.add(status.context);
+      if (!Number.isFinite(timestamp(status))) {
+        unreadable.add(status.context);
+        ambiguous.add(status.context);
+      }
       continue;
     }
     const previousTime = timestamp(previous);
     const currentTime = timestamp(status);
     if (!Number.isFinite(previousTime) || !Number.isFinite(currentTime)) {
+      unreadable.add(status.context);
       ambiguous.add(status.context);
     } else if (currentTime > previousTime) {
       latest.set(status.context, status);
-      ambiguous.delete(status.context);
+      if (!unreadable.has(status.context)) {
+        ambiguous.delete(status.context);
+      }
     } else if (currentTime === previousTime) {
       ambiguous.add(status.context);
     }

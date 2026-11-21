@@ -156,6 +156,49 @@ L'[ADR 0009](0009-pr-previews-same-domain-and-own-branches.md) s'esmena en aques
 
 El publicador actual comprova que l'autor del comentari de GitHub sigui col·laborador; no veu la petició de Telegram. La delegació requereix, a més de l'esmena aprovada, proves del flux i dels permisos; fins que es facin, continua vigent el flux de preview amb autorització humana a GitHub.
 
+## Esmena proposada (T8.9, 20 de novembre de 2026)
+
+Proposada fins que es fusioni la PR d'aquesta especificació. Substitueix la
+regla que exigeix una petició explícita de preview: el servei la demana quan
+les comprovacions obligatòries del cap de la PR del tema són verdes. Conserva
+branques pròpies, vinculació al SHA i revalidació del publicador segons
+l'esmena proposada de l'ADR 0009. Un tema té una sola feina i PR; l'estat per
+al model i per a les decisions es llegeix de GitHub, no només dels esdeveniments.
+
+El token acotat del servei necessita `Actions: write` per reexecutar una sola
+vegada una comprovació cancel·lada, esgotada o fallida abans dels passos del
+projecte. Aquest permís també permet altres accions sobre execucions de
+workflows: el compromís del servei o del token augmenta el risc d'abús i consum
+de recursos. El token no entra al sandbox; les crides del servei es limiten al
+reintent autoritzat i es registren. Cal verificar permisos i controls abans de
+l'activació; aquesta esmena no modifica cap credencial.
+
+No canvien la verificació i revocació de membres, el sandbox sense xarxa ni
+credencials, el merge determinista només a petició humana verificada, ni la
+protecció de producció.
+
+## Esmena proposada (etiqueta de preview, 21 de novembre de 2026)
+
+Proposada fins que es fusioni la PR de l'[especificació de l'etiqueta de
+preview](../specs/preview-label.md). Substitueix, per al servei, el comentari
+`/preview` de l'esmena T8.9: quan el servei crea la PR d'un tema, hi posa
+l'etiqueta `preview`, i cada push posterior del servei publica la preview segons
+l'esmena corresponent de l'[ADR 0009](0009-pr-previews-same-domain-and-own-branches.md).
+El servei ja no espera les comprovacions verdes per demanar-la: el build de la
+preview executa la validació completa i un cap vermell no es publica.
+
+El component de GitHub rep una sola operació nova: afegir l'etiqueta `preview`
+a la PR del tema. No pot treure etiquetes ni posar-ne cap altra, i no pot
+treure `preview-revoked`. Segons la [documentació de
+GitHub](https://docs.github.com/en/rest/issues/labels#add-labels-to-an-issue),
+afegir etiquetes accepta `Pull requests: write`, que el token ja té: aquesta
+esmena no amplia el token. Cal provar l'operació i els rebuigs amb el token real
+abans d'activar-la.
+
+Es mantenen la URL confirmada pel publicador per al cap actual, l'avís de fallada
+planer, el merge determinista només a petició humana verificada i el sandbox sense
+xarxa ni credencials.
+
 ## Comprovacions i punts pendents
 
 L'esmena de merge i l'esmena de l'ADR 0009 ja estan aprovades. Abans d'activar el pilot cal provar els controls essencials d'identitat, aïllament, credencials i protecció de `main`. El compte de GitHub triat és administrador; un compte de prova sense accés al repositori no substitueix les comprovacions de la credencial i del component de confiança que utilitzarà el servei. Les comprovacions de permisos no fusionen cap PR ni fan push a `main`; el merge del pilot s'exercita després, amb autorització explícita.

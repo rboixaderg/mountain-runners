@@ -55,6 +55,41 @@ function defaultLogger(event, detail) {
   );
 }
 
+// Retention runs at startup and every six hours while the service is up. The
+// interval is unref'd so it never keeps a stopping process alive.
+export const retentionIntervalMilliseconds = 6 * 60 * 60 * 1000;
+
+/**
+ * Run the callback on every interval until the signal aborts. A failure only
+ * reaches the logger: retention must never crash the bridge.
+ */
+export function scheduleRetention({
+  runRetention,
+  signal,
+  logger = defaultLogger,
+  intervalMilliseconds = retentionIntervalMilliseconds,
+}) {
+  const timer = setInterval(() => {
+    runRetention().catch((error) => {
+      logger(
+        "retention_failed",
+        error instanceof Error ? error.message : "unknown",
+      );
+    });
+  }, intervalMilliseconds);
+  timer.unref();
+  const stop = () => {
+    clearInterval(timer);
+    signal?.removeEventListener("abort", stop);
+  };
+  if (signal?.aborted) {
+    stop();
+    return stop;
+  }
+  signal?.addEventListener("abort", stop, { once: true });
+  return stop;
+}
+
 export async function startService({
   environment = process.env,
   signal,
@@ -250,54 +285,59 @@ export async function startService({
   }
 
   // Archived worktrees keep a dependency tree each; remove only the ones that
-  // have nothing left to lose. Retention never blocks the service.
-  try {
-    const retention = await pruneArchivedWorktrees({
-      repositoryPath: config.paths.repository,
-      worktreeRoot: config.paths.worktrees,
-      logger,
-    });
-    if (retention.removed.length > 0) {
-      logger("worktree_retention_applied", String(retention.removed.length));
+  // have nothing left to lose. Attachments stay available to their topic until
+  // they are published or for seven days. Both run at startup and periodically
+  // while the service is up, and a failure only logs: retention never blocks
+  // the service.
+  async function applyRetention() {
+    try {
+      const worktrees = await pruneArchivedWorktrees({
+        repositoryPath: config.paths.repository,
+        worktreeRoot: config.paths.worktrees,
+        logger,
+      });
+      if (worktrees.removed.length > 0) {
+        logger("worktree_retention_applied", String(worktrees.removed.length));
+      }
+    } catch (error) {
+      logger(
+        "worktree_retention_failed",
+        error instanceof Error ? error.message : "unknown",
+      );
     }
-  } catch (error) {
-    logger(
-      "worktree_retention_failed",
-      error instanceof Error ? error.message : "unknown",
-    );
+    try {
+      const attachments = pruneStoredAttachments({
+        statePath: config.paths.state,
+        logger,
+      });
+      if (attachments.length > 0) {
+        logger("attachment_retention_applied", String(attachments.length));
+      }
+    } catch (error) {
+      logger(
+        "attachment_retention_failed",
+        error instanceof Error ? error.message : "unknown",
+      );
+    }
   }
 
-  // An attachment stays available to its topic until it is published or for
-  // seven days. The store lives in the private state directory, outside the
-  // worktree and outside Git.
-  try {
-    const prunedAttachments = pruneStoredAttachments({
-      statePath: config.paths.state,
-      logger,
-    });
-    if (prunedAttachments.length > 0) {
-      logger("attachment_retention_applied", String(prunedAttachments.length));
-    }
-  } catch (error) {
-    logger(
-      "attachment_retention_failed",
-      error instanceof Error ? error.message : "unknown",
-    );
-  }
+  await applyRetention();
 
   const telegram =
     telegramOverride ?? new TelegramApi({ botToken: config.telegram.botToken });
-  const identity = await telegram.getMe({ signal });
+  let identity;
+  try {
+    identity = await telegram.getMe({ signal });
+  } catch (error) {
+    closeStateStores();
+    throw error;
+  }
   if (
     typeof identity?.username !== "string" ||
     identity.username.toLowerCase() !==
       config.telegram.botUsername.toLowerCase()
   ) {
-    sessionNotes.close();
-    mergeRequests.close();
-    previewRequests.close();
-    ciWatches.close();
-    queue.close();
+    closeStateStores();
     throw new Error(
       "The configured bot token does not match the bot username.",
     );
@@ -348,58 +388,70 @@ export async function startService({
     recordServiceNote,
     logger,
   });
-  await mergeWorker.reconcileUncertain({ signal });
+  try {
+    await mergeWorker.reconcileUncertain({ signal });
+  } catch (error) {
+    closeStateStores();
+    throw error;
+  }
   // One read of the required checks of an exact commit, shared by the
   // continuation of a pull request and the automatic repair.
-  const readCiState = ({ commit, signal }) =>
+  const readCiState = ({ commit, signal, requireRepairEvidence }) =>
     readCiCheckState({
       github,
       requiredChecks: config.github.requiredChecks,
       commit,
       signal,
+      requireRepairEvidence,
     });
-  const runner =
-    runnerOverride ??
-    createProjectRunner({
-      config,
-      github,
-      environment,
-      logger,
-      ciWatches,
-      previewRequests,
-      mergeRequests,
-      requestPreview: previewWorker.handle,
-      requestMerge: mergeWorker.handle,
-      readCiState,
-      // The raw download only touches the service temporary directory, so the
-      // downloaded image is cleaned before it reaches a worktree.
-      prepareAttachment: createAttachmentPreparation({ telegram, logger }),
-      sessionNotes,
-      hasOtherInstructions: (sessionKey, updateIdentifier) =>
-        queue.hasOtherInstructions(sessionKey, updateIdentifier),
-      notifyHandover: async ({
-        updateIdentifier,
-        sessionKey,
-        pullRequestNumber,
-        signal,
-      }) => {
-        const { chatIdentifier, threadIdentifier } =
-          parseSessionKey(sessionKey);
-        const text = continuationReports.handover({ pullRequestNumber });
-        recordServiceNote({
+  let runner;
+  try {
+    runner =
+      runnerOverride ??
+      createProjectRunner({
+        config,
+        github,
+        environment,
+        logger,
+        ciWatches,
+        previewRequests,
+        mergeRequests,
+        requestPreview: previewWorker.handle,
+        requestMerge: mergeWorker.handle,
+        readCiState,
+        // The raw download only touches the service temporary directory, so the
+        // downloaded image is cleaned before it reaches a worktree.
+        prepareAttachment: createAttachmentPreparation({ telegram, logger }),
+        sessionNotes,
+        hasOtherInstructions: (sessionKey, updateIdentifier) =>
+          queue.hasOtherInstructions(sessionKey, updateIdentifier),
+        notifyHandover: async ({
+          updateIdentifier,
           sessionKey,
-          text,
-          effectKey: `handover:${updateIdentifier}`,
-        });
-        await telegram.sendMessage({
-          chatIdentifier,
-          messageThreadIdentifier: threadIdentifier,
-          text,
-          signal: requestSignal(signal, defaultRequestTimeoutMilliseconds),
-        });
-      },
-      recordTrace: (entry) => queue.recordTrace(entry),
-    });
+          pullRequestNumber,
+          signal,
+        }) => {
+          const { chatIdentifier, threadIdentifier } =
+            parseSessionKey(sessionKey);
+          const text = continuationReports.handover({ pullRequestNumber });
+          recordServiceNote({
+            sessionKey,
+            text,
+            effectKey: `handover:${updateIdentifier}`,
+          });
+          await telegram.sendMessage({
+            chatIdentifier,
+            messageThreadIdentifier: threadIdentifier,
+            text,
+            signal: requestSignal(signal, defaultRequestTimeoutMilliseconds),
+          });
+        },
+        recordTrace: (entry) => queue.recordTrace(entry),
+      });
+  } catch (error) {
+    closeStateStores();
+    throw error;
+  }
 
   const ciRepairExecutor = createCiRepairExecutor({
     repairs: ciWatches,
@@ -441,6 +493,9 @@ export async function startService({
     pollIntervalMilliseconds: config.limits.ciPollIntervalMs,
     watchTimeoutMilliseconds: config.limits.ciWatchTimeoutMs,
     maximumAutomaticRepairs,
+    // A request that asked for the change and its preview in the same message
+    // gets the preview here, through the same handler a person's request uses.
+    requestPreview: previewWorker.handle,
     secrets: agentSecrets(config, environment),
     recordTrace: (entry) => queue.recordTrace(entry),
     recordServiceNote,
@@ -461,6 +516,8 @@ export async function startService({
     mergeWorker,
     ciRepairExecutor,
     sessionNotes,
+    applyRetention,
+    closeStateStores,
     logger,
   };
 }
@@ -496,6 +553,24 @@ export async function runBridgeWithCiWatcher({
   }
 }
 
+/**
+ * Release the sandboxed commands and every state store. The stores are closed
+ * even when stopping the commands fails: a leaked SQLite handle would keep the
+ * state of a service that is already stopping.
+ */
+export async function stopService({
+  stopSandboxedCommands = stopAllSandboxedCommands,
+  closeStateStores,
+  logger = defaultLogger,
+}) {
+  try {
+    await stopSandboxedCommands();
+  } finally {
+    closeStateStores();
+    logger("service_stopped");
+  }
+}
+
 export async function main({ environment = process.env } = {}) {
   const controller = new AbortController();
   const stop = () => controller.abort();
@@ -503,18 +578,21 @@ export async function main({ environment = process.env } = {}) {
   process.once("SIGTERM", stop);
 
   const {
-    queue,
     bridge,
-    ciWatches,
     ciWorker,
-    previewRequests,
     previewWorker,
-    mergeRequests,
-    sessionNotes,
+    applyRetention,
+    closeStateStores,
     logger,
   } = await startService({
     environment,
     signal: controller.signal,
+  });
+
+  const stopRetention = scheduleRetention({
+    runRetention: applyRetention,
+    signal: controller.signal,
+    logger,
   });
 
   try {
@@ -527,13 +605,8 @@ export async function main({ environment = process.env } = {}) {
       logger,
     });
   } finally {
-    await stopAllSandboxedCommands();
-    sessionNotes.close();
-    mergeRequests.close();
-    previewRequests.close();
-    ciWatches.close();
-    queue.close();
-    logger("service_stopped");
+    stopRetention();
+    await stopService({ closeStateStores, logger });
   }
 }
 

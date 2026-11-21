@@ -457,10 +457,17 @@ Qualsevol commit del rang que afegeixi, modifiqui, mogui o esborri `.github/**`
 o un fitxer `CODEOWNERS` refusa la publicació, encara que un commit posterior
 reverteixi el canvi. El push publica exactament el SHA inspeccionat, sense
 forçar-lo. La credencial de GitHub ha de ser un token acotat al repositori amb
-`Contents: write`, `Pull requests: write` i `Actions: read` (per llegir el
-resultat de la preview), sense `Workflows: write` ni permisos
-d'administració. El rol administrador del compte no prova els permisos del
-token. Abans del pilot cal verificar els permisos reals i les regles de branca
+`Contents: write`, `Pull requests: write` i `Actions: write`, sense
+`Workflows: write` ni permisos d'administració. `Actions: write` permet llegir el
+resultat de la preview i reexecutar una sola vegada els jobs fallits d'una
+execució cancel·lada, esgotada o fallida en la preparació. Aquest permís també
+permet altres accions sobre execucions de workflows i augmenta el risc d'abús i
+de consum de recursos si es compromet el servei o el token. La credencial
+continua fora del sandbox; el servei limita i registra les reexecucions. El rol
+administrador del compte no prova els permisos del token. Abans d'activar la
+capacitat cal aprovar l'esmena de l'ADR 0013 i verificar els controls; aquest
+document no concedeix cap permís.
+Abans del pilot cal verificar els permisos reals i les regles de branca
 dels entorns `previews` i `production`; aquestes proves locals no ho demostren.
 
 Tota ordre Git de confiança té termini i aturada: 120 s per a una operació local
@@ -537,7 +544,10 @@ la sessió; si no es pot confirmar, l'execució queda fallida o incerta.
   pendent actual o, si nomena una sola PR que el servei va publicar, la reprèn
   (vegeu «Continuació d'una PR des d'un altre tema»); no incorpora
   automàticament altres treballs arxivats. Les operacions executen `pnpm check`
-  al contenidor abans de commit, push i PR.
+  al contenidor abans de commit, push i PR; si tots els camins que la publicació
+  contindria són dins de `apps/web/src/content` o `apps/web/src/content-assets`,
+  executen `pnpm check:local`, i qualsevol altre camí manté `pnpm check`
+  (ADR 0012).
 - Un error local, un timeout o una cancel·lació confirmada no bloquegen la cua.
   Un error després d'iniciar la publicació queda incert, excepte un refús local
   identificat pel publicador. Una aturada de contenidors no confirmada també
@@ -718,8 +728,21 @@ commit i els noms queda al registre privat `ci_notification_sent` i a la nota de
 servei. Una fallada que arriba a una reparació automàtica desa a més la seva
 evidència a `state/ci-watch.sqlite`.
 
-Quan una comprovació obligatòria falla, el servei intenta reparar-la sol, amb un
-límit de dues reparacions consecutives per conjunt de comprovacions fallides. La
+Si una comprovació obligatòria es cancel·la, s'esgota o falla en la preparació
+abans dels passos del projecte, el servei reserva a `state/ci-watch.sqlite` una
+sola reexecució dels jobs fallits d'aquella execució de GitHub. Desa la reserva
+abans de la crida i continua seguint el mateix commit. El termini del seguiment
+torna a comptar des de la reserva duradora. Després d'un reinici consulta
+l'intent de GitHub; si el resultat no es pot confirmar, no torna a fer
+la crida i avisa. Una fallada posterior al reintent també s'avisa sense reparar
+ni tornar a executar. Els noms de passos reconeguts són a
+`tools/server/agent/repository/ci-failure.mjs`.
+
+Per a una fallada d'un pas de projecte reconegut amb sortida atribuïble a
+aquell pas en el log del job, el servei pot intentar reparar-la, amb un límit de
+dues reparacions consecutives per conjunt de comprovacions fallides. La lectura
+del log es limita a 1 MiB i exclou els segons de les fronteres i les ordres
+agrupades. Sense aquesta evidència, avisa sense iniciar el model. La
 identitat de la fallada és aquest conjunt de noms; el missatge de la comprovació
 i el SHA són evidència i abast de l'intent, no identitat, perquè un SHA nou a
 cada reparació faria impossible comptar res i un missatge variable reiniciaria el
@@ -805,15 +828,18 @@ publicador de la fase 6 continua comprovant que l'autor del comentari és
 col·laborador. La pertinença i l'atribució de la persona només viuen a la traça
 privada.
 
-- **Fixació.** El destí és el commit que el servei va informar en verd en
+- **PR i fixació.** El destí és la PR que el servei va informar en verd en
   aquell tema (la fila de `ci_watches` amb l'avís enviat com a èxit). Mai
-  s'accepta un número de PR ni un SHA escrits per la persona. Sense aquest
-  commit, el servei refusa. Si el tema té una publicació més nova sense informe
+  s'accepta un número de PR ni un SHA escrits per la persona. Sense aquesta fila,
+  el servei refusa. Si el tema té una publicació més nova sense informe
   confirmat, tampoc no la demana: l'avís anterior ha quedat enrere.
-- **Condicions, rellegides en directe.** PR oberta, cap igual al commit fixat,
-  repositori de la branca igual al principal i comprovacions obligatòries totes
-  en verd amb el mateix classificador que la CI. Qualsevol resultat vermell,
-  pendent, absent, ambigu o un error de lectura refusa la petició.
+- **Condicions, rellegides en directe.** PR oberta, repositori de la branca igual
+  al principal i comprovacions obligatòries del cap actual de la PR totes en verd
+  amb el mateix classificador que la CI. El cap pot ser més nou que el commit
+  informat, perquè una persona pot haver actualitzat la PR fora de l'agent: la
+  petició es fixa llavors al cap i queda lligada a aquest SHA exacte. Qualsevol
+  resultat vermell, pendent, absent, ambigu o un error de lectura refusa la
+  petició.
 - **Pertinença.** Es torna a consultar a Telegram en el moment d'executar la
   petició, com al merge i després de resoldre el commit fixat: una preview
   publica la PR en un subdomini públic, així que no és feina ordinària de la
@@ -891,7 +917,11 @@ privada.
   confirmada sempre porta la seva adreça. El detall tècnic (estat, commit, PR i
   adreça) queda a la traça privada i a la nota del tema que rep el model.
 - **Mai automàtic.** Ni una CI verda, ni crear una PR, ni publicar una reparació
-  demanen cap preview.
+  demanen cap preview. Només quan la mateixa petició que demana el canvi demana
+  explícitament la preview, el servei la demana quan ha enviat l'avís verd, en
+  nom de l'autor desat a la fila de `ci_watches` i amb el mateix tractament
+  determinista; aleshores l'avís diu que la demana en comptes d'invitar-la a
+  demanar, i tornar a tramitar el mateix avís no publica cap `/preview` nou.
 
 - **Avís de confirmació.** L'avís s'envia abans de tancar la petició i només
   es tanca si l'enviament ha anat bé; si falla, es reintenta al cicle següent.
@@ -1266,10 +1296,17 @@ seu no quedi fora de la sessió.
   retallada a 800 caràcters (resposta del model o informe del servei), si el
   worktree del tema té canvis o commits sense publicar (lectura de Git, sense
   fetch ni worktree nou) i el número de la PR que el tema va publicar i encara
-  té. Una petició que respon aquella resposta o que aporta dades, correccions o
-  fitxers per a la feina pendent o per a aquella PR és una continuació; una
-  feina nova i independent és una implementació. Cada classificació es traça com
-  a `instruction_classified`, amb el tipus com a detall.
+  té. Una petició que actua sobre el canvi del tema (l'edita, el publica, el
+  reintenta o hi aporta dades, correccions, una aprovació o una resposta) és una
+  continuació; un agraïment, un dubte sobre l'estat o una ordre d'esperar és una
+  consulta, i publicar mai no és una preview. Una feina sobre un altre contingut
+  és una implementació. Un límit de peticions del proveïdor (HTTP 429) es
+  reintenta com a màxim dues vegades amb una espera curta dins del mateix termini
+  de la classificació; si persisteix, la petició falla en lloc de tractar-se com
+  un aclariment. Cap altre error es reintenta i una aturada no ho fa mai. Cada
+  classificació es traça com
+  a `instruction_classified`, amb el tipus com a detall; una petició que demana
+  la preview juntament amb el canvi ho traça com a `preview_after_change`.
 - **Continuació sobre la PR del tema.** Si una continuació no nomena cap `#N`,
   no té canvis locals ni commits pendents i el tema té una PR oberta pròpia, el
   servei la reprèn amb les comprovacions de «Continuació d'una PR des d'un altre
@@ -1329,54 +1366,24 @@ Quan el seguiment veu que el cap de la proposta ha canviat, ho diu i no promet c
 avís nou: les comprovacions de la versió nova no es fan totes soles, i la persona
 ha de demanar en aquell tema que es revisin o, més endavant, la preview.
 
-### Estat del tema (T8.8)
+### Estat del tema (T8.8 i T8.9)
 
-El model s'executa en un sandbox sense xarxa ni credencials, així que no pot
-llegir la PR, les comprovacions, la preview ni el merge. Cada torn del model
-—consulta, implementació, continuació o reparació automàtica— rep abans de la
-petició un bloc amb l'estat que el servei ja té desat, presentat com a dada i no
-com una ordre:
+Abans de cada torn, el servei identifica la PR del tema amb els seguiments
+persistits. Llegeix de GitHub la PR, el cap i les comprovacions obligatòries, i
+revalida el cap. Per a una petició de preview del cap actual, llegeix el
+comentari del publicador i només facilita l'URL confirmada per a aquell commit.
+Si la lectura falla o el cap canvia durant la consulta, el bloc indica que no
+es pot comprovar l'estat i es registra `topic_state_failed` al journal. El bloc
+no conté identificadors de Telegram ni dades personals, i el classificador no el
+rep. El model el rep dins del sandbox sense xarxa ni credencials.
 
-- la PR que treballa el torn, amb l'enllaç `https://github.com/<repo>/pull/<n>`;
-- l'últim commit informat d'aquella PR i el resultat de les comprovacions
-  obligatòries;
-- si hi ha feina més nova encara sense informar;
-- l'última petició de preview d'aquella PR i el seu estat;
-- l'última petició de merge d'aquella PR i el seu estat.
-
-`workflow/topic-state.mjs` construeix el bloc amb els magatzems duradors
-(`ci-watch.sqlite`, `preview-request.sqlite` i `merge-request.sqlite`) i no fa
-cap crida a GitHub. Les lectures de l'informe, la preview i el merge es filtren
-per la PR que el bloc imprimeix: una fila d'una altra PR del mateix tema no
-descriu aquesta PR. El senyal de feina més nova continua sent del tema, perquè
-qualsevol publicació pendent o de resultat desconegut pot afectar la PR impresa.
-Cada estat interior té una descripció en paraules planes; només un estat que el
-codi encara no descriu arriba amb el seu propi valor, marcat com a tal. El bloc
-demana al model que expliqui aquests estats a la persona sense identificadors de
-commit, noms de fitxer ni noms de comprovació.
-
-Un torn que continua la PR d'un altre tema descriu aquella PR i els fets del
-tema que encara la té —últim commit informat, resultat i preview— i ho diu; el
-tema nou la posseeix quan la seva publicació registra el seguiment.
-
-L'URL de la preview surt només de l'origen que el publicador de confiança ha
-confirmat per al commit informat, encara que hi hagi una petició posterior per
-al mateix commit; si la confirmació és d'un canvi anterior, es diu sense URL. El
-servei no construeix ni endevina cap URL. `repository/preview-request-store.mjs`
-desa aquest origen a `preview_requests.confirmed_origin`, en la mateixa escriptura
-que tanca la petició com a confirmada: una confirmació no acaba mai sense
-l'URL. `updated_at` és l'últim canvi de la fila: mentre la petició espera, és la
-referència del termini de confirmació, i quan acaba, és el moment en què va
-acabar. Una base de dades anterior rep la columna en arrencar i les peticions ja
-tancades hi queden sense origen; el bloc les descriu com a confirmades sense
-enllaç desat, no com un canvi anterior. La línia de la PR indica quan l'últim
-informe d'aquella PR la dona per tancada o quan el merge consta fet.
-
-El bloc no conté identificadors de Telegram ni dades de les persones, i
-`runtime/request-kind.mjs` no el rep: el classificador conserva el seu context
-acotat. El text és a `policy/development.mjs`, al costat del bloc d'efectes del
-servei de T8.7. Si l'estat no es pot llegir, el servei ho registra al journal
-(`topic_state_failed`) i el torn continua sense el bloc.
+La petició explícita de preview torna a comprovar la PR i les comprovacions del
+cap encara que l'últim resultat desat no sigui verd. Just abans de publicar el
+comentari, torna a llegir el cap i la CI i refusa la petició si han canviat o no
+es poden llegir. Els treballs pendents i els
+resultats desconeguts continuen bloquejant la petició. Abans d'un merge o una
+reparació, el servei torna a comprovar el cap i la CI; el merge continua fixat
+al commit informat al tema.
 
 Els límits numèrics (CPU, memòria, processos, temps d'execució i cua) tenen valors
 inicials al codi. La unitat limita el conjunt del servei i els seus contenidors a 1,5 CPU,

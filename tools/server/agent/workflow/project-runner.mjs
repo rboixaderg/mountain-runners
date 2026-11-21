@@ -13,6 +13,7 @@ import { createPublisher } from "../repository/publisher.mjs";
 import { createAttachmentStore } from "../attachments/store.mjs";
 import { scaleImageAttachments } from "../attachments/scale.mjs";
 import { createCiWatchRegistration } from "./ci-watch.mjs";
+import { mergeStates } from "../repository/merge-request-store.mjs";
 import {
   buildInstructionPrompt,
   formatMadridInstant,
@@ -24,7 +25,7 @@ import { createCrossTopicContinuation } from "./cross-topic-continuation.mjs";
 import { createOverlapWarning } from "./overlap-warning.mjs";
 import {
   createTopicPullRequestFinder,
-  createTopicStateReader,
+  createLiveTopicStateReader,
 } from "./topic-state.mjs";
 
 export function createProjectRunner({
@@ -116,7 +117,7 @@ export function createProjectRunner({
       image: config.model.sandboxImage,
       workspacePath: context.worktreePath,
       worktreeRoot: config.paths.worktrees,
-      command: ["bash", "-lc", sandboxCheckCommand],
+      command: ["bash", "-lc", sandboxCheckCommand(context.checkCommand)],
       limits: config.limits,
       sessionIdentifier: context.sandboxIdentifier,
       timeoutMilliseconds: config.limits.executionTimeoutMs,
@@ -129,8 +130,17 @@ export function createProjectRunner({
   const identifiers = openIdentifierNames(config.paths.state);
   // The pull request this topic published last and still owns, from the CI
   // watches: without them the service knows none.
-  const findTopicPullRequest = ciWatches
+  // The state block still describes the change a topic closed or merged, while
+  // the classifier only receives a pull request the topic can continue working
+  // on.
+  const findOwnedTopicPullRequest = ciWatches
     ? createTopicPullRequestFinder(ciWatches)
+    : undefined;
+  const findTopicPullRequest = ciWatches
+    ? createTopicPullRequestFinder(ciWatches, {
+        includeEnded: false,
+        mergeRequests,
+      })
     : undefined;
   return createInstructionRunner({
     repositoryPath: config.paths.repository,
@@ -153,11 +163,14 @@ export function createProjectRunner({
     // the sandbox.
     readTopicState:
       ciWatches && previewRequests && mergeRequests
-        ? createTopicStateReader({
+        ? createLiveTopicStateReader({
+            github,
+            requiredChecks: config.github.requiredChecks,
+            logger,
             ciWatches,
             previewRequests,
             mergeRequests,
-            findTopicPullRequest,
+            findTopicPullRequest: findOwnedTopicPullRequest,
             repositoryName: config.github.repository,
           })
         : undefined,
@@ -195,6 +208,11 @@ export function createProjectRunner({
           worktreeRoot: config.paths.worktrees,
           identifiers,
           listPullRequests: () => ciWatches.latestPublications(),
+          isMerged: (published) =>
+            mergeRequests?.latest({
+              sessionKey: published.session_key,
+              pullRequestNumber: published.pull_request_number,
+            })?.state === mergeStates.merged,
           recordTrace,
         })
       : undefined,

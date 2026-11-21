@@ -6,6 +6,7 @@ import { test } from "node:test";
 import { CiWatchStore } from "../repository/ci-watch-store.mjs";
 import { SessionNoteStore } from "../repository/session-note-store.mjs";
 import {
+  checkCommands,
   ciWatchOutcomes,
   publicationNoteText,
 } from "../policy/development.mjs";
@@ -68,6 +69,7 @@ function executorFor({
   readPullRequest = async (options) => openPullRequest(options),
   readCiState = async () => ({
     state: "failure",
+    repairable: true,
     failed: ["Validate"],
     pending: [],
     missing: [],
@@ -85,6 +87,135 @@ function executorFor({
     recordServiceNote,
   });
 }
+
+test("does not run a queued repair when live failure evidence is unavailable", async (context) => {
+  const store = fixture(context);
+  queueRepair(store, repairRequest);
+  let executed = false;
+  const executor = executorFor({
+    store,
+    telegram: fakeTelegram(),
+    runInstruction: async () => {
+      executed = true;
+    },
+    readCiState: async () => ({
+      state: "failure",
+      failed: ["Validate"],
+      pending: [],
+      missing: [],
+      ambiguous: [],
+      repairable: false,
+    }),
+  });
+  await executor.runNext();
+  assert.equal(executed, false);
+});
+
+for (const scenario of ["green", "moved", "error"]) {
+  test(`rechecks the queued repair and updates its watch: ${scenario}`, async (context) => {
+    const store = fixture(context);
+    store.add(repairRequest);
+    store.beginSend(repairRequest.updateIdentifier, "repairing");
+    store.finishSend(repairRequest.updateIdentifier);
+    queueRepair(store, repairRequest);
+    let reads = 0;
+    let executed = false;
+    const executor = executorFor({
+      store,
+      telegram: fakeTelegram(),
+      runInstruction: async () => {
+        executed = true;
+      },
+      readPullRequest: async (options) => {
+        reads += 1;
+        if (scenario === "error" && reads === 2) throw new Error("network");
+        return {
+          ...openPullRequest(options),
+          headSha:
+            scenario === "moved" && reads === 2
+              ? "c".repeat(40)
+              : repairRequest.commitSha,
+        };
+      },
+      readCiState: async () => ({
+        state: scenario === "green" ? "success" : "failure",
+        failed: [],
+        pending: [],
+        missing: [],
+        ambiguous: [],
+      }),
+    });
+    await executor.runNext();
+    assert.equal(executed, false);
+    if (scenario !== "error")
+      assert.equal(
+        store.lastReported(repairRequest.sessionKey).result,
+        scenario === "green" ? "success" : "head-changed",
+      );
+    assert.equal(store.claimNextRepair(), null);
+  });
+}
+
+test("a queued repair survives restart and replaces its repairing notice when CI is green", async (context) => {
+  const directory = mkdtempSync(join(tmpdir(), "mr-ci-repair-restart-"));
+  context.after(() => rmSync(directory, { recursive: true, force: true }));
+  const path = join(directory, "state.sqlite");
+  const original = new CiWatchStore(path);
+  original.add(repairRequest);
+  original.beginSend(repairRequest.updateIdentifier, "repairing");
+  original.finishSend(repairRequest.updateIdentifier);
+  queueRepair(original, repairRequest);
+  original.close();
+  const store = new CiWatchStore(path);
+  context.after(() => store.close());
+  store.recoverSending();
+  store.abortInterruptedReservations("restart");
+  store.interruptRepairs();
+  const executor = executorFor({
+    store,
+    telegram: fakeTelegram(),
+    runInstruction: async () => assert.fail("green CI must not be repaired"),
+    readCiState: async () => ({
+      state: "success",
+      failed: [],
+      pending: [],
+      missing: [],
+      ambiguous: [],
+    }),
+  });
+  await executor.runNext();
+  assert.equal(store.lastReported(repairRequest.sessionKey).result, "success");
+  assert.equal(store.state(repairRequest.updateIdentifier), "sent");
+});
+
+test("a failed green notice retains the live result as an uncertain delivery", async (context) => {
+  const store = fixture(context);
+  store.add(repairRequest);
+  store.beginSend(repairRequest.updateIdentifier, "repairing");
+  store.finishSend(repairRequest.updateIdentifier);
+  queueRepair(store, repairRequest);
+  const executor = executorFor({
+    store,
+    telegram: {
+      async sendMessage() {
+        throw new Error("network");
+      },
+    },
+    runInstruction: async () => assert.fail("green CI must not be repaired"),
+    readCiState: async () => ({
+      state: "success",
+      failed: [],
+      pending: [],
+      missing: [],
+      ambiguous: [],
+    }),
+  });
+  await executor.runNext();
+  assert.equal(store.state(repairRequest.updateIdentifier), "uncertain");
+  assert.equal(store.uncertainNotices()[0].result, "success");
+  store.resolveUncertainNoticeDelivered(repairRequest.updateIdentifier);
+  assert.equal(store.lastReported(repairRequest.sessionKey).result, "success");
+});
 
 test("runs a queued repair through the instruction runner and reports the publication", async (context) => {
   const store = fixture(context);
@@ -148,6 +279,7 @@ test("keeps the service facts of a published repair and never the model's words"
     pullRequest: { number: 200, htmlUrl: "https://github.com/o/r/pull/200" },
     branch: "fix/tools-repair-the-synthetic-check",
     commit: "c".repeat(40),
+    checkCommand: checkCommands.full,
     ciWatch: ciWatchOutcomes.registered,
   });
   const modelAnswer = "He arreglat la comprovació que fallava.";
@@ -623,6 +755,7 @@ test("informs the topic even when the attempt cannot be closed", async (context)
       openPullRequest({ pullRequestNumber }),
     readCiState: async () => ({
       state: "failure",
+      repairable: true,
       failed: ["Validate"],
       pending: [],
       missing: [],

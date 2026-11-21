@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { DatabaseSync } from "node:sqlite";
 import { test } from "node:test";
 import { CiWatchStore } from "./ci-watch-store.mjs";
 
@@ -27,6 +28,139 @@ const request = {
   commitSha: "a".repeat(40),
 };
 
+test("reserves one rerun per workflow run across restarts", (context) => {
+  const path = fixture(context);
+  let store = new CiWatchStore(path);
+  assert.equal(
+    store.reserveRerun({ runIdentifier: 123, originalAttempt: 1 }),
+    true,
+  );
+  store.close();
+
+  store = new CiWatchStore(path);
+  assert.equal(store.rerun(123).original_attempt, 1);
+  assert.equal(
+    store.reserveRerun({ runIdentifier: 123, originalAttempt: 1 }),
+    false,
+  );
+  assert.equal(
+    store.reserveRerun({ runIdentifier: 123, originalAttempt: 2 }),
+    false,
+  );
+  assert.equal(
+    store.reserveRerun({ runIdentifier: 124, originalAttempt: 1 }),
+    true,
+  );
+  store.close();
+});
+
+test("migrates existing rerun reservations without resetting their budget", (context) => {
+  const path = fixture(context);
+  const previous = new DatabaseSync(path);
+  previous.exec(`CREATE TABLE ci_reruns (run_identifier INTEGER PRIMARY KEY, original_attempt INTEGER NOT NULL, created_at TEXT NOT NULL);
+    INSERT INTO ci_reruns VALUES (123, 1, '2026-11-21T10:00:00.000Z');`);
+  previous.close();
+  const store = new CiWatchStore(path, {
+    now: () => new Date("2026-11-21T11:00:00Z"),
+  });
+  assert.equal(
+    store.reserveRerun({
+      runIdentifier: 123,
+      originalAttempt: 2,
+      updateIdentifier: 12,
+      commitSha: request.commitSha,
+    }),
+    false,
+  );
+  assert.equal(
+    store.rerunDeadlineStart({
+      updateIdentifier: 12,
+      commitSha: request.commitSha,
+    }),
+    null,
+  );
+  assert.equal(
+    store.reserveRerun({
+      runIdentifier: 124,
+      originalAttempt: 1,
+      updateIdentifier: 12,
+      commitSha: request.commitSha,
+    }),
+    true,
+  );
+  assert.equal(
+    store.rerunDeadlineStart({
+      updateIdentifier: 12,
+      commitSha: request.commitSha,
+    }),
+    "2026-11-21T11:00:00.000Z",
+  );
+  assert.equal(
+    store.rerunDeadlineStart({
+      updateIdentifier: 12,
+      commitSha: "b".repeat(40),
+    }),
+    null,
+  );
+  store.close();
+});
+
+test("keeps the preview a request asked for with its change", (context) => {
+  const store = new CiWatchStore(fixture(context));
+  store.add(request);
+  store.add({
+    ...request,
+    updateIdentifier: 13,
+    pullRequestNumber: 124,
+    commitSha: "b".repeat(40),
+    previewAuthorIdentifier: 42,
+  });
+
+  const [withoutPreview, withPreview] = store.pending();
+  assert.equal(withoutPreview.preview_author_identifier, null);
+  assert.equal(withPreview.preview_author_identifier, 42);
+  store.close();
+});
+
+test("adds the preview author to a store created before it", (context) => {
+  const path = fixture(context);
+  const previous = new DatabaseSync(path);
+  previous.exec(`
+    CREATE TABLE ci_watches (
+      update_identifier INTEGER PRIMARY KEY,
+      session_key TEXT NOT NULL,
+      pull_request_number INTEGER NOT NULL,
+      commit_sha TEXT NOT NULL,
+      state TEXT NOT NULL CHECK (state IN ('pending', 'sending', 'sent', 'uncertain', 'superseded')),
+      result TEXT,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+    INSERT INTO ci_watches
+      (update_identifier, session_key, pull_request_number, commit_sha, state,
+       result, created_at, updated_at)
+    VALUES (12, '-100123:7', 123, '${"a".repeat(40)}', 'pending', NULL,
+            '2026-11-14T10:00:00Z', '2026-11-14T10:00:00Z');
+  `);
+  previous.close();
+
+  const store = new CiWatchStore(path);
+  assert.equal(
+    store.pending()[0].preview_author_identifier,
+    null,
+    "a watch created before the column asked for no preview",
+  );
+  store.add({
+    ...request,
+    updateIdentifier: 13,
+    pullRequestNumber: 124,
+    commitSha: "b".repeat(40),
+    previewAuthorIdentifier: 42,
+  });
+  assert.equal(store.pending()[1].preview_author_identifier, 42);
+  store.close();
+});
+
 test("preserves a pending watch and its pinned SHA after restart", (context) => {
   const path = fixture(context);
   let store = new CiWatchStore(path);
@@ -39,6 +173,101 @@ test("preserves a pending watch and its pinned SHA after restart", (context) => 
   assert.equal(watch.pull_request_number, request.pullRequestNumber);
   assert.ok(Date.parse(watch.created_at) > 0);
   store.close();
+});
+
+test("supersedes the older pending watch of the same pull request", (context) => {
+  const store = new CiWatchStore(fixture(context));
+  store.add(request);
+  store.add({
+    ...request,
+    updateIdentifier: 13,
+    commitSha: "b".repeat(40),
+  });
+
+  // The older commit is not the head any more: its notice is never sent and it
+  // never becomes the report of the topic.
+  assert.deepEqual(
+    store.pending().map((row) => row.update_identifier),
+    [13],
+  );
+  assert.equal(store.state(12), "superseded");
+  assert.equal(store.beginSend(12, "success"), false);
+  assert.equal(store.hasUnreportedWork(request.sessionKey), true);
+
+  store.beginSend(13, "success");
+  store.finishSend(13);
+  assert.equal(
+    store.lastReported(request.sessionKey).commit_sha,
+    "b".repeat(40),
+  );
+  store.close();
+});
+
+test("keeps the pending watch of another pull request", (context) => {
+  const store = new CiWatchStore(fixture(context));
+  store.add(request);
+  store.add({
+    ...request,
+    updateIdentifier: 13,
+    pullRequestNumber: 124,
+    commitSha: "b".repeat(40),
+  });
+
+  assert.deepEqual(
+    store.pending().map((row) => row.update_identifier),
+    [12, 13],
+  );
+  assert.equal(store.state(12), "pending");
+  store.close();
+});
+
+test("widens the state check of a store created before superseding", (context) => {
+  const path = fixture(context);
+  // The previous schema could not hold a superseded watch: opening it rebuilds
+  // the table once and keeps its rows.
+  const previous = new DatabaseSync(path);
+  previous.exec(`
+    CREATE TABLE ci_watches (
+      update_identifier INTEGER PRIMARY KEY,
+      session_key TEXT NOT NULL,
+      pull_request_number INTEGER NOT NULL,
+      commit_sha TEXT NOT NULL,
+      state TEXT NOT NULL CHECK (state IN ('pending', 'sending', 'sent', 'uncertain')),
+      result TEXT,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+    INSERT INTO ci_watches
+      (update_identifier, session_key, pull_request_number, commit_sha, state,
+       result, created_at, updated_at)
+    VALUES (12, '-100123:7', 123, '${"a".repeat(40)}', 'pending', NULL,
+            '2026-11-14T10:00:00Z', '2026-11-14T10:00:00Z');
+  `);
+  previous.close();
+
+  const store = new CiWatchStore(path);
+  store.add({ ...request, updateIdentifier: 13, commitSha: "b".repeat(40) });
+  assert.equal(store.state(12), "superseded");
+  assert.deepEqual(
+    store.pending().map((row) => row.update_identifier),
+    [13],
+  );
+  store.close();
+
+  // The indexes of the rebuilt table were created in the same transaction.
+  const database = new DatabaseSync(path, { readOnly: true });
+  const indexes = database
+    .prepare(
+      `SELECT name FROM sqlite_master
+       WHERE type = 'index' AND tbl_name = 'ci_watches' ORDER BY name`,
+    )
+    .all()
+    .map((row) => row.name);
+  database.close();
+  assert.deepEqual(indexes, [
+    "ci_watches_pull_request",
+    "ci_watches_topic_state",
+  ]);
 });
 
 test("does not resend a notification interrupted during delivery", (context) => {
@@ -335,7 +564,7 @@ test("keeps an uncertain repair blocking after more than one restart", (context)
   store.close();
 });
 
-test("does not count a reservation that never ran", (context) => {
+test("counts a queued attempt so a burst cannot exceed the budget", (context) => {
   const store = new CiWatchStore(fixture(context));
   const queued = requestQueued(store, repairRequest);
   const second = requestQueued(store, {
@@ -343,8 +572,13 @@ test("does not count a reservation that never ran", (context) => {
     commitSha: "b".repeat(40),
   });
 
-  // Neither queued attempt was taken: neither spends the budget.
-  assert.equal(second.attemptNumber, 1);
+  // A queued attempt is announced and will run: it spends the budget and cannot
+  // reuse the attempt number of the one before it.
+  assert.equal(second.attemptNumber, 2);
+  assert.equal(
+    store.requestRepair({ ...repairRequest, commitSha: "c".repeat(40) }),
+    null,
+  );
 
   for (const attempt of [queued, second]) {
     store.claimNextRepair();
@@ -354,7 +588,7 @@ test("does not count a reservation that never ran", (context) => {
     });
   }
   assert.equal(
-    requestQueued(store, { ...repairRequest, commitSha: "c".repeat(40) }),
+    requestQueued(store, { ...repairRequest, commitSha: "d".repeat(40) }),
     null,
   );
   store.close();
@@ -510,6 +744,7 @@ test("reports the last delivered notice of one pull request, never of another", 
       }),
     },
     {
+      update_identifier: request.updateIdentifier,
       pull_request_number: 123,
       commit_sha: request.commitSha,
       result: "success",
@@ -640,17 +875,18 @@ test("counts an unknown notice even when the notices arrived out of order", (con
     instant += 1000;
     return store;
   };
-  const add = (updateIdentifier) => {
+  const add = (updateIdentifier, pullRequestNumber) => {
     nextInstant().add({
       ...request,
       updateIdentifier,
+      pullRequestNumber,
       commitSha: String(updateIdentifier).padStart(40, "a"),
     });
   };
-  // A, B and C are published, in that order.
-  add(10);
-  add(11);
-  add(12);
+  // Three pull requests of the topic are published, in that order.
+  add(10, 200);
+  add(11, 202);
+  add(12, 203);
   // C is reported first and A afterwards; B may or may not have been reported.
   nextInstant().beginSend(12, "success");
   nextInstant().finishSend(12);
@@ -659,14 +895,48 @@ test("counts an unknown notice even when the notices arrived out of order", (con
   nextInstant().beginSend(11, "success");
   nextInstant().markUncertain(11);
 
-  // The last delivered notice is A, and the older unknown notice still blocks
-  // it: the reference of `lastReported` is not compared with the unknown one.
-  assert.equal(store.lastReported(topic).pull_request_number, 123);
-  assert.equal(store.lastReported(topic).commit_sha, "10".padStart(40, "a"));
+  // The last delivered notice is the newest publication, C, even though A was
+  // delivered after it: the report of a topic is ordered by the publication of
+  // its commit, so a slow older watch can never overwrite a newer report. The
+  // older unknown notice still blocks the topic.
+  assert.equal(store.lastReported(topic).pull_request_number, 203);
+  assert.equal(store.lastReported(topic).commit_sha, "12".padStart(40, "a"));
   assert.equal(store.hasUnreportedWork(topic), true);
 
   nextInstant().resolveUncertainNoticeDelivered(11);
   assert.equal(store.hasUnreportedWork(topic), false);
+  store.close();
+});
+
+test("never lets a slow older watch overwrite a newer green report", (context) => {
+  let instant = Date.parse("2026-11-16T10:00:00Z");
+  const store = new CiWatchStore(fixture(context), {
+    now: () => new Date(instant),
+  });
+  const topic = "-100123:7";
+  const olderCommit = "a".repeat(40);
+  const newerCommit = "b".repeat(40);
+  store.add({
+    ...request,
+    updateIdentifier: 10,
+    commitSha: olderCommit,
+  });
+  instant += 1000;
+  store.add({
+    ...request,
+    updateIdentifier: 11,
+    commitSha: newerCommit,
+  });
+
+  // The newer commit is reported first, and the older one only afterwards.
+  store.beginSend(11, "failure");
+  store.finishSend(11);
+  instant += 1000;
+  store.beginSend(10, "success");
+  store.finishSend(10);
+
+  assert.equal(store.lastReported(topic).commit_sha, newerCommit);
+  assert.equal(store.lastReported(topic).result, "failure");
   store.close();
 });
 

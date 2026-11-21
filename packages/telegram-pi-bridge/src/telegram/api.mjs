@@ -6,6 +6,29 @@
 
 const defaultBaseUrl = "https://api.telegram.org";
 
+// Strip the trailing slashes of the configured base URL, so every request
+// joins the path with exactly one "/".
+function stripTrailingSlashes(value) {
+  let end = value.length;
+  while (end > 0 && value.at(end - 1) === "/") {
+    end -= 1;
+  }
+  return value.slice(0, end);
+}
+
+// A stored file path comes from Telegram and is used as one URL segment: it
+// never traverses, carries a query or a fragment, starts an absolute path or
+// contains a control character.
+function hasControlCharacter(value) {
+  for (const character of value) {
+    const codePoint = character.codePointAt(0);
+    if (codePoint < 0x20 || codePoint === 0x7f) {
+      return true;
+    }
+  }
+  return false;
+}
+
 // A request that never answers would hold the admission loop, the CI worker or
 // the download. Every call carries a client deadline that covers the connection
 // and the body read, on top of the caller's stop signal.
@@ -87,7 +110,7 @@ export class TelegramApi {
       throw new Error("A bot token is required.");
     }
     this.#botToken = botToken;
-    this.#baseUrl = baseUrl;
+    this.#baseUrl = stripTrailingSlashes(baseUrl);
     this.#fetch = fetchImpl;
     this.#requestTimeoutMilliseconds = requestTimeoutMilliseconds;
     this.#longPollMarginMilliseconds = longPollMarginMilliseconds;
@@ -178,6 +201,9 @@ export class TelegramApi {
   }
 
   async getUpdates({ offset, timeoutSeconds, signal }) {
+    if (!Number.isFinite(timeoutSeconds) || timeoutSeconds < 0) {
+      throw new Error("The long-poll timeout must be a non-negative number.");
+    }
     return this.#call(
       "getUpdates",
       {
@@ -204,8 +230,22 @@ export class TelegramApi {
    * the TelegramApiError style, so no message contains the token or the URL.
    */
   async downloadFile({ filePath, maximumBytes, signal }) {
-    if (typeof filePath !== "string" || filePath === "") {
-      throw new TelegramApiError("downloadFile", "the file path is missing");
+    if (!Number.isSafeInteger(maximumBytes) || maximumBytes < 1) {
+      throw new Error("The download byte limit must be a positive integer.");
+    }
+    if (
+      typeof filePath !== "string" ||
+      filePath === "" ||
+      filePath.startsWith("/") ||
+      filePath.includes("..") ||
+      filePath.includes("?") ||
+      filePath.includes("#") ||
+      hasControlCharacter(filePath)
+    ) {
+      throw new TelegramApiError(
+        "downloadFile",
+        "the file path is not a plain relative path",
+      );
     }
     const bounded = this.#boundedRequest(
       signal,
@@ -221,6 +261,7 @@ export class TelegramApi {
       throw this.#requestFailure("downloadFile", error, bounded);
     }
     if (!response.ok || response.body === null) {
+      await response.body?.cancel();
       throw new TelegramApiError("downloadFile", `HTTP ${response.status}`);
     }
     try {

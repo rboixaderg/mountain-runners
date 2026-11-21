@@ -4,7 +4,17 @@
 // bridge's credentials and global Git configuration.
 
 import { execFile } from "node:child_process";
-import { lstatSync, readFileSync, readdirSync, realpathSync } from "node:fs";
+import {
+  closeSync,
+  constants,
+  fstatSync,
+  lstatSync,
+  openSync,
+  readFileSync,
+  readSync,
+  readdirSync,
+  realpathSync,
+} from "node:fs";
 import { dirname, join } from "node:path";
 import { promisify } from "node:util";
 
@@ -44,17 +54,44 @@ export function primaryRepository(repositoryPath) {
   };
 }
 
+/** A path inspected without following its final symbolic link, or null. */
+export function lstatOrNull(path) {
+  try {
+    return lstatSync(path);
+  } catch (error) {
+    if (error.code === "ENOENT") {
+      return null;
+    }
+    throw error;
+  }
+}
+
 export function registeredWorktree(repositoryPath, worktreePath) {
   const repository = primaryRepository(repositoryPath);
   const registry = join(repository.gitDirectory, "worktrees");
   const path = realpathSync(worktreePath);
-  for (const entry of readdirSync(registry)) {
+  let entries;
+  try {
+    entries = readdirSync(registry);
+  } catch (error) {
+    if (error.code === "ENOENT") {
+      throw new Error(
+        "The worktree is not registered in the trusted repository.",
+        { cause: error },
+      );
+    }
+    throw error;
+  }
+  for (const entry of entries) {
     const gitDirectory = join(registry, entry);
     const gitdirPath = join(gitDirectory, "gitdir");
     // The registration is read only as the regular file Git writes: a link
     // would point the trusted path at metadata the service never chose, and a
     // hard link receives the in-place write of `git worktree move`.
-    const gitdirStats = lstatSync(gitdirPath);
+    const gitdirStats = lstatOrNull(gitdirPath);
+    if (gitdirStats === null) {
+      continue;
+    }
     if (!gitdirStats.isFile() || gitdirStats.nlink > 1) {
       throw new Error(
         "The Git metadata of a worktree is not a trusted file; refusing host Git.",
@@ -68,19 +105,52 @@ export function registeredWorktree(repositoryPath, worktreePath) {
   throw new Error("The worktree is not registered in the trusted repository.");
 }
 
+// A `.git` marker is one `gitdir:` line; anything longer is not a marker this
+// service wrote.
+const maximumMarkerBytes = 4096;
+
 function assertWorktreeMarker(worktree) {
   if (worktree.primary) {
     return;
   }
-  const marker = join(worktree.path, ".git");
-  const markerStats = lstatSync(marker);
-  // A regular file with one link is the only marker Git writes; a symbolic or
-  // hard link is a path the sandbox chose, not the registry entry.
-  if (
-    !markerStats.isFile() ||
-    markerStats.nlink > 1 ||
-    readFileSync(marker, "utf8").trim() !== `gitdir: ${worktree.gitDirectory}`
-  ) {
+  const expected = `gitdir: ${worktree.gitDirectory}`;
+  // Open without following a link and without blocking on a FIFO the sandbox
+  // may have left at `.git`, then inspect the descriptor, so the file that is
+  // checked is the file that is read: a symbolic link at `.git` fails here and
+  // a hard link never reports its single-link name.
+  let descriptor;
+  try {
+    descriptor = openSync(
+      join(worktree.path, ".git"),
+      constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK,
+    );
+  } catch (error) {
+    throw new Error(
+      "The worktree Git marker was modified; refusing host Git.",
+      {
+        cause: error,
+      },
+    );
+  }
+  let marker;
+  try {
+    const stats = fstatSync(descriptor);
+    if (
+      !stats.isFile() ||
+      stats.nlink !== 1 ||
+      stats.size > maximumMarkerBytes
+    ) {
+      throw new Error(
+        "The worktree Git marker was modified; refusing host Git.",
+      );
+    }
+    const buffer = Buffer.alloc(stats.size);
+    const bytesRead = readSync(descriptor, buffer, 0, stats.size, 0);
+    marker = buffer.toString("utf8", 0, bytesRead).trim();
+  } finally {
+    closeSync(descriptor);
+  }
+  if (marker !== expected) {
     throw new Error("The worktree Git marker was modified; refusing host Git.");
   }
 }

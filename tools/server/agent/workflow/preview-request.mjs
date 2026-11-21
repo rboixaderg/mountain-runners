@@ -2,12 +2,14 @@
 //
 // A verified person asks in natural language for the preview of the pull
 // request the topic reported as green. The model is never started for it: the
-// service pins the request to the commit it last reported to that topic,
-// re-reads the pull request and its required checks, posts the constant
-// `/preview` comment with its own GitHub credential and then waits for the
-// trusted publisher of phase 6 to confirm it. The URL is never built or
-// guessed: only the publisher's own comment, written after the request and
-// naming the pinned commit, is reported.
+// service re-reads the pull request and its required checks, pins the request to
+// the current head of that open pull request, posts the constant `/preview`
+// comment with its own GitHub credential and then waits for the trusted
+// publisher of phase 6 to confirm it. The head can be newer than the commit the
+// topic reported, because a maintainer may have updated the pull request
+// outside the agent; the preview is bound anyway to that exact head commit and
+// only to it. The URL is never built or guessed: only the publisher's own
+// comment, written after the request and naming the pinned commit, is reported.
 //
 // Waiting also reads the runs of the preview workflow (T8.8): a run that ended
 // badly ends the request as failed and says so in plain words, instead of
@@ -26,6 +28,7 @@ import { parseSessionKey } from "telegram-pi-bridge/sessions";
 import {
   isDefiniteRejection,
   isPermissionRejection,
+  readLivePullRequest,
   statusClass,
 } from "../repository/github.mjs";
 import { classifyCommitStatus } from "../repository/ci-status.mjs";
@@ -46,7 +49,6 @@ import {
   previewRunsRetryMilliseconds,
   pullRequestReviewUrl,
 } from "../policy/development.mjs";
-import { ciResults } from "./ci-watch.mjs";
 
 const refusals = {
   membershipRevoked: "membership_revoked",
@@ -56,6 +58,7 @@ const refusals = {
   alreadyInProgress: "already_in_progress",
   alreadyHandled: "already_handled",
   notApplicable: "not_applicable",
+  headMoved: "head_moved",
   notMainRepository: "not_main_repository",
   checksNotGreen: "checks_not_green",
   unreadable: "unreadable",
@@ -81,31 +84,43 @@ function describeTarget({ pullRequestNumber, commit }) {
  * comment on a run to remove: a wrong match can only end a request as failed,
  * never confirm an address, because the publisher comment is read first and is
  * the only source of the URL.
+ *
+ * A comment whose instant cannot be read belongs to no window: guessing one
+ * would attribute a run to the wrong request.
  */
 function previewRunWindows(requests) {
-  const ordered = [...requests].sort((left, right) => {
-    const byComment =
-      Date.parse(left.commented_at) - Date.parse(right.commented_at);
-    return byComment === 0
-      ? left.update_identifier - right.update_identifier
-      : byComment;
-  });
+  const ordered = requests
+    .filter((request) => Number.isFinite(Date.parse(request.commented_at)))
+    .sort((left, right) => {
+      const byComment =
+        Date.parse(left.commented_at) - Date.parse(right.commented_at);
+      return byComment === 0
+        ? left.update_identifier - right.update_identifier
+        : byComment;
+    });
   const windows = new Map();
-  for (const [index, request] of ordered.entries()) {
-    const from = request.commented_at;
+  let burstStart = 0;
+  while (burstStart < ordered.length) {
+    const from = Date.parse(ordered[burstStart].commented_at);
+    let burstEnd = burstStart;
+    while (
+      burstEnd < ordered.length &&
+      Date.parse(ordered[burstEnd].commented_at) === from
+    ) {
+      burstEnd += 1;
+    }
     // The next comment of another request that is strictly later; the request
     // of the same second belongs to the same burst and does not bound it.
-    const next = ordered
-      .slice(index + 1)
-      .find((later) => Date.parse(later.commented_at) > Date.parse(from));
-    const rank = ordered
-      .slice(0, index)
-      .filter((earlier) => earlier.commented_at === from).length;
-    windows.set(request.update_identifier, {
-      from,
-      until: next === undefined ? null : next.commented_at,
-      rank,
-    });
+    const until =
+      burstEnd < ordered.length ? ordered[burstEnd].commented_at : null;
+    for (let index = burstStart; index < burstEnd; index += 1) {
+      windows.set(ordered[index].update_identifier, {
+        from: ordered[index].commented_at,
+        until,
+        rank: index - burstStart,
+      });
+    }
+    burstStart = burstEnd;
   }
   return windows;
 }
@@ -114,13 +129,15 @@ function previewRunWindows(requests) {
  * The run that decides the request. Only runs that the service's own identity
  * started count: the workflow runs for every new comment of every pull request,
  * so a run of another person's `/preview` is never a result of this request.
- * Among those inside the window, the first one that already ended decides; a run
- * still queued or running, and a run whose conclusion GitHub did not compute
- * (`null`), are no result yet. A run ordered after that first one changes
- * nothing. Runs are ordered by creation time and, on an equal timestamp, by run
- * identifier, so the order never depends on the order GitHub returns.
+ * The runs inside the window are ordered first and the one of this request's
+ * `rank` is taken; only then is its status read. A run still queued or running
+ * is no result yet, and it never lets a later run of its burst speak for this
+ * request. A run ordered after that first one changes nothing. Runs are ordered
+ * by creation time and, on an equal timestamp, by run identifier, so the order
+ * never depends on the order GitHub returns.
  */
 function endedPreviewRun({ runs, window, serviceLogin }) {
+  if (window === undefined) return null;
   const from = Date.parse(window.from);
   const until = window.until === null ? null : Date.parse(window.until);
   // A bound that cannot be read says nothing: never guess a window from it.
@@ -132,7 +149,6 @@ function endedPreviewRun({ runs, window, serviceLogin }) {
       (run) =>
         run.actor === serviceLogin || run.triggeringActor === serviceLogin,
     )
-    .filter((run) => run.status === "completed")
     .filter((run) => {
       const createdAt = Date.parse(run.createdAt);
       if (!Number.isFinite(createdAt)) return false;
@@ -144,9 +160,22 @@ function endedPreviewRun({ runs, window, serviceLogin }) {
       return byTime === 0 ? left.identifier - right.identifier : byTime;
     });
   const run = candidates[window.rank];
-  if (run === undefined) return null;
+  if (run === undefined || run.status !== "completed") return null;
   if (run.conclusion === "success" || run.conclusion === null) return null;
   return run;
+}
+
+/**
+ * The earliest instant at which an awaiting request posted its comment, or
+ * `null` when none can be read. It bounds every read a cycle needs: the windows
+ * of the awaiting requests, and the runs the service may have started for them.
+ */
+function earliestCommentInstant(rows) {
+  const earliest = rows.reduce((moment, row) => {
+    const comment = Date.parse(row.commented_at);
+    return Number.isFinite(comment) && comment < moment ? comment : moment;
+  }, Number.POSITIVE_INFINITY);
+  return Number.isFinite(earliest) ? new Date(earliest).toISOString() : null;
 }
 
 export function createPreviewRequests({
@@ -189,8 +218,10 @@ export function createPreviewRequests({
   }
 
   /**
-   * Re-read the live state of the pinned commit. Any picture that is not clearly
-   * green on the main repository's open pull request is a refusal.
+   * Re-read the live state of the topic's pull request and choose the commit the
+   * preview is bound to: its current head. Any picture that is not clearly green
+   * on the main repository's open pull request is a refusal, and the refusal
+   * carries the commit it was decided for, so every trace names it.
    */
   async function findRefusal(target, signal) {
     const readSignal = requestSignal(signal, requestTimeoutMilliseconds);
@@ -198,28 +229,36 @@ export function createPreviewRequests({
       number: target.pullRequestNumber,
       signal: readSignal,
     });
-    if (pullRequest.state !== "open" || pullRequest.headSha !== target.commit) {
-      return refusals.notApplicable;
+    if (pullRequest.state !== "open") {
+      return { refusal: refusals.notApplicable, commit: target.commit };
     }
     if (
       pullRequest.headRepository?.toLowerCase() !== repository.toLowerCase()
     ) {
-      return refusals.notMainRepository;
+      return { refusal: refusals.notMainRepository, commit: target.commit };
     }
+    // The head is the commit the publisher builds and the comment names, even
+    // when it was updated outside the agent after the reported notice.
+    const commit = pullRequest.headSha;
     const [checkRuns, statuses] = await Promise.all([
-      github.getCommitCheckRuns({ commit: target.commit, signal: readSignal }),
-      github.getCommitStatuses({ commit: target.commit, signal: readSignal }),
+      github.getCommitCheckRuns({ commit, signal: readSignal }),
+      github.getCommitStatuses({ commit, signal: readSignal }),
     ]);
     const classification = classifyCommitStatus({
       requiredChecks,
       checkRuns,
       statuses,
     });
-    return classification.state === "success" ? null : refusals.checksNotGreen;
+    return {
+      refusal:
+        classification.state === "success" ? null : refusals.checksNotGreen,
+      commit,
+    };
   }
 
   const refusalTexts = {
     [refusals.notApplicable]: previewReports.notApplicable,
+    [refusals.headMoved]: previewReports.headMoved,
     [refusals.notMainRepository]: previewReports.notMainRepository,
     [refusals.checksNotGreen]: previewReports.checksNotGreen,
     [refusals.unreadable]: previewReports.unreadable,
@@ -228,7 +267,7 @@ export function createPreviewRequests({
   /** The instruction runner calls this for a request classified as `preview`. */
   async function handle(request, { signal } = {}) {
     const reported = reportedCommits.lastReported(request.sessionKey);
-    if (reported?.result !== ciResults.success) {
+    if (reported === undefined) {
       return refuse(
         request,
         refusals.noReportedCommit,
@@ -300,39 +339,45 @@ export function createPreviewRequests({
       detail: describeTarget(target),
     });
 
-    let refusal;
+    let decision;
     try {
-      refusal = await findRefusal(target, signal);
+      decision = await findRefusal(target, signal);
     } catch (error) {
       signal?.throwIfAborted();
       logger(
         "preview_read_failed",
         error instanceof Error ? error.name : "unknown",
       );
-      refusal = refusals.unreadable;
+      decision = { refusal: refusals.unreadable, commit: target.commit };
     }
-    if (refusal !== null) {
+    if (decision.refusal !== null) {
+      const refusedTarget = { ...target, commit: decision.commit };
       return refuse(
         request,
-        refusal,
-        refusalTexts[refusal]({ reviewUrl }),
-        `${refusal} ${describeTarget(target)}`,
+        decision.refusal,
+        refusalTexts[decision.refusal]({ reviewUrl }),
+        `${decision.refusal} ${describeTarget(refusedTarget)}`,
       );
     }
+
+    // Every later step — the stored row, the comment, the confirmation, the
+    // traces and the note — uses this commit, so the preview stays bound to the
+    // exact SHA whose required checks were read.
+    const previewTarget = { ...target, commit: decision.commit };
 
     const begun = store.begin({
       updateIdentifier: request.updateIdentifier,
       sessionKey: request.sessionKey,
       authorIdentifier: request.authorIdentifier,
-      pullRequestNumber: target.pullRequestNumber,
-      commitSha: target.commit,
+      pullRequestNumber: previewTarget.pullRequestNumber,
+      commitSha: previewTarget.commit,
     });
     if (begun === previewBeginResults.duplicate) {
       return refuse(
         request,
         refusals.alreadyHandled,
         previewReports.alreadyHandled({ reviewUrl }),
-        `${refusals.alreadyHandled} ${describeTarget(target)}`,
+        `${refusals.alreadyHandled} ${describeTarget(previewTarget)}`,
       );
     }
     if (begun === previewBeginResults.open) {
@@ -340,14 +385,61 @@ export function createPreviewRequests({
         request,
         refusals.alreadyInProgress,
         previewReports.alreadyInProgress({ reviewUrl }),
-        `${refusals.alreadyInProgress} ${describeTarget(target)}`,
+        `${refusals.alreadyInProgress} ${describeTarget(previewTarget)}`,
+      );
+    }
+
+    // The reservation can wait while GitHub changes. Never post for a head or
+    // required-check result different from the one pinned above.
+    let rechecked;
+    try {
+      rechecked = await readLivePullRequest({
+        github,
+        number: previewTarget.pullRequestNumber,
+        requiredChecks,
+        signal: requestSignal(signal, requestTimeoutMilliseconds),
+      });
+    } catch (error) {
+      store.markFailed(request.updateIdentifier);
+      signal?.throwIfAborted();
+      logger(
+        "preview_read_failed",
+        error instanceof Error ? error.name : "unknown",
+      );
+      return refuse(
+        request,
+        refusals.unreadable,
+        previewReports.unreadable({ reviewUrl }),
+        `${refusals.unreadable} ${describeTarget(previewTarget)}`,
+      );
+    }
+    let liveRefusal = null;
+    if (rechecked.pullRequest.state !== "open") {
+      liveRefusal = refusals.notApplicable;
+    } else if (rechecked.pullRequest.headSha !== previewTarget.commit) {
+      liveRefusal = refusals.headMoved;
+    } else if (
+      rechecked.pullRequest.headRepository?.toLowerCase() !==
+      repository.toLowerCase()
+    ) {
+      liveRefusal = refusals.notMainRepository;
+    } else if (rechecked.classification.state !== "success") {
+      liveRefusal = refusals.checksNotGreen;
+    }
+    if (liveRefusal !== null) {
+      store.markFailed(request.updateIdentifier);
+      return refuse(
+        request,
+        liveRefusal,
+        refusalTexts[liveRefusal]({ reviewUrl }),
+        `${liveRefusal} ${describeTarget(previewTarget)}`,
       );
     }
 
     let comment;
     try {
       comment = await github.commentOnPullRequest({
-        number: target.pullRequestNumber,
+        number: previewTarget.pullRequestNumber,
         body: previewCommand,
         signal: requestSignal(signal, requestTimeoutMilliseconds),
       });
@@ -360,7 +452,7 @@ export function createPreviewRequests({
           authorIdentifier: request.authorIdentifier,
           sessionKey: request.sessionKey,
           action: "preview_failed",
-          detail: `${describeTarget(target)} HTTP ${statusClass(error.status)}`,
+          detail: `${describeTarget(previewTarget)} HTTP ${statusClass(error.status)}`,
         });
         return {
           outcome: "answered",
@@ -378,7 +470,7 @@ export function createPreviewRequests({
         authorIdentifier: request.authorIdentifier,
         sessionKey: request.sessionKey,
         action: "preview_uncertain",
-        detail: describeTarget(target),
+        detail: describeTarget(previewTarget),
       });
       return {
         outcome: "uncertain",
@@ -391,7 +483,7 @@ export function createPreviewRequests({
       authorIdentifier: request.authorIdentifier,
       sessionKey: request.sessionKey,
       action: "preview_commented",
-      detail: describeTarget(target),
+      detail: describeTarget(previewTarget),
     });
     return {
       outcome: "answered",
@@ -409,9 +501,13 @@ export function createPreviewRequests({
     const { chatIdentifier, threadIdentifier } = parseSessionKey(
       row.session_key,
     );
+    // The note keeps the facts the next turn of the model needs, while the text
+    // sent to the topic stays plain. `receivedText` is that plain reply, so the
+    // last text of the topic reads as the person read it.
     recordServiceNote({
       sessionKey: row.session_key,
       text: note,
+      receivedText: text,
       effectKey: `preview:${row.update_identifier}:${state}`,
     });
     try {
@@ -444,8 +540,12 @@ export function createPreviewRequests({
   let serviceLogin;
   let previewRunsRetryAfter = 0;
 
-  async function readPreviewRuns({ rows, signal }) {
+  async function readPreviewRuns({ createdSince, signal }) {
     if (now().getTime() < previewRunsRetryAfter) return null;
+    if (createdSince === null) {
+      logger("preview_run_read_failed", "invalid_comment_time");
+      return null;
+    }
     const boundedSignal = requestSignal(signal, requestTimeoutMilliseconds);
     if (serviceLogin === undefined) {
       try {
@@ -464,18 +564,6 @@ export function createPreviewRequests({
         return null;
       }
     }
-    // The bound is the earliest comment instant. It is compared as an instant,
-    // not as a string: GitHub timestamps have second granularity and the store
-    // writes milliseconds, so a lexicographic minimum can be the later moment of
-    // the same second and hide the run created in between.
-    const earliestCommentedAt = rows
-      .map((request) => Date.parse(request.commented_at))
-      .reduce((earliest, moment) => (moment < earliest ? moment : earliest));
-    if (!Number.isFinite(earliestCommentedAt)) {
-      logger("preview_run_read_failed", "invalid_comment_time");
-      return null;
-    }
-    const createdSince = new Date(earliestCommentedAt).toISOString();
     try {
       const runs = await github.listPreviewWorkflowRuns({
         createdSince,
@@ -511,12 +599,18 @@ export function createPreviewRequests({
   async function runOnce({ signal } = {}) {
     const rows = store.awaiting();
     if (rows.length === 0) return;
+    // One bound for the whole cycle: the windows of the awaiting requests and
+    // the runs the service may have started for them. Earlier comments cannot
+    // bound any of them, so the poll never loads the whole history.
+    const createdSince = earliestCommentInstant(rows);
     // The window of a request is bounded by the comment of the next request,
     // including the ones that are not awaiting any more.
-    const runWindows = previewRunWindows(store.commented());
+    const runWindows = previewRunWindows(
+      store.commented({ since: createdSince }),
+    );
     // A run list that cannot be read leaves this cycle with the publisher
     // comment alone, exactly as before T8.8: it never ends a request by itself.
-    const previewRuns = await readPreviewRuns({ rows, signal });
+    const previewRuns = await readPreviewRuns({ createdSince, signal });
 
     for (const row of rows) {
       if (signal?.aborted) return;

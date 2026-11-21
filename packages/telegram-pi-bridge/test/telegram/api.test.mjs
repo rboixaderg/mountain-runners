@@ -556,6 +556,129 @@ test("cancels the body of a declared download above the limit", async () => {
   assert.equal(cancelled, true);
 });
 
+test("refuses a download without a positive byte limit", async () => {
+  let requested = false;
+  const api = new TelegramApi({
+    botToken: "123:synthetic-token",
+    fetchImpl: async () => {
+      requested = true;
+      throw new Error("unexpected request");
+    },
+  });
+
+  for (const maximumBytes of [0, -1, 1.5, Number.NaN, "5"]) {
+    await assert.rejects(
+      api.downloadFile({ filePath: "documents/file_9.png", maximumBytes }),
+      { message: /positive integer/u },
+    );
+  }
+  assert.equal(requested, false);
+});
+
+test("refuses a stored path that is not one plain URL segment", async () => {
+  let requested = false;
+  const api = new TelegramApi({
+    botToken: "123:synthetic-token",
+    fetchImpl: async () => {
+      requested = true;
+      throw new Error("unexpected request");
+    },
+  });
+
+  const invalidPaths = [
+    "",
+    "/etc/passwd",
+    "../secret.png",
+    "documents/../../secret.png",
+    "documents/file.png?token=synthetic",
+    "documents/file.png#fragment",
+    "documents/file\u0000.png",
+    "documents/file\nname.png",
+  ];
+  for (const filePath of invalidPaths) {
+    await assert.rejects(
+      api.downloadFile({ filePath, maximumBytes: 10 }),
+      (error) => {
+        assert.equal(error instanceof TelegramApiError, true);
+        assert.match(error.message, /plain relative path/u);
+        assert.equal(error.message.includes("synthetic-token"), false);
+        return true;
+      },
+      JSON.stringify(filePath),
+    );
+  }
+  assert.equal(requested, false);
+});
+
+test("cancels the body of a failed download before reporting it", async () => {
+  let cancelled = false;
+  const api = new TelegramApi({
+    botToken: "123:synthetic-token",
+    baseUrl: "http://127.0.0.1:1",
+    fetchImpl: async () => ({
+      ok: false,
+      status: 404,
+      headers: new Headers(),
+      body: {
+        cancel: async () => {
+          cancelled = true;
+        },
+      },
+    }),
+  });
+
+  await assert.rejects(
+    api.downloadFile({ filePath: "documents/file_4.png", maximumBytes: 5 }),
+    /HTTP 404/u,
+  );
+  assert.equal(cancelled, true);
+});
+
+test("accepts a base URL with a trailing slash without doubling it", async () => {
+  const requestedUrls = [];
+  const api = new TelegramApi({
+    botToken: "123:synthetic-token",
+    baseUrl: "https://example.test/",
+    fetchImpl: async (url) => {
+      requestedUrls.push(url);
+      return {
+        status: 200,
+        async json() {
+          return { ok: true, result: { id: 999 } };
+        },
+      };
+    },
+  });
+
+  await api.getMe();
+  assert.deepEqual(requestedUrls, [
+    "https://example.test/bot123:synthetic-token/getMe",
+  ]);
+});
+
+test("refuses a long-poll wait that is not a non-negative number", async () => {
+  let requested = false;
+  const api = new TelegramApi({
+    botToken: "123:synthetic-token",
+    fetchImpl: async () => {
+      requested = true;
+      throw new Error("unexpected request");
+    },
+  });
+
+  for (const timeoutSeconds of [
+    -1,
+    Number.NaN,
+    Number.POSITIVE_INFINITY,
+    "25",
+  ]) {
+    await assert.rejects(api.getUpdates({ offset: 0, timeoutSeconds }), {
+      message: /long-poll timeout/u,
+    });
+  }
+  assert.equal(requested, false);
+});
+
 test("refuses a redirect without asking the other server", async () => {
   const elsewhereRequests = [];
   const elsewhere = createServer((request, response) => {
