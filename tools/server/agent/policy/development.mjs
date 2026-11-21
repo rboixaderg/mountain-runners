@@ -15,7 +15,12 @@ export const readyNotice = ({ previewUrl }) =>
 export const failedRetryingNotice =
   "Alguna cosa ha fallat per part nostra. Ho torno a intentar.";
 export const failedMaintainerNotice =
-  "Alguna cosa ha fallat per part nostra. Aviso la persona que manté el servei.";
+  "Alguna cosa ha fallat per part nostra. Ho he deixat anotat perquè ho revisi la persona que manté el servei.";
+
+// The private trace action and journal event the service writes every time it
+// sends the failure notice above, so the sentence is true: the case is
+// recorded for the maintainer, with the report key as its reason.
+export const maintainerAttentionAction = "maintainer_attention";
 
 export const bridgeMessages = {
   acknowledgement: () => workingNotice,
@@ -531,6 +536,10 @@ export const instructionReports = {
   repairCommitChanged: failedMaintainerNotice,
   repairWorktreeDirty: failedMaintainerNotice,
 };
+
+// The fixed answer of a topic whose bound pull request is merged or closed.
+export const finishedTopicReport =
+  "Aquesta feina ja està acabada. Obre un tema nou per a una altra feina.";
 
 // Replies of a continuation that names another topic's pull request. Each
 // refusal names the pull request and says that nothing was resumed, so two

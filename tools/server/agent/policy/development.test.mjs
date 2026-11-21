@@ -875,7 +875,7 @@ test("speaks to a person with the four plain notices only", () => {
   );
   assert.equal(
     failedMaintainerNotice,
-    "Alguna cosa ha fallat per part nostra. Aviso la persona que manté el servei.",
+    "Alguna cosa ha fallat per part nostra. Ho he deixat anotat perquè ho revisi la persona que manté el servei.",
   );
   assert.equal(
     bridgeMessages.acknowledgement("fes una notícia"),

@@ -92,12 +92,14 @@ sobreescriure amb qualsevol `YYYY-MM-DD` per reproduir un manifest anterior;
 
 El workflow `Artifact` (`.github/workflows/artifact.yml`) executa el contracte
 a cada push a `main` i de forma manual, amb `BUILD_TODAY` resolt a la data de
-Madrid, i puja el paquet i el manifest com a artefacte del run (retenció de 30
-dies). El job de build no accedeix a cap secret. El job `Deploy to production`
-del mateix workflow, darrere de l'entorn GitHub `production` restringit a
-`main`, descarrega aquest artefacte, en verifica manifest i digests, el
-transfereix amb `mountain-release receive`, l'instal·la i l'activa, i executa
-els smoke tests. El workflow `Rollback production` reverteix sense reconstruir.
+Madrid, i puja el paquet i el manifest com a artefacte del run (retenció de 3
+dies: el job de desplegament del mateix run el descarrega per nom i la reversió
+activa releases ja instal·lades al host). El job de build no accedeix a cap
+secret. El job `Deploy to production` del mateix workflow, darrere de l'entorn
+GitHub `production` restringit a `main`, descarrega aquest artefacte, en
+verifica manifest i digests, el transfereix amb `mountain-release receive`,
+l'instal·la i l'activa, i executa els smoke tests. El workflow `Rollback
+production` reverteix sense reconstruir.
 Tots dos comparteixen el grup de concurrència `production-release` amb
 `cancel-in-progress: false`. L'operació completa és a
 [`docs/runbook.md`](runbook.md).
@@ -1070,6 +1072,12 @@ consulta les publicacions registrades i l'estat de GitHub. Si hi ha una sola PR
 oberta del servei, la vincula. Si n'hi ha diverses o no es poden llegir, atura
 el torn i demana la revisió de la persona mantenidora, sense triar cap feina.
 
+Abans de cada torn ordinari d'un tema vinculat, el servei llegeix la PR a
+GitHub. Si és fusionada o tancada, respon «Aquesta feina ja està acabada. Obre un
+tema nou per a una altra feina.» sense cap torn de model, branca ni PR. Si no la
+pot llegir, no la dona per oberta i informa del fracàs de lectura. `/merge`
+conserva el seu camí i els seus controls.
+
 Un tema vinculat continua al seu worktree. El servei comprova la branca, el
 repositori i el cap de la PR abans del torn i revalida la PR abans del push. No
 crea una segona PR. Si el cap remot avança i el worktree no té feina pendent,
@@ -1262,19 +1270,19 @@ Preparo com es veurà; trigarà uns 10 minuts.» (`savedNotice`), «Ja ho pots v
 <URL>» (`readyNotice`, de l'avís de preview) i «Alguna cosa ha fallat per part
 nostra. …» amb una de dues accions finals: «Ho torno a intentar.»
 (`failedRetryingNotice`, només quan una reparació automàtica ja és a la cua) o
-«Aviso la persona que manté el servei.» (`failedMaintainerNotice`, tota la resta).
+«Ho he deixat anotat perquè ho revisi la persona que manté el servei.» (`failedMaintainerNotice`, tota la resta; cada enviament desa l'acció de traça `maintainer_attention` amb el motiu i l'escriu al diari).
 Cap avís demana a la persona que repeteixi, pugi, reintenti o demani la preview, i
 cap no usa «proposta», «comprovacions», «commit» ni «branca».
 
 Després d'una publicació, el tema rep la resposta del model, l'avís «Canvi desat»
 i l'enllaç de revisió com a darrera línia. Si el seguiment de CI no s'ha pogut
-desar, l'avís és el de fallada que avisa la persona mantenidora. La resposta del
+desar, l'avís és el de fallada que deixa el cas anotat per a la persona mantenidora. La resposta del
 model es retalla perquè l'enllaç no es perdi mai pel límit de 4000 caràcters del
-transport. Una CI verda envia «Canvi desat» amb el mateix enllaç; la preview la
+transport. Una CI verda no envia res a la persona, perquè ja ha llegit «Canvi desat»: el resultat només va a la nota del servei i a la traça privada. La preview la
 demana el servei i l'avís «Ja ho pots veure» arriba amb la seva adreça. Una reparació
 en curs envia l'avís de fallada amb «Ho torno a intentar»; el límit de
 reparacions, un resultat desconegut, un cap canviat, una PR tancada i qualsevol
-fallada de la reparació envien l'avís de fallada amb l'aviso a la persona
+fallada de la reparació envien l'avís de fallada que deixa el cas anotat per a la persona
 mantenidora. Els textos de reparació publicada reutilitzen el de la publicació.
 
 Els noms de les comprovacions i el commit queden al registre privat del servei
@@ -1289,7 +1297,7 @@ no són mai text de servei. La fixació al commit, el lliurament com a màxim un
 vegada i el tractament d'un resultat desconegut no canvien.
 
 Quan el seguiment veu que el cap de la proposta ha canviat, la persona rep l'avís
-de fallada que avisa la persona mantenidora: el servei no segueix la versió nova
+de fallada que deixa el cas anotat per a la persona mantenidora: el servei no segueix la versió nova
 tot sol i no demana res a la persona. La nota tècnica del servei conserva el detall.
 
 ### Estat del tema (T8.8 i T8.9)

@@ -11,6 +11,8 @@ import { parseSessionKey } from "telegram-pi-bridge/sessions";
 import {
   ciRepairNoteReports,
   ciRepairReports,
+  failedMaintainerNotice,
+  maintainerAttentionAction,
   repairRequestKind,
 } from "../policy/development.mjs";
 import { isDecisiveFailure } from "../repository/ci-status.mjs";
@@ -80,6 +82,9 @@ export function createCiRepairExecutor({
     // already reads that the maintainer is warned.
     const suffix = queueStalled ? `\n\n${ciRepairReports.queueStalled}` : "";
     const text = reportText;
+    if (reportText === failedMaintainerNotice) {
+      noteMaintainerAttention(repair, state);
+    }
     recordServiceNote({
       sessionKey: repair.session_key,
       text: `${noteText}${suffix}`,
@@ -108,6 +113,13 @@ export function createCiRepairExecutor({
       );
       return false;
     }
+  }
+
+  // The failure notice says the case is noted for the maintainer: the private
+  // trace and the journal line make that true.
+  function noteMaintainerAttention(repair, reason) {
+    trace(repair, maintainerAttentionAction, reason);
+    logger(maintainerAttentionAction, reason);
   }
 
   async function reportLiveResult(repair, result, text, options) {

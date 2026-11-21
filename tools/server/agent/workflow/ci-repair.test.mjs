@@ -347,7 +347,7 @@ test("reports a repair that published nothing instead of pretending it worked", 
   assert.equal(telegram.sent.length, 1);
   assert.match(
     telegram.sent[0].text,
-    /^Alguna cosa ha fallat per part nostra\. Aviso la persona que manté el servei\.$/u,
+    new RegExp(`^${failedMaintainerNotice}$`, "u"),
   );
   assert.doesNotMatch(telegram.sent[0].text, /dependència externa/u);
 });
@@ -376,11 +376,11 @@ test("reports a failed repair and never retries it", async (context) => {
   assert.equal(store.uncertainRepairCount(), 0);
   assert.match(
     telegram.sent[0].text,
-    /^Alguna cosa ha fallat per part nostra\. Aviso la persona que manté el servei\.$/u,
+    new RegExp(`^${failedMaintainerNotice}$`, "u"),
   );
   assert.deepEqual(
     traces.map((entry) => entry.action),
-    ["ci_repair_not_published"],
+    ["ci_repair_not_published", "maintainer_attention"],
   );
 });
 
@@ -413,7 +413,7 @@ test("stops a repair on the stop signal, still informs the topic and never repea
   assert.equal(sent[0].text, failedMaintainerNotice);
   assert.deepEqual(
     traces.map((entry) => entry.action),
-    ["ci_repair_aborted"],
+    ["ci_repair_aborted", "maintainer_attention"],
   );
 });
 
@@ -436,7 +436,7 @@ test("keeps an unknown repair result out of the queue", async (context) => {
   assert.equal(store.repair(queued.sequence).outcome, "uncertain");
   assert.match(
     telegram.sent[0].text,
-    /^Alguna cosa ha fallat per part nostra\. Aviso la persona que manté el servei\.$/u,
+    new RegExp(`^${failedMaintainerNotice}$`, "u"),
   );
 });
 
@@ -469,7 +469,7 @@ test("closes the attempt even when the report cannot be delivered", async (conte
   await executor.runNext();
 
   assert.equal(store.repair(queued.sequence).status, "done");
-  assert.deepEqual(events, ["ci_repair_report_failed"]);
+  assert.deepEqual(events, ["maintainer_attention", "ci_repair_report_failed"]);
 });
 
 test("does not start a second repair while another one is running", async (context) => {
@@ -563,11 +563,11 @@ test("does not repair when the pull request state cannot be read", async (contex
 
   assert.match(
     telegram.sent[0].text,
-    /^Alguna cosa ha fallat per part nostra\. Aviso la persona que manté el servei\.$/u,
+    new RegExp(`^${failedMaintainerNotice}$`, "u"),
   );
   assert.equal(store.repair(queued.sequence).status, "done");
   assert.equal(store.repair(queued.sequence).outcome, "failed");
-  assert.deepEqual(events, ["ci_repair_read_failed"]);
+  assert.deepEqual(events, ["ci_repair_read_failed", "maintainer_attention"]);
 });
 
 test("informs the topic even when the private trace cannot be written", async (context) => {
@@ -624,7 +624,7 @@ test("treats a stop during the pull request read as an interruption", async (con
   assert.equal(sent[0].text, failedMaintainerNotice);
   assert.deepEqual(
     traces.map((entry) => entry.action),
-    ["ci_repair_aborted"],
+    ["ci_repair_aborted", "maintainer_attention"],
   );
 });
 
@@ -680,7 +680,7 @@ test("does not repair while the failing set is still undecided", async (context)
   assert.equal(store.repair(queued.sequence).outcome, "declined");
   assert.match(
     telegram.sent[0].text,
-    /^Alguna cosa ha fallat per part nostra\. Aviso la persona que manté el servei\.$/u,
+    new RegExp(`^${failedMaintainerNotice}$`, "u"),
   );
   assert.doesNotMatch(telegram.sent[0].text, /failure|pending/u);
 });
@@ -705,9 +705,9 @@ test("does not repair when the CI state cannot be read", async (context) => {
   assert.equal(store.repair(queued.sequence).outcome, "declined");
   assert.match(
     telegram.sent[0].text,
-    /^Alguna cosa ha fallat per part nostra\. Aviso la persona que manté el servei\.$/u,
+    new RegExp(`^${failedMaintainerNotice}$`, "u"),
   );
-  assert.deepEqual(events, ["ci_repair_read_failed"]);
+  assert.deepEqual(events, ["ci_repair_read_failed", "maintainer_attention"]);
 });
 
 test("treats a stop during the CI reread as an interruption", async (context) => {

@@ -22,6 +22,7 @@ import { TopicJobStore } from "../repository/topic-job-store.mjs";
 import {
   attachmentReports,
   failedMaintainerNotice,
+  finishedTopicReport,
   instructionReports,
   savedNotice,
   serviceNotesHeader,
@@ -364,6 +365,139 @@ test("publishes a classified consultation to its existing pull request", async (
   assert.equal(result.outcome, "pull_request_updated");
   assert.equal(github.pushes.at(-1).branch, branch);
   assert.equal(github.pulls.at(-1).createMissing, false);
+});
+
+/** A topic bound to pull request 200, with a simulated GitHub and model. */
+async function boundTopicFixture(context, pullRequestOverrides) {
+  const paths = await fixture(context);
+  mkdirSync(paths.state, { recursive: true });
+  const ciWatches = new CiWatchStore(join(paths.state, "ci-watch.sqlite"));
+  context.after(() => ciWatches.close());
+  const github = githubStub();
+  const published = await publishedWorktree(context, paths, github, ciWatches);
+  const branch = await git(topicWorktreePath(paths), [
+    "branch",
+    "--show-current",
+  ]);
+  const topicJobs = new TopicJobStore(join(paths.state, "topic-jobs.sqlite"));
+  context.after(() => topicJobs.close());
+  topicJobs.bind({
+    sessionKey: topicSessionKey,
+    branch,
+    pullRequestNumber: 200,
+  });
+  github.pullRequest = {
+    state: "open",
+    merged: false,
+    headSha: published,
+    headRef: branch,
+    headRepository: "rboixaderg/mountain-runners",
+    baseRef: "main",
+    draft: false,
+    ...pullRequestOverrides,
+  };
+  const pushesBefore = github.pushes.length;
+  const pullsBefore = github.pulls.length;
+  const calls = { model: 0, classifier: 0 };
+  const runnerOptions = {
+    config: configFor(paths),
+    github,
+    ciWatches,
+    topicJobs,
+    classifyRequest: async () => {
+      calls.classifier += 1;
+      return { kind: "implementation" };
+    },
+    executeSandbox: async () => ({ exitCode: 0, timedOut: false }),
+    runModel: async ({ worktreePath }) => {
+      calls.model += 1;
+      writeFileSync(join(worktreePath, "later.txt"), "later change\n");
+      return { text: "SUMMARY: feat(tools): add a later change" };
+    },
+    runChecks: async () => ({ exitCode: 0, timedOut: false }),
+  };
+  return { github, calls, runnerOptions, pushesBefore, pullsBefore };
+}
+
+for (const [name, overrides] of [
+  ["merged", { state: "closed", merged: true }],
+  ["closed", { state: "closed", merged: false }],
+]) {
+  test(`answers a topic whose bound pull request is ${name} without a turn`, async (context) => {
+    const fixtureState = await boundTopicFixture(context, overrides);
+    const { github, calls } = fixtureState;
+    const runner = createProjectRunner(fixtureState.runnerOptions);
+
+    const result = await runner(request({ updateIdentifier: 1002 }));
+
+    assert.equal(result.report, finishedTopicReport);
+    assert.equal(
+      finishedTopicReport,
+      "Aquesta feina ja està acabada. Obre un tema nou per a una altra feina.",
+    );
+    assert.equal(calls.model, 0);
+    assert.equal(github.pushes.length, fixtureState.pushesBefore);
+    assert.equal(github.pulls.length, fixtureState.pullsBefore);
+  });
+}
+
+test("a bound pull request that cannot be read is not assumed open", async (context) => {
+  const fixtureState = await boundTopicFixture(context, {});
+  const { github, calls } = fixtureState;
+  github.getPullRequest = async () => {
+    throw new Error("GitHub unavailable");
+  };
+  const runner = createProjectRunner(fixtureState.runnerOptions);
+
+  const result = await runner(request({ updateIdentifier: 1002 }));
+
+  assert.equal(result.outcome, "failed");
+  assert.equal(result.report, instructionReports.publicationReadFailed);
+  assert.equal(calls.model, 0);
+  assert.equal(github.pushes.length, fixtureState.pushesBefore);
+  assert.equal(github.pulls.length, fixtureState.pullsBefore);
+});
+
+test("an open bound pull request still runs the model turn", async (context) => {
+  const fixtureState = await boundTopicFixture(context, {});
+  const { github, calls } = fixtureState;
+  github.ensurePullRequest = async (options) => {
+    github.pulls.push(options);
+    return {
+      pullRequest: {
+        number: 200,
+        htmlUrl: "https://github.com/rboixaderg/mountain-runners/pull/200",
+      },
+      created: false,
+    };
+  };
+  const runner = createProjectRunner(fixtureState.runnerOptions);
+
+  const result = await runner(request({ updateIdentifier: 1002 }));
+
+  assert.equal(result.outcome, "pull_request_updated");
+  assert.equal(calls.model, 1);
+});
+
+test("/merge on a finished topic keeps its own path", async (context) => {
+  const fixtureState = await boundTopicFixture(context, {
+    state: "closed",
+    merged: true,
+  });
+  const merges = [];
+  const runner = createProjectRunner({
+    ...fixtureState.runnerOptions,
+    requestMerge: async (mergeRequest, command) => {
+      merges.push(command);
+      return { outcome: "answered", report: "refusal of the merge path" };
+    },
+  });
+
+  const result = await runner(request({ instruction: "/merge" }));
+
+  assert.equal(result.report, "refusal of the merge path");
+  assert.deepEqual(merges, [{ valid: true }]);
+  assert.equal(fixtureState.calls.model, 0);
 });
 
 test("prepares dependencies before the model for an implementation", async (context) => {
@@ -1802,7 +1936,10 @@ test("logs the reason of a local failure for the operator", async (context) => {
   const result = await runner(request());
 
   assert.equal(result.outcome, "failed");
-  assert.deepEqual(entries, [["instruction_failed", "Error"]]);
+  assert.deepEqual(entries, [
+    ["instruction_failed", "Error"],
+    ["maintainer_attention", "executionFailed"],
+  ]);
 });
 
 test("blocks after an unconfirmed sandbox stop even before publication", async (context) => {
@@ -2992,7 +3129,11 @@ test("publishes a continuation without an overlap warning", async (context) => {
   assert.doesNotMatch(result.report, /una feina local d'un altre tema/u);
   assert.deepEqual(
     traces.map((entry) => entry.action),
-    ["instruction_classified", "instruction_classified"],
+    [
+      "instruction_classified",
+      "maintainer_attention",
+      "instruction_classified",
+    ],
   );
 });
 

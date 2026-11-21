@@ -199,7 +199,7 @@ for (const scenario of ["cancelled", "timed_out", "setup_failure"]) {
     conclusion = "success";
     await worker.runOnce();
     assert.equal(store.lastReported(registration.sessionKey).result, "success");
-    assert.equal(telegram.sent.length, 1);
+    assert.equal(telegram.sent.length, 0, "a green result is not sent twice");
   });
 }
 
@@ -498,28 +498,11 @@ test("sends the green result once for the pinned commit and pull request", async
   await worker.runOnce();
   await worker.runOnce();
 
-  assert.equal(telegram.sent.length, 1);
-  assert.equal(telegram.sent[0].chatIdentifier, -1001234567890);
-  assert.equal(telegram.sent[0].messageThreadIdentifier, 7);
   assert.equal(
-    telegram.sent[0].text,
-    [
-      savedNotice,
-      "Enllaç per a revisió: https://github.com/example/project/pull/200",
-    ].join("\n"),
+    telegram.sent.length,
+    0,
+    "the publication already said the change is saved",
   );
-  assert.doesNotMatch(telegram.sent[0].text, /Validate|bbbbbbb|PR #/u);
-  assert.deepEqual(
-    github.reads.filter((read) => read.kind !== "pull-request"),
-    [
-      { kind: "check-runs", commit },
-      { kind: "statuses", commit },
-    ],
-  );
-  assert.deepEqual(github.reads.at(-1), {
-    kind: "pull-request",
-    number: 200,
-  });
   assert.deepEqual(logger, [
     {
       event: "ci_notification_sent",
@@ -551,13 +534,6 @@ test("requests the preview a green watch asked for with its change", async (cont
 
   await worker.runOnce();
 
-  assert.equal(
-    telegram.sent[0].text,
-    [
-      savedNotice,
-      "Enllaç per a revisió: https://github.com/example/project/pull/200",
-    ].join("\n"),
-  );
   assert.equal(store.lastReported(registration.sessionKey).result, "success");
   assert.deepEqual(
     previewRequests,
@@ -570,7 +546,7 @@ test("requests the preview a green watch asked for with its change", async (cont
     ],
     "the preview is requested once, in the name of the stored author",
   );
-  assert.equal(telegram.sent[1].text, "He demanat la preview.");
+  assert.equal(telegram.sent[0].text, "He demanat la preview.");
   assert.deepEqual(
     notes.map((note) => note.effectKey),
     [
@@ -593,13 +569,7 @@ test("never requests a preview for a change that did not ask for it", async (con
 
   await worker.runOnce();
 
-  assert.equal(
-    telegram.sent[0].text,
-    [
-      savedNotice,
-      "Enllaç per a revisió: https://github.com/example/project/pull/200",
-    ].join("\n"),
-  );
+  assert.equal(telegram.sent.length, 0);
 });
 
 test("never requests a preview for a watch whose checks did not pass", async (context) => {
@@ -656,12 +626,12 @@ test("keeps the CI notice as a service event of the session", async (context) =>
 
   await worker.runOnce();
 
-  assert.equal(telegram.sent.length, 1);
+  assert.equal(telegram.sent.length, 0, "the person already read the save");
   assert.deepEqual(notes, [
     {
       sessionKey: registration.sessionKey,
       text: "Comprovacions obligatòries configurades en verd al commit bbbbbbb (PR #200): Validate.",
-      receivedText: telegram.sent[0].text,
+      receivedText: `${savedNotice}\nEnllaç per a revisió: https://github.com/example/project/pull/200`,
       effectKey: `ci:${registration.updateIdentifier}:${commit}:success`,
     },
   ]);
@@ -910,7 +880,7 @@ test("repairs the same failure a second time and then stops at the limit", async
   assert.equal(limit.sent[0].text, failedMaintainerNotice);
   assert.deepEqual(
     traces.map((entry) => entry.action),
-    ["ci_repair_limit_reached"],
+    ["maintainer_attention", "ci_repair_limit_reached"],
   );
   assert.equal(store.claimNextRepair(), null);
   assert.equal(store.state(registration.updateIdentifier), "sent");
@@ -1212,9 +1182,8 @@ test("reports a result read after the deadline instead of an unconfirmed notice"
 
   await worker.runOnce();
 
-  assert.equal(telegram.sent.length, 1);
-  assert.equal(telegram.sent[0].text.split("\n")[0], savedNotice);
-  assert.match(telegram.sent[0].text, /Enllaç per a revisió:/u);
+  assert.equal(telegram.sent.length, 0);
+  assert.equal(store.state(registration.updateIdentifier), "sent");
 });
 
 test("ends an unconfirmed watch at the deadline instead of claiming green", async (context) => {
@@ -1248,8 +1217,9 @@ test("treats a failed delivery as uncertain and never resends it on its own", as
   };
   const worker = workerFor({
     store,
-    github: fakeGithub(),
+    github: fakeGithub({ checkRuns: [] }),
     telegram,
+    now: () => new Date(Date.now() + 2 * 60 * 60 * 1000),
     logger: (event) => events.push(event),
   });
 
@@ -1257,7 +1227,10 @@ test("treats a failed delivery as uncertain and never resends it on its own", as
   await worker.runOnce();
 
   assert.equal(attempts, 1);
-  assert.deepEqual(events, ["ci_notification_uncertain"]);
+  assert.deepEqual(events, [
+    "maintainer_attention",
+    "ci_notification_uncertain",
+  ]);
   assert.equal(store.state(registration.updateIdentifier), "uncertain");
 });
 
@@ -1377,7 +1350,7 @@ test("resumes a pending watch after a restart", async (context) => {
     telegram,
   }).runOnce();
 
-  assert.equal(telegram.sent.length, 1);
+  assert.equal(telegram.sent.length, 0);
   assert.equal(reopened.state(registration.updateIdentifier), "sent");
 });
 
@@ -1419,18 +1392,10 @@ test("notifies each pending watch in its own topic in one cycle", async (context
 
   await worker.runOnce();
 
-  assert.deepEqual(
-    telegram.sent.map((message) => message.messageThreadIdentifier),
-    [7, 8],
-  );
-  assert.deepEqual(
-    telegram.sent.map((message) => message.text.split("\n").at(-1)),
-    [
-      "Enllaç per a revisió: https://github.com/example/project/pull/200",
-      "Enllaç per a revisió: https://github.com/example/project/pull/201",
-    ],
-    "each topic receives the review link of its own pull request",
-  );
+  assert.deepEqual(notes.map((note) => note.sessionKey).sort(), [
+    "-1001234567890:7",
+    "-1001234567890:8",
+  ]);
   assert.deepEqual(
     notes.map((note) => /PR #(\d+)/u.exec(note.text)[1]),
     ["200", "201"],
@@ -1535,7 +1500,7 @@ test("refuses a new repair while another repair has an unknown result", async (c
   assert.equal(store.repair(unknown.sequence).status, "uncertain");
   assert.deepEqual(
     traces.map((entry) => entry.action),
-    ["ci_repair_blocked"],
+    ["maintainer_attention", "ci_repair_blocked"],
   );
 });
 
@@ -1597,8 +1562,7 @@ test("sends the green notice even when the repair budget cannot be reset", async
     logger: (event) => events.push(event),
   }).runOnce();
 
-  assert.equal(telegram.sent.length, 1);
-  assert.equal(telegram.sent[0].text.split("\n")[0], savedNotice);
+  assert.equal(telegram.sent.length, 0);
   assert.deepEqual(events, [
     "ci_repair_budget_reset_failed",
     "ci_notification_sent",
@@ -1774,6 +1738,7 @@ test("announces that an aborted repair will not run when its notice is re-sent",
   assert.deepEqual(
     traces.map((entry) => [entry.action, entry.detail]),
     [
+      ["maintainer_attention", "repair-not-run"],
       [
         "ci_repair_not_run",
         `#${registration.pullRequestNumber} ${commit.slice(0, 7)} aborted`,
@@ -1829,7 +1794,7 @@ test("keeps the notice when the note of its effect cannot be stored", async (con
 
   await worker.runOnce();
 
-  assert.equal(telegram.sent.length, 1);
+  assert.equal(telegram.sent.length, 0);
   assert.equal(store.state(registration.updateIdentifier), "sent");
   assert.deepEqual(events, ["ci_note_failed", "ci_notification_sent"]);
 });

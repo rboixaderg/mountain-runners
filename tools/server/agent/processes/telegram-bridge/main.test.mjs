@@ -19,10 +19,7 @@ import { join } from "node:path";
 import { promisify } from "node:util";
 import { test } from "node:test";
 import { AdmissionQueue } from "telegram-pi-bridge/sessions";
-import {
-  reconcileResolutions,
-  savedNotice,
-} from "../../policy/development.mjs";
+import { reconcileResolutions } from "../../policy/development.mjs";
 import {
   listUncertainCases,
   resolveUncertainCase,
@@ -430,9 +427,7 @@ test("notifies CI only when the configured required checks are green", async (co
 
   checkRuns = [gitleaks, validate];
   await service.ciWorker.runOnce();
-  assert.equal(sent.length, 1);
-  assert.equal(sent[0].messageThreadIdentifier, 7);
-  assert.match(sent[0].text, new RegExp(savedNotice, "u"));
+  assert.deepEqual(sent, [], "the green result is not sent twice");
   assert.equal(service.ciWatches.state(10), "sent");
 });
 

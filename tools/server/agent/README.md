@@ -330,6 +330,10 @@ al servidor. El nom local encara no representa una publicació a npm.
     solapament. Els mòduls anteriors es mantenen al repositori, però aquest
     camí ja no els crida. Una PR vinculada es revalida abans del push i no es
     crea una segona PR per al tema.
+    Abans de cada torn ordinari, el servei llegeix la PR vinculada: si és
+    fusionada o tancada, respon «Aquesta feina ja està acabada. Obre un tema nou
+    per a una altra feina.» sense torn de model, branca ni PR; si no la pot
+    llegir, no la dona per oberta i informa del fracàs de lectura.
 
 12. Cada instrucció admesa que no és `/merge` ni una preview executa un torn de
     Pi a la sessió del tema, i el torn següent rep els efectes que el servei ha
@@ -522,7 +526,7 @@ perdi, l'avís «Canvi desat» (o el de fallada si el seguiment de CI no s'ha po
 desar) i, com a darrera línia, l'enllaç de revisió. `ciReports` i
 `ciRepairReports` hi assignen cada resultat i `ciNoteReports` i
 `ciRepairNoteReports` el mateix resultat tècnic, amb el commit i els noms de les
-comprovacions, a la nota del servei, que és l'única que veu el model. El número de PR, el commit i els noms de les comprovacions queden al
+comprovacions, a la nota del servei, que és l'única que veu el model. Cada avís de fallada «Ho he deixat anotat…» desa l'acció de traça `maintainer_attention` (motiu: la clau de l'informe) i l'escriu al diari. El resultat verd de la CI només va a la nota i a la traça: la persona ja ha llegit «Canvi desat». El número de PR, el commit i els noms de les comprovacions queden al
 registre privat del servei (`ci_notification_sent`) i a la nota, no al tema;
 l'evidència d'una fallada que arriba a una reparació es desa a més a
 `state/ci-watch.sqlite`.
@@ -532,7 +536,7 @@ planer: el número de la proposta, la branca, el commit publicat i el resultat d
 les comprovacions locals. `run-instruction` la retorna també en un torn de
 reparació, i `workflow/ci-repair.mjs` la desa amb
 `ciRepairReports.publishedNote`: la resposta del model no és mai una nota.
-L'avís que el cap ha canviat és el de fallada que avisa la persona mantenidora;
+L'avís que el cap ha canviat és el de fallada que deixa el cas anotat per a la persona mantenidora;
 el detall queda a la nota tècnica.
 
 El prompt de cada torn ja no porta el tipus de petició, ni les frases de consulta
