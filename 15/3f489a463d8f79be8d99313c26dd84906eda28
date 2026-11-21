@@ -1,0 +1,14 @@
+docs/specs/preview-label.md
+  h_1727aeeb492b30 71-73
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "153f489a463d8f79be8d99313c26dd84906eda28",
+  "prompts": {},
+  "humans": {
+    "h_1727aeeb492b30": {
+      "author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
