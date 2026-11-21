@@ -8,10 +8,17 @@ import { TelegramApi } from "telegram-pi-bridge/telegram";
 import { CiWatchStore } from "../repository/ci-watch-store.mjs";
 import { SessionNoteStore } from "../repository/session-note-store.mjs";
 import { defaultRequestTimeoutMilliseconds } from "../repository/request-signal.mjs";
-import { maximumAutomaticRepairs } from "../policy/development.mjs";
+import {
+  failedMaintainerNotice,
+  failedRetryingNotice,
+  maximumAutomaticRepairs,
+  savedNotice,
+} from "../policy/development.mjs";
 import {
   createCiWatchRegistration,
+  ciResults,
   createCiWatchWorker,
+  needsMaintainerAttention,
   readCiState,
 } from "./ci-watch.mjs";
 
@@ -194,9 +201,27 @@ for (const scenario of ["cancelled", "timed_out", "setup_failure"]) {
     conclusion = "success";
     await worker.runOnce();
     assert.equal(store.lastReported(registration.sessionKey).result, "success");
-    assert.equal(telegram.sent.length, 1);
+    assert.equal(telegram.sent.length, 0, "a green result is not sent twice");
   });
 }
+
+test("asks for maintainer attention only for the outcomes of the failure notice", () => {
+  assert.equal(needsMaintainerAttention({ result: ciResults.success }), false);
+  assert.equal(
+    needsMaintainerAttention({ result: ciResults.repairing }),
+    false,
+  );
+  for (const result of [
+    ciResults.repairNotRun,
+    ciResults.repairBlocked,
+    ciResults.repairLimit,
+    ciResults.unknown,
+    ciResults.headChanged,
+    ciResults.pullRequestClosed,
+  ]) {
+    assert.equal(needsMaintainerAttention({ result }), true, result);
+  }
+});
 
 test("does not rerun a second cancellation", async (context) => {
   const { store } = fixture(context);
@@ -493,28 +518,11 @@ test("sends the green result once for the pinned commit and pull request", async
   await worker.runOnce();
   await worker.runOnce();
 
-  assert.equal(telegram.sent.length, 1);
-  assert.equal(telegram.sent[0].chatIdentifier, -1001234567890);
-  assert.equal(telegram.sent[0].messageThreadIdentifier, 7);
   assert.equal(
-    telegram.sent[0].text,
-    [
-      "La proposta està llesta. Vols veure com queda? Demana la preview.",
-      "Enllaç per a revisió: https://github.com/example/project/pull/200",
-    ].join("\n"),
+    telegram.sent.length,
+    0,
+    "the publication already said the change is saved",
   );
-  assert.doesNotMatch(telegram.sent[0].text, /Validate|bbbbbbb|PR #/u);
-  assert.deepEqual(
-    github.reads.filter((read) => read.kind !== "pull-request"),
-    [
-      { kind: "check-runs", commit },
-      { kind: "statuses", commit },
-    ],
-  );
-  assert.deepEqual(github.reads.at(-1), {
-    kind: "pull-request",
-    number: 200,
-  });
   assert.deepEqual(logger, [
     {
       event: "ci_notification_sent",
@@ -546,13 +554,6 @@ test("requests the preview a green watch asked for with its change", async (cont
 
   await worker.runOnce();
 
-  assert.equal(
-    telegram.sent[0].text,
-    [
-      "La proposta està llesta. Ara demano la preview i et passaré l'enllaç en aquest tema.",
-      "Enllaç per a revisió: https://github.com/example/project/pull/200",
-    ].join("\n"),
-  );
   assert.equal(store.lastReported(registration.sessionKey).result, "success");
   assert.deepEqual(
     previewRequests,
@@ -565,7 +566,7 @@ test("requests the preview a green watch asked for with its change", async (cont
     ],
     "the preview is requested once, in the name of the stored author",
   );
-  assert.equal(telegram.sent[1].text, "He demanat la preview.");
+  assert.equal(telegram.sent[0].text, "He demanat la preview.");
   assert.deepEqual(
     notes.map((note) => note.effectKey),
     [
@@ -588,13 +589,7 @@ test("never requests a preview for a change that did not ask for it", async (con
 
   await worker.runOnce();
 
-  assert.equal(
-    telegram.sent[0].text,
-    [
-      "La proposta està llesta. Vols veure com queda? Demana la preview.",
-      "Enllaç per a revisió: https://github.com/example/project/pull/200",
-    ].join("\n"),
-  );
+  assert.equal(telegram.sent.length, 0);
 });
 
 test("never requests a preview for a watch whose checks did not pass", async (context) => {
@@ -615,7 +610,7 @@ test("never requests a preview for a watch whose checks did not pass", async (co
 
   await worker.runOnce();
 
-  assert.match(telegram.sent[0].text, /no ha passat/u);
+  assert.equal(telegram.sent[0].text, failedRetryingNotice);
 });
 
 test("a repair never records a preview author on its reopened watch", (context) => {
@@ -651,12 +646,12 @@ test("keeps the CI notice as a service event of the session", async (context) =>
 
   await worker.runOnce();
 
-  assert.equal(telegram.sent.length, 1);
+  assert.equal(telegram.sent.length, 0, "the person already read the save");
   assert.deepEqual(notes, [
     {
       sessionKey: registration.sessionKey,
       text: "Comprovacions obligatòries configurades en verd al commit bbbbbbb (PR #200): Validate.",
-      receivedText: telegram.sent[0].text,
+      receivedText: `${savedNotice}\nEnllaç per a revisió: https://github.com/example/project/pull/200`,
       effectKey: `ci:${registration.updateIdentifier}:${commit}:success`,
     },
   ]);
@@ -807,11 +802,8 @@ test("reserves the first automatic repair of the failing checks", async (context
   await worker.runOnce();
 
   assert.equal(telegram.sent.length, 1);
-  assert.match(
-    telegram.sent[0].text,
-    /Una part de les comprovacions del canvi no ha passat/u,
-  );
-  assert.match(telegram.sent[0].text, /L'estic corregint/u);
+  assert.equal(telegram.sent[0].text, failedRetryingNotice);
+  assert.equal(telegram.sent[0].text, failedRetryingNotice);
   assert.doesNotMatch(telegram.sent[0].text, /Validate|bbbbbbb|PR #/u);
   assert.equal(store.state(registration.updateIdentifier), "sent");
 
@@ -862,7 +854,7 @@ test("repairs the same failure a second time and then stops at the limit", async
     github: failingValidate,
     telegram: first,
   }).runOnce();
-  assert.match(first.sent[0].text, /L'estic corregint/u);
+  assert.equal(first.sent[0].text, failedRetryingNotice);
   const firstRepair = store.claimNextRepair();
   store.finishRepair(firstRepair.sequence, {
     status: "done",
@@ -881,7 +873,7 @@ test("repairs the same failure a second time and then stops at the limit", async
   }).runOnce();
 
   assert.equal(second.sent.length, 1);
-  assert.match(second.sent[0].text, /L'estic corregint/u);
+  assert.equal(second.sent[0].text, failedRetryingNotice);
   const secondRepair = store.claimNextRepair();
   assert.equal(secondRepair.attempt_number, 2);
   assert.equal(secondRepair.commit_sha, nextCommit);
@@ -905,14 +897,10 @@ test("repairs the same failure a second time and then stops at the limit", async
   }).runOnce();
 
   assert.equal(limit.sent.length, 1);
-  assert.match(
-    limit.sent[0].text,
-    /ja he fet els intents de correcció automàtica/u,
-  );
-  assert.match(limit.sent[0].text, /digues-me què vols fer/u);
+  assert.equal(limit.sent[0].text, failedMaintainerNotice);
   assert.deepEqual(
     traces.map((entry) => entry.action),
-    ["ci_repair_limit_reached"],
+    ["maintainer_attention", "ci_repair_limit_reached"],
   );
   assert.equal(store.claimNextRepair(), null);
   assert.equal(store.state(registration.updateIdentifier), "sent");
@@ -946,7 +934,7 @@ test("counts a different failing check set as its own repair budget", async (con
     requiredChecks: ["Gitleaks"],
   }).runOnce();
 
-  assert.match(telegram.sent[0].text, /L'estic corregint/u);
+  assert.equal(telegram.sent[0].text, failedRetryingNotice);
   const repair = store.claimNextRepair();
   assert.equal(repair.attempt_number, 1);
   assert.deepEqual(JSON.parse(repair.failed_checks), ["Gitleaks"]);
@@ -1035,7 +1023,7 @@ test("waits for every required check before reserving a repair", async (context)
     requiredChecks: ["Validate", "Gitleaks"],
   }).runOnce();
 
-  assert.match(telegram.sent[0].text, /L'estic corregint/u);
+  assert.equal(telegram.sent[0].text, failedRetryingNotice);
   assert.doesNotMatch(telegram.sent[0].text, /Validate|Gitleaks/u);
   const repair = store.claimNextRepair();
   assert.deepEqual(JSON.parse(repair.failed_checks), ["Validate", "Gitleaks"]);
@@ -1059,10 +1047,7 @@ test("ends an incomplete failure at the deadline without repairing it", async (c
   }).runOnce();
 
   assert.equal(telegram.sent.length, 1);
-  assert.match(
-    telegram.sent[0].text,
-    /No he pogut confirmar del tot les comprovacions/u,
-  );
+  assert.equal(telegram.sent[0].text, failedMaintainerNotice);
   assert.equal(store.claimNextRepair(), null);
   assert.equal(store.state(registration.updateIdentifier), "sent");
 });
@@ -1160,13 +1145,7 @@ test("never reports green for another head and says the commit changed", async (
   await worker.runOnce();
 
   assert.equal(telegram.sent.length, 1);
-  assert.match(telegram.sent[0].text, /El canvi té una versió més nova/u);
-  assert.match(
-    telegram.sent[0].text,
-    /no les miro jo tot sol/u,
-    "the new version is not followed automatically",
-  );
-  assert.match(telegram.sent[0].text, /Demana'm en aquest tema/u);
+  assert.equal(telegram.sent[0].text, failedMaintainerNotice);
   assert.doesNotMatch(
     telegram.sent[0].text,
     /T'avisaré/u,
@@ -1188,7 +1167,7 @@ test("does not report CI for a pull request that is no longer open", async (cont
   await worker.runOnce();
 
   assert.equal(telegram.sent.length, 1);
-  assert.match(telegram.sent[0].text, /ja no està oberta/u);
+  assert.equal(telegram.sent[0].text, failedMaintainerNotice);
 });
 
 test("ends the watch of a merged pull request with the closed notice", async (context) => {
@@ -1207,7 +1186,7 @@ test("ends the watch of a merged pull request with the closed notice", async (co
   await worker.runOnce();
 
   assert.equal(telegram.sent.length, 1);
-  assert.match(telegram.sent[0].text, /ja no està oberta/u);
+  assert.equal(telegram.sent[0].text, failedMaintainerNotice);
 });
 
 test("reports a result read after the deadline instead of an unconfirmed notice", async (context) => {
@@ -1223,9 +1202,8 @@ test("reports a result read after the deadline instead of an unconfirmed notice"
 
   await worker.runOnce();
 
-  assert.equal(telegram.sent.length, 1);
-  assert.match(telegram.sent[0].text, /La proposta està llesta/u);
-  assert.match(telegram.sent[0].text, /Enllaç per a revisió:/u);
+  assert.equal(telegram.sent.length, 0);
+  assert.equal(store.state(registration.updateIdentifier), "sent");
 });
 
 test("ends an unconfirmed watch at the deadline instead of claiming green", async (context) => {
@@ -1242,10 +1220,7 @@ test("ends an unconfirmed watch at the deadline instead of claiming green", asyn
   await worker.runOnce();
 
   assert.equal(telegram.sent.length, 1);
-  assert.match(
-    telegram.sent[0].text,
-    /No he pogut confirmar com han anat les comprovacions/u,
-  );
+  assert.equal(telegram.sent[0].text, failedMaintainerNotice);
   assert.equal(store.state(registration.updateIdentifier), "sent");
 });
 
@@ -1262,8 +1237,9 @@ test("treats a failed delivery as uncertain and never resends it on its own", as
   };
   const worker = workerFor({
     store,
-    github: fakeGithub(),
+    github: fakeGithub({ checkRuns: [] }),
     telegram,
+    now: () => new Date(Date.now() + 2 * 60 * 60 * 1000),
     logger: (event) => events.push(event),
   });
 
@@ -1271,7 +1247,10 @@ test("treats a failed delivery as uncertain and never resends it on its own", as
   await worker.runOnce();
 
   assert.equal(attempts, 1);
-  assert.deepEqual(events, ["ci_notification_uncertain"]);
+  assert.deepEqual(events, [
+    "maintainer_attention",
+    "ci_notification_uncertain",
+  ]);
   assert.equal(store.state(registration.updateIdentifier), "uncertain");
 });
 
@@ -1391,7 +1370,7 @@ test("resumes a pending watch after a restart", async (context) => {
     telegram,
   }).runOnce();
 
-  assert.equal(telegram.sent.length, 1);
+  assert.equal(telegram.sent.length, 0);
   assert.equal(reopened.state(registration.updateIdentifier), "sent");
 });
 
@@ -1433,18 +1412,10 @@ test("notifies each pending watch in its own topic in one cycle", async (context
 
   await worker.runOnce();
 
-  assert.deepEqual(
-    telegram.sent.map((message) => message.messageThreadIdentifier),
-    [7, 8],
-  );
-  assert.deepEqual(
-    telegram.sent.map((message) => message.text.split("\n").at(-1)),
-    [
-      "Enllaç per a revisió: https://github.com/example/project/pull/200",
-      "Enllaç per a revisió: https://github.com/example/project/pull/201",
-    ],
-    "each topic receives the review link of its own pull request",
-  );
+  assert.deepEqual(notes.map((note) => note.sessionKey).sort(), [
+    "-1001234567890:7",
+    "-1001234567890:8",
+  ]);
   assert.deepEqual(
     notes.map((note) => /PR #(\d+)/u.exec(note.text)[1]),
     ["200", "201"],
@@ -1510,7 +1481,7 @@ test("informs the topic even when the private trace cannot be written", async (c
   }).runOnce();
 
   assert.equal(telegram.sent.length, 1);
-  assert.match(telegram.sent[0].text, /L'estic corregint/u);
+  assert.equal(telegram.sent[0].text, failedRetryingNotice);
   assert.deepEqual(events, ["ci_notification_sent", "ci_trace_failed"]);
   assert.equal(store.claimNextRepair() !== null, true);
 });
@@ -1544,12 +1515,12 @@ test("refuses a new repair while another repair has an unknown result", async (c
   }).runOnce();
 
   assert.equal(telegram.sent.length, 1);
-  assert.match(telegram.sent[0].text, /Hi ha una revisió pendent del servei/u);
+  assert.equal(telegram.sent[0].text, failedMaintainerNotice);
   assert.equal(store.claimNextRepair(), null);
   assert.equal(store.repair(unknown.sequence).status, "uncertain");
   assert.deepEqual(
     traces.map((entry) => entry.action),
-    ["ci_repair_blocked"],
+    ["maintainer_attention", "ci_repair_blocked"],
   );
 });
 
@@ -1611,8 +1582,7 @@ test("sends the green notice even when the repair budget cannot be reset", async
     logger: (event) => events.push(event),
   }).runOnce();
 
-  assert.equal(telegram.sent.length, 1);
-  assert.match(telegram.sent[0].text, /La proposta està llesta/u);
+  assert.equal(telegram.sent.length, 0);
   assert.deepEqual(events, [
     "ci_repair_budget_reset_failed",
     "ci_notification_sent",
@@ -1736,10 +1706,7 @@ test("tells the two notices of one commit apart in the session", async (context)
   }).runOnce();
 
   assert.equal(telegram.sent.length, 1);
-  assert.match(
-    telegram.sent[0].text,
-    /aquesta vegada no l'he corregit automàticament/u,
-  );
+  assert.equal(telegram.sent[0].text, failedMaintainerNotice);
   assert.deepEqual(
     notes.claim(registration.sessionKey).map((note) => note.text),
     [
@@ -1783,14 +1750,7 @@ test("announces that an aborted repair will not run when its notice is re-sent",
   }).runOnce();
 
   assert.equal(telegram.sent.length, 1);
-  assert.match(
-    telegram.sent[0].text,
-    /Una part de les comprovacions del canvi no ha passat/u,
-  );
-  assert.match(
-    telegram.sent[0].text,
-    /aquesta vegada no l'he corregit automàticament/u,
-  );
+  assert.equal(telegram.sent[0].text, failedMaintainerNotice);
   assert.doesNotMatch(telegram.sent[0].text, /Validate|bbbbbbb/u);
   assert.equal(store.state(registration.updateIdentifier), "sent");
   assert.equal(store.claimNextRepair(), null);
@@ -1798,6 +1758,7 @@ test("announces that an aborted repair will not run when its notice is re-sent",
   assert.deepEqual(
     traces.map((entry) => [entry.action, entry.detail]),
     [
+      ["maintainer_attention", "repair-not-run"],
       [
         "ci_repair_not_run",
         `#${registration.pullRequestNumber} ${commit.slice(0, 7)} aborted`,
@@ -1828,10 +1789,7 @@ test("names the failed checks in the service note when the deadline ends an inco
   }).runOnce();
 
   assert.equal(telegram.sent.length, 1);
-  assert.match(
-    telegram.sent[0].text,
-    /No he pogut confirmar del tot les comprovacions/u,
-  );
+  assert.equal(telegram.sent[0].text, failedMaintainerNotice);
   assert.doesNotMatch(telegram.sent[0].text, /Validate|Reparació automàtica/u);
   assert.match(notes[0].text, /però Validate ha fallat/u);
   assert.match(notes[0].text, /bbbbbbb/u);
@@ -1856,7 +1814,7 @@ test("keeps the notice when the note of its effect cannot be stored", async (con
 
   await worker.runOnce();
 
-  assert.equal(telegram.sent.length, 1);
+  assert.equal(telegram.sent.length, 0);
   assert.equal(store.state(registration.updateIdentifier), "sent");
   assert.deepEqual(events, ["ci_note_failed", "ci_notification_sent"]);
 });

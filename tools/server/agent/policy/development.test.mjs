@@ -13,6 +13,15 @@ import {
   checkCommands,
   ciNoteReports,
   ciReports,
+  ciRepairNoteReports,
+  ciRepairReports,
+  bridgeMessages,
+  instructionReportKeys,
+  instructionReports,
+  workingNotice,
+  savedNotice,
+  failedRetryingNotice,
+  failedMaintainerNotice,
   ciWatchOutcomes,
   formatMadridInstant,
   mergedReviewLineText,
@@ -32,7 +41,6 @@ import {
   slugify,
   stripChangeSummary,
   topicStateHeader,
-  unclearRequestLine,
 } from "./development.mjs";
 
 const currentInstant = "2026-11-18T10:32:05+01:00";
@@ -321,10 +329,9 @@ test("keeps the technical facts in the note and out of the notice a person reads
 
   assert.equal(
     person,
-    [
-      "La proposta està llesta. Vols veure com queda? Demana la preview.",
-      "Enllaç per a revisió: https://example.test/pull/200",
-    ].join("\n"),
+    [savedNotice, "Enllaç per a revisió: https://example.test/pull/200"].join(
+      "\n",
+    ),
   );
   assert.doesNotMatch(person, /Validate|bbbbbbb|PR #/u);
   assert.match(note, /Validate/u);
@@ -349,7 +356,7 @@ test("composes the publication report with the model answer and the review link 
       "He afegit la notícia.",
       "",
       "Continuo la proposta #200, des del punt que ja teníem.",
-      "El canvi està publicat i l'estic comprovant. T'avisaré en aquest tema quan estigui a punt.",
+      savedNotice,
       "Enllaç per a revisió: https://example.test/pull/200",
     ].join("\n"),
   );
@@ -446,30 +453,22 @@ test("clips a long answer so the review link is always the last line", () => {
   assert.match(report, /^He fet aquests canvis\. x+…/u);
 });
 
-test("promises a follow-up message only when the CI watch is registered", () => {
+test("saves with the plain notice and warns the maintainer when the watch is unavailable", () => {
   const pullRequest = { htmlUrl: "https://example.test/pull/200" };
+  const link = "Enllaç per a revisió: https://example.test/pull/200";
 
-  assert.match(
-    publicationNoticesText({
-      pullRequest,
-      ciWatch: ciWatchOutcomes.registered,
-    }),
-    /T'avisaré en aquest tema quan estigui a punt/u,
-  );
-  assert.match(
+  for (const ciWatch of [ciWatchOutcomes.registered, undefined]) {
+    assert.equal(
+      publicationNoticesText({ pullRequest, ciWatch }),
+      [savedNotice, link].join("\n"),
+    );
+  }
+  assert.equal(
     publicationNoticesText({
       pullRequest,
       ciWatch: ciWatchOutcomes.unavailable,
     }),
-    /no podré avisar-te'n en aquest tema/u,
-  );
-  assert.equal(
-    publicationNoticesText({ pullRequest, ciWatch: undefined }),
-    [
-      "El canvi està publicat.",
-      "Enllaç per a revisió: https://example.test/pull/200",
-    ].join("\n"),
-    "without a watch the service promises no follow-up message",
+    [failedMaintainerNotice, link].join("\n"),
   );
 });
 
@@ -479,12 +478,9 @@ test("drops only the review link when the service has no URL", () => {
       pullRequest: { htmlUrl: undefined },
       ciWatch: ciWatchOutcomes.registered,
     }),
-    "El canvi està publicat i l'estic comprovant. T'avisaré en aquest tema quan estigui a punt.",
+    savedNotice,
   );
-  assert.equal(
-    ciReports.success({ pullRequestUrl: undefined }),
-    "La proposta està llesta. Vols veure com queda? Demana la preview.",
-  );
+  assert.equal(ciReports.success({ pullRequestUrl: undefined }), savedNotice);
   assert.equal(
     mergedReviewLineText({
       pullRequestUrl: null,
@@ -720,9 +716,8 @@ test("sends the bounded topic context to the classifier as JSON data", () => {
   assert.equal(prompt.split("\n").at(-1), '"aquí tens la imatge"');
 });
 
-test("keeps the service events apart from the request and explains an unclear request", () => {
-  const prompt = promptFor("només vols una explicació?", "consultation", {
-    unclearRequest: true,
+test("keeps the service events apart from the request", () => {
+  const prompt = promptFor("només vols una explicació?", "implementation", {
     serviceNotes: [
       "Pull request creada: https://example.test/pull/301",
       "Comprovacions: pnpm check correcte.",
@@ -741,11 +736,132 @@ test("keeps the service events apart from the request and explains an unclear re
     prompt.slice(request).split("\n").at(-1),
     "només vols una explicació?",
   );
-  assert.match(prompt, new RegExp(unclearRequestLine, "u"));
-  assert.doesNotMatch(
-    promptFor("afegeix una prova", "implementation"),
-    new RegExp(unclearRequestLine, "u"),
+});
+
+test("keeps the turn prompt short: no kind, no read-only rule, the rules that remain", () => {
+  const prompt = promptFor("afegeix una notícia", "implementation");
+
+  assert.doesNotMatch(prompt, /This request is/u);
+  assert.doesNotMatch(prompt, /Consultations are read-only/u);
+  assert.doesNotMatch(prompt, /could not tell whether/u);
+  assert.doesNotMatch(prompt, /ask for it again|demana la preview/u);
+  assert.match(prompt, /publica-la/u);
+  assert.ok(prompt.includes(currentInstant));
+  assert.match(prompt, /`published: false`/u);
+  assert.match(prompt, /SUMMARY: type\(scope\): imperative summary/u);
+  assert.match(
+    prompt,
+    /saves every change this turn makes and shows the result on its own\. Never tell the person to ask for an upload, a retry or a preview/u,
   );
+});
+
+const personNotices = [
+  workingNotice,
+  savedNotice,
+  failedRetryingNotice,
+  failedMaintainerNotice,
+];
+const allowedPersonNotices = new Set(personNotices);
+const technicalWords = /proposta|comprovaci|commit|branca|\bPR\b|demana/iu;
+
+function stripReviewLink(text) {
+  return text
+    .split("\n")
+    .filter((line) => !line.startsWith("Enllaç per a revisió:"))
+    .join("\n");
+}
+
+test("speaks to a person with the plain notices only", () => {
+  assert.equal(workingNotice, "Hi estic treballant.");
+  assert.equal(
+    savedNotice,
+    "Canvi desat. Preparo com es veurà; trigarà uns 10 minuts.",
+  );
+  assert.equal(
+    failedRetryingNotice,
+    "Alguna cosa ha fallat per part nostra. Ho torno a intentar.",
+  );
+  assert.equal(
+    failedMaintainerNotice,
+    "Alguna cosa ha fallat per part nostra. Ho he deixat anotat perquè ho revisi la persona que manté el servei.",
+  );
+  assert.equal(
+    bridgeMessages.acknowledgement("fes una notícia"),
+    workingNotice,
+  );
+
+  const reports = [
+    ...Object.values(instructionReports).filter(
+      (text) => text !== instructionReports.clarification,
+    ),
+    ...Object.values(ciReports).map((report) =>
+      typeof report === "function"
+        ? stripReviewLink(report({ pullRequestUrl: "https://example.test/1" }))
+        : report,
+    ),
+    ...Object.values(ciRepairReports).filter(
+      (report) =>
+        typeof report === "string" && report !== ciRepairReports.queueStalled,
+    ),
+    stripReviewLink(
+      publicationNoticesText({
+        pullRequest: { htmlUrl: "https://example.test/1" },
+        ciWatch: ciWatchOutcomes.registered,
+      }),
+    ),
+    stripReviewLink(
+      publicationNoticesText({
+        pullRequest: { htmlUrl: "https://example.test/1" },
+        ciWatch: ciWatchOutcomes.unavailable,
+      }),
+    ),
+  ];
+  for (const report of reports) {
+    assert.ok(allowedPersonNotices.has(report), report);
+    assert.doesNotMatch(report, technicalWords);
+  }
+  assert.doesNotMatch(instructionReports.clarification, technicalWords);
+  assert.equal(ciRepairReports.published({ report: "Fet." }), "Fet.");
+});
+
+test("derives the report keys from the instruction reports", () => {
+  assert.deepEqual(
+    Object.keys(instructionReportKeys),
+    Object.keys(instructionReports),
+  );
+  for (const [key, value] of Object.entries(instructionReportKeys)) {
+    assert.equal(key, value);
+  }
+  assert.ok(Object.isFrozen(instructionReportKeys));
+});
+
+test("promises a retry only in the repairing notice, which is queued", () => {
+  for (const [name, report] of [
+    ...Object.entries(instructionReports),
+    ...Object.entries(ciReports).filter(
+      ([, report]) => typeof report === "string",
+    ),
+    ...Object.entries(ciRepairReports).filter(
+      ([, report]) => typeof report === "string",
+    ),
+  ]) {
+    if (name === "repairing") {
+      assert.match(report, /Ho torno a intentar/u);
+    } else {
+      assert.doesNotMatch(report, /Ho torno a intentar|torna|repeteix/iu, name);
+    }
+  }
+});
+
+test("keeps the technical repair notes for the operator and the model", () => {
+  const common = { pullRequestNumber: 200 };
+  for (const note of [
+    ciRepairNoteReports.interrupted(common),
+    ciRepairNoteReports.uncertain(common),
+    ciRepairNoteReports.notApplicable(common),
+  ]) {
+    assert.match(note, /PR #200/u);
+  }
 });
 
 test("puts the state of the topic before the service events and the request", () => {
@@ -774,7 +890,8 @@ test("puts the state of the topic before the service events and the request", ()
   assert.ok(request > notes, "the service events come before the request");
   assert.match(prompt, /^- Preview: confirmed\.$/mu);
   assert.match(prompt, /^- Latest merge request for it: none yet\.$/mu);
-  assert.match(prompt, /"demana la preview"/u);
+  assert.match(prompt, /never offer to ask for it/u);
+  assert.doesNotMatch(prompt, /demana la preview/u);
   assert.equal(
     promptFor("i la preview?", "consultation").includes(topicStateHeader),
     false,
