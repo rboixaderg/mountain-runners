@@ -1,0 +1,47 @@
+tools/server/agent/policy/development.mjs
+  s_843c4e766b1992::t_46688e19b7d0f6 288-290,501-504,903,942,944
+tools/server/agent/processes/telegram-bridge/main.test.mjs
+  s_843c4e766b1992::t_542bdbe0d3b5c8 1456,1497
+tools/server/agent/repository/ci-github.test.mjs
+  s_843c4e766b1992::t_432b8fe3814f2e 17,417,638,645,648-660,663-666,669-670,672,678-681,683-686,690-706,708-715,717-718,720-741,793,800,803-806
+tools/server/agent/repository/github.mjs
+  s_843c4e766b1992::t_f7c3671db025ff 4-5,37-41,544,558,570,581-585,587,589-599,602-604,606,608-613,638-640,644-646,651
+tools/server/agent/repository/github.test.mjs
+  s_843c4e766b1992::t_24ab77f3f2b7e6 755
+tools/server/agent/repository/live-pull-request.test.mjs
+  s_843c4e766b1992::t_0755089dd2a53f 21
+tools/server/agent/repository/preview-comment.mjs
+  s_843c4e766b1992::t_75afe1350ffbda 27-29,41
+tools/server/agent/repository/preview-comment.test.mjs
+  s_843c4e766b1992::t_85f9fd96d0375f 87-89,91,101
+tools/server/agent/repository/preview-request-store.mjs
+  s_843c4e766b1992::t_ba0bac5282db1d 1,4-8
+tools/server/agent/repository/publisher.mjs
+  s_843c4e766b1992::t_3e72689cb59971 74-90
+tools/server/agent/repository/publisher.test.mjs
+  s_843c4e766b1992::t_641f5a2712f9a2 212-286
+tools/server/agent/workflow/preview-request.mjs
+  s_843c4e766b1992::t_42e06ad8f55cd6 1,4-13,15-17,23,51,99-102,107,109-111,121,129,229-231,258-260,317-320,334-354
+tools/server/agent/workflow/preview-request.test.mjs
+  s_843c4e766b1992::t_eb1b1b87a376d2 11,68-69,75,78,93,175-176,182,204,233,259,286,307,350,367,387,398,410,415,423-424,455-466,475-476,494,501,531-532,559-560,567,571,578,582,591-592,596,604,607-608,611-613,616-633,636-637,639,641-642,644-658,685-687,971,999,1003,1020-1029,1048
+tools/server/agent/workflow/run-instruction.mjs
+  s_843c4e766b1992::t_1f6b6c89e2b05d 900-902
+tools/server/agent/workflow/run-instruction.test.mjs
+  s_843c4e766b1992::t_4f078f7aa75c6c 182-187,474-533
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "30064de98eb922b1ea8feaba2edd88ef22d410c5",
+  "prompts": {},
+  "sessions": {
+    "s_843c4e766b1992": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e00d1c8a5ffeJtdHn02mtqDwHi",
+        "model": "unknown"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
