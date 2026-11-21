@@ -1,0 +1,21 @@
+tools/server/agent/repository/ci-github.test.mjs
+  s_7158699f558f84::t_9a5f9ca85ddc29 206-220
+tools/server/agent/repository/github.mjs
+  s_7158699f558f84::t_837759473e5c94 298-303,324,505
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "be31e3795a16425c7707c4e3a46b2bd8e7bf41df",
+  "prompts": {},
+  "sessions": {
+    "s_7158699f558f84": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a1fd21-3ad5-75f9-a86e-7fe687c730d0",
+        "model": "gpt-6.1-terra"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
