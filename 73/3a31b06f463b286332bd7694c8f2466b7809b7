@@ -1,0 +1,23 @@
+tools/server/agent/repository/ci-failure.mjs
+  s_7158699f558f84::t_31b3e6284f5569 1-61
+tools/server/agent/repository/ci-failure.test.mjs
+  s_7158699f558f84::t_e2e0156442e307 1-73
+tools/server/agent/repository/ci-github.test.mjs
+  s_7158699f558f84::t_e1494000565306 73-99
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "733a31b06f463b286332bd7694c8f2466b7809b7",
+  "prompts": {},
+  "sessions": {
+    "s_7158699f558f84": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a1fd21-3ad5-75f9-a86e-7fe687c730d0",
+        "model": "gpt-6.1-terra"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
