@@ -1,0 +1,29 @@
+docs/deployment.md
+  s_fb49932d4750db::t_37f11fb4b21c55 1067-1068,1208
+docs/runbook.md
+  s_fb49932d4750db::t_8ed43f8d92dad4 1504-1507
+docs/specs/phase-8-editorial-assistance.md
+  s_fb49932d4750db::t_e40e50bcd81a50 746-748
+tools/server/agent/README.md
+  s_fb49932d4750db::t_3d254350eb7d1e 327-328
+tools/server/agent/policy/development.mjs
+  s_fb49932d4750db::t_cd74a4c54f7552 471
+tools/server/agent/processes/telegram-bridge/main.mjs
+  s_fb49932d4750db::t_7132da482a355f 401
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "7d7f44f1a2e5f0238767c55de7622502bdd0d2e9",
+  "prompts": {},
+  "sessions": {
+    "s_fb49932d4750db": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a2000c-16f3-7097-8b22-5d97215923cd",
+        "model": "claude-sonnet-5-5"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
