@@ -277,9 +277,17 @@ export function pullRequestBody({ title, changedPaths, checkCommand }) {
 // handler: the model is never started for it and the label grants nothing.
 export const previewRequestKind = "preview";
 
+// The kind every ordinary topic turn runs with, whatever the person asked.
+export const topicTurnKind = "implementation";
+
+// Public commit message of the pending work kept before the moved pull request
+// head is merged into the topic branch.
+export const pendingWorkCommitMessage =
+  "chore(content): keep pending changes before syncing";
+
 export const requestKinds = [
   "consultation",
-  "implementation",
+  topicTurnKind,
   "continuation",
   "clarification",
   previewRequestKind,

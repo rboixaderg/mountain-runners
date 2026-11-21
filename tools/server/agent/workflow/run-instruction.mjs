@@ -57,6 +57,8 @@ import {
   publicationReport,
   previewRequestKind,
   repairRequestKind,
+  topicTurnKind,
+  pendingWorkCommitMessage,
   stripChangeSummary,
 } from "../policy/development.mjs";
 
@@ -432,8 +434,10 @@ export function createInstructionRunner({
         images: [],
         attachments: [],
         worktreePrepared,
-        kind: "implementation",
+        kind: topicTurnKind,
         topicState,
+        // The conflict turn is internal: it must not consume the service notes
+        // that belong to the next turn of the person.
         claimServiceNotes: () => [],
         onPromptSent: () => {},
         worktreePath: worktree.path,
@@ -464,6 +468,145 @@ export function createInstructionRunner({
         await abortConflictMerge(worktree);
       }
     }
+  }
+
+  // Reads the pull request bound to the topic and accepts it only when it is
+  // an open, non-draft pull request of this repository on the branch the topic
+  // owns. Returns the pull request or the plain report of the refusal.
+  async function readValidBoundPullRequest({ binding, topic, signal }) {
+    const movedHeadReport = continuationReports.movedHead({
+      pullRequestNumber: binding.pullRequestNumber,
+    });
+    if (
+      topic.worktree === null ||
+      (await currentBranch(topic.worktree, { signal })) !== binding.branch
+    ) {
+      return { report: movedHeadReport };
+    }
+    let pullRequest;
+    try {
+      pullRequest = await readBoundPullRequest(binding.pullRequestNumber, {
+        signal,
+      });
+    } catch {
+      signal?.throwIfAborted();
+      return { report: instructionReports.publicationReadFailed };
+    }
+    if (
+      pullRequest.state !== "open" ||
+      pullRequest.draft ||
+      pullRequest.baseRef !== "main" ||
+      pullRequest.headRepository?.toLowerCase() !==
+        repositoryName.toLowerCase() ||
+      pullRequest.headRef !== binding.branch
+    ) {
+      return { report: movedHeadReport };
+    }
+    return { pullRequest };
+  }
+
+  // Brings the topic worktree to the head of its pull request. Returns false
+  // when the worktree cannot follow it and the turn must not start.
+  async function followBoundPullRequest({
+    binding,
+    topic,
+    pullRequest,
+    sessionKey,
+    worktreeName,
+    sessionIdentifier,
+    signal,
+  }) {
+    if (
+      await matchesPublishedHead(topic.worktree, pullRequest.headSha, signal)
+    ) {
+      return true;
+    }
+    if (!topic.pendingWork) {
+      return fastForwardPublishedBranch({
+        worktree: topic.worktree,
+        branch: binding.branch,
+        headSha: pullRequest.headSha,
+        signal,
+      });
+    }
+    return mergeMovedPullRequestHead({
+      binding,
+      worktree: topic.worktree,
+      pullRequest,
+      sessionKey,
+      worktreeName,
+      sessionIdentifier,
+      signal,
+    });
+  }
+
+  // Keeps the pending work in a commit and merges the moved pull request head
+  // into the branch, only when both descend from the last published commit.
+  // A conflict goes to the model; nothing is ever force-pushed.
+  async function mergeMovedPullRequestHead({
+    binding,
+    worktree,
+    pullRequest,
+    sessionKey,
+    worktreeName,
+    sessionIdentifier,
+    signal,
+  }) {
+    const previousHead = publishedCommit(worktree);
+    const fetched = await fetchPublishedBranch({
+      worktree,
+      branch: binding.branch,
+      headSha: pullRequest.headSha,
+      signal,
+    });
+    if (!fetched || previousHead === null) {
+      return false;
+    }
+    const remoteBase = (
+      await runGit(
+        worktree,
+        ["merge-base", previousHead, pullRequest.headSha],
+        { signal, allowFailure: true },
+      )
+    ).trim();
+    const localBase = (
+      await runGit(worktree, ["merge-base", previousHead, "HEAD"], {
+        signal,
+        allowFailure: true,
+      })
+    ).trim();
+    if (remoteBase !== previousHead || localBase !== previousHead) {
+      return false;
+    }
+    removeAttachmentDirectory({ worktreePath: worktree.path });
+    await commitAll({
+      worktree,
+      message: pendingWorkCommitMessage,
+      signal,
+    });
+    const merged = await mergeCommitIntoBranch({
+      worktree,
+      headSha: pullRequest.headSha,
+      signal,
+    });
+    if (!merged.conflict) {
+      return true;
+    }
+    const conflictState = await topicStateOf(sessionKey, {
+      continuedPullRequestNumber: binding.pullRequestNumber,
+      signal,
+    });
+    return resolveConflict({
+      worktree,
+      worktreeName,
+      sessionIdentifier,
+      sessionKey,
+      paths: merged.paths,
+      headSha: pullRequest.headSha,
+      topicState: conflictState,
+      worktreePrepared: false,
+      signal,
+    });
   }
 
   async function execute(request, { signal } = {}) {
@@ -594,114 +737,24 @@ export function createInstructionRunner({
         : null;
       let boundContinuation = null;
       if (binding !== null) {
-        if (
-          topic.worktree === null ||
-          (await currentBranch(topic.worktree, { signal })) !== binding.branch
-        ) {
-          return {
-            outcome: "failed",
-            report: continuationReports.movedHead({
-              pullRequestNumber: binding.pullRequestNumber,
-            }),
-          };
-        }
-        let pullRequest;
-        try {
-          pullRequest = await readBoundPullRequest(binding.pullRequestNumber, {
-            signal,
-          });
-        } catch {
-          signal?.throwIfAborted();
-          return {
-            outcome: "failed",
-            report: instructionReports.publicationReadFailed,
-          };
-        }
-        if (
-          pullRequest.state !== "open" ||
-          pullRequest.draft ||
-          pullRequest.baseRef !== "main" ||
-          pullRequest.headRepository?.toLowerCase() !==
-            repositoryName.toLowerCase() ||
-          pullRequest.headRef !== binding.branch
-        ) {
-          return {
-            outcome: "failed",
-            report: continuationReports.movedHead({
-              pullRequestNumber: binding.pullRequestNumber,
-            }),
-          };
-        }
-        let matchingHead = await matchesPublishedHead(
-          topic.worktree,
-          pullRequest.headSha,
+        const bound = await readValidBoundPullRequest({
+          binding,
+          topic,
           signal,
-        );
-        if (!matchingHead && !topic.pendingWork) {
-          matchingHead = await fastForwardPublishedBranch({
-            worktree: topic.worktree,
-            branch: binding.branch,
-            headSha: pullRequest.headSha,
-            signal,
-          });
+        });
+        if (bound.report) {
+          return { outcome: "failed", report: bound.report };
         }
-        if (!matchingHead && topic.pendingWork) {
-          const worktree = topic.worktree;
-          const previousHead = publishedCommit(worktree);
-          const fetched = await fetchPublishedBranch({
-            worktree,
-            branch: binding.branch,
-            headSha: pullRequest.headSha,
-            signal,
-          });
-          if (fetched && previousHead !== null) {
-            const remoteBase = (
-              await runGit(
-                worktree,
-                ["merge-base", previousHead, pullRequest.headSha],
-                { signal, allowFailure: true },
-              )
-            ).trim();
-            const localBase = (
-              await runGit(worktree, ["merge-base", previousHead, "HEAD"], {
-                signal,
-                allowFailure: true,
-              })
-            ).trim();
-            if (remoteBase === previousHead && localBase === previousHead) {
-              removeAttachmentDirectory({ worktreePath: worktree.path });
-              await commitAll({
-                worktree,
-                message: "chore(agent): preserve pending topic work",
-                signal,
-              });
-              const merged = await mergeCommitIntoBranch({
-                worktree,
-                headSha: pullRequest.headSha,
-                signal,
-              });
-              matchingHead = !merged.conflict;
-              if (merged.conflict) {
-                const conflictState = await topicStateOf(request.sessionKey, {
-                  continuedPullRequestNumber: binding.pullRequestNumber,
-                  signal,
-                });
-                matchingHead = await resolveConflict({
-                  worktree,
-                  worktreeName,
-                  sessionIdentifier: piSessionIdentifier,
-                  sessionKey: request.sessionKey,
-                  paths: merged.paths,
-                  headSha: pullRequest.headSha,
-                  topicState: conflictState,
-                  worktreePrepared: false,
-                  signal,
-                });
-              }
-            }
-          }
-        }
-        if (!matchingHead) {
+        const followed = await followBoundPullRequest({
+          binding,
+          topic,
+          pullRequest: bound.pullRequest,
+          sessionKey: request.sessionKey,
+          worktreeName,
+          sessionIdentifier: piSessionIdentifier,
+          signal,
+        });
+        if (!followed) {
           return {
             outcome: "failed",
             report: continuationReports.movedHead({
@@ -711,7 +764,7 @@ export function createInstructionRunner({
         }
         boundContinuation = {
           pullRequestNumber: binding.pullRequestNumber,
-          baseHeadSha: pullRequest.headSha,
+          baseHeadSha: bound.pullRequest.headSha,
         };
       }
       const continuedPullRequestNumber =
@@ -789,7 +842,7 @@ export function createInstructionRunner({
           images: promptImages,
           attachments: stagedAttachments,
           worktreePrepared,
-          kind: repair ? repairRequestKind : "implementation",
+          kind: repair ? repairRequestKind : topicTurnKind,
           topicState,
           claimServiceNotes,
           // The runtime calls this immediately before it writes the prompt: it
@@ -970,7 +1023,7 @@ export function createInstructionRunner({
         };
       }
       // Record the first confirmed publication. An existing binding is never
-      // replaced; enforcement of its branch belongs to the next workflow step.
+      // replaced: later turns of the topic continue its recorded branch.
       if (
         !repair &&
         topicJobs &&
