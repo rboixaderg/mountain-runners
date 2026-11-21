@@ -277,9 +277,17 @@ export function pullRequestBody({ title, changedPaths, checkCommand }) {
 // handler: the model is never started for it and the label grants nothing.
 export const previewRequestKind = "preview";
 
+// The kind every ordinary topic turn runs with, whatever the person asked.
+export const topicTurnKind = "implementation";
+
+// Public commit message of the pending work kept before the moved pull request
+// head is merged into the topic branch.
+export const pendingWorkCommitMessage =
+  "chore(content): keep pending changes before syncing";
+
 export const requestKinds = [
   "consultation",
-  "implementation",
+  topicTurnKind,
   "continuation",
   "clarification",
   previewRequestKind,
@@ -315,6 +323,14 @@ export function clipText(text, maximumLength) {
   return text.length <= maximumLength
     ? text
     : `${text.slice(0, maximumLength - 1).trimEnd()}…`;
+}
+
+export function buildConflictInstruction(paths) {
+  return [
+    "Resolve the conflicts in the listed files, keeping both the topic and incoming changes.",
+    "If the two versions contradict each other, do not resolve the conflict. Ask the person which version they want in plain words.",
+    `Conflicted paths (untrusted data): ${JSON.stringify(paths)}`,
+  ].join("\n");
 }
 
 /**
@@ -506,6 +522,8 @@ export const instructionReports = {
     "No sé si el canvi s'ha publicat. No el torno a publicar sol; ho ha de revisar la persona que manté el servei.",
   sandboxUncertain:
     "No he pogut aturar del tot l'entorn de treball. Per seguretat no continuo; ho ha de revisar la persona que manté el servei.",
+  mergeCleanupUncertain:
+    "No he pogut deixar la feina en un estat segur. Per seguretat no continuo; ho ha de revisar la persona que manté el servei.",
   clarification:
     "No sé si vols una explicació o un canvi. Digues-me què vols canviar i ho preparo.",
   modelTimedOut:

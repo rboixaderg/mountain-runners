@@ -419,9 +419,11 @@ Telegram, sessions i un entorn aïllat que porta una tasca petita fins a una PR.
 La implementació està fusionada i instal·lada al VPS, i el pilot s'ha executat
 supervisat: una consulta que no crea branca i una tasca petita que arriba a PR,
 sense merge ni preview. El servei roman **aturat** per defecte i cada activació
-requereix aprovació explícita. Les capacitats de T8.4 (avís i reparació de CI,
-preview i merge demanats al tema, continuació entre temes, avís de solapaments i
-adjunts) estan implementades (vegeu més avall), però inactives.
+requereix aprovació explícita. El codi inclou l'avís i la reparació de CI, la
+preview i el merge demanats al tema i els adjunts. T8.9 afegeix una feina per
+tema i la sincronització amb `main`; aquests canvis no estan activats al VPS.
+Les esmenes proposades als ADR 0009 i 0013 requereixen revisió i fusió abans
+d'activar aquesta capacitat.
 
 Les eines viuen a `tools/server/agent/` i s'instal·len a
 `/usr/local/lib/mountain-runners/agent/`. La unitat és
@@ -457,8 +459,8 @@ perfil de confiança que aplica el mateix
 constructor d'arguments que el component de confiança: contenidor no
 privilegiat, `--network=none`, `--read-only`, `--cap-drop=ALL`,
 `--security-opt=no-new-privileges`, límits de CPU, memòria i processos i
-l'UID/GID no root del propietari del worktree. Només munta el worktree a `/work`,
-en mode de només lectura per a consultes. `view_attachment` llegeix el fitxer
+l'UID/GID no root del propietari del worktree. Només munta el worktree a `/work`, amb escriptura per als torns ordinaris i les
+reparacions. `view_attachment` llegeix el fitxer
 dins del worktree amb `O_NOFOLLOW`, comprova que és un fitxer regular dins la
 mida i en revalida la capçalera; no accepta cap camí lliure. No exposa eines
 natives de fitxers del host. El pont i Pi executen Podman local sense root, amb `--remote=false`
@@ -577,24 +579,16 @@ la sessió; si no es pot confirmar, l'execució queda fallida o incerta.
   noves es registren com a refusades i reben un avís; no s'acumulen com a pendents. Cal revisar l'estat real; no es repeteix cap acció
   externa automàticament. La reconciliació d'aquests casos es fa amb l'ordre
   d'operador de [Reconciliació de resultats desconeguts (T8.5)](#reconciliació-de-resultats-desconeguts-t85).
-- Una primera crida efímera al model classifica només la petició verificada,
-  sense eines, historial ni context del repositori. Distingeix consulta, feina
-  nova i continuació de la feina pendent, i rep només el context acotat del tema
-  descrit a [Continuïtat de la conversa d'un tema (T8.7)](#continuïtat-de-la-conversa-dun-tema-t87).
-  Una resposta invàlida no habilita escriptures: el torn és una consulta i el
-  text fix d'aclariment només respon si el model no diu res. Una petició de
-  continuació sense feina pendent ni PR del tema també és una consulta.
-- Una consulta munta el worktree en mode de només lectura, sense crear cap
-  branca ni publicar feina anterior pendent. Una feina nova preserva el worktree
-  anterior, inclosos els fitxers ignorats, a `topic-<16hex>-before-<8hex>` i
-  comença des de `origin/main` en una branca pròpia. Una continuació explícita reutilitza només la feina
-  pendent actual o, si nomena una sola PR que el servei va publicar, la reprèn
-  (vegeu «Continuació d'una PR des d'un altre tema»); no incorpora
-  automàticament altres treballs arxivats. Les operacions executen `pnpm check`
-  al contenidor abans de commit, push i PR; si tots els camins que la publicació
-  contindria són dins de `apps/web/src/content` o `apps/web/src/content-assets`,
-  executen `pnpm check:local`, i qualsevol altre camí manté `pnpm check`
-  (ADR 0012).
+- Una crida efímera sense eines detecta la petició explícita de preview. La
+  resta de categories segueixen el mateix camí ordinari, sense decidir si el
+  torn pot editar. `/merge` conserva el camí determinista.
+- Cada torn ordinari pot editar el worktree del tema. La primera publicació
+  vincula el tema a una branca i una PR a `state/topic-jobs.sqlite`; els torns
+  següents reutilitzen la vinculació. El servei no reprèn PR d'altres temes ni
+  genera avisos de solapament. Abans de publicar executa `pnpm check` al
+  contenidor, o `pnpm check:local` si tots els camins de la publicació són dins
+  de `apps/web/src/content` o `apps/web/src/content-assets` (ADR 0012). Una
+  fallada conserva la feina i el torn ordinari següent torna a intentar-la.
 - Un error local, un timeout o una cancel·lació confirmada no bloquegen la cua.
   Un error després d'iniciar la publicació queda incert, excepte un refús local
   identificat pel publicador. Una aturada de contenidors no confirmada també
@@ -607,9 +601,9 @@ la sessió; si no es pot confirmar, l'execució queda fallida o incerta.
   de Pi, abans de comprovar o publicar. Atura els contenidors actius de la sessió, elimina els seus
   registres aturats i comprova que no en quedi cap. Si Podman no pot completar
   la neteja, el resultat és incert; els worktrees i sessions es conserven.
-- Un worktree net no implica que s'hagi publicat. El servei conserva la branca
-  amb commits pendents fins que push i PR estiguin confirmats; només llavors
-  registra el commit publicat fora del muntatge i pot tornar a `origin/main`.
+- Un worktree net no implica que s'hagi publicat. El servei conserva els commits
+  pendents fins que push i PR estiguin confirmats; només llavors registra el
+  commit publicat fora del muntatge. La branca vinculada continua al tema.
 - Cada worktree arxivat conserva la seva còpia de dependències, així que el
   volum acotat s'omple amb les iteracions. A l'arrencada el servei elimina només
   els worktrees arxivats sense commits per davant d'`origin/main` i sense canvis
@@ -727,7 +721,7 @@ propietat de la identitat del servei. La instal·lació prevista és:
 ├── repository/                            clon amb origin i main
 ├── worktrees/                             worktree actual per tema i feina preservada
 ├── sessions/                              historial de Pi per tema
-└── state/                                 identifier-salt, admission.sqlite, ci-watch.sqlite (avisos i reparacions), preview-request.sqlite (peticions de preview i URL confirmada), merge-request.sqlite (peticions de merge), session-notes.sqlite (efectes i última resposta de cada tema), attachments/ (imatges per tema, 7 dies), perfils i traça
+└── state/                                 identifier-salt, admission.sqlite, ci-watch.sqlite (avisos i reparacions), preview-request.sqlite (peticions de preview i URL confirmada), merge-request.sqlite (peticions de merge), topic-jobs.sqlite (branca i PR per tema), session-notes.sqlite (efectes i última resposta de cada tema), attachments/ (imatges per tema, 7 dies), perfils i traça
 /etc/mountain-runners-agent/agent.env      0600  credencials del servei
 /usr/local/lib/mountain-runners/agent/     aplicació instal·lada
 /usr/local/lib/mountain-runners/node_modules/
@@ -1086,102 +1080,42 @@ perquè `clean` signifiqui el mateix per als dos. El primer merge real requereix
 l'aprovació explícita de la persona mantenidora. Aquesta implementació no activa
 res.
 
-### Continuació d'una PR des d'un altre tema (T8.4)
+### Feina vinculada al tema (T8.9)
 
-Una continuació pot reprendre una PR que el servei va publicar en un altre tema.
-No hi ha cap coincidència entre persones de Telegram i comptes de GitHub ni cap
-transferència de converses: el context viatja amb la PR.
+El camí ordinari no reprèn PR d'un altre tema ni genera avisos de solapament.
+Els mòduls anteriors continuen al repositori, però el camí ordinari no els crida.
 
-- **Destí.** Només quan el classificador diu `continuation` i el text conté
-  exactament un testimoni sencer `#<número>`, que parseja el servei i mai el
-  model. Dos números diferents responen amb una petició d'aclariment. Sense
-  número, el comportament és la feina pendent del tema o, si no n'hi ha i el
-  tema té una PR oberta pròpia, aquella PR (vegeu «Continuïtat de la conversa
-  d'un tema»).
-- **Elegibilitat, rellegida a GitHub.** PR oberta, no esborrany, base `main`,
-  repositori del cap igual al configurat (sense forks), branca que supera
-  `assertWorkBranch` i almenys una fila de `ci_watches` amb aquell número: les PR
-  obertes per persones no es reprenen mai. Qualsevol incompliment respon en
-  català i no toca res. El nom de la branca no identifica res: una fork que
-  reutilitza la branca d'una PR del tema també es refusa. Només després
-  d'aquestes comprovacions, si el worktree del tema ja té aquella branca,
-  s'aplica el camí de sempre.
-- **Traspàs.** El tema de la fila de `ci_watches` més recent és el propietari
-  actual. La represa espera que no tingui cap altra instrucció pendent o en curs
-  ni cap avís sense informar, de manera que dos temes no escriuen mai la mateixa
-  branca alhora. Després d'una publicació confirmada, `registerCiWatch` afegeix
-  la fila del tema nou (no automàtica): el tema nou és el propietari, rep els
-  avisos de CI i les reparacions, i `/merge` sense número s'hi resol. Si la
-  fila no es pot desar, la publicació es manté, no s'avisa ningú, es traça
-  `continuation_owner_unregistered`, la resposta diu que el canvi de tema no
-  s'ha pogut registrar i la instrucció acaba com a incerta: cap seguiment
-  durador pot autoritzar la publicació i una persona la reconcilia. Si el propietari anterior és un altre tema, rep un avís
-  curt («La feina de la proposta #N continua en un altre tema.»), sense dades
-  personals ni autoria. L'enviament té el mateix termini que les altres
-  lectures i respecta l'aturada del servei: un temps esgotat o una aturada es
-  traça com a fallit i no canvia el resultat publicat.
-- **Feina local.** El servei busca tots els worktrees registrats, actuals o
-  arxivats, que tinguin la branca en checkout. Si un té canvis sense cometre o
-  commits sense publicar, refusa i ho explica; no sobreescriu mai res. Si no, el
-  deixa en `--detach` al seu HEAD per alliberar la branca. Si la branca local
-  existeix i la seva punta no és avantpassada del cap de la PR, refusa per
-  història local no publicada. El worktree del tema es preserva com
-  `topic-<16hex>-before-<8hex>` com en una feina nova; després es baixa
-  `refs/heads/<branca>` d'`origin`, es comprova que el SHA baixat és el cap que
-  ha retornat GitHub (si no, el cap s'ha mogut i es refusa per tornar-ho a
-  provar), es fixa la branca local en aquell SHA i es fa `git worktree add`.
-  El cap queda registrat com a publicat, així que una represa sense canvis no
-  torna a publicar res.
-- **Canvis externs.** La represa parteix del cap actual de la PR encara que una
-  persona hi hagi fet push després de l'últim commit del servei. El push continua
-  sent només fast-forward i la resposta nomena el SHA des del qual s'ha
-  continuat.
-- **Publicació i context.** El canvi reutilitza l'opció `repair` del publicador
-  amb el número de PR i el SHA de partida: comprova que la PR segueix oberta i
-  amb aquell cap abans del push i no obre mai cap PR. El model rep, com a dades
-  no fiables i retallades, el número, la branca, el SHA de partida, el diff
-  `origin/main...HEAD`, els últims vint comentaris i l'estat de les
-  comprovacions obligatòries del cap, seguits de la petició de la persona.
-- **Traça privada.** `continuation_resumed`, `continuation_refused` (amb el
-  motiu i el SHA curt del cap quan s'ha pogut llegir),
-  `continuation_owner_unregistered`, `continuation_handover_notified` i
-  `continuation_handover_failed`, amb `#N` i el SHA curt, sense text de
-  conversa.
+La primera publicació confirmada desa la branca i la PR a
+`state/topic-jobs.sqlite`. Per a un tema existent sense vinculació, el servei
+consulta les publicacions registrades i l'estat de GitHub. Si hi ha una sola PR
+oberta del servei, la vincula. Si n'hi ha diverses o no es poden llegir, atura
+el torn i demana la revisió de la persona mantenidora, sense triar cap feina.
 
-### Avís de solapaments (T8.4)
+Un tema vinculat continua al seu worktree. El servei comprova la branca, el
+repositori i el cap de la PR abans del torn i revalida la PR abans del push. No
+crea una segona PR. Si el cap remot avança i el worktree no té feina pendent,
+comprova el SHA baixat i actualitza la branca només amb fast-forward. Si hi ha
+feina pendent, la conserva en un commit local i integra el cap de la PR quan
+tots dos descendeixen de l'últim commit publicat. Si hi ha conflictes, utilitza
+el mateix procediment de resolució al sandbox que per a `main`. Si no pot
+verificar l'ascendència o la branca no correspon, refusa el torn i conserva la
+feina.
 
-Quan les comprovacions passen i abans del commit, una implementació o una
-continuació avisa el tema dels fitxers que també apareixen en feines actives
-conegudes. No bloqueja res: només afegeix unes línies al resultat, i un error en
-calcular-lo es registra i s'ignora.
-
-- **Què compta.** L'última fila de `ci_watches` de cada PR que el servei va
-  publicar, llevat que l'últim avís lliurat digui que la PR s'ha tancat, i el
-  worktree actual de cada altre tema amb canvis sense cometre o commits sense
-  publicar. Mai les carpetes `-before-<8hex>`, mai el tema que fa la petició, i
-  mai la PR que aquell canvi continua o repara. Un worktree net o ja publicat
-  sense res pendent no compta; un tema amb una PR tancada o no situada en una
-  branca de treball conserva la seva feina pendent com a feina local.
-- **Font local.** Només Git: `git diff --name-only -z origin/main...HEAD` i els
-  canvis sense cometre, amb els dos costats d'un reanomenament. No es fa cap
-  crida a GitHub. Una PR només es pot situar en una branca de treball quan és la
-  publicació més recent del seu tema i aquell worktree la té en checkout; si no,
-  s'omet.
-- **Missatge.** Els fitxers compartits (10 com a màxim, ordenats, amb «i N més»)
-  i cada PR com a `PR #N`. Cada camí es mostra retallat a 120 caràcters i amb els
-  caràcters de control, els canvis de direcció i els accents greus escapats,
-  perquè cap camí aliè pugui reescriure l'avís. Una feina local sense PR es diu
-  «una feina local d'un altre tema», sense nom del tema, de l'autor ni dades de
-  Telegram. Acaba amb una frase que recorda que l'absència d'avís no garanteix
-  que no hi hagi altres conflictes.
-- **Traça privada.** `overlap_warned` amb els números de PR i el nombre de
-  feines locals i de fitxers; cap nom de fitxer ni cap clau de tema. Sense
-  solapament no es traça res.
+Abans de cada push, el servei consulta `origin/main`. Si la branca va per
+darrere, integra `main` amb un commit de merge, sense rebase ni push forçat, i
+repeteix les comprovacions locals. Si hi ha conflictes, avorta el primer intent
+i torna a preparar el conflicte per a un torn del model dins del sandbox. El
+prompt enumera els camins com a dades no fiables i demana conservar els dos
+canvis. Si les versions es contradiuen, demana al model que pregunti a la persona
+quina vol. Si resten marcadors o la resolució falla, el servei avorta el merge i no
+publica. Els conflictes binaris es refusen de manera conservadora. Si no es pot
+confirmar l'avortament, la instrucció queda incerta i cal revisió de la persona
+mantenidora.
 
 ### Adjunts (T8.8)
 
-Una implementació o una continuació poden rebre imatges del tema. El servei
-les descarrega quan executa la instrucció, mai en admetre-la.
+Un torn ordinari pot rebre imatges del tema. El servei les descarrega quan
+executa la instrucció, mai en admetre-la.
 
 - **Què s'accepta.** Fotos comprimides de Telegram i documents JPEG, PNG i
   WebP. D'una foto es pren la mida més gran, que Telegram envia com a JPEG. El
@@ -1255,8 +1189,8 @@ les descarrega quan executa la instrucció, mai en admetre-la.
   servei, obre el fitxer amb `O_NOFOLLOW`, comprova que és un fitxer regular
   dins la mida i revalida la capçalera abans de retornar-lo. Un enllaç
   simbòlic, una ruta o un nom desconegut es refusen.
-- **Abast i traça.** Només una implementació i una continuació apliquen les
-  imatges; qualsevol altra instrucció les ignora i ho diu en una frase. La traça
+- **Abast i traça.** Els torns ordinaris apliquen les imatges; `/merge` i les
+  peticions de preview les ignoren i ho diuen en una frase. La traça
   privada registra `attachment_accepted` (tipus, dimensions i bytes),
   `attachment_refused` (motiu i, quan es coneix, el tipus declarat i la mida) i
   `attachment_used` (noms utilitzats), mai el nom original ni el contingut.
@@ -1268,12 +1202,9 @@ servei hi manté, però, estat propi perquè cap missatge acceptat ni cap efecte
 seu no quedi fora de la sessió.
 
 - **Un torn per missatge acceptat.** Tota instrucció admesa que no és `/merge`
-  ni una preview executa un torn de Pi a la sessió del tema. Si el classificador
-  retorna aclariment, o una continuació no té feina pendent ni PR del tema, el
-  torn és una consulta: worktree de només lectura, sense branca ni publicació, i
-  una línia del prompt que diu que el servei no ha pogut distingir si la persona
-  vol un canvi. El text fix d'aclariment només es fa servir si el model no
-  respon.
+  ni una preview executa un torn de Pi amb escriptura a la sessió del tema. El
+  text fix d'aclariment només es fa servir si el model no respon. Una resposta
+  sense canvis no crea cap PR, llevat que hi hagi feina pendent de publicar.
 - **Efectes del servei.** `repository/session-note-store.mjs` desa a
   `state/session-notes.sqlite`, per tema, el text de cada efecte que decideix el
   servei i que no és la resposta del model: l'informe de publicació i qualsevol
@@ -1312,31 +1243,18 @@ seu no quedi fora de la sessió.
   d'esborrar la fila. El classificador no rep mai aquest bloc. La reparació
   automàtica també és un torn del tema i rep les notes.
 - **Context del classificador.** La crida efímera continua sense eines,
-  historial ni repositori. Rep, com a dada JSON, l'última resposta del tema
-  retallada a 800 caràcters (resposta del model o informe del servei), si el
-  worktree del tema té canvis o commits sense publicar (lectura de Git, sense
-  fetch ni worktree nou) i el número de la PR que el tema va publicar i encara
-  té. Una petició que actua sobre el canvi del tema (l'edita, el publica, el
-  reintenta o hi aporta dades, correccions, una aprovació o una resposta) és una
-  continuació; un agraïment, un dubte sobre l'estat o una ordre d'esperar és una
-  consulta, i publicar mai no és una preview. Una feina sobre un altre contingut
-  és una implementació. Un límit de peticions del proveïdor (HTTP 429) es
-  reintenta com a màxim dues vegades amb una espera curta dins del mateix termini
-  de la classificació; si persisteix, la petició falla en lloc de tractar-se com
-  un aclariment. Cap altre error es reintenta i una aturada no ho fa mai. Cada
-  classificació es traça com
-  a `instruction_classified`, amb el tipus com a detall; una petició que demana
-  la preview juntament amb el canvi ho traça com a `preview_after_change`.
-- **Continuació sobre la PR del tema.** Si una continuació no nomena cap `#N`,
-  no té canvis locals ni commits pendents i el tema té una PR oberta pròpia, el
-  servei la reprèn amb les comprovacions de «Continuació d'una PR des d'un altre
-  tema». Si el worktree ja té aquella branca al cap de la PR, continua allà
-  mateix sense moure res, i la publicació fixa aquella PR i aquell cap: els
-  revalida abans del push i no n'obre mai una altra. Si té una
-  altra branca, usa el camí de represa i arxiva el worktree com en una feina
-  nova. Un refús s'informa com sempre; una PR fusionada o tancada deixa la
-  petició com a consulta. Un adjunt de la continuació s'aplica al worktree
-  corresponent.
+  historial ni repositori. Rep l'última resposta del tema retallada a 800
+  caràcters, si el worktree té feina sense publicar i el número de la PR
+  coneguda. El servei usa la classificació per detectar la preview explícita;
+  la resta de categories executen el mateix torn ordinari. Un HTTP 429 es
+  reintenta com a màxim dues vegades dins del termini; els altres errors i les
+  aturades no es reintenten. La classificació queda a la traça com a
+  `instruction_classified`; una preview demanada amb el canvi es registra com
+  a `preview_after_change`.
+- **PR del tema.** Una vinculació duradora fixa la branca i la PR del tema. El
+  torn ordinari treballa en aquella branca i no reprèn PR d'altres temes. El
+  servei conserva els canvis que no han passat les comprovacions o el push i
+  els torna a publicar després del torn ordinari següent.
 
 ### Llengua, avisos i publicació (T8.8)
 
@@ -1558,7 +1476,7 @@ compta com que no hi ha cap cas d'aquell tipus.
    | Cas        | Resolució                                     | Efecte                                                                                                                                                                                                                                                                                     |
    | ---------- | --------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
    | instrucció | `published --commit <SHA> --pull-request <n>` | Estat `done` i resultat `reconciled_published`; si el HEAD del worktree del tema és aquell commit, es marca com a publicat i no es torna a publicar mai. A més, desa un seguiment de CI pendent d'aquell commit, perquè el tema rebi el seu informe abans que cap merge es pugui resoldre. |
-   | instrucció | `not_published`                               | Estat `done` i resultat `reconciled_not_published`; el treball local es conserva i una persona pot demanar-ne la continuació.                                                                                                                                                              |
+   | instrucció | `not_published`                               | Estat `done` i resultat `reconciled_not_published`; el treball local es conserva i el següent torn ordinari en torna a intentar la publicació.                                                                                                                                             |
    | reparació  | `published --commit <SHA>`                    | Estat `done` i resultat `reconciled_published`; no es reobre cap seguiment de CI.                                                                                                                                                                                                          |
    | reparació  | `not_published`                               | Estat `done` i resultat `reconciled_not_published`; no es reobre cap seguiment de CI.                                                                                                                                                                                                      |
    | preview    | `commented`                                   | Estat `awaiting` amb el moment actual; el servei continua esperant la confirmació del publicador i la informa al tema.                                                                                                                                                                     |

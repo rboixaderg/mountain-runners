@@ -27,6 +27,12 @@ import {
 } from "./trusted-git.mjs";
 import { parseLegacyWorktreeName } from "./identifiers.mjs";
 
+const agentIdentityArguments = [
+  "-c",
+  "user.name=Mountain Runners Agent",
+  "-c",
+  "user.email=agent@mountainrunners.cat",
+];
 const protectedBranches = new Set(["main", "master"]);
 const branchPattern =
   /^(feat|fix|docs|refactor|test|build|ci|chore|security)\/[a-z0-9]+(?:[._-][a-z0-9]+)*$/u;
@@ -798,19 +804,214 @@ export async function commitAll({ worktree, message, signal }) {
   if (staged !== "") {
     await runGit(
       worktree,
-      [
-        "-c",
-        "user.name=Mountain Runners Agent",
-        "-c",
-        "user.email=agent@mountainrunners.cat",
-        "commit",
-        "-m",
-        message,
-      ],
+      [...agentIdentityArguments, "commit", "-m", message],
       { signal },
     );
   }
   return (await runGit(worktree, ["rev-parse", "HEAD"], { signal })).trim();
+}
+
+export class MergeCleanupError extends Error {
+  constructor(options) {
+    super("Could not abort the interrupted merge.", options);
+    this.name = "MergeCleanupError";
+  }
+}
+
+export async function fetchPublishedBranch({
+  worktree,
+  branch,
+  headSha,
+  signal,
+}) {
+  assertWorkBranch(branch);
+  if (!fullCommitPattern.test(headSha)) return false;
+  await runGit(
+    worktree,
+    ["fetch", "--no-tags", "origin", `refs/heads/${branch}`],
+    {
+      signal,
+      timeoutMilliseconds: remoteGitTimeoutMilliseconds,
+    },
+  );
+  const fetchedHead = (
+    await runGit(worktree, ["rev-parse", "FETCH_HEAD"], { signal })
+  ).trim();
+  return fetchedHead === headSha;
+}
+
+export async function fastForwardPublishedBranch({
+  worktree,
+  branch,
+  headSha,
+  signal,
+}) {
+  assertWorkBranch(branch);
+  if (!fullCommitPattern.test(headSha)) return false;
+  if (
+    (await currentBranch(worktree, { signal })) !== branch ||
+    (await listChangedPaths(worktree, { signal })).length > 0 ||
+    (await hasUnpublishedCommit(worktree, { signal }))
+  ) {
+    return false;
+  }
+  const localHead = await headCommit(worktree, { signal });
+  if (!(await fetchPublishedBranch({ worktree, branch, headSha, signal })))
+    return false;
+  const fetchedHead = headSha;
+  const mergeBase = (
+    await runGit(worktree, ["merge-base", localHead, fetchedHead], {
+      signal,
+      allowFailure: true,
+    })
+  ).trim();
+  if (mergeBase !== localHead) return false;
+  await runGit(
+    worktree,
+    ["merge", "--ff-only", "--no-overwrite-ignore", fetchedHead],
+    { signal },
+  );
+  recordPublication(worktree, fetchedHead);
+  return true;
+}
+
+export async function mergeMainIntoBranch({ worktree, signal }) {
+  await runGit(worktree, ["fetch", "--prune", "origin", "main"], {
+    signal,
+    timeoutMilliseconds: remoteGitTimeoutMilliseconds,
+  });
+  const mainHead = (
+    await runGit(worktree, ["rev-parse", "origin/main"], { signal })
+  ).trim();
+  return mergeCommitIntoBranch({ worktree, headSha: mainHead, signal });
+}
+
+export async function mergeCommitIntoBranch({ worktree, headSha, signal }) {
+  if (!fullCommitPattern.test(headSha))
+    throw new Error("A full commit SHA is required.");
+  const mergeBase = (
+    await runGit(worktree, ["merge-base", "HEAD", headSha], { signal })
+  ).trim();
+  if (mergeBase === headSha) {
+    return { merged: false };
+  }
+  try {
+    await runGit(
+      worktree,
+      [
+        ...agentIdentityArguments,
+        "merge",
+        "--no-ff",
+        "--no-edit",
+        "--no-overwrite-ignore",
+        headSha,
+      ],
+      { signal },
+    );
+    return { merged: true };
+  } catch (error) {
+    // Cleanup must still run after cancellation: the sandbox cannot safely
+    // receive a worktree with an interrupted merge in progress.
+    const mergeHead = await runGit(
+      worktree,
+      ["rev-parse", "--verify", "--quiet", "MERGE_HEAD"],
+      { allowFailure: true },
+    );
+    if (mergeHead.trim() === headSha) {
+      const output = await runGit(worktree, [
+        "diff",
+        "--name-only",
+        "--diff-filter=U",
+        "-z",
+      ]);
+      const paths = output.split("\0").filter(Boolean);
+      await abortConflictMerge(worktree);
+      signal?.throwIfAborted();
+      if (paths.length > 0) {
+        return { conflict: true, paths };
+      }
+    }
+    signal?.throwIfAborted();
+    throw error;
+  }
+}
+
+export async function restartConflictMerge({
+  worktree,
+  headSha,
+  expectedPaths,
+  signal,
+}) {
+  if (!fullCommitPattern.test(headSha))
+    throw new Error("A full commit SHA is required.");
+  try {
+    await runGit(
+      worktree,
+      [
+        ...agentIdentityArguments,
+        "merge",
+        "--no-ff",
+        "--no-commit",
+        "--no-overwrite-ignore",
+        headSha,
+      ],
+      { signal },
+    );
+  } catch (error) {
+    const mergeHead = await runGit(
+      worktree,
+      ["rev-parse", "--verify", "--quiet", "MERGE_HEAD"],
+      { allowFailure: true },
+    );
+    if (mergeHead.trim() !== headSha) {
+      throw error;
+    }
+    const output = await runGit(worktree, [
+      "diff",
+      "--name-only",
+      "--diff-filter=U",
+      "-z",
+    ]);
+    const paths = output.split("\0").filter(Boolean);
+    if (
+      !signal?.aborted &&
+      paths.length === expectedPaths.length &&
+      paths.every((path, index) => path === expectedPaths[index])
+    ) {
+      return true;
+    }
+    await abortConflictMerge(worktree);
+    signal?.throwIfAborted();
+    return false;
+  }
+  // A changed target must not silently choose a different merge.
+  await abortConflictMerge(worktree);
+  return false;
+}
+
+export async function abortConflictMerge(worktree) {
+  try {
+    await runGit(worktree, ["merge", "--abort"]);
+  } catch (error) {
+    throw new MergeCleanupError({ cause: error });
+  }
+}
+
+export async function commitConflictMerge({ worktree, signal }) {
+  await runGit(worktree, ["add", "--all"], { signal });
+  const unmerged = await runGit(
+    worktree,
+    ["diff", "--name-only", "--diff-filter=U", "-z"],
+    { signal },
+  );
+  if (unmerged !== "") {
+    return false;
+  }
+  await runGit(worktree, ["diff", "--cached", "--check"], { signal });
+  await runGit(worktree, [...agentIdentityArguments, "commit", "--no-edit"], {
+    signal,
+  });
+  return true;
 }
 
 export async function hasUnpublishedCommit(worktree, { signal } = {}) {

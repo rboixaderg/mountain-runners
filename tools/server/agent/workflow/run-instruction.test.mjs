@@ -18,12 +18,12 @@ import { CiWatchStore } from "../repository/ci-watch-store.mjs";
 import { MergeRequestStore } from "../repository/merge-request-store.mjs";
 import { PreviewRequestStore } from "../repository/preview-request-store.mjs";
 import { SessionNoteStore } from "../repository/session-note-store.mjs";
+import { TopicJobStore } from "../repository/topic-job-store.mjs";
 import {
   attachmentReports,
   instructionReports,
   serviceNotesHeader,
   topicStateHeader,
-  unclearRequestLine,
 } from "../policy/development.mjs";
 import { createAttachmentPreparation } from "../attachments/prepare.mjs";
 import { createAttachmentStore } from "../attachments/store.mjs";
@@ -38,7 +38,6 @@ import {
   createBranch,
   ensureSessionWorktree,
   hasUnpublishedCommit,
-  recordPublication,
 } from "../repository/worktrees.mjs";
 import { openIdentifierNames } from "../repository/identifiers.mjs";
 import { SandboxCleanupError } from "../sandbox/errors.mjs";
@@ -127,20 +126,6 @@ function topicWorktreePath(paths, sessionKey = topicSessionKey) {
   return join(paths.worktrees, identifiersFor(paths).worktreeName(sessionKey));
 }
 
-function archivedTopicWorktreePath(
-  paths,
-  updateIdentifier,
-  sessionKey = topicSessionKey,
-) {
-  return join(
-    paths.worktrees,
-    identifiersFor(paths).archiveName(
-      identifiersFor(paths).worktreeName(sessionKey),
-      updateIdentifier,
-    ),
-  );
-}
-
 /**
  * The prompt the injected runtime would send: the real adapter claims the
  * effects of the topic, reports that it is about to write the prompt and builds
@@ -216,6 +201,7 @@ test("gives the prompt the current instant of the service in Europe/Madrid", asy
     config: configFor(paths),
     github: githubStub(),
     classifyRequest: async () => ({ kind: "consultation" }),
+    executeSandbox: async () => ({ exitCode: 0, timedOut: false }),
     now: () => new Date("2026-11-18T09:32:05.000Z"),
     executeAgent: async (_config, options) => {
       prompts.push(promptOf(options));
@@ -274,6 +260,117 @@ test("strips the change summary from a consultation answer", async (context) => 
   assert.doesNotMatch(result.report, /SUMMARY|content\(posts\)/u);
 });
 
+test("runs a classified question as one writable turn without publication", async (context) => {
+  const paths = await fixture(context);
+  const github = githubStub();
+  const turns = [];
+  const runner = createProjectRunner({
+    config: configFor(paths),
+    github,
+    classifyRequest: async () => ({ kind: "consultation" }),
+    runModel: async (options) => {
+      turns.push(options);
+      return { text: "La data és el 15 de maig." };
+    },
+    runChecks: async () => assert.fail("an unchanged turn must not run checks"),
+  });
+
+  const result = await runner(request({ instruction: "Quina és la data?" }));
+
+  assert.equal(result.outcome, "answered");
+  assert.equal(result.report, "La data és el 15 de maig.");
+  assert.equal(turns.length, 1);
+  assert.notEqual(turns[0].kind, "consultation");
+  assert.deepEqual(github.pushes, []);
+  assert.deepEqual(github.pulls, []);
+});
+
+test("former non-preview classifications all run the same writable turn", async (context) => {
+  const modelKinds = [];
+  for (const classifiedKind of [
+    "consultation",
+    "continuation",
+    "implementation",
+    "clarification",
+  ]) {
+    const paths = await fixture(context);
+    const github = githubStub();
+    const runner = createProjectRunner({
+      config: configFor(paths),
+      github,
+      classifyRequest: async () => ({ kind: classifiedKind }),
+      runModel: async ({ kind, unclearRequest }) => {
+        modelKinds.push({ kind, unclearRequest });
+        return { text: "Resposta." };
+      },
+      runChecks: async () => assert.fail("an unchanged turn needs no checks"),
+    });
+    const result = await runner(request({ instruction: "Quina és la data?" }));
+    assert.equal(result.outcome, "answered", classifiedKind);
+    assert.deepEqual(github.pushes, [], classifiedKind);
+  }
+  assert.equal(modelKinds.length, 4);
+  assert.ok(modelKinds.every((turn) => turn.kind === modelKinds[0].kind));
+  assert.ok(modelKinds.every((turn) => turn.kind !== "consultation"));
+  assert.ok(modelKinds.every((turn) => !turn.unclearRequest));
+});
+
+test("publishes a classified consultation to its existing pull request", async (context) => {
+  const paths = await fixture(context);
+  mkdirSync(paths.state, { recursive: true });
+  const ciWatches = new CiWatchStore(join(paths.state, "ci-watch.sqlite"));
+  context.after(() => ciWatches.close());
+  const github = githubStub();
+  const published = await publishedWorktree(context, paths, github, ciWatches);
+  const branch = await git(topicWorktreePath(paths), [
+    "branch",
+    "--show-current",
+  ]);
+  const topicJobs = new TopicJobStore(join(paths.state, "topic-jobs.sqlite"));
+  context.after(() => topicJobs.close());
+  topicJobs.bind({
+    sessionKey: topicSessionKey,
+    branch,
+    pullRequestNumber: 200,
+  });
+  github.pullRequest = {
+    state: "open",
+    headSha: published,
+    headRef: branch,
+    headRepository: "rboixaderg/mountain-runners",
+    baseRef: "main",
+    draft: false,
+  };
+  github.ensurePullRequest = async (options) => {
+    github.pulls.push(options);
+    return {
+      pullRequest: {
+        number: 200,
+        htmlUrl: "https://github.com/rboixaderg/mountain-runners/pull/200",
+      },
+      created: false,
+    };
+  };
+  const runner = createProjectRunner({
+    config: configFor(paths),
+    github,
+    ciWatches,
+    topicJobs,
+    classifyRequest: async () => ({ kind: "consultation" }),
+    runModel: async ({ worktreePath }) => {
+      writeFileSync(join(worktreePath, "second.txt"), "second change\n");
+      return { text: "Canvi fet.\nSUMMARY: feat(tools): add another change" };
+    },
+    runChecks: async () => ({ exitCode: 0, timedOut: false }),
+  });
+
+  const result = await runner(request({ updateIdentifier: 1002 }));
+
+  assert.equal(result.outcome, "pull_request_updated");
+  assert.equal(github.pushes.at(-1).branch, branch);
+  assert.equal(github.pulls.at(-1).createMissing, false);
+});
+
 test("prepares dependencies before the model for an implementation", async (context) => {
   const paths = await fixture(context);
   const calls = [];
@@ -299,20 +396,45 @@ test("prepares dependencies before the model for an implementation", async (cont
   assert.match(calls[0].command.join(" "), /pnpm install --offline/u);
 });
 
-test("consultations do not prepare writable dependencies", async (context) => {
+test("prepares a writable environment for a classified consultation", async (context) => {
   const paths = await fixture(context);
+  let prepared = false;
   const runner = createProjectRunner({
     config: configFor(paths),
     github: githubStub(),
     classifyRequest: async () => ({ kind: "consultation" }),
-    executeSandbox: async () =>
-      assert.fail("consultations do not install dependencies"),
+    executeSandbox: async () => {
+      prepared = true;
+      return { exitCode: 0, timedOut: false };
+    },
     executeAgent: async (_config, options) => {
-      assert.equal(options.readOnly, true);
+      assert.equal(options.readOnly, false);
       return { text: "Synthetic answer." };
     },
   });
   assert.equal((await runner(request())).outcome, "answered");
+  assert.equal(prepared, true);
+});
+
+test("publishes a change made during a classified consultation", async (context) => {
+  const paths = await fixture(context);
+  const github = githubStub();
+  const runner = createProjectRunner({
+    config: configFor(paths),
+    github,
+    classifyRequest: async () => ({ kind: "consultation" }),
+    runModel: async ({ worktreePath }) => {
+      writeFileSync(join(worktreePath, "change.txt"), "change\n");
+      return { text: "Canvi fet.\nSUMMARY: feat(tools): add synthetic change" };
+    },
+    runChecks: async () => ({ exitCode: 0, timedOut: false }),
+  });
+
+  const result = await runner(request({ instruction: "Pots revisar això?" }));
+
+  assert.equal(result.outcome, "pull_request_created");
+  assert.equal(github.pushes.length, 1);
+  assert.equal(github.pulls.length, 1);
 });
 
 test("does not start the model when offline preparation fails", async (context) => {
@@ -395,6 +517,965 @@ test("publishes a small change as a pull request after the checks pass", async (
     "--format=%s",
   ]);
   assert.equal(committed, "feat(tools): add synthetic change");
+});
+
+test("stops an ambiguous legacy topic before the model or any publication", async (context) => {
+  const paths = await fixture(context);
+  mkdirSync(paths.state, { recursive: true });
+  const topicJobs = new TopicJobStore(join(paths.state, "topic-jobs.sqlite"));
+  const ciWatches = new CiWatchStore(join(paths.state, "ci-watch.sqlite"));
+  context.after(() => {
+    topicJobs.close();
+    ciWatches.close();
+  });
+  for (const number of [200, 201]) {
+    ciWatches.add({
+      updateIdentifier: number,
+      sessionKey: topicSessionKey,
+      pullRequestNumber: number,
+      commitSha: "a".repeat(40),
+    });
+  }
+  const github = githubStub();
+  github.getPullRequest = async ({ number }) => ({
+    state: "open",
+    baseRef: "main",
+    headRepository: "rboixaderg/mountain-runners",
+    headRef: `feat/agent-change-${number}`,
+  });
+  const runner = createProjectRunner({
+    config: configFor(paths),
+    github,
+    ciWatches,
+    topicJobs,
+    classifyRequest: async () => assert.fail("classification must not run"),
+    runModel: async () => assert.fail("model must not run"),
+  });
+
+  const result = await runner(request());
+  assert.equal(result.outcome, "failed");
+  assert.match(result.report, /persona que manté el servei/u);
+  assert.equal(topicJobs.bindingOf(topicSessionKey), null);
+  assert.deepEqual(github.pushes, []);
+  assert.equal(existsSync(topicWorktreePath(paths)), false);
+});
+
+async function runMainSync(
+  context,
+  {
+    conflict = false,
+    resolveConflict = false,
+    failSecondCheck = false,
+    binary = false,
+    resolutionFails = false,
+    breakCleanup = false,
+  } = {},
+) {
+  const paths = await fixture(context);
+  const github = githubStub();
+  let checks = 0;
+  let modelTurns = 0;
+  let advancedMain;
+  const runner = createProjectRunner({
+    config: configFor(paths),
+    github,
+    classifyRequest: async () => ({ kind: "implementation" }),
+    runModel: async ({ worktreePath, instruction }) => {
+      modelTurns += 1;
+      if (modelTurns === 2) {
+        assert.match(instruction, /README\.md/u);
+        if (resolutionFails) throw new Error("Synthetic model failure.");
+        if (breakCleanup)
+          writeFileSync(join(worktreePath, ".git"), "tampered marker\n");
+        if (!binary) {
+          assert.match(
+            readFileSync(join(worktreePath, "README.md"), "utf8"),
+            /<<<<<<< /u,
+          );
+        }
+        if (resolveConflict) {
+          writeFileSync(
+            join(worktreePath, "README.md"),
+            "main change\ntopic change\n",
+          );
+        }
+        return { text: "Conflicte revisat." };
+      }
+      const topicPath = conflict ? "README.md" : "change.txt";
+      const mainPath = conflict ? "README.md" : "main-change.txt";
+      writeFileSync(
+        join(worktreePath, topicPath),
+        binary ? Buffer.from([0, 1, 2]) : "topic change\n",
+      );
+      writeFileSync(
+        join(paths.repository, mainPath),
+        binary ? Buffer.from([0, 3, 4]) : "main change\n",
+      );
+      await git(paths.repository, ["add", mainPath]);
+      await git(paths.repository, [
+        "commit",
+        "-m",
+        "chore: advance synthetic main",
+      ]);
+      advancedMain = await git(paths.repository, ["rev-parse", "HEAD"]);
+      await git(join(paths.directory, "origin.git"), [
+        "fetch",
+        paths.repository,
+        "+refs/heads/main:refs/heads/main",
+      ]);
+      return { text: "SUMMARY: feat(tools): add synthetic change" };
+    },
+    runChecks: async () => {
+      checks += 1;
+      return {
+        exitCode: failSecondCheck && checks === 2 ? 1 : 0,
+        timedOut: false,
+      };
+    },
+  });
+  const result = await runner(request());
+  return { paths, github, result, checks, modelTurns, advancedMain };
+}
+
+test("integrates an advanced main and reruns checks before publication", async (context) => {
+  const { paths, github, result, checks, advancedMain } =
+    await runMainSync(context);
+  assert.equal(result.outcome, "pull_request_created", result.report);
+  assert.equal(checks, 2);
+  assert.equal(github.pushes.length, 1);
+  const parents = (
+    await git(topicWorktreePath(paths), ["log", "-1", "--format=%P"])
+  ).split(" ");
+  assert.equal(parents.length, 2);
+  assert.equal(parents[1], advancedMain);
+});
+
+test("aborts a conflicting main merge and keeps the topic commit", async (context) => {
+  const { paths, github, result, checks, modelTurns } = await runMainSync(
+    context,
+    { conflict: true },
+  );
+  assert.equal(result.outcome, "failed");
+  assert.equal(result.report, instructionReports.checksFailed);
+  assert.equal(checks, 1);
+  assert.equal(modelTurns, 2);
+  assert.deepEqual(github.pushes, []);
+  const worktree = topicWorktreePath(paths);
+  assert.equal(
+    readFileSync(join(worktree, "README.md"), "utf8"),
+    "topic change\n",
+  );
+  await assert.rejects(git(worktree, ["rev-parse", "--verify", "MERGE_HEAD"]));
+});
+
+test("publishes a conflict resolved by the model with both changes", async (context) => {
+  const { paths, github, result, checks, modelTurns, advancedMain } =
+    await runMainSync(context, { conflict: true, resolveConflict: true });
+  assert.equal(result.outcome, "pull_request_created", result.report);
+  assert.equal(modelTurns, 2);
+  assert.equal(checks, 2);
+  assert.equal(github.pushes.length, 1);
+  const worktree = topicWorktreePath(paths);
+  assert.equal(
+    readFileSync(join(worktree, "README.md"), "utf8"),
+    "main change\ntopic change\n",
+  );
+  const parents = (await git(worktree, ["log", "-1", "--format=%P"])).split(
+    " ",
+  );
+  assert.equal(parents[1], advancedMain);
+});
+
+test("aborts the merge if the conflict resolution turn fails", async (context) => {
+  const { paths, github, result, modelTurns } = await runMainSync(context, {
+    conflict: true,
+    resolutionFails: true,
+  });
+  assert.equal(result.outcome, "failed");
+  assert.equal(modelTurns, 2);
+  assert.deepEqual(github.pushes, []);
+  const worktree = topicWorktreePath(paths);
+  assert.equal(
+    readFileSync(join(worktree, "README.md"), "utf8"),
+    "topic change\n",
+  );
+  await assert.rejects(git(worktree, ["rev-parse", "--verify", "MERGE_HEAD"]));
+});
+
+test("blocks the service if it cannot abort the merge", async (context) => {
+  const { github, result, modelTurns } = await runMainSync(context, {
+    conflict: true,
+    breakCleanup: true,
+  });
+  assert.equal(result.outcome, "uncertain");
+  assert.equal(result.report, instructionReports.mergeCleanupUncertain);
+  assert.equal(modelTurns, 2);
+  assert.deepEqual(github.pushes, []);
+});
+
+test("never publishes an unresolved binary conflict", async (context) => {
+  const { paths, github, result, modelTurns } = await runMainSync(context, {
+    conflict: true,
+    binary: true,
+  });
+  assert.equal(result.outcome, "failed");
+  assert.equal(modelTurns, 2);
+  assert.deepEqual(github.pushes, []);
+  await assert.rejects(
+    git(topicWorktreePath(paths), ["rev-parse", "--verify", "MERGE_HEAD"]),
+  );
+});
+
+test("keeps a resolved merge without pushing when checks fail", async (context) => {
+  const { paths, github, result, checks } = await runMainSync(context, {
+    conflict: true,
+    resolveConflict: true,
+    failSecondCheck: true,
+  });
+  assert.equal(result.outcome, "failed");
+  assert.equal(result.report, instructionReports.checksFailed);
+  assert.equal(checks, 2);
+  assert.deepEqual(github.pushes, []);
+  assert.equal(
+    readFileSync(join(topicWorktreePath(paths), "README.md"), "utf8"),
+    "main change\ntopic change\n",
+  );
+  await assert.rejects(
+    git(topicWorktreePath(paths), ["rev-parse", "--verify", "MERGE_HEAD"]),
+  );
+});
+
+test("keeps the clean merge without pushing when synchronized checks fail", async (context) => {
+  const { paths, github, result, checks, advancedMain } = await runMainSync(
+    context,
+    { failSecondCheck: true },
+  );
+  assert.equal(result.outcome, "failed");
+  assert.equal(result.report, instructionReports.checksFailed);
+  assert.equal(checks, 2);
+  assert.deepEqual(github.pushes, []);
+  const parents = (
+    await git(topicWorktreePath(paths), ["log", "-1", "--format=%P"])
+  ).split(" ");
+  assert.equal(parents[1], advancedMain);
+});
+
+test("publishes pending work after a later question when checks recover", async (context) => {
+  const paths = await fixture(context);
+  const github = githubStub();
+  const events = [];
+  let turn = 0;
+  let checkCount = 0;
+  const runner = createProjectRunner({
+    config: configFor(paths),
+    github,
+    classifyRequest: async () => ({ kind: "implementation" }),
+    runModel: async ({ worktreePath }) => {
+      turn += 1;
+      events.push(`model:${turn}`);
+      if (turn === 1) {
+        writeFileSync(join(worktreePath, "change.txt"), "change\n");
+        return { text: "SUMMARY: feat(tools): add synthetic change" };
+      }
+      return { text: "Resposta." };
+    },
+    runChecks: async () => {
+      checkCount += 1;
+      events.push(`checks:${checkCount}`);
+      return { exitCode: checkCount === 1 ? 1 : 0, timedOut: false };
+    },
+  });
+
+  const first = await runner(request());
+  assert.equal(first.outcome, "failed");
+  assert.equal(first.report, instructionReports.checksFailed);
+  const second = await runner(
+    request({ updateIdentifier: 1002, instruction: "Com està?" }),
+  );
+
+  assert.equal(second.outcome, "pull_request_created");
+  assert.deepEqual(events, ["model:1", "checks:1", "model:2", "checks:2"]);
+  assert.equal(github.pushes.length, 1);
+  assert.equal(github.pulls.length, 1);
+});
+
+test("retries the same refused commit after the next model turn", async (context) => {
+  const paths = await fixture(context);
+  const github = githubStub();
+  const pushBranch = github.pushBranch.bind(github);
+  const events = [];
+  let attempts = 0;
+  const attemptedCommits = [];
+  github.pushBranch = async (options) => {
+    attempts += 1;
+    attemptedCommits.push(
+      await git(options.worktree.path, ["rev-parse", "HEAD"]),
+    );
+    events.push(`push:${attempts}`);
+    if (attempts === 1) {
+      throw new PublishRefusedError("Synthetic publication refusal.");
+    }
+    return pushBranch(options);
+  };
+  let turns = 0;
+  const runner = createProjectRunner({
+    config: configFor(paths),
+    github,
+    classifyRequest: async () => ({ kind: "implementation" }),
+    runModel: async ({ worktreePath }) => {
+      turns += 1;
+      events.push(`model:${turns}`);
+      if (turns === 1) {
+        writeFileSync(join(worktreePath, "change.txt"), "change\n");
+        return { text: "SUMMARY: feat(tools): add synthetic change" };
+      }
+      return { text: "Resposta." };
+    },
+    runChecks: async () => ({ exitCode: 0, timedOut: false }),
+  });
+
+  const first = await runner(request());
+  assert.equal(first.outcome, "failed");
+  assert.equal(first.report, instructionReports.publicationRefused);
+  const second = await runner(
+    request({ updateIdentifier: 1002, instruction: "Com està?" }),
+  );
+
+  assert.equal(second.outcome, "pull_request_created");
+  assert.deepEqual(events, ["model:1", "push:1", "model:2", "push:2"]);
+  assert.equal(attemptedCommits.length, 2);
+  assert.equal(attemptedCommits[0], attemptedCommits[1]);
+  assert.equal(github.pushes.length, 1);
+});
+
+test("retries a refused commit on an already bound pull request", async (context) => {
+  const paths = await fixture(context);
+  mkdirSync(paths.state, { recursive: true });
+  const topicJobs = new TopicJobStore(join(paths.state, "topic-jobs.sqlite"));
+  context.after(() => topicJobs.close());
+  const github = githubStub();
+  const pushBranch = github.pushBranch.bind(github);
+  let remoteHead;
+  let attempts = 0;
+  const commits = [];
+  github.pushBranch = async (options) => {
+    attempts += 1;
+    commits.push(await git(options.worktree.path, ["rev-parse", "HEAD"]));
+    if (attempts === 2) throw new PublishRefusedError("Synthetic refusal.");
+    const pushed = await pushBranch(options);
+    remoteHead = pushed.commit;
+    return pushed;
+  };
+  github.getPullRequest = async () => ({
+    state: "open",
+    draft: false,
+    baseRef: "main",
+    headRepository: "rboixaderg/mountain-runners",
+    headRef: github.pushes[0].branch,
+    headSha: remoteHead,
+  });
+  github.ensurePullRequest = async (options) => {
+    github.pulls.push(options);
+    return {
+      pullRequest: {
+        number: 200,
+        htmlUrl: "https://github.com/rboixaderg/mountain-runners/pull/200",
+      },
+      created: github.pulls.length === 1,
+    };
+  };
+  let turns = 0;
+  const runner = createProjectRunner({
+    config: configFor(paths),
+    github,
+    topicJobs,
+    classifyRequest: async () => ({ kind: "implementation" }),
+    runModel: async ({ worktreePath }) => {
+      turns += 1;
+      if (turns < 3) {
+        writeFileSync(join(worktreePath, "change.txt"), `change ${turns}\n`);
+        return { text: "SUMMARY: feat(tools): add synthetic change" };
+      }
+      return { text: "Resposta." };
+    },
+    runChecks: async () => ({ exitCode: 0, timedOut: false }),
+  });
+
+  assert.equal((await runner(request())).outcome, "pull_request_created");
+  const refused = await runner(request({ updateIdentifier: 1002 }));
+  assert.equal(refused.report, instructionReports.publicationRefused);
+  const originalRemoteHead = remoteHead;
+  remoteHead = "f".repeat(40);
+  const moved = await runner(request({ updateIdentifier: 1003 }));
+  assert.equal(moved.outcome, "failed");
+  assert.equal(turns, 2, "a changed remote head never reaches the model");
+  assert.equal(attempts, 2, "a changed remote head is never pushed");
+  remoteHead = originalRemoteHead;
+  const retried = await runner(request({ updateIdentifier: 1004 }));
+  assert.equal(retried.outcome, "pull_request_updated", retried.report);
+  assert.equal(turns, 3);
+  assert.equal(commits[1], commits[2]);
+  assert.equal(github.pulls.at(-1).createMissing, false);
+});
+
+test("reports a persistent publication block after each model turn", async (context) => {
+  const paths = await fixture(context);
+  const github = githubStub();
+  let modelTurns = 0;
+  let checkCount = 0;
+  const runner = createProjectRunner({
+    config: configFor(paths),
+    github,
+    classifyRequest: async () => ({ kind: "implementation" }),
+    runModel: async ({ worktreePath }) => {
+      modelTurns += 1;
+      if (modelTurns === 1) {
+        writeFileSync(join(worktreePath, "change.txt"), "change\n");
+        return { text: "SUMMARY: feat(tools): add synthetic change" };
+      }
+      return { text: "Resposta." };
+    },
+    runChecks: async () => {
+      checkCount += 1;
+      return { exitCode: 1, timedOut: false };
+    },
+  });
+
+  const first = await runner(request());
+  assert.equal(first.outcome, "failed");
+  assert.equal(first.report, instructionReports.checksFailed);
+  const retried = await runner(request({ updateIdentifier: 1002 }));
+
+  assert.equal(retried.outcome, "failed");
+  assert.equal(retried.report, instructionReports.checksFailed);
+  assert.equal(checkCount, 2);
+  assert.equal(modelTurns, 2);
+  assert.deepEqual(github.pushes, []);
+});
+
+test("does not bind a topic when local checks block publication", async (context) => {
+  const paths = await fixture(context);
+  mkdirSync(paths.state, { recursive: true });
+  const topicJobs = new TopicJobStore(join(paths.state, "topic-jobs.sqlite"));
+  context.after(() => topicJobs.close());
+  const github = githubStub();
+  const runner = createProjectRunner({
+    config: configFor(paths),
+    github,
+    topicJobs,
+    classifyRequest: async () => ({ kind: "implementation" }),
+    runModel: async ({ worktreePath }) => {
+      writeFileSync(join(worktreePath, "change.txt"), "change\n");
+      return { text: "SUMMARY: feat(tools): add synthetic change" };
+    },
+    runChecks: async () => ({ exitCode: 1, timedOut: false }),
+  });
+
+  assert.equal((await runner(request())).outcome, "failed");
+  assert.equal(topicJobs.bindingOf(topicSessionKey), null);
+  assert.deepEqual(github.pushes, []);
+});
+
+test("does not take another topic's pull request when its number is mentioned", async (context) => {
+  const paths = await fixture(context);
+  const github = githubStub();
+  github.getPullRequest = async () =>
+    assert.fail("another topic's pull request must not be read");
+  const runner = createProjectRunner({
+    config: configFor(paths),
+    github,
+    classifyRequest: async () => ({ kind: "continuation" }),
+    runModel: async ({ instruction }) => {
+      assert.match(instruction, /#321/u);
+      return { text: "Resposta." };
+    },
+    runChecks: async () => assert.fail("an unchanged turn needs no checks"),
+  });
+  const result = await runner(request({ instruction: "Continua la PR #321" }));
+  assert.equal(result.outcome, "answered");
+  assert.deepEqual(github.pushes, []);
+  assert.deepEqual(github.pulls, []);
+});
+
+async function assertAdvancedPullRequest(
+  context,
+  {
+    updateBranch = false,
+    pending = false,
+    ignoredConflict = false,
+    pendingConflict = false,
+    leaveConflict = false,
+    diverged = false,
+    noEdit = false,
+  } = {},
+) {
+  const paths = await fixture(context);
+  mkdirSync(paths.state, { recursive: true });
+  const topicJobs = new TopicJobStore(join(paths.state, "topic-jobs.sqlite"));
+  context.after(() => topicJobs.close());
+  const github = githubStub();
+  const origin = join(paths.directory, "origin.git");
+  let remoteBranch;
+  github.pushBranch = async ({ worktree, branch }) => {
+    remoteBranch = branch;
+    const commit = await git(worktree.path, ["rev-parse", "HEAD"]);
+    await git(origin, [
+      "fetch",
+      worktree.path,
+      `refs/heads/${branch}:refs/heads/${branch}`,
+    ]);
+    github.pushes.push({ branch, commit });
+    return { branch, commit };
+  };
+  github.getPullRequest = async () => ({
+    state: "open",
+    draft: false,
+    baseRef: "main",
+    headRepository: "rboixaderg/mountain-runners",
+    headRef: remoteBranch,
+    headSha: await git(origin, ["rev-parse", `refs/heads/${remoteBranch}`]),
+  });
+  github.ensurePullRequest = async (options) => {
+    github.pulls.push(options);
+    return {
+      pullRequest: {
+        number: 200,
+        htmlUrl: "https://github.com/rboixaderg/mountain-runners/pull/200",
+      },
+      created: github.pulls.length === 1,
+    };
+  };
+  let modelTurns = 0;
+  let conflictTurns = 0;
+  const runner = createProjectRunner({
+    config: configFor(paths),
+    github,
+    topicJobs,
+    classifyRequest: async () => ({ kind: "implementation" }),
+    runModel: async ({ worktreePath, instruction }) => {
+      if (pendingConflict && instruction.includes("Conflicted paths")) {
+        conflictTurns += 1;
+        const conflictPath = join(worktreePath, "pending.txt");
+        assert.match(readFileSync(conflictPath, "utf8"), /<<<<<<< /u);
+        if (!leaveConflict)
+          writeFileSync(conflictPath, "pending work\nremote work\n");
+        return { text: "Conflicte revisat." };
+      }
+      modelTurns += 1;
+      if (modelTurns === 2) {
+        assert.equal(
+          readFileSync(join(worktreePath, "human.txt"), "utf8"),
+          "human change\n",
+        );
+        if (pending) {
+          assert.equal(
+            readFileSync(join(worktreePath, "pending.txt"), "utf8"),
+            pendingConflict ? "pending work\nremote work\n" : "pending work\n",
+          );
+        }
+      }
+      if (modelTurns === 2 && noEdit) {
+        return { text: "Resposta." };
+      }
+      writeFileSync(
+        join(worktreePath, `topic-${modelTurns}.txt`),
+        "topic change\n",
+      );
+      return { text: "SUMMARY: feat(tools): add synthetic change" };
+    },
+    runChecks: async () => ({ exitCode: 0, timedOut: false }),
+  });
+
+  assert.equal((await runner(request())).outcome, "pull_request_created");
+  const human = join(paths.directory, "human");
+  await executeFile("git", ["clone", "--branch", remoteBranch, origin, human]);
+  writeFileSync(join(human, "human.txt"), "human change\n");
+  await git(human, ["add", "human.txt"]);
+  if (pendingConflict) {
+    writeFileSync(join(human, "pending.txt"), "remote work\n");
+    await git(human, ["add", "pending.txt"]);
+  }
+  if (ignoredConflict) {
+    mkdirSync(join(human, ".agent-attachments"), { recursive: true });
+    writeFileSync(
+      join(human, ".agent-attachments", "keep.txt"),
+      "remote data\n",
+    );
+    await git(human, ["add", "-f", ".agent-attachments/keep.txt"]);
+  }
+  await git(human, ["commit", "-m", "feat(tools): add human change"]);
+  let humanHead = await git(human, ["rev-parse", "HEAD"]);
+  if (updateBranch) {
+    await git(paths.repository, [
+      "commit",
+      "--allow-empty",
+      "-m",
+      "chore: advance main",
+    ]);
+    const mainHead = await git(paths.repository, ["rev-parse", "HEAD"]);
+    await git(origin, [
+      "fetch",
+      paths.repository,
+      "+refs/heads/main:refs/heads/main",
+    ]);
+    await git(human, ["fetch", "origin", "main"]);
+    const tree = await git(human, ["rev-parse", "HEAD^{tree}"]);
+    const mergeCommit = await git(human, [
+      "commit-tree",
+      tree,
+      "-p",
+      humanHead,
+      "-p",
+      mainHead,
+      "-m",
+      "Merge main",
+    ]);
+    await git(human, ["update-ref", `refs/heads/${remoteBranch}`, mergeCommit]);
+    humanHead = mergeCommit;
+  }
+  if (diverged) {
+    const tree = await git(human, ["rev-parse", "HEAD^{tree}"]);
+    const base = await git(human, ["rev-parse", "origin/main"]);
+    humanHead = await git(human, [
+      "commit-tree",
+      tree,
+      "-p",
+      base,
+      "-m",
+      "feat: rewritten remote",
+    ]);
+    await git(human, [
+      "update-ref",
+      "refs/heads/synthetic-diverged",
+      humanHead,
+    ]);
+    await git(origin, [
+      "fetch",
+      human,
+      "refs/heads/synthetic-diverged:refs/heads/synthetic-diverged",
+    ]);
+    await git(origin, ["update-ref", `refs/heads/${remoteBranch}`, humanHead]);
+  } else {
+    await git(origin, [
+      "fetch",
+      human,
+      `refs/heads/${remoteBranch}:refs/heads/${remoteBranch}`,
+    ]);
+  }
+  if (pending) {
+    writeFileSync(
+      join(topicWorktreePath(paths), "pending.txt"),
+      "pending work\n",
+    );
+  }
+  if (ignoredConflict) {
+    mkdirSync(join(topicWorktreePath(paths), ".agent-attachments"), {
+      recursive: true,
+    });
+    writeFileSync(
+      join(topicWorktreePath(paths), ".agent-attachments", "keep.txt"),
+      "local data\n",
+    );
+  }
+
+  const second = await runner(request({ updateIdentifier: 1002 }));
+
+  if (ignoredConflict) {
+    assert.equal(second.outcome, "failed");
+    assert.equal(modelTurns, 1);
+    assert.equal(github.pushes.length, 1);
+    assert.equal(
+      readFileSync(
+        join(topicWorktreePath(paths), ".agent-attachments", "keep.txt"),
+        "utf8",
+      ),
+      "local data\n",
+    );
+    return;
+  }
+  if (diverged) {
+    assert.equal(second.outcome, "failed");
+    assert.equal(modelTurns, 1);
+    assert.equal(github.pushes.length, 1);
+    assert.equal(
+      readFileSync(join(topicWorktreePath(paths), "pending.txt"), "utf8"),
+      "pending work\n",
+    );
+    return;
+  }
+  if (leaveConflict) {
+    assert.equal(second.outcome, "failed");
+    assert.equal(conflictTurns, 1);
+    assert.equal(modelTurns, 1);
+    assert.equal(github.pushes.length, 1);
+    assert.equal(
+      readFileSync(join(topicWorktreePath(paths), "pending.txt"), "utf8"),
+      "pending work\n",
+    );
+    await assert.rejects(
+      git(topicWorktreePath(paths), ["rev-parse", "--verify", "MERGE_HEAD"]),
+    );
+    return;
+  }
+  if (noEdit) {
+    assert.equal(second.outcome, "answered", second.report);
+    assert.equal(modelTurns, 2);
+    assert.equal(github.pushes.length, 1);
+    assert.equal(
+      await git(topicWorktreePath(paths), ["rev-parse", "HEAD"]),
+      humanHead,
+    );
+    return;
+  }
+  assert.equal(second.outcome, "pull_request_updated", second.report);
+  if (pendingConflict) assert.equal(conflictTurns, 1);
+  assert.equal(modelTurns, 2);
+  assert.equal(github.pushes.length, 2);
+  if (pending) {
+    await git(topicWorktreePath(paths), [
+      "merge-base",
+      "--is-ancestor",
+      humanHead,
+      "HEAD",
+    ]);
+  } else {
+    assert.equal(
+      await git(topicWorktreePath(paths), ["rev-parse", "HEAD^"]),
+      humanHead,
+    );
+  }
+  assert.equal(github.pulls.at(-1).createMissing, false);
+}
+
+test("continues a bound topic after a person advances its pull request", async (context) => {
+  await assertAdvancedPullRequest(context);
+});
+
+test("continues a bound topic after an update-branch merge commit", async (context) => {
+  await assertAdvancedPullRequest(context, { updateBranch: true });
+});
+
+test("does not republish an advanced pull request after an unchanged turn", async (context) => {
+  await assertAdvancedPullRequest(context, { noEdit: true });
+});
+
+test("never overwrites ignored work when the pull request advances", async (context) => {
+  await assertAdvancedPullRequest(context, { ignoredConflict: true });
+});
+
+test("preserves pending work when the bound pull request advances", async (context) => {
+  await assertAdvancedPullRequest(context, { pending: true });
+});
+
+test("resolves a pending topic conflict against the advanced pull request", async (context) => {
+  await assertAdvancedPullRequest(context, {
+    pending: true,
+    pendingConflict: true,
+  });
+});
+
+test("keeps pending topic work when the advanced pull request conflict remains", async (context) => {
+  await assertAdvancedPullRequest(context, {
+    pending: true,
+    pendingConflict: true,
+    leaveConflict: true,
+  });
+});
+
+test("keeps pending work when the remote branch was rewritten", async (context) => {
+  await assertAdvancedPullRequest(context, { pending: true, diverged: true });
+});
+
+test("a bound pull request that cannot be read before the push fails locally", async (context) => {
+  const paths = await fixture(context);
+  mkdirSync(paths.state, { recursive: true });
+  const topicJobs = new TopicJobStore(join(paths.state, "topic-jobs.sqlite"));
+  context.after(() => topicJobs.close());
+  const github = githubStub();
+  const pushBranch = github.pushBranch.bind(github);
+  let remoteHead;
+  github.pushBranch = async (options) => {
+    const pushed = await pushBranch(options);
+    remoteHead = pushed.commit;
+    return pushed;
+  };
+  const unreadable = unreadablePullRequestRead(10);
+  let reads = 0;
+  github.getPullRequest = (options) => {
+    reads += 1;
+    // The first read is the check before the model turn; the second one is the
+    // publisher's, immediately before the push.
+    if (reads === 2) return unreadable(options);
+    return Promise.resolve({
+      state: "open",
+      draft: false,
+      baseRef: "main",
+      headRepository: "rboixaderg/mountain-runners",
+      headRef: github.pushes[0].branch,
+      headSha: remoteHead,
+    });
+  };
+  github.ensurePullRequest = async (options) => {
+    github.pulls.push(options);
+    return {
+      pullRequest: {
+        number: 200,
+        htmlUrl: "https://github.com/rboixaderg/mountain-runners/pull/200",
+      },
+      created: github.pulls.length === 1,
+    };
+  };
+  let turns = 0;
+  const runner = createProjectRunner({
+    config: configFor(paths),
+    github,
+    topicJobs,
+    classifyRequest: async () => ({ kind: "implementation" }),
+    runModel: async ({ worktreePath }) => {
+      turns += 1;
+      writeFileSync(join(worktreePath, "change.txt"), `change ${turns}\n`);
+      return { text: "SUMMARY: feat(tools): add synthetic change" };
+    },
+    runChecks: async () => ({ exitCode: 0, timedOut: false }),
+  });
+
+  assert.equal((await runner(request())).outcome, "pull_request_created");
+  reads = 0;
+  const result = await runner(request({ updateIdentifier: 1002 }));
+
+  assert.equal(result.outcome, "failed");
+  assert.equal(result.report, instructionReports.publicationReadFailed);
+  assert.equal(github.pushes.length, 1);
+  assert.equal(github.pulls.length, 1);
+});
+
+test("two implementation turns publish to the first bound pull request", async (context) => {
+  const paths = await fixture(context);
+  mkdirSync(paths.state, { recursive: true });
+  const topicJobs = new TopicJobStore(join(paths.state, "topic-jobs.sqlite"));
+  context.after(() => topicJobs.close());
+  const github = githubStub();
+  const pushBranch = github.pushBranch.bind(github);
+  let remoteHead;
+  github.pushBranch = async (options) => {
+    const pushed = await pushBranch(options);
+    remoteHead = pushed.commit;
+    return pushed;
+  };
+  github.getPullRequest = async ({ number }) => {
+    assert.equal(number, 200, "a named pull request cannot change the binding");
+    return {
+      state: "open",
+      draft: false,
+      baseRef: "main",
+      headRepository: "rboixaderg/mountain-runners",
+      headRef: github.pushes.at(-1).branch,
+      headSha: remoteHead,
+    };
+  };
+  github.ensurePullRequest = async (options) => {
+    github.pulls.push(options);
+    return {
+      pullRequest: {
+        number: 200,
+        htmlUrl: "https://github.com/rboixaderg/mountain-runners/pull/200",
+      },
+      created: github.pulls.length === 1,
+    };
+  };
+  let turn = 0;
+  const runner = createProjectRunner({
+    config: configFor(paths),
+    github,
+    topicJobs,
+    classifyRequest: async () => ({ kind: "implementation" }),
+    prepareAttachment: createAttachmentPreparation({
+      telegram: telegramAttachment(pngImage({ width: 200, height: 100 })),
+    }),
+    runModel: async ({ worktreePath, images }) => {
+      turn += 1;
+      writeFileSync(join(worktreePath, "change.txt"), `change ${turn}\n`);
+      if (turn === 3) {
+        assert.equal(images.length, 1);
+        writeFileSync(
+          join(worktreePath, "cover.png"),
+          readFileSync(
+            join(worktreePath, ".agent-attachments", "imatge-1.png"),
+          ),
+        );
+      }
+      return { text: "SUMMARY: feat(tools): add synthetic change" };
+    },
+    runChecks: async () => ({ exitCode: 0, timedOut: false }),
+  });
+
+  assert.equal((await runner(request())).outcome, "pull_request_created");
+  const binding = topicJobs.bindingOf(topicSessionKey);
+  assert.deepEqual(binding, {
+    branch: github.pushes[0].branch,
+    pullRequestNumber: 200,
+  });
+  assert.equal(
+    (
+      await runner(
+        request({
+          updateIdentifier: 1002,
+          instruction: "Comença una feina nova i diferent a la PR #321.",
+        }),
+      )
+    ).outcome,
+    "pull_request_updated",
+  );
+  assert.equal(github.pushes[1].branch, binding.branch);
+  assert.equal(github.pulls[1].createMissing, false);
+  assert.deepEqual(topicJobs.bindingOf(topicSessionKey), binding);
+
+  const attachmentResult = await runner(
+    attachmentRequest({ updateIdentifier: 1003 }),
+  );
+  assert.equal(attachmentResult.outcome, "pull_request_updated");
+  assert.equal(github.pushes[2].branch, binding.branch);
+  assert.equal(github.pulls[2].createMissing, false);
+  assert.equal(existsSync(join(topicWorktreePath(paths), "cover.png")), true);
+
+  const currentHead = await git(topicWorktreePath(paths), [
+    "rev-parse",
+    "HEAD",
+  ]);
+  github.getPullRequest = async () => ({
+    state: "open",
+    draft: false,
+    baseRef: "main",
+    headRepository: "rboixaderg/mountain-runners",
+    headRef: "feat/agent-other-1234",
+    headSha: currentHead,
+  });
+  const refused = await runner(request({ updateIdentifier: 1004 }));
+  assert.equal(refused.outcome, "failed");
+  assert.equal(turn, 3, "a different remote branch never reaches the model");
+  assert.equal(github.pushes.length, 3);
+  assert.deepEqual(topicJobs.bindingOf(topicSessionKey), binding);
+
+  for (const [offset, override] of [
+    { headRepository: "another-owner/fork" },
+    { state: "closed" },
+    { draft: true },
+    { baseRef: "other" },
+  ].entries()) {
+    github.getPullRequest = async () => ({
+      state: "open",
+      draft: false,
+      baseRef: "main",
+      headRepository: "rboixaderg/mountain-runners",
+      headRef: binding.branch,
+      headSha: currentHead,
+      ...override,
+    });
+    const rejected = await runner(request({ updateIdentifier: 1005 + offset }));
+    assert.equal(rejected.outcome, "failed", JSON.stringify(override));
+    assert.equal(turn, 3, "an untrusted pull request never reaches the model");
+    assert.equal(github.pushes.length, 3);
+  }
 });
 
 test("runs the fast gate for a content-only change and names it in the pull request", async (context) => {
@@ -811,7 +1892,7 @@ test("blocks after an unconfirmed sandbox stop even before publication", async (
   assert.deepEqual(github.pushes, []);
 });
 
-test("answers a continuation without pending work as a consultation turn", async (context) => {
+test("runs a continuation without pending work as a writable topic turn", async (context) => {
   const paths = await fixture(context);
   const github = githubStub();
   const modelContexts = [];
@@ -831,8 +1912,8 @@ test("answers a continuation without pending work as a consultation turn", async
   assert.equal(result.outcome, "answered");
   assert.equal(result.report, "Aquest tema no té feina pendent.");
   assert.equal(modelContexts.length, 1, "the message reaches the session");
-  assert.equal(modelContexts[0].kind, "consultation");
-  assert.equal(modelContexts[0].unclearRequest, true);
+  assert.equal(modelContexts[0].kind, "implementation");
+  assert.equal(modelContexts[0].unclearRequest, undefined);
   assert.equal(github.pushes.length, 0, "a consultation publishes nothing");
   assert.equal(
     await git(topicWorktreePath(paths), ["branch", "--show-current"]),
@@ -880,88 +1961,8 @@ test("publishes the answer of a continuation on a clean topic that asked a quest
     "pull_request_created",
     "the answer to the question keeps the writable turn",
   );
-  assert.deepEqual(kinds, ["implementation", "continuation"]);
+  assert.deepEqual(kinds, ["implementation", "implementation"]);
   assert.equal(github.pulls.length, 1);
-});
-
-test("starts an unrelated task independently while preserving previous failed work", async (context) => {
-  const paths = await fixture(context);
-  const github = githubStub();
-  let turn = 0;
-  const runner = createProjectRunner({
-    config: configFor(paths),
-    github,
-    classifyRequest: async () => ({ kind: "implementation" }),
-    runModel: async ({ worktreePath }) => {
-      turn += 1;
-      if (turn === 2)
-        assert.equal(existsSync(join(worktreePath, "previous.txt")), false);
-      writeFileSync(
-        join(worktreePath, turn === 1 ? "previous.txt" : "new.txt"),
-        "preserved\n",
-      );
-      return { text: "SUMMARY: fix(agent): implement a task" };
-    },
-    runChecks: async () => ({ exitCode: turn === 1 ? 1 : 0 }),
-  });
-  assert.equal((await runner(request())).outcome, "failed");
-  assert.equal(
-    (
-      await runner(
-        request({
-          updateIdentifier: 1002,
-          instruction: "Fes una altra feina independent.",
-        }),
-      )
-    ).outcome,
-    "pull_request_created",
-  );
-  assert.equal(
-    github.pushes[0].branch,
-    `fix/agent-implement-a-task-${branchSuffix(paths, 1002)}`,
-  );
-  const archived = archivedTopicWorktreePath(paths, 1002);
-  assert.equal(
-    readFileSync(join(archived, "previous.txt"), "utf8"),
-    "preserved\n",
-  );
-  assert.equal(
-    await git(archived, ["branch", "--show-current"]),
-    `fix/agent-implement-a-task-${branchSuffix(paths, 1001)}`,
-  );
-  assert.doesNotMatch(github.pulls[0].body, /previous\.txt/u);
-});
-
-test("does not carry ignored artifacts from a completed task into a new task", async (context) => {
-  const paths = await fixture(context);
-  let turn = 0;
-  const runner = createProjectRunner({
-    config: configFor(paths),
-    github: githubStub(),
-    classifyRequest: async () => ({ kind: "implementation" }),
-    runModel: async ({ worktreePath }) => {
-      turn += 1;
-      if (turn === 1) {
-        writeFileSync(join(worktreePath, ".gitignore"), "cache.bin\n");
-        writeFileSync(join(worktreePath, "cache.bin"), "previous cache\n");
-      } else assert.equal(existsSync(join(worktreePath, "cache.bin")), false);
-      writeFileSync(join(worktreePath, `task-${turn}.txt`), "task\n");
-      return { text: "SUMMARY: fix(agent): keep task artifacts isolated" };
-    },
-    runChecks: async () => ({ exitCode: 0 }),
-  });
-  assert.equal((await runner(request())).outcome, "pull_request_created");
-  assert.equal(
-    (await runner(request({ updateIdentifier: 1002 }))).outcome,
-    "pull_request_created",
-  );
-  assert.equal(
-    readFileSync(
-      join(archivedTopicWorktreePath(paths, 1002), "cache.bin"),
-      "utf8",
-    ),
-    "previous cache\n",
-  );
 });
 
 test("passes the configured provider credentials to the publication scanner", async (context) => {
@@ -1895,7 +2896,7 @@ async function otherTopicWorktree(
   return worktree;
 }
 
-test("warns about the files of another topic's published pull request", async (context) => {
+test("does not warn about the files of another topic's pull request", async (context) => {
   const paths = await fixture(context);
   mkdirSync(paths.state, { recursive: true });
   const ciWatches = new CiWatchStore(join(paths.state, "ci-watch.sqlite"));
@@ -1924,15 +2925,11 @@ test("warns about the files of another topic's published pull request", async (c
   const result = await runner(request());
 
   assert.equal(result.outcome, "pull_request_created");
-  assert.match(result.report, /`shared\.txt`/u);
-  assert.match(result.report, /PR #321/u);
-  assert.match(result.report, /no garanteix que no hi hagi altres conflictes/u);
+  assert.doesNotMatch(result.report, /solapament|PR #321/u);
   assert.deepEqual(
     traces.map((entry) => entry.action),
-    ["instruction_classified", "overlap_warned"],
+    ["instruction_classified"],
   );
-  assert.match(traces[1].detail, /#321/u);
-  assert.doesNotMatch(traces[1].detail, /shared\.txt/u);
 });
 
 test("never compares overlaps for a consultation", async (context) => {
@@ -2031,7 +3028,7 @@ test("never compares overlaps for an automatic repair", async (context) => {
   assert.deepEqual(traces, []);
 });
 
-test("publishes a continuation with the overlap warning", async (context) => {
+test("publishes a continuation without an overlap warning", async (context) => {
   const paths = await fixture(context);
   mkdirSync(paths.state, { recursive: true });
   const ciWatches = new CiWatchStore(join(paths.state, "ci-watch.sqlite"));
@@ -2070,10 +3067,10 @@ test("publishes a continuation with the overlap warning", async (context) => {
   );
 
   assert.equal(result.outcome, "pull_request_created");
-  assert.match(result.report, /una feina local d'un altre tema/u);
+  assert.doesNotMatch(result.report, /una feina local d'un altre tema/u);
   assert.deepEqual(
     traces.map((entry) => entry.action),
-    ["instruction_classified", "instruction_classified", "overlap_warned"],
+    ["instruction_classified", "instruction_classified"],
   );
 });
 
@@ -2107,30 +3104,20 @@ test("keeps publishing when the overlap warning cannot be computed", async (cont
   assert.equal(result.outcome, "pull_request_created");
   assert.match(result.report, /pull\/200/u);
   assert.doesNotMatch(result.report, /solapament/u);
-  assert.deepEqual(entries, [
-    ["topic_pull_request_failed", "Error"],
-    ["overlap_warning_failed", "Error"],
-  ]);
+  assert.deepEqual(entries, [["topic_pull_request_failed", "Error"]]);
   assert.equal(registered.length, 1);
 });
 
-test("stops before committing when the signal aborts during the overlap warning", async (context) => {
+test("stops before committing when the signal aborts during checks", async (context) => {
   const paths = await fixture(context);
   const github = githubStub();
   const controller = new AbortController();
-  // The first read is the bounded context of the classifier; the second one is
-  // the overlap warning, which is where the instruction is stopped.
-  let publicationsRead = 0;
   const runner = createProjectRunner({
     config: configFor(paths),
     classifyRequest: async () => ({ kind: "implementation" }),
     github,
     ciWatches: {
       latestPublications() {
-        publicationsRead += 1;
-        if (publicationsRead > 1) {
-          controller.abort();
-        }
         return [];
       },
       add() {},
@@ -2140,7 +3127,10 @@ test("stops before committing when the signal aborts during the overlap warning"
       writeFileSync(join(worktreePath, "change.txt"), "canvi\n");
       return { text: "SUMMARY: feat(tools): change a file" };
     },
-    runChecks: async () => ({ exitCode: 0 }),
+    runChecks: async () => {
+      controller.abort();
+      return { exitCode: 0 };
+    },
   });
 
   const result = await runner(request(), { signal: controller.signal });
@@ -2154,89 +3144,6 @@ test("stops before committing when the signal aborts during the overlap warning"
     await git(worktree, ["rev-parse", "HEAD"]),
     await git(paths.repository, ["rev-parse", "origin/main"]),
     "the aborted instruction commits nothing",
-  );
-});
-
-test("never warns when another topic continues its own published pull request", async (context) => {
-  const paths = await fixture(context);
-  mkdirSync(paths.state, { recursive: true });
-  const ciWatches = new CiWatchStore(join(paths.state, "ci-watch.sqlite"));
-  context.after(() => ciWatches.close());
-  const github = githubStub();
-  // One topic published a pull request from a branch of the repository.
-  const topicA = await ensureSessionWorktree({
-    repositoryPath: paths.repository,
-    worktreeRoot: paths.worktrees,
-    name: identifiersFor(paths).worktreeName(otherSessionKey),
-  });
-  await createBranch({
-    worktree: topicA,
-    branch: "feat/tools-published-change",
-  });
-  writeFileSync(join(topicA.path, "shared.txt"), "published\n");
-  await git(topicA.path, ["add", "shared.txt"]);
-  await git(topicA.path, [
-    "commit",
-    "-m",
-    "feat(tools): publish the shared file",
-  ]);
-  await git(topicA.path, ["push", "origin", "feat/tools-published-change"]);
-  const headSha = await git(topicA.path, ["rev-parse", "HEAD"]);
-  recordPublication(topicA, headSha);
-  ciWatches.add({
-    updateIdentifier: 900,
-    sessionKey: "-1009999999999:3",
-    pullRequestNumber: 321,
-    commitSha: headSha,
-  });
-  assert.equal(ciWatches.beginSend(900, "success"), true);
-  assert.equal(ciWatches.finishSend(900), true);
-  github.getPullRequest = async () => ({
-    number: 321,
-    state: "open",
-    draft: false,
-    baseRef: "main",
-    headRef: "feat/tools-published-change",
-    headSha,
-    headRepository: "rboixaderg/mountain-runners",
-  });
-  github.listIssueComments = async () => [];
-  github.ensurePullRequest = async (argumentsObject) => {
-    github.pulls.push(argumentsObject);
-    return {
-      pullRequest: {
-        number: 321,
-        htmlUrl: "https://github.com/rboixaderg/mountain-runners/pull/321",
-      },
-      created: false,
-    };
-  };
-  const traces = [];
-  const runner = createProjectRunner({
-    config: configFor(paths),
-    github,
-    ciWatches,
-    readCiState: async () => ({ state: "success", failed: [] }),
-    notifyHandover: async () => {},
-    hasOtherInstructions: () => false,
-    recordTrace: (entry) => traces.push(entry),
-    classifyRequest: async () => ({ kind: "continuation" }),
-    runModel: async ({ worktreePath }) => {
-      writeFileSync(join(worktreePath, "shared.txt"), "continued\n");
-      return { text: "SUMMARY: feat(tools): continue the shared file" };
-    },
-    runChecks: async () => ({ exitCode: 0 }),
-  });
-
-  const result = await runner(
-    request({ updateIdentifier: 1002, instruction: "Continua la PR #321." }),
-  );
-
-  assert.equal(result.outcome, "pull_request_updated", result.report);
-  assert.doesNotMatch(result.report, /solapament/u);
-  assert.equal(
-    traces.some((entry) => entry.action === "overlap_warned"),
-    false,
   );
 });
 
@@ -2432,37 +3339,26 @@ test("carries the audience rules, the state of the topic and the attachment line
   );
 });
 
-test("ignores an attached image in a consultation and says so once", async (context) => {
+test("passes an image to a consultation classified turn", async (context) => {
   const paths = await fixture(context);
-  const instructions = [];
+  const image = pngImage({ width: 200, height: 100 });
   const runner = createProjectRunner({
     config: configFor(paths),
     github: githubStub(),
     classifyRequest: async () => ({ kind: "consultation" }),
-    prepareAttachment: async () =>
-      assert.fail("a consultation never downloads the attachment"),
-    runModel: async ({ instruction, worktreePath }) => {
-      instructions.push(instruction);
-      return {
-        text: `El worktree és ${worktreePath}.`,
-      };
+    prepareAttachment: createAttachmentPreparation({
+      telegram: telegramAttachment(image),
+    }),
+    runModel: async ({ instruction, images }) => {
+      assert.match(instruction, /imatge-1\.png/u);
+      assert.equal(images.length, 1);
+      return { text: "Resposta." };
     },
     runChecks: async () => assert.fail("checks must not run"),
   });
-
   const result = await runner(attachmentRequest());
-
   assert.equal(result.outcome, "answered");
-  assert.equal(instructions[0], "usa la imatge adjunta a la portada");
-  assert.match(result.report, /El worktree és/u);
-  assert.match(
-    result.report,
-    /No he fet servir la imatge en aquesta resposta\. Envia-la amb la feina on la vols aplicar\.$/u,
-  );
-  assert.equal(
-    existsSync(join(topicWorktreePath(paths), ".agent-attachments")),
-    false,
-  );
+  assert.equal(result.report, "Resposta.");
 });
 
 test("reports a refused attachment without starting the model", async (context) => {
@@ -2631,7 +3527,7 @@ test("continues a branch created before the ignore rule without publishing the a
 // T8.7: the conversation of a topic keeps every accepted message and receives
 // the effects the service decided since its previous turn.
 
-test("answers a clarification with one read-only consultation turn", async (context) => {
+test("answers a clarification with one writable topic turn", async (context) => {
   const paths = await fixture(context);
   const github = githubStub();
   const runs = [];
@@ -2639,8 +3535,7 @@ test("answers a clarification with one read-only consultation turn", async (cont
     config: configFor(paths),
     github,
     classifyRequest: async () => ({ kind: "clarification" }),
-    executeSandbox: async () =>
-      assert.fail("a consultation installs no dependencies"),
+    executeSandbox: async () => ({ exitCode: 0, timedOut: false }),
     executeAgent: async (_config, options) => {
       runs.push({ ...options, message: promptOf(options) });
       return { text: "Vols que afegeixi la imatge a la notícia?" };
@@ -2654,10 +3549,9 @@ test("answers a clarification with one read-only consultation turn", async (cont
   assert.equal(result.outcome, "answered");
   assert.equal(result.report, "Vols que afegeixi la imatge a la notícia?");
   assert.equal(runs.length, 1);
-  assert.equal(runs[0].readOnly, true);
+  assert.equal(runs[0].readOnly, false);
   assert.equal(runs[0].sessionIdentifier, "topic_n1001234567890_7");
-  assert.match(runs[0].message, /This request is consultation/u);
-  assert.match(runs[0].message, new RegExp(unclearRequestLine, "u"));
+  assert.match(runs[0].message, /This request is implementation/u);
   assert.match(
     runs[0].message,
     /aquí tens la imatge que posarem a la notícia/u,
@@ -2719,8 +3613,8 @@ test("gives the classifier the last reply and the pending local work", async (co
   );
 
   assert.equal(first.outcome, "failed");
-  assert.equal(second.outcome, "answered");
-  assert.equal(second.report, "Ja tinc els fets de la notícia.");
+  assert.equal(second.outcome, "failed");
+  assert.equal(second.report, instructionReports.checksFailed);
   assert.equal(
     instructions[1],
     "aquí tens els fets",
@@ -2750,6 +3644,7 @@ test("prepends the service events of the topic once and never to the classifier"
   const messages = [];
   const classifications = [];
   const runner = createProjectRunner({
+    executeSandbox: async () => ({ exitCode: 0, timedOut: false }),
     config: configFor(paths),
     github: githubStub(),
     sessionNotes: notes,
@@ -2926,6 +3821,7 @@ test("never returns the service events once the model received them", async (con
     config: configFor(paths),
     github: githubStub(),
     sessionNotes: notes,
+    executeSandbox: async () => ({ exitCode: 0, timedOut: false }),
     classifyRequest: async () => ({ kind: "consultation" }),
     executeAgent: async (_config, options) => {
       prompts.push(promptOf(options));
@@ -3026,18 +3922,34 @@ test("never turns the words of the model into trusted service text", async (cont
   );
 
   const prompts = [];
+  github.pullRequest = {
+    ...github.pullRequest,
+    headSha: published,
+    baseRef: "main",
+    headRef: await git(topicWorktreePath(paths), ["branch", "--show-current"]),
+    headRepository: "rboixaderg/mountain-runners",
+    draft: false,
+  };
   const conversation = createProjectRunner({
     config: configFor(paths),
     github,
     ciWatches,
     sessionNotes: notes,
+    executeSandbox: async () => ({ exitCode: 0, timedOut: false }),
     classifyRequest: async () => ({ kind: "consultation" }),
     executeAgent: async (_config, options) => {
       prompts.push(promptOf(options));
       return { text: "Resposta." };
     },
   });
-  await conversation(request({ updateIdentifier: 1003 }));
+  const conversationResult = await conversation(
+    request({ updateIdentifier: 1003 }),
+  );
+  assert.equal(
+    conversationResult.outcome,
+    "answered",
+    conversationResult.report,
+  );
 
   assert.match(
     prompts[0],
@@ -3113,6 +4025,8 @@ test("applies the image of a continuation to the pull request of the topic", asy
   mkdirSync(paths.state, { recursive: true });
   const ciWatches = new CiWatchStore(join(paths.state, "ci-watch.sqlite"));
   context.after(() => ciWatches.close());
+  const topicJobs = new TopicJobStore(join(paths.state, "topic-jobs.sqlite"));
+  context.after(() => topicJobs.close());
   const notes = noteStore(context, paths);
   const github = githubStub();
   const image = pngImage({ width: 1200, height: 800 });
@@ -3122,6 +4036,7 @@ test("applies the image of a continuation to the pull request of the topic", asy
     config: configFor(paths),
     github,
     ciWatches,
+    topicJobs,
     sessionNotes: notes,
     prepareAttachment: createAttachmentPreparation({
       telegram: telegramAttachment(image),
@@ -3254,6 +4169,7 @@ test("keeps the service events when the Pi profile cannot be prepared", async (c
   // anything, so no prompt ever existed.
   writeFileSync(join(paths.state, "profiles"), "not a directory");
   const runner = createProjectRunner({
+    executeSandbox: async () => ({ exitCode: 0, timedOut: false }),
     config: configFor(paths),
     github: githubStub(),
     sessionNotes: notes,
@@ -3279,6 +4195,7 @@ test("keeps the service events when the turn stops before the prompt", async (co
     config: configFor(paths),
     github: githubStub(),
     sessionNotes: notes,
+    executeSandbox: async () => ({ exitCode: 0, timedOut: false }),
     classifyRequest: async () => ({ kind: "consultation" }),
     executeAgent: async (config, options) => {
       // The stop arrives while the runtime prepares the profile: the prompt is
@@ -3316,6 +4233,7 @@ test("keeps the service events when Pi never starts", async (context) => {
     github: githubStub(),
     sessionNotes: notes,
     // The sandbox cleanup is not what this test checks: it runs no container.
+    executeSandbox: async () => ({ exitCode: 0, timedOut: false }),
     stopCommands: async () => {},
     classifyRequest: async () => ({ kind: "consultation" }),
   });
@@ -3336,7 +4254,7 @@ test("keeps the service events when Pi never starts", async (context) => {
   );
 });
 
-test("keeps the attachment notice of an empty consultation answer", async (context) => {
+test("keeps the clarification fallback when an image turn answers nothing", async (context) => {
   const paths = await fixture(context);
   const notes = noteStore(context, paths);
   const runner = createProjectRunner({
@@ -3344,20 +4262,20 @@ test("keeps the attachment notice of an empty consultation answer", async (conte
     github: githubStub(),
     sessionNotes: notes,
     classifyRequest: async () => ({ kind: "consultation" }),
-    prepareAttachment: async () =>
-      assert.fail("a consultation never downloads the attachment"),
+    prepareAttachment: createAttachmentPreparation({
+      telegram: telegramAttachment(pngImage({ width: 200, height: 100 })),
+    }),
+    executeSandbox: async () => ({ exitCode: 0, timedOut: false }),
     executeAgent: async () => ({ text: "   " }),
   });
 
   const result = await runner(attachmentRequest());
 
   assert.equal(result.outcome, "answered");
-  assert.match(result.report, new RegExp(instructionReports.noAnswer, "u"));
-  assert.match(result.report, new RegExp(attachmentReports.ignored, "u"));
-  assert.deepEqual(
-    notes.claim(topicSessionKey).map((note) => note.text),
-    [attachmentReports.ignored],
-    "the notice of the ignored attachment is not lost by an empty answer",
+  assert.equal(result.report, instructionReports.clarification);
+  assert.doesNotMatch(
+    result.report,
+    new RegExp(attachmentReports.ignored, "u"),
   );
   assert.equal(notes.lastReply(topicSessionKey), result.report);
 });
@@ -3378,6 +4296,7 @@ test("keeps the service events when Pi never starts and the cleanup also fails",
     },
     github: githubStub(),
     sessionNotes: notes,
+    executeSandbox: async () => ({ exitCode: 0, timedOut: false }),
     // The cleanup that runs after a failed launch also fails: the launch fact
     // must survive it.
     stopCommands: async () => {
@@ -3418,6 +4337,7 @@ test("keeps the service events when the turn stops before the prompt is written"
     github: githubStub(),
     sessionNotes: notes,
     stopCommands: async () => {},
+    executeSandbox: async () => ({ exitCode: 0, timedOut: false }),
     classifyRequest: async () => ({ kind: "consultation" }),
     executeAgent: async (agentConfig, options) =>
       runAgent(agentConfig, {
@@ -3495,7 +4415,7 @@ test("keeps listing the stored image on a later turn without a new attachment", 
   );
 });
 
-test("lets a consultation look again at a stored image without taking a new one", async (context) => {
+test("reuses a stored image without another download", async (context) => {
   const paths = await fixture(context);
   const github = githubStub();
   const modelAttachments = [];
@@ -3541,29 +4461,14 @@ test("lets a consultation look again at a stored image without taking a new one"
   const second = await runner(
     request({ updateIdentifier: 1002, instruction: "què es veu a la imatge?" }),
   );
-  // A consultation that also carries a new attachment still inspects the stored
-  // ones; the new file is ignored, as every consultation does.
-  const third = await runner(
-    attachmentRequest({
-      updateIdentifier: 1003,
-      instruction: "i aquesta altra?",
-    }),
-  );
 
   assert.equal(first.outcome, "pull_request_created");
   assert.equal(second.outcome, "answered");
   assert.equal(second.report, "La imatge mostra una portada.");
-  assert.equal(third.outcome, "answered");
-  assert.match(third.report, new RegExp(attachmentReports.ignored, "u"));
-  assert.equal(downloads, 1, "a consultation never downloads a new attachment");
-  assert.deepEqual(modelAttachments, [
-    ["imatge-1.png"],
-    ["imatge-1.png"],
-    ["imatge-1.png"],
-  ]);
+  assert.equal(downloads, 1, "the stored image needs no new download");
+  assert.deepEqual(modelAttachments, [["imatge-1.png"], ["imatge-1.png"]]);
   assert.match(instructions[1], /imatge-1\.png: 200×100 px/u);
   assert.match(instructions[1], /view_attachment tool and the exact name/u);
-  assert.match(instructions[2], /imatge-1\.png: 200×100 px/u);
   assert.equal(
     existsSync(join(topicWorktreePath(paths), ".agent-attachments")),
     false,
