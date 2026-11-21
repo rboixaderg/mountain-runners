@@ -516,8 +516,8 @@ El model continua emetent `SUMMARY` només quan el torn ha canviat fitxers.
 davant, del text que arriba a Telegram, i `parseChangeSummary` continua llegint-ne
 el valor per al títol i la branca.
 
-La persona només llegeix quatre avisos fixos (T8.9): `workingNotice`,
-`savedNotice`, `readyNotice` i l'avís de fallada, que té dues formes
+La persona només llegeix tres avisos fixos (T8.9): `workingNotice`,
+`savedNotice` i l'avís de fallada, que té dues formes
 (`failedRetryingNotice`, només quan una reparació automàtica ja és a la cua, i
 `failedMaintainerNotice`). Cap no demana repetir, pujar, reintentar ni demanar la
 preview, ni usa vocabulari de PR, branca, commit o comprovació.

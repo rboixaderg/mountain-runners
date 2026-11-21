@@ -10,8 +10,6 @@ import { attachmentRefusalReasons } from "../attachments/refusals.mjs";
 export const workingNotice = "Hi estic treballant.";
 export const savedNotice =
   "Canvi desat. Preparo com es veurà; trigarà uns 10 minuts.";
-export const readyNotice = ({ previewUrl }) =>
-  `Ja ho pots veure: ${previewUrl}`;
 export const failedRetryingNotice =
   "Alguna cosa ha fallat per part nostra. Ho torno a intentar.";
 export const failedMaintainerNotice =
@@ -536,6 +534,16 @@ export const instructionReports = {
   repairCommitChanged: failedMaintainerNotice,
   repairWorktreeDirty: failedMaintainerNotice,
 };
+
+// The keys of `instructionReports`, as typed constants: the private trace
+// records a key as the reason of a failure notice.
+export const instructionReportKeys = Object.freeze(
+  Object.fromEntries(Object.keys(instructionReports).map((key) => [key, key])),
+);
+
+// A failure the service records for the maintainer without a report of its own.
+export const ciWatchUnavailableReason = "ciWatchUnavailable";
+export const unknownFailureReason = "unknown";
 
 // The fixed answer of a topic whose bound pull request is merged or closed.
 export const finishedTopicReport =

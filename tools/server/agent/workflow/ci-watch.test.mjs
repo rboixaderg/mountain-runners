@@ -16,7 +16,9 @@ import {
 } from "../policy/development.mjs";
 import {
   createCiWatchRegistration,
+  ciResults,
   createCiWatchWorker,
+  needsMaintainerAttention,
   readCiState,
 } from "./ci-watch.mjs";
 
@@ -202,6 +204,24 @@ for (const scenario of ["cancelled", "timed_out", "setup_failure"]) {
     assert.equal(telegram.sent.length, 0, "a green result is not sent twice");
   });
 }
+
+test("asks for maintainer attention only for the outcomes of the failure notice", () => {
+  assert.equal(needsMaintainerAttention({ result: ciResults.success }), false);
+  assert.equal(
+    needsMaintainerAttention({ result: ciResults.repairing }),
+    false,
+  );
+  for (const result of [
+    ciResults.repairNotRun,
+    ciResults.repairBlocked,
+    ciResults.repairLimit,
+    ciResults.unknown,
+    ciResults.headChanged,
+    ciResults.pullRequestClosed,
+  ]) {
+    assert.equal(needsMaintainerAttention({ result }), true, result);
+  }
+});
 
 test("does not rerun a second cancellation", async (context) => {
   const { store } = fixture(context);

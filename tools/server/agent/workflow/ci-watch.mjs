@@ -39,7 +39,6 @@ import {
   ciNoteReports,
   ciReports,
   ciWatchOutcomes,
-  failedMaintainerNotice,
   maintainerAttentionAction,
 } from "../policy/development.mjs";
 
@@ -54,6 +53,18 @@ export const ciResults = {
   headChanged: "head-changed",
   pullRequestClosed: "pull-request-closed",
 };
+
+/**
+ * Whether a notice of this outcome is the failure notice that says the case is
+ * noted for the maintainer. The decision comes from the outcome, never from the
+ * rendered text. A success and an automatic repair in progress do not need it.
+ */
+export function needsMaintainerAttention(outcome) {
+  return (
+    outcome.result !== ciResults.success &&
+    outcome.result !== ciResults.repairing
+  );
+}
 
 function describe(watch) {
   return `#${watch.pull_request_number} ${watch.commit_sha.slice(0, 7)}`;
@@ -452,7 +463,7 @@ export function createCiWatchWorker({
     if (!store.beginSend(watch.update_identifier, outcome.result)) {
       return false;
     }
-    if (personText === failedMaintainerNotice) {
+    if (needsMaintainerAttention(outcome)) {
       // The notice says the case is noted for the maintainer: this trace and
       // journal line make that true.
       safeTrace({

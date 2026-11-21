@@ -17,10 +17,10 @@ import {
   ciRepairNoteReports,
   ciRepairReports,
   bridgeMessages,
+  instructionReportKeys,
   instructionReports,
   workingNotice,
   savedNotice,
-  readyNotice,
   failedRetryingNotice,
   failedMaintainerNotice,
   ciWatchOutcomes,
@@ -845,7 +845,6 @@ test("keeps the turn prompt short: no kind, no read-only rule, the rules that re
 const personNotices = [
   workingNotice,
   savedNotice,
-  readyNotice({ previewUrl: "https://example.test/preview" }),
   failedRetryingNotice,
   failedMaintainerNotice,
 ];
@@ -859,15 +858,11 @@ function stripReviewLink(text) {
     .join("\n");
 }
 
-test("speaks to a person with the four plain notices only", () => {
+test("speaks to a person with the plain notices only", () => {
   assert.equal(workingNotice, "Hi estic treballant.");
   assert.equal(
     savedNotice,
     "Canvi desat. Preparo com es veurà; trigarà uns 10 minuts.",
-  );
-  assert.equal(
-    readyNotice({ previewUrl: "https://example.test/p" }),
-    "Ja ho pots veure: https://example.test/p",
   );
   assert.equal(
     failedRetryingNotice,
@@ -914,6 +909,17 @@ test("speaks to a person with the four plain notices only", () => {
   }
   assert.doesNotMatch(instructionReports.clarification, technicalWords);
   assert.equal(ciRepairReports.published({ report: "Fet." }), "Fet.");
+});
+
+test("derives the report keys from the instruction reports", () => {
+  assert.deepEqual(
+    Object.keys(instructionReportKeys),
+    Object.keys(instructionReports),
+  );
+  for (const [key, value] of Object.entries(instructionReportKeys)) {
+    assert.equal(key, value);
+  }
+  assert.ok(Object.isFrozen(instructionReportKeys));
 });
 
 test("promises a retry only in the repairing notice, which is queued", () => {

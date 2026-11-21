@@ -53,7 +53,10 @@ import {
   pullRequestBody,
   failedMaintainerNotice,
   finishedTopicReport,
+  ciWatchUnavailableReason,
+  instructionReportKeys,
   instructionReports,
+  unknownFailureReason,
   maintainerAttentionAction,
   maximumPromptImageBytes,
   publicationNoteText,
@@ -144,7 +147,7 @@ export function createInstructionRunner({
     if (worktree === null) {
       return {
         report: instructionReports.repairWorktreeMissing,
-        reason: "repairWorktreeMissing",
+        reason: instructionReportKeys.repairWorktreeMissing,
       };
     }
     const branch = await currentBranch(worktree, { signal });
@@ -154,7 +157,7 @@ export function createInstructionRunner({
     ) {
       return {
         report: instructionReports.repairCommitChanged,
-        reason: "repairCommitChanged",
+        reason: instructionReportKeys.repairCommitChanged,
       };
     }
     // Leftovers of a later instruction (for example a failed check) are not
@@ -162,7 +165,7 @@ export function createInstructionRunner({
     if ((await listChangedPaths(worktree, { signal })).length > 0) {
       return {
         report: instructionReports.repairWorktreeDirty,
-        reason: "repairWorktreeDirty",
+        reason: instructionReportKeys.repairWorktreeDirty,
       };
     }
     signal?.throwIfAborted();
@@ -389,11 +392,17 @@ export function createInstructionRunner({
       signal,
     });
     if (checks.timedOut) {
-      return "checksTimedOut";
+      return {
+        report: instructionReports.checksTimedOut,
+        reason: instructionReportKeys.checksTimedOut,
+      };
     }
     if (checks.exitCode !== 0) {
       logger("checks_failed", worktreeName);
-      return "checksFailed";
+      return {
+        report: instructionReports.checksFailed,
+        reason: instructionReportKeys.checksFailed,
+      };
     }
     signal?.throwIfAborted();
     return null;
@@ -495,7 +504,7 @@ export function createInstructionRunner({
       signal?.throwIfAborted();
       return {
         report: instructionReports.publicationReadFailed,
-        reason: "publicationReadFailed",
+        reason: instructionReportKeys.publicationReadFailed,
       };
     }
     if (pullRequest.state === "closed") {
@@ -903,7 +912,7 @@ export function createInstructionRunner({
         return {
           outcome: "failed",
           report: instructionReports.preparationFailed,
-          reason: "preparationFailed",
+          reason: instructionReportKeys.preparationFailed,
         };
       }
       if (modelResult.timedOut) {
@@ -911,7 +920,7 @@ export function createInstructionRunner({
         return {
           outcome: "failed",
           report: instructionReports.modelTimedOut,
-          reason: "modelTimedOut",
+          reason: instructionReportKeys.modelTimedOut,
         };
       }
       signal?.throwIfAborted();
@@ -919,7 +928,7 @@ export function createInstructionRunner({
         return {
           outcome: "failed",
           report: instructionReports.aborted,
-          reason: "aborted",
+          reason: instructionReportKeys.aborted,
         };
       }
       // The model copies an image it uses to a content path. Before the copy in
@@ -986,11 +995,7 @@ export function createInstructionRunner({
         signal,
       });
       if (checkReport !== null) {
-        return {
-          outcome: "failed",
-          report: instructionReports[checkReport],
-          reason: checkReport,
-        };
+        return { outcome: "failed", ...checkReport };
       }
       await commitAll({ worktree, message: title, signal });
       const synchronization = await mergeMainIntoBranch({ worktree, signal });
@@ -1013,7 +1018,7 @@ export function createInstructionRunner({
           return {
             outcome: "failed",
             report: instructionReports.checksFailed,
-            reason: "checksFailed",
+            reason: instructionReportKeys.checksFailed,
           };
         }
       }
@@ -1025,11 +1030,7 @@ export function createInstructionRunner({
           signal,
         });
         if (checkReport !== null) {
-          return {
-            outcome: "failed",
-            report: instructionReports[checkReport],
-            reason: checkReport,
-          };
+          return { outcome: "failed", ...checkReport };
         }
       }
       const body = pullRequestBody({
@@ -1076,14 +1077,14 @@ export function createInstructionRunner({
           return {
             outcome: "failed",
             report: instructionReports.publicationReadFailed,
-            reason: "publicationReadFailed",
+            reason: instructionReportKeys.publicationReadFailed,
           };
         }
         logger("publication_refused", worktreeName);
         return {
           outcome: "failed",
           report: instructionReports.publicationRefused,
-          reason: "publicationRefused",
+          reason: instructionReportKeys.publicationRefused,
         };
       }
       // Record the first confirmed publication. An existing binding is never
@@ -1145,7 +1146,7 @@ export function createInstructionRunner({
         notices: [],
       };
       if (ciWatch === ciWatchOutcomes.unavailable) {
-        noteMaintainerAttention({ request, reason: "ciWatchUnavailable" });
+        noteMaintainerAttention({ request, reason: ciWatchUnavailableReason });
       }
       const publicationText = publicationReport({
         ...publicationNotices,
@@ -1180,26 +1181,28 @@ export function createInstructionRunner({
         return {
           outcome: "uncertain",
           report: instructionReports.mergeCleanupUncertain,
-          reason: "mergeCleanupUncertain",
+          reason: instructionReportKeys.mergeCleanupUncertain,
         };
       }
       if (error instanceof SandboxCleanupError) {
         return {
           outcome: "uncertain",
           report: instructionReports.sandboxUncertain,
-          reason: "sandboxUncertain",
+          reason: instructionReportKeys.sandboxUncertain,
         };
       }
       if (publicationStarted) {
         return {
           outcome: "uncertain",
           report: instructionReports.publicationUncertain,
-          reason: "publicationUncertain",
+          reason: instructionReportKeys.publicationUncertain,
         };
       }
       return {
         outcome: "failed",
-        reason: signal?.aborted ? "aborted" : "executionFailed",
+        reason: signal?.aborted
+          ? instructionReportKeys.aborted
+          : instructionReportKeys.executionFailed,
         report: signal?.aborted
           ? instructionReports.aborted
           : instructionReports.executionFailed,
@@ -1240,7 +1243,10 @@ export function createInstructionRunner({
       request.kind !== repairRequestKind &&
       result.report === failedMaintainerNotice
     ) {
-      noteMaintainerAttention({ request, reason: reason ?? "unknown" });
+      noteMaintainerAttention({
+        request,
+        reason: reason ?? unknownFailureReason,
+      });
     }
     if (request.kind === repairRequestKind) {
       // An automatic repair sends the text the topic receives from its own

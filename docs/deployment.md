@@ -1264,10 +1264,9 @@ només s'escriuen quan algú les demana.
 davant, del text que arriba a Telegram; `parseChangeSummary` continua llegint la
 línia vàlida per al títol i la branca.
 
-La persona només llegeix quatre avisos fixos, definits a
+La persona només llegeix tres avisos fixos, definits a
 `policy/development.mjs`: «Hi estic treballant.» (`workingNotice`), «Canvi desat.
-Preparo com es veurà; trigarà uns 10 minuts.» (`savedNotice`), «Ja ho pots veure:
-<URL>» (`readyNotice`, de l'avís de preview) i «Alguna cosa ha fallat per part
+Preparo com es veurà; trigarà uns 10 minuts.» (`savedNotice`) i «Alguna cosa ha fallat per part
 nostra. …» amb una de dues accions finals: «Ho torno a intentar.»
 (`failedRetryingNotice`, només quan una reparació automàtica ja és a la cua) o
 «Ho he deixat anotat perquè ho revisi la persona que manté el servei.» (`failedMaintainerNotice`, tota la resta; cada enviament desa l'acció de traça `maintainer_attention` amb el motiu i l'escriu al diari).
@@ -1279,7 +1278,7 @@ i l'enllaç de revisió com a darrera línia. Si el seguiment de CI no s'ha pogu
 desar, l'avís és el de fallada que deixa el cas anotat per a la persona mantenidora. La resposta del
 model es retalla perquè l'enllaç no es perdi mai pel límit de 4000 caràcters del
 transport. Una CI verda no envia res a la persona, perquè ja ha llegit «Canvi desat»: el resultat només va a la nota del servei i a la traça privada. La preview la
-demana el servei i l'avís «Ja ho pots veure» arriba amb la seva adreça. Una reparació
+demana el servei i l'avís de preview porta la seva adreça (el seu text no canvia en aquesta PR). Una reparació
 en curs envia l'avís de fallada amb «Ho torno a intentar»; el límit de
 reparacions, un resultat desconegut, un cap canviat, una PR tancada i qualsevol
 fallada de la reparació envien l'avís de fallada que deixa el cas anotat per a la persona
