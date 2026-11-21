@@ -576,12 +576,26 @@ function failingProjectGithub() {
     },
     async getCheckRunJob() {
       return {
+        id: 100,
         status: "completed",
         conclusion: "failure",
         steps: [
-          { name: "Check project", status: "completed", conclusion: "failure" },
+          {
+            name: "Check project",
+            status: "completed",
+            conclusion: "failure",
+            started_at: "2026-11-21T10:00:00Z",
+            completed_at: "2026-11-21T10:00:05Z",
+          },
         ],
       };
+    },
+    async getWorkflowJobLog() {
+      return [
+        "2026-11-21T10:00:00.000Z ##[group]Run pnpm check",
+        "2026-11-21T10:00:01.000Z ##[endgroup]",
+        "2026-11-21T10:00:02.000Z Project test failed",
+      ].join("\n");
     },
   };
 }

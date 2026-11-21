@@ -70,6 +70,73 @@ test("reads every page of check runs pinned to the exact commit", async () => {
   );
 });
 
+test("reads bounded job logs without forwarding credentials to the signed URL", async () => {
+  const requests = [];
+  const github = new GitHubTrust({
+    token: "synthetic",
+    repository: "example/project",
+    fetchImpl: async (url, options) => {
+      requests.push({ url, options });
+      if (requests.length === 1) {
+        return new Response(null, {
+          status: 302,
+          headers: {
+            location:
+              "https://example.blob.core.windows.net/log?signature=synthetic",
+          },
+        });
+      }
+      return new Response("project output");
+    },
+  });
+  assert.equal(
+    await github.getWorkflowJobLog({ jobIdentifier: 12 }),
+    "project output",
+  );
+  assert.equal(
+    requests[0].url,
+    "https://api.github.com/repos/example/project/actions/jobs/12/logs",
+  );
+  assert.equal(requests[0].options.redirect, "manual");
+  assert.equal(requests[1].options.headers, undefined);
+  assert.equal(requests[1].options.redirect, "error");
+});
+
+test("rejects untrusted job log redirects and oversized log bodies", async () => {
+  let calls = 0;
+  const github = new GitHubTrust({
+    token: "synthetic",
+    repository: "example/project",
+    fetchImpl: async () => {
+      calls += 1;
+      return new Response(null, {
+        status: 302,
+        headers: { location: "https://attacker.example/log" },
+      });
+    },
+  });
+  await assert.rejects(
+    github.getWorkflowJobLog({ jobIdentifier: 12 }),
+    /invalid job log location/u,
+  );
+  assert.equal(calls, 1);
+  const oversized = new GitHubTrust({
+    token: "synthetic",
+    repository: "example/project",
+    fetchImpl: async (url) =>
+      url.startsWith("https://api.github.com/")
+        ? new Response(null, {
+            status: 302,
+            headers: { location: "https://example.blob.core.windows.net/log" },
+          })
+        : new Response("x".repeat(1024 * 1024 + 1)),
+  });
+  await assert.rejects(
+    oversized.getWorkflowJobLog({ jobIdentifier: 12 }),
+    /size limit/u,
+  );
+});
+
 test("reads the workflow run attempt for the pinned commit", async () => {
   let calls = 0;
   const github = new GitHubTrust({

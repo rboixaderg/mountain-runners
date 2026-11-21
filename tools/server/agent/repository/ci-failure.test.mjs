@@ -33,6 +33,13 @@ test("only reruns a setup failure before a project step", () => {
     ]),
     "no_output",
   );
+  assert.equal(
+    classify("failure", [
+      { name: "Unrecognized step", status: "completed", conclusion: "success" },
+      failedStep("Install dependencies"),
+    ]),
+    "no_output",
+  );
 });
 
 test("requires known project output to allow a repair", () => {

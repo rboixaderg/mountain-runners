@@ -85,6 +85,7 @@ tools/server/agent/               aplicació de Mountain Runners
     ├── github.mjs                 client de GitHub, push segur i reexecució de CI
     ├── ci-status.mjs              check runs i estats de commit d'un SHA exacte
     ├── ci-failure.mjs             classificació dels passos fallits de CI
+    ├── ci-job-output.mjs          sortida dins el pas fallit del job
     ├── request-signal.mjs         termini de lectura amb el senyal d'aturada
     ├── preview-comment.mjs        comentari de confirmació del publicador de confiança
     ├── preview-request-store.mjs  peticions de preview durables i URL confirmada
@@ -215,8 +216,9 @@ al servidor. El nom local encara no representa una publicació a npm.
    `Install pnpm`, `Set up Node.js`, `Install dependencies` i
    `Install browser dependencies`. Un nom nou no s'hi afegeix automàticament.
    Una fallada només pot passar a reparació si el job confirma un pas de projecte
-   reconegut i el resum de la comprovació conté text. Si falta aquesta evidència,
-   el servei avisa sense executar el model.
+   reconegut i el log del job conté sortida atribuïble a aquell pas. El servei
+   limita la lectura a 1 MiB i exclou els segons de les fronteres i les ordres
+   agrupades del log. Si falta aquesta evidència, avisa sense executar el model.
 
    Per a una fallada que compleix aquestes condicions, `workflow/ci-watch.mjs`
    reserva una reparació automàtica abans d'avisar i tanca el seguiment. Si l'avís «en curs»

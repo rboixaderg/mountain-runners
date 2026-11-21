@@ -737,10 +737,11 @@ la crida i avisa. Una fallada posterior al reintent també s'avisa sense reparar
 ni tornar a executar. Els noms de passos reconeguts són a
 `tools/server/agent/repository/ci-failure.mjs`.
 
-Per a una fallada d'un pas de projecte reconegut amb un resum no buit de la
-comprovació, el servei pot intentar reparar-la, amb un límit de dues reparacions
-consecutives per conjunt de comprovacions fallides. Sense aquesta evidència,
-avisa sense iniciar el model. La
+Per a una fallada d'un pas de projecte reconegut amb sortida atribuïble a
+aquell pas en el log del job, el servei pot intentar reparar-la, amb un límit de
+dues reparacions consecutives per conjunt de comprovacions fallides. La lectura
+del log es limita a 1 MiB i exclou els segons de les fronteres i les ordres
+agrupades. Sense aquesta evidència, avisa sense iniciar el model. La
 identitat de la fallada és aquest conjunt de noms; el missatge de la comprovació
 i el SHA són evidència i abast de l'intent, no identitat, perquè un SHA nou a
 cada reparació faria impossible comptar res i un missatge variable reiniciaria el

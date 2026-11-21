@@ -34,6 +34,7 @@ function repositoryUrl(repository) {
 
 const fullCommitPattern = /^[a-f0-9]{40}$/u;
 const maximumPageCount = 10;
+const maximumJobLogBytes = 1024 * 1024;
 
 function assertFullCommit(commit) {
   if (typeof commit !== "string" || !fullCommitPattern.test(commit)) {
@@ -469,6 +470,82 @@ export class GitHubTrust {
       throw new Error("GitHub returned an invalid workflow run.");
     }
     return run;
+  }
+
+  async getWorkflowJobLog({ jobIdentifier, signal }) {
+    if (!Number.isSafeInteger(jobIdentifier) || jobIdentifier < 1) {
+      throw new Error("A positive workflow job identifier is required.");
+    }
+    const boundedSignal = requestSignal(
+      signal,
+      this.#requestTimeoutMilliseconds,
+    );
+    const path = `/repos/${this.#repository}/actions/jobs/${jobIdentifier}/logs`;
+    const redirect = await this.#fetch(`${this.#apiBaseUrl}${path}`, {
+      method: "GET",
+      headers: {
+        authorization: `Bearer ${this.#token}`,
+        accept: "application/vnd.github+json",
+        "user-agent": "mountain-runners-agent",
+        "x-github-api-version": "2022-11-28",
+      },
+      redirect: "manual",
+      signal: boundedSignal,
+    });
+    if (redirect.status !== 302) {
+      throw new GitHubResponseError("GET", path, redirect.status);
+    }
+    let location;
+    try {
+      location = new URL(redirect.headers.get("location"));
+    } catch {
+      throw new Error("GitHub returned an invalid job log location.");
+    }
+    const approvedHost =
+      location.hostname.endsWith(".blob.core.windows.net") ||
+      location.hostname.endsWith(".actions.githubusercontent.com");
+    if (
+      location.protocol !== "https:" ||
+      !approvedHost ||
+      location.username ||
+      location.password ||
+      location.port
+    ) {
+      throw new Error("GitHub returned an invalid job log location.");
+    }
+    // A signed log URL is a credential. Do not forward the GitHub token or
+    // expose the URL in an exception, trace or model input.
+    let response;
+    try {
+      response = await this.#fetch(location.href, {
+        method: "GET",
+        redirect: "error",
+        signal: boundedSignal,
+      });
+    } catch {
+      throw new Error("The job log could not be read.");
+    }
+    if (!response.ok || !response.body)
+      throw new Error("The job log could not be read.");
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let bytes = 0;
+    let log = "";
+    try {
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        bytes += value.byteLength;
+        if (bytes > maximumJobLogBytes)
+          throw new Error("The job log exceeds the size limit.");
+        log += decoder.decode(value, { stream: true });
+      }
+      return log + decoder.decode();
+    } catch {
+      throw new Error("The job log could not be read within its size limit.");
+    } finally {
+      await reader.cancel().catch(() => {});
+    }
   }
 
   async getWorkflowJob({ jobIdentifier, signal }) {

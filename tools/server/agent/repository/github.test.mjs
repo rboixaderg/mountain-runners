@@ -761,6 +761,7 @@ test("exposes only the approved GitHub operations", () => {
     "getCommitStatuses",
     "getPullRequest",
     "getWorkflowJob",
+    "getWorkflowJobLog",
     "getWorkflowRun",
     "listIssueComments",
     "listPreviewWorkflowRuns",

@@ -75,14 +75,31 @@ function fakeGithub({
     },
     async getCheckRunJob({ checkRun }) {
       return {
+        id: 100,
         run_id: 100,
         run_attempt: 1,
         status: "completed",
         conclusion: checkRun.conclusion,
         steps: [
-          { name: "Check project", status: "completed", conclusion: "failure" },
+          {
+            name: "Check project",
+            status: "completed",
+            conclusion: "failure",
+            started_at: "2026-11-21T10:00:00Z",
+            completed_at: "2026-11-21T10:00:05Z",
+          },
         ],
       };
+    },
+    async getWorkflowJobLog() {
+      const summary =
+        checkRuns.find((entry) => entry.conclusion === "failure")?.output
+          ?.summary ?? "";
+      return [
+        "2026-11-21T10:00:00.000Z ##[group]Run pnpm check",
+        "2026-11-21T10:00:01.000Z ##[endgroup]",
+        `2026-11-21T10:00:02.000Z ${summary}`,
+      ].join("\n");
     },
     async getPullRequest({ number }) {
       reads.push({ kind: "pull-request", number });
@@ -678,6 +695,50 @@ test("does not repair a project failure without output", async (context) => {
   );
 });
 
+test("does not repair from a check summary when the job log cannot be read", async (context) => {
+  const { store } = fixture(context);
+  createCiWatchRegistration({ store })(registration);
+  const telegram = fakeTelegram();
+  const github = fakeGithub({
+    checkRuns: [checkRun("Validate", "completed", "failure")],
+  });
+  github.getWorkflowJobLog = async () => {
+    throw new Error("log unavailable");
+  };
+  const worker = workerFor({ store, github, telegram });
+  await worker.runOnce();
+  assert.equal(store.claimNextRepair(), null);
+  assert.equal(telegram.sent.length, 1);
+  assert.equal(
+    store.lastReported(registration.sessionKey).result,
+    "repair-not-run",
+  );
+});
+
+test("uses the failed project step log instead of the check summary", async (context) => {
+  const { store } = fixture(context);
+  createCiWatchRegistration({ store })(registration);
+  const github = fakeGithub({
+    checkRuns: [checkRun("Validate", "completed", "failure")],
+  });
+  github.getWorkflowJobLog = async () =>
+    [
+      "2026-11-21T10:00:00.000Z ##[group]Run pnpm check",
+      "2026-11-21T10:00:01.000Z ##[endgroup]",
+      "2026-11-21T10:00:02.000Z project output with ghp_synthetic_secret",
+    ].join("\n");
+  await workerFor({
+    store,
+    github,
+    telegram: fakeTelegram(),
+    secrets: ["ghp_synthetic_secret"],
+  }).runOnce();
+  const repair = store.claimNextRepair();
+  assert.deepEqual(JSON.parse(repair.evidence), [
+    { name: "Validate", detail: "project output with ***" },
+  ]);
+});
+
 test("reserves the first automatic repair of the failing checks", async (context) => {
   const { store } = fixture(context);
   createCiWatchRegistration({ store })(registration);
@@ -720,7 +781,7 @@ test("reserves the first automatic repair of the failing checks", async (context
   assert.equal(repair.attempt_number, 1);
   assert.deepEqual(JSON.parse(repair.failed_checks), ["Validate"]);
   assert.deepEqual(JSON.parse(repair.evidence), [
-    { name: "Validate", detail: "pnpm check failed\nsrc/a.ts: error TS2322" },
+    { name: "Validate", detail: "src/a.ts: error TS2322" },
   ]);
   assert.deepEqual(traces, [
     {

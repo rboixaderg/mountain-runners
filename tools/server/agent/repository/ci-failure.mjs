@@ -42,13 +42,15 @@ export function classifyCiFailure({ checkRun, job, projectOutput }) {
   if (failedSteps.length !== 1) return "no_output";
   const failedStep = failedSteps[0];
   if (setupSteps.has(failedStep.name)) {
-    const projectStarted = job.steps.some(
+    const earlierSteps = job.steps.slice(0, job.steps.indexOf(failedStep));
+    const unverifiedPriorStep = earlierSteps.some(
       (step) =>
-        projectSteps.has(step.name) &&
-        step.status !== "skipped" &&
-        step.conclusion !== "skipped",
+        step.conclusion !== "skipped" &&
+        (!setupSteps.has(step.name) ||
+          step.status !== "completed" ||
+          step.conclusion !== "success"),
     );
-    return projectStarted ? "no_output" : "setup_failure";
+    return unverifiedPriorStep ? "no_output" : "setup_failure";
   }
   if (
     projectSteps.has(failedStep.name) &&

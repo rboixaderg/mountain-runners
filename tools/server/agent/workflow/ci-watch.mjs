@@ -23,6 +23,7 @@ import {
 } from "../repository/ci-status.mjs";
 import { repairWillNotRun } from "../repository/ci-watch-store.mjs";
 import { classifyCiFailure } from "../repository/ci-failure.mjs";
+import { projectOutputFromJobLog } from "../repository/ci-job-output.mjs";
 import {
   defaultRequestTimeoutMilliseconds,
   requestSignal,
@@ -95,9 +96,30 @@ async function classifyFailures({
       const checkRun = checkRuns.find((entry) => entry.name === name);
       if (!checkRun || typeof github.getCheckRunJob !== "function")
         return { kind: "no_output" };
-      const job = await github.getCheckRunJob({ checkRun, commit, signal });
-      const projectOutput = checkRun.output?.summary ?? "";
-      return { job, kind: classifyCiFailure({ checkRun, job, projectOutput }) };
+      let job;
+      try {
+        job = await github.getCheckRunJob({ checkRun, commit, signal });
+        const preliminary = classifyCiFailure({
+          checkRun,
+          job,
+          projectOutput: "project output",
+        });
+        if (preliminary !== "real_failure")
+          return { name, job, kind: preliminary };
+        const log = await github.getWorkflowJobLog({
+          jobIdentifier: job.id,
+          signal,
+        });
+        const projectOutput = projectOutputFromJobLog({ job, log });
+        return {
+          name,
+          job,
+          projectOutput,
+          kind: classifyCiFailure({ checkRun, job, projectOutput }),
+        };
+      } catch {
+        return { name, job, kind: "no_output" };
+      }
     }),
   );
 }
@@ -854,7 +876,18 @@ export function createCiWatchWorker({
             });
             continue;
           }
-          await requestRepair(watch, current, { signal });
+          const evidence = describeFailedChecks({
+            failedChecks: current.failedChecks,
+            checkRuns: failures.map(({ name, projectOutput }) => ({
+              name,
+              output: { summary: redactSecrets(projectOutput, secrets) },
+            })),
+            statuses: [],
+          }).map((entry) => ({
+            name: entry.name,
+            detail: redactSecrets(entry.detail, secrets),
+          }));
+          await requestRepair(watch, { ...current, evidence }, { signal });
           continue;
         }
         const delivered = await deliver(watch, outcome, { signal });
