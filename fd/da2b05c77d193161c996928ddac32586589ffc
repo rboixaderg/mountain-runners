@@ -1,0 +1,27 @@
+tools/server/agent/repository/ci-watch-store.mjs
+  s_711b0b9e7430ad::t_fc69df4489cc4b 399-411
+tools/server/agent/workflow/ci-repair.mjs
+  s_711b0b9e7430ad::t_2c6bf49df8a61d 89,96-109,210-218,229-250,297-304
+tools/server/agent/workflow/ci-repair.test.mjs
+  s_711b0b9e7430ad::t_54500c276698e3 90-134
+tools/server/agent/workflow/ci-watch.mjs
+  s_711b0b9e7430ad::t_dcf2cbc28b0e4d 618-642,659
+tools/server/agent/workflow/ci-watch.test.mjs
+  s_711b0b9e7430ad::t_09ee762ac58261 114-155
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "fdda2b05c77d193161c996928ddac32586589ffc",
+  "prompts": {},
+  "sessions": {
+    "s_711b0b9e7430ad": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a1fcfc-1401-7204-bca3-2b2848f17fa0",
+        "model": "gpt-6.1-terra"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
