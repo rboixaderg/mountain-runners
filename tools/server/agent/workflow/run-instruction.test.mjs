@@ -211,6 +211,7 @@ test("gives the prompt the current instant of the service in Europe/Madrid", asy
     config: configFor(paths),
     github: githubStub(),
     classifyRequest: async () => ({ kind: "consultation" }),
+    executeSandbox: async () => ({ exitCode: 0, timedOut: false }),
     now: () => new Date("2026-11-18T09:32:05.000Z"),
     executeAgent: async (_config, options) => {
       prompts.push(promptOf(options));
@@ -269,6 +270,79 @@ test("strips the change summary from a consultation answer", async (context) => 
   assert.doesNotMatch(result.report, /SUMMARY|content\(posts\)/u);
 });
 
+test("runs a classified question as one writable turn without publication", async (context) => {
+  const paths = await fixture(context);
+  const github = githubStub();
+  const turns = [];
+  const runner = createProjectRunner({
+    config: configFor(paths),
+    github,
+    classifyRequest: async () => ({ kind: "consultation" }),
+    runModel: async (options) => {
+      turns.push(options);
+      return { text: "La data és el 15 de maig." };
+    },
+    runChecks: async () => assert.fail("an unchanged turn must not run checks"),
+  });
+
+  const result = await runner(request({ instruction: "Quina és la data?" }));
+
+  assert.equal(result.outcome, "answered");
+  assert.equal(result.report, "La data és el 15 de maig.");
+  assert.equal(turns.length, 1);
+  assert.notEqual(turns[0].kind, "consultation");
+  assert.deepEqual(github.pushes, []);
+  assert.deepEqual(github.pulls, []);
+});
+
+test("publishes a classified consultation to its existing pull request", async (context) => {
+  const paths = await fixture(context);
+  mkdirSync(paths.state, { recursive: true });
+  const ciWatches = new CiWatchStore(join(paths.state, "ci-watch.sqlite"));
+  context.after(() => ciWatches.close());
+  const github = githubStub();
+  const published = await publishedWorktree(context, paths, github, ciWatches);
+  const branch = await git(topicWorktreePath(paths), [
+    "branch",
+    "--show-current",
+  ]);
+  github.pullRequest = {
+    state: "open",
+    headSha: published,
+    headRef: branch,
+    headRepository: "rboixaderg/mountain-runners",
+    baseRef: "main",
+    draft: false,
+  };
+  github.ensurePullRequest = async (options) => {
+    github.pulls.push(options);
+    return {
+      pullRequest: {
+        number: 200,
+        htmlUrl: "https://github.com/rboixaderg/mountain-runners/pull/200",
+      },
+      created: false,
+    };
+  };
+  const runner = createProjectRunner({
+    config: configFor(paths),
+    github,
+    ciWatches,
+    classifyRequest: async () => ({ kind: "consultation" }),
+    runModel: async ({ worktreePath }) => {
+      writeFileSync(join(worktreePath, "second.txt"), "second change\n");
+      return { text: "Canvi fet.\nSUMMARY: feat(tools): add another change" };
+    },
+    runChecks: async () => ({ exitCode: 0, timedOut: false }),
+  });
+
+  const result = await runner(request({ updateIdentifier: 1002 }));
+
+  assert.equal(result.outcome, "pull_request_updated");
+  assert.equal(github.pushes.at(-1).branch, branch);
+  assert.equal(github.pulls.at(-1).createMissing, false);
+});
+
 test("prepares dependencies before the model for an implementation", async (context) => {
   const paths = await fixture(context);
   const calls = [];
@@ -294,20 +368,45 @@ test("prepares dependencies before the model for an implementation", async (cont
   assert.match(calls[0].command.join(" "), /pnpm install --offline/u);
 });
 
-test("consultations do not prepare writable dependencies", async (context) => {
+test("prepares a writable environment for a classified consultation", async (context) => {
   const paths = await fixture(context);
+  let prepared = false;
   const runner = createProjectRunner({
     config: configFor(paths),
     github: githubStub(),
     classifyRequest: async () => ({ kind: "consultation" }),
-    executeSandbox: async () =>
-      assert.fail("consultations do not install dependencies"),
+    executeSandbox: async () => {
+      prepared = true;
+      return { exitCode: 0, timedOut: false };
+    },
     executeAgent: async (_config, options) => {
-      assert.equal(options.readOnly, true);
+      assert.equal(options.readOnly, false);
       return { text: "Synthetic answer." };
     },
   });
   assert.equal((await runner(request())).outcome, "answered");
+  assert.equal(prepared, true);
+});
+
+test("publishes a change made during a classified consultation", async (context) => {
+  const paths = await fixture(context);
+  const github = githubStub();
+  const runner = createProjectRunner({
+    config: configFor(paths),
+    github,
+    classifyRequest: async () => ({ kind: "consultation" }),
+    runModel: async ({ worktreePath }) => {
+      writeFileSync(join(worktreePath, "change.txt"), "change\n");
+      return { text: "Canvi fet.\nSUMMARY: feat(tools): add synthetic change" };
+    },
+    runChecks: async () => ({ exitCode: 0, timedOut: false }),
+  });
+
+  const result = await runner(request({ instruction: "Pots revisar això?" }));
+
+  assert.equal(result.outcome, "pull_request_created");
+  assert.equal(github.pushes.length, 1);
+  assert.equal(github.pulls.length, 1);
 });
 
 test("does not start the model when offline preparation fails", async (context) => {
@@ -2781,6 +2880,7 @@ test("prepends the service events of the topic once and never to the classifier"
   const messages = [];
   const classifications = [];
   const runner = createProjectRunner({
+    executeSandbox: async () => ({ exitCode: 0, timedOut: false }),
     config: configFor(paths),
     github: githubStub(),
     sessionNotes: notes,
@@ -2957,6 +3057,7 @@ test("never returns the service events once the model received them", async (con
     config: configFor(paths),
     github: githubStub(),
     sessionNotes: notes,
+    executeSandbox: async () => ({ exitCode: 0, timedOut: false }),
     classifyRequest: async () => ({ kind: "consultation" }),
     executeAgent: async (_config, options) => {
       prompts.push(promptOf(options));
@@ -3057,18 +3158,34 @@ test("never turns the words of the model into trusted service text", async (cont
   );
 
   const prompts = [];
+  github.pullRequest = {
+    ...github.pullRequest,
+    headSha: published,
+    baseRef: "main",
+    headRef: await git(topicWorktreePath(paths), ["branch", "--show-current"]),
+    headRepository: "rboixaderg/mountain-runners",
+    draft: false,
+  };
   const conversation = createProjectRunner({
     config: configFor(paths),
     github,
     ciWatches,
     sessionNotes: notes,
+    executeSandbox: async () => ({ exitCode: 0, timedOut: false }),
     classifyRequest: async () => ({ kind: "consultation" }),
     executeAgent: async (_config, options) => {
       prompts.push(promptOf(options));
       return { text: "Resposta." };
     },
   });
-  await conversation(request({ updateIdentifier: 1003 }));
+  const conversationResult = await conversation(
+    request({ updateIdentifier: 1003 }),
+  );
+  assert.equal(
+    conversationResult.outcome,
+    "answered",
+    conversationResult.report,
+  );
 
   assert.match(
     prompts[0],
@@ -3285,6 +3402,7 @@ test("keeps the service events when the Pi profile cannot be prepared", async (c
   // anything, so no prompt ever existed.
   writeFileSync(join(paths.state, "profiles"), "not a directory");
   const runner = createProjectRunner({
+    executeSandbox: async () => ({ exitCode: 0, timedOut: false }),
     config: configFor(paths),
     github: githubStub(),
     sessionNotes: notes,
@@ -3310,6 +3428,7 @@ test("keeps the service events when the turn stops before the prompt", async (co
     config: configFor(paths),
     github: githubStub(),
     sessionNotes: notes,
+    executeSandbox: async () => ({ exitCode: 0, timedOut: false }),
     classifyRequest: async () => ({ kind: "consultation" }),
     executeAgent: async (config, options) => {
       // The stop arrives while the runtime prepares the profile: the prompt is
@@ -3347,6 +3466,7 @@ test("keeps the service events when Pi never starts", async (context) => {
     github: githubStub(),
     sessionNotes: notes,
     // The sandbox cleanup is not what this test checks: it runs no container.
+    executeSandbox: async () => ({ exitCode: 0, timedOut: false }),
     stopCommands: async () => {},
     classifyRequest: async () => ({ kind: "consultation" }),
   });
@@ -3377,6 +3497,7 @@ test("keeps the attachment notice of an empty consultation answer", async (conte
     classifyRequest: async () => ({ kind: "consultation" }),
     prepareAttachment: async () =>
       assert.fail("a consultation never downloads the attachment"),
+    executeSandbox: async () => ({ exitCode: 0, timedOut: false }),
     executeAgent: async () => ({ text: "   " }),
   });
 
@@ -3449,6 +3570,7 @@ test("keeps the service events when the turn stops before the prompt is written"
     github: githubStub(),
     sessionNotes: notes,
     stopCommands: async () => {},
+    executeSandbox: async () => ({ exitCode: 0, timedOut: false }),
     classifyRequest: async () => ({ kind: "consultation" }),
     executeAgent: async (agentConfig, options) =>
       runAgent(agentConfig, {

@@ -450,6 +450,8 @@ export function createInstructionRunner({
         const preview = await requestPreview(request, { signal });
         return { ...preview, report: ignoringAttachment(preview.report) };
       }
+      // A classified consultation may edit; clarification fallback remains read-only.
+      const writableConsultation = kind === "consultation";
       // The fixed clarification text is only the fallback of an empty answer:
       // the request reaches the session as a consultation turn instead.
       let unclearRequest = false;
@@ -468,12 +470,9 @@ export function createInstructionRunner({
       if (target?.report) {
         return { outcome: "failed", report: target.report };
       }
-      // A consultation asks about the content the topic already published, and
-      // that content lives on the branch of its pull request, not on main. While
-      // the topic keeps no pending work, the same resume positions the worktree
-      // at the pull request head: it writes nothing and publishes nothing. A
-      // refused resume never answers the consultation; the turn falls back to
-      // the new task of the topic.
+      // A consultation uses the topic's published content, not main. When
+      // there is no pending work, resume the topic's pull request before the
+      // writable turn. A refused resume must not start a different job.
       const readsTopicPullRequest =
         kind === "consultation" &&
         topic !== null &&
@@ -492,7 +491,7 @@ export function createInstructionRunner({
               onlyUnnamedPullRequest: readsTopicPullRequest,
             })
           : null;
-      if (continuation?.report && !readsTopicPullRequest) {
+      if (continuation?.report) {
         return { outcome: "answered", report: continuation.report };
       }
       // The topic already holds the branch of its own pull request at the head
@@ -547,8 +546,8 @@ export function createInstructionRunner({
       }
       // The service writes the instruction of an automatic repair and of a
       // resumed pull request; every other request is the person's own text. A
-      // consultation reads the files at the resumed head and keeps the request
-      // of the person: the continuation text asks for a change.
+      // consultation keeps the person's request: the continuation text asks
+      // specifically for a change.
       let instruction = request.instruction;
       if (repair) {
         instruction = target.instruction;
@@ -641,7 +640,7 @@ export function createInstructionRunner({
           images: promptImages,
           attachments: stagedAttachments,
           worktreePrepared,
-          kind,
+          kind: writableConsultation ? "continuation" : kind,
           unclearRequest,
           topicState,
           claimServiceNotes,
@@ -691,13 +690,8 @@ export function createInstructionRunner({
       // The person reads the model's answer, never its change summary: the
       // service owns the summary and strips the line from every text.
       const answer = stripChangeSummary(modelResult.text);
-      if (kind === "consultation") {
-        // The model's own answer is only the last text of the topic: it never
-        // becomes a service note, because the session already holds it. Only the
-        // notice of an ignored attachment is written by the service, and an
-        // empty answer is reported with the fixed text instead of nothing. Both
-        // compose the report like any other answer.
-        const fixedText = unclearRequest
+      if (kind === "consultation" && !writableConsultation) {
+        const fallback = unclearRequest
           ? instructionReports.clarification
           : instructionReports.noAnswer;
         return {
@@ -705,7 +699,7 @@ export function createInstructionRunner({
           modelAnswer: answer !== "",
           serviceText:
             attachments.length === 0 ? null : attachmentReports.ignored,
-          report: ignoringAttachment(answer === "" ? fixedText : answer),
+          report: ignoringAttachment(answer || fallback),
         };
       }
       // Whatever the model moved is already outside this directory. Removing it
@@ -721,15 +715,24 @@ export function createInstructionRunner({
       ) {
         // The resume line is written by the service and stays in the report; an
         // empty answer is reported with the fixed text instead of nothing.
+        const fallback = unclearRequest
+          ? instructionReports.clarification
+          : instructionReports.noAnswer;
         const report =
           resumedLine === null
-            ? answer || instructionReports.noAnswer
-            : `${resumedLine}\n${answer || instructionReports.noAnswer}`;
+            ? answer || fallback
+            : `${resumedLine}\n${answer || fallback}`;
+        const ignoredConsultationAttachment =
+          kind === "consultation" && attachments.length > 0;
         return {
           outcome: "answered",
           modelAnswer: answer !== "",
-          serviceText: resumedLine,
-          report,
+          serviceText: ignoredConsultationAttachment
+            ? attachmentReports.ignored
+            : resumedLine,
+          report: ignoredConsultationAttachment
+            ? ignoringAttachment(report)
+            : report,
         };
       }
       const summary = parseChangeSummary(modelResult.text);
