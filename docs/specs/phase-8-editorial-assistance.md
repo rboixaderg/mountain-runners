@@ -743,7 +743,9 @@ GitHub i model simulats; no s'activa una capacitat abans dels controls previs.
 6. Tema acabat: comprovar PR tancada i fusionada abans de cada torn; provar
    ambdues, error de lectura i absència de nova PR.
 7. Neteja: retirar només després del nou camí `cross-topic-continuation.mjs`,
-   `overlap-warning.mjs` i `runtime/request-kind.mjs` i el codi mort associat;
+   `overlap-warning.mjs` i `runtime/request-kind.mjs` i el codi mort associat
+   (`runtime/request-kind.mjs` es conserva mentre detecta les peticions
+   explícites de preview, fins que l'etiqueta de preview el substitueixi);
    provar el recorregut complet i les regressions d'identitat i aïllament.
 
 ### Entorn i permisos de desenvolupament
