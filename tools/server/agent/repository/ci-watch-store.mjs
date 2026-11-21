@@ -74,7 +74,15 @@ const repairsTable = `
     ON ci_repairs (update_identifier, commit_sha, failure_fingerprint);
 `;
 
-const schema = `${watchesTable}${watchesIndexes}${repairsTable}`;
+const rerunsTable = `
+  CREATE TABLE IF NOT EXISTS ci_reruns (
+    run_identifier INTEGER PRIMARY KEY,
+    original_attempt INTEGER NOT NULL,
+    created_at TEXT NOT NULL
+  );
+`;
+
+const schema = `${watchesTable}${watchesIndexes}${repairsTable}${rerunsTable}`;
 
 /**
  * A store created before a watch could be superseded still carries the old
@@ -192,6 +200,25 @@ export class CiWatchStore {
           timestamp,
         );
     });
+  }
+
+  /** Reserve the one automatic rerun before sending any request to GitHub. */
+  reserveRerun({ runIdentifier, originalAttempt }) {
+    return (
+      this.#database
+        .prepare(
+          `INSERT OR IGNORE INTO ci_reruns
+           (run_identifier, original_attempt, created_at) VALUES (?, ?, ?)`,
+        )
+        .run(runIdentifier, originalAttempt, this.#now().toISOString())
+        .changes === 1
+    );
+  }
+
+  rerun(runIdentifier) {
+    return this.#database
+      .prepare("SELECT * FROM ci_reruns WHERE run_identifier = ?")
+      .get(runIdentifier);
   }
 
   pending() {

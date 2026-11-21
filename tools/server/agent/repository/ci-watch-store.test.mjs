@@ -28,6 +28,32 @@ const request = {
   commitSha: "a".repeat(40),
 };
 
+test("reserves one rerun per workflow run across restarts", (context) => {
+  const path = fixture(context);
+  let store = new CiWatchStore(path);
+  assert.equal(
+    store.reserveRerun({ runIdentifier: 123, originalAttempt: 1 }),
+    true,
+  );
+  store.close();
+
+  store = new CiWatchStore(path);
+  assert.equal(store.rerun(123).original_attempt, 1);
+  assert.equal(
+    store.reserveRerun({ runIdentifier: 123, originalAttempt: 1 }),
+    false,
+  );
+  assert.equal(
+    store.reserveRerun({ runIdentifier: 123, originalAttempt: 2 }),
+    false,
+  );
+  assert.equal(
+    store.reserveRerun({ runIdentifier: 124, originalAttempt: 1 }),
+    true,
+  );
+  store.close();
+});
+
 test("keeps the preview a request asked for with its change", (context) => {
   const store = new CiWatchStore(fixture(context));
   store.add(request);

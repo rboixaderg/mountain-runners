@@ -317,6 +317,7 @@ export class GitHubTrust {
     if (!response.ok) {
       throw new GitHubResponseError(method, path, response.status);
     }
+    if (response.status === 204) return null;
     return response.json();
   }
 
@@ -402,6 +403,18 @@ export class GitHubTrust {
       if (response.length < 100) return statuses;
     }
     throw new Error("GitHub commit statuses pagination limit exceeded.");
+  }
+
+  async rerunFailedJobs({ runIdentifier, signal }) {
+    if (!Number.isSafeInteger(runIdentifier) || runIdentifier < 1) {
+      throw new Error("A positive workflow run identifier is required.");
+    }
+    await this.#request(
+      "POST",
+      `/repos/${this.#repository}/actions/runs/${runIdentifier}/rerun-failed-jobs`,
+      undefined,
+      { signal },
+    );
   }
 
   async getPullRequest({ number, signal }) {

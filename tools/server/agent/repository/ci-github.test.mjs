@@ -70,6 +70,49 @@ test("reads every page of check runs pinned to the exact commit", async () => {
   );
 });
 
+test("reruns failed jobs only for a valid workflow run identifier", async () => {
+  const requests = [];
+  const github = new GitHubTrust({
+    token: "synthetic",
+    repository: "example/project",
+    fetchImpl: async (url, options) => {
+      requests.push({ url, method: options.method });
+      return { ok: true, status: 204 };
+    },
+  });
+  for (const runIdentifier of [0, -1, "123", 1.5]) {
+    await assert.rejects(
+      github.rerunFailedJobs({ runIdentifier }),
+      /identifier/u,
+    );
+  }
+  assert.equal(requests.length, 0);
+  await github.rerunFailedJobs({ runIdentifier: 123 });
+  assert.deepEqual(requests, [
+    {
+      url: "https://api.github.com/repos/example/project/actions/runs/123/rerun-failed-jobs",
+      method: "POST",
+    },
+  ]);
+});
+
+test("propagates a rerun API error without repeating the request", async () => {
+  let calls = 0;
+  const github = new GitHubTrust({
+    token: "synthetic",
+    repository: "example/project",
+    fetchImpl: async () => {
+      calls += 1;
+      throw new Error("network unavailable");
+    },
+  });
+  await assert.rejects(
+    github.rerunFailedJobs({ runIdentifier: 123 }),
+    /network unavailable/u,
+  );
+  assert.equal(calls, 1);
+});
+
 test("reads every page of legacy commit statuses pinned to the commit", async () => {
   const requested = [];
   const github = new GitHubTrust({
