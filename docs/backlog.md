@@ -869,7 +869,8 @@ l'agent; interacció amb la T8.9; comprovar a GitHub els punts marcats com a
 
 ### Retirar La Petició De Preview Amb `/preview`
 
-**Estat:** Capturada.
+**Estat:** Especificada a [Retirada de la petició de preview amb
+`/preview`](specs/retire-preview-command.md) el 21 de novembre de 2026.
 
 **Problema:** amb l'[especificació de l'etiqueta de
 preview](specs/preview-label.md), l'etiqueta `preview` i el comentari `/preview`
