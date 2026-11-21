@@ -653,6 +653,26 @@ revisió i fusió abans d'activar la capacitat nova.
   continuen sent controls deterministes. `/merge` conserva el seu camí
   determinista i no passa al model. Un esborrany només es publica amb la petició
   explícita «publica-la» d'un membre verificat.
+- Tot canvi arriba a la PR sense que ningú ho demani. La persona no ha de
+  demanar mai que es pugi, s'envii o es torni a intentar un canvi, i la preview
+  sempre mostra l'últim canvi del tema. Al final de cada torn que ha canviat
+  fitxers, el servei publica el canvi a la PR del tema. Si una comprovació local
+  o una regla de publicació ho impedeix, el servei ho reintenta al torn següent
+  sense que ningú ho demani. Si no ho pot resoldre, ho diu amb l'avís de fallada.
+  El canvi no queda mai només al worktree sense avisar. Un torn sense canvis no
+  publica res. Aquesta regla substitueix la continuació com a manera de publicar
+  feina pendent.
+- Abans de cada push, el servei sincronitza la branca amb `origin/main`. Si la
+  branca va per darrere, hi integra `main` amb un commit de merge, sense rebase
+  ni force-push, i torna a fer les comprovacions locals abans de publicar. Un
+  conflicte que el servei no resol de manera determinista es passa al model, al
+  mateix torn i dins del sandbox, perquè el resolgui conservant els dos canvis.
+  Si hi ha una contradicció de contingut, el model pregunta a la persona en
+  llenguatge planer quina versió vol. Si el conflicte no es pot resoldre, el
+  servei no publica una branca a mig resoldre: conserva el treball i ho diu amb
+  l'avís de fallada. El mateix control es fa quan `main` avança mentre la PR és
+  oberta i abans d'un `/merge`. Una PR desfasada no bloqueja la preview ni el
+  merge si es pot sincronitzar.
 - Abans de cada torn i decisió de preview, merge o reparació, el servei llegeix
   de GitHub la PR, el cap, les comprovacions obligatòries i el resultat de
   preview. Els esdeveniments persistits només donen auditoria i idempotència.
@@ -706,8 +726,11 @@ GitHub i model simulats; no s'activa una capacitat abans dels controls previs.
    absent, reintent fallit i resultat desconegut després d'un reinici.
 3. Una feina i cap classificador: `run-instruction.mjs` i `project-runner.mjs`
    mantenen la mateixa PR i impedeixen crear-ne una altra quan és tancada o
-   fusionada. Provar consulta sense canvis, diversos canvis i adjunt, i
-   `/merge` determinista sense passar pel model.
+   fusionada. Cada torn amb canvis publica sense petició i es reintenta al torn
+   següent si no s'ha pogut publicar. Abans de cada push, la branca se
+   sincronitza amb `main`. Provar consulta sense canvis, diversos canvis i
+   adjunt, publicació bloquejada i represa, branca desfasada, conflicte resolt,
+   conflicte no resolt i `/merge` determinista sense passar pel model.
 4. Preview automàtica: `ci-watch.mjs` i `preview-request.mjs` la demanen amb CI
    verda. Provar CI pendent o vermella, cap canviat, duplicats, reinici i URL
    confirmada pel publicador.
@@ -962,7 +985,8 @@ prova simulada no es presenta com a verificació dels permisos reals de GitHub.
 T8.9 substitueix els criteris històrics de classificació, diverses feines,
 represa entre temes i petició explícita de preview. Una persona no tècnica crea
 una notícia, hi afegeix una foto i canvia el text dues vegades al mateix tema:
-rep l'enllaç per veure-la sense demanar-lo, sense vocabulari tècnic en cap
+cada canvi arriba a la PR sense demanar-ho, encara que `main` hagi avançat, i la
+persona rep l'enllaç per veure-la sense demanar-lo, sense vocabulari tècnic en cap
 resposta. Una comprovació cancel·lada es reexecuta una vegada i no encalla el
 tema quan després queda verda. Els casos negatius i de recuperació de T8.9
 han de passar abans de donar-la per completada.
