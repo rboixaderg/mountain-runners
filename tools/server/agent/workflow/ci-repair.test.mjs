@@ -87,6 +87,51 @@ function executorFor({
   });
 }
 
+for (const scenario of ["green", "moved", "error"]) {
+  test(`rechecks the queued repair and updates its watch: ${scenario}`, async (context) => {
+    const store = fixture(context);
+    store.add(repairRequest);
+    store.beginSend(repairRequest.updateIdentifier, "repairing");
+    store.finishSend(repairRequest.updateIdentifier);
+    queueRepair(store, repairRequest);
+    let reads = 0;
+    let executed = false;
+    const executor = executorFor({
+      store,
+      telegram: fakeTelegram(),
+      runInstruction: async () => {
+        executed = true;
+      },
+      readPullRequest: async (options) => {
+        reads += 1;
+        if (scenario === "error" && reads === 2) throw new Error("network");
+        return {
+          ...openPullRequest(options),
+          headSha:
+            scenario === "moved" && reads === 2
+              ? "c".repeat(40)
+              : repairRequest.commitSha,
+        };
+      },
+      readCiState: async () => ({
+        state: scenario === "green" ? "success" : "failure",
+        failed: [],
+        pending: [],
+        missing: [],
+        ambiguous: [],
+      }),
+    });
+    await executor.runNext();
+    assert.equal(executed, false);
+    if (scenario !== "error")
+      assert.equal(
+        store.lastReported(repairRequest.sessionKey).result,
+        scenario === "green" ? "success" : "head-changed",
+      );
+    assert.equal(store.claimNextRepair(), null);
+  });
+}
+
 test("runs a queued repair through the instruction runner and reports the publication", async (context) => {
   const store = fixture(context);
   const queued = queueRepair(store, repairRequest);

@@ -86,12 +86,27 @@ export function createCiRepairExecutor({
         text,
         signal,
       });
+      return true;
     } catch (error) {
       // The attempt is already closed; a lost report never repeats the work.
       logger(
         "ci_repair_report_failed",
         error instanceof Error ? error.name : "unknown",
       );
+      return false;
+    }
+  }
+
+  async function reportLiveResult(repair, result, text, options) {
+    const claimed = repairs.beginRepairResult(
+      repair.update_identifier,
+      repair.commit_sha,
+      result,
+    );
+    const delivered = await report(repair, text, options);
+    if (claimed) {
+      if (delivered) repairs.finishSend(repair.update_identifier);
+      else repairs.markUncertain(repair.update_identifier);
     }
   }
 
@@ -192,10 +207,15 @@ export function createCiRepairExecutor({
         traceAction: "ci_repair_not_published",
         detail: `${describe(repair)} not applicable`,
       });
-      await report(repair, ciRepairReports.notApplicable(common), {
-        signal,
-        state: "not_applicable",
-      });
+      await reportLiveResult(
+        repair,
+        pullRequest.state !== "open" ? "pull-request-closed" : "head-changed",
+        ciRepairReports.notApplicable(common),
+        {
+          signal,
+          state: "not_applicable",
+        },
+      );
       return true;
     }
     // The queued attempt may be old: repairing a commit whose required checks
@@ -206,6 +226,28 @@ export function createCiRepairExecutor({
         commit: repair.commit_sha,
         signal: requestSignal(signal),
       });
+      const confirmed = await readPullRequest({
+        pullRequestNumber: repair.pull_request_number,
+        signal: requestSignal(signal),
+      });
+      if (
+        confirmed.state !== "open" ||
+        confirmed.headSha !== repair.commit_sha
+      ) {
+        close(repair, {
+          status: "done",
+          outcome: "declined",
+          traceAction: "ci_repair_not_published",
+          detail: `${describe(repair)} not applicable`,
+        });
+        await reportLiveResult(
+          repair,
+          confirmed.state !== "open" ? "pull-request-closed" : "head-changed",
+          ciRepairReports.notApplicable(common),
+          { signal, state: "not_applicable" },
+        );
+        return true;
+      }
     } catch (error) {
       if (signal?.aborted) {
         close(repair, {
@@ -252,7 +294,14 @@ export function createCiRepairExecutor({
           text: ciRepairReports.checksNotDecisive(common),
         };
       })();
-      await report(repair, notice.text, { signal, state: notice.state });
+      if (classification?.state === "success") {
+        await reportLiveResult(repair, "success", notice.text, {
+          signal,
+          state: notice.state,
+        });
+      } else {
+        await report(repair, notice.text, { signal, state: notice.state });
+      }
       return true;
     }
     let result;

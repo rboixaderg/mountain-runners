@@ -111,6 +111,48 @@ function workerFor({
   });
 }
 
+for (const scenario of ["green", "moved", "error"]) {
+  test(`rechecks before reserving a repair: ${scenario}`, async (context) => {
+    const { store } = fixture(context);
+    createCiWatchRegistration({ store })(registration);
+    let checks = 0;
+    let pulls = 0;
+    const github = {
+      async getCommitCheckRuns() {
+        checks += 1;
+        if (scenario === "error" && checks === 2) throw new Error("network");
+        return [
+          checkRun(
+            "Validate",
+            "completed",
+            scenario === "green" && checks === 2 ? "success" : "failure",
+          ),
+        ];
+      },
+      async getCommitStatuses() {
+        return [];
+      },
+      async getPullRequest() {
+        pulls += 1;
+        return {
+          state: "open",
+          headSha: scenario === "moved" && pulls === 2 ? nextCommit : commit,
+          htmlUrl: "https://github.com/example/project/pull/200",
+        };
+      },
+    };
+    await workerFor({ store, github, telegram: fakeTelegram() }).runOnce();
+    assert.equal(store.claimNextRepair(), null);
+    if (scenario === "error")
+      assert.equal(store.state(registration.updateIdentifier), "pending");
+    else
+      assert.equal(
+        store.lastReported(registration.sessionKey).result,
+        scenario === "green" ? "success" : "head-changed",
+      );
+  });
+}
+
 test("registers the watch for the exact published commit", (context) => {
   const { store } = fixture(context);
   const register = createCiWatchRegistration({ store });

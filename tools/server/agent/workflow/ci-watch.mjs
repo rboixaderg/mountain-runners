@@ -615,6 +615,31 @@ export function createCiWatchWorker({
           safeReset(watch.pull_request_number);
         }
         if (outcome.result === ciResults.failure) {
+          // A human may have rerun CI while the first read was in flight.
+          const current = await evaluateWatch({
+            watch,
+            github,
+            requiredChecks,
+            watchTimeoutMilliseconds,
+            requestTimeoutMilliseconds,
+            secrets,
+            now,
+            signal,
+          });
+          if (current === null) continue;
+          if (current.result !== ciResults.failure) {
+            if (current.result === ciResults.success)
+              safeReset(watch.pull_request_number);
+            const delivered = await deliver(watch, current, { signal });
+            if (
+              delivered &&
+              current.result === ciResults.success &&
+              watch.preview_author_identifier !== null
+            ) {
+              await requestStoredPreview(watch, { signal });
+            }
+            continue;
+          }
           if (repairs.uncertainRepairCount() > 0) {
             // An unknown repair blocks every automatic repair until a person
             // reconciles it; the failure is still reported.
@@ -631,7 +656,7 @@ export function createCiWatchWorker({
             });
             continue;
           }
-          await requestRepair(watch, outcome, { signal });
+          await requestRepair(watch, current, { signal });
           continue;
         }
         const delivered = await deliver(watch, outcome, { signal });
