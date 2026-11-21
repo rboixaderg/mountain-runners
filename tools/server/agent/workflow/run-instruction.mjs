@@ -897,6 +897,9 @@ export function createInstructionRunner({
               ]
             : []),
           ...(overlapWarning === null ? [] : [overlapWarning]),
+          ...(publication.previewLabelFailed
+            ? [instructionReports.previewLabelFailed]
+            : []),
         ],
       };
       const publicationText = publicationReport({

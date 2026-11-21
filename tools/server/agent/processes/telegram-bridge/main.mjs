@@ -365,7 +365,6 @@ export async function startService({
     verifyMembership: verifyAuthorMembership,
     github,
     repository: config.github.repository,
-    requiredChecks: config.github.requiredChecks,
     telegram,
     pollIntervalMilliseconds: config.limits.ciPollIntervalMs,
     confirmationTimeoutMilliseconds: previewConfirmationTimeoutMilliseconds,

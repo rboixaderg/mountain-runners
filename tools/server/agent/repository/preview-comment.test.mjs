@@ -4,7 +4,6 @@ import { confirmedPreviewOrigin } from "./preview-comment.mjs";
 
 const commit = "a".repeat(40);
 const origin = "https://pr-42.preview.mountainrunners.cat";
-const requestedAt = "2026-11-14T10:00:00Z";
 
 function publisherComment(overrides = {}) {
   return {
@@ -20,7 +19,6 @@ function confirmed(comment, overrides = {}) {
     comments: [comment],
     pullRequestNumber: 42,
     commit,
-    requestedAt,
     ...overrides,
   });
 }
@@ -86,21 +84,11 @@ test("rejects another commit, a missing marker and extra text", () => {
   );
 });
 
-test("rejects a comment not updated after the request", () => {
+test("accepts a comment written before the request began", () => {
+  // The label starts the build when the head is pushed, so the publisher can
+  // confirm the commit before anyone asks for the preview.
   assert.equal(
-    confirmed(publisherComment({ updated_at: "2026-11-14T09:59:59Z" })),
-    null,
-  );
-  assert.equal(confirmed(publisherComment({ updated_at: undefined })), null);
-});
-
-test("rejects a comment updated in the same second as the request", () => {
-  assert.equal(confirmed(publisherComment({ updated_at: requestedAt })), null);
-});
-
-test("accepts a comment updated one second after the request", () => {
-  assert.equal(
-    confirmed(publisherComment({ updated_at: "2026-11-14T10:00:01Z" })),
+    confirmed(publisherComment({ updated_at: "2020-01-01T00:00:00Z" })),
     origin,
   );
 });
@@ -110,12 +98,11 @@ test("finds the valid comment among unrelated ones", () => {
     confirmedPreviewOrigin({
       comments: [
         { user: { login: "person" }, body: "/preview" },
-        publisherComment({ updated_at: "2026-11-14T09:00:00Z" }),
+        publisherComment({ user: { login: "someone" } }),
         publisherComment(),
       ],
       pullRequestNumber: 42,
       commit,
-      requestedAt,
     }),
     origin,
   );
@@ -134,7 +121,6 @@ test("rejects a pull request number that is not a positive integer", () => {
           comments: [publisherComment()],
           pullRequestNumber: invalid,
           commit,
-          requestedAt,
         }),
       /positive pull request number/u,
       String(invalid),

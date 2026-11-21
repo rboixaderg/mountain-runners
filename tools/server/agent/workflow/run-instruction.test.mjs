@@ -179,6 +179,12 @@ function githubStub() {
   return {
     pushes: [],
     pulls: [],
+    labelled: [],
+    labelError: null,
+    async addPreviewLabel({ number }) {
+      if (this.labelError) throw this.labelError;
+      this.labelled.push(number);
+    },
     pullRequest: { state: "open" },
     async getPullRequest() {
       return this.pullRequest;
@@ -463,6 +469,66 @@ test("runs the full gate when the change also touches code outside the content",
   assert.equal(result.outcome, "pull_request_created");
   assert.deepEqual(commands, ["pnpm check"]);
   assert.match(github.pulls[0].body, /- `pnpm check` correcte/u);
+});
+
+test("puts the preview label on the pull request it creates and never again on an update", async (context) => {
+  const paths = await fixture(context);
+  const github = githubStub();
+  const runner = createProjectRunner({
+    config: configFor(paths),
+    classifyRequest: async () => ({ kind: "implementation" }),
+    github,
+    runModel: async ({ worktreePath }) => {
+      writeFileSync(join(worktreePath, "change.txt"), "canvi\n");
+      return { text: "Fet.\nSUMMARY: feat(content): add the news" };
+    },
+    runChecks: async () => ({ exitCode: 0, stdout: "", stderr: "" }),
+  });
+
+  const created = await runner(request());
+  assert.equal(created.outcome, "pull_request_created");
+  assert.deepEqual(github.labelled, [200]);
+  assert.doesNotMatch(created.report, /preview/u);
+
+  github.ensurePullRequest = async () => ({
+    pullRequest: {
+      number: 200,
+      htmlUrl: "https://github.com/rboixaderg/mountain-runners/pull/200",
+    },
+    created: false,
+  });
+  const updated = await runner(
+    request({ updateIdentifier: 1002, instruction: "afegeix-hi una data" }),
+  );
+  assert.equal(updated.outcome, "pull_request_updated");
+  assert.deepEqual(
+    github.labelled,
+    [200],
+    "an existing pull request is not labelled",
+  );
+});
+
+test("says plainly that the preview could not be activated and keeps the publication", async (context) => {
+  const paths = await fixture(context);
+  const github = githubStub();
+  github.labelError = new Error("GitHub refused the label");
+  const runner = createProjectRunner({
+    config: configFor(paths),
+    classifyRequest: async () => ({ kind: "implementation" }),
+    github,
+    runModel: async ({ worktreePath }) => {
+      writeFileSync(join(worktreePath, "change.txt"), "canvi\n");
+      return { text: "Fet.\nSUMMARY: feat(content): add the news" };
+    },
+    runChecks: async () => ({ exitCode: 0, stdout: "", stderr: "" }),
+  });
+
+  const result = await runner(request());
+
+  assert.equal(result.outcome, "pull_request_created");
+  assert.match(result.report, /No he pogut activar la preview d'aquest canvi/u);
+  assert.match(result.report, /El canvi està publicat\./u);
+  assert.doesNotMatch(result.report, /GitHub refused|\/preview/u);
 });
 
 test("sends the model answer with one plain notice and the review link after a publication", async (context) => {

@@ -150,39 +150,6 @@ test("ends an awaiting request only once", (context) => {
   store.close();
 });
 
-test("keeps the comment time of every request that posted it", (context) => {
-  const store = new PreviewRequestStore(fixture(context));
-  assert.deepEqual(store.commented(), []);
-
-  store.begin(request);
-  store.markAwaiting(1, "2026-11-14T10:00:00Z");
-  store.begin({ ...request, updateIdentifier: 2, commitSha: "b".repeat(40) });
-  store.markAwaiting(2, "2026-11-14T10:00:00Z");
-  // A request that ended still separates the runs of its neighbours.
-  store.finish(1, previewStates.failed);
-
-  assert.deepEqual(
-    store.commented().map((row) => ({
-      update_identifier: row.update_identifier,
-      state: row.state,
-      commented_at: row.commented_at,
-    })),
-    [
-      {
-        update_identifier: 1,
-        state: "failed",
-        commented_at: "2026-11-14T10:00:00Z",
-      },
-      {
-        update_identifier: 2,
-        state: "awaiting",
-        commented_at: "2026-11-14T10:00:00Z",
-      },
-    ],
-  );
-  store.close();
-});
-
 test("ends a confirmed request with the origin the publisher confirmed", (context) => {
   const store = new PreviewRequestStore(fixture(context));
   const origin = "https://pr-42.preview.mountainrunners.cat";
@@ -400,36 +367,5 @@ test("keeps the request moment as the comment of a reconciled post", (context) =
   assert.equal(store.state(1), previewStates.awaiting);
   assert.equal(store.awaiting()[0].commented_at, "2026-11-14T10:00:00.000Z");
   assert.equal(store.awaiting()[0].updated_at, "2026-11-14T12:00:00.000Z");
-  store.close();
-});
-
-test("bounds the posted comments by the oldest request that still waits", (context) => {
-  const store = new PreviewRequestStore(fixture(context));
-  store.begin({ ...request, updateIdentifier: 1 });
-  store.markAwaiting(1, "2026-11-14T09:00:00Z");
-  store.finish(1, previewStates.timedOut);
-  store.begin({ ...request, updateIdentifier: 2, commitSha: "b".repeat(40) });
-  store.markAwaiting(2, "2026-11-14T10:00:00Z");
-  store.begin({ ...request, updateIdentifier: 3, commitSha: "c".repeat(40) });
-  store.markAwaiting(3, "2026-11-14T10:00:00Z");
-
-  assert.deepEqual(
-    store
-      .commented({ since: "2026-11-14T10:00:00.000Z" })
-      .map((row) => row.update_identifier),
-    [2, 3],
-    "an older comment cannot bound a request that waits",
-  );
-  assert.deepEqual(
-    store.commented().map((row) => row.update_identifier),
-    [1, 2, 3],
-  );
-  // A bound that cannot be read says nothing: every comment is kept.
-  assert.deepEqual(
-    store
-      .commented({ since: "not a timestamp" })
-      .map((row) => row.update_identifier),
-    [1, 2, 3],
-  );
   store.close();
 });

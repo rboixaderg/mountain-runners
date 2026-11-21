@@ -908,12 +908,6 @@ test("resumes a preview awaiting the publisher after a restart", async (context)
           },
         ];
       },
-      async listPreviewWorkflowRuns() {
-        return [];
-      },
-      async getAuthenticatedLogin() {
-        return "mountain-agent-bot";
-      },
     },
     runner: async () => ({}),
   });
@@ -1442,7 +1436,6 @@ test("still runs an instruction admitted before its author left the group", asyn
 test("verifies the membership again when the preview request runs", async (context) => {
   const { environment } = environmentFor(context);
   const commit = "a".repeat(40);
-  const posted = [];
   const membershipReads = [];
   const memberStatus = { value: "left" };
   const service = await startService({
@@ -1460,19 +1453,8 @@ test("verifies the membership again when the preview request runs", async (conte
           state: "open",
           headSha: commit,
           headRepository: "rboixaderg/mountain-runners",
+          previewLabeled: true,
         };
-      },
-      async getCommitCheckRuns() {
-        return [
-          { name: "Validate", status: "completed", conclusion: "success" },
-        ];
-      },
-      async getCommitStatuses() {
-        return [];
-      },
-      async commentOnPullRequest({ number, body }) {
-        posted.push({ number, body });
-        return { createdAt: "2026-11-14T10:00:00Z" };
       },
     },
     runner: async () => ({}),
@@ -1503,7 +1485,6 @@ test("verifies the membership again when the preview request runs", async (conte
     .traceEntries()
     .find((entry) => entry.action === "preview_refused");
   assert.match(revoked.report, /no constes com a membre/u);
-  assert.deepEqual(posted, []);
   assert.equal(service.previewRequests.state(20), undefined);
   assert.equal(refusal.detail, "membership_revoked");
 
@@ -1513,8 +1494,7 @@ test("verifies the membership again when the preview request runs", async (conte
     .traceEntries()
     .find((entry) => entry.action === "preview_membership_verified");
 
-  assert.match(verified.report, /Ja he demanat la preview/u);
-  assert.deepEqual(posted, [{ number: 200, body: "/preview" }]);
+  assert.match(verified.report, /La preview d'aquest canvi s'està preparant/u);
   assert.equal(service.previewRequests.state(21), "awaiting");
   assert.equal(verifiedTrace.detail, `#200 ${"a".repeat(7)}`);
   assert.equal(verifiedTrace.author_identifier, 555);

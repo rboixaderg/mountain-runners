@@ -98,14 +98,12 @@ export function createLiveTopicStateReader({
       ) {
         const comments = await github.listIssueComments({
           number,
-          since: request.commented_at,
           signal,
         });
         origin = confirmedPreviewOrigin({
           comments,
           pullRequestNumber: number,
           commit: live.pullRequest.headSha,
-          requestedAt: request.commented_at,
         });
         preview = origin ? "confirmed" : "not confirmed by the publisher";
       }

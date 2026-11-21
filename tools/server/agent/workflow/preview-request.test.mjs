@@ -5,14 +5,10 @@ import { join } from "node:path";
 import { test } from "node:test";
 import { verifyMembership } from "telegram-pi-bridge/telegram";
 import { CiWatchStore } from "../repository/ci-watch-store.mjs";
-import { GitHubResponseError } from "../repository/github.mjs";
 import { PreviewRequestStore } from "../repository/preview-request-store.mjs";
 import { SessionNoteStore } from "../repository/session-note-store.mjs";
 import { requestSignal } from "../repository/request-signal.mjs";
-import {
-  previewConfirmationTimeoutMilliseconds,
-  previewRunsRetryMilliseconds,
-} from "../policy/development.mjs";
+import { previewConfirmationTimeoutMilliseconds } from "../policy/development.mjs";
 import { createCiWatchRegistration, createCiWatchWorker } from "./ci-watch.mjs";
 import { createPreviewRequests } from "./preview-request.mjs";
 
@@ -21,7 +17,6 @@ const groupIdentifier = "-1001234567890";
 const commit = "a".repeat(40);
 const sessionKey = "-1001234567890:7";
 const origin = "https://pr-200.preview.mountainrunners.cat";
-const serviceLogin = "mountain-agent-bot";
 const confirmationTimeoutMilliseconds = 15 * 60 * 1000;
 
 function fixture(context, now) {
@@ -65,90 +60,47 @@ function publisherComment(overrides = {}) {
   };
 }
 
-/**
- * One run of the preview workflow, as the trusted component reduces it: the
- * workflow runs for every comment of every pull request, so the run names the
- * accounts that started it and the service keeps only its own.
- */
-function workflowRun(overrides = {}) {
-  return {
-    identifier: 900,
-    event: "issue_comment",
-    createdAt: "2026-11-14T10:00:30Z",
-    status: "completed",
-    conclusion: "success",
-    actor: serviceLogin,
-    triggeringActor: serviceLogin,
-    ...overrides,
-  };
-}
-
 function assertBoundPullRequest(number) {
   assert.equal(number, 200, "only the bound pull request may be used");
 }
 
 function fakeGithub(state = {}) {
+  // The fake has no operation to comment or to label: the handler must never
+  // post `/preview`, set a label or read workflow runs, and a call fails.
   const github = {
-    posts: [],
-    serviceLogin,
-    identityReads: 0,
-    identityError: null,
     pullRequest: {
       state: "open",
       headSha: commit,
       headRepository: repository,
+      previewLabeled: true,
       htmlUrl: `https://github.com/${repository}/pull/200`,
     },
+    // The CI watch reads the required checks of the same fake.
     checkRuns: [
       { name: "Validate", status: "completed", conclusion: "success" },
     ],
-    checkCommits: [],
     statuses: [],
     comments: [],
-    runs: [],
-    runListings: [],
-    postError: null,
     readError: null,
     listError: null,
-    runsError: null,
-    postedAt: "2026-11-14T10:00:00Z",
     listings: [],
-    beforePost: null,
     ...state,
     async getPullRequest({ number }) {
       assertBoundPullRequest(number);
       if (github.readError) throw github.readError;
       return github.pullRequest;
     },
-    async getCommitCheckRuns({ commit }) {
-      github.checkCommits.push(commit);
+    async getCommitCheckRuns() {
       return github.checkRuns;
     },
     async getCommitStatuses() {
       return github.statuses;
-    },
-    async commentOnPullRequest({ number, body }) {
-      assertBoundPullRequest(number);
-      github.beforePost?.();
-      if (github.postError) throw github.postError;
-      github.posts.push({ number, body });
-      return { createdAt: github.postedAt };
     },
     async listIssueComments({ number, since }) {
       assertBoundPullRequest(number);
       github.listings.push(since);
       if (github.listError) throw github.listError;
       return github.comments;
-    },
-    async listPreviewWorkflowRuns({ createdSince }) {
-      github.runListings.push(createdSince);
-      if (github.runsError) throw github.runsError;
-      return github.runs;
-    },
-    async getAuthenticatedLogin() {
-      github.identityReads += 1;
-      if (github.identityError) throw github.identityError;
-      return github.serviceLogin;
     },
   };
   return github;
@@ -180,7 +132,6 @@ function setup(context, { github = fakeGithub() } = {}) {
       },
       github,
       repository,
-      requiredChecks: ["Validate"],
       telegram,
       pollIntervalMilliseconds: 1,
       confirmationTimeoutMilliseconds,
@@ -221,72 +172,18 @@ function actions(traces) {
   return traces.map((entry) => entry.action);
 }
 
-for (const scenario of [
-  "head moved",
-  "checks failed",
-  "read failed",
-  "head moved during read",
-]) {
-  test(`refuses before posting when ${scenario}`, async (context) => {
-    const { ciWatches, handler, github, previews, traces } = setup(context);
-    reportGreen(ciWatches);
-    const begin = previews.begin.bind(previews);
-    previews.begin = (input) => {
-      const result = begin(input);
-      if (scenario === "head moved")
-        github.pullRequest.headSha = "b".repeat(40);
-      if (scenario === "checks failed")
-        github.checkRuns = [
-          { name: "Validate", status: "completed", conclusion: "failure" },
-        ];
-      if (scenario === "read failed") github.readError = new Error("network");
-      if (scenario === "head moved during read") {
-        github.getCommitCheckRuns = async () => {
-          github.pullRequest = {
-            ...github.pullRequest,
-            headSha: "b".repeat(40),
-          };
-          return github.checkRuns;
-        };
-      }
-      return result;
-    };
-    const result = await handler.handle(request());
-    assert.equal(result.outcome, "answered");
-    assert.deepEqual(github.posts, []);
-    assert.equal(previews.state(20), "failed");
-    const expected = {
-      "head moved": "head_moved",
-      "checks failed": "checks_not_green",
-      "read failed": "unreadable",
-      "head moved during read": "unreadable",
-    };
-    assert.match(
-      traces.at(-1).detail,
-      new RegExp(`^${expected[scenario]} `, "u"),
-    );
-  });
-}
-
-test("posts exactly /preview once for the reported green commit", async (context) => {
-  const { ciWatches, handler, github, membership, previews, traces } =
-    setup(context);
+test("waits for the publisher of the reported commit without posting anything", async (context) => {
+  const { ciWatches, handler, membership, previews, traces } = setup(context);
   reportGreen(ciWatches);
-  let stateDuringPost;
-  github.beforePost = () => {
-    stateDuringPost = previews.state(20);
-  };
 
   const result = await handler.handle(request());
 
   assert.equal(result.outcome, "answered");
-  assert.match(result.report, /Ja he demanat la preview/u);
+  assert.match(result.report, /La preview d'aquest canvi s'està preparant/u);
   assert.match(
     result.report,
     /Enllaç per a revisió: https:\/\/github\.com\/rboixaderg\/mountain-runners\/pull\/200/u,
   );
-  assert.deepEqual(github.posts, [{ number: 200, body: "/preview" }]);
-  assert.equal(stateDuringPost, "commenting");
   assert.equal(previews.state(20), "awaiting");
   assert.deepEqual(membership.calls, [555]);
   assert.deepEqual(actions(traces), [
@@ -304,8 +201,7 @@ test("posts exactly /preview once for the reported green commit", async (context
 });
 
 test("refuses the older green notice while a newer publication is unknown", async (context) => {
-  const { ciWatches, handler, github, membership, previews, traces } =
-    setup(context);
+  const { ciWatches, handler, membership, previews, traces } = setup(context);
   reportGreen(ciWatches);
   // A newer publication was pushed, but its notice ended unknown.
   ciWatches.add({
@@ -327,7 +223,6 @@ test("refuses the older green notice while a newer publication is unknown", asyn
   );
   assert.doesNotMatch(result.report, /pull\/200/u);
   assert.match(result.report, /No s'ha demanat cap preview/u);
-  assert.deepEqual(github.posts, []);
   assert.deepEqual(membership.calls, []);
   assert.equal(previews.state(20), undefined);
   assert.deepEqual(actions(traces), ["preview_refused"]);
@@ -335,7 +230,7 @@ test("refuses the older green notice while a newer publication is unknown", asyn
 });
 
 test("refuses even when the unknown notice is older than the delivered one", async (context) => {
-  const { ciWatches, handler, github, previews, traces } = setup(context);
+  const { ciWatches, handler, previews, traces } = setup(context);
   // An earlier publication was never confirmed.
   ciWatches.add({
     updateIdentifier: 9,
@@ -355,14 +250,13 @@ test("refuses even when the unknown notice is older than the delivered one", asy
     result.report,
     /Enllaç per a revisió: https:\/\/github\.com\/rboixaderg\/mountain-runners\/pull\/198/u,
   );
-  assert.deepEqual(github.posts, []);
   assert.equal(previews.state(20), undefined);
   assert.deepEqual(actions(traces), ["preview_refused"]);
   assert.equal(traces[0].detail, "newer_work #198 ccccccc");
 });
 
 test("refuses while an automatic repair is preparing the newer change", async (context) => {
-  const { ciWatches, handler, github, previews, traces } = setup(context);
+  const { ciWatches, handler, previews, traces } = setup(context);
   reportGreen(ciWatches);
   // The newer work is a repair: its new commit does not exist yet.
   ciWatches.requestRepair({
@@ -384,14 +278,12 @@ test("refuses while an automatic repair is preparing the newer change", async (c
     /s'està preparant un canvi pendent de comprovar/u,
   );
   assert.doesNotMatch(result.report, /aaaaaa/u);
-  assert.deepEqual(github.posts, []);
   assert.equal(previews.state(20), undefined);
   assert.equal(traces[0].detail, "newer_work #200 repair");
 });
 
 test("refuses the preview when the author left the group before it ran", async (context) => {
-  const { ciWatches, handler, github, membership, previews, traces } =
-    setup(context);
+  const { ciWatches, handler, membership, previews, traces } = setup(context);
   reportGreen(ciWatches);
 
   membership.result = { verified: false, reason: "not_a_group_member" };
@@ -405,7 +297,6 @@ test("refuses the preview when the author left the group before it ran", async (
     /Enllaç per a revisió: https:\/\/github\.com\/rboixaderg\/mountain-runners\/pull\/200/u,
   );
   assert.deepEqual(membership.calls, [555]);
-  assert.deepEqual(github.posts, []);
   assert.equal(previews.state(20), undefined);
   assert.deepEqual(actions(traces), ["preview_requested", "preview_refused"]);
   assert.equal(traces[1].detail, "membership_revoked");
@@ -413,8 +304,7 @@ test("refuses the preview when the author left the group before it ran", async (
 });
 
 test("refuses the preview when the membership check fails", async (context) => {
-  const { ciWatches, handler, github, membership, previews, traces } =
-    setup(context);
+  const { ciWatches, handler, membership, previews, traces } = setup(context);
   reportGreen(ciWatches);
 
   membership.result = { verified: false, reason: "membership_check_failed" };
@@ -423,7 +313,6 @@ test("refuses the preview when the membership check fails", async (context) => {
   assert.equal(result.outcome, "answered");
   assert.match(result.report, /No he pogut comprovar que siguis al grup/u);
   assert.match(result.report, /torna-ho a demanar/u);
-  assert.deepEqual(github.posts, []);
   assert.equal(previews.state(20), undefined);
   assert.deepEqual(actions(traces), ["preview_requested", "preview_refused"]);
   assert.equal(traces[1].detail, "membership_unavailable");
@@ -458,7 +347,7 @@ function boundedMembership(timeoutMilliseconds) {
 }
 
 test("a service stop during the membership read aborts instead of refusing", async (context) => {
-  const { ciWatches, github, previews, traces, buildHandler } = setup(context);
+  const { ciWatches, previews, traces, buildHandler } = setup(context);
   reportGreen(ciWatches);
   const controller = new AbortController();
   const handler = buildHandler({
@@ -470,13 +359,12 @@ test("a service stop during the membership read aborts instead of refusing", asy
   controller.abort();
 
   await assert.rejects(pending, { name: "AbortError" });
-  assert.deepEqual(github.posts, []);
   assert.equal(previews.state(20), undefined);
   assert.deepEqual(actions(traces), ["preview_requested"]);
 });
 
 test("a membership read that runs out of its deadline refuses and asks to retry", async (context) => {
-  const { ciWatches, github, previews, traces, buildHandler } = setup(context);
+  const { ciWatches, previews, traces, buildHandler } = setup(context);
   reportGreen(ciWatches);
   const handler = buildHandler({ verifyMembership: boundedMembership(10) });
 
@@ -485,7 +373,6 @@ test("a membership read that runs out of its deadline refuses and asks to retry"
   assert.equal(result.outcome, "answered");
   assert.match(result.report, /No he pogut comprovar que siguis al grup/u);
   assert.match(result.report, /torna-ho a demanar/u);
-  assert.deepEqual(github.posts, []);
   assert.equal(previews.state(20), undefined);
   assert.deepEqual(
     traces.map((entry) => [entry.action, entry.detail]),
@@ -497,19 +384,18 @@ test("a membership read that runs out of its deadline refuses and asks to retry"
 });
 
 test("refuses without a pull request reported in the topic", async (context) => {
-  const { handler, github, traces } = setup(context);
+  const { handler, traces } = setup(context);
 
   const result = await handler.handle(request());
   assert.match(
     result.report,
     /no hi ha cap canvi amb totes les comprovacions/u,
   );
-  assert.deepEqual(github.posts, []);
   assert.equal(traces[0].detail, "no_reported_commit");
 });
 
 test("requests a preview after a human rerun makes a repairing watch green", async (context) => {
-  const { ciWatches, handler, github, previews } = setup(context);
+  const { ciWatches, handler, previews } = setup(context);
   ciWatches.add({
     updateIdentifier: 10,
     sessionKey,
@@ -521,14 +407,12 @@ test("requests a preview after a human rerun makes a repairing watch green", asy
 
   const result = await handler.handle(request());
 
-  assert.match(result.report, /Ja he demanat la preview/u);
-  assert.deepEqual(github.posts, [{ number: 200, body: "/preview" }]);
+  assert.match(result.report, /s'està preparant/u);
   assert.equal(previews.state(20), "awaiting");
-  assert.deepEqual(github.checkCommits, [commit, commit]);
 });
 
 test("never accepts a PR or commit from the request text", async (context) => {
-  const { ciWatches, handler, github } = setup(context);
+  const { ciWatches, handler, previews } = setup(context);
   reportGreen(ciWatches);
 
   await handler.handle({
@@ -536,43 +420,11 @@ test("never accepts a PR or commit from the request text", async (context) => {
     instruction: `preview de la PR #999 al commit ${"f".repeat(40)}`,
   });
 
-  assert.deepEqual(github.posts, [{ number: 200, body: "/preview" }]);
+  assert.equal(previews.awaiting()[0].pull_request_number, 200);
+  assert.equal(previews.awaiting()[0].commit_sha, commit);
 });
 
 const refusalCases = [
-  [
-    "red required check",
-    {
-      checkRuns: [
-        { name: "Validate", status: "completed", conclusion: "failure" },
-      ],
-    },
-    /encara no estan totes correctes/u,
-  ],
-  [
-    "pending required check",
-    {
-      checkRuns: [
-        { name: "Validate", status: "in_progress", conclusion: null },
-      ],
-    },
-    /encara no estan totes correctes/u,
-  ],
-  [
-    "missing required check",
-    { checkRuns: [] },
-    /encara no estan totes correctes/u,
-  ],
-  [
-    "ambiguous required check",
-    {
-      checkRuns: [
-        { name: "Validate", status: "completed", conclusion: "success" },
-        { name: "Validate", status: "completed", conclusion: "success" },
-      ],
-    },
-    /encara no estan totes correctes/u,
-  ],
   [
     "closed pull request",
     {
@@ -601,6 +453,18 @@ const refusalCases = [
     /no ve del repositori del club/u,
   ],
   [
+    "pull request without the preview label",
+    {
+      pullRequest: {
+        state: "open",
+        headSha: commit,
+        headRepository: repository,
+        previewLabeled: false,
+      },
+    },
+    /no té la preview activada/u,
+  ],
+  [
     "unreadable state",
     { readError: new Error("HTTP 500") },
     /No he pogut llegir/u,
@@ -608,8 +472,8 @@ const refusalCases = [
 ];
 
 for (const [name, state, text] of refusalCases) {
-  test(`refuses and posts nothing: ${name}`, async (context) => {
-    const { ciWatches, handler, github, previews, traces } = setup(context, {
+  test(`refuses and waits for nothing: ${name}`, async (context) => {
+    const { ciWatches, handler, previews, traces } = setup(context, {
       github: fakeGithub(state),
     });
     reportGreen(ciWatches);
@@ -618,7 +482,6 @@ for (const [name, state, text] of refusalCases) {
 
     assert.equal(result.outcome, "answered");
     assert.match(result.report, text);
-    assert.deepEqual(github.posts, []);
     assert.equal(previews.state(20), undefined);
     assert.ok(actions(traces).includes("preview_refused"));
   });
@@ -628,20 +491,14 @@ test("previews the current head when a maintainer updated it outside the agent",
   const { ciWatches, handler, github, previews, sent, traces } = setup(context);
   reportGreen(ciWatches);
   // The maintainer merged main into the pull request branch after the reported
-  // notice: the head is newer and its required checks are green.
+  // notice: the head is newer.
   const movedCommit = "b".repeat(40);
   github.pullRequest = { ...github.pullRequest, headSha: movedCommit };
 
   const result = await handler.handle(request());
 
   assert.equal(result.outcome, "answered");
-  assert.match(result.report, /Ja he demanat la preview/u);
-  assert.deepEqual(github.posts, [{ number: 200, body: "/preview" }]);
-  assert.deepEqual(
-    github.checkCommits,
-    [movedCommit, movedCommit],
-    "the required checks are read for the head, not the reported commit",
-  );
+  assert.match(result.report, /s'està preparant/u);
   assert.equal(previews.state(20), "awaiting");
   assert.equal(
     previews.awaiting()[0].commit_sha,
@@ -671,36 +528,8 @@ test("previews the current head when a maintainer updated it outside the agent",
   assert.equal(confirmation.detail, "#200 bbbbbbb");
 });
 
-test("refuses a moved head whose required checks are not green", async (context) => {
-  const { ciWatches, handler, github, previews, traces } = setup(context);
-  reportGreen(ciWatches);
-  const movedCommit = "c".repeat(40);
-  github.pullRequest = { ...github.pullRequest, headSha: movedCommit };
-  github.checkRuns = [
-    { name: "Validate", status: "completed", conclusion: "failure" },
-  ];
-
-  const result = await handler.handle(request());
-
-  assert.equal(result.outcome, "answered");
-  assert.match(result.report, /Les comprovacions d'aquest canvi encara no/u);
-  assert.deepEqual(
-    github.checkCommits,
-    [movedCommit],
-    "the head is the commit whose checks decide",
-  );
-  assert.deepEqual(github.posts, []);
-  assert.equal(previews.state(20), undefined);
-  assert.deepEqual(actions(traces), [
-    "preview_requested",
-    "preview_membership_verified",
-    "preview_refused",
-  ]);
-  assert.equal(traces[2].detail, "checks_not_green #200 ccccccc");
-});
-
-test("refuses a closed proposal without posting anything", async (context) => {
-  const { ciWatches, handler, github, previews, traces } = setup(context, {
+test("refuses a closed proposal without waiting for anything", async (context) => {
+  const { ciWatches, handler, previews, traces } = setup(context, {
     github: fakeGithub({
       pullRequest: {
         state: "closed",
@@ -718,7 +547,6 @@ test("refuses a closed proposal without posting anything", async (context) => {
     result.report,
     /Aquesta proposta ja està tancada, així que no se'n pot fer la preview/u,
   );
-  assert.deepEqual(github.posts, []);
   assert.equal(previews.state(20), undefined);
   assert.deepEqual(actions(traces), [
     "preview_requested",
@@ -728,30 +556,30 @@ test("refuses a closed proposal without posting anything", async (context) => {
   assert.equal(traces[2].detail, "not_applicable #200 aaaaaaa");
 });
 
-test("does not post twice for a duplicate update", async (context) => {
-  const { ciWatches, handler, github } = setup(context);
+test("does not handle a duplicate update twice", async (context) => {
+  const { ciWatches, handler, previews } = setup(context);
   reportGreen(ciWatches);
 
   await handler.handle(request());
   const duplicate = await handler.handle(request());
 
   assert.match(duplicate.report, /ja s'havia atès/u);
-  assert.equal(github.posts.length, 1);
+  assert.equal(previews.awaiting().length, 1);
 });
 
 test("refuses a repeat while the request awaits confirmation", async (context) => {
-  const { ciWatches, handler, github } = setup(context);
+  const { ciWatches, handler, previews } = setup(context);
   reportGreen(ciWatches);
 
   await handler.handle(request(20));
   const repeated = await handler.handle(request(21));
 
   assert.match(repeated.report, /ja està demanada i encara no ha acabat/u);
-  assert.equal(github.posts.length, 1);
+  assert.equal(previews.awaiting().length, 1);
 });
 
 test("allows a repeat for the same commit after the previous one was confirmed", async (context) => {
-  const { ciWatches, handler, github, sent } = setup(context);
+  const { ciWatches, handler, github, previews, sent } = setup(context);
   reportGreen(ciWatches);
   await handler.handle(request(20));
   github.comments = [publisherComment()];
@@ -760,12 +588,12 @@ test("allows a repeat for the same commit after the previous one was confirmed",
 
   const repeated = await handler.handle(request(21));
 
-  assert.match(repeated.report, /Ja he demanat la preview/u);
-  assert.equal(github.posts.length, 2);
+  assert.match(repeated.report, /s'està preparant/u);
+  assert.equal(previews.state(21), "awaiting");
 });
 
 test("allows a repeat after the previous one was not confirmed in time", async (context) => {
-  const { ciWatches, handler, github, advance } = setup(context);
+  const { ciWatches, handler, previews, advance } = setup(context);
   reportGreen(ciWatches);
   await handler.handle(request(20));
   advance(confirmationTimeoutMilliseconds);
@@ -773,11 +601,52 @@ test("allows a repeat after the previous one was not confirmed in time", async (
 
   await handler.handle(request(21));
 
-  assert.equal(github.posts.length, 2);
+  assert.equal(previews.state(21), "awaiting");
+});
+
+test("two pushes in a row report only the address of the final head", async (context) => {
+  const { ciWatches, handler, github, previews, sent, traces } = setup(context);
+  reportGreen(ciWatches);
+  await handler.handle(request(20));
+  const finalCommit = "c".repeat(40);
+  github.pullRequest = { ...github.pullRequest, headSha: finalCommit };
+  reportGreen(ciWatches, 11, finalCommit);
+  await handler.handle(request(21));
+
+  // The publisher comment still names the first head: it is never reported.
+  github.comments = [publisherComment()];
+  await handler.runOnce();
+  assert.deepEqual(sent, []);
+  assert.equal(previews.state(20), "failed");
+  assert.equal(previews.state(21), "awaiting");
+
+  github.comments = [
+    publisherComment({
+      body: `<!-- mountain-runners-preview -->\nPreview publicada: ${origin}\nCommit: \`${finalCommit}\`.`,
+    }),
+  ];
+  await handler.runOnce();
+
+  assert.equal(sent.length, 1);
+  assert.match(sent[0].text, /pr-200\.preview\.mountainrunners\.cat/u);
+  assert.equal(previews.state(21), "confirmed");
+  assert.ok(actions(traces).includes("preview_superseded"));
+});
+
+test("confirms a commit the publisher already published before the request", async (context) => {
+  const { ciWatches, handler, github, previews, sent } = setup(context);
+  reportGreen(ciWatches);
+  github.comments = [publisherComment({ updated_at: "2026-11-14T09:00:00Z" })];
+
+  await handler.handle(request());
+  await handler.runOnce();
+
+  assert.equal(previews.state(20), "confirmed");
+  assert.equal(sent.length, 1);
 });
 
 test("a new green commit allows a new request while the old one waits", async (context) => {
-  const { ciWatches, handler, github } = setup(context);
+  const { ciWatches, handler, github, previews } = setup(context);
   reportGreen(ciWatches);
   await handler.handle(request(20));
 
@@ -786,26 +655,7 @@ test("a new green commit allows a new request while the old one waits", async (c
   reportGreen(ciWatches, 11, newCommit);
   await handler.handle(request(21));
 
-  assert.equal(github.posts.length, 2);
-});
-
-test("an unknown post result is uncertain and never retried", async (context) => {
-  const { ciWatches, handler, github, previews, traces } = setup(context, {
-    github: fakeGithub({ postError: new Error("socket hang up") }),
-  });
-  reportGreen(ciWatches);
-
-  const result = await handler.handle(request());
-
-  assert.equal(result.outcome, "uncertain");
-  assert.match(result.report, /No sé si la petició de preview ha arribat/u);
-  assert.equal(previews.state(20), "uncertain");
-  assert.equal(previews.uncertainCount(), 1);
-  github.postError = null;
-  const repeated = await handler.handle(request(21));
-  assert.match(repeated.report, /ja està demanada i encara no ha acabat/u);
-  assert.deepEqual(github.posts, []);
-  assert.ok(actions(traces).includes("preview_uncertain"));
+  assert.equal(previews.awaiting().length, 2);
 });
 
 test("confirms through the publisher comment and reports the confirmed address", async (context) => {
@@ -832,10 +682,9 @@ test("confirms through the publisher comment and reports the confirmed address",
     /Enllaç per a revisió: https:\/\/github\.com\/rboixaderg\/mountain-runners\/pull\/200/u,
   );
   assert.doesNotMatch(sent[0].text, /commit/u);
-  assert.deepEqual(github.listings, [
-    "2026-11-14T10:00:01.000Z",
-    "2026-11-14T10:00:01.000Z",
-  ]);
+  // Every comment is read: the label starts the build when the head is pushed,
+  // so the publisher can confirm it before the request began.
+  assert.deepEqual(github.listings, [undefined, undefined]);
   const confirmation = traces.find(
     (entry) => entry.action === "preview_confirmed",
   );
@@ -969,394 +818,6 @@ test("the deadline survives a restart and is not reset by it", async (context) =
   assert.match(sent[0].text, /No he pogut confirmar que la preview/u);
 });
 
-test("reports a preview run that ended badly and ends the request as failed", async (context) => {
-  const { ciWatches, github, previews, sent, traces, buildHandler } =
-    setup(context);
-  const notes = [];
-  const handler = buildHandler({
-    recordServiceNote: (note) => notes.push(note),
-  });
-  reportGreen(ciWatches);
-  await handler.handle(request());
-  github.runs = [workflowRun({ conclusion: "failure" })];
-
-  await handler.runOnce();
-
-  assert.equal(sent.length, 1);
-  assert.equal(
-    sent[0].text,
-    `La preview no s'ha pogut preparar i no s'ha publicat res. Si vols, digues-m'ho i ho miro.\nEnllaç per a revisió: https://github.com/rboixaderg/mountain-runners/pull/200`,
-  );
-  assert.equal(previews.state(20), "failed");
-  assert.deepEqual(notes, [
-    {
-      sessionKey,
-      text: "Preview de la PR #200 (commit aaaaaaa) no publicada: el flux de preview ha acabat amb una fallada i no hi ha cap adreça. No s'ha reintentat automàticament.",
-      // The last text of the topic is what the person read: the plain reply,
-      // never the technical note.
-      receivedText: sent[0].text,
-      effectKey: "preview:20:failed_run",
-    },
-  ]);
-  assert.deepEqual(github.runListings, ["2026-11-14T10:00:00.000Z"]);
-  const failure = traces.find((entry) => entry.action === "preview_failed_run");
-  assert.equal(failure.detail, "#200 aaaaaaa failure run 900");
-  assert.equal(failure.authorIdentifier, 555);
-});
-
-test("asks for the runs from the earliest comment instant", async (context) => {
-  const { ciWatches, handler, github } = setup(context);
-  reportGreen(ciWatches);
-  await handler.handle(request(20));
-
-  // GitHub timestamps have second granularity; the store writes milliseconds.
-  // Both comments are the same second, and the string order would pick the later
-  // one and hide the run created in between.
-  const newCommit = "b".repeat(40);
-  github.pullRequest = { ...github.pullRequest, headSha: newCommit };
-  github.postedAt = "2026-11-14T10:00:00.500Z";
-  reportGreen(ciWatches, 11, newCommit);
-  await handler.handle(request(21));
-
-  await handler.runOnce();
-
-  assert.deepEqual(github.runListings, ["2026-11-14T10:00:00.000Z"]);
-});
-
-test("a failed run notice that cannot be sent keeps the request awaiting", async (context) => {
-  const { ciWatches, handler, github, previews, sent, telegram } =
-    setup(context);
-  reportGreen(ciWatches);
-  await handler.handle(request());
-  github.runs = [workflowRun({ conclusion: "timed_out" })];
-
-  telegram.sendError = new Error("telegram down");
-  await handler.runOnce();
-  assert.deepEqual(sent, []);
-  assert.equal(previews.state(20), "awaiting");
-
-  telegram.sendError = null;
-  await handler.runOnce();
-  assert.equal(sent.length, 1);
-  assert.equal(previews.state(20), "failed");
-});
-
-test("ignores a run created before the service comment", async (context) => {
-  const { ciWatches, handler, github, previews, sent } = setup(context);
-  reportGreen(ciWatches);
-  await handler.handle(request());
-  // The run of the previous request, created one second before this comment.
-  github.runs = [
-    workflowRun({ createdAt: "2026-11-14T09:59:59Z", conclusion: "failure" }),
-  ];
-
-  await handler.runOnce();
-
-  assert.deepEqual(sent, []);
-  assert.equal(previews.state(20), "awaiting");
-});
-
-test("ignores a run that another account started", async (context) => {
-  const { ciWatches, handler, github, previews, sent } = setup(context);
-  reportGreen(ciWatches);
-  await handler.handle(request());
-  // The workflow runs for every comment of every pull request.
-  github.runs = [
-    workflowRun({
-      conclusion: "failure",
-      actor: "someone-else",
-      triggeringActor: "someone-else",
-    }),
-  ];
-
-  await handler.runOnce();
-
-  assert.deepEqual(sent, []);
-  assert.equal(previews.state(20), "awaiting");
-});
-
-test("keeps a run that a person re-ran for the service", async (context) => {
-  const { ciWatches, handler, github, previews, sent } = setup(context);
-  reportGreen(ciWatches);
-  await handler.handle(request());
-  github.runs = [
-    workflowRun({ conclusion: "failure", triggeringActor: "a-maintainer" }),
-  ];
-
-  await handler.runOnce();
-
-  assert.equal(sent.length, 1);
-  assert.equal(previews.state(20), "failed");
-});
-
-test("a publisher confirmation wins over a failed run", async (context) => {
-  const { ciWatches, handler, github, previews, sent } = setup(context);
-  reportGreen(ciWatches);
-  await handler.handle(request());
-  github.comments = [publisherComment()];
-  github.runs = [workflowRun({ conclusion: "failure" })];
-
-  await handler.runOnce();
-
-  assert.equal(sent.length, 1);
-  assert.equal(
-    sent[0].text,
-    `La preview ja està a punt: ${origin}\nEnllaç per a revisió: https://github.com/rboixaderg/mountain-runners/pull/200`,
-  );
-  assert.equal(previews.state(20), "confirmed");
-});
-
-test("orders two runs of the same instant by identifier", async (context) => {
-  const { ciWatches, handler, github, previews, traces } = setup(context);
-  reportGreen(ciWatches);
-  await handler.handle(request());
-  // GitHub returns the newest first: the oldest identifier is the first run.
-  github.runs = [
-    workflowRun({ identifier: 901, conclusion: "success" }),
-    workflowRun({ identifier: 900, conclusion: "failure" }),
-  ];
-
-  await handler.runOnce();
-
-  assert.equal(previews.state(20), "failed");
-  const failure = traces.find((entry) => entry.action === "preview_failed_run");
-  assert.equal(failure.detail, "#200 aaaaaaa failure run 900");
-});
-
-test("a successful run that the publisher never confirms ends unconfirmed", async (context) => {
-  const { ciWatches, handler, github, previews, sent, advance } =
-    setup(context);
-  reportGreen(ciWatches);
-  await handler.handle(request());
-  github.runs = [workflowRun()];
-  advance(confirmationTimeoutMilliseconds);
-
-  await handler.runOnce();
-
-  assert.equal(sent.length, 1);
-  assert.match(sent[0].text, /No he pogut confirmar que la preview/u);
-  assert.equal(previews.state(20), "timed_out");
-});
-
-test("keeps the bound of a request that already ended", async (context) => {
-  const { ciWatches, handler, github, previews, sent, advance } =
-    setup(context);
-  reportGreen(ciWatches);
-  await handler.handle(request(20));
-  // The first request ends before the next one exists.
-  advance(confirmationTimeoutMilliseconds);
-  await handler.runOnce();
-  assert.equal(previews.state(20), "timed_out");
-  assert.equal(sent.length, 1);
-
-  // A newer commit of the same pull request asks again one second later.
-  const newCommit = "c".repeat(40);
-  github.pullRequest = { ...github.pullRequest, headSha: newCommit };
-  github.postedAt = "2026-11-14T10:25:01Z";
-  reportGreen(ciWatches, 11, newCommit);
-  await handler.handle(request(21));
-  // The run of the ended request is still inside its own window.
-  github.runs = [
-    workflowRun({ createdAt: "2026-11-14T10:00:30Z", conclusion: "failure" }),
-  ];
-
-  await handler.runOnce();
-
-  assert.equal(previews.state(21), "awaiting");
-  assert.equal(sent.length, 1);
-});
-
-test("two requests of the same second take one run each in order", async (context) => {
-  const { ciWatches, handler, github, previews, traces } = setup(context);
-  reportGreen(ciWatches);
-  await handler.handle(request(20));
-
-  // A newer commit asks in the same second: GitHub timestamps have second
-  // granularity, so both comments share their window.
-  const newCommit = "b".repeat(40);
-  github.pullRequest = { ...github.pullRequest, headSha: newCommit };
-  reportGreen(ciWatches, 11, newCommit);
-  await handler.handle(request(21));
-  github.runs = [
-    workflowRun({ identifier: 901, conclusion: "timed_out" }),
-    workflowRun({ identifier: 900, conclusion: "failure" }),
-  ];
-
-  await handler.runOnce();
-
-  const details = traces
-    .filter((entry) => entry.action === "preview_failed_run")
-    .map((entry) => entry.detail);
-  assert.deepEqual(previews.state(20), "failed");
-  assert.equal(previews.state(21), "failed");
-  assert.deepEqual(details, [
-    "#200 aaaaaaa failure run 900",
-    "#200 bbbbbbb timed_out run 901",
-  ]);
-});
-
-test("two overlapping requests keep their own run", async (context) => {
-  const { ciWatches, handler, github, previews, sent } = setup(context);
-  reportGreen(ciWatches);
-  await handler.handle(request(20));
-
-  // A newer green commit of the same pull request waits in parallel: its
-  // comment closes the window of the older request.
-  const newCommit = "c".repeat(40);
-  github.pullRequest = { ...github.pullRequest, headSha: newCommit };
-  github.postedAt = "2026-11-14T10:01:00Z";
-  reportGreen(ciWatches, 11, newCommit);
-  await handler.handle(request(21));
-  github.runs = [
-    workflowRun({
-      createdAt: "2026-11-14T10:01:30Z",
-      conclusion: "failure",
-    }),
-  ];
-
-  await handler.runOnce();
-
-  assert.equal(previews.state(20), "awaiting");
-  assert.equal(previews.state(21), "failed");
-  assert.equal(sent.length, 1);
-});
-
-test("a run that ended well still waits for the publisher comment", async (context) => {
-  const { ciWatches, handler, github, previews, sent } = setup(context);
-  reportGreen(ciWatches);
-  await handler.handle(request());
-  github.runs = [workflowRun()];
-
-  await handler.runOnce();
-  assert.deepEqual(sent, []);
-  assert.equal(previews.state(20), "awaiting");
-
-  github.comments = [publisherComment()];
-  await handler.runOnce();
-
-  assert.equal(sent.length, 1);
-  assert.match(
-    sent[0].text,
-    /https:\/\/pr-200\.preview\.mountainrunners\.cat/u,
-  );
-  assert.equal(previews.state(20), "confirmed");
-});
-
-test("keeps the publisher comment alone when the token cannot read runs", async (context) => {
-  const { ciWatches, github, previews, sent, buildHandler } = setup(context);
-  const logs = [];
-  const handler = buildHandler({
-    logger: (event, detail) => logs.push([event, detail]),
-  });
-  reportGreen(ciWatches);
-  await handler.handle(request());
-  github.runsError = new GitHubResponseError("GET", "/runs", 403);
-  github.comments = [publisherComment()];
-
-  await handler.runOnce();
-
-  assert.equal(previews.state(20), "confirmed");
-  assert.equal(sent.length, 1);
-  assert.deepEqual(logs, [["preview_runs_permission_denied", "4xx"]]);
-});
-
-test("asks again for the runs at most once an hour after a refusal", async (context) => {
-  const { ciWatches, github, previews, sent, advance, buildHandler } =
-    setup(context);
-  const logs = [];
-  const handler = buildHandler({
-    logger: (event, detail) => logs.push([event, detail]),
-  });
-  reportGreen(ciWatches);
-  await handler.handle(request());
-  github.runsError = new GitHubResponseError("GET", "/runs", 403);
-
-  await handler.runOnce();
-  assert.deepEqual(logs, [["preview_runs_permission_denied", "4xx"]]);
-  assert.equal(github.runListings.length, 1);
-
-  // The refusal is remembered: the next cycles do not ask again.
-  advance(60 * 1000);
-  await handler.runOnce();
-  assert.equal(github.runListings.length, 1);
-
-  // Granting the permission needs no restart: the read is tried again later, and
-  // the run it finds still ends the request before the deadline does.
-  advance(previewRunsRetryMilliseconds);
-  github.runsError = null;
-  github.runs = [workflowRun({ conclusion: "failure" })];
-  await handler.runOnce();
-
-  assert.equal(github.runListings.length, 2);
-  assert.equal(sent.length, 1);
-  assert.equal(previews.state(20), "failed");
-});
-
-test("reads the identity of the service once and keeps the comment alone without it", async (context) => {
-  const { ciWatches, github, previews, sent, advance, buildHandler } =
-    setup(context);
-  const logs = [];
-  const handler = buildHandler({
-    logger: (event, detail) => logs.push([event, detail]),
-  });
-  reportGreen(ciWatches);
-  await handler.handle(request());
-  github.runs = [workflowRun({ conclusion: "failure" })];
-  github.identityError = new Error("HTTP 500");
-
-  await handler.runOnce();
-  assert.deepEqual(sent, []);
-  assert.equal(previews.state(20), "awaiting");
-  assert.deepEqual(logs, [["preview_identity_read_failed", "Error"]]);
-  assert.equal(github.runListings.length, 0);
-
-  // The identity is retried with the same backoff as a refused read.
-  await handler.runOnce();
-  assert.equal(github.identityReads, 1);
-  advance(previewRunsRetryMilliseconds);
-  github.identityError = null;
-  await handler.runOnce();
-  assert.equal(github.identityReads, 2);
-  assert.equal(sent.length, 1);
-  assert.equal(previews.state(20), "failed");
-
-  // A read identity is kept: the next cycle does not ask again.
-  github.comments = [publisherComment()];
-  await handler.runOnce();
-  assert.equal(github.identityReads, 2);
-});
-
-test("a run list that cannot be read keeps the publisher comment and the deadline", async (context) => {
-  const { ciWatches, handler, github, previews, sent } = setup(context);
-  reportGreen(ciWatches);
-  await handler.handle(request());
-  github.runsError = new Error("HTTP 502");
-
-  await handler.runOnce();
-  assert.deepEqual(sent, []);
-  assert.equal(previews.state(20), "awaiting");
-
-  // The confirmation is not blocked by the unreadable runs.
-  github.comments = [publisherComment()];
-  await handler.runOnce();
-  assert.equal(sent.length, 1);
-  assert.equal(previews.state(20), "confirmed");
-});
-
-test("the deadline still ends a request whose runs cannot be read", async (context) => {
-  const { ciWatches, handler, github, previews, sent, advance } =
-    setup(context);
-  reportGreen(ciWatches);
-  await handler.handle(request());
-  github.runsError = new Error("HTTP 502");
-  advance(confirmationTimeoutMilliseconds);
-
-  await handler.runOnce();
-
-  assert.equal(sent.length, 1);
-  assert.equal(previews.state(20), "timed_out");
-});
-
 test("an unconfirmed note keeps the facts of the session", async (context) => {
   const { ciWatches, buildHandler, advance, sent } = setup(context);
   const notes = [];
@@ -1447,49 +908,6 @@ test("aborting during the live preconditions rethrows instead of refusing", asyn
   assert.equal(previews.state(20), undefined);
 });
 
-for (const status of [403, 404, 422]) {
-  test(`a definite ${status} rejection fails the request and allows a later one`, async (context) => {
-    const { ciWatches, handler, github, previews, traces } = setup(context);
-    reportGreen(ciWatches);
-    github.postError = new GitHubResponseError("POST", "/x", status);
-
-    const result = await handler.handle(request());
-
-    assert.equal(result.outcome, "answered");
-    assert.match(result.report, /GitHub no ha acceptat la petició de preview/u);
-    assert.match(result.report, /no s'ha publicat res/u);
-    assert.doesNotMatch(result.report, new RegExp(String(status), "u"));
-    assert.equal(previews.state(20), "failed");
-    assert.equal(previews.uncertainCount(), 0);
-    const failure = traces.find((entry) => entry.action === "preview_failed");
-    assert.equal(failure.authorIdentifier, 555);
-    assert.match(failure.detail, /HTTP 4xx/u);
-
-    github.postError = null;
-    const later = await handler.handle(request(21));
-    assert.match(later.report, /Ja he demanat la preview/u);
-  });
-}
-
-for (const [name, error] of [
-  ["a 408 timeout", new GitHubResponseError("POST", "/x", 408)],
-  ["a 429 rate limit", new GitHubResponseError("POST", "/x", 429)],
-  ["a 502 server error", new GitHubResponseError("POST", "/x", 502)],
-  ["a network error", new TypeError("fetch failed")],
-]) {
-  test(`${name} stays uncertain`, async (context) => {
-    const { ciWatches, handler, previews } = setup(context, {
-      github: fakeGithub({ postError: error }),
-    });
-    reportGreen(ciWatches);
-
-    const result = await handler.handle(request());
-
-    assert.equal(result.outcome, "uncertain");
-    assert.equal(previews.state(20), "uncertain");
-  });
-}
-
 test("the loop isolates a cycle error and stops when aborted", async (context) => {
   const { buildHandler } = setup(context);
   const controller = new AbortController();
@@ -1548,10 +966,9 @@ test("never requests a preview for a change that did not ask for it", async (con
     /Enllaç per a revisió: https:\/\/github\.com\/rboixaderg\/mountain-runners\/pull\/200/u,
   );
   assert.doesNotMatch(sent[0].text, /Validate|bbbbbbb|PR #/u);
-  assert.deepEqual(github.posts, []);
 });
 
-test("a green watch that asked for the preview posts it once, even when handled again", async (context) => {
+test("a green watch that asked for the preview waits for it once, even when handled again", async (context) => {
   const { ciWatches, github, handler } = setup(context);
   const sent = [];
   const worker = createCiWatchWorker({
@@ -1578,16 +995,12 @@ test("a green watch that asked for the preview posts it once, even when handled 
   });
 
   await worker.runOnce();
-  assert.deepEqual(
-    github.posts.map((post) => post.body),
-    ["/preview"],
-  );
   assert.match(sent[0].text, /Ara demano la preview/u);
-  assert.match(sent[1].text, /Ja he demanat la preview d'aquest canvi/u);
+  assert.match(sent[1].text, /La preview d'aquest canvi s'està preparant/u);
   assert.deepEqual(github.listings, [], "nothing awaits a confirmation yet");
 
   // A restart that finds the same publication green handles the watch again:
-  // the preview store already knows that update, so nothing is posted twice.
+  // the preview store already knows that update, so it is not handled twice.
   ciWatches.reopen({
     updateIdentifier: 10,
     sessionKey,
@@ -1596,10 +1009,6 @@ test("a green watch that asked for the preview posts it once, even when handled 
   });
   await worker.runOnce();
 
-  assert.deepEqual(
-    github.posts.map((post) => post.body),
-    ["/preview"],
-  );
   assert.match(sent.at(-1).text, /Aquesta petició de preview ja s'havia atès/u);
 });
 
@@ -1608,16 +1017,19 @@ test("confirms a reconciled request from a publisher comment written after it", 
     setup(context);
   reportGreen(ciWatches);
   setClock("2026-11-14T10:00:00Z");
-  github.postError = new Error("synthetic network failure");
-  await handler.handle(request());
-  assert.equal(previews.state(20), "uncertain");
+  // A request written while the service still posted `/preview`, whose result
+  // was unknown and that a person reconciled later.
+  previews.begin({
+    updateIdentifier: 20,
+    sessionKey,
+    authorIdentifier: 555,
+    pullRequestNumber: 200,
+    commitSha: commit,
+  });
+  previews.markUncertain(20);
 
-  github.postError = null;
   setClock("2026-11-14T11:00:00Z");
   previews.resolveUncertainCommented(20);
-  // The comment keeps the moment of the request, not the moment a person
-  // reconciled it: the runs of the request stay inside its own window.
-  assert.equal(previews.awaiting()[0].commented_at, "2026-11-14T10:00:00.000Z");
 
   github.comments = [
     publisherComment({
@@ -1633,45 +1045,8 @@ test("confirms a reconciled request from a publisher comment written after it", 
     sent[0].text,
     /https:\/\/pr-200\.preview\.mountainrunners\.cat/u,
   );
-  assert.deepEqual(github.posts, []);
-  assert.deepEqual(github.listings, ["2026-11-14T10:00:00.000Z"]);
+  assert.deepEqual(github.listings, [undefined]);
   assert.ok(actions(traces).includes("preview_confirmed"));
-});
-
-test("never lends the run of one request to another of its burst", async (context) => {
-  const { ciWatches, handler, github, previews, traces } = setup(context);
-  reportGreen(ciWatches);
-  await handler.handle(request(20));
-
-  // A newer commit asks in the same second: both comments share their window.
-  const newCommit = "b".repeat(40);
-  github.pullRequest = { ...github.pullRequest, headSha: newCommit };
-  reportGreen(ciWatches, 11, newCommit);
-  await handler.handle(request(21));
-  // The first run of the burst is still going, and only the second one ended
-  // badly. It belongs to the second request, never to the first one.
-  github.runs = [
-    workflowRun({
-      identifier: 901,
-      createdAt: "2026-11-14T10:00:10Z",
-      status: "in_progress",
-      conclusion: null,
-    }),
-    workflowRun({
-      identifier: 900,
-      createdAt: "2026-11-14T10:00:20Z",
-      conclusion: "failure",
-    }),
-  ];
-
-  await handler.runOnce();
-
-  assert.equal(previews.state(20), "awaiting", "its own run has not ended");
-  assert.equal(previews.state(21), "failed");
-  const details = traces
-    .filter((entry) => entry.action === "preview_failed_run")
-    .map((entry) => entry.detail);
-  assert.deepEqual(details, ["#200 bbbbbbb failure run 900"]);
 });
 
 test("keeps the plain reply as the last text of the topic", async (context) => {

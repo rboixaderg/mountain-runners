@@ -285,7 +285,9 @@ export const requestKinds = [
   previewRequestKind,
 ];
 
-// The exact body of the comment that asks the phase 6 workflow for a preview.
+// The exact body of the comment that asked the phase 6 workflow for a preview
+// before the `preview` label. The service no longer posts it; the reconcile
+// command still looks for it in the cases that were left unknown.
 export const previewCommand = "/preview";
 
 // The deterministic handler waits this long for the trusted publisher to
@@ -293,11 +295,6 @@ export const previewCommand = "/preview";
 // preview took about twelve minutes in the pilot, so the old fifteen minutes
 // left no room for a slow build after the fixes of T8.8.
 export const previewConfirmationTimeoutMilliseconds = 25 * 60 * 1000;
-
-// A credential that GitHub refused to let read the runs of the preview workflow
-// is asked again at most once an hour: granting `Actions: read` must not need a
-// restart of the service, and the log does not repeat the refusal every poll.
-export const previewRunsRetryMilliseconds = 60 * 60 * 1000;
 
 // An internal kind, never produced by the classifier: an automatic repair of a
 // published commit whose required CI checks failed.
@@ -501,6 +498,10 @@ export const instructionReports = {
     "No he pogut preparar l'entorn de treball, així que no he començat la feina. No s'ha publicat res; ho ha de revisar la persona que manté el servei.",
   executionFailed:
     "No he pogut acabar la feina. No s'ha publicat res i el treball que hi havia es conserva. Pots tornar-ho a demanar en aquest tema.",
+  // The pull request exists but the label that asks for its preview could not
+  // be set. The service does not retry it on its own.
+  previewLabelFailed:
+    "No he pogut activar la preview d'aquest canvi. Digues-m'ho i ho miro amb la persona que manté el servei.",
   publicationUncertain:
     "No sé si el canvi s'ha publicat. No el torno a publicar sol; ho ha de revisar la persona que manté el servei.",
   sandboxUncertain:
@@ -899,7 +900,7 @@ export const previewReports = {
     ),
   requested: ({ reviewUrl }) =>
     withReviewLink(
-      "Ja he demanat la preview d'aquest canvi. Quan estigui a punt, en aquest mateix tema trobaràs l'adreça per veure-la.",
+      "La preview d'aquest canvi s'està preparant. Quan estigui a punt, en aquest mateix tema trobaràs l'adreça per veure-la.",
       reviewUrl,
     ),
   noReportedCommit:
@@ -933,39 +934,19 @@ export const previewReports = {
       "Aquesta proposta ja està tancada, així que no se'n pot fer la preview. No s'ha demanat cap preview.",
       reviewUrl,
     ),
-  headMoved: ({ reviewUrl }) =>
-    withReviewLink(
-      "La proposta ha canviat mentre comprovava la preview. No n'he demanat cap; torna-ho a demanar.",
-      reviewUrl,
-    ),
   notMainRepository: ({ reviewUrl }) =>
     withReviewLink(
       "Aquest canvi no ve del repositori del club. No s'ha demanat cap preview.",
       reviewUrl,
     ),
-  checksNotGreen: ({ reviewUrl }) =>
+  noPreviewLabel: ({ reviewUrl }) =>
     withReviewLink(
-      "Les comprovacions d'aquest canvi encara no estan totes correctes. No s'ha demanat cap preview; torna-ho a demanar quan ho estiguin.",
+      "Aquest canvi no té la preview activada, així que no hi ha cap preview per a aquesta proposta.",
       reviewUrl,
     ),
   unreadable: ({ reviewUrl }) =>
     withReviewLink(
       "No he pogut llegir l'estat d'aquest canvi. No he demanat cap preview; torna-ho a demanar d'aquí a una estona.",
-      reviewUrl,
-    ),
-  uncertain: ({ reviewUrl }) =>
-    withReviewLink(
-      "No sé si la petició de preview ha arribat a GitHub, així que no la repeteixo sola. Una persona del club ho ha de revisar abans de tornar-ho a demanar.",
-      reviewUrl,
-    ),
-  failed: ({ reviewUrl }) =>
-    withReviewLink(
-      "GitHub no ha acceptat la petició de preview i no s'ha publicat res. Digues-m'ho i ho miro amb la persona que manté el servei.",
-      reviewUrl,
-    ),
-  failedRun: ({ reviewUrl }) =>
-    withReviewLink(
-      "La preview no s'ha pogut preparar i no s'ha publicat res. Si vols, digues-m'ho i ho miro.",
       reviewUrl,
     ),
   confirmed: ({ origin, reviewUrl }) =>
@@ -977,24 +958,6 @@ export const previewReports = {
     ),
 };
 
-// The ending of a preview workflow run, in the plain words the note uses. It
-// says the same as the GitHub conclusion without making the model read a token;
-// an unknown one is kept between quotes.
-const previewRunEndings = {
-  failure: "una fallada",
-  cancelled: "una cancel·lació",
-  timed_out: "un temps esgotat",
-  action_required: "una acció pendent",
-  neutral: "un resultat neutre",
-  stale: "una execució obsoleta",
-  skipped: "una execució omesa",
-  startup_failure: "una fallada d'inici",
-};
-
-function previewRunEnding(conclusion) {
-  return previewRunEndings[conclusion] ?? `«${conclusion}»`;
-}
-
 // The effect a preview report leaves in the session of the topic. The text the
 // person reads is plain, so the facts the next turn of the model needs live
 // here: what happened, the pull request, the commit and the confirmed address.
@@ -1002,8 +965,6 @@ function previewRunEnding(conclusion) {
 export const previewNotes = {
   confirmed: ({ pullRequestNumber, commit, origin }) =>
     `Preview de la PR #${pullRequestNumber} (commit ${shortCommit(commit)}) publicada a ${origin}.`,
-  failedRun: ({ pullRequestNumber, commit, conclusion }) =>
-    `Preview de la PR #${pullRequestNumber} (commit ${shortCommit(commit)}) no publicada: el flux de preview ha acabat amb ${previewRunEnding(conclusion)} i no hi ha cap adreça. No s'ha reintentat automàticament.`,
   unconfirmed: ({ pullRequestNumber, commit }) =>
     `Preview de la PR #${pullRequestNumber} (commit ${shortCommit(commit)}) sense confirmació dins del termini: no hi ha cap adreça confirmada.`,
 };
