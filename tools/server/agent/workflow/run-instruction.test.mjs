@@ -4230,6 +4230,7 @@ test("keeps the service events when Pi never starts and the cleanup also fails",
     },
     github: githubStub(),
     sessionNotes: notes,
+    executeSandbox: async () => ({ exitCode: 0, timedOut: false }),
     // The cleanup that runs after a failed launch also fails: the launch fact
     // must survive it.
     stopCommands: async () => {
