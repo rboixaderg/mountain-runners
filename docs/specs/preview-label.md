@@ -8,8 +8,8 @@ Cap tasca passa a `En curs` fins que la PR d'aquesta especificació, amb les
 esmenes proposades als
 [ADR 0009](../decisions/0009-pr-previews-same-domain-and-own-branches.md) i
 [ADR 0013](../decisions/0013-private-development-agent-boundary.md), es revisi i
-es fusioni. Aquesta especificació no crea l'etiqueta a GitHub ni canvia cap
-token, entorn o configuració remota.
+es fusioni. Aquesta especificació no canvia cap token, entorn o configuració
+remota.
 
 ## Objectiu
 
@@ -62,9 +62,9 @@ La persona mantenidora confirma aquestes decisions el 21 de novembre de 2026:
 - Substitueix el bloc 4 de
   [T8.9](phase-8-editorial-assistance.md#un-tema-una-feina-t89) (preview
   automàtica amb `/preview`), que encara no s'ha implementat.
-- Abans de fusionar la implementació, una persona mantenidora crea l'etiqueta
-  `preview` al repositori. És un canvi de configuració remota que requereix la
-  seva aprovació explícita.
+- L'etiqueta `preview` existeix al repositori des del 21 de novembre de 2026,
+  creada amb l'aprovació de la persona mantenidora. Fins que es fusioni la
+  implementació, posar-la a una PR no publica cap preview.
 
 ## Tasques, Entregues I Seguiment
 
