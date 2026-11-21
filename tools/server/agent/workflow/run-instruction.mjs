@@ -1,13 +1,9 @@
 // Coordinate one instruction. Model, checks and remote publication are supplied
 // operations. This module has no container/GitHub transport or secret configuration.
 //
-// Every accepted instruction that is neither a merge nor a preview runs one Pi
-// turn in the session of its topic (T8.7). A request the classifier cannot place,
-// or a continuation with nothing pending and no pull request of the topic, runs
-// the model as a consultation and the answer is the report: the fixed
-// clarification text survives only as the fallback of an empty answer. The turn
-// also receives the service effects the topic has not been told yet, and the
-// service keeps the last text the topic received for the classifier.
+// Every ordinary instruction runs a writable turn in its topic. The classifier
+// identifies preview requests; /merge and automatic repairs keep their own paths.
+// The turn receives service effects the topic has not been told yet.
 
 import { sessionIdentifier } from "telegram-pi-bridge/sessions";
 import { attachmentRefusalDetail } from "telegram-pi-bridge/telegram";
@@ -28,7 +24,17 @@ import {
   listChangedPaths,
   committedPaths,
   hasUnpublishedCommit,
+  publishedCommit,
+  mergeMainIntoBranch,
+  fastForwardPublishedBranch,
+  fetchPublishedBranch,
+  mergeCommitIntoBranch,
+  restartConflictMerge,
+  abortConflictMerge,
+  commitConflictMerge,
+  MergeCleanupError,
 } from "../repository/worktrees.mjs";
+import { runGit } from "../repository/trusted-git.mjs";
 import { parseMergeCommand } from "./merge-request.mjs";
 import { SandboxCleanupError } from "../sandbox/errors.mjs";
 import {
@@ -36,6 +42,7 @@ import {
   attachmentRefusalReport,
   attachmentReports,
   buildAttachmentsInstruction,
+  buildConflictInstruction,
   buildRepairInstruction,
   checkCommandForPaths,
   ciWatchOutcomes,
@@ -44,12 +51,20 @@ import {
   branchNameForChange,
   fallbackTitle,
   pullRequestBody,
+  failedMaintainerNotice,
+  finishedTopicReport,
+  ciWatchUnavailableReason,
+  instructionReportKeys,
   instructionReports,
+  unknownFailureReason,
+  maintainerAttentionAction,
   maximumPromptImageBytes,
   publicationNoteText,
   publicationReport,
   previewRequestKind,
   repairRequestKind,
+  topicTurnKind,
+  pendingWorkCommitMessage,
   stripChangeSummary,
 } from "../policy/development.mjs";
 
@@ -64,8 +79,6 @@ export function createInstructionRunner({
   registerCiWatch,
   requestPreview,
   requestMerge,
-  continueFromPullRequest,
-  warnAboutOverlaps,
   prepareAttachment,
   scaleAttachments = () => ({
     refusal: { reason: attachmentRefusalReasons.scaleFailed },
@@ -74,6 +87,10 @@ export function createInstructionRunner({
   // Durable conversation state of the topic: the effects it has not been told
   // yet and the last text it received. Without it the service keeps neither.
   sessionNotes,
+  topicJobs,
+  migrateTopicJob,
+  readBoundPullRequest,
+  repositoryName,
   // The pull request the topic published and still owns, or null. Without the
   // CI watches the service knows no published pull request.
   findTopicPullRequest = () => null,
@@ -128,19 +145,28 @@ export function createInstructionRunner({
       signal,
     });
     if (worktree === null) {
-      return { report: instructionReports.repairWorktreeMissing };
+      return {
+        report: instructionReports.repairWorktreeMissing,
+        reason: instructionReportKeys.repairWorktreeMissing,
+      };
     }
     const branch = await currentBranch(worktree, { signal });
     if (
       branch === null ||
       (await headCommit(worktree, { signal })) !== request.commit
     ) {
-      return { report: instructionReports.repairCommitChanged };
+      return {
+        report: instructionReports.repairCommitChanged,
+        reason: instructionReportKeys.repairCommitChanged,
+      };
     }
     // Leftovers of a later instruction (for example a failed check) are not
     // part of the failed commit and must never be committed by a repair.
     if ((await listChangedPaths(worktree, { signal })).length > 0) {
-      return { report: instructionReports.repairWorktreeDirty };
+      return {
+        report: instructionReports.repairWorktreeDirty,
+        reason: instructionReportKeys.repairWorktreeDirty,
+      };
     }
     signal?.throwIfAborted();
     return {
@@ -331,6 +357,300 @@ export function createInstructionRunner({
     };
   }
 
+  async function matchesPublishedHead(worktree, remoteHead, signal) {
+    const localHead = await headCommit(worktree, { signal });
+    if (localHead === remoteHead) {
+      return true;
+    }
+    if (
+      publishedCommit(worktree) !== remoteHead ||
+      !(await hasUnpublishedCommit(worktree, { signal }))
+    ) {
+      return false;
+    }
+    const mergeBase = await runGit(
+      worktree,
+      ["merge-base", localHead, remoteHead],
+      {
+        allowFailure: true,
+        signal,
+      },
+    );
+    return mergeBase.trim() === remoteHead;
+  }
+
+  async function checkWorktree({
+    worktree,
+    worktreeName,
+    checkCommand,
+    signal,
+  }) {
+    const checks = await runChecks({
+      sandboxIdentifier: worktreeName,
+      worktreePath: worktree.path,
+      checkCommand,
+      signal,
+    });
+    if (checks.timedOut) {
+      return {
+        report: instructionReports.checksTimedOut,
+        reason: instructionReportKeys.checksTimedOut,
+      };
+    }
+    if (checks.exitCode !== 0) {
+      logger("checks_failed", worktreeName);
+      return {
+        report: instructionReports.checksFailed,
+        reason: instructionReportKeys.checksFailed,
+      };
+    }
+    signal?.throwIfAborted();
+    return null;
+  }
+
+  async function resolveConflict({
+    worktree,
+    worktreeName,
+    sessionIdentifier,
+    sessionKey,
+    paths,
+    headSha,
+    topicState,
+    worktreePrepared,
+    signal,
+  }) {
+    const restarted = await restartConflictMerge({
+      worktree,
+      headSha,
+      expectedPaths: paths,
+      signal,
+    });
+    if (!restarted) {
+      return false;
+    }
+    let mergeInProgress = true;
+    try {
+      const binaryDiff = await runGit(
+        worktree,
+        [
+          "--literal-pathspecs",
+          "diff",
+          "--numstat",
+          "-z",
+          "HEAD",
+          headSha,
+          "--",
+          ...paths,
+        ],
+        { signal },
+      );
+      const hasBinaryConflict = binaryDiff
+        .split("\0")
+        .some((entry) => entry.startsWith("-\t-\t"));
+      const resolution = await runModel({
+        sessionIdentifier,
+        sandboxIdentifier: worktreeName,
+        sessionKey,
+        instruction: buildConflictInstruction(paths),
+        images: [],
+        attachments: [],
+        worktreePrepared,
+        kind: topicTurnKind,
+        topicState,
+        // The conflict turn is internal: it must not consume the service notes
+        // that belong to the next turn of the person.
+        claimServiceNotes: () => [],
+        onPromptSent: () => {},
+        worktreePath: worktree.path,
+        signal,
+      });
+      if (
+        resolution.timedOut ||
+        resolution.aborted ||
+        resolution.preparationFailed ||
+        hasBinaryConflict
+      ) {
+        return false;
+      }
+      signal?.throwIfAborted();
+      try {
+        await runGit(worktree, ["diff", "--check"], { signal });
+      } catch {
+        signal?.throwIfAborted();
+        return false;
+      }
+      if (!(await commitConflictMerge({ worktree, signal }))) {
+        return false;
+      }
+      mergeInProgress = false;
+      return true;
+    } finally {
+      if (mergeInProgress) {
+        await abortConflictMerge(worktree);
+      }
+    }
+  }
+
+  // Reads the pull request bound to the topic and accepts it only when it is
+  // an open, non-draft pull request of this repository on the branch the topic
+  // owns. Returns the pull request or the plain report of the refusal.
+  async function readValidBoundPullRequest({ binding, topic, signal }) {
+    let pullRequest;
+    try {
+      pullRequest = await readBoundPullRequest(binding.pullRequestNumber, {
+        signal,
+      });
+    } catch {
+      signal?.throwIfAborted();
+      return {
+        report: instructionReports.publicationReadFailed,
+        reason: instructionReportKeys.publicationReadFailed,
+      };
+    }
+    if (pullRequest.state === "closed") {
+      return { report: finishedTopicReport };
+    }
+    const movedHeadReport = continuationReports.movedHead({
+      pullRequestNumber: binding.pullRequestNumber,
+    });
+    if (
+      topic.worktree === null ||
+      (await currentBranch(topic.worktree, { signal })) !== binding.branch
+    ) {
+      return { report: movedHeadReport };
+    }
+    if (
+      pullRequest.state !== "open" ||
+      pullRequest.draft ||
+      pullRequest.baseRef !== "main" ||
+      pullRequest.headRepository?.toLowerCase() !==
+        repositoryName.toLowerCase() ||
+      pullRequest.headRef !== binding.branch
+    ) {
+      return { report: movedHeadReport };
+    }
+    return { pullRequest };
+  }
+
+  // Brings the topic worktree to the head of its pull request. Returns false
+  // when the worktree cannot follow it and the turn must not start.
+  async function followBoundPullRequest({
+    binding,
+    topic,
+    pullRequest,
+    sessionKey,
+    worktreeName,
+    sessionIdentifier,
+    signal,
+  }) {
+    if (
+      await matchesPublishedHead(topic.worktree, pullRequest.headSha, signal)
+    ) {
+      return true;
+    }
+    if (!topic.pendingWork) {
+      return fastForwardPublishedBranch({
+        worktree: topic.worktree,
+        branch: binding.branch,
+        headSha: pullRequest.headSha,
+        signal,
+      });
+    }
+    return mergeMovedPullRequestHead({
+      binding,
+      worktree: topic.worktree,
+      pullRequest,
+      sessionKey,
+      worktreeName,
+      sessionIdentifier,
+      signal,
+    });
+  }
+
+  // Keeps the pending work in a commit and merges the moved pull request head
+  // into the branch, only when both descend from the last published commit.
+  // A conflict goes to the model; nothing is ever force-pushed.
+  async function mergeMovedPullRequestHead({
+    binding,
+    worktree,
+    pullRequest,
+    sessionKey,
+    worktreeName,
+    sessionIdentifier,
+    signal,
+  }) {
+    const previousHead = publishedCommit(worktree);
+    const fetched = await fetchPublishedBranch({
+      worktree,
+      branch: binding.branch,
+      headSha: pullRequest.headSha,
+      signal,
+    });
+    if (!fetched || previousHead === null) {
+      return false;
+    }
+    const remoteBase = (
+      await runGit(
+        worktree,
+        ["merge-base", previousHead, pullRequest.headSha],
+        { signal, allowFailure: true },
+      )
+    ).trim();
+    const localBase = (
+      await runGit(worktree, ["merge-base", previousHead, "HEAD"], {
+        signal,
+        allowFailure: true,
+      })
+    ).trim();
+    if (remoteBase !== previousHead || localBase !== previousHead) {
+      return false;
+    }
+    removeAttachmentDirectory({ worktreePath: worktree.path });
+    await commitAll({
+      worktree,
+      message: pendingWorkCommitMessage,
+      signal,
+    });
+    const merged = await mergeCommitIntoBranch({
+      worktree,
+      headSha: pullRequest.headSha,
+      signal,
+    });
+    if (!merged.conflict) {
+      return true;
+    }
+    const conflictState = await topicStateOf(sessionKey, {
+      continuedPullRequestNumber: binding.pullRequestNumber,
+      signal,
+    });
+    return resolveConflict({
+      worktree,
+      worktreeName,
+      sessionIdentifier,
+      sessionKey,
+      paths: merged.paths,
+      headSha: pullRequest.headSha,
+      topicState: conflictState,
+      worktreePrepared: false,
+      signal,
+    });
+  }
+
+  function noteMaintainerAttention({ request, reason }) {
+    try {
+      recordTrace({
+        updateIdentifier: request.updateIdentifier,
+        authorIdentifier: request.authorIdentifier,
+        sessionKey: request.sessionKey,
+        action: maintainerAttentionAction,
+        detail: reason,
+      });
+    } catch (error) {
+      logger("trace_failed", error instanceof Error ? error.name : "unknown");
+    }
+    logger(maintainerAttentionAction, reason);
+  }
+
   async function execute(request, { signal } = {}) {
     // The Pi session file keeps the session identifier: it lives outside the
     // sandbox. Every name the sandbox can read is opaque.
@@ -339,8 +659,7 @@ export function createInstructionRunner({
     const newTaskSuffix = identifiers.changeSuffix(request.updateIdentifier);
     const repair = request.kind === repairRequestKind;
     const attachments = request.attachments ?? [];
-    // Only an implementation and a continuation use an attached image. Every
-    // other request ignores it, and its report says so in one sentence.
+    // A merge or preview ignores an attached image and says so.
     const ignoringAttachment = (report) =>
       attachments.length === 0
         ? report
@@ -360,6 +679,17 @@ export function createInstructionRunner({
       if (mergeCommand !== null) {
         const merged = await requestMerge(request, mergeCommand, { signal });
         return { ...merged, report: ignoringAttachment(merged.report) };
+      }
+      if (!repair && migrateTopicJob) {
+        const migrationReport = await migrateTopicJob(request.sessionKey, {
+          signal,
+        });
+        if (migrationReport !== null) {
+          return {
+            outcome: "failed",
+            report: ignoringAttachment(migrationReport),
+          };
+        }
       }
       // Only the trusted internal repair request fixes its kind; every other
       // request is classified from its text and from the bounded context of the
@@ -437,74 +767,62 @@ export function createInstructionRunner({
         const preview = await requestPreview(request, { signal });
         return { ...preview, report: ignoringAttachment(preview.report) };
       }
-      // The fixed clarification text is only the fallback of an empty answer:
-      // the request reaches the session as a consultation turn instead.
-      let unclearRequest = false;
-      if (
-        kind !== "implementation" &&
-        kind !== "consultation" &&
-        kind !== "continuation" &&
-        kind !== repairRequestKind
-      ) {
-        kind = "consultation";
-        unclearRequest = true;
-      }
+      const topicTurn = !repair;
       const target = repair
         ? await repairTarget(request, worktreeName, signal)
         : null;
       if (target?.report) {
-        return { outcome: "failed", report: target.report };
+        return {
+          outcome: "failed",
+          report: target.report,
+          reason: target.reason,
+        };
       }
-      // A consultation asks about the content the topic already published, and
-      // that content lives on the branch of its pull request, not on main. While
-      // the topic keeps no pending work, the same resume positions the worktree
-      // at the pull request head: it writes nothing and publishes nothing. A
-      // refused resume never answers the consultation; the turn falls back to
-      // the new task of the topic.
-      const readsTopicPullRequest =
-        kind === "consultation" &&
-        topic !== null &&
-        !topic.pendingWork &&
-        topicPullRequest !== null;
-      // A continuation that names another topic's pull request resumes that
-      // pull request here. A continuation that names none resumes the open pull
-      // request of this topic, but only while the topic keeps no pending work:
-      // pending work is the work it must continue.
-      const continuation =
-        kind === "continuation" || readsTopicPullRequest
-          ? await continueFromPullRequest(request, {
-              signal,
-              unnamedTopicPullRequest:
-                topic !== null && !topic.pendingWork ? topicPullRequest : null,
-              onlyUnnamedPullRequest: readsTopicPullRequest,
-            })
-          : null;
-      if (continuation?.report && !readsTopicPullRequest) {
-        return { outcome: "answered", report: continuation.report };
+      const binding = topicTurn
+        ? (topicJobs?.bindingOf(request.sessionKey) ?? null)
+        : null;
+      let boundContinuation = null;
+      if (binding !== null) {
+        const bound = await readValidBoundPullRequest({
+          binding,
+          topic,
+          signal,
+        });
+        if (bound.report) {
+          return {
+            outcome: "failed",
+            report: bound.report,
+            reason: bound.reason,
+          };
+        }
+        const followed = await followBoundPullRequest({
+          binding,
+          topic,
+          pullRequest: bound.pullRequest,
+          sessionKey: request.sessionKey,
+          worktreeName,
+          sessionIdentifier: piSessionIdentifier,
+          signal,
+        });
+        if (!followed) {
+          return {
+            outcome: "failed",
+            report: continuationReports.movedHead({
+              pullRequestNumber: binding.pullRequestNumber,
+            }),
+          };
+        }
+        boundContinuation = {
+          pullRequestNumber: binding.pullRequestNumber,
+          baseHeadSha: bound.pullRequest.headSha,
+        };
       }
-      // The topic already holds the branch of its own pull request at the head
-      // the pull request reports: it continues there, without moving anything.
-      const continuesInPlace = continuation?.inPlace === true;
-      const resumed = continuation?.resume ?? null;
-      const resumedLine =
-        resumed === null
-          ? null
-          : continuationReports.resumed({
-              pullRequestNumber: resumed.pullRequestNumber,
-            });
-      // The pull request a continuation of this topic must update: the resumed
-      // one, or the one it continues in place. Null keeps a new change.
-      const continuedPullRequestNumber = continuesInPlace
-        ? continuation.pullRequestNumber
-        : (resumed?.pullRequestNumber ?? null);
-      const continuedBaseHeadSha = continuesInPlace
-        ? continuation.baseHeadSha
-        : (resumed?.baseHeadSha ?? null);
+      const continuedPullRequestNumber =
+        boundContinuation?.pullRequestNumber ?? null;
+      const continuedBaseHeadSha = boundContinuation?.baseHeadSha ?? null;
       let worktree;
-      if (continuesInPlace) {
+      if (boundContinuation) {
         worktree = topic.worktree;
-      } else if (resumed !== null) {
-        worktree = resumed.worktree;
       } else if (repair) {
         worktree = target.worktree;
       } else {
@@ -512,57 +830,17 @@ export function createInstructionRunner({
           repositoryPath,
           worktreeRoot,
           name: worktreeName,
-          newTaskSuffix: kind === "implementation" ? newTaskSuffix : undefined,
           signal,
         });
       }
-      if (
-        kind === "continuation" &&
-        resumed === null &&
-        !continuesInPlace &&
-        lastAgentReply === null &&
-        attachments.length === 0 &&
-        (await listChangedPaths(worktree, { signal })).length === 0 &&
-        !(await hasUnpublishedCommit(worktree, { signal }))
-      ) {
-        // Nothing to continue and nothing that answers a previous turn: the
-        // request is answered as a consultation, in the same session, instead
-        // of with the fixed clarification text. A reply of the topic or an
-        // image is a real answer, so it keeps the writable turn.
-        kind = "consultation";
-        unclearRequest = true;
-      }
-      // The service writes the instruction of an automatic repair and of a
-      // resumed pull request; every other request is the person's own text. A
-      // consultation reads the files at the resumed head and keeps the request
-      // of the person: the continuation text asks for a change.
-      let instruction = request.instruction;
-      if (repair) {
-        instruction = target.instruction;
-      }
-      if (resumed !== null && !readsTopicPullRequest) {
-        instruction = resumed.instruction;
-      }
-      // The images reach the model as service text appended to the instruction
-      // and, for the new ones, as image input of the prompt. The topic keeps the
-      // stored copies for its later turns.
-      const kindUsesAttachment =
-        kind === "implementation" || kind === "continuation";
+      let instruction = repair ? target.instruction : request.instruction;
       let stagedAttachments = [];
       let promptImages = [];
       let worktreePrepared = false;
       const hasStoredAttachments =
         attachmentStore !== undefined &&
         attachmentStore.list(worktreeName).length > 0;
-      // A consultation never takes a new attachment, but it may look again at
-      // the images the topic already stored: they are staged read-only for the
-      // view_attachment tool and removed with the turn.
-      const consultationUsesStoredAttachments =
-        kind === "consultation" && hasStoredAttachments;
-      if (
-        kindUsesAttachment &&
-        (attachments.length > 0 || hasStoredAttachments)
-      ) {
+      if (topicTurn && (attachments.length > 0 || hasStoredAttachments)) {
         stagedAttachmentPath = worktree.path;
         const applied = await applyAttachments({
           attachments,
@@ -579,17 +857,6 @@ export function createInstructionRunner({
         stagedAttachments = applied.attachments;
         promptImages = applied.images;
         worktreePrepared = applied.scaledInSandbox === true;
-      } else if (consultationUsesStoredAttachments) {
-        stagedAttachmentPath = worktree.path;
-        stagedAttachments = attachmentStore.stage(worktreeName, worktree.path);
-        if (stagedAttachments.length > 0) {
-          // The model receives the exact names the service staged: it cannot
-          // list the directory by itself in a read-only turn.
-          instruction = `${instruction}\n\n${buildAttachmentsInstruction({
-            attachments: stagedAttachments,
-            newNames: [],
-          })}`;
-        }
       }
       // The effects of the service are claimed at the one point where the turn
       // really starts: the sandbox and the profile are ready and Pi is about to
@@ -599,10 +866,7 @@ export function createInstructionRunner({
       // cleanup failure wins over an error of the launch or of the stop.
       let claimedNotes = null;
       let promptSent = false;
-      // Every turn of the topic receives the state the service already holds,
-      // as data, so the model never answers that it has no access or guesses a
-      // preview URL. A continuation into another topic's pull request reports
-      // that pull request until this topic owns it.
+      // The topic state is service data; the model cannot read it in the sandbox.
       const topicState = await topicStateOf(request.sessionKey, {
         continuedPullRequestNumber,
         signal,
@@ -628,8 +892,7 @@ export function createInstructionRunner({
           images: promptImages,
           attachments: stagedAttachments,
           worktreePrepared,
-          kind,
-          unclearRequest,
+          kind: repair ? repairRequestKind : topicTurnKind,
           topicState,
           claimServiceNotes,
           // The runtime calls this immediately before it writes the prompt: it
@@ -649,15 +912,24 @@ export function createInstructionRunner({
         return {
           outcome: "failed",
           report: instructionReports.preparationFailed,
+          reason: instructionReportKeys.preparationFailed,
         };
       }
       if (modelResult.timedOut) {
         logger("execution_timed_out", worktreeName);
-        return { outcome: "failed", report: instructionReports.modelTimedOut };
+        return {
+          outcome: "failed",
+          report: instructionReports.modelTimedOut,
+          reason: instructionReportKeys.modelTimedOut,
+        };
       }
       signal?.throwIfAborted();
       if (modelResult.aborted) {
-        return { outcome: "failed", report: instructionReports.aborted };
+        return {
+          outcome: "failed",
+          report: instructionReports.aborted,
+          reason: instructionReportKeys.aborted,
+        };
       }
       // The model copies an image it uses to a content path. Before the copy in
       // the ignored directory disappears, the service remembers which stored
@@ -665,36 +937,19 @@ export function createInstructionRunner({
       // attempt already committed and this publication retries. A published
       // change closes them.
       const attachmentPaths =
-        kind === "consultation" || attachmentStore === undefined
+        attachmentStore === undefined
           ? []
           : [
               ...(await listChangedPaths(worktree, { signal })),
               ...(await committedPaths(worktree, { signal })),
             ];
       const usedAttachmentNames =
-        kind === "consultation" || attachmentStore === undefined
+        attachmentStore === undefined
           ? []
           : attachmentStore.used(worktreeName, worktree.path, attachmentPaths);
       // The person reads the model's answer, never its change summary: the
       // service owns the summary and strips the line from every text.
       const answer = stripChangeSummary(modelResult.text);
-      if (kind === "consultation") {
-        // The model's own answer is only the last text of the topic: it never
-        // becomes a service note, because the session already holds it. Only the
-        // notice of an ignored attachment is written by the service, and an
-        // empty answer is reported with the fixed text instead of nothing. Both
-        // compose the report like any other answer.
-        const fixedText = unclearRequest
-          ? instructionReports.clarification
-          : instructionReports.noAnswer;
-        return {
-          outcome: "answered",
-          modelAnswer: answer !== "",
-          serviceText:
-            attachments.length === 0 ? null : attachmentReports.ignored,
-          report: ignoringAttachment(answer === "" ? fixedText : answer),
-        };
-      }
       // Whatever the model moved is already outside this directory. Removing it
       // before the checks and the commit means a received image never reaches a
       // commit or a publication, even on a branch whose .gitignore lacks the
@@ -706,17 +961,15 @@ export function createInstructionRunner({
         changedPaths.length === 0 &&
         !(await hasUnpublishedCommit(worktree, { signal }))
       ) {
-        // The resume line is written by the service and stays in the report; an
-        // empty answer is reported with the fixed text instead of nothing.
-        const report =
-          resumedLine === null
-            ? answer || instructionReports.noAnswer
-            : `${resumedLine}\n${answer || instructionReports.noAnswer}`;
         return {
           outcome: "answered",
           modelAnswer: answer !== "",
-          serviceText: resumedLine,
-          report,
+          serviceText: null,
+          report:
+            answer ||
+            (repair
+              ? instructionReports.noAnswer
+              : instructionReports.clarification),
         };
       }
       const summary = parseChangeSummary(modelResult.text);
@@ -735,45 +988,51 @@ export function createInstructionRunner({
       const checkCommand = checkCommandForPaths(
         await changedPathsAgainstMain(worktree, { signal }),
       );
-      const checks = await runChecks({
-        sandboxIdentifier: worktreeName,
-        worktreePath: worktree.path,
+      const checkReport = await checkWorktree({
+        worktree,
+        worktreeName,
         checkCommand,
         signal,
       });
-      if (checks.timedOut) {
-        return { outcome: "failed", report: instructionReports.checksTimedOut };
+      if (checkReport !== null) {
+        return { outcome: "failed", ...checkReport };
       }
-      if (checks.exitCode !== 0) {
-        logger("checks_failed", worktreeName);
-        return { outcome: "failed", report: instructionReports.checksFailed };
-      }
-      signal?.throwIfAborted();
-      // Only a change a person asked for warns about the work of other topics:
-      // an automatic repair only fixes an already published commit. The warning
-      // never blocks, so an error while computing it is logged and ignored.
-      let overlapWarning = null;
-      if (!repair) {
-        try {
-          overlapWarning =
-            (await warnAboutOverlaps?.({
-              updateIdentifier: request.updateIdentifier,
-              sessionKey: request.sessionKey,
-              worktree,
-              branch,
-              continuedPullRequestNumber: resumed?.pullRequestNumber,
-              signal,
-            })) ?? null;
-        } catch (error) {
-          logger(
-            "overlap_warning_failed",
-            error instanceof Error ? error.name : "unknown",
-          );
+      await commitAll({ worktree, message: title, signal });
+      const synchronization = await mergeMainIntoBranch({ worktree, signal });
+      if (synchronization.conflict) {
+        const mainHead = (
+          await runGit(worktree, ["rev-parse", "origin/main"], { signal })
+        ).trim();
+        const resolved = await resolveConflict({
+          worktree,
+          worktreeName,
+          sessionIdentifier: piSessionIdentifier,
+          sessionKey: request.sessionKey,
+          paths: synchronization.paths,
+          headSha: mainHead,
+          topicState,
+          worktreePrepared: true,
+          signal,
+        });
+        if (!resolved) {
+          return {
+            outcome: "failed",
+            report: instructionReports.checksFailed,
+            reason: instructionReportKeys.checksFailed,
+          };
         }
       }
-      // A swallowed warning error never hides an abort: nothing is committed.
-      signal?.throwIfAborted();
-      await commitAll({ worktree, message: title, signal });
+      if (synchronization.merged || synchronization.conflict) {
+        const checkReport = await checkWorktree({
+          worktree,
+          worktreeName,
+          checkCommand,
+          signal,
+        });
+        if (checkReport !== null) {
+          return { outcome: "failed", ...checkReport };
+        }
+      }
       const body = pullRequestBody({
         title,
         changedPaths: await committedPaths(worktree, { signal }),
@@ -818,13 +1077,28 @@ export function createInstructionRunner({
           return {
             outcome: "failed",
             report: instructionReports.publicationReadFailed,
+            reason: instructionReportKeys.publicationReadFailed,
           };
         }
         logger("publication_refused", worktreeName);
         return {
           outcome: "failed",
           report: instructionReports.publicationRefused,
+          reason: instructionReportKeys.publicationRefused,
         };
+      }
+      // Record the first confirmed publication. An existing binding is never
+      // replaced: later turns of the topic continue its recorded branch.
+      if (
+        !repair &&
+        topicJobs &&
+        topicJobs.bindingOf(request.sessionKey) === null
+      ) {
+        topicJobs.bind({
+          sessionKey: request.sessionKey,
+          branch,
+          pullRequestNumber: publication.pullRequest.number,
+        });
       }
       // The image is used only once the publication is confirmed: a refused or
       // unknown publication keeps it available for the next turn.
@@ -866,39 +1140,14 @@ export function createInstructionRunner({
           ? request.authorIdentifier
           : null,
       });
-      // The new topic owns the pull request only once its watch is durable: the
-      // previous topic keeps the CI notices and is not told otherwise. A notice
-      // that fails never changes the published result.
-      let ownersMoved = false;
-      if (resumed !== null) {
-        ownersMoved = ciWatch === ciWatchOutcomes.registered;
-        if (ownersMoved) {
-          await resumed.notifyPublished({
-            commit: publication.commit,
-            signal,
-          });
-        } else {
-          resumed.recordOwnerUnregistered(publication.commit);
-        }
-      }
-      // The person reads what the model did, then the notices of the service:
-      // the resumed pull request, the owner that could not be told and the
-      // overlap warning, if any. The review link is the last line.
       const publicationNotices = {
         pullRequest: publication.pullRequest,
         ciWatch,
-        notices: [
-          ...(resumedLine === null ? [] : [resumedLine]),
-          ...(resumed !== null && !ownersMoved
-            ? [
-                continuationReports.ownerUnregistered({
-                  pullRequestNumber: resumed.pullRequestNumber,
-                }),
-              ]
-            : []),
-          ...(overlapWarning === null ? [] : [overlapWarning]),
-        ],
+        notices: [],
       };
+      if (ciWatch === ciWatchOutcomes.unavailable) {
+        noteMaintainerAttention({ request, reason: ciWatchUnavailableReason });
+      }
       const publicationText = publicationReport({
         ...publicationNotices,
         answer,
@@ -928,20 +1177,32 @@ export function createInstructionRunner({
         "instruction_failed",
         error instanceof Error ? error.name : "unknown",
       );
+      if (error instanceof MergeCleanupError) {
+        return {
+          outcome: "uncertain",
+          report: instructionReports.mergeCleanupUncertain,
+          reason: instructionReportKeys.mergeCleanupUncertain,
+        };
+      }
       if (error instanceof SandboxCleanupError) {
         return {
           outcome: "uncertain",
           report: instructionReports.sandboxUncertain,
+          reason: instructionReportKeys.sandboxUncertain,
         };
       }
       if (publicationStarted) {
         return {
           outcome: "uncertain",
           report: instructionReports.publicationUncertain,
+          reason: instructionReportKeys.publicationUncertain,
         };
       }
       return {
         outcome: "failed",
+        reason: signal?.aborted
+          ? instructionReportKeys.aborted
+          : instructionReportKeys.executionFailed,
         report: signal?.aborted
           ? instructionReports.aborted
           : instructionReports.executionFailed,
@@ -973,8 +1234,20 @@ export function createInstructionRunner({
     const {
       modelAnswer = false,
       serviceText = null,
+      reason = null,
       ...result
     } = await execute(request, options);
+    // The failure notice tells the person the maintainer can review the case:
+    // this trace and journal line are the note that makes it true.
+    if (
+      request.kind !== repairRequestKind &&
+      result.report === failedMaintainerNotice
+    ) {
+      noteMaintainerAttention({
+        request,
+        reason: reason ?? unknownFailureReason,
+      });
+    }
     if (request.kind === repairRequestKind) {
       // An automatic repair sends the text the topic receives from its own
       // executor, which wraps this report and records that text. That executor

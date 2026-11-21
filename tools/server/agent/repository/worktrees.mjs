@@ -27,12 +27,16 @@ import {
 } from "./trusted-git.mjs";
 import { parseLegacyWorktreeName } from "./identifiers.mjs";
 
+const agentIdentityArguments = [
+  "-c",
+  "user.name=Mountain Runners Agent",
+  "-c",
+  "user.email=agent@mountainrunners.cat",
+];
 const protectedBranches = new Set(["main", "master"]);
 const branchPattern =
   /^(feat|fix|docs|refactor|test|build|ci|chore|security)\/[a-z0-9]+(?:[._-][a-z0-9]+)*$/u;
 const fullCommitPattern = /^[a-f0-9]{40}$/u;
-// The opaque name of a topic worktree, never an archive `<name>-before-<suffix>`.
-const topicWorktreePattern = /^topic-[0-9a-f]{16}$/u;
 const archiveSuffixPattern = /^[0-9a-f]{8}$/u;
 const worktreeNamePattern = /^[a-z0-9][a-z0-9._-]*$/u;
 // The marker is replaced through one fixed temporary file next to it, so a
@@ -45,16 +49,6 @@ function assertWorktreeName(name) {
   }
   return name;
 }
-
-// Why a branch that another topic published was not released. The caller turns
-// each one into the report of the continued instruction: nothing is reset,
-// removed or overwritten to resume a branch.
-export const workBranchRefusals = {
-  dirtyWorktree: "dirty_worktree",
-  unpublishedCommits: "unpublished_commits",
-  divergedBranch: "diverged_branch",
-  movedHead: "moved_head",
-};
 
 export function assertWorkBranch(branch) {
   if (typeof branch !== "string" || branch === "") {
@@ -83,26 +77,6 @@ async function worktreePaths(repository, { signal } = {}) {
     .split("\n")
     .filter((line) => line.startsWith("worktree "))
     .map((line) => line.slice("worktree ".length));
-}
-
-/** Every registered worktree with the branch it holds, or null when detached. */
-async function worktreesByBranch(repository, { signal } = {}) {
-  const output = await runGit(repository, ["worktree", "list", "--porcelain"], {
-    signal,
-  });
-  const entries = [];
-  let entry = null;
-  for (const line of output.split("\n")) {
-    if (line.startsWith("worktree ")) {
-      entry = { path: line.slice("worktree ".length), branch: null };
-      entries.push(entry);
-      continue;
-    }
-    if (entry !== null && line.startsWith("branch refs/heads/")) {
-      entry.branch = line.slice("branch refs/heads/".length);
-    }
-  }
-  return entries;
 }
 
 export async function ensureSessionWorktree({
@@ -195,117 +169,6 @@ export async function findSessionWorktree({
     return null;
   }
   return registeredWorktree(repositoryPath, worktreePath);
-}
-
-/**
- * Resume a work branch another topic published. Git allows one worktree per
- * branch, so the branch is released from every worktree that holds it, the
- * session worktree is preserved like a new task and the branch is checked out
- * at the pull request head. A branch with unpublished work or with local
- * history outside the remote head is reported instead of reset.
- *
- * @returns {Promise<{worktree: object} | {refusal: string}>}
- */
-export async function resumeWorkBranch({
-  repositoryPath,
-  worktreeRoot,
-  name,
-  branch,
-  headSha,
-  newTaskSuffix,
-  signal,
-}) {
-  assertWorktreeName(name);
-  assertWorkBranch(branch);
-  if (typeof headSha !== "string" || !fullCommitPattern.test(headSha)) {
-    throw new Error("A full commit SHA is required to resume a work branch.");
-  }
-  if (!archiveSuffixPattern.test(newTaskSuffix ?? "")) {
-    throw new Error("A resumed branch requires a valid opaque archive suffix.");
-  }
-  mkdirSync(worktreeRoot, { recursive: true });
-  const root = realpathSync(worktreeRoot);
-  const worktreePath = join(root, name);
-  const repository = primaryRepository(repositoryPath);
-
-  // Every read and validation happens before the first local change.
-  await runGit(repository, ["fetch", "--prune", "origin", "main"], {
-    signal,
-    timeoutMilliseconds: remoteGitTimeoutMilliseconds,
-  });
-  await runGit(
-    repository,
-    ["fetch", "--prune", "origin", `refs/heads/${branch}`],
-    { signal, timeoutMilliseconds: remoteGitTimeoutMilliseconds },
-  );
-  const fetched = (
-    await runGit(repository, ["rev-parse", "FETCH_HEAD"], { signal })
-  ).trim();
-  if (fetched !== headSha) {
-    return { refusal: workBranchRefusals.movedHead };
-  }
-  const localBranch = (
-    await runGit(
-      repository,
-      ["rev-parse", "--verify", "--quiet", `refs/heads/${branch}`],
-      { allowFailure: true, signal },
-    )
-  ).trim();
-  const holders = [];
-  for (const entry of await worktreesByBranch(repository, { signal })) {
-    if (entry.branch !== branch || !existsSync(entry.path)) {
-      continue;
-    }
-    const holder = registeredWorktree(repositoryPath, entry.path);
-    if ((await listChangedPaths(holder, { signal })).length > 0) {
-      return { refusal: workBranchRefusals.dirtyWorktree };
-    }
-    if (await hasUnpublishedCommit(holder, { signal })) {
-      return { refusal: workBranchRefusals.unpublishedCommits };
-    }
-    holders.push(holder);
-  }
-  if (localBranch !== "") {
-    const mergeBase = (
-      await runGit(repository, ["merge-base", localBranch, headSha], {
-        allowFailure: true,
-        signal,
-      })
-    ).trim();
-    if (mergeBase !== localBranch) {
-      return { refusal: workBranchRefusals.divergedBranch };
-    }
-  }
-
-  const sessionWorktreeExists = (
-    await worktreePaths(repository, { signal })
-  ).includes(worktreePath);
-  const archivePath = join(root, `${name}-before-${newTaskSuffix}`);
-  if (sessionWorktreeExists && lstatOrNull(archivePath) !== null) {
-    throw new Error(`The archive ${basename(archivePath)} already exists.`);
-  }
-
-  // Only the release moves local state: every refusal is already decided.
-  for (const holder of holders) {
-    await runGit(holder, ["checkout", "--detach"], { signal });
-  }
-
-  if (sessionWorktreeExists) {
-    const previous = registeredWorktree(repositoryPath, worktreePath);
-    // Check the untrusted Git marker before moving the registered worktree.
-    await listChangedPaths(previous, { signal });
-    await runGit(repository, ["worktree", "move", worktreePath, archivePath], {
-      signal,
-    });
-  }
-  await runGit(repository, ["branch", "-f", branch, headSha], { signal });
-  await runGit(repository, ["worktree", "add", worktreePath, branch], {
-    signal,
-  });
-  const worktree = registeredWorktree(repositoryPath, worktreePath);
-  // The head is published already: an unchanged resume never republishes it.
-  recordPublication(worktree, headSha);
-  return { worktree };
 }
 
 /**
@@ -670,49 +533,6 @@ export async function listChangedPaths(worktree, { signal } = {}) {
 }
 
 /**
- * The current worktree of every other topic. Archived worktrees keep the name
- * of their topic but end in `-before-<suffix>`, so they never count as active
- * work.
- */
-export async function listOtherTopicWorktrees({
-  repositoryPath,
-  worktreeRoot,
-  excludeName,
-  signal,
-}) {
-  if (!existsSync(worktreeRoot)) {
-    return [];
-  }
-  const root = realpathSync(worktreeRoot);
-  const worktrees = [];
-  const registeredPaths = await worktreePaths(
-    primaryRepository(repositoryPath),
-    { signal },
-  );
-  for (const path of registeredPaths) {
-    // A registered worktree whose directory is gone is not a worktree of
-    // another topic: nothing about it can overlap this one.
-    if (!existsSync(path)) {
-      continue;
-    }
-    const resolvedPath = realpathSync(path);
-    const name = basename(resolvedPath);
-    if (
-      dirname(resolvedPath) !== root ||
-      name === excludeName ||
-      !topicWorktreePattern.test(name)
-    ) {
-      continue;
-    }
-    worktrees.push({
-      name,
-      worktree: registeredWorktree(repositoryPath, resolvedPath),
-    });
-  }
-  return worktrees;
-}
-
-/**
  * Every path the worktree would publish: committed since `origin/main` and not
  * committed yet. A rename counts on both sides, so an overlap with the old
  * name is visible too.
@@ -798,19 +618,214 @@ export async function commitAll({ worktree, message, signal }) {
   if (staged !== "") {
     await runGit(
       worktree,
-      [
-        "-c",
-        "user.name=Mountain Runners Agent",
-        "-c",
-        "user.email=agent@mountainrunners.cat",
-        "commit",
-        "-m",
-        message,
-      ],
+      [...agentIdentityArguments, "commit", "-m", message],
       { signal },
     );
   }
   return (await runGit(worktree, ["rev-parse", "HEAD"], { signal })).trim();
+}
+
+export class MergeCleanupError extends Error {
+  constructor(options) {
+    super("Could not abort the interrupted merge.", options);
+    this.name = "MergeCleanupError";
+  }
+}
+
+export async function fetchPublishedBranch({
+  worktree,
+  branch,
+  headSha,
+  signal,
+}) {
+  assertWorkBranch(branch);
+  if (!fullCommitPattern.test(headSha)) return false;
+  await runGit(
+    worktree,
+    ["fetch", "--no-tags", "origin", `refs/heads/${branch}`],
+    {
+      signal,
+      timeoutMilliseconds: remoteGitTimeoutMilliseconds,
+    },
+  );
+  const fetchedHead = (
+    await runGit(worktree, ["rev-parse", "FETCH_HEAD"], { signal })
+  ).trim();
+  return fetchedHead === headSha;
+}
+
+export async function fastForwardPublishedBranch({
+  worktree,
+  branch,
+  headSha,
+  signal,
+}) {
+  assertWorkBranch(branch);
+  if (!fullCommitPattern.test(headSha)) return false;
+  if (
+    (await currentBranch(worktree, { signal })) !== branch ||
+    (await listChangedPaths(worktree, { signal })).length > 0 ||
+    (await hasUnpublishedCommit(worktree, { signal }))
+  ) {
+    return false;
+  }
+  const localHead = await headCommit(worktree, { signal });
+  if (!(await fetchPublishedBranch({ worktree, branch, headSha, signal })))
+    return false;
+  const fetchedHead = headSha;
+  const mergeBase = (
+    await runGit(worktree, ["merge-base", localHead, fetchedHead], {
+      signal,
+      allowFailure: true,
+    })
+  ).trim();
+  if (mergeBase !== localHead) return false;
+  await runGit(
+    worktree,
+    ["merge", "--ff-only", "--no-overwrite-ignore", fetchedHead],
+    { signal },
+  );
+  recordPublication(worktree, fetchedHead);
+  return true;
+}
+
+export async function mergeMainIntoBranch({ worktree, signal }) {
+  await runGit(worktree, ["fetch", "--prune", "origin", "main"], {
+    signal,
+    timeoutMilliseconds: remoteGitTimeoutMilliseconds,
+  });
+  const mainHead = (
+    await runGit(worktree, ["rev-parse", "origin/main"], { signal })
+  ).trim();
+  return mergeCommitIntoBranch({ worktree, headSha: mainHead, signal });
+}
+
+export async function mergeCommitIntoBranch({ worktree, headSha, signal }) {
+  if (!fullCommitPattern.test(headSha))
+    throw new Error("A full commit SHA is required.");
+  const mergeBase = (
+    await runGit(worktree, ["merge-base", "HEAD", headSha], { signal })
+  ).trim();
+  if (mergeBase === headSha) {
+    return { merged: false };
+  }
+  try {
+    await runGit(
+      worktree,
+      [
+        ...agentIdentityArguments,
+        "merge",
+        "--no-ff",
+        "--no-edit",
+        "--no-overwrite-ignore",
+        headSha,
+      ],
+      { signal },
+    );
+    return { merged: true };
+  } catch (error) {
+    // Cleanup must still run after cancellation: the sandbox cannot safely
+    // receive a worktree with an interrupted merge in progress.
+    const mergeHead = await runGit(
+      worktree,
+      ["rev-parse", "--verify", "--quiet", "MERGE_HEAD"],
+      { allowFailure: true },
+    );
+    if (mergeHead.trim() === headSha) {
+      const output = await runGit(worktree, [
+        "diff",
+        "--name-only",
+        "--diff-filter=U",
+        "-z",
+      ]);
+      const paths = output.split("\0").filter(Boolean);
+      await abortConflictMerge(worktree);
+      signal?.throwIfAborted();
+      if (paths.length > 0) {
+        return { conflict: true, paths };
+      }
+    }
+    signal?.throwIfAborted();
+    throw error;
+  }
+}
+
+export async function restartConflictMerge({
+  worktree,
+  headSha,
+  expectedPaths,
+  signal,
+}) {
+  if (!fullCommitPattern.test(headSha))
+    throw new Error("A full commit SHA is required.");
+  try {
+    await runGit(
+      worktree,
+      [
+        ...agentIdentityArguments,
+        "merge",
+        "--no-ff",
+        "--no-commit",
+        "--no-overwrite-ignore",
+        headSha,
+      ],
+      { signal },
+    );
+  } catch (error) {
+    const mergeHead = await runGit(
+      worktree,
+      ["rev-parse", "--verify", "--quiet", "MERGE_HEAD"],
+      { allowFailure: true },
+    );
+    if (mergeHead.trim() !== headSha) {
+      throw error;
+    }
+    const output = await runGit(worktree, [
+      "diff",
+      "--name-only",
+      "--diff-filter=U",
+      "-z",
+    ]);
+    const paths = output.split("\0").filter(Boolean);
+    if (
+      !signal?.aborted &&
+      paths.length === expectedPaths.length &&
+      paths.every((path, index) => path === expectedPaths[index])
+    ) {
+      return true;
+    }
+    await abortConflictMerge(worktree);
+    signal?.throwIfAborted();
+    return false;
+  }
+  // A changed target must not silently choose a different merge.
+  await abortConflictMerge(worktree);
+  return false;
+}
+
+export async function abortConflictMerge(worktree) {
+  try {
+    await runGit(worktree, ["merge", "--abort"]);
+  } catch (error) {
+    throw new MergeCleanupError({ cause: error });
+  }
+}
+
+export async function commitConflictMerge({ worktree, signal }) {
+  await runGit(worktree, ["add", "--all"], { signal });
+  const unmerged = await runGit(
+    worktree,
+    ["diff", "--name-only", "--diff-filter=U", "-z"],
+    { signal },
+  );
+  if (unmerged !== "") {
+    return false;
+  }
+  await runGit(worktree, ["diff", "--cached", "--check"], { signal });
+  await runGit(worktree, [...agentIdentityArguments, "commit", "--no-edit"], {
+    signal,
+  });
+  return true;
 }
 
 export async function hasUnpublishedCommit(worktree, { signal } = {}) {
