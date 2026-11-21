@@ -25,6 +25,7 @@ import {
   committedPaths,
   hasUnpublishedCommit,
   publishedCommit,
+  mergeMainIntoBranch,
 } from "../repository/worktrees.mjs";
 import { runGit } from "../repository/trusted-git.mjs";
 import { parseMergeCommand } from "./merge-request.mjs";
@@ -351,6 +352,29 @@ export function createInstructionRunner({
       },
     );
     return mergeBase.trim() === remoteHead;
+  }
+
+  async function checkWorktree({
+    worktree,
+    worktreeName,
+    checkCommand,
+    signal,
+  }) {
+    const checks = await runChecks({
+      sandboxIdentifier: worktreeName,
+      worktreePath: worktree.path,
+      checkCommand,
+      signal,
+    });
+    if (checks.timedOut) {
+      return instructionReports.checksTimedOut;
+    }
+    if (checks.exitCode !== 0) {
+      logger("checks_failed", worktreeName);
+      return instructionReports.checksFailed;
+    }
+    signal?.throwIfAborted();
+    return null;
   }
 
   async function execute(request, { signal } = {}) {
@@ -691,21 +715,31 @@ export function createInstructionRunner({
       const checkCommand = checkCommandForPaths(
         await changedPathsAgainstMain(worktree, { signal }),
       );
-      const checks = await runChecks({
-        sandboxIdentifier: worktreeName,
-        worktreePath: worktree.path,
+      const checkReport = await checkWorktree({
+        worktree,
+        worktreeName,
         checkCommand,
         signal,
       });
-      if (checks.timedOut) {
-        return { outcome: "failed", report: instructionReports.checksTimedOut };
+      if (checkReport !== null) {
+        return { outcome: "failed", report: checkReport };
       }
-      if (checks.exitCode !== 0) {
-        logger("checks_failed", worktreeName);
+      await commitAll({ worktree, message: title, signal });
+      const synchronization = await mergeMainIntoBranch({ worktree, signal });
+      if (synchronization.conflict) {
         return { outcome: "failed", report: instructionReports.checksFailed };
       }
-      signal?.throwIfAborted();
-      await commitAll({ worktree, message: title, signal });
+      if (synchronization.merged) {
+        const checkReport = await checkWorktree({
+          worktree,
+          worktreeName,
+          checkCommand,
+          signal,
+        });
+        if (checkReport !== null) {
+          return { outcome: "failed", report: checkReport };
+        }
+      }
       const body = pullRequestBody({
         title,
         changedPaths: await committedPaths(worktree, { signal }),

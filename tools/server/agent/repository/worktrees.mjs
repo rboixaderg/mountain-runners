@@ -27,6 +27,12 @@ import {
 } from "./trusted-git.mjs";
 import { parseLegacyWorktreeName } from "./identifiers.mjs";
 
+const agentIdentityArguments = [
+  "-c",
+  "user.name=Mountain Runners Agent",
+  "-c",
+  "user.email=agent@mountainrunners.cat",
+];
 const protectedBranches = new Set(["main", "master"]);
 const branchPattern =
   /^(feat|fix|docs|refactor|test|build|ci|chore|security)\/[a-z0-9]+(?:[._-][a-z0-9]+)*$/u;
@@ -798,19 +804,59 @@ export async function commitAll({ worktree, message, signal }) {
   if (staged !== "") {
     await runGit(
       worktree,
-      [
-        "-c",
-        "user.name=Mountain Runners Agent",
-        "-c",
-        "user.email=agent@mountainrunners.cat",
-        "commit",
-        "-m",
-        message,
-      ],
+      [...agentIdentityArguments, "commit", "-m", message],
       { signal },
     );
   }
   return (await runGit(worktree, ["rev-parse", "HEAD"], { signal })).trim();
+}
+
+export async function mergeMainIntoBranch({ worktree, signal }) {
+  await runGit(worktree, ["fetch", "--prune", "origin", "main"], {
+    signal,
+    timeoutMilliseconds: remoteGitTimeoutMilliseconds,
+  });
+  const mainHead = (
+    await runGit(worktree, ["rev-parse", "origin/main"], { signal })
+  ).trim();
+  const mergeBase = (
+    await runGit(worktree, ["merge-base", "HEAD", mainHead], { signal })
+  ).trim();
+  if (mergeBase === mainHead) {
+    return { merged: false };
+  }
+  try {
+    await runGit(
+      worktree,
+      [...agentIdentityArguments, "merge", "--no-ff", "--no-edit", mainHead],
+      { signal },
+    );
+    return { merged: true };
+  } catch (error) {
+    // Cleanup must still run after cancellation: the sandbox cannot safely
+    // receive a worktree with an interrupted merge in progress.
+    const mergeHead = await runGit(
+      worktree,
+      ["rev-parse", "--verify", "--quiet", "MERGE_HEAD"],
+      { allowFailure: true },
+    );
+    if (mergeHead.trim() === mainHead) {
+      const output = await runGit(worktree, [
+        "diff",
+        "--name-only",
+        "--diff-filter=U",
+        "-z",
+      ]);
+      const paths = output.split("\0").filter(Boolean);
+      await runGit(worktree, ["merge", "--abort"]);
+      signal?.throwIfAborted();
+      if (paths.length > 0) {
+        return { conflict: true, paths };
+      }
+    }
+    signal?.throwIfAborted();
+    throw error;
+  }
 }
 
 export async function hasUnpublishedCommit(worktree, { signal } = {}) {

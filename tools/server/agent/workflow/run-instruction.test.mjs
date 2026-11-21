@@ -554,6 +554,97 @@ test("stops an ambiguous legacy topic before the model or any publication", asyn
   assert.equal(existsSync(topicWorktreePath(paths)), false);
 });
 
+async function runMainSync(
+  context,
+  { conflict = false, failSecondCheck = false } = {},
+) {
+  const paths = await fixture(context);
+  const github = githubStub();
+  let checks = 0;
+  let modelTurns = 0;
+  let advancedMain;
+  const runner = createProjectRunner({
+    config: configFor(paths),
+    github,
+    classifyRequest: async () => ({ kind: "implementation" }),
+    runModel: async ({ worktreePath }) => {
+      modelTurns += 1;
+      const topicPath = conflict ? "README.md" : "change.txt";
+      const mainPath = conflict ? "README.md" : "main-change.txt";
+      writeFileSync(join(worktreePath, topicPath), "topic change\n");
+      writeFileSync(join(paths.repository, mainPath), "main change\n");
+      await git(paths.repository, ["add", mainPath]);
+      await git(paths.repository, [
+        "commit",
+        "-m",
+        "chore: advance synthetic main",
+      ]);
+      advancedMain = await git(paths.repository, ["rev-parse", "HEAD"]);
+      await git(join(paths.directory, "origin.git"), [
+        "fetch",
+        paths.repository,
+        "+refs/heads/main:refs/heads/main",
+      ]);
+      return { text: "SUMMARY: feat(tools): add synthetic change" };
+    },
+    runChecks: async () => {
+      checks += 1;
+      return {
+        exitCode: failSecondCheck && checks === 2 ? 1 : 0,
+        timedOut: false,
+      };
+    },
+  });
+  const result = await runner(request());
+  return { paths, github, result, checks, modelTurns, advancedMain };
+}
+
+test("integrates an advanced main and reruns checks before publication", async (context) => {
+  const { paths, github, result, checks, advancedMain } =
+    await runMainSync(context);
+  assert.equal(result.outcome, "pull_request_created", result.report);
+  assert.equal(checks, 2);
+  assert.equal(github.pushes.length, 1);
+  const parents = (
+    await git(topicWorktreePath(paths), ["log", "-1", "--format=%P"])
+  ).split(" ");
+  assert.equal(parents.length, 2);
+  assert.equal(parents[1], advancedMain);
+});
+
+test("aborts a conflicting main merge and keeps the topic commit", async (context) => {
+  const { paths, github, result, checks, modelTurns } = await runMainSync(
+    context,
+    { conflict: true },
+  );
+  assert.equal(result.outcome, "failed");
+  assert.equal(result.report, instructionReports.checksFailed);
+  assert.equal(checks, 1);
+  assert.equal(modelTurns, 1);
+  assert.deepEqual(github.pushes, []);
+  const worktree = topicWorktreePath(paths);
+  assert.equal(
+    readFileSync(join(worktree, "README.md"), "utf8"),
+    "topic change\n",
+  );
+  await assert.rejects(git(worktree, ["rev-parse", "--verify", "MERGE_HEAD"]));
+});
+
+test("keeps the clean merge without pushing when synchronized checks fail", async (context) => {
+  const { paths, github, result, checks, advancedMain } = await runMainSync(
+    context,
+    { failSecondCheck: true },
+  );
+  assert.equal(result.outcome, "failed");
+  assert.equal(result.report, instructionReports.checksFailed);
+  assert.equal(checks, 2);
+  assert.deepEqual(github.pushes, []);
+  const parents = (
+    await git(topicWorktreePath(paths), ["log", "-1", "--format=%P"])
+  ).split(" ");
+  assert.equal(parents[1], advancedMain);
+});
+
 test("publishes pending work after a later question when checks recover", async (context) => {
   const paths = await fixture(context);
   const github = githubStub();

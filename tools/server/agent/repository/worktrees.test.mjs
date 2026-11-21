@@ -29,6 +29,7 @@ import {
   findSessionWorktree,
   hasUnpublishedCommit,
   listOtherTopicWorktrees,
+  mergeMainIntoBranch,
   recordPublication,
   renameLegacyWorktrees,
   resumeWorkBranch,
@@ -76,6 +77,39 @@ async function repositoryFixture(context) {
 
   return { directory, origin, repository, worktreeRoot };
 }
+
+test("reports conflicted paths and aborts without changing the topic commit", async (context) => {
+  const { origin, repository, worktreeRoot } = await repositoryFixture(context);
+  const worktree = await ensureSessionWorktree({
+    repositoryPath: repository,
+    worktreeRoot,
+    name: "topic-0123456789abcdef",
+  });
+  await createBranch({ worktree, branch: "feat/agent-synthetic" });
+  assert.deepEqual(await mergeMainIntoBranch({ worktree }), { merged: false });
+  writeFileSync(join(worktree.path, "README.md"), "topic change\n");
+  const topicHead = await commitAll({
+    worktree,
+    message: "feat(agent): change topic",
+  });
+  writeFileSync(join(repository, "README.md"), "main change\n");
+  await git(repository, ["add", "README.md"]);
+  await git(repository, ["commit", "-m", "chore: advance main"]);
+  await git(origin, ["fetch", repository, "+refs/heads/main:refs/heads/main"]);
+
+  assert.deepEqual(await mergeMainIntoBranch({ worktree }), {
+    conflict: true,
+    paths: ["README.md"],
+  });
+  assert.equal(await git(worktree.path, ["rev-parse", "HEAD"]), topicHead);
+  assert.equal(
+    readFileSync(join(worktree.path, "README.md"), "utf8"),
+    "topic change\n",
+  );
+  await assert.rejects(
+    git(worktree.path, ["rev-parse", "--verify", "MERGE_HEAD"]),
+  );
+});
 
 test("creates a detached session worktree from the latest origin/main", async (context) => {
   const { repository, worktreeRoot } = await repositoryFixture(context);
