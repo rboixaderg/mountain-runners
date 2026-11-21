@@ -415,6 +415,7 @@ test("reads one pull request to pin the reported commit to its head", async () =
     headRepository: "example/project",
     draft: false,
     previewLabeled: false,
+    previewRevoked: false,
     baseRef: "main",
     mergeableState: "clean",
     merged: false,
@@ -708,6 +709,58 @@ test("repeats once when the unknown result left no label and fails if that fails
   assert.equal(failing.requests.length, 3);
 });
 
+test("a server error or a rate limit on the post is an unknown result, settled by a read", async () => {
+  for (const status of [429, 503]) {
+    const { github, requests } = labelsComponent((count) =>
+      count === 1
+        ? { ok: false, status }
+        : { ok: true, json: async () => [{ name: "preview" }] },
+    );
+    await github.addPreviewLabel({ number: 123 });
+    assert.deepEqual(
+      requests.map((request) => request.options.method),
+      ["POST", "GET"],
+    );
+  }
+});
+
+test("an unreadable or invalid label read after an unknown result never repeats the post", async () => {
+  const unreadable = labelsComponent((count) => {
+    if (count === 1) return unknownResult();
+    return { ok: false, status: 502 };
+  });
+  await assert.rejects(unreadable.github.addPreviewLabel({ number: 123 }), {
+    status: 502,
+  });
+  assert.deepEqual(
+    unreadable.requests.map((request) => request.options.method),
+    ["POST", "GET"],
+  );
+
+  const invalid = labelsComponent((count) => {
+    if (count === 1) return unknownResult();
+    return { ok: true, json: async () => ({ name: "preview" }) };
+  });
+  await assert.rejects(
+    invalid.github.addPreviewLabel({ number: 123 }),
+    /invalid labels response/u,
+  );
+  assert.equal(invalid.requests.length, 2);
+});
+
+test("a stop during an unknown label result reads nothing more", async () => {
+  const controller = new AbortController();
+  const { github, requests } = labelsComponent(() => {
+    controller.abort();
+    return unknownResult();
+  });
+  await assert.rejects(
+    github.addPreviewLabel({ number: 123, signal: controller.signal }),
+    { name: "AbortError" },
+  );
+  assert.equal(requests.length, 1);
+});
+
 test("a definite rejection is never repeated and exposes only the status", async () => {
   const { github, requests } = labelsComponent(() => ({
     ok: false,
@@ -720,11 +773,18 @@ test("a definite rejection is never repeated and exposes only the status", async
   assert.equal(requests.length, 1);
 });
 
-test("reads the preview label of a pull request", async () => {
+test("reads the preview label and its revocation of a pull request", async () => {
   for (const [labels, expected] of [
-    [[{ name: "preview" }], true],
-    [[{ name: "preview-revoked" }], false],
-    [[], false],
+    [[{ name: "preview" }], { previewLabeled: true, previewRevoked: false }],
+    [
+      [{ name: "preview-revoked" }],
+      { previewLabeled: false, previewRevoked: true },
+    ],
+    [
+      [{ name: "preview" }, { name: "preview-revoked" }],
+      { previewLabeled: true, previewRevoked: true },
+    ],
+    [[], { previewLabeled: false, previewRevoked: false }],
   ]) {
     const github = new GitHubTrust({
       token: "synthetic",
@@ -734,11 +794,26 @@ test("reads the preview label of a pull request", async () => {
         json: async () => pullRequestResponse({ labels }),
       }),
     });
-    assert.equal(
-      (await github.getPullRequest({ number: 1 })).previewLabeled,
-      expected,
-    );
+    const { previewLabeled, previewRevoked } = await github.getPullRequest({
+      number: 1,
+    });
+    assert.deepEqual({ previewLabeled, previewRevoked }, expected);
   }
+});
+
+test("refuses a pull request response without its labels", async () => {
+  const github = new GitHubTrust({
+    token: "synthetic",
+    repository: "example/project",
+    fetchImpl: async () => ({
+      ok: true,
+      json: async () => pullRequestResponse({ labels: undefined }),
+    }),
+  });
+  await assert.rejects(
+    github.getPullRequest({ number: 1 }),
+    /invalid pull request response/u,
+  );
 });
 
 test("reads every page of pull request comments and fails closed past the limit", async () => {

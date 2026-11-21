@@ -47,6 +47,7 @@ import {
 import { createMergeRequests } from "../../workflow/merge-request.mjs";
 import { createPreviewRequests } from "../../workflow/preview-request.mjs";
 import { createProjectRunner } from "../../workflow/project-runner.mjs";
+import { createTopicPullRequestFinder } from "../../workflow/topic-state.mjs";
 import { stopAllSandboxedCommands } from "../../sandbox/commands.mjs";
 
 function defaultLogger(event, detail) {
@@ -365,7 +366,7 @@ export async function startService({
     });
   const previewWorker = createPreviewRequests({
     store: previewRequests,
-    reportedCommits: ciWatches,
+    findTopicPullRequest: createTopicPullRequestFinder(ciWatches),
     verifyMembership: verifyAuthorMembership,
     github,
     repository: config.github.repository,
@@ -417,10 +418,10 @@ export async function startService({
         environment,
         logger,
         ciWatches,
-        previewRequests,
         mergeRequests,
         topicJobs,
         requestPreview: previewWorker.handle,
+        followPreview: previewWorker.followPublication,
         requestMerge: mergeWorker.handle,
         // The raw download only touches the service temporary directory, so the
         // downloaded image is cleaned before it reaches a worktree.
@@ -473,9 +474,6 @@ export async function startService({
     pollIntervalMilliseconds: config.limits.ciPollIntervalMs,
     watchTimeoutMilliseconds: config.limits.ciWatchTimeoutMs,
     maximumAutomaticRepairs,
-    // A request that asked for the change and its preview in the same message
-    // gets the preview here, through the same handler a person's request uses.
-    requestPreview: previewWorker.handle,
     secrets: agentSecrets(config, environment),
     recordTrace: (entry) => queue.recordTrace(entry),
     recordServiceNote,

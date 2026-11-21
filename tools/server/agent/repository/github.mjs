@@ -35,9 +35,10 @@ const fullCommitPattern = /^[a-f0-9]{40}$/u;
 const maximumPageCount = 10;
 const maximumJobLogBytes = 1024 * 1024;
 const previewLabel = "preview";
+const previewRevokedLabel = "preview-revoked";
 
-function hasPreviewLabel(labels) {
-  return labels.some((label) => label?.name === previewLabel);
+function hasLabel(labels, name) {
+  return labels.some((label) => label?.name === name);
 }
 
 function assertFullCommit(commit) {
@@ -555,7 +556,9 @@ export class GitHubTrust {
       // A fork whose repository was deleted has no head repository.
       headRepository: pull.head.repo?.full_name ?? null,
       draft: pull.draft,
-      previewLabeled: hasPreviewLabel(pull.labels),
+      previewLabeled: hasLabel(pull.labels, previewLabel),
+      // A maintainer's revocation wins over the label: no preview is announced.
+      previewRevoked: hasLabel(pull.labels, previewRevokedLabel),
       baseRef: pull.base.ref,
       // `unknown` while GitHub is still computing it; any other value but
       // `clean` is a reason not to merge.
@@ -598,11 +601,14 @@ export class GitHubTrust {
     } catch (error) {
       if (isDefiniteRejection(error)) throw error;
     }
-    if (
-      hasPreviewLabel(
-        await this.#request("GET", labelsPath, undefined, { signal }),
-      )
-    ) {
+    signal?.throwIfAborted();
+    const labels = await this.#request("GET", labelsPath, undefined, {
+      signal,
+    });
+    if (!Array.isArray(labels)) {
+      throw new Error("GitHub returned an invalid labels response.");
+    }
+    if (hasLabel(labels, previewLabel)) {
       return;
     }
     await this.#request(

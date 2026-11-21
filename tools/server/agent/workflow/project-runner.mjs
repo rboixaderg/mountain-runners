@@ -31,10 +31,10 @@ export function createProjectRunner({
   github,
   environment = process.env,
   ciWatches,
-  previewRequests,
   mergeRequests,
   topicJobs,
   requestPreview,
+  followPreview,
   requestMerge,
   prepareAttachment,
   attachmentStore = createAttachmentStore({
@@ -147,6 +147,7 @@ export function createProjectRunner({
     runChecks,
     logger,
     requestPreview,
+    followPreview,
     requestMerge,
     prepareAttachment,
     scaleAttachments,
@@ -171,13 +172,12 @@ export function createProjectRunner({
     // the model cannot read the pull request, its checks or the preview inside
     // the sandbox.
     readTopicState:
-      ciWatches && previewRequests && mergeRequests
+      ciWatches && mergeRequests
         ? createLiveTopicStateReader({
             github,
             requiredChecks: config.github.requiredChecks,
             logger,
             ciWatches,
-            previewRequests,
             mergeRequests,
             findTopicPullRequest: findOwnedTopicPullRequest,
             repositoryName: config.github.repository,

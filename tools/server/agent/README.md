@@ -207,8 +207,8 @@ al servidor. El nom local encara no representa una publicació a npm.
    d'una publicació confirmada, la instrucció acaba com a incerta: la publicació
    s'ha fet, però cap avís durador la pot autoritzar, i una persona ho
    reconcilia. Mentre el tema tingui cap avís incert, el tema té feina sense
-   informar: `/merge` i `/preview` no resolen res, encara que un avís posterior
-   s'hagi lliurat abans.
+   informar: `/merge` no resol res, encara que un avís posterior s'hagi lliurat
+   abans.
 8. Si una comprovació obligatòria acaba com a `cancelled` o `timed_out`, o falla
    en un pas de preparació abans dels passos de projecte, `workflow/ci-watch.mjs`
    reserva una reexecució dels jobs fallits de l'execució de GitHub. La reserva
@@ -263,26 +263,30 @@ al servidor. El nom local encara no representa una publicació a npm.
    existent. Cada push posterior publica la preview amb `synchronize` al flux de
    la fase 6.
 
-   Una persona verificada pot demanar l'adreça en llenguatge natural. El
+   Cada publicació del servei, també una reparació automàtica, segueix la
+   preview del commit que ha pujat (`followPublication`): desa una petició
+   `awaiting` a la fila de la instrucció que l'ha publicada, i una reparació
+   reobre aquella fila per al commit nou. No espera les comprovacions verdes: el
+   `build` de la preview executa `pnpm validate` i un cap vermell no es publica.
+   Una persona verificada també pot demanar l'adreça en llenguatge natural. El
    classificador només etiqueta la petició com a `preview`: el model no s'inicia
    ni toca cap worktree. `workflow/preview-request.mjs` torna a verificar la
-   pertinença de l'autor en executar la petició, com el merge, fixa la petició
-   al commit que el servei va informar en verd en aquell tema (mai una PR o un
-   SHA escrits per la persona) i torna a llegir la PR: oberta, branca del
-   repositori principal i etiqueta `preview` encara posada. Ja no espera les
-   comprovacions verdes: el `build` de la preview executa `pnpm validate`. Una PR
-   sense l'etiqueta no té preview i el servei no n'anuncia cap. Si el tema té
-   una publicació més nova sense informe confirmat, refusa i nomena la feina
-   nova. Si l'autor ja no és membre, si la consulta de pertinença falla o hi ha
-   un error de lectura, refusa i ho diu. Només llavors desa la petició
-   (`awaiting`). Un bucle en segon pla llegeix els comentaris de la PR i només
-   accepta el del publicador de la fase 6 (`github-actions[bot]`, marcador,
+   pertinença de l'autor en executar la petició, com el merge, pren la PR que el
+   tema ha publicat (mai una PR o un SHA escrits per la persona), torna a llegir
+   la PR i fixa la petició al cap actual. Refusa si la PR no està oberta, no ve
+   del repositori principal, té `preview-revoked` o no té l'etiqueta `preview`.
+   Si l'autor ja no és membre, si la consulta de pertinença falla o hi ha un
+   error de lectura, refusa i ho diu. Només llavors desa la petició (`awaiting`).
+
+   Un bucle en segon pla llegeix els comentaris de la PR i, després, la PR. Si la
+   PR ja no és oberta, té un cap més nou, ha perdut l'etiqueta o té
+   `preview-revoked`, la petició acaba sense cap avís: només s'informa l'adreça
+   del cap final i mai una preview retirada. Altrament només accepta el
+   comentari del publicador de la fase 6 (`github-actions[bot]`, marcador,
    origen exacte `https://pr-<n>.preview.mountainrunners.cat` i el SHA fixat,
    també si és anterior a la petició, perquè l'etiqueta el publica en pujar el
    cap). Retorna l'URL confirmada al tema; si el termini de 25 minuts s'esgota,
-   ho comunica com a no confirmat sense construir cap URL. Una petició amb un cap
-   més nou de la mateixa PR acaba sense avís: només s'informa l'adreça del cap
-   final.
+   ho comunica com a no confirmat sense construir cap URL.
 
    El servei ja no llegeix les execucions de `preview.yml`: el run de
    `pull_request_target` no porta el cap de la PR (`head_sha` és l'últim commit
@@ -349,14 +353,13 @@ al servidor. El nom local encara no representa una publicació a npm.
 13. Cada torn rep com a dada l'estat de la PR del tema. El servei la identifica
     amb els seguiments desats i llegeix de GitHub el cap i les comprovacions
     obligatòries. Revalida el cap i llegeix la confirmació del publicador per a
-    la preview del cap actual. Si no pot confirmar l'estat, el bloc diu que no
-    es pot comprovar i registra `topic_state_failed` al journal. El bloc no
-    conté identificadors de Telegram ni dades personals, i el classificador no
-    el rep. El sandbox continua sense xarxa ni credencials. La petició explícita
-    de preview també comprova el cap i la CI a GitHub, encara que el resultat
-    desat sigui anterior. Just abans de comentar, torna a comprovar el cap i la
-    CI; si han canviat o no es poden llegir, no comenta. El merge i la reparació
-    també tornen a comprovar el cap i la CI abans d'actuar.
+    la preview del cap actual. Les etiquetes de la PR decideixen la preview: sense
+    `preview`, amb `preview-revoked` o amb la PR tancada, el bloc no en dona cap
+    adreça. Si no pot confirmar l'estat, el bloc diu que no es pot comprovar i
+    registra `topic_state_failed` al journal. El bloc no conté identificadors de
+    Telegram ni dades personals, i el classificador no el rep. El sandbox
+    continua sense xarxa ni credencials. El merge i la reparació també tornen a
+    comprovar el cap i la CI abans d'actuar.
 
 Les imatges d'un torn ordinari segueixen aquest camí.
 `attachments/prepare.mjs` descarrega cada fitxer al directori temporal del

@@ -9,10 +9,6 @@ import { CiWatchStore } from "../repository/ci-watch-store.mjs";
 import { openIdentifierNames } from "../repository/identifiers.mjs";
 import { MergeRequestStore } from "../repository/merge-request-store.mjs";
 import {
-  PreviewRequestStore,
-  previewStates,
-} from "../repository/preview-request-store.mjs";
-import {
   buildTopicStateText,
   topicStateHeader,
 } from "../policy/development.mjs";
@@ -37,15 +33,11 @@ const authorIdentifier = 987654321;
 function storeFixture(context) {
   const directory = mkdtempSync(join(tmpdir(), "mr-topic-state-"));
   const ciWatches = new CiWatchStore(join(directory, "ci-watch.sqlite"));
-  const previewRequests = new PreviewRequestStore(
-    join(directory, "preview-request.sqlite"),
-  );
   const mergeRequests = new MergeRequestStore(
     join(directory, "merge-request.sqlite"),
   );
   context.after(() => {
     mergeRequests.close();
-    previewRequests.close();
     ciWatches.close();
     rmSync(directory, { recursive: true, force: true });
   });
@@ -53,7 +45,6 @@ function storeFixture(context) {
   return {
     directory,
     ciWatches,
-    previewRequests,
     mergeRequests,
     findTopicPullRequest,
   };
@@ -80,42 +71,50 @@ function reportChecks(
   ciWatches.finishSend(updateIdentifier);
 }
 
-function beginPreview(
-  previewRequests,
-  {
-    updateIdentifier = 600,
-    topic = sessionKey,
-    pullRequestNumber = 239,
-    commit = reportedCommit,
-  } = {},
-) {
-  previewRequests.begin({
-    updateIdentifier,
-    sessionKey: topic,
-    authorIdentifier: 42,
-    pullRequestNumber,
-    commitSha: commit,
-  });
-  previewRequests.markAwaiting(updateIdentifier, "2026-11-18T10:00:00Z");
+function labeledPullRequest(headSha = reportedCommit) {
+  return {
+    state: "open",
+    merged: false,
+    headSha,
+    previewLabeled: true,
+    previewRevoked: false,
+  };
 }
 
-function confirmPreview(
-  previewRequests,
-  {
-    updateIdentifier = 600,
-    topic = sessionKey,
-    pullRequestNumber = 239,
-    commit = reportedCommit,
-    origin = previewOrigin,
-  } = {},
-) {
-  beginPreview(previewRequests, {
-    updateIdentifier,
-    topic,
-    pullRequestNumber,
-    commit,
-  });
-  previewRequests.finish(updateIdentifier, previewStates.confirmed, origin);
+function publisherComment(commit) {
+  return {
+    user: { login: "github-actions[bot]" },
+    body: `<!-- mountain-runners-preview -->\nPreview publicada: ${previewOrigin}\nCommit: \`${commit}\`.`,
+    updated_at: "2026-11-18T10:05:00Z",
+  };
+}
+
+/**
+ * GitHub as the live reader sees it: green checks, the publisher's comment for
+ * the reported commit and every call recorded in order.
+ */
+function liveGithub({
+  pullRequest,
+  comments = [publisherComment(reportedCommit)],
+}) {
+  const calls = [];
+  return {
+    calls,
+    async getPullRequest() {
+      calls.push("getPullRequest");
+      return pullRequest;
+    },
+    async getCommitCheckRuns() {
+      return [{ name: "Validate", status: "completed", conclusion: "success" }];
+    },
+    async getCommitStatuses() {
+      return [];
+    },
+    async listIssueComments() {
+      calls.push("listIssueComments");
+      return comments;
+    },
+  };
 }
 
 test("looks up only the newest publication of each topic", (context) => {
@@ -168,15 +167,11 @@ async function turnFixture(context) {
   };
 
   const ciWatches = new CiWatchStore(join(directory, "ci-watch.sqlite"));
-  const previewRequests = new PreviewRequestStore(
-    join(directory, "preview-request.sqlite"),
-  );
   const mergeRequests = new MergeRequestStore(
     join(directory, "merge-request.sqlite"),
   );
   context.after(() => {
     mergeRequests.close();
-    previewRequests.close();
     ciWatches.close();
     rmSync(directory, {
       recursive: true,
@@ -208,7 +203,6 @@ async function turnFixture(context) {
       },
     },
     ciWatches,
-    previewRequests,
     mergeRequests,
   };
 }
@@ -232,38 +226,17 @@ const expectedStateBlock = [
 
 test("a consultation and an implementation receive the state of the topic", async (context) => {
   const fixture = await turnFixture(context);
+  // No preview request is stored: the label and the publisher's comment for
+  // the head are the whole preview state.
   reportChecks(fixture.ciWatches);
-  confirmPreview(fixture.previewRequests);
 
   const prompts = [];
   let kind = "consultation";
   const runner = createProjectRunner({
     config: fixture.config,
     ciWatches: fixture.ciWatches,
-    previewRequests: fixture.previewRequests,
     mergeRequests: fixture.mergeRequests,
-    github: {
-      async getPullRequest() {
-        return { state: "open", merged: false, headSha: reportedCommit };
-      },
-      async getCommitCheckRuns() {
-        return [
-          { name: "Validate", status: "completed", conclusion: "success" },
-        ];
-      },
-      async getCommitStatuses() {
-        return [];
-      },
-      async listIssueComments() {
-        return [
-          {
-            user: { login: "github-actions[bot]" },
-            body: `<!-- mountain-runners-preview -->\nPreview publicada: ${previewOrigin}\nCommit: \`${reportedCommit}\`.`,
-            updated_at: "2026-11-18T10:05:00Z",
-          },
-        ];
-      },
-    },
+    github: liveGithub({ pullRequest: labeledPullRequest() }),
     classifyRequest: async () => ({ kind }),
     executeSandbox: async () => ({ exitCode: 0, timedOut: false }),
     executeAgent: async (_config, options) => {
@@ -380,8 +353,86 @@ test("gives the classifier no pull request that is already merged", (context) =>
   assert.equal(openOnly(sessionKey), null);
 });
 
+const previewCases = [
+  [
+    "a closed pull request has no preview",
+    { ...labeledPullRequest(), state: "closed" },
+    { preview: "none: the pull request is not open", origin: null },
+  ],
+  [
+    "a revoked preview keeps no address, even with the label",
+    { ...labeledPullRequest(), previewRevoked: true },
+    { preview: "revoked by a maintainer", origin: null },
+  ],
+  [
+    "a pull request without the label has no preview",
+    { ...labeledPullRequest(), previewLabeled: false },
+    { preview: "none: the pull request has no preview label", origin: null },
+  ],
+  [
+    "a head the publisher has not confirmed yet has no address",
+    labeledPullRequest(newerCommit),
+    { preview: "not confirmed by the publisher yet", origin: null },
+  ],
+];
+
+for (const [name, pullRequest, expected] of previewCases) {
+  test(`live topic state: ${name}`, async (context) => {
+    const { ciWatches, mergeRequests, findTopicPullRequest } =
+      storeFixture(context);
+    reportChecks(ciWatches);
+    const read = createLiveTopicStateReader({
+      ciWatches,
+      mergeRequests,
+      findTopicPullRequest,
+      repositoryName,
+      github: liveGithub({ pullRequest }),
+      requiredChecks: ["Validate"],
+    });
+
+    const { liveState } = await read(sessionKey);
+
+    assert.equal(liveState.preview, expected.preview);
+    assert.equal(liveState.origin, expected.origin);
+  });
+}
+
+test("live topic state confirms the preview of a head pushed outside the service", async (context) => {
+  const { ciWatches, mergeRequests, findTopicPullRequest } =
+    storeFixture(context);
+  reportChecks(ciWatches);
+  // A maintainer pushed a newer head to the labeled pull request: no request of
+  // the topic exists, and the publisher's comment for that head is the source.
+  const github = liveGithub({
+    pullRequest: labeledPullRequest(newerCommit),
+    comments: [publisherComment(reportedCommit), publisherComment(newerCommit)],
+  });
+  const read = createLiveTopicStateReader({
+    ciWatches,
+    mergeRequests,
+    findTopicPullRequest,
+    repositoryName,
+    github,
+    requiredChecks: ["Validate"],
+  });
+
+  const state = await read(sessionKey);
+
+  assert.equal(state.liveState.preview, "confirmed");
+  assert.equal(state.liveState.origin, previewOrigin);
+  assert.match(
+    buildTopicStateText(state),
+    /Current head: ddddddd[^\n]*\n[^\n]*\n- Preview: confirmed, URL https:\/\/pr-239\.preview\.mountainrunners\.cat\./u,
+  );
+  assert.deepEqual(
+    github.calls,
+    ["getPullRequest", "getPullRequest", "listIssueComments", "getPullRequest"],
+    "the comments are read before the confirming read of the pull request",
+  );
+});
+
 test("live topic state recovers from stale reports and fails closed on a read error", async (context) => {
-  const { ciWatches, previewRequests, mergeRequests, findTopicPullRequest } =
+  const { ciWatches, mergeRequests, findTopicPullRequest } =
     storeFixture(context);
   reportChecks(ciWatches, { result: "repairing" });
   let unavailable = false;
@@ -397,10 +448,12 @@ test("live topic state recovers from stale reports and fails closed on a read er
     async getCommitStatuses() {
       return [];
     },
+    async listIssueComments() {
+      return [];
+    },
   };
   const read = createLiveTopicStateReader({
     ciWatches,
-    previewRequests,
     mergeRequests,
     findTopicPullRequest,
     repositoryName,

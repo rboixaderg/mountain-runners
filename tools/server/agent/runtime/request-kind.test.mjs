@@ -103,7 +103,7 @@ test("asks the classification again after a provider rate limit", async (context
   const answers = [
     rateLimited(),
     rateLimited(),
-    answered('{"kind":"continuation","previewAfterChange":false}'),
+    answered('{"kind":"continuation"}'),
   ];
   const waits = [];
   const result = await classifyRequest(classificationConfig(directory), {
@@ -113,7 +113,7 @@ test("asks the classification again after a provider rate limit", async (context
     runPrompt: async () => answers.shift(),
     wait: async (milliseconds) => waits.push(milliseconds),
   });
-  assert.deepEqual(result, { kind: "continuation", previewAfterChange: false });
+  assert.deepEqual(result, { kind: "continuation" });
   assert.deepEqual(waits, [10, 20], "two retries with the injected backoff");
 });
 
