@@ -330,6 +330,10 @@ al servidor. El nom local encara no representa una publicació a npm.
     solapament. Els mòduls anteriors es mantenen al repositori, però aquest
     camí ja no els crida. Una PR vinculada es revalida abans del push i no es
     crea una segona PR per al tema.
+    Abans de cada torn ordinari, el servei llegeix la PR vinculada: si és
+    fusionada o tancada, respon «Aquesta feina ja està acabada. Obre un tema nou
+    per a una altra feina.» sense torn de model, branca ni PR; si no la pot
+    llegir, no la dona per oberta i informa del fracàs de lectura.
 
 12. Cada instrucció admesa que no és `/merge` ni una preview executa un torn de
     Pi a la sessió del tema, i el torn següent rep els efectes que el servei ha

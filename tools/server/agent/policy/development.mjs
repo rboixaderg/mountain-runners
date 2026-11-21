@@ -547,6 +547,10 @@ export const instructionReports = {
     "Hi ha canvis nous sense publicar sobre la feina que calia corregir, així que no he tocat res per no barrejar-los. El treball es conserva; ho ha de revisar la persona que manté el servei.",
 };
 
+// The fixed answer of a topic whose bound pull request is merged or closed.
+export const finishedTopicReport =
+  "Aquesta feina ja està acabada. Obre un tema nou per a una altra feina.";
+
 // Replies of a continuation that names another topic's pull request. Each
 // refusal names the pull request and says that nothing was resumed, so two
 // topics never write the same branch by accident.

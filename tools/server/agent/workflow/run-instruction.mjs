@@ -51,6 +51,7 @@ import {
   branchNameForChange,
   fallbackTitle,
   pullRequestBody,
+  finishedTopicReport,
   instructionReports,
   maximumPromptImageBytes,
   publicationNoteText,
@@ -474,15 +475,6 @@ export function createInstructionRunner({
   // an open, non-draft pull request of this repository on the branch the topic
   // owns. Returns the pull request or the plain report of the refusal.
   async function readValidBoundPullRequest({ binding, topic, signal }) {
-    const movedHeadReport = continuationReports.movedHead({
-      pullRequestNumber: binding.pullRequestNumber,
-    });
-    if (
-      topic.worktree === null ||
-      (await currentBranch(topic.worktree, { signal })) !== binding.branch
-    ) {
-      return { report: movedHeadReport };
-    }
     let pullRequest;
     try {
       pullRequest = await readBoundPullRequest(binding.pullRequestNumber, {
@@ -491,6 +483,18 @@ export function createInstructionRunner({
     } catch {
       signal?.throwIfAborted();
       return { report: instructionReports.publicationReadFailed };
+    }
+    if (pullRequest.state === "closed") {
+      return { report: finishedTopicReport };
+    }
+    const movedHeadReport = continuationReports.movedHead({
+      pullRequestNumber: binding.pullRequestNumber,
+    });
+    if (
+      topic.worktree === null ||
+      (await currentBranch(topic.worktree, { signal })) !== binding.branch
+    ) {
+      return { report: movedHeadReport };
     }
     if (
       pullRequest.state !== "open" ||
