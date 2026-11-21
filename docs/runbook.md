@@ -1098,6 +1098,12 @@ etiqueta. Sense l'etiqueta, pujar commits a la branca no retira la preview
 publicada ni en renova la caducitat: continua servint el SHA autoritzat fins
 que es demana una nova preview amb `/preview` o es compleix un criteri de
 retirada. Amb l'etiqueta, cada push publica el cap nou.
+El job de publicació i el de neteja comparteixen el grup de concurrència
+`previews` amb `queue: max`: una retirada pendent espera el seu torn i no la
+substitueix una execució posterior. Si una preview continua servint-se després
+de treure l'etiqueta, la reconciliació horària ni una execució manual de
+`Preview cleanup` no la retiren mentre la PR sigui oberta: afegeix
+`preview-revoked`.
 La comprovació del head SHA vigent es manté per a les noves publicacions.
 Els fitxers rebuts però no instal·lats caduquen al cap d'un
 dia. La reconciliació comença amb `mountain-preview cleanup-retired`, que
@@ -1472,8 +1478,9 @@ de la persona mantenidora consta a l'especificació.
      branca, un sol commit i una PR amb la identitat de l'agent. El tema rep la
      resposta del model, una línia curta que diu que el canvi s'està comprovant i
      l'enllaç de revisió com a darrera línia. Amb les comprovacions obligatòries
-     en verd arriba un sol avís, que convida a demanar la preview, i no un
-     missatge per la PR, pel seguiment i pel verd. La notícia es crea com a
+     en verd arriba un sol avís, i no un missatge per la PR, pel seguiment i
+     pel verd. Quan el publicador confirma la preview del commit, arriba un
+     altre avís amb la seva adreça. La notícia es crea com a
      esborrany; «publica-la» la marca com a publicada amb l'hora de la petició,
      que és la seva aprovació editorial. El merge continua sent humà. Sense
      petició no s'escriuen les variants en castellà ni en anglès.
@@ -1489,12 +1496,14 @@ de la persona mantenidora consta a l'especificació.
      ha quedat incert, reconcilia'l abans de continuar.
 4. **Preview.**
    - Fer: comprova que la PR creada pel servei té l'etiqueta `preview` i que el
-     servei no ha comentat `/preview`. Treu l'etiqueta d'una PR de prova i
-     comprova que el servei no anuncia cap preview; demana l'adreça en llenguatge
-     natural amb l'etiqueta posada.
-   - Esperat: el servei torna només l'URL
+     servei no ha comentat `/preview`. Espera l'avís de l'adreça sense demanar-la
+     i demana un canvi més al mateix tema. Treu l'etiqueta d'una PR de prova i
+     comprova que el servei no anuncia cap preview; afegeix `preview-revoked` amb
+     l'etiqueta posada i comprova el mateix.
+   - Esperat: per a cada push del servei, el tema rep només l'URL
      `https://pr-<n>.preview.mountainrunners.cat` que el publicador de la fase 6
-     confirma per al cap actual, sense cap comentari `/preview`.
+     confirma per al cap actual, sense esperar el verd ni cap comentari
+     `/preview`; sense l'etiqueta o amb `preview-revoked`, cap adreça.
    - Si falla: no escriguis `/preview` a mà; comprova l'etiqueta, els secrets
      `PREVIEW_*`, el DNS i l'estat de la preview, i atura el servei mentre no es
      confirmi.
