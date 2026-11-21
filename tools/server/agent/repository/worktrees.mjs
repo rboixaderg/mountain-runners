@@ -811,6 +811,13 @@ export async function commitAll({ worktree, message, signal }) {
   return (await runGit(worktree, ["rev-parse", "HEAD"], { signal })).trim();
 }
 
+export class MergeCleanupError extends Error {
+  constructor(options) {
+    super("Could not abort the interrupted merge.", options);
+    this.name = "MergeCleanupError";
+  }
+}
+
 export async function mergeMainIntoBranch({ worktree, signal }) {
   await runGit(worktree, ["fetch", "--prune", "origin", "main"], {
     signal,
@@ -848,7 +855,7 @@ export async function mergeMainIntoBranch({ worktree, signal }) {
         "-z",
       ]);
       const paths = output.split("\0").filter(Boolean);
-      await runGit(worktree, ["merge", "--abort"]);
+      await abortMainConflict(worktree);
       signal?.throwIfAborted();
       if (paths.length > 0) {
         return { conflict: true, paths };
@@ -857,6 +864,73 @@ export async function mergeMainIntoBranch({ worktree, signal }) {
     signal?.throwIfAborted();
     throw error;
   }
+}
+
+export async function restartMainConflict({ worktree, expectedPaths, signal }) {
+  const mainHead = (
+    await runGit(worktree, ["rev-parse", "origin/main"], { signal })
+  ).trim();
+  try {
+    await runGit(
+      worktree,
+      [...agentIdentityArguments, "merge", "--no-ff", "--no-commit", mainHead],
+      { signal },
+    );
+  } catch (error) {
+    const mergeHead = await runGit(
+      worktree,
+      ["rev-parse", "--verify", "--quiet", "MERGE_HEAD"],
+      { allowFailure: true },
+    );
+    if (mergeHead.trim() !== mainHead) {
+      throw error;
+    }
+    const output = await runGit(worktree, [
+      "diff",
+      "--name-only",
+      "--diff-filter=U",
+      "-z",
+    ]);
+    const paths = output.split("\0").filter(Boolean);
+    if (
+      !signal?.aborted &&
+      paths.length === expectedPaths.length &&
+      paths.every((path, index) => path === expectedPaths[index])
+    ) {
+      return true;
+    }
+    await abortMainConflict(worktree);
+    signal?.throwIfAborted();
+    return false;
+  }
+  // Main changed between attempts: do not silently choose a different merge.
+  await abortMainConflict(worktree);
+  return false;
+}
+
+export async function abortMainConflict(worktree) {
+  try {
+    await runGit(worktree, ["merge", "--abort"]);
+  } catch (error) {
+    throw new MergeCleanupError({ cause: error });
+  }
+}
+
+export async function commitMainConflict({ worktree, signal }) {
+  await runGit(worktree, ["add", "--all"], { signal });
+  const unmerged = await runGit(
+    worktree,
+    ["diff", "--name-only", "--diff-filter=U", "-z"],
+    { signal },
+  );
+  if (unmerged !== "") {
+    return false;
+  }
+  await runGit(worktree, ["diff", "--cached", "--check"], { signal });
+  await runGit(worktree, [...agentIdentityArguments, "commit", "--no-edit"], {
+    signal,
+  });
+  return true;
 }
 
 export async function hasUnpublishedCommit(worktree, { signal } = {}) {

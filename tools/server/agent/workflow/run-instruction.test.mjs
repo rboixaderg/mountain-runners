@@ -556,7 +556,14 @@ test("stops an ambiguous legacy topic before the model or any publication", asyn
 
 async function runMainSync(
   context,
-  { conflict = false, failSecondCheck = false } = {},
+  {
+    conflict = false,
+    resolveConflict = false,
+    failSecondCheck = false,
+    binary = false,
+    resolutionFails = false,
+    breakCleanup = false,
+  } = {},
 ) {
   const paths = await fixture(context);
   const github = githubStub();
@@ -567,12 +574,37 @@ async function runMainSync(
     config: configFor(paths),
     github,
     classifyRequest: async () => ({ kind: "implementation" }),
-    runModel: async ({ worktreePath }) => {
+    runModel: async ({ worktreePath, instruction }) => {
       modelTurns += 1;
+      if (modelTurns === 2) {
+        assert.match(instruction, /README\.md/u);
+        if (resolutionFails) throw new Error("Synthetic model failure.");
+        if (breakCleanup)
+          writeFileSync(join(worktreePath, ".git"), "tampered marker\n");
+        if (!binary) {
+          assert.match(
+            readFileSync(join(worktreePath, "README.md"), "utf8"),
+            /<<<<<<< /u,
+          );
+        }
+        if (resolveConflict) {
+          writeFileSync(
+            join(worktreePath, "README.md"),
+            "main change\ntopic change\n",
+          );
+        }
+        return { text: "Conflicte revisat." };
+      }
       const topicPath = conflict ? "README.md" : "change.txt";
       const mainPath = conflict ? "README.md" : "main-change.txt";
-      writeFileSync(join(worktreePath, topicPath), "topic change\n");
-      writeFileSync(join(paths.repository, mainPath), "main change\n");
+      writeFileSync(
+        join(worktreePath, topicPath),
+        binary ? Buffer.from([0, 1, 2]) : "topic change\n",
+      );
+      writeFileSync(
+        join(paths.repository, mainPath),
+        binary ? Buffer.from([0, 3, 4]) : "main change\n",
+      );
       await git(paths.repository, ["add", mainPath]);
       await git(paths.repository, [
         "commit",
@@ -620,7 +652,7 @@ test("aborts a conflicting main merge and keeps the topic commit", async (contex
   assert.equal(result.outcome, "failed");
   assert.equal(result.report, instructionReports.checksFailed);
   assert.equal(checks, 1);
-  assert.equal(modelTurns, 1);
+  assert.equal(modelTurns, 2);
   assert.deepEqual(github.pushes, []);
   const worktree = topicWorktreePath(paths);
   assert.equal(
@@ -628,6 +660,83 @@ test("aborts a conflicting main merge and keeps the topic commit", async (contex
     "topic change\n",
   );
   await assert.rejects(git(worktree, ["rev-parse", "--verify", "MERGE_HEAD"]));
+});
+
+test("publishes a conflict resolved by the model with both changes", async (context) => {
+  const { paths, github, result, checks, modelTurns, advancedMain } =
+    await runMainSync(context, { conflict: true, resolveConflict: true });
+  assert.equal(result.outcome, "pull_request_created", result.report);
+  assert.equal(modelTurns, 2);
+  assert.equal(checks, 2);
+  assert.equal(github.pushes.length, 1);
+  const worktree = topicWorktreePath(paths);
+  assert.equal(
+    readFileSync(join(worktree, "README.md"), "utf8"),
+    "main change\ntopic change\n",
+  );
+  const parents = (await git(worktree, ["log", "-1", "--format=%P"])).split(
+    " ",
+  );
+  assert.equal(parents[1], advancedMain);
+});
+
+test("aborts the merge if the conflict resolution turn fails", async (context) => {
+  const { paths, github, result, modelTurns } = await runMainSync(context, {
+    conflict: true,
+    resolutionFails: true,
+  });
+  assert.equal(result.outcome, "failed");
+  assert.equal(modelTurns, 2);
+  assert.deepEqual(github.pushes, []);
+  const worktree = topicWorktreePath(paths);
+  assert.equal(
+    readFileSync(join(worktree, "README.md"), "utf8"),
+    "topic change\n",
+  );
+  await assert.rejects(git(worktree, ["rev-parse", "--verify", "MERGE_HEAD"]));
+});
+
+test("blocks the service if it cannot abort the merge", async (context) => {
+  const { github, result, modelTurns } = await runMainSync(context, {
+    conflict: true,
+    breakCleanup: true,
+  });
+  assert.equal(result.outcome, "uncertain");
+  assert.equal(result.report, instructionReports.mergeCleanupUncertain);
+  assert.equal(modelTurns, 2);
+  assert.deepEqual(github.pushes, []);
+});
+
+test("never publishes an unresolved binary conflict", async (context) => {
+  const { paths, github, result, modelTurns } = await runMainSync(context, {
+    conflict: true,
+    binary: true,
+  });
+  assert.equal(result.outcome, "failed");
+  assert.equal(modelTurns, 2);
+  assert.deepEqual(github.pushes, []);
+  await assert.rejects(
+    git(topicWorktreePath(paths), ["rev-parse", "--verify", "MERGE_HEAD"]),
+  );
+});
+
+test("keeps a resolved merge without pushing when checks fail", async (context) => {
+  const { paths, github, result, checks } = await runMainSync(context, {
+    conflict: true,
+    resolveConflict: true,
+    failSecondCheck: true,
+  });
+  assert.equal(result.outcome, "failed");
+  assert.equal(result.report, instructionReports.checksFailed);
+  assert.equal(checks, 2);
+  assert.deepEqual(github.pushes, []);
+  assert.equal(
+    readFileSync(join(topicWorktreePath(paths), "README.md"), "utf8"),
+    "main change\ntopic change\n",
+  );
+  await assert.rejects(
+    git(topicWorktreePath(paths), ["rev-parse", "--verify", "MERGE_HEAD"]),
+  );
 });
 
 test("keeps the clean merge without pushing when synchronized checks fail", async (context) => {

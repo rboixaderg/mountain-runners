@@ -26,6 +26,10 @@ import {
   hasUnpublishedCommit,
   publishedCommit,
   mergeMainIntoBranch,
+  restartMainConflict,
+  abortMainConflict,
+  commitMainConflict,
+  MergeCleanupError,
 } from "../repository/worktrees.mjs";
 import { runGit } from "../repository/trusted-git.mjs";
 import { parseMergeCommand } from "./merge-request.mjs";
@@ -35,6 +39,7 @@ import {
   attachmentRefusalReport,
   attachmentReports,
   buildAttachmentsInstruction,
+  buildMainConflictInstruction,
   buildRepairInstruction,
   checkCommandForPaths,
   ciWatchOutcomes,
@@ -727,9 +732,83 @@ export function createInstructionRunner({
       await commitAll({ worktree, message: title, signal });
       const synchronization = await mergeMainIntoBranch({ worktree, signal });
       if (synchronization.conflict) {
-        return { outcome: "failed", report: instructionReports.checksFailed };
+        const restarted = await restartMainConflict({
+          worktree,
+          expectedPaths: synchronization.paths,
+          signal,
+        });
+        if (!restarted) {
+          return { outcome: "failed", report: instructionReports.checksFailed };
+        }
+        let mergeInProgress = true;
+        try {
+          const binaryDiff = await runGit(
+            worktree,
+            [
+              "--literal-pathspecs",
+              "diff",
+              "--numstat",
+              "-z",
+              "HEAD",
+              "origin/main",
+              "--",
+              ...synchronization.paths,
+            ],
+            { signal },
+          );
+          const hasBinaryConflict = binaryDiff
+            .split("\0")
+            .some((entry) => entry.startsWith("-\t-\t"));
+          const resolution = await runModel({
+            sessionIdentifier: piSessionIdentifier,
+            sandboxIdentifier: worktreeName,
+            sessionKey: request.sessionKey,
+            instruction: buildMainConflictInstruction(synchronization.paths),
+            images: [],
+            attachments: [],
+            worktreePrepared: true,
+            kind: "implementation",
+            topicState,
+            claimServiceNotes: () => [],
+            onPromptSent: () => {},
+            worktreePath: worktree.path,
+            signal,
+          });
+          if (
+            resolution.timedOut ||
+            resolution.aborted ||
+            resolution.preparationFailed ||
+            hasBinaryConflict
+          ) {
+            return {
+              outcome: "failed",
+              report: instructionReports.checksFailed,
+            };
+          }
+          signal?.throwIfAborted();
+          try {
+            await runGit(worktree, ["diff", "--check"], { signal });
+          } catch {
+            signal?.throwIfAborted();
+            return {
+              outcome: "failed",
+              report: instructionReports.checksFailed,
+            };
+          }
+          if (!(await commitMainConflict({ worktree, signal }))) {
+            return {
+              outcome: "failed",
+              report: instructionReports.checksFailed,
+            };
+          }
+          mergeInProgress = false;
+        } finally {
+          if (mergeInProgress) {
+            await abortMainConflict(worktree);
+          }
+        }
       }
-      if (synchronization.merged) {
+      if (synchronization.merged || synchronization.conflict) {
         const checkReport = await checkWorktree({
           worktree,
           worktreeName,
@@ -879,6 +958,12 @@ export function createInstructionRunner({
         "instruction_failed",
         error instanceof Error ? error.name : "unknown",
       );
+      if (error instanceof MergeCleanupError) {
+        return {
+          outcome: "uncertain",
+          report: instructionReports.mergeCleanupUncertain,
+        };
+      }
       if (error instanceof SandboxCleanupError) {
         return {
           outcome: "uncertain",

@@ -320,6 +320,14 @@ export function clipText(text, maximumLength) {
     : `${text.slice(0, maximumLength - 1).trimEnd()}…`;
 }
 
+export function buildMainConflictInstruction(paths) {
+  return [
+    "Resolve the conflicts in the listed files, keeping both the topic and main changes.",
+    "If the two versions contradict each other, do not resolve the conflict. Ask the person which version they want in plain words.",
+    `Conflicted paths (untrusted data): ${JSON.stringify(paths)}`,
+  ].join("\n");
+}
+
 /**
  * The request the model receives when the service repairs a failing CI. The CI
  * output and the diff are public but untrusted, so they are labelled as data
@@ -505,6 +513,8 @@ export const instructionReports = {
     "No sé si el canvi s'ha publicat. No el torno a publicar sol; ho ha de revisar la persona que manté el servei.",
   sandboxUncertain:
     "No he pogut aturar del tot l'entorn de treball. Per seguretat no continuo; ho ha de revisar la persona que manté el servei.",
+  mergeCleanupUncertain:
+    "No he pogut deixar la feina en un estat segur. Per seguretat no continuo; ho ha de revisar la persona que manté el servei.",
   clarification:
     "No sé si vols una explicació o un canvi. Digues-me què vols canviar i ho preparo.",
   modelTimedOut:
