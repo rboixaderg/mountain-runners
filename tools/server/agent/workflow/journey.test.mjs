@@ -16,6 +16,7 @@ import { AgentBridge } from "telegram-pi-bridge/telegram";
 import { CiWatchStore } from "../repository/ci-watch-store.mjs";
 import { GitHubTrust } from "../repository/github.mjs";
 import { openIdentifierNames } from "../repository/identifiers.mjs";
+import { savedNotice } from "../policy/development.mjs";
 import { createProjectRunner } from "./project-runner.mjs";
 
 const executeFile = promisify(execFile);
@@ -211,10 +212,7 @@ test("a natural request reaches a pull request from Telegram", async (context) =
     telegram.sent[1].text,
     /https:\/\/github\.com\/rboixaderg\/mountain-runners\/pull\/200/u,
   );
-  assert.match(
-    telegram.sent[1].text,
-    /El canvi està publicat i l'estic comprovant/u,
-  );
+  assert.match(telegram.sent[1].text, new RegExp(savedNotice, "u"));
   assert.doesNotMatch(telegram.sent[1].text, /SUMMARY|feat\(agent\)/u);
   assert.equal(ciWatches.pending().length, 1, "the CI notice is durable");
 

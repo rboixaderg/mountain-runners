@@ -512,15 +512,17 @@ El model continua emetent `SUMMARY` només quan el torn ha canviat fitxers.
 davant, del text que arriba a Telegram, i `parseChangeSummary` continua llegint-ne
 el valor per al títol i la branca.
 
-Els avisos públics són planers i cada avís diu què significa per a la persona i
-què pot fer. `publicationReport` envia la resposta del model, retallada perquè
-l'enllaç no es perdi, una línia curta sobre el que passa amb el canvi i, com a
-darrera línia, l'enllaç de revisió. La línia curta només promet un avís quan el
-seguiment de CI s'ha pogut desar, diu que no n'hi haurà si no s'ha pogut desar i,
-sense cap seguiment, només diu que el canvi està publicat. `ciReports` dona el resultat de les
-comprovacions a la persona i `ciNoteReports` el mateix resultat amb el commit i
-els noms de les comprovacions a la nota del servei, que és l'única que veu el
-model. El número de PR, el commit i els noms de les comprovacions queden al
+La persona només llegeix quatre avisos fixos (T8.9): `workingNotice`,
+`savedNotice`, `readyNotice` i l'avís de fallada, que té dues formes
+(`failedRetryingNotice`, només quan una reparació automàtica ja és a la cua, i
+`failedMaintainerNotice`). Cap no demana repetir, pujar, reintentar ni demanar la
+preview, ni usa vocabulari de PR, branca, commit o comprovació.
+`publicationReport` envia la resposta del model, retallada perquè l'enllaç no es
+perdi, l'avís «Canvi desat» (o el de fallada si el seguiment de CI no s'ha pogut
+desar) i, com a darrera línia, l'enllaç de revisió. `ciReports` i
+`ciRepairReports` hi assignen cada resultat i `ciNoteReports` i
+`ciRepairNoteReports` el mateix resultat tècnic, amb el commit i els noms de les
+comprovacions, a la nota del servei, que és l'única que veu el model. El número de PR, el commit i els noms de les comprovacions queden al
 registre privat del servei (`ci_notification_sent`) i a la nota, no al tema;
 l'evidència d'una fallada que arriba a una reparació es desa a més a
 `state/ci-watch.sqlite`.
@@ -530,9 +532,13 @@ planer: el número de la proposta, la branca, el commit publicat i el resultat d
 les comprovacions locals. `run-instruction` la retorna també en un torn de
 reparació, i `workflow/ci-repair.mjs` la desa amb
 `ciRepairReports.publishedNote`: la resposta del model no és mai una nota.
-L'avís que el cap ha canviat diu que les comprovacions de la versió nova no es
-fan totes soles i què pot fer la persona; no promet cap avís que el servei no
-enviarà.
+L'avís que el cap ha canviat és el de fallada que avisa la persona mantenidora;
+el detall queda a la nota tècnica.
+
+El prompt de cada torn ja no porta el tipus de petició, ni les frases de consulta
+de només lectura, ni la línia de petició poc clara. Hi afegeix una línia que diu
+que el servei desa i mostra cada canvi sol i que el model no ha de dir mai que
+cal demanar-ho.
 
 ## Imatge experimental per a comprovacions offline
 

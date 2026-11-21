@@ -328,12 +328,7 @@ function noticeFor({
   switch (outcome.result) {
     case ciResults.success:
       return {
-        person:
-          watch.preview_author_identifier === null
-            ? ciReports.success({ pullRequestUrl: outcome.pullRequestUrl })
-            : ciReports.successWithPreview({
-                pullRequestUrl: outcome.pullRequestUrl,
-              }),
+        person: ciReports.success({ pullRequestUrl: outcome.pullRequestUrl }),
         note: ciNoteReports.success({ ...common, requiredChecks }),
       };
     case ciResults.repairing:

@@ -505,9 +505,9 @@ la sessió; si no es pot confirmar, l'execució queda fallida o incerta.
 - L'admissió és duradora abans d'avançar l'offset de Telegram. Els updates es
   dedupliquen, la cua admet deu instruccions pendents i només hi ha una
   execució global. Una cua plena es registra i es comunica al tema.
-- Quan una instrucció s'admet, el tema rep de seguida un avís de recepció amb un
-  retall d'una línia de la petició. S'envia després de desar-la i abans
-  d'executar-la, i no inclou cap credencial. Si Telegram no accepta l'avís, la
+- Quan una instrucció s'admet, el tema rep de seguida un avís «Hi estic treballant.»
+  (`workingNotice`). S'envia després de desar-la i abans d'executar-la, i no
+  inclou cap text de la petició ni cap credencial. Si Telegram no accepta l'avís, la
   feina continua i només es registra `reply_failed`; la resposta final arriba
   igualment en aquell tema.
 - Tota petició del client de Telegram té un termini propi, combinat amb el
@@ -914,8 +914,7 @@ privada.
   demanen cap preview. Només quan la mateixa petició que demana el canvi demana
   explícitament la preview, el servei la demana quan ha enviat l'avís verd, en
   nom de l'autor desat a la fila de `ci_watches` i amb el mateix tractament
-  determinista; aleshores l'avís diu que la demana en comptes d'invitar-la a
-  demanar, i tornar a tramitar el mateix avís no publica cap `/preview` nou.
+  determinista; aleshores el servei l'envia sense cap invitació a la persona, i tornar a tramitar el mateix avís no publica cap `/preview` nou.
 
 - **Avís de confirmació.** L'avís s'envia abans de tancar la petició i només
   es tanca si l'enviament ha anat bé; si falla, es reintenta al cicle següent.
@@ -1257,17 +1256,26 @@ només s'escriuen quan algú les demana.
 davant, del text que arriba a Telegram; `parseChangeSummary` continua llegint la
 línia vàlida per al títol i la branca.
 
-Després d'una publicació, el tema rep la resposta del model, una línia curta sobre
-el que passa amb el canvi i l'enllaç de revisió com a darrera línia. La línia
-curta diu que el canvi s'està comprovant i que el tema rebrà un avís quan estigui
-a punt només si el seguiment de CI s'ha desat; si no s'ha pogut desar, diu que no
-hi haurà avís i que ho ha de revisar una persona; sense cap seguiment, diu només
-que el canvi està publicat. La resposta del model es retalla perquè l'enllaç no
-es perdi mai pel límit de 4000 caràcters del transport. Amb les comprovacions
-obligatòries en verd rep un sol avís, que convida a demanar la preview, amb el
-mateix enllaç. Una fallada, una reparació en curs, el límit de reparacions, un
-resultat desconegut, un cap canviat o una PR tancada tenen cada un un avís
-planer.
+La persona només llegeix quatre avisos fixos, definits a
+`policy/development.mjs`: «Hi estic treballant.» (`workingNotice`), «Canvi desat.
+Preparo com es veurà; trigarà uns 10 minuts.» (`savedNotice`), «Ja ho pots veure:
+<URL>» (`readyNotice`, de l'avís de preview) i «Alguna cosa ha fallat per part
+nostra. …» amb una de dues accions finals: «Ho torno a intentar.»
+(`failedRetryingNotice`, només quan una reparació automàtica ja és a la cua) o
+«Aviso la persona que manté el servei.» (`failedMaintainerNotice`, tota la resta).
+Cap avís demana a la persona que repeteixi, pugi, reintenti o demani la preview, i
+cap no usa «proposta», «comprovacions», «commit» ni «branca».
+
+Després d'una publicació, el tema rep la resposta del model, l'avís «Canvi desat»
+i l'enllaç de revisió com a darrera línia. Si el seguiment de CI no s'ha pogut
+desar, l'avís és el de fallada que avisa la persona mantenidora. La resposta del
+model es retalla perquè l'enllaç no es perdi mai pel límit de 4000 caràcters del
+transport. Una CI verda envia «Canvi desat» amb el mateix enllaç; la preview la
+demana el servei i l'avís «Ja ho pots veure» arriba amb la seva adreça. Una reparació
+en curs envia l'avís de fallada amb «Ho torno a intentar»; el límit de
+reparacions, un resultat desconegut, un cap canviat, una PR tancada i qualsevol
+fallada de la reparació envien l'avís de fallada amb l'aviso a la persona
+mantenidora. Els textos de reparació publicada reutilitzen el de la publicació.
 
 Els noms de les comprovacions i el commit queden al registre privat del servei
 (`ci_notification_sent`) i a la nota del servei de
@@ -1280,9 +1288,9 @@ locals. També la publicació d'una reparació automàtica desa aquesta nota
 no són mai text de servei. La fixació al commit, el lliurament com a màxim una
 vegada i el tractament d'un resultat desconegut no canvien.
 
-Quan el seguiment veu que el cap de la proposta ha canviat, ho diu i no promet cap
-avís nou: les comprovacions de la versió nova no es fan totes soles, i la persona
-ha de demanar en aquell tema que es revisin o, més endavant, la preview.
+Quan el seguiment veu que el cap de la proposta ha canviat, la persona rep l'avís
+de fallada que avisa la persona mantenidora: el servei no segueix la versió nova
+tot sol i no demana res a la persona. La nota tècnica del servei conserva el detall.
 
 ### Estat del tema (T8.8 i T8.9)
 

@@ -12,6 +12,7 @@ import { requestSignal } from "../repository/request-signal.mjs";
 import {
   previewConfirmationTimeoutMilliseconds,
   previewRunsRetryMilliseconds,
+  savedNotice,
 } from "../policy/development.mjs";
 import { createCiWatchRegistration, createCiWatchWorker } from "./ci-watch.mjs";
 import { createPreviewRequests } from "./preview-request.mjs";
@@ -1542,7 +1543,7 @@ test("never requests a preview for a change that did not ask for it", async (con
   await worker.runOnce();
 
   assert.equal(sent.length, 1);
-  assert.match(sent[0].text, /La proposta està llesta/u);
+  assert.match(sent[0].text, new RegExp(savedNotice, "u"));
   assert.match(
     sent[0].text,
     /Enllaç per a revisió: https:\/\/github\.com\/rboixaderg\/mountain-runners\/pull\/200/u,
@@ -1582,7 +1583,7 @@ test("a green watch that asked for the preview posts it once, even when handled 
     github.posts.map((post) => post.body),
     ["/preview"],
   );
-  assert.match(sent[0].text, /Ara demano la preview/u);
+  assert.match(sent[0].text, new RegExp(savedNotice, "u"));
   assert.match(sent[1].text, /Ja he demanat la preview d'aquest canvi/u);
   assert.deepEqual(github.listings, [], "nothing awaits a confirmation yet");
 

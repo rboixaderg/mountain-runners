@@ -8,7 +8,11 @@
 // is retried automatically.
 
 import { parseSessionKey } from "telegram-pi-bridge/sessions";
-import { ciRepairReports, repairRequestKind } from "../policy/development.mjs";
+import {
+  ciRepairNoteReports,
+  ciRepairReports,
+  repairRequestKind,
+} from "../policy/development.mjs";
 import { isDecisiveFailure } from "../repository/ci-status.mjs";
 import { requestSignal } from "../repository/request-signal.mjs";
 import { ciResults } from "./ci-watch.mjs";
@@ -72,8 +76,10 @@ export function createCiRepairExecutor({
     reportText,
     { signal, state, noteText = reportText } = {},
   ) {
+    // The stalled queue is a fact for the operator and the model: the person
+    // already reads that the maintainer is warned.
     const suffix = queueStalled ? `\n\n${ciRepairReports.queueStalled}` : "";
-    const text = `${reportText}${suffix}`;
+    const text = reportText;
     recordServiceNote({
       sessionKey: repair.session_key,
       text: `${noteText}${suffix}`,
@@ -183,7 +189,8 @@ export function createCiRepairExecutor({
           traceAction: "ci_repair_aborted",
         });
         // The stop signal is already aborted: the notice needs its own attempt.
-        await report(repair, ciRepairReports.interrupted(common), {
+        await report(repair, ciRepairReports.interrupted, {
+          noteText: ciRepairNoteReports.interrupted(common),
           state: "interrupted",
         });
         return true;
@@ -198,7 +205,8 @@ export function createCiRepairExecutor({
         traceAction: "ci_repair_not_published",
         detail: `${describe(repair)} pull request unreadable`,
       });
-      await report(repair, ciRepairReports.stateUnknown(common), {
+      await report(repair, ciRepairReports.stateUnknown, {
+        noteText: ciRepairNoteReports.stateUnknown(common),
         signal,
         state: "state_unknown",
       });
@@ -217,8 +225,9 @@ export function createCiRepairExecutor({
       await reportLiveResult(
         repair,
         changedPullRequestResult(pullRequest),
-        ciRepairReports.notApplicable(common),
+        ciRepairReports.notApplicable,
         {
+          noteText: ciRepairNoteReports.notApplicable(common),
           signal,
           state: "not_applicable",
         },
@@ -251,8 +260,12 @@ export function createCiRepairExecutor({
         await reportLiveResult(
           repair,
           changedPullRequestResult(confirmed),
-          ciRepairReports.notApplicable(common),
-          { signal, state: "not_applicable" },
+          ciRepairReports.notApplicable,
+          {
+            signal,
+            state: "not_applicable",
+            noteText: ciRepairNoteReports.notApplicable(common),
+          },
         );
         return true;
       }
@@ -263,7 +276,8 @@ export function createCiRepairExecutor({
           outcome: "aborted",
           traceAction: "ci_repair_aborted",
         });
-        await report(repair, ciRepairReports.interrupted(common), {
+        await report(repair, ciRepairReports.interrupted, {
+          noteText: ciRepairNoteReports.interrupted(common),
           state: "interrupted",
         });
         return true;
@@ -289,27 +303,35 @@ export function createCiRepairExecutor({
         if (classification === null) {
           return {
             state: "checks_unreadable",
-            text: ciRepairReports.checksUnreadable(common),
+            text: ciRepairReports.checksUnreadable,
+            noteText: ciRepairNoteReports.checksUnreadable(common),
           };
         }
         if (classification.state === "success") {
           return {
             state: "checks_not_failing",
-            text: ciRepairReports.checksNotFailing(common),
+            text: ciRepairReports.checksNotFailing,
+            noteText: ciRepairNoteReports.checksNotFailing(common),
           };
         }
         return {
           state: "checks_not_decisive",
-          text: ciRepairReports.checksNotDecisive(common),
+          text: ciRepairReports.checksNotDecisive,
+          noteText: ciRepairNoteReports.checksNotDecisive(common),
         };
       })();
       if (classification?.state === "success") {
         await reportLiveResult(repair, ciResults.success, notice.text, {
           signal,
           state: notice.state,
+          noteText: notice.noteText,
         });
       } else {
-        await report(repair, notice.text, { signal, state: notice.state });
+        await report(repair, notice.text, {
+          signal,
+          state: notice.state,
+          noteText: notice.noteText,
+        });
       }
       return true;
     }
@@ -335,7 +357,8 @@ export function createCiRepairExecutor({
       });
       // The process may already be stopping: the uncertain result must reach
       // the topic anyway.
-      await report(repair, ciRepairReports.uncertain(common), {
+      await report(repair, ciRepairReports.uncertain, {
+        noteText: ciRepairNoteReports.uncertain(common),
         state: "uncertain",
       });
       return true;
@@ -349,10 +372,7 @@ export function createCiRepairExecutor({
       });
       await report(
         repair,
-        ciRepairReports.published({
-          pullRequestNumber: repair.pull_request_number,
-          report: result.report,
-        }),
+        ciRepairReports.published({ report: result.report }),
         {
           signal,
           state: "published",
@@ -374,17 +394,13 @@ export function createCiRepairExecutor({
         traceAction: "ci_repair_not_published",
         detail: `${describe(repair)} no change`,
       });
-      await report(
-        repair,
-        ciRepairReports.unchanged({ ...common, detail: result.report }),
-        {
-          signal,
-          state: "unchanged",
-          // Only the service sentence is the note: the detail is the model's
-          // own explanation and stays in its session.
-          noteText: ciRepairReports.unchangedNotice(common),
-        },
-      );
+      await report(repair, ciRepairReports.unchanged, {
+        signal,
+        state: "unchanged",
+        // Only the service sentence is the note: the detail is the model's
+        // own explanation and stays in its session.
+        noteText: ciRepairReports.unchangedNote(common),
+      });
       return true;
     }
     if (signal?.aborted) {
@@ -395,7 +411,8 @@ export function createCiRepairExecutor({
       });
       // The stop signal is already aborted: the notice uses its own transport
       // attempt, or the topic would never learn that the repair stopped.
-      await report(repair, ciRepairReports.interrupted(common), {
+      await report(repair, ciRepairReports.interrupted, {
+        noteText: ciRepairNoteReports.interrupted(common),
         state: "interrupted",
       });
       return true;
@@ -405,11 +422,14 @@ export function createCiRepairExecutor({
       outcome: "failed",
       traceAction: "ci_repair_not_published",
     });
-    await report(
-      repair,
-      ciRepairReports.failed({ ...common, detail: result.report }),
-      { signal, state: "failed" },
-    );
+    await report(repair, ciRepairReports.failed, {
+      signal,
+      state: "failed",
+      noteText: ciRepairNoteReports.failed({
+        ...common,
+        detail: result.report,
+      }),
+    });
     return true;
   }
 
