@@ -1,0 +1,27 @@
+docs/backlog.md
+  s_64305a2433e99c::t_095b0b283ee283 781-783,869-888
+docs/decisions/0009-pr-previews-same-domain-and-own-branches.md
+  s_64305a2433e99c::t_b722c56a87d935 10-11,136-159
+docs/decisions/0013-private-development-agent-boundary.md
+  s_64305a2433e99c::t_9eee109087b64d 180-201
+docs/specs/phase-8-editorial-assistance.md
+  s_64305a2433e99c::t_0e30f913d484df 443,734-737,965-967
+docs/specs/preview-label.md
+  s_64305a2433e99c::t_456923ea13bc50 1-259
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "6603b71020547b5d13d41fd4d6621ab709550363",
+  "prompts": {},
+  "sessions": {
+    "s_64305a2433e99c": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a1ffae-771c-724e-9ca4-64717b2bcb5a",
+        "model": "claude-sonnet-5-5"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
