@@ -1064,8 +1064,8 @@ res.
 
 ### Feina vinculada al tema (T8.9)
 
-El camí ordinari no reprèn PR d'un altre tema ni genera avisos de solapament.
-Els mòduls anteriors continuen al repositori, però el camí ordinari no els crida.
+El servei no reprèn PR d'un altre tema ni genera avisos de solapament: el codi
+que ho feia s'ha eliminat.
 
 La primera publicació confirmada desa la branca i la PR a
 `state/topic-jobs.sqlite`. Per a un tema existent sense vinculació, el servei
@@ -1205,7 +1205,7 @@ seu no quedi fora de la sessió.
   l'enviament: l'efecte existeix encara que l'avís falli. Cada efecte té una
   identitat duradora (`preview:<id>:<estat>`, `merge:<id>:<estat>`,
   `ci:<id>:<commit>:<estat de l'avís>`,
-  `repair:<id>:<commit>:<instant de l'intent>:<estat>`, `handover:<id>`,
+  `repair:<id>:<commit>:<instant de l'intent>:<estat>`,
   `instruction:<id>`, `reconcile:<tipus>:<id>`): dos avisos diferents del mateix
   commit són dos efectes, i la identitat d'una reparació no depèn d'una fila que
   es pot reutilitzar. Així, un reenviament de Telegram no duplica la nota i una

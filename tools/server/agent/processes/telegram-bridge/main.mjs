@@ -398,8 +398,7 @@ export async function startService({
     closeStateStores();
     throw error;
   }
-  // One read of the required checks of an exact commit, shared by the
-  // continuation of a pull request and the automatic repair.
+  // One read of the required checks of an exact commit for the automatic repair.
   const readCiState = ({ commit, signal, requireRepairEvidence }) =>
     readCiCheckState({
       github,
