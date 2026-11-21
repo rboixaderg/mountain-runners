@@ -92,12 +92,14 @@ sobreescriure amb qualsevol `YYYY-MM-DD` per reproduir un manifest anterior;
 
 El workflow `Artifact` (`.github/workflows/artifact.yml`) executa el contracte
 a cada push a `main` i de forma manual, amb `BUILD_TODAY` resolt a la data de
-Madrid, i puja el paquet i el manifest com a artefacte del run (retenció de 30
-dies). El job de build no accedeix a cap secret. El job `Deploy to production`
-del mateix workflow, darrere de l'entorn GitHub `production` restringit a
-`main`, descarrega aquest artefacte, en verifica manifest i digests, el
-transfereix amb `mountain-release receive`, l'instal·la i l'activa, i executa
-els smoke tests. El workflow `Rollback production` reverteix sense reconstruir.
+Madrid, i puja el paquet i el manifest com a artefacte del run (retenció de 3
+dies: el job de desplegament del mateix run el descarrega per nom i la reversió
+activa releases ja instal·lades al host). El job de build no accedeix a cap
+secret. El job `Deploy to production` del mateix workflow, darrere de l'entorn
+GitHub `production` restringit a `main`, descarrega aquest artefacte, en
+verifica manifest i digests, el transfereix amb `mountain-release receive`,
+l'instal·la i l'activa, i executa els smoke tests. El workflow `Rollback
+production` reverteix sense reconstruir.
 Tots dos comparteixen el grup de concurrència `production-release` amb
 `cancel-in-progress: false`. L'operació completa és a
 [`docs/runbook.md`](runbook.md).
