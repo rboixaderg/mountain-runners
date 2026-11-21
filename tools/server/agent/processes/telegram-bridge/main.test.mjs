@@ -556,6 +556,36 @@ test("closes an unannounced reservation at startup instead of blocking the topic
   service.queue.close();
 });
 
+function failingProjectGithub() {
+  return {
+    async getPullRequest() {
+      return { state: "open", headSha: "a".repeat(40) };
+    },
+    async getCommitCheckRuns() {
+      return [
+        {
+          name: "Validate",
+          status: "completed",
+          conclusion: "failure",
+          output: { summary: "Project test failed" },
+        },
+      ];
+    },
+    async getCommitStatuses() {
+      return [];
+    },
+    async getCheckRunJob() {
+      return {
+        status: "completed",
+        conclusion: "failure",
+        steps: [
+          { name: "Check project", status: "completed", conclusion: "failure" },
+        ],
+      };
+    },
+  };
+}
+
 test("runs a queued CI repair when the instruction queue is idle", async (context) => {
   const { environment, statePath } = environmentFor(context);
   const { ciWatches } = repairFixture(environment, statePath);
@@ -572,19 +602,7 @@ test("runs a queued CI repair when the instruction queue is idle", async (contex
         sent.push(message);
       },
     },
-    github: {
-      async getPullRequest() {
-        return { state: "open", headSha: "a".repeat(40) };
-      },
-      async getCommitCheckRuns() {
-        return [
-          { name: "Validate", status: "completed", conclusion: "failure" },
-        ];
-      },
-      async getCommitStatuses() {
-        return [];
-      },
-    },
+    github: failingProjectGithub(),
     runner: async (request) => {
       executed.push(request);
       return {
@@ -670,19 +688,7 @@ test("does not run another repair while one has an unknown result", async (conte
       },
       async sendMessage() {},
     },
-    github: {
-      async getPullRequest() {
-        return { state: "open", headSha: "a".repeat(40) };
-      },
-      async getCommitCheckRuns() {
-        return [
-          { name: "Validate", status: "completed", conclusion: "failure" },
-        ];
-      },
-      async getCommitStatuses() {
-        return [];
-      },
-    },
+    github: failingProjectGithub(),
     runner: async () => {
       executions += 1;
       return { outcome: "uncertain", report: "resultat desconegut" };

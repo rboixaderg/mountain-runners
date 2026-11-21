@@ -746,7 +746,7 @@ test("refuses an invalid authenticated user response", async () => {
   });
 });
 
-test("exposes only branch publication, the preview comment, the pinned merge and read-only operations", () => {
+test("exposes only the approved GitHub operations", () => {
   const publicOperations = Object.getOwnPropertyNames(GitHubTrust.prototype)
     .filter((name) => name !== "constructor")
     .sort();
@@ -756,13 +756,17 @@ test("exposes only branch publication, the preview comment, the pinned merge and
     "ensurePullRequest",
     "findOpenPullRequest",
     "getAuthenticatedLogin",
+    "getCheckRunJob",
     "getCommitCheckRuns",
     "getCommitStatuses",
     "getPullRequest",
+    "getWorkflowJob",
+    "getWorkflowRun",
     "listIssueComments",
     "listPreviewWorkflowRuns",
     "mergePullRequest",
     "pushBranch",
+    "rerunFailedJobs",
   ]);
 });
 
