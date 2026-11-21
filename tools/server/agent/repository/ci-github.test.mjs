@@ -203,6 +203,21 @@ test("reruns failed jobs only for a valid workflow run identifier", async () => 
   ]);
 });
 
+test("accepts a 201 rerun response without a JSON body", async () => {
+  const github = new GitHubTrust({
+    token: "synthetic",
+    repository: "example/project",
+    fetchImpl: async () => ({
+      ok: true,
+      status: 201,
+      json: async () => {
+        throw new SyntaxError("empty response");
+      },
+    }),
+  });
+  await github.rerunFailedJobs({ runIdentifier: 123 });
+});
+
 test("propagates a rerun API error without repeating the request", async () => {
   let calls = 0;
   const github = new GitHubTrust({

@@ -295,7 +295,12 @@ export class GitHubTrust {
    * other request still gets the service request deadline, so an API that never
    * answers cannot hold the global execution.
    */
-  async #request(method, path, body, { signal } = {}) {
+  async #request(
+    method,
+    path,
+    body,
+    { signal, ignoreResponseBody = false } = {},
+  ) {
     const boundedSignal = requestSignal(
       signal,
       this.#requestTimeoutMilliseconds,
@@ -316,7 +321,7 @@ export class GitHubTrust {
     if (!response.ok) {
       throw new GitHubResponseError(method, path, response.status);
     }
-    if (response.status === 204) return null;
+    if (response.status === 204 || ignoreResponseBody) return null;
     return response.json();
   }
 
@@ -497,7 +502,7 @@ export class GitHubTrust {
       "POST",
       `/repos/${this.#repository}/actions/runs/${runIdentifier}/rerun-failed-jobs`,
       undefined,
-      { signal },
+      { signal, ignoreResponseBody: true },
     );
   }
 
