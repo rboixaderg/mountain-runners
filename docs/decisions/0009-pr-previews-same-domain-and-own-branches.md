@@ -7,7 +7,8 @@ dels previews viuen a la zona de producció d'Hostinger sense subzona delegada;
 la frontera de domini i els controls compensatoris no canvien. Esmenada el 9 de
 novembre de 2026 (T8.2): una petició explícita d'un membre verificat del grup
 privat autoritza l'agent a demanar la preview amb un comentari `/preview`. Vegeu
-l'apartat Esmena.
+l'apartat Esmena. Esmena proposada el 21 de novembre de 2026: l'etiqueta
+`preview` de la PR també demana la preview.
 
 ## Decisió
 
@@ -131,6 +132,30 @@ la revalidació del publicador, la retirada en tancar o revocar la PR i
 `PreviewNotice` amb `PUBLIC_PREVIEW`. La petició automàtica augmenta les
 publicacions de contingut no fiable: els controls d'aïllament i autorització
 continuen sent obligatoris. No s'activa fins que s'hagin verificat els controls.
+
+## Esmena proposada (etiqueta de preview, 21 de novembre de 2026)
+
+Proposada fins que es fusioni la PR de l'[especificació de l'etiqueta de
+preview](../specs/preview-label.md). Afegeix una tercera manera de demanar la
+preview, a més de `/preview` i l'execució manual: l'etiqueta `preview` de la PR.
+
+- Una persona amb permís `write` o `admin` posa l'etiqueta. Mentre la PR la té,
+  cada push d'una persona amb el mateix permís publica el cap nou sense cap
+  petició més. La petició deixa de ser per commit i passa a valer per a la PR.
+- El workflow s'executa amb `pull_request_target`, des de `main`. El build no
+  fiable continua sense secrets, caches ni permisos d'escriptura.
+- El publicador vincula cada publicació al cap resolt per API, revalida el
+  permís de l'actor i comprova que l'etiqueta continua present abans d'activar.
+- Treure l'etiqueta retira la preview de la PR, sigui quin sigui el mecanisme
+  amb què s'havia publicat.
+
+Es mantenen les branques del repositori principal, `preview-revoked`, la
+retirada en tancar la PR, la reconciliació periòdica i `PreviewNotice` amb
+`PUBLIC_PREVIEW`. L'autorització per PR augmenta les publicacions de contingut
+no fiable: les col·laboradores que poden fer push són les mateixes que poden
+comentar `/preview`, però cada push publica sense un acte humà nou. No s'activa
+fins que les verificacions pendents de l'especificació es comprovin amb GitHub
+real.
 
 ## Raonament
 
