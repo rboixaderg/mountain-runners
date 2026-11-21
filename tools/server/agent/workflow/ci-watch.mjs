@@ -11,7 +11,7 @@
 //
 // A publication whose request asked for the preview in the same message hands
 // that request to the deterministic preview handler once its green notice is
-// delivered. The handler returns after posting its `/preview` comment, so the
+// delivered. The handler returns once the request waits for the publisher, so the
 // watch never waits for the publisher's confirmation here.
 
 import { parseSessionKey } from "telegram-pi-bridge/sessions";
@@ -497,10 +497,10 @@ export function createCiWatchWorker({
    * Honour the preview a publication asked for together with its change, in the
    * name of the author the watch stored. The preview handler is the one of a
    * person's request: it re-reads the pull request and that author's membership
-   * and posts at most one `/preview` per update identifier, so a repeated cycle
-   * or a restart never posts it twice. It returns as soon as the comment exists;
-   * the publisher's confirmation arrives later through the preview worker, as
-   * for any other request. Its report reaches the topic like a person's.
+   * and records at most one request per update identifier, so a repeated cycle
+   * or a restart never handles it twice. It returns as soon as the request is
+   * recorded; the publisher's confirmation arrives later through the preview
+   * worker, as for any other request. Its report reaches the topic like a person's.
    */
   async function requestStoredPreview(watch, { signal } = {}) {
     let preview;

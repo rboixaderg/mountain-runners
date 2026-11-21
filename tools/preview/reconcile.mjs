@@ -98,11 +98,15 @@ async function main() {
     const event = JSON.parse(
       readFileSync(requireEnvironment("GITHUB_EVENT_PATH"), "utf8"),
     );
+    // Only the removal of `preview` withdraws a preview; the job condition
+    // already skips other labels and the check stays here as well.
     if (event.action === "unlabeled") {
-      await retirePreviewOf({
-        transport,
-        pullNumber: event.pull_request.number,
-      });
+      if (event.label.name === "preview") {
+        await retirePreviewOf({
+          transport,
+          pullNumber: event.pull_request.number,
+        });
+      }
       return;
     }
   }
