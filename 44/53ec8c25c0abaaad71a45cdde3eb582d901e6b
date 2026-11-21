@@ -1,0 +1,33 @@
+tools/server/agent/repository/ci-github.test.mjs
+  s_7158699f558f84::t_80127e15c6a272 73-115
+tools/server/agent/repository/ci-watch-store.mjs
+  s_7158699f558f84::t_161e268ad58b01 77-85,205-223
+tools/server/agent/repository/ci-watch-store.test.mjs
+  s_7158699f558f84::t_fbe8ce64cd354e 31-56
+tools/server/agent/repository/github.mjs
+  s_b7ec8f5a705b5b::t_fb84bdaf713285 320,408-419
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "4453ec8c25c0abaaad71a45cdde3eb582d901e6b",
+  "prompts": {},
+  "sessions": {
+    "s_7158699f558f84": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a1fd21-3ad5-75f9-a86e-7fe687c730d0",
+        "model": "gpt-6.1-terra"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    },
+    "s_b7ec8f5a705b5b": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a1fab0-8d95-7799-b4a1-7d43e047d790",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
