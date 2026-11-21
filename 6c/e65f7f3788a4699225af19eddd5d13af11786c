@@ -1,0 +1,19 @@
+tools/server/agent/workflow/topic-state.mjs
+  s_711b0b9e7430ad::t_9d9ac17dd884b1 9-12,91,96,138-142,153-160,165,167-170
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "6ce65f7f3788a4699225af19eddd5d13af11786c",
+  "prompts": {},
+  "sessions": {
+    "s_711b0b9e7430ad": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a1fcfc-1401-7204-bca3-2b2848f17fa0",
+        "model": "gpt-6.1-terra"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
