@@ -18,7 +18,7 @@
 import { readFileSync } from "node:fs";
 import {
   assertCommentAuthorized,
-  assertDispatchActorAuthorized,
+  assertActorWritePermission,
   commentOnPublishedPreview,
   publishPreview,
   resolvePullRequestState,
@@ -44,36 +44,33 @@ async function main() {
   const apiUrl = process.env.GITHUB_API_URL;
   const token = process.env.GITHUB_TOKEN;
   const pullNumber = Number(requireEnvironment("PREVIEW_PULL_NUMBER"));
-  const revalidateCommentAuthorization =
-    process.env.GITHUB_EVENT_NAME === "issue_comment"
-      ? async () => {
-          const event = readEvent();
-          await assertCommentAuthorized({
-            repository,
-            apiUrl,
-            token,
-            commentAuthor: event.comment?.user?.login,
-          });
-        }
-      : undefined;
-  const revalidateDispatchAuthorization =
-    process.env.GITHUB_EVENT_NAME === "workflow_dispatch"
-      ? () =>
-          assertDispatchActorAuthorized({
-            repository,
-            apiUrl,
-            token,
-            actor: requireEnvironment("GITHUB_ACTOR"),
-          })
-      : undefined;
+  const eventName = process.env.GITHUB_EVENT_NAME;
+  const requestedByComment = eventName === "issue_comment";
+  // A label request runs for the event sender, who pushed or labeled; the
+  // other manual run is attributed to the workflow actor.
+  const actor =
+    eventName === "pull_request_target"
+      ? readEvent().sender?.login
+      : process.env.GITHUB_ACTOR;
+  const revalidateCommentAuthorization = requestedByComment
+    ? async () => {
+        const event = readEvent();
+        await assertCommentAuthorized({
+          repository,
+          apiUrl,
+          token,
+          commentAuthor: event.comment?.user?.login,
+        });
+      }
+    : undefined;
+  const revalidateActorAuthorization = requestedByComment
+    ? undefined
+    : () => assertActorWritePermission({ repository, apiUrl, token, actor });
 
   const message = await publishPreview({
     artifactDirectory: process.env.ARTIFACT_DIRECTORY ?? "artifacts/preview",
     pullNumber,
-    authorizedBy:
-      process.env.GITHUB_EVENT_NAME === "issue_comment"
-        ? readEvent().comment?.user?.login
-        : requireEnvironment("GITHUB_ACTOR"),
+    authorizedBy: requestedByComment ? readEvent().comment?.user?.login : actor,
     authorizationPrivateKey: requireEnvironment("PREVIEW_AUTH_PRIVATE_KEY"),
     resolvePullRequestState: () =>
       resolvePullRequestState({
@@ -83,7 +80,8 @@ async function main() {
         pullNumber,
       }),
     revalidateCommentAuthorization,
-    revalidateDispatchAuthorization,
+    revalidateActorAuthorization,
+    requireLabel: eventName === "pull_request_target",
     onPublished: ({ headSha, origin }) =>
       commentOnPublishedPreview({
         repository,

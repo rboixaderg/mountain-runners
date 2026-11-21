@@ -28,7 +28,7 @@ import { previewOrigin } from "../server/preview/config.mjs";
 import { withPreviewAuthorization } from "../server/preview/test-authorization.mjs";
 import {
   assertCommentAuthorized,
-  assertDispatchActorAuthorized,
+  assertActorWritePermission,
   commentOnPublishedPreview,
   publishPreview,
   resolvePullRequestState,
@@ -171,7 +171,8 @@ function createTestPublisher(
   {
     pull,
     revalidateCommentAuthorization,
-    revalidateDispatchAuthorization,
+    revalidateActorAuthorization,
+    requireLabel,
     verifyPreview = async () => {},
     onPublished,
     resolveState,
@@ -191,7 +192,8 @@ function createTestPublisher(
           fetchImpl: createFakeFetch({ pull }),
         })),
     revalidateCommentAuthorization,
-    revalidateDispatchAuthorization,
+    revalidateActorAuthorization,
+    requireLabel,
     transport,
     verifyPreview,
     onPublished,
@@ -504,9 +506,9 @@ test("assertCommentAuthorized requires a repository collaborator", async () => {
   }
 });
 
-test("assertDispatchActorAuthorized requires current write permission", async () => {
+test("assertActorWritePermission requires current write permission", async () => {
   for (const permission of ["write", "admin"]) {
-    await assertDispatchActorAuthorized({
+    await assertActorWritePermission({
       repository: testRepository,
       actor: "rboixaderg",
       fetchImpl: createFakeFetch({ collaboratorPermission: permission }),
@@ -538,7 +540,7 @@ test("assertDispatchActorAuthorized requires current write permission", async ()
   for (const { name, options, pattern } of rejections) {
     await assert.rejects(
       () =>
-        assertDispatchActorAuthorized({
+        assertActorWritePermission({
           repository: testRepository,
           actor: "rboixaderg",
           fetchImpl: createFakeFetch(options),
@@ -661,7 +663,7 @@ test("a failure before activation keeps the previous commit and the original err
     let authorizationChecks = 0;
     await assert.rejects(
       createTestPublisher(transport, artifactDirectory, {
-        revalidateDispatchAuthorization: () => {
+        revalidateActorAuthorization: () => {
           authorizationChecks += 1;
           if (authorizationChecks === 2)
             throw new Error("Permission withdrawn");
@@ -727,12 +729,107 @@ test("publishPreview does not activate after the requesting collaborator loses p
   });
 });
 
+test("a label request publishes only while the pull request keeps the preview label", async () => {
+  const labeled = createPullResponse({ labels: [{ name: "preview" }] });
+  await withPreviewArtifact(async (artifactDirectory) => {
+    const transport = createMemoryTransport();
+    await createTestPublisher(transport, artifactDirectory, {
+      pull: labeled,
+      requireLabel: true,
+    });
+    assert.equal(
+      transport.commands.some((command) =>
+        command.startsWith("mountain-preview activate"),
+      ),
+      true,
+    );
+  });
+
+  // The label is gone from the first read, after install, before activation
+  // and before the URL comment: nothing is authorized, activated or commented.
+  for (const removedAtRead of [1, 2, 3, 4]) {
+    await withPreviewArtifact(async (artifactDirectory) => {
+      const transport = createMemoryTransport();
+      let reads = 0;
+      let commented = false;
+      await assert.rejects(
+        () =>
+          createTestPublisher(transport, artifactDirectory, {
+            requireLabel: true,
+            onPublished: () => {
+              commented = true;
+            },
+            resolveState: async () => {
+              reads += 1;
+              return resolvePullRequestState({
+                repository: testRepository,
+                pullNumber: previewPullNumber,
+                fetchImpl: createFakeFetch({
+                  pull: reads >= removedAtRead ? createPullResponse() : labeled,
+                }),
+              });
+            },
+          }),
+        /no longer has the preview label/,
+        `label removed at read ${removedAtRead}`,
+      );
+      assert.equal(commented, false);
+      // Read 4 is the one before the URL comment, after the activation.
+      assert.equal(
+        transport.commands.some((command) =>
+          command.startsWith("mountain-preview activate"),
+        ),
+        removedAtRead === 4,
+      );
+      if (removedAtRead <= 2) {
+        assert.equal(
+          transport.commands.some((command) =>
+            command.startsWith("mountain-preview authorize"),
+          ),
+          false,
+        );
+      }
+    });
+  }
+});
+
+test("a request without the label requirement does not need the preview label", async () => {
+  await withPreviewArtifact(async (artifactDirectory) => {
+    const transport = createMemoryTransport();
+    await createTestPublisher(transport, artifactDirectory, {
+      pull: createPullResponse({ labels: [] }),
+    });
+    assert.equal(
+      transport.commands.some((command) =>
+        command.startsWith("mountain-preview activate"),
+      ),
+      true,
+    );
+  });
+});
+
+test("preview-revoked takes precedence over the preview label", async () => {
+  await assert.rejects(
+    () =>
+      resolvePullRequestState({
+        repository: testRepository,
+        pullNumber: previewPullNumber,
+        fetchImpl: createFakeFetch({
+          pull: createPullResponse({
+            labels: [{ name: "preview" }, { name: "preview-revoked" }],
+          }),
+        }),
+      }),
+    /revoked preview/,
+  );
+});
+
 test("publishPreview revalidates dispatch write permission before successful activation", async () => {
   await withPreviewArtifact(async (artifactDirectory) => {
     const transport = createMemoryTransport();
     await createTestPublisher(transport, artifactDirectory, {
-      revalidateDispatchAuthorization: () =>
-        assertDispatchActorAuthorized({
+      revalidateActorAuthorization: () =>
+        assertActorWritePermission({
           repository: testRepository,
           actor: "rboixaderg",
           fetchImpl: createFakeFetch({ collaboratorPermission: "write" }),
@@ -753,8 +850,8 @@ test("publishPreview does not activate after dispatch actor write permission is 
     await assert.rejects(
       () =>
         createTestPublisher(transport, artifactDirectory, {
-          revalidateDispatchAuthorization: () =>
-            assertDispatchActorAuthorized({
+          revalidateActorAuthorization: () =>
+            assertActorWritePermission({
               repository: testRepository,
               actor: "rboixaderg",
               fetchImpl: createFakeFetch({ collaboratorPermissionStatus: 404 }),

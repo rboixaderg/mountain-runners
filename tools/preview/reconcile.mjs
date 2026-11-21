@@ -1,9 +1,19 @@
 #!/usr/bin/env node
 // Trusted cleanup: never checks out or executes pull request code.
+import { readFileSync } from "node:fs";
 import { createSshTransport } from "../deploy/ssh.mjs";
 
 const activeRetentionMs = 14 * 24 * 60 * 60 * 1000;
 const pendingRetentionMs = 24 * 60 * 60 * 1000;
+
+// Removing the `preview` label withdraws the preview of that pull request,
+// whichever request published it. Retiring a pull request with no preview ends
+// without error. `/preview` stays valid: the periodic reconciliation never
+// retires a preview because the label is missing.
+export async function retirePreviewOf({ transport, pullNumber }) {
+  await transport.run(`mountain-preview retire ${pullNumber}`);
+  await transport.run(`mountain-preview site-disable ${pullNumber}`);
+}
 
 export async function reconcilePreviews({
   transport,
@@ -84,6 +94,18 @@ async function main() {
     privateKey: requireEnvironment("PREVIEW_SSH_PRIVATE_KEY"),
     knownHosts: requireEnvironment("PREVIEW_KNOWN_HOSTS"),
   });
+  if (process.env.GITHUB_EVENT_NAME === "pull_request_target") {
+    const event = JSON.parse(
+      readFileSync(requireEnvironment("GITHUB_EVENT_PATH"), "utf8"),
+    );
+    if (event.action === "unlabeled") {
+      await retirePreviewOf({
+        transport,
+        pullNumber: event.pull_request.number,
+      });
+      return;
+    }
+  }
   await reconcilePreviews({
     transport,
     repository,
