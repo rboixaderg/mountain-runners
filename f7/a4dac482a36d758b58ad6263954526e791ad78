@@ -1,0 +1,19 @@
+.github/workflows/artifact.yml
+  s_f763907d8ae1e2::t_e4d5faee036ea7 43-46
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "f7a4dac482a36d758b58ad6263954526e791ad78",
+  "prompts": {},
+  "sessions": {
+    "s_f763907d8ae1e2": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e004f4398ffewkkeMDjn0ElopV",
+        "model": "unknown"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
