@@ -405,6 +405,29 @@ export class GitHubTrust {
     throw new Error("GitHub commit statuses pagination limit exceeded.");
   }
 
+  async getWorkflowJob({ jobIdentifier, signal }) {
+    if (!Number.isSafeInteger(jobIdentifier) || jobIdentifier < 1) {
+      throw new Error("A positive workflow job identifier is required.");
+    }
+    const job = await this.#request(
+      "GET",
+      `/repos/${this.#repository}/actions/jobs/${jobIdentifier}`,
+      undefined,
+      { signal },
+    );
+    if (
+      job?.id !== jobIdentifier ||
+      !Number.isSafeInteger(job.run_id) ||
+      job.run_id < 1 ||
+      !Number.isSafeInteger(job.run_attempt) ||
+      job.run_attempt < 1 ||
+      !Array.isArray(job.steps)
+    ) {
+      throw new Error("GitHub returned an invalid workflow job.");
+    }
+    return job;
+  }
+
   async rerunFailedJobs({ runIdentifier, signal }) {
     if (!Number.isSafeInteger(runIdentifier) || runIdentifier < 1) {
       throw new Error("A positive workflow run identifier is required.");

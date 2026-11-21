@@ -70,6 +70,33 @@ test("reads every page of check runs pinned to the exact commit", async () => {
   );
 });
 
+test("reads a workflow job and rejects invalid identities", async () => {
+  const requests = [];
+  const github = new GitHubTrust({
+    token: "synthetic",
+    repository: "example/project",
+    fetchImpl: async (url) => {
+      requests.push(url);
+      return {
+        ok: true,
+        json: async () => ({ id: 12, run_id: 34, run_attempt: 1, steps: [] }),
+      };
+    },
+  });
+  await assert.rejects(
+    github.getWorkflowJob({ jobIdentifier: "12" }),
+    /identifier/u,
+  );
+  assert.equal((await github.getWorkflowJob({ jobIdentifier: 12 })).run_id, 34);
+  assert.deepEqual(requests, [
+    "https://api.github.com/repos/example/project/actions/jobs/12",
+  ]);
+  await assert.rejects(
+    github.getWorkflowJob({ jobIdentifier: 13 }),
+    /invalid workflow job/u,
+  );
+});
+
 test("reruns failed jobs only for a valid workflow run identifier", async () => {
   const requests = [];
   const github = new GitHubTrust({
