@@ -24,7 +24,9 @@ import {
   listChangedPaths,
   committedPaths,
   hasUnpublishedCommit,
+  publishedCommit,
 } from "../repository/worktrees.mjs";
+import { runGit } from "../repository/trusted-git.mjs";
 import { parseMergeCommand } from "./merge-request.mjs";
 import { SandboxCleanupError } from "../sandbox/errors.mjs";
 import {
@@ -329,6 +331,28 @@ export function createInstructionRunner({
     };
   }
 
+  async function matchesPublishedHead(worktree, remoteHead, signal) {
+    const localHead = await headCommit(worktree, { signal });
+    if (localHead === remoteHead) {
+      return true;
+    }
+    if (
+      publishedCommit(worktree) !== remoteHead ||
+      !(await hasUnpublishedCommit(worktree, { signal }))
+    ) {
+      return false;
+    }
+    const mergeBase = await runGit(
+      worktree,
+      ["merge-base", localHead, remoteHead],
+      {
+        allowFailure: true,
+        signal,
+      },
+    );
+    return mergeBase.trim() === remoteHead;
+  }
+
   async function execute(request, { signal } = {}) {
     // The Pi session file keeps the session identifier: it lives outside the
     // sandbox. Every name the sandbox can read is opaque.
@@ -487,7 +511,11 @@ export function createInstructionRunner({
           pullRequest.headRepository?.toLowerCase() !==
             repositoryName.toLowerCase() ||
           pullRequest.headRef !== binding.branch ||
-          (await headCommit(topic.worktree, { signal })) !== pullRequest.headSha
+          !(await matchesPublishedHead(
+            topic.worktree,
+            pullRequest.headSha,
+            signal,
+          ))
         ) {
           return {
             outcome: "failed",

@@ -554,6 +554,199 @@ test("stops an ambiguous legacy topic before the model or any publication", asyn
   assert.equal(existsSync(topicWorktreePath(paths)), false);
 });
 
+test("publishes pending work after a later question when checks recover", async (context) => {
+  const paths = await fixture(context);
+  const github = githubStub();
+  const events = [];
+  let turn = 0;
+  let checkCount = 0;
+  const runner = createProjectRunner({
+    config: configFor(paths),
+    github,
+    classifyRequest: async () => ({ kind: "implementation" }),
+    runModel: async ({ worktreePath }) => {
+      turn += 1;
+      events.push(`model:${turn}`);
+      if (turn === 1) {
+        writeFileSync(join(worktreePath, "change.txt"), "change\n");
+        return { text: "SUMMARY: feat(tools): add synthetic change" };
+      }
+      return { text: "Resposta." };
+    },
+    runChecks: async () => {
+      checkCount += 1;
+      events.push(`checks:${checkCount}`);
+      return { exitCode: checkCount === 1 ? 1 : 0, timedOut: false };
+    },
+  });
+
+  const first = await runner(request());
+  assert.equal(first.outcome, "failed");
+  assert.equal(first.report, instructionReports.checksFailed);
+  const second = await runner(
+    request({ updateIdentifier: 1002, instruction: "Com està?" }),
+  );
+
+  assert.equal(second.outcome, "pull_request_created");
+  assert.deepEqual(events, ["model:1", "checks:1", "model:2", "checks:2"]);
+  assert.equal(github.pushes.length, 1);
+  assert.equal(github.pulls.length, 1);
+});
+
+test("retries the same refused commit after the next model turn", async (context) => {
+  const paths = await fixture(context);
+  const github = githubStub();
+  const pushBranch = github.pushBranch.bind(github);
+  const events = [];
+  let attempts = 0;
+  const attemptedCommits = [];
+  github.pushBranch = async (options) => {
+    attempts += 1;
+    attemptedCommits.push(
+      await git(options.worktree.path, ["rev-parse", "HEAD"]),
+    );
+    events.push(`push:${attempts}`);
+    if (attempts === 1) {
+      throw new PublishRefusedError("Synthetic publication refusal.");
+    }
+    return pushBranch(options);
+  };
+  let turns = 0;
+  const runner = createProjectRunner({
+    config: configFor(paths),
+    github,
+    classifyRequest: async () => ({ kind: "implementation" }),
+    runModel: async ({ worktreePath }) => {
+      turns += 1;
+      events.push(`model:${turns}`);
+      if (turns === 1) {
+        writeFileSync(join(worktreePath, "change.txt"), "change\n");
+        return { text: "SUMMARY: feat(tools): add synthetic change" };
+      }
+      return { text: "Resposta." };
+    },
+    runChecks: async () => ({ exitCode: 0, timedOut: false }),
+  });
+
+  const first = await runner(request());
+  assert.equal(first.outcome, "failed");
+  assert.equal(first.report, instructionReports.publicationRefused);
+  const second = await runner(
+    request({ updateIdentifier: 1002, instruction: "Com està?" }),
+  );
+
+  assert.equal(second.outcome, "pull_request_created");
+  assert.deepEqual(events, ["model:1", "push:1", "model:2", "push:2"]);
+  assert.equal(attemptedCommits.length, 2);
+  assert.equal(attemptedCommits[0], attemptedCommits[1]);
+  assert.equal(github.pushes.length, 1);
+});
+
+test("retries a refused commit on an already bound pull request", async (context) => {
+  const paths = await fixture(context);
+  mkdirSync(paths.state, { recursive: true });
+  const topicJobs = new TopicJobStore(join(paths.state, "topic-jobs.sqlite"));
+  context.after(() => topicJobs.close());
+  const github = githubStub();
+  const pushBranch = github.pushBranch.bind(github);
+  let remoteHead;
+  let attempts = 0;
+  const commits = [];
+  github.pushBranch = async (options) => {
+    attempts += 1;
+    commits.push(await git(options.worktree.path, ["rev-parse", "HEAD"]));
+    if (attempts === 2) throw new PublishRefusedError("Synthetic refusal.");
+    const pushed = await pushBranch(options);
+    remoteHead = pushed.commit;
+    return pushed;
+  };
+  github.getPullRequest = async () => ({
+    state: "open",
+    draft: false,
+    baseRef: "main",
+    headRepository: "rboixaderg/mountain-runners",
+    headRef: github.pushes[0].branch,
+    headSha: remoteHead,
+  });
+  github.ensurePullRequest = async (options) => {
+    github.pulls.push(options);
+    return {
+      pullRequest: {
+        number: 200,
+        htmlUrl: "https://github.com/rboixaderg/mountain-runners/pull/200",
+      },
+      created: github.pulls.length === 1,
+    };
+  };
+  let turns = 0;
+  const runner = createProjectRunner({
+    config: configFor(paths),
+    github,
+    topicJobs,
+    classifyRequest: async () => ({ kind: "implementation" }),
+    runModel: async ({ worktreePath }) => {
+      turns += 1;
+      if (turns < 3) {
+        writeFileSync(join(worktreePath, "change.txt"), `change ${turns}\n`);
+        return { text: "SUMMARY: feat(tools): add synthetic change" };
+      }
+      return { text: "Resposta." };
+    },
+    runChecks: async () => ({ exitCode: 0, timedOut: false }),
+  });
+
+  assert.equal((await runner(request())).outcome, "pull_request_created");
+  const refused = await runner(request({ updateIdentifier: 1002 }));
+  assert.equal(refused.report, instructionReports.publicationRefused);
+  const originalRemoteHead = remoteHead;
+  remoteHead = "f".repeat(40);
+  const moved = await runner(request({ updateIdentifier: 1003 }));
+  assert.equal(moved.outcome, "failed");
+  assert.equal(turns, 2, "a changed remote head never reaches the model");
+  assert.equal(attempts, 2, "a changed remote head is never pushed");
+  remoteHead = originalRemoteHead;
+  const retried = await runner(request({ updateIdentifier: 1004 }));
+  assert.equal(retried.outcome, "pull_request_updated", retried.report);
+  assert.equal(turns, 3);
+  assert.equal(commits[1], commits[2]);
+  assert.equal(github.pulls.at(-1).createMissing, false);
+});
+
+test("reports a persistent publication block after each model turn", async (context) => {
+  const paths = await fixture(context);
+  const github = githubStub();
+  let modelTurns = 0;
+  let checkCount = 0;
+  const runner = createProjectRunner({
+    config: configFor(paths),
+    github,
+    classifyRequest: async () => ({ kind: "implementation" }),
+    runModel: async ({ worktreePath }) => {
+      modelTurns += 1;
+      if (modelTurns === 1) {
+        writeFileSync(join(worktreePath, "change.txt"), "change\n");
+        return { text: "SUMMARY: feat(tools): add synthetic change" };
+      }
+      return { text: "Resposta." };
+    },
+    runChecks: async () => {
+      checkCount += 1;
+      return { exitCode: 1, timedOut: false };
+    },
+  });
+
+  const first = await runner(request());
+  assert.equal(first.outcome, "failed");
+  assert.equal(first.report, instructionReports.checksFailed);
+  const retried = await runner(request({ updateIdentifier: 1002 }));
+
+  assert.equal(retried.outcome, "failed");
+  assert.equal(retried.report, instructionReports.checksFailed);
+  assert.equal(checkCount, 2);
+  assert.equal(modelTurns, 2);
+  assert.deepEqual(github.pushes, []);
+});
+
 test("does not bind a topic when local checks block publication", async (context) => {
   const paths = await fixture(context);
   mkdirSync(paths.state, { recursive: true });
