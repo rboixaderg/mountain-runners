@@ -1,0 +1,19 @@
+tools/server/agent/workflow/merge-request.test.mjs
+  s_711b0b9e7430ad::t_aca1231d3e203c 768-797,825
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "baacda51ea8c7e89ea49520c18106c46e8969898",
+  "prompts": {},
+  "sessions": {
+    "s_711b0b9e7430ad": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a1fcfc-1401-7204-bca3-2b2848f17fa0",
+        "model": "gpt-6.1-terra"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
