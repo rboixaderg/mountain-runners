@@ -1,0 +1,47 @@
+tools/server/agent/README.md
+  s_d4747deaeffc24::t_b882404ac33612 88,219-221
+tools/server/agent/processes/telegram-bridge/main.test.mjs
+  s_7158699f558f84::t_a860363b0ef10b 579,583-589,593-599
+tools/server/agent/repository/ci-failure.mjs
+  s_7158699f558f84::t_caab69274bd8d1 45-46,48-51,53
+tools/server/agent/repository/ci-github.test.mjs
+  s_7158699f558f84::t_2c0391834098ad 73-139
+tools/server/agent/repository/github.mjs
+  s_7158699f558f84::t_1fd4f84250e507 37,475-550
+tools/server/agent/repository/github.test.mjs
+  s_bc798e19e0cceb::t_1a9c408eb834b3 764
+tools/server/agent/workflow/ci-watch.test.mjs
+  s_7158699f558f84::t_cd1cca4722ebf5 78,84-90,94-103,698-741,784
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "447abed4454a8a27b5206cc9d3bdd89fd3a45b61",
+  "prompts": {},
+  "sessions": {
+    "s_7158699f558f84": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a1fd21-3ad5-75f9-a86e-7fe687c730d0",
+        "model": "gpt-6.1-terra"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    },
+    "s_bc798e19e0cceb": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a1fd38-d8e9-71bc-bd5e-a807b78bf891",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    },
+    "s_d4747deaeffc24": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e02ba8b48ffejqR1WgFNjosqk2",
+        "model": "unknown"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
