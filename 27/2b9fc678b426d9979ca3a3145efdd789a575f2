@@ -1,0 +1,21 @@
+tools/preview/reconcile.mjs
+  s_843c4e766b1992::t_6caf2d37c3f6ba 101-102,104-109
+tools/server/agent/workflow/ci-watch.mjs
+  s_843c4e766b1992::t_c903dc476d0003 14,500-503
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "272b9fc678b426d9979ca3a3145efdd789a575f2",
+  "prompts": {},
+  "sessions": {
+    "s_843c4e766b1992": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e00d1c8a5ffeJtdHn02mtqDwHi",
+        "model": "unknown"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
