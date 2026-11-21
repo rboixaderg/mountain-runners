@@ -1,0 +1,19 @@
+docs/specs/phase-8-editorial-assistance.md
+  s_fb49932d4750db::t_c0b4d5103768a0 197
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "3dab521e554328ef5a89b8699cc3d2111ab58bab",
+  "prompts": {},
+  "sessions": {
+    "s_fb49932d4750db": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a2000c-16f3-7097-8b22-5d97215923cd",
+        "model": "claude-sonnet-5-5"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
