@@ -1,0 +1,21 @@
+docs/deployment.md
+  s_11490b061e964d::t_91968223f67637 865-867,885-894,896-900,910-924,944-946,953-956,963-968,1260,1294-1295
+docs/runbook.md
+  s_11490b061e964d::t_3009c72748d924 1101-1106,1481-1483,1499-1503,1505-1506
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "d48f50daf599482ab9ad24fe8fafb1249a69ba1a",
+  "prompts": {},
+  "sessions": {
+    "s_11490b061e964d": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_e0023deccffeK9XR9xQTAPuC6M",
+        "model": "unknown"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
