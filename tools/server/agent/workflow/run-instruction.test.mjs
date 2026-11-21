@@ -392,6 +392,47 @@ test("publishes a small change as a pull request after the checks pass", async (
   assert.equal(committed, "feat(tools): add synthetic change");
 });
 
+test("stops an ambiguous legacy topic before the model or any publication", async (context) => {
+  const paths = await fixture(context);
+  mkdirSync(paths.state, { recursive: true });
+  const topicJobs = new TopicJobStore(join(paths.state, "topic-jobs.sqlite"));
+  const ciWatches = new CiWatchStore(join(paths.state, "ci-watch.sqlite"));
+  context.after(() => {
+    topicJobs.close();
+    ciWatches.close();
+  });
+  for (const number of [200, 201]) {
+    ciWatches.add({
+      updateIdentifier: number,
+      sessionKey: topicSessionKey,
+      pullRequestNumber: number,
+      commitSha: "a".repeat(40),
+    });
+  }
+  const github = githubStub();
+  github.getPullRequest = async ({ number }) => ({
+    state: "open",
+    baseRef: "main",
+    headRepository: "rboixaderg/mountain-runners",
+    headRef: `feat/agent-change-${number}`,
+  });
+  const runner = createProjectRunner({
+    config: configFor(paths),
+    github,
+    ciWatches,
+    topicJobs,
+    classifyRequest: async () => assert.fail("classification must not run"),
+    runModel: async () => assert.fail("model must not run"),
+  });
+
+  const result = await runner(request());
+  assert.equal(result.outcome, "failed");
+  assert.match(result.report, /persona que manté el servei/u);
+  assert.equal(topicJobs.bindingOf(topicSessionKey), null);
+  assert.deepEqual(github.pushes, []);
+  assert.equal(existsSync(topicWorktreePath(paths)), false);
+});
+
 test("does not bind a topic when local checks block publication", async (context) => {
   const paths = await fixture(context);
   mkdirSync(paths.state, { recursive: true });

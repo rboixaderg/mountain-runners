@@ -21,6 +21,7 @@ import {
   sandboxPrepareCommand,
 } from "../policy/development.mjs";
 import { createInstructionRunner } from "./run-instruction.mjs";
+import { createTopicJobMigration } from "./topic-job-migration.mjs";
 import { createCrossTopicContinuation } from "./cross-topic-continuation.mjs";
 import { createOverlapWarning } from "./overlap-warning.mjs";
 import {
@@ -158,6 +159,15 @@ export function createProjectRunner({
     attachmentStore,
     sessionNotes,
     topicJobs,
+    migrateTopicJob:
+      topicJobs && ciWatches
+        ? createTopicJobMigration({
+            topicJobs,
+            ciWatches,
+            github,
+            repositoryName: config.github.repository,
+          })
+        : undefined,
     recordTrace,
     findTopicPullRequest,
     // The state of the topic every turn receives, from the service's own stores:

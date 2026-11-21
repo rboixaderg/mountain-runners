@@ -75,6 +75,7 @@ export function createInstructionRunner({
   // yet and the last text it received. Without it the service keeps neither.
   sessionNotes,
   topicJobs,
+  migrateTopicJob,
   // The pull request the topic published and still owns, or null. Without the
   // CI watches the service knows no published pull request.
   findTopicPullRequest = () => null,
@@ -361,6 +362,17 @@ export function createInstructionRunner({
       if (mergeCommand !== null) {
         const merged = await requestMerge(request, mergeCommand, { signal });
         return { ...merged, report: ignoringAttachment(merged.report) };
+      }
+      if (!repair && migrateTopicJob) {
+        const migrationReport = await migrateTopicJob(request.sessionKey, {
+          signal,
+        });
+        if (migrationReport !== null) {
+          return {
+            outcome: "failed",
+            report: ignoringAttachment(migrationReport),
+          };
+        }
       }
       // Only the trusted internal repair request fixes its kind; every other
       // request is classified from its text and from the bounded context of the
