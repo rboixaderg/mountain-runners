@@ -396,6 +396,19 @@ export class CiWatchStore {
     );
   }
 
+  /** Replace a delivered repair announcement with a new live result. */
+  beginRepairResult(updateIdentifier, commitSha, result) {
+    return (
+      this.#database
+        .prepare(
+          `UPDATE ci_watches SET state = 'sending', result = ?, updated_at = ?
+           WHERE update_identifier = ? AND commit_sha = ? AND state = 'sent' AND result = 'repairing'`,
+        )
+        .run(result, this.#now().toISOString(), updateIdentifier, commitSha)
+        .changes === 1
+    );
+  }
+
   finishSend(updateIdentifier) {
     return (
       this.#database

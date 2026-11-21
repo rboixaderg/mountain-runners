@@ -13,8 +13,11 @@
 // first and closes the request as merged only if GitHub shows it merged.
 
 import { parseSessionKey } from "telegram-pi-bridge/sessions";
-import { isDefiniteRejection, statusClass } from "../repository/github.mjs";
-import { classifyCommitStatus } from "../repository/ci-status.mjs";
+import {
+  isDefiniteRejection,
+  readLivePullRequest,
+  statusClass,
+} from "../repository/github.mjs";
 import { mergeBeginResults } from "../repository/merge-request-store.mjs";
 import {
   defaultRequestTimeoutMilliseconds,
@@ -193,7 +196,7 @@ export function createMergeRequests({
    * The refusal of a live pull request that is not clearly mergeable, or null.
    * Unknown mergeability after the retries is unreadable.
    */
-  async function refusalFor(pullRequest, target, signal) {
+  function refusalFor(pullRequest, target, classification) {
     // A merged pull request is not simply "not open": the person must learn that
     // the change is already in the project, not that it can never be merged.
     if (pullRequest.merged === true) return refusals.alreadyMerged;
@@ -210,16 +213,6 @@ export function createMergeRequests({
     if (pullRequest.mergeableState === mergeableStates.unknown) {
       return refusals.unreadable;
     }
-    const readSignal = requestSignal(signal, requestTimeoutMilliseconds);
-    const [checkRuns, statuses] = await Promise.all([
-      github.getCommitCheckRuns({ commit: target.commit, signal: readSignal }),
-      github.getCommitStatuses({ commit: target.commit, signal: readSignal }),
-    ]);
-    const classification = classifyCommitStatus({
-      requiredChecks,
-      checkRuns,
-      statuses,
-    });
     if (classification.state !== "success") return refusals.checksNotGreen;
     switch (pullRequest.mergeableState) {
       case mergeableStates.clean:
@@ -236,8 +229,19 @@ export function createMergeRequests({
    * with its refusal so the reply can use its review URL without a second read.
    */
   async function readMergeState(target, signal) {
-    const pullRequest = await readPullRequest(target.pullRequestNumber, signal);
-    const refusal = await refusalFor(pullRequest, target, signal);
+    const initial = await readPullRequest(target.pullRequestNumber, signal);
+    if (initial.mergeableState === mergeableStates.unknown) {
+      return { pullRequest: initial, refusal: refusals.unreadable };
+    }
+    // Keep the mergeability retries, then check a consistent live head and its checks.
+    const live = await readLivePullRequest({
+      github,
+      number: target.pullRequestNumber,
+      requiredChecks,
+      signal: requestSignal(signal, requestTimeoutMilliseconds),
+    });
+    const pullRequest = live.pullRequest;
+    const refusal = refusalFor(pullRequest, target, live.classification);
     return { pullRequest, refusal };
   }
 

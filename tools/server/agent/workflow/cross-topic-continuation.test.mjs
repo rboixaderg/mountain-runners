@@ -156,6 +156,12 @@ function githubStub({ origin, state }) {
         mergeCommitSha: null,
       };
     },
+    async getCommitCheckRuns() {
+      return [{ name: "Validate", status: "completed", conclusion: "failure" }];
+    },
+    async getCommitStatuses() {
+      return [];
+    },
     async pushBranch({ worktree, branch }) {
       const commit = await git(worktree.path, ["rev-parse", "HEAD"]);
       await git(worktree.path, ["push", "origin", `HEAD:refs/heads/${branch}`]);
@@ -330,15 +336,16 @@ test("continues another topic's pull request and updates it without opening anot
   assert.match(modelCalls[0].instruction, /Failing required checks: Validate/u);
   // The turn works on another topic's pull request: the state block describes
   // that pull request and the facts of the topic that still owns it.
-  assert.deepEqual(modelCalls[0].topicState.pullRequest, {
+  assert.deepEqual(modelCalls[0].topicState.liveState, {
     url: `https://github.com/${repository}/pull/${pullRequestNumber}`,
+    state: "open",
     fromAnotherTopic: true,
-    isClosed: false,
-    isMerged: false,
-  });
-  assert.deepEqual(modelCalls[0].topicState.lastReported, {
-    commit: head,
-    description: "failed",
+    head,
+    checks: "failure",
+    hasUnreportedWork: false,
+    merge: null,
+    preview: "no preview requested for the current change",
+    origin: null,
   });
   assert.equal(github.pushes.length, 2);
   assert.equal(github.pushes[1].branch, changeBranchOf(paths));

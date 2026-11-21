@@ -2292,9 +2292,24 @@ test("carries the audience rules, the state of the topic and the attachment line
   ciWatches.beginSend(900, "success");
   ciWatches.finishSend(900);
   const prompts = [];
+  const config = configFor(paths);
+  config.github.requiredChecks = ["Validate"];
   const runner = createProjectRunner({
-    config: configFor(paths),
-    github: githubStub(),
+    config,
+    github: {
+      ...githubStub(),
+      async getPullRequest() {
+        return { state: "open", merged: false, headSha: "a".repeat(40) };
+      },
+      async getCommitCheckRuns() {
+        return [
+          { name: "Validate", status: "completed", conclusion: "success" },
+        ];
+      },
+      async getCommitStatuses() {
+        return [];
+      },
+    },
     ciWatches,
     previewRequests,
     mergeRequests,
@@ -2332,7 +2347,7 @@ test("carries the audience rules, the state of the topic and the attachment line
   );
   assert.match(
     prompts[0].slice(state, request),
-    /^- Pull request this turn works on: https:\/\/github\.com\/rboixaderg\/mountain-runners\/pull\/239\.$/mu,
+    /^- Pull request: https:\/\/github\.com\/rboixaderg\/mountain-runners\/pull\/239; open\.$/mu,
   );
   assert.match(
     prompts[0],

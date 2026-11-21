@@ -926,16 +926,17 @@ test("clips after escaping, never inside an escape sequence", () => {
 test("puts the state of the topic before the service events and the request", () => {
   const prompt = promptFor("i la preview?", "consultation", {
     topicState: {
-      pullRequest: {
+      liveState: {
         url: "https://github.com/rboixaderg/mountain-runners/pull/239",
         fromAnotherTopic: false,
-        isClosed: false,
-        isMerged: false,
+        state: "open",
+        head: "a".repeat(40),
+        checks: "success",
+        hasUnreportedWork: false,
+        preview: "confirmed",
+        origin: null,
+        merge: null,
       },
-      lastReported: { commit: "a".repeat(40), description: "green" },
-      hasUnreportedWork: false,
-      preview: { description: "confirmed", origin: null },
-      merge: null,
     },
     serviceNotes: ["Preview demanada per al commit aaaaaaa."],
   });
@@ -946,7 +947,7 @@ test("puts the state of the topic before the service events and the request", ()
   assert.ok(state > 0, "the state of the topic is present");
   assert.ok(notes > state, "the state comes before the service events");
   assert.ok(request > notes, "the service events come before the request");
-  assert.match(prompt, /^- Latest preview request for it: confirmed\.$/mu);
+  assert.match(prompt, /^- Preview: confirmed\.$/mu);
   assert.match(prompt, /^- Latest merge request for it: none yet\.$/mu);
   assert.match(prompt, /"demana la preview"/u);
   assert.equal(
@@ -958,37 +959,29 @@ test("puts the state of the topic before the service events and the request", ()
 
 test("describes the state of the topic in plain words for the model", () => {
   const text = buildTopicStateText({
-    pullRequest: {
+    liveState: {
       url: "https://github.com/rboixaderg/mountain-runners/pull/239",
       fromAnotherTopic: true,
-      isClosed: true,
-      isMerged: false,
+      state: "closed",
+      head: "a".repeat(40),
+      checks: "failure",
+      hasUnreportedWork: true,
+      preview: "the request was rejected",
+      origin: null,
+      merge: { description: "not merged", mergeCommit: null },
     },
-    lastReported: {
-      commit: "a".repeat(40),
-      description: "not reported, because the pull request is closed",
-    },
-    hasUnreportedWork: true,
-    preview: { description: "the request was rejected", origin: null },
-    merge: { description: "not merged", mergeCommit: null },
   });
 
   assert.match(
     text,
-    /^- Pull request this turn works on: https:\/\/github\.com\/rboixaderg\/mountain-runners\/pull\/239 \(it comes from another topic, which owns it until this topic publishes a commit; the last report says it is closed\)\.$/mu,
+    /^- Pull request: https:\/\/github\.com\/rboixaderg\/mountain-runners\/pull\/239; closed; owned by another topic\.$/mu,
   );
+  assert.match(text, /^- Current head: aaaaaaa; required checks: failure\.$/mu);
   assert.match(
     text,
-    /^- Last commit reported for it: aaaaaaa; required checks: not reported, because the pull request is closed\.$/mu,
+    /^- Work newer than the last report is still being checked: yes\.$/mu,
   );
-  assert.match(
-    text,
-    /^- Work newer than that report is still being checked: yes\.$/mu,
-  );
-  assert.match(
-    text,
-    /^- Latest preview request for it: the request was rejected\.$/mu,
-  );
+  assert.match(text, /^- Preview: the request was rejected\.$/mu);
   assert.match(text, /^- Latest merge request for it: not merged\.$/mu);
   assert.match(
     text,

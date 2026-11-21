@@ -765,6 +765,36 @@ for (const [name, state, reason, text] of liveRefusals) {
   });
 }
 
+test("refuses if the live head changes during the check read", async (context) => {
+  const github = fakeGithub();
+  const { ciWatches, handler } = setup(context, { github });
+  report(ciWatches);
+  github.getCommitCheckRuns = async () => {
+    github.pullRequest = openPullRequest({ headSha: "c".repeat(40) });
+    return github.checkRuns;
+  };
+  const result = await handler.handle(request(), bareCommand);
+  assert.match(result.report, /No he pogut llegir com està la proposta/u);
+  assert.deepEqual(github.merges, []);
+});
+
+test("refuses when live checks turn red or their read fails", async (context) => {
+  const github = fakeGithub();
+  const { ciWatches, handler } = setup(context, { github });
+  report(ciWatches);
+  github.checkRuns = [
+    { name: "Validate", status: "completed", conclusion: "failure" },
+  ];
+  const red = await handler.handle(request(), bareCommand);
+  assert.match(red.report, /no estan totes en verd/u);
+  github.getCommitCheckRuns = async () => {
+    throw new Error("network");
+  };
+  const unreadable = await handler.handle(request(21), bareCommand);
+  assert.match(unreadable.report, /No he pogut llegir com està la proposta/u);
+  assert.deepEqual(github.merges, []);
+});
+
 test("reads a pull request again while mergeability is unknown and then refuses as unreadable", async (context) => {
   const { ciWatches, handler, github } = setup(context, {
     github: fakeGithub({
@@ -792,7 +822,7 @@ test("merges once GitHub finishes computing the mergeability", async (context) =
   const result = await handler.handle(request(), bareCommand);
 
   assert.match(result.report, /fusionada/u);
-  assert.equal(github.reads, 2);
+  assert.equal(github.reads, 4);
   assert.equal(github.merges.length, 1);
 });
 

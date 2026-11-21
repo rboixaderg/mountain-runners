@@ -14,6 +14,7 @@
 // belongs to the same trusted component, because the token never leaves it.
 
 import { previewCommand } from "../policy/development.mjs";
+import { classifyCommitStatus } from "./ci-status.mjs";
 import { assertWorkBranch } from "./worktrees.mjs";
 import { assertPublishableHistory } from "./secret-scan.mjs";
 import {
@@ -175,6 +176,39 @@ export function isPermissionRejection(error) {
 
 export function statusClass(status) {
   return `${Math.floor(status / 100)}xx`;
+}
+
+/** Reject a pull request that changed while its dependent state was read. */
+export function confirmPullRequestUnchanged(original, confirmed) {
+  if (
+    confirmed.headSha !== original.headSha ||
+    confirmed.state !== original.state ||
+    confirmed.merged !== original.merged
+  ) {
+    throw new Error("The pull request changed while reading its state.");
+  }
+}
+
+/** Read checks for the current head and confirm that the head did not move. */
+export async function readLivePullRequest({
+  github,
+  number,
+  requiredChecks,
+  signal,
+}) {
+  const pullRequest = await github.getPullRequest({ number, signal });
+  const [checkRuns, statuses] = await Promise.all([
+    github.getCommitCheckRuns({ commit: pullRequest.headSha, signal }),
+    github.getCommitStatuses({ commit: pullRequest.headSha, signal }),
+  ]);
+  const confirmed = await github.getPullRequest({ number, signal });
+  confirmPullRequestUnchanged(pullRequest, confirmed);
+  const classification = classifyCommitStatus({
+    requiredChecks,
+    checkRuns,
+    statuses,
+  });
+  return { pullRequest: confirmed, classification };
 }
 
 export class GitHubTrust {
