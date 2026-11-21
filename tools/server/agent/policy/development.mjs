@@ -826,7 +826,9 @@ export function buildTopicStateText(topicState) {
       topicStateHeader,
       `- Pull request: ${live.url}; ${live.state}${live.fromAnotherTopic ? "; owned by another topic" : ""}.`,
       `- Current head: ${shortCommit(live.head)}; required checks: ${live.checks}.`,
+      `- Work newer than the last report is still being checked: ${live.hasUnreportedWork ? "yes" : "no"}.`,
       `- Preview: ${preview}.`,
+      `- Latest merge request for it: ${describeMerge(live.merge)}.`,
       "",
       topicStateGuidance,
     ].join("\n");

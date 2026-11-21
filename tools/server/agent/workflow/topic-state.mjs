@@ -6,7 +6,10 @@ import { mergeStates } from "../repository/merge-request-store.mjs";
 import { previewStates } from "../repository/preview-request-store.mjs";
 import { pullRequestReviewUrl } from "../policy/development.mjs";
 import { ciResults } from "./ci-watch.mjs";
-import { readLivePullRequest } from "../repository/github.mjs";
+import {
+  confirmPullRequestUnchanged,
+  readLivePullRequest,
+} from "../repository/github.mjs";
 import { confirmedPreviewOrigin } from "../repository/preview-comment.mjs";
 
 const ciResultDescriptions = {
@@ -85,10 +88,12 @@ export function createTopicPullRequestFinder(
 export function createLiveTopicStateReader({
   ciWatches,
   previewRequests,
+  mergeRequests,
   findTopicPullRequest,
   repositoryName,
   github,
   requiredChecks,
+  logger = () => {},
 }) {
   return async function readTopicState(
     sessionKey,
@@ -130,13 +135,11 @@ export function createLiveTopicStateReader({
         preview = origin ? "confirmed" : "not confirmed by the publisher";
       }
       const confirmed = await github.getPullRequest({ number, signal });
-      if (
-        confirmed.headSha !== live.pullRequest.headSha ||
-        confirmed.state !== live.pullRequest.state ||
-        confirmed.merged !== live.pullRequest.merged
-      ) {
-        throw new Error("The pull request changed while reading its preview.");
-      }
+      confirmPullRequestUnchanged(live.pullRequest, confirmed);
+      const merge = mergeRequests.latest({
+        sessionKey: source,
+        pullRequestNumber: number,
+      });
       return {
         liveState: {
           url: pullRequestReviewUrl({
@@ -147,12 +150,24 @@ export function createLiveTopicStateReader({
           fromAnotherTopic: source !== sessionKey,
           head: confirmed.headSha,
           checks: live.classification.state,
+          hasUnreportedWork: ciWatches.hasUnreportedWork(source),
+          merge:
+            merge === undefined
+              ? null
+              : {
+                  description: describeState(mergeDescriptions, merge.state),
+                  mergeCommit: merge.merge_commit_sha ?? null,
+                },
           preview,
           origin,
         },
       };
-    } catch {
+    } catch (error) {
       signal?.throwIfAborted();
+      logger(
+        "topic_state_failed",
+        error instanceof Error ? error.name : "unknown",
+      );
       return { liveState: { unavailable: true } };
     }
   };

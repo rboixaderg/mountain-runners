@@ -178,6 +178,17 @@ export function statusClass(status) {
   return `${Math.floor(status / 100)}xx`;
 }
 
+/** Reject a pull request that changed while its dependent state was read. */
+export function confirmPullRequestUnchanged(original, confirmed) {
+  if (
+    confirmed.headSha !== original.headSha ||
+    confirmed.state !== original.state ||
+    confirmed.merged !== original.merged
+  ) {
+    throw new Error("The pull request changed while reading its state.");
+  }
+}
+
 /** Read checks for the current head and confirm that the head did not move. */
 export async function readLivePullRequest({
   github,
@@ -191,35 +202,13 @@ export async function readLivePullRequest({
     github.getCommitStatuses({ commit: pullRequest.headSha, signal }),
   ]);
   const confirmed = await github.getPullRequest({ number, signal });
-  if (
-    confirmed.headSha !== pullRequest.headSha ||
-    confirmed.state !== pullRequest.state ||
-    confirmed.merged !== pullRequest.merged
-  ) {
-    throw new Error("The pull request changed while reading its state.");
-  }
+  confirmPullRequestUnchanged(pullRequest, confirmed);
   const classification = classifyCommitStatus({
     requiredChecks,
     checkRuns,
     statuses,
   });
-  const checks = requiredChecks.map((name) => {
-    const result = classifyCommitStatus({
-      requiredChecks: [name],
-      checkRuns,
-      statuses,
-    });
-    let conclusion = result.state;
-    if (result.missing.length > 0) conclusion = "missing";
-    if (result.state === "failure") {
-      const run = checkRuns.find((entry) => entry.name === name);
-      if (run?.conclusion === "cancelled" || run?.conclusion === "timed_out") {
-        conclusion = run.conclusion;
-      }
-    }
-    return { name, conclusion };
-  });
-  return { pullRequest: confirmed, classification, checks };
+  return { pullRequest: confirmed, classification };
 }
 
 export class GitHubTrust {

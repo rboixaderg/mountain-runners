@@ -342,6 +342,8 @@ test("continues another topic's pull request and updates it without opening anot
     fromAnotherTopic: true,
     head,
     checks: "failure",
+    hasUnreportedWork: false,
+    merge: null,
     preview: "no preview requested for the current change",
     origin: null,
   });

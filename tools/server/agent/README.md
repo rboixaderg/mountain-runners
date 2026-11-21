@@ -352,10 +352,12 @@ al servidor. El nom local encara no representa una publicació a npm.
     amb els seguiments desats i llegeix de GitHub el cap i les comprovacions
     obligatòries. Revalida el cap i llegeix la confirmació del publicador per a
     la preview del cap actual. Si no pot confirmar l'estat, el bloc diu que no
-    es pot comprovar. El sandbox continua sense xarxa ni credencials. La petició
-    explícita de preview també comprova el cap i la CI a GitHub, encara que el
-    resultat desat sigui anterior. La lectura viva de les decisions de merge i
-    reparació resta pendent del bloc 1 de T8.9.
+    es pot comprovar i registra `topic_state_failed` al journal. El bloc no
+    conté identificadors de Telegram ni dades personals, i el classificador no
+    el rep. El sandbox continua sense xarxa ni credencials. La petició explícita
+    de preview també comprova el cap i la CI a GitHub, encara que el resultat
+    desat sigui anterior. El merge i la reparació tornen a comprovar el cap i la
+    CI abans d'actuar.
 
 Les imatges d'una implementació o una continuació segueixen aquest camí.
 `attachments/prepare.mjs` descarrega cada fitxer al directori temporal del

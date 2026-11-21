@@ -571,7 +571,9 @@ const expectedStateBlock = [
   topicStateHeader,
   "- Pull request: https://github.com/rboixaderg/mountain-runners/pull/239; open.",
   "- Current head: aaaaaaa; required checks: success.",
+  "- Work newer than the last report is still being checked: no.",
   `- Preview: confirmed, URL ${previewOrigin}.`,
+  "- Latest merge request for it: none yet.",
 ].join("\n");
 
 test("a consultation and an implementation receive the state of the topic", async (context) => {
@@ -736,10 +738,11 @@ test("gives the classifier no pull request that is already merged", (context) =>
 });
 
 test("live topic state recovers from stale reports and fails closed on a read error", async (context) => {
-  const { ciWatches, previewRequests, findTopicPullRequest } =
+  const { ciWatches, previewRequests, mergeRequests, findTopicPullRequest } =
     storeFixture(context);
   reportChecks(ciWatches, { result: "repairing" });
   let unavailable = false;
+  const events = [];
   const github = {
     async getPullRequest() {
       if (unavailable) throw new Error("network");
@@ -755,10 +758,12 @@ test("live topic state recovers from stale reports and fails closed on a read er
   const read = createLiveTopicStateReader({
     ciWatches,
     previewRequests,
+    mergeRequests,
     findTopicPullRequest,
     repositoryName,
     github,
     requiredChecks: ["Validate"],
+    logger: (event) => events.push(event),
   });
   const state = await read(sessionKey);
   assert.equal(state.liveState.head, newerCommit);
@@ -767,8 +772,37 @@ test("live topic state recovers from stale reports and fails closed on a read er
     buildTopicStateText(state),
     /Current head: ddddddd; required checks: success/u,
   );
+  ciWatches.add({
+    updateIdentifier: 501,
+    sessionKey,
+    pullRequestNumber: 239,
+    commitSha: newerCommit,
+  });
+  mergeRequests.begin({
+    updateIdentifier: 700,
+    sessionKey,
+    authorIdentifier: 42,
+    pullRequestNumber: 239,
+    commitSha: reportedCommit,
+  });
+  mergeRequests.markMerged(700, mergeCommit);
+  const withWork = await read(sessionKey);
+  assert.equal(withWork.liveState.hasUnreportedWork, true);
+  assert.deepEqual(withWork.liveState.merge, {
+    description: "merged",
+    mergeCommit,
+  });
+  assert.match(
+    buildTopicStateText(withWork),
+    /Work newer than the last report is still being checked: yes/u,
+  );
+  assert.match(
+    buildTopicStateText(withWork),
+    /Latest merge request for it: merged \(merge commit ccccccc\)/u,
+  );
   unavailable = true;
   const failed = await read(sessionKey);
   assert.deepEqual(failed, { liveState: { unavailable: true } });
   assert.match(buildTopicStateText(failed), /cannot check right now/u);
+  assert.deepEqual(events, ["topic_state_failed"]);
 });

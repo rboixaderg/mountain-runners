@@ -166,6 +166,7 @@ export function createProjectRunner({
         ? createLiveTopicStateReader({
             github,
             requiredChecks: config.github.requiredChecks,
+            logger,
             ciWatches,
             previewRequests,
             mergeRequests,

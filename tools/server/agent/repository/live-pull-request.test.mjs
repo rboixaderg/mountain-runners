@@ -49,10 +49,9 @@ test("reads required checks for the confirmed current head", async () => {
   });
   assert.equal(result.pullRequest.headSha, commit);
   assert.equal(result.pullRequest.state, "open");
-  assert.deepEqual(
-    result.checks.map((check) => check.conclusion),
-    ["success", "cancelled", "timed_out", "pending", "missing"],
-  );
+  assert.deepEqual(result.classification.failed, ["cancelled", "timeout"]);
+  assert.deepEqual(result.classification.pending, ["pending"]);
+  assert.deepEqual(result.classification.missing, ["missing"]);
   assert.notEqual(result.classification.state, "success");
 });
 

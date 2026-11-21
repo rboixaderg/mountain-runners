@@ -1360,14 +1360,15 @@ persistits. Llegeix de GitHub la PR, el cap i les comprovacions obligatòries, i
 revalida el cap. Per a una petició de preview del cap actual, llegeix el
 comentari del publicador i només facilita l'URL confirmada per a aquell commit.
 Si la lectura falla o el cap canvia durant la consulta, el bloc indica que no
-es pot comprovar l'estat. El model rep aquestes dades dins del sandbox sense
-xarxa ni credencials. El classificador no rep el bloc.
+es pot comprovar l'estat i es registra `topic_state_failed` al journal. El bloc
+no conté identificadors de Telegram ni dades personals, i el classificador no el
+rep. El model el rep dins del sandbox sense xarxa ni credencials.
 
 La petició explícita de preview torna a comprovar la PR i les comprovacions del
 cap encara que l'últim resultat desat no sigui verd. Els treballs pendents i els
-resultats desconeguts continuen bloquejant la petició. Les decisions de merge i
-reparació encara conserven els controls i les lectures anteriors: resten
-pendents del bloc 1 de T8.9.
+resultats desconeguts continuen bloquejant la petició. Abans d'un merge o una
+reparació, el servei torna a comprovar el cap i la CI; el merge continua fixat
+al commit informat al tema.
 
 Els límits numèrics (CPU, memòria, processos, temps d'execució i cua) tenen valors
 inicials al codi. La unitat limita el conjunt del servei i els seus contenidors a 1,5 CPU,
