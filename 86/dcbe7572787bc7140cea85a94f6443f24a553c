@@ -1,0 +1,31 @@
+docs/deployment.md
+  s_9bf17e95daff56::t_0c70c5c693a300 1267,1269,1281
+tools/server/agent/README.md
+  s_9bf17e95daff56::t_3f4a9883ac9eee 519-520
+tools/server/agent/policy/development.mjs
+  s_9bf17e95daff56::t_80908f773ae3fe 538-547
+tools/server/agent/policy/development.test.mjs
+  s_9bf17e95daff56::t_f970f7c55e5dd9 20,861,914-924
+tools/server/agent/workflow/ci-watch.mjs
+  s_9bf17e95daff56::t_af7edb211a01bb 57-68,466
+tools/server/agent/workflow/ci-watch.test.mjs
+  s_9bf17e95daff56::t_6fb29d3f6f2037 19,21,208-225
+tools/server/agent/workflow/run-instruction.mjs
+  s_9bf17e95daff56::t_dd0cb99b5a1ef3 56-57,59,150,160,168,395-398,402-405,507,915,923,931,998,1021,1033,1080,1087,1149,1184,1191,1198,1203-1205,1246-1249
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "86dcbe7572787bc7140cea85a94f6443f24a553c",
+  "prompts": {},
+  "sessions": {
+    "s_9bf17e95daff56": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a1ffe6-ae25-778d-b11a-9dd5398ed66f",
+        "model": "claude-sonnet-5-5"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
