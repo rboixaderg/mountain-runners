@@ -29,6 +29,7 @@ import { CiWatchStore } from "../../repository/ci-watch-store.mjs";
 import { MergeRequestStore } from "../../repository/merge-request-store.mjs";
 import { PreviewRequestStore } from "../../repository/preview-request-store.mjs";
 import { SessionNoteStore } from "../../repository/session-note-store.mjs";
+import { TopicJobStore } from "../../repository/topic-job-store.mjs";
 import {
   defaultRequestTimeoutMilliseconds,
   requestSignal,
@@ -143,6 +144,9 @@ export async function startService({
   const previewRequests = new PreviewRequestStore(
     join(config.paths.state, "preview-request.sqlite"),
   );
+  const topicJobs = new TopicJobStore(
+    join(config.paths.state, "topic-jobs.sqlite"),
+  );
   const mergeRequests = new MergeRequestStore(
     join(config.paths.state, "merge-request.sqlite"),
   );
@@ -170,6 +174,7 @@ export async function startService({
   }
 
   function closeStateStores() {
+    topicJobs.close();
     sessionNotes.close();
     mergeRequests.close();
     previewRequests.close();
@@ -416,6 +421,7 @@ export async function startService({
         ciWatches,
         previewRequests,
         mergeRequests,
+        topicJobs,
         requestPreview: previewWorker.handle,
         requestMerge: mergeWorker.handle,
         readCiState,

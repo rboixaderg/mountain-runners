@@ -35,6 +35,7 @@ export function createProjectRunner({
   ciWatches,
   previewRequests,
   mergeRequests,
+  topicJobs,
   requestPreview,
   requestMerge,
   readCiState,
@@ -156,6 +157,7 @@ export function createProjectRunner({
     scaleAttachments,
     attachmentStore,
     sessionNotes,
+    topicJobs,
     recordTrace,
     findTopicPullRequest,
     // The state of the topic every turn receives, from the service's own stores:

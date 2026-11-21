@@ -74,6 +74,7 @@ export function createInstructionRunner({
   // Durable conversation state of the topic: the effects it has not been told
   // yet and the last text it received. Without it the service keeps neither.
   sessionNotes,
+  topicJobs,
   // The pull request the topic published and still owns, or null. Without the
   // CI watches the service knows no published pull request.
   findTopicPullRequest = () => null,
@@ -825,6 +826,19 @@ export function createInstructionRunner({
           outcome: "failed",
           report: instructionReports.publicationRefused,
         };
+      }
+      // Record the first confirmed publication. An existing binding is never
+      // replaced; enforcement of its branch belongs to the next workflow step.
+      if (
+        !repair &&
+        topicJobs &&
+        topicJobs.bindingOf(request.sessionKey) === null
+      ) {
+        topicJobs.bind({
+          sessionKey: request.sessionKey,
+          branch,
+          pullRequestNumber: publication.pullRequest.number,
+        });
       }
       // The image is used only once the publication is confirmed: a refused or
       // unknown publication keeps it available for the next turn.

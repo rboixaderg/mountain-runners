@@ -18,6 +18,7 @@ import { CiWatchStore } from "../repository/ci-watch-store.mjs";
 import { MergeRequestStore } from "../repository/merge-request-store.mjs";
 import { PreviewRequestStore } from "../repository/preview-request-store.mjs";
 import { SessionNoteStore } from "../repository/session-note-store.mjs";
+import { TopicJobStore } from "../repository/topic-job-store.mjs";
 import {
   attachmentReports,
   instructionReports,
@@ -389,6 +390,61 @@ test("publishes a small change as a pull request after the checks pass", async (
     "--format=%s",
   ]);
   assert.equal(committed, "feat(tools): add synthetic change");
+});
+
+test("does not bind a topic when local checks block publication", async (context) => {
+  const paths = await fixture(context);
+  mkdirSync(paths.state, { recursive: true });
+  const topicJobs = new TopicJobStore(join(paths.state, "topic-jobs.sqlite"));
+  context.after(() => topicJobs.close());
+  const github = githubStub();
+  const runner = createProjectRunner({
+    config: configFor(paths),
+    github,
+    topicJobs,
+    classifyRequest: async () => ({ kind: "implementation" }),
+    runModel: async ({ worktreePath }) => {
+      writeFileSync(join(worktreePath, "change.txt"), "change\n");
+      return { text: "SUMMARY: feat(tools): add synthetic change" };
+    },
+    runChecks: async () => ({ exitCode: 1, timedOut: false }),
+  });
+
+  assert.equal((await runner(request())).outcome, "failed");
+  assert.equal(topicJobs.bindingOf(topicSessionKey), null);
+  assert.deepEqual(github.pushes, []);
+});
+
+test("records the first confirmed publication without replacing its binding", async (context) => {
+  const paths = await fixture(context);
+  mkdirSync(paths.state, { recursive: true });
+  const topicJobs = new TopicJobStore(join(paths.state, "topic-jobs.sqlite"));
+  context.after(() => topicJobs.close());
+  const github = githubStub();
+  const runner = createProjectRunner({
+    config: configFor(paths),
+    github,
+    topicJobs,
+    classifyRequest: async () => ({ kind: "implementation" }),
+    runModel: async ({ worktreePath }) => {
+      writeFileSync(join(worktreePath, "change.txt"), "change\n");
+      return { text: "SUMMARY: feat(tools): add synthetic change" };
+    },
+    runChecks: async () => ({ exitCode: 0, timedOut: false }),
+  });
+
+  assert.equal((await runner(request())).outcome, "pull_request_created");
+  const binding = topicJobs.bindingOf(topicSessionKey);
+  assert.deepEqual(binding, {
+    branch: github.pushes[0].branch,
+    pullRequestNumber: 200,
+  });
+  assert.equal(
+    (await runner(request({ updateIdentifier: 1002 }))).outcome,
+    "pull_request_created",
+  );
+  assert.notEqual(github.pushes[1].branch, binding.branch);
+  assert.deepEqual(topicJobs.bindingOf(topicSessionKey), binding);
 });
 
 test("runs the fast gate for a content-only change and names it in the pull request", async (context) => {
