@@ -40,7 +40,10 @@ jobs:
         with:
           name: mountain-runners-release
           path: artifacts/release/
-          retention-days: 30
+          # The deploy job of this same run downloads the artifact by name, and
+          # rollback activates releases already installed on the host. Artifact
+          # storage is billed per account, so a longer window only accrues cost.
+          retention-days: 3
           if-no-files-found: error
 
   reproducibility:
