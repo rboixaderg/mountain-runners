@@ -10,7 +10,7 @@
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { AdmissionQueue, parseSessionKey } from "telegram-pi-bridge/sessions";
+import { AdmissionQueue } from "telegram-pi-bridge/sessions";
 import {
   AgentBridge,
   TelegramApi,
@@ -18,7 +18,6 @@ import {
 } from "telegram-pi-bridge/telegram";
 import {
   bridgeMessages,
-  continuationReports,
   maximumAutomaticRepairs,
   previewConfirmationTimeoutMilliseconds,
 } from "../../policy/development.mjs";
@@ -424,34 +423,10 @@ export async function startService({
         topicJobs,
         requestPreview: previewWorker.handle,
         requestMerge: mergeWorker.handle,
-        readCiState,
         // The raw download only touches the service temporary directory, so the
         // downloaded image is cleaned before it reaches a worktree.
         prepareAttachment: createAttachmentPreparation({ telegram, logger }),
         sessionNotes,
-        hasOtherInstructions: (sessionKey, updateIdentifier) =>
-          queue.hasOtherInstructions(sessionKey, updateIdentifier),
-        notifyHandover: async ({
-          updateIdentifier,
-          sessionKey,
-          pullRequestNumber,
-          signal,
-        }) => {
-          const { chatIdentifier, threadIdentifier } =
-            parseSessionKey(sessionKey);
-          const text = continuationReports.handover({ pullRequestNumber });
-          recordServiceNote({
-            sessionKey,
-            text,
-            effectKey: `handover:${updateIdentifier}`,
-          });
-          await telegram.sendMessage({
-            chatIdentifier,
-            messageThreadIdentifier: threadIdentifier,
-            text,
-            signal: requestSignal(signal, defaultRequestTimeoutMilliseconds),
-          });
-        },
         recordTrace: (entry) => queue.recordTrace(entry),
       });
   } catch (error) {

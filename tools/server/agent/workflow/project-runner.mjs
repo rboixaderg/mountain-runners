@@ -13,7 +13,6 @@ import { createPublisher } from "../repository/publisher.mjs";
 import { createAttachmentStore } from "../attachments/store.mjs";
 import { scaleImageAttachments } from "../attachments/scale.mjs";
 import { createCiWatchRegistration } from "./ci-watch.mjs";
-import { mergeStates } from "../repository/merge-request-store.mjs";
 import {
   buildInstructionPrompt,
   formatMadridInstant,
@@ -22,8 +21,6 @@ import {
 } from "../policy/development.mjs";
 import { createInstructionRunner } from "./run-instruction.mjs";
 import { createTopicJobMigration } from "./topic-job-migration.mjs";
-import { createCrossTopicContinuation } from "./cross-topic-continuation.mjs";
-import { createOverlapWarning } from "./overlap-warning.mjs";
 import {
   createTopicPullRequestFinder,
   createLiveTopicStateReader,
@@ -39,9 +36,6 @@ export function createProjectRunner({
   topicJobs,
   requestPreview,
   requestMerge,
-  readCiState,
-  hasOtherInstructions,
-  notifyHandover,
   prepareAttachment,
   attachmentStore = createAttachmentStore({
     stateDirectory: config.paths.state,
@@ -196,40 +190,5 @@ export function createProjectRunner({
       github,
       secrets: agentSecrets(config, environment),
     }),
-    continueFromPullRequest: createCrossTopicContinuation({
-      repositoryPath: config.paths.repository,
-      worktreeRoot: config.paths.worktrees,
-      identifiers,
-      repositoryName: config.github.repository,
-      readPullRequest: ({ number, signal }) =>
-        github.getPullRequest({ number, signal }),
-      readComments: ({ number, since, signal }) =>
-        github.listIssueComments({ number, since, signal }),
-      readCiState,
-      findOwner: (pullRequestNumber) =>
-        ciWatches?.latestPublication(pullRequestNumber),
-      hasPendingWork: ({ sessionKey, updateIdentifier }) =>
-        hasOtherInstructions(sessionKey, updateIdentifier) ||
-        ciWatches.hasUnreportedWork(sessionKey),
-      notifyHandover,
-      recordTrace,
-      logger,
-    }),
-    // Without the CI watches there is no known active pull request to compare
-    // with, so the service never warns.
-    warnAboutOverlaps: ciWatches
-      ? createOverlapWarning({
-          repositoryPath: config.paths.repository,
-          worktreeRoot: config.paths.worktrees,
-          identifiers,
-          listPullRequests: () => ciWatches.latestPublications(),
-          isMerged: (published) =>
-            mergeRequests?.latest({
-              sessionKey: published.session_key,
-              pullRequestNumber: published.pull_request_number,
-            })?.state === mergeStates.merged,
-          recordTrace,
-        })
-      : undefined,
   });
 }
