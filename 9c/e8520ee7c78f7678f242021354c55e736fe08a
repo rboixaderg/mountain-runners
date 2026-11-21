@@ -1,0 +1,21 @@
+tools/server/agent/policy/development.mjs
+  s_64305a2433e99c::t_84d72156ce0a43 280-287,290
+tools/server/agent/workflow/run-instruction.mjs
+  s_64305a2433e99c::t_fe5bb2d654bf06 60-61,437,439-440,473-611,740-742,744-746,748-757,767,845,1026
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "9ce8520ee7c78f7678f242021354c55e736fe08a",
+  "prompts": {},
+  "sessions": {
+    "s_64305a2433e99c": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a1ffae-771c-724e-9ca4-64717b2bcb5a",
+        "model": "claude-sonnet-5-5"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
