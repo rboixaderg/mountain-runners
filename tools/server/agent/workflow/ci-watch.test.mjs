@@ -111,6 +111,89 @@ function workerFor({
   });
 }
 
+for (const scenario of ["cancelled", "timed_out", "setup_failure"]) {
+  test(`reruns ${scenario} once and watches the same head`, async (context) => {
+    const { store } = fixture(context);
+    createCiWatchRegistration({ store })(registration);
+    let conclusion = scenario === "setup_failure" ? "failure" : scenario;
+    const github = fakeGithub();
+    github.getCommitCheckRuns = async () => [
+      checkRun("Validate", "completed", conclusion),
+    ];
+    github.getCheckRunJob = async () => ({
+      run_id: 100,
+      run_attempt: 1,
+      status: "completed",
+      conclusion,
+      steps:
+        scenario === "setup_failure"
+          ? [
+              {
+                name: "Install browser dependencies",
+                status: "completed",
+                conclusion: "failure",
+              },
+            ]
+          : [],
+    });
+    const reruns = [];
+    github.rerunFailedJobs = async ({ runIdentifier }) =>
+      reruns.push(runIdentifier);
+    const telegram = fakeTelegram();
+    const traces = [];
+    const worker = workerFor({
+      store,
+      github,
+      telegram,
+      recordTrace: (entry) => traces.push(entry),
+    });
+    await worker.runOnce();
+    assert.deepEqual(reruns, [100]);
+    assert.equal(store.state(registration.updateIdentifier), "pending");
+    assert.equal(store.claimNextRepair(), null);
+    assert.equal(traces[0].action, "ci_rerun_requested");
+    conclusion = "success";
+    await worker.runOnce();
+    assert.equal(store.lastReported(registration.sessionKey).result, "success");
+    assert.equal(telegram.sent.length, 1);
+  });
+}
+
+test("does not rerun a second cancellation", async (context) => {
+  const { store } = fixture(context);
+  createCiWatchRegistration({ store })(registration);
+  const github = fakeGithub({
+    checkRuns: [checkRun("Validate", "completed", "cancelled")],
+  });
+  let attempt = 1;
+  github.getCheckRunJob = async () => ({
+    run_id: 100,
+    run_attempt: attempt,
+    status: "completed",
+    conclusion: "cancelled",
+    steps: [],
+  });
+  let calls = 0;
+  github.rerunFailedJobs = async () => {
+    calls += 1;
+  };
+  const telegram = fakeTelegram();
+  const traces = [];
+  const worker = workerFor({
+    store,
+    github,
+    telegram,
+    recordTrace: (entry) => traces.push(entry),
+  });
+  await worker.runOnce();
+  attempt = 2;
+  await worker.runOnce();
+  assert.equal(calls, 1);
+  assert.equal(store.claimNextRepair(), null);
+  assert.equal(telegram.sent.length, 1);
+  assert.equal(traces.at(-1).action, "ci_rerun_exhausted");
+});
+
 for (const scenario of ["green", "moved", "error"]) {
   test(`rechecks before reserving a repair: ${scenario}`, async (context) => {
     const { store } = fixture(context);

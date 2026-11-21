@@ -22,6 +22,7 @@ import {
   isDecisiveFailure,
 } from "../repository/ci-status.mjs";
 import { repairWillNotRun } from "../repository/ci-watch-store.mjs";
+import { classifyCiFailure } from "../repository/ci-failure.mjs";
 import {
   defaultRequestTimeoutMilliseconds,
   requestSignal,
@@ -186,6 +187,7 @@ async function evaluateWatch({
   return {
     result: ciResults.failure,
     failedChecks: classification.failed,
+    checkRuns,
     evidence: describeFailedChecks({
       failedChecks: classification.failed,
       checkRuns,
@@ -637,6 +639,92 @@ export function createCiWatchWorker({
               watch.preview_author_identifier !== null
             ) {
               await requestStoredPreview(watch, { signal });
+            }
+            continue;
+          }
+          const nonCodeFailures = [];
+          let unknownNonCodeFailure = false;
+          for (const name of current.failedChecks) {
+            const checkRun = current.checkRuns.find(
+              (entry) => entry.name === name,
+            );
+            if (!checkRun || typeof github.getCheckRunJob !== "function")
+              continue;
+            const job = await github.getCheckRunJob({
+              checkRun,
+              commit: watch.commit_sha,
+              signal,
+            });
+            const kind = classifyCiFailure({
+              checkRun,
+              job,
+              projectOutput: "",
+            });
+            if (
+              kind === "cancelled" ||
+              kind === "timed_out" ||
+              kind === "setup_failure"
+            ) {
+              nonCodeFailures.push(job);
+            } else if (
+              checkRun.conclusion === "cancelled" ||
+              checkRun.conclusion === "timed_out"
+            ) {
+              unknownNonCodeFailure = true;
+            }
+          }
+          if (unknownNonCodeFailure) {
+            await deliver(
+              watch,
+              { ...current, result: ciResults.repairNotRun },
+              { signal },
+            );
+            safeTrace({
+              updateIdentifier: watch.update_identifier,
+              sessionKey: watch.session_key,
+              action: "ci_rerun_unconfirmed",
+              detail: describe(watch),
+            });
+            continue;
+          }
+          if (nonCodeFailures.length > 0) {
+            const runs = new Map(
+              nonCodeFailures.map((job) => [job.run_id, job]),
+            );
+            let exhausted = false;
+            for (const job of runs.values()) {
+              if (
+                !store.reserveRerun({
+                  runIdentifier: job.run_id,
+                  originalAttempt: job.run_attempt,
+                })
+              ) {
+                exhausted = true;
+                break;
+              }
+              await github.rerunFailedJobs({
+                runIdentifier: job.run_id,
+                signal,
+              });
+              safeTrace({
+                updateIdentifier: watch.update_identifier,
+                sessionKey: watch.session_key,
+                action: "ci_rerun_requested",
+                detail: `${describe(watch)} run ${job.run_id} attempt ${job.run_attempt}`,
+              });
+            }
+            if (exhausted) {
+              await deliver(
+                watch,
+                { ...current, result: ciResults.repairNotRun },
+                { signal },
+              );
+              safeTrace({
+                updateIdentifier: watch.update_identifier,
+                sessionKey: watch.session_key,
+                action: "ci_rerun_exhausted",
+                detail: describe(watch),
+              });
             }
             continue;
           }

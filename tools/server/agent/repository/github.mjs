@@ -405,6 +405,45 @@ export class GitHubTrust {
     throw new Error("GitHub commit statuses pagination limit exceeded.");
   }
 
+  async getCheckRunJob({ checkRun, commit, signal }) {
+    assertFullCommit(commit);
+    if (!Number.isSafeInteger(checkRun?.id) || checkRun.id < 1) return null;
+    let details;
+    try {
+      details = new URL(checkRun.details_url);
+    } catch {
+      return null;
+    }
+    const prefix = `/${this.#repository}/actions/runs/`;
+    if (
+      details.origin !== "https://github.com" ||
+      !details.pathname.startsWith(prefix)
+    )
+      return null;
+    const match = /^(\d+)\/job\/(\d+)$/u.exec(
+      details.pathname.slice(prefix.length),
+    );
+    if (!match) return null;
+    const runIdentifier = Number(match[1]);
+    const jobIdentifier = Number(match[2]);
+    if (
+      !Number.isSafeInteger(runIdentifier) ||
+      runIdentifier < 1 ||
+      !Number.isSafeInteger(jobIdentifier) ||
+      jobIdentifier < 1
+    )
+      return null;
+    const job = await this.getWorkflowJob({ jobIdentifier, signal });
+    const expectedCheckRunUrl = `https://api.github.com/repos/${this.#repository}/check-runs/${checkRun.id}`;
+    if (
+      job.run_id !== runIdentifier ||
+      job.head_sha !== commit ||
+      job.check_run_url !== expectedCheckRunUrl
+    )
+      return null;
+    return job;
+  }
+
   async getWorkflowJob({ jobIdentifier, signal }) {
     if (!Number.isSafeInteger(jobIdentifier) || jobIdentifier < 1) {
       throw new Error("A positive workflow job identifier is required.");

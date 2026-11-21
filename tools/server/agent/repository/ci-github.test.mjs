@@ -70,6 +70,49 @@ test("reads every page of check runs pinned to the exact commit", async () => {
   );
 });
 
+test("matches a check run to the repository job and exact commit", async () => {
+  const github = new GitHubTrust({
+    token: "synthetic",
+    repository: "example/project",
+    fetchImpl: async () => ({
+      ok: true,
+      json: async () => ({
+        id: 12,
+        run_id: 34,
+        run_attempt: 1,
+        steps: [],
+        head_sha: commit,
+        check_run_url:
+          "https://api.github.com/repos/example/project/check-runs/56",
+      }),
+    }),
+  });
+  const checkRun = {
+    id: 56,
+    details_url: "https://github.com/example/project/actions/runs/34/job/12",
+  };
+  assert.equal((await github.getCheckRunJob({ checkRun, commit })).id, 12);
+  assert.equal(
+    await github.getCheckRunJob({ checkRun: { ...checkRun, id: 57 }, commit }),
+    null,
+  );
+  assert.equal(
+    await github.getCheckRunJob({
+      checkRun: {
+        ...checkRun,
+        details_url:
+          "https://attacker.example/example/project/actions/runs/34/job/12",
+      },
+      commit,
+    }),
+    null,
+  );
+  assert.equal(
+    await github.getCheckRunJob({ checkRun, commit: "b".repeat(40) }),
+    null,
+  );
+});
+
 test("reads a workflow job and rejects invalid identities", async () => {
   const requests = [];
   const github = new GitHubTrust({
