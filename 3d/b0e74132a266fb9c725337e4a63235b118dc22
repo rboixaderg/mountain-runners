@@ -1,0 +1,27 @@
+docs/deployment.md
+  s_76ea123454a1a5::t_bad2b6f9319bf6 1074-1079
+tools/server/agent/README.md
+  s_76ea123454a1a5::t_f7ddb390e1a546 333-336
+tools/server/agent/policy/development.mjs
+  s_76ea123454a1a5::t_e4f8e3abb888a4 550-553
+tools/server/agent/workflow/run-instruction.mjs
+  s_76ea123454a1a5::t_2acc4529caa317 54,487-498
+tools/server/agent/workflow/run-instruction.test.mjs
+  s_76ea123454a1a5::t_5b929efdf8e225 24,369-501
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "3db0e74132a266fb9c725337e4a63235b118dc22",
+  "prompts": {},
+  "sessions": {
+    "s_76ea123454a1a5": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a1ffe4-856e-75a4-851d-8481199c1170",
+        "model": "claude-sonnet-5-5"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
