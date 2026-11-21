@@ -1073,6 +1073,12 @@ consulta les publicacions registrades i l'estat de GitHub. Si hi ha una sola PR
 oberta del servei, la vincula. Si n'hi ha diverses o no es poden llegir, atura
 el torn i demana la revisió de la persona mantenidora, sense triar cap feina.
 
+Abans de cada torn ordinari d'un tema vinculat, el servei llegeix la PR a
+GitHub. Si és fusionada o tancada, respon «Aquesta feina ja està acabada. Obre un
+tema nou per a una altra feina.» sense cap torn de model, branca ni PR. Si no la
+pot llegir, no la dona per oberta i informa del fracàs de lectura. `/merge`
+conserva el seu camí i els seus controls.
+
 Un tema vinculat continua al seu worktree. El servei comprova la branca, el
 repositori i el cap de la PR abans del torn i revalida la PR abans del push. No
 crea una segona PR. Si el cap remot avança i el worktree no té feina pendent,
