@@ -82,14 +82,15 @@ tools/server/agent/               aplicació de Mountain Runners
     ├── worktrees.mjs              worktree, branca, commit i estat publicat
     ├── secret-scan.mjs            historial, rutes i credencials conegudes
     ├── publisher.mjs              push, PR i confirmació de l'estat publicat
-    ├── github.mjs                 client de GitHub, push segur i lectura de CI
+    ├── github.mjs                 client de GitHub, push segur i reexecució de CI
     ├── ci-status.mjs              check runs i estats de commit d'un SHA exacte
+    ├── ci-failure.mjs             classificació dels passos fallits de CI
     ├── request-signal.mjs         termini de lectura amb el senyal d'aturada
     ├── preview-comment.mjs        comentari de confirmació del publicador de confiança
     ├── preview-request-store.mjs  peticions de preview durables i URL confirmada
     ├── merge-request-store.mjs    peticions de merge durables
     ├── session-note-store.mjs     efectes del servei pendents i última resposta del tema
-    └── ci-watch-store.mjs         avís de CI i intents de reparació duradors
+    └── ci-watch-store.mjs         avisos, reexecucions i reparacions duradors
 ```
 
 Per seguir el codi, comença per `processes/telegram-bridge/main.mjs`, continua
