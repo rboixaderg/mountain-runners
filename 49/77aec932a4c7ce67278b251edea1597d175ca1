@@ -1,0 +1,19 @@
+docs/backlog.md
+  s_be8592a430dfeb::t_71ab85c9784cd1 778-866
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "4977aec932a4c7ce67278b251edea1597d175ca1",
+  "prompts": {},
+  "sessions": {
+    "s_be8592a430dfeb": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a1fd40-0080-729d-8835-305876ec3ee4",
+        "model": "claude-sonnet-5-5"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
