@@ -1,0 +1,39 @@
+tools/server/agent/workflow/cross-topic-continuation-boundary.test.mjs
+  s_c4d80c64f1444b::t_9812a63b249791 1-89
+tools/server/agent/workflow/regressions.test.mjs
+  s_b7ec8f5a705b5b::t_ea68d6e88c06dd 130,161-163
+tools/server/agent/workflow/run-instruction.test.mjs
+  s_64305a2433e99c::t_d1a7f4a8f455f2 1283-1345
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "6685beba3b3088c6dd23f1e4495f02dec48309b1",
+  "prompts": {},
+  "sessions": {
+    "s_64305a2433e99c": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a1ffae-771c-724e-9ca4-64717b2bcb5a",
+        "model": "claude-sonnet-5-5"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    },
+    "s_b7ec8f5a705b5b": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a1fab0-8d95-7799-b4a1-7d43e047d790",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    },
+    "s_c4d80c64f1444b": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a1fee0-b71b-758d-acf2-917c22d14fc5",
+        "model": "gpt-6.1-terra"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
