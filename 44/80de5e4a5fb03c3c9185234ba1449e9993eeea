@@ -1,0 +1,19 @@
+tools/server/agent/workflow/run-instruction.test.mjs
+  s_64305a2433e99c::t_4fd6f4a2863ede 4233
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "4480de5e4a5fb03c3c9185234ba1449e9993eeea",
+  "prompts": {},
+  "sessions": {
+    "s_64305a2433e99c": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a1ffae-771c-724e-9ca4-64717b2bcb5a",
+        "model": "claude-sonnet-5-5"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
