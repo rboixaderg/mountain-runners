@@ -96,16 +96,15 @@ l'objecte sense prefix de fase, així que continua sent vàlid quan el registre 
 
 **Skills (només les del projecte a `.agents/skills/`).** Les skills externes
 (`accessibility`, `seo`, `vitest`, `typescript-advanced-types`) es conserven idèntiques
-byte a byte a la revisió fixada al manifest. La secció «Test value and redundancy» de
-`vitest` es trasllada a la skill pròpia `frontend-testing` i `vitest/SKILL.md` es
-restaura a l'original. Una prova automàtica falla si els fitxers d'una skill externa no
-coincideixen amb els hashes del manifest. Una comprovació periòdica de l'origen
-(workflow programat de GitHub Actions amb permisos de només lectura que només informa,
-més una ordre manual) diu quan una revisió externa és més nova; l'actualització passa
-per una PR revisada que torna a fixar el manifest. Les skills pròpies porten
-`metadata.version` al frontmatter (camp permès d'Agent Skills), la versió puja quan
-canvia el comportament de la skill i la comprovació en verifica la presència. La paritat
-de symlinks de `.claude/skills/` no canvia.
+byte a byte, fitxer a fitxer, a la revisió fixada al manifest. La secció «Test value and
+redundancy» de `vitest` es trasllada a la skill pròpia `frontend-testing` i
+`vitest/SKILL.md` es restaura a l'original. Una prova automàtica falla si apareix, falta o
+canvia qualsevol fitxer d'una skill externa, o si el frontmatter té una clau no permesa o
+un `name` canviat. Una comprovació setmanal proposa cada revisió externa nova com a PR de
+bot amb el manifest tornat a fixar; la PR es revisa i la fusió continua sent humana. Les
+skills pròpies porten `metadata.version` al frontmatter (camp permès d'Agent Skills), la
+versió puja quan canvia el comportament de la skill i la comprovació en verifica la
+presència. La paritat de symlinks de `.claude/skills/` no canvia.
 
 **Skill de documentació.** S'afegeix a `.agents/skills/` la skill `docs-ownership`, que
 els agents carreguen abans de tocar `docs/`, els ADR, les especificacions o els
@@ -143,8 +142,9 @@ tasca és una PR dedicada; no s'agrupa res sense una raó declarada.
   ordre versionada, reproduïble i reversible.
 - Cada fase té la seva carpeta i cap document de treball d'una tasca viu a l'arrel de
   `docs/`.
-- Les quatre skills externes coincideixen amb el manifest, una prova ho comprova, una
-  execució periòdica informa de revisions més noves i cada skill pròpia té versió.
+- Les quatre skills externes coincideixen amb el manifest fitxer a fitxer i amb el
+  frontmatter permès, una prova ho comprova, cada revisió externa nova arriba com a PR de
+  bot revisable i cada skill pròpia té versió.
 - `pnpm check:local` falla davant d'un enllaç trencat, un document fora del mapa, un
   identificador de tasca en un títol viu, un hash divergent o una skill pròpia sense
   versió.
@@ -157,7 +157,7 @@ Aquesta PR s'ha de fusionar abans d'iniciar cap tasca. L'ordre és:
 
 1. Regles de propietat i skill de documentació (T1).
 2. Skills: restauració de `vitest` i prova del manifest (T2), versions i registre (T3),
-   i comprovació periòdica de l'origen (T4).
+   i proposta periòdica d'actualitzacions externes (T4).
 3. Neteja (T5).
 4. Carpetes per fase (T6).
 5. Operacions per component: web i releases (T7), previews (T8) i agent (T9).
@@ -165,8 +165,9 @@ Aquesta PR s'ha de fusionar abans d'iniciar cap tasca. L'ordre és:
 7. Comprovació automàtica de la documentació (T11), l'última, perquè arribi verda.
 
 La T3 depèn de la T2 perquè el registre enumera les skills externes amb el hash vigent.
-La T10 depèn de la T9 perquè la reversió i la reconstrucció de la imatge s'hi
-documenten. La T11 depèn de totes les anteriors perquè el mapa, les carpetes i les
+La T4 necessita la GitHub App i els secrets que crea la persona mantenidora abans de la
+primera execució. La T10 depèn de la T9 perquè la reversió i la reconstrucció de la imatge
+s'hi documenten. La T11 depèn de totes les anteriors perquè el mapa, les carpetes i les
 versions han d'estar estabilitzats. No hi ha cap altra dependència externa.
 
 ## Tasques, Entregues I Seguiment
@@ -176,7 +177,7 @@ versions han d'estar estabilitzats. No hi ha cap altra dependència externa.
 | T1    | Pendent | Cap          | Taula de propietat a `AGENTS.md` i skill `docs-ownership` carregable                   | -   |
 | T2    | Pendent | T1           | Els hashes de les quatre skills externes coincideixen i una prova ho comprova          | -   |
 | T3    | Pendent | T2           | Cada skill pròpia té `metadata.version` i `docs/skills.md` és el registre únic         | -   |
-| T4    | Pendent | T3           | Una execució programada i una ordre manual informen de revisions més noves             | -   |
+| T4    | Pendent | T3 + App     | Cada origen amb canvis rep una PR de bot revisable i cada refús fa fallar l'execució   | -   |
 | T5    | Pendent | T1           | Tres documents esborrats, cap enllaç trencat i una entrada nova al backlog             | -   |
 | T6    | Pendent | T5           | Cada fase té la seva carpeta i cap document de treball viu a l'arrel de `docs/`        | -   |
 | T7    | Pendent | T6           | `docs/operations/` té el README i el document de web i releases                        | -   |
@@ -208,19 +209,23 @@ paritat de symlinks de
 
 **Abast:** `.agents/skills/vitest/SKILL.md` restaurat a la revisió fixada,
 `.agents/skills/frontend-testing/SKILL.md` amb la secció «Test value and redundancy»
-adaptada, i `tools/agent-skills/skills-manifest.test.mjs` amb el mòdul que compara
-fitxers i hashes.
+adaptada, `tools/agent-skills/skills-manifest.test.mjs` amb el mòdul que compara arbres,
+`skillSha256` substituït al manifest per un mapatge de ruta a sha256 de cada fitxer de cada
+skill externa, llicència inclosa, i el hash de la llicència conservat.
 
-**Exclusió immediata:** no actualitza cap revisió externa, ni el manifest, ni la resta
-de skills pròpies, ni el workflow de la CI.
+**Exclusió immediata:** no actualitza cap revisió externa, ni la resta de skills pròpies,
+ni el workflow de la CI, i no toca `reviewedAt`.
 
 **Dependències:** T1, perquè la secció traslladada queda sota la regla de propietat.
 
-**Resultat observable:** el hash de `vitest/SKILL.md` torna a ser `87c8cf…`, les quatre
-skills externes coincideixen i la prova falla si algú en modifica una.
+**Resultat observable:** cada skill externa coincideix amb el manifest fitxer a fitxer, de
+manera que un fitxer afegit, eliminat o modificat fa fallar la prova; `vitest` conserva
+`references/` i `GENERATION.md` fixats i el seu `SKILL.md` torna a tenir el hash `87c8cf…`;
+i el frontmatter amb una clau fora de `name`, `description`, `license`, `compatibility` o
+`metadata`, o amb un `name` canviat, també falla.
 
-**Comprovacions mínimes:** `pnpm test:server` i `shasum -a 256` sobre les quatre skills
-externes.
+**Comprovacions mínimes:** `pnpm test:server` i `shasum -a 256` sobre tots els fitxers de
+les quatre skills externes.
 
 **PR:** una sola, `feat(docs-governance-t2): verify external skill manifest hashes`.
 
@@ -235,33 +240,43 @@ l'anàlisi de la T2.2, que es conserva a l'historial de git.
 
 **Dependències:** T2.
 
-**Resultat observable:** cada skill pròpia té una versió inicial i `docs/skills.md` en
-diu l'origen, la versió i el propòsit, amb les regles de cadena de subministrament per a
-una entrada nova.
+**Resultat observable:** cada skill pròpia té una versió inicial i `docs/skills.md` en diu
+l'origen, el propòsit, la llicència i les regles de cadena de subministrament, i enllaça
+`skills-manifest.json` com a única font de la revisió fixada i dels hashes; no repeteix cap
+commit ni cap hash de les skills externes.
 
 **Comprovacions mínimes:** `pnpm format:check`, `pnpm test:server` i una comprovació que
 cada fitxer propi té el camp al frontmatter.
 
 **PR:** una sola, `docs(docs-governance-t3): version project skills and add the registry`.
 
-### T4: Comprovació Periòdica De Revisions Externes
+### T4: Actualitzacions Externes Proposades Com A Pull Requests
 
-**Abast:** `.github/workflows/skills-upstream.yml` (programat i `workflow_dispatch`,
-`permissions: contents: read`), `tools/agent-skills/check-upstream.mjs` i la seva prova.
+**Abast:** `.github/workflows/skills-update.yml`, `tools/agent-skills/update-upstream.mjs`
+i les seves proves, l'ordre `skills:update` a `package.json` i l'entrada de `CODEOWNERS`
+per a `.agents/skills/**` i `.github/workflows/**`.
 
-**Exclusió immediata:** no escriu al repositori, no obre PR ni issues, no actualitza el
-manifest i no fa servir cap secret.
+**Exclusió immediata:** no afegeix ni actualitza cap skill a `main`, no aprova, no fusiona,
+no activa auto-merge, no modifica `reviewedAt` i no escriu fora de `.agents/skills/<nom>/`
+i de `.agents/skills/skills-manifest.json`.
 
-**Dependències:** T3.
+**Dependències:** T3 i els passos manuals de la persona mantenidora: la GitHub App amb
+`Contents: write` i `Pull requests: write`, els secrets `SKILLS_UPDATE_APP_ID` i
+`SKILLS_UPDATE_APP_PRIVATE_KEY` a l'entorn `skills-update` restringit a `main`, l'etiqueta
+`skills` i el ruleset de `main` sense bypass per a l'App.
 
-**Resultat observable:** una execució setmanal informa al resum del job quines skills
-externes tenen una revisió més nova i acaba en fallada perquè la persona mantenidora ho
-vegi; l'ordre manual dona la mateixa informació.
+**Resultat observable:** una execució setmanal o manual obre o actualitza una PR de bot per
+cada origen amb canvis, amb el manifest tornat a fixar i el títol
+`chore(skills): update <source-slug> to <sha7>`; si detecta un refús, no obre cap PR i falla
+amb el motiu.
 
-**Comprovacions mínimes:** `pnpm test:server` amb l'API simulada, `actionlint` si està
-disponible i una execució manual en una branca pròpia abans del merge.
+**Comprovacions mínimes:** `pnpm test:server` amb l'API simulada (revisió nova amb canvis,
+revisió nova sense canvis a la skill, PR ja oberta que s'actualitza, PR d'una altra autoria o
+branca de bot amb commits aliens que es refusa, i cada refús), `actionlint` si està
+disponible i una execució `workflow_dispatch` en una branca abans del merge que obri una PR
+real d'un origen de prova o mostri el `--dry-run`.
 
-**PR:** una sola, `ci(docs-governance-t4): report newer upstream skill revisions`.
+**PR:** una sola, `ci(docs-governance-t4): propose upstream skill updates as pull requests`.
 
 ### T5: Neteja De Documents Oberts I Obsolets
 
@@ -453,14 +468,103 @@ que llegeixen aquests documents apunten al nou propietari a la mateixa PR que el
 
 ## Skills Del Projecte
 
+Les skills externes del manifest i les pròpies tenen regles diferents.
+
+### Actualitzacions Externes
+
+- **Workflow.** `.github/workflows/skills-update.yml` s'executa amb `schedule` setmanal en
+  dilluns, com Dependabot, i amb `workflow_dispatch`. Els permisos del workflow són
+  `contents: read` i el `GITHUB_TOKEN` no escriu mai. El job declara
+  `environment: skills-update`.
+- **Entorn i secrets.** `SKILLS_UPDATE_APP_ID` i `SKILLS_UPDATE_APP_PRIVATE_KEY` viuen a
+  l'entorn `skills-update`, restringit a la branca `main` com l'entorn `previews`, i mai són
+  secrets de repositori: un workflow de `pull_request` d'una branca del mateix repositori els
+  podria llegir. Els noms es documenten i els valors no. L'entorn, l'App i l'etiqueta
+  `skills` els crea la persona mantenidora: és un canvi de configuració remot, fora de
+  l'abast de qualsevol agent, i la PR de la T4 el registra com a pas manual.
+- **Token.** L'App només té `Contents: write` i `Pull requests: write`, no té permís
+  `Workflows`, està instal·lada «Only on this account» i només en aquest repositori.
+  `actions/create-github-app-token`, fixat per SHA complet, rep `owner`, `repositories` amb
+  aquest repositori, `permission-contents: write` i `permission-pull-requests: write`.
+  `actions/checkout` fa servir `persist-credentials: false` i el token de l'App només arriba
+  al pas de push i de PR.
+- **Ruleset.** El ruleset de `main` no dona cap bypass a l'App i bloqueja el force-push i la
+  supressió de `main`. Exigir revisió de code-owner és una decisió de la persona
+  mantenidora.
+- **Fixació per fitxer.** El manifest fixa cada fitxer de cada skill externa, no només
+  `SKILL.md`, amb un mapatge de ruta a sha256 o un hash de directori calculat sobre la
+  llista ordenada de ruta i sha256, i conserva el hash de la llicència. Inclou `references/`
+  i `GENERATION.md` de `vitest`. Un fitxer afegit, eliminat o modificat fa fallar la prova
+  de la T2 i la comprovació automàtica.
+- **Frontmatter.** L'actualització refusa una clau de `SKILL.md` fora de `name`,
+  `description`, `license`, `compatibility` i `metadata`, com ara `allowed-tools`, que
+  alguns agents apliquen sense preguntar, i un canvi de `name`.
+- **Script.** `tools/agent-skills/update-upstream.mjs`, amb Node i proves que simulen
+  l'API: per cada `source` del manifest resol l'últim commit de la branca per defecte i el
+  compara amb el commit fixat; només proposa si han canviat fitxers sota `sourceSkillPath` o
+  el fitxer de la llicència. Baixa cada fitxer pel SHA resolt, mai pel nom de la branca, i
+  només els fitxers de `sourceSkillPath` i la llicència. Substitueix el directori sencer
+  `.agents/skills/<nom>/` byte a byte: els fitxers esborrats a l'origen s'esborren aquí i la
+  llicència de `sourceLicensePath` es desa amb el nom local que el manifest ja fa servir
+  (`LICENSE` o `LICENSE.md`). Torna a fixar `commit`, els hashes per fitxer i
+  `licenseSha256`, i no toca `reviewedAt`, que és humà. Només escriu dins de
+  `.agents/skills/<nom>/` i de `.agents/skills/skills-manifest.json` i refusa qualsevol
+  altra ruta. `pnpm skills:update --dry-run` imprimeix les propostes sense escriure res.
+- **Agrupació.** Una PR per `source`: `accessibility` i `seo` comparteixen
+  `addyosmani/web-quality-skills` i van juntes, i `vitest` i `typescript-advanced-types` en
+  tenen una cadascuna. Cada PR usa una branca de bot estable, `skills/update-<source-slug>`,
+  i un grup de `concurrency` per origen evita que dues execucions competeixin per la mateixa
+  branca.
+- **Sense prendre PR alienes.** L'execució actualitza una PR oberta només si l'autora és
+  l'App i la branca de cap és d'aquest repositori; si no, refusa i fa fallar el job. Fa el
+  push amb `--force-with-lease=<sha esperat>` i refusa una branca de bot amb commits que no
+  siguin de l'App.
+- **Títol i etiqueta.** El títol de la PR i el missatge de commit són
+  `chore(skills): update <source-slug> to <sha7>`, que `pr-title.yml` i commitlint accepten.
+  La PR porta l'etiqueta `skills` i mai `preview`, perquè no canvia la web.
+- **Cos de la PR.** Enllaç de comparació de l'origen (`old...new`), fitxers canviats, hashes
+  nous i el recordatori que el contingut és no fiable fins que una persona el revisa, perquè
+  els agents el carreguen després del merge. Com que una injecció de prompt dins del
+  Markdown no es pot refusar automàticament, també llista per a la revisió els comentaris
+  HTML, les URLs externes noves i els blocs de shell o les línies d'ordre (`curl`, `| sh`,
+  `npm i`, `git push` i semblants).
+- **CI i revisió.** Com que la PR l'escriu l'App i no `GITHUB_TOKEN`, els workflows de CI
+  habituals s'hi executen i la prova de hashes del manifest de la T2 valida el manifest
+  tornat a fixar. `CODEOWNERS` assigna `.agents/skills/**` i `.github/workflows/**` a la
+  persona mantenidora; amb una sola persona mantenidora, qui fusiona revisa el diff cru i no
+  el Markdown renderitzat.
+- **Agent de Telegram.** La seva ordre `/merge` només actua sobre PR que el servei ha
+  reportat al mateix tema, així que les PR de skills queden fora del seu abast.
+- **Refusos.** No obren cap PR, fan fallar l'execució amb el motiu i exigeixen una revisió
+  manual de cadena de subministrament. Són: el canvi del fitxer de llicència o de la
+  llicència declarada; un fitxer executable, un script o qualsevol fitxer que no sigui
+  documentació, és a dir, qualsevol cosa que no sigui `.md` o `.txt` o qualsevol fitxer amb
+  bit d'execució, amb l'excepció del fitxer de llicència que el manifest nomena per a aquella
+  skill, que queda exempt de la regla d'extensió però no del refús per canvi de llicència; un
+  fitxer de més de 256 KiB o un total de més d'1 MiB per skill; una
+  entrada de submòdul o de punter de Git LFS; un symlink; una ruta fora de `sourceSkillPath`;
+  una redirecció o un canvi de nom del repositori de l'origen (un `301` o un identificador
+  de repositori diferent); caràcters bidi o d'amplada zero i caràcters de control diferents
+  de `\n` i `\t`; una clau de frontmatter no permesa o un `name` canviat; i un commit de
+  l'origen que no es pot resoldre.
+- **Operació.** La rotació i la revocació de la clau privada de l'App es documenten a
+  `docs/skills.md`: es rota un cop l'any i de seguida que hi hagi un dubte, i es revoca
+  esborrant la clau a la configuració de l'App i substituint el secret de l'entorn. L'App no
+  té permís d'Issues, així que l'etiqueta `skills` s'ha de crear abans, i les actualitzacions
+  `github-actions` de Dependabot cobreixen `actions/create-github-app-token`.
+
+### Skills Pròpies I Registre
+
 - Les skills externes es conserven sense cap modificació i el manifest en fixa origen,
-  revisió, hashes del document i de la llicència. Una revisió nova només entra amb una
-  PR revisada que torna a fixar el manifest.
+  revisió, hashes de cada fitxer i de la llicència; `reviewedAt` és humà. Una revisió nova
+  només entra amb la PR revisada de la T4, que torna a fixar el manifest.
 - Les skills pròpies porten `metadata.version`; la versió puja quan canvia el
   comportament de la skill, no quan se'n corregeix una errata.
-- `docs/skills.md` és el registre únic d'origen, revisió o versió, propòsit i regles
-  d'entrada; `docs-ownership` es carrega abans de tocar documentació i no duplica la
-  taula.
+- `docs/skills.md` és el registre únic d'origen, propòsit, llicència i regles d'entrada de
+  cada skill. No repeteix el commit ni els hashes de les externes: enllaça
+  `skills-manifest.json` com a única font de la revisió fixada, i recull la rotació i la
+  revocació de la clau de l'App.
+- `docs-ownership` es carrega abans de tocar documentació i no duplica la taula d'`AGENTS.md`.
 
 ## Comprovació Automàtica
 
@@ -472,10 +576,10 @@ fitxers versionats i falla amb un missatge per a cada troballa:
    de codi.
 2. Fitxer versionat sota `docs/` que no és accessible des del mapa de `docs/README.md`,
    incloent-hi els mapes de carpeta.
-
 3. Identificador de tasca (`T` seguit de nombre i punt, o forma equivalent) en un títol
    de document viu.
-4. Hash d'una skill externa que no coincideix amb el manifest, amb la mateixa comparació
+4. Fitxer d'una skill externa afegit, eliminat o modificat que no coincideix amb el
+   manifest, o clau de frontmatter no permesa o `name` canviat, amb la mateixa comparació
    que la prova de la T2.
 5. Skill pròpia sense `metadata.version` al frontmatter.
 
@@ -529,8 +633,36 @@ que detecta la regressió.
 
 ## Seguretat I Privacitat
 
-- El workflow programat és de només lectura, no fa servir cap secret, no escriu al
-  repositori i no actualitza res automàticament.
+- Els secrets de l'App viuen a l'entorn `skills-update`, restringit a `main`, i no a nivell
+  de repositori, perquè un workflow de `pull_request` d'una branca del mateix repositori pot
+  llegir els secrets de repositori. La clau privada només existeix com a secret de l'entorn i
+  el token que se'n deriva és curt.
+- L'App té permisos mínims (`Contents: write` i `Pull requests: write`), sense permís
+  `Workflows`, instal·lada només en aquest repositori. El ruleset de `main` no li dona cap
+  bypass i bloqueja el force-push i la supressió de la branca.
+- `create-github-app-token` fixa `owner`, `repositories` i els dos permisos; `actions/checkout`
+  fa servir `persist-credentials: false` i el token de l'App només arriba al pas de push i de
+  PR. La clau privada no es versiona ni es documenta.
+- El workflow s'executa només per `schedule` o `workflow_dispatch` des de `main`, mai en
+  `pull_request_target`, i no fa checkout ni executa codi de l'origen: baixa cada fitxer pel
+  SHA resolt i només el fa servir per calcular hashes.
+- L'execució no pren mai una PR aliena: només actualitza una PR oberta de l'App en una branca
+  d'aquest repositori, amb `--force-with-lease`, i refusa una branca amb commits aliens.
+- Els refusos de [Actualitzacions externes](#actualitzacions-externes) aturen l'execució
+  davant d'una llicència canviada, un fitxer executable o que no és documentació, tret del
+  fitxer de llicència que el manifest nomena, una mida excessiva, un submòdul o un punter de
+  Git LFS, un symlink, una ruta fora de la skill, una redirecció o un canvi de nom de
+  l'origen, caràcters bidi, d'amplada zero o de control, una clau de frontmatter no permesa o
+  un commit irresoluble.
+- Una injecció de prompt dins del Markdown no es pot refusar automàticament: el cos de la PR
+  assenyala a la persona revisora els comentaris HTML, les URLs externes noves i els blocs de
+  shell o les línies d'ordre.
+- El bot no aprova, no fusiona i no activa auto-merge; les PR de skills no porten mai
+  l'etiqueta `preview`. `CODEOWNERS` assigna `.agents/skills/**` i `.github/workflows/**` a la
+  persona mantenidora, que revisa el diff cru; exigir revisió de code-owner és una decisió del
+  ruleset.
+- L'agent de Telegram només fusiona PR que el servei ha reportat al mateix tema, així que no
+  arriba a les PR de skills.
 - El contingut d'una skill externa és no fiable fins que una persona el revisa; el
   manifest fixa la revisió, no n'avala el contingut.
 - L'script d'actualització no tracta credencials ni imprimeix secrets, i la seva sortida
@@ -547,6 +679,8 @@ que detecta la regressió.
 - Reescriure contingut més enllà de moure'l i deduplicar-lo.
 - Canviar decisions dels ADR.
 - Automatitzar el desplegament de l'agent des de la CI.
+- Crear la GitHub App, l'entorn `skills-update`, l'etiqueta `skills` o el ruleset: són passos
+  manuals de la persona mantenidora.
 - Skills globals, fora del projecte.
 - Els serveis Hono planificats.
 
@@ -554,11 +688,13 @@ que detecta la regressió.
 
 1. `AGENTS.md` assigna cada tipus de contingut a un sol document propietari i
    `docs-ownership` hi apunta sense duplicar-lo.
-2. Les quatre skills externes coincideixen amb el manifest, `vitest` inclòs, una prova
-   falla si divergeixen i la secció de redundància de tests viu a `frontend-testing`.
+2. Les quatre skills externes coincideixen amb el manifest fitxer a fitxer, amb només les
+   claus de frontmatter permeses, `vitest` inclòs, una prova falla si divergeixen i la secció
+   de redundància de tests viu a `frontend-testing`.
 3. Cada skill pròpia té `metadata.version` i `docs/skills.md` n'és el registre únic.
-4. Una execució programada de només lectura i una ordre manual informen de revisions
-   externes més noves sense escriure res.
+4. Una execució setmanal o manual, amb els secrets a l'entorn `skills-update` restringit a
+   `main`, obre o actualitza una PR de bot per cada origen extern amb canvis, amb el manifest
+   tornat a fixar i el títol convencional, i falla sense obrir res en cada cas de refús.
 5. Els documents obsolets i els enllaços trencats s'han eliminat, i la proposta de
    butlletí i analítica és una entrada del backlog.
 6. Cada fase, de l'1 a la 8, té la seva carpeta, i tots els enllaços hi resolen.
@@ -573,3 +709,5 @@ que detecta la regressió.
 10. `pnpm check:local` i la CI fallen davant de cada divergència definida a
     [Comprovació automàtica](#comprovació-automàtica) i passen amb l'estat fusionat.
 11. Cap tasca no canvia rutes, contingut publicat ni comportament observable de la web.
+12. `CODEOWNERS` assigna `.agents/skills/**` i `.github/workflows/**` a la persona
+    mantenidora.
