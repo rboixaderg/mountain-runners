@@ -129,8 +129,18 @@ mantenidora només ho pot fer amb aquesta aprovació a la mateixa conversa, i l'
 Telegram no desplega mai, ni a si mateix. Aquesta tasca necessita una revisió de
 seguretat.
 
-**Ordre.** Es fixa a [Dependències i ordre d'inici](#dependències-i-ordre-dinici). Cada
-tasca és una PR dedicada; no s'agrupa res sense una raó declarada.
+**Entrega En Set PR.** La persona mantenidora decideix el 22 de novembre de 2026 agrupar les
+onze tasques en set PR, amb una raó per a cada agrupació: la 1 uneix la T1 i la T5 perquè són
+canvis petits de documentació i la neteja és la primera aplicació de les regles de propietat;
+la 2 uneix la T2 i la T3 perquè totes dues toquen les skills i el manifest i el registre depèn
+de la prova del manifest; la 3 és la T4 sola perquè és CI amb secrets i necessita revisió de
+seguretat i els passos manuals de GitHub; la 4 és la T6 sola perquè és un moviment pur de
+fitxers i el diff de renoms ha de quedar fàcil de revisar; la 5 uneix la T7, la T8 i la T9
+perquè el contingut es mou, no es reescriu, i `docs/deployment.md` i `docs/runbook.md`
+desapareixen d'una vegada en lloc de quedar partits entre PR; la 6 és la T10 sola perquè és
+codi que opera el VPS i necessita revisió de seguretat; i la 7 és la T11 sola perquè ha
+d'arribar l'última perquè sigui verda. L'ordre és a
+[Dependències i ordre d'inici](#dependències-i-ordre-dinici).
 
 ## Resultats Esperats
 
@@ -155,36 +165,36 @@ tasca és una PR dedicada; no s'agrupa res sense una raó declarada.
 
 Aquesta PR s'ha de fusionar abans d'iniciar cap tasca. L'ordre és:
 
-1. Regles de propietat i skill de documentació (T1).
-2. Skills: restauració de `vitest` i prova del manifest (T2), versions i registre (T3),
-   i proposta periòdica d'actualitzacions externes (T4).
-3. Neteja (T5).
-4. Carpetes per fase (T6).
-5. Operacions per component: web i releases (T7), previews (T8) i agent (T9).
-6. Script d'actualització de l'agent (T10), després del document d'operacions.
-7. Comprovació automàtica de la documentació (T11), l'última, perquè arribi verda.
+1. PR 1: T1 i T5.
+2. PR 2: T2 i T3.
+3. PR 3: T4, amb la GitHub App i els secrets que crea la persona mantenidora abans de la
+   primera execució.
+4. PR 4: T6.
+5. PR 5: T7, T8 i T9, en aquest ordre dins la mateixa PR.
+6. PR 6: T10, després del document d'operacions de la PR 5.
+7. PR 7: T11, l'última, perquè arribi verda.
 
-La T3 depèn de la T2 perquè el registre enumera les skills externes amb el hash vigent.
-La T4 necessita la GitHub App i els secrets que crea la persona mantenidora abans de la
-primera execució. La T10 depèn de la T9 perquè la reversió i la reconstrucció de la imatge
-s'hi documenten. La T11 depèn de totes les anteriors perquè el mapa, les carpetes i les
-versions han d'estar estabilitzats. No hi ha cap altra dependència externa.
+La T5 depèn de la T1 i va a la mateixa PR. La T3 depèn de la T2 i va a la mateixa PR. La T8 i
+la T9 depenen de la T7 dins la PR 5. La T10 depèn de la T9 perquè la reversió i la
+reconstrucció de la imatge s'hi documenten. La T11 depèn de totes les anteriors perquè el
+mapa, les carpetes i les versions han d'estar estabilitzats. No hi ha cap altra dependència
+externa.
 
 ## Tasques, Entregues I Seguiment
 
-| Tasca | Estat   | Dependències | Resultat verificable                                                                   | PR  |
-| ----- | ------- | ------------ | -------------------------------------------------------------------------------------- | --- |
-| T1    | Pendent | Cap          | Taula de propietat a `AGENTS.md` i skill `docs-ownership` carregable                   | -   |
-| T2    | Pendent | T1           | Els hashes de les quatre skills externes coincideixen i una prova ho comprova          | -   |
-| T3    | Pendent | T2           | Cada skill pròpia té `metadata.version` i `docs/skills.md` és el registre únic         | -   |
-| T4    | Pendent | T3 + App     | Cada origen amb canvis rep una PR de bot revisable i cada refús fa fallar l'execució   | -   |
-| T5    | Pendent | T1           | Tres documents esborrats, cap enllaç trencat i una entrada nova al backlog             | -   |
-| T6    | Pendent | T5           | Cada fase té la seva carpeta i cap document de treball viu a l'arrel de `docs/`        | -   |
-| T7    | Pendent | T6           | `docs/operations/` té el README i el document de web i releases                        | -   |
-| T8    | Pendent | T7           | `docs/operations/previews.md` descriu les previews i la resta hi enllaça               | -   |
-| T9    | Pendent | T8           | `docs/operations/agent.md` descriu l'agent i `deployment.md`/`runbook.md` desapareixen | -   |
-| T10   | Pendent | T9           | Una ordre versionada actualitza l'agent amb comprovacions, còpia i `REVISION`          | -   |
-| T11   | Pendent | T10          | `pnpm check:local` falla davant de cada divergència documental definida                | -   |
+| Tasca | Estat   | Entrega | Dependències | Resultat verificable                                                                         | PR  |
+| ----- | ------- | ------- | ------------ | -------------------------------------------------------------------------------------------- | --- |
+| T1    | Pendent | PR 1    | Cap          | Taula de propietat a `AGENTS.md` i skill `docs-ownership` carregable                         | -   |
+| T5    | Pendent | PR 1    | T1           | Tres documents esborrats, cap enllaç trencat i una entrada nova al backlog                   | -   |
+| T2    | Pendent | PR 2    | T1           | Els hashes de cada fitxer de les quatre skills externes coincideixen i una prova ho comprova | -   |
+| T3    | Pendent | PR 2    | T2           | Cada skill pròpia té `metadata.version` i `docs/skills.md` és el registre únic               | -   |
+| T4    | Pendent | PR 3    | T3 + App     | Cada origen amb canvis rep una PR de bot revisable i cada refús fa fallar l'execució         | -   |
+| T6    | Pendent | PR 4    | T5           | Cada fase té la seva carpeta i cap document de treball viu a l'arrel de `docs/`              | -   |
+| T7    | Pendent | PR 5    | T6           | `docs/operations/` té el README i el document de web i releases                              | -   |
+| T8    | Pendent | PR 5    | T7           | `docs/operations/previews.md` descriu les previews i la resta hi enllaça                     | -   |
+| T9    | Pendent | PR 5    | T8           | `docs/operations/agent.md` descriu l'agent i `deployment.md`/`runbook.md` desapareixen       | -   |
+| T10   | Pendent | PR 6    | T9           | Una ordre versionada actualitza l'agent amb comprovacions, còpia i `REVISION`                | -   |
+| T11   | Pendent | PR 7    | T1 a T10     | `pnpm check:local` falla davant de cada divergència documental definida                      | -   |
 
 ### T1: Regles De Propietat I Skill De Documentació
 
@@ -203,7 +213,8 @@ la skill la referencia sense repetir-ne el contingut.
 paritat de symlinks de
 [`skill-links.test.mjs`](../../tools/agent-skills/skill-links.test.mjs).
 
-**PR:** una sola, `docs(docs-governance-t1): define documentation ownership rules`.
+**PR:** la PR 1, compartida amb la T5,
+`docs(docs-governance-t1-t5): define documentation ownership and remove obsolete documents`.
 
 ### T2: Restauració De `vitest` I Prova Del Manifest
 
@@ -216,7 +227,8 @@ skill externa, llicència inclosa, i el hash de la llicència conservat.
 **Exclusió immediata:** no actualitza cap revisió externa, ni la resta de skills pròpies,
 ni el workflow de la CI, i no toca `reviewedAt`.
 
-**Dependències:** T1, perquè la secció traslladada queda sota la regla de propietat.
+**Dependències:** T1, de la PR 1, perquè la secció traslladada queda sota la regla de
+propietat i perquè la prova del manifest encara no existeix abans.
 
 **Resultat observable:** cada skill externa coincideix amb el manifest fitxer a fitxer, de
 manera que un fitxer afegit, eliminat o modificat fa fallar la prova; `vitest` conserva
@@ -227,7 +239,8 @@ i el frontmatter amb una clau fora de `name`, `description`, `license`, `compati
 **Comprovacions mínimes:** `pnpm test:server` i `shasum -a 256` sobre tots els fitxers de
 les quatre skills externes.
 
-**PR:** una sola, `feat(docs-governance-t2): verify external skill manifest hashes`.
+**PR:** la PR 2, compartida amb la T3,
+`feat(docs-governance-t2-t3): pin external skills by file and version project skills`.
 
 ### T3: Versions De Les Skills Pròpies I Registre
 
@@ -238,7 +251,7 @@ les quatre skills externes.
 **Exclusió immediata:** no toca les skills externes ni els seus hashes i no reescriu
 l'anàlisi de la T2.2, que es conserva a l'historial de git.
 
-**Dependències:** T2.
+**Dependències:** T2, a la mateixa PR: el registre depèn de la prova del manifest.
 
 **Resultat observable:** cada skill pròpia té una versió inicial i `docs/skills.md` en diu
 l'origen, el propòsit, la llicència i les regles de cadena de subministrament, i enllaça
@@ -248,7 +261,8 @@ commit ni cap hash de les skills externes.
 **Comprovacions mínimes:** `pnpm format:check`, `pnpm test:server` i una comprovació que
 cada fitxer propi té el camp al frontmatter.
 
-**PR:** una sola, `docs(docs-governance-t3): version project skills and add the registry`.
+**PR:** la PR 2, compartida amb la T2,
+`feat(docs-governance-t2-t3): pin external skills by file and version project skills`.
 
 ### T4: Actualitzacions Externes Proposades Com A Pull Requests
 
@@ -276,7 +290,8 @@ branca de bot amb commits aliens que es refusa, i cada refús), `actionlint` si 
 disponible i una execució `workflow_dispatch` en una branca abans del merge que obri una PR
 real d'un origen de prova o mostri el `--dry-run`.
 
-**PR:** una sola, `ci(docs-governance-t4): propose upstream skill updates as pull requests`.
+**PR:** la PR 3, sola:
+`ci(docs-governance-t4): propose upstream skill updates as pull requests`.
 
 ### T5: Neteja De Documents Oberts I Obsolets
 
@@ -290,7 +305,8 @@ afegir al backlog l'entrada de la proposta de butlletí i analítica.
 **Exclusió immediata:** no mou cap document de fase, no reorganitza l'operació i no
 reescriu l'apartat de notícies i blog del mateix àmbit.
 
-**Dependències:** T1.
+**Dependències:** T1, a la mateixa PR: la neteja és la primera aplicació de les regles de
+propietat.
 
 **Resultat observable:** cap document versionat enllaça un fitxer inexistent ni un
 fitxer ignorat per git, i el backlog recull la proposta que no es versiona.
@@ -298,7 +314,8 @@ fitxer ignorat per git, i el backlog recull la proposta que no es versiona.
 **Comprovacions mínimes:** `pnpm format:check` i una cerca dels tres noms als Markdown
 versionats. Rutes, contingut i comportament observable no canvien.
 
-**PR:** una sola, `docs(docs-governance-t5): remove obsolete and stray documents`.
+**PR:** la PR 1, compartida amb la T1,
+`docs(docs-governance-t1-t5): define documentation ownership and remove obsolete documents`.
 
 ### T6: Carpetes Per Fase
 
@@ -314,7 +331,7 @@ actualitzar tots els enllaços entrants, inclosos `docs/roadmap.md`,
 **Exclusió immediata:** no reescriu el contingut mogut, no fusiona especificacions i no
 toca les especificacions de funcionalitat.
 
-**Dependències:** T5.
+**Dependències:** T5, de la PR 1.
 
 **Resultat observable:** cada fase té una carpeta amb la seva especificació i els seus
 documents; els noms de fitxer es conserven perquè el diff només mogui camins i cap
@@ -323,7 +340,8 @@ enllaç queda trencat.
 **Comprovacions mínimes:** `pnpm format:check` i una cerca dels noms de fitxer antics al
 repositori. Rutes, contingut i comportament observable no canvien.
 
-**PR:** una sola, `docs(docs-governance-t6): group every phase under its own folder`.
+**PR:** la PR 4, sola:
+`docs(docs-governance-t6): group every phase under its own folder`.
 
 ### T7: Operacions De Web I Releases
 
@@ -336,17 +354,18 @@ enllaços entrants actualitzats.
 **Exclusió immediata:** no mou les seccions de previews ni d'agent, no canvia cap ordre,
 llindar o decisió operativa i no toca `tools/server/agent/README.md`.
 
-**Dependències:** T6.
+**Dependències:** T6, de la PR 4.
 
-**Resultat observable:** el procediment de web i releases té un sol propietari i
-`docs/runbook.md` i `docs/deployment.md` només conserven les seccions que mouran T8 i
-T9.
+**Resultat observable:** el procediment de web i releases té un sol propietari; en tancar la
+PR 5, `docs/deployment.md` i `docs/runbook.md` ja no existeixen i cada component té el seu
+document.
 
 **Comprovacions mínimes:** `pnpm format:check`, enllaços resolts i una cerca que
 demostri que cada ordre moguda apareix un sol cop. Rutes, contingut i comportament
 observable no canvien.
 
-**PR:** una sola, `docs(docs-governance-t7): document web and release operations`.
+**PR:** la PR 5, compartida amb la T8 i la T9,
+`docs(docs-governance-t7-t9): move operations to one document per component`.
 
 ### T8: Operacions De Previews
 
@@ -359,7 +378,7 @@ actualitzar [`gate.test.mjs`](../../tools/server/preview/gate.test.mjs), que lle
 **Exclusió immediata:** no canvia el publicador, el gate ni la política d'Actions i no
 mou el contingut d'agent.
 
-**Dependències:** T7.
+**Dependències:** T7, dins la mateixa PR.
 
 **Resultat observable:** el flux de previews es descriu en un sol document i la prova
 que en llegeix l'ordre d'instal·lació apunta al nou propietari.
@@ -367,7 +386,8 @@ que en llegeix l'ordre d'instal·lació apunta al nou propietari.
 **Comprovacions mínimes:** `node --test tools/server/preview/*.test.mjs` i
 `pnpm format:check`. Rutes, contingut i comportament observable no canvien.
 
-**PR:** una sola, `docs(docs-governance-t8): document preview operations`.
+**PR:** la PR 5, compartida amb la T7 i la T9,
+`docs(docs-governance-t7-t9): move operations to one document per component`.
 
 ### T9: Operacions De L'Agent
 
@@ -383,7 +403,7 @@ fusionades; actualitzar `docs/architecture.md`, `docs/README.md`, `AGENTS.md`,
 **Exclusió immediata:** no edita `docs/phase-8-system-map.html` ni canvia cap frontera
 de l'ADR 0013 o cap procediment operatiu real.
 
-**Dependències:** T8.
+**Dependències:** T8, dins la mateixa PR.
 
 **Resultat observable:** comportament, operació i requisits de l'agent tenen un sol
 propietari cadascun i `docs/deployment.md` i `docs/runbook.md` ja no existeixen.
@@ -391,7 +411,8 @@ propietari cadascun i `docs/deployment.md` i `docs/runbook.md` ja no existeixen.
 **Comprovacions mínimes:** `pnpm format:check`, `pnpm test:server` i una cerca dels dos
 noms al repositori. Rutes, contingut i comportament observable no canvien.
 
-**PR:** una sola, `docs(docs-governance-t9): document agent operations`.
+**PR:** la PR 5, compartida amb la T7 i la T8,
+`docs(docs-governance-t7-t9): move operations to one document per component`.
 
 ### T10: Script D'Actualització De L'Agent
 
@@ -403,7 +424,7 @@ si cal, una ordre nova a `package.json`.
 l'ADR 0013, no toca la unitat de systemd i no modifica `state/` més enllà de la còpia. Pot
 aturar el servei, i només després que la comprovació d'inactivitat passi.
 
-**Dependències:** T9 i la revisió de seguretat.
+**Dependències:** T9, de la PR 5, i la revisió de seguretat.
 
 **Resultat observable:** una sola ordre comprova que el commit és abastable des
 d'`origin/main`, verifica la revisió instal·lada, confirma l'estat inactiu, atura el
@@ -417,7 +438,8 @@ sense `REVISION` previ, amb l'estat ocupat, amb la imatge per reconstruir i amb 
 explícit), l'ordre documentada executada en sec i una comprovació que la sortida no mostra
 cap credencial.
 
-**PR:** una sola, `feat(docs-governance-t10): add the versioned agent update command`.
+**PR:** la PR 6, sola:
+`feat(docs-governance-t10): add the versioned agent update command`.
 
 ### T11: Comprovació Automàtica De La Documentació
 
@@ -437,7 +459,8 @@ tasques anteriors.
 **Comprovacions mínimes:** `pnpm docs:check` verd, `pnpm test:server` amb els casos de
 fallada i `pnpm check:local` complet.
 
-**PR:** una sola, `feat(docs-governance-t11): verify documentation ownership and skill integrity`.
+**PR:** la PR 7, sola, l'última:
+`feat(docs-governance-t11): verify documentation ownership and skill integrity`.
 
 ## Propietat I Vigència Dels Documents
 
