@@ -2,7 +2,7 @@
 
 ## Estat
 
-Acceptada el 8 de novembre de 2026 amb el merge de la [PR #182](https://github.com/rboixaderg/mountain-runners/pull/182) a la T8.2 de la [fase 8](../specs/phase-8-editorial-assistance.md). L'acceptació no autoritza per si sola nous permisos, desplegaments ni canvis de configuració remota: els controls descrits aquí s'han de verificar abans d'activar-los.
+Acceptada el 8 de novembre de 2026 amb el merge de la [PR #182](https://github.com/rboixaderg/mountain-runners/pull/182) a la T8.2 de la [fase 8](../specs/phase-8/phase-8-editorial-assistance.md). L'acceptació no autoritza per si sola nous permisos, desplegaments ni canvis de configuració remota: els controls descrits aquí s'han de verificar abans d'activar-los.
 
 Esmenada el 9 de novembre de 2026 amb el merge de la [PR #183](https://github.com/rboixaderg/mountain-runners/pull/183), que aprova l'esmena acotada per executar el merge demanat explícitament per una persona verificada i alinea `AGENTS.md`, `CONTRIBUTING.md` i els [límits dels assistents](../ai-assistant.md). L'aprovació no activa cap permís: el merge demanat i la petició delegada de preview no s'habiliten fins que els controls d'aquest ADR estiguin verificats.
 
@@ -18,7 +18,7 @@ Esmenada el 20 i el 21 de novembre de 2026 amb els merges de la [PR #262](https:
 
 La fase 8 proposa ampliar el futur assistent editorial privat a consultes i canvis de codi, mantenint una persona com a responsable de la revisió i el merge. El grup privat de Telegram seria la frontera d'accés humana. Cada tema seria una sessió compartida i podria contenir més d'una feina. La petició explícita d'una persona membre autoritza una implementació fins a una PR. Qui ha validat el resultat pot demanar després el merge d'aquella PR; sense aquesta petició, l'agent no fusiona, i no desplega mai.
 
-L'ampliació afecta les fronteres existents d'identitat, contingut autoritzat i eines. Els requisits i les amenaces són a [T8.1](../phase-8-t81-requisits-amenaces.md). La validació de T8.2 ha de distingir proves simulades de permisos reals i l'historial recuperat de l'execució recuperada.
+L'ampliació afecta les fronteres existents d'identitat, contingut autoritzat i eines. Els requisits i les amenaces són a [T8.1](../specs/phase-8/phase-8-t81-requisits-amenaces.md). La validació de T8.2 ha de distingir proves simulades de permisos reals i l'historial recuperat de l'execució recuperada.
 
 L'ADR 0003 no concedeix permís implícit als agents per fer push. Aquest ADR acceptat planteja una excepció acotada al futur servei privat: una petició clara d'implementació d'un membre verificat autoritza commit, push a la branca de treball i PR dins de l'abast demanat. L'esmena aprovada a la PR #183 hi afegeix que una comanda explícita i verificada d'un membre del grup, amb el commit ja validat, autoritza el merge d'aquella PR. Ni l'auto-merge, ni el push a `main`, ni els canvis de protecció, ni el desplegament formen part de l'excepció. `AGENTS.md` hi està alineat; les instruccions vigents continuen aplicant-se a les sessions locals i a la resta d'agents.
 

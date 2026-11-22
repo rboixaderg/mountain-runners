@@ -75,7 +75,7 @@ configuració remota. Està descrita al
 - Depèn de les previews de la fase 6 i de les esmenes dels ADR 0009 i 0013
   d'aquesta mateixa PR.
 - Substitueix el bloc 4 de
-  [T8.9](phase-8-editorial-assistance.md#un-tema-una-feina-t89) (preview
+  [T8.9](phase-8/phase-8-editorial-assistance.md#un-tema-una-feina-t89) (preview
   automàtica amb `/preview`), que encara no s'ha implementat.
 - L'etiqueta `preview` existeix al repositori des del 21 de novembre de 2026,
   creada amb l'aprovació de la persona mantenidora. Fins que es fusioni la

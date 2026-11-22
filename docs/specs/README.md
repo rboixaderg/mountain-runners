@@ -7,6 +7,10 @@ Cada fase, funcionalitat o tasca amb abast implementable té una especificació 
 entregues i acceptació; la checklist executiva i l'evidència de validació viuen
 a la draft PR.
 
+L'especificació d'una fase viu a `docs/specs/phase-N/` amb els documents de
+treball d'aquella fase; les especificacions de funcionalitat viuen directament a
+`docs/specs/`.
+
 La skill portable [spec-authoring](../../.agents/skills/spec-authoring/SKILL.md)
 aplica aquesta convenció en crear o revisar una especificació.
 

@@ -7,8 +7,8 @@ Completada el 28 d'agost de 2026: tall i smoke, gate complet, HSTS, 48 hores
 d'observació i retirada del gate de `production` registrats. Aquest document
 no certifica WCAG 2.2 AA.
 
-El procediment operatiu és al [`docs/runbook.md`](../runbook.md). L'inventari
-DNS és a [`docs/phase-5-t55-dns-inventory.md`](../phase-5-t55-dns-inventory.md).
+El procediment operatiu és al [`docs/runbook.md`](../../runbook.md). L'inventari
+DNS és a [`docs/specs/phase-5/phase-5-t55-dns-inventory.md`](phase-5-t55-dns-inventory.md).
 
 ## Abans Del Tall
 

@@ -3,7 +3,7 @@
 ## Estat
 
 T5.1 completada el 16 d'agost de 2026, amb les decisions registrades a
-[`docs/phase-5-t51-decisions.md`](../phase-5-t51-decisions.md). La T5.2, la
+[`docs/specs/phase-5/phase-5-t51-decisions.md`](phase-5-t51-decisions.md). La T5.2, la
 T5.3 i la T5.4 són a `main` (PRs #77, #79, #84 i el seguiment #85). La fase 4
 es va completar el 16 d'agost de 2026 i ja no bloqueja la publicació. La T5.5
 es va completar el 28 d'agost de 2026: tall DNS i primera activació pública
