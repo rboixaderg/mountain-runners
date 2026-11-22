@@ -40,11 +40,11 @@ instal·la la release fixada anterior abans de continuar.
 
 Els hooks locals vigents són:
 
-| Hook         | Comprovació                                           |
-| ------------ | ----------------------------------------------------- |
-| `pre-commit` | Gitleaks sobre staged i `lint-staged`                 |
-| `commit-msg` | Conventional Commits amb Commitlint                   |
-| `pre-push`   | `pnpm check:local` (format, lint, typecheck i Vitest) |
+| Hook         | Comprovació                                                         |
+| ------------ | ------------------------------------------------------------------- |
+| `pre-commit` | Gitleaks sobre staged i `lint-staged`                               |
+| `commit-msg` | Conventional Commits amb Commitlint                                 |
+| `pre-push`   | `pnpm check:local` (format, lint, typecheck, Vitest i documentació) |
 
 El hook `pre-push` és ràpid i no substitueix les proves que afecten el canvi. Si
 afegeixes o modifiques un recorregut E2E, executa'l localment abans de declarar
