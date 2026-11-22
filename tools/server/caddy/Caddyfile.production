@@ -20,8 +20,8 @@ https://__PRODUCTION_DOMAIN__ {
 }
 
 # The www host redirects to the apex (canonical URLs use the apex; see
-# docs/runbook.md). A certificate for www is issued automatically once the
-# record points at the VPS.
+# docs/operations/web-and-releases.md). A certificate for www is issued
+# automatically once the record points at the VPS.
 https://www.__PRODUCTION_DOMAIN__ {
 	redir https://__PRODUCTION_DOMAIN__{http.request.uri} permanent
 	import common_access_log

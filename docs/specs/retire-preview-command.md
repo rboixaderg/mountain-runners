@@ -38,7 +38,7 @@ La persona mantenidora confirma aquestes decisions el 21 de novembre de 2026:
   tingui cap pendent.
 - La política d'Actions del repositori que permet `pull_request_target` als
   workflows de preview llista també `issue_comment`
-  ([runbook](../runbook.md#política-dactions-de-pull_request_target-per-a-les-previews)).
+  ([runbook](../operations/previews.md#política-dactions-de-pull_request_target-per-a-les-previews)).
   Quan la T1 retira el disparador, la persona mantenidora treu `issue_comment`
   de la política: és un canvi remot que exigeix la seva aprovació en aquell
   moment.
@@ -79,7 +79,7 @@ La persona mantenidora confirma aquestes decisions el 21 de novembre de 2026:
 
 **Abast:** `.github/workflows/preview.yml`, `.github/workflows/preview-cleanup.yml`,
 `tools/preview/`, `tools/server/preview/gate.test.mjs`, les seves proves,
-[`docs/deployment.md`](../deployment.md) i [`docs/runbook.md`](../runbook.md).
+[`docs/operations/previews.md`](../operations/previews.md).
 
 **Exclusió immediata:** no canvia el build no fiable, el procés
 `mountain-preview-site`, el grup de concurrència `previews`, el token del servei
@@ -104,7 +104,7 @@ disponible. Després del merge, la prova real de
 **Abast:** `tools/server/agent/` (`policy/development.mjs`, `repository/github.mjs`,
 `repository/preview-request-store.mjs`, `workflow/preview-request.mjs`,
 `processes/telegram-bridge/main.mjs`, `commands/reconcile/`), les seves proves,
-`tools/server/agent/README.md` i [`docs/deployment.md`](../deployment.md).
+`tools/server/agent/README.md` i [`docs/operations/agent.md`](../operations/agent.md).
 
 **Exclusió immediata:** no canvia el seguiment de la preview de cada
 publicació, la petició d'una persona, la confirmació pel comentari del

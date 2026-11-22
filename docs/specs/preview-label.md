@@ -56,7 +56,7 @@ amb els esdeveniments `pull_request_target`, `issue_comment`,
 esdeveniment que usin aquests workflows hi ha de constar. Això no contradiu la
 decisió anterior: la implementació continua sense canviar cap token, entorn ni
 configuració remota. Està descrita al
-[manual d'operacions](../runbook.md#política-dactions-de-pull_request_target-per-a-les-previews).
+[manual d'operacions](../operations/previews.md#política-dactions-de-pull_request_target-per-a-les-previews).
 
 ## Resultats Esperats
 
@@ -75,7 +75,7 @@ configuració remota. Està descrita al
 - Depèn de les previews de la fase 6 i de les esmenes dels ADR 0009 i 0013
   d'aquesta mateixa PR.
 - Substitueix el bloc 4 de
-  [T8.9](phase-8-editorial-assistance.md#un-tema-una-feina-t89) (preview
+  [T8.9](phase-8/phase-8-editorial-assistance.md#un-tema-una-feina-t89) (preview
   automàtica amb `/preview`), que encara no s'ha implementat.
 - L'etiqueta `preview` existeix al repositori des del 21 de novembre de 2026,
   creada amb l'aprovació de la persona mantenidora. Fins que es fusioni la
@@ -93,8 +93,8 @@ configuració remota. Està descrita al
 (`.github/workflows/preview.yml`, `.github/workflows/preview-cleanup.yml` i
 `tools/preview/`), la petició de l'agent (`tools/server/agent/repository/github.mjs`,
 `tools/server/agent/workflow/preview-request.mjs` i els mòduls que els criden),
-les seves proves, [`docs/deployment.md`](../deployment.md) i
-[`docs/runbook.md`](../runbook.md).
+les seves proves, [`docs/operations/previews.md`](../operations/previews.md) i
+[`docs/operations/web-and-releases.md`](../operations/web-and-releases.md).
 
 **Exclusió immediata:** no canvia `/preview`, `workflow_dispatch`, el build no
 fiable, el procés `mountain-preview-site`, el token del servei, `/merge` ni els

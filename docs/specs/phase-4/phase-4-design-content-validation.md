@@ -6,11 +6,11 @@ Completada el 16 d'agost de 2026. La implementació i les traduccions es van
 fusionar amb la PR #49 (`9c86b2b`) i les entregues de tancament posteriors. La
 fase es declara completada un cop tancats tots els punts pendents que
 registrava
-[`docs/validation/phase-4-design-review.md`](../validation/phase-4-design-review.md):
+[`docs/specs/phase-4/phase-4-design-review.md`](phase-4-design-review.md):
 
 - la matriu exhaustiva de rutes, estats i idiomes es va lliurar amb la PR #73 i
   viu a
-  [`docs/validation/phase-4-route-matrix.md`](../validation/phase-4-route-matrix.md);
+  [`docs/specs/phase-4/phase-4-route-matrix.md`](phase-4-route-matrix.md);
 - la revisió semàntica de les traduccions i les atribucions es va completar amb
   les PR #58 i #61, i la persona mantenidora la va donar per tancada el 16
   d'agost de 2026;

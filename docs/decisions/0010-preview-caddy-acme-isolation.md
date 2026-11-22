@@ -5,7 +5,7 @@
 Acceptada per la persona mantenidora a la T6.4: simplicitat i cost zero per
 damunt de separar el magatzem ACME. Esmena la T6.2, però **no autoritza** cap
 canvi al VPS ni l'activació de previews. S'obre perquè la topologia aprovada a
-[`docs/phase-6-t62-decisions.md`](../phase-6-t62-decisions.md) no es pot
+[`docs/specs/phase-6/phase-6-t62-decisions.md`](../specs/phase-6/phase-6-t62-decisions.md) no es pot
 implementar literalment amb el Caddyfile actual.
 
 ## Problema

@@ -13,7 +13,7 @@
 #
 # Remote changes (creating the VPS, the validation-host DNS record, SSH keys)
 # require explicit maintainer approval before this script is run; see
-# docs/runbook.md for the full procedure.
+# docs/operations/README.md for the full procedure.
 #
 # Usage (as root or with sudo):
 #   VALIDATION_HOST=validate.example.cat \
@@ -410,7 +410,7 @@ cat <<EOF
 
 Bootstrap completed.
 
-Next steps (all require maintainer approval; see docs/runbook.md):
+Next steps (all require maintainer approval; see docs/operations/README.md):
 1. Confirm the validation record ${VALIDATION_HOST} resolves to this VPS and
    that HTTP/HTTPS reach Caddy through the firewall.
 2. Create the GitHub `production` environment (T5.4) and approve the Artifact
@@ -419,7 +419,8 @@ Next steps (all require maintainer approval; see docs/runbook.md):
      sudo mountain-release activate <commit>
 3. Run the verification script against https://${VALIDATION_HOST}:
      node tools/server/verify/verify-site.mjs --base-url https://${VALIDATION_HOST} --expect-noindex
-4. The production host activates at the DNS cut (T5.5): see docs/runbook.md.
+4. The production host activates at the DNS cut (T5.5): see
+   docs/operations/web-and-releases.md.
    Uncomment `import Caddyfile.production` in /etc/caddy/Caddyfile, run
    `caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile`,
    and restart Caddy *before* moving apex/www DNS to this VPS.

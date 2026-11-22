@@ -3,7 +3,7 @@
 ## Estat
 
 Acceptada per la persona mantenidora el 16 de novembre de 2026. Esmena dos punts
-de [T8.1](../phase-8-t81-requisits-amenaces.md) i de l'[ADR 0013](0013-private-development-agent-boundary.md):
+de [T8.1](../specs/phase-8/phase-8-t81-requisits-amenaces.md) i de l'[ADR 0013](0013-private-development-agent-boundary.md):
 l'aturada de l'execució activa passa a ser de la persona operadora i un avís de
 Telegram es pot repetir després d'un lliurament desconegut. La resta de requisits
 de T8.1 i la resta de la frontera de l'ADR 0013 no canvien. Aquest ADR no activa

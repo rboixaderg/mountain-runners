@@ -108,7 +108,7 @@ codi extern no fiable.
 
 ```text
 Utilitza la skill spec-implementation-review per validar la PR #12 contra
-docs/specs/phase-1-foundation.md, tasca "Nucli editorial segur".
+docs/specs/phase-1/phase-1-foundation.md, tasca "Nucli editorial segur".
 ```
 
 La skill coordina revisions independents de compliment, correcció i tests, i

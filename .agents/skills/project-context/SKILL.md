@@ -1,6 +1,8 @@
 ---
 name: project-context
 description: Use when working on Mountain Runners architecture, content, design, security, deployment or agent workflows to load the governing project documentation first.
+metadata:
+  version: "1.0.0"
 ---
 
 # Mountain Runners Project Context

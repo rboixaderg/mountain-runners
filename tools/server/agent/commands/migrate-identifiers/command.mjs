@@ -4,7 +4,7 @@
 //   node commands/migrate-identifiers/cli.mjs
 //
 // The service runs the same migration at its startup. This command exists for
-// the upgrade order of docs/deployment.md: update the code, migrate, reconcile
+// the upgrade order of docs/operations/agent.md: update the code, migrate, reconcile
 // the cases that block the start, then start the service. It creates the
 // installation salt when it does not exist yet, never removes anything, and a
 // second run changes nothing.

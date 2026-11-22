@@ -317,7 +317,7 @@ traducció, no en esquemes YAML de pàgina.
 La persona mantenidora substitueix la selecció de portada anterior a la PR #140:
 només s'hi mostren esdeveniments actius amb una edició en curs o futura amb data
 confirmada. Els vigents sense pròxima data continuen al hub d'esdeveniments.
-L'ampliació NB-08 de [notícies i blog](news-and-blog.md) registra aquesta decisió
+L'ampliació NB-08 de [notícies i blog](../news-and-blog.md) registra aquesta decisió
 i situa l'actualitat com a última secció de la portada.
 
 ## Esdeveniments
@@ -578,7 +578,7 @@ La cobertura mínima inclou:
 - respecte per `prefers-reduced-motion`.
 
 L'auditoria manual queda registrada com a necessitat separada a
-[`docs/backlog.md`](../backlog.md) i no forma part del tancament d'aquesta fase.
+[`docs/backlog.md`](../../backlog.md) i no forma part del tancament d'aquesta fase.
 
 ## Rendiment
 

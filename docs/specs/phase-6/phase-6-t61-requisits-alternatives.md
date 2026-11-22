@@ -1,9 +1,9 @@
 # Previews de PR: requisits, amenaces i alternatives (T6.1)
 
 Estat: esborrany per a revisió. Tasca T6.1 de
-[la fase 6](specs/phase-6-pull-request-previews.md). Durant la revisió, la
+[la fase 6](phase-6-pull-request-previews.md). Durant la revisió, la
 persona mantenidora ha acceptat
-[l'ADR 0009](decisions/0009-pr-previews-same-domain-and-own-branches.md): les
+[l'ADR 0009](../../decisions/0009-pr-previews-same-domain-and-own-branches.md): les
 previews viuen sota `*.preview.mountainrunners.cat`, el mateix domini
 registrable de producció, amb controls compensatoris, i la publicació es limita
 a branques del repositori principal. Aquest document no adopta cap proveïdor,
@@ -350,7 +350,7 @@ registrador i els proveïdors, i queden escrits a la decisió.
   (developers.cloudflare.com/cloudflare-one/account-limits).
 - Fil de lego sobre l'API DNS de Hostinger (`developers.hostinger.com`,
   github.com/go-acme/lego discussions).
-- Estat actual del repo: `docs/phase-5-t55-dns-inventory.md`,
-  `docs/deployment.md`, `docs/runbook.md`, `tools/server/`,
+- Estat actual del repo: `docs/specs/phase-5/phase-5-t55-dns-inventory.md`,
+  `docs/operations/`, `tools/server/`,
   `.github/workflows/`, `docs/decisions/0001`, `0003` i
   `docs/decisions/0009-pr-previews-same-domain-and-own-branches.md`.

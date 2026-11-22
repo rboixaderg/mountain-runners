@@ -73,7 +73,7 @@ contingut, de manera que les rutes puguin ser, per exemple,
 **Dependències:** decisió sobre els noms canònics i una fase que modifiqui la
 superfície pública de rutes.
 
-**Seguiment:** [especificació de la fase 2](specs/phase-2-public-vertical-slice.md).
+**Seguiment:** [especificació de la fase 2](specs/phase-2/phase-2-public-vertical-slice.md).
 
 Implementada i fusionada a la T2.3 (PR #17). Es conserva aquí només com a
 registre del triatge; les rutes actuals viuen al contracte tipat de
@@ -888,6 +888,22 @@ completades i una esmena de l'ADR 0009 que retiri `/preview` com a petició.
 
 **Seguiment:** pendent de triatge.
 
+### Govern De La Documentació I De Les Skills
+
+**Estat:** Especificada a [Govern de la documentació i de les
+skills](specs/docs-governance.md) el 22 de novembre de 2026.
+
+**Problema:** cada agent afegeix el comportament nou al document més proper, de manera
+que el comportament de l'agent privat es descriu a quatre llocs,
+els documents operatius de desplegament i runbook se solapen, els documents de treball d'una
+tasca viuen a l'arrel de `docs/` i les skills no tenen manifest verificat ni versió.
+
+**Resultat esperat:** un únic document propietari per tipus de contingut, l'operació
+organitzada per component, una actualització de l'agent versionada i una comprovació
+automàtica que impedeixi que la documentació torni a divergir.
+
+**Seguiment:** pendent de la fusió de l'especificació.
+
 ### Fusionar Quan La Persona Dona La Feina Per Validada
 
 **Estat:** Especificada a [Confirmació del merge amb una pregunta i una
@@ -911,5 +927,20 @@ iniciativa pròpia.
 fixació del SHA a la preview); alineació de la documentació operativa i de les
 instruccions d'agents abans d'activar; [especificació de l'etiqueta de
 preview](specs/preview-label.md).
+
+**Seguiment:** pendent de triatge.
+
+### Butlletí I Analítica Del Club
+
+**Estat:** Capturada.
+
+**Problema:** el club no té cap canal propi per enviar el butlletí.
+
+**Resultat esperat:** allotjar listmonk al VPS de Mountain Runners sota
+`newsletter.mountainrunners.cat`, fer sortir el correu per un relé SMTP extern en
+lloc de des del servidor, deixar el formulari d'alta a càrrec de listmonk i
+decidir si cal una segona instància de Plausible o n'hi ha prou amb el lloc nou a
+la instància existent. Abans d'activar res cal especificar privacitat, accessos,
+còpies, actualitzacions i reversió.
 
 **Seguiment:** pendent de triatge.

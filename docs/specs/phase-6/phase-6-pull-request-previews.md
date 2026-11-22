@@ -5,12 +5,12 @@
 Completada el 18 d'octubre de 2026. El sistema de previews és operatiu i validat
 al VPS sota `*.preview.mountainrunners.cat`: T6.1 a T6.7 estan fusionades i les
 previews de PR autoritzades funcionen. L'operació és a la
-[secció 13 del runbook](../runbook.md#13-previews-de-pull-request-t63).
+[secció 13 del runbook](../../operations/previews.md#previews-de-pull-request).
 
 ## Objectiu
 
-Esmena del 2 d'octubre de 2026: l'[ADR 0011](../decisions/0011-news-blog-editorial-previews.md)
-i l'[especificació de notícies i blog](news-and-blog.md) autoritzen una excepció
+Esmena del 2 d'octubre de 2026: l'[ADR 0011](../../decisions/0011-news-blog-editorial-previews.md)
+i l'[especificació de notícies i blog](../news-and-blog.md) autoritzen una excepció
 posterior per mostrar esborranys de `posts` en preview, amb estat explícit.
 Les exclusions de contingut despublicat d'aquest document es mantenen per a
 totes les altres col·leccions. La PR #140 implementa aquesta excepció i es va
@@ -184,7 +184,7 @@ actualitza el comentari existent creat pel publicador amb el marcador fix.
 `cleanup-retired` per a les retirades interrompudes, reanomenar `site-sync` a
 `site-reconcile` sense àlies (el sistema no s'ha activat mai), tolerar
 `namespaces/` absent a l'inventari, adaptar `tools/preview/reconcile.mjs` i
-classificar cada ordre a `docs/deployment.md` i `docs/runbook.md`.
+classificar cada ordre a `docs/operations/previews.md`.
 **Exclusió:** no canvia l'autenticació, l'autorització signada, el format del
 registre, la política de retenció ni cap frontera de l'ADR 0009 o de l'ADR 0010;
 no executa la T6.5. **Depèn de:** T6.4. **Resultat:** el nom de cada ordre
