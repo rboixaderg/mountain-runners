@@ -343,12 +343,6 @@ test("lists without recovering the claim of a previous turn", async (context) =>
       async getPullRequest() {
         return { state: "open", headSha: "a".repeat(40) };
       },
-      async getAuthenticatedLogin() {
-        return "synthetic-bot";
-      },
-      async listIssueComments() {
-        return [];
-      },
     },
     write: () => {},
     warn: () => {},

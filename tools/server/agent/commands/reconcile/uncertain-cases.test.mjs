@@ -17,11 +17,6 @@ import { reconcileResolutions } from "../../policy/development.mjs";
 import { CiWatchStore } from "../../repository/ci-watch-store.mjs";
 import { openIdentifierNames } from "../../repository/identifiers.mjs";
 import {
-  PreviewRequestStore,
-  previewStates,
-} from "../../repository/preview-request-store.mjs";
-import { seedUncertainPreviewRequest } from "../../repository/test-support/preview-requests.mjs";
-import {
   commitAll,
   createBranch,
   ensureSessionWorktree,
@@ -39,10 +34,7 @@ const failedCommit = "a".repeat(40);
 const publishedCommitSha = "c".repeat(40);
 const sessionKeyOne = "-1001234567890:7";
 const sessionKeyTwo = "-1001234567890:8";
-const sessionKeyThree = "-1001234567890:9";
 const privateInstruction = "synthetic private instruction";
-const requestInstant = "2026-11-14T10:00:00.000Z";
-const reconcileInstant = "2026-11-14T11:00:00.000Z";
 
 async function git(directory, argumentsList) {
   const { stdout } = await executeFile("git", [
@@ -80,10 +72,8 @@ async function fixture(context) {
       maxPending: 10,
     }),
     repairs: new CiWatchStore(join(state, "ci-watch.sqlite")),
-    previews: new PreviewRequestStore(join(state, "preview-request.sqlite")),
   };
   context.after(() => {
-    stores.previews.close();
     stores.repairs.close();
     stores.instructions.close();
     rmSync(directory, {
@@ -161,28 +151,6 @@ function interruptRepair(
     updateIdentifier,
     failedCommit: commitSha,
   };
-}
-
-// A `/preview` request the service wrote before the label, whose post a
-// restart could not confirm. The service no longer writes one, so it is seeded.
-function interruptPreview(
-  config,
-  updateIdentifier,
-  sessionKey,
-  commitSha,
-  createdAt = requestInstant,
-) {
-  seedUncertainPreviewRequest(
-    join(config.paths.state, "preview-request.sqlite"),
-    {
-      updateIdentifier,
-      sessionKey,
-      authorIdentifier: 42,
-      pullRequestNumber,
-      commitSha,
-      createdAt,
-    },
-  );
 }
 
 // A publication whose notice may or may not have reached the topic.
@@ -317,83 +285,6 @@ test("lists an uncertain repair with its update, sequence and failed commit", as
   });
 });
 
-test("lists an uncertain preview when the service posted the comment after the request", async (context) => {
-  const { config, stores } = await fixture(context);
-  interruptPreview(config, 21, sessionKeyOne, failedCommit);
-  let requestedSince = null;
-  const github = {
-    async getAuthenticatedLogin() {
-      return "mountain-agent-bot";
-    },
-    async listIssueComments({ number, since }) {
-      assert.equal(number, pullRequestNumber);
-      requestedSince = since;
-      return [
-        { user: { login: "someone" }, body: "/preview" },
-        {
-          user: { login: "mountain-agent-bot" },
-          body: "/preview",
-          created_at: "2026-11-14T10:00:01Z",
-        },
-      ];
-    },
-  };
-
-  const [facts] = await listUncertainCases({ config, stores, github });
-
-  assert.equal(facts.kind, "preview");
-  assert.equal(facts.comment_found, true);
-  assert.equal(facts.github, "ok");
-  assert.equal(requestedSince, requestInstant);
-});
-
-test("ignores a preview comment created before the request and edited after it", async (context) => {
-  const { config, stores } = await fixture(context);
-  interruptPreview(config, 21, sessionKeyOne, failedCommit);
-  const github = {
-    async getAuthenticatedLogin() {
-      return "mountain-agent-bot";
-    },
-    async listIssueComments() {
-      return [
-        {
-          user: { login: "mountain-agent-bot" },
-          body: "/preview",
-          created_at: "2026-11-14T09:59:59Z",
-          updated_at: "2026-11-14T10:05:00Z",
-        },
-      ];
-    },
-  };
-
-  const [facts] = await listUncertainCases({ config, stores, github });
-
-  assert.equal(facts.comment_found, false);
-});
-
-test("ignores a preview comment created in the request's own second", async (context) => {
-  const { config, stores } = await fixture(context);
-  interruptPreview(config, 21, sessionKeyOne, failedCommit);
-  const github = {
-    async getAuthenticatedLogin() {
-      return "mountain-agent-bot";
-    },
-    async listIssueComments() {
-      return [
-        {
-          user: { login: "mountain-agent-bot" },
-          body: "/preview",
-          created_at: "2026-11-14T10:00:00Z",
-        },
-      ];
-    },
-  };
-
-  const [facts] = await listUncertainCases({ config, stores, github });
-
-  assert.equal(facts.comment_found, false);
-});
-
 test("marks a failed GitHub read and still lists the remaining cases", async (context) => {
   const { config, stores } = await fixture(context);
   await topicWorktree({
@@ -403,15 +294,11 @@ test("marks a failed GitHub read and still lists the remaining cases", async (co
   });
   interruptInstruction(stores.instructions, 11, sessionKeyOne);
   interruptRepair(stores.repairs, sessionKeyOne);
-  interruptPreview(config, 21, sessionKeyOne, failedCommit);
   const github = {
     async findOpenPullRequest() {
       throw new Error("synthetic GitHub failure");
     },
     async getPullRequest() {
-      throw new Error("synthetic GitHub failure");
-    },
-    async getAuthenticatedLogin() {
       throw new Error("synthetic GitHub failure");
     },
   };
@@ -423,13 +310,11 @@ test("marks a failed GitHub read and still lists the remaining cases", async (co
     [
       ["instruction", "unavailable"],
       ["repair", "unavailable"],
-      ["preview", "unavailable"],
     ],
   );
   assert.notEqual(cases[0].worktree, null);
   assert.equal(cases[0].pull_request, null);
   assert.equal(cases[1].pull_request, null);
-  assert.equal(cases[2].comment_found, null);
 });
 
 test("resolves a published instruction and records the confirmed head as published", async (context) => {
@@ -759,79 +644,6 @@ test("traces a repair transition that another writer won", async (context) => {
   assert.equal(stores.repairs.repair(repair.sequence).status, "uncertain");
 });
 
-test("keeps waiting for the publisher when the preview comment exists", async (context) => {
-  const { config, stores } = await fixture(context);
-  interruptPreview(config, 21, sessionKeyOne, failedCommit, reconcileInstant);
-
-  await reconcile(config, stores, fakeTelegram(), {
-    kind: "preview",
-    updateIdentifier: 21,
-    resolution: reconcileResolutions.commented,
-  });
-
-  const request = readRow(
-    join(config.paths.state, "preview-request.sqlite"),
-    "preview_requests",
-    "update_identifier",
-    21,
-  );
-  assert.equal(request.state, previewStates.awaiting);
-  assert.equal(request.commented_at, reconcileInstant);
-  assert.equal(stores.previews.awaiting().length, 1);
-});
-
-test("ends the preview request when the comment does not exist", async (context) => {
-  const { config, stores } = await fixture(context);
-  interruptPreview(config, 21, sessionKeyOne, failedCommit);
-
-  await reconcile(config, stores, fakeTelegram(), {
-    kind: "preview",
-    updateIdentifier: 21,
-    resolution: reconcileResolutions.notCommented,
-  });
-
-  assert.equal(stores.previews.state(21), previewStates.failed);
-  assert.deepEqual(stores.previews.awaiting(), []);
-});
-
-test("changes nothing when a preview has no trace database", async (context) => {
-  const { config, stores } = await fixture(context);
-  interruptPreview(config, 21, sessionKeyOne, failedCommit);
-
-  await assert.rejects(
-    reconcile(config, { ...stores, instructions: null }, fakeTelegram(), {
-      kind: "preview",
-      updateIdentifier: 21,
-      resolution: reconcileResolutions.notCommented,
-    }),
-    { message: /trace database is missing/u },
-  );
-  assert.equal(stores.previews.state(21), previewStates.uncertain);
-});
-
-test("traces a preview transition that another writer won", async (context) => {
-  const { config, stores } = await fixture(context);
-  interruptPreview(config, 21, sessionKeyOne, failedCommit);
-  const racingPreviews = {
-    uncertain: () => stores.previews.uncertain(),
-    resolveUncertainNotCommented: () => null,
-  };
-
-  await assert.rejects(
-    reconcile(config, { ...stores, previews: racingPreviews }, fakeTelegram(), {
-      kind: "preview",
-      updateIdentifier: 21,
-      resolution: reconcileResolutions.notCommented,
-    }),
-    ReconcileCaseError,
-  );
-  assert.deepEqual(
-    stores.instructions.traceEntries().map((entry) => entry.action),
-    ["uncertain_reconciled", "uncertain_reconcile_failed"],
-  );
-  assert.equal(stores.previews.state(21), previewStates.uncertain);
-});
-
 test("lists an unknown CI notice with what it reported", async (context) => {
   const { config, stores } = await fixture(context);
   const updateIdentifier = uncertainNotice(stores.repairs);
@@ -979,7 +791,6 @@ test("traces each resolution without the instruction text and notifies once per 
   });
   interruptInstruction(stores.instructions, 11, sessionKeyOne);
   const repair = interruptRepair(stores.repairs, sessionKeyTwo);
-  interruptPreview(config, 21, sessionKeyThree, failedCommit);
   const telegram = fakeTelegram();
 
   await reconcile(config, stores, telegram, {
@@ -996,11 +807,6 @@ test("traces each resolution without the instruction text and notifies once per 
     failedCommit: repair.failedCommit,
     resolution: reconcileResolutions.notPublished,
   });
-  await reconcile(config, stores, telegram, {
-    kind: "preview",
-    updateIdentifier: 21,
-    resolution: reconcileResolutions.commented,
-  });
 
   const reconciled = stores.instructions
     .traceEntries()
@@ -1010,12 +816,11 @@ test("traces each resolution without the instruction text and notifies once per 
     [
       `instruction published #${pullRequestNumber} ${commit.slice(0, 7)}`,
       `repair not_published #${pullRequestNumber} ${failedCommit.slice(0, 7)}`,
-      `preview commented #${pullRequestNumber} ${failedCommit.slice(0, 7)}`,
     ],
   );
   assert.deepEqual(
     reconciled.map((entry) => entry.session_key),
-    [sessionKeyOne, sessionKeyTwo, sessionKeyThree],
+    [sessionKeyOne, sessionKeyTwo],
   );
   for (const entry of stores.instructions.traceEntries()) {
     assert.doesNotMatch(entry.detail ?? "", /synthetic private instruction/u);
@@ -1029,7 +834,6 @@ test("traces each resolution without the instruction text and notifies once per 
     [
       [-1001234567890, 7],
       [-1001234567890, 8],
-      [-1001234567890, 9],
     ],
   );
   for (const message of telegram.messages) {
@@ -1041,7 +845,7 @@ test("traces each resolution without the instruction text and notifies once per 
   }
   assert.equal(
     new Set(telegram.messages.map((message) => message.text)).size,
-    3,
+    2,
   );
 });
 
@@ -1078,25 +882,23 @@ test("keeps the resolution and traces the failure when the notice cannot be sent
 
 test("refuses a resolution that does not belong to the case kind", async (context) => {
   const { config, stores } = await fixture(context);
-  interruptPreview(config, 21, sessionKeyOne, failedCommit);
+  interruptInstruction(stores.instructions, 11, sessionKeyOne);
 
   await assert.rejects(
     reconcile(config, stores, fakeTelegram(), {
-      kind: "preview",
-      updateIdentifier: 21,
-      resolution: reconcileResolutions.published,
-      commit: publishedCommitSha,
+      kind: "instruction",
+      updateIdentifier: 11,
+      resolution: reconcileResolutions.delivered,
     }),
     ReconcileCaseError,
   );
-  assert.equal(stores.previews.state(21), previewStates.uncertain);
+  assert.equal(stores.instructions.uncertain().length, 1);
 });
 
 test("the service startup check no longer refuses once every case is resolved", async (context) => {
   const { config, stores } = await fixture(context);
   interruptInstruction(stores.instructions, 11, sessionKeyOne);
   const repair = interruptRepair(stores.repairs, sessionKeyOne);
-  interruptPreview(config, 21, sessionKeyOne, failedCommit);
   const telegram = fakeTelegram();
 
   await reconcile(config, stores, telegram, {
@@ -1111,19 +913,12 @@ test("the service startup check no longer refuses once every case is resolved", 
     failedCommit: repair.failedCommit,
     resolution: reconcileResolutions.notPublished,
   });
-  await reconcile(config, stores, telegram, {
-    kind: "preview",
-    updateIdentifier: 21,
-    resolution: reconcileResolutions.notCommented,
-  });
 
   // The counts the startup check reads, after its own recovery step.
   assert.equal(stores.instructions.recover(), 0);
   assert.equal(stores.repairs.uncertainRepairCount(), 0);
-  assert.equal(stores.previews.uncertainCount(), 0);
   assert.deepEqual(stores.instructions.uncertain(), []);
   assert.deepEqual(stores.repairs.uncertainRepairs(), []);
-  assert.deepEqual(stores.previews.uncertain(), []);
 });
 
 test("marks the published commit of a repair in the topic worktree", async (context) => {

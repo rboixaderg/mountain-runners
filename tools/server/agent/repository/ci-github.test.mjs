@@ -831,13 +831,9 @@ test("reads every page of pull request comments and fails closed past the limit"
       },
     }),
   });
-  const since = "2026-11-14T10:00:00Z";
-  assert.equal(
-    (await github.listIssueComments({ number: 123, since })).length,
-    101,
-  );
+  assert.equal((await github.listIssueComments({ number: 123 })).length, 101);
   for (const url of requested) {
-    assert.equal(new URL(url).searchParams.get("since"), since);
+    assert.equal(new URL(url).searchParams.has("since"), false);
   }
 
   const endless = new GitHubTrust({
@@ -850,7 +846,7 @@ test("reads every page of pull request comments and fails closed past the limit"
     }),
   });
   await assert.rejects(
-    endless.listIssueComments({ number: 123, since: "2026-11-14T10:00:00Z" }),
+    endless.listIssueComments({ number: 123 }),
     /pagination limit exceeded/u,
   );
 
@@ -860,23 +856,7 @@ test("reads every page of pull request comments and fails closed past the limit"
     fetchImpl: async () => ({ ok: true, json: async () => ({}) }),
   });
   await assert.rejects(
-    invalid.listIssueComments({ number: 123, since: "2026-11-14T10:00:00Z" }),
+    invalid.listIssueComments({ number: 123 }),
     /invalid comments response/u,
   );
-});
-
-test("lists every comment of a pull request when no start is given", async () => {
-  const requested = [];
-  const github = new GitHubTrust({
-    token: "synthetic",
-    repository: "example/project",
-    fetchImpl: async (url) => {
-      requested.push(url);
-      return { ok: true, json: async () => [{ id: 1 }] };
-    },
-  });
-  assert.deepEqual(await github.listIssueComments({ number: 123 }), [
-    { id: 1 },
-  ]);
-  assert.equal(new URL(requested[0]).searchParams.has("since"), false);
 });

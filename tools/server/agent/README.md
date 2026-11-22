@@ -47,7 +47,7 @@ tools/server/agent/               aplicació de Mountain Runners
 ├── commands/reconcile/
 │   ├── cli.mjs                   embolcall de procés: umask privat i codi de sortida
 │   ├── command.mjs               ordre d'operador, amb clients de GitHub i Telegram injectables
-│   └── uncertain-cases.mjs       fets i resolució d'una instrucció, reparació, preview o avís
+│   └── uncertain-cases.mjs       fets i resolució d'una instrucció, reparació o avís
 ├── commands/migrate-identifiers/
 │   ├── cli.mjs                   migració dels noms antics, sense arrencar el servei
 │   └── command.mjs               la mateixa migració que fa l'arrencada, idempotent
@@ -286,18 +286,14 @@ al servidor. El nom local encara no representa una publicació a npm.
    cap). La retirada d'una preview n'edita el comentari i deixa de coincidir amb
    aquest patró. Retorna «Ja ho pots veure: <URL>» al tema; si el termini de 25
    minuts s'esgota, envia l'avís de fallada, deixa la traça `maintainer_attention`
-   (`previewUnconfirmed`) i no construeix cap URL. Una fila antiga amb
-   `commented_at` no exigeix l'etiqueta i només accepta un comentari del
-   publicador posterior a aquell moment. El tancament d'una fila exigeix el
-   commit que s'ha llegit: el resultat d'un cap anterior no tanca una fila
-   reoberta per a un de nou.
+   (`previewUnconfirmed`) i no construeix cap URL. El tancament d'una fila
+   exigeix el commit que s'ha llegit: el resultat d'un cap anterior no tanca
+   una fila reoberta per a un de nou.
 
    El servei ja no llegeix les execucions de `preview.yml`: el run de
    `pull_request_target` no porta el cap de la PR (`head_sha` és l'últim commit
    de `main`) i no hi ha cap camp fiable per correlacionar-lo, així que un build
-   fallit s'acaba al termini com a no confirmat. Els estats `commenting` i
-   `uncertain` es conserven només per a les peticions anteriors a l'etiqueta,
-   que bloquegen l'arrencada fins que una persona les reconcilia.
+   fallit s'acaba al termini com a no confirmat.
 
 10. Una persona verificada pot demanar el merge amb la comanda literal `/merge`,
     `/merge <PR>` o `/merge <PR> <SHA>` completa. `run-instruction.mjs` la reconeix
@@ -410,10 +406,9 @@ cua: només es declaren verdes les comprovacions obligatòries presents i
 correctes del SHA exacte, i un resultat no confirmat es comunica sense
 reintentar-lo. Un error després d'iniciar la
 publicació, o una aturada de sandbox no confirmada, retornen un resultat incert.
-L'arrencada es refusa mentre quedi qualsevol instrucció incerta, una reparació
-interrompuda o un comentari `/preview` d'abans de l'etiqueta, interromput abans
-de saber si s'ha publicat, fins i tot després de diversos reinicis. Abans de refusar, completa
-totes les recuperacions locals (instruccions, avisos, reparacions, previews i
+L'arrencada es refusa mentre quedi qualsevol instrucció incerta o una reparació
+interrompuda, fins i tot després de diversos reinicis. Abans de refusar, completa
+totes les recuperacions locals (instruccions, avisos, reparacions i
 merges), de manera que un sol reinici deixa tots els casos atribuïts a la traça.
 Amb el servei en marxa,
 una reparació amb resultat desconegut atura les reparacions automàtiques mentre

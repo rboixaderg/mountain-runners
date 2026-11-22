@@ -298,11 +298,6 @@ export const requestKinds = [
   previewRequestKind,
 ];
 
-// The exact body of the comment that asked the phase 6 workflow for a preview
-// before the `preview` label. The service no longer posts it; the reconcile
-// command still looks for it in the cases that were left unknown.
-export const previewCommand = "/preview";
-
 // The deterministic handler waits this long for the trusted publisher to
 // confirm the preview before it reports the request as unconfirmed. A real
 // preview took about twelve minutes in the pilot, so the old fifteen minutes
@@ -892,19 +887,15 @@ export const ciRepairReports = {
 export const reconcileResolutions = {
   published: "published",
   notPublished: "not_published",
-  commented: "commented",
-  notCommented: "not_commented",
   delivered: "delivered",
   resend: "resend",
 };
 
-// Only the four resolved cases of an instruction, a repair or a preview get a
-// notice: a reconciled notice is not told to the topic.
+// Only the two resolved cases of an instruction or a repair get a notice: a
+// reconciled notice is not told to the topic.
 const reconcileResolutionResults = {
   [reconcileResolutions.published]: "la feina s'ha publicat",
   [reconcileResolutions.notPublished]: "la feina no s'ha publicat",
-  [reconcileResolutions.commented]: "la preview s'ha demanat",
-  [reconcileResolutions.notCommented]: "la preview no s'ha demanat",
 };
 
 // One neutral notice per reconciliation. It never repeats the instruction text.

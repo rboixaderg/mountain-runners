@@ -527,11 +527,7 @@ test("describes a reconciled interrupted result in plain words", () => {
     reconcileReports.reconciled({ resolution: reconcileResolutions.published }),
     "Ja està resolt el que havia quedat a mitges: la feina s'ha publicat. Si cal continuar la feina, demana-ho de nou en aquest tema.",
   );
-  for (const resolution of [
-    reconcileResolutions.notPublished,
-    reconcileResolutions.commented,
-    reconcileResolutions.notCommented,
-  ]) {
+  for (const resolution of [reconcileResolutions.notPublished]) {
     assert.match(
       reconcileReports.reconciled({ resolution }),
       /Ja està resolt el que havia quedat a mitges: [^.]+\./u,

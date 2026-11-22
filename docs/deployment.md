@@ -690,8 +690,10 @@ sandbox pugui llegir.
   `node tools/server/agent/commands/migrate-identifiers/cli.mjs`. La
   reconciliació no crea el salt ni migra res: si el salt no existeix o queda
   cap worktree amb un nom antic, `list` i `resolve` d'una instrucció fallen amb
-  codi 1 i demanen executar la migració abans. Els casos de reparació, preview i
-  avís no en depenen.
+  codi 1 i demanen executar la migració abans. Els casos de reparació i
+  avís no en depenen. Si encara no s'ha instal·lat la versió que retira les
+  peticions `/preview`, comprova abans la precondició de
+  [Reinicis](#preview-demanada-al-tema-t84-i-etiqueta-de-preview).
 
 ### Aturada i reinici
 
@@ -764,7 +766,7 @@ obligatòries. El seguiment es desa a
 Telegram no confirma un enviament, la fila queda com a incerta i el servei ho
 registra a l'arrencada, sense reintentar el missatge. Qualsevol avís incert del
 tema compta com una publicació sense informe: el tema no pot resoldre cap
-`/merge` ni cap `/preview` fins que una persona el tanqui amb `--kind notice`
+`/merge` fins que una persona el tanqui amb `--kind notice`
 (vegeu
 [Reconciliació de resultats desconeguts (T8.5)](#reconciliació-de-resultats-desconeguts-t85)).
 La comparació no depèn de l'ordre en què arriben els avisos: un avís incert
@@ -924,13 +926,12 @@ traça privada.
 - **Estats** (`state/preview-request.sqlite`): la petició es desa directament
   com a `awaiting`, en una sola escriptura i sense cap escriptura a GitHub, i
   acaba com a `confirmed`, `timed_out` o `failed` (cap adreça: la preview s'ha
-  retirat o el cap ha canviat). Els estats `commenting` i `uncertain` es
-  conserven només per a les files escrites quan el servei encara comentava
-  `/preview`: una petició en `commenting` interrompuda passa a `uncertain`,
-  bloqueja l'arrencada i es reconcilia a mà. Una actualització de Telegram només
-  es tramita una vegada. Es refusa una petició nova pel mateix PR i commit
-  mentre n'hi hagi una en `awaiting` o `uncertain`, també el seguiment d'una
-  publicació; es permet quan l'anterior ha acabat.
+  retirat o el cap ha canviat). Les files antigues que van quedar en
+  `commenting` o `uncertain` conserven el seu estat: el servei no les llegeix
+  ni les bloqueja. Una actualització de Telegram només es tramita una
+  vegada. Es refusa una petició nova pel mateix PR i commit mentre n'hi hagi una
+  en `awaiting`, també el seguiment d'una publicació; es permet quan l'anterior
+  ha acabat.
 - **Retirada abans d'informar.** A cada cicle, el servei llegeix els comentaris
   i després la PR. Si la PR ja no és oberta, té un cap més nou, ha perdut
   l'etiqueta `preview` o té `preview-revoked`, la petició acaba com a `failed`
@@ -952,10 +953,9 @@ traça privada.
   envia l'avís de fallada i ho deixa anotat per a la persona mantenidora; mai
   construeix ni suposa l'URL.
 - **Reinicis.** Una petició en `awaiting` reprèn la lectura de comentaris amb el
-  termini original. Una petició en `commenting` o `uncertain` d'abans del canvi
-  segueix bloquejant l'arrencada fins que una persona reconciliï l'estat real a
-  GitHub, amb
-  [Reconciliació de resultats desconeguts (T8.5)](#reconciliació-de-resultats-desconeguts-t85).
+  termini original. Abans d'instal·lar aquesta versió, la persona operadora
+  comprova amb l'ordre de reconciliació de la versió anterior que no queda cap
+  petició de preview incerta; si n'hi ha, la reconcilia primer.
 - **Traça privada.** `preview_requested`, `preview_membership_verified`,
   `preview_refused` (amb el motiu), `preview_awaiting` (petició desada),
   `preview_confirmed`, `preview_unconfirmed` i `preview_withdrawn`, amb la PR,
@@ -981,11 +981,7 @@ traça privada.
   commit nou és del servei, el seu seguiment n'informa l'adreça; si l'ha pujat
   una persona fora de l'agent, cal demanar-la. Un comentari del publicador
   anterior a una retirada ja no pot confirmar res: la retirada n'ha editat el
-  cos. Una petició escrita quan el servei encara comentava `/preview` (fila amb
-  `commented_at`) no exigeix l'etiqueta, perquè aquelles PR no la tenien, però
-  només accepta un comentari del publicador escrit o actualitzat després del
-  moment de la petició i continua exigint PR oberta, repositori principal, cap
-  `preview-revoked` i el cap sense canvis.
+  cos.
 
 L'activació continua depenent de la verificació del pilot: la credencial ha de
 tenir escriptura a Pull requests (per posar l'etiqueta `preview`, sense cap
@@ -1077,8 +1073,8 @@ proteccions, ni tancament de la PR.
     exigeix igualment que sigui l'últim commit informat en verd). No cal editar
     SQLite. Una PR tancada sense fusionar no es pot
     fusionar: l'avís ho diu i no s'envia cap crida.
-    Aquest resultat no bloqueja la cua ni l'arrencada del servei (a diferència d'un
-    comentari `/preview` interromput), perquè només afecta un nou merge de la
+    Aquest resultat no bloqueja la cua ni l'arrencada del servei, perquè només
+    afecta un nou merge de la
     mateixa PR. Si la lectura no és possible, la petició continua `uncertain` i es
     torna a intentar. Una petició `merging` interrompuda per un reinici passa a
     `uncertain`.
@@ -1443,11 +1439,11 @@ runuser -u mountain-agent -- env \
 ### Reconciliació de resultats desconeguts (T8.5)
 
 Una aturada o un reinici pot deixar una acció externa amb resultat desconegut:
-una instrucció que podia haver fet push o obert una PR, una reparació automàtica
-que podia haver fet push o un comentari `/preview` que podia haver-se publicat.
+una instrucció que podia haver fet push o obert una PR, o una reparació
+automàtica que podia haver fet push.
 El servei refusa arrencar mentre en quedi cap. Un avís de CI que potser no va
-arribar al tema no bloqueja l'arrencada, però bloqueja la resolució d'un merge o
-d'una preview a partir de l'avís anterior. La decisió és d'una persona: l'ordre
+arribar al tema no bloqueja l'arrencada, però bloqueja la resolució d'un merge
+a partir de l'avís anterior. La decisió és d'una persona: l'ordre
 no repeteix l'acció, no fa push, no comenta i no fusiona res.
 
 Després d'una actualització amb worktrees antics, executa abans la migració
@@ -1475,7 +1471,7 @@ L'ordre fixa el seu propi `umask` i no crea cap base de dades: una base absent
 compta com que no hi ha cap cas d'aquell tipus.
 
 1. **Llista els casos.** `list` escriu una línia JSON per cas amb `kind`
-   (`instruction`, `repair`, `preview` o `notice`), `update_identifier`,
+   (`instruction`, `repair` o `notice`), `update_identifier`,
    `session_key`, `created_at` i els fets que pot llegir.
    - `instruction`: `worktree` amb la branca del tema, el HEAD local i si aquell
      HEAD ja consta com a publicat, i la PR oberta d'aquella branca amb el
@@ -1483,9 +1479,6 @@ compta com que no hi ha cap cas d'aquell tipus.
    - `repair`: `update_identifier` (l'actualització de Telegram), `sequence`
      (la seqüència de la fila), `failed_commit`, `pull_request_number` i
      l'estat de la PR amb el seu cap.
-   - `preview`: `pull_request_number`, el commit i `comment_found`, que diu si el
-     compte del servei ha creat un comentari amb el cos exacte `/preview`
-     després de la petició. Un comentari creat abans i editat després no compta.
    - `notice`: `pull_request_number`, el commit i `result`, que és el resultat
      de la CI que l'avís hauria comunicat. No fa cap lectura de GitHub.
 
@@ -1494,8 +1487,8 @@ compta com que no hi ha cap cas d'aquell tipus.
    `"skipped"` i no es llegeix cap PR. La sortida no conté cap token ni el text de
    la instrucció.
 
-2. **Comprova l'estat real a GitHub** amb la PR, la branca, els commits i els
-   comentaris que mostra la llista.
+2. **Comprova l'estat real a GitHub** amb la PR, la branca i els commits que
+   mostra la llista.
 
 3. **Resol un cas per ordre.** Afegeix `resolve` amb el `kind` i els
    identificadors de la llista, dins de la mateixa ordre `systemd-run`:
@@ -1508,8 +1501,6 @@ compta com que no hi ha cap cas d'aquell tipus.
      resolve --kind repair --update 3 --sequence 1 --failed-commit <SHA> \
        --resolution not_published
    /usr/bin/node /usr/local/lib/mountain-runners/agent/commands/reconcile/cli.mjs \
-     resolve --kind preview --update 21 --resolution commented
-   /usr/bin/node /usr/local/lib/mountain-runners/agent/commands/reconcile/cli.mjs \
      resolve --kind notice --update 31 --resolution delivered
    ```
 
@@ -1519,8 +1510,6 @@ compta com que no hi ha cap cas d'aquell tipus.
    | instrucció | `not_published`                               | Estat `done` i resultat `reconciled_not_published`; el treball local es conserva i el següent torn ordinari en torna a intentar la publicació.                                                                                                                                             |
    | reparació  | `published --commit <SHA>`                    | Estat `done` i resultat `reconciled_published`; no es reobre cap seguiment de CI.                                                                                                                                                                                                          |
    | reparació  | `not_published`                               | Estat `done` i resultat `reconciled_not_published`; no es reobre cap seguiment de CI.                                                                                                                                                                                                      |
-   | preview    | `commented`                                   | Estat `awaiting` amb el moment actual; el servei continua esperant la confirmació del publicador i la informa al tema.                                                                                                                                                                     |
-   | preview    | `not_commented`                               | Estat `failed`; no s'ha publicat res.                                                                                                                                                                                                                                                      |
    | avís       | `delivered`                                   | Estat `sent`: el tema ja havia rebut l'avís i el seu resultat passa a ser l'últim informat.                                                                                                                                                                                                |
    | avís       | `resend`                                      | Estat `pending`: el treballador ordinari el torna a enviar. És una decisió humana, no un reintent automàtic.                                                                                                                                                                               |
 
@@ -1550,7 +1539,7 @@ compta com que no hi ha cap cas d'aquell tipus.
    l'enviament falli. Si l'avís falla, s'escriu a stderr i es traça com a
    `uncertain_reconciled_notice_failed`; la resolució es manté. Mai es desa una
    resolució sense traça: en una instrucció, el canvi d'estat i la traça són una
-   sola transacció; en una reparació o una preview, la traça s'escriu abans del
+   sola transacció; en una reparació o un avís, la traça s'escriu abans del
    canvi i, si falla, no es modifica res. Si el canvi falla després de la traça,
    es registra `uncertain_reconcile_failed` i la comanda acaba amb codi 1. En una
    instrucció publicada, el seguiment de CI i el senyal de publicació del
