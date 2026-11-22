@@ -50,7 +50,26 @@ Aquest mapa enllaça els documents i no repeteix aquestes regles.
   inventari públic dels registres a preservar i a substituir al tall.
 - [`ai-assistant.md`](ai-assistant.md): límits dels futurs xat públic i assistent
   editorial.
+- [`decisions/`](decisions/): decisions arquitectòniques acceptades.
+  - [`0001`](decisions/0001-static-site-and-content-in-git.md): web estàtica i
+    contingut a Git.
+  - [`0004`](decisions/0004-code-and-editorial-content-boundary.md): límit entre
+    codi i contingut editorial.
+  - [`0005`](decisions/0005-fixed-page-copy-in-translation-resources.md): textos
+    de pàgines fixes als recursos de traducció.
+  - [`0010`](decisions/0010-preview-caddy-acme-isolation.md): frontera de Caddy i
+    emmagatzematge ACME dels previews.
 - [`specs/`](specs/): requisits i acceptació de les funcionalitats.
+  - [`docs-governance.md`](specs/docs-governance.md): govern de la documentació i
+    de les skills.
+  - [`member-services.md`](specs/member-services.md): serveis per a socis amb
+    entrenaments funcionals.
+  - [`preview-merge-confirmation.md`](specs/preview-merge-confirmation.md):
+    confirmació del merge amb una pregunta i una resposta.
+  - [`request-observability.md`](specs/request-observability.md): observabilitat
+    de totes les peticions a l'origen.
+  - [`phase-6-t64-local.md`](specs/phase-6/phase-6-t64-local.md): registre local
+    del cicle de vida dels previews.
 - `specs/phase-N/`: la carpeta de cada fase amb la seva especificació i els
   documents de treball: [`phase-1/`](specs/phase-1/),
   [`phase-2/`](specs/phase-2/), [`phase-3/`](specs/phase-3/),
