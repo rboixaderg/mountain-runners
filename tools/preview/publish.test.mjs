@@ -176,6 +176,7 @@ function createTestPublisher(
     requireLabel,
     verifyPreview = async () => {},
     onPublished,
+    markRetired,
     resolveState,
   } = {},
 ) {
@@ -196,6 +197,7 @@ function createTestPublisher(
     revalidateActorAuthorization,
     requireLabel,
     transport,
+    markRetired,
     verifyPreview,
     onPublished,
   });
@@ -753,10 +755,14 @@ test("a label request publishes only while the pull request keeps the preview la
       const transport = createMemoryTransport();
       let reads = 0;
       let commented = false;
+      const retired = [];
       await assert.rejects(
         () =>
           createTestPublisher(transport, artifactDirectory, {
             requireLabel: true,
+            markRetired: async (pullNumber) => {
+              retired.push(pullNumber);
+            },
             onPublished: () => {
               commented = true;
             },
@@ -782,6 +788,13 @@ test("a label request publishes only while the pull request keeps the preview la
           command.startsWith("mountain-preview activate"),
         ),
         removedAtRead === 4,
+      );
+      // Every retirement the publisher ran also marked the comment retired.
+      assert.equal(
+        retired.length,
+        transport.commands.filter((command) =>
+          command.startsWith("mountain-preview retire "),
+        ).length,
       );
       if (removedAtRead === 4) {
         assert.deepEqual(transport.commands.slice(-2), [

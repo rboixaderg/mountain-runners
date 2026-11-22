@@ -29,6 +29,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     environment: previews
+    # Retiring a preview edits the comment of the publisher, so it stops
+    # naming the preview.
+    permissions:
+      contents: read
+      pull-requests: write
     concurrency:
       group: previews
       cancel-in-progress: false

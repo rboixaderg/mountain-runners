@@ -1268,7 +1268,8 @@ test("the preview workflow pins actions, separates the trust boundaries and has 
   assert.doesNotMatch(buildJob, /secrets\./);
   assert.doesNotMatch(buildJob, /environment:/);
   assert.doesNotMatch(buildJob, /permissions:/);
-  assert.doesNotMatch(buildJob, /cache:/);
+  assert.doesNotMatch(buildJob, /(?<!package-manager-)cache:/);
+  assert.match(buildJob, /package-manager-cache: false/);
   assert.match(
     buildJob,
     /ref: \$\{\{ needs\.authorize\.outputs\.head_sha \}\}/,
@@ -1324,6 +1325,16 @@ test("the cleanup workflow retires on the preview label removal only", async () 
       "(github.event.action == 'unlabeled' && github.event.label.name == 'preview'))",
   );
   assert.deepEqual(cleanup.jobs.reconcile.concurrency, previewsConcurrency);
+  // Retiring edits the comment of the publisher: only this job writes pull
+  // request comments, and the workflow keeps read access.
+  assert.deepEqual(cleanup.permissions, {
+    contents: "read",
+    "pull-requests": "read",
+  });
+  assert.deepEqual(cleanup.jobs.reconcile.permissions, {
+    contents: "read",
+    "pull-requests": "write",
+  });
   // Never checks out the pull request.
   assert.doesNotMatch(cleanupWorkflow, /pull_request\.head/);
 });

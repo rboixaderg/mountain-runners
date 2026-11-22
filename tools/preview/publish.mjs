@@ -20,6 +20,7 @@ import {
   assertCommentAuthorized,
   assertActorWritePermission,
   commentOnPublishedPreview,
+  markPublishedPreviewRetired,
   publishPreview,
   resolvePullRequestState,
 } from "./publish-operations.mjs";
@@ -112,6 +113,8 @@ async function main() {
     revalidateCommentAuthorization: request.revalidateCommentAuthorization,
     revalidateActorAuthorization: request.revalidateActorAuthorization,
     requireLabel: request.requireLabel,
+    markRetired: () =>
+      markPublishedPreviewRetired({ repository, apiUrl, token, pullNumber }),
     onPublished: ({ headSha, origin }) =>
       commentOnPublishedPreview({
         repository,

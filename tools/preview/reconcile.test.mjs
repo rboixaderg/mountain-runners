@@ -295,3 +295,45 @@ test("closed, preview-revoked, scheduled and dispatched runs reconcile", async (
     });
   }
 });
+
+test("every retirement marks the publisher comment of that pull request retired", async () => {
+  const marked = [];
+  const markRetired = async (pullNumber) => {
+    marked.push(pullNumber);
+  };
+  await retirePreviewOf({
+    transport: transportFor([]),
+    pullNumber: 7,
+    markRetired,
+  });
+  await runCleanup({
+    eventName: "pull_request_target",
+    event: {
+      action: "unlabeled",
+      label: { name: "preview" },
+      pull_request: { number: 8 },
+    },
+    transport: transportFor([]),
+    markRetired,
+    reconcile: async () => {},
+  });
+  await reconcilePreviews({
+    transport: transportFor([
+      {
+        pullNumber: 9,
+        commit,
+        updatedAt: new Date(now - 1000).toISOString(),
+      },
+      { pullNumber: 10, inconsistent: true },
+    ]),
+    readPull: async () => ({
+      state: "closed",
+      head: { repo: { full_name: repository } },
+    }),
+    repository,
+    markRetired,
+    now,
+  }).catch(() => {});
+
+  assert.deepEqual(marked, [7, 8, 9, 10]);
+});

@@ -11,6 +11,11 @@
 
 import { loadVerifiedArtifact } from "../deploy/artifact.mjs";
 import { RemoteCommandError } from "../deploy/ssh.mjs";
+import {
+  findPreviewComment,
+  markPreviewRetired,
+  previewCommentMarker,
+} from "./preview-comment.mjs";
 import { retirePreviewOf } from "./reconcile.mjs";
 import { verifyPreviewSite } from "./smoke.mjs";
 import { signPreviewAuthorization } from "../server/preview/authorization-proof.mjs";
@@ -165,8 +170,6 @@ function assertPullRequestUnchanged(previous, current) {
   }
 }
 
-const previewCommentMarker = "<!-- mountain-runners-preview -->";
-
 // Only update a comment authored by this workflow's GitHub Actions bot.
 // Neither the PR title nor any other PR-controlled text enters the comment.
 export async function commentOnPublishedPreview({
@@ -180,25 +183,12 @@ export async function commentOnPublishedPreview({
 }) {
   const base = `${apiBaseUrl(apiUrl)}/repos/${repository}`;
   const body = `${previewCommentMarker}\nPreview publicada: ${origin}\nCommit: \`${headSha}\`.`;
-  let existingComment;
-  for (let page = 1; ; page += 1) {
-    const response = await fetchImpl(
-      `${base}/issues/${pullNumber}/comments?per_page=100&page=${page}`,
-      { headers: apiHeaders(token) },
-    );
-    if (!response.ok) {
-      throw new Error(
-        `Cannot list preview comments (HTTP ${response.status}).`,
-      );
-    }
-    const comments = await response.json();
-    existingComment = comments.find(
-      (comment) =>
-        comment.user?.login === "github-actions[bot]" &&
-        comment.body?.includes(previewCommentMarker),
-    );
-    if (existingComment || comments.length < 100) break;
-  }
+  const existingComment = await findPreviewComment({
+    base,
+    headers: apiHeaders(token),
+    pullNumber,
+    fetchImpl,
+  });
 
   const response = await fetchImpl(
     existingComment
@@ -213,6 +203,22 @@ export async function commentOnPublishedPreview({
   if (!response.ok) {
     throw new Error(`Cannot write preview comment (HTTP ${response.status}).`);
   }
+}
+
+// The comment of a retired preview stops naming it, so nobody reads it as ready.
+export function markPublishedPreviewRetired({
+  repository,
+  apiUrl,
+  token,
+  pullNumber,
+  fetchImpl = fetch,
+}) {
+  return markPreviewRetired({
+    base: `${apiBaseUrl(apiUrl)}/repos/${repository}`,
+    headers: apiHeaders(token),
+    pullNumber,
+    fetchImpl,
+  });
 }
 
 async function transferAndVerify(
@@ -285,6 +291,7 @@ export async function publishPreview({
   transport,
   verifyPreview = verifyPreviewSite,
   onPublished,
+  markRetired,
 }) {
   // A label request is valid only while the pull request keeps the label, at
   // every point where the pull request state is read again.
@@ -368,7 +375,7 @@ export async function publishPreview({
         `mountain-preview activate ${pullNumber} ${previousCommit}`,
       );
     } else if (!previousCommit) {
-      await retirePreviewOf({ transport, pullNumber });
+      await retirePreviewOf({ transport, pullNumber, markRetired });
     }
     throw error;
   }
@@ -384,7 +391,7 @@ export async function publishPreview({
     // The label was removed after the activation: withdraw the site now
     // instead of relying only on the cleanup retire queued behind this run.
     if (requireLabel && !current.labeled) {
-      await retirePreviewOf({ transport, pullNumber });
+      await retirePreviewOf({ transport, pullNumber, markRetired });
       throw new Error(missingLabelMessage);
     }
     assertPullRequestUnchanged(pullRequest, current);
