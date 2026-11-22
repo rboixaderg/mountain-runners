@@ -1028,12 +1028,15 @@ amb Chromium, Firefox i WebKit; una fallada de CI bloqueja el merge.
 
 Abans d'un torn ordinari o d'una reparació, el servei prepara les dependències
 offline perquè el model pugui executar proves. Les peticions de preview no
-inicien el model ni preparen el worktree. Les ordres del torn usen un `TMPDIR`
-ignorat per Git dins del worktree. Abans de
-publicar, el servei torna a instal·lar les dependències del lockfile i executa
-`pnpm check`, o `pnpm check:local` si tots els camins de la publicació són dins
-del contingut (ADR 0012), amb un `TMPDIR` nou. Si la preparació falla, no inicia
-el model o no publica, segons el moment de la fallada.
+inicien el model ni preparen el worktree. Les ordres amb escriptura reben
+`TMPDIR=/work/.agent-runtime-tmp`, un directori durador del worktree que Git i
+el lint del repositori ignoren: `/tmp` del contenidor és `noexec`, i els fitxers
+temporals que genera Playwright, com la memòria cau de transformació, no s'han
+de cometre ni validar. Abans de publicar, el servei torna a instal·lar les
+dependències del lockfile i executa `pnpm check`, o `pnpm check:local` si tots
+els camins de la publicació són dins del contingut (ADR 0012), amb un `TMPDIR`
+nou. Si la preparació falla, no inicia el model o no publica, segons el moment
+de la fallada.
 
 La versió de pnpm del `package.json` ha de coincidir amb la de la imatge. Una
 diferència es refusa sense descarregar cap versió nova.

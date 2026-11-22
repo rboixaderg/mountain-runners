@@ -12,10 +12,12 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { test } from "node:test";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { randomUUID } from "node:crypto";
+import { ESLint } from "eslint";
 import {
   buildModelCommand,
   buildSandboxArguments,
@@ -113,6 +115,26 @@ test("prepares an executable temporary path for writable model commands only", (
     "-lc",
     "pwd",
   ]);
+});
+
+test("ignores the sandbox temporary directories in the repository lint", async () => {
+  const repository = fileURLToPath(new URL("../../../../", import.meta.url));
+  const eslint = new ESLint({ cwd: repository });
+  const generatedPaths = [
+    ".agent-runtime-tmp/playwright-transform-cache-993/0a1b2c3d_transformed.js",
+    ".agent-check.ABCDEFGH/playwright-transform-cache-993/0a1b2c3d_transformed.js",
+  ];
+
+  for (const generatedPath of generatedPaths) {
+    assert.equal(
+      await eslint.isPathIgnored(join(repository, generatedPath)),
+      true,
+    );
+  }
+  assert.equal(
+    await eslint.isPathIgnored(join(repository, "eslint.config.mjs")),
+    false,
+  );
 });
 
 test("the service has no Docker group or daemon dependency", () => {
