@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
+import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { test } from "node:test";
@@ -34,6 +35,17 @@ test("exits 2 without the required arguments", () => {
     assert.match(result.stderr, message);
   }
 });
+
+test(
+  "exits 1 when the process is not root",
+  { skip: process.getuid?.() === 0 },
+  () => {
+    const result = runCli(["--repository", tmpdir(), "--commit", commit]);
+
+    assert.equal(result.status, 1);
+    assert.match(result.stderr, /run it as root \(uid 0\)/u);
+  },
+);
 
 test("exits 1 and changes nothing when the repository is the agent clone", () => {
   const result = runCli([

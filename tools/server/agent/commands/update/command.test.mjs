@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import {
+  chmodSync,
   cpSync,
   existsSync,
   lstatSync,
@@ -10,14 +11,23 @@ import {
   readdirSync,
   rmSync,
   statSync,
+  symlinkSync,
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { test } from "node:test";
+import { fileURLToPath } from "node:url";
 import { AdmissionQueue } from "telegram-pi-bridge/sessions";
 import { CiWatchStore } from "../../repository/ci-watch-store.mjs";
-import { runProcess, runUpdateCommand } from "./command.mjs";
+import { MergeRequestStore } from "../../repository/merge-request-store.mjs";
+import { PreviewRequestStore } from "../../repository/preview-request-store.mjs";
+import {
+  imageInputs,
+  runProcess,
+  runProcessToFile,
+  runUpdateCommand,
+} from "./command.mjs";
 
 const sessionKey = "-1001234567890:7";
 const timestamp = new Date("2026-11-22T10:15:00Z");
@@ -127,11 +137,14 @@ function createInstallation(context, { files = baselineFiles } = {}) {
 }
 
 /** Advance the checkout to the target commit and put it on `origin/main`. */
-function advance(app, { write = {}, remove = [], branch } = {}) {
+function advance(app, { write = {}, remove = [], link = {}, branch } = {}) {
   if (branch !== undefined) {
     git(app.repository, ["checkout", "--quiet", "-b", branch]);
   }
   writeTree(app.repository, write);
+  for (const [path, target] of Object.entries(link)) {
+    symlinkSync(target, join(app.repository, path));
+  }
   for (const path of remove) {
     rmSync(join(app.repository, path));
   }
@@ -150,12 +163,13 @@ function writeRevision(installRoot, revision) {
   writeFileSync(join(installRoot, "agent.REVISION"), `${revision}\n`);
 }
 
-function createRunner({ isActive = "inactive", onChown } = {}) {
+function createRunner({ isActive = "inactive", onChown, onIsActive } = {}) {
   const calls = [];
   function run(command, args) {
     calls.push(`${command} ${args.join(" ")}`);
     if (command === "systemctl") {
       if (args[0] === "is-active") {
+        onIsActive?.();
         return {
           status: isActive === "active" ? 0 : 3,
           stdout: `${isActive}\n`,
@@ -163,6 +177,10 @@ function createRunner({ isActive = "inactive", onChown } = {}) {
         };
       }
       return { status: 0, stdout: "", stderr: "" };
+    }
+    if (command === "runuser") {
+      // The size of the state, measured as the service user.
+      return { status: 0, stdout: "4096\t/synthetic\n", stderr: "" };
     }
     if (command === "chown") {
       onChown?.(args);
@@ -173,12 +191,46 @@ function createRunner({ isActive = "inactive", onChown } = {}) {
   return { run, calls };
 }
 
+// The state as the service user writes it: either a synthetic private file or
+// the real `tar` of the directory, run without the service identity.
+function createStream({ realTar = false } = {}) {
+  const calls = [];
+  function stream(command, args, path) {
+    calls.push(`${command} ${args.join(" ")}`);
+    if (!realTar) {
+      writeFileSync(path, "synthetic state archive\n", {
+        flag: "wx",
+        mode: 0o600,
+      });
+      return { status: 0, stdout: "", stderr: "" };
+    }
+    const separator = args.indexOf("--");
+    return runProcessToFile(
+      args[separator + 1],
+      args.slice(separator + 2),
+      path,
+    );
+  }
+  return { stream, calls };
+}
+
 function runUpdate(
   app,
-  { argv = [], repository = app.repository, runner } = {},
+  {
+    argv = [],
+    repository = app.repository,
+    runner,
+    stream,
+    getuid = () => 0,
+    checkoutUid = 0,
+    statfs,
+    umask,
+  } = {},
 ) {
   const { run, calls } = runner ?? createRunner();
+  const { stream: writeStream, calls: streamCalls } = stream ?? createStream();
   const output = { stdout: "", stderr: "" };
+  const previousUmask = umask === undefined ? null : process.umask(umask);
   const code = runUpdateCommand({
     argv: [
       "--repository",
@@ -192,7 +244,11 @@ function runUpdate(
       ...argv,
     ],
     run,
+    stream: writeStream,
+    statfs,
     now: () => timestamp,
+    getuid,
+    statFile: (path) => ({ ...statSync(path), uid: checkoutUid }),
     write: (text) => {
       output.stdout += text;
     },
@@ -200,7 +256,10 @@ function runUpdate(
       output.stderr += text;
     },
   });
-  return { code, calls, ...output };
+  if (previousUmask !== null) {
+    process.umask(previousUmask);
+  }
+  return { code, calls, streamCalls, ...output };
 }
 
 function assertServiceNotStarted(calls) {
@@ -290,10 +349,9 @@ test("installs the target commit, replaces the tree and records the revision", (
     readFileSync(join(app.backupsRoot, "agent-previous.REVISION"), "utf8"),
     `${app.installed}\n`,
   );
-  assert.equal(
-    readdirSync(app.backupsRoot).includes(`state-${identity}-${stamp}`),
-    true,
-  );
+  const stateBackup = join(app.backupsRoot, `state-${identity}-${stamp}.tar`);
+  assert.equal(lstatSync(stateBackup).isFile(), true);
+  assert.equal(statSync(stateBackup).mode & 0o777, 0o600);
 
   assertServiceNotStarted(result.calls);
   assert.match(result.stdout, /The service was not started/u);
@@ -357,7 +415,10 @@ test("refuses a commit that is not reachable from origin/main", (context) => {
   const result = runUpdate(app, { argv: ["--commit", target] });
 
   assert.equal(result.code, 1);
-  assert.match(result.stderr, /not reachable from origin\/main/u);
+  assert.match(
+    result.stderr,
+    /not reachable from refs\/remotes\/origin\/main/u,
+  );
   assertNotUpdated(app);
   assertServiceUntouched(result.calls);
 });
@@ -546,6 +607,54 @@ const busyStates = [
     expected: /uncertain repair case\(s\): 1/u,
   },
   {
+    name: "a merge request in progress",
+    prepare: (state) => {
+      const store = new MergeRequestStore(join(state, "merge-request.sqlite"));
+      store.begin({
+        updateIdentifier: 41,
+        sessionKey,
+        authorIdentifier: 42,
+        pullRequestNumber: 210,
+        commitSha: "e".repeat(40),
+      });
+      store.close();
+    },
+    expected: /merging or uncertain merge requests: 1/u,
+  },
+  {
+    name: "an uncertain merge request",
+    prepare: (state) => {
+      const store = new MergeRequestStore(join(state, "merge-request.sqlite"));
+      store.begin({
+        updateIdentifier: 42,
+        sessionKey,
+        authorIdentifier: 42,
+        pullRequestNumber: 211,
+        commitSha: "f".repeat(40),
+      });
+      store.markUncertain(42);
+      store.close();
+    },
+    expected: /merging or uncertain merge requests: 1/u,
+  },
+  {
+    name: "a preview request awaiting the publisher",
+    prepare: (state) => {
+      const store = new PreviewRequestStore(
+        join(state, "preview-request.sqlite"),
+      );
+      store.begin({
+        updateIdentifier: 51,
+        sessionKey,
+        authorIdentifier: 42,
+        pullRequestNumber: 212,
+        commitSha: "1".repeat(40),
+      });
+      store.close();
+    },
+    expected: /preview requests awaiting the publisher: 1/u,
+  },
+  {
     name: "an uncertain CI notice case",
     prepare: (state) => {
       const store = new CiWatchStore(join(state, "ci-watch.sqlite"));
@@ -698,5 +807,312 @@ test("records the revision only after the installed tree is verified", (context)
   assert.equal(
     readFileSync(join(app.installRoot, "agent.REVISION"), "utf8").trim(),
     app.installed,
+  );
+});
+
+test("backs up the state as the service user and never follows a link inside it", (context) => {
+  const app = createInstallation(context);
+  writeRevision(app.installRoot, app.installed);
+  const target = advance(app, {
+    write: { "tools/server/agent/README.md": "# Agent v2\n" },
+  });
+  const outside = join(app.root, "outside.txt");
+  writeFileSync(outside, "outside\n");
+  chmodSync(outside, 0o640);
+  symlinkSync(outside, join(app.dataRoot, "state", "link"));
+  const stream = createStream({ realTar: true });
+
+  const result = runUpdate(app, { argv: ["--commit", target], stream });
+
+  assert.equal(result.code, 0, result.stderr);
+  assert.equal(result.streamCalls.length, 1);
+  assert.match(
+    result.streamCalls[0],
+    /^runuser -u mountain-agent -- tar -C .* -cf - \.$/u,
+  );
+  // The link is stored, never followed: its target keeps content and mode.
+  assert.equal(readFileSync(outside, "utf8"), "outside\n");
+  assert.equal(statSync(outside).mode & 0o777, 0o640);
+  const stateBackup = join(
+    app.backupsRoot,
+    `state-${app.installed.slice(0, 7)}-to-${target.slice(0, 7)}-20261122T101500Z.tar`,
+  );
+  assert.equal(lstatSync(stateBackup).isFile(), true);
+  assert.equal(statSync(stateBackup).mode & 0o777, 0o600);
+  const listing = spawnSync("tar", ["-tf", stateBackup], { encoding: "utf8" });
+  assert.equal(listing.status, 0, listing.stderr);
+  assert.match(listing.stdout, /\.\/link/u);
+});
+
+test("refuses a state directory that is a link", (context) => {
+  const app = createInstallation(context);
+  writeRevision(app.installRoot, app.installed);
+  const target = advance(app);
+  const moved = join(app.root, "real-state");
+  cpSync(join(app.dataRoot, "state"), moved, { recursive: true });
+  rmSync(join(app.dataRoot, "state"), { recursive: true });
+  symlinkSync(moved, join(app.dataRoot, "state"));
+
+  const result = runUpdate(app, { argv: ["--commit", target] });
+
+  assert.equal(result.code, 1);
+  assert.match(result.stderr, /must be a directory, not a link or a file/u);
+  assertNotUpdated(app);
+  assertServiceUntouched(result.calls);
+});
+
+test("stores a FIFO in the state without opening it", (context) => {
+  const app = createInstallation(context);
+  writeRevision(app.installRoot, app.installed);
+  const target = advance(app);
+  const created = spawnSync("mkfifo", [join(app.dataRoot, "state", "pipe")], {
+    encoding: "utf8",
+  });
+  assert.equal(created.status, 0, created.stderr);
+
+  // Root never opens a FIFO: the archive is produced by the service user, which
+  // stores it as an entry.
+  const stream = createStream();
+  const result = runUpdate(app, { argv: ["--commit", target], stream });
+
+  assert.equal(result.code, 0, result.stderr);
+  assert.equal(result.streamCalls.length, 1);
+});
+
+test("refuses a state database that is a link", (context) => {
+  const app = createInstallation(context);
+  writeRevision(app.installRoot, app.installed);
+  const target = advance(app);
+  const decoy = join(app.root, "decoy.sqlite");
+  const store = new CiWatchStore(decoy);
+  store.close();
+  symlinkSync(decoy, join(app.dataRoot, "state", "ci-watch.sqlite"));
+
+  const result = runUpdate(app, { argv: ["--commit", target] });
+
+  assert.equal(result.code, 1);
+  assert.match(result.stderr, /a state database must be a regular file/u);
+  assertNotUpdated(app);
+  assertServiceUntouched(result.calls);
+});
+
+test("refuses when the state becomes busy while the service stops", (context) => {
+  const app = createInstallation(context);
+  writeRevision(app.installRoot, app.installed);
+  const target = advance(app);
+  const runner = createRunner({
+    onIsActive: () => {
+      const queue = new AdmissionQueue(
+        join(app.dataRoot, "state", "admission.sqlite"),
+        { maxPending: 10 },
+      );
+      queue.admit({
+        updateIdentifier: 61,
+        messageIdentifier: 1061,
+        sessionKey,
+        authorIdentifier: 42,
+        instruction: "synthetic instruction",
+      });
+      queue.close();
+    },
+  });
+
+  const result = runUpdate(app, { argv: ["--commit", target], runner });
+
+  assert.equal(result.code, 1);
+  assert.match(result.stderr, /busy after the stop/u);
+  assert.match(result.stderr, /pending or running instructions: 1/u);
+  assert.equal(existsSync(app.backupsRoot), false);
+  assert.equal(
+    readFileSync(join(app.installRoot, "agent/README.md"), "utf8"),
+    "# Agent\n",
+  );
+});
+
+test("refuses an archive that contains a link", (context) => {
+  const app = createInstallation(context);
+  writeRevision(app.installRoot, app.installed);
+  const target = advance(app, {
+    write: { "tools/server/agent/README.md": "# Agent v2\n" },
+    link: { "tools/server/agent/sneaky.mjs": "/etc/passwd" },
+  });
+
+  const result = runUpdate(app, { argv: ["--commit", target] });
+
+  assert.equal(result.code, 1);
+  assert.match(result.stderr, /not a regular file or a directory/u);
+  assert.match(result.stderr, /sneaky\.mjs/u);
+  assertNotUpdated(app);
+  assertServiceUntouched(result.calls);
+});
+
+test("refuses an archive that rewrites content with export-subst", (context) => {
+  const app = createInstallation(context);
+  writeRevision(app.installRoot, app.installed);
+  const target = advance(app, {
+    write: { "tools/server/agent/.gitattributes": "*.mjs export-subst\n" },
+  });
+
+  const result = runUpdate(app, { argv: ["--commit", target] });
+
+  assert.equal(result.code, 1);
+  assert.match(result.stderr, /export-subst/u);
+  assertNotUpdated(app);
+  assertServiceUntouched(result.calls);
+});
+
+test("covers every path the sandbox Containerfile copies", () => {
+  const containerfile = readFileSync(
+    fileURLToPath(new URL("../../sandbox/Containerfile", import.meta.url)),
+    "utf8",
+  );
+  const copied = containerfile
+    .split("\n")
+    .filter((line) => /^COPY\s/u.test(line))
+    .flatMap((line) =>
+      line
+        .replace(/^COPY\s+/u, "")
+        .trim()
+        .split(/\s+/u)
+        .slice(0, -1),
+    );
+
+  assert.ok(copied.length > 0);
+  for (const path of copied) {
+    assert.equal(
+      imageInputs.some(
+        (input) => path === input || path.startsWith(`${input}/`),
+      ),
+      true,
+      `${path} is copied by the Containerfile and is not an image input`,
+    );
+  }
+  assert.equal(imageInputs.includes("pnpm-workspace.yaml"), true);
+});
+
+test("refuses a checkout that is not owned by root", (context) => {
+  const app = createInstallation(context);
+  writeRevision(app.installRoot, app.installed);
+  const target = advance(app);
+
+  const result = runUpdate(app, {
+    argv: ["--commit", target],
+    checkoutUid: 501,
+  });
+
+  assert.equal(result.code, 1);
+  assert.match(result.stderr, /not owned by root \(uid 0\)/u);
+  assertServiceUntouched(result.calls);
+});
+
+test("refuses to run as another identity", (context) => {
+  const app = createInstallation(context);
+  writeRevision(app.installRoot, app.installed);
+  const target = advance(app);
+
+  const result = runUpdate(app, {
+    argv: ["--commit", target],
+    getuid: () => 1000,
+  });
+
+  assert.equal(result.code, 1);
+  assert.match(result.stderr, /run it as root \(uid 0\)/u);
+  assertServiceUntouched(result.calls);
+});
+
+test("refuses a checkout that resolves inside the data root", (context) => {
+  const app = createInstallation(context);
+  writeRevision(app.installRoot, app.installed);
+  const target = advance(app);
+  const inside = join(app.dataRoot, "checkout");
+  cpSync(app.repository, inside, { recursive: true });
+
+  const result = runUpdate(app, {
+    argv: ["--commit", target],
+    repository: inside,
+  });
+
+  assert.equal(result.code, 1);
+  assert.match(result.stderr, /inside the data root/u);
+  assertServiceUntouched(result.calls);
+});
+
+test("refuses a short or malformed commit", (context) => {
+  const app = createInstallation(context);
+  const short = app.installed.slice(0, 7);
+
+  for (const argv of [
+    ["--commit", short],
+    ["--commit", app.installed, "--installed", short],
+    ["--commit", `${app.installed}0`],
+  ]) {
+    const result = runUpdate(app, { argv });
+    assert.equal(result.code, 2);
+    assert.match(result.stderr, /full 40-character/u);
+  }
+});
+
+test("runs git with the hardened configuration and explicit paths", (context) => {
+  const app = createInstallation(context);
+  writeRevision(app.installRoot, app.installed);
+  const target = advance(app, {
+    write: { "tools/server/agent/README.md": "# Agent v2\n" },
+  });
+
+  const result = runUpdate(app, { argv: ["--commit", target] });
+
+  assert.equal(result.code, 0, result.stderr);
+  const gitCalls = result.calls.filter((call) => call.startsWith("git "));
+  assert.ok(gitCalls.length > 0);
+  for (const call of gitCalls) {
+    assert.match(
+      call,
+      /^git -c core\.fsmonitor=false -c core\.hooksPath=\/dev\/null /u,
+    );
+  }
+  const archiveCall = gitCalls.find((call) => call.includes(" archive "));
+  assert.match(archiveCall, /-c core\.attributesFile=\/dev\/null/u);
+  const diffCall = gitCalls.find((call) => call.includes(" diff "));
+  assert.match(diffCall, /--no-renames --no-ext-diff --no-textconv/u);
+  assert.match(diffCall, / --$/u);
+});
+
+test("creates the installed layout with the documented modes under a private umask", (context) => {
+  const app = createInstallation(context);
+  writeRevision(app.installRoot, app.installed);
+  const target = advance(app);
+
+  const result = runUpdate(app, { argv: ["--commit", target], umask: 0o077 });
+
+  assert.equal(result.code, 0, result.stderr);
+  const mode = (path) => statSync(path).mode & 0o777;
+  assert.equal(mode(join(app.installRoot, "node_modules")), 0o755);
+  assert.equal(mode(join(app.installRoot, "agent")), 0o755);
+  assert.equal(mode(join(app.installRoot, "agent/README.md")), 0o644);
+  assert.equal(
+    mode(join(app.installRoot, "node_modules/telegram-pi-bridge")),
+    0o755,
+  );
+  assert.equal(mode(join(app.installRoot, "agent.REVISION")), 0o644);
+  assert.equal(mode(app.backupsRoot), 0o700);
+});
+
+test("refuses when the backup filesystem has no room", (context) => {
+  const app = createInstallation(context);
+  writeRevision(app.installRoot, app.installed);
+  const target = advance(app);
+
+  const result = runUpdate(app, {
+    argv: ["--commit", target],
+    statfs: () => ({ bsize: 1, bavail: 10 }),
+  });
+
+  assert.equal(result.code, 1);
+  assert.match(result.stderr, /Retenció/u);
+  assert.equal(result.calls.includes("systemctl stop mountain-agent"), true);
+  assert.deepEqual(readdirSync(app.backupsRoot), []);
+  assert.equal(
+    readFileSync(join(app.installRoot, "agent/README.md"), "utf8"),
+    "# Agent\n",
   );
 });

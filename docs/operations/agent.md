@@ -318,10 +318,14 @@ sudo git log --oneline -1 origin/main
 ```
 
 L'ordre refusa com a `--repository` el clon del servei,
-`/var/lib/mountain-runners-agent/repository`, i qualsevol ruta que hi visqui a
-dins: l'escriu l'agent i no és mai la font d'una instal·lació.
+`/var/lib/mountain-runners-agent/repository`, i qualsevol ruta que, un cop
+resolts els enllaços, visqui dins de `/var/lib/mountain-runners-agent`: l'escriu
+l'agent i no és mai la font d'una instal·lació. També refusa un clon que no sigui
+de root i una execució que no sigui de root.
 
-**Executar l'ordre.** Des del clon i amb el commit revisat de `main`:
+**Executar l'ordre.** Des del clon i amb el commit revisat de `main`. Els dos
+commits s'escriuen sencers, amb 40 caràcters hexadecimals: `git rev-parse
+<commit>` en dona la forma completa.
 
 ```sh
 sudo node tools/server/agent/commands/update/cli.mjs \
@@ -330,13 +334,14 @@ sudo node tools/server/agent/commands/update/cli.mjs \
 ```
 
 **Primera execució.** Mentre no hi hagi cap `REVISION` enregistrat cal
-declarar el commit instal·lat; al VPS és `0a5722d` des del 22 de novembre de
-2026:
+declarar el commit instal·lat, amb el SHA complet; al VPS és `0a5722d` des del
+22 de novembre de 2026:
 
 ```sh
+sudo git -C /srv/mountain-runners rev-parse 0a5722d
 sudo node tools/server/agent/commands/update/cli.mjs \
   --repository /srv/mountain-runners \
-  --commit <commit> --installed 0a5722d
+  --commit <commit> --installed <sha complet del commit instal·lat>
 ```
 
 A partir de la primera execució l'ordre llegeix el commit instal·lat de
@@ -349,31 +354,48 @@ defecte.
 
 **Què comprova, en aquest ordre.**
 
-1. Que el commit és abastable des d'`origin/main` del clon, i el resol a un SHA
-   complet. Un commit d'una branca no fusionada es refusa.
+1. Que el commit és abastable des de `refs/remotes/origin/main` del clon. Un
+   commit d'una branca no fusionada es refusa. Git s'executa amb
+   `core.fsmonitor=false`, `core.hooksPath=/dev/null` i, a l'arxiu,
+   `core.attributesFile=/dev/null`; el diff no aplica noms antics, filtres ni
+   textconv.
 2. Que l'arbre instal·lat coincideix amb un `git archive` del commit enregistrat
    o declarat: `agent/` sencer i les entrades instal·lades del paquet
    (`src`, `examples`, `package.json`, `LICENSE` i `README.md`, sense fitxers de
    prova), amb el sha256 de cada fitxer i el conjunt exacte. Qualsevol diferència
    la refusa i n'enumera fins a 20.
-3. Que l'estat és inactiu, amb les bases obertes en només lectura: cap
-   instrucció `pending` o `running`, cap reparació `reserved`, `queued` o
-   `running`, cap avís `pending`, `sending` o `uncertain` i cap cas incert de
+3. Que l'estat és inactiu, amb les bases obertes en només lectura i refusant-ne
+   qualsevol que sigui un enllaç: cap instrucció `pending` o `running`, cap
+   reparació `reserved`, `queued` o `running`, cap avís `pending`, `sending` o
+   `uncertain`, cap merge `merging` o `uncertain`, cap preview `awaiting` i cap
+   cas incert de
    [reconciliació](#reconciliació-de-resultats-desconeguts). Si n'hi ha, la
    refusa amb els comptes.
-4. Si el lockfile, `.node-version`, `package.json` (l'arrel i `apps/web`), el
-   `package.json` del pont o `tools/server/agent/sandbox/Containerfile` han
-   canviat respecte del commit instal·lat, refusa instal·lar tret que
-   `--image-rebuilt` affirmi que la imatge del commit nou ja està construïda i
-   que `agent.env` ja hi apunta. Els canvis a `tools/server/systemd/` i a
-   `.env.example` no la refusen: els reporta com a accions a fer abans
-   d'arrencar.
+4. Si el lockfile, `pnpm-workspace.yaml`, `.node-version`, `package.json`
+   (l'arrel i `apps/web`), el `package.json` del pont o
+   `tools/server/agent/sandbox/Containerfile` han canviat respecte del commit
+   instal·lat, refusa instal·lar tret que `--image-rebuilt` affirmi que la
+   imatge del commit nou ja està construïda i que `agent.env` ja hi apunta. Els
+   canvis a `tools/server/systemd/` i a `.env.example` no la refusen: els
+   reporta com a accions a fer abans d'arrencar. Abans de copiar res, extreu i
+   comprova l'arxiu del commit nou: un enllaç o una substitució de contingut
+   (`export-subst`) el refusen amb el servei encara en marxa.
 5. Atura el servei i comprova que `systemctl is-active mountain-agent` ja no diu
-   `active`. Si encara hi és, refusa abans d'escriure res.
-6. Copia `agent/`, `node_modules/telegram-pi-bridge/` i `state/` a
-   `/var/backups/mountain-runners-agent/`, amb els dos commits curts i la marca
-   de temps UTC al nom, hi apunta el symlink `agent-previous` i desa el commit
-   anterior a `agent-previous.REVISION`. Les còpies queden només per a root.
+   `active`. Si encara hi és, refusa abans d'escriure res. Torna a comprovar
+   l'estat després d'aturar: un torn que havia començat mentre el servei
+   s'aturava encara és feina en curs i refusa la resta.
+6. Comprova primer l'espai lliure del sistema de fitxers de les còpies: en vol
+   el doble del que ocupen `agent/`, el pont i `state/`, i si no hi és refusa i
+   remet a [Retenció](#retenció). Copia `agent/` i
+   `node_modules/telegram-pi-bridge/` a `/var/backups/mountain-runners-agent/`
+   amb els dos commits curts i la marca de temps UTC al nom, hi apunta el
+   symlink `agent-previous` i desa el commit anterior a
+   `agent-previous.REVISION`. L'estat no el llegeix root: la identitat del
+   servei l'escriu en un sol fitxer
+   `state-<instal·lat>-to-<nou>-<marca>.tar`, creat per root en mode `0600`, de
+   manera que un enllaç o un FIFO que l'agent hi hagi deixat es desa tal com és
+   i no es segueix mai. Si `state/` mateix és un enllaç, la refusa. Les còpies
+   queden només per a root.
 7. Munta `agent.new` i `telegram-pi-bridge.new` al costat dels directoris vius
    des d'un `git archive` nou del commit, els dona `root:root`, `0755` als
    directoris i `0644` als fitxers, i els intercanvia amb renames: els
@@ -384,17 +406,18 @@ defecte.
 
 #### Reconstruir la imatge del sandbox
 
-Cal fer-ho quan l'ordre refusa pel pas 4. Atura el servei abans de retirar la
-imatge: `podman rmi` falla mentre un contenidor la fa servir, i un torn nou pot
-començar entre la comprovació de l'ordre i la reconstrucció. La imatge es
-construeix com `mountain-agent`, dins del cgroup de la unitat transitòria, amb el
-seu magatzem local de Podman i els seus rangs de `subuid` i `subgid`; mai amb
-`sudo podman`. Desa primer la imatge actual per poder tornar enrere:
+Cal fer-ho quan l'ordre refusa pel pas 4. Atura el servei: `podman rmi` falla
+mentre un contenidor la fa servir i un torn nou pot començar entre la comprovació
+de l'ordre i la reconstrucció. La imatge es construeix com `mountain-agent`, dins
+del cgroup de la unitat transitòria, amb el seu magatzem local de Podman i els
+seus rangs de `subuid` i `subgid`; mai amb `sudo podman`. Desa primer la imatge
+actual per poder tornar enrere:
 
 ```sh
 # Com a root. <imatge-actual> i <imatge-nova> són les etiquetes locals, per
 # exemple localhost/mountain-agent:<commit>.
 set -eu
+systemctl stop mountain-agent
 A=/var/lib/mountain-runners-agent
 B=/var/backups/mountain-runners-agent
 pm() {
@@ -412,19 +435,32 @@ chmod 0600 "$B/mountain-agent-<commit-instal·lat>.oci.tar"
 pm rmi <imatge-actual>
 pm image prune -f
 df -h "$A"
-# 3. Munta el context del commit revisat des del clon de la persona operadora.
-rm -rf "$A/tmp/image-build-<commit>"
-install -d -m 0700 "$A/tmp/image-build-<commit>"
-git -C /srv/mountain-runners archive <commit> | \
-  tar -x -C "$A/tmp/image-build-<commit>"
-chown -R mountain-agent:mountain-agent "$A/tmp/image-build-<commit>"
+# 3. Munta el context del commit revisat fora del volum de l'agent: el crea
+#    root i el servei només el pot llegir.
+CONTEXT=$(mktemp -d /var/tmp/mountain-agent-build.XXXXXXXX)
+chmod 0755 "$CONTEXT"
+git -C /srv/mountain-runners archive <commit> | tar -x -C "$CONTEXT"
+chmod -R a+rX,go-w "$CONTEXT"
 # 4. Construeix sense xarxa: el contenidor no en té i tot arriba al store local.
-WD="$A/tmp/image-build-<commit>" pm build --pull=never \
+WD="$CONTEXT" pm build --pull=never \
   -f tools/server/agent/sandbox/Containerfile -t <imatge-nova> .
 pm image inspect <imatge-nova> --format "{{.Id}}"
 # 5. Neteja el context.
-rm -rf "$A/tmp/image-build-<commit>"
+rm -rf "$CONTEXT"
 ```
+
+`systemd-run --working-directory` fixa el directori de treball del `podman build`,
+que s'executa com `mountain-agent`: ha de poder travessar i llegir el context, i
+no l'ha de poder modificar. Per això viu fora de
+`/var/lib/mountain-runners-agent`, en un `mktemp -d` de root amb directoris
+`0755` i fitxers `0644`, i per això el volum de l'agent no rep cap ordre de root
+que hi escrigui ni que hi esborri res. Comprova-ho abans de construir:
+
+```sh
+runuser -u mountain-agent -- test -r "$CONTEXT/package.json"
+```
+
+No hi ha cap `rm -rf`, `install` ni `tar` de root dins del volum de l'agent.
 
 El valor que imprimeix `image inspect` és el que fixa
 `MOUNTAIN_AGENT_SANDBOX_IMAGE` a `/etc/mountain-runners-agent/agent.env`, que
@@ -468,12 +504,38 @@ sudo chmod -R u=rwX,go=rX "$L/agent" "$L/node_modules/telegram-pi-bridge"
 ```
 
 Si el commit nou havia canviat l'esquema de `state/`, restaura també la còpia de
-l'estat, amb el propietari `mountain-agent:mountain-agent` i el mode `0700`
-segons la [restauració](#còpies-i-restauració); si no tens aquesta còpia, no
-tornis enrere sense aprovació explícita. Arrenca el servei i repeteix la
-comprovació. Si la imatge del sandbox va canviar, torna a carregar la còpia amb
-`podman load`, apunta-hi `MOUNTAIN_AGENT_SANDBOX_IMAGE` i no esborris l'arxiu
-fins que la reversió estigui verificada.
+l'estat. L'extracció la fa la identitat del servei, que és qui escriu l'estat,
+sobre un `state/` buit:
+
+```sh
+sudo find /var/lib/mountain-runners-agent/state -mindepth 1 -delete
+sudo runuser -u mountain-agent -- tar \
+  -C /var/lib/mountain-runners-agent/state -xf "$B/<còpia-de-l'estat>.tar"
+```
+
+Si no tens aquesta còpia, no tornis enrere sense aprovació explícita. Arrenca el
+servei i repeteix la comprovació. Si la imatge del sandbox va canviar, torna a
+carregar la còpia amb `podman load`, apunta-hi `MOUNTAIN_AGENT_SANDBOX_IMAGE` i
+no esborris l'arxiu fins que la reversió estigui verificada.
+
+**Si l'ordre cau durant la substitució.** Entre els renames hi pot haver
+`agent.new`, `telegram-pi-bridge.new` i els `*.old` al costat dels directoris
+vius. Mentre `agent.REVISION` no s'hagi escrit, cap d'ells no és una
+instal·lació verificada: la marca només s'escriu després de comprovar l'arbre.
+Amb el servei aturat, mira què hi ha:
+
+```sh
+ls -ld /usr/local/lib/mountain-runners/agent* \
+  /usr/local/lib/mountain-runners/node_modules/telegram-pi-bridge*
+```
+
+- Si `agent/` i `node_modules/telegram-pi-bridge/` hi són i `agent.REVISION`
+  encara és el commit anterior, restaura les còpies dels paràgrafs anteriors: és
+  l'estat conegut.
+- Si hi falta `agent/` però hi ha `agent.old`, `mv agent.old agent` el recupera;
+  si ja no hi és, `agent-previous` és la còpia.
+- `agent.new` i `telegram-pi-bridge.new` són un intent a mitges: esborra'ls quan
+  la instal·lació bona ja és al lloc.
 
 ### Migració de noms
 
