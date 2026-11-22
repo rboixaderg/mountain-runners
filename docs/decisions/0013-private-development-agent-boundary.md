@@ -209,6 +209,50 @@ l'esmena de l'etiqueta, i retira el codi que reconciliava els comentaris
 `/preview` anteriors, incloent-hi la lectura del compte autenticat del token.
 Aquesta esmena no afegeix cap operació al component de GitHub ni amplia el token.
 
+## Esmena proposada (confirmació del merge en dos passos, 22 de novembre de 2026)
+
+Proposada fins que es fusioni la PR de l'[especificació de la confirmació del
+merge amb una pregunta i una resposta](../specs/preview-merge-confirmation.md).
+No activa cap permís. Avui l'única autorització és el literal `/merge`; aquesta
+esmena afegeix una forma contextual en dos passos i no n'activa cap.
+
+- **Abast i tasques.** La T1 fixa la font del SHA del merge. La T2 afegeix la
+  pregunta i la confirmació, actualitza la documentació operativa quan canviï i
+  alinea `AGENTS.md`, `CONTRIBUTING.md`, `docs/ai-assistant.md`,
+  `docs/architecture.md`, `docs/runbook.md` i les guies afectades abans d'activar.
+  La primera fusió real necessita l'aprovació explícita de la persona mantenidora.
+- **El text no autoritza.** Una validació com «La feina està validada» només
+  provoca una pregunta fixa. Només la resposta «Sí» de la mateixa persona
+  verificada a aquella pregunta autoritza el merge d'exactament la PR i el SHA de
+  la preview confirmada. Només compta la resposta directa a la pregunta, amb la
+  identitat exacta de la resposta; cites, reenviaments, edicions i fitxers o
+  llegendes no autoritzen. Cap altra prosa, text d'una PR, del model o d'una eina,
+  ni un assentiment simple no autoritzen res.
+- **Font del SHA (T1).** El SHA fixat és el de la preview confirmada i lliurada al
+  tema, amb l'identificador del missatge desat després de l'enviament, i substitueix
+  el de l'últim avís de CI verd a totes les formes de `/merge`. Aquesta esmena en
+  fixa la font directament, sense dependre de l'aprovació de l'esmena T8.9, i
+  substitueix la font del SHA de l'apartat «Merge autoritzat per una persona» i de
+  l'esmena T8.4. La sintaxi i la resta de controls de `/merge` no canvien.
+- **Controls.** Es mantenen la pertinença comprovada en el moment de confirmar, PR
+  oberta, no esborrany, base `main`, repositori principal, cap igual al SHA fixat,
+  comprovacions obligatòries en verd, branca al dia, etiqueta `preview`, cap
+  `preview-revoked`, cap bypass d'administrador i mètode squash.
+- **Producció.** La fusió és a `main`. El desplegament s'inicia amb aquest push
+  segons `.github/workflows/artifact.yml` i els controls de producció; el servei no
+  fa cap operació nova, no garanteix la publicació, no en consulta l'estat i no
+  tanca cap PR sense fusionar.
+- **Sense mitjans nous.** No hi ha model, interfície ni transport nou, i no hi ha
+  cap credencial ni operació de GitHub nova. La pregunta és un missatge i la
+  confirmació una resposta.
+- **Idempotència i incertesa.** Un «Sí» repetit o un reinici no fusionen dues
+  vegades, i un avís substituït o d'enviament incert queda inert. Un resultat
+  desconegut es reconcilia llegint la PR abans de res; si no la mostra fusionada,
+  només una persona verificada el resol amb `/merge <PR> <SHA>`, que no autoritza
+  repetir ni saltar controls.
+- **Cap permís actiu.** Els controls s'han de provar abans d'activar-los i la
+  primera fusió real requereix l'aprovació de la persona mantenidora.
+
 ## Comprovacions i punts pendents
 
 L'esmena de merge i l'esmena de l'ADR 0009 ja estan aprovades. Abans d'activar el pilot cal provar els controls essencials d'identitat, aïllament, credencials i protecció de `main`. El compte de GitHub triat és administrador; un compte de prova sense accés al repositori no substitueix les comprovacions de la credencial i del component de confiança que utilitzarà el servei. Les comprovacions de permisos no fusionen cap PR ni fan push a `main`; el merge del pilot s'exercita després, amb autorització explícita.
