@@ -15,6 +15,10 @@ acceptada:
 4. `DESIGN.md` governa la direcció visual i `AGENTS.md`, `CONTRIBUTING.md` i
    `SECURITY.md` governen el procés.
 
+La propietat de cada tipus de contingut i les regles de vigència dels documents
+viuen a la secció «Documentation Ownership» d'[`AGENTS.md`](../AGENTS.md#documentation-ownership).
+Aquest mapa enllaça els documents i no repeteix aquestes regles.
+
 ## Documents Operatius
 
 - [`architecture.md`](architecture.md): implementació actual i direcció
@@ -27,8 +31,6 @@ acceptada:
   `apps/web`.
 - [`testing-strategy.md`](testing-strategy.md): nivells de prova, garanties de
   regressió, aïllament, redundància i validació.
-- [`tailwind-v4-migration-plan.md`](tailwind-v4-migration-plan.md): pla operatiu
-  incremental i checkpoints de la migració Tailwind de la PR #98.
 - [`roadmap.md`](roadmap.md): fases, dependències i estat general.
 - [`backlog.md`](backlog.md): necessitats obertes i registre del seu triatge.
 - [`deployment.md`](deployment.md): estat i límits operatius de les fases 5 i 6.
@@ -37,8 +39,6 @@ acceptada:
   Inclou el diagrama Mermaid viu de l'arquitectura del VPS.
 - [`phase-5-t55-dns-inventory.md`](phase-5-t55-dns-inventory.md): inventari
   públic dels registres a preservar i a substituir al tall.
-- [`phase-5-t51-preparacio.md`](phase-5-t51-preparacio.md): decisions
-  preliminars de desplegament que la T5.1 ha de ratificar.
 - [`ai-assistant.md`](ai-assistant.md): límits dels futurs xat públic i assistent
   editorial.
 - [`specs/`](specs/): requisits i acceptació de fases i tasques.
@@ -60,9 +60,6 @@ descriuen necessàriament l'estat actual:
 - [`phase-2-editorial-inventory.md`](phase-2-editorial-inventory.md) i
   [`phase-3-editorial-inventory.md`](phase-3-editorial-inventory.md): inventaris i
   aprovacions disponibles en cada fase.
-- [`design-references.md`](design-references.md): referències Stitch retirades.
-- [`diari-de-treball.md`](diari-de-treball.md): relat datat del període que
-  declara el mateix document.
 - [`validation/`](validation/): evidència de revisions executades i punts de
   tancament, no substitut de l'especificació.
 
