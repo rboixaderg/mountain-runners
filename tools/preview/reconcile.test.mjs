@@ -36,6 +36,7 @@ test("retires expired and closed previews but keeps open previews even when thei
     now,
     readPull: async (number) => ({
       state: number === 2 ? "closed" : "open",
+      labels: [{ name: "preview" }],
       head: {
         sha: number === 3 ? "b".repeat(40) : commit,
         repo: { full_name: repository },
@@ -66,6 +67,7 @@ test("retires canceled uploads after one day and fork heads immediately", async 
     now,
     readPull: async () => ({
       state: "open",
+      labels: [{ name: "preview" }],
       head: { sha: commit, repo: { full_name: "fork/repo" } },
     }),
   });
@@ -90,7 +92,7 @@ test("a maintainer revocation label retires an open preview", async () => {
     now,
     readPull: async () => ({
       state: "open",
-      labels: [{ name: "preview-revoked" }],
+      labels: [{ name: "preview" }, { name: "preview-revoked" }],
       head: { sha: commit, repo: { full_name: repository } },
     }),
   });
@@ -168,7 +170,10 @@ test("a failed prune does not block revocation of another preview", async () => 
       now,
       readPull: async (number) => ({
         state: "open",
-        labels: number === 2 ? [{ name: "preview-revoked" }] : [],
+        labels: [
+          { name: "preview" },
+          ...(number === 2 ? [{ name: "preview-revoked" }] : []),
+        ],
         head: { sha: commit, repo: { full_name: repository } },
       }),
     }),
@@ -212,26 +217,33 @@ test("removing the preview label retires that pull request preview and its site"
   ]);
 });
 
-test("the periodic reconciliation keeps open previews published without the label", async () => {
+test("scheduled cleanup retires an open preview without the label and edits its comment", async () => {
   const transport = transportFor([
     { pullNumber: 5, commit, updatedAt: "2026-09-27T00:00:00.000Z" },
   ]);
-  await reconcilePreviews({
+  const marked = [];
+  await runCleanup({
+    eventName: "schedule",
+    event: {},
     transport,
-    repository,
-    now,
-    readPull: async () => ({
-      state: "open",
-      labels: [],
-      head: { sha: commit, repo: { full_name: repository } },
-    }),
+    reconcile: () =>
+      reconcilePreviews({
+        transport,
+        repository,
+        now,
+        markRetired: async (pullNumber) => marked.push(pullNumber),
+        readPull: async () => ({
+          state: "open",
+          labels: [],
+          head: { sha: commit, repo: { full_name: repository } },
+        }),
+      }),
   });
-  assert.equal(
-    transport.commands.some((command) =>
-      command.startsWith("mountain-preview retire "),
-    ),
-    false,
-  );
+  assert.deepEqual(transport.commands.slice(-2), [
+    "mountain-preview retire 5",
+    "mountain-preview site-disable 5",
+  ]);
+  assert.deepEqual(marked, [5]);
 });
 
 async function routeCleanup(eventName, event) {
