@@ -20,11 +20,12 @@ const COMMIT_SHA = /^[0-9a-f]{40}$/u;
 const SKILL_NAME = /^[a-z0-9][a-z0-9-]*$/u;
 const DOCUMENT_FILE = /\.(?:md|txt)$/iu;
 const LFS_POINTER = "version https://git-lfs.github.com/spec/v1";
-// Bidi controls and zero-width characters: a skill is Markdown read by an
-// agent, so none of them belong here. Control characters are checked by code
-// point because only newline and tab are accepted.
-const BIDI_OR_ZERO_WIDTH =
-  /[\u061c\u200b-\u200f\u202a-\u202e\u2060-\u2069\ufeff]/u;
+// A skill is Markdown read by an agent: no control, format, private-use,
+// unassigned or variation-selector characters. Newline and tab are the only
+// accepted control characters, so they are skipped before the test.
+const UNSAFE_CHARACTER = /[\p{Cc}\p{Cf}\p{Co}\p{Cn}]/u;
+const VARIATION_SELECTOR = /[\uFE00-\uFE0F]/u;
+const UTF8_DECODER = new TextDecoder("utf-8", { fatal: true });
 
 const EXTERNAL_URL = /https?:\/\/[^\s)<>"'`\]]+/gu;
 const HTML_COMMENT = /<!--/u;
@@ -191,13 +192,14 @@ async function readTree({ apiClient, owner, repository, sha, treeCache }) {
 }
 
 function isSafePath(path) {
-  return (
-    !path.startsWith("/") &&
-    !path.includes("\\") &&
-    !path
-      .split("/")
-      .some((segment) => segment === "" || segment === "." || segment === "..")
-  );
+  return path
+    .split("/")
+    .every(
+      (segment) =>
+        segment !== "." &&
+        segment !== ".." &&
+        /^[A-Za-z0-9._-]+$/u.test(segment),
+    );
 }
 
 function assertContained(path, prefix) {
@@ -206,18 +208,24 @@ function assertContained(path, prefix) {
   }
 }
 
-function isUnsafeCharacter(codePoint) {
-  if (codePoint === 0x09 || codePoint === 0x0a) return false;
-  if (codePoint < 0x20 || codePoint === 0x7f) return true;
-  return BIDI_OR_ZERO_WIDTH.test(String.fromCodePoint(codePoint));
+function decodeText(path, content) {
+  try {
+    return UTF8_DECODER.decode(content);
+  } catch {
+    refuse(`${path} is not valid UTF-8`);
+  }
 }
 
 function assertPlainText(path, content) {
-  for (const character of content.toString("utf8")) {
-    const codePoint = character.codePointAt(0);
-    if (isUnsafeCharacter(codePoint)) {
+  for (const character of decodeText(path, content)) {
+    if (character === "\n" || character === "\t") continue;
+    if (
+      UNSAFE_CHARACTER.test(character) ||
+      VARIATION_SELECTOR.test(character)
+    ) {
+      const codePoint = character.codePointAt(0).toString(16).padStart(4, "0");
       refuse(
-        `${path} contains the control or bidi character U+${codePoint.toString(16).padStart(4, "0")}`,
+        `${path} contains the control, format or bidi character U+${codePoint}`,
       );
     }
   }
@@ -241,6 +249,12 @@ async function readUpstreamFile({
   }
   if (!isLicense && !DOCUMENT_FILE.test(path)) {
     refuse(`${path} is not a .md or .txt file`);
+  }
+  if (!COMMIT_SHA.test(treeEntry.sha)) {
+    refuse(`${path} is not a blob SHA`);
+  }
+  if (treeEntry.size > MAX_FILE_BYTES) {
+    refuse(`${path} is larger than 256 KiB`);
   }
 
   const { data: blob } = await apiClient.get(
@@ -344,6 +358,7 @@ async function planSkill({
   const { name, entry } = skill;
   const prefix = `${entry.sourceSkillPath.replace(/\/+$/u, "")}/`;
   const licensePath = entry.sourceLicensePath;
+  const licenseName = posix.basename(licensePath);
   if (!COMMIT_SHA.test(entry.commit)) {
     refuse(`${name}: the pinned commit is not a SHA`);
   }
@@ -377,10 +392,20 @@ async function planSkill({
   if (changedPaths.length === 0) return null;
 
   const files = new Map();
+  const seenPaths = new Map();
   let totalBytes = license.length;
   for (const [path, treeEntry] of headTree) {
     if (treeEntry.type === "tree" || !path.startsWith(prefix)) continue;
     assertContained(path, prefix);
+    const relativePath = path.slice(prefix.length);
+    if (relativePath.toLowerCase() === licenseName.toLowerCase()) {
+      refuse(`${name}: ${path} collides with the license ${licenseName}`);
+    }
+    const earlierPath = seenPaths.get(relativePath.toLowerCase());
+    if (earlierPath !== undefined) {
+      refuse(`${name}: ${path} differs only by case from ${earlierPath}`);
+    }
+    seenPaths.set(relativePath.toLowerCase(), path);
     const content = await readUpstreamFile({
       apiClient,
       owner,
@@ -388,7 +413,7 @@ async function planSkill({
       treeEntry,
       isLicense: false,
     });
-    files.set(path.slice(prefix.length), content);
+    files.set(relativePath, content);
     totalBytes += content.length;
   }
   if (totalBytes > MAX_SKILL_BYTES) {
@@ -416,7 +441,7 @@ async function planSkill({
   return {
     name,
     commit: headCommit,
-    licenseName: posix.basename(licensePath),
+    licenseName,
     license,
     files,
     changes,
@@ -446,6 +471,11 @@ async function planSource({
     if (skill.entry.license !== declared) {
       refuse(
         `the declared license of ${source.sourceUrl} changed from ${skill.entry.license} to ${declared}`,
+      );
+    }
+    if (skill.entry.repositoryId !== upstream.id) {
+      refuse(
+        `the repository id of ${source.sourceUrl} changed from ${skill.entry.repositoryId} to ${upstream.id}`,
       );
     }
   }
@@ -499,6 +529,28 @@ async function planSource({
   };
 }
 
+function formatHashes(proposal) {
+  const lines = [];
+  for (const skill of proposal.skills) {
+    for (const change of skill.changes) {
+      if (!change.hash) continue;
+      lines.push(`- \`${skill.name}/${change.path}\` — \`${change.hash}\``);
+    }
+  }
+  return lines;
+}
+
+// Untrusted upstream text goes inside a fence that no run of tildes or
+// backticks in the content can close.
+function fencedText(content) {
+  const longestRun = Math.max(
+    0,
+    ...(content.match(/~+|`+/gu) ?? []).map((run) => run.length),
+  );
+  const fence = "~".repeat(Math.max(3, longestRun + 1));
+  return [`${fence}text`, content, fence].join("\n");
+}
+
 function buildPullRequestBody(proposal) {
   const lines = [
     `Origen: ${proposal.sourceUrl}`,
@@ -514,19 +566,20 @@ function buildPullRequestBody(proposal) {
     "## Fitxers canviats",
     "",
   ];
+  const changedFiles = [];
   for (const skill of proposal.skills) {
-    lines.push(`### \`${skill.name}\``, "");
+    changedFiles.push(`${skill.name}`);
     for (const change of skill.changes) {
-      const digest = change.hash ? ` — \`${change.hash}\`` : "";
-      lines.push(
-        `- \`${change.path}\` (${CHANGE_LABELS[change.status]})${digest}`,
-      );
+      changedFiles.push(`  ${CHANGE_LABELS[change.status]} ${change.path}`);
     }
   }
+  lines.push(fencedText(changedFiles.join("\n")));
+
+  lines.push("", "## Hashes nous", "", ...formatHashes(proposal));
 
   lines.push("", "## Per revisar", "");
   const findings = proposal.skills.flatMap((skill) =>
-    skill.review.map((finding) => `- \`${skill.name}/${finding}\``),
+    skill.review.map((finding) => `${skill.name}/${finding}`),
   );
   if (findings.length === 0) {
     lines.push("Cap troballa automàtica. Revisa igualment el diff cru.");
@@ -534,7 +587,7 @@ function buildPullRequestBody(proposal) {
     lines.push(
       "Comentaris HTML, URLs externes noves, blocs de shell i línies d'ordre:",
       "",
-      ...findings.slice(0, MAX_REVIEW_FINDINGS),
+      fencedText(findings.slice(0, MAX_REVIEW_FINDINGS).join("\n")),
     );
     if (findings.length > MAX_REVIEW_FINDINGS) {
       lines.push(
@@ -605,14 +658,22 @@ function pushCredentials(token) {
 }
 
 async function resolveBot({ apiClient, appSlug }) {
-  const { data: user } = await apiClient.get("/user");
-  if (user.type !== "Bot" || user.login !== `${appSlug}[bot]`) {
-    refuse(`the token belongs to ${user.login}, not to the ${appSlug} App`);
+  const login = `${appSlug}[bot]`;
+  let user;
+  try {
+    ({ data: user } = await apiClient.get(
+      `/users/${encodeURIComponent(login)}`,
+    ));
+  } catch (error) {
+    refuse(`cannot resolve the ${login} account: ${error.message}`);
+  }
+  if (user.type !== "Bot" || user.login !== login) {
+    refuse(`the account ${user.login} is not the ${login} bot`);
   }
   return {
-    login: user.login,
-    name: user.login,
-    email: `${user.id}+${user.login}@users.noreply.github.com`,
+    login,
+    name: login,
+    email: `${user.id}+${login}@users.noreply.github.com`,
   };
 }
 
@@ -669,7 +730,7 @@ async function assertPullRequestBelongsToApp({
 
 async function applyProposal({
   proposal,
-  manifest,
+  baseSha,
   apiClient,
   cwd,
   git,
@@ -697,6 +758,25 @@ async function applyProposal({
       bot,
     });
   }
+
+  const { data: pulls } = await apiClient.get(
+    `/repos/${owner}/${repository}/pulls?state=open&head=${encodeURIComponent(`${owner}:${branch}`)}`,
+  );
+  const open = pulls.find((pullRequest) => pullRequest.head.ref === branch);
+  if (open) {
+    await assertPullRequestBelongsToApp({
+      pullRequest: open,
+      owner,
+      repository,
+      bot,
+    });
+  }
+
+  // Each branch carries only its own source: drop whatever a previous
+  // proposal wrote and start from the base commit and the base manifest.
+  await git(["reset", "--hard", baseSha], { cwd });
+  await git(["clean", "-fd", "--", SKILLS_DIRECTORY], { cwd });
+  const manifest = JSON.parse(readFileSync(join(cwd, MANIFEST_PATH), "utf8"));
 
   for (const skill of proposal.skills) {
     writeSkillDirectory(
@@ -745,18 +825,8 @@ async function applyProposal({
     );
   }
 
-  const { data: pulls } = await apiClient.get(
-    `/repos/${owner}/${repository}/pulls?state=open&head=${encodeURIComponent(`${owner}:${branch}`)}`,
-  );
-  const open = pulls.find((pullRequest) => pullRequest.head.ref === branch);
   let pullRequest;
   if (open) {
-    await assertPullRequestBelongsToApp({
-      pullRequest: open,
-      owner,
-      repository,
-      bot,
-    });
     ({ data: pullRequest } = await apiClient.patch(
       `/repos/${owner}/${repository}/pulls/${open.number}`,
       { title: proposal.title, body: buildPullRequestBody(proposal) },
@@ -802,8 +872,10 @@ export async function runUpdate({
 } = {}) {
   const options = parseArguments(argv);
   const appSlug = options.appSlug ?? env.SKILLS_UPDATE_APP_SLUG;
-  const token = env.GITHUB_TOKEN;
-  if (options.apply && !token) throw new Error("--apply needs GITHUB_TOKEN");
+  const token = env.SKILLS_UPDATE_TOKEN;
+  if (options.apply && !token) {
+    throw new Error("--apply needs SKILLS_UPDATE_TOKEN");
+  }
   if (options.apply && !appSlug) throw new Error("--apply needs the App slug");
 
   const manifest = JSON.parse(readFileSync(join(cwd, MANIFEST_PATH), "utf8"));
@@ -870,11 +942,12 @@ export async function runUpdate({
     `/repos/${repositoryOwner}/${repositoryName}`,
   );
   const bot = await resolveBot({ apiClient, appSlug });
+  const baseSha = (await git(["rev-parse", "HEAD"], { cwd })).trim();
 
   for (const proposal of proposals) {
     await applyProposal({
       proposal,
-      manifest,
+      baseSha,
       apiClient,
       cwd,
       git,

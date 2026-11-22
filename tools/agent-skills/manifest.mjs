@@ -94,23 +94,38 @@ export function parseFrontmatter(text) {
   }
 
   const keys = [];
+  const seenKeys = new Set();
   let name;
   let version;
   let inMetadata = false;
-  for (const line of lines.slice(1, end)) {
-    const topLevel = /^([A-Za-z0-9_-]+):(.*)$/u.exec(line);
-    if (topLevel) {
-      const [, key, value] = topLevel;
-      keys.push(key);
-      inMetadata = key === "metadata";
-      if (key === "name") {
-        name = value.trim().replace(/^["']|["']$/gu, "");
+  for (const [index, line] of lines.slice(1, end).entries()) {
+    if (line.trim() === "") continue;
+    if (/^\s/u.test(line)) {
+      // Nested value of the previous key.
+      const nested = /^\s+version:(.*)$/u.exec(line);
+      if (inMetadata && nested) {
+        version = nested[1].trim().replace(/^["']|["']$/gu, "");
       }
       continue;
     }
-    const nested = /^\s+version:(.*)$/u.exec(line);
-    if (inMetadata && nested) {
-      version = nested[1].trim().replace(/^["']|["']$/gu, "");
+    if (line.startsWith("#")) continue;
+    const topLevel = /^([A-Za-z0-9_-]+):(.*)$/u.exec(line);
+    if (!topLevel) {
+      throw new Error(
+        `SKILL.md frontmatter line ${index + 2} is not a plain "key: value" line`,
+      );
+    }
+    const [, key, value] = topLevel;
+    if (seenKeys.has(key)) {
+      throw new Error(
+        `SKILL.md frontmatter key "${key}" appears more than once`,
+      );
+    }
+    seenKeys.add(key);
+    keys.push(key);
+    inMetadata = key === "metadata";
+    if (key === "name") {
+      name = value.trim().replace(/^["']|["']$/gu, "");
     }
   }
 

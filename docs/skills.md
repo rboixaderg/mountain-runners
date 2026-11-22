@@ -91,7 +91,8 @@ de control, frontmatter no permès o un commit que no es pot resoldre) fa
 fallar l'execució amb el motiu i no obre cap pull request.
 
 `pnpm skills:update` imprimeix les propostes sense escriure res i sense cap
-credencial.
+credencial. `--apply` queda reservat al workflow, que és l'únic que té el token
+de l'App; l'ús local és sempre `--dry-run`.
 
 ### Què Revisa La Persona Mantenidora
 
@@ -119,9 +120,9 @@ ruleset de `main`. Els secrets `SKILLS_UPDATE_APP_ID` i
 `actions/create-github-app-token` amb la resta d'accions.
 
 - **Rotació**: un cop l'any i de seguida que hi hagi un dubte. Genera una clau
-  nova a la configuració de l'App, desa la clau privada al secret de l'entorn,
-  executa el workflow amb `workflow_dispatch` i comprova que obre o actualitza
-  una pull request; llavors desa la clau nova i esborra la vella.
+  nova a la configuració de l'App, desa la clau privada al secret de l'entorn i
+  executa el workflow amb `workflow_dispatch` per comprovar que obre o actualitza
+  una pull request; llavors esborra la clau vella a la configuració de l'App.
 - **Revocació**: esborra la clau compromesa a la configuració de l'App i
   substitueix el secret de l'entorn. Sense cap clau vàlida el workflow falla i
   no escriu res.

@@ -3,6 +3,7 @@
   "skills": {
     "typescript-advanced-types": {
       "source": "https://github.com/wshobson/agents",
+      "repositoryId": 1025856648,
       "commit": "87b81e9d642d7bb9602b33d1e2dadf1c2a619f2b",
       "sourceSkillPath": "plugins/javascript-typescript/skills/typescript-advanced-types",
       "license": "MIT",
@@ -14,6 +15,7 @@
     },
     "vitest": {
       "source": "https://github.com/antfu/skills",
+      "repositoryId": 1143952193,
       "commit": "c35a5588a5158b5b404a14fb10469b2b6dc1952b",
       "sourceSkillPath": "skills/vitest",
       "license": "MIT",
@@ -42,6 +44,7 @@
     },
     "accessibility": {
       "source": "https://github.com/addyosmani/web-quality-skills",
+      "repositoryId": 1136782037,
       "commit": "fed9617111260e19f4f54b72a2874a3f3de8ff94",
       "sourceSkillPath": "skills/accessibility",
       "license": "MIT",
@@ -55,6 +58,7 @@
     },
     "seo": {
       "source": "https://github.com/addyosmani/web-quality-skills",
+      "repositoryId": 1136782037,
       "commit": "fed9617111260e19f4f54b72a2874a3f3de8ff94",
       "sourceSkillPath": "skills/seo",
       "license": "MIT",

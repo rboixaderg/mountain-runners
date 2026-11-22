@@ -17,6 +17,7 @@ import {
   checkSkillFrontmatter,
   compareSkill,
   isClean,
+  parseFrontmatter,
   readSkillFiles,
 } from "./manifest.mjs";
 
@@ -245,4 +246,48 @@ test("an own skill without metadata.version is reported", (t) => {
     checkSkillFrontmatter(withVersion, "sample", { requiresVersion: true }),
     [],
   );
+});
+
+test("a frontmatter line that is not a plain key is refused", (t) => {
+  const forms = [
+    '"allowed-tools": Bash',
+    "allowed-tools : Bash",
+    "? allowed-tools",
+    "{name: sample}",
+  ];
+  for (const form of forms) {
+    const directory = createSkillFixture(t, {
+      "SKILL.md": ["---", "name: sample", form, "---", ""].join("\n"),
+    });
+
+    assert.throws(
+      () => parseFrontmatter(readFileSync(join(directory, "SKILL.md"), "utf8")),
+      /is not a plain "key: value" line/u,
+      form,
+    );
+  }
+});
+
+test("a duplicated frontmatter key is refused", (t) => {
+  const directory = createSkillFixture(t, {
+    "SKILL.md": [
+      "---",
+      "name: sample",
+      "description: First.",
+      "description: Second.",
+      "---",
+      "",
+    ].join("\n"),
+  });
+
+  assert.throws(
+    () => parseFrontmatter(readFileSync(join(directory, "SKILL.md"), "utf8")),
+    /frontmatter key "description" appears more than once/u,
+  );
+});
+
+test("every external skill declares its upstream repository id", () => {
+  for (const [name, entry] of Object.entries(manifest.skills)) {
+    assert.match(String(entry.repositoryId), /^[0-9]+$/u, name);
+  }
 });

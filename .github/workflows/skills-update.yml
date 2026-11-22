@@ -36,6 +36,8 @@ jobs:
           node-version-file: .node-version
       - name: Resolve the App token
         id: app-token
+        # `app-id` still works; `client-id` is the newer input of the action and
+        # the maintainer stores the App ID as the secret.
         uses: actions/create-github-app-token@f418cff399f7aef4c2f0ad47e25ca7a6abbdd6fc # v3.4.0
         with:
           app-id: ${{ secrets.SKILLS_UPDATE_APP_ID }}
@@ -46,7 +48,7 @@ jobs:
           permission-pull-requests: write
       - name: Propose the updates
         env:
-          GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
+          SKILLS_UPDATE_TOKEN: ${{ steps.app-token.outputs.token }}
           GITHUB_REPOSITORY: ${{ github.repository }}
           SKILLS_UPDATE_APP_SLUG: ${{ steps.app-token.outputs.app-slug }}
         run: node tools/agent-skills/update-upstream.mjs --apply
