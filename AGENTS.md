@@ -64,6 +64,10 @@ A living document is any tracked Markdown file under `docs/`, `tools/` or
 - Keep skill frontmatter to the Agent Skills fields (`name`, `description`,
   `license`, `compatibility`, `metadata`) so every agent tool loads the skill
   unchanged.
+- Own skills carry `metadata.version`; bump it when the skill's behaviour
+  changes, not for a typo fix.
+- External skills stay byte-identical to `skills-manifest.json`, and only a
+  reviewed pull request re-pins them. `docs/skills.md` is the registry.
 - `CLAUDE.md` only imports `AGENTS.md`. Keep project instructions in
   `AGENTS.md` and tool-specific files free of duplicated rules.
 

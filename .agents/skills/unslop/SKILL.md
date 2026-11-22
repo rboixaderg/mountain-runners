@@ -1,6 +1,8 @@
 ---
 name: unslop
 description: Remove AI writing patterns from prose and explanations. Always apply when writing or editing text. For technical explanations, documentation and procedures, use the ASD-STE100-inspired technical mode.
+metadata:
+  version: "1.0.0"
 ---
 
 # Unslop
