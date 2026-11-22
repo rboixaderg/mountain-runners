@@ -432,12 +432,13 @@ La T8.3 implementa la base operativa de l'assistent privat de la fase 8:
 Telegram, sessions i un entorn aïllat que porta una tasca petita fins a una PR.
 La implementació està fusionada i instal·lada al VPS, i el pilot s'ha executat
 supervisat: una consulta que no crea branca i una tasca petita que arriba a PR,
-sense merge ni preview. El servei roman **aturat** per defecte i cada activació
-requereix aprovació explícita. El codi inclou l'avís i la reparació de CI, la
-preview i el merge demanats al tema i els adjunts. T8.9 afegeix una feina per
-tema i la sincronització amb `main`; aquests canvis no estan activats al VPS.
-Les esmenes proposades als ADR 0009 i 0013 requereixen revisió i fusió abans
-d'activar aquesta capacitat.
+sense merge ni preview. El servei està en marxa de manera estable amb l'últim
+codi instal·lat de `main`. El codi inclou l'avís i la reparació de CI, la
+preview i el merge demanats al tema, els adjunts, una feina per tema i la
+sincronització amb `main` (T8.9), segons les esmenes acceptades de l'ADR 0009 i
+de l'ADR 0013. S'actualitza manualment des d'un commit revisat de `main` segons
+el [runbook](runbook.md#actualitzar); no forma part del desplegament continu de
+producció.
 
 Les eines viuen a `tools/server/agent/` i s'instal·len a
 `/usr/local/lib/mountain-runners/agent/`. La unitat és
@@ -1592,12 +1593,14 @@ neteja que preserva treball no publicat (`storage/prune-worktrees.mjs`).
 
 ### Instal·lació prevista
 
-El procediment següent és la preparació prevista; **no s'ha executat** i cap ordre
-no es pot llançar sense aprovació explícita. Crea una identitat, un clon i una
-unitat separats de producció i de previews.
+El procediment següent és la primera instal·lació del servei, ja executada al
+VPS. Només es repeteix per instal·lar-lo en un servidor nou i cada ordre
+requereix aprovació explícita. Crea una identitat, un clon i una unitat separats
+de producció i de previews. Per actualitzar una instal·lació existent, segueix
+el [runbook](runbook.md#actualitzar): aquest script formata volums.
 
 ```sh
-# No executat. Requereix aprovació explícita abans de cada pas.
+# Primera instal·lació. Requereix aprovació explícita abans de cada pas.
 set -eu
 useradd --system --home /var/lib/mountain-runners-agent \
   --shell /usr/sbin/nologin mountain-agent
@@ -1658,7 +1661,8 @@ root. Si s'havia seguit una versió anterior del procediment, cal retirar la
 pertinença al grup Docker abans d'activar el servei. La instal·lació ha de
 comprovar que `podman --remote=false info --format '{{.Host.Security.Rootless}}'`
 retorna `true` com a `mountain-agent`, i demostrar els límits dins del cgroup
-delegat de la unitat. No s'han fet aquestes operacions al VPS.
+delegat de la unitat. Al VPS aquestes comprovacions consten a
+l'[estat de la verificació del pilot](#estat-de-la-verificació-del-pilot).
 
 La imatge aïllada ha d'incloure Node 24.22.3, pnpm, git, Chromium, `sharp` de
 `apps/web` i les altres dependències que necessita `pnpm check`, perquè el
@@ -1762,8 +1766,10 @@ Pendent per a les entregues següents:
   runbook. La pertinença, la revocació, la reconciliació i la retenció ja estan
   definides (T8.5).
 
-Mentre aquests casos no estiguin resolts, el servei no s'activa de manera
-permanent i cap agent no desplega ni fusiona res.
+Aquestes validacions es completen sobre el servei en marxa. L'agent de Telegram
+no desplega mai res. El merge demanat encara no s'ha provat amb una PR real: no
+està actiu fins que se'n verifiquin els controls, i la primera fusió requereix
+l'aprovació explícita de la persona mantenidora, segons l'ADR 0013.
 
 ## CI Implementada
 
@@ -1780,8 +1786,9 @@ La fase 5 està tancada; HSTS, entorn `production-rollback` i retirada dels
 required reviewers de `production` estan registrats a la
 [checklist de la T5.5](validation/phase-5-t55-launch-gate.md). La fase 6 també
 està tancada: les previews de PR són operatives i validades al VPS. La fase 7
-continua planificada i sense implementació. La fase 8 té la base T8.3
-implementada al repositori, però el servei no s'ha desplegat ni activat i la
-resta de la fase continua pendent. Només cal un ADR nou quan la implementació
-introdueixi o canviï una decisió arquitectònica; els detalls que apliquen la
+continua planificada i sense implementació. El servei de la fase 8 està
+instal·lat i en marxa al VPS; les tasques pendents de la fase són a la
+[spec](specs/phase-8-editorial-assistance.md). Només cal un ADR nou quan la
+implementació introdueixi o canviï una decisió arquitectònica; els detalls que
+apliquen la
 direcció acceptada continuen requerint una pull request revisada.

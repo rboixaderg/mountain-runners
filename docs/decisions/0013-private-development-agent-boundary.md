@@ -12,13 +12,15 @@ La mateixa revisió esmena l'[ADR 0009](0009-pr-previews-same-domain-and-own-bra
 
 Esmenada el 16 de novembre de 2026 per l'[ADR 0014](0014-operator-stop-and-repeatable-telegram-notices.md), només en dos punts: l'aturada de l'execució activa és de la persona operadora i un avís de Telegram es pot repetir després d'un lliurament desconegut. La resta d'aquest ADR no canvia.
 
+Esmenada el 20 i el 21 de novembre de 2026 amb els merges de la [PR #262](https://github.com/rboixaderg/mountain-runners/pull/262) (T8.9), la [PR #267](https://github.com/rboixaderg/mountain-runners/pull/267) (etiqueta de preview) i la [PR #273](https://github.com/rboixaderg/mountain-runners/pull/273) (retirada de `/preview`). Les tres esmenes són a l'apartat corresponent.
+
 ## Context
 
 La fase 8 proposa ampliar el futur assistent editorial privat a consultes i canvis de codi, mantenint una persona com a responsable de la revisió i el merge. El grup privat de Telegram seria la frontera d'accés humana. Cada tema seria una sessió compartida i podria contenir més d'una feina. La petició explícita d'una persona membre autoritza una implementació fins a una PR. Qui ha validat el resultat pot demanar després el merge d'aquella PR; sense aquesta petició, l'agent no fusiona, i no desplega mai.
 
 L'ampliació afecta les fronteres existents d'identitat, contingut autoritzat i eines. Els requisits i les amenaces són a [T8.1](../phase-8-t81-requisits-amenaces.md). La validació de T8.2 ha de distingir proves simulades de permisos reals i l'historial recuperat de l'execució recuperada.
 
-L'ADR 0003 no concedeix permís implícit als agents per fer push. Aquest ADR acceptat planteja una excepció acotada al futur servei privat: una petició clara d'implementació d'un membre verificat autoritza commit, push a la branca de treball i PR dins de l'abast demanat. L'esmena proposada hi afegeix que una comanda explícita i verificada d'un membre del grup, amb el commit ja validat, autoritza el merge d'aquella PR. Ni l'auto-merge, ni el push a `main`, ni els canvis de protecció, ni el desplegament formen part de l'excepció. Cal aprovar l'esmena i alinear `AGENTS.md` abans d'activar-la; les instruccions vigents continuen aplicant-se a les sessions locals i a la resta d'agents.
+L'ADR 0003 no concedeix permís implícit als agents per fer push. Aquest ADR acceptat planteja una excepció acotada al futur servei privat: una petició clara d'implementació d'un membre verificat autoritza commit, push a la branca de treball i PR dins de l'abast demanat. L'esmena aprovada a la PR #183 hi afegeix que una comanda explícita i verificada d'un membre del grup, amb el commit ja validat, autoritza el merge d'aquella PR. Ni l'auto-merge, ni el push a `main`, ni els canvis de protecció, ni el desplegament formen part de l'excepció. `AGENTS.md` hi està alineat; les instruccions vigents continuen aplicant-se a les sessions locals i a la resta d'agents.
 
 ## Comparació i proposta de pilot
 
@@ -156,9 +158,9 @@ L'[ADR 0009](0009-pr-previews-same-domain-and-own-branches.md) s'esmena en aques
 
 El publicador actual comprova que l'autor del comentari de GitHub sigui col·laborador; no veu la petició de Telegram. La delegació requereix, a més de l'esmena aprovada, proves del flux i dels permisos; fins que es facin, continua vigent el flux de preview amb autorització humana a GitHub.
 
-## Esmena proposada (T8.9, 20 de novembre de 2026)
+## Esmena (T8.9, 20 de novembre de 2026)
 
-Proposada fins que es fusioni la PR d'aquesta especificació. Substitueix la
+Acceptada amb el merge de la [PR #262](https://github.com/rboixaderg/mountain-runners/pull/262). Substitueix la
 regla que exigeix una petició explícita de preview: el servei la demana quan
 les comprovacions obligatòries del cap de la PR del tema són verdes. Conserva
 branques pròpies, vinculació al SHA i revalidació del publicador segons
@@ -177,10 +179,10 @@ No canvien la verificació i revocació de membres, el sandbox sense xarxa ni
 credencials, el merge determinista només a petició humana verificada, ni la
 protecció de producció.
 
-## Esmena proposada (etiqueta de preview, 21 de novembre de 2026)
+## Esmena (etiqueta de preview, 21 de novembre de 2026)
 
-Proposada fins que es fusioni la PR de l'[especificació de l'etiqueta de
-preview](../specs/preview-label.md). Substitueix, per al servei, el comentari
+Acceptada amb el merge de la [PR #267](https://github.com/rboixaderg/mountain-runners/pull/267),
+que defineix l'[especificació de l'etiqueta de preview](../specs/preview-label.md). Substitueix, per al servei, el comentari
 `/preview` de l'esmena T8.9: quan el servei crea la PR d'un tema, hi posa
 l'etiqueta `preview`, i cada push posterior del servei publica la preview segons
 l'esmena corresponent de l'[ADR 0009](0009-pr-previews-same-domain-and-own-branches.md).
@@ -199,9 +201,10 @@ Es mantenen la URL confirmada pel publicador per al cap actual, l'avís de falla
 planer, el merge determinista només a petició humana verificada i el sandbox sense
 xarxa ni credencials.
 
-## Esmena proposada (retirada de `/preview`, 21 de novembre de 2026)
+## Esmena (retirada de `/preview`, 21 de novembre de 2026)
 
-Proposada fins que es fusioni la PR de l'[especificació de la retirada de
+Acceptada amb el merge de la [PR #273](https://github.com/rboixaderg/mountain-runners/pull/273),
+que defineix l'[especificació de la retirada de
 `/preview`](../specs/retire-preview-command.md). Amb l'esmena corresponent de
 l'[ADR 0009](0009-pr-previews-same-domain-and-own-branches.md), el comentari
 `/preview` deixa de ser una petició de preview. El servei ja no el comenta des de

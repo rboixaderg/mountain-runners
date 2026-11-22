@@ -184,7 +184,7 @@ del torn de Pi tenen cadascuna un límit conjunt d'1 MiB per stdout i stderr.
 El servei executa Podman local sense root, amb un espai d'usuari que conserva
 l'UID/GID del worktree. Ni el pont ni Pi pertanyen al grup Docker ni reben un
 socket de contenidors del host. La unitat delega el seu cgroup al runtime;
-les proves reals de Podman a Linux i dels límits al VPS continuen pendents.
+Podman sense root i els límits s'han verificat al VPS.
 
 El component de Git selecciona explícitament metadades fora del muntatge,
 rebutja alteracions del fitxer indicador `.git` i executa les ordres amb hooks
@@ -203,11 +203,9 @@ exactament el SHA inspeccionat, sense forçar-lo. El
 reutilitzable de l'aplicació i les seves fronteres. El merge demanat i la petició
 delegada de preview continuen fora d'aquesta base (T8.4).
 
-La base no s'ha desplegat ni activat: no existeix cap servei, bot, grup ni
-credencial de la fase 8. L'aprovació de la frontera no activa permisos; els
-controls essencials s'han de verificar abans del pilot i la resta de casos, a les
-entregues posteriors. La instal·lació, la configuració, els límits pendents i
-les comprovacions són a [`docs/deployment.md`](deployment.md#agent-privat-de-desenvolupament-t83).
+El servei està instal·lat i en marxa al VPS, amb el bot, el grup privat i les
+credencials de la fase 8. La instal·lació, la configuració, els límits i les
+comprovacions són a [`docs/deployment.md`](deployment.md#agent-privat-de-desenvolupament-t83).
 
 ## Xat Públic, Més Endavant
 
@@ -219,9 +217,6 @@ formen part del disseny inicial.
 ## Fora D'Abast Ara
 
 - Servei de xat Hono i generador d'índex.
-- El servei operatiu de Telegram de la fase 8: l'ADR 0013 n'accepta la frontera i
-  la base T8.3 existeix al repositori, però no s'ha desplegat ni activat cap
-  servei, compte ni credencial.
 - Noves integracions DNS/edge o proveïdors per a previews fora de la decisió
   acceptada de la fase 6.
 

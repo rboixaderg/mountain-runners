@@ -1253,10 +1253,10 @@ L'agent privat rep instruccions en un grup privat de Telegram i les porta fins a
 una PR, una preview o un merge demanat. Aquesta secció és l'operació mínima: el
 detall de cada comportament viu a
 [`docs/deployment.md`](deployment.md#agent-privat-de-desenvolupament-t83). El
-servei està **aturat per defecte** i cada activació requereix l'aprovació
-explícita de la persona mantenidora. Abans d'activar-lo cal passar la
-[validació del pilot](#validació-del-pilot-t86). L'agent no desplega, no opera
-producció i no comparteix credencials amb les releases, Caddy ni les previews.
+servei està en marxa de manera estable. Aturar-lo, arrencar-lo o
+[actualitzar-lo](#actualitzar) requereix l'aprovació explícita de la persona
+mantenidora. L'agent no desplega, no opera producció i no comparteix
+credencials amb les releases, Caddy ni les previews.
 
 ### Identitat I Peces
 
@@ -1320,9 +1320,9 @@ systemctl status mountain-agent
 sudo journalctl -u mountain-agent -n 100
 ```
 
-No habilitis el servei de manera permanent ni l'arrenquis sense aprovació. Una
-aturada no esborra res: worktrees, feina sense publicar, sessions, estat,
-branques i PR publicades continuen. Els contenidors del sandbox s'eliminen sols
+No l'aturis, l'arrenquis ni l'habilitis a l'arrencada del sistema sense
+aprovació. Una aturada no esborra res: worktrees, feina sense publicar,
+sessions, estat, branques i PR publicades continuen. Els contenidors del sandbox s'eliminen sols
 (`--rm`) i una ordre en curs queda amb resultat desconegut. Una aturada amb un
 contenidor obert pot arribar als 30 segons de `TimeoutStopSec`, perquè el procés
 `pause` de Podman sense root no respon a `SIGTERM` i systemd acaba matant-lo.
@@ -1338,6 +1338,14 @@ muntatges segons la
 formatar cap volum amb dades.
 
 ### Actualitzar
+
+L'actualització la fa una persona operadora o una sessió local d'agent d'IA, en
+una màquina controlada per la persona mantenidora, que ha rebut la seva
+aprovació explícita a la mateixa conversa. Una aprovació arribada per Telegram
+no hi compta. Només s'instal·la un commit revisat de `main`. Aquest procediment
+no s'aplica a la web de producció, que només es desplega amb el
+[flux continu](#7-desplegament-continu-des-de-main), i l'agent de Telegram no
+s'actualitza mai a si mateix.
 
 1. Confirma que el commit és a `main` i que l'ha revisat una persona. La
    instal·lació copia fitxers i no desa cap marca del commit instal·lat, així que
@@ -1377,11 +1385,11 @@ formatar cap volum amb dades.
 Els valors no es mostren mai en aquest runbook, al tema, a la PR ni a la sortida
 d'una ordre. Edita `agent.env` com a root i comprova que conserva el mode `0600`.
 
-| Credencial                | On es genera               | Abast                                                                                                                                                              |
-| ------------------------- | -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Token del bot de Telegram | BotFather                  | Només el bot del grup configurat                                                                                                                                   |
-| Token de GitHub           | Compte de l'agent a GitHub | `Contents: write`, `Pull requests: write`, lectura de checks, estats i execucions de fluxos (`Actions: read`); sense `Workflows: write` ni lectura d'administració |
-| Credencial del model      | Proveïdor del model        | Només la crida al model; arriba a Pi i no al pont                                                                                                                  |
+| Credencial                | On es genera               | Abast                                                                                                                                                                       |
+| ------------------------- | -------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Token del bot de Telegram | BotFather                  | Només el bot del grup configurat                                                                                                                                            |
+| Token de GitHub           | Compte de l'agent a GitHub | `Contents: write`, `Pull requests: write`, lectura de checks i estats, `Actions: write` per reexecutar una comprovació; sense `Workflows: write` ni lectura d'administració |
+| Credencial del model      | Proveïdor del model        | Només la crida al model; arriba a Pi i no al pont                                                                                                                           |
 
 1. Genera la credencial nova a l'emissor i no revoquis l'antiga encara. El token
    de Telegram és l'excepció: el bot en té un de sol i revocar-lo invalida
@@ -1490,8 +1498,8 @@ de la persona mantenidora consta a l'especificació.
      incerts.
 1. **Credencial de GitHub i protecció de `main`.**
    - Fer: revisa el token del compte de l'agent: `Contents: write`,
-     `Pull requests: write`, lectura de checks i estats, lectura d'execucions
-     de fluxos (`Actions: read`), sense escriptura a
+     `Pull requests: write`, lectura de checks i estats, `Actions: write` per
+     reexecutar una comprovació, sense escriptura a
      `.github/workflows` i sense lectura d'administració. Comprova que el compte
      de l'agent és col·laborador del repositori, que
      `MOUNTAIN_AGENT_REQUIRED_CHECKS` coincideix amb la protecció de `main` amb la
