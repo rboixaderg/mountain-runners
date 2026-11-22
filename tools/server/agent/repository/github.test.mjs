@@ -752,7 +752,7 @@ test("exposes only the approved GitHub operations", () => {
     .sort();
 
   assert.deepEqual(publicOperations, [
-    "commentOnPullRequest",
+    "addPreviewLabel",
     "ensurePullRequest",
     "findOpenPullRequest",
     "getAuthenticatedLogin",
@@ -764,7 +764,6 @@ test("exposes only the approved GitHub operations", () => {
     "getWorkflowJobLog",
     "getWorkflowRun",
     "listIssueComments",
-    "listPreviewWorkflowRuns",
     "mergePullRequest",
     "pushBranch",
     "rerunFailedJobs",
@@ -859,33 +858,4 @@ test("never reduces an invalid pull request list to a real pull request", async 
     });
     await assert.rejects(component.findOpenPullRequest({ branch }), /invalid/u);
   }
-});
-
-test("stops at the total a complete page reports", async () => {
-  const requested = [];
-  const component = trust({
-    fetchImpl: async (url) => {
-      requested.push(url);
-      return {
-        ok: true,
-        json: async () => ({
-          total_count: 100,
-          workflow_runs: Array.from({ length: 100 }, (_, index) => ({
-            id: index + 1,
-            event: "issue_comment",
-            created_at: "2026-11-18T09:00:00Z",
-            status: "completed",
-            conclusion: "success",
-          })),
-        }),
-      };
-    },
-  });
-
-  const runs = await component.listPreviewWorkflowRuns({
-    createdSince: "2026-11-18T09:00:00Z",
-  });
-
-  assert.equal(runs.length, 100);
-  assert.equal(requested.length, 1, "a complete list is not read again");
 });

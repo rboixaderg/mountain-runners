@@ -27,7 +27,6 @@ import {
   mergedReviewLineText,
   mergeReports,
   parseChangeSummary,
-  parsePreviewAfterChange,
   parseRequestKind,
   publicationNoteText,
   publicationNoticesText,
@@ -110,44 +109,14 @@ test("accepts a request kind wrapped in a Markdown code fence", () => {
   );
 });
 
-test("reads the preview asked for together with the change only as a literal true", () => {
-  for (const response of [
-    '{"kind":"implementation","previewAfterChange":true}',
-    '```json\n{"kind":"continuation","previewAfterChange":true}\n```',
-  ]) {
-    assert.equal(parsePreviewAfterChange(response), true);
-  }
-  for (const response of [
-    '{"kind":"implementation","previewAfterChange":false}',
-    '{"kind":"implementation"}',
-    '{"kind":"implementation","previewAfterChange":"true"}',
-    '{"kind":"implementation","previewAfterChange":1}',
-    "implementation",
-    "{}",
-    "null",
-    "[]",
-    "",
-  ]) {
-    assert.equal(
-      parsePreviewAfterChange(response),
-      false,
-      "anything that is not the literal boolean is no request",
-    );
-  }
-});
-
-test("asks the classifier for the preview asked together with the change", () => {
+test("asks the classifier only for the kind, never for a preview with the change", () => {
   const prompt = buildClassificationPrompt(
     "Canvia el títol i ensenya'm la preview",
   );
-  assert.match(prompt, /previewAfterChange/u);
+  assert.doesNotMatch(prompt, /previewAfterChange/u);
   assert.match(
     prompt,
-    /asks for a change \(implementation or continuation\) and also explicitly asks, in the same message, to see the preview of the result/u,
-  );
-  assert.match(
-    prompt,
-    /including when the last agent reply offers the preview/u,
+    /a message that also asks for the preview keeps this kind/u,
   );
 });
 
@@ -470,6 +439,25 @@ test("saves with the plain notice and warns the maintainer when the watch is una
     }),
     [failedMaintainerNotice, link].join("\n"),
   );
+});
+
+test("a failed preview label sends the failure notice once, never with the saved one", () => {
+  const pullRequest = { htmlUrl: "https://example.test/pull/200" };
+  const link = "Enllaç per a revisió: https://example.test/pull/200";
+
+  for (const ciWatch of [
+    ciWatchOutcomes.registered,
+    ciWatchOutcomes.unavailable,
+  ]) {
+    assert.equal(
+      publicationNoticesText({
+        pullRequest,
+        ciWatch,
+        previewLabelFailed: true,
+      }),
+      [failedMaintainerNotice, link].join("\n"),
+    );
+  }
 });
 
 test("drops only the review link when the service has no URL", () => {
@@ -927,8 +915,7 @@ test("describes the state of the topic in plain words for the model", () => {
   assert.match(text, /^- Latest merge request for it: not merged\.$/mu);
   assert.match(
     text,
-    /no preview was asked yet, the preview request failed, it was not confirmed in time, its result is unknown, it belongs to an earlier change, or it is still on its way/u,
+    /the pull request has no preview label, a maintainer revoked the preview, the pull request is not open, or the publisher has not confirmed the preview of the current head yet/u,
   );
-  assert.match(text, /do not offer a new one/u);
   assert.match(text, /without commit identifiers, file names or check names/u);
 });

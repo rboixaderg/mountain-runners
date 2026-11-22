@@ -60,9 +60,38 @@ export function createTopicPullRequestFinder(
   };
 }
 
+/**
+ * The preview the state block describes. The label, not a request of the
+ * topic, decides whether the head has one: only an open pull request that
+ * carries `preview` and not `preview-revoked` does, so a revoked or ended
+ * preview never keeps its address.
+ */
+function previewOf(pullRequest, comments, pullRequestNumber) {
+  if (pullRequest.state !== "open") {
+    return { preview: "none: the pull request is not open", origin: null };
+  }
+  if (pullRequest.previewRevoked) {
+    return { preview: "revoked by a maintainer", origin: null };
+  }
+  if (!pullRequest.previewLabeled) {
+    return {
+      preview: "none: the pull request has no preview label",
+      origin: null,
+    };
+  }
+  const origin = confirmedPreviewOrigin({
+    comments,
+    pullRequestNumber,
+    commit: pullRequest.headSha,
+  });
+  return {
+    preview: origin ? "confirmed" : "not confirmed by the publisher yet",
+    origin,
+  };
+}
+
 export function createLiveTopicStateReader({
   ciWatches,
-  previewRequests,
   mergeRequests,
   findTopicPullRequest,
   repositoryName,
@@ -86,29 +115,9 @@ export function createLiveTopicStateReader({
         requiredChecks,
         signal,
       });
-      const request = previewRequests.latest({
-        sessionKey: source,
-        pullRequestNumber: number,
-      });
-      let preview = "no preview requested for the current change";
-      let origin = null;
-      if (
-        request?.commit_sha === live.pullRequest.headSha &&
-        request.commented_at
-      ) {
-        const comments = await github.listIssueComments({
-          number,
-          since: request.commented_at,
-          signal,
-        });
-        origin = confirmedPreviewOrigin({
-          comments,
-          pullRequestNumber: number,
-          commit: live.pullRequest.headSha,
-          requestedAt: request.commented_at,
-        });
-        preview = origin ? "confirmed" : "not confirmed by the publisher";
-      }
+      // The comments are read before the confirming read of the pull request,
+      // so a preview withdrawn meanwhile is never described.
+      const comments = await github.listIssueComments({ number, signal });
       const confirmed = await github.getPullRequest({ number, signal });
       confirmPullRequestUnchanged(live.pullRequest, confirmed);
       const merge = mergeRequests.latest({
@@ -133,8 +142,7 @@ export function createLiveTopicStateReader({
                   description: describeState(mergeDescriptions, merge.state),
                   mergeCommit: merge.merge_commit_sha ?? null,
                 },
-          preview,
-          origin,
+          ...previewOf(confirmed, comments, number),
         },
       };
     } catch (error) {

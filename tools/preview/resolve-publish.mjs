@@ -7,12 +7,17 @@
 // publish: this script verifies the author, resolves the pull request's
 // current head SHA from trusted platform metadata and exposes it to the
 // build and publish jobs. A manual workflow_dispatch carries the pull
-// request number directly (dispatching already requires write access).
+// request number directly (dispatching already requires write access). A
+// `labeled` or `synchronize` event of a pull request with the `preview` label
+// (the job condition already filtered them) is a label request: the sender
+// must have write access and the head comes from the API, never from
+// GITHUB_SHA, which on this event is the last commit of `main`.
 // Everything else exits quietly so ordinary comments produce a fast no-op
 // run; an unauthorized `/preview` fails loudly.
 
 import { appendFileSync, readFileSync } from "node:fs";
 import {
+  assertActorWritePermission,
   assertCommentAuthorized,
   resolvePullRequestState,
 } from "./publish-operations.mjs";
@@ -79,6 +84,15 @@ async function main() {
       token,
       commentAuthor: event.comment.user?.login,
     });
+  } else if (process.env.GITHUB_EVENT_NAME === "pull_request_target") {
+    const event = readEvent();
+    pullNumber = event.pull_request.number;
+    await assertActorWritePermission({
+      repository,
+      apiUrl,
+      token,
+      actor: event.sender?.login,
+    });
   } else {
     pullNumber = requirePullNumber(process.env.PREVIEW_PULL_NUMBER);
   }
@@ -91,6 +105,15 @@ async function main() {
     token,
     pullNumber,
   });
+
+  if (
+    process.env.GITHUB_EVENT_NAME === "pull_request_target" &&
+    !pullRequest.labeled
+  ) {
+    writeOutputs({ should_publish: "false" });
+    console.log("The pull request no longer has the preview label.");
+    return;
+  }
 
   writeOutputs({
     should_publish: "true",

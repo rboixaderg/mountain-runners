@@ -136,7 +136,6 @@ function workerFor({
   secrets = [],
   requiredChecks: checks = requiredChecks,
   requestTimeoutMilliseconds = defaultRequestTimeoutMilliseconds,
-  requestPreview,
 }) {
   return createCiWatchWorker({
     store,
@@ -149,7 +148,6 @@ function workerFor({
     maximumAutomaticRepairs,
     secrets,
     requestTimeoutMilliseconds,
-    requestPreview,
     recordTrace,
     recordServiceNote,
     logger,
@@ -530,106 +528,6 @@ test("sends the green result once for the pinned commit and pull request", async
     },
   ]);
   assert.equal(store.state(registration.updateIdentifier), "sent");
-});
-
-test("requests the preview a green watch asked for with its change", async (context) => {
-  const { store } = fixture(context);
-  createCiWatchRegistration({ store })({
-    ...registration,
-    previewAuthorIdentifier: 42,
-  });
-  const telegram = fakeTelegram();
-  const notes = [];
-  const previewRequests = [];
-  const worker = workerFor({
-    store,
-    github: fakeGithub(),
-    telegram,
-    recordServiceNote: (note) => notes.push(note),
-    requestPreview: async (previewRequest) => {
-      previewRequests.push(previewRequest);
-      return { outcome: "answered", report: "He demanat la preview." };
-    },
-  });
-
-  await worker.runOnce();
-
-  assert.equal(store.lastReported(registration.sessionKey).result, "success");
-  assert.deepEqual(
-    previewRequests,
-    [
-      {
-        updateIdentifier: registration.updateIdentifier,
-        sessionKey: registration.sessionKey,
-        authorIdentifier: 42,
-      },
-    ],
-    "the preview is requested once, in the name of the stored author",
-  );
-  assert.equal(telegram.sent[0].text, "He demanat la preview.");
-  assert.deepEqual(
-    notes.map((note) => note.effectKey),
-    [
-      `ci:${registration.updateIdentifier}:${commit}:success`,
-      `preview:${registration.updateIdentifier}:requested`,
-    ],
-  );
-});
-
-test("never requests a preview for a change that did not ask for it", async (context) => {
-  const { store } = fixture(context);
-  createCiWatchRegistration({ store })(registration);
-  const telegram = fakeTelegram();
-  const worker = workerFor({
-    store,
-    github: fakeGithub(),
-    telegram,
-    requestPreview: async () => assert.fail("no preview was asked for"),
-  });
-
-  await worker.runOnce();
-
-  assert.equal(telegram.sent.length, 0);
-});
-
-test("never requests a preview for a watch whose checks did not pass", async (context) => {
-  const { store } = fixture(context);
-  createCiWatchRegistration({ store })({
-    ...registration,
-    previewAuthorIdentifier: 42,
-  });
-  const telegram = fakeTelegram();
-  const worker = workerFor({
-    store,
-    github: fakeGithub({
-      checkRuns: [checkRun("Validate", "completed", "failure")],
-    }),
-    telegram,
-    requestPreview: async () => assert.fail("a failing CI never asks"),
-  });
-
-  await worker.runOnce();
-
-  assert.equal(telegram.sent[0].text, failedRetryingNotice);
-});
-
-test("a repair never records a preview author on its reopened watch", (context) => {
-  const { store } = fixture(context);
-  const register = createCiWatchRegistration({ store });
-  register(registration);
-  store.beginSend(registration.updateIdentifier, "success");
-  store.finishSend(registration.updateIdentifier);
-
-  register({
-    ...registration,
-    commit: nextCommit,
-    automatic: true,
-    previewAuthorIdentifier: 42,
-  });
-
-  const [watch] = store.pending();
-  assert.equal(watch.commit_sha, nextCommit);
-  assert.equal(watch.preview_author_identifier, null);
 });
 
 test("keeps the CI notice as a service event of the session", async (context) => {

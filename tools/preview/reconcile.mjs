@@ -1,14 +1,28 @@
 #!/usr/bin/env node
 // Trusted cleanup: never checks out or executes pull request code.
+import { readFileSync } from "node:fs";
 import { createSshTransport } from "../deploy/ssh.mjs";
+import { markPreviewRetired } from "./preview-comment.mjs";
 
 const activeRetentionMs = 14 * 24 * 60 * 60 * 1000;
 const pendingRetentionMs = 24 * 60 * 60 * 1000;
+
+// Removing the `preview` label withdraws the preview of that pull request,
+// whichever request published it. Retiring a pull request with no preview ends
+// without error. `/preview` stays valid: the periodic reconciliation never
+// retires a preview because the label is missing. Once the site is disabled, the
+// publisher comment stops naming the preview.
+export async function retirePreviewOf({ transport, pullNumber, markRetired }) {
+  await transport.run(`mountain-preview retire ${pullNumber}`);
+  await transport.run(`mountain-preview site-disable ${pullNumber}`);
+  await markRetired?.(pullNumber);
+}
 
 export async function reconcilePreviews({
   transport,
   readPull,
   repository,
+  markRetired,
   now = Date.now(),
 }) {
   await transport.run("mountain-preview cleanup-retired");
@@ -24,10 +38,11 @@ export async function reconcilePreviews({
         throw new Error("Invalid pull request number in preview inventory.");
       }
       if (entry.inconsistent) {
-        await transport.run(`mountain-preview retire ${entry.pullNumber}`);
-        await transport.run(
-          `mountain-preview site-disable ${entry.pullNumber}`,
-        );
+        await retirePreviewOf({
+          transport,
+          pullNumber: entry.pullNumber,
+          markRetired,
+        });
         inconsistent.push(entry.pullNumber);
         continue;
       }
@@ -49,10 +64,11 @@ export async function reconcilePreviews({
           pull.head?.repo?.full_name !== repository;
       }
       if (shouldRetire) {
-        await transport.run(`mountain-preview retire ${entry.pullNumber}`);
-        await transport.run(
-          `mountain-preview site-disable ${entry.pullNumber}`,
-        );
+        await retirePreviewOf({
+          transport,
+          pullNumber: entry.pullNumber,
+          markRetired,
+        });
       } else if (entry.commit !== undefined) {
         await transport.run(`mountain-preview prune ${entry.pullNumber}`);
       }
@@ -66,6 +82,29 @@ export async function reconcilePreviews({
     );
   }
   if (failures.length > 0) throw new Error(failures.join("\n"));
+}
+
+// Routes a cleanup run. Only the removal of `preview` withdraws a preview; the
+// job condition already skips other labels and the check stays here as well.
+// Every other event, including `closed` and `labeled`, reconciles.
+export async function runCleanup({
+  eventName,
+  event,
+  transport,
+  markRetired,
+  reconcile,
+}) {
+  if (eventName === "pull_request_target" && event.action === "unlabeled") {
+    if (event.label.name === "preview") {
+      await retirePreviewOf({
+        transport,
+        pullNumber: event.pull_request.number,
+        markRetired,
+      });
+    }
+    return;
+  }
+  await reconcile();
 }
 
 async function main() {
@@ -84,27 +123,43 @@ async function main() {
     privateKey: requireEnvironment("PREVIEW_SSH_PRIVATE_KEY"),
     knownHosts: requireEnvironment("PREVIEW_KNOWN_HOSTS"),
   });
-  await reconcilePreviews({
+  const apiBase = `https://api.github.com/repos/${repository}`;
+  const headers = {
+    Accept: "application/vnd.github+json",
+    Authorization: `Bearer ${token}`,
+    "User-Agent": "mountain-runners-preview-cleanup",
+    "X-GitHub-Api-Version": "2022-11-28",
+  };
+  const markRetired = (pullNumber) =>
+    markPreviewRetired({
+      base: apiBase,
+      headers,
+      pullNumber,
+      fetchImpl: fetch,
+    });
+  await runCleanup({
+    eventName: process.env.GITHUB_EVENT_NAME,
+    event: JSON.parse(
+      readFileSync(requireEnvironment("GITHUB_EVENT_PATH"), "utf8"),
+    ),
     transport,
-    repository,
-    readPull: async (number) => {
-      const response = await fetch(
-        `https://api.github.com/repos/${repository}/pulls/${number}`,
-        {
-          headers: {
-            Accept: "application/vnd.github+json",
-            Authorization: `Bearer ${token}`,
-            "User-Agent": "mountain-runners-preview-cleanup",
-            "X-GitHub-Api-Version": "2022-11-28",
-          },
+    markRetired,
+    reconcile: () =>
+      reconcilePreviews({
+        transport,
+        repository,
+        markRetired,
+        readPull: async (number) => {
+          const response = await fetch(`${apiBase}/pulls/${number}`, {
+            headers,
+          });
+          if (!response.ok)
+            throw new Error(
+              `Cannot read pull request ${number} (${response.status}).`,
+            );
+          return response.json();
         },
-      );
-      if (!response.ok)
-        throw new Error(
-          `Cannot read pull request ${number} (${response.status}).`,
-        );
-      return response.json();
-    },
+      }),
   });
 }
 

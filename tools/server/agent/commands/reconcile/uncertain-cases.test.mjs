@@ -20,6 +20,7 @@ import {
   PreviewRequestStore,
   previewStates,
 } from "../../repository/preview-request-store.mjs";
+import { seedUncertainPreviewRequest } from "../../repository/test-support/preview-requests.mjs";
 import {
   commitAll,
   createBranch,
@@ -56,7 +57,7 @@ async function git(directory, argumentsList) {
   return stdout.trim();
 }
 
-async function fixture(context, { previewNow } = {}) {
+async function fixture(context) {
   const directory = mkdtempSync(join(tmpdir(), "mr-agent-reconcile-"));
   const origin = join(directory, "origin.git");
   const repository = join(directory, "repository");
@@ -74,16 +75,12 @@ async function fixture(context, { previewNow } = {}) {
   await git(repository, ["commit", "-m", "chore: initial"]);
   await git(repository, ["push", "origin", "main"]);
 
-  const previewPath = join(state, "preview-request.sqlite");
   const stores = {
     instructions: new AdmissionQueue(join(state, "admission.sqlite"), {
       maxPending: 10,
     }),
     repairs: new CiWatchStore(join(state, "ci-watch.sqlite")),
-    previews:
-      previewNow === undefined
-        ? new PreviewRequestStore(previewPath)
-        : new PreviewRequestStore(previewPath, { now: previewNow }),
+    previews: new PreviewRequestStore(join(state, "preview-request.sqlite")),
   };
   context.after(() => {
     stores.previews.close();
@@ -166,15 +163,26 @@ function interruptRepair(
   };
 }
 
-function interruptPreview(store, updateIdentifier, sessionKey, commitSha) {
-  store.begin({
-    updateIdentifier,
-    sessionKey,
-    authorIdentifier: 42,
-    pullRequestNumber,
-    commitSha,
-  });
-  store.markUncertain(updateIdentifier);
+// A `/preview` request the service wrote before the label, whose post a
+// restart could not confirm. The service no longer writes one, so it is seeded.
+function interruptPreview(
+  config,
+  updateIdentifier,
+  sessionKey,
+  commitSha,
+  createdAt = requestInstant,
+) {
+  seedUncertainPreviewRequest(
+    join(config.paths.state, "preview-request.sqlite"),
+    {
+      updateIdentifier,
+      sessionKey,
+      authorIdentifier: 42,
+      pullRequestNumber,
+      commitSha,
+      createdAt,
+    },
+  );
 }
 
 // A publication whose notice may or may not have reached the topic.
@@ -310,10 +318,8 @@ test("lists an uncertain repair with its update, sequence and failed commit", as
 });
 
 test("lists an uncertain preview when the service posted the comment after the request", async (context) => {
-  const { config, stores } = await fixture(context, {
-    previewNow: () => new Date(requestInstant),
-  });
-  interruptPreview(stores.previews, 21, sessionKeyOne, failedCommit);
+  const { config, stores } = await fixture(context);
+  interruptPreview(config, 21, sessionKeyOne, failedCommit);
   let requestedSince = null;
   const github = {
     async getAuthenticatedLogin() {
@@ -342,10 +348,8 @@ test("lists an uncertain preview when the service posted the comment after the r
 });
 
 test("ignores a preview comment created before the request and edited after it", async (context) => {
-  const { config, stores } = await fixture(context, {
-    previewNow: () => new Date(requestInstant),
-  });
-  interruptPreview(stores.previews, 21, sessionKeyOne, failedCommit);
+  const { config, stores } = await fixture(context);
+  interruptPreview(config, 21, sessionKeyOne, failedCommit);
   const github = {
     async getAuthenticatedLogin() {
       return "mountain-agent-bot";
@@ -368,10 +372,8 @@ test("ignores a preview comment created before the request and edited after it",
 });
 
 test("ignores a preview comment created in the request's own second", async (context) => {
-  const { config, stores } = await fixture(context, {
-    previewNow: () => new Date(requestInstant),
-  });
-  interruptPreview(stores.previews, 21, sessionKeyOne, failedCommit);
+  const { config, stores } = await fixture(context);
+  interruptPreview(config, 21, sessionKeyOne, failedCommit);
   const github = {
     async getAuthenticatedLogin() {
       return "mountain-agent-bot";
@@ -401,7 +403,7 @@ test("marks a failed GitHub read and still lists the remaining cases", async (co
   });
   interruptInstruction(stores.instructions, 11, sessionKeyOne);
   interruptRepair(stores.repairs, sessionKeyOne);
-  interruptPreview(stores.previews, 21, sessionKeyOne, failedCommit);
+  interruptPreview(config, 21, sessionKeyOne, failedCommit);
   const github = {
     async findOpenPullRequest() {
       throw new Error("synthetic GitHub failure");
@@ -758,10 +760,8 @@ test("traces a repair transition that another writer won", async (context) => {
 });
 
 test("keeps waiting for the publisher when the preview comment exists", async (context) => {
-  const { config, stores } = await fixture(context, {
-    previewNow: () => new Date(reconcileInstant),
-  });
-  interruptPreview(stores.previews, 21, sessionKeyOne, failedCommit);
+  const { config, stores } = await fixture(context);
+  interruptPreview(config, 21, sessionKeyOne, failedCommit, reconcileInstant);
 
   await reconcile(config, stores, fakeTelegram(), {
     kind: "preview",
@@ -782,7 +782,7 @@ test("keeps waiting for the publisher when the preview comment exists", async (c
 
 test("ends the preview request when the comment does not exist", async (context) => {
   const { config, stores } = await fixture(context);
-  interruptPreview(stores.previews, 21, sessionKeyOne, failedCommit);
+  interruptPreview(config, 21, sessionKeyOne, failedCommit);
 
   await reconcile(config, stores, fakeTelegram(), {
     kind: "preview",
@@ -796,7 +796,7 @@ test("ends the preview request when the comment does not exist", async (context)
 
 test("changes nothing when a preview has no trace database", async (context) => {
   const { config, stores } = await fixture(context);
-  interruptPreview(stores.previews, 21, sessionKeyOne, failedCommit);
+  interruptPreview(config, 21, sessionKeyOne, failedCommit);
 
   await assert.rejects(
     reconcile(config, { ...stores, instructions: null }, fakeTelegram(), {
@@ -811,7 +811,7 @@ test("changes nothing when a preview has no trace database", async (context) => 
 
 test("traces a preview transition that another writer won", async (context) => {
   const { config, stores } = await fixture(context);
-  interruptPreview(stores.previews, 21, sessionKeyOne, failedCommit);
+  interruptPreview(config, 21, sessionKeyOne, failedCommit);
   const racingPreviews = {
     uncertain: () => stores.previews.uncertain(),
     resolveUncertainNotCommented: () => null,
@@ -979,7 +979,7 @@ test("traces each resolution without the instruction text and notifies once per 
   });
   interruptInstruction(stores.instructions, 11, sessionKeyOne);
   const repair = interruptRepair(stores.repairs, sessionKeyTwo);
-  interruptPreview(stores.previews, 21, sessionKeyThree, failedCommit);
+  interruptPreview(config, 21, sessionKeyThree, failedCommit);
   const telegram = fakeTelegram();
 
   await reconcile(config, stores, telegram, {
@@ -1078,7 +1078,7 @@ test("keeps the resolution and traces the failure when the notice cannot be sent
 
 test("refuses a resolution that does not belong to the case kind", async (context) => {
   const { config, stores } = await fixture(context);
-  interruptPreview(stores.previews, 21, sessionKeyOne, failedCommit);
+  interruptPreview(config, 21, sessionKeyOne, failedCommit);
 
   await assert.rejects(
     reconcile(config, stores, fakeTelegram(), {
@@ -1096,7 +1096,7 @@ test("the service startup check no longer refuses once every case is resolved", 
   const { config, stores } = await fixture(context);
   interruptInstruction(stores.instructions, 11, sessionKeyOne);
   const repair = interruptRepair(stores.repairs, sessionKeyOne);
-  interruptPreview(stores.previews, 21, sessionKeyOne, failedCommit);
+  interruptPreview(config, 21, sessionKeyOne, failedCommit);
   const telegram = fakeTelegram();
 
   await reconcile(config, stores, telegram, {

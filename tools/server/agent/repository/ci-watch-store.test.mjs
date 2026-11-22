@@ -105,24 +105,7 @@ test("migrates existing rerun reservations without resetting their budget", (con
   store.close();
 });
 
-test("keeps the preview a request asked for with its change", (context) => {
-  const store = new CiWatchStore(fixture(context));
-  store.add(request);
-  store.add({
-    ...request,
-    updateIdentifier: 13,
-    pullRequestNumber: 124,
-    commitSha: "b".repeat(40),
-    previewAuthorIdentifier: 42,
-  });
-
-  const [withoutPreview, withPreview] = store.pending();
-  assert.equal(withoutPreview.preview_author_identifier, null);
-  assert.equal(withPreview.preview_author_identifier, 42);
-  store.close();
-});
-
-test("adds the preview author to a store created before it", (context) => {
+test("keeps working on a store whose watches could ask for the preview", (context) => {
   const path = fixture(context);
   const previous = new DatabaseSync(path);
   previous.exec(`
@@ -133,31 +116,29 @@ test("adds the preview author to a store created before it", (context) => {
       commit_sha TEXT NOT NULL,
       state TEXT NOT NULL CHECK (state IN ('pending', 'sending', 'sent', 'uncertain', 'superseded')),
       result TEXT,
+      preview_author_identifier INTEGER,
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL
     );
     INSERT INTO ci_watches
       (update_identifier, session_key, pull_request_number, commit_sha, state,
-       result, created_at, updated_at)
-    VALUES (12, '-100123:7', 123, '${"a".repeat(40)}', 'pending', NULL,
+       result, preview_author_identifier, created_at, updated_at)
+    VALUES (12, '-100123:7', 123, '${"a".repeat(40)}', 'pending', NULL, 42,
             '2026-11-14T10:00:00Z', '2026-11-14T10:00:00Z');
   `);
   previous.close();
 
   const store = new CiWatchStore(path);
-  assert.equal(
-    store.pending()[0].preview_author_identifier,
-    null,
-    "a watch created before the column asked for no preview",
-  );
   store.add({
     ...request,
     updateIdentifier: 13,
     pullRequestNumber: 124,
     commitSha: "b".repeat(40),
-    previewAuthorIdentifier: 42,
   });
-  assert.equal(store.pending()[1].preview_author_identifier, 42);
+  assert.deepEqual(
+    store.pending().map((watch) => watch.update_identifier),
+    [12, 13],
+  );
   store.close();
 });
 

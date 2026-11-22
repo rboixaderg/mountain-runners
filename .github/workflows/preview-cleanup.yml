@@ -1,13 +1,17 @@
 name: Preview cleanup
 
 # Only trusted main code runs; pull_request_target is used solely for the
-# closed event metadata. No PR checkout, scripts or user-provided commands.
+# closed and label event metadata. No PR checkout, scripts or user-provided
+# commands. Removing the `preview` label retires that pull request's preview;
+# setting `preview-revoked` reconciles. Any other label change skips the job
+# before it joins the `previews` group. That group queues every waiting job
+# (`queue: max`), so a pending retire is never replaced by a later run.
 on:
   schedule:
     - cron: "17 * * * *"
   workflow_dispatch:
   pull_request_target:
-    types: [closed, labeled]
+    types: [closed, labeled, unlabeled]
 
 permissions:
   contents: read
@@ -15,13 +19,25 @@ permissions:
 
 jobs:
   reconcile:
-    if: github.repository == 'rboixaderg/mountain-runners' && github.ref == 'refs/heads/main'
+    if: >-
+      github.repository == 'rboixaderg/mountain-runners' &&
+      github.ref == 'refs/heads/main' &&
+      (github.event_name != 'pull_request_target' ||
+      github.event.action == 'closed' ||
+      (github.event.action == 'labeled' && github.event.label.name == 'preview-revoked') ||
+      (github.event.action == 'unlabeled' && github.event.label.name == 'preview'))
     runs-on: ubuntu-latest
     timeout-minutes: 10
     environment: previews
+    # Retiring a preview edits the comment of the publisher, so it stops
+    # naming the preview.
+    permissions:
+      contents: read
+      pull-requests: write
     concurrency:
       group: previews
       cancel-in-progress: false
+      queue: max
     steps:
       - name: Check out trusted main
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
