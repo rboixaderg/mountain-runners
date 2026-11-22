@@ -45,27 +45,28 @@
     "accessibility": {
       "source": "https://github.com/addyosmani/web-quality-skills",
       "repositoryId": 1136782037,
-      "commit": "fed9617111260e19f4f54b72a2874a3f3de8ff94",
+      "commit": "afa8da942115f2961fdbfa80807ea0b232ff6c00",
       "sourceSkillPath": "skills/accessibility",
       "license": "MIT",
       "sourceLicensePath": "LICENSE",
       "licenseSha256": "c122223ac43e86421958e18623979942c21b642951e2e3736dcb63eff13587c3",
       "files": {
-        "SKILL.md": "65021e9ccab70165539db82070257d4e2e2c7d7b0f857825299da2e4a7a8704c",
         "references/A11Y-PATTERNS.md": "f10e238dd4dd3c4f51134c2056bc02d3dd4f8fb6ccc9145c2c1ba7aab4d58140",
-        "references/WCAG.md": "16683e025e3833d931c9d880645d98a448827f97e10189b6c8f12c832e7a2361"
+        "references/WCAG.md": "16683e025e3833d931c9d880645d98a448827f97e10189b6c8f12c832e7a2361",
+        "SKILL.md": "267fb2a0707d6142f2871f22688203a42ba21291a2aa200fb740936e41362b5d"
       }
     },
     "seo": {
       "source": "https://github.com/addyosmani/web-quality-skills",
       "repositoryId": 1136782037,
-      "commit": "fed9617111260e19f4f54b72a2874a3f3de8ff94",
+      "commit": "afa8da942115f2961fdbfa80807ea0b232ff6c00",
       "sourceSkillPath": "skills/seo",
       "license": "MIT",
       "sourceLicensePath": "LICENSE",
       "licenseSha256": "c122223ac43e86421958e18623979942c21b642951e2e3736dcb63eff13587c3",
       "files": {
-        "SKILL.md": "f3e546112a3168515486c533d13156a1d4dcd9402f3d116730cef573a20e2804"
+        "references/STRUCTURED-DATA.md": "3e03876f41d223c89dfdbc0a0fe3668454e5d8819aad5379f4541fbf0bd67e17",
+        "SKILL.md": "57cd16566c2c706186b643644dec2884da89c42f296843364c65a40a4d566ae6"
       }
     }
   }
