@@ -43,6 +43,22 @@ La persona mantenidora confirma aquestes decisions el 21 de novembre de 2026:
   l'etiqueta: cada push publica sense cap acte humà nou. És el canvi que
   recullen les esmenes dels ADR 0009 i 0013.
 
+La persona mantenidora aprova i crea el 22 de novembre de 2026 una política
+d'Actions del repositori, dependència confirmada d'aquesta especificació. Des
+del 2 de desembre de 2026 GitHub Actions bloqueja `pull_request_target` per
+defecte als repositoris públics si cap política d'esdeveniments aplicable no el
+permet
+([canvi de GitHub](https://github.blog/changelog/2026-11-02-pull_request_target-blocked-by-default-december-2)).
+La política es diu `Allow pull_request_target for preview workflows` (id
+16808, aplicació `active`), s'aplica a `.github/workflows/preview.yml` i
+`.github/workflows/preview-cleanup.yml` i té la regla `restrict_action_events`
+amb els esdeveniments `pull_request_target`, `issue_comment`,
+`workflow_dispatch` i `schedule`. La regla és una llista de permesos: tot
+esdeveniment que usin aquests workflows hi ha de constar. Això no contradiu la
+decisió anterior: la implementació continua sense canviar cap token, entorn ni
+configuració remota. Està descrita al
+[manual d'operacions](../runbook.md#política-dactions-de-pull_request_target-per-a-les-previews).
+
 ## Resultats Esperats
 
 - Posar `preview` a una PR pròpia publica el cap actual. Un push posterior
@@ -196,6 +212,9 @@ Verificat a la documentació:
 Pendent de verificar amb GitHub real abans d'activar-ho a l'agent:
 
 - El `sender` de `synchronize` és qui fa el push.
+- Després del 2 de desembre de 2026, una execució `labeled` de `Preview` i una
+  execució `unlabeled` de `Preview cleanup` no les bloqueja la regla per
+  defecte: la política encara no s'ha provat amb una execució bloquejada.
 - El token real del servei pot posar l'etiqueta i no pot treure `preview-revoked`
   pel component.
 - Tornar a posar una etiqueta que la PR ja té no genera cap esdeveniment.

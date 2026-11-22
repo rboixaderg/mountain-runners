@@ -36,6 +36,12 @@ La persona mantenidora confirma aquestes decisions el 21 de novembre de 2026:
 - El codi de l'agent que només existeix per a les peticions `/preview` anteriors
   a l'etiqueta es retira en una tasca pròpia, quan el servei desplegat no en
   tingui cap pendent.
+- La política d'Actions del repositori que permet `pull_request_target` als
+  workflows de preview llista també `issue_comment`
+  ([runbook](../runbook.md#política-dactions-de-pull_request_target-per-a-les-previews)).
+  Quan la T1 retira el disparador, la persona mantenidora treu `issue_comment`
+  de la política: és un canvi remot que exigeix la seva aprovació en aquell
+  moment.
 - Es mantenen les fronteres de l'ADR 0009: només branques del repositori
   principal, vinculació al SHA del cap, revalidació abans d'activar,
   `preview-revoked` amb precedència, retirada en tancar la PR i
@@ -50,6 +56,7 @@ La persona mantenidora confirma aquestes decisions el 21 de novembre de 2026:
 - La reconciliació horària retira la preview d'una PR oberta que no té
   l'etiqueta, també si s'havia publicat abans d'aquest canvi.
 - El publicador i les seves proves no tenen cap camí de comentari.
+- La política d'Actions ja no permet `issue_comment`.
 - L'agent no conté l'ordre `/preview`, la lectura del compte autenticat ni els
   estats `commenting` i `uncertain` de les peticions de preview.
 
@@ -79,6 +86,8 @@ La persona mantenidora confirma aquestes decisions el 21 de novembre de 2026:
 ni l'agent.
 
 **Dependències:** etiqueta verificada a GitHub real i esmenes aprovades.
+Treure `issue_comment` de la política d'Actions exigeix l'aprovació de la
+persona mantenidora.
 
 **Resultat observable:** un comentari `/preview` no executa res; una execució
 manual exigeix l'etiqueta; la reconciliació horària retira les previews de PR
@@ -199,5 +208,7 @@ servidor (`pnpm test:server`) amb GitHub i transport simulats.
    l'etiqueta i conserva la de les que la tenen.
 5. L'agent no conté l'ordre `/preview`, la lectura del compte autenticat ni els
    estats `commenting` i `uncertain`, i el seguiment de preview no canvia.
-6. Els punts de [Verificació a GitHub](#verificació-a-github) s'han comprovat
+6. La política d'Actions no inclou `issue_comment`, amb l'aprovació de la
+   persona mantenidora.
+7. Els punts de [Verificació a GitHub](#verificació-a-github) s'han comprovat
    després del merge de la T1.

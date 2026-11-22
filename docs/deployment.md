@@ -292,7 +292,11 @@ workflow `Preview` (`.github/workflows/preview.yml`) s'activa només amb un
 **comentari a la PR amb el text exacte `/preview`** d'una persona
 col·laboradora (verificada via API), o amb un `workflow_dispatch` amb el número
 de PR. El job `authorize` vincula la petició al commit que encapçala la PR,
-identificat pel seu SHA. L'entorn GitHub `previews` separa els secrets
+identificat pel seu SHA. Des del 2 de desembre de 2026, GitHub només executa
+`pull_request_target`, que fan servir `Preview cleanup` i l'etiqueta de preview,
+si una política d'Actions del repositori ho permet; el
+[runbook](runbook.md#política-dactions-de-pull_request_target-per-a-les-previews)
+en descriu el contingut i la comprovació. L'entorn GitHub `previews` separa els secrets
 `PREVIEW_*` dels de producció, però no exigeix revisors abans d'executar-se.
 Qualsevol col·laboradora pot demanar una preview d'una PR del repositori
 principal; el sistema rebutja forks, PR tancades i commits que hagin canviat
