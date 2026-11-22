@@ -21,11 +21,15 @@ const SKILL_NAME = /^[a-z0-9][a-z0-9-]*$/u;
 const DOCUMENT_FILE = /\.(?:md|txt)$/iu;
 const LFS_POINTER = "version https://git-lfs.github.com/spec/v1";
 // A skill is Markdown read by an agent: no control, format, private-use,
-// unassigned or variation-selector characters. Newline and tab are the only
-// accepted control characters, so they are skipped before the test.
-const UNSAFE_CHARACTER = /[\p{Cc}\p{Cf}\p{Co}\p{Cn}]/u;
-const VARIATION_SELECTOR = /[\uFE00-\uFE0F]/u;
-const UTF8_DECODER = new TextDecoder("utf-8", { fatal: true });
+// unassigned, line-separator or variation-selector characters. Newline and tab
+// are the only accepted control characters, so they are skipped before the
+// test. The decoder keeps a leading BOM so it is refused instead of hidden.
+const UNSAFE_CHARACTER = /[\p{Cc}\p{Cf}\p{Co}\p{Cn}\p{Zl}\p{Zp}]/u;
+const VARIATION_SELECTOR = /[\uFE00-\uFE0F\u180B-\u180F\u{E0100}-\u{E01EF}]/u;
+const UTF8_DECODER = new TextDecoder("utf-8", {
+  fatal: true,
+  ignoreBOM: true,
+});
 
 const EXTERNAL_URL = /https?:\/\/[^\s)<>"'`\]]+/gu;
 const HTML_COMMENT = /<!--/u;
@@ -393,6 +397,9 @@ async function planSkill({
 
   const files = new Map();
   const seenPaths = new Map();
+  // The cap is checked against the tree sizes before each download, so an
+  // oversized skill never spends a blob request, and again on what arrived.
+  let declaredBytes = license.length;
   let totalBytes = license.length;
   for (const [path, treeEntry] of headTree) {
     if (treeEntry.type === "tree" || !path.startsWith(prefix)) continue;
@@ -406,6 +413,10 @@ async function planSkill({
       refuse(`${name}: ${path} differs only by case from ${earlierPath}`);
     }
     seenPaths.set(relativePath.toLowerCase(), path);
+    declaredBytes += treeEntry.size ?? 0;
+    if (declaredBytes > MAX_SKILL_BYTES) {
+      refuse(`${name}: the skill is larger than 1 MiB`);
+    }
     const content = await readUpstreamFile({
       apiClient,
       owner,
@@ -728,26 +739,21 @@ async function assertPullRequestBelongsToApp({
   }
 }
 
-async function applyProposal({
+// Every read-only check for one proposal. The run performs all of them before
+// it writes anything, so a refusal in any source stops the whole run.
+async function preflightProposal({
   proposal,
-  baseSha,
   apiClient,
-  cwd,
-  git,
-  token,
   owner,
   repository,
   defaultBranch,
   bot,
-  log,
 }) {
   const branch = proposal.branch;
   const referencePath = `/repos/${owner}/${repository}/git/ref/heads/${encodeURIComponent(branch)}`;
   const existingReference = await apiClient.get(referencePath, {
     allowNotFound: true,
   });
-  const expectedSha = existingReference?.data.object.sha ?? "";
-
   if (existingReference) {
     await assertBranchCommits({
       apiClient,
@@ -771,6 +777,26 @@ async function applyProposal({
       bot,
     });
   }
+
+  return { expectedSha: existingReference?.data.object.sha ?? "", open };
+}
+
+async function applyProposal({
+  proposal,
+  preflight,
+  baseSha,
+  apiClient,
+  cwd,
+  git,
+  token,
+  owner,
+  repository,
+  defaultBranch,
+  bot,
+  log,
+}) {
+  const branch = proposal.branch;
+  const { expectedSha, open } = preflight;
 
   // Each branch carries only its own source: drop whatever a previous
   // proposal wrote and start from the base commit and the base manifest.
@@ -942,11 +968,26 @@ export async function runUpdate({
     `/repos/${repositoryOwner}/${repositoryName}`,
   );
   const bot = await resolveBot({ apiClient, appSlug });
-  const baseSha = (await git(["rev-parse", "HEAD"], { cwd })).trim();
 
+  const preflights = [];
   for (const proposal of proposals) {
+    preflights.push(
+      await preflightProposal({
+        proposal,
+        apiClient,
+        owner: repositoryOwner,
+        repository: repositoryName,
+        defaultBranch: localRepository.default_branch,
+        bot,
+      }),
+    );
+  }
+
+  const baseSha = (await git(["rev-parse", "HEAD"], { cwd })).trim();
+  for (const [index, proposal] of proposals.entries()) {
     await applyProposal({
       proposal,
+      preflight: preflights[index],
       baseSha,
       apiClient,
       cwd,

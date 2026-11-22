@@ -98,10 +98,20 @@ export function parseFrontmatter(text) {
   let name;
   let version;
   let inMetadata = false;
+  let previousKey;
   for (const [index, line] of lines.slice(1, end).entries()) {
     if (line.trim() === "") continue;
     if (/^\s/u.test(line)) {
-      // Nested value of the previous key.
+      // Only a map-like or block-like value can hold nested lines; a scalar
+      // such as `name` cannot continue on an indented line.
+      if (previousKey !== "metadata" && previousKey !== "description") {
+        const source = previousKey
+          ? `"${previousKey}"`
+          : "the frontmatter start";
+        throw new Error(
+          `SKILL.md frontmatter line ${index + 2} cannot continue ${source}`,
+        );
+      }
       const nested = /^\s+version:(.*)$/u.exec(line);
       if (inMetadata && nested) {
         version = nested[1].trim().replace(/^["']|["']$/gu, "");
@@ -123,6 +133,7 @@ export function parseFrontmatter(text) {
     }
     seenKeys.add(key);
     keys.push(key);
+    previousKey = key;
     inMetadata = key === "metadata";
     if (key === "name") {
       name = value.trim().replace(/^["']|["']$/gu, "");

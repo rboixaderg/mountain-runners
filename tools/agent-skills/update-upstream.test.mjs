@@ -984,6 +984,65 @@ const refusalCases = [
     reason: /control, format or bidi character U\+fe0f/u,
   },
   {
+    name: "an ideographic variation selector",
+    github: () =>
+      createGitHub({
+        upstream: {
+          head: {
+            [`${SKILL_PATH}/SKILL.md`]: {
+              content: `${SKILL}Changed\u{E0100}\n`,
+            },
+            LICENSE: { content: "MIT\n" },
+          },
+        },
+      }),
+    reason: /control, format or bidi character U\+e0100/u,
+  },
+  {
+    name: "a Mongolian variation selector",
+    github: () =>
+      createGitHub({
+        upstream: {
+          head: {
+            [`${SKILL_PATH}/SKILL.md`]: { content: `${SKILL}Changed\u180B\n` },
+            LICENSE: { content: "MIT\n" },
+          },
+        },
+      }),
+    reason: /control, format or bidi character U\+180b/u,
+  },
+  {
+    name: "a leading byte-order mark",
+    github: () =>
+      createGitHub({
+        upstream: {
+          head: {
+            [`${SKILL_PATH}/SKILL.md`]: {
+              content: Buffer.concat([
+                Buffer.from([0xef, 0xbb, 0xbf]),
+                Buffer.from(SKILL),
+              ]),
+            },
+            LICENSE: { content: "MIT\n" },
+          },
+        },
+      }),
+    reason: /control, format or bidi character U\+feff/u,
+  },
+  {
+    name: "a line separator",
+    github: () =>
+      createGitHub({
+        upstream: {
+          head: {
+            [`${SKILL_PATH}/SKILL.md`]: { content: `${SKILL}Changed\u2028\n` },
+            LICENSE: { content: "MIT\n" },
+          },
+        },
+      }),
+    reason: /control, format or bidi character U\+2028/u,
+  },
+  {
     name: "invalid UTF-8",
     github: () =>
       createGitHub({
@@ -1366,6 +1425,120 @@ test("refuses a file by its tree size before downloading it", async (t) => {
   assert.equal(
     github.state.calls.some((call) =>
       call.path.endsWith(`/git/blobs/${blobSha(huge)}`),
+    ),
+    false,
+  );
+});
+
+test("a foreign pull request on the second source blocks both", async (t) => {
+  const otherSkill = [
+    "---",
+    "name: other-skill",
+    "description: Other skill.",
+    "---",
+    "",
+  ].join("\n");
+  const secondUpstream = createUpstreamRepository({
+    fullName: "other/skills",
+    id: 555000111,
+    pinnedCommit: "3".repeat(40),
+    headCommit: "4".repeat(40),
+    pinned: {
+      "skills/other-skill/SKILL.md": { content: otherSkill },
+      LICENSE: { content: "MIT\n" },
+    },
+    head: {
+      "skills/other-skill/SKILL.md": { content: `${otherSkill}Changed.\n` },
+      LICENSE: { content: "MIT\n" },
+    },
+  });
+  const github = createGitHub({
+    repositories: [createUpstreamRepository(), secondUpstream],
+    branches: { "skills/update-other-skills": "f".repeat(40) },
+    compare: {
+      "skills/update-other-skills": { commits: [], total_commits: 0 },
+    },
+    pullRequests: [
+      {
+        number: 12,
+        state: "open",
+        user: { login: "someone", type: "User" },
+        head: { ref: "skills/update-other-skills", repo: { full_name: LOCAL } },
+      },
+    ],
+  });
+  const directory = createRepository(t, {
+    skills: {
+      "sample-skill": { entry: manifestEntry(), files: DEFAULT_SKILL_FILES },
+      "other-skill": {
+        entry: manifestEntry({
+          source: "https://github.com/other/skills",
+          repositoryId: 555000111,
+          commit: "3".repeat(40),
+          sourceSkillPath: "skills/other-skill",
+          files: { "SKILL.md": sha256(otherSkill) },
+        }),
+        files: { "SKILL.md": otherSkill, LICENSE: "MIT\n" },
+      },
+    },
+  });
+  const git = createGit(directory);
+
+  await assert.rejects(
+    run(directory, github, {
+      argv: ["--apply"],
+      git: git.git,
+      env: ENVIRONMENT,
+    }),
+    /was not created by the App/u,
+  );
+
+  assert.deepEqual(
+    git.state.calls.filter(
+      (args) =>
+        args[0] === "push" || args[0] === "add" || args.includes("commit"),
+    ),
+    [],
+  );
+  assert.deepEqual(
+    github.state.calls.filter((call) => call.method !== "GET"),
+    [],
+  );
+  assert.equal(
+    readFileSync(
+      join(directory, ".agents", "skills", "sample-skill", "SKILL.md"),
+      "utf8",
+    ),
+    SKILL,
+  );
+  assert.equal(
+    readFileSync(
+      join(directory, ".agents", "skills", "other-skill", "SKILL.md"),
+      "utf8",
+    ),
+    otherSkill,
+  );
+});
+
+test("the skill cap stops the downloads before the next blob request", async (t) => {
+  const parts = [1, 2, 3, 4, 5].map(
+    (index) => `part ${index} ${"a".repeat(250 * 1024)}`,
+  );
+  const head = { [`${SKILL_PATH}/SKILL.md`]: { content: NEW_SKILL } };
+  for (const [index, part] of parts.entries()) {
+    head[`${SKILL_PATH}/part-${index + 1}.md`] = { content: part };
+  }
+  head.LICENSE = { content: "MIT\n" };
+  const github = createGitHub({ upstream: { head } });
+
+  const directory = createRepository(t);
+  const { result, messages } = await run(directory, github);
+
+  assert.equal(result.exitCode, 1);
+  assert.match(messages.join("\n"), /the skill is larger than 1 MiB/u);
+  assert.equal(
+    github.state.calls.some((call) =>
+      call.path.endsWith(`/git/blobs/${blobSha(parts.at(-1))}`),
     ),
     false,
   );

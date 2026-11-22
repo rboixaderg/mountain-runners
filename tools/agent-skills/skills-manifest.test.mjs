@@ -291,3 +291,39 @@ test("every external skill declares its upstream repository id", () => {
     assert.match(String(entry.repositoryId), /^[0-9]+$/u, name);
   }
 });
+
+test("a scalar frontmatter key cannot continue on an indented line", (t) => {
+  for (const form of [
+    "name: sample\n  more: value",
+    "license: MIT\n  more: value",
+  ]) {
+    const directory = createSkillFixture(t, {
+      "SKILL.md": ["---", form, "description: Sample.", "---", ""].join("\n"),
+    });
+
+    assert.throws(
+      () => parseFrontmatter(readFileSync(join(directory, "SKILL.md"), "utf8")),
+      /cannot continue/u,
+      form,
+    );
+  }
+});
+
+test("metadata still holds nested values", (t) => {
+  const directory = createSkillFixture(t, {
+    "SKILL.md": [
+      "---",
+      "name: sample",
+      "description: Sample.",
+      "metadata:",
+      '  version: "1.2.3"',
+      "---",
+      "",
+    ].join("\n"),
+  });
+
+  assert.equal(
+    parseFrontmatter(readFileSync(join(directory, "SKILL.md"), "utf8")).version,
+    "1.2.3",
+  );
+});
