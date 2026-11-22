@@ -7,9 +7,11 @@ dels previews viuen a la zona de producció d'Hostinger sense subzona delegada;
 la frontera de domini i els controls compensatoris no canvien. Esmenada el 9 de
 novembre de 2026 (T8.2): una petició explícita d'un membre verificat del grup
 privat autoritza l'agent a demanar la preview amb un comentari `/preview`. Vegeu
-l'apartat Esmena. Esmena proposada el 21 de novembre de 2026: l'etiqueta
-`preview` de la PR també demana la preview. Esmena proposada posterior: l'etiqueta
-passa a ser l'única autorització i es retira `/preview`.
+l'apartat Esmena. Esmenada el 20 de novembre de 2026 (T8.9, PR #262): el
+servei demana la preview sense una petició separada. Esmenada el 21 de novembre
+de 2026 (PR #267): l'etiqueta `preview` de la PR també demana la preview.
+Esmenada el 21 de novembre de 2026 (PR #273): l'etiqueta passa a ser l'única
+autorització i es retira `/preview`.
 
 ## Decisió
 
@@ -120,9 +122,9 @@ La delegació s'activa amb el pilot de la fase 8, després de verificar-ne els
 permisos i el flux. Fins llavors continua vigent el flux de preview amb
 autorització humana a GitHub.
 
-## Esmena proposada (T8.9, 20 de novembre de 2026)
+## Esmena (T8.9, 20 de novembre de 2026)
 
-Proposada fins que es fusioni la PR d'aquesta especificació. Substitueix, per
+Acceptada amb el merge de la [PR #262](https://github.com/rboixaderg/mountain-runners/pull/262). Substitueix, per
 l'agent privat, l'exigència de petició explícita al fil de l'esmena T8.2:
 quan les comprovacions obligatòries del cap són verdes, el servei demana la
 preview automàticament amb `/preview` i retorna l'URL confirmada. La persona
@@ -134,10 +136,10 @@ la revalidació del publicador, la retirada en tancar o revocar la PR i
 publicacions de contingut no fiable: els controls d'aïllament i autorització
 continuen sent obligatoris. No s'activa fins que s'hagin verificat els controls.
 
-## Esmena proposada (etiqueta de preview, 21 de novembre de 2026)
+## Esmena (etiqueta de preview, 21 de novembre de 2026)
 
-Proposada fins que es fusioni la PR de l'[especificació de l'etiqueta de
-preview](../specs/preview-label.md). Afegeix una tercera manera de demanar la
+Acceptada amb el merge de la [PR #267](https://github.com/rboixaderg/mountain-runners/pull/267),
+que defineix l'[especificació de l'etiqueta de preview](../specs/preview-label.md). Afegeix una tercera manera de demanar la
 preview, a més de `/preview` i l'execució manual: l'etiqueta `preview` de la PR.
 
 - Una persona amb permís `write` o `admin` posa l'etiqueta. Mentre la PR la té,
@@ -158,9 +160,10 @@ comentar `/preview`, però cada push publica sense un acte humà nou. No s'activ
 fins que les verificacions pendents de l'especificació es comprovin amb GitHub
 real.
 
-## Esmena proposada (retirada de `/preview`, 21 de novembre de 2026)
+## Esmena (retirada de `/preview`, 21 de novembre de 2026)
 
-Proposada fins que es fusioni la PR de l'[especificació de la retirada de
+Acceptada amb el merge de la [PR #273](https://github.com/rboixaderg/mountain-runners/pull/273),
+que defineix l'[especificació de la retirada de
 `/preview`](../specs/retire-preview-command.md). Depèn de l'esmena de l'etiqueta
 de preview i de les seves verificacions a GitHub real.
 

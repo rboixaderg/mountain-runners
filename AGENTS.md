@@ -159,8 +159,17 @@ reviewing `apps/web` code. The review of every PR checks these rules:
   commits than the reported one or with an administrator bypass. Local sessions
   and every other agent keep the no-merge rule.
 - Changes may reach production only through a reviewed pull request merged into
-  the protected default branch and, once phase 5 implements it, the approved
-  deployment pipeline. Local agent sessions never deploy.
+  the protected default branch and the approved deployment pipeline. Local agent
+  sessions never deploy the web.
+- Two server components are installed manually instead: the private phase 8
+  agent service ([`docs/runbook.md`](docs/runbook.md#actualitzar)) and the
+  release and preview server tooling
+  ([`docs/runbook.md`](docs/runbook.md#actualitzar-les-eines-en-un-vps-existent)).
+  A local agent session on a maintainer-controlled machine may start, stop,
+  restart or update them only from a reviewed `main` commit, with the
+  maintainer's explicit approval in the current conversation. The Telegram
+  agent, its Pi sandbox and any approval sent through Telegram never authorize
+  this: the Telegram agent never deploys anything, itself included.
 
 ## Verification
 

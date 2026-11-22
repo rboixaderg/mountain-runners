@@ -1,13 +1,13 @@
 # Agent privat de desenvolupament, T8.3
 
 Aplicació de Mountain Runners que porta una petició de Telegram fins a una PR.
-Aquesta versió del servei **no està desplegada ni activada**. Aquesta branca afegeix l'avís de CI
-de T8.4 vinculat al SHA publicat, la reparació automàtica acotada d'una CI
-vermella, la preview demanada al tema, el merge demanat amb `/merge`, els
-adjunts d'imatge i la continuïtat de la conversa. T8.9 vincula cada tema a una
-sola feina i publica els canvis sense una petició separada. Cap canvi d'aquesta
-branca autoritza instal·lacions ni operacions remotes. Abans d'activar T8.9 cal
-revisar i fusionar les esmenes proposades als ADR 0009 i 0013.
+El servei està en marxa al VPS. Inclou l'avís de CI de T8.4 vinculat al SHA
+publicat, la reparació automàtica acotada d'una CI vermella, la preview
+demanada al tema, el merge demanat amb `/merge`, els adjunts d'imatge i la
+continuïtat de la conversa. T8.9 vincula cada tema a una sola feina i publica
+els canvis sense una petició separada, segons les esmenes acceptades dels ADR
+0009 i 0013. Per instal·lar-lo o actualitzar-lo, segueix el
+[runbook](../../../docs/runbook.md#actualitzar).
 
 ## Nucli reutilitzable i aplicació
 

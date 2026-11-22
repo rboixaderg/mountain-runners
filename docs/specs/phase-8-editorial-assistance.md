@@ -631,10 +631,9 @@ T8.9 substitueix l'estat inferit dels esdeveniments per lectures vives de GitHub
 
 Aquests requisits substitueixen les regles històriques contradictòries d'aquesta
 especificació, incloses la classificació de T8.7, els avisos de T8.8 i la
-petició explícita de preview de T8.4. Les esmenes proposades als
+petició explícita de preview de T8.4, segons les esmenes acceptades dels
 [ADR 0009](../decisions/0009-pr-previews-same-domain-and-own-branches.md) i
-[ADR 0013](../decisions/0013-private-development-agent-boundary.md) requereixen
-revisió i fusió abans d'activar la capacitat nova.
+[ADR 0013](../decisions/0013-private-development-agent-boundary.md).
 
 - Cada tema té una sola feina, branca i PR. El primer canvi crea branca i PR;
   tots els canvis posteriors actualitzen la mateixa PR, encara que afectin
@@ -1019,7 +1018,7 @@ han de passar abans de donar-la per completada.
    proves negatives de merge sense comanda, sense avís verd resoluble, amb
    feina més nova que l'avís, amb commits posteriors a l'informe, CI vermella o pendent,
    auto-merge, push a `main`, escapada del sandbox i accés a producció. No
-   n'hi ha prou amb regles del prompt. Només el pipeline protegit desplega.
+   n'hi ha prou amb regles del prompt. Només el pipeline protegit desplega la web.
 8. Sense petició explícita al fil o amb CI vermella, l'agent no demana preview.
    Amb CI verda i la petició d'un membre verificat, comenta `/preview` amb el
    seu compte i retorna l'URL i el SHA confirmats pel publicador de la fase 6.
