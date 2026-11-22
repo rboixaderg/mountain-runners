@@ -93,6 +93,39 @@ organizerIds:
   - club-esqui-bergueda
 collaboratorIds: []
 editions:
+  - id: edition-2027
+    startDate: 2027-05-08
+    location:
+      ca: Berga
+      es: Berga
+      en: Berga
+    modalities:
+      - ca: Marató de Muntanya de Berga
+        es: Maratón de Montaña de Berga
+        en: Berga Mountain Marathon
+      - ca: Berga–Rasos–Berga
+        es: Berga–Rasos–Berga
+        en: Berga–Rasos–Berga
+      - ca: Berga–Queralt–Berga
+        es: Berga–Queralt–Berga
+        en: Berga–Queralt–Berga
+      - ca: Correxics infantils — 16 de maig
+        es: Correxics infantiles — 16 de mayo
+        en: Correxics children's races — 16 May
+    registrationStatus: coming-soon
+    documentIds: []
+  - id: edition-2027-correxics
+    startDate: 2027-05-16
+    location:
+      ca: Berga
+      es: Berga
+      en: Berga
+    modalities:
+      - ca: Correxics infantils
+        es: Correxics infantiles
+        en: Correxics children's races
+    registrationStatus: coming-soon
+    documentIds: []
   - id: edition-2026
     startDate: 2026-05-09
     endDate: 2026-05-10
