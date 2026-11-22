@@ -14,7 +14,7 @@ Les eines viuen a `tools/server/agent/` i s'instal·len a
 llicència MIT i sense dependències npm. El servei el consumeix per l'API pública;
 GitHub, Docker i la política del projecte no formen part del paquet.
 
-S'actualitza manualment des d'un commit revisat de `main` segons
+S'actualitza amb una ordre versionada des d'un commit revisat de `main` segons
 [`docs/operations/agent.md`](../../../docs/operations/agent.md#actualitzar); no
 forma part del desplegament continu de producció. La instal·lació, la
 configuració, la traça privada, la retenció i la reconciliació de resultats
@@ -63,6 +63,9 @@ tools/server/agent/               aplicació de Mountain Runners
 ├── commands/migrate-identifiers/
 │   ├── cli.mjs                   migració dels noms antics, sense arrencar el servei
 │   └── command.mjs               la mateixa migració que fa l'arrencada, idempotent
+├── commands/update/
+│   ├── cli.mjs                   embolcall de procés: umask privat i codi de sortida
+│   └── command.mjs               actualització versionada: comprovacions, còpia i verificació
 ├── processes/telegram-bridge/
 │   └── main.mjs                  connecta paquet i flux de desenvolupament
 ├── policy/
@@ -1063,6 +1066,10 @@ resolució de cada tipus de resultat desconegut, `commands/reconcile/command.tes
 una resolució completa amb clients simulats i `commands/reconcile/cli.test.mjs`
 el cablejat, els codis de sortida i l'absència de fitxers nous, amb stores SQLite
 temporals, repositoris locals i fronteres externes simulades.
+`commands/update/command.test.mjs` cobreix la revisió instal·lada, l'estat
+ocupat, la imatge del sandbox, la còpia, la substitució de directoris i la
+verificació, i `commands/update/cli.test.mjs` la ajuda i els codis de sortida,
+amb repositoris de Git i directoris temporals.
 `workflow/bridge-package.test.mjs` executa el paquet en una còpia
 independent, prova el tarball des d'un consumidor extern i verifica la disposició
 instal·lada del servei. No s'hi fan peticions reals ni es necessiten credencials,

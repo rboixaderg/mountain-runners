@@ -627,7 +627,8 @@ executa l'ordre, no una comprovació de l'script. Passos:
    l'script compara l'arbre amb un `git archive` d'aquell commit.
 3. Comprova l'estat inactiu amb el servei en marxa i les bases d'estat en només lectura:
    cap instrucció pendent o en curs, cap reparació de CI reservada, en cua o en curs, cap
-   vigilància de CI pendent, enviant o incerta i cap cas incert de `reconcile`.
+   vigilància de CI pendent, enviant o incerta, cap merge en curs o incert, cap preview
+   pendent del publicador i cap cas incert de `reconcile`.
 4. Atura el servei i confirma que és inactiu.
 5. Fa la còpia d'`agent/`, `node_modules/telegram-pi-bridge` i `state/`.
 6. Instal·la els fitxers del `git archive`, substituint directoris sencers.
