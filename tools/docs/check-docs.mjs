@@ -140,7 +140,6 @@ function headingLines(maskedText) {
 function slugify(text) {
   return text
     .replace(/!?\[([^\]]*)\]\([^)]*\)/gu, "$1")
-    .replace(/<[^>]*>/gu, "")
     .trim()
     .toLowerCase()
     .replace(/\s+/gu, "-")
