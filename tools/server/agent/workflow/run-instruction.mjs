@@ -1132,9 +1132,7 @@ export function createInstructionRunner({
       const publicationNotices = {
         pullRequest: publication.pullRequest,
         ciWatch,
-        notices: publication.previewLabelFailed
-          ? [instructionReports.previewLabelFailed]
-          : [],
+        previewLabelFailed: publication.previewLabelFailed,
       };
       if (ciWatch === ciWatchOutcomes.unavailable) {
         noteMaintainerAttention({ request, reason: ciWatchUnavailableReason });

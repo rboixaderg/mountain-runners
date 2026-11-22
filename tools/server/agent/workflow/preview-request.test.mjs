@@ -7,8 +7,14 @@ import { verifyMembership } from "telegram-pi-bridge/telegram";
 import { PreviewRequestStore } from "../repository/preview-request-store.mjs";
 import { SessionNoteStore } from "../repository/session-note-store.mjs";
 import { requestSignal } from "../repository/request-signal.mjs";
-import { seedUncertainPreviewRequest } from "../repository/test-support/preview-requests.mjs";
-import { previewConfirmationTimeoutMilliseconds } from "../policy/development.mjs";
+import {
+  seedLegacyPreviewRequest,
+  seedUncertainPreviewRequest,
+} from "../repository/test-support/preview-requests.mjs";
+import {
+  failedMaintainerNotice,
+  previewConfirmationTimeoutMilliseconds,
+} from "../policy/development.mjs";
 import { createPreviewRequests } from "./preview-request.mjs";
 
 const repository = "rboixaderg/mountain-runners";
@@ -525,7 +531,10 @@ test("a service publication reports its confirmed URL without a request or green
   await handler.runOnce();
 
   assert.equal(sent.length, 1);
-  assert.match(sent[0].text, /La preview ja està a punt: https:\/\/pr-200/u);
+  assert.match(
+    sent[0].text,
+    /^Ja ho pots veure: https:\/\/pr-200\.preview\.mountainrunners\.cat\n/u,
+  );
   assert.equal(previews.state(10), "confirmed");
   assert.deepEqual(membership.calls, [], "the publication is the request");
   assert.deepEqual(
@@ -734,7 +743,7 @@ test("keeps the plain reply as the last text of the topic", async (context) => {
 
   const note = notes.at(-1);
   assert.match(note.text, /publicada a/u);
-  assert.match(note.receivedText, /La preview ja està a punt/u);
+  assert.match(note.receivedText, /Ja ho pots veure/u);
   assert.notEqual(note.receivedText, note.text);
 });
 
@@ -755,9 +764,14 @@ test("reports an unconfirmed preview at the deadline without guessing a URL", as
   await handler.runOnce();
 
   assert.equal(sent.length, 1);
-  assert.match(sent[0].text, /No he pogut confirmar que la preview/u);
-  assert.match(sent[0].text, /Si vols, digues-m'ho i ho miro/u);
+  assert.equal(sent[0].text, failedMaintainerNotice);
   assert.doesNotMatch(sent[0].text, /preview\.mountainrunners\.cat/u);
+  assert.deepEqual(
+    traces
+      .filter((entry) => entry.action === "maintainer_attention")
+      .map((entry) => entry.detail),
+    ["previewUnconfirmed"],
+  );
   assert.equal(previews.state(20), "timed_out");
   assert.ok(actions(traces).includes("preview_unconfirmed"));
 });
@@ -791,7 +805,7 @@ test("the deadline survives a restart and is not reset by it", async (context) =
   await restarted.runOnce();
 
   assert.equal(sent.length, 1);
-  assert.match(sent[0].text, /No he pogut confirmar que la preview/u);
+  assert.equal(sent[0].text, failedMaintainerNotice);
 });
 
 test("an unconfirmed note keeps the facts of the session", async (context) => {
@@ -927,4 +941,85 @@ test("confirms a reconciled request from a publisher comment written after it", 
   );
   assert.deepEqual(github.listings, [undefined]);
   assert.ok(actions(traces).includes("preview_confirmed"));
+});
+
+test("a poll of an older commit never ends the row reopened for a newer one", async (context) => {
+  const { handler, github, previews, sent } = setup(context);
+  handler.followPublication(publication(10));
+  github.comments[200] = [publisherComment()];
+  // While the poll of the first commit waits for GitHub, a repair reopens the
+  // same row for the newer commit.
+  const listComments = github.listIssueComments;
+  github.listIssueComments = async (options) => {
+    const comments = await listComments(options);
+    handler.followPublication({
+      ...publication(10, { commit: newerCommit }),
+      repair: true,
+    });
+    return comments;
+  };
+
+  await handler.runOnce();
+
+  assert.equal(previews.state(10), "awaiting");
+  assert.equal(previews.awaiting()[0].commit_sha, newerCommit);
+  assert.equal(previews.awaiting()[0].confirmed_origin, null);
+  assert.equal(sent.length, 1);
+});
+
+function seedLegacyAwaiting(previewPath) {
+  // A request written while the service still posted `/preview` on a pull
+  // request that never got the `preview` label.
+  seedLegacyPreviewRequest(previewPath, {
+    state: "awaiting",
+    updateIdentifier: 20,
+    sessionKey,
+    authorIdentifier: 555,
+    pullRequestNumber: 200,
+    commitSha: commit,
+    createdAt: "2026-11-14T10:00:00.000Z",
+    commentedAt: "2026-11-14T10:00:00.000Z",
+  });
+}
+
+test("confirms a legacy request on an unlabeled pull request from a later publisher comment", async (context) => {
+  const { previewPath, previews, github, handler, sent } = setup(context);
+  seedLegacyAwaiting(previewPath);
+  github.pullRequests[200].previewLabeled = false;
+  github.comments[200] = [publisherComment()];
+
+  await handler.runOnce();
+
+  assert.equal(previews.state(20), "confirmed");
+  assert.equal(sent.length, 1);
+  assert.match(
+    sent[0].text,
+    /https:\/\/pr-200\.preview\.mountainrunners\.cat/u,
+  );
+});
+
+test("does not confirm a legacy request with a publisher comment older than it", async (context) => {
+  const { previewPath, previews, github, handler, sent } = setup(context);
+  seedLegacyAwaiting(previewPath);
+  github.pullRequests[200].previewLabeled = false;
+  github.comments[200] = [
+    { ...publisherComment(), updated_at: "2026-11-14T09:00:00Z" },
+  ];
+
+  await handler.runOnce();
+
+  assert.equal(previews.state(20), "awaiting");
+  assert.deepEqual(sent, []);
+});
+
+test("a legacy request still ends silently for a revoked preview", async (context) => {
+  const { previewPath, previews, github, handler, sent } = setup(context);
+  seedLegacyAwaiting(previewPath);
+  github.pullRequests[200].previewRevoked = true;
+  github.comments[200] = [publisherComment()];
+
+  await handler.runOnce();
+
+  assert.equal(previews.state(20), "failed");
+  assert.deepEqual(sent, []);
 });

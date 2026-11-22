@@ -212,19 +212,20 @@ export class PreviewRequestStore {
     );
   }
 
-  #transition(updateIdentifier, fromState, toState, origin = null) {
+  #transition(updateIdentifier, commitSha, fromState, toState, origin = null) {
     return (
       this.#database
         .prepare(
           `UPDATE preview_requests
            SET state = ?, confirmed_origin = COALESCE(?, confirmed_origin), updated_at = ?
-           WHERE update_identifier = ? AND state = ?`,
+           WHERE update_identifier = ? AND commit_sha = ? AND state = ?`,
         )
         .run(
           toState,
           origin,
           this.#now().toISOString(),
           updateIdentifier,
+          commitSha,
           fromState,
         ).changes === 1
     );
@@ -235,9 +236,11 @@ export class PreviewRequestStore {
    * one statement: a confirmation never ends without the URL the publisher
    * confirmed, and `updated_at` becomes the moment the request ended. A second
    * claim never succeeds. Only a terminal state can end a request, because the
-   * row of an ended request is never described by a state it cannot reach.
+   * row of an ended request is never described by a state it cannot reach. The
+   * commit is the one the caller read: a row reopened for a newer commit in the
+   * meantime is not ended by the result of the older one.
    */
-  finish(updateIdentifier, state, origin = null) {
+  finish(updateIdentifier, commitSha, state, origin = null) {
     if (!terminalStates.has(state)) {
       throw new Error(`Invalid preview end state ${state}.`);
     }
@@ -249,6 +252,7 @@ export class PreviewRequestStore {
     const confirmedOrigin = state === previewStates.confirmed ? origin : null;
     return this.#transition(
       updateIdentifier,
+      commitSha,
       previewStates.awaiting,
       state,
       confirmedOrigin,

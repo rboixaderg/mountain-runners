@@ -57,7 +57,7 @@ test("records a request directly as awaiting the publisher", (context) => {
 test("never begins the same update twice", (context) => {
   const store = new PreviewRequestStore(fixture(context));
   store.begin(request);
-  store.finish(1, previewStates.confirmed, previewOrigin);
+  store.finish(1, request.commitSha, previewStates.confirmed, previewOrigin);
   assert.equal(store.begin(request), previewBeginResults.duplicate);
   store.close();
 });
@@ -67,9 +67,9 @@ test("blocks a new request for the commit until the previous one ended", (contex
   store.begin(request);
   const repeated = { ...request, updateIdentifier: 2 };
   assert.equal(store.begin(repeated), previewBeginResults.open);
-  store.finish(1, previewStates.confirmed, previewOrigin);
+  store.finish(1, request.commitSha, previewStates.confirmed, previewOrigin);
   assert.equal(store.begin(repeated), previewBeginResults.begun);
-  store.finish(2, previewStates.timedOut);
+  store.finish(2, request.commitSha, previewStates.timedOut);
   assert.equal(
     store.begin({ ...request, updateIdentifier: 3 }),
     previewBeginResults.begun,
@@ -152,8 +152,14 @@ test("an awaiting request survives a restart with its deadline reference", (cont
 test("ends an awaiting request only once", (context) => {
   const store = new PreviewRequestStore(fixture(context));
   store.begin(request);
-  assert.equal(store.finish(1, previewStates.confirmed, previewOrigin), true);
-  assert.equal(store.finish(1, previewStates.timedOut), false);
+  assert.equal(
+    store.finish(1, request.commitSha, previewStates.confirmed, previewOrigin),
+    true,
+  );
+  assert.equal(
+    store.finish(1, request.commitSha, previewStates.timedOut),
+    false,
+  );
   store.close();
 });
 
@@ -164,7 +170,10 @@ test("ends a confirmed request with its origin at the moment it ended", (context
   store.begin(request);
 
   moment = new Date("2026-11-14T10:20:00Z");
-  assert.equal(store.finish(1, previewStates.confirmed, previewOrigin), true);
+  assert.equal(
+    store.finish(1, request.commitSha, previewStates.confirmed, previewOrigin),
+    true,
+  );
 
   const row = readRequest(path, 1);
   assert.equal(row.state, previewStates.confirmed);
@@ -177,7 +186,7 @@ test("never stores an origin for a request that did not end confirmed", (context
   const path = fixture(context);
   const store = new PreviewRequestStore(path);
   store.begin(request);
-  store.finish(1, previewStates.timedOut, previewOrigin);
+  store.finish(1, request.commitSha, previewStates.timedOut, previewOrigin);
 
   assert.equal(readRequest(path, 1).confirmed_origin, null);
   store.close();
@@ -188,15 +197,18 @@ test("ends a request only in a terminal state and never without its origin", (co
   store.begin(request);
 
   assert.throws(
-    () => store.finish(1, previewStates.awaiting),
+    () => store.finish(1, request.commitSha, previewStates.awaiting),
     /Invalid preview end state/u,
   );
   assert.throws(
-    () => store.finish(1, previewStates.confirmed),
+    () => store.finish(1, request.commitSha, previewStates.confirmed),
     /requires the origin/u,
   );
   assert.equal(store.state(1), previewStates.awaiting);
-  assert.equal(store.finish(1, previewStates.confirmed, previewOrigin), true);
+  assert.equal(
+    store.finish(1, request.commitSha, previewStates.confirmed, previewOrigin),
+    true,
+  );
   store.close();
 });
 
@@ -268,7 +280,7 @@ test("a new publication of the same update replaces what its row reported", (con
   let moment = new Date("2026-11-14T10:00:00Z");
   const store = new PreviewRequestStore(path, { now: () => moment });
   store.track(request);
-  store.finish(1, previewStates.confirmed, previewOrigin);
+  store.finish(1, request.commitSha, previewStates.confirmed, previewOrigin);
 
   moment = new Date("2026-11-14T11:00:00Z");
   store.track({ ...request, commitSha: newerCommit });
@@ -288,7 +300,7 @@ test("a repair reopens the row of its publication for the new commit", (context)
   let moment = new Date("2026-11-14T10:00:00Z");
   const store = new PreviewRequestStore(path, { now: () => moment });
   store.track(request);
-  store.finish(1, previewStates.timedOut);
+  store.finish(1, request.commitSha, previewStates.timedOut);
 
   moment = new Date("2026-11-14T11:00:00Z");
   const repair = { updateIdentifier: 1, commitSha: newerCommit };
@@ -315,5 +327,25 @@ test("a repair without a publication to continue creates nothing", (context) => 
   );
   assert.equal(store.state(1), undefined);
   assert.deepEqual(store.awaiting(), []);
+  store.close();
+});
+
+test("a result read for an older commit never ends the row reopened for a newer one", (context) => {
+  const path = fixture(context);
+  const store = new PreviewRequestStore(path);
+  store.track(request);
+  store.reopen({
+    updateIdentifier: 1,
+    pullRequestNumber: 42,
+    commitSha: newerCommit,
+  });
+
+  assert.equal(
+    store.finish(1, request.commitSha, previewStates.confirmed, previewOrigin),
+    false,
+  );
+  assert.equal(store.state(1), previewStates.awaiting);
+  assert.equal(readRequest(path, 1).confirmed_origin, null);
+  assert.equal(store.finish(1, newerCommit, previewStates.timedOut), true);
   store.close();
 });

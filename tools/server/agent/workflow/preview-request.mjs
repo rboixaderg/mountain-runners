@@ -36,8 +36,10 @@ import {
   sleep,
 } from "../repository/request-signal.mjs";
 import {
+  maintainerAttentionAction,
   previewNotes,
   previewReports,
+  previewUnconfirmedReason,
   pullRequestReviewUrl,
 } from "../policy/development.mjs";
 
@@ -99,9 +101,11 @@ export function createPreviewRequests({
   /**
    * Why the live pull request has no preview to report, or null. Only an open
    * pull request of the main repository that carries the `preview` label and
-   * not `preview-revoked` has one.
+   * not `preview-revoked` has one. A request written while the service still
+   * posted `/preview` is answered for a pull request that never had the label,
+   * so it does not need it.
    */
-  function refusalOf(pullRequest) {
+  function refusalOf(pullRequest, { requiresLabel = true } = {}) {
     if (pullRequest.state !== "open") return refusals.notApplicable;
     if (
       pullRequest.headRepository?.toLowerCase() !== repository.toLowerCase()
@@ -109,7 +113,9 @@ export function createPreviewRequests({
       return refusals.notMainRepository;
     }
     if (pullRequest.previewRevoked) return refusals.previewRevoked;
-    if (!pullRequest.previewLabeled) return refusals.noPreviewLabel;
+    if (requiresLabel && !pullRequest.previewLabeled) {
+      return refusals.noPreviewLabel;
+    }
     return null;
   }
 
@@ -357,12 +363,21 @@ export function createPreviewRequests({
         );
         continue;
       }
+      // `commented_at` is set only by the rows the service wrote while it posted
+      // `/preview`.
+      const legacy = row.commented_at !== null;
       const withdrawal =
         pullRequest.headSha === row.commit_sha
-          ? refusalOf(pullRequest)
+          ? refusalOf(pullRequest, { requiresLabel: !legacy })
           : "superseded";
       if (withdrawal !== null) {
-        if (store.finish(row.update_identifier, previewStates.failed)) {
+        if (
+          store.finish(
+            row.update_identifier,
+            row.commit_sha,
+            previewStates.failed,
+          )
+        ) {
           safeTrace({
             updateIdentifier: row.update_identifier,
             authorIdentifier: row.author_identifier,
@@ -377,6 +392,7 @@ export function createPreviewRequests({
         comments,
         pullRequestNumber: row.pull_request_number,
         commit: row.commit_sha,
+        since: legacy ? row.commented_at : undefined,
       });
       if (origin !== null) {
         if (signal?.aborted) return;
@@ -395,6 +411,7 @@ export function createPreviewRequests({
         // topic cannot read GitHub and never builds it.
         const ended = store.finish(
           row.update_identifier,
+          row.commit_sha,
           previewStates.confirmed,
           origin,
         );
@@ -414,17 +431,26 @@ export function createPreviewRequests({
         confirmationTimeoutMilliseconds;
       if (!expired) continue;
       if (signal?.aborted) return;
-      const sent = await report(
-        row,
-        previewReports.unconfirmed({ reviewUrl }),
-        {
-          signal,
-          state: "unconfirmed",
-          note: previewNotes.unconfirmed(target),
-        },
-      );
+      const sent = await report(row, previewReports.unconfirmed, {
+        signal,
+        state: "unconfirmed",
+        note: previewNotes.unconfirmed(target),
+      });
       if (!sent) continue;
-      const ended = store.finish(row.update_identifier, previewStates.timedOut);
+      // The notice says the case is left for the maintainer, so it is recorded.
+      safeTrace({
+        updateIdentifier: row.update_identifier,
+        authorIdentifier: row.author_identifier,
+        sessionKey: row.session_key,
+        action: maintainerAttentionAction,
+        detail: previewUnconfirmedReason,
+      });
+      logger(maintainerAttentionAction, previewUnconfirmedReason);
+      const ended = store.finish(
+        row.update_identifier,
+        row.commit_sha,
+        previewStates.timedOut,
+      );
       if (!ended) continue;
       safeTrace({
         updateIdentifier: row.update_identifier,

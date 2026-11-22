@@ -441,6 +441,25 @@ test("saves with the plain notice and warns the maintainer when the watch is una
   );
 });
 
+test("a failed preview label sends the failure notice once, never with the saved one", () => {
+  const pullRequest = { htmlUrl: "https://example.test/pull/200" };
+  const link = "Enllaç per a revisió: https://example.test/pull/200";
+
+  for (const ciWatch of [
+    ciWatchOutcomes.registered,
+    ciWatchOutcomes.unavailable,
+  ]) {
+    assert.equal(
+      publicationNoticesText({
+        pullRequest,
+        ciWatch,
+        previewLabelFailed: true,
+      }),
+      [failedMaintainerNotice, link].join("\n"),
+    );
+  }
+});
+
 test("drops only the review link when the service has no URL", () => {
   assert.equal(
     publicationNoticesText({

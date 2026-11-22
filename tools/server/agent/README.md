@@ -283,8 +283,14 @@ al servidor. El nom local encara no representa una publicació a npm.
    comentari del publicador de la fase 6 (`github-actions[bot]`, marcador,
    origen exacte `https://pr-<n>.preview.mountainrunners.cat` i el SHA fixat,
    també si és anterior a la petició, perquè l'etiqueta el publica en pujar el
-   cap). Retorna l'URL confirmada al tema; si el termini de 25 minuts s'esgota,
-   ho comunica com a no confirmat sense construir cap URL.
+   cap). La retirada d'una preview n'edita el comentari i deixa de coincidir amb
+   aquest patró. Retorna «Ja ho pots veure: <URL>» al tema; si el termini de 25
+   minuts s'esgota, envia l'avís de fallada, deixa la traça `maintainer_attention`
+   (`previewUnconfirmed`) i no construeix cap URL. Una fila antiga amb
+   `commented_at` no exigeix l'etiqueta i només accepta un comentari del
+   publicador posterior a aquell moment. El tancament d'una fila exigeix el
+   commit que s'ha llegit: el resultat d'un cap anterior no tanca una fila
+   reoberta per a un de nou.
 
    El servei ja no llegeix les execucions de `preview.yml`: el run de
    `pull_request_target` no porta el cap de la PR (`head_sha` és l'últim commit

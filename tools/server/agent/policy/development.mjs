@@ -19,6 +19,8 @@ export const failedMaintainerNotice =
 // sends the failure notice above, so the sentence is true: the case is
 // recorded for the maintainer, with the report key as its reason.
 export const maintainerAttentionAction = "maintainer_attention";
+// The reason recorded when a preview is not confirmed before its deadline.
+export const previewUnconfirmedReason = "previewUnconfirmed";
 
 export const bridgeMessages = {
   acknowledgement: () => workingNotice,
@@ -484,16 +486,18 @@ export function mergedReviewLineText({ pullRequestUrl, mergeCommit }) {
 /**
  * The service-written part of a publication: the notices the service decided
  * around it, one short line that says what happens with the change, and the
- * review link as the last line. Without a CI watch the service promises no
- * follow-up message.
+ * review link as the last line. Without a CI watch or without the preview label
+ * the service promises no follow-up message: the person reads the failure
+ * notice once, never together with the saved one.
  */
-export function publicationNoticesText({ pullRequest, ciWatch, notices = [] }) {
-  const lines = [...notices];
-  if (ciWatch === ciWatchOutcomes.unavailable) {
-    lines.push(failedMaintainerNotice);
-  } else {
-    lines.push(savedNotice);
-  }
+export function publicationNoticesText({
+  pullRequest,
+  ciWatch,
+  previewLabelFailed = false,
+  notices = [],
+}) {
+  const failed = ciWatch === ciWatchOutcomes.unavailable || previewLabelFailed;
+  const lines = [...notices, failed ? failedMaintainerNotice : savedNotice];
   return withReviewLink(lines.join("\n"), pullRequest.htmlUrl);
 }
 
@@ -529,6 +533,7 @@ export function publicationNoteText({
   commit,
   checkCommand,
   ciWatch,
+  previewLabelFailed = false,
   notices = [],
 }) {
   const lines = [
@@ -540,6 +545,7 @@ export function publicationNoteText({
     lines.push("No s'ha pogut desar el seguiment de la CI d'aquest commit.");
   }
   lines.push(...notices);
+  if (previewLabelFailed) lines.push(failedMaintainerNotice);
   return lines.join("\n");
 }
 
@@ -739,12 +745,10 @@ export const previewReports = {
       reviewUrl,
     ),
   confirmed: ({ origin, reviewUrl }) =>
-    withReviewLink(`La preview ja està a punt: ${origin}`, reviewUrl),
-  unconfirmed: ({ reviewUrl }) =>
-    withReviewLink(
-      "No he pogut confirmar que la preview estigui a punt i no tinc cap adreça per donar-te. Si vols, digues-m'ho i ho miro.",
-      reviewUrl,
-    ),
+    withReviewLink(`Ja ho pots veure: ${origin}`, reviewUrl),
+  // The deadline passed without the publisher's confirmation: the case is
+  // recorded for the maintainer, as every other failure notice.
+  unconfirmed: failedMaintainerNotice,
 };
 
 // The effect a preview report leaves in the session of the topic. The text the

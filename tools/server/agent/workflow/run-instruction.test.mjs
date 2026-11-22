@@ -1743,8 +1743,8 @@ test("says plainly that the preview could not be activated and keeps the publica
   const result = await runner(request());
 
   assert.equal(result.outcome, "pull_request_created");
-  assert.match(result.report, new RegExp(failedMaintainerNotice, "u"));
-  assert.match(result.report, new RegExp(savedNotice, "u"));
+  assert.equal(result.report.split(failedMaintainerNotice).length - 1, 1);
+  assert.doesNotMatch(result.report, new RegExp(savedNotice, "u"));
   assert.doesNotMatch(result.report, /GitHub refused|\/preview/u);
   assert.deepEqual(
     traces
@@ -1752,6 +1752,42 @@ test("says plainly that the preview could not be activated and keeps the publica
       .map((entry) => entry.detail),
     ["previewLabelFailed"],
     "the failure notice is true: the case is recorded for the maintainer",
+  );
+});
+
+test("sends the failure notice once when the label and the CI watch both fail", async (context) => {
+  const paths = await fixture(context);
+  const github = githubStub();
+  github.labelError = new Error("GitHub refused the label");
+  mkdirSync(paths.state, { recursive: true });
+  const ciWatches = new CiWatchStore(join(paths.state, "ci-watch.sqlite"));
+  context.after(() => ciWatches.close());
+  ciWatches.add = () => {
+    throw new Error("The watch cannot be stored");
+  };
+  const traces = [];
+  const runner = createProjectRunner({
+    recordTrace: (entry) => traces.push(entry),
+    config: configFor(paths),
+    classifyRequest: async () => ({ kind: "implementation" }),
+    github,
+    ciWatches,
+    runModel: async ({ worktreePath }) => {
+      writeFileSync(join(worktreePath, "change.txt"), "canvi\n");
+      return { text: "Fet.\nSUMMARY: feat(content): add the news" };
+    },
+    runChecks: async () => ({ exitCode: 0, stdout: "", stderr: "" }),
+  });
+
+  const result = await runner(request());
+
+  assert.equal(result.report.split(failedMaintainerNotice).length - 1, 1);
+  assert.doesNotMatch(result.report, new RegExp(savedNotice, "u"));
+  assert.deepEqual(
+    traces
+      .filter((entry) => entry.action === "maintainer_attention")
+      .map((entry) => entry.detail),
+    ["ciWatchUnavailable", "previewLabelFailed"],
   );
 });
 

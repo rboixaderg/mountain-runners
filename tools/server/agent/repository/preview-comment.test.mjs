@@ -27,6 +27,17 @@ test("accepts the publisher comment for this pull request and commit", () => {
   assert.equal(confirmed(publisherComment()), origin);
 });
 
+test("a comment of a retired preview confirms nothing", () => {
+  assert.equal(
+    confirmed(
+      publisherComment({
+        body: "<!-- mountain-runners-preview -->\nPreview retirada.",
+      }),
+    ),
+    null,
+  );
+});
+
 test("rejects a comment the publisher did not write", () => {
   assert.equal(
     confirmed(publisherComment({ user: { login: "someone" } })),
@@ -126,4 +137,19 @@ test("rejects a pull request number that is not a positive integer", () => {
       String(invalid),
     );
   }
+});
+
+test("a request with a start moment accepts only a comment updated after it", () => {
+  assert.equal(
+    confirmed(publisherComment(), { since: "2026-11-14T10:00:00Z" }),
+    origin,
+  );
+  assert.equal(
+    confirmed(publisherComment(), { since: "2026-11-14T10:05:00Z" }),
+    null,
+  );
+  assert.equal(
+    confirmed(publisherComment(), { since: "2026-11-14T10:10:00Z" }),
+    null,
+  );
 });

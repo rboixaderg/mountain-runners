@@ -20,6 +20,7 @@ export function seedLegacyPreviewRequest(
     pullRequestNumber,
     commitSha,
     createdAt,
+    commentedAt = null,
   },
 ) {
   const database = new DatabaseSync(databasePath);
@@ -27,8 +28,8 @@ export function seedLegacyPreviewRequest(
     database
       .prepare(
         `INSERT INTO preview_requests
-         (update_identifier, session_key, author_identifier, pull_request_number, commit_sha, state, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+         (update_identifier, session_key, author_identifier, pull_request_number, commit_sha, state, commented_at, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       )
       .run(
         updateIdentifier,
@@ -37,6 +38,7 @@ export function seedLegacyPreviewRequest(
         pullRequestNumber,
         commitSha,
         state,
+        commentedAt,
         createdAt,
         createdAt,
       );
