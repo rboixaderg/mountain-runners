@@ -9,10 +9,6 @@ import {
   previewBeginResults,
   previewStates,
 } from "./preview-request-store.mjs";
-import {
-  seedLegacyPreviewRequest,
-  seedUncertainPreviewRequest,
-} from "./test-support/preview-requests.mjs";
 
 function fixture(context) {
   const directory = mkdtempSync(join(tmpdir(), "mr-preview-store-"));
@@ -50,7 +46,6 @@ test("records a request directly as awaiting the publisher", (context) => {
   const [row] = store.awaiting();
   assert.equal(row.author_identifier, 555);
   assert.equal(row.commit_sha, request.commitSha);
-  assert.equal(store.uncertainCount(), 0);
   store.close();
 });
 
@@ -91,48 +86,6 @@ test("allows a new request for a new commit or another pull request", (context) 
   store.close();
 });
 
-test("a legacy uncertain request survives a restart and keeps blocking its commit", (context) => {
-  const path = fixture(context);
-  new PreviewRequestStore(path).close();
-  seedUncertainPreviewRequest(path, {
-    ...request,
-    createdAt: "2026-11-14T10:00:00.000Z",
-  });
-
-  const store = new PreviewRequestStore(path);
-  assert.equal(store.uncertainCount(), 1);
-  assert.deepEqual(
-    store.uncertain().map((row) => row.update_identifier),
-    [1],
-  );
-  assert.deepEqual(store.awaiting(), []);
-  assert.equal(
-    store.begin({ ...request, updateIdentifier: 2 }),
-    previewBeginResults.open,
-  );
-  store.close();
-});
-
-test("a legacy interrupted comment becomes uncertain on restart and is not posted", (context) => {
-  const path = fixture(context);
-  new PreviewRequestStore(path).close();
-  seedLegacyPreviewRequest(path, {
-    ...request,
-    state: previewStates.commenting,
-    createdAt: "2026-11-14T10:00:00.000Z",
-  });
-
-  const store = new PreviewRequestStore(path);
-  assert.deepEqual(
-    store.recoverCommenting().map((row) => row.update_identifier),
-    [1],
-  );
-  assert.equal(store.state(1), previewStates.uncertain);
-  assert.deepEqual(store.recoverCommenting(), []);
-  assert.deepEqual(store.awaiting(), []);
-  store.close();
-});
-
 test("an awaiting request survives a restart with its deadline reference", (context) => {
   const path = fixture(context);
   let store = new PreviewRequestStore(path, {
@@ -142,7 +95,6 @@ test("an awaiting request survives a restart with its deadline reference", (cont
   store.close();
 
   store = new PreviewRequestStore(path);
-  assert.deepEqual(store.recoverCommenting(), []);
   const [row] = store.awaiting();
   assert.equal(row.commented_at, null);
   assert.equal(row.updated_at, "2026-11-14T10:00:01.000Z");
@@ -237,27 +189,6 @@ test("adds the confirmed origin to a store created before it was kept", (context
 
   const store = new PreviewRequestStore(path);
   assert.equal(readRequest(path, 1).confirmed_origin, null);
-  store.close();
-});
-
-test("keeps the request moment as the comment of a reconciled post", (context) => {
-  const path = fixture(context);
-  new PreviewRequestStore(path).close();
-  seedUncertainPreviewRequest(path, {
-    ...request,
-    createdAt: "2026-11-14T10:00:00.000Z",
-  });
-
-  // The person confirms the comment much later: the attribution window of the
-  // request still starts when the request did, not when it was reconciled.
-  const store = new PreviewRequestStore(path, {
-    now: () => new Date("2026-11-14T12:00:00Z"),
-  });
-  const resolved = store.resolveUncertainCommented(1);
-  assert.equal(resolved.update_identifier, 1);
-  assert.equal(store.state(1), previewStates.awaiting);
-  assert.equal(store.awaiting()[0].commented_at, "2026-11-14T10:00:00.000Z");
-  assert.equal(store.awaiting()[0].updated_at, "2026-11-14T12:00:00.000Z");
   store.close();
 });
 

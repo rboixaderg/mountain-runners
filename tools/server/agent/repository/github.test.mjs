@@ -718,34 +718,6 @@ test("rejects an invalid branch before calling the API", async () => {
   assert.deepEqual(calls, []);
 });
 
-test("reads the authenticated login with a read-only request", async () => {
-  const calls = [];
-  const component = trust({
-    fetchImpl: async (url, options) => {
-      calls.push({ url, options });
-      return { ok: true, json: async () => ({ login: "mountain-agent-bot" }) };
-    },
-  });
-
-  const login = await component.getAuthenticatedLogin();
-
-  assert.equal(login, "mountain-agent-bot");
-  assert.equal(calls.length, 1);
-  assert.equal(calls[0].url, "https://api.github.com/user");
-  assert.equal(calls[0].options.method, "GET");
-  assert.equal(calls[0].options.headers.authorization, `Bearer ${githubToken}`);
-});
-
-test("refuses an invalid authenticated user response", async () => {
-  const component = trust({
-    fetchImpl: async () => ({ ok: true, json: async () => ({}) }),
-  });
-
-  await assert.rejects(component.getAuthenticatedLogin(), {
-    message: /invalid user response/u,
-  });
-});
-
 test("exposes only the approved GitHub operations", () => {
   const publicOperations = Object.getOwnPropertyNames(GitHubTrust.prototype)
     .filter((name) => name !== "constructor")
@@ -755,7 +727,6 @@ test("exposes only the approved GitHub operations", () => {
     "addPreviewLabel",
     "ensurePullRequest",
     "findOpenPullRequest",
-    "getAuthenticatedLogin",
     "getCheckRunJob",
     "getCommitCheckRuns",
     "getCommitStatuses",
@@ -828,22 +799,6 @@ test("redacts the token from the message and the stack of a failed Git read", as
 
   assert.equal(failure.message.includes(githubToken), false);
   assert.equal(String(failure.stack).includes(githubToken), false);
-});
-
-test("rejects an unreadable comment bound before reading GitHub", async () => {
-  const requests = [];
-  const component = trust({
-    fetchImpl: async (url) => {
-      requests.push(url);
-      return { ok: true, json: async () => [] };
-    },
-  });
-
-  await assert.rejects(
-    component.listIssueComments({ number: 123, since: "not a timestamp" }),
-    /ISO timestamp/u,
-  );
-  assert.deepEqual(requests, []);
 });
 
 test("never reduces an invalid pull request list to a real pull request", async () => {

@@ -1036,31 +1036,26 @@ afegeixis-la a grups de producció.
 
 ### Publicar una preview
 
-Res no es construeix ni es publica perquè s'obri una PR: el workflow `Preview`
-només corre sota demanda, amb una de tres peticions.
+Obrir una PR no inicia el workflow `Preview`. Un comentari `/preview` tampoc.
 
-1. Una persona col·laboradora amb permisos demana la preview amb un
-   **comentari a la PR amb el text exacte `/preview`** (per exemple, via
-   `gh pr comment <n> --body "/preview"`, també des d'un agent), amb la via
-   manual `Preview` (workflow_dispatch amb el número de PR) o amb l'**etiqueta
-   `preview`** de la PR, que publica el cap actual i cada push posterior sense
-   cap comentari. `/preview` continua vigent. L'etiqueta la posa una persona
-   amb permís `write` o `admin`, o l'agent de la fase 8 en crear la PR d'un tema.
+1. Per demanar una preview, posa l'**etiqueta `preview`** a una PR oberta del
+   repositori principal. Cal permís `write` o `admin`. L'agent de la fase 8
+   posa l'etiqueta quan crea la PR d'un tema. Mentre la PR té l'etiqueta, els
+   pushes d'actors amb escriptura publiquen el cap nou. Per reintentar una
+   publicació, conserva `preview`, comprova que no hi ha `preview-revoked` i
+   executa `Preview` manualment des de `main` amb el número de PR.
 2. El job `authorize` (codi de confiança des de la branca per defecte)
-   comprova els permisos de qui l'ha demanada i identifica el commit vigent de
-   la PR pel seu SHA. Una petició amb `/preview` o manual queda vinculada a
-   aquest commit, no als futurs canvis de la PR; amb l'etiqueta, cada push
-   publica el cap nou mentre la PR la tingui. Un push a una PR sense l'etiqueta
-   no executa cap build: el run apareix com a omès.
+   comprova els permisos de l'actor i l'estat de la PR i resol el SHA vigent.
+   Un push a una PR sense `preview` no executa cap build. Si el reintent manual
+   no compleix els requisits, falla abans del build i no publica res.
 3. El job `build` (no fiable, sense secrets ni caches) fa checkout del commit
    vigent de la PR, executa `pnpm validate` complet i compila l'artefacte amb
    l'origen `pr-<n>.preview.mountainrunners.cat`; el job `publish` valida manifest,
    mida, fitxers, digests i paths amb els validadors de producció i
-   revalida que la PR continua oberta i al mateix commit i que l'autorització
-   encara és vigent (col·laboradora per a `/preview`, permís d'escriptura per
-   a `workflow_dispatch` o l'etiqueta) i, amb l'etiqueta, que la PR continua
-   tenint `preview`. El publicador signa l'autorització amb la clau
-   privada exclusiva del job de confiança. El procés `mountain-preview-site`
+   revalida que la PR continua oberta i al mateix commit, amb `preview` i sense
+   `preview-revoked`, i que l'actor conserva `write` o `admin`. El publicador
+   signa l'autorització amb la clau privada exclusiva del job de confiança.
+   El procés `mountain-preview-site`
    verifica la signatura amb la clau pública del VPS abans de registrar-la.
    La clau SSH de previews per si sola no pot autoritzar una release. El
    procés valida el Caddyfile abans de reiniciar Caddy per configurar l'origen.
@@ -1089,21 +1084,19 @@ quan el namespace ja no existeix no falla. La reconciliació i la retirada
 automatitzada estan verificades al VPS (T6.5). La instal·lació de la primitiva
 en un VPS nou requereix una aprovació explícita separada.
 
-El workflow `Preview cleanup` reconcilia cada hora i en tancar una PR. Retira
-previews tancades, revocades, de forks o que portin 14 dies sense
-actualitzar-se. Treure l'etiqueta `preview` d'una PR en retira la preview a
-l'acte, també si s'havia publicat amb `/preview`; treure'n qualsevol altra no
-retira res, i la reconciliació horària no retira les previews de PR sense
-etiqueta. Sense l'etiqueta, pujar commits a la branca no retira la preview
-publicada ni en renova la caducitat: continua servint el SHA autoritzat fins
-que es demana una nova preview amb `/preview` o es compleix un criteri de
-retirada. Amb l'etiqueta, cada push publica el cap nou.
+El workflow `Preview cleanup` reconcilia cada hora, en tancar una PR i en afegir
+`preview-revoked`. Retira les previews de PR tancades, revocades, de forks o
+sense `preview`, i les previews que portin 14 dies sense actualitzar-se.
+Treure `preview` d'una PR en retira la preview a l'acte, també si s'havia
+publicat amb `/preview`. Treure qualsevol altra etiqueta no inicia la retirada.
+Abans de fusionar la T1, posa `preview` a les PR obertes amb previews antigues
+que calgui conservar. El primer cicle horari després del merge retira les altres.
 El job de publicació i el de neteja comparteixen el grup de concurrència
 `previews` amb `queue: max`: una retirada pendent espera el seu torn i no la
 substitueix una execució posterior. Si una preview continua servint-se després
-de treure l'etiqueta, la reconciliació horària ni una execució manual de
-`Preview cleanup` no la retiren mentre la PR sigui oberta: afegeix
-`preview-revoked`.
+de treure l'etiqueta, executa `Preview cleanup` manualment des de `main` o
+espera el cicle horari següent. Comprova que el comentari del publicador diu
+`Preview retirada.` i que l'origen ja no serveix la preview.
 La comprovació del head SHA vigent es manté per a les noves publicacions.
 Els fitxers rebuts però no instal·lats caduquen al cap d'un
 dia. La reconciliació comença amb `mountain-preview cleanup-retired`, que
@@ -1131,8 +1124,9 @@ Per revocar immediatament una preview d'una PR oberta, la persona mantenidora
 afegeix l'etiqueta `preview-revoked` a GitHub. El workflow de neteja reacciona
 a l'esdeveniment i la reconciliació horària ho torna a comprovar; el publicador
 rebutja qualsevol nova activació mentre l'etiqueta hi sigui. Per reprendre la
-publicació cal retirar l'etiqueta i tornar a publicar el SHA vigent: amb
-`/preview`, o amb un push nou a una PR que tingui l'etiqueta `preview`. Si GitHub o el workflow fallen, cal suspendre les previews i
+publicació, treu `preview-revoked` i comprova que la PR té `preview`. Fes un
+push nou o executa `Preview` manualment des de `main` amb el número de PR.
+Si GitHub o el workflow fallen, cal suspendre les previews i
 executar la retirada pel canal administratiu aprovat; no editar releases a mà.
 
 ### Política d'Actions de `pull_request_target` per a les previews
@@ -1158,6 +1152,10 @@ que usin hi ha de constar. Cal afegir-hi qualsevol esdeveniment nou abans
 de fusionar el canvi del workflow. Encara no s'ha provat amb una execució
 bloquejada.
 
+Després de fusionar la [T1 de la retirada de `/preview`](specs/retire-preview-command.md#t1-retirada-de-preview-al-publicador),
+treu `issue_comment` de la política només amb l'aprovació explícita de la persona
+mantenidora. Conserva `pull_request_target`, `workflow_dispatch` i `schedule`.
+
 Per comprovar-la:
 
 ```sh
@@ -1170,7 +1168,7 @@ El bloqueig per defecte de `pull_request_target` impedeix publicar amb
 l'etiqueta i activar la neteja en tancar la PR, revocar la preview o treure
 l'etiqueta; no bloqueja per si sol els altres disparadors. Per recrear la
 política, a Settings → Actions → Policies, o amb el `POST` de l'API REST de
-polítiques amb el contingut anterior. Només amb l'aprovació explícita de la
+polítiques amb els esdeveniments vigents. Només amb l'aprovació explícita de la
 persona mantenidora.
 
 ### Instal·lació de T6.4 al VPS existent (només amb aprovació)
@@ -1234,13 +1232,13 @@ Si falla el reinici o el smoke de producció, restaura el fragment anterior,
 reinicia i suspèn les previews; no edita cap release de producció.
 
 L'entorn GitHub `previews` només separa els secrets de producció: no té
-required reviewers, perquè l'autorització és el comentari verificat. Els
-secrets de previews (`PREVIEW_SSH_PRIVATE_KEY`, `PREVIEW_KNOWN_HOSTS`,
+required reviewers. El publicador exigeix `preview` i permís `write` o `admin`.
+Els secrets de previews (`PREVIEW_SSH_PRIVATE_KEY`, `PREVIEW_KNOWN_HOSTS`,
 `PREVIEW_AUTH_PRIVATE_KEY`) viuen
 només a l'entorn `previews`, mai compartits amb producció. El risc residual
-acceptat: qualsevol col·laborador del repositori pot sol·licitar la
-publicació d'una PR pròpia amb `/preview` o amb l'etiqueta `preview` (que exigeix permís `write`); el publicador continua rebutjant
-forks, PRs tancades i caps mouments.
+acceptat és que una persona amb escriptura al repositori pot demanar la
+publicació de contingut no fiable d'una PR pròpia. El publicador rebutja
+forks, PR tancades i caps que han canviat.
 
 Els canvis de Caddy dels previews requereixen validació completa abans de
 reiniciar i comprovació de producció després. Els blocs de lloc i els logs

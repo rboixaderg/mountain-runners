@@ -53,12 +53,6 @@ function assertPullRequestNumber(number) {
   }
 }
 
-function assertIsoTimestamp(timestamp) {
-  if (typeof timestamp !== "string" || Number.isNaN(Date.parse(timestamp))) {
-    throw new Error("An ISO timestamp is required.");
-  }
-}
-
 /**
  * The summary of a pull request that publication needs. A response missing a
  * field it reads is invalid: reducing it would let a later step treat an absent
@@ -569,18 +563,6 @@ export class GitHubTrust {
   }
 
   /**
-   * The login of the account this token authenticates. Read-only, used to tell
-   * whether a `/preview` comment posted before the label request exists.
-   */
-  async getAuthenticatedLogin({ signal } = {}) {
-    const user = await this.#request("GET", "/user", undefined, { signal });
-    if (typeof user?.login !== "string" || user.login === "") {
-      throw new Error("GitHub returned an invalid user response.");
-    }
-    return user.login;
-  }
-
-  /**
    * Put the `preview` label on the pull request the service just opened. It is
    * the only label operation of the component: the label is fixed, nothing can
    * be removed and no other label can be set. Adding a label the pull request
@@ -640,21 +622,14 @@ export class GitHubTrust {
     return { mergeCommitSha: merge.sha };
   }
 
-  /**
-   * The comments of a pull request, oldest first, or only those updated since
-   * `since` (an ISO timestamp). GitHub filters by `updated_at`, so the
-   * publisher's comment edited in place is still listed.
-   */
-  async listIssueComments({ number, since, signal }) {
+  /** The comments of a pull request, oldest first. */
+  async listIssueComments({ number, signal }) {
     assertPullRequestNumber(number);
-    if (since !== undefined) assertIsoTimestamp(since);
-    const sinceQuery =
-      since === undefined ? "" : `since=${encodeURIComponent(since)}&`;
     const comments = [];
     for (let page = 1; page <= maximumPageCount; page += 1) {
       const response = await this.#request(
         "GET",
-        `/repos/${this.#repository}/issues/${number}/comments?${sinceQuery}per_page=100&page=${page}`,
+        `/repos/${this.#repository}/issues/${number}/comments?per_page=100&page=${page}`,
         undefined,
         { signal },
       );

@@ -11,16 +11,17 @@
 //
 // Required environment:
 //   PREVIEW_PULL_NUMBER   pull request number to publish
+//   PREVIEW_AUTHORIZED_SHA   head SHA resolved by the authorize job
 //   PREVIEW_HOST          preview VPS host
 //   PREVIEW_DEPLOY_USER   optional; must be the preview-deploy identity
 //   PREVIEW_SSH_PRIVATE_KEY, PREVIEW_KNOWN_HOSTS  preview identity secrets
 //   GITHUB_TOKEN, GITHUB_REPOSITORY, GITHUB_API_URL
 import { readFileSync } from "node:fs";
 import {
-  assertCommentAuthorized,
   assertActorWritePermission,
-  commentOnPublishedPreview,
   markPublishedPreviewRetired,
+  preparePublishedPreviewComment,
+  previewActorOf,
   publishPreview,
   resolvePullRequestState,
 } from "./publish-operations.mjs";
@@ -40,10 +41,6 @@ function readEvent() {
   );
 }
 
-// Who authorizes the run and how it is revalidated. A `/preview` comment is
-// attributed to its author, who must remain a collaborator. A label request
-// runs for the event sender, who pushed or labeled, and needs the label; a
-// manual dispatch is attributed to the workflow actor. Both need write access.
 export function publishRequestOf({
   eventName,
   event,
@@ -53,26 +50,9 @@ export function publishRequestOf({
   token,
   fetchImpl,
 }) {
-  if (eventName === "issue_comment") {
-    const commentAuthor = event.comment?.user?.login;
-    return {
-      authorizedBy: commentAuthor,
-      requireLabel: false,
-      revalidateCommentAuthorization: () =>
-        assertCommentAuthorized({
-          repository,
-          apiUrl,
-          token,
-          commentAuthor,
-          fetchImpl,
-        }),
-    };
-  }
-  const actor =
-    eventName === "pull_request_target" ? event.sender?.login : workflowActor;
+  const actor = previewActorOf({ eventName, event, workflowActor });
   return {
     authorizedBy: actor,
-    requireLabel: eventName === "pull_request_target",
     revalidateActorAuthorization: () =>
       assertActorWritePermission({
         repository,
@@ -101,6 +81,7 @@ async function main() {
   const message = await publishPreview({
     artifactDirectory: process.env.ARTIFACT_DIRECTORY ?? "artifacts/preview",
     pullNumber,
+    authorizedSha: requireEnvironment("PREVIEW_AUTHORIZED_SHA"),
     authorizedBy: request.authorizedBy,
     authorizationPrivateKey: requireEnvironment("PREVIEW_AUTH_PRIVATE_KEY"),
     resolvePullRequestState: () =>
@@ -110,13 +91,11 @@ async function main() {
         token,
         pullNumber,
       }),
-    revalidateCommentAuthorization: request.revalidateCommentAuthorization,
     revalidateActorAuthorization: request.revalidateActorAuthorization,
-    requireLabel: request.requireLabel,
     markRetired: () =>
       markPublishedPreviewRetired({ repository, apiUrl, token, pullNumber }),
-    onPublished: ({ headSha, origin }) =>
-      commentOnPublishedPreview({
+    prepareComment: ({ headSha, origin }) =>
+      preparePublishedPreviewComment({
         repository,
         apiUrl,
         token,

@@ -1,28 +1,17 @@
 #!/usr/bin/env node
 // Publish request resolution (T6.3).
 //
-// The trusted `authorize` job of the Preview workflow runs this script. A
-// comment with the exact text `/preview` on a pull request, written by a
-// repository collaborator, is the explicit maintainer authorization to
-// publish: this script verifies the author, resolves the pull request's
-// current head SHA from trusted platform metadata and exposes it to the
-// build and publish jobs. A manual workflow_dispatch carries the pull
-// request number directly (dispatching already requires write access). A
-// `labeled` or `synchronize` event of a pull request with the `preview` label
-// (the job condition already filtered them) is a label request: the sender
-// must have write access and the head comes from the API, never from
-// GITHUB_SHA, which on this event is the last commit of `main`.
-// Everything else exits quietly so ordinary comments produce a fast no-op
-// run; an unauthorized `/preview` fails loudly.
+// Resolve the current PR head via the API, never from GITHUB_SHA, which in a
+// pull request event is the last commit of main. The workflow filters unrelated
+// events; a label removed before authorization skips the build. Other denials fail.
 
 import { appendFileSync, readFileSync } from "node:fs";
 import {
   assertActorWritePermission,
-  assertCommentAuthorized,
+  MissingPreviewLabelError,
+  previewActorOf,
   resolvePullRequestState,
 } from "./publish-operations.mjs";
-
-const previewPublishCommand = "/preview";
 
 function readEvent() {
   if (process.env.GITHUB_EVENT_PATH === undefined) {
@@ -63,65 +52,42 @@ async function main() {
   const apiUrl = process.env.GITHUB_API_URL;
   const token = process.env.GITHUB_TOKEN;
 
-  let pullNumber;
-  if (process.env.GITHUB_EVENT_NAME === "issue_comment") {
-    const event = readEvent();
-    const commentBody = event.comment?.body ?? "";
-    if (commentBody.trim() !== previewPublishCommand) {
-      writeOutputs({ should_publish: "false" });
-      console.log("The comment does not request a preview publish.");
-      return;
-    }
-    if (event.issue?.pull_request === undefined) {
-      writeOutputs({ should_publish: "false" });
-      console.log("The comment is not on a pull request.");
-      return;
-    }
-    pullNumber = event.issue.number;
-    await assertCommentAuthorized({
-      repository,
-      apiUrl,
-      token,
-      commentAuthor: event.comment.user?.login,
-    });
-  } else if (process.env.GITHUB_EVENT_NAME === "pull_request_target") {
-    const event = readEvent();
-    pullNumber = event.pull_request.number;
-    await assertActorWritePermission({
-      repository,
-      apiUrl,
-      token,
-      actor: event.sender?.login,
-    });
-  } else {
-    pullNumber = requirePullNumber(process.env.PREVIEW_PULL_NUMBER);
-  }
+  const eventName = process.env.GITHUB_EVENT_NAME;
+  const isPullRequestEvent = eventName === "pull_request_target";
+  const event = isPullRequestEvent ? readEvent() : undefined;
+  const actor = previewActorOf({
+    eventName,
+    event,
+    workflowActor: process.env.GITHUB_ACTOR,
+  });
 
-  // Resolves the current head SHA and rejects early a closed pull request or
-  // a fork head; the publish job revalidates immediately before activation.
+  const pullNumber = isPullRequestEvent
+    ? event.pull_request.number
+    : requirePullNumber(process.env.PREVIEW_PULL_NUMBER);
+  await assertActorWritePermission({ repository, apiUrl, token, actor });
   const pullRequest = await resolvePullRequestState({
     repository,
     apiUrl,
     token,
     pullNumber,
+  }).catch((error) => {
+    if (!isPullRequestEvent || !(error instanceof MissingPreviewLabelError))
+      throw error;
+    console.log(error.message);
+    return null;
   });
-
-  if (
-    process.env.GITHUB_EVENT_NAME === "pull_request_target" &&
-    !pullRequest.labeled
-  ) {
+  if (pullRequest === null) {
     writeOutputs({ should_publish: "false" });
-    console.log("The pull request no longer has the preview label.");
     return;
   }
-
+  const { headSha } = pullRequest;
   writeOutputs({
     should_publish: "true",
     pull_number: String(pullNumber),
-    head_sha: pullRequest.headSha,
+    head_sha: headSha,
   });
   console.log(
-    `Publish request authorized; building pull request ${pullNumber} at head ${pullRequest.headSha}.`,
+    `Publish request authorized; building pull request ${pullNumber} at head ${headSha}.`,
   );
 }
 
