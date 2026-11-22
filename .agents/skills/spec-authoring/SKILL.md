@@ -1,6 +1,8 @@
 ---
 name: spec-authoring
 description: Use when defining a Mountain Runners phase, feature, task, or implementation specification. Creates a scoped, reviewable Catalan spec using the project convention.
+metadata:
+  version: "1.0.0"
 ---
 
 # Mountain Runners Specification Authoring

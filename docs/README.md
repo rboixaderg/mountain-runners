@@ -46,6 +46,8 @@ Aquest mapa enllaça els documents i no repeteix aquestes regles.
   de notícies, blog i esborranys editorials en preview, amb tasques en curs.
 - [`editorial/guide.md`](editorial/guide.md): criteris d'exactitud, drets,
   signatura, actualització i aprovació humana. Inclou les dues plantilles.
+- [`skills.md`](skills.md): registre de les skills externes i pròpies, amb
+  origen, propòsit, llicència i regles de cadena de subministrament.
 
 Els resultats de validació de notícies i blog es registren a la
 [PR #140](https://github.com/rboixaderg/mountain-runners/pull/140) i les seves

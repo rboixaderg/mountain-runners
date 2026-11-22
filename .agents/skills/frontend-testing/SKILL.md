@@ -1,6 +1,8 @@
 ---
 name: frontend-testing
 description: Use when adding, changing or reviewing Mountain Runners tests, or choosing between unit, Astro render, build-contract and browser E2E coverage for the static Astro application.
+metadata:
+  version: "1.0.0"
 ---
 
 # Mountain Runners frontend testing
@@ -35,6 +37,19 @@ test suites.
    and applicable suites and gates. Use `vitest` for API details and
    `quality-gate` for public-page validation. Report what ran and what remains
    unverified.
+
+## Test value and redundancy
+
+- State the requirement, behavior branch, boundary value or regression each test
+  protects. Do not add a test without one.
+- Similar names, shared setup or checks at different test levels do not prove
+  redundancy. Preserve tests that protect distinct contracts, failure paths or
+  integration boundaries.
+- Prefer a parameterized test for cases with the same structure when each
+  failure stays easy to identify.
+- Do not add tests to raise a count or reach an arbitrary coverage number.
+- When cleanup is in scope, remove or consolidate proven redundancy and run the
+  affected tests. Otherwise report it and change no test.
 
 ## Review existing tests
 

@@ -1,6 +1,8 @@
 ---
 name: editorial-posts
 description: Prepare or revise Mountain Runners news and blog drafts, including Catalan requests to write a notícia or article de blog. A draft is published only when a verified member of the private group explicitly asks for it; the merge stays human.
+metadata:
+  version: "1.0.0"
 ---
 
 # Editorial posts

@@ -1,6 +1,8 @@
 ---
 name: spec-implementation-review
 description: Use when the user asks to review a PR, branch, or worktree implementation against a specification task with independent agents. Finds requirement gaps, correctness issues, unnecessary complexity, missing test branches, and redundant tests without modifying code.
+metadata:
+  version: "1.0.0"
 ---
 
 # Specification Implementation Review
