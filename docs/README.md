@@ -15,7 +15,7 @@ acceptada:
 4. `DESIGN.md` governa la direcció visual i `AGENTS.md`, `CONTRIBUTING.md` i
    `SECURITY.md` governen el procés.
 
-Aquest índex només ordena els documents i n'indica la vigència; no afegeix requisits.
+Aquest mapa només ordena els documents i n'assenyala la vigència; no afegeix requisits.
 
 ## Documents Operatius
 
