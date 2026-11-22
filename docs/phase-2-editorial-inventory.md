@@ -20,8 +20,8 @@ textos, imatges ni dades personals heretades als fitxers editorials.
 ## Referències Visuals
 
 Les pantalles Stitch aprovades, el seu sistema visual i les seves regles
-d'actualització es registren a les
-[referències de disseny](design-references.md). Aquest inventari només conserva
+d'actualització es registraven a les referències de disseny, retirades del
+repositori i conservades a l'historial de git. Aquest inventari només conserva
 l'aprovació editorial de textos, dades i recursos; una pantalla no valida les
 dades de mostra que pugui mostrar.
 

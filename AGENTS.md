@@ -24,6 +24,33 @@
   Catalan for project documentation, user-facing content and pull-request
   descriptions.
 
+## Documentation Ownership
+
+Load the `docs-ownership` skill before editing documentation. Every content type
+has a single owner document, and the other documents link to it:
+
+| Content type                                                | Owner document                                                                 |
+| ----------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| Requirements and acceptance                                 | The specification in `docs/specs/`                                             |
+| Accepted decisions                                          | The ADR in `docs/decisions/`                                                   |
+| Implemented behaviour of a component                        | Its single living document (the private agent: `tools/server/agent/README.md`) |
+| Operation procedures (install, update, rollback, incidents) | `docs/runbook.md`, with the "how it works" contracts in `docs/deployment.md`   |
+| The documentation map                                       | `docs/README.md`                                                               |
+| External and project skills                                 | `.agents/skills/` and its manifest                                             |
+
+- Other documents link to the owner and never summarise it.
+- Living documents are organised by component, not by task, and task identifiers
+  such as (T8.4) do not appear in their headings.
+- Living documents describe the current state only: when a feature is removed,
+  delete its description instead of annotating it. ADRs and specifications are
+  records and are exempt.
+- A pull request that changes behaviour updates the owner document in the same
+  pull request and does not duplicate it elsewhere.
+- Task working documents live with their phase specification.
+
+A living document is any tracked Markdown file under `docs/`, `tools/` or
+`packages/`, except the files in `docs/decisions/` and `docs/specs/`.
+
 ## Agent Tooling
 
 - `.agents/skills/` is the single source of truth for project skills. OpenCode

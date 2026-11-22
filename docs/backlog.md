@@ -929,3 +929,18 @@ instruccions d'agents abans d'activar; [especificació de l'etiqueta de
 preview](specs/preview-label.md).
 
 **Seguiment:** pendent de triatge.
+
+### Butlletí I Analítica Del Club
+
+**Estat:** Capturada.
+
+**Problema:** el club no té cap canal propi per enviar el butlletí.
+
+**Resultat esperat:** allotjar listmonk al VPS de Mountain Runners sota
+`newsletter.mountainrunners.cat`, fer sortir el correu per un relé SMTP extern en
+lloc de des del servidor, deixar el formulari d'alta a càrrec de listmonk i
+decidir si cal una segona instància de Plausible o n'hi ha prou amb el lloc nou a
+la instància existent. Abans d'activar res cal especificar privacitat, accessos,
+còpies, actualitzacions i reversió.
+
+**Seguiment:** pendent de triatge.

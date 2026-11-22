@@ -8,9 +8,10 @@ completada el 16 d'agost de 2026 amb la confirmació de la persona mantenidora.
 La fase 4 està tancada i verificada; no queda cap decisió oberta que bloquegi la
 T5.2.
 
-Aquest document ratifica les decisions preliminars de
-[`docs/phase-5-t51-preparacio.md`](phase-5-t51-preparacio.md) i registra les
-respostes a les preguntes obertes amb la seva evidència.
+Aquest document ratifica les decisions preliminars de desplegament de la T5.1 i
+registra les respostes a les preguntes obertes amb la seva evidència. El document
+de preparació que les va plantejar ja no és versionat i només es conserva a
+l'historial de git.
 
 ## Decisions Confirmades
 
