@@ -890,7 +890,7 @@ completades i una esmena de l'ADR 0009 que retiri `/preview` com a petició.
 
 ### Govern De La Documentació I De Les Skills
 
-**Estat:** Especificada a [Govern de la documentació i de les
+**Estat:** Completada a [Govern de la documentació i de les
 skills](specs/docs-governance.md) el 22 de novembre de 2026.
 
 **Problema:** cada agent afegeix el comportament nou al document més proper, de manera
@@ -902,7 +902,9 @@ tasca viuen a l'arrel de `docs/` i les skills no tenen manifest verificat ni ver
 organitzada per component, una actualització de l'agent versionada i una comprovació
 automàtica que impedeixi que la documentació torni a divergir.
 
-**Seguiment:** pendent de la fusió de l'especificació.
+**Seguiment:** onze tasques fusionades en set PR i la correcció
+[#296](https://github.com/rboixaderg/mountain-runners/pull/296), l'última la
+[#295](https://github.com/rboixaderg/mountain-runners/pull/295).
 
 ### Fusionar Quan La Persona Dona La Feina Per Validada
 
