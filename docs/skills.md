@@ -85,12 +85,16 @@ comparen el commit fixat amb l'últim. Quan canvien fitxers d'una skill, obre o
 actualitza una pull request de bot per origen a la branca
 `skills/update-<origen>`, amb l'etiqueta `skills`, el manifest tornat a fixar i
 el títol `chore(skills): update <origen> to <sha7>`. No aprova, no fusiona, no
-activa auto-merge i no toca `reviewedAt`. Qualsevol refús (llicència canviada,
-fitxers que no són documentació, symlinks, submòduls, límits de mida, caràcters
-de control, frontmatter no permès o un commit que no es pot resoldre) fa
-fallar l'execució amb el motiu i no obre cap pull request. Un fitxer de l'origen
-amb finals de línia CRLF també es refusa, perquè `\r` és un caràcter de control:
-si l'origen n'introdueix, cal una revisió manual abans de fixar la revisió.
+activa auto-merge i no toca `reviewedAt`. Si l'origen i `main` no han canviat,
+l'execució no torna a empènyer la branca i, si el títol i el cos tampoc no
+canvien, no actualitza la pull request: només imprimeix
+`unchanged pull request <url>`, perquè un push nou reinicia la CI sense cap
+canvi. Qualsevol refús (llicència canviada, fitxers que no són documentació,
+symlinks, submòduls, límits de mida, caràcters de control, frontmatter no permès
+o un commit que no es pot resoldre) fa fallar l'execució amb el motiu i no obre
+cap pull request. Un fitxer de l'origen amb finals de línia CRLF també es refusa,
+perquè `\r` és un caràcter de control: si l'origen n'introdueix, cal una revisió
+manual abans de fixar la revisió.
 
 `pnpm skills:update` imprimeix les propostes sense escriure res i sense cap
 credencial. `--apply` queda reservat al workflow, que és l'únic que té el token
