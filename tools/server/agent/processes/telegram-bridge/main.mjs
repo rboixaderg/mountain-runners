@@ -357,7 +357,26 @@ export async function startService({
   });
   const mergeWorker = createMergeRequests({
     store: mergeRequests,
-    reportedCommits: ciWatches,
+    findDeliveredPreview: (sessionKey) => {
+      // Identify the publication independently of its CI notice and of any
+      // manual preview request. Never fall back to an earlier preview.
+      const publication = ciWatches.latestTopicPublication(sessionKey);
+      if (
+        publication === undefined ||
+        ciWatches.latestPublication(publication.pull_request_number)
+          ?.session_key !== sessionKey
+      ) {
+        return undefined;
+      }
+      return (
+        previewRequests.deliveredPublicationPreview({
+          sessionKey,
+          updateIdentifier: publication.update_identifier,
+          pullRequestNumber: publication.pull_request_number,
+          commitSha: publication.commit_sha,
+        }) ?? undefined
+      );
+    },
     hasNewerWork: ({ sessionKey, updateIdentifier }) =>
       queue.hasOtherInstructions(sessionKey, updateIdentifier) ||
       ciWatches.hasUnreportedWork(sessionKey),

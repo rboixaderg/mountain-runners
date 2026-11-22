@@ -523,17 +523,23 @@ Una persona verificada demana el merge amb la comanda literal `/merge`. No es
 tria mai amb llenguatge natural: el servei reconeix el text complet abans del
 classificador, el model no veu la comanda i una frase com «fusiona-la» no fusiona
 res. La decisió segueix l'[ADR 0013](../../../docs/decisions/0013-private-development-agent-boundary.md)
-(esmena `/merge` sense número). No hi ha auto-merge, ni push a `main`, ni canvi de
-proteccions, ni tancament de la PR.
+(esmena `/merge` sense número). No hi ha auto-merge, ni push directe a `main`,
+ni canvi de proteccions, ni tancament de la PR sense fusió.
 
 - **Formes.** `/merge`, `/merge <PR>` (amb `#` opcional) i `/merge <PR> <SHA>`
   (SHA complet de 40 caràcters), amb les regles de menció o resposta del pont.
   Qualsevol altra cosa que comenci per `/merge` respon amb l'ajuda i no fusiona.
-- **Fixació.** La PR i el commit són els de l'últim avís de CI lliurat al tema,
-  que ha de ser en verd (`ci_watches`). El número i el SHA escrits han de coincidir
-  amb aquest avís; només es pot fusionar l'última PR informada del tema.
-- **Si no es pot resoldre, pregunta i no fusiona.** No hi ha cap avís; l'últim
-  avís no és verd; el número no és el de l'últim avís; o el tema té feina més
+- **Fixació.** Només l'avís lliurat de la preview confirmada de l'última
+  publicació del tema fixa la PR i el SHA. El servei desa l'identificador del
+  missatge després de confirmar l'enviament. Si l'enviament queda pendent o
+  incert, o hi ha una publicació posterior sense avís confirmat, no es pot
+  recuperar el vincle anterior. Un avís de CI no fixa cap SHA per al merge.
+  El número i el SHA opcionals de la comanda han de coincidir amb el vincle.
+  Una petició manual de preview no substitueix l'avís de la publicació.
+  Els avisos anteriors a la migració no tenen identificador: només un avís
+  nou associat a una publicació pot fixar el merge.
+- **Si no es pot resoldre, no fusiona.** No hi ha cap avís de preview vigent;
+  el número o el SHA no coincideixen amb l'avís; o el tema té feina més
   nova (una altra instrucció pendent o en curs, una reparació reservada, en cua o
   en curs, un seguiment de CI encara sense informar o un avís de CI amb resultat
   desconegut més nou que l'últim lliurat). La resposta nomena la proposta
@@ -547,8 +553,9 @@ proteccions, ni tancament de la PR.
   (`merge_membership_verified`).
 - **Condicions, rellegides en directe i en fallada tancada.** PR oberta, no
   esborrany, base `main`, repositori del cap igual al configurat (sense forks),
-  cap igual al commit fixat, comprovacions obligatòries totes en verd amb el
-  classificador de la CI i `mergeable_state` igual a `clean` (branca al dia i sense
+  cap igual al commit fixat, etiqueta `preview` present i sense
+  `preview-revoked` (que té precedència), comprovacions obligatòries totes en
+  verd i `mergeable_state` igual a `clean` (branca al dia i sense
   bloquejos). `behind` refusa i ho ha de revisar la persona que manté el servei;
   `unknown` es torna a llegir un
   màxim de tres vegades i després es refusa com a no llegible, sense llegir
@@ -558,7 +565,9 @@ proteccions, ni tancament de la PR.
 - **Crida.** `PUT /repos/{repo}/pulls/{n}/merge` amb el cos exacte
   `{"sha": <commit fixat>, "merge_method": "squash"}`: GitHub rebutja el merge si
   el cap ja no és aquest SHA. El servei no envia títol, missatge ni altre mètode.
-  La resposta ha de dir `merged: true` i portar el SHA del merge.
+  La resposta ha de dir `merged: true` i portar el SHA del merge. GitHub no
+  permet condicionar aquesta crida a les etiquetes: el servei les comprova a
+  l'última lectura de la PR, abans d'enviar-la.
 - **Estats** (`state/merge-request.sqlite`): `merging` (desat abans de la crida),
   `merged`, `failed` (4xx definitiu que no és 408 ni 429, com 405, 409 o 422: no
   s'ha fusionat res, es respon i una petició nova és possible), `uncertain`
@@ -587,17 +596,15 @@ proteccions, ni tancament de la PR.
     repeteix cap efecte de GitHub. Una `/merge` o `/merge <PR>` mai no
     desbloqueja res: dona la forma estricta `/merge <PR> <SHA>` amb el commit
     fixat, per copiar i enganxar.
-  - Quan una persona verificada escriu `/merge <PR> <SHA>` amb el SHA del commit
-    fixat de la petició `uncertain`, i una lectura nova continua mostrant la PR
-    oberta i no fusionada, aquesta és la seva decisió: la petició es tanca com a
-    `not_merged` (traça `merge_uncertain_cleared` amb autor, PR i SHA) i la
-    petició continua des de zero amb tot el flux normal (vincle a l'últim avís
-    en verd, feina més nova, pertinença, condicions en directe, desat previ i
-    crida). Si el cap de la PR s'ha mogut des del commit fixat, l'avís demana
-    el SHA del cap actual i només aquest SHA ho desbloqueja (el flux normal
-    exigeix igualment que sigui l'últim commit informat en verd). No cal editar
-    SQLite. Una PR tancada sense fusionar no es pot
-    fusionar: l'avís ho diu i no s'envia cap crida.
+  - Quan una persona verificada del mateix tema escriu `/merge <PR> <SHA>`
+    amb el SHA fixat de la petició `uncertain`, el servei torna a llegir la
+    PR. Si continua oberta i no fusionada, la petició es tanca com a
+    `not_merged` (traça `merge_uncertain_cleared` amb autor, PR i SHA). La
+    reconciliació no exigeix un avís de preview vigent ni torna a cridar el
+    merge. Qualsevol petició posterior passa tots els controls normals. Si el
+    cap de la PR s'ha mogut des del commit fixat, només el SHA del cap actual
+    permet reconciliar. No cal editar SQLite. Si la PR està tancada sense
+    fusionar, el servei ho informa sense cridar el merge.
     Aquest resultat no bloqueja la cua ni l'arrencada del servei, perquè només
     afecta un nou merge de la
     mateixa PR. Si la lectura no és possible, la petició continua `uncertain` i es
@@ -613,17 +620,15 @@ proteccions, ni tancament de la PR.
   `merge_uncertain_cleared` (autor, PR i SHA) i `merge_reconciled`, sense text
   de conversa ni credencials.
 - **Després del merge.** La PR queda tancada: el seguiment de CI i la reparació
-  ja es detenen amb una PR no oberta, i la preview la refusa. L'avís «la PR ja no
-  està oberta» passa a ser l'últim del tema; un `/merge` posterior (amb o sense
-  número) llegeix la PR i, si és fusionada, respon «La proposta #N ja està
-  fusionada. No he fet res més.» i la línia de revisió amb el canvi fusionat, en
-  lloc de refusar-se com a no verda.
+  ja es detenen amb una PR no oberta, i la preview la refusa. Si la lectura de
+  la PR durant un `/merge` posterior la mostra fusionada, el servei ho informa
+  sense repetir el merge.
 
 Bloquejos d'activació, per a una persona. El permís `Contents: write` del token
 permet usar l'API de merge i el compte és administrador: l'API REST podria
 saltar-se la protecció de la branca llevat que s'activi «enforce admins». La
-guarda efectiva són les comprovacions del servei (`clean`, SHA fixat, avís verd)
-i el risc residual està acceptat a l'ADR 0013. `MOUNTAIN_AGENT_REQUIRED_CHECKS` ha
+guarda efectiva són els controls del servei descrits més amunt. El risc
+residual està acceptat a l'ADR 0013. `MOUNTAIN_AGENT_REQUIRED_CHECKS` ha
 de coincidir amb la protecció de `main` amb «Require branches to be up to date»,
 perquè `clean` signifiqui el mateix per als dos. El primer merge real requereix
 l'aprovació explícita de la persona mantenidora. Aquesta implementació no activa
@@ -881,17 +886,16 @@ i la reparació també tornen a comprovar el cap i la CI abans d'actuar.
 
 Els estats interiors es descriuen en paraules planes i el model els explica a la
 persona sense identificadors de commit ni noms de comprovació. Cada fet del bloc
-és d'aquella PR: una fila d'una altra PR del mateix tema no s'hi fa servir. La
-columna `confirmed_origin` de `preview-request.sqlite` desa l'URL confirmada
-juntament amb el final de la petició i s'afegeix sola en arrencar sobre una base
-de dades anterior.
+és d'aquella PR: una fila d'una altra PR del mateix tema no s'hi fa servir.
+`preview-request.sqlite` desa l'URL confirmada a `confirmed_origin` i
+l'identificador de l'avís lliurat a `notice_message_identifier` en acabar la
+petició. L'arrencada afegeix les columnes que faltin en una base anterior,
+sense inventar identificadors per als avisos antics.
 
 La petició explícita de preview torna a comprovar la PR, no les comprovacions
 del cap: la preview s'activa amb l'etiqueta i el `build` executa `pnpm validate`.
 Els treballs pendents i els resultats desconeguts continuen bloquejant la
-petició. Abans d'un merge o una
-reparació, el servei torna a comprovar el cap i la CI; el merge continua fixat
-al commit informat al tema.
+petició. El [merge](#merge-demanat-al-tema) no treu el SHA del bloc d'estat.
 
 ## Resultats desconeguts
 

@@ -93,9 +93,16 @@ function setup(context) {
   };
   const telegram = {
     sendError: null,
+    // What Telegram accepts with the text: the message whose identifier a later
+    // reply points at. `answer` replaces it for a send that names no usable one.
+    answer: null,
+    nextMessageIdentifier: 900,
     async sendMessage(message) {
       if (telegram.sendError) throw telegram.sendError;
       sent.push(message);
+      if (telegram.answer !== null) return telegram.answer;
+      telegram.nextMessageIdentifier += 1;
+      return { message_id: telegram.nextMessageIdentifier };
     },
   };
   function buildHandler(overrides = {}) {
@@ -157,6 +164,16 @@ function publication(updateIdentifier, overrides = {}) {
 
 function actions(traces) {
   return traces.map((entry) => entry.action);
+}
+
+/** The publication the topic followed, as a merge binds its delivered notice. */
+function deliveredNotice(updateIdentifier = 10) {
+  return {
+    sessionKey,
+    updateIdentifier,
+    pullRequestNumber: 200,
+    commitSha: commit,
+  };
 }
 
 function withdrawals(traces) {
@@ -512,6 +529,65 @@ test("a service publication reports its confirmed URL without a request or green
     [`preview:10:${commit}:confirmed`],
   );
 });
+
+test("a confirmed notice keeps the identifier Telegram accepted as the delivered preview", async (context) => {
+  const { handler, github, previews, telegram } = setup(context);
+  handler.followPublication(publication(10));
+  github.comments[200] = [publisherComment()];
+
+  await handler.runOnce();
+
+  assert.equal(telegram.nextMessageIdentifier, 901);
+  const delivered = previews.deliveredPublicationPreview(deliveredNotice());
+  assert.equal(delivered.pull_request_number, 200);
+  assert.equal(delivered.commit_sha, commit);
+  assert.equal(delivered.notice_message_identifier, 901);
+});
+
+test("a failed send keeps no link to a notice", async (context) => {
+  const { handler, github, telegram, previews } = setup(context);
+  handler.followPublication(publication(10));
+  github.comments[200] = [publisherComment()];
+
+  telegram.sendError = new Error("telegram down");
+  await handler.runOnce();
+
+  assert.equal(previews.state(10), "awaiting");
+  assert.equal(previews.deliveredPublicationPreview(deliveredNotice()), null);
+
+  telegram.sendError = null;
+  await handler.runOnce();
+
+  assert.equal(
+    previews.deliveredPublicationPreview(deliveredNotice())
+      .notice_message_identifier,
+    901,
+  );
+});
+
+const unidentifiedAnswers = [
+  ["no message identifier", {}],
+  ["a zero identifier", { message_id: 0 }],
+];
+
+for (const [name, answer] of unidentifiedAnswers) {
+  test(`a notice answered with ${name} is never a delivered preview`, async (context) => {
+    const { buildHandler, github, previews, telegram } = setup(context);
+    const logs = [];
+    const handler = buildHandler({
+      logger: (event, detail) => logs.push([event, detail]),
+    });
+    handler.followPublication(publication(10));
+    github.comments[200] = [publisherComment()];
+
+    telegram.answer = answer;
+    await handler.runOnce();
+
+    assert.equal(previews.state(10), "confirmed");
+    assert.equal(previews.deliveredPublicationPreview(deliveredNotice()), null);
+    assert.deepEqual(logs, [["preview_notice_unidentified", "#200 aaaaaaa"]]);
+  });
+}
 
 test("two publications in a row report only the final head, once", async (context) => {
   const { handler, github, previews, sent, notes, traces } = setup(context);

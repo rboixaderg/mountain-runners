@@ -256,6 +256,16 @@ export class CiWatchStore {
       .get(pullRequestNumber);
   }
 
+  /** The latest publication in the topic, including a reopened repair watch. */
+  latestTopicPublication(sessionKey) {
+    return this.#database
+      .prepare(
+        `SELECT pull_request_number, commit_sha, update_identifier FROM ci_watches
+         WHERE session_key = ? ORDER BY created_at DESC, update_identifier DESC LIMIT 1`,
+      )
+      .get(sessionKey);
+  }
+
   /**
    * The latest watch of every pull request this service published: the owner
    * topic, whether that watch is also the newest row of its topic, and the
@@ -294,8 +304,7 @@ export class CiWatchStore {
    * The commit this topic was last told about: the newest published watch that
    * was delivered. Only a delivered notice counts, and its result says whether
    * that commit was reported as green. The order is the publication order, never
-   * the delivery order: a slow older watch that finished later can neither
-   * overwrite a newer commit's report nor authorize a merge of an older commit.
+   * the delivery order: a slow older watch cannot overwrite a newer report.
    */
   lastReported(sessionKey) {
     return this.#database

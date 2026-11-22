@@ -14,6 +14,8 @@ Esmenada el 16 de novembre de 2026 per l'[ADR 0014](0014-operator-stop-and-repea
 
 Esmenada el 20 i el 21 de novembre de 2026 amb els merges de la [PR #262](https://github.com/rboixaderg/mountain-runners/pull/262) (T8.9), la [PR #267](https://github.com/rboixaderg/mountain-runners/pull/267) (etiqueta de preview) i la [PR #273](https://github.com/rboixaderg/mountain-runners/pull/273) (retirada de `/preview`). Les tres esmenes són a l'apartat corresponent.
 
+Esmenada el 22 de novembre de 2026 amb el merge de la [PR #280](https://github.com/rboixaderg/mountain-runners/pull/280) (confirmació del merge en dos passos). L'acceptació no activa cap permís.
+
 ## Context
 
 La fase 8 proposa ampliar el futur assistent editorial privat a consultes i canvis de codi, mantenint una persona com a responsable de la revisió i el merge. El grup privat de Telegram seria la frontera d'accés humana. Cada tema seria una sessió compartida i podria contenir més d'una feina. La petició explícita d'una persona membre autoritza una implementació fins a una PR. Qui ha validat el resultat pot demanar després el merge d'aquella PR; sense aquesta petició, l'agent no fusiona, i no desplega mai.
@@ -212,12 +214,12 @@ l'esmena de l'etiqueta, i retira el codi que reconciliava els comentaris
 `/preview` anteriors, incloent-hi la lectura del compte autenticat del token.
 Aquesta esmena no afegeix cap operació al component de GitHub ni amplia el token.
 
-## Esmena proposada (confirmació del merge en dos passos, 22 de novembre de 2026)
+## Esmena (confirmació del merge en dos passos, 22 de novembre de 2026)
 
-Proposada fins que es fusioni la PR de l'[especificació de la confirmació del
-merge amb una pregunta i una resposta](../specs/preview-merge-confirmation.md).
-No activa cap permís. Avui l'única autorització és el literal `/merge`; aquesta
-esmena afegeix una forma contextual en dos passos i no n'activa cap.
+Acceptada amb el merge de la [PR #280](https://github.com/rboixaderg/mountain-runners/pull/280),
+que defineix l'[especificació de la confirmació del merge amb una pregunta i
+una resposta](../specs/preview-merge-confirmation.md). L'esmena afegeix una via
+contextual en dos passos al literal `/merge`, sense activar cap permís.
 
 - **Abast i tasques.** La T1 fixa la font del SHA del merge. La T2 afegeix la
   pregunta i la confirmació, actualitza la documentació operativa quan canviï i
