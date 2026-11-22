@@ -237,4 +237,4 @@ retirada ràpida.
 - Documentació de Caddy sobre HTTPS automàtic i repte HTTP-01 (caddyserver.com).
 - Estat actual del repo: `docs/specs/phase-6/phase-6-t61-requisits-alternatives.md`,
   `docs/decisions/0009-pr-previews-same-domain-and-own-branches.md`,
-  `docs/deployment.md`, `docs/runbook.md`, `tools/server/`.
+  `docs/operations/`, `tools/server/`.

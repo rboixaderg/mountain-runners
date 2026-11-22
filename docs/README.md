@@ -33,10 +33,19 @@ Aquest mapa enllaça els documents i no repeteix aquestes regles.
   regressió, aïllament, redundància i validació.
 - [`roadmap.md`](roadmap.md): fases, dependències i estat general.
 - [`backlog.md`](backlog.md): necessitats obertes i registre del seu triatge.
-- [`deployment.md`](deployment.md): estat i límits operatius de les fases 5 i 6.
-- [`runbook.md`](runbook.md): operació de producció (servidor, TLS, logs, salut,
-  releases, desplegament continu, reversió, tall DNS i període d'observació).
-  Inclou el diagrama Mermaid viu de l'arquitectura del VPS.
+- [`operations/`](operations/README.md): operació de producció organitzada per
+  component.
+  - [`operations/README.md`](operations/README.md): contingut compartit del
+    servidor (destí, identitats, arquitectura, estructura, bootstrap, accés SSH,
+    còpies, logs, salut i resposta d'emergència).
+  - [`operations/web-and-releases.md`](operations/web-and-releases.md): build i
+    artefacte, releases, desplegament continu, reversió, TLS, redireccions, tall
+    DNS, HSTS i gate de llançament.
+  - [`operations/previews.md`](operations/previews.md): publicador i retirada de
+    les previews de pull request, amb el gate `mountain-preview` i la
+    instal·lació al VPS.
+  - [`operations/agent.md`](operations/agent.md): instal·lació, configuració,
+    actualització, còpies, traça i validació de l'agent privat de Telegram.
 - [`phase-5-t55-dns-inventory.md`](specs/phase-5/phase-5-t55-dns-inventory.md):
   inventari públic dels registres a preservar i a substituir al tall.
 - [`ai-assistant.md`](ai-assistant.md): límits dels futurs xat públic i assistent

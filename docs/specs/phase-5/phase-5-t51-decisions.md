@@ -58,7 +58,7 @@ Només tres registres, tots allotjats al VPS:
 prune` afegeix una retenció per als arbres extrets i els uploads —l'activa i
   l'anterior activa elegible i altres elegibles recents, fins a cinc en total,
   amb `prunedAt` a la resta— perquè el disc no creixi amb cada desplegament. Detall al
-  [`docs/runbook.md`](../../runbook.md#retenció-i-poda).
+  [`docs/operations/web-and-releases.md`](../../operations/web-and-releases.md#retenció-i-poda).
 
 ### Headers Mínims I CSP
 

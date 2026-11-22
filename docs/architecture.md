@@ -58,9 +58,11 @@ les eines del servidor — `tools/server/` — (Caddyfile, bootstrap, CLI de
 releases i gate SSH). L'analítica pública és Plausible CE autoallotjat a
 `analytics.rogerbg.cat` ([ADR 0007](decisions/0007-self-hosted-plausible-analytics.md)).
 El diagrama viu de la configuració del VPS és a
-[`docs/runbook.md`](runbook.md#arquitectura-del-servidor). Lighthouse continua
+[`docs/operations/README.md`](operations/README.md#arquitectura-del-servidor).
+Lighthouse continua
 sent una auditoria manual. L'apex ja serveix des del VPS (T5.5,
-[runbook](runbook.md#9-tall-dns-i-primera-activació-pública)); les previews de
+[tall DNS](operations/web-and-releases.md#tall-dns-i-primera-activació-pública));
+les previews de
 pull request ja són operatives mitjançant el workflow `Preview`, amb petició
 explícita `/preview` i publicador de confiança des de `main`.
 No existeix cap servei Hono.
@@ -205,7 +207,8 @@ delegada de preview continuen fora d'aquesta base (T8.4).
 
 El servei està instal·lat i en marxa al VPS, amb el bot, el grup privat i les
 credencials de la fase 8. La instal·lació, la configuració, els límits i les
-comprovacions són a [`docs/deployment.md`](deployment.md#agent-privat-de-desenvolupament-t83).
+comprovacions són a
+[`docs/operations/agent.md`](operations/agent.md).
 
 ## Xat Públic, Més Endavant
 

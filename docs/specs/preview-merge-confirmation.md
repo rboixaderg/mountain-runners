@@ -30,7 +30,7 @@ La persona mantenidora confirma aquestes decisions el 22 de novembre de 2026:
   confirmació una resposta, i el transport de Telegram no canvia.
 - La fusió és a `main`. El desplegament s'inicia amb aquest push segons
   `.github/workflows/artifact.yml` i els controls de producció de
-  [`docs/deployment.md`](../deployment.md); el servei no fa cap operació nova, no
+  [`docs/operations/web-and-releases.md`](../operations/web-and-releases.md#controls); el servei no fa cap operació nova, no
   garanteix la publicació, no en consulta l'estat i no tanca cap PR sense fusionar.
 - Es mantenen la pertinença verificada, les comprovacions en verd, la branca al
   dia, l'absència de bypass, el squash i l'absència d'auto-merge i de desplegament
@@ -80,7 +80,7 @@ Derivat de T8.9, de l'ADR 0009 i del backlog, sense decisió nova:
 
 **Abast:** el seguiment de la preview, la resolució del merge, les proves,
 `tools/server/agent/README.md` i, si el pin de CI hi queda incorrecte,
-[`docs/deployment.md`](../deployment.md) i [`docs/runbook.md`](../runbook.md).
+[`docs/operations/agent.md`](../operations/agent.md).
 
 **Exclusió immediata:** no afegeix cap pregunta ni canvia el sandbox, el token,
 l'etiqueta o el publicador. `/merge` conserva les formes i la resta de controls.
@@ -100,7 +100,7 @@ confirmada i lliurada, i refusa si no n'hi ha cap de vigent.
 (`AGENTS.md`, `CONTRIBUTING.md`, [`docs/ai-assistant.md`](../ai-assistant.md)) i de
 la documentació operativa i d'arquitectura afectada
 ([`docs/architecture.md`](../architecture.md),
-[`docs/deployment.md`](../deployment.md), [`docs/runbook.md`](../runbook.md) i
+[`docs/operations/agent.md`](../operations/agent.md) i
 guies).
 
 **Exclusió immediata:** no canvia les formes de `/merge`, la reparació de CI, els

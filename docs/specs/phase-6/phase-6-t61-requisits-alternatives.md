@@ -351,6 +351,6 @@ registrador i els proveïdors, i queden escrits a la decisió.
 - Fil de lego sobre l'API DNS de Hostinger (`developers.hostinger.com`,
   github.com/go-acme/lego discussions).
 - Estat actual del repo: `docs/specs/phase-5/phase-5-t55-dns-inventory.md`,
-  `docs/deployment.md`, `docs/runbook.md`, `tools/server/`,
+  `docs/operations/`, `tools/server/`,
   `.github/workflows/`, `docs/decisions/0001`, `0003` i
   `docs/decisions/0009-pr-previews-same-domain-and-own-branches.md`.

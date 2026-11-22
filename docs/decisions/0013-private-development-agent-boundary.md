@@ -222,7 +222,7 @@ esmena afegeix una forma contextual en dos passos i no n'activa cap.
 - **Abast i tasques.** La T1 fixa la font del SHA del merge. La T2 afegeix la
   pregunta i la confirmació, actualitza la documentació operativa quan canviï i
   alinea `AGENTS.md`, `CONTRIBUTING.md`, `docs/ai-assistant.md`,
-  `docs/architecture.md`, `docs/runbook.md` i les guies afectades abans d'activar.
+  `docs/architecture.md`, `docs/operations/` i les guies afectades abans d'activar.
   La primera fusió real necessita l'aprovació explícita de la persona mantenidora.
 - **El text no autoritza.** Una validació com «La feina està validada» només
   provoca una pregunta fixa. Només la resposta «Sí» de la mateixa persona

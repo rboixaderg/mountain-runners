@@ -30,7 +30,8 @@ API de xat públic i el futur flux editorial privat.
 - Els desplegaments només s'executen des del flux CI/CD revisat. Hi ha dues
   excepcions al servidor: el servei de l'agent privat de la fase 8 i les eines
   de releases i previews. Totes dues s'instal·len manualment des d'un commit
-  revisat de `main`, segons el [runbook](docs/runbook.md), i sempre amb
+  revisat de `main`, segons el
+  [runbook d'operacions](docs/operations/README.md), i sempre amb
   l'aprovació explícita de la persona mantenidora. L'agent de Telegram no
   desplega ni s'actualitza mai a si mateix.
 - Les actualitzacions de dependències i les correccions de seguretat han de

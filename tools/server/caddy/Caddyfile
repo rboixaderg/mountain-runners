@@ -9,7 +9,8 @@
 #
 # TLS is handled by Caddy's automatic HTTPS (Let's Encrypt via HTTP-01/TLS-ALPN).
 # HSTS stays disabled until the cut has validated TLS and every affected
-# subdomain (see docs/runbook.md); it is enabled in Caddyfile.production.
+# subdomain (see docs/operations/web-and-releases.md); it is enabled in
+# Caddyfile.production.
 {
 	# No runtime config API: configuration changes require a Caddy restart.
 	admin off
