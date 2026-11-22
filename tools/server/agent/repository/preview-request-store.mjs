@@ -2,10 +2,7 @@
 // handler.
 //
 // Since the `preview` label the service posts nothing: a request is written
-// directly as `awaiting`, in one statement. The `commenting` and `uncertain`
-// states remain for the rows written while the service still posted `/preview`,
-// whose result was unknown: an interrupted `commenting` row is never posted
-// again automatically, and a person resolves it. A request awaiting the trusted
+// directly as `awaiting`, in one statement. A request awaiting the trusted
 // publisher survives a restart and keeps its deadline.
 //
 // One Telegram update is one row. A person's request for the same pull request
@@ -55,12 +52,10 @@ function ensureConfirmedOriginColumn(database) {
 }
 
 export const previewStates = {
-  commenting: "commenting",
   awaiting: "awaiting",
   confirmed: "confirmed",
   timedOut: "timed_out",
   failed: "failed",
-  uncertain: "uncertain",
 };
 
 export const previewBeginResults = {
@@ -76,13 +71,6 @@ const terminalStates = new Set([
   previewStates.timedOut,
   previewStates.failed,
 ]);
-
-// A request that has not ended: it blocks a new one for the same commit.
-const openStates = [
-  previewStates.commenting,
-  previewStates.awaiting,
-  previewStates.uncertain,
-];
 
 export class PreviewRequestStore {
   #database;
@@ -101,8 +89,9 @@ export class PreviewRequestStore {
 
   /**
    * Record a person's request, already awaiting the publisher. Returns
-   * `duplicate` for an update already handled and `open` while another request
-   * for the same pull request and commit has not ended; otherwise `begun`.
+   * `duplicate` for an update already handled and `open` while another
+   * `awaiting` request exists for the same pull request and commit; otherwise
+   * `begun`.
    */
   begin({
     updateIdentifier,
@@ -122,9 +111,9 @@ export class PreviewRequestStore {
         .prepare(
           `SELECT 1 FROM preview_requests
            WHERE pull_request_number = ? AND commit_sha = ?
-             AND state IN (${openStates.map(() => "?").join(", ")})`,
+             AND state = 'awaiting'`,
         )
-        .get(pullRequestNumber, commitSha, ...openStates);
+        .get(pullRequestNumber, commitSha);
       if (open) {
         return previewBeginResults.open;
       }
@@ -172,7 +161,6 @@ export class PreviewRequestStore {
            pull_request_number = excluded.pull_request_number,
            commit_sha = excluded.commit_sha,
            state = 'awaiting',
-           commented_at = NULL,
            confirmed_origin = NULL,
            created_at = excluded.created_at,
            updated_at = excluded.updated_at`,
@@ -198,8 +186,8 @@ export class PreviewRequestStore {
       this.#database
         .prepare(
           `UPDATE preview_requests
-           SET commit_sha = ?, state = 'awaiting', commented_at = NULL,
-               confirmed_origin = NULL, created_at = ?, updated_at = ?
+           SET commit_sha = ?, state = 'awaiting', confirmed_origin = NULL,
+               created_at = ?, updated_at = ?
            WHERE update_identifier = ? AND pull_request_number = ?`,
         )
         .run(
@@ -267,114 +255,10 @@ export class PreviewRequestStore {
       .all();
   }
 
-  /** Requests whose post may or may not have happened, oldest first. */
-  uncertain() {
-    return this.#database
-      .prepare(
-        `SELECT update_identifier, session_key, pull_request_number, commit_sha,
-                created_at
-         FROM preview_requests WHERE state = 'uncertain'
-         ORDER BY update_identifier`,
-      )
-      .all();
-  }
-
-  /**
-   * A person read GitHub and the `/preview` comment exists: the request waits
-   * for the publisher as if the post had been confirmed. The deadline restarts
-   * now, because the confirmation is read from this moment on, while the comment
-   * keeps the moment of the request: that is the instant a workflow run of this
-   * request is attributed from. The guarded update refuses a case that is no
-   * longer uncertain.
-   */
-  resolveUncertainCommented(updateIdentifier, commentedAt = null) {
-    return this.#resolveUncertain(
-      updateIdentifier,
-      previewStates.awaiting,
-      commentedAt,
-    );
-  }
-
-  /**
-   * A person read GitHub and the `/preview` comment does not exist: nothing was
-   * posted and the request ends as failed. The guarded update refuses a case
-   * that is no longer uncertain.
-   */
-  resolveUncertainNotCommented(updateIdentifier) {
-    return this.#resolveUncertain(updateIdentifier, previewStates.failed, null);
-  }
-
-  #resolveUncertain(updateIdentifier, state, explicitCommentedAt) {
-    return this.#transaction(() => {
-      const row = this.#database
-        .prepare(
-          `SELECT created_at FROM preview_requests
-           WHERE update_identifier = ? AND state = 'uncertain'`,
-        )
-        .get(updateIdentifier);
-      if (row === undefined) {
-        return null;
-      }
-      const timestamp = this.#now().toISOString();
-      // The comment was posted around the moment the request began. Keeping
-      // that moment, instead of the later confirmation, is what puts the run of
-      // this request inside its own attribution window.
-      const commentedAt =
-        state === previewStates.awaiting
-          ? (explicitCommentedAt ?? row.created_at)
-          : null;
-      this.#database
-        .prepare(
-          `UPDATE preview_requests
-           SET state = ?, commented_at = COALESCE(?, commented_at), updated_at = ?
-           WHERE update_identifier = ? AND state = 'uncertain'`,
-        )
-        .run(state, commentedAt, timestamp, updateIdentifier);
-      return this.#database
-        .prepare(
-          `SELECT update_identifier, session_key, pull_request_number, commit_sha,
-                  created_at
-           FROM preview_requests WHERE update_identifier = ?`,
-        )
-        .get(updateIdentifier);
-    });
-  }
-
   state(updateIdentifier) {
     return this.#database
       .prepare("SELECT state FROM preview_requests WHERE update_identifier = ?")
       .get(updateIdentifier)?.state;
-  }
-
-  /**
-   * A restarted process cannot know whether an interrupted post arrived. Mark
-   * every interrupted request uncertain and return them for the private trace.
-   */
-  recoverCommenting() {
-    return this.#transaction(() => {
-      const interrupted = this.#database
-        .prepare(
-          `SELECT update_identifier, session_key, author_identifier, pull_request_number, commit_sha
-           FROM preview_requests WHERE state = 'commenting' ORDER BY update_identifier`,
-        )
-        .all();
-      this.#database
-        .prepare(
-          `UPDATE preview_requests SET state = 'uncertain', updated_at = ?
-           WHERE state = 'commenting'`,
-        )
-        .run(this.#now().toISOString());
-      return interrupted;
-    });
-  }
-
-  /** Requests whose external result is unknown, including earlier restarts. */
-  uncertainCount() {
-    return this.#database
-      .prepare(
-        "SELECT COUNT(*) AS count FROM preview_requests WHERE state = 'uncertain'",
-      )
-      .get().count;
   }
 
   close() {

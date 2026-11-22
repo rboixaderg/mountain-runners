@@ -101,11 +101,9 @@ export function createPreviewRequests({
   /**
    * Why the live pull request has no preview to report, or null. Only an open
    * pull request of the main repository that carries the `preview` label and
-   * not `preview-revoked` has one. A request written while the service still
-   * posted `/preview` is answered for a pull request that never had the label,
-   * so it does not need it.
+   * not `preview-revoked` has one.
    */
-  function refusalOf(pullRequest, { requiresLabel = true } = {}) {
+  function refusalOf(pullRequest) {
     if (pullRequest.state !== "open") return refusals.notApplicable;
     if (
       pullRequest.headRepository?.toLowerCase() !== repository.toLowerCase()
@@ -113,7 +111,7 @@ export function createPreviewRequests({
       return refusals.notMainRepository;
     }
     if (pullRequest.previewRevoked) return refusals.previewRevoked;
-    if (requiresLabel && !pullRequest.previewLabeled) {
+    if (!pullRequest.previewLabeled) {
       return refusals.noPreviewLabel;
     }
     return null;
@@ -363,12 +361,9 @@ export function createPreviewRequests({
         );
         continue;
       }
-      // `commented_at` is set only by the rows the service wrote while it posted
-      // `/preview`.
-      const legacy = row.commented_at !== null;
       const withdrawal =
         pullRequest.headSha === row.commit_sha
-          ? refusalOf(pullRequest, { requiresLabel: !legacy })
+          ? refusalOf(pullRequest)
           : "superseded";
       if (withdrawal !== null) {
         if (
@@ -392,7 +387,6 @@ export function createPreviewRequests({
         comments,
         pullRequestNumber: row.pull_request_number,
         commit: row.commit_sha,
-        since: legacy ? row.commented_at : undefined,
       });
       if (origin !== null) {
         if (signal?.aborted) return;

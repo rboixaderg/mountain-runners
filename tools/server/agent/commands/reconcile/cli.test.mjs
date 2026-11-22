@@ -211,7 +211,7 @@ const usageCases = [
   { argumentsList: [] },
   { argumentsList: ["--verbose"] },
   { argumentsList: ["list", "extra"] },
-  { argumentsList: ["list", "--kind", "preview"] },
+  { argumentsList: ["list", "--kind", "notice"] },
   { argumentsList: ["inspect"] },
   { argumentsList: ["resolve"] },
   {
@@ -246,20 +246,7 @@ const usageCases = [
       "--update",
       "1",
       "--resolution",
-      "commented",
-    ],
-  },
-  {
-    argumentsList: [
-      "resolve",
-      "--kind",
-      "preview",
-      "--update",
-      "1",
-      "--resolution",
-      "published",
-      "--commit",
-      "a".repeat(40),
+      "delivered",
     ],
   },
   {

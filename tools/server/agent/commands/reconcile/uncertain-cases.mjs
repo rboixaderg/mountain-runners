@@ -1,21 +1,20 @@
 // Operator reconciliation of unknown external results (T8.5).
 //
-// An interrupted instruction, automatic repair, `/preview` post or CI notice
-// leaves the service unable to start or to trust its own state, because the
-// external effect may or may not have happened. A person with root access reads
-// the real state here and closes the case with an explicit decision. Nothing is
-// executed again and nothing is pushed, commented or merged: the only writes are
-// the durable store, the published-head mark of an instruction whose head is
-// confirmed and the private trace.
+// An interrupted instruction, automatic repair or CI notice leaves the service
+// unable to start or to trust its own state, because the external effect may or
+// may not have happened. A person with root access reads the real state here and
+// closes the case with an explicit decision. Nothing is executed again and
+// nothing is pushed, commented or merged: the only writes are the durable store,
+// the published-head mark of an instruction whose head is confirmed and the
+// private trace.
 //
 // A resolution is never kept without its trace. The instruction transition and
-// its trace share the admission database, so they are one transaction. A repair,
-// a preview or a notice lives in another database: the trace is written first
-// and a failure changes nothing.
+// its trace share the admission database, so they are one transaction. A repair
+// or a notice lives in another database: the trace is written first and a
+// failure changes nothing.
 
 import { parseSessionKey } from "telegram-pi-bridge/sessions";
 import {
-  previewCommand,
   reconcileReports,
   reconcileResolutions,
   shortCommit,
@@ -36,7 +35,6 @@ import {
 export const caseKinds = {
   instruction: "instruction",
   repair: "repair",
-  preview: "preview",
   notice: "notice",
 };
 
@@ -55,10 +53,6 @@ export const resolutionsByKind = {
   [caseKinds.repair]: [
     reconcileResolutions.published,
     reconcileResolutions.notPublished,
-  ],
-  [caseKinds.preview]: [
-    reconcileResolutions.commented,
-    reconcileResolutions.notCommented,
   ],
   [caseKinds.notice]: [
     reconcileResolutions.delivered,
@@ -201,41 +195,6 @@ async function repairCase({ row, github }) {
   return facts;
 }
 
-/** The facts of an interrupted `/preview` post: whether its comment exists. */
-async function previewCase({ row, github }) {
-  const facts = {
-    kind: caseKinds.preview,
-    update_identifier: row.update_identifier,
-    session_key: row.session_key,
-    created_at: row.created_at,
-    pull_request_number: row.pull_request_number,
-    commit: row.commit_sha,
-    comment_found: null,
-    github: githubReadStates.unavailable,
-  };
-  const requestedAt = Date.parse(row.created_at);
-  try {
-    const login = await github.getAuthenticatedLogin();
-    const comments = await github.listIssueComments({
-      number: row.pull_request_number,
-      since: row.created_at,
-    });
-    facts.comment_found = comments.some(
-      (comment) =>
-        comment.user?.login === login &&
-        comment.body === previewCommand &&
-        // A comment written before the request and edited later is not the
-        // service post of this request, and the second of the request itself
-        // cannot be told apart from an earlier one.
-        Date.parse(comment.created_at) > requestedAt,
-    );
-    facts.github = githubReadStates.ok;
-  } catch {
-    // A failed read never decides a case; it only removes the fact.
-  }
-  return facts;
-}
-
 /**
  * The facts of an unknown CI notice. Its result was read from GitHub before the
  * delivery, so it also says what the topic would have received.
@@ -268,9 +227,6 @@ export async function listUncertainCases({ config, stores, github }) {
   }
   for (const row of stores.repairs?.uncertainRepairs() ?? []) {
     cases.push(await repairCase({ row, github }));
-  }
-  for (const row of stores.previews?.uncertain() ?? []) {
-    cases.push(await previewCase({ row, github }));
   }
   for (const row of stores.repairs?.uncertainNotices() ?? []) {
     cases.push(noticeCase({ row }));
@@ -315,8 +271,8 @@ function recordTraceBestEffort({ stores, entry, warn }) {
   }
 }
 
-// A repair or a preview already has its success trace: if the guarded change
-// fails afterwards, the case is annotated and the command stops.
+// A repair already has its success trace: if the guarded change fails
+// afterwards, the case is annotated and the command stops.
 function failTransition({ stores, resolved, warn, error }) {
   recordTraceBestEffort({
     stores,
@@ -517,50 +473,6 @@ async function resolveRepair({
   return resolved;
 }
 
-function resolvePreview({ stores, updateIdentifier, resolution, warn }) {
-  const row = (stores.previews?.uncertain() ?? []).find(
-    (candidate) => candidate.update_identifier === updateIdentifier,
-  );
-  if (row === undefined) {
-    throw new ReconcileCaseError(
-      `Preview request ${updateIdentifier} is not an uncertain case.`,
-    );
-  }
-  const resolved = {
-    kind: caseKinds.preview,
-    updateIdentifier,
-    telegramUpdateIdentifier: row.update_identifier,
-    sessionKey: row.session_key,
-    pullRequestNumber: row.pull_request_number,
-    commit: row.commit_sha,
-    resolution,
-  };
-
-  // The trace lives in another database: it is written first, so a failure
-  // leaves the request uncertain.
-  recordTrace({ stores, entry: traceEntry(resolved) });
-  let applied;
-  try {
-    applied =
-      resolution === reconcileResolutions.commented
-        ? stores.previews.resolveUncertainCommented(updateIdentifier)
-        : stores.previews.resolveUncertainNotCommented(updateIdentifier);
-  } catch (error) {
-    failTransition({ stores, resolved, warn, error });
-  }
-  if (applied === null) {
-    failTransition({
-      stores,
-      resolved,
-      warn,
-      error: new ReconcileCaseError(
-        `Preview request ${updateIdentifier} is not an uncertain case.`,
-      ),
-    });
-  }
-  return resolved;
-}
-
 function resolveNotice({ stores, updateIdentifier, resolution, warn }) {
   const row = (stores.repairs?.uncertainNotices() ?? []).find(
     (candidate) => candidate.update_identifier === updateIdentifier,
@@ -649,13 +561,6 @@ function resolveCase({
         failedCommit,
         resolution,
         commit,
-        warn,
-      });
-    case caseKinds.preview:
-      return resolvePreview({
-        stores,
-        updateIdentifier,
-        resolution,
         warn,
       });
     case caseKinds.notice:

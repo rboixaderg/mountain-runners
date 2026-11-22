@@ -108,7 +108,7 @@ test("finds the valid comment among unrelated ones", () => {
   assert.equal(
     confirmedPreviewOrigin({
       comments: [
-        { user: { login: "person" }, body: "/preview" },
+        { user: { login: "person" }, body: "Gràcies" },
         publisherComment({ user: { login: "someone" } }),
         publisherComment(),
       ],
@@ -137,19 +137,4 @@ test("rejects a pull request number that is not a positive integer", () => {
       String(invalid),
     );
   }
-});
-
-test("a request with a start moment accepts only a comment updated after it", () => {
-  assert.equal(
-    confirmed(publisherComment(), { since: "2026-11-14T10:00:00Z" }),
-    origin,
-  );
-  assert.equal(
-    confirmed(publisherComment(), { since: "2026-11-14T10:05:00Z" }),
-    null,
-  );
-  assert.equal(
-    confirmed(publisherComment(), { since: "2026-11-14T10:10:00Z" }),
-    null,
-  );
 });

@@ -236,19 +236,6 @@ export async function startService({
     });
   }
 
-  // An interrupted preview comment may or may not exist. Like an interrupted
-  // repair, it is never posted again automatically: the service refuses to
-  // start until a person reconciles the real state.
-  for (const request of previewRequests.recoverCommenting()) {
-    queue.recordTrace({
-      updateIdentifier: request.update_identifier,
-      authorIdentifier: request.author_identifier,
-      sessionKey: request.session_key,
-      action: "preview_uncertain",
-      detail: `#${request.pull_request_number} ${request.commit_sha.slice(0, 7)}`,
-    });
-  }
-
   // An interrupted merge may have happened. It is never requested again
   // blindly: it stays uncertain, attributed in the private trace, until the
   // pull request is read and the topic is told once at startup. That never
@@ -277,15 +264,6 @@ export async function startService({
     closeStateStores();
     throw new Error(
       `Refusing to start: ${uncertainRepairs} CI repair(s) have an unknown external result.`,
-    );
-  }
-
-  const uncertainPreviews = previewRequests.uncertainCount();
-  if (uncertainPreviews > 0) {
-    logger("preview_uncertain", String(uncertainPreviews));
-    closeStateStores();
-    throw new Error(
-      `Refusing to start: ${uncertainPreviews} preview request(s) have an unknown external result.`,
     );
   }
 

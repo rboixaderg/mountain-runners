@@ -8,10 +8,6 @@ import { PreviewRequestStore } from "../repository/preview-request-store.mjs";
 import { SessionNoteStore } from "../repository/session-note-store.mjs";
 import { requestSignal } from "../repository/request-signal.mjs";
 import {
-  seedLegacyPreviewRequest,
-  seedUncertainPreviewRequest,
-} from "../repository/test-support/preview-requests.mjs";
-import {
   failedMaintainerNotice,
   previewConfirmationTimeoutMilliseconds,
 } from "../policy/development.mjs";
@@ -35,10 +31,11 @@ function fixture(context, now) {
       retryDelay: 100,
     }),
   );
-  const previewPath = join(directory, "preview.sqlite");
-  const previews = new PreviewRequestStore(previewPath, { now });
+  const previews = new PreviewRequestStore(join(directory, "preview.sqlite"), {
+    now,
+  });
   context.after(() => previews.close());
-  return { previewPath, previews };
+  return { previews };
 }
 
 function openPullRequest(headSha = commit) {
@@ -74,8 +71,8 @@ function fakeGithub() {
       assert.ok(number in github.pullRequests, `unexpected #${number}`);
       return github.pullRequests[number];
     },
-    async listIssueComments({ number, since }) {
-      github.listings.push(since);
+    async listIssueComments({ number }) {
+      github.listings.push(number);
       if (github.listError) throw github.listError;
       return github.comments[number] ?? [];
     },
@@ -85,7 +82,7 @@ function fakeGithub() {
 
 function setup(context) {
   let current = new Date("2026-11-14T10:00:01Z");
-  const { previewPath, previews } = fixture(context, () => current);
+  const { previews } = fixture(context, () => current);
   const github = fakeGithub();
   const sent = [];
   const traces = [];
@@ -121,7 +118,6 @@ function setup(context) {
     });
   }
   return {
-    previewPath,
     previews,
     github,
     telegram,
@@ -133,9 +129,6 @@ function setup(context) {
     notes,
     advance(milliseconds) {
       current = new Date(current.getTime() + milliseconds);
-    },
-    setClock(moment) {
-      current = new Date(moment);
     },
   };
 }
@@ -431,29 +424,6 @@ test("refuses a repeat while the request awaits confirmation", async (context) =
   assert.equal(previews.awaiting().length, 1);
 });
 
-test("a legacy uncertain request blocks a new request for its commit", async (context) => {
-  const { handler, previewPath, previews, sent } = setup(context);
-  // A request written while the service still posted `/preview`, whose result
-  // a restart could not know.
-  seedUncertainPreviewRequest(previewPath, {
-    updateIdentifier: 19,
-    sessionKey,
-    authorIdentifier: 555,
-    pullRequestNumber: 200,
-    commitSha: commit,
-    createdAt: "2026-11-14T09:00:00.000Z",
-  });
-
-  const repeated = await handler.handle(request(20));
-  await handler.runOnce();
-
-  assert.match(repeated.report, /ja està demanada i encara no ha acabat/u);
-  assert.equal(previews.state(20), undefined);
-  assert.equal(previews.state(19), "uncertain");
-  assert.equal(previews.uncertainCount(), 1);
-  assert.deepEqual(sent, []);
-});
-
 test("allows a repeat for the same commit after the previous one was confirmed", async (context) => {
   const { handler, github, previews, sent } = setup(context);
   await handler.handle(request(20));
@@ -515,7 +485,7 @@ test("confirms through the publisher comment and reports the confirmed address",
   assert.doesNotMatch(sent[0].text, /commit/u);
   // Every comment is read: the label starts the build when the head is pushed,
   // so the publisher can confirm it before the request began.
-  assert.deepEqual(github.listings, [undefined, undefined]);
+  assert.deepEqual(github.listings, [200, 200]);
   const confirmation = traces.find(
     (entry) => entry.action === "preview_confirmed",
   );
@@ -911,38 +881,6 @@ test("the loop isolates a cycle error and stops when aborted", async (context) =
   assert.deepEqual(logs, [["preview_worker_failed", "Error"]]);
 });
 
-test("confirms a reconciled request from a publisher comment written after it", async (context) => {
-  const { previewPath, previews, github, handler, sent, setClock, traces } =
-    setup(context);
-  // A request written while the service still posted `/preview`, whose result
-  // was unknown and that a person reconciled later.
-  seedUncertainPreviewRequest(previewPath, {
-    updateIdentifier: 20,
-    sessionKey,
-    authorIdentifier: 555,
-    pullRequestNumber: 200,
-    commitSha: commit,
-    createdAt: "2026-11-14T10:00:00.000Z",
-  });
-
-  setClock("2026-11-14T11:00:00Z");
-  previews.resolveUncertainCommented(20);
-
-  github.comments[200] = [
-    { ...publisherComment(), created_at: "2026-11-14T10:05:00Z" },
-  ];
-  await handler.runOnce();
-
-  assert.equal(previews.state(20), "confirmed");
-  assert.equal(sent.length, 1);
-  assert.match(
-    sent[0].text,
-    /https:\/\/pr-200\.preview\.mountainrunners\.cat/u,
-  );
-  assert.deepEqual(github.listings, [undefined]);
-  assert.ok(actions(traces).includes("preview_confirmed"));
-});
-
 test("a poll of an older commit never ends the row reopened for a newer one", async (context) => {
   const { handler, github, previews, sent } = setup(context);
   handler.followPublication(publication(10));
@@ -965,61 +903,4 @@ test("a poll of an older commit never ends the row reopened for a newer one", as
   assert.equal(previews.awaiting()[0].commit_sha, newerCommit);
   assert.equal(previews.awaiting()[0].confirmed_origin, null);
   assert.equal(sent.length, 1);
-});
-
-function seedLegacyAwaiting(previewPath) {
-  // A request written while the service still posted `/preview` on a pull
-  // request that never got the `preview` label.
-  seedLegacyPreviewRequest(previewPath, {
-    state: "awaiting",
-    updateIdentifier: 20,
-    sessionKey,
-    authorIdentifier: 555,
-    pullRequestNumber: 200,
-    commitSha: commit,
-    createdAt: "2026-11-14T10:00:00.000Z",
-    commentedAt: "2026-11-14T10:00:00.000Z",
-  });
-}
-
-test("confirms a legacy request on an unlabeled pull request from a later publisher comment", async (context) => {
-  const { previewPath, previews, github, handler, sent } = setup(context);
-  seedLegacyAwaiting(previewPath);
-  github.pullRequests[200].previewLabeled = false;
-  github.comments[200] = [publisherComment()];
-
-  await handler.runOnce();
-
-  assert.equal(previews.state(20), "confirmed");
-  assert.equal(sent.length, 1);
-  assert.match(
-    sent[0].text,
-    /https:\/\/pr-200\.preview\.mountainrunners\.cat/u,
-  );
-});
-
-test("does not confirm a legacy request with a publisher comment older than it", async (context) => {
-  const { previewPath, previews, github, handler, sent } = setup(context);
-  seedLegacyAwaiting(previewPath);
-  github.pullRequests[200].previewLabeled = false;
-  github.comments[200] = [
-    { ...publisherComment(), updated_at: "2026-11-14T09:00:00Z" },
-  ];
-
-  await handler.runOnce();
-
-  assert.equal(previews.state(20), "awaiting");
-  assert.deepEqual(sent, []);
-});
-
-test("a legacy request still ends silently for a revoked preview", async (context) => {
-  const { previewPath, previews, github, handler, sent } = setup(context);
-  seedLegacyAwaiting(previewPath);
-  github.pullRequests[200].previewRevoked = true;
-  github.comments[200] = [publisherComment()];
-
-  await handler.runOnce();
-
-  assert.equal(previews.state(20), "failed");
-  assert.deepEqual(sent, []);
 });

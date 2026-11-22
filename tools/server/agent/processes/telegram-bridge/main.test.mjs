@@ -16,18 +16,15 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { DatabaseSync } from "node:sqlite";
 import { promisify } from "node:util";
 import { test } from "node:test";
 import { AdmissionQueue } from "telegram-pi-bridge/sessions";
 import { reconcileResolutions } from "../../policy/development.mjs";
-import {
-  listUncertainCases,
-  resolveUncertainCase,
-} from "../../commands/reconcile/uncertain-cases.mjs";
+import { resolveUncertainCase } from "../../commands/reconcile/uncertain-cases.mjs";
 import { CiWatchStore } from "../../repository/ci-watch-store.mjs";
 import { MergeRequestStore } from "../../repository/merge-request-store.mjs";
 import { PreviewRequestStore } from "../../repository/preview-request-store.mjs";
-import { seedLegacyPreviewRequest } from "../../repository/test-support/preview-requests.mjs";
 import { openIdentifierNames } from "../../repository/identifiers.mjs";
 import { ensureSessionWorktree } from "../../repository/worktrees.mjs";
 import {
@@ -733,52 +730,10 @@ test("does not run another repair while one has an unknown result", async (conte
   service.queue.close();
 });
 
-// A `commenting` row can only remain from the service that still posted
-// `/preview`; the current one stores every request directly as awaiting.
-function previewFixture(statePath, state) {
-  mkdirSync(statePath, { recursive: true });
-  const path = join(statePath, "preview-request.sqlite");
-  new PreviewRequestStore(path).close();
-  seedLegacyPreviewRequest(path, {
-    state,
-    updateIdentifier: 30,
-    sessionKey: "-1001234567890:7",
-    authorIdentifier: 555,
-    pullRequestNumber: 200,
-    commitSha: "a".repeat(40),
-    createdAt: "2026-11-14T10:00:00.000Z",
-  });
-}
-
-test("refuses to start with an interrupted preview comment of unknown result", async (context) => {
-  const { environment, statePath } = environmentFor(context);
-  previewFixture(statePath, "commenting");
-
-  for (let attempt = 0; attempt < 2; attempt += 1) {
-    await assert.rejects(
-      startService({
-        environment,
-        telegram: telegramStub(),
-        github: {},
-        runner: async () => ({}),
-      }),
-      { message: /preview request\(s\) have an unknown external result/u },
-    );
-  }
-
-  const queue = new AdmissionQueue(join(statePath, "admission.sqlite"), {
-    maxPending: 10,
-  });
-  const trace = queue
-    .traceEntries()
-    .find((entry) => entry.action === "preview_uncertain");
-  assert.equal(trace.update_identifier, 30);
-  assert.equal(trace.detail, `#200 ${"a".repeat(7)}`);
-  queue.close();
-});
-
+// An interrupted merge is recovered at startup even when another case refuses
+// the start: one restart leaves every case attributed in the private trace.
 test("completes every local recovery before refusing the start", async (context) => {
-  const { directory, environment, statePath } = environmentFor(context);
+  const { environment, statePath } = environmentFor(context);
   mkdirSync(statePath, { recursive: true });
   const queue = new AdmissionQueue(join(statePath, "admission.sqlite"), {
     maxPending: 10,
@@ -792,9 +747,9 @@ test("completes every local recovery before refusing the start", async (context)
   });
   queue.next();
   queue.close();
-  previewFixture(statePath, "commenting");
+  interruptedMerge(statePath);
 
-  // The refusal reports the instruction, but the preview must be recovered too.
+  // The refusal reports the instruction, but the merge must be recovered too.
   await assert.rejects(
     startService({
       environment,
@@ -807,82 +762,32 @@ test("completes every local recovery before refusing the start", async (context)
     },
   );
 
-  const stores = {
-    instructions: new AdmissionQueue(join(statePath, "admission.sqlite"), {
-      maxPending: 10,
-    }),
-    repairs: new CiWatchStore(join(statePath, "ci-watch.sqlite")),
-    previews: new PreviewRequestStore(
-      join(statePath, "preview-request.sqlite"),
-    ),
-  };
-  assert.equal(stores.instructions.uncertain().length, 1);
-  assert.equal(stores.previews.uncertain().length, 1);
-
-  const config = {
-    paths: {
-      repository: join(directory, "repository"),
-      // No local worktree of this topic: the case is still listed.
-      worktrees: join(directory, "missing-worktrees"),
-      state: statePath,
-    },
-  };
-  const cases = await listUncertainCases({
-    config,
-    stores,
-    github: {
-      async getAuthenticatedLogin() {
-        return "mountain-agent-bot";
-      },
-      async listIssueComments() {
-        return [];
-      },
-    },
+  const merges = new MergeRequestStore(join(statePath, "merge-request.sqlite"));
+  assert.equal(merges.state(40), "uncertain");
+  merges.close();
+  const traceSource = new AdmissionQueue(join(statePath, "admission.sqlite"), {
+    maxPending: 10,
   });
-  assert.deepEqual(
-    cases.map((facts) => facts.kind),
-    ["instruction", "preview"],
-  );
-
-  const telegram = {
-    async sendMessage() {},
-  };
-  await resolveUncertainCase({
-    config,
-    stores,
-    telegram,
-    kind: "instruction",
-    updateIdentifier: 20,
-    resolution: reconcileResolutions.notPublished,
-  });
-  await resolveUncertainCase({
-    config,
-    stores,
-    telegram,
-    kind: "preview",
-    updateIdentifier: 30,
-    resolution: reconcileResolutions.notCommented,
-  });
-  stores.previews.close();
-  stores.repairs.close();
-  stores.instructions.close();
-
-  const service = await startService({
-    environment,
-    telegram: telegramStub(),
-    github: {},
-    runner: async () => ({}),
-  });
-  assert.equal(service.queue.isBlocked(), false);
-  service.mergeRequests.close();
-  service.previewRequests.close();
-  service.ciWatches.close();
-  service.queue.close();
+  const actions = traceSource.traceEntries().map((entry) => entry.action);
+  traceSource.close();
+  assert.ok(actions.includes("merge_uncertain"));
+  assert.ok(actions.includes("startup_refused_uncertain"));
 });
 
 test("resumes a preview awaiting the publisher after a restart", async (context) => {
   const { environment, statePath } = environmentFor(context);
-  previewFixture(statePath, "awaiting");
+  mkdirSync(statePath, { recursive: true });
+  const store = new PreviewRequestStore(
+    join(statePath, "preview-request.sqlite"),
+  );
+  store.track({
+    updateIdentifier: 30,
+    sessionKey: "-1001234567890:7",
+    authorIdentifier: 555,
+    pullRequestNumber: 200,
+    commitSha: "a".repeat(40),
+  });
+  store.close();
   const sent = [];
   const commit = "a".repeat(40);
   const service = await startService({
@@ -934,6 +839,65 @@ test("resumes a preview awaiting the publisher after a restart", async (context)
     .find((entry) => entry.action === "preview_confirmed");
   assert.equal(trace.update_identifier, 30);
   assert.equal(trace.author_identifier, 555);
+});
+
+test("starts with finished and legacy preview requests it no longer reads", async (context) => {
+  const { environment, statePath } = environmentFor(context);
+  mkdirSync(statePath, { recursive: true });
+  const path = join(statePath, "preview-request.sqlite");
+  new PreviewRequestStore(path).close();
+  // The rows the current service ends with and a row left by the service that
+  // still posted `/preview`: the schema keeps them all, the service no longer
+  // reads the legacy row and no row blocks the start.
+  const rows = [
+    [30, "uncertain"],
+    [31, "confirmed"],
+    [32, "timed_out"],
+    [33, "failed"],
+  ];
+  const database = new DatabaseSync(path);
+  const insert = database.prepare(
+    `INSERT INTO preview_requests
+     (update_identifier, session_key, author_identifier, pull_request_number,
+      commit_sha, state, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+  );
+  for (const [updateIdentifier, state] of rows) {
+    insert.run(
+      updateIdentifier,
+      "-1001234567890:7",
+      555,
+      200,
+      "a".repeat(40),
+      state,
+      "2026-11-14T10:00:00.000Z",
+      "2026-11-14T10:00:00.000Z",
+    );
+  }
+  database.close();
+
+  const service = await startService({
+    environment,
+    telegram: telegramStub(),
+    github: {},
+    runner: async () => ({}),
+  });
+  context.after(() => {
+    service.previewRequests.close();
+    service.ciWatches.close();
+    service.queue.close();
+  });
+
+  for (const [updateIdentifier, state] of rows) {
+    assert.equal(service.previewRequests.state(updateIdentifier), state);
+  }
+  assert.deepEqual(service.previewRequests.awaiting(), []);
+  assert.equal(
+    service.queue
+      .traceEntries()
+      .some((entry) => entry.action === "preview_uncertain"),
+    false,
+  );
 });
 
 test("runs the preview watcher beside the bridge and stops it with the service", async () => {
@@ -1282,7 +1246,6 @@ test("keeps the older notice blocked after reconciling a publication without a w
       maxPending: 10,
     }),
     repairs: new CiWatchStore(join(statePath, "ci-watch.sqlite")),
-    previews: null,
   };
   await resolveUncertainCase({
     config: {
