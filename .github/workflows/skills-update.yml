@@ -1,0 +1,54 @@
+name: Skills update
+
+# Weekly proposal of upstream skill updates as pull requests written by the
+# App. The workflow only reads this repository and the public upstream content,
+# and the App token reaches the single step that writes the bot branch and its
+# pull request. It never checks out upstream code, never uses
+# `pull_request_target`, never approves, never merges and never touches
+# `reviewedAt`.
+
+on:
+  schedule:
+    # Monday, like Dependabot.
+    - cron: "23 4 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  propose:
+    name: Propose upstream updates
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: skills-update
+    concurrency:
+      group: skills-update
+      cancel-in-progress: false
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Set up Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+      - name: Resolve the App token
+        id: app-token
+        # `app-id` still works; `client-id` is the newer input of the action and
+        # the maintainer stores the App ID as the secret.
+        uses: actions/create-github-app-token@f418cff399f7aef4c2f0ad47e25ca7a6abbdd6fc # v3.4.0
+        with:
+          app-id: ${{ secrets.SKILLS_UPDATE_APP_ID }}
+          private-key: ${{ secrets.SKILLS_UPDATE_APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: mountain-runners
+          permission-contents: write
+          permission-pull-requests: write
+      - name: Propose the updates
+        env:
+          SKILLS_UPDATE_TOKEN: ${{ steps.app-token.outputs.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          SKILLS_UPDATE_APP_SLUG: ${{ steps.app-token.outputs.app-slug }}
+        run: node tools/agent-skills/update-upstream.mjs --apply

@@ -536,8 +536,8 @@ Les skills externes del manifest i les pròpies tenen regles diferents.
 - **Agrupació.** Una PR per `source`: `accessibility` i `seo` comparteixen
   `addyosmani/web-quality-skills` i van juntes, i `vitest` i `typescript-advanced-types` en
   tenen una cadascuna. Cada PR usa una branca de bot estable, `skills/update-<source-slug>`,
-  i un grup de `concurrency` per origen evita que dues execucions competeixin per la mateixa
-  branca.
+  i un sol grup de `concurrency` per al job que processa tots els orígens evita que dues
+  execucions competeixin per la mateixa branca.
 - **Sense prendre PR alienes.** L'execució actualitza una PR oberta només si l'autora és
   l'App i la branca de cap és d'aquest repositori; si no, refusa i fa fallar el job. Fa el
   push amb `--force-with-lease=<sha esperat>` i refusa una branca de bot amb commits que no

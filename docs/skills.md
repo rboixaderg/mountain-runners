@@ -77,6 +77,60 @@ llicència al repositori canònic, descarregar la revisió exacta sense executar
 scripts, validar tots els hashes, llegir-ne tot el contingut i conservar les
 atribucions requerides.
 
+## Actualitzacions Setmanals
+
+L'execució setmanal de `.github/workflows/skills-update.yml`, els dilluns, i la
+manual llegeixen el manifest, resolen la branca per defecte de cada origen i
+comparen el commit fixat amb l'últim. Quan canvien fitxers d'una skill, obre o
+actualitza una pull request de bot per origen a la branca
+`skills/update-<origen>`, amb l'etiqueta `skills`, el manifest tornat a fixar i
+el títol `chore(skills): update <origen> to <sha7>`. No aprova, no fusiona, no
+activa auto-merge i no toca `reviewedAt`. Qualsevol refús (llicència canviada,
+fitxers que no són documentació, symlinks, submòduls, límits de mida, caràcters
+de control, frontmatter no permès o un commit que no es pot resoldre) fa
+fallar l'execució amb el motiu i no obre cap pull request. Un fitxer de l'origen
+amb finals de línia CRLF també es refusa, perquè `\r` és un caràcter de control:
+si l'origen n'introdueix, cal una revisió manual abans de fixar la revisió.
+
+`pnpm skills:update` imprimeix les propostes sense escriure res i sense cap
+credencial. `--apply` queda reservat al workflow, que és l'únic que té el token
+de l'App; l'ús local és sempre `--dry-run`.
+
+### Què Revisa La Persona Mantenidora
+
+1. L'enllaç de comparació de l'origen i el diff cru de cada fitxer: una injecció
+   de prompt dins del Markdown no es pot refusar automàticament.
+2. La llista «Per revisar» del cos de la pull request: comentaris HTML, URLs
+   externes noves, blocs de shell i línies d'ordre.
+3. Que la llicència continua sent la mateixa i que el manifest torna a fixar el
+   commit, el mapa de fitxers i el hash de la llicència.
+4. Que la pull request només toca `.agents/skills/<nom>/` i
+   `skills-manifest.json`, i que la CI i la prova del manifest passen.
+5. Que `reviewedAt` no canvia: només el mou una revisió humana.
+
+`CODEOWNERS` assigna `.agents/skills/**` i `.github/workflows/**` a la persona
+mantenidora, de manera que qui fusiona revisa el diff cru i no el Markdown
+renderitzat.
+
+### Rotació I Revocació De La Clau De L'App
+
+L'App només té `Contents: write` i `Pull requests: write`, no té permís
+`Workflows`, està instal·lada només en aquest repositori i no té cap bypass al
+ruleset de `main`. Els secrets `SKILLS_UPDATE_APP_ID` i
+`SKILLS_UPDATE_APP_PRIVATE_KEY` viuen a l'entorn `skills-update`, restringit a
+`main`, i mai són secrets de repositori. Dependabot cobreix
+`actions/create-github-app-token` amb la resta d'accions.
+
+- **Rotació**: un cop l'any i de seguida que hi hagi un dubte. Genera una clau
+  nova a la configuració de l'App, desa la clau privada al secret de l'entorn i
+  executa el workflow amb `workflow_dispatch` per comprovar que obre o actualitza
+  una pull request; llavors esborra la clau vella a la configuració de l'App.
+- **Revocació**: esborra la clau compromesa a la configuració de l'App i
+  substitueix el secret de l'entorn. Sense cap clau vàlida el workflow falla i
+  no escriu res.
+- L'App no té permís d'Issues, així que l'etiqueta `skills` s'ha de crear abans
+  de la primera execució: sense ella la pull request no es pot etiquetar.
+
 ## Historial
 
 Aquest document substitueix la revisió de skills portables de la fase 2. Aquella

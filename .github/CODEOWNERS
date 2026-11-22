@@ -1,0 +1,6 @@
+# External skills are untrusted upstream content that agents load after the
+# merge, and the workflows hold the tokens that write and publish. Review the
+# raw diff of both, never the rendered Markdown.
+
+.agents/skills/** @rboixaderg
+.github/workflows/** @rboixaderg
