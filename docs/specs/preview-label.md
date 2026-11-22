@@ -56,7 +56,7 @@ amb els esdeveniments `pull_request_target`, `issue_comment`,
 esdeveniment que usin aquests workflows hi ha de constar. Això no contradiu la
 decisió anterior: la implementació continua sense canviar cap token, entorn ni
 configuració remota. Està descrita al
-[manual d'operacions](../runbook.md#política-dactions-de-pull_request_target-per-a-les-previews).
+[manual d'operacions](../operations/previews.md#política-dactions-de-pull_request_target-per-a-les-previews).
 
 ## Resultats Esperats
 
@@ -93,8 +93,8 @@ configuració remota. Està descrita al
 (`.github/workflows/preview.yml`, `.github/workflows/preview-cleanup.yml` i
 `tools/preview/`), la petició de l'agent (`tools/server/agent/repository/github.mjs`,
 `tools/server/agent/workflow/preview-request.mjs` i els mòduls que els criden),
-les seves proves, [`docs/deployment.md`](../deployment.md) i
-[`docs/runbook.md`](../runbook.md).
+les seves proves, [`docs/operations/previews.md`](../operations/previews.md) i
+[`docs/operations/web-and-releases.md`](../operations/web-and-releases.md).
 
 **Exclusió immediata:** no canvia `/preview`, `workflow_dispatch`, el build no
 fiable, el procés `mountain-preview-site`, el token del servei, `/merge` ni els

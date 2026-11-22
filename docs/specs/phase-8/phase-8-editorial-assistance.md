@@ -349,7 +349,7 @@ preserva treball no publicat ([#211](https://github.com/rboixaderg/mountain-runn
 d'operador ([#224](https://github.com/rboixaderg/mountain-runners/pull/224)) i la revocació, que torna a comprovar la pertinença
 abans d'una preview, com ja feia el merge ([#225](https://github.com/rboixaderg/mountain-runners/pull/225)). La persona mantenidora
 ha decidit no esborrar automàticament la traça, l'estat ni l'historial de Pi
-fins a una revisió explícita, amb els criteris de `docs/deployment.md`. La prova
+fins a una revisió explícita, amb els criteris de `docs/operations/agent.md`. La prova
 real de revocació no cal: qui ja no és al grup no hi pot escriure, i el cas
 d'una petició a la cua el cobreixen les proves del servei. L'aturada es va
 verificar al VPS a T8.3. La rotació de credencials passa al runbook de T8.6.
@@ -802,7 +802,7 @@ GitHub i model simulats; no s'activa una capacitat abans dels controls previs.
   o financeres sense sanititzar. La ingesta automàtica d'imatges per URL queda
   fora d'abast.
 - La implementació de T8.8 actualitza els límits d'adjunts de
-  `docs/deployment.md` i `docs/runbook.md`, que encara descriuen el límit
+  `tools/server/agent/README.md`, que encara descriu el límit
   anterior.
 
 ### Git, comprovacions, PR i preview

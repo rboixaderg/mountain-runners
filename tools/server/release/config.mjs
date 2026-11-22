@@ -1,6 +1,6 @@
 // Release tooling configuration (phase 5, task 5.3).
 //
-// Paths follow the approved server layout documented in docs/runbook.md:
+// Paths follow the approved server layout documented in docs/operations/README.md:
 //   /var/lib/mountain-runners/releases/<commit>/  extracted releases, pruned by policy
 //   /var/lib/mountain-runners/current             atomic symlink to the active release
 //   /var/lib/mountain-runners/releases.json       permanent release registry

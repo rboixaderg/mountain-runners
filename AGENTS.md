@@ -29,14 +29,14 @@
 Load the `docs-ownership` skill before editing documentation. Every content type
 has a single owner document, and the other documents link to it:
 
-| Content type                                                | Owner document                                                                 |
-| ----------------------------------------------------------- | ------------------------------------------------------------------------------ |
-| Requirements and acceptance                                 | The specification in `docs/specs/`                                             |
-| Accepted decisions                                          | The ADR in `docs/decisions/`                                                   |
-| Implemented behaviour of a component                        | Its single living document (the private agent: `tools/server/agent/README.md`) |
-| Operation procedures (install, update, rollback, incidents) | `docs/runbook.md`, with the "how it works" contracts in `docs/deployment.md`   |
-| The documentation map                                       | `docs/README.md`                                                               |
-| External and project skills                                 | `.agents/skills/` and its manifest                                             |
+| Content type                                                | Owner document                                                                                                                                                 |
+| ----------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Requirements and acceptance                                 | The specification in `docs/specs/`                                                                                                                             |
+| Accepted decisions                                          | The ADR in `docs/decisions/`                                                                                                                                   |
+| Implemented behaviour of a component                        | Its single living document (the private agent: `tools/server/agent/README.md`)                                                                                 |
+| Operation procedures (install, update, rollback, incidents) | The component document in `docs/operations/` (`web-and-releases.md`, `previews.md`, `agent.md`), with the shared server content in `docs/operations/README.md` |
+| The documentation map                                       | `docs/README.md`                                                                                                                                               |
+| External and project skills                                 | `.agents/skills/` and its manifest                                                                                                                             |
 
 - Other documents link to the owner and never summarise it.
 - Living documents are organised by component, not by task, and task identifiers
@@ -140,8 +140,8 @@ reviewing `apps/web` code. The review of every PR checks these rules:
   Keep supporting modules with their owner; leave only modules used by more
   than one program at the preview root. Use descriptive names for those modules.
 - Keep the installed layout, symlinks, systemd units, tests and the directory
-  map in [`docs/deployment.md`](docs/deployment.md) in sync. This rule does not
-  require reorganizing the existing `tools/server/release/` implementation.
+  map in [`docs/operations/`](docs/operations/README.md) in sync. This rule does
+  not require reorganizing the existing `tools/server/release/` implementation.
 
 ## Security
 
@@ -193,9 +193,10 @@ reviewing `apps/web` code. The review of every PR checks these rules:
   the protected default branch and the approved deployment pipeline. Local agent
   sessions never deploy the web.
 - Two server components are installed manually instead: the private phase 8
-  agent service ([`docs/runbook.md`](docs/runbook.md#actualitzar)) and the
+  agent service
+  ([`docs/operations/agent.md`](docs/operations/agent.md#actualitzar)) and the
   release and preview server tooling
-  ([`docs/runbook.md`](docs/runbook.md#actualitzar-les-eines-en-un-vps-existent)).
+  ([`docs/operations/web-and-releases.md`](docs/operations/web-and-releases.md#actualitzar-les-eines-en-un-vps-existent)).
   A local agent session on a maintainer-controlled machine may start, stop,
   restart or update them only from a reviewed `main` commit, with the
   maintainer's explicit approval in the current conversation. The Telegram

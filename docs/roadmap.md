@@ -290,10 +290,10 @@ automàticament els commits fusionats a `main`.
 **Estat:** Completada el 18 d'octubre de 2026. T6.1 a T6.7 estan fusionades a
 `main` (#113, #117, #121, #130, #134, #135, #136 i #142) i el sistema de
 previews està activat i validat al VPS sota `*.preview.mountainrunners.cat`
-(T6.5). L'operació és a la
-[secció 13 del runbook](runbook.md#13-previews-de-pull-request-t63) i la
+(T6.5). L'operació és a
+[previews de pull request](operations/previews.md#previews-de-pull-request) i la
 classificació de les ordres a
-[`docs/deployment.md`](deployment.md#previews-de-pull-request-t63).
+[`docs/operations/previews.md`](operations/previews.md#ordres-de-mountain-preview).
 
 **Especificació:**
 [`docs/specs/phase-6/phase-6-pull-request-previews.md`](specs/phase-6/phase-6-pull-request-previews.md).

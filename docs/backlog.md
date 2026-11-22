@@ -895,7 +895,7 @@ skills](specs/docs-governance.md) el 22 de novembre de 2026.
 
 **Problema:** cada agent afegeix el comportament nou al document més proper, de manera
 que el comportament de l'agent privat es descriu a quatre llocs,
-`docs/deployment.md` i `docs/runbook.md` se solapen, els documents de treball d'una
+els documents operatius de desplegament i runbook se solapen, els documents de treball d'una
 tasca viuen a l'arrel de `docs/` i les skills no tenen manifest verificat ni versió.
 
 **Resultat esperat:** un únic document propietari per tipus de contingut, l'operació

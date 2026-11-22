@@ -51,7 +51,7 @@ catalana.
 - Accés de lectura a Plausible: disponible.
 - Caddy 2.11.4 desplegat a la fase 5. El desplegament de l'artefacte no
   actualitza Caddy: una persona mantenidora aplica el canvi al VPS seguint el
-  [`runbook`](../runbook.md), com amb la resta de canvis de Caddyfile.
+  [`runbook`](../operations/web-and-releases.md#redireccions-durls-de-llegat), com amb la resta de canvis de Caddyfile.
 - No hi ha cap canvi de contingut ni de rutes del build.
 
 ## Tasques, Entregues I Seguiment
