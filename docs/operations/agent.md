@@ -439,7 +439,9 @@ df -h "$A"
 #    root i el servei només el pot llegir.
 CONTEXT=$(mktemp -d /var/tmp/mountain-agent-build.XXXXXXXX)
 chmod 0755 "$CONTEXT"
-git -C /srv/mountain-runners archive <commit> | tar -x -C "$CONTEXT"
+git -c core.attributesFile=/dev/null -c core.fsmonitor=false \
+  -c core.hooksPath=/dev/null \
+  -C /srv/mountain-runners archive <commit> | tar -x -C "$CONTEXT"
 chmod -R a+rX,go-w "$CONTEXT"
 # 4. Construeix sense xarxa: el contenidor no en té i tot arriba al store local.
 WD="$CONTEXT" pm build --pull=never \
@@ -508,9 +510,13 @@ l'estat. L'extracció la fa la identitat del servei, que és qui escriu l'estat,
 sobre un `state/` buit:
 
 ```sh
-sudo find /var/lib/mountain-runners-agent/state -mindepth 1 -delete
-sudo runuser -u mountain-agent -- tar \
-  -C /var/lib/mountain-runners-agent/state -xf "$B/<còpia-de-l'estat>.tar"
+S=/var/lib/mountain-runners-agent/state
+# Buidat i extracció com la identitat del servei: root no escriu mai dins del
+# volum de l'agent. `lost+found` és del sistema de fitxers i s'hi queda.
+sudo runuser -u mountain-agent -- find "$S" -mindepth 1 -maxdepth 1 \
+  ! -name lost+found -exec rm -rf -- {} +
+sudo runuser -u mountain-agent -- tar -C "$S" --exclude=./lost+found \
+  -xf "$B/<còpia-de-l'estat>.tar"
 ```
 
 Si no tens aquesta còpia, no tornis enrere sense aprovació explícita. Arrenca el

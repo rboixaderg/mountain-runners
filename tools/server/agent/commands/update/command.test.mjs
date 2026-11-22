@@ -16,6 +16,7 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
+import { DatabaseSync } from "node:sqlite";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 import { AdmissionQueue } from "telegram-pi-bridge/sessions";
@@ -652,7 +653,7 @@ const busyStates = [
       });
       store.close();
     },
-    expected: /preview requests awaiting the publisher: 1/u,
+    expected: /open or uncertain preview requests: 1/u,
   },
   {
     name: "an uncertain CI notice case",
@@ -828,7 +829,7 @@ test("backs up the state as the service user and never follows a link inside it"
   assert.equal(result.streamCalls.length, 1);
   assert.match(
     result.streamCalls[0],
-    /^runuser -u mountain-agent -- tar -C .* -cf - \.$/u,
+    /^runuser -u mountain-agent -- tar -C .* -cf - --exclude=\.\/lost\+found \.$/u,
   );
   // The link is stored, never followed: its target keeps content and mode.
   assert.equal(readFileSync(outside, "utf8"), "outside\n");
@@ -1111,6 +1112,130 @@ test("refuses when the backup filesystem has no room", (context) => {
   assert.match(result.stderr, /Retenció/u);
   assert.equal(result.calls.includes("systemctl stop mountain-agent"), true);
   assert.deepEqual(readdirSync(app.backupsRoot), []);
+  assert.equal(
+    readFileSync(join(app.installRoot, "agent/README.md"), "utf8"),
+    "# Agent\n",
+  );
+});
+
+test("excludes the lost+found of the state volume from the size and the backup", (context) => {
+  const app = createInstallation(context);
+  writeRevision(app.installRoot, app.installed);
+  const target = advance(app);
+  // `state/` is an ext4 mount point: `lost+found` belongs to root and the
+  // service identity cannot read it.
+  const lost = join(app.dataRoot, "state", "lost+found");
+  mkdirSync(lost);
+  writeFileSync(join(lost, "entry"), "root only\n");
+  chmodSync(lost, 0o700);
+
+  const result = runUpdate(app, { argv: ["--commit", target] });
+
+  assert.equal(result.code, 0, result.stderr);
+  const sizeCall = result.calls.find((call) =>
+    call.startsWith("runuser -u mountain-agent -- du "),
+  );
+  assert.match(sizeCall, / --exclude=lost\+found /u);
+  assert.equal(result.streamCalls.length, 1);
+  assert.match(result.streamCalls[0], / --exclude=\.\/lost\+found \.$/u);
+});
+
+test("the real tar honours the exclusion of lost+found", (context) => {
+  const app = createInstallation(context);
+  writeRevision(app.installRoot, app.installed);
+  const target = advance(app);
+  const lost = join(app.dataRoot, "state", "lost+found");
+  mkdirSync(lost);
+  writeFileSync(join(lost, "entry"), "root only\n");
+  writeFileSync(join(app.dataRoot, "state", "kept.txt"), "kept\n");
+  // The service identity is not root: it cannot read a directory only root may
+  // enter. The exclusion is what makes the real backup work.
+  chmodSync(lost, 0o000);
+
+  const stream = createStream({ realTar: true });
+  const result = runUpdate(app, { argv: ["--commit", target], stream });
+  chmodSync(lost, 0o700);
+
+  if (
+    result.code !== 0 &&
+    /unrecognized option|unknown option/iu.test(result.stderr)
+  ) {
+    context.skip("this tar does not support --exclude");
+    return;
+  }
+  assert.equal(result.code, 0, result.stderr);
+  const stateBackup = join(
+    app.backupsRoot,
+    `state-${app.installed.slice(0, 7)}-to-${target.slice(0, 7)}-20261122T101500Z.tar`,
+  );
+  const listing = spawnSync("tar", ["-tf", stateBackup], { encoding: "utf8" });
+  assert.equal(listing.status, 0, listing.stderr);
+  assert.doesNotMatch(listing.stdout, /lost\+found/u);
+  assert.match(listing.stdout, /kept\.txt/u);
+});
+
+test("refuses a legacy uncertain preview request", (context) => {
+  const app = createInstallation(context);
+  writeRevision(app.installRoot, app.installed);
+  const target = advance(app);
+  const path = join(app.dataRoot, "state", "preview-request.sqlite");
+  const store = new PreviewRequestStore(path);
+  store.begin({
+    updateIdentifier: 52,
+    sessionKey,
+    authorIdentifier: 42,
+    pullRequestNumber: 213,
+    commitSha: "2".repeat(40),
+  });
+  store.close();
+  // A row written before the `/preview` retirement: the schema still accepts it
+  // and the service no longer writes it.
+  const database = new DatabaseSync(path);
+  database.prepare("UPDATE preview_requests SET state = 'uncertain'").run();
+  database.close();
+
+  const result = runUpdate(app, { argv: ["--commit", target] });
+
+  assert.equal(result.code, 1);
+  assert.match(result.stderr, /open or uncertain preview requests: 1/u);
+  assertServiceUntouched(result.calls);
+});
+
+test("refuses a state database that is a FIFO without blocking", (context) => {
+  const app = createInstallation(context);
+  writeRevision(app.installRoot, app.installed);
+  const target = advance(app);
+  const created = spawnSync(
+    "mkfifo",
+    [join(app.dataRoot, "state", "ci-watch.sqlite")],
+    { encoding: "utf8" },
+  );
+  assert.equal(created.status, 0, created.stderr);
+
+  const result = runUpdate(app, { argv: ["--commit", target] });
+
+  assert.equal(result.code, 1);
+  assert.match(result.stderr, /must be a regular file/u);
+  assertServiceUntouched(result.calls);
+});
+
+test("removes the partial state backup when tar cannot run", (context) => {
+  const app = createInstallation(context);
+  writeRevision(app.installRoot, app.installed);
+  const target = advance(app);
+
+  const result = runUpdate(app, {
+    argv: ["--commit", target],
+    stream: (command, args, path) =>
+      runProcessToFile("mountain-agent-tar-that-does-not-exist", [], path),
+  });
+
+  assert.equal(result.code, 1);
+  assert.match(result.stderr, /could not run/u);
+  assert.deepEqual(
+    readdirSync(app.backupsRoot).filter((name) => name.endsWith(".tar")),
+    [],
+  );
   assert.equal(
     readFileSync(join(app.installRoot, "agent/README.md"), "utf8"),
     "# Agent\n",

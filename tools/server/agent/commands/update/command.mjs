@@ -33,6 +33,7 @@ import {
   closeSync,
   constants,
   cpSync,
+  fstatSync,
   lstatSync,
   mkdirSync,
   mkdtempSync,
@@ -83,6 +84,26 @@ const bridgeEntries = [
 
 const testFilePattern = /\.test\.[^/]+$/u;
 const fullRevisionPattern = /^[0-9a-f]{40}$/u;
+
+// `state/` is an ext4 mount point, so it carries `lost+found`: root-owned with
+// mode 0700, unreadable for the service identity. Both commands that read the
+// state skip it, and each one names the entry from its own operand: `tar` with
+// `-C <state>` stores `./lost+found`, while `du` prints `<state>/lost+found` and
+// matches the bare name (a path pattern like `./lost+found` does not match).
+const lostAndFoundDirectory = "lost+found";
+const stateExclusion = {
+  tar: `--exclude=./${lostAndFoundDirectory}`,
+  du: `--exclude=${lostAndFoundDirectory}`,
+};
+
+// SQLite opens a path, and a path is what the agent can replace with a link:
+// the database is opened once without following links and SQLite then opens the
+// resulting descriptor. Linux names descriptors under /proc and macOS and the
+// BSDs under /dev.
+const descriptorDirectory =
+  ["/proc/self/fd", "/dev/fd"].find(
+    (directory) => lstatOrNull(directory) !== null,
+  ) ?? null;
 
 // The checkout decides nothing about how Git runs: it is reviewed, but the
 // command runs as root and a commit must not be able to point Git at a hook or
@@ -517,9 +538,11 @@ function archiveTree({ run, repository, commit, workRoot }) {
 
 /**
  * `export-subst` makes `git archive` rewrite the placeholders of a file, so the
- * archive no longer holds the reviewed bytes. The attributes of the archived
- * paths are refused; a `.gitattributes` outside them is a documented limitation
- * of this check, and it can only touch the content the author already reviewed.
+ * archive no longer holds the reviewed bytes. The check reads the attributes of
+ * the archived paths only: a `.gitattributes` at the repository root is outside
+ * the archive and is not read here. That is the limit — such a file can still
+ * apply `export-subst` to an installed file — and it is acceptable because that
+ * root file is reviewed content of the same commit, like the rest of the tree.
  */
 function assertNoExportSubstitution({ root, commit }) {
   for (const entry of treeEntries(root)) {
@@ -626,9 +649,10 @@ function describeDifferences(differences) {
 // here: their constructors create and migrate the schema, and this check must
 // not write, so the databases open read-only.
 //
-// `preview_requests` still accepts `commenting` and `uncertain` in its schema,
-// but the service writes neither after the `/preview` retirement: only
-// `awaiting` is a state a running turn can be in.
+// `preview_requests` still accepts `commenting` and `uncertain` in its schema.
+// The service writes neither after the `/preview` retirement, but a state
+// carried over from before can still hold them: an open row of any of the three
+// refuses the update, so an unreconciled preview is never installed over.
 const busyQueries = [
   {
     database: "admission.sqlite",
@@ -652,8 +676,8 @@ const busyQueries = [
   },
   {
     database: "preview-request.sqlite",
-    label: "preview requests awaiting the publisher",
-    sql: "SELECT COUNT(*) AS count FROM preview_requests WHERE state = 'awaiting'",
+    label: "open or uncertain preview requests",
+    sql: "SELECT COUNT(*) AS count FROM preview_requests WHERE state IN ('awaiting', 'commenting', 'uncertain')",
   },
 ];
 
@@ -675,24 +699,64 @@ const uncertainQueries = [
   },
 ];
 
-// A missing database has no row of its kind and is never created. A database
-// that is a link is refused: SQLite would open the file the agent points at.
-function readCount(statePath, query) {
-  const path = join(statePath, query.database);
-  const stats = lstatOrNull(path);
-  if (stats === null) {
-    return 0;
+/**
+ * A state database opened as a descriptor: `O_NOFOLLOW` refuses a link and
+ * `fstat` proves a regular file, so SQLite never resolves a path the agent can
+ * replace between the check and the open. `O_NONBLOCK` keeps a FIFO the agent
+ * planted from blocking the open. A missing file has no row of its kind and is
+ * never created.
+ */
+function openStateDatabase(path) {
+  let descriptor;
+  try {
+    descriptor = openSync(
+      path,
+      constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK,
+    );
+  } catch (error) {
+    if (error.code === "ENOENT" || error.code === "ENOTDIR") {
+      return null;
+    }
+    if (error.code === "ELOOP") {
+      refuse(
+        `Refusing ${path}: a state database must be a regular file, not a link.`,
+      );
+    }
+    refuse(
+      `Refusing ${path}: a state database must be a regular file (${error.code ?? messageOf(error)}).`,
+    );
   }
-  if (!stats.isFile()) {
+  if (!fstatSync(descriptor).isFile()) {
+    closeSync(descriptor);
     refuse(`Refusing ${path}: a state database must be a regular file.`);
   }
-  const database = new DatabaseSync(path, { readOnly: true });
+  return descriptor;
+}
+
+function readCount(statePath, query) {
+  const path = join(statePath, query.database);
+  if (descriptorDirectory === null) {
+    refuse(
+      `This platform has no descriptor directory, so ${path} cannot be opened without following a link.`,
+    );
+  }
+  const descriptor = openStateDatabase(path);
+  if (descriptor === null) {
+    return 0;
+  }
   try {
-    return database.prepare(query.sql).get().count;
+    const database = new DatabaseSync(`${descriptorDirectory}/${descriptor}`, {
+      readOnly: true,
+    });
+    try {
+      return database.prepare(query.sql).get().count;
+    } finally {
+      database.close();
+    }
   } catch (error) {
     refuse(`Cannot read ${path}: ${messageOf(error)}`);
   } finally {
-    database.close();
+    closeSync(descriptor);
   }
 }
 
@@ -821,6 +885,7 @@ function serviceTreeSize({ run, stateDirectory }) {
     "du",
     "--summarize",
     "--bytes",
+    stateExclusion.du,
     stateDirectory,
   ]);
   if (result.status !== 0) {
@@ -863,18 +928,38 @@ function assertBackupSpace({ run, statfs, options, stateDirectory }) {
  * followed, and root never walks or changes anything below the data root.
  */
 function backupState({ stream, stateDirectory, path }) {
-  const result = stream(
-    "runuser",
-    ["-u", serviceUser, "--", "tar", "-C", stateDirectory, "-cf", "-", "."],
-    path,
-  );
-  if (result.status !== 0) {
-    rmSync(path, { force: true });
-    const detail = (result.stderr || result.stdout).trim();
-    refuse(
-      `The state backup failed: ${detail === "" ? `exit ${result.status}` : detail}`,
+  let result;
+  try {
+    result = stream(
+      "runuser",
+      [
+        "-u",
+        serviceUser,
+        "--",
+        "tar",
+        "-C",
+        stateDirectory,
+        "-cf",
+        "-",
+        stateExclusion.tar,
+        ".",
+      ],
+      path,
     );
+  } catch (error) {
+    // The stream creates the file before it spawns: a failed spawn must not
+    // leave a partial backup that looks complete.
+    rmSync(path, { force: true });
+    throw error;
   }
+  if (result.status === 0) {
+    return;
+  }
+  rmSync(path, { force: true });
+  const detail = (result.stderr || result.stdout).trim();
+  refuse(
+    `The state backup failed: ${detail === "" ? `exit ${result.status}` : detail}`,
+  );
 }
 
 /**
