@@ -887,3 +887,26 @@ llavors les previews de PR sense etiqueta.
 completades i una esmena de l'ADR 0009 que retiri `/preview` com a petició.
 
 **Seguiment:** pendent de triatge.
+
+### Fusionar Quan La Persona Dona La Feina Per Validada
+
+**Estat:** Capturada.
+
+**Problema:** avui el servei només fusiona una PR amb l'ordre literal `/merge`
+d'una persona verificada del grup. Les persones del club no l'escriuran mai: el
+que fan és dir al tema que la feina està acabada i validada.
+
+**Resultat esperat:** definir (especificació i esmena de l'ADR 0013) com el
+servei reconeix, en llenguatge natural, la validació explícita d'una persona
+verificada sobre la feina del tema i fusiona el commit la preview del qual ha
+vist. La T8.9 ja demana que l'avís de preview confirmat fixi el SHA per a la
+fusió; avui el fixa el seguiment de CI. Es mantenen la decisió humana, la
+pertinença verificada, les comprovacions requerides en verd, l'absència
+d'auto-merge i que mai es fusiona per iniciativa pròpia.
+
+**Dependències i riscos:** esmena de l'ADR 0013 (una petició en llenguatge
+natural és una autorització més àmplia que l'ordre literal; risc de classificar
+malament un comentari); fixació del SHA de la preview; [especificació de
+l'etiqueta de preview](specs/preview-label.md).
+
+**Seguiment:** pendent de triatge.

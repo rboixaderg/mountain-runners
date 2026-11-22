@@ -275,7 +275,7 @@ creen directoris, no prenen el bloqueig de capacitat i no esborren res.
 | `preview-authorization`                 | Procés fill temporal engegat per `mountain-preview-site` després de verificar la signatura. Escriu l'autorització com a `preview-deploy`.                                                                                    |
 | `pr-<n>`                                | Directori de dades d'una PR, també anomenat _namespace_, amb les seves versions i el registre d'autoritzacions. No és un usuari ni un aïllament del sistema operatiu.                                                        |
 | _Release_                               | Versió de la web instal·lada al directori d'una PR; només una és activa en cada moment.                                                                                                                                      |
-| SHA del commit                          | Identificador del commit vigent de la PR. La petició de publicació es vincula a aquest commit, no a tots els futurs canvis de la PR.                                                                                         |
+| SHA del commit                          | Identificador del commit vigent de la PR. Cada publicació s'hi vincula; l'etiqueta `preview` també autoritza els push posteriors.                                                                                            |
 | _Workflow_ / _job_                      | Automatització de GitHub Actions / una de les seves etapes, com `authorize`, `build` o `publish`.                                                                                                                            |
 
 Una **comanda forçada** és una regla de la clau SSH. Encara que el client demani
@@ -306,6 +306,14 @@ podria canviar el workflow i llegir els secrets `PREVIEW_*`. Una condició del
 job `authorize` deixa passar `labeled` només si l'etiqueta posada és `preview`
 i `synchronize` només si la PR la té; la resta de runs queden omesos i no
 ocupen cap executor de build. Qualsevol altra etiqueta no fa res.
+
+Des del 2 de desembre de 2026, GitHub només executa `pull_request_target`,
+que fan servir `Preview cleanup` i l'etiqueta de preview, si una política
+d'Actions del repositori ho permet; el
+[runbook](runbook.md#política-dactions-de-pull_request_target-per-a-les-previews)
+en descriu el contingut i la comprovació. Si l'esdeveniment de retirada queda
+bloquejat, la reconciliació periòdica no el substitueix pel sol fet que falti
+l'etiqueta.
 
 El job `authorize` vincula la petició al commit que encapçala la PR,
 identificat pel seu SHA. L'entorn GitHub `previews` separa els secrets

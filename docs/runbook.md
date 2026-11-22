@@ -1135,6 +1135,44 @@ publicació cal retirar l'etiqueta i tornar a publicar el SHA vigent: amb
 `/preview`, o amb un push nou a una PR que tingui l'etiqueta `preview`. Si GitHub o el workflow fallen, cal suspendre les previews i
 executar la retirada pel canal administratiu aprovat; no editar releases a mà.
 
+### Política d'Actions de `pull_request_target` per a les previews
+
+Des del 2 de desembre de 2026 GitHub Actions bloqueja `pull_request_target`
+per defecte als repositoris públics, tret que una política d'esdeveniments
+aplicable el permeti
+([canvi de GitHub](https://github.blog/changelog/2026-11-02-pull_request_target-blocked-by-default-december-2),
+[guia](https://docs.github.com/actions/how-tos/administer/control-workflow-execution),
+[API REST](https://docs.github.com/en/rest/actions/policies)). El 22 de
+novembre de 2026 la persona mantenidora va crear aquesta política del
+repositori:
+
+- Nom: `Allow pull_request_target for preview workflows`, id 16808, aplicació
+  `active`.
+- Workflows: `.github/workflows/preview.yml` i
+  `.github/workflows/preview-cleanup.yml`.
+- Regla `restrict_action_events` amb els esdeveniments `pull_request_target`,
+  `issue_comment`, `workflow_dispatch` i `schedule`.
+
+La regla és una llista de permesos per a aquests dos workflows: tot esdeveniment
+que usin hi ha de constar. Cal afegir-hi qualsevol esdeveniment nou abans
+de fusionar el canvi del workflow. Encara no s'ha provat amb una execució
+bloquejada.
+
+Per comprovar-la:
+
+```sh
+gh api -H "X-GitHub-Api-Version: 2026-03-10" \
+  repos/rboixaderg/mountain-runners/actions/policies/16808
+```
+
+Si falta o no coincideix, les execucions afectades poden quedar bloquejades.
+El bloqueig per defecte de `pull_request_target` impedeix publicar amb
+l'etiqueta i activar la neteja en tancar la PR, revocar la preview o treure
+l'etiqueta; no bloqueja per si sol els altres disparadors. Per recrear la
+política, a Settings → Actions → Policies, o amb el `POST` de l'API REST de
+polítiques amb el contingut anterior. Només amb l'aprovació explícita de la
+persona mantenidora.
+
 ### Instal·lació de T6.4 al VPS existent (només amb aprovació)
 
 La persona mantenidora instal·la els mòduls nous de `tools/server/preview/`
