@@ -209,3 +209,78 @@ test("a repair whose pull request disappeared publishes nothing", async (context
   // instruction must be able to push it.
   assert.equal(publishedCommit(worktree), null);
 });
+
+function newPullRequestGithub(overrides = {}) {
+  return githubStub({
+    async ensurePullRequest(parameters) {
+      this.calls.push(["ensurePullRequest", parameters]);
+      return { pullRequest: { number: 200 }, created: true };
+    },
+    async addPreviewLabel(parameters) {
+      this.calls.push(["addPreviewLabel", parameters]);
+    },
+    ...overrides,
+  });
+}
+
+const newChange = {
+  branch,
+  title: "feat(phase-8-t8.9): label the preview",
+  body: "Descripció",
+};
+
+test("labels a pull request the service just created for its preview", async (context) => {
+  const worktree = worktreeFixture(context);
+  const github = newPullRequestGithub();
+  const controller = new AbortController();
+  const publication = await createPublisher({ github, secrets: [] })({
+    worktree,
+    ...newChange,
+    signal: controller.signal,
+  });
+
+  assert.deepEqual(
+    github.calls.map(([name]) => name),
+    ["pushBranch", "ensurePullRequest", "addPreviewLabel"],
+  );
+  assert.deepEqual(github.calls.at(-1)[1], {
+    number: 200,
+    signal: controller.signal,
+  });
+  assert.equal(publication.previewLabelFailed, false);
+});
+
+test("never labels an existing pull request again, nor posts a comment", async (context) => {
+  const worktree = worktreeFixture(context);
+  const github = githubStub({
+    async addPreviewLabel() {
+      assert.fail("an existing pull request must not be labelled");
+    },
+    async commentOnPullRequest() {
+      assert.fail("the service no longer posts /preview");
+    },
+  });
+  const publication = await createPublisher({ github, secrets: [] })({
+    worktree,
+    ...newChange,
+  });
+  assert.equal(publication.created, false);
+  assert.equal(publication.previewLabelFailed, false);
+});
+
+test("keeps the publication when the label cannot be set and says so", async (context) => {
+  const worktree = worktreeFixture(context);
+  const github = newPullRequestGithub({
+    async addPreviewLabel() {
+      throw new Error("GitHub refused the label");
+    },
+  });
+  const publication = await createPublisher({ github, secrets: [] })({
+    worktree,
+    ...newChange,
+  });
+  assert.equal(publication.created, true);
+  assert.equal(publication.commit, repairCommit);
+  assert.equal(publication.previewLabelFailed, true);
+  assert.equal(publishedCommit(worktree), repairCommit);
+});

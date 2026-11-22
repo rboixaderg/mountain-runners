@@ -2,13 +2,12 @@
 
 ## Estat
 
-Pendent. Defineix l'entrada del [backlog](../backlog.md#demanar-la-preview-amb-una-etiqueta-de-la-pr)
+En curs. Defineix l'entrada del [backlog](../backlog.md#demanar-la-preview-amb-una-etiqueta-de-la-pr)
 i l'[issue #261](https://github.com/rboixaderg/mountain-runners/issues/261).
-Cap tasca passa a `En curs` fins que la PR d'aquesta especificació, amb les
-esmenes proposades als
+Les esmenes als
 [ADR 0009](../decisions/0009-pr-previews-same-domain-and-own-branches.md) i
-[ADR 0013](../decisions/0013-private-development-agent-boundary.md), es revisi i
-es fusioni. Aquesta especificació no canvia cap token, entorn o configuració
+[ADR 0013](../decisions/0013-private-development-agent-boundary.md) s'han
+fusionat. Aquesta especificació no canvia cap token, entorn o configuració
 remota.
 
 ## Objectiu
@@ -43,6 +42,22 @@ La persona mantenidora confirma aquestes decisions el 21 de novembre de 2026:
   l'etiqueta: cada push publica sense cap acte humà nou. És el canvi que
   recullen les esmenes dels ADR 0009 i 0013.
 
+La persona mantenidora aprova i crea el 22 de novembre de 2026 una política
+d'Actions del repositori, dependència confirmada d'aquesta especificació. Des
+del 2 de desembre de 2026 GitHub Actions bloqueja `pull_request_target` per
+defecte als repositoris públics si cap política d'esdeveniments aplicable no el
+permet
+([canvi de GitHub](https://github.blog/changelog/2026-11-02-pull_request_target-blocked-by-default-december-2)).
+La política es diu `Allow pull_request_target for preview workflows` (id
+16808, aplicació `active`), s'aplica a `.github/workflows/preview.yml` i
+`.github/workflows/preview-cleanup.yml` i té la regla `restrict_action_events`
+amb els esdeveniments `pull_request_target`, `issue_comment`,
+`workflow_dispatch` i `schedule`. La regla és una llista de permesos: tot
+esdeveniment que usin aquests workflows hi ha de constar. Això no contradiu la
+decisió anterior: la implementació continua sense canviar cap token, entorn ni
+configuració remota. Està descrita al
+[manual d'operacions](../runbook.md#política-dactions-de-pull_request_target-per-a-les-previews).
+
 ## Resultats Esperats
 
 - Posar `preview` a una PR pròpia publica el cap actual. Un push posterior
@@ -68,9 +83,9 @@ La persona mantenidora confirma aquestes decisions el 21 de novembre de 2026:
 
 ## Tasques, Entregues I Seguiment
 
-| Tasca | Estat   | Dependències            | Resultat verificable                                      | PR  |
-| ----- | ------- | ----------------------- | --------------------------------------------------------- | --- |
-| T1    | Pendent | Esmenes ADR 0009 i 0013 | L'etiqueta publica i retira la preview, i l'agent la posa | -   |
+| Tasca | Estat   | Dependències            | Resultat verificable                                      | PR                                                              |
+| ----- | ------- | ----------------------- | --------------------------------------------------------- | --------------------------------------------------------------- |
+| T1    | En curs | Esmenes ADR 0009 i 0013 | L'etiqueta publica i retira la preview, i l'agent la posa | [#268](https://github.com/rboixaderg/mountain-runners/pull/268) |
 
 ### T1: Petició De Preview Amb L'Etiqueta
 
@@ -196,6 +211,9 @@ Verificat a la documentació:
 Pendent de verificar amb GitHub real abans d'activar-ho a l'agent:
 
 - El `sender` de `synchronize` és qui fa el push.
+- Després del 2 de desembre de 2026, una execució `labeled` de `Preview` i una
+  execució `unlabeled` de `Preview cleanup` no les bloqueja la regla per
+  defecte: la política encara no s'ha provat amb una execució bloquejada.
 - El token real del servei pot posar l'etiqueta i no pot treure `preview-revoked`
   pel component.
 - Tornar a posar una etiqueta que la PR ja té no genera cap esdeveniment.

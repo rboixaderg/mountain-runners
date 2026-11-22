@@ -27,6 +27,7 @@ import {
 import { CiWatchStore } from "../../repository/ci-watch-store.mjs";
 import { MergeRequestStore } from "../../repository/merge-request-store.mjs";
 import { PreviewRequestStore } from "../../repository/preview-request-store.mjs";
+import { seedLegacyPreviewRequest } from "../../repository/test-support/preview-requests.mjs";
 import { openIdentifierNames } from "../../repository/identifiers.mjs";
 import { ensureSessionWorktree } from "../../repository/worktrees.mjs";
 import {
@@ -732,23 +733,21 @@ test("does not run another repair while one has an unknown result", async (conte
   service.queue.close();
 });
 
-function previewFixture(statePath, finalState) {
+// A `commenting` row can only remain from the service that still posted
+// `/preview`; the current one stores every request directly as awaiting.
+function previewFixture(statePath, state) {
   mkdirSync(statePath, { recursive: true });
-  const previews = new PreviewRequestStore(
-    join(statePath, "preview-request.sqlite"),
-    { now: () => new Date("2026-11-14T10:00:00Z") },
-  );
-  previews.begin({
+  const path = join(statePath, "preview-request.sqlite");
+  new PreviewRequestStore(path).close();
+  seedLegacyPreviewRequest(path, {
+    state,
     updateIdentifier: 30,
     sessionKey: "-1001234567890:7",
     authorIdentifier: 555,
     pullRequestNumber: 200,
     commitSha: "a".repeat(40),
+    createdAt: "2026-11-14T10:00:00.000Z",
   });
-  if (finalState === "awaiting") {
-    previews.markAwaiting(30, "2026-11-14T10:00:00Z");
-  }
-  previews.close();
 }
 
 test("refuses to start with an interrupted preview comment of unknown result", async (context) => {
@@ -906,11 +905,14 @@ test("resumes a preview awaiting the publisher after a restart", async (context)
           },
         ];
       },
-      async listPreviewWorkflowRuns() {
-        return [];
-      },
-      async getAuthenticatedLogin() {
-        return "mountain-agent-bot";
+      async getPullRequest() {
+        return {
+          state: "open",
+          headSha: commit,
+          headRepository: "rboixaderg/mountain-runners",
+          previewLabeled: true,
+          previewRevoked: false,
+        };
       },
     },
     runner: async () => ({}),
@@ -1440,7 +1442,6 @@ test("still runs an instruction admitted before its author left the group", asyn
 test("verifies the membership again when the preview request runs", async (context) => {
   const { environment } = environmentFor(context);
   const commit = "a".repeat(40);
-  const posted = [];
   const membershipReads = [];
   const memberStatus = { value: "left" };
   const service = await startService({
@@ -1458,19 +1459,8 @@ test("verifies the membership again when the preview request runs", async (conte
           state: "open",
           headSha: commit,
           headRepository: "rboixaderg/mountain-runners",
+          previewLabeled: true,
         };
-      },
-      async getCommitCheckRuns() {
-        return [
-          { name: "Validate", status: "completed", conclusion: "success" },
-        ];
-      },
-      async getCommitStatuses() {
-        return [];
-      },
-      async commentOnPullRequest({ number, body }) {
-        posted.push({ number, body });
-        return { createdAt: "2026-11-14T10:00:00Z" };
       },
     },
     runner: async () => ({}),
@@ -1501,7 +1491,6 @@ test("verifies the membership again when the preview request runs", async (conte
     .traceEntries()
     .find((entry) => entry.action === "preview_refused");
   assert.match(revoked.report, /no constes com a membre/u);
-  assert.deepEqual(posted, []);
   assert.equal(service.previewRequests.state(20), undefined);
   assert.equal(refusal.detail, "membership_revoked");
 
@@ -1511,10 +1500,9 @@ test("verifies the membership again when the preview request runs", async (conte
     .traceEntries()
     .find((entry) => entry.action === "preview_membership_verified");
 
-  assert.match(verified.report, /Ja he demanat la preview/u);
-  assert.deepEqual(posted, [{ number: 200, body: "/preview" }]);
+  assert.match(verified.report, /La preview d'aquest canvi s'està preparant/u);
   assert.equal(service.previewRequests.state(21), "awaiting");
-  assert.equal(verifiedTrace.detail, `#200 ${"a".repeat(7)}`);
+  assert.equal(verifiedTrace.detail, "#200");
   assert.equal(verifiedTrace.author_identifier, 555);
   // Only the configured group and the request author are asked, twice: once
   // for the refused request and once for the accepted one.

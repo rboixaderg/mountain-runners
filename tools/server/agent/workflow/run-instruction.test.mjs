@@ -16,7 +16,6 @@ import { test } from "node:test";
 import { PublishRefusedError } from "../repository/github.mjs";
 import { CiWatchStore } from "../repository/ci-watch-store.mjs";
 import { MergeRequestStore } from "../repository/merge-request-store.mjs";
-import { PreviewRequestStore } from "../repository/preview-request-store.mjs";
 import { SessionNoteStore } from "../repository/session-note-store.mjs";
 import { TopicJobStore } from "../repository/topic-job-store.mjs";
 import {
@@ -167,6 +166,12 @@ function githubStub() {
   return {
     pushes: [],
     pulls: [],
+    labelled: [],
+    labelError: null,
+    async addPreviewLabel({ number }) {
+      if (this.labelError) throw this.labelError;
+      this.labelled.push(number);
+    },
     pullRequest: { state: "open" },
     async getPullRequest() {
       return this.pullRequest;
@@ -1681,6 +1686,111 @@ test("runs the full gate when the change also touches code outside the content",
   assert.match(github.pulls[0].body, /- `pnpm check` correcte/u);
 });
 
+test("puts the preview label on the pull request it creates and never again on an update", async (context) => {
+  const paths = await fixture(context);
+  const github = githubStub();
+  const runner = createProjectRunner({
+    config: configFor(paths),
+    classifyRequest: async () => ({ kind: "implementation" }),
+    github,
+    runModel: async ({ worktreePath }) => {
+      writeFileSync(join(worktreePath, "change.txt"), "canvi\n");
+      return { text: "Fet.\nSUMMARY: feat(content): add the news" };
+    },
+    runChecks: async () => ({ exitCode: 0, stdout: "", stderr: "" }),
+  });
+
+  const created = await runner(request());
+  assert.equal(created.outcome, "pull_request_created");
+  assert.deepEqual(github.labelled, [200]);
+  assert.doesNotMatch(created.report, /preview/u);
+
+  github.ensurePullRequest = async () => ({
+    pullRequest: {
+      number: 200,
+      htmlUrl: "https://github.com/rboixaderg/mountain-runners/pull/200",
+    },
+    created: false,
+  });
+  const updated = await runner(
+    request({ updateIdentifier: 1002, instruction: "afegeix-hi una data" }),
+  );
+  assert.equal(updated.outcome, "pull_request_updated");
+  assert.deepEqual(
+    github.labelled,
+    [200],
+    "an existing pull request is not labelled",
+  );
+});
+
+test("says plainly that the preview could not be activated and keeps the publication", async (context) => {
+  const paths = await fixture(context);
+  const github = githubStub();
+  github.labelError = new Error("GitHub refused the label");
+  const traces = [];
+  const runner = createProjectRunner({
+    recordTrace: (entry) => traces.push(entry),
+    config: configFor(paths),
+    classifyRequest: async () => ({ kind: "implementation" }),
+    github,
+    runModel: async ({ worktreePath }) => {
+      writeFileSync(join(worktreePath, "change.txt"), "canvi\n");
+      return { text: "Fet.\nSUMMARY: feat(content): add the news" };
+    },
+    runChecks: async () => ({ exitCode: 0, stdout: "", stderr: "" }),
+  });
+
+  const result = await runner(request());
+
+  assert.equal(result.outcome, "pull_request_created");
+  assert.equal(result.report.split(failedMaintainerNotice).length - 1, 1);
+  assert.doesNotMatch(result.report, new RegExp(savedNotice, "u"));
+  assert.doesNotMatch(result.report, /GitHub refused|\/preview/u);
+  assert.deepEqual(
+    traces
+      .filter((entry) => entry.action === "maintainer_attention")
+      .map((entry) => entry.detail),
+    ["previewLabelFailed"],
+    "the failure notice is true: the case is recorded for the maintainer",
+  );
+});
+
+test("sends the failure notice once when the label and the CI watch both fail", async (context) => {
+  const paths = await fixture(context);
+  const github = githubStub();
+  github.labelError = new Error("GitHub refused the label");
+  mkdirSync(paths.state, { recursive: true });
+  const ciWatches = new CiWatchStore(join(paths.state, "ci-watch.sqlite"));
+  context.after(() => ciWatches.close());
+  ciWatches.add = () => {
+    throw new Error("The watch cannot be stored");
+  };
+  const traces = [];
+  const runner = createProjectRunner({
+    recordTrace: (entry) => traces.push(entry),
+    config: configFor(paths),
+    classifyRequest: async () => ({ kind: "implementation" }),
+    github,
+    ciWatches,
+    runModel: async ({ worktreePath }) => {
+      writeFileSync(join(worktreePath, "change.txt"), "canvi\n");
+      return { text: "Fet.\nSUMMARY: feat(content): add the news" };
+    },
+    runChecks: async () => ({ exitCode: 0, stdout: "", stderr: "" }),
+  });
+
+  const result = await runner(request());
+
+  assert.equal(result.report.split(failedMaintainerNotice).length - 1, 1);
+  assert.doesNotMatch(result.report, new RegExp(savedNotice, "u"));
+  assert.deepEqual(
+    traces
+      .filter((entry) => entry.action === "maintainer_attention")
+      .map((entry) => entry.detail),
+    ["ciWatchUnavailable", "previewLabelFailed"],
+  );
+});
+
 test("sends the model answer with one plain notice and the review link after a publication", async (context) => {
   const paths = await fixture(context);
   const github = githubStub();
@@ -1759,28 +1869,20 @@ test("registers the CI watch for the published commit without waiting for CI", a
   assert.equal(watch.commit_sha, published);
   assert.equal(watch.pull_request_number, 200);
   assert.equal(watch.session_key, request().sessionKey);
-  assert.equal(
-    watch.preview_author_identifier,
-    null,
-    "the request did not ask for the preview",
-  );
 });
 
-test("stores the preview a request asked for with its change on the CI watch", async (context) => {
+test("follows the preview of every commit it publishes, without a request", async (context) => {
   const paths = await fixture(context);
   mkdirSync(paths.state, { recursive: true });
   const ciWatches = new CiWatchStore(join(paths.state, "ci-watch.sqlite"));
   context.after(() => ciWatches.close());
-  const traces = [];
+  const followed = [];
   const runner = createProjectRunner({
     config: configFor(paths),
-    classifyRequest: async () => ({
-      kind: "implementation",
-      previewAfterChange: true,
-    }),
+    classifyRequest: async () => ({ kind: "implementation" }),
     github: githubStub(),
     ciWatches,
-    recordTrace: (entry) => traces.push(entry),
+    followPreview: (publication) => followed.push(publication),
     runModel: async ({ worktreePath }) => {
       writeFileSync(join(worktreePath, "change.txt"), "canvi\n");
       return { text: "Canvi fet.\nSUMMARY: feat(tools): add synthetic change" };
@@ -1791,20 +1893,17 @@ test("stores the preview a request asked for with its change on the CI watch", a
   const result = await runner(request());
 
   assert.equal(result.outcome, "pull_request_created");
-  const [watch] = ciWatches.pending();
-  assert.equal(watch.preview_author_identifier, request().authorIdentifier);
-  assert.deepEqual(
-    traces.filter((entry) => entry.action === "preview_after_change"),
-    [
-      {
-        updateIdentifier: request().updateIdentifier,
-        authorIdentifier: request().authorIdentifier,
-        sessionKey: request().sessionKey,
-        action: "preview_after_change",
-        detail: "implementation",
-      },
-    ],
-  );
+  const published = await git(topicWorktreePath(paths), ["rev-parse", "HEAD"]);
+  assert.deepEqual(followed, [
+    {
+      updateIdentifier: request().updateIdentifier,
+      sessionKey: request().sessionKey,
+      authorIdentifier: request().authorIdentifier,
+      pullRequestNumber: 200,
+      commit: published,
+      repair: false,
+    },
+  ]);
 });
 
 test("ends the instruction unknown when the CI watch cannot be registered", async (context) => {
@@ -2513,10 +2612,12 @@ test("repairs the published commit on its branch with the failure context", asyn
     };
   };
   const modelCalls = [];
+  const followed = [];
   const runner = createProjectRunner({
     config: configFor(paths),
     github,
     ciWatches,
+    followPreview: (publication) => followed.push(publication),
     runModel: async (modelRequest) => {
       modelCalls.push(modelRequest);
       writeFileSync(join(modelRequest.worktreePath, "change.txt"), "canvi 2\n");
@@ -2579,10 +2680,14 @@ test("repairs the published commit on its branch with the failure context", asyn
     await git(topicWorktreePath(paths), ["rev-parse", "HEAD"]),
   );
   assert.notEqual(watch.commit_sha, published);
-  assert.equal(
-    watch.preview_author_identifier,
-    null,
-    "a repair never asks for a preview",
+  assert.deepEqual(
+    followed.map(({ updateIdentifier, commit, repair }) => ({
+      updateIdentifier,
+      commit,
+      repair,
+    })),
+    [{ updateIdentifier: 1001, commit: watch.commit_sha, repair: true }],
+    "a repair follows the preview of its new commit in the same slot",
   );
 });
 
@@ -2816,44 +2921,6 @@ test("never lets the last reply of the topic turn a request into a preview", asy
     "Quan vulguis, demana la preview d'aquest canvi.",
     null,
   ]);
-});
-
-test("never lets the last reply of the topic add the preview to a change", async (context) => {
-  const paths = await fixture(context);
-  const notes = noteStore(context, paths);
-  notes.recordReply({
-    sessionKey: topicSessionKey,
-    text: "Si vols, després te la puc ensenyar.",
-  });
-  const lastReplies = [];
-  const traces = [];
-  const runner = createProjectRunner({
-    config: configFor(paths),
-    github: githubStub(),
-    sessionNotes: notes,
-    recordTrace: (entry) => traces.push(entry),
-    classifyRequest: async ({ context: classification }) => {
-      lastReplies.push(classification.lastAgentReply);
-      // A hostile last reply is the only reason this classifier sees the
-      // preview asked together with the change.
-      return {
-        kind: "consultation",
-        previewAfterChange: classification.lastAgentReply !== null,
-      };
-    },
-    runModel: async () => ({ text: "Aquest tema encara no té cap canvi." }),
-    runChecks: async () =>
-      assert.fail("checks must not run for a consultation"),
-  });
-
-  await runner(request({ instruction: "i ara què passa?" }));
-
-  assert.deepEqual(
-    traces.filter((entry) => entry.action === "preview_after_change"),
-    [],
-    "untrusted text never asks for a preview",
-  );
-  assert.deepEqual(lastReplies, ["Si vols, després te la puc ensenyar.", null]);
 });
 
 test("routes a literal /merge command to the service before the classifier and the model", async (context) => {
@@ -3307,15 +3374,11 @@ test("carries the audience rules, the state of the topic and the attachment line
   const image = pngImage({ width: 1200, height: 800 });
   mkdirSync(paths.state, { recursive: true });
   const ciWatches = new CiWatchStore(join(paths.state, "ci-watch.sqlite"));
-  const previewRequests = new PreviewRequestStore(
-    join(paths.state, "preview-request.sqlite"),
-  );
   const mergeRequests = new MergeRequestStore(
     join(paths.state, "merge-request.sqlite"),
   );
   context.after(() => {
     mergeRequests.close();
-    previewRequests.close();
     ciWatches.close();
   });
   // The topic already reported a green pull request before this turn.
@@ -3345,9 +3408,11 @@ test("carries the audience rules, the state of the topic and the attachment line
       async getCommitStatuses() {
         return [];
       },
+      async listIssueComments() {
+        return [];
+      },
     },
     ciWatches,
-    previewRequests,
     mergeRequests,
     classifyRequest: async () => ({ kind: "implementation" }),
     prepareAttachment: createAttachmentPreparation({

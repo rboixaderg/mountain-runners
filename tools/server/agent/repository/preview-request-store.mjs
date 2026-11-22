@@ -1,15 +1,18 @@
-// Private, durable tracking of the `/preview` requests of the deterministic
+// Private, durable tracking of the preview requests of the deterministic
 // handler.
 //
-// The row is durable in `commenting` before the comment is posted, so a restart
-// can tell that a post may have happened. Posting to GitHub and committing
-// SQLite cannot be atomic: an interrupted `commenting` row has an unknown
-// result and is never posted again automatically. A request awaiting the
-// trusted publisher survives a restart and keeps its deadline.
+// Since the `preview` label the service posts nothing: a request is written
+// directly as `awaiting`, in one statement. The `commenting` and `uncertain`
+// states remain for the rows written while the service still posted `/preview`,
+// whose result was unknown: an interrupted `commenting` row is never posted
+// again automatically, and a person resolves it. A request awaiting the trusted
+// publisher survives a restart and keeps its deadline.
 //
-// One Telegram update is one row, so a duplicate update never posts twice. A new
-// request for the same pull request and commit is allowed only after the
-// previous one ended.
+// One Telegram update is one row. A person's request for the same pull request
+// and commit is allowed only after the previous one ended. A publication of the
+// service follows its own preview in the row of the update that published it,
+// and an automatic repair reopens that row for its new commit, as the CI watch
+// does.
 //
 // The origin the trusted publisher confirmed is stored with the request, because
 // the model of the topic never builds or guesses a preview URL and cannot read
@@ -97,9 +100,9 @@ export class PreviewRequestStore {
   }
 
   /**
-   * Record the request before it is posted. Returns `duplicate` for an update
-   * already handled and `open` while another request for the same pull request
-   * and commit has not ended; otherwise `begun`.
+   * Record a person's request, already awaiting the publisher. Returns
+   * `duplicate` for an update already handled and `open` while another request
+   * for the same pull request and commit has not ended; otherwise `begun`.
    */
   begin({
     updateIdentifier,
@@ -130,7 +133,7 @@ export class PreviewRequestStore {
         .prepare(
           `INSERT INTO preview_requests
            (update_identifier, session_key, author_identifier, pull_request_number, commit_sha, state, created_at, updated_at)
-           VALUES (?, ?, ?, ?, ?, 'commenting', ?, ?)`,
+           VALUES (?, ?, ?, ?, ?, 'awaiting', ?, ?)`,
         )
         .run(
           updateIdentifier,
@@ -145,63 +148,86 @@ export class PreviewRequestStore {
     });
   }
 
-  #transition(updateIdentifier, fromState, toState, origin = null) {
+  /**
+   * Follow the preview of a commit the service just published. The row of the
+   * publishing update is written again for this commit, so a later publication
+   * of the same update replaces whatever that row waited for or reported.
+   */
+  track({
+    updateIdentifier,
+    sessionKey,
+    authorIdentifier,
+    pullRequestNumber,
+    commitSha,
+  }) {
+    const timestamp = this.#now().toISOString();
+    this.#database
+      .prepare(
+        `INSERT INTO preview_requests
+         (update_identifier, session_key, author_identifier, pull_request_number, commit_sha, state, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, 'awaiting', ?, ?)
+         ON CONFLICT (update_identifier) DO UPDATE SET
+           session_key = excluded.session_key,
+           author_identifier = excluded.author_identifier,
+           pull_request_number = excluded.pull_request_number,
+           commit_sha = excluded.commit_sha,
+           state = 'awaiting',
+           commented_at = NULL,
+           confirmed_origin = NULL,
+           created_at = excluded.created_at,
+           updated_at = excluded.updated_at`,
+      )
+      .run(
+        updateIdentifier,
+        sessionKey,
+        authorIdentifier,
+        pullRequestNumber,
+        commitSha,
+        timestamp,
+        timestamp,
+      );
+  }
+
+  /**
+   * An automatic repair has no author of its own: it follows the preview of its
+   * new commit in the row of the publication it continues, if there is one.
+   */
+  reopen({ updateIdentifier, pullRequestNumber, commitSha }) {
+    const timestamp = this.#now().toISOString();
+    return (
+      this.#database
+        .prepare(
+          `UPDATE preview_requests
+           SET commit_sha = ?, state = 'awaiting', commented_at = NULL,
+               confirmed_origin = NULL, created_at = ?, updated_at = ?
+           WHERE update_identifier = ? AND pull_request_number = ?`,
+        )
+        .run(
+          commitSha,
+          timestamp,
+          timestamp,
+          updateIdentifier,
+          pullRequestNumber,
+        ).changes === 1
+    );
+  }
+
+  #transition(updateIdentifier, commitSha, fromState, toState, origin = null) {
     return (
       this.#database
         .prepare(
           `UPDATE preview_requests
            SET state = ?, confirmed_origin = COALESCE(?, confirmed_origin), updated_at = ?
-           WHERE update_identifier = ? AND state = ?`,
+           WHERE update_identifier = ? AND commit_sha = ? AND state = ?`,
         )
         .run(
           toState,
           origin,
           this.#now().toISOString(),
           updateIdentifier,
+          commitSha,
           fromState,
         ).changes === 1
-    );
-  }
-
-  /**
-   * The comment was posted at `commentedAt`, the time GitHub reported. The
-   * comment moment is kept apart from `updated_at`, which while the request
-   * awaits is the reference of the confirmation deadline and only becomes the
-   * end moment when the request ends.
-   */
-  markAwaiting(updateIdentifier, commentedAt) {
-    return (
-      this.#database
-        .prepare(
-          `UPDATE preview_requests
-           SET state = ?, commented_at = COALESCE(?, commented_at), updated_at = ?
-           WHERE update_identifier = ? AND state = ?`,
-        )
-        .run(
-          previewStates.awaiting,
-          commentedAt,
-          this.#now().toISOString(),
-          updateIdentifier,
-          previewStates.commenting,
-        ).changes === 1
-    );
-  }
-
-  /** The post may or may not have happened: it is never repeated. */
-  markUncertain(updateIdentifier) {
-    return this.#transition(
-      updateIdentifier,
-      previewStates.commenting,
-      previewStates.uncertain,
-    );
-  }
-
-  /** GitHub definitely rejected the post: nothing was created. */
-  markFailed(updateIdentifier) {
-    return this.#transition(
-      updateIdentifier,
-      previewStates.commenting,
-      previewStates.failed,
     );
   }
 
@@ -210,9 +236,11 @@ export class PreviewRequestStore {
    * one statement: a confirmation never ends without the URL the publisher
    * confirmed, and `updated_at` becomes the moment the request ended. A second
    * claim never succeeds. Only a terminal state can end a request, because the
-   * row of an ended request is never described by a state it cannot reach.
+   * row of an ended request is never described by a state it cannot reach. The
+   * commit is the one the caller read: a row reopened for a newer commit in the
+   * meantime is not ended by the result of the older one.
    */
-  finish(updateIdentifier, state, origin = null) {
+  finish(updateIdentifier, commitSha, state, origin = null) {
     if (!terminalStates.has(state)) {
       throw new Error(`Invalid preview end state ${state}.`);
     }
@@ -224,6 +252,7 @@ export class PreviewRequestStore {
     const confirmedOrigin = state === previewStates.confirmed ? origin : null;
     return this.#transition(
       updateIdentifier,
+      commitSha,
       previewStates.awaiting,
       state,
       confirmedOrigin,
@@ -236,34 +265,6 @@ export class PreviewRequestStore {
         "SELECT * FROM preview_requests WHERE state = 'awaiting' ORDER BY update_identifier",
       )
       .all();
-  }
-
-  /**
-   * Every request whose `/preview` comment was posted, oldest first. It is read
-   * to bound the runs of a request with the comment of the next one, whatever
-   * state either of them is in: a request that already ended still separates the
-   * runs of its neighbours, so the bound never depends on which rows are still
-   * awaiting.
-   *
-   * `since` keeps only the comments at or after that instant. The worker polls
-   * this list every cycle and only needs the comments that can bound a request
-   * still awaiting, so it never loads the whole history. An unreadable instant
-   * is ignored: the filter then keeps every row.
-   */
-  commented({ since = null } = {}) {
-    // A bound that cannot be read says nothing: the filter keeps every row.
-    const boundedSince =
-      since !== null && Number.isFinite(Date.parse(since)) ? since : null;
-    return this.#database
-      .prepare(
-        `SELECT update_identifier, session_key, pull_request_number, commit_sha,
-                state, commented_at, created_at
-         FROM preview_requests
-         WHERE commented_at IS NOT NULL
-           AND (? IS NULL OR julianday(commented_at) >= julianday(?))
-         ORDER BY commented_at, update_identifier`,
-      )
-      .all(boundedSince, boundedSince);
   }
 
   /** Requests whose post may or may not have happened, oldest first. */
@@ -343,42 +344,6 @@ export class PreviewRequestStore {
     return this.#database
       .prepare("SELECT state FROM preview_requests WHERE update_identifier = ?")
       .get(updateIdentifier)?.state;
-  }
-
-  /**
-   * The origin the trusted publisher confirmed for this commit of the pull
-   * request, or null. A later request for the same commit neither removes nor
-   * hides it.
-   */
-  confirmedOrigin({ sessionKey, pullRequestNumber, commitSha }) {
-    return (
-      this.#database
-        .prepare(
-          `SELECT confirmed_origin FROM preview_requests
-           WHERE session_key = ? AND pull_request_number = ?
-             AND commit_sha = ? AND state = ?
-             AND confirmed_origin IS NOT NULL
-           ORDER BY created_at DESC, update_identifier DESC LIMIT 1`,
-        )
-        .get(sessionKey, pullRequestNumber, commitSha, previewStates.confirmed)
-        ?.confirmed_origin ?? null
-    );
-  }
-
-  /**
-   * The newest request of a topic for one pull request: the state its next turn
-   * reports. A request of another pull request never describes this one.
-   */
-  latest({ sessionKey, pullRequestNumber }) {
-    return this.#database
-      .prepare(
-        `SELECT update_identifier, pull_request_number, commit_sha, state,
-                confirmed_origin, commented_at, created_at, updated_at
-         FROM preview_requests
-         WHERE session_key = ? AND pull_request_number = ?
-         ORDER BY created_at DESC, update_identifier DESC LIMIT 1`,
-      )
-      .get(sessionKey, pullRequestNumber);
   }
 
   /**
