@@ -1043,6 +1043,7 @@ async function runMergeCommand(
     membershipAtAdmission = "member",
     updates = [mergeCommandUpdate(100)],
     prepare = () => {},
+    deliveredPreview = true,
   },
 ) {
   const { environment } = environmentFor(context);
@@ -1077,6 +1078,7 @@ async function runMergeCommand(
           state: "open",
           merged: false,
           mergeCommitSha: null,
+          previewLabeled: true,
         };
       },
       async getCommitCheckRuns() {
@@ -1101,12 +1103,29 @@ async function runMergeCommand(
   });
   service.ciWatches.beginSend(10, "success");
   service.ciWatches.finishSend(10);
+  if (deliveredPreview) {
+    service.previewRequests.track({
+      updateIdentifier: 10,
+      sessionKey: "-1001234567890:7",
+      authorIdentifier: 42,
+      pullRequestNumber: 200,
+      commitSha: commit,
+    });
+    service.previewRequests.finish(
+      10,
+      commit,
+      "confirmed",
+      "https://pr-200.preview.mountainrunners.cat",
+      51,
+    );
+  }
 
   await service.bridge.pollOnce();
   prepare(service);
   await service.bridge.executeNext();
 
   const outcome = { replies, membershipChecks, merges, service };
+  service.previewRequests.close();
   service.mergeRequests.close();
   service.ciWatches.close();
   service.queue.close();
@@ -1121,6 +1140,78 @@ test("merges through the bridge after verifying the membership again at executio
   assert.equal(membershipChecks.length, 2);
   assert.deepEqual(merges, [{ number: 200, sha: "a".repeat(40) }]);
   assert.match(replies.at(-1), /La proposta #200 ja està fusionada/u);
+});
+
+test("a green CI notice without a delivered preview cannot authorize a merge through the bridge", async (context) => {
+  const { replies, merges } = await runMergeCommand(context, {
+    deliveredPreview: false,
+  });
+
+  assert.deepEqual(merges, []);
+  assert.match(replies.at(-1), /no hi ha cap avís vigent de preview/u);
+});
+
+test("a delivered manual preview cannot stand in for the publication notice", async (context) => {
+  const { replies, merges } = await runMergeCommand(context, {
+    deliveredPreview: false,
+    prepare: ({ previewRequests }) => {
+      const commitSha = "a".repeat(40);
+      previewRequests.begin({
+        updateIdentifier: 11,
+        sessionKey: "-1001234567890:7",
+        authorIdentifier: 42,
+        pullRequestNumber: 200,
+        commitSha,
+      });
+      assert.equal(
+        previewRequests.finish(
+          11,
+          commitSha,
+          "confirmed",
+          "https://pr-200.preview.mountainrunners.cat",
+          52,
+        ),
+        true,
+      );
+    },
+  });
+
+  assert.deepEqual(merges, []);
+  assert.match(replies.at(-1), /no hi ha cap avís vigent de preview/u);
+});
+
+test("a newer publication without a preview record invalidates the earlier notice even at the same SHA", async (context) => {
+  const { replies, merges } = await runMergeCommand(context, {
+    prepare: ({ ciWatches }) => {
+      ciWatches.add({
+        updateIdentifier: 11,
+        sessionKey: "-1001234567890:7",
+        pullRequestNumber: 200,
+        commitSha: "a".repeat(40),
+      });
+      ciWatches.beginSend(11, "success");
+      ciWatches.finishSend(11);
+    },
+  });
+
+  assert.deepEqual(merges, []);
+  assert.match(replies.at(-1), /no hi ha cap avís vigent de preview/u);
+});
+
+test("the former topic cannot merge a pull request now owned by another topic", async (context) => {
+  const { replies, merges } = await runMergeCommand(context, {
+    prepare: ({ ciWatches }) => {
+      ciWatches.add({
+        updateIdentifier: 11,
+        sessionKey: "-1001234567890:8",
+        pullRequestNumber: 200,
+        commitSha: "a".repeat(40),
+      });
+    },
+  });
+
+  assert.deepEqual(merges, []);
+  assert.match(replies.at(-1), /no hi ha cap avís vigent de preview/u);
 });
 
 test("keeps the result of a merge for the next turn of the session", async (context) => {
@@ -1223,6 +1314,30 @@ test("keeps the older notice blocked after reconciling a publication without a w
   watches.beginSend(10, "success");
   watches.finishSend(10);
   watches.close();
+  const previews = new PreviewRequestStore(
+    join(statePath, "preview-request.sqlite"),
+  );
+  function deliverPreview(updateIdentifier, pullRequestNumber, commitSha) {
+    previews.track({
+      updateIdentifier,
+      sessionKey: topic,
+      authorIdentifier: 42,
+      pullRequestNumber,
+      commitSha,
+    });
+    assert.equal(
+      previews.finish(
+        updateIdentifier,
+        commitSha,
+        "confirmed",
+        `https://pr-${pullRequestNumber}.preview.mountainrunners.cat`,
+        updateIdentifier + 50,
+      ),
+      true,
+    );
+  }
+  deliverPreview(10, 200, greenCommit);
+  context.after(() => previews.close());
   // B was published, but registering its watch failed: the instruction is
   // unknown until a person reconciles it.
   const queue = new AdmissionQueue(join(statePath, "admission.sqlite"), {
@@ -1304,6 +1419,7 @@ test("keeps the older notice blocked after reconciling a publication without a w
             mergeableState: "clean",
             merged: false,
             mergeCommitSha: null,
+            previewLabeled: true,
           };
         },
         async getCommitCheckRuns() {
@@ -1322,24 +1438,30 @@ test("keeps the older notice blocked after reconciling a publication without a w
     });
     await service.bridge.pollOnce();
     await service.bridge.executeNext();
+    service.previewRequests.close();
     service.mergeRequests.close();
     service.ciWatches.close();
     service.queue.close();
     return { merges, replies };
   }
 
-  // The confirmed publication is still unreported: A must not be merged.
+  // The reconciled publication has no delivered preview: A must not be merged.
   const refused = await mergeOnce(100);
   assert.deepEqual(refused.merges, []);
-  assert.match(refused.replies.at(-1), /feina més nova que l'últim avís/u);
+  assert.match(refused.replies.at(-1), /preview/iu);
 
-  // The restored watch reports the publication; only then the merge resolves.
+  // A green notice does not replace the new publication's preview.
   const delivered = new CiWatchStore(join(statePath, "ci-watch.sqlite"));
   assert.equal(delivered.beginSend(20, "success"), true);
   assert.equal(delivered.finishSend(20), true);
   delivered.close();
 
-  const resolved = await mergeOnce(200);
+  const stillRefused = await mergeOnce(200);
+  assert.deepEqual(stillRefused.merges, []);
+  assert.match(stillRefused.replies.at(-1), /preview/iu);
+
+  deliverPreview(20, publishedPullRequest, publishedCommit);
+  const resolved = await mergeOnce(300);
   assert.deepEqual(resolved.merges, [
     { number: publishedPullRequest, sha: publishedCommit },
   ]);

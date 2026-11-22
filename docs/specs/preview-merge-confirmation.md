@@ -2,12 +2,12 @@
 
 ## Estat
 
-Pendent. Defineix l'entrada del
-[backlog](../backlog.md#fusionar-quan-la-persona-dona-la-feina-per-validada) i
-una esmena proposada a
-[l'ADR 0013](../decisions/0013-private-development-agent-boundary.md). Cap tasca
-passa a `En curs` fins que es fusioni la PR d'aquesta especificació. No canvia cap
-token, entorn ni configuració remota, no activa cap permís i no fa cap merge real.
+Defineix l'entrada del
+[backlog](../backlog.md#fusionar-quan-la-persona-dona-la-feina-per-validada).
+L'acceptació de l'esmena consta a
+[l'ADR 0013](../decisions/0013-private-development-agent-boundary.md).
+Aquesta especificació no canvia cap token, entorn ni configuració remota, no
+activa cap permís i no fa cap merge real.
 
 ## Objectiu
 
@@ -62,7 +62,7 @@ Derivat de T8.9, de l'ADR 0009 i del backlog, sense decisió nova:
 ## Dependències I Ordre D'Inici
 
 - Previews de la fase 6 i etiqueta `preview`.
-- Esmena proposada de l'ADR 0013 fusionada.
+- Esmena de l'ADR 0013 acceptada abans de començar la implementació.
 - La T2 depèn de la T1: sense el SHA de la preview confirmada, la pregunta no pot
   autoritzar-lo.
 - Abans d'activar cal verificar els controls i alinear les instruccions dins de la
@@ -73,7 +73,7 @@ Derivat de T8.9, de l'ADR 0009 i del backlog, sense decisió nova:
 
 | Tasca | Estat   | Dependències    | Resultat verificable                                     | PR  |
 | ----- | ------- | --------------- | -------------------------------------------------------- | --- |
-| T1    | Pendent | Esmena ADR 0013 | El merge fixa el SHA de la preview confirmada i lliurada | -   |
+| T1    | En curs | Esmena ADR 0013 | El merge fixa el SHA de la preview confirmada i lliurada | -   |
 | T2    | Pendent | T1 i esmena ADR | El «Sí» a la pregunta autoritza aquell merge i cap altre | -   |
 
 ### T1: Fixació Del Merge A La Preview Confirmada
@@ -121,15 +121,16 @@ fixats.
 - L'únic que fixa el SHA és l'avís de preview confirmada i lliurada, amb
   l'identificador del missatge desat després de l'enviament; un enviament fallit o
   incert no deixa cap vincle i un verd de CI no és cap prova de lliurament.
-- Només compta la preview confirmada de la publicació més nova; una publicació
-  posterior sense avís confirmat no permet tornar a l'anterior.
+- Només compta l'avís de la preview confirmada de la publicació més nova; una
+  petició manual de preview no el substitueix. Una publicació posterior sense
+  avís confirmat no permet tornar a l'anterior.
 - El merge exigeix PR oberta, no esborrany, base `main`, repositori principal, cap
   igual al SHA, comprovacions obligatòries en verd, branca al dia, etiqueta
   `preview` i cap `preview-revoked`. No fusiona si en falta res, si el lliurament és
   pendent o incert o si hi ha feina més nova que l'avís.
 - Aprovada la T1, totes les formes de `/merge` resolen el SHA nou; la sintaxi i la
   resta de controls no canvien. `/merge <PR> <SHA>` pot reconciliar un resultat
-  desconegut sense cap preview nova, sense autoritzar repetició ni salt de controls.
+  desconegut sense cap preview nova. La reconciliació no executa cap merge.
 
 ## Pregunta Fixa
 

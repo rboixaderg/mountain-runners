@@ -767,10 +767,8 @@ export const mergeReports = {
     "Ja no constes com a membre del grup. No s'ha fusionat res.",
   membershipUnavailable:
     "Ara mateix no he pogut comprovar que siguis membre del grup. No s'ha fusionat res; torna-ho a demanar.",
-  noReportedCommit:
-    "En aquest tema encara no tinc cap canvi amb les comprovacions en verd. No s'ha fusionat res; espera l'avís i torna a demanar `/merge`.",
-  notGreen: ({ pullRequestNumber }) =>
-    `L'última proposta d'aquest tema (#${pullRequestNumber}) encara no tenia les comprovacions en verd. No s'ha fusionat res; espera l'avís i torna a demanar \`/merge\`.`,
+  noDeliveredPreview:
+    "En aquest tema no hi ha cap avís vigent de preview confirmada per a l'última publicació. No s'ha fusionat res.",
   otherPullRequest: ({ requestedNumber, pullRequestNumber }) =>
     `En aquest tema l'última proposta informada és la #${pullRequestNumber}, no la #${requestedNumber}. No s'ha fusionat res; només es pot fusionar l'última que t'he informat.`,
   commitMismatch: ({ pullRequestNumber }) =>
@@ -784,10 +782,13 @@ export const mergeReports = {
   uncertainOpen: ({ pullRequestNumber, commit }) =>
     [
       `No sé si un merge anterior de la proposta #${pullRequestNumber} s'ha fet, i GitHub la mostra oberta. No s'ha fusionat res.`,
-      `Si vols confirmar-ho i tornar-ho a provar, copia i envia: \`/merge ${pullRequestNumber} ${commit}\``,
+      `Si vols confirmar-ho, copia i envia: \`/merge ${pullRequestNumber} ${commit}\``,
+      "Aquesta confirmació no fusiona res: si el merge anterior no s'ha fet, podràs tornar a demanar `/merge`.",
     ].join("\n"),
   uncertainClosed: ({ pullRequestNumber }) =>
     `No sé si un merge anterior de la proposta #${pullRequestNumber} s'ha fet, i GitHub la mostra tancada sense fusionar. No s'ha fusionat res i no es pot fusionar.`,
+  uncertainCleared: ({ pullRequestNumber }) =>
+    `GitHub no mostra la proposta #${pullRequestNumber} fusionada. No s'ha fusionat res en aquesta petició. Si encara la vols fusionar, torna a demanar \`/merge\`.`,
   alreadyMerged: ({ pullRequestNumber, mergeCommit, pullRequestUrl }) =>
     [
       `La proposta #${pullRequestNumber} ja està fusionada. No he fet res més.`,
@@ -803,6 +804,10 @@ export const mergeReports = {
     `La proposta #${pullRequestNumber} no és d'aquest projecte. No s'ha fusionat res.`,
   headMoved: ({ pullRequestNumber }) =>
     `La proposta #${pullRequestNumber} ha canviat des que te la vaig informar. No s'ha fusionat res; espera el nou avís i torna a demanar \`/merge\`.`,
+  previewRevoked: ({ pullRequestNumber }) =>
+    `La preview de la proposta #${pullRequestNumber} s'ha retirat, així que no es pot fusionar. No s'ha fusionat res.`,
+  noPreviewLabel: ({ pullRequestNumber }) =>
+    `La proposta #${pullRequestNumber} no té la preview activada, així que no es pot fusionar. No s'ha fusionat res.`,
   checksNotGreen: ({ pullRequestNumber }) =>
     `Les comprovacions de la proposta #${pullRequestNumber} encara no estan totes en verd. No s'ha fusionat res.`,
   behind: ({ pullRequestNumber }) =>

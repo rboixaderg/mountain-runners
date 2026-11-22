@@ -788,14 +788,14 @@ compta com que no hi ha cap cas d'aquell tipus.
      resolve --kind notice --update 31 --resolution delivered
    ```
 
-   | Cas        | Resolució                                     | Efecte                                                                                                                                                                                                                                                                                     |
-   | ---------- | --------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-   | instrucció | `published --commit <SHA> --pull-request <n>` | Estat `done` i resultat `reconciled_published`; si el HEAD del worktree del tema és aquell commit, es marca com a publicat i no es torna a publicar mai. A més, desa un seguiment de CI pendent d'aquell commit, perquè el tema rebi el seu informe abans que cap merge es pugui resoldre. |
-   | instrucció | `not_published`                               | Estat `done` i resultat `reconciled_not_published`; el treball local es conserva i el següent torn ordinari en torna a intentar la publicació.                                                                                                                                             |
-   | reparació  | `published --commit <SHA>`                    | Estat `done` i resultat `reconciled_published`; no es reobre cap seguiment de CI.                                                                                                                                                                                                          |
-   | reparació  | `not_published`                               | Estat `done` i resultat `reconciled_not_published`; no es reobre cap seguiment de CI.                                                                                                                                                                                                      |
-   | avís       | `delivered`                                   | Estat `sent`: el tema ja havia rebut l'avís i el seu resultat passa a ser l'últim informat.                                                                                                                                                                                                |
-   | avís       | `resend`                                      | Estat `pending`: el treballador ordinari el torna a enviar. És una decisió humana, no un reintent automàtic.                                                                                                                                                                               |
+   | Cas        | Resolució                                     | Efecte                                                                                                                                                                                          |
+   | ---------- | --------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+   | instrucció | `published --commit <SHA> --pull-request <n>` | Estat `done` i resultat `reconciled_published`; si el HEAD del worktree del tema és aquell commit, es marca com a publicat i no es torna a publicar mai. També desa un seguiment de CI pendent. |
+   | instrucció | `not_published`                               | Estat `done` i resultat `reconciled_not_published`; el treball local es conserva i el següent torn ordinari en torna a intentar la publicació.                                                  |
+   | reparació  | `published --commit <SHA>`                    | Estat `done` i resultat `reconciled_published`; no es reobre cap seguiment de CI.                                                                                                               |
+   | reparació  | `not_published`                               | Estat `done` i resultat `reconciled_not_published`; no es reobre cap seguiment de CI.                                                                                                           |
+   | avís       | `delivered`                                   | Estat `sent`: el tema ja havia rebut l'avís i el seu resultat passa a ser l'últim informat.                                                                                                     |
+   | avís       | `resend`                                      | Estat `pending`: el treballador ordinari el torna a enviar. És una decisió humana, no un reintent automàtic.                                                                                    |
 
    `--commit` és obligatori amb `published` i no s'accepta en cap altre cas.
    `--pull-request` és obligatori amb `--kind instruction --resolution published`
@@ -975,19 +975,22 @@ de la persona mantenidora consta a l'especificació.
      `PREVIEW_*`, el DNS i l'estat de la preview, i atura el servei mentre no es
      confirmi.
 5. **Merge.**
-   - Fer: prova els rebuigs en una PR sintètica: `/merge` sense avís verd
-     resoluble, `/merge` amb un commit posterior a l'informe, `/merge` amb la CI
-     vermella o pendent, `/merge <PR>` d'una altra PR i una prosa com
-     «fusiona-la». Després, i només amb l'aprovació explícita de la persona
+   - Si s'ha migrat el registre d'avisos de preview, comprova
+     [quins avisos poden fixar el merge](../../tools/server/agent/README.md#merge-demanat-al-tema)
+     abans de fer les proves.
+   - Fer: prova els rebuigs en una PR sintètica: `/merge` sense avís vigent
+     de preview confirmada, amb un commit posterior a l'avís, sense `preview`,
+     amb `preview-revoked`, amb la CI vermella o pendent, `/merge <PR>` d'una
+     altra PR i una prosa com «fusiona-la». Després, i només amb l'aprovació explícita de la persona
      mantenidora en aquell moment, fes un sol merge real d'un canvi sintètic
      inofensiu amb `/merge` o `/merge <PR>`.
    - Esperat: cada rebuig respon amb el motiu i no fusiona res. El merge real
-     fusiona exactament el commit informat, amb squash, i la resposta nomena la
-     proposta fusionada; l'última línia és l'enllaç de revisió amb el canvi
+     fusiona exactament el SHA de l'avís de preview, amb squash, i la resposta
+     nomena la proposta fusionada; l'última línia és l'enllaç de revisió amb el canvi
      fusionat, amb el SHA curt.
    - Si falla: atura el servei i no tornis a escriure `/merge`. Un resultat
      desconegut es reconcilia llegint la PR; només una persona verificada el pot
-     tancar amb `/merge <PR> <SHA>`.
+     reconciliar amb `/merge <PR> <SHA>`. La reconciliació no torna a fusionar.
 6. **Adjunts.**
    - Fer: en una implementació, adjunta una foto comprimida de Telegram, un JPEG
      i un PNG com a fitxer. En un altre missatge, envia un àlbum de tres imatges
