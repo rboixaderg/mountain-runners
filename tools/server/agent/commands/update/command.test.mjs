@@ -119,6 +119,33 @@ function installFromWorktree({ repository, installRoot }) {
   }
 }
 
+// The real `tar` tests need a tar that accepts `--exclude`: the platform is
+// skipped with a reason instead of failing when it has no such tar.
+function skipsWithoutTarExclusion(context, result) {
+  if (
+    result.code !== 0 &&
+    /unrecognized option|unknown option|could not run/iu.test(result.stderr)
+  ) {
+    context.skip("this platform does not run tar with --exclude");
+    return true;
+  }
+  return false;
+}
+
+// The busy check opens each database through a descriptor, which the platform
+// names under /proc or /dev. Every platform that can run this suite (it needs
+// `git`, `tar` and `mkfifo`) has one of the two.
+const descriptorDirectoryAvailable = ["/proc/self/fd", "/dev/fd"].some(
+  (directory) => existsSync(directory),
+);
+
+// A FIFO is what the agent can create without any privilege. It is a POSIX
+// facility, so the platforms that lack it skip the test that plants one.
+function createFifo(path) {
+  const created = spawnSync("mkfifo", [path], { encoding: "utf8" });
+  return created.error === undefined && created.status === 0;
+}
+
 /** A checkout with one commit, its installed tree and empty state and backups. */
 function createInstallation(context, { files = baselineFiles } = {}) {
   const root = temporaryDirectory(context);
@@ -229,7 +256,7 @@ function runUpdate(
   } = {},
 ) {
   const { run, calls } = runner ?? createRunner();
-  const { stream: writeStream, calls: streamCalls } = stream ?? createStream();
+  const writeStream = stream ?? createStream().stream;
   const output = { stdout: "", stderr: "" };
   const previousUmask = umask === undefined ? null : process.umask(umask);
   const code = runUpdateCommand({
@@ -260,7 +287,7 @@ function runUpdate(
   if (previousUmask !== null) {
     process.umask(previousUmask);
   }
-  return { code, calls, streamCalls, ...output };
+  return { code, calls, ...output };
 }
 
 function assertServiceNotStarted(calls) {
@@ -674,24 +701,32 @@ const busyStates = [
 ];
 
 for (const { name, prepare, expected } of busyStates) {
-  test(`refuses while the state has ${name}`, (context) => {
-    const app = createInstallation(context);
-    writeRevision(app.installRoot, app.installed);
-    const target = advance(app);
-    prepare(join(app.dataRoot, "state"));
+  test(
+    `refuses while the state has ${name}`,
+    {
+      skip: descriptorDirectoryAvailable
+        ? false
+        : "this platform has no descriptor directory for the state databases",
+    },
+    (context) => {
+      const app = createInstallation(context);
+      writeRevision(app.installRoot, app.installed);
+      const target = advance(app);
+      prepare(join(app.dataRoot, "state"));
 
-    const result = runUpdate(app, { argv: ["--commit", target] });
+      const result = runUpdate(app, { argv: ["--commit", target] });
 
-    assert.equal(result.code, 1);
-    assert.match(result.stderr, /The service is busy/u);
-    assert.match(result.stderr, expected);
-    assertNotUpdated(app);
-    assert.equal(
-      result.calls.includes("systemctl stop mountain-agent"),
-      false,
-      "the service is stopped only after the idle check",
-    );
-  });
+      assert.equal(result.code, 1);
+      assert.match(result.stderr, /The service is busy/u);
+      assert.match(result.stderr, expected);
+      assertNotUpdated(app);
+      assert.equal(
+        result.calls.includes("systemctl stop mountain-agent"),
+        false,
+        "the service is stopped only after the idle check",
+      );
+    },
+  );
 }
 
 for (const path of ["pnpm-lock.yaml", ".node-version"]) {
@@ -821,14 +856,20 @@ test("backs up the state as the service user and never follows a link inside it"
   writeFileSync(outside, "outside\n");
   chmodSync(outside, 0o640);
   symlinkSync(outside, join(app.dataRoot, "state", "link"));
-  const stream = createStream({ realTar: true });
+  const rootStream = createStream({ realTar: true });
 
-  const result = runUpdate(app, { argv: ["--commit", target], stream });
+  const result = runUpdate(app, {
+    argv: ["--commit", target],
+    stream: rootStream.stream,
+  });
 
+  if (skipsWithoutTarExclusion(context, result)) {
+    return;
+  }
   assert.equal(result.code, 0, result.stderr);
-  assert.equal(result.streamCalls.length, 1);
+  assert.equal(rootStream.calls.length, 1);
   assert.match(
-    result.streamCalls[0],
+    rootStream.calls[0],
     /^runuser -u mountain-agent -- tar -C .* -cf - --exclude=\.\/lost\+found \.$/u,
   );
   // The link is stored, never followed: its target keeps content and mode.
@@ -866,18 +907,21 @@ test("stores a FIFO in the state without opening it", (context) => {
   const app = createInstallation(context);
   writeRevision(app.installRoot, app.installed);
   const target = advance(app);
-  const created = spawnSync("mkfifo", [join(app.dataRoot, "state", "pipe")], {
-    encoding: "utf8",
-  });
-  assert.equal(created.status, 0, created.stderr);
+  if (!createFifo(join(app.dataRoot, "state", "pipe"))) {
+    context.skip("this platform has no mkfifo");
+    return;
+  }
 
   // Root never opens a FIFO: the archive is produced by the service user, which
   // stores it as an entry.
-  const stream = createStream();
-  const result = runUpdate(app, { argv: ["--commit", target], stream });
+  const stateStream = createStream();
+  const result = runUpdate(app, {
+    argv: ["--commit", target],
+    stream: stateStream.stream,
+  });
 
   assert.equal(result.code, 0, result.stderr);
-  assert.equal(result.streamCalls.length, 1);
+  assert.equal(stateStream.calls.length, 1);
 });
 
 test("refuses a state database that is a link", (context) => {
@@ -1129,15 +1173,19 @@ test("excludes the lost+found of the state volume from the size and the backup",
   writeFileSync(join(lost, "entry"), "root only\n");
   chmodSync(lost, 0o700);
 
-  const result = runUpdate(app, { argv: ["--commit", target] });
+  const stateStream = createStream();
+  const result = runUpdate(app, {
+    argv: ["--commit", target],
+    stream: stateStream.stream,
+  });
 
   assert.equal(result.code, 0, result.stderr);
   const sizeCall = result.calls.find((call) =>
     call.startsWith("runuser -u mountain-agent -- du "),
   );
   assert.match(sizeCall, / --exclude=lost\+found /u);
-  assert.equal(result.streamCalls.length, 1);
-  assert.match(result.streamCalls[0], / --exclude=\.\/lost\+found \.$/u);
+  assert.equal(stateStream.calls.length, 1);
+  assert.match(stateStream.calls[0], / --exclude=\.\/lost\+found \.$/u);
 });
 
 test("the real tar honours the exclusion of lost+found", (context) => {
@@ -1152,15 +1200,14 @@ test("the real tar honours the exclusion of lost+found", (context) => {
   // enter. The exclusion is what makes the real backup work.
   chmodSync(lost, 0o000);
 
-  const stream = createStream({ realTar: true });
-  const result = runUpdate(app, { argv: ["--commit", target], stream });
+  const rootStream = createStream({ realTar: true });
+  const result = runUpdate(app, {
+    argv: ["--commit", target],
+    stream: rootStream.stream,
+  });
   chmodSync(lost, 0o700);
 
-  if (
-    result.code !== 0 &&
-    /unrecognized option|unknown option/iu.test(result.stderr)
-  ) {
-    context.skip("this tar does not support --exclude");
+  if (skipsWithoutTarExclusion(context, result)) {
     return;
   }
   assert.equal(result.code, 0, result.stderr);
@@ -1205,12 +1252,10 @@ test("refuses a state database that is a FIFO without blocking", (context) => {
   const app = createInstallation(context);
   writeRevision(app.installRoot, app.installed);
   const target = advance(app);
-  const created = spawnSync(
-    "mkfifo",
-    [join(app.dataRoot, "state", "ci-watch.sqlite")],
-    { encoding: "utf8" },
-  );
-  assert.equal(created.status, 0, created.stderr);
+  if (!createFifo(join(app.dataRoot, "state", "ci-watch.sqlite"))) {
+    context.skip("this platform has no mkfifo");
+    return;
+  }
 
   const result = runUpdate(app, { argv: ["--commit", target] });
 
@@ -1219,7 +1264,35 @@ test("refuses a state database that is a FIFO without blocking", (context) => {
   assertServiceUntouched(result.calls);
 });
 
-test("removes the partial state backup when tar cannot run", (context) => {
+// The state archives left in the backup root, which a failed backup never
+// leaves behind.
+function stateArchives(app) {
+  return readdirSync(app.backupsRoot).filter((name) => name.endsWith(".tar"));
+}
+
+test("removes the partial state backup when the stream cannot run", (context) => {
+  const app = createInstallation(context);
+  writeRevision(app.installRoot, app.installed);
+  const target = advance(app);
+  // An absolute path inside the temporary directory cannot exist and is not
+  // looked up on PATH, so the spawn fails whatever the host has installed.
+  const missingProgram = join(app.root, "no-such-tar");
+
+  const result = runUpdate(app, {
+    argv: ["--commit", target],
+    stream: (command, args, path) => runProcessToFile(missingProgram, [], path),
+  });
+
+  assert.equal(result.code, 1);
+  assert.match(result.stderr, /could not run/u);
+  assert.deepEqual(stateArchives(app), []);
+  assert.equal(
+    readFileSync(join(app.installRoot, "agent/README.md"), "utf8"),
+    "# Agent\n",
+  );
+});
+
+test("removes the partial state backup when the stream exits non-zero", (context) => {
   const app = createInstallation(context);
   writeRevision(app.installRoot, app.installed);
   const target = advance(app);
@@ -1227,15 +1300,12 @@ test("removes the partial state backup when tar cannot run", (context) => {
   const result = runUpdate(app, {
     argv: ["--commit", target],
     stream: (command, args, path) =>
-      runProcessToFile("mountain-agent-tar-that-does-not-exist", [], path),
+      runProcessToFile(process.execPath, ["-e", "process.exit(3)"], path),
   });
 
   assert.equal(result.code, 1);
-  assert.match(result.stderr, /could not run/u);
-  assert.deepEqual(
-    readdirSync(app.backupsRoot).filter((name) => name.endsWith(".tar")),
-    [],
-  );
+  assert.match(result.stderr, /The state backup failed: exit 3/u);
+  assert.deepEqual(stateArchives(app), []);
   assert.equal(
     readFileSync(join(app.installRoot, "agent/README.md"), "utf8"),
     "# Agent\n",

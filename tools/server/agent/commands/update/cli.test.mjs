@@ -38,7 +38,9 @@ test("exits 2 without the required arguments", () => {
 
 test(
   "exits 1 when the process is not root",
-  { skip: process.getuid?.() === 0 },
+  // Root never reaches the refusal, and a platform without getuid has no
+  // identity to check.
+  { skip: process.getuid === undefined || process.getuid() === 0 },
   () => {
     const result = runCli(["--repository", tmpdir(), "--commit", commit]);
 
