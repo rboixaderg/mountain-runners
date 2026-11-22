@@ -288,16 +288,11 @@ limita què es pot demanar per SSH, però **no lliga la clau a una sola PR**.
 ### Un sol workflow, disparat sota demanda
 
 Res no es construeix ni es publica perquè s'obri una PR. El workflow `Preview`
-(`.github/workflows/preview.yml`) s'activa amb tres peticions, i les tres
-passen pel mateix `authorize`, `build` i `publish`:
-
-- un **comentari a la PR amb el text exacte `/preview`** d'una persona
-  col·laboradora (verificada via API), vigent per al commit que encapçala la PR
-  en aquell moment;
-- un `workflow_dispatch` amb el número de PR;
-- l'**etiqueta `preview`** de la PR, posada per una persona amb permís `write`
-  o `admin`: publica el cap actual en posar-la i cada push posterior, sense cap
-  comentari. Treure l'etiqueta retira la preview.
+(`.github/workflows/preview.yml`) exigeix l'**etiqueta `preview`** de la PR.
+Posar-la publica el cap actual. Mentre hi és, cada push i cada reintent manual
+(`workflow_dispatch` amb el número de PR) publica el cap vigent. L'actor ha de
+tenir permís `write` o `admin`. Treure l'etiqueta retira la preview. Un comentari
+`/preview` ja no inicia el workflow.
 
 L'etiqueta usa `pull_request_target` (tipus `labeled` i `synchronize`), que
 executa el workflow des de `main`. No s'ha de canviar mai a `pull_request`:
@@ -311,31 +306,29 @@ Des del 2 de desembre de 2026, GitHub només executa `pull_request_target`,
 que fan servir `Preview cleanup` i l'etiqueta de preview, si una política
 d'Actions del repositori ho permet; el
 [runbook](runbook.md#política-dactions-de-pull_request_target-per-a-les-previews)
-en descriu el contingut i la comprovació. Si l'esdeveniment de retirada queda
-bloquejat, la reconciliació periòdica no el substitueix pel sol fet que falti
-l'etiqueta.
+en descriu el contingut i la comprovació. Si es perd l'esdeveniment de retirada,
+la reconciliació horària retira la preview si la PR no té l'etiqueta.
 
 El job `authorize` vincula la petició al commit que encapçala la PR,
 identificat pel seu SHA. L'entorn GitHub `previews` separa els secrets
 `PREVIEW_*` dels de producció, però no exigeix revisors abans d'executar-se.
-Qualsevol col·laboradora pot demanar una preview d'una PR del repositori
-principal; el sistema rebutja forks, PR tancades i commits que hagin canviat
-abans de publicar. El flux té tres jobs amb fronteres explícites:
+Només es publiquen previews de PR obertes del repositori principal. El sistema
+rebutja commits que hagin canviat abans de publicar. El flux té tres jobs amb
+fronteres explícites:
 
 1. **`authorize`** (codi de confiança des de la branca per defecte):
-   `tools/preview/resolve-publish.mjs` comprova el comentari i l'autor (o, amb
-   l'etiqueta, que `sender` de l'esdeveniment té permís `write` o `admin`),
-   resol el número de PR i el head SHA vigent per l'API i rebutja aviat una PR
-   tancada, un fork o una PR amb `preview-revoked`. Amb l'etiqueta, el número
-   surt de l'esdeveniment i el cap de l'API, mai de `GITHUB_SHA`, que en
-   aquest esdeveniment és l'últim commit de `main`. Un comentari qualsevol
-   produeix un run verd que no fa res.
+   `tools/preview/resolve-publish.mjs` comprova que el `sender` de l'esdeveniment
+   de PR o l'actor de l'execució manual té permís `write` o `admin`. Resol el SHA
+   vigent per l'API, mai de `GITHUB_SHA`, i comprova que la PR és oberta, del
+   repositori principal, té `preview` i no té `preview-revoked`. Si no compleix
+   els requisits, el job falla abans del build. En un esdeveniment de PR, si
+   l'etiqueta `preview` ja no hi és, el job omet el build.
 2. **`build`** (no fiable): `tools/preview/build-artifact.mjs` compila la web
    amb l'origen exacte de la preview
    (`https://pr-<n>.preview.mountainrunners.cat`, derivat i validat a partir
    del número de PR) i registra un manifest que vincula commit (el head SHA
    del checkout, llegit amb `git rev-parse HEAD` i no de `GITHUB_SHA`, que en
-   un `issue_comment` o un `pull_request_target` apunta a la branca per defecte
+   un `pull_request_target` apunta a la branca per defecte
    i no es pot sobreescriure),
    número de PR, origen, `BUILD_TODAY`, workflow i fitxers amb mida i
    SHA-256; fa checkout del head SHA, executa `pnpm validate` complet i puja
@@ -348,24 +341,24 @@ abans de publicar. El flux té tres jobs amb fronteres explícites:
 3. **`publish`** (de confiança, `needs: [authorize, build]`): descarrega
    l'artefacte del mateix run, valida manifest, mida, nombre de fitxers,
    digests i paths amb els mateixos validadors de producció, comprova la
-   coherència manifest↔PR (commit, origen, número), transfereix amb
-   `receive`, instal·la, revalida que la PR continua oberta i al mateix head
-   SHA i que continua vigent l'autorització (col·laboradora per a `/preview`,
-   permís d'escriptura per a `workflow_dispatch` o per a l'etiqueta) abans
-   d'autoritzar, abans d'activar i abans de comentar l'URL. En una petició amb
-   l'etiqueta, `publish` comprova també en aquests punts que la PR continua
-   tenint `preview`; `/preview` i `workflow_dispatch` no l'exigeixen.
-   `preview-revoked` continua tenint precedència;
-   signa l'autorització amb `PREVIEW_AUTH_PRIVATE_KEY` (absent del build) i
+   coherència manifest↔PR (commit, origen, número) i exigeix que el manifest i
+   el cap vigent coincideixin amb el SHA d'`authorize`. Transfereix amb
+   `receive` i instal·la. Abans d'autoritzar, d'activar i de comentar l'URL,
+   revalida que la PR continua oberta, al mateix SHA, amb `preview` i sense
+   `preview-revoked`, i que l'actor conserva `write` o `admin`.
+   Signa l'autorització amb `PREVIEW_AUTH_PRIVATE_KEY` (absent del build) i
    l'envia per l'entrada estàndard al procés `mountain-preview-site`, que
    verifica la signatura amb la clau pública del VPS abans de registrar
    l'autorització. Després demana el bloc Caddy, torna a comprovar la PR i
-   l'autorització abans d'activar, comprova TLS, capçaleres i salut, i neteja les
-   releases anteriors. Mai no fa checkout ni executa codi de la PR.
+   l'autorització abans d'activar i comprova TLS, capçaleres i salut. Mai no fa
+   checkout ni executa codi de la PR.
 
-Quan el smoke de la preview passa, `publish` torna a validar l'estat, el SHA i
-l'autorització de la PR. Amb el permís `pull-requests: write`, que només tenen
-aquest job i el de neteja, crea o actualitza un únic comentari propi amb l'URL i el SHA activats. Cerca
+Quan el smoke de la preview passa, `publish` busca el comentari del publicador
+i torna a validar l'actor, l'estat i el SHA just abans d'escriure. Si comprova
+que la PR ja no és elegible, retira la preview, encara que existís abans.
+Amb el permís
+`pull-requests: write`, que només tenen aquest job i el de neteja, crea o
+actualitza un únic comentari propi amb l'URL i el SHA activats. Cerca
 el marcador fix només als comentaris de `github-actions[bot]`; mai no modifica
 comentaris d'altres persones. Si l'activació o el smoke fallen, no comenta res.
 Quan una preview es retira, aquell mateix comentari passa a
@@ -373,13 +366,13 @@ Quan una preview es retira, aquell mateix comentari passa a
 adreça ni cap commit, així que ningú no el llegeix com una preview a punt i
 l'agent no el confirma. Si la PR no té comentari del publicador no es fa cap
 escriptura, i el comentari d'una persona amb el marcador no es toca.
-Un error en escriure el comentari fa fallar el job, però no desfà una preview que
-ja està activa: cal comprovar-ne l'estat abans de reexecutar-lo.
+Després d'intentar escriure el comentari, el publicador neteja les releases
+anteriors. Si no pot escriure el comentari, el job falla però la preview
+continua activa. Comprova'n l'estat abans de reexecutar el workflow.
 
-Tornar a posar l'etiqueta no és la via de reintent d'una preview fallida: es
-torna a publicar amb un push nou, amb `/preview`, amb `workflow_dispatch` o
-traient i tornant a posar l'etiqueta. Una PR reoberta amb l'etiqueta no publica
-fins al proper push o a una petició explícita.
+Per reintentar una publicació fallida, conserva `preview` i executa el workflow
+`Preview` manualment des de `main` amb el número de PR, o fes un push nou. Una
+PR reoberta amb l'etiqueta no publica fins al proper push o reintent manual.
 
 ### Retirada en treure l'etiqueta
 
@@ -395,11 +388,11 @@ n'impedeix l'activació. Després de desactivar el lloc, el job edita el comenta
 del publicador com s'ha dit a dalt; per això aquest job (i només aquest)
 declara `pull-requests: write` a nivell de job, mentre el workflow manté
 `contents: read` i `pull-requests: read`. Les retirades de la reconciliació
-(caducitat, PR tancada, `preview-revoked`, fork o espai inconsistent) i la
-retirada posterior a l'activació de `publish` també marquen el comentari. La
-reconciliació periòdica no retira les previews de PR sense etiqueta: `/preview`
-continua vigent. Posar `preview` no dispara la neteja: la condició del job
-només deixa passar `closed`, `preview-revoked` i la retirada de `preview`.
+(caducitat, PR tancada, `preview-revoked`, fork, espai inconsistent o PR oberta
+sense `preview`) i la retirada posterior a l'activació de `publish` també
+marquen el comentari. En el primer cicle després del merge es retiren també les
+previews antigues de PR obertes que no tinguin `preview`. Dels esdeveniments
+de PR, el job només accepta `closed`, afegir `preview-revoked` i treure `preview`.
 
 ### Frontera del servidor
 

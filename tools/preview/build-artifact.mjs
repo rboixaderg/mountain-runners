@@ -13,9 +13,8 @@
 //   PR_NUMBER           pull request number the artifact belongs to
 // Optional environment (CI):
 //   GITHUB_WORKFLOW     workflow name to record in the manifest
-// The manifest records the checked-out commit, not GITHUB_SHA: on
-// issue_comment and workflow_dispatch runs GITHUB_SHA is the default branch
-// head and GitHub ignores attempts to override it.
+// The manifest records the checked-out commit, not GITHUB_SHA, which points
+// to the workflow ref rather than the PR head built by this job.
 import { resolve } from "node:path";
 import { requireArtifactMode } from "../../apps/web/build-mode.mjs";
 import { fileURLToPath } from "node:url";

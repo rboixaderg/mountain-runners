@@ -23,7 +23,7 @@ const headSha = "a".repeat(40);
 
 const labelEvent = {
   action: "synchronize",
-  pull_request: { number: pullNumber },
+  pull_request: { number: pullNumber, labels: [{ name: "preview" }] },
   sender: { login: "maintainer" },
 };
 
@@ -44,9 +44,6 @@ async function runAuthorize({
     if (request.url.endsWith("/permission")) {
       response.statusCode = permissionStatus;
       response.end(JSON.stringify({ permission }));
-    } else if (request.url.includes("/collaborators/")) {
-      response.statusCode = 204;
-      response.end();
     } else if (request.url.endsWith(`/pulls/${pullNumber}`)) {
       response.end(
         JSON.stringify({
@@ -110,12 +107,15 @@ test("a pull request event with write access resolves the head from the API", as
   }
 });
 
-test("a sender without write access fails and publishes nothing", async () => {
-  for (const permission of ["read", "none"]) {
-    const result = await runAuthorize({ permission });
-    assert.notEqual(result.status, 0);
+test("a sender without write access fails before the build", async () => {
+  for (const action of ["labeled", "synchronize"]) {
+    const result = await runAuthorize({
+      event: { ...labelEvent, action, label: { name: "preview" } },
+      permission: "read",
+    });
+    assert.equal(result.status, 1);
     assert.match(result.stderr, /no longer has repository write permission/);
-    assert.doesNotMatch(result.output, /should_publish=true/);
+    assert.equal(result.output, "");
   }
 });
 
@@ -125,7 +125,7 @@ test("a pull request that lost the label meanwhile is not published", async () =
   assert.match(result.output, /should_publish=false/);
 });
 
-test("a revoked, closed or fork pull request fails", async () => {
+test("a revoked, closed or fork pull request fails before the build", async () => {
   const cases = [
     { labels: [{ name: "preview" }, { name: "preview-revoked" }] },
     { state: "closed" },
@@ -133,8 +133,8 @@ test("a revoked, closed or fork pull request fails", async () => {
   ];
   for (const options of cases) {
     const result = await runAuthorize(options);
-    assert.notEqual(result.status, 0, JSON.stringify(options));
-    assert.doesNotMatch(result.output, /should_publish=true/);
+    assert.equal(result.status, 1);
+    assert.equal(result.output, "");
   }
 });
 
@@ -157,41 +157,77 @@ test("the sender of a labeled or synchronize event is checked, not the workflow 
   }
 });
 
-test("a sender unknown to the permission endpoint fails and publishes nothing", async () => {
+test("a sender denied by the permission endpoint fails before the build", async () => {
   for (const permissionStatus of [403, 404]) {
     const result = await runAuthorize({
       permissionStatus,
       event: { ...labelEvent, sender: { login: "dependabot[bot]" } },
     });
-    assert.notEqual(result.status, 0, String(permissionStatus));
+    assert.equal(result.status, 1);
     assert.match(
       result.stderr,
-      new RegExp(
-        `does not have current repository write permission \\(HTTP ${permissionStatus}\\)`,
-      ),
+      /does not have current repository write permission/,
     );
-    assert.doesNotMatch(result.output, /should_publish=true/);
+    assert.equal(result.output, "");
   }
 });
 
-test("a /preview comment or a dispatch does not need the preview label", async () => {
-  const cases = [
-    {
-      eventName: "issue_comment",
-      event: {
-        comment: { body: "/preview", user: { login: "maintainer" } },
-        issue: { number: pullNumber, pull_request: {} },
-      },
-    },
-    {
-      eventName: "workflow_dispatch",
-      event: {},
-      pullNumberInput: String(pullNumber),
-    },
-  ];
-  for (const options of cases) {
-    const result = await runAuthorize({ ...options, labels: [] });
-    assert.equal(result.status, 0, result.stderr);
-    assert.match(result.output, /should_publish=true/);
+const dispatch = {
+  eventName: "workflow_dispatch",
+  event: {},
+  pullNumberInput: String(pullNumber),
+};
+
+test("manual dispatch checks the workflow actor and builds the API head of a labeled pull request", async () => {
+  const result = await runAuthorize(dispatch);
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal(
+    result.output,
+    `should_publish=true\npull_number=${pullNumber}\nhead_sha=${headSha}\n`,
+  );
+  assert.ok(
+    result.requestedUrls.includes(
+      `/repos/${repository}/collaborators/workflow-actor/permission`,
+    ),
+  );
+});
+
+test("ineligible manual dispatches fail visibly without authorizing a build", async () => {
+  for (const [options, reason] of [
+    [{ labels: [] }, /no longer has the preview label/],
+    [
+      { labels: [{ name: "preview" }, { name: "preview-revoked" }] },
+      /revoked preview/,
+    ],
+    [{ permission: "read" }, /no longer has repository write permission/],
+    [{ state: "closed" }, /only an open pull request/],
+    [{ headRepository: "someone/fork" }, /forks have no previews/],
+  ]) {
+    const result = await runAuthorize({ ...dispatch, ...options });
+    assert.equal(result.status, 1);
+    assert.match(result.stderr, reason);
+    assert.equal(result.output, "");
   }
+});
+
+test("unexpected permission API failures fail visibly even for pull request events", async () => {
+  const result = await runAuthorize({ permissionStatus: 500 });
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /HTTP 500/);
+  assert.equal(result.output, "");
+});
+
+test("a comment event cannot authorize a build even with a valid manual input", async () => {
+  const result = await runAuthorize({
+    ...dispatch,
+    eventName: "issue_comment",
+    event: {
+      comment: { body: "/preview", user: { login: "maintainer" } },
+      issue: { number: pullNumber, pull_request: {} },
+    },
+  });
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /Unsupported preview event/);
+  assert.deepEqual(result.requestedUrls, []);
+  assert.equal(result.output, "");
 });

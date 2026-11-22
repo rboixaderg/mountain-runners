@@ -24,6 +24,12 @@ import {
   previewOrigin,
 } from "../server/preview/config.mjs";
 
+const confirmedAuthorizationRejections = [
+  "Invalid preview authorization proof.",
+  "Invalid preview authorization signature.",
+  "Preview authorization requires the unprivileged preview UID.",
+];
+
 function apiHeaders(token) {
   const headers = {
     Accept: "application/vnd.github+json",
@@ -63,31 +69,13 @@ async function fetchRepositoryJson({
   return response.json();
 }
 
-// The comment that requests a publish must come from a repository
-// collaborator: this verified check is the explicit maintainer
-// authorization for the publish (the environment only scopes the secrets).
-export async function assertCommentAuthorized({
-  repository,
-  apiUrl,
-  token,
-  commentAuthor,
-  fetchImpl = fetch,
-}) {
-  if (repository === undefined || repository === "") {
-    throw new Error("GITHUB_REPOSITORY is required to reach the GitHub API.");
-  }
-  if (commentAuthor === undefined || commentAuthor === "") {
-    throw new Error("The comment author is required.");
-  }
-  const response = await fetchImpl(
-    `${apiBaseUrl(apiUrl)}/repos/${repository}/collaborators/${commentAuthor}`,
-    { headers: apiHeaders(token) },
-  );
-  if (response.status !== 204) {
-    throw new Error(
-      `The comment author ${commentAuthor} is not a repository collaborator; previews require explicit maintainer authorization.`,
-    );
-  }
+class IneligiblePullRequestError extends Error {}
+export class MissingPreviewLabelError extends IneligiblePullRequestError {}
+
+export function previewActorOf({ eventName, event, workflowActor }) {
+  if (eventName === "workflow_dispatch") return workflowActor;
+  if (eventName === "pull_request_target") return event.sender?.login;
+  throw new Error(`Unsupported preview event: ${eventName}.`);
 }
 
 // A workflow_dispatch run or a label request is initially authorized by the
@@ -125,9 +113,8 @@ export async function assertActorWritePermission({
 }
 
 // Reads the pull request state from the platform: only an open pull request
-// from this repository (own branches) can be published; returns the head
-// SHA the artifact must match and whether the pull request carries the
-// `preview` label.
+// from this repository with the preview label can be published. Returns the
+// head SHA the artifact must match.
 export async function resolvePullRequestState({
   repository,
   apiUrl,
@@ -144,35 +131,31 @@ export async function resolvePullRequestState({
     failureMessage: `Cannot read pull request ${pullNumber}`,
   });
   if (pullRequest.state !== "open") {
-    throw new Error(
+    throw new IneligiblePullRequestError(
       `Pull request ${pullNumber} is ${pullRequest.state}; only an open pull request can be published.`,
     );
   }
   if (pullRequest.labels?.some((label) => label.name === "preview-revoked")) {
-    throw new Error(`Pull request ${pullNumber} has a revoked preview.`);
+    throw new IneligiblePullRequestError(
+      `Pull request ${pullNumber} has a revoked preview.`,
+    );
   }
   if (pullRequest.head?.repo?.full_name !== repository) {
-    throw new Error(
+    throw new IneligiblePullRequestError(
       "The pull request head repository is not this repository; forks have no previews.",
     );
   }
-  return {
-    headSha: pullRequest.head.sha,
-    labeled: pullRequest.labels?.some((label) => label.name === "preview"),
-  };
-}
-
-function assertPullRequestUnchanged(previous, current) {
-  if (current.headSha !== previous.headSha) {
-    throw new Error(
-      `Refusing to activate a moved pull request: the head changed from ${previous.headSha} to ${current.headSha}.`,
+  if (!pullRequest.labels?.some((label) => label.name === "preview")) {
+    throw new MissingPreviewLabelError(
+      "The pull request no longer has the preview label.",
     );
   }
+  return { headSha: pullRequest.head.sha };
 }
 
 // Only update a comment authored by this workflow's GitHub Actions bot.
 // Neither the PR title nor any other PR-controlled text enters the comment.
-export async function commentOnPublishedPreview({
+export async function preparePublishedPreviewComment({
   repository,
   apiUrl,
   token,
@@ -190,19 +173,23 @@ export async function commentOnPublishedPreview({
     fetchImpl,
   });
 
-  const response = await fetchImpl(
-    existingComment
-      ? `${base}/issues/comments/${existingComment.id}`
-      : `${base}/issues/${pullNumber}/comments`,
-    {
-      method: existingComment ? "PATCH" : "POST",
-      headers: { ...apiHeaders(token), "Content-Type": "application/json" },
-      body: JSON.stringify({ body }),
-    },
-  );
-  if (!response.ok) {
-    throw new Error(`Cannot write preview comment (HTTP ${response.status}).`);
-  }
+  return async () => {
+    const response = await fetchImpl(
+      existingComment
+        ? `${base}/issues/comments/${existingComment.id}`
+        : `${base}/issues/${pullNumber}/comments`,
+      {
+        method: existingComment ? "PATCH" : "POST",
+        headers: { ...apiHeaders(token), "Content-Type": "application/json" },
+        body: JSON.stringify({ body }),
+      },
+    );
+    if (!response.ok) {
+      throw new Error(
+        `Cannot write preview comment (HTTP ${response.status}).`,
+      );
+    }
+  };
 }
 
 // The comment of a retired preview stops naming it, so nobody reads it as ready.
@@ -282,125 +269,181 @@ async function activatePreviewRelease(transport, pullNumber, headSha) {
 export async function publishPreview({
   artifactDirectory,
   pullNumber,
+  authorizedSha,
   resolvePullRequestState,
-  revalidateCommentAuthorization,
   revalidateActorAuthorization,
-  requireLabel = false,
   authorizedBy,
   authorizationPrivateKey,
   transport,
   verifyPreview = verifyPreviewSite,
-  onPublished,
+  prepareComment,
   markRetired,
 }) {
-  // A label request is valid only while the pull request keeps the label, at
-  // every point where the pull request state is read again.
-  const missingLabelMessage =
-    "The pull request no longer has the preview label.";
-  async function resolveCurrentState() {
-    const state = await resolvePullRequestState();
-    if (requireLabel && !state.labeled) throw new Error(missingLabelMessage);
-    return state;
+  let previousCommit;
+  let authorizationRecorded = false;
+  let siteEnabled = false;
+  let activated = false;
+
+  async function revalidatePublication() {
+    let actorError;
+    try {
+      await revalidateActorAuthorization();
+    } catch (error) {
+      actorError = error;
+    }
+    const { headSha } = await resolvePullRequestState().catch((error) => {
+      if (error instanceof IneligiblePullRequestError) throw error;
+      throw actorError ?? error;
+    });
+    if (actorError) throw actorError;
+    if (headSha !== authorizedSha) {
+      throw new Error(
+        `Refusing to activate a moved pull request: live head ${headSha} does not match authorized SHA ${authorizedSha}.`,
+      );
+    }
   }
 
-  const pullRequest = await resolveCurrentState();
-  const artifact = await loadVerifiedArtifact(artifactDirectory, {
-    expectedCommit: pullRequest.headSha,
-    expectedOrigin: previewOrigin(pullNumber),
-  });
-  assertPreviewManifestConsistency(artifact.manifest, pullNumber);
+  const withdraw = () =>
+    retirePreviewOf({ transport, pullNumber, markRetired });
+  async function abortPublication(error) {
+    if (
+      error instanceof IneligiblePullRequestError ||
+      (siteEnabled && !previousCommit) ||
+      (authorizationRecorded && previousCommit === authorizedSha)
+    ) {
+      await withdraw();
+    } else if (activated && previousCommit !== authorizedSha) {
+      try {
+        const rollback = await activatePreviewRelease(
+          transport,
+          pullNumber,
+          previousCommit,
+        );
+        if (rollback.changedPointer === false) {
+          const health = await transport.run(
+            `mountain-preview health ${pullNumber}`,
+          );
+          if (!health.startsWith("Health: OK")) throw new Error(health);
+        }
+      } catch (rollbackError) {
+        const errors = [error, rollbackError];
+        let message = `${error.message} Rollback failed: ${rollbackError.message}`;
+        try {
+          await withdraw();
+        } catch (withdrawalError) {
+          errors.push(withdrawalError);
+          message += ` Withdrawal failed: ${withdrawalError.message}`;
+        }
+        throw new AggregateError(errors, message, { cause: rollbackError });
+      }
+    }
+    throw error;
+  }
 
-  await transferAndVerify(
-    transport,
-    pullNumber,
-    artifact.archiveFileName,
-    artifact.archiveBuffer,
-    artifact.archiveSha256,
-  );
-  await transferAndVerify(
-    transport,
-    pullNumber,
-    "manifest.json",
-    artifact.manifestBuffer,
-    artifact.manifestSha256,
-  );
+  try {
+    await revalidatePublication();
+    const artifact = await loadVerifiedArtifact(artifactDirectory, {
+      expectedCommit: authorizedSha,
+      expectedOrigin: previewOrigin(pullNumber),
+    });
+    assertPreviewManifestConsistency(artifact.manifest, pullNumber);
 
-  await installPreviewRelease(
-    transport,
-    pullNumber,
-    artifact.archiveFileName,
-    pullRequest.headSha,
-  );
+    await transferAndVerify(
+      transport,
+      pullNumber,
+      artifact.archiveFileName,
+      artifact.archiveBuffer,
+      artifact.archiveSha256,
+    );
+    await transferAndVerify(
+      transport,
+      pullNumber,
+      "manifest.json",
+      artifact.manifestBuffer,
+      artifact.manifestSha256,
+    );
+    await installPreviewRelease(
+      transport,
+      pullNumber,
+      artifact.archiveFileName,
+      authorizedSha,
+    );
 
-  const revalidated = await resolveCurrentState();
-  assertPullRequestUnchanged(pullRequest, revalidated);
-  await revalidateCommentAuthorization?.();
-  await revalidateActorAuthorization?.();
-
-  const authorization = {
-    pullRequestNumber: pullNumber,
-    commit: pullRequest.headSha,
-    actor: authorizedBy,
-    issuedAt: Date.now(),
-  };
-  await transport.run(
-    `mountain-preview authorize ${pullNumber} ${pullRequest.headSha} ${authorizedBy}`,
-    JSON.stringify({
+    const previousList = await transport.run(
+      `mountain-preview list ${pullNumber}`,
+    );
+    previousCommit = /^active\s+([0-9a-f]{40})/mu.exec(previousList)?.[1];
+    await revalidatePublication();
+    const authorization = {
+      pullRequestNumber: pullNumber,
+      commit: authorizedSha,
+      actor: authorizedBy,
+      issuedAt: Date.now(),
+    };
+    const proof = JSON.stringify({
       issuedAt: authorization.issuedAt,
       signature: signPreviewAuthorization(
         authorization,
         authorizationPrivateKey,
       ),
-    }),
-  );
-  const previousList = await transport.run(
-    `mountain-preview list ${pullNumber}`,
-  );
-  const previousCommit = /^active\s+([0-9a-f]{40})/mu.exec(previousList)?.[1];
-  await transport.run(`mountain-preview site-enable ${pullNumber}`);
-  let activated = false;
-  try {
-    const beforeActivation = await resolveCurrentState();
-    assertPullRequestUnchanged(pullRequest, beforeActivation);
-    await revalidateCommentAuthorization?.();
-    await revalidateActorAuthorization?.();
-    await activatePreviewRelease(transport, pullNumber, pullRequest.headSha);
+    });
+    try {
+      await transport.run(
+        `mountain-preview authorize ${pullNumber} ${authorizedSha} ${authorizedBy}`,
+        proof,
+      );
+      authorizationRecorded = true;
+    } catch (error) {
+      // Only known pre-write rejections rule out a grant renewal.
+      authorizationRecorded = !(
+        error instanceof RemoteCommandError &&
+        confirmedAuthorizationRejections.some((reason) =>
+          error.message.includes(reason),
+        )
+      );
+      throw error;
+    }
+    await transport.run(`mountain-preview site-enable ${pullNumber}`);
+    siteEnabled = true;
+
+    await revalidatePublication();
     activated = true;
+    await activatePreviewRelease(transport, pullNumber, authorizedSha);
     const health = await transport.run(`mountain-preview health ${pullNumber}`);
     if (!health.startsWith("Health: OK")) throw new Error(health);
     await verifyPreview(previewOrigin(pullNumber));
   } catch (error) {
-    if (activated && previousCommit && previousCommit !== pullRequest.headSha) {
-      await transport.run(
-        `mountain-preview activate ${pullNumber} ${previousCommit}`,
-      );
-    } else if (!previousCommit) {
-      await retirePreviewOf({ transport, pullNumber, markRetired });
-    }
-    throw error;
+    await abortPublication(error);
   }
+
+  const origin = previewOrigin(pullNumber);
+  let readyToPrune = false;
   try {
-    await transport.run(`mountain-preview prune ${pullNumber}`);
-  } catch (error) {
-    console.warn(
-      `Preview ${pullNumber} is published but prune failed: ${error.message}`,
-    );
-  }
-  if (onPublished) {
-    const current = await resolvePullRequestState();
-    // The label was removed after the activation: withdraw the site now
-    // instead of relying only on the cleanup retire queued behind this run.
-    if (requireLabel && !current.labeled) {
-      await retirePreviewOf({ transport, pullNumber, markRetired });
-      throw new Error(missingLabelMessage);
+    let writeComment;
+    let commentError;
+    try {
+      writeComment = await prepareComment({ origin, headSha: authorizedSha });
+    } catch (error) {
+      commentError = error;
     }
-    assertPullRequestUnchanged(pullRequest, current);
-    await revalidateCommentAuthorization?.();
-    await revalidateActorAuthorization?.();
-    await onPublished({
-      origin: previewOrigin(pullNumber),
-      headSha: pullRequest.headSha,
-    });
+    try {
+      await revalidatePublication();
+    } catch (error) {
+      await abortPublication(error);
+    }
+    readyToPrune = true;
+    if (commentError) throw commentError;
+    await writeComment();
+  } finally {
+    if (readyToPrune) {
+      try {
+        await transport.run(`mountain-preview prune ${pullNumber}`);
+      } catch (error) {
+        console.warn(
+          `Preview ${pullNumber} is published but prune failed: ${error.message}`,
+        );
+      }
+    }
   }
-  return `Published preview ${previewOrigin(pullNumber)} at commit ${pullRequest.headSha}.`;
+  return `Published preview ${origin} at commit ${authorizedSha}.`;
 }

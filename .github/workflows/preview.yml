@@ -1,11 +1,9 @@
 name: Preview
 
 # Untrusted build + trusted publication of pull request previews (T6.3),
-# triggered on demand: a `/preview` comment on the pull request from a
-# repository collaborator (verified via the API — the explicit maintainer
-# authorization), a manual workflow_dispatch with the pull number, or the
-# `preview` label on the pull request (labeled, then every push) set by a user
-# with write access. `pull_request_target` runs this file from `main`: never
+# authorized by the `preview` label (when added, on each push, or on manual
+# retry). The actor must have write access.
+# `pull_request_target` runs this file from `main`: never
 # switch it to `pull_request`, which would run the version of the branch with
 # the secrets of the unprotected `previews` environment.
 #
@@ -19,11 +17,9 @@ on:
   workflow_dispatch:
     inputs:
       pull_number:
-        description: Pull request number to publish
+        description: Pull request number to retry (requires the preview label)
         required: true
         type: string
-  issue_comment:
-    types: [created]
   pull_request_target:
     types: [labeled, synchronize]
 
@@ -155,6 +151,7 @@ jobs:
       - name: Publish the verified preview
         env:
           PREVIEW_PULL_NUMBER: ${{ needs.authorize.outputs.pull_number }}
+          PREVIEW_AUTHORIZED_SHA: ${{ needs.authorize.outputs.head_sha }}
           ARTIFACT_DIRECTORY: artifacts/preview
           PREVIEW_HOST: ${{ vars.PREVIEW_HOST }}
           PREVIEW_DEPLOY_USER: ${{ vars.PREVIEW_DEPLOY_USER }}

@@ -1232,22 +1232,22 @@ test("the preview workflow pins actions, separates the trust boundaries and has 
     "utf8",
   );
 
-  // Triggered on demand: a /preview comment, a manual dispatch or the preview
-  // label. The label uses pull_request_target, which runs the workflow from
-  // main; pull_request would run the branch's version with the secrets of the
-  // unprotected environment.
-  assert.match(previewWorkflow, /issue_comment:\n {4}types: \[created\]/);
-  assert.match(previewWorkflow, /workflow_dispatch:/);
-  assert.match(
-    previewWorkflow,
-    /pull_request_target:\n {4}types: \[labeled, synchronize\]/,
-  );
-  assert.doesNotMatch(previewWorkflow, /^ {2}pull_request:/m);
+  // pull_request_target runs from main, not the branch with access to the
+  // secrets of the unprotected previews environment.
+  const workflow = getStaticYAMLValue(parseYAML(previewWorkflow));
+  assert.deepEqual(Object.keys(workflow.on).sort(), [
+    "pull_request_target",
+    "workflow_dispatch",
+  ]);
+  assert.deepEqual(workflow.on.pull_request_target.types, [
+    "labeled",
+    "synchronize",
+  ]);
   assert.match(previewWorkflow, /pull-requests: read/);
   // Only the preview label (just set) or a push to a pull request that has it
   // continues; every other pull request event is skipped. The exact
   // expression is asserted: dropping a grouping parenthesis changes it.
-  const previewJobs = getStaticYAMLValue(parseYAML(previewWorkflow)).jobs;
+  const previewJobs = workflow.jobs;
   assert.equal(
     previewJobs.authorize.if,
     "github.ref == 'refs/heads/main' && github.event.repository.fork == false && " +
@@ -1259,12 +1259,24 @@ test("the preview workflow pins actions, separates the trust boundaries and has 
 
   // The authorize job resolves the request from trusted code on main.
   assert.match(previewWorkflow, /node tools\/preview\/resolve-publish\.mjs/);
+  const authorizeStep = previewJobs.authorize.steps.find(
+    (step) => step.id === "resolve",
+  );
+  assert.equal(
+    authorizeStep.env.PREVIEW_PULL_NUMBER,
+    "${{ inputs.pull_number }}",
+  );
 
   // The untrusted build job: no secrets, no environment, no caches, and the
   // checkout is the pull request head SHA resolved by the authorize job.
   const [authorizeJob, restOfWorkflow] = previewWorkflow.split("\n  build:\n");
   const [buildJob, publishJob] = restOfWorkflow.split("\n  publish:\n");
   assert.match(authorizeJob, /uses: actions\/checkout@[a-f0-9]{40}(?=\s|$)/);
+  assert.equal(previewJobs.build.needs, "authorize");
+  assert.equal(
+    previewJobs.build.if,
+    "needs.authorize.outputs.should_publish == 'true'",
+  );
   assert.doesNotMatch(buildJob, /secrets\./);
   assert.doesNotMatch(buildJob, /environment:/);
   assert.doesNotMatch(buildJob, /permissions:/);
@@ -1297,7 +1309,13 @@ test("the preview workflow pins actions, separates the trust boundaries and has 
     /uses: actions\/download-artifact@[a-f0-9]{40}(?=\s|$)/,
   );
   assert.doesNotMatch(publishJob, /run-id:/);
-  assert.match(publishJob, /node tools\/preview\/publish\.mjs/);
+  const publishStep = previewJobs.publish.steps.find(
+    (step) => step.run === "node tools/preview/publish.mjs",
+  );
+  assert.equal(
+    publishStep.env.PREVIEW_AUTHORIZED_SHA,
+    "${{ needs.authorize.outputs.head_sha }}",
+  );
 });
 
 test("the cleanup workflow retires on the preview label removal only", async () => {
@@ -1314,6 +1332,7 @@ test("the cleanup workflow retires on the preview label removal only", async () 
   // other label change is skipped by the job condition. The concurrency is
   // job-level, so a skipped run never joins the previews group.
   const cleanup = getStaticYAMLValue(parseYAML(cleanupWorkflow));
+  assert.deepEqual(cleanup.on.schedule, [{ cron: "17 * * * *" }]);
   assert.equal(cleanup.concurrency, undefined);
   assert.equal(
     cleanup.jobs.reconcile.if,

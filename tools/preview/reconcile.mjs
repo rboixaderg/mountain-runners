@@ -9,9 +9,8 @@ const pendingRetentionMs = 24 * 60 * 60 * 1000;
 
 // Removing the `preview` label withdraws the preview of that pull request,
 // whichever request published it. Retiring a pull request with no preview ends
-// without error. `/preview` stays valid: the periodic reconciliation never
-// retires a preview because the label is missing. Once the site is disabled, the
-// publisher comment stops naming the preview.
+// without error. Once the site is disabled, the publisher comment stops
+// naming the preview.
 export async function retirePreviewOf({ transport, pullNumber, markRetired }) {
   await transport.run(`mountain-preview retire ${pullNumber}`);
   await transport.run(`mountain-preview site-disable ${pullNumber}`);
@@ -61,6 +60,7 @@ export async function reconcilePreviews({
         shouldRetire =
           pull.state !== "open" ||
           pull.labels?.some((label) => label.name === "preview-revoked") ||
+          !pull.labels?.some((label) => label.name === "preview") ||
           pull.head?.repo?.full_name !== repository;
       }
       if (shouldRetire) {
