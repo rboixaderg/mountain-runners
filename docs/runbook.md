@@ -1131,8 +1131,8 @@ Per revocar immediatament una preview d'una PR oberta, la persona mantenidora
 afegeix l'etiqueta `preview-revoked` a GitHub. El workflow de neteja reacciona
 a l'esdeveniment i la reconciliació horària ho torna a comprovar; el publicador
 rebutja qualsevol nova activació mentre l'etiqueta hi sigui. Per reprendre la
-publicació cal retirar l'etiqueta i tornar a autoritzar el SHA vigent amb
-`/preview`. Si GitHub o el workflow fallen, cal suspendre les previews i
+publicació cal retirar l'etiqueta i tornar a publicar el SHA vigent: amb
+`/preview`, o amb un push nou a una PR que tingui l'etiqueta `preview`. Si GitHub o el workflow fallen, cal suspendre les previews i
 executar la retirada pel canal administratiu aprovat; no editar releases a mà.
 
 ### Instal·lació de T6.4 al VPS existent (només amb aprovació)

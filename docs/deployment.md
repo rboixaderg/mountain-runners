@@ -356,10 +356,15 @@ abans de publicar. El flux té tres jobs amb fronteres explícites:
    releases anteriors. Mai no fa checkout ni executa codi de la PR.
 
 Quan el smoke de la preview passa, `publish` torna a validar l'estat, el SHA i
-l'autorització de la PR. Amb el permís `pull-requests: write`, exclusiu d'aquest
-job, crea o actualitza un únic comentari propi amb l'URL i el SHA activats. Cerca
+l'autorització de la PR. Amb el permís `pull-requests: write`, que només tenen
+aquest job i el de neteja, crea o actualitza un únic comentari propi amb l'URL i el SHA activats. Cerca
 el marcador fix només als comentaris de `github-actions[bot]`; mai no modifica
 comentaris d'altres persones. Si l'activació o el smoke fallen, no comenta res.
+Quan una preview es retira, aquell mateix comentari passa a
+`<marcador>\nPreview retirada.`: conserva el marcador però ja no nomena cap
+adreça ni cap commit, així que ningú no el llegeix com una preview a punt i
+l'agent no el confirma. Si la PR no té comentari del publicador no es fa cap
+escriptura, i el comentari d'una persona amb el marcador no es toca.
 Un error en escriure el comentari fa fallar el job, però no desfà una preview que
 ja està activa: cal comprovar-ne l'estat abans de reexecutar-lo.
 
@@ -378,9 +383,15 @@ amb `/preview` o amb una execució manual. Treure qualsevol altra etiqueta omet
 el job. Retirar una PR sense preview acaba sense error. S'executa al grup
 `previews`, així que no coincideix amb una activació; si una publicació de
 l'etiqueta encara no activada s'executa després, la comprovació de l'etiqueta
-n'impedeix l'activació. La reconciliació periòdica no retira les previews de PR
-sense etiqueta: `/preview` continua vigent. Posar `preview` dispara la
-reconciliació completa per `preview-revoked`, que no retira res.
+n'impedeix l'activació. Després de desactivar el lloc, el job edita el comentari
+del publicador com s'ha dit a dalt; per això aquest job (i només aquest)
+declara `pull-requests: write` a nivell de job, mentre el workflow manté
+`contents: read` i `pull-requests: read`. Les retirades de la reconciliació
+(caducitat, PR tancada, `preview-revoked`, fork o espai inconsistent) i la
+retirada posterior a l'activació de `publish` també marquen el comentari. La
+reconciliació periòdica no retira les previews de PR sense etiqueta: `/preview`
+continua vigent. Posar `preview` no dispara la neteja: la condició del job
+només deixa passar `closed`, `preview-revoked` i la retirada de `preview`.
 
 ### Frontera del servidor
 
@@ -928,7 +939,8 @@ traça privada.
   `preview.yml`. Amb l'etiqueta, el run és de `pull_request_target`: el seu
   `head_sha` és l'últim commit de `main`, no el cap de la PR, i no hi ha cap camp
   fiable per correlacionar-lo amb la PR i el cap. Si una construcció falla, la
-  petició espera fins al termini i envia l'avís de no confirmada.
+  petició espera fins al termini i envia l'avís de fallada (l'acció `maintainer_attention` amb el motiu
+  `previewUnconfirmed` queda a la traça).
 - **Confirmació.** Un bucle en segon pla llegeix els comentaris de la PR i
   només accepta el del publicador de la fase 6: autor `github-actions[bot]`,
   marcador, origen exacte `https://pr-<n>.preview.mountainrunners.cat` i SHA
@@ -936,7 +948,8 @@ traça privada.
   petició: l'etiqueta fa que el publicador construeixi el cap quan es puja, i pot
   confirmar-lo abans que ningú ho demani; el SHA fixat és el que lliga l'adreça.
   Retorna l'URL confirmada al tema. Si en 25 minuts no hi ha confirmació, ho
-  comunica com a no confirmada; mai construeix ni suposa l'URL.
+  envia l'avís de fallada i ho deixa anotat per a la persona mantenidora; mai
+  construeix ni suposa l'URL.
 - **Reinicis.** Una petició en `awaiting` reprèn la lectura de comentaris amb el
   termini original. Una petició en `commenting` o `uncertain` d'abans del canvi
   segueix bloquejant l'arrencada fins que una persona reconciliï l'estat real a
@@ -966,8 +979,12 @@ traça privada.
   construeix el cap nou i la petició del cap anterior acaba sense avís. Si el
   commit nou és del servei, el seu seguiment n'informa l'adreça; si l'ha pujat
   una persona fora de l'agent, cal demanar-la. Un comentari del publicador
-  anterior a una retirada pot confirmar el mateix SHA si l'etiqueta s'ha tornat
-  a posar abans que el publicador el torni a construir; l'adreça és la mateixa.
+  anterior a una retirada ja no pot confirmar res: la retirada n'ha editat el
+  cos. Una petició escrita quan el servei encara comentava `/preview` (fila amb
+  `commented_at`) no exigeix l'etiqueta, perquè aquelles PR no la tenien, però
+  només accepta un comentari del publicador escrit o actualitzat després del
+  moment de la petició i continua exigint PR oberta, repositori principal, cap
+  `preview-revoked` i el cap sense canvis.
 
 L'activació continua depenent de la verificació del pilot: la credencial ha de
 tenir escriptura a Pull requests (per posar l'etiqueta `preview`, sense cap
@@ -1306,7 +1323,7 @@ i l'enllaç de revisió com a darrera línia. Si el seguiment de CI no s'ha pogu
 desar, l'avís és el de fallada que deixa el cas anotat per a la persona mantenidora. La resposta del
 model es retalla perquè l'enllaç no es perdi mai pel límit de 4000 caràcters del
 transport. Una CI verda no envia res a la persona, perquè ja ha llegit «Canvi desat»: el resultat només va a la nota del servei i a la traça privada. L'adreça de la
-preview arriba en un avís propi quan el publicador la confirma, sense esperar la CI; l'avís de preview porta la seva adreça (el seu text no canvia en aquesta PR). Una reparació
+preview arriba en un avís propi quan el publicador la confirma, sense esperar la CI; l'avís de preview és «Ja ho pots veure: <adreça>» i, si no es confirma al termini, el de fallada. Una reparació
 en curs envia l'avís de fallada amb «Ho torno a intentar»; el límit de
 reparacions, un resultat desconegut, un cap canviat, una PR tancada i qualsevol
 fallada de la reparació envien l'avís de fallada que deixa el cas anotat per a la persona
@@ -1338,11 +1355,10 @@ es pot comprovar l'estat i es registra `topic_state_failed` al journal. El bloc
 no conté identificadors de Telegram ni dades personals, i el classificador no el
 rep. El model el rep dins del sandbox sense xarxa ni credencials.
 
-La petició explícita de preview torna a comprovar la PR i les comprovacions del
-cap encara que l'últim resultat desat no sigui verd. Just abans de publicar el
-comentari, torna a llegir el cap i la CI i refusa la petició si han canviat o no
-es poden llegir. Els treballs pendents i els
-resultats desconeguts continuen bloquejant la petició. Abans d'un merge o una
+La petició explícita de preview torna a comprovar la PR, no les comprovacions
+del cap: la preview s'activa amb l'etiqueta i el `build` executa `pnpm validate`.
+Els treballs pendents i els resultats desconeguts continuen bloquejant la
+petició. Abans d'un merge o una
 reparació, el servei torna a comprovar el cap i la CI; el merge continua fixat
 al commit informat al tema.
 
