@@ -37,11 +37,17 @@ Aquest mapa enllaça els documents i no repeteix aquestes regles.
 - [`runbook.md`](runbook.md): operació de producció (servidor, TLS, logs, salut,
   releases, desplegament continu, reversió, tall DNS i període d'observació).
   Inclou el diagrama Mermaid viu de l'arquitectura del VPS.
-- [`phase-5-t55-dns-inventory.md`](phase-5-t55-dns-inventory.md): inventari
-  públic dels registres a preservar i a substituir al tall.
+- [`phase-5-t55-dns-inventory.md`](specs/phase-5/phase-5-t55-dns-inventory.md):
+  inventari públic dels registres a preservar i a substituir al tall.
 - [`ai-assistant.md`](ai-assistant.md): límits dels futurs xat públic i assistent
   editorial.
-- [`specs/`](specs/): requisits i acceptació de fases i tasques.
+- [`specs/`](specs/): requisits i acceptació de les funcionalitats.
+- `specs/phase-N/`: la carpeta de cada fase amb la seva especificació i els
+  documents de treball: [`phase-1/`](specs/phase-1/),
+  [`phase-2/`](specs/phase-2/), [`phase-3/`](specs/phase-3/),
+  [`phase-4/`](specs/phase-4/), [`phase-5/`](specs/phase-5/),
+  [`phase-6/`](specs/phase-6/) i [`phase-8/`](specs/phase-8/). La fase 7 encara
+  no té especificació.
 - [`specs/news-and-blog.md`](specs/news-and-blog.md): funcionalitat autoritzada
   de notícies, blog i esborranys editorials en preview, amb tasques en curs.
 - [`editorial/guide.md`](editorial/guide.md): criteris d'exactitud, drets,
@@ -59,11 +65,12 @@ pendents es mantenen a l'especificació.
 Els documents següents es conserven per procedència i traçabilitat, però no
 descriuen necessàriament l'estat actual:
 
-- [`phase-2-editorial-inventory.md`](phase-2-editorial-inventory.md) i
-  [`phase-3-editorial-inventory.md`](phase-3-editorial-inventory.md): inventaris i
+- [`phase-2-editorial-inventory.md`](specs/phase-2/phase-2-editorial-inventory.md) i
+  [`phase-3-editorial-inventory.md`](specs/phase-3/phase-3-editorial-inventory.md): inventaris i
   aprovacions disponibles en cada fase.
-- [`validation/`](validation/): evidència de revisions executades i punts de
-  tancament, no substitut de l'especificació.
+- Els documents de validació de cada fase dins de `specs/phase-N/`, com
+  [`phase-4-design-review.md`](specs/phase-4/phase-4-design-review.md): evidència
+  de revisions executades i punts de tancament, no substitut de l'especificació.
 
 No s'actualitzen retrospectivament les observacions històriques per fer-les
 semblar actuals. Se n'aclareix la vigència i s'afegeix el resultat posterior quan

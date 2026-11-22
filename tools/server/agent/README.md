@@ -601,7 +601,7 @@ MR_ISOLATION_TEST_IMAGE=<imatge-local> node --test tools/server/agent/sandbox/co
 MR_AGENT_PI_COMMAND=<executable-pi> node --test tools/server/agent/runtime/profile-smoke.test.mjs
 ```
 
-- [Abast de T8.3](../../../docs/specs/phase-8-editorial-assistance.md#t83-base-operativa-de-telegram-fins-a-pr).
+- [Abast de T8.3](../../../docs/specs/phase-8/phase-8-editorial-assistance.md#t83-base-operativa-de-telegram-fins-a-pr).
 - [Frontera acceptada, ADR 0013](../../../docs/decisions/0013-private-development-agent-boundary.md).
 - [Instal·lació i pendents del pilot](../../../docs/deployment.md#agent-privat-de-desenvolupament-t83).
 

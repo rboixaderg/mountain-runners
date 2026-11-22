@@ -73,7 +73,7 @@ contingut, de manera que les rutes puguin ser, per exemple,
 **Dependències:** decisió sobre els noms canònics i una fase que modifiqui la
 superfície pública de rutes.
 
-**Seguiment:** [especificació de la fase 2](specs/phase-2-public-vertical-slice.md).
+**Seguiment:** [especificació de la fase 2](specs/phase-2/phase-2-public-vertical-slice.md).
 
 Implementada i fusionada a la T2.3 (PR #17). Es conserva aquí només com a
 registre del triatge; les rutes actuals viuen al contracte tipat de

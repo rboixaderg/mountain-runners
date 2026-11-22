@@ -104,7 +104,7 @@ aquesta entrega afegeix o modifica és consentit i controlat:
 - **Junta directiva**: consentiment de publicació de noms, cognoms i rols de
   la junta completa (Albert Penyaranda Riu, Joel Brià Cabestany i David Torres
   Altarriba, amb Ernest Garrido a la presidència); cap dada de contacte. Es
-  registra també a `docs/phase-3-editorial-inventory.md`.
+  registra també a `docs/specs/phase-3/phase-3-editorial-inventory.md`.
 - **Contingut i rutes noves**: l'esdeveniment `anella-verda` (ruta i imatge
   pròpies), el contingut afegit o corregit a esdeveniments, escoles i entitats,
   i les extensions del model (`summary` a esdeveniments, `coverCard` i

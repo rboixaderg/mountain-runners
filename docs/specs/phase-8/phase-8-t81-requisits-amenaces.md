@@ -2,14 +2,14 @@
 
 ## Estat i abast
 
-Esborrany de treball per a [T8.1 de la fase 8](specs/phase-8-editorial-assistance.md).
+Esborrany de treball per a [T8.1 de la fase 8](phase-8-editorial-assistance.md).
 Distingeix els requisits de l'especificació fusionada de les propostes pendents
 de revisió. No autoritza desplegaments, comptes, credencials ni canvis remots.
 T8.2 ha de verificar la viabilitat i obtenir l'aprovació dels ADR abans d'activar
-els permisos ampliats. Les fronteres vigents d'[assistents](ai-assistant.md) i
-els ADR [0002](decisions/0002-public-chat-and-private-editor.md),
-[0003](decisions/0003-agent-workflow-and-security.md) i
-[0009](decisions/0009-pr-previews-same-domain-and-own-branches.md) continuen
+els permisos ampliats. Les fronteres vigents d'[assistents](../../ai-assistant.md) i
+els ADR [0002](../../decisions/0002-public-chat-and-private-editor.md),
+[0003](../../decisions/0003-agent-workflow-and-security.md) i
+[0009](../../decisions/0009-pr-previews-same-domain-and-own-branches.md) continuen
 aplicant-se fins que s'esmenin.
 
 ## Contracte de sessió i identitat
@@ -73,7 +73,7 @@ aplicant-se fins que s'esmenin.
 
   **Nota del pilot (T8.6).** Aquest requisit no està implementat al pilot:
   l'única aturada és la de la persona operadora amb
-  `systemctl stop mountain-agent`, segons l'[ADR 0014](decisions/0014-operator-stop-and-repeatable-telegram-notices.md).
+  `systemctl stop mountain-agent`, segons l'[ADR 0014](../../decisions/0014-operator-stop-and-repeatable-telegram-notices.md).
   El requisit original es manté com a objectiu d'una ampliació posterior.
 
 - Una acció externa ja enviada pot haver acabat tot i l'aturada o un reinici.

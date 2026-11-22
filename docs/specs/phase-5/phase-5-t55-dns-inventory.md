@@ -9,7 +9,7 @@ la resta de serveis no migrats. Hostinger continua sent el DNS autoritatiu;
 els nameservers no es mouen.
 
 Aquest document no substitueix l'export immediatament anterior al tall des
-del hPanel i els `dig` del [runbook](runbook.md#9-tall-dns-i-primera-activació-pública).
+del hPanel i els `dig` del [runbook](../../runbook.md#9-tall-dns-i-primera-activació-pública).
 Els valors d'allotjament web ja han canviat; els de correu no.
 
 ## Delegació

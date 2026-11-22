@@ -5,12 +5,12 @@
 Completada el 18 d'octubre de 2026. El sistema de previews és operatiu i validat
 al VPS sota `*.preview.mountainrunners.cat`: T6.1 a T6.7 estan fusionades i les
 previews de PR autoritzades funcionen. L'operació és a la
-[secció 13 del runbook](../runbook.md#13-previews-de-pull-request-t63).
+[secció 13 del runbook](../../runbook.md#13-previews-de-pull-request-t63).
 
 ## Objectiu
 
-Esmena del 2 d'octubre de 2026: l'[ADR 0011](../decisions/0011-news-blog-editorial-previews.md)
-i l'[especificació de notícies i blog](news-and-blog.md) autoritzen una excepció
+Esmena del 2 d'octubre de 2026: l'[ADR 0011](../../decisions/0011-news-blog-editorial-previews.md)
+i l'[especificació de notícies i blog](../news-and-blog.md) autoritzen una excepció
 posterior per mostrar esborranys de `posts` en preview, amb estat explícit.
 Les exclusions de contingut despublicat d'aquest document es mantenen per a
 totes les altres col·leccions. La PR #140 implementa aquesta excepció i es va

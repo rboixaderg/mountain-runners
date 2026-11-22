@@ -3,12 +3,12 @@
 ## Estat
 
 Registre de la decisió d'arquitectura de la T6.2 de
-[`docs/specs/phase-6-pull-request-previews.md`](specs/phase-6-pull-request-previews.md),
+[`docs/specs/phase-6/phase-6-pull-request-previews.md`](phase-6-pull-request-previews.md),
 elaborada el 13 de setembre de 2026 a partir dels requisits, el model d'amenaces
 i les alternatives de la T6.1
-([`docs/phase-6-t61-requisits-alternatives.md`](phase-6-t61-requisits-alternatives.md))
+([`docs/specs/phase-6/phase-6-t61-requisits-alternatives.md`](phase-6-t61-requisits-alternatives.md))
 i dins de la frontera fixada per
-[l'ADR 0009](decisions/0009-pr-previews-same-domain-and-own-branches.md): origen
+[l'ADR 0009](../../decisions/0009-pr-previews-same-domain-and-own-branches.md): origen
 sota `*.preview.mountainrunners.cat`, sense segon domini ni servei extern, i
 publicació restringida a branques pròpies.
 
@@ -48,7 +48,7 @@ de producció.
   `www`, MX o correu": export previ de la zona, canvi mínim, comparació
   posterior (VR-02).
 - **Restricció permanent** registrada a
-  [l'esmena de l'ADR 0009](decisions/0009-pr-previews-same-domain-and-own-branches.md):
+  [l'esmena de l'ADR 0009](../../decisions/0009-pr-previews-same-domain-and-own-branches.md):
   els previews no automatitzen mai el DNS. Si algun dia calguessin registres
   per PR o escriptures automatitzades, cal reobrir la decisió amb un ADR,
   perquè amb Hostinger qualsevol token d'API és de compte sencer i violaria
@@ -235,6 +235,6 @@ retirada ràpida.
   Floating IPv4 3,00 €/mes; Primary IPv4 0,50 €/mes; IPv6 primària gratuïta.
 - Límits oficials de Let's Encrypt (letsencrypt.org/docs/rate-limits).
 - Documentació de Caddy sobre HTTPS automàtic i repte HTTP-01 (caddyserver.com).
-- Estat actual del repo: `docs/phase-6-t61-requisits-alternatives.md`,
+- Estat actual del repo: `docs/specs/phase-6/phase-6-t61-requisits-alternatives.md`,
   `docs/decisions/0009-pr-previews-same-domain-and-own-branches.md`,
   `docs/deployment.md`, `docs/runbook.md`, `tools/server/`.

@@ -309,7 +309,7 @@ export const previewConfirmationTimeoutMilliseconds = 25 * 60 * 1000;
 export const repairRequestKind = "repair";
 
 // A failing CI is repaired automatically at most twice in a row for the same
-// set of failing required checks. [T8.1](../../../../docs/phase-8-t81-requisits-amenaces.md)
+// set of failing required checks. [T8.1](../../../../docs/specs/phase-8/phase-8-t81-requisits-amenaces.md)
 export const maximumAutomaticRepairs = 2;
 
 // The prompt carries the published diff, clipped: the model needs the change,

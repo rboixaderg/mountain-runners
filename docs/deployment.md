@@ -212,9 +212,9 @@ sempre, també als smoke tests de desplegament i reversió. Un host nou ha de
 tenir el fragment de Caddy instal·lat abans d'executar-los.
 
 L'inventari previ al tall és a
-[`docs/phase-5-t55-dns-inventory.md`](phase-5-t55-dns-inventory.md). La
+[`docs/specs/phase-5/phase-5-t55-dns-inventory.md`](specs/phase-5/phase-5-t55-dns-inventory.md). La
 checklist d'evidència és a
-[`docs/validation/phase-5-t55-launch-gate.md`](validation/phase-5-t55-launch-gate.md).
+[`docs/specs/phase-5/phase-5-t55-launch-gate.md`](specs/phase-5/phase-5-t55-launch-gate.md).
 Cap canvi DNS, de Caddy o dels entorns GitHub no s'executa sense la persona
 mantenidora.
 
@@ -224,7 +224,7 @@ La frontera de previews viu en dues meitats que mai comparteixen confiança,
 dins del límit de l'[ADR 0009](decisions/0009-pr-previews-same-domain-and-own-branches.md)
 (origen sota `*.preview.mountainrunners.cat`, publicació només a branques
 pròpies, cap segon domini ni servei extern) i de la decisió T6.2
-([`docs/phase-6-t62-decisions.md`](phase-6-t62-decisions.md)): cap credencial
+([`docs/specs/phase-6/phase-6-t62-decisions.md`](specs/phase-6/phase-6-t62-decisions.md)): cap credencial
 DNS, certificats individuals HTTP-01, un procés Caddy amb blocs separats.
 
 ### Noms del flux de previews
@@ -1784,11 +1784,11 @@ servidor (`pnpm test:server`). `pnpm validate` no executa Lighthouse;
 
 La fase 5 està tancada; HSTS, entorn `production-rollback` i retirada dels
 required reviewers de `production` estan registrats a la
-[checklist de la T5.5](validation/phase-5-t55-launch-gate.md). La fase 6 també
+[checklist de la T5.5](specs/phase-5/phase-5-t55-launch-gate.md). La fase 6 també
 està tancada: les previews de PR són operatives i validades al VPS. La fase 7
 continua planificada i sense implementació. El servei de la fase 8 està
 instal·lat i en marxa al VPS; les tasques pendents de la fase són a la
-[spec](specs/phase-8-editorial-assistance.md). Només cal un ADR nou quan la
+[spec](specs/phase-8/phase-8-editorial-assistance.md). Només cal un ADR nou quan la
 implementació introdueixi o canviï una decisió arquitectònica; els detalls que
 apliquen la
 direcció acceptada continuen requerint una pull request revisada.

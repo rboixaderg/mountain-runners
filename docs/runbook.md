@@ -5,12 +5,12 @@
 Aquest runbook descriu l'operació mínima de producció de Mountain Runners:
 servidor, TLS, logs, salut, desplegament, reversió i resposta a incidències.
 Les seccions de servidor, TLS, logs, salut i reversió corresponen a la T5.3 de
-[`docs/specs/phase-5-publication-operation.md`](specs/phase-5-publication-operation.md).
+[`docs/specs/phase-5/phase-5-publication-operation.md`](specs/phase-5/phase-5-publication-operation.md).
 Les seccions de desplegament continu i workflow de rollback corresponen a la
 T5.4. Les seccions de tall DNS, gate de llançament, HSTS i període
 d'observació corresponen a la T5.5. La secció de l'agent privat i la seva
 validació corresponen a la T8.6 de
-[`docs/specs/phase-8-editorial-assistance.md`](specs/phase-8-editorial-assistance.md).
+[`docs/specs/phase-8/phase-8-editorial-assistance.md`](specs/phase-8/phase-8-editorial-assistance.md).
 
 Cap acció remota (crear el VPS, registres DNS, claus SSH, secrets o activacions)
 no s'executa sense l'aprovació explícita de la persona mantenidora. Cap agent,
@@ -823,9 +823,9 @@ Cap pas d'aquesta secció s'executa des d'una sessió d'agent. El tall no migra
 nameservers, no activa DNSSEC i no publica IPv6.
 
 L'inventari públic vigent és a
-[`docs/phase-5-t55-dns-inventory.md`](phase-5-t55-dns-inventory.md). La
+[`docs/specs/phase-5/phase-5-t55-dns-inventory.md`](specs/phase-5/phase-5-t55-dns-inventory.md). La
 checklist d'evidència del gate és a
-[`docs/validation/phase-5-t55-launch-gate.md`](validation/phase-5-t55-launch-gate.md).
+[`docs/specs/phase-5/phase-5-t55-launch-gate.md`](specs/phase-5/phase-5-t55-launch-gate.md).
 
 ### Condicions Prèvies
 
@@ -940,7 +940,7 @@ conserva sempre.
 ## 10. Gate De Llançament
 
 Abans de donar el tall per acceptat, la persona mantenidora completa
-[`docs/validation/phase-5-t55-launch-gate.md`](validation/phase-5-t55-launch-gate.md):
+[`docs/specs/phase-5/phase-5-t55-launch-gate.md`](specs/phase-5/phase-5-t55-launch-gate.md):
 
 - `pnpm validate` sobre el commit desplegat (ja és gate de CI a `main`).
 - `pnpm lighthouse` contra el build local, dins dels llindars aprovats.
@@ -999,7 +999,7 @@ Quan confirma les 48 hores sense incidència de tall, correu o TLS:
    gates.
 2. No toca els required reviewers de `production-rollback`.
 3. Registra la data a
-   [`docs/validation/phase-5-t55-launch-gate.md`](validation/phase-5-t55-launch-gate.md).
+   [`docs/specs/phase-5/phase-5-t55-launch-gate.md`](specs/phase-5/phase-5-t55-launch-gate.md).
 
 Cap agent no configura els entorns ni n'elimina els reviewers.
 

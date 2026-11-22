@@ -3,7 +3,7 @@
 ## Estat
 
 Registre de la T5.1 de
-[`docs/specs/phase-5-publication-operation.md`](specs/phase-5-publication-operation.md),
+[`docs/specs/phase-5/phase-5-publication-operation.md`](phase-5-publication-operation.md),
 completada el 16 d'agost de 2026 amb la confirmació de la persona mantenidora.
 La fase 4 està tancada i verificada; no queda cap decisió oberta que bloquegi la
 T5.2.
@@ -58,7 +58,7 @@ Només tres registres, tots allotjats al VPS:
 prune` afegeix una retenció per als arbres extrets i els uploads —l'activa i
   l'anterior activa elegible i altres elegibles recents, fins a cinc en total,
   amb `prunedAt` a la resta— perquè el disc no creixi amb cada desplegament. Detall al
-  [`docs/runbook.md`](runbook.md#retenció-i-poda).
+  [`docs/runbook.md`](../../runbook.md#retenció-i-poda).
 
 ### Headers Mínims I CSP
 
@@ -84,8 +84,8 @@ s'incrusten exclusivament des de `www.youtube-nocookie.com`, per això
 perquè Astro emet `<style>` inline; no es fa servir `unsafe-eval` en cap
 directiva.
 
-Esmena posterior ([ADR 0007](decisions/0007-self-hosted-plausible-analytics.md),
-[especificació d'analítica](specs/plausible-analytics.md)): `script-src` i
+Esmena posterior ([ADR 0007](../../decisions/0007-self-hosted-plausible-analytics.md),
+[especificació d'analítica](../plausible-analytics.md)): `script-src` i
 `connect-src` permeten també l'origen explícit
 `https://analytics.rogerbg.cat`. El bloc anterior és el contracte original de
 la T5.1; la CSP vigent viu a `tools/server/caddy/Caddyfile`.
