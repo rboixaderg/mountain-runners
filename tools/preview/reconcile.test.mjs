@@ -1,6 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { reconcilePreviews } from "./reconcile.mjs";
+import {
+  reconcilePreviews,
+  retirePreviewOf,
+  runCleanup,
+} from "./reconcile.mjs";
 
 const repository = "rboixaderg/mountain-runners";
 const now = Date.parse("2026-09-27T12:00:00.000Z");
@@ -197,4 +201,139 @@ test("one inconsistent namespace does not prevent retiring other previews", asyn
     "mountain-preview retire 2",
     "mountain-preview site-disable 2",
   ]);
+});
+
+test("removing the preview label retires that pull request preview and its site", async () => {
+  const transport = transportFor([]);
+  await retirePreviewOf({ transport, pullNumber: 7 });
+  assert.deepEqual(transport.commands, [
+    "mountain-preview retire 7",
+    "mountain-preview site-disable 7",
+  ]);
+});
+
+test("the periodic reconciliation keeps open previews published without the label", async () => {
+  const transport = transportFor([
+    { pullNumber: 5, commit, updatedAt: "2026-09-27T00:00:00.000Z" },
+  ]);
+  await reconcilePreviews({
+    transport,
+    repository,
+    now,
+    readPull: async () => ({
+      state: "open",
+      labels: [],
+      head: { sha: commit, repo: { full_name: repository } },
+    }),
+  });
+  assert.equal(
+    transport.commands.some((command) =>
+      command.startsWith("mountain-preview retire "),
+    ),
+    false,
+  );
+});
+
+async function routeCleanup(eventName, event) {
+  const transport = transportFor([]);
+  let reconciled = false;
+  await runCleanup({
+    eventName,
+    event,
+    transport,
+    reconcile: async () => {
+      reconciled = true;
+    },
+  });
+  return { commands: transport.commands, reconciled };
+}
+
+test("a cleanup run retires only on the removal of the preview label", async () => {
+  const pullRequest = { number: 7 };
+  assert.deepEqual(
+    await routeCleanup("pull_request_target", {
+      action: "unlabeled",
+      label: { name: "preview" },
+      pull_request: pullRequest,
+    }),
+    {
+      commands: [
+        "mountain-preview retire 7",
+        "mountain-preview site-disable 7",
+      ],
+      reconciled: false,
+    },
+  );
+  assert.deepEqual(
+    await routeCleanup("pull_request_target", {
+      action: "unlabeled",
+      label: { name: "documentation" },
+      pull_request: pullRequest,
+    }),
+    { commands: [], reconciled: false },
+  );
+});
+
+test("closed, preview-revoked, scheduled and dispatched runs reconcile", async () => {
+  const cases = [
+    ["pull_request_target", { action: "closed", pull_request: { number: 7 } }],
+    [
+      "pull_request_target",
+      {
+        action: "labeled",
+        label: { name: "preview-revoked" },
+        pull_request: { number: 7 },
+      },
+    ],
+    ["schedule", {}],
+    ["workflow_dispatch", {}],
+  ];
+  for (const [eventName, event] of cases) {
+    assert.deepEqual(await routeCleanup(eventName, event), {
+      commands: [],
+      reconciled: true,
+    });
+  }
+});
+
+test("every retirement marks the publisher comment of that pull request retired", async () => {
+  const marked = [];
+  const markRetired = async (pullNumber) => {
+    marked.push(pullNumber);
+  };
+  await retirePreviewOf({
+    transport: transportFor([]),
+    pullNumber: 7,
+    markRetired,
+  });
+  await runCleanup({
+    eventName: "pull_request_target",
+    event: {
+      action: "unlabeled",
+      label: { name: "preview" },
+      pull_request: { number: 8 },
+    },
+    transport: transportFor([]),
+    markRetired,
+    reconcile: async () => {},
+  });
+  await reconcilePreviews({
+    transport: transportFor([
+      {
+        pullNumber: 9,
+        commit,
+        updatedAt: new Date(now - 1000).toISOString(),
+      },
+      { pullNumber: 10, inconsistent: true },
+    ]),
+    readPull: async () => ({
+      state: "closed",
+      head: { repo: { full_name: repository } },
+    }),
+    repository,
+    markRetired,
+    now,
+  }).catch(() => {});
+
+  assert.deepEqual(marked, [7, 8, 9, 10]);
 });

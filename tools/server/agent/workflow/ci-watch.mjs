@@ -8,11 +8,6 @@
 // reserves at most two consecutive automatic repairs of the same failing checks
 // and hands the work to the durable repair queue. The repair itself runs in the
 // same single execution as the instructions, never here.
-//
-// A publication whose request asked for the preview in the same message hands
-// that request to the deterministic preview handler once its green notice is
-// delivered. The handler returns after posting its `/preview` comment, so the
-// watch never waits for the publisher's confirmation here.
 
 import { parseSessionKey } from "telegram-pi-bridge/sessions";
 import {
@@ -156,7 +151,6 @@ export function createCiWatchRegistration({ store, logger = () => {} }) {
     pullRequestNumber,
     commit,
     automatic = false,
-    previewAuthorIdentifier = null,
   }) {
     try {
       if (automatic) {
@@ -176,7 +170,6 @@ export function createCiWatchRegistration({ store, logger = () => {} }) {
           sessionKey,
           pullRequestNumber,
           commitSha: commit,
-          previewAuthorIdentifier,
         });
       }
     } catch (error) {
@@ -407,9 +400,6 @@ export function createCiWatchWorker({
   requestTimeoutMilliseconds = defaultRequestTimeoutMilliseconds,
   repairs,
   maximumAutomaticRepairs,
-  // The deterministic preview handler, reused as it is: the watch only supplies
-  // the synthetic request of the author who asked for the preview.
-  requestPreview,
   secrets = [],
   recordTrace = () => {},
   // The text of a notice is an effect the next turn of the topic must know.
@@ -521,63 +511,6 @@ export function createCiWatchWorker({
 
   function logFailure(error) {
     logger("ci_watch_failed", error instanceof Error ? error.name : "unknown");
-  }
-
-  /**
-   * Honour the preview a publication asked for together with its change, in the
-   * name of the author the watch stored. The preview handler is the one of a
-   * person's request: it re-reads the pull request and that author's membership
-   * and posts at most one `/preview` per update identifier, so a repeated cycle
-   * or a restart never posts it twice. It returns as soon as the comment exists;
-   * the publisher's confirmation arrives later through the preview worker, as
-   * for any other request. Its report reaches the topic like a person's.
-   */
-  async function requestStoredPreview(watch, { signal } = {}) {
-    let preview;
-    try {
-      preview = await requestPreview(
-        {
-          updateIdentifier: watch.update_identifier,
-          sessionKey: watch.session_key,
-          authorIdentifier: watch.preview_author_identifier,
-        },
-        { signal },
-      );
-    } catch (error) {
-      logger(
-        "preview_request_failed",
-        error instanceof Error ? error.name : "unknown",
-      );
-      return;
-    }
-    try {
-      recordServiceNote({
-        sessionKey: watch.session_key,
-        text: preview.report,
-        effectKey: `preview:${watch.update_identifier}:requested`,
-      });
-    } catch (error) {
-      logger(
-        "preview_note_failed",
-        error instanceof Error ? error.name : "unknown",
-      );
-    }
-    const { chatIdentifier, threadIdentifier } = parseSessionKey(
-      watch.session_key,
-    );
-    try {
-      await telegram.sendMessage({
-        chatIdentifier,
-        messageThreadIdentifier: threadIdentifier,
-        text: preview.report,
-        signal,
-      });
-    } catch (error) {
-      logger(
-        "preview_report_failed",
-        error instanceof Error ? error.name : "unknown",
-      );
-    }
   }
 
   /**
@@ -845,14 +778,7 @@ export function createCiWatchWorker({
           if (current.result !== ciResults.failure) {
             if (current.result === ciResults.success)
               safeReset(watch.pull_request_number);
-            const delivered = await deliver(watch, current, { signal });
-            if (
-              delivered &&
-              current.result === ciResults.success &&
-              watch.preview_author_identifier !== null
-            ) {
-              await requestStoredPreview(watch, { signal });
-            }
+            await deliver(watch, current, { signal });
             continue;
           }
           const failures = await classifyFailures({
@@ -894,17 +820,7 @@ export function createCiWatchWorker({
           await requestRepair(watch, { ...current, evidence }, { signal });
           continue;
         }
-        const delivered = await deliver(watch, outcome, { signal });
-        // The preview waits for the notice that reports the commit green: only
-        // then is the watch the last report of the topic, which is what the
-        // preview handler requires.
-        if (
-          delivered &&
-          outcome.result === ciResults.success &&
-          watch.preview_author_identifier !== null
-        ) {
-          await requestStoredPreview(watch, { signal });
-        }
+        await deliver(watch, outcome, { signal });
       } catch (error) {
         logFailure(error);
       }

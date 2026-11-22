@@ -18,8 +18,9 @@
 import { readFileSync } from "node:fs";
 import {
   assertCommentAuthorized,
-  assertDispatchActorAuthorized,
+  assertActorWritePermission,
   commentOnPublishedPreview,
+  markPublishedPreviewRetired,
   publishPreview,
   resolvePullRequestState,
 } from "./publish-operations.mjs";
@@ -39,41 +40,68 @@ function readEvent() {
   );
 }
 
+// Who authorizes the run and how it is revalidated. A `/preview` comment is
+// attributed to its author, who must remain a collaborator. A label request
+// runs for the event sender, who pushed or labeled, and needs the label; a
+// manual dispatch is attributed to the workflow actor. Both need write access.
+export function publishRequestOf({
+  eventName,
+  event,
+  workflowActor,
+  repository,
+  apiUrl,
+  token,
+  fetchImpl,
+}) {
+  if (eventName === "issue_comment") {
+    const commentAuthor = event.comment?.user?.login;
+    return {
+      authorizedBy: commentAuthor,
+      requireLabel: false,
+      revalidateCommentAuthorization: () =>
+        assertCommentAuthorized({
+          repository,
+          apiUrl,
+          token,
+          commentAuthor,
+          fetchImpl,
+        }),
+    };
+  }
+  const actor =
+    eventName === "pull_request_target" ? event.sender?.login : workflowActor;
+  return {
+    authorizedBy: actor,
+    requireLabel: eventName === "pull_request_target",
+    revalidateActorAuthorization: () =>
+      assertActorWritePermission({
+        repository,
+        apiUrl,
+        token,
+        actor,
+        fetchImpl,
+      }),
+  };
+}
+
 async function main() {
   const repository = requireEnvironment("GITHUB_REPOSITORY");
   const apiUrl = process.env.GITHUB_API_URL;
   const token = process.env.GITHUB_TOKEN;
   const pullNumber = Number(requireEnvironment("PREVIEW_PULL_NUMBER"));
-  const revalidateCommentAuthorization =
-    process.env.GITHUB_EVENT_NAME === "issue_comment"
-      ? async () => {
-          const event = readEvent();
-          await assertCommentAuthorized({
-            repository,
-            apiUrl,
-            token,
-            commentAuthor: event.comment?.user?.login,
-          });
-        }
-      : undefined;
-  const revalidateDispatchAuthorization =
-    process.env.GITHUB_EVENT_NAME === "workflow_dispatch"
-      ? () =>
-          assertDispatchActorAuthorized({
-            repository,
-            apiUrl,
-            token,
-            actor: requireEnvironment("GITHUB_ACTOR"),
-          })
-      : undefined;
+  const request = publishRequestOf({
+    eventName: process.env.GITHUB_EVENT_NAME,
+    event: readEvent(),
+    workflowActor: process.env.GITHUB_ACTOR,
+    repository,
+    apiUrl,
+    token,
+  });
 
   const message = await publishPreview({
     artifactDirectory: process.env.ARTIFACT_DIRECTORY ?? "artifacts/preview",
     pullNumber,
-    authorizedBy:
-      process.env.GITHUB_EVENT_NAME === "issue_comment"
-        ? readEvent().comment?.user?.login
-        : requireEnvironment("GITHUB_ACTOR"),
+    authorizedBy: request.authorizedBy,
     authorizationPrivateKey: requireEnvironment("PREVIEW_AUTH_PRIVATE_KEY"),
     resolvePullRequestState: () =>
       resolvePullRequestState({
@@ -82,8 +110,11 @@ async function main() {
         token,
         pullNumber,
       }),
-    revalidateCommentAuthorization,
-    revalidateDispatchAuthorization,
+    revalidateCommentAuthorization: request.revalidateCommentAuthorization,
+    revalidateActorAuthorization: request.revalidateActorAuthorization,
+    requireLabel: request.requireLabel,
+    markRetired: () =>
+      markPublishedPreviewRetired({ repository, apiUrl, token, pullNumber }),
     onPublished: ({ headSha, origin }) =>
       commentOnPublishedPreview({
         repository,
@@ -105,7 +136,9 @@ async function main() {
   console.log(message);
 }
 
-main().catch((error) => {
-  console.error(`Error: ${error.message}`);
-  process.exitCode = 1;
-});
+if (process.argv[1]?.endsWith("/publish.mjs")) {
+  main().catch((error) => {
+    console.error(`Error: ${error.message}`);
+    process.exitCode = 1;
+  });
+}

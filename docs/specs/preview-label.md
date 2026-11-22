@@ -2,13 +2,12 @@
 
 ## Estat
 
-Pendent. Defineix l'entrada del [backlog](../backlog.md#demanar-la-preview-amb-una-etiqueta-de-la-pr)
+En curs. Defineix l'entrada del [backlog](../backlog.md#demanar-la-preview-amb-una-etiqueta-de-la-pr)
 i l'[issue #261](https://github.com/rboixaderg/mountain-runners/issues/261).
-Cap tasca passa a `En curs` fins que la PR d'aquesta especificació, amb les
-esmenes proposades als
+Les esmenes als
 [ADR 0009](../decisions/0009-pr-previews-same-domain-and-own-branches.md) i
-[ADR 0013](../decisions/0013-private-development-agent-boundary.md), es revisi i
-es fusioni. Aquesta especificació no canvia cap token, entorn o configuració
+[ADR 0013](../decisions/0013-private-development-agent-boundary.md) s'han
+fusionat. Aquesta especificació no canvia cap token, entorn o configuració
 remota.
 
 ## Objectiu
@@ -68,9 +67,9 @@ La persona mantenidora confirma aquestes decisions el 21 de novembre de 2026:
 
 ## Tasques, Entregues I Seguiment
 
-| Tasca | Estat   | Dependències            | Resultat verificable                                      | PR  |
-| ----- | ------- | ----------------------- | --------------------------------------------------------- | --- |
-| T1    | Pendent | Esmenes ADR 0009 i 0013 | L'etiqueta publica i retira la preview, i l'agent la posa | -   |
+| Tasca | Estat   | Dependències            | Resultat verificable                                      | PR                                                              |
+| ----- | ------- | ----------------------- | --------------------------------------------------------- | --------------------------------------------------------------- |
+| T1    | En curs | Esmenes ADR 0009 i 0013 | L'etiqueta publica i retira la preview, i l'agent la posa | [#268](https://github.com/rboixaderg/mountain-runners/pull/268) |
 
 ### T1: Petició De Preview Amb L'Etiqueta
 

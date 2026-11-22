@@ -18,6 +18,7 @@ function client({ move = false, fail = false } = {}) {
           state: "open",
           merged: false,
           draft: false,
+          labels: [],
           head: {
             sha: move && pullReads > 1 ? "b".repeat(40) : commit,
             ref: "feat/test",

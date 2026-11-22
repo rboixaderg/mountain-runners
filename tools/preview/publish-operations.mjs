@@ -11,6 +11,12 @@
 
 import { loadVerifiedArtifact } from "../deploy/artifact.mjs";
 import { RemoteCommandError } from "../deploy/ssh.mjs";
+import {
+  findPreviewComment,
+  markPreviewRetired,
+  previewCommentMarker,
+} from "./preview-comment.mjs";
+import { retirePreviewOf } from "./reconcile.mjs";
 import { verifyPreviewSite } from "./smoke.mjs";
 import { signPreviewAuthorization } from "../server/preview/authorization-proof.mjs";
 import {
@@ -84,11 +90,11 @@ export async function assertCommentAuthorized({
   }
 }
 
-// A workflow_dispatch run is initially authorized by GitHub's write-access
-// requirement. Recheck that the dispatch actor still has write access before
-// activation; the collaborator endpoint's legacy permission maps maintain to
-// write, while read and none are insufficient.
-export async function assertDispatchActorAuthorized({
+// A workflow_dispatch run or a label request is initially authorized by the
+// actor's repository access. Recheck that the actor still has write access
+// before activation; the collaborator endpoint's legacy permission maps
+// maintain to write, while read and none are insufficient.
+export async function assertActorWritePermission({
   repository,
   apiUrl,
   token,
@@ -99,9 +105,7 @@ export async function assertDispatchActorAuthorized({
     throw new Error("GITHUB_REPOSITORY is required to reach the GitHub API.");
   }
   if (actor === undefined || actor === "") {
-    throw new Error(
-      "GITHUB_ACTOR is required to revalidate workflow dispatch authorization.",
-    );
+    throw new Error("The requesting actor is required to check write access.");
   }
   const response = await fetchImpl(
     `${apiBaseUrl(apiUrl)}/repos/${repository}/collaborators/${actor}/permission`,
@@ -109,20 +113,21 @@ export async function assertDispatchActorAuthorized({
   );
   if (!response.ok) {
     throw new Error(
-      `The workflow dispatch actor does not have current repository write permission (HTTP ${response.status}).`,
+      `The actor ${actor} does not have current repository write permission (HTTP ${response.status}).`,
     );
   }
   const { permission } = await response.json();
   if (permission !== "write" && permission !== "admin") {
     throw new Error(
-      "The workflow dispatch actor no longer has repository write permission.",
+      `The actor ${actor} no longer has repository write permission.`,
     );
   }
 }
 
 // Reads the pull request state from the platform: only an open pull request
 // from this repository (own branches) can be published; returns the head
-// SHA the artifact must match.
+// SHA the artifact must match and whether the pull request carries the
+// `preview` label.
 export async function resolvePullRequestState({
   repository,
   apiUrl,
@@ -151,7 +156,10 @@ export async function resolvePullRequestState({
       "The pull request head repository is not this repository; forks have no previews.",
     );
   }
-  return { headSha: pullRequest.head.sha };
+  return {
+    headSha: pullRequest.head.sha,
+    labeled: pullRequest.labels?.some((label) => label.name === "preview"),
+  };
 }
 
 function assertPullRequestUnchanged(previous, current) {
@@ -161,8 +169,6 @@ function assertPullRequestUnchanged(previous, current) {
     );
   }
 }
-
-const previewCommentMarker = "<!-- mountain-runners-preview -->";
 
 // Only update a comment authored by this workflow's GitHub Actions bot.
 // Neither the PR title nor any other PR-controlled text enters the comment.
@@ -177,25 +183,12 @@ export async function commentOnPublishedPreview({
 }) {
   const base = `${apiBaseUrl(apiUrl)}/repos/${repository}`;
   const body = `${previewCommentMarker}\nPreview publicada: ${origin}\nCommit: \`${headSha}\`.`;
-  let existingComment;
-  for (let page = 1; ; page += 1) {
-    const response = await fetchImpl(
-      `${base}/issues/${pullNumber}/comments?per_page=100&page=${page}`,
-      { headers: apiHeaders(token) },
-    );
-    if (!response.ok) {
-      throw new Error(
-        `Cannot list preview comments (HTTP ${response.status}).`,
-      );
-    }
-    const comments = await response.json();
-    existingComment = comments.find(
-      (comment) =>
-        comment.user?.login === "github-actions[bot]" &&
-        comment.body?.includes(previewCommentMarker),
-    );
-    if (existingComment || comments.length < 100) break;
-  }
+  const existingComment = await findPreviewComment({
+    base,
+    headers: apiHeaders(token),
+    pullNumber,
+    fetchImpl,
+  });
 
   const response = await fetchImpl(
     existingComment
@@ -210,6 +203,22 @@ export async function commentOnPublishedPreview({
   if (!response.ok) {
     throw new Error(`Cannot write preview comment (HTTP ${response.status}).`);
   }
+}
+
+// The comment of a retired preview stops naming it, so nobody reads it as ready.
+export function markPublishedPreviewRetired({
+  repository,
+  apiUrl,
+  token,
+  pullNumber,
+  fetchImpl = fetch,
+}) {
+  return markPreviewRetired({
+    base: `${apiBaseUrl(apiUrl)}/repos/${repository}`,
+    headers: apiHeaders(token),
+    pullNumber,
+    fetchImpl,
+  });
 }
 
 async function transferAndVerify(
@@ -275,14 +284,26 @@ export async function publishPreview({
   pullNumber,
   resolvePullRequestState,
   revalidateCommentAuthorization,
-  revalidateDispatchAuthorization,
+  revalidateActorAuthorization,
+  requireLabel = false,
   authorizedBy,
   authorizationPrivateKey,
   transport,
   verifyPreview = verifyPreviewSite,
   onPublished,
+  markRetired,
 }) {
-  const pullRequest = await resolvePullRequestState();
+  // A label request is valid only while the pull request keeps the label, at
+  // every point where the pull request state is read again.
+  const missingLabelMessage =
+    "The pull request no longer has the preview label.";
+  async function resolveCurrentState() {
+    const state = await resolvePullRequestState();
+    if (requireLabel && !state.labeled) throw new Error(missingLabelMessage);
+    return state;
+  }
+
+  const pullRequest = await resolveCurrentState();
   const artifact = await loadVerifiedArtifact(artifactDirectory, {
     expectedCommit: pullRequest.headSha,
     expectedOrigin: previewOrigin(pullNumber),
@@ -311,10 +332,10 @@ export async function publishPreview({
     pullRequest.headSha,
   );
 
-  const revalidated = await resolvePullRequestState();
+  const revalidated = await resolveCurrentState();
   assertPullRequestUnchanged(pullRequest, revalidated);
   await revalidateCommentAuthorization?.();
-  await revalidateDispatchAuthorization?.();
+  await revalidateActorAuthorization?.();
 
   const authorization = {
     pullRequestNumber: pullNumber,
@@ -339,10 +360,10 @@ export async function publishPreview({
   await transport.run(`mountain-preview site-enable ${pullNumber}`);
   let activated = false;
   try {
-    const beforeActivation = await resolvePullRequestState();
+    const beforeActivation = await resolveCurrentState();
     assertPullRequestUnchanged(pullRequest, beforeActivation);
     await revalidateCommentAuthorization?.();
-    await revalidateDispatchAuthorization?.();
+    await revalidateActorAuthorization?.();
     await activatePreviewRelease(transport, pullNumber, pullRequest.headSha);
     activated = true;
     const health = await transport.run(`mountain-preview health ${pullNumber}`);
@@ -354,8 +375,7 @@ export async function publishPreview({
         `mountain-preview activate ${pullNumber} ${previousCommit}`,
       );
     } else if (!previousCommit) {
-      await transport.run(`mountain-preview retire ${pullNumber}`);
-      await transport.run(`mountain-preview site-disable ${pullNumber}`);
+      await retirePreviewOf({ transport, pullNumber, markRetired });
     }
     throw error;
   }
@@ -368,9 +388,15 @@ export async function publishPreview({
   }
   if (onPublished) {
     const current = await resolvePullRequestState();
+    // The label was removed after the activation: withdraw the site now
+    // instead of relying only on the cleanup retire queued behind this run.
+    if (requireLabel && !current.labeled) {
+      await retirePreviewOf({ transport, pullNumber, markRetired });
+      throw new Error(missingLabelMessage);
+    }
     assertPullRequestUnchanged(pullRequest, current);
     await revalidateCommentAuthorization?.();
-    await revalidateDispatchAuthorization?.();
+    await revalidateActorAuthorization?.();
     await onPublished({
       origin: previewOrigin(pullNumber),
       headSha: pullRequest.headSha,

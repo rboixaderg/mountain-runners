@@ -13,7 +13,6 @@ import { runProjectPrompt } from "./pi-adapter.mjs";
 import { sleep } from "../repository/request-signal.mjs";
 import {
   buildClassificationPrompt,
-  parsePreviewAfterChange,
   parseRequestKind,
 } from "../policy/development.mjs";
 
@@ -85,8 +84,5 @@ export async function classifyRequest(
   if (result.timedOut || result.aborted || isRateLimit(result.errorMessage)) {
     throw new Error("The request classification did not complete.");
   }
-  return {
-    kind: parseRequestKind(result.text),
-    previewAfterChange: parsePreviewAfterChange(result.text),
-  };
+  return { kind: parseRequestKind(result.text) };
 }

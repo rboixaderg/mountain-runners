@@ -1,8 +1,8 @@
 // Trusted GitHub component for the private agent (T8.3).
 //
 // The trusted writes are: push the job branch, open (or reuse) its pull
-// request against `main`, post the constant `/preview` comment, rerun failed
-// jobs of a workflow run, and squash-merge a pull request pinned to the
+// request against `main`, put the `preview` label on that pull request, rerun
+// failed jobs of a workflow run, and squash-merge a pull request pinned to the
 // head commit the service validated. The merge sends exactly `{ sha,
 // merge_method: "squash" }` to the one pull request merge endpoint: there is no
 // auto-merge, no administrator or protection endpoint, no write to `main` and
@@ -13,7 +13,6 @@
 // opening a duplicate PR after a restart. Reading the CI status of one commit
 // belongs to the same trusted component, because the token never leaves it.
 
-import { previewCommand } from "../policy/development.mjs";
 import { classifyCommitStatus } from "./ci-status.mjs";
 import { assertWorkBranch } from "./worktrees.mjs";
 import { assertPublishableHistory } from "./secret-scan.mjs";
@@ -35,6 +34,12 @@ function repositoryUrl(repository) {
 const fullCommitPattern = /^[a-f0-9]{40}$/u;
 const maximumPageCount = 10;
 const maximumJobLogBytes = 1024 * 1024;
+const previewLabel = "preview";
+const previewRevokedLabel = "preview-revoked";
+
+function hasLabel(labels, name) {
+  return labels.some((label) => label?.name === name);
+}
 
 function assertFullCommit(commit) {
   if (typeof commit !== "string" || !fullCommitPattern.test(commit)) {
@@ -48,58 +53,10 @@ function assertPullRequestNumber(number) {
   }
 }
 
-// A preview request reads this workflow's runs to determine whether its preview
-// was built; the trusted publisher only comments when the build succeeded.
-const previewWorkflowFile = "preview.yml";
-
 function assertIsoTimestamp(timestamp) {
   if (typeof timestamp !== "string" || Number.isNaN(Date.parse(timestamp))) {
     throw new Error("An ISO timestamp is required.");
   }
-}
-
-/**
- * The login of one actor of a run, or `null` when GitHub does not name it. A run
- * is only ever attributed to the service's own identity, so a missing login makes
- * that run unusable; it does not make the whole list unreadable.
- */
-function workflowRunActorLogin(actor) {
-  if (actor === null || actor === undefined) return null;
-  if (typeof actor.login !== "string" || actor.login === "") {
-    throw new Error("GitHub returned an invalid workflow run.");
-  }
-  return actor.login;
-}
-
-/**
- * One run of the preview workflow, reduced to what a request needs. The run's
- * `head_sha` is the default branch commit, so it is not kept: it says nothing
- * about the pull request. Who triggered the run is kept, because the workflow
- * runs for the comment of any pull request and only a run of the service's own
- * comment may be attributed to a request.
- */
-function previewWorkflowRun(run) {
-  if (
-    !Number.isSafeInteger(run?.id) ||
-    typeof run.created_at !== "string" ||
-    Number.isNaN(Date.parse(run.created_at)) ||
-    typeof run.event !== "string" ||
-    typeof run.status !== "string" ||
-    (run.conclusion !== null && typeof run.conclusion !== "string")
-  ) {
-    throw new Error("GitHub returned an invalid workflow run.");
-  }
-  return {
-    identifier: run.id,
-    event: run.event,
-    createdAt: run.created_at,
-    status: run.status,
-    conclusion: run.conclusion,
-    // `actor` is the account whose action started the run; a re-run keeps it and
-    // names the account that repeated it in `triggering_actor`.
-    actor: workflowRunActorLogin(run.actor),
-    triggeringActor: workflowRunActorLogin(run.triggering_actor),
-  };
 }
 
 /**
@@ -159,18 +116,6 @@ export function isDefiniteRejection(error) {
     error.status >= 400 &&
     error.status < 500 &&
     !retryableClientStatuses.has(error.status)
-  );
-}
-
-/**
- * Whether GitHub refused to let this token read something. The preview run list
- * falls back to the publisher comment alone instead of failing every request
- * when the credential lacks `Actions: read`.
- */
-export function isPermissionRejection(error) {
-  return (
-    error instanceof GitHubResponseError &&
-    (error.status === 403 || error.status === 404)
   );
 }
 
@@ -597,6 +542,7 @@ export class GitHubTrust {
       typeof pull.state !== "string" ||
       typeof pull.base?.ref !== "string" ||
       typeof pull.draft !== "boolean" ||
+      !Array.isArray(pull.labels) ||
       typeof pull.merged !== "boolean" ||
       (pull.merged && typeof pull.merge_commit_sha !== "string")
     ) {
@@ -610,6 +556,9 @@ export class GitHubTrust {
       // A fork whose repository was deleted has no head repository.
       headRepository: pull.head.repo?.full_name ?? null,
       draft: pull.draft,
+      previewLabeled: hasLabel(pull.labels, previewLabel),
+      // A maintainer's revocation wins over the label: no preview is announced.
+      previewRevoked: hasLabel(pull.labels, previewRevokedLabel),
       baseRef: pull.base.ref,
       // `unknown` while GitHub is still computing it; any other value but
       // `clean` is a reason not to merge.
@@ -621,7 +570,7 @@ export class GitHubTrust {
 
   /**
    * The login of the account this token authenticates. Read-only, used to tell
-   * whether the `/preview` comment the service would post exists.
+   * whether a `/preview` comment posted before the label request exists.
    */
   async getAuthenticatedLogin({ signal } = {}) {
     const user = await this.#request("GET", "/user", undefined, { signal });
@@ -632,27 +581,42 @@ export class GitHubTrust {
   }
 
   /**
-   * Post the exact `/preview` comment. The body is fixed: the model and the
-   * callers can never choose what the service writes with this credential.
+   * Put the `preview` label on the pull request the service just opened. It is
+   * the only label operation of the component: the label is fixed, nothing can
+   * be removed and no other label can be set. Adding a label the pull request
+   * already has changes nothing, so an unknown result is settled by reading the
+   * labels and only then repeated, once.
    */
-  async commentOnPullRequest({ number, body, signal }) {
+  async addPreviewLabel({ number, signal }) {
     assertPullRequestNumber(number);
-    if (body !== previewCommand) {
-      throw new Error("Only the preview command can be posted.");
+    const labelsPath = `/repos/${this.#repository}/issues/${number}/labels`;
+    try {
+      await this.#request(
+        "POST",
+        labelsPath,
+        { labels: [previewLabel] },
+        { signal },
+      );
+      return;
+    } catch (error) {
+      if (isDefiniteRejection(error)) throw error;
     }
-    const comment = await this.#request(
+    signal?.throwIfAborted();
+    const labels = await this.#request("GET", labelsPath, undefined, {
+      signal,
+    });
+    if (!Array.isArray(labels)) {
+      throw new Error("GitHub returned an invalid labels response.");
+    }
+    if (hasLabel(labels, previewLabel)) {
+      return;
+    }
+    await this.#request(
       "POST",
-      `/repos/${this.#repository}/issues/${number}/comments`,
-      { body },
+      labelsPath,
+      { labels: [previewLabel] },
       { signal },
     );
-    if (
-      !Number.isSafeInteger(comment?.id) ||
-      typeof comment.created_at !== "string"
-    ) {
-      throw new Error("GitHub returned an invalid comment response.");
-    }
-    return { createdAt: comment.created_at };
   }
 
   /**
@@ -677,18 +641,20 @@ export class GitHubTrust {
   }
 
   /**
-   * The comments of a pull request updated since `since` (an ISO timestamp),
-   * oldest first. GitHub filters by `updated_at`, so the publisher's comment
-   * edited in place is still listed.
+   * The comments of a pull request, oldest first, or only those updated since
+   * `since` (an ISO timestamp). GitHub filters by `updated_at`, so the
+   * publisher's comment edited in place is still listed.
    */
   async listIssueComments({ number, since, signal }) {
     assertPullRequestNumber(number);
-    assertIsoTimestamp(since);
+    if (since !== undefined) assertIsoTimestamp(since);
+    const sinceQuery =
+      since === undefined ? "" : `since=${encodeURIComponent(since)}&`;
     const comments = [];
     for (let page = 1; page <= maximumPageCount; page += 1) {
       const response = await this.#request(
         "GET",
-        `/repos/${this.#repository}/issues/${number}/comments?since=${encodeURIComponent(since)}&per_page=100&page=${page}`,
+        `/repos/${this.#repository}/issues/${number}/comments?${sinceQuery}per_page=100&page=${page}`,
         undefined,
         { signal },
       );
@@ -699,45 +665,6 @@ export class GitHubTrust {
       if (response.length < 100) return comments;
     }
     throw new Error("GitHub comments pagination limit exceeded.");
-  }
-
-  /**
-   * The runs of the preview workflow that a pull request comment triggered and
-   * that were created at or after `createdSince` (an ISO timestamp), newest
-   * first as GitHub returns them. The event filter is part of the request and is
-   * checked again on every run, and neither the pull request nor the commit of a
-   * request can be read from a run: an `issue_comment` run always carries the
-   * default branch commit. Each run names the accounts that triggered it, so the
-   * caller can keep only the runs of the service's own comments. Reading runs
-   * needs `Actions: read`; without it GitHub answers 403 or 404 and the caller
-   * keeps the publisher comment alone.
-   */
-  async listPreviewWorkflowRuns({ createdSince, signal }) {
-    assertIsoTimestamp(createdSince);
-    const created = encodeURIComponent(`>=${createdSince}`);
-    const runs = [];
-    for (let page = 1; page <= maximumPageCount; page += 1) {
-      const response = await this.#request(
-        "GET",
-        `/repos/${this.#repository}/actions/workflows/${previewWorkflowFile}/runs?event=issue_comment&created=${created}&per_page=100&page=${page}`,
-        undefined,
-        { signal },
-      );
-      if (!Array.isArray(response?.workflow_runs)) {
-        throw new Error("GitHub returned an invalid workflow runs response.");
-      }
-      for (const run of response.workflow_runs) {
-        runs.push(previewWorkflowRun(run));
-      }
-      if (response.workflow_runs.length < 100) return runs;
-      // A complete page can still be the last one: the total says so without
-      // another read, so a bounded list never fails as endless.
-      const total = response.total_count;
-      if (Number.isSafeInteger(total) && runs.length >= total) {
-        return runs;
-      }
-    }
-    throw new Error("GitHub workflow runs pagination limit exceeded.");
   }
 
   async findOpenPullRequest({ branch, signal }) {

@@ -71,6 +71,22 @@ export function createPublisher({ github, secrets }) {
       return { refused: true };
     }
     recordPublication(worktree, pushed.commit);
-    return { created, pullRequest, commit: pushed.commit };
+    // The label that asks for the preview is set once, when the service opens
+    // the pull request; an existing pull request is never labelled again. A
+    // label that cannot be set never undoes the publication: the caller says so.
+    let previewLabelFailed = false;
+    if (created) {
+      try {
+        await github.addPreviewLabel({ number: pullRequest.number, signal });
+      } catch {
+        previewLabelFailed = true;
+      }
+    }
+    return {
+      created,
+      pullRequest,
+      commit: pushed.commit,
+      previewLabelFailed,
+    };
   };
 }

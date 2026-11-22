@@ -77,6 +77,8 @@ export function createInstructionRunner({
   runChecks,
   publishChange,
   registerCiWatch,
+  // Follows the preview of every commit the service publishes.
+  followPreview,
   requestPreview,
   requestMerge,
   prepareAttachment,
@@ -705,7 +707,6 @@ export function createInstructionRunner({
           ? null
           : safelyWithNotes(() => sessionNotes.lastReply(request.sessionKey));
       let kind;
-      let previewAfterChange = false;
       if (repair) {
         kind = repairRequestKind;
       } else {
@@ -719,15 +720,11 @@ export function createInstructionRunner({
           signal,
         });
         kind = classification.kind;
-        previewAfterChange = classification.previewAfterChange === true;
         // The last reply is untrusted text: it may describe a preview, but it
         // can never authorise one. When it was part of the context, the
-        // classifier must reach the same preview labels without it, or the
-        // preview is decided from the current request alone.
-        if (
-          (kind === previewRequestKind || previewAfterChange) &&
-          lastAgentReply !== null
-        ) {
+        // classifier must reach the same kind without it, or the preview is
+        // decided from the current request alone.
+        if (kind === previewRequestKind && lastAgentReply !== null) {
           const withoutLastReply = await classifyRequest({
             instruction: request.instruction,
             context: {
@@ -737,10 +734,7 @@ export function createInstructionRunner({
             },
             signal,
           });
-          if (kind === previewRequestKind) {
-            kind = withoutLastReply.kind;
-          }
-          previewAfterChange = withoutLastReply.previewAfterChange === true;
+          kind = withoutLastReply.kind;
         }
         recordTrace({
           updateIdentifier: request.updateIdentifier,
@@ -749,17 +743,6 @@ export function createInstructionRunner({
           action: "instruction_classified",
           detail: kind,
         });
-        // The preview this message asked for together with its change, so a
-        // later cycle can tell which notice announced it.
-        if (previewAfterChange) {
-          recordTrace({
-            updateIdentifier: request.updateIdentifier,
-            authorIdentifier: request.authorIdentifier,
-            sessionKey: request.sessionKey,
-            action: "preview_after_change",
-            detail: kind,
-          });
-        }
       }
       // A preview is decided by the service, never by the model: no worktree
       // is touched and no model run starts.
@@ -1134,19 +1117,31 @@ export function createInstructionRunner({
         pullRequestNumber: publication.pullRequest.number,
         commit: publication.commit,
         automatic: repair,
-        // Only a person's publication can carry the preview this request asked
-        // for; the watch keeps its author so the green notice can honour it.
-        previewAuthorIdentifier: previewAfterChange
-          ? request.authorIdentifier
-          : null,
+      });
+      // The `preview` label makes the publisher build every pushed head, so the
+      // topic receives the address of this commit without asking for it. A
+      // pull request without the label simply has no preview to report.
+      followPreview?.({
+        updateIdentifier: request.updateIdentifier,
+        sessionKey: request.sessionKey,
+        authorIdentifier: request.authorIdentifier,
+        pullRequestNumber: publication.pullRequest.number,
+        commit: publication.commit,
+        repair,
       });
       const publicationNotices = {
         pullRequest: publication.pullRequest,
         ciWatch,
-        notices: [],
+        previewLabelFailed: publication.previewLabelFailed,
       };
       if (ciWatch === ciWatchOutcomes.unavailable) {
         noteMaintainerAttention({ request, reason: ciWatchUnavailableReason });
+      }
+      if (publication.previewLabelFailed) {
+        noteMaintainerAttention({
+          request,
+          reason: instructionReportKeys.previewLabelFailed,
+        });
       }
       const publicationText = publicationReport({
         ...publicationNotices,

@@ -287,11 +287,27 @@ limita què es pot demanar per SSH, però **no lliga la clau a una sola PR**.
 
 ### Un sol workflow, disparat sota demanda
 
-Res no es construeix ni es publica perquè s'obri o s'actualitzi una PR. El
-workflow `Preview` (`.github/workflows/preview.yml`) s'activa només amb un
-**comentari a la PR amb el text exacte `/preview`** d'una persona
-col·laboradora (verificada via API), o amb un `workflow_dispatch` amb el número
-de PR. El job `authorize` vincula la petició al commit que encapçala la PR,
+Res no es construeix ni es publica perquè s'obri una PR. El workflow `Preview`
+(`.github/workflows/preview.yml`) s'activa amb tres peticions, i les tres
+passen pel mateix `authorize`, `build` i `publish`:
+
+- un **comentari a la PR amb el text exacte `/preview`** d'una persona
+  col·laboradora (verificada via API), vigent per al commit que encapçala la PR
+  en aquell moment;
+- un `workflow_dispatch` amb el número de PR;
+- l'**etiqueta `preview`** de la PR, posada per una persona amb permís `write`
+  o `admin`: publica el cap actual en posar-la i cada push posterior, sense cap
+  comentari. Treure l'etiqueta retira la preview.
+
+L'etiqueta usa `pull_request_target` (tipus `labeled` i `synchronize`), que
+executa el workflow des de `main`. No s'ha de canviar mai a `pull_request`:
+l'entorn `previews` no té regles de protecció, i una branca del repositori
+podria canviar el workflow i llegir els secrets `PREVIEW_*`. Una condició del
+job `authorize` deixa passar `labeled` només si l'etiqueta posada és `preview`
+i `synchronize` només si la PR la té; la resta de runs queden omesos i no
+ocupen cap executor de build. Qualsevol altra etiqueta no fa res.
+
+El job `authorize` vincula la petició al commit que encapçala la PR,
 identificat pel seu SHA. L'entorn GitHub `previews` separa els secrets
 `PREVIEW_*` dels de producció, però no exigeix revisors abans d'executar-se.
 Qualsevol col·laboradora pot demanar una preview d'una PR del repositori
@@ -299,27 +315,39 @@ principal; el sistema rebutja forks, PR tancades i commits que hagin canviat
 abans de publicar. El flux té tres jobs amb fronteres explícites:
 
 1. **`authorize`** (codi de confiança des de la branca per defecte):
-   `tools/preview/resolve-publish.mjs` comprova el comentari i l'autor,
-   resol el número de PR i el head SHA vigent i rebutja aviat una PR tancada
-   o un fork. Un comentari qualsevol produeix un run verd que no fa res.
+   `tools/preview/resolve-publish.mjs` comprova el comentari i l'autor (o, amb
+   l'etiqueta, que `sender` de l'esdeveniment té permís `write` o `admin`),
+   resol el número de PR i el head SHA vigent per l'API i rebutja aviat una PR
+   tancada, un fork o una PR amb `preview-revoked`. Amb l'etiqueta, el número
+   surt de l'esdeveniment i el cap de l'API, mai de `GITHUB_SHA`, que en
+   aquest esdeveniment és l'últim commit de `main`. Un comentari qualsevol
+   produeix un run verd que no fa res.
 2. **`build`** (no fiable): `tools/preview/build-artifact.mjs` compila la web
    amb l'origen exacte de la preview
    (`https://pr-<n>.preview.mountainrunners.cat`, derivat i validat a partir
    del número de PR) i registra un manifest que vincula commit (el head SHA
    del checkout, llegit amb `git rev-parse HEAD` i no de `GITHUB_SHA`, que en
-   un `issue_comment` apunta a la branca per defecte i no es pot sobreescriure),
+   un `issue_comment` o un `pull_request_target` apunta a la branca per defecte
+   i no es pot sobreescriure),
    número de PR, origen, `BUILD_TODAY`, workflow i fitxers amb mida i
    SHA-256; fa checkout del head SHA, executa `pnpm validate` complet i puja
    l'artefacte intermedi (`mountain-runners-preview`, retenció de 7 dies).
    El job no rep cap secret, no usa cap cache compartida amb jobs de
-   confiança i no té cap permís d'escriptura.
+   confiança i no té cap permís d'escriptura. Té un grup de concurrència per PR
+   (`preview-build-<n>`, amb `cancel-in-progress`) per a totes les peticions:
+   una execució nova cancel·la el build encara en curs d'una anterior. El grup
+   `previews` de `publish` no canvia: una publicació en curs no s'interromp.
 3. **`publish`** (de confiança, `needs: [authorize, build]`): descarrega
    l'artefacte del mateix run, valida manifest, mida, nombre de fitxers,
    digests i paths amb els mateixos validadors de producció, comprova la
    coherència manifest↔PR (commit, origen, número), transfereix amb
    `receive`, instal·la, revalida que la PR continua oberta i al mateix head
-   SHA i que continua vigent l'autorització (col·laboradora per a `/preview` o
-   permís d'escriptura per a `workflow_dispatch`) immediatament abans d'activar;
+   SHA i que continua vigent l'autorització (col·laboradora per a `/preview`,
+   permís d'escriptura per a `workflow_dispatch` o per a l'etiqueta) abans
+   d'autoritzar, abans d'activar i abans de comentar l'URL. En una petició amb
+   l'etiqueta, `publish` comprova també en aquests punts que la PR continua
+   tenint `preview`; `/preview` i `workflow_dispatch` no l'exigeixen.
+   `preview-revoked` continua tenint precedència;
    signa l'autorització amb `PREVIEW_AUTH_PRIVATE_KEY` (absent del build) i
    l'envia per l'entrada estàndard al procés `mountain-preview-site`, que
    verifica la signatura amb la clau pública del VPS abans de registrar
@@ -328,12 +356,42 @@ abans de publicar. El flux té tres jobs amb fronteres explícites:
    releases anteriors. Mai no fa checkout ni executa codi de la PR.
 
 Quan el smoke de la preview passa, `publish` torna a validar l'estat, el SHA i
-l'autorització de la PR. Amb el permís `pull-requests: write`, exclusiu d'aquest
-job, crea o actualitza un únic comentari propi amb l'URL i el SHA activats. Cerca
+l'autorització de la PR. Amb el permís `pull-requests: write`, que només tenen
+aquest job i el de neteja, crea o actualitza un únic comentari propi amb l'URL i el SHA activats. Cerca
 el marcador fix només als comentaris de `github-actions[bot]`; mai no modifica
 comentaris d'altres persones. Si l'activació o el smoke fallen, no comenta res.
+Quan una preview es retira, aquell mateix comentari passa a
+`<marcador>\nPreview retirada.`: conserva el marcador però ja no nomena cap
+adreça ni cap commit, així que ningú no el llegeix com una preview a punt i
+l'agent no el confirma. Si la PR no té comentari del publicador no es fa cap
+escriptura, i el comentari d'una persona amb el marcador no es toca.
 Un error en escriure el comentari fa fallar el job, però no desfà una preview que
 ja està activa: cal comprovar-ne l'estat abans de reexecutar-lo.
+
+Tornar a posar l'etiqueta no és la via de reintent d'una preview fallida: es
+torna a publicar amb un push nou, amb `/preview`, amb `workflow_dispatch` o
+traient i tornant a posar l'etiqueta. Una PR reoberta amb l'etiqueta no publica
+fins al proper push o a una petició explícita.
+
+### Retirada en treure l'etiqueta
+
+`Preview cleanup` (`.github/workflows/preview-cleanup.yml`) també escolta
+`pull_request_target` de tipus `unlabeled`. Si l'etiqueta treta és `preview`,
+`tools/preview/reconcile.mjs` retira la preview d'aquella PR amb
+`mountain-preview retire <n>` i `site-disable <n>`, també si s'havia publicat
+amb `/preview` o amb una execució manual. Treure qualsevol altra etiqueta omet
+el job. Retirar una PR sense preview acaba sense error. S'executa al grup
+`previews`, així que no coincideix amb una activació; si una publicació de
+l'etiqueta encara no activada s'executa després, la comprovació de l'etiqueta
+n'impedeix l'activació. Després de desactivar el lloc, el job edita el comentari
+del publicador com s'ha dit a dalt; per això aquest job (i només aquest)
+declara `pull-requests: write` a nivell de job, mentre el workflow manté
+`contents: read` i `pull-requests: read`. Les retirades de la reconciliació
+(caducitat, PR tancada, `preview-revoked`, fork o espai inconsistent) i la
+retirada posterior a l'activació de `publish` també marquen el comentari. La
+reconciliació periòdica no retira les previews de PR sense etiqueta: `/preview`
+continua vigent. Posar `preview` no dispara la neteja: la condició del job
+només deixa passar `closed`, `preview-revoked` i la retirada de `preview`.
 
 ### Frontera del servidor
 
@@ -813,29 +871,46 @@ s'inicia cap reparació. La traça privada registra
 credencials. Una traça que no es pot escriure es registra al log i no perd
 l'avís al tema.
 
-### Preview demanada al tema (T8.4)
+### Preview demanada al tema (T8.4 i etiqueta de preview)
 
-Una persona verificada demana la preview en llenguatge natural. El servei no
-inicia el model: el classificador només etiqueta la petició i un tractament
-determinista del servei fa la resta. La delegació segueix l'[ADR 0009](decisions/0009-pr-previews-same-domain-and-own-branches.md)
-i l'[ADR 0013](decisions/0013-private-development-agent-boundary.md): no hi ha segona
-confirmació, només es treballa amb branques del repositori principal i el
-publicador de la fase 6 continua comprovant que l'autor del comentari és
-col·laborador. La pertinença i l'atribució de la persona només viuen a la traça
-privada.
+El servei no demana mai la preview: quan crea la PR d'un tema hi posa
+l'etiqueta `preview` (`POST /repos/{owner}/{repo}/issues/{number}/labels`), i el
+publicador de la fase 6 construeix el cap actual i cada push posterior. Cada
+publicació del servei informa l'adreça confirmada del commit que ha pujat, i una
+persona verificada també la pot demanar en llenguatge natural. El
+servei no inicia el model: el classificador només etiqueta la petició i un
+tractament determinista fa la resta. L'etiqueta segueix l'[ADR 0009](decisions/0009-pr-previews-same-domain-and-own-branches.md)
+i l'[ADR 0013](decisions/0013-private-development-agent-boundary.md): només es treballa amb branques del
+repositori principal i el publicador comprova que qui ha fet el push té permís
+`write` o `admin`. La pertinença i l'atribució de la persona només viuen a la
+traça privada.
 
-- **PR i fixació.** El destí és la PR que el servei va informar en verd en
-  aquell tema (la fila de `ci_watches` amb l'avís enviat com a èxit). Mai
-  s'accepta un número de PR ni un SHA escrits per la persona. Sense aquesta fila,
-  el servei refusa. Si el tema té una publicació més nova sense informe
-  confirmat, tampoc no la demana: l'avís anterior ha quedat enrere.
+- **Etiqueta.** El component de GitHub té una sola operació d'etiquetes: posar
+  `preview` a la PR que el servei acaba de crear (`created: true`). No en pot
+  treure cap ni en pot posar d'altres. Posar-la és idempotent: després d'un
+  resultat desconegut, el servei llegeix les etiquetes de la PR abans de
+  repetir-ho una sola vegada. Si no la pot posar, la publicació es manté i el
+  servei ho diu amb un avís planer; mai no comenta `/preview`. No torna a
+  posar l'etiqueta a una PR existent: si una persona l'ha treta, el servei no
+  anuncia cap preview (`no_preview_label`), i les PR obertes abans d'aquest canvi
+  no la tenen fins que una persona la posi. No cal cap permís nou al token
+  (`Pull requests: write`).
+- **Seguiment de cada publicació.** Després de cada push del servei, també d'una
+  reparació automàtica, el servei desa una petició `awaiting` per al commit
+  pujat a la fila de la instrucció que l'ha publicat; una reparació reobre
+  aquella fila per al commit nou. No espera les comprovacions en verd: el
+  `build` de la preview executa `pnpm validate` i un cap vermell no es publica.
+  Una PR sense l'etiqueta acaba el seguiment sense cap avís.
+- **PR i fixació d'una petició.** El destí és la PR que el tema ha publicat (el
+  seguiment de CI més recent del tema a `ci_watches`, en qualsevol estat). Mai
+  s'accepta un número de PR ni un SHA escrits per la persona. Sense cap PR
+  publicada, el servei refusa (`no_pull_request`).
 - **Condicions, rellegides en directe.** PR oberta, repositori de la branca igual
-  al principal i comprovacions obligatòries del cap actual de la PR totes en verd
-  amb el mateix classificador que la CI. El cap pot ser més nou que el commit
-  informat, perquè una persona pot haver actualitzat la PR fora de l'agent: la
-  petició es fixa llavors al cap i queda lligada a aquest SHA exacte. Qualsevol
-  resultat vermell, pendent, absent, ambigu o un error de lectura refusa la
-  petició.
+  al principal, sense `preview-revoked` i amb l'etiqueta `preview` encara posada.
+  `preview-revoked` té precedència sobre l'etiqueta (`preview_revoked`). El cap
+  pot ser més nou que l'últim commit del servei, perquè una persona pot haver
+  actualitzat la PR fora de l'agent: la petició es fixa llavors al cap i queda
+  lligada a aquest SHA exacte. Un error de lectura refusa la petició.
 - **Pertinença.** Es torna a consultar a Telegram en el moment d'executar la
   petició, com al merge i després de resoldre el commit fixat: una preview
   publica la PR en un subdomini públic, així que no és feina ordinària de la
@@ -843,111 +918,82 @@ privada.
   fallada de la consulta, el rebuig `membership_unavailable`, que demana
   tornar-ho a provar. La lectura queda dins del termini de petició del
   servei; si s'esgota, compta com una fallada i es respon demanant tornar-ho a
-  provar. En tots dos casos no es desa cap fila ni es publica cap
-  comentari. La comprovació superada queda a la traça
-  (`preview_membership_verified`).
-- **Comentari.** El servei publica exactament `/preview`. L'entorn aïllat i el
-  model no tenen accés a l'API de GitHub.
-- **Estats** (`state/preview-request.sqlite`): `commenting` (desat abans de
-  publicar), `awaiting`, `confirmed`, `timed_out`, `failed` (no s'ha publicat
-  res i no bloqueja el servei: GitHub ha rebutjat el comentari amb un 4xx
-  definitiu que no és 408 ni 429, o l'execució de la preview ha acabat sense
-  èxit) i `uncertain` (error de xarxa, temps esgotat, 408, 429, 5xx o resposta
-  mal formada: bloqueja fins que una persona reconciliï). Una actualització
-  de Telegram només es tramita una vegada. Es refusa una petició nova pel mateix
-  PR i commit mentre n'hi hagi una en `commenting`, `awaiting` o `uncertain`; es
-  permet quan l'anterior ha acabat com a `confirmed`, `failed` o `timed_out` (per exemple per tornar a publicar després de
-  retirar la preview). Un commit verd nou sempre permet una petició nova.
-- **Resultat de l'execució.** Mentre la petició espera, el bucle llegeix les
-  execucions del flux `preview.yml` creades pel comentari a la PR
-  (`Actions: read`). El flux s'executa per a cada comentari de cada PR, així que
-  una execució només compta quan l'ha iniciada la identitat de GitHub del servei
-  (`actor` o `triggering_actor`, llegida una vegada amb `GET /user`) i quan és
-  dins de la finestra de la petició: creada després del comentari del servei i
-  abans del comentari de la petició següent. Un `issue_comment` porta
-  el commit de `main` a `head_sha`, així que ni el commit ni la PR es poden
-  llegir de l'execució. L'execució s'identifica per l'autor i pel moment; el
-  comentari del publicador és el que lliga l'URL al commit. La finestra d'una
-  petició va del seu comentari al comentari de la petició següent, també quan
-  aquella petició ja ha acabat, així que les finestres no es mouen ni deixen cap
-  forat. Dins de la finestra només decideix la primera execució acabada: si no ha
-  acabat bé, la petició acaba com a `failed` (traça `preview_failed_run`, amb
-  l'execució) amb un avís planer, sense reparació ni reintent automàtics, i una
-  execució posterior de la mateixa finestra no canvia res. Una execució correcta
-  no confirma res per si sola, i una execució acabada sense conclusió calculada
-  (`null`) tampoc no decideix: la petició continua esperant. El comentari del
-  publicador es llegeix abans que les execucions, així que una confirmació
-  existent sempre guanya. Dues peticions del mateix segon comparteixen la
-  finestra, perquè GitHub només dona precisió de segon, i les seves execucions
-  s'assignen per ordre: primer la de la petició amb l'identificador més baix. Una
-  execució que no encaixa en cap finestra s'ignora, i un encert equivocat només
-  pot acabar la petició com a fallada, mai confirmar cap adreça. Si la credencial
-  no pot llegir execucions (403 o 404) o la seva identitat, el servei es queda
-  amb el comentari del publicador i ho registra
-  (`preview_runs_permission_denied` o `preview_identity_read_failed`); torna a
-  provar la lectura com a màxim un cop l'hora, així que concedir `Actions: read`
-  no necessita reiniciar el servei. Qualsevol altre error de lectura deixa el
-  cicle amb el comentari sol i es registra (`preview_run_read_failed`).
+  provar. En tots dos casos no es desa cap fila. La comprovació superada queda
+  a la traça (`preview_membership_verified`).
+- **Estats** (`state/preview-request.sqlite`): la petició es desa directament
+  com a `awaiting`, en una sola escriptura i sense cap escriptura a GitHub, i
+  acaba com a `confirmed`, `timed_out` o `failed` (cap adreça: la preview s'ha
+  retirat o el cap ha canviat). Els estats `commenting` i `uncertain` es
+  conserven només per a les files escrites quan el servei encara comentava
+  `/preview`: una petició en `commenting` interrompuda passa a `uncertain`,
+  bloqueja l'arrencada i es reconcilia a mà. Una actualització de Telegram només
+  es tramita una vegada. Es refusa una petició nova pel mateix PR i commit
+  mentre n'hi hagi una en `awaiting` o `uncertain`, també el seguiment d'una
+  publicació; es permet quan l'anterior ha acabat.
+- **Retirada abans d'informar.** A cada cicle, el servei llegeix els comentaris
+  i després la PR. Si la PR ja no és oberta, té un cap més nou, ha perdut
+  l'etiqueta `preview` o té `preview-revoked`, la petició acaba com a `failed`
+  sense cap avís (traça `preview_withdrawn` amb el motiu): només s'informa
+  l'adreça del cap final i mai una preview retirada.
+- **Sense resultat de l'execució.** El servei ja no llegeix les execucions de
+  `preview.yml`. Amb l'etiqueta, el run és de `pull_request_target`: el seu
+  `head_sha` és l'últim commit de `main`, no el cap de la PR, i no hi ha cap camp
+  fiable per correlacionar-lo amb la PR i el cap. Si una construcció falla, la
+  petició espera fins al termini i envia l'avís de fallada (l'acció `maintainer_attention` amb el motiu
+  `previewUnconfirmed` queda a la traça).
 - **Confirmació.** Un bucle en segon pla llegeix els comentaris de la PR i
   només accepta el del publicador de la fase 6: autor `github-actions[bot]`,
-  marcador, origen exacte `https://pr-<n>.preview.mountainrunners.cat`, SHA igual
-  al fixat i comentari escrit o actualitzat després de la petició. La
-  confirmació es valida sempre contra el moment de la petició (`created_at`),
-  també quan una persona la reconcilia després. Retorna l'URL confirmada al
-  tema. Si en 25 minuts no hi ha confirmació, ho comunica com a no confirmada;
-  mai construeix ni suposa l'URL.
-- **Reinicis.** Una petició en `commenting` passa a `uncertain` i no es torna a
-  publicar mai sola; com amb una reparació interrompuda, el servei refusa
-  arrencar fins que una persona reconciliï l'estat real a GitHub, amb
+  marcador, origen exacte `https://pr-<n>.preview.mountainrunners.cat` i SHA
+  igual al fixat. Ja no es exigeix que el comentari sigui posterior a la
+  petició: l'etiqueta fa que el publicador construeixi el cap quan es puja, i pot
+  confirmar-lo abans que ningú ho demani; el SHA fixat és el que lliga l'adreça.
+  Retorna l'URL confirmada al tema. Si en 25 minuts no hi ha confirmació, ho
+  envia l'avís de fallada i ho deixa anotat per a la persona mantenidora; mai
+  construeix ni suposa l'URL.
+- **Reinicis.** Una petició en `awaiting` reprèn la lectura de comentaris amb el
+  termini original. Una petició en `commenting` o `uncertain` d'abans del canvi
+  segueix bloquejant l'arrencada fins que una persona reconciliï l'estat real a
+  GitHub, amb
   [Reconciliació de resultats desconeguts (T8.5)](#reconciliació-de-resultats-desconeguts-t85).
-  Una petició en `awaiting` reprèn la lectura de comentaris i d'execucions amb
-  el termini original.
 - **Traça privada.** `preview_requested`, `preview_membership_verified`,
-  `preview_refused` (amb el motiu i la feina nova no informada si és el cas),
-  `preview_commented`, `preview_confirmed`, `preview_unconfirmed`,
-  `preview_failed`, `preview_failed_run` i `preview_uncertain`, amb la PR i el commit i l'autor, sense text de conversa
-  ni credencials.
+  `preview_refused` (amb el motiu), `preview_awaiting` (petició desada),
+  `preview_confirmed`, `preview_unconfirmed` i `preview_withdrawn`, amb la PR,
+  el commit i l'autor,
+  sense text de conversa ni credencials.
 - **Llenguatge.** L'avís al tema és curt i planer, per a una persona que no
   treballa amb Git: diu què ha passat i què pot fer. El número de la PR només
   apareix a l'última línia, com a `Enllaç per a revisió: <URL>`; la preview
   confirmada sempre porta la seva adreça. El detall tècnic (estat, commit, PR i
   adreça) queda a la traça privada i a la nota del tema que rep el model.
-- **Mai automàtic.** Ni una CI verda, ni crear una PR, ni publicar una reparació
-  demanen cap preview. Només quan la mateixa petició que demana el canvi demana
-  explícitament la preview, el servei la demana quan ha enviat l'avís verd, en
-  nom de l'autor desat a la fila de `ci_watches` i amb el mateix tractament
-  determinista; aleshores el servei l'envia sense cap invitació a la persona, i tornar a tramitar el mateix avís no publica cap `/preview` nou.
-
+- **Quan s'informa l'adreça.** Cada push del servei a la PR del tema, també una
+  reparació, inicia l'informe de l'adreça del commit pujat, sense esperar la CI.
+  Una persona també el pot iniciar per al cap actual. Una CI verda no
+  envia cap avís ni convida a demanar la preview. La preview en si la demana l'etiqueta.
 - **Avís de confirmació.** L'avís s'envia abans de tancar la petició i només
   es tanca si l'enviament ha anat bé; si falla, es reintenta al cicle següent.
   Una caiguda entre l'enviament i el tancament pot duplicar l'avís. La duplicació
-  d'aquest avís de Telegram és una excepció acceptada ([ADR 0014](decisions/0014-operator-stop-and-repeatable-telegram-notices.md)): el
-  comentari `/preview` de GitHub no es repeteix. Una lectura
-  fallida de comentaris no tanca la petició i el termini només s'aplica després
-  d'una lectura correcta de comentaris. Una lectura fallida d'execucions no
-  tanca res per si sola: el cicle continua amb el comentari del publicador i el
-  termini, així que la petició pot acabar com a no confirmada sense el resultat
-  de l'execució.
-- **Repetició pel mateix commit.** Confia que GitHub actualitza el camp
-  `updated_at` del comentari del publicador quan el torna a escriure. Si no ho
-  fa, la petició acaba com a no confirmada tot i que la preview pot estar
-  activa.
-- **Granularitat d'un segon.** `updated_at` només té precisió de segon, així
-  que només s'accepta un comentari actualitzat estrictament després de la
-  petició. Una publicació anterior del mateix commit feta dins del mateix segon
-  no es confon amb la confirmació. Una publicació real sempre acaba més tard,
-  perquè el build triga minuts; el cost de la regla és una no confirmació falsa,
-  que és la fallada segura.
-- **Cursa acceptada.** Si arriba un commit nou entre la comprovació i
-  l'execució del flux, el flux construeix el cap nou i el servei informa de no
-  confirmada perquè el SHA no coincideix.
+  d'aquest avís de Telegram és una excepció acceptada ([ADR 0014](decisions/0014-operator-stop-and-repeatable-telegram-notices.md)).
+  Una lectura fallida de comentaris no tanca la petició i el termini només
+  s'aplica després d'una lectura correcta de comentaris.
+- **Cursa acceptada.** Si arriba un commit nou abans de la confirmació, el flux
+  construeix el cap nou i la petició del cap anterior acaba sense avís. Si el
+  commit nou és del servei, el seu seguiment n'informa l'adreça; si l'ha pujat
+  una persona fora de l'agent, cal demanar-la. Un comentari del publicador
+  anterior a una retirada ja no pot confirmar res: la retirada n'ha editat el
+  cos. Una petició escrita quan el servei encara comentava `/preview` (fila amb
+  `commented_at`) no exigeix l'etiqueta, perquè aquelles PR no la tenien, però
+  només accepta un comentari del publicador escrit o actualitzat després del
+  moment de la petició i continua exigint PR oberta, repositori principal, cap
+  `preview-revoked` i el cap sense canvis.
 
 L'activació continua depenent de la verificació del pilot: la credencial ha de
-tenir escriptura a Pull requests (per comentar), lectura de Checks i Statuses,
-lectura d'execucions de fluxos (`Actions: read`, per llegir el resultat de la
-preview) i cap escriptura a Workflows; la identitat de GitHub de l'agent ha de ser col·laboradora del repositori, perquè el publicador de la fase 6 en comprova l'autor del comentari. El flux de la fase 6 ha de tenir configurats els
-secrets `PREVIEW_*`, l'entorn `previews` i el DNS de `*.preview.mountainrunners.cat`.
-Aquesta implementació no activa res.
+tenir escriptura a Pull requests (per posar l'etiqueta `preview`, sense cap
+altre permís nou), lectura de Checks i Statuses i cap escriptura a Workflows. La
+credencial no necessita `Actions: write` per a la preview. El flux de la fase 6
+ha de tenir configurats els secrets `PREVIEW_*`, l'entorn `previews` i el DNS
+de `*.preview.mountainrunners.cat`. Aquesta implementació no activa res: els
+punts de [Verificacions a GitHub](specs/preview-label.md#verificacions-a-github)
+es comproven amb GitHub real abans d'activar-ho a l'agent.
 
 ### Merge demanat al tema (T8.4)
 
@@ -1236,8 +1282,7 @@ seu no quedi fora de la sessió.
   la resta de categories executen el mateix torn ordinari. Un HTTP 429 es
   reintenta com a màxim dues vegades dins del termini; els altres errors i les
   aturades no es reintenten. La classificació queda a la traça com a
-  `instruction_classified`; una preview demanada amb el canvi es registra com
-  a `preview_after_change`.
+  `instruction_classified`.
 - **PR del tema.** Una vinculació duradora fixa la branca i la PR del tema. El
   torn ordinari treballa en aquella branca i no reprèn PR d'altres temes. El
   servei conserva els canvis que no han passat les comprovacions o el push i
@@ -1277,8 +1322,8 @@ Després d'una publicació, el tema rep la resposta del model, l'avís «Canvi d
 i l'enllaç de revisió com a darrera línia. Si el seguiment de CI no s'ha pogut
 desar, l'avís és el de fallada que deixa el cas anotat per a la persona mantenidora. La resposta del
 model es retalla perquè l'enllaç no es perdi mai pel límit de 4000 caràcters del
-transport. Una CI verda no envia res a la persona, perquè ja ha llegit «Canvi desat»: el resultat només va a la nota del servei i a la traça privada. La preview la
-demana el servei i l'avís de preview porta la seva adreça (el seu text no canvia en aquesta PR). Una reparació
+transport. Una CI verda no envia res a la persona, perquè ja ha llegit «Canvi desat»: el resultat només va a la nota del servei i a la traça privada. L'adreça de la
+preview arriba en un avís propi quan el publicador la confirma, sense esperar la CI; l'avís de preview és «Ja ho pots veure: <adreça>» i, si no es confirma al termini, el de fallada. Una reparació
 en curs envia l'avís de fallada amb «Ho torno a intentar»; el límit de
 reparacions, un resultat desconegut, un cap canviat, una PR tancada i qualsevol
 fallada de la reparació envien l'avís de fallada que deixa el cas anotat per a la persona
@@ -1310,11 +1355,10 @@ es pot comprovar l'estat i es registra `topic_state_failed` al journal. El bloc
 no conté identificadors de Telegram ni dades personals, i el classificador no el
 rep. El model el rep dins del sandbox sense xarxa ni credencials.
 
-La petició explícita de preview torna a comprovar la PR i les comprovacions del
-cap encara que l'últim resultat desat no sigui verd. Just abans de publicar el
-comentari, torna a llegir el cap i la CI i refusa la petició si han canviat o no
-es poden llegir. Els treballs pendents i els
-resultats desconeguts continuen bloquejant la petició. Abans d'un merge o una
+La petició explícita de preview torna a comprovar la PR, no les comprovacions
+del cap: la preview s'activa amb l'etiqueta i el `build` executa `pnpm validate`.
+Els treballs pendents i els resultats desconeguts continuen bloquejant la
+petició. Abans d'un merge o una
 reparació, el servei torna a comprovar el cap i la CI; el merge continua fixat
 al commit informat al tema.
 
