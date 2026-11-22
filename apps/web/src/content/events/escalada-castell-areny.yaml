@@ -84,6 +84,21 @@ organizerIds:
   - club-esqui-bergueda
 collaboratorIds: []
 editions:
+  - id: edition-2027
+    startDate: 2027-08-22
+    location:
+      ca: Zona Esportiva de Vilada
+      es: Zona Deportiva de Vilada
+      en: Vilada Sports Zone
+    modalities:
+      - ca: 5,38 km · 275 m D+
+        es: 5,38 km · 275 m D+
+        en: 5.38 km · 275 m ascent
+      - ca: Carretera, BTT, gravel o clàssica
+        es: Carretera, BTT, gravel o clásica
+        en: Road, MTB, gravel or classic bike
+    registrationStatus: coming-soon
+    documentIds: []
   - id: edition-2026
     startDate: 2026-08-16
     location:
