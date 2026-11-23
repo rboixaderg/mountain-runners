@@ -25,8 +25,13 @@ import { resolveUncertainCase } from "../../commands/reconcile/uncertain-cases.m
 import { CiWatchStore } from "../../repository/ci-watch-store.mjs";
 import { MergeRequestStore } from "../../repository/merge-request-store.mjs";
 import { PreviewRequestStore } from "../../repository/preview-request-store.mjs";
+import { TopicJobStore } from "../../repository/topic-job-store.mjs";
 import { openIdentifierNames } from "../../repository/identifiers.mjs";
-import { ensureSessionWorktree } from "../../repository/worktrees.mjs";
+import {
+  createBranch,
+  ensureSessionWorktree,
+  recordPublication,
+} from "../../repository/worktrees.mjs";
 import {
   retentionIntervalMilliseconds,
   runBridgeWithCiWatcher,
@@ -1867,4 +1872,83 @@ test("refuses to start when the administrative gitdir file is a hard link", asyn
 
   assert.equal(readFileSync(witness, "utf8"), registration);
   assert.equal(statSync(gitdirPath).nlink, 2);
+});
+
+test("prunes a finished topic worktree when idle and skips it while an instruction is running", async (context) => {
+  const { environment, statePath } = environmentFor(context);
+  const repository = environment.MOUNTAIN_AGENT_REPOSITORY_PATH;
+  const worktreeRoot = environment.MOUNTAIN_AGENT_WORKTREE_PATH;
+  const origin = `${repository}-origin.git`;
+  await executeFile("git", ["init", "--bare", "--initial-branch=main", origin]);
+  await executeFile("git", ["clone", origin, repository]);
+  writeFileSync(join(repository, "README.md"), "synthetic\n");
+  for (const argumentsList of [
+    ["add", "README.md"],
+    ["commit", "-m", "chore: initial"],
+    ["push", "origin", "main"],
+  ]) {
+    await executeFile("git", [
+      "-C",
+      repository,
+      "-c",
+      "user.name=Synthetic",
+      "-c",
+      "user.email=synthetic@example.test",
+      ...argumentsList,
+    ]);
+  }
+  mkdirSync(statePath, { recursive: true });
+  const names = openIdentifierNames(statePath);
+  const sessionKey = "-1001234567890:77";
+  const branch = "fix/finished-topic-0077";
+  const worktree = await ensureSessionWorktree({
+    repositoryPath: repository,
+    worktreeRoot,
+    name: names.worktreeName(sessionKey),
+  });
+  await createBranch({ worktree, branch });
+  const { stdout: head } = await executeFile("git", [
+    "-C",
+    worktree.path,
+    "rev-parse",
+    "HEAD",
+  ]);
+  recordPublication(worktree, head.trim());
+  const topicJobs = new TopicJobStore(join(statePath, "topic-jobs.sqlite"));
+  topicJobs.bind({ sessionKey, branch, pullRequestNumber: 77 });
+  topicJobs.close();
+
+  const pullRequestState = { state: "open", merged: false, headRef: branch };
+  const service = await startService({
+    environment,
+    telegram: telegramStub(),
+    github: {
+      async getPullRequest() {
+        return { ...pullRequestState };
+      },
+    },
+    runner: async () => ({}),
+  });
+  context.after(() => service.closeStateStores());
+  assert.equal(existsSync(worktree.path), true);
+
+  // While an instruction is running, finished-topic pruning must not touch worktrees.
+  pullRequestState.state = "closed";
+  pullRequestState.merged = true;
+  service.queue.admit({
+    updateIdentifier: 900,
+    messageIdentifier: 901,
+    sessionKey,
+    authorIdentifier: 555,
+    instruction: "in flight",
+  });
+  const running = service.queue.next();
+  assert.equal(running?.updateIdentifier, 900);
+  await service.applyRetention();
+  assert.equal(existsSync(worktree.path), true);
+
+  // Once idle, retention removes the clean published merged-topic worktree.
+  service.queue.complete(900, "done");
+  await service.applyRetention();
+  assert.equal(existsSync(worktree.path), false);
 });

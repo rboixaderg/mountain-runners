@@ -711,6 +711,15 @@ export class CiWatchStore {
       .get(sequence);
   }
 
+  /** Whether an automatic CI repair is currently running. */
+  hasRunningRepair() {
+    return (
+      this.#database
+        .prepare("SELECT 1 FROM ci_repairs WHERE status = 'running' LIMIT 1")
+        .get() !== undefined
+    );
+  }
+
   /** Total repairs whose external result is still unknown, including restarts. */
   uncertainRepairCount() {
     const { count } = this.#database
