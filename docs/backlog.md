@@ -485,6 +485,29 @@ fusionada; la regla de validar a la frontera viu a
 
 ## Necessitats Obertes
 
+### Lectura De PDF Per L'Agent Privat
+
+**Estat:** Capturada.
+
+**Problema:** l'agent privat de Telegram no pot interpretar documents PDF
+adjunts al xat ni llegir PDF accessibles a través d'una URL.
+
+**Resultat esperat:** permetre que l'agent consulti el contingut de PDF rebuts
+al xat o disponibles a internet per respondre preguntes i preparar tasques
+autoritzades.
+
+**Abans de planificar-ho cal definir:**
+
+- el tractament de PDF amb text i de documents escanejats;
+- els límits de mida, pàgines i recursos, i el tractament de fitxers no fiables;
+- la privacitat dels documents i les restriccions d'accés a URLs;
+- les dependències, les proves i els canvis necessaris a les fronteres existents.
+
+**Dependències:** revisió de seguretat i definició de la ingesta d'adjunts i
+de l'accés extern.
+
+**Seguiment:** pendent de triatge.
+
 ### Equipa't Amb Nosaltres
 
 **Estat:** Capturada.
