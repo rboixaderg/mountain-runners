@@ -485,6 +485,11 @@ fusionada; la regla de validar a la frontera viu a
 
 ## Necessitats Obertes
 
+### Sincronitzar La Branca Abans Del Merge
+
+**Estat:** Especificada a
+[Sincronització de la branca abans del merge](specs/agent-sync-before-merge.md).
+
 ### Lectura De PDF Per L'Agent Privat
 
 **Estat:** Capturada.
