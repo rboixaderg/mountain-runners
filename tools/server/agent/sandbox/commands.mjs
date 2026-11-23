@@ -45,7 +45,7 @@ function podmanEnvironment() {
   };
 }
 
-async function cleanSandboxContainers(label) {
+async function cleanSandboxContainers(filter) {
   const environment = podmanEnvironment();
   const options = {
     env: environment,
@@ -54,7 +54,7 @@ async function cleanSandboxContainers(label) {
   async function listContainers(includeStopped) {
     const argumentsList = ["ps", "--quiet"];
     if (includeStopped) argumentsList.push("--all");
-    argumentsList.push("--filter", label);
+    argumentsList.push("--filter", filter);
     const { stdout } = await executeFile(
       "podman",
       podmanArguments(...argumentsList),
@@ -89,15 +89,17 @@ async function cleanSandboxContainers(label) {
   return running.length;
 }
 
-/** Stop and remove only the containers belonging to this session. */
-export async function stopSandboxedCommands(sessionIdentifier) {
+async function stopContainers(filter) {
   try {
-    return await cleanSandboxContainers(
-      `label=mountain-agent.session=${sessionIdentifier}`,
-    );
+    return await cleanSandboxContainers(filter);
   } catch (error) {
     throw new SandboxCleanupError({ cause: error });
   }
+}
+
+/** Stop and remove only the containers belonging to this session. */
+export function stopSandboxedCommands(sessionIdentifier) {
+  return stopContainers(`label=mountain-agent.session=${sessionIdentifier}`);
 }
 
 /**
@@ -202,7 +204,7 @@ export async function runSandboxedCommand({
   } finally {
     clearTimeout(timer);
     signal?.removeEventListener("abort", abortHandler);
-    await stopSandboxedCommands(sessionIdentifier);
+    await stopContainers(`name=^${containerName}$`);
   }
 }
 

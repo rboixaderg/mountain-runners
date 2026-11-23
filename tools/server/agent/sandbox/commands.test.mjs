@@ -225,7 +225,7 @@ if (process.argv.includes('ps') && (!process.argv.includes('--all') || !fs.exist
     "ps",
     "--quiet",
     "--filter",
-    "label=mountain-agent.session=topic-test",
+    `name=^${calls[0].arguments[calls[0].arguments.indexOf("--name") + 1]}$`,
   ]);
   assert.deepEqual(calls[11].arguments.slice(2), [
     "ps",
@@ -267,16 +267,25 @@ if (args.includes("rm")) fs.writeFileSync(${JSON.stringify(removedPath)}, "remov
   assert.equal(existsSync(removedPath), true);
 });
 
-test("cleans stopped containers after a normally completed sandbox command", async (context) => {
+test("cleans only the completed command while another command shares its session", async (context) => {
   const { directory, worktreeRoot, workspace } = workspaceFixture(context);
   const removedPath = join(directory, "normal-removed");
+  const killedPath = join(directory, "normal-killed");
+  const namePath = join(directory, "normal-name");
   const executable = join(directory, "podman");
   writeFileSync(
     executable,
     `#!${process.execPath}
 const fs = require("node:fs");
-if (process.argv.includes("ps") && process.argv.includes("--all") && !fs.existsSync(${JSON.stringify(removedPath)})) process.stdout.write("stopped-container\\n");
-if (process.argv.includes("rm")) fs.writeFileSync(${JSON.stringify(removedPath)}, "removed");
+const args = process.argv.slice(2);
+if (args.includes("run")) fs.writeFileSync(${JSON.stringify(namePath)}, args[args.indexOf("--name") + 1]);
+if (args.includes("ps")) {
+  const name = fs.readFileSync(${JSON.stringify(namePath)}, "utf8");
+  if (args.includes("label=mountain-agent.session=topic-normal") && !fs.existsSync(${JSON.stringify(killedPath)})) process.stdout.write("running-sibling\\n");
+  if (args.includes("--all") && !fs.existsSync(${JSON.stringify(removedPath)}) && (args.includes("name=^" + name + "$") || args.includes("label=mountain-agent.session=topic-normal"))) process.stdout.write("stopped-container\\n");
+}
+if (args.includes("kill") && args.includes("running-sibling")) fs.writeFileSync(${JSON.stringify(killedPath)}, "killed");
+if (args.includes("rm") && args.includes("stopped-container")) fs.writeFileSync(${JSON.stringify(removedPath)}, "removed");
 `,
   );
   chmodSync(executable, 0o755);
@@ -297,6 +306,7 @@ if (process.argv.includes("rm")) fs.writeFileSync(${JSON.stringify(removedPath)}
   });
   assert.equal(result.exitCode, 0);
   assert.equal(existsSync(removedPath), true);
+  assert.equal(existsSync(killedPath), false);
 });
 
 test("reports an uncertain stop if Podman cannot remove a stopped container", async (context) => {

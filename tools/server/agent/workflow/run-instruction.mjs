@@ -5,6 +5,7 @@
 // identifies preview requests; /merge and automatic repairs keep their own paths.
 // The turn receives service effects the topic has not been told yet.
 
+import { PiRunError } from "telegram-pi-bridge/pi";
 import { sessionIdentifier } from "telegram-pi-bridge/sessions";
 import { attachmentRefusalDetail } from "telegram-pi-bridge/telegram";
 import { removeAttachmentDirectory } from "../attachments/destination.mjs";
@@ -388,20 +389,36 @@ export function createInstructionRunner({
     checkCommand,
     signal,
   }) {
+    const started = performance.now();
     const checks = await runChecks({
       sandboxIdentifier: worktreeName,
       worktreePath: worktree.path,
       checkCommand,
       signal,
     });
+    if (
+      checks.timedOut ||
+      checks.outputLimitExceeded ||
+      checks.exitCode !== 0
+    ) {
+      let reason = "nonzero_exit";
+      if (checks.outputLimitExceeded) reason = "output_limit";
+      if (checks.timedOut) reason = "timeout";
+      if (signal?.aborted) reason = "cancelled";
+      logger("checks_failed", {
+        reason,
+        exitCode: checks.exitCode,
+        signal: checks.signal ?? null,
+        durationMs: Math.round(performance.now() - started),
+      });
+    }
     if (checks.timedOut) {
       return {
         report: instructionReports.checksTimedOut,
         reason: instructionReportKeys.checksTimedOut,
       };
     }
-    if (checks.exitCode !== 0) {
-      logger("checks_failed", worktreeName);
+    if (checks.outputLimitExceeded || checks.exitCode !== 0) {
       return {
         report: instructionReports.checksFailed,
         reason: instructionReportKeys.checksFailed,
@@ -1179,10 +1196,14 @@ export function createInstructionRunner({
         }),
       };
     } catch (error) {
-      logger(
-        "instruction_failed",
-        error instanceof Error ? error.name : "unknown",
-      );
+      if (error instanceof PiRunError) {
+        logger("pi_rpc_failed", error.diagnostics);
+      } else {
+        logger(
+          "instruction_failed",
+          error instanceof Error ? error.name : "unknown",
+        );
+      }
       if (error instanceof MergeCleanupError) {
         return {
           outcome: "uncertain",

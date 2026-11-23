@@ -308,11 +308,25 @@ for (const stream of ["stdout", "stderr", "combined"]) {
           cleanups += 1;
         },
       }),
-      /output limit/u,
+      { diagnostics: { reason: "output_limit" }, message: /output limit/u },
     );
     assert.equal(cleanups, 1);
   });
 }
+
+test("reports the exit code when Pi exits without settling", async (context) => {
+  const directory = fixture(context);
+  const { executable } = fakePi(context, { script: "process.exitCode = 7;" });
+  await assert.rejects(
+    runPiPrompt({
+      ...optionsFor(executable),
+      profileDirectory: directory.profile,
+      cwd: directory.worktreePath,
+      message: "question",
+    }),
+    { diagnostics: { reason: "premature_exit", exitCode: 7, signal: null } },
+  );
+});
 
 test("never reports a sent prompt for an unavailable Pi executable", async (context) => {
   const directory = fixture(context);
