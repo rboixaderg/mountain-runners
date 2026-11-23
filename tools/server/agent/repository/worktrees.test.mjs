@@ -28,9 +28,9 @@ import {
   ensureSessionWorktree,
   findSessionWorktree,
   hasUnpublishedCommit,
-  mergeMainIntoBranch,
   recordPublication,
   renameLegacyWorktrees,
+  synchronizeWithMain,
 } from "./worktrees.mjs";
 import { createIdentifierNames } from "./identifiers.mjs";
 
@@ -83,7 +83,13 @@ test("reports conflicted paths and aborts without changing the topic commit", as
     name: "topic-0123456789abcdef",
   });
   await createBranch({ worktree, branch: "feat/agent-synthetic" });
-  assert.deepEqual(await mergeMainIntoBranch({ worktree }), { merged: false });
+  const initialMain = await git(repository, ["rev-parse", "main"]);
+  const synchronize = () =>
+    synchronizeWithMain({ worktree, pendingWorkMessage: "chore: keep work" });
+  assert.deepEqual(await synchronize(), {
+    merged: false,
+    mainHead: initialMain,
+  });
   writeFileSync(join(worktree.path, "README.md"), "topic change\n");
   const topicHead = await commitAll({
     worktree,
@@ -94,9 +100,10 @@ test("reports conflicted paths and aborts without changing the topic commit", as
   await git(repository, ["commit", "-m", "chore: advance main"]);
   await git(origin, ["fetch", repository, "+refs/heads/main:refs/heads/main"]);
 
-  assert.deepEqual(await mergeMainIntoBranch({ worktree }), {
+  assert.deepEqual(await synchronize(), {
     conflict: true,
     paths: ["README.md"],
+    mainHead: await git(repository, ["rev-parse", "main"]),
   });
   assert.equal(await git(worktree.path, ["rev-parse", "HEAD"]), topicHead);
   assert.equal(

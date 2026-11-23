@@ -447,7 +447,10 @@ export function createCiRepairExecutor({
       outcome: "failed",
       traceAction: "ci_repair_not_published",
     });
-    await report(repair, ciRepairReports.failed, {
+    const failedReport = result.clarification
+      ? `${ciRepairReports.failed}\n\n${result.report}`
+      : ciRepairReports.failed;
+    await report(repair, failedReport, {
       signal,
       state: "failed",
       noteText: ciRepairNoteReports.failed({
