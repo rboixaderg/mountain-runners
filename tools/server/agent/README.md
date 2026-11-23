@@ -343,15 +343,27 @@ torn: [Preview demanada al tema](#preview-demanada-al-tema),
 - Un worktree net no implica que s'hagi publicat. El servei conserva els commits
   pendents fins que push i PR estiguin confirmats; només llavors registra el
   commit publicat fora del muntatge. La branca vinculada continua al tema.
-- Cada worktree arxivat conserva la seva còpia de dependències, així que el
-  volum acotat s'omple amb les iteracions. A l'arrencada el servei elimina només
-  els worktrees arxivats sense commits per davant d'`origin/main` i sense canvis
-  pendents, i sempre conserva l'arxiu més recent de cada tema. Com que el sufix
-  de l'arxiu és opac, l'antiguitat surt de la data de naixement del directori,
-  que el reanomenament conserva i una escriptura a dins no canvia. Un worktree
-  amb treball no publicat o sense cometre no s'esborra mai, i el worktree actiu
-  del tema tampoc. L'ordre d'operador que mostra o aplica la mateixa decisió és
-  a [`docs/operations/agent.md`](../../../docs/operations/agent.md#retenció).
+- Cada worktree instal·la la seva còpia fora de línia de `node_modules` dins del
+  volum acotat. Quan un worktree s'arxiva, el servei en retira els directoris de
+  dependències i memòria cau generats (`node_modules`, `apps/web/node_modules`,
+  `packages/telegram-pi-bridge/node_modules` i `.agent-runtime-tmp`) sense seguir
+  cap enllaç simbòlic. A l'arrencada i dins del bucle inactiu d'execució única
+  cada sis hores (mai en paral·lel amb un torn, una reparació ni cap cas incert),
+  la retenció elimina els worktrees arxivats antics nets sense commits per davant
+  d'`origin/main`, conserva sempre l'arxiu més recent de cada tema i retira les
+  dependències generades de qualsevol arxiu conservat. Com que el sufix de
+  l'arxiu és opac, l'antiguitat surt de la data de naixement del directori, que
+  el reanomenament conserva i una escriptura a dins no canvia. Dins del mateix
+  bucle inactiu, revisa també els temes vinculats a `topic-jobs.sqlite`: si la PR
+  vinculada consta fusionada a GitHub (`state === "closed"` i `merged === true`)
+  i la branca coincideix, elimina el worktree net i publicat (reconeixent els
+  commits fusionats amb squash a través d'`agent-published-head`); si la PR s'ha
+  tancat sense fusionar o el worktree encara té treball no publicat o sense
+  cometre, conserva el worktree i la branca i només en retira les dependències
+  generades. El treball no fusionat, no publicat o sense cometre no s'esborra
+  mai automàticament, ni tampoc el worktree d'una PR oberta. L'ordre d'operador
+  que mostra o aplica la mateixa decisió és a
+  [`docs/operations/agent.md`](../../../docs/operations/agent.md#retenció).
 
 ## Noms opacs i migració
 

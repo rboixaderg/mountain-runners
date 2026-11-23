@@ -36,6 +36,7 @@ import {
 } from "../../repository/request-signal.mjs";
 import {
   pruneArchivedWorktrees,
+  pruneFinishedTopicWorktrees,
   pruneStoredAttachments,
 } from "../../repository/retention.mjs";
 import { openIdentifierNames } from "../../repository/identifiers.mjs";
@@ -277,45 +278,6 @@ export async function startService({
     );
   }
 
-  // Archived worktrees keep a dependency tree each; remove only the ones that
-  // have nothing left to lose. Attachments stay available to their topic until
-  // they are published or for seven days. Both run at startup and periodically
-  // while the service is up, and a failure only logs: retention never blocks
-  // the service.
-  async function applyRetention() {
-    try {
-      const worktrees = await pruneArchivedWorktrees({
-        repositoryPath: config.paths.repository,
-        worktreeRoot: config.paths.worktrees,
-        logger,
-      });
-      if (worktrees.removed.length > 0) {
-        logger("worktree_retention_applied", String(worktrees.removed.length));
-      }
-    } catch (error) {
-      logger(
-        "worktree_retention_failed",
-        error instanceof Error ? error.message : "unknown",
-      );
-    }
-    try {
-      const attachments = pruneStoredAttachments({
-        statePath: config.paths.state,
-        logger,
-      });
-      if (attachments.length > 0) {
-        logger("attachment_retention_applied", String(attachments.length));
-      }
-    } catch (error) {
-      logger(
-        "attachment_retention_failed",
-        error instanceof Error ? error.message : "unknown",
-      );
-    }
-  }
-
-  await applyRetention();
-
   const telegram =
     telegramOverride ?? new TelegramApi({ botToken: config.telegram.botToken });
   let identity;
@@ -342,6 +304,118 @@ export async function startService({
       token: config.github.token,
       repository: config.github.repository,
     });
+
+  // Worktrees keep an offline copy of `node_modules` each; prune eligible
+  // archives, remove clean published worktrees of merged pull requests when
+  // idle, and strip generated dependencies from kept archives or closed
+  // topics. Attachments stay available until published or for seven days.
+  // Local retention runs at startup; full retention (including GitHub checks
+  // for finished topics) runs exclusively inside `AgentBridge.runWhenIdle` so
+  // it can never overlap with a sandboxed turn, a repair or shutdown.
+  const isServiceIdle = () =>
+    !queue.isBlocked() &&
+    !ciWatches.hasRunningRepair() &&
+    ciWatches.uncertainRepairCount() === 0;
+
+  let retentionDue = true;
+  function requestRetention() {
+    retentionDue = true;
+  }
+
+  async function applyRetention({
+    signal: retentionSignal = signal,
+    includeFinishedTopics = true,
+  } = {}) {
+    if (!isServiceIdle()) {
+      return;
+    }
+    try {
+      const worktrees = await pruneArchivedWorktrees({
+        repositoryPath: config.paths.repository,
+        worktreeRoot: config.paths.worktrees,
+        signal: retentionSignal,
+        logger,
+      });
+      if (worktrees.removed.length > 0) {
+        logger("worktree_retention_applied", String(worktrees.removed.length));
+      }
+      if (worktrees.cleaned.length > 0) {
+        logger(
+          "worktree_dependencies_retention_applied",
+          String(worktrees.cleaned.length),
+        );
+      }
+    } catch (error) {
+      if (retentionSignal?.aborted) {
+        return;
+      }
+      logger(
+        "worktree_retention_failed",
+        error instanceof Error ? error.message : "unknown",
+      );
+    }
+    if (
+      includeFinishedTopics &&
+      isServiceIdle() &&
+      typeof github?.getPullRequest === "function"
+    ) {
+      try {
+        const finished = await pruneFinishedTopicWorktrees({
+          repositoryPath: config.paths.repository,
+          worktreeRoot: config.paths.worktrees,
+          bindings: topicJobs.list(),
+          worktreeNameForSession: (sessionKey) =>
+            identifiers.worktreeName(sessionKey),
+          readPullRequest: (number, { signal: readSignal } = {}) =>
+            github.getPullRequest({
+              number,
+              signal: requestSignal(
+                readSignal ?? retentionSignal,
+                defaultRequestTimeoutMilliseconds,
+              ),
+            }),
+          signal: retentionSignal,
+          logger,
+        });
+        if (finished.removed.length > 0) {
+          logger(
+            "finished_worktree_retention_applied",
+            String(finished.removed.length),
+          );
+        }
+        if (finished.cleaned.length > 0) {
+          logger(
+            "finished_worktree_dependencies_cleaned",
+            String(finished.cleaned.length),
+          );
+        }
+      } catch (error) {
+        if (retentionSignal?.aborted) {
+          return;
+        }
+        logger(
+          "finished_worktree_retention_failed",
+          error instanceof Error ? error.message : "unknown",
+        );
+      }
+    }
+    try {
+      const attachments = pruneStoredAttachments({
+        statePath: config.paths.state,
+        logger,
+      });
+      if (attachments.length > 0) {
+        logger("attachment_retention_applied", String(attachments.length));
+      }
+    } catch (error) {
+      logger(
+        "attachment_retention_failed",
+        error instanceof Error ? error.message : "unknown",
+      );
+    }
+  }
+
+  await applyRetention({ includeFinishedTopics: false });
   // Both the preview and the merge re-check the author's membership when the
   // request runs: neither is ordinary queued work. The read is bounded by the
   // request deadline, so a Telegram that never answers cannot stall them.
@@ -505,13 +579,23 @@ export async function startService({
     disableLinkPreview: config.webResearch !== null,
     onServiceReport: recordServiceNote,
     logger,
-    // A repair continues a published change. It runs only when no admitted
-    // instruction is executing, and never while the queue is blocked by an
-    // unknown external result.
-    runWhenIdle: ({ signal }) =>
-      queue.isBlocked() || ciWatches.uncertainRepairCount() > 0
-        ? false
-        : ciRepairExecutor.runNext({ signal }),
+    // Repairs and periodic retention run strictly inside this single-execution
+    // idle hook, never concurrently with an instruction, a sandbox container or
+    // shutdown, and never while an unknown external result is unresolved.
+    runWhenIdle: async ({ signal: idleSignal }) => {
+      if (!isServiceIdle()) {
+        return false;
+      }
+      if (await ciRepairExecutor.runNext({ signal: idleSignal })) {
+        return true;
+      }
+      if (!retentionDue) {
+        return false;
+      }
+      retentionDue = false;
+      await applyRetention({ signal: idleSignal });
+      return false;
+    },
   });
 
   const ciWorker = createCiWatchWorker({
@@ -544,6 +628,7 @@ export async function startService({
     ciRepairExecutor,
     sessionNotes,
     applyRetention,
+    requestRetention,
     closeStateStores,
     logger,
   };
@@ -608,7 +693,7 @@ export async function main({ environment = process.env } = {}) {
     bridge,
     ciWorker,
     previewWorker,
-    applyRetention,
+    requestRetention,
     closeStateStores,
     logger,
   } = await startService({
@@ -617,7 +702,9 @@ export async function main({ environment = process.env } = {}) {
   });
 
   const stopRetention = scheduleRetention({
-    runRetention: applyRetention,
+    runRetention: async () => {
+      requestRetention();
+    },
     signal: controller.signal,
     logger,
   });

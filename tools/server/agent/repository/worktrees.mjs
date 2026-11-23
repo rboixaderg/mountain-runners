@@ -42,6 +42,55 @@ const worktreeNamePattern = /^[a-z0-9][a-z0-9._-]*$/u;
 // The marker is replaced through one fixed temporary file next to it, so a
 // leftover of an interrupted write is recognised by its name and its content.
 const markerTemporaryName = ".git.agent-marker-tmp";
+const generatedDependencySegments = [
+  ["node_modules"],
+  ["apps", "web", "node_modules"],
+  ["packages", "telegram-pi-bridge", "node_modules"],
+  [".agent-runtime-tmp"],
+];
+
+function directSubdirectory(rootPath, segments) {
+  const rootStats = lstatOrNull(rootPath);
+  if (rootStats === null || !rootStats.isDirectory()) {
+    return null;
+  }
+  let current = rootPath;
+  for (const segment of segments) {
+    current = join(current, segment);
+    const stats = lstatOrNull(current);
+    if (stats === null || !stats.isDirectory()) {
+      return null;
+    }
+  }
+  return current;
+}
+
+/**
+ * Remove gitignored generated dependency and runtime cache directories from a
+ * worktree without following any symbolic link in any parent or target segment.
+ */
+export function stripWorktreeDependencies(
+  worktreePath,
+  { dryRun = false, logger = () => {} } = {},
+) {
+  const cleaned = [];
+  for (const segments of generatedDependencySegments) {
+    const target = directSubdirectory(worktreePath, segments);
+    if (target === null) {
+      continue;
+    }
+    if (!dryRun) {
+      try {
+        rmSync(target, { recursive: true, force: true });
+      } catch {
+        logger("worktree_dependencies_cleanup_failed", target);
+        continue;
+      }
+    }
+    cleaned.push(segments.join("/"));
+  }
+  return cleaned;
+}
 
 function assertWorktreeName(name) {
   if (!worktreeNamePattern.test(name)) {
@@ -86,6 +135,7 @@ export async function ensureSessionWorktree({
   baseBranch = "main",
   newTaskSuffix,
   signal,
+  logger,
 }) {
   if (baseBranch !== "main") {
     throw new Error("The agent only starts work from main.");
@@ -123,6 +173,7 @@ export async function ensureSessionWorktree({
     await runGit(repository, ["worktree", "move", worktreePath, archivePath], {
       signal,
     });
+    stripWorktreeDependencies(archivePath, { logger });
     existing = false;
   }
   if (!existing) {

@@ -1070,6 +1070,19 @@ export function createInstructionRunner({
           topic.worktree === null ||
           (await currentBranch(topic.worktree, { signal })) !== binding.branch
         ) {
+          if (readBoundPullRequest) {
+            try {
+              const pullRequest = await readBoundPullRequest(
+                binding.pullRequestNumber,
+                { signal },
+              );
+              if (pullRequest.state === "closed") {
+                return { outcome: "failed", report: finishedTopicReport };
+              }
+            } catch {
+              signal?.throwIfAborted();
+            }
+          }
           return {
             outcome: "failed",
             report: continuationReports.movedHead({

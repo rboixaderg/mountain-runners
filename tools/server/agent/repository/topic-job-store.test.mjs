@@ -42,6 +42,14 @@ test("keeps independent topic bindings across a restart", (context) => {
     branch: "feat/agent-second-5678",
     pullRequestNumber: 43,
   });
+  assert.deepEqual(reopened.list(), [
+    topicJob,
+    {
+      sessionKey: "-100123:8",
+      branch: "feat/agent-second-5678",
+      pullRequestNumber: 43,
+    },
+  ]);
 });
 
 test("repeated binding is idempotent and never replaces a topic's job", (context) => {

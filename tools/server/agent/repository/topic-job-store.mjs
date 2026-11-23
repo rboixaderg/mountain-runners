@@ -47,6 +47,19 @@ export class TopicJobStore {
       : { branch: row.branch, pullRequestNumber: row.pull_request_number };
   }
 
+  list() {
+    return this.#database
+      .prepare(
+        "SELECT session_key, branch, pull_request_number FROM topic_jobs ORDER BY pull_request_number ASC",
+      )
+      .all()
+      .map((row) => ({
+        sessionKey: row.session_key,
+        branch: row.branch,
+        pullRequestNumber: row.pull_request_number,
+      }));
+  }
+
   close() {
     this.#database.close();
   }

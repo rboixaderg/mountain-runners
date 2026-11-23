@@ -647,14 +647,15 @@ lliurats a la sessió (`session_delivered_effects`) tampoc no es poden: cada
 reintent d'un avís les consulta, i la mida és d'unes poques desenes de bytes per
 efecte.
 
-Els worktrees arxivats segueixen la neteja que preserva treball no publicat. A
-l'arrencada el servei elimina només els worktrees arxivats sense commits per
-davant d'`origin/main` i sense canvis pendents, i sempre conserva l'arxiu més
-recent de cada tema. La comanda
+Els worktrees segueixen la política de retenció descrita a
+[`tools/server/agent/README.md`](../../tools/server/agent/README.md#sessions-admissió-i-recuperació),
+que conserva sempre el treball no fusionat, no publicat o sense cometre i
+allibera les dependències generades dels arxius i dels temes tancats. La comanda
 `node storage/prune-worktrees.mjs --dry-run`, executada com la identitat del
-servei, mostra la mateixa decisió sense esborrar res; sense `--dry-run`
-l'aplica. Un worktree amb treball no publicat o sense cometre no s'esborra
-mai, i el worktree actiu del tema tampoc.
+servei amb `EnvironmentFile=/etc/mountain-runners-agent/agent.env`, mostra la
+mateixa decisió sense escriure ni esborrar res; per aplicar-la sense
+`--dry-run`, atura abans `mountain-agent.service` (la comanda refusa executar-se
+si hi ha instruccions o reparacions en curs o incertes).
 
 - **Cost estimat.** La traça i les bases de `state/` creixen pocs MB l'any i
   queden lluny de l'1 GiB del volum d'estat. L'historial de Pi és el que creix
