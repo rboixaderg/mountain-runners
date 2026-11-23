@@ -732,13 +732,15 @@ petició explícita de preview de T8.4, segons les esmenes acceptades dels
   branca va per darrere, hi integra `main` amb un commit de merge, sense rebase
   ni force-push, i torna a fer les comprovacions locals abans de publicar. Un
   conflicte que el servei no resol de manera determinista es passa al model, al
-  mateix torn i dins del sandbox, perquè el resolgui conservant els dos canvis.
-  Si hi ha una contradicció de contingut, el model pregunta a la persona en
-  llenguatge planer quina versió vol. Si el conflicte no es pot resoldre, el
+  mateix torn i dins del sandbox, perquè el resolgui segons la prioritat i els
+  límits de l'especificació enllaçada més avall. Si cal una decisió que no es
+  pot prendre amb seguretat, el model pregunta a la persona en llenguatge
+  planer. Si el conflicte no es pot resoldre, el
   servei no publica una branca a mig resoldre: conserva el treball i ho diu amb
   l'avís de fallada. El mateix control es fa quan `main` avança mentre la PR és
-  oberta i abans d'un `/merge`. Una PR desfasada no bloqueja la preview ni el
-  merge si es pot sincronitzar.
+  oberta i abans d'un `/merge`. La sincronització prèvia al merge i la nova
+  autorització del SHA resultant es concreten a
+  [Sincronització de la branca abans del merge](../agent-sync-before-merge.md).
 - Abans de cada torn i decisió de preview, merge o reparació, el servei llegeix
   de GitHub la PR, el cap, les comprovacions obligatòries i el resultat de
   preview. Els esdeveniments persistits només donen auditoria i idempotència.
