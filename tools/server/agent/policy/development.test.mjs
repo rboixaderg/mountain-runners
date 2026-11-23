@@ -379,26 +379,32 @@ test("keeps the technical facts of a publication in the service note", () => {
   );
 });
 
-test("runs the fast gate only when every published path is content", () => {
+test("runs the fast gate only when every published path is inside the web app roots", () => {
   assert.equal(
     checkCommandForPaths([
       "apps/web/src/content/posts/2026-11-18-la-cursa.md",
       "apps/web/src/content-assets/posts/la-cursa.webp",
+      "apps/web/src/components/about/AboutBoard.astro",
+      "apps/web/messages/ca.json",
+      "apps/web/public/favicon.svg",
     ]),
-    checkCommands.contentOnly,
+    checkCommands.webOnly,
   );
   for (const path of [
-    "apps/web/src/pages/x.astro",
+    "apps/web/package.json",
+    "apps/web/build-mode.mjs",
+    "apps/web/astro.config.mjs",
+    "apps/web/src-extra/x",
+    "apps/web/src",
+    "docs/operations/previews.md",
     "tools/server/agent/policy/development.mjs",
     ".github/workflows/quality.yml",
     "package.json",
-    "apps/web/src/content-extra/x",
-    "apps/web/src/content",
   ]) {
     assert.equal(
       checkCommandForPaths(["apps/web/src/content/posts/la-cursa.md", path]),
       checkCommands.full,
-      `${path} is not content`,
+      `${path} must keep the full gate`,
     );
   }
   assert.equal(checkCommandForPaths([]), checkCommands.full);
@@ -408,7 +414,7 @@ test("names the command that ran in the pull request body", () => {
   const body = pullRequestBody({
     title: "content(posts): fix three sentences",
     changedPaths: ["apps/web/src/content/posts/la-cursa.md"],
-    checkCommand: checkCommands.contentOnly,
+    checkCommand: checkCommands.webOnly,
   });
 
   assert.match(body, /- `pnpm check:local` correcte dins l'entorn aïllat\./u);
