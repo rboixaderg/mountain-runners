@@ -1,18 +1,22 @@
 import assert from "node:assert/strict";
 import { PiRunError } from "telegram-pi-bridge/pi";
-import { execFile } from "node:child_process";
+import { execFile, spawnSync } from "node:child_process";
 import {
+  chmodSync,
+  cpSync,
   existsSync,
   readFileSync,
   mkdirSync,
   mkdtempSync,
   realpathSync,
   rmSync,
+  unlinkSync,
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
-import { basename, join } from "node:path";
+import { basename, dirname, join } from "node:path";
 import { promisify } from "node:util";
+import { fileURLToPath } from "node:url";
 import { test } from "node:test";
 import { PublishRefusedError } from "../repository/github.mjs";
 import { CiWatchStore } from "../repository/ci-watch-store.mjs";
@@ -653,6 +657,208 @@ test("publishes a small change as a pull request after the checks pass", async (
     "--format=%s",
   ]);
   assert.equal(committed, "feat(tools): add synthetic change");
+});
+
+test("passes a fresh Git file inventory to the sandbox checks without mounting Git metadata", async (context) => {
+  const paths = await fixture(context);
+  let inventoryPath;
+  let capturedFiles;
+  let command;
+  const runner = createProjectRunner({
+    config: configFor(paths),
+    github: githubStub(),
+    classifyRequest: async () => ({ kind: "implementation" }),
+    runModel: async ({ worktreePath }) => {
+      writeFileSync(join(worktreePath, "new file.md"), "# New\n");
+      mkdirSync(join(worktreePath, ".agent-attachments"), { recursive: true });
+      writeFileSync(
+        join(worktreePath, ".agent-attachments", "ignored.md"),
+        "ignored\n",
+      );
+      return { text: "Canvi fet.\nSUMMARY: feat(tools): add synthetic change" };
+    },
+    executeSandbox: async (options) => {
+      inventoryPath = options.documentationFilesPath;
+      capturedFiles = readFileSync(inventoryPath, "utf8").split("\0");
+      command = options.command[2];
+      return { exitCode: 1, stdout: "", stderr: "", timedOut: false };
+    },
+  });
+
+  const result = await runner(request());
+
+  assert.equal(result.outcome, "failed");
+  assert.ok(inventoryPath);
+  assert.ok(capturedFiles.includes("PREADME.md"));
+  assert.ok(capturedFiles.includes("Pnew file.md"));
+  assert.ok(!capturedFiles.includes("P.agent-attachments/ignored.md"));
+  assert.match(
+    command,
+    /MOUNTAIN_AGENT_DOCUMENTATION_FILES=\/tmp\/mountain-agent-documentation-files/u,
+  );
+  assert.equal(existsSync(inventoryPath), false);
+});
+
+test("the service inventory lets the real documentation checker run without the worktree gitdir", async (context) => {
+  const paths = await fixture(context);
+  const sandbox = join(paths.directory, "isolated-copy");
+  const github = githubStub();
+  let checkerRan = false;
+  const runner = createProjectRunner({
+    config: configFor(paths),
+    github,
+    classifyRequest: async () => ({ kind: "implementation" }),
+    runModel: async ({ worktreePath }) => {
+      mkdirSync(join(worktreePath, "docs"));
+      writeFileSync(
+        join(worktreePath, "docs/README.md"),
+        "# Map\n\n[Guide](guide.md)\n",
+      );
+      writeFileSync(join(worktreePath, "docs/guide.md"), "# Guide\n");
+      return { text: "Canvi fet.\nSUMMARY: docs(tools): add synthetic guide" };
+    },
+    executeSandbox: async ({ workspacePath, documentationFilesPath }) => {
+      cpSync(workspacePath, sandbox, { recursive: true });
+      writeFileSync(join(sandbox, ".git"), "gitdir: /nonexistent/gitdir\n");
+      const checker = spawnSync(
+        process.execPath,
+        [
+          fileURLToPath(
+            new URL("../../../docs/check-docs.mjs", import.meta.url),
+          ),
+        ],
+        {
+          cwd: sandbox,
+          encoding: "utf8",
+          env: {
+            ...process.env,
+            MOUNTAIN_AGENT_DOCUMENTATION_FILES: documentationFilesPath,
+          },
+        },
+      );
+      checkerRan = true;
+      assert.equal(checker.status, 0, checker.stderr);
+      return {
+        exitCode: checker.status,
+        stdout: checker.stdout,
+        stderr: checker.stderr,
+        timedOut: false,
+      };
+    },
+  });
+
+  const result = await runner(request());
+
+  assert.equal(checkerRan, true);
+  assert.equal(result.outcome, "pull_request_created");
+});
+
+test("does not publish files created after the documentation inventory was captured", async (context) => {
+  const paths = await fixture(context);
+  const github = githubStub();
+  const events = [];
+  const runner = createProjectRunner({
+    config: configFor(paths),
+    github,
+    logger: (event) => events.push(event),
+    classifyRequest: async () => ({ kind: "implementation" }),
+    runModel: async ({ worktreePath }) => {
+      writeFileSync(join(worktreePath, "change.txt"), "change\n");
+      return { text: "Canvi fet.\nSUMMARY: feat(tools): add synthetic change" };
+    },
+    executeSandbox: async ({ workspacePath }) => {
+      writeFileSync(join(workspacePath, "late.md"), "# Late\n");
+      return { exitCode: 0, stdout: "", stderr: "", timedOut: false };
+    },
+  });
+
+  const result = await runner(request());
+
+  assert.equal(result.outcome, "failed");
+  assert.equal(github.pushes.length, 0);
+  assert.ok(events.includes("documentation_inventory_changed"));
+  assert.equal(existsSync(join(topicWorktreePath(paths), "late.md")), true);
+});
+
+test("marks files already deleted when the documentation inventory is captured", async (context) => {
+  const paths = await fixture(context);
+  let checked = false;
+  const runner = createProjectRunner({
+    config: configFor(paths),
+    github: githubStub(),
+    classifyRequest: async () => ({ kind: "implementation" }),
+    runModel: async ({ worktreePath }) => {
+      unlinkSync(join(worktreePath, "README.md"));
+      return { text: "Canvi fet.\nSUMMARY: fix(tools): remove synthetic file" };
+    },
+    executeSandbox: async ({ documentationFilesPath }) => {
+      const files = readFileSync(documentationFilesPath, "utf8").split("\0");
+      assert.ok(files.includes("P.gitignore"));
+      assert.ok(files.includes("DREADME.md"));
+      checked = true;
+      return { exitCode: 1, stdout: "", stderr: "", timedOut: false };
+    },
+  });
+
+  const result = await runner(request());
+
+  assert.equal(result.outcome, "failed");
+  assert.equal(checked, true);
+});
+
+test("does not publish a tracked file deleted during the checks", async (context) => {
+  const paths = await fixture(context);
+  const github = githubStub();
+  const runner = createProjectRunner({
+    config: configFor(paths),
+    github,
+    classifyRequest: async () => ({ kind: "implementation" }),
+    runModel: async ({ worktreePath }) => {
+      writeFileSync(join(worktreePath, "change.txt"), "change\n");
+      return { text: "Canvi fet.\nSUMMARY: feat(tools): add synthetic change" };
+    },
+    executeSandbox: async ({ workspacePath }) => {
+      unlinkSync(join(workspacePath, "README.md"));
+      return { exitCode: 0, stdout: "", stderr: "", timedOut: false };
+    },
+  });
+
+  const result = await runner(request());
+
+  assert.equal(result.outcome, "failed");
+  assert.equal(github.pushes.length, 0);
+});
+
+test("keeps an unconfirmed sandbox stop uncertain even if inventory cleanup fails", async (context) => {
+  const paths = await fixture(context);
+  const github = githubStub();
+  let directory;
+  context.after(() => {
+    if (directory && existsSync(directory)) {
+      chmodSync(directory, 0o700);
+      rmSync(directory, { recursive: true, force: true });
+    }
+  });
+  const runner = createProjectRunner({
+    config: configFor(paths),
+    github,
+    classifyRequest: async () => ({ kind: "implementation" }),
+    runModel: async ({ worktreePath }) => {
+      writeFileSync(join(worktreePath, "change.txt"), "change\n");
+      return { text: "Canvi fet.\nSUMMARY: feat(tools): add synthetic change" };
+    },
+    executeSandbox: async ({ documentationFilesPath }) => {
+      directory = dirname(documentationFilesPath);
+      chmodSync(directory, 0o500);
+      throw new SandboxCleanupError();
+    },
+  });
+
+  const result = await runner(request());
+
+  assert.equal(result.outcome, "uncertain");
+  assert.equal(github.pushes.length, 0);
+  assert.equal(existsSync(directory), true);
 });
 
 test("stops an ambiguous legacy topic before the model or any publication", async (context) => {

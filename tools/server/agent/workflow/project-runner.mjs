@@ -1,10 +1,14 @@
 // Composition for this application. The coordinator receives operations;
 // the project policy chooses prompts/checks and the adapters execute them.
 
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { runAgent } from "../runtime/agent.mjs";
 import { classifyRequest as classifyWithModel } from "../runtime/request-kind.mjs";
 import { agentSecrets } from "../config.mjs";
 import { openIdentifierNames } from "../repository/identifiers.mjs";
+import { registeredWorktree, runGit } from "../repository/trusted-git.mjs";
 import {
   runSandboxedCommand,
   stopSandboxedCommands,
@@ -108,17 +112,73 @@ export function createProjectRunner({
           signal: commandSignal,
         }),
     }),
-  runChecks = (context) =>
-    executeSandbox({
-      image: config.model.sandboxImage,
-      workspacePath: context.worktreePath,
-      worktreeRoot: config.paths.worktrees,
-      command: ["bash", "-lc", sandboxCheckCommand(context.checkCommand)],
-      limits: config.limits,
-      sessionIdentifier: context.sandboxIdentifier,
-      timeoutMilliseconds: config.limits.executionTimeoutMs,
-      signal: context.signal,
-    }),
+  runChecks = async (context) => {
+    const worktree = registeredWorktree(
+      config.paths.repository,
+      context.worktreePath,
+    );
+    const listFiles = () =>
+      runGit(
+        worktree,
+        ["ls-files", "-z", "--cached", "--others", "--exclude-standard"],
+        {
+          signal: context.signal,
+          maxBuffer: 64 * 1024 * 1024,
+          encoding: "buffer",
+        },
+      );
+    const listDeletedFiles = () =>
+      runGit(worktree, ["ls-files", "--deleted", "-z"], {
+        signal: context.signal,
+        maxBuffer: 64 * 1024 * 1024,
+        encoding: "buffer",
+      });
+    const files = await listFiles();
+    const deletedFiles = await listDeletedFiles();
+    const decoder = new TextDecoder("utf-8", { fatal: true, ignoreBOM: true });
+    const deleted = new Set(decoder.decode(deletedFiles).split("\0"));
+    const inventory = `${decoder
+      .decode(files)
+      .split("\0")
+      .filter(Boolean)
+      .map((file) => `${deleted.has(file) ? "D" : "P"}${file}`)
+      .join("\0")}\0`;
+    const directory = await mkdtemp(join(tmpdir(), "mountain-agent-docs-"));
+    const documentationFilesPath = join(directory, "files");
+    let failure;
+    let result;
+    try {
+      await writeFile(documentationFilesPath, inventory, { mode: 0o600 });
+      result = await executeSandbox({
+        image: config.model.sandboxImage,
+        workspacePath: context.worktreePath,
+        worktreeRoot: config.paths.worktrees,
+        command: ["bash", "-lc", sandboxCheckCommand(context.checkCommand)],
+        limits: config.limits,
+        sessionIdentifier: context.sandboxIdentifier,
+        timeoutMilliseconds: config.limits.executionTimeoutMs,
+        signal: context.signal,
+        documentationFilesPath,
+      });
+      if (
+        result.exitCode === 0 &&
+        (!files.equals(await listFiles()) ||
+          !deletedFiles.equals(await listDeletedFiles()))
+      ) {
+        logger?.("documentation_inventory_changed");
+        result = { ...result, exitCode: 1 };
+      }
+    } catch (error) {
+      failure = error;
+    }
+    try {
+      await rm(directory, { recursive: true, force: true });
+    } catch (error) {
+      failure ??= error;
+    }
+    if (failure) throw failure;
+    return result;
+  },
   logger,
 }) {
   // One installation salt names every worktree and every public branch suffix:

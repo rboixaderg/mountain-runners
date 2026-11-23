@@ -65,6 +65,7 @@ export function buildSandboxArguments({
   containerName,
   sessionIdentifier,
   readOnly = false,
+  documentationFilesPath,
 }) {
   const workspace = assertWorkspaceInsideRoot(workspacePath, worktreeRoot);
   assertPinnedImage(image);
@@ -102,6 +103,12 @@ export function buildSandboxArguments({
     "/tmp:rw,noexec,nosuid,size=256m",
     "--mount",
     `type=bind,src=${workspace},dst=/work${readOnly ? ",readonly" : ""}`,
+    ...(documentationFilesPath
+      ? [
+          "--mount",
+          `type=bind,src=${documentationFilesPath},dst=/tmp/mountain-agent-documentation-files,readonly`,
+        ]
+      : []),
     "--name",
     containerName,
     image,
