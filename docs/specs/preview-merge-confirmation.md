@@ -2,32 +2,40 @@
 
 ## Estat
 
-Pendent. Defineix l'entrada del
-[backlog](../backlog.md#fusionar-quan-la-persona-dona-la-feina-per-validada) i
-una esmena proposada a
-[l'ADR 0013](../decisions/0013-private-development-agent-boundary.md). Cap tasca
-passa a `En curs` fins que es fusioni la PR d'aquesta especificació. No canvia cap
-token, entorn ni configuració remota, no activa cap permís i no fa cap merge real.
+Defineix l'entrada del
+[backlog](../backlog.md#fusionar-quan-la-persona-dona-la-feina-per-validada).
+L'acceptació de l'esmena consta a
+[l'ADR 0013](../decisions/0013-private-development-agent-boundary.md).
+Aquesta especificació no canvia cap token, entorn ni configuració remota, no
+activa cap permís i no fa cap merge real.
 
 ## Objectiu
 
 Quan una persona verificada valida al tema la versió revisada, el servei respon
-amb una pregunta fixa. Només la resposta «Sí» d'aquella persona a aquella pregunta
-autoritza fusionar amb squash la PR i el SHA de la preview confirmada. El text no
-autoritza res més.
+amb una pregunta fixa. Només la resposta «Sí, a producció» d'aquella persona a
+aquella pregunta (acceptant les variants normalitzades sense exigir accents,
+comes ni la preposició «a») autoritza fusionar amb squash la PR i el SHA de la
+preview confirmada. El text no autoritza res més.
 
 ## Límits I Decisions Confirmades
 
-La persona mantenidora confirma aquestes decisions el 22 de novembre de 2026:
+La persona mantenidora confirma aquestes decisions el 22 de novembre de 2026 i
+les ajusta el 23 de novembre de 2026 abans de tancar la T2:
 
-- L'única autorització nova és la resposta «Sí» d'una persona verificada a la
-  pregunta fixa del servei. Autoritza només la PR i el SHA de la preview
-  confirmada vigent, resolts amb l'estat del servei i mai amb el text ni amb dades
-  del client.
+- L'única autorització nova és la resposta «Sí, a producció» d'una persona
+  verificada a la pregunta fixa del servei (ajustada des de «Sí» el 23 de
+  novembre de 2026 per fer explícit l'impacte a producció, amb normalització
+  tancada que ignora majúscules, espais, accents, comes, la preposició «a» i
+  signes finals `.` o `!`). Autoritza només la PR i el SHA de la preview
+  confirmada vigent, resolts amb l'estat del servei i mai amb el text ni amb
+  dades del client.
 - La validació només provoca la pregunta. Cap prosa, cita o reenviament, text d'una
-  PR, del model o d'una eina, ni un assentiment simple com «Perfecte» autoritza.
+  PR, del model o d'una eina, ni un assentiment simple com «Perfecte» o «Sí»
+  autoritza.
 - No hi ha model ni interfície ni credencial nova: la pregunta és un missatge i la
-  confirmació una resposta, i el transport de Telegram no canvia.
+  confirmació una resposta, i el transport de Telegram no canvia. El pont només
+  rep missatges nous (`message`): una edició mai no autoritza res, i un cop
+  enviada i admesa una confirmació vàlida no es pot anul·lar editant-la a la cua.
 - La fusió és a `main`. El desplegament s'inicia amb aquest push segons
   `.github/workflows/artifact.yml` i els controls de producció de
   [`docs/operations/web-and-releases.md`](../operations/web-and-releases.md#controls); el servei no fa cap operació nova, no
@@ -50,19 +58,22 @@ Derivat de T8.9, de l'ADR 0009 i del backlog, sense decisió nova:
 
 ## Resultats Esperats
 
-- Una persona verificada respon a l'avís amb «La feina està validada» i el tema rep
-  només la pregunta fixa. «Perfecte», qualsevol altre text, un avís anterior o una
-  persona no verificada no reben cap pregunta.
-- La resposta «Sí» d'aquella persona a aquella pregunta fusiona el SHA de la
-  preview i el tema n'informa. Un «Sí» repetit, d'una altra persona, reenviat o
-  editat no fusiona res, i si la preview, el cap, les comprovacions o la feina han
-  canviat, la confirmació no fusiona i ho diu planerament.
+- Una persona verificada respon a l'avís vigent amb «La feina està validada» i el
+  tema rep només la pregunta fixa. «Perfecte», qualsevol altre text, una
+  validació fora de context, un avís anterior o una persona no verificada no
+  reben cap pregunta.
+- La resposta «Sí, a producció» (o una variant normalitzada com «si, produccio»
+  o «sí, Produccio») d'aquella persona a aquella pregunta fusiona el SHA de la
+  preview i el tema n'informa. Una confirmació repetida, d'una altra persona,
+  reenviada o editada no autoritza cap merge, i si la preview, el cap, les
+  comprovacions o la feina han canviat, la confirmació no fusiona i ho diu
+  planerament.
 - `/merge` conserva les formes i els controls.
 
 ## Dependències I Ordre D'Inici
 
 - Previews de la fase 6 i etiqueta `preview`.
-- Esmena proposada de l'ADR 0013 fusionada.
+- Esmena de l'ADR 0013 acceptada abans de començar la implementació.
 - La T2 depèn de la T1: sense el SHA de la preview confirmada, la pregunta no pot
   autoritzar-lo.
 - Abans d'activar cal verificar els controls i alinear les instruccions dins de la
@@ -71,10 +82,10 @@ Derivat de T8.9, de l'ADR 0009 i del backlog, sense decisió nova:
 
 ## Tasques, Entregues I Seguiment
 
-| Tasca | Estat   | Dependències    | Resultat verificable                                     | PR  |
-| ----- | ------- | --------------- | -------------------------------------------------------- | --- |
-| T1    | Pendent | Esmena ADR 0013 | El merge fixa el SHA de la preview confirmada i lliurada | -   |
-| T2    | Pendent | T1 i esmena ADR | El «Sí» a la pregunta autoritza aquell merge i cap altre | -   |
+| Tasca | Estat   | Dependències    | Resultat verificable                                               | PR   |
+| ----- | ------- | --------------- | ------------------------------------------------------------------ | ---- |
+| T1    | Feta    | Esmena ADR 0013 | El merge fixa el SHA de la preview confirmada i lliurada           | #294 |
+| T2    | En curs | T1 i esmena ADR | «Sí, a producció» a la pregunta autoritza aquell merge i cap altre | -    |
 
 ### T1: Fixació Del Merge A La Preview Confirmada
 
@@ -108,8 +119,8 @@ avisos, el build de la preview, el component de GitHub ni el transport de
 Telegram. No afegeix cap credencial.
 
 **Resultat observable:** una validació explícita a l'avís vigent ofereix la
-pregunta, i el «Sí» d'aquella persona a aquella pregunta fusiona la PR i el SHA
-fixats.
+pregunta, i la resposta «Sí, a producció» (normalitzada) d'aquella persona a
+aquella pregunta fusiona la PR i el SHA fixats.
 
 **Comprovacions mínimes:** `pnpm test:server`, sense cap merge real.
 
@@ -121,15 +132,16 @@ fixats.
 - L'únic que fixa el SHA és l'avís de preview confirmada i lliurada, amb
   l'identificador del missatge desat després de l'enviament; un enviament fallit o
   incert no deixa cap vincle i un verd de CI no és cap prova de lliurament.
-- Només compta la preview confirmada de la publicació més nova; una publicació
-  posterior sense avís confirmat no permet tornar a l'anterior.
+- Només compta l'avís de la preview confirmada de la publicació més nova; una
+  petició manual de preview no el substitueix. Una publicació posterior sense
+  avís confirmat no permet tornar a l'anterior.
 - El merge exigeix PR oberta, no esborrany, base `main`, repositori principal, cap
   igual al SHA, comprovacions obligatòries en verd, branca al dia, etiqueta
   `preview` i cap `preview-revoked`. No fusiona si en falta res, si el lliurament és
   pendent o incert o si hi ha feina més nova que l'avís.
 - Aprovada la T1, totes les formes de `/merge` resolen el SHA nou; la sintaxi i la
   resta de controls no canvien. `/merge <PR> <SHA>` pot reconciliar un resultat
-  desconegut sense cap preview nova, sense autoritzar repetició ni salt de controls.
+  desconegut sense cap preview nova. La reconciliació no executa cap merge.
 
 ## Pregunta Fixa
 
@@ -153,27 +165,33 @@ cap torn de model. El servei respon amb aquesta pregunta fixa, i res més:
 
 > Segur que vols donar aquesta feina per acabada? Si confirmes, els canvis
 > d'aquesta versió es fusionaran i es publicaran a producció si el desplegament
-> acaba bé. Respon «Sí» a aquest missatge per confirmar.
+> acaba bé. Respon «Sí, a producció» a aquest missatge per confirmar.
 
 La pregunta queda fixada a l'avís, a la PR i el SHA vigents i a la persona. El
 servei en desa l'identificador després d'un enviament confirmat; si l'enviament
 falla o és incert, no hi ha cap pregunta vàlida. Un avís substituït per un de més
-nou també és inert. Qualsevol altre text segueix el camí actual i no fusiona res.
+nou també és inert. Qualsevol altre text (inclosa una validació fora de l'avís
+vigent) segueix el camí actual i no fusiona res.
 
-## Confirmació Amb «Sí»
+## Confirmació Amb «Sí, a producció»
 
-- Només compta la resposta directa «Sí» a aquella pregunta, de la mateixa persona
-  verificada, comprovada de nou, al mateix grup i tema, en un missatge escrit pel
-  servei i amb l'identificador exacte desat. Es conserva la mateixa identitat de
-  resposta i els mateixos denegats que a la pregunta, i no s'autoritza a partir de
-  text citat ni de noms visibles.
-- No compta cap «Sí» solt sense ser resposta a la pregunta, ni el d'una tercera
-  persona, ni un missatge copiat, reenviat, citat o editat, ni buit ni amb altre
-  text. La normalització, si és coherent, es limita a retallar espais i a ignorar
-  majúscules i minúscules; el servei no entén prosa i no llegeix cap PR ni SHA del
-  text.
+- Només compta la resposta directa «Sí, a producció» a aquella pregunta, de la
+  mateixa persona verificada, comprovada de nou, al mateix grup i tema, en un
+  missatge escrit pel servei i amb l'identificador exacte desat. Es conserva la
+  mateixa identitat de resposta i els mateixos denegats que a la pregunta, i no
+  s'autoritza a partir de text citat ni de noms visibles.
+- No compta cap confirmació solta sense ser resposta a la pregunta, ni un «Sí»
+  sol, ni el d'una tercera persona, ni un missatge copiat, reenviat, citat o
+  editat, ni buit ni amb altre text. La normalització tancada retalla i col·lapsa
+  espais, ignora majúscules i minúscules, accents, comes, la preposició opcional
+  «a» i els signes finals `.` o `!` (accepta variants com «si, produccio» o
+  «sí, Produccio», però rebutja «?» o text afegit); el servei no entén prosa i no
+  llegeix cap PR ni SHA del text. El transport manté només missatges nous: una
+  edició no autoritza res, i un cop enviada i admesa una confirmació vàlida no es
+  pot editar ni anul·lar a la cua.
 - Un canvi de SHA, la retirada de l'etiqueta `preview`, una preview revocada o una
-  feina nova invaliden la pregunta. El «Sí» no es recondueix mai a un altre SHA.
+  feina nova invaliden la pregunta. La confirmació no es recondueix mai a un
+  altre SHA.
 - Si tot es compleix, fa l'única operació de merge existent amb el SHA fixat i
   mètode squash. La fusió és a `main` i el desplegament segueix
   `.github/workflows/artifact.yml` i els controls de producció; el servei no en
@@ -183,8 +201,8 @@ nou també és inert. Qualsevol altre text segueix el camí actual i no fusiona 
 
 ## Idempotència I Reconciliació
 
-- Un «Sí» repetit o una pregunta duplicada no fusiona dues vegades, encara que el
-  servei es reiniciï.
+- Una confirmació repetida o una pregunta duplicada no fusionen dues vegades,
+  encara que el servei es reiniciï.
 - Un resultat desconegut no es repeteix: es llegeix la PR. Si GitHub la mostra
   fusionada, es tanca i s'informa; si no, només una persona verificada decideix amb
   `/merge <PR> <SHA>`.
@@ -207,12 +225,14 @@ servidor (`pnpm test:server`) amb Telegram i GitHub simulats, i no fusionen cap 
   resposta a un avís anterior; avís substituït; autor no verificat; feina més nova;
   preview pendent, sense etiqueta o revocada; enviament de la pregunta fallit o
   incert.
-- T2, confirmació: «Sí» correcte; «Sí» solt; tercera persona o una altra persona
-  verificada; missatge copiat, reenviat, citat o editat; buit o amb altre text;
-  identificador desconegut; missatge no escrit pel servei; `external_reply`, cita,
-  reenviament, edició, fitxer o llegenda; SHA mogut; etiqueta retirada; preview
-  revocada; feina nova; duplicat; reinici; estat incert; cap PR tancada sense
-  fusionar.
+- T2, confirmació: «Sí, a producció» i variants normalitzades («si, produccio»,
+  «sí, Produccio», «si a produccio»); «Sí» solt; «Sí, a producció?» interrogatiu;
+  confirmació solta sense resposta; tercera persona o una altra persona
+  verificada; pertinença revocada o no comprovable entre passos; missatge copiat,
+  reenviat, citat o editat; buit o amb altre text; identificador desconegut;
+  missatge no escrit pel servei; `external_reply`, cita, reenviament, edició,
+  fitxer o llegenda; SHA mogut; etiqueta retirada; preview revocada; feina nova;
+  duplicat; reinici; estat incert; cap PR tancada sense fusionar.
 - Comprovació manual: cap merge real; després de l'activació aprovada.
 
 ## Seguretat I Privacitat
@@ -222,10 +242,10 @@ Aquests requisits es deriven de les decisions anteriors; no són decisions noves
 - La confirmació afegeix una via d'autorització, així que el servei només pot
   autoritzar el que ha desat ell mateix: una dada del text o del client no tria la
   PR ni el SHA.
-- La mateixa persona, tema i identificador de pregunta eviten que un «Sí» copiat,
-  citat o d'un altre fil autoritzi res. Un enviament incert, una lectura fallida o
-  una pertinença no verificada deneguen l'acció, i cap camí concedeix permís per
-  defecte.
+- La mateixa persona, tema i identificador de pregunta eviten que una confirmació
+  copiada, citada o d'un altre fil autoritzi res. Un enviament incert, una lectura
+  fallida o una pertinença no verificada deneguen l'acció, i cap camí concedeix
+  permís per defecte.
 - La confirmació no arriba al model ni al sandbox, no amplia la xarxa ni les
   credencials, i la traça no desa el text de la conversa.
 - La fusió inicia el desplegament; el risc és explícit i la primera fusió real
@@ -234,14 +254,15 @@ Aquests requisits es deriven de les decisions anteriors; no són decisions noves
 ## Fora D'Abast
 
 - Qualsevol interfície específica; interpretar prosa o autoritzar per un text que no
-  sigui la resposta «Sí».
+  sigui la resposta normalitzada «Sí, a producció».
 - Canviar les formes o els controls de `/merge` més enllà de la font del SHA que
   proposa l'esmena, o tractar «publica-la» com una autorització de merge.
 - Consultar l'estat de producció o corregir permisos d'Actions, el flux de la
   preview o qualsevol defecte aliè.
 - Afegir una operació de GitHub, una credencial o un permís nou.
 - Auto-merge, desplegament manual, bypass d'administrador o canvis de protecció.
-- Editar `AGENTS.md` o `CONTRIBUTING.md` en aquest lliurament.
+- Editar `AGENTS.md` o `CONTRIBUTING.md` en el lliurament de l'especificació;
+  la T2 els alinea.
 - Fer cap merge real durant les proves o la verificació.
 
 ## Criteris D'Acceptació
@@ -260,13 +281,14 @@ Aquests requisits es deriven de les decisions anteriors; no són decisions noves
 4. «Perfecte», qualsevol altre text, un avís anterior, una persona no verificada,
    un `external_reply`, una cita, un reenviament, una edició o un fitxer o llegenda
    no reben cap pregunta ni cap resposta inventada.
-5. Només el «Sí» d'aquella persona a aquella pregunta fusiona amb squash la PR i el
-   SHA fixats; la fusió és a `main`, el desplegament s'inicia amb el push i cap PR
-   es tanca sense fusionar.
+5. Només la resposta «Sí, a producció» (normalitzada sense exigir accents, comes
+   ni «a») d'aquella persona a aquella pregunta fusiona amb squash la PR i el
+   SHA fixats; la fusió és a `main`, el desplegament s'inicia amb el push i cap
+   PR es tanca sense fusionar.
 6. Una comprovació fallida o no concloent, un canvi de SHA, la retirada de
    l'etiqueta o una preview revocada no fusionen i responen en llenguatge planer.
-7. Un «Sí» duplicat, també després d'un reinici, o un estat incert no fusionen dues
-   vegades i fallen en tancat.
+7. Una confirmació duplicada, també després d'un reinici, o un estat incert no
+   fusionen dues vegades i fallen en tancat.
 8. No hi ha model, interfície nova, credencial ni operació de GitHub nova, i cap
    PR/SHA no surt del text.
 9. Cap prova no fa cap merge real; la verificació manual queda per a després de

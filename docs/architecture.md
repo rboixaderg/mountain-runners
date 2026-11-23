@@ -145,13 +145,16 @@ La frontera separa un component de confiança, que gestiona Telegram, el model i
 les operacions de GitHub, de l'entorn aïllat que executa scripts, hooks,
 dependències i proves del repositori. Només el component de confiança rep la
 credencial de GitHub i només exposa la branca de treball, la PR i el merge
-demanat amb `/merge <PR>`. L'entorn aïllat no llegeix credencials ni sessions i
-no té xarxa per defecte.
+demanat amb `/merge <PR>` o confirmat amb «Sí, a producció» a la pregunta del
+servei. L'entorn aïllat no llegeix credencials ni sessions i no té xarxa per
+defecte.
 
 L'agent no desplega, no fa push a `main`, no activa auto-merge i no modifica
 proteccions. El merge continua sent una decisió humana: l'executa només amb la
-petició explícita d'un membre verificat, fixada al commit de l'últim informe del
-fil i amb les comprovacions obligatòries en verd. La petició de preview es
+petició explícita d'un membre verificat o la seva resposta «Sí, a producció» a
+la pregunta fixa que segueix la validació «La feina està validada», fixada a la
+PR i el commit de l'avís vigent de la preview confirmada i amb les comprovacions
+obligatòries en verd. La petició de preview es
 delega de la mateixa manera segons
 l'[ADR 0009](decisions/0009-pr-previews-same-domain-and-own-branches.md).
 
@@ -202,8 +205,8 @@ a `.github/**` i `CODEOWNERS` es rebutgen en qualsevol commit del rang. La
 credencial prevista no té el permís `Workflows: write`. El push publica
 exactament el SHA inspeccionat, sense forçar-lo. El
 [mapa de mòduls](../tools/server/agent/README.md) diferencia el nucli
-reutilitzable de l'aplicació i les seves fronteres. El merge demanat i la petició
-delegada de preview continuen fora d'aquesta base (T8.4).
+reutilitzable de l'aplicació i les seves fronteres. El merge demanat o confirmat
+i la petició delegada de preview continuen fora d'aquesta base (T8.4).
 
 El servei està instal·lat i en marxa al VPS, amb el bot, el grup privat i les
 credencials de la fase 8. La instal·lació, la configuració, els límits i les

@@ -1,4 +1,4 @@
-# Eines De Servidor (T5.3 / T5.4 / T5.5)
+# Eines De Servidor
 
 Aquest directori conté la provisió i les eines operatives de la fase 5 de
 [`docs/specs/phase-5/phase-5-publication-operation.md`](../../docs/specs/phase-5/phase-5-publication-operation.md).

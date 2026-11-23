@@ -164,7 +164,7 @@ test("ends a request only in a terminal state and never without its origin", (co
   store.close();
 });
 
-test("adds the confirmed origin to a store created before it was kept", (context) => {
+test("adds the confirmed origin and the notice identifier to a store created before they were kept", (context) => {
   const path = fixture(context);
   const previous = new DatabaseSync(path);
   previous.exec(`
@@ -188,7 +188,18 @@ test("adds the confirmed origin to a store created before it was kept", (context
   previous.close();
 
   const store = new PreviewRequestStore(path);
-  assert.equal(readRequest(path, 1).confirmed_origin, null);
+  const row = readRequest(path, 1);
+  assert.equal(row.confirmed_origin, null);
+  assert.equal(row.notice_message_identifier, null);
+  assert.equal(
+    store.deliveredPublicationPreview({
+      sessionKey: "-100123:7",
+      updateIdentifier: 1,
+      pullRequestNumber: 42,
+      commitSha: "a".repeat(40),
+    }),
+    null,
+  );
   store.close();
 });
 
@@ -243,6 +254,159 @@ test("a repair reopens the row of its publication for the new commit", (context)
   assert.equal(row.commit_sha, newerCommit);
   assert.equal(row.author_identifier, 555);
   assert.equal(row.updated_at, "2026-11-14T11:00:00.000Z");
+  store.close();
+});
+
+const deliveredPublication = {
+  sessionKey: request.sessionKey,
+  updateIdentifier: 1,
+  pullRequestNumber: request.pullRequestNumber,
+  commitSha: request.commitSha,
+};
+
+test("binds a delivered preview to its exact publication and commit", (context) => {
+  const path = fixture(context);
+  const moment = new Date("2026-11-14T10:00:00Z");
+  const store = new PreviewRequestStore(path, { now: () => moment });
+  store.track(request);
+  store.finish(
+    1,
+    request.commitSha,
+    previewStates.confirmed,
+    previewOrigin,
+    77,
+  );
+
+  const delivered = store.deliveredPublicationPreview(deliveredPublication);
+  assert.equal(delivered.update_identifier, 1);
+  assert.equal(delivered.pull_request_number, 42);
+  assert.equal(delivered.commit_sha, request.commitSha);
+  assert.equal(delivered.notice_message_identifier, 77);
+  assert.equal(delivered.created_at, "2026-11-14T10:00:00.000Z");
+  store.close();
+
+  const restarted = new PreviewRequestStore(path);
+  assert.equal(
+    restarted.deliveredPublicationPreview(deliveredPublication)
+      .notice_message_identifier,
+    77,
+  );
+  restarted.close();
+});
+
+test("never binds a preview of another publication, commit, topic or state", (context) => {
+  const store = new PreviewRequestStore(fixture(context));
+  store.track(request);
+  store.finish(
+    1,
+    request.commitSha,
+    previewStates.confirmed,
+    previewOrigin,
+    77,
+  );
+
+  for (const expected of [
+    { ...deliveredPublication, commitSha: newerCommit },
+    { ...deliveredPublication, pullRequestNumber: 43 },
+    { ...deliveredPublication, sessionKey: "-100123:8" },
+    { ...deliveredPublication, updateIdentifier: 2 },
+  ]) {
+    assert.equal(store.deliveredPublicationPreview(expected), null);
+  }
+
+  const pending = {
+    ...deliveredPublication,
+    updateIdentifier: 2,
+    commitSha: newerCommit,
+  };
+  store.track({ ...request, ...pending });
+  assert.equal(store.deliveredPublicationPreview(pending), null);
+
+  // A confirmation that kept no notice identifier is no delivered preview.
+  store.finish(2, newerCommit, previewStates.confirmed, previewOrigin);
+  assert.equal(store.deliveredPublicationPreview(pending), null);
+  store.close();
+});
+
+test("a notice identifier a row cannot use never makes it a delivered preview", (context) => {
+  const path = fixture(context);
+  const store = new PreviewRequestStore(path);
+  store.begin(request);
+
+  for (const identifier of [0, -1, 1.5, Number.NaN, "77"]) {
+    assert.throws(
+      () =>
+        store.finish(
+          1,
+          request.commitSha,
+          previewStates.confirmed,
+          previewOrigin,
+          identifier,
+        ),
+      /positive Telegram message id/u,
+    );
+  }
+  assert.equal(store.state(1), previewStates.awaiting);
+
+  assert.equal(
+    store.finish(1, request.commitSha, previewStates.confirmed, previewOrigin),
+    true,
+  );
+  assert.equal(store.state(1), previewStates.confirmed);
+  assert.equal(store.deliveredPublicationPreview(deliveredPublication), null);
+
+  // A request that ended another way keeps none.
+  store.begin({ ...request, updateIdentifier: 2, commitSha: newerCommit });
+  store.finish(2, newerCommit, previewStates.timedOut, null, 78);
+  assert.equal(readRequest(path, 2).notice_message_identifier, null);
+  store.close();
+});
+
+test("a new publication or a repair clears the delivered notice of the row", (context) => {
+  const path = fixture(context);
+  const store = new PreviewRequestStore(path);
+  store.track(request);
+  store.finish(
+    1,
+    request.commitSha,
+    previewStates.confirmed,
+    previewOrigin,
+    77,
+  );
+
+  store.track({ ...request, commitSha: newerCommit });
+
+  assert.equal(readRequest(path, 1).notice_message_identifier, null);
+  assert.equal(
+    store.deliveredPublicationPreview({
+      ...deliveredPublication,
+      commitSha: newerCommit,
+    }),
+    null,
+  );
+
+  const repaired = {
+    ...deliveredPublication,
+    updateIdentifier: 2,
+    commitSha: newerCommit,
+  };
+  store.track({ ...request, ...repaired });
+  store.finish(2, newerCommit, previewStates.confirmed, previewOrigin, 78);
+  assert.equal(
+    store.deliveredPublicationPreview(repaired).notice_message_identifier,
+    78,
+  );
+
+  assert.equal(
+    store.reopen({
+      updateIdentifier: 2,
+      pullRequestNumber: 42,
+      commitSha: newerCommit,
+    }),
+    true,
+  );
+  assert.equal(readRequest(path, 2).notice_message_identifier, null);
+  assert.equal(store.deliveredPublicationPreview(repaired), null);
   store.close();
 });
 

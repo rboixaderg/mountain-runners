@@ -35,6 +35,7 @@ import {
 } from "../attachments/test-support/synthetic-images.mjs";
 import { runAgent } from "../runtime/agent.mjs";
 import { createCiRepairExecutor } from "./ci-repair.mjs";
+import { createMergeRequests } from "./merge-request.mjs";
 import { createProjectRunner } from "./project-runner.mjs";
 import {
   createBranch,
@@ -2954,6 +2955,107 @@ test("routes a literal /merge command to the service before the classifier and t
   ]);
   assert.deepEqual(github.pushes, []);
   assert.equal(existsSync(join(paths.worktrees, "scratch-1001")), false);
+});
+
+test("only contextual replies bypass the classifier for merge confirmation", async (context) => {
+  const paths = await fixture(context);
+  const classified = [];
+  mkdirSync(paths.state, { recursive: true });
+  const store = new MergeRequestStore(join(paths.state, "merge.sqlite"));
+  context.after(() => store.close());
+  const sessionKey = request().sessionKey;
+  const sentQuestions = [];
+  const mergeConfirmation = createMergeRequests({
+    store,
+    findDeliveredPreview: (key) =>
+      key === sessionKey
+        ? {
+            update_identifier: 10,
+            pull_request_number: 200,
+            commit_sha: "a".repeat(40),
+            notice_message_identifier: 800,
+          }
+        : undefined,
+    hasNewerWork: () => false,
+    hasInterveningInstructions: () => false,
+    verifyMembership: async () => ({ verified: true, status: "member" }),
+    github: {
+      ...githubStub(),
+      async getPullRequest() {
+        return {
+          state: "open",
+          htmlUrl: "https://github.com/rboixaderg/mountain-runners/pull/200",
+          headSha: "a".repeat(40),
+          headRepository: "rboixaderg/mountain-runners",
+          draft: false,
+          baseRef: "main",
+          mergeableState: "clean",
+          merged: false,
+          mergeCommitSha: null,
+          previewLabeled: true,
+          previewRevoked: false,
+        };
+      },
+      async getCommitCheckRuns() {
+        return [
+          { name: "Validate", status: "completed", conclusion: "success" },
+        ];
+      },
+      async getCommitStatuses() {
+        return [];
+      },
+    },
+    repository: "rboixaderg/mountain-runners",
+    requiredChecks: ["Validate"],
+    telegram: {
+      async sendMessage(message) {
+        sentQuestions.push(message.text);
+        return { message_id: 900 };
+      },
+    },
+    retryDelayMilliseconds: 0,
+  });
+  const runner = createProjectRunner({
+    config: configFor(paths),
+    github: githubStub(),
+    classifyRequest: async ({ instruction }) => {
+      classified.push(instruction);
+      return { kind: "clarification" };
+    },
+    runModel: async () => ({ text: "Entesos." }),
+    requestMergeConfirmation: mergeConfirmation,
+  });
+
+  const outOfContextValidation = await runner(
+    request({
+      updateIdentifier: 11,
+      instruction: "La feina està validada",
+      replyMessageIdentifier: 801,
+    }),
+  );
+  assert.equal(outOfContextValidation.report, "Entesos.");
+  assert.deepEqual(classified, ["La feina està validada"]);
+
+  const contextualValidation = await runner(
+    request({
+      updateIdentifier: 12,
+      instruction: "La feina està validada",
+      replyMessageIdentifier: 800,
+    }),
+  );
+  assert.equal(contextualValidation.outcome, "merge_context");
+  assert.equal(sentQuestions.length, 1);
+  assert.deepEqual(classified, ["La feina està validada"]);
+
+  const outOfContextConfirm = await runner(
+    request({
+      updateIdentifier: 13,
+      instruction: "si, produccio",
+      replyMessageIdentifier: 901,
+    }),
+  );
+  assert.equal(outOfContextConfirm.report, "Entesos.");
+  assert.deepEqual(classified, ["La feina està validada", "si, produccio"]);
 });
 
 test("never treats prose as a merge", async (context) => {

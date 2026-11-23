@@ -1041,8 +1041,11 @@ async function runMergeCommand(
   {
     membershipAtExecution = "member",
     membershipAtAdmission = "member",
+    membershipStatuses = null,
     updates = [mergeCommandUpdate(100)],
+    followups = [],
     prepare = () => {},
+    deliveredPreview = true,
   },
 ) {
   const { environment } = environmentFor(context);
@@ -1059,6 +1062,13 @@ async function runMergeCommand(
       },
       async getChatMember() {
         membershipChecks.push("checked");
+        if (membershipStatuses !== null) {
+          const index = Math.min(
+            membershipChecks.length - 1,
+            membershipStatuses.length - 1,
+          );
+          return { status: membershipStatuses[index] };
+        }
         return {
           status:
             membershipChecks.length === 1
@@ -1068,6 +1078,7 @@ async function runMergeCommand(
       },
       async sendMessage(message) {
         replies.push(message.text);
+        return { message_id: 70 + replies.length };
       },
     },
     github: {
@@ -1077,6 +1088,7 @@ async function runMergeCommand(
           state: "open",
           merged: false,
           mergeCommitSha: null,
+          previewLabeled: true,
         };
       },
       async getCommitCheckRuns() {
@@ -1101,17 +1113,99 @@ async function runMergeCommand(
   });
   service.ciWatches.beginSend(10, "success");
   service.ciWatches.finishSend(10);
+  if (deliveredPreview) {
+    service.previewRequests.track({
+      updateIdentifier: 10,
+      sessionKey: "-1001234567890:7",
+      authorIdentifier: 42,
+      pullRequestNumber: 200,
+      commitSha: commit,
+    });
+    service.previewRequests.finish(
+      10,
+      commit,
+      "confirmed",
+      "https://pr-200.preview.mountainrunners.cat",
+      51,
+    );
+  }
 
   await service.bridge.pollOnce();
   prepare(service);
   await service.bridge.executeNext();
+  for (const update of followups) {
+    updates.push(update);
+    await service.bridge.pollOnce();
+    await service.bridge.executeNext();
+  }
 
   const outcome = { replies, membershipChecks, merges, service };
+  service.previewRequests.close();
   service.mergeRequests.close();
   service.ciWatches.close();
   service.queue.close();
   return outcome;
 }
+
+function mergeReply(updateIdentifier, messageIdentifier, text, author = 555) {
+  const { message } = mergeCommandUpdate(updateIdentifier);
+  return {
+    update_id: updateIdentifier,
+    message: {
+      ...message,
+      from: { id: author, is_bot: false },
+      text,
+      entities: [],
+      reply_to_message: {
+        message_id: messageIdentifier,
+        chat: message.chat,
+        message_thread_id: message.message_thread_id,
+        from: { id: 999, is_bot: true },
+      },
+    },
+  };
+}
+
+test("the current preview receives only the fixed question and only its author's reply merges", async (context) => {
+  const { replies, merges, membershipChecks } = await runMergeCommand(context, {
+    updates: [mergeReply(100, 51, "La feina està validada")],
+    followups: [
+      mergeReply(101, 71, "Sí, a producció", 556),
+      mergeReply(103, 71, "si, produccio"),
+      mergeReply(104, 71, "Sí, a producció"),
+    ],
+  });
+  assert.equal(replies.length, 2);
+  assert.equal(
+    replies[0],
+    "Segur que vols donar aquesta feina per acabada? Si confirmes, els canvis d'aquesta versió es fusionaran i es publicaran a producció si el desplegament acaba bé. Respon «Sí, a producció» a aquest missatge per confirmar.",
+  );
+  assert.deepEqual(merges, [{ number: 200, sha: "a".repeat(40) }]);
+  assert.match(replies[1], /La proposta #200 ja està fusionada/u);
+  assert.equal(membershipChecks.length, 6);
+});
+
+test("revoking membership between the question and the confirmation refuses the merge", async (context) => {
+  const { replies, merges } = await runMergeCommand(context, {
+    // 1: validation admission, 2: validation execution,
+    // 3: confirmation admission, 4: confirmation execution (revoked)
+    membershipStatuses: ["member", "member", "member", "left"],
+    updates: [mergeReply(100, 51, "La feina està validada")],
+    followups: [mergeReply(101, 71, "Sí, a producció")],
+  });
+  assert.equal(replies.length, 2);
+  assert.match(replies[0], /Respon «Sí, a producció»/u);
+  assert.match(replies[1], /Ja no constes com a membre/u);
+  assert.deepEqual(merges, []);
+});
+
+test("an out-of-context validation still receives the working acknowledgement", async (context) => {
+  const { replies, merges } = await runMergeCommand(context, {
+    updates: [mergeReply(100, 99, "La feina està validada")],
+  });
+  assert.equal(replies[0], "Hi estic treballant.");
+  assert.deepEqual(merges, []);
+});
 
 test("merges through the bridge after verifying the membership again at execution", async (context) => {
   const { replies, membershipChecks, merges } = await runMergeCommand(context, {
@@ -1121,6 +1215,78 @@ test("merges through the bridge after verifying the membership again at executio
   assert.equal(membershipChecks.length, 2);
   assert.deepEqual(merges, [{ number: 200, sha: "a".repeat(40) }]);
   assert.match(replies.at(-1), /La proposta #200 ja està fusionada/u);
+});
+
+test("a green CI notice without a delivered preview cannot authorize a merge through the bridge", async (context) => {
+  const { replies, merges } = await runMergeCommand(context, {
+    deliveredPreview: false,
+  });
+
+  assert.deepEqual(merges, []);
+  assert.match(replies.at(-1), /no hi ha cap avís vigent de preview/u);
+});
+
+test("a delivered manual preview cannot stand in for the publication notice", async (context) => {
+  const { replies, merges } = await runMergeCommand(context, {
+    deliveredPreview: false,
+    prepare: ({ previewRequests }) => {
+      const commitSha = "a".repeat(40);
+      previewRequests.begin({
+        updateIdentifier: 11,
+        sessionKey: "-1001234567890:7",
+        authorIdentifier: 42,
+        pullRequestNumber: 200,
+        commitSha,
+      });
+      assert.equal(
+        previewRequests.finish(
+          11,
+          commitSha,
+          "confirmed",
+          "https://pr-200.preview.mountainrunners.cat",
+          52,
+        ),
+        true,
+      );
+    },
+  });
+
+  assert.deepEqual(merges, []);
+  assert.match(replies.at(-1), /no hi ha cap avís vigent de preview/u);
+});
+
+test("a newer publication without a preview record invalidates the earlier notice even at the same SHA", async (context) => {
+  const { replies, merges } = await runMergeCommand(context, {
+    prepare: ({ ciWatches }) => {
+      ciWatches.add({
+        updateIdentifier: 11,
+        sessionKey: "-1001234567890:7",
+        pullRequestNumber: 200,
+        commitSha: "a".repeat(40),
+      });
+      ciWatches.beginSend(11, "success");
+      ciWatches.finishSend(11);
+    },
+  });
+
+  assert.deepEqual(merges, []);
+  assert.match(replies.at(-1), /no hi ha cap avís vigent de preview/u);
+});
+
+test("the former topic cannot merge a pull request now owned by another topic", async (context) => {
+  const { replies, merges } = await runMergeCommand(context, {
+    prepare: ({ ciWatches }) => {
+      ciWatches.add({
+        updateIdentifier: 11,
+        sessionKey: "-1001234567890:8",
+        pullRequestNumber: 200,
+        commitSha: "a".repeat(40),
+      });
+    },
+  });
+
+  assert.deepEqual(merges, []);
+  assert.match(replies.at(-1), /no hi ha cap avís vigent de preview/u);
 });
 
 test("keeps the result of a merge for the next turn of the session", async (context) => {
@@ -1223,6 +1389,30 @@ test("keeps the older notice blocked after reconciling a publication without a w
   watches.beginSend(10, "success");
   watches.finishSend(10);
   watches.close();
+  const previews = new PreviewRequestStore(
+    join(statePath, "preview-request.sqlite"),
+  );
+  function deliverPreview(updateIdentifier, pullRequestNumber, commitSha) {
+    previews.track({
+      updateIdentifier,
+      sessionKey: topic,
+      authorIdentifier: 42,
+      pullRequestNumber,
+      commitSha,
+    });
+    assert.equal(
+      previews.finish(
+        updateIdentifier,
+        commitSha,
+        "confirmed",
+        `https://pr-${pullRequestNumber}.preview.mountainrunners.cat`,
+        updateIdentifier + 50,
+      ),
+      true,
+    );
+  }
+  deliverPreview(10, 200, greenCommit);
+  context.after(() => previews.close());
   // B was published, but registering its watch failed: the instruction is
   // unknown until a person reconciles it.
   const queue = new AdmissionQueue(join(statePath, "admission.sqlite"), {
@@ -1304,6 +1494,7 @@ test("keeps the older notice blocked after reconciling a publication without a w
             mergeableState: "clean",
             merged: false,
             mergeCommitSha: null,
+            previewLabeled: true,
           };
         },
         async getCommitCheckRuns() {
@@ -1322,24 +1513,30 @@ test("keeps the older notice blocked after reconciling a publication without a w
     });
     await service.bridge.pollOnce();
     await service.bridge.executeNext();
+    service.previewRequests.close();
     service.mergeRequests.close();
     service.ciWatches.close();
     service.queue.close();
     return { merges, replies };
   }
 
-  // The confirmed publication is still unreported: A must not be merged.
+  // The reconciled publication has no delivered preview: A must not be merged.
   const refused = await mergeOnce(100);
   assert.deepEqual(refused.merges, []);
-  assert.match(refused.replies.at(-1), /feina més nova que l'últim avís/u);
+  assert.match(refused.replies.at(-1), /preview/iu);
 
-  // The restored watch reports the publication; only then the merge resolves.
+  // A green notice does not replace the new publication's preview.
   const delivered = new CiWatchStore(join(statePath, "ci-watch.sqlite"));
   assert.equal(delivered.beginSend(20, "success"), true);
   assert.equal(delivered.finishSend(20), true);
   delivered.close();
 
-  const resolved = await mergeOnce(200);
+  const stillRefused = await mergeOnce(200);
+  assert.deepEqual(stillRefused.merges, []);
+  assert.match(stillRefused.replies.at(-1), /preview/iu);
+
+  deliverPreview(20, publishedPullRequest, publishedCommit);
+  const resolved = await mergeOnce(300);
   assert.deepEqual(resolved.merges, [
     { number: publishedPullRequest, sha: publishedCommit },
   ]);

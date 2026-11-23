@@ -1,16 +1,18 @@
 // Deterministic `/merge` on request (T8.4).
 //
 // A verified person asks with the literal command `/merge`, `/merge <PR>` or
-// `/merge <PR> <SHA>` to merge the pull request the topic last reported as
-// green. Prose is never a merge and the model never sees the command. The
-// service pins the request to the commit it last reported to that topic,
-// verifies the person's membership again, re-reads the pull request and its
-// required checks and only then asks GitHub for a squash merge of exactly that
-// commit, with its own credential.
+// `/merge <PR> <SHA>` to merge the pull request and commit of the newest
+// confirmed and delivered preview notice of the topic. Prose is never a merge
+// and the model never sees the command. A green CI result is not delivery. The
+// service pins the request to that notice, verifies the person's membership
+// again, re-reads the pull request, its preview label and its required checks
+// and only then asks GitHub for a squash merge of exactly that commit, with its
+// own credential.
 //
 // The request is durable before the merge call. A result that is not known is
 // never repeated: the next request, or the next start, reads the pull request
-// first and closes the request as merged only if GitHub shows it merged.
+// first and closes the request as merged only if GitHub shows it merged. A
+// request that clears an unknown result never merges: the person asks again.
 
 import { parseSessionKey } from "telegram-pi-bridge/sessions";
 import {
@@ -19,18 +21,46 @@ import {
   statusClass,
 } from "../repository/github.mjs";
 import { mergeBeginResults } from "../repository/merge-request-store.mjs";
+import { isNoticeMessageIdentifier } from "../repository/preview-request-store.mjs";
 import {
   defaultRequestTimeoutMilliseconds,
   requestSignal,
   sleep,
 } from "../repository/request-signal.mjs";
 import { mergeReports, shortCommit } from "../policy/development.mjs";
-import { ciResults } from "./ci-watch.mjs";
 
 const mergeCommandPrefix = "/merge";
 const mergeCommandPattern =
   /^\/merge(?:[ \t]+#?(\d+)(?:[ \t]+([a-f0-9]{40}))?)?$/u;
 const mergeMethod = "squash";
+export const mergeConfirmationOutcome = "merge_context";
+const quietConfirmation = { outcome: mergeConfirmationOutcome };
+
+const confirmationPattern = /^si(?:\s*,\s*|\s+)(?:a\s+)?produccio$/u;
+
+function stripDiacritics(text) {
+  return text.normalize("NFD").replace(/[\u0300-\u036f]/gu, "");
+}
+
+export function mergeConfirmationIntent(text) {
+  const normalized = text.trim().toLowerCase();
+  const simplifiedConfirmation = stripDiacritics(
+    normalized.replace(/[.!]+$/u, "").trimEnd(),
+  ).replace(/\s+/gu, " ");
+  if (confirmationPattern.test(simplifiedConfirmation)) {
+    return "confirm";
+  }
+  if (
+    normalized
+      .replace(/[.!?]+$/u, "")
+      .trimEnd()
+      .replace(/\s+/gu, " ") === "la feina està validada"
+  ) {
+    return "validate";
+  }
+  return null;
+}
+
 const mergeableStates = {
   clean: "clean",
   behind: "behind",
@@ -44,8 +74,7 @@ const refusals = {
   usage: "usage",
   membershipRevoked: "membership_revoked",
   membershipUnavailable: "membership_unavailable",
-  noReportedCommit: "no_reported_commit",
-  notGreen: "not_green",
+  noDeliveredPreview: "no_delivered_preview",
   otherPullRequest: "other_pull_request",
   commitMismatch: "commit_mismatch",
   newerWork: "newer_work",
@@ -59,6 +88,8 @@ const refusals = {
   notMainBase: "not_main_base",
   notMainRepository: "not_main_repository",
   headMoved: "head_moved",
+  previewRevoked: "preview_revoked",
+  noPreviewLabel: "no_preview_label",
   checksNotGreen: "checks_not_green",
   behind: "behind",
   notClean: "not_clean",
@@ -104,8 +135,9 @@ function rowTarget(row) {
 
 export function createMergeRequests({
   store,
-  reportedCommits,
+  findDeliveredPreview,
   hasNewerWork,
+  hasInterveningInstructions,
   verifyMembership,
   github,
   repository,
@@ -154,6 +186,8 @@ export function createMergeRequests({
     [refusals.notMainBase]: mergeReports.notMainBase,
     [refusals.notMainRepository]: mergeReports.notMainRepository,
     [refusals.headMoved]: mergeReports.headMoved,
+    [refusals.previewRevoked]: mergeReports.previewRevoked,
+    [refusals.noPreviewLabel]: mergeReports.noPreviewLabel,
     [refusals.checksNotGreen]: mergeReports.checksNotGreen,
     [refusals.behind]: mergeReports.behind,
     [refusals.notClean]: mergeReports.notClean,
@@ -209,6 +243,9 @@ export function createMergeRequests({
       return refusals.notMainRepository;
     }
     if (pullRequest.headSha !== target.commit) return refusals.headMoved;
+    // A maintainer's revocation wins over the label in the final live read.
+    if (pullRequest.previewRevoked) return refusals.previewRevoked;
+    if (!pullRequest.previewLabeled) return refusals.noPreviewLabel;
     // An unreadable mergeability makes the check reads pointless.
     if (pullRequest.mergeableState === mergeableStates.unknown) {
       return refusals.unreadable;
@@ -271,8 +308,7 @@ export function createMergeRequests({
    * The unknown PUT was pinned to the row's commit with `sha`, so once the head
    * has moved and GitHub shows the pull request unmerged, that merge can no
    * longer happen. The explicit SHA of the current head, from a verified member,
-   * is then the decision ADR 0013 requires; the full request still binds it to
-   * the last reported green commit.
+   * is then the decision ADR 0013 requires to reconcile, not to merge.
    */
   function confirmationTarget(row, pullRequest) {
     if (pullRequest.headSha === row.commit_sha) {
@@ -283,27 +319,30 @@ export function createMergeRequests({
 
   /**
    * The request this one must settle before anything else: an earlier merge of
-   * the same pull request with an unknown result. Reading the pull request
-   * decides: merged closes the row; closed without merging closes it for good; an
-   * open one waits for the person, who clears it with the strict
+   * the same pull request, in this topic, with an unknown result. Reading the
+   * pull request decides: merged closes the row; closed without merging closes
+   * it for good; an open one waits for the person, who clears it with the strict
    * `/merge <PR> <SHA>` of the row's commit, or of the current head once it has
-   * moved.
+   * moved. A short form only reads that result and never clears it.
    *
    * Returns `{ answer }` when the request ends here, `{ cleared }` with the
-   * confirmed target when the row was cleared, or null when the pull request has
-   * no unknown result. With `clearOnly`, an open pull request whose target the
-   * person did not confirm returns null: the caller's own refusal of the
-   * reported commit is then the answer, never the unknown-result reminder.
+   * confirmed target when the row was cleared, or null when this topic has no
+   * unknown result for the pull request. A cleared row never merges from the
+   * same request.
    */
   async function settleUncertain(
     request,
     pullRequestNumber,
     command,
-    { signal, clearOnly = false } = {},
+    { signal } = {},
   ) {
     const row = store
       .uncertain()
-      .find((candidate) => candidate.pull_request_number === pullRequestNumber);
+      .find(
+        (candidate) =>
+          candidate.pull_request_number === pullRequestNumber &&
+          candidate.session_key === request.sessionKey,
+      );
     if (row === undefined) {
       return null;
     }
@@ -353,10 +392,8 @@ export function createMergeRequests({
       };
     }
     const confirmation = confirmationTarget(row, pullRequest);
+    // A short form names no commit, so it can never confirm and clear the row.
     if (command.commit !== confirmation.commit) {
-      if (clearOnly) {
-        return null;
-      }
       return {
         answer: refuse(
           request,
@@ -367,9 +404,8 @@ export function createMergeRequests({
       };
     }
     // The person confirmed the commit: GitHub does not show the unknown result
-    // merged, so the row ends and the full request goes on from scratch. A row
-    // that cannot be closed still blocks the request: it must never be passed
-    // with the unknown result still open.
+    // merged, so the row ends. A row that cannot be closed still blocks the
+    // request: it must never be passed with the unknown result still open.
     if (!tryRecord(() => store.markNotMerged(row.update_identifier))) {
       return {
         answer: refuse(
@@ -383,72 +419,26 @@ export function createMergeRequests({
     traceRequest(
       request,
       "merge_uncertain_cleared",
-      describeTarget(rowTarget(row)),
+      describeTarget(confirmation),
     );
     return { cleared: confirmation };
   }
 
-  /** The merge commit of a pull request GitHub shows merged, or null. */
-  async function readMergedPullRequest(pullRequestNumber, signal) {
-    try {
-      const pullRequest = await readPullRequestOf(pullRequestNumber, signal);
-      return pullRequest.merged ? pullRequest : null;
-    } catch (error) {
-      signal?.throwIfAborted();
-      logger(
-        "merge_read_failed",
-        error instanceof Error ? error.name : "unknown",
-      );
-      return null;
-    }
-  }
-
-  /** Resolve the pull request and commit this topic last reported as green. */
-  async function resolveReported(request, command, reported, signal) {
-    if (reported === undefined) {
+  /** Resolve the pull request and commit of the newest delivered preview. */
+  function resolveDelivered(request, command, delivered) {
+    if (delivered === undefined) {
       return {
         answer: refuse(
           request,
-          refusals.noReportedCommit,
-          mergeReports.noReportedCommit,
+          refusals.noDeliveredPreview,
+          mergeReports.noDeliveredPreview,
         ),
       };
     }
     const target = {
-      pullRequestNumber: reported.pull_request_number,
-      commit: reported.commit_sha,
+      pullRequestNumber: delivered.pull_request_number,
+      commit: delivered.commit_sha,
     };
-    // After a merge the closed-pull-request notice is the topic's last one.
-    if (reported.result === ciResults.pullRequestClosed) {
-      const mergedPullRequest = await readMergedPullRequest(
-        target.pullRequestNumber,
-        signal,
-      );
-      if (mergedPullRequest !== null) {
-        return {
-          answer: refuse(
-            request,
-            refusals.alreadyMerged,
-            mergeReports.alreadyMerged({
-              pullRequestNumber: target.pullRequestNumber,
-              mergeCommit: mergedPullRequest.mergeCommitSha,
-              pullRequestUrl: mergedPullRequest.htmlUrl,
-            }),
-            target,
-          ),
-        };
-      }
-    }
-    if (reported.result !== ciResults.success) {
-      return {
-        answer: refuse(
-          request,
-          refusals.notGreen,
-          mergeReports.notGreen(target),
-          target,
-        ),
-      };
-    }
     if (
       command.pullRequestNumber !== undefined &&
       command.pullRequestNumber !== target.pullRequestNumber
@@ -496,8 +486,7 @@ export function createMergeRequests({
   /** Record the end of a merge whose result is known; the answer never depends on it. */
   function tryRecord(recordEnd) {
     try {
-      recordEnd();
-      return true;
+      return recordEnd() !== false;
     } catch (error) {
       logger(
         "merge_state_failed",
@@ -568,11 +557,7 @@ export function createMergeRequests({
     };
   }
 
-  /** The instruction runner calls this for a recognised merge command. */
-  async function handle(request, command, { signal } = {}) {
-    if (!command.valid) {
-      return refuse(request, refusals.usage, mergeReports.usage);
-    }
+  async function membershipRefusal(request, signal) {
     // The membership is verified before GitHub is asked anything: a person who
     // left the group can neither merge nor make the service read a pull request
     // for them.
@@ -594,49 +579,47 @@ export function createMergeRequests({
         mergeReports.membershipRevoked,
       );
     }
+    return null;
+  }
 
-    const reported = reportedCommits.lastReported(request.sessionKey);
-    const { target, answer } = await resolveReported(
-      request,
-      command,
-      reported,
-      signal,
-    );
-    if (answer) {
-      // A strict form that names the current head clears the unknown result even
-      // when the last report still names the previous commit. The head moved
-      // before its own report, so without this the person could never settle the
-      // row; the new head still needs its green report to be merged.
-      if (command.commit !== undefined) {
-        const settled = await settleUncertain(
-          request,
-          command.pullRequestNumber,
-          command,
-          { signal, clearOnly: true },
-        );
-        if (settled?.answer) return settled.answer;
-        if (settled?.cleared) {
-          return refuse(
-            request,
-            refusals.headMoved,
-            mergeReports.headMoved(settled.cleared),
-            settled.cleared,
-          );
-        }
+  /** The instruction runner calls this for a recognised merge command. */
+  async function handle(request, command, { signal } = {}) {
+    if (!command.valid) {
+      return refuse(request, refusals.usage, mergeReports.usage);
+    }
+    const denied = await membershipRefusal(request, signal);
+    if (denied !== null) return denied;
+
+    const delivered = findDeliveredPreview(request.sessionKey) ?? undefined;
+    // The unknown result of this topic's pull request is settled first: a short
+    // form only reads it, and only the full form clears it. Neither clears and
+    // merges in the same request.
+    const pullRequestNumber =
+      command.pullRequestNumber ?? delivered?.pull_request_number;
+    if (pullRequestNumber !== undefined) {
+      const settled = await settleUncertain(
+        request,
+        pullRequestNumber,
+        command,
+        { signal },
+      );
+      if (settled?.answer) return settled.answer;
+      if (settled?.cleared) {
+        return {
+          outcome: "answered",
+          report: mergeReports.uncertainCleared(settled.cleared),
+        };
       }
+    }
+    return mergeDelivered(request, command, delivered, signal);
+  }
+
+  async function mergeDelivered(request, command, delivered, signal) {
+    const { target, answer } = resolveDelivered(request, command, delivered);
+    if (answer) {
       return answer;
     }
     traceRequest(request, "merge_membership_verified", describeTarget(target));
-
-    const settled = await settleUncertain(
-      request,
-      target.pullRequestNumber,
-      command,
-      { signal },
-    );
-    if (settled?.answer) {
-      return settled.answer;
-    }
 
     let mergeState;
     try {
@@ -658,6 +641,28 @@ export function createMergeRequests({
         mergeState.refusal,
         refusalTexts[mergeState.refusal](target),
         target,
+      );
+    }
+
+    // The live reads awaited GitHub. Immediately before the durable request and
+    // the PUT, the delivered preview and the work of the topic are read again:
+    // a newer notice, another pull request or commit, or newer work refuses
+    // instead of merging a state the person no longer confirmed.
+    const current = findDeliveredPreview(request.sessionKey) ?? undefined;
+    const rechecked = resolveDelivered(request, command, current);
+    if (rechecked.answer) {
+      return rechecked.answer;
+    }
+    if (
+      current.notice_message_identifier !==
+        delivered.notice_message_identifier ||
+      rechecked.target.pullRequestNumber !== target.pullRequestNumber ||
+      rechecked.target.commit !== target.commit
+    ) {
+      return refuse(
+        request,
+        refusals.noDeliveredPreview,
+        mergeReports.noDeliveredPreview,
       );
     }
 
@@ -690,6 +695,177 @@ export function createMergeRequests({
       signal,
       mergeState.pullRequest.htmlUrl,
     );
+  }
+
+  async function offerQuestion(request, signal) {
+    const delivered = findDeliveredPreview(request.sessionKey) ?? undefined;
+    if (
+      delivered?.notice_message_identifier !== request.replyMessageIdentifier
+    ) {
+      return quietConfirmation;
+    }
+    const { target, answer } = resolveDelivered(request, {}, delivered);
+    if (answer || store.hasOpenRequest(target.pullRequestNumber)) {
+      return quietConfirmation;
+    }
+    const key = {
+      sessionKey: request.sessionKey,
+      noticeMessageIdentifier: delivered.notice_message_identifier,
+      authorIdentifier: request.authorIdentifier,
+    };
+    if (store.hasQuestion(key)) return quietConfirmation;
+
+    const stillCurrent = () => {
+      const current = findDeliveredPreview(request.sessionKey);
+      return (
+        current?.update_identifier === delivered.update_identifier &&
+        current.notice_message_identifier === key.noticeMessageIdentifier &&
+        current.pull_request_number === target.pullRequestNumber &&
+        current.commit_sha === target.commit &&
+        !hasNewerWork(request) &&
+        !store.hasOpenRequest(target.pullRequestNumber)
+      );
+    };
+    try {
+      const live = await readMergeState(target, signal);
+      if (live.refusal !== null || !stillCurrent()) return quietConfirmation;
+      const { chatIdentifier, threadIdentifier } = parseSessionKey(
+        request.sessionKey,
+      );
+      const sent = await telegram.sendMessage({
+        chatIdentifier,
+        messageThreadIdentifier: threadIdentifier,
+        text: mergeReports.question,
+        signal: requestSignal(signal, requestTimeoutMilliseconds),
+      });
+      if (isNoticeMessageIdentifier(sent?.message_id) && stillCurrent()) {
+        const saved = store.saveQuestion({
+          ...key,
+          questionMessageIdentifier: sent.message_id,
+          publicationUpdateIdentifier: delivered.update_identifier,
+          validationUpdateIdentifier: request.updateIdentifier,
+          pullRequestNumber: target.pullRequestNumber,
+          commitSha: target.commit,
+        });
+        if (saved) {
+          traceRequest(
+            request,
+            "merge_question_asked",
+            `#${target.pullRequestNumber} ${target.commit}`,
+          );
+        }
+      }
+    } catch (error) {
+      signal?.throwIfAborted();
+      logger(
+        "merge_question_failed",
+        error instanceof Error ? error.name : "unknown",
+      );
+    }
+    return quietConfirmation;
+  }
+
+  async function handleConfirmation(request, intent, { signal } = {}) {
+    if (
+      !isNoticeMessageIdentifier(request.replyMessageIdentifier) ||
+      intent === null ||
+      intent !== mergeConfirmationIntent(request.instruction)
+    ) {
+      return quietConfirmation;
+    }
+    if (intent === "validate") {
+      if ((await membershipRefusal(request, signal)) !== null)
+        return quietConfirmation;
+      return offerQuestion(request, signal);
+    }
+    const key = {
+      sessionKey: request.sessionKey,
+      questionMessageIdentifier: request.replyMessageIdentifier,
+      authorIdentifier: request.authorIdentifier,
+    };
+    const question = store.question(key);
+    if (
+      !question ||
+      question.consumed_at !== null ||
+      question.author_identifier !== request.authorIdentifier
+    ) {
+      return quietConfirmation;
+    }
+    const denied = await membershipRefusal(request, signal);
+    if (denied !== null)
+      return { ...denied, outcome: mergeConfirmationOutcome };
+    if (!store.consumeQuestion(key)) return quietConfirmation;
+
+    const target = rowTarget(question);
+    const delivered = findDeliveredPreview(request.sessionKey);
+    if (
+      delivered?.update_identifier !== question.publication_update_identifier ||
+      delivered.notice_message_identifier !==
+        question.notice_message_identifier ||
+      delivered.pull_request_number !== target.pullRequestNumber ||
+      delivered.commit_sha !== target.commit ||
+      hasInterveningInstructions({
+        sessionKey: request.sessionKey,
+        afterUpdateIdentifier: question.validation_update_identifier,
+        updateIdentifier: request.updateIdentifier,
+      })
+    ) {
+      return {
+        ...refuse(
+          request,
+          refusals.newerWork,
+          mergeReports.staleQuestion,
+          target,
+        ),
+        outcome: mergeConfirmationOutcome,
+      };
+    }
+    if (store.hasOpenRequest(target.pullRequestNumber)) {
+      const settled = await settleUncertain(
+        request,
+        target.pullRequestNumber,
+        {},
+        { signal },
+      );
+      return {
+        ...(settled?.answer ??
+          refuse(
+            request,
+            refusals.alreadyInProgress,
+            mergeReports.alreadyInProgress(target),
+            target,
+          )),
+        outcome: mergeConfirmationOutcome,
+      };
+    }
+    traceRequest(
+      request,
+      "merge_confirmation_used",
+      `#${target.pullRequestNumber} ${target.commit} ${mergeMethod}`,
+    );
+    const result = await mergeDelivered(request, target, delivered, signal);
+    return { ...result, outcome: mergeConfirmationOutcome };
+  }
+
+  function contextualIntent(request, text = request.instruction) {
+    if (!isNoticeMessageIdentifier(request.replyMessageIdentifier)) return null;
+    const intent = mergeConfirmationIntent(text);
+    if (intent === "validate") {
+      const delivered = findDeliveredPreview(request.sessionKey);
+      return delivered?.notice_message_identifier ===
+        request.replyMessageIdentifier
+        ? intent
+        : null;
+    }
+    if (intent === "confirm") {
+      return store.question({
+        sessionKey: request.sessionKey,
+        questionMessageIdentifier: request.replyMessageIdentifier,
+      })
+        ? intent
+        : null;
+    }
+    return null;
   }
 
   /**
@@ -771,5 +947,5 @@ export function createMergeRequests({
     }
   }
 
-  return { handle, reconcileUncertain };
+  return { handle, handleConfirmation, contextualIntent, reconcileUncertain };
 }

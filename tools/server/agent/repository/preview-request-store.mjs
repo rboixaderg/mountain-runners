@@ -14,6 +14,11 @@
 // The origin the trusted publisher confirmed is stored with the request, because
 // the model of the topic never builds or guesses a preview URL and cannot read
 // GitHub from its sandbox.
+//
+// The identifier of the notice Telegram accepted is stored with the confirmed
+// request, in the same statement that ends it: only a confirmed request that
+// kept it is a delivered preview a later confirmation can point at. A notice
+// that failed, was uncertain or left no usable identifier stores nothing.
 
 import { openDatabase, runTransaction } from "./sqlite.mjs";
 
@@ -27,6 +32,7 @@ const schema = `
     state TEXT NOT NULL CHECK (state IN ('commenting', 'awaiting', 'confirmed', 'timed_out', 'failed', 'uncertain')),
     commented_at TEXT,
     confirmed_origin TEXT,
+    notice_message_identifier INTEGER,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL
   );
@@ -37,18 +43,26 @@ const schema = `
 `;
 
 /**
- * A store created before the confirmed origin was kept gets the column added. It
- * is null for every request that ended before, and a confirmed request without
- * it simply reports no URL.
+ * A store created before a column was kept gets the column added. It is null for
+ * every request that ended before: a confirmed request without the origin or the
+ * notice identifier simply reports neither, and is never a delivered preview.
  */
-function ensureConfirmedOriginColumn(database) {
+function ensureColumn(database, name, definition) {
   const columns = database.prepare("PRAGMA table_info(preview_requests)").all();
-  if (columns.some((column) => column.name === "confirmed_origin")) {
+  if (columns.some((column) => column.name === name)) {
     return;
   }
   database.exec(
-    "ALTER TABLE preview_requests ADD COLUMN confirmed_origin TEXT",
+    `ALTER TABLE preview_requests ADD COLUMN ${name} ${definition}`,
   );
+}
+
+/**
+ * A Telegram message identifier a reply can point at: a positive safe integer.
+ * Anything else is no link at all.
+ */
+export function isNoticeMessageIdentifier(value) {
+  return Number.isSafeInteger(value) && value > 0;
 }
 
 export const previewStates = {
@@ -79,7 +93,8 @@ export class PreviewRequestStore {
   constructor(path, { now = () => new Date() } = {}) {
     this.#database = openDatabase(path);
     this.#database.exec(schema);
-    ensureConfirmedOriginColumn(this.#database);
+    ensureColumn(this.#database, "confirmed_origin", "TEXT");
+    ensureColumn(this.#database, "notice_message_identifier", "INTEGER");
     this.#now = now;
   }
 
@@ -162,6 +177,7 @@ export class PreviewRequestStore {
            commit_sha = excluded.commit_sha,
            state = 'awaiting',
            confirmed_origin = NULL,
+           notice_message_identifier = NULL,
            created_at = excluded.created_at,
            updated_at = excluded.updated_at`,
       )
@@ -187,7 +203,7 @@ export class PreviewRequestStore {
         .prepare(
           `UPDATE preview_requests
            SET commit_sha = ?, state = 'awaiting', confirmed_origin = NULL,
-               created_at = ?, updated_at = ?
+               notice_message_identifier = NULL, created_at = ?, updated_at = ?
            WHERE update_identifier = ? AND pull_request_number = ?`,
         )
         .run(
@@ -200,17 +216,26 @@ export class PreviewRequestStore {
     );
   }
 
-  #transition(updateIdentifier, commitSha, fromState, toState, origin = null) {
+  #transition(
+    updateIdentifier,
+    commitSha,
+    fromState,
+    toState,
+    origin = null,
+    noticeMessageIdentifier = null,
+  ) {
     return (
       this.#database
         .prepare(
           `UPDATE preview_requests
-           SET state = ?, confirmed_origin = COALESCE(?, confirmed_origin), updated_at = ?
+           SET state = ?, confirmed_origin = COALESCE(?, confirmed_origin),
+               notice_message_identifier = ?, updated_at = ?
            WHERE update_identifier = ? AND commit_sha = ? AND state = ?`,
         )
         .run(
           toState,
           origin,
+          noticeMessageIdentifier,
           this.#now().toISOString(),
           updateIdentifier,
           commitSha,
@@ -220,31 +245,81 @@ export class PreviewRequestStore {
   }
 
   /**
-   * End an awaiting request. The confirmed origin is written with the state, in
-   * one statement: a confirmation never ends without the URL the publisher
-   * confirmed, and `updated_at` becomes the moment the request ended. A second
-   * claim never succeeds. Only a terminal state can end a request, because the
-   * row of an ended request is never described by a state it cannot reach. The
-   * commit is the one the caller read: a row reopened for a newer commit in the
-   * meantime is not ended by the result of the older one.
+   * End an awaiting request. The confirmed origin and the identifier of the
+   * notice Telegram accepted are written with the state, in one statement: a
+   * confirmation never ends without the URL the publisher confirmed, and
+   * `updated_at` becomes the moment the request ended. A second claim never
+   * succeeds. Only a terminal state can end a request, because the row of an
+   * ended request is never described by a state it cannot reach. The commit is
+   * the one the caller read: a row reopened for a newer commit in the meantime
+   * is not ended by the result of the older one.
+   *
+   * An identifier that is no positive Telegram message id is rejected instead of
+   * stored, and a confirmation without one is stored as such: the row ends, and
+   * it is never a delivered preview another confirmation can point at.
    */
-  finish(updateIdentifier, commitSha, state, origin = null) {
+  finish(
+    updateIdentifier,
+    commitSha,
+    state,
+    origin = null,
+    noticeMessageIdentifier = null,
+  ) {
     if (!terminalStates.has(state)) {
       throw new Error(`Invalid preview end state ${state}.`);
     }
     if (state === previewStates.confirmed && origin === null) {
       throw new Error("A confirmed preview requires the origin it confirmed.");
     }
-    // Only a confirmed request keeps an origin: a request that ended another way
-    // never leaves a URL behind.
+    if (
+      noticeMessageIdentifier !== null &&
+      !isNoticeMessageIdentifier(noticeMessageIdentifier)
+    ) {
+      throw new TypeError(
+        "A notice message identifier is a positive Telegram message id.",
+      );
+    }
+    // Only a confirmed request keeps an origin or a notice identifier: a request
+    // that ended another way never leaves a URL or a link behind.
     const confirmedOrigin = state === previewStates.confirmed ? origin : null;
+    const confirmedNotice =
+      state === previewStates.confirmed ? noticeMessageIdentifier : null;
     return this.#transition(
       updateIdentifier,
       commitSha,
       previewStates.awaiting,
       state,
       confirmedOrigin,
+      confirmedNotice,
     );
+  }
+
+  /**
+   * The stored row of one publication, only when it is exactly the preview the
+   * caller names: the same topic, the same update, the same pull request and the
+   * same commit, ended confirmed with the identifier of the notice it delivered.
+   * A row that is still pending, ended another way or kept no usable identifier
+   * is no delivered preview, and nothing falls back to another row.
+   */
+  deliveredPublicationPreview({
+    sessionKey,
+    updateIdentifier,
+    pullRequestNumber,
+    commitSha,
+  }) {
+    const row = this.#database
+      .prepare("SELECT * FROM preview_requests WHERE update_identifier = ?")
+      .get(updateIdentifier);
+    if (row === undefined) {
+      return null;
+    }
+    const bound =
+      row.session_key === sessionKey &&
+      row.state === previewStates.confirmed &&
+      row.pull_request_number === pullRequestNumber &&
+      row.commit_sha === commitSha &&
+      isNoticeMessageIdentifier(row.notice_message_identifier);
+    return bound ? row : null;
   }
 
   awaiting() {

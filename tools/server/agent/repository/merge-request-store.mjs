@@ -9,10 +9,17 @@
 //
 // One Telegram update is one row, so a duplicate update never merges twice, and
 // a pull request has at most one row that has not ended.
+//
+// The question that authorizes a merge is stored in the same database, after its
+// send was confirmed: a failed or unknown send leaves no valid question. It is
+// fixed to the notice, the publication, the pull request, the commit and the
+// person, and it is consumed once by a guarded write. A consumed question is
+// kept, so a repeated reply is answered deterministically instead of looking
+// like an unknown message, and a restart never consumes it again.
 
 import { openDatabase, runTransaction } from "./sqlite.mjs";
 
-const schema = `
+const mergeRequestsTable = `
   CREATE TABLE IF NOT EXISTS merge_requests (
     update_identifier INTEGER PRIMARY KEY,
     session_key TEXT NOT NULL,
@@ -28,6 +35,29 @@ const schema = `
   CREATE INDEX IF NOT EXISTS merge_requests_pull_request
     ON merge_requests (session_key, pull_request_number);
 `;
+
+const mergeQuestionsTable = `
+  CREATE TABLE IF NOT EXISTS merge_questions (
+    session_key TEXT NOT NULL,
+    question_message_identifier INTEGER NOT NULL,
+    notice_message_identifier INTEGER NOT NULL,
+    publication_update_identifier INTEGER NOT NULL,
+    validation_update_identifier INTEGER NOT NULL,
+    author_identifier INTEGER NOT NULL,
+    pull_request_number INTEGER NOT NULL,
+    commit_sha TEXT NOT NULL,
+    consumed_at TEXT,
+    created_at TEXT NOT NULL,
+    PRIMARY KEY (session_key, question_message_identifier)
+  );
+  CREATE UNIQUE INDEX IF NOT EXISTS merge_questions_validation
+    ON merge_questions (validation_update_identifier);
+  CREATE UNIQUE INDEX IF NOT EXISTS merge_questions_offer
+    ON merge_questions (session_key, notice_message_identifier, author_identifier)
+    WHERE consumed_at IS NULL;
+`;
+
+const schema = `${mergeRequestsTable}${mergeQuestionsTable}`;
 
 export const mergeStates = {
   merging: "merging",
@@ -79,14 +109,7 @@ export class MergeRequestStore {
       if (duplicate) {
         return mergeBeginResults.duplicate;
       }
-      const open = this.#database
-        .prepare(
-          `SELECT 1 FROM merge_requests
-           WHERE pull_request_number = ?
-             AND state IN (${openStates.map(() => "?").join(", ")})`,
-        )
-        .get(pullRequestNumber, ...openStates);
-      if (open) {
+      if (this.hasOpenRequest(pullRequestNumber)) {
         return mergeBeginResults.open;
       }
       const timestamp = this.#now().toISOString();
@@ -107,6 +130,111 @@ export class MergeRequestStore {
         );
       return mergeBeginResults.begun;
     });
+  }
+
+  /**
+   * Store the question of one validation, only after its send was confirmed, so
+   * a failed or unknown send leaves no valid question. One validation offers at
+   * most one question, whatever message identifier a retry would use; returns
+   * whether the question was stored.
+   */
+  saveQuestion({
+    sessionKey,
+    questionMessageIdentifier,
+    noticeMessageIdentifier,
+    publicationUpdateIdentifier,
+    validationUpdateIdentifier,
+    authorIdentifier,
+    pullRequestNumber,
+    commitSha,
+  }) {
+    return (
+      this.#database
+        .prepare(
+          `INSERT INTO merge_questions
+           (session_key, question_message_identifier, notice_message_identifier,
+            publication_update_identifier, validation_update_identifier,
+            author_identifier, pull_request_number, commit_sha, created_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+           ON CONFLICT DO NOTHING`,
+        )
+        .run(
+          sessionKey,
+          questionMessageIdentifier,
+          noticeMessageIdentifier,
+          publicationUpdateIdentifier,
+          validationUpdateIdentifier,
+          authorIdentifier,
+          pullRequestNumber,
+          commitSha,
+          this.#now().toISOString(),
+        ).changes === 1
+    );
+  }
+
+  /**
+   * The question a reply must answer, within its topic. It is returned after it
+   * was consumed, so a repeated confirmation is recognized instead of looking
+   * like an unknown message.
+   */
+  question({ sessionKey, questionMessageIdentifier }) {
+    return this.#database
+      .prepare(
+        `SELECT * FROM merge_questions
+         WHERE session_key = ? AND question_message_identifier = ?`,
+      )
+      .get(sessionKey, questionMessageIdentifier);
+  }
+
+  /**
+   * Whether this person already has an unanswered question for this notice.
+   */
+  hasQuestion({ sessionKey, noticeMessageIdentifier, authorIdentifier }) {
+    return (
+      this.#database
+        .prepare(
+          `SELECT 1 FROM merge_questions
+           WHERE session_key = ? AND notice_message_identifier = ?
+              AND author_identifier = ? AND consumed_at IS NULL`,
+        )
+        .get(sessionKey, noticeMessageIdentifier, authorIdentifier) !==
+      undefined
+    );
+  }
+
+  /**
+   * Take the question once, for the person it was fixed to. The guarded write is
+   * durable: a duplicate reply, another person or a restart after it never
+   * consumes it twice.
+   */
+  consumeQuestion({ sessionKey, questionMessageIdentifier, authorIdentifier }) {
+    return (
+      this.#database
+        .prepare(
+          `UPDATE merge_questions SET consumed_at = ?
+           WHERE session_key = ? AND question_message_identifier = ?
+             AND author_identifier = ? AND consumed_at IS NULL`,
+        )
+        .run(
+          this.#now().toISOString(),
+          sessionKey,
+          questionMessageIdentifier,
+          authorIdentifier,
+        ).changes === 1
+    );
+  }
+
+  /** Whether a merge of this pull request is running or its result is unknown. */
+  hasOpenRequest(pullRequestNumber) {
+    return (
+      this.#database
+        .prepare(
+          `SELECT 1 FROM merge_requests
+           WHERE pull_request_number = ?
+             AND state IN (${openStates.map(() => "?").join(", ")})`,
+        )
+        .get(pullRequestNumber, ...openStates) !== undefined
+    );
   }
 
   #transition(updateIdentifier, fromStates, toState, mergeCommitSha = null) {
