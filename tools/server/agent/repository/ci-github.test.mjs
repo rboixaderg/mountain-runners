@@ -7,6 +7,7 @@ import {
 } from "./github.mjs";
 
 const commit = "a".repeat(40);
+const baseCommit = "b".repeat(40);
 
 function pullRequestResponse(overrides = {}) {
   return {
@@ -20,7 +21,7 @@ function pullRequestResponse(overrides = {}) {
       ref: "feat/example",
       repo: { full_name: "example/project" },
     },
-    base: { ref: "main" },
+    base: { ref: "main", sha: baseCommit },
     html_url: "https://github.com/example/project/pull/123",
     ...overrides,
   };
@@ -417,6 +418,7 @@ test("reads one pull request to pin the reported commit to its head", async () =
     previewLabeled: false,
     previewRevoked: false,
     baseRef: "main",
+    baseSha: baseCommit,
     mergeableState: "clean",
     merged: false,
     mergeCommitSha: null,

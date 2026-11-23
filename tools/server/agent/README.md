@@ -169,9 +169,10 @@ al servidor. El nom local encara no representa una publicació a npm.
    tema. El model pot respondre preguntes o editar fitxers. Si no hi ha canvis
    ni feina pendent, no es publica res. Si la resposta és buida, s'utilitza el
    text fix d'aclariment.
-5. Si hi ha canvis o commits pendents, `workflow` crea o continua la branca i
-   executa les comprovacions locals dins del contenidor: `pnpm check:local` si
-   tots els camins són dins del contingut (ADR 0012) i `pnpm check` altrament.
+5. Si hi ha canvis o commits pendents, `workflow` crea o continua la branca,
+   desa la feina en un commit local i sincronitza la branca. Després executa les
+   comprovacions dins del contenidor: `pnpm check:local` si tots els camins són
+   dins del contingut (ADR 0012) i `pnpm check` altrament.
    Abans de cada comprovació, el Git de confiança obté la llista de fitxers
    versionats i nous no ignorats, i marca els eliminats. El contenidor rep aquesta
    instantània de rutes en un fitxer temporal de només lectura per a
@@ -182,14 +183,8 @@ al servidor. El nom local encara no representa una publicació a npm.
    el prompt demana al model que deixi els gates complets al servei.
    Una fallada conserva la feina. El següent torn ordinari torna a comprovar i
    publicar la feina pendent, encara que aquell torn no canviï cap fitxer.
-6. `repository` fa commit i consulta `origin/main`. Si la branca va per darrere,
-   integra `main` amb un commit de merge i repeteix les comprovacions. Davant
-   d'un conflicte, un segon torn del model al sandbox intenta conservar els dos
-   canvis. Si les versions es contradiuen, el prompt li demana que pregunti a
-   la persona quina vol. Si queden marcadors, el conflicte és binari o la resolució falla,
-   s'avorta el merge i no es fa push. Si l'avortament no es pot confirmar, el
-   resultat queda incert i la persona mantenidora l'ha de revisar. Després,
-   escaneja les credencials conegudes, publica la branca
+6. Després de la [sincronització amb `main`](#feina-vinculada-al-tema) i les
+   comprovacions, `repository` escaneja les credencials conegudes, publica la branca
    i obre o reutilitza la PR. Només després de confirmar push i PR registra el
    commit publicat fora del muntatge. El paquet retorna el resultat al tema.
    Totes les ordres Git i totes les crides a l'API de GitHub tenen termini i
@@ -557,8 +552,9 @@ la PR sense fusió.
   confirmada, al mateix grup i tema i d'un membre verificat en aquell moment.
   Una cita, un `external_reply`, un reenviament, una edició, un fitxer o una
   llegenda no hi arriben, i una validació que no respon a l'avís vigent segueix
-  la conversa habitual. Quan la validació és vigent, el servei no inicia cap
-  torn de model ni envia l'avís de recepció: respon només amb la pregunta fixa.
+  la conversa habitual. El servei no envia l'avís de recepció. Si la branca
+  està al dia, respon només amb la pregunta fixa, sense iniciar un torn de
+  model. Si està endarrerida, segueix el flux de sincronització.
 - **Pregunta duradora.** El servei envia aquesta pregunta i res més:
   «Segur que vols donar aquesta feina per acabada? Si confirmes, els canvis
   d'aquesta versió es fusionaran i es publicaran a producció si el desplegament
@@ -617,12 +613,21 @@ la PR sense fusió.
   cap igual al commit fixat, etiqueta `preview` present i sense
   `preview-revoked` (que té precedència), comprovacions obligatòries totes en
   verd i `mergeable_state` igual a `clean` (branca al dia i sense
-  bloquejos). `behind` refusa i ho ha de revisar la persona que manté el servei;
-  `unknown` es torna a llegir un
+  bloquejos). `unknown` es torna a llegir un
   màxim de tres vegades i després es refusa com a no llegible, sense llegir
   abans les comprovacions; `blocked`,
-  `dirty`, `unstable`, `has_hooks` i qualsevol altre valor refusen. Un error de
+  `unstable`, `has_hooks` i qualsevol altre valor refusen. Un error de
   lectura refusa.
+- **Branca endarrerida.** Amb `behind` o `dirty` (conflicte amb `main`), el
+  servei comprova l'ascendència abans de modificar el worktree. Integra `main`
+  i valida el resultat abans de publicar-lo a la mateixa PR. No envia la
+  pregunta antiga ni fusiona a `main` amb aquella petició o confirmació.
+  Quan el publicador confirma la preview del nou SHA, l'avís del tema demana
+  revisar-la i tornar a sol·licitar el merge. La petició ha de ser posterior
+  al nou avís. Una petició per reconciliar un resultat desconegut no sincronitza.
+  Si la persona mantenidora confirma que un push de sincronització incert es
+  va publicar, la reconciliació recupera el seguiment de la preview sense
+  repetir el push.
 - **Crida.** `PUT /repos/{repo}/pulls/{n}/merge` amb el cos exacte
   `{"sha": <commit fixat>, "merge_method": "squash"}`: GitHub rebutja el merge si
   el cap ja no és aquest SHA. El servei no envia títol, missatge ni altre mètode.
@@ -686,15 +691,10 @@ la PR sense fusió.
   la PR durant un `/merge` posterior la mostra fusionada, el servei ho informa
   sense repetir el merge.
 
-Bloquejos d'activació, per a una persona. El permís `Contents: write` del token
-permet usar l'API de merge i el compte és administrador: l'API REST podria
-saltar-se la protecció de la branca llevat que s'activi «enforce admins». La
-guarda efectiva són els controls del servei descrits més amunt. El risc
-residual està acceptat a l'ADR 0013. `MOUNTAIN_AGENT_REQUIRED_CHECKS` ha
-de coincidir amb la protecció de `main` amb «Require branches to be up to date»,
-perquè `clean` signifiqui el mateix per als dos. El primer merge real requereix
-l'aprovació explícita de la persona mantenidora. Aquesta implementació no activa
-res.
+GitHub ha d'aplicar la protecció de `main` també al compte administrador, sense
+bypass, i exigir que la branca estigui al dia. Això impedeix el merge si `main`
+avança després de l'última lectura del servei. Consulta el
+[procediment de verificació](../../../docs/operations/agent.md).
 
 ## Feina vinculada al tema
 
@@ -723,16 +723,25 @@ el mateix procediment de resolució al sandbox que per a `main`. Si no pot
 verificar l'ascendència o la branca no correspon, refusa el torn i conserva la
 feina.
 
-Abans de cada push, el servei consulta `origin/main`. Si la branca va per
-darrere, integra `main` amb un commit de merge, sense rebase ni push forçat, i
-repeteix les comprovacions locals. Si hi ha conflictes, avorta el primer intent
-i torna a preparar el conflicte per a un torn del model dins del sandbox. El
-prompt enumera els camins com a dades no fiables i demana conservar els dos
-canvis. Si les versions es contradiuen, demana al model que pregunti a la persona
-quina vol. Si resten marcadors o la resolució falla, el servei avorta el merge i no
-publica. Els conflictes binaris es refusen de manera conservadora. Si no es pot
-confirmar l'avortament, la instrucció queda incerta i cal revisió de la persona
-mantenidora.
+En un torn ordinari o de reparació amb feina pendent, el servei consulta
+`origin/main` abans de les comprovacions locals. Si la branca va per darrere,
+integra `main` amb un commit de merge, sense rebase. El push només avança la
+branca: no en reescriu l'historial.
+Tria les comprovacions segons els canvis respecte al `main` verificat. Si la
+base ha avançat en l'última lectura abans del push, torna a integrar-la i
+repeteix les comprovacions. El push només pot fixar l'estat esperat de la
+branca de treball, no el de `main`.
+Una consulta o un torn sense feina pendent no sincronitza el worktree.
+
+Per resoldre un conflicte amb `main`, el servei avorta el primer intent i el
+torna a preparar per al model dins del sandbox. El model tracta els camins com
+a dades no fiables, prioritza la branca de treball i conserva els canvis
+compatibles de `main`. Si no pot resoldre el conflicte amb seguretat o cal
+triar contingut, pregunta a la persona. Un conflicte binari, marcadors
+pendents o una resolució fallida aturen el push i preserven la feina. Si no es
+pot confirmar l'avortament, la instrucció queda incerta. El servei no reutilitza
+una aprovació privada quan canvia el commit, la base o l'estat que l'aprovació
+fixava.
 
 ## Continuïtat de la conversa d'un tema
 

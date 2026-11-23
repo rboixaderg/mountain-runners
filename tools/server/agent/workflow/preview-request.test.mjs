@@ -544,9 +544,13 @@ test("a confirmed notice keeps the identifier Telegram accepted as the delivered
   assert.equal(delivered.notice_message_identifier, 901);
 });
 
-test("a failed send keeps no link to a notice", async (context) => {
-  const { handler, github, telegram, previews } = setup(context);
-  handler.followPublication(publication(10));
+test("a synchronized publication only asks to review again once its preview notice reaches the topic", async (context) => {
+  const { handler, buildHandler, github, telegram, previews, sent } =
+    setup(context);
+  handler.followPublication({
+    ...publication(10),
+    mergeSynchronization: true,
+  });
   github.comments[200] = [publisherComment()];
 
   telegram.sendError = new Error("telegram down");
@@ -556,13 +560,30 @@ test("a failed send keeps no link to a notice", async (context) => {
   assert.equal(previews.deliveredPublicationPreview(deliveredNotice()), null);
 
   telegram.sendError = null;
-  await handler.runOnce();
+  await buildHandler().runOnce();
 
+  assert.match(sent[0].text, /Revisa-la i torna a demanar el merge/u);
   assert.equal(
     previews.deliveredPublicationPreview(deliveredNotice())
       .notice_message_identifier,
     901,
   );
+});
+
+test("revocation of a synchronized preview informs the topic without delivering an authorizing notice", async (context) => {
+  const { handler, github, previews, sent } = setup(context);
+  handler.followPublication({
+    ...publication(10),
+    mergeSynchronization: true,
+  });
+  github.comments[200] = [publisherComment()];
+  github.pullRequests[200].previewRevoked = true;
+
+  await handler.runOnce();
+
+  assert.match(sent[0].text, /ja no és disponible/u);
+  assert.equal(previews.state(10), "failed");
+  assert.equal(previews.deliveredPublicationPreview(deliveredNotice()), null);
 });
 
 const unidentifiedAnswers = [

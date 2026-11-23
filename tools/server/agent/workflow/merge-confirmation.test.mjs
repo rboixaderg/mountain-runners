@@ -160,6 +160,10 @@ function setup(context, { github = fakeGithub() } = {}) {
   };
   const traces = [];
   const notes = [];
+  const synchronization = {
+    calls: [],
+    result: { outcome: "answered", report: "Preparant la branca." },
+  };
 
   function buildHandler(store) {
     return createMergeRequests({
@@ -168,6 +172,10 @@ function setup(context, { github = fakeGithub() } = {}) {
       hasNewerWork: (query) => {
         newerWork.calls.push(query);
         return newerWork.value;
+      },
+      synchronizeBehind: async (requestArgument, target, options) => {
+        synchronization.calls.push({ requestArgument, target, options });
+        return synchronization.result;
       },
       hasInterveningInstructions: (range) => {
         intervening.calls.push(range);
@@ -197,6 +205,7 @@ function setup(context, { github = fakeGithub() } = {}) {
     telegram,
     traces,
     notes,
+    synchronization,
     deliverPreview: (row = deliveredPreviewRow()) =>
       previews.deliver(sessionKey, row),
     clearPreview: () => previews.clear(sessionKey),
@@ -433,7 +442,7 @@ for (const [name, prepare] of [
     "a pull request that is not mergeable",
     (scenario) => {
       scenario.github.pullRequest = openPullRequest({
-        mergeableState: "dirty",
+        mergeableState: "blocked",
       });
     },
   ],
@@ -938,3 +947,113 @@ test("records private trace actions without conversation text", async (context) 
     );
   }
 });
+
+test("validating a behind branch synchronises without the old question", async (context) => {
+  const scenario = setup(context, {
+    github: fakeGithub({
+      pullRequest: openPullRequest({
+        mergeableState: "behind",
+        headRef: "work",
+        baseSha: "c".repeat(40),
+      }),
+    }),
+  });
+  scenario.deliverPreview();
+
+  const result = await validate(scenario);
+
+  assert.deepEqual(result, {
+    ...scenario.synchronization.result,
+    outcome: "merge_context",
+  });
+  assert.equal(scenario.attempts.length, 0);
+  assert.equal(storedQuestion(scenario), undefined);
+  assert.deepEqual(scenario.github.merges, []);
+  assert.deepEqual(
+    scenario.synchronization.calls.map((call) => call.target),
+    [{ pullRequestNumber, commit, branch: "work", baseSha: "c".repeat(40) }],
+  );
+});
+
+for (const [name, prepare] of [
+  [
+    "a non-member",
+    (scenario) => {
+      scenario.membership.result = { verified: false, reason: "not_member" };
+    },
+  ],
+  [
+    "newer work",
+    (scenario) => {
+      scenario.newerWork.value = true;
+    },
+  ],
+  ["a reply to another message", () => {}],
+]) {
+  test(`validating a behind branch as ${name} never synchronises`, async (context) => {
+    const scenario = setup(context, {
+      github: fakeGithub({
+        pullRequest: openPullRequest({ mergeableState: "behind" }),
+      }),
+    });
+    scenario.deliverPreview();
+    prepare(scenario);
+
+    await validate(
+      scenario,
+      name === "a reply to another message"
+        ? { replyMessageIdentifier: 801 }
+        : {},
+    );
+
+    assert.deepEqual(scenario.synchronization.calls, []);
+  });
+}
+
+test("validating an up to date branch still asks the question and never synchronises", async (context) => {
+  const scenario = setup(context);
+  scenario.deliverPreview();
+
+  await validate(scenario);
+
+  assert.equal(scenario.attempts.length, 1);
+  assert.deepEqual(scenario.synchronization.calls, []);
+});
+
+test("confirming after the branch fell behind synchronises instead of merging", async (context) => {
+  const scenario = setup(context);
+  scenario.deliverPreview();
+  await validate(scenario);
+  scenario.github.pullRequest = openPullRequest({
+    mergeableState: "behind",
+    headRef: "work",
+  });
+
+  const result = await confirm(scenario);
+
+  assert.equal(result.outcome, "merge_context");
+  assert.equal(result.report, scenario.synchronization.result.report);
+  assert.equal(scenario.synchronization.calls.length, 1);
+  assert.deepEqual(scenario.github.merges, []);
+  assert.notEqual(storedQuestion(scenario).consumed_at, null);
+});
+
+for (const intent of ["validate", "confirm"]) {
+  test(`${intent} preserves the unknown result of a synchronization push`, async (context) => {
+    const scenario = setup(context);
+    scenario.deliverPreview();
+    if (intent === "confirm") await validate(scenario);
+    scenario.github.pullRequest = openPullRequest({ mergeableState: "behind" });
+    scenario.synchronization.result = {
+      outcome: "uncertain",
+      report: "Push no confirmat.",
+    };
+
+    const response = await (intent === "validate"
+      ? validate(scenario)
+      : confirm(scenario));
+
+    assert.deepEqual(response, scenario.synchronization.result);
+    assert.deepEqual(scenario.github.merges, []);
+  });
+}

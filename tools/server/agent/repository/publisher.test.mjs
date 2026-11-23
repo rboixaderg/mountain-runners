@@ -48,6 +48,7 @@ function githubStub(overrides = {}) {
       return { state: "open", headSha: repairCommit };
     },
     async pushBranch(parameters) {
+      parameters.onPublicationStarted?.();
       this.calls.push(["pushBranch", parameters]);
       return { branch: parameters.branch, commit: repairCommit };
     },
@@ -102,6 +103,59 @@ test("keeps a local refusal a refusal", async (context) => {
 
   assert.deepEqual(publication, { refused: true });
   assert.equal(publishedCommit(worktree), null);
+});
+
+test("a synchronization revalidates the preview and pins the existing PR update", async (context) => {
+  const worktree = worktreeFixture(context);
+  const repository = "rboixaderg/mountain-runners";
+  const validated = { commit: "2".repeat(40), base: "3".repeat(40) };
+  const pullRequest = {
+    number: 200,
+    state: "open",
+    headRef: branch,
+    headRepository: repository,
+    headSha: repairCommit,
+    baseRef: "main",
+    draft: false,
+    previewLabeled: true,
+    previewRevoked: true,
+  };
+  const github = githubStub({
+    async getPullRequest() {
+      return pullRequest;
+    },
+    async pushBranch(parameters) {
+      this.calls.push(["pushBranch", parameters]);
+      return { branch, commit: validated.commit };
+    },
+    async ensurePullRequest(parameters) {
+      this.calls.push(["ensurePullRequest", parameters]);
+      return {
+        pullRequest: { ...pullRequest, headSha: validated.commit },
+        created: false,
+      };
+    },
+  });
+  const publishChange = createPublisher({ github, repository, secrets: [] });
+  const candidate = {
+    worktree,
+    branch,
+    repair: {
+      pullRequestNumber: 200,
+      commit: repairCommit,
+      synchronization: true,
+    },
+    validated,
+  };
+
+  assert.deepEqual(await publishChange(candidate), { refused: true });
+  assert.deepEqual(github.calls, []);
+
+  pullRequest.previewRevoked = false;
+  assert.equal((await publishChange(candidate)).commit, validated.commit);
+  assert.equal(github.calls[0][1].expectedHead, repairCommit);
+  assert.deepEqual(github.calls[0][1].validated, validated);
+  assert.equal(github.calls[1][1].createMissing, false);
 });
 
 test("propagates an aborted push instead of reporting a refusal", async (context) => {
@@ -178,6 +232,7 @@ test("marks the publication as started immediately before the push", async (cont
   const events = [];
   const github = githubStub({
     async pushBranch(parameters) {
+      parameters.onPublicationStarted();
       events.push("push");
       return { branch: parameters.branch, commit: repairCommit };
     },

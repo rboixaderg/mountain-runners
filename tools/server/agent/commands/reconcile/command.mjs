@@ -24,6 +24,7 @@ import { readAgentConfig } from "../../config.mjs";
 import { reconcileResolutions } from "../../policy/development.mjs";
 import { CiWatchStore } from "../../repository/ci-watch-store.mjs";
 import { GitHubTrust } from "../../repository/github.mjs";
+import { PreviewRequestStore } from "../../repository/preview-request-store.mjs";
 import { SessionNoteStore } from "../../repository/session-note-store.mjs";
 import {
   caseKinds,
@@ -188,15 +189,17 @@ function parseCommandArguments(argv) {
 // A missing database has no case of its kind and is never created. A store that
 // cannot be opened closes the ones already open, so a failed command never
 // leaves a database locked.
-function openStores(config, { includeNotes }) {
+function openStores(config, command) {
   const databasePath = (fileName) => join(config.paths.state, fileName);
   const admissionPath = databasePath("admission.sqlite");
   const ciWatchPath = databasePath("ci-watch.sqlite");
   const sessionNotesPath = databasePath("session-notes.sqlite");
+  const previewPath = databasePath("preview-request.sqlite");
   const stores = {
     instructions: null,
     repairs: null,
     notes: null,
+    previews: null,
   };
   try {
     stores.instructions = existsSync(admissionPath)
@@ -210,9 +213,16 @@ function openStores(config, { includeNotes }) {
     // Listing reads no note: opening the store would recover the claims of a
     // previous turn and mutate it, which a read-only command never does.
     stores.notes =
-      includeNotes && existsSync(sessionNotesPath)
+      command.command === "resolve" && existsSync(sessionNotesPath)
         ? new SessionNoteStore(sessionNotesPath)
         : null;
+    if (
+      command.kind === caseKinds.instruction &&
+      command.resolution === reconcileResolutions.published &&
+      existsSync(previewPath)
+    ) {
+      stores.previews = new PreviewRequestStore(previewPath);
+    }
   } catch (error) {
     closeStores(stores);
     throw error;
@@ -221,6 +231,7 @@ function openStores(config, { includeNotes }) {
 }
 
 function closeStores(stores) {
+  stores.previews?.close();
   stores.notes?.close();
   stores.repairs?.close();
   stores.instructions?.close();
@@ -276,11 +287,7 @@ export async function runReconcileCommand({
 
   let stores;
   try {
-    stores = openStores(config, {
-      // A resolution tells the topic, so its note store is needed; a list only
-      // reads the cases.
-      includeNotes: command.command !== "list",
-    });
+    stores = openStores(config, command);
   } catch (error) {
     warn(error instanceof Error ? error.message : "unknown error");
     return 1;

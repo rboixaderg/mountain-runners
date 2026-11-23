@@ -13,9 +13,13 @@ import { DatabaseSync } from "node:sqlite";
 import { promisify } from "node:util";
 import { test } from "node:test";
 import { AdmissionQueue } from "telegram-pi-bridge/sessions";
-import { reconcileResolutions } from "../../policy/development.mjs";
+import {
+  mergeSynchronizationRequestedAction,
+  reconcileResolutions,
+} from "../../policy/development.mjs";
 import { CiWatchStore } from "../../repository/ci-watch-store.mjs";
 import { openIdentifierNames } from "../../repository/identifiers.mjs";
+import { PreviewRequestStore } from "../../repository/preview-request-store.mjs";
 import {
   commitAll,
   createBranch,
@@ -360,6 +364,48 @@ test("resolves a published instruction and records the confirmed head as publish
     stores.instructions.traceEntries().map((entry) => entry.action),
     ["uncertain_reconciled"],
   );
+});
+
+test("restarts preview tracking after reconciling a synchronization push", async (context) => {
+  const { config, stores, state } = await fixture(context);
+  const { worktree, commit } = await topicWorktree({
+    config,
+    sessionKey: sessionKeyOne,
+    updateIdentifier: 11,
+  });
+  stores.previews = new PreviewRequestStore(
+    join(state, "preview-request.sqlite"),
+  );
+  context.after(() => stores.previews.close());
+  interruptInstruction(stores.instructions, 11, sessionKeyOne);
+  stores.instructions.recordTrace({
+    updateIdentifier: 11,
+    sessionKey: sessionKeyOne,
+    authorIdentifier: 555,
+    action: mergeSynchronizationRequestedAction,
+    detail: "#42 aaaaaaa",
+  });
+  const recovered = {
+    sessionKey: sessionKeyOne,
+    updateIdentifier: 11,
+    pullRequestNumber: 42,
+    commitSha: commit,
+  };
+
+  await reconcile(config, stores, fakeTelegram(), {
+    kind: "instruction",
+    updateIdentifier: 11,
+    resolution: reconcileResolutions.published,
+    pullRequestNumber: 42,
+    commit,
+  });
+
+  assert.equal(publishedCommit(worktree), commit);
+  const [preview] = stores.previews.awaiting();
+  assert.equal(preview.commit_sha, commit);
+  assert.equal(preview.pull_request_number, 42);
+  assert.equal(preview.merge_synchronization, 1);
+  assert.equal(stores.previews.deliveredPublicationPreview(recovered), null);
 });
 
 test("keeps the instruction uncertain when the CI watch of the publication cannot be written", async (context) => {

@@ -58,11 +58,14 @@ test("the model leaves the full checks to the service with its file inventory", 
 });
 
 test("asks the model to preserve both versions and treats conflict paths as data", () => {
-  const instruction = buildConflictInstruction([
-    "content/news.yml",
-    "strange\nname.txt",
-  ]);
-  assert.match(instruction, /keeping both the topic and incoming changes/u);
+  const paths = ["content/news.yml", "strange\nname.txt"];
+  const fromMain = buildConflictInstruction(paths, { fromMain: true });
+  assert.match(fromMain, /Prioritise the changes of the work branch/u);
+  assert.match(fromMain, /compatible incoming change from main/u);
+  const topicHead = buildConflictInstruction(paths);
+  assert.match(topicHead, /keeping both the topic and incoming changes/u);
+  assert.doesNotMatch(topicHead, /from main/u);
+  const instruction = fromMain;
   assert.match(instruction, /Ask the person which version/u);
   assert.match(instruction, /untrusted data/u);
   assert.ok(

@@ -365,6 +365,7 @@ export async function startService({
     recordServiceNote,
     logger,
   });
+  let runner;
   const mergeWorker = createMergeRequests({
     store: mergeRequests,
     findDeliveredPreview: (sessionKey) => {
@@ -396,6 +397,10 @@ export async function startService({
         excludingOutcome: mergeConfirmationOutcome,
       }),
     verifyMembership: verifyAuthorMembership,
+    synchronizeBehind: runnerOverride
+      ? undefined
+      : (request, target, options) =>
+          runner.synchronizeForMerge(request, target, options),
     github,
     repository: config.github.repository,
     requiredChecks: config.github.requiredChecks,
@@ -419,7 +424,6 @@ export async function startService({
       signal,
       requireRepairEvidence,
     });
-  let runner;
   try {
     const researchReview = createResearchReview({
       directory: join(config.paths.state, "research-review"),

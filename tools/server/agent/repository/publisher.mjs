@@ -3,10 +3,15 @@
 // The instruction signal reaches every remote read and write, so a stop ends the
 // publication instead of holding the single global execution.
 
-import { PublishRefusedError } from "./github.mjs";
+import { PublicationBaseChangedError, PublishRefusedError } from "./github.mjs";
 import { recordPublication } from "./worktrees.mjs";
 
-export function createPublisher({ github, secrets, researchReview }) {
+export function createPublisher({
+  github,
+  secrets,
+  researchReview,
+  repository,
+}) {
   /**
    * A repair never creates a pull request: it pushes only while the pull
    * request it continues is still open at the failed commit, and it does not
@@ -25,7 +30,9 @@ export function createPublisher({ github, secrets, researchReview }) {
     researchJobId,
     signal,
     onPublicationStarted,
+    validated,
   }) {
+    const synchronization = repair?.synchronization;
     repair = repair && {
       pullRequestNumber: repair.pullRequestNumber,
       commit: repair.commit,
@@ -93,22 +100,33 @@ export function createPublisher({ github, secrets, researchReview }) {
       }
       if (
         pullRequest.state !== "open" ||
-        pullRequest.headSha !== repair.commit
+        pullRequest.headSha !== repair.commit ||
+        (synchronization &&
+          (pullRequest.headRef !== branch ||
+            pullRequest.headRepository?.toLowerCase() !==
+              repository.toLowerCase() ||
+            pullRequest.baseRef !== "main" ||
+            pullRequest.draft ||
+            !pullRequest.previewLabeled ||
+            pullRequest.previewRevoked))
       ) {
         return { refused: true };
       }
     }
     let pushed;
     try {
-      onPublicationStarted?.();
       pushed = await github.pushBranch({
         worktree,
         branch,
         secrets,
         signal,
+        onPublicationStarted,
         ...(approved ? { approved } : {}),
+        ...(validated ? { validated, expectedHead: repair?.commit } : {}),
       });
     } catch (error) {
+      if (error instanceof PublicationBaseChangedError)
+        return { baseChanged: true };
       if (error instanceof PublishRefusedError) {
         return { refused: true };
       }
@@ -121,6 +139,13 @@ export function createPublisher({ github, secrets, researchReview }) {
       createMissing: !repair,
       signal,
     });
+    if (
+      synchronization &&
+      (pullRequest?.number !== repair.pullRequestNumber ||
+        pullRequest.headSha !== pushed.commit)
+    ) {
+      throw new Error("The updated pull request cannot be confirmed.");
+    }
     // Only a publication with its pull request is recorded: a repair whose pull
     // request disappeared meanwhile is a refusal, not a publication the service
     // must follow.

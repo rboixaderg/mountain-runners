@@ -148,6 +148,10 @@ test("a natural request reaches a pull request from Telegram", async (context) =
     repository,
     fetchImpl: async (url, options) => {
       apiCalls.push({ url, options });
+      if (String(url).endsWith("/git/ref/heads/main")) {
+        const base = await git(paths.repository, ["rev-parse", "origin/main"]);
+        return { ok: true, json: async () => ({ object: { sha: base } }) };
+      }
       if (options.method === "GET") {
         return { ok: true, json: async () => [] };
       }

@@ -265,28 +265,31 @@ export function createPreviewRequests({
     pullRequestNumber,
     commit,
     repair,
+    mergeSynchronization,
   }) {
     try {
       if (repair) {
-        store.reopen({
+        return store.reopen({
           updateIdentifier,
-          pullRequestNumber,
-          commitSha: commit,
-        });
-      } else {
-        store.track({
-          updateIdentifier,
-          sessionKey,
-          authorIdentifier,
           pullRequestNumber,
           commitSha: commit,
         });
       }
+      store.track({
+        updateIdentifier,
+        sessionKey,
+        authorIdentifier,
+        pullRequestNumber,
+        commitSha: commit,
+        mergeSynchronization,
+      });
+      return true;
     } catch (error) {
       logger(
         "preview_follow_failed",
         error instanceof Error ? error.name : "unknown",
       );
+      return false;
     }
   }
 
@@ -384,6 +387,14 @@ export function createPreviewRequests({
           ? refusalOf(pullRequest)
           : "superseded";
       if (withdrawal !== null) {
+        if (row.merge_synchronization) {
+          const notice = await report(row, previewReports.mergeSyncWithdrawn, {
+            signal,
+            state: "withdrawn",
+            note: previewReports.mergeSyncWithdrawn,
+          });
+          if (notice === null) continue;
+        }
         if (
           store.finish(
             row.update_identifier,
@@ -410,7 +421,11 @@ export function createPreviewRequests({
         if (signal?.aborted) return;
         const notice = await report(
           row,
-          previewReports.confirmed({ origin, reviewUrl }),
+          previewReports.confirmed({
+            origin,
+            reviewUrl,
+            mergeSynchronization: row.merge_synchronization === 1,
+          }),
           {
             signal,
             state: "confirmed",

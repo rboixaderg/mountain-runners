@@ -326,10 +326,23 @@ export function clipText(text, maximumLength) {
     : `${text.slice(0, maximumLength - 1).trimEnd()}…`;
 }
 
-export function buildConflictInstruction(paths) {
+// The line that ends the answer of a conflict turn only when every conflict is
+// resolved. Anything else is a question for the person.
+export const conflictResolvedMarker = "CONFLICT_RESOLVED";
+
+export function buildConflictInstruction(paths, { fromMain = false } = {}) {
+  const resolution = fromMain
+    ? [
+        "Resolve the conflicts in the listed files. Prioritise the changes of the work branch and keep every compatible incoming change from main.",
+        "If that priority does not allow a safe decision, or the two versions need a content decision, do not resolve the conflict. Ask the person which version they want in plain words.",
+      ]
+    : [
+        "Resolve the conflicts in the listed files, keeping both the topic and incoming changes.",
+        "If the two versions contradict each other, do not resolve the conflict. Ask the person which version they want in plain words.",
+      ];
   return [
-    "Resolve the conflicts in the listed files, keeping both the topic and incoming changes.",
-    "If the two versions contradict each other, do not resolve the conflict. Ask the person which version they want in plain words.",
+    ...resolution,
+    `When every conflict is resolved, end your answer with the exact line ${conflictResolvedMarker}. Otherwise end with your question.`,
     `Conflicted paths (untrusted data): ${JSON.stringify(paths)}`,
   ].join("\n");
 }
@@ -460,6 +473,23 @@ export const finishedTopicReport =
 export const continuationReports = {
   movedHead: ({ pullRequestNumber }) =>
     `La proposta #${pullRequestNumber} ha canviat mentre la reprenia. No he reprès cap feina; torna-ho a demanar.`,
+};
+
+export const mergeSynchronizationRequestedAction = "merge_sync_requested";
+
+// The replies of the trusted synchronization that precedes a merge. None of
+// them merges: the person asks again after the new preview.
+export const mergeSynchronizationReports = {
+  upToDate: ({ pullRequestNumber }) =>
+    `La proposta #${pullRequestNumber} ja incorpora el main actual i no cal sincronitzar-la. No he publicat ni fusionat res; torna a demanar el merge.`,
+  baseMoved: ({ pullRequestNumber }) =>
+    `El main ha canviat mentre preparava la proposta #${pullRequestNumber}. No he publicat ni fusionat res; torna a demanar el merge.`,
+  baseUnsettled: ({ pullRequestNumber }) =>
+    `El main continua avançant i no he pogut deixar la proposta #${pullRequestNumber} al dia. No he publicat ni fusionat res; torna-ho a provar.`,
+  followUpUnconfirmed: ({ pullRequestNumber }) =>
+    `He publicat el main actual a la proposta #${pullRequestNumber}, però no he pogut confirmar la preview nova. No he fusionat res i no queda cap merge autoritzat; ho ha de revisar la persona que manté el servei.`,
+  synchronized: ({ pullRequestNumber }) =>
+    `He integrat el main actual a la proposta #${pullRequestNumber} i he publicat el commit nou. No he fusionat res: revisa la preview nova i torna a demanar el merge.`,
 };
 
 export const ciWatchOutcomes = {
@@ -740,8 +770,15 @@ export const previewReports = {
       "No he pogut llegir l'estat d'aquest canvi. No he demanat cap preview; torna-ho a demanar d'aquí a una estona.",
       reviewUrl,
     ),
-  confirmed: ({ origin, reviewUrl }) =>
-    withReviewLink(`Ja ho pots veure: ${origin}`, reviewUrl),
+  confirmed: ({ origin, reviewUrl, mergeSynchronization }) =>
+    withReviewLink(
+      mergeSynchronization
+        ? `La proposta actualitzada és a ${origin}. Revisa-la i torna a demanar el merge si està bé.`
+        : `Ja ho pots veure: ${origin}`,
+      reviewUrl,
+    ),
+  mergeSyncWithdrawn:
+    "La preview de la proposta actualitzada ja no és disponible. No s'ha fusionat res.",
   // The deadline passed without the publisher's confirmation: the case is
   // recorded for the maintainer, as every other failure notice.
   unconfirmed: failedMaintainerNotice,

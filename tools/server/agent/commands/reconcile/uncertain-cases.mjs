@@ -15,6 +15,7 @@
 
 import { parseSessionKey } from "telegram-pi-bridge/sessions";
 import {
+  mergeSynchronizationRequestedAction,
   reconcileReports,
   reconcileResolutions,
   shortCommit,
@@ -382,6 +383,26 @@ async function resolveInstruction({
       sessionKey: row.session_key,
       commit,
     });
+    const synchronization = stores.instructions
+      .traceEntries()
+      .find(
+        (entry) =>
+          entry.update_identifier === updateIdentifier &&
+          entry.action === mergeSynchronizationRequestedAction,
+      );
+    if (synchronization) {
+      if (!stores.previews) {
+        throw new ReconcileCaseError("The preview request store is missing.");
+      }
+      stores.previews.track({
+        updateIdentifier,
+        sessionKey: row.session_key,
+        authorIdentifier: synchronization.author_identifier,
+        pullRequestNumber,
+        commitSha: commit,
+        mergeSynchronization: true,
+      });
+    }
   }
 
   // The transition and its trace are one transaction: the instruction is never
