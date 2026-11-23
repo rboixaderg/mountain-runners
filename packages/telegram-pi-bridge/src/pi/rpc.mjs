@@ -7,6 +7,14 @@ import { isAbsolute } from "node:path";
 
 const maximumOutputBytes = 1024 * 1024;
 
+export class PiRunError extends Error {
+  constructor(message, diagnostics) {
+    super(message);
+    this.name = "PiRunError";
+    this.diagnostics = diagnostics;
+  }
+}
+
 export function buildPiArguments({
   model,
   sessionIdentifier,
@@ -275,13 +283,17 @@ export async function runPiPrompt({
     // only then, and only while the turn is still wanted.
     child.on("spawn", () => sendPrompt());
     child.on("error", (error) => finish(() => rejectPromise(error)));
-    child.on("close", (exitCode) => {
+    child.on("close", (exitCode, closeSignal) => {
       if (settled) {
         return;
       }
       finish(() => {
         if (outputLimitExceeded) {
-          rejectPromise(new Error("The Pi run exceeded the output limit."));
+          rejectPromise(
+            new PiRunError("The Pi run exceeded the output limit.", {
+              reason: "output_limit",
+            }),
+          );
           return;
         }
         if (aborted) {
@@ -294,7 +306,11 @@ export async function runPiPrompt({
         }
 
         rejectPromise(
-          new Error(`Pi exited with code ${exitCode} before settling.`),
+          new PiRunError(`Pi exited with code ${exitCode} before settling.`, {
+            reason: "premature_exit",
+            exitCode,
+            signal: closeSignal,
+          }),
         );
       });
     });

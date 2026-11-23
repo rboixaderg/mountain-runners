@@ -299,9 +299,13 @@ torn: [Preview demanada al tema](#preview-demanada-al-tema),
   reparacions) continua i no torna a comprovar la pertinença. Les dues accions
   que exposen o fusionen una PR, la preview i el merge, la tornen a comprovar en
   executar-se.
-- Un error local es registra amb el nom i el missatge de l'excepció perquè es
-  pugui diagnosticar al journal. El tema només rep l'avís genèric: ni rutes, ni
-  noms d'eines ni cap detall intern.
+- El journal registra `pi_rpc_failed` si Pi supera el límit de sortida o surt
+  abans de completar el torn. Inclou el motiu i, si Pi surt abans d'hora, el
+  codi de sortida i el senyal. `checks_failed` registra el motiu, el codi de
+  sortida i el senyal del client de Podman, i la durada de la comprovació
+  prèvia a la publicació.
+  Aquests esdeveniments no inclouen ordres, missatges d'error ni la sortida dels
+  processos. El tema només rep l'avís genèric.
 - Un reinici marca com a incert qualsevol treball en curs i refusa l'arrencada.
   El servei continua refusant totes les arrencades mentre hi hagi una instrucció
   incerta. Mentre el procés encara funciona amb la cua bloquejada, les peticions
@@ -329,10 +333,10 @@ torn: [Preview demanada al tema](#preview-demanada-al-tema),
   sandbox i per torn RPC de Pi. Superar-lo atura el procés i espera la neteja
   dels contenidors. Si afecta el torn RPC o les comprovacions, la instrucció
   falla abans de publicar. El timeout es manté independent. L'adaptador també
-  verifica la neteja després de cada ordre del sandbox i de cada torn completat
-  de Pi, abans de comprovar o publicar. Atura els contenidors actius de la sessió, elimina els seus
-  registres aturats i comprova que no en quedi cap. Si Podman no pot completar
-  la neteja, el resultat és incert; els worktrees i sessions es conserven.
+  verifica la neteja del contenidor de cada ordre sense aturar altres ordres
+  de la sessió. Al final del torn de Pi, neteja tots els contenidors de la sessió
+  abans de comprovar o publicar. Si Podman no pot completar la neteja, el
+  resultat és incert; els worktrees i sessions es conserven.
 - Un worktree net no implica que s'hagi publicat. El servei conserva els commits
   pendents fins que push i PR estiguin confirmats; només llavors registra el
   commit publicat fora del muntatge. La branca vinculada continua al tema.
@@ -1065,10 +1069,8 @@ política ni pot autoritzar per si sol una publicació.
   missatges de l'assistent es concatenen amb una separació de paràgraf.
 - Matar Pi no atura els contenidors de Podman. El paquet crida `onInterrupted`; l'adaptador del
   projecte espera l'aturada dels contenidors i no oculta una neteja fallida.
-  També verifica la neteja després de cada ordre del sandbox i dels torns
-  completats, abans de comprovar o publicar. Atura els contenidors actius de la sessió, elimina els seus
-  registres aturats i comprova que no en quedi cap. Si Podman no pot completar
-  la neteja, el resultat és incert; no esborra worktrees ni sessions.
+  La [neteja per ordre i per sessió](#sessions-admissió-i-recuperació) es
+  verifica abans de comprovar o publicar.
 
 ## Imatge del sandbox per a comprovacions offline
 
