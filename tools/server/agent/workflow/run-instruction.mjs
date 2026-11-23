@@ -5,6 +5,8 @@
 // identifies preview requests; /merge and automatic repairs keep their own paths.
 // The turn receives service effects the topic has not been told yet.
 
+import { rmSync } from "node:fs";
+import { join } from "node:path";
 import { PiRunError } from "telegram-pi-bridge/pi";
 import { sessionIdentifier } from "telegram-pi-bridge/sessions";
 import { attachmentRefusalDetail } from "telegram-pi-bridge/telegram";
@@ -23,10 +25,12 @@ import {
   findSessionWorktree,
   headCommit,
   listChangedPaths,
+  listWorkingTreeChanges,
+  fetchMainHead,
   committedPaths,
   hasUnpublishedCommit,
   publishedCommit,
-  mergeMainIntoBranch,
+  synchronizeWithMain,
   fastForwardPublishedBranch,
   fetchPublishedBranch,
   mergeCommitIntoBranch,
@@ -44,9 +48,11 @@ import {
   attachmentReports,
   buildAttachmentsInstruction,
   buildConflictInstruction,
+  conflictResolvedMarker,
   buildRepairInstruction,
   checkCommandForPaths,
   ciWatchOutcomes,
+  mergeSynchronizationReports,
   continuationReports,
   parseChangeSummary,
   branchNameForChange,
@@ -68,6 +74,8 @@ import {
   pendingWorkCommitMessage,
   stripChangeSummary,
 } from "../policy/development.mjs";
+
+const maximumSynchronizations = 3;
 
 function piRunDiagnostics(diagnostics) {
   if (diagnostics?.reason === "output_limit") {
@@ -448,6 +456,13 @@ export function createInstructionRunner({
     return null;
   }
 
+  /**
+   * The model resolves a text conflict inside the sandbox. A binary conflict
+   * never reaches it, and the result is accepted only when the model touched
+   * nothing but the conflicted paths. A resolution that is unsafe or needs a
+   * decision is rolled back; the question of the model, if any, is returned so
+   * the person can answer it.
+   */
   async function resolveConflict({
     worktree,
     worktreeName,
@@ -457,8 +472,10 @@ export function createInstructionRunner({
     headSha,
     topicState,
     worktreePrepared,
+    fromMain = false,
     signal,
   }) {
+    const unresolved = { resolved: false, clarification: null };
     const restarted = await restartConflictMerge({
       worktree,
       headSha,
@@ -466,9 +483,10 @@ export function createInstructionRunner({
       signal,
     });
     if (!restarted) {
-      return false;
+      return unresolved;
     }
     let mergeInProgress = true;
+    let untrackedBefore = null;
     try {
       const binaryDiff = await runGit(
         worktree,
@@ -484,14 +502,16 @@ export function createInstructionRunner({
         ],
         { signal },
       );
-      const hasBinaryConflict = binaryDiff
-        .split("\0")
-        .some((entry) => entry.startsWith("-\t-\t"));
+      if (binaryDiff.split("\0").some((entry) => entry.startsWith("-\t-\t"))) {
+        return unresolved;
+      }
+      const before = await listWorkingTreeChanges(worktree, { signal });
+      untrackedBefore = before.untracked;
       const resolution = await runModel({
         sessionIdentifier,
         sandboxIdentifier: worktreeName,
         sessionKey,
-        instruction: buildConflictInstruction(paths),
+        instruction: buildConflictInstruction(paths, { fromMain }),
         images: [],
         attachments: [],
         worktreePrepared,
@@ -507,28 +527,185 @@ export function createInstructionRunner({
       if (
         resolution.timedOut ||
         resolution.aborted ||
-        resolution.preparationFailed ||
-        hasBinaryConflict
+        resolution.preparationFailed
       ) {
-        return false;
+        return unresolved;
       }
       signal?.throwIfAborted();
+      const after = await listWorkingTreeChanges(worktree, { signal });
+      const outsideConflict =
+        after.modified.some((path) => !paths.includes(path)) ||
+        after.untracked.some((path) => !before.untracked.includes(path));
+      if (outsideConflict) {
+        return unresolved;
+      }
+      const answerLines = (resolution.text ?? "").trim().split("\n");
+      const clarification = {
+        resolved: false,
+        clarification:
+          stripChangeSummary(
+            answerLines
+              .filter((line) => line.trim() !== conflictResolvedMarker)
+              .join("\n"),
+          ).trim() || null,
+      };
+      // Markers already removed are not enough: the model must say it resolved.
+      if (answerLines.at(-1).trim() !== conflictResolvedMarker) {
+        return clarification;
+      }
       try {
         await runGit(worktree, ["diff", "--check"], { signal });
       } catch {
         signal?.throwIfAborted();
-        return false;
+        return unresolved;
       }
       if (!(await commitConflictMerge({ worktree, signal }))) {
-        return false;
+        return unresolved;
       }
       mergeInProgress = false;
-      return true;
+      return { resolved: true };
     } finally {
       if (mergeInProgress) {
         await abortConflictMerge(worktree);
+        await removeNewUntrackedPaths(worktree, untrackedBefore);
       }
     }
+  }
+
+  /**
+   * `git merge --abort` keeps untracked files. After a rejected internal turn
+   * only the paths that were not there when it started are removed, so the next
+   * turn can never commit them and nothing that existed before is touched.
+   */
+  async function removeNewUntrackedPaths(worktree, untrackedBefore) {
+    if (untrackedBefore === null) {
+      return;
+    }
+    try {
+      const { untracked } = await listWorkingTreeChanges(worktree);
+      for (const path of untracked) {
+        if (!untrackedBefore.includes(path)) {
+          rmSync(join(worktree.path, path), { force: true });
+        }
+      }
+    } catch (error) {
+      throw new MergeCleanupError({ cause: error });
+    }
+  }
+
+  /**
+   * Integrate the verified `main`, checkpoint the work in a commit and run the
+   * local gate on that exact state. The gate is chosen from the paths the
+   * synchronized branch publishes against the verified `main` commit, so a
+   * change outside the content never falls back to the fast gate. A branch that
+   * already contains `main` adds no merge commit. The gate must leave the
+   * worktree clean: nothing it writes is ever committed or published.
+   */
+  async function synchronizeAndCheck({
+    worktree,
+    worktreeName,
+    sessionIdentifier,
+    sessionKey,
+    title,
+    topicState,
+    signal,
+  }) {
+    const synchronization = await synchronizeWithMain({
+      worktree,
+      pendingWorkMessage: title,
+      signal,
+    });
+    const { mainHead } = synchronization;
+    if (synchronization.conflict) {
+      const resolved = await resolveConflict({
+        worktree,
+        worktreeName,
+        sessionIdentifier,
+        sessionKey,
+        paths: synchronization.paths,
+        headSha: mainHead,
+        topicState,
+        worktreePrepared: true,
+        fromMain: true,
+        signal,
+      });
+      if (!resolved.resolved) {
+        return {
+          report: resolved.clarification ?? instructionReports.checksFailed,
+          reason: instructionReportKeys.checksFailed,
+          ...(resolved.clarification === null ? {} : { clarification: true }),
+        };
+      }
+    }
+    await commitAll({ worktree, message: title, signal });
+    const commit = await headCommit(worktree, { signal });
+    const checkCommand = checkCommandForPaths(
+      await changedPathsAgainstMain(worktree, { base: mainHead, signal }),
+    );
+    const checkReport = await checkWorktree({
+      worktree,
+      worktreeName,
+      checkCommand,
+      signal,
+    });
+    if (checkReport !== null) {
+      return checkReport;
+    }
+    if (
+      (await listChangedPaths(worktree, { signal })).length > 0 ||
+      (await headCommit(worktree, { signal })) !== commit
+    ) {
+      return {
+        report: instructionReports.checksFailed,
+        reason: instructionReportKeys.checksFailed,
+      };
+    }
+    return { checkCommand, mainHead, commit };
+  }
+
+  /**
+   * Synchronize, gate and publish as one bounded cycle. The publisher pins the
+   * synchronized commit and the `main` it was validated against; when it finds
+   * a newer `main` before any remote write (`baseChanged`), the cycle starts
+   * again from the synchronization, so the gate always runs on the base that is
+   * pushed.
+   */
+  async function publishSynchronized({
+    synchronization,
+    publication,
+    unsettledReport,
+    onPublicationStarted,
+    signal,
+  }) {
+    for (let attempt = 0; attempt < maximumSynchronizations; attempt += 1) {
+      const synchronized = await synchronizeAndCheck(synchronization);
+      if (synchronized.report) {
+        return { failure: synchronized };
+      }
+      const { worktree, title } = synchronization;
+      const { commit } = synchronized;
+      const result = await publishChange({
+        worktree,
+        branch: publication.branch,
+        title,
+        body: pullRequestBody({
+          title,
+          changedPaths: await committedPaths(worktree, { signal }),
+          checkCommand: synchronized.checkCommand,
+        }),
+        repair: publication.repair,
+        validated: { commit, base: synchronized.mainHead },
+        ...(isResearchAffected
+          ? { researchJobId: publication.researchJobId }
+          : {}),
+        signal,
+        onPublicationStarted,
+      });
+      if (!result.baseChanged) {
+        return { synchronized, commit, publication: result };
+      }
+    }
+    return { failure: unsettledReport };
   }
 
   // Reads the pull request bound to the topic and accepts it only when it is
@@ -663,7 +840,7 @@ export function createInstructionRunner({
       continuedPullRequestNumber: binding.pullRequestNumber,
       signal,
     });
-    return resolveConflict({
+    const resolution = await resolveConflict({
       worktree,
       worktreeName,
       sessionIdentifier,
@@ -674,6 +851,7 @@ export function createInstructionRunner({
       worktreePrepared: false,
       signal,
     });
+    return resolution.resolved;
   }
 
   function noteMaintainerAttention({ request, reason }) {
@@ -689,6 +867,47 @@ export function createInstructionRunner({
       logger("trace_failed", error instanceof Error ? error.name : "unknown");
     }
     logger(maintainerAttentionAction, reason);
+  }
+
+  function failureResult(error, { signal, publicationStarted }) {
+    if (error instanceof PiRunError) {
+      logger("pi_rpc_failed", piRunDiagnostics(error.diagnostics));
+    } else {
+      logger(
+        "instruction_failed",
+        error instanceof Error ? error.name : "unknown",
+      );
+    }
+    if (error instanceof MergeCleanupError) {
+      return {
+        outcome: "uncertain",
+        report: instructionReports.mergeCleanupUncertain,
+        reason: instructionReportKeys.mergeCleanupUncertain,
+      };
+    }
+    if (error instanceof SandboxCleanupError) {
+      return {
+        outcome: "uncertain",
+        report: instructionReports.sandboxUncertain,
+        reason: instructionReportKeys.sandboxUncertain,
+      };
+    }
+    if (publicationStarted) {
+      return {
+        outcome: "uncertain",
+        report: instructionReports.publicationUncertain,
+        reason: instructionReportKeys.publicationUncertain,
+      };
+    }
+    return {
+      outcome: "failed",
+      reason: signal?.aborted
+        ? instructionReportKeys.aborted
+        : instructionReportKeys.executionFailed,
+      report: signal?.aborted
+        ? instructionReports.aborted
+        : instructionReports.executionFailed,
+    };
   }
 
   async function execute(request, { signal } = {}) {
@@ -1102,61 +1321,6 @@ export function createInstructionRunner({
       if (!existingBranch) {
         await createBranch({ worktree, branch, signal });
       }
-      // The gate depends on what the publication would contain: a change that
-      // stays inside the content never runs the operational server tests.
-      const checkCommand = checkCommandForPaths(
-        await changedPathsAgainstMain(worktree, { signal }),
-      );
-      const checkReport = await checkWorktree({
-        worktree,
-        worktreeName,
-        checkCommand,
-        signal,
-      });
-      if (checkReport !== null) {
-        return { outcome: "failed", ...checkReport };
-      }
-      await commitAll({ worktree, message: title, signal });
-      const synchronization = await mergeMainIntoBranch({ worktree, signal });
-      if (synchronization.conflict) {
-        const mainHead = (
-          await runGit(worktree, ["rev-parse", "origin/main"], { signal })
-        ).trim();
-        const resolved = await resolveConflict({
-          worktree,
-          worktreeName,
-          sessionIdentifier: piSessionIdentifier,
-          sessionKey: request.sessionKey,
-          paths: synchronization.paths,
-          headSha: mainHead,
-          topicState,
-          worktreePrepared: true,
-          signal,
-        });
-        if (!resolved) {
-          return {
-            outcome: "failed",
-            report: instructionReports.checksFailed,
-            reason: instructionReportKeys.checksFailed,
-          };
-        }
-      }
-      if (synchronization.merged || synchronization.conflict) {
-        const checkReport = await checkWorktree({
-          worktree,
-          worktreeName,
-          checkCommand,
-          signal,
-        });
-        if (checkReport !== null) {
-          return { outcome: "failed", ...checkReport };
-        }
-      }
-      const body = pullRequestBody({
-        title,
-        changedPaths: await committedPaths(worktree, { signal }),
-        checkCommand,
-      });
       // A repair and a resumed pull request only update the pull request they
       // continue: the publisher checks it is still open at that commit and
       // never opens a new one.
@@ -1176,21 +1340,41 @@ export function createInstructionRunner({
           commit: continuedBaseHeadSha,
         };
       }
-      // The instruction only becomes possibly published when the publisher is
-      // about to write to GitHub: a read of the pull request that fails before
-      // the push is a local failure, never an unknown result.
-      const publication = await publishChange({
-        worktree,
-        branch,
-        title,
-        body,
-        repair: continuedPullRequest,
-        ...(isResearchAffected ? { researchJobId: worktreeName } : {}),
-        signal,
+      // `main` is integrated before the gate, and the gate depends on what the
+      // synchronized publication would contain: a change that stays inside the
+      // content never runs the operational server tests. The instruction only
+      // becomes possibly published when the publisher is about to write to
+      // GitHub: a read of the pull request that fails before the push is a
+      // local failure, never an unknown result.
+      const cycle = await publishSynchronized({
+        synchronization: {
+          worktree,
+          worktreeName,
+          sessionIdentifier: piSessionIdentifier,
+          sessionKey: request.sessionKey,
+          title,
+          topicState,
+          signal,
+        },
+        publication: {
+          branch,
+          repair: continuedPullRequest,
+          researchJobId: worktreeName,
+        },
+        unsettledReport: {
+          report: instructionReports.publicationRefused,
+          reason: instructionReportKeys.publicationRefused,
+        },
         onPublicationStarted: () => {
           publicationStarted = true;
         },
+        signal,
       });
+      if (cycle.failure) {
+        return { outcome: "failed", ...cycle.failure };
+      }
+      const { publication, synchronized } = cycle;
+      const { checkCommand } = synchronized;
       if (publication.refused) {
         if (publication.reviewId) {
           const serviceText = `El canvi no s'ha publicat. Cal una revisió privada abans del push.\nFeina: ${worktreeName}\nRevisió: ${publication.reviewId}`;
@@ -1313,44 +1497,7 @@ export function createInstructionRunner({
         }),
       };
     } catch (error) {
-      if (error instanceof PiRunError) {
-        logger("pi_rpc_failed", piRunDiagnostics(error.diagnostics));
-      } else {
-        logger(
-          "instruction_failed",
-          error instanceof Error ? error.name : "unknown",
-        );
-      }
-      if (error instanceof MergeCleanupError) {
-        return {
-          outcome: "uncertain",
-          report: instructionReports.mergeCleanupUncertain,
-          reason: instructionReportKeys.mergeCleanupUncertain,
-        };
-      }
-      if (error instanceof SandboxCleanupError) {
-        return {
-          outcome: "uncertain",
-          report: instructionReports.sandboxUncertain,
-          reason: instructionReportKeys.sandboxUncertain,
-        };
-      }
-      if (publicationStarted) {
-        return {
-          outcome: "uncertain",
-          report: instructionReports.publicationUncertain,
-          reason: instructionReportKeys.publicationUncertain,
-        };
-      }
-      return {
-        outcome: "failed",
-        reason: signal?.aborted
-          ? instructionReportKeys.aborted
-          : instructionReportKeys.executionFailed,
-        report: signal?.aborted
-          ? instructionReports.aborted
-          : instructionReports.executionFailed,
-      };
+      return failureResult(error, { signal, publicationStarted });
     } finally {
       if (stagedAttachmentPath !== null) {
         try {
@@ -1368,13 +1515,176 @@ export function createInstructionRunner({
   }
 
   /**
+   * Trusted synchronization before a merge. The caller (the merge flow) pins the
+   * pull request number, its exact head `commit`, the `branch` and the `baseSha`
+   * of `main` from its own state; no person text and no model instruction take
+   * part, only the internal conflict turn. It never creates or moves a worktree:
+   * the worktree must already be on the topic branch at `commit` with no work
+   * the service has not published. A branch that already contains `main` is left
+   * untouched and reported (`up_to_date`, fail closed). Otherwise `main` is
+   * integrated with a merge commit, the local gate runs and the same publisher
+   * guards update that exact pull request. It never merges.
+   */
+  async function synchronizeForMerge(
+    request,
+    { pullRequestNumber, commit, branch, baseSha },
+    { signal } = {},
+  ) {
+    let publicationStarted = false;
+    const failed = (report, reason) => ({
+      outcome: "failed",
+      report,
+      ...(reason === undefined ? {} : { reason }),
+    });
+    const movedHead = failed(
+      continuationReports.movedHead({ pullRequestNumber }),
+    );
+    try {
+      signal?.throwIfAborted();
+      const binding = topicJobs?.bindingOf(request.sessionKey) ?? null;
+      if (
+        binding === null ||
+        binding.pullRequestNumber !== pullRequestNumber ||
+        binding.branch !== branch
+      ) {
+        return movedHead;
+      }
+      const worktreeName = identifiers.worktreeName(request.sessionKey);
+      const topic = await readTopicWorktree(worktreeName, { signal });
+      const bound = await readValidBoundPullRequest({ binding, topic, signal });
+      if (bound.report) {
+        return failed(bound.report, bound.reason);
+      }
+      if (
+        bound.pullRequest.headSha !== commit ||
+        topic.pendingWork ||
+        (await headCommit(topic.worktree, { signal })) !== commit
+      ) {
+        // Local work that is not part of the pull request head is never mixed
+        // into a merge preparation: the person publishes or discards it first.
+        return movedHead;
+      }
+      const { worktree } = topic;
+      if ((await fetchMainHead({ worktree, signal })) !== baseSha) {
+        return failed(
+          mergeSynchronizationReports.baseMoved({ pullRequestNumber }),
+        );
+      }
+      const mergeBase = await runGit(
+        worktree,
+        ["merge-base", "HEAD", baseSha],
+        {
+          allowFailure: true,
+          signal,
+        },
+      );
+      if (mergeBase.trim() === baseSha) {
+        // Nothing to integrate: no commit, no gate, no publication.
+        return {
+          outcome: "up_to_date",
+          report: mergeSynchronizationReports.upToDate({ pullRequestNumber }),
+          mainHead: baseSha,
+          commit,
+        };
+      }
+      // The same neutral title the reviewed publication uses, so an approval
+      // of unchanged state stays valid.
+      const title = fallbackTitle({ summary: null });
+      const topicState = await topicStateOf(request.sessionKey, {
+        continuedPullRequestNumber: pullRequestNumber,
+        signal,
+      });
+      const cycle = await publishSynchronized({
+        synchronization: {
+          worktree,
+          worktreeName,
+          sessionIdentifier: sessionIdentifier(request.sessionKey),
+          sessionKey: request.sessionKey,
+          title,
+          topicState,
+          signal,
+        },
+        publication: {
+          branch,
+          repair: { pullRequestNumber, commit, synchronization: true },
+          researchJobId: worktreeName,
+        },
+        unsettledReport: {
+          report: mergeSynchronizationReports.baseUnsettled({
+            pullRequestNumber,
+          }),
+        },
+        onPublicationStarted: () => {
+          publicationStarted = true;
+        },
+        signal,
+      });
+      if (cycle.failure) {
+        return failed(cycle.failure.report, cycle.failure.reason);
+      }
+      const { publication, synchronized } = cycle;
+      if (publication.refused) {
+        if (publication.reviewId) {
+          return {
+            outcome: "research_review_required",
+            report: `El canvi no s'ha publicat. Cal una revisió privada abans del push.\nFeina: ${worktreeName}\nRevisió: ${publication.reviewId}`,
+          };
+        }
+        return publication.readFailed
+          ? failed(
+              instructionReports.publicationReadFailed,
+              instructionReportKeys.publicationReadFailed,
+            )
+          : failed(
+              instructionReports.publicationRefused,
+              instructionReportKeys.publicationRefused,
+            );
+      }
+      const ciWatch = registerCiWatch?.({
+        updateIdentifier: request.updateIdentifier,
+        sessionKey: request.sessionKey,
+        pullRequestNumber: publication.pullRequest.number,
+        commit: publication.commit,
+        automatic: false,
+      });
+      const previewTracked = followPreview?.({
+        updateIdentifier: request.updateIdentifier,
+        sessionKey: request.sessionKey,
+        authorIdentifier: request.authorIdentifier,
+        pullRequestNumber: publication.pullRequest.number,
+        commit: publication.commit,
+        repair: false,
+        mergeSynchronization: true,
+      });
+      const trackingFailed =
+        ciWatch === ciWatchOutcomes.unavailable || previewTracked === false;
+      return {
+        outcome: trackingFailed ? "uncertain" : "synchronized",
+        report: trackingFailed
+          ? mergeSynchronizationReports.followUpUnconfirmed({
+              pullRequestNumber,
+            })
+          : mergeSynchronizationReports.synchronized({ pullRequestNumber }),
+        pullRequest: publication.pullRequest,
+        commit: publication.commit,
+        previousCommit: commit,
+        mainHead: synchronized.mainHead,
+        ciWatch,
+        previewLabelFailed: publication.previewLabelFailed,
+      };
+    } catch (error) {
+      return failureResult(error, { signal, publicationStarted });
+    }
+  }
+
+  /**
    * One instruction, with the conversation state the service owns around it.
    * The report of an instruction reaches the topic exactly as this function
    * returns it. A note only ever carries what the service wrote: a report that
    * mixes service text and the model's own answer names its service part
    * (`serviceText`), and the answer itself stays in the session of the model.
    */
-  return async function runInstruction(request, options = {}) {
+  async function runInstruction(request, options = {}) {
     const {
       modelAnswer = false,
       serviceText = null,
@@ -1431,5 +1741,7 @@ export function createInstructionRunner({
       );
     }
     return result;
-  };
+  }
+  runInstruction.synchronizeForMerge = synchronizeForMerge;
+  return runInstruction;
 }

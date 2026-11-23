@@ -12,7 +12,11 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { promisify } from "node:util";
 import { test } from "node:test";
-import { GitHubTrust, PublishRefusedError } from "./github.mjs";
+import {
+  GitHubTrust,
+  PublicationBaseChangedError,
+  PublishRefusedError,
+} from "./github.mjs";
 import { GitInterruptedError, primaryRepository } from "./trusted-git.mjs";
 import { createBranch, ensureSessionWorktree } from "./worktrees.mjs";
 
@@ -269,6 +273,106 @@ test("pushes a work branch and returns its commit", async (context) => {
 
   assert.equal(result.branch, branch);
   assert.equal(result.commit, await git(origin, ["rev-parse", branch]));
+});
+
+test("a validated publication stops before pushing when main advanced", async (context) => {
+  const { origin, clone, worktreeRoot } = await repositoryFixture(context);
+  const worktree = await branchWorktree({
+    repository: clone,
+    worktreeRoot,
+    branch,
+    name: "topic-stale-base",
+  });
+  const base = (await git(clone, ["rev-parse", "origin/main"])).trim();
+  writeFileSync(join(worktree.path, "change.txt"), "canvi\n");
+  await git(worktree.path, ["add", "change.txt"]);
+  await git(worktree.path, ["commit", "-m", "feat: synthetic change"]);
+  const commit = (await git(worktree.path, ["rev-parse", "HEAD"])).trim();
+  const component = trust({
+    async fetchImpl(url, options) {
+      assert.equal(options.method, "GET");
+      assert.equal(
+        url,
+        `https://api.github.com/repos/${repository}/git/ref/heads/main`,
+      );
+      return {
+        ok: true,
+        json: async () => ({ object: { sha: "b".repeat(40) } }),
+      };
+    },
+  });
+  let pushStarted = false;
+  await assert.rejects(
+    component.pushBranch({
+      worktree,
+      branch,
+      validated: { commit, base },
+      onPublicationStarted: () => {
+        pushStarted = true;
+      },
+    }),
+    PublicationBaseChangedError,
+  );
+  assert.equal(pushStarted, false);
+  await assert.rejects(
+    git(origin, ["show-ref", "--verify", `refs/heads/${branch}`]),
+  );
+});
+
+test("a validated publication rejects a changed remote head even if the push would fast-forward", async (context) => {
+  const { origin, clone, worktreeRoot } = await repositoryFixture(context);
+  const worktree = await branchWorktree({
+    repository: clone,
+    worktreeRoot,
+    branch,
+    name: "topic-raced-head",
+  });
+  const base = (await git(clone, ["rev-parse", "origin/main"])).trim();
+  await git(worktree.path, [
+    "commit",
+    "--allow-empty",
+    "-m",
+    "feat: concurrent work",
+  ]);
+  const concurrent = (await git(worktree.path, ["rev-parse", "HEAD"])).trim();
+  await git(worktree.path, [
+    "push",
+    "origin",
+    `${concurrent}:refs/heads/${branch}`,
+  ]);
+  await git(worktree.path, [
+    "commit",
+    "--allow-empty",
+    "-m",
+    "feat: validated work",
+  ]);
+  const commit = (await git(worktree.path, ["rev-parse", "HEAD"])).trim();
+  const component = trust({
+    async fetchImpl() {
+      return { ok: true, json: async () => ({ object: { sha: base } }) };
+    },
+  });
+
+  const validated = { commit, base };
+  await assert.rejects(
+    component.pushBranch({ worktree, branch, validated, expectedHead: base }),
+    /stale info/u,
+  );
+  assert.equal(
+    (await git(origin, ["rev-parse", `refs/heads/${branch}`])).trim(),
+    concurrent,
+  );
+
+  await component.pushBranch({
+    worktree,
+    branch,
+    validated,
+    expectedHead: concurrent,
+  });
+  assert.equal(
+    (await git(origin, ["rev-parse", `refs/heads/${branch}`])).trim(),
+    commit,
+  );
 });
 
 test("does not publish uninspected tags even when followTags is configured", async (context) => {

@@ -537,14 +537,41 @@ export async function listChangedPaths(worktree, { signal } = {}) {
  * committed yet. A rename counts on both sides, so an overlap with the old
  * name is visible too.
  */
-export async function changedPathsAgainstMain(worktree, { signal } = {}) {
+export async function changedPathsAgainstMain(
+  worktree,
+  { base = "origin/main", signal } = {},
+) {
   const committed = await runGit(
     worktree,
-    ["diff", "--name-only", "-z", "--no-renames", "origin/main...HEAD"],
+    ["diff", "--name-only", "-z", "--no-renames", `${base}...HEAD`],
     { signal },
   );
   const pending = await listChangedPaths(worktree, { signal });
   return [...new Set([...committed.split("\0").filter(Boolean), ...pending])];
+}
+
+/**
+ * What a worktree holds outside the index: tracked paths whose content differs
+ * from the index and untracked paths Git does not ignore. A merge in progress
+ * stages every clean result, so after a conflict only the conflicted paths and
+ * the edits of the model remain here.
+ */
+export async function listWorkingTreeChanges(worktree, { signal } = {}) {
+  const split = (output) => output.split("\0").filter(Boolean);
+  return {
+    modified: split(
+      await runGit(worktree, ["diff", "--name-only", "-z", "--no-renames"], {
+        signal,
+      }),
+    ),
+    untracked: split(
+      await runGit(
+        worktree,
+        ["ls-files", "--others", "--exclude-standard", "-z"],
+        { signal },
+      ),
+    ),
+  };
 }
 
 export async function currentBranch(worktree, { signal } = {}) {
@@ -689,15 +716,45 @@ export async function fastForwardPublishedBranch({
   return true;
 }
 
-export async function mergeMainIntoBranch({ worktree, signal }) {
+export async function fetchMainHead({ worktree, signal }) {
   await runGit(worktree, ["fetch", "--prune", "origin", "main"], {
     signal,
     timeoutMilliseconds: remoteGitTimeoutMilliseconds,
   });
-  const mainHead = (
+  return (
     await runGit(worktree, ["rev-parse", "origin/main"], { signal })
   ).trim();
-  return mergeCommitIntoBranch({ worktree, headSha: mainHead, signal });
+}
+
+/**
+ * Integrate the freshly fetched `origin/main` into a branch that is behind it,
+ * without rebase or force-push. A branch that already contains `main` is left
+ * untouched: no commit, no merge. Work that is not committed yet is committed
+ * first so a conflict or a later failure never loses it. The result carries the
+ * verified `mainHead` the merge was made against.
+ */
+export async function synchronizeWithMain({
+  worktree,
+  pendingWorkMessage,
+  signal,
+}) {
+  const mainHead = await fetchMainHead({ worktree, signal });
+  const mergeBase = (
+    await runGit(worktree, ["merge-base", "HEAD", mainHead], {
+      allowFailure: true,
+      signal,
+    })
+  ).trim();
+  if (mergeBase === mainHead) {
+    return { merged: false, mainHead };
+  }
+  await commitAll({ worktree, message: pendingWorkMessage, signal });
+  const merge = await mergeCommitIntoBranch({
+    worktree,
+    headSha: mainHead,
+    signal,
+  });
+  return { ...merge, mainHead };
 }
 
 export async function mergeCommitIntoBranch({ worktree, headSha, signal }) {

@@ -988,12 +988,13 @@ de la persona mantenidora consta a l'especificació.
      `.github/workflows` i sense lectura d'administració. Comprova que el compte
      de l'agent és col·laborador del repositori, que
      `MOUNTAIN_AGENT_REQUIRED_CHECKS` coincideix amb la protecció de `main` amb la
-     branca al dia, i registra la decisió sobre «enforce admins». Comprova els
+     branca al dia. Comprova que la protecció s'aplica també als administradors
+     («enforce admins») i que el compte de l'agent no té cap bypass. Comprova els
      secrets `PREVIEW_*`, l'entorn `previews` i el DNS wildcard de
      `*.preview.mountainrunners.cat`.
    - Esperat: cada permís és el documentat i la llista de comprovacions
-     coincideix amb la protecció, de manera que `clean` vol dir el mateix per al
-     servei i per a GitHub.
+     coincideix amb la protecció. GitHub exigeix la branca al dia també al
+     compte de l'agent en el moment del merge.
    - Si falla: no activis l'escriptura ni el merge; corregeix el token o la
      configuració i torna a començar la validació.
 2. **Flux bàsic.**

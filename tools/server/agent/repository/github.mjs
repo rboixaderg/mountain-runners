@@ -90,6 +90,8 @@ export class PublishRefusedError extends Error {
   }
 }
 
+export class PublicationBaseChangedError extends PublishRefusedError {}
+
 /** A response GitHub sent and the service received; it carries only the status. */
 export class GitHubResponseError extends Error {
   constructor(method, path, status) {
@@ -270,22 +272,41 @@ export class GitHubTrust {
    * Git command runs. All outgoing history is checked for protected paths,
    * live credentials and inspection limits before the first remote write.
    */
-  async pushBranch({ worktree, branch, secrets = [], signal, approved }) {
+  async pushBranch({
+    worktree,
+    branch,
+    secrets = [],
+    signal,
+    approved,
+    validated,
+    expectedHead = approved?.expectedHead,
+    onPublicationStarted,
+  }) {
     let commit;
     try {
       assertWorkBranch(branch);
       await this.#assertOrigin(worktree, { signal });
       commit = await this.#git(worktree, ["rev-parse", "HEAD"], {}, { signal });
+      if (validated) {
+        assertFullCommit(validated.base);
+        if (commit !== validated.commit)
+          throw new Error("The validated commit has changed.");
+        await this.#git(
+          worktree,
+          ["merge-base", "--is-ancestor", validated.base, commit],
+          {},
+          { signal },
+        );
+      }
       if (approved) {
         assertFullCommit(approved.commit);
         assertFullCommit(approved.base);
-        if (approved.expectedHead !== null)
-          assertFullCommit(approved.expectedHead);
         if (
           approved.repository !== this.#repository ||
           approved.branch !== branch ||
           approved.worktreePath !== worktree.path ||
-          approved.gitDirectory !== worktree.gitDirectory
+          approved.gitDirectory !== worktree.gitDirectory ||
+          approved.expectedHead !== expectedHead
         ) {
           throw new Error("The approved publication context has changed.");
         }
@@ -298,28 +319,38 @@ export class GitHubTrust {
           {},
           { signal },
         );
-        if (base !== approved.base)
+        if (
+          base !== approved.base ||
+          (validated && validated.base !== approved.base)
+        )
           throw new Error("The approved base has changed.");
-        // A lease must not turn a normally fast-forward-only push into a force push.
-        if (approved.expectedHead !== null) {
-          await this.#git(
-            worktree,
-            [
-              "merge-base",
-              "--is-ancestor",
-              approved.expectedHead,
-              approved.commit,
-            ],
-            {},
-            { signal },
-          );
-        }
-        commit = approved.commit;
+      }
+      // The lease is an exact ref comparison, never a non-fast-forward update.
+      if (expectedHead !== undefined && expectedHead !== null) {
+        assertFullCommit(expectedHead);
+        await this.#git(
+          worktree,
+          ["merge-base", "--is-ancestor", expectedHead, commit],
+          {},
+          { signal },
+        );
       }
       await assertPublishableHistory({ worktree, commit, secrets, signal });
+      if (validated) {
+        // GitHub cannot compare main and update a different ref in one call.
+        // Check main last; the push lease guards the work branch itself.
+        const remote = await this.#request(
+          "GET",
+          `/repos/${this.#repository}/git/ref/heads/main`,
+          undefined,
+          { signal },
+        );
+        assertFullCommit(remote?.object?.sha);
+        if (remote.object.sha !== validated.base)
+          throw new PublicationBaseChangedError("The validated base advanced.");
+      }
     } catch (error) {
-      // A stop is not a refusal: nothing may have reached GitHub yet, and the
-      // caller must see the interruption instead of reporting a failed work.
+      // A stop during preflight is an interruption, not a refused push.
       if (
         signal?.aborted ||
         error instanceof GitInterruptedError ||
@@ -327,21 +358,22 @@ export class GitHubTrust {
       ) {
         throw error;
       }
+      if (error instanceof PublicationBaseChangedError) throw error;
       throw new PublishRefusedError(
         error instanceof Error ? error.message : "Publication refused.",
         { cause: error },
       );
     }
 
+    signal?.throwIfAborted();
+    onPublicationStarted?.();
     await this.#git(
       worktree,
       [
         "push",
         "--no-follow-tags",
-        ...(approved
-          ? [
-              `--force-with-lease=refs/heads/${branch}:${approved.expectedHead ?? ""}`,
-            ]
+        ...(expectedHead !== undefined
+          ? [`--force-with-lease=refs/heads/${branch}:${expectedHead ?? ""}`]
           : []),
         "origin",
         `${commit}:refs/heads/${branch}`,
@@ -651,6 +683,7 @@ export class GitHubTrust {
       // A maintainer's revocation wins over the label: no preview is announced.
       previewRevoked: hasLabel(pull.labels, previewRevokedLabel),
       baseRef: pull.base.ref,
+      baseSha: pull.base.sha,
       // `unknown` while GitHub is still computing it; any other value but
       // `clean` is a reason not to merge.
       mergeableState: pull.mergeable_state,

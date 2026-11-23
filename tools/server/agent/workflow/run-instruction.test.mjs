@@ -18,7 +18,10 @@ import { basename, dirname, join } from "node:path";
 import { promisify } from "node:util";
 import { fileURLToPath } from "node:url";
 import { test } from "node:test";
-import { PublishRefusedError } from "../repository/github.mjs";
+import {
+  PublicationBaseChangedError,
+  PublishRefusedError,
+} from "../repository/github.mjs";
 import { CiWatchStore } from "../repository/ci-watch-store.mjs";
 import { MergeRequestStore } from "../repository/merge-request-store.mjs";
 import { createResearchReview } from "../repository/research-review.mjs";
@@ -186,6 +189,7 @@ function githubStub() {
     },
     async pushBranch(argumentsObject) {
       this.pushes.push(argumentsObject);
+      argumentsObject.onPublicationStarted?.();
       return {
         branch: argumentsObject.branch,
         commit: await git(argumentsObject.worktree.path, ["rev-parse", "HEAD"]),
@@ -960,7 +964,7 @@ test("does not publish files created after the documentation inventory was captu
   assert.equal(existsSync(join(topicWorktreePath(paths), "late.md")), true);
 });
 
-test("marks files already deleted when the documentation inventory is captured", async (context) => {
+test("leaves a file deleted by the checkpointed change out of the documentation inventory", async (context) => {
   const paths = await fixture(context);
   let checked = false;
   const runner = createProjectRunner({
@@ -974,7 +978,9 @@ test("marks files already deleted when the documentation inventory is captured",
     executeSandbox: async ({ documentationFilesPath }) => {
       const files = readFileSync(documentationFilesPath, "utf8").split("\0");
       assert.ok(files.includes("P.gitignore"));
-      assert.ok(files.includes("DREADME.md"));
+      // The checkpoint commit already records the deletion.
+      assert.equal(files.includes("DREADME.md"), false);
+      assert.equal(files.includes("PREADME.md"), false);
       checked = true;
       return { exitCode: 1, stdout: "", stderr: "", timedOut: false };
     },
@@ -1087,7 +1093,7 @@ async function runMainSync(
   {
     conflict = false,
     resolveConflict = false,
-    failSecondCheck = false,
+    failCheck = false,
     binary = false,
     resolutionFails = false,
     breakCleanup = false,
@@ -1121,7 +1127,11 @@ async function runMainSync(
             "main change\ntopic change\n",
           );
         }
-        return { text: "Conflicte revisat." };
+        return {
+          text: resolveConflict
+            ? "Conflicte resolt.\nCONFLICT_RESOLVED"
+            : "Quina versió vols conservar?",
+        };
       }
       const topicPath = conflict ? "README.md" : "change.txt";
       const mainPath = conflict ? "README.md" : "main-change.txt";
@@ -1150,7 +1160,7 @@ async function runMainSync(
     runChecks: async () => {
       checks += 1;
       return {
-        exitCode: failSecondCheck && checks === 2 ? 1 : 0,
+        exitCode: failCheck && checks === 1 ? 1 : 0,
         timedOut: false,
       };
     },
@@ -1159,11 +1169,12 @@ async function runMainSync(
   return { paths, github, result, checks, modelTurns, advancedMain };
 }
 
-test("integrates an advanced main and reruns checks before publication", async (context) => {
+test("integrates an advanced main before the only gate and publishes", async (context) => {
   const { paths, github, result, checks, advancedMain } =
     await runMainSync(context);
   assert.equal(result.outcome, "pull_request_created", result.report);
-  assert.equal(checks, 2);
+  assert.equal(checks, 1);
+  assert.equal(github.pushes[0].validated.base, advancedMain);
   assert.equal(github.pushes.length, 1);
   const parents = (
     await git(topicWorktreePath(paths), ["log", "-1", "--format=%P"])
@@ -1178,8 +1189,9 @@ test("aborts a conflicting main merge and keeps the topic commit", async (contex
     { conflict: true },
   );
   assert.equal(result.outcome, "failed");
-  assert.equal(result.report, instructionReports.checksFailed);
-  assert.equal(checks, 1);
+  // The question of the model reaches the person; nothing is published.
+  assert.equal(result.report, "Quina versió vols conservar?");
+  assert.equal(checks, 0);
   assert.equal(modelTurns, 2);
   assert.deepEqual(github.pushes, []);
   const worktree = topicWorktreePath(paths);
@@ -1195,7 +1207,7 @@ test("publishes a conflict resolved by the model with both changes", async (cont
     await runMainSync(context, { conflict: true, resolveConflict: true });
   assert.equal(result.outcome, "pull_request_created", result.report);
   assert.equal(modelTurns, 2);
-  assert.equal(checks, 2);
+  assert.equal(checks, 1);
   assert.equal(github.pushes.length, 1);
   const worktree = topicWorktreePath(paths);
   assert.equal(
@@ -1241,7 +1253,8 @@ test("never publishes an unresolved binary conflict", async (context) => {
     binary: true,
   });
   assert.equal(result.outcome, "failed");
-  assert.equal(modelTurns, 2);
+  // A binary conflict never reaches the model.
+  assert.equal(modelTurns, 1);
   assert.deepEqual(github.pushes, []);
   await assert.rejects(
     git(topicWorktreePath(paths), ["rev-parse", "--verify", "MERGE_HEAD"]),
@@ -1252,11 +1265,11 @@ test("keeps a resolved merge without pushing when checks fail", async (context) 
   const { paths, github, result, checks } = await runMainSync(context, {
     conflict: true,
     resolveConflict: true,
-    failSecondCheck: true,
+    failCheck: true,
   });
   assert.equal(result.outcome, "failed");
   assert.equal(result.report, instructionReports.checksFailed);
-  assert.equal(checks, 2);
+  assert.equal(checks, 1);
   assert.deepEqual(github.pushes, []);
   assert.equal(
     readFileSync(join(topicWorktreePath(paths), "README.md"), "utf8"),
@@ -1270,11 +1283,11 @@ test("keeps a resolved merge without pushing when checks fail", async (context) 
 test("keeps the clean merge without pushing when synchronized checks fail", async (context) => {
   const { paths, github, result, checks, advancedMain } = await runMainSync(
     context,
-    { failSecondCheck: true },
+    { failCheck: true },
   );
   assert.equal(result.outcome, "failed");
   assert.equal(result.report, instructionReports.checksFailed);
-  assert.equal(checks, 2);
+  assert.equal(checks, 1);
   assert.deepEqual(github.pushes, []);
   const parents = (
     await git(topicWorktreePath(paths), ["log", "-1", "--format=%P"])
@@ -1581,7 +1594,11 @@ async function assertAdvancedPullRequest(
         assert.match(readFileSync(conflictPath, "utf8"), /<<<<<<< /u);
         if (!leaveConflict)
           writeFileSync(conflictPath, "pending work\nremote work\n");
-        return { text: "Conflicte revisat." };
+        return {
+          text: leaveConflict
+            ? "Quina versió vols?"
+            : "Conflicte resolt.\nCONFLICT_RESOLVED",
+        };
       }
       modelTurns += 1;
       if (modelTurns === 2) {
@@ -3872,7 +3889,7 @@ test("keeps publishing when the overlap warning cannot be computed", async (cont
   assert.equal(registered.length, 1);
 });
 
-test("stops before committing when the signal aborts during checks", async (context) => {
+test("keeps the checkpointed work unpublished when the signal aborts during checks", async (context) => {
   const paths = await fixture(context);
   const github = githubStub();
   const controller = new AbortController();
@@ -3904,11 +3921,13 @@ test("stops before committing when the signal aborts during checks", async (cont
   assert.deepEqual(github.pushes, []);
   assert.deepEqual(github.pulls, []);
   const worktree = topicWorktreePath(paths);
+  // The checkpoint keeps the work in a commit that is never pushed.
   assert.equal(
-    await git(worktree, ["rev-parse", "HEAD"]),
-    await git(paths.repository, ["rev-parse", "origin/main"]),
-    "the aborted instruction commits nothing",
+    await git(worktree, ["show", "HEAD:change.txt"]),
+    "canvi",
+    "the aborted instruction preserves the work",
   );
+  assert.equal(await git(worktree, ["status", "--porcelain"]), "");
 });
 
 function attachmentRequest(overrides = {}) {
@@ -5524,4 +5543,379 @@ test("omits the image that does not fit the prompt byte budget and names it", as
   assert.equal(prompt.images.length, 1);
   assert.match(prompt.instruction, /too large to send as image input/u);
   assert.match(prompt.instruction, /imatge-2\.png/u);
+});
+
+async function advanceMain(paths, path, content) {
+  writeFileSync(join(paths.repository, path), content);
+  await git(paths.repository, ["add", path]);
+  await git(paths.repository, ["commit", "-m", `chore: advance ${path}`]);
+  await git(join(paths.directory, "origin.git"), [
+    "fetch",
+    paths.repository,
+    "+refs/heads/main:refs/heads/main",
+  ]);
+  return git(paths.repository, ["rev-parse", "HEAD"]);
+}
+
+// One ordinary turn whose model leaves `change.txt` uncommitted while `main`
+// advances with `main-change.txt`. The gate records what it saw.
+async function runStaleTurn(
+  context,
+  { advance = true, gate, onWorktree = () => {} } = {},
+) {
+  const paths = await fixture(context);
+  const github = githubStub();
+  const gates = [];
+  const runner = createProjectRunner({
+    config: configFor(paths),
+    github,
+    classifyRequest: async () => ({ kind: "implementation" }),
+    runModel: async ({ worktreePath }) => {
+      writeFileSync(join(worktreePath, "change.txt"), "topic change\n");
+      if (advance) await advanceMain(paths, "main-change.txt", "main\n");
+      return { text: "SUMMARY: feat(tools): add synthetic change" };
+    },
+    runChecks: async ({ worktreePath, checkCommand }) => {
+      onWorktree(worktreePath);
+      gates.push({
+        checkCommand,
+        hasMain: existsSync(join(worktreePath, "main-change.txt")),
+      });
+      return gate ? gate(gates.length) : { exitCode: 0 };
+    },
+  });
+  const result = await runner(request());
+  return { paths, github, gates, result };
+}
+
+test("an ordinary turn passes the gate only after incorporating main into its uncommitted work", async (context) => {
+  const { paths, github, gates, result } = await runStaleTurn(context);
+  assert.equal(result.outcome, "pull_request_created", result.report);
+  assert.deepEqual(
+    gates.map(({ hasMain }) => hasMain),
+    [true],
+  );
+  const worktree = topicWorktreePath(paths);
+  assert.equal(
+    (await git(worktree, ["log", "-1", "--format=%P"])).split(" ").length,
+    2,
+  );
+  assert.equal(await git(worktree, ["status", "--porcelain"]), "");
+  assert.equal(
+    github.pushes[0].validated.base,
+    await git(paths.repository, ["rev-parse", "origin/main"]),
+  );
+  assert.equal(
+    github.pushes[0].validated.commit,
+    await git(worktree, ["rev-parse", "HEAD"]),
+  );
+});
+
+test("an ordinary turn on an up-to-date branch adds no merge commit and gates once", async (context) => {
+  const { paths, gates, result } = await runStaleTurn(context, {
+    advance: false,
+  });
+  assert.equal(result.outcome, "pull_request_created", result.report);
+  assert.equal(gates.length, 1);
+  const parents = await git(topicWorktreePath(paths), [
+    "log",
+    "-1",
+    "--format=%P",
+  ]);
+  assert.equal(parents.split(" ").length, 1);
+});
+
+test("the gate is chosen from the verified main and a non-content change keeps the full gate", async (context) => {
+  const { gates, result } = await runStaleTurn(context);
+  assert.equal(result.outcome, "pull_request_created", result.report);
+  assert.deepEqual(
+    gates.map(({ checkCommand }) => checkCommand),
+    ["pnpm check"],
+  );
+});
+
+test("a failing gate after synchronization keeps the merged work and publishes nothing", async (context) => {
+  const { paths, github, result } = await runStaleTurn(context, {
+    gate: () => ({ exitCode: 1 }),
+  });
+  assert.equal(result.outcome, "failed");
+  assert.deepEqual(github.pushes, []);
+  const worktree = topicWorktreePath(paths);
+  assert.equal(
+    readFileSync(join(worktree, "change.txt"), "utf8"),
+    "topic change\n",
+  );
+  assert.equal(
+    readFileSync(join(worktree, "main-change.txt"), "utf8"),
+    "main\n",
+  );
+});
+
+test("a gate that changes the worktree is not published", async (context) => {
+  let worktreePath;
+  const { github, result } = await runStaleTurn(context, {
+    gate: () => {
+      writeFileSync(join(worktreePath, "gate.txt"), "x\n");
+      return { exitCode: 0 };
+    },
+    onWorktree: (path) => {
+      worktreePath = path;
+    },
+  });
+  assert.equal(result.outcome, "failed");
+  assert.deepEqual(github.pushes, []);
+});
+
+test("an ordinary turn synchronizes again when the publisher finds a newer main", async (context) => {
+  const paths = await fixture(context);
+  const github = githubStub();
+  const push = github.pushBranch.bind(github);
+  let attempts = 0;
+  let gates = 0;
+  github.pushBranch = async (options) => {
+    attempts += 1;
+    if (attempts === 1) {
+      await advanceMain(paths, "later.txt", "later\n");
+      throw new PublicationBaseChangedError("advanced");
+    }
+    return push(options);
+  };
+  const runner = createProjectRunner({
+    config: configFor(paths),
+    github,
+    classifyRequest: async () => ({ kind: "implementation" }),
+    runModel: async ({ worktreePath }) => {
+      writeFileSync(join(worktreePath, "change.txt"), "topic change\n");
+      return { text: "SUMMARY: feat(tools): add synthetic change" };
+    },
+    runChecks: async () => {
+      gates += 1;
+      return { exitCode: 0 };
+    },
+  });
+  const result = await runner(request());
+  assert.equal(result.outcome, "pull_request_created", result.report);
+  assert.equal(attempts, 2);
+  assert.equal(gates, 2);
+  assert.equal(
+    github.pushes[0].validated.base,
+    await git(paths.repository, ["rev-parse", "origin/main"]),
+  );
+});
+
+async function conflictTurn(context, resolution) {
+  const paths = await fixture(context);
+  const github = githubStub();
+  let turns = 0;
+  const runner = createProjectRunner({
+    config: configFor(paths),
+    github,
+    classifyRequest: async () => ({ kind: "implementation" }),
+    runModel: async ({ worktreePath }) => {
+      turns += 1;
+      if (turns === 2) {
+        return resolution(worktreePath);
+      }
+      writeFileSync(join(worktreePath, "README.md"), "topic change\n");
+      await advanceMain(paths, "README.md", "main change\n");
+      return { text: "SUMMARY: feat(tools): add synthetic change" };
+    },
+    runChecks: async () => ({ exitCode: 0 }),
+  });
+  const result = await runner(request());
+  return { paths, github, result };
+}
+
+test("a conflict resolution that edits a path outside the conflict is rolled back", async (context) => {
+  const { paths, github, result } = await conflictTurn(
+    context,
+    (worktreePath) => {
+      writeFileSync(
+        join(worktreePath, "README.md"),
+        "main change\ntopic change\n",
+      );
+      writeFileSync(join(worktreePath, "stray.txt"), "outside\n");
+      return { text: "Fet.\nCONFLICT_RESOLVED" };
+    },
+  );
+  assert.equal(result.outcome, "failed");
+  assert.deepEqual(github.pushes, []);
+  const worktree = topicWorktreePath(paths);
+  await assert.rejects(git(worktree, ["rev-parse", "--verify", "MERGE_HEAD"]));
+  assert.equal(
+    readFileSync(join(worktree, "README.md"), "utf8"),
+    "topic change\n",
+  );
+});
+
+test("a timed out conflict turn leaves no new untracked file behind", async (context) => {
+  const { paths, github, result } = await conflictTurn(
+    context,
+    (worktreePath) => {
+      writeFileSync(join(worktreePath, "stray.txt"), "outside\n");
+      return { timedOut: true };
+    },
+  );
+  assert.equal(result.outcome, "failed");
+  assert.deepEqual(github.pushes, []);
+  const worktree = topicWorktreePath(paths);
+  assert.equal(existsSync(join(worktree, "stray.txt")), false);
+  assert.equal(await git(worktree, ["status", "--porcelain"]), "");
+});
+
+test("markers removed without the explicit resolved line stop on the model question", async (context) => {
+  const { github, result } = await conflictTurn(context, (worktreePath) => {
+    writeFileSync(join(worktreePath, "README.md"), "topic change\n");
+    return { text: "Quina versió prefereixes?" };
+  });
+  assert.equal(result.outcome, "failed");
+  assert.equal(result.report, "Quina versió prefereixes?");
+  assert.deepEqual(github.pushes, []);
+});
+
+// A bound topic whose pull request head is published on the fixture origin.
+async function boundTopic(context) {
+  const paths = await fixture(context);
+  mkdirSync(paths.state, { recursive: true });
+  const topicJobs = new TopicJobStore(join(paths.state, "topic-jobs.sqlite"));
+  context.after(() => topicJobs.close());
+  const origin = join(paths.directory, "origin.git");
+  const github = githubStub();
+  let remoteBranch;
+  github.pushBranch = async ({ worktree, branch, onPublicationStarted }) => {
+    onPublicationStarted?.();
+    remoteBranch = branch;
+    const commit = await git(worktree.path, ["rev-parse", "HEAD"]);
+    await git(origin, [
+      "fetch",
+      worktree.path,
+      `refs/heads/${branch}:refs/heads/${branch}`,
+    ]);
+    github.pushes.push({ branch, commit });
+    return { branch, commit };
+  };
+  const readPullRequest = async () => ({
+    state: "open",
+    draft: false,
+    baseRef: "main",
+    headRepository: "rboixaderg/mountain-runners",
+    headRef: remoteBranch,
+    headSha: await git(origin, ["rev-parse", `refs/heads/${remoteBranch}`]),
+    previewLabeled: true,
+    previewRevoked: false,
+  });
+  github.getPullRequest = readPullRequest;
+  github.ensurePullRequest = async () => ({
+    pullRequest: { number: 200, ...(await readPullRequest()) },
+    created: github.pulls.push(true) === 1,
+  });
+  const gates = [];
+  const previews = [];
+  const followUp = { result: undefined };
+  const runner = createProjectRunner({
+    config: configFor(paths),
+    github,
+    topicJobs,
+    classifyRequest: async () => ({ kind: "implementation" }),
+    runModel: async ({ worktreePath, instruction }) => {
+      assert.doesNotMatch(instruction, /sincronitza/iu);
+      writeFileSync(join(worktreePath, "topic.txt"), "topic\n");
+      return { text: "SUMMARY: feat(tools): add synthetic change" };
+    },
+    runChecks: async ({ checkCommand }) => {
+      gates.push(checkCommand);
+      return { exitCode: 0 };
+    },
+    followPreview: (options) => {
+      previews.push(options);
+      return followUp.result;
+    },
+  });
+  assert.equal((await runner(request())).outcome, "pull_request_created");
+  const commit = await git(origin, ["rev-parse", `refs/heads/${remoteBranch}`]);
+  const baseSha = await git(paths.repository, ["rev-parse", "origin/main"]);
+  gates.length = 0;
+  previews.length = 0;
+  github.pushes.length = 0;
+  return {
+    paths,
+    github,
+    runner,
+    gates,
+    previews,
+    followUp,
+    target: { pullRequestNumber: 200, commit, branch: remoteBranch, baseSha },
+  };
+}
+
+const mergeRequest = () => request({ updateIdentifier: 2002 });
+
+test("merge synchronization of an up-to-date branch fails closed without gate or push", async (context) => {
+  const { runner, github, gates, target } = await boundTopic(context);
+  const result = await runner.synchronizeForMerge(mergeRequest(), target);
+  assert.equal(result.outcome, "up_to_date");
+  assert.match(result.report, /ja incorpora el main actual/u);
+  assert.deepEqual(gates, []);
+  assert.deepEqual(github.pushes, []);
+});
+
+test("merge synchronization publishes a merge commit, pins the base and never merges", async (context) => {
+  const { paths, runner, github, gates, previews, target } =
+    await boundTopic(context);
+  const mainSha = await advanceMain(paths, "main-change.txt", "main\n");
+  const result = await runner.synchronizeForMerge(mergeRequest(), {
+    ...target,
+    baseSha: mainSha,
+  });
+  assert.equal(result.outcome, "synchronized", result.report);
+  assert.equal(result.mainHead, mainSha);
+  assert.notEqual(result.commit, target.commit);
+  assert.equal(gates.length, 1);
+  assert.equal(github.pushes.length, 1);
+  const parents = await git(topicWorktreePath(paths), [
+    "log",
+    "-1",
+    "--format=%P",
+  ]);
+  assert.deepEqual(parents.split(" "), [target.commit, mainSha]);
+  assert.equal(previews[0].mergeSynchronization, true);
+  assert.equal(previews[0].repair, false);
+  assert.equal(previews[0].commit, result.commit);
+});
+
+test("merge synchronization refuses a moved base, head or branch without mutating", async (context) => {
+  const { paths, runner, github, gates, target } = await boundTopic(context);
+  const mainSha = await advanceMain(paths, "main-change.txt", "main\n");
+  const worktree = topicWorktreePath(paths);
+  const headBefore = await git(worktree, ["rev-parse", "HEAD"]);
+  for (const changed of [
+    { baseSha: target.baseSha },
+    { commit: "a".repeat(40), baseSha: mainSha },
+    { branch: "feat/other", baseSha: mainSha },
+  ]) {
+    const result = await runner.synchronizeForMerge(mergeRequest(), {
+      ...target,
+      ...changed,
+    });
+    assert.equal(
+      result.outcome === "failed" || result.outcome === "up_to_date",
+      true,
+    );
+    assert.equal(typeof result.report, "string");
+  }
+  assert.deepEqual(github.pushes, []);
+  assert.deepEqual(gates, []);
+  assert.equal(await git(worktree, ["rev-parse", "HEAD"]), headBefore);
+});
+
+test("merge synchronization is uncertain when the preview follow-up is not stored", async (context) => {
+  const { paths, runner, followUp, target } = await boundTopic(context);
+  followUp.result = false;
+  const mainSha = await advanceMain(paths, "main-change.txt", "main\n");
+  const result = await runner.synchronizeForMerge(mergeRequest(), {
+    ...target,
+    baseSha: mainSha,
+  });
+  assert.equal(result.outcome, "uncertain");
+  assert.match(result.report, /no he pogut confirmar la preview/u);
 });

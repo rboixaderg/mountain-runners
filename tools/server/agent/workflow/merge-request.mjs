@@ -27,7 +27,11 @@ import {
   requestSignal,
   sleep,
 } from "../repository/request-signal.mjs";
-import { mergeReports, shortCommit } from "../policy/development.mjs";
+import {
+  mergeReports,
+  mergeSynchronizationRequestedAction,
+  shortCommit,
+} from "../policy/development.mjs";
 
 const mergeCommandPrefix = "/merge";
 const mergeCommandPattern =
@@ -64,6 +68,7 @@ export function mergeConfirmationIntent(text) {
 const mergeableStates = {
   clean: "clean",
   behind: "behind",
+  dirty: "dirty",
   unknown: "unknown",
 };
 // GitHub computes mergeability lazily: `unknown` is read again a bounded number
@@ -75,6 +80,7 @@ const refusals = {
   membershipRevoked: "membership_revoked",
   membershipUnavailable: "membership_unavailable",
   noDeliveredPreview: "no_delivered_preview",
+  predatesPreview: "predates_preview",
   otherPullRequest: "other_pull_request",
   commitMismatch: "commit_mismatch",
   newerWork: "newer_work",
@@ -139,6 +145,11 @@ export function createMergeRequests({
   hasNewerWork,
   hasInterveningInstructions,
   verifyMembership,
+  // Prepares a branch that is behind main. Called with the request, the trusted
+  // pin `{ pullRequestNumber, commit, branch, baseSha }` and `{ signal }`; it
+  // returns the result the request ends with. Without it a behind branch is
+  // only refused.
+  synchronizeBehind,
   github,
   repository,
   requiredChecks,
@@ -256,6 +267,10 @@ export function createMergeRequests({
         return null;
       case mergeableStates.behind:
         return refusals.behind;
+      case mergeableStates.dirty:
+        // GitHub reports conflicts with main as dirty, not behind. The
+        // synchronizer verifies ancestry before changing the worktree.
+        return synchronizeBehind ? refusals.behind : refusals.notClean;
       default:
         return refusals.notClean;
     }
@@ -611,13 +626,79 @@ export function createMergeRequests({
         };
       }
     }
-    return mergeDelivered(request, command, delivered, signal);
+    return mergeDelivered(request, command, delivered, signal, {
+      requireAfterNotice: true,
+    });
   }
 
-  async function mergeDelivered(request, command, delivered, signal) {
+  /** Hand the pinned pull request to the injected synchronisation, never merging. */
+  async function synchronize(request, target, pullRequest, signal) {
+    try {
+      recordTrace({
+        updateIdentifier: request.updateIdentifier,
+        authorIdentifier: request.authorIdentifier,
+        sessionKey: request.sessionKey,
+        action: mergeSynchronizationRequestedAction,
+        detail: describeTarget(target),
+      });
+      return await synchronizeBehind(
+        request,
+        {
+          ...target,
+          branch: pullRequest.headRef,
+          baseSha: pullRequest.baseSha,
+        },
+        { signal },
+      );
+    } catch (error) {
+      signal?.throwIfAborted();
+      logger(
+        "merge_sync_failed",
+        error instanceof Error ? error.name : "unknown",
+      );
+      return refuse(
+        request,
+        refusals.behind,
+        refusalTexts[refusals.behind](target),
+        target,
+      );
+    }
+  }
+
+  /**
+   * A queued `/merge` written before the delivered notice cannot have seen it.
+   * Telegram message identifiers grow within a chat, so the request must be
+   * newer than the notice; a missing identifier fails closed.
+   */
+  function predatesNotice(request, delivered) {
+    return !(
+      Number.isSafeInteger(request.messageIdentifier) &&
+      request.messageIdentifier > delivered.notice_message_identifier
+    );
+  }
+
+  function refusePredating(request, target) {
+    return refuse(
+      request,
+      refusals.predatesPreview,
+      mergeReports.noDeliveredPreview,
+      target,
+    );
+  }
+
+  async function mergeDelivered(
+    request,
+    command,
+    delivered,
+    signal,
+    { requireAfterNotice = false } = {},
+  ) {
     const { target, answer } = resolveDelivered(request, command, delivered);
     if (answer) {
       return answer;
+    }
+    if (requireAfterNotice && predatesNotice(request, delivered)) {
+      return refusePredating(request, target);
     }
     traceRequest(request, "merge_membership_verified", describeTarget(target));
 
@@ -635,7 +716,9 @@ export function createMergeRequests({
     if (mergeState.refusal === refusals.alreadyMerged) {
       return alreadyMergedAnswer(request, target, mergeState.pullRequest);
     }
-    if (mergeState.refusal !== null) {
+    const behind =
+      mergeState.refusal === refusals.behind && synchronizeBehind !== undefined;
+    if (mergeState.refusal !== null && !behind) {
       return refuse(
         request,
         mergeState.refusal,
@@ -653,6 +736,9 @@ export function createMergeRequests({
     if (rechecked.answer) {
       return rechecked.answer;
     }
+    if (requireAfterNotice && predatesNotice(request, current)) {
+      return refusePredating(request, rechecked.target);
+    }
     if (
       current.notice_message_identifier !==
         delivered.notice_message_identifier ||
@@ -664,6 +750,19 @@ export function createMergeRequests({
         refusals.noDeliveredPreview,
         mergeReports.noDeliveredPreview,
       );
+    }
+    // A behind branch never merges from this request: it is prepared and the
+    // person asks again after the new preview.
+    if (behind) {
+      if (store.hasOpenRequest(target.pullRequestNumber)) {
+        return refuse(
+          request,
+          refusals.alreadyInProgress,
+          mergeReports.alreadyInProgress(target),
+          target,
+        );
+      }
+      return synchronize(request, target, mergeState.pullRequest, signal);
     }
 
     const begun = store.begin({
@@ -728,7 +827,19 @@ export function createMergeRequests({
     };
     try {
       const live = await readMergeState(target, signal);
-      if (live.refusal !== null || !stillCurrent()) return quietConfirmation;
+      if (!stillCurrent()) return quietConfirmation;
+      if (live.refusal === refusals.behind && synchronizeBehind !== undefined) {
+        const synchronized = await synchronize(
+          request,
+          target,
+          live.pullRequest,
+          signal,
+        );
+        return synchronized.outcome === "uncertain"
+          ? synchronized
+          : { ...synchronized, outcome: mergeConfirmationOutcome };
+      }
+      if (live.refusal !== null) return quietConfirmation;
       const { chatIdentifier, threadIdentifier } = parseSessionKey(
         request.sessionKey,
       );
@@ -844,7 +955,9 @@ export function createMergeRequests({
       `#${target.pullRequestNumber} ${target.commit} ${mergeMethod}`,
     );
     const result = await mergeDelivered(request, target, delivered, signal);
-    return { ...result, outcome: mergeConfirmationOutcome };
+    return result.outcome === "uncertain"
+      ? result
+      : { ...result, outcome: mergeConfirmationOutcome };
   }
 
   function contextualIntent(request, text = request.instruction) {

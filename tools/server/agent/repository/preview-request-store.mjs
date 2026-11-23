@@ -33,6 +33,7 @@ const schema = `
     commented_at TEXT,
     confirmed_origin TEXT,
     notice_message_identifier INTEGER,
+    merge_synchronization INTEGER NOT NULL DEFAULT 0,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL
   );
@@ -95,6 +96,11 @@ export class PreviewRequestStore {
     this.#database.exec(schema);
     ensureColumn(this.#database, "confirmed_origin", "TEXT");
     ensureColumn(this.#database, "notice_message_identifier", "INTEGER");
+    ensureColumn(
+      this.#database,
+      "merge_synchronization",
+      "INTEGER NOT NULL DEFAULT 0",
+    );
     this.#now = now;
   }
 
@@ -163,13 +169,14 @@ export class PreviewRequestStore {
     authorIdentifier,
     pullRequestNumber,
     commitSha,
+    mergeSynchronization = false,
   }) {
     const timestamp = this.#now().toISOString();
     this.#database
       .prepare(
         `INSERT INTO preview_requests
-         (update_identifier, session_key, author_identifier, pull_request_number, commit_sha, state, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, 'awaiting', ?, ?)
+         (update_identifier, session_key, author_identifier, pull_request_number, commit_sha, state, created_at, updated_at, merge_synchronization)
+         VALUES (?, ?, ?, ?, ?, 'awaiting', ?, ?, ?)
          ON CONFLICT (update_identifier) DO UPDATE SET
            session_key = excluded.session_key,
            author_identifier = excluded.author_identifier,
@@ -179,7 +186,8 @@ export class PreviewRequestStore {
            confirmed_origin = NULL,
            notice_message_identifier = NULL,
            created_at = excluded.created_at,
-           updated_at = excluded.updated_at`,
+           updated_at = excluded.updated_at,
+           merge_synchronization = excluded.merge_synchronization`,
       )
       .run(
         updateIdentifier,
@@ -189,6 +197,7 @@ export class PreviewRequestStore {
         commitSha,
         timestamp,
         timestamp,
+        Number(mergeSynchronization),
       );
   }
 

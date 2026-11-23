@@ -628,6 +628,27 @@ test("treats a stop during the pull request read as an interruption", async (con
   );
 });
 
+test("a synchronization conflict question reaches the topic instead of only the private notes", async (context) => {
+  const store = fixture(context);
+  const queued = queueRepair(store, repairRequest);
+  const telegram = fakeTelegram();
+  const question = "Quina versió vols conservar?";
+  const executor = executorFor({
+    store,
+    telegram,
+    runInstruction: async () => ({
+      outcome: "failed",
+      report: question,
+      clarification: true,
+    }),
+  });
+
+  await executor.runNext();
+
+  assert.equal(store.repair(queued.sequence).outcome, "failed");
+  assert.match(telegram.sent[0].text, /Quina versió vols conservar\?/u);
+});
+
 test("does not repair a commit whose required checks no longer fail", async (context) => {
   const store = fixture(context);
   const queued = queueRepair(store, repairRequest);
