@@ -42,13 +42,21 @@ export const bridgeMessages = {
     `Un missatge pot portar com a màxim 5 imatges i aquest en portava ${count}. No he desat res; envia-me'n com a màxim 5.`,
 };
 // The two local gates of the repository (ADR 0012). The full gate also runs the
-// operational tests of the server tooling, which no content path can affect.
+// operational tests of the server tooling; CI and preview still run the full
+// suite before any merge or preview publication.
 export const checkCommands = {
   full: "pnpm check",
-  contentOnly: "pnpm check:local",
+  webOnly: "pnpm check:local",
 };
-// The content the fast gate validates on its own.
-const contentRoots = ["apps/web/src/content", "apps/web/src/content-assets"];
+// Web application source, messages and static public files that the fast gate
+// validates on its own. Root files of `apps/web/` (such as `build-mode.mjs` or
+// `package.json`) stay on the full gate because server tooling imports or
+// depends on them.
+const webFastGateRoots = [
+  "apps/web/src",
+  "apps/web/messages",
+  "apps/web/public",
+];
 export const sandboxPrepareCommand = [
   "export HOME=/tmp npm_config_manage_package_manager_versions=false",
   "PNPM_VERSION=$(pnpm --version)",
@@ -67,18 +75,19 @@ export function sandboxCheckCommand(checkCommand) {
 }
 
 /**
- * The check a publication runs, from every path it would contain. Only a change
- * that stays inside the content validates with the fast gate: any other path
- * keeps the full one. A root matches its own directory only, so
- * `apps/web/src/content-extra` is not content.
+ * The check a publication runs, from every path it would contain. Changes that
+ * stay inside the web application source, messages or static public assets
+ * validate with the fast gate; any other path keeps the full gate. Each root
+ * matches its own directory only, so `apps/web/src-extra` does not match
+ * `apps/web/src`.
  */
 export function checkCommandForPaths(paths) {
-  const everyPathIsContent =
+  const everyPathIsWebApp =
     paths.length > 0 &&
     paths.every((path) =>
-      contentRoots.some((contentRoot) => path.startsWith(`${contentRoot}/`)),
+      webFastGateRoots.some((root) => path.startsWith(`${root}/`)),
     );
-  return everyPathIsContent ? checkCommands.contentOnly : checkCommands.full;
+  return everyPathIsWebApp ? checkCommands.webOnly : checkCommands.full;
 }
 // Conventional types the repository accepts for a change summary. The prompt
 // offers this list so the model does not invent a type that the parser would

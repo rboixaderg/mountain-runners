@@ -77,9 +77,9 @@ test("installs from the offline store before checking with a private worktree te
   assertCheckRun(paths, "check");
 });
 
-test("prepares and isolates the content-only checks the same way", (context) => {
+test("prepares and isolates the fast web checks the same way", (context) => {
   const paths = fixture(context);
-  runCheck(paths, { checkCommand: checkCommands.contentOnly });
+  runCheck(paths, { checkCommand: checkCommands.webOnly });
   assertCheckRun(paths, "check:local");
 });
 
