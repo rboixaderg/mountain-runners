@@ -73,7 +73,7 @@ contingut, de manera que les rutes puguin ser, per exemple,
 **Dependències:** decisió sobre els noms canònics i una fase que modifiqui la
 superfície pública de rutes.
 
-**Seguiment:** [especificació de la fase 2](specs/phase-2-public-vertical-slice.md).
+**Seguiment:** [especificació de la fase 2](specs/phase-2/phase-2-public-vertical-slice.md).
 
 Implementada i fusionada a la T2.3 (PR #17). Es conserva aquí només com a
 registre del triatge; les rutes actuals viuen al contracte tipat de
@@ -911,25 +911,61 @@ completades i una esmena de l'ADR 0009 que retiri `/preview` com a petició.
 
 **Seguiment:** pendent de triatge.
 
+### Govern De La Documentació I De Les Skills
+
+**Estat:** Completada a [Govern de la documentació i de les
+skills](specs/docs-governance.md) el 22 de novembre de 2026.
+
+**Problema:** cada agent afegeix el comportament nou al document més proper, de manera
+que el comportament de l'agent privat es descriu a quatre llocs,
+els documents operatius de desplegament i runbook se solapen, els documents de treball d'una
+tasca viuen a l'arrel de `docs/` i les skills no tenen manifest verificat ni versió.
+
+**Resultat esperat:** un únic document propietari per tipus de contingut, l'operació
+organitzada per component, una actualització de l'agent versionada i una comprovació
+automàtica que impedeixi que la documentació torni a divergir.
+
+**Seguiment:** onze tasques fusionades en set PR i la correcció
+[#296](https://github.com/rboixaderg/mountain-runners/pull/296), l'última la
+[#295](https://github.com/rboixaderg/mountain-runners/pull/295).
+
 ### Fusionar Quan La Persona Dona La Feina Per Validada
 
-**Estat:** Capturada.
+**Estat:** Especificada a [Confirmació del merge amb una pregunta i una
+resposta](specs/preview-merge-confirmation.md) el 22 de novembre de 2026, amb
+l'esmena acceptada de l'ADR 0013.
 
 **Problema:** avui el servei només fusiona una PR amb l'ordre literal `/merge`
 d'una persona verificada del grup. Les persones del club no l'escriuran mai: el
 que fan és dir al tema que la feina està acabada i validada.
 
-**Resultat esperat:** definir (especificació i esmena de l'ADR 0013) com el
-servei reconeix, en llenguatge natural, la validació explícita d'una persona
-verificada sobre la feina del tema i fusiona el commit la preview del qual ha
-vist. La T8.9 ja demana que l'avís de preview confirmat fixi el SHA per a la
-fusió; avui el fixa el seguiment de CI. Es mantenen la decisió humana, la
-pertinença verificada, les comprovacions requerides en verd, l'absència
-d'auto-merge i que mai es fusiona per iniciativa pròpia.
+**Resultat esperat:** una validació explícita d'una persona verificada en resposta
+a l'avís vigent de preview confirmada provoca només una pregunta fixa; només la
+resposta «Sí, a producció» d'aquella persona a aquella pregunta autoritza el
+merge del commit anunciat per la preview. El text no autoritza res més i `/merge` es manté. La T8.9
+ja demana que l'avís de preview confirmat fixi el SHA per a la fusió; avui el fixa
+el seguiment de CI. Es mantenen la decisió humana, la pertinença verificada, les
+comprovacions requerides en verd, l'absència d'auto-merge i que mai es fusiona per
+iniciativa pròpia.
 
-**Dependències i riscos:** esmena de l'ADR 0013 (una petició en llenguatge
-natural és una autorització més àmplia que l'ordre literal; risc de classificar
-malament un comentari); fixació del SHA de la preview; [especificació de
-l'etiqueta de preview](specs/preview-label.md).
+**Dependències i riscos:** esmena de l'ADR 0013 (forma contextual en dos passos i
+fixació del SHA a la preview); alineació de la documentació operativa i de les
+instruccions d'agents abans d'activar; [especificació de l'etiqueta de
+preview](specs/preview-label.md).
+
+**Seguiment:** T1 fusionada (PR #294); T2 en curs.
+
+### Butlletí I Analítica Del Club
+
+**Estat:** Capturada.
+
+**Problema:** el club no té cap canal propi per enviar el butlletí.
+
+**Resultat esperat:** allotjar listmonk al VPS de Mountain Runners sota
+`newsletter.mountainrunners.cat`, fer sortir el correu per un relé SMTP extern en
+lloc de des del servidor, deixar el formulari d'alta a càrrec de listmonk i
+decidir si cal una segona instància de Plausible o n'hi ha prou amb el lloc nou a
+la instància existent. Abans d'activar res cal especificar privacitat, accessos,
+còpies, actualitzacions i reversió.
 
 **Seguiment:** pendent de triatge.

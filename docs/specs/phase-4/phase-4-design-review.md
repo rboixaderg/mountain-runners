@@ -12,10 +12,11 @@ confirmats, i els punts pendents es resolen a la secció
 ## Fonts I Criteris
 
 - `DESIGN.md` continua sent la font de veritat de la direcció visual.
-- Les sis pantalles Stitch aprovades i llavors vigents a
-  [`docs/design-references.md`](../design-references.md) es van utilitzar com a
-  referència de composició. Aquest document ja no és una referència activa: el
-  disseny s'itera sobre la implementació actual i `DESIGN.md`.
+- Les sis pantalles Stitch aprovades i llavors vigents al document de referències
+  de disseny, ja retirat del repositori i conservat a l'historial de git, es van
+  utilitzar com a referència de composició. Aquest document ja no és una
+  referència activa: el disseny s'itera sobre la implementació actual i
+  `DESIGN.md`.
 - La portada fixa la jerarquia del menú, el prepeu i el peu compartits. El menú
   manté les àrees Qui som, Escoles, Esdeveniments i Socis, amb la portada i la
   crida a Socis resoltes mitjançant el logotip i l'acció destacada; les dades
@@ -103,7 +104,7 @@ aquesta entrega afegeix o modifica és consentit i controlat:
 - **Junta directiva**: consentiment de publicació de noms, cognoms i rols de
   la junta completa (Albert Penyaranda Riu, Joel Brià Cabestany i David Torres
   Altarriba, amb Ernest Garrido a la presidència); cap dada de contacte. Es
-  registra també a `docs/phase-3-editorial-inventory.md`.
+  registra també a `docs/specs/phase-3/phase-3-editorial-inventory.md`.
 - **Contingut i rutes noves**: l'esdeveniment `anella-verda` (ruta i imatge
   pròpies), el contingut afegit o corregit a esdeveniments, escoles i entitats,
   i les extensions del model (`summary` a esdeveniments, `coverCard` i

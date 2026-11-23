@@ -2,7 +2,7 @@
 
 ## Estat
 
-Acceptada el 8 de novembre de 2026 amb el merge de la [PR #182](https://github.com/rboixaderg/mountain-runners/pull/182) a la T8.2 de la [fase 8](../specs/phase-8-editorial-assistance.md). L'acceptació no autoritza per si sola nous permisos, desplegaments ni canvis de configuració remota: els controls descrits aquí s'han de verificar abans d'activar-los.
+Acceptada el 8 de novembre de 2026 amb el merge de la [PR #182](https://github.com/rboixaderg/mountain-runners/pull/182) a la T8.2 de la [fase 8](../specs/phase-8/phase-8-editorial-assistance.md). L'acceptació no autoritza per si sola nous permisos, desplegaments ni canvis de configuració remota: els controls descrits aquí s'han de verificar abans d'activar-los.
 
 Esmenada el 9 de novembre de 2026 amb el merge de la [PR #183](https://github.com/rboixaderg/mountain-runners/pull/183), que aprova l'esmena acotada per executar el merge demanat explícitament per una persona verificada i alinea `AGENTS.md`, `CONTRIBUTING.md` i els [límits dels assistents](../ai-assistant.md). L'aprovació no activa cap permís: el merge demanat i la petició delegada de preview no s'habiliten fins que els controls d'aquest ADR estiguin verificats.
 
@@ -12,13 +12,17 @@ La mateixa revisió esmena l'[ADR 0009](0009-pr-previews-same-domain-and-own-bra
 
 Esmenada el 16 de novembre de 2026 per l'[ADR 0014](0014-operator-stop-and-repeatable-telegram-notices.md), només en dos punts: l'aturada de l'execució activa és de la persona operadora i un avís de Telegram es pot repetir després d'un lliurament desconegut. La resta d'aquest ADR no canvia.
 
+Esmenada el 20 i el 21 de novembre de 2026 amb els merges de la [PR #262](https://github.com/rboixaderg/mountain-runners/pull/262) (T8.9), la [PR #267](https://github.com/rboixaderg/mountain-runners/pull/267) (etiqueta de preview) i la [PR #273](https://github.com/rboixaderg/mountain-runners/pull/273) (retirada de `/preview`). Les tres esmenes són a l'apartat corresponent.
+
+Esmenada el 22 de novembre de 2026 amb el merge de la [PR #280](https://github.com/rboixaderg/mountain-runners/pull/280) (confirmació del merge en dos passos). L'acceptació no activa cap permís.
+
 ## Context
 
 La fase 8 proposa ampliar el futur assistent editorial privat a consultes i canvis de codi, mantenint una persona com a responsable de la revisió i el merge. El grup privat de Telegram seria la frontera d'accés humana. Cada tema seria una sessió compartida i podria contenir més d'una feina. La petició explícita d'una persona membre autoritza una implementació fins a una PR. Qui ha validat el resultat pot demanar després el merge d'aquella PR; sense aquesta petició, l'agent no fusiona, i no desplega mai.
 
-L'ampliació afecta les fronteres existents d'identitat, contingut autoritzat i eines. Els requisits i les amenaces són a [T8.1](../phase-8-t81-requisits-amenaces.md). La validació de T8.2 ha de distingir proves simulades de permisos reals i l'historial recuperat de l'execució recuperada.
+L'ampliació afecta les fronteres existents d'identitat, contingut autoritzat i eines. Els requisits i les amenaces són a [T8.1](../specs/phase-8/phase-8-t81-requisits-amenaces.md). La validació de T8.2 ha de distingir proves simulades de permisos reals i l'historial recuperat de l'execució recuperada.
 
-L'ADR 0003 no concedeix permís implícit als agents per fer push. Aquest ADR acceptat planteja una excepció acotada al futur servei privat: una petició clara d'implementació d'un membre verificat autoritza commit, push a la branca de treball i PR dins de l'abast demanat. L'esmena proposada hi afegeix que una comanda explícita i verificada d'un membre del grup, amb el commit ja validat, autoritza el merge d'aquella PR. Ni l'auto-merge, ni el push a `main`, ni els canvis de protecció, ni el desplegament formen part de l'excepció. Cal aprovar l'esmena i alinear `AGENTS.md` abans d'activar-la; les instruccions vigents continuen aplicant-se a les sessions locals i a la resta d'agents.
+L'ADR 0003 no concedeix permís implícit als agents per fer push. Aquest ADR acceptat planteja una excepció acotada al futur servei privat: una petició clara d'implementació d'un membre verificat autoritza commit, push a la branca de treball i PR dins de l'abast demanat. L'esmena aprovada a la PR #183 hi afegeix que una comanda explícita i verificada d'un membre del grup, amb el commit ja validat, autoritza el merge d'aquella PR. Ni l'auto-merge, ni el push a `main`, ni els canvis de protecció, ni el desplegament formen part de l'excepció. `AGENTS.md` hi està alineat; les instruccions vigents continuen aplicant-se a les sessions locals i a la resta d'agents.
 
 ## Comparació i proposta de pilot
 
@@ -156,9 +160,9 @@ L'[ADR 0009](0009-pr-previews-same-domain-and-own-branches.md) s'esmena en aques
 
 El publicador actual comprova que l'autor del comentari de GitHub sigui col·laborador; no veu la petició de Telegram. La delegació requereix, a més de l'esmena aprovada, proves del flux i dels permisos; fins que es facin, continua vigent el flux de preview amb autorització humana a GitHub.
 
-## Esmena proposada (T8.9, 20 de novembre de 2026)
+## Esmena (T8.9, 20 de novembre de 2026)
 
-Proposada fins que es fusioni la PR d'aquesta especificació. Substitueix la
+Acceptada amb el merge de la [PR #262](https://github.com/rboixaderg/mountain-runners/pull/262). Substitueix la
 regla que exigeix una petició explícita de preview: el servei la demana quan
 les comprovacions obligatòries del cap de la PR del tema són verdes. Conserva
 branques pròpies, vinculació al SHA i revalidació del publicador segons
@@ -177,10 +181,10 @@ No canvien la verificació i revocació de membres, el sandbox sense xarxa ni
 credencials, el merge determinista només a petició humana verificada, ni la
 protecció de producció.
 
-## Esmena proposada (etiqueta de preview, 21 de novembre de 2026)
+## Esmena (etiqueta de preview, 21 de novembre de 2026)
 
-Proposada fins que es fusioni la PR de l'[especificació de l'etiqueta de
-preview](../specs/preview-label.md). Substitueix, per al servei, el comentari
+Acceptada amb el merge de la [PR #267](https://github.com/rboixaderg/mountain-runners/pull/267),
+que defineix l'[especificació de l'etiqueta de preview](../specs/preview-label.md). Substitueix, per al servei, el comentari
 `/preview` de l'esmena T8.9: quan el servei crea la PR d'un tema, hi posa
 l'etiqueta `preview`, i cada push posterior del servei publica la preview segons
 l'esmena corresponent de l'[ADR 0009](0009-pr-previews-same-domain-and-own-branches.md).
@@ -199,15 +203,65 @@ Es mantenen la URL confirmada pel publicador per al cap actual, l'avís de falla
 planer, el merge determinista només a petició humana verificada i el sandbox sense
 xarxa ni credencials.
 
-## Esmena proposada (retirada de `/preview`, 21 de novembre de 2026)
+## Esmena (retirada de `/preview`, 21 de novembre de 2026)
 
-Proposada fins que es fusioni la PR de l'[especificació de la retirada de
+Acceptada amb el merge de la [PR #273](https://github.com/rboixaderg/mountain-runners/pull/273),
+que defineix l'[especificació de la retirada de
 `/preview`](../specs/retire-preview-command.md). Amb l'esmena corresponent de
 l'[ADR 0009](0009-pr-previews-same-domain-and-own-branches.md), el comentari
 `/preview` deixa de ser una petició de preview. El servei ja no el comenta des de
 l'esmena de l'etiqueta, i retira el codi que reconciliava els comentaris
 `/preview` anteriors, incloent-hi la lectura del compte autenticat del token.
 Aquesta esmena no afegeix cap operació al component de GitHub ni amplia el token.
+
+## Esmena (confirmació del merge en dos passos, 22 de novembre de 2026)
+
+Acceptada amb el merge de la [PR #280](https://github.com/rboixaderg/mountain-runners/pull/280),
+que defineix l'[especificació de la confirmació del merge amb una pregunta i
+una resposta](../specs/preview-merge-confirmation.md). L'esmena afegeix una via
+contextual en dos passos al literal `/merge`, sense activar cap permís.
+
+- **Abast i tasques.** La T1 fixa la font del SHA del merge. La T2 afegeix la
+  pregunta i la confirmació, actualitza la documentació operativa quan canviï i
+  alinea `AGENTS.md`, `CONTRIBUTING.md`, `docs/ai-assistant.md`,
+  `docs/architecture.md`, `docs/operations/` i les guies afectades abans d'activar.
+  La primera fusió real necessita l'aprovació explícita de la persona mantenidora.
+- **El text no autoritza.** Una validació com «La feina està validada» només
+  provoca una pregunta fixa. Només la resposta «Sí, a producció» (ajustada des
+  de «Sí» el 23 de novembre de 2026 abans d'activar, amb normalització tancada
+  que ignora majúscules, espais, accents, comes, la preposició «a» i signes
+  finals no interrogatius) de la mateixa persona verificada a aquella pregunta
+  autoritza el merge d'exactament la PR i el SHA de la preview confirmada. Només
+  compta la resposta directa a la pregunta, amb la identitat exacta de la
+  resposta; cites, reenviaments, edicions i fitxers o llegendes no autoritzen.
+  El transport de Telegram continua rebent només missatges nous: una edició mai
+  no autoritza res, i un cop enviada i admesa una confirmació vàlida no es pot
+  anul·lar editant-la a la cua. Cap altra prosa, text d'una PR, del model o
+  d'una eina, ni un assentiment simple no autoritzen res.
+- **Font del SHA (T1).** El SHA fixat és el de la preview confirmada i lliurada al
+  tema, amb l'identificador del missatge desat després de l'enviament, i substitueix
+  el de l'últim avís de CI verd a totes les formes de `/merge`. Aquesta esmena en
+  fixa la font directament, sense dependre de l'aprovació de l'esmena T8.9, i
+  substitueix la font del SHA de l'apartat «Merge autoritzat per una persona» i de
+  l'esmena T8.4. La sintaxi i la resta de controls de `/merge` no canvien.
+- **Controls.** Es mantenen la pertinença comprovada en el moment de confirmar, PR
+  oberta, no esborrany, base `main`, repositori principal, cap igual al SHA fixat,
+  comprovacions obligatòries en verd, branca al dia, etiqueta `preview`, cap
+  `preview-revoked`, cap bypass d'administrador i mètode squash.
+- **Producció.** La fusió és a `main`. El desplegament s'inicia amb aquest push
+  segons `.github/workflows/artifact.yml` i els controls de producció; el servei no
+  fa cap operació nova, no garanteix la publicació, no en consulta l'estat i no
+  tanca cap PR sense fusionar.
+- **Sense mitjans nous.** No hi ha model, interfície ni transport nou, i no hi ha
+  cap credencial ni operació de GitHub nova. La pregunta és un missatge i la
+  confirmació una resposta.
+- **Idempotència i incertesa.** Una confirmació repetida o un reinici no
+  fusionen dues vegades, i un avís substituït o d'enviament incert queda inert. Un resultat
+  desconegut es reconcilia llegint la PR abans de res; si no la mostra fusionada,
+  només una persona verificada el resol amb `/merge <PR> <SHA>`, que no autoritza
+  repetir ni saltar controls.
+- **Cap permís actiu.** Els controls s'han de provar abans d'activar-los i la
+  primera fusió real requereix l'aprovació de la persona mantenidora.
 
 ## Comprovacions i punts pendents
 

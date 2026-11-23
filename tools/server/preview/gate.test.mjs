@@ -891,13 +891,13 @@ test("the preview process sandbox permits authorization writes only inside previ
   );
 });
 
-test("bootstrap and the preview-only runbook reject incompatible release paths before installing the gate", async () => {
+test("bootstrap and the preview-only procedure reject incompatible release paths before installing the gate", async () => {
   const bootstrap = await readFile(
     join(toolDirectory, "../bootstrap/bootstrap.sh"),
     "utf8",
   );
-  const runbook = await readFile(
-    join(toolDirectory, "../../../docs/runbook.md"),
+  const previews = await readFile(
+    join(toolDirectory, "../../../docs/operations/previews.md"),
     "utf8",
   );
   const bootstrapPathCheck = bootstrap.indexOf(
@@ -906,15 +906,15 @@ test("bootstrap and the preview-only runbook reject incompatible release paths b
   const flatModuleInstall = bootstrap.indexOf(
     '"${TOOL_ROOT}/release/config.mjs"',
   );
-  const runbookPathCheck = runbook.indexOf('if sudo test -L "$LIB/release"');
-  const previewGateInstall = runbook.indexOf(
+  const previewsPathCheck = previews.indexOf('if sudo test -L "$LIB/release"');
+  const previewGateInstall = previews.indexOf(
     '"$REPO/tools/server/preview/commands/mountain-preview/cli.mjs"',
   );
 
   assert.notEqual(bootstrapPathCheck, -1);
   assert.ok(bootstrapPathCheck < flatModuleInstall);
-  assert.notEqual(runbookPathCheck, -1);
-  assert.ok(runbookPathCheck < previewGateInstall);
+  assert.notEqual(previewsPathCheck, -1);
+  assert.ok(previewsPathCheck < previewGateInstall);
 });
 
 test("rejects a manifest built for another pull request", async () => {

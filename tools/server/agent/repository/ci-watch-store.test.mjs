@@ -1028,6 +1028,30 @@ test("reports the topic of the most recent publication of a pull request", (cont
   store.close();
 });
 
+test("finds the newest publication of a topic regardless of CI delivery", (context) => {
+  const store = new CiWatchStore(fixture(context), {
+    now: () => new Date("2026-11-22T10:00:00Z"),
+  });
+  context.after(() => store.close());
+  assert.equal(store.latestTopicPublication(request.sessionKey), undefined);
+
+  store.add(request);
+  store.beginSend(request.updateIdentifier, "success");
+  store.finishSend(request.updateIdentifier);
+  const newerCommit = "b".repeat(40);
+  store.add({ ...request, updateIdentifier: 13, commitSha: newerCommit });
+  store.add({ ...request, updateIdentifier: 14, sessionKey: "-100123:8" });
+
+  assert.deepEqual(
+    { ...store.latestTopicPublication(request.sessionKey) },
+    {
+      update_identifier: 13,
+      pull_request_number: request.pullRequestNumber,
+      commit_sha: newerCommit,
+    },
+  );
+});
+
 test("lists the latest watch of each published pull request and its owner", (context) => {
   const store = new CiWatchStore(fixture(context));
   assert.deepEqual(store.latestPublications(), []);

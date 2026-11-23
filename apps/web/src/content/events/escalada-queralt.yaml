@@ -83,6 +83,21 @@ organizerIds:
   - club-esqui-bergueda
 collaboratorIds: []
 editions:
+  - id: edition-2027
+    startDate: 2027-04-04
+    location:
+      ca: Plaça dels Països Catalans, Berga
+      es: Plaça dels Països Catalans, Berga
+      en: Plaça dels Països Catalans, Berga
+    modalities:
+      - ca: 6,54 km · 420 m D+
+        es: 6,54 km · 420 m D+
+        en: 6.54 km · 420 m ascent
+      - ca: Carretera, BTT, gravel o clàssica
+        es: Carretera, BTT, gravel o clásica
+        en: Road, MTB, gravel or classic bike
+    registrationStatus: coming-soon
+    documentIds: []
   - id: edition-2026
     startDate: 2026-03-22
     location:

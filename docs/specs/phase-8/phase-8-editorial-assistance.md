@@ -45,14 +45,14 @@ integració existent compleix els requisits. El runtime continua pendent de
 comparació; pi és el punt de partida, no una elecció de runtime tancada.
 
 L'ampliació canvia fronteres descrites a `AGENTS.md`,
-[`docs/ai-assistant.md`](../ai-assistant.md) i l'arquitectura vigent. Aquesta
+[`docs/ai-assistant.md`](../../ai-assistant.md) i l'arquitectura vigent. Aquesta
 especificació és una proposta, no una excepció operativa a aquestes normes.
 T8.2 ha obtingut l'aprovació de l'ADR que les esmena abans de
 l'activació dels permisos nous. La separació del xat públic de l'ADR 0002 i la
 revisió humana i protecció de producció de l'ADR 0003 es mantenen; l'ADR 0003
 s'esmena de manera acotada per permetre el push, la PR i el merge demanat
 explícitament, sense eliminar la revisió humana ni la protecció de `main`.
-T8.2 també ha obtingut l'aprovació de l'esmena de l'[ADR 0009](../decisions/0009-pr-previews-same-domain-and-own-branches.md)
+T8.2 també ha obtingut l'aprovació de l'esmena de l'[ADR 0009](../../decisions/0009-pr-previews-same-domain-and-own-branches.md)
 que delega la petició de preview, sense activar-la fins que els controls
 estiguin verificats.
 
@@ -75,7 +75,7 @@ Els punts històrics sobre classificació, diverses feines, continuació entre
 temes i preview explícita queden substituïts per T8.9 quan s'implementi.
 
 - El servei privat i el futur xat públic són sistemes separats, sense compartir
-  servei, índex ni credencials ([ADR 0002](../decisions/0002-public-chat-and-private-editor.md)).
+  servei, índex ni credencials ([ADR 0002](../../decisions/0002-public-chat-and-private-editor.md)).
   La fase 7 no és dependència tècnica de la fase 8.
 - L'accés s'acota a un grup privat configurat explícitament. Ser membre d'aquell
   grup autoritza a consultar i encarregar canvis; un altre grup o un missatge
@@ -106,16 +106,16 @@ temes i preview explícita queden substituïts per T8.9 quan s'implementi.
 - L'agent no activa auto-merge, no fa push directe a `main`, no modifica
   proteccions i no desplega. Només fusiona amb una petició explícita d'una
   persona verificada, un SHA concret i totes les comprovacions obligatòries en
-  verd, pel camí determinista de l'[ADR 0013](../decisions/0013-private-development-agent-boundary.md).
+  verd, pel camí determinista de l'[ADR 0013](../../decisions/0013-private-development-agent-boundary.md).
   El pipeline protegit continua desplegant només el que s'ha fusionat a `main`
-  ([ADR 0003](../decisions/0003-agent-workflow-and-security.md)).
+  ([ADR 0003](../../decisions/0003-agent-workflow-and-security.md)).
 - Les comprovacions locals segueixen `AGENTS.md` i
-  [l'estratègia de proves](../testing-strategy.md); la CI continua sent un gate
+  [l'estratègia de proves](../../testing-strategy.md); la CI continua sent un gate
   independent. Una persona del grup demana la preview al fil; l'agent utilitza
   el compte de GitHub configurat i el flux aprovat de la fase 6. No es demana amb
   CI vermella ni sense la petició explícita de la persona.
 - El contingut continua subjecte als esquemes i la
-  [guia editorial](../editorial/guide.md): nou contingut en esborrany,
+  [guia editorial](../../editorial/guide.md): nou contingut en esborrany,
   correccions que preserven l'estat publicat i traduccions completes en els
   idiomes afectats. Ampliar l'accés al codi no autoritza saltar-se la revisió
   editorial. La publicació d'una entrada es regeix pel requisit de T8.8: la
@@ -209,7 +209,7 @@ comptes ni converteix les peticions en formularis. **Depèn de:** fases 5 i 6.
 **Resultat:** contracte observable i amenaces revisades. **Comprovació:** revisió
 de seguretat, privacitat, col·laboració i operació. **PR:** pròpia.
 El contracte i la matriu d'amenaces són a
-[requisits i amenaces de T8.1](../phase-8-t81-requisits-amenaces.md).
+[requisits i amenaces de T8.1](phase-8-t81-requisits-amenaces.md).
 
 ### T8.2: Avaluació, runtime, permisos i ADR
 
@@ -231,7 +231,7 @@ justificada, prova reproduïble i ADR aprovat abans d'habilitar permisos nous.
 **Comprovació:** provar els controls essencials del pilot i justificar les
 verificacions que requereixen la base operativa. El flux real fins a PR es
 comprova a T8.3; la represa entre fils i els casos addicionals, a T8.4–T8.6.
-**PR:** pròpia. L'[ADR 0013](../decisions/0013-private-development-agent-boundary.md)
+**PR:** pròpia. L'[ADR 0013](../../decisions/0013-private-development-agent-boundary.md)
 recull la frontera acceptada i esmena de manera acotada els ADR 0003 i 0009.
 
 pi és el punt de partida del harness. `@earendil-works/pi-durable` és un
@@ -350,7 +350,7 @@ preserva treball no publicat ([#211](https://github.com/rboixaderg/mountain-runn
 d'operador ([#224](https://github.com/rboixaderg/mountain-runners/pull/224)) i la revocació, que torna a comprovar la pertinença
 abans d'una preview, com ja feia el merge ([#225](https://github.com/rboixaderg/mountain-runners/pull/225)). La persona mantenidora
 ha decidit no esborrar automàticament la traça, l'estat ni l'historial de Pi
-fins a una revisió explícita, amb els criteris de `docs/deployment.md`. La prova
+fins a una revisió explícita, amb els criteris de `docs/operations/agent.md`. La prova
 real de revocació no cal: qui ja no és al grup no hi pot escriure, i el cas
 d'una petició a la cua el cobreixen les proves del servei. L'aturada es va
 verificar al VPS a T8.3. La rotació de credencials passa al runbook de T8.6.
@@ -441,7 +441,7 @@ CI cancel·lada i un estat local desfasat; la persona també havia de demanar la
 preview. **Abast:** una feina i una PR per tema, estat viu de GitHub, reintent
 acotat de CI, preview automàtica i avisos planers. **Exclusió:** no canvia la
 fusió humana, l'aïllament ni la publicació editorial; la petició amb etiqueta
-la defineix l'[especificació de l'etiqueta de preview](preview-label.md).
+la defineix l'[especificació de l'etiqueta de preview](../preview-label.md).
 **Depèn de:** T8.7, T8.8 i l'aprovació de les esmenes dels ADR 0009 i 0013.
 **Resultat:** una persona edita i rep l'enllaç sense demanar-lo. **Comprovació:**
 proves del servei amb Telegram, GitHub i model simulats i el recorregut del
@@ -475,12 +475,13 @@ no fiable, i revisió de seguretat abans d'activar la capacitat. **PR:** pròpia
 - La lectura es limita a text de pàgines públiques sense executar JavaScript,
   carregar subrecursos ni enviar cookies o credencials. PDF, imatges, documents,
   pàgines autenticades i formularis queden fora d'aquesta tasca. La
-  [lectura de PDF](../backlog.md#lectura-de-pdf-per-lagent-privat) es manté
+  [lectura de PDF](../../backlog.md#lectura-de-pdf-per-lagent-privat) es manté
   com a necessitat independent.
 - El sandbox continua sense xarxa ni credencials. Una frontera de confiança
   exposa només cerca i lectura, no un proxy arbitrari ni accés de xarxa als
-  scripts del repositori. Abans d'activar-la cal revisar l'ADR 0013 i aprovar-ne
-  una esmena si la solució altera una decisió acceptada.
+  scripts del repositori. Abans d'activar-la cal revisar
+  [l'ADR 0013](../../decisions/0013-private-development-agent-boundary.md) i
+  aprovar-ne una esmena si la solució altera una decisió acceptada.
 - La lectura admet només HTTP i HTTPS sense credencials a l'URL. Rebutja
   destinacions no públiques i valida DNS i l'adreça efectiva de connexió per a
   IPv4 i IPv6, també a cada redirecció. No pot accedir a serveis interns,
@@ -679,8 +680,8 @@ T8.9 substitueix l'estat inferit dels esdeveniments per lectures vives de GitHub
   publicada i hi posa la data i l'hora de la petició com a instant de
   publicació. Aquesta petició és l'aprovació editorial d'aquella entrada, i el
   merge continua sent humà, amb les regles de `/merge`.
-- La [guia editorial](../editorial/guide.md) reserva avui l'aprovació de la
-  publicació a la persona mantenidora, i l'[ADR 0011](../decisions/0011-news-blog-editorial-previews.md)
+- La [guia editorial](../../editorial/guide.md) reserva avui l'aprovació de la
+  publicació a la persona mantenidora, i l'[ADR 0011](../../decisions/0011-news-blog-editorial-previews.md)
   li encarrega la revisió dels continguts. La implementació de T8.8 actualitza
   la guia i proposa l'esmena de l'ADR; aquesta revisió no toca cap dels dos
   documents.
@@ -697,10 +698,9 @@ T8.9 substitueix l'estat inferit dels esdeveniments per lectures vives de GitHub
 
 Aquests requisits substitueixen les regles històriques contradictòries d'aquesta
 especificació, incloses la classificació de T8.7, els avisos de T8.8 i la
-petició explícita de preview de T8.4. Les esmenes proposades als
-[ADR 0009](../decisions/0009-pr-previews-same-domain-and-own-branches.md) i
-[ADR 0013](../decisions/0013-private-development-agent-boundary.md) requereixen
-revisió i fusió abans d'activar la capacitat nova.
+petició explícita de preview de T8.4, segons les esmenes acceptades dels
+[ADR 0009](../../decisions/0009-pr-previews-same-domain-and-own-branches.md) i
+[ADR 0013](../../decisions/0013-private-development-agent-boundary.md).
 
 - Cada tema té una sola feina, branca i PR. El primer canvi crea branca i PR;
   tots els canvis posteriors actualitzen la mateixa PR, encara que afectin
@@ -798,7 +798,7 @@ GitHub i model simulats; no s'activa una capacitat abans dels controls previs.
    adjunt, publicació bloquejada i represa, branca desfasada, conflicte resolt,
    conflicte no resolt i `/merge` determinista sense passar pel model.
 4. Substituït per l'[especificació de l'etiqueta de
-   preview](preview-label.md): el servei posa l'etiqueta `preview` en crear la
+   preview](../preview-label.md): el servei posa l'etiqueta `preview` en crear la
    PR i no comenta `/preview`. Requisit original: preview automàtica,
    `ci-watch.mjs` i `preview-request.mjs` la demanen amb CI
    verda. Provar CI pendent o vermella, cap canviat, duplicats, reinici i URL
@@ -869,7 +869,7 @@ GitHub i model simulats; no s'activa una capacitat abans dels controls previs.
   o financeres sense sanititzar. La ingesta automàtica d'imatges per URL queda
   fora d'abast.
 - La implementació de T8.8 actualitza els límits d'adjunts de
-  `docs/deployment.md` i `docs/runbook.md`, que encara descriuen el límit
+  `tools/server/agent/README.md`, que encara descriu el límit
   anterior.
 
 ### Git, comprovacions, PR i preview
@@ -929,7 +929,7 @@ GitHub i model simulats; no s'activa una capacitat abans dels controls previs.
 Els casos històrics de classificació, represa entre temes i preview explícita
 queden substituïts pels casos de T8.9; els altres controls continuen vigents.
 
-Se segueix [l'estratègia de proves](../testing-strategy.md), amb proves
+Se segueix [l'estratègia de proves](../../testing-strategy.md), amb proves
 unitàries per regles i proves operatives per fronteres del servei. Es
 reutilitzen les proves de la solució adoptada quan demostren el contracte i
 s'afegeixen les mancances del pont sense duplicar suites senceres.
@@ -1013,7 +1013,7 @@ prova simulada no es presenta com a verificació dels permisos reals de GitHub.
   persona mantenidora. Amb el merge autoritzat, la separació és el camí
   determinista, les comprovacions obligatòries i l'auditoria, no una
   impossibilitat tècnica del token. S'accepta aquest risc residual documentat a
-  l'[ADR 0013](../decisions/0013-private-development-agent-boundary.md); no
+  l'[ADR 0013](../../decisions/0013-private-development-agent-boundary.md); no
   substitueix la revisió del diff abans de demanar el merge.
 - La traça privada registra autor, sessió, acció, moment, model i, quan
   existeixen, branca, commits, PR, CI i preview. L'auditoria minimitza el text
@@ -1031,7 +1031,7 @@ prova simulada no es presenta com a verificació dels permisos reals de GitHub.
 ## Fora d'abast
 
 - La petició de preview amb l'etiqueta `preview`: la defineix
-  l'[especificació de l'etiqueta de preview](preview-label.md), que substitueix
+  l'[especificació de l'etiqueta de preview](../preview-label.md), que substitueix
   el bloc 4 de T8.9.
 
 - Auto-merge, push directe a `main`, canvi de proteccions i desplegament
@@ -1094,7 +1094,7 @@ han de passar abans de donar-la per completada.
    proves negatives de merge sense comanda, sense avís verd resoluble, amb
    feina més nova que l'avís, amb commits posteriors a l'informe, CI vermella o pendent,
    auto-merge, push a `main`, escapada del sandbox i accés a producció. No
-   n'hi ha prou amb regles del prompt. Només el pipeline protegit desplega.
+   n'hi ha prou amb regles del prompt. Només el pipeline protegit desplega la web.
 8. Sense petició explícita al fil o amb CI vermella, l'agent no demana preview.
    Amb CI verda i la petició d'un membre verificat, comenta `/preview` amb el
    seu compte i retorna l'URL i el SHA confirmats pel publicador de la fase 6.

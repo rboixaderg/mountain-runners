@@ -563,7 +563,7 @@ test("stops the events calendar at the bounds of its navigable range", async ({
     await nextMonth.click();
   }
 
-  await expect(monthTable).toHaveAccessibleName("novembre del 2026");
+  await expect(monthTable).toHaveAccessibleName("agost del 2027");
   await expect(nextMonth).toBeDisabled();
   await expect(previousMonth).toBeEnabled();
 
@@ -744,12 +744,12 @@ test("renders the historical event detail without an action", async ({
 test("renders the active event detail without an announced date", async ({
   page,
 }) => {
-  await page.goto("/ca/esdeveniments/escalada-queralt/");
+  await page.goto("/ca/esdeveniments/quina-berguedana/");
 
   await expect(
     page.getByRole("heading", {
       level: 1,
-      name: "Escalada Popular a Queralt",
+      name: "Quina Berguedana",
     }),
   ).toBeVisible();
   await expect(page.getByText("Esdeveniment oficial del club")).toBeVisible();

@@ -11,6 +11,10 @@ export default tseslint.config(
       "**/dist/**",
       "**/node_modules/**",
       "**/.playwright-mcp/**",
+      // Sandbox temporary directories: Playwright writes generated files there,
+      // and the repository never lints or commits them.
+      "**/.agent-runtime-tmp/**",
+      "**/.agent-check.*/**",
       // Symbolic links to .agents/skills/, which ESLint already reads once.
       "**/.claude/skills/**",
     ],

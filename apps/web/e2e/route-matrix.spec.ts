@@ -2,7 +2,7 @@
 // the built sitemap across the three locales, in Chromium desktop and mobile,
 // and verifies the representative content states the automated suite can
 // determine. It complements the manual reviews recorded in
-// docs/validation/phase-4-route-matrix.md and never replaces them.
+// docs/specs/phase-4/phase-4-route-matrix.md and never replaces them.
 //
 // The sweep reads the sitemap of the deterministic build; `pnpm test:e2e`
 // builds first, so the file always describes the artifact under test.

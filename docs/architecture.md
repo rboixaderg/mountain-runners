@@ -58,9 +58,11 @@ les eines del servidor — `tools/server/` — (Caddyfile, bootstrap, CLI de
 releases i gate SSH). L'analítica pública és Plausible CE autoallotjat a
 `analytics.rogerbg.cat` ([ADR 0007](decisions/0007-self-hosted-plausible-analytics.md)).
 El diagrama viu de la configuració del VPS és a
-[`docs/runbook.md`](runbook.md#arquitectura-del-servidor). Lighthouse continua
+[`docs/operations/README.md`](operations/README.md#arquitectura-del-servidor).
+Lighthouse continua
 sent una auditoria manual. L'apex ja serveix des del VPS (T5.5,
-[runbook](runbook.md#9-tall-dns-i-primera-activació-pública)); les previews de
+[tall DNS](operations/web-and-releases.md#tall-dns-i-primera-activació-pública));
+les previews de
 pull request ja són operatives mitjançant el workflow `Preview`, amb petició
 explícita `/preview` i publicador de confiança des de `main`.
 No existeix cap servei Hono.
@@ -143,13 +145,16 @@ La frontera separa un component de confiança, que gestiona Telegram, el model i
 les operacions de GitHub, de l'entorn aïllat que executa scripts, hooks,
 dependències i proves del repositori. Només el component de confiança rep la
 credencial de GitHub i només exposa la branca de treball, la PR i el merge
-demanat amb `/merge <PR>`. L'entorn aïllat no llegeix credencials ni sessions i
-no té xarxa per defecte.
+demanat amb `/merge <PR>` o confirmat amb «Sí, a producció» a la pregunta del
+servei. L'entorn aïllat no llegeix credencials ni sessions i no té xarxa per
+defecte.
 
 L'agent no desplega, no fa push a `main`, no activa auto-merge i no modifica
 proteccions. El merge continua sent una decisió humana: l'executa només amb la
-petició explícita d'un membre verificat, fixada al commit de l'últim informe del
-fil i amb les comprovacions obligatòries en verd. La petició de preview es
+petició explícita d'un membre verificat o la seva resposta «Sí, a producció» a
+la pregunta fixa que segueix la validació «La feina està validada», fixada a la
+PR i el commit de l'avís vigent de la preview confirmada i amb les comprovacions
+obligatòries en verd. La petició de preview es
 delega de la mateixa manera segons
 l'[ADR 0009](decisions/0009-pr-previews-same-domain-and-own-branches.md).
 
@@ -184,7 +189,7 @@ del torn de Pi tenen cadascuna un límit conjunt d'1 MiB per stdout i stderr.
 El servei executa Podman local sense root, amb un espai d'usuari que conserva
 l'UID/GID del worktree. Ni el pont ni Pi pertanyen al grup Docker ni reben un
 socket de contenidors del host. La unitat delega el seu cgroup al runtime;
-les proves reals de Podman a Linux i dels límits al VPS continuen pendents.
+Podman sense root i els límits s'han verificat al VPS.
 
 El component de Git selecciona explícitament metadades fora del muntatge,
 rebutja alteracions del fitxer indicador `.git` i executa les ordres amb hooks
@@ -200,14 +205,13 @@ a `.github/**` i `CODEOWNERS` es rebutgen en qualsevol commit del rang. La
 credencial prevista no té el permís `Workflows: write`. El push publica
 exactament el SHA inspeccionat, sense forçar-lo. El
 [mapa de mòduls](../tools/server/agent/README.md) diferencia el nucli
-reutilitzable de l'aplicació i les seves fronteres. El merge demanat i la petició
-delegada de preview continuen fora d'aquesta base (T8.4).
+reutilitzable de l'aplicació i les seves fronteres. El merge demanat o confirmat
+i la petició delegada de preview continuen fora d'aquesta base (T8.4).
 
-La base no s'ha desplegat ni activat: no existeix cap servei, bot, grup ni
-credencial de la fase 8. L'aprovació de la frontera no activa permisos; els
-controls essencials s'han de verificar abans del pilot i la resta de casos, a les
-entregues posteriors. La instal·lació, la configuració, els límits pendents i
-les comprovacions són a [`docs/deployment.md`](deployment.md#agent-privat-de-desenvolupament-t83).
+El servei està instal·lat i en marxa al VPS, amb el bot, el grup privat i les
+credencials de la fase 8. La instal·lació, la configuració, els límits i les
+comprovacions són a
+[`docs/operations/agent.md`](operations/agent.md).
 
 ## Xat Públic, Més Endavant
 
@@ -219,9 +223,6 @@ formen part del disseny inicial.
 ## Fora D'Abast Ara
 
 - Servei de xat Hono i generador d'índex.
-- El servei operatiu de Telegram de la fase 8: l'ADR 0013 n'accepta la frontera i
-  la base T8.3 existeix al repositori, però no s'ha desplegat ni activat cap
-  servei, compte ni credencial.
 - Noves integracions DNS/edge o proveïdors per a previews fora de la decisió
   acceptada de la fase 6.
 

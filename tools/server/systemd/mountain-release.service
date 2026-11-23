@@ -1,6 +1,6 @@
 [Unit]
 Description=Mountain Runners release daemon
-Documentation=docs/runbook.md
+Documentation=docs/operations/web-and-releases.md
 After=network.target
 
 [Service]

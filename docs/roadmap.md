@@ -84,7 +84,7 @@ tècnica ([ADR 0002](decisions/0002-public-chat-and-private-editor.md)).
 validacions automàtiques actives des del primer canvi de codi i preparada per
 publicar contingut real en català i traduir-lo en el futur.
 
-**Especificació:** [`docs/specs/phase-1-foundation.md`](specs/phase-1-foundation.md).
+**Especificació:** [`docs/specs/phase-1/phase-1-foundation.md`](specs/phase-1/phase-1-foundation.md).
 
 **Abast:**
 
@@ -133,7 +133,7 @@ publicar contingut real en català i traduir-lo en el futur.
 amb el recorregut més representatiu de la web.
 
 **Especificació:**
-[`docs/specs/phase-2-public-vertical-slice.md`](specs/phase-2-public-vertical-slice.md).
+[`docs/specs/phase-2/phase-2-public-vertical-slice.md`](specs/phase-2/phase-2-public-vertical-slice.md).
 
 **Abast:**
 
@@ -177,7 +177,7 @@ traslladar les dades institucionals al prepeu compartit; l'especificació de fas
 i contingut editable.
 
 **Especificació:**
-[`docs/specs/phase-3-content-coverage.md`](specs/phase-3-content-coverage.md).
+[`docs/specs/phase-3/phase-3-content-coverage.md`](specs/phase-3/phase-3-content-coverage.md).
 
 **Abast:**
 
@@ -204,9 +204,9 @@ i contingut editable.
 **Estat:** Completada el 16 d'agost de 2026. La implementació visual i les
 variants `ca`, `es` i `en` es van fusionar amb la PR #49 i les entregues de
 tancament posteriors (#50, #58, #60, #61, #62, #63, #70 i #73) van resoldre
-els punts de la [`revisió de fase 4`](validation/phase-4-design-review.md): la
+els punts de la [`revisió de fase 4`](specs/phase-4/phase-4-design-review.md): la
 matriu exhaustiva viu a
-[`validation/phase-4-route-matrix.md`](validation/phase-4-route-matrix.md), la
+[`docs/specs/phase-4/phase-4-route-matrix.md`](specs/phase-4/phase-4-route-matrix.md), la
 revisió semàntica de les traduccions va quedar confirmada, el pressupost de
 Lighthouse es va tancar amb la sèrie final (mediana d'LCP de portada de
 2,330 s) i les desviacions dels ADR es van corregir.
@@ -217,7 +217,7 @@ estructura coherent i accessible, i publiquen el text, les dades i els recursos
 visuals aprovats que els corresponen.
 
 **Especificació:**
-[`docs/specs/phase-4-design-content-validation.md`](specs/phase-4-design-content-validation.md).
+[`docs/specs/phase-4/phase-4-design-content-validation.md`](specs/phase-4/phase-4-design-content-validation.md).
 
 **Abast:**
 
@@ -251,10 +251,10 @@ visuals aprovats que els corresponen.
 serveix des del VPS des del 19 d'agost de 2026 (T5.5). El gate de llançament,
 l'HSTS, l'entorn `production-rollback`, la reversió provada, el període
 d'observació i la retirada del gate de `production` estan tancats i registrats
-a la [checklist de la T5.5](validation/phase-5-t55-launch-gate.md).
+a la [checklist de la T5.5](specs/phase-5/phase-5-t55-launch-gate.md).
 
 **Especificació:**
-[`docs/specs/phase-5-publication-operation.md`](specs/phase-5-publication-operation.md).
+[`docs/specs/phase-5/phase-5-publication-operation.md`](specs/phase-5/phase-5-publication-operation.md).
 
 **Objectiu:** portar una aplicació ja validada a producció mitjançant un flux
 segur, reproduïble i reversible que, després del primer tall supervisat, desplega
@@ -290,13 +290,13 @@ automàticament els commits fusionats a `main`.
 **Estat:** Completada el 18 d'octubre de 2026. T6.1 a T6.7 estan fusionades a
 `main` (#113, #117, #121, #130, #134, #135, #136 i #142) i el sistema de
 previews està activat i validat al VPS sota `*.preview.mountainrunners.cat`
-(T6.5). L'operació és a la
-[secció 13 del runbook](runbook.md#13-previews-de-pull-request-t63) i la
+(T6.5). L'operació és a
+[previews de pull request](operations/previews.md#previews-de-pull-request) i la
 classificació de les ordres a
-[`docs/deployment.md`](deployment.md#previews-de-pull-request-t63).
+[`docs/operations/previews.md`](operations/previews.md#ordres-de-mountain-preview).
 
 **Especificació:**
-[`docs/specs/phase-6-pull-request-previews.md`](specs/phase-6-pull-request-previews.md).
+[`docs/specs/phase-6/phase-6-pull-request-previews.md`](specs/phase-6/phase-6-pull-request-previews.md).
 
 **Objectiu:** decidir i implementar previews de pull request aïllades, efímeres
 i segures, revisant si Cloudflare, un wildcard DNS o una alternativa més simple
@@ -366,7 +366,7 @@ editorial ni exposar contingut privat.
 ## Fase 8: Agent de desenvolupament i consulta
 
 **Especificació:**
-[`docs/specs/phase-8-editorial-assistance.md`](specs/phase-8-editorial-assistance.md).
+[`docs/specs/phase-8/phase-8-editorial-assistance.md`](specs/phase-8/phase-8-editorial-assistance.md).
 Es conserva el camí històric després de la revisió d'abast del 6 de novembre de 2026.
 
 **Objectiu:** oferir sessions compartides de consulta i desenvolupament al VPS
@@ -404,8 +404,9 @@ les entregues posteriors.
 **Criteris de tancament:**
 
 - L'ADR i els controls de permisos ampliats estan aprovats. L'agent només
-  fusiona amb la petició explícita d'un membre verificat i el commit validat;
-  no fa push a `main`, no desplega ni accedeix a secrets de producció.
+  fusiona amb la petició explícita d'un membre verificat o la seva confirmació
+  «Sí, a producció» a la pregunta del servei, i el commit validat; no fa push a
+  `main`, no desplega ni accedeix a secrets de producció.
 - Les sessions compartides, les consultes i la represa de PR entre fils estan
   provades sense sobreescriure treball aliè ni duplicar accions en un reinici.
 - Cada instrucció és atribuïble a una persona al registre privat; les

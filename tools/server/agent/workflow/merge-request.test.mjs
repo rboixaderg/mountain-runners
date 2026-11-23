@@ -51,6 +51,34 @@ function report(
   ciWatches.finishSend(updateIdentifier);
 }
 
+/** A preview notice the service delivered, which is the merge's only source. */
+function deliveredPreviewRow({
+  pullRequestNumber = 200,
+  commitSha = commit,
+  noticeMessageIdentifier = 90,
+} = {}) {
+  return {
+    pull_request_number: pullRequestNumber,
+    commit_sha: commitSha,
+    notice_message_identifier: noticeMessageIdentifier,
+  };
+}
+
+function deliveredPreviews() {
+  const rows = new Map();
+  return {
+    deliver(topicSessionKey, row = deliveredPreviewRow()) {
+      rows.set(topicSessionKey, row);
+    },
+    clear(topicSessionKey) {
+      rows.delete(topicSessionKey);
+    },
+    find(topicSessionKey) {
+      return rows.get(topicSessionKey);
+    },
+  };
+}
+
 function fakeGithub(state = {}) {
   const github = {
     merges: [],
@@ -112,6 +140,8 @@ function openPullRequest(overrides = {}) {
     mergeableState: "clean",
     merged: false,
     mergeCommitSha: null,
+    previewLabeled: true,
+    previewRevoked: false,
     ...overrides,
   };
 }
@@ -126,6 +156,7 @@ function mergedPullRequest() {
 
 function setup(context, { github = fakeGithub(), now } = {}) {
   const { ciWatches, merges } = fixture(context, { now });
+  const previews = deliveredPreviews();
   const sent = [];
   const traces = [];
   const membership = {
@@ -143,7 +174,7 @@ function setup(context, { github = fakeGithub(), now } = {}) {
   function buildHandler(overrides = {}) {
     return createMergeRequests({
       store: merges,
-      reportedCommits: ciWatches,
+      findDeliveredPreview: (topicSessionKey) => previews.find(topicSessionKey),
       hasNewerWork: (query) => {
         newerWork.calls.push(query);
         return newerWork.value;
@@ -163,6 +194,8 @@ function setup(context, { github = fakeGithub(), now } = {}) {
   }
   return {
     ciWatches,
+    previews,
+    deliverPreview: (row) => previews.deliver(sessionKey, row),
     merges,
     github,
     telegram,
@@ -247,10 +280,10 @@ test("never treats prose as a merge and rejects any other shape of the command",
   }
 });
 
-test("merges the reported green commit and records it before the call", async (context) => {
-  const { ciWatches, handler, github, merges, traces, membership } =
+test("merges the delivered preview commit and records it before the call", async (context) => {
+  const { deliverPreview, handler, github, merges, traces, membership } =
     setup(context);
-  report(ciWatches);
+  deliverPreview();
   let stateDuringMerge;
   github.beforeMerge = () => {
     stateDuringMerge = merges.state(20);
@@ -292,8 +325,8 @@ for (const [name, command] of [
   ],
 ]) {
   test(`accepts ${name}`, async (context) => {
-    const { ciWatches, handler, github } = setup(context);
-    report(ciWatches);
+    const { deliverPreview, handler, github } = setup(context);
+    deliverPreview();
 
     const result = await handler.handle(request(), command);
 
@@ -302,22 +335,15 @@ for (const [name, command] of [
   });
 }
 
-test("resolves the pull request from the last delivered notice of the topic", async (context) => {
-  const { ciWatches, handler, github } = setup(context);
-  report(ciWatches, { updateIdentifier: 10 });
-  ciWatches.add({
-    updateIdentifier: 11,
-    sessionKey,
-    pullRequestNumber: 200,
-    commitSha: "c".repeat(40),
-  });
-  ciWatches.beginSend(11, "failure");
-  ciWatches.finishSend(11);
+test("the merge handler checks live CI instead of a delivered CI notice", async (context) => {
+  const { ciWatches, deliverPreview, handler, github } = setup(context);
+  deliverPreview();
+  report(ciWatches, { result: "failure" });
 
   const result = await handler.handle(request(), bareCommand);
 
-  assert.match(result.report, /encara no tenia les comprovacions en verd/u);
-  assert.deepEqual(github.merges, []);
+  assert.match(result.report, /fusionada/u);
+  assert.deepEqual(github.merges, [{ number: 200, sha: commit }]);
 });
 
 test("refuses a command that is not one of the accepted forms", async (context) => {
@@ -333,29 +359,41 @@ test("refuses a command that is not one of the accepted forms", async (context) 
   assert.equal(traces[0].detail, "usage");
 });
 
-test("refuses when the topic has no notice or the last notice is not green", async (context) => {
-  const { ciWatches, handler, github, traces } = setup(context);
+test("refuses when no preview confirmation was delivered", async (context) => {
+  const { handler, github, traces } = setup(context);
 
-  const none = await handler.handle(request(20), bareCommand);
+  const result = await handler.handle(request(), bareCommand);
+
   assert.match(
-    none.report,
-    /encara no tinc cap canvi amb les comprovacions en verd/u,
+    result.report,
+    /no hi ha cap avís vigent de preview confirmada/u,
   );
-
-  report(ciWatches, { result: "failure" });
-  const failed = await handler.handle(request(21), bareCommand);
-  assert.match(failed.report, /L'última proposta d'aquest tema \(#200\)/u);
-  assert.match(failed.report, /encara no tenia les comprovacions en verd/u);
-
+  assert.match(result.report, /No s'ha fusionat res/u);
+  assert.equal(github.reads, 0);
   assert.deepEqual(github.merges, []);
-  assert.deepEqual(actions(traces), ["merge_refused", "merge_refused"]);
-  assert.equal(traces[0].detail, "no_reported_commit");
-  assert.equal(traces[1].detail, "not_green #200 aaaaaaa");
+  assert.deepEqual(actions(traces), ["merge_refused"]);
+  assert.equal(traces[0].detail, "no_delivered_preview");
 });
 
-test("refuses another pull request or another commit than the reported one", async (context) => {
-  const { ciWatches, handler, github } = setup(context);
+test("a delivered CI notice alone never authorizes the merge", async (context) => {
+  const { ciWatches, handler, github, traces } = setup(context);
   report(ciWatches);
+
+  const result = await handler.handle(request(20), bareCommand);
+
+  assert.match(
+    result.report,
+    /no hi ha cap avís vigent de preview confirmada/u,
+  );
+  assert.match(result.report, /No s'ha fusionat res/u);
+  assert.equal(github.reads, 0);
+  assert.deepEqual(github.merges, []);
+  assert.equal(traces.at(-1).detail, "no_delivered_preview");
+});
+
+test("refuses another pull request or another commit than the delivered one", async (context) => {
+  const { deliverPreview, handler, github } = setup(context);
+  deliverPreview();
 
   const other = await handler.handle(request(20), {
     valid: true,
@@ -378,8 +416,8 @@ test("refuses another pull request or another commit than the reported one", asy
 });
 
 test("refuses while the topic has newer work than its last notice", async (context) => {
-  const { ciWatches, handler, github, newerWork, traces } = setup(context);
-  report(ciWatches);
+  const { deliverPreview, handler, github, newerWork, traces } = setup(context);
+  deliverPreview();
   newerWork.value = true;
 
   const result = await handler.handle(request(), bareCommand);
@@ -392,23 +430,20 @@ test("refuses while the topic has newer work than its last notice", async (conte
   assert.equal(traces[0].detail, "newer_work #200 aaaaaaa");
 });
 
-test("refuses the older green notice while a newer publication is unknown", async (context) => {
-  const greenCommit = "d".repeat(40);
+test("refuses the delivered preview while a newer publication is unknown", async (context) => {
   const newerCommit = "e".repeat(40);
   const github = fakeGithub();
   github.pullRequests = {
-    200: openPullRequest({ headSha: greenCommit }),
+    200: openPullRequest(),
     202: openPullRequest({ headSha: newerCommit }),
   };
-  const { ciWatches, github: fake, buildHandler } = setup(context, { github });
-  ciWatches.add({
-    updateIdentifier: 10,
-    sessionKey,
-    pullRequestNumber: 200,
-    commitSha: greenCommit,
-  });
-  ciWatches.beginSend(10, "success");
-  ciWatches.finishSend(10);
+  const {
+    ciWatches,
+    deliverPreview,
+    github: fake,
+    buildHandler,
+  } = setup(context, { github });
+  deliverPreview();
   // A newer publication was pushed, but its notice ended unknown.
   ciWatches.add({
     updateIdentifier: 11,
@@ -432,15 +467,18 @@ test("refuses the older green notice while a newer publication is unknown", asyn
   assert.match(withNumber.report, /feina més nova que l'últim avís/u);
   assert.deepEqual(fake.merges, []);
 
-  // A person confirms the newer notice was delivered: it becomes the topic's
-  // last report and the merge resolves from it.
+  // The newer preview is delivered: it replaces the previous one and the merge
+  // resolves from it.
   ciWatches.resolveUncertainNoticeDelivered(11);
+  deliverPreview(
+    deliveredPreviewRow({ pullRequestNumber: 202, commitSha: newerCommit }),
+  );
   const resolved = await handler.handle(request(22), bareCommand);
   assert.match(resolved.report, /proposta #202 ja està fusionada/u);
   assert.deepEqual(fake.merges, [{ number: 202, sha: newerCommit }]);
 });
 
-test("refuses the last delivered notice while an out-of-order notice is unknown", async (context) => {
+test("refuses the delivered preview while an out-of-order notice is unknown", async (context) => {
   let instant = Date.parse("2026-11-16T10:00:00Z");
   const tick = () => {
     instant += 1000;
@@ -456,12 +494,17 @@ test("refuses the last delivered notice while an out-of-order notice is unknown"
   };
   const {
     ciWatches,
+    deliverPreview,
     github: fake,
     buildHandler,
   } = setup(context, {
     github,
     now: () => new Date(instant),
   });
+  // The newest delivered preview is C, the newest publication.
+  deliverPreview(
+    deliveredPreviewRow({ pullRequestNumber: 203, commitSha: laterCommit }),
+  );
   // A, B and C are published in that order.
   ciWatches.add({
     updateIdentifier: 10,
@@ -498,9 +541,6 @@ test("refuses the last delivered notice while an out-of-order notice is unknown"
   const handler = buildHandler({
     hasNewerWork: ({ sessionKey: topic }) => ciWatches.hasUnreportedWork(topic),
   });
-  // The report of the topic is the newest publication, C, even though A was
-  // delivered after it.
-  assert.equal(ciWatches.lastReported(sessionKey).commit_sha, laterCommit);
 
   const bare = await handler.handle(request(20), bareCommand);
   assert.match(bare.report, /feina més nova que l'últim avís/u);
@@ -514,10 +554,10 @@ test("refuses the last delivered notice while an out-of-order notice is unknown"
 });
 
 test("verifies the membership before any pull request is read", async (context) => {
-  const { ciWatches, handler, github, membership } = setup(context, {
+  const { deliverPreview, handler, github, membership } = setup(context, {
     github: fakeGithub({ pullRequest: mergedPullRequest() }),
   });
-  report(ciWatches, { result: "pull-request-closed" });
+  deliverPreview();
   membership.result = { verified: false, reason: "not_a_group_member" };
 
   const result = await handler.handle(request(20), bareCommand);
@@ -528,8 +568,9 @@ test("verifies the membership before any pull request is read", async (context) 
 });
 
 test("verifies the membership again when the command runs", async (context) => {
-  const { ciWatches, handler, github, membership, traces } = setup(context);
-  report(ciWatches);
+  const { deliverPreview, handler, github, membership, traces } =
+    setup(context);
+  deliverPreview();
 
   membership.result = { verified: false, reason: "not_a_group_member" };
   const revoked = await handler.handle(request(20), bareCommand);
@@ -579,8 +620,9 @@ function boundedMembership(timeoutMilliseconds) {
 }
 
 test("a service stop during the membership read aborts instead of refusing", async (context) => {
-  const { ciWatches, github, merges, traces, buildHandler } = setup(context);
-  report(ciWatches);
+  const { deliverPreview, github, merges, traces, buildHandler } =
+    setup(context);
+  deliverPreview();
   const controller = new AbortController();
   const handler = buildHandler({
     verifyMembership: boundedMembership(60_000),
@@ -599,8 +641,9 @@ test("a service stop during the membership read aborts instead of refusing", asy
 });
 
 test("a membership read that runs out of its deadline refuses and asks to retry", async (context) => {
-  const { ciWatches, github, merges, traces, buildHandler } = setup(context);
-  report(ciWatches);
+  const { deliverPreview, github, merges, traces, buildHandler } =
+    setup(context);
+  deliverPreview();
   const handler = buildHandler({ verifyMembership: boundedMembership(10) });
 
   const result = await handler.handle(request(), bareCommand);
@@ -649,6 +692,23 @@ const liveRefusals = [
     { pullRequest: openPullRequest({ headRepository: null }) },
     "not_main_repository",
     /no és d'aquest projecte/u,
+  ],
+  [
+    "a pull request without the preview label",
+    { pullRequest: openPullRequest({ previewLabeled: false }) },
+    "no_preview_label",
+    /preview/u,
+  ],
+  [
+    "a pull request whose preview was revoked",
+    {
+      pullRequest: openPullRequest({
+        previewLabeled: true,
+        previewRevoked: true,
+      }),
+    },
+    "preview_revoked",
+    /preview/u,
   ],
   [
     "a moved head",
@@ -748,10 +808,10 @@ const liveRefusals = [
 
 for (const [name, state, reason, text] of liveRefusals) {
   test(`refuses ${name} without merging`, async (context) => {
-    const { ciWatches, handler, github, merges, traces } = setup(context, {
+    const { deliverPreview, handler, github, merges, traces } = setup(context, {
       github: fakeGithub(state),
     });
-    report(ciWatches);
+    deliverPreview();
 
     const result = await handler.handle(request(), bareCommand);
 
@@ -767,8 +827,8 @@ for (const [name, state, reason, text] of liveRefusals) {
 
 test("refuses if the live head changes during the check read", async (context) => {
   const github = fakeGithub();
-  const { ciWatches, handler } = setup(context, { github });
-  report(ciWatches);
+  const { deliverPreview, handler } = setup(context, { github });
+  deliverPreview();
   github.getCommitCheckRuns = async () => {
     github.pullRequest = openPullRequest({ headSha: "c".repeat(40) });
     return github.checkRuns;
@@ -778,10 +838,45 @@ test("refuses if the live head changes during the check read", async (context) =
   assert.deepEqual(github.merges, []);
 });
 
+for (const [name, mutate, detail] of [
+  [
+    "the delivered preview is replaced",
+    ({ previews }) =>
+      previews.deliver(
+        sessionKey,
+        deliveredPreviewRow({ noticeMessageIdentifier: 91 }),
+      ),
+    "no_delivered_preview",
+  ],
+  [
+    "newer work appears",
+    ({ newerWork }) => {
+      newerWork.value = true;
+    },
+    "newer_work #200 aaaaaaa",
+  ],
+]) {
+  test(`refuses when ${name} while the live checks are read`, async (context) => {
+    const github = fakeGithub();
+    const environment = setup(context, { github });
+    environment.deliverPreview();
+    github.getCommitCheckRuns = async () => {
+      mutate(environment);
+      return github.checkRuns;
+    };
+
+    const result = await environment.handler.handle(request(), bareCommand);
+
+    assert.match(result.report, /No s'ha fusionat res/u);
+    assert.deepEqual(github.merges, []);
+    assert.equal(environment.traces.at(-1).detail, detail);
+  });
+}
+
 test("refuses when live checks turn red or their read fails", async (context) => {
   const github = fakeGithub();
-  const { ciWatches, handler } = setup(context, { github });
-  report(ciWatches);
+  const { deliverPreview, handler } = setup(context, { github });
+  deliverPreview();
   github.checkRuns = [
     { name: "Validate", status: "completed", conclusion: "failure" },
   ];
@@ -796,12 +891,12 @@ test("refuses when live checks turn red or their read fails", async (context) =>
 });
 
 test("reads a pull request again while mergeability is unknown and then refuses as unreadable", async (context) => {
-  const { ciWatches, handler, github } = setup(context, {
+  const { deliverPreview, handler, github } = setup(context, {
     github: fakeGithub({
       pullRequest: openPullRequest({ mergeableState: "unknown" }),
     }),
   });
-  report(ciWatches);
+  deliverPreview();
 
   const result = await handler.handle(request(), bareCommand);
 
@@ -812,12 +907,12 @@ test("reads a pull request again while mergeability is unknown and then refuses 
 });
 
 test("merges once GitHub finishes computing the mergeability", async (context) => {
-  const { ciWatches, handler, github } = setup(context, {
+  const { deliverPreview, handler, github } = setup(context, {
     github: fakeGithub({
       pullRequestSequence: [openPullRequest({ mergeableState: "unknown" })],
     }),
   });
-  report(ciWatches);
+  deliverPreview();
 
   const result = await handler.handle(request(), bareCommand);
 
@@ -831,8 +926,8 @@ test("stops while waiting to read the mergeability again", async (context) => {
   const github = fakeGithub({
     pullRequest: openPullRequest({ mergeableState: "unknown" }),
   });
-  const { ciWatches, handler } = setup(context, { github });
-  report(ciWatches);
+  const { deliverPreview, handler } = setup(context, { github });
+  deliverPreview();
   const read = github.getPullRequest;
   github.getPullRequest = async (options) => {
     const pullRequest = await read(options);
@@ -853,8 +948,8 @@ test("stops reading while the service is stopping", async (context) => {
   const github = fakeGithub({
     pullRequest: openPullRequest({ mergeableState: "unknown" }),
   });
-  const { ciWatches, handler } = setup(context, { github });
-  report(ciWatches);
+  const { deliverPreview, handler } = setup(context, { github });
+  deliverPreview();
   const read = github.getPullRequest;
   github.getPullRequest = async (options) => {
     controller.abort();
@@ -873,8 +968,10 @@ for (const status of [405, 409, 422]) {
     const github = fakeGithub({
       mergeError: new GitHubResponseError("PUT", "/merge", status),
     });
-    const { ciWatches, handler, merges, traces } = setup(context, { github });
-    report(ciWatches);
+    const { deliverPreview, handler, merges, traces } = setup(context, {
+      github,
+    });
+    deliverPreview();
 
     const result = await handler.handle(request(20), bareCommand);
 
@@ -914,8 +1011,10 @@ const unknownResults = [
 for (const [name, error] of unknownResults) {
   test(`${name} leaves the result uncertain and never merges twice`, async (context) => {
     const github = fakeGithub({ mergeError: error });
-    const { ciWatches, handler, merges, traces } = setup(context, { github });
-    report(ciWatches);
+    const { deliverPreview, handler, merges, traces } = setup(context, {
+      github,
+    });
+    deliverPreview();
 
     const result = await handler.handle(request(20), bareCommand);
 
@@ -942,8 +1041,8 @@ test("an aborted merge call is uncertain", async (context) => {
     mergeError: new DOMException("aborted", "AbortError"),
   });
   github.beforeMerge = () => controller.abort();
-  const { ciWatches, handler, merges } = setup(context, { github });
-  report(ciWatches);
+  const { deliverPreview, handler, merges } = setup(context, { github });
+  deliverPreview();
 
   await handler.handle(request(20), bareCommand, { signal: controller.signal });
 
@@ -952,8 +1051,10 @@ test("an aborted merge call is uncertain", async (context) => {
 
 test("an uncertain merge that GitHub shows as merged is closed and reported", async (context) => {
   const github = fakeGithub({ mergeError: new TypeError("fetch failed") });
-  const { ciWatches, handler, merges, traces } = setup(context, { github });
-  report(ciWatches);
+  const { deliverPreview, handler, merges, traces } = setup(context, {
+    github,
+  });
+  deliverPreview();
   await handler.handle(request(20), bareCommand);
 
   github.mergeError = null;
@@ -973,8 +1074,8 @@ test("an uncertain merge that GitHub shows as merged is closed and reported", as
 
 test("an uncertain merge whose pull request cannot be read refuses as unreadable", async (context) => {
   const github = fakeGithub({ mergeError: new TypeError("fetch failed") });
-  const { ciWatches, handler, merges } = setup(context, { github });
-  report(ciWatches);
+  const { deliverPreview, handler, merges } = setup(context, { github });
+  deliverPreview();
   await handler.handle(request(20), bareCommand);
 
   github.readError = new Error("network down");
@@ -986,8 +1087,8 @@ test("an uncertain merge whose pull request cannot be read refuses as unreadable
 });
 
 test("never merges the same update twice", async (context) => {
-  const { ciWatches, handler, github, merges, traces } = setup(context);
-  report(ciWatches);
+  const { deliverPreview, handler, github, merges, traces } = setup(context);
+  deliverPreview();
   // The same update reaches the store again after a crash that lost the answer.
   merges.begin({
     updateIdentifier: 20,
@@ -1006,8 +1107,8 @@ test("never merges the same update twice", async (context) => {
 });
 
 test("refuses a second merge of a pull request that is already merging", async (context) => {
-  const { ciWatches, handler, github, merges } = setup(context);
-  report(ciWatches);
+  const { deliverPreview, handler, github, merges } = setup(context);
+  deliverPreview();
   merges.begin({
     updateIdentifier: 19,
     sessionKey,
@@ -1113,8 +1214,8 @@ test("startup tells the topic that an unmerged closed pull request cannot be mer
 
 test("startup does not repeat the notice of a result the topic was already told", async (context) => {
   const github = fakeGithub({ mergeError: new TypeError("fetch failed") });
-  const { ciWatches, handler, sent } = setup(context, { github });
-  report(ciWatches);
+  const { deliverPreview, handler, sent } = setup(context, { github });
+  deliverPreview();
   await handler.handle(request(20), bareCommand);
 
   await handler.reconcileUncertain();
@@ -1155,7 +1256,7 @@ async function uncertainOpenMerge(context, state = {}) {
     ...state,
   });
   const environment = setup(context, { github });
-  report(environment.ciWatches);
+  environment.deliverPreview();
   await environment.handler.handle(request(20), bareCommand);
   github.mergeError = null;
   return environment;
@@ -1178,7 +1279,7 @@ test("asks for the strict form while an unknown result is still open and merges 
   assert.equal(traces.at(-1).detail, "uncertain_pending #200 aaaaaaa");
 });
 
-test("refuses a strict form with another commit while an unknown result is open", async (context) => {
+test("asks for the strict form of the row's commit while another commit is written", async (context) => {
   const { handler, github, merges } = await uncertainOpenMerge(context);
 
   const result = await handler.handle(request(21), {
@@ -1187,15 +1288,13 @@ test("refuses a strict form with another commit while an unknown result is open"
     commit: "c".repeat(40),
   });
 
-  assert.match(
-    result.report,
-    /no és el de l'última proposta informada \(#200\)/u,
-  );
+  assert.match(result.report, /i GitHub la mostra oberta/u);
+  assert.ok(result.report.includes(`\`/merge 200 ${commit}\``));
   assert.equal(github.merges.length, 1);
   assert.equal(merges.state(20), "uncertain");
 });
 
-test("a person's strict form clears an unknown result and runs the full request", async (context) => {
+test("a person's strict form clears an unknown result and never merges in that request", async (context) => {
   const { handler, github, merges, traces, membership, newerWork } =
     await uncertainOpenMerge(context);
   const membershipCalls = membership.calls.length;
@@ -1208,13 +1307,14 @@ test("a person's strict form clears an unknown result and runs the full request"
     commit,
   });
 
-  assert.match(result.report, /proposta #200 ja està fusionada/u);
+  assert.match(result.report, /GitHub no mostra la proposta #200 fusionada/u);
+  assert.match(result.report, /No s'ha fusionat res en aquesta petició/u);
   assert.equal(merges.state(20), "not_merged");
-  assert.equal(merges.state(21), "merged");
-  assert.equal(github.merges.length, 2);
+  assert.equal(merges.state(21), undefined);
+  assert.equal(github.merges.length, 1);
   assert.equal(membership.calls.length, membershipCalls + 1);
-  assert.equal(newerWork.calls.length, newerWorkCalls + 1);
-  assert.equal(github.checkReads, checkReads + 1);
+  assert.equal(newerWork.calls.length, newerWorkCalls);
+  assert.equal(github.checkReads, checkReads);
   const cleared = traces.find(
     (entry) => entry.action === "merge_uncertain_cleared",
   );
@@ -1222,6 +1322,13 @@ test("a person's strict form clears an unknown result and runs the full request"
   assert.equal(cleared.updateIdentifier, 21);
   assert.equal(cleared.sessionKey, sessionKey);
   assert.equal(cleared.detail, "#200 aaaaaaa");
+
+  // The next request starts from scratch and merges the delivered preview.
+  const merged = await handler.handle(request(22), bareCommand);
+  assert.match(merged.report, /proposta #200 ja està fusionada/u);
+  assert.equal(merges.state(22), "merged");
+  assert.equal(github.merges.length, 2);
+  assert.deepEqual(github.merges[1], { number: 200, sha: commit });
 });
 
 test("keeps the unknown result open when its row cannot be closed", async (context) => {
@@ -1247,12 +1354,69 @@ test("keeps the unknown result open when its row cannot be closed", async (conte
   );
 });
 
+test("an explicit strict form reconciles an unknown result without an eligible preview and merges nothing", async (context) => {
+  const { previews, handler, github, merges, traces } =
+    await uncertainOpenMerge(context);
+  previews.clear(sessionKey);
+
+  const result = await handler.handle(request(21), {
+    valid: true,
+    pullRequestNumber: 200,
+    commit,
+  });
+
+  assert.match(result.report, /No s'ha fusionat res en aquesta petició/u);
+  assert.equal(merges.state(20), "not_merged");
+  assert.equal(merges.state(21), undefined);
+  assert.equal(
+    github.merges.length,
+    1,
+    "the reconciled request never PUTs again",
+  );
+  const cleared = traces.find(
+    (entry) => entry.action === "merge_uncertain_cleared",
+  );
+  assert.equal(cleared.updateIdentifier, 21);
+  assert.equal(cleared.detail, "#200 aaaaaaa");
+});
+
+test("an explicit strict form never reconciles an unknown result of another topic", async (context) => {
+  const otherSessionKey = "-1001234567890:8";
+  const { handler, github, merges, traces } = setup(context);
+  merges.begin({
+    updateIdentifier: 20,
+    sessionKey: otherSessionKey,
+    authorIdentifier: 555,
+    pullRequestNumber: 200,
+    commitSha: commit,
+  });
+  merges.recoverMerging();
+
+  const result = await handler.handle(request(21), {
+    valid: true,
+    pullRequestNumber: 200,
+    commit,
+  });
+
+  assert.match(
+    result.report,
+    /no hi ha cap avís vigent de preview confirmada/u,
+  );
+  assert.match(result.report, /No s'ha fusionat res/u);
+  assert.equal(merges.state(20), "uncertain");
+  assert.deepEqual(github.merges, []);
+  assert.ok(
+    !traces.some((entry) => entry.action === "merge_uncertain_cleared"),
+    "another topic's unknown result is never reported as cleared",
+  );
+});
+
 test("a moved head is confirmed with its own commit, which the full request still binds", async (context) => {
   const movedCommit = "b".repeat(40);
-  const { handler, github, merges, traces, ciWatches } =
+  const { deliverPreview, handler, github, merges, traces } =
     await uncertainOpenMerge(context);
   github.pullRequest = openPullRequest({ headSha: movedCommit });
-  report(ciWatches, { updateIdentifier: 11, commitSha: movedCommit });
+  deliverPreview(deliveredPreviewRow({ commitSha: movedCommit }));
 
   const asked = await handler.handle(request(21), bareCommand);
   assert.match(asked.report, /i GitHub la mostra oberta/u);
@@ -1267,33 +1431,39 @@ test("a moved head is confirmed with its own commit, which the full request stil
     pullRequestNumber: 200,
     commit,
   });
-  assert.match(
-    stale.report,
-    /no és el de l'última proposta informada \(#200\)/u,
-  );
+  assert.match(stale.report, /i GitHub la mostra oberta/u);
+  assert.ok(stale.report.includes(`\`/merge 200 ${movedCommit}\``));
   assert.equal(github.merges.length, 1);
   assert.equal(merges.state(20), "uncertain");
 
-  const result = await handler.handle(request(23), {
+  const cleared = await handler.handle(request(23), {
     valid: true,
     pullRequestNumber: 200,
     commit: movedCommit,
   });
-
-  assert.match(result.report, /proposta #200 ja està fusionada/u);
+  assert.match(cleared.report, /GitHub no mostra la proposta #200 fusionada/u);
+  assert.match(cleared.report, /No s'ha fusionat res en aquesta petició/u);
   assert.equal(merges.state(20), "not_merged");
-  assert.equal(merges.state(23), "merged");
+  assert.equal(merges.state(23), undefined);
+  assert.equal(github.merges.length, 1);
+  const clearedTrace = traces.find(
+    (entry) => entry.action === "merge_uncertain_cleared",
+  );
+  assert.equal(clearedTrace.detail, `#200 ${movedCommit.slice(0, 7)}`);
+
+  const merged = await handler.handle(request(24), bareCommand);
+  assert.match(merged.report, /proposta #200 ja està fusionada/u);
+  assert.equal(merges.state(24), "merged");
   assert.equal(github.merges.length, 2);
   assert.deepEqual(github.merges[1], { number: 200, sha: movedCommit });
-  assert.ok(traces.some((entry) => entry.action === "merge_uncertain_cleared"));
 });
 
-test("a strict form of the new head clears the unknown result before its report", async (context) => {
+test("a strict form of the new head clears the unknown result before its preview arrives", async (context) => {
   const movedCommit = "b".repeat(40);
-  const { ciWatches, handler, github, merges, traces } =
+  const { deliverPreview, handler, github, merges, traces } =
     await uncertainOpenMerge(context);
-  // The head moved and its green report has not arrived: the last report still
-  // names the previous commit.
+  // The head moved and its preview has not been delivered: the delivered notice
+  // still names the previous commit.
   github.pullRequest = openPullRequest({ headSha: movedCommit });
 
   const cleared = await handler.handle(request(21), {
@@ -1302,19 +1472,18 @@ test("a strict form of the new head clears the unknown result before its report"
     commit: movedCommit,
   });
 
-  assert.match(cleared.report, /ha canviat des que te la vaig informar/u);
-  assert.match(cleared.report, /espera el nou avís/u);
+  assert.match(cleared.report, /GitHub no mostra la proposta #200 fusionada/u);
+  assert.match(cleared.report, /No s'ha fusionat res en aquesta petició/u);
   assert.equal(merges.state(20), "not_merged");
   assert.equal(github.merges.length, 1, "nothing new was merged");
-  assert.ok(traces.some((entry) => entry.action === "merge_uncertain_cleared"));
+  const clearedTrace = traces.find(
+    (entry) => entry.action === "merge_uncertain_cleared",
+  );
+  assert.equal(clearedTrace.detail, `#200 ${movedCommit.slice(0, 7)}`);
 
-  // The green report of the new head arrives: the same strict form merges it.
-  report(ciWatches, { updateIdentifier: 11, commitSha: movedCommit });
-  const merged = await handler.handle(request(22), {
-    valid: true,
-    pullRequestNumber: 200,
-    commit: movedCommit,
-  });
+  // The delivered preview of the new head arrives: a new request merges it.
+  deliverPreview(deliveredPreviewRow({ commitSha: movedCommit }));
+  const merged = await handler.handle(request(22), bareCommand);
 
   assert.match(merged.report, /proposta #200 ja està fusionada/u);
   assert.equal(merges.state(20), "not_merged");
@@ -1323,8 +1492,8 @@ test("a strict form of the new head clears the unknown result before its report"
 });
 
 test("refuses a live pull request that GitHub shows merged", async (context) => {
-  const { ciWatches, handler, github, traces } = setup(context);
-  report(ciWatches);
+  const { deliverPreview, handler, github, traces } = setup(context);
+  deliverPreview();
   github.pullRequest = mergedPullRequest();
 
   const result = await handler.handle(request(20), bareCommand);
@@ -1334,18 +1503,21 @@ test("refuses a live pull request that GitHub shows merged", async (context) => 
   assert.equal(traces.at(-1).detail, "already_merged #200 aaaaaaa");
 });
 
-test("a cleared unknown result is still refused when the live checks fail", async (context) => {
+test("a later request after a cleared unknown result still refuses failing live checks", async (context) => {
   const { handler, github, merges } = await uncertainOpenMerge(context);
   github.checkRuns = [];
 
-  const result = await handler.handle(request(21), {
+  const cleared = await handler.handle(request(21), {
     valid: true,
     pullRequestNumber: 200,
     commit,
   });
-
-  assert.match(result.report, /no estan totes en verd/u);
+  assert.match(cleared.report, /No s'ha fusionat res en aquesta petició/u);
   assert.equal(merges.state(20), "not_merged");
+  assert.equal(github.merges.length, 1);
+
+  const retry = await handler.handle(request(22), bareCommand);
+  assert.match(retry.report, /no estan totes en verd/u);
   assert.equal(github.merges.length, 1);
 });
 
@@ -1381,11 +1553,11 @@ test("an unknown result that GitHub shows merged is reconciled even for the stri
   assert.equal(github.merges.length, 1);
 });
 
-test("answers that the pull request is already merged when the last notice is the closed one", async (context) => {
-  const { ciWatches, handler, github, traces } = setup(context, {
+test("answers that the pull request is already merged from its delivered preview", async (context) => {
+  const { deliverPreview, handler, github, traces } = setup(context, {
     github: fakeGithub({ pullRequest: mergedPullRequest() }),
   });
-  report(ciWatches, { result: "pull-request-closed" });
+  deliverPreview();
 
   for (const [updateIdentifier, command] of [
     [20, bareCommand],
@@ -1405,25 +1577,9 @@ test("answers that the pull request is already merged when the last notice is th
   assert.equal(traces.at(-1).detail, "already_merged #200 aaaaaaa");
 });
 
-test("keeps the refusal when the closed notice is not a merged or readable pull request", async (context) => {
-  const github = fakeGithub({
-    pullRequest: openPullRequest({ state: "closed" }),
-  });
-  const { ciWatches, handler } = setup(context, { github });
-  report(ciWatches, { result: "pull-request-closed" });
-
-  const closed = await handler.handle(request(20), bareCommand);
-  assert.match(closed.report, /encara no tenia les comprovacions en verd/u);
-
-  github.readError = new Error("network down");
-  const unreadable = await handler.handle(request(21), bareCommand);
-  assert.match(unreadable.report, /encara no tenia les comprovacions en verd/u);
-  assert.deepEqual(github.merges, []);
-});
-
 test("reports a merge that happened even when its end cannot be saved", async (context) => {
-  const { ciWatches, handler, merges, traces } = setup(context);
-  report(ciWatches);
+  const { deliverPreview, handler, merges, traces } = setup(context);
+  deliverPreview();
   merges.markMerged = () => {
     throw new Error("disk full");
   };
@@ -1449,8 +1605,8 @@ for (const [name, method, error] of [
 ]) {
   test(`answers with the unknown-result text when the end of ${name} cannot be saved`, async (context) => {
     const github = fakeGithub({ mergeError: error });
-    const { ciWatches, handler, merges } = setup(context, { github });
-    report(ciWatches);
+    const { deliverPreview, handler, merges } = setup(context, { github });
+    deliverPreview();
     merges[method] = () => {
       throw new Error("disk full");
     };
@@ -1465,8 +1621,8 @@ for (const [name, method, error] of [
 
 test("a failing trace never stops a merge", async (context) => {
   const failures = [];
-  const { buildHandler, ciWatches, github } = setup(context);
-  report(ciWatches);
+  const { buildHandler, deliverPreview, github } = setup(context);
+  deliverPreview();
   const handler = buildHandler({
     recordTrace: () => {
       throw new Error("disk full");

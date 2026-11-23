@@ -2,6 +2,8 @@
 name: plausible-analytics
 description: Query Mountain Runners analytics through the read-only Plausible Stats API. Use for pageviews, visitors, traffic sources, conversions, period comparisons or unexpected URLs on mountainrunners.cat. Uses existing environment variables, not MCP.
 compatibility: Node.js 24.22.3 or newer with network access to the configured Plausible instance.
+metadata:
+  version: "1.0.0"
 ---
 
 # Analítica de Mountain Runners

@@ -1,0 +1,12 @@
+title = "Mountain Runners gitleaks configuration"
+
+[extend]
+useDefault = true
+
+# skills-manifest.json stores sha256 digests, and generic-api-key flags them because the file paths contain "api".
+[[allowlists]]
+description = "sha256 integrity digests in the skills manifest are not credentials"
+condition = "AND"
+paths = ['''^\.agents/skills/skills-manifest\.json$''']
+regexTarget = "secret"
+regexes = ['''^[0-9a-f]{64}$''']
