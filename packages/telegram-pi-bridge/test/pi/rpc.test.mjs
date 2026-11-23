@@ -288,15 +288,52 @@ process.stdout.write(JSON.stringify({type:"agent_settled",aborted:false})+"\\n")
   );
 });
 
-for (const stream of ["stdout", "stderr", "combined"]) {
-  test(`stops Pi and cleans up when ${stream} exceeds the output budget`, async (context) => {
+test("allows multi-step JSONL streams above 1 MiB within the 16 MiB turn budget", async (context) => {
+  const directory = fixture(context);
+  const { executable } = fakePi(context, {
+    script: `
+const payload = "x".repeat(64 * 1024);
+for (let index = 0; index < 32; index += 1) {
+  process.stdout.write(JSON.stringify({ type: "message_update", delta: payload }) + "\\n");
+}
+process.stdout.write(JSON.stringify({ type: "message_end", message: { role: "assistant", content: [{ type: "text", text: "Canvi completat." }] } }) + "\\n");
+process.stdout.write(JSON.stringify({ type: "agent_settled", aborted: false }) + "\\n");
+`,
+  });
+  const result = await runPiPrompt({
+    ...optionsFor(executable),
+    profileDirectory: directory.profile,
+    cwd: directory.worktreePath,
+    message: "question",
+  });
+  assert.equal(result.text, "Canvi completat.");
+});
+
+for (const scenario of [
+  {
+    name: "stdout line",
+    script:
+      "process.stdout.write('x'.repeat(3*1024*1024));setInterval(()=>{},1000);",
+  },
+  {
+    name: "stderr",
+    script:
+      "process.stderr.write('x'.repeat(2*1024*1024));setInterval(()=>{},1000);",
+  },
+  {
+    name: "combined stream",
+    script:
+      "const line = JSON.stringify({type:'message_update',delta:'x'.repeat(256*1024)}) + '\\n'; for (let index = 0; index < 66; index += 1) process.stdout.write(line); setInterval(()=>{},1000);",
+  },
+  {
+    name: "assistant text",
+    script:
+      "const chunk = 'x'.repeat(400*1024); for (let index = 0; index < 3; index += 1) process.stdout.write(JSON.stringify({type:'message_end',message:{role:'assistant',content:[{type:'text',text:chunk}]}}) + '\\n'); process.stdout.write(JSON.stringify({type:'agent_settled',aborted:false}) + '\\n'); setInterval(()=>{},1000);",
+  },
+]) {
+  test(`stops Pi and cleans up when ${scenario.name} exceeds the output budget`, async (context) => {
     const directory = fixture(context);
-    const { executable } = fakePi(context, {
-      script:
-        stream === "combined"
-          ? "process.stdout.write('x'.repeat(600*1024));process.stderr.write('y'.repeat(600*1024));setInterval(()=>{},1000);"
-          : `process.${stream}.write('x'.repeat(2*1024*1024));setInterval(()=>{},1000);`,
-    });
+    const { executable } = fakePi(context, { script: scenario.script });
     let cleanups = 0;
     await assert.rejects(
       runPiPrompt({

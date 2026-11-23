@@ -333,9 +333,13 @@ torn: [Preview demanada al tema](#preview-demanada-al-tema),
   identificat pel publicador. Una aturada de contenidors no confirmada també
   bloqueja, perquè encara podria executar-se codi no fiable.
 - La sortida conjunta de stdout i stderr té un límit d'1 MiB per ordre del
-  sandbox i per torn RPC de Pi. Superar-lo atura el procés i espera la neteja
-  dels contenidors. Si afecta el torn RPC o les comprovacions, la instrucció
-  falla abans de publicar. El timeout es manté independent. L'adaptador també
+  sandbox; l'eina `sandbox_bash` trunca a 32 KiB (cap i cua en UTF-8 vàlid) el
+  text retornat al model amb un avís explícit. El torn RPC de Pi limita el flux
+  total a 16 MiB amb topalls de memòria de 2 MiB per línia de stdout, 1 MiB per
+  a stderr i 1 MiB per al text de l'assistent. Superar el límit de procés o
+  d'RPC atura el procés i espera la neteja dels contenidors. Si afecta el torn
+  RPC o les comprovacions, la instrucció falla abans de publicar. El timeout es
+  manté independent. L'adaptador també
   verifica la neteja del contenidor de cada ordre sense aturar altres ordres
   de la sessió. Al final del torn de Pi, neteja tots els contenidors de la sessió
   abans de comprovar o publicar. Si Podman no pot completar la neteja, el

@@ -237,7 +237,9 @@ o `handled`. El client espera `agent_settled`, no només `agent_end`. Un prompt
 refusat es rebutja i un prompt gestionat per una comanda retorna sense esperar
 un torn inexistent. Els missatges de l'assistent es separen amb dos salts de
 línia. El timeout per defecte és de 30 minuts. La sortida conjunta de stdout i
-stderr té un límit d'1 MiB per torn, inclòs JSONL incomplet o no vàlid. Un excés
+stderr en streaming té un límit de 16 MiB per torn, amb límits de memòria
+acotats a 2 MiB per línia de stdout, 1 MiB per a stderr i 1 MiB per al text
+acumulat de l'assistent, inclòs JSONL incomplet o no vàlid. Un excés
 mata el procés, espera que es tanqui i executa `onInterrupted` abans de rebutjar
 la crida amb `PiRunError` (`diagnostics: { reason: "output_limit" }`); no retorna
 una resposta parcial com si fos completa. Si Pi surt abans d'emetre
