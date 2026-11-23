@@ -121,6 +121,7 @@ function bridgeFor({
   runWhenIdle,
   messages,
   onServiceReport,
+  shouldAcknowledge,
   logger = () => {},
   membershipTimeoutMilliseconds,
   albumWaitMilliseconds,
@@ -136,6 +137,7 @@ function bridgeFor({
     runInstruction,
     runWhenIdle,
     onServiceReport,
+    shouldAcknowledge,
     botIdentifier,
     logger,
     pollTimeoutSeconds: 1,
@@ -252,6 +254,66 @@ test("acknowledges an admitted instruction before running it", async (t) => {
     `send:${defaultBridgeMessages.acknowledgement("fes una tasca 10")}`,
   );
   assert.equal(order[1], "run");
+});
+
+test("suppresses the acknowledgement without stopping the admitted instruction", async (t) => {
+  const { queue } = context(t);
+  const telegram = telegramStub({ batches: [[instructionUpdate(10, 7)]] });
+  const classifications = [];
+  const bridge = bridgeFor({
+    queue,
+    telegram,
+    shouldAcknowledge: (classification) => {
+      classifications.push(classification.updateIdentifier);
+      return false;
+    },
+    runInstruction: async () => ({ outcome: "answered", report: "fet" }),
+  });
+
+  await bridge.pollOnce();
+  assert.equal((await bridge.executeNext()) !== null, true);
+
+  assert.deepEqual(classifications, [10]);
+  assert.deepEqual(
+    telegram.sent.map((message) => message.text),
+    ["fet"],
+  );
+  assert.equal(queue.status(10), "done");
+});
+
+test("carries a verified reply identifier to the executed instruction", async (t) => {
+  const { queue } = context(t);
+  const telegram = telegramStub({
+    batches: [
+      [
+        instructionUpdate(10, 7, {
+          text: "Sí, a producció",
+          entities: [],
+          reply_to_message: {
+            message_id: 49,
+            chat: { id: -1001234567890, type: "supergroup" },
+            message_thread_id: 7,
+            from: { id: botIdentifier, is_bot: true },
+          },
+        }),
+      ],
+    ],
+  });
+  const executed = [];
+  const bridge = bridgeFor({
+    queue,
+    telegram,
+    runInstruction: async (request) => {
+      executed.push(request);
+      return { outcome: "answered", report: "fet" };
+    },
+  });
+
+  await bridge.pollOnce();
+  assert.equal((await bridge.executeNext()) !== null, true);
+
+  assert.equal(executed[0].instruction, "Sí, a producció");
+  assert.equal(executed[0].replyMessageIdentifier, 49);
 });
 
 test("runs the instruction when the acknowledgement cannot be sent", async (t) => {

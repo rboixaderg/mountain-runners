@@ -25,6 +25,7 @@ const schema = `
     author_identifier INTEGER NOT NULL,
     instruction TEXT NOT NULL,
     attachments TEXT,
+    reply_message_identifier INTEGER,
     status TEXT NOT NULL CHECK (status IN ('pending', 'running', 'uncertain', 'done', 'rejected')),
     outcome TEXT,
     created_at TEXT NOT NULL
@@ -69,25 +70,30 @@ export class AdmissionQueue {
     this.#now = now;
   }
 
-  // An existing database predates the attachment column. The migration is
-  // idempotent: it adds the column when it is missing and copies a single image
-  // into the list the queue now stores.
+  // An existing database predates the attachment and reply columns. The
+  // migration is idempotent: it adds each column when it is missing and copies
+  // a single image into the list the queue now stores.
   #migrate() {
     // One transaction: a migration that fails leaves the old schema and the old
     // rows exactly as they were.
     this.#transaction(() => {
       const columns = this.#database
         .prepare("PRAGMA table_info(instructions)")
-        .all();
-      if (columns.some((column) => column.name === "attachments")) {
-        return;
-      }
-      this.#database.exec(
-        "ALTER TABLE instructions ADD COLUMN attachments TEXT",
-      );
-      if (columns.some((column) => column.name === "attachment")) {
+        .all()
+        .map((column) => column.name);
+      if (!columns.includes("attachments")) {
         this.#database.exec(
-          "UPDATE instructions SET attachments = '[' || attachment || ']' WHERE attachment IS NOT NULL",
+          "ALTER TABLE instructions ADD COLUMN attachments TEXT",
+        );
+        if (columns.includes("attachment")) {
+          this.#database.exec(
+            "UPDATE instructions SET attachments = '[' || attachment || ']' WHERE attachment IS NOT NULL",
+          );
+        }
+      }
+      if (!columns.includes("reply_message_identifier")) {
+        this.#database.exec(
+          "ALTER TABLE instructions ADD COLUMN reply_message_identifier INTEGER",
         );
       }
     });
@@ -134,6 +140,7 @@ export class AdmissionQueue {
     authorIdentifier,
     instruction,
     attachments = [],
+    replyMessageIdentifier = null,
   }) {
     return this.#transaction(() => {
       const existing = this.#database
@@ -161,8 +168,8 @@ export class AdmissionQueue {
       this.#database
         .prepare(
           `INSERT INTO instructions
-             (update_identifier, message_identifier, session_key, author_identifier, instruction, attachments, status, outcome, created_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+             (update_identifier, message_identifier, session_key, author_identifier, instruction, attachments, reply_message_identifier, status, outcome, created_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         )
         .run(
           updateIdentifier,
@@ -171,6 +178,7 @@ export class AdmissionQueue {
           authorIdentifier,
           instruction,
           attachments.length === 0 ? null : JSON.stringify(attachments),
+          replyMessageIdentifier,
           status,
           outcome,
           this.#now().toISOString(),
@@ -196,7 +204,8 @@ export class AdmissionQueue {
       const request = this.#database
         .prepare(
           `SELECT sequence, update_identifier, message_identifier, session_key,
-                  author_identifier, instruction, attachments
+                  author_identifier, instruction, attachments,
+                  reply_message_identifier
            FROM instructions
            WHERE status = 'pending'
            ORDER BY sequence
@@ -220,6 +229,7 @@ export class AdmissionQueue {
         instruction: request.instruction,
         attachments:
           request.attachments === null ? [] : JSON.parse(request.attachments),
+        replyMessageIdentifier: request.reply_message_identifier,
       };
     });
   }
@@ -345,6 +355,55 @@ export class AdmissionQueue {
         )
         .get(sessionKey, updateIdentifier) !== undefined
     );
+  }
+
+  /**
+   * Whether the same topic admitted another instruction between two of its
+   * persisted updates. Both endpoints must exist in that topic and be in
+   * sequence order; anything else fails closed. Rows whose outcome is
+   * `excludingOutcome` are not intervening work.
+   */
+  hasInterveningInstructions({
+    sessionKey,
+    afterUpdateIdentifier,
+    updateIdentifier,
+    excludingOutcome,
+  }) {
+    const after = this.#database
+      .prepare(
+        "SELECT sequence, session_key FROM instructions WHERE update_identifier = ?",
+      )
+      .get(afterUpdateIdentifier);
+    const current = this.#database
+      .prepare(
+        "SELECT sequence, session_key FROM instructions WHERE update_identifier = ?",
+      )
+      .get(updateIdentifier);
+    if (
+      after === undefined ||
+      current === undefined ||
+      after.session_key !== sessionKey ||
+      current.session_key !== sessionKey ||
+      after.sequence >= current.sequence
+    ) {
+      return true;
+    }
+    const excluded = excludingOutcome ?? null;
+    const query =
+      excluded === null
+        ? `SELECT COUNT(*) AS count FROM instructions
+           WHERE session_key = ?
+             AND sequence > ? AND sequence < ?`
+        : `SELECT COUNT(*) AS count FROM instructions
+           WHERE session_key = ?
+             AND sequence > ? AND sequence < ?
+             AND (outcome IS NULL OR outcome <> ?)`;
+    const parameters =
+      excluded === null
+        ? [sessionKey, after.sequence, current.sequence]
+        : [sessionKey, after.sequence, current.sequence, excluded];
+    const { count } = this.#database.prepare(query).get(...parameters);
+    return count > 0;
   }
 
   /** Whether an update already has a trace entry with this action. */

@@ -761,6 +761,10 @@ export const previewNotes = {
 // names its proposal number, and a merge says that the proposal is merged. The
 // merge commit and the checks stay in the private trace and in the service note.
 export const mergeReports = {
+  question:
+    "Segur que vols donar aquesta feina per acabada? Si confirmes, els canvis d'aquesta versió es fusionaran i es publicaran a producció si el desplegament acaba bé. Respon «Sí, a producció» a aquest missatge per confirmar.",
+  staleQuestion:
+    "Aquesta pregunta ja no correspon a la feina vigent. No s'ha fusionat res.",
   usage:
     "Per fusionar, escriu `/merge` o `/merge` amb el número de la proposta. Si el servei et demana confirmar un intent anterior, copia i envia exactament la comanda que t'ha donat, amb el número de la proposta i el codi del canvi. No s'ha fusionat res.",
   membershipRevoked:

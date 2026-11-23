@@ -3,9 +3,10 @@
 Aplicació de Mountain Runners que porta una petició de Telegram fins a una PR. El
 servei està en marxa al VPS. Inclou l'avís de CI vinculat al SHA publicat, la
 reparació automàtica acotada d'una CI vermella, la preview demanada al tema, el
-merge demanat amb `/merge`, els adjunts d'imatge i la continuïtat de la
-conversa. Cada tema està vinculat a una sola feina i publica els canvis sense una
-petició separada, segons les esmenes acceptades dels ADR 0009 i 0013.
+merge demanat amb `/merge` o confirmat amb «Sí, a producció» a la pregunta del
+servei, els adjunts d'imatge i la continuïtat de la conversa. Cada tema està
+vinculat a una sola feina i publica els canvis sense una petició separada,
+segons les esmenes acceptades dels ADR 0009 i 0013.
 
 Les eines viuen a `tools/server/agent/` i s'instal·len a
 `/usr/local/lib/mountain-runners/agent/`. La unitat és
@@ -310,7 +311,9 @@ torn: [Preview demanada al tema](#preview-demanada-al-tema),
   [reconciliació de resultats desconeguts](../../../docs/operations/agent.md#reconciliació-de-resultats-desconeguts).
 - Una crida efímera sense eines detecta la petició explícita de preview. La
   resta de categories segueixen el mateix camí ordinari, sense decidir si el
-  torn pot editar. `/merge` conserva el camí determinista.
+  torn pot editar. `/merge`, la validació «La feina està validada» sobre l'avís
+  vigent i la resposta «Sí, a producció» sobre la pregunta desada conserven el
+  camí determinista.
 - Cada torn ordinari pot editar el worktree del tema. La primera publicació
   vincula el tema a una branca i una PR a `state/topic-jobs.sqlite`; els torns
   següents reutilitzen la vinculació. El servei no reprèn PR d'altres temes ni
@@ -519,25 +522,71 @@ es comproven amb GitHub real abans d'activar-ho a l'agent.
 
 ## Merge demanat al tema
 
-Una persona verificada demana el merge amb la comanda literal `/merge`. No es
-tria mai amb llenguatge natural: el servei reconeix el text complet abans del
-classificador, el model no veu la comanda i una frase com «fusiona-la» no fusiona
-res. La decisió segueix l'[ADR 0013](../../../docs/decisions/0013-private-development-agent-boundary.md)
-(esmena `/merge` sense número). No hi ha auto-merge, ni push directe a `main`,
-ni canvi de proteccions, ni tancament de la PR sense fusió.
+Una persona verificada autoritza el merge de dues maneres: la comanda literal
+`/merge` o la resposta «Sí, a producció» a la pregunta fixa que el servei fa
+després de la validació «La feina està validada». Les dues vies arriben al
+mateix camí determinista i als mateixos controls. No es tria mai amb llenguatge
+natural: el servei reconeix el text complet abans del classificador, el model no
+veu ni la comanda ni la confirmació i una frase com «fusiona-la» no fusiona res.
+La decisió segueix
+l'[ADR 0013](../../../docs/decisions/0013-private-development-agent-boundary.md)
+(esmena `/merge` sense número i esmena de confirmació en dos passos). No hi ha
+auto-merge, ni push directe a `main`, ni canvi de proteccions, ni tancament de
+la PR sense fusió.
 
 - **Formes.** `/merge`, `/merge <PR>` (amb `#` opcional) i `/merge <PR> <SHA>`
   (SHA complet de 40 caràcters), amb les regles de menció o resposta del pont.
   Qualsevol altra cosa que comenci per `/merge` respon amb l'ajuda i no fusiona.
+- **Validació.** «La feina està validada» és l'única validació acceptada. El
+  servei reconeix el text sencer normalitzat: retalla els espais exteriors i
+  repetits, no distingeix majúscules i minúscules i ignora els signes finals
+  `.`, `!` i `?`.
+  Només compta com a resposta directa a l'avís lliurat vigent de la preview
+  confirmada, al mateix grup i tema i d'un membre verificat en aquell moment.
+  Una cita, un `external_reply`, un reenviament, una edició, un fitxer o una
+  llegenda no hi arriben, i una validació que no respon a l'avís vigent segueix
+  la conversa habitual. Quan la validació és vigent, el servei no inicia cap
+  torn de model ni envia l'avís de recepció: respon només amb la pregunta fixa.
+- **Pregunta duradora.** El servei envia aquesta pregunta i res més:
+  «Segur que vols donar aquesta feina per acabada? Si confirmes, els canvis
+  d'aquesta versió es fusionaran i es publicaran a producció si el desplegament
+  acaba bé. Respon «Sí, a producció» a aquest missatge per confirmar.» Desa
+  l'identificador del missatge a `state/merge-request.sqlite` només després de
+  confirmar l'enviament, lligat a l'avís, la publicació, la PR, el SHA i la
+  persona. Un enviament fallit o incert no deixa cap pregunta vàlida. Una
+  validació ofereix com a màxim una pregunta per avís i persona. Un avís
+  substituït per un de més nou deixa la pregunta inert. La pregunta només
+  s'ofereix si la preview compleix la fixació i el tema no té feina més nova ni
+  un merge obert per a aquella PR.
+- **Confirmació «Sí, a producció».** Només compta la resposta directa a aquella
+  pregunta, de la mateixa persona verificada, comprovada de nou, al mateix grup
+  i tema i amb l'identificador exacte desat. La normalització tancada retalla i
+  col·lapsa espais, ignora majúscules i minúscules, accents, comes, la
+  preposició opcional «a» i signes finals `.` o `!` (accepta, per exemple,
+  «si, produccio» o «sí, Produccio», però rebutja «Sí», «Sí, a producció?» o
+  text afegit); no s'interpreta prosa. Una confirmació solta, d'una altra
+  persona, reenviada o citada no autoritza res, i fora d'una pregunta desada
+  segueix la conversa habitual. El pont només rep missatges nous: no tracta una
+  edició com una confirmació, ni revoca amb una edició una confirmació que ja
+  hagi admès a la cua. Telegram no distingeix el text teclejat del text enganxat
+  en una resposta directa vàlida.
+  La pregunta es consumeix una sola vegada amb una escriptura condicionada:
+  un duplicat, una altra persona o un reinici no fusionen dues vegades. Un canvi
+  de SHA, la retirada de l'etiqueta `preview`, una preview revocada, una feina
+  nova o una altra instrucció admesa entre la validació i la resposta invaliden
+  la pregunta, i la confirmació no es recondueix mai a un altre SHA. Si la
+  pregunta ja no correspon a la feina vigent, la resposta ho diu i no fusiona
+  res.
 - **Fixació.** Només l'avís lliurat de la preview confirmada de l'última
-  publicació del tema fixa la PR i el SHA. El servei desa l'identificador del
-  missatge després de confirmar l'enviament. Si l'enviament queda pendent o
-  incert, o hi ha una publicació posterior sense avís confirmat, no es pot
-  recuperar el vincle anterior. Un avís de CI no fixa cap SHA per al merge.
-  El número i el SHA opcionals de la comanda han de coincidir amb el vincle.
-  Una petició manual de preview no substitueix l'avís de la publicació.
-  Els avisos anteriors a la migració no tenen identificador: només un avís
-  nou associat a una publicació pot fixar el merge.
+  publicació del tema fixa la PR, el SHA i la pregunta. El servei desa
+  l'identificador de l'avís i el de la pregunta després de confirmar
+  l'enviament. Si l'enviament queda pendent o incert, o hi ha una publicació
+  posterior sense avís confirmat, no es pot recuperar el vincle anterior. Un
+  avís de CI no fixa cap SHA per al merge. El número i el SHA opcionals de la
+  comanda han de coincidir amb el vincle. Una petició manual de preview no
+  substitueix l'avís de la publicació. Els avisos anteriors a la migració no
+  tenen identificador: només un avís nou associat a una publicació pot fixar el
+  merge.
 - **Si no es pot resoldre, no fusiona.** No hi ha cap avís de preview vigent;
   el número o el SHA no coincideixen amb l'avís; o el tema té feina més
   nova (una altra instrucció pendent o en curs, una reparació reservada, en cua o
@@ -545,12 +594,12 @@ ni canvi de proteccions, ni tancament de la PR sense fusió.
   desconegut més nou que l'últim lliurat). La resposta nomena la proposta
   i demana esperar l'informe nou i tornar a escriure `/merge`.
 - **Pertinença.** Es torna a consultar a Telegram en el moment d'executar la
-  comanda, a més de l'admissió; una fallada de la consulta o un autor que ja no
-  és membre refusa el merge. La lectura queda dins del termini de petició del
-  servei; si s'esgota, compta com una fallada i refusa demanant tornar-ho a
-  provar. La consulta es fa després de resoldre el
-  vincle i la feina més nova, i la comprovació superada queda a la traça
-  (`merge_membership_verified`).
+  comanda, d'oferir la pregunta o de consumir la confirmació «Sí, a producció»,
+  a més de l'admissió; una fallada de la consulta o un autor que ja no és membre
+  refusa l'acció. La lectura queda dins del termini de petició del servei; si
+  s'esgota, compta com una fallada i refusa demanant tornar-ho a provar. La
+  consulta es fa abans de llegir cap PR, i la comprovació superada queda a la
+  traça (`merge_membership_verified`).
 - **Condicions, rellegides en directe i en fallada tancada.** PR oberta, no
   esborrany, base `main`, repositori del cap igual al configurat (sense forks),
   cap igual al commit fixat, etiqueta `preview` present i sense
@@ -617,8 +666,9 @@ ni canvi de proteccions, ni tancament de la PR sense fusió.
 - **Traça privada.** `merge_membership_verified` (autor, PR i SHA),
   `merge_requested`, `merge_refused` (amb el motiu), `merge_completed` (autor,
   PR, SHA fixat, mètode i commit de merge), `merge_failed`, `merge_uncertain`,
-  `merge_uncertain_cleared` (autor, PR i SHA) i `merge_reconciled`, sense text
-  de conversa ni credencials.
+  `merge_uncertain_cleared` (autor, PR i SHA), `merge_reconciled`,
+  `merge_question_asked` (PR i SHA) i `merge_confirmation_used` (PR, SHA i
+  mètode), sense text de conversa ni credencials.
 - **Després del merge.** La PR queda tancada: el seguiment de CI i la reparació
   ja es detenen amb una PR no oberta, i la preview la refusa. Si la lectura de
   la PR durant un `/merge` posterior la mostra fusionada, el servei ho informa
@@ -678,10 +728,12 @@ Cada tema té una sola sessió de Pi i Pi conserva l'historial entre torns. El
 servei hi manté, però, estat propi perquè cap missatge acceptat ni cap efecte
 seu no quedi fora de la sessió.
 
-- **Un torn per missatge acceptat.** Tota instrucció admesa que no és `/merge`
-  ni una preview executa un torn de Pi amb escriptura a la sessió del tema. El
-  text fix d'aclariment només es fa servir si el model no respon. Una resposta
-  sense canvis no crea cap PR, llevat que hi hagi feina pendent de publicar.
+- **Un torn per missatge acceptat.** Tota instrucció admesa que no és `/merge`,
+  una validació sobre l'avís vigent, una confirmació «Sí, a producció» sobre una
+  pregunta desada ni una preview executa un torn de Pi amb escriptura a la
+  sessió del tema. El text fix d'aclariment només es fa servir si el model no
+  respon. Una resposta sense canvis no crea cap PR, llevat que hi hagi feina
+  pendent de publicar.
 - **Efectes del servei.** `repository/session-note-store.mjs` desa a
   `state/session-notes.sqlite`, per tema, el text de cada efecte que decideix el
   servei i que no és la resposta del model: l'informe de publicació i qualsevol

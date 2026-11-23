@@ -27,12 +27,12 @@ eines viuen a `tools/server/agent/`; el nucli reutilitzable, la disposició del
 codi i el recorregut d'una petició són a
 [`tools/server/agent/README.md`](../../tools/server/agent/README.md).
 
-| Component           | Accés                                                                                                                                | Límit                                                                                                                                                                                                                   |
-| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Pont de Telegram    | Token del bot, grup configurat, cua duradora i traça privada                                                                         | No entrega cap credencial a Pi, a l'entorn aïllat ni a les proves                                                                                                                                                       |
-| Pi i model          | Credencial del proveïdor i sessions per tema                                                                                         | Confiança de projecte denegada: no carrega extensions, hooks ni `settings` del repositori                                                                                                                               |
-| Entorn aïllat       | Worktree de la feina                                                                                                                 | Sense xarxa, sense credencials, sistema de fitxers de només lectura, sense socket de Docker                                                                                                                             |
-| Component de GitHub | Compte `rboixaderg`: `push` de la branca, obertura o reutilització de la PR, lectura de la CI del commit publicat i el merge demanat | Sense auto-merge, push a `main`, canvis de protecció ni desplegament; l'únic merge és el squash demanat amb `/merge`, amb el detall al [README del component](../../tools/server/agent/README.md#merge-demanat-al-tema) |
+| Component           | Accés                                                                                                                                | Límit                                                                                                                                                                                                                                                                              |
+| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Pont de Telegram    | Token del bot, grup configurat, cua duradora i traça privada                                                                         | No entrega cap credencial a Pi, a l'entorn aïllat ni a les proves                                                                                                                                                                                                                  |
+| Pi i model          | Credencial del proveïdor i sessions per tema                                                                                         | Confiança de projecte denegada: no carrega extensions, hooks ni `settings` del repositori                                                                                                                                                                                          |
+| Entorn aïllat       | Worktree de la feina                                                                                                                 | Sense xarxa, sense credencials, sistema de fitxers de només lectura, sense socket de Docker                                                                                                                                                                                        |
+| Component de GitHub | Compte `rboixaderg`: `push` de la branca, obertura o reutilització de la PR, lectura de la CI del commit publicat i el merge demanat | Sense auto-merge, push a `main`, canvis de protecció ni desplegament; l'únic merge és el squash demanat amb `/merge` o confirmat amb «Sí, a producció» a la pregunta del servei, amb el detall al [README del component](../../tools/server/agent/README.md#merge-demanat-al-tema) |
 
 El detall de la frontera, amb l'aïllament del sandbox, la llista blanca d'entorn,
 l'escaneig de secrets i els terminis, és a
@@ -81,7 +81,7 @@ propietat de la identitat del servei. La instal·lació prevista és:
 ├── repository/                            clon amb origin i main
 ├── worktrees/                             worktree actual per tema i feina preservada
 ├── sessions/                              historial de Pi per tema
-└── state/                                 identifier-salt, admission.sqlite, ci-watch.sqlite (avisos i reparacions), preview-request.sqlite (peticions de preview i URL confirmada), merge-request.sqlite (peticions de merge), topic-jobs.sqlite (branca i PR per tema), session-notes.sqlite (efectes i última resposta de cada tema), attachments/ (imatges per tema, 7 dies), perfils i traça
+└── state/                                 identifier-salt, admission.sqlite, ci-watch.sqlite (avisos i reparacions), preview-request.sqlite (peticions de preview i URL confirmada), merge-request.sqlite (peticions de merge i preguntes de confirmació), topic-jobs.sqlite (branca i PR per tema), session-notes.sqlite (efectes i última resposta de cada tema), attachments/ (imatges per tema, 7 dies), perfils i traça
 /etc/mountain-runners-agent/agent.env      0600  credencials del servei
 /usr/local/lib/mountain-runners/agent/     aplicació instal·lada
 /usr/local/lib/mountain-runners/node_modules/
@@ -978,19 +978,34 @@ de la persona mantenidora consta a l'especificació.
    - Si s'ha migrat el registre d'avisos de preview, comprova
      [quins avisos poden fixar el merge](../../tools/server/agent/README.md#merge-demanat-al-tema)
      abans de fer les proves.
-   - Fer: prova els rebuigs en una PR sintètica: `/merge` sense avís vigent
-     de preview confirmada, amb un commit posterior a l'avís, sense `preview`,
-     amb `preview-revoked`, amb la CI vermella o pendent, `/merge <PR>` d'una
-     altra PR i una prosa com «fusiona-la». Després, i només amb l'aprovació explícita de la persona
-     mantenidora en aquell moment, fes un sol merge real d'un canvi sintètic
-     inofensiu amb `/merge` o `/merge <PR>`.
-   - Esperat: cada rebuig respon amb el motiu i no fusiona res. El merge real
-     fusiona exactament el SHA de l'avís de preview, amb squash, i la resposta
-     nomena la proposta fusionada; l'última línia és l'enllaç de revisió amb el canvi
-     fusionat, amb el SHA curt.
-   - Si falla: atura el servei i no tornis a escriure `/merge`. Un resultat
-     desconegut es reconcilia llegint la PR; només una persona verificada el pot
-     reconciliar amb `/merge <PR> <SHA>`. La reconciliació no torna a fusionar.
+   - Fer: amb Telegram i GitHub simulats (`pnpm test:server`), respon a l'avís
+     vigent amb «La feina està validada» i comprova que només arriba la pregunta
+     fixa, sense torn de model ni avís de recepció. Respon «Sí, a producció» (i
+     variants sense accents, comes o «a» com «si, produccio») i comprova que el
+     merge simulat usa la PR i el SHA fixats. Prova també «Perfecte», «Sí» solt,
+     una validació fora de context, un avís anterior, una persona no verificada
+     o revocada entre passos, una cita, un reenviament, una edició, un fitxer,
+     una confirmació solta, d'una altra persona o repetida, un enviament fallit
+     o incert de la pregunta i una instrucció interposada entre la validació i la
+     resposta.
+   - Després, en una PR sintètica, prova els rebuigs de `/merge`: sense avís
+     vigent de preview confirmada, amb un commit posterior a l'avís, sense
+     `preview`, amb `preview-revoked`, amb la CI vermella o pendent,
+     `/merge <PR>` d'una altra PR i una prosa com «fusiona-la». Aquests rebuigs
+     no fan cap merge. Només amb l'aprovació explícita de la persona mantenidora
+     en aquell moment, fes un sol merge real d'un canvi sintètic inofensiu amb
+     `/merge` o `/merge <PR>`.
+   - Esperat: cada validació acceptada i cada resposta «Sí, a producció»
+     correcta arriben al camí determinista; una validació o confirmació fora de
+     context segueix la conversa habitual i no fusiona res. Cada rebuig respon
+     amb el motiu i no fusiona res. El merge real fusiona exactament el SHA de
+     l'avís de preview, amb squash, i la resposta nomena la proposta fusionada;
+     l'última línia és l'enllaç de revisió amb el canvi fusionat, amb el SHA
+     curt.
+   - Si falla: atura el servei i no tornis a escriure `/merge` ni a respondre
+     «Sí, a producció» a cap pregunta. Un resultat desconegut es reconcilia
+     llegint la PR; només una persona verificada el pot reconciliar amb
+     `/merge <PR> <SHA>`. La reconciliació no torna a fusionar.
 6. **Adjunts.**
    - Fer: en una implementació, adjunta una foto comprimida de Telegram, un JPEG
      i un PNG com a fitxer. En un altre missatge, envia un àlbum de tres imatges
@@ -1078,6 +1093,8 @@ Pendent per a les entregues següents:
   definides (T8.5).
 
 Aquestes validacions es completen sobre el servei en marxa. L'agent de Telegram
-no desplega mai res. El merge demanat encara no s'ha provat amb una PR real: no
-està actiu fins que se'n verifiquin els controls, i la primera fusió requereix
-l'aprovació explícita de la persona mantenidora, segons l'ADR 0013.
+no desplega mai res. La pregunta i la confirmació «Sí, a producció» s'han provat
+amb Telegram i GitHub simulats, sense cap merge real. El merge demanat encara no
+s'ha provat amb una PR real: no està actiu fins que se'n verifiquin els controls,
+i la primera fusió requereix l'aprovació explícita de la persona mantenidora,
+segons l'ADR 0013.

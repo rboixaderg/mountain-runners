@@ -21,6 +21,7 @@ import {
   statusClass,
 } from "../repository/github.mjs";
 import { mergeBeginResults } from "../repository/merge-request-store.mjs";
+import { isNoticeMessageIdentifier } from "../repository/preview-request-store.mjs";
 import {
   defaultRequestTimeoutMilliseconds,
   requestSignal,
@@ -32,6 +33,34 @@ const mergeCommandPrefix = "/merge";
 const mergeCommandPattern =
   /^\/merge(?:[ \t]+#?(\d+)(?:[ \t]+([a-f0-9]{40}))?)?$/u;
 const mergeMethod = "squash";
+export const mergeConfirmationOutcome = "merge_context";
+const quietConfirmation = { outcome: mergeConfirmationOutcome };
+
+const confirmationPattern = /^si(?:\s*,\s*|\s+)(?:a\s+)?produccio$/u;
+
+function stripDiacritics(text) {
+  return text.normalize("NFD").replace(/[\u0300-\u036f]/gu, "");
+}
+
+export function mergeConfirmationIntent(text) {
+  const normalized = text.trim().toLowerCase();
+  const simplifiedConfirmation = stripDiacritics(
+    normalized.replace(/[.!]+$/u, "").trimEnd(),
+  ).replace(/\s+/gu, " ");
+  if (confirmationPattern.test(simplifiedConfirmation)) {
+    return "confirm";
+  }
+  if (
+    normalized
+      .replace(/[.!?]+$/u, "")
+      .trimEnd()
+      .replace(/\s+/gu, " ") === "la feina està validada"
+  ) {
+    return "validate";
+  }
+  return null;
+}
+
 const mergeableStates = {
   clean: "clean",
   behind: "behind",
@@ -108,6 +137,7 @@ export function createMergeRequests({
   store,
   findDeliveredPreview,
   hasNewerWork,
+  hasInterveningInstructions,
   verifyMembership,
   github,
   repository,
@@ -527,11 +557,7 @@ export function createMergeRequests({
     };
   }
 
-  /** The instruction runner calls this for a recognised merge command. */
-  async function handle(request, command, { signal } = {}) {
-    if (!command.valid) {
-      return refuse(request, refusals.usage, mergeReports.usage);
-    }
+  async function membershipRefusal(request, signal) {
     // The membership is verified before GitHub is asked anything: a person who
     // left the group can neither merge nor make the service read a pull request
     // for them.
@@ -553,6 +579,16 @@ export function createMergeRequests({
         mergeReports.membershipRevoked,
       );
     }
+    return null;
+  }
+
+  /** The instruction runner calls this for a recognised merge command. */
+  async function handle(request, command, { signal } = {}) {
+    if (!command.valid) {
+      return refuse(request, refusals.usage, mergeReports.usage);
+    }
+    const denied = await membershipRefusal(request, signal);
+    if (denied !== null) return denied;
 
     const delivered = findDeliveredPreview(request.sessionKey) ?? undefined;
     // The unknown result of this topic's pull request is settled first: a short
@@ -575,7 +611,10 @@ export function createMergeRequests({
         };
       }
     }
+    return mergeDelivered(request, command, delivered, signal);
+  }
 
+  async function mergeDelivered(request, command, delivered, signal) {
     const { target, answer } = resolveDelivered(request, command, delivered);
     if (answer) {
       return answer;
@@ -658,6 +697,177 @@ export function createMergeRequests({
     );
   }
 
+  async function offerQuestion(request, signal) {
+    const delivered = findDeliveredPreview(request.sessionKey) ?? undefined;
+    if (
+      delivered?.notice_message_identifier !== request.replyMessageIdentifier
+    ) {
+      return quietConfirmation;
+    }
+    const { target, answer } = resolveDelivered(request, {}, delivered);
+    if (answer || store.hasOpenRequest(target.pullRequestNumber)) {
+      return quietConfirmation;
+    }
+    const key = {
+      sessionKey: request.sessionKey,
+      noticeMessageIdentifier: delivered.notice_message_identifier,
+      authorIdentifier: request.authorIdentifier,
+    };
+    if (store.hasQuestion(key)) return quietConfirmation;
+
+    const stillCurrent = () => {
+      const current = findDeliveredPreview(request.sessionKey);
+      return (
+        current?.update_identifier === delivered.update_identifier &&
+        current.notice_message_identifier === key.noticeMessageIdentifier &&
+        current.pull_request_number === target.pullRequestNumber &&
+        current.commit_sha === target.commit &&
+        !hasNewerWork(request) &&
+        !store.hasOpenRequest(target.pullRequestNumber)
+      );
+    };
+    try {
+      const live = await readMergeState(target, signal);
+      if (live.refusal !== null || !stillCurrent()) return quietConfirmation;
+      const { chatIdentifier, threadIdentifier } = parseSessionKey(
+        request.sessionKey,
+      );
+      const sent = await telegram.sendMessage({
+        chatIdentifier,
+        messageThreadIdentifier: threadIdentifier,
+        text: mergeReports.question,
+        signal: requestSignal(signal, requestTimeoutMilliseconds),
+      });
+      if (isNoticeMessageIdentifier(sent?.message_id) && stillCurrent()) {
+        const saved = store.saveQuestion({
+          ...key,
+          questionMessageIdentifier: sent.message_id,
+          publicationUpdateIdentifier: delivered.update_identifier,
+          validationUpdateIdentifier: request.updateIdentifier,
+          pullRequestNumber: target.pullRequestNumber,
+          commitSha: target.commit,
+        });
+        if (saved) {
+          traceRequest(
+            request,
+            "merge_question_asked",
+            `#${target.pullRequestNumber} ${target.commit}`,
+          );
+        }
+      }
+    } catch (error) {
+      signal?.throwIfAborted();
+      logger(
+        "merge_question_failed",
+        error instanceof Error ? error.name : "unknown",
+      );
+    }
+    return quietConfirmation;
+  }
+
+  async function handleConfirmation(request, intent, { signal } = {}) {
+    if (
+      !isNoticeMessageIdentifier(request.replyMessageIdentifier) ||
+      intent === null ||
+      intent !== mergeConfirmationIntent(request.instruction)
+    ) {
+      return quietConfirmation;
+    }
+    if (intent === "validate") {
+      if ((await membershipRefusal(request, signal)) !== null)
+        return quietConfirmation;
+      return offerQuestion(request, signal);
+    }
+    const key = {
+      sessionKey: request.sessionKey,
+      questionMessageIdentifier: request.replyMessageIdentifier,
+      authorIdentifier: request.authorIdentifier,
+    };
+    const question = store.question(key);
+    if (
+      !question ||
+      question.consumed_at !== null ||
+      question.author_identifier !== request.authorIdentifier
+    ) {
+      return quietConfirmation;
+    }
+    const denied = await membershipRefusal(request, signal);
+    if (denied !== null)
+      return { ...denied, outcome: mergeConfirmationOutcome };
+    if (!store.consumeQuestion(key)) return quietConfirmation;
+
+    const target = rowTarget(question);
+    const delivered = findDeliveredPreview(request.sessionKey);
+    if (
+      delivered?.update_identifier !== question.publication_update_identifier ||
+      delivered.notice_message_identifier !==
+        question.notice_message_identifier ||
+      delivered.pull_request_number !== target.pullRequestNumber ||
+      delivered.commit_sha !== target.commit ||
+      hasInterveningInstructions({
+        sessionKey: request.sessionKey,
+        afterUpdateIdentifier: question.validation_update_identifier,
+        updateIdentifier: request.updateIdentifier,
+      })
+    ) {
+      return {
+        ...refuse(
+          request,
+          refusals.newerWork,
+          mergeReports.staleQuestion,
+          target,
+        ),
+        outcome: mergeConfirmationOutcome,
+      };
+    }
+    if (store.hasOpenRequest(target.pullRequestNumber)) {
+      const settled = await settleUncertain(
+        request,
+        target.pullRequestNumber,
+        {},
+        { signal },
+      );
+      return {
+        ...(settled?.answer ??
+          refuse(
+            request,
+            refusals.alreadyInProgress,
+            mergeReports.alreadyInProgress(target),
+            target,
+          )),
+        outcome: mergeConfirmationOutcome,
+      };
+    }
+    traceRequest(
+      request,
+      "merge_confirmation_used",
+      `#${target.pullRequestNumber} ${target.commit} ${mergeMethod}`,
+    );
+    const result = await mergeDelivered(request, target, delivered, signal);
+    return { ...result, outcome: mergeConfirmationOutcome };
+  }
+
+  function contextualIntent(request, text = request.instruction) {
+    if (!isNoticeMessageIdentifier(request.replyMessageIdentifier)) return null;
+    const intent = mergeConfirmationIntent(text);
+    if (intent === "validate") {
+      const delivered = findDeliveredPreview(request.sessionKey);
+      return delivered?.notice_message_identifier ===
+        request.replyMessageIdentifier
+        ? intent
+        : null;
+    }
+    if (intent === "confirm") {
+      return store.question({
+        sessionKey: request.sessionKey,
+        questionMessageIdentifier: request.replyMessageIdentifier,
+      })
+        ? intent
+        : null;
+    }
+    return null;
+  }
+
   /**
    * Tell the topic an unknown result it must decide on. A failed send is retried
    * on the next start, so the note carries the identity of the effect: the
@@ -737,5 +947,5 @@ export function createMergeRequests({
     }
   }
 
-  return { handle, reconcileUncertain };
+  return { handle, handleConfirmation, contextualIntent, reconcileUncertain };
 }

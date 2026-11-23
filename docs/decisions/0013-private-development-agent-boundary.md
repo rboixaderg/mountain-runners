@@ -227,12 +227,17 @@ contextual en dos passos al literal `/merge`, sense activar cap permís.
   `docs/architecture.md`, `docs/operations/` i les guies afectades abans d'activar.
   La primera fusió real necessita l'aprovació explícita de la persona mantenidora.
 - **El text no autoritza.** Una validació com «La feina està validada» només
-  provoca una pregunta fixa. Només la resposta «Sí» de la mateixa persona
-  verificada a aquella pregunta autoritza el merge d'exactament la PR i el SHA de
-  la preview confirmada. Només compta la resposta directa a la pregunta, amb la
-  identitat exacta de la resposta; cites, reenviaments, edicions i fitxers o
-  llegendes no autoritzen. Cap altra prosa, text d'una PR, del model o d'una eina,
-  ni un assentiment simple no autoritzen res.
+  provoca una pregunta fixa. Només la resposta «Sí, a producció» (ajustada des
+  de «Sí» el 23 de novembre de 2026 abans d'activar, amb normalització tancada
+  que ignora majúscules, espais, accents, comes, la preposició «a» i signes
+  finals no interrogatius) de la mateixa persona verificada a aquella pregunta
+  autoritza el merge d'exactament la PR i el SHA de la preview confirmada. Només
+  compta la resposta directa a la pregunta, amb la identitat exacta de la
+  resposta; cites, reenviaments, edicions i fitxers o llegendes no autoritzen.
+  El transport de Telegram continua rebent només missatges nous: una edició mai
+  no autoritza res, i un cop enviada i admesa una confirmació vàlida no es pot
+  anul·lar editant-la a la cua. Cap altra prosa, text d'una PR, del model o
+  d'una eina, ni un assentiment simple no autoritzen res.
 - **Font del SHA (T1).** El SHA fixat és el de la preview confirmada i lliurada al
   tema, amb l'identificador del missatge desat després de l'enviament, i substitueix
   el de l'últim avís de CI verd a totes les formes de `/merge`. Aquesta esmena en
@@ -250,8 +255,8 @@ contextual en dos passos al literal `/merge`, sense activar cap permís.
 - **Sense mitjans nous.** No hi ha model, interfície ni transport nou, i no hi ha
   cap credencial ni operació de GitHub nova. La pregunta és un missatge i la
   confirmació una resposta.
-- **Idempotència i incertesa.** Un «Sí» repetit o un reinici no fusionen dues
-  vegades, i un avís substituït o d'enviament incert queda inert. Un resultat
+- **Idempotència i incertesa.** Una confirmació repetida o un reinici no
+  fusionen dues vegades, i un avís substituït o d'enviament incert queda inert. Un resultat
   desconegut es reconcilia llegint la PR abans de res; si no la mostra fusionada,
   només una persona verificada el resol amb `/merge <PR> <SHA>`, que no autoritza
   repetir ni saltar controls.

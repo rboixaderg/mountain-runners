@@ -1041,7 +1041,9 @@ async function runMergeCommand(
   {
     membershipAtExecution = "member",
     membershipAtAdmission = "member",
+    membershipStatuses = null,
     updates = [mergeCommandUpdate(100)],
+    followups = [],
     prepare = () => {},
     deliveredPreview = true,
   },
@@ -1060,6 +1062,13 @@ async function runMergeCommand(
       },
       async getChatMember() {
         membershipChecks.push("checked");
+        if (membershipStatuses !== null) {
+          const index = Math.min(
+            membershipChecks.length - 1,
+            membershipStatuses.length - 1,
+          );
+          return { status: membershipStatuses[index] };
+        }
         return {
           status:
             membershipChecks.length === 1
@@ -1069,6 +1078,7 @@ async function runMergeCommand(
       },
       async sendMessage(message) {
         replies.push(message.text);
+        return { message_id: 70 + replies.length };
       },
     },
     github: {
@@ -1123,6 +1133,11 @@ async function runMergeCommand(
   await service.bridge.pollOnce();
   prepare(service);
   await service.bridge.executeNext();
+  for (const update of followups) {
+    updates.push(update);
+    await service.bridge.pollOnce();
+    await service.bridge.executeNext();
+  }
 
   const outcome = { replies, membershipChecks, merges, service };
   service.previewRequests.close();
@@ -1131,6 +1146,66 @@ async function runMergeCommand(
   service.queue.close();
   return outcome;
 }
+
+function mergeReply(updateIdentifier, messageIdentifier, text, author = 555) {
+  const { message } = mergeCommandUpdate(updateIdentifier);
+  return {
+    update_id: updateIdentifier,
+    message: {
+      ...message,
+      from: { id: author, is_bot: false },
+      text,
+      entities: [],
+      reply_to_message: {
+        message_id: messageIdentifier,
+        chat: message.chat,
+        message_thread_id: message.message_thread_id,
+        from: { id: 999, is_bot: true },
+      },
+    },
+  };
+}
+
+test("the current preview receives only the fixed question and only its author's reply merges", async (context) => {
+  const { replies, merges, membershipChecks } = await runMergeCommand(context, {
+    updates: [mergeReply(100, 51, "La feina està validada")],
+    followups: [
+      mergeReply(101, 71, "Sí, a producció", 556),
+      mergeReply(103, 71, "si, produccio"),
+      mergeReply(104, 71, "Sí, a producció"),
+    ],
+  });
+  assert.equal(replies.length, 2);
+  assert.equal(
+    replies[0],
+    "Segur que vols donar aquesta feina per acabada? Si confirmes, els canvis d'aquesta versió es fusionaran i es publicaran a producció si el desplegament acaba bé. Respon «Sí, a producció» a aquest missatge per confirmar.",
+  );
+  assert.deepEqual(merges, [{ number: 200, sha: "a".repeat(40) }]);
+  assert.match(replies[1], /La proposta #200 ja està fusionada/u);
+  assert.equal(membershipChecks.length, 6);
+});
+
+test("revoking membership between the question and the confirmation refuses the merge", async (context) => {
+  const { replies, merges } = await runMergeCommand(context, {
+    // 1: validation admission, 2: validation execution,
+    // 3: confirmation admission, 4: confirmation execution (revoked)
+    membershipStatuses: ["member", "member", "member", "left"],
+    updates: [mergeReply(100, 51, "La feina està validada")],
+    followups: [mergeReply(101, 71, "Sí, a producció")],
+  });
+  assert.equal(replies.length, 2);
+  assert.match(replies[0], /Respon «Sí, a producció»/u);
+  assert.match(replies[1], /Ja no constes com a membre/u);
+  assert.deepEqual(merges, []);
+});
+
+test("an out-of-context validation still receives the working acknowledgement", async (context) => {
+  const { replies, merges } = await runMergeCommand(context, {
+    updates: [mergeReply(100, 99, "La feina està validada")],
+  });
+  assert.equal(replies[0], "Hi estic treballant.");
+  assert.deepEqual(merges, []);
+});
 
 test("merges through the bridge after verifying the membership again at execution", async (context) => {
   const { replies, membershipChecks, merges } = await runMergeCommand(context, {
