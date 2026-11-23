@@ -116,6 +116,7 @@ export async function runSandboxedCommand({
   timeoutMilliseconds,
   signal,
   readOnly = false,
+  documentationFilesPath,
 }) {
   signal?.throwIfAborted();
   const containerName = `mountain-agent-${randomUUID()}`;
@@ -128,6 +129,7 @@ export async function runSandboxedCommand({
     containerName,
     sessionIdentifier,
     readOnly,
+    documentationFilesPath,
   });
 
   let timedOut = false;

@@ -1,6 +1,12 @@
 #!/usr/bin/env node
 import { execFileSync } from "node:child_process";
-import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
+import {
+  existsSync,
+  lstatSync,
+  readFileSync,
+  readdirSync,
+  statSync,
+} from "node:fs";
 import { join, posix } from "node:path";
 import { pathToFileURL } from "node:url";
 import {
@@ -29,6 +35,48 @@ function excludedSkillPrefixes(root) {
   );
 }
 
+function readInventory(inventoryPath) {
+  let output;
+  try {
+    output = new TextDecoder("utf-8", {
+      fatal: true,
+      ignoreBOM: true,
+    }).decode(readFileSync(inventoryPath));
+  } catch (error) {
+    throw new Error("Cannot read documentation files inventory", {
+      cause: error,
+    });
+  }
+  if (!output.endsWith("\0"))
+    throw new Error("Invalid documentation files inventory");
+  const entries = new Map();
+  for (const record of output.slice(0, -1).split("\0")) {
+    const status = record[0];
+    const file = record.slice(1);
+    if (
+      (status !== "P" && status !== "D") ||
+      posix.isAbsolute(file) ||
+      file
+        .split("/")
+        .some((part) => part === "" || part === "." || part === "..") ||
+      (entries.has(file) && entries.get(file) !== status)
+    ) {
+      throw new Error("Invalid documentation files inventory");
+    }
+    entries.set(file, status);
+  }
+  return {
+    present: [...entries]
+      .filter(([, status]) => status === "P")
+      .map(([file]) => file)
+      .sort(),
+    deleted: [...entries]
+      .filter(([, status]) => status === "D")
+      .map(([file]) => file)
+      .sort(),
+  };
+}
+
 export function listRepositoryFiles(root) {
   const output = execFileSync(
     "git",
@@ -36,6 +84,47 @@ export function listRepositoryFiles(root) {
     { cwd: root, encoding: "utf8", maxBuffer: 64 * 1024 * 1024 },
   );
   return [...new Set(output.split("\0").filter(Boolean))].sort();
+}
+
+function isPresentInWorktree(root, file) {
+  try {
+    lstatSync(join(root, file));
+    return true;
+  } catch (error) {
+    if (error.code !== "ENOENT" && error.code !== "ENOTDIR") throw error;
+  }
+
+  // Keep paths beneath symlinks: a broken link must still surface as a read error.
+  let directory = posix.dirname(file);
+  while (directory !== ".") {
+    try {
+      if (lstatSync(join(root, directory)).isSymbolicLink()) return true;
+    } catch (error) {
+      if (error.code !== "ENOENT" && error.code !== "ENOTDIR") throw error;
+    }
+    directory = posix.dirname(directory);
+  }
+  return false;
+}
+
+function verifyInventoryFiles(root, inventory) {
+  for (const file of inventory.present) {
+    lstatSync(join(root, file));
+    let directory = posix.dirname(file);
+    while (directory !== ".") {
+      if (lstatSync(join(root, directory)).isSymbolicLink()) {
+        throw new Error(`Inventory path crosses a symlink: ${file}`);
+      }
+      directory = posix.dirname(directory);
+    }
+  }
+  for (const file of inventory.deleted) {
+    if (isPresentInWorktree(root, file)) {
+      throw new Error(
+        `Deleted inventory path is present or crosses a symlink: ${file}`,
+      );
+    }
+  }
 }
 
 function buildDirectorySet(files) {
@@ -439,8 +528,15 @@ function checkOwnSkills({ root, findings }) {
   }
 }
 
-export function checkDocumentation(root) {
-  const files = listRepositoryFiles(root);
+export function checkDocumentation(root, inventoryPath) {
+  const inventory =
+    inventoryPath === undefined ? undefined : readInventory(inventoryPath);
+  const files = inventory
+    ? inventory.present
+    : listRepositoryFiles(root).filter((file) =>
+        isPresentInWorktree(root, file),
+      );
+  if (inventory) verifyInventoryFiles(root, inventory);
   const fileSet = new Set(files);
   const directorySet = buildDirectorySet(files);
   const context = { root, files, fileSet, directorySet, findings: [] };
@@ -451,6 +547,8 @@ export function checkDocumentation(root) {
   checkExternalSkills(context);
   checkOwnSkills(context);
 
+  if (inventory) verifyInventoryFiles(root, inventory);
+
   return context.findings.sort(
     (left, right) =>
       left.path.localeCompare(right.path) || left.line - right.line,
@@ -458,7 +556,10 @@ export function checkDocumentation(root) {
 }
 
 function main() {
-  const findings = checkDocumentation(process.cwd());
+  const findings = checkDocumentation(
+    process.cwd(),
+    process.env.MOUNTAIN_AGENT_DOCUMENTATION_FILES,
+  );
   for (const finding of findings) {
     console.log(`${finding.path}:${finding.line}: ${finding.message}`);
   }

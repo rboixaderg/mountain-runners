@@ -172,6 +172,14 @@ al servidor. El nom local encara no representa una publicació a npm.
 5. Si hi ha canvis o commits pendents, `workflow` crea o continua la branca i
    executa les comprovacions locals dins del contenidor: `pnpm check:local` si
    tots els camins són dins del contingut (ADR 0012) i `pnpm check` altrament.
+   Abans de cada comprovació, el Git de confiança obté la llista de fitxers
+   versionats i nous no ignorats, i marca els eliminats. El contenidor rep aquesta
+   instantània de rutes en un fitxer temporal de només lectura per a
+   `docs:check`, sense accedir a les metadades Git. El servei elimina el fitxer
+   en acabar i torna a obtenir la llista: si ha canviat durant les comprovacions
+   o no es pot obtenir o llegir, no publica el canvi.
+   L'inventari només arriba a les comprovacions del servei, no a `sandbox_bash`;
+   el prompt demana al model que deixi els gates complets al servei.
    Una fallada conserva la feina. El següent torn ordinari torna a comprovar i
    publicar la feina pendent, encara que aquell torn no canviï cap fitxer.
 6. `repository` fa commit i consulta `origin/main`. Si la branca va per darrere,

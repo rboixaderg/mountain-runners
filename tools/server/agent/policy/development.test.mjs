@@ -51,6 +51,12 @@ function promptFor(instruction, kind, options = {}) {
   });
 }
 
+test("the model leaves the full checks to the service with its file inventory", () => {
+  const prompt = promptFor("Fes el canvi", "implementation");
+  assert.match(prompt, /Do not run pnpm check or pnpm check:local/u);
+  assert.match(prompt, /Never change the check or Git configuration/u);
+});
+
 test("asks the model to preserve both versions and treats conflict paths as data", () => {
   const instruction = buildConflictInstruction([
     "content/news.yml",

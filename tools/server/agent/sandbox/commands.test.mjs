@@ -98,6 +98,28 @@ test("builds a sandbox with no network, no credentials and one writable worktree
   ]);
 });
 
+test("mounts the documentation file inventory read-only for a check", (context) => {
+  const { directory, worktreeRoot, workspace } = workspaceFixture(context);
+  const inventory = join(directory, "documentation-files");
+  writeFileSync(inventory, "README.md\0");
+  const argumentsList = buildSandboxArguments({
+    image: "mountain-agent-pi:1.5.0",
+    workspacePath: workspace,
+    worktreeRoot,
+    command: ["true"],
+    limits,
+    containerName: "mountain-agent-test",
+    sessionIdentifier: "topic_test",
+    documentationFilesPath: inventory,
+  });
+
+  assert.ok(
+    argumentsList.includes(
+      `type=bind,src=${inventory},dst=/tmp/mountain-agent-documentation-files,readonly`,
+    ),
+  );
+});
+
 test("prepares an executable temporary path for writable model commands only", () => {
   assert.deepEqual(buildModelCommand("pnpm check", false), [
     "env",
@@ -622,6 +644,32 @@ test(
       ),
       "sandboxed",
     );
+  },
+);
+
+test(
+  "the real sandbox can read but cannot change the documentation inventory",
+  { skip: !image },
+  async (context) => {
+    const { directory, worktreeRoot, workspace } = workspaceFixture(context);
+    const inventory = join(directory, "documentation-files");
+    writeFileSync(inventory, "README.md\0", { mode: 0o600 });
+    const result = await runSandboxedCommand({
+      image,
+      workspacePath: workspace,
+      worktreeRoot,
+      documentationFilesPath: inventory,
+      command: [
+        "node",
+        "-e",
+        `const fs=require('node:fs'); const assert=require('node:assert/strict'); const path='/tmp/mountain-agent-documentation-files'; assert.equal(fs.readFileSync(path,'utf8'),'README.md\\0'); assert.throws(()=>fs.writeFileSync(path,'changed'));`,
+      ],
+      limits,
+      sessionIdentifier: `synthetic_${randomUUID()}`,
+      timeoutMilliseconds: 30000,
+    });
+    assert.equal(result.exitCode, 0, result.stderr);
+    assert.equal(readFileSync(inventory, "utf8"), "README.md\0");
   },
 );
 

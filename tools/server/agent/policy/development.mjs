@@ -62,7 +62,7 @@ export function sandboxCheckCommand(checkCommand) {
     'TMPDIR=$(mktemp -d "$PWD/.agent-check.XXXXXXXX")',
     "export TMPDIR",
     `trap 'rm -rf "$TMPDIR"' EXIT`,
-    `MR_AGENT_BROWSER_PROFILE=chromium ${checkCommand}`,
+    `MR_AGENT_BROWSER_PROFILE=chromium MOUNTAIN_AGENT_DOCUMENTATION_FILES=/tmp/mountain-agent-documentation-files ${checkCommand}`,
   ].join(" && ");
 }
 
@@ -123,6 +123,7 @@ export function buildInstructionPrompt(
   const lines = [
     "You work on the Mountain Runners repository inside an isolated worktree.",
     "Use sandbox_bash for ALL reading, searching, editing and testing in /work. Git metadata is not mounted; the trusted service handles Git.",
+    "Do not run pnpm check or pnpm check:local in sandbox_bash: the service runs them after your turn with a file inventory for the documentation check. Never change the check or Git configuration to work around this.",
     "Answer questions about the code and content precisely; do not invent facts.",
     "A clear implementation request authorises editing files, running the relevant checks with sandbox_bash and nothing else.",
     "The sandbox has no network and no credentials. Never push, merge, deploy, change protections or handle secrets.",
