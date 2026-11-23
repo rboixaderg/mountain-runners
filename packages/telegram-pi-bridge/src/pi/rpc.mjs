@@ -5,7 +5,12 @@
 import { spawn } from "node:child_process";
 import { isAbsolute } from "node:path";
 
-const maximumOutputBytes = 1024 * 1024;
+// Streamed stdout+stderr budget for a multi-step RPC turn, paired with smaller
+// per-buffer caps so memory stays strictly bounded even on verbose turns.
+const maximumOutputBytes = 16 * 1024 * 1024;
+const maximumLineBytes = 2 * 1024 * 1024;
+const maximumStderrBytes = 1024 * 1024;
+const maximumAssistantTextBytes = 1024 * 1024;
 
 export class PiRunError extends Error {
   constructor(message, diagnostics) {
@@ -161,6 +166,7 @@ export async function runPiPrompt({
   );
 
   let text = "";
+  let textBytes = 0;
   // The provider error of a turn that ended without an answer, such as a rate
   // limit. The transport reports it; only the caller decides what it means.
   let errorMessage = null;
@@ -169,9 +175,11 @@ export async function runPiPrompt({
   let aborted = false;
   let outputLimitExceeded = false;
   let outputBytes = 0;
+  let stderrBytes = 0;
 
   const stderr = [];
-  let buffer = "";
+  const lineChunks = [];
+  let lineBytes = 0;
 
   const settle = new Promise((resolvePromise, rejectPromise) => {
     const abortHandler = () => {
@@ -194,14 +202,23 @@ export async function runPiPrompt({
       callback();
     };
 
+    const failOutputLimit = () => {
+      outputLimitExceeded = true;
+      lineChunks.length = 0;
+      lineBytes = 0;
+      stderr.length = 0;
+      child.kill("SIGKILL");
+      child.stdout.destroy?.();
+      child.stderr.destroy?.();
+    };
+
     const acceptOutput = (chunk) => {
       // A timed-out run never becomes a settled one, even when a last line was
       // already in flight: its result is unknown and cleanup must still run.
       if (finished || outputLimitExceeded || aborted || timedOut) return false;
       outputBytes += Buffer.byteLength(chunk);
       if (outputBytes > maximumOutputBytes) {
-        outputLimitExceeded = true;
-        child.kill("SIGKILL");
+        failOutputLimit();
         return false;
       }
       return true;
@@ -237,8 +254,13 @@ export async function runPiPrompt({
       } else if (record.type === "message_end") {
         const answer = assistantText(record.message);
         if (answer !== "") {
-          if (text !== "") text += "\n\n";
-          text += answer;
+          const addition = text === "" ? answer : `\n\n${answer}`;
+          textBytes += Buffer.byteLength(addition);
+          if (textBytes > maximumAssistantTextBytes) {
+            failOutputLimit();
+            return;
+          }
+          text += addition;
           // An answer that arrived after a failed attempt is the turn's result.
           errorMessage = null;
         } else if (
@@ -256,26 +278,58 @@ export async function runPiPrompt({
     };
     child.stderr.setEncoding("utf8");
     child.stderr.on("data", (chunk) => {
-      if (acceptOutput(chunk)) stderr.push(chunk);
+      if (!acceptOutput(chunk)) return;
+      stderrBytes += Buffer.byteLength(chunk);
+      if (stderrBytes > maximumStderrBytes) {
+        failOutputLimit();
+        return;
+      }
+      stderr.push(chunk);
     });
 
     child.stdout.setEncoding("utf8");
     child.stdout.on("data", (chunk) => {
       if (!acceptOutput(chunk)) return;
-      buffer += chunk;
+      let cursor = 0;
       let separator;
-      while (!finished && (separator = buffer.indexOf("\n")) !== -1) {
-        const line = buffer.slice(0, separator);
-        buffer = buffer.slice(separator + 1);
+      while (
+        !finished &&
+        !outputLimitExceeded &&
+        (separator = chunk.indexOf("\n", cursor)) !== -1
+      ) {
+        const segment = chunk.slice(cursor, separator);
+        if (lineBytes + Buffer.byteLength(segment) > maximumLineBytes) {
+          failOutputLimit();
+          return;
+        }
+        const line =
+          lineChunks.length === 0
+            ? segment
+            : `${lineChunks.join("")}${segment}`;
+        lineChunks.length = 0;
+        lineBytes = 0;
+        cursor = separator + 1;
         handleLine(line);
+      }
+      if (!finished && !outputLimitExceeded && cursor < chunk.length) {
+        const remainder = chunk.slice(cursor);
+        const remainderBytes = Buffer.byteLength(remainder);
+        if (lineBytes + remainderBytes > maximumLineBytes) {
+          failOutputLimit();
+          return;
+        }
+        lineChunks.push(remainder);
+        lineBytes += remainderBytes;
       }
     });
     // The last record may arrive without a trailing newline; the end of the
     // stream is still a complete line boundary.
     child.stdout.on("end", () => {
       if (finished || aborted || timedOut || outputLimitExceeded) return;
-      const trailing = buffer;
-      buffer = "";
+      if (lineChunks.length === 0) return;
+      const trailing = lineChunks.join("");
+      lineChunks.length = 0;
+      lineBytes = 0;
       handleLine(trailing);
     });
 
@@ -315,7 +369,10 @@ export async function runPiPrompt({
       });
     });
 
-    child.stdin.on("error", (error) => finish(() => rejectPromise(error)));
+    child.stdin.on("error", (error) => {
+      if (outputLimitExceeded) return;
+      finish(() => rejectPromise(error));
+    });
     function sendPrompt() {
       // A process that is already gone, or a turn that is no longer wanted,
       // cannot receive the prompt: the close or abort handler reports why it

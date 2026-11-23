@@ -12,6 +12,7 @@ export async function preparePiProfile({ profileRoot, profileIdentifier }) {
   await mkdir(extensionsDirectory, { recursive: true, mode: 0o700 });
   for (const [source, destination] of [
     ["./extensions/sandbox-bash.ts", "sandbox-bash.ts"],
+    ["./sandbox-bash-output.mjs", "sandbox-bash-output.mjs"],
     ["./web-wire-client.mjs", "web-wire-client.mjs"],
     ["./web-wire-limits.mjs", "web-wire-limits.mjs"],
     ["../sandbox/arguments.mjs", "arguments.mjs"],

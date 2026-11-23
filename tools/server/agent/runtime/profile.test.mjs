@@ -40,6 +40,10 @@ test("assembles only trusted runtime files and enables only the sandbox tool", a
     existsSync(join(profile, "extensions", "sandbox-bash.ts")),
     true,
   );
+  assert.equal(
+    existsSync(join(profile, "extensions", "sandbox-bash-output.mjs")),
+    true,
+  );
   assert.equal(existsSync(join(profile, "extensions", "arguments.mjs")), true);
   assert.equal(existsSync(join(profile, "extensions", "commands.mjs")), true);
   assert.equal(

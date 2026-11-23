@@ -1504,9 +1504,12 @@
               </dd>
               <dt>Sortida i inspecció</dt>
               <dd>
-                1 MiB conjunt de stdout/stderr per ordre i per torn RPC.
-                Inspecció de Git limitada a 2 MiB per objecte i 32 MiB totals,
-                amb refús si no es pot completar.
+                1 MiB conjunt de stdout/stderr per ordre del sandbox (truncat a
+                32 KiB en el retorn de <code>sandbox_bash</code>) i 16 MiB en
+                streaming per torn RPC (amb topalls de 2 MiB per línia i 1 MiB
+                per a stderr i text de l'assistent). Inspecció de Git limitada a
+                2 MiB per objecte i 32 MiB totals, amb refús si no es pot
+                completar.
               </dd>
             </dl>
           </div>

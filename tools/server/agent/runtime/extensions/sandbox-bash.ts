@@ -3,6 +3,7 @@ import { Type } from "typebox";
 import { buildModelCommand, readSandboxSettings } from "./arguments.mjs";
 import { readAttachmentImage } from "./attachment-read.mjs";
 import { runSandboxedCommand } from "./commands.mjs";
+import { formatSandboxBashResult } from "./sandbox-bash-output.mjs";
 import { requestWebResearch } from "./web-wire-client.mjs";
 
 const webEnabled = process.env.MR_AGENT_WEB_RESEARCH === "1";
@@ -99,30 +100,10 @@ export default function (pi: {
         readOnly: settings.readOnly,
         signal,
       });
-      // A stopped command must say why: an exit code alone does not tell the
-      // model whether the deadline or the output budget ended the run.
-      const notices: string[] = [];
-      if (result.timedOut) {
-        notices.push(
-          "The command reached its execution deadline and was stopped.",
-        );
-      }
-      if (result.outputLimitExceeded) {
-        notices.push("The command exceeded the output limit and was stopped.");
-      }
-      const notice = notices.length === 0 ? "" : `${notices.join("\n")}\n`;
+      const formatted = formatSandboxBashResult(result);
       return {
-        content: [
-          {
-            type: "text",
-            text: `${notice}exit code: ${result.exitCode}\n${result.stdout}\n${result.stderr}`,
-          },
-        ],
-        details: {
-          exitCode: result.exitCode,
-          timedOut: result.timedOut,
-          outputLimitExceeded: result.outputLimitExceeded,
-        },
+        content: [{ type: "text", text: formatted.text }],
+        details: formatted.details,
       };
     },
   });
