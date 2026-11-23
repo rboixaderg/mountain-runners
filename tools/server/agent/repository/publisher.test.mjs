@@ -9,12 +9,22 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
 import { PublishRefusedError } from "./github.mjs";
-import { createPublisher } from "./publisher.mjs";
+import { createPublisher as createTrustedPublisher } from "./publisher.mjs";
+import { createResearchReview } from "./research-review.mjs";
 import { primaryRepository } from "./trusted-git.mjs";
 import { publishedCommit } from "./worktrees.mjs";
 
 const branch = "feat/agent-synthetic-change-1001";
 const repairCommit = "1".repeat(40);
+
+function createPublisher(options) {
+  if (options.researchReview) return createTrustedPublisher(options);
+  const publish = createTrustedPublisher({
+    ...options,
+    researchReview: { isTainted: () => false },
+  });
+  return (parameters) => publish({ ...parameters, researchJobId: "clean-job" });
+}
 
 function worktreeFixture(context) {
   const directory = mkdtempSync(join(tmpdir(), "mr-agent-publisher-"));
@@ -283,4 +293,224 @@ test("keeps the publication when the label cannot be set and says so", async (co
   assert.equal(publication.commit, repairCommit);
   assert.equal(publication.previewLabelFailed, true);
   assert.equal(publishedCommit(worktree), repairCommit);
+});
+
+test("research requires an exact durable approval before any remote write, including after restart", async (context) => {
+  const worktree = worktreeFixture(context);
+  const directory = mkdtempSync(join(tmpdir(), "mr-research-review-"));
+  context.after(() => rmSync(directory, { recursive: true, force: true }));
+  const candidate = {
+    repository: "example/project",
+    branch,
+    commit: repairCommit,
+    base: "2".repeat(40),
+    expectedHead: null,
+    worktreePath: worktree.path,
+    gitDirectory: worktree.gitDirectory,
+    title: "Synthetic title",
+    body: "Synthetic body",
+    repair: null,
+  };
+  const github = githubStub({
+    async researchCandidate(parameters) {
+      this.calls.push(["researchCandidate", parameters]);
+      return { ...candidate, title: parameters.title, body: parameters.body };
+    },
+  });
+  const store = createResearchReview({ directory });
+  store.initialize("job-1");
+  store.markResearch("job-1");
+  let started = false;
+  const parameters = {
+    worktree,
+    branch,
+    title: candidate.title,
+    body: candidate.body,
+    researchJobId: "job-1",
+    onPublicationStarted: () => {
+      started = true;
+    },
+  };
+  const first = await createPublisher({
+    github,
+    secrets: [],
+    researchReview: store,
+  })(parameters);
+  assert.equal(first.refused, true);
+  assert.match(first.reviewId, /^[a-f0-9]{64}$/u);
+  assert.equal(started, false);
+  assert.deepEqual(
+    github.calls.map(([name]) => name),
+    ["researchCandidate"],
+  );
+  const restarted = createResearchReview({ directory });
+  assert.equal(restarted.isTainted("job-1"), true);
+  restarted.approve("job-1", first.reviewId);
+  const publish = createPublisher({
+    github,
+    secrets: [],
+    researchReview: restarted,
+  });
+  const changed = await publish({
+    ...parameters,
+    body: "Different public body",
+  });
+  assert.equal(changed.refused, true);
+  assert.notEqual(changed.reviewId, first.reviewId);
+  assert.equal(started, false);
+  const restored = await publish(parameters);
+  assert.equal(restored.refused, true);
+  assert.notEqual(restored.reviewId, first.reviewId);
+  restarted.approve("job-1", restored.reviewId);
+  const result = await publish(parameters);
+  assert.equal(result.commit, repairCommit);
+  assert.equal(started, true);
+  assert.deepEqual(
+    github.calls.find(([name]) => name === "pushBranch")[1].approved,
+    candidate,
+  );
+});
+
+test("missing research state and failed candidate reads refuse before a push", async (context) => {
+  const worktree = worktreeFixture(context);
+  const directory = mkdtempSync(join(tmpdir(), "mr-research-review-"));
+  context.after(() => rmSync(directory, { recursive: true, force: true }));
+  const store = createResearchReview({ directory });
+  const github = githubStub({
+    async researchCandidate() {
+      throw new Error("offline");
+    },
+  });
+  const publish = createPublisher({
+    github,
+    secrets: [],
+    researchReview: store,
+  });
+  assert.deepEqual(
+    await publish({ worktree, branch, researchJobId: "missing" }),
+    { refused: true, readFailed: true },
+  );
+  assert.deepEqual(await publish({ worktree, branch }), {
+    refused: true,
+    readFailed: true,
+  });
+  store.initialize("job");
+  store.markResearch("job");
+  assert.deepEqual(await publish({ worktree, branch, researchJobId: "job" }), {
+    refused: true,
+    readFailed: true,
+  });
+  assert.deepEqual(github.calls, []);
+  assert.equal(publishedCommit(worktree), null);
+});
+
+test("research approval does not follow a changed commit, base, remote head, branch or repository", async (context) => {
+  const worktree = worktreeFixture(context);
+  const directory = mkdtempSync(join(tmpdir(), "mr-research-review-"));
+  context.after(() => rmSync(directory, { recursive: true, force: true }));
+  const store = createResearchReview({ directory });
+  const github = githubStub();
+  const initial = {
+    repository: "example/project",
+    branch,
+    commit: repairCommit,
+    base: "2".repeat(40),
+    expectedHead: null,
+    title: "title",
+    body: "body",
+    repair: null,
+    worktreePath: worktree.path,
+    gitDirectory: worktree.gitDirectory,
+  };
+  let candidate = initial;
+  github.researchCandidate = async () => candidate;
+  store.ensure("stable-job");
+  const publish = createPublisher({
+    github,
+    secrets: [],
+    researchReview: store,
+  });
+  const parameters = {
+    worktree,
+    branch,
+    title: "title",
+    body: "body",
+    researchJobId: "stable-job",
+  };
+  const first = await publish(parameters);
+  store.approve("stable-job", first.reviewId);
+  for (const change of [
+    { commit: "3".repeat(40) },
+    { base: "4".repeat(40) },
+    { expectedHead: "5".repeat(40) },
+    { branch: "fix/other" },
+    { repository: "other/project" },
+  ]) {
+    candidate = { ...initial, ...change };
+    const result = await publish(parameters);
+    assert.equal(result.refused, true);
+    if (result.reviewId) assert.notEqual(result.reviewId, first.reviewId);
+  }
+  assert.equal(
+    github.calls.some(([name]) => name === "pushBranch"),
+    false,
+  );
+});
+
+test("a publisher without research state fails closed", async (context) => {
+  const worktree = worktreeFixture(context);
+  const github = githubStub();
+  const publish = createTrustedPublisher({ github, secrets: [] });
+  assert.deepEqual(await publish({ worktree, branch, researchJobId: "job" }), {
+    refused: true,
+    readFailed: true,
+  });
+  assert.deepEqual(github.calls, []);
+});
+
+test("repair cannot push a research-tainted job before review or at a different remote head", async (context) => {
+  const worktree = worktreeFixture(context);
+  const directory = mkdtempSync(join(tmpdir(), "mr-research-review-"));
+  context.after(() => rmSync(directory, { recursive: true, force: true }));
+  const store = createResearchReview({ directory });
+  store.ensure("stable-job");
+  let expectedHead = repairCommit;
+  const github = githubStub({
+    async researchCandidate(parameters) {
+      return {
+        repository: "example/project",
+        branch,
+        commit: "2".repeat(40),
+        base: "3".repeat(40),
+        expectedHead,
+        title: parameters.title,
+        body: parameters.body,
+        repair: parameters.repair,
+        worktreePath: worktree.path,
+        gitDirectory: worktree.gitDirectory,
+      };
+    },
+  });
+  const publish = createPublisher({
+    github,
+    secrets: [],
+    researchReview: store,
+  });
+  const parameters = {
+    worktree,
+    branch,
+    title: "title",
+    body: "body",
+    researchJobId: "stable-job",
+    repair: { pullRequestNumber: 200, commit: repairCommit },
+  };
+  const review = await publish(parameters);
+  assert.equal(review.refused, true);
+  assert.ok(review.reviewId);
+  assert.deepEqual(github.calls, []);
+  store.approve("stable-job", review.reviewId);
+  expectedHead = "4".repeat(40);
+  assert.deepEqual(await publish(parameters), { refused: true });
+  assert.equal(store.isApproved("stable-job", review.reviewId), false);
+  assert.deepEqual(github.calls, []);
 });

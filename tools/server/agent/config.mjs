@@ -11,10 +11,15 @@
 // verification of T8.3. The defaults below are provisional.
 
 import { isAbsolute } from "node:path";
+import {
+  preparePublicDestination,
+  validatePublicDestinationExclusions,
+} from "./web-research/public-destination.mjs";
 
 export const repositoryPattern = /^[A-Za-z0-9._-]+\/[A-Za-z0-9._-]+$/u;
 const groupIdentifierPattern = /^-\d+$/u;
 const positiveIntegerPattern = /^\d+$/u;
+const braveTokenName = "MOUNTAIN_AGENT_BRAVE_SEARCH_TOKEN";
 
 export const defaultLimits = {
   maxPendingInstructions: 10,
@@ -94,6 +99,88 @@ function readRequiredChecks(environment) {
   return names;
 }
 
+function exactPublicList(environment, name, maximumLength) {
+  const raw = environment[name];
+  if (!raw) return [];
+  try {
+    const values = JSON.parse(raw);
+    if (
+      Array.isArray(values) &&
+      values.length <= 100 &&
+      values.every(
+        (value) =>
+          typeof value === "string" &&
+          value !== "" &&
+          value === value.trim() &&
+          value.length <= maximumLength &&
+          value.isWellFormed() &&
+          !/[\p{Cc}\p{Cf}\p{Zl}\p{Zp}]/u.test(value),
+      )
+    )
+      return values;
+  } catch {
+    // Error messages name the setting, never its contents.
+  }
+  throw new Error(`Invalid configuration value ${name}.`);
+}
+
+function readWebResearchConfig(environment) {
+  if (!environment[braveTokenName]) return null;
+  const subscriptionToken = requiredValue(environment, braveTokenName);
+  if (!/^[\x21-\x7e]{1,512}$/u.test(subscriptionToken)) {
+    throw new Error(`Invalid configuration value ${braveTokenName}.`);
+  }
+  const exclusions = {
+    hostnames: requiredValue(
+      environment,
+      "MOUNTAIN_AGENT_WEB_EXCLUDED_HOSTNAMES",
+    )
+      .split(",")
+      .map((entry) => entry.trim()),
+    networks: requiredValue(environment, "MOUNTAIN_AGENT_WEB_EXCLUDED_NETWORKS")
+      .split(",")
+      .map((entry) => entry.trim()),
+  };
+  const dnsRecipient = requiredValue(
+    environment,
+    "MOUNTAIN_AGENT_WEB_DNS_RECIPIENT",
+  );
+  if (
+    dnsRecipient.length > 200 ||
+    /[\p{Cc}\p{Cf}\p{Zl}\p{Zp}]/u.test(dnsRecipient)
+  ) {
+    throw new Error(
+      "Invalid configuration value MOUNTAIN_AGENT_WEB_DNS_RECIPIENT.",
+    );
+  }
+  const publicQueries = exactPublicList(
+    environment,
+    "MOUNTAIN_AGENT_WEB_PUBLIC_QUERIES",
+    400,
+  );
+  const publicUrls = exactPublicList(
+    environment,
+    "MOUNTAIN_AGENT_WEB_PUBLIC_URLS",
+    2048,
+  );
+  try {
+    validatePublicDestinationExclusions(exclusions);
+    for (const url of publicUrls) {
+      if (preparePublicDestination(url, exclusions).url !== url)
+        throw new Error();
+    }
+  } catch {
+    throw new Error("Invalid web research exclusions or public URLs.");
+  }
+  return {
+    subscriptionToken,
+    exclusions,
+    dnsRecipient,
+    publicQueries,
+    publicUrls,
+  };
+}
+
 /**
  * Live credentials of the service. They are never sent to the model, the
  * sandbox or the prompt; the trusted component uses them for the publication
@@ -103,6 +190,7 @@ export function agentSecrets(config, environment = process.env) {
   return [
     config.telegram.botToken,
     config.github.token,
+    ...(config.webResearch ? [config.webResearch.subscriptionToken] : []),
     ...config.model.providerEnvironmentVariables.map(
       (name) => environment[name],
     ),
@@ -141,8 +229,23 @@ export function readAgentConfig(environment = process.env) {
       "Configuration value MOUNTAIN_AGENT_TELEGRAM_BOT_USERNAME must be a bot username.",
     );
   }
+  const webResearch = readWebResearchConfig(environment);
+  const providerEnvironmentVariables = readNameList(
+    environment,
+    "MOUNTAIN_AGENT_PROVIDER_ENVIRONMENT_VARIABLES",
+  );
+  if (
+    providerEnvironmentVariables.includes(braveTokenName) ||
+    (webResearch &&
+      providerEnvironmentVariables.some((name) =>
+        environment[name]?.includes(webResearch.subscriptionToken),
+      ))
+  ) {
+    throw new Error("The Brave credential cannot be passed to Pi.");
+  }
 
   return {
+    webResearch,
     telegram: {
       botToken: requiredValue(environment, "MOUNTAIN_AGENT_TELEGRAM_BOT_TOKEN"),
       groupIdentifier,
@@ -159,10 +262,7 @@ export function readAgentConfig(environment = process.env) {
         environment.MOUNTAIN_AGENT_MODEL?.trim() || "opencode-go/glm-5.3-flash",
       piCommand: environment.MOUNTAIN_AGENT_PI_COMMAND?.trim() || "pi",
       sandboxImage: requiredValue(environment, "MOUNTAIN_AGENT_SANDBOX_IMAGE"),
-      providerEnvironmentVariables: readNameList(
-        environment,
-        "MOUNTAIN_AGENT_PROVIDER_ENVIRONMENT_VARIABLES",
-      ),
+      providerEnvironmentVariables,
     },
     paths: {
       repository: absolutePath(environment, "MOUNTAIN_AGENT_REPOSITORY_PATH"),

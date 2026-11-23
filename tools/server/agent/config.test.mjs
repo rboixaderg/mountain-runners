@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { defaultLimits, readAgentConfig } from "./config.mjs";
+import { agentSecrets, defaultLimits, readAgentConfig } from "./config.mjs";
 
 function validEnvironment(overrides = {}) {
   return {
@@ -28,6 +28,7 @@ test("reads a complete configuration with the provisional limits", () => {
   assert.equal(config.github.baseBranch, "main");
   assert.deepEqual(config.github.requiredChecks, ["Validate", "Gitleaks"]);
   assert.equal(config.model.identifier, "opencode-go/glm-5.3-flash");
+  assert.equal(config.webResearch, null);
   assert.equal(
     config.limits.maxPendingInstructions,
     defaultLimits.maxPendingInstructions,
@@ -38,6 +39,66 @@ test("reads a complete configuration with the provisional limits", () => {
   );
   assert.equal(config.limits.ciPollIntervalMs, defaultLimits.ciPollIntervalMs);
   assert.equal(config.limits.ciWatchTimeoutMs, defaultLimits.ciWatchTimeoutMs);
+});
+
+const webEnvironment = {
+  MOUNTAIN_AGENT_BRAVE_SEARCH_TOKEN: "synthetic-brave-token",
+  MOUNTAIN_AGENT_WEB_EXCLUDED_HOSTNAMES: "production.example",
+  MOUNTAIN_AGENT_WEB_EXCLUDED_NETWORKS: "203.0.113.1, 2001:db8::/32",
+  MOUNTAIN_AGENT_WEB_DNS_RECIPIENT: "Configured resolver",
+  MOUNTAIN_AGENT_WEB_PUBLIC_QUERIES: '["Calendari, Berguedà"]',
+  MOUNTAIN_AGENT_WEB_PUBLIC_URLS: '["https://club.example/calendar"]',
+};
+
+test("enables web research only with a credential, verified inventory settings and DNS disclosure label", () => {
+  const environment = validEnvironment(webEnvironment);
+  const config = readAgentConfig(environment);
+  assert.deepEqual(config.webResearch.publicQueries, ["Calendari, Berguedà"]);
+  assert.deepEqual(config.webResearch.exclusions.networks, [
+    "203.0.113.1",
+    "2001:db8::/32",
+  ]);
+  assert.ok(
+    agentSecrets(config, environment).includes(
+      webEnvironment.MOUNTAIN_AGENT_BRAVE_SEARCH_TOKEN,
+    ),
+  );
+  assert.throws(
+    () =>
+      readAgentConfig(
+        validEnvironment({
+          ...webEnvironment,
+          MOUNTAIN_AGENT_WEB_DNS_RECIPIENT: "",
+        }),
+      ),
+    /MOUNTAIN_AGENT_WEB_DNS_RECIPIENT/u,
+  );
+  assert.throws(
+    () =>
+      readAgentConfig(
+        validEnvironment({
+          ...webEnvironment,
+          MOUNTAIN_AGENT_WEB_PUBLIC_URLS: '["https://production.example/"]',
+        }),
+      ),
+    /exclusions or public URLs/u,
+  );
+});
+
+test("refuses to pass the Brave credential to Pi by name or alias", () => {
+  for (const name of ["MOUNTAIN_AGENT_BRAVE_SEARCH_TOKEN", "MODEL_TOKEN"]) {
+    assert.throws(
+      () =>
+        readAgentConfig(
+          validEnvironment({
+            ...webEnvironment,
+            MODEL_TOKEN: webEnvironment.MOUNTAIN_AGENT_BRAVE_SEARCH_TOKEN,
+            MOUNTAIN_AGENT_PROVIDER_ENVIRONMENT_VARIABLES: name,
+          }),
+        ),
+      /cannot be passed to Pi/u,
+    );
+  }
 });
 
 test("rejects a configuration without the GitHub credential", () => {

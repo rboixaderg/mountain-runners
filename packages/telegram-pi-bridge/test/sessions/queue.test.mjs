@@ -48,6 +48,10 @@ test("keeps an accepted instruction across a restart and deduplicates its update
   assert.equal(queue.complete(1, "pr_created"), true);
   assert.equal(queue.status(1), "done");
   assert.equal(queue.isBlocked(), false);
+  assert.equal(queue.admit(request(2)), "accepted");
+  assert.equal(queue.isFirstInstruction(request(1).sessionKey, 1), true);
+  assert.equal(queue.isFirstInstruction(request(2).sessionKey, 2), false);
+  assert.equal(queue.isFirstInstruction("-1001234567890:8", 1), false);
   queue.close();
 });
 
@@ -357,13 +361,61 @@ test("persists the reply message identifier across a restart", (context) => {
   const path = databasePath(context);
   let queue = new AdmissionQueue(path, { maxPending: 10 });
   assert.equal(
-    queue.admit(request(1, { replyMessageIdentifier: 49 })),
+    queue.admit(
+      request(1, { replyMessageIdentifier: 49, exactDirectReply: true }),
+    ),
     "accepted",
   );
   queue.close();
 
   queue = new AdmissionQueue(path, { maxPending: 10 });
-  assert.equal(queue.next().replyMessageIdentifier, 49);
+  const admitted = queue.next();
+  assert.equal(admitted.replyMessageIdentifier, 49);
+  assert.equal(admitted.exactDirectReply, true);
+  queue.close();
+});
+
+test("only stores a strict true marker with a reply identifier", (context) => {
+  const queue = new AdmissionQueue(databasePath(context), { maxPending: 10 });
+  for (const [index, overrides] of [
+    { exactDirectReply: true },
+    { exactDirectReply: 1, replyMessageIdentifier: 49 },
+    { exactDirectReply: false, replyMessageIdentifier: 49 },
+  ].entries()) {
+    queue.admit(request(index + 1, overrides));
+    assert.equal(queue.next().exactDirectReply, false);
+    queue.complete(index + 1, "answered");
+  }
+  queue.close();
+});
+
+test("migrates existing reply identifiers without inferring exact text", (context) => {
+  const path = databasePath(context);
+  const database = new DatabaseSync(path);
+  database.exec(`
+    CREATE TABLE instructions (
+      sequence INTEGER PRIMARY KEY,
+      update_identifier INTEGER NOT NULL UNIQUE,
+      message_identifier INTEGER NOT NULL,
+      session_key TEXT NOT NULL,
+      author_identifier INTEGER NOT NULL,
+      instruction TEXT NOT NULL,
+      attachments TEXT,
+      reply_message_identifier INTEGER,
+      status TEXT NOT NULL,
+      outcome TEXT,
+      created_at TEXT NOT NULL
+    );
+    INSERT INTO instructions
+      (update_identifier, message_identifier, session_key, author_identifier,
+       instruction, reply_message_identifier, status, created_at)
+    VALUES (1, 1001, '-1001234567890:7', 42, 'Sí, envia-ho', 49, 'pending', '2026-01-01');
+  `);
+  database.close();
+  const queue = new AdmissionQueue(path, { maxPending: 10 });
+  const admitted = queue.next();
+  assert.equal(admitted.replyMessageIdentifier, 49);
+  assert.equal(admitted.exactDirectReply, false);
   queue.close();
 });
 
@@ -508,6 +560,7 @@ test("migrates the single attachment column into a list", (context) => {
     },
   ]);
   assert.equal(migrated.replyMessageIdentifier, null);
+  assert.equal(migrated.exactDirectReply, false);
   queue.complete(1, "answered");
 
   const attachments = [

@@ -28,6 +28,7 @@ import { CiWatchStore } from "../../repository/ci-watch-store.mjs";
 import { MergeRequestStore } from "../../repository/merge-request-store.mjs";
 import { PreviewRequestStore } from "../../repository/preview-request-store.mjs";
 import { SessionNoteStore } from "../../repository/session-note-store.mjs";
+import { createResearchReview } from "../../repository/research-review.mjs";
 import { TopicJobStore } from "../../repository/topic-job-store.mjs";
 import {
   defaultRequestTimeoutMilliseconds,
@@ -52,6 +53,12 @@ import { createPreviewRequests } from "../../workflow/preview-request.mjs";
 import { createProjectRunner } from "../../workflow/project-runner.mjs";
 import { createTopicPullRequestFinder } from "../../workflow/topic-state.mjs";
 import { stopAllSandboxedCommands } from "../../sandbox/commands.mjs";
+import { createWebResearch } from "../../web-research/broker.mjs";
+import { createTopicResearch } from "../../web-research/topic-research.mjs";
+import {
+  disclosureApprovalReply,
+  disclosureCancellationReply,
+} from "../../web-research/disclosure-approvals.mjs";
 
 function defaultLogger(event, detail) {
   process.stderr.write(
@@ -414,6 +421,27 @@ export async function startService({
     });
   let runner;
   try {
+    const researchReview = createResearchReview({
+      directory: join(config.paths.state, "research-review"),
+    });
+    const research = config.webResearch
+      ? createTopicResearch({
+          broker: createWebResearch({
+            ...config.webResearch,
+            neverSend: agentSecrets(config, environment).filter(Boolean),
+          }),
+          telegram,
+          attribution: { groupIdentifier: config.telegram.groupIdentifier },
+          checkMembership: verifyAuthorMembership,
+          worktreeForSession: identifiers.worktreeName,
+          hasInterveningInstructions: (range) =>
+            queue.hasInterveningInstructions(range),
+          markResearch(jobId) {
+            researchReview.ensure(jobId);
+            researchReview.markResearch(jobId);
+          },
+        })
+      : undefined;
     runner =
       runnerOverride ??
       createProjectRunner({
@@ -428,6 +456,10 @@ export async function startService({
         followPreview: previewWorker.followPublication,
         requestMerge: mergeWorker.handle,
         requestMergeConfirmation: mergeWorker,
+        research,
+        researchReview,
+        isFirstInstruction: (sessionKey, updateIdentifier) =>
+          queue.isFirstInstruction(sessionKey, updateIdentifier),
         // The raw download only touches the service temporary directory, so the
         // downloaded image is cleaned before it reaches a worktree.
         prepareAttachment: createAttachmentPreparation({ telegram, logger }),
@@ -459,9 +491,14 @@ export async function startService({
     queue,
     runInstruction: runner,
     shouldAcknowledge: (classification) =>
+      (!config.webResearch ||
+        ![disclosureApprovalReply, disclosureCancellationReply].includes(
+          classification.text,
+        )) &&
       mergeWorker.contextualIntent(classification, classification.text) ===
-      null,
+        null,
     botIdentifier: identity.id,
+    disableLinkPreview: config.webResearch !== null,
     onServiceReport: recordServiceNote,
     logger,
     // A repair continues a published change. It runs only when no admitted

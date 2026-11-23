@@ -399,6 +399,19 @@ export function createCiRepairExecutor({
       );
       return true;
     }
+    if (result.outcome === "research_review_required") {
+      close(repair, {
+        status: "done",
+        outcome: "declined",
+        traceAction: "ci_repair_not_published",
+        detail: `${describe(repair)} private review required`,
+      });
+      await report(repair, result.serviceText, {
+        signal,
+        state: "research-review",
+      });
+      return true;
+    }
     if (result.outcome === "answered") {
       close(repair, {
         status: "done",
