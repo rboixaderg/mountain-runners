@@ -81,6 +81,7 @@ export function createInstructionRunner({
   followPreview,
   requestPreview,
   requestMerge,
+  requestMergeConfirmation,
   prepareAttachment,
   scaleAttachments = () => ({
     refusal: { reason: attachmentRefusalReasons.scaleFailed },
@@ -681,6 +682,16 @@ export function createInstructionRunner({
       if (mergeCommand !== null) {
         const merged = await requestMerge(request, mergeCommand, { signal });
         return { ...merged, report: ignoringAttachment(merged.report) };
+      }
+      if (!repair && requestMergeConfirmation !== undefined) {
+        const confirmation = requestMergeConfirmation.contextualIntent(request);
+        if (confirmation !== null) {
+          return requestMergeConfirmation.handleConfirmation(
+            request,
+            confirmation,
+            { signal },
+          );
+        }
       }
       if (!repair && migrateTopicJob) {
         const migrationReport = await migrateTopicJob(request.sessionKey, {

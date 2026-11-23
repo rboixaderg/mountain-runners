@@ -2,10 +2,11 @@
 
 ## Estat
 
-Pendent. Defineix l'entrada del [backlog](../backlog.md#govern-de-la-documentació-i-de-les-skills).
-Cap tasca passa a `En curs` fins que la PR d'aquesta especificació es fusioni. La T10
-requereix una revisió de seguretat i cap tasca no s'executa contra el servei real. No
-canvia cap decisió dels [ADR](../decisions/), cap configuració remota ni el
+Completada. Les onze tasques s'han fusionat en set PR, més la correcció de la
+[#296](https://github.com/rboixaderg/mountain-runners/pull/296); l'última és la
+[#295](https://github.com/rboixaderg/mountain-runners/pull/295), del 22 de novembre de 2026.
+La T10 requereix una revisió de seguretat i cap tasca no s'executa contra el servei
+real. No canvia cap decisió dels [ADR](../decisions/), cap configuració remota ni el
 comportament desplegat.
 
 ## Objectiu
@@ -182,19 +183,19 @@ externa.
 
 ## Tasques, Entregues I Seguiment
 
-| Tasca | Estat   | Entrega | Dependències | Resultat verificable                                                                         | PR  |
-| ----- | ------- | ------- | ------------ | -------------------------------------------------------------------------------------------- | --- |
-| T1    | Pendent | PR 1    | Cap          | Taula de propietat a `AGENTS.md` i skill `docs-ownership` carregable                         | -   |
-| T5    | Pendent | PR 1    | T1           | Tres documents esborrats, cap enllaç trencat i una entrada nova al backlog                   | -   |
-| T2    | Pendent | PR 2    | T1           | Els hashes de cada fitxer de les quatre skills externes coincideixen i una prova ho comprova | -   |
-| T3    | Pendent | PR 2    | T2           | Cada skill pròpia té `metadata.version` i `docs/skills.md` és el registre únic               | -   |
-| T4    | Pendent | PR 3    | T3 + App     | Cada origen amb canvis rep una PR de bot revisable i cada refús fa fallar l'execució         | -   |
-| T6    | Pendent | PR 4    | T5           | Cada fase té la seva carpeta i cap document de treball viu a l'arrel de `docs/`              | -   |
-| T7    | Pendent | PR 5    | T6           | `docs/operations/` té el README i el document de web i releases                              | -   |
-| T8    | Pendent | PR 5    | T7           | `docs/operations/previews.md` descriu les previews i la resta hi enllaça                     | -   |
-| T9    | Pendent | PR 5    | T8           | `docs/operations/agent.md` descriu l'agent i `deployment.md`/`runbook.md` desapareixen       | -   |
-| T10   | Pendent | PR 6    | T9           | Una ordre versionada actualitza l'agent amb comprovacions, còpia i `REVISION`                | -   |
-| T11   | Pendent | PR 7    | T1 a T10     | `pnpm check:local` falla davant de cada divergència documental definida                      | -   |
+| Tasca | Estat      | Entrega | Dependències | Resultat verificable                                                                         | PR                                                                                                                                |
+| ----- | ---------- | ------- | ------------ | -------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| T1    | Completada | PR 1    | Cap          | Taula de propietat a `AGENTS.md` i skill `docs-ownership` carregable                         | [#284](https://github.com/rboixaderg/mountain-runners/pull/284)                                                                   |
+| T5    | Completada | PR 1    | T1           | Tres documents esborrats, cap enllaç trencat i una entrada nova al backlog                   | [#284](https://github.com/rboixaderg/mountain-runners/pull/284)                                                                   |
+| T2    | Completada | PR 2    | T1           | Els hashes de cada fitxer de les quatre skills externes coincideixen i una prova ho comprova | [#285](https://github.com/rboixaderg/mountain-runners/pull/285)                                                                   |
+| T3    | Completada | PR 2    | T2           | Cada skill pròpia té `metadata.version` i `docs/skills.md` és el registre únic               | [#285](https://github.com/rboixaderg/mountain-runners/pull/285)                                                                   |
+| T4    | Completada | PR 3    | T3 + App     | Cada origen amb canvis rep una PR de bot revisable i cada refús fa fallar l'execució         | [#289](https://github.com/rboixaderg/mountain-runners/pull/289) i [#296](https://github.com/rboixaderg/mountain-runners/pull/296) |
+| T6    | Completada | PR 4    | T5           | Cada fase té la seva carpeta i cap document de treball viu a l'arrel de `docs/`              | [#286](https://github.com/rboixaderg/mountain-runners/pull/286)                                                                   |
+| T7    | Completada | PR 5    | T6           | `docs/operations/` té el README i el document de web i releases                              | [#287](https://github.com/rboixaderg/mountain-runners/pull/287)                                                                   |
+| T8    | Completada | PR 5    | T7           | `docs/operations/previews.md` descriu les previews i la resta hi enllaça                     | [#287](https://github.com/rboixaderg/mountain-runners/pull/287)                                                                   |
+| T9    | Completada | PR 5    | T8           | `docs/operations/agent.md` descriu l'agent i `deployment.md`/`runbook.md` desapareixen       | [#287](https://github.com/rboixaderg/mountain-runners/pull/287)                                                                   |
+| T10   | Completada | PR 6    | T9           | Una ordre versionada actualitza l'agent amb comprovacions, còpia i `REVISION`                | [#290](https://github.com/rboixaderg/mountain-runners/pull/290)                                                                   |
+| T11   | Completada | PR 7    | T1 a T10     | `pnpm check:local` falla davant de cada divergència documental definida                      | [#295](https://github.com/rboixaderg/mountain-runners/pull/295)                                                                   |
 
 ### T1: Regles De Propietat I Skill De Documentació
 

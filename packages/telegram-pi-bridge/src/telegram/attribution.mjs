@@ -202,6 +202,85 @@ function identityOf(message) {
   };
 }
 
+const mediaFields = [
+  "animation",
+  "audio",
+  "contact",
+  "dice",
+  "document",
+  "game",
+  "invoice",
+  "location",
+  "paid_media",
+  "passport_data",
+  "photo",
+  "poll",
+  "sticker",
+  "story",
+  "successful_payment",
+  "venue",
+  "video",
+  "video_note",
+  "voice",
+];
+
+function hasFileOrMedia(message) {
+  return mediaFields.some((field) => message[field] !== undefined);
+}
+
+function hasBlockquoteEntity(entities) {
+  return entities.some(
+    (entity) =>
+      entity.type === "blockquote" || entity.type === "expandable_blockquote",
+  );
+}
+
+// The identifier of the bot message this plain text message directly replies
+// to, or null when any part of that identity is not proven. The metadata is
+// optional: a message that is not safe here is classified exactly as before.
+function directReplyMessageIdentifier(message, { botIdentifier }, text) {
+  if (!Number.isSafeInteger(botIdentifier)) {
+    return null;
+  }
+  if (
+    message.external_reply !== undefined ||
+    message.quote !== undefined ||
+    message.edit_date !== undefined ||
+    message.via_bot !== undefined ||
+    message.media_group_id !== undefined ||
+    message.caption !== undefined
+  ) {
+    return null;
+  }
+  if (typeof message.text !== "string" || hasFileOrMedia(message)) {
+    return null;
+  }
+  const entities = Array.isArray(message.entities) ? message.entities : [];
+  if (hasBlockquoteEntity(entities)) {
+    return null;
+  }
+  const replied = message.reply_to_message;
+  if (!replied || replied.forum_topic_created !== undefined) {
+    return null;
+  }
+  if (
+    replied.from?.id !== botIdentifier ||
+    replied.chat?.id !== message.chat?.id ||
+    replied.message_thread_id !== message.message_thread_id
+  ) {
+    return null;
+  }
+  const repliedIdentifier = replied.message_id;
+  if (
+    !Number.isSafeInteger(repliedIdentifier) ||
+    repliedIdentifier <= 0 ||
+    message.text.trim() !== text
+  ) {
+    return null;
+  }
+  return repliedIdentifier;
+}
+
 /**
  * Decide whether an update is an instruction for the agent.
  *
@@ -257,11 +336,18 @@ export function classifyInstruction(
     return { decision: "ignore", reason: "empty_instruction" };
   }
 
+  const replyMessageIdentifier = directReplyMessageIdentifier(
+    message,
+    context,
+    text,
+  );
+
   return {
     decision: "instruction",
     ...identity,
     text,
     attachments,
+    ...(replyMessageIdentifier === null ? {} : { replyMessageIdentifier }),
   };
 }
 

@@ -36,6 +36,7 @@ export function createProjectRunner({
   requestPreview,
   followPreview,
   requestMerge,
+  requestMergeConfirmation,
   prepareAttachment,
   attachmentStore = createAttachmentStore({
     stateDirectory: config.paths.state,
@@ -148,6 +149,7 @@ export function createProjectRunner({
     requestPreview,
     followPreview,
     requestMerge,
+    requestMergeConfirmation,
     prepareAttachment,
     scaleAttachments,
     attachmentStore,

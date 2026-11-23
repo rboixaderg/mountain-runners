@@ -4,13 +4,14 @@
     "typescript-advanced-types": {
       "source": "https://github.com/wshobson/agents",
       "repositoryId": 1025856648,
-      "commit": "87b81e9d642d7bb9602b33d1e2dadf1c2a619f2b",
+      "commit": "51b9ae3ac68d9c236549a9b57f5dca7e6c0c168c",
       "sourceSkillPath": "plugins/javascript-typescript/skills/typescript-advanced-types",
       "license": "MIT",
       "sourceLicensePath": "LICENSE",
       "licenseSha256": "f89abb55d9f073f38f1703e4518f0613c788c6174be7f13b8dfe48a1c076c746",
       "files": {
-        "SKILL.md": "c142f64de35a7c7518e62d4a5c5b18800bbe4391be14ba45a5d049adfcf01c57"
+        "references/details.md": "036a1dd41283384f086ac0eeb4f63c899b042ad68815a8ce00afebf606b55c44",
+        "SKILL.md": "c32101c65134d94ef1a3305ef486020b57be6408f97ed952c9c560e3fe04188d"
       }
     },
     "vitest": {

@@ -44,7 +44,10 @@ import {
   createCiWatchWorker,
   readCiState as readCiCheckState,
 } from "../../workflow/ci-watch.mjs";
-import { createMergeRequests } from "../../workflow/merge-request.mjs";
+import {
+  createMergeRequests,
+  mergeConfirmationOutcome,
+} from "../../workflow/merge-request.mjs";
 import { createPreviewRequests } from "../../workflow/preview-request.mjs";
 import { createProjectRunner } from "../../workflow/project-runner.mjs";
 import { createTopicPullRequestFinder } from "../../workflow/topic-state.mjs";
@@ -357,10 +360,34 @@ export async function startService({
   });
   const mergeWorker = createMergeRequests({
     store: mergeRequests,
-    reportedCommits: ciWatches,
+    findDeliveredPreview: (sessionKey) => {
+      // Identify the publication independently of its CI notice and of any
+      // manual preview request. Never fall back to an earlier preview.
+      const publication = ciWatches.latestTopicPublication(sessionKey);
+      if (
+        publication === undefined ||
+        ciWatches.latestPublication(publication.pull_request_number)
+          ?.session_key !== sessionKey
+      ) {
+        return undefined;
+      }
+      return (
+        previewRequests.deliveredPublicationPreview({
+          sessionKey,
+          updateIdentifier: publication.update_identifier,
+          pullRequestNumber: publication.pull_request_number,
+          commitSha: publication.commit_sha,
+        }) ?? undefined
+      );
+    },
     hasNewerWork: ({ sessionKey, updateIdentifier }) =>
       queue.hasOtherInstructions(sessionKey, updateIdentifier) ||
       ciWatches.hasUnreportedWork(sessionKey),
+    hasInterveningInstructions: (range) =>
+      queue.hasInterveningInstructions({
+        ...range,
+        excludingOutcome: mergeConfirmationOutcome,
+      }),
     verifyMembership: verifyAuthorMembership,
     github,
     repository: config.github.repository,
@@ -400,6 +427,7 @@ export async function startService({
         requestPreview: previewWorker.handle,
         followPreview: previewWorker.followPublication,
         requestMerge: mergeWorker.handle,
+        requestMergeConfirmation: mergeWorker,
         // The raw download only touches the service temporary directory, so the
         // downloaded image is cleaned before it reaches a worktree.
         prepareAttachment: createAttachmentPreparation({ telegram, logger }),
@@ -430,6 +458,9 @@ export async function startService({
     telegram,
     queue,
     runInstruction: runner,
+    shouldAcknowledge: (classification) =>
+      mergeWorker.contextualIntent(classification, classification.text) ===
+      null,
     botIdentifier: identity.id,
     onServiceReport: recordServiceNote,
     logger,

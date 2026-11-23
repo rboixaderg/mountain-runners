@@ -112,6 +112,7 @@ export class AgentBridge {
   #runInstruction;
   #runWhenIdle;
   #onServiceReport;
+  #shouldAcknowledge;
   #logger;
   #botIdentifier;
   #pollTimeoutSeconds;
@@ -133,6 +134,7 @@ export class AgentBridge {
     runInstruction,
     onServiceReport = () => {},
     runWhenIdle = async () => false,
+    shouldAcknowledge = () => true,
     botIdentifier,
     logger = () => {},
     pollTimeoutSeconds = 25,
@@ -153,6 +155,7 @@ export class AgentBridge {
     this.#runInstruction = runInstruction;
     this.#onServiceReport = onServiceReport;
     this.#runWhenIdle = runWhenIdle;
+    this.#shouldAcknowledge = shouldAcknowledge;
     this.#botIdentifier = botIdentifier;
     this.#logger = logger;
     this.#pollTimeoutSeconds = pollTimeoutSeconds;
@@ -319,9 +322,13 @@ export class AgentBridge {
       authorIdentifier: classification.authorIdentifier,
       instruction: classification.text,
       attachments: classification.attachments,
+      replyMessageIdentifier: classification.replyMessageIdentifier,
     });
     this.#traceAdmission(admission, classification);
-    if (admission === "accepted") {
+    if (
+      admission === "accepted" &&
+      this.#shouldAcknowledge(classification) !== false
+    ) {
       await this.#reply(
         classification.sessionKey,
         this.#messages.acknowledgement(instructionExcerpt(classification.text)),

@@ -21,6 +21,7 @@ const BOT_NAME = "skills-bot[bot]";
 const BOT_EMAIL = `4242+${BOT_NAME}@users.noreply.github.com`;
 const SOURCE = "https://github.com/antfu/skills";
 const SKILL_PATH = "skills/sample-skill";
+const BRANCH = "skills/update-antfu-skills";
 const REPOSITORY_ID = 1143952193;
 const OLD_COMMIT = "a".repeat(40);
 const NEW_COMMIT = "b".repeat(40);
@@ -118,6 +119,7 @@ function createGitHub(options = {}) {
     pullRequests: options.pullRequests ?? [],
     branches: options.branches ?? {},
     compare: options.compare ?? {},
+    commits: options.commits ?? {},
     calls: [],
   };
   const trees = new Map();
@@ -209,6 +211,15 @@ function createGitHub(options = {}) {
       const sha = state.branches[branch];
       if (!sha) return json({ message: "Not Found" }, 404);
       return json({ object: { sha } });
+    }
+    const commitMatch =
+      /^\/repos\/mountain-runners\/mountain-runners\/git\/commits\/([0-9a-f]{40})$/u.exec(
+        path,
+      );
+    if (commitMatch) {
+      const commit = state.commits[commitMatch[1]];
+      if (!commit) return json({ message: "Not Found" }, 404);
+      return json(commit);
     }
     if (path.startsWith("/repos/mountain-runners/mountain-runners/pulls?")) {
       const head = new URL(`${API}${path}`).searchParams.get("head");
@@ -307,6 +318,17 @@ function writeSkillsTree(directory, files) {
   }
 }
 
+/** The tree of a fake commit: the paths and contents the branch would carry. */
+function treeSha(files) {
+  const digest = createHash("sha1");
+  for (const [path, content] of [...files].sort(([left], [right]) =>
+    left.localeCompare(right),
+  )) {
+    digest.update(`${path}\0`).update(content);
+  }
+  return digest.digest("hex");
+}
+
 /**
  * A git fake over a real temporary repository: `reset --hard` restores the base
  * snapshot, `clean -fd` drops untracked files and every push records the branch
@@ -316,6 +338,7 @@ function createGit(directory) {
   const state = {
     staged: "",
     head: "0".repeat(40),
+    baseSha: "0".repeat(40),
     calls: [],
     base: readSkillsTree(directory),
     branches: {},
@@ -323,7 +346,10 @@ function createGit(directory) {
   };
   async function git(args) {
     state.calls.push(args);
-    if (args[0] === "rev-parse") return `${state.head}\n`;
+    if (args[0] === "rev-parse") return `${state.baseSha}\n`;
+    if (args[0] === "write-tree") {
+      return `${treeSha(readSkillsTree(directory))}\n`;
+    }
     if (args[0] === "reset") {
       writeSkillsTree(directory, state.base);
       state.staged = "";
@@ -353,6 +379,7 @@ function createGit(directory) {
       const files = readSkillsTree(directory);
       state.branches[branch] = {
         sha: state.head,
+        tree: treeSha(files),
         manifest: JSON.parse(
           files.get("skills-manifest.json").toString("utf8"),
         ),
@@ -585,6 +612,148 @@ test("an open pull request of the App is updated", async (t) => {
       (call) => call.method === "POST" && call.path.endsWith("/pulls"),
     ).length,
     0,
+  );
+});
+
+/**
+ * The state the next weekly run finds: a fresh checkout of `main` at `baseSha`
+ * and the branch the previous run pushed, whose App commit the API resolves.
+ */
+async function prepareNextRun({
+  git,
+  github,
+  branch,
+  parentSha,
+  baseSha = parentSha,
+}) {
+  const pushed = git.state.branches[branch];
+  github.state.branches[branch] = pushed.sha;
+  github.state.commits[pushed.sha] = {
+    tree: { sha: pushed.tree },
+    parents: [{ sha: parentSha }],
+  };
+  github.state.compare[branch] = {
+    commits: [
+      {
+        author: BOT,
+        commit: { author: { name: BOT_NAME, email: BOT_EMAIL } },
+      },
+    ],
+    total_commits: 1,
+  };
+  git.state.baseSha = baseSha;
+  await git.git(["reset", "--hard", baseSha]);
+}
+
+test("a second apply with the same upstream and base pushes nothing", async (t) => {
+  const directory = createRepository(t);
+  const github = createGitHub();
+  const git = createGit(directory);
+  const apply = () =>
+    run(directory, github, {
+      argv: ["--apply"],
+      git: git.git,
+      env: ENVIRONMENT,
+    });
+
+  assert.equal((await apply()).result.exitCode, 0);
+  await prepareNextRun({
+    git,
+    github,
+    branch: BRANCH,
+    parentSha: git.state.baseSha,
+  });
+  const pushes = git.state.calls.filter((args) => args[0] === "push").length;
+  const writes = github.state.calls.filter(
+    (call) => call.method !== "GET",
+  ).length;
+
+  const { result, messages } = await apply();
+
+  assert.equal(result.exitCode, 0);
+  assert.match(
+    messages.join("\n"),
+    /unchanged pull request https:\/\/github\.test\/pull\/1/u,
+  );
+  assert.equal(
+    git.state.calls.filter((args) => args[0] === "push").length,
+    pushes,
+  );
+  assert.equal(
+    github.state.calls.filter((call) => call.method !== "GET").length,
+    writes,
+  );
+});
+
+test("a second apply on a new base commit pushes", async (t) => {
+  const directory = createRepository(t);
+  const github = createGitHub();
+  const git = createGit(directory);
+  const apply = () =>
+    run(directory, github, {
+      argv: ["--apply"],
+      git: git.git,
+      env: ENVIRONMENT,
+    });
+
+  assert.equal((await apply()).result.exitCode, 0);
+  const pushed = git.state.branches[BRANCH];
+  await prepareNextRun({
+    git,
+    github,
+    branch: BRANCH,
+    parentSha: git.state.baseSha,
+    baseSha: "e".repeat(40),
+  });
+
+  const { result, messages } = await apply();
+
+  assert.equal(result.exitCode, 0);
+  assert.equal(messages.join("\n").includes("unchanged"), false);
+  const pushes = git.state.calls.filter((args) => args[0] === "push");
+  assert.equal(pushes.length, 2);
+  assert.equal(
+    pushes[1][1],
+    `--force-with-lease=refs/heads/${BRANCH}:${pushed.sha}`,
+  );
+});
+
+test("a branch with another tree pushes", async (t) => {
+  const directory = createRepository(t);
+  const git = createGit(directory);
+  const github = createGitHub({
+    branches: { [BRANCH]: "f".repeat(40) },
+    commits: {
+      ["f".repeat(40)]: {
+        tree: { sha: "1".repeat(40) },
+        parents: [{ sha: git.state.baseSha }],
+      },
+    },
+    compare: {
+      [BRANCH]: {
+        commits: [
+          {
+            author: BOT,
+            commit: { author: { name: BOT_NAME, email: BOT_EMAIL } },
+          },
+        ],
+        total_commits: 1,
+      },
+    },
+  });
+
+  const { result } = await run(directory, github, {
+    argv: ["--apply"],
+    git: git.git,
+    env: ENVIRONMENT,
+  });
+
+  assert.equal(result.exitCode, 0);
+  const pushes = git.state.calls.filter((args) => args[0] === "push");
+  assert.equal(pushes.length, 1);
+  assert.equal(
+    pushes[0][1],
+    `--force-with-lease=refs/heads/${BRANCH}:${"f".repeat(40)}`,
   );
 });
 
