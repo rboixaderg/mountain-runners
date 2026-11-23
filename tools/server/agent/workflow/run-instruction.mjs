@@ -99,6 +99,10 @@ export function createInstructionRunner({
   requestPreview,
   requestMerge,
   requestMergeConfirmation,
+  research,
+  isFirstInstruction,
+  prepareResearchJob,
+  isResearchAffected,
   prepareAttachment,
   scaleAttachments = () => ({
     refusal: { reason: attachmentRefusalReasons.scaleFailed },
@@ -726,6 +730,16 @@ export function createInstructionRunner({
           );
         }
       }
+      const resumedResearch = repair
+        ? null
+        : await research?.resume(request, { signal });
+      if (resumedResearch?.report) {
+        return { outcome: "answered", report: resumedResearch.report };
+      }
+      const publishReviewed =
+        !repair &&
+        isResearchAffected &&
+        request.instruction === "/publica-revisio";
       if (!repair && migrateTopicJob) {
         const migrationReport = await migrateTopicJob(request.sessionKey, {
           signal,
@@ -753,6 +767,10 @@ export function createInstructionRunner({
       let kind;
       if (repair) {
         kind = repairRequestKind;
+      } else if (resumedResearch) {
+        kind = resumedResearch.readOnly ? "consultation" : topicTurnKind;
+      } else if (publishReviewed) {
+        kind = topicTurnKind;
       } else {
         const classification = await classifyRequest({
           instruction: request.instruction,
@@ -795,6 +813,11 @@ export function createInstructionRunner({
         return { ...preview, report: ignoringAttachment(preview.report) };
       }
       const topicTurn = !repair;
+      const readOnly =
+        research &&
+        topicTurn &&
+        kind !== topicTurnKind &&
+        kind !== "continuation";
       const target = repair
         ? await repairTarget(request, worktreeName, signal)
         : null;
@@ -808,8 +831,35 @@ export function createInstructionRunner({
       const binding = topicTurn
         ? (topicJobs?.bindingOf(request.sessionKey) ?? null)
         : null;
+      prepareResearchJob?.(worktreeName, {
+        newJob:
+          !repair &&
+          !topic.worktree &&
+          binding === null &&
+          (isFirstInstruction === undefined ||
+            isFirstInstruction(request.sessionKey, request.updateIdentifier)),
+      });
+      if (publishReviewed && !isResearchAffected(worktreeName)) {
+        return {
+          outcome: "answered",
+          report: "Aquesta feina no té cap revisió de recerca pendent.",
+        };
+      }
       let boundContinuation = null;
-      if (binding !== null) {
+      if (binding !== null && readOnly) {
+        if (
+          topic.worktree === null ||
+          (await currentBranch(topic.worktree, { signal })) !== binding.branch
+        ) {
+          return {
+            outcome: "failed",
+            report: continuationReports.movedHead({
+              pullRequestNumber: binding.pullRequestNumber,
+            }),
+          };
+        }
+      }
+      if (binding !== null && !readOnly) {
         const bound = await readValidBoundPullRequest({
           binding,
           topic,
@@ -848,7 +898,7 @@ export function createInstructionRunner({
         boundContinuation?.pullRequestNumber ?? null;
       const continuedBaseHeadSha = boundContinuation?.baseHeadSha ?? null;
       let worktree;
-      if (boundContinuation) {
+      if (boundContinuation || (readOnly && topic.worktree)) {
         worktree = topic.worktree;
       } else if (repair) {
         worktree = target.worktree;
@@ -860,14 +910,20 @@ export function createInstructionRunner({
           signal,
         });
       }
-      let instruction = repair ? target.instruction : request.instruction;
+      let instruction = repair
+        ? target.instruction
+        : (resumedResearch?.instruction ?? request.instruction);
       let stagedAttachments = [];
       let promptImages = [];
       let worktreePrepared = false;
       const hasStoredAttachments =
         attachmentStore !== undefined &&
         attachmentStore.list(worktreeName).length > 0;
-      if (topicTurn && (attachments.length > 0 || hasStoredAttachments)) {
+      if (
+        topicTurn &&
+        !publishReviewed &&
+        (attachments.length > 0 || hasStoredAttachments)
+      ) {
         stagedAttachmentPath = worktree.path;
         const applied = await applyAttachments({
           attachments,
@@ -910,31 +966,54 @@ export function createInstructionRunner({
         return claimedNotes.map((note) => note.text);
       };
       let modelResult;
+      const webTurn =
+        topicTurn && !publishReviewed
+          ? research?.turn(request, {
+              worktreeName,
+              signal,
+              readOnly,
+              resumedResearch,
+            })
+          : undefined;
       try {
-        modelResult = await runModel({
-          sessionIdentifier: piSessionIdentifier,
-          sandboxIdentifier: worktreeName,
-          sessionKey: request.sessionKey,
-          instruction,
-          images: promptImages,
-          attachments: stagedAttachments,
-          worktreePrepared,
-          kind: repair ? repairRequestKind : topicTurnKind,
-          topicState,
-          claimServiceNotes,
-          // The runtime calls this immediately before it writes the prompt: it
-          // is the one fact that says a prompt may have reached Pi.
-          onPromptSent: () => {
-            promptSent = true;
-          },
-          worktreePath: worktree.path,
-          signal,
-        });
+        modelResult = publishReviewed
+          ? { text: "" }
+          : await runModel({
+              sessionIdentifier: piSessionIdentifier,
+              sandboxIdentifier: worktreeName,
+              sessionKey: request.sessionKey,
+              instruction,
+              images: promptImages,
+              attachments: stagedAttachments,
+              worktreePrepared,
+              kind: repair
+                ? repairRequestKind
+                : readOnly
+                  ? "consultation"
+                  : topicTurnKind,
+              webResearch: webTurn?.tool,
+              topicState,
+              claimServiceNotes,
+              // The runtime calls this immediately before it writes the prompt: it
+              // is the one fact that says a prompt may have reached Pi.
+              onPromptSent: () => {
+                promptSent = true;
+              },
+              worktreePath: worktree.path,
+              signal,
+            });
       } catch (error) {
         settleClaimedNotes({ claimedNotes, promptSent });
         throw error;
       }
       settleClaimedNotes({ claimedNotes, promptSent });
+      if (webTurn?.waitingForConfirmation()) {
+        return {
+          outcome: "answered",
+          report:
+            "La cerca espera la teva confirmació. No he publicat cap canvi.",
+        };
+      }
       if (modelResult.preparationFailed) {
         return {
           outcome: "failed",
@@ -976,7 +1055,18 @@ export function createInstructionRunner({
           : attachmentStore.used(worktreeName, worktree.path, attachmentPaths);
       // The person reads the model's answer, never its change summary: the
       // service owns the summary and strips the line from every text.
-      const answer = stripChangeSummary(modelResult.text);
+      const plainAnswer = stripChangeSummary(modelResult.text);
+      const answer = webTurn
+        ? webTurn.withSources(plainAnswer)
+        : (resumedResearch?.withSources(plainAnswer) ?? plainAnswer);
+      if (readOnly) {
+        return {
+          outcome: "answered",
+          modelAnswer: answer !== "",
+          serviceText: null,
+          report: answer || instructionReports.clarification,
+        };
+      }
       // Whatever the model moved is already outside this directory. Removing it
       // before the checks and the commit means a received image never reaches a
       // commit or a publication, even on a branch whose .gitignore lacks the
@@ -999,7 +1089,9 @@ export function createInstructionRunner({
               : instructionReports.clarification),
         };
       }
-      const summary = parseChangeSummary(modelResult.text);
+      const summary = isResearchAffected?.(worktreeName)
+        ? null
+        : parseChangeSummary(modelResult.text);
       const title = fallbackTitle({ summary });
       const existingBranch = repair
         ? target.branch
@@ -1093,12 +1185,21 @@ export function createInstructionRunner({
         title,
         body,
         repair: continuedPullRequest,
+        ...(isResearchAffected ? { researchJobId: worktreeName } : {}),
         signal,
         onPublicationStarted: () => {
           publicationStarted = true;
         },
       });
       if (publication.refused) {
+        if (publication.reviewId) {
+          const serviceText = `El canvi no s'ha publicat. Cal una revisió privada abans del push.\nFeina: ${worktreeName}\nRevisió: ${publication.reviewId}`;
+          return {
+            outcome: "research_review_required",
+            serviceText,
+            report: [answer, serviceText].filter(Boolean).join("\n\n"),
+          };
+        }
         if (publication.readFailed) {
           logger("publication_read_failed", worktreeName);
           return {

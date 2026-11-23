@@ -95,6 +95,13 @@ test("keeps the identifier of a plain text reply to the bot in the same topic", 
   assert.equal(result.decision, "instruction");
   assert.equal(result.text, "Sí, a producció");
   assert.equal(result.replyMessageIdentifier, 49);
+  assert.equal(result.exactDirectReply, false);
+  const exact = classifyInstruction(
+    baseUpdate({ ...update.message, text: "Sí, a producció" }),
+    context,
+  );
+  assert.equal(exact.replyMessageIdentifier, 49);
+  assert.equal(exact.exactDirectReply, true);
 });
 
 test("omits the reply identifier when the reply identity is not proven", () => {
@@ -146,6 +153,7 @@ test("omits the reply identifier when the reply identity is not proven", () => {
 
     assert.equal(result.decision, "instruction");
     assert.equal(result.text, "Sí, a producció");
+    assert.equal(result.exactDirectReply, false, JSON.stringify(overrides));
     assert.equal(
       "replyMessageIdentifier" in result,
       false,

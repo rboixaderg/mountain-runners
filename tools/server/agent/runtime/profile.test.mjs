@@ -43,6 +43,14 @@ test("assembles only trusted runtime files and enables only the sandbox tool", a
   assert.equal(existsSync(join(profile, "extensions", "arguments.mjs")), true);
   assert.equal(existsSync(join(profile, "extensions", "commands.mjs")), true);
   assert.equal(
+    existsSync(join(profile, "extensions", "web-wire-client.mjs")),
+    true,
+  );
+  assert.equal(
+    existsSync(join(profile, "extensions", "web-wire-limits.mjs")),
+    true,
+  );
+  assert.equal(
     existsSync(join(profile, "extensions", "attachment-read.mjs")),
     true,
   );

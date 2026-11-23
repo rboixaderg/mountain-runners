@@ -9,7 +9,7 @@ test("keeps project credentials out of Pi and explicitly enables only the isolat
     config: {
       model: {
         identifier: "example/model",
-        providerEnvironmentVariables: ["PROVIDER_KEY"],
+        providerEnvironmentVariables: ["PROVIDER_KEY", "MR_AGENT_WEB_RESEARCH"],
         sandboxImage: "sandbox:1",
       },
       paths: { sessions: "/private/sessions", worktrees: "/private/worktrees" },
@@ -32,6 +32,7 @@ test("keeps project credentials out of Pi and explicitly enables only the isolat
       PROVIDER_KEY: "synthetic-provider",
       GITHUB_TOKEN: "synthetic-github",
       TELEGRAM_BOT_TOKEN: "synthetic-telegram",
+      MR_AGENT_WEB_RESEARCH: "1",
     },
     stopCommands: async (identifier) => stopped.push(identifier),
   });
@@ -40,6 +41,7 @@ test("keeps project credentials out of Pi and explicitly enables only the isolat
   assert.equal(options.environment.TMPDIR, "/private/home/tmp");
   assert.equal(options.environment.GITHUB_TOKEN, undefined);
   assert.equal(options.environment.TELEGRAM_BOT_TOKEN, undefined);
+  assert.equal(options.environment.MR_AGENT_WEB_RESEARCH, undefined);
   assert.equal(options.environment.MR_AGENT_READ_ONLY, "true");
   assert.equal(
     options.environment.MR_AGENT_ATTACHMENT_PATH,

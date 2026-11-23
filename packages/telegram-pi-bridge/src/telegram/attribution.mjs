@@ -347,6 +347,7 @@ export function classifyInstruction(
     ...identity,
     text,
     attachments,
+    exactDirectReply: replyMessageIdentifier !== null && message.text === text,
     ...(replyMessageIdentifier === null ? {} : { replyMessageIdentifier }),
   };
 }

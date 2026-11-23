@@ -33,5 +33,6 @@ export async function runAgent(config, context) {
     readOnly: context.readOnly,
     worktreePath: context.worktreePath,
     signal: context.signal,
+    webResearch: context.webResearch,
   });
 }

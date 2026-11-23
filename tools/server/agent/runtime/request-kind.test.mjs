@@ -29,6 +29,7 @@ test("classifies without tools, repository context, extensions or session histor
     worktreePath: "/synthetic-worktrees/topic",
     attachments: [{ name: "imatge-1.png" }],
     classifyOnly: true,
+    webResearch: async () => ({ status: "ok" }),
   });
   const argumentsList = buildPiArguments(options);
   for (const flag of [

@@ -2,9 +2,11 @@
 // knows the model environment allowlist, the sandbox extension and Podman cleanup.
 
 import { join } from "node:path";
+import { spawn } from "node:child_process";
 import { runPiPrompt } from "telegram-pi-bridge/pi";
 import { attachmentDirectoryName } from "../attachments/destination.mjs";
 import { stopSandboxedCommands } from "../sandbox/commands.mjs";
+import { serveWebResearch } from "./web-wire-server.mjs";
 
 export function buildPiEnvironment({
   environment,
@@ -36,7 +38,7 @@ export function buildPiEnvironment({
     allowedEnvironment.MR_AGENT_READ_ONLY = String(readOnly);
   }
   for (const name of providerEnvironmentVariables) {
-    if (environment[name] !== undefined) {
+    if (name !== "MR_AGENT_WEB_RESEARCH" && environment[name] !== undefined) {
       allowedEnvironment[name] = environment[name];
     }
   }
@@ -71,7 +73,9 @@ export function projectPiOptions({
   stopCommands = stopSandboxedCommands,
   readOnly = false,
   classifyOnly = false,
+  webResearch,
 }) {
+  const webEnabled = !classifyOnly && typeof webResearch === "function";
   return {
     command: config.model.piCommand,
     model: config.model.identifier,
@@ -79,7 +83,13 @@ export function projectPiOptions({
     profileDirectory,
     sessionIdentifier: classifyOnly ? undefined : sessionIdentifier,
     sessionDirectory: classifyOnly ? undefined : config.paths.sessions,
-    tools: classifyOnly ? [] : ["sandbox_bash", "view_attachment"],
+    tools: classifyOnly
+      ? []
+      : [
+          "sandbox_bash",
+          "view_attachment",
+          ...(webEnabled ? ["web_research"] : []),
+        ],
     extensions: classifyOnly
       ? []
       : [join(profileDirectory, "extensions", "sandbox-bash.ts")],
@@ -91,36 +101,59 @@ export function projectPiOptions({
     onInterrupted: classifyOnly
       ? undefined
       : () => stopCommands(sandboxIdentifier),
-    environment: buildPiEnvironment({
-      environment,
-      profileDirectory,
-      providerEnvironmentVariables: config.model.providerEnvironmentVariables,
-      sandbox: {
-        image: config.model.sandboxImage,
-        worktreeRoot: config.paths.worktrees,
-        limits: config.limits,
-      },
-      sandboxIdentifier,
-      worktreePath,
-      attachments,
-      readOnly,
-      classifyOnly,
-    }),
+    environment: {
+      ...buildPiEnvironment({
+        environment,
+        profileDirectory,
+        providerEnvironmentVariables: config.model.providerEnvironmentVariables,
+        sandbox: {
+          image: config.model.sandboxImage,
+          worktreeRoot: config.paths.worktrees,
+          limits: config.limits,
+        },
+        sandboxIdentifier,
+        worktreePath,
+        attachments,
+        readOnly,
+        classifyOnly,
+      }),
+      ...(webEnabled ? { MR_AGENT_WEB_RESEARCH: "1" } : {}),
+    },
   };
 }
 
 export async function runProjectPrompt(options) {
   const piOptions = projectPiOptions(options);
   let interrupted = false;
+  let closeWebResearch;
   try {
     return await runPiPrompt({
       ...piOptions,
+      ...(typeof options.webResearch === "function" && !options.classifyOnly
+        ? {
+            spawnImpl: (command, args, spawnOptions) => {
+              const child = spawn(command, args, {
+                ...spawnOptions,
+                stdio: ["pipe", "pipe", "pipe", "pipe"],
+              });
+              closeWebResearch = serveWebResearch(
+                child.stdio[3],
+                options.webResearch,
+                options.signal,
+              );
+              child.once("exit", closeWebResearch);
+              child.stdin.once("finish", closeWebResearch);
+              return child;
+            },
+          }
+        : {}),
       onInterrupted: async () => {
         interrupted = true;
         await piOptions.onInterrupted?.();
       },
     });
   } finally {
+    closeWebResearch?.();
     // A tool error reported to the model must not hide a surviving container.
     // Verify cleanup after settled turns too, before checks or publication.
     if (!interrupted) await piOptions.onInterrupted?.();

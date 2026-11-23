@@ -270,12 +270,52 @@ export class GitHubTrust {
    * Git command runs. All outgoing history is checked for protected paths,
    * live credentials and inspection limits before the first remote write.
    */
-  async pushBranch({ worktree, branch, secrets = [], signal }) {
+  async pushBranch({ worktree, branch, secrets = [], signal, approved }) {
     let commit;
     try {
       assertWorkBranch(branch);
       await this.#assertOrigin(worktree, { signal });
       commit = await this.#git(worktree, ["rev-parse", "HEAD"], {}, { signal });
+      if (approved) {
+        assertFullCommit(approved.commit);
+        assertFullCommit(approved.base);
+        if (approved.expectedHead !== null)
+          assertFullCommit(approved.expectedHead);
+        if (
+          approved.repository !== this.#repository ||
+          approved.branch !== branch ||
+          approved.worktreePath !== worktree.path ||
+          approved.gitDirectory !== worktree.gitDirectory
+        ) {
+          throw new Error("The approved publication context has changed.");
+        }
+        if (commit !== approved.commit) {
+          throw new Error("The approved commit has changed.");
+        }
+        const base = await this.#git(
+          worktree,
+          ["rev-parse", "origin/main"],
+          {},
+          { signal },
+        );
+        if (base !== approved.base)
+          throw new Error("The approved base has changed.");
+        // A lease must not turn a normally fast-forward-only push into a force push.
+        if (approved.expectedHead !== null) {
+          await this.#git(
+            worktree,
+            [
+              "merge-base",
+              "--is-ancestor",
+              approved.expectedHead,
+              approved.commit,
+            ],
+            {},
+            { signal },
+          );
+        }
+        commit = approved.commit;
+      }
       await assertPublishableHistory({ worktree, commit, secrets, signal });
     } catch (error) {
       // A stop is not a refusal: nothing may have reached GitHub yet, and the
@@ -295,7 +335,17 @@ export class GitHubTrust {
 
     await this.#git(
       worktree,
-      ["push", "--no-follow-tags", "origin", `${commit}:refs/heads/${branch}`],
+      [
+        "push",
+        "--no-follow-tags",
+        ...(approved
+          ? [
+              `--force-with-lease=refs/heads/${branch}:${approved.expectedHead ?? ""}`,
+            ]
+          : []),
+        "origin",
+        `${commit}:refs/heads/${branch}`,
+      ],
       {
         GIT_CONFIG_COUNT: "1",
         GIT_CONFIG_KEY_0: `url.https://x-access-token:${this.#token}@github.com/.insteadOf`,
@@ -304,6 +354,53 @@ export class GitHubTrust {
       { signal, timeoutMilliseconds: remoteGitTimeoutMilliseconds },
     );
     return { branch, commit };
+  }
+
+  /** Read the private candidate without creating a branch or pull request. */
+  async researchCandidate({ worktree, branch, title, body, repair, signal }) {
+    assertWorkBranch(branch);
+    await this.#assertOrigin(worktree, { signal });
+    const commit = await this.#git(
+      worktree,
+      ["rev-parse", "HEAD"],
+      {},
+      { signal },
+    );
+    const base = await this.#git(
+      worktree,
+      ["rev-parse", "origin/main"],
+      {},
+      { signal },
+    );
+    assertFullCommit(commit);
+    assertFullCommit(base);
+    let expectedHead;
+    try {
+      const ref = await this.#request(
+        "GET",
+        `/repos/${this.#repository}/git/ref/heads/${branch}`,
+        undefined,
+        { signal },
+      );
+      expectedHead = ref?.object?.sha;
+      assertFullCommit(expectedHead);
+    } catch (error) {
+      if (!(error instanceof GitHubResponseError) || error.status !== 404)
+        throw error;
+      expectedHead = null;
+    }
+    return {
+      repository: this.#repository,
+      worktreePath: worktree.path,
+      gitDirectory: worktree.gitDirectory,
+      branch,
+      commit,
+      base,
+      expectedHead,
+      title,
+      body,
+      repair: repair ?? null,
+    };
   }
 
   async getCommitCheckRuns({ commit, signal }) {
