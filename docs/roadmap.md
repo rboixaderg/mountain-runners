@@ -404,8 +404,9 @@ les entregues posteriors.
 **Criteris de tancament:**
 
 - L'ADR i els controls de permisos ampliats estan aprovats. L'agent només
-  fusiona amb la petició explícita d'un membre verificat i el commit validat;
-  no fa push a `main`, no desplega ni accedeix a secrets de producció.
+  fusiona amb la petició explícita d'un membre verificat o la seva confirmació
+  «Sí, a producció» a la pregunta del servei, i el commit validat; no fa push a
+  `main`, no desplega ni accedeix a secrets de producció.
 - Les sessions compartides, les consultes i la represa de PR entre fils estan
   provades sense sobreescriure treball aliè ni duplicar accions en un reinici.
 - Cada instrucció és atribuïble a una persona al registre privat; les

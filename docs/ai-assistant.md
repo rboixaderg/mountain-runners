@@ -31,10 +31,12 @@ de shell o de producció sense restriccions.
 
 El merge continua sent una decisió humana. L'agent privat de desenvolupament de
 la fase 8 el pot executar només amb la petició explícita d'un membre verificat
-del grup, el commit que el servei ha informat al fil i les comprovacions
-obligatòries en verd, segons
+del grup o la seva resposta «Sí, a producció» a la pregunta fixa que segueix la
+validació «La feina està validada», fixada a la PR i el commit de l'avís vigent
+de la preview confirmada i amb les comprovacions obligatòries en verd, segons
 l'[ADR 0013](decisions/0013-private-development-agent-boundary.md), amb l'esmena
-de merge aprovada (PR #183) i els controls verificats abans d'activar-lo.
+de merge aprovada (PR #183) i els controls verificats abans d'activar-lo. Cap
+altre text autoritza res.
 
 ## Agent De Desenvolupament
 

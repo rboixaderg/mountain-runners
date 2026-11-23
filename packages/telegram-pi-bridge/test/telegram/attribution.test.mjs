@@ -78,6 +78,102 @@ test("accepts a reply to the bot without a mention", () => {
   assert.equal(result.text, "i ara el CHANGELOG");
 });
 
+test("keeps the identifier of a plain text reply to the bot in the same topic", () => {
+  const update = baseUpdate({
+    text: "  Sí, a producció  ",
+    entities: [],
+    reply_to_message: {
+      message_id: 49,
+      chat: { id: -1001234567890, type: "supergroup" },
+      message_thread_id: 7,
+      from: { id: botIdentifier, is_bot: true },
+    },
+  });
+
+  const result = classifyInstruction(update, context);
+
+  assert.equal(result.decision, "instruction");
+  assert.equal(result.text, "Sí, a producció");
+  assert.equal(result.replyMessageIdentifier, 49);
+});
+
+test("omits the reply identifier when the reply identity is not proven", () => {
+  const safeReply = {
+    message_id: 49,
+    chat: { id: -1001234567890, type: "supergroup" },
+    message_thread_id: 7,
+    from: { id: botIdentifier, is_bot: true },
+  };
+  const unsafeMessages = [
+    { reply_to_message: { ...safeReply, message_id: 0 } },
+    { reply_to_message: { ...safeReply, message_id: -1 } },
+    { reply_to_message: { ...safeReply, message_id: 1.5 } },
+    { reply_to_message: { ...safeReply, message_id: 2 ** 53 } },
+    {
+      reply_to_message: {
+        ...safeReply,
+        chat: { id: -1005555555555, type: "supergroup" },
+      },
+    },
+    { reply_to_message: { ...safeReply, message_thread_id: 8 } },
+    { reply_to_message: safeReply, external_reply: { message_id: 49 } },
+    { reply_to_message: safeReply, quote: { text: "Sí, a producció" } },
+    { reply_to_message: safeReply, edit_date: 1763000000 },
+    { reply_to_message: safeReply, via_bot: { id: 7 } },
+    { reply_to_message: safeReply, media_group_id: "album-1" },
+    { reply_to_message: safeReply, caption: "Sí, a producció" },
+    { reply_to_message: safeReply, video: {} },
+    {
+      reply_to_message: safeReply,
+      entities: [{ type: "blockquote", offset: 0, length: 1 }],
+    },
+    {
+      reply_to_message: safeReply,
+      entities: [{ type: "expandable_blockquote", offset: 0, length: 1 }],
+    },
+    {
+      reply_to_message: safeReply,
+      text: `@${botUsername} Sí, a producció`,
+      entities: [mentionEntity()],
+    },
+  ];
+
+  for (const overrides of unsafeMessages) {
+    const result = classifyInstruction(
+      baseUpdate({ text: "Sí, a producció", entities: [], ...overrides }),
+      context,
+    );
+
+    assert.equal(result.decision, "instruction");
+    assert.equal(result.text, "Sí, a producció");
+    assert.equal(
+      "replyMessageIdentifier" in result,
+      false,
+      JSON.stringify(overrides),
+    );
+  }
+});
+
+test("omits the reply identifier when the replied message belongs to another person", () => {
+  const result = classifyInstruction(
+    baseUpdate({
+      text: `@${botUsername} Sí, a producció`,
+      entities: [mentionEntity()],
+      reply_to_message: {
+        message_id: 49,
+        chat: { id: -1001234567890, type: "supergroup" },
+        message_thread_id: 7,
+        from: { id: 7, is_bot: true },
+      },
+    }),
+    context,
+  );
+
+  assert.equal(result.decision, "instruction");
+  assert.equal(result.text, "Sí, a producció");
+  assert.equal("replyMessageIdentifier" in result, false);
+});
+
 test("accepts a mention regardless of its case", () => {
   const text = `@${botUsername.toUpperCase()} fes un canvi petit`;
   const result = classifyInstruction(

@@ -909,8 +909,8 @@ automàtica que impedeixi que la documentació torni a divergir.
 ### Fusionar Quan La Persona Dona La Feina Per Validada
 
 **Estat:** Especificada a [Confirmació del merge amb una pregunta i una
-resposta](specs/preview-merge-confirmation.md) el 22 de novembre de 2026, amb una
-esmena proposada a l'ADR 0013.
+resposta](specs/preview-merge-confirmation.md) el 22 de novembre de 2026, amb
+l'esmena acceptada de l'ADR 0013.
 
 **Problema:** avui el servei només fusiona una PR amb l'ordre literal `/merge`
 d'una persona verificada del grup. Les persones del club no l'escriuran mai: el
@@ -918,8 +918,8 @@ que fan és dir al tema que la feina està acabada i validada.
 
 **Resultat esperat:** una validació explícita d'una persona verificada en resposta
 a l'avís vigent de preview confirmada provoca només una pregunta fixa; només la
-resposta «Sí» d'aquella persona a aquella pregunta autoritza el merge del commit
-anunciat per la preview. El text no autoritza res més i `/merge` es manté. La T8.9
+resposta «Sí, a producció» d'aquella persona a aquella pregunta autoritza el
+merge del commit anunciat per la preview. El text no autoritza res més i `/merge` es manté. La T8.9
 ja demana que l'avís de preview confirmat fixi el SHA per a la fusió; avui el fixa
 el seguiment de CI. Es mantenen la decisió humana, la pertinença verificada, les
 comprovacions requerides en verd, l'absència d'auto-merge i que mai es fusiona per
@@ -930,7 +930,7 @@ fixació del SHA a la preview); alineació de la documentació operativa i de le
 instruccions d'agents abans d'activar; [especificació de l'etiqueta de
 preview](specs/preview-label.md).
 
-**Seguiment:** pendent de triatge.
+**Seguiment:** T1 fusionada (PR #294); T2 en curs.
 
 ### Butlletí I Analítica Del Club
 
