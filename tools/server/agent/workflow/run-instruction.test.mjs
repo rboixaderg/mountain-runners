@@ -1978,6 +1978,96 @@ test("keeps the worktree and publishes nothing when the checks fail", async (con
   assert.equal(existsSync(topicWorktreePath(paths)), true);
 });
 
+for (const scenario of [
+  {
+    name: "timeout",
+    checkResult: {
+      exitCode: -1,
+      signal: "SIGKILL",
+      timedOut: true,
+      outputLimitExceeded: false,
+    },
+    expectedReport: instructionReports.checksTimedOut,
+    expectedDiagnostics: {
+      reason: "timeout",
+      exitCode: -1,
+      signal: "SIGKILL",
+    },
+  },
+  {
+    name: "output_limit",
+    checkResult: {
+      exitCode: -1,
+      signal: "SIGKILL",
+      timedOut: false,
+      outputLimitExceeded: true,
+    },
+    expectedReport: instructionReports.checksFailed,
+    expectedDiagnostics: {
+      reason: "output_limit",
+      exitCode: -1,
+      signal: "SIGKILL",
+    },
+  },
+  {
+    name: "cancelled",
+    abortDuringChecks: true,
+    checkResult: {
+      exitCode: -1,
+      signal: "SIGKILL",
+      timedOut: false,
+      outputLimitExceeded: false,
+    },
+    expectedReport: instructionReports.checksFailed,
+    expectedDiagnostics: {
+      reason: "cancelled",
+      exitCode: -1,
+      signal: "SIGKILL",
+    },
+  },
+]) {
+  test(`logs checks_failed diagnostics for ${scenario.name}`, async (context) => {
+    const paths = await fixture(context);
+    const github = githubStub();
+    const entries = [];
+    const controller = new AbortController();
+    const runner = createProjectRunner({
+      config: configFor(paths),
+      classifyRequest: async () => ({ kind: "implementation" }),
+      github,
+      logger: (event, detail) => entries.push([event, detail]),
+      runModel: async ({ worktreePath }) => {
+        writeFileSync(join(worktreePath, "change.txt"), "canvi\n");
+        return { text: "SUMMARY: fix(tools): broken change" };
+      },
+      runChecks: async () => {
+        if (scenario.abortDuringChecks) controller.abort();
+        return {
+          stdout: "private stdout",
+          stderr: "private stderr",
+          ...scenario.checkResult,
+        };
+      },
+    });
+
+    const result = await runner(request(), { signal: controller.signal });
+
+    assert.equal(result.outcome, "failed");
+    assert.equal(result.report, scenario.expectedReport);
+    const [, diagnostics] = entries.find(
+      ([event]) => event === "checks_failed",
+    );
+    assert.ok(
+      Number.isInteger(diagnostics.durationMs) && diagnostics.durationMs >= 0,
+    );
+    assert.deepEqual(diagnostics, {
+      ...scenario.expectedDiagnostics,
+      durationMs: diagnostics.durationMs,
+    });
+    assert.deepEqual(github.pushes, []);
+  });
+}
+
 test("reports a timed-out local run as failed and keeps the work", async (context) => {
   const paths = await fixture(context);
   const github = githubStub();
@@ -2060,34 +2150,43 @@ test("logs the reason of a local failure for the operator", async (context) => {
   ]);
 });
 
-test("logs Pi's exit metadata without logging the exception message", async (context) => {
-  const paths = await fixture(context);
-  const entries = [];
-  const diagnostics = {
+for (const diagnostics of [
+  {
     reason: "premature_exit",
     exitCode: null,
     signal: "SIGKILL",
-  };
-  const runner = createProjectRunner({
-    config: configFor(paths),
-    github: githubStub(),
-    logger: (event, detail) => entries.push([event, detail]),
-    classifyRequest: async () => ({ kind: "implementation" }),
-    runModel: async () => {
-      throw new PiRunError("private error message", diagnostics);
-    },
-    runChecks: async () => assert.fail("checks must not start"),
+  },
+  {
+    reason: "output_limit",
+  },
+]) {
+  test(`logs Pi's ${diagnostics.reason} metadata without logging the exception message`, async (context) => {
+    const paths = await fixture(context);
+    const entries = [];
+    const runner = createProjectRunner({
+      config: configFor(paths),
+      github: githubStub(),
+      logger: (event, detail) => entries.push([event, detail]),
+      classifyRequest: async () => ({ kind: "implementation" }),
+      runModel: async () => {
+        throw new PiRunError("private error message", {
+          ...diagnostics,
+          stderr: "private transport output",
+        });
+      },
+      runChecks: async () => assert.fail("checks must not start"),
+    });
+
+    const result = await runner(request());
+
+    assert.equal(result.outcome, "failed");
+    assert.equal(result.report, instructionReports.executionFailed);
+    assert.deepEqual(entries, [
+      ["pi_rpc_failed", diagnostics],
+      ["maintainer_attention", "executionFailed"],
+    ]);
   });
-
-  const result = await runner(request());
-
-  assert.equal(result.outcome, "failed");
-  assert.equal(result.report, instructionReports.executionFailed);
-  assert.deepEqual(entries, [
-    ["pi_rpc_failed", diagnostics],
-    ["maintainer_attention", "executionFailed"],
-  ]);
-});
+}
 
 test("blocks after an unconfirmed sandbox stop even before publication", async (context) => {
   const paths = await fixture(context);

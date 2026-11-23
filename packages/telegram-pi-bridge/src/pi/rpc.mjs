@@ -10,6 +10,7 @@ const maximumOutputBytes = 1024 * 1024;
 export class PiRunError extends Error {
   constructor(message, diagnostics) {
     super(message);
+    this.name = "PiRunError";
     this.diagnostics = diagnostics;
   }
 }

@@ -69,6 +69,22 @@ import {
   stripChangeSummary,
 } from "../policy/development.mjs";
 
+function piRunDiagnostics(diagnostics) {
+  if (diagnostics?.reason === "output_limit") {
+    return { reason: "output_limit" };
+  }
+  if (diagnostics?.reason === "premature_exit") {
+    return {
+      reason: "premature_exit",
+      exitCode:
+        typeof diagnostics.exitCode === "number" ? diagnostics.exitCode : null,
+      signal:
+        typeof diagnostics.signal === "string" ? diagnostics.signal : null,
+    };
+  }
+  return { reason: "unknown" };
+}
+
 export function createInstructionRunner({
   repositoryPath,
   worktreeRoot,
@@ -1197,7 +1213,7 @@ export function createInstructionRunner({
       };
     } catch (error) {
       if (error instanceof PiRunError) {
-        logger("pi_rpc_failed", error.diagnostics);
+        logger("pi_rpc_failed", piRunDiagnostics(error.diagnostics));
       } else {
         logger(
           "instruction_failed",

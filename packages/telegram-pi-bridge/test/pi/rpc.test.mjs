@@ -308,7 +308,11 @@ for (const stream of ["stdout", "stderr", "combined"]) {
           cleanups += 1;
         },
       }),
-      { diagnostics: { reason: "output_limit" }, message: /output limit/u },
+      {
+        name: "PiRunError",
+        diagnostics: { reason: "output_limit" },
+        message: /output limit/u,
+      },
     );
     assert.equal(cleanups, 1);
   });
@@ -324,7 +328,10 @@ test("reports the exit code when Pi exits without settling", async (context) => 
       cwd: directory.worktreePath,
       message: "question",
     }),
-    { diagnostics: { reason: "premature_exit", exitCode: 7, signal: null } },
+    {
+      name: "PiRunError",
+      diagnostics: { reason: "premature_exit", exitCode: 7, signal: null },
+    },
   );
 });
 
