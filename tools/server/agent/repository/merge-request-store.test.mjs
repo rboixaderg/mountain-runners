@@ -195,3 +195,227 @@ test("reports the newest request of one pull request, never of another", (contex
   );
   store.close();
 });
+
+const question = {
+  sessionKey: request.sessionKey,
+  questionMessageIdentifier: 900,
+  noticeMessageIdentifier: 800,
+  publicationUpdateIdentifier: 12,
+  validationUpdateIdentifier: 20,
+  authorIdentifier: request.authorIdentifier,
+  pullRequestNumber: request.pullRequestNumber,
+  commitSha: request.commitSha,
+};
+
+test("stores the question after a confirmed send and reads it within its topic", (context) => {
+  const store = new MergeRequestStore(fixture(context));
+  assert.equal(store.saveQuestion(question), true);
+
+  const stored = store.question({
+    sessionKey: question.sessionKey,
+    questionMessageIdentifier: question.questionMessageIdentifier,
+  });
+  assert.equal(
+    stored.notice_message_identifier,
+    question.noticeMessageIdentifier,
+  );
+  assert.equal(stored.pull_request_number, question.pullRequestNumber);
+  assert.equal(stored.commit_sha, question.commitSha);
+  assert.equal(stored.author_identifier, question.authorIdentifier);
+  assert.equal(stored.consumed_at, null);
+
+  assert.equal(
+    store.question({
+      sessionKey: "-100999:4",
+      questionMessageIdentifier: question.questionMessageIdentifier,
+    }),
+    undefined,
+  );
+  store.close();
+});
+
+test("one validation offers at most one question", (context) => {
+  const store = new MergeRequestStore(fixture(context));
+  store.saveQuestion(question);
+  assert.equal(
+    store.saveQuestion({ ...question, questionMessageIdentifier: 901 }),
+    false,
+  );
+  assert.equal(
+    store.question({
+      sessionKey: question.sessionKey,
+      questionMessageIdentifier: 901,
+    }),
+    undefined,
+  );
+  assert.equal(
+    store.saveQuestion({
+      ...question,
+      questionMessageIdentifier: 901,
+      validationUpdateIdentifier: 21,
+      noticeMessageIdentifier: question.noticeMessageIdentifier + 1,
+    }),
+    true,
+  );
+  store.close();
+});
+
+test("offers at most one unanswered question per notice and person", (context) => {
+  const store = new MergeRequestStore(fixture(context));
+  assert.equal(
+    store.hasQuestion({
+      sessionKey: question.sessionKey,
+      noticeMessageIdentifier: question.noticeMessageIdentifier,
+      authorIdentifier: question.authorIdentifier,
+    }),
+    false,
+  );
+  store.saveQuestion(question);
+  assert.equal(
+    store.hasQuestion({
+      sessionKey: question.sessionKey,
+      noticeMessageIdentifier: question.noticeMessageIdentifier,
+      authorIdentifier: question.authorIdentifier,
+    }),
+    true,
+  );
+  assert.equal(
+    store.hasQuestion({
+      sessionKey: question.sessionKey,
+      noticeMessageIdentifier: question.noticeMessageIdentifier,
+      authorIdentifier: question.authorIdentifier + 1,
+    }),
+    false,
+  );
+  assert.equal(
+    store.hasQuestion({
+      sessionKey: question.sessionKey,
+      noticeMessageIdentifier: question.noticeMessageIdentifier + 1,
+      authorIdentifier: question.authorIdentifier,
+    }),
+    false,
+  );
+  assert.equal(
+    store.hasQuestion({
+      sessionKey: "-100999:4",
+      noticeMessageIdentifier: question.noticeMessageIdentifier,
+      authorIdentifier: question.authorIdentifier,
+    }),
+    false,
+  );
+  const next = {
+    ...question,
+    questionMessageIdentifier: 901,
+    validationUpdateIdentifier: 21,
+  };
+  assert.equal(store.saveQuestion(next), false);
+  assert.equal(store.consumeQuestion(question), true);
+  assert.equal(store.saveQuestion(next), true);
+  store.close();
+});
+
+test("consumes the question once, for the person it was fixed to", (context) => {
+  const store = new MergeRequestStore(fixture(context));
+  store.saveQuestion(question);
+
+  assert.equal(
+    store.consumeQuestion({
+      sessionKey: question.sessionKey,
+      questionMessageIdentifier: question.questionMessageIdentifier,
+      authorIdentifier: question.authorIdentifier + 1,
+    }),
+    false,
+  );
+  assert.equal(
+    store.question({
+      sessionKey: question.sessionKey,
+      questionMessageIdentifier: question.questionMessageIdentifier,
+    }).consumed_at,
+    null,
+  );
+
+  assert.equal(
+    store.consumeQuestion({
+      sessionKey: question.sessionKey,
+      questionMessageIdentifier: question.questionMessageIdentifier,
+      authorIdentifier: question.authorIdentifier,
+    }),
+    true,
+  );
+  assert.notEqual(
+    store.question({
+      sessionKey: question.sessionKey,
+      questionMessageIdentifier: question.questionMessageIdentifier,
+    }).consumed_at,
+    null,
+  );
+  assert.equal(
+    store.consumeQuestion({
+      sessionKey: question.sessionKey,
+      questionMessageIdentifier: question.questionMessageIdentifier,
+      authorIdentifier: question.authorIdentifier,
+    }),
+    false,
+  );
+  store.close();
+});
+
+test("a restart keeps a consumed question consumed and a fresh one usable", (context) => {
+  const path = fixture(context);
+  const first = new MergeRequestStore(path);
+  first.saveQuestion(question);
+  first.consumeQuestion({
+    sessionKey: question.sessionKey,
+    questionMessageIdentifier: question.questionMessageIdentifier,
+    authorIdentifier: question.authorIdentifier,
+  });
+  first.close();
+
+  const second = new MergeRequestStore(path);
+  const stored = second.question({
+    sessionKey: question.sessionKey,
+    questionMessageIdentifier: question.questionMessageIdentifier,
+  });
+  assert.notEqual(stored.consumed_at, null);
+  assert.equal(
+    second.consumeQuestion({
+      sessionKey: question.sessionKey,
+      questionMessageIdentifier: question.questionMessageIdentifier,
+      authorIdentifier: question.authorIdentifier,
+    }),
+    false,
+  );
+  assert.equal(
+    second.saveQuestion({
+      ...question,
+      questionMessageIdentifier: 902,
+      validationUpdateIdentifier: 22,
+    }),
+    true,
+  );
+  assert.equal(
+    second.consumeQuestion({
+      sessionKey: question.sessionKey,
+      questionMessageIdentifier: 902,
+      authorIdentifier: question.authorIdentifier,
+    }),
+    true,
+  );
+  second.close();
+});
+
+test("reports whether a merge of the pull request is open", (context) => {
+  const store = new MergeRequestStore(fixture(context));
+  assert.equal(store.hasOpenRequest(request.pullRequestNumber), false);
+  store.begin(request);
+  assert.equal(store.hasOpenRequest(request.pullRequestNumber), true);
+  assert.equal(store.hasOpenRequest(request.pullRequestNumber + 1), false);
+  store.markFailed(1);
+  assert.equal(store.hasOpenRequest(request.pullRequestNumber), false);
+  store.begin({ ...request, updateIdentifier: 2 });
+  store.markUncertain(2);
+  assert.equal(store.hasOpenRequest(request.pullRequestNumber), true);
+  store.markNotMerged(2);
+  assert.equal(store.hasOpenRequest(request.pullRequestNumber), false);
+  store.close();
+});

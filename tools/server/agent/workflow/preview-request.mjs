@@ -27,6 +27,7 @@
 import { parseSessionKey } from "telegram-pi-bridge/sessions";
 import { confirmedPreviewOrigin } from "../repository/preview-comment.mjs";
 import {
+  isNoticeMessageIdentifier,
   previewBeginResults,
   previewStates,
 } from "../repository/preview-request-store.mjs";
@@ -58,6 +59,16 @@ const refusals = {
 
 function describeTarget({ pullRequestNumber, commit }) {
   return `#${pullRequestNumber} ${commit.slice(0, 7)}`;
+}
+
+/**
+ * The identifier a reply to the delivered notice points at, or null. Only a
+ * positive Telegram message id links a reply: anything else leaves the notice
+ * delivered but unidentified, and a later confirmation never points at it.
+ */
+function deliveredNoticeIdentifier(message) {
+  const identifier = message?.message_id;
+  return isNoticeMessageIdentifier(identifier) ? identifier : null;
 }
 
 export function createPreviewRequests({
@@ -280,10 +291,14 @@ export function createPreviewRequests({
   }
 
   /**
-   * Whether the report reached Telegram. A failed send is retried by the next
+   * Whether the report reached Telegram, with the identifier of the message it
+   * accepted, or null when the send failed. A failed send is retried by the next
    * cycle, so the note carries the identity of the effect: the session receives
    * it once, whatever the number of attempts. The note keeps the facts the next
    * turn of the model needs; the text sent to the topic stays plain.
+   *
+   * The identifier a later reply points at is what Telegram answered with: an
+   * answer without a usable one leaves the notice delivered but unidentified.
    */
   async function report(row, text, { signal, state, note }) {
     const { chatIdentifier, threadIdentifier } = parseSessionKey(
@@ -300,21 +315,24 @@ export function createPreviewRequests({
       // commit is part of the identity of the effect.
       effectKey: `preview:${row.update_identifier}:${row.commit_sha}:${state}`,
     });
+    let message;
     try {
-      await telegram.sendMessage({
+      message = await telegram.sendMessage({
         chatIdentifier,
         messageThreadIdentifier: threadIdentifier,
         text,
         signal,
       });
-      return true;
     } catch (error) {
       logger(
         "preview_report_failed",
         error instanceof Error ? error.name : "unknown",
       );
-      return false;
+      return null;
     }
+    return {
+      noticeMessageIdentifier: deliveredNoticeIdentifier(message),
+    };
   }
 
   /**
@@ -390,7 +408,7 @@ export function createPreviewRequests({
       });
       if (origin !== null) {
         if (signal?.aborted) return;
-        const sent = await report(
+        const notice = await report(
           row,
           previewReports.confirmed({ origin, reviewUrl }),
           {
@@ -399,15 +417,22 @@ export function createPreviewRequests({
             note: previewNotes.confirmed({ ...target, origin }),
           },
         );
-        if (!sent) continue;
-        // The state and the origin the publisher confirmed are written together:
-        // a confirmation never ends without the URL, and the next turn of the
-        // topic cannot read GitHub and never builds it.
+        if (notice === null) continue;
+        if (notice.noticeMessageIdentifier === null) {
+          // The notice reached the topic but Telegram named no message a reply
+          // can point at: the row ends, and it is never a delivered preview.
+          logger("preview_notice_unidentified", describeTarget(target));
+        }
+        // The state, the origin the publisher confirmed and the identifier of
+        // the notice are written together: a confirmation never ends without
+        // the URL, and the next turn of the topic cannot read GitHub and never
+        // builds it.
         const ended = store.finish(
           row.update_identifier,
           row.commit_sha,
           previewStates.confirmed,
           origin,
+          notice.noticeMessageIdentifier,
         );
         if (!ended) continue;
         safeTrace({
@@ -425,12 +450,12 @@ export function createPreviewRequests({
         confirmationTimeoutMilliseconds;
       if (!expired) continue;
       if (signal?.aborted) return;
-      const sent = await report(row, previewReports.unconfirmed, {
+      const notice = await report(row, previewReports.unconfirmed, {
         signal,
         state: "unconfirmed",
         note: previewNotes.unconfirmed(target),
       });
-      if (!sent) continue;
+      if (notice === null) continue;
       // The notice says the case is left for the maintainer, so it is recorded.
       safeTrace({
         updateIdentifier: row.update_identifier,

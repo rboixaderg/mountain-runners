@@ -739,6 +739,29 @@ async function assertPullRequestBelongsToApp({
   }
 }
 
+// A branch that already holds the tree this run would commit, on the same base
+// commit, only differs in its commit date: pushing it again would restart the
+// checks of its pull request for nothing. A commit the API cannot resolve keeps
+// the previous behaviour and pushes.
+async function holdsSameTree({
+  apiClient,
+  owner,
+  repository,
+  sha,
+  tree,
+  baseSha,
+}) {
+  const existing = await apiClient.get(
+    `/repos/${owner}/${repository}/git/commits/${sha}`,
+    { allowNotFound: true },
+  );
+  if (!existing) return false;
+  return (
+    existing.data.tree?.sha === tree &&
+    existing.data.parents?.[0]?.sha === baseSha
+  );
+}
+
 // Every read-only check for one proposal. The run performs all of them before
 // it writes anything, so a refusal in any source stops the whole run.
 async function preflightProposal({
@@ -826,7 +849,20 @@ async function applyProposal({
   await git(["add", "--all", "--", ...writtenPaths], { cwd });
   const staged = await git(["diff", "--cached", "--name-only", "--"], { cwd });
 
-  if (staged.trim()) {
+  const hasChanges = staged.trim() !== "";
+  const unchangedBranch =
+    hasChanges &&
+    expectedSha !== "" &&
+    (await holdsSameTree({
+      apiClient,
+      owner,
+      repository,
+      sha: expectedSha,
+      tree: (await git(["write-tree"], { cwd })).trim(),
+      baseSha,
+    }));
+
+  if (hasChanges && !unchangedBranch) {
     await git(
       [
         "-c",
@@ -851,11 +887,20 @@ async function applyProposal({
     );
   }
 
+  const body = buildPullRequestBody(proposal);
   let pullRequest;
   if (open) {
+    if (
+      unchangedBranch &&
+      open.title === proposal.title &&
+      open.body === body
+    ) {
+      log(`unchanged pull request ${open.html_url}`);
+      return;
+    }
     ({ data: pullRequest } = await apiClient.patch(
       `/repos/${owner}/${repository}/pulls/${open.number}`,
-      { title: proposal.title, body: buildPullRequestBody(proposal) },
+      { title: proposal.title, body },
     ));
     log(`updated pull request ${pullRequest.html_url}`);
   } else {
@@ -865,7 +910,7 @@ async function applyProposal({
         title: proposal.title,
         head: branch,
         base: defaultBranch,
-        body: buildPullRequestBody(proposal),
+        body,
       },
     ));
     log(`created pull request ${pullRequest.html_url}`);

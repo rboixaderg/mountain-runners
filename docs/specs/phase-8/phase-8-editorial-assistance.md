@@ -195,6 +195,7 @@ són prerequisits per habilitar la nova capacitat d'escriptura del servei.
 | T8.7 Continuïtat de la conversa d'un tema       | Completada | T8.4, T8.5   | Cada missatge acceptat manté el fil del tema           | [#241](https://github.com/rboixaderg/mountain-runners/pull/241)                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
 | T8.8 Experiència de les persones editores       | En curs    | T8.7         | Seqüència del pilot completa sense respostes tècniques | [#244](https://github.com/rboixaderg/mountain-runners/pull/244), [#245](https://github.com/rboixaderg/mountain-runners/pull/245), [#246](https://github.com/rboixaderg/mountain-runners/pull/246), [#247](https://github.com/rboixaderg/mountain-runners/pull/247), [#248](https://github.com/rboixaderg/mountain-runners/pull/248), [#249](https://github.com/rboixaderg/mountain-runners/pull/249)                                                                                                                                   |
 | T8.9 Un tema, una feina                         | En curs    | T8.7, T8.8   | Una feina per tema i preview automàtica amb estat viu  | [#263](https://github.com/rboixaderg/mountain-runners/pull/263), [#266](https://github.com/rboixaderg/mountain-runners/pull/266), [#269](https://github.com/rboixaderg/mountain-runners/pull/269), [#271](https://github.com/rboixaderg/mountain-runners/pull/271), [#272](https://github.com/rboixaderg/mountain-runners/pull/272), [#274](https://github.com/rboixaderg/mountain-runners/pull/274)                                                                                                                                   |
+| T8.10 Cerca web de l'agent privat               | Pendent    | T8.3, T8.5   | Cerca i lectura de fonts públiques des de Telegram     | -                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
 
 ### T8.1: Requisits, sessions, identitats i amenaces
 
@@ -446,7 +447,73 @@ la defineix l'[especificació de l'etiqueta de preview](../preview-label.md).
 proves del servei amb Telegram, GitHub i model simulats i el recorregut del
 pilot. **PR:** diverses, en l'ordre definit a T8.9.
 
+### T8.10: Cerca web de l'agent privat
+
+**Abast:** afegir cerca amb Brave Search i lectura de pàgines públiques de text
+per a consultes i canvis autoritzats, amb fonts a Telegram. **Exclusió:** no
+inclou PDF, execució de JavaScript ni accés de xarxa directe al sandbox.
+**Depèn de:** la base del servei de T8.3, els controls d'auditoria i revocació
+de T8.5 i la revisió de la frontera de l'ADR 0013. **Resultat:** una persona
+autoritzada pot obtenir una resposta contrastable amb fonts públiques.
+**Comprovació:** proves funcionals i negatives de xarxa, privacitat i contingut
+no fiable, i revisió de seguretat abans d'activar la capacitat. **PR:** pròpia.
+
 ## Requisits específics
+
+### Cerca web i lectura de fonts (T8.10)
+
+- En una consulta o una feina autoritzada, l'agent pot cercar automàticament
+  quan necessita informació actualitzada. Utilitza Brave Search i pot llegir
+  pàgines públiques trobades o URL facilitades al tema. El mateix model interpreta
+  els resultats; no s'afegeix cap altre LLM.
+- La resposta al tema inclou les fonts rellevants i distingeix el text llegit
+  dels fragments del cercador. Si una font no es pot llegir o una dada no es
+  pot verificar, ho indica i pot cercar una altra font. Les fonts de recerca no
+  s'afegeixen a la descripció pública de la PR; el flux de publicació comprova
+  aquesta separació i evita publicar contingut privat, sense substituir la
+  revisió humana ni assumir detecció automàtica perfecta.
+- La lectura es limita a text de pàgines públiques sense executar JavaScript,
+  carregar subrecursos ni enviar cookies o credencials. PDF, imatges, documents,
+  pàgines autenticades i formularis queden fora d'aquesta tasca. La
+  [lectura de PDF](../../backlog.md#lectura-de-pdf-per-lagent-privat) es manté
+  com a necessitat independent.
+- El sandbox continua sense xarxa ni credencials. Una frontera de confiança
+  exposa només cerca i lectura, no un proxy arbitrari ni accés de xarxa als
+  scripts del repositori. Abans d'activar-la cal revisar
+  [l'ADR 0013](../../decisions/0013-private-development-agent-boundary.md) i
+  aprovar-ne una esmena si la solució altera una decisió acceptada.
+- La lectura admet només HTTP i HTTPS sense credencials a l'URL. Rebutja
+  destinacions no públiques i valida DNS i l'adreça efectiva de connexió per a
+  IPv4 i IPv6, també a cada redirecció. No pot accedir a serveis interns,
+  metadades de núvol ni producció. Es limiten redireccions, temps, concurrència,
+  resultats, bytes comprimits i descomprimits i text extret; es comprova el
+  tipus de contingut, no només l'extensió.
+- A Brave només s'envia la consulta mínima necessària, no la conversa sencera,
+  identificadors de Telegram ni secrets. Visitar una pàgina també revela la
+  petició al lloc destinatari; les URL, els paràmetres i les URL signades poden
+  contenir dades privades. Es documenten destinataris, tractament de dades,
+  retenció, credencials i costos, sense fixar un límit de despesa mensual.
+- Si la petició requereix dades privades que no es poden ometre, o hi ha dubte
+  sobre la seva divulgació, no s'envien sense confirmació: es mostra al tema el
+  contingut concret i el destinatari abans de transmetre'ls. La confirmació és
+  per a aquella petició, no per a consultes futures ni per publicar o fer merge.
+  Es verifica la pertinença i es vincula al tema, destinatari i contingut; una
+  resposta ambigua, una consulta modificada o una verificació fallida no
+  autoritzen l'enviament. El component de confiança comprova la confirmació
+  abans de transmetre i només l'accepta una vegada. L'espera allibera
+  l'execució perquè la resposta pugui arribar; cancel·lació, caducitat i reinici
+  no concedeixen permisos.
+- Els resultats i les pàgines són dades no fiables, no instruccions ni
+  autoritzacions. Les eines i la publicació mantenen controls independents del
+  model; una pàgina no pot autoritzar consultes privades, canvis, publicació o
+  merge. La detecció automàtica no garanteix identificar totes les dades
+  privades: els controls i la revisió humana continuen sent necessaris.
+- Les proves inclouen consultes i URL amb dades sintètiques, secrets i intents
+  d'injecció; refusos d'adreces internes, DNS canviant, adreces mixtes i
+  redireccions; contingut falsificat, massa gran, comprimit o lent; errors de
+  Brave i del lloc; i confirmacions errònies, repetides, revocades o després
+  d'un reinici. Es comproven els efectes reals a Telegram i al flux de PR amb
+  serveis simulats, sense contactar serveis interns ni publicar dades de prova.
 
 ### Telegram, persones i sessions
 
@@ -986,6 +1053,15 @@ prova simulada no es presenta com a verificació dels permisos reals de GitHub.
   abans d'avaluar l'eina i memòria autònoma obligatòria.
 
 ## Criteris d'acceptació
+
+Per completar T8.10, una persona verificada obté des de Telegram una resposta
+amb fonts a partir de Brave i d'una pàgina pública, tant per a una consulta com
+durant una feina autoritzada. Una URL facilitada al tema es pot llegir amb els
+mateixos controls. La resposta informa de fonts inaccessibles; la descripció de
+la PR no inclou la llista de fonts. Les proves funcionals i negatives de
+T8.10 passen, incloses les de confirmació i de xarxa, i la revisió de seguretat
+comprova la frontera abans d'activar-la. La tasca té PR pròpia revisada i
+fusionada; la seva planificació no activa cap servei ni credencial.
 
 T8.9 substitueix els criteris històrics de classificació, diverses feines,
 represa entre temes i petició explícita de preview. Una persona no tècnica crea

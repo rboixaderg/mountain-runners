@@ -184,11 +184,14 @@ reviewing `apps/web` code. The review of every PR checks these rules:
 - The private phase 8 agent is the only scoped exception. Its merge amendment
   to ADR 0013 is approved (PR #183), but no permission is active until its
   controls are verified. It merges a pull request only on a verified group
-  member's explicit `/merge` request (optionally `/merge <PR>`), resolved and
-  pinned to the pull request and commit the service last reported to that
-  thread, with every required check green and the branch up to date. It never merges on its own initiative, from untrusted text, with newer
-  commits than the reported one or with an administrator bypass. Local sessions
-  and every other agent keep the no-merge rule.
+  member's explicit `/merge` request (optionally `/merge <PR>`) or their
+  «Sí, a producció» reply (normalized without requiring accents, commas or «a»)
+  to the question the service asked after the exact validation «La feina està
+  validada» on the delivered preview notice, resolved and pinned to the pull
+  request and commit of that notice, with every required check green and the
+  branch up to date. It never merges on its own initiative, from other text,
+  with newer commits than the pinned one or with an administrator bypass. Local
+  sessions and every other agent keep the no-merge rule.
 - Changes may reach production only through a reviewed pull request merged into
   the protected default branch and the approved deployment pipeline. Local agent
   sessions never deploy the web.

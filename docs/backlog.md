@@ -485,6 +485,29 @@ fusionada; la regla de validar a la frontera viu a
 
 ## Necessitats Obertes
 
+### Lectura De PDF Per L'Agent Privat
+
+**Estat:** Capturada.
+
+**Problema:** l'agent privat de Telegram no pot interpretar documents PDF
+adjunts al xat ni llegir PDF accessibles a través d'una URL.
+
+**Resultat esperat:** permetre que l'agent consulti el contingut de PDF rebuts
+al xat o disponibles a internet per respondre preguntes i preparar tasques
+autoritzades.
+
+**Abans de planificar-ho cal definir:**
+
+- el tractament de PDF amb text i de documents escanejats;
+- els límits de mida, pàgines i recursos, i el tractament de fitxers no fiables;
+- la privacitat dels documents i les restriccions d'accés a URLs;
+- les dependències, les proves i els canvis necessaris a les fronteres existents.
+
+**Dependències:** revisió de seguretat i definició de la ingesta d'adjunts i
+de l'accés extern.
+
+**Seguiment:** pendent de triatge.
+
 ### Equipa't Amb Nosaltres
 
 **Estat:** Capturada.
@@ -890,7 +913,7 @@ completades i una esmena de l'ADR 0009 que retiri `/preview` com a petició.
 
 ### Govern De La Documentació I De Les Skills
 
-**Estat:** Especificada a [Govern de la documentació i de les
+**Estat:** Completada a [Govern de la documentació i de les
 skills](specs/docs-governance.md) el 22 de novembre de 2026.
 
 **Problema:** cada agent afegeix el comportament nou al document més proper, de manera
@@ -902,13 +925,15 @@ tasca viuen a l'arrel de `docs/` i les skills no tenen manifest verificat ni ver
 organitzada per component, una actualització de l'agent versionada i una comprovació
 automàtica que impedeixi que la documentació torni a divergir.
 
-**Seguiment:** pendent de la fusió de l'especificació.
+**Seguiment:** onze tasques fusionades en set PR i la correcció
+[#296](https://github.com/rboixaderg/mountain-runners/pull/296), l'última la
+[#295](https://github.com/rboixaderg/mountain-runners/pull/295).
 
 ### Fusionar Quan La Persona Dona La Feina Per Validada
 
 **Estat:** Especificada a [Confirmació del merge amb una pregunta i una
-resposta](specs/preview-merge-confirmation.md) el 22 de novembre de 2026, amb una
-esmena proposada a l'ADR 0013.
+resposta](specs/preview-merge-confirmation.md) el 22 de novembre de 2026, amb
+l'esmena acceptada de l'ADR 0013.
 
 **Problema:** avui el servei només fusiona una PR amb l'ordre literal `/merge`
 d'una persona verificada del grup. Les persones del club no l'escriuran mai: el
@@ -916,8 +941,8 @@ que fan és dir al tema que la feina està acabada i validada.
 
 **Resultat esperat:** una validació explícita d'una persona verificada en resposta
 a l'avís vigent de preview confirmada provoca només una pregunta fixa; només la
-resposta «Sí» d'aquella persona a aquella pregunta autoritza el merge del commit
-anunciat per la preview. El text no autoritza res més i `/merge` es manté. La T8.9
+resposta «Sí, a producció» d'aquella persona a aquella pregunta autoritza el
+merge del commit anunciat per la preview. El text no autoritza res més i `/merge` es manté. La T8.9
 ja demana que l'avís de preview confirmat fixi el SHA per a la fusió; avui el fixa
 el seguiment de CI. Es mantenen la decisió humana, la pertinença verificada, les
 comprovacions requerides en verd, l'absència d'auto-merge i que mai es fusiona per
@@ -928,7 +953,7 @@ fixació del SHA a la preview); alineació de la documentació operativa i de le
 instruccions d'agents abans d'activar; [especificació de l'etiqueta de
 preview](specs/preview-label.md).
 
-**Seguiment:** pendent de triatge.
+**Seguiment:** T1 fusionada (PR #294); T2 en curs.
 
 ### Butlletí I Analítica Del Club
 
