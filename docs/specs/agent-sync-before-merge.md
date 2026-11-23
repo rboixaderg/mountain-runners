@@ -12,7 +12,10 @@ no modifica la configuració remota i no autoritza cap merge ni desplegament.
 
 Quan una persona verificada demana el merge i la branca no incorpora el `main`
 actual, l'agent prepara una versió actualitzada perquè la persona la pugui
-revisar a la preview abans de tornar a demanar el merge.
+revisar a la preview abans de tornar a demanar el merge. Igualment, quan un torn
+ordinari o de reparació té canvis o feina pendent de validar i publicar en un
+worktree endarrerit, el servei integra el `main` actual abans que les
+comprovacions locals bloquegin la publicació per una base antiga.
 
 ## Límits I Decisions Confirmades
 
@@ -23,6 +26,11 @@ revisar a la preview abans de tornar a demanar el merge.
   [0013](../decisions/0013-private-development-agent-boundary.md). L'agent no
   desplega directament: el merge a `main` inicia el pipeline aprovat, que pot
   fallar o quedar pendent.
+- La sincronització dels worktrees actius es fa dins del flux de treball de
+  l'agent en validar i publicar canvis o abans del merge, mai de manera
+  automàtica durant l'actualització del servei al VPS. Les consultes i els torns
+  sense canvis ni feina pendent no modifiquen el worktree; si la branca ja
+  incorpora `main`, no s'afegeix cap commit de merge ni cap validació redundant.
 - El model intenta resoldre els conflictes de text, però no es presumeix que
   una resolució sense marcadors sigui correcta. En cas de conflicte, prioritza
   normalment els canvis de la branca de treball i conserva els canvis
@@ -35,10 +43,15 @@ revisar a la preview abans de tornar a demanar el merge.
 
 - Si la branca ja està al dia, el merge segueix el camí existent i els seus
   controls, sense exigir una revisió nova només per aquesta comprovació.
-- Si no està al dia, el servei prepara la branca i anuncia la nova preview, però
-  no fusiona fins que una persona torna a autoritzar el merge.
+- Si no està al dia en una petició de merge, el servei prepara la branca i
+  anuncia la nova preview, però no fusiona fins que una persona torna a
+  autoritzar el merge.
+- En un torn ordinari o de reparació amb canvis o feina pendent en una branca
+  endarrerida, el servei integra `main` abans de les comprovacions locals; així
+  les correccions ja fusionades a `main` eviten bloquejar el gate amb una base
+  antiga i es conserva la feina local.
 - Si la sincronització, la validació o la preview fallen, el servei ho comunica
-  i no fusiona.
+  i no publica ni fusiona.
 
 ## Dependències I Ordre D'Inici
 
@@ -51,24 +64,29 @@ revisar a la preview abans de tornar a demanar el merge.
 
 ## Tasques, Entregues I Seguiment
 
-| Tasca | Estat   | Dependències                         | Resultat verificable                                 | PR  |
-| ----- | ------- | ------------------------------------ | ---------------------------------------------------- | --- |
-| T1    | Pendent | T8.9 i fixació del SHA de la preview | Sincronització i nova autorització abans de fusionar | -   |
+| Tasca | Estat   | Dependències                         | Resultat verificable                                           | PR  |
+| ----- | ------- | ------------------------------------ | -------------------------------------------------------------- | --- |
+| T1    | Pendent | T8.9 i fixació del SHA de la preview | Sincronització abans del gate i del merge, i nova autorització | -   |
 
 ### T1: Sincronització I Nova Autorització
 
-**Abast:** el flux de merge de l'agent privat, la reutilització del flux de
-sincronització, la prioritat de resolució també als push ordinaris, l'avís de
+**Abast:** el flux de merge de l'agent privat, la sincronització amb `origin/main`
+abans del gate local als torns ordinaris i de reparació, la reutilització del
+flux de sincronització i la prioritat de resolució de conflictes, l'avís de
 preview, les proves i l'actualització del document propietari del comportament
 implementat.
 
 **Exclusió immediata:** no canvia els mecanismes d'autorització, els permisos,
-el publicador de preview ni el pipeline de producció.
+el publicador de preview ni el pipeline de producció, i no sincronitza worktrees
+durant l'actualització del servei al VPS.
 
 **Dependències:** les indicades a l'apartat anterior.
 
-**Resultat observable:** una petició sobre una branca desactualitzada prepara
-una preview nova, sense fusionar-la amb la petició anterior.
+**Resultat observable:** una petició de merge sobre una branca desactualitzada
+prepara una preview nova sense fusionar-la amb la petició anterior; un torn
+ordinari o de reparació amb canvis o feina pendent en un worktree endarrerit
+integra `main` abans de les comprovacions locals i no queda bloquejat per un
+gate ja corregit a `main`.
 
 **Comprovacions mínimes:** `pnpm test:server` i els casos de l'estratègia de
 tests, sense cap merge ni desplegament real.
@@ -84,32 +102,45 @@ tests, sense cap merge ni desplegament real.
    antiga. No usa el model ni text no fiable per triar la PR o el SHA. Una
    petició de reconciliació d'un resultat desconegut conserva el seu camí de
    només consulta i no inicia sincronització.
-2. Si la branca va per darrere, el servei integra el `main` verificat amb un
-   commit de merge, sense rebase ni force-push, conserva la feina existent i
-   repeteix les comprovacions locals abans de publicar. Manté la sincronització
-   existent abans dels push ordinaris i hi aplica la mateixa prioritat de
-   resolució de conflictes. Conserva també qualsevol revisió privada i aprovació
-   abans del push exigides per les fronteres vigents de la feina; si canvia el
-   commit, la base o l'estat que fixen aquella aprovació, no la reutilitza.
-3. Davant un conflicte de text, el model prioritza els canvis de la branca de
-   treball i intenta incorporar els canvis compatibles de `main` dins del
-   sandbox. Si la prioritat no permet prendre una decisió segura o manca
-   informació, pregunta a la persona sense triar per ella. Els conflictes
-   binaris, una resolució fallida o amb marcadors, o un avortament que no es pot
-   confirmar aturen el flux; no es publica una branca a mig resoldre ni es perd
-   la feina.
-4. Després del push, el servei espera la preview confirmada per al nou cap i
-   comunica al tema que cal revisar-la i tornar a sol·licitar el merge. La
-   confirmació de CI sola no substitueix la preview ni l'avís lliurat.
-5. La petició inicial i qualsevol pregunta o confirmació anterior queden
-   invàlides per al nou cap. No hi ha merge automàtic després de la
+2. En un torn ordinari o de reparació amb canvis o feina pendent de validar i
+   publicar, el servei comprova l'estat de `origin/main` abans d'executar el
+   gate local. Si la branca va per darrere, integra el `main` verificat sense
+   rebase ni force-push, conserva la feina local (commitejada o sense
+   commitejar) i executa les comprovacions locals sobre l'estat ja sincronitzat.
+   La selecció del gate (`pnpm check:local` o `pnpm check`) es calcula respecte
+   al `main` verificat sense degradar mai canvis fora del contingut. Si la
+   branca ja està al dia, no afegeix cap commit de merge ni repeteix el gate.
+   Si `main` torna a avançar entre la validació i la publicació, el servei el
+   torna a integrar amb les mateixes regles i repeteix les comprovacions locals
+   abans del push.
+3. En una petició de merge sobre una branca endarrerida, el servei aplica la
+   mateixa integració del `main` verificat amb un commit de merge, sense rebase
+   ni force-push, conserva la feina existent i executa les comprovacions locals
+   abans de publicar. En tots dos fluxos conserva també qualsevol revisió
+   privada i aprovació abans del push exigides per les fronteres vigents de la
+   feina; si canvia el commit, la base o l'estat que fixen aquella aprovació,
+   no la reutilitza.
+4. Davant un conflicte de text en qualsevol sincronització, el model prioritza
+   els canvis de la branca de treball i intenta incorporar els canvis
+   compatibles de `main` dins del sandbox. Si la prioritat no permet prendre
+   una decisió segura o manca informació, pregunta a la persona sense triar per
+   ella. Els conflictes binaris, una resolució fallida o amb marcadors, o un
+   avortament que no es pot confirmar aturen el flux; no es publica una branca a
+   mig resoldre ni es perd la feina local.
+5. Després del push de sincronització prèvia al merge, el servei espera la
+   preview confirmada per al nou cap i comunica al tema que cal revisar-la i
+   tornar a sol·licitar el merge. La confirmació de CI sola no substitueix la
+   preview ni l'avís lliurat.
+6. La petició inicial de merge i qualsevol pregunta o confirmació anterior
+   queden invàlides per al nou cap. No hi ha merge automàtic després de la
    sincronització. La nova petició segueix els mecanismes autoritzats vigents,
    tant `/merge` com la confirmació en dos passos, si està activa.
-6. Abans de cada intent posterior, el servei torna a comprovar el cap i `main`,
-   la identitat, la PR, les comprovacions i la preview vigent. Si `main` ha
-   tornat a avançar, es repeteix el cicle i cal una altra petició després de la
-   nova preview. Si el cap canvia per qualsevol altra causa, s'invalida
-   l'autorització anterior i s'exigeix la revisió de la preview corresponent.
+7. Abans de cada intent posterior de merge, el servei torna a comprovar el cap
+   i `main`, la identitat, la PR, les comprovacions i la preview vigent. Si
+   `main` ha tornat a avançar, es repeteix el cicle i cal una altra petició
+   després de la nova preview. Si el cap canvia per qualsevol altra causa,
+   s'invalida l'autorització anterior i s'exigeix la revisió de la preview
+   corresponent.
 
 El servei fixa l'estat esperat de la PR, la branca i la base per evitar
 sobreescriure canvis concurrents. Revalida abans de publicar i abans del merge,
@@ -129,11 +160,18 @@ resultat desconegut o reinici.
 
 També cobreixen una petició o confirmació anterior que no fusiona el nou SHA,
 una nova petició després de l'avís, la validació en dos passos amb branca
-endarrerida sense pregunta antiga, la prioritat de conflictes al push ordinari,
-la invalidació de qualsevol revisió privada aplicable, canvis concurrents de cap
-o de `main`, revocació de preview, manca de pertinença i comprovacions pendents o
-fallides. Es verifica que la protecció efectiva de la branca impedeix fusionar
-quan `main` avança durant la cursa final.
+endarrerida sense pregunta antiga, la sincronització prèvia al gate local als
+torns ordinaris i de reparació (worktree endarrerit amb canvis sense commitejar
+o feina pendent que passa el gate només després d'incorporar `main`, preservació
+de la feina si la sincronització o el gate fallen, absència de merge o validació
+duplicada quan la branca ja està al dia, consultes o torns sense canvis que no
+toquen el worktree, selecció correcta de `pnpm check:local` o `pnpm check`
+respecte al `main` verificat i un segon avançament de `main` entre validació i
+push), la prioritat de conflictes al push ordinari, la invalidació de qualsevol
+revisió privada aplicable, canvis concurrents de cap o de `main`, revocació de
+preview, manca de pertinença i comprovacions pendents o fallides. Es verifica
+que la protecció efectiva de la branca impedeix fusionar quan `main` avança
+durant la cursa final.
 
 ## Seguretat I Privacitat
 
@@ -147,6 +185,8 @@ preview; les comprovacions automàtiques no garanteixen detectar-les totes.
 
 - Auto-merge, bypass, force-push, push directe a `main` o desplegament directe.
 - Afegir un mecanisme de monitoratge continu de `main`.
+- Sincronitzar o modificar automàticament els worktrees actius durant
+  l'actualització o el reinici del servei al VPS.
 - Canviar el format de les autoritzacions, afegir credencials o afirmar que la
   persona ha llegit la preview.
 - Garantir que el model resol tots els conflictes o que els tests detecten tots
@@ -156,11 +196,16 @@ preview; les comprovacions automàtiques no garanteixen detectar-les totes.
 
 1. Una branca al dia segueix els controls de merge existents; una branca
    endarrerida es prepara sense executar el merge demanat.
-2. La sincronització preserva la feina i resol els conflictes de text quan és
+2. En un torn ordinari o de reparació amb canvis o feina pendent en un worktree
+   endarrerit, el servei integra el `main` verificat abans de les comprovacions
+   locals, conserva la feina local en cas d'error i evita bloquejar-se per un
+   gate ja corregit a `main`, sense modificar el worktree en consultes ni torns
+   sense canvis.
+3. La sincronització preserva la feina i resol els conflictes de text quan és
    possible, prioritzant la branca i conservant els canvis compatibles de
    `main`; si cal una decisió o la resolució no és segura, s'atura i informa.
-3. Un nou SHA exigeix preview confirmada i avís lliurat, revisió humana i una
+4. Un nou SHA exigeix preview confirmada i avís lliurat, revisió humana i una
    nova autorització. Cap petició o confirmació anterior fusiona el nou SHA.
-4. Les curses, fallades i estats incerts no permeten publicar una resolució
+5. Les curses, fallades i estats incerts no permeten publicar una resolució
    incompleta ni fusionar una versió no autoritzada o desactualitzada.
-5. Les comprovacions definides passen sense cap merge ni desplegament real.
+6. Les comprovacions definides passen sense cap merge ni desplegament real.
