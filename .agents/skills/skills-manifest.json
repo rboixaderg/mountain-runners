@@ -17,56 +17,60 @@
     "vitest": {
       "source": "https://github.com/antfu/skills",
       "repositoryId": 1143952193,
-      "commit": "c35a5588a5158b5b404a14fb10469b2b6dc1952b",
+      "commit": "4a6bb39e7b45e26402eb215393c51ccf5df1ca4c",
       "sourceSkillPath": "skills/vitest",
       "license": "MIT",
       "sourceLicensePath": "LICENSE.md",
       "licenseSha256": "2a596f697b619094b6f4067936e0f385027a393bce32211383db0478774c1cb2",
       "files": {
-        "GENERATION.md": "3cf85efaca1c200657437fce6f9215ad805d44c1a8e4a125353294e8b6238b97",
-        "SKILL.md": "87c8cf025987d1f1a0e9c0fd0b8605946a0ebd5478676471ce296d8f0adc0f07",
-        "references/advanced-environments.md": "b3b10adfef569023d922ce370c12f15d2dacf4c59d043ce015fb1c96f168b254",
-        "references/advanced-projects.md": "10efde418c9a4406d467a565d4ac9df60c39b16908895f38efba908d573621e1",
-        "references/advanced-type-testing.md": "370c55c10174ae6d8332605ecb1a7575944c8a072a85f43637c03dce00dd1c35",
-        "references/advanced-vi.md": "1d80b9c373f6d374093c937f46d731c663c684eb8e1533f82144275aee6dfe19",
-        "references/core-cli.md": "2ff72dc4754b8738d31a041e3f3e26ea83fd18e9795521adb5510e61e50951b6",
-        "references/core-config.md": "5fd3cf0983f203f14c4f4732dde0632c1d537241daa5cffea24f7e55712a6fb3",
-        "references/core-describe.md": "c5642ff6433fca69bbfbe9526acb2becd17d8cb2c99cebd1976d87e1def91b9c",
-        "references/core-expect.md": "d39b2bf31f67d66a5f036eae6a88844e7d427854b075c395b086a6c5086a2973",
-        "references/core-hooks.md": "d6489a5d762e2bf47b7a139e0265ff2e03ba13653cf14004e05a9be8512690b9",
-        "references/core-test-api.md": "ce3ecd0aa73560e2072c79ced9d0eee39d527c1c71ccabe4e9b665326b219247",
-        "references/features-concurrency.md": "f658bade9a9f5c61518f38f08b80fe0b3e7bcd3b6c5e7b4d5cb8ef721acd84aa",
-        "references/features-context.md": "ea7a77c4ebb677ff004659f0f0f50a135744934c1a8f39629ec462fb918c7dbe",
-        "references/features-coverage.md": "d65c2b5c33d0220c1f06bb7f95bf039a1cba25f3c5e4b13fd48d6b3d30a77818",
-        "references/features-filtering.md": "29fd70bd48726bab2ee58ebf740cf1dc23efc51276d049444a31910748cf6e55",
-        "references/features-mocking.md": "9d23a9d60dbbfa1183f5753c0cf5ea7fefcf7853e57abd491f9cb00f903d6a80",
-        "references/features-snapshots.md": "e7f650ca061cc14c90d68c2ab8325ee430b046277fbc959552e64665bdac9592"
+        "GENERATION.md": "d3c242c95edbbcaaef80220ed3674910742720c2d2f14b3da34816664d95268e",
+        "references/advanced-environments.md": "845c872d9f0d4fccf9b09b20e98a7528869477c3f40273b0b587f51c7ac66429",
+        "references/advanced-projects.md": "a91fe2033feb5336c18d154c661fa9f417962a3673de9cc468e6dec933891ae2",
+        "references/advanced-type-testing.md": "88a5c36d3510200e1ebb5181520b4dcf87939d0d49ac58ead30588689340829c",
+        "references/advanced-vi.md": "48b29696590615ddff5bcf439bdf50f434182e57bb9d1ec83cfca58d344610fc",
+        "references/core-cli.md": "83dd37b068b183394e60e4b153481d8f541169a98528462c820412ba35406d2c",
+        "references/core-config.md": "3f3907631a15c60f7cb5876e8d6f9e560e0f6d7addfdc92efd199dbf2c8d92ee",
+        "references/core-describe.md": "0c99cd75e7808b0abaaf06eb9ad3ba6046fff0054d1624c8983dfae87d1e0827",
+        "references/core-expect.md": "78415bb54ab5ca1637ac61b39d11fdb277ec3660d484fa43f598f6b15ed1dd98",
+        "references/core-hooks.md": "2ff9b1700579a8e734ceb1ec783b01d0bd90837094f729bc65e63d5596a172d4",
+        "references/core-test-api.md": "0529b5cffcdf08fed41e84fa7cb94c1e47eb102a659621b4c81dbea129678ff7",
+        "references/features-benchmarking.md": "05dcfd9ec2fa2b4cac77bb2ab3dcd09e1f22d99041d51554cb78ea0ed43b0f86",
+        "references/features-concurrency.md": "c4ee8b0994270ebd97fa903bb8430faea5a823896bbda1a965dbcf93fc48810a",
+        "references/features-context.md": "9cf4a1f51af7379055f30bc4b9dde72ce2d8d07037a24835d8803774bb456be8",
+        "references/features-coverage.md": "6c4562fb5f32fe5671dbe593ca8188e9188244650d0d58400587748393006696",
+        "references/features-filtering.md": "f9effa2a53bc91a19ea6e3efc178e3372c0baf37272344e306b947d172c06369",
+        "references/features-mocking.md": "174f420516ed47f06d1a55de67d54f35e9fc141e652409e39d1096d18d1cacfc",
+        "references/features-reporters.md": "62bbec975ef89f0172e0c6fc39182240c8c5bc2ba3c0f209a1e6ca0432bd326a",
+        "references/features-snapshots.md": "906f5b111b747a7d1396eef82725c23a590e2ecd4c7d4889679a72f40adcc051",
+        "references/features-test-tags.md": "6e39db1a7b622b0f325a5cec0fca1e78aab4ed14b8e1a8dbe0eb396e7a0f642d",
+        "SKILL.md": "01c2da913702dcc3f944b93fe92cdc67d594c9126a6c919653d3fb353a5b8e48"
       }
     },
     "accessibility": {
       "source": "https://github.com/addyosmani/web-quality-skills",
       "repositoryId": 1136782037,
-      "commit": "fed9617111260e19f4f54b72a2874a3f3de8ff94",
+      "commit": "afa8da942115f2961fdbfa80807ea0b232ff6c00",
       "sourceSkillPath": "skills/accessibility",
       "license": "MIT",
       "sourceLicensePath": "LICENSE",
       "licenseSha256": "c122223ac43e86421958e18623979942c21b642951e2e3736dcb63eff13587c3",
       "files": {
-        "SKILL.md": "65021e9ccab70165539db82070257d4e2e2c7d7b0f857825299da2e4a7a8704c",
         "references/A11Y-PATTERNS.md": "f10e238dd4dd3c4f51134c2056bc02d3dd4f8fb6ccc9145c2c1ba7aab4d58140",
-        "references/WCAG.md": "16683e025e3833d931c9d880645d98a448827f97e10189b6c8f12c832e7a2361"
+        "references/WCAG.md": "16683e025e3833d931c9d880645d98a448827f97e10189b6c8f12c832e7a2361",
+        "SKILL.md": "267fb2a0707d6142f2871f22688203a42ba21291a2aa200fb740936e41362b5d"
       }
     },
     "seo": {
       "source": "https://github.com/addyosmani/web-quality-skills",
       "repositoryId": 1136782037,
-      "commit": "fed9617111260e19f4f54b72a2874a3f3de8ff94",
+      "commit": "afa8da942115f2961fdbfa80807ea0b232ff6c00",
       "sourceSkillPath": "skills/seo",
       "license": "MIT",
       "sourceLicensePath": "LICENSE",
       "licenseSha256": "c122223ac43e86421958e18623979942c21b642951e2e3736dcb63eff13587c3",
       "files": {
-        "SKILL.md": "f3e546112a3168515486c533d13156a1d4dcd9402f3d116730cef573a20e2804"
+        "references/STRUCTURED-DATA.md": "3e03876f41d223c89dfdbc0a0fe3668454e5d8819aad5379f4541fbf0bd67e17",
+        "SKILL.md": "57cd16566c2c706186b643644dec2884da89c42f296843364c65a40a4d566ae6"
       }
     }
   }
