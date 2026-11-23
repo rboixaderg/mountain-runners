@@ -26,6 +26,7 @@ const schema = `
     instruction TEXT NOT NULL,
     attachments TEXT,
     reply_message_identifier INTEGER,
+    exact_direct_reply INTEGER NOT NULL DEFAULT 0 CHECK (exact_direct_reply IN (0, 1)),
     status TEXT NOT NULL CHECK (status IN ('pending', 'running', 'uncertain', 'done', 'rejected')),
     outcome TEXT,
     created_at TEXT NOT NULL
@@ -96,6 +97,11 @@ export class AdmissionQueue {
           "ALTER TABLE instructions ADD COLUMN reply_message_identifier INTEGER",
         );
       }
+      if (!columns.includes("exact_direct_reply")) {
+        this.#database.exec(
+          "ALTER TABLE instructions ADD COLUMN exact_direct_reply INTEGER NOT NULL DEFAULT 0 CHECK (exact_direct_reply IN (0, 1))",
+        );
+      }
     });
   }
 
@@ -141,6 +147,7 @@ export class AdmissionQueue {
     instruction,
     attachments = [],
     replyMessageIdentifier = null,
+    exactDirectReply = false,
   }) {
     return this.#transaction(() => {
       const existing = this.#database
@@ -168,8 +175,8 @@ export class AdmissionQueue {
       this.#database
         .prepare(
           `INSERT INTO instructions
-             (update_identifier, message_identifier, session_key, author_identifier, instruction, attachments, reply_message_identifier, status, outcome, created_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+             (update_identifier, message_identifier, session_key, author_identifier, instruction, attachments, reply_message_identifier, exact_direct_reply, status, outcome, created_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         )
         .run(
           updateIdentifier,
@@ -179,6 +186,7 @@ export class AdmissionQueue {
           instruction,
           attachments.length === 0 ? null : JSON.stringify(attachments),
           replyMessageIdentifier,
+          exactDirectReply === true && replyMessageIdentifier !== null ? 1 : 0,
           status,
           outcome,
           this.#now().toISOString(),
@@ -205,7 +213,7 @@ export class AdmissionQueue {
         .prepare(
           `SELECT sequence, update_identifier, message_identifier, session_key,
                   author_identifier, instruction, attachments,
-                  reply_message_identifier
+                  reply_message_identifier, exact_direct_reply
            FROM instructions
            WHERE status = 'pending'
            ORDER BY sequence
@@ -230,6 +238,7 @@ export class AdmissionQueue {
         attachments:
           request.attachments === null ? [] : JSON.parse(request.attachments),
         replyMessageIdentifier: request.reply_message_identifier,
+        exactDirectReply: request.exact_direct_reply === 1,
       };
     });
   }
@@ -355,6 +364,15 @@ export class AdmissionQueue {
         )
         .get(sessionKey, updateIdentifier) !== undefined
     );
+  }
+
+  isFirstInstruction(sessionKey, updateIdentifier) {
+    const first = this.#database
+      .prepare(
+        "SELECT update_identifier FROM instructions WHERE session_key = ? ORDER BY sequence LIMIT 1",
+      )
+      .get(sessionKey);
+    return first?.update_identifier === updateIdentifier;
   }
 
   /**

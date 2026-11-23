@@ -4,6 +4,7 @@ import {
   existsSync,
   mkdirSync,
   mkdtempSync,
+  readFileSync,
   rmSync,
   writeFileSync,
 } from "node:fs";
@@ -19,6 +20,114 @@ const executeFile = promisify(execFile);
 const repository = "rboixaderg/mountain-runners";
 const githubToken = "ghp_synthetic_token_for_tests";
 const branch = "feat/phase-8-t8.3-telegram-bridge";
+
+test("research approval pushes only its SHA with a lease and refuses changed HEAD", async (context) => {
+  const { directory } = fakeGitFixture(context);
+  const headPath = join(directory, "head");
+  const pushPath = join(directory, "push-arguments");
+  const remotePath = join(directory, "remote-head");
+  const commit = "a".repeat(40);
+  const base = "b".repeat(40);
+  const expectedHead = "c".repeat(40);
+  writeFileSync(headPath, commit);
+  writeFileSync(remotePath, expectedHead);
+  writeFileSync(
+    join(directory, "git"),
+    [
+      "#!/bin/sh",
+      'case " $* " in',
+      `  *" config --get remote.origin.url "*) printf '%s\\n' "https://github.com/${repository}.git" ;;`,
+      `  *" rev-parse HEAD "*) cat "${headPath}" ;;`,
+      `  *" rev-parse origin/main "*) printf '%s\\n' "${base}" ;;`,
+      '  *" merge-base --is-ancestor "*) exit 0 ;;',
+      '  *" rev-list "*) exit 0 ;;',
+      `  *" push "*) printf '%s\\n' "$*" > "${pushPath}"; test "$(cat "${remotePath}")" = "${expectedHead}" || exit 1 ;;`,
+      "  *) exit 0 ;;",
+      "esac",
+      "",
+    ].join("\n"),
+    { mode: 0o755 },
+  );
+  const worktree = primaryRepository(directory);
+  const approved = {
+    repository,
+    branch,
+    worktreePath: worktree.path,
+    gitDirectory: worktree.gitDirectory,
+    commit,
+    base,
+    expectedHead,
+  };
+  const result = await trust().pushBranch({ worktree, branch, approved });
+  assert.equal(result.commit, commit);
+  const argumentsList = readFileSync(pushPath, "utf8");
+  assert.match(
+    argumentsList,
+    new RegExp(`--force-with-lease=refs/heads/${branch}:${expectedHead}`, "u"),
+  );
+  assert.match(
+    argumentsList,
+    new RegExp(`${commit}:refs/heads/${branch}`, "u"),
+  );
+  rmSync(pushPath);
+  writeFileSync(headPath, "d".repeat(40));
+  await assert.rejects(
+    trust().pushBranch({ worktree, branch, approved }),
+    PublishRefusedError,
+  );
+  assert.equal(existsSync(pushPath), false);
+  writeFileSync(headPath, commit);
+  writeFileSync(remotePath, "e".repeat(40));
+  await assert.rejects(trust().pushBranch({ worktree, branch, approved }));
+  assert.equal(readFileSync(remotePath, "utf8"), "e".repeat(40));
+});
+
+test("research candidate pins the remote ref and does not turn remote errors into absence", async (context) => {
+  const { directory } = fakeGitFixture(context);
+  const commit = "a".repeat(40);
+  const base = "b".repeat(40);
+  const remote = "c".repeat(40);
+  writeFileSync(
+    join(directory, "git"),
+    [
+      "#!/bin/sh",
+      'case " $* " in',
+      `  *" config --get remote.origin.url "*) printf '%s\\n' "https://github.com/${repository}.git" ;;`,
+      `  *" rev-parse HEAD "*) printf '%s\\n' "${commit}" ;;`,
+      `  *" rev-parse origin/main "*) printf '%s\\n' "${base}" ;;`,
+      "  *) exit 1 ;;",
+      "esac",
+      "",
+    ].join("\n"),
+    { mode: 0o755 },
+  );
+  const worktree = primaryRepository(directory);
+  let status = 200;
+  const calls = [];
+  const github = trust({
+    fetchImpl: async (url, options) => {
+      calls.push({ url, method: options.method });
+      return {
+        ok: status === 200,
+        status,
+        json: async () => ({ object: { sha: remote } }),
+      };
+    },
+  });
+  const parameters = { worktree, branch, title: "title", body: "body" };
+  const candidate = await github.researchCandidate(parameters);
+  assert.equal(candidate.expectedHead, remote);
+  assert.equal(candidate.commit, commit);
+  assert.equal(candidate.base, base);
+  assert.deepEqual(
+    calls.map(({ method }) => method),
+    ["GET"],
+  );
+  status = 404;
+  assert.equal((await github.researchCandidate(parameters)).expectedHead, null);
+  status = 500;
+  await assert.rejects(github.researchCandidate(parameters), /HTTP 500/u);
+});
 
 async function git(directory, argumentsList) {
   const { stdout } = await executeFile("git", [
@@ -738,6 +847,7 @@ test("exposes only the approved GitHub operations", () => {
     "mergePullRequest",
     "pushBranch",
     "rerunFailedJobs",
+    "researchCandidate",
   ]);
 });
 

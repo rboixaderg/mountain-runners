@@ -184,7 +184,11 @@ export class TelegramApi {
       throw this.#requestFailure(method, error, bounded);
     }
 
-    if (!payload || payload.ok !== true) {
+    if (
+      response.status < 200 ||
+      response.status >= 300 ||
+      payload?.ok !== true
+    ) {
       throw new TelegramApiError(
         method,
         typeof payload?.description === "string"
@@ -279,13 +283,22 @@ export class TelegramApi {
     );
   }
 
-  async sendMessage({ chatIdentifier, messageThreadIdentifier, text, signal }) {
+  async sendMessage({
+    chatIdentifier,
+    messageThreadIdentifier,
+    text,
+    disableLinkPreview,
+    signal,
+  }) {
     return this.#call(
       "sendMessage",
       {
         chat_id: chatIdentifier,
         message_thread_id: messageThreadIdentifier,
         text,
+        ...(disableLinkPreview === true
+          ? { link_preview_options: { is_disabled: true } }
+          : {}),
       },
       { signal },
     );

@@ -5,6 +5,7 @@ import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { runAgent } from "../runtime/agent.mjs";
+import { createResearchReview } from "../repository/research-review.mjs";
 import { classifyRequest as classifyWithModel } from "../runtime/request-kind.mjs";
 import { agentSecrets } from "../config.mjs";
 import { openIdentifierNames } from "../repository/identifiers.mjs";
@@ -46,6 +47,11 @@ export function createProjectRunner({
     stateDirectory: config.paths.state,
   }),
   sessionNotes,
+  research,
+  isFirstInstruction,
+  researchReview = createResearchReview({
+    directory: join(config.paths.state, "research-review"),
+  }),
   recordTrace,
   // The service fixes the instant a post is published with: the sandbox clock
   // is not trusted for it.
@@ -210,6 +216,11 @@ export function createProjectRunner({
     followPreview,
     requestMerge,
     requestMergeConfirmation,
+    research,
+    isFirstInstruction,
+    prepareResearchJob: (jobId, options) =>
+      researchReview.ensure(jobId, options),
+    isResearchAffected: (jobId) => researchReview.isTainted(jobId),
     prepareAttachment,
     scaleAttachments,
     attachmentStore,
@@ -250,6 +261,7 @@ export function createProjectRunner({
     publishChange: createPublisher({
       github,
       secrets: agentSecrets(config, environment),
+      researchReview,
     }),
   });
 }

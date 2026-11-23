@@ -124,6 +124,7 @@ function bridgeFor({
   shouldAcknowledge,
   logger = () => {},
   membershipTimeoutMilliseconds,
+  disableLinkPreview,
   albumWaitMilliseconds,
   now,
   sleepImpl,
@@ -142,6 +143,7 @@ function bridgeFor({
     logger,
     pollTimeoutSeconds: 1,
     membershipTimeoutMilliseconds,
+    disableLinkPreview,
     albumWaitMilliseconds,
     now,
     sleepImpl,
@@ -196,6 +198,34 @@ test("executes an admitted instruction once and reports in its topic", async (t)
   ]);
   assert.equal(queue.status(10), "done");
   assert.equal(queue.readOffset(), 11);
+});
+
+test("optionally disables link previews on acknowledgements and reports", async (t) => {
+  for (const disableLinkPreview of [undefined, true]) {
+    const { queue } = context(t);
+    const telegram = telegramStub({ batches: [[instructionUpdate(10, 7)]] });
+    const sent = [];
+    telegram.sendMessage = async (message) => sent.push(message);
+    const bridge = bridgeFor({
+      queue,
+      telegram,
+      disableLinkPreview,
+      runInstruction: async () => ({
+        outcome: "answered",
+        report: "https://example.test/?signed=synthetic",
+      }),
+    });
+    await bridge.pollOnce();
+    await bridge.executeNext();
+    assert.equal(sent.length, 2);
+    for (const message of sent) {
+      assert.equal(
+        Object.hasOwn(message, "disableLinkPreview"),
+        disableLinkPreview === true,
+      );
+      if (disableLinkPreview) assert.equal(message.disableLinkPreview, true);
+    }
+  }
 });
 
 test("executes a redelivered update only once", async (t) => {
@@ -314,6 +344,41 @@ test("carries a verified reply identifier to the executed instruction", async (t
 
   assert.equal(executed[0].instruction, "Sí, a producció");
   assert.equal(executed[0].replyMessageIdentifier, 49);
+  assert.equal(executed[0].exactDirectReply, true);
+});
+
+test("keeps normalized whitespace from becoming an exact direct reply after admission", async (t) => {
+  const { queue } = context(t);
+  const telegram = telegramStub({
+    batches: [
+      [
+        instructionUpdate(10, 7, {
+          text: " Sí, envia-ho ",
+          entities: [],
+          reply_to_message: {
+            message_id: 49,
+            chat: { id: -1001234567890 },
+            message_thread_id: 7,
+            from: { id: botIdentifier },
+          },
+        }),
+      ],
+    ],
+  });
+  const executed = [];
+  const bridge = bridgeFor({
+    queue,
+    telegram,
+    runInstruction: async (request) => {
+      executed.push(request);
+      return { outcome: "answered" };
+    },
+  });
+  await bridge.pollOnce();
+  await bridge.executeNext();
+  assert.equal(executed[0].instruction, "Sí, envia-ho");
+  assert.equal(executed[0].replyMessageIdentifier, 49);
+  assert.equal(executed[0].exactDirectReply, false);
 });
 
 test("runs the instruction when the acknowledgement cannot be sent", async (t) => {

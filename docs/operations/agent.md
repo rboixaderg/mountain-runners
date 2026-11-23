@@ -674,6 +674,10 @@ mai, i el worktree actiu del tema tampoc.
   `state/attachments/` conté imatges privades dels temes; s'esborren en
   publicar-se o al cap de set dies, però una còpia de seguretat anterior encara
   les pot contenir.
+  Conserva també `state/research-review/` amb la còpia privada del servei. Conté
+  l'estat i les metadades dels candidats, no el text de les pàgines llegides.
+  No l'esborris com a part d'una neteja de sessions: es necessita per mantenir
+  el bloqueig de publicació de les feines amb recerca.
 
 ### Revocació
 
@@ -860,6 +864,64 @@ L'abast de cada prova i l'execució des de l'arrel són a
 [Proves i fonts de veritat](../../tools/server/agent/README.md#proves-i-fonts-de-veritat).
 Una prova simulada no demostra els permisos reals de GitHub ni l'aïllament al
 VPS.
+
+#### Comprovar el DNS abans d'activar la cerca web
+
+Fes les comprovacions en privat. Llegir la configuració no autoritza l'agent a
+consultar el DNS ni a accedir als llocs. No llegeixis `agent.env` per a aquesta
+comprovació ni copiïs adreces privades a la PR.
+
+1. Comprova l'entorn de xarxa de la unitat amb
+   `systemctl show mountain-agent -p PrivateNetwork -p NetworkNamespacePath -p DropInPaths`.
+   Des de l'entorn de xarxa i de fitxers del servei, obtén els resolutors que
+   veu Node sense fer cap consulta: `node -e 'const { Resolver } = require("node:dns/promises"); console.log(new Resolver().getServers());'`.
+   Si Node només veu un resolutor local i el VPS usa `systemd-resolved`, comprova
+   els resolutors remots amb `resolvectl dns` i els dominis que dirigeix a cada
+   interfície amb `resolvectl domain`.
+2. Contrasta els noms i àlies del [web](web-and-releases.md) i de les
+   [previews](previews.md) amb la configuració instal·lada de Caddy. Contrasta les
+   adreces IPv4 i IPv6 amb `ip -brief address show` i amb les assignacions del
+   proveïdor, incloses les adreces flotants i els prefixos de traducció si n'hi
+   ha. Un inventari històric no substitueix aquesta comprovació.
+3. Amb autorització de consulta, contrasta els registres A, AAAA i CNAME dels
+   noms inventariats amb el resolutor que farà servir el servei. Si no pots
+   verificar el resolutor o completar les exclusions de noms, àlies i xarxes,
+   no activis la cerca. Repeteix la comprovació després de canvis de xarxa o DNS.
+
+La cerca no està activa si `MOUNTAIN_AGENT_BRAVE_SEARCH_TOKEN` no està configurat.
+No l'incloguis a les variables del proveïdor de Pi. Un cop superades les
+comprovacions i autoritzada l'activació, configura també les exclusions de noms
+i xarxes, i `MOUNTAIN_AGENT_WEB_DNS_RECIPIENT` amb el nom del resolutor que es
+mostrarà als membres. Les variables de consultes i URL públiques de
+[`.env.example`](../../.env.example) són llistes JSON de valors exactes revisats.
+Si una llista queda buida, cada petició d'aquell tipus demana confirmació.
+
+Brave rep només la consulta de cerca i la seva pròpia credencial. El resolutor
+rep el nom de domini; el lloc web rep l'URL de lectura, sense cookies ni
+credencials. Els destinataris poden registrar les peticions. Abans d'activar,
+verifica la retenció i el cost del compte de [Brave Search](https://brave.com/search/api/).
+El servei no fixa cap pressupost mensual. Els resultats que el model rep
+segueixen la mateixa retenció privada que la resta de la sessió.
+
+#### Revisar en privat una edició amb recerca
+
+Quan el tema indiqui que el canvi espera revisió, obre una terminal privada al
+VPS com a persona operadora autoritzada. Fes servir el repositori del servei i
+el directori `research-review` sota el seu directori d'estat. No copiïs la
+sortida a la PR. L'ordre sense accés a GitHub mostra l'historial nou i les
+metadades que es farien públiques:
+
+```sh
+node /usr/local/lib/mountain-runners/agent/commands/research-review/cli.mjs \
+  show <directori-revisions> <repositori> <feina> <revisió>
+```
+
+Si la còpia és publicable, executa la mateixa ordre amb `approve` i confirma
+l'identificador que mostra. L'ordre no fa push. Respon `/publica-revisio`
+directament a un missatge del bot al tema per tornar a provar la publicació.
+Si el servei informa d'una revisió nova, torna a revisar-la. Una feina antiga
+sense registre de recerca també exigeix revisió. Aquesta aprovació no autoritza
+un merge.
 
 ### Preflight del primer pilot
 

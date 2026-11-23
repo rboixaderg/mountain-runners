@@ -6,7 +6,7 @@
 import { PublishRefusedError } from "./github.mjs";
 import { recordPublication } from "./worktrees.mjs";
 
-export function createPublisher({ github, secrets }) {
+export function createPublisher({ github, secrets, researchReview }) {
   /**
    * A repair never creates a pull request: it pushes only while the pull
    * request it continues is still open at the failed commit, and it does not
@@ -22,9 +22,60 @@ export function createPublisher({ github, secrets }) {
     title,
     body,
     repair,
+    researchJobId,
     signal,
     onPublicationStarted,
   }) {
+    repair = repair && {
+      pullRequestNumber: repair.pullRequestNumber,
+      commit: repair.commit,
+    };
+    let approved;
+    {
+      try {
+        if (!researchReview) throw new Error("Research review is unavailable.");
+        if (typeof researchJobId !== "string" || !researchJobId)
+          throw new Error("A stable research job ID is required.");
+        const tainted = await researchReview.isTainted(researchJobId);
+        if (tainted !== true && tainted !== false)
+          throw new Error("Invalid research state.");
+        if (tainted) {
+          const candidate = await github.researchCandidate({
+            worktree,
+            branch,
+            title,
+            body,
+            repair,
+            signal,
+          });
+          if (
+            candidate.branch !== branch ||
+            candidate.title !== title ||
+            candidate.body !== body ||
+            typeof title !== "string" ||
+            typeof body !== "string"
+          )
+            throw new Error(
+              "The candidate metadata does not match the publication.",
+            );
+          const reviewId = await researchReview.prepare(
+            researchJobId,
+            candidate,
+          );
+          if (repair && candidate.expectedHead !== repair.commit)
+            return { refused: true };
+          if (
+            (await researchReview.isApproved(researchJobId, reviewId)) !== true
+          ) {
+            return { refused: true, reviewId };
+          }
+          approved = candidate;
+        }
+      } catch (error) {
+        if (signal?.aborted) throw error;
+        return { refused: true, readFailed: true };
+      }
+    }
     if (repair) {
       let pullRequest;
       try {
@@ -50,7 +101,13 @@ export function createPublisher({ github, secrets }) {
     let pushed;
     try {
       onPublicationStarted?.();
-      pushed = await github.pushBranch({ worktree, branch, secrets, signal });
+      pushed = await github.pushBranch({
+        worktree,
+        branch,
+        secrets,
+        signal,
+        ...(approved ? { approved } : {}),
+      });
     } catch (error) {
       if (error instanceof PublishRefusedError) {
         return { refused: true };

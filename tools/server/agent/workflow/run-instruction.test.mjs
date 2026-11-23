@@ -21,6 +21,7 @@ import { test } from "node:test";
 import { PublishRefusedError } from "../repository/github.mjs";
 import { CiWatchStore } from "../repository/ci-watch-store.mjs";
 import { MergeRequestStore } from "../repository/merge-request-store.mjs";
+import { createResearchReview } from "../repository/research-review.mjs";
 import { SessionNoteStore } from "../repository/session-note-store.mjs";
 import { TopicJobStore } from "../repository/topic-job-store.mjs";
 import {
@@ -49,6 +50,7 @@ import {
 } from "../repository/worktrees.mjs";
 import { openIdentifierNames } from "../repository/identifiers.mjs";
 import { SandboxCleanupError } from "../sandbox/errors.mjs";
+import { createTopicResearch } from "../web-research/topic-research.mjs";
 
 const executeFile = promisify(execFile);
 
@@ -201,6 +203,184 @@ function githubStub() {
     },
   };
 }
+
+function researchFixture(review, operations) {
+  return createTopicResearch({
+    broker: async (operation) => {
+      operations.push(operation);
+      return {
+        kind: "result",
+        data: { trust: "untrusted", text: "Synthetic source." },
+        sources: [
+          { kind: "page", url: "https://example.test/route?private=1#map" },
+        ],
+      };
+    },
+    telegram: {},
+    attribution: { groupIdentifier: "-1001234567890" },
+    checkMembership: async () => assert.fail("no confirmation is expected"),
+    markResearch: (jobId) => review.markResearch(jobId),
+    worktreeForSession: () => assert.fail("no continuation is expected"),
+    hasInterveningInstructions: () => false,
+  });
+}
+
+test("a research consultation reports sources without publishing existing pending work", async (context) => {
+  const paths = await fixture(context);
+  const jobId = identifiersFor(paths).worktreeName(topicSessionKey);
+  const worktree = await ensureSessionWorktree({
+    repositoryPath: paths.repository,
+    worktreeRoot: paths.worktrees,
+    name: jobId,
+  });
+  writeFileSync(join(worktree.path, "pending.txt"), "pending work\n");
+  const head = await git(worktree.path, ["rev-parse", "HEAD"]);
+  const review = createResearchReview({
+    directory: join(paths.state, "review"),
+  });
+  const operations = [];
+  const github = githubStub();
+  let turns = 0;
+  const runner = createProjectRunner({
+    config: configFor(paths),
+    github,
+    researchReview: review,
+    research: researchFixture(review, operations),
+    classifyRequest: async () => ({ kind: "consultation" }),
+    executeSandbox: async () =>
+      assert.fail("a consultation needs no preparation"),
+    executeAgent: async (_config, options) => {
+      turns += 1;
+      assert.equal(options.readOnly, true);
+      assert.equal(typeof options.webResearch, "function");
+      const result = await options.webResearch(
+        { operation: "read", input: "https://example.test/route" },
+        {},
+      );
+      assert.equal(result.data.text, "Synthetic source.");
+      return { text: "Resposta contrastada." };
+    },
+    runChecks: async () => assert.fail("a consultation must not publish work"),
+  });
+
+  const result = await runner(request({ instruction: "Consulta la ruta." }));
+
+  assert.equal(result.outcome, "answered", result.report);
+  assert.equal(
+    result.report,
+    "Resposta contrastada.\n\nFonts:\n- Pàgina llegida: https://example.test/route (paràmetres omesos)",
+  );
+  assert.equal(turns, 1);
+  assert.deepEqual(operations, [
+    { operation: "read", input: "https://example.test/route" },
+  ]);
+  assert.equal(review.isTainted(jobId), true);
+  assert.equal(
+    readFileSync(join(worktree.path, "pending.txt"), "utf8"),
+    "pending work\n",
+  );
+  assert.equal(await git(worktree.path, ["rev-parse", "HEAD"]), head);
+  assert.deepEqual(github.pushes, []);
+  assert.deepEqual(github.pulls, []);
+});
+
+test("a research-informed change requires approval and retries the reviewed snapshot without Pi", async (context) => {
+  const paths = await fixture(context);
+  const review = createResearchReview({
+    directory: join(paths.state, "review"),
+  });
+  const operations = [];
+  const github = githubStub();
+  github.researchCandidate = async ({
+    worktree,
+    branch,
+    title,
+    body,
+    repair,
+  }) => ({
+    repository: "rboixaderg/mountain-runners",
+    worktreePath: worktree.path,
+    gitDirectory: worktree.gitDirectory,
+    branch,
+    commit: await git(worktree.path, ["rev-parse", "HEAD"]),
+    base: await git(worktree.path, ["rev-parse", "origin/main"]),
+    expectedHead: null,
+    title,
+    body,
+    repair: repair ?? null,
+  });
+  let turns = 0;
+  let classifications = 0;
+  let checks = 0;
+  const runner = createProjectRunner({
+    config: configFor(paths),
+    github,
+    researchReview: review,
+    research: researchFixture(review, operations),
+    classifyRequest: async () => {
+      classifications += 1;
+      return { kind: "implementation" };
+    },
+    executeSandbox: async () => ({ exitCode: 0, timedOut: false }),
+    executeAgent: async (_config, options) => {
+      turns += 1;
+      assert.equal(options.readOnly, false);
+      assert.equal(typeof options.webResearch, "function");
+      await options.webResearch(
+        { operation: "read", input: "https://example.test/route" },
+        {},
+      );
+      writeFileSync(join(options.worktreePath, "change.txt"), "change\n");
+      return { text: "Canvi fet.\nSUMMARY: feat(tools): source-derived title" };
+    },
+    runChecks: async () => {
+      checks += 1;
+      return { exitCode: 0, timedOut: false };
+    },
+  });
+
+  const first = await runner(request());
+  const jobId = identifiersFor(paths).worktreeName(topicSessionKey);
+  const status = review.status(jobId);
+  assert.equal(first.outcome, "research_review_required", first.report);
+  assert.match(first.report, /Pàgina llegida: https:\/\/example\.test\/route/u);
+  assert.equal(status.tainted, true);
+  assert.equal(status.approved, false);
+  assert.match(status.reviewId, /^[a-f0-9]{64}$/u);
+  assert.ok(first.report.includes(status.reviewId));
+  assert.deepEqual(github.pushes, []);
+  assert.deepEqual(github.pulls, []);
+  const candidate = review.candidate(jobId, status.reviewId);
+  assert.equal(
+    candidate.commit,
+    await git(topicWorktreePath(paths), ["rev-parse", "HEAD"]),
+  );
+  assert.equal(candidate.title, "feat(agent): update project");
+  assert.match(candidate.body, /change\.txt/u);
+  assert.doesNotMatch(candidate.body, /example\.test|source-derived/u);
+  assert.equal(operations.length, 1);
+
+  review.approve(jobId, status.reviewId);
+  const retry = await runner(
+    request({ updateIdentifier: 1002, instruction: "/publica-revisio" }),
+  );
+
+  assert.equal(retry.outcome, "pull_request_created", retry.report);
+  assert.equal(turns, 1);
+  assert.equal(classifications, 1);
+  assert.equal(checks, 2);
+  assert.equal(github.pushes.length, 1);
+  assert.deepEqual(github.pushes[0].approved, candidate);
+  assert.equal(
+    await git(topicWorktreePath(paths), ["rev-parse", "HEAD"]),
+    candidate.commit,
+  );
+  assert.equal(github.pulls.length, 1);
+  assert.equal(github.pulls[0].branch, candidate.branch);
+  assert.equal(github.pulls[0].title, candidate.title);
+  assert.equal(github.pulls[0].body, candidate.body);
+  assert.equal(review.status(jobId).reviewId, status.reviewId);
+});
 
 test("gives the prompt the current instant of the service in Europe/Madrid", async (context) => {
   const paths = await fixture(context);
@@ -3921,17 +4101,25 @@ test("carries the audience rules, the state of the topic and the attachment line
   );
 });
 
-test("passes an image to a consultation classified turn", async (context) => {
+test("passes an image to a read-only consultation with web research enabled", async (context) => {
   const paths = await fixture(context);
   const image = pngImage({ width: 200, height: 100 });
   const runner = createProjectRunner({
     config: configFor(paths),
     github: githubStub(),
     classifyRequest: async () => ({ kind: "consultation" }),
+    research: {
+      resume: async () => null,
+      turn: () => ({
+        withSources: (answer) => answer,
+        waitingForConfirmation: () => false,
+      }),
+    },
     prepareAttachment: createAttachmentPreparation({
       telegram: telegramAttachment(image),
     }),
-    runModel: async ({ instruction, images }) => {
+    runModel: async ({ instruction, images, kind }) => {
+      assert.equal(kind, "consultation");
       assert.match(instruction, /imatge-1\.png/u);
       assert.equal(images.length, 1);
       return { text: "Resposta." };

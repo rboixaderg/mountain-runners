@@ -263,6 +263,41 @@ contextual en dos passos al literal `/merge`, sense activar cap permís.
 - **Cap permís actiu.** Els controls s'han de provar abans d'activar-los i la
   primera fusió real requereix l'aprovació de la persona mantenidora.
 
+## Esmena proposada: cerca web i revisió abans del push
+
+Pendent de revisió. Aquesta esmena concreta la frontera de la
+[T8.10](../specs/phase-8/phase-8-editorial-assistance.md#t810-cerca-web-de-lagent-privat).
+No activa cap permís.
+
+- **Sortida de xarxa.** El component de confiança ofereix cerca amb Brave i
+  lectura de pàgines públiques. El sandbox no rep xarxa, credencials ni accés
+  al canal del component. El servei rebutja destinacions internes i producció, i
+  revalida la destinació abans de cada connexió, també en les redireccions.
+  Aplica el control de divulgació abans de resoldre el nom de domini, perquè
+  la consulta DNS transmet aquest nom al resolutor. Si cal divulgar dades
+  privades o hi ha dubte, mostra al tema la petició exacta i el destinatari
+  sense previsualitzar els enllaços. El torn acaba abans
+  d'esperar la resposta. Només una resposta directa i explícita de la mateixa
+  persona pot autoritzar un enviament. El servei en revalida la pertinença i
+  consumeix l'aprovació un sol cop. Això no autoritza edicions, publicació ni
+  merge.
+- **Revisió privada abans de publicar.** Aquesta és l'excepció al push
+  automàtic de T8.9. Abans de lliurar resultats web al model, el servei registra
+  que la feina ha rebut recerca. El bloqueig es manté si es reprèn la feina en
+  un altre tema o torn, si es repara la CI o si es reinicia el servei. Cap push
+  d'aquella feina no surt del servei fins que una persona autoritzada ha revisat
+  l'historial nou i les metadades que es farien públiques, a partir d'una còpia
+  de només lectura al servei de confiança. Una PR en esborrany no és una
+  revisió privada. L'aprovació queda vinculada al repositori, la branca, el
+  commit i les metadades exactes, així com a la base i l'estat esperat de la
+  branca remota. El servei ho revalida abans de fer push del commit aprovat.
+  Una discrepància invalida l'aprovació. Si el resultat del push és desconegut,
+  el servei el reconcilia amb GitHub abans de repetir cap efecte. La resposta i
+  les fonts de Telegram no formen part del cos de la PR.
+
+Les comprovacions i la revisió es fan abans d'activar la cerca. No canvien el
+merge ni el desplegament.
+
 ## Comprovacions i punts pendents
 
 L'esmena de merge i l'esmena de l'ADR 0009 ja estan aprovades. Abans d'activar el pilot cal provar els controls essencials d'identitat, aïllament, credencials i protecció de `main`. El compte de GitHub triat és administrador; un compte de prova sense accés al repositori no substitueix les comprovacions de la credencial i del component de confiança que utilitzarà el servei. Les comprovacions de permisos no fusionen cap PR ni fan push a `main`; el merge del pilot s'exercita després, amb autorització explícita.

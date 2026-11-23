@@ -118,6 +118,7 @@ export class AgentBridge {
   #pollTimeoutSeconds;
   #backoffMilliseconds;
   #membershipTimeoutMilliseconds;
+  #disableLinkPreview;
   #albums;
   #sleep;
   #lastConsumed = null;
@@ -140,6 +141,7 @@ export class AgentBridge {
     pollTimeoutSeconds = 25,
     backoffMilliseconds = 5000,
     membershipTimeoutMilliseconds = defaultMembershipTimeoutMilliseconds,
+    disableLinkPreview = false,
     albumWaitMilliseconds = defaultAlbumWaitMilliseconds,
     now = () => Date.now(),
     sleepImpl = sleep,
@@ -161,6 +163,7 @@ export class AgentBridge {
     this.#pollTimeoutSeconds = pollTimeoutSeconds;
     this.#backoffMilliseconds = backoffMilliseconds;
     this.#membershipTimeoutMilliseconds = membershipTimeoutMilliseconds;
+    this.#disableLinkPreview = disableLinkPreview;
     this.#sleep = sleepImpl;
     this.#albums = new AlbumCollector({
       now,
@@ -184,6 +187,7 @@ export class AgentBridge {
         messageThreadIdentifier: threadIdentifier,
         text: limitReport(text),
         signal,
+        ...(this.#disableLinkPreview ? { disableLinkPreview: true } : {}),
       });
     } catch (error) {
       this.#logger(
@@ -323,6 +327,7 @@ export class AgentBridge {
       instruction: classification.text,
       attachments: classification.attachments,
       replyMessageIdentifier: classification.replyMessageIdentifier,
+      exactDirectReply: classification.exactDirectReply,
     });
     this.#traceAdmission(admission, classification);
     if (

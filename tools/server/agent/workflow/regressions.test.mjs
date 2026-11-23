@@ -24,6 +24,7 @@ import {
   listChangedPaths,
 } from "../repository/worktrees.mjs";
 import { openIdentifierNames } from "../repository/identifiers.mjs";
+import { createResearchReview } from "../repository/research-review.mjs";
 import { createProjectRunner } from "./project-runner.mjs";
 import { SandboxCleanupError } from "../sandbox/errors.mjs";
 
@@ -89,10 +90,14 @@ async function repositoryFixture(context) {
     github: { token: "synthetic-github" },
     limits,
   };
+  const name = openIdentifierNames(config.paths.state).worktreeName("-100:7");
+  createResearchReview({
+    directory: join(config.paths.state, "research-review"),
+  }).initialize(name);
   const worktree = await ensureSessionWorktree({
     repositoryPath: repository,
     worktreeRoot: config.paths.worktrees,
-    name: openIdentifierNames(config.paths.state).worktreeName("-100:7"),
+    name,
   });
   return { directory, repository, config, worktree };
 }

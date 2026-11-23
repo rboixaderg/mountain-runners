@@ -199,6 +199,9 @@ més 15 s de marge (`longPollMarginMilliseconds`). Un termini esgotat és un
 `TelegramApiError` sense URL ni token; una aturada del procés continua com a
 `AbortError`.
 
+`TelegramApi.sendMessage` admet `disableLinkPreview: true` per enviar un enllaç
+sense que Telegram en generi una previsualització.
+
 ### Torn de Pi
 
 ```js
