@@ -2017,7 +2017,7 @@ test("two implementation turns publish to the first bound pull request", async (
   }
 });
 
-test("runs the fast gate for a content-only change and names it in the pull request", async (context) => {
+test("runs the fast gate for a web-only change and names it in the pull request", async (context) => {
   const paths = await fixture(context);
   const notes = noteStore(context, paths);
   const github = githubStub();
@@ -2029,8 +2029,17 @@ test("runs the fast gate for a content-only change and names it in the pull requ
     sessionNotes: notes,
     runModel: async ({ worktreePath }) => {
       const postDirectory = join(worktreePath, "apps/web/src/content/posts");
+      const componentDirectory = join(
+        worktreePath,
+        "apps/web/src/components/about",
+      );
       mkdirSync(postDirectory, { recursive: true });
+      mkdirSync(componentDirectory, { recursive: true });
       writeFileSync(join(postDirectory, "la-cursa.md"), "---\n---\n");
+      writeFileSync(
+        join(componentDirectory, "AboutBoard.astro"),
+        "<section>synthetic</section>\n",
+      );
       return {
         text: "Text corregit.\nSUMMARY: content(posts): fix three sentences",
       };
@@ -2059,7 +2068,7 @@ test("runs the fast gate for a content-only change and names it in the pull requ
   );
 });
 
-test("runs the full gate when the change also touches code outside the content", async (context) => {
+test("runs the full gate when the change also touches files outside the web app roots", async (context) => {
   const paths = await fixture(context);
   const github = githubStub();
   const commands = [];
@@ -2069,11 +2078,12 @@ test("runs the full gate when the change also touches code outside the content",
     github,
     runModel: async ({ worktreePath }) => {
       const postDirectory = join(worktreePath, "apps/web/src/content/posts");
-      const pageDirectory = join(worktreePath, "apps/web/src/pages");
       mkdirSync(postDirectory, { recursive: true });
-      mkdirSync(pageDirectory, { recursive: true });
       writeFileSync(join(postDirectory, "la-cursa.md"), "---\n---\n");
-      writeFileSync(join(pageDirectory, "x.astro"), "<p>synthetic</p>\n");
+      writeFileSync(
+        join(worktreePath, "apps/web/build-mode.mjs"),
+        "export const synthetic = true;\n",
+      );
       return {
         text: "Text corregit.\nSUMMARY: content(posts): fix three sentences",
       };

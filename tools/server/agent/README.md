@@ -172,7 +172,9 @@ al servidor. El nom local encara no representa una publicació a npm.
 5. Si hi ha canvis o commits pendents, `workflow` crea o continua la branca,
    desa la feina en un commit local i sincronitza la branca. Després executa les
    comprovacions dins del contenidor: `pnpm check:local` si tots els camins són
-   dins del contingut (ADR 0012) i `pnpm check` altrament.
+   dins `apps/web/src/`, `apps/web/messages/` o `apps/web/public/` (ADR 0012; la
+   CI i la preview continuen executant `pnpm check` i E2E complets) i `pnpm check`
+   altrament.
    Abans de cada comprovació, el Git de confiança obté la llista de fitxers
    versionats i nous no ignorats, i marca els eliminats. El contenidor rep aquesta
    instantània de rutes en un fitxer temporal de només lectura per a
@@ -326,7 +328,7 @@ torn: [Preview demanada al tema](#preview-demanada-al-tema),
   següents reutilitzen la vinculació. El servei no reprèn PR d'altres temes ni
   genera avisos de solapament. Abans de publicar executa `pnpm check` al
   contenidor, o `pnpm check:local` si tots els camins de la publicació són dins
-  de `apps/web/src/content` o `apps/web/src/content-assets` (ADR 0012). Una
+  de `apps/web/src/`, `apps/web/messages/` o `apps/web/public/` (ADR 0012). Una
   fallada conserva la feina i el torn ordinari següent torna a intentar-la.
 - Un error local, un timeout o una cancel·lació confirmada no bloquegen la cua.
   Un error després d'iniciar la publicació queda incert, excepte un refús local
@@ -1150,8 +1152,8 @@ el lint del repositori ignoren: `/tmp` del contenidor és `noexec`, i els fitxer
 temporals que genera Playwright, com la memòria cau de transformació, no s'han
 de cometre ni validar. Abans de publicar, el servei torna a instal·lar les
 dependències del lockfile i executa `pnpm check`, o `pnpm check:local` si tots
-els camins de la publicació són dins del contingut (ADR 0012), amb un `TMPDIR`
-nou. Si la preparació falla, no inicia el model o no publica, segons el moment
+els camins de la publicació són dins `apps/web/src/`, `apps/web/messages/` o
+`apps/web/public/` (ADR 0012), amb un `TMPDIR` nou. Si la preparació falla, no
 de la fallada.
 
 La versió de pnpm del `package.json` ha de coincidir amb la de la imatge. Una
