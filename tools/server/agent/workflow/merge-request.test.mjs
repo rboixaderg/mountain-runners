@@ -924,6 +924,38 @@ test("reads a pull request again while mergeability is unknown and then refuses 
   assert.deepEqual(github.merges, []);
 });
 
+test("answers already merged when GitHub reports unknown mergeability for a merged pull request", async (context) => {
+  const { deliverPreview, handler, github } = setup(context, {
+    github: fakeGithub({
+      pullRequest: { ...mergedPullRequest(), mergeableState: "unknown" },
+    }),
+  });
+  deliverPreview();
+
+  const result = await handler.handle(request(), bareCommand);
+
+  assert.match(result.report, /proposta #200 ja està fusionada/u);
+  assert.deepEqual(github.merges, []);
+});
+
+test("answers not open when GitHub reports unknown mergeability for a closed pull request", async (context) => {
+  const { deliverPreview, handler, github } = setup(context, {
+    github: fakeGithub({
+      pullRequest: openPullRequest({
+        state: "closed",
+        mergeableState: "unknown",
+      }),
+    }),
+  });
+  deliverPreview();
+
+  const result = await handler.handle(request(), bareCommand);
+
+  assert.doesNotMatch(result.report, /No he pogut llegir/u);
+  assert.match(result.report, /proposta #200 ja no està oberta/u);
+  assert.deepEqual(github.merges, []);
+});
+
 test("merges once GitHub finishes computing the mergeability", async (context) => {
   const { deliverPreview, handler, github } = setup(context, {
     github: fakeGithub({

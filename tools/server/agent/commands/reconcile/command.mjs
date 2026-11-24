@@ -24,6 +24,7 @@ import { readAgentConfig } from "../../config.mjs";
 import { reconcileResolutions } from "../../policy/development.mjs";
 import { CiWatchStore } from "../../repository/ci-watch-store.mjs";
 import { GitHubTrust } from "../../repository/github.mjs";
+import { MergeRequestStore } from "../../repository/merge-request-store.mjs";
 import { PreviewRequestStore } from "../../repository/preview-request-store.mjs";
 import { SessionNoteStore } from "../../repository/session-note-store.mjs";
 import {
@@ -42,10 +43,11 @@ Reconcile the cases that keep the service from starting because an external
 result is unknown. The service must be stopped.
 
 Options:
-  --kind <kind>           instruction, repair or notice
+  --kind <kind>           instruction, repair, notice or merge
   --update <id>           Telegram update printed by list for that case
   --resolution <value>    instruction and repair: published, not_published
                           notice: delivered, resend
+                          merge: merged, not_merged (checked on GitHub)
   --commit <sha>          full commit SHA, required by --resolution published
   --pull-request <n>      pull request of a published instruction; the command
                           restores the CI watch the failed registration lost
@@ -200,6 +202,7 @@ function openStores(config, command) {
     repairs: null,
     notes: null,
     previews: null,
+    merges: null,
   };
   try {
     stores.instructions = existsSync(admissionPath)
@@ -216,6 +219,10 @@ function openStores(config, command) {
       command.command === "resolve" && existsSync(sessionNotesPath)
         ? new SessionNoteStore(sessionNotesPath)
         : null;
+    const mergePath = databasePath("merge-request.sqlite");
+    stores.merges = existsSync(mergePath)
+      ? new MergeRequestStore(mergePath)
+      : null;
     if (
       command.kind === caseKinds.instruction &&
       command.resolution === reconcileResolutions.published &&
@@ -231,6 +238,7 @@ function openStores(config, command) {
 }
 
 function closeStores(stores) {
+  stores.merges?.close();
   stores.previews?.close();
   stores.notes?.close();
   stores.repairs?.close();
@@ -293,27 +301,28 @@ export async function runReconcileCommand({
     return 1;
   }
   try {
+    const github =
+      githubOverride ??
+      new GitHubTrust({
+        token: config.github.token,
+        repository: config.github.repository,
+      });
     if (command.command === "list") {
-      const github =
-        githubOverride ??
-        new GitHubTrust({
-          token: config.github.token,
-          repository: config.github.repository,
-        });
       const cases = await listUncertainCases({ config, stores, github });
       for (const facts of cases) {
         write(`${JSON.stringify(facts)}\n`);
       }
       return 0;
     }
-    // A resolution reads no pull request: it applies exactly the decision the
-    // person already checked on GitHub.
+    // A resolution applies the decision the person already checked on GitHub;
+    // only a merge reads the pull request again, to refuse a wrong decision.
     const resolved = await resolveUncertainCase({
       config,
       stores,
       telegram:
         telegramOverride ??
         new TelegramApi({ botToken: config.telegram.botToken }),
+      github,
       kind: command.kind,
       updateIdentifier: command.updateIdentifier,
       sequence: command.sequence,

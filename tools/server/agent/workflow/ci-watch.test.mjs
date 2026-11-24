@@ -1221,6 +1221,58 @@ test("keeps the watch pending when GitHub cannot answer", async (context) => {
   assert.equal(store.state(registration.updateIdentifier), "pending");
 });
 
+test("ends a watch at its deadline even when GitHub keeps failing", async (context) => {
+  const { store } = fixture(context);
+  createCiWatchRegistration({ store })(registration);
+  const telegram = fakeTelegram();
+  const worker = workerFor({
+    store,
+    github: {
+      async getCommitCheckRuns() {
+        throw new Error("GitHub GET check-runs failed with HTTP 502.");
+      },
+      async getCommitStatuses() {
+        return [];
+      },
+    },
+    telegram,
+    now: () => new Date(Date.now() + 2 * 60 * 60 * 1000),
+  });
+
+  await worker.runOnce();
+
+  assert.equal(telegram.sent.length, 1);
+  assert.equal(telegram.sent[0].text, failedMaintainerNotice);
+  assert.equal(store.state(registration.updateIdentifier), "sent");
+});
+
+test("ends a watch at its deadline when only the pull request read fails", async (context) => {
+  const { store } = fixture(context);
+  createCiWatchRegistration({ store })(registration);
+  const telegram = fakeTelegram();
+  const worker = workerFor({
+    store,
+    github: {
+      async getCommitCheckRuns() {
+        return [checkRun("Validate", "completed", "success")];
+      },
+      async getCommitStatuses() {
+        return [];
+      },
+      async getPullRequest() {
+        throw new Error("GitHub GET pull failed with HTTP 502.");
+      },
+    },
+    telegram,
+    now: () => new Date(Date.now() + 2 * 60 * 60 * 1000),
+  });
+
+  await worker.runOnce();
+
+  assert.equal(telegram.sent.length, 1);
+  assert.equal(store.state(registration.updateIdentifier), "sent");
+});
+
 test("gives up a GitHub read that never answers without stalling the cycle", async (context) => {
   const { store } = fixture(context);
   createCiWatchRegistration({ store })(registration);

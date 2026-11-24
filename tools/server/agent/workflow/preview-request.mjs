@@ -338,12 +338,49 @@ export function createPreviewRequests({
     };
   }
 
+  /** Report a row past its deadline as unconfirmed and end it. */
+  async function expire(row, target, { signal }) {
+    const expired =
+      now().getTime() - Date.parse(row.updated_at) >=
+      confirmationTimeoutMilliseconds;
+    if (!expired) return;
+    if (signal?.aborted) return;
+    const notice = await report(row, previewReports.unconfirmed, {
+      signal,
+      state: "unconfirmed",
+      note: previewNotes.unconfirmed(target),
+    });
+    if (notice === null) return;
+    // The notice says the case is left for the maintainer, so it is recorded.
+    safeTrace({
+      updateIdentifier: row.update_identifier,
+      authorIdentifier: row.author_identifier,
+      sessionKey: row.session_key,
+      action: maintainerAttentionAction,
+      detail: previewUnconfirmedReason,
+    });
+    logger(maintainerAttentionAction, previewUnconfirmedReason);
+    const ended = store.finish(
+      row.update_identifier,
+      row.commit_sha,
+      previewStates.timedOut,
+    );
+    if (!ended) return;
+    safeTrace({
+      updateIdentifier: row.update_identifier,
+      authorIdentifier: row.author_identifier,
+      sessionKey: row.session_key,
+      action: "preview_unconfirmed",
+      detail: describeTarget(target),
+    });
+  }
+
   /**
    * One cycle over the requests awaiting the trusted publisher. A row ends only
    * after its report was sent, so a failed send is retried on the next cycle. A
    * crash between the send and the end of the row can repeat the notice once:
    * that is accepted over losing it. A failed read never ends a row by itself,
-   * and the deadline is applied only after a successful read. The comments are
+   * but the deadline applies even when the reads fail. The comments are
    * read before the pull request, so the state that allows the report is never
    * older than the comment it reports. A pull request that no longer has a
    * preview for the pinned commit ends the row without a message: only the
@@ -380,6 +417,8 @@ export function createPreviewRequests({
           "preview_confirmation_read_failed",
           error instanceof Error ? error.name : "unknown",
         );
+        // A failed read never ends a row, but the deadline still applies.
+        await expire(row, target, { signal });
         continue;
       }
       const withdrawal =
@@ -460,39 +499,7 @@ export function createPreviewRequests({
         continue;
       }
 
-      const expired =
-        now().getTime() - Date.parse(row.updated_at) >=
-        confirmationTimeoutMilliseconds;
-      if (!expired) continue;
-      if (signal?.aborted) return;
-      const notice = await report(row, previewReports.unconfirmed, {
-        signal,
-        state: "unconfirmed",
-        note: previewNotes.unconfirmed(target),
-      });
-      if (notice === null) continue;
-      // The notice says the case is left for the maintainer, so it is recorded.
-      safeTrace({
-        updateIdentifier: row.update_identifier,
-        authorIdentifier: row.author_identifier,
-        sessionKey: row.session_key,
-        action: maintainerAttentionAction,
-        detail: previewUnconfirmedReason,
-      });
-      logger(maintainerAttentionAction, previewUnconfirmedReason);
-      const ended = store.finish(
-        row.update_identifier,
-        row.commit_sha,
-        previewStates.timedOut,
-      );
-      if (!ended) continue;
-      safeTrace({
-        updateIdentifier: row.update_identifier,
-        authorIdentifier: row.author_identifier,
-        sessionKey: row.session_key,
-        action: "preview_unconfirmed",
-        detail: describeTarget(target),
-      });
+      await expire(row, target, { signal });
     }
   }
 

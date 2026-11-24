@@ -18,6 +18,7 @@ import {
   reconcileResolutions,
 } from "../../policy/development.mjs";
 import { CiWatchStore } from "../../repository/ci-watch-store.mjs";
+import { MergeRequestStore } from "../../repository/merge-request-store.mjs";
 import { openIdentifierNames } from "../../repository/identifiers.mjs";
 import { PreviewRequestStore } from "../../repository/preview-request-store.mjs";
 import {
@@ -76,8 +77,10 @@ async function fixture(context) {
       maxPending: 10,
     }),
     repairs: new CiWatchStore(join(state, "ci-watch.sqlite")),
+    merges: new MergeRequestStore(join(state, "merge-request.sqlite")),
   };
   context.after(() => {
+    stores.merges.close();
     stores.repairs.close();
     stores.instructions.close();
     rmSync(directory, {
@@ -715,6 +718,134 @@ test("lists an unknown CI notice with what it reported", async (context) => {
     commit: "f".repeat(40),
     result: "success",
   });
+});
+
+function uncertainMerge(store, updateIdentifier = 60) {
+  store.begin({
+    updateIdentifier,
+    sessionKey: sessionKeyOne,
+    authorIdentifier: 42,
+    pullRequestNumber,
+    commitSha: "d".repeat(40),
+  });
+  store.markUncertain(updateIdentifier);
+  return updateIdentifier;
+}
+
+function githubWith(pullRequest) {
+  return {
+    async getPullRequest() {
+      return pullRequest;
+    },
+  };
+}
+
+test("lists an uncertain merge", async (context) => {
+  const { config, stores } = await fixture(context);
+  const updateIdentifier = uncertainMerge(stores.merges);
+
+  const [facts] = await listUncertainCases({ config, stores, github: {} });
+
+  assert.deepEqual(facts, {
+    kind: "merge",
+    update_identifier: updateIdentifier,
+    session_key: sessionKeyOne,
+    created_at: facts.created_at,
+    pull_request_number: pullRequestNumber,
+    commit: "d".repeat(40),
+  });
+});
+
+test("closes an uncertain merge as merged when GitHub shows it merged", async (context) => {
+  const { config, stores } = await fixture(context);
+  const updateIdentifier = uncertainMerge(stores.merges);
+  const telegram = fakeTelegram();
+
+  await resolveUncertainCase({
+    config,
+    stores,
+    telegram,
+    github: githubWith({
+      merged: true,
+      headSha: "d".repeat(40),
+      mergeCommitSha: "e".repeat(40),
+    }),
+    kind: "merge",
+    updateIdentifier,
+    resolution: reconcileResolutions.merged,
+  });
+
+  assert.equal(stores.merges.state(updateIdentifier), "merged");
+  assert.deepEqual(stores.merges.uncertain(), []);
+  assert.deepEqual(telegram.messages, []);
+  const trace = stores.instructions
+    .traceEntries()
+    .find((entry) => entry.action === "uncertain_reconciled");
+  assert.equal(trace.detail, `merge merged #${pullRequestNumber} ddddddd`);
+});
+
+test("closes an uncertain merge as not merged when GitHub shows it unmerged", async (context) => {
+  const { config, stores } = await fixture(context);
+  const updateIdentifier = uncertainMerge(stores.merges);
+
+  await resolveUncertainCase({
+    config,
+    stores,
+    telegram: fakeTelegram(),
+    github: githubWith({ merged: false, state: "open" }),
+    kind: "merge",
+    updateIdentifier,
+    resolution: reconcileResolutions.notMerged,
+  });
+
+  assert.equal(stores.merges.state(updateIdentifier), "not_merged");
+  assert.deepEqual(stores.merges.uncertain(), []);
+});
+
+test("refuses an uncertain merge resolution that GitHub contradicts", async (context) => {
+  const { config, stores } = await fixture(context);
+  const updateIdentifier = uncertainMerge(stores.merges);
+
+  await assert.rejects(
+    resolveUncertainCase({
+      config,
+      stores,
+      telegram: fakeTelegram(),
+      github: githubWith({
+        merged: true,
+        headSha: "d".repeat(40),
+        mergeCommitSha: "e".repeat(40),
+      }),
+      kind: "merge",
+      updateIdentifier,
+      resolution: reconcileResolutions.notMerged,
+    }),
+    ReconcileCaseError,
+  );
+  assert.equal(stores.merges.state(updateIdentifier), "uncertain");
+});
+
+test("refuses an uncertain merge whose pull request merged another head", async (context) => {
+  const { config, stores } = await fixture(context);
+  const updateIdentifier = uncertainMerge(stores.merges);
+
+  await assert.rejects(
+    resolveUncertainCase({
+      config,
+      stores,
+      telegram: fakeTelegram(),
+      github: githubWith({
+        merged: true,
+        headSha: "a".repeat(40),
+        mergeCommitSha: "e".repeat(40),
+      }),
+      kind: "merge",
+      updateIdentifier,
+      resolution: reconcileResolutions.merged,
+    }),
+    /different head/u,
+  );
+  assert.equal(stores.merges.state(updateIdentifier), "uncertain");
 });
 
 test("closes a delivered notice without telling the topic again", async (context) => {

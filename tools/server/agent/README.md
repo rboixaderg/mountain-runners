@@ -1016,7 +1016,9 @@ les instruccions del tema continuen. La reconciliació d'un resultat desconegut
 no és automàtica: una persona llegeix l'estat real i el tanca amb
 `commands/reconcile/cli.mjs`, amb el servei aturat i la identitat del servei. Un
 avís de CI incert també es reconcilia així (`--kind notice`), sense cap avís nou
-al tema. Una instrucció publicada exigeix `--pull-request`: la comanda torna a
+al tema. Un merge incert es reconcilia amb `--kind merge`, que llegeix la PR a
+GitHub i només accepta la resolució que coincideix amb el seu estat. Una
+instrucció publicada exigeix `--pull-request`: la comanda torna a
 desar el seguiment de CI pendent d'aquell commit abans de desbloquejar-la, i si
 no el pot desar la instrucció continua incerta.
 Cada resolució es desa amb la seva traça o no es desa, i la comanda no crea cap

@@ -843,17 +843,29 @@ test("reports an unconfirmed preview at the deadline without guessing a URL", as
   assert.ok(actions(traces).includes("preview_unconfirmed"));
 });
 
-test("an unconfirmed report carries the requester and waits for a read", async (context) => {
-  const { handler, github, sent, traces, previews, advance } = setup(context);
+test("reports an unconfirmed preview at the deadline even when GitHub keeps failing", async (context) => {
+  const { handler, previews, sent, github, advance } = setup(context);
   await handler.handle(request());
-  advance(confirmationTimeoutMilliseconds);
+  github.listError = new Error("GitHub failed");
 
-  github.listError = new Error("HTTP 502");
+  advance(confirmationTimeoutMilliseconds - 1);
   await handler.runOnce();
   assert.deepEqual(sent, []);
   assert.equal(previews.state(20), "awaiting");
 
-  github.listError = null;
+  advance(1);
+  await handler.runOnce();
+
+  assert.equal(sent.length, 1);
+  assert.equal(sent[0].text, failedMaintainerNotice);
+  assert.equal(previews.state(20), "timed_out");
+});
+
+test("an unconfirmed report carries the requester", async (context) => {
+  const { handler, sent, traces, previews, advance } = setup(context);
+  await handler.handle(request());
+  advance(confirmationTimeoutMilliseconds);
+
   await handler.runOnce();
   assert.equal(sent.length, 1);
   assert.equal(previews.state(20), "timed_out");
