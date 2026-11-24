@@ -3,8 +3,65 @@
 // The instruction signal reaches every remote read and write, so a stop ends the
 // publication instead of holding the single global execution.
 
-import { PublicationBaseChangedError, PublishRefusedError } from "./github.mjs";
+import {
+  GitHubResponseError,
+  PublicationBaseChangedError,
+  PublishRefusedError,
+} from "./github.mjs";
+import { sleep } from "./request-signal.mjs";
 import { recordPublication } from "./worktrees.mjs";
+
+const synchronizationRetryDelays = [1000, 2000, 4000, 8000, 16_000];
+
+function isTransientReadError(error) {
+  if (error instanceof GitHubResponseError) {
+    return error.status === 408 || error.status === 429 || error.status >= 500;
+  }
+  return error instanceof TypeError || error?.name === "TimeoutError";
+}
+
+function synchronizationEligible(pullRequest, branch, repository) {
+  return (
+    pullRequest.state === "open" &&
+    pullRequest.headRef === branch &&
+    pullRequest.headRepository?.toLowerCase() === repository.toLowerCase() &&
+    pullRequest.baseRef === "main" &&
+    !pullRequest.draft &&
+    pullRequest.previewLabeled &&
+    !pullRequest.previewRevoked
+  );
+}
+
+async function confirmSynchronizedPullRequest({
+  github,
+  repair,
+  commit,
+  branch,
+  repository,
+  signal,
+}) {
+  for (const delay of [0, ...synchronizationRetryDelays]) {
+    if (delay > 0) await sleep(delay, signal);
+    signal?.throwIfAborted();
+    let pullRequest;
+    try {
+      pullRequest = await github.getPullRequest({
+        number: repair.pullRequestNumber,
+        signal,
+      });
+    } catch (error) {
+      if (signal?.aborted || !isTransientReadError(error)) throw error;
+      continue;
+    }
+    signal?.throwIfAborted();
+    if (!synchronizationEligible(pullRequest, branch, repository)) break;
+    if (pullRequest.headSha === commit) {
+      return { ...pullRequest, number: repair.pullRequestNumber };
+    }
+    if (pullRequest.headSha !== repair.commit) break;
+  }
+  throw new Error("The updated pull request cannot be confirmed.");
+}
 
 export function createPublisher({
   github,
@@ -102,13 +159,7 @@ export function createPublisher({
         pullRequest.state !== "open" ||
         pullRequest.headSha !== repair.commit ||
         (synchronization &&
-          (pullRequest.headRef !== branch ||
-            pullRequest.headRepository?.toLowerCase() !==
-              repository.toLowerCase() ||
-            pullRequest.baseRef !== "main" ||
-            pullRequest.draft ||
-            !pullRequest.previewLabeled ||
-            pullRequest.previewRevoked))
+          !synchronizationEligible(pullRequest, branch, repository))
       ) {
         return { refused: true };
       }
@@ -132,20 +183,25 @@ export function createPublisher({
       }
       throw error;
     }
-    const { pullRequest, created } = await github.ensurePullRequest({
-      branch,
-      title,
-      body,
-      createMissing: !repair,
-      signal,
-    });
-    if (
-      synchronization &&
-      (pullRequest?.number !== repair.pullRequestNumber ||
-        pullRequest.headSha !== pushed.commit)
-    ) {
-      throw new Error("The updated pull request cannot be confirmed.");
-    }
+    const { pullRequest, created } = synchronization
+      ? {
+          pullRequest: await confirmSynchronizedPullRequest({
+            github,
+            repair,
+            commit: pushed.commit,
+            branch,
+            repository,
+            signal,
+          }),
+          created: false,
+        }
+      : await github.ensurePullRequest({
+          branch,
+          title,
+          body,
+          createMissing: !repair,
+          signal,
+        });
     // Only a publication with its pull request is recorded: a repair whose pull
     // request disappeared meanwhile is a refusal, not a publication the service
     // must follow.
