@@ -20,6 +20,13 @@ export const repositoryPattern = /^[A-Za-z0-9._-]+\/[A-Za-z0-9._-]+$/u;
 const groupIdentifierPattern = /^-\d+$/u;
 const positiveIntegerPattern = /^\d+$/u;
 const braveTokenName = "MOUNTAIN_AGENT_BRAVE_SEARCH_TOKEN";
+const serviceCredentialNames = [
+  "MOUNTAIN_AGENT_GITHUB_TOKEN",
+  "MOUNTAIN_AGENT_TELEGRAM_BOT_TOKEN",
+  braveTokenName,
+];
+const reservedProviderNamePattern =
+  /^(MOUNTAIN_AGENT_|MR_AGENT_|PATH$|HOME$|TMPDIR$|XDG_RUNTIME_DIR$)/u;
 
 export const defaultLimits = {
   maxPendingInstructions: 10,
@@ -186,15 +193,28 @@ function readWebResearchConfig(environment) {
  * sandbox or the prompt; the trusted component uses them for the publication
  * scan and to redact text it reads from outside.
  */
-export function agentSecrets(config, environment = process.env) {
+export function agentSecrets(config) {
   return [
     config.telegram.botToken,
     config.github.token,
     ...(config.webResearch ? [config.webResearch.subscriptionToken] : []),
-    ...config.model.providerEnvironmentVariables.map(
-      (name) => environment[name],
-    ),
+    ...Object.values(config.model.providerEnvironment),
   ];
+}
+
+/**
+ * Removes every credential from the process environment once the
+ * configuration holds them, so no child process inherits them. Code running as
+ * the service user can still read the initial environment or the environment
+ * file; full isolation would need Pi under a separate user.
+ */
+export function removeAgentCredentials(config, environment = process.env) {
+  for (const name of [
+    ...serviceCredentialNames,
+    ...Object.keys(config.model.providerEnvironment),
+  ]) {
+    delete environment[name];
+  }
 }
 
 export function readAgentConfig(environment = process.env) {
@@ -235,11 +255,19 @@ export function readAgentConfig(environment = process.env) {
     "MOUNTAIN_AGENT_PROVIDER_ENVIRONMENT_VARIABLES",
   );
   if (
-    providerEnvironmentVariables.includes(braveTokenName) ||
-    (webResearch &&
-      providerEnvironmentVariables.some((name) =>
-        environment[name]?.includes(webResearch.subscriptionToken),
-      ))
+    providerEnvironmentVariables.some((name) =>
+      reservedProviderNamePattern.test(name),
+    )
+  ) {
+    throw new Error(
+      "Configuration value MOUNTAIN_AGENT_PROVIDER_ENVIRONMENT_VARIABLES cannot name service variables.",
+    );
+  }
+  if (
+    webResearch &&
+    providerEnvironmentVariables.some((name) =>
+      environment[name]?.includes(webResearch.subscriptionToken),
+    )
   ) {
     throw new Error("The Brave credential cannot be passed to Pi.");
   }
@@ -262,7 +290,11 @@ export function readAgentConfig(environment = process.env) {
         environment.MOUNTAIN_AGENT_MODEL?.trim() || "opencode-go/glm-5.3-flash",
       piCommand: environment.MOUNTAIN_AGENT_PI_COMMAND?.trim() || "pi",
       sandboxImage: requiredValue(environment, "MOUNTAIN_AGENT_SANDBOX_IMAGE"),
-      providerEnvironmentVariables,
+      providerEnvironment: Object.fromEntries(
+        providerEnvironmentVariables
+          .filter((name) => environment[name] !== undefined)
+          .map((name) => [name, environment[name]]),
+      ),
     },
     paths: {
       repository: absolutePath(environment, "MOUNTAIN_AGENT_REPOSITORY_PATH"),

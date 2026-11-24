@@ -9,7 +9,7 @@ test("keeps project credentials out of Pi and explicitly enables only the isolat
     config: {
       model: {
         identifier: "example/model",
-        providerEnvironmentVariables: ["PROVIDER_KEY", "MR_AGENT_WEB_RESEARCH"],
+        providerEnvironment: { PROVIDER_KEY: "synthetic-provider" },
         sandboxImage: "sandbox:1",
       },
       paths: { sessions: "/private/sessions", worktrees: "/private/worktrees" },
@@ -29,7 +29,6 @@ test("keeps project credentials out of Pi and explicitly enables only the isolat
       HOME: "/private/home",
       TMPDIR: "/private/home/tmp",
       XDG_RUNTIME_DIR: "/private/runtime",
-      PROVIDER_KEY: "synthetic-provider",
       GITHUB_TOKEN: "synthetic-github",
       TELEGRAM_BOT_TOKEN: "synthetic-telegram",
       MR_AGENT_WEB_RESEARCH: "1",

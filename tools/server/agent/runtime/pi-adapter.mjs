@@ -11,7 +11,7 @@ import { serveWebResearch } from "./web-wire-server.mjs";
 export function buildPiEnvironment({
   environment,
   profileDirectory,
-  providerEnvironmentVariables,
+  providerEnvironment,
   sandbox,
   sandboxIdentifier,
   worktreePath,
@@ -37,11 +37,7 @@ export function buildPiEnvironment({
     allowedEnvironment.MR_AGENT_SESSION_IDENTIFIER = sandboxIdentifier;
     allowedEnvironment.MR_AGENT_READ_ONLY = String(readOnly);
   }
-  for (const name of providerEnvironmentVariables) {
-    if (name !== "MR_AGENT_WEB_RESEARCH" && environment[name] !== undefined) {
-      allowedEnvironment[name] = environment[name];
-    }
-  }
+  Object.assign(allowedEnvironment, providerEnvironment);
   // The view_attachment tool reads the copy in the worktree, never the store in
   // the state directory. The names are the service list; a free path is not
   // accepted. The classifier runs without a worktree and without tools.
@@ -105,7 +101,7 @@ export function projectPiOptions({
       ...buildPiEnvironment({
         environment,
         profileDirectory,
-        providerEnvironmentVariables: config.model.providerEnvironmentVariables,
+        providerEnvironment: config.model.providerEnvironment,
         sandbox: {
           image: config.model.sandboxImage,
           worktreeRoot: config.paths.worktrees,

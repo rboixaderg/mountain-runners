@@ -46,7 +46,7 @@ process.stdin.once("data", () => {
     model: {
       identifier: "synthetic",
       piCommand: executable,
-      providerEnvironmentVariables: [],
+      providerEnvironment: {},
       sandboxImage: "synthetic:1",
     },
     limits: { executionTimeoutMs: 5000 },
@@ -104,7 +104,7 @@ test("claims the service events only when Pi is about to receive the prompt", as
     model: {
       identifier: "synthetic",
       piCommand: join(directory, "missing-pi"),
-      providerEnvironmentVariables: [],
+      providerEnvironment: {},
       sandboxImage: "synthetic:1",
     },
     limits: { executionTimeoutMs: 5000 },
@@ -171,7 +171,7 @@ process.stdin.once('data', async () => {
     model: {
       identifier: "synthetic",
       piCommand: executable,
-      providerEnvironmentVariables: [],
+      providerEnvironment: {},
       sandboxImage: "synthetic:1",
     },
     limits: { executionTimeoutMs: 5000 },
@@ -248,7 +248,7 @@ process.stdin.once('data', async () => {
     model: {
       identifier: "synthetic",
       piCommand: executable,
-      providerEnvironmentVariables: [],
+      providerEnvironment: {},
       sandboxImage: "synthetic:1",
     },
     limits: { executionTimeoutMs: 5000 },

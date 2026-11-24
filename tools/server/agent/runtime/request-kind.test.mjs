@@ -18,7 +18,7 @@ test("classifies without tools, repository context, extensions or session histor
     config: {
       model: {
         identifier: "synthetic",
-        providerEnvironmentVariables: [],
+        providerEnvironment: {},
         sandboxImage: "sandbox:1",
       },
       paths: { worktrees: "/synthetic-worktrees" },
