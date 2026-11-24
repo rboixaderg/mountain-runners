@@ -2521,6 +2521,30 @@ for (const scenario of [
   });
 }
 
+for (const edits of [false, true]) {
+  test(`fails a topic turn with a provider error ${edits ? "with" : "without"} edits and publishes nothing`, async (context) => {
+    const paths = await fixture(context);
+    const github = githubStub();
+    const runner = createProjectRunner({
+      config: configFor(paths),
+      classifyRequest: async () => ({ kind: "implementation" }),
+      github,
+      runModel: async ({ worktreePath }) => {
+        if (edits) writeFileSync(join(worktreePath, "change.txt"), "partial\n");
+        return { text: "", errorMessage: "429: rate limit exceeded" };
+      },
+      runChecks: async () => ({ exitCode: 0, timedOut: false }),
+    });
+
+    const result = await runner(request());
+
+    assert.equal(result.outcome, "failed");
+    assert.equal(result.report, instructionReports.modelProviderFailed);
+    assert.notEqual(result.report, instructionReports.clarification);
+    assert.deepEqual(github.pushes, []);
+  });
+}
+
 test("reports a timed-out local run as failed and keeps the work", async (context) => {
   const paths = await fixture(context);
   const github = githubStub();
@@ -5787,6 +5811,27 @@ test("a conflict resolution that edits a path outside the conflict is rolled bac
       );
       writeFileSync(join(worktreePath, "stray.txt"), "outside\n");
       return { text: "Fet.\nCONFLICT_RESOLVED" };
+    },
+  );
+  assert.equal(result.outcome, "failed");
+  assert.deepEqual(github.pushes, []);
+  const worktree = topicWorktreePath(paths);
+  await assert.rejects(git(worktree, ["rev-parse", "--verify", "MERGE_HEAD"]));
+  assert.equal(
+    readFileSync(join(worktree, "README.md"), "utf8"),
+    "topic change\n",
+  );
+});
+
+test("a conflict turn with a provider error is an unresolved conflict", async (context) => {
+  const { paths, github, result } = await conflictTurn(
+    context,
+    (worktreePath) => {
+      writeFileSync(
+        join(worktreePath, "README.md"),
+        "main change\ntopic change\n",
+      );
+      return { text: "Fet.\nCONFLICT_RESOLVED", errorMessage: "401: invalid" };
     },
   );
   assert.equal(result.outcome, "failed");
