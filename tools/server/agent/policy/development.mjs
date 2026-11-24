@@ -453,6 +453,7 @@ export const instructionReports = {
   clarification:
     "No sé si vols una explicació o un canvi. Digues-me què vols canviar i ho preparo.",
   modelTimedOut: failedMaintainerNotice,
+  modelProviderFailed: failedMaintainerNotice,
   aborted: failedMaintainerNotice,
   noAnswer: failedMaintainerNotice,
   checksTimedOut: failedMaintainerNotice,

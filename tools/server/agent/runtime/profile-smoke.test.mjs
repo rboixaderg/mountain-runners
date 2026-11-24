@@ -54,7 +54,7 @@ for (const webEnabled of [false, true])
         paths: { sessions: join(directory, "sessions"), worktrees: directory },
         model: {
           identifier: "opencode-go/glm-5.3-flash",
-          providerEnvironmentVariables: [],
+          providerEnvironment: {},
           sandboxImage: "synthetic:1",
         },
         limits: { executionTimeoutMs: 10000 },

@@ -16,6 +16,8 @@ Esmenada el 20 i el 21 de novembre de 2026 amb els merges de la [PR #262](https:
 
 Esmenada el 22 de novembre de 2026 amb el merge de la [PR #280](https://github.com/rboixaderg/mountain-runners/pull/280) (confirmació del merge en dos passos). L'acceptació no activa cap permís.
 
+Esmenada el 24 de novembre de 2026 amb la PR de la T25 de l'[especificació de correccions de l'agent](../specs/agent-audit-remediation.md). L'acceptació no activa cap permís.
+
 ## Context
 
 La fase 8 proposa ampliar el futur assistent editorial privat a consultes i canvis de codi, mantenint una persona com a responsable de la revisió i el merge. El grup privat de Telegram seria la frontera d'accés humana. Cada tema seria una sessió compartida i podria contenir més d'una feina. La petició explícita d'una persona membre autoritza una implementació fins a una PR. Qui ha validat el resultat pot demanar després el merge d'aquella PR; sense aquesta petició, l'agent no fusiona, i no desplega mai.
@@ -262,6 +264,35 @@ contextual en dos passos al literal `/merge`, sense activar cap permís.
   repetir ni saltar controls.
 - **Cap permís actiu.** Els controls s'han de provar abans d'activar-los i la
   primera fusió real requereix l'aprovació de la persona mantenidora.
+
+## Esmena (correccions de l'auditoria, 24 de novembre de 2026)
+
+Aprovada per la persona mantenidora amb la T25 de l'[especificació de correccions
+de l'agent](../specs/agent-audit-remediation.md). L'acceptació no activa cap
+permís ni canvia cap credencial; la implementació són les tasques T2 i T26.
+
+- **Merge només de contingut.** `/merge` i la confirmació contextual «Sí, a
+  producció» només fusionen una PR el commit fixat de la qual canvia
+  exclusivament camins sota `apps/web/src/content/` i
+  `apps/web/src/content-assets/`. En qualsevol altre cas el servei refusa amb un
+  avís clar i la persona mantenidora revisa la PR i la fusiona a GitHub. Motiu:
+  els membres no són tècnics i `main` no exigeix revisió, i el codi que arriba a
+  `main` s'executa amb privilegis (publicació de previews, eines de release i
+  l'agent mateix). Un CODEOWNERS obligatori no funciona, perquè el servei crea
+  les PR amb el mateix compte que les hauria d'aprovar. La resta dels controls
+  del merge no canvia.
+- **Sense reexecució de jobs.** Es retira la reexecució única de comprovacions
+  fallides de l'esmena T8.9. El token deixa de necessitar `Actions: write`, que
+  la persona mantenidora retira un cop desplegada la implementació. Una
+  cancel·lació, un temps esgotat o una fallada d'inici s'informen com qualsevol
+  altra fallada de CI.
+- **Sense reparació automàtica.** Es retira la reparació automàtica acotada de
+  CI: el tema rep l'avís de la fallada i un membre demana el canvi.
+  Evidència: la traça privada registra 2 reparacions iniciades
+  (`ci_repair_requested`) des de l'activació.
+- **Sense canvis.** El sandbox sense xarxa ni credencials, la verificació de
+  membres, el merge fixat a la preview confirmada i la prohibició que l'agent
+  desplegui es mantenen.
 
 ## Esmena proposada: cerca web i revisió abans del push
 

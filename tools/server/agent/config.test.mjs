@@ -1,6 +1,11 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { agentSecrets, defaultLimits, readAgentConfig } from "./config.mjs";
+import {
+  agentSecrets,
+  defaultLimits,
+  readAgentConfig,
+  removeAgentCredentials,
+} from "./config.mjs";
 
 function validEnvironment(overrides = {}) {
   return {
@@ -59,7 +64,7 @@ test("enables web research only with a credential, verified inventory settings a
     "2001:db8::/32",
   ]);
   assert.ok(
-    agentSecrets(config, environment).includes(
+    agentSecrets(config).includes(
       webEnvironment.MOUNTAIN_AGENT_BRAVE_SEARCH_TOKEN,
     ),
   );
@@ -85,20 +90,18 @@ test("enables web research only with a credential, verified inventory settings a
   );
 });
 
-test("refuses to pass the Brave credential to Pi by name or alias", () => {
-  for (const name of ["MOUNTAIN_AGENT_BRAVE_SEARCH_TOKEN", "MODEL_TOKEN"]) {
-    assert.throws(
-      () =>
-        readAgentConfig(
-          validEnvironment({
-            ...webEnvironment,
-            MODEL_TOKEN: webEnvironment.MOUNTAIN_AGENT_BRAVE_SEARCH_TOKEN,
-            MOUNTAIN_AGENT_PROVIDER_ENVIRONMENT_VARIABLES: name,
-          }),
-        ),
-      /cannot be passed to Pi/u,
-    );
-  }
+test("refuses to pass the Brave credential to Pi by alias", () => {
+  assert.throws(
+    () =>
+      readAgentConfig(
+        validEnvironment({
+          ...webEnvironment,
+          MODEL_TOKEN: webEnvironment.MOUNTAIN_AGENT_BRAVE_SEARCH_TOKEN,
+          MOUNTAIN_AGENT_PROVIDER_ENVIRONMENT_VARIABLES: "MODEL_TOKEN",
+        }),
+      ),
+    /cannot be passed to Pi/u,
+  );
 });
 
 test("rejects a configuration without the GitHub credential", () => {
@@ -184,4 +187,56 @@ test("trims the surrounding whitespace of a resource limit", () => {
   );
 
   assert.equal(config.limits.maxPendingInstructions, 12);
+});
+
+test("refuses provider variable names that belong to the service", () => {
+  for (const name of [
+    "MOUNTAIN_AGENT_GITHUB_TOKEN",
+    "MOUNTAIN_AGENT_REPOSITORY",
+    "MR_AGENT_SANDBOX_IMAGE",
+    "PATH",
+    "HOME",
+    "TMPDIR",
+    "XDG_RUNTIME_DIR",
+  ]) {
+    assert.throws(
+      () =>
+        readAgentConfig(
+          validEnvironment({
+            MOUNTAIN_AGENT_PROVIDER_ENVIRONMENT_VARIABLES: `PROVIDER_KEY,${name}`,
+          }),
+        ),
+      /cannot name service variables/u,
+    );
+  }
+});
+
+test("keeps the credentials in the config and removes them from the environment", () => {
+  const environment = validEnvironment({
+    ...webEnvironment,
+    MOUNTAIN_AGENT_PROVIDER_ENVIRONMENT_VARIABLES: "PROVIDER_KEY",
+    PROVIDER_KEY: "synthetic-provider",
+    PATH: "/usr/bin",
+  });
+  const config = readAgentConfig(environment);
+  removeAgentCredentials(config, environment);
+
+  assert.deepEqual(config.model.providerEnvironment, {
+    PROVIDER_KEY: "synthetic-provider",
+  });
+  assert.deepEqual(agentSecrets(config), [
+    "telegram-token",
+    "github-token",
+    "synthetic-brave-token",
+    "synthetic-provider",
+  ]);
+  for (const name of [
+    "MOUNTAIN_AGENT_GITHUB_TOKEN",
+    "MOUNTAIN_AGENT_TELEGRAM_BOT_TOKEN",
+    "MOUNTAIN_AGENT_BRAVE_SEARCH_TOKEN",
+    "PROVIDER_KEY",
+  ]) {
+    assert.equal(environment[name], undefined, name);
+  }
+  assert.equal(environment.PATH, "/usr/bin");
 });

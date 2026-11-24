@@ -192,7 +192,7 @@ async function turnFixture(context) {
       },
       model: {
         sandboxImage: "mountain-agent-pi:1.5.0",
-        providerEnvironmentVariables: [],
+        providerEnvironment: {},
       },
       paths,
       limits: {

@@ -64,7 +64,13 @@ Les credencials es declaren només pel nom: `MOUNTAIN_AGENT_TELEGRAM_BOT_TOKEN`,
 `MOUNTAIN_AGENT_GITHUB_TOKEN` i les que llista
 `MOUNTAIN_AGENT_PROVIDER_ENVIRONMENT_VARIABLES` per al proveïdor del model. Els
 valors viuen només a `agent.env`, amb mode `0600` i el propietari de la
-identitat del servei. Els noms de les variables del servei són a
+identitat del servei. En arrencar, el pont llegeix les credencials una sola
+vegada, les guarda només a la configuració en memòria i les elimina de
+`process.env`, de manera que cap procés fill (Git, Podman, Pi i les seves eines)
+les hereta. Risc residual: el codi que s'executa com a usuari del servei encara
+les pot llegir de l'entorn inicial del procés o del fitxer d'entorn; l'aïllament
+complet exigiria executar Pi amb un usuari separat.
+`MOUNTAIN_AGENT_PROVIDER_ENVIRONMENT_VARIABLES` refusa els noms que comencen per `MOUNTAIN_AGENT_` o `MR_AGENT_`. Els noms de les variables del servei són a
 `.env.example`; els valors no
 es copien mai al repositori, al tema, a la PR ni a un registre. El token de
 Telegram i el de GitHub no arriben a Pi, al contenidor ni al model, i el del
