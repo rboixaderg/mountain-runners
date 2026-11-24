@@ -38,8 +38,9 @@ import {
   abortConflictMerge,
   commitConflictMerge,
   MergeCleanupError,
+  NestedRepositoryError,
 } from "../repository/worktrees.mjs";
-import { runGit } from "../repository/trusted-git.mjs";
+import { ignoreSubmodules, runGit } from "../repository/trusted-git.mjs";
 import { parseMergeCommand } from "./merge-request.mjs";
 import { SandboxCleanupError } from "../sandbox/errors.mjs";
 import {
@@ -554,7 +555,9 @@ export function createInstructionRunner({
         return clarification;
       }
       try {
-        await runGit(worktree, ["diff", "--check"], { signal });
+        await runGit(worktree, ["diff", "--check", ignoreSubmodules], {
+          signal,
+        });
       } catch {
         signal?.throwIfAborted();
         return unresolved;
@@ -585,7 +588,7 @@ export function createInstructionRunner({
       const { untracked } = await listWorkingTreeChanges(worktree);
       for (const path of untracked) {
         if (!untrackedBefore.includes(path)) {
-          rmSync(join(worktree.path, path), { force: true });
+          rmSync(join(worktree.path, path), { force: true, recursive: true });
         }
       }
     } catch (error) {
@@ -897,6 +900,14 @@ export function createInstructionRunner({
         outcome: "uncertain",
         report: instructionReports.publicationUncertain,
         reason: instructionReportKeys.publicationUncertain,
+      };
+    }
+    // A local refusal before any publication: the worktree stays as it is.
+    if (error instanceof NestedRepositoryError) {
+      return {
+        outcome: "failed",
+        report: instructionReports.publicationRefused,
+        reason: instructionReportKeys.publicationRefused,
       };
     }
     return {

@@ -10,6 +10,7 @@ import { existsSync, realpathSync, statSync } from "node:fs";
 import { basename, join } from "node:path";
 import { createAttachmentStore } from "../attachments/store.mjs";
 import {
+  ignoreSubmodules,
   primaryRepository,
   registeredWorktree,
   runGit,
@@ -105,8 +106,11 @@ async function inspectWorktreeState(worktree, { signal } = {}) {
   const hasUnpublishedCommits =
     aheadOfMain && publishedCommit(worktree) !== head;
   const hasUncommittedChanges =
-    (await runGit(worktree, ["status", "--porcelain"], { signal })).trim() !==
-    "";
+    (
+      await runGit(worktree, ["status", "--porcelain", ignoreSubmodules], {
+        signal,
+      })
+    ).trim() !== "";
   const branch = (
     await runGit(worktree, ["symbolic-ref", "--short", "-q", "HEAD"], {
       allowFailure: true,

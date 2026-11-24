@@ -27,6 +27,12 @@ const executeFile = promisify(execFile);
 export const localGitTimeoutMilliseconds = 120 * 1000;
 export const remoteGitTimeoutMilliseconds = 300 * 1000;
 
+// The index mode of a nested repository or a submodule (a gitlink).
+export const gitlinkMode = "160000";
+// Every Git read of the working tree passes this option: Git would otherwise
+// enter a nested repository and run commands there with its own configuration.
+export const ignoreSubmodules = "--ignore-submodules=all";
+
 // Node reports a timeout with `killed` and the signal that ended the child, and
 // an aborted request with `AbortError`. A killed command never answers, so it is
 // not the benign refusal `allowFailure` describes.

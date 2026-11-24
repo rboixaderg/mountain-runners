@@ -24,7 +24,8 @@ import {
   pruneFinishedTopicWorktrees,
 } from "./retention.mjs";
 import { createIdentifierNames } from "./identifiers.mjs";
-import { registeredWorktree } from "./trusted-git.mjs";
+import { registeredWorktree, runGit } from "./trusted-git.mjs";
+import { createNestedRepository } from "./test-support/nested-repository.mjs";
 
 const executeFile = promisify(execFile);
 const topic = "topic-0123456789abcdef";
@@ -68,7 +69,7 @@ async function repositoryFixture(context) {
   await git(repository, ["commit", "-m", "chore: initial"]);
   await git(repository, ["push", "origin", "main"]);
 
-  return { repository, worktreeRoot };
+  return { directory, repository, worktreeRoot };
 }
 
 function archivePath(paths, updateIdentifier) {
@@ -152,6 +153,44 @@ test("keeps an archive with unpublished commits or uncommitted changes", async (
   );
   assert.ok(existsSync(archivePath(paths, 300)));
   assert.ok(existsSync(active.path));
+});
+
+test("never enters a nested repository that an archive records", async (context) => {
+  const paths = await repositoryFixture(context);
+  await ensureSessionWorktree({
+    repositoryPath: paths.repository,
+    worktreeRoot: paths.worktreeRoot,
+    name: topic,
+  });
+  await newTask(paths, 100);
+  await newTask(paths, 200);
+  const archive = registeredWorktree(paths.repository, archivePath(paths, 100));
+  const marker = join(paths.directory, "filter-ran");
+  await createNestedRepository(archive.path, marker);
+  await runGit(archive, ["add", "--all"]);
+  await runGit(archive, [
+    "-c",
+    "user.name=Synthetic",
+    "-c",
+    "user.email=synthetic@example.test",
+    "commit",
+    "--quiet",
+    "-m",
+    "test: record a gitlink",
+  ]);
+
+  const report = await pruneArchivedWorktrees({
+    repositoryPath: paths.repository,
+    worktreeRoot: paths.worktreeRoot,
+  });
+
+  assert.deepEqual(
+    report.kept.find((entry) => entry.path === archive.path),
+    { path: archive.path, reason: "unpublished_commits" },
+  );
+  assert.equal(existsSync(marker), false);
+  await runGit(archive, ["status", "--porcelain"]);
+  assert.equal(existsSync(marker), true);
 });
 
 test("never removes the active worktree and honours a dry run", async (context) => {

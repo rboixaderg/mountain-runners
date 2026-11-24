@@ -20,19 +20,26 @@ import { basename, dirname, join } from "node:path";
 import { promisify } from "node:util";
 import { test } from "node:test";
 import {
+  abortConflictMerge,
   assertWorkBranch,
   changeDiff,
   commitAll,
+  commitConflictMerge,
   createBranch,
   currentBranch,
   ensureSessionWorktree,
   findSessionWorktree,
   hasUnpublishedCommit,
+  listChangedPaths,
+  listWorkingTreeChanges,
+  NestedRepositoryError,
   recordPublication,
   renameLegacyWorktrees,
   synchronizeWithMain,
 } from "./worktrees.mjs";
 import { createIdentifierNames } from "./identifiers.mjs";
+import { runGit } from "./trusted-git.mjs";
+import { createNestedRepository } from "./test-support/nested-repository.mjs";
 
 const identifiers = createIdentifierNames({ salt: "a".repeat(64) });
 
@@ -113,6 +120,96 @@ test("reports conflicted paths and aborts without changing the topic commit", as
   await assert.rejects(
     git(worktree.path, ["rev-parse", "--verify", "MERGE_HEAD"]),
   );
+});
+
+async function topicBranchWorktree(context) {
+  const fixture = await repositoryFixture(context);
+  const worktree = await ensureSessionWorktree({
+    repositoryPath: fixture.repository,
+    worktreeRoot: fixture.worktreeRoot,
+    name: "topic-0123456789abcdef",
+  });
+  await createBranch({ worktree, branch: "feat/agent-synthetic" });
+  return {
+    ...fixture,
+    worktree,
+    head: await git(worktree.path, ["rev-parse", "HEAD"]),
+    marker: join(fixture.directory, "filter-ran"),
+  };
+}
+
+test("refuses to commit a nested repository and never enters it", async (context) => {
+  const { worktree, head, marker } = await topicBranchWorktree(context);
+  writeFileSync(join(worktree.path, "change.txt"), "change\n");
+  await createNestedRepository(worktree.path, marker);
+
+  await assert.rejects(
+    commitAll({ worktree, message: "feat(agent): change" }),
+    NestedRepositoryError,
+  );
+  assert.equal(await git(worktree.path, ["rev-parse", "HEAD"]), head);
+  assert.equal(await git(worktree.path, ["ls-files", "--stage", "nested"]), "");
+  assert.deepEqual((await listChangedPaths(worktree)).sort(), [
+    "change.txt",
+    "nested/",
+  ]);
+  assert.equal(existsSync(marker), false);
+
+  // The fixture is armed: a status enters a nested repository the index records.
+  await runGit(worktree, ["add", "--all"]);
+  await runGit(worktree, ["status", "--porcelain"]);
+  assert.equal(existsSync(marker), true);
+});
+
+test("never enters a nested repository that an earlier commit recorded", async (context) => {
+  const { worktree, marker } = await topicBranchWorktree(context);
+  await createNestedRepository(worktree.path, marker);
+  await runGit(worktree, ["add", "--all"]);
+  await runGit(worktree, [
+    "-c",
+    "user.name=Synthetic",
+    "-c",
+    "user.email=synthetic@example.test",
+    "commit",
+    "--quiet",
+    "-m",
+    "test: record a gitlink",
+  ]);
+
+  assert.deepEqual(await listChangedPaths(worktree), []);
+  assert.deepEqual(await listWorkingTreeChanges(worktree), {
+    modified: [],
+    untracked: [],
+  });
+  await assert.rejects(
+    commitAll({ worktree, message: "feat(agent): change" }),
+    NestedRepositoryError,
+  );
+  assert.equal(existsSync(marker), false);
+
+  await runGit(worktree, ["status", "--porcelain"]);
+  assert.equal(existsSync(marker), true);
+});
+
+test("refuses a nested repository when completing a merge and keeps the merge abortable", async (context) => {
+  const { repository, worktree, head, marker } =
+    await topicBranchWorktree(context);
+  writeFileSync(join(repository, "main.txt"), "main\n");
+  await git(repository, ["add", "main.txt"]);
+  await git(repository, ["commit", "-m", "chore: advance main"]);
+  await git(repository, ["push", "origin", "main"]);
+  await git(worktree.path, ["fetch", "origin"]);
+  await git(worktree.path, ["merge", "--no-ff", "--no-commit", "origin/main"]);
+  await createNestedRepository(worktree.path, marker);
+
+  await assert.rejects(
+    commitConflictMerge({ worktree }),
+    NestedRepositoryError,
+  );
+  assert.equal(await git(worktree.path, ["ls-files", "--stage", "nested"]), "");
+  assert.equal(existsSync(marker), false);
+  await abortConflictMerge(worktree);
+  assert.equal(await git(worktree.path, ["rev-parse", "HEAD"]), head);
 });
 
 test("creates a detached session worktree from the latest origin/main", async (context) => {
