@@ -944,6 +944,8 @@ export const reconcileResolutions = {
   notPublished: "not_published",
   delivered: "delivered",
   resend: "resend",
+  merged: "merged",
+  notMerged: "not_merged",
 };
 
 // Only the two resolved cases of an instruction or a repair get a notice: a

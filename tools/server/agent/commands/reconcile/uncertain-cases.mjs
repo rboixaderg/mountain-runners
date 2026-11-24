@@ -37,6 +37,7 @@ export const caseKinds = {
   instruction: "instruction",
   repair: "repair",
   notice: "notice",
+  merge: "merge",
 };
 
 /** Outcomes stored with a reconciled instruction or repair. */
@@ -58,6 +59,10 @@ export const resolutionsByKind = {
   [caseKinds.notice]: [
     reconcileResolutions.delivered,
     reconcileResolutions.resend,
+  ],
+  [caseKinds.merge]: [
+    reconcileResolutions.merged,
+    reconcileResolutions.notMerged,
   ],
 };
 
@@ -212,6 +217,18 @@ function noticeCase({ row }) {
   };
 }
 
+/** The facts of an unknown merge request; resolving it reads the pull request. */
+function mergeCase({ row }) {
+  return {
+    kind: caseKinds.merge,
+    update_identifier: row.update_identifier,
+    session_key: row.session_key,
+    created_at: row.created_at,
+    pull_request_number: row.pull_request_number,
+    commit: row.commit_sha,
+  };
+}
+
 /**
  * One JSON-serialisable object per uncertain case, grouped by kind and oldest
  * first. A failed GitHub read prints `github: "unavailable"` for that case and
@@ -231,6 +248,9 @@ export async function listUncertainCases({ config, stores, github }) {
   }
   for (const row of stores.repairs?.uncertainNotices() ?? []) {
     cases.push(noticeCase({ row }));
+  }
+  for (const row of stores.merges?.uncertain() ?? []) {
+    cases.push(mergeCase({ row }));
   }
   return cases;
 }
@@ -538,9 +558,84 @@ function resolveNotice({ stores, updateIdentifier, resolution, warn }) {
   return resolved;
 }
 
+/**
+ * An uncertain merge is closed from the pull request itself: a merged pull
+ * request ends as `merged` with its merge commit, one that is not merged ends
+ * as `not_merged`, and the chosen resolution must match what GitHub says. A
+ * merge also needs the pinned head. The
+ * trace is written first, so a failure changes nothing. The topic already got
+ * the unknown-result answer, so no notice is sent.
+ */
+async function resolveMerge({
+  stores,
+  github,
+  updateIdentifier,
+  resolution,
+  warn,
+}) {
+  const row = (stores.merges?.uncertain() ?? []).find(
+    (candidate) => candidate.update_identifier === updateIdentifier,
+  );
+  if (row === undefined) {
+    throw new ReconcileCaseError(
+      `Merge ${updateIdentifier} is not an uncertain case.`,
+    );
+  }
+  const pullRequest = await github.getPullRequest({
+    number: row.pull_request_number,
+  });
+  const actual = pullRequest.merged
+    ? reconcileResolutions.merged
+    : reconcileResolutions.notMerged;
+  if (resolution !== actual) {
+    throw new ReconcileCaseError(
+      `Pull request #${row.pull_request_number} is ${actual} on GitHub, not ${resolution}.`,
+    );
+  }
+  if (
+    resolution === reconcileResolutions.merged &&
+    pullRequest.headSha !== row.commit_sha
+  ) {
+    throw new ReconcileCaseError(
+      `Pull request #${row.pull_request_number} was merged with a different head than the pinned commit.`,
+    );
+  }
+  const resolved = {
+    kind: caseKinds.merge,
+    updateIdentifier,
+    telegramUpdateIdentifier: row.update_identifier,
+    sessionKey: row.session_key,
+    pullRequestNumber: row.pull_request_number,
+    commit: row.commit_sha,
+    resolution,
+  };
+  recordTrace({ stores, entry: traceEntry(resolved) });
+  let applied;
+  try {
+    applied =
+      resolution === reconcileResolutions.merged
+        ? stores.merges.markMerged(updateIdentifier, pullRequest.mergeCommitSha)
+        : stores.merges.markNotMerged(updateIdentifier);
+  } catch (error) {
+    failTransition({ stores, resolved, warn, error });
+  }
+  if (!applied) {
+    failTransition({
+      stores,
+      resolved,
+      warn,
+      error: new ReconcileCaseError(
+        `Merge ${updateIdentifier} is not an uncertain case.`,
+      ),
+    });
+  }
+  return resolved;
+}
+
 function resolveCase({
   config,
   stores,
+  github,
   warn,
   kind,
   updateIdentifier,
@@ -586,6 +681,14 @@ function resolveCase({
       });
     case caseKinds.notice:
       return resolveNotice({ stores, updateIdentifier, resolution, warn });
+    case caseKinds.merge:
+      return resolveMerge({
+        stores,
+        github,
+        updateIdentifier,
+        resolution,
+        warn,
+      });
     default:
       throw new ReconcileCaseError(`Unknown case kind ${kind}.`);
   }
@@ -649,6 +752,7 @@ export async function resolveUncertainCase({
   config,
   stores,
   telegram,
+  github,
   kind,
   updateIdentifier,
   sequence,
@@ -661,6 +765,7 @@ export async function resolveUncertainCase({
   const resolved = await resolveCase({
     config,
     stores,
+    github,
     warn,
     kind,
     updateIdentifier,
@@ -670,7 +775,10 @@ export async function resolveUncertainCase({
     commit,
     pullRequestNumber,
   });
-  if (resolved.kind !== caseKinds.notice) {
+  if (
+    resolved.kind === caseKinds.instruction ||
+    resolved.kind === caseKinds.repair
+  ) {
     await notify({ stores, telegram, resolved, warn });
   }
   return resolved;

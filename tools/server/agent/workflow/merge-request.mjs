@@ -282,6 +282,13 @@ export function createMergeRequests({
    */
   async function readMergeState(target, signal) {
     const initial = await readPullRequest(target.pullRequestNumber, signal);
+    // GitHub reports unknown mergeability for merged and closed pull requests.
+    if (initial.merged === true) {
+      return { pullRequest: initial, refusal: refusals.alreadyMerged };
+    }
+    if (initial.state !== "open") {
+      return { pullRequest: initial, refusal: refusals.notOpen };
+    }
     if (initial.mergeableState === mergeableStates.unknown) {
       return { pullRequest: initial, refusal: refusals.unreadable };
     }

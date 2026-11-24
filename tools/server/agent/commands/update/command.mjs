@@ -697,6 +697,11 @@ const uncertainQueries = [
     database: "ci-watch.sqlite",
     sql: "SELECT COUNT(*) AS count FROM ci_watches WHERE state = 'uncertain'",
   },
+  {
+    kind: "merge",
+    database: "merge-request.sqlite",
+    sql: "SELECT COUNT(*) AS count FROM merge_requests WHERE state = 'uncertain'",
+  },
 ];
 
 /**

@@ -663,7 +663,7 @@ const busyStates = [
       store.markUncertain(42);
       store.close();
     },
-    expected: /merging or uncertain merge requests: 1/u,
+    expected: /uncertain merge case\(s\): 1/u,
   },
   {
     name: "a preview request awaiting the publisher",

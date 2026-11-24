@@ -766,7 +766,7 @@ L'ordre fixa el seu propi `umask` i no crea cap base de dades: una base absent
 compta com que no hi ha cap cas d'aquell tipus.
 
 1. **Llista els casos.** `list` escriu una línia JSON per cas amb `kind`
-   (`instruction`, `repair` o `notice`), `update_identifier`,
+   (`instruction`, `repair`, `notice` o `merge`), `update_identifier`,
    `session_key`, `created_at` i els fets que pot llegir.
    - `instruction`: `worktree` amb la branca del tema, el HEAD local i si aquell
      HEAD ja consta com a publicat, i la PR oberta d'aquella branca amb el
@@ -776,6 +776,8 @@ compta com que no hi ha cap cas d'aquell tipus.
      l'estat de la PR amb el seu cap.
    - `notice`: `pull_request_number`, el commit i `result`, que és el resultat
      de la CI que l'avís hauria comunicat. No fa cap lectura de GitHub.
+   - `merge`: `pull_request_number` i el commit del `/merge` amb resultat
+     desconegut. No fa cap lectura de GitHub.
 
    Si una lectura de GitHub falla, aquell cas porta `"github": "unavailable"` i
    la resta es llisten igualment. Si el tema no té worktree local, `github` val
@@ -797,6 +799,8 @@ compta com que no hi ha cap cas d'aquell tipus.
        --resolution not_published
    /usr/bin/node /usr/local/lib/mountain-runners/agent/commands/reconcile/cli.mjs \
      resolve --kind notice --update 31 --resolution delivered
+   /usr/bin/node /usr/local/lib/mountain-runners/agent/commands/reconcile/cli.mjs \
+     resolve --kind merge --update 60 --resolution merged
    ```
 
    | Cas        | Resolució                                     | Efecte                                                                                                                                                                                          |
@@ -807,6 +811,8 @@ compta com que no hi ha cap cas d'aquell tipus.
    | reparació  | `not_published`                               | Estat `done` i resultat `reconciled_not_published`; no es reobre cap seguiment de CI.                                                                                                           |
    | avís       | `delivered`                                   | Estat `sent`: el tema ja havia rebut l'avís i el seu resultat passa a ser l'últim informat.                                                                                                     |
    | avís       | `resend`                                      | Estat `pending`: el treballador ordinari el torna a enviar. És una decisió humana, no un reintent automàtic.                                                                                    |
+   | merge      | `merged`                                      | Estat `merged` amb el commit de fusió que llegeix a GitHub; només s'accepta si la PR hi consta fusionada amb el mateix cap.                                                                     |
+   | merge      | `not_merged`                                  | Estat `not_merged`: la petició acaba i es pot demanar un `/merge` nou; només s'accepta si la PR hi consta sense fusionar.                                                                       |
 
    `--commit` és obligatori amb `published` i no s'accepta en cap altre cas.
    `--pull-request` és obligatori amb `--kind instruction --resolution published`
@@ -826,7 +832,8 @@ compta com que no hi ha cap cas d'aquell tipus.
    text de conversa ni identitat de l'operador. Després envia al tema un únic
    avís neutre («Ja està resolt el que havia quedat a mitges: la feina s'ha
    publicat. Si cal continuar la feina, demana-ho de nou en aquest tema.»),
-   excepte amb `--kind notice`: `delivered` confirma un avís que el tema
+   excepte amb `--kind merge` (el tema ja va rebre la resposta de resultat
+   desconegut) i amb `--kind notice`: `delivered` confirma un avís que el tema
    ja tenia i `resend` encarrega l'enviament al treballador, així que la comanda
    no hi afegeix cap avís propi. L'avís també és un efecte del servei: es desa a
    `state/session-notes.sqlite` abans d'enviar-lo, amb la identitat

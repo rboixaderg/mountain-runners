@@ -203,30 +203,56 @@ export function createCiWatchRegistration({ store, logger = () => {} }) {
 async function evaluateWatch({
   watch,
   store,
-  github,
-  requiredChecks,
   watchTimeoutMilliseconds,
-  requestTimeoutMilliseconds,
-  secrets,
   now,
-  signal,
+  ...reads
 }) {
-  const readSignal = requestSignal(signal, requestTimeoutMilliseconds);
-  const [checkRuns, statuses] = await Promise.all([
-    github.getCommitCheckRuns({ commit: watch.commit_sha, signal: readSignal }),
-    github.getCommitStatuses({ commit: watch.commit_sha, signal: readSignal }),
-  ]);
-  const classification = classifyCommitStatus({
-    requiredChecks,
-    checkRuns,
-    statuses,
-  });
   const deadlineStart =
     store.rerunDeadlineStart({
       updateIdentifier: watch.update_identifier,
       commitSha: watch.commit_sha,
     }) ?? watch.created_at;
   const age = now().getTime() - Date.parse(deadlineStart);
+  try {
+    return await readWatchOutcome({
+      watch,
+      age,
+      watchTimeoutMilliseconds,
+      ...reads,
+    });
+  } catch (error) {
+    // Reads that keep failing must not hold the watch open past its deadline.
+    if (age < watchTimeoutMilliseconds) throw error;
+    return { result: ciResults.unknown, failedChecks: [] };
+  }
+}
+
+async function readWatchOutcome({
+  watch,
+  age,
+  github,
+  requiredChecks,
+  watchTimeoutMilliseconds,
+  requestTimeoutMilliseconds,
+  secrets,
+  signal,
+}) {
+  const readSignal = requestSignal(signal, requestTimeoutMilliseconds);
+  const [checkRuns, statuses] = await Promise.all([
+    github.getCommitCheckRuns({
+      commit: watch.commit_sha,
+      signal: readSignal,
+    }),
+    github.getCommitStatuses({
+      commit: watch.commit_sha,
+      signal: readSignal,
+    }),
+  ]);
+  const classification = classifyCommitStatus({
+    requiredChecks,
+    checkRuns,
+    statuses,
+  });
   // At the deadline an indecisive picture is reported as unconfirmed, still
   // naming the checks that already failed. It never starts a repair.
   const undecided = () =>

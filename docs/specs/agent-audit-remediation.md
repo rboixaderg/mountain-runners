@@ -104,7 +104,7 @@ Cada tasca té la seva PR, tret que la columna `Entrega` indiqui el contrari.
 | T8    | Pendent    | -             | Torns nous, de només lectura i identificadors privats correctes          | PR 8    | -                                                               |
 | T9    | Completada | -             | Un error del proveïdor acaba el torn com a fallada                       | PR 9    | [#319](https://github.com/rboixaderg/mountain-runners/pull/319) |
 | T10   | Pendent    | -             | Feina local i conflictes de la branca sense bucles                       | PR 10   | -                                                               |
-| T11   | Pendent    | -             | Cap estat bloqueja sense sortida                                         | PR 11   | -                                                               |
+| T11   | Completada | -             | Cap estat bloqueja sense sortida                                         | PR 11   | [#318](https://github.com/rboixaderg/mountain-runners/pull/318) |
 | T12   | Pendent    | -             | La reconciliació restaura tot el que deixa una publicació                | PR 12   | -                                                               |
 | T13   | Pendent    | -             | Les fallades informen del motiu i de la resposta del model               | PR 13   | -                                                               |
 | T14   | Pendent    | T26           | Cap avís fals ni repetit per publicacions substituïdes                   | PR 14   | -                                                               |
