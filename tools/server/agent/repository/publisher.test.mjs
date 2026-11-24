@@ -8,7 +8,8 @@ import { mkdirSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
-import { PublishRefusedError } from "./github.mjs";
+import { setImmediate } from "node:timers/promises";
+import { GitHubResponseError, PublishRefusedError } from "./github.mjs";
 import { createPublisher as createTrustedPublisher } from "./publisher.mjs";
 import { createResearchReview } from "./research-review.mjs";
 import { primaryRepository } from "./trusted-git.mjs";
@@ -105,7 +106,7 @@ test("keeps a local refusal a refusal", async (context) => {
   assert.equal(publishedCommit(worktree), null);
 });
 
-test("a synchronization revalidates the preview and pins the existing PR update", async (context) => {
+function synchronizationFixture(context, afterPush) {
   const worktree = worktreeFixture(context);
   const repository = "rboixaderg/mountain-runners";
   const validated = { commit: "2".repeat(40), base: "3".repeat(40) };
@@ -118,22 +119,18 @@ test("a synchronization revalidates the preview and pins the existing PR update"
     baseRef: "main",
     draft: false,
     previewLabeled: true,
-    previewRevoked: true,
+    previewRevoked: false,
   };
+  let pushed = false;
   const github = githubStub({
-    async getPullRequest() {
-      return pullRequest;
+    async getPullRequest(parameters) {
+      this.calls.push(["getPullRequest", parameters]);
+      return pushed ? afterPush(pullRequest, validated.commit) : pullRequest;
     },
     async pushBranch(parameters) {
       this.calls.push(["pushBranch", parameters]);
+      pushed = true;
       return { branch, commit: validated.commit };
-    },
-    async ensurePullRequest(parameters) {
-      this.calls.push(["ensurePullRequest", parameters]);
-      return {
-        pullRequest: { ...pullRequest, headSha: validated.commit },
-        created: false,
-      };
     },
   });
   const publishChange = createPublisher({ github, repository, secrets: [] });
@@ -148,14 +145,120 @@ test("a synchronization revalidates the preview and pins the existing PR update"
     validated,
   };
 
-  assert.deepEqual(await publishChange(candidate), { refused: true });
-  assert.deepEqual(github.calls, []);
+  return { worktree, github, publishChange, candidate, pullRequest, validated };
+}
 
-  pullRequest.previewRevoked = false;
-  assert.equal((await publishChange(candidate)).commit, validated.commit);
-  assert.equal(github.calls[0][1].expectedHead, repairCommit);
-  assert.deepEqual(github.calls[0][1].validated, validated);
-  assert.equal(github.calls[1][1].createMissing, false);
+test("a synchronization refuses a revoked preview before the push", async (context) => {
+  const { github, publishChange, candidate, pullRequest } =
+    synchronizationFixture(context, assert.fail);
+  pullRequest.previewRevoked = true;
+  assert.deepEqual(await publishChange(candidate), { refused: true });
+  assert.deepEqual(
+    github.calls.map(([name]) => name),
+    ["getPullRequest"],
+  );
+});
+
+for (const confirmed of [true, false]) {
+  test(`a synchronization retries stale PR data with backoff and ${confirmed ? "confirms" : "stops after the fifth retry"}`, async (context) => {
+    context.mock.timers.enable({ apis: ["setTimeout"] });
+    let reads = 0;
+    const { worktree, github, publishChange, candidate, validated } =
+      synchronizationFixture(context, (pullRequest, commit) => {
+        reads += 1;
+        if (reads === 2)
+          throw new GitHubResponseError("GET", "/pulls/200", 503);
+        return confirmed && reads === 6
+          ? { ...pullRequest, headSha: commit }
+          : pullRequest;
+      });
+    const controller = new AbortController();
+    const pending = publishChange({ ...candidate, signal: controller.signal });
+    const result = confirmed
+      ? pending
+      : assert.rejects(pending, /updated pull request cannot be confirmed/u);
+    await setImmediate();
+    assert.equal(reads, 1);
+    for (const [index, delay] of [1000, 2000, 4000, 8000, 16_000].entries()) {
+      context.mock.timers.tick(delay - 1);
+      await setImmediate();
+      assert.equal(reads, index + 1);
+      context.mock.timers.tick(1);
+      await setImmediate();
+      assert.equal(reads, index + 2);
+    }
+    const publication = await result;
+    if (confirmed) assert.equal(publication.commit, validated.commit);
+    assert.equal(
+      publishedCommit(worktree),
+      confirmed ? validated.commit : null,
+    );
+    const [push] = github.calls.filter(([name]) => name !== "getPullRequest");
+    assert.equal(github.calls.length, 8);
+    assert.equal(push[0], "pushBranch");
+    assert.equal(push[1].expectedHead, repairCommit);
+    assert.deepEqual(push[1].validated, validated);
+    for (const [name, parameters] of github.calls) {
+      assert.equal(parameters.signal, controller.signal);
+      if (name === "getPullRequest") assert.equal(parameters.number, 200);
+    }
+  });
+}
+
+for (const { name, afterPush, error } of [
+  {
+    name: "the preview is revoked",
+    afterPush: (pullRequest, commit) => ({
+      ...pullRequest,
+      headSha: commit,
+      previewRevoked: true,
+    }),
+    error: /updated pull request cannot be confirmed/u,
+  },
+  {
+    name: "another commit moved the head",
+    afterPush: (pullRequest) => ({ ...pullRequest, headSha: "9".repeat(40) }),
+    error: /updated pull request cannot be confirmed/u,
+  },
+  {
+    name: "GitHub refuses the read",
+    afterPush: () => {
+      throw new GitHubResponseError("GET", "/pulls/200", 404);
+    },
+    error: GitHubResponseError,
+  },
+]) {
+  test(`a synchronization stops confirming immediately when ${name}`, async (context) => {
+    const { worktree, github, publishChange, candidate } =
+      synchronizationFixture(context, afterPush);
+    await assert.rejects(publishChange(candidate), error);
+    assert.deepEqual(
+      github.calls.map(([callName]) => callName),
+      ["getPullRequest", "pushBranch", "getPullRequest"],
+    );
+    assert.equal(publishedCommit(worktree), null);
+  });
+}
+
+test("a synchronization stops waiting when the instruction is aborted", async (context) => {
+  context.mock.timers.enable({ apis: ["setTimeout"] });
+  const { worktree, github, publishChange, candidate } = synchronizationFixture(
+    context,
+    (pullRequest) => pullRequest,
+  );
+  const controller = new AbortController();
+  const pending = assert.rejects(
+    publishChange({ ...candidate, signal: controller.signal }),
+    { name: "AbortError" },
+  );
+  await setImmediate();
+  controller.abort();
+  await pending;
+  assert.deepEqual(
+    github.calls.map(([name]) => name),
+    ["getPullRequest", "pushBranch", "getPullRequest"],
+  );
+  assert.equal(publishedCommit(worktree), null);
 });
 
 test("propagates an aborted push instead of reporting a refusal", async (context) => {

@@ -640,6 +640,12 @@ la PR sense fusió.
   servei comprova l'ascendència abans de modificar el worktree. Integra `main`
   i valida el resultat abans de publicar-lo a la mateixa PR. No envia la
   pregunta antiga ni fusiona a `main` amb aquella petició o confirmació.
+  Després del push, el servei comprova que la PR apunta al nou SHA. Si GitHub
+  encara retorna el SHA anterior o falla de manera transitòria, repeteix només
+  la lectura fins a cinc cops, amb esperes d'1, 2, 4, 8 i 16 segons. Si no ho
+  pot confirmar, marca el resultat com a incert i no repeteix el push. Si la PR
+  deixa de complir les condicions de la sincronització, apunta a un altre SHA o
+  GitHub rebutja la lectura, s'atura sense esperar i el resultat també és incert.
   Quan el publicador confirma la preview del nou SHA, l'avís del tema demana
   revisar-la i tornar a sol·licitar el merge. La petició ha de ser posterior
   al nou avís. Una petició per reconciliar un resultat desconegut no sincronitza.
