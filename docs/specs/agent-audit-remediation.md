@@ -92,36 +92,36 @@ toquen el mateix fitxer, per evitar conflictes. T28 va l'última.
 
 Cada tasca té la seva PR, tret que la columna `Entrega` indiqui el contrari.
 
-| Tasca | Estat   | Dependències  | Resultat verificable                                                     | Entrega | PR                                                              |
-| ----- | ------- | ------------- | ------------------------------------------------------------------------ | ------- | --------------------------------------------------------------- |
-| T1    | En curs | -             | El Git del servei no processa repositoris niats ni submòduls             | PR 1    | [#314](https://github.com/rboixaderg/mountain-runners/pull/314) |
-| T2    | Pendent | T25           | `/merge` només fusiona PR que canvien exclusivament contingut            | PR 2    | -                                                               |
-| T3    | Pendent | -             | Les credencials no són a l'entorn del procés                             | PR 3    | -                                                               |
-| T4    | Pendent | -             | La versió de Pi està fixada i verificada                                 | PR 4    | -                                                               |
-| T5    | Pendent | T4            | El límit per línia del RPC no falla amb imatges permeses                 | PR 5    | -                                                               |
-| T6    | Pendent | -             | El títol i el cos de la PR estan acotats                                 | PR 6    | -                                                               |
-| T7    | Pendent | -             | L'acceptació de l'esmena de recerca web queda registrada                 | PR 7    | -                                                               |
-| T8    | Pendent | -             | Torns nous, de només lectura i identificadors privats correctes          | PR 8    | -                                                               |
-| T9    | Pendent | -             | Un error del proveïdor acaba el torn com a fallada                       | PR 9    | -                                                               |
-| T10   | Pendent | -             | Feina local i conflictes de la branca sense bucles                       | PR 10   | -                                                               |
-| T11   | Pendent | -             | Cap estat bloqueja sense sortida                                         | PR 11   | -                                                               |
-| T12   | Pendent | -             | La reconciliació restaura tot el que deixa una publicació                | PR 12   | -                                                               |
-| T13   | Pendent | -             | Les fallades informen del motiu i de la resposta del model               | PR 13   | -                                                               |
-| T14   | Pendent | T26           | Cap avís fals ni repetit per publicacions substituïdes                   | PR 14   | -                                                               |
-| T15   | Pendent | -             | El pont de Telegram admet, reintenta i talla correctament                | PR 15   | -                                                               |
-| T16   | Pendent | -             | La confirmació del merge és determinista                                 | PR 16   | -                                                               |
-| T17   | Pendent | -             | Codi mort i branques només de proves eliminats                           | PR 17   | -                                                               |
-| T18   | Pendent | Comprovacions | Migracions i estat antic eliminats                                       | PR 18   | -                                                               |
-| T19   | Pendent | T8            | Classificador de peticions retirat                                       | PR 19   | -                                                               |
-| T20   | Pendent | T9–T14        | El torn està dividit en fases amb resultats tipats                       | PR 20   | -                                                               |
-| T21   | Pendent | -             | Imatges processades només dins del sandbox amb sharp                     | PR 21   | -                                                               |
-| T22   | Pendent | -             | Eines d'operador més curtes i amb garanties conservades                  | PR 22   | -                                                               |
-| T23   | Pendent | T17           | `telegram-pi-bridge` com a mòdul intern amb API estreta                  | PR 23   | -                                                               |
-| T24   | Pendent | T20           | Proves amb fixtures compartits i dividides per fases                     | PR 24   | -                                                               |
-| T25   | Pendent | -             | Els ADR 0013 i 0014 esmenats amb les decisions preses                    | PR 25   | -                                                               |
-| T26   | Pendent | T25           | Decisions de l'esmena implementades                                      | PR 26   | -                                                               |
-| T27   | Pendent | T18, T26      | Una sola base de dades amb una fila per commit publicat                  | PR 27   | -                                                               |
-| T28   | Pendent | La majoria    | Documentació de l'agent curta, amb la regla detallada al costat del codi | PR 28   | -                                                               |
+| Tasca | Estat      | Dependències  | Resultat verificable                                                     | Entrega | PR                                                              |
+| ----- | ---------- | ------------- | ------------------------------------------------------------------------ | ------- | --------------------------------------------------------------- |
+| T1    | Completada | -             | El Git del servei no processa repositoris niats ni submòduls             | PR 1    | [#314](https://github.com/rboixaderg/mountain-runners/pull/314) |
+| T2    | Pendent    | T25           | `/merge` només fusiona PR que canvien exclusivament contingut            | PR 2    | -                                                               |
+| T3    | Pendent    | -             | Les credencials no són a l'entorn del procés                             | PR 3    | -                                                               |
+| T4    | Pendent    | -             | La versió de Pi està fixada i verificada                                 | PR 4    | -                                                               |
+| T5    | Pendent    | T4            | El límit per línia del RPC no falla amb imatges permeses                 | PR 5    | -                                                               |
+| T6    | Pendent    | -             | El títol i el cos de la PR estan acotats                                 | PR 6    | -                                                               |
+| T7    | Pendent    | -             | L'acceptació de l'esmena de recerca web queda registrada                 | PR 7    | -                                                               |
+| T8    | Pendent    | -             | Torns nous, de només lectura i identificadors privats correctes          | PR 8    | -                                                               |
+| T9    | Pendent    | -             | Un error del proveïdor acaba el torn com a fallada                       | PR 9    | -                                                               |
+| T10   | Pendent    | -             | Feina local i conflictes de la branca sense bucles                       | PR 10   | -                                                               |
+| T11   | Pendent    | -             | Cap estat bloqueja sense sortida                                         | PR 11   | -                                                               |
+| T12   | Pendent    | -             | La reconciliació restaura tot el que deixa una publicació                | PR 12   | -                                                               |
+| T13   | Pendent    | -             | Les fallades informen del motiu i de la resposta del model               | PR 13   | -                                                               |
+| T14   | Pendent    | T26           | Cap avís fals ni repetit per publicacions substituïdes                   | PR 14   | -                                                               |
+| T15   | Pendent    | -             | El pont de Telegram admet, reintenta i talla correctament                | PR 15   | -                                                               |
+| T16   | Pendent    | -             | La confirmació del merge és determinista                                 | PR 16   | -                                                               |
+| T17   | Pendent    | -             | Codi mort i branques només de proves eliminats                           | PR 17   | -                                                               |
+| T18   | Pendent    | Comprovacions | Migracions i estat antic eliminats                                       | PR 18   | -                                                               |
+| T19   | Pendent    | T8            | Classificador de peticions retirat                                       | PR 19   | -                                                               |
+| T20   | Pendent    | T9–T14        | El torn està dividit en fases amb resultats tipats                       | PR 20   | -                                                               |
+| T21   | Pendent    | -             | Imatges processades només dins del sandbox amb sharp                     | PR 21   | -                                                               |
+| T22   | Pendent    | -             | Eines d'operador més curtes i amb garanties conservades                  | PR 22   | -                                                               |
+| T23   | Pendent    | T17           | `telegram-pi-bridge` com a mòdul intern amb API estreta                  | PR 23   | -                                                               |
+| T24   | Pendent    | T20           | Proves amb fixtures compartits i dividides per fases                     | PR 24   | -                                                               |
+| T25   | En curs    | -             | Els ADR 0013 i 0014 esmenats amb les decisions preses                    | PR 25   | [#315](https://github.com/rboixaderg/mountain-runners/pull/315) |
+| T26   | Pendent    | T25           | Decisions de l'esmena implementades                                      | PR 26   | -                                                               |
+| T27   | Pendent    | T18, T26      | Una sola base de dades amb una fila per commit publicat                  | PR 27   | -                                                               |
+| T28   | Pendent    | La majoria    | Documentació de l'agent curta, amb la regla detallada al costat del codi | PR 28   | -                                                               |
 
 L’orquestrador actualitza `Estat` i `PR` quan s’obre una PR (`En curs` amb l’enllaç) i quan es fusiona (`Completada`).
 
