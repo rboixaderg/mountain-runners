@@ -60,6 +60,8 @@ Aquest mapa enllaça els documents i no repeteix aquestes regles.
   - [`0010`](decisions/0010-preview-caddy-acme-isolation.md): frontera de Caddy i
     emmagatzematge ACME dels previews.
 - [`specs/`](specs/): requisits i acceptació de les funcionalitats.
+  - [`agent-audit-remediation.md`](specs/agent-audit-remediation.md): correccions
+    de seguretat i errors, i simplificació de l'agent privat.
   - [`agent-sync-before-merge.md`](specs/agent-sync-before-merge.md):
     sincronització de la branca i nova revisió de la preview abans del merge.
   - [`docs-governance.md`](specs/docs-governance.md): govern de la documentació i
