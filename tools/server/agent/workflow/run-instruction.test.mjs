@@ -5843,7 +5843,6 @@ async function boundTopic(context) {
   });
   assert.equal((await runner(request())).outcome, "pull_request_created");
   const commit = await git(origin, ["rev-parse", `refs/heads/${remoteBranch}`]);
-  const baseSha = await git(paths.repository, ["rev-parse", "origin/main"]);
   gates.length = 0;
   previews.length = 0;
   github.pushes.length = 0;
@@ -5854,7 +5853,7 @@ async function boundTopic(context) {
     gates,
     previews,
     followUp,
-    target: { pullRequestNumber: 200, commit, branch: remoteBranch, baseSha },
+    target: { pullRequestNumber: 200, commit, branch: remoteBranch },
   };
 }
 
@@ -5864,20 +5863,18 @@ test("merge synchronization of an up-to-date branch fails closed without gate or
   const { runner, github, gates, target } = await boundTopic(context);
   const result = await runner.synchronizeForMerge(mergeRequest(), target);
   assert.equal(result.outcome, "up_to_date");
-  assert.match(result.report, /ja incorpora el main actual/u);
+  assert.match(result.report, /No he publicat res a producció/u);
   assert.deepEqual(gates, []);
   assert.deepEqual(github.pushes, []);
 });
 
-test("merge synchronization publishes a merge commit, pins the base and never merges", async (context) => {
+test("merge synchronization publishes against current main after it advances past the PR's original base", async (context) => {
   const { paths, runner, github, gates, previews, target } =
     await boundTopic(context);
   const mainSha = await advanceMain(paths, "main-change.txt", "main\n");
-  const result = await runner.synchronizeForMerge(mergeRequest(), {
-    ...target,
-    baseSha: mainSha,
-  });
+  const result = await runner.synchronizeForMerge(mergeRequest(), target);
   assert.equal(result.outcome, "synchronized", result.report);
+  assert.match(result.report, /T'avisaré quan puguis revisar la preview nova/u);
   assert.equal(result.mainHead, mainSha);
   assert.notEqual(result.commit, target.commit);
   assert.equal(gates.length, 1);
@@ -5893,24 +5890,20 @@ test("merge synchronization publishes a merge commit, pins the base and never me
   assert.equal(previews[0].commit, result.commit);
 });
 
-test("merge synchronization refuses a moved base, head or branch without mutating", async (context) => {
+test("merge synchronization refuses a moved head or branch without mutating", async (context) => {
   const { paths, runner, github, gates, target } = await boundTopic(context);
-  const mainSha = await advanceMain(paths, "main-change.txt", "main\n");
+  await advanceMain(paths, "main-change.txt", "main\n");
   const worktree = topicWorktreePath(paths);
   const headBefore = await git(worktree, ["rev-parse", "HEAD"]);
   for (const changed of [
-    { baseSha: target.baseSha },
-    { commit: "a".repeat(40), baseSha: mainSha },
-    { branch: "feat/other", baseSha: mainSha },
+    { commit: "a".repeat(40) },
+    { branch: "feat/other" },
   ]) {
     const result = await runner.synchronizeForMerge(mergeRequest(), {
       ...target,
       ...changed,
     });
-    assert.equal(
-      result.outcome === "failed" || result.outcome === "up_to_date",
-      true,
-    );
+    assert.equal(result.outcome, "failed");
     assert.equal(typeof result.report, "string");
   }
   assert.deepEqual(github.pushes, []);
@@ -5921,11 +5914,8 @@ test("merge synchronization refuses a moved base, head or branch without mutatin
 test("merge synchronization is uncertain when the preview follow-up is not stored", async (context) => {
   const { paths, runner, followUp, target } = await boundTopic(context);
   followUp.result = false;
-  const mainSha = await advanceMain(paths, "main-change.txt", "main\n");
-  const result = await runner.synchronizeForMerge(mergeRequest(), {
-    ...target,
-    baseSha: mainSha,
-  });
+  await advanceMain(paths, "main-change.txt", "main\n");
+  const result = await runner.synchronizeForMerge(mergeRequest(), target);
   assert.equal(result.outcome, "uncertain");
   assert.match(result.report, /no he pogut confirmar la preview/u);
 });

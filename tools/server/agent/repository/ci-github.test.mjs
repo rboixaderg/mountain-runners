@@ -418,7 +418,6 @@ test("reads one pull request to pin the reported commit to its head", async () =
     previewLabeled: false,
     previewRevoked: false,
     baseRef: "main",
-    baseSha: baseCommit,
     mergeableState: "clean",
     merged: false,
     mergeCommitSha: null,

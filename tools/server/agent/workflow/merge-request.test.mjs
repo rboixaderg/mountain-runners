@@ -1681,7 +1681,6 @@ test("a behind branch triggers the synchronisation with the trusted pin and neve
     pullRequestNumber: 200,
     commit,
     branch: "work",
-    baseSha: "c".repeat(40),
   });
   assert.equal(call.requestArgument.updateIdentifier, 20);
   assert.equal(call.options.signal, abort.signal);
@@ -2042,7 +2041,6 @@ test("strict protection rejects the pinned merge when main advances after prefli
   deliverPreview();
   const reviewedBase = "c".repeat(40);
   let main = reviewedBase;
-  github.pullRequest = openPullRequest({ baseSha: main });
   github.beforeMerge = () => {
     main = "d".repeat(40);
     if (main !== reviewedBase) {

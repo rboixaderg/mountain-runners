@@ -683,7 +683,6 @@ export class GitHubTrust {
       // A maintainer's revocation wins over the label: no preview is announced.
       previewRevoked: hasLabel(pull.labels, previewRevokedLabel),
       baseRef: pull.base.ref,
-      baseSha: pull.base.sha,
       // `unknown` while GitHub is still computing it; any other value but
       // `clean` is a reason not to merge.
       mergeableState: pull.mergeable_state,
