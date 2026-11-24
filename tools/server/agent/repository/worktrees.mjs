@@ -19,6 +19,8 @@ import {
 import { basename, dirname, join } from "node:path";
 import {
   GitInterruptedError,
+  gitlinkMode,
+  ignoreSubmodules,
   lstatOrNull,
   primaryRepository,
   registeredWorktree,
@@ -563,7 +565,7 @@ export function listLegacyIdentifierNames({ repositoryPath, worktreeRoot }) {
 export async function listChangedPaths(worktree, { signal } = {}) {
   const output = await runGit(
     worktree,
-    ["status", "--porcelain", "--untracked-files=all", "-z"],
+    ["status", "--porcelain", "--untracked-files=all", "-z", ignoreSubmodules],
     { signal },
   );
   const entries = output.split("\0");
@@ -611,9 +613,11 @@ export async function listWorkingTreeChanges(worktree, { signal } = {}) {
   const split = (output) => output.split("\0").filter(Boolean);
   return {
     modified: split(
-      await runGit(worktree, ["diff", "--name-only", "-z", "--no-renames"], {
-        signal,
-      }),
+      await runGit(
+        worktree,
+        ["diff", "--name-only", "-z", "--no-renames", ignoreSubmodules],
+        { signal },
+      ),
     ),
     untracked: split(
       await runGit(
@@ -686,8 +690,58 @@ export async function createBranch({ worktree, branch, signal }) {
   return branch;
 }
 
-export async function commitAll({ worktree, message, signal }) {
+/**
+ * The work holds a nested repository or a submodule. The service never commits
+ * one: the worktree stays as it is for a person to inspect.
+ */
+export class NestedRepositoryError extends Error {
+  constructor() {
+    super("The worktree contains a nested Git repository.");
+    this.name = "NestedRepositoryError";
+  }
+}
+
+async function indexedGitlinkPaths(worktree, { signal }) {
+  const output = await runGit(worktree, ["ls-files", "--stage", "-z"], {
+    maxBuffer: 64 * 1024 * 1024,
+    signal,
+  });
+  return output
+    .split("\0")
+    .filter((entry) => entry.startsWith(`${gitlinkMode} `))
+    .map((entry) => entry.slice(entry.indexOf("\t") + 1));
+}
+
+/**
+ * Stage every change without ever keeping a gitlink in the index. `git add`
+ * enters a nested repository the index already records and stages a new one as
+ * a gitlink, so the index is checked before the add and unstaged after it.
+ */
+async function stageAll(worktree, { signal }) {
+  if ((await indexedGitlinkPaths(worktree, { signal })).length > 0) {
+    throw new NestedRepositoryError();
+  }
   await runGit(worktree, ["add", "--all"], { signal });
+  // Without the caller's signal: an abort here must not leave a gitlink staged.
+  const gitlinkPaths = await indexedGitlinkPaths(worktree, {});
+  if (gitlinkPaths.length > 0) {
+    await runGit(
+      worktree,
+      [
+        "--literal-pathspecs",
+        "reset",
+        "--quiet",
+        "--pathspec-from-file=-",
+        "--pathspec-file-nul",
+      ],
+      { input: gitlinkPaths.join("\0") },
+    );
+    throw new NestedRepositoryError();
+  }
+}
+
+export async function commitAll({ worktree, message, signal }) {
+  await stageAll(worktree, { signal });
   const staged = await runGit(
     worktree,
     ["diff", "--cached", "--name-only", "-z"],
@@ -845,6 +899,7 @@ export async function mergeCommitIntoBranch({ worktree, headSha, signal }) {
         "--name-only",
         "--diff-filter=U",
         "-z",
+        ignoreSubmodules,
       ]);
       const paths = output.split("\0").filter(Boolean);
       await abortConflictMerge(worktree);
@@ -893,6 +948,7 @@ export async function restartConflictMerge({
       "--name-only",
       "--diff-filter=U",
       "-z",
+      ignoreSubmodules,
     ]);
     const paths = output.split("\0").filter(Boolean);
     if (
@@ -920,10 +976,10 @@ export async function abortConflictMerge(worktree) {
 }
 
 export async function commitConflictMerge({ worktree, signal }) {
-  await runGit(worktree, ["add", "--all"], { signal });
+  await stageAll(worktree, { signal });
   const unmerged = await runGit(
     worktree,
-    ["diff", "--name-only", "--diff-filter=U", "-z"],
+    ["diff", "--name-only", "--diff-filter=U", "-z", ignoreSubmodules],
     { signal },
   );
   if (unmerged !== "") {

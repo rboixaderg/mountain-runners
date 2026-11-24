@@ -647,6 +647,33 @@ test("refuses a published history that contains an attachment path", async (cont
   await assert.rejects(git(origin, ["rev-parse", branch]));
 });
 
+test("refuses a published history that records a nested repository", async (context) => {
+  const { origin, clone, worktreeRoot } = await repositoryFixture(context);
+  const worktree = await branchWorktree({
+    repository: clone,
+    worktreeRoot,
+    branch,
+    name: "topic-gitlink",
+  });
+  const head = await git(worktree.path, ["rev-parse", "HEAD"]);
+  await git(worktree.path, [
+    "update-index",
+    "--add",
+    "--cacheinfo",
+    `160000,${head},nested`,
+  ]);
+  await git(worktree.path, ["commit", "-m", "test: record a gitlink"]);
+  await git(worktree.path, ["rm", "--cached", "--quiet", "nested"]);
+  await git(worktree.path, ["commit", "-m", "test: drop the gitlink"]);
+
+  await assert.rejects(trust().pushBranch({ worktree, branch }), (error) => {
+    assert.ok(error instanceof PublishRefusedError);
+    assert.match(error.message, /nested repository or submodule/u);
+    return true;
+  });
+  await assert.rejects(git(origin, ["rev-parse", branch]));
+});
+
 test("refuses moving an existing workflow out of its protected directory", async (context) => {
   const { origin, clone, worktreeRoot } = await repositoryFixture(context);
   const worktree = await branchWorktree({

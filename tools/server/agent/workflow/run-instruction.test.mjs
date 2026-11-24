@@ -52,6 +52,7 @@ import {
   hasUnpublishedCommit,
 } from "../repository/worktrees.mjs";
 import { openIdentifierNames } from "../repository/identifiers.mjs";
+import { createNestedRepository } from "../repository/test-support/nested-repository.mjs";
 import { SandboxCleanupError } from "../sandbox/errors.mjs";
 import { createTopicResearch } from "../web-research/topic-research.mjs";
 
@@ -2389,6 +2390,45 @@ test("keeps the worktree and publishes nothing when the checks fail", async (con
   });
   assert.deepEqual(github.pushes, []);
   assert.equal(existsSync(topicWorktreePath(paths)), true);
+});
+
+test("refuses a nested repository locally without entering it and keeps the work", async (context) => {
+  const paths = await fixture(context);
+  const github = githubStub();
+  const entries = [];
+  const marker = join(paths.directory, "filter-ran");
+  const runner = createProjectRunner({
+    config: configFor(paths),
+    classifyRequest: async () => ({ kind: "implementation" }),
+    github,
+    logger: (event, detail) => entries.push([event, detail]),
+    runModel: async ({ worktreePath }) => {
+      writeFileSync(join(worktreePath, "change.txt"), "canvi\n");
+      await createNestedRepository(worktreePath, marker);
+      return { text: "SUMMARY: feat(tools): add synthetic change" };
+    },
+    runChecks: async () => assert.fail("A refused commit runs no checks."),
+  });
+
+  const result = await runner(request());
+
+  assert.equal(result.outcome, "failed");
+  assert.equal(result.report, instructionReports.publicationRefused);
+  assert.deepEqual(
+    entries.filter(([event]) =>
+      ["instruction_failed", "maintainer_attention"].includes(event),
+    ),
+    [
+      ["instruction_failed", "NestedRepositoryError"],
+      ["maintainer_attention", "publicationRefused"],
+    ],
+  );
+  assert.deepEqual(github.pushes, []);
+  assert.equal(
+    readFileSync(join(topicWorktreePath(paths), "change.txt"), "utf8"),
+    "canvi\n",
+  );
+  assert.equal(existsSync(marker), false);
 });
 
 for (const scenario of [
@@ -5771,6 +5811,29 @@ test("a timed out conflict turn leaves no new untracked file behind", async (con
   const worktree = topicWorktreePath(paths);
   assert.equal(existsSync(join(worktree, "stray.txt")), false);
   assert.equal(await git(worktree, ["status", "--porcelain"]), "");
+});
+
+test("a conflict resolution that creates a nested repository is refused locally and removed", async (context) => {
+  const marker = join(tmpdir(), `nested-marker-${process.pid}-${Date.now()}`);
+  const { paths, github, result } = await conflictTurn(
+    context,
+    async (worktreePath) => {
+      writeFileSync(
+        join(worktreePath, "README.md"),
+        "main change\ntopic change\n",
+      );
+      await createNestedRepository(worktreePath, marker);
+      return { text: "Fet.\nCONFLICT_RESOLVED" };
+    },
+  );
+  context.after(() => rmSync(marker, { force: true }));
+  assert.equal(result.outcome, "failed");
+  assert.equal(result.report, instructionReports.publicationRefused);
+  assert.deepEqual(github.pushes, []);
+  const worktree = topicWorktreePath(paths);
+  assert.equal(existsSync(join(worktree, "nested")), false);
+  assert.equal(existsSync(marker), false);
+  await assert.rejects(git(worktree, ["rev-parse", "--verify", "MERGE_HEAD"]));
 });
 
 test("markers removed without the explicit resolved line stop on the model question", async (context) => {
