@@ -205,25 +205,40 @@ for (const confirmed of [true, false]) {
   });
 }
 
-test("a synchronization stops confirming immediately when the preview is revoked", async (context) => {
-  const { worktree, github, publishChange, candidate } = synchronizationFixture(
-    context,
-    (pullRequest, commit) => ({
+for (const { name, afterPush, error } of [
+  {
+    name: "the preview is revoked",
+    afterPush: (pullRequest, commit) => ({
       ...pullRequest,
       headSha: commit,
       previewRevoked: true,
     }),
-  );
-  await assert.rejects(
-    publishChange(candidate),
-    /updated pull request cannot be confirmed/u,
-  );
-  assert.deepEqual(
-    github.calls.map(([name]) => name),
-    ["getPullRequest", "pushBranch", "getPullRequest"],
-  );
-  assert.equal(publishedCommit(worktree), null);
-});
+    error: /updated pull request cannot be confirmed/u,
+  },
+  {
+    name: "another commit moved the head",
+    afterPush: (pullRequest) => ({ ...pullRequest, headSha: "9".repeat(40) }),
+    error: /updated pull request cannot be confirmed/u,
+  },
+  {
+    name: "GitHub refuses the read",
+    afterPush: () => {
+      throw new GitHubResponseError("GET", "/pulls/200", 404);
+    },
+    error: GitHubResponseError,
+  },
+]) {
+  test(`a synchronization stops confirming immediately when ${name}`, async (context) => {
+    const { worktree, github, publishChange, candidate } =
+      synchronizationFixture(context, afterPush);
+    await assert.rejects(publishChange(candidate), error);
+    assert.deepEqual(
+      github.calls.map(([callName]) => callName),
+      ["getPullRequest", "pushBranch", "getPullRequest"],
+    );
+    assert.equal(publishedCommit(worktree), null);
+  });
+}
 
 test("a synchronization stops waiting when the instruction is aborted", async (context) => {
   context.mock.timers.enable({ apis: ["setTimeout"] });
@@ -245,6 +260,7 @@ test("a synchronization stops waiting when the instruction is aborted", async (c
   );
   assert.equal(publishedCommit(worktree), null);
 });
+
 test("propagates an aborted push instead of reporting a refusal", async (context) => {
   const worktree = worktreeFixture(context);
   const aborted = new DOMException("The operation was aborted.", "AbortError");
