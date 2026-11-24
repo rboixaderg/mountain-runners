@@ -490,15 +490,13 @@ export const mergeSynchronizationRequestedAction = "merge_sync_requested";
 // them merges: the person asks again after the new preview.
 export const mergeSynchronizationReports = {
   upToDate: ({ pullRequestNumber }) =>
-    `La proposta #${pullRequestNumber} ja incorpora el main actual i no cal sincronitzar-la. No he publicat ni fusionat res; torna a demanar el merge.`,
-  baseMoved: ({ pullRequestNumber }) =>
-    `El main ha canviat mentre preparava la proposta #${pullRequestNumber}. No he publicat ni fusionat res; torna a demanar el merge.`,
+    `GitHub encara no permet publicar la proposta #${pullRequestNumber}. No he publicat res a producció. Torna-ho a provar d'aquí a una estona.`,
   baseUnsettled: ({ pullRequestNumber }) =>
-    `El main continua avançant i no he pogut deixar la proposta #${pullRequestNumber} al dia. No he publicat ni fusionat res; torna-ho a provar.`,
+    `No he pogut preparar la versió final de la proposta #${pullRequestNumber} perquè hi ha hagut altres canvis mentrestant. No he publicat res a producció. Torna-ho a provar d'aquí a una estona.`,
   followUpUnconfirmed: ({ pullRequestNumber }) =>
     `He publicat el main actual a la proposta #${pullRequestNumber}, però no he pogut confirmar la preview nova. No he fusionat res i no queda cap merge autoritzat; ho ha de revisar la persona que manté el servei.`,
   synchronized: ({ pullRequestNumber }) =>
-    `He integrat el main actual a la proposta #${pullRequestNumber} i he publicat el commit nou. No he fusionat res: revisa la preview nova i torna a demanar el merge.`,
+    `Estic preparant la versió final de la proposta #${pullRequestNumber}. T'avisaré quan puguis revisar la preview nova.`,
 };
 
 export const ciWatchOutcomes = {

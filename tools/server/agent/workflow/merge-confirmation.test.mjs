@@ -954,7 +954,6 @@ test("validating a behind branch synchronises without the old question", async (
       pullRequest: openPullRequest({
         mergeableState: "behind",
         headRef: "work",
-        baseSha: "c".repeat(40),
       }),
     }),
   });
@@ -971,7 +970,7 @@ test("validating a behind branch synchronises without the old question", async (
   assert.deepEqual(scenario.github.merges, []);
   assert.deepEqual(
     scenario.synchronization.calls.map((call) => call.target),
-    [{ pullRequestNumber, commit, branch: "work", baseSha: "c".repeat(40) }],
+    [{ pullRequestNumber, commit, branch: "work" }],
   );
 });
 
