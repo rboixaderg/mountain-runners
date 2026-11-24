@@ -1529,9 +1529,10 @@ export function createInstructionRunner({
 
   /**
    * Trusted synchronization before a merge. The caller (the merge flow) pins the
-   * pull request number, its exact head `commit`, the `branch` and the `baseSha`
-   * of `main` from its own state; no person text and no model instruction take
-   * part, only the internal conflict turn. It never creates or moves a worktree:
+   * pull request number, its exact head `commit` and the `branch` from its own
+   * state; the current base comes from `origin/main`, not the PR's base SHA.
+   * Only the internal conflict turn uses the model. The runner never creates
+   * or moves a worktree:
    * the worktree must already be on the topic branch at `commit` with no work
    * the service has not published. A branch that already contains `main` is left
    * untouched and reported (`up_to_date`, fail closed). Otherwise `main` is
@@ -1540,7 +1541,7 @@ export function createInstructionRunner({
    */
   async function synchronizeForMerge(
     request,
-    { pullRequestNumber, commit, branch, baseSha },
+    { pullRequestNumber, commit, branch },
     { signal } = {},
   ) {
     let publicationStarted = false;
@@ -1578,25 +1579,21 @@ export function createInstructionRunner({
         return movedHead;
       }
       const { worktree } = topic;
-      if ((await fetchMainHead({ worktree, signal })) !== baseSha) {
-        return failed(
-          mergeSynchronizationReports.baseMoved({ pullRequestNumber }),
-        );
-      }
+      const mainHead = await fetchMainHead({ worktree, signal });
       const mergeBase = await runGit(
         worktree,
-        ["merge-base", "HEAD", baseSha],
+        ["merge-base", "HEAD", mainHead],
         {
           allowFailure: true,
           signal,
         },
       );
-      if (mergeBase.trim() === baseSha) {
+      if (mergeBase.trim() === mainHead) {
         // Nothing to integrate: no commit, no gate, no publication.
         return {
           outcome: "up_to_date",
           report: mergeSynchronizationReports.upToDate({ pullRequestNumber }),
-          mainHead: baseSha,
+          mainHead,
           commit,
         };
       }

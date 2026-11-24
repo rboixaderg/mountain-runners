@@ -146,7 +146,7 @@ export function createMergeRequests({
   hasInterveningInstructions,
   verifyMembership,
   // Prepares a branch that is behind main. Called with the request, the trusted
-  // pin `{ pullRequestNumber, commit, branch, baseSha }` and `{ signal }`; it
+  // pin `{ pullRequestNumber, commit, branch }` and `{ signal }`; it
   // returns the result the request ends with. Without it a behind branch is
   // only refused.
   synchronizeBehind,
@@ -646,7 +646,6 @@ export function createMergeRequests({
         {
           ...target,
           branch: pullRequest.headRef,
-          baseSha: pullRequest.baseSha,
         },
         { signal },
       );
