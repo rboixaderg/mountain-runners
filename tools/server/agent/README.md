@@ -1055,8 +1055,13 @@ fer push ni fusionar una PR. Per configurar, verificar i revisar, consulta el
 - El pont és l'únic procés amb els tokens de Telegram i GitHub. L'adaptador
   prepara una llista blanca d'entorn per a Pi amb només la credencial del model:
   `PATH`, `HOME`, el perfil de l'agent, la configuració de l'entorn aïllat i les
-  variables que declara `MOUNTAIN_AGENT_PROVIDER_ENVIRONMENT_VARIABLES`. Aquesta
-  política viu a `runtime/pi-adapter.mjs`.
+  variables que declara `MOUNTAIN_AGENT_PROVIDER_ENVIRONMENT_VARIABLES`, amb els
+  valors guardats a la configuració perquè el pont els elimina de `process.env`
+  en arrencar i cap procés fill (Git, Podman, Pi i les seves eines) els hereta.
+  Risc residual: el codi que s'executa com a usuari del servei encara els pot
+  llegir de l'entorn inicial del procés o del fitxer d'entorn; l'aïllament
+  complet exigiria executar Pi amb un usuari separat. Aquesta política viu a
+  `runtime/pi-adapter.mjs`.
 - La reparació automàtica continua sent treball del servei, no del model: el
   model només proposa codi dins del sandbox. El servei fixa el commit que cal
   reparar, hi comprova el cap del worktree, executa `pnpm check` i publica pel

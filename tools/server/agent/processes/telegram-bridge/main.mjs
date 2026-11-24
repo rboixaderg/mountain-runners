@@ -21,7 +21,11 @@ import {
   maximumAutomaticRepairs,
   previewConfirmationTimeoutMilliseconds,
 } from "../../policy/development.mjs";
-import { agentSecrets, readAgentConfig } from "../../config.mjs";
+import {
+  agentSecrets,
+  readAgentConfig,
+  removeAgentCredentials,
+} from "../../config.mjs";
 import { createAttachmentPreparation } from "../../attachments/prepare.mjs";
 import { GitHubTrust } from "../../repository/github.mjs";
 import { CiWatchStore } from "../../repository/ci-watch-store.mjs";
@@ -111,6 +115,7 @@ export async function startService({
   runner: runnerOverride,
 }) {
   const config = readAgentConfig(environment);
+  removeAgentCredentials(config, environment);
   for (const directory of [
     config.paths.state,
     config.paths.sessions,
@@ -506,7 +511,7 @@ export async function startService({
       ? createTopicResearch({
           broker: createWebResearch({
             ...config.webResearch,
-            neverSend: agentSecrets(config, environment).filter(Boolean),
+            neverSend: agentSecrets(config).filter(Boolean),
           }),
           telegram,
           attribution: { groupIdentifier: config.telegram.groupIdentifier },
@@ -607,7 +612,7 @@ export async function startService({
     pollIntervalMilliseconds: config.limits.ciPollIntervalMs,
     watchTimeoutMilliseconds: config.limits.ciWatchTimeoutMs,
     maximumAutomaticRepairs,
-    secrets: agentSecrets(config, environment),
+    secrets: agentSecrets(config),
     recordTrace: (entry) => queue.recordTrace(entry),
     recordServiceNote,
     logger,

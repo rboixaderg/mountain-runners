@@ -89,7 +89,7 @@ function configFor(paths) {
     github: { token: githubToken, repository },
     model: {
       sandboxImage: "mountain-agent-pi:1.5.0",
-      providerEnvironmentVariables: [],
+      providerEnvironment: {},
     },
     paths: {
       repository: paths.repository,

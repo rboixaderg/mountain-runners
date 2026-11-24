@@ -84,7 +84,7 @@ async function repositoryFixture(context) {
     model: {
       identifier: "synthetic",
       sandboxImage: "node:24",
-      providerEnvironmentVariables: [],
+      providerEnvironment: {},
     },
     telegram: { botToken: "synthetic-telegram" },
     github: { token: "synthetic-github" },
@@ -186,7 +186,7 @@ test("kills the session containers as well as Pi on a model deadline", async (co
     model: {
       identifier: "synthetic",
       piCommand: executable,
-      providerEnvironmentVariables: [],
+      providerEnvironment: {},
       sandboxImage: "node:24",
     },
     limits,
@@ -225,7 +225,7 @@ for (const cleanupFails of [false, true]) {
         model: {
           identifier: "synthetic",
           piCommand: executable,
-          providerEnvironmentVariables: [],
+          providerEnvironment: {},
           sandboxImage: "synthetic:1",
         },
         limits: { ...limits, executionTimeoutMs: 5000 },

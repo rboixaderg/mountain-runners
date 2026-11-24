@@ -261,7 +261,7 @@ export function createProjectRunner({
     publishChange: createPublisher({
       github,
       repository: config.github.repository,
-      secrets: agentSecrets(config, environment),
+      secrets: agentSecrets(config),
       researchReview,
     }),
   });

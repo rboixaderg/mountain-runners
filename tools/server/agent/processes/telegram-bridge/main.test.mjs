@@ -187,12 +187,32 @@ test("starts the bridge with the configured bot and an empty queue", async (cont
   service.closeStateStores();
 });
 
+test("removes the service credentials from the environment after startup", async (context) => {
+  const { environment } = environmentFor(context);
+  const tokenNames = Object.keys(environment).filter((name) =>
+    name.endsWith("_TOKEN"),
+  );
+  assert.notEqual(tokenNames.length, 0);
+  const service = await startService({
+    environment,
+    telegram: telegramStub(),
+    github: {},
+    runner: async () => ({ outcome: "answered", report: "ok" }),
+  });
+
+  for (const name of tokenNames) {
+    assert.equal(environment[name], undefined, name);
+  }
+  assert.ok(service.config.github.token);
+  service.closeStateStores();
+});
+
 test("closes the state stores when the bot identity cannot be read", async (context) => {
   const { environment } = environmentFor(context);
 
   await assert.rejects(
     startService({
-      environment,
+      environment: { ...environment },
       telegram: {
         async getMe() {
           throw new Error("telegram is unreachable");
@@ -453,7 +473,7 @@ test("refuses to start with an interrupted instruction of unknown result", async
   for (let attempt = 0; attempt < 2; attempt += 1) {
     await assert.rejects(
       startService({
-        environment,
+        environment: { ...environment },
         telegram: telegramStub(),
         github: {},
         runner: async () => ({}),
@@ -488,7 +508,7 @@ test("refuses to start with an interrupted CI repair of unknown result", async (
 
   await assert.rejects(
     startService({
-      environment,
+      environment: { ...environment },
       telegram: telegramStub(),
       github: {},
       runner: async () => ({}),
@@ -498,7 +518,7 @@ test("refuses to start with an interrupted CI repair of unknown result", async (
   // The uncertainty survives later restarts until a person reconciles it.
   await assert.rejects(
     startService({
-      environment,
+      environment: { ...environment },
       telegram: telegramStub(),
       github: {},
       runner: async () => ({}),
@@ -1475,7 +1495,7 @@ test("keeps the older notice blocked after reconciling a publication without a w
     const merges = [];
     const replies = [];
     const service = await startService({
-      environment,
+      environment: { ...environment },
       telegram: {
         ...telegramStub(),
         async getUpdates() {
