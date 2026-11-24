@@ -288,7 +288,7 @@ permís ni canvia cap credencial; la implementació són les tasques T2 i T26.
   altra fallada de CI.
 - **Sense reparació automàtica.** Es retira la reparació automàtica acotada de
   CI: el tema rep l'avís de la fallada i un membre demana el canvi.
-  Evidència: la traça privada registra N reparacions iniciades
+  Evidència: la traça privada registra 2 reparacions iniciades
   (`ci_repair_requested`) des de l'activació.
 - **Sense canvis.** El sandbox sense xarxa ni credencials, la verificació de
   membres, el merge fixat a la preview confirmada i la prohibició que l'agent
