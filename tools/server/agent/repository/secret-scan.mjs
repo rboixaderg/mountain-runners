@@ -2,7 +2,7 @@
 // Every new object is inspected, including earlier file versions and commit
 // messages. An inspection error or exhausted budget refuses publication.
 
-import { runGit } from "./trusted-git.mjs";
+import { gitlinkMode, runGit } from "./trusted-git.mjs";
 
 const maximumObjectBytes = 2 * 1024 * 1024;
 const maximumTotalBytes = 32 * 1024 * 1024;
@@ -37,6 +37,11 @@ function isAttachmentPath(path) {
   );
 }
 
+// A raw header starts with one colon per parent, then lists every mode.
+function touchesGitlink(header) {
+  return header.replace(/^:+/u, "").split(" ").includes(gitlinkMode);
+}
+
 export async function assertPublishableHistory({
   worktree,
   commit,
@@ -53,23 +58,30 @@ export async function assertPublishableHistory({
   // from every parent are listed. A path taken unchanged from a parent is
   // already covered by that parent, which is either in origin/main or in this
   // range. Rename detection stays disabled: both the source and destination of
-  // a move must be checked, even for transient changes.
-  const changedPaths = await runGit(
-    worktree,
-    [
-      "diff-tree",
-      "--stdin",
-      "--root",
-      "-c",
-      "-r",
-      "--no-commit-id",
-      "--name-only",
-      "--no-renames",
-      "-z",
-    ],
-    { input: commits, signal },
-  );
-  const changed = changedPaths.split("\0");
+  // a move must be checked, even for transient changes. Each raw record is a
+  // header with the modes, objects and status, followed by its path.
+  const records = (
+    await runGit(
+      worktree,
+      [
+        "diff-tree",
+        "--stdin",
+        "--root",
+        "-c",
+        "-r",
+        "--no-commit-id",
+        "--raw",
+        "--no-renames",
+        "-z",
+      ],
+      { input: commits, signal },
+    )
+  ).split("\0");
+  const headers = records.filter((record, index) => index % 2 === 0);
+  const changed = records.filter((record, index) => index % 2 === 1);
+  if (headers.some(touchesGitlink)) {
+    throw new Error("Publication contains a nested repository or submodule.");
+  }
   if (changed.some(isAttachmentPath)) {
     throw new Error("Publication contains an attachment directory path.");
   }

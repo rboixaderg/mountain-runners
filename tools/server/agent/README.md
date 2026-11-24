@@ -1101,11 +1101,12 @@ fer push ni fusionar una PR. Per configurar, verificar i revisar, consulta el
   `NoNewPrivileges=true`, mentre que el contenidor conserva
   `--security-opt=no-new-privileges` i `--cap-drop=ALL`.
 - Git selecciona metadades del registre de confiança, comprova l'indicador
-  `.git`, desactiva hooks i fsmonitor i no hereta l'entorn secret del pont. La
-  unitat arrenca amb `UMask=0077`, així que les ordres Git de confiança executen
-  amb `umask 022`: si no, els fitxers que genera el checkout perden els bits
-  d'execució que consten a l'índex i les comprovacions del projecte fallen dins
-  dels worktrees de l'agent.
+  `.git`, desactiva hooks i fsmonitor i no hereta l'entorn secret del pont. El
+  servei refusa els repositoris niats i els submòduls, i no deixa mai que Git hi
+  entri. La unitat arrenca amb `UMask=0077`, així que les ordres Git de confiança
+  executen amb `umask 022`: si no, els fitxers que genera el checkout perden els
+  bits d'execució que consten a l'índex i les comprovacions del projecte fallen
+  dins dels worktrees de l'agent.
 - La publicació inspecciona tots els objectes nous de `origin/main..HEAD`,
   inclosos fitxers esborrats i missatges de commit, contra els tokens de
   Telegram, GitHub i les variables del proveïdor. Refusa objectes il·legibles,
