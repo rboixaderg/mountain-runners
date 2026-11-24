@@ -96,7 +96,7 @@ Cada tasca té la seva PR, tret que la columna `Entrega` indiqui el contrari.
 | ----- | ---------- | ------------- | ------------------------------------------------------------------------ | ------- | --------------------------------------------------------------- |
 | T1    | Completada | -             | El Git del servei no processa repositoris niats ni submòduls             | PR 1    | [#314](https://github.com/rboixaderg/mountain-runners/pull/314) |
 | T2    | Pendent    | T25           | `/merge` només fusiona PR que canvien exclusivament contingut            | PR 2    | -                                                               |
-| T3    | Pendent    | -             | Les credencials no són a l'entorn del procés                             | PR 3    | -                                                               |
+| T3    | Completada | -             | Les credencials no són a l'entorn del procés                             | PR 3    | [#317](https://github.com/rboixaderg/mountain-runners/pull/317) |
 | T4    | Pendent    | -             | La versió de Pi està fixada i verificada                                 | PR 4    | -                                                               |
 | T5    | Pendent    | T4            | El límit per línia del RPC no falla amb imatges permeses                 | PR 5    | -                                                               |
 | T6    | Pendent    | -             | El títol i el cos de la PR estan acotats                                 | PR 6    | -                                                               |

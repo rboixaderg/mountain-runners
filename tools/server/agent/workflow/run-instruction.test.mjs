@@ -112,7 +112,7 @@ function configFor(paths) {
     },
     model: {
       sandboxImage: "mountain-agent-pi:1.5.0",
-      providerEnvironmentVariables: [],
+      providerEnvironment: {},
     },
     paths: {
       repository: paths.repository,
@@ -2760,10 +2760,11 @@ test("passes the configured provider credentials to the publication scanner", as
   const paths = await fixture(context);
   const github = githubStub();
   const config = configFor(paths);
-  config.model.providerEnvironmentVariables = ["SYNTHETIC_PROVIDER_KEY"];
+  config.model.providerEnvironment = {
+    SYNTHETIC_PROVIDER_KEY: "synthetic-provider-secret",
+  };
   const runner = createProjectRunner({
     config,
-    environment: { SYNTHETIC_PROVIDER_KEY: "synthetic-provider-secret" },
     classifyRequest: async () => ({ kind: "implementation" }),
     github,
     runModel: async ({ worktreePath }) => {
