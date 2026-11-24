@@ -528,7 +528,8 @@ export function createInstructionRunner({
       if (
         resolution.timedOut ||
         resolution.aborted ||
-        resolution.preparationFailed
+        resolution.preparationFailed ||
+        resolution.errorMessage
       ) {
         return unresolved;
       }
@@ -1278,6 +1279,15 @@ export function createInstructionRunner({
           outcome: "failed",
           report: instructionReports.aborted,
           reason: instructionReportKeys.aborted,
+        };
+      }
+      // The provider failed the turn: its partial edits stay in the worktree
+      // unpublished and the text is not an answer.
+      if (modelResult.errorMessage) {
+        return {
+          outcome: "failed",
+          report: instructionReports.modelProviderFailed,
+          reason: instructionReportKeys.modelProviderFailed,
         };
       }
       // The model copies an image it uses to a content path. Before the copy in
