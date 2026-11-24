@@ -9,6 +9,8 @@ Telegram es pot repetir després d'un lliurament desconegut. La resta de requisi
 de T8.1 i la resta de la frontera de l'ADR 0013 no canvien. Aquest ADR no activa
 cap permís ni cap servei.
 
+Esmenada el 24 de novembre de 2026 amb la PR de la T25 de l'[especificació de correccions de l'agent](../specs/agent-audit-remediation.md): els avisos de CI s'afegeixen a l'excepció acceptada.
+
 ## Context
 
 La revisió de seguretat de T8.6 ha contrastat el servei del pilot amb l'ADR 0013
@@ -66,6 +68,13 @@ durador del servei continua sent l'única font de veritat.
 La resta de controls de l'ADR 0013 es mantenen: identitat i pertinença
 verificades, aïllament, credencials separades, camí únic del merge, preview amb
 revalidació i reconciliació de resultats desconeguts per a les accions de GitHub.
+
+## Esmena (avisos de CI, 24 de novembre de 2026)
+
+Els avisos de CI s'afegeixen a l'excepció acceptada del punt 2: després d'un
+lliurament desconegut, un avís de CI es pot repetir. Per això un avís de CI ja no
+té cap estat incert que necessiti reconciliació de la persona operadora. La
+repetició no repeteix mai cap efecte de GitHub.
 
 ## Quan revisar-ho
 
