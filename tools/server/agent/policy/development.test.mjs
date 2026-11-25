@@ -23,6 +23,7 @@ import {
   mergedReviewLineText,
   mergeReports,
   parseChangeSummary,
+  fallbackTitle,
   parseRequestKind,
   publicationNoteText,
   publicationNoticesText,
@@ -140,6 +141,61 @@ test("reads a summary line with leading whitespace too", () => {
     ),
     "fix(agent): correct the indented boundary",
     "the parser and the person-facing strip agree on the same line",
+  );
+});
+
+test("falls back to the generic title on an unsafe summary", () => {
+  for (const subject of [
+    "a".repeat(61),
+    "thank @someone",
+    "close #12",
+    "Closes: #12",
+    "closed owner/repo#12",
+    "fix #12",
+    "fixes GH-12",
+    "fixed https://github.com/owner/repo/issues/12",
+    "resolve #12",
+    "resolves#12",
+    "RESOLVED #12",
+    "add a\u0007 bell",
+    "add a\rsecond line",
+    "add a\u2028second line",
+    "add a\u202Ehidden text",
+    "add [a link](https://example.org)",
+    "add ![an image](https://example.org/a.png)",
+    "add [a reference][1]",
+    "add <img src=x>",
+  ]) {
+    const summary = parseChangeSummary(`SUMMARY: fix(agent): ${subject}`);
+    assert.equal(summary, null, JSON.stringify(subject));
+    assert.equal(fallbackTitle({ summary }), "feat(agent): update project");
+  }
+});
+
+test("keeps a normal summary up to the maximum length", () => {
+  for (const summary of [
+    `fix(agent): ${"a".repeat(60)}`,
+    "fix(agent): fix the date of race #3",
+  ]) {
+    assert.equal(parseChangeSummary(`SUMMARY: ${summary}`), summary);
+  }
+});
+
+test("renders crafted paths as inert lines of one code block", () => {
+  const changedPaths = [
+    "docs/a`b @someone closes #1.md",
+    "docs/a\n```\n@someone fixes #2.md",
+  ];
+  const body = pullRequestBody({
+    title: "feat(agent): update project",
+    changedPaths,
+    checkCommand: checkCommands.full,
+  });
+
+  const block = /## Canvis\n\n```\n([\s\S]*?)\n```\n\n## Validació/u.exec(body);
+  assert.deepEqual(
+    block[1].split("\n").map((line) => JSON.parse(line)),
+    changedPaths,
   );
 });
 

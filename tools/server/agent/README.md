@@ -1061,6 +1061,10 @@ fer push ni fusionar una PR. Per configurar, verificar i revisar, consulta el
   administrador del compte no prova els permisos del token.
 - El nom públic de la branca acaba en un sufix opac de vuit caràcters
   hexadecimals, derivat de l'identificador d'actualització amb el mateix salt.
+  Un `SUMMARY` és vàlid si té com a màxim 72 caràcters i no porta `@`, `[`, `<`,
+  caràcters de control o invisibles ni paraules de tancament d'incidències
+  (`closes #1`, també amb URL). El cos de la PR llista els fitxers dins d'un bloc
+  de codi, un per línia com a cadena JSON.
   Sense `SUMMARY` vàlid, la branca usa `feat/agent-change-<sufix>` i el títol
   usa `feat(agent): update project`. No es deriva cap fallback del text privat.
   El prompt indica els tipus acceptats (`feat`, `fix`, `docs`, `refactor`,
