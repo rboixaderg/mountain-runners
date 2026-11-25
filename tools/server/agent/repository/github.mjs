@@ -75,7 +75,6 @@ function pullRequestSummary(pull) {
     htmlUrl: pull.html_url,
     headSha: pull.head.sha,
     draft: pull.draft,
-    baseBranch: pull.base.ref,
   };
 }
 
@@ -156,7 +155,6 @@ export async function readLivePullRequest({
 export class GitHubTrust {
   #token;
   #repository;
-  #baseBranch;
   #fetch;
   #apiBaseUrl;
   #requestTimeoutMilliseconds;
@@ -164,7 +162,6 @@ export class GitHubTrust {
   constructor({
     token,
     repository,
-    baseBranch = "main",
     fetchImpl = fetch,
     apiBaseUrl = "https://api.github.com",
     requestTimeoutMilliseconds = defaultRequestTimeoutMilliseconds,
@@ -172,12 +169,8 @@ export class GitHubTrust {
     if (!token) {
       throw new Error("A GitHub token is required.");
     }
-    if (baseBranch !== "main") {
-      throw new Error("The agent only targets the main base branch.");
-    }
     this.#token = token;
     this.#repository = repository;
-    this.#baseBranch = baseBranch;
     this.#fetch = fetchImpl;
     this.#apiBaseUrl = apiBaseUrl;
     this.#requestTimeoutMilliseconds = requestTimeoutMilliseconds;
@@ -523,7 +516,7 @@ export class GitHubTrust {
     assertFullCommit(commit);
     const comparison = await this.#request(
       "GET",
-      `/repos/${this.#repository}/compare/${this.#baseBranch}...${commit}`,
+      `/repos/${this.#repository}/compare/main...${commit}`,
       undefined,
       { signal },
     );
@@ -650,7 +643,7 @@ export class GitHubTrust {
     const owner = this.#repository.split("/")[0];
     const pulls = await this.#request(
       "GET",
-      `/repos/${this.#repository}/pulls?state=open&base=${encodeURIComponent(this.#baseBranch)}&head=${encodeURIComponent(`${owner}:${branch}`)}`,
+      `/repos/${this.#repository}/pulls?state=open&base=main&head=${encodeURIComponent(`${owner}:${branch}`)}`,
       undefined,
       { signal },
     );
@@ -688,7 +681,7 @@ export class GitHubTrust {
     const pull = await this.#request(
       "POST",
       `/repos/${this.#repository}/pulls`,
-      { title, body, head: branch, base: this.#baseBranch, draft: false },
+      { title, body, head: branch, base: "main", draft: false },
       { signal },
     );
     return {

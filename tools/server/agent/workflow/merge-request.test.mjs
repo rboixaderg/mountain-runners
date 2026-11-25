@@ -6,7 +6,7 @@ import { test } from "node:test";
 import { verifyMembership } from "telegram-pi-bridge/telegram";
 import { CiWatchStore } from "../repository/ci-watch-store.mjs";
 import { GitHubResponseError } from "../repository/github.mjs";
-import { MergeRequestStore } from "../repository/merge-request-store.mjs";
+import { InspectableMergeRequestStore } from "../repository/test-support/merge-request-state.mjs";
 import { requestSignal } from "../repository/request-signal.mjs";
 import { createMergeRequests, parseMergeCommand } from "./merge-request.mjs";
 
@@ -29,7 +29,9 @@ function fixture(context, { now } = {}) {
   const ciWatches = new CiWatchStore(join(directory, "ci-watch.sqlite"), {
     now,
   });
-  const merges = new MergeRequestStore(join(directory, "merge.sqlite"));
+  const merges = new InspectableMergeRequestStore(
+    join(directory, "merge.sqlite"),
+  );
   context.after(() => {
     ciWatches.close();
     merges.close();
@@ -179,10 +181,7 @@ function mergedPullRequest() {
   });
 }
 
-function setup(
-  context,
-  { github = fakeGithub(), now, synchronize = false } = {},
-) {
+function setup(context, { github = fakeGithub(), now } = {}) {
   const { ciWatches, merges } = fixture(context, { now });
   const previews = deliveredPreviews();
   const sent = [];
@@ -222,13 +221,14 @@ function setup(
         membership.calls.push(authorIdentifier);
         return membership.result;
       },
-      synchronizeBehind: synchronize ? synchronization.callback : undefined,
+      synchronizeBehind: synchronization.callback,
       github,
       repository,
       requiredChecks: ["Validate"],
       telegram,
       retryDelayMilliseconds: 0,
       recordTrace: (entry) => traces.push(entry),
+      recordServiceNote() {},
       ...overrides,
     });
   }
@@ -486,7 +486,6 @@ for (const mergeableState of ["behind", "dirty"]) {
           pullRequest: openPullRequest({ mergeableState }),
           changedPaths: ["apps/web/package.json"],
         }),
-        synchronize: true,
       },
     );
     deliverPreview();
@@ -840,22 +839,10 @@ const liveRefusals = [
     /no considera la proposta #200 a punt/u,
   ],
   [
-    "a branch behind main",
-    { pullRequest: openPullRequest({ mergeableState: "behind" }) },
-    "behind",
-    /no està al dia amb la resta del projecte/u,
-  ],
-  [
     "a blocked pull request",
     { pullRequest: openPullRequest({ mergeableState: "blocked" }) },
     "not_clean",
     /no considera la proposta #200 a punt/u,
-  ],
-  [
-    "a conflicting pull request",
-    { pullRequest: openPullRequest({ mergeableState: "dirty" }) },
-    "not_clean",
-    /no considera/u,
   ],
   [
     "unstable checks",
@@ -1750,7 +1737,7 @@ test("a behind branch triggers the synchronisation with the trusted pin and neve
   });
   const { deliverPreview, handler, synchronization, merges, traces } = setup(
     context,
-    { github, synchronize: true },
+    { github },
   );
   deliverPreview();
   const abort = new AbortController();
@@ -1778,9 +1765,10 @@ test("a behind branch triggers the synchronisation with the trusted pin and neve
 });
 
 test("an up to date branch never synchronises", async (context) => {
-  const { deliverPreview, handler, synchronization, github } = setup(context, {
-    synchronize: true,
-  });
+  const { deliverPreview, handler, synchronization, github } = setup(
+    context,
+    {},
+  );
   deliverPreview();
 
   await handler.handle(request(), bareCommand);
@@ -1795,7 +1783,6 @@ test("a conflict with main reaches synchronization instead of attempting the mer
   });
   const { deliverPreview, handler, synchronization } = setup(context, {
     github,
-    synchronize: true,
   });
   deliverPreview();
 
@@ -1812,7 +1799,6 @@ test("a still-open merge prevents synchronizing a behind pull request", async (c
   });
   const { deliverPreview, handler, merges, synchronization } = setup(context, {
     github,
-    synchronize: true,
   });
   deliverPreview();
   merges.begin({
@@ -1834,7 +1820,7 @@ test("a still-open merge prevents synchronizing a behind pull request", async (c
 test("fresh requests repeat synchronization until the delivered commit is current", async (context) => {
   const { deliverPreview, handler, github, previews, synchronization } = setup(
     context,
-    { synchronize: true },
+    {},
   );
   const secondHead = "b".repeat(40);
   const thirdHead = "c".repeat(40);
@@ -1886,7 +1872,6 @@ test("a behind branch with a pull request or commit mismatch never synchronises"
   });
   const { deliverPreview, handler, synchronization } = setup(context, {
     github,
-    synchronize: true,
   });
   deliverPreview();
 
@@ -1912,7 +1897,6 @@ for (const [name, prepare] of [
     });
     const { deliverPreview, handler, synchronization } = setup(context, {
       github,
-      synchronize: true,
     });
     deliverPreview();
 
@@ -1929,7 +1913,6 @@ test("a behind branch with checks not green never synchronises", async (context)
   });
   const { deliverPreview, handler, synchronization } = setup(context, {
     github,
-    synchronize: true,
   });
   deliverPreview();
 
@@ -1943,7 +1926,7 @@ test("a behind branch for a person who left or with newer work never synchronise
     pullRequest: openPullRequest({ mergeableState: "behind" }),
   });
   const { deliverPreview, handler, synchronization, membership, newerWork } =
-    setup(context, { github, synchronize: true });
+    setup(context, { github });
   deliverPreview();
   membership.result = { verified: false, reason: "not_member" };
   await handler.handle(request(), bareCommand);
@@ -1960,7 +1943,7 @@ test("a preview replaced during the live read prevents the synchronisation", asy
   });
   const { deliverPreview, handler, synchronization, previews } = setup(
     context,
-    { github, synchronize: true },
+    { github },
   );
   deliverPreview();
   const getPullRequest = github.getPullRequest;
@@ -1984,7 +1967,6 @@ test("a failing synchronisation refuses as behind and still never merges", async
   });
   const { deliverPreview, handler, synchronization, traces } = setup(context, {
     github,
-    synchronize: true,
   });
   deliverPreview();
   synchronization.error = new Error("sync failed");
@@ -2003,7 +1985,6 @@ test("an aborted synchronisation propagates the abort", async (context) => {
   });
   const { deliverPreview, handler, synchronization } = setup(context, {
     github,
-    synchronize: true,
   });
   deliverPreview();
   const abort = new AbortController();
@@ -2015,31 +1996,12 @@ test("an aborted synchronisation propagates the abort", async (context) => {
   );
 });
 
-test("without the callback a behind branch keeps the existing refusal", async (context) => {
-  const github = fakeGithub({
-    pullRequest: openPullRequest({ mergeableState: "behind" }),
-  });
-  const {
-    deliverPreview,
-    buildHandler,
-    github: used,
-  } = setup(context, { github, synchronize: true });
-  deliverPreview();
-  const handler = buildHandler({ synchronizeBehind: undefined });
-
-  const result = await handler.handle(request(), bareCommand);
-
-  assert.match(result.report, /no està al dia/u);
-  assert.deepEqual(used.merges, []);
-});
-
 test("an uncertain result keeps its query-only path and never synchronises", async (context) => {
   const github = fakeGithub({
     pullRequest: openPullRequest({ mergeableState: "behind" }),
   });
   const { deliverPreview, handler, synchronization, merges } = setup(context, {
     github,
-    synchronize: true,
   });
   deliverPreview();
   merges.begin({
@@ -2065,9 +2027,10 @@ for (const [name, messageIdentifier] of [
   ["not an integer", "100"],
 ]) {
   test(`a queued merge whose message is ${name} fails closed`, async (context) => {
-    const { deliverPreview, handler, github, merges, traces } = setup(context, {
-      synchronize: true,
-    });
+    const { deliverPreview, handler, github, merges, traces } = setup(
+      context,
+      {},
+    );
     deliverPreview();
 
     const result = await handler.handle(
@@ -2090,7 +2053,6 @@ test("an old merge never synchronises a behind branch", async (context) => {
   });
   const { deliverPreview, handler, synchronization } = setup(context, {
     github,
-    synchronize: true,
   });
   deliverPreview();
 
@@ -2121,7 +2083,7 @@ test("a notice delivered while the live read runs refuses the older queued merge
 test("strict protection rejects the pinned merge when main advances after preflight", async (context) => {
   const { deliverPreview, handler, github, merges, synchronization } = setup(
     context,
-    { synchronize: true },
+    {},
   );
   deliverPreview();
   const reviewedBase = "c".repeat(40);

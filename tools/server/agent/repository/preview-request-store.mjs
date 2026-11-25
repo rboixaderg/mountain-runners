@@ -1,10 +1,9 @@
 // Private, durable tracking of the previews the service follows after it
 // publishes.
 //
-// Since the `preview` label the service posts nothing: a row is written
-// directly as `awaiting`. A row awaiting the trusted publisher survives a
-// restart and keeps its deadline. A publication of the service follows its own
-// preview in the row of the update that published it.
+// A row is written directly as `awaiting`. A row awaiting the trusted publisher
+// survives a restart and keeps its deadline. A publication of the service follows
+// its own preview in the row of the update that published it.
 //
 // The origin the trusted publisher confirmed is stored with the request, because
 // the model of the topic never builds or guesses a preview URL and cannot read

@@ -9,7 +9,6 @@
     "node": ">=24.22.3"
   },
   "exports": {
-    ".": "./src/index.mjs",
     "./telegram": "./src/telegram/index.mjs",
     "./sessions": "./src/sessions/index.mjs",
     "./pi": "./src/pi/rpc.mjs"

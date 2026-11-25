@@ -30,7 +30,6 @@ test("reads a complete configuration with the provisional limits", () => {
   assert.equal(config.telegram.groupIdentifier, "-1001234567890");
   assert.equal(config.telegram.botUsername, "mountain_agent_bot");
   assert.equal(config.github.repository, "rboixaderg/mountain-runners");
-  assert.equal(config.github.baseBranch, "main");
   assert.deepEqual(config.github.requiredChecks, ["Validate", "Gitleaks"]);
   assert.equal(config.model.identifier, "opencode-go/glm-5.3-flash");
   assert.equal(config.webResearch, null);

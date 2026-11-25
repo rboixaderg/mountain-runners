@@ -25,7 +25,7 @@ import {
 } from "../repository/worktrees.mjs";
 import { openIdentifierNames } from "../repository/identifiers.mjs";
 import { createResearchReview } from "../repository/research-review.mjs";
-import { createProjectRunner } from "./project-runner.mjs";
+import { createTestProjectRunner } from "./test-support/project-runner.mjs";
 import { SandboxCleanupError } from "../sandbox/errors.mjs";
 
 const executeFile = promisify(execFile);
@@ -93,7 +93,7 @@ async function repositoryFixture(context) {
   const name = openIdentifierNames(config.paths.state).worktreeName("-100:7");
   createResearchReview({
     directory: join(config.paths.state, "research-review"),
-  }).initialize(name);
+  }).ensure(name, { newJob: true });
   const worktree = await ensureSessionWorktree({
     repositoryPath: repository,
     worktreeRoot: config.paths.worktrees,
@@ -137,7 +137,7 @@ test("publishes previous pending work after a question", async (context) => {
   writeFileSync(join(worktree.path, "README.md"), "pending change\n");
   let checks = 0;
   let publications = 0;
-  const runner = createProjectRunner({
+  const runner = createTestProjectRunner({
     config,
     runModel: async () => ({ text: "La feina anterior continua pendent." }),
     runChecks: async () => {
@@ -272,7 +272,7 @@ process.stdin.once("data", () => {
   const branches = [];
   let cleaned = false;
   let prepared = false;
-  const runner = createProjectRunner({
+  const runner = createTestProjectRunner({
     config,
     executeSandbox: async () => {
       prepared = true;

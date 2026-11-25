@@ -37,7 +37,6 @@ packages/telegram-pi-bridge/       nucli independent
 ├── src/telegram/                 API, autoria, pertinença i bucle del pont
 ├── src/sessions/                 identitat per tema i cua SQLite
 ├── src/pi/rpc.mjs                transport RPC sense política d'execució
-├── src/index.mjs                 API agregada; el servei usa entrades separades
 ├── examples/conversation.mjs     conversa sense eines, repositori ni Docker
 └── test/                         proves executables sense el workspace
 
@@ -161,8 +160,8 @@ al servidor. El nom local encara no representa una publicació a npm.
    versionats i nous no ignorats, i marca els eliminats. El contenidor rep aquesta
    instantània de rutes en un fitxer temporal de només lectura per a
    `docs:check`, sense accedir a les metadades Git. El servei elimina el fitxer
-   en acabar i torna a obtenir la llista: si ha canviat durant les comprovacions
-   o no es pot obtenir o llegir, no publica el canvi.
+   en acabar. Si no es pot obtenir o llegir la llista, o si les comprovacions
+   deixen canvis al worktree o mouen la branca, no publica el canvi.
    L'inventari només arriba a les comprovacions del servei, no a `sandbox_bash`;
    el prompt demana al model que deixi els gates complets al servei.
    Una fallada conserva la feina. El següent torn ordinari torna a comprovar i
@@ -259,8 +258,7 @@ torn: [Preview del tema](#preview-del-tema),
   conserven el camí determinista.
 - Cada torn ordinari pot editar el worktree del tema. La primera publicació
   vincula el tema a una branca i una PR a `state/topic-jobs.sqlite`; els torns
-  següents reutilitzen la vinculació. El servei no reprèn PR d'altres temes ni
-  genera avisos de solapament. Abans de publicar executa `pnpm check` al
+  següents reutilitzen la vinculació. Abans de publicar executa `pnpm check` al
   contenidor, o `pnpm check:local` si tots els camins de la publicació són dins
   de `apps/web/src/`, `apps/web/messages/` o `apps/web/public/` (ADR 0012). Una
   fallada conserva la feina i el torn ordinari següent torna a intentar-la.
@@ -642,9 +640,6 @@ avança després de l'última lectura del servei. Consulta el
 [procediment de verificació](../../../docs/operations/agent.md).
 
 ## Feina vinculada al tema
-
-El servei no reprèn PR d'un altre tema ni genera avisos de solapament: el codi
-que ho feia s'ha eliminat.
 
 La primera publicació confirmada desa la branca i la PR a
 `state/topic-jobs.sqlite`. Només aquesta vinculació diu quina feina continua el

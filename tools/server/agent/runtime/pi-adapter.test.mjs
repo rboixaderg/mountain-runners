@@ -3,7 +3,7 @@ import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
-import { buildPiArguments } from "telegram-pi-bridge/pi";
+import { piLaunchArguments } from "./test-support/pi-launch-arguments.mjs";
 import { projectPiOptions, readPiVersion } from "./pi-adapter.mjs";
 
 test("keeps project credentials out of Pi and explicitly enables only the isolated tool", async () => {
@@ -60,7 +60,7 @@ test("keeps project credentials out of Pi and explicitly enables only the isolat
   assert.deepEqual(options.extensions, [
     "/private/profile/extensions/sandbox-bash.ts",
   ]);
-  const argumentsList = buildPiArguments(options);
+  const argumentsList = await piLaunchArguments(options);
   assert.equal(argumentsList.includes("--no-extensions"), true);
   assert.equal(argumentsList.includes("--no-context-files"), true);
   assert.equal(

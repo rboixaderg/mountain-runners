@@ -34,11 +34,11 @@ function hasControlCharacter(value) {
 // A request that never answers would hold the admission loop, the CI worker or
 // the download. Every call carries a client deadline that covers the connection
 // and the body read, on top of the caller's stop signal.
-export const defaultRequestTimeoutMilliseconds = 30 * 1000;
+const defaultRequestTimeoutMilliseconds = 30 * 1000;
 
 // getUpdates asks the server to hold the response for `timeout` seconds, so its
 // deadline is that wait plus room for the connection and the body read.
-export const defaultLongPollMarginMilliseconds = 15 * 1000;
+const defaultLongPollMarginMilliseconds = 15 * 1000;
 
 export class TelegramApiError extends Error {
   constructor(method, description) {

@@ -87,7 +87,7 @@ function workerFor({
   recordTrace = () => {},
   recordServiceNote = () => {},
   requiredChecks: checks = requiredChecks,
-  hasWorkInProgress,
+  hasWorkInProgress = () => false,
   requestTimeoutMilliseconds = defaultRequestTimeoutMilliseconds,
 }) {
   return createCiWatchWorker({

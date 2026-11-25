@@ -4,11 +4,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
 import { AdmissionQueue } from "telegram-pi-bridge/sessions";
-import {
-  AgentBridge,
-  classifyInstruction,
-  TelegramApi,
-} from "telegram-pi-bridge/telegram";
+import { AgentBridge, TelegramApi } from "telegram-pi-bridge/telegram";
+import { classifyInstruction } from "../../../../packages/telegram-pi-bridge/src/telegram/attribution.mjs";
 import {
   createDisclosureApprovals,
   disclosureApprovalReply,
@@ -313,6 +310,18 @@ test("only a direct, exact literal from the original author and topic is eligibl
     assert.deepEqual(
       result,
       admitted.instruction === "Sí" ? null : { status: "refused" },
+    );
+  }
+  for (const instruction of [
+    "Si, envia-ho",
+    "sí, envia-ho",
+    "Sí, envia-ho ara",
+    "Cancel·la l’enviament",
+  ]) {
+    assert.equal(
+      await fixture.handle({ request: { ...reply(), instruction } }),
+      null,
+      instruction,
     );
   }
   assert.deepEqual(fixture.effects, []);

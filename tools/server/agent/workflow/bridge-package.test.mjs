@@ -28,6 +28,7 @@ const consumerSource = `
 import assert from 'node:assert/strict';
 import { chmodSync, mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { DatabaseSync } from 'node:sqlite';
 import { AdmissionQueue, sessionIdentifier } from 'telegram-pi-bridge/sessions';
 import { AgentBridge, TelegramApi } from 'telegram-pi-bridge/telegram';
 import { runPiPrompt } from 'telegram-pi-bridge/pi';
@@ -58,7 +59,9 @@ const bridge = new AgentBridge({
 try {
   await bridge.pollOnce();
   await bridge.executeNext();
-  assert.equal(queue.status(1),'done');
+  const database = new DatabaseSync(join(directory, 'queue.sqlite'), {readOnly:true});
+  assert.equal(database.prepare('SELECT status FROM instructions WHERE update_identifier = 1').get().status,'done');
+  database.close();
   assert.equal(queue.readOffset(),2);
   assert.deepEqual(sent,[{chatIdentifier:-100,messageThreadIdentifier:7,text:'Instruction received. Working on "hello". The result will arrive in this topic.'},{chatIdentifier:-100,messageThreadIdentifier:7,text:'independent answer'}]);
 } finally {queue.close();}

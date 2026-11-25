@@ -68,7 +68,7 @@ export function fileNameExtension(fileName) {
 }
 
 /** The accepted image type a document declares, or null. */
-export function declaredImageDocument(document) {
+function declaredImageDocument(document) {
   const extension = fileNameExtension(document.file_name);
   const mimeType =
     typeof document.mime_type === "string"

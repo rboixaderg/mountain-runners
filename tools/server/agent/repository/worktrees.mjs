@@ -124,12 +124,8 @@ export async function ensureSessionWorktree({
   repositoryPath,
   worktreeRoot,
   name,
-  baseBranch = "main",
   signal,
 }) {
-  if (baseBranch !== "main") {
-    throw new Error("The agent only starts work from main.");
-  }
   assertWorktreeName(name);
   mkdirSync(worktreeRoot, { recursive: true });
   const worktreePath = join(realpathSync(worktreeRoot), name);
@@ -138,14 +134,14 @@ export async function ensureSessionWorktree({
     (path) => path === worktreePath,
   );
 
-  await runGit(repository, ["fetch", "--prune", "origin", baseBranch], {
+  await runGit(repository, ["fetch", "--prune", "origin", "main"], {
     signal,
     timeoutMilliseconds: remoteGitTimeoutMilliseconds,
   });
   if (!existing) {
     await runGit(
       repository,
-      ["worktree", "add", "--detach", worktreePath, `origin/${baseBranch}`],
+      ["worktree", "add", "--detach", worktreePath, "origin/main"],
       { signal },
     );
   }
@@ -155,7 +151,7 @@ export async function ensureSessionWorktree({
     (await listChangedPaths(worktree, { signal })).length === 0 &&
     !(await hasUnpublishedCommit(worktree, { signal }))
   ) {
-    await runGit(worktree, ["checkout", "--detach", `origin/${baseBranch}`], {
+    await runGit(worktree, ["checkout", "--detach", "origin/main"], {
       signal,
     });
   }
@@ -424,9 +420,12 @@ export async function fetchMainHead({ worktree, signal }) {
 export async function synchronizeWithMain({
   worktree,
   pendingWorkMessage,
+  // The `main` head the caller has just fetched, if it already did.
+  fetchedMainHead,
   signal,
 }) {
-  const mainHead = await fetchMainHead({ worktree, signal });
+  const mainHead =
+    fetchedMainHead ?? (await fetchMainHead({ worktree, signal }));
   const mergeBase = (
     await runGit(worktree, ["merge-base", "HEAD", mainHead], {
       allowFailure: true,

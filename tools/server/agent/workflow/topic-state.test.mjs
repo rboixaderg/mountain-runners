@@ -12,12 +12,8 @@ import {
   buildTopicStateText,
   topicStateHeader,
 } from "../policy/development.mjs";
-import { createProjectRunner } from "./project-runner.mjs";
-import { createInstructionRunner } from "./run-instruction.mjs";
-import {
-  createTopicPullRequestFinder,
-  createLiveTopicStateReader,
-} from "./topic-state.mjs";
+import { createTestProjectRunner } from "./test-support/project-runner.mjs";
+import { createLiveTopicStateReader } from "./topic-state.mjs";
 
 const executeFile = promisify(execFile);
 const sessionKey = "-1001234567890:7";
@@ -41,12 +37,10 @@ function storeFixture(context) {
     ciWatches.close();
     rmSync(directory, { recursive: true, force: true });
   });
-  const findTopicPullRequest = createTopicPullRequestFinder(ciWatches);
   return {
     directory,
     ciWatches,
     mergeRequests,
-    findTopicPullRequest,
   };
 }
 
@@ -117,7 +111,7 @@ function liveGithub({
 }
 
 test("looks up only the newest publication of each topic", (context) => {
-  const { ciWatches, findTopicPullRequest } = storeFixture(context);
+  const { ciWatches } = storeFixture(context);
   reportChecks(ciWatches, { updateIdentifier: 500, pullRequestNumber: 239 });
   reportChecks(ciWatches, { updateIdentifier: 501, pullRequestNumber: 245 });
   reportChecks(ciWatches, {
@@ -126,9 +120,9 @@ test("looks up only the newest publication of each topic", (context) => {
     pullRequestNumber: 246,
   });
 
-  assert.equal(findTopicPullRequest(sessionKey), 245);
-  assert.equal(findTopicPullRequest(otherSessionKey), 246);
-  assert.equal(findTopicPullRequest("-1000000000000:1"), null);
+  assert.equal(ciWatches.topicPullRequestNumber(sessionKey), 245);
+  assert.equal(ciWatches.topicPullRequestNumber(otherSessionKey), 246);
+  assert.equal(ciWatches.topicPullRequestNumber("-1000000000000:1"), null);
 });
 
 async function git(directory, argumentsList) {
@@ -230,7 +224,7 @@ test("a consultation and an implementation receive the state of the topic", asyn
   reportChecks(fixture.ciWatches);
 
   const prompts = [];
-  const runner = createProjectRunner({
+  const runner = createTestProjectRunner({
     config: fixture.config,
     ciWatches: fixture.ciWatches,
     mergeRequests: fixture.mergeRequests,
@@ -277,16 +271,17 @@ test("a turn continues without the block when the state cannot be read", async (
   const fixture = await turnFixture(context);
   const events = [];
   const turns = [];
-  const runner = createInstructionRunner({
-    repositoryPath: fixture.paths.repository,
-    worktreeRoot: fixture.paths.worktrees,
-    identifiers: fixture.identifiers,
+  const runner = createTestProjectRunner({
+    config: fixture.config,
+    github: liveGithub({ pullRequest: labeledPullRequest() }),
+    ciWatches: {
+      topicPullRequestNumber() {
+        throw new TypeError("the state is unreadable");
+      },
+    },
     runModel: async (modelRequest) => {
       turns.push(modelRequest);
       return { text: "Resposta sintètica." };
-    },
-    readTopicState: () => {
-      throw new TypeError("the state is unreadable");
     },
     logger: (event, detail) => events.push({ event, detail }),
   });
@@ -337,13 +332,11 @@ const previewCases = [
 
 for (const [name, pullRequest, expected] of previewCases) {
   test(`live topic state: ${name}`, async (context) => {
-    const { ciWatches, mergeRequests, findTopicPullRequest } =
-      storeFixture(context);
+    const { ciWatches, mergeRequests } = storeFixture(context);
     reportChecks(ciWatches);
     const read = createLiveTopicStateReader({
       ciWatches,
       mergeRequests,
-      findTopicPullRequest,
       repositoryName,
       github: liveGithub({ pullRequest }),
       requiredChecks: ["Validate"],
@@ -357,8 +350,7 @@ for (const [name, pullRequest, expected] of previewCases) {
 }
 
 test("live topic state confirms the preview of a head pushed outside the service", async (context) => {
-  const { ciWatches, mergeRequests, findTopicPullRequest } =
-    storeFixture(context);
+  const { ciWatches, mergeRequests } = storeFixture(context);
   reportChecks(ciWatches);
   // A maintainer pushed a newer head to the labeled pull request: no request of
   // the topic exists, and the publisher's comment for that head is the source.
@@ -369,7 +361,6 @@ test("live topic state confirms the preview of a head pushed outside the service
   const read = createLiveTopicStateReader({
     ciWatches,
     mergeRequests,
-    findTopicPullRequest,
     repositoryName,
     github,
     requiredChecks: ["Validate"],
@@ -391,8 +382,7 @@ test("live topic state confirms the preview of a head pushed outside the service
 });
 
 test("live topic state recovers from stale reports and fails closed on a read error", async (context) => {
-  const { ciWatches, mergeRequests, findTopicPullRequest } =
-    storeFixture(context);
+  const { ciWatches, mergeRequests } = storeFixture(context);
   reportChecks(ciWatches, { result: "repairing" });
   let unavailable = false;
   const events = [];
@@ -414,7 +404,6 @@ test("live topic state recovers from stale reports and fails closed on a read er
   const read = createLiveTopicStateReader({
     ciWatches,
     mergeRequests,
-    findTopicPullRequest,
     repositoryName,
     github,
     requiredChecks: ["Validate"],

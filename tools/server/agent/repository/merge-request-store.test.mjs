@@ -3,11 +3,8 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
-import {
-  MergeRequestStore,
-  mergeBeginResults,
-  mergeStates,
-} from "./merge-request-store.mjs";
+import { mergeBeginResults, mergeStates } from "./merge-request-store.mjs";
+import { InspectableMergeRequestStore } from "./test-support/merge-request-state.mjs";
 
 function fixture(context) {
   const directory = mkdtempSync(join(tmpdir(), "mr-merge-store-"));
@@ -24,7 +21,7 @@ const request = {
 };
 
 test("records a request as merging before anything is merged", (context) => {
-  const store = new MergeRequestStore(fixture(context));
+  const store = new InspectableMergeRequestStore(fixture(context));
   assert.equal(store.begin(request), mergeBeginResults.begun);
   assert.equal(store.state(1), mergeStates.merging);
   assert.deepEqual(store.uncertain(), []);
@@ -32,7 +29,7 @@ test("records a request as merging before anything is merged", (context) => {
 });
 
 test("never begins the same update twice", (context) => {
-  const store = new MergeRequestStore(fixture(context));
+  const store = new InspectableMergeRequestStore(fixture(context));
   store.begin(request);
   store.markFailed(1);
   assert.equal(store.begin(request), mergeBeginResults.duplicate);
@@ -40,7 +37,7 @@ test("never begins the same update twice", (context) => {
 });
 
 test("a pull request has at most one request that has not ended", (context) => {
-  const store = new MergeRequestStore(fixture(context));
+  const store = new InspectableMergeRequestStore(fixture(context));
   store.begin(request);
   assert.equal(
     store.begin({ ...request, updateIdentifier: 2 }),
@@ -59,7 +56,7 @@ test("a pull request has at most one request that has not ended", (context) => {
 });
 
 test("a failed request ends and allows a new one for the same pull request", (context) => {
-  const store = new MergeRequestStore(fixture(context));
+  const store = new InspectableMergeRequestStore(fixture(context));
   store.begin(request);
   assert.equal(store.markFailed(1), true);
   assert.equal(store.state(1), mergeStates.failed);
@@ -71,7 +68,7 @@ test("a failed request ends and allows a new one for the same pull request", (co
 });
 
 test("a merged request keeps the merge commit and ends only once", (context) => {
-  const store = new MergeRequestStore(fixture(context));
+  const store = new InspectableMergeRequestStore(fixture(context));
   store.begin(request);
   assert.equal(store.markMerged(1, "b".repeat(40)), true);
   assert.equal(store.state(1), mergeStates.merged);
@@ -82,7 +79,7 @@ test("a merged request keeps the merge commit and ends only once", (context) => 
 });
 
 test("an uncertain request can still be closed as merged by reading the pull request", (context) => {
-  const store = new MergeRequestStore(fixture(context));
+  const store = new InspectableMergeRequestStore(fixture(context));
   store.begin(request);
   store.markUncertain(1);
   assert.equal(store.uncertain().length, 1);
@@ -93,11 +90,11 @@ test("an uncertain request can still be closed as merged by reading the pull req
 
 test("restart marks an interrupted merge uncertain and keeps it across restarts", (context) => {
   const path = fixture(context);
-  const first = new MergeRequestStore(path);
+  const first = new InspectableMergeRequestStore(path);
   first.begin(request);
   first.close();
 
-  const second = new MergeRequestStore(path);
+  const second = new InspectableMergeRequestStore(path);
   const interrupted = second.recoverMerging();
   assert.deepEqual(
     interrupted.map((row) => [row.update_identifier, row.author_identifier]),
@@ -110,7 +107,7 @@ test("restart marks an interrupted merge uncertain and keeps it across restarts"
 });
 
 test("a person's decision closes an uncertain request as not merged and allows a new one", (context) => {
-  const store = new MergeRequestStore(fixture(context));
+  const store = new InspectableMergeRequestStore(fixture(context));
   store.begin(request);
   assert.equal(store.markNotMerged(1), false);
   store.markUncertain(1);
@@ -127,7 +124,7 @@ test("a person's decision closes an uncertain request as not merged and allows a
 
 test("remembers that the topic was told about an unknown result", (context) => {
   const path = fixture(context);
-  const first = new MergeRequestStore(path);
+  const first = new InspectableMergeRequestStore(path);
   first.begin(request);
   first.begin({ ...request, updateIdentifier: 2, pullRequestNumber: 43 });
   first.markUncertain(2);
@@ -138,14 +135,14 @@ test("remembers that the topic was told about an unknown result", (context) => {
   first.markNotified(1);
   first.close();
 
-  const second = new MergeRequestStore(path);
+  const second = new InspectableMergeRequestStore(path);
   assert.ok(second.uncertain().every((row) => row.notified_at !== null));
   second.close();
 });
 
 test("restart never reopens a request that ended", (context) => {
   const path = fixture(context);
-  const first = new MergeRequestStore(path);
+  const first = new InspectableMergeRequestStore(path);
   first.begin(request);
   first.markMerged(1, "b".repeat(40));
   first.begin({ ...request, updateIdentifier: 2 });
@@ -155,7 +152,7 @@ test("restart never reopens a request that ended", (context) => {
   first.markNotMerged(3);
   first.close();
 
-  const second = new MergeRequestStore(path);
+  const second = new InspectableMergeRequestStore(path);
   assert.deepEqual(second.recoverMerging(), []);
   assert.equal(second.state(1), mergeStates.merged);
   assert.equal(second.state(2), mergeStates.failed);
@@ -165,7 +162,7 @@ test("restart never reopens a request that ended", (context) => {
 });
 
 test("reports the newest request of one pull request, never of another", (context) => {
-  const store = new MergeRequestStore(fixture(context));
+  const store = new InspectableMergeRequestStore(fixture(context));
   store.begin(request);
   store.markMerged(1, "b".repeat(40));
   store.begin({ ...request, updateIdentifier: 2, pullRequestNumber: 43 });
@@ -208,7 +205,7 @@ const question = {
 };
 
 test("stores the question after a confirmed send and reads it within its topic", (context) => {
-  const store = new MergeRequestStore(fixture(context));
+  const store = new InspectableMergeRequestStore(fixture(context));
   assert.equal(store.saveQuestion(question), true);
 
   const stored = store.question({
@@ -235,7 +232,7 @@ test("stores the question after a confirmed send and reads it within its topic",
 });
 
 test("one validation offers at most one question", (context) => {
-  const store = new MergeRequestStore(fixture(context));
+  const store = new InspectableMergeRequestStore(fixture(context));
   store.saveQuestion(question);
   assert.equal(
     store.saveQuestion({ ...question, questionMessageIdentifier: 901 }),
@@ -261,7 +258,7 @@ test("one validation offers at most one question", (context) => {
 });
 
 test("keeps one unanswered question per notice and person until it is retired", (context) => {
-  const store = new MergeRequestStore(fixture(context));
+  const store = new InspectableMergeRequestStore(fixture(context));
   store.saveQuestion(question);
   const next = {
     ...question,
@@ -289,7 +286,7 @@ test("keeps one unanswered question per notice and person until it is retired", 
 });
 
 test("consumes the question once, for the person it was fixed to", (context) => {
-  const store = new MergeRequestStore(fixture(context));
+  const store = new InspectableMergeRequestStore(fixture(context));
   store.saveQuestion(question);
 
   assert.equal(
@@ -336,7 +333,7 @@ test("consumes the question once, for the person it was fixed to", (context) => 
 
 test("a restart keeps a consumed question consumed and a fresh one usable", (context) => {
   const path = fixture(context);
-  const first = new MergeRequestStore(path);
+  const first = new InspectableMergeRequestStore(path);
   first.saveQuestion(question);
   first.consumeQuestion({
     sessionKey: question.sessionKey,
@@ -345,7 +342,7 @@ test("a restart keeps a consumed question consumed and a fresh one usable", (con
   });
   first.close();
 
-  const second = new MergeRequestStore(path);
+  const second = new InspectableMergeRequestStore(path);
   const stored = second.question({
     sessionKey: question.sessionKey,
     questionMessageIdentifier: question.questionMessageIdentifier,
@@ -379,7 +376,7 @@ test("a restart keeps a consumed question consumed and a fresh one usable", (con
 });
 
 test("reports whether a merge of the pull request is open", (context) => {
-  const store = new MergeRequestStore(fixture(context));
+  const store = new InspectableMergeRequestStore(fixture(context));
   assert.equal(store.hasOpenRequest(request.pullRequestNumber), false);
   store.begin(request);
   assert.equal(store.hasOpenRequest(request.pullRequestNumber), true);

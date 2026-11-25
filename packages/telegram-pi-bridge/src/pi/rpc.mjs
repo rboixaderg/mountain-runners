@@ -31,7 +31,7 @@ export class PiRunError extends Error {
   }
 }
 
-export function buildPiArguments({
+function buildPiArguments({
   model,
   sessionIdentifier,
   sessionDirectory,

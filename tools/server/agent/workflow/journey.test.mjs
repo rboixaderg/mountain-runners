@@ -11,13 +11,13 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { promisify } from "node:util";
 import { test } from "node:test";
-import { AdmissionQueue } from "telegram-pi-bridge/sessions";
+import { InspectableQueue as AdmissionQueue } from "../../../../packages/telegram-pi-bridge/test/inspectable-queue.mjs";
 import { AgentBridge } from "telegram-pi-bridge/telegram";
 import { CiWatchStore } from "../repository/ci-watch-store.mjs";
 import { GitHubTrust } from "../repository/github.mjs";
 import { openIdentifierNames } from "../repository/identifiers.mjs";
 import { savedNotice } from "../policy/development.mjs";
-import { createProjectRunner } from "./project-runner.mjs";
+import { createTestProjectRunner } from "./test-support/project-runner.mjs";
 
 const executeFile = promisify(execFile);
 const repository = "rboixaderg/mountain-runners";
@@ -171,7 +171,7 @@ test("a natural request reaches a pull request from Telegram", async (context) =
   mkdirSync(paths.state, { recursive: true });
   const ciWatches = new CiWatchStore(join(paths.state, "ci-watch.sqlite"));
   context.after(() => ciWatches.close());
-  const runner = createProjectRunner({
+  const runner = createTestProjectRunner({
     config,
     github,
     ciWatches,

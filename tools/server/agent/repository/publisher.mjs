@@ -99,7 +99,6 @@ export function createPublisher({
     let approved;
     {
       try {
-        if (!researchReview) throw new Error("Research review is unavailable.");
         if (typeof researchJobId !== "string" || !researchJobId)
           throw new Error("A stable research job ID is required.");
         const tainted = await researchReview.isTainted(researchJobId);

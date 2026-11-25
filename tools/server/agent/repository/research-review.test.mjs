@@ -53,7 +53,6 @@ test("unknown legacy jobs are conservatively tainted and remain so after restart
   assert.equal(restarted.isTainted("opaque-legacy-job"), true);
   restarted.ensure("opaque-legacy-job", { newJob: true });
   assert.equal(restarted.isTainted("opaque-legacy-job"), true);
-  assert.throws(() => restarted.initialize("opaque-legacy-job"));
 });
 
 test("a new clean job becomes durably tainted and damaged records never become clean", (context) => {

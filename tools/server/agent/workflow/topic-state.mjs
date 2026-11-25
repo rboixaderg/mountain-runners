@@ -22,24 +22,6 @@ function describeState(descriptions, state) {
 }
 
 /**
- * The pull request the topic published last and still owns, read from the CI
- * watches, or null. Without those watches the service knows none. A closed or
- * merged one stays in the answer: the state block still describes the change the
- * topic last worked on.
- */
-export function createTopicPullRequestFinder(ciWatches) {
-  return function findTopicPullRequest(sessionKey) {
-    const owned = ciWatches
-      .latestPublications()
-      .find(
-        (publication) =>
-          publication.session_key === sessionKey && publication.is_owner_latest,
-      );
-    return owned === undefined ? null : owned.pull_request_number;
-  };
-}
-
-/**
  * The preview the state block describes. The label, not a request of the
  * topic, decides whether the head has one: only an open pull request that
  * carries `preview` and not `preview-revoked` does, so a revoked or ended
@@ -72,7 +54,6 @@ function previewOf(pullRequest, comments, pullRequestNumber) {
 export function createLiveTopicStateReader({
   ciWatches,
   mergeRequests,
-  findTopicPullRequest,
   repositoryName,
   github,
   requiredChecks,
@@ -82,11 +63,12 @@ export function createLiveTopicStateReader({
     sessionKey,
     { continuedPullRequestNumber = null, signal } = {},
   ) {
+    // A closed or merged pull request stays in the answer: the state block still
+    // describes the change the topic last worked on.
     const number =
-      continuedPullRequestNumber ?? findTopicPullRequest(sessionKey);
+      continuedPullRequestNumber ??
+      ciWatches.topicPullRequestNumber(sessionKey);
     if (number === null) return { liveState: { noPullRequest: true } };
-    const source =
-      ciWatches.latestPublication(number)?.session_key ?? sessionKey;
     try {
       const live = await readLivePullRequest({
         github,
@@ -100,7 +82,7 @@ export function createLiveTopicStateReader({
       const confirmed = await github.getPullRequest({ number, signal });
       confirmPullRequestUnchanged(live.pullRequest, confirmed);
       const merge = mergeRequests.latest({
-        sessionKey: source,
+        sessionKey,
         pullRequestNumber: number,
       });
       return {
@@ -110,10 +92,9 @@ export function createLiveTopicStateReader({
             pullRequestNumber: number,
           }),
           state: confirmed.merged ? "merged" : confirmed.state,
-          fromAnotherTopic: source !== sessionKey,
           head: confirmed.headSha,
           checks: live.classification.state,
-          hasUnreportedWork: ciWatches.hasUnreportedWork(source),
+          hasUnreportedWork: ciWatches.hasUnreportedWork(sessionKey),
           merge:
             merge === undefined
               ? null

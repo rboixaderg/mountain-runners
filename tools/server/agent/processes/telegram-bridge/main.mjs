@@ -267,11 +267,7 @@ export async function startService({
     if (!isServiceIdle()) {
       return;
     }
-    if (
-      includeFinishedTopics &&
-      isServiceIdle() &&
-      typeof github?.getPullRequest === "function"
-    ) {
+    if (includeFinishedTopics) {
       try {
         const finished = await pruneFinishedTopicWorktrees({
           repositoryPath: config.paths.repository,
@@ -360,11 +356,7 @@ export async function startService({
       // Identify the publication independently of its CI notice. Never fall
       // back to an earlier preview.
       const publication = ciWatches.latestTopicPublication(sessionKey);
-      if (
-        publication === undefined ||
-        ciWatches.latestPublication(publication.pull_request_number)
-          ?.session_key !== sessionKey
-      ) {
+      if (publication === undefined) {
         return undefined;
       }
       return (
@@ -385,10 +377,8 @@ export async function startService({
         excludingOutcome: mergeConfirmationOutcome,
       }),
     verifyMembership: verifyAuthorMembership,
-    synchronizeBehind: runnerOverride
-      ? undefined
-      : (request, target, options) =>
-          runner.synchronizeForMerge(request, target, options),
+    synchronizeBehind: (request, target, options) =>
+      runner.synchronizeForMerge(request, target, options),
     github,
     repository: config.github.repository,
     requiredChecks: config.github.requiredChecks,
@@ -536,10 +526,10 @@ export async function runBridgeWithCiWatcher({
       logger(failureEvent, error instanceof Error ? error.message : "unknown");
     });
   }
-  const workers = [supervise("ci_watch_worker_failed", ciWorker)];
-  if (previewWorker) {
-    workers.push(supervise("preview_worker_failed", previewWorker));
-  }
+  const workers = [
+    supervise("ci_watch_worker_failed", ciWorker),
+    supervise("preview_worker_failed", previewWorker),
+  ];
 
   try {
     await bridge.run({ signal });

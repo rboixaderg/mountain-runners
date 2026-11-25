@@ -185,17 +185,6 @@ export function createResearchReview({ directory }) {
       syncDirectory(job);
       syncDirectory(directory);
     },
-    initialize(jobId) {
-      const job = jobDirectory(jobId);
-      mkdirSync(directory, { recursive: true, mode: 0o700 });
-      // Only a new job may be initialized. A missing or damaged existing record
-      // must never be silently recreated as an untainted job.
-      mkdirSync(job, { mode: 0o700 });
-      writeOnce(join(job, "state"), "clean\n");
-      writeOnce(join(job, "initialized"), "research-review-v1\n");
-      syncDirectory(job);
-      syncDirectory(directory);
-    },
     markResearch(jobId) {
       const job = requireJob(jobId);
       if (this.isTainted(jobId)) return;

@@ -241,10 +241,10 @@ export function createCiWatchWorker({
   requestTimeoutMilliseconds = defaultRequestTimeoutMilliseconds,
   recordTrace = () => {},
   // The text of a notice is an effect the next turn of the topic must know.
-  recordServiceNote = () => {},
+  recordServiceNote,
   // Whether the topic of a watch has another instruction queued, running or
   // of unknown result, which may have published a newer commit.
-  hasWorkInProgress = () => false,
+  hasWorkInProgress,
   logger = () => {},
   now = () => new Date(),
 }) {

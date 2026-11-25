@@ -731,7 +731,6 @@ test("puts the state of the topic before the service events and the request", ()
     topicState: {
       liveState: {
         url: "https://github.com/rboixaderg/mountain-runners/pull/239",
-        fromAnotherTopic: false,
         state: "open",
         head: "a".repeat(40),
         checks: "success",
@@ -765,7 +764,6 @@ test("describes the state of the topic in plain words for the model", () => {
   const text = buildTopicStateText({
     liveState: {
       url: "https://github.com/rboixaderg/mountain-runners/pull/239",
-      fromAnotherTopic: true,
       state: "closed",
       head: "a".repeat(40),
       checks: "failure",
@@ -778,7 +776,7 @@ test("describes the state of the topic in plain words for the model", () => {
 
   assert.match(
     text,
-    /^- Pull request: https:\/\/github\.com\/rboixaderg\/mountain-runners\/pull\/239; closed; owned by another topic\.$/mu,
+    /^- Pull request: https:\/\/github\.com\/rboixaderg\/mountain-runners\/pull\/239; closed\.$/mu,
   );
   assert.match(text, /^- Current head: aaaaaaa; required checks: failure\.$/mu);
   assert.match(

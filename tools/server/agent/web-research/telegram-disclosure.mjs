@@ -102,14 +102,13 @@ export function createTelegramDisclosure({
     if (request.exactDirectReply !== true || !request.replyMessageIdentifier) {
       return { status: "refused" };
     }
-    // Take using the approval literal for both replies so a valid cancellation
-    // can be distinguished from an absent, expired or already consumed offer.
-    // Cancellation consumes the retained request but never dispatches it.
+    // Both replies take the offer, so a valid cancellation can be distinguished
+    // from an absent, expired or already consumed one. Cancellation consumes the
+    // retained request but never dispatches it.
     const retained = approvals.take({
       sessionKey: request.sessionKey,
       authorIdentifier: request.authorIdentifier,
       replyMessageIdentifier: request.replyMessageIdentifier,
-      instruction: disclosureApprovalReply,
     });
     if (retained === null || signal?.aborted) return { status: "refused" };
     if (request.instruction === disclosureCancellationReply) {

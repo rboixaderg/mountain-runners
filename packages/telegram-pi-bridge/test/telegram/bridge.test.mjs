@@ -4,7 +4,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
-import { AdmissionQueue } from "../../src/sessions/queue.mjs";
+import { InspectableQueue as AdmissionQueue } from "../inspectable-queue.mjs";
 import { TelegramApi } from "../../src/telegram/api.mjs";
 import {
   AgentBridge,

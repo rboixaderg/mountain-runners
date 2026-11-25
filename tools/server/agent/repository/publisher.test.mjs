@@ -488,7 +488,7 @@ test("research requires an exact durable approval before any remote write, inclu
     },
   });
   const store = createResearchReview({ directory });
-  store.initialize("job-1");
+  store.ensure("job-1", { newJob: true });
   store.markResearch("job-1");
   let started = false;
   const parameters = {
@@ -564,7 +564,7 @@ test("missing research state and failed candidate reads refuse before a push", a
     refused: true,
     readFailed: true,
   });
-  store.initialize("job");
+  store.ensure("job", { newJob: true });
   store.markResearch("job");
   assert.deepEqual(await publish({ worktree, branch, researchJobId: "job" }), {
     refused: true,
