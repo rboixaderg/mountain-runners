@@ -32,6 +32,9 @@ function repositoryUrl(repository) {
 
 const fullCommitPattern = /^[a-f0-9]{40}$/u;
 const maximumPageCount = 10;
+// GitHub lists at most this many files of a comparison and does not say whether
+// it left any out.
+const maximumComparedFiles = 300;
 const previewLabel = "preview";
 const previewRevokedLabel = "preview-revoked";
 
@@ -509,6 +512,57 @@ export class GitHubTrust {
       merged: pull.merged,
       mergeCommitSha: pull.merged ? pull.merge_commit_sha : null,
     };
+  }
+
+  /**
+   * Every path the commit changes since it left the base branch, with both names
+   * of a renamed file, and in `presentPaths` those the commit still has. A list
+   * that may be incomplete is an error.
+   */
+  async getChangedPaths({ commit, signal }) {
+    assertFullCommit(commit);
+    const comparison = await this.#request(
+      "GET",
+      `/repos/${this.#repository}/compare/${this.#baseBranch}...${commit}`,
+      undefined,
+      { signal },
+    );
+    const files = comparison?.files;
+    if (
+      !Array.isArray(files) ||
+      files.length >= maximumComparedFiles ||
+      !files.every((file) => typeof file?.filename === "string")
+    ) {
+      throw new Error("GitHub did not return the complete changed files.");
+    }
+    return {
+      paths: files.flatMap((file) =>
+        file.previous_filename === undefined
+          ? [file.filename]
+          : [file.filename, file.previous_filename],
+      ),
+      presentPaths: files
+        .filter((file) => file.status !== "removed")
+        .map((file) => file.filename),
+    };
+  }
+
+  /**
+   * The Git mode of every entry of the commit, by path. A truncated tree is an
+   * error.
+   */
+  async getTreeModes({ commit, signal }) {
+    assertFullCommit(commit);
+    const response = await this.#request(
+      "GET",
+      `/repos/${this.#repository}/git/trees/${commit}?recursive=1`,
+      undefined,
+      { signal },
+    );
+    if (response?.truncated !== false || !Array.isArray(response.tree)) {
+      throw new Error("GitHub did not return the complete commit tree.");
+    }
+    return new Map(response.tree.map((entry) => [entry.path, entry.mode]));
   }
 
   /**

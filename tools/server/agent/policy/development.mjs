@@ -1,6 +1,7 @@
 // Mountain Runners policy: prompts, checks, naming and reports.
 // Pure data and functions only; no process, filesystem or network integration.
 
+import { posix } from "node:path";
 import { attachmentRefusalReasons } from "../attachments/refusals.mjs";
 
 // The three notices a club member reads from the service (T8.9). They are plain
@@ -55,6 +56,18 @@ const webFastGateRoots = [
   "apps/web/messages",
   "apps/web/public",
 ];
+// Infrastructure a merge asked in the topic may not change: the maintainer
+// merges it on GitHub (ADR 0013). It is also any file directly in these
+// directories, any hidden path and, anywhere, a manifest or configuration file.
+const infrastructureDirectories = [".", "apps/web"];
+const infrastructureRoots = [
+  "apps/web/project.inlang",
+  "apps/web/scripts",
+  "packages",
+  "tools",
+];
+const infrastructureFileName =
+  /^(?:package\.json|tsconfig.*\.json)$|\.config\./u;
 export const sandboxPrepareCommand = [
   "export HOME=/tmp npm_config_manage_package_manager_versions=false",
   "PNPM_VERSION=$(pnpm --version)",
@@ -72,6 +85,24 @@ export function sandboxCheckCommand(checkCommand) {
   ].join(" && ");
 }
 
+function isInside(path, roots) {
+  return roots.some((root) => path.startsWith(`${root}/`));
+}
+
+function isInfrastructureFile(path) {
+  return (
+    infrastructureDirectories.includes(posix.dirname(path)) ||
+    isInside(path, infrastructureRoots) ||
+    path.split("/").some((segment) => segment.startsWith(".")) ||
+    infrastructureFileName.test(posix.basename(path))
+  );
+}
+
+/** Whether a change leaves infrastructure alone. An empty list proves nothing. */
+export function changesNoInfrastructure(paths) {
+  return paths.length > 0 && !paths.some(isInfrastructureFile);
+}
+
 /**
  * The check a publication runs, from every path it would contain. Changes that
  * stay inside the web application source, messages or static public assets
@@ -81,10 +112,7 @@ export function sandboxCheckCommand(checkCommand) {
  */
 export function checkCommandForPaths(paths) {
   const everyPathIsWebApp =
-    paths.length > 0 &&
-    paths.every((path) =>
-      webFastGateRoots.some((root) => path.startsWith(`${root}/`)),
-    );
+    paths.length > 0 && paths.every((path) => isInside(path, webFastGateRoots));
   return everyPathIsWebApp ? checkCommands.webOnly : checkCommands.full;
 }
 // Conventional types the repository accepts for a change summary. The prompt
@@ -780,6 +808,11 @@ export const mergeReports = {
     `La proposta #${pullRequestNumber} no està al dia amb la resta del projecte. No s'ha fusionat res; ho ha de revisar la persona que manté el servei.`,
   notClean: ({ pullRequestNumber }) =>
     `GitHub no considera la proposta #${pullRequestNumber} a punt per fusionar, perquè hi ha conflictes o comprovacions pendents. No s'ha fusionat res; ho ha de revisar la persona que manté el servei.`,
+  infrastructureChanges: ({ reviewUrl }) =>
+    withReviewLink(
+      "Aquest canvi toca les eines o la configuració del projecte, i ho ha de revisar la persona que manté el servei. No s'ha publicat res.",
+      reviewUrl,
+    ),
   unreadable: ({ pullRequestNumber }) =>
     `No he pogut llegir com està la proposta #${pullRequestNumber}. No s'ha fusionat res.`,
   merged: ({ pullRequestNumber, mergeCommit, pullRequestUrl }) =>

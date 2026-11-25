@@ -3301,6 +3301,15 @@ test("only contextual replies bypass the classifier for merge confirmation", asy
     verifyMembership: async () => ({ verified: true, status: "member" }),
     github: {
       ...githubStub(),
+      async getChangedPaths() {
+        const paths = ["apps/web/src/content/posts/la-cursa.yaml"];
+        return { paths, presentPaths: paths };
+      },
+      async getTreeModes() {
+        return new Map([
+          ["apps/web/src/content/posts/la-cursa.yaml", "100644"],
+        ]);
+      },
       async getPullRequest() {
         return {
           state: "open",
