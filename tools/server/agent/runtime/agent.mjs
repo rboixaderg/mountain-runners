@@ -1,5 +1,5 @@
 // Assemble the trusted profile and run one topic turn. The workflow chooses
-// the prompt and read-only mode; this module owns the Pi-specific setup.
+// the prompt; this module owns the Pi-specific setup.
 
 import { join } from "node:path";
 import { preparePiProfile } from "./profile.mjs";
@@ -30,7 +30,6 @@ export async function runAgent(config, context) {
     environment: context.environment,
     onPromptSent: context.onPromptSent,
     stopCommands: context.stopCommands,
-    readOnly: context.readOnly,
     worktreePath: context.worktreePath,
     signal: context.signal,
     webResearch: context.webResearch,

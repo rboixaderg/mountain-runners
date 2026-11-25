@@ -951,9 +951,15 @@ node /usr/local/lib/mountain-runners/agent/commands/research-review/cli.mjs \
 Si la còpia és publicable, executa la mateixa ordre amb `approve` i confirma
 l'identificador que mostra. L'ordre no fa push. Respon `/publica-revisio`
 directament a un missatge del bot al tema per tornar a provar la publicació.
-Si el servei informa d'una revisió nova, torna a revisar-la. Una feina antiga
-sense registre de recerca també exigeix revisió. Aquesta aprovació no autoritza
-un merge.
+Si el servei informa d'una revisió nova, torna a revisar-la. Una feina sense
+registre de recerca que conserva el worktree o la vinculació també exigeix
+revisió. Aquesta aprovació no autoritza un merge.
+
+Risc residual: un tema sense worktree, vinculació ni registre de revisió comença
+net, encara que la sessió de Pi conservi recerca anterior. Això pot passar si es
+perd l'estat de revisió o s'elimina manualment un worktree. En aquests casos, la
+persona mantenidora ho ha de resoldre abans que el tema rebi cap més petició: no
+el pot donar per net, i la feina independent va en un tema nou.
 
 ### Preflight del primer pilot
 

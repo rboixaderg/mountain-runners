@@ -229,63 +229,91 @@ function researchFixture(review, operations) {
   });
 }
 
-test("a research consultation reports sources without publishing existing pending work", async (context) => {
-  const paths = await fixture(context);
-  const jobId = identifiersFor(paths).worktreeName(topicSessionKey);
-  const worktree = await ensureSessionWorktree({
-    repositoryPath: paths.repository,
-    worktreeRoot: paths.worktrees,
-    name: jobId,
+for (const classifiedKind of ["consultation", "clarification"]) {
+  test(`a ${classifiedKind} with web research is a writable turn that reports sources`, async (context) => {
+    const paths = await fixture(context);
+    const jobId = identifiersFor(paths).worktreeName(topicSessionKey);
+    const review = createResearchReview({
+      directory: join(paths.state, "review"),
+    });
+    const operations = [];
+    const github = githubStub();
+    let preparations = 0;
+    const runner = createProjectRunner({
+      config: configFor(paths),
+      github,
+      researchReview: review,
+      research: researchFixture(review, operations),
+      classifyRequest: async () => ({ kind: classifiedKind }),
+      executeSandbox: async () => {
+        preparations += 1;
+        return { exitCode: 0, timedOut: false };
+      },
+      executeAgent: async (_config, options) => {
+        const result = await options.webResearch(
+          { operation: "read", input: "https://example.test/route" },
+          {},
+        );
+        assert.equal(result.data.text, "Synthetic source.");
+        return { text: "Resposta contrastada." };
+      },
+      runChecks: async () => assert.fail("an unchanged turn needs no checks"),
+    });
+
+    const result = await runner(request({ instruction: "Consulta la ruta." }));
+
+    assert.equal(result.outcome, "answered", result.report);
+    assert.equal(
+      result.report,
+      "Resposta contrastada.\n\nFonts:\n- Pàgina llegida: https://example.test/route (paràmetres omesos)",
+    );
+    assert.equal(preparations, 1);
+    assert.deepEqual(operations, [
+      { operation: "read", input: "https://example.test/route" },
+    ]);
+    assert.equal(review.isTainted(jobId), true);
+    assert.equal(
+      await git(topicWorktreePath(paths), ["branch", "--show-current"]),
+      "",
+    );
+    assert.deepEqual(github.pushes, []);
+    assert.deepEqual(github.pulls, []);
   });
-  writeFileSync(join(worktree.path, "pending.txt"), "pending work\n");
-  const head = await git(worktree.path, ["rev-parse", "HEAD"]);
+}
+
+test("a merge or preview before the first change leaves the job without private review", async (context) => {
+  const paths = await fixture(context);
   const review = createResearchReview({
     directory: join(paths.state, "review"),
   });
-  const operations = [];
   const github = githubStub();
-  let turns = 0;
   const runner = createProjectRunner({
     config: configFor(paths),
     github,
     researchReview: review,
-    research: researchFixture(review, operations),
-    classifyRequest: async () => ({ kind: "consultation" }),
-    executeSandbox: async () =>
-      assert.fail("a consultation needs no preparation"),
-    executeAgent: async (_config, options) => {
-      turns += 1;
-      assert.equal(options.readOnly, true);
-      assert.equal(typeof options.webResearch, "function");
-      const result = await options.webResearch(
-        { operation: "read", input: "https://example.test/route" },
-        {},
-      );
-      assert.equal(result.data.text, "Synthetic source.");
-      return { text: "Resposta contrastada." };
+    requestMerge: async () => ({ outcome: "answered", report: "merge" }),
+    requestPreview: async () => ({ outcome: "answered", report: "preview" }),
+    classifyRequest: async ({ instruction }) => ({
+      kind: instruction === "mostra-la" ? "preview" : "implementation",
+    }),
+    executeSandbox: async () => ({ exitCode: 0, timedOut: false }),
+    runModel: async ({ worktreePath }) => {
+      writeFileSync(join(worktreePath, "change.txt"), "change\n");
+      return { text: "Canvi fet.\nSUMMARY: feat(content): add a change" };
     },
-    runChecks: async () => assert.fail("a consultation must not publish work"),
+    runChecks: async () => ({ exitCode: 0, timedOut: false }),
   });
 
-  const result = await runner(request({ instruction: "Consulta la ruta." }));
+  await runner(request({ instruction: "/merge" }));
+  await runner(request({ updateIdentifier: 1002, instruction: "mostra-la" }));
+  const result = await runner(request({ updateIdentifier: 1003 }));
 
-  assert.equal(result.outcome, "answered", result.report);
+  assert.equal(result.outcome, "pull_request_created", result.report);
   assert.equal(
-    result.report,
-    "Resposta contrastada.\n\nFonts:\n- Pàgina llegida: https://example.test/route (paràmetres omesos)",
+    review.isTainted(identifiersFor(paths).worktreeName(topicSessionKey)),
+    false,
   );
-  assert.equal(turns, 1);
-  assert.deepEqual(operations, [
-    { operation: "read", input: "https://example.test/route" },
-  ]);
-  assert.equal(review.isTainted(jobId), true);
-  assert.equal(
-    readFileSync(join(worktree.path, "pending.txt"), "utf8"),
-    "pending work\n",
-  );
-  assert.equal(await git(worktree.path, ["rev-parse", "HEAD"]), head);
-  assert.deepEqual(github.pushes, []);
-  assert.deepEqual(github.pulls, []);
+  assert.equal(github.pushes.length, 1);
 });
 
 test("a research-informed change requires approval and retries the reviewed snapshot without Pi", async (context) => {
@@ -328,7 +356,6 @@ test("a research-informed change requires approval and retries the reviewed snap
     executeSandbox: async () => ({ exitCode: 0, timedOut: false }),
     executeAgent: async (_config, options) => {
       turns += 1;
-      assert.equal(options.readOnly, false);
       assert.equal(typeof options.webResearch, "function");
       await options.webResearch(
         { operation: "read", input: "https://example.test/route" },
@@ -731,8 +758,7 @@ test("prepares a writable environment for a classified consultation", async (con
       prepared = true;
       return { exitCode: 0, timedOut: false };
     },
-    executeAgent: async (_config, options) => {
-      assert.equal(options.readOnly, false);
+    executeAgent: async () => {
       return { text: "Synthetic answer." };
     },
   });
@@ -3880,7 +3906,7 @@ test("carries the audience rules, the state of the topic and the attachment line
   );
 });
 
-test("passes an image to a read-only consultation with web research enabled", async (context) => {
+test("passes an image to a consultation with web research enabled", async (context) => {
   const paths = await fixture(context);
   const image = pngImage({ width: 200, height: 100 });
   const runner = createProjectRunner({
@@ -3898,7 +3924,7 @@ test("passes an image to a read-only consultation with web research enabled", as
       telegram: telegramAttachment(image),
     }),
     runModel: async ({ instruction, images, kind }) => {
-      assert.equal(kind, "consultation");
+      assert.notEqual(kind, "consultation");
       assert.match(instruction, /imatge-1\.png/u);
       assert.equal(images.length, 1);
       return { text: "Resposta." };
@@ -4098,7 +4124,6 @@ test("answers a clarification with one writable topic turn", async (context) => 
   assert.equal(result.outcome, "answered");
   assert.equal(result.report, "Vols que afegeixi la imatge a la notícia?");
   assert.equal(runs.length, 1);
-  assert.equal(runs[0].readOnly, false);
   assert.equal(runs[0].sessionIdentifier, "topic_n1001234567890_7");
   assert.doesNotMatch(runs[0].message, /This request is/u);
   assert.match(

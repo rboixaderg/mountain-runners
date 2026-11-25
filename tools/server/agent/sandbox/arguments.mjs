@@ -12,10 +12,7 @@ import { isAbsolute, relative } from "node:path";
 
 const latestTagPattern = /:latest$/u;
 
-export function buildModelCommand(command, readOnly) {
-  if (readOnly) {
-    return ["env", "HOME=/tmp", "bash", "-lc", command];
-  }
+export function buildModelCommand(command) {
   return [
     "env",
     "HOME=/tmp",
@@ -64,7 +61,6 @@ export function buildSandboxArguments({
   limits,
   containerName,
   sessionIdentifier,
-  readOnly = false,
   documentationFilesPath,
 }) {
   const workspace = assertWorkspaceInsideRoot(workspacePath, worktreeRoot);
@@ -102,7 +98,7 @@ export function buildSandboxArguments({
     "--tmpfs",
     "/tmp:rw,noexec,nosuid,size=256m",
     "--mount",
-    `type=bind,src=${workspace},dst=/work${readOnly ? ",readonly" : ""}`,
+    `type=bind,src=${workspace},dst=/work`,
     ...(documentationFilesPath
       ? [
           "--mount",
@@ -146,11 +142,5 @@ export function readSandboxSettings(environment) {
     }
   }
 
-  return {
-    image,
-    worktreeRoot,
-    sessionIdentifier,
-    limits,
-    readOnly: environment.MR_AGENT_READ_ONLY === "true",
-  };
+  return { image, worktreeRoot, sessionIdentifier, limits };
 }

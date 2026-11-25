@@ -11,12 +11,18 @@ const MAX_TEXT_LENGTH = 24_000;
 const failure = () => ({ kind: "unavailable", data: null, sources: [] });
 
 function containsSecret(value, secrets, privateIdentifiers = []) {
+  // Telegram links and clients write an identifier without its sign, and a
+  // supergroup also without its "-100" prefix: compare digits with every form.
+  const privateNumbers = new Set(
+    privateIdentifiers.flatMap((identifier) => [
+      identifier.replace(/^-/u, ""),
+      identifier.replace(/^-(?:100)?/u, ""),
+    ]),
+  );
   const forbidden = (text) =>
     secrets.some((secret) => text.includes(secret)) ||
-    (privateIdentifiers.length > 0 &&
-      text
-        .match(/-?\d+/gu)
-        ?.some((number) => privateIdentifiers.includes(number)));
+    (privateNumbers.size > 0 &&
+      text.match(/\d+/gu)?.some((number) => privateNumbers.has(number)));
   let decoded = value;
   for (let attempt = 0; attempt < 10; attempt += 1) {
     if (forbidden(decoded)) return true;

@@ -188,6 +188,35 @@ test("never discloses known secrets, including encoded and malformed-percent inp
   assert.deepEqual(state.offers, []);
 });
 
+for (const input of [
+  "chat 1001234567890",
+  "chat -1001234567890",
+  "https://t.me/c/1234567890/7",
+  "chat-1234567890",
+  "member -101234567",
+]) {
+  test(`never discloses a private identifier written as ${input}`, async () => {
+    const broker = createWebResearch({
+      ...config,
+      requestBrave: async () => assert.fail("nothing may be sent"),
+    });
+    const state = context();
+    const operation = input.startsWith("https:") ? "read" : "search";
+
+    assert.deepEqual(
+      await broker(
+        { operation, input },
+        {
+          ...state,
+          privateIdentifiers: ["-1001234567890", "101234567"],
+        },
+      ),
+      unavailable,
+    );
+    assert.deepEqual(state.offers, []);
+  });
+}
+
 test("checks redirects before DNS, offers exact DNS and HTTP recipients, and resumes the approved URL", async (testContext) => {
   const events = network(testContext, [
     Buffer.from(

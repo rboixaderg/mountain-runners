@@ -101,7 +101,7 @@ Cada tasca té la seva PR, tret que la columna `Entrega` indiqui el contrari.
 | T5    | Completada | T4            | El límit per línia del RPC no falla amb imatges permeses                 | PR 5    | [#327](https://github.com/rboixaderg/mountain-runners/pull/327) |
 | T6    | Completada | -             | El títol i el cos de la PR estan acotats                                 | PR 6    | [#323](https://github.com/rboixaderg/mountain-runners/pull/323) |
 | T7    | Completada | -             | L'acceptació de l'esmena de recerca web queda registrada                 | PR 7    | [#320](https://github.com/rboixaderg/mountain-runners/pull/320) |
-| T8    | Pendent    | -             | Torns nous, de només lectura i identificadors privats correctes          | PR 8    | -                                                               |
+| T8    | Completada | -             | Torns nous, de només lectura i identificadors privats correctes          | PR 8    | [#330](https://github.com/rboixaderg/mountain-runners/pull/330) |
 | T9    | Completada | -             | Un error del proveïdor acaba el torn com a fallada                       | PR 9    | [#319](https://github.com/rboixaderg/mountain-runners/pull/319) |
 | T10   | Completada | -             | Feina local i conflictes de la branca sense bucles                       | PR 10   | [#326](https://github.com/rboixaderg/mountain-runners/pull/326) |
 | T11   | Completada | -             | Cap estat bloqueja sense sortida                                         | PR 11   | [#318](https://github.com/rboixaderg/mountain-runners/pull/318) |

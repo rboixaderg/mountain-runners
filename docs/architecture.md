@@ -178,10 +178,10 @@ explícitament `sandbox_bash` i la neteja dels contenidors. Pi manté la credenc
 la `bash` del host: l'execució passa per l'extensió `sandbox_bash` i pel mateix
 constructor d'arguments que el component de confiança. Tampoc exposa eines
 natives de fitxers del host ni carrega automàticament context o skills del
-repositori: el model els llegeix dins del contenidor. Les consultes usen un
-muntatge de només lectura i no publiquen feina pendent. Una feina nova
-preserva el worktree pendent anterior i comença des de `origin/main`; només
-una continuació explícita reutilitza la feina pendent actual. Els errors locals
+repositori: el model els llegeix dins del contenidor. Cada missatge ordinari
+executa un torn amb escriptura al worktree del tema, que té una sola feina; si
+hi ha canvis o feina pendent, el servei els publica quan passen les
+comprovacions i, si la feina ha rebut recerca, la revisió privada. Els errors locals
 coneguts no bloquegen la cua; els resultats remots incerts i les aturades de
 contenidors no confirmades sí que la bloquegen. La sortida del sandbox i la
 del torn de Pi tenen cadascuna un límit conjunt d'1 MiB per stdout i stderr.

@@ -26,7 +26,6 @@ test("keeps project credentials out of Pi and explicitly enables only the isolat
       { name: "imatge-1.jpg", width: 1200, height: 800 },
       { name: "imatge-2.png", width: 320, height: 240 },
     ],
-    readOnly: true,
     environment: {
       PATH: "/usr/bin",
       HOME: "/private/home",
@@ -44,7 +43,6 @@ test("keeps project credentials out of Pi and explicitly enables only the isolat
   assert.equal(options.environment.GITHUB_TOKEN, undefined);
   assert.equal(options.environment.TELEGRAM_BOT_TOKEN, undefined);
   assert.equal(options.environment.MR_AGENT_WEB_RESEARCH, undefined);
-  assert.equal(options.environment.MR_AGENT_READ_ONLY, "true");
   assert.equal(
     options.environment.MR_AGENT_ATTACHMENT_PATH,
     "/private/worktrees/topic/.agent-attachments",
