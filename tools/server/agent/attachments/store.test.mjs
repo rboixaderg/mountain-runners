@@ -6,7 +6,9 @@ import {
   mkdtempSync,
   readFileSync,
   rmSync,
+  statSync,
   symlinkSync,
+  utimesSync,
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
@@ -83,16 +85,31 @@ test("skips an existing name when the counter points at it", (context) => {
   );
 });
 
-test("starts from an empty manifest when it is corrupt", (context) => {
+test("never resets the counter of an unreadable manifest", (context) => {
   const paths = fixture(context);
+  mkdirSync(paths.worktreePath);
   const store = createAttachmentStore(paths);
   const directory = join(store.root, topicName);
   mkdirSync(directory, { recursive: true });
-  writeFileSync(join(directory, "manifest.json"), "not json");
+  writeFileSync(join(directory, "imatge-7.jpg"), "stored");
+  for (const content of ["not json", '{"counter":-1,"attachments":[]}']) {
+    writeFileSync(join(directory, "manifest.json"), content);
 
-  assert.deepEqual(store.list(topicName), []);
-  const entry = store.add(topicName, image("first"));
-  assert.equal(entry.name, "imatge-1.jpg");
+    assert.deepEqual(store.list(topicName), []);
+    assert.deepEqual(store.stage(topicName, paths.worktreePath), []);
+    assert.deepEqual(store.remove(topicName, ["imatge-7.jpg"]), []);
+    assert.deepEqual(store.prune(), []);
+    assert.throws(() => store.add(topicName, image("first")), /unreadable/u);
+
+    assert.equal(
+      readFileSync(join(directory, "manifest.json"), "utf8"),
+      content,
+    );
+    assert.equal(existsSync(join(directory, "imatge-7.jpg")), true);
+    assert.equal(existsSync(join(directory, "imatge-1.jpg")), false);
+  }
+  // Another topic still works.
+  store.add("topic-fedcba9876543210", image("other"));
 });
 
 test("stages the stored images in the worktree so the sandbox can read them", (context) => {
@@ -169,7 +186,8 @@ test("keeps an attachment for seven days and prunes it after", (context) => {
   now = new Date(now.getTime() + 2000);
   assert.equal(store.prune().length, 1);
   assert.deepEqual(store.list(topicName), []);
-  assert.equal(existsSync(join(store.root, topicName)), false);
+  // The names the session already saw are never reused.
+  assert.equal(store.add(topicName, image("second")).name, "imatge-2.jpg");
 });
 
 test("evicts the oldest image when a topic exceeds its attachment count", (context) => {
@@ -306,6 +324,20 @@ test("evicts the oldest image across topics when the total quota is full", (cont
   assert.equal(existsSync(join(store.root, topicName, "imatge-1.jpg")), false);
 });
 
+test("keeps the counter of a topic that eviction empties", (context) => {
+  const paths = fixture(context);
+  const otherTopic = "topic-fedcba9876543210";
+  const store = createAttachmentStore({ ...paths, maximumTotalBytes: 4 });
+  const fourBytes = () => ({ bytes: Buffer.alloc(4, "e") });
+  store.add(topicName, image("first", fourBytes()));
+  store.add(otherTopic, image("second", fourBytes()));
+  assert.deepEqual(store.list(topicName), []);
+
+  const entry = store.add(topicName, image("third", fourBytes()));
+
+  assert.equal(entry.name, "imatge-2.jpg");
+});
+
 test("refuses an image larger than the topic quota without evicting the rest", (context) => {
   const paths = fixture(context);
   const store = createAttachmentStore({
@@ -436,4 +468,62 @@ test("removes a topic directory that only holds leftovers", (context) => {
   assert.deepEqual(store.prune(), []);
 
   assert.equal(existsSync(directory), false);
+});
+
+test("logs an unreadable manifest and still expires its old files", (context) => {
+  const paths = fixture(context);
+  const now = new Date("2026-02-01T00:00:00.000Z");
+  const store = createAttachmentStore({ ...paths, now: () => now });
+  const directory = join(store.root, topicName);
+  mkdirSync(directory, { recursive: true });
+  writeFileSync(join(directory, "manifest.json"), "not json");
+  const old = new Date(now.getTime() - attachmentRetentionMilliseconds - 1000);
+  for (const [name, time] of [
+    ["manifest.json", old],
+    ["imatge-1.jpg", old],
+    ["imatge-2.jpg", now],
+  ]) {
+    writeFileSync(join(directory, name), "not json");
+    utimesSync(join(directory, name), time, time);
+  }
+  const events = [];
+
+  const removed = store.prune({ logger: (...event) => events.push(event) });
+
+  assert.deepEqual(removed, [{ topic: topicName, name: "imatge-1.jpg" }]);
+  assert.deepEqual(events[0], ["attachment_manifest_unreadable", topicName]);
+  assert.equal(existsSync(join(directory, "imatge-1.jpg")), false);
+  assert.equal(existsSync(join(directory, "imatge-2.jpg")), true);
+  assert.equal(
+    readFileSync(join(directory, "manifest.json"), "utf8"),
+    "not json",
+  );
+});
+
+test("counts the files of an unreadable manifest in the total quota", (context) => {
+  const paths = fixture(context);
+  const store = createAttachmentStore({ ...paths, maximumTotalBytes: 8 });
+  const directory = join(store.root, "topic-fedcba9876543210");
+  mkdirSync(directory, { recursive: true });
+  writeFileSync(join(directory, "manifest.json"), "not json");
+  writeFileSync(join(directory, "imatge-1.jpg"), Buffer.alloc(8));
+
+  assert.throws(
+    () => store.add(topicName, image("first", { bytes: Buffer.alloc(1) })),
+    /out of quota/u,
+  );
+  assert.equal(existsSync(join(directory, "imatge-1.jpg")), true);
+});
+
+test("does not rewrite a manifest that pruning leaves unchanged", (context) => {
+  const paths = fixture(context);
+  const store = createAttachmentStore(paths);
+  store.add(topicName, image("first"));
+  const manifestPath = join(store.root, topicName, "manifest.json");
+  // A rewrite replaces the file, so its inode changes.
+  const before = statSync(manifestPath).ino;
+
+  store.prune();
+
+  assert.equal(statSync(manifestPath).ino, before);
 });

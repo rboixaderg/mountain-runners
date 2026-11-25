@@ -488,19 +488,27 @@ test("refuses a JPEG without its end marker", () => {
   assert.equal(result.reason, "damaged_image");
 });
 
-test("refuses a JPEG with data after its end marker", () => {
-  const bytes = Buffer.concat([
-    jpegImage({ width: 100, height: 100 }),
-    Buffer.from([0x00]),
-  ]);
+test("truncates a JPEG at its end marker and keeps none of the extra data", () => {
+  const reference = jpegImage({ width: 100, height: 100 });
+  for (const extra of [
+    Buffer.alloc(16),
+    // An appended multi-picture image and a Motion Photo video.
+    jpegImage({ width: 40, height: 30 }),
+    Buffer.from("ftypmp42 synthetic-video GPS 41.4 2.1"),
+  ]) {
+    const original = Buffer.concat([reference, extra]);
+    assert.equal(inspectImage(original).hasMetadata, true);
 
-  const result = refusal({
-    bytes,
-    fileName: "foto.jpg",
-    mimeType: "image/jpeg",
-  });
+    const image = accept({
+      bytes: original,
+      fileName: "foto.jpg",
+      mimeType: "image/jpeg",
+    });
 
-  assert.equal(result.reason, "damaged_image");
+    assert.deepEqual(Buffer.from(image.bytes), reference);
+    assert.equal(image.width, 100);
+    assert.equal(image.height, 100);
+  }
 });
 
 test("removes metadata between the scans of a progressive JPEG", () => {
@@ -586,7 +594,6 @@ test("removes PNG private and unlisted ancillary chunks", () => {
   const metadata = [
     { type: "prVW", data: Buffer.alloc(16, 7) },
     { type: "pHYs", data: Buffer.alloc(9, 1) },
-    { type: "iCCP", data: Buffer.from("synthetic-profile") },
   ];
   const original = pngImage({ width: 320, height: 240, metadata });
   const reference = pngImage({ width: 320, height: 240 });
@@ -598,6 +605,162 @@ test("removes PNG private and unlisted ancillary chunks", () => {
   });
 
   assert.deepEqual(Buffer.from(image.bytes), reference);
+});
+
+test("keeps the PNG colour profile", () => {
+  const original = pngImage({
+    width: 320,
+    height: 240,
+    metadata: [{ type: "iCCP", data: Buffer.from("synthetic-profile") }],
+  });
+
+  const image = accept({
+    bytes: original,
+    fileName: "portada.png",
+    mimeType: "image/png",
+  });
+
+  assert.deepEqual(Buffer.from(image.bytes), original);
+});
+
+test("keeps the WebP colour profile and its flag", () => {
+  const extended = webpExtendedImage({ width: 500, height: 400 });
+  const header = Buffer.from(extended.subarray(12, 30));
+  header[8] |= 0x20;
+  const original = webpFileFromChunks([
+    header,
+    webpChunk("ICCP", Buffer.from("synthetic-profile")),
+    extended.subarray(30),
+  ]);
+
+  const image = accept({
+    bytes: original,
+    fileName: "foto.webp",
+    mimeType: "image/webp",
+  });
+
+  assert.deepEqual(Buffer.from(image.bytes), original);
+});
+
+const maximumProfileBytes = 64 * 1024;
+
+function cleanedBytes(bytes, extension, mimeType) {
+  return Buffer.from(
+    accept({ bytes, fileName: `foto.${extension}`, mimeType }).bytes,
+  );
+}
+
+test("keeps one PNG colour profile, before the image data and within 64 KiB", () => {
+  const reference = pngImage({ width: 32, height: 24 });
+  const profile = (length) => ({ type: "iCCP", data: Buffer.alloc(length, 1) });
+  const withProfiles = (...metadata) =>
+    pngImage({ width: 32, height: 24, metadata });
+  const kept = withProfiles(profile(maximumProfileBytes));
+  const late = Buffer.concat([
+    reference.subarray(0, -12),
+    pngChunk("iCCP", Buffer.from("late")),
+    reference.subarray(-12),
+  ]);
+
+  for (const [original, expected] of [
+    [kept, kept],
+    [withProfiles(profile(10), profile(11)), withProfiles(profile(10))],
+    [withProfiles(profile(maximumProfileBytes + 1)), reference],
+    [withProfiles(profile(maximumProfileBytes + 1), profile(10)), reference],
+    [late, reference],
+  ]) {
+    assert.deepEqual(cleanedBytes(original, "png", "image/png"), expected);
+  }
+});
+
+test("keeps one WebP colour profile only with its flag and within 64 KiB", () => {
+  const extended = webpExtendedImage({ width: 500, height: 400 });
+  const frame = extended.subarray(30);
+  const header = (flagged) => {
+    const chunk = Buffer.from(extended.subarray(12, 30));
+    if (flagged) {
+      chunk[8] |= 0x20;
+    }
+    return chunk;
+  };
+  const profile = (length) => webpChunk("ICCP", Buffer.alloc(length, 1));
+  const file = (flagged, ...chunks) =>
+    webpFileFromChunks([header(flagged), ...chunks]);
+  const kept = file(true, profile(maximumProfileBytes), frame);
+  const lossy = webpLossyImage({ width: 500, height: 400 });
+
+  for (const [original, expected] of [
+    [kept, kept],
+    [
+      file(true, profile(10), profile(11), frame),
+      file(true, profile(10), frame),
+    ],
+    [file(true, profile(maximumProfileBytes + 1), frame), extended],
+    [file(true, frame, profile(10)), extended],
+    [file(true, frame), extended],
+    [file(false, profile(10), frame), extended],
+    [webpWithChunks(lossy, profile(10)), lossy],
+  ]) {
+    assert.deepEqual(cleanedBytes(original, "webp", "image/webp"), expected);
+  }
+});
+
+test("removes a JPEG colour profile whose segments exceed 64 KiB together", () => {
+  const profile = (length) => ({
+    marker: 0xe2,
+    data: Buffer.concat([
+      Buffer.from("ICC_PROFILE\0", "latin1"),
+      Buffer.alloc(length - 12, 1),
+    ]),
+  });
+  const withProfile = (...metadata) =>
+    jpegImage({ width: 100, height: 100, metadata });
+  const kept = withProfile(profile(32768), profile(32768));
+
+  assert.deepEqual(cleanedBytes(kept, "jpg", "image/jpeg"), kept);
+  assert.deepEqual(
+    cleanedBytes(
+      withProfile(profile(32768), profile(32769)),
+      "jpg",
+      "image/jpeg",
+    ),
+    withProfile(),
+  );
+});
+
+test("does not take an end marker inside a segment as the end of a JPEG", () => {
+  const endMarker = Buffer.from([0xff, 0xd9]);
+  const profile = {
+    marker: 0xe2,
+    data: Buffer.concat([Buffer.from("ICC_PROFILE\0", "latin1"), endMarker]),
+  };
+  const exif = {
+    marker: 0xe1,
+    data: Buffer.concat([Buffer.from("Exif\0\0", "latin1"), endMarker]),
+  };
+
+  const cleaned = cleanedBytes(
+    jpegImage({ width: 100, height: 100, metadata: [exif, profile] }),
+    "jpg",
+    "image/jpeg",
+  );
+
+  assert.deepEqual(
+    cleaned,
+    jpegImage({ width: 100, height: 100, metadata: [profile] }),
+  );
+});
+
+test("truncates a progressive JPEG after its last scan", () => {
+  const reference = jpegProgressiveImage({ width: 300, height: 200 });
+
+  const cleaned = cleanedBytes(
+    Buffer.concat([reference, jpegImage({ width: 40, height: 30 })]),
+    "jpg",
+    "image/jpeg",
+  );
+
+  assert.deepEqual(cleaned, reference);
 });
 
 test("strips a WebP chunk outside the allowlist", () => {
