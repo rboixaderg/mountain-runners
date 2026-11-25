@@ -195,7 +195,7 @@ són prerequisits per habilitar la nova capacitat d'escriptura del servei.
 | T8.7 Continuïtat de la conversa d'un tema       | Completada | T8.4, T8.5   | Cada missatge acceptat manté el fil del tema           | [#241](https://github.com/rboixaderg/mountain-runners/pull/241)                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
 | T8.8 Experiència de les persones editores       | En curs    | T8.7         | Seqüència del pilot completa sense respostes tècniques | [#244](https://github.com/rboixaderg/mountain-runners/pull/244), [#245](https://github.com/rboixaderg/mountain-runners/pull/245), [#246](https://github.com/rboixaderg/mountain-runners/pull/246), [#247](https://github.com/rboixaderg/mountain-runners/pull/247), [#248](https://github.com/rboixaderg/mountain-runners/pull/248), [#249](https://github.com/rboixaderg/mountain-runners/pull/249)                                                                                                                                   |
 | T8.9 Un tema, una feina                         | En curs    | T8.7, T8.8   | Una feina per tema i preview automàtica amb estat viu  | [#263](https://github.com/rboixaderg/mountain-runners/pull/263), [#266](https://github.com/rboixaderg/mountain-runners/pull/266), [#269](https://github.com/rboixaderg/mountain-runners/pull/269), [#271](https://github.com/rboixaderg/mountain-runners/pull/271), [#272](https://github.com/rboixaderg/mountain-runners/pull/272), [#274](https://github.com/rboixaderg/mountain-runners/pull/274)                                                                                                                                   |
-| T8.10 Cerca web de l'agent privat               | Pendent    | T8.3, T8.5   | Cerca i lectura de fonts públiques des de Telegram     | -                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| T8.10 Cerca web de l'agent privat               | En curs    | T8.3, T8.5   | Cerca i lectura de fonts públiques des de Telegram     | [#303](https://github.com/rboixaderg/mountain-runners/pull/303)                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
 
 ### T8.1: Requisits, sessions, identitats i amenaces
 
@@ -1065,6 +1065,11 @@ la PR no inclou la llista de fonts. Les proves funcionals i negatives de
 T8.10 passen, incloses les de confirmació i de xarxa, i la revisió de seguretat
 comprova la frontera abans d'activar-la. La tasca té PR pròpia revisada i
 fusionada; la seva planificació no activa cap servei ni credencial.
+
+T8.10 continua en curs: abans d'activar la cerca falten la comprovació real de
+l'aïllament i de les exclusions de producció, amb la revisió de seguretat de la
+frontera, i obtenir des de Telegram les respostes amb fonts descrites al
+paràgraf anterior.
 
 T8.9 substitueix els criteris històrics de classificació, diverses feines,
 represa entre temes i petició explícita de preview. Una persona no tècnica crea
