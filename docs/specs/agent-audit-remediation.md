@@ -110,7 +110,7 @@ Cada tasca té la seva PR, tret que la columna `Entrega` indiqui el contrari.
 | T14   | Completada | T26           | Cap avís fals ni repetit per publicacions substituïdes                   | PR 14   | [#329](https://github.com/rboixaderg/mountain-runners/pull/329) |
 | T15   | Completada | -             | El pont de Telegram admet, reintenta i talla correctament                | PR 15   | [#325](https://github.com/rboixaderg/mountain-runners/pull/325) |
 | T16   | Completada | -             | La confirmació del merge és determinista                                 | PR 16   | [#328](https://github.com/rboixaderg/mountain-runners/pull/328) |
-| T17   | Pendent    | -             | Codi mort i branques només de proves eliminats                           | PR 17   | -                                                               |
+| T17   | Completada | -             | Codi mort i branques només de proves eliminats                           | PR 17   | [#337](https://github.com/rboixaderg/mountain-runners/pull/337) |
 | T18   | Completada | Comprovacions | Migracions i estat antic eliminats                                       | PR 18   | [#335](https://github.com/rboixaderg/mountain-runners/pull/335) |
 | T19   | Completada | T8            | Classificador de peticions retirat                                       | PR 19   | [#336](https://github.com/rboixaderg/mountain-runners/pull/336) |
 | T20   | Pendent    | T9–T14        | El torn està dividit en fases amb resultats tipats                       | PR 20   | -                                                               |
