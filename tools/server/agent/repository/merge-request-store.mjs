@@ -15,7 +15,8 @@
 // fixed to the notice, the publication, the pull request, the commit and the
 // person, and it is consumed once by a guarded write. A consumed question is
 // kept, so a repeated reply is answered deterministically instead of looking
-// like an unknown message, and a restart never consumes it again.
+// like an unknown message, and a restart never consumes it again. An unanswered
+// question that a new validation replaces is deleted: nobody used it.
 
 import { openDatabase, runTransaction } from "./sqlite.mjs";
 
@@ -186,20 +187,15 @@ export class MergeRequestStore {
       .get(sessionKey, questionMessageIdentifier);
   }
 
-  /**
-   * Whether this person already has an unanswered question for this notice.
-   */
-  hasQuestion({ sessionKey, noticeMessageIdentifier, authorIdentifier }) {
-    return (
-      this.#database
-        .prepare(
-          `SELECT 1 FROM merge_questions
-           WHERE session_key = ? AND notice_message_identifier = ?
-              AND author_identifier = ? AND consumed_at IS NULL`,
-        )
-        .get(sessionKey, noticeMessageIdentifier, authorIdentifier) !==
-      undefined
-    );
+  /** Drop the unanswered question this person has for this notice. */
+  retireQuestion({ sessionKey, noticeMessageIdentifier, authorIdentifier }) {
+    this.#database
+      .prepare(
+        `DELETE FROM merge_questions
+         WHERE session_key = ? AND notice_message_identifier = ?
+           AND author_identifier = ? AND consumed_at IS NULL`,
+      )
+      .run(sessionKey, noticeMessageIdentifier, authorIdentifier);
   }
 
   /**

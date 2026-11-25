@@ -987,7 +987,8 @@ test("the current preview receives only the fixed question and only its author's
       mergeReply(104, 71, "Sí, a producció"),
     ],
   });
-  assert.equal(replies.length, 2);
+  assert.equal(replies.length, 3);
+  assert.match(replies[2], /ja s'havia atès/u);
   assert.equal(
     replies[0],
     "Segur que vols donar aquesta feina per acabada? Si confirmes, els canvis d'aquesta versió es fusionaran i es publicaran a producció si el desplegament acaba bé. Respon «Sí, a producció» a aquest missatge per confirmar.",
