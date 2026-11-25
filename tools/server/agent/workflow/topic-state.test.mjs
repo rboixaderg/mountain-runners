@@ -230,13 +230,11 @@ test("a consultation and an implementation receive the state of the topic", asyn
   reportChecks(fixture.ciWatches);
 
   const prompts = [];
-  let kind = "consultation";
   const runner = createProjectRunner({
     config: fixture.config,
     ciWatches: fixture.ciWatches,
     mergeRequests: fixture.mergeRequests,
     github: liveGithub({ pullRequest: labeledPullRequest() }),
-    classifyRequest: async () => ({ kind }),
     executeSandbox: async () => ({ exitCode: 0, timedOut: false }),
     executeAgent: async (_config, options) => {
       prompts.push(promptOf(options));
@@ -251,7 +249,6 @@ test("a consultation and an implementation receive the state of the topic", asyn
     authorIdentifier,
     instruction: "què ha passat amb la preview?",
   });
-  kind = "implementation";
   await runner({
     updateIdentifier: 1102,
     messageIdentifier: 2102,
@@ -284,7 +281,6 @@ test("a turn continues without the block when the state cannot be read", async (
     repositoryPath: fixture.paths.repository,
     worktreeRoot: fixture.paths.worktrees,
     identifiers: fixture.identifiers,
-    classifyRequest: async () => ({ kind: "consultation" }),
     runModel: async (modelRequest) => {
       turns.push(modelRequest);
       return { text: "Resposta sintètica." };
@@ -314,42 +310,6 @@ test("a turn continues without the block when the state cannot be read", async (
     null,
     "the turn runs without the state block",
   );
-});
-
-test("gives the classifier only a pull request the topic can continue", (context) => {
-  const { ciWatches, mergeRequests } = storeFixture(context);
-  reportChecks(ciWatches, { result: "pull-request-closed" });
-  const openOnly = createTopicPullRequestFinder(ciWatches, {
-    includeEnded: false,
-    mergeRequests,
-  });
-
-  // The state block still describes the change; the classifier does not receive
-  // a closed pull request as the topic's active one.
-  assert.equal(openOnly(sessionKey), null);
-  assert.equal(
-    createTopicPullRequestFinder(ciWatches)(sessionKey),
-    ciWatches.latestPublications()[0].pull_request_number,
-  );
-});
-
-test("gives the classifier no pull request that is already merged", (context) => {
-  const { ciWatches, mergeRequests } = storeFixture(context);
-  reportChecks(ciWatches);
-  mergeRequests.begin({
-    updateIdentifier: 700,
-    sessionKey,
-    authorIdentifier: 42,
-    pullRequestNumber: 239,
-    commitSha: reportedCommit,
-  });
-  mergeRequests.markMerged(700, mergeCommit);
-  const openOnly = createTopicPullRequestFinder(ciWatches, {
-    includeEnded: false,
-    mergeRequests,
-  });
-
-  assert.equal(openOnly(sessionKey), null);
 });
 
 const previewCases = [

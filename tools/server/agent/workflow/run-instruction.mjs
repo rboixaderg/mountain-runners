@@ -1,8 +1,8 @@
 // Coordinate one instruction. Model, checks and remote publication are supplied
 // operations. This module has no container/GitHub transport or secret configuration.
 //
-// Every ordinary instruction runs a writable turn in its topic. The classifier
-// identifies preview requests; /merge keeps its own path.
+// Every ordinary instruction runs a writable turn in its topic; /merge and the
+// merge confirmation keep their own path.
 // The turn receives service effects the topic has not been told yet.
 
 import { rmSync } from "node:fs";
@@ -73,8 +73,6 @@ import {
   maximumPromptImageBytes,
   publicationNoteText,
   publicationReport,
-  previewRequestKind,
-  topicTurnKind,
   pendingWorkCommitMessage,
   stripChangeSummary,
 } from "../policy/development.mjs";
@@ -110,7 +108,6 @@ export function createInstructionRunner({
   repositoryPath,
   worktreeRoot,
   identifiers,
-  classifyRequest,
   runModel,
   runChecks,
   publishChange,
@@ -119,7 +116,6 @@ export function createInstructionRunner({
   registerCiWatch,
   // Follows the preview of every commit the service publishes.
   followPreview,
-  requestPreview,
   requestMerge,
   requestMergeConfirmation,
   research,
@@ -133,14 +129,11 @@ export function createInstructionRunner({
   }),
   attachmentStore,
   // Durable conversation state of the topic: the effects it has not been told
-  // yet and the last text it received. Without it the service keeps neither.
+  // yet. Without it the service keeps none.
   sessionNotes,
   topicJobs,
   readBoundPullRequest,
   repositoryName,
-  // The pull request the topic published and still owns, or null. Without the
-  // CI watches the service knows no published pull request.
-  findTopicPullRequest = () => null,
   // The state of the topic every turn receives, read from the same stores. The
   // model cannot read it from the sandbox.
   readTopicState = undefined,
@@ -179,26 +172,10 @@ export function createInstructionRunner({
     }
   }
 
-  /** The pull request of the topic, read from the durable CI watches. */
-  function topicPullRequestNumber(sessionKey) {
-    try {
-      return findTopicPullRequest(sessionKey) ?? null;
-    } catch (error) {
-      // An unreadable state never turns a publication into a failed
-      // instruction: the service continues without the pull request of the
-      // topic and logs the real failure.
-      logger(
-        "topic_pull_request_failed",
-        error instanceof Error ? error.name : "unknown",
-      );
-      return null;
-    }
-  }
-
   /**
    * The state of the topic the model cannot read inside the sandbox. A state
    * that cannot be read never stops a turn: it is logged and the turn runs
-   * without the block, exactly as the classifier runs without the pull request.
+   * without the block.
    * A turn that continues another topic's pull request reports that pull
    * request and the facts of the topic that owns it.
    */
@@ -486,7 +463,6 @@ export function createInstructionRunner({
         worktreePrepared: paths.some((path) =>
           dependencyManifestPattern.test(path),
         ),
-        kind: topicTurnKind,
         topicState,
         // The conflict turn is internal: it must not consume the service notes
         // that belong to the next turn of the person.
@@ -934,7 +910,7 @@ export function createInstructionRunner({
     const worktreeName = identifiers.worktreeName(request.sessionKey);
     const changeSuffix = identifiers.changeSuffix(request.updateIdentifier);
     const attachments = request.attachments ?? [];
-    // A merge or preview ignores an attached image and says so.
+    // A merge command ignores an attached image and says so.
     const ignoringAttachment = (report) =>
       attachments.length === 0
         ? report
@@ -948,8 +924,8 @@ export function createInstructionRunner({
     let stagedAttachmentPath = null;
     try {
       signal?.throwIfAborted();
-      // A merge is recognised from the literal command before the classifier,
-      // so neither the classifier nor the model ever sees it.
+      // A merge is recognised from the literal command, so the model never sees
+      // it.
       const mergeCommand = parseMergeCommand(request.instruction);
       if (mergeCommand !== null) {
         const merged = await requestMerge(request, mergeCommand, { signal });
@@ -971,63 +947,10 @@ export function createInstructionRunner({
       }
       const publishReviewed =
         isResearchAffected && request.instruction === "/publica-revisio";
-      // A request is classified from its text and from the bounded context of
-      // the topic, which the service reads without touching anything.
       const topic = await readTopicWorktree(worktreeName, { signal });
-      const topicPullRequest = topicPullRequestNumber(request.sessionKey);
-      const lastAgentReply =
-        sessionNotes === undefined
-          ? null
-          : safelyWithNotes(() => sessionNotes.lastReply(request.sessionKey));
-      let kind;
-      if (resumedResearch) {
-        kind = topicTurnKind;
-      } else if (publishReviewed) {
-        kind = topicTurnKind;
-      } else {
-        const classification = await classifyRequest({
-          instruction: request.instruction,
-          context: {
-            lastAgentReply,
-            pendingLocalWork: topic.pendingWork,
-            topicPullRequest,
-          },
-          signal,
-        });
-        kind = classification.kind;
-        // The last reply is untrusted text: it may describe a preview, but it
-        // can never authorise one. When it was part of the context, the
-        // classifier must reach the same kind without it, or the preview is
-        // decided from the current request alone.
-        if (kind === previewRequestKind && lastAgentReply !== null) {
-          const withoutLastReply = await classifyRequest({
-            instruction: request.instruction,
-            context: {
-              lastAgentReply: null,
-              pendingLocalWork: topic.pendingWork,
-              topicPullRequest,
-            },
-            signal,
-          });
-          kind = withoutLastReply.kind;
-        }
-        recordTrace({
-          updateIdentifier: request.updateIdentifier,
-          authorIdentifier: request.authorIdentifier,
-          sessionKey: request.sessionKey,
-          action: "instruction_classified",
-          detail: kind,
-        });
-      }
-      // A preview is decided by the service, never by the model: no worktree
-      // is touched and no model run starts.
-      if (kind === previewRequestKind) {
-        const preview = await requestPreview(request, { signal });
-        return { ...preview, report: ignoringAttachment(preview.report) };
-      }
       const binding = topicJobs?.bindingOf(request.sessionKey) ?? null;
       // The topic state decides whether the job is new. A queue row that never
-      // reached a turn (rejected, merge, preview or confirmation) leaves none.
+      // reached a turn (rejected, merge or confirmation) leaves none.
       prepareResearchJob?.(worktreeName, {
         newJob: !topic.worktree && binding === null,
       });
@@ -1150,7 +1073,6 @@ export function createInstructionRunner({
               images: promptImages,
               attachments: stagedAttachments,
               worktreePrepared,
-              kind: topicTurnKind,
               webResearch: webTurn?.tool,
               topicState,
               claimServiceNotes,
@@ -1692,27 +1614,12 @@ export function createInstructionRunner({
       return result;
     }
     const effectKey = `instruction:${request.updateIdentifier}`;
-    if (noteText !== null) {
+    // The model's own answer is never a service note.
+    if (noteText !== null || !modelAnswer) {
       safelyWithNotes(() =>
         sessionNotes.addNote({
           sessionKey: request.sessionKey,
-          text: noteText,
-          receivedText: result.report,
-          effectKey,
-        }),
-      );
-    } else if (modelAnswer) {
-      safelyWithNotes(() =>
-        sessionNotes.recordReply({
-          sessionKey: request.sessionKey,
-          text: result.report,
-        }),
-      );
-    } else {
-      safelyWithNotes(() =>
-        sessionNotes.addNote({
-          sessionKey: request.sessionKey,
-          text: result.report,
+          text: noteText ?? result.report,
           // One instruction has one result: a repeated completion of the same
           // update never duplicates the effect in the session.
           effectKey,

@@ -7,7 +7,7 @@ import { test } from "node:test";
 import { CiWatchStore } from "../repository/ci-watch-store.mjs";
 import { SessionNoteStore } from "../repository/session-note-store.mjs";
 import { defaultRequestTimeoutMilliseconds } from "../repository/request-signal.mjs";
-import { failedMaintainerNotice, savedNotice } from "../policy/development.mjs";
+import { failedMaintainerNotice } from "../policy/development.mjs";
 import { createCiWatchRegistration, createCiWatchWorker } from "./ci-watch.mjs";
 
 const commit = "b".repeat(40);
@@ -199,7 +199,6 @@ test("keeps the CI notice as a service event of the session", async (context) =>
     {
       sessionKey: registration.sessionKey,
       text: "Comprovacions obligatòries configurades en verd al commit bbbbbbb (PR #200): Validate.",
-      receivedText: `${savedNotice}\nEnllaç per a revisió: https://github.com/example/project/pull/200`,
       effectKey: `ci:${registration.updateIdentifier}:${commit}:success`,
     },
   ]);
@@ -750,11 +749,6 @@ test("repeats a notice after an unknown delivery, with one note in the session",
   assert.equal(store.hasUnreportedWork(registration.sessionKey), true);
   assert.deepEqual(traces, []);
   assert.deepEqual(events, ["ci_notification_failed"]);
-  notes.recordReply({
-    sessionKey: registration.sessionKey,
-    text: "Resposta més nova del model.",
-  });
-
   instant += 1;
   await worker.runOnce();
   await worker.runOnce();
@@ -764,10 +758,6 @@ test("repeats a notice after an unknown delivery, with one note in the session",
   assert.equal(store.hasUnreportedWork(registration.sessionKey), false);
   assert.deepEqual(traces, ["maintainer_attention"]);
   assert.equal(notes.claim(registration.sessionKey).length, 1);
-  assert.equal(
-    notes.lastReply(registration.sessionKey),
-    "Resposta més nova del model.",
-  );
 });
 
 test("doubles the delay of a notice that keeps failing, up to one hour", async (context) => {

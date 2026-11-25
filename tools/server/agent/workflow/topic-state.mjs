@@ -3,7 +3,6 @@
 
 import { mergeStates } from "../repository/merge-request-store.mjs";
 import { pullRequestReviewUrl } from "../policy/development.mjs";
-import { ciResults } from "./ci-watch.mjs";
 import {
   confirmPullRequestUnchanged,
   readLivePullRequest,
@@ -24,39 +23,19 @@ function describeState(descriptions, state) {
 
 /**
  * The pull request the topic published last and still owns, read from the CI
- * watches, or null. Without those watches the service knows none.
- *
- * `includeEnded` keeps a closed or merged pull request in the answer: the state
- * block still describes the change the topic last worked on. The classifier
- * asks for the open view instead, so it never receives a pull request that can
- * no longer be continued as the topic's active one.
+ * watches, or null. Without those watches the service knows none. A closed or
+ * merged one stays in the answer: the state block still describes the change the
+ * topic last worked on.
  */
-export function createTopicPullRequestFinder(
-  ciWatches,
-  { includeEnded = true, mergeRequests = null } = {},
-) {
+export function createTopicPullRequestFinder(ciWatches) {
   return function findTopicPullRequest(sessionKey) {
-    const publications = ciWatches.latestPublications();
-    const owned = publications.find(
-      (publication) =>
-        publication.session_key === sessionKey && publication.is_owner_latest,
-    );
-    if (owned === undefined) {
-      return null;
-    }
-    if (includeEnded) {
-      return owned.pull_request_number;
-    }
-    if (owned.delivered_result === ciResults.pullRequestClosed) {
-      return null;
-    }
-    const merge = mergeRequests?.latest({
-      sessionKey,
-      pullRequestNumber: owned.pull_request_number,
-    });
-    return merge?.state === mergeStates.merged
-      ? null
-      : owned.pull_request_number;
+    const owned = ciWatches
+      .latestPublications()
+      .find(
+        (publication) =>
+          publication.session_key === sessionKey && publication.is_owner_latest,
+      );
+    return owned === undefined ? null : owned.pull_request_number;
   };
 }
 

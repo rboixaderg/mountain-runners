@@ -154,8 +154,8 @@ proteccions. El merge continua sent una decisió humana: l'executa només amb la
 petició explícita d'un membre verificat o la seva resposta «Sí, a producció» a
 la pregunta fixa que segueix la validació «La feina està validada», fixada a la
 PR i el commit de l'avís vigent de la preview confirmada i amb les comprovacions
-obligatòries en verd. La petició de preview es
-delega de la mateixa manera segons
+obligatòries en verd. La preview no es demana: el
+servei posa l'etiqueta `preview` a la PR, segons
 l'[ADR 0009](decisions/0009-pr-previews-same-domain-and-own-branches.md).
 
 La T8.3 separa el nucli Telegram i Pi a
@@ -169,7 +169,7 @@ només `/pi` no carrega Telegram ni SQLite.
 
 L'aplicació de `tools/server/agent/` consumeix el paquet i li proporciona
 `runInstruction`. `policy/development.mjs` conté les regles pures de prompts,
-classificació, comprovació i metadades públiques. `workflow/project-runner.mjs`
+comprovació i metadades públiques. `workflow/project-runner.mjs`
 les connecta amb les integracions. El coordinador `workflow/run-instruction.mjs`
 rep operacions i rutes, sense tokens ni clients de Docker o GitHub. El perfil
 de confiança, l'entorn aïllat i Git/GitHub continuen fora del paquet. El transport RPC no hereta l'entorn

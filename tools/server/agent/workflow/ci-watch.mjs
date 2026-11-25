@@ -296,7 +296,6 @@ export function createCiWatchWorker({
       recordServiceNote({
         sessionKey: watch.session_key,
         text: notice.note,
-        receivedText: notice.person,
         effectKey: `ci:${watch.update_identifier}:${watch.commit_sha}:${noticeKind(outcome)}`,
       });
     } catch (error) {

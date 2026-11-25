@@ -139,7 +139,6 @@ test("publishes previous pending work after a question", async (context) => {
   let publications = 0;
   const runner = createProjectRunner({
     config,
-    classifyRequest: async () => ({ kind: "consultation" }),
     runModel: async () => ({ text: "La feina anterior continua pendent." }),
     runChecks: async () => {
       checks += 1;
@@ -246,26 +245,22 @@ for (const cleanupFails of [false, true]) {
   });
 }
 
-test("uses the default classifier, real profile and RPC wiring before publishing", async (context) => {
+test("runs a message that asks for the preview as one ordinary topic turn with a single Pi call", async (context) => {
   const { directory, config } = await repositoryFixture(context);
   const executable = join(directory, "fake-pi");
+  const calls = join(directory, "pi-calls");
   writeFileSync(
     executable,
     `#!/usr/bin/env node
 const fs = require("node:fs");
 const path = require("node:path");
-const classification = process.argv.includes("--no-tools");
+fs.appendFileSync(${JSON.stringify(calls)}, "call\\n");
 if (process.env.MOUNTAIN_AGENT_GITHUB_TOKEN || process.env.MOUNTAIN_AGENT_TELEGRAM_BOT_TOKEN) throw new Error("Credential exposed");
 process.stdin.once("data", () => {
-  let text;
-  if (classification) {
-    text = JSON.stringify({kind:"implementation"});
-  } else {
-    const profile = process.env.PI_CODING_AGENT_DIR;
-    if (!fs.existsSync(path.join(profile, "extensions", "sandbox-bash.ts"))) throw new Error("Missing actual profile");
-    fs.writeFileSync(path.join(process.cwd(), "README.md"), "wired change\\n");
-    text = "SUMMARY: fix(agent): verify the real runtime wiring";
-  }
+  const profile = process.env.PI_CODING_AGENT_DIR;
+  if (!fs.existsSync(path.join(profile, "extensions", "sandbox-bash.ts"))) throw new Error("Missing actual profile");
+  fs.writeFileSync(path.join(process.cwd(), "README.md"), "wired change\\n");
+  const text = "SUMMARY: fix(agent): verify the real runtime wiring";
   process.stdout.write(JSON.stringify({type:"message_end",message:{role:"assistant",content:[{type:"text",text}]}}) + "\\n");
   process.stdout.write(JSON.stringify({type:"agent_settled",aborted:false}) + "\\n");
 });
@@ -274,7 +269,7 @@ process.stdin.once("data", () => {
   chmodSync(executable, 0o755);
   config.model.piCommand = executable;
   config.limits.executionTimeoutMs = 5000;
-  const calls = [];
+  const branches = [];
   let cleaned = false;
   let prepared = false;
   const runner = createProjectRunner({
@@ -306,7 +301,7 @@ process.stdin.once("data", () => {
     },
     github: {
       async pushBranch({ worktree, branch }) {
-        calls.push(branch);
+        branches.push(branch);
         return { commit: await git(worktree.path, ["rev-parse", "HEAD"]) };
       },
       async ensurePullRequest() {
@@ -320,10 +315,11 @@ process.stdin.once("data", () => {
   const result = await runner({
     updateIdentifier: 13,
     sessionKey: "-100:7",
-    instruction: "Corregeix el README.",
+    instruction: "vull veure la preview",
   });
   assert.equal(result.outcome, "pull_request_created");
-  assert.deepEqual(calls, [
+  assert.equal(readFileSync(calls, "utf8"), "call\n");
+  assert.deepEqual(branches, [
     `fix/agent-verify-the-real-runtime-wiring-${openIdentifierNames(config.paths.state).changeSuffix(13)}`,
   ]);
 });

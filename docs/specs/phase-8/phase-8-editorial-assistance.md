@@ -74,6 +74,8 @@ per part de l'agent i amb el merge només a petició verificada d'una persona.
 Els punts històrics sobre classificació, diverses feines, continuació entre
 temes i preview explícita queden substituïts per T8.9 quan s'implementi.
 
+Nota (25 de novembre de 2026, auditoria T19): no hi ha classificador ni cap torn de només lectura, i la preview no es pot demanar en llenguatge natural; les frases d'aquest document que diuen el contrari són històriques.
+
 - El servei privat i el futur xat públic són sistemes separats, sense compartir
   servei, índex ni credencials ([ADR 0002](../../decisions/0002-public-chat-and-private-editor.md)).
   La fase 7 no és dependència tècnica de la fase 8.

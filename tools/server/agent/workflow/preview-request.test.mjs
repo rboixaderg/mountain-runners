@@ -3,10 +3,8 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
-import { verifyMembership } from "telegram-pi-bridge/telegram";
 import { PreviewRequestStore } from "../repository/preview-request-store.mjs";
 import { SessionNoteStore } from "../repository/session-note-store.mjs";
-import { requestSignal } from "../repository/request-signal.mjs";
 import {
   failedMaintainerNotice,
   previewConfirmationTimeoutMilliseconds,
@@ -14,7 +12,6 @@ import {
 import { createPreviewRequests } from "./preview-request.mjs";
 
 const repository = "rboixaderg/mountain-runners";
-const groupIdentifier = "-1001234567890";
 const commit = "a".repeat(40);
 const newerCommit = "b".repeat(40);
 const sessionKey = "-1001234567890:7";
@@ -87,10 +84,6 @@ function setup(context) {
   const sent = [];
   const traces = [];
   const notes = [];
-  const membership = {
-    result: { verified: true, status: "member" },
-    calls: [],
-  };
   const telegram = {
     sendError: null,
     // What Telegram accepts with the text: the message whose identifier a later
@@ -108,11 +101,6 @@ function setup(context) {
   function buildHandler(overrides = {}) {
     return createPreviewRequests({
       store: previews,
-      findTopicPullRequest: () => 200,
-      verifyMembership: async (authorIdentifier) => {
-        membership.calls.push(authorIdentifier);
-        return membership.result;
-      },
       github,
       repository,
       telegram,
@@ -128,7 +116,6 @@ function setup(context) {
     previews,
     github,
     telegram,
-    membership,
     handler: buildHandler(),
     buildHandler,
     sent,
@@ -137,15 +124,6 @@ function setup(context) {
     advance(milliseconds) {
       current = new Date(current.getTime() + milliseconds);
     },
-  };
-}
-
-function request(updateIdentifier = 20) {
-  return {
-    updateIdentifier,
-    sessionKey,
-    authorIdentifier: 555,
-    instruction: "obre la preview",
   };
 }
 
@@ -181,296 +159,13 @@ function withdrawals(traces) {
     .map((entry) => [entry.updateIdentifier, entry.detail]);
 }
 
-test("waits for the publisher of the head without posting anything", async (context) => {
-  const { handler, membership, previews, traces } = setup(context);
-
-  const result = await handler.handle(request());
-
-  assert.equal(result.outcome, "answered");
-  assert.match(result.report, /La preview d'aquest canvi s'està preparant/u);
-  assert.match(
-    result.report,
-    /Enllaç per a revisió: https:\/\/github\.com\/rboixaderg\/mountain-runners\/pull\/200/u,
-  );
-  assert.equal(previews.state(20), "awaiting");
-  assert.deepEqual(membership.calls, [555]);
-  assert.deepEqual(
-    traces.map((entry) => [entry.action, entry.detail]),
-    [
-      ["preview_requested", "#200"],
-      ["preview_membership_verified", "#200"],
-      ["preview_awaiting", "#200 aaaaaaa"],
-    ],
-  );
-  for (const entry of traces) {
-    assert.equal(entry.authorIdentifier, 555);
-    assert.equal(entry.sessionKey, sessionKey);
-  }
-});
-
-test("refuses without a pull request published in the topic", async (context) => {
-  const { buildHandler, github, membership, previews, traces } = setup(context);
-  const handler = buildHandler({ findTopicPullRequest: () => null });
-
-  const result = await handler.handle(request());
-
-  assert.equal(result.outcome, "answered");
-  assert.match(result.report, /encara no hi ha cap proposta publicada/u);
-  assert.deepEqual(membership.calls, []);
-  assert.deepEqual(github.listings, []);
-  assert.equal(previews.state(20), undefined);
-  assert.deepEqual(
-    traces.map((entry) => [entry.action, entry.detail]),
-    [["preview_refused", "no_pull_request"]],
-  );
-});
-
-test("refuses the preview when the author left the group before it ran", async (context) => {
-  const { handler, membership, previews, traces } = setup(context);
-
-  membership.result = { verified: false, reason: "not_a_group_member" };
-  const result = await handler.handle(request());
-
-  assert.equal(result.outcome, "answered");
-  assert.match(result.report, /Ara mateix no constes com a membre/u);
-  assert.match(result.report, /Demana a la persona que gestiona el grup/u);
-  assert.match(
-    result.report,
-    /Enllaç per a revisió: https:\/\/github\.com\/rboixaderg\/mountain-runners\/pull\/200/u,
-  );
-  assert.deepEqual(membership.calls, [555]);
-  assert.equal(previews.state(20), undefined);
-  assert.deepEqual(actions(traces), ["preview_requested", "preview_refused"]);
-  assert.equal(traces[1].detail, "membership_revoked");
-  assert.equal(traces[1].authorIdentifier, 555);
-});
-
-test("refuses the preview when the membership check fails", async (context) => {
-  const { handler, membership, previews, traces } = setup(context);
-
-  membership.result = { verified: false, reason: "membership_check_failed" };
-  const result = await handler.handle(request());
-
-  assert.equal(result.outcome, "answered");
-  assert.match(result.report, /No he pogut comprovar que siguis al grup/u);
-  assert.match(result.report, /torna-ho a demanar/u);
-  assert.equal(previews.state(20), undefined);
-  assert.deepEqual(actions(traces), ["preview_requested", "preview_refused"]);
-  assert.equal(traces[1].detail, "membership_unavailable");
-});
-
-/** A Telegram member read that only ends when its signal aborts. */
-function hangingMemberTelegram() {
-  return {
-    async getChatMember({ signal }) {
-      await new Promise((resolve, reject) => {
-        signal.addEventListener("abort", () => reject(signal.reason), {
-          once: true,
-        });
-      });
-    },
-  };
-}
-
-/**
- * The membership check wired as `main.mjs` does, with a deadline the test can
- * shorten: the service signal stops the read, the read's own deadline fails it.
- */
-function boundedMembership(timeoutMilliseconds) {
-  const memberTelegram = hangingMemberTelegram();
-  return (authorIdentifier, signal) =>
-    verifyMembership({
-      telegram: memberTelegram,
-      groupIdentifier,
-      authorIdentifier,
-      signal: requestSignal(signal, timeoutMilliseconds),
-    });
-}
-
-test("a service stop during the membership read aborts instead of refusing", async (context) => {
-  const { previews, traces, buildHandler } = setup(context);
-  const controller = new AbortController();
-  const handler = buildHandler({
-    verifyMembership: boundedMembership(60_000),
-  });
-
-  const pending = handler.handle(request(), { signal: controller.signal });
-  await new Promise((resolve) => setImmediate(resolve));
-  controller.abort();
-
-  await assert.rejects(pending, { name: "AbortError" });
-  assert.equal(previews.state(20), undefined);
-  assert.deepEqual(actions(traces), ["preview_requested"]);
-});
-
-test("a membership read that runs out of its deadline refuses and asks to retry", async (context) => {
-  const { previews, traces, buildHandler } = setup(context);
-  const handler = buildHandler({ verifyMembership: boundedMembership(10) });
-
-  const result = await handler.handle(request());
-
-  assert.equal(result.outcome, "answered");
-  assert.match(result.report, /No he pogut comprovar que siguis al grup/u);
-  assert.match(result.report, /torna-ho a demanar/u);
-  assert.equal(previews.state(20), undefined);
-  assert.deepEqual(
-    traces.map((entry) => [entry.action, entry.detail]),
-    [
-      ["preview_requested", "#200"],
-      ["preview_refused", "membership_unavailable"],
-    ],
-  );
-});
-
-test("never accepts a PR or commit from the request text", async (context) => {
-  const { handler, previews } = setup(context);
-
-  await handler.handle({
-    ...request(),
-    instruction: `preview de la PR #999 al commit ${"f".repeat(40)}`,
-  });
-
-  assert.equal(previews.awaiting()[0].pull_request_number, 200);
-  assert.equal(previews.awaiting()[0].commit_sha, commit);
-});
-
-test("accepts a head with red or pending checks without reading them", async (context) => {
-  const { handler, github, previews } = setup(context);
-  // The build of the preview validates the head itself: a red head is never
-  // published, so the request does not wait for green checks.
-  const checkReads = [];
-  github.getCommitCheckRuns = async () => {
-    checkReads.push("check runs");
-    return [{ name: "Validate", status: "completed", conclusion: "failure" }];
-  };
-  github.getCommitStatuses = async () => {
-    checkReads.push("statuses");
-    return [{ context: "Validate", state: "pending" }];
-  };
-
-  const result = await handler.handle(request());
-
-  assert.match(result.report, /s'està preparant/u);
-  assert.equal(previews.state(20), "awaiting");
-  assert.deepEqual(checkReads, []);
-});
-
-const refusalCases = [
-  [
-    "closed pull request",
-    { state: "closed" },
-    /Aquesta proposta ja està tancada, així que no se'n pot fer la preview/u,
-    "not_applicable #200 aaaaaaa",
-  ],
-  [
-    "fork",
-    { headRepository: "someone/mountain-runners" },
-    /no ve del repositori del club/u,
-    "not_main_repository #200 aaaaaaa",
-  ],
-  [
-    "deleted fork",
-    { headRepository: null },
-    /no ve del repositori del club/u,
-    "not_main_repository #200 aaaaaaa",
-  ],
-  [
-    "pull request without the preview label",
-    { previewLabeled: false },
-    /no té la preview activada/u,
-    "no_preview_label #200 aaaaaaa",
-  ],
-  [
-    "preview revoked by a maintainer, even with the label",
-    { previewRevoked: true },
-    /La preview d'aquesta proposta s'ha retirat/u,
-    "preview_revoked #200 aaaaaaa",
-  ],
-];
-
-for (const [name, changes, text, detail] of refusalCases) {
-  test(`refuses and waits for nothing: ${name}`, async (context) => {
-    const { handler, github, previews, traces } = setup(context);
-    Object.assign(github.pullRequests[200], changes);
-
-    const result = await handler.handle(request());
-
-    assert.equal(result.outcome, "answered");
-    assert.match(result.report, text);
-    assert.equal(previews.state(20), undefined);
-    assert.deepEqual(
-      traces.map((entry) => [entry.action, entry.detail]),
-      [
-        ["preview_requested", "#200"],
-        ["preview_membership_verified", "#200"],
-        ["preview_refused", detail],
-      ],
-    );
-  });
-}
-
-test("refuses and waits for nothing: unreadable state", async (context) => {
-  const { handler, github, previews, traces } = setup(context);
-  github.readError = new Error("HTTP 500");
-
-  const result = await handler.handle(request());
-
-  assert.match(result.report, /No he pogut llegir/u);
-  assert.equal(previews.state(20), undefined);
-  assert.equal(traces.at(-1).detail, "unreadable #200");
-});
-
-test("does not handle a duplicate update twice", async (context) => {
-  const { handler, previews } = setup(context);
-
-  await handler.handle(request());
-  const duplicate = await handler.handle(request());
-
-  assert.match(duplicate.report, /ja s'havia atès/u);
-  assert.equal(previews.awaiting().length, 1);
-});
-
-test("refuses a repeat while the request awaits confirmation", async (context) => {
-  const { handler, previews } = setup(context);
-
-  await handler.handle(request(20));
-  const repeated = await handler.handle(request(21));
-
-  assert.match(repeated.report, /ja està demanada i encara no ha acabat/u);
-  assert.equal(previews.awaiting().length, 1);
-});
-
-test("allows a repeat for the same commit after the previous one was confirmed", async (context) => {
-  const { handler, github, previews, sent } = setup(context);
-  await handler.handle(request(20));
-  github.comments[200] = [publisherComment()];
-  await handler.runOnce();
-  assert.equal(sent.length, 1);
-
-  const repeated = await handler.handle(request(21));
-
-  assert.match(repeated.report, /s'està preparant/u);
-  assert.equal(previews.state(21), "awaiting");
-});
-
-test("allows a repeat after the previous one was not confirmed in time", async (context) => {
-  const { handler, previews, advance } = setup(context);
-  await handler.handle(request(20));
-  advance(confirmationTimeoutMilliseconds);
-  await handler.runOnce();
-
-  await handler.handle(request(21));
-
-  assert.equal(previews.state(21), "awaiting");
-});
-
-test("confirms a commit the publisher already published before the request", async (context) => {
+test("confirms a commit the publisher already published before it was followed", async (context) => {
   const { handler, github, previews, sent } = setup(context);
   github.comments[200] = [
     { ...publisherComment(), updated_at: "2026-11-14T09:00:00Z" },
   ];
 
-  await handler.handle(request());
+  handler.followPublication(publication(20));
   await handler.runOnce();
 
   assert.equal(previews.state(20), "confirmed");
@@ -479,7 +174,7 @@ test("confirms a commit the publisher already published before the request", asy
 
 test("confirms through the publisher comment and reports the confirmed address", async (context) => {
   const { handler, github, sent, traces } = setup(context);
-  await handler.handle(request());
+  handler.followPublication(publication(20));
 
   await handler.runOnce();
   assert.deepEqual(sent, []);
@@ -510,7 +205,7 @@ test("confirms through the publisher comment and reports the confirmed address",
 });
 
 test("a service publication reports its confirmed URL without a request or green checks", async (context) => {
-  const { handler, github, membership, previews, sent, notes } = setup(context);
+  const { handler, github, previews, sent, notes } = setup(context);
 
   handler.followPublication(publication(10));
   github.comments[200] = [publisherComment()];
@@ -522,7 +217,6 @@ test("a service publication reports its confirmed URL without a request or green
     /^Ja ho pots veure: https:\/\/pr-200\.preview\.mountainrunners\.cat\n/u,
   );
   assert.equal(previews.state(10), "confirmed");
-  assert.deepEqual(membership.calls, [], "the publication is the request");
   assert.deepEqual(
     notes.map((note) => note.effectKey),
     [`preview:10:${commit}:confirmed`],
@@ -647,22 +341,6 @@ test("a failure to follow a publication is only logged", async (context) => {
   assert.deepEqual(logs, [["preview_follow_failed", "TypeError"]]);
 });
 
-test("a request after a maintainer's push previews the new head and drops the old one silently", async (context) => {
-  const { handler, github, previews, sent, traces } = setup(context);
-  handler.followPublication(publication(10));
-  github.pullRequests[200].headSha = newerCommit;
-
-  const result = await handler.handle(request(20));
-  github.comments[200] = [publisherComment(), publisherComment(newerCommit)];
-  await handler.runOnce();
-
-  assert.match(result.report, /s'està preparant/u);
-  assert.equal(sent.length, 1);
-  assert.equal(previews.state(10), "failed");
-  assert.equal(previews.state(20), "confirmed");
-  assert.deepEqual(withdrawals(traces), [[10, "superseded #200 aaaaaaa"]]);
-});
-
 const withdrawalCases = [
   [
     "the preview label was removed",
@@ -675,6 +353,12 @@ const withdrawalCases = [
     "preview_revoked",
   ],
   ["the pull request was closed", { state: "closed" }, "not_applicable"],
+  [
+    "the branch belongs to a fork",
+    { headRepository: "someone/mountain-runners" },
+    "not_main_repository",
+  ],
+  ["the fork was deleted", { headRepository: null }, "not_main_repository"],
 ];
 
 for (const [name, changes, reason] of withdrawalCases) {
@@ -728,7 +412,7 @@ test("records one note for a preview notice that is retried", async (context) =>
     recordServiceNote: ({ sessionKey: key, text: noteText, effectKey }) =>
       notes.addNote({ sessionKey: key, text: noteText, effectKey }),
   });
-  await handler.handle(request());
+  handler.followPublication(publication(20));
   github.comments[200] = [publisherComment()];
 
   telegram.sendError = new Error("telegram is down");
@@ -738,7 +422,6 @@ test("records one note for a preview notice that is retried", async (context) =>
 
   assert.equal(sent.length, 1, "the retry is the one that reaches the topic");
   const confirmedNote = `Preview de la PR #200 (commit aaaaaaa) publicada a ${origin}.`;
-  assert.equal(notes.lastReply(sessionKey), confirmedNote);
   assert.deepEqual(
     notes.claim(sessionKey).map((note) => note.text),
     [confirmedNote],
@@ -748,13 +431,7 @@ test("records one note for a preview notice that is retried", async (context) =>
 
 test("keeps the preview confirmation as a service event of its session", async (context) => {
   const { handler, github, sent, notes } = setup(context);
-  await handler.handle(request());
-  assert.deepEqual(
-    notes,
-    [],
-    "the synchronous report is the instruction result",
-  );
-
+  handler.followPublication(publication(20));
   github.comments[200] = [publisherComment()];
   await handler.runOnce();
 
@@ -763,23 +440,9 @@ test("keeps the preview confirmation as a service event of its session", async (
     {
       sessionKey,
       text: `Preview de la PR #200 (commit aaaaaaa) publicada a ${origin}.`,
-      receivedText: sent[0].text,
       effectKey: `preview:20:${commit}:confirmed`,
     },
   ]);
-});
-
-test("keeps the plain reply as the last text of the topic", async (context) => {
-  const { handler, github, notes } = setup(context);
-  await handler.handle(request());
-  github.comments[200] = [publisherComment()];
-
-  await handler.runOnce();
-
-  const note = notes.at(-1);
-  assert.match(note.text, /publicada a/u);
-  assert.match(note.receivedText, /Ja ho pots veure/u);
-  assert.notEqual(note.receivedText, note.text);
 });
 
 test("waits the 25 minutes the policy fixes for a confirmation", () => {
@@ -788,7 +451,7 @@ test("waits the 25 minutes the policy fixes for a confirmation", () => {
 
 test("reports an unconfirmed preview at the deadline without guessing a URL", async (context) => {
   const { handler, previews, sent, traces, advance } = setup(context);
-  await handler.handle(request());
+  handler.followPublication(publication(20));
 
   advance(confirmationTimeoutMilliseconds - 1);
   await handler.runOnce();
@@ -813,7 +476,7 @@ test("reports an unconfirmed preview at the deadline without guessing a URL", as
 
 test("reports an unconfirmed preview at the deadline even when GitHub keeps failing", async (context) => {
   const { handler, previews, sent, github, advance } = setup(context);
-  await handler.handle(request());
+  handler.followPublication(publication(20));
   github.listError = new Error("GitHub failed");
 
   advance(confirmationTimeoutMilliseconds - 1);
@@ -831,7 +494,7 @@ test("reports an unconfirmed preview at the deadline even when GitHub keeps fail
 
 test("an unconfirmed report carries the requester", async (context) => {
   const { handler, sent, traces, previews, advance } = setup(context);
-  await handler.handle(request());
+  handler.followPublication(publication(20));
   advance(confirmationTimeoutMilliseconds);
 
   await handler.runOnce();
@@ -845,7 +508,7 @@ test("an unconfirmed report carries the requester", async (context) => {
 
 test("the deadline survives a restart and is not reset by it", async (context) => {
   const { buildHandler, handler, sent, advance } = setup(context);
-  await handler.handle(request());
+  handler.followPublication(publication(20));
   advance(confirmationTimeoutMilliseconds);
 
   const restarted = buildHandler();
@@ -857,7 +520,7 @@ test("the deadline survives a restart and is not reset by it", async (context) =
 
 test("an unconfirmed note keeps the facts of the session", async (context) => {
   const { handler, advance, sent, notes } = setup(context);
-  await handler.handle(request());
+  handler.followPublication(publication(20));
   advance(confirmationTimeoutMilliseconds);
 
   await handler.runOnce();
@@ -867,7 +530,6 @@ test("an unconfirmed note keeps the facts of the session", async (context) => {
     {
       sessionKey,
       text: "Preview de la PR #200 (commit aaaaaaa) sense confirmació dins del termini: no hi ha cap adreça confirmada.",
-      receivedText: sent[0].text,
       effectKey: `preview:20:${commit}:unconfirmed`,
     },
   ]);
@@ -875,7 +537,7 @@ test("an unconfirmed note keeps the facts of the session", async (context) => {
 
 test("a failed report keeps the request awaiting and a later cycle sends it", async (context) => {
   const { handler, github, telegram, previews, sent } = setup(context);
-  await handler.handle(request());
+  handler.followPublication(publication(20));
   github.comments[200] = [publisherComment()];
 
   telegram.sendError = new Error("telegram down");
@@ -891,7 +553,7 @@ test("a failed report keeps the request awaiting and a later cycle sends it", as
 
 test("a failed timeout report is retried the same way", async (context) => {
   const { handler, telegram, previews, sent, advance } = setup(context);
-  await handler.handle(request());
+  handler.followPublication(publication(20));
   advance(confirmationTimeoutMilliseconds);
 
   telegram.sendError = new Error("telegram down");
@@ -931,7 +593,7 @@ test("a synchronization the service is replacing is not reported as withdrawn", 
 
 test("an aborted cycle reports and finishes nothing", async (context) => {
   const { handler, github, previews, sent } = setup(context);
-  await handler.handle(request());
+  handler.followPublication(publication(20));
   const controller = new AbortController();
   github.comments[200] = [publisherComment()];
   github.listIssueComments = async () => {
@@ -943,20 +605,6 @@ test("an aborted cycle reports and finishes nothing", async (context) => {
 
   assert.deepEqual(sent, []);
   assert.equal(previews.state(20), "awaiting");
-});
-
-test("aborting during the live preconditions rethrows instead of refusing", async (context) => {
-  const { handler, github, previews } = setup(context);
-  const controller = new AbortController();
-  github.getPullRequest = async () => {
-    controller.abort();
-    throw new Error("aborted");
-  };
-
-  await assert.rejects(
-    handler.handle(request(), { signal: controller.signal }),
-  );
-  assert.equal(previews.state(20), undefined);
 });
 
 test("the loop isolates a cycle error and stops when aborted", async (context) => {

@@ -49,7 +49,6 @@ import {
 } from "../../workflow/merge-request.mjs";
 import { createPreviewRequests } from "../../workflow/preview-request.mjs";
 import { createProjectRunner } from "../../workflow/project-runner.mjs";
-import { createTopicPullRequestFinder } from "../../workflow/topic-state.mjs";
 import { stopAllSandboxedCommands } from "../../sandbox/commands.mjs";
 import { readPiVersion } from "../../runtime/pi-adapter.mjs";
 import { createWebResearch } from "../../web-research/broker.mjs";
@@ -139,7 +138,7 @@ export async function startService({
     join(config.paths.state, "merge-request.sqlite"),
   );
   // The conversation state of every topic: the service effects the next Pi turn
-  // must receive and the last text the topic received.
+  // must receive.
   const sessionNotes = new SessionNoteStore(
     join(config.paths.state, "session-notes.sqlite"),
   );
@@ -148,11 +147,10 @@ export async function startService({
   // next turn of its session knows the effect even when the send fails. The
   // notes are bookkeeping: a store failure is logged and never stops a report.
   // `effectKey` makes a repeated notice idempotent; `text` is the service-written
-  // part (the model's own words are never a note) and `receivedText` the full
-  // text the topic received when the two differ.
-  function recordServiceNote({ sessionKey, text, effectKey, receivedText }) {
+  // part (the model's own words are never a note).
+  function recordServiceNote({ sessionKey, text, effectKey }) {
     try {
-      sessionNotes.addNote({ sessionKey, text, effectKey, receivedText });
+      sessionNotes.addNote({ sessionKey, text, effectKey });
     } catch (error) {
       logger(
         "session_note_failed",
@@ -331,7 +329,7 @@ export async function startService({
   }
 
   await applyRetention({ includeFinishedTopics: false });
-  // Both the preview and the merge re-check the author's membership when the
+  // The merge and the web research re-check the author's membership when the
   // request runs: neither is ordinary queued work. The read is bounded by the
   // request deadline, so a Telegram that never answers cannot stall them.
   const verifyAuthorMembership = (authorIdentifier, signal) =>
@@ -345,8 +343,6 @@ export async function startService({
     queue.hasUnsettledInstructions(sessionKey, updateIdentifier);
   const previewWorker = createPreviewRequests({
     store: previewRequests,
-    findTopicPullRequest: createTopicPullRequestFinder(ciWatches),
-    verifyMembership: verifyAuthorMembership,
     github,
     repository: config.github.repository,
     telegram,
@@ -361,8 +357,8 @@ export async function startService({
   const mergeWorker = createMergeRequests({
     store: mergeRequests,
     findDeliveredPreview: (sessionKey) => {
-      // Identify the publication independently of its CI notice and of any
-      // manual preview request. Never fall back to an earlier preview.
+      // Identify the publication independently of its CI notice. Never fall
+      // back to an earlier preview.
       const publication = ciWatches.latestTopicPublication(sessionKey);
       if (
         publication === undefined ||
@@ -439,7 +435,6 @@ export async function startService({
         ciWatches,
         mergeRequests,
         topicJobs,
-        requestPreview: previewWorker.handle,
         followPreview: previewWorker.followPublication,
         requestMerge: mergeWorker.handle,
         requestMergeConfirmation: mergeWorker,

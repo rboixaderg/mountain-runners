@@ -15,6 +15,32 @@ function fixture(context) {
 const topicSessionKey = "-1001234567890:7";
 const otherSessionKey = "-1001234567890:8";
 
+test("drops the table that stored the last reply of each topic", (context) => {
+  const path = fixture(context);
+  const previous = new DatabaseSync(path);
+  previous.exec(`
+    CREATE TABLE session_context (
+      session_key TEXT PRIMARY KEY,
+      last_reply TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+    INSERT INTO session_context
+    VALUES ('-1001234567890:7', 'Resposta del model.', '2026-11-18T10:00:00Z');
+  `);
+  previous.close();
+
+  new SessionNoteStore(path).close();
+
+  const database = new DatabaseSync(path);
+  context.after(() => database.close());
+  assert.equal(
+    database
+      .prepare("SELECT 1 FROM sqlite_master WHERE name = 'session_context'")
+      .get(),
+    undefined,
+  );
+});
+
 test("claims the undelivered notes of a topic once, oldest first", (context) => {
   const store = new SessionNoteStore(fixture(context));
   context.after(() => store.close());
@@ -121,37 +147,6 @@ test("keeps only the newest undelivered notes of a topic", (context) => {
   assert.equal(claimed[0].text, "nota 5", "only the oldest notes are dropped");
 });
 
-test("keeps the last text of each topic, overwritten and bounded", (context) => {
-  const store = new SessionNoteStore(fixture(context));
-  context.after(() => store.close());
-
-  assert.equal(store.lastReply(topicSessionKey), null);
-  store.recordReply({
-    sessionKey: topicSessionKey,
-    text: "Resposta del model.",
-  });
-  assert.equal(store.lastReply(topicSessionKey), "Resposta del model.");
-  store.addNote({ sessionKey: topicSessionKey, text: "Informe del servei." });
-  assert.equal(
-    store.lastReply(topicSessionKey),
-    "Informe del servei.",
-    "a service report is also the last text of the topic",
-  );
-  store.recordReply({
-    sessionKey: otherSessionKey,
-    text: `x${"y".repeat(noteLimits.lastReplyCharacters * 2)}`,
-  });
-  assert.equal(
-    store.lastReply(otherSessionKey).length,
-    noteLimits.lastReplyCharacters,
-  );
-  assert.equal(
-    store.lastReply(topicSessionKey),
-    "Informe del servei.",
-    "every topic keeps its own last text",
-  );
-});
-
 test("stores an effect identity once per topic, retries included", (context) => {
   const store = new SessionNoteStore(fixture(context));
   context.after(() => store.close());
@@ -185,30 +180,6 @@ test("stores an effect identity once per topic, retries included", (context) => 
     store.addNote({ ...note, sessionKey: otherSessionKey }),
     true,
     "the identity is per topic",
-  );
-});
-
-test("keeps the full text of the topic apart from the service-only note", (context) => {
-  const store = new SessionNoteStore(fixture(context));
-  context.after(() => store.close());
-
-  store.addNote({
-    sessionKey: topicSessionKey,
-    text: "La reparació automàtica no ha publicat cap canvi.",
-    receivedText:
-      "La reparació automàtica no ha publicat cap canvi.\n\nDetall del model.",
-    effectKey: "repair:7:unchanged",
-  });
-
-  assert.equal(
-    store.lastReply(topicSessionKey),
-    "La reparació automàtica no ha publicat cap canvi.\n\nDetall del model.",
-    "the classifier reads everything the topic received",
-  );
-  assert.deepEqual(
-    store.claim(topicSessionKey).map((entry) => entry.text),
-    ["La reparació automàtica no ha publicat cap canvi."],
-    "the session only receives what the service wrote",
   );
 });
 

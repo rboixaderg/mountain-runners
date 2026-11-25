@@ -1,13 +1,10 @@
-// Private, durable tracking of the preview requests of the deterministic
-// handler.
+// Private, durable tracking of the previews the service follows after it
+// publishes.
 //
-// Since the `preview` label the service posts nothing: a request is written
-// directly as `awaiting`, in one statement. A request awaiting the trusted
-// publisher survives a restart and keeps its deadline.
-//
-// One Telegram update is one row. A person's request for the same pull request
-// and commit is allowed only after the previous one ended. A publication of the
-// service follows its own preview in the row of the update that published it.
+// Since the `preview` label the service posts nothing: a row is written
+// directly as `awaiting`. A row awaiting the trusted publisher survives a
+// restart and keeps its deadline. A publication of the service follows its own
+// preview in the row of the update that published it.
 //
 // The origin the trusted publisher confirmed is stored with the request, because
 // the model of the topic never builds or guesses a preview URL and cannot read
@@ -55,12 +52,6 @@ export const previewStates = {
   failed: "failed",
 };
 
-export const previewBeginResults = {
-  begun: "begun",
-  duplicate: "duplicate",
-  open: "open",
-};
-
 // The states a request can end in. A confirmed end also carries the origin the
 // trusted publisher confirmed.
 const terminalStates = new Set([
@@ -81,56 +72,6 @@ export class PreviewRequestStore {
 
   #transaction(callback) {
     return runTransaction(this.#database, callback);
-  }
-
-  /**
-   * Record a person's request, already awaiting the publisher. Returns
-   * `duplicate` for an update already handled and `open` while another
-   * `awaiting` request exists for the same pull request and commit; otherwise
-   * `begun`.
-   */
-  begin({
-    updateIdentifier,
-    sessionKey,
-    authorIdentifier,
-    pullRequestNumber,
-    commitSha,
-  }) {
-    return this.#transaction(() => {
-      const duplicate = this.#database
-        .prepare("SELECT 1 FROM preview_requests WHERE update_identifier = ?")
-        .get(updateIdentifier);
-      if (duplicate) {
-        return previewBeginResults.duplicate;
-      }
-      const open = this.#database
-        .prepare(
-          `SELECT 1 FROM preview_requests
-           WHERE pull_request_number = ? AND commit_sha = ?
-             AND state = 'awaiting'`,
-        )
-        .get(pullRequestNumber, commitSha);
-      if (open) {
-        return previewBeginResults.open;
-      }
-      const timestamp = this.#now().toISOString();
-      this.#database
-        .prepare(
-          `INSERT INTO preview_requests
-           (update_identifier, session_key, author_identifier, pull_request_number, commit_sha, state, created_at, updated_at)
-           VALUES (?, ?, ?, ?, ?, 'awaiting', ?, ?)`,
-        )
-        .run(
-          updateIdentifier,
-          sessionKey,
-          authorIdentifier,
-          pullRequestNumber,
-          commitSha,
-          timestamp,
-          timestamp,
-        );
-      return previewBeginResults.begun;
-    });
   }
 
   /**
