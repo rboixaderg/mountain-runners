@@ -209,6 +209,7 @@ export function createProjectRunner({
     classifyRequest,
     runModel,
     runChecks,
+    secrets: agentSecrets(config),
     logger,
     requestPreview,
     followPreview,

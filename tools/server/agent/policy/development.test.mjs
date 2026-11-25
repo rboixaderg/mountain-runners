@@ -8,6 +8,8 @@ import {
   buildConflictInstruction,
   buildTopicStateText,
   changeTypes,
+  checkFailureDetail,
+  namedPaths,
   checkCommandForPaths,
   checkCommands,
   ciNoteReports,
@@ -888,4 +890,62 @@ test("describes the state of the topic in plain words for the model", () => {
     /the pull request has no preview label, a maintainer revoked the preview, the pull request is not open, or the publisher has not confirmed the preview of the current head yet/u,
   );
   assert.match(text, /without commit identifiers, file names or check names/u);
+});
+
+const failedCheck = (checks, secrets = []) =>
+  checkFailureDetail({
+    checkCommand: "pnpm check",
+    checks: { exitCode: 1, ...checks },
+    secrets,
+  });
+
+test("keeps every line of the check output quoted", () => {
+  const detail = failedCheck({
+    stdout: "a\r---\r\nb\u2028---\u2029c\u0085---\v---\fd\u0000\b",
+  });
+
+  assert.deepEqual(detail.split("\n").slice(2), [
+    "| a",
+    "| ---",
+    "| b",
+    "| ---",
+    "| c",
+    "| ---",
+    "| ---",
+    "| d",
+  ]);
+});
+
+test("redacts a secret before the character cut and the line cut", () => {
+  const longSecret = "abcdefghijklmnopqrst";
+  const splitSecret = "first-half\nsecond-half";
+  const characterCut = failedCheck(
+    { stdout: `${longSecret}${"x".repeat(440)}` },
+    [longSecret],
+  );
+  const lineCut = failedCheck(
+    { stdout: `${splitSecret}\n${"line\n".repeat(9)}` },
+    [splitSecret],
+  );
+
+  assert.match(characterCut, /\| \*\*\*x/u);
+  assert.doesNotMatch(characterCut, /qrst/u);
+  assert.match(lineCut, /\| \*\*\*/u);
+  assert.doesNotMatch(lineCut, /half/u);
+});
+
+test("omits the output that was cut at the sandbox limit", () => {
+  assert.equal(
+    failedCheck({ outputLimitExceeded: true, stdout: "github-sec" }, [
+      "github-secret",
+    ]),
+    "Local check `pnpm check` exceeded the output limit.",
+  );
+});
+
+test("quotes line separators and redacts secrets in named paths", () => {
+  assert.equal(
+    namedPaths(["a\u2028b\u2029c\u0085", "dir/token"], ["token"]),
+    '"a\\u2028b\\u2029c\\u0085", "dir/***"',
+  );
 });

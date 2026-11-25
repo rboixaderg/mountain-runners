@@ -953,6 +953,14 @@ seguiment de CI no s'ha pogut desar) i, com a darrera línia, l'enllaç de revis
 `ciReports` hi assigna cada resultat i `ciNoteReports` el mateix resultat
 tècnic, amb el commit i els noms de les comprovacions, a la nota del servei.
 
+Quan fallen les comprovacions locals (`checksFailed`) o la publicació es refusa
+(`publicationRefused`), el tema rep la resposta del model, si n'hi ha, i l'avís
+de fallada; aquest text queda com a última resposta del tema. La nota del servei
+hi afegeix el motiu, que la persona no veu: l'ordre fallida amb les darreres
+línies de la sortida (cap si supera el límit de sortida), sense caràcters de
+control i amb les credencials conegudes substituïdes, o la regla de publicació i els camins refusats. Una
+aturada durant les comprovacions es registra com a `aborted`.
+
 Quan el seguiment veu que el cap de la proposta ha canviat, la persona rep l'avís
 de fallada que deixa el cas anotat per a la persona mantenidora: el servei no segueix la versió nova
 tot sol i no demana res a la persona. La nota tècnica del servei conserva el detall.
