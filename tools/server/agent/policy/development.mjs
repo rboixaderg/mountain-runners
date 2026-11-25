@@ -3,6 +3,7 @@
 
 import { posix } from "node:path";
 import { stripVTControlCharacters } from "node:util";
+import { attachmentMegabytes } from "telegram-pi-bridge/telegram";
 import { attachmentRefusalReasons } from "../attachments/refusals.mjs";
 
 // The three notices a club member reads from the service (T8.9). They are plain
@@ -990,10 +991,6 @@ export const recommendedCoverMinimum = { width: 1200, height: 675 };
 // One prompt line carries all the new images. Eight megabytes of cleaned bytes
 // stay well inside the RPC output budget while leaving room for the text.
 export const maximumPromptImageBytes = 8 * 1024 * 1024;
-
-function attachmentMegabytes(bytes) {
-  return (bytes / (1024 * 1024)).toFixed(1).replace(".", ",");
-}
 
 const attachmentRefusalMessages = {
   [attachmentRefusalReasons.unsupportedType]: () =>

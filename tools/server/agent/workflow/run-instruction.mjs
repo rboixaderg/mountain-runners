@@ -1317,6 +1317,13 @@ export function createInstructionRunner({
       }
       const { publication, synchronized } = cycle;
       const { checkCommand } = synchronized;
+      if (publication.unconfirmed) {
+        return {
+          outcome: "uncertain",
+          report: instructionReports.publicationUncertain,
+          reason: instructionReportKeys.publicationUncertain,
+        };
+      }
       if (publication.refused) {
         if (publication.reviewId) {
           const serviceText = `El canvi no s'ha publicat. Cal una revisió privada abans del push.\nFeina: ${worktreeName}\nRevisió: ${publication.reviewId}`;

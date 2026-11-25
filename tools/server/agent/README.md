@@ -850,12 +850,18 @@ executa la instrucció, mai en admetre-la.
   l'`IEND` ha de tancar el fitxer; al WebP, la mida RIFF ha de consumir el
   fitxer exacte, hi ha d'haver un sol fotograma i, en un fitxer estès, la tela ha
   de coincidir amb el fotograma (l'animació no s'accepta); al JPEG, el
-  recorregut arriba a l'`EOI` i cap dada no el pot seguir. Un fitxer que no
-  compleix aquestes condicions es refusa.
+  recorregut ha d'arribar a l'`EOI`. El JPEG es talla al primer `EOI`: les dades
+  posteriors (imatges addicionals, el vídeo d'una Motion Photo o farciment) no es
+  conserven. Un fitxer que no compleix aquestes condicions es refusa.
 - **Metadades.** S'eliminen EXIF, XMP, IPTC, comentaris i dates del contenidor
   (JPEG: APP1, APP13 i COM; PNG: `eXIf`, `tEXt`, `iTXt`, `zTXt` i `tIME`;
-  WebP: `EXIF`, `XMP ` i els bits corresponents de `VP8X`). APP0 i APP2 (ICC) es
-  conserven. Al JPEG el recorregut és complet, també entre les exploracions d'un
+  WebP: `EXIF`, `XMP ` i els bits corresponents de `VP8X`). APP0 es conserva, i
+  també el perfil de color dels tres formats (APP2 ICC, `iCCP`, `ICCP` i el seu
+  bit de `VP8X`). Només es conserva un `iCCP` abans de l'`IDAT` i un `ICCP` just
+  després d'un `VP8X` que l'anuncia; el bit no hi queda sense el tros. El
+  contingut del perfil no s'inspecciona i es conserva tal com és fins a 64 KiB
+  (al JPEG, la suma dels segments APP2 ICC); un perfil més gran s'elimina. Al
+  JPEG el recorregut és complet, també entre les exploracions d'un
   fitxer progressiu, i els segments de metadades s'eliminen a qualsevol posició.
   Després de reescriure es torna a llegir el resultat i es comprova que el tipus,
   les dimensions i la resta de dades d'imatge no canvien i que no hi queda cap
@@ -871,7 +877,11 @@ executa la instrucció, mai en admetre-la.
 - **Destinació i retenció.** El magatzem és
   `state/attachments/topic-<hex>/`, fora del worktree i de Git, amb noms curts i
   estables (`imatge-1.jpg`, `imatge-2.png`). Un adjunt hi és fins que es
-  publica o durant set dies; a l'arrencada s'esborren els vençuts. Cada torn
+  publica o durant set dies; a l'arrencada s'esborren els vençuts. El comptador
+  dels noms es conserva encara que el tema quedi sense imatges; si el manifest no
+  es pot llegir, el servei no hi escriu ni hi desa cap imatge, ho registra com a
+  `attachment_manifest_unreadable`, compta els fitxers de la carpeta a la quota
+  total i esborra els que fa més de set dies que no es modifiquen. Cada torn
   copia el magatzem a `.agent-attachments/` del worktree perquè el sandbox el
   pugui llegir. Abans de les comprovacions i del commit, el servei esborra la
   còpia. Una imatge s'ha utilitzat quan el worktree conté, fora de

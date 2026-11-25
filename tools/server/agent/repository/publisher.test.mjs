@@ -358,35 +358,37 @@ test("marks the publication as started immediately before the push", async (cont
   assert.deepEqual(events, ["started", "push"]);
 });
 
-test("a repair whose pull request disappeared publishes nothing", async (context) => {
-  const worktree = worktreeFixture(context);
-  const github = githubStub({
-    async ensurePullRequest(parameters) {
-      this.calls.push(["ensurePullRequest", parameters]);
-      return { pullRequest: null, created: false };
-    },
-  });
-  const publishChange = createPublisher({ github, secrets: [] });
+for (const [name, found] of [
+  ["disappeared", null],
+  ["was replaced by another", { number: 201 }],
+]) {
+  test(`a continuation whose pull request ${name} after the push is unconfirmed`, async (context) => {
+    const worktree = worktreeFixture(context);
+    const github = githubStub({
+      async ensurePullRequest(parameters) {
+        this.calls.push(["ensurePullRequest", parameters]);
+        return { pullRequest: found, created: false };
+      },
+    });
+    const publishChange = createPublisher({ github, secrets: [] });
 
-  const publication = await publishChange({
-    worktree,
-    branch,
-    repair: { pullRequestNumber: 200, commit: repairCommit },
-  });
+    const publication = await publishChange({
+      worktree,
+      branch,
+      repair: { pullRequestNumber: 200, commit: repairCommit },
+    });
 
-  assert.deepEqual(publication, {
-    refused: true,
-    reason: "The pull request disappeared during the publication.",
+    assert.deepEqual(publication, { unconfirmed: true });
+    assert.equal(
+      github.calls.find(([call]) => call === "ensurePullRequest")[1]
+        .createMissing,
+      false,
+    );
+    // The publication is not confirmed, so the commit is not marked: a person
+    // reconciles it.
+    assert.equal(publishedCommit(worktree), null);
   });
-  assert.equal(
-    github.calls.find(([name]) => name === "ensurePullRequest")[1]
-      .createMissing,
-    false,
-  );
-  // Nothing was published, so the commit is not marked as published: the next
-  // instruction must be able to push it.
-  assert.equal(publishedCommit(worktree), null);
-});
+}
 
 function newPullRequestGithub(overrides = {}) {
   return githubStub({

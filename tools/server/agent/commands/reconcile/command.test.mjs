@@ -6,7 +6,9 @@ import { DatabaseSync } from "node:sqlite";
 import { test } from "node:test";
 import { AdmissionQueue } from "telegram-pi-bridge/sessions";
 import { CiWatchStore } from "../../repository/ci-watch-store.mjs";
+import { PreviewRequestStore } from "../../repository/preview-request-store.mjs";
 import { SessionNoteStore } from "../../repository/session-note-store.mjs";
+import { TopicJobStore } from "../../repository/topic-job-store.mjs";
 import { openIdentifierNames } from "../../repository/identifiers.mjs";
 import { runReconcileCommand } from "./command.mjs";
 
@@ -67,6 +69,15 @@ test("follows a published instruction with the pull request the operator confirm
   // The service already tracks CI notices; the failed registration is what the
   // command restores.
   new CiWatchStore(join(statePath, "ci-watch.sqlite")).close();
+  new PreviewRequestStore(join(statePath, "preview-request.sqlite")).close();
+  // The topic already continues this pull request.
+  const topicJobs = new TopicJobStore(join(statePath, "topic-jobs.sqlite"));
+  topicJobs.bind({
+    sessionKey,
+    branch: "feat/agent-synthetic-change-11",
+    pullRequestNumber: 200,
+  });
+  topicJobs.close();
   const commit = "a".repeat(40);
   const messages = [];
   const output = [];
@@ -121,6 +132,14 @@ test("follows a published instruction with the pull request the operator confirm
     [[11, sessionKey, 200, commit]],
   );
   watches.close();
+  const previews = new PreviewRequestStore(
+    join(statePath, "preview-request.sqlite"),
+  );
+  assert.deepEqual(
+    previews.awaiting().map((row) => [row.author_identifier, row.commit_sha]),
+    [[42, commit]],
+  );
+  previews.close();
 });
 
 test("resolves one case in-process and refuses to repeat it without a second notice", async (context) => {

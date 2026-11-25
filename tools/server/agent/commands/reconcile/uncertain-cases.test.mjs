@@ -21,6 +21,7 @@ import { CiWatchStore } from "../../repository/ci-watch-store.mjs";
 import { MergeRequestStore } from "../../repository/merge-request-store.mjs";
 import { openIdentifierNames } from "../../repository/identifiers.mjs";
 import { PreviewRequestStore } from "../../repository/preview-request-store.mjs";
+import { TopicJobStore } from "../../repository/topic-job-store.mjs";
 import {
   commitAll,
   createBranch,
@@ -77,8 +78,12 @@ async function fixture(context) {
     }),
     ciWatches: new CiWatchStore(join(state, "ci-watch.sqlite")),
     merges: new MergeRequestStore(join(state, "merge-request.sqlite")),
+    previews: new PreviewRequestStore(join(state, "preview-request.sqlite")),
+    topicJobs: new TopicJobStore(join(state, "topic-jobs.sqlite")),
   };
   context.after(() => {
+    stores.topicJobs.close();
+    stores.previews.close();
     stores.merges.close();
     stores.ciWatches.close();
     stores.instructions.close();
@@ -90,7 +95,10 @@ async function fixture(context) {
     });
   });
   return {
-    config: { paths: { repository, worktrees: worktreeRoot, state } },
+    config: {
+      paths: { repository, worktrees: worktreeRoot, state },
+      github: { repository: "Example/Repository" },
+    },
     stores,
     state,
     repository,
@@ -155,6 +163,32 @@ function readRow(databasePath, table, identifierColumn, identifier) {
   } finally {
     database.close();
   }
+}
+
+// The pull request a first publication opened, on the branch of its worktree.
+// It records the labels the reconciliation adds.
+function publishedGithub(headRef, headSha, overrides = {}) {
+  const labelled = [];
+  let previewLabeled = overrides.previewLabeled ?? false;
+  return {
+    labelled,
+    async getPullRequest() {
+      return {
+        state: "open",
+        baseRef: "main",
+        headRepository: "example/repository",
+        previewRevoked: false,
+        headRef,
+        headSha,
+        ...overrides,
+        previewLabeled,
+      };
+    },
+    async addPreviewLabel({ number }) {
+      labelled.push(number);
+      previewLabeled = true;
+    },
+  };
 }
 
 function reconcile(config, stores, telegram, command) {
@@ -235,17 +269,19 @@ test("marks a failed GitHub read and still lists the remaining cases", async (co
   assert.equal(cases[0].pull_request, null);
 });
 
-test("resolves a published instruction and records the confirmed head as published", async (context) => {
+test("restores what a normal publication leaves when reconciling it as published", async (context) => {
   const { config, stores } = await fixture(context);
-  const { worktree, commit } = await topicWorktree({
+  const { worktree, branch, commit } = await topicWorktree({
     config,
     sessionKey: sessionKeyOne,
     updateIdentifier: 11,
   });
   interruptInstruction(stores.instructions, 11, sessionKeyOne);
   const telegram = fakeTelegram();
+  const github = publishedGithub(branch, commit);
 
   const resolved = await reconcile(config, stores, telegram, {
+    github,
     kind: "instruction",
     updateIdentifier: 11,
     resolution: reconcileResolutions.published,
@@ -262,6 +298,19 @@ test("resolves a published instruction and records the confirmed head as publish
   assert.equal(watch.session_key, sessionKeyOne);
   assert.equal(watch.pull_request_number, 42);
   assert.equal(watch.commit_sha, commit);
+  assert.deepEqual(github.labelled, [42]);
+  assert.deepEqual(stores.topicJobs.bindingOf(sessionKeyOne), {
+    branch,
+    pullRequestNumber: 42,
+  });
+  // The preview is followed, so its delivered notice lets `/merge` pin.
+  const [preview] = stores.previews.awaiting();
+  assert.equal(preview.update_identifier, 11);
+  assert.equal(preview.session_key, sessionKeyOne);
+  assert.equal(preview.author_identifier, 42);
+  assert.equal(preview.pull_request_number, 42);
+  assert.equal(preview.commit_sha, commit);
+  assert.equal(preview.merge_synchronization, 0);
   assert.equal(stores.instructions.status(11), "done");
   assert.equal(
     readRow(
@@ -280,17 +329,160 @@ test("resolves a published instruction and records the confirmed head as publish
   );
 });
 
-test("restarts preview tracking after reconciling a synchronization push", async (context) => {
-  const { config, stores, state } = await fixture(context);
-  const { worktree, commit } = await topicWorktree({
+test("never labels again the pull request a topic is already bound to", async (context) => {
+  const { config, stores } = await fixture(context);
+  const { branch, commit } = await topicWorktree({
     config,
     sessionKey: sessionKeyOne,
     updateIdentifier: 11,
   });
-  stores.previews = new PreviewRequestStore(
-    join(state, "preview-request.sqlite"),
+  stores.topicJobs.bind({
+    sessionKey: sessionKeyOne,
+    branch,
+    pullRequestNumber: 42,
+  });
+  interruptInstruction(stores.instructions, 11, sessionKeyOne);
+
+  // No GitHub client: a continuation reads and labels nothing.
+  await reconcile(config, stores, fakeTelegram(), {
+    kind: "instruction",
+    updateIdentifier: 11,
+    resolution: reconcileResolutions.published,
+    pullRequestNumber: 42,
+    commit,
+  });
+
+  assert.equal(stores.previews.awaiting().length, 1);
+});
+
+test("refuses another pull request for a bound topic before writing anything", async (context) => {
+  const { config, stores } = await fixture(context);
+  const { worktree, branch, commit } = await topicWorktree({
+    config,
+    sessionKey: sessionKeyOne,
+    updateIdentifier: 11,
+  });
+  stores.topicJobs.bind({
+    sessionKey: sessionKeyOne,
+    branch,
+    pullRequestNumber: 42,
+  });
+  interruptInstruction(stores.instructions, 11, sessionKeyOne);
+
+  await assert.rejects(
+    reconcile(config, stores, fakeTelegram(), {
+      kind: "instruction",
+      updateIdentifier: 11,
+      resolution: reconcileResolutions.published,
+      pullRequestNumber: 43,
+      commit,
+    }),
+    /bound to pull request #42, not #43/u,
   );
-  context.after(() => stores.previews.close());
+
+  assert.equal(stores.instructions.status(11), "uncertain");
+  assert.deepEqual(stores.ciWatches.pending(), []);
+  assert.deepEqual(stores.previews.awaiting(), []);
+  assert.equal(publishedCommit(worktree), null);
+});
+
+for (const [name, overrides, message] of [
+  [
+    "comes from a fork",
+    { headRepository: "someone/repository" },
+    /configured repository/u,
+  ],
+  ["targets another base", { baseRef: "release" }, /does not target main/u],
+  ["is closed", { state: "closed" }, /is not open/u],
+  ["has its preview revoked", { previewRevoked: true }, /revoked/u],
+  ["has moved its head", { headSha: "f".repeat(40) }, /has moved/u],
+]) {
+  test(`neither labels nor binds a first publication that ${name}`, async (context) => {
+    const { config, stores } = await fixture(context);
+    const { branch, commit } = await topicWorktree({
+      config,
+      sessionKey: sessionKeyOne,
+      updateIdentifier: 11,
+    });
+    interruptInstruction(stores.instructions, 11, sessionKeyOne);
+    const github = publishedGithub(branch, commit, overrides);
+
+    await assert.rejects(
+      reconcile(config, stores, fakeTelegram(), {
+        github,
+        kind: "instruction",
+        updateIdentifier: 11,
+        resolution: reconcileResolutions.published,
+        pullRequestNumber: 42,
+        commit,
+      }),
+      message,
+    );
+
+    assert.deepEqual(github.labelled, []);
+    assert.equal(stores.topicJobs.bindingOf(sessionKeyOne), null);
+    assert.deepEqual(stores.ciWatches.pending(), []);
+    assert.equal(stores.instructions.status(11), "uncertain");
+  });
+}
+
+test("keeps a first publication uncertain until its label and branch are confirmed", async (context) => {
+  const { config, stores } = await fixture(context);
+  const { branch, commit } = await topicWorktree({
+    config,
+    sessionKey: sessionKeyOne,
+    updateIdentifier: 11,
+  });
+  interruptInstruction(stores.instructions, 11, sessionKeyOne);
+  const command = {
+    kind: "instruction",
+    updateIdentifier: 11,
+    resolution: reconcileResolutions.published,
+    pullRequestNumber: 42,
+    commit,
+  };
+
+  await assert.rejects(
+    reconcile(config, stores, fakeTelegram(), {
+      ...command,
+      github: publishedGithub("feat/agent-another-topic", commit),
+    }),
+    ReconcileCaseError,
+  );
+  await assert.rejects(
+    reconcile(config, stores, fakeTelegram(), {
+      ...command,
+      github: {
+        ...publishedGithub(branch, commit),
+        async addPreviewLabel() {
+          throw new Error("synthetic label failure");
+        },
+      },
+    }),
+    /synthetic label failure/u,
+  );
+
+  assert.equal(stores.instructions.status(11), "uncertain");
+  assert.equal(stores.topicJobs.bindingOf(sessionKeyOne), null);
+  assert.deepEqual(stores.ciWatches.pending(), []);
+  assert.deepEqual(stores.previews.awaiting(), []);
+
+  const labelled = publishedGithub(branch, commit, { previewLabeled: true });
+  await reconcile(config, stores, fakeTelegram(), {
+    ...command,
+    github: labelled,
+  });
+  assert.deepEqual(labelled.labelled, []);
+  assert.equal(stores.instructions.status(11), "done");
+});
+
+test("restarts preview tracking after reconciling a synchronization push", async (context) => {
+  const { config, stores } = await fixture(context);
+  const { worktree, branch, commit } = await topicWorktree({
+    config,
+    sessionKey: sessionKeyOne,
+    updateIdentifier: 11,
+  });
   interruptInstruction(stores.instructions, 11, sessionKeyOne);
   stores.instructions.recordTrace({
     updateIdentifier: 11,
@@ -307,6 +499,7 @@ test("restarts preview tracking after reconciling a synchronization push", async
   };
 
   await reconcile(config, stores, fakeTelegram(), {
+    github: publishedGithub(branch, commit),
     kind: "instruction",
     updateIdentifier: 11,
     resolution: reconcileResolutions.published,
@@ -323,16 +516,12 @@ test("restarts preview tracking after reconciling a synchronization push", async
 });
 
 test("ends the older synchronization a reconciled publication replaced", async (context) => {
-  const { config, stores, state } = await fixture(context);
-  const { commit } = await topicWorktree({
+  const { config, stores } = await fixture(context);
+  const { branch, commit } = await topicWorktree({
     config,
     sessionKey: sessionKeyOne,
     updateIdentifier: 11,
   });
-  stores.previews = new PreviewRequestStore(
-    join(state, "preview-request.sqlite"),
-  );
-  context.after(() => stores.previews.close());
   stores.previews.track({
     updateIdentifier: 10,
     sessionKey: sessionKeyOne,
@@ -344,6 +533,7 @@ test("ends the older synchronization a reconciled publication replaced", async (
   interruptInstruction(stores.instructions, 11, sessionKeyOne);
 
   await reconcile(config, stores, fakeTelegram(), {
+    github: publishedGithub(branch, commit),
     kind: "instruction",
     updateIdentifier: 11,
     resolution: reconcileResolutions.published,
@@ -352,15 +542,24 @@ test("ends the older synchronization a reconciled publication replaced", async (
   });
 
   assert.equal(stores.previews.state(10), "failed");
-  assert.deepEqual(stores.previews.awaiting(), []);
+  assert.deepEqual(
+    stores.previews.awaiting().map((row) => row.update_identifier),
+    [11],
+  );
 });
 
 test("keeps the instruction uncertain when the CI watch of the publication cannot be written", async (context) => {
   const { config, stores } = await fixture(context);
+  const { branch } = await topicWorktree({
+    config,
+    sessionKey: sessionKeyOne,
+    updateIdentifier: 11,
+  });
   interruptInstruction(stores.instructions, 11, sessionKeyOne);
 
   await assert.rejects(
     reconcile(config, { ...stores, ciWatches: null }, fakeTelegram(), {
+      github: publishedGithub(branch, publishedCommitSha),
       kind: "instruction",
       updateIdentifier: 11,
       resolution: reconcileResolutions.published,
@@ -385,6 +584,7 @@ test("keeps the instruction uncertain when the CI watch of the publication canno
       },
       fakeTelegram(),
       {
+        github: publishedGithub(branch, publishedCommitSha),
         kind: "instruction",
         updateIdentifier: 11,
         resolution: reconcileResolutions.published,
@@ -400,7 +600,7 @@ test("keeps the instruction uncertain when the CI watch of the publication canno
 
 test("keeps the instruction uncertain when the publication marker cannot be written", async (context) => {
   const { config, stores } = await fixture(context);
-  const { worktree, commit } = await topicWorktree({
+  const { worktree, branch, commit } = await topicWorktree({
     config,
     sessionKey: sessionKeyOne,
     updateIdentifier: 11,
@@ -412,6 +612,7 @@ test("keeps the instruction uncertain when the publication marker cannot be writ
 
   await assert.rejects(
     reconcile(config, stores, telegram, {
+      github: publishedGithub(branch, commit),
       kind: "instruction",
       updateIdentifier: 11,
       resolution: reconcileResolutions.published,
@@ -426,6 +627,7 @@ test("keeps the instruction uncertain when the publication marker cannot be writ
   rmdirSync(marker);
   assert.equal(publishedCommit(worktree), null);
   await reconcile(config, stores, telegram, {
+    github: publishedGithub(branch, commit),
     kind: "instruction",
     updateIdentifier: 11,
     resolution: reconcileResolutions.published,
@@ -444,7 +646,7 @@ test("keeps the instruction uncertain when the publication marker cannot be writ
 
 test("records no publication when the confirmed commit is not the worktree head", async (context) => {
   const { config, stores } = await fixture(context);
-  const { worktree, commit } = await topicWorktree({
+  const { worktree, branch, commit } = await topicWorktree({
     config,
     sessionKey: sessionKeyOne,
     updateIdentifier: 11,
@@ -452,6 +654,7 @@ test("records no publication when the confirmed commit is not the worktree head"
   interruptInstruction(stores.instructions, 11, sessionKeyOne);
 
   await reconcile(config, stores, fakeTelegram(), {
+    github: publishedGithub(branch, publishedCommitSha),
     kind: "instruction",
     updateIdentifier: 11,
     resolution: reconcileResolutions.published,
@@ -664,7 +867,7 @@ test("refuses a case that is no longer uncertain", async (context) => {
 
 test("traces each resolution without the instruction text and notifies once per topic", async (context) => {
   const { config, stores } = await fixture(context);
-  const { commit } = await topicWorktree({
+  const { branch, commit } = await topicWorktree({
     config,
     sessionKey: sessionKeyOne,
     updateIdentifier: 11,
@@ -673,6 +876,7 @@ test("traces each resolution without the instruction text and notifies once per 
   const telegram = fakeTelegram();
 
   await reconcile(config, stores, telegram, {
+    github: publishedGithub(branch, commit),
     kind: "instruction",
     updateIdentifier: 11,
     resolution: reconcileResolutions.published,

@@ -1302,7 +1302,14 @@ test("keeps the older notice blocked after reconciling a publication without a w
       maxPending: 10,
     }),
     ciWatches: new CiWatchStore(join(statePath, "ci-watch.sqlite")),
+    previews,
+    topicJobs: new TopicJobStore(join(statePath, "topic-jobs.sqlite")),
   };
+  reconcileStores.topicJobs.bind({
+    sessionKey: topic,
+    branch: "feat/agent-synthetic-change-20",
+    pullRequestNumber: publishedPullRequest,
+  });
   await resolveUncertainCase({
     config: {
       paths: {
@@ -1329,6 +1336,7 @@ test("keeps the older notice blocked after reconciling a publication without a w
       ]),
     [[20, publishedPullRequest, publishedCommit]],
   );
+  reconcileStores.topicJobs.close();
   reconcileStores.ciWatches.close();
   reconcileStores.instructions.close();
 
