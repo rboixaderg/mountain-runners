@@ -107,7 +107,7 @@ Cada tasca té la seva PR, tret que la columna `Entrega` indiqui el contrari.
 | T11   | Completada | -             | Cap estat bloqueja sense sortida                                         | PR 11   | [#318](https://github.com/rboixaderg/mountain-runners/pull/318) |
 | T12   | Pendent    | -             | La reconciliació restaura tot el que deixa una publicació                | PR 12   | -                                                               |
 | T13   | Pendent    | -             | Les fallades informen del motiu i de la resposta del model               | PR 13   | -                                                               |
-| T14   | Pendent    | T26           | Cap avís fals ni repetit per publicacions substituïdes                   | PR 14   | -                                                               |
+| T14   | Completada | T26           | Cap avís fals ni repetit per publicacions substituïdes                   | PR 14   | [#329](https://github.com/rboixaderg/mountain-runners/pull/329) |
 | T15   | Completada | -             | El pont de Telegram admet, reintenta i talla correctament                | PR 15   | [#325](https://github.com/rboixaderg/mountain-runners/pull/325) |
 | T16   | Pendent    | -             | La confirmació del merge és determinista                                 | PR 16   | -                                                               |
 | T17   | Pendent    | -             | Codi mort i branques només de proves eliminats                           | PR 17   | -                                                               |
