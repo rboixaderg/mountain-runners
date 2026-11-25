@@ -636,6 +636,21 @@ la PR sense fusió.
   abans les comprovacions; `blocked`,
   `unstable`, `has_hooks` i qualsevol altre valor refusen. Un error de
   lectura refusa.
+- **Tot excepte infraestructura.** Quan la resta de condicions es compleixen,
+  abans d'oferir la pregunta i a la relectura prèvia a la crida, el servei
+  compara `main...<commit fixat>` a GitHub, també abans de sincronitzar una
+  branca endarrerida. Cap camí canviat, inclòs el nom anterior d'un fitxer
+  reanomenat, pot ser infraestructura: fitxers a l'arrel del repositori o
+  directament a `apps/web/`; tot el que hi ha a `tools/`, `packages/`,
+  `apps/web/scripts/` i `apps/web/project.inlang/`; qualsevol camí amb un nom
+  que comenci per punt (`.github/`, `.agents/`…), i, a qualsevol lloc,
+  `package.json`, `tsconfig*.json` i `*.config.*`. A l'arbre del commit, cada
+  fitxer afegit o modificat ha de tenir el mode `100644`: es refusen enllaços
+  simbòlics, submòduls i executables. Si no, o si no hi ha cap fitxer, refusa
+  (`infrastructure_changes`), també en resposta a la validació, i avisa que la
+  persona que manté el servei ha de revisar el canvi. Si una lectura falla,
+  l'arbre arriba truncat o la llista arriba als 300 fitxers, que és el màxim
+  que GitHub retorna, compta com a no llegible.
 - **Branca endarrerida.** Amb `behind` o `dirty` (conflicte amb `main`), el
   servei comprova l'ascendència abans de modificar el worktree. Integra `main`
   i valida el resultat abans de publicar-lo a la mateixa PR. No envia la

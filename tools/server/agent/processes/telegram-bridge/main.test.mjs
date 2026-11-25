@@ -1124,6 +1124,15 @@ async function runMergeCommand(
       async getCommitStatuses() {
         return [];
       },
+      async getChangedPaths() {
+        const paths = ["apps/web/src/content/posts/la-cursa.yaml"];
+        return { paths, presentPaths: paths };
+      },
+      async getTreeModes() {
+        return new Map([
+          ["apps/web/src/content/posts/la-cursa.yaml", "100644"],
+        ]);
+      },
       async mergePullRequest({ number, sha }) {
         merges.push({ number, sha });
         return { mergeCommitSha: "b".repeat(40) };
@@ -1529,6 +1538,15 @@ test("keeps the older notice blocked after reconciling a publication without a w
         },
         async getCommitStatuses() {
           return [];
+        },
+        async getChangedPaths() {
+          const paths = ["apps/web/src/content/posts/la-cursa.yaml"];
+          return { paths, presentPaths: paths };
+        },
+        async getTreeModes() {
+          return new Map([
+            ["apps/web/src/content/posts/la-cursa.yaml", "100644"],
+          ]);
         },
         async mergePullRequest({ number, sha }) {
           merges.push({ number, sha });
