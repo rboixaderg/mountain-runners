@@ -941,11 +941,92 @@ export async function commitConflictMerge({ worktree, signal }) {
   if (unmerged !== "") {
     return false;
   }
-  await runGit(worktree, ["diff", "--cached", "--check"], { signal });
+  // Only what the branch adds on top of the incoming commit: what the incoming
+  // side brings is not the work of this merge.
+  await runGit(worktree, ["diff", "--cached", "--check", "MERGE_HEAD"], {
+    signal,
+  });
   await runGit(worktree, [...agentIdentityArguments, "commit", "--no-edit"], {
     signal,
   });
   return true;
+}
+
+export async function mergeInProgressHead(worktree, { signal } = {}) {
+  const mergeHead = await runGit(
+    worktree,
+    ["rev-parse", "--verify", "--quiet", "MERGE_HEAD"],
+    { allowFailure: true, signal },
+  );
+  return mergeHead.trim() || null;
+}
+
+/**
+ * Abort the merge of `main` a stopped process left on top of `commit`. Returns
+ * true only when the worktree is then clean at `commit`. Git refuses the abort,
+ * or keeps the files, when it holds anything the merge did not bring.
+ */
+export async function abortInterruptedMainMerge(
+  worktree,
+  { commit, mergeHead, signal },
+) {
+  const mainBase = await runGit(
+    worktree,
+    ["merge-base", mergeHead, "origin/main"],
+    { allowFailure: true, signal },
+  );
+  if (
+    mainBase.trim() !== mergeHead ||
+    (await headCommit(worktree, { signal })) !== commit
+  ) {
+    return false;
+  }
+  try {
+    await abortConflictMerge(worktree);
+  } catch (error) {
+    if (error instanceof MergeCleanupError) return false;
+    throw error;
+  }
+  return (await listChangedPaths(worktree, { signal })).length === 0;
+}
+
+/**
+ * Whether HEAD only adds merges of `main` on top of `commit`, with a clean
+ * worktree: nothing in it is work of the topic, so it can be made again. This
+ * assumes only the service creates merge commits on the branch (the sandbox
+ * cannot commit) and commits pending edits as ordinary commits before it
+ * merges: a conflict resolution is then the only content of a merge commit.
+ */
+export async function addsOnlyMainMerges(worktree, { commit, signal }) {
+  if ((await listChangedPaths(worktree, { signal })).length > 0) {
+    return false;
+  }
+  const mergeBase = await runGit(worktree, ["merge-base", commit, "HEAD"], {
+    allowFailure: true,
+    signal,
+  });
+  if (mergeBase.trim() !== commit) {
+    return false;
+  }
+  const ownCommits = await runGit(
+    worktree,
+    [
+      "rev-list",
+      "--count",
+      "--no-merges",
+      "HEAD",
+      `^${commit}`,
+      "^origin/main",
+    ],
+    { signal },
+  );
+  return ownCommits.trim() === "0";
+}
+
+/** Drop everything after `commit`, including files Git does not ignore. */
+export async function restoreCommit({ worktree, commit }) {
+  await runGit(worktree, ["reset", "--hard", commit]);
+  await runGit(worktree, ["clean", "-fd"]);
 }
 
 export async function hasUnpublishedCommit(worktree, { signal } = {}) {

@@ -1540,6 +1540,7 @@ async function assertAdvancedPullRequest(
     ignoredConflict = false,
     pendingConflict = false,
     leaveConflict = false,
+    answerConflict = false,
     diverged = false,
     noEdit = false,
   } = {},
@@ -1592,10 +1593,12 @@ async function assertAdvancedPullRequest(
         conflictTurns += 1;
         const conflictPath = join(worktreePath, "pending.txt");
         assert.match(readFileSync(conflictPath, "utf8"), /<<<<<<< /u);
-        if (!leaveConflict)
+        const unanswered =
+          leaveConflict && !instruction.includes("Conserva les dues versions");
+        if (!unanswered)
           writeFileSync(conflictPath, "pending work\nremote work\n");
         return {
-          text: leaveConflict
+          text: unanswered
             ? "Quina versió vols?"
             : "Conflicte resolt.\nCONFLICT_RESOLVED",
         };
@@ -1734,6 +1737,7 @@ async function assertAdvancedPullRequest(
   }
   if (diverged) {
     assert.equal(second.outcome, "failed");
+    assert.equal(second.report, failedMaintainerNotice);
     assert.equal(modelTurns, 1);
     assert.equal(github.pushes.length, 1);
     assert.equal(
@@ -1744,6 +1748,7 @@ async function assertAdvancedPullRequest(
   }
   if (leaveConflict) {
     assert.equal(second.outcome, "failed");
+    assert.equal(second.report, "Quina versió vols?");
     assert.equal(conflictTurns, 1);
     assert.equal(modelTurns, 1);
     assert.equal(github.pushes.length, 1);
@@ -1754,6 +1759,18 @@ async function assertAdvancedPullRequest(
     await assert.rejects(
       git(topicWorktreePath(paths), ["rev-parse", "--verify", "MERGE_HEAD"]),
     );
+    if (answerConflict) {
+      const answered = await runner(
+        request({
+          updateIdentifier: 1003,
+          instruction: "Conserva les dues versions",
+        }),
+      );
+      assert.equal(answered.outcome, "pull_request_updated", answered.report);
+      assert.equal(conflictTurns, 2);
+      assert.equal(modelTurns, 2);
+      assert.equal(github.pushes.length, 2);
+    }
     return;
   }
   if (noEdit) {
@@ -1818,6 +1835,15 @@ test("keeps pending topic work when the advanced pull request conflict remains",
     pending: true,
     pendingConflict: true,
     leaveConflict: true,
+  });
+});
+
+test("the answer of the person reaches the conflict turn and resolves it", async (context) => {
+  await assertAdvancedPullRequest(context, {
+    pending: true,
+    pendingConflict: true,
+    leaveConflict: true,
+    answerConflict: true,
   });
 });
 
@@ -5393,7 +5419,7 @@ test("markers removed without the explicit resolved line stop on the model quest
 });
 
 // A bound topic whose pull request head is published on the fixture origin.
-async function boundTopic(context) {
+async function boundTopic(context, runnerOptions = {}) {
   const paths = await fixture(context);
   mkdirSync(paths.state, { recursive: true });
   const topicJobs = new TopicJobStore(join(paths.state, "topic-jobs.sqlite"));
@@ -5431,24 +5457,29 @@ async function boundTopic(context) {
   const gates = [];
   const previews = [];
   const followUp = { result: undefined };
+  const turn = { gateExitCode: 0, gate: undefined, model: undefined };
   const runner = createProjectRunner({
     config: configFor(paths),
     github,
     topicJobs,
     classifyRequest: async () => ({ kind: "implementation" }),
-    runModel: async ({ worktreePath, instruction }) => {
+    runModel: async (turnContext) => {
+      const { worktreePath, instruction } = turnContext;
       assert.doesNotMatch(instruction, /sincronitza/iu);
+      if (turn.model) return turn.model(turnContext);
       writeFileSync(join(worktreePath, "topic.txt"), "topic\n");
       return { text: "SUMMARY: feat(tools): add synthetic change" };
     },
-    runChecks: async ({ checkCommand }) => {
+    runChecks: async ({ checkCommand, worktreePath }) => {
       gates.push(checkCommand);
-      return { exitCode: 0 };
+      if (turn.gate) return turn.gate(worktreePath);
+      return { exitCode: turn.gateExitCode };
     },
     followPreview: (options) => {
       previews.push(options);
       return followUp.result;
     },
+    ...runnerOptions,
   });
   assert.equal((await runner(request())).outcome, "pull_request_created");
   const commit = await git(origin, ["rev-parse", `refs/heads/${remoteBranch}`]);
@@ -5462,6 +5493,7 @@ async function boundTopic(context) {
     gates,
     previews,
     followUp,
+    turn,
     target: { pullRequestNumber: 200, commit, branch: remoteBranch },
   };
 }
@@ -5503,16 +5535,17 @@ test("merge synchronization refuses a moved head or branch without mutating", as
   await advanceMain(paths, "main-change.txt", "main\n");
   const worktree = topicWorktreePath(paths);
   const headBefore = await git(worktree, ["rev-parse", "HEAD"]);
-  for (const changed of [
-    { commit: "a".repeat(40) },
-    { branch: "feat/other" },
+  for (const [changed, reason] of [
+    [{ commit: "a".repeat(40) }, "reviewedHeadChanged"],
+    [{ branch: "feat/other" }, "topicBindingMismatch"],
   ]) {
     const result = await runner.synchronizeForMerge(mergeRequest(), {
       ...target,
       ...changed,
     });
     assert.equal(result.outcome, "failed");
-    assert.equal(typeof result.report, "string");
+    assert.equal(result.reason, reason);
+    assert.equal(result.report, instructionReports[reason]);
   }
   assert.deepEqual(github.pushes, []);
   assert.deepEqual(gates, []);
@@ -5526,4 +5559,336 @@ test("merge synchronization is uncertain when the preview follow-up is not store
   const result = await runner.synchronizeForMerge(mergeRequest(), target);
   assert.equal(result.outcome, "uncertain");
   assert.match(result.report, /no he pogut confirmar la preview/u);
+});
+
+// The next merge request starts again from the reviewed commit.
+async function assertRestored(paths, commit) {
+  const worktree = topicWorktreePath(paths);
+  assert.equal(await git(worktree, ["rev-parse", "HEAD"]), commit);
+  assert.equal(await git(worktree, ["status", "--porcelain"]), "");
+}
+
+test("merge synchronization with a failed gate returns to the reviewed commit", async (context) => {
+  const { paths, runner, turn, target } = await boundTopic(context);
+  await advanceMain(paths, "main-change.txt", "main\n");
+  turn.gateExitCode = 1;
+  const failed = await runner.synchronizeForMerge(mergeRequest(), target);
+  assert.equal(failed.reason, "checksFailed");
+  await assertRestored(paths, target.commit);
+  turn.gateExitCode = 0;
+  const retried = await runner.synchronizeForMerge(mergeRequest(), target);
+  assert.equal(retried.outcome, "synchronized", retried.report);
+});
+
+test("merge synchronization drops its merges when main never settles", async (context) => {
+  const { paths, github, runner, target } = await boundTopic(context);
+  await advanceMain(paths, "main-change.txt", "main\n");
+  let attempts = 0;
+  github.pushBranch = async () => {
+    attempts += 1;
+    await advanceMain(paths, `later-${attempts}.txt`, "later\n");
+    throw new PublicationBaseChangedError("advanced");
+  };
+  const result = await runner.synchronizeForMerge(mergeRequest(), target);
+  assert.equal(result.outcome, "failed");
+  assert.equal(attempts, 3);
+  await assertRestored(paths, target.commit);
+});
+
+test("merge synchronization redoes the merge a restart left unpublished", async (context) => {
+  const { paths, runner, target } = await boundTopic(context);
+  await advanceMain(paths, "main-change.txt", "main\n");
+  const worktree = topicWorktreePath(paths);
+  await git(worktree, ["fetch", "origin", "main"]);
+  await git(worktree, ["merge", "--no-ff", "--no-edit", "origin/main"]);
+  const result = await runner.synchronizeForMerge(mergeRequest(), target);
+  assert.equal(result.outcome, "synchronized", result.report);
+  assert.equal(
+    await git(worktree, ["rev-parse", "HEAD^"]),
+    target.commit,
+    "the interrupted merge is not part of the published history",
+  );
+});
+
+test("merge synchronization reports and keeps the work a failed turn left", async (context) => {
+  const { paths, github, runner, turn, target } = await boundTopic(context);
+  turn.model = async ({ worktreePath }) => {
+    writeFileSync(join(worktreePath, "topic.txt"), "unpublished\n");
+    return { text: "SUMMARY: feat(tools): change synthetic content" };
+  };
+  turn.gateExitCode = 1;
+  await runner(request({ updateIdentifier: 1002 }));
+  await advanceMain(paths, "main-change.txt", "main\n");
+  const worktree = topicWorktreePath(paths);
+  const localHead = await git(worktree, ["rev-parse", "HEAD"]);
+  assert.notEqual(localHead, target.commit);
+  const result = await runner.synchronizeForMerge(mergeRequest(), target);
+  assert.equal(result.reason, "unpublishedLocalWork");
+  assert.equal(result.report, instructionReports.unpublishedLocalWork);
+  assert.equal(await git(worktree, ["rev-parse", "HEAD"]), localHead);
+  assert.deepEqual(github.pushes, []);
+});
+
+// A private review that never gets approved and pins what it last prepared.
+function pendingReview() {
+  const review = {
+    tainted: false,
+    prepared: null,
+    ensure: () => {},
+    isTainted: () => review.tainted,
+    prepare: (jobId, candidate) => {
+      review.prepared = candidate;
+      return "synthetic-review";
+    },
+    isApproved: () => false,
+    status: () => ({
+      reviewId: review.prepared === null ? null : "synthetic-review",
+    }),
+    candidate: () => review.prepared,
+  };
+  return review;
+}
+
+async function reviewedTopic(context) {
+  const researchReview = pendingReview();
+  const topic = await boundTopic(context, { researchReview });
+  topic.github.researchCandidate = async ({ worktree, ...metadata }) => ({
+    ...metadata,
+    commit: await git(worktree.path, ["rev-parse", "HEAD"]),
+    expectedHead: topic.target.commit,
+  });
+  researchReview.tainted = true;
+  await advanceMain(topic.paths, "main-change.txt", "main\n");
+  return { ...topic, researchReview };
+}
+
+test("merge synchronization keeps the commit a private review pins", async (context) => {
+  const { paths, runner, target } = await reviewedTopic(context);
+  const review = await runner.synchronizeForMerge(mergeRequest(), target);
+  assert.equal(review.outcome, "research_review_required", review.report);
+  const worktree = topicWorktreePath(paths);
+  const reviewed = await git(worktree, ["rev-parse", "HEAD"]);
+  assert.notEqual(reviewed, target.commit);
+  const again = await runner.synchronizeForMerge(mergeRequest(), target);
+  assert.equal(again.reason, "unpublishedLocalWork");
+  assert.equal(await git(worktree, ["rev-parse", "HEAD"]), reviewed);
+});
+
+test("merge synchronization redoes a merge no private review pins", async (context) => {
+  const { paths, runner, target, researchReview } =
+    await reviewedTopic(context);
+  researchReview.prepared = { commit: target.commit };
+  const worktree = topicWorktreePath(paths);
+  await git(worktree, ["fetch", "origin", "main"]);
+  await git(worktree, ["merge", "--no-ff", "--no-edit", "origin/main"]);
+  const result = await runner.synchronizeForMerge(mergeRequest(), target);
+  assert.equal(result.outcome, "research_review_required", result.report);
+});
+
+// The state a process stopped during the conflict turn leaves behind.
+async function interruptedMerge(context, runnerOptions) {
+  const topic = await boundTopic(context, runnerOptions);
+  await advanceMain(topic.paths, "topic.txt", "main\n");
+  const worktree = topicWorktreePath(topic.paths);
+  await git(worktree, ["fetch", "origin", "main"]);
+  await assert.rejects(git(worktree, ["merge", "--no-ff", "origin/main"]));
+  writeFileSync(join(worktree, "topic.txt"), "half resolved\n");
+  return { ...topic, worktree };
+}
+
+test("merge synchronization aborts the merge a stopped process left open", async (context) => {
+  const { runner, turn, target } = await interruptedMerge(context);
+  turn.model = async ({ worktreePath }) => {
+    writeFileSync(join(worktreePath, "topic.txt"), "main\ntopic\n");
+    return { text: "Fet.\nCONFLICT_RESOLVED" };
+  };
+  const result = await runner.synchronizeForMerge(mergeRequest(), target);
+  assert.equal(result.outcome, "synchronized", result.report);
+});
+
+test("an interrupted merge with other edits goes to the maintainer", async (context) => {
+  const traces = [];
+  let merge;
+  const { runner, worktree, target } = await interruptedMerge(context, {
+    recordTrace: (trace) => traces.push(trace),
+    requestMerge: (mergeCommandRequest) => merge(mergeCommandRequest),
+  });
+  merge = (mergeCommandRequest) =>
+    runner.synchronizeForMerge(mergeCommandRequest, target);
+  writeFileSync(join(worktree, "stray.txt"), "kept\n");
+  const result = await runner(
+    request({ updateIdentifier: 2002, instruction: "/merge" }),
+  );
+  assert.equal(result.report, failedMaintainerNotice);
+  assert.deepEqual(
+    traces
+      .filter(({ action }) => action === "maintainer_attention")
+      .map(({ detail }) => detail),
+    ["interruptedMergeNotRecovered"],
+  );
+  assert.equal(readFileSync(join(worktree, "stray.txt"), "utf8"), "kept\n");
+});
+
+test("merge synchronization removes the files a failed gate left", async (context) => {
+  const { paths, runner, turn, target } = await boundTopic(context);
+  await advanceMain(paths, "main-change.txt", "main\n");
+  turn.gate = (worktreePath) => {
+    writeFileSync(join(worktreePath, "gate.txt"), "x\n");
+    return { exitCode: 1 };
+  };
+  await runner.synchronizeForMerge(mergeRequest(), target);
+  assert.equal(existsSync(join(topicWorktreePath(paths), "gate.txt")), false);
+  await assertRestored(paths, target.commit);
+});
+
+test("merge synchronization keeps the local merge after an uncertain push", async (context) => {
+  const { paths, github, runner, target } = await boundTopic(context);
+  await advanceMain(paths, "main-change.txt", "main\n");
+  github.pushBranch = async ({ onPublicationStarted }) => {
+    onPublicationStarted();
+    throw new Error("Synthetic lost response.");
+  };
+  const result = await runner.synchronizeForMerge(mergeRequest(), target);
+  assert.equal(result.outcome, "uncertain");
+  assert.notEqual(
+    await git(topicWorktreePath(paths), ["rev-parse", "HEAD"]),
+    target.commit,
+  );
+});
+
+test("merge synchronization keeps the local merge beside a nested repository", async (context) => {
+  const { paths, github, runner, target } = await boundTopic(context);
+  await advanceMain(paths, "main-change.txt", "main\n");
+  const marker = join(paths.directory, "nested-marker");
+  const worktree = topicWorktreePath(paths);
+  github.pushBranch = async () => {
+    await createNestedRepository(worktree, marker);
+    await advanceMain(paths, "later.txt", "later\n");
+    throw new PublicationBaseChangedError("advanced");
+  };
+  const result = await runner.synchronizeForMerge(mergeRequest(), target);
+  assert.equal(result.report, instructionReports.publicationRefused);
+  assert.notEqual(await git(worktree, ["rev-parse", "HEAD"]), target.commit);
+  assert.equal(existsSync(join(worktree, "nested")), true);
+});
+
+test("merge synchronization hands the conflict question over as the model's reply", async (context) => {
+  const { paths, runner, turn, target } = await boundTopic(context);
+  await advanceMain(paths, "topic.txt", "main\n");
+  const prepared = [];
+  turn.model = async ({ worktreePrepared }) => {
+    prepared.push(worktreePrepared);
+    return { text: "Quina versió vols conservar?" };
+  };
+  const result = await runner.synchronizeForMerge(mergeRequest(), target);
+  assert.equal(result.report, "Quina versió vols conservar?");
+  assert.equal(result.modelAnswer, true);
+  assert.deepEqual(prepared, [false]);
+  await assertRestored(paths, target.commit);
+});
+
+test("reports why a bound topic cannot continue its pull request", async (context) => {
+  const { paths, github, runner, target } = await boundTopic(context);
+  const read = github.getPullRequest;
+  github.getPullRequest = async () => ({ ...(await read()), draft: true });
+  assert.equal(
+    (await runner.synchronizeForMerge(mergeRequest(), target)).reason,
+    "pullRequestNotContinuable",
+  );
+  github.getPullRequest = read;
+  const worktree = topicWorktreePath(paths);
+  await git(worktree, ["reset", "--hard", "origin/main"]);
+  assert.equal(
+    (await runner.synchronizeForMerge(mergeRequest(), target)).reason,
+    "localHeadMismatch",
+  );
+  await git(worktree, ["checkout", "--detach"]);
+  const turnResult = await runner(request({ updateIdentifier: 1002 }));
+  assert.equal(turnResult.report, instructionReports.topicWorktreeMismatch);
+});
+
+test("records the conflict question as the reply of the model", async (context) => {
+  const paths = await fixture(context);
+  const sessionNotes = noteStore(context, paths);
+  let turns = 0;
+  const runner = createProjectRunner({
+    config: configFor(paths),
+    github: githubStub(),
+    sessionNotes,
+    classifyRequest: async () => ({ kind: "implementation" }),
+    runModel: async ({ worktreePath }) => {
+      turns += 1;
+      if (turns === 2) return { text: "Quina versió vols conservar?" };
+      writeFileSync(join(worktreePath, "README.md"), "topic change\n");
+      await advanceMain(paths, "README.md", "main change\n");
+      return { text: "SUMMARY: feat(tools): add synthetic change" };
+    },
+  });
+  await runner(request());
+  assert.equal(
+    sessionNotes.lastReply(topicSessionKey),
+    "Quina versió vols conservar?",
+  );
+  assert.deepEqual(sessionNotes.claim(topicSessionKey), []);
+});
+
+for (const [path, expected] of [
+  ["README.md", false],
+  ["package.json", true],
+]) {
+  test(`the conflict turn on ${path} ${expected ? "skips" : "repeats"} the preparation`, async (context) => {
+    const paths = await fixture(context);
+    const prepared = [];
+    const runner = createProjectRunner({
+      config: configFor(paths),
+      github: githubStub(),
+      classifyRequest: async () => ({ kind: "implementation" }),
+      runModel: async ({ worktreePath, worktreePrepared }) => {
+        prepared.push(worktreePrepared);
+        if (prepared.length === 2) return { text: "Quina versió?" };
+        writeFileSync(join(worktreePath, path), "topic change\n");
+        await advanceMain(paths, path, "main change\n");
+        return { text: "SUMMARY: feat(tools): add synthetic change" };
+      },
+    });
+    await runner(request());
+    assert.equal(prepared[1], expected);
+  });
+}
+
+test("a resolved merge ignores the whitespace main brings", async (context) => {
+  const paths = await fixture(context);
+  const github = githubStub();
+  let turns = 0;
+  const runner = createProjectRunner({
+    config: configFor(paths),
+    github,
+    classifyRequest: async () => ({ kind: "implementation" }),
+    runModel: async ({ worktreePath }) => {
+      turns += 1;
+      if (turns === 2) {
+        writeFileSync(
+          join(worktreePath, "README.md"),
+          "main change  \ntopic change\n",
+        );
+        return { text: "Fet.\nCONFLICT_RESOLVED" };
+      }
+      writeFileSync(join(worktreePath, "README.md"), "topic change\n");
+      await advanceMain(paths, "other.txt", "trailing  \n");
+      await advanceMain(paths, "README.md", "main change  \n");
+      return { text: "SUMMARY: feat(tools): add synthetic change" };
+    },
+    runChecks: async () => ({ exitCode: 0 }),
+  });
+  const result = await runner(request());
+  assert.equal(result.outcome, "pull_request_created", result.report);
+});
+
+test("a resolved merge still refuses the whitespace its resolution adds", async (context) => {
+  const { github, result } = await conflictTurn(context, (worktreePath) => {
+    writeFileSync(join(worktreePath, "README.md"), "resolved  \n");
+    return { text: "Fet.\nCONFLICT_RESOLVED" };
+  });
+  assert.equal(result.outcome, "failed");
+  assert.deepEqual(github.pushes, []);
 });

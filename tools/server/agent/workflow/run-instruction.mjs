@@ -35,6 +35,10 @@ import {
   restartConflictMerge,
   abortConflictMerge,
   commitConflictMerge,
+  addsOnlyMainMerges,
+  restoreCommit,
+  mergeInProgressHead,
+  abortInterruptedMainMerge,
   MergeCleanupError,
   NestedRepositoryError,
 } from "../repository/worktrees.mjs";
@@ -51,7 +55,6 @@ import {
   checkCommandForPaths,
   ciWatchOutcomes,
   mergeSynchronizationReports,
-  continuationReports,
   parseChangeSummary,
   branchNameForChange,
   fallbackTitle,
@@ -73,6 +76,15 @@ import {
 } from "../policy/development.mjs";
 
 const maximumSynchronizations = 3;
+
+// The offline preparation cannot read a manifest or lockfile that holds
+// conflict markers.
+const dependencyManifestPattern =
+  /(?:^|\/)(?:package\.json|pnpm-[^/]+\.yaml)$/u;
+
+function failureReport(reason) {
+  return { report: instructionReports[reason], reason };
+}
 
 function piRunDiagnostics(diagnostics) {
   if (diagnostics?.reason === "output_limit") {
@@ -108,6 +120,8 @@ export function createInstructionRunner({
   isFirstInstruction,
   prepareResearchJob,
   isResearchAffected,
+  // The commit the current private review of a job pins, or null.
+  reviewedCommit,
   prepareAttachment,
   scaleAttachments = () => ({
     refusal: { reason: attachmentRefusalReasons.scaleFailed },
@@ -414,8 +428,8 @@ export function createInstructionRunner({
     paths,
     headSha,
     topicState,
-    worktreePrepared,
     fromMain = false,
+    personMessage,
     signal,
   }) {
     const unresolved = { resolved: false, clarification: null };
@@ -454,10 +468,17 @@ export function createInstructionRunner({
         sessionIdentifier,
         sandboxIdentifier: worktreeName,
         sessionKey,
-        instruction: buildConflictInstruction(paths, { fromMain }),
+        instruction: buildConflictInstruction(paths, {
+          fromMain,
+          personMessage,
+        }),
         images: [],
         attachments: [],
-        worktreePrepared,
+        // The merge may bring a new lockfile: the turn prepares the
+        // dependencies again unless a conflicted manifest makes that fail.
+        worktreePrepared: paths.some((path) =>
+          dependencyManifestPattern.test(path),
+        ),
         kind: topicTurnKind,
         topicState,
         // The conflict turn is internal: it must not consume the service notes
@@ -498,9 +519,19 @@ export function createInstructionRunner({
         return clarification;
       }
       try {
-        await runGit(worktree, ["diff", "--check", ignoreSubmodules], {
-          signal,
-        });
+        await runGit(
+          worktree,
+          [
+            "--literal-pathspecs",
+            "diff",
+            "--check",
+            ignoreSubmodules,
+            "MERGE_HEAD",
+            "--",
+            ...paths,
+          ],
+          { signal },
+        );
       } catch {
         signal?.throwIfAborted();
         return unresolved;
@@ -571,7 +602,6 @@ export function createInstructionRunner({
         paths: synchronization.paths,
         headSha: mainHead,
         topicState,
-        worktreePrepared: true,
         fromMain: true,
         signal,
       });
@@ -579,7 +609,7 @@ export function createInstructionRunner({
         return {
           report: resolved.clarification ?? instructionReports.checksFailed,
           reason: instructionReportKeys.checksFailed,
-          ...(resolved.clarification === null ? {} : { clarification: true }),
+          modelAnswer: resolved.clarification !== null,
         };
       }
     }
@@ -673,14 +703,11 @@ export function createInstructionRunner({
     if (pullRequest.state === "closed") {
       return { report: finishedTopicReport };
     }
-    const movedHeadReport = continuationReports.movedHead({
-      pullRequestNumber: binding.pullRequestNumber,
-    });
     if (
       topic.worktree === null ||
       (await currentBranch(topic.worktree, { signal })) !== binding.branch
     ) {
-      return { report: movedHeadReport };
+      return failureReport(instructionReportKeys.topicWorktreeMismatch);
     }
     if (
       pullRequest.state !== "open" ||
@@ -690,18 +717,19 @@ export function createInstructionRunner({
         repositoryName.toLowerCase() ||
       pullRequest.headRef !== binding.branch
     ) {
-      return { report: movedHeadReport };
+      return failureReport(instructionReportKeys.pullRequestNotContinuable);
     }
     return { pullRequest };
   }
 
-  // Brings the topic worktree to the head of its pull request. Returns false
-  // when the worktree cannot follow it and the turn must not start.
+  // Brings the topic worktree to the head of its pull request. Returns null, or
+  // the failure when the worktree cannot follow it and the turn must not start.
   async function followBoundPullRequest({
     binding,
     topic,
     pullRequest,
     sessionKey,
+    personMessage,
     worktreeName,
     sessionIdentifier,
     signal,
@@ -709,21 +737,25 @@ export function createInstructionRunner({
     if (
       await matchesPublishedHead(topic.worktree, pullRequest.headSha, signal)
     ) {
-      return true;
+      return null;
     }
     if (!topic.pendingWork) {
-      return fastForwardPublishedBranch({
+      const forwarded = await fastForwardPublishedBranch({
         worktree: topic.worktree,
         branch: binding.branch,
         headSha: pullRequest.headSha,
         signal,
       });
+      return forwarded
+        ? null
+        : failureReport(instructionReportKeys.pullRequestHeadNotFollowed);
     }
     return mergeMovedPullRequestHead({
       binding,
       worktree: topic.worktree,
       pullRequest,
       sessionKey,
+      personMessage,
       worktreeName,
       sessionIdentifier,
       signal,
@@ -738,6 +770,7 @@ export function createInstructionRunner({
     worktree,
     pullRequest,
     sessionKey,
+    personMessage,
     worktreeName,
     sessionIdentifier,
     signal,
@@ -749,8 +782,11 @@ export function createInstructionRunner({
       headSha: pullRequest.headSha,
       signal,
     });
+    const notFollowed = failureReport(
+      instructionReportKeys.pullRequestHeadNotFollowed,
+    );
     if (!fetched || previousHead === null) {
-      return false;
+      return notFollowed;
     }
     const remoteBase = (
       await runGit(
@@ -766,7 +802,7 @@ export function createInstructionRunner({
       })
     ).trim();
     if (remoteBase !== previousHead || localBase !== previousHead) {
-      return false;
+      return notFollowed;
     }
     removeAttachmentDirectory({ worktreePath: worktree.path });
     await commitAll({
@@ -780,7 +816,7 @@ export function createInstructionRunner({
       signal,
     });
     if (!merged.conflict) {
-      return true;
+      return null;
     }
     const conflictState = await topicStateOf(sessionKey, {
       continuedPullRequestNumber: binding.pullRequestNumber,
@@ -794,10 +830,17 @@ export function createInstructionRunner({
       paths: merged.paths,
       headSha: pullRequest.headSha,
       topicState: conflictState,
-      worktreePrepared: false,
+      // This turn runs before the one of the person, whose message may answer
+      // the question an earlier attempt asked.
+      personMessage,
       signal,
     });
-    return resolution.resolved;
+    if (resolution.resolved) {
+      return null;
+    }
+    return resolution.clarification === null
+      ? notFollowed
+      : { report: resolution.clarification, modelAnswer: true };
   }
 
   function noteMaintainerAttention({ request, reason }) {
@@ -1007,9 +1050,7 @@ export function createInstructionRunner({
           }
           return {
             outcome: "failed",
-            report: continuationReports.movedHead({
-              pullRequestNumber: binding.pullRequestNumber,
-            }),
+            ...failureReport(instructionReportKeys.topicWorktreeMismatch),
           };
         }
       }
@@ -1020,28 +1061,20 @@ export function createInstructionRunner({
           signal,
         });
         if (bound.report) {
-          return {
-            outcome: "failed",
-            report: bound.report,
-            reason: bound.reason,
-          };
+          return { outcome: "failed", ...bound };
         }
-        const followed = await followBoundPullRequest({
+        const notFollowed = await followBoundPullRequest({
           binding,
           topic,
           pullRequest: bound.pullRequest,
           sessionKey: request.sessionKey,
+          personMessage: request.instruction,
           worktreeName,
           sessionIdentifier: piSessionIdentifier,
           signal,
         });
-        if (!followed) {
-          return {
-            outcome: "failed",
-            report: continuationReports.movedHead({
-              pullRequestNumber: binding.pullRequestNumber,
-            }),
-          };
+        if (notFollowed !== null) {
+          return { outcome: "failed", ...notFollowed };
         }
         boundContinuation = {
           pullRequestNumber: binding.pullRequestNumber,
@@ -1435,7 +1468,9 @@ export function createInstructionRunner({
    * the service has not published. A branch that already contains `main` is left
    * untouched and reported (`up_to_date`, fail closed). Otherwise `main` is
    * integrated with a merge commit, the local gate runs and the same publisher
-   * guards update that exact pull request. It never merges.
+   * guards update that exact pull request. When nothing is published, the
+   * worktree returns to `commit`, except while a private review pins the local
+   * commit or the result is uncertain. It never merges.
    */
   async function synchronizeForMerge(
     request,
@@ -1443,14 +1478,10 @@ export function createInstructionRunner({
     { signal } = {},
   ) {
     let publicationStarted = false;
-    const failed = (report, reason) => ({
-      outcome: "failed",
-      report,
-      ...(reason === undefined ? {} : { reason }),
-    });
-    const movedHead = failed(
-      continuationReports.movedHead({ pullRequestNumber }),
-    );
+    // The worktree to bring back to `commit` when this preparation ends without
+    // a publication.
+    let unpublishedWorktree = null;
+    const failed = (failure) => ({ outcome: "failed", ...failure });
     try {
       signal?.throwIfAborted();
       const binding = topicJobs?.bindingOf(request.sessionKey) ?? null;
@@ -1459,24 +1490,55 @@ export function createInstructionRunner({
         binding.pullRequestNumber !== pullRequestNumber ||
         binding.branch !== branch
       ) {
-        return movedHead;
+        return failed(
+          failureReport(instructionReportKeys.topicBindingMismatch),
+        );
       }
       const worktreeName = identifiers.worktreeName(request.sessionKey);
       const topic = await readTopicWorktree(worktreeName, { signal });
       const bound = await readValidBoundPullRequest({ binding, topic, signal });
       if (bound.report) {
-        return failed(bound.report, bound.reason);
+        return failed(bound);
       }
-      if (
-        bound.pullRequest.headSha !== commit ||
-        topic.pendingWork ||
-        (await headCommit(topic.worktree, { signal })) !== commit
-      ) {
-        // Local work that is not part of the pull request head is never mixed
-        // into a merge preparation: the person publishes or discards it first.
-        return movedHead;
+      if (bound.pullRequest.headSha !== commit) {
+        return failed(failureReport(instructionReportKeys.reviewedHeadChanged));
       }
       const { worktree } = topic;
+      let { pendingWork } = topic;
+      const mergeHead = await mergeInProgressHead(worktree, { signal });
+      if (mergeHead !== null) {
+        // A process that stopped during a conflict turn left the merge open.
+        if (
+          !(await abortInterruptedMainMerge(worktree, {
+            commit,
+            mergeHead,
+            signal,
+          }))
+        ) {
+          return failed(
+            failureReport(instructionReportKeys.interruptedMergeNotRecovered),
+          );
+        }
+        pendingWork = false;
+      }
+      if (pendingWork) {
+        // Local work that is not part of the pull request head is never mixed
+        // into a merge preparation. The merge a restart interrupted holds none,
+        // but a private review may pin it.
+        if (
+          !(await addsOnlyMainMerges(worktree, { commit, signal })) ||
+          (await reviewedCommit?.(worktreeName)) ===
+            (await headCommit(worktree, { signal }))
+        ) {
+          return failed(
+            failureReport(instructionReportKeys.unpublishedLocalWork),
+          );
+        }
+        await restoreCommit({ worktree, commit });
+      }
+      if ((await headCommit(worktree, { signal })) !== commit) {
+        return failed(failureReport(instructionReportKeys.localHeadMismatch));
+      }
       const mainHead = await fetchMainHead({ worktree, signal });
       const mergeBase = await runGit(
         worktree,
@@ -1502,6 +1564,7 @@ export function createInstructionRunner({
         continuedPullRequestNumber: pullRequestNumber,
         signal,
       });
+      unpublishedWorktree = worktree;
       const cycle = await publishSynchronized({
         synchronization: {
           worktree,
@@ -1528,26 +1591,26 @@ export function createInstructionRunner({
         signal,
       });
       if (cycle.failure) {
-        return failed(cycle.failure.report, cycle.failure.reason);
+        return failed(cycle.failure);
       }
       const { publication, synchronized } = cycle;
       if (publication.refused) {
         if (publication.reviewId) {
+          unpublishedWorktree = null;
           return {
             outcome: "research_review_required",
             report: `El canvi no s'ha publicat. Cal una revisió privada abans del push.\nFeina: ${worktreeName}\nRevisió: ${publication.reviewId}`,
           };
         }
-        return publication.readFailed
-          ? failed(
-              instructionReports.publicationReadFailed,
-              instructionReportKeys.publicationReadFailed,
-            )
-          : failed(
-              instructionReports.publicationRefused,
-              instructionReportKeys.publicationRefused,
-            );
+        return failed(
+          failureReport(
+            publication.readFailed
+              ? instructionReportKeys.publicationReadFailed
+              : instructionReportKeys.publicationRefused,
+          ),
+        );
       }
+      unpublishedWorktree = null;
       const ciWatch = registerCiWatch?.({
         updateIdentifier: request.updateIdentifier,
         sessionKey: request.sessionKey,
@@ -1579,7 +1642,27 @@ export function createInstructionRunner({
         previewLabelFailed: publication.previewLabelFailed,
       };
     } catch (error) {
-      return failureResult(error, { signal, publicationStarted });
+      const result = failureResult(error, { signal, publicationStarted });
+      // An uncertain result or a nested repository stays for a person to see.
+      if (
+        result.outcome === "uncertain" ||
+        error instanceof NestedRepositoryError
+      ) {
+        unpublishedWorktree = null;
+      }
+      return result;
+    } finally {
+      if (unpublishedWorktree !== null) {
+        try {
+          await restoreCommit({ worktree: unpublishedWorktree, commit });
+        } catch (error) {
+          // The next merge request reports the work that stayed unpublished.
+          logger(
+            "merge_sync_restore_failed",
+            error instanceof Error ? error.name : "unknown",
+          );
+        }
+      }
     }
   }
 

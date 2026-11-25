@@ -610,6 +610,21 @@ la PR sense fusió.
   Si la persona mantenidora confirma que un push de sincronització incert es
   va publicar, la reconciliació recupera el seguiment de la preview sense
   repetir el push.
+  Si la preparació no publica res (per exemple, comprovacions fallides,
+  conflicte sense resoldre, base que no s'estabilitza o publicació refusada), el
+  worktree torna al commit fixat. No hi torna en aquella petició mentre una
+  revisió privada fixa el commit local, si hi ha un repositori niat, si falla un
+  push ja començat o si no es confirma l'aturada del sandbox o l'avortament del
+  merge. La petició següent també torna al commit fixat si només hi ha merges de
+  `main` sense publicar, el worktree és net i la revisió privada vigent no fixa
+  aquest `HEAD`. Si un reinici ha deixat obert un merge de `main` sobre el commit
+  fixat, l'avorta; si no en pot sortir amb el worktree net, envia l'avís de
+  fallada (`interruptedMergeNotRecovered`). Cada motiu que impedeix començar té la seva clau. Si
+  el cap de la PR ja no és el fixat (`reviewedHeadChanged`) o el tema té feina
+  sense publicar (`unpublishedLocalWork`), la persona rep un avís propi. Si no
+  corresponen la vinculació (`topicBindingMismatch`), la branca del worktree
+  (`topicWorktreeMismatch`), la PR (`pullRequestNotContinuable`) o el commit
+  local (`localHeadMismatch`), rep l'avís de fallada.
 - **Crida.** `PUT /repos/{repo}/pulls/{n}/merge` amb el cos exacte
   `{"sha": <commit fixat>, "merge_method": "squash"}`: GitHub rebutja el merge si
   el cap ja no és aquest SHA. El servei no envia títol, missatge ni altre mètode.
@@ -702,8 +717,10 @@ comprova el SHA baixat i actualitza la branca només amb fast-forward. Si hi ha
 feina pendent, la conserva en un commit local i integra el cap de la PR quan
 tots dos descendeixen de l'últim commit publicat. Si hi ha conflictes, utilitza
 el mateix procediment de resolució al sandbox que per a `main`. Si no pot
-verificar l'ascendència o la branca no correspon, refusa el torn i conserva la
-feina.
+verificar l'ascendència o la branca no correspon, refusa el torn, conserva la
+feina i envia l'avís de fallada (`topicWorktreeMismatch`,
+`pullRequestNotContinuable` o `pullRequestHeadNotFollowed`). Si el model deixa
+una pregunta sobre el conflicte, la persona rep la pregunta.
 
 En un torn ordinari amb feina pendent, el servei consulta
 `origin/main` abans de les comprovacions locals. Si la branca va per darrere,
@@ -719,7 +736,11 @@ Per resoldre un conflicte amb `main`, el servei avorta el primer intent i el
 torna a preparar per al model dins del sandbox. El model tracta els camins com
 a dades no fiables, prioritza la branca de treball i conserva els canvis
 compatibles de `main`. Si no pot resoldre el conflicte amb seguretat o cal
-triar contingut, pregunta a la persona. Un conflicte binari, marcadors
+triar contingut, pregunta a la persona. La pregunta es desa com a resposta del
+model. El torn de conflicte torna a preparar les dependències, excepte si hi ha
+en conflicte un `package.json` o un fitxer `pnpm-*.yaml`. La comprovació
+d'espais en blanc de la resolució només mira el que la branca afegeix respecte
+al commit que s'hi integra. Un conflicte binari, marcadors
 pendents o una resolució fallida aturen el push i preserven la feina. Si no es
 pot confirmar l'avortament, la instrucció queda incerta. El servei no reutilitza
 una aprovació privada quan canvia el commit, la base o l'estat que l'aprovació

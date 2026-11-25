@@ -221,6 +221,12 @@ export function createProjectRunner({
     prepareResearchJob: (jobId, options) =>
       researchReview.ensure(jobId, options),
     isResearchAffected: (jobId) => researchReview.isTainted(jobId),
+    reviewedCommit: async (jobId) => {
+      const { reviewId } = await researchReview.status(jobId);
+      return reviewId === null
+        ? null
+        : (await researchReview.candidate(jobId, reviewId)).commit;
+    },
     prepareAttachment,
     scaleAttachments,
     attachmentStore,
