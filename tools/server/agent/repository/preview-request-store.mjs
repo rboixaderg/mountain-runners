@@ -27,8 +27,7 @@ const schema = `
     author_identifier INTEGER NOT NULL,
     pull_request_number INTEGER NOT NULL,
     commit_sha TEXT NOT NULL,
-    state TEXT NOT NULL CHECK (state IN ('commenting', 'awaiting', 'confirmed', 'timed_out', 'failed', 'uncertain')),
-    commented_at TEXT,
+    state TEXT NOT NULL CHECK (state IN ('awaiting', 'confirmed', 'timed_out', 'failed')),
     confirmed_origin TEXT,
     notice_message_identifier INTEGER,
     merge_synchronization INTEGER NOT NULL DEFAULT 0,
@@ -37,24 +36,9 @@ const schema = `
   );
   CREATE INDEX IF NOT EXISTS preview_requests_pull_request
     ON preview_requests (session_key, pull_request_number);
-  CREATE INDEX IF NOT EXISTS preview_requests_state_commented
-    ON preview_requests (state, commented_at);
+  CREATE INDEX IF NOT EXISTS preview_requests_state
+    ON preview_requests (state);
 `;
-
-/**
- * A store created before a column was kept gets the column added. It is null for
- * every request that ended before: a confirmed request without the origin or the
- * notice identifier simply reports neither, and is never a delivered preview.
- */
-function ensureColumn(database, name, definition) {
-  const columns = database.prepare("PRAGMA table_info(preview_requests)").all();
-  if (columns.some((column) => column.name === name)) {
-    return;
-  }
-  database.exec(
-    `ALTER TABLE preview_requests ADD COLUMN ${name} ${definition}`,
-  );
-}
 
 /**
  * A Telegram message identifier a reply can point at: a positive safe integer.
@@ -92,13 +76,6 @@ export class PreviewRequestStore {
   constructor(path, { now = () => new Date() } = {}) {
     this.#database = openDatabase(path);
     this.#database.exec(schema);
-    ensureColumn(this.#database, "confirmed_origin", "TEXT");
-    ensureColumn(this.#database, "notice_message_identifier", "INTEGER");
-    ensureColumn(
-      this.#database,
-      "merge_synchronization",
-      "INTEGER NOT NULL DEFAULT 0",
-    );
     this.#now = now;
   }
 

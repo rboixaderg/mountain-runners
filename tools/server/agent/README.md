@@ -58,9 +58,6 @@ tools/server/agent/               aplicació de Mountain Runners
 │   ├── cli.mjs                   embolcall de procés: umask privat i codi de sortida
 │   ├── command.mjs               ordre d'operador, amb clients de GitHub i Telegram injectables
 │   └── uncertain-cases.mjs       fets i resolució d'una instrucció o un merge
-├── commands/migrate-identifiers/
-│   ├── cli.mjs                   migració dels noms antics, sense arrencar el servei
-│   └── command.mjs               la mateixa migració que fa l'arrencada, idempotent
 ├── commands/update/
 │   ├── cli.mjs                   embolcall de procés: umask privat i codi de sortida
 │   └── command.mjs               actualització versionada: comprovacions, còpia i verificació
@@ -74,7 +71,6 @@ tools/server/agent/               aplicació de Mountain Runners
 │   ├── ci-watch.mjs                avís de CI
 │   ├── preview-request.mjs         informe d'adreça de preview determinista i confirmació
 │   ├── merge-request.mjs           comanda `/merge` determinista i recuperació
-│   ├── topic-job-migration.mjs      vincula una PR existent quan no hi ha ambigüitat
 │   └── topic-state.mjs             estat del tema que rep cada torn, amb lectures de GitHub
 ├── runtime/
 │   ├── request-kind.mjs          interpreta la petició actual sense eines
@@ -88,7 +84,7 @@ tools/server/agent/               aplicació de Mountain Runners
 │   └── errors.mjs                aturada no confirmada que bloqueja el servei
 └── repository/
     ├── trusted-git.mjs            metadades explícites i entorn restringit
-    ├── identifiers.mjs            noms opacs de worktree, arxiu i branca
+    ├── identifiers.mjs            noms opacs de worktree i branca
     ├── worktrees.mjs              worktree, branca, commit i estat publicat
     ├── secret-scan.mjs            historial, rutes i credencials conegudes
     ├── publisher.mjs              push, PR i confirmació de l'estat publicat
@@ -153,8 +149,8 @@ al servidor. El nom local encara no representa una publicació a npm.
    la PR de la primera publicació (vegeu
    [Feina vinculada al tema](#feina-vinculada-al-tema)). Els noms del worktree,
    del fitxer i de la branca són opacs (vegeu
-   [Noms opacs i migració](#noms-opacs-i-migració)), i la retenció dels worktrees
-   arxivats és a [Sessions, admissió i recuperació](#sessions-admissió-i-recuperació).
+   [Noms opacs](#noms-opacs)), i la retenció dels worktrees
+   és a [Sessions, admissió i recuperació](#sessions-admissió-i-recuperació).
    `runtime/pi-adapter` tria
    explícitament el perfil, l'entorn, `sandbox_bash` i `view_attachment`, la
    llista d'adjunts del tema i la neteja dels processos.
@@ -301,28 +297,22 @@ torn: [Preview demanada al tema](#preview-demanada-al-tema),
   pendents fins que push i PR estiguin confirmats; només llavors registra el
   commit publicat fora del muntatge. La branca vinculada continua al tema.
 - Cada worktree instal·la la seva còpia fora de línia de `node_modules` dins del
-  volum acotat. Quan un worktree s'arxiva, el servei en retira els directoris de
-  dependències i memòria cau generats (`node_modules`, `apps/web/node_modules`,
-  `packages/telegram-pi-bridge/node_modules` i `.agent-runtime-tmp`) sense seguir
-  cap enllaç simbòlic. A l'arrencada i dins del bucle inactiu d'execució única
-  cada sis hores (mai en paral·lel amb un torn ni cap cas incert),
-  la retenció elimina els worktrees arxivats antics nets sense commits per davant
-  d'`origin/main`, conserva sempre l'arxiu més recent de cada tema i retira les
-  dependències generades de qualsevol arxiu conservat. Com que el sufix de
-  l'arxiu és opac, l'antiguitat surt de la data de naixement del directori, que
-  el reanomenament conserva i una escriptura a dins no canvia. Dins del mateix
-  bucle inactiu, revisa també els temes vinculats a `topic-jobs.sqlite`: si la PR
+  volum acotat. Dins del bucle inactiu d'execució única, després de cada
+  instrucció i cada sis hores (mai en paral·lel amb un torn ni cap cas incert),
+  la retenció revisa els temes vinculats a `topic-jobs.sqlite`: si la PR
   vinculada consta fusionada a GitHub (`state === "closed"` i `merged === true`)
   i la branca coincideix, elimina el worktree net i publicat (reconeixent els
   commits fusionats amb squash a través d'`agent-published-head`); si la PR s'ha
   tancat sense fusionar o el worktree encara té treball no publicat o sense
-  cometre, conserva el worktree i la branca i només en retira les dependències
-  generades. El treball no fusionat, no publicat o sense cometre no s'esborra
-  mai automàticament, ni tampoc el worktree d'una PR oberta. L'ordre d'operador
-  que mostra o aplica la mateixa decisió és a
+  cometre, conserva el worktree i la branca i només en retira els directoris de
+  dependències i memòria cau generats (`node_modules`, `apps/web/node_modules`,
+  `packages/telegram-pi-bridge/node_modules` i `.agent-runtime-tmp`) sense seguir
+  cap enllaç simbòlic. El treball no fusionat, no publicat o sense cometre no
+  s'esborra mai automàticament, ni tampoc el worktree d'una PR oberta. L'ordre
+  d'operador que mostra o aplica la mateixa decisió és a
   [`docs/operations/agent.md`](../../../docs/operations/agent.md#retenció).
 
-## Noms opacs i migració
+## Noms opacs
 
 Els identificadors de Telegram no arriben a cap nom públic ni a cap nom que el
 sandbox pugui llegir.
@@ -337,41 +327,13 @@ sandbox pugui llegir.
   clau de sessió (`<chat>:<tema>`). El fitxer `/work/.git`, l'etiqueta
   `mountain-agent.session` dels contenidors i `MR_AGENT_SESSION_IDENTIFIER`, que
   rep Pi, porten només aquest valor.
-- **Arxiu.** Un arxiu és `topic-<16hex>-before-<8hex>`, amb el mateix HMAC sobre
-  l'identificador d'actualització. No porta ni l'identificador ni cap ordre.
 - **Branca i PR.** El sufix públic de la branca és aquest HMAC de vuit
   caràcters: `feat/agent-change-<8hex>` o `<tipus>/<slug>-<8hex>`. És estable
   per a la mateixa actualització i canvia amb el salt.
 - **Sessió de Pi.** El fitxer de sessió conserva `topic_<chat>_<tema>` per no
   perdre l'historial, però no arriba mai al sandbox. El perfil de Pi es
   reconstrueix a `state/profiles/topic-<16hex>` a cada execució i arriba a Pi com
-  a `PI_CODING_AGENT_DIR`; els perfils antics amb el nom privat no es fan
-  servir.
-- **Migració.** Canvia tres noms, perquè `git worktree move` només reanomena el
-  directori muntat: el directori del worktree, el directori administratiu
-  `.git/worktrees/<nom>` i el fitxer `.git` que el sandbox llegeix. Conserva la
-  branca, l'índex, els canvis sense cometre i el marcador de publicació. És
-  idempotent i reprensible: si s'interromp, la propera execució acaba el que
-  falta. Un directori amb el nom antic que Git no registra no és un worktree: es
-  registra com a `worktree_migration_unregistered` i es deixa igual. Si un
-  reanomenament falla, per exemple perquè el nom opac ja existeix, el servei
-  registra `worktree_migration_failed` i no arrenca: no es perd res i no queda
-  mig volum amb un nom privat.
-- **Marcador no fiable.** El fitxer `.git` del worktree es reescriu només amb la
-  ruta del registre de confiança, en un temporal exclusiu dins del mateix
-  directori i amb un `rename` atòmic. La migració no llegeix ni repara cap `.git`
-  ni cap `gitdir` del registre que no sigui un fitxer regular amb un sol enllaç.
-  Un enllaç físic tampoc no és de confiança: `git worktree move` reescriu els dos
-  fitxers in situ i el destinatari de l'enllaç rebria l'escriptura. El temporal
-  fix `.git.agent-marker-tmp` només s'esborra si és un fitxer regular amb un sol
-  enllaç i el contingut exacte del marcador que es vol escriure; qualsevol altre
-  fitxer es conserva i la migració es refusa. Quan refusa, registra
-  `worktree_marker_untrusted` amb el nom opac, no toca res i el servei no
-  arrenca. L'ordre d'operador fa el mateix i surt amb codi 1. Ho revisa una
-  persona.
-
-L'ordre d'actualització i la comanda de migració són a
-[`docs/operations/agent.md`](../../../docs/operations/agent.md#migració-de-noms).
+  a `PI_CODING_AGENT_DIR`.
 
 ## Preview demanada al tema
 
@@ -426,10 +388,8 @@ traça privada. El publicador i la construcció de la preview són a
 - **Estats** (`state/preview-request.sqlite`): la petició es desa directament
   com a `awaiting`, en una sola escriptura i sense cap escriptura a GitHub, i
   acaba com a `confirmed`, `timed_out` o `failed` (cap adreça: la preview s'ha
-  retirat o el cap ha canviat). Les files antigues que van quedar en
-  `commenting` o `uncertain` conserven el seu estat: el servei no les llegeix
-  ni les bloqueja. Una actualització de Telegram només es tramita una
-  vegada. Es refusa una petició nova pel mateix PR i commit mentre n'hi hagi una
+  retirat o el cap ha canviat). Una actualització de Telegram només es tramita
+  una vegada. Es refusa una petició nova pel mateix PR i commit mentre n'hi hagi una
   en `awaiting`, també el seguiment d'una publicació; es permet quan l'anterior
   ha acabat.
 - **Retirada abans d'informar.** A cada cicle, el servei llegeix els comentaris
@@ -461,9 +421,7 @@ traça privada. El publicador i la construcció de la preview són a
   llegit: el resultat d'un cap anterior no tanca una fila reoberta per a un de
   nou.
 - **Reinicis.** Una petició en `awaiting` reprèn la lectura de comentaris amb el
-  termini original. Abans d'instal·lar aquesta versió, la persona operadora
-  comprova amb l'ordre de reconciliació de la versió anterior que no queda cap
-  petició de preview incerta; si n'hi ha, la reconcilia primer.
+  termini original.
 - **Traça privada.** `preview_requested`, `preview_membership_verified`,
   `preview_refused` (amb el motiu), `preview_awaiting` (petició desada),
   `preview_confirmed`, `preview_unconfirmed` i `preview_withdrawn`, amb la PR,
@@ -579,9 +537,8 @@ la PR sense fusió.
   posterior sense avís confirmat, no es pot recuperar el vincle anterior. Un
   avís de CI no fixa cap SHA per al merge. El número i el SHA opcionals de la
   comanda han de coincidir amb el vincle. Una petició manual de preview no
-  substitueix l'avís de la publicació. Els avisos anteriors a la migració no
-  tenen identificador: només un avís nou associat a una publicació pot fixar el
-  merge.
+  substitueix l'avís de la publicació. Un avís desat sense identificador no pot
+  fixar el merge.
 - **Si no es pot resoldre, no fusiona.** No hi ha cap avís de preview vigent;
   el número o el SHA no coincideixen amb l'avís; o el tema té feina més
   nova (una altra instrucció pendent o en curs o un seguiment de CI encara sense
@@ -724,10 +681,8 @@ El servei no reprèn PR d'un altre tema ni genera avisos de solapament: el codi
 que ho feia s'ha eliminat.
 
 La primera publicació confirmada desa la branca i la PR a
-`state/topic-jobs.sqlite`. Per a un tema existent sense vinculació, el servei
-consulta les publicacions registrades i l'estat de GitHub. Si hi ha una sola PR
-oberta del servei, la vincula. Si n'hi ha diverses o no es poden llegir, atura
-el torn i demana la revisió de la persona mantenidora, sense triar cap feina.
+`state/topic-jobs.sqlite`. Només aquesta vinculació diu quina feina continua el
+tema.
 
 Abans de cada torn ordinari d'un tema vinculat, el servei llegeix la PR a
 GitHub. Si és fusionada o tancada, respon «Aquesta feina ja està acabada. Obre un
@@ -998,8 +953,7 @@ persona sense identificadors de commit ni noms de comprovació. Cada fet del blo
 és d'aquella PR: una fila d'una altra PR del mateix tema no s'hi fa servir.
 `preview-request.sqlite` desa l'URL confirmada a `confirmed_origin` i
 l'identificador de l'avís lliurat a `notice_message_identifier` en acabar la
-petició. L'arrencada afegeix les columnes que faltin en una base anterior,
-sense inventar identificadors per als avisos antics.
+petició.
 
 La petició explícita de preview torna a comprovar la PR, no les comprovacions
 del cap: la preview s'activa amb l'etiqueta i el `build` executa `pnpm validate`.

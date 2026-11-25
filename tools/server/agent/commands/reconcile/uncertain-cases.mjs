@@ -28,7 +28,6 @@ import {
   currentBranch,
   findSessionWorktree,
   headCommit,
-  listLegacyIdentifierNames,
   publishedCommit,
   recordPublication,
 } from "../../repository/worktrees.mjs";
@@ -76,33 +75,13 @@ function messageOf(error) {
   return error instanceof Error ? error.message : "unknown error";
 }
 
-// An instruction that is uncertain belongs to a worktree. The command cannot
-// attribute it before the installation has its salt and every worktree has an
-// opaque name, and it never creates the salt or migrates by itself: the
-// operator decides when the migration runs.
-const migrationRequired =
-  "The identifier migration has not run. Execute the migrate-identifiers command before listing or resolving an instruction case.";
-
-/**
- * The naming source of this installation for an instruction case. A missing
- * salt or a worktree that still carries a private name stops the case instead
- * of closing a publication that could not be marked.
- */
+// An instruction case is attributed to its worktree with the installation salt.
+// The command only reads it: a missing salt stops the case instead of closing a
+// publication that could not be marked.
 function instructionIdentifiers(config) {
-  let salt;
-  try {
-    salt = readIdentifierSalt(config.paths.state);
-  } catch {
-    throw new ReconcileCaseError(migrationRequired);
-  }
-  const legacyNames = listLegacyIdentifierNames({
-    repositoryPath: config.paths.repository,
-    worktreeRoot: config.paths.worktrees,
+  return createIdentifierNames({
+    salt: readIdentifierSalt(config.paths.state),
   });
-  if (legacyNames.length > 0) {
-    throw new ReconcileCaseError(migrationRequired);
-  }
-  return createIdentifierNames({ salt });
 }
 
 /** The facts of an interrupted instruction: its worktree and its open PR. */

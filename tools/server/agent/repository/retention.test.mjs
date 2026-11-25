@@ -4,7 +4,6 @@ import {
   existsSync,
   mkdirSync,
   mkdtempSync,
-  realpathSync,
   rmSync,
   symlinkSync,
   writeFileSync,
@@ -19,10 +18,7 @@ import {
   recordPublication,
   stripWorktreeDependencies,
 } from "./worktrees.mjs";
-import {
-  pruneArchivedWorktrees,
-  pruneFinishedTopicWorktrees,
-} from "./retention.mjs";
+import { pruneFinishedTopicWorktrees } from "./retention.mjs";
 import { createIdentifierNames } from "./identifiers.mjs";
 import { registeredWorktree, runGit } from "./trusted-git.mjs";
 import { createNestedRepository } from "./test-support/nested-repository.mjs";
@@ -72,239 +68,6 @@ async function repositoryFixture(context) {
   return { directory, repository, worktreeRoot };
 }
 
-function archivePath(paths, updateIdentifier) {
-  return join(
-    realpathSync(paths.worktreeRoot),
-    identifiers.archiveName(topic, updateIdentifier),
-  );
-}
-
-function newTask(paths, updateIdentifier) {
-  return ensureSessionWorktree({
-    repositoryPath: paths.repository,
-    worktreeRoot: paths.worktreeRoot,
-    name: topic,
-    newTaskSuffix: identifiers.changeSuffix(updateIdentifier),
-  });
-}
-
-test("removes an older empty archive and keeps the newest one per topic", async (context) => {
-  const paths = await repositoryFixture(context);
-  await ensureSessionWorktree({
-    repositoryPath: paths.repository,
-    worktreeRoot: paths.worktreeRoot,
-    name: topic,
-  });
-  const active = await newTask(paths, 100);
-  await newTask(paths, 200);
-  await newTask(paths, 300);
-
-  const report = await pruneArchivedWorktrees({
-    repositoryPath: paths.repository,
-    worktreeRoot: paths.worktreeRoot,
-  });
-
-  assert.deepEqual(
-    report.removed.map((entry) => entry.path).sort(),
-    [archivePath(paths, 100), archivePath(paths, 200)].sort(),
-  );
-  assert.equal(existsSync(archivePath(paths, 100)), false);
-  assert.equal(existsSync(archivePath(paths, 200)), false);
-  assert.equal(existsSync(archivePath(paths, 300)), true);
-  assert.equal(existsSync(active.path), true);
-  assert.deepEqual(
-    report.kept.map((entry) => entry.reason),
-    ["newest_archive"],
-  );
-});
-
-test("keeps an archive with unpublished commits or uncommitted changes", async (context) => {
-  const paths = await repositoryFixture(context);
-  await ensureSessionWorktree({
-    repositoryPath: paths.repository,
-    worktreeRoot: paths.worktreeRoot,
-    name: topic,
-  });
-  await newTask(paths, 100);
-  await newTask(paths, 200);
-  const active = await newTask(paths, 300);
-
-  await git(archivePath(paths, 100), [
-    "commit",
-    "--allow-empty",
-    "-m",
-    "feat: local",
-  ]);
-  writeFileSync(join(archivePath(paths, 200), "draft.txt"), "unpublished\n");
-
-  const report = await pruneArchivedWorktrees({
-    repositoryPath: paths.repository,
-    worktreeRoot: paths.worktreeRoot,
-  });
-
-  assert.deepEqual(report.removed, []);
-  assert.equal(existsSync(archivePath(paths, 100)), true);
-  assert.equal(existsSync(archivePath(paths, 200)), true);
-  assert.deepEqual(
-    report.kept
-      .map((entry) => entry.reason)
-      .sort((first, second) => first.localeCompare(second)),
-    ["newest_archive", "uncommitted_changes", "unpublished_commits"],
-  );
-  assert.ok(existsSync(archivePath(paths, 300)));
-  assert.ok(existsSync(active.path));
-});
-
-test("never enters a nested repository that an archive records", async (context) => {
-  const paths = await repositoryFixture(context);
-  await ensureSessionWorktree({
-    repositoryPath: paths.repository,
-    worktreeRoot: paths.worktreeRoot,
-    name: topic,
-  });
-  await newTask(paths, 100);
-  await newTask(paths, 200);
-  const archive = registeredWorktree(paths.repository, archivePath(paths, 100));
-  const marker = join(paths.directory, "filter-ran");
-  await createNestedRepository(archive.path, marker);
-  await runGit(archive, ["add", "--all"]);
-  await runGit(archive, [
-    "-c",
-    "user.name=Synthetic",
-    "-c",
-    "user.email=synthetic@example.test",
-    "commit",
-    "--quiet",
-    "-m",
-    "test: record a gitlink",
-  ]);
-
-  const report = await pruneArchivedWorktrees({
-    repositoryPath: paths.repository,
-    worktreeRoot: paths.worktreeRoot,
-  });
-
-  assert.deepEqual(
-    report.kept.find((entry) => entry.path === archive.path),
-    { path: archive.path, reason: "unpublished_commits" },
-  );
-  assert.equal(existsSync(marker), false);
-  await runGit(archive, ["status", "--porcelain"]);
-  assert.equal(existsSync(marker), true);
-});
-
-test("never removes the active worktree and honours a dry run", async (context) => {
-  const paths = await repositoryFixture(context);
-  await ensureSessionWorktree({
-    repositoryPath: paths.repository,
-    worktreeRoot: paths.worktreeRoot,
-    name: topic,
-  });
-  const active = await newTask(paths, 100);
-  await newTask(paths, 200);
-  await newTask(paths, 300);
-
-  const planned = await pruneArchivedWorktrees({
-    repositoryPath: paths.repository,
-    worktreeRoot: paths.worktreeRoot,
-    dryRun: true,
-  });
-
-  assert.deepEqual(
-    planned.removed.map((entry) => entry.path).sort(),
-    [archivePath(paths, 100), archivePath(paths, 200)].sort(),
-  );
-  assert.equal(
-    existsSync(archivePath(paths, 100)),
-    true,
-    "a dry run reports the plan without removing anything",
-  );
-  assert.equal(existsSync(archivePath(paths, 300)), true);
-  assert.equal(existsSync(active.path), true);
-});
-
-test("keeps the most recently archived worktree of a topic, not the biggest suffix", async (context) => {
-  const paths = await repositoryFixture(context);
-  await ensureSessionWorktree({
-    repositoryPath: paths.repository,
-    worktreeRoot: paths.worktreeRoot,
-    name: topic,
-  });
-  // The suffixes are opaque HMAC values: creation order and suffix order do not
-  // match, so the newest archive can only be recognised by the directory.
-  await newTask(paths, 300);
-  await newTask(paths, 200);
-  const newest = await newTask(paths, 100);
-
-  const report = await pruneArchivedWorktrees({
-    repositoryPath: paths.repository,
-    worktreeRoot: paths.worktreeRoot,
-  });
-
-  assert.deepEqual(
-    report.removed.map((entry) => entry.path).sort(),
-    [archivePath(paths, 200), archivePath(paths, 300)].sort(),
-  );
-  assert.deepEqual(
-    report.kept.map((entry) => entry.path),
-    [archivePath(paths, 100)],
-  );
-  assert.equal(existsSync(archivePath(paths, 100)), true);
-  assert.equal(existsSync(newest.path), true);
-});
-
-test("returns an empty report when the worktree root does not exist", async (context) => {
-  const paths = await repositoryFixture(context);
-
-  const report = await pruneArchivedWorktrees({
-    repositoryPath: paths.repository,
-    worktreeRoot: join(paths.worktreeRoot, "missing"),
-  });
-
-  assert.deepEqual(report, { removed: [], kept: [], cleaned: [] });
-});
-
-test("keeps pruning after a damaged archive", async (context) => {
-  const paths = await repositoryFixture(context);
-  await ensureSessionWorktree({
-    repositoryPath: paths.repository,
-    worktreeRoot: paths.worktreeRoot,
-    name: topic,
-  });
-  await newTask(paths, 100);
-  await newTask(paths, 200);
-  await newTask(paths, 300);
-  // The archive birth time, not the opaque suffix, decides which one is newest.
-  const planned = await pruneArchivedWorktrees({
-    repositoryPath: paths.repository,
-    worktreeRoot: paths.worktreeRoot,
-    dryRun: true,
-  });
-  const [damaged, prunable] = planned.removed.map((entry) => entry.path).sort();
-  writeFileSync(join(damaged, ".git"), "damaged\n");
-
-  const report = await pruneArchivedWorktrees({
-    repositoryPath: paths.repository,
-    worktreeRoot: paths.worktreeRoot,
-    logger: () => {},
-  });
-
-  assert.deepEqual(
-    report.removed.map((entry) => entry.path),
-    [prunable],
-  );
-  assert.deepEqual(
-    report.kept.filter((entry) => entry.reason === "inspection_failed"),
-    [{ path: damaged, reason: "inspection_failed" }],
-  );
-  assert.equal(
-    existsSync(damaged),
-    true,
-    "the damaged archive is kept for a person",
-  );
-  assert.equal(existsSync(prunable), false);
-});
-
 function populateGeneratedDependencies(worktreePath) {
   for (const relativePath of [
     "node_modules/.pnpm",
@@ -319,56 +82,6 @@ function populateGeneratedDependencies(worktreePath) {
     );
   }
 }
-
-test("strips generated dependencies on archive creation and on kept archives", async (context) => {
-  const paths = await repositoryFixture(context);
-  const first = await ensureSessionWorktree({
-    repositoryPath: paths.repository,
-    worktreeRoot: paths.worktreeRoot,
-    name: topic,
-  });
-  populateGeneratedDependencies(first.path);
-
-  await newTask(paths, 100);
-  const archived = archivePath(paths, 100);
-  assert.equal(existsSync(join(archived, "node_modules")), false);
-  assert.equal(existsSync(join(archived, "apps/web/node_modules")), false);
-  assert.equal(
-    existsSync(join(archived, "packages/telegram-pi-bridge/node_modules")),
-    false,
-  );
-  assert.equal(existsSync(join(archived, ".agent-runtime-tmp")), false);
-  assert.equal(existsSync(join(archived, "README.md")), true);
-
-  // Re-populate dependencies on the kept newest archive to exercise retention.
-  populateGeneratedDependencies(archived);
-  const planned = await pruneArchivedWorktrees({
-    repositoryPath: paths.repository,
-    worktreeRoot: paths.worktreeRoot,
-    dryRun: true,
-  });
-  assert.equal(planned.cleaned.length, 1);
-  assert.equal(existsSync(join(archived, "node_modules")), true);
-
-  const applied = await pruneArchivedWorktrees({
-    repositoryPath: paths.repository,
-    worktreeRoot: paths.worktreeRoot,
-  });
-  assert.deepEqual(applied.cleaned, [
-    {
-      path: archived,
-      directories: [
-        "node_modules",
-        "apps/web/node_modules",
-        "packages/telegram-pi-bridge/node_modules",
-        ".agent-runtime-tmp",
-      ],
-    },
-  ]);
-  assert.equal(existsSync(join(archived, "node_modules")), false);
-  assert.equal(existsSync(join(archived, ".agent-runtime-tmp")), false);
-  assert.equal(existsSync(join(archived, "README.md")), true);
-});
 
 test("never follows symlinks when stripping generated dependencies", async (context) => {
   const paths = await repositoryFixture(context);
@@ -394,44 +107,69 @@ test("never follows symlinks when stripping generated dependencies", async (cont
   assert.equal(existsSync(join(outside, "node_modules", "secret.txt")), true);
 });
 
-test("keeps an older archived worktree ahead of origin/main even when published and strips its dependencies", async (context) => {
+/** The worktree of a topic whose merged pull request holds a published commit. */
+async function mergedTopic(context) {
   const paths = await repositoryFixture(context);
-  const first = await ensureSessionWorktree({
+  const sessionKey = "-100123:8";
+  const branch = "fix/merged-topic-0008";
+  const worktree = await ensureSessionWorktree({
     repositoryPath: paths.repository,
     worktreeRoot: paths.worktreeRoot,
-    name: topic,
+    name: identifiers.worktreeName(sessionKey),
   });
-  await createBranch({
-    worktree: first,
-    branch: "fix/published-archive-0001",
-  });
-  await git(first.path, ["commit", "--allow-empty", "-m", "fix: published"]);
-  const publishedHead = await git(first.path, ["rev-parse", "HEAD"]);
-  recordPublication(first, publishedHead);
+  await createBranch({ worktree, branch });
+  const prune = () =>
+    pruneFinishedTopicWorktrees({
+      repositoryPath: paths.repository,
+      worktreeRoot: paths.worktreeRoot,
+      bindings: [{ sessionKey, branch, pullRequestNumber: 301 }],
+      worktreeNameForSession: (key) => identifiers.worktreeName(key),
+      readPullRequest: async () => ({
+        state: "closed",
+        merged: true,
+        headRef: branch,
+      }),
+    });
+  return { ...paths, worktree, prune };
+}
 
-  await newTask(paths, 100);
-  await newTask(paths, 200);
-  populateGeneratedDependencies(archivePath(paths, 100));
+test("never enters a nested repository that a finished topic records", async (context) => {
+  const { directory, worktree, prune } = await mergedTopic(context);
+  const marker = join(directory, "filter-ran");
+  await createNestedRepository(worktree.path, marker);
+  await runGit(worktree, ["add", "--all"]);
+  await runGit(worktree, [
+    "-c",
+    "user.name=Synthetic",
+    "-c",
+    "user.email=synthetic@example.test",
+    "commit",
+    "--quiet",
+    "-m",
+    "test: record a gitlink",
+  ]);
 
-  const report = await pruneArchivedWorktrees({
-    repositoryPath: paths.repository,
-    worktreeRoot: paths.worktreeRoot,
-  });
+  const report = await prune();
+
+  assert.deepEqual(report.kept, [
+    { path: worktree.path, reason: "unpublished_commits" },
+  ]);
+  assert.equal(existsSync(marker), false);
+  await runGit(worktree, ["status", "--porcelain"]);
+  assert.equal(existsSync(marker), true);
+});
+
+test("keeps a damaged finished topic worktree for a person", async (context) => {
+  const { worktree, prune } = await mergedTopic(context);
+  writeFileSync(join(worktree.path, ".git"), "damaged\n");
+
+  const report = await prune();
 
   assert.deepEqual(report.removed, []);
-  assert.equal(existsSync(archivePath(paths, 100)), true);
-  assert.equal(
-    existsSync(join(archivePath(paths, 100), "node_modules")),
-    false,
-  );
-  assert.deepEqual(
-    report.kept
-      .map((entry) => entry.reason)
-      .sort((firstReason, secondReason) =>
-        firstReason.localeCompare(secondReason),
-      ),
-    ["newest_archive", "unpublished_commits"],
-  );
+  assert.deepEqual(report.kept, [
+    { path: worktree.path, reason: "inspection_failed" },
+  ]);
+  assert.equal(existsSync(worktree.path), true);
 });
 
 test("prunes clean published worktrees of merged pull requests and strips closed-unmerged or dirty ones", async (context) => {

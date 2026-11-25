@@ -1,13 +1,12 @@
 // Worktree retention for the private agent.
 //
 // Each worktree installs its own offline copy of `node_modules` inside the
-// bounded volume. Archived worktrees (`<opaque name>-before-<opaque suffix>`)
-// that have nothing left to lose are removed, while kept archives and finished
-// topics (whose bound pull request is closed) have their generated dependency
-// directories stripped or are removed once all changes are published.
+// bounded volume. Finished topics (whose bound pull request is closed) have
+// their generated dependency directories stripped, or their worktree removed
+// once the pull request is merged and all changes are published.
 
-import { existsSync, realpathSync, statSync } from "node:fs";
-import { basename, join } from "node:path";
+import { existsSync, realpathSync } from "node:fs";
+import { join } from "node:path";
 import { createAttachmentStore } from "../attachments/store.mjs";
 import {
   ignoreSubmodules,
@@ -17,19 +16,7 @@ import {
 } from "./trusted-git.mjs";
 import { publishedCommit, stripWorktreeDependencies } from "./worktrees.mjs";
 
-// Both parts are opaque: the suffix is an HMAC of the update identifier, so it
-// carries no order. Archives of one topic are ordered by their birth time
-// instead: `git worktree move` renames the directory, which keeps it, while
-// writing inside the archive does not change it.
-const archivedPattern = /^(topic-[0-9a-f]{16})-before-[0-9a-f]{8}$/u;
 const protectedBranches = new Set(["main", "master"]);
-
-function archivedAt(path) {
-  const status = statSync(path);
-  // A filesystem without birth time reports zero; the inode change time still
-  // moves with the rename and keeps the choice deterministic.
-  return status.birthtimeMs > 0 ? status.birthtimeMs : status.ctimeMs;
-}
 
 async function worktreePaths(repository, { signal } = {}) {
   const output = await runGit(repository, ["worktree", "list", "--porcelain"], {
@@ -39,55 +26,6 @@ async function worktreePaths(repository, { signal } = {}) {
     .split("\n")
     .filter((line) => line.startsWith("worktree "))
     .map((line) => line.slice("worktree ".length));
-}
-
-function archivedCandidates(paths, worktreeRoot) {
-  if (!existsSync(worktreeRoot)) {
-    return [];
-  }
-  const root = realpathSync(worktreeRoot);
-  const candidates = [];
-  for (const path of paths) {
-    // Git keeps a worktree registered after its directory disappeared. It is
-    // not a candidate: there is nothing to measure or to remove.
-    if (!existsSync(path)) {
-      continue;
-    }
-    const resolvedPath = realpathSync(path);
-    if (!resolvedPath.startsWith(`${root}/`)) {
-      continue;
-    }
-    const match = archivedPattern.exec(basename(resolvedPath));
-    if (!match) {
-      continue;
-    }
-    candidates.push({
-      topic: match[1],
-      archivedAt: archivedAt(resolvedPath),
-      path: resolvedPath,
-    });
-  }
-  return candidates;
-}
-
-function isNewer(candidate, current) {
-  if (candidate.archivedAt !== current.archivedAt) {
-    return candidate.archivedAt > current.archivedAt;
-  }
-  // Equal timestamps keep the choice stable instead of depending on the order
-  // Git listed the worktrees.
-  return candidate.path > current.path;
-}
-
-function newestByTopic(candidates) {
-  const newest = new Map();
-  for (const candidate of candidates) {
-    const current = newest.get(candidate.topic);
-    if (current === undefined || isNewer(candidate, current)) {
-      newest.set(candidate.topic, candidate);
-    }
-  }
-  return newest;
 }
 
 async function inspectWorktreeState(worktree, { signal } = {}) {
@@ -118,8 +56,6 @@ async function inspectWorktreeState(worktree, { signal } = {}) {
     })
   ).trim();
   return {
-    head,
-    aheadOfMain,
     hasUnpublishedCommits,
     hasUncommittedChanges,
     branch,
@@ -165,87 +101,6 @@ export function pruneStoredAttachments({ statePath, logger = () => {} }) {
   return createAttachmentStore({ stateDirectory: statePath }).prune({
     logger,
   });
-}
-
-export async function pruneArchivedWorktrees({
-  repositoryPath,
-  worktreeRoot,
-  dryRun = false,
-  signal,
-  logger = () => {},
-}) {
-  const repository = primaryRepository(repositoryPath);
-  const candidates = archivedCandidates(
-    await worktreePaths(repository, { signal }),
-    worktreeRoot,
-  );
-  const newest = newestByTopic(candidates);
-  const removed = [];
-  const kept = [];
-  const cleaned = [];
-
-  for (const candidate of candidates) {
-    if (newest.get(candidate.topic) === candidate) {
-      cleanDependencies(candidate.path, cleaned, { dryRun, logger });
-      kept.push({ path: candidate.path, reason: "newest_archive" });
-      continue;
-    }
-
-    let worktree;
-    try {
-      worktree = registeredWorktree(repositoryPath, candidate.path);
-    } catch {
-      kept.push({ path: candidate.path, reason: "unregistered_worktree" });
-      continue;
-    }
-
-    let state;
-    try {
-      state = await inspectWorktreeState(worktree, { signal });
-    } catch {
-      signal?.throwIfAborted();
-      // One damaged archive must not stop the retention of the rest.
-      logger("worktree_inspection_failed", candidate.path);
-      kept.push({ path: candidate.path, reason: "inspection_failed" });
-      continue;
-    }
-
-    // ADR 0013: never automatically remove an archive whose commits are not in
-    // origin/main; strip its generated dependencies instead.
-    if (state.aheadOfMain) {
-      cleanDependencies(candidate.path, cleaned, { dryRun, logger });
-      kept.push({ path: candidate.path, reason: "unpublished_commits" });
-      continue;
-    }
-    if (state.hasUncommittedChanges) {
-      cleanDependencies(candidate.path, cleaned, { dryRun, logger });
-      kept.push({ path: candidate.path, reason: "uncommitted_changes" });
-      continue;
-    }
-
-    if (!dryRun) {
-      try {
-        await removeWorktreeAndBranch(
-          repository,
-          candidate.path,
-          state.branch,
-          {
-            signal,
-          },
-        );
-      } catch {
-        signal?.throwIfAborted();
-        logger("worktree_removal_failed", candidate.path);
-        cleanDependencies(candidate.path, cleaned, { dryRun, logger });
-        kept.push({ path: candidate.path, reason: "removal_failed" });
-        continue;
-      }
-      logger("worktree_pruned", candidate.path);
-    }
-    removed.push({ path: candidate.path, branch: state.branch });
-  }
-
-  return { removed, kept, cleaned };
 }
 
 /**

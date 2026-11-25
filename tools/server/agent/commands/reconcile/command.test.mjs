@@ -26,7 +26,6 @@ function serviceFixture(context) {
   );
   const statePath = join(directory, "state");
   mkdirSync(statePath);
-  // The installation already ran the identifier migration.
   openIdentifierNames(statePath);
   return {
     statePath,

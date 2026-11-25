@@ -512,8 +512,7 @@ només n'afirma la construcció: l'ordre no construeix mai res.
 pm images --digests
 ```
 
-**Després.** L'ordre no arrenca el servei. Si encara no ha corregut, executa la
-[migració de noms](#migració-de-noms) abans d'arrencar.
+**Després.** L'ordre no arrenca el servei.
 
 ```sh
 sudo systemctl start mountain-agent
@@ -583,28 +582,6 @@ ls -ld /usr/local/lib/mountain-runners/agent* \
   si ja no hi és, `agent-previous` és la còpia.
 - `agent.new` i `telegram-pi-bridge.new` són un intent a mitges: esborra'ls quan
   la instal·lació bona ja és al lloc.
-
-### Migració de noms
-
-L'ordre d'actualització és actualitzar el codi, executar la migració com a pas
-d'operador, reconciliar els casos que bloquegen l'arrencada i arrencar el
-servei. La migració no necessita el servei en marxa:
-
-- Executa-la amb la identitat del servei:
-
-  ```sh
-  systemd-run --pipe --wait --uid=mountain-agent --gid=mountain-agent \
-    -p EnvironmentFile=/etc/mountain-runners-agent/agent.env -p UMask=0077 \
-    /usr/bin/node /usr/local/lib/mountain-runners/agent/commands/migrate-identifiers/cli.mjs
-  ```
-
-Des del repositori, el mateix programa és
-`node tools/server/agent/commands/migrate-identifiers/cli.mjs`. La
-reconciliació no crea el salt ni migra res: si el salt no existeix o queda
-cap worktree amb un nom antic, `list` i `resolve` d'una instrucció fallen amb
-codi 1 i demanen executar la migració abans. Els casos de merge no en depenen. Si encara no s'ha instal·lat la versió que retira les
-peticions `/preview`, comprova abans la precondició de
-[Reinicis](../../tools/server/agent/README.md#preview-demanada-al-tema).
 
 ### Rotació de credencials
 
@@ -694,7 +671,7 @@ efecte.
 Els worktrees segueixen la política de retenció descrita a
 [`tools/server/agent/README.md`](../../tools/server/agent/README.md#sessions-admissió-i-recuperació),
 que conserva sempre el treball no fusionat, no publicat o sense cometre i
-allibera les dependències generades dels arxius i dels temes tancats. La comanda
+allibera les dependències generades dels temes tancats. La comanda
 `node storage/prune-worktrees.mjs --dry-run`, executada com la identitat del
 servei amb `EnvironmentFile=/etc/mountain-runners-agent/agent.env`, mostra la
 mateixa decisió sense escriure ni esborrar res; per aplicar-la sense
@@ -788,14 +765,6 @@ refusa arrencar mentre quedi cap instrucció incerta; un merge incert no bloquej
 l'arrencada. També és incerta una continuació que, després del push, no troba la
 seva PR o en troba una amb un altre número. La decisió és d'una persona: l'ordre
 no repeteix l'acció, no fa push, no comenta i no fusiona res.
-
-Després d'una actualització amb worktrees antics, executa abans la migració
-d'identificadors (vegeu «Noms opacs i migració» a
-[`tools/server/agent/README.md`](../../tools/server/agent/README.md#noms-opacs-i-migració)).
-Una instrucció incerta no es
-pot atribuir al seu worktree fins que la migració ha acabat, així que `list` i
-`resolve` la refusen amb codi 1 en lloc de tancar una publicació sense marcar el
-commit confirmat.
 
 **Precondició.** Atura el servei abans de fer res:
 
@@ -1096,9 +1065,6 @@ de la persona mantenidora consta a l'especificació.
      `PREVIEW_*`, el DNS i l'estat de la preview, i atura el servei mentre no es
      confirmi.
 5. **Merge.**
-   - Si s'ha migrat el registre d'avisos de preview, comprova
-     [quins avisos poden fixar el merge](../../tools/server/agent/README.md#merge-demanat-al-tema)
-     abans de fer les proves.
    - Fer: amb Telegram i GitHub simulats (`pnpm test:server`), respon a l'avís
      vigent amb «La feina està validada» i comprova que només arriba la pregunta
      fixa, sense torn de model ni avís de recepció. Respon «Sí, a producció» (i

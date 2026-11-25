@@ -48,7 +48,7 @@ function runCli(argumentsList, environment = { PATH: process.env.PATH }) {
   });
 }
 
-// The installation already ran the identifier migration: the instruction case
+// The installation has its salt: the instruction case
 // can be attributed and the command does not need to create the salt.
 function createInstallationIdentity(state) {
   openIdentifierNames(state);

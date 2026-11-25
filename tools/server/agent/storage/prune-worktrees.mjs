@@ -1,4 +1,4 @@
-// Operator command: report or apply archived and finished worktree retention.
+// Operator command: report or apply finished worktree retention.
 //
 // Usage, as the service identity with mountain-agent.service stopped (for
 // non-dry-run):
@@ -7,8 +7,7 @@
 //
 // The dry run prints the same decision the service would take without writing
 // state or removing anything. A worktree with unmerged or unpublished work is
-// never removed, and the newest archive of each topic is always preserved;
-// generated dependency directories are stripped from kept archives and closed
+// never removed; generated dependency directories are stripped from closed
 // topics.
 
 import { spawnSync } from "node:child_process";
@@ -27,14 +26,11 @@ import {
   defaultRequestTimeoutMilliseconds,
   requestSignal,
 } from "../repository/request-signal.mjs";
-import {
-  pruneArchivedWorktrees,
-  pruneFinishedTopicWorktrees,
-} from "../repository/retention.mjs";
+import { pruneFinishedTopicWorktrees } from "../repository/retention.mjs";
 
 const usage = `Usage: node storage/prune-worktrees.mjs [--dry-run]
 
-Report or apply archived and finished worktree retention. Stop
+Report or apply finished worktree retention. Stop
 mountain-agent.service before running without --dry-run.
 `;
 
@@ -135,14 +131,6 @@ async function main() {
   process.once("SIGTERM", stop);
 
   try {
-    const archived = await pruneArchivedWorktrees({
-      repositoryPath: config.paths.repository,
-      worktreeRoot: config.paths.worktrees,
-      dryRun,
-      signal: controller.signal,
-    });
-    reportSection(archived, { dryRun });
-
     let finished = { removed: [], kept: [], cleaned: [] };
     const topicJobsPath = join(config.paths.state, "topic-jobs.sqlite");
     if (
@@ -176,11 +164,8 @@ async function main() {
       reportSection(finished, { dryRun });
     }
 
-    const removedCount = archived.removed.length + finished.removed.length;
-    const cleanedCount = archived.cleaned.length + finished.cleaned.length;
-    const keptCount = archived.kept.length + finished.kept.length;
     console.log(
-      `${dryRun ? "planned" : "applied"}: ${removedCount} removed, ${cleanedCount} cleaned, ${keptCount} kept`,
+      `${dryRun ? "planned" : "applied"}: ${finished.removed.length} removed, ${finished.cleaned.length} cleaned, ${finished.kept.length} kept`,
     );
     return 0;
   } finally {
