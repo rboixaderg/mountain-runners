@@ -904,9 +904,9 @@ comprovació ni copiïs adreces privades a la PR.
 
 La cerca no està activa si `MOUNTAIN_AGENT_BRAVE_SEARCH_TOKEN` no està configurat.
 No l'incloguis a les variables del proveïdor de Pi. Un cop superades les
-comprovacions i autoritzada l'activació, configura també les exclusions de noms
-i xarxes, i `MOUNTAIN_AGENT_WEB_DNS_RECIPIENT` amb el nom del resolutor que es
-mostrarà als membres. Les variables de consultes i URL públiques de
+comprovacions i autoritzada l'activació per la persona mantenidora, configura
+també les exclusions de noms i xarxes, i `MOUNTAIN_AGENT_WEB_DNS_RECIPIENT` amb el
+nom del resolutor que es mostrarà als membres. Les variables de consultes i URL públiques de
 [`.env.example`](../../.env.example) són llistes JSON de valors exactes revisats.
 Si una llista queda buida, cada petició d'aquell tipus demana confirmació.
 

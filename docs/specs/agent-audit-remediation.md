@@ -100,7 +100,7 @@ Cada tasca té la seva PR, tret que la columna `Entrega` indiqui el contrari.
 | T4    | Pendent    | -             | La versió de Pi està fixada i verificada                                 | PR 4    | -                                                               |
 | T5    | Pendent    | T4            | El límit per línia del RPC no falla amb imatges permeses                 | PR 5    | -                                                               |
 | T6    | Pendent    | -             | El títol i el cos de la PR estan acotats                                 | PR 6    | -                                                               |
-| T7    | Pendent    | -             | L'acceptació de l'esmena de recerca web queda registrada                 | PR 7    | -                                                               |
+| T7    | Completada | -             | L'acceptació de l'esmena de recerca web queda registrada                 | PR 7    | [#320](https://github.com/rboixaderg/mountain-runners/pull/320) |
 | T8    | Pendent    | -             | Torns nous, de només lectura i identificadors privats correctes          | PR 8    | -                                                               |
 | T9    | Completada | -             | Un error del proveïdor acaba el torn com a fallada                       | PR 9    | [#319](https://github.com/rboixaderg/mountain-runners/pull/319) |
 | T10   | Pendent    | -             | Feina local i conflictes de la branca sense bucles                       | PR 10   | -                                                               |
