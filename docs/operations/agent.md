@@ -91,7 +91,7 @@ propietat de la identitat del servei. La instal·lació prevista és:
 /etc/mountain-runners-agent/agent.env      0600  credencials del servei
 /usr/local/lib/mountain-runners/agent/     aplicació instal·lada
 /usr/local/lib/mountain-runners/node_modules/
-└── telegram-pi-bridge/                    paquet autònom, sense node_modules propi
+└── telegram-pi-bridge/                    paquet intern, sense node_modules propi
 ```
 
 `MOUNTAIN_AGENT_BASE_BRANCH`, si s'informa, ha de ser `main`. La imatge de
@@ -209,7 +209,7 @@ install -d -m 0755 /usr/local/lib/mountain-runners/agent
 cp -a tools/server/agent/. /usr/local/lib/mountain-runners/agent/
 install -d -m 0755 \
   /usr/local/lib/mountain-runners/node_modules/telegram-pi-bridge
-cp -a packages/telegram-pi-bridge/{src,examples,package.json,LICENSE,README.md} \
+cp -a packages/telegram-pi-bridge/{src,package.json,LICENSE,README.md} \
   /usr/local/lib/mountain-runners/node_modules/telegram-pi-bridge/
 install -m 0644 tools/server/systemd/mountain-agent.service \
   /etc/systemd/system/mountain-agent.service
@@ -357,10 +357,13 @@ que controla la persona operadora, mai del clon que escriu el servei. Al VPS:
 ```sh
 cd /srv/mountain-runners   # un clon de la persona operadora, no el del servei
 sudo git fetch origin main
+sudo git checkout --detach origin/main
+sudo git status --porcelain   # ha de sortir buit
 sudo git log --oneline -1 origin/main
 ```
 
-L'ordre refusa com a `--repository` qualsevol ruta que, un cop resolts els
+L'ordre que s'executa és la dels fitxers del clon, per això cal situar-lo al
+commit revisat i comprovar que no hi ha canvis locals ni fitxers sense seguiment. L'ordre refusa com a `--repository` qualsevol ruta que, un cop resolts els
 enllaços, visqui dins de `/var/lib/mountain-runners-agent`, inclòs el clon del
 servei: l'escriu l'agent i no és mai la font d'una instal·lació. També refusa un
 clon que no sigui de root i una execució que no sigui de root.
@@ -399,9 +402,8 @@ defecte.
 1. Que el commit és abastable des de `refs/remotes/origin/main` del clon. Un
    commit d'una branca no fusionada es refusa.
 2. Que l'arbre instal·lat coincideix amb un `git archive` del commit enregistrat
-   o declarat: `agent/` sencer i les entrades instal·lades del paquet
-   (`src`, `examples`, `package.json`, `LICENSE` i `README.md`, sense fitxers de
-   prova), amb el sha256 de cada fitxer i el conjunt exacte. Qualsevol diferència
+   o declarat: `agent/` sencer i el paquet sense el directori `test/` ni cap
+   fitxer de prova, amb el sha256 de cada fitxer i el conjunt exacte. Qualsevol diferència
    la refusa i n'enumera fins a 20. Un enllaç o un fitxer especial també la
    refusa.
 3. Que l'estat és inactiu, amb les bases obertes en només lectura i refusant-ne

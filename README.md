@@ -97,9 +97,8 @@ per aquest motiu. No s'ha de retirar la protecció ni rebaixar el llindar.
   canvis i obre pull requests. No desplega directament.
 
 El servei privat en preparació consumeix el nucli reutilitzable
-[`telegram-pi-bridge`](packages/telegram-pi-bridge/README.md), amb API, proves i
-llicència MIT pròpies. El paquet és local i encara no s'ha publicat a npm; no
-activa cap servei ni permís nou.
+[`telegram-pi-bridge`](packages/telegram-pi-bridge/README.md), un mòdul intern
+amb API estreta i proves pròpies. No activa cap servei ni permís nou.
 
 Llegeix [l'arquitectura tècnica](docs/architecture.md) abans de modificar
 l'arquitectura. Les normes generals per a persones i agents són a

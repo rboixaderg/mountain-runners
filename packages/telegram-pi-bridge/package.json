@@ -13,10 +13,6 @@
     "./sessions": "./src/sessions/index.mjs",
     "./pi": "./src/pi/rpc.mjs"
   },
-  "files": [
-    "src/",
-    "examples/"
-  ],
   "scripts": {
     "test": "node --test \"test/**/*.test.mjs\""
   }

@@ -161,9 +161,8 @@ l'[ADR 0009](decisions/0009-pr-previews-same-domain-and-own-branches.md).
 La T8.3 separa el nucli Telegram i Pi a
 [`packages/telegram-pi-bridge`](../packages/telegram-pi-bridge/README.md):
 transport, autorització, cua duradora, identitat per tema i protocol RPC. És un
-paquet ESM amb llicència MIT, API i proves propis, sense dependències npm ni
-coneixement de GitHub, Docker o les regles del projecte. Es pot provar i
-empaquetar fora d'aquest repositori; encara no està publicat a npm.
+paquet ESM intern amb API estreta i proves pròpies, sense dependències npm ni
+coneixement de GitHub, Docker o les regles del projecte.
 Les entrades `/telegram`, `/sessions` i `/pi` es carreguen per separat. Importar
 només `/pi` no carrega Telegram ni SQLite.
 

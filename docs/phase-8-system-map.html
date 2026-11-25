@@ -764,11 +764,10 @@
             <h3>Nucli reutilitzable</h3>
             <p>
               <code>packages/telegram-pi-bridge</code> conté Telegram, autoria,
-              cua, identitat i transport RPC. És MIT, sense dependències npm,
-              GitHub, Git ni Podman. Les entrades <code>/telegram</code>,
-              <code>/sessions</code> i <code>/pi</code> es carreguen
-              independentment. Continua amb <code>private: true</code>, sense
-              publicar a npm.
+              cua, identitat i transport RPC. És un mòdul intern, sense
+              dependències npm, GitHub, Git ni Podman. Les entrades
+              <code>/telegram</code>, <code>/sessions</code> i
+              <code>/pi</code> es carreguen independentment.
             </p>
           </div>
           <div>
@@ -1386,7 +1385,7 @@
           <summary>Directoris previstos al VPS</summary>
           <pre><code>/usr/local/lib/mountain-runners/
 ├── agent/                         aplicació instal·lada des de codi revisat
-└── node_modules/telegram-pi-bridge/ paquet local autònom
+└── node_modules/telegram-pi-bridge/ paquet local intern
 
 /var/lib/mountain-runners-agent/
 ├── repository/                    clon i metadades Git de confiança
