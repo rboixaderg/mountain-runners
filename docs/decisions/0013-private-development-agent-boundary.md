@@ -18,6 +18,8 @@ Esmenada el 22 de novembre de 2026 amb el merge de la [PR #280](https://github.c
 
 Esmenada el 24 de novembre de 2026 amb la PR de la T25 de l'[especificació de correccions de l'agent](../specs/agent-audit-remediation.md). L'acceptació no activa cap permís.
 
+La persona mantenidora va acceptar el 24 de novembre de 2026 l'esmena de cerca web i revisió abans del push. En queda constància amb la PR de la T7 de l'[especificació de correccions de l'agent](../specs/agent-audit-remediation.md). L'acceptació no activa la cerca web.
+
 ## Context
 
 La fase 8 proposa ampliar el futur assistent editorial privat a consultes i canvis de codi, mantenint una persona com a responsable de la revisió i el merge. El grup privat de Telegram seria la frontera d'accés humana. Cada tema seria una sessió compartida i podria contenir més d'una feina. La petició explícita d'una persona membre autoritza una implementació fins a una PR. Qui ha validat el resultat pot demanar després el merge d'aquella PR; sense aquesta petició, l'agent no fusiona, i no desplega mai.
@@ -294,9 +296,9 @@ permís ni canvia cap credencial; la implementació són les tasques T2 i T26.
   membres, el merge fixat a la preview confirmada i la prohibició que l'agent
   desplegui es mantenen.
 
-## Esmena proposada: cerca web i revisió abans del push
+## Esmena (cerca web i revisió abans del push, 24 de novembre de 2026)
 
-Pendent de revisió. Aquesta esmena concreta la frontera de la
+Acceptada per la persona mantenidora. Aquesta esmena concreta la frontera de la
 [T8.10](../specs/phase-8/phase-8-editorial-assistance.md#t810-cerca-web-de-lagent-privat).
 No activa cap permís.
 
