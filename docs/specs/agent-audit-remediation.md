@@ -113,7 +113,7 @@ Cada tasca té la seva PR, tret que la columna `Entrega` indiqui el contrari.
 | T17   | Completada | -             | Codi mort i branques només de proves eliminats                           | PR 17   | [#337](https://github.com/rboixaderg/mountain-runners/pull/337) |
 | T18   | Completada | Comprovacions | Migracions i estat antic eliminats                                       | PR 18   | [#335](https://github.com/rboixaderg/mountain-runners/pull/335) |
 | T19   | Completada | T8            | Classificador de peticions retirat                                       | PR 19   | [#336](https://github.com/rboixaderg/mountain-runners/pull/336) |
-| T20   | Pendent    | T9–T14        | El torn està dividit en fases amb resultats tipats                       | PR 20   | -                                                               |
+| T20   | Completada | T9–T14        | El torn està dividit en fases amb resultats tipats                       | PR 20   | [#339](https://github.com/rboixaderg/mountain-runners/pull/339) |
 | T21   | Completada | -             | Quatre defectes d'imatge corregits sense moure els originals             | PR 21   | [#332](https://github.com/rboixaderg/mountain-runners/pull/332) |
 | T22   | Completada | -             | Eines d'operador més curtes i amb garanties conservades                  | PR 22   | [#331](https://github.com/rboixaderg/mountain-runners/pull/331) |
 | T23   | Completada | T17           | `telegram-pi-bridge` com a mòdul intern amb API estreta                  | PR 23   | [#338](https://github.com/rboixaderg/mountain-runners/pull/338) |
