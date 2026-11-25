@@ -750,7 +750,13 @@ test("keeps the turn prompt short: no kind, no read-only rule, the rules that re
   );
 });
 
-const personNotices = [workingNotice, savedNotice, failedMaintainerNotice];
+const personNotices = [
+  workingNotice,
+  savedNotice,
+  failedMaintainerNotice,
+  instructionReports.reviewedHeadChanged,
+  instructionReports.unpublishedLocalWork,
+];
 const allowedPersonNotices = new Set(personNotices);
 const technicalWords = /proposta|comprovaci|commit|branca|\bPR\b|demana/iu;
 
