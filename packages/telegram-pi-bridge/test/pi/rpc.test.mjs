@@ -325,6 +325,44 @@ process.stdout.write(JSON.stringify({ type: "agent_settled", aborted: false }) +
   assert.equal(result.text, "Canvi completat.");
 });
 
+test("never fails a turn on the echo of the largest prompt images", async (context) => {
+  const directory = fixture(context);
+  // The consumer's whole prompt image budget (8 MiB of bytes), in base64.
+  const data = Buffer.alloc(8 * 1024 * 1024).toString("base64");
+  const { executable } = fakePi(context, {
+    script: `
+let input = "";
+process.stdin.on("data", (chunk) => {
+  input += chunk;
+  if (!input.endsWith("\\n")) return;
+  const prompt = JSON.parse(input);
+  const user = { role: "user", content: [{ type: "text", text: prompt.message }, ...prompt.images] };
+  const toolResult = { role: "toolResult", content: prompt.images };
+  const answer = { role: "assistant", content: [{ type: "text", text: "Imatge rebuda." }] };
+  for (const record of [
+    { type: "message_start", message: user },
+    { type: "message_end", message: user },
+    { type: "tool_execution_end", result: toolResult },
+    { type: "message_start", message: toolResult },
+    { type: "message_end", message: toolResult },
+    { type: "turn_end", message: answer, toolResults: [toolResult] },
+    { type: "message_end", message: answer },
+    { type: "agent_end", messages: [user, toolResult, answer], willRetry: false },
+    { type: "agent_settled", aborted: false },
+  ]) process.stdout.write(JSON.stringify(record) + "\\n");
+});
+`,
+  });
+  const result = await runPiPrompt({
+    ...optionsFor(executable),
+    profileDirectory: directory.profile,
+    cwd: directory.worktreePath,
+    message: "question",
+    images: [{ type: "image", data, mimeType: "image/png" }],
+  });
+  assert.equal(result.text, "Imatge rebuda.");
+});
+
 for (const scenario of [
   {
     name: "stdout line",
