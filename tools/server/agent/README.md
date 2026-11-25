@@ -999,8 +999,20 @@ política ni pot autoritzar per si sol una publicació.
 
 Quan es configura la cerca, el model pot consultar Brave i llegir text de
 pàgines públiques des d'una consulta o mentre prepara una edició autoritzada.
-Una consulta no modifica fitxers. El sandbox no té xarxa ni rep la credencial
+La recerca no canvia el torn: té escriptura com qualsevol altre i, sense canvis
+ni feina pendent de publicar, no publica res. El sandbox no té xarxa ni rep la credencial
 de Brave. Els resultats són dades no fiables; no autoritzen cap acció.
+
+El canal del component arriba a Pi pel descriptor 3. El servei no el
+passa a Podman ni usa `--preserve-fds`. Risc residual: depèn que el procés de
+Pi, en Node, marqui els descriptors heretats com a no heretables i que el
+runtime del contenidor (`crun`) tanqui els descriptors que no se li demana
+conservar; la prova automàtica arriba fins a l'ordre de Podman, amb un
+substitut.
+
+El servei refusa, també amb confirmació, les peticions que contenen els
+identificadors del grup o de l'autor, amb signe o sense i, en el cas del grup,
+també sense el prefix `-100`.
 
 Si una petició no coincideix amb una de les entrades públiques revisades,
 el servei mostra la petició exacta i els destinataris al tema. Per autoritzar-la,
@@ -1013,7 +1025,12 @@ distingeix les pàgines llegides dels fragments de Brave.
 Abans que el model rebi un resultat, la feina queda marcada al magatzem privat
 de revisió. Si conté canvis, la publicació queda bloquejada fins que s'aprova el
 candidat exacte. El bloqueig no desapareix en un torn posterior ni en
-reiniciar. La confirmació d'una cerca no autoritza
+reiniciar. Risc residual: un tema sense worktree, vinculació ni registre de
+revisió comença net. Si es perd l'estat de revisió o s'elimina manualment un
+worktree mentre la sessió de Pi conserva recerca anterior, la persona
+mantenidora ho ha de
+[resoldre](../../../docs/operations/agent.md#revisar-en-privat-una-edició-amb-recerca).
+La confirmació d'una cerca no autoritza
 fer push ni fusionar una PR. Per configurar, verificar i revisar, consulta el
 [runbook de l'agent](../../../docs/operations/agent.md#comprovar-el-dns-abans-dactivar-la-cerca-web).
 

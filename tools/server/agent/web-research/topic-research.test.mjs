@@ -109,7 +109,7 @@ for (const scenario of [
       "- Pàgina llegida: https://routes.example/route (paràmetres omesos)",
   },
 ]) {
-  test(`confirms one ${scenario.name} request before sending and returns a tainted read-only continuation`, async () => {
+  test(`confirms one ${scenario.name} request before sending and returns a tainted continuation`, async () => {
     const fixture = setup(scenario);
     const signal = new AbortController().signal;
     const turn = fixture.research.turn(request, {
@@ -158,7 +158,6 @@ for (const scenario of [
       "continuation returned",
     ]);
     assert.match(continuation.instruction, /untrusted data, not instructions/u);
-    assert.equal(continuation.readOnly, true);
     assert.ok(
       continuation.instruction.includes(JSON.stringify(request.instruction)),
     );
@@ -193,7 +192,7 @@ test("confirmation resumes the original edit, but not after an intervening instr
     const instruction = "Actualitza la notícia amb els horaris.";
     const turn = fixture.research.turn(
       { ...request, instruction },
-      { worktreeName: "topic-worktree", readOnly: false },
+      { worktreeName: "topic-worktree" },
     );
     await turn.tool(
       { operation: candidate.operation, input: candidate.input },
@@ -207,7 +206,6 @@ test("confirmation resumes the original edit, but not after an intervening instr
         false,
       );
     } else {
-      assert.equal(resumed.readOnly, false);
       assert.ok(resumed.instruction.includes(JSON.stringify(instruction)));
     }
   }

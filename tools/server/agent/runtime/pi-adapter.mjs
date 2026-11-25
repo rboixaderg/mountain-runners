@@ -42,7 +42,6 @@ export function buildPiEnvironment({
   sandboxIdentifier,
   worktreePath,
   attachments = [],
-  readOnly = false,
   classifyOnly = false,
 }) {
   const allowedEnvironment = {
@@ -61,7 +60,6 @@ export function buildPiEnvironment({
     // The extension labels and cleans its containers with this value, so it is
     // the opaque worktree name: never the Telegram session identifier.
     allowedEnvironment.MR_AGENT_SESSION_IDENTIFIER = sandboxIdentifier;
-    allowedEnvironment.MR_AGENT_READ_ONLY = String(readOnly);
   }
   Object.assign(allowedEnvironment, providerEnvironment);
   // The view_attachment tool reads the copy in the worktree, never the store in
@@ -93,7 +91,6 @@ export function projectPiOptions({
   signal,
   onPromptSent,
   stopCommands = stopSandboxedCommands,
-  readOnly = false,
   classifyOnly = false,
   webResearch,
 }) {
@@ -136,7 +133,6 @@ export function projectPiOptions({
         sandboxIdentifier,
         worktreePath,
         attachments,
-        readOnly,
         classifyOnly,
       }),
       ...(webEnabled ? { MR_AGENT_WEB_RESEARCH: "1" } : {}),

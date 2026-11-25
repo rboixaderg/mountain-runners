@@ -120,8 +120,8 @@ test("mounts the documentation file inventory read-only for a check", (context) 
   );
 });
 
-test("prepares an executable temporary path for writable model commands only", () => {
-  assert.deepEqual(buildModelCommand("pnpm check", false), [
+test("prepares an executable temporary path for model commands", () => {
+  assert.deepEqual(buildModelCommand("pnpm check"), [
     "env",
     "HOME=/tmp",
     "MR_AGENT_BROWSER_PROFILE=chromium",
@@ -129,13 +129,6 @@ test("prepares an executable temporary path for writable model commands only", (
     "bash",
     "-lc",
     "pnpm check",
-  ]);
-  assert.deepEqual(buildModelCommand("pwd", true), [
-    "env",
-    "HOME=/tmp",
-    "bash",
-    "-lc",
-    "pwd",
   ]);
 });
 
@@ -686,7 +679,6 @@ test("reads the extension sandbox configuration and rejects an invalid one", () 
     worktreeRoot: "/srv/agent/worktrees",
     sessionIdentifier: "topic_n1001234567890_7",
     limits,
-    readOnly: false,
   });
 
   assert.throws(
@@ -737,29 +729,6 @@ test("reads the extension sandbox configuration and rejects an invalid one", () 
     { message: /executionTimeoutMs/u },
   );
 });
-
-test(
-  "a consultation cannot write its private worktree",
-  { skip: !image },
-  async (context) => {
-    const { worktreeRoot, workspace } = workspaceFixture(context);
-    const result = await runSandboxedCommand({
-      image,
-      workspacePath: workspace,
-      worktreeRoot,
-      command: [
-        "node",
-        "-e",
-        "const fs=require('node:fs'); const assert=require('node:assert/strict'); assert.throws(()=>fs.writeFileSync('/work/forbidden','x'), {code:'EROFS'});",
-      ],
-      limits,
-      readOnly: true,
-      sessionIdentifier: `synthetic_${randomUUID()}`,
-      timeoutMilliseconds: 30000,
-    });
-    assert.equal(result.exitCode, 0, result.stderr);
-  },
-);
 
 test(
   "a command deadline stops the actual container",

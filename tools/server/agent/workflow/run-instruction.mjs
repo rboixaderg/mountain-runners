@@ -117,7 +117,6 @@ export function createInstructionRunner({
   requestMerge,
   requestMergeConfirmation,
   research,
-  isFirstInstruction,
   prepareResearchJob,
   isResearchAffected,
   // The commit the current private review of a job pins, or null.
@@ -969,7 +968,7 @@ export function createInstructionRunner({
           : safelyWithNotes(() => sessionNotes.lastReply(request.sessionKey));
       let kind;
       if (resumedResearch) {
-        kind = resumedResearch.readOnly ? "consultation" : topicTurnKind;
+        kind = topicTurnKind;
       } else if (publishReviewed) {
         kind = topicTurnKind;
       } else {
@@ -1013,15 +1012,11 @@ export function createInstructionRunner({
         const preview = await requestPreview(request, { signal });
         return { ...preview, report: ignoringAttachment(preview.report) };
       }
-      const readOnly =
-        research && kind !== topicTurnKind && kind !== "continuation";
       const binding = topicJobs?.bindingOf(request.sessionKey) ?? null;
+      // The topic state decides whether the job is new. A queue row that never
+      // reached a turn (rejected, merge, preview or confirmation) leaves none.
       prepareResearchJob?.(worktreeName, {
-        newJob:
-          !topic.worktree &&
-          binding === null &&
-          (isFirstInstruction === undefined ||
-            isFirstInstruction(request.sessionKey, request.updateIdentifier)),
+        newJob: !topic.worktree && binding === null,
       });
       if (publishReviewed && !isResearchAffected(worktreeName)) {
         return {
@@ -1030,31 +1025,7 @@ export function createInstructionRunner({
         };
       }
       let boundContinuation = null;
-      if (binding !== null && readOnly) {
-        if (
-          topic.worktree === null ||
-          (await currentBranch(topic.worktree, { signal })) !== binding.branch
-        ) {
-          if (readBoundPullRequest) {
-            try {
-              const pullRequest = await readBoundPullRequest(
-                binding.pullRequestNumber,
-                { signal },
-              );
-              if (pullRequest.state === "closed") {
-                return { outcome: "failed", report: finishedTopicReport };
-              }
-            } catch {
-              signal?.throwIfAborted();
-            }
-          }
-          return {
-            outcome: "failed",
-            ...failureReport(instructionReportKeys.topicWorktreeMismatch),
-          };
-        }
-      }
-      if (binding !== null && !readOnly) {
+      if (binding !== null) {
         const bound = await readValidBoundPullRequest({
           binding,
           topic,
@@ -1085,7 +1056,7 @@ export function createInstructionRunner({
         boundContinuation?.pullRequestNumber ?? null;
       const continuedBaseHeadSha = boundContinuation?.baseHeadSha ?? null;
       let worktree;
-      if (boundContinuation || (readOnly && topic.worktree)) {
+      if (boundContinuation) {
         worktree = topic.worktree;
       } else {
         worktree = await ensureSessionWorktree({
@@ -1153,7 +1124,6 @@ export function createInstructionRunner({
         : research?.turn(request, {
             worktreeName,
             signal,
-            readOnly,
             resumedResearch,
           });
       try {
@@ -1167,7 +1137,7 @@ export function createInstructionRunner({
               images: promptImages,
               attachments: stagedAttachments,
               worktreePrepared,
-              kind: readOnly ? "consultation" : topicTurnKind,
+              kind: topicTurnKind,
               webResearch: webTurn?.tool,
               topicState,
               claimServiceNotes,
@@ -1245,14 +1215,6 @@ export function createInstructionRunner({
       const answer = webTurn
         ? webTurn.withSources(plainAnswer)
         : (resumedResearch?.withSources(plainAnswer) ?? plainAnswer);
-      if (readOnly) {
-        return {
-          outcome: "answered",
-          modelAnswer: answer !== "",
-          serviceText: null,
-          report: answer || instructionReports.clarification,
-        };
-      }
       // Whatever the model moved is already outside this directory. Removing it
       // before the checks and the commit means a received image never reaches a
       // commit or a publication, even on a branch whose .gitignore lacks the

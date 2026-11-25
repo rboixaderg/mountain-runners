@@ -49,9 +49,6 @@ test("keeps an accepted instruction across a restart and deduplicates its update
   assert.equal(queue.status(1), "done");
   assert.equal(queue.isBlocked(), false);
   assert.equal(queue.admit(request(2)), "accepted");
-  assert.equal(queue.isFirstInstruction(request(1).sessionKey, 1), true);
-  assert.equal(queue.isFirstInstruction(request(2).sessionKey, 2), false);
-  assert.equal(queue.isFirstInstruction("-1001234567890:8", 1), false);
   queue.close();
 });
 

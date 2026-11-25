@@ -115,7 +115,6 @@ export async function runSandboxedCommand({
   sessionIdentifier,
   timeoutMilliseconds,
   signal,
-  readOnly = false,
   documentationFilesPath,
 }) {
   signal?.throwIfAborted();
@@ -128,7 +127,6 @@ export async function runSandboxedCommand({
     limits,
     containerName,
     sessionIdentifier,
-    readOnly,
     documentationFilesPath,
   });
 

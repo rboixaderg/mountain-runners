@@ -491,8 +491,6 @@ export async function startService({
         requestMergeConfirmation: mergeWorker,
         research,
         researchReview,
-        isFirstInstruction: (sessionKey, updateIdentifier) =>
-          queue.isFirstInstruction(sessionKey, updateIdentifier),
         // The raw download only touches the service temporary directory, so the
         // downloaded image is cleaned before it reaches a worktree.
         prepareAttachment: createAttachmentPreparation({ telegram, logger }),

@@ -366,15 +366,6 @@ export class AdmissionQueue {
     );
   }
 
-  isFirstInstruction(sessionKey, updateIdentifier) {
-    const first = this.#database
-      .prepare(
-        "SELECT update_identifier FROM instructions WHERE session_key = ? ORDER BY sequence LIMIT 1",
-      )
-      .get(sessionKey);
-    return first?.update_identifier === updateIdentifier;
-  }
-
   /**
    * Whether the same topic admitted another instruction between two of its
    * persisted updates. Both endpoints must exist in that topic and be in

@@ -48,7 +48,6 @@ export function createProjectRunner({
   }),
   sessionNotes,
   research,
-  isFirstInstruction,
   researchReview = createResearchReview({
     directory: join(config.paths.state, "research-review"),
   }),
@@ -62,7 +61,7 @@ export function createProjectRunner({
   classifyRequest = (context) =>
     classifyWithModel(config, { ...context, environment }),
   runModel = async (context) => {
-    if (context.kind !== "consultation" && !context.worktreePrepared) {
+    if (!context.worktreePrepared) {
       const preparation = await executeSandbox({
         image: config.model.sandboxImage,
         workspacePath: context.worktreePath,
@@ -94,7 +93,6 @@ export function createProjectRunner({
           currentInstant: formatMadridInstant(now()),
           topicState: context.topicState,
         }),
-      readOnly: context.kind === "consultation",
     });
   },
   // Reading the pixels of an untrusted image happens only inside the sandbox.
@@ -217,7 +215,6 @@ export function createProjectRunner({
     requestMerge,
     requestMergeConfirmation,
     research,
-    isFirstInstruction,
     prepareResearchJob: (jobId, options) =>
       researchReview.ensure(jobId, options),
     isResearchAffected: (jobId) => researchReview.isTainted(jobId),

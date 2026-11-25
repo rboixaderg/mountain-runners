@@ -77,7 +77,7 @@ export default function (pi: {
     name: "sandbox_bash",
     label: "Sandboxed Bash",
     description:
-      "Read, search, edit and run checks in /work inside the isolated container. No network, credentials or host files. Consultations have a read-only worktree. Git metadata is not mounted.",
+      "Read, search, edit and run checks in /work inside the isolated container. No network, credentials or host files. Git metadata is not mounted.",
     parameters: Type.Object({
       command: Type.String({
         description: "Shell command to run inside /work",
@@ -93,11 +93,10 @@ export default function (pi: {
         image: settings.image,
         workspacePath: process.cwd(),
         worktreeRoot: settings.worktreeRoot,
-        command: buildModelCommand(parameters.command, settings.readOnly),
+        command: buildModelCommand(parameters.command),
         limits: settings.limits,
         sessionIdentifier: settings.sessionIdentifier,
         timeoutMilliseconds: settings.limits.executionTimeoutMs,
-        readOnly: settings.readOnly,
         signal,
       });
       const formatted = formatSandboxBashResult(result);
