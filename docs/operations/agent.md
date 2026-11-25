@@ -252,6 +252,43 @@ a l'apartat `engines.node`, reconstrueix la imatge del sandbox a partir del
 `sandbox/Containerfile` i canvia `MOUNTAIN_AGENT_SANDBOX_IMAGE` abans d'arrencar
 el servei.
 
+### Versió de Pi
+
+El servei no fixa cap versió del Pi coding agent. Pi viu en un sol directori,
+`/usr/local/lib/mountain-runners/pi`, i `agent.env` hi apunta amb
+`MOUNTAIN_AGENT_PI_COMMAND=/usr/local/lib/mountain-runners/pi/node_modules/.bin/pi`.
+A cada arrencada, el servei executa `--version` amb `PI_OFFLINE=1` i un termini
+de 10 segons. La versió queda al journal i a la traça privada (`pi_version`). Si
+no es pot llegir, el journal diu `pi_version_unreadable` i el servei continua.
+
+Risc acceptat: una versió nova de Pi pot canviar el comportament, per exemple com
+executa les eines o la sortida RPC. La línia `pi_version` i la pregunta posterior
+a l'actualització en són la comprovació.
+
+Per actualitzar a l'última versió, amb aprovació explícita:
+
+```sh
+sudo systemctl stop mountain-agent
+# umask 022: el servei ha de poder llegir els fitxers que instal·la root.
+sudo sh -c 'umask 022 && npm install --prefix /usr/local/lib/mountain-runners/pi \
+  @earendil-works/pi-coding-agent@latest'
+sudo runuser -u mountain-agent -- \
+  /usr/local/lib/mountain-runners/pi/node_modules/.bin/pi --version
+sudo systemctl start mountain-agent
+sudo journalctl -u mountain-agent -n 100
+```
+
+Després, fes una pregunta en un tema i comprova que el bot respon. Per tornar
+enrere, repeteix el procediment amb `@<versió anterior>` en lloc de `@latest`. La
+versió anterior és a la línia `pi_version` de l'arrencada anterior
+(`sudo journalctl -u mountain-agent -g pi_version`).
+
+**Migració, una sola vegada.** La instal·lació actual és a
+`/usr/local/lib/mountain-runners/pi-1.5.2`. Segueix el mateix procediment per
+instal·lar al directori nou i, abans d'arrencar, canvia
+`MOUNTAIN_AGENT_PI_COMMAND` a `agent.env`. Conserva el directori antic fins que
+hagis verificat el nou; mentrestant, tornar enrere és restaurar el camí anterior.
+
 ### Activar, aturar i reiniciar
 
 ```sh
