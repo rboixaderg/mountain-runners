@@ -731,3 +731,125 @@ test("reports a failed download without leaking the token", async () => {
     },
   );
 });
+
+/** A transport that rate limits the first `limitedAttempts` requests. */
+function rateLimitedApi({ retryAfter, limitedAttempts, limitedStatus = 429 }) {
+  const attempts = [];
+  const api = new TelegramApi({
+    botToken: "123:synthetic-token",
+    fetchImpl: async () => {
+      attempts.push(Date.now());
+      const limited = attempts.length <= limitedAttempts;
+      return {
+        status: limited ? limitedStatus : 200,
+        async json() {
+          return limited
+            ? {
+                ok: false,
+                description: "Too Many Requests",
+                parameters: { retry_after: retryAfter },
+              }
+            : { ok: true, result: { message_id: 60 } };
+        },
+      };
+    },
+  });
+  return { api, attempts };
+}
+
+const message = {
+  chatIdentifier: "-1001234567890",
+  messageThreadIdentifier: 7,
+  text: "Fet: PR #200",
+};
+
+test("repeats a rate-limited send once after the requested wait", async () => {
+  const { api, attempts } = rateLimitedApi({
+    retryAfter: 0.05,
+    limitedAttempts: 1,
+  });
+
+  assert.deepEqual(await api.sendMessage(message), { message_id: 60 });
+  assert.equal(attempts.length, 2);
+  // Timers may fire a millisecond early against the wall clock.
+  assert.equal(attempts[1] - attempts[0] >= 45, true);
+});
+
+test("fails a send that is rate limited twice", async () => {
+  const { api, attempts } = rateLimitedApi({
+    retryAfter: 0,
+    limitedAttempts: 2,
+  });
+
+  await assert.rejects(api.sendMessage(message), /Too Many Requests/u);
+  assert.equal(attempts.length, 2);
+});
+
+test("does not wait for a retry past the request deadline", async () => {
+  const { api, attempts } = rateLimitedApi({
+    retryAfter: 60,
+    limitedAttempts: 1,
+  });
+
+  await assert.rejects(api.sendMessage(message), TelegramApiError);
+  assert.equal(attempts.length, 1);
+});
+
+test("ends the retry wait when the caller stops", async () => {
+  const { api, attempts } = rateLimitedApi({
+    retryAfter: 20,
+    limitedAttempts: 1,
+  });
+  const controller = new AbortController();
+  setTimeout(() => controller.abort(), 10);
+
+  await assert.rejects(
+    api.sendMessage({ ...message, signal: controller.signal }),
+    { name: "AbortError" },
+  );
+  assert.equal(attempts.length, 1);
+});
+
+test("retries only a 429 that says how long to wait", async () => {
+  for (const options of [
+    { limitedStatus: 400, retryAfter: 0 },
+    { limitedStatus: 429, retryAfter: undefined },
+  ]) {
+    const { api, attempts } = rateLimitedApi({
+      ...options,
+      limitedAttempts: 1,
+    });
+
+    await assert.rejects(api.sendMessage(message), TelegramApiError);
+    assert.equal(attempts.length, 1, String(options.limitedStatus));
+  }
+});
+
+test("gives the repeated send only the rest of the shared deadline", async () => {
+  const hang = hangingFetch();
+  let attempts = 0;
+  const api = new TelegramApi({
+    botToken: "123:synthetic-token",
+    requestTimeoutMilliseconds: 500,
+    fetchImpl: async (url, init) => {
+      attempts += 1;
+      if (attempts > 1) {
+        return hang(url, init);
+      }
+      return {
+        status: 429,
+        async json() {
+          return { ok: false, parameters: { retry_after: 0.3 } };
+        },
+      };
+    },
+  });
+
+  await assert.rejects(api.sendMessage(message), (error) => {
+    const [, milliseconds] = /no answer within (\d+) ms/u.exec(error.message);
+    // Timers may fire a few milliseconds early against the wall clock.
+    assert.equal(Number(milliseconds) <= 205, true, error.message);
+    return true;
+  });
+  assert.equal(attempts, 2);
+});

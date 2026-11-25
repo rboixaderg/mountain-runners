@@ -217,6 +217,22 @@ test("rejects a refused prompt without waiting for the still-running RPC process
   );
 });
 
+test("fails the turn when Pi refuses another command before the prompt response", async (context) => {
+  const directory = fixture(context);
+  const { executable } = fakePi(context, {
+    script: `process.stdin.resume(); process.stdout.write(JSON.stringify({type:"response",command:"parse",success:false,error:"Synthetic parse failure"})+"\\n");`,
+  });
+  await assert.rejects(
+    runPiPrompt({
+      ...optionsFor(executable),
+      cwd: directory.worktreePath,
+      profileDirectory: directory.profile,
+      message: "question",
+    }),
+    /Pi rejected the parse: Synthetic parse failure/u,
+  );
+});
+
 test("denies tools and resources unless the caller explicitly selects them", () => {
   const argumentsList = buildPiArguments({ model: "example/model" });
   for (const flag of [

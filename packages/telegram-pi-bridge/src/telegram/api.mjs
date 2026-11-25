@@ -4,6 +4,8 @@
 // request path, so errors never include the request URL or the token. Long
 // polling avoids an inbound port, a domain and webhooks.
 
+import { setTimeout as sleep } from "node:timers/promises";
+
 const defaultBaseUrl = "https://api.telegram.org";
 
 // Strip the trailing slashes of the configured base URL, so every request
@@ -189,12 +191,17 @@ export class TelegramApi {
       response.status >= 300 ||
       payload?.ok !== true
     ) {
-      throw new TelegramApiError(
+      const failure = new TelegramApiError(
         method,
         typeof payload?.description === "string"
           ? payload.description
           : `HTTP ${response.status}`,
       );
+      const retryAfter = payload?.parameters?.retry_after;
+      if (response.status === 429 && typeof retryAfter === "number") {
+        failure.retryAfterMilliseconds = retryAfter * 1000;
+      }
+      throw failure;
     }
 
     return payload.result;
@@ -283,6 +290,10 @@ export class TelegramApi {
     );
   }
 
+  /**
+   * A rate-limited send is repeated once after the wait Telegram asks for, when
+   * that wait fits in the deadline shared by both attempts.
+   */
   async sendMessage({
     chatIdentifier,
     messageThreadIdentifier,
@@ -290,17 +301,30 @@ export class TelegramApi {
     disableLinkPreview,
     signal,
   }) {
-    return this.#call(
-      "sendMessage",
-      {
-        chat_id: chatIdentifier,
-        message_thread_id: messageThreadIdentifier,
-        text,
-        ...(disableLinkPreview === true
-          ? { link_preview_options: { is_disabled: true } }
-          : {}),
-      },
-      { signal },
-    );
+    const body = {
+      chat_id: chatIdentifier,
+      message_thread_id: messageThreadIdentifier,
+      text,
+      ...(disableLinkPreview === true
+        ? { link_preview_options: { is_disabled: true } }
+        : {}),
+    };
+    const deadline = Date.now() + this.#requestTimeoutMilliseconds;
+    try {
+      return await this.#call("sendMessage", body, { signal });
+    } catch (error) {
+      const waitMilliseconds = error.retryAfterMilliseconds;
+      if (
+        waitMilliseconds === undefined ||
+        waitMilliseconds >= deadline - Date.now()
+      ) {
+        throw error;
+      }
+      await sleep(waitMilliseconds, undefined, { signal });
+      return this.#call("sendMessage", body, {
+        signal,
+        timeoutMilliseconds: Math.max(0, deadline - Date.now()),
+      });
+    }
   }
 }

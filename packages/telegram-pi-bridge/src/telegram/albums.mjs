@@ -130,11 +130,6 @@ export class AlbumCollector {
     return this.#groups.size > 0;
   }
 
-  /** Whether an album of this session is still waiting. */
-  hasPendingSession(sessionKey) {
-    return this.oldestUpdateIdentifierForSession(sessionKey) !== null;
-  }
-
   /** The oldest member of a waiting album of this session, or null. */
   oldestUpdateIdentifierForSession(sessionKey) {
     let oldest = null;

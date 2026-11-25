@@ -83,8 +83,14 @@ test("reports the pending session and the oldest member", () => {
   groups.add(update(10));
   groups.add(update(11));
 
-  assert.equal(groups.hasPendingSession("-1001234567890:7"), true);
-  assert.equal(groups.hasPendingSession("-1001234567890:8"), false);
+  assert.equal(
+    groups.oldestUpdateIdentifierForSession("-1001234567890:7") !== null,
+    true,
+  );
+  assert.equal(
+    groups.oldestUpdateIdentifierForSession("-1001234567890:8"),
+    null,
+  );
   assert.equal(groups.oldestUpdateIdentifierForSession("-1001234567890:7"), 10);
   assert.equal(
     groups.oldestUpdateIdentifierForSession("-1001234567890:8"),
@@ -134,7 +140,10 @@ test("keeps the same media group of another topic apart", () => {
   const expired = groups.expired();
   assert.equal(expired.length, 2);
   assert.equal(expired[1].identifier, "-1001234567890:8:42:album-1");
-  assert.equal(groups.hasPendingSession("-1001234567890:8"), true);
+  assert.equal(
+    groups.oldestUpdateIdentifierForSession("-1001234567890:8") !== null,
+    true,
+  );
 });
 
 test("removes only the group whose composite key is given", () => {
