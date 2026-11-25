@@ -24,37 +24,13 @@
 // its session, and a note is presented to the model as trusted service data.
 
 import { clipText } from "../policy/development.mjs";
-import { openDatabase, runTransaction } from "./sqlite.mjs";
+import { runTransaction } from "./sqlite.mjs";
+import { openStateDatabase } from "./state-database.mjs";
 
 export const noteLimits = {
   characters: 1500,
   perSession: 20,
 };
-
-const schema = `
-  -- Purges the model replies an earlier version stored.
-  DROP TABLE IF EXISTS session_context;
-  CREATE TABLE IF NOT EXISTS session_notes (
-    sequence INTEGER PRIMARY KEY,
-    session_key TEXT NOT NULL,
-    text TEXT NOT NULL,
-    effect_key TEXT,
-    state TEXT NOT NULL CHECK (state IN ('undelivered', 'claimed')),
-    created_at TEXT NOT NULL
-  );
-  CREATE UNIQUE INDEX IF NOT EXISTS session_notes_effect
-    ON session_notes (session_key, effect_key);
-  CREATE INDEX IF NOT EXISTS session_notes_topic
-    ON session_notes (session_key, state, sequence);
-  CREATE TABLE IF NOT EXISTS session_delivered_effects (
-    sequence INTEGER PRIMARY KEY,
-    session_key TEXT NOT NULL,
-    effect_key TEXT NOT NULL,
-    delivered_at TEXT NOT NULL
-  );
-  CREATE UNIQUE INDEX IF NOT EXISTS session_delivered_effects_identity
-    ON session_delivered_effects (session_key, effect_key);
-`;
 
 export class SessionNoteStore {
   #database;
@@ -66,8 +42,7 @@ export class SessionNoteStore {
    * lists the cases, passes `false` and never mutates the store by opening it.
    */
   constructor(path, { now = () => new Date(), recoverClaimed = true } = {}) {
-    this.#database = openDatabase(path);
-    this.#database.exec(schema);
+    this.#database = openStateDatabase(path);
     this.#now = now;
     if (recoverClaimed) {
       this.recoverClaimed();

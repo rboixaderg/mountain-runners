@@ -11,7 +11,7 @@ import {
 import { dirname, join } from "node:path";
 import { test } from "node:test";
 import { PublishRefusedError } from "../repository/github.mjs";
-import { CiWatchStore } from "../repository/ci-watch-store.mjs";
+import { PublicationStore } from "../repository/publication-store.mjs";
 import { PublicationRuleError } from "../repository/secret-scan.mjs";
 import { noteLimits } from "../repository/session-note-store.mjs";
 import { instructionReports } from "../policy/development.mjs";
@@ -482,14 +482,16 @@ test("blocks after an unconfirmed sandbox stop even before publication", async (
 test("records a failed gate for the maintainer once and publishes the work later", async (context) => {
   const paths = await fixture(context);
   mkdirSync(paths.state, { recursive: true });
-  const ciWatches = new CiWatchStore(join(paths.state, "ci-watch.sqlite"));
-  context.after(() => ciWatches.close());
+  const publications = new PublicationStore(
+    join(paths.state, "ci-watch.sqlite"),
+  );
+  context.after(() => publications.close());
   const traces = [];
   let checksPass = false;
   const runner = createTestProjectRunner({
     config: configFor(paths),
     github: publicationGithub(),
-    ciWatches,
+    publications,
     recordTrace: (entry) => traces.push(entry),
     runModel: async ({ worktreePath }) => {
       writeFileSync(join(worktreePath, "pending.txt"), "pendent\n");
@@ -520,7 +522,7 @@ test("keeps the checkpointed work unpublished when the signal aborts during chec
   const runner = createTestProjectRunner({
     config: configFor(paths),
     github,
-    ciWatches: {
+    publications: {
       topicPullRequestNumber: () => null,
       add() {},
     },

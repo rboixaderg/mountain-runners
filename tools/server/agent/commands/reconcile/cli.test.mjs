@@ -1,12 +1,19 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, readdirSync, rmSync } from "node:fs";
+import {
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
-import { dirname, join } from "node:path";
+import { delimiter, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { test } from "node:test";
 import { AdmissionQueue } from "telegram-pi-bridge/sessions";
 import { openIdentifierNames } from "../../repository/identifiers.mjs";
+import { createLegacyDatabase } from "../../repository/test-support/legacy-databases.mjs";
 
 const cliPath = join(dirname(fileURLToPath(import.meta.url)), "cli.mjs");
 const sessionKey = "-1001234567890:7";
@@ -24,9 +31,15 @@ function temporaryDirectory(context) {
   return directory;
 }
 
-function serviceEnvironment(directory, state) {
+// A complete synthetic environment whose `systemctl` reports `serviceState`.
+function serviceEnvironment(directory, state, serviceState = "inactive") {
+  writeFileSync(
+    join(directory, "systemctl"),
+    `#!/bin/sh\necho ${serviceState}\n`,
+    { mode: 0o755 },
+  );
   return {
-    PATH: process.env.PATH,
+    PATH: `${directory}${delimiter}${process.env.PATH}`,
     MOUNTAIN_AGENT_REPOSITORY: "example/repository",
     MOUNTAIN_AGENT_TELEGRAM_GROUP_ID: "-1001234567890",
     MOUNTAIN_AGENT_TELEGRAM_BOT_USERNAME: "example_bot",
@@ -57,7 +70,7 @@ function createInstallationIdentity(state) {
 // An interrupted instruction whose topic worktree does not exist locally: the
 // GitHub read is skipped, so the command never needs the network.
 function createUncertainInstruction(state) {
-  const queue = new AdmissionQueue(join(state, "admission.sqlite"), {
+  const queue = new AdmissionQueue(join(state, "agent.sqlite"), {
     maxPending: 10,
   });
   queue.admit({
@@ -74,7 +87,7 @@ function createUncertainInstruction(state) {
 
 // A case a person already resolved: it must be refused, never overwritten.
 function createResolvedInstruction(state) {
-  const queue = new AdmissionQueue(join(state, "admission.sqlite"), {
+  const queue = new AdmissionQueue(join(state, "agent.sqlite"), {
     maxPending: 10,
   });
   queue.admit({
@@ -125,6 +138,53 @@ test("lists an uncertain instruction without the network", (context) => {
   assert.equal(facts.pull_request, null);
   assert.equal(facts.github, "skipped");
   assert.doesNotMatch(result.stdout, /synthetic private instruction/u);
+});
+
+test("lists the case of a restored earlier state after migrating it", (context) => {
+  const directory = temporaryDirectory(context);
+  const state = join(directory, "state");
+  mkdirSync(state);
+  createInstallationIdentity(state);
+  createLegacyDatabase(state, "admission.sqlite", {
+    instructions: [
+      {
+        update_identifier: 11,
+        message_identifier: 1011,
+        session_key: sessionKey,
+        author_identifier: 42,
+        instruction: "synthetic private instruction",
+        status: "uncertain",
+        created_at: "2026-11-20T10:00:00.000Z",
+      },
+    ],
+  });
+
+  const result = runCli(["list"], serviceEnvironment(directory, state));
+
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal(JSON.parse(result.stdout).update_identifier, 11);
+  assert.deepEqual(readdirSync(state).sort(), [
+    "admission.sqlite.migrated",
+    "agent-migration.lock",
+    "agent.sqlite",
+    "identifier-salt",
+  ]);
+});
+
+test("refuses to run, and migrates nothing, while the service is not stopped", (context) => {
+  const directory = temporaryDirectory(context);
+  const state = join(directory, "state");
+  mkdirSync(state);
+  createLegacyDatabase(state, "admission.sqlite");
+
+  const result = runCli(
+    ["list"],
+    serviceEnvironment(directory, state, "active"),
+  );
+
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /is-active mountain-agent reports "active"/u);
+  assert.deepEqual(readdirSync(state), ["admission.sqlite"]);
 });
 
 test("exits with code 1 when the case is already resolved", (context) => {

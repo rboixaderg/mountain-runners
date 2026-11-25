@@ -23,7 +23,9 @@ import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 import { AdmissionQueue } from "telegram-pi-bridge/sessions";
 import { MergeRequestStore } from "../../repository/merge-request-store.mjs";
-import { PreviewRequestStore } from "../../repository/preview-request-store.mjs";
+import { PublicationStore } from "../../repository/publication-store.mjs";
+import { openStateDatabase } from "../../repository/state-database.mjs";
+import { createLegacyDatabase } from "../../repository/test-support/legacy-databases.mjs";
 import { imageInputs, runProcess, runUpdateCommand } from "./command.mjs";
 
 const sessionKey = "-1001234567890:7";
@@ -464,11 +466,19 @@ test("updates from an installed bridge with an entry the target removes", (conte
   assert.equal(existsSync(join(bridge, "examples")), false);
 });
 
+/** The state database as the service creates it at startup. */
+function stateDatabase(state) {
+  const path = join(state, "agent.sqlite");
+  new AdmissionQueue(path, { maxPending: 10 }).close();
+  openStateDatabase(path).close();
+  return path;
+}
+
 const busyStates = [
   {
     name: "a pending instruction",
     prepare: (state) => {
-      const queue = new AdmissionQueue(join(state, "admission.sqlite"), {
+      const queue = new AdmissionQueue(stateDatabase(state), {
         maxPending: 10,
       });
       queue.admit({
@@ -485,7 +495,7 @@ const busyStates = [
   {
     name: "a running instruction",
     prepare: (state) => {
-      const queue = new AdmissionQueue(join(state, "admission.sqlite"), {
+      const queue = new AdmissionQueue(stateDatabase(state), {
         maxPending: 10,
       });
       queue.admit({
@@ -503,7 +513,7 @@ const busyStates = [
   {
     name: "an uncertain instruction case",
     prepare: (state) => {
-      const queue = new AdmissionQueue(join(state, "admission.sqlite"), {
+      const queue = new AdmissionQueue(stateDatabase(state), {
         maxPending: 10,
       });
       queue.admit({
@@ -522,7 +532,7 @@ const busyStates = [
   {
     name: "a merge request in progress",
     prepare: (state) => {
-      const store = new MergeRequestStore(join(state, "merge-request.sqlite"));
+      const store = new MergeRequestStore(stateDatabase(state));
       store.begin({
         updateIdentifier: 41,
         sessionKey,
@@ -537,7 +547,7 @@ const busyStates = [
   {
     name: "an uncertain merge request",
     prepare: (state) => {
-      const store = new MergeRequestStore(join(state, "merge-request.sqlite"));
+      const store = new MergeRequestStore(stateDatabase(state));
       store.begin({
         updateIdentifier: 42,
         sessionKey,
@@ -553,10 +563,8 @@ const busyStates = [
   {
     name: "a preview request awaiting the publisher",
     prepare: (state) => {
-      const store = new PreviewRequestStore(
-        join(state, "preview-request.sqlite"),
-      );
-      store.track({
+      const store = new PublicationStore(stateDatabase(state));
+      store.record({
         updateIdentifier: 51,
         sessionKey,
         authorIdentifier: 42,
@@ -569,7 +577,69 @@ const busyStates = [
   },
 ];
 
-for (const { name, prepare, expected } of busyStates) {
+// The separate databases an installed earlier version still writes.
+const legacyRow = {
+  session_key: sessionKey,
+  author_identifier: 42,
+  created_at: timestamp.toISOString(),
+};
+const legacyBusyStates = [
+  {
+    name: "an uncertain instruction in the separate databases",
+    prepare: (state) =>
+      createLegacyDatabase(state, "admission.sqlite", {
+        instructions: [
+          {
+            ...legacyRow,
+            update_identifier: 71,
+            message_identifier: 1071,
+            instruction: "synthetic instruction",
+            status: "uncertain",
+          },
+        ],
+      }),
+    expected: /uncertain instructions: 1/u,
+  },
+  {
+    name: "a merge request in the separate databases",
+    prepare: (state) =>
+      createLegacyDatabase(state, "merge-request.sqlite", {
+        merge_requests: [
+          {
+            ...legacyRow,
+            update_identifier: 72,
+            pull_request_number: 213,
+            commit_sha: "2".repeat(40),
+            state: "merging",
+            updated_at: legacyRow.created_at,
+          },
+        ],
+      }),
+    expected: /merging or uncertain merge requests: 1/u,
+  },
+  {
+    name: "an awaiting preview in the separate databases",
+    prepare: (state) =>
+      createLegacyDatabase(state, "preview-request.sqlite", {
+        preview_requests: [
+          {
+            ...legacyRow,
+            update_identifier: 73,
+            pull_request_number: 214,
+            commit_sha: "3".repeat(40),
+            state: "awaiting",
+            updated_at: legacyRow.created_at,
+          },
+        ],
+      }),
+    expected: /awaiting preview requests: 1/u,
+  },
+];
+
+for (const { name, prepare, expected } of [
+  ...busyStates,
+  ...legacyBusyStates,
+]) {
   test(`refuses while the state has ${name}`, (context) => {
     const app = createInstallation(context);
     writeRevision(app.installRoot, app.installed);
@@ -866,7 +936,7 @@ test("refuses when the state becomes busy while the service stops", (context) =>
   const runner = createRunner({
     onIsActive: () => {
       const queue = new AdmissionQueue(
-        join(app.dataRoot, "state", "admission.sqlite"),
+        stateDatabase(join(app.dataRoot, "state")),
         { maxPending: 10 },
       );
       queue.admit({

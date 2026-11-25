@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { test } from "node:test";
 import { InspectableQueue as AdmissionQueue } from "../../../../packages/telegram-pi-bridge/test/inspectable-queue.mjs";
 import { AgentBridge } from "telegram-pi-bridge/telegram";
-import { CiWatchStore } from "../repository/ci-watch-store.mjs";
+import { PublicationStore } from "../repository/publication-store.mjs";
 import { GitHubTrust } from "../repository/github.mjs";
 import { openIdentifierNames } from "../repository/identifiers.mjs";
 import { savedNotice } from "../policy/development.mjs";
@@ -115,12 +115,14 @@ test("a natural request reaches a pull request from Telegram", async (context) =
   });
 
   mkdirSync(paths.state, { recursive: true });
-  const ciWatches = new CiWatchStore(join(paths.state, "ci-watch.sqlite"));
-  context.after(() => ciWatches.close());
+  const publications = new PublicationStore(
+    join(paths.state, "ci-watch.sqlite"),
+  );
+  context.after(() => publications.close());
   const runner = createTestProjectRunner({
     config,
     github,
-    ciWatches,
+    publications,
     runModel: async ({ worktreePath }) => {
       writeFileSync(join(worktreePath, "journey.txt"), "synthetic change\n");
       return { text: "Fet.\nSUMMARY: feat(agent): reach a pull request" };
@@ -163,7 +165,11 @@ test("a natural request reaches a pull request from Telegram", async (context) =
   );
   assert.match(telegram.sent[1].text, new RegExp(savedNotice, "u"));
   assert.doesNotMatch(telegram.sent[1].text, /SUMMARY|feat\(agent\)/u);
-  assert.equal(ciWatches.pending().length, 1, "the CI notice is durable");
+  assert.equal(
+    publications.pendingCiWatches().length,
+    1,
+    "the CI notice is durable",
+  );
 
   const names = openIdentifierNames(paths.state);
   const branch = `feat/agent-reach-a-pull-request-${names.changeSuffix(500)}`;

@@ -15,7 +15,7 @@ import {
 import { createPublisher } from "../repository/publisher.mjs";
 import { createAttachmentStore } from "../attachments/store.mjs";
 import { scaleImageAttachments } from "../attachments/scale.mjs";
-import { createCiWatchRegistration } from "./ci-watch.mjs";
+import { createPublicationRegistration } from "./ci-watch.mjs";
 import {
   buildInstructionPrompt,
   formatMadridInstant,
@@ -29,10 +29,9 @@ export function createProjectRunner({
   config,
   github,
   environment = process.env,
-  ciWatches,
+  publications,
   mergeRequests,
   topicJobs,
-  followPreview,
   requestMerge,
   requestMergeConfirmation,
   prepareAttachment,
@@ -177,7 +176,6 @@ export function createProjectRunner({
     runChecks,
     secrets: agentSecrets(config),
     logger,
-    followPreview,
     requestMerge,
     requestMergeConfirmation,
     research,
@@ -206,11 +204,14 @@ export function createProjectRunner({
       github,
       requiredChecks: config.github.requiredChecks,
       logger,
-      ciWatches,
+      publications,
       mergeRequests,
       repositoryName: config.github.repository,
     }),
-    registerCiWatch: createCiWatchRegistration({ store: ciWatches, logger }),
+    registerPublication: createPublicationRegistration({
+      store: publications,
+      logger,
+    }),
     publishChange: createPublisher({
       github,
       repository: config.github.repository,

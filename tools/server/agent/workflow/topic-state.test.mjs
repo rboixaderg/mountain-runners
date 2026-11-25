@@ -3,7 +3,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
-import { CiWatchStore } from "../repository/ci-watch-store.mjs";
+import { PublicationStore } from "../repository/publication-store.mjs";
 import { openIdentifierNames } from "../repository/identifiers.mjs";
 import { MergeRequestStore } from "../repository/merge-request-store.mjs";
 import {
@@ -27,25 +27,25 @@ const authorIdentifier = 987654321;
 /** The durable stores of one topic: real SQLite in a temporary directory. */
 function storeFixture(context) {
   const directory = mkdtempSync(join(tmpdir(), "mr-topic-state-"));
-  const ciWatches = new CiWatchStore(join(directory, "ci-watch.sqlite"));
+  const publications = new PublicationStore(join(directory, "ci-watch.sqlite"));
   const mergeRequests = new MergeRequestStore(
     join(directory, "merge-request.sqlite"),
   );
   context.after(() => {
     mergeRequests.close();
-    ciWatches.close();
+    publications.close();
     rmSync(directory, { recursive: true, force: true });
   });
   return {
     directory,
-    ciWatches,
+    publications,
     mergeRequests,
   };
 }
 
 /** The service reported the required checks of a commit to a topic. */
 function reportChecks(
-  ciWatches,
+  publications,
   {
     topic = sessionKey,
     updateIdentifier = 500,
@@ -54,13 +54,14 @@ function reportChecks(
     result = "success",
   } = {},
 ) {
-  ciWatches.add({
+  publications.record({
+    authorIdentifier,
     updateIdentifier,
     sessionKey: topic,
     pullRequestNumber,
     commitSha: commit,
   });
-  ciWatches.finishSend(updateIdentifier, result);
+  publications.finishCiNotice(updateIdentifier, result);
 }
 
 function labeledPullRequest(headSha = reportedCommit) {
@@ -110,18 +111,18 @@ function liveGithub({
 }
 
 test("looks up only the newest publication of each topic", (context) => {
-  const { ciWatches } = storeFixture(context);
-  reportChecks(ciWatches, { updateIdentifier: 500, pullRequestNumber: 239 });
-  reportChecks(ciWatches, { updateIdentifier: 501, pullRequestNumber: 245 });
-  reportChecks(ciWatches, {
+  const { publications } = storeFixture(context);
+  reportChecks(publications, { updateIdentifier: 500, pullRequestNumber: 239 });
+  reportChecks(publications, { updateIdentifier: 501, pullRequestNumber: 245 });
+  reportChecks(publications, {
     topic: otherSessionKey,
     updateIdentifier: 502,
     pullRequestNumber: 246,
   });
 
-  assert.equal(ciWatches.topicPullRequestNumber(sessionKey), 245);
-  assert.equal(ciWatches.topicPullRequestNumber(otherSessionKey), 246);
-  assert.equal(ciWatches.topicPullRequestNumber("-1000000000000:1"), null);
+  assert.equal(publications.topicPullRequestNumber(sessionKey), 245);
+  assert.equal(publications.topicPullRequestNumber(otherSessionKey), 246);
+  assert.equal(publications.topicPullRequestNumber("-1000000000000:1"), null);
 });
 
 /**
@@ -140,13 +141,13 @@ async function turnFixture(context) {
     state: join(directory, "state"),
   };
 
-  const ciWatches = new CiWatchStore(join(directory, "ci-watch.sqlite"));
+  const publications = new PublicationStore(join(directory, "ci-watch.sqlite"));
   const mergeRequests = new MergeRequestStore(
     join(directory, "merge-request.sqlite"),
   );
   context.after(() => {
     mergeRequests.close();
-    ciWatches.close();
+    publications.close();
   });
   return {
     paths,
@@ -170,7 +171,7 @@ async function turnFixture(context) {
         sandboxCpuCount: 1,
       },
     },
-    ciWatches,
+    publications,
     mergeRequests,
   };
 }
@@ -196,12 +197,12 @@ test("a consultation and an implementation receive the state of the topic", asyn
   const fixture = await turnFixture(context);
   // No preview request is stored: the label and the publisher's comment for
   // the head are the whole preview state.
-  reportChecks(fixture.ciWatches);
+  reportChecks(fixture.publications);
 
   const prompts = [];
   const runner = createTestProjectRunner({
     config: fixture.config,
-    ciWatches: fixture.ciWatches,
+    publications: fixture.publications,
     mergeRequests: fixture.mergeRequests,
     github: liveGithub({ pullRequest: labeledPullRequest() }),
     executeSandbox: async () => ({ exitCode: 0, timedOut: false }),
@@ -249,7 +250,7 @@ test("a turn continues without the block when the state cannot be read", async (
   const runner = createTestProjectRunner({
     config: fixture.config,
     github: liveGithub({ pullRequest: labeledPullRequest() }),
-    ciWatches: {
+    publications: {
       topicPullRequestNumber() {
         throw new TypeError("the state is unreadable");
       },
@@ -307,10 +308,10 @@ const previewCases = [
 
 for (const [name, pullRequest, expected] of previewCases) {
   test(`live topic state: ${name}`, async (context) => {
-    const { ciWatches, mergeRequests } = storeFixture(context);
-    reportChecks(ciWatches);
+    const { publications, mergeRequests } = storeFixture(context);
+    reportChecks(publications);
     const read = createLiveTopicStateReader({
-      ciWatches,
+      publications,
       mergeRequests,
       repositoryName,
       github: liveGithub({ pullRequest }),
@@ -325,8 +326,8 @@ for (const [name, pullRequest, expected] of previewCases) {
 }
 
 test("live topic state confirms the preview of a head pushed outside the service", async (context) => {
-  const { ciWatches, mergeRequests } = storeFixture(context);
-  reportChecks(ciWatches);
+  const { publications, mergeRequests } = storeFixture(context);
+  reportChecks(publications);
   // A maintainer pushed a newer head to the labeled pull request: no request of
   // the topic exists, and the publisher's comment for that head is the source.
   const github = liveGithub({
@@ -334,7 +335,7 @@ test("live topic state confirms the preview of a head pushed outside the service
     comments: [reportedComment(reportedCommit), reportedComment(newerCommit)],
   });
   const read = createLiveTopicStateReader({
-    ciWatches,
+    publications,
     mergeRequests,
     repositoryName,
     github,
@@ -357,8 +358,8 @@ test("live topic state confirms the preview of a head pushed outside the service
 });
 
 test("live topic state recovers from stale reports and fails closed on a read error", async (context) => {
-  const { ciWatches, mergeRequests } = storeFixture(context);
-  reportChecks(ciWatches, { result: "repairing" });
+  const { publications, mergeRequests } = storeFixture(context);
+  reportChecks(publications, { result: "repairing" });
   let unavailable = false;
   const events = [];
   const github = {
@@ -377,7 +378,7 @@ test("live topic state recovers from stale reports and fails closed on a read er
     },
   };
   const read = createLiveTopicStateReader({
-    ciWatches,
+    publications,
     mergeRequests,
     repositoryName,
     github,
@@ -391,7 +392,8 @@ test("live topic state recovers from stale reports and fails closed on a read er
     buildTopicStateText(state),
     /Current head: ddddddd; required checks: success/u,
   );
-  ciWatches.add({
+  publications.record({
+    authorIdentifier,
     updateIdentifier: 501,
     sessionKey,
     pullRequestNumber: 239,

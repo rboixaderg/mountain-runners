@@ -21,7 +21,7 @@ import {
   statusClass,
 } from "../repository/github.mjs";
 import { mergeBeginResults } from "../repository/merge-request-store.mjs";
-import { isNoticeMessageIdentifier } from "../repository/preview-request-store.mjs";
+import { isNoticeMessageIdentifier } from "../repository/publication-store.mjs";
 import {
   defaultRequestTimeoutMilliseconds,
   requestSignal,

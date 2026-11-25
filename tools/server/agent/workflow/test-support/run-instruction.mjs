@@ -94,11 +94,11 @@ export function request(overrides = {}) {
   };
 }
 
-export async function publishedWorktree(context, paths, github, ciWatches) {
+export async function publishedWorktree(context, paths, github, publications) {
   const runner = createTestProjectRunner({
     config: configFor(paths),
     github,
-    ciWatches,
+    publications,
     runModel: async ({ worktreePath }) => {
       writeFileSync(join(worktreePath, "change.txt"), "canvi\n");
       return { text: "Canvi fet.\nSUMMARY: feat(tools): add synthetic change" };

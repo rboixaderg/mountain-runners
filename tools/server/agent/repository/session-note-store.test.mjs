@@ -15,32 +15,6 @@ function fixture(context) {
 const topicSessionKey = "-1001234567890:7";
 const otherSessionKey = "-1001234567890:8";
 
-test("drops the table that stored the last reply of each topic", (context) => {
-  const path = fixture(context);
-  const previous = new DatabaseSync(path);
-  previous.exec(`
-    CREATE TABLE session_context (
-      session_key TEXT PRIMARY KEY,
-      last_reply TEXT NOT NULL,
-      updated_at TEXT NOT NULL
-    );
-    INSERT INTO session_context
-    VALUES ('-1001234567890:7', 'Resposta del model.', '2026-11-18T10:00:00Z');
-  `);
-  previous.close();
-
-  new SessionNoteStore(path).close();
-
-  const database = new DatabaseSync(path);
-  context.after(() => database.close());
-  assert.equal(
-    database
-      .prepare("SELECT 1 FROM sqlite_master WHERE name = 'session_context'")
-      .get(),
-    undefined,
-  );
-});
-
 test("claims the undelivered notes of a topic once, oldest first", (context) => {
   const store = new SessionNoteStore(fixture(context));
   context.after(() => store.close());

@@ -5,8 +5,7 @@ import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { test } from "node:test";
 import { AdmissionQueue } from "telegram-pi-bridge/sessions";
-import { CiWatchStore } from "../../repository/ci-watch-store.mjs";
-import { PreviewRequestStore } from "../../repository/preview-request-store.mjs";
+import { PublicationStore } from "../../repository/publication-store.mjs";
 import { SessionNoteStore } from "../../repository/session-note-store.mjs";
 import { TopicJobStore } from "../../repository/topic-job-store.mjs";
 import { openIdentifierNames } from "../../repository/identifiers.mjs";
@@ -47,7 +46,7 @@ function serviceFixture(context) {
 }
 
 function interruptInstruction(statePath) {
-  const queue = new AdmissionQueue(join(statePath, "admission.sqlite"), {
+  const queue = new AdmissionQueue(join(statePath, "agent.sqlite"), {
     maxPending: 10,
   });
   queue.admit({
@@ -65,12 +64,8 @@ function interruptInstruction(statePath) {
 test("follows a published instruction with the pull request the operator confirms", async (context) => {
   const { environment, statePath } = serviceFixture(context);
   interruptInstruction(statePath);
-  // The service already tracks CI notices; the failed registration is what the
-  // command restores.
-  new CiWatchStore(join(statePath, "ci-watch.sqlite")).close();
-  new PreviewRequestStore(join(statePath, "preview-request.sqlite")).close();
   // The topic already continues this pull request.
-  const topicJobs = new TopicJobStore(join(statePath, "topic-jobs.sqlite"));
+  const topicJobs = new TopicJobStore(join(statePath, "agent.sqlite"));
   topicJobs.bind({
     sessionKey,
     branch: "feat/agent-synthetic-change-11",
@@ -83,6 +78,7 @@ test("follows a published instruction with the pull request the operator confirm
   const warnings = [];
 
   const exitCode = await runReconcileCommand({
+    readServiceState: () => "inactive",
     argv: [
       "resolve",
       "--kind",
@@ -118,10 +114,10 @@ test("follows a published instruction with the pull request the operator confirm
     pull_request_number: 200,
     commit,
   });
-  const watches = new CiWatchStore(join(statePath, "ci-watch.sqlite"));
+  const publications = new PublicationStore(join(statePath, "agent.sqlite"));
   assert.deepEqual(
-    watches
-      .pending()
+    publications
+      .pendingCiWatches()
       .map((row) => [
         row.update_identifier,
         row.session_key,
@@ -130,15 +126,13 @@ test("follows a published instruction with the pull request the operator confirm
       ]),
     [[11, sessionKey, 200, commit]],
   );
-  watches.close();
-  const previews = new PreviewRequestStore(
-    join(statePath, "preview-request.sqlite"),
-  );
   assert.deepEqual(
-    previews.awaiting().map((row) => [row.author_identifier, row.commit_sha]),
+    publications
+      .awaitingPreviews()
+      .map((row) => [row.author_identifier, row.commit_sha]),
     [[42, commit]],
   );
-  previews.close();
+  publications.close();
 });
 
 test("resolves one case in-process and refuses to repeat it without a second notice", async (context) => {
@@ -149,6 +143,7 @@ test("resolves one case in-process and refuses to repeat it without a second not
   const warnings = [];
   const run = () =>
     runReconcileCommand({
+      readServiceState: () => "inactive",
       argv: [
         "resolve",
         "--kind",
@@ -194,13 +189,10 @@ test("resolves one case in-process and refuses to repeat it without a second not
 test("keeps the notice of a resolution for the next turn of the session", async (context) => {
   const { environment, statePath } = serviceFixture(context);
   interruptInstruction(statePath);
-  new CiWatchStore(join(statePath, "ci-watch.sqlite")).close();
-  // The service already created its conversation state.
-  const notes = new SessionNoteStore(join(statePath, "session-notes.sqlite"));
-  notes.close();
   const messages = [];
 
   const exitCode = await runReconcileCommand({
+    readServiceState: () => "inactive",
     argv: [
       "resolve",
       "--kind",
@@ -223,9 +215,7 @@ test("keeps the notice of a resolution for the next turn of the session", async 
 
   assert.equal(exitCode, 0);
   assert.equal(messages.length, 1);
-  const reopened = new SessionNoteStore(
-    join(statePath, "session-notes.sqlite"),
-  );
+  const reopened = new SessionNoteStore(join(statePath, "agent.sqlite"));
   assert.deepEqual(
     reopened.claim(sessionKey).map((note) => note.text),
     [messages[0].text],
@@ -237,11 +227,10 @@ test("keeps the notice of a resolution for the next turn of the session", async 
 test("keeps the notice of a resolution that Telegram cannot deliver", async (context) => {
   const { environment, statePath } = serviceFixture(context);
   interruptInstruction(statePath);
-  new CiWatchStore(join(statePath, "ci-watch.sqlite")).close();
-  new SessionNoteStore(join(statePath, "session-notes.sqlite")).close();
   const warnings = [];
 
   const exitCode = await runReconcileCommand({
+    readServiceState: () => "inactive",
     argv: [
       "resolve",
       "--kind",
@@ -265,9 +254,7 @@ test("keeps the notice of a resolution that Telegram cannot deliver", async (con
   assert.equal(exitCode, 0);
   assert.equal(warnings.length, 1);
   assert.match(warnings[0], /could not be sent/u);
-  const reopened = new SessionNoteStore(
-    join(statePath, "session-notes.sqlite"),
-  );
+  const reopened = new SessionNoteStore(join(statePath, "agent.sqlite"));
   assert.equal(
     reopened.claim(sessionKey).length,
     1,
@@ -278,12 +265,13 @@ test("keeps the notice of a resolution that Telegram cannot deliver", async (con
 
 test("lists without recovering the claim of a previous turn", async (context) => {
   const { environment, statePath } = serviceFixture(context);
-  const notes = new SessionNoteStore(join(statePath, "session-notes.sqlite"));
+  const notes = new SessionNoteStore(join(statePath, "agent.sqlite"));
   notes.addNote({ sessionKey, text: "Efecte en curs." });
   notes.claim(sessionKey);
   notes.close();
 
   const exitCode = await runReconcileCommand({
+    readServiceState: () => "inactive",
     argv: ["list"],
     environment,
     github: {
@@ -299,7 +287,7 @@ test("lists without recovering the claim of a previous turn", async (context) =>
   });
 
   assert.equal(exitCode, 0);
-  const database = new DatabaseSync(join(statePath, "session-notes.sqlite"), {
+  const database = new DatabaseSync(join(statePath, "agent.sqlite"), {
     readOnly: true,
   });
   const row = database.prepare("SELECT state FROM session_notes").get();

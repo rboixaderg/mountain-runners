@@ -27,11 +27,12 @@ import {
 } from "../../config.mjs";
 import { createAttachmentPreparation } from "../../attachments/prepare.mjs";
 import { GitHubTrust } from "../../repository/github.mjs";
-import { CiWatchStore } from "../../repository/ci-watch-store.mjs";
+import { migrateLegacyState } from "../../repository/legacy-state.mjs";
 import { MergeRequestStore } from "../../repository/merge-request-store.mjs";
-import { PreviewRequestStore } from "../../repository/preview-request-store.mjs";
+import { PublicationStore } from "../../repository/publication-store.mjs";
 import { SessionNoteStore } from "../../repository/session-note-store.mjs";
 import { createResearchReview } from "../../repository/research-review.mjs";
+import { stateDatabasePath } from "../../repository/state-database.mjs";
 import { TopicJobStore } from "../../repository/topic-job-store.mjs";
 import {
   defaultRequestTimeoutMilliseconds,
@@ -121,27 +122,23 @@ export async function startService({
   // It is created once in the private state directory and never leaves it.
   const identifiers = openIdentifierNames(config.paths.state);
 
-  const queue = new AdmissionQueue(
-    join(config.paths.state, "admission.sqlite"),
-    { maxPending: config.limits.maxPendingInstructions },
-  );
-  const ciWatches = new CiWatchStore(
-    join(config.paths.state, "ci-watch.sqlite"),
-  );
-  const previewRequests = new PreviewRequestStore(
-    join(config.paths.state, "preview-request.sqlite"),
-  );
-  const topicJobs = new TopicJobStore(
-    join(config.paths.state, "topic-jobs.sqlite"),
-  );
-  const mergeRequests = new MergeRequestStore(
-    join(config.paths.state, "merge-request.sqlite"),
-  );
+  // The separate databases of an earlier version are imported once. A failed
+  // import refuses the start and changes nothing.
+  const migrated = migrateLegacyState(config.paths.state, { logger });
+  if (migrated.length > 0) {
+    logger("state_migrated", migrated.join(","));
+  }
+
+  const statePath = stateDatabasePath(config.paths.state);
+  const queue = new AdmissionQueue(statePath, {
+    maxPending: config.limits.maxPendingInstructions,
+  });
+  const publications = new PublicationStore(statePath);
+  const topicJobs = new TopicJobStore(statePath);
+  const mergeRequests = new MergeRequestStore(statePath);
   // The conversation state of every topic: the service effects the next Pi turn
   // must receive.
-  const sessionNotes = new SessionNoteStore(
-    join(config.paths.state, "session-notes.sqlite"),
-  );
+  const sessionNotes = new SessionNoteStore(statePath);
 
   // A text the service decides for a topic is kept before it is sent, so the
   // next turn of its session knows the effect even when the send fails. The
@@ -181,8 +178,7 @@ export async function startService({
     topicJobs.close();
     sessionNotes.close();
     mergeRequests.close();
-    previewRequests.close();
-    ciWatches.close();
+    publications.close();
     queue.close();
   }
 
@@ -338,7 +334,7 @@ export async function startService({
   const hasWorkInProgress = ({ sessionKey, updateIdentifier }) =>
     queue.hasUnsettledInstructions(sessionKey, updateIdentifier);
   const previewWorker = createPreviewRequests({
-    store: previewRequests,
+    store: publications,
     github,
     repository: config.github.repository,
     telegram,
@@ -352,25 +348,11 @@ export async function startService({
   let runner;
   const mergeWorker = createMergeRequests({
     store: mergeRequests,
-    findDeliveredPreview: (sessionKey) => {
-      // Identify the publication independently of its CI notice. Never fall
-      // back to an earlier preview.
-      const publication = ciWatches.latestTopicPublication(sessionKey);
-      if (publication === undefined) {
-        return undefined;
-      }
-      return (
-        previewRequests.deliveredPublicationPreview({
-          sessionKey,
-          updateIdentifier: publication.update_identifier,
-          pullRequestNumber: publication.pull_request_number,
-          commitSha: publication.commit_sha,
-        }) ?? undefined
-      );
-    },
+    findDeliveredPreview: (sessionKey) =>
+      publications.deliveredPreview(sessionKey),
     hasNewerWork: ({ sessionKey, updateIdentifier }) =>
       queue.hasOtherInstructions(sessionKey, updateIdentifier) ||
-      ciWatches.hasUnreportedWork(sessionKey),
+      publications.hasUnreportedWork(sessionKey),
     hasInterveningInstructions: (range) =>
       queue.hasInterveningInstructions({
         ...range,
@@ -422,10 +404,9 @@ export async function startService({
         github,
         environment,
         logger,
-        ciWatches,
+        publications,
         mergeRequests,
         topicJobs,
-        followPreview: previewWorker.followPublication,
         requestMerge: mergeWorker.handle,
         requestMergeConfirmation: mergeWorker,
         research,
@@ -476,7 +457,7 @@ export async function startService({
   });
 
   const ciWorker = createCiWatchWorker({
-    store: ciWatches,
+    store: publications,
     github,
     telegram,
     requiredChecks: config.github.requiredChecks,
@@ -494,9 +475,8 @@ export async function startService({
     bridge,
     telegram,
     github,
-    ciWatches,
+    publications,
     ciWorker,
-    previewRequests,
     previewWorker,
     mergeRequests,
     mergeWorker,

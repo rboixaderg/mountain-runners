@@ -74,31 +74,37 @@ export const imageInputs = Object.freeze([
 
 // Work in flight or of unknown result. The stores cannot be reused: their
 // constructors write the schema, and this check only reads. A pending CI watch
-// is not busy: it resumes after a restart (ADR 0014).
+// is not busy: it resumes after a restart (ADR 0014). The separate databases are
+// the ones an installed earlier version still writes.
+const pendingInstructions = [
+  "instructions",
+  "status IN ('pending', 'running')",
+  "pending or running instructions",
+];
+const uncertainInstructions = [
+  "instructions",
+  "status = 'uncertain'",
+  "uncertain instructions",
+];
+const openMerges = [
+  "merge_requests",
+  "state IN ('merging', 'uncertain')",
+  "merging or uncertain merge requests",
+];
+const awaitingPreviews = "awaiting preview requests";
 const busyQueries = [
-  [
-    "admission",
-    "instructions",
-    "status IN ('pending', 'running')",
-    "pending or running instructions",
-  ],
-  [
-    "admission",
-    "instructions",
-    "status = 'uncertain'",
-    "uncertain instructions",
-  ],
-  [
-    "merge-request",
-    "merge_requests",
-    "state IN ('merging', 'uncertain')",
-    "merging or uncertain merge requests",
-  ],
+  ["agent", ...pendingInstructions],
+  ["agent", ...uncertainInstructions],
+  ["agent", ...openMerges],
+  ["agent", "publications", "preview_state = 'awaiting'", awaitingPreviews],
+  ["admission", ...pendingInstructions],
+  ["admission", ...uncertainInstructions],
+  ["merge-request", ...openMerges],
   [
     "preview-request",
     "preview_requests",
     "state = 'awaiting'",
-    "awaiting preview requests",
+    awaitingPreviews,
   ],
 ];
 

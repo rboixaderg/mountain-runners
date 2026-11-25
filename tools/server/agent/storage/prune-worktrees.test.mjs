@@ -91,7 +91,7 @@ test("refuses non-dry-run execution while the service is not stopped", (context)
 
 test("refuses non-dry-run execution while an instruction is running or uncertain", (context) => {
   const { statePath, environment } = createInstallation(context, "inactive");
-  const queue = new AdmissionQueue(join(statePath, "admission.sqlite"), {
+  const queue = new AdmissionQueue(join(statePath, "agent.sqlite"), {
     maxPending: 10,
   });
   queue.admit({

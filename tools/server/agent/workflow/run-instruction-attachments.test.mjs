@@ -3,7 +3,7 @@ import { existsSync, readFileSync, mkdirSync, writeFileSync } from "node:fs";
 import { basename, join } from "node:path";
 import { test } from "node:test";
 import { PublishRefusedError } from "../repository/github.mjs";
-import { CiWatchStore } from "../repository/ci-watch-store.mjs";
+import { PublicationStore } from "../repository/publication-store.mjs";
 import { MergeRequestStore } from "../repository/merge-request-store.mjs";
 import { TopicJobStore } from "../repository/topic-job-store.mjs";
 import {
@@ -103,22 +103,25 @@ test("carries the audience rules, the state of the topic and the attachment line
   const paths = await fixture(context);
   const image = pngImage({ width: 1200, height: 800 });
   mkdirSync(paths.state, { recursive: true });
-  const ciWatches = new CiWatchStore(join(paths.state, "ci-watch.sqlite"));
+  const publications = new PublicationStore(
+    join(paths.state, "ci-watch.sqlite"),
+  );
   const mergeRequests = new MergeRequestStore(
     join(paths.state, "merge-request.sqlite"),
   );
   context.after(() => {
     mergeRequests.close();
-    ciWatches.close();
+    publications.close();
   });
   // The topic already reported a green pull request before this turn.
-  ciWatches.add({
+  publications.record({
+    authorIdentifier: 42,
     updateIdentifier: 900,
     sessionKey: topicSessionKey,
     pullRequestNumber: 239,
     commitSha: "a".repeat(40),
   });
-  ciWatches.finishSend(900, "success");
+  publications.finishCiNotice(900, "success");
   const prompts = [];
   const config = configFor(paths);
   config.github.requiredChecks = ["Validate"];
@@ -141,7 +144,7 @@ test("carries the audience rules, the state of the topic and the attachment line
         return [];
       },
     },
-    ciWatches,
+    publications,
     mergeRequests,
     prepareAttachment: createAttachmentPreparation({
       telegram: telegramAttachment(image),
@@ -389,8 +392,10 @@ test("continues a branch created before the ignore rule without publishing the a
 test("applies the image of a continuation to the pull request of the topic", async (context) => {
   const paths = await fixture(context);
   mkdirSync(paths.state, { recursive: true });
-  const ciWatches = new CiWatchStore(join(paths.state, "ci-watch.sqlite"));
-  context.after(() => ciWatches.close());
+  const publications = new PublicationStore(
+    join(paths.state, "ci-watch.sqlite"),
+  );
+  context.after(() => publications.close());
   const topicJobs = new TopicJobStore(join(paths.state, "topic-jobs.sqlite"));
   context.after(() => topicJobs.close());
   const notes = noteStore(context, paths);
@@ -400,7 +405,7 @@ test("applies the image of a continuation to the pull request of the topic", asy
   const runner = createTestProjectRunner({
     config: configFor(paths),
     github,
-    ciWatches,
+    publications,
     topicJobs,
     sessionNotes: notes,
     prepareAttachment: createAttachmentPreparation({

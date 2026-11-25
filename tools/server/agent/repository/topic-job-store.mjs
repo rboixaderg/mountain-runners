@@ -1,22 +1,13 @@
 // A topic keeps its first published branch and pull request across restarts.
 // Binding the same job twice is harmless; a different job must never replace it.
 
-import { openDatabase } from "./sqlite.mjs";
-
-const schema = `
-  CREATE TABLE IF NOT EXISTS topic_jobs (
-    session_key TEXT PRIMARY KEY,
-    branch TEXT NOT NULL,
-    pull_request_number INTEGER NOT NULL CHECK (pull_request_number > 0)
-  );
-`;
+import { openStateDatabase } from "./state-database.mjs";
 
 export class TopicJobStore {
   #database;
 
   constructor(path) {
-    this.#database = openDatabase(path);
-    this.#database.exec(schema);
+    this.#database = openStateDatabase(path);
   }
 
   bind({ sessionKey, branch, pullRequestNumber }) {

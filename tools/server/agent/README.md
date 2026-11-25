@@ -59,6 +59,9 @@ tools/server/agent/               aplicació de Mountain Runners
 ├── commands/update/
 │   ├── cli.mjs                   embolcall de procés: umask privat i codi de sortida
 │   └── command.mjs               actualització versionada: comprovacions, còpia i verificació
+├── commands/migrate-state/
+│   └── cli.mjs                   assaig de la migració de l'estat sobre una còpia
+├── commands/service-state.mjs    comprova que el servei està aturat
 ├── processes/telegram-bridge/
 │   └── main.mjs                  connecta paquet i flux de desenvolupament
 ├── policy/
@@ -89,11 +92,12 @@ tools/server/agent/               aplicació de Mountain Runners
     ├── ci-status.mjs              check runs i estats de commit d'un SHA exacte
     ├── request-signal.mjs         termini de lectura amb el senyal d'aturada
     ├── preview-comment.mjs        comentari de confirmació del publicador de confiança
-    ├── preview-request-store.mjs  seguiments de preview durables i URL confirmada
+    ├── state-database.mjs         la base de dades de l'estat: esquema i migracions
+    ├── legacy-state.mjs           importació única de les bases separades anteriors
+    ├── publication-store.mjs      una fila per commit publicat: avís de CI i preview
     ├── merge-request-store.mjs    peticions de merge durables
     ├── session-note-store.mjs     efectes del servei pendents de lliurar al tema
-    ├── topic-job-store.mjs        vinculació duradora del tema amb branca i PR
-    └── ci-watch-store.mjs         avisos de CI duradors
+    └── topic-job-store.mjs        vinculació duradora del tema amb branca i PR
 ```
 
 Per seguir el codi, comença per `processes/telegram-bridge/main.mjs`, continua
@@ -135,7 +139,7 @@ al servidor. El nom local encara no representa una publicació a npm.
    servei no interpreta el text de la petició: cada missatge executa el torn del
    tema.
 3. El servei prepara el worktree actual del tema. Cada tema manté el seu worktree
-   i una sola feina, i `state/topic-jobs.sqlite` vincula el tema amb la branca i
+   i una sola feina, i la taula `topic_jobs` vincula el tema amb la branca i
    la PR de la primera publicació (vegeu
    [Feina vinculada al tema](#feina-vinculada-al-tema)). Els noms del worktree,
    del fitxer i de la branca són opacs (vegeu
@@ -174,8 +178,9 @@ al servidor. El nom local encara no representa una publicació a npm.
    a `fetch` i `push`, i 30 s per a una crida a l'API que no porti termini propi.
    Una ordre que s'esgota o s'atura es mata amb `SIGKILL` i no compta com a
    refús local.
-7. Abans de respondre, `workflow` desa un seguiment de CI vinculat al SHA
-   publicat. Un bucle en segon pla llegeix els check runs i els estats de commit
+7. Abans de respondre, `workflow` desa el [registre de la
+   publicació](#estat-de-laplicació), amb el seguiment de CI i el de la preview
+   vinculats al SHA publicat. Un bucle en segon pla llegeix els check runs i els estats de commit
    d'aquell SHA i, quan les comprovacions obligatòries acaben, envia el resultat
    al mateix tema. El bucle no bloqueja la cua. El seguiment continua pendent
    fins que l'enviament va bé; si falla o s'esgota, el cicle següent el torna a
@@ -186,7 +191,7 @@ al servidor. El nom local encara no representa una publicació a npm.
    canviat espera mentre el tema tingui una altra instrucció pendent, en curs o
    incerta.
    Mentre el tema tingui un seguiment pendent, el tema té feina sense informar:
-   `/merge` no resol res. Si el seguiment no es pot desar després d'una
+   `/merge` no resol res. Si el registre no es pot desar després d'una
    publicació confirmada, la instrucció acaba com a incerta: la publicació s'ha
    fet, però cap avís durador la pot autoritzar, i una persona ho reconcilia.
 8. Una comprovació obligatòria que falla, es cancel·la o esgota el temps envia
@@ -256,7 +261,7 @@ torn: [Preview del tema](#preview-del-tema),
   validada» sobre l'avís vigent i «Sí, a producció» sobre la pregunta desada,
   conserven el camí determinista.
 - Cada torn ordinari pot editar el worktree del tema. La primera publicació
-  vincula el tema a una branca i una PR a `state/topic-jobs.sqlite`; els torns
+  vincula el tema a una branca i una PR a la taula `topic_jobs`; els torns
   següents reutilitzen la vinculació. Abans de publicar executa `pnpm check` al
   contenidor, o `pnpm check:local` si tots els camins de la publicació són dins
   de `apps/web/src/`, `apps/web/messages/` o `apps/web/public/` (ADR 0012). Una
@@ -285,7 +290,7 @@ torn: [Preview del tema](#preview-del-tema),
 - Cada worktree instal·la la seva còpia fora de línia de `node_modules` dins del
   volum acotat. Dins del bucle inactiu d'execució única, després de cada
   instrucció i cada sis hores (mai en paral·lel amb un torn ni cap cas incert),
-  la retenció revisa els temes vinculats a `topic-jobs.sqlite`: si la PR
+  la retenció revisa els temes vinculats a `topic_jobs`: si la PR
   vinculada consta fusionada a GitHub (`state === "closed"` i `merged === true`)
   i la branca coincideix, elimina el worktree net i publicat (reconeixent els
   commits fusionats amb squash a través d'`agent-published-head`); si la PR s'ha
@@ -297,6 +302,57 @@ torn: [Preview del tema](#preview-del-tema),
   s'esborra mai automàticament, ni tampoc el worktree d'una PR oberta. L'ordre
   d'operador que mostra o aplica la mateixa decisió és a
   [`docs/operations/agent.md`](../../../docs/operations/agent.md#retenció).
+
+## Estat de l'aplicació
+
+Tot l'estat de l'aplicació que és una base de dades viu a `state/agent.sqlite`.
+`repository/state-database.mjs` en defineix l'esquema amb migracions numerades
+per `PRAGMA user_version`: un canvi afegeix una migració, i el servei refusa una
+base de dades d'una versió més nova que el seu codi. La cua d'admissió del pont
+hi crea les seves taules (`instructions`, `telegram_offset` i `trace`), que no
+formen part d'aquesta versió: el paquet només rep la ruta del fitxer.
+
+| Taula                       | Una fila per                | Estats                                                                                                       |
+| --------------------------- | --------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| `instructions`              | actualització admesa        | `pending`, `running`, `uncertain`, `done`, `rejected`                                                        |
+| `publications`              | commit publicat pel servei  | `ci_state`: `pending`, `sent`, `superseded`; `preview_state`: `awaiting`, `confirmed`, `timed_out`, `failed` |
+| `merge_requests`            | petició de merge            | `merging`, `merged`, `failed`, `uncertain`, `not_merged`                                                     |
+| `merge_questions`           | pregunta de confirmació     | sense consumir o consumida                                                                                   |
+| `session_notes`             | efecte pendent d'un tema    | `undelivered`, `claimed`                                                                                     |
+| `session_delivered_effects` | identitat d'efecte lliurada | —                                                                                                            |
+| `topic_jobs`                | tema vinculat               | —                                                                                                            |
+
+`trace` i `telegram_offset` són la traça privada i l'offset de Telegram.
+`publications` desa en una sola fila, identificada per l'actualització que ha
+publicat, la PR, el commit, el resultat de l'avís de CI, l'URL confirmada de la
+preview (`confirmed_origin`) i l'identificador de l'avís lliurat
+(`notice_message_identifier`). Els dos estats comencen junts i avancen per
+separat. `ci_state` o `preview_state` només és buit en una fila importada d'una
+base anterior que en tenia només la meitat; una fila sense `ci_state` no compta
+com a publicació del tema.
+
+**Importació de les bases anteriors.** Si a `state/` hi ha les bases separades
+d'una versió anterior (`admission.sqlite`, `ci-watch.sqlite`,
+`preview-request.sqlite`, `merge-request.sqlite`, `session-notes.sqlite` o
+`topic-jobs.sqlite`), l'arrencada i l'ordre de reconciliació les importen una
+sola vegada (`repository/legacy-state.mjs`, esdeveniment `state_migrated`). La
+base nova es munta en un fitxer a part, en una transacció, i es publica amb un
+sol rename; només després les antigues passen a `*.migrated`, sense
+modificar-les. Els estats que versions anteriors escrivien i que ja no
+s'executen s'importen com a `superseded` (avisos de CI) o `failed` (previews).
+Si el seguiment de CI i la preview d'una mateixa actualització descriuen
+publicacions diferents (sessió, PR o commit), mana el seguiment de CI: la preview
+no s'importa, de manera que no pot autoritzar cap `/merge`, i es registra
+`migration_preview_dropped` amb l'actualització. Un bloqueig exclusiu sobre
+`state/agent-migration.lock` cobreix tota la importació, així que dos processos
+no la fan alhora; el sistema l'allibera si el procés cau. Si la importació falla,
+no canvia res i el servei refusa arrencar. També es refusa si no hi ha
+`agent.sqlite` però en queda el `-journal`, el `-wal` o el `-shm`. Si el procés cau entre els renames, la crida següent
+els acaba. Si hi ha `agent.sqlite` i una base antiga que no hi és importada tal
+com és ara, també es refusa: cal decidir quin estat és el bo
+([Tornar enrere](../../../docs/operations/agent.md#actualitzar)). L'ordre
+`commands/migrate-state/cli.mjs`
+[assaja la importació sobre una còpia](../../../docs/operations/agent.md#assajar-la-migració-de-lestat).
 
 ## Noms opacs
 
@@ -347,12 +403,12 @@ repositori principal i el publicador comprova que qui ha fet el push té permís
   no la tenen fins que una persona la posi. No cal cap permís nou al token
   (`Pull requests: write`). Cada push posterior publica la preview amb
   `synchronize` al flux de la fase 6.
-- **Seguiment de cada publicació.** Després de cada push del servei, el servei
-  desa una fila `awaiting` per al commit pujat a la fila de la instrucció que
-  l'ha publicat (`followPublication`). No espera les comprovacions en verd: el
-  `build` de la preview executa `pnpm validate` i un cap vermell no es publica.
+- **Seguiment de cada publicació.** Després de cada push del servei, el registre
+  de la publicació deixa la preview `awaiting` per al commit pujat. No espera les
+  comprovacions en verd: el `build` de la preview executa `pnpm validate` i un
+  cap vermell no es publica.
   Una PR sense l'etiqueta acaba el seguiment sense cap avís.
-- **Estats** (`state/preview-request.sqlite`): cada fila es desa com a
+- **Estats** (`publications.preview_state`): cada preview es desa com a
   `awaiting`, sense cap escriptura a GitHub, i acaba com a `confirmed`,
   `timed_out` o `failed` (cap adreça: la preview s'ha retirat o el cap ha
   canviat).
@@ -455,7 +511,7 @@ la PR sense fusió.
   «Segur que vols donar aquesta feina per acabada? Si confirmes, els canvis
   d'aquesta versió es fusionaran i es publicaran a producció si el desplegament
   acaba bé. Respon «Sí, a producció» a aquest missatge per confirmar.» Desa
-  l'identificador del missatge a `state/merge-request.sqlite` només després de
+  l'identificador del missatge a `merge_questions` només després de
   confirmar l'enviament, lligat a l'avís, la publicació, la PR, el SHA i la
   persona. Un enviament fallit o incert no deixa cap pregunta vàlida. Hi ha com
   a màxim una pregunta sense resposta per avís i persona: una nova validació
@@ -576,7 +632,7 @@ la PR sense fusió.
   La resposta ha de dir `merged: true` i portar el SHA del merge. GitHub no
   permet condicionar aquesta crida a les etiquetes: el servei les comprova a
   l'última lectura de la PR, abans d'enviar-la.
-- **Estats** (`state/merge-request.sqlite`): `merging` (desat abans de la crida),
+- **Estats** (`merge_requests.state`): `merging` (desat abans de la crida),
   `merged`, `failed` (4xx definitiu que no és 408 ni 429, com 405, 409 o 422: no
   s'ha fusionat res, es respon i una petició nova és possible), `uncertain`
   (xarxa, aturada, 408, 429, 5xx o resposta mal formada) i `not_merged` (una
@@ -641,7 +697,7 @@ avança després de l'última lectura del servei. Consulta el
 ## Feina vinculada al tema
 
 La primera publicació confirmada desa la branca i la PR a
-`state/topic-jobs.sqlite`. Només aquesta vinculació diu quina feina continua el
+`topic_jobs`. Només aquesta vinculació diu quina feina continua el
 tema.
 
 Abans de cada torn ordinari d'un tema vinculat, el servei llegeix la PR a
@@ -699,7 +755,7 @@ seu no quedi fora de la sessió.
   respon. Una resposta sense canvis no crea cap PR, llevat que hi hagi feina
   pendent de publicar.
 - **Efectes del servei.** `repository/session-note-store.mjs` desa a
-  `state/session-notes.sqlite`, per tema, el text de cada efecte que decideix el
+  `session_notes`, per tema, el text de cada efecte que decideix el
   servei i que no és la resposta del model: l'informe de publicació i qualsevol
   altre informe d'instrucció, els avisos de CI, la preview, el
   merge, el traspàs de tema, l'adjunt refusat (també el que es refusa en
@@ -868,12 +924,12 @@ de fallada.
 
 Els noms de les comprovacions i el commit queden al registre privat del servei
 (`ci_notification_sent`) i a la nota del servei de
-`state/session-notes.sqlite`, que és l'única que veu el model. La nota de la
+`session_notes`, que és l'única que veu el model. La nota de la
 publicació és tècnica i separada del text planer: `publicationNoteText` hi desa
 el número de la proposta, la branca, el commit publicat i el resultat de les
 comprovacions locals. `publicationReport` envia la resposta del model,
 retallada perquè l'enllaç no es perdi, l'avís «Canvi desat» (o el de fallada si el
-seguiment de CI no s'ha pogut desar) i, com a darrera línia, l'enllaç de revisió.
+registre de la publicació no s'ha pogut desar) i, com a darrera línia, l'enllaç de revisió.
 `ciReports` hi assigna cada resultat i `ciNoteReports` el mateix resultat
 tècnic, amb el commit i els noms de les comprovacions, a la nota del servei.
 
@@ -894,8 +950,8 @@ canvi sol i que el model no ha de dir mai que cal demanar-ho.
 
 ## Estat del tema
 
-Abans de cada torn, el servei identifica la PR del tema amb els seguiments
-persistits. Llegeix de GitHub la PR, el cap i les comprovacions obligatòries, i
+Abans de cada torn, el servei identifica la PR del tema amb les publicacions
+registrades. Llegeix de GitHub la PR, el cap i les comprovacions obligatòries, i
 revalida el cap. Revalida també el cap i llegeix la confirmació del publicador
 per a la preview del cap actual; les etiquetes de la PR decideixen la preview:
 sense `preview`, amb `preview-revoked` o amb la PR tancada, el bloc no en dona cap
@@ -907,9 +963,8 @@ també torna a comprovar el cap i la CI abans d'actuar.
 Els estats interiors es descriuen en paraules planes i el model els explica a la
 persona sense identificadors de commit ni noms de comprovació. Cada fet del bloc
 és d'aquella PR: una fila d'una altra PR del mateix tema no s'hi fa servir.
-`preview-request.sqlite` desa l'URL confirmada a `confirmed_origin` i
-l'identificador de l'avís lliurat a `notice_message_identifier` en acabar la
-petició.
+`publications` desa l'URL confirmada a `confirmed_origin` i l'identificador de
+l'avís lliurat a `notice_message_identifier` en acabar la preview.
 
 El [merge](#merge-demanat-al-tema) no treu el SHA del bloc d'estat.
 
@@ -934,10 +989,11 @@ no és automàtica: una persona llegeix l'estat real i el tanca amb
 Un merge incert es reconcilia amb `--kind merge`, que llegeix la PR a
 GitHub i només accepta la resolució que coincideix amb el seu estat. Una
 instrucció publicada exigeix `--pull-request`: la comanda torna a
-desar el seguiment de CI pendent d'aquell commit abans de desbloquejar-la, i si
-no el pot desar la instrucció continua incerta.
+desar el registre d'aquell commit, amb l'avís de CI pendent, abans de
+desbloquejar-la, i si no el pot desar la instrucció continua incerta.
 Cada resolució es desa amb la seva traça o no es desa, i la comanda no crea cap
-base de dades. L'avís al tema també es desa al magatzem de notes del tema abans
+base de dades buida: només importa les
+[bases anteriors](#estat-de-laplicació). L'avís al tema també es desa al magatzem de notes del tema abans
 d'enviar-lo (identitat `reconcile:<tipus>:<id>`), encara que l'enviament falli. El procediment és a
 [`docs/operations/agent.md`](../../../docs/operations/agent.md#reconciliació-de-resultats-desconeguts).
 
@@ -1103,6 +1159,11 @@ Telegram, cua, sessions i RPC. L'aplicació prova la política, el sandbox i Git
 simulades. `repository/ci-status.test.mjs` cobreix la classificació de la CI i
 `workflow/ci-watch.test.mjs`, els avisos de CI i la seva repetició després d'un
 enviament no confirmat.
+`repository/publication-store.test.mjs` cobreix la fila de cada publicació,
+`repository/state-database.test.mjs` l'esquema i les seves versions, i
+`repository/legacy-state.test.mjs` la importació de les bases anteriors, amb els
+seus esquemes exactes, la fallada sense canvis i els renames.
+`commands/migrate-state/cli.test.mjs` cobreix l'assaig sobre una còpia.
 `repository/session-note-store.test.mjs` cobreix la durabilitat, el
 lliurament únic, la retenció i els límits de les notes del tema, i
 `workflow/run-instruction-*.test.mjs`, un fitxer per fase, el torn del tema, el bloc
@@ -1115,7 +1176,8 @@ del tema. `workflow/topic-state.test.mjs` cobreix l'estat del tema amb magatzems
 temporals i el prompt de consulta i d'implementació. `commands/reconcile/uncertain-cases.test.mjs` cobreix els fets i la
 resolució de cada tipus de resultat desconegut, `commands/reconcile/command.test.mjs`
 una resolució completa amb clients simulats i `commands/reconcile/cli.test.mjs`
-el cablejat, els codis de sortida i l'absència de fitxers nous, amb stores SQLite
+el cablejat, els codis de sortida, la importació d'un estat anterior i que no es
+crea cap base buida, amb stores SQLite
 temporals, repositoris locals i fronteres externes simulades.
 `commands/update/command.test.mjs` cobreix la revisió instal·lada, l'estat
 ocupat, la imatge del sandbox, la còpia, la substitució de directoris i la
