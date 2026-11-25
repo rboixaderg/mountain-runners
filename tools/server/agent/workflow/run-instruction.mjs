@@ -48,11 +48,15 @@ import { SandboxCleanupError } from "../sandbox/errors.mjs";
 import {
   attachmentAcceptedDetail,
   attachmentRefusalReport,
+  answerWithNotices,
   attachmentReports,
   buildAttachmentsInstruction,
   buildConflictInstruction,
   conflictResolvedMarker,
   checkCommandForPaths,
+  checkFailureDetail,
+  namedPaths,
+  publicationRefusalDetail,
   ciWatchOutcomes,
   mergeSynchronizationReports,
   parseChangeSummary,
@@ -110,6 +114,8 @@ export function createInstructionRunner({
   runModel,
   runChecks,
   publishChange,
+  // Live credentials, redacted from the check output a note keeps.
+  secrets,
   registerCiWatch,
   // Follows the preview of every commit the service publishes.
   followPreview,
@@ -396,6 +402,9 @@ export function createInstructionRunner({
         durationMs: Math.round(performance.now() - started),
       });
     }
+    // An abort stops the sandbox with a failing exit code: it is never a
+    // failed check.
+    signal?.throwIfAborted();
     if (checks.timedOut) {
       return {
         report: instructionReports.checksTimedOut,
@@ -406,9 +415,9 @@ export function createInstructionRunner({
       return {
         report: instructionReports.checksFailed,
         reason: instructionReportKeys.checksFailed,
+        detail: checkFailureDetail({ checkCommand, checks, secrets }),
       };
     }
-    signal?.throwIfAborted();
     return null;
   }
 
@@ -609,6 +618,11 @@ export function createInstructionRunner({
           report: resolved.clarification ?? instructionReports.checksFailed,
           reason: instructionReportKeys.checksFailed,
           modelAnswer: resolved.clarification !== null,
+          ...(resolved.clarification === null
+            ? {
+                detail: `The merge with main has conflicts that were not resolved: ${namedPaths(synchronization.paths, secrets)}.`,
+              }
+            : {}),
         };
       }
     }
@@ -626,13 +640,18 @@ export function createInstructionRunner({
     if (checkReport !== null) {
       return checkReport;
     }
+    const leftover = await listChangedPaths(worktree, { signal });
     if (
-      (await listChangedPaths(worktree, { signal })).length > 0 ||
+      leftover.length > 0 ||
       (await headCommit(worktree, { signal })) !== commit
     ) {
       return {
         report: instructionReports.checksFailed,
         reason: instructionReportKeys.checksFailed,
+        detail:
+          leftover.length > 0
+            ? `Local check \`${checkCommand}\` left uncommitted changes: ${namedPaths(leftover, secrets)}.`
+            : `Local check \`${checkCommand}\` moved the branch head.`,
       };
     }
     return { checkCommand, mainHead, commit };
@@ -893,6 +912,9 @@ export function createInstructionRunner({
         outcome: "failed",
         report: instructionReports.publicationRefused,
         reason: instructionReportKeys.publicationRefused,
+        detail: publicationRefusalDetail(
+          "The worktree contains a nested Git repository or submodule. Remove it.",
+        ),
       };
     }
     return {
@@ -919,6 +941,9 @@ export function createInstructionRunner({
         ? report
         : `${report}\n${attachmentReports.ignored}`;
     let publicationStarted = false;
+    // The model's answer, which a later failure of the checks or of the
+    // publication still delivers.
+    let answer = "";
     // The worktree whose ignored attachment directory this turn staged, so the
     // copy disappears even when the model fails, times out or is aborted.
     let stagedAttachmentPath = null;
@@ -1212,7 +1237,7 @@ export function createInstructionRunner({
       // The person reads the model's answer, never its change summary: the
       // service owns the summary and strips the line from every text.
       const plainAnswer = stripChangeSummary(modelResult.text);
-      const answer = webTurn
+      answer = webTurn
         ? webTurn.withSources(plainAnswer)
         : (resumedResearch?.withSources(plainAnswer) ?? plainAnswer);
       // Whatever the model moved is already outside this directory. Removing it
@@ -1278,6 +1303,9 @@ export function createInstructionRunner({
         unsettledReport: {
           report: instructionReports.publicationRefused,
           reason: instructionReportKeys.publicationRefused,
+          detail: publicationRefusalDetail(
+            "main kept advancing while the change was being published.",
+          ),
         },
         onPublicationStarted: () => {
           publicationStarted = true;
@@ -1285,7 +1313,7 @@ export function createInstructionRunner({
         signal,
       });
       if (cycle.failure) {
-        return { outcome: "failed", ...cycle.failure };
+        return { outcome: "failed", ...cycle.failure, answer };
       }
       const { publication, synchronized } = cycle;
       const { checkCommand } = synchronized;
@@ -1318,6 +1346,8 @@ export function createInstructionRunner({
           outcome: "failed",
           report: instructionReports.publicationRefused,
           reason: instructionReportKeys.publicationRefused,
+          detail: publicationRefusalDetail(publication.reason, { secrets }),
+          answer,
         };
       }
       // Record the first confirmed publication. An existing binding is never
@@ -1410,7 +1440,10 @@ export function createInstructionRunner({
         }),
       };
     } catch (error) {
-      return failureResult(error, { signal, publicationStarted });
+      return {
+        ...failureResult(error, { signal, publicationStarted }),
+        answer,
+      };
     } finally {
       if (stagedAttachmentPath !== null) {
         try {
@@ -1571,13 +1604,15 @@ export function createInstructionRunner({
             report: `El canvi no s'ha publicat. Cal una revisió privada abans del push.\nFeina: ${worktreeName}\nRevisió: ${publication.reviewId}`,
           };
         }
-        return failed(
-          failureReport(
-            publication.readFailed
-              ? instructionReportKeys.publicationReadFailed
-              : instructionReportKeys.publicationRefused,
-          ),
-        );
+        if (publication.readFailed) {
+          return failed(
+            failureReport(instructionReportKeys.publicationReadFailed),
+          );
+        }
+        return failed({
+          ...failureReport(instructionReportKeys.publicationRefused),
+          detail: publicationRefusalDetail(publication.reason, { secrets }),
+        });
       }
       unpublishedWorktree = null;
       const ciWatch = registerCiWatch?.({
@@ -1647,6 +1682,9 @@ export function createInstructionRunner({
       modelAnswer = false,
       serviceText = null,
       reason = null,
+      // The technical reason of a failure, for the note only.
+      detail = null,
+      answer = "",
       ...result
     } = await execute(request, options);
     // The failure notice tells the person the maintainer can review the case:
@@ -1657,15 +1695,20 @@ export function createInstructionRunner({
         reason: reason ?? unknownFailureReason,
       });
     }
+    let noteText = serviceText;
+    if (detail !== null) {
+      noteText = `${result.report}\n${detail}`;
+      result.report = answerWithNotices(answer, result.report);
+    }
     if (sessionNotes === undefined || typeof result.report !== "string") {
       return result;
     }
     const effectKey = `instruction:${request.updateIdentifier}`;
-    if (serviceText !== null) {
+    if (noteText !== null) {
       safelyWithNotes(() =>
         sessionNotes.addNote({
           sessionKey: request.sessionKey,
-          text: serviceText,
+          text: noteText,
           receivedText: result.report,
           effectKey,
         }),

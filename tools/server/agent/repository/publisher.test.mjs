@@ -102,7 +102,10 @@ test("keeps a local refusal a refusal", async (context) => {
     signal: undefined,
   });
 
-  assert.deepEqual(publication, { refused: true });
+  assert.deepEqual(publication, {
+    refused: true,
+    reason: "A preflight check before the push failed.",
+  });
   assert.equal(publishedCommit(worktree), null);
 });
 
@@ -152,7 +155,11 @@ test("a synchronization refuses a revoked preview before the push", async (conte
   const { github, publishChange, candidate, pullRequest } =
     synchronizationFixture(context, assert.fail);
   pullRequest.previewRevoked = true;
-  assert.deepEqual(await publishChange(candidate), { refused: true });
+  assert.deepEqual(await publishChange(candidate), {
+    refused: true,
+    reason:
+      "The pull request is no longer open at the expected commit or cannot be updated.",
+  });
   assert.deepEqual(
     github.calls.map(([name]) => name),
     ["getPullRequest"],
@@ -673,7 +680,10 @@ test("repair cannot push a research-tainted job before review or at a different 
   assert.deepEqual(github.calls, []);
   store.approve("stable-job", review.reviewId);
   expectedHead = "4".repeat(40);
-  assert.deepEqual(await publish(parameters), { refused: true });
+  assert.deepEqual(await publish(parameters), {
+    refused: true,
+    reason: "The work branch on GitHub is not at the expected commit.",
+  });
   assert.equal(store.isApproved("stable-job", review.reviewId), false);
   assert.deepEqual(github.calls, []);
 });

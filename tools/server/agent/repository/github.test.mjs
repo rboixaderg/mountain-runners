@@ -17,6 +17,7 @@ import {
   PublicationBaseChangedError,
   PublishRefusedError,
 } from "./github.mjs";
+import { PublicationRuleError } from "./secret-scan.mjs";
 import { GitInterruptedError, primaryRepository } from "./trusted-git.mjs";
 import { createBranch, ensureSessionWorktree } from "./worktrees.mjs";
 
@@ -499,10 +500,12 @@ for (const protectedPath of [
     ]);
     await git(worktree.path, ["rm", protectedPath]);
     await git(worktree.path, ["commit", "-m", "test: remove protected path"]);
-    await assert.rejects(
-      trust().pushBranch({ worktree, branch }),
-      PublishRefusedError,
-    );
+    await assert.rejects(trust().pushBranch({ worktree, branch }), (error) => {
+      assert.ok(error instanceof PublishRefusedError);
+      assert.ok(error.cause instanceof PublicationRuleError);
+      assert.ok(error.cause.message.includes(JSON.stringify(protectedPath)));
+      return true;
+    });
     await assert.rejects(git(origin, ["rev-parse", branch]));
   });
 }

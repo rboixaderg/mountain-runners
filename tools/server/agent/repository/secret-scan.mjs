@@ -2,10 +2,15 @@
 // Every new object is inspected, including earlier file versions and commit
 // messages. An inspection error or exhausted budget refuses publication.
 
+import { namedPaths } from "../policy/development.mjs";
 import { gitlinkMode, runGit } from "./trusted-git.mjs";
 
 const maximumObjectBytes = 2 * 1024 * 1024;
 const maximumTotalBytes = 32 * 1024 * 1024;
+
+/** A rule that refuses publication. The service writes its message, which names
+ * no secret and is safe for the note of the topic. */
+export class PublicationRuleError extends Error {}
 
 function isProtectedPath(path) {
   const normalized = path.toLowerCase();
@@ -68,15 +73,24 @@ export async function assertPublishableHistory({
   ).split("\0");
   const headers = records.filter((record, index) => index % 2 === 0);
   const changed = records.filter((record, index) => index % 2 === 1);
-  if (headers.some(touchesGitlink)) {
-    throw new Error("Publication contains a nested repository or submodule.");
+  const gitlinkPaths = changed.filter((path, index) =>
+    touchesGitlink(headers[index]),
+  );
+  if (gitlinkPaths.length > 0) {
+    throw new PublicationRuleError(
+      `Publication contains a nested repository or submodule: ${namedPaths(gitlinkPaths)}.`,
+    );
   }
-  if (changed.some(isAttachmentPath)) {
-    throw new Error("Publication contains an attachment directory path.");
+  const attachmentPaths = changed.filter(isAttachmentPath);
+  if (attachmentPaths.length > 0) {
+    throw new PublicationRuleError(
+      `Publication contains an attachment directory path: ${namedPaths(attachmentPaths)}.`,
+    );
   }
-  if (changed.some(isProtectedPath)) {
-    throw new Error(
-      "Publication changes a protected GitHub or CODEOWNERS path.",
+  const protectedPaths = changed.filter(isProtectedPath);
+  if (protectedPaths.length > 0) {
+    throw new PublicationRuleError(
+      `Publication changes a protected GitHub or CODEOWNERS path: ${namedPaths(protectedPaths)}.`,
     );
   }
 
@@ -104,7 +118,7 @@ export async function assertPublishableHistory({
       size > maximumObjectBytes ||
       inspectedBytes + size > maximumTotalBytes
     ) {
-      throw new Error(
+      throw new PublicationRuleError(
         "Publication history exceeds the inspection budget or cannot be inspected.",
       );
     }
@@ -115,7 +129,7 @@ export async function assertPublishableHistory({
     });
     inspectedBytes += size;
     if (candidates.some((secret) => content.includes(secret))) {
-      throw new Error(
+      throw new PublicationRuleError(
         "Publication history contains a live credential and cannot be published.",
       );
     }

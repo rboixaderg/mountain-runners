@@ -25,7 +25,11 @@ import {
 import { CiWatchStore } from "../repository/ci-watch-store.mjs";
 import { MergeRequestStore } from "../repository/merge-request-store.mjs";
 import { createResearchReview } from "../repository/research-review.mjs";
-import { SessionNoteStore } from "../repository/session-note-store.mjs";
+import { PublicationRuleError } from "../repository/secret-scan.mjs";
+import {
+  noteLimits,
+  SessionNoteStore,
+} from "../repository/session-note-store.mjs";
 import { TopicJobStore } from "../repository/topic-job-store.mjs";
 import {
   attachmentReports,
@@ -1518,7 +1522,10 @@ test("reports a persistent publication block after each model turn", async (cont
   const retried = await runner(request({ updateIdentifier: 1002 }));
 
   assert.equal(retried.outcome, "failed");
-  assert.equal(retried.report, instructionReports.checksFailed);
+  assert.equal(
+    retried.report,
+    `Resposta.\n\n${instructionReports.checksFailed}`,
+  );
   assert.equal(checkCount, 2);
   assert.equal(modelTurns, 2);
   assert.deepEqual(github.pushes, []);
@@ -2452,6 +2459,106 @@ test("keeps the worktree and publishes nothing when the checks fail", async (con
   assert.equal(existsSync(topicWorktreePath(paths)), true);
 });
 
+for (const scenario of [
+  {
+    name: "a failed check",
+    expectedReport: instructionReports.checksFailed,
+    runChecks: async () => ({
+      exitCode: 1,
+      stdout: `${"earlier line\n".repeat(200)}\u001b[31mbroken-test failed\u001b[0m github-secret\n`,
+      stderr: "telegram-secret\n",
+      timedOut: false,
+    }),
+    expectedDetail: [
+      /Local check `pnpm check` failed with exit code 1\./u,
+      /\| broken-test failed \*\*\*$/mu,
+    ],
+  },
+  {
+    name: "a check that leaves changes",
+    expectedReport: instructionReports.checksFailed,
+    runChecks: async ({ worktreePath }) => {
+      writeFileSync(join(worktreePath, "generated.txt"), "generated\n");
+      return { exitCode: 0, timedOut: false };
+    },
+    expectedDetail: [/left uncommitted changes: "generated\.txt"\./u],
+  },
+  {
+    name: "a nested repository",
+    expectedReport: instructionReports.publicationRefused,
+    edit: (worktreePath, paths) =>
+      createNestedRepository(worktreePath, join(paths.directory, "filter-ran")),
+    expectedDetail: [/Publication refused: .*nested Git repository/u],
+  },
+  {
+    name: "a publication rule",
+    expectedReport: instructionReports.publicationRefused,
+    refusal: new PublishRefusedError("raw", {
+      cause: new PublicationRuleError(
+        'Publication changes a protected GitHub or CODEOWNERS path: "CODEOWNERS".',
+      ),
+    }),
+    expectedDetail: [/Publication refused: .*"CODEOWNERS"\./u],
+  },
+  {
+    name: "an unexplained publisher refusal",
+    expectedReport: instructionReports.publicationRefused,
+    refusal: new PublishRefusedError("raw tool output", {
+      cause: new Error("raw tool output"),
+    }),
+    expectedDetail: [/Publication refused: A preflight check/u],
+  },
+]) {
+  test(`delivers the answer and keeps the reason of ${scenario.name} for the next turn`, async (context) => {
+    const paths = await fixture(context);
+    const github = githubStub();
+    if (scenario.refusal) {
+      github.pushBranch = async () => {
+        throw scenario.refusal;
+      };
+    }
+    const sessionNotes = noteStore(context, paths);
+    const prompts = [];
+    const replies = [];
+    const runner = createProjectRunner({
+      config: configFor(paths),
+      classifyRequest: async () => ({ kind: "implementation" }),
+      github,
+      sessionNotes,
+      runModel: async (options) => {
+        replies.push(sessionNotes.lastReply(topicSessionKey));
+        prompts.push(options.claimServiceNotes().join("\n"));
+        options.onPromptSent();
+        if (prompts.length > 1) return { text: "Resposta.", errorMessage: "x" };
+        writeFileSync(join(options.worktreePath, "change.txt"), "canvi\n");
+        await scenario.edit?.(options.worktreePath, paths);
+        return { text: "He fet el canvi.\nSUMMARY: fix(tools): a change" };
+      },
+      runChecks:
+        scenario.runChecks ??
+        (async () => ({ exitCode: 0, stdout: "", stderr: "" })),
+    });
+
+    const result = await runner(request());
+    await runner(request({ updateIdentifier: 1002 }));
+
+    const report = `He fet el canvi.\n\n${scenario.expectedReport}`;
+    assert.equal(result.outcome, "failed");
+    assert.equal(result.report, report);
+    assert.equal(replies[1], report);
+    for (const pattern of scenario.expectedDetail) {
+      assert.match(prompts[1], pattern);
+    }
+    assert.ok(prompts[1].startsWith(scenario.expectedReport));
+    assert.ok(prompts[1].length <= noteLimits.characters);
+    assert.doesNotMatch(
+      prompts[1],
+      /He fet el canvi|raw|github-secret|telegram-secret/u,
+    );
+    assert.equal(prompts[1].includes("\u001b"), false);
+  });
+}
+
 test("refuses a nested repository locally without entering it and keeps the work", async (context) => {
   const paths = await fixture(context);
   const github = githubStub();
@@ -2501,6 +2608,7 @@ for (const scenario of [
       outputLimitExceeded: false,
     },
     expectedReport: instructionReports.checksTimedOut,
+    expectedReason: "checksTimedOut",
     expectedDiagnostics: {
       reason: "timeout",
       exitCode: -1,
@@ -2516,6 +2624,7 @@ for (const scenario of [
       outputLimitExceeded: true,
     },
     expectedReport: instructionReports.checksFailed,
+    expectedReason: "checksFailed",
     expectedDiagnostics: {
       reason: "output_limit",
       exitCode: -1,
@@ -2531,7 +2640,8 @@ for (const scenario of [
       timedOut: false,
       outputLimitExceeded: false,
     },
-    expectedReport: instructionReports.checksFailed,
+    expectedReport: instructionReports.aborted,
+    expectedReason: "aborted",
     expectedDiagnostics: {
       reason: "cancelled",
       exitCode: -1,
@@ -2577,6 +2687,10 @@ for (const scenario of [
       ...scenario.expectedDiagnostics,
       durationMs: diagnostics.durationMs,
     });
+    assert.deepEqual(
+      entries.find(([event]) => event === "maintainer_attention"),
+      ["maintainer_attention", scenario.expectedReason],
+    );
     assert.deepEqual(github.pushes, []);
   });
 }
@@ -4198,7 +4312,10 @@ test("gives the classifier the last reply and the pending local work", async (co
 
   assert.equal(first.outcome, "failed");
   assert.equal(second.outcome, "failed");
-  assert.equal(second.report, instructionReports.checksFailed);
+  assert.equal(
+    second.report,
+    `Ja tinc els fets de la notícia.\n\n${instructionReports.checksFailed}`,
+  );
   assert.equal(
     instructions[1],
     "aquí tens els fets",
@@ -5564,6 +5681,42 @@ test("merge synchronization publishes against current main after it advances pas
   assert.deepEqual(parents.split(" "), [target.commit, mainSha]);
   assert.equal(previews[0].mergeSynchronization, true);
   assert.equal(previews[0].commit, result.commit);
+});
+
+test("keeps the redacted reason of a refused merge synchronization in the note", async (context) => {
+  let synchronize;
+  const notes = [];
+  const { paths, github, runner, target } = await boundTopic(context, {
+    requestMerge: (mergeCommand) => synchronize(mergeCommand),
+    sessionNotes: {
+      addNote: (note) => notes.push(note),
+      recordReply: () => {},
+      claim: () => [],
+      deliver: () => {},
+      release: () => {},
+    },
+  });
+  synchronize = (mergeCommand) =>
+    runner.synchronizeForMerge(mergeCommand, target);
+  github.pushBranch = async () => {
+    throw new PublishRefusedError("raw", {
+      cause: new PublicationRuleError("Rule on github-secret."),
+    });
+  };
+  await advanceMain(paths, "main-change.txt", "main\n");
+  notes.length = 0;
+
+  const result = await runner(
+    request({ updateIdentifier: 2002, instruction: "/merge" }),
+  );
+
+  assert.equal(result.report, instructionReports.publicationRefused);
+  assert.deepEqual(
+    notes.map((note) => note.text),
+    [
+      `${instructionReports.publicationRefused}\nPublication refused: Rule on ***.`,
+    ],
+  );
 });
 
 test("merge synchronization refuses a moved head or branch without mutating", async (context) => {

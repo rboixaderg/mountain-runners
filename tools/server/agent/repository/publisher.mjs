@@ -9,6 +9,7 @@ import {
   PublishRefusedError,
 } from "./github.mjs";
 import { sleep } from "./request-signal.mjs";
+import { PublicationRuleError } from "./secret-scan.mjs";
 import { recordPublication } from "./worktrees.mjs";
 
 const synchronizationRetryDelays = [1000, 2000, 4000, 8000, 16_000];
@@ -128,7 +129,11 @@ export function createPublisher({
             candidate,
           );
           if (repair && candidate.expectedHead !== repair.commit)
-            return { refused: true };
+            return {
+              refused: true,
+              reason:
+                "The work branch on GitHub is not at the expected commit.",
+            };
           if (
             (await researchReview.isApproved(researchJobId, reviewId)) !== true
           ) {
@@ -162,7 +167,11 @@ export function createPublisher({
         (synchronization &&
           !synchronizationEligible(pullRequest, branch, repository))
       ) {
-        return { refused: true };
+        return {
+          refused: true,
+          reason:
+            "The pull request is no longer open at the expected commit or cannot be updated.",
+        };
       }
     }
     let pushed;
@@ -180,7 +189,15 @@ export function createPublisher({
       if (error instanceof PublicationBaseChangedError)
         return { baseChanged: true };
       if (error instanceof PublishRefusedError) {
-        return { refused: true };
+        // Only a publication rule has a message written for the topic; any other
+        // cause may carry raw Git or GitHub output.
+        return {
+          refused: true,
+          reason:
+            error.cause instanceof PublicationRuleError
+              ? error.cause.message
+              : "A preflight check before the push failed.",
+        };
       }
       throw error;
     }
