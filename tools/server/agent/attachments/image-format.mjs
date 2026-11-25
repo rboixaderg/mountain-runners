@@ -18,7 +18,8 @@ const imageTypes = {
 const pngSignature = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
 // Only the chunks that are part of the image itself survive inspection. Every
 // other ancillary chunk is metadata, including private and standard chunks the
-// list does not need (pHYs, iCCP, eXIf, text and time chunks).
+// list does not need (pHYs, eXIf, text and time chunks). The colour profile
+// (iCCP) is decided apart, in `readPngStructure`.
 const pngKeptChunks = new Set([
   "IHDR",
   "PLTE",
@@ -34,6 +35,10 @@ const webpAnimationFlag = 0x02;
 const webpExifFlag = 0x08;
 const webpXmpFlag = 0x04;
 const webpIccFlag = 0x20;
+// The colour profile is kept in the three formats, because removing it changes
+// the colours. Its contents are not inspected, so its size is bounded: a larger
+// profile is removed.
+const maximumProfileBytes = 64 * 1024;
 // Structural segments of a JPEG. APP0 and APP2 are kept only when they carry
 // JFIF or an ICC profile; every other APP segment and COM are metadata.
 const jpegApp0Marker = 0xe0;
@@ -119,6 +124,14 @@ function isJpegFrameMarker(marker) {
   );
 }
 
+function isJpegProfileSegment(marker, bytes, payloadStart, segmentLength) {
+  return (
+    marker === jpegApp2Marker &&
+    segmentLength >= 16 &&
+    readAscii(bytes, payloadStart, jpegIccSignature.length) === jpegIccSignature
+  );
+}
+
 // Whether a marker segment belongs to the image. Anything else is metadata and
 // is removed, including APP2 multi-picture files that embed a thumbnail with
 // its own EXIF data.
@@ -131,11 +144,7 @@ function isJpegKeptSegment(marker, bytes, payloadStart, segmentLength) {
     );
   }
   if (marker === jpegApp2Marker) {
-    return (
-      segmentLength >= 16 &&
-      readAscii(bytes, payloadStart, jpegIccSignature.length) ===
-        jpegIccSignature
-    );
+    return isJpegProfileSegment(marker, bytes, payloadStart, segmentLength);
   }
   return jpegKeptMarkers.has(marker);
 }
@@ -160,11 +169,14 @@ export function detectImageType(bytes) {
 
 // Every chunk is bounded by the file and carries a valid CRC; the header comes
 // first with its exact length, image data is present and IEND closes the file.
-function inspectPng(bytes) {
+// The only colour profile kept is the first one, before the image data.
+function readPngStructure(bytes) {
   let offset = pngSignature.length;
   let dimensions = null;
   let hasImageData = false;
   let hasMetadata = false;
+  let hasProfileChunk = false;
+  const chunks = [];
   while (offset < bytes.length) {
     if (offset + 12 > bytes.length) {
       return null;
@@ -196,7 +208,15 @@ function inspectPng(bytes) {
     if (chunkType === "IDAT") {
       hasImageData = true;
     }
-    if (!pngKeptChunks.has(chunkType)) {
+    let isKept = pngKeptChunks.has(chunkType);
+    if (chunkType === "iCCP") {
+      isKept =
+        !hasProfileChunk && !hasImageData && length <= maximumProfileBytes;
+      hasProfileChunk = true;
+    }
+    if (isKept) {
+      chunks.push(bytes.subarray(offset, chunkEnd));
+    } else {
       // An unknown critical chunk changes how the image must be decoded, so the
       // file is refused instead of stripped.
       if ((bytes[offset + 4] & 0x20) === 0) {
@@ -209,10 +229,22 @@ function inspectPng(bytes) {
       if (length !== 0 || offset !== bytes.length || !hasImageData) {
         return null;
       }
-      return { type: imageTypes.png, ...dimensions, hasMetadata };
+      return { dimensions, chunks, hasMetadata };
     }
   }
   return null;
+}
+
+function inspectPng(bytes) {
+  const structure = readPngStructure(bytes);
+  if (structure === null) {
+    return null;
+  }
+  return {
+    type: imageTypes.png,
+    ...structure.dimensions,
+    hasMetadata: structure.hasMetadata,
+  };
 }
 
 // Where the entropy-coded data of a scan stops: the index of the 0xFF that
@@ -244,9 +276,10 @@ function jpegScanEnd(bytes, start) {
 
 /**
  * Walk the whole JPEG, progressive scans included, and return the ordered
- * pieces of the file: every marker segment, every entropy-coded scan and the
- * final EOI. Null means the structure cannot be read, data follows the EOI, or
- * no frame or scan is present.
+ * pieces of the image: every marker segment, every entropy-coded scan and the
+ * first EOI. Data after that EOI (extra images, a Motion Photo video, padding)
+ * is not a piece, so stripping drops it, and until then it counts as metadata.
+ * Null means the structure cannot be read or no frame or scan is present.
  */
 function readJpegStructure(bytes) {
   if (bytes.length < 4 || bytes[0] !== 0xff || bytes[1] !== 0xd8) {
@@ -257,6 +290,7 @@ function readJpegStructure(bytes) {
   let dimensions = null;
   let scanCount = 0;
   let hasMetadata = false;
+  let profileBytes = 0;
   while (offset < bytes.length) {
     if (bytes[offset] !== 0xff) {
       return null;
@@ -270,14 +304,20 @@ function readJpegStructure(bytes) {
     }
     const marker = bytes[offset + 1];
     if (marker === 0xd9) {
-      if (offset + 2 !== bytes.length) {
-        return null;
-      }
-      pieces.push({ marker, start: markerStart, end: bytes.length });
+      const end = offset + 2;
+      pieces.push({ start: markerStart, end });
       if (dimensions === null || scanCount === 0) {
         return null;
       }
-      return { dimensions, pieces, hasMetadata };
+      // The profile spans several segments: all of them stay or none does.
+      const oversizedProfile = profileBytes > maximumProfileBytes;
+      return {
+        dimensions,
+        pieces: oversizedProfile
+          ? pieces.filter((piece) => !piece.isProfile)
+          : pieces,
+        hasMetadata: hasMetadata || oversizedProfile || end !== bytes.length,
+      };
     }
     // A second SOI, a TEM or a restart marker outside a scan is not a
     // parseable structure.
@@ -298,8 +338,23 @@ function readJpegStructure(bytes) {
       return null;
     }
     const payloadStart = offset + 4;
-    if (!isJpegKeptSegment(marker, bytes, payloadStart, segmentLength)) {
+    const isKept = isJpegKeptSegment(
+      marker,
+      bytes,
+      payloadStart,
+      segmentLength,
+    );
+    const isProfile = isJpegProfileSegment(
+      marker,
+      bytes,
+      payloadStart,
+      segmentLength,
+    );
+    if (!isKept) {
       hasMetadata = true;
+    }
+    if (isProfile) {
+      profileBytes += segmentLength - 2;
     }
     if (isJpegFrameMarker(marker)) {
       if (dimensions !== null) {
@@ -322,13 +377,9 @@ function readJpegStructure(bytes) {
         return null;
       }
     }
-    pieces.push({
-      marker,
-      start: markerStart,
-      end: segmentEnd,
-      payloadStart,
-      segmentLength,
-    });
+    if (isKept) {
+      pieces.push({ start: markerStart, end: segmentEnd, isProfile });
+    }
     offset = segmentEnd;
     if (marker !== 0xda) {
       continue;
@@ -393,8 +444,10 @@ function inspectWebpLossless(bytes, payloadStart, chunkSize) {
 // The riff size must consume the file exactly, chunk padding included, and the
 // image needs exactly one frame. An extended file also carries a canvas that
 // must describe that same frame; animation is not accepted. Only structural
-// chunks are kept, so every other chunk is metadata.
-function inspectWebp(bytes) {
+// chunks are kept, so every other chunk is metadata. The only colour profile
+// kept follows a VP8X header that announces it, and the header announces one
+// only when it is there.
+function readWebpStructure(bytes) {
   if (bytes.length < 12) {
     return null;
   }
@@ -407,7 +460,10 @@ function inspectWebp(bytes) {
   let frame = null;
   let frameCount = 0;
   let hasMetadata = false;
+  let announcesProfile = false;
+  let hasProfile = false;
   let chunkIndex = 0;
+  const chunks = [];
   while (offset < bytes.length) {
     if (offset + 8 > bytes.length) {
       return null;
@@ -432,14 +488,26 @@ function inspectWebp(bytes) {
       if ((flags & webpAnimationFlag) !== 0) {
         return null;
       }
-      if ((flags & (webpExifFlag | webpXmpFlag | webpIccFlag)) !== 0) {
+      announcesProfile = (flags & webpIccFlag) !== 0;
+      if ((flags & (webpExifFlag | webpXmpFlag)) !== 0) {
         hasMetadata = true;
       }
       canvas = {
         width: readUint24LittleEndian(bytes, payloadStart + 4) + 1,
         height: readUint24LittleEndian(bytes, payloadStart + 7) + 1,
       };
-    } else if (!webpKeptChunks.has(fourcc)) {
+    }
+    let isKept = webpKeptChunks.has(fourcc);
+    if (fourcc === "ICCP") {
+      isKept =
+        announcesProfile &&
+        chunkIndex === 1 &&
+        chunkSize <= maximumProfileBytes;
+      hasProfile ||= isKept;
+    }
+    if (isKept) {
+      chunks.push(bytes.subarray(offset, chunkEnd));
+    } else {
       hasMetadata = true;
     }
     if (fourcc === "VP8 " || fourcc === "VP8L") {
@@ -468,7 +536,24 @@ function inspectWebp(bytes) {
   if (dimensions.width === 0 || dimensions.height === 0) {
     return null;
   }
-  return { type: imageTypes.webp, ...dimensions, hasMetadata };
+  return {
+    dimensions,
+    chunks,
+    hasProfile,
+    hasMetadata: hasMetadata || announcesProfile !== hasProfile,
+  };
+}
+
+function inspectWebp(bytes) {
+  const structure = readWebpStructure(bytes);
+  if (structure === null) {
+    return null;
+  }
+  return {
+    type: imageTypes.webp,
+    ...structure.dimensions,
+    hasMetadata: structure.hasMetadata,
+  };
 }
 
 /**
@@ -494,62 +579,41 @@ function stripJpegMetadata(bytes) {
   if (structure === null) {
     throw new Error("The JPEG structure cannot be read.");
   }
-  const kept = [bytes.subarray(0, 2)];
-  for (const piece of structure.pieces) {
-    if (
-      piece.marker !== undefined &&
-      !isJpegKeptSegment(
-        piece.marker,
-        bytes,
-        piece.payloadStart,
-        piece.segmentLength,
-      )
-    ) {
-      continue;
-    }
-    kept.push(bytes.subarray(piece.start, piece.end));
-  }
-  return Buffer.concat(kept);
+  return Buffer.concat([
+    bytes.subarray(0, 2),
+    ...structure.pieces.map((piece) => bytes.subarray(piece.start, piece.end)),
+  ]);
 }
 
 function stripPngMetadata(bytes) {
-  const kept = [bytes.subarray(0, pngSignature.length)];
-  let offset = pngSignature.length;
-  while (offset + 12 <= bytes.length) {
-    const length = readUint32BigEndian(bytes, offset);
-    const chunkEnd = offset + 12 + length;
-    if (chunkEnd > bytes.length) {
-      throw new Error("A PNG chunk exceeds the file.");
-    }
-    if (pngKeptChunks.has(readAscii(bytes, offset + 4, 4))) {
-      kept.push(bytes.subarray(offset, chunkEnd));
-    }
-    offset = chunkEnd;
+  const structure = readPngStructure(bytes);
+  if (structure === null) {
+    throw new Error("The PNG structure cannot be read.");
   }
-  return Buffer.concat(kept);
+  return Buffer.concat([
+    bytes.subarray(0, pngSignature.length),
+    ...structure.chunks,
+  ]);
 }
 
 function stripWebpMetadata(bytes) {
-  const kept = [];
-  let offset = 12;
-  while (offset + 8 <= bytes.length) {
-    const fourcc = readAscii(bytes, offset, 4);
-    const chunkSize = readUint32LittleEndian(bytes, offset + 4);
-    const chunkEnd = offset + 8 + chunkSize + (chunkSize % 2);
-    if (chunkEnd > bytes.length) {
-      throw new Error("A WebP chunk exceeds the file.");
-    }
-    if (fourcc === "VP8X") {
-      // The flags announce the metadata chunks that are being removed.
-      const chunk = Buffer.from(bytes.subarray(offset, chunkEnd));
-      chunk[8] &= ~(webpExifFlag | webpXmpFlag | webpIccFlag);
-      kept.push(chunk);
-    } else if (webpKeptChunks.has(fourcc)) {
-      kept.push(bytes.subarray(offset, chunkEnd));
-    }
-    offset = chunkEnd;
+  const structure = readWebpStructure(bytes);
+  if (structure === null) {
+    throw new Error("The WebP structure cannot be read.");
   }
-  const body = Buffer.concat([Buffer.from("WEBP", "ascii"), ...kept]);
+  const chunks = structure.chunks.map((chunk) => {
+    if (readAscii(chunk, 0, 4) !== "VP8X") {
+      return chunk;
+    }
+    // The flags announce only the chunks that survive.
+    const header = Buffer.from(chunk);
+    header[8] &= ~(webpExifFlag | webpXmpFlag | webpIccFlag);
+    if (structure.hasProfile) {
+      header[8] |= webpIccFlag;
+    }
+    return header;
+  });
+  const body = Buffer.concat([Buffer.from("WEBP", "ascii"), ...chunks]);
   const header = Buffer.alloc(8);
   header.write("RIFF", 0, "ascii");
   header.writeUInt32LE(body.length, 4);

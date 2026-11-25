@@ -59,6 +59,11 @@ function emptyManifest() {
   return { counter: 0, attachments: [] };
 }
 
+/**
+ * The manifest of a topic, empty when it was never written. Null means it exists
+ * but cannot be read: nothing is then written over it, so its counter never
+ * restarts and the names a session already saw are not reused.
+ */
 function readManifest(directory) {
   try {
     const manifest = JSON.parse(
@@ -69,11 +74,11 @@ function readManifest(directory) {
       manifest.counter < 0 ||
       !Array.isArray(manifest.attachments)
     ) {
-      return emptyManifest();
+      return null;
     }
     return manifest;
-  } catch {
-    return emptyManifest();
+  } catch (error) {
+    return error.code === "ENOENT" ? emptyManifest() : null;
   }
 }
 
@@ -118,6 +123,14 @@ function entryBytes(entry) {
   return Number.isSafeInteger(entry.bytes) && entry.bytes > 0 ? entry.bytes : 0;
 }
 
+/** The regular files of a topic directory besides its manifest. */
+function storedFiles(directory) {
+  return readdirSync(directory)
+    .filter((name) => name !== "manifest.json")
+    .map((name) => ({ name, entry: existingEntry(join(directory, name)) }))
+    .filter(({ entry }) => entry?.isFile());
+}
+
 /** The image bytes of a stored attachment, or null when it cannot be read. */
 export function readStoredAttachment({ directory, name }) {
   if (!attachmentNamePattern.test(name)) {
@@ -148,14 +161,18 @@ export function createAttachmentStore({
   function list(topicName) {
     const directory = topicDirectory(topicName);
     const manifest = readManifest(directory);
-    return manifest.attachments.filter((entry) =>
+    return (manifest?.attachments ?? []).filter((entry) =>
       regularFile(join(directory, entry.name)),
     );
   }
 
-  /** Every other topic store with its manifest, for the total quota. */
+  /**
+   * Every other topic store with its manifest, for the total quota. The files
+   * under an unreadable manifest cannot be evicted but still take their bytes.
+   */
   function otherTopicManifests(excludedDirectory) {
     const stores = [];
+    let unreadableBytes = 0;
     for (const topic of readdirSync(root, { withFileTypes: true })) {
       if (!topic.isDirectory() || !topicNamePattern.test(topic.name)) {
         continue;
@@ -164,13 +181,16 @@ export function createAttachmentStore({
       if (directory === excludedDirectory) {
         continue;
       }
-      stores.push({
-        directory,
-        manifest: readManifest(directory),
-        changed: false,
-      });
+      const manifest = readManifest(directory);
+      if (manifest === null) {
+        for (const { entry } of storedFiles(directory)) {
+          unreadableBytes += entry.size;
+        }
+        continue;
+      }
+      stores.push({ directory, manifest, changed: false });
     }
-    return stores;
+    return { stores, unreadableBytes };
   }
 
   /**
@@ -188,10 +208,8 @@ export function createAttachmentStore({
     ) {
       return false;
     }
-    const stores = [
-      { directory, manifest, changed: false },
-      ...otherTopicManifests(directory),
-    ];
+    const others = otherTopicManifests(directory);
+    const stores = [{ directory, manifest, changed: false }, ...others.stores];
     const timeOf = (entry) => {
       const time = Date.parse(entry.addedAt);
       return Number.isNaN(time) ? 0 : time;
@@ -243,7 +261,7 @@ export function createAttachmentStore({
     remaining.sort(byOldest);
     let totalBytes = remaining.reduce(
       (sum, record) => sum + entryBytes(record.attachment),
-      0,
+      others.unreadableBytes,
     );
     for (const record of remaining) {
       if (totalBytes + incomingBytes <= maximumTotalBytes) {
@@ -257,10 +275,6 @@ export function createAttachmentStore({
     }
     for (const store of stores) {
       if (!store.changed || store.directory === directory) {
-        continue;
-      }
-      if (store.manifest.attachments.length === 0) {
-        rmSync(store.directory, { recursive: true, force: true });
         continue;
       }
       writeManifest(store.directory, store.manifest);
@@ -280,6 +294,9 @@ export function createAttachmentStore({
     const directory = topicDirectory(topicName);
     mkdirSync(directory, { recursive: true, mode: 0o700 });
     const manifest = readManifest(directory);
+    if (manifest === null) {
+      throw new Error("The attachment manifest of the topic is unreadable.");
+    }
     if (!evictForQuota(directory, manifest, image.bytes.length)) {
       throw new Error(
         `The attachment store of the topic is out of quota for ${image.bytes.length} bytes.`,
@@ -317,12 +334,9 @@ export function createAttachmentStore({
 
   function remove(topicName, names) {
     const directory = topicDirectory(topicName);
-    const manifest =
-      existingEntry(directory) === null
-        ? emptyManifest()
-        : readManifest(directory);
+    const manifest = readManifest(directory);
     const requested = new Set(names);
-    if (requested.size === 0) {
+    if (manifest === null || requested.size === 0) {
       return [];
     }
     const removed = manifest.attachments
@@ -351,7 +365,7 @@ export function createAttachmentStore({
     const target = join(worktreePath, attachmentDirectoryName);
     mkdirSync(target, { mode: 0o755 });
     const staged = [];
-    for (const entry of manifest.attachments) {
+    for (const entry of manifest?.attachments ?? []) {
       const bytes = readStoredAttachment({ directory, name: entry.name });
       if (bytes === null) {
         continue;
@@ -443,6 +457,11 @@ export function createAttachmentStore({
       }
       const directory = join(root, topic.name);
       const manifest = readManifest(directory);
+      if (manifest === null) {
+        logger("attachment_manifest_unreadable", topic.name);
+        removed.push(...removeExpiredFiles(directory, threshold, topic.name));
+        continue;
+      }
       const kept = [];
       for (const entry of manifest.attachments) {
         const addedAt = Date.parse(entry.addedAt);
@@ -454,16 +473,39 @@ export function createAttachmentStore({
         }
         kept.push(entry);
       }
-      if (kept.length === 0) {
+      // A counter outlives its images; a directory that never named one goes.
+      if (manifest.counter === 0) {
         rmSync(directory, { recursive: true, force: true });
         continue;
       }
-      manifest.attachments = kept;
-      writeManifest(directory, manifest);
+      if (kept.length !== manifest.attachments.length) {
+        manifest.attachments = kept;
+        writeManifest(directory, manifest);
+      }
       removed.push(...removeOrphans(directory, kept, topic.name));
     }
     for (const entry of removed) {
       logger("attachment_pruned", entry.name);
+    }
+    return removed;
+  }
+
+  /**
+   * Retention without a manifest: the modification time dates each file, and
+   * the unreadable manifest stays as it is.
+   */
+  function removeExpiredFiles(directory, threshold, topicName) {
+    const removed = [];
+    for (const { name, entry } of storedFiles(directory)) {
+      if (entry.mtimeMs >= threshold) {
+        continue;
+      }
+      try {
+        unlinkSync(join(directory, name));
+      } catch {
+        continue;
+      }
+      removed.push({ topic: topicName, name });
     }
     return removed;
   }

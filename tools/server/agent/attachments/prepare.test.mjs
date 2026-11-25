@@ -203,3 +203,13 @@ test("refuses an undeclared oversized download with the real size", async (conte
   assert.deepEqual(readdirSync(temporaryDirectory), []);
   assert.equal(existsSync(join(worktreePath, ".agent-attachments")), false);
 });
+
+test("never reports an oversized image as no bigger than the limit", () => {
+  assert.match(
+    attachmentRefusalReport({
+      reason: "too_large",
+      bytes: 20 * 1024 * 1024 + 1,
+    }),
+    /fa 20,1 MB/u,
+  );
+});
