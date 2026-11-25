@@ -254,9 +254,8 @@ export function createPreviewRequests({
   }
 
   /**
-   * Follow the preview of a commit the service just published. A repair has no
-   * author: it follows its commit in the row of the publication it continues.
-   * The publication is already done, so a bookkeeping failure only logs.
+   * Follow the preview of a commit the service just published. The publication
+   * is already done, so a bookkeeping failure only logs.
    */
   function followPublication({
     updateIdentifier,
@@ -264,17 +263,9 @@ export function createPreviewRequests({
     authorIdentifier,
     pullRequestNumber,
     commit,
-    repair,
     mergeSynchronization,
   }) {
     try {
-      if (repair) {
-        return store.reopen({
-          updateIdentifier,
-          pullRequestNumber,
-          commitSha: commit,
-        });
-      }
       store.track({
         updateIdentifier,
         sessionKey,
@@ -314,8 +305,6 @@ export function createPreviewRequests({
       sessionKey: row.session_key,
       text: note,
       receivedText: text,
-      // A repair reopens the row of its publication for a new commit, so the
-      // commit is part of the identity of the effect.
       effectKey: `preview:${row.update_identifier}:${row.commit_sha}:${state}`,
     });
     let message;

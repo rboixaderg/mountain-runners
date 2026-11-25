@@ -47,8 +47,7 @@ function report(
     pullRequestNumber: 200,
     commitSha,
   });
-  ciWatches.beginSend(updateIdentifier, result);
-  ciWatches.finishSend(updateIdentifier);
+  ciWatches.finishSend(updateIdentifier, result);
 }
 
 /** A preview notice the service delivered, which is the merge's only source. */
@@ -623,129 +622,6 @@ test("refuses while the topic has newer work than its last notice", async (conte
   assert.deepEqual(newerWork.calls, [{ sessionKey, updateIdentifier: 20 }]);
   assert.deepEqual(github.merges, []);
   assert.equal(traces[0].detail, "newer_work #200 aaaaaaa");
-});
-
-test("refuses the delivered preview while a newer publication is unknown", async (context) => {
-  const newerCommit = "e".repeat(40);
-  const github = fakeGithub();
-  github.pullRequests = {
-    200: openPullRequest(),
-    202: openPullRequest({ headSha: newerCommit }),
-  };
-  const {
-    ciWatches,
-    deliverPreview,
-    github: fake,
-    buildHandler,
-  } = setup(context, { github });
-  deliverPreview();
-  // A newer publication was pushed, but its notice ended unknown.
-  ciWatches.add({
-    updateIdentifier: 11,
-    sessionKey,
-    pullRequestNumber: 202,
-    commitSha: newerCommit,
-  });
-  ciWatches.beginSend(11, "success");
-  ciWatches.markUncertain(11);
-  const handler = buildHandler({
-    hasNewerWork: ({ sessionKey: topic }) => ciWatches.hasUnreportedWork(topic),
-  });
-
-  const bare = await handler.handle(request(20), bareCommand);
-  assert.match(bare.report, /feina més nova que l'últim avís/u);
-  assert.match(bare.report, /proposta #200/u);
-  const withNumber = await handler.handle(request(21), {
-    valid: true,
-    pullRequestNumber: 200,
-  });
-  assert.match(withNumber.report, /feina més nova que l'últim avís/u);
-  assert.deepEqual(fake.merges, []);
-
-  // The newer preview is delivered: it replaces the previous one and the merge
-  // resolves from it.
-  ciWatches.resolveUncertainNoticeDelivered(11);
-  deliverPreview(
-    deliveredPreviewRow({ pullRequestNumber: 202, commitSha: newerCommit }),
-  );
-  const resolved = await handler.handle(request(22), bareCommand);
-  assert.match(resolved.report, /proposta #202 ja està fusionada/u);
-  assert.deepEqual(fake.merges, [{ number: 202, sha: newerCommit }]);
-});
-
-test("refuses the delivered preview while an out-of-order notice is unknown", async (context) => {
-  let instant = Date.parse("2026-11-16T10:00:00Z");
-  const tick = () => {
-    instant += 1000;
-  };
-  const greenCommit = "d".repeat(40);
-  const unknownCommit = "e".repeat(40);
-  const laterCommit = "f".repeat(40);
-  const github = fakeGithub();
-  github.pullRequests = {
-    200: openPullRequest({ headSha: greenCommit }),
-    202: openPullRequest({ headSha: unknownCommit }),
-    203: openPullRequest({ headSha: laterCommit }),
-  };
-  const {
-    ciWatches,
-    deliverPreview,
-    github: fake,
-    buildHandler,
-  } = setup(context, {
-    github,
-    now: () => new Date(instant),
-  });
-  // The newest delivered preview is C, the newest publication.
-  deliverPreview(
-    deliveredPreviewRow({ pullRequestNumber: 203, commitSha: laterCommit }),
-  );
-  // A, B and C are published in that order.
-  ciWatches.add({
-    updateIdentifier: 10,
-    sessionKey,
-    pullRequestNumber: 200,
-    commitSha: greenCommit,
-  });
-  ciWatches.add({
-    updateIdentifier: 11,
-    sessionKey,
-    pullRequestNumber: 202,
-    commitSha: unknownCommit,
-  });
-  ciWatches.add({
-    updateIdentifier: 12,
-    sessionKey,
-    pullRequestNumber: 203,
-    commitSha: laterCommit,
-  });
-  // C's notice arrives first, then A's; B's may or may not have arrived.
-  tick();
-  ciWatches.beginSend(12, "success");
-  tick();
-  ciWatches.finishSend(12);
-  tick();
-  ciWatches.beginSend(10, "success");
-  tick();
-  ciWatches.finishSend(10);
-  tick();
-  ciWatches.beginSend(11, "success");
-  tick();
-  ciWatches.markUncertain(11);
-
-  const handler = buildHandler({
-    hasNewerWork: ({ sessionKey: topic }) => ciWatches.hasUnreportedWork(topic),
-  });
-
-  const bare = await handler.handle(request(20), bareCommand);
-  assert.match(bare.report, /feina més nova que l'últim avís/u);
-  assert.match(bare.report, /proposta #203/u);
-  const withNumber = await handler.handle(request(21), {
-    valid: true,
-    pullRequestNumber: 203,
-  });
-  assert.match(withNumber.report, /feina més nova que l'últim avís/u);
-  assert.deepEqual(fake.merges, []);
 });
 
 test("verifies the membership before any pull request is read", async (context) => {

@@ -1,17 +1,16 @@
 // Operator reconciliation of unknown external results (T8.5).
 //
-// An interrupted instruction, automatic repair or CI notice leaves the service
-// unable to start or to trust its own state, because the external effect may or
-// may not have happened. A person with root access reads the real state here and
-// closes the case with an explicit decision. Nothing is executed again and
-// nothing is pushed, commented or merged: the only writes are the durable store,
-// the published-head mark of an instruction whose head is confirmed and the
-// private trace.
+// An interrupted instruction or merge leaves the service unable to trust its own
+// state, because the external effect may or may not have happened. A person with
+// root access reads the real state here and closes the case with an explicit
+// decision. Nothing is executed again and nothing is pushed, commented or merged:
+// the only writes are the durable store, the published-head mark of an
+// instruction whose head is confirmed and the private trace.
 //
 // A resolution is never kept without its trace. The instruction transition and
-// its trace share the admission database, so they are one transaction. A repair
-// or a notice lives in another database: the trace is written first and a
-// failure changes nothing.
+// its trace share the admission database, so they are one transaction. A merge
+// lives in another database: the trace is written first and a failure changes
+// nothing.
 
 import { parseSessionKey } from "telegram-pi-bridge/sessions";
 import {
@@ -35,12 +34,10 @@ import {
 
 export const caseKinds = {
   instruction: "instruction",
-  repair: "repair",
-  notice: "notice",
   merge: "merge",
 };
 
-/** Outcomes stored with a reconciled instruction or repair. */
+/** Outcomes stored with a reconciled instruction. */
 export const reconcileOutcomes = {
   [reconcileResolutions.published]: "reconciled_published",
   [reconcileResolutions.notPublished]: "reconciled_not_published",
@@ -51,14 +48,6 @@ export const resolutionsByKind = {
   [caseKinds.instruction]: [
     reconcileResolutions.published,
     reconcileResolutions.notPublished,
-  ],
-  [caseKinds.repair]: [
-    reconcileResolutions.published,
-    reconcileResolutions.notPublished,
-  ],
-  [caseKinds.notice]: [
-    reconcileResolutions.delivered,
-    reconcileResolutions.resend,
   ],
   [caseKinds.merge]: [
     reconcileResolutions.merged,
@@ -173,50 +162,6 @@ async function instructionCase({ config, identifiers, row, github }) {
   return facts;
 }
 
-/** The facts of an interrupted repair: its pull request and the failed commit. */
-async function repairCase({ row, github }) {
-  const facts = {
-    kind: caseKinds.repair,
-    update_identifier: row.update_identifier,
-    sequence: row.sequence,
-    session_key: row.session_key,
-    created_at: row.created_at,
-    pull_request_number: row.pull_request_number,
-    failed_commit: row.commit_sha,
-    pull_request: null,
-    github: githubReadStates.unavailable,
-  };
-  try {
-    const pullRequest = await github.getPullRequest({
-      number: row.pull_request_number,
-    });
-    facts.pull_request = {
-      state: pullRequest.state,
-      head_sha: pullRequest.headSha,
-    };
-    facts.github = githubReadStates.ok;
-  } catch {
-    // The operator resolves nothing on a stale read: only the flag is printed.
-  }
-  return facts;
-}
-
-/**
- * The facts of an unknown CI notice. Its result was read from GitHub before the
- * delivery, so it also says what the topic would have received.
- */
-function noticeCase({ row }) {
-  return {
-    kind: caseKinds.notice,
-    update_identifier: row.update_identifier,
-    session_key: row.session_key,
-    created_at: row.created_at,
-    pull_request_number: row.pull_request_number,
-    commit: row.commit_sha,
-    result: row.result,
-  };
-}
-
 /** The facts of an unknown merge request; resolving it reads the pull request. */
 function mergeCase({ row }) {
   return {
@@ -242,12 +187,6 @@ export async function listUncertainCases({ config, stores, github }) {
   const cases = [];
   for (const row of instructions) {
     cases.push(await instructionCase({ config, identifiers, row, github }));
-  }
-  for (const row of stores.repairs?.uncertainRepairs() ?? []) {
-    cases.push(await repairCase({ row, github }));
-  }
-  for (const row of stores.repairs?.uncertainNotices() ?? []) {
-    cases.push(noticeCase({ row }));
   }
   for (const row of stores.merges?.uncertain() ?? []) {
     cases.push(mergeCase({ row }));
@@ -292,7 +231,7 @@ function recordTraceBestEffort({ stores, entry, warn }) {
   }
 }
 
-// A repair already has its success trace: if the guarded change fails
+// A merge already has its success trace: if the guarded change fails
 // afterwards, the case is annotated and the command stops.
 function failTransition({ stores, resolved, warn, error }) {
   recordTraceBestEffort({
@@ -318,15 +257,15 @@ function registerConfirmedWatch({
   pullRequestNumber,
   commit,
 }) {
-  if (stores.repairs === null) {
+  if (stores.ciWatches === null) {
     throw new ReconcileCaseError(
       "The CI watch database is missing; the publication cannot be followed.",
     );
   }
-  if (stores.repairs.state(updateIdentifier) !== undefined) {
+  if (stores.ciWatches.state(updateIdentifier) !== undefined) {
     return;
   }
-  stores.repairs.add({
+  stores.ciWatches.add({
     updateIdentifier,
     sessionKey,
     pullRequestNumber,
@@ -440,124 +379,6 @@ async function resolveInstruction({
   return resolved;
 }
 
-async function resolveRepair({
-  config,
-  stores,
-  identifiers,
-  updateIdentifier,
-  sequence,
-  failedCommit,
-  resolution,
-  commit,
-  warn,
-}) {
-  const row = (stores.repairs?.uncertainRepairs() ?? []).find(
-    (candidate) =>
-      candidate.sequence === sequence &&
-      candidate.update_identifier === updateIdentifier &&
-      candidate.commit_sha === failedCommit,
-  );
-  if (row === undefined) {
-    throw new ReconcileCaseError(
-      `Repair ${sequence} is not an uncertain case.`,
-    );
-  }
-  // The published commit is the one the repair pushed; without one, the failed
-  // commit identifies the case.
-  const resolved = {
-    kind: caseKinds.repair,
-    updateIdentifier,
-    sequence,
-    telegramUpdateIdentifier: row.update_identifier,
-    sessionKey: row.session_key,
-    pullRequestNumber: row.pull_request_number,
-    failedCommit,
-    commit: commit === undefined ? row.commit_sha : commit,
-    resolution,
-  };
-
-  // The trace lives in another database: it is written first, so a failure
-  // leaves the repair uncertain.
-  recordTrace({ stores, entry: traceEntry(resolved) });
-  if (resolution === reconcileResolutions.published) {
-    // A published repair left its commit in the topic worktree: marking it there
-    // keeps the same commit from being published twice, exactly as a confirmed
-    // instruction does.
-    await recordConfirmedPublication({
-      config,
-      identifiers,
-      sessionKey: row.session_key,
-      commit: resolved.commit,
-    });
-  }
-  let applied;
-  try {
-    applied = stores.repairs.resolveUncertainRepair({
-      updateIdentifier,
-      sequence,
-      failedCommit,
-      outcome: reconcileOutcomes[resolution],
-    });
-  } catch (error) {
-    failTransition({ stores, resolved, warn, error });
-  }
-  if (applied === null) {
-    failTransition({
-      stores,
-      resolved,
-      warn,
-      error: new ReconcileCaseError(
-        `Repair ${sequence} is not an uncertain case.`,
-      ),
-    });
-  }
-  return resolved;
-}
-
-function resolveNotice({ stores, updateIdentifier, resolution, warn }) {
-  const row = (stores.repairs?.uncertainNotices() ?? []).find(
-    (candidate) => candidate.update_identifier === updateIdentifier,
-  );
-  if (row === undefined) {
-    throw new ReconcileCaseError(
-      `Notice ${updateIdentifier} is not an uncertain case.`,
-    );
-  }
-  const resolved = {
-    kind: caseKinds.notice,
-    updateIdentifier,
-    telegramUpdateIdentifier: row.update_identifier,
-    sessionKey: row.session_key,
-    pullRequestNumber: row.pull_request_number,
-    commit: row.commit_sha,
-    resolution,
-  };
-
-  // The trace lives in another database: it is written first, so a failure
-  // leaves the notice uncertain.
-  recordTrace({ stores, entry: traceEntry(resolved) });
-  let applied;
-  try {
-    applied =
-      resolution === reconcileResolutions.delivered
-        ? stores.repairs.resolveUncertainNoticeDelivered(updateIdentifier)
-        : stores.repairs.resolveUncertainNoticeResend(updateIdentifier);
-  } catch (error) {
-    failTransition({ stores, resolved, warn, error });
-  }
-  if (applied === null) {
-    failTransition({
-      stores,
-      resolved,
-      warn,
-      error: new ReconcileCaseError(
-        `Notice ${updateIdentifier} is not an uncertain case.`,
-      ),
-    });
-  }
-  return resolved;
-}
-
 /**
  * An uncertain merge is closed from the pull request itself: a merged pull
  * request ends as `merged` with its merge commit, one that is not merged ends
@@ -639,8 +460,6 @@ function resolveCase({
   warn,
   kind,
   updateIdentifier,
-  sequence,
-  failedCommit,
   resolution,
   commit,
   pullRequestNumber,
@@ -662,25 +481,6 @@ function resolveCase({
         commit,
         pullRequestNumber,
       });
-    case caseKinds.repair:
-      return resolveRepair({
-        config,
-        stores,
-        // Only the publication marker of the topic worktree needs the naming
-        // source: a not published repair never touches it.
-        identifiers:
-          resolution === reconcileResolutions.published
-            ? instructionIdentifiers(config)
-            : null,
-        updateIdentifier,
-        sequence,
-        failedCommit,
-        resolution,
-        commit,
-        warn,
-      });
-    case caseKinds.notice:
-      return resolveNotice({ stores, updateIdentifier, resolution, warn });
     case caseKinds.merge:
       return resolveMerge({
         stores,
@@ -706,13 +506,7 @@ async function notify({ stores, telegram, resolved, warn }) {
     stores.notes?.addNote({
       sessionKey: resolved.sessionKey,
       text,
-      // A repair row sequence is reused by a later attempt, so the identity of
-      // the effect names it too: two attempts of the same instruction are two
-      // different results.
-      effectKey:
-        resolved.kind === caseKinds.repair
-          ? `reconcile:${resolved.kind}:${resolved.updateIdentifier}:${resolved.sequence}`
-          : `reconcile:${resolved.kind}:${resolved.updateIdentifier}`,
+      effectKey: `reconcile:${resolved.kind}:${resolved.updateIdentifier}`,
     });
   } catch (error) {
     warn(
@@ -744,9 +538,7 @@ async function notify({ stores, telegram, resolved, warn }) {
  * Resolve one case with the decision of a person. Every store update is guarded
  * by the uncertain state, so an already resolved case is refused instead of
  * being overwritten. A resolution is never kept without its trace, and a failed
- * notice never undoes one. A reconciled notice sends no topic notice: `delivered`
- * means the topic already received it and `resend` asks the ordinary worker to
- * send it again.
+ * notice never undoes one. A reconciled merge sends no topic notice.
  */
 export async function resolveUncertainCase({
   config,
@@ -755,8 +547,6 @@ export async function resolveUncertainCase({
   github,
   kind,
   updateIdentifier,
-  sequence,
-  failedCommit,
   resolution,
   commit,
   pullRequestNumber,
@@ -769,16 +559,11 @@ export async function resolveUncertainCase({
     warn,
     kind,
     updateIdentifier,
-    sequence,
-    failedCommit,
     resolution,
     commit,
     pullRequestNumber,
   });
-  if (
-    resolved.kind === caseKinds.instruction ||
-    resolved.kind === caseKinds.repair
-  ) {
+  if (resolved.kind === caseKinds.instruction) {
     await notify({ stores, telegram, resolved, warn });
   }
   return resolved;

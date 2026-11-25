@@ -35,7 +35,6 @@ import {
 
 const executeFile = promisify(execFile);
 const pullRequestNumber = 42;
-const failedCommit = "a".repeat(40);
 const publishedCommitSha = "c".repeat(40);
 const sessionKeyOne = "-1001234567890:7";
 const sessionKeyTwo = "-1001234567890:8";
@@ -76,12 +75,12 @@ async function fixture(context) {
     instructions: new AdmissionQueue(join(state, "admission.sqlite"), {
       maxPending: 10,
     }),
-    repairs: new CiWatchStore(join(state, "ci-watch.sqlite")),
+    ciWatches: new CiWatchStore(join(state, "ci-watch.sqlite")),
     merges: new MergeRequestStore(join(state, "merge-request.sqlite")),
   };
   context.after(() => {
     stores.merges.close();
-    stores.repairs.close();
+    stores.ciWatches.close();
     stores.instructions.close();
     rmSync(directory, {
       recursive: true,
@@ -133,64 +132,6 @@ function interruptInstruction(store, updateIdentifier, sessionKey) {
   });
   store.next();
   store.markUncertain(updateIdentifier, "uncertain");
-}
-
-function interruptRepair(
-  store,
-  sessionKey,
-  { updateIdentifier = 12, commitSha = failedCommit } = {},
-) {
-  const requested = store.requestRepair({
-    updateIdentifier,
-    sessionKey,
-    pullRequestNumber,
-    failureFingerprint: JSON.stringify(["Validate"]),
-    failedChecks: ["Validate"],
-    evidence: [],
-    commitSha,
-    maximumAttempts: 2,
-  });
-  store.queueRepair(requested.sequence);
-  store.claimNextRepair();
-  store.interruptRepairs();
-  return {
-    sequence: requested.sequence,
-    updateIdentifier,
-    failedCommit: commitSha,
-  };
-}
-
-// A publication whose notice may or may not have reached the topic.
-function uncertainNotice(
-  store,
-  {
-    updateIdentifier = 31,
-    commitSha = "f".repeat(40),
-    result = "success",
-  } = {},
-) {
-  store.add({
-    updateIdentifier,
-    sessionKey: sessionKeyOne,
-    pullRequestNumber,
-    commitSha,
-  });
-  store.beginSend(updateIdentifier, result);
-  store.markUncertain(updateIdentifier);
-  return updateIdentifier;
-}
-
-// A finished CI notification of the pull request: resolving a repair must leave
-// it exactly as it was.
-function finishedWatch(store) {
-  store.add({
-    updateIdentifier: 12,
-    sessionKey: sessionKeyOne,
-    pullRequestNumber,
-    commitSha: "e".repeat(40),
-  });
-  store.beginSend(12, "success");
-  store.finishSend(12);
 }
 
 function fakeTelegram() {
@@ -263,35 +204,6 @@ test("lists an uncertain instruction with its worktree and open pull request", a
   assert.doesNotMatch(JSON.stringify(facts), /synthetic private instruction/u);
 });
 
-test("lists an uncertain repair with its update, sequence and failed commit", async (context) => {
-  const { config, stores } = await fixture(context);
-  const repair = interruptRepair(stores.repairs, sessionKeyOne);
-  let readNumber = null;
-  const github = {
-    async getPullRequest({ number }) {
-      readNumber = number;
-      return { state: "open", headSha: publishedCommitSha };
-    },
-  };
-
-  const cases = await listUncertainCases({ config, stores, github });
-
-  assert.equal(cases.length, 1);
-  const [facts] = cases;
-  assert.equal(readNumber, pullRequestNumber);
-  assert.deepEqual(facts, {
-    kind: "repair",
-    update_identifier: repair.updateIdentifier,
-    sequence: repair.sequence,
-    session_key: sessionKeyOne,
-    created_at: facts.created_at,
-    pull_request_number: pullRequestNumber,
-    failed_commit: failedCommit,
-    pull_request: { state: "open", head_sha: publishedCommitSha },
-    github: "ok",
-  });
-});
-
 test("marks a failed GitHub read and still lists the remaining cases", async (context) => {
   const { config, stores } = await fixture(context);
   await topicWorktree({
@@ -300,7 +212,7 @@ test("marks a failed GitHub read and still lists the remaining cases", async (co
     updateIdentifier: 11,
   });
   interruptInstruction(stores.instructions, 11, sessionKeyOne);
-  interruptRepair(stores.repairs, sessionKeyOne);
+  uncertainMerge(stores.merges);
   const github = {
     async findOpenPullRequest() {
       throw new Error("synthetic GitHub failure");
@@ -316,12 +228,11 @@ test("marks a failed GitHub read and still lists the remaining cases", async (co
     cases.map((facts) => [facts.kind, facts.github]),
     [
       ["instruction", "unavailable"],
-      ["repair", "unavailable"],
+      ["merge", undefined],
     ],
   );
   assert.notEqual(cases[0].worktree, null);
   assert.equal(cases[0].pull_request, null);
-  assert.equal(cases[1].pull_request, null);
 });
 
 test("resolves a published instruction and records the confirmed head as published", async (context) => {
@@ -346,7 +257,7 @@ test("resolves a published instruction and records the confirmed head as publish
   assert.equal(resolved.pullRequestNumber, 42);
   // The confirmed publication is followed again, so the topic receives its
   // notice before anything can resolve from the older one.
-  const [watch] = stores.repairs.pending();
+  const [watch] = stores.ciWatches.pending();
   assert.equal(watch.update_identifier, 11);
   assert.equal(watch.session_key, sessionKeyOne);
   assert.equal(watch.pull_request_number, 42);
@@ -416,7 +327,7 @@ test("keeps the instruction uncertain when the CI watch of the publication canno
   interruptInstruction(stores.instructions, 11, sessionKeyOne);
 
   await assert.rejects(
-    reconcile(config, { ...stores, repairs: null }, fakeTelegram(), {
+    reconcile(config, { ...stores, ciWatches: null }, fakeTelegram(), {
       kind: "instruction",
       updateIdentifier: 11,
       resolution: reconcileResolutions.published,
@@ -432,7 +343,7 @@ test("keeps the instruction uncertain when the CI watch of the publication canno
       config,
       {
         ...stores,
-        repairs: {
+        ciWatches: {
           state: () => undefined,
           add() {
             throw new Error("state volume full");
@@ -492,7 +403,7 @@ test("keeps the instruction uncertain when the publication marker cannot be writ
   assert.equal(publishedCommit(worktree), commit);
   // The retry reused the watch the first attempt wrote instead of failing.
   assert.deepEqual(
-    stores.repairs.pending().map((row) => row.update_identifier),
+    stores.ciWatches.pending().map((row) => row.update_identifier),
     [11],
   );
   assert.equal(telegram.messages.length, 1);
@@ -565,159 +476,6 @@ test("keeps the instruction uncertain when its trace cannot be written", async (
   );
   assert.equal(stores.instructions.status(11), "uncertain");
   assert.deepEqual(telegram.messages, []);
-});
-
-test("resolves a repair without changing its CI watch", async (context) => {
-  const { config, stores } = await fixture(context);
-  finishedWatch(stores.repairs);
-  const repair = interruptRepair(stores.repairs, sessionKeyOne);
-
-  await reconcile(config, stores, fakeTelegram(), {
-    kind: "repair",
-    updateIdentifier: repair.updateIdentifier,
-    sequence: repair.sequence,
-    failedCommit: repair.failedCommit,
-    resolution: reconcileResolutions.published,
-    commit: publishedCommitSha,
-  });
-
-  const row = stores.repairs.repair(repair.sequence);
-  assert.equal(row.status, "done");
-  assert.equal(row.outcome, "reconciled_published");
-  assert.deepEqual(stores.repairs.pending(), []);
-  assert.equal(stores.repairs.uncertainRepairCount(), 0);
-  assert.equal(stores.repairs.state(12), "sent");
-  const reported = stores.repairs.lastReported(sessionKeyOne);
-  assert.equal(reported.pull_request_number, pullRequestNumber);
-  assert.equal(reported.commit_sha, "e".repeat(40));
-  assert.equal(reported.result, "success");
-});
-
-test("resolves a not published repair without changing its CI watch", async (context) => {
-  const { config, stores } = await fixture(context);
-  finishedWatch(stores.repairs);
-  const repair = interruptRepair(stores.repairs, sessionKeyOne);
-
-  await reconcile(config, stores, fakeTelegram(), {
-    kind: "repair",
-    updateIdentifier: repair.updateIdentifier,
-    sequence: repair.sequence,
-    failedCommit: repair.failedCommit,
-    resolution: reconcileResolutions.notPublished,
-  });
-
-  const row = stores.repairs.repair(repair.sequence);
-  assert.equal(row.status, "done");
-  assert.equal(row.outcome, "reconciled_not_published");
-  assert.equal(stores.repairs.state(12), "sent");
-  const reported = stores.repairs.lastReported(sessionKeyOne);
-  assert.equal(reported.pull_request_number, pullRequestNumber);
-  assert.equal(reported.commit_sha, "e".repeat(40));
-  assert.equal(reported.result, "success");
-});
-
-test("refuses an older repair command when a later repair reuses its sequence", async (context) => {
-  const { config, stores } = await fixture(context);
-  const first = interruptRepair(stores.repairs, sessionKeyOne);
-  const telegram = fakeTelegram();
-  await reconcile(config, stores, telegram, {
-    kind: "repair",
-    updateIdentifier: first.updateIdentifier,
-    sequence: first.sequence,
-    failedCommit: first.failedCommit,
-    resolution: reconcileResolutions.notPublished,
-  });
-
-  stores.repairs.resetRepairs(pullRequestNumber);
-  const second = interruptRepair(stores.repairs, sessionKeyOne, {
-    commitSha: "d".repeat(40),
-  });
-  assert.equal(second.sequence, first.sequence);
-  assert.equal(second.failedCommit, "d".repeat(40));
-
-  await assert.rejects(
-    reconcile(config, stores, telegram, {
-      kind: "repair",
-      updateIdentifier: first.updateIdentifier,
-      sequence: first.sequence,
-      failedCommit: first.failedCommit,
-      resolution: reconcileResolutions.notPublished,
-    }),
-    ReconcileCaseError,
-  );
-  assert.equal(stores.repairs.repair(second.sequence).status, "uncertain");
-  assert.equal(telegram.messages.length, 1);
-});
-
-test("changes nothing when a repair has no trace database", async (context) => {
-  const { config, stores } = await fixture(context);
-  const repair = interruptRepair(stores.repairs, sessionKeyOne);
-
-  await assert.rejects(
-    reconcile(config, { ...stores, instructions: null }, fakeTelegram(), {
-      kind: "repair",
-      updateIdentifier: repair.updateIdentifier,
-      sequence: repair.sequence,
-      failedCommit: repair.failedCommit,
-      resolution: reconcileResolutions.notPublished,
-    }),
-    { message: /trace database is missing/u },
-  );
-  assert.equal(stores.repairs.repair(repair.sequence).status, "uncertain");
-});
-
-test("traces a repair transition that another writer won", async (context) => {
-  const { config, stores } = await fixture(context);
-  const repair = interruptRepair(stores.repairs, sessionKeyOne);
-  const warnings = [];
-  const racingRepairs = {
-    uncertainRepairs: () => stores.repairs.uncertainRepairs(),
-    resolveUncertainRepair: () => null,
-  };
-
-  await assert.rejects(
-    reconcile(config, { ...stores, repairs: racingRepairs }, fakeTelegram(), {
-      kind: "repair",
-      updateIdentifier: repair.updateIdentifier,
-      sequence: repair.sequence,
-      failedCommit: repair.failedCommit,
-      resolution: reconcileResolutions.notPublished,
-      warn: (message) => warnings.push(message),
-    }),
-    ReconcileCaseError,
-  );
-  assert.deepEqual(
-    stores.instructions.traceEntries().map((entry) => entry.action),
-    ["uncertain_reconciled", "uncertain_reconcile_failed"],
-  );
-  assert.equal(stores.repairs.repair(repair.sequence).status, "uncertain");
-});
-
-test("lists an unknown CI notice with what it reported", async (context) => {
-  const { config, stores } = await fixture(context);
-  const updateIdentifier = uncertainNotice(stores.repairs);
-
-  const cases = await listUncertainCases({
-    config,
-    stores,
-    github: {
-      async getPullRequest() {
-        assert.fail("a notice needs no GitHub read");
-      },
-    },
-  });
-
-  assert.equal(cases.length, 1);
-  const [facts] = cases;
-  assert.deepEqual(facts, {
-    kind: "notice",
-    update_identifier: updateIdentifier,
-    session_key: sessionKeyOne,
-    created_at: facts.created_at,
-    pull_request_number: pullRequestNumber,
-    commit: "f".repeat(40),
-    result: "success",
-  });
 });
 
 function uncertainMerge(store, updateIdentifier = 60) {
@@ -848,101 +606,13 @@ test("refuses an uncertain merge whose pull request merged another head", async 
   assert.equal(stores.merges.state(updateIdentifier), "uncertain");
 });
 
-test("closes a delivered notice without telling the topic again", async (context) => {
-  const { config, stores } = await fixture(context);
-  const updateIdentifier = uncertainNotice(stores.repairs);
-  const telegram = fakeTelegram();
-
-  await reconcile(config, stores, telegram, {
-    kind: "notice",
-    updateIdentifier,
-    resolution: reconcileResolutions.delivered,
-  });
-
-  assert.equal(stores.repairs.state(updateIdentifier), "sent");
-  assert.equal(stores.repairs.lastReported(sessionKeyOne).result, "success");
-  assert.deepEqual(stores.repairs.pending(), []);
-  // The topic already received the notice: the command sends nothing.
-  assert.deepEqual(telegram.messages, []);
-  const trace = stores.instructions
-    .traceEntries()
-    .find((entry) => entry.action === "uncertain_reconciled");
-  assert.equal(trace.detail, `notice delivered #${pullRequestNumber} fffffff`);
-  assert.equal(trace.session_key, sessionKeyOne);
-});
-
-test("queues an unknown notice for the ordinary worker on request", async (context) => {
-  const { config, stores } = await fixture(context);
-  const updateIdentifier = uncertainNotice(stores.repairs);
-  const telegram = fakeTelegram();
-
-  await reconcile(config, stores, telegram, {
-    kind: "notice",
-    updateIdentifier,
-    resolution: reconcileResolutions.resend,
-  });
-
-  // The decision only returns the notice to the pending queue: the worker
-  // sends it, not the command.
-  assert.equal(stores.repairs.state(updateIdentifier), "pending");
-  assert.deepEqual(
-    stores.repairs.pending().map((row) => row.update_identifier),
-    [updateIdentifier],
-  );
-  assert.deepEqual(telegram.messages, []);
-  assert.deepEqual(
-    stores.instructions.traceEntries().map((entry) => entry.action),
-    ["uncertain_reconciled"],
-  );
-});
-
-test("changes nothing when a notice has no trace database", async (context) => {
-  const { config, stores } = await fixture(context);
-  const updateIdentifier = uncertainNotice(stores.repairs);
-
-  await assert.rejects(
-    reconcile(config, { ...stores, instructions: null }, fakeTelegram(), {
-      kind: "notice",
-      updateIdentifier,
-      resolution: reconcileResolutions.delivered,
-    }),
-    { message: /trace database is missing/u },
-  );
-  assert.equal(stores.repairs.state(updateIdentifier), "uncertain");
-});
-
-test("refuses a notice that is no longer uncertain", async (context) => {
-  const { config, stores } = await fixture(context);
-  const updateIdentifier = uncertainNotice(stores.repairs);
-  const telegram = fakeTelegram();
-  const command = {
-    kind: "notice",
-    updateIdentifier,
-    resolution: reconcileResolutions.delivered,
-  };
-
-  await reconcile(config, stores, telegram, command);
-
-  await assert.rejects(
-    reconcile(config, stores, telegram, command),
-    ReconcileCaseError,
-  );
-  assert.equal(stores.repairs.state(updateIdentifier), "sent");
-  assert.deepEqual(
-    stores.instructions.traceEntries().map((entry) => entry.action),
-    ["uncertain_reconciled"],
-  );
-});
-
 test("refuses a case that is no longer uncertain", async (context) => {
   const { config, stores } = await fixture(context);
-  const repair = interruptRepair(stores.repairs, sessionKeyOne);
+  interruptInstruction(stores.instructions, 11, sessionKeyOne);
   const telegram = fakeTelegram();
   const command = {
-    kind: "repair",
-    updateIdentifier: repair.updateIdentifier,
-    sequence: repair.sequence,
-    failedCommit: repair.failedCommit,
+    kind: "instruction",
+    updateIdentifier: 11,
     resolution: reconcileResolutions.notPublished,
   };
 
@@ -967,7 +637,6 @@ test("traces each resolution without the instruction text and notifies once per 
     updateIdentifier: 11,
   });
   interruptInstruction(stores.instructions, 11, sessionKeyOne);
-  const repair = interruptRepair(stores.repairs, sessionKeyTwo);
   const telegram = fakeTelegram();
 
   await reconcile(config, stores, telegram, {
@@ -977,11 +646,10 @@ test("traces each resolution without the instruction text and notifies once per 
     commit,
     pullRequestNumber: 42,
   });
+  interruptInstruction(stores.instructions, 12, sessionKeyTwo);
   await reconcile(config, stores, telegram, {
-    kind: "repair",
-    updateIdentifier: repair.updateIdentifier,
-    sequence: repair.sequence,
-    failedCommit: repair.failedCommit,
+    kind: "instruction",
+    updateIdentifier: 12,
     resolution: reconcileResolutions.notPublished,
   });
 
@@ -992,7 +660,7 @@ test("traces each resolution without the instruction text and notifies once per 
     reconciled.map((entry) => entry.detail),
     [
       `instruction published #${pullRequestNumber} ${commit.slice(0, 7)}`,
-      `repair not_published #${pullRequestNumber} ${failedCommit.slice(0, 7)}`,
+      "instruction not_published",
     ],
   );
   assert.deepEqual(
@@ -1028,7 +696,7 @@ test("traces each resolution without the instruction text and notifies once per 
 
 test("keeps the resolution and traces the failure when the notice cannot be sent", async (context) => {
   const { config, stores } = await fixture(context);
-  const repair = interruptRepair(stores.repairs, sessionKeyOne);
+  interruptInstruction(stores.instructions, 11, sessionKeyOne);
   const warnings = [];
   const telegram = {
     async sendMessage() {
@@ -1037,16 +705,14 @@ test("keeps the resolution and traces the failure when the notice cannot be sent
   };
 
   const resolved = await reconcile(config, stores, telegram, {
-    kind: "repair",
-    updateIdentifier: repair.updateIdentifier,
-    sequence: repair.sequence,
-    failedCommit: repair.failedCommit,
+    kind: "instruction",
+    updateIdentifier: 11,
     resolution: reconcileResolutions.notPublished,
     warn: (message) => warnings.push(message),
   });
 
-  assert.equal(resolved.updateIdentifier, repair.updateIdentifier);
-  assert.equal(stores.repairs.repair(repair.sequence).status, "done");
+  assert.equal(resolved.updateIdentifier, 11);
+  assert.deepEqual(stores.instructions.uncertain(), []);
   assert.equal(warnings.length, 1);
   assert.deepEqual(
     stores.instructions
@@ -1065,7 +731,7 @@ test("refuses a resolution that does not belong to the case kind", async (contex
     reconcile(config, stores, fakeTelegram(), {
       kind: "instruction",
       updateIdentifier: 11,
-      resolution: reconcileResolutions.delivered,
+      resolution: reconcileResolutions.merged,
     }),
     ReconcileCaseError,
   );
@@ -1075,7 +741,6 @@ test("refuses a resolution that does not belong to the case kind", async (contex
 test("the service startup check no longer refuses once every case is resolved", async (context) => {
   const { config, stores } = await fixture(context);
   interruptInstruction(stores.instructions, 11, sessionKeyOne);
-  const repair = interruptRepair(stores.repairs, sessionKeyOne);
   const telegram = fakeTelegram();
 
   await reconcile(config, stores, telegram, {
@@ -1083,42 +748,10 @@ test("the service startup check no longer refuses once every case is resolved", 
     updateIdentifier: 11,
     resolution: reconcileResolutions.notPublished,
   });
-  await reconcile(config, stores, telegram, {
-    kind: "repair",
-    updateIdentifier: repair.updateIdentifier,
-    sequence: repair.sequence,
-    failedCommit: repair.failedCommit,
-    resolution: reconcileResolutions.notPublished,
-  });
 
   // The counts the startup check reads, after its own recovery step.
   assert.equal(stores.instructions.recover(), 0);
-  assert.equal(stores.repairs.uncertainRepairCount(), 0);
   assert.deepEqual(stores.instructions.uncertain(), []);
-  assert.deepEqual(stores.repairs.uncertainRepairs(), []);
-});
-
-test("marks the published commit of a repair in the topic worktree", async (context) => {
-  const { config, stores } = await fixture(context);
-  const { worktree, commit } = await topicWorktree({
-    config,
-    sessionKey: sessionKeyOne,
-    updateIdentifier: 12,
-  });
-  const repair = interruptRepair(stores.repairs, sessionKeyOne);
-
-  await reconcile(config, stores, fakeTelegram(), {
-    kind: "repair",
-    updateIdentifier: repair.updateIdentifier,
-    sequence: repair.sequence,
-    failedCommit: repair.failedCommit,
-    resolution: reconcileResolutions.published,
-    commit,
-  });
-
-  assert.equal(stores.repairs.repair(repair.sequence).status, "done");
-  // The same commit is never published twice: the worktree keeps the marker.
-  assert.equal(publishedCommit(worktree), commit);
 });
 
 test("lists every case when one worktree cannot be read", async (context) => {
@@ -1131,13 +764,10 @@ test("lists every case when one worktree cannot be read", async (context) => {
   // A damaged worktree: its Git directory is gone.
   rmSync(join(broken.worktree.path, ".git"), { recursive: true, force: true });
   interruptInstruction(stores.instructions, 11, sessionKeyOne);
-  const repair = interruptRepair(stores.repairs, sessionKeyTwo);
+  uncertainMerge(stores.merges);
   const github = {
     async findOpenPullRequest() {
       return null;
-    },
-    async getPullRequest() {
-      return { state: "open", headSha: publishedCommitSha };
     },
   };
 
@@ -1147,7 +777,5 @@ test("lists every case when one worktree cannot be read", async (context) => {
   const brokenCase = cases.find((entry) => entry.kind === "instruction");
   assert.ok(brokenCase.worktree_error !== null);
   assert.equal(brokenCase.worktree, null);
-  const repairCase = cases.find((entry) => entry.kind === "repair");
-  assert.equal(repairCase.sequence, repair.sequence);
-  assert.equal(repairCase.github, "ok");
+  assert.ok(cases.some((entry) => entry.kind === "merge"));
 });

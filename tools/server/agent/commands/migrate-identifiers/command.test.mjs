@@ -366,7 +366,7 @@ test("refuses an instruction case before the migration and resolves it after", a
 
   await resolveUncertainCase({
     config,
-    stores: { instructions: store, repairs: watches },
+    stores: { instructions: store, ciWatches: watches },
     telegram: { async sendMessage() {} },
     kind: "instruction",
     updateIdentifier: 11,

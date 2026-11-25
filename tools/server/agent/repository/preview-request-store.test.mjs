@@ -237,26 +237,6 @@ test("a new publication of the same update replaces what its row reported", (con
   store.close();
 });
 
-test("a repair reopens the row of its publication for the new commit", (context) => {
-  const path = fixture(context);
-  let moment = new Date("2026-11-14T10:00:00Z");
-  const store = new PreviewRequestStore(path, { now: () => moment });
-  store.track(request);
-  store.finish(1, request.commitSha, previewStates.timedOut);
-
-  moment = new Date("2026-11-14T11:00:00Z");
-  const repair = { updateIdentifier: 1, commitSha: newerCommit };
-  assert.equal(store.reopen({ ...repair, pullRequestNumber: 43 }), false);
-  assert.equal(store.reopen({ ...repair, pullRequestNumber: 42 }), true);
-
-  const row = readRequest(path, 1);
-  assert.equal(row.state, previewStates.awaiting);
-  assert.equal(row.commit_sha, newerCommit);
-  assert.equal(row.author_identifier, 555);
-  assert.equal(row.updated_at, "2026-11-14T11:00:00.000Z");
-  store.close();
-});
-
 const deliveredPublication = {
   sessionKey: request.sessionKey,
   updateIdentifier: 1,
@@ -362,7 +342,7 @@ test("a notice identifier a row cannot use never makes it a delivered preview", 
   store.close();
 });
 
-test("a new publication or a repair clears the delivered notice of the row", (context) => {
+test("a new publication clears the delivered notice of the row", (context) => {
   const path = fixture(context);
   const store = new PreviewRequestStore(path);
   store.track(request);
@@ -397,43 +377,14 @@ test("a new publication or a repair clears the delivered notice of the row", (co
     78,
   );
 
-  assert.equal(
-    store.reopen({
-      updateIdentifier: 2,
-      pullRequestNumber: 42,
-      commitSha: newerCommit,
-    }),
-    true,
-  );
-  assert.equal(readRequest(path, 2).notice_message_identifier, null);
-  assert.equal(store.deliveredPublicationPreview(repaired), null);
   store.close();
 });
 
-test("a repair without a publication to continue creates nothing", (context) => {
-  const store = new PreviewRequestStore(fixture(context));
-  assert.equal(
-    store.reopen({
-      updateIdentifier: 1,
-      pullRequestNumber: 42,
-      commitSha: newerCommit,
-    }),
-    false,
-  );
-  assert.equal(store.state(1), undefined);
-  assert.deepEqual(store.awaiting(), []);
-  store.close();
-});
-
-test("a result read for an older commit never ends the row reopened for a newer one", (context) => {
+test("a result read for an older commit never ends the row rewritten for a newer one", (context) => {
   const path = fixture(context);
   const store = new PreviewRequestStore(path);
   store.track(request);
-  store.reopen({
-    updateIdentifier: 1,
-    pullRequestNumber: 42,
-    commitSha: newerCommit,
-  });
+  store.track({ ...request, commitSha: newerCommit });
 
   assert.equal(
     store.finish(1, request.commitSha, previewStates.confirmed, previewOrigin),

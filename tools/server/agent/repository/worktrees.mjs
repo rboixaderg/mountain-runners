@@ -18,7 +18,6 @@ import {
 } from "node:fs";
 import { basename, dirname, join } from "node:path";
 import {
-  GitInterruptedError,
   gitlinkMode,
   ignoreSubmodules,
   lstatOrNull,
@@ -199,9 +198,8 @@ export async function ensureSessionWorktree({
 }
 
 /**
- * Resolve the worktree of a session that must already exist. A repair continues
- * an existing branch and never creates, moves or resets a worktree; the caller
- * reports a missing one instead of starting a new task.
+ * Resolve the worktree of a session that must already exist. It never creates,
+ * moves or resets a worktree; the caller handles a missing one.
  */
 export async function findSessionWorktree({
   repositoryPath,
@@ -640,48 +638,6 @@ export async function currentBranch(worktree, { signal } = {}) {
 
 export async function headCommit(worktree, { signal } = {}) {
   return (await runGit(worktree, ["rev-parse", "HEAD"], { signal })).trim();
-}
-
-export async function commitSubject(worktree, commit, { signal } = {}) {
-  return (
-    await runGit(worktree, ["log", "-1", "--format=%s", commit, "--"], {
-      signal,
-    })
-  ).trim();
-}
-
-/**
- * The published change of the worktree against the base branch, for context.
- * A diff larger than the limit is clipped; a diff Git cannot produce at all is
- * reported as unavailable instead of failing the whole repair.
- */
-export async function changeDiff({
-  worktree,
-  baseBranch = "main",
-  maximumBytes = 256 * 1024,
-  signal,
-}) {
-  if (baseBranch !== "main") {
-    throw new Error("The agent only diffs against main.");
-  }
-  try {
-    const diff = await runGit(
-      worktree,
-      ["diff", "--no-color", "--no-ext-diff", `origin/${baseBranch}...HEAD`],
-      { maxBuffer: maximumBytes, signal },
-    );
-    return diff.slice(0, maximumBytes);
-  } catch (error) {
-    // A stopped or killed command is not a diff Git could not produce.
-    if (error instanceof GitInterruptedError) {
-      throw error;
-    }
-    // Node keeps the output read before the buffer overflowed.
-    if (error.cause?.code === "ERR_CHILD_PROCESS_STDIO_MAXBUFFER") {
-      return error.cause.stdout.slice(0, maximumBytes);
-    }
-    return null;
-  }
 }
 
 export async function createBranch({ worktree, branch, signal }) {

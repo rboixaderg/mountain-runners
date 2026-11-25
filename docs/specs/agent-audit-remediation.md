@@ -119,7 +119,7 @@ Cada tasca té la seva PR, tret que la columna `Entrega` indiqui el contrari.
 | T23   | Pendent    | T17           | `telegram-pi-bridge` com a mòdul intern amb API estreta                  | PR 23   | -                                                               |
 | T24   | Pendent    | T20           | Proves amb fixtures compartits i dividides per fases                     | PR 24   | -                                                               |
 | T25   | En curs    | -             | Els ADR 0013 i 0014 esmenats amb les decisions preses                    | PR 25   | [#315](https://github.com/rboixaderg/mountain-runners/pull/315) |
-| T26   | Pendent    | T25           | Decisions de l'esmena implementades                                      | PR 26   | -                                                               |
+| T26   | Completada | T25           | Decisions de l'esmena implementades                                      | PR 26   | [#322](https://github.com/rboixaderg/mountain-runners/pull/322) |
 | T27   | Pendent    | T18, T26      | Una sola base de dades amb una fila per commit publicat                  | PR 27   | -                                                               |
 | T28   | Pendent    | La majoria    | Documentació de l'agent curta, amb la regla detallada al costat del codi | PR 28   | -                                                               |
 

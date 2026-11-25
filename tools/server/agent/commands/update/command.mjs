@@ -641,13 +641,14 @@ function describeDifferences(differences) {
 
 // Every row the service is working on and every row whose external result is
 // unknown. The queries mirror the state constraints of the store modules:
-// `instructions`, `repository/ci-watch-store.mjs`, the open merge states of
+// `instructions`, the open merge states of
 // `repository/merge-request-store.mjs` and the one open preview state of
 // `repository/preview-request-store.mjs`, plus the cases that
-// `commands/reconcile/uncertain-cases.mjs` lists through `uncertain()`,
-// `uncertainRepairs()` and `uncertainNotices()`. The stores cannot be reused
+// `commands/reconcile/uncertain-cases.mjs` lists through `uncertain()`. The
+// stores cannot be reused
 // here: their constructors create and migrate the schema, and this check must
-// not write, so the databases open read-only.
+// not write, so the databases open read-only. A pending CI watch is not busy: it
+// resumes after a restart and its notice may repeat (ADR 0014).
 //
 // `preview_requests` still accepts `commenting` and `uncertain` in its schema.
 // The service writes neither after the `/preview` retirement, but a state
@@ -658,16 +659,6 @@ const busyQueries = [
     database: "admission.sqlite",
     label: "pending or running instructions",
     sql: "SELECT COUNT(*) AS count FROM instructions WHERE status IN ('pending', 'running')",
-  },
-  {
-    database: "ci-watch.sqlite",
-    label: "reserved, queued or running CI repairs",
-    sql: "SELECT COUNT(*) AS count FROM ci_repairs WHERE status IN ('reserved', 'queued', 'running')",
-  },
-  {
-    database: "ci-watch.sqlite",
-    label: "pending, sending or uncertain CI notices",
-    sql: "SELECT COUNT(*) AS count FROM ci_watches WHERE state IN ('pending', 'sending', 'uncertain')",
   },
   {
     database: "merge-request.sqlite",
@@ -686,16 +677,6 @@ const uncertainQueries = [
     kind: "instruction",
     database: "admission.sqlite",
     sql: "SELECT COUNT(*) AS count FROM instructions WHERE status = 'uncertain'",
-  },
-  {
-    kind: "repair",
-    database: "ci-watch.sqlite",
-    sql: "SELECT COUNT(*) AS count FROM ci_repairs WHERE status = 'uncertain'",
-  },
-  {
-    kind: "notice",
-    database: "ci-watch.sqlite",
-    sql: "SELECT COUNT(*) AS count FROM ci_watches WHERE state = 'uncertain'",
   },
   {
     kind: "merge",

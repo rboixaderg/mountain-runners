@@ -6,21 +6,17 @@ import {
   buildClassificationPrompt,
   buildInstructionPrompt,
   buildConflictInstruction,
-  buildRepairInstruction,
   buildTopicStateText,
   changeTypes,
   checkCommandForPaths,
   checkCommands,
   ciNoteReports,
   ciReports,
-  ciRepairNoteReports,
-  ciRepairReports,
   bridgeMessages,
   instructionReportKeys,
   instructionReports,
   workingNotice,
   savedNotice,
-  failedRetryingNotice,
   failedMaintainerNotice,
   ciWatchOutcomes,
   formatMadridInstant,
@@ -35,7 +31,6 @@ import {
   pullRequestBody,
   reconcileReports,
   reconcileResolutions,
-  repairPromptLimits,
   serviceNotesHeader,
   slugify,
   stripChangeSummary,
@@ -44,15 +39,15 @@ import {
 
 const currentInstant = "2026-11-18T10:32:05+01:00";
 
-function promptFor(instruction, kind, options = {}) {
-  return buildInstructionPrompt(instruction, kind, {
+function promptFor(instruction, options = {}) {
+  return buildInstructionPrompt(instruction, {
     currentInstant,
     ...options,
   });
 }
 
 test("the model leaves the full checks to the service with its file inventory", () => {
-  const prompt = promptFor("Fes el canvi", "implementation");
+  const prompt = promptFor("Fes el canvi");
   assert.match(prompt, /Do not run pnpm check or pnpm check:local/u);
   assert.match(prompt, /Never change the check or Git configuration/u);
 });
@@ -163,7 +158,7 @@ test("accepts every conventional type and rejects an invented one", () => {
 });
 
 test("tells the model which summary types are accepted", () => {
-  const prompt = promptFor("afegeix una entrada", "implementation");
+  const prompt = promptFor("afegeix una entrada");
   for (const type of changeTypes) {
     assert.match(prompt, new RegExp(`\\b${type}\\b`, "u"));
   }
@@ -172,7 +167,7 @@ test("tells the model which summary types are accepted", () => {
 });
 
 test("asks for the change summary only on a turn that changed files", () => {
-  const prompt = promptFor("explica el projecte", "consultation");
+  const prompt = promptFor("explica el projecte");
 
   assert.match(
     prompt,
@@ -185,7 +180,7 @@ test("asks for the change summary only on a turn that changed files", () => {
 });
 
 test("gives the model the audience and the wording of the answer", () => {
-  const prompt = promptFor("afegeix una notícia", "implementation");
+  const prompt = promptFor("afegeix una notícia");
 
   assert.match(prompt, /Who reads your answer and how to write it:/u);
   assert.match(prompt, /club members/u);
@@ -211,7 +206,7 @@ test("gives the model the audience and the wording of the answer", () => {
 });
 
 test("keeps the safety rules whatever the audience", () => {
-  const prompt = promptFor("publica la notícia", "implementation");
+  const prompt = promptFor("publica la notícia");
 
   assert.match(prompt, /The sandbox has no network and no credentials/u);
   assert.match(prompt, /Never push, merge, deploy/u);
@@ -219,7 +214,7 @@ test("keeps the safety rules whatever the audience", () => {
 });
 
 test("publishes a post only on an explicit request, with the instant the service gives", () => {
-  const prompt = promptFor("publica-la", "implementation");
+  const prompt = promptFor("publica-la");
 
   assert.match(prompt, /is created as a draft: `published: false`/u);
   assert.match(
@@ -236,7 +231,7 @@ test("publishes a post only on an explicit request, with the instant the service
 });
 
 test("writes the other locales only when the person asks for them", () => {
-  const prompt = promptFor("escriu la notícia", "implementation");
+  const prompt = promptFor("escriu la notícia");
 
   assert.match(
     prompt,
@@ -282,12 +277,12 @@ test("strips every change summary line from the text a person reads", () => {
 
 test("requires the current instant of the service in the prompt", () => {
   assert.throws(
-    () => buildInstructionPrompt("explica el projecte", "consultation"),
+    () => buildInstructionPrompt("explica el projecte"),
     /current instant of the service is required/u,
   );
   assert.throws(
     () =>
-      buildInstructionPrompt("explica el projecte", "consultation", {
+      buildInstructionPrompt("explica el projecte", {
         currentInstant: "",
       }),
     /current instant of the service is required/u,
@@ -574,61 +569,6 @@ test("builds branch names that match the repository rules", () => {
   );
 });
 
-test("labels the CI failure context as untrusted data for a repair", () => {
-  const instruction = buildRepairInstruction({
-    pullRequestNumber: 200,
-    commit: "a".repeat(40),
-    branch: "fix/tools-add-synthetic-change-1001",
-    changeSummary: "feat(tools): add synthetic change",
-    failedChecks: ["Validate", "Gitleaks"],
-    evidence: [
-      { name: "Validate", detail: "src/a.ts: error TS2322" },
-      { name: "Gitleaks", detail: "" },
-    ],
-    diff: "diff --git a/src/a.ts b/src/a.ts\n+tolerated\n",
-  });
-
-  assert.match(instruction, /pull request #200/u);
-  assert.match(instruction, /Validate, Gitleaks/u);
-  assert.match(instruction, /Published change summary: feat\(tools\)/u);
-  assert.match(instruction, /untrusted data/u);
-  assert.match(instruction, /src\/a\.ts: error TS2322/u);
-  assert.match(instruction, /\+tolerated/u);
-  assert.match(instruction, /### Gitleaks\n\(no output\)/u);
-});
-
-test("clips the published diff and says when it is unavailable", () => {
-  const base = {
-    pullRequestNumber: 1,
-    commit: "a".repeat(40),
-    branch: "fix/agent-change-1",
-    changeSummary: "fix(agent): change",
-    failedChecks: ["Validate"],
-    evidence: [],
-  };
-  const clipped = buildRepairInstruction({
-    ...base,
-    diff: "x".repeat(repairPromptLimits.diffCharacters + 100),
-  });
-  assert.match(clipped, /…/u);
-  assert.ok(clipped.length < repairPromptLimits.diffCharacters + 1000);
-  assert.match(
-    buildRepairInstruction({ ...base, diff: null }),
-    /\(the diff is not available\)/u,
-  );
-});
-
-test("adds the repair rules that forbid hiding a failing check", () => {
-  const prompt = promptFor("Request", "repair");
-  assert.match(prompt, /automatic CI repair/u);
-  assert.match(prompt, /Never try to make a check green by disabling it/u);
-  assert.match(prompt, /change no files and explain/u);
-  assert.doesNotMatch(
-    promptFor("Request", "implementation"),
-    /automatic CI repair/u,
-  );
-});
-
 test("classifies a request that acts on the work of the topic as a continuation", () => {
   const prompt = buildClassificationPrompt(
     "aquí tens els fets que et faltaven",
@@ -716,7 +656,7 @@ test("sends the bounded topic context to the classifier as JSON data", () => {
 });
 
 test("keeps the service events apart from the request", () => {
-  const prompt = promptFor("només vols una explicació?", "implementation", {
+  const prompt = promptFor("només vols una explicació?", {
     serviceNotes: [
       "Pull request creada: https://example.test/pull/301",
       "Comprovacions: pnpm check correcte.",
@@ -738,7 +678,7 @@ test("keeps the service events apart from the request", () => {
 });
 
 test("keeps the turn prompt short: no kind, no read-only rule, the rules that remain", () => {
-  const prompt = promptFor("afegeix una notícia", "implementation");
+  const prompt = promptFor("afegeix una notícia");
 
   assert.doesNotMatch(prompt, /This request is/u);
   assert.doesNotMatch(prompt, /Consultations are read-only/u);
@@ -754,12 +694,7 @@ test("keeps the turn prompt short: no kind, no read-only rule, the rules that re
   );
 });
 
-const personNotices = [
-  workingNotice,
-  savedNotice,
-  failedRetryingNotice,
-  failedMaintainerNotice,
-];
+const personNotices = [workingNotice, savedNotice, failedMaintainerNotice];
 const allowedPersonNotices = new Set(personNotices);
 const technicalWords = /proposta|comprovaci|commit|branca|\bPR\b|demana/iu;
 
@@ -775,10 +710,6 @@ test("speaks to a person with the plain notices only", () => {
   assert.equal(
     savedNotice,
     "Canvi desat. Preparo com es veurà; trigarà uns 10 minuts.",
-  );
-  assert.equal(
-    failedRetryingNotice,
-    "Alguna cosa ha fallat per part nostra. Ho torno a intentar.",
   );
   assert.equal(
     failedMaintainerNotice,
@@ -798,10 +729,6 @@ test("speaks to a person with the plain notices only", () => {
         ? stripReviewLink(report({ pullRequestUrl: "https://example.test/1" }))
         : report,
     ),
-    ...Object.values(ciRepairReports).filter(
-      (report) =>
-        typeof report === "string" && report !== ciRepairReports.queueStalled,
-    ),
     stripReviewLink(
       publicationNoticesText({
         pullRequest: { htmlUrl: "https://example.test/1" },
@@ -820,7 +747,6 @@ test("speaks to a person with the plain notices only", () => {
     assert.doesNotMatch(report, technicalWords);
   }
   assert.doesNotMatch(instructionReports.clarification, technicalWords);
-  assert.equal(ciRepairReports.published({ report: "Fet." }), "Fet.");
 });
 
 test("derives the report keys from the instruction reports", () => {
@@ -834,37 +760,8 @@ test("derives the report keys from the instruction reports", () => {
   assert.ok(Object.isFrozen(instructionReportKeys));
 });
 
-test("promises a retry only in the repairing notice, which is queued", () => {
-  for (const [name, report] of [
-    ...Object.entries(instructionReports),
-    ...Object.entries(ciReports).filter(
-      ([, report]) => typeof report === "string",
-    ),
-    ...Object.entries(ciRepairReports).filter(
-      ([, report]) => typeof report === "string",
-    ),
-  ]) {
-    if (name === "repairing") {
-      assert.match(report, /Ho torno a intentar/u);
-    } else {
-      assert.doesNotMatch(report, /Ho torno a intentar|torna|repeteix/iu, name);
-    }
-  }
-});
-
-test("keeps the technical repair notes for the operator and the model", () => {
-  const common = { pullRequestNumber: 200 };
-  for (const note of [
-    ciRepairNoteReports.interrupted(common),
-    ciRepairNoteReports.uncertain(common),
-    ciRepairNoteReports.notApplicable(common),
-  ]) {
-    assert.match(note, /PR #200/u);
-  }
-});
-
 test("puts the state of the topic before the service events and the request", () => {
-  const prompt = promptFor("i la preview?", "consultation", {
+  const prompt = promptFor("i la preview?", {
     topicState: {
       liveState: {
         url: "https://github.com/rboixaderg/mountain-runners/pull/239",
@@ -892,7 +789,7 @@ test("puts the state of the topic before the service events and the request", ()
   assert.match(prompt, /never offer to ask for it/u);
   assert.doesNotMatch(prompt, /demana la preview/u);
   assert.equal(
-    promptFor("i la preview?", "consultation").includes(topicStateHeader),
+    promptFor("i la preview?").includes(topicStateHeader),
     false,
     "a turn without topic state receives no block",
   );

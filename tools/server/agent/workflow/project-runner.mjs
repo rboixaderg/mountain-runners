@@ -89,7 +89,7 @@ export function createProjectRunner({
       environment,
       stopCommands,
       buildMessage: (serviceNotes) =>
-        buildInstructionPrompt(context.instruction, context.kind, {
+        buildInstructionPrompt(context.instruction, {
           serviceNotes,
           currentInstant: formatMadridInstant(now()),
           topicState: context.topicState,

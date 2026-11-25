@@ -7,9 +7,7 @@
 //
 // One Telegram update is one row. A person's request for the same pull request
 // and commit is allowed only after the previous one ended. A publication of the
-// service follows its own preview in the row of the update that published it,
-// and an automatic repair reopens that row for its new commit, as the CI watch
-// does.
+// service follows its own preview in the row of the update that published it.
 //
 // The origin the trusted publisher confirmed is stored with the request, because
 // the model of the topic never builds or guesses a preview URL and cannot read
@@ -199,30 +197,6 @@ export class PreviewRequestStore {
         timestamp,
         Number(mergeSynchronization),
       );
-  }
-
-  /**
-   * An automatic repair has no author of its own: it follows the preview of its
-   * new commit in the row of the publication it continues, if there is one.
-   */
-  reopen({ updateIdentifier, pullRequestNumber, commitSha }) {
-    const timestamp = this.#now().toISOString();
-    return (
-      this.#database
-        .prepare(
-          `UPDATE preview_requests
-           SET commit_sha = ?, state = 'awaiting', confirmed_origin = NULL,
-               notice_message_identifier = NULL, created_at = ?, updated_at = ?
-           WHERE update_identifier = ? AND pull_request_number = ?`,
-        )
-        .run(
-          commitSha,
-          timestamp,
-          timestamp,
-          updateIdentifier,
-          pullRequestNumber,
-        ).changes === 1
-    );
   }
 
   #transition(

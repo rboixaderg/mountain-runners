@@ -345,45 +345,62 @@ test("refuses a bot token that belongs to another username", async (context) => 
   );
 });
 
-test("keeps an interrupted CI notice uncertain and still starts", async (context) => {
+/**
+ * The state an earlier version left behind: notices in states that are not
+ * written any more, and the tables of the repairs and reruns it removed.
+ */
+function addLegacyCiRows(statePath) {
+  const database = new DatabaseSync(join(statePath, "ci-watch.sqlite"));
+  database.exec(`
+    INSERT INTO ci_watches
+      (update_identifier, session_key, pull_request_number, commit_sha, state,
+       result, created_at, updated_at)
+    VALUES
+      (8, '-1001234567890:7', 200, '${"d".repeat(40)}', 'sending', 'failure',
+       '2026-11-20T10:00:00.000Z', '2026-11-20T10:00:00.000Z'),
+      (9, '-1001234567890:7', 200, '${"e".repeat(40)}', 'uncertain', 'repairing',
+       '2026-11-20T10:00:00.000Z', '2026-11-20T10:00:00.000Z');
+    CREATE TABLE ci_repairs (session_key TEXT, status TEXT);
+    INSERT INTO ci_repairs VALUES
+      ('-1001234567890:7', 'reserved'), ('-1001234567890:7', 'queued'),
+      ('-1001234567890:7', 'running'), ('-1001234567890:7', 'uncertain');
+    CREATE TABLE ci_reruns (run_identifier INTEGER PRIMARY KEY);
+    INSERT INTO ci_reruns VALUES (100);
+  `);
+  database.close();
+}
+
+test("starts with the CI rows of an earlier version and never resends them", async (context) => {
   const { environment, statePath } = environmentFor(context);
   mkdirSync(statePath, { recursive: true });
-  const ciWatches = new CiWatchStore(join(statePath, "ci-watch.sqlite"));
-  ciWatches.add({
-    updateIdentifier: 10,
-    sessionKey: "-1001234567890:7",
-    authorIdentifier: 555,
-    pullRequestNumber: 200,
-    commitSha: "a".repeat(40),
-  });
-  assert.equal(ciWatches.beginSend(10, "success"), true);
-  ciWatches.close();
+  new CiWatchStore(join(statePath, "ci-watch.sqlite")).close();
+  addLegacyCiRows(statePath);
 
-  const events = [];
   const service = await startService({
     environment,
     telegram: telegramStub(),
     github: {},
     runner: async () => ({}),
-    logger: (event, detail) => events.push({ event, detail }),
+  });
+  context.after(() => {
+    service.ciWatches.close();
+    service.queue.close();
+  });
+  // An empty GitHub client and no `sendMessage`: nothing is read or sent.
+  await service.ciWorker.runOnce();
+
+  assert.equal(service.ciWatches.state(8), "sending");
+  assert.equal(service.ciWatches.state(9), "uncertain");
+  assert.equal(service.ciWatches.hasUnreportedWork("-1001234567890:7"), false);
+  assert.deepEqual(service.queue.traceEntries(), []);
+});
+
+test("merges the delivered preview despite the CI rows of an earlier version", async (context) => {
+  const { merges } = await runMergeCommand(context, {
+    prepare: ({ config }) => addLegacyCiRows(config.paths.state),
   });
 
-  assert.ok(
-    events.some(
-      ({ event, detail }) =>
-        event === "ci_notification_uncertain" && detail === "1",
-    ),
-  );
-  assert.deepEqual(service.ciWatches.pending(), []);
-  assert.equal(service.ciWatches.state(10), "uncertain");
-  const trace = service.queue
-    .traceEntries()
-    .find((entry) => entry.action === "ci_notification_uncertain");
-  assert.equal(trace.update_identifier, 10);
-  assert.equal(trace.session_key, "-1001234567890:7");
-  assert.equal(trace.detail, `#200 ${"a".repeat(7)}`);
-  service.ciWatches.close();
-  service.queue.close();
+  assert.equal(merges.length, 1);
 });
 
 test("notifies CI only when the configured required checks are green", async (context) => {
@@ -483,280 +500,6 @@ test("refuses to start with an interrupted instruction of unknown result", async
   }
 });
 
-function repairFixture(environment, statePath) {
-  mkdirSync(statePath, { recursive: true });
-  const ciWatches = new CiWatchStore(join(statePath, "ci-watch.sqlite"));
-  const repair = ciWatches.requestRepair({
-    updateIdentifier: 10,
-    sessionKey: "-1001234567890:7",
-    pullRequestNumber: 200,
-    failureFingerprint: JSON.stringify(["Validate"]),
-    failedChecks: ["Validate"],
-    evidence: [{ name: "Validate", detail: "synthetic failure" }],
-    commitSha: "a".repeat(40),
-    maximumAttempts: 2,
-  });
-  ciWatches.queueRepair(repair.sequence);
-  return { ciWatches, repair };
-}
-
-test("refuses to start with an interrupted CI repair of unknown result", async (context) => {
-  const { environment, statePath } = environmentFor(context);
-  const { ciWatches } = repairFixture(environment, statePath);
-  ciWatches.claimNextRepair();
-  ciWatches.close();
-
-  await assert.rejects(
-    startService({
-      environment: { ...environment },
-      telegram: telegramStub(),
-      github: {},
-      runner: async () => ({}),
-    }),
-    { message: /CI repair\(s\) have an unknown external result/u },
-  );
-  // The uncertainty survives later restarts until a person reconciles it.
-  await assert.rejects(
-    startService({
-      environment: { ...environment },
-      telegram: telegramStub(),
-      github: {},
-      runner: async () => ({}),
-    }),
-    { message: /unknown external result/u },
-  );
-
-  const queue = new AdmissionQueue(join(statePath, "admission.sqlite"), {
-    maxPending: 10,
-  });
-  const trace = queue
-    .traceEntries()
-    .find((entry) => entry.action === "ci_repair_uncertain");
-  assert.equal(trace.update_identifier, 10);
-  assert.equal(trace.detail, `#200 ${"a".repeat(7)}`);
-  queue.close();
-  const reopened = new CiWatchStore(join(statePath, "ci-watch.sqlite"));
-  assert.equal(reopened.claimNextRepair(), null);
-  reopened.close();
-});
-
-test("closes an unannounced reservation at startup instead of blocking the topic", async (context) => {
-  const { environment, statePath } = environmentFor(context);
-  mkdirSync(statePath, { recursive: true });
-  const stateStore = new CiWatchStore(join(statePath, "ci-watch.sqlite"));
-  const reserved = stateStore.requestRepair({
-    updateIdentifier: 10,
-    sessionKey: "-1001234567890:7",
-    pullRequestNumber: 200,
-    failureFingerprint: JSON.stringify(["Validate"]),
-    failedChecks: ["Validate"],
-    evidence: [],
-    commitSha: "a".repeat(40),
-    maximumAttempts: 2,
-  });
-  stateStore.close();
-
-  const service = await startService({
-    environment,
-    telegram: telegramStub(),
-    github: {},
-    runner: async () => ({}),
-  });
-
-  const repair = service.ciWatches.repair(reserved.sequence);
-  assert.equal(repair.status, "aborted");
-  assert.equal(repair.outcome, "interrupted_before_queue");
-  assert.equal(service.ciWatches.hasUnreportedWork("-1001234567890:7"), false);
-  assert.equal(service.ciWatches.claimNextRepair(), null);
-  const trace = service.queue
-    .traceEntries()
-    .find((entry) => entry.action === "ci_repair_not_queued");
-  assert.equal(trace.update_identifier, 10);
-  assert.equal(trace.detail, `#200 ${"a".repeat(7)}`);
-  service.ciWatches.close();
-  service.queue.close();
-});
-
-function failingProjectGithub() {
-  return {
-    async getPullRequest() {
-      return { state: "open", headSha: "a".repeat(40) };
-    },
-    async getCommitCheckRuns() {
-      return [
-        {
-          name: "Validate",
-          status: "completed",
-          conclusion: "failure",
-          output: { summary: "Project test failed" },
-        },
-      ];
-    },
-    async getCommitStatuses() {
-      return [];
-    },
-    async getCheckRunJob() {
-      return {
-        id: 100,
-        status: "completed",
-        conclusion: "failure",
-        steps: [
-          {
-            name: "Check project",
-            status: "completed",
-            conclusion: "failure",
-            started_at: "2026-11-21T10:00:00Z",
-            completed_at: "2026-11-21T10:00:05Z",
-          },
-        ],
-      };
-    },
-    async getWorkflowJobLog() {
-      return [
-        "2026-11-21T10:00:00.000Z ##[group]Run pnpm check",
-        "2026-11-21T10:00:01.000Z ##[endgroup]",
-        "2026-11-21T10:00:02.000Z Project test failed",
-      ].join("\n");
-    },
-  };
-}
-
-test("runs a queued CI repair when the instruction queue is idle", async (context) => {
-  const { environment, statePath } = environmentFor(context);
-  const { ciWatches } = repairFixture(environment, statePath);
-  ciWatches.close();
-  const sent = [];
-  const executed = [];
-  const service = await startService({
-    environment,
-    telegram: {
-      async getMe() {
-        return { id: 999, username: "mountain_agent_bot" };
-      },
-      async sendMessage(message) {
-        sent.push(message);
-      },
-    },
-    github: failingProjectGithub(),
-    runner: async (request) => {
-      executed.push(request);
-      return {
-        outcome: "pull_request_updated",
-        report: "Pull request actualitzada.",
-      };
-    },
-  });
-
-  assert.equal(await service.ciRepairExecutor.runNext(), true);
-  assert.equal(await service.ciRepairExecutor.runNext(), false);
-  assert.equal(executed[0].kind, "repair");
-  assert.equal(executed[0].commit, "a".repeat(40));
-  assert.equal(sent.length, 1);
-  assert.equal(sent[0].messageThreadIdentifier, 7);
-  assert.match(sent[0].text, /Pull request actualitzada/u);
-  service.ciWatches.close();
-  service.queue.close();
-});
-
-test("does not run a queued repair while the instruction queue is blocked", async (context) => {
-  const { environment, statePath } = environmentFor(context);
-  const { ciWatches } = repairFixture(environment, statePath);
-  ciWatches.close();
-  const controller = new AbortController();
-  let executed = false;
-  const service = await startService({
-    environment,
-    telegram: {
-      async getMe() {
-        return { id: 999, username: "mountain_agent_bot" };
-      },
-      async getUpdates() {
-        // Yield to the timers of this test while the bridge loops.
-        await new Promise((resolve) => setImmediate(resolve));
-        return [];
-      },
-      async sendMessage() {},
-    },
-    github: {},
-    runner: async () => {
-      executed = true;
-      return { outcome: "answered", report: "no hauria de passar" };
-    },
-  });
-  // The block appears at runtime, after an external result became unknown.
-  service.queue.admit({
-    updateIdentifier: 20,
-    messageIdentifier: 2020,
-    sessionKey: "-1001234567890:7",
-    authorIdentifier: 42,
-    instruction: "tasca amb resultat desconegut",
-  });
-  service.queue.next();
-  service.queue.markUncertain(20, "publication_uncertain");
-  assert.equal(service.queue.isBlocked(), true);
-
-  const running = service.bridge.run({ signal: controller.signal });
-  await new Promise((resolve) => setTimeout(resolve, 50));
-  controller.abort();
-  await running;
-
-  assert.equal(executed, false);
-  assert.equal(service.ciWatches.claimNextRepair() !== null, true);
-  service.ciWatches.close();
-  service.queue.close();
-});
-
-test("does not run another repair while one has an unknown result", async (context) => {
-  const { environment, statePath } = environmentFor(context);
-  const { ciWatches } = repairFixture(environment, statePath);
-  ciWatches.close();
-  let executions = 0;
-  const service = await startService({
-    environment,
-    telegram: {
-      async getMe() {
-        return { id: 999, username: "mountain_agent_bot" };
-      },
-      async getUpdates() {
-        await new Promise((resolve) => setImmediate(resolve));
-        return [];
-      },
-      async sendMessage() {},
-    },
-    github: failingProjectGithub(),
-    runner: async () => {
-      executions += 1;
-      return { outcome: "uncertain", report: "resultat desconegut" };
-    },
-  });
-  await service.ciRepairExecutor.runNext();
-  assert.equal(service.ciWatches.uncertainRepairCount(), 1);
-  const secondRepair = service.ciWatches.requestRepair({
-    updateIdentifier: 11,
-    sessionKey: "-1001234567890:7",
-    pullRequestNumber: 201,
-    failureFingerprint: JSON.stringify(["Validate"]),
-    failedChecks: ["Validate"],
-    evidence: [],
-    commitSha: "b".repeat(40),
-    maximumAttempts: 2,
-  });
-  service.ciWatches.queueRepair(secondRepair.sequence);
-
-  const controller = new AbortController();
-  const running = service.bridge.run({ signal: controller.signal });
-  await new Promise((resolve) => setTimeout(resolve, 50));
-  controller.abort();
-  await running;
-
-  assert.equal(executions, 1);
-  assert.equal(service.ciWatches.claimNextRepair() !== null, true);
-  service.ciWatches.close();
-  service.queue.close();
-});
-
-// An interrupted merge is recovered at startup even when another case refuses
-// the start: one restart leaves every case attributed in the private trace.
 test("completes every local recovery before refusing the start", async (context) => {
   const { environment, statePath } = environmentFor(context);
   mkdirSync(statePath, { recursive: true });
@@ -1145,8 +888,7 @@ async function runMergeCommand(
     pullRequestNumber: 200,
     commitSha: commit,
   });
-  service.ciWatches.beginSend(10, "success");
-  service.ciWatches.finishSend(10);
+  service.ciWatches.finishSend(10, "success");
   if (deliveredPreview) {
     service.previewRequests.track({
       updateIdentifier: 10,
@@ -1298,8 +1040,7 @@ test("a newer publication without a preview record invalidates the earlier notic
         pullRequestNumber: 200,
         commitSha: "a".repeat(40),
       });
-      ciWatches.beginSend(11, "success");
-      ciWatches.finishSend(11);
+      ciWatches.finishSend(11, "success");
     },
   });
 
@@ -1382,26 +1123,6 @@ test("refuses the merge while the topic has another instruction waiting", async 
   assert.match(replies.at(-1), /feina més nova que l'últim avís/u);
 });
 
-test("refuses the merge while an automatic repair is reserved for the topic", async (context) => {
-  const { merges, replies } = await runMergeCommand(context, {
-    prepare: (service) => {
-      service.ciWatches.requestRepair({
-        updateIdentifier: 10,
-        sessionKey: "-1001234567890:7",
-        pullRequestNumber: 200,
-        failureFingerprint: "fingerprint",
-        failedChecks: ["Validate"],
-        evidence: [],
-        commitSha: "c".repeat(40),
-        maximumAttempts: 2,
-      });
-    },
-  });
-
-  assert.deepEqual(merges, []);
-  assert.match(replies.at(-1), /feina més nova que l'últim avís/u);
-});
-
 test("keeps the older notice blocked after reconciling a publication without a watch", async (context) => {
   const { directory, environment, statePath } = environmentFor(context);
   mkdirSync(statePath, { recursive: true });
@@ -1420,8 +1141,7 @@ test("keeps the older notice blocked after reconciling a publication without a w
     pullRequestNumber: 200,
     commitSha: greenCommit,
   });
-  watches.beginSend(10, "success");
-  watches.finishSend(10);
+  watches.finishSend(10, "success");
   watches.close();
   const previews = new PreviewRequestStore(
     join(statePath, "preview-request.sqlite"),
@@ -1469,7 +1189,7 @@ test("keeps the older notice blocked after reconciling a publication without a w
     instructions: new AdmissionQueue(join(statePath, "admission.sqlite"), {
       maxPending: 10,
     }),
-    repairs: new CiWatchStore(join(statePath, "ci-watch.sqlite")),
+    ciWatches: new CiWatchStore(join(statePath, "ci-watch.sqlite")),
   };
   await resolveUncertainCase({
     config: {
@@ -1488,7 +1208,7 @@ test("keeps the older notice blocked after reconciling a publication without a w
     pullRequestNumber: publishedPullRequest,
   });
   assert.deepEqual(
-    reconcileStores.repairs
+    reconcileStores.ciWatches
       .pending()
       .map((row) => [
         row.update_identifier,
@@ -1497,7 +1217,7 @@ test("keeps the older notice blocked after reconciling a publication without a w
       ]),
     [[20, publishedPullRequest, publishedCommit]],
   );
-  reconcileStores.repairs.close();
+  reconcileStores.ciWatches.close();
   reconcileStores.instructions.close();
 
   async function mergeOnce(updateIdentifier) {
@@ -1570,8 +1290,7 @@ test("keeps the older notice blocked after reconciling a publication without a w
 
   // A green notice does not replace the new publication's preview.
   const delivered = new CiWatchStore(join(statePath, "ci-watch.sqlite"));
-  assert.equal(delivered.beginSend(20, "success"), true);
-  assert.equal(delivered.finishSend(20), true);
+  assert.equal(delivered.finishSend(20, "success"), true);
   delivered.close();
 
   const stillRefused = await mergeOnce(200);
@@ -1679,8 +1398,7 @@ test("verifies the membership again when the preview request runs", async (conte
     pullRequestNumber: 200,
     commitSha: commit,
   });
-  service.ciWatches.beginSend(10, "success");
-  service.ciWatches.finishSend(10);
+  service.ciWatches.finishSend(10, "success");
   const previewRequest = (updateIdentifier) => ({
     updateIdentifier,
     sessionKey: "-1001234567890:7",
