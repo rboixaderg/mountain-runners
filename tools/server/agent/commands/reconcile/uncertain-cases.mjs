@@ -8,10 +8,9 @@
 // instruction whose head is confirmed, the missing `preview` label of the pull
 // request that instruction opened and the private trace.
 //
-// A resolution is never kept without its trace. The instruction transition and
-// its trace share the admission database, so they are one transaction. A merge
-// lives in another database: the trace is written first and a failure changes
-// nothing.
+// A resolution is never kept without its trace. The admission queue writes the
+// instruction transition and its trace in one transaction. A merge is closed by
+// another store: the trace is written first and a failure changes nothing.
 
 import { parseSessionKey } from "telegram-pi-bridge/sessions";
 import {
@@ -196,16 +195,9 @@ function traceEntry(resolved, action = "uncertain_reconciled") {
   };
 }
 
-function recordTrace({ stores, entry }) {
-  if (stores.instructions === null) {
-    throw new ReconcileCaseError("The private trace database is missing.");
-  }
-  stores.instructions.recordTrace(entry);
-}
-
 function recordTraceBestEffort({ stores, entry, warn }) {
   try {
-    recordTrace({ stores, entry });
+    stores.instructions.recordTrace(entry);
   } catch (error) {
     warn(`The failure could not be traced: ${messageOf(error)}`);
   }
@@ -220,37 +212,6 @@ function failTransition({ stores, resolved, warn, error }) {
     warn,
   });
   throw error;
-}
-
-/**
- * A confirmed publication is not a confirmed notice: the topic must still
- * receive the report of the commit. The command rebuilds the durable watch the
- * failed registration never wrote, so the ordinary worker re-reads the pull
- * request and reports before `/merge` can resolve anything again. The watch is
- * written before the instruction changes; a failure keeps it uncertain. An
- * existing watch of the same update is left as it is.
- */
-function registerConfirmedWatch({
-  stores,
-  sessionKey,
-  updateIdentifier,
-  pullRequestNumber,
-  commit,
-}) {
-  if (stores.ciWatches === null) {
-    throw new ReconcileCaseError(
-      "The CI watch database is missing; the publication cannot be followed.",
-    );
-  }
-  if (stores.ciWatches.state(updateIdentifier) !== undefined) {
-    return;
-  }
-  stores.ciWatches.add({
-    updateIdentifier,
-    sessionKey,
-    pullRequestNumber,
-    commitSha: commit,
-  });
 }
 
 /**
@@ -366,11 +327,6 @@ async function resolveInstruction({
   };
 
   if (published) {
-    if (!stores.topicJobs || !stores.previews) {
-      throw new ReconcileCaseError(
-        "The topic job or preview request database is missing; the publication cannot be restored.",
-      );
-    }
     const worktree = await findSessionWorktree({
       repositoryPath: config.paths.repository,
       worktreeRoot: config.paths.worktrees,
@@ -392,15 +348,13 @@ async function resolveInstruction({
         `The topic is bound to pull request #${binding.pullRequestNumber}, not #${pullRequestNumber}.`,
       );
     }
-    registerConfirmedWatch({
-      stores,
-      sessionKey: row.session_key,
-      updateIdentifier,
-      pullRequestNumber,
-      commit,
-    });
-    await recordConfirmedPublication({ worktree, commit });
-    stores.previews.track({
+    // A confirmed publication is not a confirmed notice: the topic must still
+    // receive the report of the commit. The record the failed registration never
+    // wrote lets the ordinary workers re-read the pull request and report before
+    // `/merge` can resolve anything again. It is written before the instruction
+    // changes; a failure keeps it uncertain. The CI watch of an existing record
+    // of this commit is left as it is.
+    stores.publications.record({
       updateIdentifier,
       sessionKey: row.session_key,
       authorIdentifier: row.author_identifier,
@@ -414,6 +368,7 @@ async function resolveInstruction({
             entry.action === mergeSynchronizationRequestedAction,
         ),
     });
+    await recordConfirmedPublication({ worktree, commit });
   }
 
   // The transition and its trace are one transaction: the instruction is never
@@ -482,7 +437,7 @@ async function resolveMerge({
     commit: row.commit_sha,
     resolution,
   };
-  recordTrace({ stores, entry: traceEntry(resolved) });
+  stores.instructions.recordTrace(traceEntry(resolved));
   let applied;
   try {
     applied =

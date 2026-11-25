@@ -1,6 +1,7 @@
 // Coordination of the CI notifications.
 //
-// A publication registers one durable watch pinned to the exact pushed commit.
+// A publication records one durable row whose CI watch is pinned to the exact
+// pushed commit.
 // The worker runs beside the Telegram bridge: it never blocks the instruction
 // queue and it never claims a result it did not read. A watch ends only after
 // its notice was sent, so a failed send is retried with a growing delay.
@@ -37,27 +38,17 @@ function describe(watch) {
 }
 
 /**
- * Persist the watch for a confirmed publication. A failed insert costs the
- * notification, not the work already published, so it is reported to the topic
- * instead of blocking the service.
+ * Record a confirmed publication: its CI watch and its preview. A failed write
+ * costs both notices, not the work already published, so it is reported to the
+ * topic instead of blocking the service.
  */
-export function createCiWatchRegistration({ store, logger = () => {} }) {
-  return function registerCiWatch({
-    updateIdentifier,
-    sessionKey,
-    pullRequestNumber,
-    commit,
-  }) {
+export function createPublicationRegistration({ store, logger = () => {} }) {
+  return function registerPublication({ commit, ...publication }) {
     try {
-      store.add({
-        updateIdentifier,
-        sessionKey,
-        pullRequestNumber,
-        commitSha: commit,
-      });
+      store.record({ ...publication, commitSha: commit });
     } catch (error) {
       logger(
-        "ci_watch_registration_failed",
+        "publication_registration_failed",
         error instanceof Error ? error.message : "unknown",
       );
       return ciWatchOutcomes.unavailable;
@@ -273,7 +264,7 @@ export function createCiWatchWorker({
   async function deliver(watch, outcome, { signal } = {}) {
     // A watch superseded during the reads produces no notice, so it must not
     // add a note or overwrite the last text of the topic either.
-    if (store.state(watch.update_identifier) !== "pending") return;
+    if (store.ciState(watch.update_identifier) !== "pending") return;
     // A publication pushes before it registers the watch that supersedes this
     // one: a moved head is only reported once the topic has no work left.
     if (
@@ -332,7 +323,7 @@ export function createCiWatchWorker({
       });
       logger(maintainerAttentionAction, noticeKind(outcome));
     }
-    store.finishSend(watch.update_identifier, outcome.result);
+    store.finishCiNotice(watch.update_identifier, outcome.result);
     sendRetries.delete(watch.update_identifier);
     logger(
       "ci_notification_sent",
@@ -361,7 +352,7 @@ export function createCiWatchWorker({
 
   /** One cycle over the pending watches. */
   async function runOnce({ signal } = {}) {
-    for (const watch of store.pending()) {
+    for (const watch of store.pendingCiWatches()) {
       if (signal?.aborted) return;
       const retryAt = sendRetries.get(watch.update_identifier)?.retryAt;
       if (retryAt !== undefined && now().getTime() < retryAt) continue;

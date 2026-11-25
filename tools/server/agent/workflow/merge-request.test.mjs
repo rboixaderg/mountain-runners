@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { test } from "node:test";
 import { verifyMembership } from "telegram-pi-bridge/telegram";
 import { mergeReports } from "../policy/development.mjs";
-import { CiWatchStore } from "../repository/ci-watch-store.mjs";
+import { PublicationStore } from "../repository/publication-store.mjs";
 import { GitHubResponseError } from "../repository/github.mjs";
 import { InspectableMergeRequestStore } from "../repository/test-support/merge-request-state.mjs";
 import { requestSignal } from "../repository/request-signal.mjs";
@@ -39,30 +39,34 @@ function fixture(context, { now } = {}) {
       retryDelay: 100,
     }),
   );
-  const ciWatches = new CiWatchStore(join(directory, "ci-watch.sqlite"), {
-    now,
-  });
+  const publications = new PublicationStore(
+    join(directory, "ci-watch.sqlite"),
+    {
+      now,
+    },
+  );
   const merges = new InspectableMergeRequestStore(
     join(directory, "merge.sqlite"),
   );
   context.after(() => {
-    ciWatches.close();
+    publications.close();
     merges.close();
   });
-  return { directory, ciWatches, merges };
+  return { directory, publications, merges };
 }
 
 function report(
-  ciWatches,
+  publications,
   { updateIdentifier = 10, result = "success", commitSha = commit } = {},
 ) {
-  ciWatches.add({
+  publications.record({
+    authorIdentifier: 555,
     updateIdentifier,
     sessionKey,
     pullRequestNumber: 200,
     commitSha,
   });
-  ciWatches.finishSend(updateIdentifier, result);
+  publications.finishCiNotice(updateIdentifier, result);
 }
 
 /** A preview notice the service delivered, which is the merge's only source. */
@@ -79,7 +83,7 @@ function deliveredPreviewRow({
 }
 
 function setup(context, { github = mergeGithub(), now } = {}) {
-  const { ciWatches, merges } = fixture(context, { now });
+  const { publications, merges } = fixture(context, { now });
   const previews = deliveredPreviews();
   const traces = [];
   const membership = {
@@ -123,7 +127,7 @@ function setup(context, { github = mergeGithub(), now } = {}) {
     });
   }
   return {
-    ciWatches,
+    publications,
     previews,
     deliverPreview: (row = deliveredPreviewRow()) =>
       previews.deliver(sessionKey, row),
@@ -416,9 +420,9 @@ for (const [name, command] of [
 }
 
 test("the merge handler checks live CI instead of a delivered CI notice", async (context) => {
-  const { ciWatches, deliverPreview, handler, github } = setup(context);
+  const { publications, deliverPreview, handler, github } = setup(context);
   deliverPreview();
-  report(ciWatches, { result: "failure" });
+  report(publications, { result: "failure" });
 
   const result = await handler.handle(request(), bareCommand);
 
@@ -452,8 +456,8 @@ test("refuses when no preview confirmation was delivered", async (context) => {
 });
 
 test("a delivered CI notice alone never authorizes the merge", async (context) => {
-  const { ciWatches, handler, github, traces } = setup(context);
-  report(ciWatches);
+  const { publications, handler, github, traces } = setup(context);
+  report(publications);
 
   const result = await handler.handle(request(20), bareCommand);
 

@@ -9,7 +9,6 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { DatabaseSync } from "node:sqlite";
 import { promisify } from "node:util";
 import { test } from "node:test";
 import { AdmissionQueue } from "telegram-pi-bridge/sessions";
@@ -20,9 +19,10 @@ import {
 } from "../../policy/development.mjs";
 import { resolveUncertainCase } from "../../commands/reconcile/uncertain-cases.mjs";
 import { mergeRequestState } from "../../repository/test-support/merge-request-state.mjs";
-import { CiWatchStore } from "../../repository/ci-watch-store.mjs";
+import { PublicationStore } from "../../repository/publication-store.mjs";
 import { MergeRequestStore } from "../../repository/merge-request-store.mjs";
-import { PreviewRequestStore } from "../../repository/preview-request-store.mjs";
+import { stateDatabasePath } from "../../repository/state-database.mjs";
+import { createLegacyDatabase } from "../../repository/test-support/legacy-databases.mjs";
 import { TopicJobStore } from "../../repository/topic-job-store.mjs";
 import { openIdentifierNames } from "../../repository/identifiers.mjs";
 import {
@@ -162,7 +162,7 @@ test("starts the bridge with the configured bot and an empty queue", async (cont
 
   assert.equal(service.config.telegram.groupIdentifier, "-1001234567890");
   assert.deepEqual(service.config.github.requiredChecks, ["Validate"]);
-  assert.deepEqual(service.ciWatches.pending(), []);
+  assert.deepEqual(service.publications.pendingCiWatches(), []);
   service.closeStateStores();
 });
 
@@ -348,59 +348,102 @@ test("refuses a bot token that belongs to another username", async (context) => 
   );
 });
 
-/**
- * The state an earlier version left behind: notices in states that are not
- * written any more, and the tables of the repairs and reruns it removed.
- */
+/** CI watches in notice states an earlier version wrote, in its own database. */
 function addLegacyCiRows(statePath) {
-  const database = new DatabaseSync(join(statePath, "ci-watch.sqlite"));
-  database.exec(`
-    INSERT INTO ci_watches
-      (update_identifier, session_key, pull_request_number, commit_sha, state,
-       result, created_at, updated_at)
-    VALUES
-      (8, '-1001234567890:7', 200, '${"d".repeat(40)}', 'sending', 'failure',
-       '2026-11-20T10:00:00.000Z', '2026-11-20T10:00:00.000Z'),
-      (9, '-1001234567890:7', 200, '${"e".repeat(40)}', 'uncertain', 'repairing',
-       '2026-11-20T10:00:00.000Z', '2026-11-20T10:00:00.000Z');
-    CREATE TABLE ci_repairs (session_key TEXT, status TEXT);
-    INSERT INTO ci_repairs VALUES
-      ('-1001234567890:7', 'reserved'), ('-1001234567890:7', 'queued'),
-      ('-1001234567890:7', 'running'), ('-1001234567890:7', 'uncertain');
-    CREATE TABLE ci_reruns (run_identifier INTEGER PRIMARY KEY);
-    INSERT INTO ci_reruns VALUES (100);
-  `);
-  database.close();
+  mkdirSync(statePath, { recursive: true });
+  const watch = {
+    session_key: "-1001234567890:7",
+    pull_request_number: 200,
+    created_at: "2026-11-20T10:00:00.000Z",
+    updated_at: "2026-11-20T10:00:00.000Z",
+  };
+  createLegacyDatabase(statePath, "ci-watch.sqlite", {
+    ci_watches: [
+      {
+        ...watch,
+        update_identifier: 8,
+        commit_sha: "d".repeat(40),
+        state: "sending",
+        result: "failure",
+      },
+      {
+        ...watch,
+        update_identifier: 9,
+        commit_sha: "e".repeat(40),
+        state: "uncertain",
+        result: "repairing",
+      },
+    ],
+  });
 }
 
-test("starts with the CI rows of an earlier version and never resends them", async (context) => {
+test("migrates the CI rows of an earlier version at startup and never resends them", async (context) => {
   const { environment, statePath } = environmentFor(context);
-  mkdirSync(statePath, { recursive: true });
-  new CiWatchStore(join(statePath, "ci-watch.sqlite")).close();
   addLegacyCiRows(statePath);
+  const logged = [];
 
   const service = await startService({
     environment,
+    logger: (...entry) => logged.push(entry),
     telegram: telegramStub(),
     github: {},
     runner: async () => ({}),
   });
-  context.after(() => {
-    service.ciWatches.close();
-    service.queue.close();
-  });
+  context.after(() => service.closeStateStores());
   // An empty GitHub client and no `sendMessage`: nothing is read or sent.
   await service.ciWorker.runOnce();
 
-  assert.equal(service.ciWatches.state(8), "sending");
-  assert.equal(service.ciWatches.state(9), "uncertain");
-  assert.equal(service.ciWatches.hasUnreportedWork("-1001234567890:7"), false);
+  assert.deepEqual(logged, [["state_migrated", "ci-watch.sqlite"]]);
+  assert.equal(existsSync(join(statePath, "ci-watch.sqlite")), false);
+  assert.equal(service.publications.ciState(8), "superseded");
+  assert.equal(service.publications.ciState(9), "superseded");
   assert.deepEqual(service.queue.traceEntries(), []);
 });
 
-test("merges the delivered preview despite the CI rows of an earlier version", async (context) => {
+test("refuses to start when the state migration fails", async (context) => {
+  const { environment, statePath } = environmentFor(context);
+  mkdirSync(statePath, { recursive: true });
+  writeFileSync(join(statePath, "topic-jobs.sqlite"), "broken".repeat(100));
+
+  await assert.rejects(
+    startService({
+      environment,
+      telegram: telegramStub(),
+      github: {},
+      runner: async () => ({}),
+    }),
+    { message: /state migration failed/u },
+  );
+  assert.equal(existsSync(join(statePath, "agent.sqlite")), false);
+});
+
+test("merges a delivered preview migrated from the separate databases", async (context) => {
   const { merges } = await runMergeCommand(context, {
-    prepare: ({ config }) => addLegacyCiRows(config.paths.state),
+    seed(statePath) {
+      mkdirSync(statePath, { recursive: true });
+      const publication = {
+        update_identifier: 10,
+        session_key: "-1001234567890:7",
+        pull_request_number: 200,
+        commit_sha: "a".repeat(40),
+        created_at: "2026-11-20T10:00:00.000Z",
+        updated_at: "2026-11-20T10:00:00.000Z",
+      };
+      createLegacyDatabase(statePath, "ci-watch.sqlite", {
+        ci_watches: [{ ...publication, state: "sent", result: "success" }],
+      });
+      createLegacyDatabase(statePath, "preview-request.sqlite", {
+        preview_requests: [
+          {
+            ...publication,
+            author_identifier: 42,
+            state: "confirmed",
+            confirmed_origin: "https://pr-200.preview.mountainrunners.cat",
+            notice_message_identifier: 51,
+          },
+        ],
+      });
+    },
   });
 
   assert.equal(merges.length, 1);
@@ -410,14 +453,15 @@ test("notifies CI only when the configured required checks are green", async (co
   const { environment, statePath } = environmentFor(context);
   mkdirSync(statePath, { recursive: true });
   const commit = "a".repeat(40);
-  const ciWatches = new CiWatchStore(join(statePath, "ci-watch.sqlite"));
-  ciWatches.add({
+  const seeded = new PublicationStore(stateDatabasePath(statePath));
+  seeded.record({
     updateIdentifier: 10,
     sessionKey: "-1001234567890:7",
+    authorIdentifier: 42,
     pullRequestNumber: 200,
     commitSha: commit,
   });
-  ciWatches.close();
+  seeded.close();
 
   const gitleaks = {
     name: "Gitleaks",
@@ -460,18 +504,18 @@ test("notifies CI only when the configured required checks are green", async (co
     runner: async () => ({}),
   });
   context.after(() => {
-    service.ciWatches.close();
+    service.publications.close();
     service.queue.close();
   });
 
   await service.ciWorker.runOnce();
   assert.deepEqual(sent, []);
-  assert.equal(service.ciWatches.state(10), "pending");
+  assert.equal(service.publications.ciState(10), "pending");
 
   checkRuns = [gitleaks, validate];
   await service.ciWorker.runOnce();
   assert.deepEqual(sent, [], "the green result is not sent twice");
-  assert.equal(service.ciWatches.state(10), "sent");
+  assert.equal(service.publications.ciState(10), "sent");
 });
 
 test("keeps a moved head unreported while the topic has unsettled work", async (context) => {
@@ -480,20 +524,15 @@ test("keeps a moved head unreported while the topic has unsettled work", async (
   const sessionKey = "-1001234567890:7";
   const publication = { sessionKey, pullRequestNumber: 200 };
   const commitSha = "a".repeat(40);
-  const ciWatches = new CiWatchStore(join(statePath, "ci-watch.sqlite"));
-  ciWatches.add({ ...publication, updateIdentifier: 10, commitSha });
-  ciWatches.close();
-  const previews = new PreviewRequestStore(
-    join(statePath, "preview-request.sqlite"),
-  );
-  previews.track({
+  const seeded = new PublicationStore(stateDatabasePath(statePath));
+  seeded.record({
     ...publication,
     updateIdentifier: 10,
     authorIdentifier: 42,
     commitSha,
     mergeSynchronization: true,
   });
-  previews.close();
+  seeded.close();
   const sent = [];
   const service = await startService({
     environment,
@@ -552,7 +591,7 @@ test("keeps a moved head unreported while the topic has unsettled work", async (
 test("refuses to start with an interrupted instruction of unknown result", async (context) => {
   const { environment, statePath } = environmentFor(context);
   mkdirSync(statePath, { recursive: true });
-  const queue = new AdmissionQueue(join(statePath, "admission.sqlite"), {
+  const queue = new AdmissionQueue(stateDatabasePath(statePath), {
     maxPending: 10,
   });
   queue.admit({
@@ -581,7 +620,7 @@ test("refuses to start with an interrupted instruction of unknown result", async
 test("completes every local recovery before refusing the start", async (context) => {
   const { environment, statePath } = environmentFor(context);
   mkdirSync(statePath, { recursive: true });
-  const queue = new AdmissionQueue(join(statePath, "admission.sqlite"), {
+  const queue = new AdmissionQueue(stateDatabasePath(statePath), {
     maxPending: 10,
   });
   queue.admit({
@@ -608,13 +647,13 @@ test("completes every local recovery before refusing the start", async (context)
     },
   );
 
-  const merges = new MergeRequestStore(join(statePath, "merge-request.sqlite"));
+  const merges = new MergeRequestStore(stateDatabasePath(statePath));
   assert.equal(
-    mergeRequestState(join(statePath, "merge-request.sqlite"), 40),
+    mergeRequestState(stateDatabasePath(statePath), 40),
     "uncertain",
   );
   merges.close();
-  const traceSource = new AdmissionQueue(join(statePath, "admission.sqlite"), {
+  const traceSource = new AdmissionQueue(stateDatabasePath(statePath), {
     maxPending: 10,
   });
   const actions = traceSource.traceEntries().map((entry) => entry.action);
@@ -626,10 +665,8 @@ test("completes every local recovery before refusing the start", async (context)
 test("resumes a preview awaiting the publisher after a restart", async (context) => {
   const { environment, statePath } = environmentFor(context);
   mkdirSync(statePath, { recursive: true });
-  const store = new PreviewRequestStore(
-    join(statePath, "preview-request.sqlite"),
-  );
-  store.track({
+  const store = new PublicationStore(stateDatabasePath(statePath));
+  store.record({
     updateIdentifier: 30,
     sessionKey: "-1001234567890:7",
     authorIdentifier: 555,
@@ -668,14 +705,13 @@ test("resumes a preview awaiting the publisher after a restart", async (context)
     runner: async () => ({}),
   });
   context.after(() => {
-    service.previewRequests.close();
-    service.ciWatches.close();
+    service.publications.close();
     service.queue.close();
   });
 
   await service.previewWorker.runOnce();
 
-  assert.equal(service.previewRequests.state(30), "confirmed");
+  assert.equal(service.publications.previewState(30), "confirmed");
   assert.equal(sent.length, 1);
   assert.equal(sent[0].messageThreadIdentifier, 7);
   assert.match(sent[0].text, /pr-200\.preview\.mountainrunners\.cat/u);
@@ -712,7 +748,7 @@ test("runs the preview watcher beside the bridge and stops it with the service",
 
 function interruptedMerge(statePath) {
   mkdirSync(statePath, { recursive: true });
-  const merges = new MergeRequestStore(join(statePath, "merge-request.sqlite"));
+  const merges = new MergeRequestStore(stateDatabasePath(statePath));
   merges.begin({
     updateIdentifier: 40,
     sessionKey: "-1001234567890:7",
@@ -744,7 +780,7 @@ test("keeps an interrupted merge uncertain, attributed in the trace, and still s
   });
 
   assert.equal(
-    mergeRequestState(join(statePath, "merge-request.sqlite"), 40),
+    mergeRequestState(stateDatabasePath(statePath), 40),
     "uncertain",
   );
   assert.equal(sent.length, 1);
@@ -760,7 +796,7 @@ test("keeps an interrupted merge uncertain, attributed in the trace, and still s
   assert.equal(trace.author_identifier, 555);
   assert.equal(trace.detail, `#200 ${"a".repeat(7)}`);
   service.mergeRequests.close();
-  service.ciWatches.close();
+  service.publications.close();
   service.queue.close();
 });
 
@@ -784,10 +820,7 @@ test("closes an interrupted merge that GitHub shows as merged and tells the topi
     runner: async () => ({}),
   });
 
-  assert.equal(
-    mergeRequestState(join(statePath, "merge-request.sqlite"), 40),
-    "merged",
-  );
+  assert.equal(mergeRequestState(stateDatabasePath(statePath), 40), "merged");
   assert.equal(sent.length, 1);
   assert.equal(sent[0].text, mergeReports.reconciled(mergedTarget));
   assert.equal(
@@ -797,7 +830,7 @@ test("closes an interrupted merge that GitHub shows as merged and tells the topi
     true,
   );
   service.mergeRequests.close();
-  service.ciWatches.close();
+  service.publications.close();
   service.queue.close();
 });
 
@@ -826,9 +859,12 @@ async function runMergeCommand(
     followups = [],
     prepare = () => {},
     deliveredPreview = true,
+    // Writes the publication before the start instead of recording it.
+    seed,
   },
 ) {
-  const { environment } = environmentFor(context);
+  const { environment, statePath } = environmentFor(context);
+  seed?.(statePath);
   const replies = [];
   const membershipChecks = [];
   const github = mergeGithub();
@@ -863,28 +899,24 @@ async function runMergeCommand(
     },
     github,
   });
-  service.ciWatches.add({
-    updateIdentifier: 10,
-    sessionKey: "-1001234567890:7",
-    pullRequestNumber: 200,
-    commitSha: commit,
-  });
-  service.ciWatches.finishSend(10, "success");
-  if (deliveredPreview) {
-    service.previewRequests.track({
+  if (seed === undefined) {
+    service.publications.record({
       updateIdentifier: 10,
       sessionKey: "-1001234567890:7",
       authorIdentifier: 42,
       pullRequestNumber: 200,
       commitSha: commit,
     });
-    service.previewRequests.finish(
-      10,
-      commit,
-      "confirmed",
-      "https://pr-200.preview.mountainrunners.cat",
-      51,
-    );
+    service.publications.finishCiNotice(10, "success");
+    if (deliveredPreview) {
+      service.publications.finishPreview(
+        10,
+        commit,
+        "confirmed",
+        "https://pr-200.preview.mountainrunners.cat",
+        51,
+      );
+    }
   }
 
   await service.bridge.pollOnce();
@@ -902,9 +934,8 @@ async function runMergeCommand(
     merges: github.merges,
     service,
   };
-  service.previewRequests.close();
   service.mergeRequests.close();
-  service.ciWatches.close();
+  service.publications.close();
   service.queue.close();
   return outcome;
 }
@@ -986,16 +1017,17 @@ test("a green CI notice without a delivered preview cannot authorize a merge thr
   assert.equal(replies.at(-1), mergeReports.noDeliveredPreview);
 });
 
-test("a newer publication without a preview record invalidates the earlier notice even at the same SHA", async (context) => {
+test("a newer publication without a delivered preview invalidates the earlier notice even at the same SHA", async (context) => {
   const { replies, merges } = await runMergeCommand(context, {
-    prepare: ({ ciWatches }) => {
-      ciWatches.add({
+    prepare: ({ publications }) => {
+      publications.record({
         updateIdentifier: 11,
         sessionKey: "-1001234567890:7",
+        authorIdentifier: 42,
         pullRequestNumber: 200,
         commitSha: "a".repeat(40),
       });
-      ciWatches.finishSend(11, "success");
+      publications.finishCiNotice(11, "success");
     },
   });
 
@@ -1069,21 +1101,10 @@ test("keeps the older notice blocked after reconciling a publication without a w
   const publishedCommit = "c".repeat(40);
   const publishedPullRequest = 201;
 
-  // A's green notice was delivered.
-  const watches = new CiWatchStore(join(statePath, "ci-watch.sqlite"));
-  watches.add({
-    updateIdentifier: 10,
-    sessionKey: topic,
-    pullRequestNumber: 200,
-    commitSha: greenCommit,
-  });
-  watches.finishSend(10, "success");
-  watches.close();
-  const previews = new PreviewRequestStore(
-    join(statePath, "preview-request.sqlite"),
-  );
+  const publications = new PublicationStore(stateDatabasePath(statePath));
+  context.after(() => publications.close());
   function deliverPreview(updateIdentifier, pullRequestNumber, commitSha) {
-    previews.track({
+    publications.record({
       updateIdentifier,
       sessionKey: topic,
       authorIdentifier: 42,
@@ -1091,7 +1112,7 @@ test("keeps the older notice blocked after reconciling a publication without a w
       commitSha,
     });
     assert.equal(
-      previews.finish(
+      publications.finishPreview(
         updateIdentifier,
         commitSha,
         "confirmed",
@@ -1101,11 +1122,12 @@ test("keeps the older notice blocked after reconciling a publication without a w
       true,
     );
   }
+  // A's green notice and preview were delivered.
   deliverPreview(10, 200, greenCommit);
-  context.after(() => previews.close());
-  // B was published, but registering its watch failed: the instruction is
+  publications.finishCiNotice(10, "success");
+  // B was published, but recording it failed: the instruction is
   // unknown until a person reconciles it.
-  const queue = new AdmissionQueue(join(statePath, "admission.sqlite"), {
+  const queue = new AdmissionQueue(stateDatabasePath(statePath), {
     maxPending: 10,
   });
   queue.admit({
@@ -1120,14 +1142,13 @@ test("keeps the older notice blocked after reconciling a publication without a w
   queue.close();
 
   // The operator confirms the publication with its pull request: the command
-  // restores the watch the failed registration lost.
+  // restores the record the failed registration lost.
   const reconcileStores = {
-    instructions: new AdmissionQueue(join(statePath, "admission.sqlite"), {
+    instructions: new AdmissionQueue(stateDatabasePath(statePath), {
       maxPending: 10,
     }),
-    ciWatches: new CiWatchStore(join(statePath, "ci-watch.sqlite")),
-    previews,
-    topicJobs: new TopicJobStore(join(statePath, "topic-jobs.sqlite")),
+    publications,
+    topicJobs: new TopicJobStore(stateDatabasePath(statePath)),
   };
   reconcileStores.topicJobs.bind({
     sessionKey: topic,
@@ -1151,8 +1172,8 @@ test("keeps the older notice blocked after reconciling a publication without a w
     pullRequestNumber: publishedPullRequest,
   });
   assert.deepEqual(
-    reconcileStores.ciWatches
-      .pending()
+    publications
+      .pendingCiWatches()
       .map((row) => [
         row.update_identifier,
         row.pull_request_number,
@@ -1161,7 +1182,6 @@ test("keeps the older notice blocked after reconciling a publication without a w
     [[20, publishedPullRequest, publishedCommit]],
   );
   reconcileStores.topicJobs.close();
-  reconcileStores.ciWatches.close();
   reconcileStores.instructions.close();
 
   async function mergeOnce(updateIdentifier) {
@@ -1220,9 +1240,8 @@ test("keeps the older notice blocked after reconciling a publication without a w
     });
     await service.bridge.pollOnce();
     await service.bridge.executeNext();
-    service.previewRequests.close();
     service.mergeRequests.close();
-    service.ciWatches.close();
+    service.publications.close();
     service.queue.close();
     return { merges, replies };
   }
@@ -1233,9 +1252,7 @@ test("keeps the older notice blocked after reconciling a publication without a w
   assert.match(refused.replies.at(-1), /preview/iu);
 
   // A green notice does not replace the new publication's preview.
-  const delivered = new CiWatchStore(join(statePath, "ci-watch.sqlite"));
-  assert.equal(delivered.finishSend(20, "success"), true);
-  delivered.close();
+  assert.equal(publications.finishCiNotice(20, "success"), true);
 
   const stillRefused = await mergeOnce(200);
   assert.deepEqual(stillRefused.merges, []);
@@ -1293,7 +1310,7 @@ test("still runs an instruction admitted before its author left the group", asyn
     },
   });
   context.after(() => {
-    service.ciWatches.close();
+    service.publications.close();
     service.queue.close();
   });
 
@@ -1345,7 +1362,7 @@ test("prunes a finished topic worktree when idle and skips it while an instructi
     "HEAD",
   ]);
   recordPublication(worktree, head.trim());
-  const topicJobs = new TopicJobStore(join(statePath, "topic-jobs.sqlite"));
+  const topicJobs = new TopicJobStore(stateDatabasePath(statePath));
   topicJobs.bind({ sessionKey, branch, pullRequestNumber: 77 });
   topicJobs.close();
 

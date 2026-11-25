@@ -67,7 +67,7 @@ async function boundTopic(context, runnerOptions = {}) {
   });
   const gates = [];
   const previews = [];
-  const followUp = { result: undefined };
+  const followUp = { fails: false };
   const turn = { gateExitCode: 0, gate: undefined, model: undefined };
   const runner = createTestProjectRunner({
     config: configFor(paths),
@@ -85,9 +85,12 @@ async function boundTopic(context, runnerOptions = {}) {
       if (turn.gate) return turn.gate(worktreePath);
       return { exitCode: turn.gateExitCode };
     },
-    followPreview: (options) => {
-      previews.push(options);
-      return followUp.result;
+    publications: {
+      topicPullRequestNumber: () => null,
+      record(publication) {
+        previews.push(publication);
+        if (followUp.fails) throw new Error("state volume full");
+      },
     },
     ...runnerOptions,
   });
@@ -135,7 +138,7 @@ test("merge synchronization publishes against current main after it advances pas
   ]);
   assert.deepEqual(parents.split(" "), [target.commit, mainSha]);
   assert.equal(previews[0].mergeSynchronization, true);
-  assert.equal(previews[0].commit, result.commit);
+  assert.equal(previews[0].commitSha, result.commit);
 });
 
 test("keeps the redacted reason of a refused merge synchronization in the note", async (context) => {
@@ -195,9 +198,9 @@ test("merge synchronization refuses a moved head or branch without mutating", as
   assert.equal(await git(worktree, ["rev-parse", "HEAD"]), headBefore);
 });
 
-test("merge synchronization is uncertain when the preview follow-up is not stored", async (context) => {
+test("merge synchronization is uncertain when the publication is not recorded", async (context) => {
   const { paths, runner, followUp, target } = await boundTopic(context);
-  followUp.result = false;
+  followUp.fails = true;
   await advanceMain(paths, "main-change.txt", "main\n");
   const result = await runner.synchronizeForMerge(mergeRequest(), target);
   assert.equal(result.outcome, "uncertain");

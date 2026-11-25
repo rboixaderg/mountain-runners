@@ -10,11 +10,10 @@ import { createProjectRunner } from "../project-runner.mjs";
  */
 export function createTestProjectRunner(options) {
   return createProjectRunner({
-    ciWatches: { topicPullRequestNumber: () => null, add() {} },
+    publications: { topicPullRequestNumber: () => null, record() {} },
     mergeRequests: { latest: () => undefined },
     topicJobs: { bindingOf: () => null, bind() {} },
     sessionNotes: { claim: () => [], deliver() {}, release() {}, addNote() {} },
-    followPreview() {},
     requestMerge: () => assert.fail("no merge is expected"),
     requestMergeConfirmation: { contextualIntent: () => null },
     researchReview: createResearchReview({

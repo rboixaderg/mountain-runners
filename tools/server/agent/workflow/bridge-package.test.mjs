@@ -51,8 +51,7 @@ test(
       environment:{MOUNTAIN_AGENT_REPOSITORY:'example/repository',MOUNTAIN_AGENT_TELEGRAM_GROUP_ID:'-100',MOUNTAIN_AGENT_TELEGRAM_BOT_USERNAME:'example_bot',MOUNTAIN_AGENT_TELEGRAM_BOT_TOKEN:'synthetic-telegram',MOUNTAIN_AGENT_GITHUB_TOKEN:'synthetic-github',MOUNTAIN_AGENT_REQUIRED_CHECKS:'Validate',MOUNTAIN_AGENT_SANDBOX_IMAGE:'synthetic:1',MOUNTAIN_AGENT_REPOSITORY_PATH:join(root,'repository'),MOUNTAIN_AGENT_WORKTREE_PATH:join(root,'worktrees'),MOUNTAIN_AGENT_SESSION_PATH:join(root,'sessions'),MOUNTAIN_AGENT_STATE_PATH:join(root,'state')},
       telegram:{async getMe(){return {id:999,username:'example_bot'};}},github:{},runner:async()=>({outcome:'answered',report:'ok'}),
     });
-    service.ciWatches.close();
-    service.queue.close();
+    service.closeStateStores();
     const profile=await preparePiProfile({profileRoot:join(root,'profiles'),profileIdentifier:'topic-0123456789abcdef'});
     assert.ok(profile);
   `,

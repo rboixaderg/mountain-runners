@@ -8,10 +8,9 @@ import {
   mergeSynchronizationRequestedAction,
   reconcileResolutions,
 } from "../../policy/development.mjs";
-import { CiWatchStore } from "../../repository/ci-watch-store.mjs";
 import { InspectableMergeRequestStore } from "../../repository/test-support/merge-request-state.mjs";
 import { openIdentifierNames } from "../../repository/identifiers.mjs";
-import { PreviewRequestStore } from "../../repository/preview-request-store.mjs";
+import { PublicationStore } from "../../repository/publication-store.mjs";
 import { TopicJobStore } from "../../repository/topic-job-store.mjs";
 import {
   commitAll,
@@ -48,22 +47,17 @@ async function fixture(context) {
   // the command creating anything.
   openIdentifierNames(state);
 
+  const databasePath = join(state, "agent.sqlite");
   const stores = {
-    instructions: new AdmissionQueue(join(state, "admission.sqlite"), {
-      maxPending: 10,
-    }),
-    ciWatches: new CiWatchStore(join(state, "ci-watch.sqlite")),
-    merges: new InspectableMergeRequestStore(
-      join(state, "merge-request.sqlite"),
-    ),
-    previews: new PreviewRequestStore(join(state, "preview-request.sqlite")),
-    topicJobs: new TopicJobStore(join(state, "topic-jobs.sqlite")),
+    instructions: new AdmissionQueue(databasePath, { maxPending: 10 }),
+    publications: new PublicationStore(databasePath),
+    merges: new InspectableMergeRequestStore(databasePath),
+    topicJobs: new TopicJobStore(databasePath),
   };
   context.after(() => {
     stores.topicJobs.close();
-    stores.previews.close();
     stores.merges.close();
-    stores.ciWatches.close();
+    stores.publications.close();
     stores.instructions.close();
   });
   return {
@@ -254,7 +248,7 @@ test("restores what a normal publication leaves when reconciling it as published
   assert.equal(resolved.pullRequestNumber, 42);
   // The confirmed publication is followed again, so the topic receives its
   // notice before anything can resolve from the older one.
-  const [watch] = stores.ciWatches.pending();
+  const [watch] = stores.publications.pendingCiWatches();
   assert.equal(watch.update_identifier, 11);
   assert.equal(watch.session_key, sessionKeyOne);
   assert.equal(watch.pull_request_number, 42);
@@ -265,7 +259,7 @@ test("restores what a normal publication leaves when reconciling it as published
     pullRequestNumber: 42,
   });
   // The preview is followed, so its delivered notice lets `/merge` pin.
-  const [preview] = stores.previews.awaiting();
+  const [preview] = stores.publications.awaitingPreviews();
   assert.equal(preview.update_identifier, 11);
   assert.equal(preview.session_key, sessionKeyOne);
   assert.equal(preview.author_identifier, 42);
@@ -275,7 +269,7 @@ test("restores what a normal publication leaves when reconciling it as published
   assert.equal(stores.instructions.status(11), "done");
   assert.equal(
     readRow(
-      join(config.paths.state, "admission.sqlite"),
+      join(config.paths.state, "agent.sqlite"),
       "instructions",
       "update_identifier",
       11,
@@ -313,7 +307,7 @@ test("never labels again the pull request a topic is already bound to", async (c
     commit,
   });
 
-  assert.equal(stores.previews.awaiting().length, 1);
+  assert.equal(stores.publications.awaitingPreviews().length, 1);
 });
 
 test("refuses another pull request for a bound topic before writing anything", async (context) => {
@@ -342,8 +336,8 @@ test("refuses another pull request for a bound topic before writing anything", a
   );
 
   assert.equal(stores.instructions.status(11), "uncertain");
-  assert.deepEqual(stores.ciWatches.pending(), []);
-  assert.deepEqual(stores.previews.awaiting(), []);
+  assert.deepEqual(stores.publications.pendingCiWatches(), []);
+  assert.deepEqual(stores.publications.awaitingPreviews(), []);
   assert.equal(publishedCommit(worktree), null);
 });
 
@@ -382,7 +376,7 @@ for (const [name, overrides, message] of [
 
     assert.deepEqual(github.labelled, []);
     assert.equal(stores.topicJobs.bindingOf(sessionKeyOne), null);
-    assert.deepEqual(stores.ciWatches.pending(), []);
+    assert.deepEqual(stores.publications.pendingCiWatches(), []);
     assert.equal(stores.instructions.status(11), "uncertain");
   });
 }
@@ -425,8 +419,8 @@ test("keeps a first publication uncertain until its label and branch are confirm
 
   assert.equal(stores.instructions.status(11), "uncertain");
   assert.equal(stores.topicJobs.bindingOf(sessionKeyOne), null);
-  assert.deepEqual(stores.ciWatches.pending(), []);
-  assert.deepEqual(stores.previews.awaiting(), []);
+  assert.deepEqual(stores.publications.pendingCiWatches(), []);
+  assert.deepEqual(stores.publications.awaitingPreviews(), []);
 
   const labelled = publishedGithub(branch, commit, { previewLabeled: true });
   await reconcile(config, stores, recordingTelegram(), {
@@ -452,12 +446,6 @@ test("restarts preview tracking after reconciling a synchronization push", async
     action: mergeSynchronizationRequestedAction,
     detail: "#42 aaaaaaa",
   });
-  const recovered = {
-    sessionKey: sessionKeyOne,
-    updateIdentifier: 11,
-    pullRequestNumber: 42,
-    commitSha: commit,
-  };
 
   await reconcile(config, stores, recordingTelegram(), {
     github: publishedGithub(branch, commit),
@@ -469,11 +457,11 @@ test("restarts preview tracking after reconciling a synchronization push", async
   });
 
   assert.equal(publishedCommit(worktree), commit);
-  const [preview] = stores.previews.awaiting();
+  const [preview] = stores.publications.awaitingPreviews();
   assert.equal(preview.commit_sha, commit);
   assert.equal(preview.pull_request_number, 42);
   assert.equal(preview.merge_synchronization, 1);
-  assert.equal(stores.previews.deliveredPublicationPreview(recovered), null);
+  assert.equal(stores.publications.deliveredPreview(sessionKeyOne), undefined);
 });
 
 test("ends the older synchronization a reconciled publication replaced", async (context) => {
@@ -483,7 +471,7 @@ test("ends the older synchronization a reconciled publication replaced", async (
     sessionKey: sessionKeyOne,
     updateIdentifier: 11,
   });
-  stores.previews.track({
+  stores.publications.record({
     updateIdentifier: 10,
     sessionKey: sessionKeyOne,
     authorIdentifier: 555,
@@ -502,14 +490,14 @@ test("ends the older synchronization a reconciled publication replaced", async (
     commit,
   });
 
-  assert.equal(stores.previews.state(10), "failed");
+  assert.equal(stores.publications.previewState(10), "failed");
   assert.deepEqual(
-    stores.previews.awaiting().map((row) => row.update_identifier),
+    stores.publications.awaitingPreviews().map((row) => row.update_identifier),
     [11],
   );
 });
 
-test("keeps the instruction uncertain when the CI watch of the publication cannot be written", async (context) => {
+test("keeps the instruction uncertain when the publication cannot be recorded", async (context) => {
   const { config, stores } = await fixture(context);
   const { branch } = await topicWorktree({
     config,
@@ -519,26 +507,12 @@ test("keeps the instruction uncertain when the CI watch of the publication canno
   interruptInstruction(stores.instructions, 11, sessionKeyOne);
 
   await assert.rejects(
-    reconcile(config, { ...stores, ciWatches: null }, recordingTelegram(), {
-      github: publishedGithub(branch, publishedCommitSha),
-      kind: "instruction",
-      updateIdentifier: 11,
-      resolution: reconcileResolutions.published,
-      commit: publishedCommitSha,
-      pullRequestNumber: 42,
-    }),
-    { message: /CI watch database is missing/u },
-  );
-  assert.equal(stores.instructions.status(11), "uncertain");
-
-  await assert.rejects(
     reconcile(
       config,
       {
         ...stores,
-        ciWatches: {
-          state: () => undefined,
-          add() {
+        publications: {
+          record() {
             throw new Error("state volume full");
           },
         },
@@ -597,9 +571,9 @@ test("keeps the instruction uncertain when the publication marker cannot be writ
   });
   assert.equal(stores.instructions.status(11), "done");
   assert.equal(publishedCommit(worktree), commit);
-  // The retry reused the watch the first attempt wrote instead of failing.
+  // The retry reused the record the first attempt wrote instead of failing.
   assert.deepEqual(
-    stores.ciWatches.pending().map((row) => row.update_identifier),
+    stores.publications.pendingCiWatches().map((row) => row.update_identifier),
     [11],
   );
   assert.equal(telegram.sent.length, 1);
@@ -644,7 +618,7 @@ test("resolves a not published instruction and keeps the local work", async (con
   });
 
   const instruction = readRow(
-    join(config.paths.state, "admission.sqlite"),
+    join(config.paths.state, "agent.sqlite"),
     "instructions",
     "update_identifier",
     11,
@@ -660,7 +634,7 @@ test("keeps the instruction uncertain when its trace cannot be written", async (
   const { config, stores, state } = await fixture(context);
   interruptInstruction(stores.instructions, 11, sessionKeyOne);
   const telegram = recordingTelegram();
-  const database = new DatabaseSync(join(state, "admission.sqlite"));
+  const database = new DatabaseSync(join(state, "agent.sqlite"));
   database.exec("DROP TABLE trace");
   database.close();
 

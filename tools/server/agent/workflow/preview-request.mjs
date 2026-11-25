@@ -21,7 +21,7 @@ import { confirmedPreviewOrigin } from "../repository/preview-comment.mjs";
 import {
   isNoticeMessageIdentifier,
   previewStates,
-} from "../repository/preview-request-store.mjs";
+} from "../repository/publication-store.mjs";
 import {
   defaultRequestTimeoutMilliseconds,
   requestSignal,
@@ -95,37 +95,6 @@ export function createPreviewRequests({
   }
 
   /**
-   * Follow the preview of a commit the service just published. The publication
-   * is already done, so a bookkeeping failure only logs.
-   */
-  function followPublication({
-    updateIdentifier,
-    sessionKey,
-    authorIdentifier,
-    pullRequestNumber,
-    commit,
-    mergeSynchronization,
-  }) {
-    try {
-      store.track({
-        updateIdentifier,
-        sessionKey,
-        authorIdentifier,
-        pullRequestNumber,
-        commitSha: commit,
-        mergeSynchronization,
-      });
-      return true;
-    } catch (error) {
-      logger(
-        "preview_follow_failed",
-        error instanceof Error ? error.name : "unknown",
-      );
-      return false;
-    }
-  }
-
-  /**
    * Whether the report reached Telegram, with the identifier of the message it
    * accepted, or null when the send failed. A failed send is retried by the next
    * cycle, so the note carries the identity of the effect: the session receives
@@ -169,7 +138,7 @@ export function createPreviewRequests({
   /** Report a row past its deadline as unconfirmed and end it. */
   async function expire(row, target, { signal }) {
     const expired =
-      now().getTime() - Date.parse(row.updated_at) >=
+      now().getTime() - Date.parse(row.preview_updated_at) >=
       confirmationTimeoutMilliseconds;
     if (!expired) return;
     if (signal?.aborted) return;
@@ -188,7 +157,7 @@ export function createPreviewRequests({
       detail: previewUnconfirmedReason,
     });
     logger(maintainerAttentionAction, previewUnconfirmedReason);
-    const ended = store.finish(
+    const ended = store.finishPreview(
       row.update_identifier,
       row.commit_sha,
       previewStates.timedOut,
@@ -218,7 +187,7 @@ export function createPreviewRequests({
    * safe during a shutdown and the notice was delivered.
    */
   async function runOnce({ signal } = {}) {
-    for (const row of store.awaiting()) {
+    for (const row of store.awaitingPreviews()) {
       if (signal?.aborted) return;
       const target = {
         pullRequestNumber: row.pull_request_number,
@@ -267,7 +236,9 @@ export function createPreviewRequests({
           ) {
             continue;
           }
-          if (store.state(row.update_identifier) !== previewStates.awaiting) {
+          if (
+            store.previewState(row.update_identifier) !== previewStates.awaiting
+          ) {
             continue;
           }
           const notice = await report(row, previewReports.mergeSyncWithdrawn, {
@@ -278,7 +249,7 @@ export function createPreviewRequests({
           if (notice === null) continue;
         }
         if (
-          store.finish(
+          store.finishPreview(
             row.update_identifier,
             row.commit_sha,
             previewStates.failed,
@@ -324,7 +295,7 @@ export function createPreviewRequests({
         // the notice are written together: a confirmation never ends without
         // the URL, and the next turn of the topic cannot read GitHub and never
         // builds it.
-        const ended = store.finish(
+        const ended = store.finishPreview(
           row.update_identifier,
           row.commit_sha,
           previewStates.confirmed,
@@ -361,5 +332,5 @@ export function createPreviewRequests({
     }
   }
 
-  return { followPublication, runOnce, run };
+  return { runOnce, run };
 }

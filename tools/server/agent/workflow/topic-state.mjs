@@ -52,7 +52,7 @@ function previewOf(pullRequest, comments, pullRequestNumber) {
 }
 
 export function createLiveTopicStateReader({
-  ciWatches,
+  publications,
   mergeRequests,
   repositoryName,
   github,
@@ -67,7 +67,7 @@ export function createLiveTopicStateReader({
     // describes the change the topic last worked on.
     const number =
       continuedPullRequestNumber ??
-      ciWatches.topicPullRequestNumber(sessionKey);
+      publications.topicPullRequestNumber(sessionKey);
     if (number === null) return { liveState: { noPullRequest: true } };
     try {
       const live = await readLivePullRequest({
@@ -94,7 +94,7 @@ export function createLiveTopicStateReader({
           state: confirmed.merged ? "merged" : confirmed.state,
           head: confirmed.headSha,
           checks: live.classification.state,
-          hasUnreportedWork: ciWatches.hasUnreportedWork(sessionKey),
+          hasUnreportedWork: publications.hasUnreportedWork(sessionKey),
           merge:
             merge === undefined
               ? null

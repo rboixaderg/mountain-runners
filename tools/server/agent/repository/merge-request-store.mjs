@@ -18,47 +18,8 @@
 // like an unknown message, and a restart never consumes it again. An unanswered
 // question that a new validation replaces is deleted: nobody used it.
 
-import { openDatabase, runTransaction } from "./sqlite.mjs";
-
-const mergeRequestsTable = `
-  CREATE TABLE IF NOT EXISTS merge_requests (
-    update_identifier INTEGER PRIMARY KEY,
-    session_key TEXT NOT NULL,
-    author_identifier INTEGER NOT NULL,
-    pull_request_number INTEGER NOT NULL,
-    commit_sha TEXT NOT NULL,
-    state TEXT NOT NULL CHECK (state IN ('merging', 'merged', 'failed', 'uncertain', 'not_merged')),
-    merge_commit_sha TEXT,
-    notified_at TEXT,
-    created_at TEXT NOT NULL,
-    updated_at TEXT NOT NULL
-  );
-  CREATE INDEX IF NOT EXISTS merge_requests_pull_request
-    ON merge_requests (session_key, pull_request_number);
-`;
-
-const mergeQuestionsTable = `
-  CREATE TABLE IF NOT EXISTS merge_questions (
-    session_key TEXT NOT NULL,
-    question_message_identifier INTEGER NOT NULL,
-    notice_message_identifier INTEGER NOT NULL,
-    publication_update_identifier INTEGER NOT NULL,
-    validation_update_identifier INTEGER NOT NULL,
-    author_identifier INTEGER NOT NULL,
-    pull_request_number INTEGER NOT NULL,
-    commit_sha TEXT NOT NULL,
-    consumed_at TEXT,
-    created_at TEXT NOT NULL,
-    PRIMARY KEY (session_key, question_message_identifier)
-  );
-  CREATE UNIQUE INDEX IF NOT EXISTS merge_questions_validation
-    ON merge_questions (validation_update_identifier);
-  CREATE UNIQUE INDEX IF NOT EXISTS merge_questions_offer
-    ON merge_questions (session_key, notice_message_identifier, author_identifier)
-    WHERE consumed_at IS NULL;
-`;
-
-const schema = `${mergeRequestsTable}${mergeQuestionsTable}`;
+import { runTransaction } from "./sqlite.mjs";
+import { openStateDatabase } from "./state-database.mjs";
 
 export const mergeStates = {
   merging: "merging",
@@ -82,8 +43,7 @@ export class MergeRequestStore {
   #now;
 
   constructor(path, { now = () => new Date() } = {}) {
-    this.#database = openDatabase(path);
-    this.#database.exec(schema);
+    this.#database = openStateDatabase(path);
     this.#now = now;
   }
 

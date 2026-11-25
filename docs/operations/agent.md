@@ -87,7 +87,7 @@ propietat de la identitat del servei. La instal·lació prevista és:
 ├── repository/                            clon amb origin i main
 ├── worktrees/                             worktree actual per tema i feina preservada
 ├── sessions/                              historial de Pi per tema
-└── state/                                 identifier-salt, admission.sqlite, ci-watch.sqlite (avisos de CI), preview-request.sqlite (seguiments de preview i URL confirmada), merge-request.sqlite (peticions de merge i preguntes de confirmació), topic-jobs.sqlite (branca i PR per tema), session-notes.sqlite (efectes del servei pendents de cada tema), attachments/ (imatges per tema, 7 dies), perfils i traça
+└── state/                                 identifier-salt, agent.sqlite (cua, traça i estat de l'aplicació), attachments/ (imatges per tema, 7 dies), perfils
 /etc/mountain-runners-agent/agent.env      0600  credencials del servei
 /usr/local/lib/mountain-runners/agent/     aplicació instal·lada
 /usr/local/lib/mountain-runners/node_modules/
@@ -543,8 +543,16 @@ sudo chown -R root:root "$L/agent" "$L/node_modules/telegram-pi-bridge"
 sudo chmod -R u=rwX,go=rX "$L/agent" "$L/node_modules/telegram-pi-bridge"
 ```
 
-Si el commit nou havia canviat l'esquema de `state/`, restaura també la còpia de
-l'estat. L'extracció la fa la identitat del servei, que és qui escriu l'estat,
+**Tornar a una versió que desava l'estat en bases separades obliga a restaurar
+l'estat abans d'arrencar-la.** Aquella versió no llegeix `agent.sqlite` i
+començaria amb l'estat buit. Les bases antigues són al mateix `state/` amb el nom
+`*.sqlite.migrated`
+([tornar a les bases separades](#tornar-a-les-bases-separades), pas obligatori) i
+també a la còpia de l'estat. Les dues vies tornen a l'estat del moment de
+l'actualització: el que s'ha desat després es perd.
+
+En la resta de casos, si el commit nou havia canviat l'esquema de `state/`,
+restaura també la còpia de l'estat. L'extracció la fa la identitat del servei, que és qui escriu l'estat,
 sobre un `state/` buit. La identitat del servei no pot entrar a la carpeta de
 còpies, així que root llegeix l'arxiu i l'hi passa per l'entrada estàndard:
 
@@ -561,10 +569,65 @@ sudo cat "$A" | sudo runuser -u mountain-agent -- tar -tf - >/dev/null &&
     tar -C "$S" --exclude=./lost+found -xf -
 ```
 
-Si no tens aquesta còpia, no tornis enrere sense aprovació explícita. Arrenca el
+Si no tens ni aquesta còpia ni les bases `*.sqlite.migrated` que necessita la
+versió anterior, no tornis enrere sense aprovació explícita. Arrenca el
 servei i repeteix la comprovació. Si la imatge del sandbox va canviar, torna a
 carregar la còpia amb `podman load`, apunta-hi `MOUNTAIN_AGENT_SANDBOX_IMAGE` i
 no esborris l'arxiu fins que la reversió estigui verificada.
+
+#### Tornar a les bases separades
+
+Amb el servei aturat i el codi anterior ja restaurat, és obligatori retornar el
+nom a les bases antigues i retirar els fitxers nous, tret que restauris la còpia
+de l'estat, que fa totes dues coses. El canvi el fa la identitat del servei:
+
+```sh
+sudo runuser -u mountain-agent -- sh -ceu '
+  cd /var/lib/mountain-runners-agent/state
+  for file in *.sqlite.migrated; do mv -- "$file" "${file%.migrated}"; done
+  rm -f agent.sqlite agent.sqlite-journal agent.sqlite-wal agent.sqlite-shm \
+    agent-migration.lock
+'
+```
+
+Una versió posterior torna a importar les bases en arrencar. Si en queda cap al
+costat d'un `agent.sqlite` que no l'ha importada tal com és, l'arrencada i la
+reconciliació es refusen: no esborris res fins a decidir quin estat és el bo.
+També es refusen si no hi ha `agent.sqlite` però en queda el
+`agent.sqlite-journal`, `-wal` o `-shm`: SQLite l'aplicaria a la base nova i en
+perdria dades. Esborra aquests fitxers i repeteix.
+
+#### Assajar la migració de l'estat
+
+`commands/migrate-state/cli.mjs <directori-d'estat>` copia les bases a un
+directori temporal privat, migra la còpia igual que l'arrencada i escriu els
+recomptes de files per taula abans i després. El directori indicat només es
+llegeix i la còpia temporal s'esborra sempre. No necessita credencials ni xarxa.
+El codi de sortida és 0 si la migració va bé, 1 si falla i 2 per a un error
+d'ús. També escriu `migration_preview_dropped` amb l'actualització de cada
+preview que no s'importaria perquè no coincideix amb el seu seguiment de CI. Fes-ho abans d'instal·lar un commit que migra l'estat, amb el servei sense
+feina o sobre una còpia de `state/`: una escriptura durant la còpia pot fer-la
+incoherent. El codi del commit es munta amb la disposició instal·lada:
+
+```sh
+# Com a root, amb el clon de la persona operadora al commit revisat.
+set -eu
+W=$(mktemp -d /var/tmp/mountain-agent-migrate.XXXXXXXX)
+chmod 0755 "$W"
+git -c core.attributesFile=/dev/null -C /srv/mountain-runners archive <commit> \
+  tools/server/agent packages/telegram-pi-bridge | tar -x -C "$W"
+mkdir "$W/node_modules"
+mv "$W/packages/telegram-pi-bridge" "$W/node_modules/"
+chmod -R a+rX,go-w "$W"
+systemd-run --quiet --pipe --wait --uid=mountain-agent --gid=mountain-agent \
+  -p UMask=0077 /usr/bin/node "$W/tools/server/agent/commands/migrate-state/cli.mjs" \
+  /var/lib/mountain-runners-agent/state
+rm -rf "$W"
+```
+
+La migració real la fa la primera arrencada del servei, que registra
+`state_migrated` al journal. Si falla, no canvia res i el servei no arrenca: el
+journal en dona el motiu. Les bases anteriors queden com a `*.sqlite.migrated`.
 
 **Si l'ordre cau durant la substitució.** Entre els renames hi pot haver
 `agent.new`, `telegram-pi-bridge.new` i els `*.old` al costat dels directoris
@@ -622,14 +685,14 @@ mantenidora.
 Atura el servei abans de copiar l'estat o les sessions; així les bases de dades
 són coherents. Copia:
 
-| Element       | Contingut                                                                                                                                                            | Criteri                                                                                                                                             |
-| ------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `state/`      | `admission.sqlite` (cua i traça), `ci-watch.sqlite`, `preview-request.sqlite` (seguiments i URL confirmada), `merge-request.sqlite`, `session-notes.sqlite`, perfils | Imprescindible: és la memòria recuperable del servei                                                                                                |
-| `sessions/`   | Historial de Pi per tema                                                                                                                                             | Imprescindible si es vol conservar el context conversacional                                                                                        |
-| `worktrees/`  | Feina en curs i feina preservada                                                                                                                                     | Copia els worktrees amb commits sense publicar o canvis sense cometre; un worktree net i sense commits per davant de `origin/main` es pot descartar |
-| `repository/` | Clon amb `origin` i `main`                                                                                                                                           | Es pot tornar a clonar                                                                                                                              |
-| `agent.env`   | Credencials                                                                                                                                                          | Copia'l com un secret, mai al costat de les dades ni al repositori                                                                                  |
-| Unitats       | `mountain-agent.service` i les dues unitats de muntatge dels volums                                                                                                  | Es tornen a instal·lar des del commit revisat                                                                                                       |
+| Element       | Contingut                                                                                   | Criteri                                                                                                                                             |
+| ------------- | ------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `state/`      | `agent.sqlite` (cua, traça i estat de l'aplicació), `*.sqlite.migrated` si n'hi ha, perfils | Imprescindible: és la memòria recuperable del servei                                                                                                |
+| `sessions/`   | Historial de Pi per tema                                                                    | Imprescindible si es vol conservar el context conversacional                                                                                        |
+| `worktrees/`  | Feina en curs i feina preservada                                                            | Copia els worktrees amb commits sense publicar o canvis sense cometre; un worktree net i sense commits per davant de `origin/main` es pot descartar |
+| `repository/` | Clon amb `origin` i `main`                                                                  | Es pot tornar a clonar                                                                                                                              |
+| `agent.env`   | Credencials                                                                                 | Copia'l com un secret, mai al costat de les dades ni al repositori                                                                                  |
+| Unitats       | `mountain-agent.service` i les dues unitats de muntatge dels volums                         | Es tornen a instal·lar des del commit revisat                                                                                                       |
 
 Ordre de restauració:
 
@@ -681,6 +744,9 @@ mateixa decisió sense escriure ni esborrar res; per aplicar-la sense
 si `systemctl is-active mountain-agent` no diu `inactive` o `failed`, o si hi ha
 instruccions en curs o incertes.
 
+- **Bases anteriors a la migració.** Els fitxers `*.sqlite.migrated` contenen
+  les mateixes dades privades i són la via per tornar enrere. Es conserven fins
+  que la persona mantenidora els retiri un cop validada la versió nova.
 - **Cost estimat.** La traça i les bases de `state/` creixen pocs MB l'any i
   queden lluny de l'1 GiB del volum d'estat. L'historial de Pi és el que creix
   més, perquè desa les sortides de les eines, però amb una desena de temes
@@ -714,7 +780,7 @@ què continua i què es torna a comprovar és a
 
 ### Consulta de la traça privada
 
-La traça viu a la taula `trace` de `state/admission.sqlite` i no s'exposa mai
+La traça viu a la taula `trace` de `state/agent.sqlite` i no s'exposa mai
 per Telegram. La consulta només una persona amb accés root al VPS, amb una
 consulta que obre la base de dades en mode de només lectura i no necessita les
 credencials del servei. El VPS no té `sqlite3`: s'usa `node:sqlite`. S'executa
@@ -728,7 +794,7 @@ systemd-run --quiet --pipe --wait --uid=mountain-agent --gid=mountain-agent \
   -p UMask=0077 /usr/bin/node -e '
 const { DatabaseSync } = require("node:sqlite");
 const database = new DatabaseSync(
-  "/var/lib/mountain-runners-agent/state/admission.sqlite",
+  "/var/lib/mountain-runners-agent/state/agent.sqlite",
   { readOnly: true },
 );
 database.exec("PRAGMA busy_timeout = 5000");
@@ -768,7 +834,8 @@ l'arrencada. També és incerta una continuació que, després del push, no trob
 seva PR o en troba una amb un altre número. La decisió és d'una persona: l'ordre
 no repeteix l'acció, no fa push, no comenta i no fusiona res.
 
-**Precondició.** Atura el servei abans de fer res:
+**Precondició.** Atura el servei abans de fer res. L'ordre es refusa, també amb
+`list`, si `systemctl is-active mountain-agent` no diu `inactive` o `failed`:
 
 ```sh
 systemctl stop mountain-agent
@@ -783,8 +850,11 @@ systemd-run --pipe --wait --uid=mountain-agent --gid=mountain-agent \
   /usr/bin/node /usr/local/lib/mountain-runners/agent/commands/reconcile/cli.mjs list
 ```
 
-L'ordre fixa el seu propi `umask` i no crea cap base de dades: una base absent
-compta com que no hi ha cap cas d'aquell tipus.
+L'ordre fixa el seu propi `umask` i no crea cap base de dades buida: sense cap
+base no hi ha cap cas. Si hi troba les bases separades d'una versió anterior, com
+en una còpia restaurada, abans les
+[importa a `agent.sqlite`](../../tools/server/agent/README.md#estat-de-laplicació),
+també amb `list`.
 
 1. **Llista els casos.** `list` escriu una línia JSON per cas amb `kind`
    (`instruction` o `merge`), `update_identifier`,
@@ -824,10 +894,11 @@ compta com que no hi ha cap cas d'aquell tipus.
    `--commit` és obligatori amb `published` i no s'accepta en cap altre cas.
    `--pull-request` és obligatori amb `--kind instruction --resolution published`
    i no s'accepta en cap altre cas: confirma publicada una PR que potser no té
-   cap avís, i el tema n'ha de rebre l'informe. El seguiment s'escriu abans de
-   tancar la instrucció i abans del senyal de publicació; si no es pot desar, la
-   instrucció continua incerta i la comanda acaba amb codi 1. Si el seguiment
-   d'aquella actualització ja existeix, no se'n crea cap altre. Cada crida
+   cap avís, i el tema n'ha de rebre l'informe. El registre de la publicació
+   s'escriu abans de tancar la instrucció i abans del senyal de publicació; si no
+   es pot desar, la instrucció continua incerta i la comanda acaba amb codi 1. Si
+   aquella actualització ja té el registre del mateix commit, el seu seguiment de
+   CI no canvia i només es torna a seguir la preview. Cada crida
    afecta un sol cas, en una transacció limitada per l'estat incert: un cas ja
    resolt es refusa amb codi 1 i no es sobreescriu.
 
@@ -847,7 +918,7 @@ compta com que no hi ha cap cas d'aquell tipus.
    publicat. Si cal continuar la feina, demana-ho de nou en aquest tema.»),
    excepte amb `--kind merge` (el tema ja va rebre la resposta de resultat
    desconegut). L'avís també és un efecte del servei: es desa a
-   `state/session-notes.sqlite` abans d'enviar-lo, amb la identitat
+   la taula `session_notes` abans d'enviar-lo, amb la identitat
    `reconcile:<tipus>:<id>`, perquè el torn següent del tema el rebi encara que
    l'enviament falli. Si l'avís falla, s'escriu a stderr i es traça com a
    `uncertain_reconciled_notice_failed`; la resolució es manté. Mai es desa una
@@ -856,7 +927,7 @@ compta com que no hi ha cap cas d'aquell tipus.
    no es modifica res. Si el canvi falla després de la traça, es registra
    `uncertain_reconcile_failed` i la comanda acaba amb codi 1. En una
    instrucció publicada, tot el que es restaura s'escriu abans de tancar-la: si
-   falta una base de dades o falla algun pas, la instrucció continua incerta.
+   falla algun pas, la instrucció continua incerta.
    Després d'una fallada parcial, reintenta `published` amb els mateixos valors:
    una part de l'estat ja pot estar escrita.
 
@@ -869,7 +940,7 @@ compta com que no hi ha cap cas d'aquell tipus.
 Codis de sortida: 0 correcte. També és 0 quan `list` troba una lectura de GitHub
 no disponible (`"github": "unavailable"`) i quan `resolve` només falla en
 l'avís al tema. 1 és per a una fallada que impedeix completar l'ordre: un cas
-inexistent o ja resolt, una traça que no es pot escriure o una fallada de
+inexistent o ja resolt, el servei sense aturar, una traça que no es pot escriure o una fallada de
 GitHub, Telegram o de la base de dades. 2 és un error d'ús (`parseArgs`, tipus,
 resolució, identificador o SHA invàlids, `--commit` que falta o que sobra,
 `--pull-request` que falta en una instrucció publicada o que sobra en qualsevol

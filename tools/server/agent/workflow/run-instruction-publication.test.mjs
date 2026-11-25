@@ -13,7 +13,7 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { test } from "node:test";
 import { PublishRefusedError } from "../repository/github.mjs";
-import { CiWatchStore } from "../repository/ci-watch-store.mjs";
+import { PublicationStore } from "../repository/publication-store.mjs";
 import { TopicJobStore } from "../repository/topic-job-store.mjs";
 import {
   failedMaintainerNotice,
@@ -49,10 +49,17 @@ function branchSuffix(paths, updateIdentifier) {
 test("publishes a later change to the existing pull request of the topic", async (context) => {
   const paths = await fixture(context);
   mkdirSync(paths.state, { recursive: true });
-  const ciWatches = new CiWatchStore(join(paths.state, "ci-watch.sqlite"));
-  context.after(() => ciWatches.close());
+  const publications = new PublicationStore(
+    join(paths.state, "ci-watch.sqlite"),
+  );
+  context.after(() => publications.close());
   const github = publicationGithub();
-  const published = await publishedWorktree(context, paths, github, ciWatches);
+  const published = await publishedWorktree(
+    context,
+    paths,
+    github,
+    publications,
+  );
   const branch = await git(topicWorktreePath(paths), [
     "branch",
     "--show-current",
@@ -85,7 +92,7 @@ test("publishes a later change to the existing pull request of the topic", async
   const runner = createTestProjectRunner({
     config: configFor(paths),
     github,
-    ciWatches,
+    publications,
     topicJobs,
     runModel: async ({ worktreePath }) => {
       writeFileSync(join(worktreePath, "second.txt"), "second change\n");
@@ -821,9 +828,11 @@ test("sends the failure notice once when the label and the CI watch both fail", 
   const github = publicationGithub();
   github.labelError = new Error("GitHub refused the label");
   mkdirSync(paths.state, { recursive: true });
-  const ciWatches = new CiWatchStore(join(paths.state, "ci-watch.sqlite"));
-  context.after(() => ciWatches.close());
-  ciWatches.add = () => {
+  const publications = new PublicationStore(
+    join(paths.state, "ci-watch.sqlite"),
+  );
+  context.after(() => publications.close());
+  publications.record = () => {
     throw new Error("The watch cannot be stored");
   };
   const traces = [];
@@ -831,7 +840,7 @@ test("sends the failure notice once when the label and the CI watch both fail", 
     recordTrace: (entry) => traces.push(entry),
     config: configFor(paths),
     github,
-    ciWatches,
+    publications,
     runModel: async ({ worktreePath }) => {
       writeFileSync(join(worktreePath, "change.txt"), "canvi\n");
       return { text: "Fet.\nSUMMARY: feat(content): add the news" };
@@ -892,8 +901,10 @@ test("sends the model answer with one plain notice and the review link after a p
 test("registers the CI watch for the published commit without waiting for CI", async (context) => {
   const paths = await fixture(context);
   mkdirSync(paths.state, { recursive: true });
-  const ciWatches = new CiWatchStore(join(paths.state, "ci-watch.sqlite"));
-  context.after(() => ciWatches.close());
+  const publications = new PublicationStore(
+    join(paths.state, "ci-watch.sqlite"),
+  );
+  context.after(() => publications.close());
   const github = publicationGithub();
   github.getCommitCheckRuns = () =>
     assert.fail("the instruction must not wait for CI");
@@ -904,7 +915,7 @@ test("registers the CI watch for the published commit without waiting for CI", a
   const runner = createTestProjectRunner({
     config: configFor(paths),
     github,
-    ciWatches,
+    publications,
     runModel: async ({ worktreePath }) => {
       writeFileSync(join(worktreePath, "change.txt"), "canvi\n");
       return { text: "Canvi fet.\nSUMMARY: feat(tools): add synthetic change" };
@@ -923,7 +934,7 @@ test("registers the CI watch for the published commit without waiting for CI", a
   );
   assert.doesNotMatch(result.report, /SUMMARY|feat\(tools\)|Branca|commit/u);
   const published = await git(topicWorktreePath(paths), ["rev-parse", "HEAD"]);
-  const [watch] = ciWatches.pending();
+  const [watch] = publications.pendingCiWatches();
   assert.equal(watch.commit_sha, published);
   assert.equal(watch.pull_request_number, 200);
   assert.equal(watch.session_key, request().sessionKey);
@@ -932,14 +943,16 @@ test("registers the CI watch for the published commit without waiting for CI", a
 test("follows the preview of every commit it publishes, without a request", async (context) => {
   const paths = await fixture(context);
   mkdirSync(paths.state, { recursive: true });
-  const ciWatches = new CiWatchStore(join(paths.state, "ci-watch.sqlite"));
-  context.after(() => ciWatches.close());
+  const publications = new PublicationStore(
+    join(paths.state, "ci-watch.sqlite"),
+  );
+  context.after(() => publications.close());
   const followed = [];
+  publications.record = (publication) => followed.push(publication);
   const runner = createTestProjectRunner({
     config: configFor(paths),
     github: publicationGithub(),
-    ciWatches,
-    followPreview: (publication) => followed.push(publication),
+    publications,
     runModel: async ({ worktreePath }) => {
       writeFileSync(join(worktreePath, "change.txt"), "canvi\n");
       return { text: "Canvi fet.\nSUMMARY: feat(tools): add synthetic change" };
@@ -957,7 +970,8 @@ test("follows the preview of every commit it publishes, without a request", asyn
       sessionKey: request().sessionKey,
       authorIdentifier: request().authorIdentifier,
       pullRequestNumber: 200,
-      commit: published,
+      commitSha: published,
+      mergeSynchronization: false,
     },
   ]);
 });
@@ -968,9 +982,9 @@ test("ends the instruction unknown when the CI watch cannot be registered", asyn
   const runner = createTestProjectRunner({
     config: configFor(paths),
     github,
-    ciWatches: {
+    publications: {
       topicPullRequestNumber: () => null,
-      add() {
+      record() {
         throw new Error("state volume full");
       },
     },

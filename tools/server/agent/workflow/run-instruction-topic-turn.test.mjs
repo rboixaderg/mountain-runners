@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { existsSync, readFileSync, mkdirSync, writeFileSync } from "node:fs";
 import { basename, join } from "node:path";
 import { test } from "node:test";
-import { CiWatchStore } from "../repository/ci-watch-store.mjs";
+import { PublicationStore } from "../repository/publication-store.mjs";
 import { MergeRequestStore } from "../repository/merge-request-store.mjs";
 import { createResearchReview } from "../repository/research-review.mjs";
 import { TopicJobStore } from "../repository/topic-job-store.mjs";
@@ -309,10 +309,17 @@ test("runs a question as one writable turn without publication", async (context)
 async function boundTopicFixture(context, pullRequestOverrides) {
   const paths = await fixture(context);
   mkdirSync(paths.state, { recursive: true });
-  const ciWatches = new CiWatchStore(join(paths.state, "ci-watch.sqlite"));
-  context.after(() => ciWatches.close());
+  const publications = new PublicationStore(
+    join(paths.state, "ci-watch.sqlite"),
+  );
+  context.after(() => publications.close());
   const github = publicationGithub();
-  const published = await publishedWorktree(context, paths, github, ciWatches);
+  const published = await publishedWorktree(
+    context,
+    paths,
+    github,
+    publications,
+  );
   const branch = await git(topicWorktreePath(paths), [
     "branch",
     "--show-current",
@@ -340,7 +347,7 @@ async function boundTopicFixture(context, pullRequestOverrides) {
   const runnerOptions = {
     config: configFor(paths),
     github,
-    ciWatches,
+    publications,
     topicJobs,
     executeSandbox: async () => ({ exitCode: 0, timedOut: false }),
     runModel: async ({ worktreePath }) => {

@@ -10,11 +10,13 @@
 // never removed; generated dependency directories are stripped from closed
 // topics.
 
-import { spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
-import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { parseArgs } from "node:util";
+import {
+  isStoppedServiceState,
+  serviceState,
+} from "../commands/service-state.mjs";
 import { readAgentConfig } from "../config.mjs";
 import { GitHubTrust } from "../repository/github.mjs";
 import {
@@ -27,20 +29,13 @@ import {
   requestSignal,
 } from "../repository/request-signal.mjs";
 import { pruneFinishedTopicWorktrees } from "../repository/retention.mjs";
+import { stateDatabasePath } from "../repository/state-database.mjs";
 
 const usage = `Usage: node storage/prune-worktrees.mjs [--dry-run]
 
 Report or apply finished worktree retention. Stop
 mountain-agent.service before running without --dry-run.
 `;
-
-// Fails closed: only a unit systemd reports as stopped is safe to prune under.
-function serviceState() {
-  const result = spawnSync("systemctl", ["is-active", "mountain-agent"], {
-    encoding: "utf8",
-  });
-  return result.stdout?.trim() ?? "";
-}
 
 function querySingleCount(databasePath, sql) {
   if (!existsSync(databasePath)) {
@@ -56,13 +51,13 @@ function querySingleCount(databasePath, sql) {
 
 function activeOrUncertainWorkCount(statePath) {
   return querySingleCount(
-    join(statePath, "admission.sqlite"),
+    stateDatabasePath(statePath),
     "SELECT COUNT(*) AS count FROM instructions WHERE status IN ('running', 'uncertain')",
   );
 }
 
-function readTopicBindings(topicJobsPath) {
-  const database = new DatabaseSync(topicJobsPath, { readOnly: true });
+function readTopicBindings(statePath) {
+  const database = new DatabaseSync(statePath, { readOnly: true });
   try {
     return database
       .prepare(
@@ -110,7 +105,7 @@ async function main() {
   const config = readAgentConfig(process.env);
   if (!dryRun) {
     const state = serviceState();
-    if (state !== "inactive" && state !== "failed") {
+    if (!isStoppedServiceState(state)) {
       process.stderr.write(
         `Refusing to prune while systemctl is-active mountain-agent reports ${JSON.stringify(state)}. Stop mountain-agent.service first.\n`,
       );
@@ -132,9 +127,9 @@ async function main() {
 
   try {
     let finished = { removed: [], kept: [], cleaned: [] };
-    const topicJobsPath = join(config.paths.state, "topic-jobs.sqlite");
+    const databasePath = stateDatabasePath(config.paths.state);
     if (
-      existsSync(topicJobsPath) &&
+      existsSync(databasePath) &&
       existsSync(identifierSaltPath(config.paths.state))
     ) {
       const identifiers = createIdentifierNames({
@@ -147,7 +142,7 @@ async function main() {
       finished = await pruneFinishedTopicWorktrees({
         repositoryPath: config.paths.repository,
         worktreeRoot: config.paths.worktrees,
-        bindings: readTopicBindings(topicJobsPath),
+        bindings: readTopicBindings(databasePath),
         worktreeNameForSession: (sessionKey) =>
           identifiers.worktreeName(sessionKey),
         readPullRequest: (number, { signal } = {}) =>

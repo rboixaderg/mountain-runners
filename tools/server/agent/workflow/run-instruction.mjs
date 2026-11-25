@@ -181,9 +181,8 @@ export function createInstructionRunner({
   publishChange,
   // Live credentials, redacted from the check output a note keeps.
   secrets,
-  registerCiWatch,
-  // Follows the preview of every commit the service publishes.
-  followPreview,
+  // Records every commit the service publishes, with its CI watch and preview.
+  registerPublication,
   requestMerge,
   requestMergeConfirmation,
   research,
@@ -955,26 +954,19 @@ export function createInstructionRunner({
       });
     }
     closeUsedAttachments(request, usedAttachmentNames);
-    // The watch is durable before the report is sent, and it never waits for
-    // the CI of the commit: the queue keeps executing other instructions.
-    const ciWatch = registerCiWatch({
-      updateIdentifier: request.updateIdentifier,
-      sessionKey: request.sessionKey,
-      pullRequestNumber: publication.pullRequest.number,
-      commit: publication.commit,
-    });
-    // The `preview` label makes the publisher build every pushed head, so the
-    // topic receives the address of this commit without asking for it. A
-    // pull request without the label simply has no preview to report.
-    const previewTracked = followPreview({
+    // The record is durable before the report is sent, and it never waits for
+    // the CI of the commit: the queue keeps executing other instructions. The
+    // `preview` label makes the publisher build every pushed head, so the topic
+    // receives the address of this commit without asking for it. A pull request
+    // without the label simply has no preview to report.
+    return registerPublication({
       updateIdentifier: request.updateIdentifier,
       sessionKey: request.sessionKey,
       authorIdentifier: request.authorIdentifier,
       pullRequestNumber: publication.pullRequest.number,
       commit: publication.commit,
-      ...(mergeSynchronization ? { mergeSynchronization } : {}),
+      mergeSynchronization,
     });
-    return { ciWatch, previewTracked };
   }
 
   // An image is used only once the publication is confirmed: a refused or
@@ -1482,7 +1474,7 @@ export function createInstructionRunner({
       return unpublishedTurnResult(turn, { publicationResult, publication });
     }
 
-    const { ciWatch } = followUpPublication({
+    const ciWatch = followUpPublication({
       request,
       publication,
       branch,
@@ -1709,14 +1701,13 @@ export function createInstructionRunner({
         };
       }
       unpublishedWorktree = null;
-      const { ciWatch, previewTracked } = followUpPublication({
+      const ciWatch = followUpPublication({
         request,
         publication,
         branch,
         mergeSynchronization: true,
       });
-      const trackingFailed =
-        ciWatch === ciWatchOutcomes.unavailable || previewTracked === false;
+      const trackingFailed = ciWatch === ciWatchOutcomes.unavailable;
       return {
         outcome: trackingFailed
           ? turnOutcomes.uncertain

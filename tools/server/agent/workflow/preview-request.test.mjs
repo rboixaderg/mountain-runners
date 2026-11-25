@@ -3,7 +3,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
-import { PreviewRequestStore } from "../repository/preview-request-store.mjs";
+import { PublicationStore } from "../repository/publication-store.mjs";
 import { SessionNoteStore } from "../repository/session-note-store.mjs";
 import {
   failedMaintainerNotice,
@@ -30,7 +30,7 @@ function fixture(context, now) {
       retryDelay: 100,
     }),
   );
-  const previews = new PreviewRequestStore(join(directory, "preview.sqlite"), {
+  const previews = new PublicationStore(join(directory, "preview.sqlite"), {
     now,
   });
   context.after(() => previews.close());
@@ -128,23 +128,13 @@ function publication(updateIdentifier, overrides = {}) {
     sessionKey,
     authorIdentifier: 555,
     pullRequestNumber: 200,
-    commit,
+    commitSha: commit,
     ...overrides,
   };
 }
 
 function actions(traces) {
   return traces.map((entry) => entry.action);
-}
-
-/** The publication the topic followed, as a merge binds its delivered notice. */
-function deliveredNotice(updateIdentifier = 10) {
-  return {
-    sessionKey,
-    updateIdentifier,
-    pullRequestNumber: 200,
-    commitSha: commit,
-  };
 }
 
 function withdrawals(traces) {
@@ -159,16 +149,16 @@ test("confirms a commit the publisher already published before it was followed",
     { ...publisherComment(), updated_at: "2026-11-14T09:00:00Z" },
   ];
 
-  handler.followPublication(publication(20));
+  previews.record(publication(20));
   await handler.runOnce();
 
-  assert.equal(previews.state(20), "confirmed");
+  assert.equal(previews.previewState(20), "confirmed");
   assert.equal(sent.length, 1);
 });
 
 test("confirms through the publisher comment and reports the confirmed address", async (context) => {
-  const { handler, github, sent, traces } = setup(context);
-  handler.followPublication(publication(20));
+  const { previews, handler, github, sent, traces } = setup(context);
+  previews.record(publication(20));
 
   await handler.runOnce();
   assert.deepEqual(sent, []);
@@ -201,7 +191,7 @@ test("confirms through the publisher comment and reports the confirmed address",
 test("a service publication reports its confirmed URL without a request or green checks", async (context) => {
   const { handler, github, previews, sent, notes } = setup(context);
 
-  handler.followPublication(publication(10));
+  previews.record(publication(10));
   github.comments[200] = [publisherComment()];
   await handler.runOnce();
 
@@ -210,7 +200,7 @@ test("a service publication reports its confirmed URL without a request or green
     sent[0].text,
     /^Ja ho pots veure: https:\/\/pr-200\.preview\.mountainrunners\.cat\n/u,
   );
-  assert.equal(previews.state(10), "confirmed");
+  assert.equal(previews.previewState(10), "confirmed");
   assert.deepEqual(
     notes.map((note) => note.effectKey),
     [`preview:10:${commit}:confirmed`],
@@ -219,13 +209,13 @@ test("a service publication reports its confirmed URL without a request or green
 
 test("a confirmed notice keeps the identifier Telegram accepted as the delivered preview", async (context) => {
   const { handler, github, previews, telegram } = setup(context);
-  handler.followPublication(publication(10));
+  previews.record(publication(10));
   github.comments[200] = [publisherComment()];
 
   await handler.runOnce();
 
   assert.equal(telegram.nextMessageIdentifier, 901);
-  const delivered = previews.deliveredPublicationPreview(deliveredNotice());
+  const delivered = previews.deliveredPreview(sessionKey);
   assert.equal(delivered.pull_request_number, 200);
   assert.equal(delivered.commit_sha, commit);
   assert.equal(delivered.notice_message_identifier, 901);
@@ -234,7 +224,7 @@ test("a confirmed notice keeps the identifier Telegram accepted as the delivered
 test("a synchronized publication only asks to review again once its preview notice reaches the topic", async (context) => {
   const { handler, buildHandler, github, telegram, previews, sent } =
     setup(context);
-  handler.followPublication({
+  previews.record({
     ...publication(10),
     mergeSynchronization: true,
   });
@@ -243,8 +233,8 @@ test("a synchronized publication only asks to review again once its preview noti
   telegram.sendError = new Error("telegram down");
   await handler.runOnce();
 
-  assert.equal(previews.state(10), "awaiting");
-  assert.equal(previews.deliveredPublicationPreview(deliveredNotice()), null);
+  assert.equal(previews.previewState(10), "awaiting");
+  assert.equal(previews.deliveredPreview(sessionKey), undefined);
 
   telegram.sendError = null;
   await buildHandler().runOnce();
@@ -258,15 +248,14 @@ test("a synchronized publication only asks to review again once its preview noti
     }),
   );
   assert.equal(
-    previews.deliveredPublicationPreview(deliveredNotice())
-      .notice_message_identifier,
+    previews.deliveredPreview(sessionKey).notice_message_identifier,
     901,
   );
 });
 
 test("revocation of a synchronized preview informs the topic without delivering an authorizing notice", async (context) => {
   const { handler, github, previews, sent } = setup(context);
-  handler.followPublication({
+  previews.record({
     ...publication(10),
     mergeSynchronization: true,
   });
@@ -276,8 +265,8 @@ test("revocation of a synchronized preview informs the topic without delivering 
   await handler.runOnce();
 
   assert.equal(sent[0].text, previewReports.mergeSyncWithdrawn);
-  assert.equal(previews.state(10), "failed");
-  assert.equal(previews.deliveredPublicationPreview(deliveredNotice()), null);
+  assert.equal(previews.previewState(10), "failed");
+  assert.equal(previews.deliveredPreview(sessionKey), undefined);
 });
 
 const unidentifiedAnswers = [
@@ -292,22 +281,22 @@ for (const [name, answer] of unidentifiedAnswers) {
     const handler = buildHandler({
       logger: (event, detail) => logs.push([event, detail]),
     });
-    handler.followPublication(publication(10));
+    previews.record(publication(10));
     github.comments[200] = [publisherComment()];
 
     telegram.answer = answer;
     await handler.runOnce();
 
-    assert.equal(previews.state(10), "confirmed");
-    assert.equal(previews.deliveredPublicationPreview(deliveredNotice()), null);
+    assert.equal(previews.previewState(10), "confirmed");
+    assert.equal(previews.deliveredPreview(sessionKey), undefined);
     assert.deepEqual(logs, [["preview_notice_unidentified", "#200 aaaaaaa"]]);
   });
 }
 
 test("two publications in a row report only the final head, once", async (context) => {
   const { handler, github, previews, sent, notes, traces } = setup(context);
-  handler.followPublication(publication(10));
-  handler.followPublication(publication(11, { commit: newerCommit }));
+  previews.record(publication(10));
+  previews.record(publication(11, { commitSha: newerCommit }));
   github.pullRequests[200].headSha = newerCommit;
   // The publisher confirmed both heads: only the final one is announced.
   github.comments[200] = [
@@ -323,26 +312,9 @@ test("two publications in a row report only the final head, once", async (contex
     notes.map((note) => note.text),
     [`Preview de la PR #200 (commit bbbbbbb) publicada a ${origin}.`],
   );
-  assert.equal(previews.state(10), "failed");
-  assert.equal(previews.state(11), "confirmed");
+  assert.equal(previews.previewState(10), "failed");
+  assert.equal(previews.previewState(11), "confirmed");
   assert.deepEqual(withdrawals(traces), [[10, "superseded #200 aaaaaaa"]]);
-});
-
-test("a failure to follow a publication is only logged", async (context) => {
-  const { buildHandler } = setup(context);
-  const logs = [];
-  const handler = buildHandler({
-    store: {
-      track() {
-        throw new TypeError("secret detail");
-      },
-    },
-    logger: (event, detail) => logs.push([event, detail]),
-  });
-
-  handler.followPublication(publication(10));
-
-  assert.deepEqual(logs, [["preview_follow_failed", "TypeError"]]);
 });
 
 const withdrawalCases = [
@@ -369,7 +341,7 @@ for (const [name, changes, reason] of withdrawalCases) {
   test(`ends silently when ${name}, even with a confirmation for the head`, async (context) => {
     const { handler, github, previews, sent, notes, traces, advance } =
       setup(context);
-    handler.followPublication(publication(10));
+    previews.record(publication(10));
     github.comments[200] = [publisherComment()];
     Object.assign(github.pullRequests[200], changes);
 
@@ -379,7 +351,7 @@ for (const [name, changes, reason] of withdrawalCases) {
 
     assert.deepEqual(sent, []);
     assert.deepEqual(notes, []);
-    assert.equal(previews.state(10), "failed");
+    assert.equal(previews.previewState(10), "failed");
     assert.deepEqual(withdrawals(traces), [[10, `${reason} #200 aaaaaaa`]]);
   });
 }
@@ -387,9 +359,9 @@ for (const [name, changes, reason] of withdrawalCases) {
 test("previews of two pull requests awaiting together never supersede each other", async (context) => {
   const { handler, github, previews, sent } = setup(context);
   github.pullRequests[201] = previewedPullRequest(newerCommit);
-  handler.followPublication(publication(10));
-  handler.followPublication(
-    publication(11, { pullRequestNumber: 201, commit: newerCommit }),
+  previews.record(publication(10));
+  previews.record(
+    publication(11, { pullRequestNumber: 201, commitSha: newerCommit }),
   );
   github.comments[200] = [publisherComment()];
   github.comments[201] = [
@@ -401,8 +373,8 @@ test("previews of two pull requests awaiting together never supersede each other
 
   await handler.runOnce();
 
-  assert.equal(previews.state(10), "confirmed");
-  assert.equal(previews.state(11), "confirmed");
+  assert.equal(previews.previewState(10), "confirmed");
+  assert.equal(previews.previewState(11), "confirmed");
   assert.deepEqual(
     sent.map((message) => message.text.match(/https:\/\/pr-\d+/u)[0]),
     ["https://pr-200", "https://pr-201"],
@@ -416,12 +388,12 @@ test("records one note for a preview notice that is retried", async (context) =>
   );
   const notes = new SessionNoteStore(join(directory, "session-notes.sqlite"));
   context.after(() => notes.close());
-  const { buildHandler, github, telegram, sent } = setup(context);
+  const { previews, buildHandler, github, telegram, sent } = setup(context);
   const handler = buildHandler({
     recordServiceNote: ({ sessionKey: key, text: noteText, effectKey }) =>
       notes.addNote({ sessionKey: key, text: noteText, effectKey }),
   });
-  handler.followPublication(publication(20));
+  previews.record(publication(20));
   github.comments[200] = [publisherComment()];
 
   telegram.sendError = new Error("telegram is down");
@@ -439,8 +411,8 @@ test("records one note for a preview notice that is retried", async (context) =>
 });
 
 test("keeps the preview confirmation as a service event of its session", async (context) => {
-  const { handler, github, sent, notes } = setup(context);
-  handler.followPublication(publication(20));
+  const { previews, handler, github, sent, notes } = setup(context);
+  previews.record(publication(20));
   github.comments[200] = [publisherComment()];
   await handler.runOnce();
 
@@ -460,7 +432,7 @@ test("waits the 25 minutes the policy fixes for a confirmation", () => {
 
 test("reports an unconfirmed preview at the deadline without guessing a URL", async (context) => {
   const { handler, previews, sent, traces, advance } = setup(context);
-  handler.followPublication(publication(20));
+  previews.record(publication(20));
 
   advance(confirmationTimeoutMilliseconds - 1);
   await handler.runOnce();
@@ -479,36 +451,36 @@ test("reports an unconfirmed preview at the deadline without guessing a URL", as
       .map((entry) => entry.detail),
     ["previewUnconfirmed"],
   );
-  assert.equal(previews.state(20), "timed_out");
+  assert.equal(previews.previewState(20), "timed_out");
   assert.ok(actions(traces).includes("preview_unconfirmed"));
 });
 
 test("reports an unconfirmed preview at the deadline even when GitHub keeps failing", async (context) => {
   const { handler, previews, sent, github, advance } = setup(context);
-  handler.followPublication(publication(20));
+  previews.record(publication(20));
   github.listError = new Error("GitHub failed");
 
   advance(confirmationTimeoutMilliseconds - 1);
   await handler.runOnce();
   assert.deepEqual(sent, []);
-  assert.equal(previews.state(20), "awaiting");
+  assert.equal(previews.previewState(20), "awaiting");
 
   advance(1);
   await handler.runOnce();
 
   assert.equal(sent.length, 1);
   assert.equal(sent[0].text, failedMaintainerNotice);
-  assert.equal(previews.state(20), "timed_out");
+  assert.equal(previews.previewState(20), "timed_out");
 });
 
 test("an unconfirmed report carries the requester", async (context) => {
   const { handler, sent, traces, previews, advance } = setup(context);
-  handler.followPublication(publication(20));
+  previews.record(publication(20));
   advance(confirmationTimeoutMilliseconds);
 
   await handler.runOnce();
   assert.equal(sent.length, 1);
-  assert.equal(previews.state(20), "timed_out");
+  assert.equal(previews.previewState(20), "timed_out");
   const unconfirmed = traces.find(
     (entry) => entry.action === "preview_unconfirmed",
   );
@@ -516,8 +488,8 @@ test("an unconfirmed report carries the requester", async (context) => {
 });
 
 test("the deadline survives a restart and is not reset by it", async (context) => {
-  const { buildHandler, handler, sent, advance } = setup(context);
-  handler.followPublication(publication(20));
+  const { previews, buildHandler, sent, advance } = setup(context);
+  previews.record(publication(20));
   advance(confirmationTimeoutMilliseconds);
 
   const restarted = buildHandler();
@@ -528,8 +500,8 @@ test("the deadline survives a restart and is not reset by it", async (context) =
 });
 
 test("an unconfirmed note keeps the facts of the session", async (context) => {
-  const { handler, advance, sent, notes } = setup(context);
-  handler.followPublication(publication(20));
+  const { previews, handler, advance, sent, notes } = setup(context);
+  previews.record(publication(20));
   advance(confirmationTimeoutMilliseconds);
 
   await handler.runOnce();
@@ -546,63 +518,63 @@ test("an unconfirmed note keeps the facts of the session", async (context) => {
 
 test("a failed report keeps the request awaiting and a later cycle sends it", async (context) => {
   const { handler, github, telegram, previews, sent } = setup(context);
-  handler.followPublication(publication(20));
+  previews.record(publication(20));
   github.comments[200] = [publisherComment()];
 
   telegram.sendError = new Error("telegram down");
   await handler.runOnce();
-  assert.equal(previews.state(20), "awaiting");
+  assert.equal(previews.previewState(20), "awaiting");
   assert.deepEqual(sent, []);
 
   telegram.sendError = null;
   await handler.runOnce();
   assert.equal(sent.length, 1);
-  assert.equal(previews.state(20), "confirmed");
+  assert.equal(previews.previewState(20), "confirmed");
 });
 
 test("a failed timeout report is retried the same way", async (context) => {
   const { handler, telegram, previews, sent, advance } = setup(context);
-  handler.followPublication(publication(20));
+  previews.record(publication(20));
   advance(confirmationTimeoutMilliseconds);
 
   telegram.sendError = new Error("telegram down");
   await handler.runOnce();
-  assert.equal(previews.state(20), "awaiting");
+  assert.equal(previews.previewState(20), "awaiting");
 
   telegram.sendError = null;
   await handler.runOnce();
   assert.equal(sent.length, 1);
-  assert.equal(previews.state(20), "timed_out");
+  assert.equal(previews.previewState(20), "timed_out");
 });
 
 test("a synchronization the service is replacing is not reported as withdrawn", async (context) => {
   const { buildHandler, github, previews, sent } = setup(context);
   let working = true;
   const handler = buildHandler({ hasWorkInProgress: () => working });
-  handler.followPublication(publication(10, { mergeSynchronization: true }));
+  previews.record(publication(10, { mergeSynchronization: true }));
   github.pullRequests[200].headSha = newerCommit;
 
   // The newer commit is pushed but its publication is not followed yet.
   await handler.runOnce();
-  assert.equal(previews.state(10), "awaiting");
+  assert.equal(previews.previewState(10), "awaiting");
 
   // It is followed while the older row is being read.
   const listComments = github.listIssueComments;
   github.listIssueComments = async (options) => {
-    handler.followPublication(publication(11, { commit: newerCommit }));
+    previews.record(publication(11, { commitSha: newerCommit }));
     working = false;
     github.listIssueComments = listComments;
     return listComments(options);
   };
   await handler.runOnce();
 
-  assert.equal(previews.state(10), "failed");
+  assert.equal(previews.previewState(10), "failed");
   assert.deepEqual(sent, []);
 });
 
 test("an aborted cycle reports and finishes nothing", async (context) => {
   const { handler, github, previews, sent } = setup(context);
-  handler.followPublication(publication(20));
+  previews.record(publication(20));
   const controller = new AbortController();
   github.comments[200] = [publisherComment()];
   github.listIssueComments = async () => {
@@ -613,7 +585,7 @@ test("an aborted cycle reports and finishes nothing", async (context) => {
   await handler.runOnce({ signal: controller.signal });
 
   assert.deepEqual(sent, []);
-  assert.equal(previews.state(20), "awaiting");
+  assert.equal(previews.previewState(20), "awaiting");
 });
 
 test("the loop isolates a cycle error and stops when aborted", async (context) => {
@@ -623,7 +595,7 @@ test("the loop isolates a cycle error and stops when aborted", async (context) =
   let cycles = 0;
   const loop = buildHandler({
     store: {
-      awaiting() {
+      awaitingPreviews() {
         cycles += 1;
         if (cycles === 1) throw new Error("secret detail");
         controller.abort();
@@ -642,21 +614,21 @@ test("the loop isolates a cycle error and stops when aborted", async (context) =
 
 test("a poll of an older commit never ends the row rewritten for a newer one", async (context) => {
   const { handler, github, previews, sent } = setup(context);
-  handler.followPublication(publication(10));
+  previews.record(publication(10));
   github.comments[200] = [publisherComment()];
   // While the poll of the first commit waits for GitHub, a later publication of
   // the same update writes the row again for the newer commit.
   const listComments = github.listIssueComments;
   github.listIssueComments = async (options) => {
     const comments = await listComments(options);
-    handler.followPublication(publication(10, { commit: newerCommit }));
+    previews.record(publication(10, { commitSha: newerCommit }));
     return comments;
   };
 
   await handler.runOnce();
 
-  assert.equal(previews.state(10), "awaiting");
-  assert.equal(previews.awaiting()[0].commit_sha, newerCommit);
-  assert.equal(previews.awaiting()[0].confirmed_origin, null);
+  assert.equal(previews.previewState(10), "awaiting");
+  assert.equal(previews.awaitingPreviews()[0].commit_sha, newerCommit);
+  assert.equal(previews.awaitingPreviews()[0].confirmed_origin, null);
   assert.equal(sent.length, 1);
 });

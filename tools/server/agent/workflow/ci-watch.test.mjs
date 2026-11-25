@@ -4,11 +4,14 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
-import { CiWatchStore } from "../repository/ci-watch-store.mjs";
+import { PublicationStore } from "../repository/publication-store.mjs";
 import { SessionNoteStore } from "../repository/session-note-store.mjs";
 import { defaultRequestTimeoutMilliseconds } from "../repository/request-signal.mjs";
 import { failedMaintainerNotice } from "../policy/development.mjs";
-import { createCiWatchRegistration, createCiWatchWorker } from "./ci-watch.mjs";
+import {
+  createPublicationRegistration,
+  createCiWatchWorker,
+} from "./ci-watch.mjs";
 import { recordingTelegram } from "./test-support/telegram.mjs";
 
 const commit = "b".repeat(40);
@@ -26,7 +29,7 @@ function fixture(context, options = {}) {
     }),
   );
   const path = join(directory, "ci-watch.sqlite");
-  const store = new CiWatchStore(path, options);
+  const store = new PublicationStore(path, options);
   context.after(() => store.close());
   return { store, path };
 }
@@ -34,6 +37,7 @@ function fixture(context, options = {}) {
 const registration = {
   updateIdentifier: 501,
   sessionKey: "-1001234567890:7",
+  authorIdentifier: 555,
   pullRequestNumber: 200,
   commit,
 };
@@ -99,18 +103,10 @@ function workerFor({
 
 test("registers the watch for the exact published commit", (context) => {
   const { store } = fixture(context);
-  const register = createCiWatchRegistration({ store });
+  const register = createPublicationRegistration({ store });
 
-  assert.equal(
-    register({
-      updateIdentifier: registration.updateIdentifier,
-      sessionKey: registration.sessionKey,
-      pullRequestNumber: registration.pullRequestNumber,
-      commit,
-    }),
-    "registered",
-  );
-  const [watch] = store.pending();
+  assert.equal(register(registration), "registered");
+  const [watch] = store.pendingCiWatches();
   assert.equal(watch.commit_sha, commit);
   assert.equal(watch.pull_request_number, 200);
   assert.equal(watch.session_key, registration.sessionKey);
@@ -118,32 +114,24 @@ test("registers the watch for the exact published commit", (context) => {
 
 test("reports an unavailable watch instead of losing the publication", () => {
   const events = [];
-  const register = createCiWatchRegistration({
+  const register = createPublicationRegistration({
     store: {
-      add() {
+      record() {
         throw new Error("state volume full");
       },
     },
     logger: (event, detail) => events.push({ event, detail }),
   });
 
-  assert.equal(
-    register({
-      updateIdentifier: 1,
-      sessionKey: "-1001234567890:7",
-      pullRequestNumber: 200,
-      commit,
-    }),
-    "unavailable",
-  );
+  assert.equal(register(registration), "unavailable");
   assert.deepEqual(events, [
-    { event: "ci_watch_registration_failed", detail: "state volume full" },
+    { event: "publication_registration_failed", detail: "state volume full" },
   ]);
 });
 
 test("sends the green result once for the pinned commit and pull request", async (context) => {
   const { store } = fixture(context);
-  createCiWatchRegistration({ store })(registration);
+  createPublicationRegistration({ store })(registration);
   const telegram = recordingTelegram();
   const github = fakeGithub();
   const logger = [];
@@ -168,12 +156,12 @@ test("sends the green result once for the pinned commit and pull request", async
       detail: `#200 ${commit.slice(0, 7)} success Validate`,
     },
   ]);
-  assert.equal(store.state(registration.updateIdentifier), "sent");
+  assert.equal(store.ciState(registration.updateIdentifier), "sent");
 });
 
 test("keeps the CI notice as a service event of the session", async (context) => {
   const { store } = fixture(context);
-  createCiWatchRegistration({ store })(registration);
+  createPublicationRegistration({ store })(registration);
   const telegram = recordingTelegram();
   const notes = [];
   const worker = workerFor({
@@ -197,7 +185,7 @@ test("keeps the CI notice as a service event of the session", async (context) =>
 
 test("waits while a required check is still running", async (context) => {
   const { store } = fixture(context);
-  createCiWatchRegistration({ store })(registration);
+  createPublicationRegistration({ store })(registration);
   const telegram = recordingTelegram();
   const worker = workerFor({
     store,
@@ -210,12 +198,12 @@ test("waits while a required check is still running", async (context) => {
   await worker.runOnce();
 
   assert.deepEqual(telegram.sent, []);
-  assert.equal(store.state(registration.updateIdentifier), "pending");
+  assert.equal(store.ciState(registration.updateIdentifier), "pending");
 });
 
 test("waits for every required check before reporting a failure", async (context) => {
   const { store } = fixture(context);
-  createCiWatchRegistration({ store })(registration);
+  createPublicationRegistration({ store })(registration);
   const telegram = recordingTelegram();
 
   await workerFor({
@@ -231,13 +219,13 @@ test("waits for every required check before reporting a failure", async (context
   }).runOnce();
 
   assert.deepEqual(telegram.sent, []);
-  assert.equal(store.state(registration.updateIdentifier), "pending");
+  assert.equal(store.ciState(registration.updateIdentifier), "pending");
 });
 
 for (const conclusion of ["failure", "cancelled", "timed_out"]) {
   test(`reports a ${conclusion} check with the plain failure notice`, async (context) => {
     const { store } = fixture(context);
-    createCiWatchRegistration({ store })(registration);
+    createPublicationRegistration({ store })(registration);
     const telegram = recordingTelegram();
     const notes = [];
     const traces = [];
@@ -264,13 +252,13 @@ for (const conclusion of ["failure", "cancelled", "timed_out"]) {
       traces.map(({ action, detail }) => [action, detail]),
       [["maintainer_attention", "failure"]],
     );
-    assert.equal(store.state(registration.updateIdentifier), "sent");
+    assert.equal(store.ciState(registration.updateIdentifier), "sent");
   });
 }
 
 test("ends an incomplete failure at the deadline", async (context) => {
   const { store } = fixture(context);
-  createCiWatchRegistration({ store })(registration);
+  createPublicationRegistration({ store })(registration);
   const telegram = recordingTelegram();
   await workerFor({
     store,
@@ -287,12 +275,12 @@ test("ends an incomplete failure at the deadline", async (context) => {
 
   assert.equal(telegram.sent.length, 1);
   assert.equal(telegram.sent[0].text, failedMaintainerNotice);
-  assert.equal(store.state(registration.updateIdentifier), "sent");
+  assert.equal(store.ciState(registration.updateIdentifier), "sent");
 });
 
 test("never reports green for another head and says the commit changed", async (context) => {
   const { store } = fixture(context);
-  createCiWatchRegistration({ store })(registration);
+  createPublicationRegistration({ store })(registration);
   const telegram = recordingTelegram();
   const worker = workerFor({
     store,
@@ -314,7 +302,7 @@ test("never reports green for another head and says the commit changed", async (
 
 test("never reports a head the service is replacing with a newer publication", async (context) => {
   const { store } = fixture(context);
-  const register = createCiWatchRegistration({ store });
+  const register = createPublicationRegistration({ store });
   register(registration);
   const telegram = recordingTelegram();
   const notes = [];
@@ -331,13 +319,13 @@ test("never reports a head the service is replacing with a newer publication", a
 
   // Pushed, but the newer watch is not registered yet.
   await worker.runOnce();
-  assert.equal(store.state(registration.updateIdentifier), "pending");
+  assert.equal(store.ciState(registration.updateIdentifier), "pending");
 
   register({ ...registration, updateIdentifier: 502, commit: nextCommit });
   working = false;
   await worker.runOnce();
 
-  assert.equal(store.state(registration.updateIdentifier), "superseded");
+  assert.equal(store.ciState(registration.updateIdentifier), "superseded");
   assert.deepEqual(telegram.sent, []);
   assert.deepEqual(
     notes.filter((note) => note.effectKey.endsWith(":head-changed")),
@@ -347,7 +335,7 @@ test("never reports a head the service is replacing with a newer publication", a
 
 test("does not report CI for a pull request that is no longer open", async (context) => {
   const { store } = fixture(context);
-  createCiWatchRegistration({ store })(registration);
+  createPublicationRegistration({ store })(registration);
   const telegram = recordingTelegram();
   const worker = workerFor({
     store,
@@ -363,7 +351,7 @@ test("does not report CI for a pull request that is no longer open", async (cont
 
 test("ends the watch of a merged pull request with the closed notice", async (context) => {
   const { store } = fixture(context);
-  createCiWatchRegistration({ store })(registration);
+  createPublicationRegistration({ store })(registration);
   const telegram = recordingTelegram();
   const worker = workerFor({
     store,
@@ -382,7 +370,7 @@ test("ends the watch of a merged pull request with the closed notice", async (co
 
 test("reports a result read after the deadline instead of an unconfirmed notice", async (context) => {
   const { store } = fixture(context);
-  createCiWatchRegistration({ store })(registration);
+  createPublicationRegistration({ store })(registration);
   const telegram = recordingTelegram();
   const worker = workerFor({
     store,
@@ -394,12 +382,12 @@ test("reports a result read after the deadline instead of an unconfirmed notice"
   await worker.runOnce();
 
   assert.equal(telegram.sent.length, 0);
-  assert.equal(store.state(registration.updateIdentifier), "sent");
+  assert.equal(store.ciState(registration.updateIdentifier), "sent");
 });
 
 test("ends an unconfirmed watch at the deadline instead of claiming green", async (context) => {
   const { store } = fixture(context);
-  createCiWatchRegistration({ store })(registration);
+  createPublicationRegistration({ store })(registration);
   const telegram = recordingTelegram();
   const worker = workerFor({
     store,
@@ -412,12 +400,12 @@ test("ends an unconfirmed watch at the deadline instead of claiming green", asyn
 
   assert.equal(telegram.sent.length, 1);
   assert.equal(telegram.sent[0].text, failedMaintainerNotice);
-  assert.equal(store.state(registration.updateIdentifier), "sent");
+  assert.equal(store.ciState(registration.updateIdentifier), "sent");
 });
 
 test("keeps the watch pending when GitHub cannot answer", async (context) => {
   const { store } = fixture(context);
-  createCiWatchRegistration({ store })(registration);
+  createPublicationRegistration({ store })(registration);
   const telegram = recordingTelegram();
   const events = [];
   const worker = workerFor({
@@ -441,12 +429,12 @@ test("keeps the watch pending when GitHub cannot answer", async (context) => {
 
   assert.deepEqual(telegram.sent, []);
   assert.deepEqual(events, ["ci_watch_failed"]);
-  assert.equal(store.state(registration.updateIdentifier), "pending");
+  assert.equal(store.ciState(registration.updateIdentifier), "pending");
 });
 
 test("ends a watch at its deadline even when GitHub keeps failing", async (context) => {
   const { store } = fixture(context);
-  createCiWatchRegistration({ store })(registration);
+  createPublicationRegistration({ store })(registration);
   const telegram = recordingTelegram();
   const worker = workerFor({
     store,
@@ -466,12 +454,12 @@ test("ends a watch at its deadline even when GitHub keeps failing", async (conte
 
   assert.equal(telegram.sent.length, 1);
   assert.equal(telegram.sent[0].text, failedMaintainerNotice);
-  assert.equal(store.state(registration.updateIdentifier), "sent");
+  assert.equal(store.ciState(registration.updateIdentifier), "sent");
 });
 
 test("ends a watch at its deadline when only the pull request read fails", async (context) => {
   const { store } = fixture(context);
-  createCiWatchRegistration({ store })(registration);
+  createPublicationRegistration({ store })(registration);
   const telegram = recordingTelegram();
   const worker = workerFor({
     store,
@@ -493,12 +481,12 @@ test("ends a watch at its deadline when only the pull request read fails", async
   await worker.runOnce();
 
   assert.equal(telegram.sent.length, 1);
-  assert.equal(store.state(registration.updateIdentifier), "sent");
+  assert.equal(store.ciState(registration.updateIdentifier), "sent");
 });
 
 test("gives up a GitHub read that never answers without stalling the cycle", async (context) => {
   const { store } = fixture(context);
-  createCiWatchRegistration({ store })(registration);
+  createPublicationRegistration({ store })(registration);
   const telegram = recordingTelegram();
   const events = [];
   const worker = workerFor({
@@ -525,16 +513,16 @@ test("gives up a GitHub read that never answers without stalling the cycle", asy
 
   assert.deepEqual(telegram.sent, []);
   assert.deepEqual(events, ["ci_watch_failed"]);
-  assert.equal(store.state(registration.updateIdentifier), "pending");
+  assert.equal(store.ciState(registration.updateIdentifier), "pending");
 });
 
 test("resumes a pending watch after a restart", async (context) => {
   const { path } = fixture(context);
-  const writer = new CiWatchStore(path);
-  createCiWatchRegistration({ store: writer })(registration);
+  const writer = new PublicationStore(path);
+  createPublicationRegistration({ store: writer })(registration);
   writer.close();
 
-  const reopened = new CiWatchStore(path);
+  const reopened = new PublicationStore(path);
   context.after(() => reopened.close());
   const telegram = recordingTelegram();
   await workerFor({
@@ -544,13 +532,13 @@ test("resumes a pending watch after a restart", async (context) => {
   }).runOnce();
 
   assert.equal(telegram.sent.length, 0);
-  assert.equal(reopened.state(registration.updateIdentifier), "sent");
+  assert.equal(reopened.ciState(registration.updateIdentifier), "sent");
 });
 
 test("notifies each pending watch in its own topic in one cycle", async (context) => {
   const { store } = fixture(context);
-  createCiWatchRegistration({ store })(registration);
-  createCiWatchRegistration({ store })({
+  createPublicationRegistration({ store })(registration);
+  createPublicationRegistration({ store })({
     ...registration,
     updateIdentifier: 502,
     sessionKey: "-1001234567890:8",
@@ -598,7 +586,7 @@ test("notifies each pending watch in its own topic in one cycle", async (context
 
 test("runs cycles in the background and returns on abort without leaking listeners", async (context) => {
   const { store } = fixture(context);
-  createCiWatchRegistration({ store })(registration);
+  createPublicationRegistration({ store })(registration);
   const controller = new AbortController();
   let reads = 0;
   const worker = createCiWatchWorker({
@@ -631,12 +619,12 @@ test("runs cycles in the background and returns on abort without leaking listene
   await running;
 
   assert.deepEqual(getEventListeners(controller.signal, "abort"), []);
-  assert.equal(store.state(registration.updateIdentifier), "pending");
+  assert.equal(store.ciState(registration.updateIdentifier), "pending");
 });
 
 test("informs the topic even when the private trace cannot be written", async (context) => {
   const { store } = fixture(context);
-  createCiWatchRegistration({ store })(registration);
+  createPublicationRegistration({ store })(registration);
   const telegram = recordingTelegram();
   const events = [];
   await workerFor({
@@ -662,7 +650,7 @@ test("informs the topic even when the private trace cannot be written", async (c
 
 test("waits while another required check is missing or ambiguous", async (context) => {
   const { store } = fixture(context);
-  createCiWatchRegistration({ store })(registration);
+  createPublicationRegistration({ store })(registration);
   const telegram = recordingTelegram();
   const worker = workerFor({
     store,
@@ -675,7 +663,7 @@ test("waits while another required check is missing or ambiguous", async (contex
 
   await worker.runOnce();
   assert.deepEqual(telegram.sent, []);
-  assert.equal(store.state(registration.updateIdentifier), "pending");
+  assert.equal(store.ciState(registration.updateIdentifier), "pending");
 
   // One required check reported by two sources leaves the set ambiguous: the
   // failure is never reported as final from an inconclusive picture.
@@ -708,7 +696,7 @@ test("repeats a notice after an unknown delivery, with one note in the session",
   const notes = new SessionNoteStore(join(directory, "session-notes.sqlite"));
   context.after(() => notes.close());
   const { store } = fixture(context);
-  createCiWatchRegistration({ store })(registration);
+  createPublicationRegistration({ store })(registration);
   const delivered = [];
   const traces = [];
   const events = [];
@@ -736,7 +724,7 @@ test("repeats a notice after an unknown delivery, with one note in the session",
   });
 
   await worker.runOnce();
-  assert.equal(store.state(registration.updateIdentifier), "pending");
+  assert.equal(store.ciState(registration.updateIdentifier), "pending");
   assert.equal(store.hasUnreportedWork(registration.sessionKey), true);
   assert.deepEqual(traces, []);
   assert.deepEqual(events, ["ci_notification_failed"]);
@@ -745,7 +733,7 @@ test("repeats a notice after an unknown delivery, with one note in the session",
   await worker.runOnce();
 
   assert.deepEqual(delivered, [failedMaintainerNotice, failedMaintainerNotice]);
-  assert.equal(store.state(registration.updateIdentifier), "sent");
+  assert.equal(store.ciState(registration.updateIdentifier), "sent");
   assert.equal(store.hasUnreportedWork(registration.sessionKey), false);
   assert.deepEqual(traces, ["maintainer_attention"]);
   assert.equal(notes.claim(registration.sessionKey).length, 1);
@@ -753,7 +741,7 @@ test("repeats a notice after an unknown delivery, with one note in the session",
 
 test("doubles the delay of a notice that keeps failing, up to one hour", async (context) => {
   const { store } = fixture(context);
-  createCiWatchRegistration({ store })(registration);
+  createPublicationRegistration({ store })(registration);
   const start = Date.now();
   let instant = start;
   const attempts = [];
@@ -786,12 +774,12 @@ test("doubles the delay of a notice that keeps failing, up to one hour", async (
   failing = false;
   await runUntil(240);
   assert.deepEqual(attempts, [0, 20, 60, 120, 180]);
-  assert.equal(store.state(registration.updateIdentifier), "sent");
+  assert.equal(store.ciState(registration.updateIdentifier), "sent");
 });
 
 test("names the failed checks in the service note when the deadline ends an incomplete failure", async (context) => {
   const { store } = fixture(context);
-  createCiWatchRegistration({ store })(registration);
+  createPublicationRegistration({ store })(registration);
   const telegram = recordingTelegram();
   const notes = [];
 
@@ -811,12 +799,12 @@ test("names the failed checks in the service note when the deadline ends an inco
   assert.doesNotMatch(telegram.sent[0].text, /Validate/u);
   assert.match(notes[0].text, /però Validate ha fallat/u);
   assert.match(notes[0].text, /bbbbbbb/u);
-  assert.equal(store.state(registration.updateIdentifier), "sent");
+  assert.equal(store.ciState(registration.updateIdentifier), "sent");
 });
 
 test("keeps the notice when the note of its effect cannot be stored", async (context) => {
   const { store } = fixture(context);
-  createCiWatchRegistration({ store })(registration);
+  createPublicationRegistration({ store })(registration);
   const telegram = recordingTelegram();
   const events = [];
   const worker = workerFor({
@@ -832,6 +820,6 @@ test("keeps the notice when the note of its effect cannot be stored", async (con
   await worker.runOnce();
 
   assert.equal(telegram.sent.length, 0);
-  assert.equal(store.state(registration.updateIdentifier), "sent");
+  assert.equal(store.ciState(registration.updateIdentifier), "sent");
   assert.deepEqual(events, ["ci_note_failed", "ci_notification_sent"]);
 });
