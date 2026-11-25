@@ -226,7 +226,6 @@ test("keeps the notice of a resolution for the next turn of the session", async 
   const reopened = new SessionNoteStore(
     join(statePath, "session-notes.sqlite"),
   );
-  assert.equal(reopened.lastReply(sessionKey), messages[0].text);
   assert.deepEqual(
     reopened.claim(sessionKey).map((note) => note.text),
     [messages[0].text],

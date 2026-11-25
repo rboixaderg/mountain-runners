@@ -6,7 +6,6 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { runAgent } from "../runtime/agent.mjs";
 import { createResearchReview } from "../repository/research-review.mjs";
-import { classifyRequest as classifyWithModel } from "../runtime/request-kind.mjs";
 import { agentSecrets } from "../config.mjs";
 import { openIdentifierNames } from "../repository/identifiers.mjs";
 import { registeredWorktree, runGit } from "../repository/trusted-git.mjs";
@@ -37,7 +36,6 @@ export function createProjectRunner({
   ciWatches,
   mergeRequests,
   topicJobs,
-  requestPreview,
   followPreview,
   requestMerge,
   requestMergeConfirmation,
@@ -57,8 +55,6 @@ export function createProjectRunner({
   stopCommands = stopSandboxedCommands,
   executeSandbox = runSandboxedCommand,
   executeAgent = runAgent,
-  classifyRequest = (context) =>
-    classifyWithModel(config, { ...context, environment }),
   runModel = async (context) => {
     if (!context.worktreePrepared) {
       const preparation = await executeSandbox({
@@ -189,28 +185,17 @@ export function createProjectRunner({
   const identifiers = openIdentifierNames(config.paths.state);
   // The pull request this topic published last and still owns, from the CI
   // watches: without them the service knows none.
-  // The state block still describes the change a topic closed or merged, while
-  // the classifier only receives a pull request the topic can continue working
-  // on.
-  const findOwnedTopicPullRequest = ciWatches
-    ? createTopicPullRequestFinder(ciWatches)
-    : undefined;
   const findTopicPullRequest = ciWatches
-    ? createTopicPullRequestFinder(ciWatches, {
-        includeEnded: false,
-        mergeRequests,
-      })
+    ? createTopicPullRequestFinder(ciWatches)
     : undefined;
   return createInstructionRunner({
     repositoryPath: config.paths.repository,
     worktreeRoot: config.paths.worktrees,
     identifiers,
-    classifyRequest,
     runModel,
     runChecks,
     secrets: agentSecrets(config),
     logger,
-    requestPreview,
     followPreview,
     requestMerge,
     requestMergeConfirmation,
@@ -233,7 +218,6 @@ export function createProjectRunner({
     readBoundPullRequest: (number, { signal }) =>
       github.getPullRequest({ number, signal }),
     recordTrace,
-    findTopicPullRequest,
     // The state of the topic every turn receives, from the service's own stores:
     // the model cannot read the pull request, its checks or the preview inside
     // the sandbox.
@@ -245,7 +229,7 @@ export function createProjectRunner({
             logger,
             ciWatches,
             mergeRequests,
-            findTopicPullRequest: findOwnedTopicPullRequest,
+            findTopicPullRequest,
             repositoryName: config.github.repository,
           })
         : undefined,

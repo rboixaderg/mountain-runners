@@ -233,59 +233,56 @@ function researchFixture(review, operations) {
   });
 }
 
-for (const classifiedKind of ["consultation", "clarification"]) {
-  test(`a ${classifiedKind} with web research is a writable turn that reports sources`, async (context) => {
-    const paths = await fixture(context);
-    const jobId = identifiersFor(paths).worktreeName(topicSessionKey);
-    const review = createResearchReview({
-      directory: join(paths.state, "review"),
-    });
-    const operations = [];
-    const github = githubStub();
-    let preparations = 0;
-    const runner = createProjectRunner({
-      config: configFor(paths),
-      github,
-      researchReview: review,
-      research: researchFixture(review, operations),
-      classifyRequest: async () => ({ kind: classifiedKind }),
-      executeSandbox: async () => {
-        preparations += 1;
-        return { exitCode: 0, timedOut: false };
-      },
-      executeAgent: async (_config, options) => {
-        const result = await options.webResearch(
-          { operation: "read", input: "https://example.test/route" },
-          {},
-        );
-        assert.equal(result.data.text, "Synthetic source.");
-        return { text: "Resposta contrastada." };
-      },
-      runChecks: async () => assert.fail("an unchanged turn needs no checks"),
-    });
-
-    const result = await runner(request({ instruction: "Consulta la ruta." }));
-
-    assert.equal(result.outcome, "answered", result.report);
-    assert.equal(
-      result.report,
-      "Resposta contrastada.\n\nFonts:\n- Pàgina llegida: https://example.test/route (paràmetres omesos)",
-    );
-    assert.equal(preparations, 1);
-    assert.deepEqual(operations, [
-      { operation: "read", input: "https://example.test/route" },
-    ]);
-    assert.equal(review.isTainted(jobId), true);
-    assert.equal(
-      await git(topicWorktreePath(paths), ["branch", "--show-current"]),
-      "",
-    );
-    assert.deepEqual(github.pushes, []);
-    assert.deepEqual(github.pulls, []);
+test("a question with web research is a writable turn that reports sources", async (context) => {
+  const paths = await fixture(context);
+  const jobId = identifiersFor(paths).worktreeName(topicSessionKey);
+  const review = createResearchReview({
+    directory: join(paths.state, "review"),
   });
-}
+  const operations = [];
+  const github = githubStub();
+  let preparations = 0;
+  const runner = createProjectRunner({
+    config: configFor(paths),
+    github,
+    researchReview: review,
+    research: researchFixture(review, operations),
+    executeSandbox: async () => {
+      preparations += 1;
+      return { exitCode: 0, timedOut: false };
+    },
+    executeAgent: async (_config, options) => {
+      const result = await options.webResearch(
+        { operation: "read", input: "https://example.test/route" },
+        {},
+      );
+      assert.equal(result.data.text, "Synthetic source.");
+      return { text: "Resposta contrastada." };
+    },
+    runChecks: async () => assert.fail("an unchanged turn needs no checks"),
+  });
 
-test("a merge or preview before the first change leaves the job without private review", async (context) => {
+  const result = await runner(request({ instruction: "Consulta la ruta." }));
+
+  assert.equal(result.outcome, "answered", result.report);
+  assert.equal(
+    result.report,
+    "Resposta contrastada.\n\nFonts:\n- Pàgina llegida: https://example.test/route (paràmetres omesos)",
+  );
+  assert.equal(preparations, 1);
+  assert.deepEqual(operations, [
+    { operation: "read", input: "https://example.test/route" },
+  ]);
+  assert.equal(review.isTainted(jobId), true);
+  assert.equal(
+    await git(topicWorktreePath(paths), ["branch", "--show-current"]),
+    "",
+  );
+  assert.deepEqual(github.pushes, []);
+  assert.deepEqual(github.pulls, []);
+});
+
+test("a merge before the first change leaves the job without private review", async (context) => {
   const paths = await fixture(context);
   const review = createResearchReview({
     directory: join(paths.state, "review"),
@@ -296,10 +293,6 @@ test("a merge or preview before the first change leaves the job without private 
     github,
     researchReview: review,
     requestMerge: async () => ({ outcome: "answered", report: "merge" }),
-    requestPreview: async () => ({ outcome: "answered", report: "preview" }),
-    classifyRequest: async ({ instruction }) => ({
-      kind: instruction === "mostra-la" ? "preview" : "implementation",
-    }),
     executeSandbox: async () => ({ exitCode: 0, timedOut: false }),
     runModel: async ({ worktreePath }) => {
       writeFileSync(join(worktreePath, "change.txt"), "change\n");
@@ -309,7 +302,6 @@ test("a merge or preview before the first change leaves the job without private 
   });
 
   await runner(request({ instruction: "/merge" }));
-  await runner(request({ updateIdentifier: 1002, instruction: "mostra-la" }));
   const result = await runner(request({ updateIdentifier: 1003 }));
 
   assert.equal(result.outcome, "pull_request_created", result.report);
@@ -346,17 +338,12 @@ test("a research-informed change requires approval and retries the reviewed snap
     repair: repair ?? null,
   });
   let turns = 0;
-  let classifications = 0;
   let checks = 0;
   const runner = createProjectRunner({
     config: configFor(paths),
     github,
     researchReview: review,
     research: researchFixture(review, operations),
-    classifyRequest: async () => {
-      classifications += 1;
-      return { kind: "implementation" };
-    },
     executeSandbox: async () => ({ exitCode: 0, timedOut: false }),
     executeAgent: async (_config, options) => {
       turns += 1;
@@ -402,7 +389,6 @@ test("a research-informed change requires approval and retries the reviewed snap
 
   assert.equal(retry.outcome, "pull_request_created", retry.report);
   assert.equal(turns, 1);
-  assert.equal(classifications, 1);
   assert.equal(checks, 2);
   assert.equal(github.pushes.length, 1);
   assert.deepEqual(github.pushes[0].approved, candidate);
@@ -423,7 +409,6 @@ test("gives the prompt the current instant of the service in Europe/Madrid", asy
   const runner = createProjectRunner({
     config: configFor(paths),
     github: githubStub(),
-    classifyRequest: async () => ({ kind: "consultation" }),
     executeSandbox: async () => ({ exitCode: 0, timedOut: false }),
     now: () => new Date("2026-11-18T09:32:05.000Z"),
     executeAgent: async (_config, options) => {
@@ -447,7 +432,6 @@ test("answers a consultation without creating a branch or a remote effect", asyn
   const github = githubStub();
   const runner = createProjectRunner({
     config: configFor(paths),
-    classifyRequest: async () => ({ kind: "consultation" }),
     github,
 
     runModel: async () => ({ text: "El fitxer diu synthetic." }),
@@ -470,7 +454,6 @@ test("strips the change summary from a consultation answer", async (context) => 
   const runner = createProjectRunner({
     config: configFor(paths),
     github: githubStub(),
-    classifyRequest: async () => ({ kind: "consultation" }),
     runModel: async () => ({
       text: "La notícia ja hi és.\nSUMMARY: content(posts): add the news",
     }),
@@ -483,14 +466,13 @@ test("strips the change summary from a consultation answer", async (context) => 
   assert.doesNotMatch(result.report, /SUMMARY|content\(posts\)/u);
 });
 
-test("runs a classified question as one writable turn without publication", async (context) => {
+test("runs a question as one writable turn without publication", async (context) => {
   const paths = await fixture(context);
   const github = githubStub();
   const turns = [];
   const runner = createProjectRunner({
     config: configFor(paths),
     github,
-    classifyRequest: async () => ({ kind: "consultation" }),
     runModel: async (options) => {
       turns.push(options);
       return { text: "La data és el 15 de maig." };
@@ -503,41 +485,11 @@ test("runs a classified question as one writable turn without publication", asyn
   assert.equal(result.outcome, "answered");
   assert.equal(result.report, "La data és el 15 de maig.");
   assert.equal(turns.length, 1);
-  assert.notEqual(turns[0].kind, "consultation");
   assert.deepEqual(github.pushes, []);
   assert.deepEqual(github.pulls, []);
 });
 
-test("former non-preview classifications all run the same writable turn", async (context) => {
-  const modelKinds = [];
-  for (const classifiedKind of [
-    "consultation",
-    "continuation",
-    "implementation",
-    "clarification",
-  ]) {
-    const paths = await fixture(context);
-    const github = githubStub();
-    const runner = createProjectRunner({
-      config: configFor(paths),
-      github,
-      classifyRequest: async () => ({ kind: classifiedKind }),
-      runModel: async ({ kind }) => {
-        modelKinds.push({ kind });
-        return { text: "Resposta." };
-      },
-      runChecks: async () => assert.fail("an unchanged turn needs no checks"),
-    });
-    const result = await runner(request({ instruction: "Quina és la data?" }));
-    assert.equal(result.outcome, "answered", classifiedKind);
-    assert.deepEqual(github.pushes, [], classifiedKind);
-  }
-  assert.equal(modelKinds.length, 4);
-  assert.ok(modelKinds.every((turn) => turn.kind === modelKinds[0].kind));
-  assert.ok(modelKinds.every((turn) => turn.kind !== "consultation"));
-});
-
-test("publishes a classified consultation to its existing pull request", async (context) => {
+test("publishes a later change to the existing pull request of the topic", async (context) => {
   const paths = await fixture(context);
   mkdirSync(paths.state, { recursive: true });
   const ciWatches = new CiWatchStore(join(paths.state, "ci-watch.sqlite"));
@@ -578,7 +530,6 @@ test("publishes a classified consultation to its existing pull request", async (
     github,
     ciWatches,
     topicJobs,
-    classifyRequest: async () => ({ kind: "consultation" }),
     runModel: async ({ worktreePath }) => {
       writeFileSync(join(worktreePath, "second.txt"), "second change\n");
       return { text: "Canvi fet.\nSUMMARY: feat(tools): add another change" };
@@ -624,16 +575,12 @@ async function boundTopicFixture(context, pullRequestOverrides) {
   };
   const pushesBefore = github.pushes.length;
   const pullsBefore = github.pulls.length;
-  const calls = { model: 0, classifier: 0 };
+  const calls = { model: 0 };
   const runnerOptions = {
     config: configFor(paths),
     github,
     ciWatches,
     topicJobs,
-    classifyRequest: async () => {
-      calls.classifier += 1;
-      return { kind: "implementation" };
-    },
     executeSandbox: async () => ({ exitCode: 0, timedOut: false }),
     runModel: async ({ worktreePath }) => {
       calls.model += 1;
@@ -732,7 +679,6 @@ test("prepares dependencies before the model for an implementation", async (cont
   const runner = createProjectRunner({
     config: configFor(paths),
     github: githubStub(),
-    classifyRequest: async () => ({ kind: "implementation" }),
     executeSandbox: async (options) => {
       calls.push({ kind: "prepare", command: options.command });
       return { exitCode: 0, timedOut: false };
@@ -751,13 +697,12 @@ test("prepares dependencies before the model for an implementation", async (cont
   assert.match(calls[0].command.join(" "), /pnpm install --offline/u);
 });
 
-test("prepares a writable environment for a classified consultation", async (context) => {
+test("prepares a writable environment for a question", async (context) => {
   const paths = await fixture(context);
   let prepared = false;
   const runner = createProjectRunner({
     config: configFor(paths),
     github: githubStub(),
-    classifyRequest: async () => ({ kind: "consultation" }),
     executeSandbox: async () => {
       prepared = true;
       return { exitCode: 0, timedOut: false };
@@ -770,13 +715,12 @@ test("prepares a writable environment for a classified consultation", async (con
   assert.equal(prepared, true);
 });
 
-test("publishes a change made during a classified consultation", async (context) => {
+test("publishes a change made while answering a question", async (context) => {
   const paths = await fixture(context);
   const github = githubStub();
   const runner = createProjectRunner({
     config: configFor(paths),
     github,
-    classifyRequest: async () => ({ kind: "consultation" }),
     runModel: async ({ worktreePath }) => {
       writeFileSync(join(worktreePath, "change.txt"), "change\n");
       return { text: "Canvi fet.\nSUMMARY: feat(tools): add synthetic change" };
@@ -798,7 +742,6 @@ test("does not start the model when offline preparation fails", async (context) 
   const runner = createProjectRunner({
     config: configFor(paths),
     github,
-    classifyRequest: async () => ({ kind: "implementation" }),
     executeSandbox: async () => ({ exitCode: 1, timedOut: false }),
     executeAgent: async () => {
       modelStarted = true;
@@ -817,7 +760,6 @@ test("reports a timed-out preparation without starting the model", async (contex
   const runner = createProjectRunner({
     config: configFor(paths),
     github: githubStub(),
-    classifyRequest: async () => ({ kind: "implementation" }),
     executeSandbox: async () => ({ exitCode: -1, timedOut: true }),
     executeAgent: async () => assert.fail("model must not run"),
   });
@@ -832,7 +774,6 @@ test("publishes a small change as a pull request after the checks pass", async (
   const checks = [];
   const runner = createProjectRunner({
     config: configFor(paths),
-    classifyRequest: async () => ({ kind: "implementation" }),
     github,
     runModel: async ({ worktreePath }) => {
       writeFileSync(join(worktreePath, "change.txt"), "canvi\n");
@@ -881,7 +822,6 @@ test("passes a fresh Git file inventory to the sandbox checks without mounting G
   const runner = createProjectRunner({
     config: configFor(paths),
     github: githubStub(),
-    classifyRequest: async () => ({ kind: "implementation" }),
     runModel: async ({ worktreePath }) => {
       writeFileSync(join(worktreePath, "new file.md"), "# New\n");
       mkdirSync(join(worktreePath, ".agent-attachments"), { recursive: true });
@@ -921,7 +861,6 @@ test("the service inventory lets the real documentation checker run without the 
   const runner = createProjectRunner({
     config: configFor(paths),
     github,
-    classifyRequest: async () => ({ kind: "implementation" }),
     runModel: async ({ worktreePath }) => {
       mkdirSync(join(worktreePath, "docs"));
       writeFileSync(
@@ -975,7 +914,6 @@ test("does not publish files created after the documentation inventory was captu
     config: configFor(paths),
     github,
     logger: (event) => events.push(event),
-    classifyRequest: async () => ({ kind: "implementation" }),
     runModel: async ({ worktreePath }) => {
       writeFileSync(join(worktreePath, "change.txt"), "change\n");
       return { text: "Canvi fet.\nSUMMARY: feat(tools): add synthetic change" };
@@ -1000,7 +938,6 @@ test("leaves a file deleted by the checkpointed change out of the documentation 
   const runner = createProjectRunner({
     config: configFor(paths),
     github: githubStub(),
-    classifyRequest: async () => ({ kind: "implementation" }),
     runModel: async ({ worktreePath }) => {
       unlinkSync(join(worktreePath, "README.md"));
       return { text: "Canvi fet.\nSUMMARY: fix(tools): remove synthetic file" };
@@ -1028,7 +965,6 @@ test("does not publish a tracked file deleted during the checks", async (context
   const runner = createProjectRunner({
     config: configFor(paths),
     github,
-    classifyRequest: async () => ({ kind: "implementation" }),
     runModel: async ({ worktreePath }) => {
       writeFileSync(join(worktreePath, "change.txt"), "change\n");
       return { text: "Canvi fet.\nSUMMARY: feat(tools): add synthetic change" };
@@ -1058,7 +994,6 @@ test("keeps an unconfirmed sandbox stop uncertain even if inventory cleanup fail
   const runner = createProjectRunner({
     config: configFor(paths),
     github,
-    classifyRequest: async () => ({ kind: "implementation" }),
     runModel: async ({ worktreePath }) => {
       writeFileSync(join(worktreePath, "change.txt"), "change\n");
       return { text: "Canvi fet.\nSUMMARY: feat(tools): add synthetic change" };
@@ -1096,7 +1031,6 @@ async function runMainSync(
   const runner = createProjectRunner({
     config: configFor(paths),
     github,
-    classifyRequest: async () => ({ kind: "implementation" }),
     runModel: async ({ worktreePath, instruction }) => {
       modelTurns += 1;
       if (modelTurns === 2) {
@@ -1293,7 +1227,6 @@ test("publishes pending work after a later question when checks recover", async 
   const runner = createProjectRunner({
     config: configFor(paths),
     github,
-    classifyRequest: async () => ({ kind: "implementation" }),
     runModel: async ({ worktreePath }) => {
       turn += 1;
       events.push(`model:${turn}`);
@@ -1345,7 +1278,6 @@ test("retries the same refused commit after the next model turn", async (context
   const runner = createProjectRunner({
     config: configFor(paths),
     github,
-    classifyRequest: async () => ({ kind: "implementation" }),
     runModel: async ({ worktreePath }) => {
       turns += 1;
       events.push(`model:${turns}`);
@@ -1413,7 +1345,6 @@ test("retries a refused commit on an already bound pull request", async (context
     config: configFor(paths),
     github,
     topicJobs,
-    classifyRequest: async () => ({ kind: "implementation" }),
     runModel: async ({ worktreePath }) => {
       turns += 1;
       if (turns < 3) {
@@ -1460,7 +1391,6 @@ test("reports a persistent publication block after each model turn", async (cont
   const runner = createProjectRunner({
     config: configFor(paths),
     github,
-    classifyRequest: async () => ({ kind: "implementation" }),
     runModel: async ({ worktreePath }) => {
       modelTurns += 1;
       if (modelTurns === 1) {
@@ -1500,7 +1430,6 @@ test("does not bind a topic when local checks block publication", async (context
     config: configFor(paths),
     github,
     topicJobs,
-    classifyRequest: async () => ({ kind: "implementation" }),
     runModel: async ({ worktreePath }) => {
       writeFileSync(join(worktreePath, "change.txt"), "change\n");
       return { text: "SUMMARY: feat(tools): add synthetic change" };
@@ -1521,7 +1450,6 @@ test("does not take another topic's pull request when its number is mentioned", 
   const runner = createProjectRunner({
     config: configFor(paths),
     github,
-    classifyRequest: async () => ({ kind: "continuation" }),
     runModel: async ({ instruction }) => {
       assert.match(instruction, /#321/u);
       return { text: "Resposta." };
@@ -1589,7 +1517,6 @@ async function assertAdvancedPullRequest(
     config: configFor(paths),
     github,
     topicJobs,
-    classifyRequest: async () => ({ kind: "implementation" }),
     runModel: async ({ worktreePath, instruction }) => {
       if (pendingConflict && instruction.includes("Conflicted paths")) {
         conflictTurns += 1;
@@ -1897,7 +1824,6 @@ test("a bound pull request that cannot be read before the push fails locally", a
     config: configFor(paths),
     github,
     topicJobs,
-    classifyRequest: async () => ({ kind: "implementation" }),
     runModel: async ({ worktreePath }) => {
       turns += 1;
       writeFileSync(join(worktreePath, "change.txt"), `change ${turns}\n`);
@@ -1955,7 +1881,6 @@ test("two implementation turns publish to the first bound pull request", async (
     config: configFor(paths),
     github,
     topicJobs,
-    classifyRequest: async () => ({ kind: "implementation" }),
     prepareAttachment: createAttachmentPreparation({
       telegram: telegramAttachment(pngImage({ width: 200, height: 100 })),
     }),
@@ -2052,7 +1977,6 @@ test("runs the fast gate for a web-only change and names it in the pull request"
   const commands = [];
   const runner = createProjectRunner({
     config: configFor(paths),
-    classifyRequest: async () => ({ kind: "implementation" }),
     github,
     sessionNotes: notes,
     runModel: async ({ worktreePath }) => {
@@ -2102,7 +2026,6 @@ test("runs the full gate when the change also touches files outside the web app 
   const commands = [];
   const runner = createProjectRunner({
     config: configFor(paths),
-    classifyRequest: async () => ({ kind: "implementation" }),
     github,
     runModel: async ({ worktreePath }) => {
       const postDirectory = join(worktreePath, "apps/web/src/content/posts");
@@ -2134,7 +2057,6 @@ test("puts the preview label on the pull request it creates and never again on a
   const github = githubStub();
   const runner = createProjectRunner({
     config: configFor(paths),
-    classifyRequest: async () => ({ kind: "implementation" }),
     github,
     runModel: async ({ worktreePath }) => {
       writeFileSync(join(worktreePath, "change.txt"), "canvi\n");
@@ -2174,7 +2096,6 @@ test("says plainly that the preview could not be activated and keeps the publica
   const runner = createProjectRunner({
     recordTrace: (entry) => traces.push(entry),
     config: configFor(paths),
-    classifyRequest: async () => ({ kind: "implementation" }),
     github,
     runModel: async ({ worktreePath }) => {
       writeFileSync(join(worktreePath, "change.txt"), "canvi\n");
@@ -2212,7 +2133,6 @@ test("sends the failure notice once when the label and the CI watch both fail", 
   const runner = createProjectRunner({
     recordTrace: (entry) => traces.push(entry),
     config: configFor(paths),
-    classifyRequest: async () => ({ kind: "implementation" }),
     github,
     ciWatches,
     runModel: async ({ worktreePath }) => {
@@ -2239,7 +2159,6 @@ test("sends the model answer with one plain notice and the review link after a p
   const github = githubStub();
   const runner = createProjectRunner({
     config: configFor(paths),
-    classifyRequest: async () => ({ kind: "implementation" }),
     github,
     runModel: async ({ worktreePath }) => {
       writeFileSync(join(worktreePath, "change.txt"), "canvi\n");
@@ -2287,7 +2206,6 @@ test("registers the CI watch for the published commit without waiting for CI", a
     assert.fail("the instruction must not wait for CI");
   const runner = createProjectRunner({
     config: configFor(paths),
-    classifyRequest: async () => ({ kind: "implementation" }),
     github,
     ciWatches,
     runModel: async ({ worktreePath }) => {
@@ -2322,7 +2240,6 @@ test("follows the preview of every commit it publishes, without a request", asyn
   const followed = [];
   const runner = createProjectRunner({
     config: configFor(paths),
-    classifyRequest: async () => ({ kind: "implementation" }),
     github: githubStub(),
     ciWatches,
     followPreview: (publication) => followed.push(publication),
@@ -2353,7 +2270,6 @@ test("ends the instruction unknown when the CI watch cannot be registered", asyn
   const github = githubStub();
   const runner = createProjectRunner({
     config: configFor(paths),
-    classifyRequest: async () => ({ kind: "implementation" }),
     github,
     ciWatches: {
       latestPublications: () => [],
@@ -2385,7 +2301,6 @@ test("keeps the worktree and publishes nothing when the checks fail", async (con
   const entries = [];
   const runner = createProjectRunner({
     config: configFor(paths),
-    classifyRequest: async () => ({ kind: "implementation" }),
     github,
     logger: (event, detail) => entries.push([event, detail]),
     runModel: async ({ worktreePath }) => {
@@ -2478,14 +2393,11 @@ for (const scenario of [
     }
     const sessionNotes = noteStore(context, paths);
     const prompts = [];
-    const replies = [];
     const runner = createProjectRunner({
       config: configFor(paths),
-      classifyRequest: async () => ({ kind: "implementation" }),
       github,
       sessionNotes,
       runModel: async (options) => {
-        replies.push(sessionNotes.lastReply(topicSessionKey));
         prompts.push(options.claimServiceNotes().join("\n"));
         options.onPromptSent();
         if (prompts.length > 1) return { text: "Resposta.", errorMessage: "x" };
@@ -2504,7 +2416,6 @@ for (const scenario of [
     const report = `He fet el canvi.\n\n${scenario.expectedReport}`;
     assert.equal(result.outcome, "failed");
     assert.equal(result.report, report);
-    assert.equal(replies[1], report);
     for (const pattern of scenario.expectedDetail) {
       assert.match(prompts[1], pattern);
     }
@@ -2525,7 +2436,6 @@ test("refuses a nested repository locally without entering it and keeps the work
   const marker = join(paths.directory, "filter-ran");
   const runner = createProjectRunner({
     config: configFor(paths),
-    classifyRequest: async () => ({ kind: "implementation" }),
     github,
     logger: (event, detail) => entries.push([event, detail]),
     runModel: async ({ worktreePath }) => {
@@ -2615,7 +2525,6 @@ for (const scenario of [
     const controller = new AbortController();
     const runner = createProjectRunner({
       config: configFor(paths),
-      classifyRequest: async () => ({ kind: "implementation" }),
       github,
       logger: (event, detail) => entries.push([event, detail]),
       runModel: async ({ worktreePath }) => {
@@ -2660,7 +2569,6 @@ for (const edits of [false, true]) {
     const github = githubStub();
     const runner = createProjectRunner({
       config: configFor(paths),
-      classifyRequest: async () => ({ kind: "implementation" }),
       github,
       runModel: async ({ worktreePath }) => {
         if (edits) writeFileSync(join(worktreePath, "change.txt"), "partial\n");
@@ -2683,7 +2591,6 @@ test("reports a timed-out local run as failed and keeps the work", async (contex
   const github = githubStub();
   const runner = createProjectRunner({
     config: configFor(paths),
-    classifyRequest: async () => ({ kind: "implementation" }),
     github,
     runModel: async () => ({ text: "", timedOut: true }),
     runChecks: async () => assert.fail("checks must not run"),
@@ -2697,7 +2604,6 @@ test("reports a timed-out local run as failed and keeps the work", async (contex
 });
 
 for (const failureStage of [
-  "classification",
   "model",
   "checks",
   "checks_timeout",
@@ -2711,11 +2617,6 @@ for (const failureStage of [
     const runner = createProjectRunner({
       config: configFor(paths),
       github,
-      classifyRequest: async () => {
-        if (failureStage === "classification")
-          throw new Error("Synthetic classifier failure");
-        return { kind: "implementation" };
-      },
       runModel: async ({ worktreePath }) => {
         if (failureStage === "model")
           throw new Error("Synthetic model failure");
@@ -2744,7 +2645,6 @@ test("logs the reason of a local failure for the operator", async (context) => {
     config: configFor(paths),
     github: githubStub(),
     logger: (event, detail) => entries.push([event, detail]),
-    classifyRequest: async () => ({ kind: "implementation" }),
     runModel: async () => {
       throw new Error("Synthetic model failure");
     },
@@ -2777,7 +2677,6 @@ for (const diagnostics of [
       config: configFor(paths),
       github: githubStub(),
       logger: (event, detail) => entries.push([event, detail]),
-      classifyRequest: async () => ({ kind: "implementation" }),
       runModel: async () => {
         throw new PiRunError("private error message", {
           ...diagnostics,
@@ -2804,7 +2703,6 @@ test("blocks after an unconfirmed sandbox stop even before publication", async (
   const runner = createProjectRunner({
     config: configFor(paths),
     github,
-    classifyRequest: async () => ({ kind: "implementation" }),
     runModel: async () => {
       throw new SandboxCleanupError({
         cause: new Error("Synthetic stop failure"),
@@ -2824,7 +2722,6 @@ test("runs a continuation without pending work as a writable topic turn", async 
   const runner = createProjectRunner({
     config: configFor(paths),
     github,
-    classifyRequest: async () => ({ kind: "continuation" }),
     runModel: async (modelContext) => {
       modelContexts.push(modelContext);
       return { text: "Aquest tema no té feina pendent." };
@@ -2837,7 +2734,6 @@ test("runs a continuation without pending work as a writable topic turn", async 
   assert.equal(result.outcome, "answered");
   assert.equal(result.report, "Aquest tema no té feina pendent.");
   assert.equal(modelContexts.length, 1, "the message reaches the session");
-  assert.equal(modelContexts[0].kind, "implementation");
   assert.equal(github.pushes.length, 0, "a consultation publishes nothing");
   assert.equal(
     await git(topicWorktreePath(paths), ["branch", "--show-current"]),
@@ -2850,17 +2746,12 @@ test("publishes the answer of a continuation on a clean topic that asked a quest
   const paths = await fixture(context);
   const notes = noteStore(context, paths);
   const github = githubStub();
-  const kinds = [];
   let turn = 0;
   const runner = createProjectRunner({
     config: configFor(paths),
     github,
     sessionNotes: notes,
-    classifyRequest: async () => ({
-      kind: turn === 0 ? "implementation" : "continuation",
-    }),
-    runModel: async ({ worktreePath, kind }) => {
-      kinds.push(kind);
+    runModel: async ({ worktreePath }) => {
       turn += 1;
       if (turn === 1) {
         return { text: "Quants participants hi havia?" };
@@ -2885,7 +2776,6 @@ test("publishes the answer of a continuation on a clean topic that asked a quest
     "pull_request_created",
     "the answer to the question keeps the writable turn",
   );
-  assert.deepEqual(kinds, ["implementation", "implementation"]);
   assert.equal(github.pulls.length, 1);
 });
 
@@ -2898,7 +2788,6 @@ test("passes the configured provider credentials to the publication scanner", as
   };
   const runner = createProjectRunner({
     config,
-    classifyRequest: async () => ({ kind: "implementation" }),
     github,
     runModel: async ({ worktreePath }) => {
       writeFileSync(join(worktreePath, "change.txt"), "change\n");
@@ -2919,7 +2808,6 @@ test("uses a conventional fallback when the model omits the summary", async (con
   const github = githubStub();
   const runner = createProjectRunner({
     config: configFor(paths),
-    classifyRequest: async () => ({ kind: "implementation" }),
     github,
     runModel: async ({ worktreePath }) => {
       writeFileSync(join(worktreePath, "change.txt"), "canvi\n");
@@ -2942,7 +2830,6 @@ test("keeps one worktree per topic so the Pi session continues", async (context)
   const seen = [];
   const runner = createProjectRunner({
     config: configFor(paths),
-    classifyRequest: async () => ({ kind: "implementation" }),
     github: githubStub(),
     runModel: async ({ worktreePath }) => {
       seen.push(worktreePath);
@@ -2964,7 +2851,6 @@ test("gives the sandbox an opaque name that carries no chat or topic", async (co
   const seen = [];
   const runner = createProjectRunner({
     config: configFor(paths),
-    classifyRequest: async () => ({ kind: "implementation" }),
     github: githubStub(),
     runModel: async (modelContext) => {
       seen.push(modelContext);
@@ -3011,12 +2897,6 @@ test("continues the unpublished branch when the previous checks failed", async (
   let checksPass = false;
   const runner = createProjectRunner({
     config: configFor(paths),
-    classifyRequest: async ({ instruction }) => ({
-      kind:
-        instruction === "Continua la feina pendent."
-          ? "continuation"
-          : "implementation",
-    }),
     github,
     runModel: async ({ worktreePath }) => {
       writeFileSync(join(worktreePath, "change.txt"), "canvi\n");
@@ -3053,7 +2933,6 @@ test("starts a new branch from the latest main after a published change", async 
   let attempt = 0;
   const runner = createProjectRunner({
     config: configFor(paths),
-    classifyRequest: async () => ({ kind: "implementation" }),
     github,
     runModel: async ({ worktreePath }) => {
       attempt += 1;
@@ -3105,7 +2984,6 @@ test("reports a local publication refusal as a failure, not an unknown result", 
   };
   const runner = createProjectRunner({
     config: configFor(paths),
-    classifyRequest: async () => ({ kind: "implementation" }),
     github,
     runModel: async ({ worktreePath }) => {
       writeFileSync(join(worktreePath, "leaked.env"), "TOKEN=secret\n");
@@ -3137,12 +3015,6 @@ test("retries a locally refused publication without losing or duplicating the co
   const runner = createProjectRunner({
     config: configFor(paths),
     github,
-    classifyRequest: async ({ instruction }) => ({
-      kind:
-        instruction === "Torna a provar la publicació pendent."
-          ? "continuation"
-          : "implementation",
-    }),
     runModel: async ({ worktreePath }) => {
       if (turns === 0)
         writeFileSync(
@@ -3188,7 +3060,6 @@ for (const operationName of ["pushBranch", "ensurePullRequest"]) {
     const runner = createProjectRunner({
       config: configFor(paths),
       github,
-      classifyRequest: async () => ({ kind: "implementation" }),
       runModel: async ({ worktreePath }) => {
         writeFileSync(join(worktreePath, "change.txt"), "keep this commit\n");
         return {
@@ -3222,7 +3093,6 @@ test("keeps the instruction uncertain when the publication deadline expires afte
   const runner = createProjectRunner({
     config: configFor(paths),
     github,
-    classifyRequest: async () => ({ kind: "implementation" }),
     runModel: async ({ worktreePath }) => {
       writeFileSync(join(worktreePath, "change.txt"), "keep this commit\n");
       return { text: "SUMMARY: fix(agent): bound the publication" };
@@ -3258,7 +3128,6 @@ function unreadablePullRequestRead(milliseconds) {
 async function publishedWorktree(context, paths, github, ciWatches) {
   const runner = createProjectRunner({
     config: configFor(paths),
-    classifyRequest: async () => ({ kind: "implementation" }),
     github,
     ciWatches,
     runModel: async ({ worktreePath }) => {
@@ -3271,122 +3140,12 @@ async function publishedWorktree(context, paths, github, ciWatches) {
   return git(topicWorktreePath(paths), ["rev-parse", "HEAD"]);
 }
 
-test("classifies a request that only claims a kind it does not own", async (context) => {
-  const paths = await fixture(context);
-  let classified = false;
-  const runner = createProjectRunner({
-    config: configFor(paths),
-    github: githubStub(),
-    classifyRequest: async () => {
-      classified = true;
-      return { kind: "consultation" };
-    },
-    runModel: async () => ({ text: "Resposta sintètica." }),
-  });
-
-  const result = await runner(request({ kind: "implementation" }));
-
-  assert.equal(classified, true);
-  assert.equal(result.outcome, "answered");
-  assert.equal(result.report, "Resposta sintètica.");
-});
-
-test("routes a preview request to the service without starting the model or touching a worktree", async (context) => {
-  const paths = await fixture(context);
-  const github = githubStub();
-  const requests = [];
-  const runner = createProjectRunner({
-    config: configFor(paths),
-    classifyRequest: async () => ({ kind: "preview" }),
-    github,
-    requestPreview: async (previewRequest) => {
-      requests.push(previewRequest.updateIdentifier);
-      return { outcome: "answered", report: "Preview demanada" };
-    },
-    runModel: async () => assert.fail("the model must not run for a preview"),
-    runChecks: async () => assert.fail("checks must not run for a preview"),
-  });
-
-  const result = await runner(request());
-
-  assert.deepEqual(result, { outcome: "answered", report: "Preview demanada" });
-  assert.deepEqual(requests, [1001]);
-  assert.deepEqual(github.pushes, []);
-  assert.deepEqual(github.pulls, []);
-  assert.equal(existsSync(join(paths.worktrees, "scratch-1001")), false);
-});
-
-test("a preview store failure reaches the runner failure report", async (context) => {
-  const paths = await fixture(context);
-  const runner = createProjectRunner({
-    config: configFor(paths),
-    classifyRequest: async () => ({ kind: "preview" }),
-    github: githubStub(),
-    requestPreview: async () => {
-      throw new Error("database is locked");
-    },
-    runModel: async () => assert.fail("the model must not run for a preview"),
-    runChecks: async () => assert.fail("checks must not run for a preview"),
-  });
-
-  const result = await runner(request());
-
-  assert.equal(result.outcome, "failed");
-});
-
-test("never lets the last reply of the topic turn a request into a preview", async (context) => {
-  const paths = await fixture(context);
-  const notes = noteStore(context, paths);
-  notes.recordReply({
-    sessionKey: topicSessionKey,
-    text: "Quan vulguis, demana la preview d'aquest canvi.",
-  });
-  const lastReplies = [];
-  const previewRequests = [];
-  const runner = createProjectRunner({
-    config: configFor(paths),
-    github: githubStub(),
-    sessionNotes: notes,
-    classifyRequest: async ({ context: classification }) => {
-      lastReplies.push(classification.lastAgentReply);
-      // A hostile last reply is the only reason this classifier sees a preview.
-      return {
-        kind:
-          classification.lastAgentReply === null ? "consultation" : "preview",
-      };
-    },
-    requestPreview: async (previewRequest) => {
-      previewRequests.push(previewRequest.updateIdentifier);
-      return { outcome: "answered", report: "Preview demanada" };
-    },
-    runModel: async () => ({ text: "Aquest tema encara no té cap canvi." }),
-    runChecks: async () =>
-      assert.fail("checks must not run for a consultation"),
-  });
-
-  const result = await runner(request({ instruction: "i ara què passa?" }));
-
-  assert.equal(result.outcome, "answered");
-  assert.equal(result.report, "Aquest tema encara no té cap canvi.");
-  assert.deepEqual(
-    previewRequests,
-    [],
-    "untrusted text never requests a preview",
-  );
-  assert.deepEqual(lastReplies, [
-    "Quan vulguis, demana la preview d'aquest canvi.",
-    null,
-  ]);
-});
-
-test("routes a literal /merge command to the service before the classifier and the model", async (context) => {
+test("routes a literal /merge command to the service before the model", async (context) => {
   const paths = await fixture(context);
   const github = githubStub();
   const commands = [];
   const runner = createProjectRunner({
     config: configFor(paths),
-    classifyRequest: async () =>
-      assert.fail("the classifier must not see /merge"),
     github,
     requestMerge: async (mergeRequest, command) => {
       commands.push([mergeRequest.updateIdentifier, command]);
@@ -3412,9 +3171,9 @@ test("routes a literal /merge command to the service before the classifier and t
   assert.equal(existsSync(join(paths.worktrees, "scratch-1001")), false);
 });
 
-test("only contextual replies bypass the classifier for merge confirmation", async (context) => {
+test("only contextual replies reach the merge confirmation", async (context) => {
   const paths = await fixture(context);
-  const classified = [];
+  const modelInstructions = [];
   mkdirSync(paths.state, { recursive: true });
   const store = new MergeRequestStore(join(paths.state, "merge.sqlite"));
   context.after(() => store.close());
@@ -3482,11 +3241,10 @@ test("only contextual replies bypass the classifier for merge confirmation", asy
   const runner = createProjectRunner({
     config: configFor(paths),
     github: githubStub(),
-    classifyRequest: async ({ instruction }) => {
-      classified.push(instruction);
-      return { kind: "clarification" };
+    runModel: async ({ instruction }) => {
+      modelInstructions.push(instruction);
+      return { text: "Entesos." };
     },
-    runModel: async () => ({ text: "Entesos." }),
     requestMergeConfirmation: mergeConfirmation,
   });
 
@@ -3498,7 +3256,7 @@ test("only contextual replies bypass the classifier for merge confirmation", asy
     }),
   );
   assert.equal(outOfContextValidation.report, "Entesos.");
-  assert.deepEqual(classified, ["La feina està validada"]);
+  assert.deepEqual(modelInstructions, ["La feina està validada"]);
 
   const contextualValidation = await runner(
     request({
@@ -3509,7 +3267,7 @@ test("only contextual replies bypass the classifier for merge confirmation", asy
   );
   assert.equal(contextualValidation.outcome, "merge_context");
   assert.equal(sentQuestions.length, 1);
-  assert.deepEqual(classified, ["La feina està validada"]);
+  assert.deepEqual(modelInstructions, ["La feina està validada"]);
 
   const outOfContextConfirm = await runner(
     request({
@@ -3520,21 +3278,20 @@ test("only contextual replies bypass the classifier for merge confirmation", asy
   );
   assert.equal(outOfContextConfirm.outcome, "merge_context");
   assert.match(outOfContextConfirm.report, /confirmació no és vàlida/u);
-  assert.deepEqual(classified, ["La feina està validada"]);
+  assert.deepEqual(modelInstructions, ["La feina està validada"]);
 });
 
 test("never treats prose as a merge", async (context) => {
   const paths = await fixture(context);
-  const classified = [];
+  let turns = 0;
   const runner = createProjectRunner({
     config: configFor(paths),
-    classifyRequest: async ({ instruction }) => {
-      classified.push(instruction);
-      return { kind: "clarification" };
-    },
     github: githubStub(),
     requestMerge: async () => assert.fail("prose must never reach a merge"),
-    runModel: async () => ({ text: "Vols que la fusioni?" }),
+    runModel: async () => {
+      turns += 1;
+      return { text: "Vols que la fusioni?" };
+    },
     runChecks: async () => assert.fail("checks must not run"),
   });
 
@@ -3547,7 +3304,7 @@ test("never treats prose as a merge", async (context) => {
     assert.equal(result.outcome, "answered");
     assert.equal(result.report, "Vols que la fusioni?");
   }
-  assert.equal(classified.length, 3);
+  assert.equal(turns, 3);
 });
 
 test("a merge store failure reaches the runner failure report", async (context) => {
@@ -3604,7 +3361,6 @@ test("does not warn about the files of another topic's pull request", async (con
   const traces = [];
   const runner = createProjectRunner({
     config: configFor(paths),
-    classifyRequest: async () => ({ kind: "implementation" }),
     github: githubStub(),
     ciWatches,
     recordTrace: (entry) => traces.push(entry),
@@ -3619,10 +3375,7 @@ test("does not warn about the files of another topic's pull request", async (con
 
   assert.equal(result.outcome, "pull_request_created");
   assert.doesNotMatch(result.report, /solapament|PR #321/u);
-  assert.deepEqual(
-    traces.map((entry) => entry.action),
-    ["instruction_classified"],
-  );
+  assert.deepEqual(traces, []);
 });
 
 test("never compares overlaps for a consultation", async (context) => {
@@ -3634,7 +3387,6 @@ test("never compares overlaps for a consultation", async (context) => {
   const traces = [];
   const runner = createProjectRunner({
     config: configFor(paths),
-    classifyRequest: async () => ({ kind: "consultation" }),
     github: githubStub(),
     ciWatches,
     recordTrace: (entry) => traces.push(entry),
@@ -3646,11 +3398,7 @@ test("never compares overlaps for a consultation", async (context) => {
 
   assert.equal(result.outcome, "answered");
   assert.equal(result.report, "Resposta sintètica.");
-  assert.deepEqual(
-    traces.map((entry) => entry.action),
-    ["instruction_classified"],
-    "a consultation compares no overlaps",
-  );
+  assert.deepEqual(traces, [], "a consultation compares no overlaps");
 });
 
 test("never compares overlaps for a continuation without changes", async (context) => {
@@ -3662,7 +3410,6 @@ test("never compares overlaps for a continuation without changes", async (contex
   const traces = [];
   const runner = createProjectRunner({
     config: configFor(paths),
-    classifyRequest: async () => ({ kind: "continuation" }),
     github: githubStub(),
     ciWatches,
     recordTrace: (entry) => traces.push(entry),
@@ -3671,10 +3418,7 @@ test("never compares overlaps for a continuation without changes", async (contex
   });
 
   assert.equal((await runner(request())).outcome, "answered");
-  assert.deepEqual(
-    traces.map((entry) => entry.action),
-    ["instruction_classified"],
-  );
+  assert.deepEqual(traces, []);
 });
 
 test("publishes a continuation without an overlap warning", async (context) => {
@@ -3689,12 +3433,6 @@ test("publishes a continuation without an overlap warning", async (context) => {
     github: githubStub(),
     ciWatches,
     recordTrace: (entry) => traces.push(entry),
-    classifyRequest: async ({ instruction }) => ({
-      kind:
-        instruction === "Continua la feina pendent."
-          ? "continuation"
-          : "implementation",
-    }),
     runModel: async ({ worktreePath }) => {
       writeFileSync(join(worktreePath, "pending.txt"), "pendent\n");
       return { text: "SUMMARY: feat(tools): keep the pending work" };
@@ -3719,45 +3457,8 @@ test("publishes a continuation without an overlap warning", async (context) => {
   assert.doesNotMatch(result.report, /una feina local d'un altre tema/u);
   assert.deepEqual(
     traces.map((entry) => entry.action),
-    [
-      "instruction_classified",
-      "maintainer_attention",
-      "instruction_classified",
-    ],
+    ["maintainer_attention"],
   );
-});
-
-test("keeps publishing when the overlap warning cannot be computed", async (context) => {
-  const paths = await fixture(context);
-  const entries = [];
-  const registered = [];
-  const runner = createProjectRunner({
-    config: configFor(paths),
-    classifyRequest: async () => ({ kind: "implementation" }),
-    github: githubStub(),
-    ciWatches: {
-      latestPublications() {
-        throw new Error("Synthetic state failure");
-      },
-      add(watch) {
-        registered.push(watch);
-      },
-    },
-    logger: (event, detail) => entries.push([event, detail]),
-    runModel: async ({ worktreePath }) => {
-      writeFileSync(join(worktreePath, "change.txt"), "canvi\n");
-      return { text: "SUMMARY: feat(tools): change a file" };
-    },
-    runChecks: async () => ({ exitCode: 0 }),
-  });
-
-  const result = await runner(request());
-
-  assert.equal(result.outcome, "pull_request_created");
-  assert.match(result.report, /pull\/200/u);
-  assert.doesNotMatch(result.report, /solapament/u);
-  assert.deepEqual(entries, [["topic_pull_request_failed", "Error"]]);
-  assert.equal(registered.length, 1);
 });
 
 test("keeps the checkpointed work unpublished when the signal aborts during checks", async (context) => {
@@ -3766,7 +3467,6 @@ test("keeps the checkpointed work unpublished when the signal aborts during chec
   const controller = new AbortController();
   const runner = createProjectRunner({
     config: configFor(paths),
-    classifyRequest: async () => ({ kind: "implementation" }),
     github,
     ciWatches: {
       latestPublications() {
@@ -3836,7 +3536,6 @@ test("places an attached image and appends the service text to the instruction",
   const runner = createProjectRunner({
     config: configFor(paths),
     github: githubStub(),
-    classifyRequest: async () => ({ kind: "implementation" }),
     prepareAttachment: createAttachmentPreparation({
       telegram: telegramAttachment(image),
     }),
@@ -3936,7 +3635,6 @@ test("carries the audience rules, the state of the topic and the attachment line
     },
     ciWatches,
     mergeRequests,
-    classifyRequest: async () => ({ kind: "implementation" }),
     prepareAttachment: createAttachmentPreparation({
       telegram: telegramAttachment(image),
     }),
@@ -3995,7 +3693,6 @@ test("passes an image to a consultation with web research enabled", async (conte
   const runner = createProjectRunner({
     config: configFor(paths),
     github: githubStub(),
-    classifyRequest: async () => ({ kind: "consultation" }),
     research: {
       resume: async () => null,
       turn: () => ({
@@ -4006,8 +3703,7 @@ test("passes an image to a consultation with web research enabled", async (conte
     prepareAttachment: createAttachmentPreparation({
       telegram: telegramAttachment(image),
     }),
-    runModel: async ({ instruction, images, kind }) => {
-      assert.notEqual(kind, "consultation");
+    runModel: async ({ instruction, images }) => {
       assert.match(instruction, /imatge-1\.png/u);
       assert.equal(images.length, 1);
       return { text: "Resposta." };
@@ -4027,7 +3723,6 @@ test("reports a refused attachment without starting the model", async (context) 
   const runner = createProjectRunner({
     config: configFor(paths),
     github: githubStub(),
-    classifyRequest: async () => ({ kind: "implementation" }),
     prepareAttachment: createAttachmentPreparation({
       telegram: telegramAttachment(image),
     }),
@@ -4066,7 +3761,6 @@ test("never commits an attachment on a branch without the ignore rule", async (c
     config: configFor(paths),
     github,
     recordTrace: () => {},
-    classifyRequest: async () => ({ kind: "implementation" }),
     prepareAttachment: createAttachmentPreparation({
       telegram: telegramAttachment(image),
     }),
@@ -4105,7 +3799,6 @@ test("publishes nothing when the model only asks for the image rights", async (c
     config: configFor(paths),
     github,
     recordTrace: () => {},
-    classifyRequest: async () => ({ kind: "implementation" }),
     prepareAttachment: createAttachmentPreparation({
       telegram: telegramAttachment(pngImage({ width: 200, height: 100 })),
     }),
@@ -4133,7 +3826,6 @@ test("continues a branch created before the ignore rule without publishing the a
   const first = createProjectRunner({
     config: configFor(paths),
     github,
-    classifyRequest: async () => ({ kind: "implementation" }),
     runModel: async ({ worktreePath }) => {
       writeFileSync(join(worktreePath, "pending.txt"), "canvi pendent\n");
       return { text: "Canvi.\nSUMMARY: feat(content): pending change" };
@@ -4149,7 +3841,6 @@ test("continues a branch created before the ignore rule without publishing the a
     config: configFor(paths),
     github,
     recordTrace: () => {},
-    classifyRequest: async () => ({ kind: "continuation" }),
     prepareAttachment: createAttachmentPreparation({
       telegram: telegramAttachment(image),
     }),
@@ -4185,14 +3876,13 @@ test("continues a branch created before the ignore rule without publishing the a
 // T8.7: the conversation of a topic keeps every accepted message and receives
 // the effects the service decided since its previous turn.
 
-test("answers a clarification with one writable topic turn", async (context) => {
+test("answers an unclear message with one writable topic turn", async (context) => {
   const paths = await fixture(context);
   const github = githubStub();
   const runs = [];
   const runner = createProjectRunner({
     config: configFor(paths),
     github,
-    classifyRequest: async () => ({ kind: "clarification" }),
     executeSandbox: async () => ({ exitCode: 0, timedOut: false }),
     executeAgent: async (_config, options) => {
       runs.push({ ...options, message: promptOf(options) });
@@ -4227,7 +3917,6 @@ test("falls back to the fixed clarification text when the turn answers nothing",
   const runner = createProjectRunner({
     config: configFor(paths),
     github: githubStub(),
-    classifyRequest: async () => ({ kind: "clarification" }),
     runModel: async () => ({ text: "   " }),
     runChecks: async () => assert.fail("checks must not run"),
   });
@@ -4238,63 +3927,7 @@ test("falls back to the fixed clarification text when the turn answers nothing",
   assert.equal(result.report, instructionReports.clarification);
 });
 
-test("gives the classifier the last reply and the pending local work", async (context) => {
-  const paths = await fixture(context);
-  const notes = noteStore(context, paths);
-  const contexts = [];
-  const instructions = [];
-  let turn = 0;
-  const runner = createProjectRunner({
-    config: configFor(paths),
-    github: githubStub(),
-    sessionNotes: notes,
-    classifyRequest: async (classification) => {
-      contexts.push(classification.context);
-      turn += 1;
-      return { kind: turn === 1 ? "implementation" : "clarification" };
-    },
-    runModel: async ({ worktreePath, instruction }) => {
-      instructions.push(instruction);
-      if (turn === 1) {
-        writeFileSync(join(worktreePath, "facts.txt"), "els fets\n");
-        return { text: "SUMMARY: feat(content): add the facts" };
-      }
-      return { text: "Ja tinc els fets de la notícia." };
-    },
-    runChecks: async () => ({ exitCode: 1, stdout: "", stderr: "" }),
-  });
-
-  const first = await runner(request());
-  const second = await runner(
-    request({ updateIdentifier: 1002, instruction: "aquí tens els fets" }),
-  );
-
-  assert.equal(first.outcome, "failed");
-  assert.equal(second.outcome, "failed");
-  assert.equal(
-    second.report,
-    `Ja tinc els fets de la notícia.\n\n${instructionReports.checksFailed}`,
-  );
-  assert.equal(
-    instructions[1],
-    "aquí tens els fets",
-    "the message of the person reaches the session",
-  );
-  assert.deepEqual(
-    contexts[0],
-    { lastAgentReply: null, pendingLocalWork: false, topicPullRequest: null },
-    "the first request of the topic has no context",
-  );
-  assert.match(
-    contexts[1].lastAgentReply,
-    new RegExp(failedMaintainerNotice, "u"),
-    "the classifier reads the last text the topic received",
-  );
-  assert.equal(contexts[1].pendingLocalWork, true);
-  assert.equal(contexts[1].topicPullRequest, null);
-});
-
-test("prepends the service events of the topic once and never to the classifier", async (context) => {
+test("prepends the service events of the topic once", async (context) => {
   const paths = await fixture(context);
   const notes = noteStore(context, paths);
   const report =
@@ -4302,16 +3935,11 @@ test("prepends the service events of the topic once and never to the classifier"
   notes.addNote({ sessionKey: topicSessionKey, text: report });
   notes.addNote({ sessionKey: otherSessionKey, text: "Un altre tema." });
   const messages = [];
-  const classifications = [];
   const runner = createProjectRunner({
     executeSandbox: async () => ({ exitCode: 0, timedOut: false }),
     config: configFor(paths),
     github: githubStub(),
     sessionNotes: notes,
-    classifyRequest: async (classification) => {
-      classifications.push(classification);
-      return { kind: "consultation" };
-    },
     executeAgent: async (_config, options) => {
       messages.push(promptOf(options));
       return { text: "Resposta." };
@@ -4334,16 +3962,6 @@ test("prepends the service events of the topic once and never to the classifier"
     /Service events since your previous turn/u,
     "the same effect is never delivered twice",
   );
-  assert.equal(
-    JSON.stringify(classifications).includes(serviceNotesHeader),
-    false,
-    "the classifier never receives the service block",
-  );
-  assert.equal(
-    classifications[1].instruction,
-    request({ updateIdentifier: 1002 }).instruction,
-    "the classifier reads the request of the person, never the service block",
-  );
   assert.deepEqual(
     notes.claim(otherSessionKey).map((note) => note.text),
     ["Un altre tema."],
@@ -4362,7 +3980,6 @@ test("keeps the service events of a preparation that failed", async (context) =>
     config: configFor(paths),
     github: githubStub(),
     sessionNotes: notes,
-    classifyRequest: async () => ({ kind: "implementation" }),
     executeSandbox: async () => ({ exitCode: 1, timedOut: false }),
     executeAgent: async () => assert.fail("the model must not start"),
   });
@@ -4380,25 +3997,6 @@ test("keeps the service events of a preparation that failed", async (context) =>
   );
 });
 
-test("traces the classification of every instruction", async (context) => {
-  const paths = await fixture(context);
-  const traces = [];
-  const runner = createProjectRunner({
-    config: configFor(paths),
-    github: githubStub(),
-    recordTrace: (entry) => traces.push(entry),
-    classifyRequest: async () => ({ kind: "consultation" }),
-    runModel: async () => ({ text: "Resposta." }),
-  });
-
-  await runner(request());
-
-  assert.deepEqual(
-    traces.map((entry) => [entry.action, entry.detail]),
-    [["instruction_classified", "consultation"]],
-  );
-});
-
 // T8.7 review round 1: the operational sequences of the pilot, the note
 // lifecycle and the provenance of everything the session receives.
 
@@ -4410,7 +4008,6 @@ test("keeps the service events when the sandbox preparation runs out of time", a
     config: configFor(paths),
     github: githubStub(),
     sessionNotes: notes,
-    classifyRequest: async () => ({ kind: "implementation" }),
     executeSandbox: async () => ({ exitCode: -1, timedOut: true }),
     executeAgent: async () => assert.fail("the model must not start"),
   });
@@ -4442,7 +4039,6 @@ test("never returns the service events once the model received them", async (con
     github: githubStub(),
     sessionNotes: notes,
     executeSandbox: async () => ({ exitCode: 0, timedOut: false }),
-    classifyRequest: async () => ({ kind: "consultation" }),
     executeAgent: async (_config, options) => {
       prompts.push(promptOf(options));
       throw new Error("the sandbox cleanup failed after the turn");
@@ -4468,21 +4064,16 @@ test("never returns the service events once the model received them", async (con
 test("carries the question of the model into the next turn of the same session", async (context) => {
   const paths = await fixture(context);
   const notes = noteStore(context, paths);
-  const contexts = [];
   const prompts = [];
   let turn = 0;
   const runner = createProjectRunner({
     config: configFor(paths),
     github: githubStub(),
     sessionNotes: notes,
-    classifyRequest: async ({ context: classification }) => {
-      contexts.push(classification);
-      turn += 1;
-      return { kind: turn === 1 ? "implementation" : "continuation" };
-    },
     executeSandbox: async () => ({ exitCode: 0, timedOut: false }),
     executeAgent: async (_config, options) => {
       prompts.push({ ...options, message: promptOf(options) });
+      turn += 1;
       if (turn === 1) {
         return { text: "Quins són els fets de la notícia?" };
       }
@@ -4501,15 +4092,6 @@ test("carries the question of the model into the next turn of the same session",
   assert.equal(first.report, "Quins són els fets de la notícia?");
   assert.equal(second.outcome, "answered");
   assert.equal(second.report, "Gràcies, ja els tinc.");
-  assert.deepEqual(
-    contexts[1],
-    {
-      lastAgentReply: "Quins són els fets de la notícia?",
-      pendingLocalWork: false,
-      topicPullRequest: null,
-    },
-    "the classifier reads the question the model asked",
-  );
   assert.equal(
     prompts[0].sessionIdentifier,
     prompts[1].sessionIdentifier,
@@ -4532,7 +4114,6 @@ test("applies the image of a continuation to the pull request of the topic", asy
   const notes = noteStore(context, paths);
   const github = githubStub();
   const image = pngImage({ width: 1200, height: 800 });
-  const classifications = [];
   const prompts = [];
   const runner = createProjectRunner({
     config: configFor(paths),
@@ -4544,14 +4125,6 @@ test("applies the image of a continuation to the pull request of the topic", asy
       telegram: telegramAttachment(image),
     }),
     hasOtherInstructions: () => false,
-    classifyRequest: async ({ instruction, context: classification }) => {
-      classifications.push(classification);
-      return {
-        kind: instruction.includes("imatge")
-          ? "continuation"
-          : "implementation",
-      };
-    },
     executeSandbox: async () => ({ exitCode: 0, timedOut: false }),
     executeAgent: async (_config, options) => {
       prompts.push({ ...options, message: promptOf(options) });
@@ -4609,13 +4182,6 @@ test("applies the image of a continuation to the pull request of the topic", asy
   );
 
   assert.equal(second.outcome, "pull_request_updated", second.report);
-  assert.equal(
-    classifications[1].lastAgentReply.includes(savedNotice),
-    true,
-    "the classifier reads the publication report",
-  );
-  assert.deepEqual(classifications[1].pendingLocalWork, false);
-  assert.equal(classifications[1].topicPullRequest, 200);
   assert.match(prompts[1].message, new RegExp(serviceNotesHeader, "u"));
   assert.equal(
     (prompts[1].message.match(/Pull request (creada|actualitzada)/gu) ?? [])
@@ -4673,7 +4239,6 @@ test("keeps the service events when the Pi profile cannot be prepared", async (c
     config: configFor(paths),
     github: githubStub(),
     sessionNotes: notes,
-    classifyRequest: async () => ({ kind: "consultation" }),
   });
 
   const result = await runner(request());
@@ -4696,7 +4261,6 @@ test("keeps the service events when the turn stops before the prompt", async (co
     github: githubStub(),
     sessionNotes: notes,
     executeSandbox: async () => ({ exitCode: 0, timedOut: false }),
-    classifyRequest: async () => ({ kind: "consultation" }),
     executeAgent: async (config, options) => {
       // The stop arrives while the runtime prepares the profile: the prompt is
       // never sent.
@@ -4735,7 +4299,6 @@ test("keeps the service events when Pi never starts", async (context) => {
     // The sandbox cleanup is not what this test checks: it runs no container.
     executeSandbox: async () => ({ exitCode: 0, timedOut: false }),
     stopCommands: async () => {},
-    classifyRequest: async () => ({ kind: "consultation" }),
   });
 
   const result = await runner(request());
@@ -4761,7 +4324,6 @@ test("keeps the clarification fallback when an image turn answers nothing", asyn
     config: configFor(paths),
     github: githubStub(),
     sessionNotes: notes,
-    classifyRequest: async () => ({ kind: "consultation" }),
     prepareAttachment: createAttachmentPreparation({
       telegram: telegramAttachment(pngImage({ width: 200, height: 100 })),
     }),
@@ -4777,7 +4339,11 @@ test("keeps the clarification fallback when an image turn answers nothing", asyn
     result.report,
     new RegExp(attachmentReports.ignored, "u"),
   );
-  assert.equal(notes.lastReply(topicSessionKey), result.report);
+  assert.deepEqual(
+    notes.claim(topicSessionKey).map((note) => note.text),
+    [result.report],
+    "the fixed text is a service note",
+  );
 });
 
 test("keeps the service events when Pi never starts and the cleanup also fails", async (context) => {
@@ -4802,7 +4368,6 @@ test("keeps the service events when Pi never starts and the cleanup also fails",
     stopCommands: async () => {
       throw new SandboxCleanupError({ cause: new Error("podman is down") });
     },
-    classifyRequest: async () => ({ kind: "consultation" }),
   });
 
   const result = await runner(request());
@@ -4835,7 +4400,6 @@ test("keeps the service events when the turn stops before the prompt is written"
     sessionNotes: notes,
     stopCommands: async () => {},
     executeSandbox: async () => ({ exitCode: 0, timedOut: false }),
-    classifyRequest: async () => ({ kind: "consultation" }),
     executeAgent: async (agentConfig, options) =>
       runAgent(agentConfig, {
         ...options,
@@ -4868,7 +4432,6 @@ test("keeps listing the stored image on a later turn without a new attachment", 
   const runner = createProjectRunner({
     config: configFor(paths),
     github,
-    classifyRequest: async () => ({ kind: "implementation" }),
     prepareAttachment: createAttachmentPreparation({
       telegram: telegramAttachment(pngImage({ width: 200, height: 100 })),
     }),
@@ -4922,9 +4485,6 @@ test("reuses a stored image without another download", async (context) => {
   const runner = createProjectRunner({
     config: configFor(paths),
     github,
-    classifyRequest: async () => ({
-      kind: turn === 0 ? "implementation" : "consultation",
-    }),
     prepareAttachment: createAttachmentPreparation({
       telegram: {
         async getFile() {
@@ -4978,7 +4538,6 @@ test("removes the staged image when the model fails", async (context) => {
   const runner = createProjectRunner({
     config: configFor(paths),
     github: githubStub(),
-    classifyRequest: async () => ({ kind: "implementation" }),
     prepareAttachment: createAttachmentPreparation({
       telegram: telegramAttachment(pngImage({ width: 200, height: 100 })),
     }),
@@ -5021,12 +4580,6 @@ test("finds the image already committed when a publication is retried", async (c
     github,
     attachmentStore: store,
     recordTrace: (entry) => traces.push(entry),
-    classifyRequest: async ({ instruction }) => ({
-      kind:
-        instruction === "Torna a provar la publicació pendent."
-          ? "continuation"
-          : "implementation",
-    }),
     prepareAttachment: createAttachmentPreparation({
       telegram: telegramAttachment(pngImage({ width: 1200, height: 800 })),
     }),
@@ -5080,7 +4633,6 @@ test("sends the prepared image of the turn as image input of the prompt", async 
   const runner = createProjectRunner({
     config: configFor(paths),
     github: githubStub(),
-    classifyRequest: async () => ({ kind: "implementation" }),
     prepareAttachment: createAttachmentPreparation({
       telegram: telegramAttachment(image),
     }),
@@ -5110,7 +4662,6 @@ test("stores the downscaled image that the sandbox returned", async (context) =>
   const runner = createProjectRunner({
     config: configFor(paths),
     github: githubStub(),
-    classifyRequest: async () => ({ kind: "implementation" }),
     prepareAttachment: createAttachmentPreparation({
       telegram: telegramAttachment(original),
     }),
@@ -5151,7 +4702,6 @@ test("skips the runtime preparation when the sandbox already installed the workt
   const runner = createProjectRunner({
     config: configFor(paths),
     github: githubStub(),
-    classifyRequest: async () => ({ kind: "implementation" }),
     prepareAttachment: createAttachmentPreparation({
       telegram: telegramAttachment(original),
     }),
@@ -5190,7 +4740,6 @@ test("logs a post-publication store failure without changing the result", async 
         throw new Error("synthetic manifest failure");
       },
     },
-    classifyRequest: async () => ({ kind: "implementation" }),
     prepareAttachment: createAttachmentPreparation({
       telegram: telegramAttachment(image),
     }),
@@ -5215,7 +4764,6 @@ test("omits the image that does not fit the prompt byte budget and names it", as
   const runner = createProjectRunner({
     config: configFor(paths),
     github: githubStub(),
-    classifyRequest: async () => ({ kind: "implementation" }),
     prepareAttachment: createAttachmentPreparation({
       telegram: {
         async getFile({ fileIdentifier }) {
@@ -5282,7 +4830,6 @@ async function runStaleTurn(
   const runner = createProjectRunner({
     config: configFor(paths),
     github,
-    classifyRequest: async () => ({ kind: "implementation" }),
     runModel: async ({ worktreePath }) => {
       writeFileSync(join(worktreePath, "change.txt"), "topic change\n");
       if (advance) await advanceMain(paths, "main-change.txt", "main\n");
@@ -5396,7 +4943,6 @@ test("an ordinary turn synchronizes again when the publisher finds a newer main"
   const runner = createProjectRunner({
     config: configFor(paths),
     github,
-    classifyRequest: async () => ({ kind: "implementation" }),
     runModel: async ({ worktreePath }) => {
       writeFileSync(join(worktreePath, "change.txt"), "topic change\n");
       return { text: "SUMMARY: feat(tools): add synthetic change" };
@@ -5423,7 +4969,6 @@ async function conflictTurn(context, resolution) {
   const runner = createProjectRunner({
     config: configFor(paths),
     github,
-    classifyRequest: async () => ({ kind: "implementation" }),
     runModel: async ({ worktreePath }) => {
       turns += 1;
       if (turns === 2) {
@@ -5574,7 +5119,6 @@ async function boundTopic(context, runnerOptions = {}) {
     config: configFor(paths),
     github,
     topicJobs,
-    classifyRequest: async () => ({ kind: "implementation" }),
     runModel: async (turnContext) => {
       const { worktreePath, instruction } = turnContext;
       assert.doesNotMatch(instruction, /sincronitza/iu);
@@ -5649,7 +5193,6 @@ test("keeps the redacted reason of a refused merge synchronization in the note",
     requestMerge: (mergeCommand) => synchronize(mergeCommand),
     sessionNotes: {
       addNote: (note) => notes.push(note),
-      recordReply: () => {},
       claim: () => [],
       deliver: () => {},
       release: () => {},
@@ -5955,7 +5498,7 @@ test("reports why a bound topic cannot continue its pull request", async (contex
   assert.equal(turnResult.report, instructionReports.topicWorktreeMismatch);
 });
 
-test("records the conflict question as the reply of the model", async (context) => {
+test("never stores the conflict question as a service note", async (context) => {
   const paths = await fixture(context);
   const sessionNotes = noteStore(context, paths);
   let turns = 0;
@@ -5963,7 +5506,6 @@ test("records the conflict question as the reply of the model", async (context) 
     config: configFor(paths),
     github: githubStub(),
     sessionNotes,
-    classifyRequest: async () => ({ kind: "implementation" }),
     runModel: async ({ worktreePath }) => {
       turns += 1;
       if (turns === 2) return { text: "Quina versió vols conservar?" };
@@ -5972,11 +5514,9 @@ test("records the conflict question as the reply of the model", async (context) 
       return { text: "SUMMARY: feat(tools): add synthetic change" };
     },
   });
-  await runner(request());
-  assert.equal(
-    sessionNotes.lastReply(topicSessionKey),
-    "Quina versió vols conservar?",
-  );
+  const result = await runner(request());
+  assert.equal(result.report, "Quina versió vols conservar?");
+  assert.equal(turns, 2);
   assert.deepEqual(sessionNotes.claim(topicSessionKey), []);
 });
 
@@ -5990,7 +5530,6 @@ for (const [path, expected] of [
     const runner = createProjectRunner({
       config: configFor(paths),
       github: githubStub(),
-      classifyRequest: async () => ({ kind: "implementation" }),
       runModel: async ({ worktreePath, worktreePrepared }) => {
         prepared.push(worktreePrepared);
         if (prepared.length === 2) return { text: "Quina versió?" };
@@ -6011,7 +5550,6 @@ test("a resolved merge ignores the whitespace main brings", async (context) => {
   const runner = createProjectRunner({
     config: configFor(paths),
     github,
-    classifyRequest: async () => ({ kind: "implementation" }),
     runModel: async ({ worktreePath }) => {
       turns += 1;
       if (turns === 2) {

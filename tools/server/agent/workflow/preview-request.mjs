@@ -3,32 +3,23 @@
 // The `preview` label the service sets when it opens the pull request of a
 // topic makes the trusted publisher build every head of it, with or without
 // green checks: the build validates the head and a red one is never published.
-// Every publication of the service follows the preview of the commit it pushed,
-// and a verified person can also ask in natural language for the preview of the
-// topic's pull request. The model is never started for either. The request is
-// bound to the current head of that open pull request, which can be newer than
-// the commit the service pushed when a maintainer updated it outside the agent.
-// The URL is never built or guessed: only the publisher's own comment naming
-// the pinned commit is reported.
+// Every publication of the service follows the preview of the commit it pushed;
+// the model is never involved. The URL is never built or guessed: only the
+// publisher's own comment naming the pinned commit is reported.
 //
 // Before reporting, the pull request is read again: a closed pull request, a
 // newer head, a removed `preview` label or a `preview-revoked` label ends the
-// request without announcing any preview. The publisher's comment can predate
-// the request, because the label starts the build when the head is pushed.
+// row without announcing any preview. The publisher's comment can predate the
+// follow-up, because the label starts the build when the head is pushed.
 //
 // The publisher's workflow runs for the label cannot be attributed to a pull
-// request or a head, so a build that failed is not detected: the request waits
-// for its deadline and then says it could not confirm the preview.
-//
-// The author's membership is asked again when a person's request runs, as the
-// merge does: a preview publishes the pull request, so it is not ordinary
-// queued work.
+// request or a head, so a build that failed is not detected: the row waits for
+// its deadline and then says it could not confirm the preview.
 
 import { parseSessionKey } from "telegram-pi-bridge/sessions";
 import { confirmedPreviewOrigin } from "../repository/preview-comment.mjs";
 import {
   isNoticeMessageIdentifier,
-  previewBeginResults,
   previewStates,
 } from "../repository/preview-request-store.mjs";
 import {
@@ -43,19 +34,6 @@ import {
   previewUnconfirmedReason,
   pullRequestReviewUrl,
 } from "../policy/development.mjs";
-
-const refusals = {
-  membershipRevoked: "membership_revoked",
-  membershipUnavailable: "membership_unavailable",
-  noPullRequest: "no_pull_request",
-  alreadyInProgress: "already_in_progress",
-  alreadyHandled: "already_handled",
-  notApplicable: "not_applicable",
-  notMainRepository: "not_main_repository",
-  noPreviewLabel: "no_preview_label",
-  previewRevoked: "preview_revoked",
-  unreadable: "unreadable",
-};
 
 function describeTarget({ pullRequestNumber, commit }) {
   return `#${pullRequestNumber} ${commit.slice(0, 7)}`;
@@ -73,8 +51,6 @@ function deliveredNoticeIdentifier(message) {
 
 export function createPreviewRequests({
   store,
-  findTopicPullRequest,
-  verifyMembership,
   github,
   repository,
   telegram,
@@ -101,159 +77,21 @@ export function createPreviewRequests({
     }
   }
 
-  function refuse(request, reason, text, detail) {
-    safeTrace({
-      updateIdentifier: request.updateIdentifier,
-      authorIdentifier: request.authorIdentifier,
-      sessionKey: request.sessionKey,
-      action: "preview_refused",
-      detail: detail ?? reason,
-    });
-    return { outcome: "answered", report: text };
-  }
-
   /**
    * Why the live pull request has no preview to report, or null. Only an open
    * pull request of the main repository that carries the `preview` label and
    * not `preview-revoked` has one.
    */
-  function refusalOf(pullRequest) {
-    if (pullRequest.state !== "open") return refusals.notApplicable;
+  function withdrawalOf(pullRequest) {
+    if (pullRequest.state !== "open") return "not_applicable";
     if (
       pullRequest.headRepository?.toLowerCase() !== repository.toLowerCase()
     ) {
-      return refusals.notMainRepository;
+      return "not_main_repository";
     }
-    if (pullRequest.previewRevoked) return refusals.previewRevoked;
-    if (!pullRequest.previewLabeled) {
-      return refusals.noPreviewLabel;
-    }
+    if (pullRequest.previewRevoked) return "preview_revoked";
+    if (!pullRequest.previewLabeled) return "no_preview_label";
     return null;
-  }
-
-  const refusalTexts = {
-    [refusals.notApplicable]: previewReports.notApplicable,
-    [refusals.notMainRepository]: previewReports.notMainRepository,
-    [refusals.noPreviewLabel]: previewReports.noPreviewLabel,
-    [refusals.previewRevoked]: previewReports.previewRevoked,
-    [refusals.unreadable]: previewReports.unreadable,
-  };
-
-  /** The instruction runner calls this for a request classified as `preview`. */
-  async function handle(request, { signal } = {}) {
-    const pullRequestNumber = findTopicPullRequest(request.sessionKey);
-    if (pullRequestNumber === null) {
-      return refuse(
-        request,
-        refusals.noPullRequest,
-        previewReports.noPullRequest,
-      );
-    }
-    const reviewUrl = pullRequestReviewUrl({ repository, pullRequestNumber });
-    safeTrace({
-      updateIdentifier: request.updateIdentifier,
-      authorIdentifier: request.authorIdentifier,
-      sessionKey: request.sessionKey,
-      action: "preview_requested",
-      detail: `#${pullRequestNumber}`,
-    });
-
-    const membership = await verifyMembership(request.authorIdentifier, signal);
-    // A service stop is an abort, not a refusal; a read that ran out of its own
-    // deadline is a failed check below and asks the person to try again.
-    signal?.throwIfAborted();
-    if (!membership.verified) {
-      if (membership.reason === "membership_check_failed") {
-        return refuse(
-          request,
-          refusals.membershipUnavailable,
-          previewReports.membershipUnavailable({ reviewUrl }),
-        );
-      }
-      return refuse(
-        request,
-        refusals.membershipRevoked,
-        previewReports.membershipRevoked({ reviewUrl }),
-      );
-    }
-    safeTrace({
-      updateIdentifier: request.updateIdentifier,
-      authorIdentifier: request.authorIdentifier,
-      sessionKey: request.sessionKey,
-      action: "preview_membership_verified",
-      detail: `#${pullRequestNumber}`,
-    });
-
-    let pullRequest;
-    try {
-      pullRequest = await github.getPullRequest({
-        number: pullRequestNumber,
-        signal: requestSignal(signal, requestTimeoutMilliseconds),
-      });
-    } catch (error) {
-      signal?.throwIfAborted();
-      logger(
-        "preview_read_failed",
-        error instanceof Error ? error.name : "unknown",
-      );
-      return refuse(
-        request,
-        refusals.unreadable,
-        previewReports.unreadable({ reviewUrl }),
-        `${refusals.unreadable} #${pullRequestNumber}`,
-      );
-    }
-    // Every later step — the stored row, the confirmation, the traces and the
-    // note — uses this head, so the report stays bound to the exact SHA that
-    // was read.
-    const previewTarget = { pullRequestNumber, commit: pullRequest.headSha };
-    const refusal = refusalOf(pullRequest);
-    if (refusal !== null) {
-      return refuse(
-        request,
-        refusal,
-        refusalTexts[refusal]({ reviewUrl }),
-        `${refusal} ${describeTarget(previewTarget)}`,
-      );
-    }
-
-    const begun = store.begin({
-      updateIdentifier: request.updateIdentifier,
-      sessionKey: request.sessionKey,
-      authorIdentifier: request.authorIdentifier,
-      pullRequestNumber: previewTarget.pullRequestNumber,
-      commitSha: previewTarget.commit,
-    });
-    if (begun === previewBeginResults.duplicate) {
-      return refuse(
-        request,
-        refusals.alreadyHandled,
-        previewReports.alreadyHandled({ reviewUrl }),
-        `${refusals.alreadyHandled} ${describeTarget(previewTarget)}`,
-      );
-    }
-    if (begun === previewBeginResults.open) {
-      return refuse(
-        request,
-        refusals.alreadyInProgress,
-        previewReports.alreadyInProgress({ reviewUrl }),
-        `${refusals.alreadyInProgress} ${describeTarget(previewTarget)}`,
-      );
-    }
-
-    // Nothing is posted: the label already asks the publisher to build every
-    // head, so the request was stored already waiting for the comment.
-    safeTrace({
-      updateIdentifier: request.updateIdentifier,
-      authorIdentifier: request.authorIdentifier,
-      sessionKey: request.sessionKey,
-      action: "preview_awaiting",
-      detail: describeTarget(previewTarget),
-    });
-    return {
-      outcome: "answered",
-      report: previewReports.requested({ reviewUrl }),
-    };
   }
 
   /**
@@ -302,12 +140,10 @@ export function createPreviewRequests({
       row.session_key,
     );
     // The note keeps the facts the next turn of the model needs, while the text
-    // sent to the topic stays plain. `receivedText` is that plain reply, so the
-    // last text of the topic reads as the person read it.
+    // sent to the topic stays plain.
     recordServiceNote({
       sessionKey: row.session_key,
       text: note,
-      receivedText: text,
       effectKey: `preview:${row.update_identifier}:${row.commit_sha}:${state}`,
     });
     let message;
@@ -415,7 +251,7 @@ export function createPreviewRequests({
       }
       const withdrawal =
         pullRequest.headSha === row.commit_sha
-          ? refusalOf(pullRequest)
+          ? withdrawalOf(pullRequest)
           : "superseded";
       if (withdrawal !== null) {
         if (row.merge_synchronization) {
@@ -525,5 +361,5 @@ export function createPreviewRequests({
     }
   }
 
-  return { handle, followPublication, runOnce, run };
+  return { followPublication, runOnce, run };
 }

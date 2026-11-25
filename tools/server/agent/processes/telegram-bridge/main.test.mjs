@@ -1009,35 +1009,6 @@ test("a green CI notice without a delivered preview cannot authorize a merge thr
   assert.match(replies.at(-1), /no hi ha cap avís vigent de preview/u);
 });
 
-test("a delivered manual preview cannot stand in for the publication notice", async (context) => {
-  const { replies, merges } = await runMergeCommand(context, {
-    deliveredPreview: false,
-    prepare: ({ previewRequests }) => {
-      const commitSha = "a".repeat(40);
-      previewRequests.begin({
-        updateIdentifier: 11,
-        sessionKey: "-1001234567890:7",
-        authorIdentifier: 42,
-        pullRequestNumber: 200,
-        commitSha,
-      });
-      assert.equal(
-        previewRequests.finish(
-          11,
-          commitSha,
-          "confirmed",
-          "https://pr-200.preview.mountainrunners.cat",
-          52,
-        ),
-        true,
-      );
-    },
-  });
-
-  assert.deepEqual(merges, []);
-  assert.match(replies.at(-1), /no hi ha cap avís vigent de preview/u);
-});
-
 test("a newer publication without a preview record invalidates the earlier notice even at the same SHA", async (context) => {
   const { replies, merges } = await runMergeCommand(context, {
     prepare: ({ ciWatches }) => {
@@ -1077,11 +1048,6 @@ test("keeps the result of a merge for the next turn of the session", async (cont
   const notes = service.sessionNotes.claim("-1001234567890:7");
   assert.equal(notes.length, 1);
   assert.match(notes[0].text, /La proposta #200 ja està fusionada/u);
-  assert.equal(
-    service.sessionNotes.lastReply("-1001234567890:7"),
-    notes[0].text,
-    "the service report is also the last text of the topic",
-  );
   service.sessionNotes.close();
 });
 
@@ -1373,78 +1339,6 @@ test("still runs an instruction admitted before its author left the group", asyn
   assert.equal(membershipChecks.length, 1);
   assert.deepEqual(executed, [100]);
   assert.ok(replies.some((reply) => /Canvi publicat/u.test(reply)));
-});
-
-test("verifies the membership again when the preview request runs", async (context) => {
-  const { environment } = environmentFor(context);
-  const commit = "a".repeat(40);
-  const membershipReads = [];
-  const memberStatus = { value: "left" };
-  const service = await startService({
-    environment,
-    telegram: {
-      ...telegramStub(),
-      async getChatMember({ chatIdentifier, userIdentifier }) {
-        membershipReads.push({ chatIdentifier, userIdentifier });
-        return { status: memberStatus.value };
-      },
-    },
-    github: {
-      async getPullRequest() {
-        return {
-          state: "open",
-          headSha: commit,
-          headRepository: "rboixaderg/mountain-runners",
-          previewLabeled: true,
-        };
-      },
-    },
-    runner: async () => ({}),
-  });
-  context.after(() => {
-    service.previewRequests.close();
-    service.ciWatches.close();
-    service.queue.close();
-  });
-  service.ciWatches.add({
-    updateIdentifier: 10,
-    sessionKey: "-1001234567890:7",
-    pullRequestNumber: 200,
-    commitSha: commit,
-  });
-  service.ciWatches.finishSend(10, "success");
-  const previewRequest = (updateIdentifier) => ({
-    updateIdentifier,
-    sessionKey: "-1001234567890:7",
-    authorIdentifier: 555,
-    instruction: "obre la preview",
-  });
-
-  const revoked = await service.previewWorker.handle(previewRequest(20));
-
-  const refusal = service.queue
-    .traceEntries()
-    .find((entry) => entry.action === "preview_refused");
-  assert.match(revoked.report, /no constes com a membre/u);
-  assert.equal(service.previewRequests.state(20), undefined);
-  assert.equal(refusal.detail, "membership_revoked");
-
-  memberStatus.value = "member";
-  const verified = await service.previewWorker.handle(previewRequest(21));
-  const verifiedTrace = service.queue
-    .traceEntries()
-    .find((entry) => entry.action === "preview_membership_verified");
-
-  assert.match(verified.report, /La preview d'aquest canvi s'està preparant/u);
-  assert.equal(service.previewRequests.state(21), "awaiting");
-  assert.equal(verifiedTrace.detail, "#200");
-  assert.equal(verifiedTrace.author_identifier, 555);
-  // Only the configured group and the request author are asked, twice: once
-  // for the refused request and once for the accepted one.
-  assert.deepEqual(membershipReads, [
-    { chatIdentifier: "-1001234567890", userIdentifier: 555 },
-    { chatIdentifier: "-1001234567890", userIdentifier: 555 },
-  ]);
 });
 
 test("prunes a finished topic worktree when idle and skips it while an instruction is running", async (context) => {

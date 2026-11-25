@@ -22,10 +22,6 @@
 //
 // Only text the service wrote is stored: the model's own words already live in
 // its session, and a note is presented to the model as trusted service data.
-//
-// The last text the topic received (the model's answer or a service report) is
-// stored per topic and overwritten every time: the classifier reads it as data,
-// never as history.
 
 import { clipText } from "../policy/development.mjs";
 import { openDatabase, runTransaction } from "./sqlite.mjs";
@@ -33,10 +29,11 @@ import { openDatabase, runTransaction } from "./sqlite.mjs";
 export const noteLimits = {
   characters: 1500,
   perSession: 20,
-  lastReplyCharacters: 800,
 };
 
 const schema = `
+  -- Purges the model replies an earlier version stored.
+  DROP TABLE IF EXISTS session_context;
   CREATE TABLE IF NOT EXISTS session_notes (
     sequence INTEGER PRIMARY KEY,
     session_key TEXT NOT NULL,
@@ -57,11 +54,6 @@ const schema = `
   );
   CREATE UNIQUE INDEX IF NOT EXISTS session_delivered_effects_identity
     ON session_delivered_effects (session_key, effect_key);
-  CREATE TABLE IF NOT EXISTS session_context (
-    session_key TEXT PRIMARY KEY,
-    last_reply TEXT NOT NULL,
-    updated_at TEXT NOT NULL
-  );
 `;
 
 export class SessionNoteStore {
@@ -116,21 +108,6 @@ export class SessionNoteStore {
     });
   }
 
-  #recordLastReply(sessionKey, text) {
-    this.#database
-      .prepare(
-        `INSERT INTO session_context (session_key, last_reply, updated_at)
-         VALUES (?, ?, ?)
-         ON CONFLICT (session_key) DO UPDATE
-           SET last_reply = excluded.last_reply, updated_at = excluded.updated_at`,
-      )
-      .run(
-        sessionKey,
-        clipText(text, noteLimits.lastReplyCharacters),
-        this.#now().toISOString(),
-      );
-  }
-
   #effectWasDelivered(sessionKey, effectKey) {
     return (
       this.#database
@@ -143,41 +120,36 @@ export class SessionNoteStore {
   }
 
   /**
-   * Store one service text of the topic. A new one is also the last text the
-   * topic received, so the classifier can read it.
+   * Store one service text of the topic.
    *
    * With an `effectKey`, the note is stored at most once per topic: a repeated
    * announcement of the same effect (a retried Telegram notice) neither
    * duplicates nor revives it. Returns whether the note was stored.
-   *
-   * `receivedText` is the full text the topic received when `text` is only its
-   * service-written part: a report may embed the model's own words, which are
-   * never a note. The last text of the topic keeps everything.
    */
-  addNote({ sessionKey, text, effectKey = null, receivedText = text }) {
+  addNote({ sessionKey, text, effectKey = null }) {
     return this.#transaction(() => {
-      let stored = false;
       // A delivered identity is not revived, and the same undelivered or claimed
       // identity never gets a second row.
       if (
-        effectKey === null ||
-        !this.#effectWasDelivered(sessionKey, effectKey)
+        effectKey !== null &&
+        this.#effectWasDelivered(sessionKey, effectKey)
       ) {
-        stored =
-          this.#database
-            .prepare(
-              `INSERT INTO session_notes
-                 (session_key, text, effect_key, state, created_at)
-               VALUES (?, ?, ?, 'undelivered', ?)
-               ON CONFLICT (session_key, effect_key) DO NOTHING`,
-            )
-            .run(
-              sessionKey,
-              clipText(text, noteLimits.characters),
-              effectKey,
-              this.#now().toISOString(),
-            ).changes === 1;
+        return false;
       }
+      const stored =
+        this.#database
+          .prepare(
+            `INSERT INTO session_notes
+               (session_key, text, effect_key, state, created_at)
+             VALUES (?, ?, ?, 'undelivered', ?)
+             ON CONFLICT (session_key, effect_key) DO NOTHING`,
+          )
+          .run(
+            sessionKey,
+            clipText(text, noteLimits.characters),
+            effectKey,
+            this.#now().toISOString(),
+          ).changes === 1;
       if (stored) {
         // Only the newest undelivered notes of the topic are kept: an old
         // effect the model never received is less useful than the recent one.
@@ -192,25 +164,9 @@ export class SessionNoteStore {
                )`,
           )
           .run(sessionKey, sessionKey, noteLimits.perSession);
-        // A repeated effect never replaces a newer last text of the topic.
-        this.#recordLastReply(sessionKey, receivedText);
       }
       return stored;
     });
-  }
-
-  /** Store the model's own answer: it is never replayed as a service note. */
-  recordReply({ sessionKey, text }) {
-    this.#transaction(() => this.#recordLastReply(sessionKey, text));
-  }
-
-  /** The last text the topic received, or null when it received none. */
-  lastReply(sessionKey) {
-    return (
-      this.#database
-        .prepare("SELECT last_reply FROM session_context WHERE session_key = ?")
-        .get(sessionKey)?.last_reply ?? null
-    );
   }
 
   /**

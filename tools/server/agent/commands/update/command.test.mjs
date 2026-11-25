@@ -553,7 +553,7 @@ const busyStates = [
       const store = new PreviewRequestStore(
         join(state, "preview-request.sqlite"),
       );
-      store.begin({
+      store.track({
         updateIdentifier: 51,
         sessionKey,
         authorIdentifier: 42,

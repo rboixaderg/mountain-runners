@@ -42,7 +42,6 @@ export function buildPiEnvironment({
   sandboxIdentifier,
   worktreePath,
   attachments = [],
-  classifyOnly = false,
 }) {
   const allowedEnvironment = {
     PATH: environment.PATH,
@@ -51,21 +50,17 @@ export function buildPiEnvironment({
     XDG_RUNTIME_DIR: environment.XDG_RUNTIME_DIR,
     PI_CODING_AGENT_DIR: profileDirectory,
   };
-  // The classifier runs without a worktree, a sandbox or tools: it receives no
-  // sandbox or attachment configuration that a later turn could inherit.
-  if (!classifyOnly) {
-    allowedEnvironment.MR_AGENT_SANDBOX_IMAGE = sandbox.image;
-    allowedEnvironment.MR_AGENT_WORKTREE_ROOT = sandbox.worktreeRoot;
-    allowedEnvironment.MR_AGENT_SANDBOX_LIMITS = JSON.stringify(sandbox.limits);
-    // The extension labels and cleans its containers with this value, so it is
-    // the opaque worktree name: never the Telegram session identifier.
-    allowedEnvironment.MR_AGENT_SESSION_IDENTIFIER = sandboxIdentifier;
-  }
+  allowedEnvironment.MR_AGENT_SANDBOX_IMAGE = sandbox.image;
+  allowedEnvironment.MR_AGENT_WORKTREE_ROOT = sandbox.worktreeRoot;
+  allowedEnvironment.MR_AGENT_SANDBOX_LIMITS = JSON.stringify(sandbox.limits);
+  // The extension labels and cleans its containers with this value, so it is
+  // the opaque worktree name: never the Telegram session identifier.
+  allowedEnvironment.MR_AGENT_SESSION_IDENTIFIER = sandboxIdentifier;
   Object.assign(allowedEnvironment, providerEnvironment);
   // The view_attachment tool reads the copy in the worktree, never the store in
   // the state directory. The names are the service list; a free path is not
-  // accepted. The classifier runs without a worktree and without tools.
-  if (!classifyOnly && typeof worktreePath === "string") {
+  // accepted.
+  if (typeof worktreePath === "string") {
     allowedEnvironment.MR_AGENT_ATTACHMENT_PATH = join(
       worktreePath,
       attachmentDirectoryName,
@@ -91,35 +86,28 @@ export function projectPiOptions({
   signal,
   onPromptSent,
   stopCommands = stopSandboxedCommands,
-  classifyOnly = false,
   webResearch,
 }) {
-  const webEnabled = !classifyOnly && typeof webResearch === "function";
+  const webEnabled = typeof webResearch === "function";
   return {
     command: config.model.piCommand,
     model: config.model.identifier,
     cwd: worktreePath,
     profileDirectory,
-    sessionIdentifier: classifyOnly ? undefined : sessionIdentifier,
-    sessionDirectory: classifyOnly ? undefined : config.paths.sessions,
-    tools: classifyOnly
-      ? []
-      : [
-          "sandbox_bash",
-          "view_attachment",
-          ...(webEnabled ? ["web_research"] : []),
-        ],
-    extensions: classifyOnly
-      ? []
-      : [join(profileDirectory, "extensions", "sandbox-bash.ts")],
+    sessionIdentifier,
+    sessionDirectory: config.paths.sessions,
+    tools: [
+      "sandbox_bash",
+      "view_attachment",
+      ...(webEnabled ? ["web_research"] : []),
+    ],
+    extensions: [join(profileDirectory, "extensions", "sandbox-bash.ts")],
     message,
     images,
     timeoutMilliseconds,
     signal,
     onPromptSent,
-    onInterrupted: classifyOnly
-      ? undefined
-      : () => stopCommands(sandboxIdentifier),
+    onInterrupted: () => stopCommands(sandboxIdentifier),
     environment: {
       ...buildPiEnvironment({
         environment,
@@ -133,7 +121,6 @@ export function projectPiOptions({
         sandboxIdentifier,
         worktreePath,
         attachments,
-        classifyOnly,
       }),
       ...(webEnabled ? { MR_AGENT_WEB_RESEARCH: "1" } : {}),
     },
@@ -147,7 +134,7 @@ export async function runProjectPrompt(options) {
   try {
     return await runPiPrompt({
       ...piOptions,
-      ...(typeof options.webResearch === "function" && !options.classifyOnly
+      ...(typeof options.webResearch === "function"
         ? {
             spawnImpl: (command, args, spawnOptions) => {
               const child = spawn(command, args, {
@@ -167,13 +154,13 @@ export async function runProjectPrompt(options) {
         : {}),
       onInterrupted: async () => {
         interrupted = true;
-        await piOptions.onInterrupted?.();
+        await piOptions.onInterrupted();
       },
     });
   } finally {
     closeWebResearch?.();
     // A tool error reported to the model must not hide a surviving container.
     // Verify cleanup after settled turns too, before checks or publication.
-    if (!interrupted) await piOptions.onInterrupted?.();
+    if (!interrupted) await piOptions.onInterrupted();
   }
 }
