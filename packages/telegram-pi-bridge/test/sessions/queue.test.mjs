@@ -323,6 +323,21 @@ test("tells whether the session has another instruction pending or running", (co
   queue.close();
 });
 
+test("counts an unknown result as unsettled work of its session", (context) => {
+  const queue = new AdmissionQueue(databasePath(context), { maxPending: 10 });
+  const topic = "-1001234567890:7";
+  queue.admit(request(1));
+  assert.equal(queue.hasUnsettledInstructions(topic, 2), true);
+  queue.next();
+  assert.equal(queue.hasUnsettledInstructions(topic, 2), true);
+  queue.markUncertain(1, "uncertain");
+
+  assert.equal(queue.hasUnsettledInstructions(topic, 2), true);
+  assert.equal(queue.hasUnsettledInstructions(topic, 1), false);
+  assert.equal(queue.hasOtherInstructions(topic, 2), false);
+  queue.close();
+});
+
 test("stores the attachments with the admitted instruction", (context) => {
   const queue = new AdmissionQueue(databasePath(context), { maxPending: 10 });
   const attachments = [

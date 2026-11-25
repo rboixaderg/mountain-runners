@@ -87,6 +87,7 @@ function workerFor({
   recordTrace = () => {},
   recordServiceNote = () => {},
   requiredChecks: checks = requiredChecks,
+  hasWorkInProgress,
   requestTimeoutMilliseconds = defaultRequestTimeoutMilliseconds,
 }) {
   return createCiWatchWorker({
@@ -99,6 +100,7 @@ function workerFor({
     requestTimeoutMilliseconds,
     recordTrace,
     recordServiceNote,
+    hasWorkInProgress,
     logger,
     now,
   });
@@ -318,6 +320,39 @@ test("never reports green for another head and says the commit changed", async (
     "a watch that ends with the head changed never promises another message",
   );
   assert.doesNotMatch(telegram.sent[0].text, /en verd|bbbbbbb/u);
+});
+
+test("never reports a head the service is replacing with a newer publication", async (context) => {
+  const { store } = fixture(context);
+  const register = createCiWatchRegistration({ store });
+  register(registration);
+  const telegram = fakeTelegram();
+  const notes = [];
+  let working = true;
+  const worker = workerFor({
+    store,
+    github: fakeGithub({
+      pullRequest: { state: "open", headSha: nextCommit },
+    }),
+    telegram,
+    recordServiceNote: (note) => notes.push(note),
+    hasWorkInProgress: () => working,
+  });
+
+  // Pushed, but the newer watch is not registered yet.
+  await worker.runOnce();
+  assert.equal(store.state(registration.updateIdentifier), "pending");
+
+  register({ ...registration, updateIdentifier: 502, commit: nextCommit });
+  working = false;
+  await worker.runOnce();
+
+  assert.equal(store.state(registration.updateIdentifier), "superseded");
+  assert.deepEqual(telegram.sent, []);
+  assert.deepEqual(
+    notes.filter((note) => note.effectKey.endsWith(":head-changed")),
+    [],
+  );
 });
 
 test("does not report CI for a pull request that is no longer open", async (context) => {
