@@ -114,7 +114,7 @@ Cada tasca té la seva PR, tret que la columna `Entrega` indiqui el contrari.
 | T18   | Pendent    | Comprovacions | Migracions i estat antic eliminats                                       | PR 18   | -                                                               |
 | T19   | Pendent    | T8            | Classificador de peticions retirat                                       | PR 19   | -                                                               |
 | T20   | Pendent    | T9–T14        | El torn està dividit en fases amb resultats tipats                       | PR 20   | -                                                               |
-| T21   | Pendent    | -             | Imatges processades només dins del sandbox amb sharp                     | PR 21   | -                                                               |
+| T21   | Completada | -             | Quatre defectes d'imatge corregits sense moure els originals             | PR 21   | [#332](https://github.com/rboixaderg/mountain-runners/pull/332) |
 | T22   | Completada | -             | Eines d'operador més curtes i amb garanties conservades                  | PR 22   | [#331](https://github.com/rboixaderg/mountain-runners/pull/331) |
 | T23   | Pendent    | T17           | `telegram-pi-bridge` com a mòdul intern amb API estreta                  | PR 23   | -                                                               |
 | T24   | Pendent    | T20           | Proves amb fixtures compartits i dividides per fases                     | PR 24   | -                                                               |
@@ -569,26 +569,29 @@ d'indicadors.
 
 **PR:** una PR dedicada.
 
-### T21: Imatges Amb Sharp Dins Del Sandbox
+### T21: Correccions Del Tractament D'Imatges
 
-**Abast:** cada imatge acceptada es descodifica, s'orienta, se li treuen les
-metadades i es redimensiona només dins del sandbox amb sharp; el costat de
-confiança conserva la mida, el tipus per bytes màgics i una petita comprovació de
-capçalera de la sortida del sandbox. Elimina la major part de l'anàlisi manual
-(`attachments/image-format.mjs`, `exif-orientation.mjs`) i corregeix: JPEG amb
-dades després d'EOI refusat, perfil de color eliminat només de PNG/WebP, el
-comptador d'adjunts que es reinicia i reutilitza noms, i l'arrodoniment duplicat
-de megabytes.
+**Abast:** revisió del 25 de novembre de 2026. La reescriptura prevista, que
+descodificava les imatges originals amb sharp dins del sandbox, es descarta
+després de la revisió de seguretat: les imatges originals, amb GPS, haurien quedat
+al worktree on s'executa codi del repositori. Es manté l'arquitectura actual (el
+procés de confiança treu les metadades i només les imatges netes arriben al
+sandbox) i se'n corregeixen quatre defectes: un JPEG amb dades després d'EOI es
+talla a la primera EOI en lloc de refusar-lo; el perfil de color es conserva igual
+en JPEG, PNG i WebP, amb un sol perfil ben situat i com a màxim 64 KiB; el
+comptador d'adjunts no es reinicia ni reutilitza noms; i el format dels
+megabytes reutilitza el del paquet. Fitxers: `attachments/image-format.mjs`,
+`attachments/store.mjs` i `policy/development.mjs`.
 
-**Exclusió immediata:** no amplia els formats ni els límits d'imatge.
+**Exclusió immediata:** no amplia els formats ni els límits d'imatge i no mou la
+descodificació al sandbox.
 
 **Dependències:** cap. Necessita revisió de seguretat.
 
-**Resultat observable:** el costat de confiança no analitza el contingut de
-cap imatge i els quatre defectes tenen prova.
+**Resultat observable:** les quatre fallades desapareixen sense que cap imatge
+original arribi al worktree.
 
-**Comprovacions mínimes:** proves amb imatges sintètiques, incloses les
-negatives; `pnpm test:server`.
+**Comprovacions mínimes:** proves d'adjunts i del pont.
 
 **PR:** una PR dedicada.
 
