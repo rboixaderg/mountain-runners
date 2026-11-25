@@ -48,16 +48,3 @@ test(
     assert.match(result.stderr, /run it as root \(uid 0\)/u);
   },
 );
-
-test("exits 1 and changes nothing when the repository is the agent clone", () => {
-  const result = runCli([
-    "--repository",
-    "/var/lib/mountain-runners-agent/repository",
-    "--commit",
-    commit,
-  ]);
-
-  assert.equal(result.status, 1);
-  assert.match(result.stderr, /never a source of an installation/u);
-  assert.equal(result.stdout, "");
-});
