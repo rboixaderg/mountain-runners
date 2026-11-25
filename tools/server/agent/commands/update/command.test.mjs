@@ -725,7 +725,7 @@ test("backs up the state as the service user, without lost+found", (context) => 
   assert.equal(result.code, 0, result.stderr);
   assert.match(
     result.calls.find((call) => call.startsWith("runuser ")),
-    /^runuser -u mountain-agent -- tar -C .* -cf - (--sparse )?--exclude=\.\/lost\+found \.$/u,
+    /^runuser -u mountain-agent -- tar -C .* -cf - --exclude=\.\/lost\+found (--sparse )?\.$/u,
   );
   const stateBackup = join(
     app.backupsRoot,
