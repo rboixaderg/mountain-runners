@@ -1,7 +1,10 @@
 import assert from "node:assert/strict";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { test } from "node:test";
 import { buildPiArguments } from "telegram-pi-bridge/pi";
-import { projectPiOptions } from "./pi-adapter.mjs";
+import { projectPiOptions, readPiVersion } from "./pi-adapter.mjs";
 
 test("keeps project credentials out of Pi and explicitly enables only the isolated tool", async () => {
   const stopped = [];
@@ -68,4 +71,19 @@ test("keeps project credentials out of Pi and explicitly enables only the isolat
   );
   await options.onInterrupted();
   assert.deepEqual(stopped, ["topic-0123456789abcdef"]);
+});
+
+test("bounds the Pi version command", { timeout: 5000 }, async (context) => {
+  const directory = mkdtempSync(join(tmpdir(), "mr-agent-pi-version-"));
+  context.after(() => rmSync(directory, { recursive: true, force: true }));
+  const command = join(directory, "pi");
+  writeFileSync(command, "#!/bin/sh\nexec sleep 30\n", { mode: 0o755 });
+
+  await assert.rejects(
+    readPiVersion(command, {
+      environment: { PATH: process.env.PATH },
+      timeoutMilliseconds: 100,
+    }),
+    (error) => error.killed === true,
+  );
 });

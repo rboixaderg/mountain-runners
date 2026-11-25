@@ -81,6 +81,13 @@ async function repositoryWithLegacyWorktree(environment) {
   return worktree;
 }
 
+/** A stand-in for the Pi command that only answers `--version`. */
+function fakePi(directory, version) {
+  const command = join(directory, "pi");
+  writeFileSync(command, `#!/bin/sh\necho ${version}\n`, { mode: 0o755 });
+  return command;
+}
+
 function environmentFor(context) {
   const directory = mkdtempSync(join(tmpdir(), "mr-agent-service-"));
   context.after(() =>
@@ -101,6 +108,7 @@ function environmentFor(context) {
       MOUNTAIN_AGENT_GITHUB_TOKEN: "github-token",
       MOUNTAIN_AGENT_REQUIRED_CHECKS: "Validate",
       MOUNTAIN_AGENT_SANDBOX_IMAGE: "mountain-agent-pi:1.5.0",
+      MOUNTAIN_AGENT_PI_COMMAND: fakePi(directory, "1.2.3"),
       MOUNTAIN_AGENT_REPOSITORY_PATH: join(directory, "repository"),
       MOUNTAIN_AGENT_WORKTREE_PATH: join(directory, "worktrees"),
       MOUNTAIN_AGENT_SESSION_PATH: join(directory, "sessions"),
@@ -186,6 +194,34 @@ test("starts the bridge with the configured bot and an empty queue", async (cont
   assert.deepEqual(service.ciWatches.pending(), []);
   service.closeStateStores();
 });
+
+for (const [name, preparePi, event, detail] of [
+  ["records the installed Pi version", () => {}, "pi_version", /^1\.2\.3$/u],
+  [
+    "starts even when the Pi version cannot be read",
+    (environment) => {
+      environment.MOUNTAIN_AGENT_PI_COMMAND += "-missing";
+    },
+    "pi_version_unreadable",
+    /ENOENT/u,
+  ],
+]) {
+  test(name, async (context) => {
+    const { environment } = environmentFor(context);
+    preparePi(environment);
+    const logged = [];
+    const service = await startService({
+      environment,
+      logger: (...entry) => logged.push(entry),
+      telegram: telegramStub(),
+      github: {},
+    });
+    service.closeStateStores();
+
+    const entry = logged.find(([loggedEvent]) => loggedEvent === event);
+    assert.match(entry?.[1] ?? "", detail);
+  });
+}
 
 test("removes the service credentials from the environment after startup", async (context) => {
   const { environment } = environmentFor(context);

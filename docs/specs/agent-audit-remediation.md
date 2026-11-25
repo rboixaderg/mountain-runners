@@ -97,9 +97,9 @@ Cada tasca té la seva PR, tret que la columna `Entrega` indiqui el contrari.
 | T1    | Completada | -             | El Git del servei no processa repositoris niats ni submòduls             | PR 1    | [#314](https://github.com/rboixaderg/mountain-runners/pull/314) |
 | T2    | Completada | T25           | `/merge` fusiona les PR que canvien tot excepte infraestructura          | PR 2    | [#321](https://github.com/rboixaderg/mountain-runners/pull/321) |
 | T3    | Completada | -             | Les credencials no són a l'entorn del procés                             | PR 3    | [#317](https://github.com/rboixaderg/mountain-runners/pull/317) |
-| T4    | Pendent    | -             | La versió de Pi està fixada i verificada                                 | PR 4    | -                                                               |
+| T4    | Completada | -             | La versió de Pi queda registrada i és fàcil d'actualitzar                | PR 4    | [#324](https://github.com/rboixaderg/mountain-runners/pull/324) |
 | T5    | Pendent    | T4            | El límit per línia del RPC no falla amb imatges permeses                 | PR 5    | -                                                               |
-| T6    | Pendent    | -             | El títol i el cos de la PR estan acotats                                 | PR 6    | -                                                               |
+| T6    | Completada | -             | El títol i el cos de la PR estan acotats                                 | PR 6    | [#323](https://github.com/rboixaderg/mountain-runners/pull/323) |
 | T7    | Completada | -             | L'acceptació de l'esmena de recerca web queda registrada                 | PR 7    | [#320](https://github.com/rboixaderg/mountain-runners/pull/320) |
 | T8    | Pendent    | -             | Torns nous, de només lectura i identificadors privats correctes          | PR 8    | -                                                               |
 | T9    | Completada | -             | Un error del proveïdor acaba el torn com a fallada                       | PR 9    | [#319](https://github.com/rboixaderg/mountain-runners/pull/319) |
@@ -198,29 +198,35 @@ servei.
 
 **PR:** una PR dedicada.
 
-### T4: Versió De Pi Fixada
+### T4: Versió De Pi Registrada I Actualitzable
 
-**Abast:** la versió del Pi coding agent que executa el servei queda fixada i
-documentada al document d'operació, i l'ordre d'actualització (o l'arrencada) la
-verifica, de manera que comportaments com l'execució paral·lela d'eines i la
-sortida RPC no canviïn en silenci. Fitxers: `config.mjs`, `commands/update/` i
-`docs/operations/agent.md`.
+**Abast:** revisió del 25 de novembre de 2026, per decisió de la persona
+mantenidora: el servei fa servir sempre l'última versió publicada del Pi coding
+agent, en lloc d'una versió fixada. Pi s'instal·la en un sol directori sense
+versió, el document d'operació descriu com actualitzar-lo a l'última versió i com
+tornar enrere, i el servei registra al journal i a la traça privada la versió
+que fa servir en cada arrencada. Fitxers: `runtime/pi-adapter.mjs`,
+`processes/telegram-bridge/main.mjs` i `docs/operations/agent.md`.
 
-**Exclusió immediata:** no canvia de versió ni n'actualitza cap dependència.
+**Exclusió immediata:** no impedeix arrencar amb cap versió concreta. El risc
+acceptat és que una versió nova pot canviar com s'executen les eines o la
+sortida RPC; la comprovació és la línia `pi_version` del journal i una pregunta
+en un tema després d'actualitzar.
 
 **Dependències:** cap.
 
-**Resultat observable:** una versió de Pi diferent de la fixada impedeix
-l'actualització o l'arrencada amb un missatge clar.
+**Resultat observable:** cada arrencada deixa al journal la versió de Pi, i
+actualitzar-lo a l'última versió o tornar a l'anterior és un procediment curt i
+documentat.
 
-**Comprovacions mínimes:** proves de l'ordre d'actualització i de la
-configuració; `pnpm docs:check`.
+**Comprovacions mínimes:** proves de l'arrencada (versió registrada i versió
+il·legible) i del límit de temps de l'ordre de versió; `pnpm docs:check`.
 
 **PR:** una PR dedicada.
 
 ### T5: Límit Per Línia Del RPC I Imatges Del Prompt
 
-**Abast:** amb la versió de Pi fixada, verificar si Pi repeteix el prompt (amb
+**Abast:** amb la versió de Pi que registra el journal, verificar si Pi repeteix el prompt (amb
 imatges en base64) per la sortida estàndard. Si és així, el límit per línia (2
 MiB, `packages/telegram-pi-bridge/src/pi/rpc.mjs`) no pot fer fallar un torn amb
 una imatge permesa (pressupost d'imatges del prompt de 8 MiB,
