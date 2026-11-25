@@ -159,7 +159,9 @@ export class PreviewRequestStore {
   /**
    * Follow the preview of a commit the service just published. The row of the
    * publishing update is written again for this commit, so a later publication
-   * of the same update replaces whatever that row waited for or reported.
+   * of the same update replaces whatever that row waited for or reported. It
+   * also ends the awaiting merge synchronizations of the pull request: the
+   * service replaced their commit, so they have no withdrawal to report.
    */
   track({
     updateIdentifier,
@@ -169,34 +171,54 @@ export class PreviewRequestStore {
     commitSha,
     mergeSynchronization = false,
   }) {
-    const timestamp = this.#now().toISOString();
+    this.#transaction(() => {
+      this.endReplacedMergeSynchronizations({
+        updateIdentifier,
+        pullRequestNumber,
+      });
+      const timestamp = this.#now().toISOString();
+      this.#database
+        .prepare(
+          `INSERT INTO preview_requests
+           (update_identifier, session_key, author_identifier, pull_request_number, commit_sha, state, created_at, updated_at, merge_synchronization)
+           VALUES (?, ?, ?, ?, ?, 'awaiting', ?, ?, ?)
+           ON CONFLICT (update_identifier) DO UPDATE SET
+             session_key = excluded.session_key,
+             author_identifier = excluded.author_identifier,
+             pull_request_number = excluded.pull_request_number,
+             commit_sha = excluded.commit_sha,
+             state = 'awaiting',
+             confirmed_origin = NULL,
+             notice_message_identifier = NULL,
+             created_at = excluded.created_at,
+             updated_at = excluded.updated_at,
+             merge_synchronization = excluded.merge_synchronization`,
+        )
+        .run(
+          updateIdentifier,
+          sessionKey,
+          authorIdentifier,
+          pullRequestNumber,
+          commitSha,
+          timestamp,
+          timestamp,
+          Number(mergeSynchronization),
+        );
+    });
+  }
+
+  /**
+   * End the awaiting merge synchronizations of a pull request that a later
+   * publication of the service, `updateIdentifier`, replaced.
+   */
+  endReplacedMergeSynchronizations({ updateIdentifier, pullRequestNumber }) {
     this.#database
       .prepare(
-        `INSERT INTO preview_requests
-         (update_identifier, session_key, author_identifier, pull_request_number, commit_sha, state, created_at, updated_at, merge_synchronization)
-         VALUES (?, ?, ?, ?, ?, 'awaiting', ?, ?, ?)
-         ON CONFLICT (update_identifier) DO UPDATE SET
-           session_key = excluded.session_key,
-           author_identifier = excluded.author_identifier,
-           pull_request_number = excluded.pull_request_number,
-           commit_sha = excluded.commit_sha,
-           state = 'awaiting',
-           confirmed_origin = NULL,
-           notice_message_identifier = NULL,
-           created_at = excluded.created_at,
-           updated_at = excluded.updated_at,
-           merge_synchronization = excluded.merge_synchronization`,
+        `UPDATE preview_requests SET state = 'failed', updated_at = ?
+         WHERE pull_request_number = ? AND merge_synchronization = 1
+           AND state = 'awaiting' AND update_identifier != ?`,
       )
-      .run(
-        updateIdentifier,
-        sessionKey,
-        authorIdentifier,
-        pullRequestNumber,
-        commitSha,
-        timestamp,
-        timestamp,
-        Number(mergeSynchronization),
-      );
+      .run(this.#now().toISOString(), pullRequestNumber, updateIdentifier);
   }
 
   #transition(

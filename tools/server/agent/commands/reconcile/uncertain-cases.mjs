@@ -361,6 +361,12 @@ async function resolveInstruction({
         commitSha: commit,
         mergeSynchronization: true,
       });
+    } else {
+      // No preview database means no row to end.
+      stores.previews?.endReplacedMergeSynchronizations({
+        updateIdentifier,
+        pullRequestNumber,
+      });
     }
   }
 

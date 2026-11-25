@@ -84,6 +84,9 @@ export function createPreviewRequests({
   recordTrace = () => {},
   // The text of a report is an effect the next turn of the topic must know.
   recordServiceNote = () => {},
+  // Whether the topic of a request has another instruction queued, running or
+  // of unknown result, which may have published a newer commit.
+  hasWorkInProgress = () => false,
   logger = () => {},
   now = () => new Date(),
 }) {
@@ -416,6 +419,21 @@ export function createPreviewRequests({
           : "superseded";
       if (withdrawal !== null) {
         if (row.merge_synchronization) {
+          // A publication pushes before it follows the new commit, which ends
+          // this row: a moved head is only reported once the topic has no work
+          // left, and never for a row ended during the reads.
+          if (
+            withdrawal === "superseded" &&
+            hasWorkInProgress({
+              sessionKey: row.session_key,
+              updateIdentifier: row.update_identifier,
+            })
+          ) {
+            continue;
+          }
+          if (store.state(row.update_identifier) !== previewStates.awaiting) {
+            continue;
+          }
           const notice = await report(row, previewReports.mergeSyncWithdrawn, {
             signal,
             state: "withdrawn",

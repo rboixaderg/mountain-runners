@@ -197,6 +197,10 @@ al servidor. El nom local encara no representa una publicació a npm.
    fins que l'enviament va bé; si falla o s'esgota, el cicle següent el torna a
    enviar, així que després d'un lliurament desconegut l'avís es pot repetir
    ([ADR 0014](../../../docs/decisions/0014-operator-stop-and-repeatable-telegram-notices.md)).
+   Una publicació nova de la mateixa PR substitueix el seguiment anterior, que ja
+   no envia res. Com que el push és anterior al seguiment nou, l'avís de cap
+   canviat espera mentre el tema tingui una altra instrucció pendent, en curs o
+   incerta.
    Mentre el tema tingui un seguiment pendent, el tema té feina sense informar:
    `/merge` no resol res. Si el seguiment no es pot desar després d'una
    publicació confirmada, la instrucció acaba com a incerta: la publicació s'ha
@@ -434,7 +438,13 @@ traça privada. El publicador i la construcció de la preview són a
   i després la PR. Si la PR ja no és oberta, té un cap més nou, ha perdut
   l'etiqueta `preview` o té `preview-revoked`, la petició acaba com a `failed`
   sense cap avís (traça `preview_withdrawn` amb el motiu): només s'informa
-  l'adreça del cap final i mai una preview retirada.
+  l'adreça del cap final i mai una preview retirada. L'única excepció és el
+  seguiment d'una sincronització abans del merge, que avisa que no s'ha fusionat
+  res. Si el commit nou és del servei, aquest seguiment no avisa, tampoc quan el
+  resultat de la publicació és desconegut i encara no s'ha reconciliat: el
+  seguiment nou o la reconciliació com a publicada el tanca com a `failed`, i un
+  cap més nou no s'avalua mentre el tema tingui una altra instrucció pendent, en
+  curs o incerta.
 - **Sense resultat de l'execució.** El servei ja no llegeix les execucions de
   `preview.yml`. Amb l'etiqueta, el run és de `pull_request_target`: el seu
   `head_sha` és l'últim commit de `main`, no el cap de la PR, i no hi ha cap camp
@@ -473,6 +483,8 @@ traça privada. El publicador i la construcció de la preview són a
   es tanca si l'enviament ha anat bé; si falla, es reintenta al cicle següent.
   Una caiguda entre l'enviament i el tancament pot duplicar l'avís. La duplicació
   d'aquest avís de Telegram és una excepció acceptada ([ADR 0014](../../../docs/decisions/0014-operator-stop-and-repeatable-telegram-notices.md)).
+  L'avís de fallada i el de la sincronització retirada segueixen el mateix ordre
+  i la mateixa excepció.
   Una lectura fallida de comentaris no tanca la petició i el termini només
   s'aplica després d'una lectura correcta de comentaris.
 - **Cursa acceptada.** Si arriba un commit nou abans de la confirmació, el flux

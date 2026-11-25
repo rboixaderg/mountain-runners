@@ -366,6 +366,23 @@ export class AdmissionQueue {
     );
   }
 
+  /**
+   * Whether the session has another instruction whose external effects are not
+   * settled yet: pending, running or with an unknown result.
+   */
+  hasUnsettledInstructions(sessionKey, updateIdentifier) {
+    return (
+      this.#database
+        .prepare(
+          `SELECT 1 FROM instructions
+           WHERE session_key = ? AND update_identifier <> ?
+             AND status IN ('pending', 'running', 'uncertain')
+           LIMIT 1`,
+        )
+        .get(sessionKey, updateIdentifier) !== undefined
+    );
+  }
+
   isFirstInstruction(sessionKey, updateIdentifier) {
     const first = this.#database
       .prepare(

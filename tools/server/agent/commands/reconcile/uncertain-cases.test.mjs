@@ -322,6 +322,39 @@ test("restarts preview tracking after reconciling a synchronization push", async
   assert.equal(stores.previews.deliveredPublicationPreview(recovered), null);
 });
 
+test("ends the older synchronization a reconciled publication replaced", async (context) => {
+  const { config, stores, state } = await fixture(context);
+  const { commit } = await topicWorktree({
+    config,
+    sessionKey: sessionKeyOne,
+    updateIdentifier: 11,
+  });
+  stores.previews = new PreviewRequestStore(
+    join(state, "preview-request.sqlite"),
+  );
+  context.after(() => stores.previews.close());
+  stores.previews.track({
+    updateIdentifier: 10,
+    sessionKey: sessionKeyOne,
+    authorIdentifier: 555,
+    pullRequestNumber: 42,
+    commitSha: "a".repeat(40),
+    mergeSynchronization: true,
+  });
+  interruptInstruction(stores.instructions, 11, sessionKeyOne);
+
+  await reconcile(config, stores, fakeTelegram(), {
+    kind: "instruction",
+    updateIdentifier: 11,
+    resolution: reconcileResolutions.published,
+    pullRequestNumber: 42,
+    commit,
+  });
+
+  assert.equal(stores.previews.state(10), "failed");
+  assert.deepEqual(stores.previews.awaiting(), []);
+});
+
 test("keeps the instruction uncertain when the CI watch of the publication cannot be written", async (context) => {
   const { config, stores } = await fixture(context);
   interruptInstruction(stores.instructions, 11, sessionKeyOne);
