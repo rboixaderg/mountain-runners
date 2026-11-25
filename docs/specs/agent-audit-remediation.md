@@ -115,7 +115,7 @@ Cada tasca té la seva PR, tret que la columna `Entrega` indiqui el contrari.
 | T19   | Pendent    | T8            | Classificador de peticions retirat                                       | PR 19   | -                                                               |
 | T20   | Pendent    | T9–T14        | El torn està dividit en fases amb resultats tipats                       | PR 20   | -                                                               |
 | T21   | Pendent    | -             | Imatges processades només dins del sandbox amb sharp                     | PR 21   | -                                                               |
-| T22   | Pendent    | -             | Eines d'operador més curtes i amb garanties conservades                  | PR 22   | -                                                               |
+| T22   | Completada | -             | Eines d'operador més curtes i amb garanties conservades                  | PR 22   | [#331](https://github.com/rboixaderg/mountain-runners/pull/331) |
 | T23   | Pendent    | T17           | `telegram-pi-bridge` com a mòdul intern amb API estreta                  | PR 23   | -                                                               |
 | T24   | Pendent    | T20           | Proves amb fixtures compartits i dividides per fases                     | PR 24   | -                                                               |
 | T25   | En curs    | -             | Els ADR 0013 i 0014 esmenats amb les decisions preses                    | PR 25   | [#315](https://github.com/rboixaderg/mountain-runners/pull/315) |
