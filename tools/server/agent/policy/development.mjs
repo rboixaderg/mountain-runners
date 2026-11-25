@@ -134,6 +134,14 @@ const summaryPattern = new RegExp(
   "u",
 );
 
+// The summary becomes public text written by the model. Besides its length, it
+// may hold no mention, Markdown link, image, HTML, control or invisible
+// character, and no GitHub keyword that closes an issue.
+const maximumSummaryLength = 72;
+const unsafeSummaryCharacter = /[@<[\p{C}\p{Zl}\p{Zp}]/u;
+const closingReference =
+  /\b(?:close[sd]?|fix(?:e[sd])?|resolve[sd]?)\b\s*:?\s*(?:(?:[\w.-]+\/[\w.-]+)?#\d|GH-\d|https?:\/\/)/iu;
+
 // The service block a turn receives before the request: the effects the
 // service decided since the previous turn of the topic. They are facts of the
 // trusted service and never a request, so they are delimited and kept apart
@@ -187,6 +195,7 @@ export function buildInstructionPrompt(
     "",
     "When, and only when, this turn changed files, end your answer with exactly one line: SUMMARY: type(scope): imperative summary",
     `The type must be one of ${changeTypes.join(", ")}. A type outside that list is discarded and the change gets a generic title.`,
+    `Keep the text after SUMMARY: within ${maximumSummaryLength} characters, without @, links, HTML or issue-closing words such as "fixes #1"; otherwise it is discarded too.`,
     "Write no SUMMARY line on a turn that changed no files: the service removes any SUMMARY line from the text the person reads.",
     "SUMMARY is public. Describe only the code or content diff; do not include private conversation details or personal data.",
   );
@@ -254,7 +263,12 @@ export function parseChangeSummary(text) {
     return null;
   }
   const candidate = summaryLine.replace(changeSummaryLine, "").trim();
-  return summaryPattern.test(candidate) ? candidate : null;
+  const accepted =
+    candidate.length <= maximumSummaryLength &&
+    summaryPattern.test(candidate) &&
+    !unsafeSummaryCharacter.test(candidate) &&
+    !closingReference.test(candidate);
+  return accepted ? candidate : null;
 }
 
 export function slugify(text, maximumLength = 40) {
@@ -285,7 +299,13 @@ export function fallbackTitle({ summary }) {
 }
 
 export function pullRequestBody({ title, changedPaths, checkCommand }) {
-  const files = changedPaths.map((path) => `- \`${path}\``).join("\n");
+  // One JSON string per line inside a code block: a path can neither start a
+  // line that closes the block nor be read as Markdown or a mention.
+  const files = [
+    "```",
+    ...changedPaths.map((path) => JSON.stringify(path)),
+    "```",
+  ].join("\n");
   return [
     "## Objectiu",
     "",
