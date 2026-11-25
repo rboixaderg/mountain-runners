@@ -23,7 +23,7 @@ disposició.
 | `release/receive.mjs`                 | Escriptura limitada i hashed de uploads a `incoming/`                                       |
 | `release/validate.mjs`                | Validació d'arguments compartida entre el gate i el daemon                                  |
 | `release/cli.test.mjs`                | Tests `node --test` amb arxius tar adversos i el daemon en marxa                            |
-| `../../packages/telegram-pi-bridge/`  | Nucli autònom MIT: Telegram, cua, sessions i RPC; sense GitHub ni Docker                    |
+| `../../packages/telegram-pi-bridge/`  | Nucli intern: Telegram, cua, sessions i RPC; sense GitHub ni Docker                         |
 | `agent/`                              | Base operativa de l'agent privat de la fase 8 (T8.3); frontera a `docs/operations/agent.md` |
 | `agent/processes/telegram-bridge/`    | Procés del pont de Telegram, sessions i admissió duradora                                   |
 | `agent/runtime/`                      | Adaptador del client RPC, perfil de confiança i extensió `sandbox_bash`                     |

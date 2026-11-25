@@ -41,7 +41,9 @@ const agentDirectory = "agent";
 const bridgeDirectory = "node_modules/telegram-pi-bridge";
 
 // What `git archive` takes for each installed directory: the agent in full and
-// only these bridge entries, without their tests.
+// the bridge without its tests. The bridge entries are not listed one by one:
+// this command also archives the installed revision, which may carry entries
+// that a newer one removed, and `git archive` fails on a path it cannot match.
 const bridgeSource = "packages/telegram-pi-bridge";
 const releaseSources = {
   [agentDirectory]: "tools/server/agent",
@@ -49,9 +51,8 @@ const releaseSources = {
 };
 const releasePathspecs = [
   releaseSources[agentDirectory],
-  ...["src", "examples", "package.json", "LICENSE", "README.md"].map(
-    (entry) => `${bridgeSource}/${entry}`,
-  ),
+  bridgeSource,
+  `:(exclude)${bridgeSource}/test`,
   `:(exclude,glob)${bridgeSource}/**/*.test.*`,
 ];
 const fullRevisionPattern = /^[0-9a-f]{40}$/u;

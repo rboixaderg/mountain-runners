@@ -1,13 +1,12 @@
 # telegram-pi-bridge
 
-Biblioteca ESM per connectar temes d'un grup privat de Telegram amb sessions de
+Mòdul intern ESM per connectar temes d'un grup privat de Telegram amb sessions de
 Pi. No necessita GitHub, Git, Docker, Astro ni dependències npm. Usa `fetch`,
 processos de Node i `node:sqlite`.
 
-El paquet és MIT i es pot copiar a un repositori independent. Encara no s'ha
-publicat a npm ni s'ha creat un repositori remot propi. `private: true` impedeix
-una publicació accidental; el nom i la distribució pública requereixen una
-revisió i aprovació explícites. No és un servei validat per a producció.
+L'únic consumidor és [l'agent](../../tools/server/agent/README.md). Mentre no n'hi
+hagi un segon, no es publica ni es distribueix per separat. La llicència és a
+[`LICENSE`](LICENSE).
 
 ## Peces i límits
 
@@ -276,42 +275,13 @@ contenidors o treball remot. La biblioteca no implementa un sandbox: activar
 eines de fitxers o shell natives de Pi dona els permisos del procés a aquestes
 eines. Les extensions també executen codi al host.
 
-## Exemple executable sense eines
+## Proves
 
-`examples/conversation.mjs` connecta el pont amb Pi sense repositori, GitHub ni
-Docker. Desa cada tema en una sessió estable i no habilita eines del model.
-Abans d'executar-lo, configura aquestes variables fora del repositori:
-
-| Variable                      | Valor requerit                                                                  |
-| ----------------------------- | ------------------------------------------------------------------------------- |
-| `TELEGRAM_BOT_TOKEN`          | Credencial del bot                                                              |
-| `TELEGRAM_GROUP_ID`           | Identificador del grup privat                                                   |
-| `TELEGRAM_BOT_USERNAME`       | Nom del bot, sense `@`                                                          |
-| `BRIDGE_STATE_DIRECTORY`      | Directori privat d'estat, perfils i sessions                                    |
-| `PI_MODEL`                    | Model i proveïdor configurats a Pi                                              |
-| `PI_COMMAND`                  | Opcional, executable de Pi; per defecte `pi`                                    |
-| `MODEL_ENVIRONMENT_VARIABLES` | Noms separats per comes de les variables del proveïdor que es poden passar a Pi |
+Des de l'arrel del repositori:
 
 ```sh
-node examples/conversation.mjs
-```
-
-El token de Telegram no es passa a Pi. El contingut de les instruccions i
-l'historial sí que poden arribar al proveïdor del model. Defineix els permisos,
-la retenció, les còpies i la revocació abans d'usar converses reals.
-
-## Proves i empaquetat local
-
-Des d'aquest directori, també si s'ha copiat fora del repositori original:
-
-```sh
-node --test "test/**/*.test.mjs"
-pnpm pack --pack-destination /tmp
+pnpm --filter telegram-pi-bridge test
 ```
 
 Les proves carreguen cada entrada en un procés nou amb les dependències dels
-altres mòduls bloquejades. No cal instal·lar dependències ni construir el paquet.
-El tarball conté l'API,
-els mòduls, l'exemple, aquest README i la llicència. No conté proves, sessions,
-credencials ni codi de l'aplicació consumidora. Empaquetar-lo localment no el
-publica a cap registre.
+altres mòduls bloquejades.

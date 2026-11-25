@@ -25,7 +25,7 @@ desconeguts són al mateix
 
 El transport, l'autorització, les sessions, la cua i el protocol RPC viuen a
 [`packages/telegram-pi-bridge`](../../../packages/telegram-pi-bridge/README.md).
-Aquest paquet té API, llicència MIT, exemple i proves propis, sense dependències
+Aquest paquet intern té una API estreta i proves pròpies, sense dependències
 npm ni referències a Docker, GitHub o als prompts del projecte.
 
 Aquest directori és el consumidor. Conté les decisions que no pertoquen al pont:
@@ -33,12 +33,11 @@ què és una implementació, quines regles s'han de llegir, on es pot executar
 codi, quins secrets pot rebre Pi i quan es pot fer commit, push i PR.
 
 ```text
-packages/telegram-pi-bridge/       nucli independent
+packages/telegram-pi-bridge/       nucli intern
 ├── src/telegram/                 API, autoria, pertinença i bucle del pont
 ├── src/sessions/                 identitat per tema i cua SQLite
 ├── src/pi/rpc.mjs                transport RPC sense política d'execució
-├── examples/conversation.mjs     conversa sense eines, repositori ni Docker
-└── test/                         proves executables sense el workspace
+└── test/                         proves del paquet
 
 tools/server/agent/               aplicació de Mountain Runners
 ├── config.mjs                    configuració i credencials del servei
@@ -1121,10 +1120,9 @@ temporals, repositoris locals i fronteres externes simulades.
 ocupat, la imatge del sandbox, la còpia, la substitució de directoris i la
 verificació, i `commands/update/cli.test.mjs` la ajuda i els codis de sortida,
 amb repositoris de Git i directoris temporals.
-`workflow/bridge-package.test.mjs` executa el paquet en una còpia
-independent, prova el tarball des d'un consumidor extern i verifica la disposició
-instal·lada del servei. No s'hi fan peticions reals ni es necessiten credencials,
-i el gate no publica el paquet ni crea cap repositori remot.
+`workflow/bridge-package.test.mjs` verifica que el servei resol el paquet en la
+disposició instal·lada, sense el workspace. No s'hi fan peticions reals ni es
+necessiten credencials.
 
 Des de l'arrel, amb Node 24.22.3 i pnpm 10.33.0:
 

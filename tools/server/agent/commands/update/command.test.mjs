@@ -30,7 +30,7 @@ const sessionKey = "-1001234567890:7";
 const timestamp = new Date("2026-11-22T10:15:00Z");
 
 // The files of the operator checkout: the installed agent directory in full,
-// tests included, and the bridge entries of the release tarball.
+// tests included, and the bridge package.
 const baselineFiles = {
   "tools/server/agent/README.md": "# Agent\n",
   "tools/server/agent/processes/telegram-bridge/main.mjs":
@@ -43,7 +43,6 @@ const baselineFiles = {
   "packages/telegram-pi-bridge/README.md": "# Bridge\n",
   "packages/telegram-pi-bridge/src/index.mjs": "export {};\n",
   "packages/telegram-pi-bridge/src/index.test.mjs": "// never installed\n",
-  "packages/telegram-pi-bridge/examples/example.mjs": "// example\n",
   "packages/telegram-pi-bridge/test/queue.test.mjs": "// never installed\n",
   "package.json": '{"name":"mountain-runners"}\n',
   "apps/web/package.json": '{"name":"web"}\n',
@@ -90,28 +89,17 @@ function commitAll(repository, message) {
 }
 
 // The installed layout is the one the manual procedure of 22 November 2026
-// left: the agent directory whole and the selected bridge entries.
+// left: the agent directory whole and the bridge without its tests.
 function installFromWorktree({ repository, installRoot }) {
   cpSync(join(repository, "tools/server/agent"), join(installRoot, "agent"), {
     recursive: true,
   });
-  const bridge = join(installRoot, "node_modules/telegram-pi-bridge");
-  for (const entry of [
-    "src",
-    "examples",
-    "package.json",
-    "LICENSE",
-    "README.md",
-  ]) {
-    cpSync(
-      join(repository, "packages/telegram-pi-bridge", entry),
-      join(bridge, entry),
-      {
-        recursive: true,
-        filter: (source) => !/\.test\.[^/]+$/u.test(source),
-      },
-    );
-  }
+  const bridge = join(repository, "packages/telegram-pi-bridge");
+  cpSync(bridge, join(installRoot, "node_modules/telegram-pi-bridge"), {
+    recursive: true,
+    filter: (source) =>
+      source !== join(bridge, "test") && !/\.test\.[^/]+$/u.test(source),
+  });
 }
 
 /** A checkout with one commit, its installed tree and empty state and backups. */
@@ -459,6 +447,21 @@ test("installs a bridge without the tests of the package", (context) => {
   assert.equal(existsSync(join(bridge, "src/index.mjs")), true);
   assert.equal(existsSync(join(bridge, "src/index.test.mjs")), false);
   assert.equal(existsSync(join(bridge, "test")), false);
+});
+
+test("updates from an installed bridge with an entry the target removes", (context) => {
+  const example = "packages/telegram-pi-bridge/examples/example.mjs";
+  const app = createInstallation(context, {
+    files: { ...baselineFiles, [example]: "// example\n" },
+  });
+  writeRevision(app.installRoot, app.installed);
+  const target = advance(app, { remove: [example] });
+
+  const result = runUpdate(app, { argv: ["--commit", target] });
+
+  assert.equal(result.code, 0, result.stderr);
+  const bridge = join(app.installRoot, "node_modules/telegram-pi-bridge");
+  assert.equal(existsSync(join(bridge, "examples")), false);
 });
 
 const busyStates = [
