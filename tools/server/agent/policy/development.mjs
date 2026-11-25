@@ -1,6 +1,7 @@
 // Mountain Runners policy: prompts, checks, naming and reports.
 // Pure data and functions only; no process, filesystem or network integration.
 
+import { posix } from "node:path";
 import { attachmentRefusalReasons } from "../attachments/refusals.mjs";
 
 // The four notices a club member reads from the service (T8.9). They are plain
@@ -57,6 +58,17 @@ const webFastGateRoots = [
   "apps/web/messages",
   "apps/web/public",
 ];
+// The only files a merge asked in the topic may change: per content root, the
+// extensions the web reads as data. Code that reaches `main` runs with
+// privileges, wherever it is, so the maintainer merges any other change (ADR
+// 0013).
+const contentExtensions = [
+  ["apps/web/src/content", [".yaml"]],
+  [
+    "apps/web/src/content-assets",
+    [".avif", ".jpeg", ".jpg", ".pdf", ".png", ".webp"],
+  ],
+];
 export const sandboxPrepareCommand = [
   "export HOME=/tmp npm_config_manage_package_manager_versions=false",
   "PNPM_VERSION=$(pnpm --version)",
@@ -74,6 +86,25 @@ export function sandboxCheckCommand(checkCommand) {
   ].join(" && ");
 }
 
+function isInside(path, roots) {
+  return roots.some((root) => path.startsWith(`${root}/`));
+}
+
+function isContentFile(path) {
+  return (
+    !path.split("/").some((segment) => segment.startsWith(".")) &&
+    contentExtensions.some(
+      ([root, extensions]) =>
+        isInside(path, [root]) && extensions.includes(posix.extname(path)),
+    )
+  );
+}
+
+/** Whether a change is content only. An empty list proves nothing. */
+export function changesOnlyContent(paths) {
+  return paths.length > 0 && paths.every(isContentFile);
+}
+
 /**
  * The check a publication runs, from every path it would contain. Changes that
  * stay inside the web application source, messages or static public assets
@@ -83,10 +114,7 @@ export function sandboxCheckCommand(checkCommand) {
  */
 export function checkCommandForPaths(paths) {
   const everyPathIsWebApp =
-    paths.length > 0 &&
-    paths.every((path) =>
-      webFastGateRoots.some((root) => path.startsWith(`${root}/`)),
-    );
+    paths.length > 0 && paths.every((path) => isInside(path, webFastGateRoots));
   return everyPathIsWebApp ? checkCommands.webOnly : checkCommands.full;
 }
 // Conventional types the repository accepts for a change summary. The prompt
@@ -864,6 +892,11 @@ export const mergeReports = {
     `La proposta #${pullRequestNumber} no està al dia amb la resta del projecte. No s'ha fusionat res; ho ha de revisar la persona que manté el servei.`,
   notClean: ({ pullRequestNumber }) =>
     `GitHub no considera la proposta #${pullRequestNumber} a punt per fusionar, perquè hi ha conflictes o comprovacions pendents. No s'ha fusionat res; ho ha de revisar la persona que manté el servei.`,
+  nonContentChanges: ({ reviewUrl }) =>
+    withReviewLink(
+      "Aquest canvi toca parts del web que ha de revisar la persona que manté el servei. No s'ha publicat res.",
+      reviewUrl,
+    ),
   unreadable: ({ pullRequestNumber }) =>
     `No he pogut llegir com està la proposta #${pullRequestNumber}. No s'ha fusionat res.`,
   merged: ({ pullRequestNumber, mergeCommit, pullRequestUrl }) =>

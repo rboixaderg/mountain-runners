@@ -96,6 +96,13 @@ function fakeGithub(state = {}) {
     mergeError: null,
     mergeResponse: { mergeCommitSha: mergeCommit },
     beforeMerge: null,
+    changedPaths: ["apps/web/src/content/posts/la-cursa.yaml"],
+    changedPathsError: null,
+    changedPathsCommits: [],
+    // Entries that differ from a regular file, by path.
+    treeModes: {},
+    treeModesError: null,
+    removedPaths: [],
     ...state,
     async getPullRequest({ number }) {
       github.reads += 1;
@@ -115,6 +122,25 @@ function fakeGithub(state = {}) {
     },
     async getCommitStatuses() {
       return github.statuses;
+    },
+    async getChangedPaths({ commit: pinnedCommit }) {
+      github.changedPathsCommits.push(pinnedCommit);
+      if (github.changedPathsError) throw github.changedPathsError;
+      return {
+        paths: github.changedPaths,
+        presentPaths: github.changedPaths.filter(
+          (path) => !github.removedPaths.includes(path),
+        ),
+      };
+    },
+    async getTreeModes({ commit: pinnedCommit }) {
+      assert.equal(pinnedCommit, github.changedPathsCommits.at(-1));
+      if (github.treeModesError) throw github.treeModesError;
+      return new Map(
+        github.changedPaths
+          .filter((path) => !github.removedPaths.includes(path))
+          .map((path) => [path, github.treeModes[path] ?? "100644"]),
+      );
     },
     async mergePullRequest({ number, sha }) {
       if (github.pullRequests === null) {
@@ -333,6 +359,149 @@ test("merges the delivered preview commit and records it before the call", async
   assert.equal(traces[2].authorIdentifier, 555);
   assert.equal(traces[2].updateIdentifier, 20);
   assert.equal(traces[2].detail, `#200 ${commit} squash ${mergeCommit}`);
+});
+
+const nonContentReport = [
+  "Aquest canvi toca parts del web que ha de revisar la persona que manté el servei. No s'ha publicat res.",
+  `Enllaç per a revisió: https://github.com/${repository}/pull/200`,
+].join("\n");
+
+test("merges a pull request that only changes content, read at the pinned commit", async (context) => {
+  const { deliverPreview, handler, github } = setup(context, {
+    github: fakeGithub({
+      changedPaths: [
+        "apps/web/src/content/posts/la-cursa.yaml",
+        "apps/web/src/content-assets/posts/la-cursa.webp",
+      ],
+    }),
+  });
+  deliverPreview();
+
+  await handler.handle(request(), bareCommand);
+
+  assert.deepEqual(github.changedPathsCommits, [commit]);
+  assert.deepEqual(github.merges, [{ number: 200, sha: commit }]);
+});
+
+for (const [name, changedPaths] of [
+  ["only code", ["tools/server/agent/workflow/merge-request.mjs"]],
+  [
+    "content and code",
+    ["apps/web/src/content/posts/la-cursa.yaml", "apps/web/src/lib/a.ts"],
+  ],
+  ["the content schema", ["apps/web/src/content.config.ts"]],
+  ["a sibling of a content root", ["apps/web/src/content-extra/a.yaml"]],
+  ["a sibling of the assets root", ["apps/web/src/content-assets-extra/a.png"]],
+  ["a content root with another case", ["apps/web/src/Content/a.yaml"]],
+  ["an extension with another case", ["apps/web/src/content/posts/a.YAML"]],
+  ["a bare content root", ["apps/web/src/content"]],
+  ["a Prettier configuration", ["apps/web/src/content/.prettierrc.cjs"]],
+  ["an ESLint configuration", ["apps/web/src/content/eslint.config.mjs"]],
+  ["a test file", ["apps/web/src/content/x.test.ts"]],
+  ["Git attributes", ["apps/web/src/content/.gitattributes"]],
+  ["a package manifest", ["apps/web/src/content/package.json"]],
+  ["a hidden data file", ["apps/web/src/content/.hidden.yaml"]],
+  ["a file in a hidden directory", ["apps/web/src/content/.config/a.yaml"]],
+  ["an asset among the data", ["apps/web/src/content/posts/a.png"]],
+  ["data among the assets", ["apps/web/src/content-assets/posts/a.yaml"]],
+  ["a scriptable image", ["apps/web/src/content-assets/posts/a.svg"]],
+  [
+    "a file renamed out of content",
+    ["apps/web/src/lib/a.yaml", "apps/web/src/content/posts/a.yaml"],
+  ],
+  ["no file at all", []],
+]) {
+  test(`refuses a pull request that changes ${name} without merging`, async (context) => {
+    const { deliverPreview, handler, github, merges, traces } = setup(context, {
+      github: fakeGithub({ changedPaths }),
+    });
+    deliverPreview();
+
+    const result = await handler.handle(request(), bareCommand);
+
+    assert.equal(result.report, nonContentReport);
+    assert.deepEqual(github.merges, []);
+    assert.equal(merges.state(20), undefined);
+    assert.equal(traces.at(-1).action, "merge_refused");
+    assert.equal(traces.at(-1).detail, "non_content_changes #200 aaaaaaa");
+  });
+}
+
+for (const [name, mode] of [
+  ["a symbolic link", "120000"],
+  ["a submodule", "160000"],
+  ["an executable file", "100755"],
+]) {
+  test(`refuses ${name} under a content root without merging`, async (context) => {
+    const path = "apps/web/src/content/posts/la-cursa.yaml";
+    const { deliverPreview, handler, github, traces } = setup(context, {
+      github: fakeGithub({ treeModes: { [path]: mode } }),
+    });
+    deliverPreview();
+
+    await handler.handle(request(), bareCommand);
+
+    assert.deepEqual(github.merges, []);
+    assert.equal(traces.at(-1).detail, "non_content_changes #200 aaaaaaa");
+  });
+}
+
+test("merges a pull request that removes a content file", async (context) => {
+  const path = "apps/web/src/content/posts/la-cursa.yaml";
+  const { deliverPreview, handler, github } = setup(context, {
+    github: fakeGithub({ removedPaths: [path] }),
+  });
+  deliverPreview();
+
+  await handler.handle(request(), bareCommand);
+
+  assert.deepEqual(github.merges, [{ number: 200, sha: commit }]);
+});
+
+test("refuses as unreadable when the commit tree cannot be read", async (context) => {
+  const { deliverPreview, handler, github, traces } = setup(context, {
+    github: fakeGithub({ treeModesError: new Error("truncated") }),
+  });
+  deliverPreview();
+
+  await handler.handle(request(), bareCommand);
+
+  assert.deepEqual(github.merges, []);
+  assert.equal(traces.at(-1).detail, "unreadable #200 aaaaaaa");
+});
+
+for (const mergeableState of ["behind", "dirty"]) {
+  test(`refuses a ${mergeableState} branch that changes code without synchronising it`, async (context) => {
+    const { deliverPreview, handler, synchronization, traces } = setup(
+      context,
+      {
+        github: fakeGithub({
+          pullRequest: openPullRequest({ mergeableState }),
+          changedPaths: ["apps/web/src/lib/a.ts"],
+        }),
+        synchronize: true,
+      },
+    );
+    deliverPreview();
+
+    await handler.handle(request(), bareCommand);
+
+    assert.deepEqual(synchronization.calls, []);
+    assert.equal(traces.at(-1).detail, "non_content_changes #200 aaaaaaa");
+  });
+}
+
+test("refuses as unreadable when the changed files cannot be read", async (context) => {
+  const { deliverPreview, handler, github, traces } = setup(context, {
+    github: fakeGithub({ changedPathsError: new Error("network down") }),
+  });
+  deliverPreview();
+
+  const result = await handler.handle(request(), bareCommand);
+
+  assert.match(result.report, /No he pogut llegir com està la proposta/u);
+  assert.deepEqual(github.merges, []);
+  assert.equal(traces.at(-1).detail, "unreadable #200 aaaaaaa");
 });
 
 for (const [name, command] of [

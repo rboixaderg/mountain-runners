@@ -540,6 +540,101 @@ test("rejects a pull request response without draft, base or merged flags", asyn
   }
 });
 
+function compareClient(response) {
+  const requests = [];
+  const github = new GitHubTrust({
+    token: "synthetic",
+    repository: "example/project",
+    fetchImpl: async (url) => {
+      requests.push(url);
+      return { ok: true, json: async () => response };
+    },
+  });
+  return { github, requests };
+}
+
+test("reads the changed paths of the pinned commit against main, with both names of a rename", async () => {
+  const { github, requests } = compareClient({
+    files: [
+      { filename: "a.yaml" },
+      { filename: "new.yaml", previous_filename: "old.mjs" },
+      { filename: "gone.yaml", status: "removed" },
+    ],
+  });
+
+  assert.deepEqual(await github.getChangedPaths({ commit }), {
+    paths: ["a.yaml", "new.yaml", "old.mjs", "gone.yaml"],
+    presentPaths: ["a.yaml", "new.yaml"],
+  });
+  assert.deepEqual(
+    requests.map((url) => new URL(url).pathname),
+    [`/repos/example/project/compare/main...${commit}`],
+  );
+});
+
+test("accepts the longest changed file list that is surely complete", async () => {
+  const { github } = compareClient({
+    files: Array.from({ length: 299 }, (_, index) => ({
+      filename: `${index}`,
+    })),
+  });
+
+  const { paths } = await github.getChangedPaths({ commit });
+
+  assert.equal(paths.length, 299);
+});
+
+test("reads the modes of the tree of the pinned commit", async () => {
+  const { github, requests } = compareClient({
+    truncated: false,
+    tree: [
+      { path: "a.yaml", mode: "100644" },
+      { path: "link.yaml", mode: "120000" },
+    ],
+  });
+
+  assert.deepEqual(
+    await github.getTreeModes({ commit }),
+    new Map([
+      ["a.yaml", "100644"],
+      ["link.yaml", "120000"],
+    ]),
+  );
+  assert.deepEqual(
+    requests.map((url) => {
+      const { pathname, search } = new URL(url);
+      return `${pathname}${search}`;
+    }),
+    [`/repos/example/project/git/trees/${commit}?recursive=1`],
+  );
+});
+
+test("rejects a commit tree that is invalid or truncated", async () => {
+  for (const response of [
+    {},
+    { truncated: true, tree: [] },
+    { truncated: false },
+  ]) {
+    const { github } = compareClient(response);
+    await assert.rejects(github.getTreeModes({ commit }), /commit tree/u);
+  }
+});
+
+test("rejects a changed file list that is invalid or may be truncated", async () => {
+  for (const response of [
+    {},
+    { files: [{}] },
+    {
+      files: Array.from({ length: 300 }, (_, index) => ({
+        filename: `${index}`,
+      })),
+    },
+  ]) {
+    const { github } = compareClient(response);
+    await assert.rejects(github.getChangedPaths({ commit }), /changed files/u);
+  }
+});
+
 test("merges with a PUT whose body is exactly the pinned commit and the squash method", async () => {
   const mergeCommit = "b".repeat(40);
   const requests = [];

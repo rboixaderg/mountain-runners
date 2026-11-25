@@ -28,8 +28,10 @@ import {
   sleep,
 } from "../repository/request-signal.mjs";
 import {
+  changesOnlyContent,
   mergeReports,
   mergeSynchronizationRequestedAction,
+  pullRequestReviewUrl,
   shortCommit,
 } from "../policy/development.mjs";
 
@@ -37,6 +39,8 @@ const mergeCommandPrefix = "/merge";
 const mergeCommandPattern =
   /^\/merge(?:[ \t]+#?(\d+)(?:[ \t]+([a-f0-9]{40}))?)?$/u;
 const mergeMethod = "squash";
+// A symbolic link or a submodule under a content root is not content.
+const regularFileMode = "100644";
 export const mergeConfirmationOutcome = "merge_context";
 const quietConfirmation = { outcome: mergeConfirmationOutcome };
 
@@ -99,6 +103,7 @@ const refusals = {
   checksNotGreen: "checks_not_green",
   behind: "behind",
   notClean: "not_clean",
+  nonContentChanges: "non_content_changes",
   unreadable: "unreadable",
 };
 
@@ -202,6 +207,10 @@ export function createMergeRequests({
     [refusals.checksNotGreen]: mergeReports.checksNotGreen,
     [refusals.behind]: mergeReports.behind,
     [refusals.notClean]: mergeReports.notClean,
+    [refusals.nonContentChanges]: ({ pullRequestNumber }) =>
+      mergeReports.nonContentChanges({
+        reviewUrl: pullRequestReviewUrl({ repository, pullRequestNumber }),
+      }),
     [refusals.unreadable]: mergeReports.unreadable,
   };
 
@@ -276,6 +285,20 @@ export function createMergeRequests({
     }
   }
 
+  /** Whether the pinned commit only changes regular content files. */
+  async function readOnlyContent(commit, signal) {
+    const { paths, presentPaths } = await github.getChangedPaths({
+      commit,
+      signal: requestSignal(signal, requestTimeoutMilliseconds),
+    });
+    if (!changesOnlyContent(paths)) return false;
+    const modes = await github.getTreeModes({
+      commit,
+      signal: requestSignal(signal, requestTimeoutMilliseconds),
+    });
+    return presentPaths.every((path) => modes.get(path) === regularFileMode);
+  }
+
   /**
    * Re-read the live state of the pinned commit. The pull request is returned
    * with its refusal so the reply can use its review URL without a second read.
@@ -301,6 +324,14 @@ export function createMergeRequests({
     });
     const pullRequest = live.pullRequest;
     const refusal = refusalFor(pullRequest, target, live.classification);
+    // A branch that would be synchronised is checked too: a change the topic
+    // cannot merge never gets a synchronisation or a new preview.
+    const synchronizable =
+      refusal === refusals.behind && synchronizeBehind !== undefined;
+    if (refusal !== null && !synchronizable) return { pullRequest, refusal };
+    if (!(await readOnlyContent(target.commit, signal))) {
+      return { pullRequest, refusal: refusals.nonContentChanges };
+    }
     return { pullRequest, refusal };
   }
 
@@ -844,6 +875,18 @@ export function createMergeRequests({
         return synchronized.outcome === "uncertain"
           ? synchronized
           : { ...synchronized, outcome: mergeConfirmationOutcome };
+      }
+      if (live.refusal === refusals.nonContentChanges) {
+        // The person learns why no question follows their validation.
+        return {
+          ...refuse(
+            request,
+            live.refusal,
+            refusalTexts[live.refusal](target),
+            target,
+          ),
+          outcome: mergeConfirmationOutcome,
+        };
       }
       if (live.refusal !== null) return quietConfirmation;
       const { chatIdentifier, threadIdentifier } = parseSessionKey(

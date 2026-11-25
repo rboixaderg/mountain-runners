@@ -61,6 +61,8 @@ function fakeGithub(overrides = {}) {
     readError: null,
     mergeError: null,
     mergeResponse: { mergeCommitSha: mergeCommit },
+    changedPaths: ["apps/web/src/content/posts/la-cursa.yaml"],
+    changedPathsError: null,
     ...overrides,
     async getPullRequest() {
       github.reads += 1;
@@ -72,6 +74,16 @@ function fakeGithub(overrides = {}) {
     },
     async getCommitStatuses() {
       return github.statuses;
+    },
+    async getChangedPaths() {
+      if (github.changedPathsError) throw github.changedPathsError;
+      return {
+        paths: github.changedPaths,
+        presentPaths: github.changedPaths,
+      };
+    },
+    async getTreeModes() {
+      return new Map(github.changedPaths.map((path) => [path, "100644"]));
     },
     async mergePullRequest({ number, sha }) {
       github.merges.push({ number, sha });
@@ -516,6 +528,24 @@ for (const [name, prepare] of [
   });
 }
 
+test("validating a pull request that changes code refuses instead of asking", async (context) => {
+  const scenario = setup(context);
+  scenario.deliverPreview();
+  scenario.github.changedPaths = ["apps/web/src/lib/a.ts"];
+
+  const result = await validate(scenario);
+
+  assert.equal(result.outcome, "merge_context");
+  assert.match(result.report, /la persona que manté el servei/u);
+  assert.equal(scenario.attempts.length, 0);
+  assert.equal(storedQuestion(scenario), undefined);
+  assert.equal(scenario.traces.at(-1).action, "merge_refused");
+  assert.equal(
+    scenario.traces.at(-1).detail,
+    "non_content_changes #200 aaaaaaa",
+  );
+});
+
 for (const [name, configureSend] of [
   [
     "a failed send",
@@ -667,6 +697,20 @@ for (const [name, prepare, expected] of [
       scenario.intervening.value = true;
     },
     /ja no correspon a la feina vigent/u,
+  ],
+  [
+    "the pull request changes code",
+    (scenario) => {
+      scenario.github.changedPaths = ["apps/web/src/lib/a.ts"];
+    },
+    /parts del web que ha de revisar/u,
+  ],
+  [
+    "the changed files cannot be read",
+    (scenario) => {
+      scenario.github.changedPathsError = new Error("network");
+    },
+    /No he pogut llegir com està/u,
   ],
   [
     "the preview label is removed",
