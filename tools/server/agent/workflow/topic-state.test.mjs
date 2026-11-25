@@ -67,8 +67,7 @@ function reportChecks(
     pullRequestNumber,
     commitSha: commit,
   });
-  ciWatches.beginSend(updateIdentifier, result);
-  ciWatches.finishSend(updateIdentifier);
+  ciWatches.finishSend(updateIdentifier, result);
 }
 
 function labeledPullRequest(headSha = reportedCommit) {

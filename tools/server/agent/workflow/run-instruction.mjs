@@ -2,7 +2,7 @@
 // operations. This module has no container/GitHub transport or secret configuration.
 //
 // Every ordinary instruction runs a writable turn in its topic. The classifier
-// identifies preview requests; /merge and automatic repairs keep their own paths.
+// identifies preview requests; /merge keeps its own path.
 // The turn receives service effects the topic has not been told yet.
 
 import { rmSync } from "node:fs";
@@ -18,8 +18,6 @@ import {
   commitAll,
   createBranch,
   currentBranch,
-  commitSubject,
-  changeDiff,
   changedPathsAgainstMain,
   ensureSessionWorktree,
   findSessionWorktree,
@@ -50,7 +48,6 @@ import {
   buildAttachmentsInstruction,
   buildConflictInstruction,
   conflictResolvedMarker,
-  buildRepairInstruction,
   checkCommandForPaths,
   ciWatchOutcomes,
   mergeSynchronizationReports,
@@ -70,7 +67,6 @@ import {
   publicationNoteText,
   publicationReport,
   previewRequestKind,
-  repairRequestKind,
   topicTurnKind,
   pendingWorkCommitMessage,
   stripChangeSummary,
@@ -163,60 +159,6 @@ export function createInstructionRunner({
       );
       return null;
     }
-  }
-
-  /**
-   * A repair continues a published commit: the worktree and its branch must
-   * already exist and stay at that commit. The service never creates, resets or
-   * moves anything to repair a failure.
-   */
-  async function repairTarget(request, worktreeName, signal) {
-    const worktree = await findSessionWorktree({
-      repositoryPath,
-      worktreeRoot,
-      name: worktreeName,
-      signal,
-    });
-    if (worktree === null) {
-      return {
-        report: instructionReports.repairWorktreeMissing,
-        reason: instructionReportKeys.repairWorktreeMissing,
-      };
-    }
-    const branch = await currentBranch(worktree, { signal });
-    if (
-      branch === null ||
-      (await headCommit(worktree, { signal })) !== request.commit
-    ) {
-      return {
-        report: instructionReports.repairCommitChanged,
-        reason: instructionReportKeys.repairCommitChanged,
-      };
-    }
-    // Leftovers of a later instruction (for example a failed check) are not
-    // part of the failed commit and must never be committed by a repair.
-    if ((await listChangedPaths(worktree, { signal })).length > 0) {
-      return {
-        report: instructionReports.repairWorktreeDirty,
-        reason: instructionReportKeys.repairWorktreeDirty,
-      };
-    }
-    signal?.throwIfAborted();
-    return {
-      worktree,
-      branch,
-      instruction: buildRepairInstruction({
-        pullRequestNumber: request.pullRequestNumber,
-        commit: request.commit,
-        branch,
-        changeSummary: await commitSubject(worktree, request.commit, {
-          signal,
-        }),
-        failedChecks: request.failedChecks,
-        evidence: request.evidence,
-        diff: await changeDiff({ worktree, signal }),
-      }),
-    };
   }
 
   /** The pull request of the topic, read from the durable CI watches. */
@@ -928,7 +870,6 @@ export function createInstructionRunner({
     const piSessionIdentifier = sessionIdentifier(request.sessionKey);
     const worktreeName = identifiers.worktreeName(request.sessionKey);
     const newTaskSuffix = identifiers.changeSuffix(request.updateIdentifier);
-    const repair = request.kind === repairRequestKind;
     const attachments = request.attachments ?? [];
     // A merge or preview ignores an attached image and says so.
     const ignoringAttachment = (report) =>
@@ -942,16 +883,13 @@ export function createInstructionRunner({
     try {
       signal?.throwIfAborted();
       // A merge is recognised from the literal command before the classifier,
-      // so neither the classifier nor the model ever sees it. The internal
-      // repair instruction is service text, never a person's command.
-      const mergeCommand = repair
-        ? null
-        : parseMergeCommand(request.instruction);
+      // so neither the classifier nor the model ever sees it.
+      const mergeCommand = parseMergeCommand(request.instruction);
       if (mergeCommand !== null) {
         const merged = await requestMerge(request, mergeCommand, { signal });
         return { ...merged, report: ignoringAttachment(merged.report) };
       }
-      if (!repair && requestMergeConfirmation !== undefined) {
+      if (requestMergeConfirmation !== undefined) {
         const confirmation = requestMergeConfirmation.contextualIntent(request);
         if (confirmation !== null) {
           return requestMergeConfirmation.handleConfirmation(
@@ -961,17 +899,13 @@ export function createInstructionRunner({
           );
         }
       }
-      const resumedResearch = repair
-        ? null
-        : await research?.resume(request, { signal });
+      const resumedResearch = await research?.resume(request, { signal });
       if (resumedResearch?.report) {
         return { outcome: "answered", report: resumedResearch.report };
       }
       const publishReviewed =
-        !repair &&
-        isResearchAffected &&
-        request.instruction === "/publica-revisio";
-      if (!repair && migrateTopicJob) {
+        isResearchAffected && request.instruction === "/publica-revisio";
+      if (migrateTopicJob) {
         const migrationReport = await migrateTopicJob(request.sessionKey, {
           signal,
         });
@@ -982,23 +916,16 @@ export function createInstructionRunner({
           };
         }
       }
-      // Only the trusted internal repair request fixes its kind; every other
-      // request is classified from its text and from the bounded context of the
-      // topic, which the service reads without touching anything.
-      const topic = repair
-        ? null
-        : await readTopicWorktree(worktreeName, { signal });
-      const topicPullRequest = repair
-        ? null
-        : topicPullRequestNumber(request.sessionKey);
+      // A request is classified from its text and from the bounded context of
+      // the topic, which the service reads without touching anything.
+      const topic = await readTopicWorktree(worktreeName, { signal });
+      const topicPullRequest = topicPullRequestNumber(request.sessionKey);
       const lastAgentReply =
-        repair || sessionNotes === undefined
+        sessionNotes === undefined
           ? null
           : safelyWithNotes(() => sessionNotes.lastReply(request.sessionKey));
       let kind;
-      if (repair) {
-        kind = repairRequestKind;
-      } else if (resumedResearch) {
+      if (resumedResearch) {
         kind = resumedResearch.readOnly ? "consultation" : topicTurnKind;
       } else if (publishReviewed) {
         kind = topicTurnKind;
@@ -1043,28 +970,11 @@ export function createInstructionRunner({
         const preview = await requestPreview(request, { signal });
         return { ...preview, report: ignoringAttachment(preview.report) };
       }
-      const topicTurn = !repair;
       const readOnly =
-        research &&
-        topicTurn &&
-        kind !== topicTurnKind &&
-        kind !== "continuation";
-      const target = repair
-        ? await repairTarget(request, worktreeName, signal)
-        : null;
-      if (target?.report) {
-        return {
-          outcome: "failed",
-          report: target.report,
-          reason: target.reason,
-        };
-      }
-      const binding = topicTurn
-        ? (topicJobs?.bindingOf(request.sessionKey) ?? null)
-        : null;
+        research && kind !== topicTurnKind && kind !== "continuation";
+      const binding = topicJobs?.bindingOf(request.sessionKey) ?? null;
       prepareResearchJob?.(worktreeName, {
         newJob:
-          !repair &&
           !topic.worktree &&
           binding === null &&
           (isFirstInstruction === undefined ||
@@ -1144,8 +1054,6 @@ export function createInstructionRunner({
       let worktree;
       if (boundContinuation || (readOnly && topic.worktree)) {
         worktree = topic.worktree;
-      } else if (repair) {
-        worktree = target.worktree;
       } else {
         worktree = await ensureSessionWorktree({
           repositoryPath,
@@ -1154,9 +1062,7 @@ export function createInstructionRunner({
           signal,
         });
       }
-      let instruction = repair
-        ? target.instruction
-        : (resumedResearch?.instruction ?? request.instruction);
+      let instruction = resumedResearch?.instruction ?? request.instruction;
       let stagedAttachments = [];
       let promptImages = [];
       let worktreePrepared = false;
@@ -1164,7 +1070,6 @@ export function createInstructionRunner({
         attachmentStore !== undefined &&
         attachmentStore.list(worktreeName).length > 0;
       if (
-        topicTurn &&
         !publishReviewed &&
         (attachments.length > 0 || hasStoredAttachments)
       ) {
@@ -1210,15 +1115,14 @@ export function createInstructionRunner({
         return claimedNotes.map((note) => note.text);
       };
       let modelResult;
-      const webTurn =
-        topicTurn && !publishReviewed
-          ? research?.turn(request, {
-              worktreeName,
-              signal,
-              readOnly,
-              resumedResearch,
-            })
-          : undefined;
+      const webTurn = publishReviewed
+        ? undefined
+        : research?.turn(request, {
+            worktreeName,
+            signal,
+            readOnly,
+            resumedResearch,
+          });
       try {
         modelResult = publishReviewed
           ? { text: "" }
@@ -1230,11 +1134,7 @@ export function createInstructionRunner({
               images: promptImages,
               attachments: stagedAttachments,
               worktreePrepared,
-              kind: repair
-                ? repairRequestKind
-                : readOnly
-                  ? "consultation"
-                  : topicTurnKind,
+              kind: readOnly ? "consultation" : topicTurnKind,
               webResearch: webTurn?.tool,
               topicState,
               claimServiceNotes,
@@ -1335,45 +1235,30 @@ export function createInstructionRunner({
           outcome: "answered",
           modelAnswer: answer !== "",
           serviceText: null,
-          report:
-            answer ||
-            (repair
-              ? instructionReports.noAnswer
-              : instructionReports.clarification),
+          report: answer || instructionReports.clarification,
         };
       }
       const summary = isResearchAffected?.(worktreeName)
         ? null
         : parseChangeSummary(modelResult.text);
       const title = fallbackTitle({ summary });
-      const existingBranch = repair
-        ? target.branch
-        : await currentBranch(worktree, { signal });
+      const existingBranch = await currentBranch(worktree, { signal });
       const branch = existingBranch
         ? assertWorkBranch(existingBranch)
         : branchNameForChange({ summary, suffix: newTaskSuffix });
       if (!existingBranch) {
         await createBranch({ worktree, branch, signal });
       }
-      // A repair and a resumed pull request only update the pull request they
-      // continue: the publisher checks it is still open at that commit and
-      // never opens a new one.
-      let continuedPullRequest;
-      if (repair) {
-        continuedPullRequest = {
-          pullRequestNumber: request.pullRequestNumber,
-          commit: request.commit,
-        };
-      }
-      if (continuedPullRequestNumber !== null) {
-        // A resumed pull request and a continuation that happens in place
-        // update that exact pull request: the publisher revalidates it before
-        // the push and never opens another one.
-        continuedPullRequest = {
-          pullRequestNumber: continuedPullRequestNumber,
-          commit: continuedBaseHeadSha,
-        };
-      }
+      // A resumed pull request and a continuation that happens in place only
+      // update that exact pull request: the publisher revalidates it before the
+      // push and never opens another one.
+      const continuedPullRequest =
+        continuedPullRequestNumber === null
+          ? undefined
+          : {
+              pullRequestNumber: continuedPullRequestNumber,
+              commit: continuedBaseHeadSha,
+            };
       // `main` is integrated before the gate, and the gate depends on what the
       // synchronized publication would contain: a change that stays inside the
       // content never runs the operational server tests. The instruction only
@@ -1435,11 +1320,7 @@ export function createInstructionRunner({
       }
       // Record the first confirmed publication. An existing binding is never
       // replaced: later turns of the topic continue its recorded branch.
-      if (
-        !repair &&
-        topicJobs &&
-        topicJobs.bindingOf(request.sessionKey) === null
-      ) {
+      if (topicJobs && topicJobs.bindingOf(request.sessionKey) === null) {
         topicJobs.bind({
           sessionKey: request.sessionKey,
           branch,
@@ -1471,15 +1352,12 @@ export function createInstructionRunner({
         }
       }
       // The watch is durable before the report is sent, and it never waits for
-      // the CI of the commit: the queue keeps executing other instructions. A
-      // repair reopens the watch of the instruction it continues, so the topic
-      // follows the new commit in the same conversation slot.
+      // the CI of the commit: the queue keeps executing other instructions.
       const ciWatch = registerCiWatch?.({
         updateIdentifier: request.updateIdentifier,
         sessionKey: request.sessionKey,
         pullRequestNumber: publication.pullRequest.number,
         commit: publication.commit,
-        automatic: repair,
       });
       // The `preview` label makes the publisher build every pushed head, so the
       // topic receives the address of this commit without asking for it. A
@@ -1490,7 +1368,6 @@ export function createInstructionRunner({
         authorIdentifier: request.authorIdentifier,
         pullRequestNumber: publication.pullRequest.number,
         commit: publication.commit,
-        repair,
       });
       const publicationNotices = {
         pullRequest: publication.pullRequest,
@@ -1676,7 +1553,6 @@ export function createInstructionRunner({
         sessionKey: request.sessionKey,
         pullRequestNumber: publication.pullRequest.number,
         commit: publication.commit,
-        automatic: false,
       });
       const previewTracked = followPreview?.({
         updateIdentifier: request.updateIdentifier,
@@ -1684,7 +1560,6 @@ export function createInstructionRunner({
         authorIdentifier: request.authorIdentifier,
         pullRequestNumber: publication.pullRequest.number,
         commit: publication.commit,
-        repair: false,
         mergeSynchronization: true,
       });
       const trackingFailed =
@@ -1724,21 +1599,11 @@ export function createInstructionRunner({
     } = await execute(request, options);
     // The failure notice tells the person the maintainer can review the case:
     // this trace and journal line are the note that makes it true.
-    if (
-      request.kind !== repairRequestKind &&
-      result.report === failedMaintainerNotice
-    ) {
+    if (result.report === failedMaintainerNotice) {
       noteMaintainerAttention({
         request,
         reason: reason ?? unknownFailureReason,
       });
-    }
-    if (request.kind === repairRequestKind) {
-      // An automatic repair sends the text the topic receives from its own
-      // executor, which wraps this report and records that text. That executor
-      // also writes the note, so the service-only part of this turn travels
-      // with the result and never becomes the model's words.
-      return serviceText === null ? result : { ...result, serviceText };
     }
     if (sessionNotes === undefined || typeof result.report !== "string") {
       return result;

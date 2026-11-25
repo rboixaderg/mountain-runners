@@ -20,7 +20,6 @@ import { DatabaseSync } from "node:sqlite";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 import { AdmissionQueue } from "telegram-pi-bridge/sessions";
-import { CiWatchStore } from "../../repository/ci-watch-store.mjs";
 import { MergeRequestStore } from "../../repository/merge-request-store.mjs";
 import { PreviewRequestStore } from "../../repository/preview-request-store.mjs";
 import {
@@ -559,39 +558,6 @@ const busyStates = [
     expected: /pending or running instructions: 1/u,
   },
   {
-    name: "a reserved CI repair",
-    prepare: (state) => {
-      const store = new CiWatchStore(join(state, "ci-watch.sqlite"));
-      store.requestRepair({
-        updateIdentifier: 21,
-        sessionKey,
-        pullRequestNumber: 200,
-        failureFingerprint: "fingerprint",
-        failedChecks: ["Validate"],
-        evidence: { summary: "synthetic" },
-        commitSha: "a".repeat(40),
-        maximumAttempts: 2,
-      });
-      store.close();
-    },
-    expected: /reserved, queued or running CI repairs: 1/u,
-  },
-  {
-    name: "a sending CI notice",
-    prepare: (state) => {
-      const store = new CiWatchStore(join(state, "ci-watch.sqlite"));
-      store.add({
-        updateIdentifier: 31,
-        sessionKey,
-        pullRequestNumber: 201,
-        commitSha: "b".repeat(40),
-      });
-      store.beginSend(31, "success");
-      store.close();
-    },
-    expected: /pending, sending or uncertain CI notices: 1/u,
-  },
-  {
     name: "an uncertain instruction case",
     prepare: (state) => {
       const queue = new AdmissionQueue(join(state, "admission.sqlite"), {
@@ -609,30 +575,6 @@ const busyStates = [
       queue.close();
     },
     expected: /uncertain instruction case\(s\): 1/u,
-  },
-  {
-    name: "an uncertain CI repair case",
-    prepare: (state) => {
-      const store = new CiWatchStore(join(state, "ci-watch.sqlite"));
-      const { sequence } = store.requestRepair({
-        updateIdentifier: 22,
-        sessionKey,
-        pullRequestNumber: 202,
-        failureFingerprint: "fingerprint",
-        failedChecks: ["Validate"],
-        evidence: { summary: "synthetic" },
-        commitSha: "c".repeat(40),
-        maximumAttempts: 2,
-      });
-      store.queueRepair(sequence);
-      store.claimNextRepair();
-      store.finishRepair(sequence, {
-        status: "uncertain",
-        outcome: "uncertain",
-      });
-      store.close();
-    },
-    expected: /uncertain repair case\(s\): 1/u,
   },
   {
     name: "a merge request in progress",
@@ -681,22 +623,6 @@ const busyStates = [
       store.close();
     },
     expected: /open or uncertain preview requests: 1/u,
-  },
-  {
-    name: "an uncertain CI notice case",
-    prepare: (state) => {
-      const store = new CiWatchStore(join(state, "ci-watch.sqlite"));
-      store.add({
-        updateIdentifier: 32,
-        sessionKey,
-        pullRequestNumber: 203,
-        commitSha: "d".repeat(40),
-      });
-      store.beginSend(32, "failure");
-      store.markUncertain(32);
-      store.close();
-    },
-    expected: /uncertain notice case\(s\): 1/u,
   },
 ];
 
@@ -929,9 +855,9 @@ test("refuses a state database that is a link", (context) => {
   writeRevision(app.installRoot, app.installed);
   const target = advance(app);
   const decoy = join(app.root, "decoy.sqlite");
-  const store = new CiWatchStore(decoy);
+  const store = new MergeRequestStore(decoy);
   store.close();
-  symlinkSync(decoy, join(app.dataRoot, "state", "ci-watch.sqlite"));
+  symlinkSync(decoy, join(app.dataRoot, "state", "merge-request.sqlite"));
 
   const result = runUpdate(app, { argv: ["--commit", target] });
 
@@ -1252,7 +1178,7 @@ test("refuses a state database that is a FIFO without blocking", (context) => {
   const app = createInstallation(context);
   writeRevision(app.installRoot, app.installed);
   const target = advance(app);
-  if (!createFifo(join(app.dataRoot, "state", "ci-watch.sqlite"))) {
+  if (!createFifo(join(app.dataRoot, "state", "merge-request.sqlite"))) {
     context.skip("this platform has no mkfifo");
     return;
   }

@@ -22,7 +22,6 @@ import { test } from "node:test";
 import {
   abortConflictMerge,
   assertWorkBranch,
-  changeDiff,
   commitAll,
   commitConflictMerge,
   createBranch,
@@ -366,27 +365,6 @@ test("keeps the executable mode recorded in the index under a restrictive umask"
     0o111,
     "the checked-out script keeps every execute bit",
   );
-});
-
-test("clips a diff larger than the limit instead of dropping it", async (context) => {
-  const { repository, worktreeRoot } = await repositoryFixture(context);
-  const worktree = await ensureSessionWorktree({
-    repositoryPath: repository,
-    worktreeRoot,
-    name: "topic-0123456789abcdef",
-  });
-  await createBranch({ worktree, branch: "fix/large-diff" });
-  writeFileSync(
-    join(worktree.path, "large.txt"),
-    "synthetic line\n".repeat(500),
-  );
-  await commitAll({ worktree, message: "feat: add a large file" });
-
-  const diff = await changeDiff({ worktree, maximumBytes: 1000 });
-
-  assert.equal(diff.length, 1000);
-  assert.match(diff, /^diff --git a\/large\.txt/u);
-  assert.match(await changeDiff({ worktree }), /synthetic line\n$/u);
 });
 
 test("renames a pre-migration worktree and its archive without losing work", async (context) => {

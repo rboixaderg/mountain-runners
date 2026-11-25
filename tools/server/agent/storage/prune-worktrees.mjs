@@ -50,15 +50,10 @@ function querySingleCount(databasePath, sql) {
 }
 
 function activeOrUncertainWorkCount(statePath) {
-  const instructions = querySingleCount(
+  return querySingleCount(
     join(statePath, "admission.sqlite"),
     "SELECT COUNT(*) AS count FROM instructions WHERE status IN ('running', 'uncertain')",
   );
-  const repairs = querySingleCount(
-    join(statePath, "ci-watch.sqlite"),
-    "SELECT COUNT(*) AS count FROM ci_repairs WHERE status IN ('running', 'uncertain')",
-  );
-  return { instructions, repairs };
 }
 
 function readTopicBindings(topicJobsPath) {
@@ -110,9 +105,9 @@ async function main() {
   const config = readAgentConfig(process.env);
   if (!dryRun) {
     const active = activeOrUncertainWorkCount(config.paths.state);
-    if (active.instructions > 0 || active.repairs > 0) {
+    if (active > 0) {
       process.stderr.write(
-        `Refusing to prune while ${active.instructions} instruction(s) and ${active.repairs} repair(s) are running or uncertain. Stop mountain-agent.service and reconcile uncertain cases first.\n`,
+        `Refusing to prune while ${active} instruction(s) are running or uncertain. Stop mountain-agent.service and reconcile uncertain cases first.\n`,
       );
       return 1;
     }

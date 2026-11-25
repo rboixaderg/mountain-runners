@@ -157,7 +157,6 @@ function publication(updateIdentifier, overrides = {}) {
     authorIdentifier: 555,
     pullRequestNumber: 200,
     commit,
-    repair: false,
     ...overrides,
   };
 }
@@ -631,37 +630,6 @@ test("two publications in a row report only the final head, once", async (contex
   assert.deepEqual(withdrawals(traces), [[10, "superseded #200 aaaaaaa"]]);
 });
 
-test("a repair follows its new commit in the row of the publication it continues", async (context) => {
-  const { handler, github, previews, sent, notes } = setup(context);
-  handler.followPublication(publication(10));
-  handler.followPublication({
-    ...publication(10, { commit: newerCommit }),
-    repair: true,
-  });
-  github.pullRequests[200].headSha = newerCommit;
-  github.comments[200] = [publisherComment(), publisherComment(newerCommit)];
-
-  await handler.runOnce();
-  await handler.runOnce();
-
-  assert.equal(sent.length, 1);
-  assert.deepEqual(
-    notes.map((note) => note.effectKey),
-    [`preview:10:${newerCommit}:confirmed`],
-  );
-  assert.equal(previews.state(10), "confirmed");
-});
-
-test("a repair without a publication to continue follows nothing", async (context) => {
-  const { handler, previews, sent } = setup(context);
-
-  handler.followPublication({ ...publication(10), repair: true });
-  await handler.runOnce();
-
-  assert.equal(previews.state(10), undefined);
-  assert.deepEqual(sent, []);
-});
-
 test("a failure to follow a publication is only logged", async (context) => {
   const { buildHandler } = setup(context);
   const logs = [];
@@ -990,19 +958,16 @@ test("the loop isolates a cycle error and stops when aborted", async (context) =
   assert.deepEqual(logs, [["preview_worker_failed", "Error"]]);
 });
 
-test("a poll of an older commit never ends the row reopened for a newer one", async (context) => {
+test("a poll of an older commit never ends the row rewritten for a newer one", async (context) => {
   const { handler, github, previews, sent } = setup(context);
   handler.followPublication(publication(10));
   github.comments[200] = [publisherComment()];
-  // While the poll of the first commit waits for GitHub, a repair reopens the
-  // same row for the newer commit.
+  // While the poll of the first commit waits for GitHub, a later publication of
+  // the same update writes the row again for the newer commit.
   const listComments = github.listIssueComments;
   github.listIssueComments = async (options) => {
     const comments = await listComments(options);
-    handler.followPublication({
-      ...publication(10, { commit: newerCommit }),
-      repair: true,
-    });
+    handler.followPublication(publication(10, { commit: newerCommit }));
     return comments;
   };
 

@@ -6,7 +6,6 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { test } from "node:test";
 import { AdmissionQueue } from "telegram-pi-bridge/sessions";
-import { CiWatchStore } from "../../repository/ci-watch-store.mjs";
 import { openIdentifierNames } from "../../repository/identifiers.mjs";
 
 const cliPath = join(dirname(fileURLToPath(import.meta.url)), "cli.mjs");
@@ -73,20 +72,6 @@ function createUncertainInstruction(state) {
   queue.close();
 }
 
-// A publication whose notice may or may not have reached the topic.
-function createUncertainNotice(state) {
-  const store = new CiWatchStore(join(state, "ci-watch.sqlite"));
-  store.add({
-    updateIdentifier: 31,
-    sessionKey,
-    pullRequestNumber: 200,
-    commitSha: "a".repeat(40),
-  });
-  store.beginSend(31, "success");
-  store.markUncertain(31);
-  store.close();
-}
-
 // A case a person already resolved: it must be refused, never overwritten.
 function createResolvedInstruction(state) {
   const queue = new AdmissionQueue(join(state, "admission.sqlite"), {
@@ -142,26 +127,6 @@ test("lists an uncertain instruction without the network", (context) => {
   assert.doesNotMatch(result.stdout, /synthetic private instruction/u);
 });
 
-test("lists an uncertain CI notice without the network", (context) => {
-  const directory = temporaryDirectory(context);
-  const state = join(directory, "state");
-  mkdirSync(state);
-  createUncertainNotice(state);
-
-  const result = runCli(["list"], serviceEnvironment(directory, state));
-
-  assert.equal(result.status, 0, result.stderr);
-  const lines = result.stdout.trimEnd().split("\n");
-  assert.equal(lines.length, 1);
-  const facts = JSON.parse(lines[0]);
-  assert.equal(facts.kind, "notice");
-  assert.equal(facts.update_identifier, 31);
-  assert.equal(facts.session_key, sessionKey);
-  assert.equal(facts.pull_request_number, 200);
-  assert.equal(facts.commit, "a".repeat(40));
-  assert.equal(facts.result, "success");
-});
-
 test("exits with code 1 when the case is already resolved", (context) => {
   const directory = temporaryDirectory(context);
   const state = join(directory, "state");
@@ -211,7 +176,7 @@ const usageCases = [
   { argumentsList: [] },
   { argumentsList: ["--verbose"] },
   { argumentsList: ["list", "extra"] },
-  { argumentsList: ["list", "--kind", "notice"] },
+  { argumentsList: ["list", "--kind", "merge"] },
   { argumentsList: ["inspect"] },
   { argumentsList: ["resolve"] },
   {
@@ -287,113 +252,6 @@ const usageCases = [
     ],
   },
   {
-    argumentsList: [
-      "resolve",
-      "--kind",
-      "repair",
-      "--update",
-      "1",
-      "--resolution",
-      "published",
-      "--commit",
-      "A".repeat(40),
-    ],
-  },
-  {
-    argumentsList: [
-      "resolve",
-      "--kind",
-      "repair",
-      "--update",
-      "1",
-      "--resolution",
-      "not_published",
-    ],
-  },
-  {
-    argumentsList: [
-      "resolve",
-      "--kind",
-      "repair",
-      "--update",
-      "1",
-      "--sequence",
-      "1",
-      "--resolution",
-      "not_published",
-    ],
-  },
-  {
-    argumentsList: [
-      "resolve",
-      "--kind",
-      "repair",
-      "--update",
-      "1",
-      "--sequence",
-      "1",
-      "--failed-commit",
-      "abc",
-      "--resolution",
-      "not_published",
-    ],
-  },
-  {
-    argumentsList: [
-      "resolve",
-      "--kind",
-      "instruction",
-      "--update",
-      "1",
-      "--sequence",
-      "1",
-      "--failed-commit",
-      "a".repeat(40),
-      "--resolution",
-      "not_published",
-    ],
-  },
-  {
-    argumentsList: [
-      "resolve",
-      "--kind",
-      "notice",
-      "--update",
-      "1",
-      "--resolution",
-      "commented",
-    ],
-  },
-  {
-    argumentsList: [
-      "resolve",
-      "--kind",
-      "notice",
-      "--update",
-      "1",
-      "--resolution",
-      "delivered",
-      "--commit",
-      "a".repeat(40),
-    ],
-  },
-  {
-    argumentsList: [
-      "resolve",
-      "--kind",
-      "notice",
-      "--update",
-      "1",
-      "--sequence",
-      "1",
-      "--resolution",
-      "resend",
-    ],
-  },
-  {
-    argumentsList: ["resolve", "--kind", "notice", "--update", "1"],
-  },
-  {
     // A published instruction needs the pull request of the publication.
     argumentsList: [
       "resolve",
@@ -450,25 +308,7 @@ const usageCases = [
       "5",
     ],
   },
-  {
-    argumentsList: [
-      "resolve",
-      "--kind",
-      "repair",
-      "--update",
-      "1",
-      "--sequence",
-      "1",
-      "--failed-commit",
-      "a".repeat(40),
-      "--resolution",
-      "published",
-      "--commit",
-      "a".repeat(40),
-      "--pull-request",
-      "5",
-    ],
-  },
+  { argumentsList: ["list", "--pull-request", "5"] },
   {
     argumentsList: [
       "resolve",
@@ -478,27 +318,6 @@ const usageCases = [
       "1",
       "--resolution",
       "delivered",
-      "--pull-request",
-      "5",
-    ],
-  },
-  { argumentsList: ["list", "--pull-request", "5"] },
-  {
-    // The published commit of a repair is a different commit than the failed one.
-    argumentsList: [
-      "resolve",
-      "--kind",
-      "repair",
-      "--update",
-      "12",
-      "--sequence",
-      "1",
-      "--failed-commit",
-      "a".repeat(40),
-      "--resolution",
-      "published",
-      "--commit",
-      "a".repeat(40),
     ],
   },
 ];
@@ -510,32 +329,4 @@ test("exits with code 2 on every usage error", () => {
     assert.match(result.stderr, /Usage: node commands\/reconcile\/cli\.mjs/u);
     assert.doesNotMatch(result.stderr, /MOUNTAIN_AGENT_/u);
   }
-});
-
-test("exits with code 1 when a repair is not uncertain", (context) => {
-  const directory = temporaryDirectory(context);
-  const state = join(directory, "state");
-  mkdirSync(state);
-
-  const result = runCli(
-    [
-      "resolve",
-      "--kind",
-      "repair",
-      "--update",
-      "12",
-      "--sequence",
-      "1",
-      "--failed-commit",
-      "a".repeat(40),
-      "--resolution",
-      "not_published",
-    ],
-    serviceEnvironment(directory, state),
-  );
-
-  assert.equal(result.status, 1);
-  assert.match(result.stderr, /not an uncertain case/u);
-  assert.equal(result.stdout, "");
-  assert.deepEqual(readdirSync(state), []);
 });

@@ -967,17 +967,12 @@ test("exposes only the approved GitHub operations", () => {
     "addPreviewLabel",
     "ensurePullRequest",
     "findOpenPullRequest",
-    "getCheckRunJob",
     "getCommitCheckRuns",
     "getCommitStatuses",
     "getPullRequest",
-    "getWorkflowJob",
-    "getWorkflowJobLog",
-    "getWorkflowRun",
     "listIssueComments",
     "mergePullRequest",
     "pushBranch",
-    "rerunFailedJobs",
     "researchCandidate",
   ]);
 });

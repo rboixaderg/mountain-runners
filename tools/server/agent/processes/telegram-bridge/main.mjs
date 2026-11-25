@@ -18,7 +18,6 @@ import {
 } from "telegram-pi-bridge/telegram";
 import {
   bridgeMessages,
-  maximumAutomaticRepairs,
   previewConfirmationTimeoutMilliseconds,
 } from "../../policy/development.mjs";
 import {
@@ -45,11 +44,7 @@ import {
 } from "../../repository/retention.mjs";
 import { openIdentifierNames } from "../../repository/identifiers.mjs";
 import { renameLegacyWorktrees } from "../../repository/worktrees.mjs";
-import { createCiRepairExecutor } from "../../workflow/ci-repair.mjs";
-import {
-  createCiWatchWorker,
-  readCiState as readCiCheckState,
-} from "../../workflow/ci-watch.mjs";
+import { createCiWatchWorker } from "../../workflow/ci-watch.mjs";
 import {
   createMergeRequests,
   mergeConfirmationOutcome,
@@ -209,49 +204,6 @@ export async function startService({
     });
   }
 
-  // Interrupted deliveries are unknown, not retried: each one stays attributed
-  // in the private trace so an operator can reconcile it with GitHub.
-  const interruptedNotifications = ciWatches.recoverSending();
-  for (const watch of interruptedNotifications) {
-    queue.recordTrace({
-      updateIdentifier: watch.update_identifier,
-      sessionKey: watch.session_key,
-      action: "ci_notification_uncertain",
-      detail: `#${watch.pull_request_number} ${watch.commit_sha.slice(0, 7)}`,
-    });
-  }
-  if (interruptedNotifications.length > 0) {
-    logger(
-      "ci_notification_uncertain",
-      String(interruptedNotifications.length),
-    );
-  }
-
-  // An interrupted repair may have pushed a commit. Like an interrupted
-  // instruction, it is never replayed automatically: the service refuses to
-  // start until a person reconciles the real state.
-  for (const repair of ciWatches.interruptRepairs()) {
-    queue.recordTrace({
-      updateIdentifier: repair.update_identifier,
-      sessionKey: repair.session_key,
-      action: "ci_repair_uncertain",
-      detail: `#${repair.pull_request_number} ${repair.commit_sha.slice(0, 7)}`,
-    });
-  }
-
-  // A reservation that a restart found unannounced never reached the queue. It
-  // is closed instead of blocking the topic with a result that will not come.
-  for (const repair of ciWatches.abortInterruptedReservations(
-    "interrupted_before_queue",
-  )) {
-    queue.recordTrace({
-      updateIdentifier: repair.update_identifier,
-      sessionKey: repair.session_key,
-      action: "ci_repair_not_queued",
-      detail: `#${repair.pull_request_number} ${repair.commit_sha.slice(0, 7)}`,
-    });
-  }
-
   // An interrupted merge may have happened. It is never requested again
   // blindly: it stays uncertain, attributed in the private trace, until the
   // pull request is read and the topic is told once at startup. That never
@@ -271,15 +223,6 @@ export async function startService({
     closeStateStores();
     throw new Error(
       `Refusing to start: ${recovered} interrupted instruction(s) have an unknown external result.`,
-    );
-  }
-
-  const uncertainRepairs = ciWatches.uncertainRepairCount();
-  if (uncertainRepairs > 0) {
-    logger("ci_repair_uncertain", String(uncertainRepairs));
-    closeStateStores();
-    throw new Error(
-      `Refusing to start: ${uncertainRepairs} CI repair(s) have an unknown external result.`,
     );
   }
 
@@ -316,11 +259,8 @@ export async function startService({
   // topics. Attachments stay available until published or for seven days.
   // Local retention runs at startup; full retention (including GitHub checks
   // for finished topics) runs exclusively inside `AgentBridge.runWhenIdle` so
-  // it can never overlap with a sandboxed turn, a repair or shutdown.
-  const isServiceIdle = () =>
-    !queue.isBlocked() &&
-    !ciWatches.hasRunningRepair() &&
-    ciWatches.uncertainRepairCount() === 0;
+  // it can never overlap with a sandboxed turn or shutdown.
+  const isServiceIdle = () => !queue.isBlocked();
 
   let retentionDue = true;
   function requestRetention() {
@@ -494,15 +434,6 @@ export async function startService({
     closeStateStores();
     throw error;
   }
-  // One read of the required checks of an exact commit for the automatic repair.
-  const readCiState = ({ commit, signal, requireRepairEvidence }) =>
-    readCiCheckState({
-      github,
-      requiredChecks: config.github.requiredChecks,
-      commit,
-      signal,
-      requireRepairEvidence,
-    });
   try {
     const researchReview = createResearchReview({
       directory: join(config.paths.state, "research-review"),
@@ -554,18 +485,6 @@ export async function startService({
     throw error;
   }
 
-  const ciRepairExecutor = createCiRepairExecutor({
-    repairs: ciWatches,
-    runInstruction: runner,
-    readPullRequest: ({ pullRequestNumber, signal }) =>
-      github.getPullRequest({ number: pullRequestNumber, signal }),
-    readCiState,
-    telegram,
-    recordTrace: (entry) => queue.recordTrace(entry),
-    recordServiceNote,
-    logger,
-  });
-
   const bridge = new AgentBridge({
     groupIdentifier: config.telegram.groupIdentifier,
     botUsername: config.telegram.botUsername,
@@ -584,15 +503,12 @@ export async function startService({
     disableLinkPreview: config.webResearch !== null,
     onServiceReport: recordServiceNote,
     logger,
-    // Repairs and periodic retention run strictly inside this single-execution
-    // idle hook, never concurrently with an instruction, a sandbox container or
-    // shutdown, and never while an unknown external result is unresolved.
+    // Periodic retention runs strictly inside this single-execution idle hook,
+    // never concurrently with an instruction, a sandbox container or shutdown,
+    // and never while an unknown external result is unresolved.
     runWhenIdle: async ({ signal: idleSignal }) => {
       if (!isServiceIdle()) {
         return false;
-      }
-      if (await ciRepairExecutor.runNext({ signal: idleSignal })) {
-        return true;
       }
       if (!retentionDue) {
         return false;
@@ -605,14 +521,11 @@ export async function startService({
 
   const ciWorker = createCiWatchWorker({
     store: ciWatches,
-    repairs: ciWatches,
     github,
     telegram,
     requiredChecks: config.github.requiredChecks,
     pollIntervalMilliseconds: config.limits.ciPollIntervalMs,
     watchTimeoutMilliseconds: config.limits.ciWatchTimeoutMs,
-    maximumAutomaticRepairs,
-    secrets: agentSecrets(config),
     recordTrace: (entry) => queue.recordTrace(entry),
     recordServiceNote,
     logger,
@@ -630,7 +543,6 @@ export async function startService({
     previewWorker,
     mergeRequests,
     mergeWorker,
-    ciRepairExecutor,
     sessionNotes,
     applyRetention,
     requestRetention,

@@ -1,9 +1,8 @@
 // Trusted GitHub component for the private agent (T8.3).
 //
 // The trusted writes are: push the job branch, open (or reuse) its pull
-// request against `main`, put the `preview` label on that pull request, rerun
-// failed jobs of a workflow run, and squash-merge a pull request pinned to the
-// head commit the service validated. The merge sends exactly `{ sha,
+// request against `main`, put the `preview` label on that pull request, and
+// squash-merge a pull request pinned to the head commit the service validated. The merge sends exactly `{ sha,
 // merge_method: "squash" }` to the one pull request merge endpoint: there is no
 // auto-merge, no administrator or protection endpoint, no write to `main` and
 // the pull request is never closed. The token stays in this component: it is
@@ -33,7 +32,6 @@ function repositoryUrl(repository) {
 
 const fullCommitPattern = /^[a-f0-9]{40}$/u;
 const maximumPageCount = 10;
-const maximumJobLogBytes = 1024 * 1024;
 const previewLabel = "preview";
 const previewRevokedLabel = "preview-revoked";
 
@@ -237,12 +235,7 @@ export class GitHubTrust {
    * other request still gets the service request deadline, so an API that never
    * answers cannot hold the global execution.
    */
-  async #request(
-    method,
-    path,
-    body,
-    { signal, ignoreResponseBody = false } = {},
-  ) {
+  async #request(method, path, body, { signal } = {}) {
     const boundedSignal = requestSignal(
       signal,
       this.#requestTimeoutMilliseconds,
@@ -263,7 +256,7 @@ export class GitHubTrust {
     if (!response.ok) {
       throw new GitHubResponseError(method, path, response.status);
     }
-    if (response.status === 204 || ignoreResponseBody) return null;
+    if (response.status === 204) return null;
     return response.json();
   }
 
@@ -476,179 +469,6 @@ export class GitHubTrust {
       if (response.length < 100) return statuses;
     }
     throw new Error("GitHub commit statuses pagination limit exceeded.");
-  }
-
-  async getCheckRunJob({ checkRun, commit, signal }) {
-    assertFullCommit(commit);
-    if (!Number.isSafeInteger(checkRun?.id) || checkRun.id < 1) return null;
-    let details;
-    try {
-      details = new URL(checkRun.details_url);
-    } catch {
-      return null;
-    }
-    const prefix = `/${this.#repository}/actions/runs/`;
-    if (
-      details.origin !== "https://github.com" ||
-      !details.pathname.startsWith(prefix)
-    )
-      return null;
-    const match = /^(\d+)\/job\/(\d+)$/u.exec(
-      details.pathname.slice(prefix.length),
-    );
-    if (!match) return null;
-    const runIdentifier = Number(match[1]);
-    const jobIdentifier = Number(match[2]);
-    if (
-      !Number.isSafeInteger(runIdentifier) ||
-      runIdentifier < 1 ||
-      !Number.isSafeInteger(jobIdentifier) ||
-      jobIdentifier < 1
-    )
-      return null;
-    const job = await this.getWorkflowJob({ jobIdentifier, signal });
-    const expectedCheckRunUrl = `https://api.github.com/repos/${this.#repository}/check-runs/${checkRun.id}`;
-    if (
-      job.run_id !== runIdentifier ||
-      job.head_sha !== commit ||
-      job.check_run_url !== expectedCheckRunUrl
-    )
-      return null;
-    return job;
-  }
-
-  async getWorkflowRun({ runIdentifier, commit, signal }) {
-    assertFullCommit(commit);
-    if (!Number.isSafeInteger(runIdentifier) || runIdentifier < 1) {
-      throw new Error("A positive workflow run identifier is required.");
-    }
-    const run = await this.#request(
-      "GET",
-      `/repos/${this.#repository}/actions/runs/${runIdentifier}`,
-      undefined,
-      { signal },
-    );
-    if (
-      run?.id !== runIdentifier ||
-      run.head_sha !== commit ||
-      !Number.isSafeInteger(run.run_attempt) ||
-      run.run_attempt < 1 ||
-      typeof run.status !== "string"
-    ) {
-      throw new Error("GitHub returned an invalid workflow run.");
-    }
-    return run;
-  }
-
-  async getWorkflowJobLog({ jobIdentifier, signal }) {
-    if (!Number.isSafeInteger(jobIdentifier) || jobIdentifier < 1) {
-      throw new Error("A positive workflow job identifier is required.");
-    }
-    const boundedSignal = requestSignal(
-      signal,
-      this.#requestTimeoutMilliseconds,
-    );
-    const path = `/repos/${this.#repository}/actions/jobs/${jobIdentifier}/logs`;
-    const redirect = await this.#fetch(`${this.#apiBaseUrl}${path}`, {
-      method: "GET",
-      headers: {
-        authorization: `Bearer ${this.#token}`,
-        accept: "application/vnd.github+json",
-        "user-agent": "mountain-runners-agent",
-        "x-github-api-version": "2022-11-28",
-      },
-      redirect: "manual",
-      signal: boundedSignal,
-    });
-    if (redirect.status !== 302) {
-      throw new GitHubResponseError("GET", path, redirect.status);
-    }
-    let location;
-    try {
-      location = new URL(redirect.headers.get("location"));
-    } catch {
-      throw new Error("GitHub returned an invalid job log location.");
-    }
-    const approvedHost =
-      location.hostname.endsWith(".blob.core.windows.net") ||
-      location.hostname.endsWith(".actions.githubusercontent.com");
-    if (
-      location.protocol !== "https:" ||
-      !approvedHost ||
-      location.username ||
-      location.password ||
-      location.port
-    ) {
-      throw new Error("GitHub returned an invalid job log location.");
-    }
-    // A signed log URL is a credential. Do not forward the GitHub token or
-    // expose the URL in an exception, trace or model input.
-    let response;
-    try {
-      response = await this.#fetch(location.href, {
-        method: "GET",
-        redirect: "error",
-        signal: boundedSignal,
-      });
-    } catch {
-      throw new Error("The job log could not be read.");
-    }
-    if (!response.ok || !response.body)
-      throw new Error("The job log could not be read.");
-    const reader = response.body.getReader();
-    const decoder = new TextDecoder();
-    let bytes = 0;
-    let log = "";
-    try {
-      while (true) {
-        const { value, done } = await reader.read();
-        if (done) break;
-        bytes += value.byteLength;
-        if (bytes > maximumJobLogBytes)
-          throw new Error("The job log exceeds the size limit.");
-        log += decoder.decode(value, { stream: true });
-      }
-      return log + decoder.decode();
-    } catch {
-      throw new Error("The job log could not be read within its size limit.");
-    } finally {
-      await reader.cancel().catch(() => {});
-    }
-  }
-
-  async getWorkflowJob({ jobIdentifier, signal }) {
-    if (!Number.isSafeInteger(jobIdentifier) || jobIdentifier < 1) {
-      throw new Error("A positive workflow job identifier is required.");
-    }
-    const job = await this.#request(
-      "GET",
-      `/repos/${this.#repository}/actions/jobs/${jobIdentifier}`,
-      undefined,
-      { signal },
-    );
-    if (
-      job?.id !== jobIdentifier ||
-      !Number.isSafeInteger(job.run_id) ||
-      job.run_id < 1 ||
-      !Number.isSafeInteger(job.run_attempt) ||
-      job.run_attempt < 1 ||
-      !Array.isArray(job.steps)
-    ) {
-      throw new Error("GitHub returned an invalid workflow job.");
-    }
-    return job;
-  }
-
-  async rerunFailedJobs({ runIdentifier, signal }) {
-    if (!Number.isSafeInteger(runIdentifier) || runIdentifier < 1) {
-      throw new Error("A positive workflow run identifier is required.");
-    }
-    await this.#request(
-      "POST",
-      `/repos/${this.#repository}/actions/runs/${runIdentifier}/rerun-failed-jobs`,
-      undefined,
-      { signal, ignoreResponseBody: true },
-    );
   }
 
   async getPullRequest({ number, signal }) {

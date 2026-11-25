@@ -143,8 +143,8 @@ export class SessionNoteStore {
   }
 
   /**
-   * Store one service text of the topic. It is also the last text the topic
-   * received, so the classifier can read it.
+   * Store one service text of the topic. A new one is also the last text the
+   * topic received, so the classifier can read it.
    *
    * With an `effectKey`, the note is stored at most once per topic: a repeated
    * announcement of the same effect (a retried Telegram notice) neither
@@ -192,9 +192,9 @@ export class SessionNoteStore {
                )`,
           )
           .run(sessionKey, sessionKey, noteLimits.perSession);
+        // A repeated effect never replaces a newer last text of the topic.
+        this.#recordLastReply(sessionKey, receivedText);
       }
-      // The text reached the topic even when it is not a new note.
-      this.#recordLastReply(sessionKey, receivedText);
       return stored;
     });
   }

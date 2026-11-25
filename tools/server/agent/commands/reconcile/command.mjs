@@ -4,7 +4,6 @@
 //   node commands/reconcile/cli.mjs list
 //   node commands/reconcile/cli.mjs resolve --kind <kind> --update <id>
 //     --resolution <value> [--commit <40-hex SHA>] [--pull-request <n>]
-//     [--sequence <id> --failed-commit <40-hex SHA>]
 //
 // The command reads the same configuration as the service, because it needs the
 // GitHub and Telegram credentials. It never resolves a case on its own: a person
@@ -37,22 +36,18 @@ import {
 const usage = `Usage: node commands/reconcile/cli.mjs list
        node commands/reconcile/cli.mjs resolve --kind <kind> --update <id>
          --resolution <value> [--commit <sha>] [--pull-request <n>]
-         [--sequence <id> --failed-commit <sha>]
 
 Reconcile the cases that keep the service from starting because an external
 result is unknown. The service must be stopped.
 
 Options:
-  --kind <kind>           instruction, repair, notice or merge
+  --kind <kind>           instruction or merge
   --update <id>           Telegram update printed by list for that case
-  --resolution <value>    instruction and repair: published, not_published
-                          notice: delivered, resend
+  --resolution <value>    instruction: published, not_published
                           merge: merged, not_merged (checked on GitHub)
   --commit <sha>          full commit SHA, required by --resolution published
   --pull-request <n>      pull request of a published instruction; the command
-                          restores the CI watch the failed registration lost
-  --sequence <id>         repair row sequence printed by list
-  --failed-commit <sha>   failed commit printed by list, required for a repair`;
+                          restores the CI watch the failed registration lost`;
 
 const commitPattern = /^[a-f0-9]{40}$/u;
 const positiveIntegerPattern = /^[1-9]\d*$/u;
@@ -116,31 +111,6 @@ function parseResolve(values) {
   const pullRequestNumber = followPublishedInstruction
     ? readPositiveInteger(values["pull-request"], "--pull-request")
     : null;
-  if (kind === caseKinds.repair) {
-    const sequence = readPositiveInteger(values.sequence, "--sequence");
-    const failedCommit = readCommit(values["failed-commit"], "--failed-commit");
-    // The published commit is a different commit. Accepting the failed one would
-    // mark as published the commit whose checks failed.
-    if (commit !== undefined && commit === failedCommit) {
-      throw new ReconcileInputError(
-        "--commit must be the published commit, not the failed one.",
-      );
-    }
-    return {
-      command: "resolve",
-      kind,
-      updateIdentifier,
-      sequence,
-      failedCommit,
-      resolution,
-      commit,
-    };
-  }
-  if (values.sequence !== undefined || values["failed-commit"] !== undefined) {
-    throw new ReconcileInputError(
-      "--sequence and --failed-commit are only accepted with --kind repair.",
-    );
-  }
   return {
     command: "resolve",
     kind,
@@ -163,8 +133,6 @@ function parseCommandArguments(argv) {
         resolution: { type: "string" },
         commit: { type: "string" },
         "pull-request": { type: "string" },
-        sequence: { type: "string" },
-        "failed-commit": { type: "string" },
       },
       allowPositionals: true,
       strict: true,
@@ -199,7 +167,7 @@ function openStores(config, command) {
   const previewPath = databasePath("preview-request.sqlite");
   const stores = {
     instructions: null,
-    repairs: null,
+    ciWatches: null,
     notes: null,
     previews: null,
     merges: null,
@@ -210,7 +178,7 @@ function openStores(config, command) {
           maxPending: config.limits.maxPendingInstructions,
         })
       : null;
-    stores.repairs = existsSync(ciWatchPath)
+    stores.ciWatches = existsSync(ciWatchPath)
       ? new CiWatchStore(ciWatchPath)
       : null;
     // Listing reads no note: opening the store would recover the claims of a
@@ -241,12 +209,12 @@ function closeStores(stores) {
   stores.merges?.close();
   stores.previews?.close();
   stores.notes?.close();
-  stores.repairs?.close();
+  stores.ciWatches?.close();
   stores.instructions?.close();
 }
 
 function resolvedJson(resolved) {
-  const output = {
+  return {
     kind: resolved.kind,
     update_identifier: resolved.updateIdentifier,
     session_key: resolved.sessionKey,
@@ -254,10 +222,6 @@ function resolvedJson(resolved) {
     pull_request_number: resolved.pullRequestNumber,
     commit: resolved.commit ?? null,
   };
-  if (resolved.kind === caseKinds.repair) {
-    output.sequence = resolved.sequence;
-  }
-  return output;
 }
 
 /**
@@ -325,8 +289,6 @@ export async function runReconcileCommand({
       github,
       kind: command.kind,
       updateIdentifier: command.updateIdentifier,
-      sequence: command.sequence,
-      failedCommit: command.failedCommit,
       resolution: command.resolution,
       commit: command.commit,
       pullRequestNumber: command.pullRequestNumber,

@@ -1,5 +1,3 @@
-import { clipText } from "../policy/development.mjs";
-
 // Classify the CI status of one commit from both GitHub check runs and legacy
 // commit statuses.
 //
@@ -18,21 +16,6 @@ const pendingStatuses = new Set([
 ]);
 
 const failingStatusStates = new Set(["error", "failure"]);
-
-// Check output is public CI text, but it is still untrusted input for the model
-// and private durable state: clip it and drop terminal colour codes.
-const maximumDetailLength = 1200;
-const terminalColourPattern = new RegExp(String.raw`\u001B\[[0-9;]*m`, "gu");
-
-function withoutTerminalColour(value) {
-  return typeof value === "string"
-    ? value.replace(terminalColourPattern, "").trim()
-    : value;
-}
-
-function clipped(value) {
-  return clipText(withoutTerminalColour(value), maximumDetailLength);
-}
 
 function timestamp(entry) {
   return Date.parse(entry.created_at ?? "");
@@ -73,9 +56,9 @@ function latestStatusPerContext(statuses) {
 }
 
 /**
- * A failure that can be acted on: every required check is present, finished and
- * unambiguous, and at least one failed. A repair must never start from a
- * partial picture of the CI.
+ * A decisive failure: every required check is present, finished and
+ * unambiguous, and at least one failed. A notice never reports a partial
+ * picture of the CI as the final one.
  */
 export function isDecisiveFailure(classification) {
   return (
@@ -84,52 +67,6 @@ export function isDecisiveFailure(classification) {
     classification.missing.length === 0 &&
     classification.ambiguous.length === 0
   );
-}
-
-/**
- * Identify the same failure across commits: the set of failing required checks.
- * The message and the commit are evidence and attempts, not identity, so a
- * re-run or a new commit cannot reset the automatic repair budget.
- */
-export function failureFingerprint(failedChecks) {
-  return JSON.stringify([...failedChecks].sort());
-}
-
-/**
- * Bounded, human-readable evidence of every failing required check, taken from
- * the raw check runs and commit statuses of the exact commit.
- *
- * @returns {{name: string, detail: string}[]}
- */
-export function describeFailedChecks({ failedChecks, checkRuns, statuses }) {
-  const details = new Map();
-  for (const checkRun of checkRuns) {
-    if (!failedChecks.includes(checkRun.name) || details.has(checkRun.name)) {
-      continue;
-    }
-    const detail = clipped(
-      [checkRun.output?.title, checkRun.output?.summary]
-        .filter((part) => typeof part === "string")
-        .join("\n"),
-    );
-    if (detail !== "") {
-      details.set(checkRun.name, detail);
-    }
-  }
-  const { latest } = latestStatusPerContext(statuses);
-  for (const name of failedChecks) {
-    if (details.has(name)) {
-      continue;
-    }
-    const detail = clipped(latest.get(name)?.description);
-    if (detail !== "") {
-      details.set(name, detail);
-    }
-  }
-  return failedChecks.map((name) => ({
-    name,
-    detail: details.get(name) ?? "",
-  }));
 }
 
 /**

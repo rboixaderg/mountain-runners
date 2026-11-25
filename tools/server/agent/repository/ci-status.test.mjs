@@ -1,10 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import {
-  classifyCommitStatus,
-  describeFailedChecks,
-  failureFingerprint,
-} from "./ci-status.mjs";
+import { classifyCommitStatus } from "./ci-status.mjs";
 
 const requiredChecks = ["Validate", "Gitleaks"];
 const success = (name) => ({
@@ -160,61 +156,6 @@ test("rejects a check reported both as a check run and as a status", () => {
   });
   assert.equal(result.state, "unknown");
   assert.deepEqual(result.ambiguous, ["Validate"]);
-});
-
-test("identifies the same failure by its failing checks, not by the commit", () => {
-  assert.equal(
-    failureFingerprint(["Validate", "Gitleaks"]),
-    failureFingerprint(["Gitleaks", "Validate"]),
-  );
-  assert.notEqual(
-    failureFingerprint(["Validate"]),
-    failureFingerprint(["Gitleaks"]),
-  );
-});
-
-test("describes failing check runs and legacy statuses with bounded text", () => {
-  const evidence = describeFailedChecks({
-    failedChecks: ["Validate", "Gitleaks", "CodeQL"],
-    checkRuns: [
-      {
-        name: "Validate",
-        status: "completed",
-        conclusion: "failure",
-        output: {
-          title: "\u001b[31mpnpm check failed\u001b[0m",
-          summary: "src/a.ts: error TS2322",
-        },
-      },
-      {
-        name: "CodeQL",
-        status: "completed",
-        conclusion: "failure",
-      },
-    ],
-    statuses: [
-      { context: "Gitleaks", state: "failure", description: "leaks found" },
-    ],
-  });
-
-  assert.deepEqual(evidence, [
-    { name: "Validate", detail: "pnpm check failed\nsrc/a.ts: error TS2322" },
-    { name: "Gitleaks", detail: "leaks found" },
-    { name: "CodeQL", detail: "" },
-  ]);
-  const [long] = describeFailedChecks({
-    failedChecks: ["Validate"],
-    checkRuns: [
-      {
-        name: "Validate",
-        status: "completed",
-        conclusion: "failure",
-        output: { summary: "y".repeat(5000) },
-      },
-    ],
-    statuses: [],
-  });
-  assert.ok(long.detail.length <= 1200);
 });
 
 test("keeps a context ambiguous once a status timestamp cannot be read", () => {

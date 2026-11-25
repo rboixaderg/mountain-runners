@@ -1,35 +1,20 @@
-// Coordination of the CI notifications and of the bounded automatic repair of
-// a failing CI (T8.4).
+// Coordination of the CI notifications.
 //
 // A publication registers one durable watch pinned to the exact pushed commit.
 // The worker runs beside the Telegram bridge: it never blocks the instruction
-// queue, it never claims a result it did not read, and it never sends a result
-// automatically twice. When the required checks of the pinned commit fail, it
-// reserves at most two consecutive automatic repairs of the same failing checks
-// and hands the work to the durable repair queue. The repair itself runs in the
-// same single execution as the instructions, never here.
+// queue and it never claims a result it did not read. A watch ends only after
+// its notice was sent, so a failed send is retried with a growing delay.
 
 import { parseSessionKey } from "telegram-pi-bridge/sessions";
 import {
   classifyCommitStatus,
-  describeFailedChecks,
-  failureFingerprint,
   isDecisiveFailure,
 } from "../repository/ci-status.mjs";
-import { repairWillNotRun } from "../repository/ci-watch-store.mjs";
-import {
-  classifyCiFailure,
-  classifyCiFailureStep,
-  failureKinds,
-  rerunOutcomes,
-} from "../repository/ci-failure.mjs";
-import { projectOutputFromJobLog } from "../repository/ci-job-output.mjs";
 import {
   defaultRequestTimeoutMilliseconds,
   requestSignal,
   sleep,
 } from "../repository/request-signal.mjs";
-import { redactSecrets } from "../repository/secret-scan.mjs";
 import {
   ciNoteReports,
   ciReports,
@@ -37,112 +22,24 @@ import {
   maintainerAttentionAction,
 } from "../policy/development.mjs";
 
+const maximumRetryDelayMilliseconds = 60 * 60 * 1000;
+
 export const ciResults = {
   success: "success",
   failure: "failure",
-  repairing: "repairing",
-  repairNotRun: "repair-not-run",
-  repairBlocked: "repair-blocked",
-  repairLimit: "repair-limit",
   unknown: "unknown",
   headChanged: "head-changed",
   pullRequestClosed: "pull-request-closed",
 };
 
-/**
- * Whether a notice of this outcome is the failure notice that says the case is
- * noted for the maintainer. The decision comes from the outcome, never from the
- * rendered text. A success and an automatic repair in progress do not need it.
- */
-export function needsMaintainerAttention(outcome) {
-  return (
-    outcome.result !== ciResults.success &&
-    outcome.result !== ciResults.repairing
-  );
-}
-
 function describe(watch) {
   return `#${watch.pull_request_number} ${watch.commit_sha.slice(0, 7)}`;
-}
-
-/** Read and classify the required checks of one exact commit. */
-export async function readCiState({
-  github,
-  requiredChecks,
-  commit,
-  signal,
-  requireRepairEvidence = false,
-}) {
-  const [checkRuns, statuses] = await Promise.all([
-    github.getCommitCheckRuns({ commit, signal }),
-    github.getCommitStatuses({ commit, signal }),
-  ]);
-  const classification = classifyCommitStatus({
-    requiredChecks,
-    checkRuns,
-    statuses,
-  });
-  if (!requireRepairEvidence || !isDecisiveFailure(classification))
-    return classification;
-  const failures = await classifyFailures({
-    github,
-    commit,
-    failedChecks: classification.failed,
-    checkRuns,
-    signal,
-  });
-  return {
-    ...classification,
-    repairable: failures.every(
-      (failure) => failure.kind === failureKinds.realFailure,
-    ),
-  };
-}
-
-async function classifyFailures({
-  github,
-  commit,
-  failedChecks,
-  checkRuns,
-  signal,
-}) {
-  return Promise.all(
-    failedChecks.map(async (name) => {
-      const checkRun = checkRuns.find((entry) => entry.name === name);
-      if (!checkRun) return { name, kind: failureKinds.noOutput };
-      let job;
-      try {
-        job = await github.getCheckRunJob({ checkRun, commit, signal });
-        const preliminary = classifyCiFailureStep({ checkRun, job });
-        if (preliminary !== failureKinds.realFailure)
-          return { name, job, kind: preliminary };
-        const log = await github.getWorkflowJobLog({
-          jobIdentifier: job.id,
-          signal,
-        });
-        const projectOutput = projectOutputFromJobLog({ job, log });
-        return {
-          name,
-          job,
-          projectOutput,
-          kind: classifyCiFailure({ checkRun, job, projectOutput }),
-        };
-      } catch {
-        return { name, job, kind: failureKinds.noOutput };
-      }
-    }),
-  );
 }
 
 /**
  * Persist the watch for a confirmed publication. A failed insert costs the
  * notification, not the work already published, so it is reported to the topic
  * instead of blocking the service.
- *
- * An automatic repair reopens the finished watch of the instruction it
- * continues instead of adding a row: the topic keeps one follow-up slot per
- * published instruction. A human publication resets the repair budget of its
- * pull request.
  */
 export function createCiWatchRegistration({ store, logger = () => {} }) {
   return function registerCiWatch({
@@ -150,46 +47,20 @@ export function createCiWatchRegistration({ store, logger = () => {} }) {
     sessionKey,
     pullRequestNumber,
     commit,
-    automatic = false,
   }) {
     try {
-      if (automatic) {
-        if (
-          !store.reopen({
-            updateIdentifier,
-            sessionKey,
-            pullRequestNumber,
-            commitSha: commit,
-          })
-        ) {
-          throw new Error("The finished watch cannot be reopened.");
-        }
-      } else {
-        store.add({
-          updateIdentifier,
-          sessionKey,
-          pullRequestNumber,
-          commitSha: commit,
-        });
-      }
+      store.add({
+        updateIdentifier,
+        sessionKey,
+        pullRequestNumber,
+        commitSha: commit,
+      });
     } catch (error) {
       logger(
         "ci_watch_registration_failed",
         error instanceof Error ? error.message : "unknown",
       );
       return ciWatchOutcomes.unavailable;
-    }
-    // The watch is durable: failing to forget the old repair budget costs a
-    // stricter limit, never the notification.
-    if (!automatic) {
-      try {
-        store.resetRepairs(pullRequestNumber);
-      } catch (error) {
-        logger(
-          "ci_repair_budget_reset_failed",
-          error instanceof Error ? error.message : "unknown",
-        );
-      }
     }
     return ciWatchOutcomes.registered;
   };
@@ -202,17 +73,11 @@ export function createCiWatchRegistration({ store, logger = () => {} }) {
  */
 async function evaluateWatch({
   watch,
-  store,
   watchTimeoutMilliseconds,
   now,
   ...reads
 }) {
-  const deadlineStart =
-    store.rerunDeadlineStart({
-      updateIdentifier: watch.update_identifier,
-      commitSha: watch.commit_sha,
-    }) ?? watch.created_at;
-  const age = now().getTime() - Date.parse(deadlineStart);
+  const age = now().getTime() - Date.parse(watch.created_at);
   try {
     return await readWatchOutcome({
       watch,
@@ -234,7 +99,6 @@ async function readWatchOutcome({
   requiredChecks,
   watchTimeoutMilliseconds,
   requestTimeoutMilliseconds,
-  secrets,
   signal,
 }) {
   const readSignal = requestSignal(signal, requestTimeoutMilliseconds);
@@ -254,7 +118,7 @@ async function readWatchOutcome({
     statuses,
   });
   // At the deadline an indecisive picture is reported as unconfirmed, still
-  // naming the checks that already failed. It never starts a repair.
+  // naming the checks that already failed.
   const undecided = () =>
     age < watchTimeoutMilliseconds
       ? null
@@ -280,27 +144,11 @@ async function readWatchOutcome({
     return { result: ciResults.success, pullRequestUrl: pullRequest.htmlUrl };
   }
   // A failure is decisive only when the whole required set is known and no
-  // required check is still running: the identity of the failure and the repair
-  // itself must see the complete set.
+  // required check is still running: the notice names the complete set.
   if (!isDecisiveFailure(classification)) {
     return undecided();
   }
-  // The failure evidence goes to the private repair queue and to the model, so
-  // it is clipped, stripped of terminal codes and redacted before it leaves
-  // this read.
-  return {
-    result: ciResults.failure,
-    failedChecks: classification.failed,
-    checkRuns,
-    evidence: describeFailedChecks({
-      failedChecks: classification.failed,
-      checkRuns,
-      statuses,
-    }).map((entry) => ({
-      name: entry.name,
-      detail: redactSecrets(entry.detail, secrets),
-    })),
-  };
+  return { result: ciResults.failure, failedChecks: classification.failed };
 }
 
 function unconfirmedNotice(common, failedChecks) {
@@ -330,8 +178,7 @@ function describeNotice(watch, outcome, requiredChecks) {
 
 /**
  * The kind of notice an outcome produces. Two notices of the same commit can be
- * different effects (`repairing` and `repair-not-run`, or a plain `unknown` and
- * an unconfirmed failure), so the note identity is not only update and commit.
+ * different effects (a plain `unknown` and an unconfirmed failure), so the note identity is not only update and commit.
  */
 function noticeKind(outcome) {
   if (outcome.result === ciResults.unknown) {
@@ -347,12 +194,7 @@ function noticeKind(outcome) {
  * the technical one that stays in the private trace and in the service note of
  * the session.
  */
-function noticeFor({
-  watch,
-  outcome,
-  requiredChecks,
-  maximumAutomaticRepairs,
-}) {
+function noticeFor({ watch, outcome, requiredChecks }) {
   const common = {
     pullRequestNumber: watch.pull_request_number,
     commit: watch.commit_sha,
@@ -363,39 +205,12 @@ function noticeFor({
         person: ciReports.success({ pullRequestUrl: outcome.pullRequestUrl }),
         note: ciNoteReports.success({ ...common, requiredChecks }),
       };
-    case ciResults.repairing:
+    case ciResults.failure:
       return {
-        person: ciReports.repairing,
-        note: ciNoteReports.repairing({
+        person: ciReports.failure,
+        note: ciNoteReports.failure({
           ...common,
           failedChecks: outcome.failedChecks,
-          attemptNumber: outcome.attemptNumber,
-          maximumAttempts: maximumAutomaticRepairs,
-        }),
-      };
-    case ciResults.repairNotRun:
-      return {
-        person: ciReports.repairNotRun,
-        note: ciNoteReports.repairNotRun({
-          ...common,
-          failedChecks: outcome.failedChecks,
-        }),
-      };
-    case ciResults.repairBlocked:
-      return {
-        person: ciReports.repairBlocked,
-        note: ciNoteReports.repairBlocked({
-          ...common,
-          failedChecks: outcome.failedChecks,
-        }),
-      };
-    case ciResults.repairLimit:
-      return {
-        person: ciReports.repairLimit,
-        note: ciNoteReports.repairLimit({
-          ...common,
-          failedChecks: outcome.failedChecks,
-          maximumAttempts: maximumAutomaticRepairs,
         }),
       };
     case ciResults.headChanged:
@@ -424,80 +239,50 @@ export function createCiWatchWorker({
   pollIntervalMilliseconds,
   watchTimeoutMilliseconds,
   requestTimeoutMilliseconds = defaultRequestTimeoutMilliseconds,
-  repairs,
-  maximumAutomaticRepairs,
-  secrets = [],
   recordTrace = () => {},
   // The text of a notice is an effect the next turn of the topic must know.
   recordServiceNote = () => {},
   logger = () => {},
   now = () => new Date(),
 }) {
-  if (
-    !Number.isInteger(maximumAutomaticRepairs) ||
-    maximumAutomaticRepairs < 1
-  ) {
-    throw new Error("maximumAutomaticRepairs must be a positive integer.");
-  }
-  if (!repairs) {
-    throw new Error("The durable repair queue is required.");
+  // The delay of each watch whose notice failed. It lives in memory: a restart
+  // retries at once.
+  const sendRetries = new Map();
+
+  function postponeSend(updateIdentifier) {
+    const previousDelay = sendRetries.get(updateIdentifier)?.delay;
+    const delay = Math.min(
+      previousDelay === undefined
+        ? pollIntervalMilliseconds
+        : previousDelay * 2,
+      maximumRetryDelayMilliseconds,
+    );
+    sendRetries.set(updateIdentifier, {
+      delay,
+      retryAt: now().getTime() + delay,
+    });
   }
 
-  /** Resolve to true only when the notice reached Telegram and was recorded. */
+  /**
+   * Send the notice of an outcome and end the watch. A failed send leaves it
+   * pending, so a later cycle retries it.
+   */
   async function deliver(watch, outcome, { signal } = {}) {
-    let message;
-    let personText;
-    let noteText;
-    try {
-      const { chatIdentifier, threadIdentifier } = parseSessionKey(
-        watch.session_key,
-      );
-      const notice = noticeFor({
-        watch,
-        outcome,
-        requiredChecks,
-        maximumAutomaticRepairs,
-      });
-      personText = notice.person;
-      noteText = notice.note;
-      message = {
-        chatIdentifier,
-        messageThreadIdentifier: threadIdentifier,
-        text: personText,
-      };
-    } catch {
-      // Nothing was sent, and the notice can never be produced: end the watch
-      // without pretending the delivery reached Telegram.
-      store.markUncertain(watch.update_identifier);
-      logger("ci_notification_invalid", describe(watch));
-      return false;
-    }
-
-    // The claim comes first: a watch that is no longer pending (superseded by a
-    // newer commit, or already claimed) produces no notice, so it must not add a
-    // note or overwrite the last text of the topic either.
-    if (!store.beginSend(watch.update_identifier, outcome.result)) {
-      return false;
-    }
-    if (needsMaintainerAttention(outcome)) {
-      // The notice says the case is noted for the maintainer: this trace and
-      // journal line make that true.
-      safeTrace({
-        updateIdentifier: watch.update_identifier,
-        sessionKey: watch.session_key,
-        action: maintainerAttentionAction,
-        detail: noticeKind(outcome),
-      });
-      logger(maintainerAttentionAction, noticeKind(outcome));
-    }
+    // A watch superseded during the reads produces no notice, so it must not
+    // add a note or overwrite the last text of the topic either.
+    if (store.state(watch.update_identifier) !== "pending") return;
+    const { chatIdentifier, threadIdentifier } = parseSessionKey(
+      watch.session_key,
+    );
+    const notice = noticeFor({ watch, outcome, requiredChecks });
     // The effect is decided here, so the topic keeps it even when the send
     // fails: the next turn of its session must know it. The note keeps the
     // technical facts the person never reads.
     try {
       recordServiceNote({
         sessionKey: watch.session_key,
-        text: noteText,
-        receivedText: personText,
+        text: notice.note,
+        receivedText: notice.person,
         effectKey: `ci:${watch.update_identifier}:${watch.commit_sha}:${noticeKind(outcome)}`,
       });
     } catch (error) {
@@ -508,31 +293,38 @@ export function createCiWatchWorker({
     // The publication already told the person the change is saved: the green
     // result stays in the service note and the private trace, so the same
     // sentence does not arrive twice.
-    if (outcome.result === ciResults.success) {
-      store.finishSend(watch.update_identifier);
-      logger(
-        "ci_notification_sent",
-        describeNotice(watch, outcome, requiredChecks),
-      );
-      return true;
+    if (outcome.result !== ciResults.success) {
+      try {
+        await telegram.sendMessage({
+          chatIdentifier,
+          messageThreadIdentifier: threadIdentifier,
+          text: notice.person,
+          signal,
+        });
+      } catch (error) {
+        logger(
+          "ci_notification_failed",
+          `${describe(watch)} ${error instanceof Error ? error.name : "unknown"}`,
+        );
+        postponeSend(watch.update_identifier);
+        return;
+      }
+      // The notice says the case is noted for the maintainer: this trace and
+      // journal line make that true.
+      safeTrace({
+        updateIdentifier: watch.update_identifier,
+        sessionKey: watch.session_key,
+        action: maintainerAttentionAction,
+        detail: noticeKind(outcome),
+      });
+      logger(maintainerAttentionAction, noticeKind(outcome));
     }
-    try {
-      await telegram.sendMessage({ ...message, signal });
-    } catch (error) {
-      // The message may or may not have arrived: never retry it automatically.
-      store.markUncertain(watch.update_identifier);
-      logger(
-        "ci_notification_uncertain",
-        `${describe(watch)} ${error instanceof Error ? error.name : "unknown"}`,
-      );
-      return false;
-    }
-    store.finishSend(watch.update_identifier);
+    store.finishSend(watch.update_identifier, outcome.result);
+    sendRetries.delete(watch.update_identifier);
     logger(
       "ci_notification_sent",
       describeNotice(watch, outcome, requiredChecks),
     );
-    return true;
   }
 
   function logFailure(error) {
@@ -540,20 +332,9 @@ export function createCiWatchWorker({
   }
 
   /**
-   * The notice and the durable attempt matter; a failed trace line does not. It
-   * is logged instead of stopping the cycle before the topic is informed.
+   * The notice matters; a failed trace line does not. It is logged instead of
+   * stopping the cycle.
    */
-  function safeReset(pullRequestNumber) {
-    try {
-      repairs.resetRepairs(pullRequestNumber);
-    } catch (error) {
-      logger(
-        "ci_repair_budget_reset_failed",
-        error instanceof Error ? error.name : "unknown",
-      );
-    }
-  }
-
   function safeTrace(entry) {
     try {
       recordTrace(entry);
@@ -565,288 +346,25 @@ export function createCiWatchWorker({
     }
   }
 
-  /**
-   * Reserve the next automatic repair of a failure, or report the limit. The
-   * attempt is durable before the notice is sent, so a repeated cycle cannot
-   * reserve a third one. It is queued only after the notice is delivered and the
-   * watch is finished: the repair can neither report before its announcement nor
-   * publish while the watch cannot be reopened. An announcement that is not
-   * delivered closes the reservation as aborted, so it never runs and it never
-   * blocks the topic waiting for a result that will not come. A failure whose
-   * attempt already ended is announced as a job that only a new instruction can
-   * continue, never as a repair that is running.
-   */
-  async function requestRepair(watch, outcome, { signal } = {}) {
-    const requested = repairs.requestRepair({
-      updateIdentifier: watch.update_identifier,
-      sessionKey: watch.session_key,
-      pullRequestNumber: watch.pull_request_number,
-      failureFingerprint: failureFingerprint(outcome.failedChecks),
-      failedChecks: outcome.failedChecks,
-      evidence: outcome.evidence,
-      commitSha: watch.commit_sha,
-      maximumAttempts: maximumAutomaticRepairs,
-    });
-    if (requested === null) {
-      await deliver(
-        watch,
-        { ...outcome, result: ciResults.repairLimit },
-        { signal },
-      );
-      safeTrace({
-        updateIdentifier: watch.update_identifier,
-        sessionKey: watch.session_key,
-        action: "ci_repair_limit_reached",
-        detail: describe(watch),
-      });
-      return;
-    }
-    if (repairWillNotRun(requested.status)) {
-      await deliver(
-        watch,
-        { ...outcome, result: ciResults.repairNotRun },
-        { signal },
-      );
-      safeTrace({
-        updateIdentifier: watch.update_identifier,
-        sessionKey: watch.session_key,
-        action: "ci_repair_not_run",
-        detail: `${describe(watch)} ${requested.status}`,
-      });
-      return;
-    }
-    const announced = await deliver(
-      watch,
-      {
-        ...outcome,
-        result: ciResults.repairing,
-        attemptNumber: requested.attemptNumber,
-      },
-      { signal },
-    );
-    if (!announced) {
-      repairs.abortReservedRepair(requested.sequence, "announcement_failed");
-      safeTrace({
-        updateIdentifier: watch.update_identifier,
-        sessionKey: watch.session_key,
-        action: "ci_repair_not_announced",
-        detail: describe(watch),
-      });
-      return;
-    }
-    // Only a reservation that actually reached the queue was requested: the
-    // topic must not wait for a repair that cannot run.
-    if (!repairs.queueRepair(requested.sequence)) {
-      safeTrace({
-        updateIdentifier: watch.update_identifier,
-        sessionKey: watch.session_key,
-        action: "ci_repair_not_queued",
-        detail: describe(watch),
-      });
-      return;
-    }
-    safeTrace({
-      updateIdentifier: watch.update_identifier,
-      sessionKey: watch.session_key,
-      action: "ci_repair_requested",
-      detail: `${describe(watch)} ${requested.attemptNumber}/${maximumAutomaticRepairs}`,
-    });
-  }
-
-  async function previousRerunOutcome(watch, failures, { signal }) {
-    for (const { job } of failures) {
-      if (!job) continue;
-      const reservation = store.rerun(job.run_id);
-      if (!reservation) continue;
-      try {
-        const run = await github.getWorkflowRun({
-          runIdentifier: job.run_id,
-          commit: watch.commit_sha,
-          signal,
-        });
-        if (
-          run.run_attempt > reservation.original_attempt &&
-          job.run_attempt === reservation.original_attempt
-        ) {
-          const age = now().getTime() - Date.parse(reservation.created_at);
-          return age < watchTimeoutMilliseconds
-            ? rerunOutcomes.waiting
-            : rerunOutcomes.unconfirmed;
-        }
-        if (
-          run.run_attempt > reservation.original_attempt &&
-          job.run_attempt > reservation.original_attempt
-        )
-          return rerunOutcomes.exhausted;
-        return rerunOutcomes.unconfirmed;
-      } catch {
-        return rerunOutcomes.unconfirmed;
-      }
-    }
-    return null;
-  }
-
-  async function reportRerunEnd(watch, current, outcome, { signal }) {
-    await deliver(
-      watch,
-      { ...current, result: ciResults.repairNotRun },
-      { signal },
-    );
-    safeTrace({
-      updateIdentifier: watch.update_identifier,
-      sessionKey: watch.session_key,
-      action:
-        outcome === rerunOutcomes.exhausted
-          ? "ci_rerun_exhausted"
-          : "ci_rerun_unconfirmed",
-      detail: describe(watch),
-    });
-  }
-
-  async function requestReruns(watch, current, jobs, { signal }) {
-    const runs = new Map(jobs.map((job) => [job.run_id, job]));
-    for (const job of runs.values()) {
-      if (
-        !store.reserveRerun({
-          runIdentifier: job.run_id,
-          originalAttempt: job.run_attempt,
-          updateIdentifier: watch.update_identifier,
-          commitSha: watch.commit_sha,
-        })
-      ) {
-        await reportRerunEnd(watch, current, rerunOutcomes.exhausted, {
-          signal,
-        });
-        return;
-      }
-      try {
-        await github.rerunFailedJobs({ runIdentifier: job.run_id, signal });
-      } catch {
-        await reportRerunEnd(watch, current, rerunOutcomes.unconfirmed, {
-          signal,
-        });
-        return;
-      }
-      safeTrace({
-        updateIdentifier: watch.update_identifier,
-        sessionKey: watch.session_key,
-        action: "ci_rerun_requested",
-        detail: `${describe(watch)} run ${job.run_id} attempt ${job.run_attempt}`,
-      });
-    }
-  }
-
-  async function handleReruns(watch, current, failures, { signal }) {
-    const previous = await previousRerunOutcome(watch, failures, { signal });
-    if (previous !== null) {
-      if (previous !== rerunOutcomes.waiting)
-        await reportRerunEnd(watch, current, previous, { signal });
-      return true;
-    }
-    if (failures.some(({ kind }) => kind === failureKinds.noOutput)) {
-      await reportRerunEnd(watch, current, rerunOutcomes.unconfirmed, {
-        signal,
-      });
-      return true;
-    }
-    const jobs = failures
-      .filter(
-        ({ kind }) =>
-          kind === failureKinds.cancelled ||
-          kind === failureKinds.timedOut ||
-          kind === failureKinds.setupFailure,
-      )
-      .map(({ job }) => job);
-    if (jobs.length === 0) return false;
-    await requestReruns(watch, current, jobs, { signal });
-    return true;
-  }
-
   /** One cycle over the pending watches. */
   async function runOnce({ signal } = {}) {
     for (const watch of store.pending()) {
       if (signal?.aborted) return;
+      const retryAt = sendRetries.get(watch.update_identifier)?.retryAt;
+      if (retryAt !== undefined && now().getTime() < retryAt) continue;
       try {
         const outcome = await evaluateWatch({
           watch,
-          store,
           github,
           requiredChecks,
           watchTimeoutMilliseconds,
           requestTimeoutMilliseconds,
-          secrets,
           now,
           signal,
         });
-        if (outcome === null) {
-          continue;
+        if (outcome !== null) {
+          await deliver(watch, outcome, { signal });
         }
-        if (outcome.result === ciResults.success) {
-          // A green commit closes the automatic repair chain of the pull
-          // request. Failing to forget it costs a stricter limit, never the
-          // notice.
-          safeReset(watch.pull_request_number);
-        }
-        if (outcome.result === ciResults.failure) {
-          // A human may have rerun CI while the first read was in flight.
-          const current = await evaluateWatch({
-            watch,
-            store,
-            github,
-            requiredChecks,
-            watchTimeoutMilliseconds,
-            requestTimeoutMilliseconds,
-            secrets,
-            now,
-            signal,
-          });
-          if (current === null) continue;
-          if (current.result !== ciResults.failure) {
-            if (current.result === ciResults.success)
-              safeReset(watch.pull_request_number);
-            await deliver(watch, current, { signal });
-            continue;
-          }
-          const failures = await classifyFailures({
-            github,
-            commit: watch.commit_sha,
-            failedChecks: current.failedChecks,
-            checkRuns: current.checkRuns,
-            signal,
-          });
-          if (await handleReruns(watch, current, failures, { signal }))
-            continue;
-          if (repairs.uncertainRepairCount() > 0) {
-            // An unknown repair blocks every automatic repair until a person
-            // reconciles it; the failure is still reported.
-            await deliver(
-              watch,
-              { ...outcome, result: ciResults.repairBlocked },
-              { signal },
-            );
-            safeTrace({
-              updateIdentifier: watch.update_identifier,
-              sessionKey: watch.session_key,
-              action: "ci_repair_blocked",
-              detail: describe(watch),
-            });
-            continue;
-          }
-          const evidence = describeFailedChecks({
-            failedChecks: current.failedChecks,
-            checkRuns: failures.map(({ name, projectOutput }) => ({
-              name,
-              output: { summary: redactSecrets(projectOutput, secrets) },
-            })),
-            statuses: [],
-          }).map((entry) => ({
-            name: entry.name,
-            detail: redactSecrets(entry.detail, secrets),
-          }));
-          await requestRepair(watch, { ...current, evidence }, { signal });
-          continue;
-        }
-        await deliver(watch, outcome, { signal });
       } catch (error) {
         logFailure(error);
       }

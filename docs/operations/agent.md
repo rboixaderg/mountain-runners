@@ -87,7 +87,7 @@ propietat de la identitat del servei. La instal·lació prevista és:
 ├── repository/                            clon amb origin i main
 ├── worktrees/                             worktree actual per tema i feina preservada
 ├── sessions/                              historial de Pi per tema
-└── state/                                 identifier-salt, admission.sqlite, ci-watch.sqlite (avisos i reparacions), preview-request.sqlite (peticions de preview i URL confirmada), merge-request.sqlite (peticions de merge i preguntes de confirmació), topic-jobs.sqlite (branca i PR per tema), session-notes.sqlite (efectes i última resposta de cada tema), attachments/ (imatges per tema, 7 dies), perfils i traça
+└── state/                                 identifier-salt, admission.sqlite, ci-watch.sqlite (avisos de CI), preview-request.sqlite (peticions de preview i URL confirmada), merge-request.sqlite (peticions de merge i preguntes de confirmació), topic-jobs.sqlite (branca i PR per tema), session-notes.sqlite (efectes i última resposta de cada tema), attachments/ (imatges per tema, 7 dies), perfils i traça
 /etc/mountain-runners-agent/agent.env      0600  credencials del servei
 /usr/local/lib/mountain-runners/agent/     aplicació instal·lada
 /usr/local/lib/mountain-runners/node_modules/
@@ -371,12 +371,11 @@ defecte.
    prova), amb el sha256 de cada fitxer i el conjunt exacte. Qualsevol diferència
    la refusa i n'enumera fins a 20.
 3. Que l'estat és inactiu, amb les bases obertes en només lectura i refusant-ne
-   qualsevol que sigui un enllaç: cap instrucció `pending` o `running`, cap
-   reparació `reserved`, `queued` o `running`, cap avís `pending`, `sending` o
-   `uncertain`, cap merge `merging` o `uncertain`, cap preview `awaiting` i cap
-   cas incert de
+   qualsevol que sigui un enllaç: cap instrucció `pending` o `running`, cap merge `merging` o `uncertain`, cap preview `awaiting` i
+   cap cas incert de
    [reconciliació](#reconciliació-de-resultats-desconeguts). Si n'hi ha, la
-   refusa amb els comptes.
+   refusa amb els comptes. Un seguiment de CI `pending` no la refusa: es reprèn
+   després del reinici i l'avís es pot repetir.
 4. Si el lockfile, `pnpm-workspace.yaml`, `.node-version`, `package.json`
    (l'arrel i `apps/web`), el `package.json` del pont o
    `tools/server/agent/sandbox/Containerfile` han canviat respecte del commit
@@ -567,8 +566,7 @@ Des del repositori, el mateix programa és
 `node tools/server/agent/commands/migrate-identifiers/cli.mjs`. La
 reconciliació no crea el salt ni migra res: si el salt no existeix o queda
 cap worktree amb un nom antic, `list` i `resolve` d'una instrucció fallen amb
-codi 1 i demanen executar la migració abans. Els casos de reparació i
-avís no en depenen. Si encara no s'ha instal·lat la versió que retira les
+codi 1 i demanen executar la migració abans. Els casos de merge no en depenen. Si encara no s'ha instal·lat la versió que retira les
 peticions `/preview`, comprova abans la precondició de
 [Reinicis](../../tools/server/agent/README.md#preview-demanada-al-tema).
 
@@ -577,11 +575,15 @@ peticions `/preview`, comprova abans la precondició de
 Els valors no es mostren mai en aquest document, al tema, a la PR ni a la sortida
 d'una ordre. Edita `agent.env` com a root i comprova que conserva el mode `0600`.
 
-| Credencial                | On es genera               | Abast                                                                                                                                                                       |
-| ------------------------- | -------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Token del bot de Telegram | BotFather                  | Només el bot del grup configurat                                                                                                                                            |
-| Token de GitHub           | Compte de l'agent a GitHub | `Contents: write`, `Pull requests: write`, lectura de checks i estats, `Actions: write` per reexecutar una comprovació; sense `Workflows: write` ni lectura d'administració |
-| Credencial del model      | Proveïdor del model        | Només la crida al model; arriba a Pi i no al pont                                                                                                                           |
+| Credencial                | On es genera               | Abast                                                                                                                                        |
+| ------------------------- | -------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| Token del bot de Telegram | BotFather                  | Només el bot del grup configurat                                                                                                             |
+| Token de GitHub           | Compte de l'agent a GitHub | `Contents: write`, `Pull requests: write`, lectura de checks i estats; sense `Actions: write`, `Workflows: write` ni lectura d'administració |
+| Credencial del model      | Proveïdor del model        | Només la crida al model; arriba a Pi i no al pont                                                                                            |
+
+El servei no necessita `Actions: write`. Si el token encara el té, la persona
+mantenidora el retira a GitHub després de desplegar la versió instal·lada. És un
+canvi remot que fa una persona: cap agent no toca el token.
 
 1. Genera la credencial nova a l'emissor i no revoquis l'antiga encara. El token
    de Telegram és l'excepció: el bot en té un de sol i revocar-lo invalida
@@ -661,7 +663,7 @@ allibera les dependències generades dels arxius i dels temes tancats. La comand
 servei amb `EnvironmentFile=/etc/mountain-runners-agent/agent.env`, mostra la
 mateixa decisió sense escriure ni esborrar res; per aplicar-la sense
 `--dry-run`, atura abans `mountain-agent.service` (la comanda refusa executar-se
-si hi ha instruccions o reparacions en curs o incertes).
+si hi ha instruccions en curs o incertes).
 
 - **Cost estimat.** La traça i les bases de `state/` creixen pocs MB l'any i
   queden lluny de l'1 GiB del volum d'estat. L'historial de Pi és el que creix
@@ -732,11 +734,9 @@ runuser -u mountain-agent -- env \
 ### Reconciliació de resultats desconeguts
 
 Una aturada o un reinici pot deixar una acció externa amb resultat desconegut:
-una instrucció que podia haver fet push o obert una PR, o una reparació
-automàtica que podia haver fet push.
-El servei refusa arrencar mentre en quedi cap. Un avís de CI que potser no va
-arribar al tema no bloqueja l'arrencada, però bloqueja la resolució d'un merge
-a partir de l'avís anterior. La decisió és d'una persona: l'ordre
+una instrucció que podia haver fet push o obert una PR, o un merge. El servei
+refusa arrencar mentre quedi cap instrucció incerta; un merge incert no bloqueja
+l'arrencada. La decisió és d'una persona: l'ordre
 no repeteix l'acció, no fa push, no comenta i no fusiona res.
 
 Després d'una actualització amb worktrees antics, executa abans la migració
@@ -766,16 +766,11 @@ L'ordre fixa el seu propi `umask` i no crea cap base de dades: una base absent
 compta com que no hi ha cap cas d'aquell tipus.
 
 1. **Llista els casos.** `list` escriu una línia JSON per cas amb `kind`
-   (`instruction`, `repair`, `notice` o `merge`), `update_identifier`,
+   (`instruction` o `merge`), `update_identifier`,
    `session_key`, `created_at` i els fets que pot llegir.
    - `instruction`: `worktree` amb la branca del tema, el HEAD local i si aquell
      HEAD ja consta com a publicat, i la PR oberta d'aquella branca amb el
      número i el cap.
-   - `repair`: `update_identifier` (l'actualització de Telegram), `sequence`
-     (la seqüència de la fila), `failed_commit`, `pull_request_number` i
-     l'estat de la PR amb el seu cap.
-   - `notice`: `pull_request_number`, el commit i `result`, que és el resultat
-     de la CI que l'avís hauria comunicat. No fa cap lectura de GitHub.
    - `merge`: `pull_request_number` i el commit del `/merge` amb resultat
      desconegut. No fa cap lectura de GitHub.
 
@@ -795,11 +790,6 @@ compta com que no hi ha cap cas d'aquell tipus.
      resolve --kind instruction --update 12 --resolution published \
        --commit <SHA> --pull-request <n>
    /usr/bin/node /usr/local/lib/mountain-runners/agent/commands/reconcile/cli.mjs \
-     resolve --kind repair --update 3 --sequence 1 --failed-commit <SHA> \
-       --resolution not_published
-   /usr/bin/node /usr/local/lib/mountain-runners/agent/commands/reconcile/cli.mjs \
-     resolve --kind notice --update 31 --resolution delivered
-   /usr/bin/node /usr/local/lib/mountain-runners/agent/commands/reconcile/cli.mjs \
      resolve --kind merge --update 60 --resolution merged
    ```
 
@@ -807,10 +797,6 @@ compta com que no hi ha cap cas d'aquell tipus.
    | ---------- | --------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
    | instrucció | `published --commit <SHA> --pull-request <n>` | Estat `done` i resultat `reconciled_published`; si el HEAD del worktree del tema és aquell commit, es marca com a publicat i no es torna a publicar mai. També desa un seguiment de CI pendent. |
    | instrucció | `not_published`                               | Estat `done` i resultat `reconciled_not_published`; el treball local es conserva i el següent torn ordinari en torna a intentar la publicació.                                                  |
-   | reparació  | `published --commit <SHA>`                    | Estat `done` i resultat `reconciled_published`; no es reobre cap seguiment de CI.                                                                                                               |
-   | reparació  | `not_published`                               | Estat `done` i resultat `reconciled_not_published`; no es reobre cap seguiment de CI.                                                                                                           |
-   | avís       | `delivered`                                   | Estat `sent`: el tema ja havia rebut l'avís i el seu resultat passa a ser l'últim informat.                                                                                                     |
-   | avís       | `resend`                                      | Estat `pending`: el treballador ordinari el torna a enviar. És una decisió humana, no un reintent automàtic.                                                                                    |
    | merge      | `merged`                                      | Estat `merged` amb el commit de fusió que llegeix a GitHub; només s'accepta si la PR hi consta fusionada amb el mateix cap.                                                                     |
    | merge      | `not_merged`                                  | Estat `not_merged`: la petició acaba i es pot demanar un `/merge` nou; només s'accepta si la PR hi consta sense fusionar.                                                                       |
 
@@ -820,12 +806,9 @@ compta com que no hi ha cap cas d'aquell tipus.
    cap avís, i el tema n'ha de rebre l'informe. El seguiment s'escriu abans de
    tancar la instrucció i abans del senyal de publicació; si no es pot desar, la
    instrucció continua incerta i la comanda acaba amb codi 1. Si el seguiment
-   d'aquella actualització ja existeix, no se'n crea cap altre. Una
-   reparació exigeix `--update`, `--sequence` i `--failed-commit`, i la
-   transacció només afecta la fila que coincideix amb els tres: si una reparació
-   posterior reutilitza la mateixa seqüència, l'ordre antiga es refusa. Cada
-   crida afecta un sol cas, en una transacció limitada per l'estat incert: un cas
-   ja resolt es refusa amb codi 1 i no es sobreescriu.
+   d'aquella actualització ja existeix, no se'n crea cap altre. Cada crida
+   afecta un sol cas, en una transacció limitada per l'estat incert: un cas ja
+   resolt es refusa amb codi 1 i no es sobreescriu.
 
 4. **Avís i traça.** Cada resolució registra `uncertain_reconciled` a la traça
    privada amb el tipus, la resolució, la PR i el SHA curt quan es coneixen, sense
@@ -833,17 +816,15 @@ compta com que no hi ha cap cas d'aquell tipus.
    avís neutre («Ja està resolt el que havia quedat a mitges: la feina s'ha
    publicat. Si cal continuar la feina, demana-ho de nou en aquest tema.»),
    excepte amb `--kind merge` (el tema ja va rebre la resposta de resultat
-   desconegut) i amb `--kind notice`: `delivered` confirma un avís que el tema
-   ja tenia i `resend` encarrega l'enviament al treballador, així que la comanda
-   no hi afegeix cap avís propi. L'avís també és un efecte del servei: es desa a
+   desconegut). L'avís també és un efecte del servei: es desa a
    `state/session-notes.sqlite` abans d'enviar-lo, amb la identitat
    `reconcile:<tipus>:<id>`, perquè el torn següent del tema el rebi encara que
    l'enviament falli. Si l'avís falla, s'escriu a stderr i es traça com a
    `uncertain_reconciled_notice_failed`; la resolució es manté. Mai es desa una
    resolució sense traça: en una instrucció, el canvi d'estat i la traça són una
-   sola transacció; en una reparació o un avís, la traça s'escriu abans del
-   canvi i, si falla, no es modifica res. Si el canvi falla després de la traça,
-   es registra `uncertain_reconcile_failed` i la comanda acaba amb codi 1. En una
+   sola transacció; en un merge, la traça s'escriu abans del canvi i, si falla,
+   no es modifica res. Si el canvi falla després de la traça, es registra
+   `uncertain_reconcile_failed` i la comanda acaba amb codi 1. En una
    instrucció publicada, el seguiment de CI i el senyal de publicació del
    worktree s'escriuen abans de tancar-la: si falla qualsevol dels dos, la
    instrucció continua incerta i es pot reintentar.
@@ -861,7 +842,7 @@ inexistent o ja resolt, una traça que no es pot escriure o una fallada de
 GitHub, Telegram o de la base de dades. 2 és un error d'ús (`parseArgs`, tipus,
 resolució, identificador o SHA invàlids, `--commit` que falta o que sobra,
 `--pull-request` que falta en una instrucció publicada o que sobra en qualsevol
-altre cas, `--sequence` o `--failed-commit` fora d'una reparació).
+altre cas).
 
 ### Verificació
 
@@ -997,9 +978,8 @@ de la persona mantenidora consta a l'especificació.
      incerts.
 1. **Credencial de GitHub i protecció de `main`.**
    - Fer: revisa el token del compte de l'agent: `Contents: write`,
-     `Pull requests: write`, lectura de checks i estats, `Actions: write` per
-     reexecutar una comprovació, sense escriptura a
-     `.github/workflows` i sense lectura d'administració. Comprova que el compte
+     `Pull requests: write`, lectura de checks i estats, sense `Actions: write`,
+     sense escriptura a `.github/workflows` i sense lectura d'administració. Comprova que el compte
      de l'agent és col·laborador del repositori, que
      `MOUNTAIN_AGENT_REQUIRED_CHECKS` coincideix amb la protecció de `main` amb la
      branca al dia. Comprova que la protecció s'aplica també als administradors
@@ -1030,14 +1010,12 @@ de la persona mantenidora consta a l'especificació.
      petició no s'escriuen les variants en castellà ni en anglès.
    - Si falla: atura el servei i anota la instrucció; no repeteixis cap
      publicació. Si el resultat és desconegut, reconcilia'l.
-3. **Reparació de CI.**
-   - Fer: obre una PR sintètica que trenqui una comprovació obligatòria amb un
-     error que una correcció petita pugui resoldre, i deixa que el servei la
-     repari. Repeteix-ho amb una fallada que no sigui dins de l'abast.
-   - Esperat: un intent de reparació amb el commit nou i l'avís de CI nova. Amb
-     una fallada externa, dos intents com a màxim, l'avís del límit i cap bucle.
-   - Si falla: atura el servei i anota l'intent i el seu SHA a la PR; si un intent
-     ha quedat incert, reconcilia'l abans de continuar.
+3. **CI vermella.**
+   - Fer: obre una PR sintètica pel tema que trenqui una comprovació
+     obligatòria.
+   - Esperat: quan totes les comprovacions obligatòries han acabat, un avís de
+     fallada, cap commit nou del servei i cap reexecució.
+   - Si falla: atura el servei i anota el SHA a la PR.
 4. **Preview.**
    - Fer: comprova que la PR creada pel servei té l'etiqueta `preview` i que el
      servei no ha comentat `/preview`. Espera l'avís de l'adreça sense demanar-la
