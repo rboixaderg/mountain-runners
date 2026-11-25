@@ -238,16 +238,21 @@ export async function runPiPrompt({
       if (record === null || typeof record !== "object") {
         return;
       }
-      if (record.type === "response" && record.command === "prompt") {
+      if (record.type === "response") {
+        // The prompt is the only command sent, so any failed response, such as
+        // a `parse` error, means the turn will never run.
         if (record.success === false) {
           finish(() =>
             rejectPromise(
               new Error(
-                `Pi rejected the prompt: ${record.error ?? "unknown error"}`,
+                `Pi rejected the ${record.command}: ${record.error ?? "unknown error"}`,
               ),
             ),
           );
-        } else if (record.data?.disposition === "handled") {
+        } else if (
+          record.command === "prompt" &&
+          record.data?.disposition === "handled"
+        ) {
           settled = true;
           finish(() => resolvePromise({ text, handled: true, aborted: false }));
         }

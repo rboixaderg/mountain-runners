@@ -141,12 +141,19 @@ avís. Mentre un àlbum espera, l'offset de Telegram no avança més enllà de l
 imatge, així que un reinici torna a llegir el grup; la cua deduplica el que ja
 s'havia admès. La reentrega d'un membre ja recollit no reinicia l'espera: el
 termini comença amb el grup i un membre nou només el pot allargar fins a un
-màxim absolut. Els missatges d'altres sessions s'admeten sense esperar; els de
-la mateixa sessió esperen darrere l'àlbum per conservar l'ordre.
+màxim absolut. Un àlbum vençut només s'admet després de llegir un lot, de manera
+que inclou les imatges arribades durant una feina lenta entre dos lots. Una
+actualització o un àlbum només es donen per processats quan l'admissió ha
+acabat: si llança una excepció (per exemple, amb la base de dades ocupada), una
+consulta posterior ho torna a intentar. Si l'excepció arriba quan la instrucció
+ja és a la cua, el nou intent la tracta com a duplicada i no n'envia l'avís de
+recepció. Els missatges d'altres sessions s'admeten sense esperar; els
+posteriors a un àlbum de la mateixa sessió l'esperen per conservar l'ordre.
 
 Un tema comparteix sessió entre els membres. El bot respon amb el resultat,
-limitat a 4.000 caràcters; no publica passos intermedis ni fa streaming. Les
-instruccions es dedupliquen per update i s'executen en ordre. El polling i
+limitat a 4.000 caràcters sense partir cap parell de substitució; no publica
+passos intermedis ni fa streaming. Les instruccions es dedupliquen per update i
+s'executen en ordre. El polling i
 l'execució són seqüencials; no hi ha un canal de cancel·lació per missatges
 mentre el callback treballa. El `signal` del procés sí que arriba al callback.
 `isBlocked()` indica si hi ha una instrucció en execució o amb un resultat extern
@@ -199,6 +206,10 @@ més 15 s de marge (`longPollMarginMilliseconds`). Un termini esgotat és un
 `TelegramApiError` sense URL ni token; una aturada del procés continua com a
 `AbortError`.
 
+Davant un 429 amb `retry_after`, `sendMessage` espera i ho torna a provar una
+sola vegada, si l'espera cap dins del termini compartit pels dos intents; una
+aturada del procés també talla l'espera. Si no, l'error es propaga.
+
 `TelegramApi.sendMessage` admet `disableLinkPreview: true` per enviar un enllaç
 sense que Telegram en generi una previsualització.
 
@@ -233,9 +244,10 @@ reduïdes, sense metadades i amb un total màxim de 8 MB per prompt. La resta es
 queda al magatzem del tema i el model la pot mirar amb una eina.
 
 El valor retornat inclou `text`, `timedOut` i `stderr`; pot incloure `aborted`
-o `handled`. El client espera `agent_settled`, no només `agent_end`. Un prompt
-refusat es rebutja i un prompt gestionat per una comanda retorna sense esperar
-un torn inexistent. Els missatges de l'assistent es separen amb dos salts de
+o `handled`. El client espera `agent_settled`, no només `agent_end`. Una
+resposta RPC amb `success: false` (el prompt refusat o un altre error, com
+`parse`) rebutja la crida, i un prompt gestionat per una comanda retorna sense
+esperar un torn inexistent. Els missatges de l'assistent es separen amb dos salts de
 línia. El timeout per defecte és de 30 minuts. La sortida conjunta de stdout i
 stderr en streaming té un límit de 16 MiB per torn, amb límits de memòria
 acotats a 2 MiB per línia de stdout, 1 MiB per a stderr i 1 MiB per al text

@@ -2,11 +2,37 @@
 // knows the model environment allowlist, the sandbox extension and Podman cleanup.
 
 import { join } from "node:path";
-import { spawn } from "node:child_process";
+import { execFile, spawn } from "node:child_process";
+import { promisify } from "node:util";
 import { runPiPrompt } from "telegram-pi-bridge/pi";
 import { attachmentDirectoryName } from "../attachments/destination.mjs";
 import { stopSandboxedCommands } from "../sandbox/commands.mjs";
 import { serveWebResearch } from "./web-wire-server.mjs";
+
+const executeFile = promisify(execFile);
+
+/** Return the release the configured Pi command reports. */
+export async function readPiVersion(
+  command,
+  { environment, timeoutMilliseconds = 10_000 },
+) {
+  const { stdout } = await executeFile(command, ["--version"], {
+    env: {
+      PATH: environment.PATH,
+      HOME: environment.HOME,
+      TMPDIR: environment.TMPDIR,
+      PI_OFFLINE: "1",
+    },
+    timeout: timeoutMilliseconds,
+    killSignal: "SIGKILL",
+    maxBuffer: 1024,
+  });
+  const version = stdout.trim();
+  if (version === "") {
+    throw new Error("Pi reported no version.");
+  }
+  return version;
+}
 
 export function buildPiEnvironment({
   environment,

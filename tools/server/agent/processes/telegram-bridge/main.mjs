@@ -53,6 +53,7 @@ import { createPreviewRequests } from "../../workflow/preview-request.mjs";
 import { createProjectRunner } from "../../workflow/project-runner.mjs";
 import { createTopicPullRequestFinder } from "../../workflow/topic-state.mjs";
 import { stopAllSandboxedCommands } from "../../sandbox/commands.mjs";
+import { readPiVersion } from "../../runtime/pi-adapter.mjs";
 import { createWebResearch } from "../../web-research/broker.mjs";
 import { createTopicResearch } from "../../web-research/topic-research.mjs";
 import {
@@ -180,6 +181,24 @@ export async function startService({
       logger(
         "session_note_failed",
         error instanceof Error ? error.name : "unknown",
+      );
+    }
+  }
+
+  // The service runs whatever Pi release is installed. A new one can change its
+  // behaviour, so every start records which one it is. A runner override
+  // replaces Pi.
+  if (!runnerOverride) {
+    try {
+      const version = await readPiVersion(config.model.piCommand, {
+        environment,
+      });
+      logger("pi_version", version);
+      queue.recordTrace({ action: "pi_version", detail: version });
+    } catch (error) {
+      logger(
+        "pi_version_unreadable",
+        error instanceof Error ? error.message : "unknown",
       );
     }
   }

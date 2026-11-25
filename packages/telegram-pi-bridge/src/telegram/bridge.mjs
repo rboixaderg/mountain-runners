@@ -74,7 +74,12 @@ export function instructionExcerpt(
   if (text.length <= maximumLength) {
     return text;
   }
-  return `${text.slice(0, maximumLength - 1).trimEnd()}…`;
+  return `${cutAtCodePoint(text, maximumLength - 1).trimEnd()}…`;
+}
+
+// At most `length` UTF-16 units, never ending in half of a surrogate pair.
+function cutAtCodePoint(text, length) {
+  return text.slice(0, length).replace(/[\uD800-\uDBFF]$/u, "");
 }
 
 function limitReport(report) {
@@ -82,7 +87,7 @@ function limitReport(report) {
   if (text.length <= maximumReportLength) {
     return text;
   }
-  return `${text.slice(0, maximumReportLength - 1)}…`;
+  return `${cutAtCodePoint(text, maximumReportLength - 1)}…`;
 }
 
 function sleep(milliseconds, signal) {
@@ -438,11 +443,10 @@ export class AgentBridge {
       if (oldestAlbum !== null && oldestAlbum < update.update_id) {
         return;
       }
-      this.#deferred.delete(update.update_id);
       if (this.#processed.has(update.update_id)) {
+        this.#deferred.delete(update.update_id);
         continue;
       }
-      this.#rememberProcessed(update.update_id);
       const classification = classifyInstruction(
         update,
         this.#classificationContext(),
@@ -451,6 +455,8 @@ export class AgentBridge {
       if (signal?.aborted) {
         return;
       }
+      this.#deferred.delete(update.update_id);
+      this.#rememberProcessed(update.update_id);
       this.#lastConsumed = Math.max(this.#lastConsumed ?? 0, update.update_id);
     }
   }
@@ -521,7 +527,6 @@ export class AgentBridge {
       ) {
         continue;
       }
-      this.#albums.remove(group.identifier);
       const classification = classifyAlbum(
         group.updates,
         this.#classificationContext(),
@@ -530,6 +535,7 @@ export class AgentBridge {
       if (signal?.aborted) {
         return;
       }
+      this.#albums.remove(group.identifier);
       // Telegram re-delivers every member at or above the offset. Remembering
       // all of them keeps an unchanged group from being collected again while
       // another album holds the offset behind it.
@@ -585,15 +591,12 @@ export class AgentBridge {
    * the same offset is read again on the next start.
    *
    * The images of an album are collected for a short bounded wait and become one
-   * instruction. Unrelated updates of the same batch are still admitted and can
-   * execute while that album waits; only the offset stays behind.
+   * instruction. Expired albums are admitted only after a batch, so images that
+   * arrived during slow work are read first. Unrelated updates of the same batch
+   * are still admitted and can execute while that album waits; only the offset
+   * stays behind.
    */
   async pollOnce({ signal } = {}) {
-    await this.#admitExpiredAlbums({ signal });
-    if (signal?.aborted) {
-      return 0;
-    }
-
     const offset = this.#queue.readOffset();
     const updates = await this.#telegram.getUpdates({
       offset,
@@ -617,15 +620,15 @@ export class AgentBridge {
         continue;
       }
       // A later message of an album's session waits behind the album; other
-      // sessions are not delayed.
+      // sessions are not delayed. An older message never waits for a newer
+      // album: that album waits for it.
       const sessionKey = this.#sessionKeyOf(update);
-      if (sessionKey !== null && this.#albums.hasPendingSession(sessionKey)) {
+      const oldestAlbum =
+        this.#albums.oldestUpdateIdentifierForSession(sessionKey);
+      if (oldestAlbum !== null && oldestAlbum < update.update_id) {
         this.#defer(update);
         continue;
       }
-      this.#deferred.delete(update.update_id);
-      this.#advanceDeferredOverflow(update);
-      this.#rememberProcessed(update.update_id);
       const classification = classifyInstruction(
         update,
         this.#classificationContext(),
@@ -634,6 +637,10 @@ export class AgentBridge {
       if (signal?.aborted) {
         return consumed;
       }
+      // Only now is the update consumed: a failed admission is read again.
+      this.#deferred.delete(update.update_id);
+      this.#advanceDeferredOverflow(update);
+      this.#rememberProcessed(update.update_id);
       this.#lastConsumed = Math.max(this.#lastConsumed ?? 0, update.update_id);
       consumed += 1;
     }
