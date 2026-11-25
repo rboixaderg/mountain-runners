@@ -285,7 +285,9 @@ torn: [Preview demanada al tema](#preview-demanada-al-tema),
   sandbox; l'eina `sandbox_bash` trunca a 32 KiB (cap i cua en UTF-8 vàlid) el
   text retornat al model amb un avís explícit. El torn RPC de Pi limita el flux
   total a 16 MiB amb topalls de memòria de 2 MiB per línia de stdout, 1 MiB per
-  a stderr i 1 MiB per al text de l'assistent. Superar el límit de procés o
+  a stderr i 1 MiB per al text de l'assistent; els registres de Pi que repeteixen
+  les imatges no hi compten
+  ([pont](../../../packages/telegram-pi-bridge/README.md)). Superar el límit de procés o
   d'RPC atura el procés i espera la neteja dels contenidors. Si afecta el torn
   RPC o les comprovacions, la instrucció falla abans de publicar. El timeout es
   manté independent. L'adaptador també

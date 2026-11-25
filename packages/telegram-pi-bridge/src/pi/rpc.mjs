@@ -5,6 +5,17 @@
 import { spawn } from "node:child_process";
 import { isAbsolute } from "node:path";
 
+// RPC records that repeat whole messages, and so the base64 images of the
+// prompt and of tool results: `agent_end` carries every message of the run
+// (Pi's agent-loop.js and rpc-mode.js, which writes each event as one line).
+// The client reads none of them, so they are dropped as they stream in: they
+// are never buffered and count against no limit. The match relies on Pi writing
+// `type`, and the `role` of a message, as the first key.
+const discardedRecordPattern =
+  /^\{"type":(?:"(?:message_start|turn_end|agent_end|tool_execution_end)",|"message_end","message":\{"role":"(?:user|toolResult)",)/u;
+// Longer than any prefix the pattern above can match.
+const recordHeadLength = 64;
+
 // Streamed stdout+stderr budget for a multi-step RPC turn, paired with smaller
 // per-buffer caps so memory stays strictly bounded even on verbose turns.
 const maximumOutputBytes = 16 * 1024 * 1024;
@@ -180,6 +191,8 @@ export async function runPiPrompt({
   const stderr = [];
   const lineChunks = [];
   let lineBytes = 0;
+  let lineLength = 0;
+  let discardingLine = false;
 
   const settle = new Promise((resolvePromise, rejectPromise) => {
     const abortHandler = () => {
@@ -212,11 +225,13 @@ export async function runPiPrompt({
       child.stderr.destroy?.();
     };
 
-    const acceptOutput = (chunk) => {
-      // A timed-out run never becomes a settled one, even when a last line was
-      // already in flight: its result is unknown and cleanup must still run.
-      if (finished || outputLimitExceeded || aborted || timedOut) return false;
-      outputBytes += Buffer.byteLength(chunk);
+    // A timed-out run never becomes a settled one, even when a last line was
+    // already in flight: its result is unknown and cleanup must still run.
+    const isOutputIgnored = () =>
+      finished || outputLimitExceeded || aborted || timedOut;
+
+    const acceptOutput = (bytes) => {
+      outputBytes += bytes;
       if (outputBytes > maximumOutputBytes) {
         failOutputLimit();
         return false;
@@ -281,10 +296,45 @@ export async function runPiPrompt({
         );
       }
     };
+    // Buffers part of the current stdout line, unless the line is a discarded
+    // record. Returns false once a limit stops the run.
+    const bufferLine = (segment) => {
+      if (discardingLine) return true;
+      if (lineLength < recordHeadLength) {
+        const head = `${lineChunks.join("")}${segment.slice(0, recordHeadLength)}`;
+        if (discardedRecordPattern.test(head)) {
+          lineChunks.length = 0;
+          lineBytes = 0;
+          discardingLine = true;
+          return true;
+        }
+      }
+      const segmentBytes = Buffer.byteLength(segment);
+      if (!acceptOutput(segmentBytes)) return false;
+      lineBytes += segmentBytes;
+      if (lineBytes > maximumLineBytes) {
+        failOutputLimit();
+        return false;
+      }
+      lineChunks.push(segment);
+      lineLength += segment.length;
+      return true;
+    };
+
+    const takeLine = () => {
+      const line = lineChunks.join("");
+      lineChunks.length = 0;
+      lineBytes = 0;
+      lineLength = 0;
+      discardingLine = false;
+      return line;
+    };
+
     child.stderr.setEncoding("utf8");
     child.stderr.on("data", (chunk) => {
-      if (!acceptOutput(chunk)) return;
-      stderrBytes += Buffer.byteLength(chunk);
+      const chunkBytes = Buffer.byteLength(chunk);
+      if (isOutputIgnored() || !acceptOutput(chunkBytes)) return;
+      stderrBytes += chunkBytes;
       if (stderrBytes > maximumStderrBytes) {
         failOutputLimit();
         return;
@@ -294,7 +344,7 @@ export async function runPiPrompt({
 
     child.stdout.setEncoding("utf8");
     child.stdout.on("data", (chunk) => {
-      if (!acceptOutput(chunk)) return;
+      if (isOutputIgnored()) return;
       let cursor = 0;
       let separator;
       while (
@@ -302,40 +352,21 @@ export async function runPiPrompt({
         !outputLimitExceeded &&
         (separator = chunk.indexOf("\n", cursor)) !== -1
       ) {
-        const segment = chunk.slice(cursor, separator);
-        if (lineBytes + Buffer.byteLength(segment) > maximumLineBytes) {
-          failOutputLimit();
-          return;
-        }
-        const line =
-          lineChunks.length === 0
-            ? segment
-            : `${lineChunks.join("")}${segment}`;
-        lineChunks.length = 0;
-        lineBytes = 0;
+        if (!bufferLine(chunk.slice(cursor, separator))) return;
         cursor = separator + 1;
-        handleLine(line);
+        // The newline of a kept line counts too, so empty lines are bounded.
+        if (!discardingLine && !acceptOutput(1)) return;
+        handleLine(takeLine());
       }
       if (!finished && !outputLimitExceeded && cursor < chunk.length) {
-        const remainder = chunk.slice(cursor);
-        const remainderBytes = Buffer.byteLength(remainder);
-        if (lineBytes + remainderBytes > maximumLineBytes) {
-          failOutputLimit();
-          return;
-        }
-        lineChunks.push(remainder);
-        lineBytes += remainderBytes;
+        bufferLine(chunk.slice(cursor));
       }
     });
     // The last record may arrive without a trailing newline; the end of the
     // stream is still a complete line boundary.
     child.stdout.on("end", () => {
-      if (finished || aborted || timedOut || outputLimitExceeded) return;
-      if (lineChunks.length === 0) return;
-      const trailing = lineChunks.join("");
-      lineChunks.length = 0;
-      lineBytes = 0;
-      handleLine(trailing);
+      if (isOutputIgnored() || lineChunks.length === 0) return;
+      handleLine(takeLine());
     });
 
     // The child emits `spawn` once the process exists. The prompt is written
