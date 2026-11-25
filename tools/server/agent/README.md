@@ -1105,8 +1105,9 @@ simulades. `repository/ci-status.test.mjs` cobreix la classificació de la CI i
 enviament no confirmat.
 `repository/session-note-store.test.mjs` cobreix la durabilitat, el
 lliurament únic, la retenció i els límits de les notes del tema, i
-`workflow/run-instruction.test.mjs` el torn del tema, el bloc de servei del prompt, l'absència del resum a la resposta
-i la composició de l'informe de publicació. `workflow/ci-watch.test.mjs` comprova
+`workflow/run-instruction-*.test.mjs`, un fitxer per fase, el torn del tema, el bloc
+de servei del prompt, l'absència del resum a la resposta i la composició de
+l'informe de publicació. `workflow/ci-watch.test.mjs` comprova
 que l'avís planer no porta noms de comprovacions ni commits i que la nota del
 servei els conserva. `policy/development.test.mjs` cobreix el bloc de to, la
 regla de publicació amb l'instant injectat, la de traduccions i el bloc d'estat

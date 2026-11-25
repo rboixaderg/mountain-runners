@@ -1,19 +1,13 @@
 import assert from "node:assert/strict";
-import { execFile } from "node:child_process";
 import {
   chmodSync,
   existsSync,
   mkdirSync,
-  mkdtempSync,
   readFileSync,
-  realpathSync,
-  rmSync,
   writeFileSync,
 } from "node:fs";
-import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { promisify } from "node:util";
 import { test } from "node:test";
 import { runProjectPrompt } from "../runtime/pi-adapter.mjs";
 import {
@@ -27,8 +21,12 @@ import { openIdentifierNames } from "../repository/identifiers.mjs";
 import { createResearchReview } from "../repository/research-review.mjs";
 import { createTestProjectRunner } from "./test-support/project-runner.mjs";
 import { SandboxCleanupError } from "../sandbox/errors.mjs";
+import {
+  createGitRepository,
+  git,
+  temporaryDirectory,
+} from "../repository/test-support/git-repository.mjs";
 
-const executeFile = promisify(execFile);
 const limits = {
   executionTimeoutMs: 200,
   sandboxProcessLimit: 64,
@@ -36,44 +34,12 @@ const limits = {
   sandboxCpuCount: 1,
 };
 
-function temporaryDirectory(context) {
-  const directory = realpathSync(
-    mkdtempSync(join(tmpdir(), "mr-agent-regression-")),
-  );
-  context.after(() =>
-    rmSync(directory, {
-      recursive: true,
-      force: true,
-      maxRetries: 5,
-      retryDelay: 100,
-    }),
-  );
-  return directory;
-}
-
-async function git(directory, argumentsList) {
-  const { stdout } = await executeFile("git", [
-    "-C",
-    directory,
-    "-c",
-    "user.name=Synthetic",
-    "-c",
-    "user.email=synthetic@example.test",
-    ...argumentsList,
-  ]);
-  return stdout.trim();
-}
-
 async function repositoryFixture(context) {
-  const directory = temporaryDirectory(context);
-  const origin = join(directory, "origin.git");
-  const repository = join(directory, "repository");
-  await executeFile("git", ["init", "--bare", "--initial-branch=main", origin]);
-  await executeFile("git", ["clone", origin, repository]);
-  writeFileSync(join(repository, "README.md"), "original\n");
-  await git(repository, ["add", "README.md"]);
-  await git(repository, ["commit", "-m", "chore: initialize"]);
-  await git(repository, ["push", "origin", "main"]);
+  const { directory, repository } = await createGitRepository(
+    context,
+    "mr-agent-regression-",
+    { "README.md": "original\n" },
+  );
   const config = {
     paths: {
       repository,
@@ -172,7 +138,7 @@ test("publishes previous pending work after a question", async (context) => {
 });
 
 test("kills the session containers as well as Pi on a model deadline", async (context) => {
-  const directory = temporaryDirectory(context);
+  const directory = temporaryDirectory(context, "mr-agent-regression-");
   const executable = join(directory, "fake-pi");
   writeFileSync(
     executable,
@@ -210,7 +176,7 @@ test("kills the session containers as well as Pi on a model deadline", async (co
 
 for (const cleanupFails of [false, true]) {
   test(`verifies sandbox cleanup after a settled model turn, with failure=${cleanupFails}`, async (context) => {
-    const directory = temporaryDirectory(context);
+    const directory = temporaryDirectory(context, "mr-agent-regression-");
     const executable = join(directory, "settled-pi");
     writeFileSync(
       executable,

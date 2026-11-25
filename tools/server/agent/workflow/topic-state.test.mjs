@@ -1,9 +1,7 @@
 import assert from "node:assert/strict";
-import { execFile } from "node:child_process";
-import { mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { promisify } from "node:util";
 import { test } from "node:test";
 import { CiWatchStore } from "../repository/ci-watch-store.mjs";
 import { openIdentifierNames } from "../repository/identifiers.mjs";
@@ -14,8 +12,9 @@ import {
 } from "../policy/development.mjs";
 import { createTestProjectRunner } from "./test-support/project-runner.mjs";
 import { createLiveTopicStateReader } from "./topic-state.mjs";
+import { createGitRepository } from "../repository/test-support/git-repository.mjs";
+import { publisherComment } from "./test-support/github.mjs";
 
-const executeFile = promisify(execFile);
 const sessionKey = "-1001234567890:7";
 const otherSessionKey = "-1009999999999:3";
 const repositoryName = "rboixaderg/mountain-runners";
@@ -74,12 +73,12 @@ function labeledPullRequest(headSha = reportedCommit) {
   };
 }
 
-function publisherComment(commit) {
-  return {
-    user: { login: "github-actions[bot]" },
-    body: `<!-- mountain-runners-preview -->\nPreview publicada: ${previewOrigin}\nCommit: \`${commit}\`.`,
-    updated_at: "2026-11-18T10:05:00Z",
-  };
+function reportedComment(commit) {
+  return publisherComment({
+    commit,
+    origin: previewOrigin,
+    updatedAt: "2026-11-18T10:05:00Z",
+  });
 }
 
 /**
@@ -88,7 +87,7 @@ function publisherComment(commit) {
  */
 function liveGithub({
   pullRequest,
-  comments = [publisherComment(reportedCommit)],
+  comments = [reportedComment(reportedCommit)],
 }) {
   const calls = [];
   return {
@@ -125,36 +124,18 @@ test("looks up only the newest publication of each topic", (context) => {
   assert.equal(ciWatches.topicPullRequestNumber("-1000000000000:1"), null);
 });
 
-async function git(directory, argumentsList) {
-  const { stdout } = await executeFile("git", [
-    "-C",
-    directory,
-    "-c",
-    "user.name=Synthetic",
-    "-c",
-    "user.email=synthetic@example.test",
-    ...argumentsList,
-  ]);
-  return stdout.trim();
-}
-
 /**
  * One temporary repository plus the durable stores of the service: the state a
  * real turn reads, without GitHub, Telegram or a model.
  */
 async function turnFixture(context) {
-  const directory = mkdtempSync(join(tmpdir(), "mr-topic-state-turn-"));
-  const origin = join(directory, "origin.git");
-  const repository = join(directory, "repository");
-  await executeFile("git", ["init", "--bare", "--initial-branch=main", origin]);
-  await executeFile("git", ["clone", origin, repository]);
-  writeFileSync(join(repository, "README.md"), "synthetic\n");
-  await git(repository, ["add", "README.md"]);
-  await git(repository, ["commit", "-m", "chore: initial"]);
-  await git(repository, ["push", "origin", "main"]);
+  const { directory, repository } = await createGitRepository(
+    context,
+    "mr-topic-state-turn-",
+  );
 
   const paths = {
-    repository: realpathSync(repository),
+    repository,
     worktrees: join(directory, "worktrees"),
     state: join(directory, "state"),
   };
@@ -166,12 +147,6 @@ async function turnFixture(context) {
   context.after(() => {
     mergeRequests.close();
     ciWatches.close();
-    rmSync(directory, {
-      recursive: true,
-      force: true,
-      maxRetries: 5,
-      retryDelay: 100,
-    });
   });
   return {
     paths,
@@ -356,7 +331,7 @@ test("live topic state confirms the preview of a head pushed outside the service
   // the topic exists, and the publisher's comment for that head is the source.
   const github = liveGithub({
     pullRequest: labeledPullRequest(newerCommit),
-    comments: [publisherComment(reportedCommit), publisherComment(newerCommit)],
+    comments: [reportedComment(reportedCommit), reportedComment(newerCommit)],
   });
   const read = createLiveTopicStateReader({
     ciWatches,

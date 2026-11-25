@@ -1,15 +1,6 @@
 import assert from "node:assert/strict";
-import { execFile } from "node:child_process";
-import {
-  mkdirSync,
-  mkdtempSync,
-  realpathSync,
-  rmSync,
-  writeFileSync,
-} from "node:fs";
-import { tmpdir } from "node:os";
+import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { promisify } from "node:util";
 import { test } from "node:test";
 import { InspectableQueue as AdmissionQueue } from "../../../../packages/telegram-pi-bridge/test/inspectable-queue.mjs";
 import { AgentBridge } from "telegram-pi-bridge/telegram";
@@ -18,61 +9,28 @@ import { GitHubTrust } from "../repository/github.mjs";
 import { openIdentifierNames } from "../repository/identifiers.mjs";
 import { savedNotice } from "../policy/development.mjs";
 import { createTestProjectRunner } from "./test-support/project-runner.mjs";
+import {
+  createGitRepository,
+  git,
+  useGitHubRemote,
+} from "../repository/test-support/git-repository.mjs";
+import { telegramStub } from "../../../../packages/telegram-pi-bridge/test/telegram-stub.mjs";
 
-const executeFile = promisify(execFile);
 const repository = "rboixaderg/mountain-runners";
 const githubToken = "ghp_synthetic_journey_token";
 const groupIdentifier = "-1001234567890";
 const botUsername = "mountain_agent_bot";
 const botIdentifier = 999;
 
-async function git(directory, argumentsList) {
-  const { stdout } = await executeFile("git", [
-    "-C",
-    directory,
-    "-c",
-    "user.name=Synthetic",
-    "-c",
-    "user.email=synthetic@example.test",
-    ...argumentsList,
-  ]);
-  return stdout.trim();
-}
-
 async function fixture(context) {
-  const directory = mkdtempSync(join(tmpdir(), "mr-agent-journey-"));
-  context.after(() =>
-    rmSync(directory, {
-      recursive: true,
-      force: true,
-      maxRetries: 5,
-      retryDelay: 100,
-    }),
-  );
-  const origin = join(directory, "origin.git");
-  const clone = join(directory, "repository");
-  await executeFile("git", ["init", "--bare", "--initial-branch=main", origin]);
-  await executeFile("git", ["clone", origin, clone]);
-  writeFileSync(join(clone, "README.md"), "synthetic\n");
-  await git(clone, ["add", "README.md"]);
-  await git(clone, ["commit", "-m", "chore: initial"]);
-  await git(clone, ["push", "origin", "main"]);
-  await git(clone, [
-    "remote",
-    "set-url",
-    "origin",
-    `https://github.com/${repository}.git`,
-  ]);
-  await git(clone, [
-    "config",
-    `url.${origin}.insteadOf`,
-    `https://github.com/${repository}.git`,
-  ]);
+  const paths = await createGitRepository(context, "mr-agent-journey-");
+  await useGitHubRemote(paths, repository);
+  const { directory, origin, repository: clone } = paths;
 
   return {
     directory,
     origin,
-    repository: realpathSync(clone),
+    repository: clone,
     worktrees: join(directory, "worktrees"),
     state: join(directory, "state"),
     sessions: join(directory, "sessions"),
@@ -128,19 +86,7 @@ test("a natural request reaches a pull request from Telegram", async (context) =
   const paths = await fixture(context);
   const config = configFor(paths);
 
-  const telegram = {
-    batches: [[instructionUpdate()]],
-    sent: [],
-    async getUpdates() {
-      return this.batches.shift() ?? [];
-    },
-    async getChatMember() {
-      return { status: "member" };
-    },
-    async sendMessage({ chatIdentifier, messageThreadIdentifier, text }) {
-      this.sent.push({ chatIdentifier, messageThreadIdentifier, text });
-    },
-  };
+  const telegram = telegramStub({ batches: [[instructionUpdate()]] });
 
   const apiCalls = [];
   const github = new GitHubTrust({

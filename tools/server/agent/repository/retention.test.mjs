@@ -1,5 +1,4 @@
 import assert from "node:assert/strict";
-import { execFile } from "node:child_process";
 import {
   existsSync,
   mkdirSync,
@@ -10,7 +9,6 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { promisify } from "node:util";
 import { test } from "node:test";
 import {
   createBranch,
@@ -22,48 +20,21 @@ import { pruneFinishedTopicWorktrees } from "./retention.mjs";
 import { createIdentifierNames } from "./identifiers.mjs";
 import { registeredWorktree, runGit } from "./trusted-git.mjs";
 import { createNestedRepository } from "./test-support/nested-repository.mjs";
+import { createGitRepository, git } from "./test-support/git-repository.mjs";
 
-const executeFile = promisify(execFile);
 const topic = "topic-0123456789abcdef";
 const identifiers = createIdentifierNames({ salt: "a".repeat(64) });
 
-async function git(directory, argumentsList) {
-  const { stdout } = await executeFile("git", [
-    "-C",
-    directory,
-    "-c",
-    "user.name=Synthetic",
-    "-c",
-    "user.email=synthetic@example.test",
-    ...argumentsList,
-  ]);
-  return stdout.trim();
-}
-
 async function repositoryFixture(context) {
-  const directory = mkdtempSync(join(tmpdir(), "mr-agent-retention-"));
-  context.after(() =>
-    rmSync(directory, {
-      recursive: true,
-      force: true,
-      maxRetries: 5,
-      retryDelay: 100,
-    }),
+  const { directory, repository } = await createGitRepository(
+    context,
+    "mr-agent-retention-",
+    {
+      "README.md": "synthetic\n",
+      ".gitignore": "node_modules/\n.agent-runtime-tmp/\n",
+    },
   );
-
-  const origin = join(directory, "origin.git");
-  const repository = join(directory, "repository");
   const worktreeRoot = join(directory, "worktrees");
-  await executeFile("git", ["init", "--bare", "--initial-branch=main", origin]);
-  await executeFile("git", ["clone", origin, repository]);
-  writeFileSync(join(repository, "README.md"), "synthetic\n");
-  writeFileSync(
-    join(repository, ".gitignore"),
-    "node_modules/\n.agent-runtime-tmp/\n",
-  );
-  await git(repository, ["add", "README.md", ".gitignore"]);
-  await git(repository, ["commit", "-m", "chore: initial"]);
-  await git(repository, ["push", "origin", "main"]);
 
   return { directory, repository, worktreeRoot };
 }

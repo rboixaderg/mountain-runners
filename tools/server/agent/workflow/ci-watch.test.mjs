@@ -9,6 +9,7 @@ import { SessionNoteStore } from "../repository/session-note-store.mjs";
 import { defaultRequestTimeoutMilliseconds } from "../repository/request-signal.mjs";
 import { failedMaintainerNotice } from "../policy/development.mjs";
 import { createCiWatchRegistration, createCiWatchWorker } from "./ci-watch.mjs";
+import { recordingTelegram } from "./test-support/telegram.mjs";
 
 const commit = "b".repeat(40);
 const nextCommit = "c".repeat(40);
@@ -64,16 +65,6 @@ function fakeGithub({
     async getPullRequest({ number }) {
       reads.push({ kind: "pull-request", number });
       return pullRequest;
-    },
-  };
-}
-
-function fakeTelegram() {
-  const sent = [];
-  return {
-    sent,
-    async sendMessage(message) {
-      sent.push(message);
     },
   };
 }
@@ -153,7 +144,7 @@ test("reports an unavailable watch instead of losing the publication", () => {
 test("sends the green result once for the pinned commit and pull request", async (context) => {
   const { store } = fixture(context);
   createCiWatchRegistration({ store })(registration);
-  const telegram = fakeTelegram();
+  const telegram = recordingTelegram();
   const github = fakeGithub();
   const logger = [];
   const worker = workerFor({
@@ -183,7 +174,7 @@ test("sends the green result once for the pinned commit and pull request", async
 test("keeps the CI notice as a service event of the session", async (context) => {
   const { store } = fixture(context);
   createCiWatchRegistration({ store })(registration);
-  const telegram = fakeTelegram();
+  const telegram = recordingTelegram();
   const notes = [];
   const worker = workerFor({
     store,
@@ -207,7 +198,7 @@ test("keeps the CI notice as a service event of the session", async (context) =>
 test("waits while a required check is still running", async (context) => {
   const { store } = fixture(context);
   createCiWatchRegistration({ store })(registration);
-  const telegram = fakeTelegram();
+  const telegram = recordingTelegram();
   const worker = workerFor({
     store,
     github: fakeGithub({
@@ -225,7 +216,7 @@ test("waits while a required check is still running", async (context) => {
 test("waits for every required check before reporting a failure", async (context) => {
   const { store } = fixture(context);
   createCiWatchRegistration({ store })(registration);
-  const telegram = fakeTelegram();
+  const telegram = recordingTelegram();
 
   await workerFor({
     store,
@@ -247,7 +238,7 @@ for (const conclusion of ["failure", "cancelled", "timed_out"]) {
   test(`reports a ${conclusion} check with the plain failure notice`, async (context) => {
     const { store } = fixture(context);
     createCiWatchRegistration({ store })(registration);
-    const telegram = fakeTelegram();
+    const telegram = recordingTelegram();
     const notes = [];
     const traces = [];
 
@@ -280,7 +271,7 @@ for (const conclusion of ["failure", "cancelled", "timed_out"]) {
 test("ends an incomplete failure at the deadline", async (context) => {
   const { store } = fixture(context);
   createCiWatchRegistration({ store })(registration);
-  const telegram = fakeTelegram();
+  const telegram = recordingTelegram();
   await workerFor({
     store,
     github: fakeGithub({
@@ -302,7 +293,7 @@ test("ends an incomplete failure at the deadline", async (context) => {
 test("never reports green for another head and says the commit changed", async (context) => {
   const { store } = fixture(context);
   createCiWatchRegistration({ store })(registration);
-  const telegram = fakeTelegram();
+  const telegram = recordingTelegram();
   const worker = workerFor({
     store,
     github: fakeGithub({ pullRequest: { state: "open", headSha: nextCommit } }),
@@ -325,7 +316,7 @@ test("never reports a head the service is replacing with a newer publication", a
   const { store } = fixture(context);
   const register = createCiWatchRegistration({ store });
   register(registration);
-  const telegram = fakeTelegram();
+  const telegram = recordingTelegram();
   const notes = [];
   let working = true;
   const worker = workerFor({
@@ -357,7 +348,7 @@ test("never reports a head the service is replacing with a newer publication", a
 test("does not report CI for a pull request that is no longer open", async (context) => {
   const { store } = fixture(context);
   createCiWatchRegistration({ store })(registration);
-  const telegram = fakeTelegram();
+  const telegram = recordingTelegram();
   const worker = workerFor({
     store,
     github: fakeGithub({ pullRequest: { state: "closed", headSha: commit } }),
@@ -373,7 +364,7 @@ test("does not report CI for a pull request that is no longer open", async (cont
 test("ends the watch of a merged pull request with the closed notice", async (context) => {
   const { store } = fixture(context);
   createCiWatchRegistration({ store })(registration);
-  const telegram = fakeTelegram();
+  const telegram = recordingTelegram();
   const worker = workerFor({
     store,
     github: fakeGithub({
@@ -392,7 +383,7 @@ test("ends the watch of a merged pull request with the closed notice", async (co
 test("reports a result read after the deadline instead of an unconfirmed notice", async (context) => {
   const { store } = fixture(context);
   createCiWatchRegistration({ store })(registration);
-  const telegram = fakeTelegram();
+  const telegram = recordingTelegram();
   const worker = workerFor({
     store,
     github: fakeGithub(),
@@ -409,7 +400,7 @@ test("reports a result read after the deadline instead of an unconfirmed notice"
 test("ends an unconfirmed watch at the deadline instead of claiming green", async (context) => {
   const { store } = fixture(context);
   createCiWatchRegistration({ store })(registration);
-  const telegram = fakeTelegram();
+  const telegram = recordingTelegram();
   const worker = workerFor({
     store,
     github: fakeGithub({ checkRuns: [] }),
@@ -427,7 +418,7 @@ test("ends an unconfirmed watch at the deadline instead of claiming green", asyn
 test("keeps the watch pending when GitHub cannot answer", async (context) => {
   const { store } = fixture(context);
   createCiWatchRegistration({ store })(registration);
-  const telegram = fakeTelegram();
+  const telegram = recordingTelegram();
   const events = [];
   const worker = workerFor({
     store,
@@ -456,7 +447,7 @@ test("keeps the watch pending when GitHub cannot answer", async (context) => {
 test("ends a watch at its deadline even when GitHub keeps failing", async (context) => {
   const { store } = fixture(context);
   createCiWatchRegistration({ store })(registration);
-  const telegram = fakeTelegram();
+  const telegram = recordingTelegram();
   const worker = workerFor({
     store,
     github: {
@@ -481,7 +472,7 @@ test("ends a watch at its deadline even when GitHub keeps failing", async (conte
 test("ends a watch at its deadline when only the pull request read fails", async (context) => {
   const { store } = fixture(context);
   createCiWatchRegistration({ store })(registration);
-  const telegram = fakeTelegram();
+  const telegram = recordingTelegram();
   const worker = workerFor({
     store,
     github: {
@@ -508,7 +499,7 @@ test("ends a watch at its deadline when only the pull request read fails", async
 test("gives up a GitHub read that never answers without stalling the cycle", async (context) => {
   const { store } = fixture(context);
   createCiWatchRegistration({ store })(registration);
-  const telegram = fakeTelegram();
+  const telegram = recordingTelegram();
   const events = [];
   const worker = workerFor({
     store,
@@ -545,7 +536,7 @@ test("resumes a pending watch after a restart", async (context) => {
 
   const reopened = new CiWatchStore(path);
   context.after(() => reopened.close());
-  const telegram = fakeTelegram();
+  const telegram = recordingTelegram();
   await workerFor({
     store: reopened,
     github: fakeGithub(),
@@ -565,7 +556,7 @@ test("notifies each pending watch in its own topic in one cycle", async (context
     sessionKey: "-1001234567890:8",
     pullRequestNumber: 201,
   });
-  const telegram = fakeTelegram();
+  const telegram = recordingTelegram();
   const notes = [];
   const pullRequestUrls = {
     200: "https://github.com/example/project/pull/200",
@@ -624,7 +615,7 @@ test("runs cycles in the background and returns on abort without leaking listene
         assert.fail("the pull request is not read without a CI result");
       },
     },
-    telegram: fakeTelegram(),
+    telegram: recordingTelegram(),
     requiredChecks,
     pollIntervalMilliseconds: 5,
     watchTimeoutMilliseconds: 60 * 60 * 1000,
@@ -646,7 +637,7 @@ test("runs cycles in the background and returns on abort without leaking listene
 test("informs the topic even when the private trace cannot be written", async (context) => {
   const { store } = fixture(context);
   createCiWatchRegistration({ store })(registration);
-  const telegram = fakeTelegram();
+  const telegram = recordingTelegram();
   const events = [];
   await workerFor({
     store,
@@ -672,7 +663,7 @@ test("informs the topic even when the private trace cannot be written", async (c
 test("waits while another required check is missing or ambiguous", async (context) => {
   const { store } = fixture(context);
   createCiWatchRegistration({ store })(registration);
-  const telegram = fakeTelegram();
+  const telegram = recordingTelegram();
   const worker = workerFor({
     store,
     github: fakeGithub({
@@ -801,7 +792,7 @@ test("doubles the delay of a notice that keeps failing, up to one hour", async (
 test("names the failed checks in the service note when the deadline ends an incomplete failure", async (context) => {
   const { store } = fixture(context);
   createCiWatchRegistration({ store })(registration);
-  const telegram = fakeTelegram();
+  const telegram = recordingTelegram();
   const notes = [];
 
   await workerFor({
@@ -826,7 +817,7 @@ test("names the failed checks in the service note when the deadline ends an inco
 test("keeps the notice when the note of its effect cannot be stored", async (context) => {
   const { store } = fixture(context);
   createCiWatchRegistration({ store })(registration);
-  const telegram = fakeTelegram();
+  const telegram = recordingTelegram();
   const events = [];
   const worker = workerFor({
     store,

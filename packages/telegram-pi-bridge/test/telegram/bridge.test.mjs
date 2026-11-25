@@ -12,6 +12,7 @@ import {
   instructionExcerpt,
   maximumAcknowledgementExcerptLength,
 } from "../../src/telegram/bridge.mjs";
+import { telegramStub } from "../telegram-stub.mjs";
 
 const groupIdentifier = "-1001234567890";
 const botUsername = "example_agent_bot";
@@ -48,28 +49,6 @@ function instructionUpdate(updateIdentifier, threadIdentifier, overrides = {}) {
         { type: "mention", offset: 0, length: botUsername.length + 1 },
       ],
       ...overrides,
-    },
-  };
-}
-
-function telegramStub({ batches, members = { 42: "member" } }) {
-  return {
-    pendingBatches: [...batches],
-    sent: [],
-    requestedOffsets: [],
-    async getUpdates({ offset }) {
-      this.requestedOffsets.push(offset);
-      return this.pendingBatches.shift() ?? [];
-    },
-    async getChatMember({ userIdentifier }) {
-      const status = members[userIdentifier];
-      if (status === undefined) {
-        throw new Error("unverifiable");
-      }
-      return { status };
-    },
-    async sendMessage({ chatIdentifier, messageThreadIdentifier, text }) {
-      this.sent.push({ chatIdentifier, messageThreadIdentifier, text });
     },
   };
 }
