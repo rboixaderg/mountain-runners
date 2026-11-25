@@ -17,6 +17,8 @@ import { promisify } from "node:util";
 import { test } from "node:test";
 import { AdmissionQueue } from "telegram-pi-bridge/sessions";
 import { CiWatchStore } from "../../repository/ci-watch-store.mjs";
+import { PreviewRequestStore } from "../../repository/preview-request-store.mjs";
+import { TopicJobStore } from "../../repository/topic-job-store.mjs";
 import {
   listUncertainCases,
   resolveUncertainCase,
@@ -364,9 +366,22 @@ test("refuses an instruction case before the migration and resolves it after", a
   assert.equal(cases[0].worktree.head, commit);
   assert.equal(cases[0].worktree.published, false);
 
+  const previews = new PreviewRequestStore(
+    join(paths.state, "preview-request.sqlite"),
+  );
+  const topicJobs = new TopicJobStore(join(paths.state, "topic-jobs.sqlite"));
+  context.after(() => {
+    topicJobs.close();
+    previews.close();
+  });
+  topicJobs.bind({
+    sessionKey,
+    branch: cases[0].worktree.branch,
+    pullRequestNumber,
+  });
   await resolveUncertainCase({
     config,
-    stores: { instructions: store, ciWatches: watches },
+    stores: { instructions: store, ciWatches: watches, previews, topicJobs },
     telegram: { async sendMessage() {} },
     kind: "instruction",
     updateIdentifier: 11,

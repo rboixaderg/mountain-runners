@@ -1477,6 +1477,16 @@ test("retries a refused commit on an already bound pull request", async (context
   assert.equal(turns, 3);
   assert.equal(commits[1], commits[2]);
   assert.equal(github.pulls.at(-1).createMissing, false);
+
+  // The pull request vanishes after the push: nobody knows the result.
+  github.ensurePullRequest = async () => ({
+    pullRequest: null,
+    created: false,
+  });
+  turns = 0;
+  const vanished = await runner(request({ updateIdentifier: 1005 }));
+  assert.equal(vanished.outcome, "uncertain");
+  assert.equal(vanished.report, instructionReports.publicationUncertain);
 });
 
 test("reports a persistent publication block after each model turn", async (context) => {

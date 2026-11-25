@@ -785,7 +785,8 @@ for (const row of rows.reverse()) console.log(JSON.stringify(row));
 Una aturada o un reinici pot deixar una acció externa amb resultat desconegut:
 una instrucció que podia haver fet push o obert una PR, o un merge. El servei
 refusa arrencar mentre quedi cap instrucció incerta; un merge incert no bloqueja
-l'arrencada. La decisió és d'una persona: l'ordre
+l'arrencada. També és incerta una continuació que, després del push, no troba la
+seva PR o en troba una amb un altre número. La decisió és d'una persona: l'ordre
 no repeteix l'acció, no fa push, no comenta i no fusiona res.
 
 Després d'una actualització amb worktrees antics, executa abans la migració
@@ -842,12 +843,12 @@ compta com que no hi ha cap cas d'aquell tipus.
      resolve --kind merge --update 60 --resolution merged
    ```
 
-   | Cas        | Resolució                                     | Efecte                                                                                                                                                                                          |
-   | ---------- | --------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-   | instrucció | `published --commit <SHA> --pull-request <n>` | Estat `done` i resultat `reconciled_published`; si el HEAD del worktree del tema és aquell commit, es marca com a publicat i no es torna a publicar mai. També desa un seguiment de CI pendent. |
-   | instrucció | `not_published`                               | Estat `done` i resultat `reconciled_not_published`; el treball local es conserva i el següent torn ordinari en torna a intentar la publicació.                                                  |
-   | merge      | `merged`                                      | Estat `merged` amb el commit de fusió que llegeix a GitHub; només s'accepta si la PR hi consta fusionada amb el mateix cap.                                                                     |
-   | merge      | `not_merged`                                  | Estat `not_merged`: la petició acaba i es pot demanar un `/merge` nou; només s'accepta si la PR hi consta sense fusionar.                                                                       |
+   | Cas        | Resolució                                     | Efecte                                                                                                                                                                                                              |
+   | ---------- | --------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+   | instrucció | `published --commit <SHA> --pull-request <n>` | Estat `done` i resultat `reconciled_published`; si el HEAD del worktree del tema és aquell commit, es marca com a publicat i no es torna a publicar mai. També restaura el que deixa una publicació (vegeu a sota). |
+   | instrucció | `not_published`                               | Estat `done` i resultat `reconciled_not_published`; el treball local es conserva i el següent torn ordinari en torna a intentar la publicació.                                                                      |
+   | merge      | `merged`                                      | Estat `merged` amb el commit de fusió que llegeix a GitHub; només s'accepta si la PR hi consta fusionada amb el mateix cap.                                                                                         |
+   | merge      | `not_merged`                                  | Estat `not_merged`: la petició acaba i es pot demanar un `/merge` nou; només s'accepta si la PR hi consta sense fusionar.                                                                                           |
 
    `--commit` és obligatori amb `published` i no s'accepta en cap altre cas.
    `--pull-request` és obligatori amb `--kind instruction --resolution published`
@@ -858,6 +859,15 @@ compta com que no hi ha cap cas d'aquell tipus.
    d'aquella actualització ja existeix, no se'n crea cap altre. Cada crida
    afecta un sol cas, en una transacció limitada per l'estat incert: un cas ja
    resolt es refusa amb codi 1 i no es sobreescriu.
+
+   `published` desa el seguiment de CI i el de la preview del commit, de manera
+   que `/merge` el pot fixar quan se n'entrega l'avís. Si el tema encara no està
+   vinculat a cap PR (primera publicació), llegeix la PR a GitHub, exigeix que
+   la seva branca sigui la del worktree del tema, hi afegeix l'etiqueta
+   `preview` si li falta i vincula el tema. La PR ha de ser oberta, venir del
+   repositori configurat, apuntar a `main`, no tenir `preview-revoked` i tenir
+   `--commit` com a cap. En un tema ja vinculat no es toca l'etiqueta i
+   `--pull-request` ha de ser el de la vinculació.
 
 4. **Avís i traça.** Cada resolució registra `uncertain_reconciled` a la traça
    privada amb el tipus, la resolució, la PR i el SHA curt quan es coneixen, sense
@@ -874,9 +884,10 @@ compta com que no hi ha cap cas d'aquell tipus.
    sola transacció; en un merge, la traça s'escriu abans del canvi i, si falla,
    no es modifica res. Si el canvi falla després de la traça, es registra
    `uncertain_reconcile_failed` i la comanda acaba amb codi 1. En una
-   instrucció publicada, el seguiment de CI i el senyal de publicació del
-   worktree s'escriuen abans de tancar-la: si falla qualsevol dels dos, la
-   instrucció continua incerta i es pot reintentar.
+   instrucció publicada, tot el que es restaura s'escriu abans de tancar-la: si
+   falta una base de dades o falla algun pas, la instrucció continua incerta.
+   Després d'una fallada parcial, reintenta `published` amb els mateixos valors:
+   una part de l'estat ja pot estar escrita.
 
 5. **Torna a arrencar.** Amb tots els casos resolts, el recompte que llegeix
    l'arrencada és zero i el servei arrenca. Cap acció interrompuda no s'ha

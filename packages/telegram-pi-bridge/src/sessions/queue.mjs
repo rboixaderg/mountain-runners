@@ -292,7 +292,7 @@ export class AdmissionQueue {
   uncertain() {
     return this.#database
       .prepare(
-        `SELECT update_identifier, session_key, created_at
+        `SELECT update_identifier, session_key, author_identifier, created_at
          FROM instructions WHERE status = 'uncertain' ORDER BY sequence`,
       )
       .all();

@@ -26,6 +26,7 @@ import { GitHubTrust } from "../../repository/github.mjs";
 import { MergeRequestStore } from "../../repository/merge-request-store.mjs";
 import { PreviewRequestStore } from "../../repository/preview-request-store.mjs";
 import { SessionNoteStore } from "../../repository/session-note-store.mjs";
+import { TopicJobStore } from "../../repository/topic-job-store.mjs";
 import {
   caseKinds,
   listUncertainCases,
@@ -170,6 +171,7 @@ function openStores(config, command) {
     ciWatches: null,
     notes: null,
     previews: null,
+    topicJobs: null,
     merges: null,
   };
   try {
@@ -193,10 +195,15 @@ function openStores(config, command) {
       : null;
     if (
       command.kind === caseKinds.instruction &&
-      command.resolution === reconcileResolutions.published &&
-      existsSync(previewPath)
+      command.resolution === reconcileResolutions.published
     ) {
-      stores.previews = new PreviewRequestStore(previewPath);
+      const topicJobsPath = databasePath("topic-jobs.sqlite");
+      stores.previews = existsSync(previewPath)
+        ? new PreviewRequestStore(previewPath)
+        : null;
+      stores.topicJobs = existsSync(topicJobsPath)
+        ? new TopicJobStore(topicJobsPath)
+        : null;
     }
   } catch (error) {
     closeStores(stores);
@@ -208,6 +215,7 @@ function openStores(config, command) {
 function closeStores(stores) {
   stores.merges?.close();
   stores.previews?.close();
+  stores.topicJobs?.close();
   stores.notes?.close();
   stores.ciWatches?.close();
   stores.instructions?.close();
@@ -278,8 +286,9 @@ export async function runReconcileCommand({
       }
       return 0;
     }
-    // A resolution applies the decision the person already checked on GitHub;
-    // only a merge reads the pull request again, to refuse a wrong decision.
+    // A resolution applies the decision the person already checked on GitHub. A
+    // merge reads the pull request again to refuse a wrong decision, and the
+    // first publication of a topic reads it to restore its label and binding.
     const resolved = await resolveUncertainCase({
       config,
       stores,

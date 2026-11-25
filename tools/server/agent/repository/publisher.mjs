@@ -72,8 +72,8 @@ export function createPublisher({
   /**
    * `repair` names the pull request a publication continues. Such a publication
    * never creates a pull request: it pushes only while that pull request is
-   * still open at the expected commit, and it does not report a publication
-   * when the pull request disappeared meanwhile.
+   * still open at the expected commit. When that pull request cannot be found
+   * after the push, the result is `unconfirmed`.
    *
    * `onPublicationStarted` runs immediately before the first remote write, so
    * the caller only treats the instruction as possibly published from that
@@ -203,11 +203,13 @@ export function createPublisher({
           createMissing: !repair,
           signal,
         });
-    // Only a publication with its pull request is recorded: a continuation whose
-    // pull request disappeared meanwhile is a refusal, not a publication the service
-    // must follow.
-    if (pullRequest === null) {
-      return { refused: true };
+    // The push already happened: a continuation that no longer finds its own
+    // pull request is an unknown result, never a local refusal.
+    if (
+      pullRequest === null ||
+      (repair && pullRequest.number !== repair.pullRequestNumber)
+    ) {
+      return { unconfirmed: true };
     }
     recordPublication(worktree, pushed.commit);
     // The label that asks for the preview is set once, when the service opens

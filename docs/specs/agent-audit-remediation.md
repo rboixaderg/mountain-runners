@@ -105,7 +105,7 @@ Cada tasca té la seva PR, tret que la columna `Entrega` indiqui el contrari.
 | T9    | Completada | -             | Un error del proveïdor acaba el torn com a fallada                       | PR 9    | [#319](https://github.com/rboixaderg/mountain-runners/pull/319) |
 | T10   | Completada | -             | Feina local i conflictes de la branca sense bucles                       | PR 10   | [#326](https://github.com/rboixaderg/mountain-runners/pull/326) |
 | T11   | Completada | -             | Cap estat bloqueja sense sortida                                         | PR 11   | [#318](https://github.com/rboixaderg/mountain-runners/pull/318) |
-| T12   | Pendent    | -             | La reconciliació restaura tot el que deixa una publicació                | PR 12   | -                                                               |
+| T12   | Completada | -             | La reconciliació restaura tot el que deixa una publicació                | PR 12   | [#334](https://github.com/rboixaderg/mountain-runners/pull/334) |
 | T13   | Pendent    | -             | Les fallades informen del motiu i de la resposta del model               | PR 13   | -                                                               |
 | T14   | Completada | T26           | Cap avís fals ni repetit per publicacions substituïdes                   | PR 14   | [#329](https://github.com/rboixaderg/mountain-runners/pull/329) |
 | T15   | Completada | -             | El pont de Telegram admet, reintenta i talla correctament                | PR 15   | [#325](https://github.com/rboixaderg/mountain-runners/pull/325) |
