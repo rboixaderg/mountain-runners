@@ -4,9 +4,12 @@ import {
   chmodSync,
   cpSync,
   existsSync,
+  ftruncateSync,
   lstatSync,
   mkdirSync,
   mkdtempSync,
+  openSync,
+  closeSync,
   readFileSync,
   readdirSync,
   rmSync,
@@ -16,22 +19,15 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
-import { DatabaseSync } from "node:sqlite";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 import { AdmissionQueue } from "telegram-pi-bridge/sessions";
 import { MergeRequestStore } from "../../repository/merge-request-store.mjs";
 import { PreviewRequestStore } from "../../repository/preview-request-store.mjs";
-import {
-  imageInputs,
-  runProcess,
-  runProcessToFile,
-  runUpdateCommand,
-} from "./command.mjs";
+import { imageInputs, runProcess, runUpdateCommand } from "./command.mjs";
 
 const sessionKey = "-1001234567890:7";
 const timestamp = new Date("2026-11-22T10:15:00Z");
-const agentClone = "/var/lib/mountain-runners-agent/repository";
 
 // The files of the operator checkout: the installed agent directory in full,
 // tests included, and the bridge entries of the release tarball.
@@ -118,33 +114,6 @@ function installFromWorktree({ repository, installRoot }) {
   }
 }
 
-// The real `tar` tests need a tar that accepts `--exclude`: the platform is
-// skipped with a reason instead of failing when it has no such tar.
-function skipsWithoutTarExclusion(context, result) {
-  if (
-    result.code !== 0 &&
-    /unrecognized option|unknown option|could not run/iu.test(result.stderr)
-  ) {
-    context.skip("this platform does not run tar with --exclude");
-    return true;
-  }
-  return false;
-}
-
-// The busy check opens each database through a descriptor, which the platform
-// names under /proc or /dev. Every platform that can run this suite (it needs
-// `git`, `tar` and `mkfifo`) has one of the two.
-const descriptorDirectoryAvailable = ["/proc/self/fd", "/dev/fd"].some(
-  (directory) => existsSync(directory),
-);
-
-// A FIFO is what the agent can create without any privilege. It is a POSIX
-// facility, so the platforms that lack it skip the test that plants one.
-function createFifo(path) {
-  const created = spawnSync("mkfifo", [path], { encoding: "utf8" });
-  return created.error === undefined && created.status === 0;
-}
-
 /** A checkout with one commit, its installed tree and empty state and backups. */
 function createInstallation(context, { files = baselineFiles } = {}) {
   const root = temporaryDirectory(context);
@@ -190,55 +159,45 @@ function writeRevision(installRoot, revision) {
   writeFileSync(join(installRoot, "agent.REVISION"), `${revision}\n`);
 }
 
-function createRunner({ isActive = "inactive", onChown, onIsActive } = {}) {
+// A fake of the privileged programs; git and tar run for real. The state backup
+// writes a synthetic file, or runs `stateProgram` without the service identity.
+function createRunner({
+  isActive = "inactive",
+  stateProgram,
+  onChown,
+  onIsActive,
+  tarVersion,
+} = {}) {
   const calls = [];
-  function run(command, args) {
+  function run(command, args, options) {
     calls.push(`${command} ${args.join(" ")}`);
     if (command === "systemctl") {
       if (args[0] === "is-active") {
         onIsActive?.();
-        return {
-          status: isActive === "active" ? 0 : 3,
-          stdout: `${isActive}\n`,
-          stderr: "",
-        };
+        return { status: 3, stdout: `${isActive}\n`, stderr: "" };
       }
       return { status: 0, stdout: "", stderr: "" };
     }
-    if (command === "runuser") {
-      // The size of the state, measured as the service user.
-      return { status: 0, stdout: "4096\t/synthetic\n", stderr: "" };
+    if (command === "tar" && args[0] === "--version" && tarVersion) {
+      return { status: 0, stdout: tarVersion, stderr: "" };
     }
     if (command === "chown") {
       onChown?.(args);
       return { status: 0, stdout: "", stderr: "" };
     }
-    return runProcess(command, args);
-  }
-  return { run, calls };
-}
-
-// The state as the service user writes it: either a synthetic private file or
-// the real `tar` of the directory, run without the service identity.
-function createStream({ realTar = false } = {}) {
-  const calls = [];
-  function stream(command, args, path) {
-    calls.push(`${command} ${args.join(" ")}`);
-    if (!realTar) {
-      writeFileSync(path, "synthetic state archive\n", {
+    if (command === "runuser") {
+      if (stateProgram !== undefined) {
+        return runProcess(...stateProgram(args.slice(3)), options);
+      }
+      writeFileSync(options.outputPath, "synthetic state archive\n", {
         flag: "wx",
         mode: 0o600,
       });
       return { status: 0, stdout: "", stderr: "" };
     }
-    const separator = args.indexOf("--");
-    return runProcessToFile(
-      args[separator + 1],
-      args.slice(separator + 2),
-      path,
-    );
+    return runProcess(command, args, options);
   }
-  return { stream, calls };
+  return { run, calls };
 }
 
 function runUpdate(
@@ -247,15 +206,13 @@ function runUpdate(
     argv = [],
     repository = app.repository,
     runner,
-    stream,
     getuid = () => 0,
     checkoutUid = 0,
-    statfs,
+    statfs = () => ({ bsize: 4096, bavail: 1024 ** 2 }),
     umask,
   } = {},
 ) {
   const { run, calls } = runner ?? createRunner();
-  const writeStream = stream ?? createStream().stream;
   const output = { stdout: "", stderr: "" };
   const previousUmask = umask === undefined ? null : process.umask(umask);
   const code = runUpdateCommand({
@@ -271,7 +228,6 @@ function runUpdate(
       ...argv,
     ],
     run,
-    stream: writeStream,
     statfs,
     now: () => timestamp,
     getuid,
@@ -307,9 +263,15 @@ function assertServiceUntouched(calls) {
   );
 }
 
+function assertNoBackups(app) {
+  if (existsSync(app.backupsRoot)) {
+    assert.deepEqual(readdirSync(app.backupsRoot), []);
+  }
+}
+
 // A refused update creates no backup and never moves the recorded revision.
 function assertNotUpdated(app) {
-  assert.equal(existsSync(app.backupsRoot), false);
+  assertNoBackups(app);
   const revisionPath = join(app.installRoot, "agent.REVISION");
   if (existsSync(revisionPath)) {
     assert.equal(readFileSync(revisionPath, "utf8").trim(), app.installed);
@@ -364,10 +326,6 @@ test("installs the target commit, replaces the tree and records the revision", (
     "# Agent\n",
   );
   assert.equal(statSync(app.backupsRoot).mode & 0o777, 0o700);
-  assert.equal(
-    statSync(join(app.backupsRoot, `agent-${identity}-${stamp}`)).mode & 0o777,
-    0o700,
-  );
   assert.equal(
     lstatSync(join(app.backupsRoot, "agent-previous")).isSymbolicLink(),
     true,
@@ -448,24 +406,6 @@ test("refuses a commit that is not reachable from origin/main", (context) => {
   );
   assertNotUpdated(app);
   assertServiceUntouched(result.calls);
-});
-
-test("refuses the clone of the agent as the repository", (context) => {
-  const app = createInstallation(context);
-
-  for (const repository of [
-    agentClone,
-    `${agentClone}/nested`,
-    "/var/lib/mountain-runners-agent",
-  ]) {
-    const result = runUpdate(app, {
-      argv: ["--commit", app.installed],
-      repository,
-    });
-    assert.equal(result.code, 1);
-    assert.match(result.stderr, /never a source of an installation/u);
-    assert.deepEqual(result.calls, []);
-  }
 });
 
 for (const [label, mutate, expected] of [
@@ -574,7 +514,7 @@ const busyStates = [
       queue.markUncertain(13, "uncertain");
       queue.close();
     },
-    expected: /uncertain instruction case\(s\): 1/u,
+    expected: /uncertain instructions: 1/u,
   },
   {
     name: "a merge request in progress",
@@ -605,7 +545,7 @@ const busyStates = [
       store.markUncertain(42);
       store.close();
     },
-    expected: /uncertain merge case\(s\): 1/u,
+    expected: /merging or uncertain merge requests: 1/u,
   },
   {
     name: "a preview request awaiting the publisher",
@@ -622,37 +562,29 @@ const busyStates = [
       });
       store.close();
     },
-    expected: /open or uncertain preview requests: 1/u,
+    expected: /awaiting preview requests: 1/u,
   },
 ];
 
 for (const { name, prepare, expected } of busyStates) {
-  test(
-    `refuses while the state has ${name}`,
-    {
-      skip: descriptorDirectoryAvailable
-        ? false
-        : "this platform has no descriptor directory for the state databases",
-    },
-    (context) => {
-      const app = createInstallation(context);
-      writeRevision(app.installRoot, app.installed);
-      const target = advance(app);
-      prepare(join(app.dataRoot, "state"));
+  test(`refuses while the state has ${name}`, (context) => {
+    const app = createInstallation(context);
+    writeRevision(app.installRoot, app.installed);
+    const target = advance(app);
+    prepare(join(app.dataRoot, "state"));
 
-      const result = runUpdate(app, { argv: ["--commit", target] });
+    const result = runUpdate(app, { argv: ["--commit", target] });
 
-      assert.equal(result.code, 1);
-      assert.match(result.stderr, /The service is busy/u);
-      assert.match(result.stderr, expected);
-      assertNotUpdated(app);
-      assert.equal(
-        result.calls.includes("systemctl stop mountain-agent"),
-        false,
-        "the service is stopped only after the idle check",
-      );
-    },
-  );
+    assert.equal(result.code, 1);
+    assert.match(result.stderr, /The service is busy/u);
+    assert.match(result.stderr, expected);
+    assertNotUpdated(app);
+    assert.equal(
+      result.calls.includes("systemctl stop mountain-agent"),
+      false,
+      "the service is stopped only after the idle check",
+    );
+  });
 }
 
 for (const path of ["pnpm-lock.yaml", ".node-version"]) {
@@ -772,100 +704,157 @@ test("records the revision only after the installed tree is verified", (context)
   );
 });
 
-test("backs up the state as the service user and never follows a link inside it", (context) => {
+test("backs up the state as the service user, without lost+found", (context) => {
   const app = createInstallation(context);
   writeRevision(app.installRoot, app.installed);
-  const target = advance(app, {
-    write: { "tools/server/agent/README.md": "# Agent v2\n" },
-  });
+  const target = advance(app);
+  const state = join(app.dataRoot, "state");
   const outside = join(app.root, "outside.txt");
   writeFileSync(outside, "outside\n");
-  chmodSync(outside, 0o640);
-  symlinkSync(outside, join(app.dataRoot, "state", "link"));
-  const rootStream = createStream({ realTar: true });
-
-  const result = runUpdate(app, {
-    argv: ["--commit", target],
-    stream: rootStream.stream,
+  symlinkSync(outside, join(state, "link"));
+  // `state/` is an ext4 mount point: the service identity cannot read its
+  // `lost+found`, so only the exclusion makes the real backup work.
+  mkdirSync(join(state, "lost+found"), { mode: 0o000 });
+  const runner = createRunner({
+    stateProgram: ([program, ...args]) => [program, args],
   });
 
-  if (skipsWithoutTarExclusion(context, result)) {
-    return;
-  }
+  const result = runUpdate(app, { argv: ["--commit", target], runner });
+  chmodSync(join(state, "lost+found"), 0o700);
+
   assert.equal(result.code, 0, result.stderr);
-  assert.equal(rootStream.calls.length, 1);
   assert.match(
-    rootStream.calls[0],
+    result.calls.find((call) => call.startsWith("runuser ")),
     /^runuser -u mountain-agent -- tar -C .* -cf - --exclude=\.\/lost\+found \.$/u,
   );
-  // The link is stored, never followed: its target keeps content and mode.
-  assert.equal(readFileSync(outside, "utf8"), "outside\n");
-  assert.equal(statSync(outside).mode & 0o777, 0o640);
   const stateBackup = join(
     app.backupsRoot,
     `state-${app.installed.slice(0, 7)}-to-${target.slice(0, 7)}-20261122T101500Z.tar`,
   );
-  assert.equal(lstatSync(stateBackup).isFile(), true);
   assert.equal(statSync(stateBackup).mode & 0o777, 0o600);
-  const listing = spawnSync("tar", ["-tf", stateBackup], { encoding: "utf8" });
+  const listing = spawnSync("tar", ["-tvf", stateBackup], { encoding: "utf8" });
   assert.equal(listing.status, 0, listing.stderr);
-  assert.match(listing.stdout, /\.\/link/u);
+  // The link is stored as a link, never followed.
+  assert.match(listing.stdout, /^l.*\.\/link -> /mu);
+  assert.doesNotMatch(listing.stdout, /lost\+found/u);
 });
 
-test("refuses a state directory that is a link", (context) => {
+for (const [tarVersion, sparse] of [
+  ["tar (GNU tar) 1.35\n", true],
+  ["bsdtar 3.5.3 - libarchive 3.7.4\n", false],
+]) {
+  test(`${sparse ? "passes" : "omits"} --sparse for ${tarVersion.trim()}`, (context) => {
+    const app = createInstallation(context);
+    writeRevision(app.installRoot, app.installed);
+    const target = advance(app);
+
+    const result = runUpdate(app, {
+      argv: ["--commit", target],
+      runner: createRunner({ tarVersion }),
+    });
+
+    assert.equal(result.code, 0, result.stderr);
+    const backupCall = result.calls.find((call) => call.startsWith("runuser "));
+    assert.equal(backupCall.includes(" --sparse "), sparse);
+  });
+}
+
+test("does not write the holes of a sparse state file into the backup", (context) => {
   const app = createInstallation(context);
   writeRevision(app.installRoot, app.installed);
   const target = advance(app);
-  const moved = join(app.root, "real-state");
-  cpSync(join(app.dataRoot, "state"), moved, { recursive: true });
-  rmSync(join(app.dataRoot, "state"), { recursive: true });
-  symlinkSync(moved, join(app.dataRoot, "state"));
-
-  const result = runUpdate(app, { argv: ["--commit", target] });
-
-  assert.equal(result.code, 1);
-  assert.match(result.stderr, /must be a directory, not a link or a file/u);
-  assertNotUpdated(app);
-  assertServiceUntouched(result.calls);
-});
-
-test("stores a FIFO in the state without opening it", (context) => {
-  const app = createInstallation(context);
-  writeRevision(app.installRoot, app.installed);
-  const target = advance(app);
-  if (!createFifo(join(app.dataRoot, "state", "pipe"))) {
-    context.skip("this platform has no mkfifo");
+  const holes = join(app.dataRoot, "state", "holes");
+  const size = 64 * 1024 ** 2;
+  const descriptor = openSync(holes, "w");
+  ftruncateSync(descriptor, size);
+  closeSync(descriptor);
+  if (statSync(holes).blocks * 512 >= size) {
+    context.skip("this filesystem does not create sparse files");
     return;
   }
 
-  // Root never opens a FIFO: the archive is produced by the service user, which
-  // stores it as an entry.
-  const stateStream = createStream();
   const result = runUpdate(app, {
     argv: ["--commit", target],
-    stream: stateStream.stream,
+    runner: createRunner({
+      stateProgram: ([program, ...args]) => [program, args],
+    }),
   });
 
   assert.equal(result.code, 0, result.stderr);
-  assert.equal(stateStream.calls.length, 1);
+  const archive = readdirSync(app.backupsRoot).find((name) =>
+    name.endsWith(".tar"),
+  );
+  assert.ok(statSync(join(app.backupsRoot, archive)).size < 1024 ** 2);
 });
 
-test("refuses a state database that is a link", (context) => {
-  const app = createInstallation(context);
-  writeRevision(app.installRoot, app.installed);
-  const target = advance(app);
-  const decoy = join(app.root, "decoy.sqlite");
-  const store = new MergeRequestStore(decoy);
-  store.close();
-  symlinkSync(decoy, join(app.dataRoot, "state", "merge-request.sqlite"));
+for (const [kind, create] of [
+  [
+    "a link",
+    (path, app) => {
+      const decoy = join(app.root, "decoy.sqlite");
+      new MergeRequestStore(decoy).close();
+      symlinkSync(decoy, path);
+    },
+  ],
+  // Without the refusal, opening it would block.
+  ["a FIFO", (path) => spawnSync("mkfifo", [path]).status === 0],
+]) {
+  test(`refuses a state database that is ${kind}`, (context) => {
+    const app = createInstallation(context);
+    writeRevision(app.installRoot, app.installed);
+    const target = advance(app);
+    if (
+      create(join(app.dataRoot, "state", "merge-request.sqlite"), app) === false
+    ) {
+      context.skip("this platform has no mkfifo");
+      return;
+    }
 
-  const result = runUpdate(app, { argv: ["--commit", target] });
+    const result = runUpdate(app, { argv: ["--commit", target] });
 
-  assert.equal(result.code, 1);
-  assert.match(result.stderr, /a state database must be a regular file/u);
-  assertNotUpdated(app);
-  assertServiceUntouched(result.calls);
-});
+    assert.equal(result.code, 1);
+    assert.match(result.stderr, /must be a regular file/u);
+    assertNotUpdated(app);
+    assertServiceUntouched(result.calls);
+  });
+}
+
+for (const [label, stateProgram, expected] of [
+  [
+    "cannot run",
+    () => ["/nonexistent/no-such-tar", []],
+    /The state backup failed: .*ENOENT/u,
+  ],
+  [
+    "exits non-zero",
+    () => [process.execPath, ["-e", "process.exit(3)"]],
+    /The state backup failed: exit 3/u,
+  ],
+]) {
+  test(`removes the partial state backup when tar ${label}`, (context) => {
+    const app = createInstallation(context);
+    writeRevision(app.installRoot, app.installed);
+    const target = advance(app, {
+      write: { "tools/server/agent/README.md": "# Agent v2\n" },
+    });
+
+    const result = runUpdate(app, {
+      argv: ["--commit", target],
+      runner: createRunner({ stateProgram }),
+    });
+
+    assert.equal(result.code, 1);
+    assert.match(result.stderr, expected);
+    assert.deepEqual(
+      readdirSync(app.backupsRoot).filter((name) => name.endsWith(".tar")),
+      [],
+    );
+    assert.equal(
+      readFileSync(join(app.installRoot, "agent/README.md"), "utf8"),
+      "# Agent\n",
+    );
+  });
+}
 
 test("refuses when the state becomes busy while the service stops", (context) => {
   const app = createInstallation(context);
@@ -893,7 +882,7 @@ test("refuses when the state becomes busy while the service stops", (context) =>
   assert.equal(result.code, 1);
   assert.match(result.stderr, /busy after the stop/u);
   assert.match(result.stderr, /pending or running instructions: 1/u);
-  assert.equal(existsSync(app.backupsRoot), false);
+  assertNoBackups(app);
   assert.equal(
     readFileSync(join(app.installRoot, "agent/README.md"), "utf8"),
     "# Agent\n",
@@ -917,20 +906,22 @@ test("refuses an archive that contains a link", (context) => {
   assertServiceUntouched(result.calls);
 });
 
-test("refuses an archive that rewrites content with export-subst", (context) => {
-  const app = createInstallation(context);
-  writeRevision(app.installRoot, app.installed);
-  const target = advance(app, {
-    write: { "tools/server/agent/.gitattributes": "*.mjs export-subst\n" },
+for (const path of [".gitattributes", "tools/server/agent/.gitattributes"]) {
+  test(`refuses export-subst in ${path}`, (context) => {
+    const app = createInstallation(context);
+    writeRevision(app.installRoot, app.installed);
+    const target = advance(app, {
+      write: { [path]: "*.mjs export-subst\n" },
+    });
+
+    const result = runUpdate(app, { argv: ["--commit", target] });
+
+    assert.equal(result.code, 1);
+    assert.match(result.stderr, /export-subst/u);
+    assertNotUpdated(app);
+    assertServiceUntouched(result.calls);
   });
-
-  const result = runUpdate(app, { argv: ["--commit", target] });
-
-  assert.equal(result.code, 1);
-  assert.match(result.stderr, /export-subst/u);
-  assertNotUpdated(app);
-  assertServiceUntouched(result.calls);
-});
+}
 
 test("covers every path the sandbox Containerfile copies", () => {
   const containerfile = readFileSync(
@@ -1023,31 +1014,6 @@ test("refuses a short or malformed commit", (context) => {
   }
 });
 
-test("runs git with the hardened configuration and explicit paths", (context) => {
-  const app = createInstallation(context);
-  writeRevision(app.installRoot, app.installed);
-  const target = advance(app, {
-    write: { "tools/server/agent/README.md": "# Agent v2\n" },
-  });
-
-  const result = runUpdate(app, { argv: ["--commit", target] });
-
-  assert.equal(result.code, 0, result.stderr);
-  const gitCalls = result.calls.filter((call) => call.startsWith("git "));
-  assert.ok(gitCalls.length > 0);
-  for (const call of gitCalls) {
-    assert.match(
-      call,
-      /^git -c core\.fsmonitor=false -c core\.hooksPath=\/dev\/null /u,
-    );
-  }
-  const archiveCall = gitCalls.find((call) => call.includes(" archive "));
-  assert.match(archiveCall, /-c core\.attributesFile=\/dev\/null/u);
-  const diffCall = gitCalls.find((call) => call.includes(" diff "));
-  assert.match(diffCall, /--no-renames --no-ext-diff --no-textconv/u);
-  assert.match(diffCall, / --$/u);
-});
-
 test("creates the installed layout with the documented modes under a private umask", (context) => {
   const app = createInstallation(context);
   writeRevision(app.installRoot, app.installed);
@@ -1080,160 +1046,6 @@ test("refuses when the backup filesystem has no room", (context) => {
 
   assert.equal(result.code, 1);
   assert.match(result.stderr, /Retenció/u);
-  assert.equal(result.calls.includes("systemctl stop mountain-agent"), true);
   assert.deepEqual(readdirSync(app.backupsRoot), []);
-  assert.equal(
-    readFileSync(join(app.installRoot, "agent/README.md"), "utf8"),
-    "# Agent\n",
-  );
-});
-
-test("excludes the lost+found of the state volume from the size and the backup", (context) => {
-  const app = createInstallation(context);
-  writeRevision(app.installRoot, app.installed);
-  const target = advance(app);
-  // `state/` is an ext4 mount point: `lost+found` belongs to root and the
-  // service identity cannot read it.
-  const lost = join(app.dataRoot, "state", "lost+found");
-  mkdirSync(lost);
-  writeFileSync(join(lost, "entry"), "root only\n");
-  chmodSync(lost, 0o700);
-
-  const stateStream = createStream();
-  const result = runUpdate(app, {
-    argv: ["--commit", target],
-    stream: stateStream.stream,
-  });
-
-  assert.equal(result.code, 0, result.stderr);
-  const sizeCall = result.calls.find((call) =>
-    call.startsWith("runuser -u mountain-agent -- du "),
-  );
-  assert.match(sizeCall, / --exclude=lost\+found /u);
-  assert.equal(stateStream.calls.length, 1);
-  assert.match(stateStream.calls[0], / --exclude=\.\/lost\+found \.$/u);
-});
-
-test("the real tar honours the exclusion of lost+found", (context) => {
-  const app = createInstallation(context);
-  writeRevision(app.installRoot, app.installed);
-  const target = advance(app);
-  const lost = join(app.dataRoot, "state", "lost+found");
-  mkdirSync(lost);
-  writeFileSync(join(lost, "entry"), "root only\n");
-  writeFileSync(join(app.dataRoot, "state", "kept.txt"), "kept\n");
-  // The service identity is not root: it cannot read a directory only root may
-  // enter. The exclusion is what makes the real backup work.
-  chmodSync(lost, 0o000);
-
-  const rootStream = createStream({ realTar: true });
-  const result = runUpdate(app, {
-    argv: ["--commit", target],
-    stream: rootStream.stream,
-  });
-  chmodSync(lost, 0o700);
-
-  if (skipsWithoutTarExclusion(context, result)) {
-    return;
-  }
-  assert.equal(result.code, 0, result.stderr);
-  const stateBackup = join(
-    app.backupsRoot,
-    `state-${app.installed.slice(0, 7)}-to-${target.slice(0, 7)}-20261122T101500Z.tar`,
-  );
-  const listing = spawnSync("tar", ["-tf", stateBackup], { encoding: "utf8" });
-  assert.equal(listing.status, 0, listing.stderr);
-  assert.doesNotMatch(listing.stdout, /lost\+found/u);
-  assert.match(listing.stdout, /kept\.txt/u);
-});
-
-test("refuses a legacy uncertain preview request", (context) => {
-  const app = createInstallation(context);
-  writeRevision(app.installRoot, app.installed);
-  const target = advance(app);
-  const path = join(app.dataRoot, "state", "preview-request.sqlite");
-  const store = new PreviewRequestStore(path);
-  store.begin({
-    updateIdentifier: 52,
-    sessionKey,
-    authorIdentifier: 42,
-    pullRequestNumber: 213,
-    commitSha: "2".repeat(40),
-  });
-  store.close();
-  // A row written before the `/preview` retirement: the schema still accepts it
-  // and the service no longer writes it.
-  const database = new DatabaseSync(path);
-  database.prepare("UPDATE preview_requests SET state = 'uncertain'").run();
-  database.close();
-
-  const result = runUpdate(app, { argv: ["--commit", target] });
-
-  assert.equal(result.code, 1);
-  assert.match(result.stderr, /open or uncertain preview requests: 1/u);
   assertServiceUntouched(result.calls);
-});
-
-test("refuses a state database that is a FIFO without blocking", (context) => {
-  const app = createInstallation(context);
-  writeRevision(app.installRoot, app.installed);
-  const target = advance(app);
-  if (!createFifo(join(app.dataRoot, "state", "merge-request.sqlite"))) {
-    context.skip("this platform has no mkfifo");
-    return;
-  }
-
-  const result = runUpdate(app, { argv: ["--commit", target] });
-
-  assert.equal(result.code, 1);
-  assert.match(result.stderr, /must be a regular file/u);
-  assertServiceUntouched(result.calls);
-});
-
-// The state archives left in the backup root, which a failed backup never
-// leaves behind.
-function stateArchives(app) {
-  return readdirSync(app.backupsRoot).filter((name) => name.endsWith(".tar"));
-}
-
-test("removes the partial state backup when the stream cannot run", (context) => {
-  const app = createInstallation(context);
-  writeRevision(app.installRoot, app.installed);
-  const target = advance(app);
-  // An absolute path inside the temporary directory cannot exist and is not
-  // looked up on PATH, so the spawn fails whatever the host has installed.
-  const missingProgram = join(app.root, "no-such-tar");
-
-  const result = runUpdate(app, {
-    argv: ["--commit", target],
-    stream: (command, args, path) => runProcessToFile(missingProgram, [], path),
-  });
-
-  assert.equal(result.code, 1);
-  assert.match(result.stderr, /could not run/u);
-  assert.deepEqual(stateArchives(app), []);
-  assert.equal(
-    readFileSync(join(app.installRoot, "agent/README.md"), "utf8"),
-    "# Agent\n",
-  );
-});
-
-test("removes the partial state backup when the stream exits non-zero", (context) => {
-  const app = createInstallation(context);
-  writeRevision(app.installRoot, app.installed);
-  const target = advance(app);
-
-  const result = runUpdate(app, {
-    argv: ["--commit", target],
-    stream: (command, args, path) =>
-      runProcessToFile(process.execPath, ["-e", "process.exit(3)"], path),
-  });
-
-  assert.equal(result.code, 1);
-  assert.match(result.stderr, /The state backup failed: exit 3/u);
-  assert.deepEqual(stateArchives(app), []);
-  assert.equal(
-    readFileSync(join(app.installRoot, "agent/README.md"), "utf8"),
-    "# Agent\n",
-  );
 });

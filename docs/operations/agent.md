@@ -360,11 +360,10 @@ sudo git fetch origin main
 sudo git log --oneline -1 origin/main
 ```
 
-L'ordre refusa com a `--repository` el clon del servei,
-`/var/lib/mountain-runners-agent/repository`, i qualsevol ruta que, un cop
-resolts els enllaços, visqui dins de `/var/lib/mountain-runners-agent`: l'escriu
-l'agent i no és mai la font d'una instal·lació. També refusa un clon que no sigui
-de root i una execució que no sigui de root.
+L'ordre refusa com a `--repository` qualsevol ruta que, un cop resolts els
+enllaços, visqui dins de `/var/lib/mountain-runners-agent`, inclòs el clon del
+servei: l'escriu l'agent i no és mai la font d'una instal·lació. També refusa un
+clon que no sigui de root i una execució que no sigui de root.
 
 **Executar l'ordre.** Des del clon i amb el commit revisat de `main`. Els dos
 commits s'escriuen sencers, amb 40 caràcters hexadecimals: `git rev-parse
@@ -398,52 +397,48 @@ defecte.
 **Què comprova, en aquest ordre.**
 
 1. Que el commit és abastable des de `refs/remotes/origin/main` del clon. Un
-   commit d'una branca no fusionada es refusa. Git s'executa amb
-   `core.fsmonitor=false`, `core.hooksPath=/dev/null` i, a l'arxiu,
-   `core.attributesFile=/dev/null`; el diff no aplica noms antics, filtres ni
-   textconv.
+   commit d'una branca no fusionada es refusa.
 2. Que l'arbre instal·lat coincideix amb un `git archive` del commit enregistrat
    o declarat: `agent/` sencer i les entrades instal·lades del paquet
    (`src`, `examples`, `package.json`, `LICENSE` i `README.md`, sense fitxers de
    prova), amb el sha256 de cada fitxer i el conjunt exacte. Qualsevol diferència
-   la refusa i n'enumera fins a 20.
+   la refusa i n'enumera fins a 20. Un enllaç o un fitxer especial també la
+   refusa.
 3. Que l'estat és inactiu, amb les bases obertes en només lectura i refusant-ne
-   qualsevol que sigui un enllaç: cap instrucció `pending` o `running`, cap merge `merging` o `uncertain`, cap preview `awaiting` i
-   cap cas incert de
-   [reconciliació](#reconciliació-de-resultats-desconeguts). Si n'hi ha, la
-   refusa amb els comptes. Un seguiment de CI `pending` no la refusa: es reprèn
-   després del reinici i l'avís es pot repetir.
+   qualsevol que no sigui un fitxer regular: cap
+   instrucció `pending`, `running` o `uncertain`, cap merge `merging` o
+   `uncertain` i cap preview `awaiting`. Si n'hi ha, la refusa amb els comptes.
+   Els casos incerts es resolen amb la
+   [reconciliació](#reconciliació-de-resultats-desconeguts). Un seguiment de CI
+   `pending` no la refusa: es reprèn després del reinici i l'avís es pot repetir.
 4. Si el lockfile, `pnpm-workspace.yaml`, `.node-version`, `package.json`
    (l'arrel i `apps/web`), el `package.json` del pont o
    `tools/server/agent/sandbox/Containerfile` han canviat respecte del commit
    instal·lat, refusa instal·lar tret que `--image-rebuilt` affirmi que la
    imatge del commit nou ja està construïda i que `agent.env` ja hi apunta. Els
    canvis a `tools/server/systemd/` i a `.env.example` no la refusen: els
-   reporta com a accions a fer abans d'arrencar. Abans de copiar res, extreu i
-   comprova l'arxiu del commit nou: un enllaç o una substitució de contingut
-   (`export-subst`) el refusen amb el servei encara en marxa.
-5. Atura el servei i comprova que `systemctl is-active mountain-agent` ja no diu
-   `active`. Si encara hi és, refusa abans d'escriure res. Torna a comprovar
-   l'estat després d'aturar: un torn que havia començat mentre el servei
-   s'aturava encara és feina en curs i refusa la resta.
-6. Comprova primer l'espai lliure del sistema de fitxers de les còpies: en vol
-   el doble del que ocupen `agent/`, el pont i `state/`, i si no hi és refusa i
-   remet a [Retenció](#retenció). Copia `agent/` i
-   `node_modules/telegram-pi-bridge/` a `/var/backups/mountain-runners-agent/`
-   amb els dos commits curts i la marca de temps UTC al nom, hi apunta el
-   symlink `agent-previous` i desa el commit anterior a
-   `agent-previous.REVISION`. L'estat no el llegeix root: la identitat del
-   servei l'escriu en un sol fitxer
+   reporta com a accions a fer abans d'arrencar.
+5. Amb el servei encara en marxa, refusa un commit amb `export-subst` en algun
+   `.gitattributes` o amb un enllaç a l'arxiu, i comprova que el sistema de
+   fitxers de les còpies té almenys 1 GiB lliure; si no, remet a
+   [Retenció](#retenció).
+6. Atura el servei i comprova que `systemctl is-active mountain-agent` diu
+   `inactive` o `failed`. Torna a comprovar l'estat després d'aturar: un torn
+   que havia començat mentre el servei s'aturava encara és feina en curs i
+   refusa la resta.
+7. Copia `agent/` i `node_modules/telegram-pi-bridge/` a
+   `/var/backups/mountain-runners-agent/`, un directori `0700` de root, amb els
+   dos commits curts i la marca de temps UTC al nom, hi apunta el symlink
+   `agent-previous` i desa el commit anterior a `agent-previous.REVISION`.
+   L'estat no el copia root: la identitat del servei l'escriu en un sol fitxer
    `state-<instal·lat>-to-<nou>-<marca>.tar`, creat per root en mode `0600`, de
-   manera que un enllaç o un FIFO que l'agent hi hagi deixat es desa tal com és
-   i no es segueix mai. Si `state/` mateix és un enllaç, la refusa. Les còpies
-   queden només per a root.
-7. Munta `agent.new` i `telegram-pi-bridge.new` al costat dels directoris vius
-   des d'un `git archive` nou del commit, els dona `root:root`, `0755` als
-   directoris i `0644` als fitxers, i els intercanvia amb renames: els
-   directoris se substitueixen sencers i un fitxer retirat a l'origen
-   desapareix.
-8. Verifica cada fitxer instal·lat pel sha256 i el conjunt exacte, i només
+   manera que un enllaç que l'agent hi hagi deixat es desa tal com és i no es
+   segueix.
+8. Munta `agent.new` i `telegram-pi-bridge.new` al costat dels directoris vius
+   des de l'arxiu del commit, els dona `root:root`, `0755` als directoris i
+   `0644` als fitxers, i els intercanvia amb renames: els directoris se
+   substitueixen sencers i un fitxer retirat a l'origen desapareix.
+9. Verifica cada fitxer instal·lat pel sha256 i el conjunt exacte, i només
    llavors escriu `agent.REVISION` amb el SHA complet.
 
 #### Reconstruir la imatge del sandbox
@@ -538,7 +533,7 @@ sudo systemctl stop mountain-agent
 B=/var/backups/mountain-runners-agent
 L=/usr/local/lib/mountain-runners
 sudo rm -rf "$L/agent" "$L/node_modules/telegram-pi-bridge"
-sudo cp -a "$(readlink -f "$B/agent-previous")" "$L/agent"
+sudo cp -a "$(sudo readlink -f "$B/agent-previous")" "$L/agent"
 sudo cp -a "$B/<còpia-del-pont>" "$L/node_modules/telegram-pi-bridge"
 sudo cp "$B/agent-previous.REVISION" "$L/agent.REVISION"
 # Les còpies són només per a root: restaura el propietari i els modes, i el
@@ -549,16 +544,20 @@ sudo chmod -R u=rwX,go=rX "$L/agent" "$L/node_modules/telegram-pi-bridge"
 
 Si el commit nou havia canviat l'esquema de `state/`, restaura també la còpia de
 l'estat. L'extracció la fa la identitat del servei, que és qui escriu l'estat,
-sobre un `state/` buit:
+sobre un `state/` buit. La identitat del servei no pot entrar a la carpeta de
+còpies, així que root llegeix l'arxiu i l'hi passa per l'entrada estàndard:
 
 ```sh
 S=/var/lib/mountain-runners-agent/state
-# Buidat i extracció com la identitat del servei: root no escriu mai dins del
-# volum de l'agent. `lost+found` és del sistema de fitxers i s'hi queda.
-sudo runuser -u mountain-agent -- find "$S" -mindepth 1 -maxdepth 1 \
-  ! -name lost+found -exec rm -rf -- {} +
-sudo runuser -u mountain-agent -- tar -C "$S" --exclude=./lost+found \
-  -xf "$B/<còpia-de-l'estat>.tar"
+A="$B/<còpia-de-l'estat>.tar"
+# `state/` només es buida si l'arxiu es llegeix sencer. Buidat i extracció com
+# la identitat del servei: root no escriu mai dins del volum de l'agent.
+# `lost+found` és del sistema de fitxers i s'hi queda.
+sudo cat "$A" | sudo runuser -u mountain-agent -- tar -tf - >/dev/null &&
+  sudo runuser -u mountain-agent -- find "$S" -mindepth 1 -maxdepth 1 \
+    ! -name lost+found -exec rm -rf -- {} + &&
+  sudo cat "$A" | sudo runuser -u mountain-agent -- \
+    tar -C "$S" --exclude=./lost+found -xf -
 ```
 
 Si no tens aquesta còpia, no tornis enrere sense aprovació explícita. Arrenca el
@@ -699,8 +698,9 @@ allibera les dependències generades dels arxius i dels temes tancats. La comand
 `node storage/prune-worktrees.mjs --dry-run`, executada com la identitat del
 servei amb `EnvironmentFile=/etc/mountain-runners-agent/agent.env`, mostra la
 mateixa decisió sense escriure ni esborrar res; per aplicar-la sense
-`--dry-run`, atura abans `mountain-agent.service` (la comanda refusa executar-se
-si hi ha instruccions en curs o incertes).
+`--dry-run`, atura abans `mountain-agent.service`: la comanda refusa executar-se
+si `systemctl is-active mountain-agent` no diu `inactive` o `failed`, o si hi ha
+instruccions en curs o incertes.
 
 - **Cost estimat.** La traça i les bases de `state/` creixen pocs MB l'any i
   queden lluny de l'1 GiB del volum d'estat. L'historial de Pi és el que creix
@@ -736,37 +736,49 @@ què continua i què es torna a comprovar és a
 ### Consulta de la traça privada
 
 La traça viu a la taula `trace` de `state/admission.sqlite` i no s'exposa mai
-per Telegram. La consulta només una persona amb accés root al VPS, amb una ordre
-que llegeix la base de dades en mode de només lectura i no necessita les
-credencials del servei. S'executa amb la identitat del servei, perquè SQLite pot
-crear fitxers auxiliars al costat de la base de dades i han de quedar del
-propietari `mountain-agent`:
+per Telegram. La consulta només una persona amb accés root al VPS, amb una
+consulta que obre la base de dades en mode de només lectura i no necessita les
+credencials del servei. El VPS no té `sqlite3`: s'usa `node:sqlite`. S'executa
+amb la identitat del servei, perquè SQLite pot crear fitxers auxiliars al costat
+de la base de dades i han de quedar del propietari `mountain-agent`, i amb
+`systemd-run`, sense accés al terminal de root. `systemd-run` substitueix les
+variables dels arguments: no escriguis cap `$` a l'script ni als valors.
 
 ```sh
-runuser -u mountain-agent -- env \
-  MOUNTAIN_AGENT_STATE_PATH=/var/lib/mountain-runners-agent/state \
-  node /usr/local/lib/mountain-runners/agent/commands/trace/cli.mjs \
-  --since 2026-12-01T00:00:00Z --until 2026-12-02T00:00:00Z --limit 50
+systemd-run --quiet --pipe --wait --uid=mountain-agent --gid=mountain-agent \
+  -p UMask=0077 /usr/bin/node -e '
+const { DatabaseSync } = require("node:sqlite");
+const database = new DatabaseSync(
+  "/var/lib/mountain-runners-agent/state/admission.sqlite",
+  { readOnly: true },
+);
+database.exec("PRAGMA busy_timeout = 5000");
+const [filter, ...values] = process.argv.slice(1);
+const rows = database
+  .prepare(
+    "SELECT * FROM trace WHERE " + filter + " ORDER BY sequence DESC LIMIT 100",
+  )
+  .all(...values);
+for (const row of rows.reverse()) console.log(JSON.stringify(row));
+' -- 'created_at >= ? AND created_at < ?' 2026-12-01 2026-12-02
 ```
 
-- **Filtres.** `--since` i `--until` comparen `created_at` en UTC, el primer
-  inclòs i el segon exclòs. Accepten data sola o data i hora ISO 8601, amb
-  mil·lisegons com a màxim, i refusen una data o una hora impossible.
-  `--topic=<session_key>` filtra per tema i necessita el signe igual, perquè
-  l'identificador comença per `-`. També hi ha `--update`, `--action`,
-  `--pull-request` i `--limit`. El filtre de PR accepta el número com a token
-  sencer del detall: `#21` no coincideix amb `#215` ni amb `#21abc`.
-- **Límits.** `--limit` val 100 per defecte i 10000 com a màxim. Amb un límit
-  que trunca, la sortida conté les entrades més noves, sempre en ordre ascendent.
+- **Filtres.** El primer argument després de `--` és la condició SQL i la resta
+  són els valors dels `?`, en ordre. No hi interpolis cap valor. Altres
+  condicions: `session_key = ?` (tema), `update_identifier = ?`, `action = ?` i,
+  per a una PR com a token sencer (`#21` sense `#215`),
+  `(detail || ' ') GLOB ?` amb el valor `*#21[^0-9A-Za-z_]*`. `1` les mostra
+  totes.
+- **Dates.** `created_at` és text ISO 8601 en UTC. Escriu només la data o la
+  forma completa amb mil·lisegons (`2026-12-01T10:00:00.000Z`): la comparació és
+  de text.
 - **Sortida.** Una línia JSON per entrada, amb les columnes de la taula
   (`sequence`, `update_identifier`, `author_identifier`, `session_key`,
-  `action`, `detail`, `created_at`) ordenades per `sequence` ascendent.
-- **Identificadors de Telegram.** Es mostren tal com es van desar. Només la
-  persona amb accés root al VPS la pot consultar i no hi ha cap opció
-  d'emmascarament.
-- **Errors.** Una opció desconeguda o un valor invàlid escriuen una ajuda breu a
-  stderr i acaben amb codi 2. Una base de dades absent acaba amb codi 1 i no es
-  crea.
+  `action`, `detail`, `created_at`): les 100 més noves, en ordre ascendent.
+  Canvia `LIMIT` si en cal més.
+- **Identificadors de Telegram.** Es mostren tal com es van desar. No hi ha cap
+  opció d'emmascarament.
+- **Errors.** Una base de dades absent fa fallar l'ordre i no es crea.
 
 ### Reconciliació de resultats desconeguts
 

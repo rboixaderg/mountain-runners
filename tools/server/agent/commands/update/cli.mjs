@@ -1,4 +1,4 @@
-// Process wrapper of the agent update command (T10).
+// Process wrapper of the agent update command.
 //
 // The command itself lives in command.mjs, so a test can run it in-process with
 // a fake runner and temporary roots. It runs as root and installs root-owned

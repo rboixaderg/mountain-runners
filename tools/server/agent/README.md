@@ -54,8 +54,6 @@ tools/server/agent/               aplicació de Mountain Runners
 │   ├── safe-read.mjs             lectura acotada sense seguir enllaços simbòlics
 │   ├── refusals.mjs              motius de refús compartits
 │   └── test-support/             imatges sintètiques de les proves
-├── commands/trace/
-│   └── cli.mjs                   consulta de només lectura de la traça privada
 ├── commands/reconcile/
 │   ├── cli.mjs                   embolcall de procés: umask privat i codi de sortida
 │   ├── command.mjs               ordre d'operador, amb clients de GitHub i Telegram injectables

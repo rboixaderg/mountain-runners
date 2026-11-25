@@ -1,39 +1,16 @@
-// Operator command: install a reviewed commit of the agent (T10).
+// Operator command: install a reviewed commit of the agent.
 //
-// Usage, as root on the VPS, from an operator-controlled checkout:
-//   node commands/update/cli.mjs --repository <path> --commit <full sha>
-//     [--installed <full sha>] [--image-rebuilt]
-//     [--install-root <path>] [--backups <path>] [--data-root <path>]
-//
-// The deployment boundary of ADR 0013 and PR #281 does not change: only a
-// reviewed commit of `main` is installed, the explicit approval of the
-// maintainer is a precondition of whoever runs the command, and the command
-// never starts the service. Every installed file comes from a fresh
-// `git archive` of a checkout the operator controls; the clone the service
-// writes is refused as a source.
-//
-// The command runs as root while `mountain-agent` writes the data root, so root
-// never follows a path the agent controls. The installed trees and the checkout
-// are root-owned; the state is read as the service user, which stores a link or
-// a FIFO without following it, and the state directory itself must be a
-// directory rather than a link.
-//
-// The recorded revision lives at `<install root>/agent.REVISION`, outside the
-// installed `agent/` tree: the tree comparison then sees exactly the files the
-// archive installs, and the marker can never be mistaken for one of them nor
-// survive a directory swap by accident.
-//
-// The command never reads `agent.env` and prints no credential: it needs no
-// service configuration at all.
+// ADR 0013: only a reviewed commit of `main` is installed, from a root-owned
+// checkout of the operator, and the command never starts the service. It never
+// reads agent.env. `agent.REVISION` lives outside the installed trees.
 
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import {
   chmodSync,
   closeSync,
-  constants,
   cpSync,
-  fstatSync,
+  existsSync,
   lstatSync,
   mkdirSync,
   mkdtempSync,
@@ -49,7 +26,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
-import { isAbsolute, join, relative, resolve, sep } from "node:path";
+import { join, relative, resolve, sep } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { parseArgs } from "node:util";
 
@@ -59,66 +36,31 @@ const defaultRoots = Object.freeze({
   dataRoot: "/var/lib/mountain-runners-agent",
 });
 
-// The agent writes this clone and the whole data root: neither is a source of
-// an installation and neither is a checkout root reads as an operator.
-const serviceDataRoot = "/var/lib/mountain-runners-agent";
 const serviceUser = "mountain-agent";
-
 const agentDirectory = "agent";
 const bridgeDirectory = "node_modules/telegram-pi-bridge";
-const revisionFile = "agent.REVISION";
-const previousRevisionFile = "agent-previous.REVISION";
-const previousLink = "agent-previous";
 
-// The release tarball of 22 November 2026 copied the agent directory in full,
-// tests included, and only these bridge entries. The installed tree must hold
-// exactly that set: an extra file, a missing file or a different content is a
-// tree that is not the recorded commit.
-const bridgeEntries = [
-  "src",
-  "examples",
-  "package.json",
-  "LICENSE",
-  "README.md",
+// What `git archive` takes for each installed directory: the agent in full and
+// only these bridge entries, without their tests.
+const bridgeSource = "packages/telegram-pi-bridge";
+const releaseSources = {
+  [agentDirectory]: "tools/server/agent",
+  [bridgeDirectory]: bridgeSource,
+};
+const releasePathspecs = [
+  releaseSources[agentDirectory],
+  ...["src", "examples", "package.json", "LICENSE", "README.md"].map(
+    (entry) => `${bridgeSource}/${entry}`,
+  ),
+  `:(exclude,glob)${bridgeSource}/**/*.test.*`,
 ];
-
-const testFilePattern = /\.test\.[^/]+$/u;
 const fullRevisionPattern = /^[0-9a-f]{40}$/u;
 
-// `state/` is an ext4 mount point, so it carries `lost+found`: root-owned with
-// mode 0700, unreadable for the service identity. Both commands that read the
-// state skip it, and each one names the entry from its own operand: `tar` with
-// `-C <state>` stores `./lost+found`, while `du` prints `<state>/lost+found` and
-// matches the bare name (a path pattern like `./lost+found` does not match).
-const lostAndFoundDirectory = "lost+found";
-const stateExclusion = {
-  tar: `--exclude=./${lostAndFoundDirectory}`,
-  du: `--exclude=${lostAndFoundDirectory}`,
-};
-
-// SQLite opens a path, and a path is what the agent can replace with a link:
-// the database is opened once without following links and SQLite then opens the
-// resulting descriptor. Linux names descriptors under /proc and macOS and the
-// BSDs under /dev.
-const descriptorDirectory =
-  ["/proc/self/fd", "/dev/fd"].find(
-    (directory) => lstatOrNull(directory) !== null,
-  ) ?? null;
-
-// The checkout decides nothing about how Git runs: it is reviewed, but the
-// command runs as root and a commit must not be able to point Git at a hook or
-// a filesystem monitor of its own.
-const gitConfiguration = [
-  "-c",
-  "core.fsmonitor=false",
-  "-c",
-  "core.hooksPath=/dev/null",
-];
+// The state volume is 1 GiB and the installed trees are a few MB.
+const minimumBackupBytes = 1024 ** 3;
 
 // Every repository path the sandbox image copies or derives from. A change in
 // one of them means the image of the new commit does not exist yet on the VPS.
-// `commands/update/command.test.mjs` checks the list against the `COPY` lines of
-// `tools/server/agent/sandbox/Containerfile`.
 export const imageInputs = Object.freeze([
   "pnpm-lock.yaml",
   "pnpm-workspace.yaml",
@@ -129,1102 +71,496 @@ export const imageInputs = Object.freeze([
   "tools/server/agent/sandbox/Containerfile",
 ]);
 
-const imageInputSet = new Set(imageInputs);
+// Work in flight or of unknown result. The stores cannot be reused: their
+// constructors write the schema, and this check only reads. A pending CI watch
+// is not busy: it resumes after a restart (ADR 0014).
+const busyQueries = [
+  [
+    "admission",
+    "instructions",
+    "status IN ('pending', 'running')",
+    "pending or running instructions",
+  ],
+  [
+    "admission",
+    "instructions",
+    "status = 'uncertain'",
+    "uncertain instructions",
+  ],
+  [
+    "merge-request",
+    "merge_requests",
+    "state IN ('merging', 'uncertain')",
+    "merging or uncertain merge requests",
+  ],
+  [
+    "preview-request",
+    "preview_requests",
+    "state = 'awaiting'",
+    "awaiting preview requests",
+  ],
+];
 
 const usage = `Usage: node commands/update/cli.mjs --repository <path> --commit <sha>
          [--installed <sha>] [--image-rebuilt]
          [--install-root <path>] [--backups <path>] [--data-root <path>]
 
-Install a reviewed commit of the agent from a checkout the operator controls.
-The command checks, stops, backs up, installs and verifies; it never starts the
-service and never reads agent.env.
-
-Options:
-  --repository <path>    checkout with origin/main, owned by root; the agent
-                         clone and the data root are refused
-  --commit <sha>         full 40-character commit to install; it must be
-                         reachable from refs/remotes/origin/main
-  --installed <sha>      full commit the installed tree must match; required
-                         only when <install root>/agent.REVISION does not exist
-  --image-rebuilt        the sandbox image of --commit is already built and
-                         configured
-  --install-root <path>  install root (default ${defaultRoots.installRoot})
-  --backups <path>       backup root (default ${defaultRoots.backupsRoot})
-  --data-root <path>     service data root (default ${defaultRoots.dataRoot})
+Install a reviewed commit of the agent; the service is never started.
+--installed is required only while <install root>/agent.REVISION does not exist.
+Both commits are full 40-character SHAs.
 
 Exit codes: 0 success, 1 refusal or failure, 2 usage error.
 `;
 
-/** A refusal: the command stops and changes nothing it has not already done. */
-class UpdateRefusal extends Error {}
-
-/** Misuse of the command line, reported before anything is read. */
-class UpdateUsageError extends Error {}
-
 function refuse(message) {
-  throw new UpdateRefusal(message);
-}
-
-function messageOf(error) {
-  return error instanceof Error ? error.message : "unknown error";
-}
-
-/** Run one program and return its exit status and output. */
-export function runProcess(command, args) {
-  const result = spawnSync(command, args, {
-    encoding: "utf8",
-    maxBuffer: 64 * 1024 * 1024,
-  });
-  if (result.error !== undefined) {
-    throw new UpdateRefusal(
-      `${command} could not run: ${result.error.message}`,
-    );
-  }
-  return {
-    status: result.status ?? 1,
-    stdout: result.stdout ?? "",
-    stderr: result.stderr ?? "",
-  };
+  throw new Error(message);
 }
 
 /**
- * Run one program and send its output into a new private file. The file never
- * exists before the call and never has a public mode, so no other entry can be
- * raced through it.
+ * Run one program. With `outputPath`, its output goes into a new file that only
+ * root reads.
  */
-export function runProcessToFile(command, args, path) {
-  const descriptor = openSync(
-    path,
-    constants.O_CREAT | constants.O_EXCL | constants.O_WRONLY,
-    0o600,
-  );
+export function runProcess(command, args, { outputPath } = {}) {
+  const output =
+    outputPath === undefined ? "pipe" : openSync(outputPath, "wx", 0o600);
   try {
     const result = spawnSync(command, args, {
-      stdio: ["ignore", descriptor, "pipe"],
+      stdio: ["ignore", output, "pipe"],
       encoding: "utf8",
       maxBuffer: 64 * 1024 * 1024,
     });
-    if (result.error !== undefined) {
-      throw new UpdateRefusal(
-        `${command} could not run: ${result.error.message}`,
-      );
-    }
     return {
       status: result.status ?? 1,
-      stdout: "",
-      stderr: result.stderr ?? "",
+      stdout: result.stdout ?? "",
+      stderr: result.error?.message ?? result.stderr ?? "",
     };
   } finally {
-    closeSync(descriptor);
+    if (output !== "pipe") {
+      closeSync(output);
+    }
   }
 }
 
-function runOrRefuse(run, command, args, description) {
-  const result = run(command, args);
+function runOrRefuse(run, command, args, description, options) {
+  const result = run(command, args, options);
   if (result.status !== 0) {
-    const detail = (result.stderr || result.stdout).trim();
-    refuse(
-      `${description} failed: ${detail === "" ? `exit ${result.status}` : detail}`,
-    );
+    const detail = result.stderr.trim() || `exit ${result.status}`;
+    refuse(`${description} failed: ${detail}`);
   }
-  return result;
-}
-
-function readPath(value, name) {
-  if (typeof value !== "string" || !isAbsolute(value)) {
-    throw new UpdateUsageError(`${name} must be an absolute path.`);
-  }
-  return resolve(value);
-}
-
-function readRevision(value, name) {
-  if (!fullRevisionPattern.test(value ?? "")) {
-    throw new UpdateUsageError(
-      `${name} must be a full 40-character lowercase commit SHA; \`git rev-parse <short>\` prints it.`,
-    );
-  }
-  return value;
+  return result.stdout;
 }
 
 /** Parse the command line without reading the filesystem or running anything. */
-function parseArguments(argv, defaults) {
-  let values;
-  try {
-    values = parseArgs({
-      args: argv,
-      options: {
-        repository: { type: "string" },
-        commit: { type: "string" },
-        installed: { type: "string" },
-        "image-rebuilt": { type: "boolean" },
-        "install-root": { type: "string" },
-        backups: { type: "string" },
-        "data-root": { type: "string" },
-        help: { type: "boolean" },
-      },
-      allowPositionals: false,
-      strict: true,
-    }).values;
-  } catch (error) {
-    throw new UpdateUsageError(error.message);
-  }
-  if (values.help === true) {
+function parseArguments(argv) {
+  const { values } = parseArgs({
+    args: argv,
+    options: {
+      repository: { type: "string" },
+      commit: { type: "string" },
+      installed: { type: "string" },
+      "image-rebuilt": { type: "boolean", default: false },
+      "install-root": { type: "string", default: defaultRoots.installRoot },
+      backups: { type: "string", default: defaultRoots.backupsRoot },
+      "data-root": { type: "string", default: defaultRoots.dataRoot },
+      help: { type: "boolean" },
+    },
+  });
+  if (values.help) {
     return { help: true };
   }
   if (values.repository === undefined) {
-    throw new UpdateUsageError("--repository is required.");
+    throw new Error("--repository is required.");
   }
   if (values.commit === undefined) {
-    throw new UpdateUsageError("--commit is required.");
+    throw new Error("--commit is required.");
+  }
+  for (const revision of [values.commit, values.installed]) {
+    if (revision !== undefined && !fullRevisionPattern.test(revision)) {
+      throw new Error(
+        "A commit must be a full 40-character lowercase SHA; `git rev-parse <short>` prints it.",
+      );
+    }
   }
   return {
-    repository: readPath(values.repository, "--repository"),
-    commit: readRevision(values.commit, "--commit"),
-    installed:
-      values.installed === undefined
-        ? undefined
-        : readRevision(values.installed, "--installed"),
-    imageRebuilt: values["image-rebuilt"] === true,
-    installRoot:
-      values["install-root"] === undefined
-        ? defaults.installRoot
-        : readPath(values["install-root"], "--install-root"),
-    backupsRoot:
-      values.backups === undefined
-        ? defaults.backupsRoot
-        : readPath(values.backups, "--backups"),
-    dataRoot:
-      values["data-root"] === undefined
-        ? defaults.dataRoot
-        : readPath(values["data-root"], "--data-root"),
+    repository: resolve(values.repository),
+    commit: values.commit,
+    installed: values.installed,
+    imageRebuilt: values["image-rebuilt"],
+    installRoot: resolve(values["install-root"]),
+    backupsRoot: resolve(values.backups),
+    dataRoot: resolve(values["data-root"]),
   };
 }
 
-function resolvePath(realpath, path, description) {
-  try {
-    return realpath(path);
-  } catch (error) {
-    refuse(
-      `The ${description} ${path} cannot be resolved: ${messageOf(error)}`,
-    );
-  }
-}
-
-/**
- * The checkout root is a reviewed, root-owned directory outside the data root.
- * The static check refuses the agent clone before anything is resolved; the
- * resolved paths then catch a checkout reached through a link.
- */
-function checkedRepository({
-  repository,
-  dataRoot,
-  realpath,
-  getuid,
-  statFile,
-}) {
-  if (
-    repository === serviceDataRoot ||
-    repository.startsWith(`${serviceDataRoot}${sep}`)
-  ) {
-    refuse(
-      `Refusing ${repository} as the repository: the agent writes that clone, so it is never a source of an installation.`,
-    );
-  }
+/** The checkout is a root-owned directory outside what the agent writes. */
+function checkedRepository(options, { getuid, statFile }) {
   if (getuid() !== 0) {
     refuse("The update installs root-owned code: run it as root (uid 0).");
   }
-  const root = resolvePath(realpath, repository, "repository");
-  const dataRootPath = resolvePath(realpath, dataRoot, "data root");
-  if (root === dataRootPath || root.startsWith(`${dataRootPath}${sep}`)) {
+  const repository = realpathSync(options.repository);
+  const dataRoot = realpathSync(options.dataRoot);
+  if (repository === dataRoot || repository.startsWith(`${dataRoot}${sep}`)) {
     refuse(
-      `Refusing ${root}: it is inside the data root ${dataRootPath}, which the agent writes.`,
+      `Refusing ${repository}: it is inside the data root ${dataRoot}, which the agent writes.`,
     );
   }
-  if (statFile(root).uid !== 0) {
+  if (statFile(repository).uid !== 0) {
     refuse(
-      `Refusing ${root}: the checkout is not owned by root (uid 0), so the agent could rewrite it.`,
+      `Refusing ${repository}: the checkout is not owned by root (uid 0), so the agent could rewrite it.`,
     );
   }
-  return root;
-}
-
-function resolveCommit({ run, repository, revision, name }) {
-  const result = run("git", [
-    ...gitConfiguration,
-    "-C",
-    repository,
-    "rev-parse",
-    "--verify",
-    "--quiet",
-    `${revision}^{commit}`,
-  ]);
-  const resolved = result.stdout.trim();
-  if (result.status !== 0 || !fullRevisionPattern.test(resolved)) {
-    refuse(`${name} ${revision} is not a commit of ${repository}.`);
-  }
-  return resolved;
-}
-
-/** The revision recorded by the last install, or `null` when there is none. */
-function readRecordedRevision(installRoot) {
-  const path = join(installRoot, revisionFile);
-  const stats = lstatOrNull(path);
-  if (stats === null) {
-    return null;
-  }
-  if (!stats.isFile()) {
-    refuse(`${path} is not a regular file.`);
-  }
-  const recorded = readFileSync(path, "utf8").trim();
-  if (!fullRevisionPattern.test(recorded)) {
-    refuse(`${path} does not hold a full commit SHA.`);
-  }
-  return recorded;
-}
-
-/** `lstat` that answers `null` for a path that does not exist. */
-function lstatOrNull(path) {
-  try {
-    return lstatSync(path);
-  } catch (error) {
-    if (error.code === "ENOENT" || error.code === "ENOTDIR") {
-      return null;
-    }
-    throw error;
-  }
-}
-
-// A tree entry is a directory, a regular file or something the command never
-// follows: a symbolic link, a FIFO, a device or a socket.
-const entryKinds = Object.freeze({
-  directory: "directory",
-  file: "file",
-  other: "other",
-});
-
-/**
- * Every entry below `root`, relative and `/`-joined, classified from the
- * directory entry itself. Nothing below a link is ever read.
- */
-function treeEntries(root, relativePath = "") {
-  const entries = [];
-  for (const entry of readdirSync(join(root, relativePath), {
-    withFileTypes: true,
-  })) {
-    const path =
-      relativePath === "" ? entry.name : `${relativePath}/${entry.name}`;
-    if (entry.isDirectory()) {
-      entries.push(
-        { path, kind: entryKinds.directory },
-        ...treeEntries(root, path),
-      );
-    } else if (entry.isFile()) {
-      entries.push({ path, kind: entryKinds.file });
-    } else {
-      entries.push({ path, kind: entryKinds.other });
-    }
-  }
-  return entries;
-}
-
-/** Refuse anything below `root` that is not a regular file or a directory. */
-function assertPlainTree({ root, description }) {
-  for (const entry of treeEntries(root)) {
-    if (entry.kind === entryKinds.other) {
-      refuse(
-        `${description} contains ${entry.path}, which is not a regular file or a directory.`,
-      );
-    }
-  }
+  return repository;
 }
 
 /**
- * The service state is a directory or nothing. A link here would send the idle
- * check and the backup wherever the agent points them.
+ * Every entry below `root`. A link or a special file is refused: a copy or a
+ * chmod would follow it and no digest would describe it.
  */
-function checkedStateDirectory(dataRoot) {
-  const path = join(dataRoot, "state");
-  const stats = lstatOrNull(path);
-  if (stats === null) {
-    return null;
-  }
-  if (!stats.isDirectory()) {
-    refuse(
-      `Refusing ${path}: the service state must be a directory, not a link or a file.`,
-    );
-  }
-  return path;
-}
-
-/** Bytes of the regular files below `root`; links and special files count zero. */
-function treeSize(root, relativePath = "") {
-  let total = 0;
-  for (const entry of readdirSync(join(root, relativePath), {
-    withFileTypes: true,
-  })) {
-    const path =
-      relativePath === "" ? entry.name : `${relativePath}/${entry.name}`;
-    if (entry.isDirectory()) {
-      total += treeSize(root, path);
-    } else if (entry.isFile()) {
-      total += lstatSync(join(root, path)).size;
-    }
-  }
-  return total;
-}
-
-function sha256OfFile(path) {
-  return createHash("sha256").update(readFileSync(path)).digest("hex");
-}
-
-/** Whether a bridge path belongs to the release. */
-function bridgeSelected(path) {
-  return (
-    bridgeEntries.includes(path.split("/")[0]) && !testFilePattern.test(path)
+function treeEntries(root) {
+  return readdirSync(root, { recursive: true, withFileTypes: true }).map(
+    (entry) => {
+      const path = join(entry.parentPath, entry.name);
+      if (!entry.isDirectory() && !entry.isFile()) {
+        refuse(
+          `${path} is not a regular file or a directory: refusing the tree.`,
+        );
+      }
+      return { path, isDirectory: entry.isDirectory() };
+    },
   );
 }
 
 /**
- * A fresh `git archive` of `commit`, extracted in the temporary work directory.
- * The command installs only from this tree, after checking that the archive
- * holds nothing but files and directories.
+ * Install-relative path to sha256 of every file below the directory that
+ * `sourceOf` names for each installed directory.
  */
-function archiveTree({ run, repository, commit, workRoot }) {
-  // Each revision gets its own archive and directory: a later extraction must
-  // never inherit a file the newer commit no longer has.
-  const archive = join(workRoot, `${commit}.tar`);
-  const extractRoot = join(workRoot, commit);
+function treeDigests(sourceOf) {
+  const digests = new Map();
+  for (const directory of [agentDirectory, bridgeDirectory]) {
+    const base = sourceOf(directory);
+    if (!existsSync(base)) {
+      continue;
+    }
+    for (const { path, isDirectory } of treeEntries(base)) {
+      if (!isDirectory) {
+        const content = readFileSync(path);
+        digests.set(
+          `${directory}/${relative(base, path)}`,
+          createHash("sha256").update(content).digest("hex"),
+        );
+      }
+    }
+  }
+  return digests;
+}
+
+/** Refuse unless the files below `root` are exactly the expected ones. */
+function assertSameTree({ expected, installRoot, message }) {
+  const actual = treeDigests((directory) => join(installRoot, directory));
+  const differences = [];
+  for (const [path, digest] of expected) {
+    if (!actual.has(path)) {
+      differences.push(`missing ${path}`);
+    } else if (actual.get(path) !== digest) {
+      differences.push(`modified ${path}`);
+    }
+  }
+  for (const path of actual.keys()) {
+    if (!expected.has(path)) {
+      differences.push(`added ${path}`);
+    }
+  }
+  if (differences.length > 0) {
+    const shown = differences.sort().slice(0, 20).join("\n  ");
+    refuse(`${message} (${differences.length} differences):\n  ${shown}`);
+  }
+}
+
+/**
+ * A fresh `git archive` of `commit` in a new directory below `workRoot`.
+ * Returns where the source of each installed directory was extracted.
+ */
+function releaseTree({ run, repository, commit, workRoot }) {
+  const root = mkdtempSync(join(workRoot, "release-"));
+  const archive = `${root}.tar`;
   runOrRefuse(
     run,
     "git",
     [
-      ...gitConfiguration,
-      // The global attributes file is not the operator's: a checkout cannot
-      // add export-subst or export-ignore rules from outside the review.
+      // Attributes outside the review cannot rewrite or drop archived files.
       "-c",
       "core.attributesFile=/dev/null",
       "-C",
       repository,
       "archive",
-      "--format=tar",
       "--output",
       archive,
       commit,
       "--",
-      "tools/server/agent",
-      "packages/telegram-pi-bridge",
+      ...releasePathspecs,
     ],
     `git archive ${commit}`,
   );
-  mkdirSync(extractRoot, { recursive: true, mode: 0o700 });
   runOrRefuse(
     run,
     "tar",
-    ["-x", "-f", archive, "-C", extractRoot],
+    ["-x", "-f", archive, "-C", root],
     `extraction of the archive of ${commit}`,
   );
-  // Before any copy, hash or chmod: a link in the archive would be followed by
-  // the copy and the digest would never describe what the review approved.
-  assertPlainTree({
-    root: extractRoot,
-    description: `The archive of ${commit}`,
-  });
-  assertNoExportSubstitution({ root: extractRoot, commit });
-  return {
-    agent: join(extractRoot, "tools/server/agent"),
-    bridge: join(extractRoot, "packages/telegram-pi-bridge"),
-  };
+  // A link in the archive is refused here, before anything follows it.
+  treeEntries(root);
+  return (directory) => join(root, releaseSources[directory]);
 }
 
-/**
- * `export-subst` makes `git archive` rewrite the placeholders of a file, so the
- * archive no longer holds the reviewed bytes. The check reads the attributes of
- * the archived paths only: a `.gitattributes` at the repository root is outside
- * the archive and is not read here. That is the limit — such a file can still
- * apply `export-subst` to an installed file — and it is acceptable because that
- * root file is reviewed content of the same commit, like the rest of the tree.
- */
-function assertNoExportSubstitution({ root, commit }) {
-  for (const entry of treeEntries(root)) {
-    if (
-      entry.kind !== entryKinds.file ||
-      entry.path.split("/").at(-1) !== ".gitattributes"
-    ) {
+function assertIdle(statePath, message) {
+  const lines = [];
+  for (const [name, table, condition, label] of busyQueries) {
+    const path = join(statePath, `${name}.sqlite`);
+    // A missing database has no row of its kind and is never created.
+    const stats = lstatSync(path, { throwIfNoEntry: false });
+    if (stats === undefined) {
       continue;
     }
-    const content = readFileSync(join(root, entry.path), "utf8");
-    if (/export-subst/u.test(content)) {
-      refuse(
-        `The archive of ${commit} carries export-subst (${entry.path}), so its bytes are not the reviewed ones; install it without archive attributes.`,
-      );
+    // Opening a FIFO would block, and a link points wherever the agent chose.
+    if (!stats.isFile()) {
+      refuse(`Refusing ${path}: a state database must be a regular file.`);
     }
-  }
-}
-
-/** Install-relative path to sha256 of every file the archive installs. */
-function archiveDigests({ agent, bridge }) {
-  const digests = new Map();
-  for (const entry of treeEntries(agent)) {
-    if (entry.kind === entryKinds.file) {
-      digests.set(
-        `${agentDirectory}/${entry.path}`,
-        sha256OfFile(join(agent, entry.path)),
-      );
-    }
-  }
-  for (const entry of treeEntries(bridge)) {
-    if (entry.kind === entryKinds.file && bridgeSelected(entry.path)) {
-      digests.set(
-        `${bridgeDirectory}/${entry.path}`,
-        sha256OfFile(join(bridge, entry.path)),
-      );
-    }
-  }
-  return digests;
-}
-
-/**
- * Install-relative path to sha256 of every file of the installed tree. A path
- * that is not a regular file has no digest, so it never matches the archive.
- */
-function installedDigests(installRoot) {
-  const digests = new Map();
-  const trees = [
-    [agentDirectory, join(installRoot, agentDirectory)],
-    [bridgeDirectory, join(installRoot, bridgeDirectory)],
-  ];
-  for (const [prefix, root] of trees) {
-    if (lstatOrNull(root)?.isDirectory() !== true) {
-      continue;
-    }
-    for (const entry of treeEntries(root)) {
-      if (entry.kind === entryKinds.directory) {
-        continue;
-      }
-      digests.set(
-        `${prefix}/${entry.path}`,
-        entry.kind === entryKinds.file
-          ? sha256OfFile(join(root, entry.path))
-          : null,
-      );
-    }
-  }
-  return digests;
-}
-
-/** Added, missing and modified files of the installed tree, sorted. */
-function compareTrees(expected, installed) {
-  const differences = [];
-  for (const [path, digest] of expected) {
-    if (!installed.has(path)) {
-      differences.push(`missing ${path}`);
-    } else if (installed.get(path) !== digest) {
-      differences.push(`modified ${path}`);
-    }
-  }
-  for (const path of installed.keys()) {
-    if (!expected.has(path)) {
-      differences.push(`added ${path}`);
-    }
-  }
-  return differences.sort();
-}
-
-function describeDifferences(differences) {
-  const shown = differences.slice(0, 20).map((difference) => `  ${difference}`);
-  const remaining = differences.length - shown.length;
-  if (remaining > 0) {
-    shown.push(`  ... and ${remaining} more`);
-  }
-  return shown.join("\n");
-}
-
-// Every row the service is working on and every row whose external result is
-// unknown. The queries mirror the state constraints of the store modules:
-// `instructions`, the open merge states of
-// `repository/merge-request-store.mjs` and the one open preview state of
-// `repository/preview-request-store.mjs`, plus the cases that
-// `commands/reconcile/uncertain-cases.mjs` lists through `uncertain()`. The
-// stores cannot be reused
-// here: their constructors create and migrate the schema, and this check must
-// not write, so the databases open read-only. A pending CI watch is not busy: it
-// resumes after a restart and its notice may repeat (ADR 0014).
-//
-// `preview_requests` still accepts `commenting` and `uncertain` in its schema.
-// The service writes neither after the `/preview` retirement, but a state
-// carried over from before can still hold them: an open row of any of the three
-// refuses the update, so an unreconciled preview is never installed over.
-const busyQueries = [
-  {
-    database: "admission.sqlite",
-    label: "pending or running instructions",
-    sql: "SELECT COUNT(*) AS count FROM instructions WHERE status IN ('pending', 'running')",
-  },
-  {
-    database: "merge-request.sqlite",
-    label: "merging or uncertain merge requests",
-    sql: "SELECT COUNT(*) AS count FROM merge_requests WHERE state IN ('merging', 'uncertain')",
-  },
-  {
-    database: "preview-request.sqlite",
-    label: "open or uncertain preview requests",
-    sql: "SELECT COUNT(*) AS count FROM preview_requests WHERE state IN ('awaiting', 'commenting', 'uncertain')",
-  },
-];
-
-const uncertainQueries = [
-  {
-    kind: "instruction",
-    database: "admission.sqlite",
-    sql: "SELECT COUNT(*) AS count FROM instructions WHERE status = 'uncertain'",
-  },
-  {
-    kind: "merge",
-    database: "merge-request.sqlite",
-    sql: "SELECT COUNT(*) AS count FROM merge_requests WHERE state = 'uncertain'",
-  },
-];
-
-/**
- * A state database opened as a descriptor: `O_NOFOLLOW` refuses a link and
- * `fstat` proves a regular file, so SQLite never resolves a path the agent can
- * replace between the check and the open. `O_NONBLOCK` keeps a FIFO the agent
- * planted from blocking the open. A missing file has no row of its kind and is
- * never created.
- */
-function openStateDatabase(path) {
-  let descriptor;
-  try {
-    descriptor = openSync(
-      path,
-      constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK,
-    );
-  } catch (error) {
-    if (error.code === "ENOENT" || error.code === "ENOTDIR") {
-      return null;
-    }
-    if (error.code === "ELOOP") {
-      refuse(
-        `Refusing ${path}: a state database must be a regular file, not a link.`,
-      );
-    }
-    refuse(
-      `Refusing ${path}: a state database must be a regular file (${error.code ?? messageOf(error)}).`,
-    );
-  }
-  if (!fstatSync(descriptor).isFile()) {
-    closeSync(descriptor);
-    refuse(`Refusing ${path}: a state database must be a regular file.`);
-  }
-  return descriptor;
-}
-
-function readCount(statePath, query) {
-  const path = join(statePath, query.database);
-  if (descriptorDirectory === null) {
-    refuse(
-      `This platform has no descriptor directory, so ${path} cannot be opened without following a link.`,
-    );
-  }
-  const descriptor = openStateDatabase(path);
-  if (descriptor === null) {
-    return 0;
-  }
-  try {
-    const database = new DatabaseSync(`${descriptorDirectory}/${descriptor}`, {
-      readOnly: true,
-    });
+    const database = new DatabaseSync(path, { readOnly: true });
     try {
-      return database.prepare(query.sql).get().count;
+      const { count } = database
+        .prepare(`SELECT COUNT(*) AS count FROM ${table} WHERE ${condition}`)
+        .get();
+      if (count > 0) {
+        lines.push(`  ${label}: ${count}`);
+      }
     } finally {
       database.close();
     }
-  } catch (error) {
-    refuse(`Cannot read ${path}: ${messageOf(error)}`);
-  } finally {
-    closeSync(descriptor);
+  }
+  if (lines.length > 0) {
+    refuse(`${message}; reconcile the cases and repeat:\n${lines.join("\n")}`);
   }
 }
 
-/** One line per kind of work in flight or of unknown result. */
-function busyLines(statePath) {
-  const lines = [];
-  for (const query of busyQueries) {
-    const count = readCount(statePath, query);
-    if (count > 0) {
-      lines.push(`  ${query.label}: ${count}`);
-    }
-  }
-  for (const query of uncertainQueries) {
-    const count = readCount(statePath, query);
-    if (count > 0) {
-      lines.push(`  uncertain ${query.kind} case(s): ${count}`);
-    }
-  }
-  return lines;
-}
-
-function ensureDirectory(path) {
-  mkdirSync(path, { recursive: true, mode: 0o755 });
-  // The caller's umask must not decide the mode of the installed layout.
-  chmodSync(path, 0o755);
-}
-
-/** Root ownership and the exact modes of an installed tree. */
-function normaliseTree({ run, root }) {
-  // The tree is checked before anything follows it: `chown -R` and the walk
-  // below must never reach through a link.
-  assertPlainTree({ root, description: `${root} before installation` });
-  runOrRefuse(run, "chown", ["-R", "root:root", root], `chown of ${root}`);
-  chmodSync(root, 0o755);
-  for (const entry of treeEntries(root)) {
-    if (entry.kind === entryKinds.other) {
-      refuse(`${root} contains ${entry.path}, which is not a regular file.`);
-    }
-    chmodSync(
-      join(root, entry.path),
-      entry.kind === entryKinds.directory ? 0o755 : 0o644,
-    );
-  }
-}
-
-function swapDirectory({ live, staged }) {
-  const previous = `${live}.old`;
-  rmSync(previous, { recursive: true, force: true });
-  renameSync(live, previous);
-  renameSync(staged, live);
-  rmSync(previous, { recursive: true, force: true });
-}
-
-/** Build both trees beside the live directories and replace them whole. */
-function installTree({ run, tree, installRoot }) {
-  const agentLive = join(installRoot, agentDirectory);
-  const agentStaged = `${agentLive}.new`;
-  const bridgeLive = join(installRoot, bridgeDirectory);
-  const bridgeStaged = `${bridgeLive}.new`;
-  ensureDirectory(join(installRoot, "node_modules"));
-  rmSync(agentStaged, { recursive: true, force: true });
-  rmSync(bridgeStaged, { recursive: true, force: true });
-
-  cpSync(tree.agent, agentStaged, { recursive: true });
-  cpSync(tree.bridge, bridgeStaged, {
-    recursive: true,
-    filter: (source) => {
-      const path = relative(tree.bridge, source).split(sep).join("/");
-      return path === "" || bridgeSelected(path);
-    },
-  });
-  normaliseTree({ run, root: agentStaged });
-  normaliseTree({ run, root: bridgeStaged });
-
-  swapDirectory({ live: agentLive, staged: agentStaged });
-  swapDirectory({ live: bridgeLive, staged: bridgeStaged });
-}
-
-function utcTimestamp(date) {
-  return date
-    .toISOString()
-    .replace(/[-:]/gu, "")
-    .replace(/\.\d+Z$/u, "Z");
-}
-
-function backupNames({ installed, target, timestamp }) {
-  const identity = `${installed.slice(0, 7)}-to-${target.slice(0, 7)}`;
-  return {
-    agent: `agent-${identity}-${timestamp}`,
-    bridge: `telegram-pi-bridge-${identity}-${timestamp}`,
-    state: `state-${identity}-${timestamp}.tar`,
+/**
+ * The previous trees, the state and the previous revision, with
+ * `agent-previous` pointing at the agent backup.
+ */
+function createBackups({ run, options, installed, target, timestamp, write }) {
+  const { backupsRoot, installRoot, dataRoot } = options;
+  const identity = `${installed.slice(0, 7)}-to-${target.slice(0, 7)}-${timestamp}`;
+  const names = {
+    agent: `agent-${identity}`,
+    bridge: `telegram-pi-bridge-${identity}`,
+    state: `state-${identity}.tar`,
   };
-}
+  cpSync(join(installRoot, agentDirectory), join(backupsRoot, names.agent), {
+    recursive: true,
+  });
+  cpSync(join(installRoot, bridgeDirectory), join(backupsRoot, names.bridge), {
+    recursive: true,
+  });
 
-/** A private copy: only root reads it, whatever the source modes were. */
-function restrictTree(root) {
-  chmodSync(root, 0o700);
-  for (const entry of treeEntries(root)) {
-    if (entry.kind === entryKinds.other) {
-      refuse(`${root} contains ${entry.path}, which is not a regular file.`);
+  const statePath = join(dataRoot, "state");
+  const hasState = existsSync(statePath);
+  if (hasState) {
+    // The service user reads its own state, so a link it planted never makes
+    // root read anything. `lost+found` of the volume is unreadable for it.
+    // GNU tar writes the holes of a sparse file in full without `--sparse`,
+    // past the free-space check; bsdtar has no such flag and skips them.
+    const isGnuTar = runOrRefuse(
+      run,
+      "tar",
+      ["--version"],
+      "tar --version",
+    ).includes("GNU tar");
+    const path = join(backupsRoot, names.state);
+    try {
+      runOrRefuse(
+        run,
+        "runuser",
+        [
+          "-u",
+          serviceUser,
+          "--",
+          "tar",
+          "-C",
+          statePath,
+          "-cf",
+          "-",
+          "--exclude=./lost+found",
+          ...(isGnuTar ? ["--sparse"] : []),
+          ".",
+        ],
+        "The state backup",
+        { outputPath: path },
+      );
+    } catch (error) {
+      // A partial archive must not look like a backup.
+      rmSync(path, { force: true });
+      throw error;
     }
-    chmodSync(
-      join(root, entry.path),
-      entry.kind === entryKinds.directory ? 0o700 : 0o600,
-    );
-  }
-}
-
-/**
- * A root-owned tree is copied after checking that it holds only files and
- * directories, so the copy never follows a link and the chmod never reaches
- * through one.
- */
-function copyPlainTree({ source, destination, description }) {
-  assertPlainTree({ root: source, description });
-  cpSync(source, destination, { recursive: true });
-  restrictTree(destination);
-}
-
-/** The state size, measured as the service user so root never walks it. */
-function serviceTreeSize({ run, stateDirectory }) {
-  const result = run("runuser", [
-    "-u",
-    serviceUser,
-    "--",
-    "du",
-    "--summarize",
-    "--bytes",
-    stateExclusion.du,
-    stateDirectory,
-  ]);
-  if (result.status !== 0) {
-    const detail = (result.stderr || result.stdout).trim();
-    refuse(
-      `Measuring ${stateDirectory} failed: ${detail === "" ? `exit ${result.status}` : detail}`,
-    );
-  }
-  const bytes = Number(result.stdout.trim().split(/\s+/u)[0]);
-  if (!Number.isSafeInteger(bytes) || bytes < 0) {
-    refuse(`Measuring ${stateDirectory} printed an unexpected size.`);
-  }
-  return bytes;
-}
-
-/**
- * The backup needs its own room: twice the bytes of the trees and the state,
- * before anything is copied. The state is measured as the service user, because
- * root never walks the data root.
- */
-function assertBackupSpace({ run, statfs, options, stateDirectory }) {
-  const trees =
-    treeSize(join(options.installRoot, agentDirectory)) +
-    treeSize(join(options.installRoot, bridgeDirectory));
-  const state =
-    stateDirectory === null ? 0 : serviceTreeSize({ run, stateDirectory });
-  const needed = 2 * (trees + state);
-  const { bsize, bavail } = statfs(options.backupsRoot);
-  const available = bsize * bavail;
-  if (available < needed) {
-    refuse(
-      `The backup needs ${needed} bytes and ${available} are available in ${options.backupsRoot}; free space first ("Retenció" in docs/operations/agent.md).`,
-    );
-  }
-}
-
-/**
- * The state the service wrote, written as the service user into one private
- * regular file. A link or a FIFO the agent planted is stored by `tar`, never
- * followed, and root never walks or changes anything below the data root.
- */
-function backupState({ stream, stateDirectory, path }) {
-  let result;
-  try {
-    result = stream(
-      "runuser",
-      [
-        "-u",
-        serviceUser,
-        "--",
-        "tar",
-        "-C",
-        stateDirectory,
-        "-cf",
-        "-",
-        stateExclusion.tar,
-        ".",
-      ],
-      path,
-    );
-  } catch (error) {
-    // The stream creates the file before it spawns: a failed spawn must not
-    // leave a partial backup that looks complete.
-    rmSync(path, { force: true });
-    throw error;
-  }
-  if (result.status === 0) {
-    return;
-  }
-  rmSync(path, { force: true });
-  const detail = (result.stderr || result.stdout).trim();
-  refuse(
-    `The state backup failed: ${detail === "" ? `exit ${result.status}` : detail}`,
-  );
-}
-
-/**
- * The previous trees, the state and the previous revision, named with both
- * short commits and the UTC timestamp, and `agent-previous` pointing at the
- * agent backup. The state is copied only when it exists.
- */
-function createBackups({
-  run,
-  stream,
-  statfs,
-  options,
-  names,
-  installed,
-  stateDirectory,
-  write,
-}) {
-  // The backups hold the state and the trace of the topics: only root reads
-  // them, whatever mode the directory had.
-  mkdirSync(options.backupsRoot, { recursive: true, mode: 0o700 });
-  chmodSync(options.backupsRoot, 0o700);
-  assertBackupSpace({ run, statfs, options, stateDirectory });
-
-  const agentBackup = join(options.backupsRoot, names.agent);
-  copyPlainTree({
-    source: join(options.installRoot, agentDirectory),
-    destination: agentBackup,
-    description: "The installed agent tree",
-  });
-  copyPlainTree({
-    source: join(options.installRoot, bridgeDirectory),
-    destination: join(options.backupsRoot, names.bridge),
-    description: "The installed bridge package",
-  });
-  if (stateDirectory !== null) {
-    backupState({
-      stream,
-      stateDirectory,
-      path: join(options.backupsRoot, names.state),
-    });
   }
 
-  const link = join(options.backupsRoot, previousLink);
+  const link = join(backupsRoot, "agent-previous");
   rmSync(link, { force: true });
   symlinkSync(names.agent, link);
-  // The rollback restores this revision in the marker the install replaces.
-  const previousRevision = join(options.backupsRoot, previousRevisionFile);
-  writeFileSync(previousRevision, `${installed}\n`);
-  chmodSync(previousRevision, 0o600);
-  write(`Backups in ${options.backupsRoot}:\n`);
+  writeFileSync(join(backupsRoot, "agent-previous.REVISION"), `${installed}\n`);
+  write(`Backups in ${backupsRoot}:\n`);
   write(`  agent: ${names.agent}\n`);
   write(`  bridge: ${names.bridge}\n`);
   write(
-    stateDirectory === null
-      ? "  state: not present, nothing to copy\n"
-      : `  state: ${names.state}\n`,
+    `  state: ${hasState ? names.state : "not present, nothing to copy"}\n`,
   );
-  return { stateBackedUp: stateDirectory !== null };
+  return names;
 }
 
-function writeRevision(installRoot, revision) {
-  const path = join(installRoot, revisionFile);
-  writeFileSync(path, `${revision}\n`);
-  chmodSync(path, 0o644);
-  return path;
+/** Build both trees beside the live directories and swap them by rename. */
+function installTree({ run, sourceOf, installRoot }) {
+  const swaps = [agentDirectory, bridgeDirectory].map((directory) => ({
+    live: join(installRoot, directory),
+    staged: join(installRoot, `${directory}.new`),
+    source: sourceOf(directory),
+  }));
+  for (const { staged, source } of swaps) {
+    rmSync(staged, { recursive: true, force: true });
+    cpSync(source, staged, { recursive: true });
+    runOrRefuse(
+      run,
+      "chown",
+      ["-R", "root:root", staged],
+      `chown of ${staged}`,
+    );
+    chmodSync(staged, 0o755);
+    for (const { path, isDirectory } of treeEntries(staged)) {
+      chmodSync(path, isDirectory ? 0o755 : 0o644);
+    }
+  }
+  for (const { live, staged } of swaps) {
+    const previous = `${live}.old`;
+    rmSync(previous, { recursive: true, force: true });
+    renameSync(live, previous);
+    renameSync(staged, live);
+    rmSync(previous, { recursive: true, force: true });
+  }
 }
 
-/** The image, the operator actions and the steps that follow the install. */
-function report({
-  options,
-  names,
-  target,
-  imageChanges,
-  operatorActions,
-  stateBackedUp,
-  revisionPath,
-  write,
-}) {
+/** The operator actions and the steps that follow the install. */
+function report({ target, changed, backup, revisionPath, write }) {
+  const operatorActions = changed
+    .filter((path) => path.startsWith("tools/server/systemd/"))
+    .map((path) => `  - ${path} changed: reinstall it from ${target}.`);
+  if (changed.includes(".env.example")) {
+    operatorActions.push(
+      "  - .env.example changed: compare it with agent.env and add the new variables.",
+    );
+  }
   const lines = [
     `Installed ${target}.`,
     `Revision recorded in ${revisionPath}.`,
   ];
-  if (imageChanges.length > 0) {
-    lines.push(
-      `The sandbox image was declared rebuilt; its inputs changed: ${imageChanges.join(", ")}.`,
-    );
-  }
   if (operatorActions.length > 0) {
-    lines.push("", "Operator actions before starting:");
-    lines.push(...operatorActions.map((action) => `  - ${action}`));
-  }
-  lines.push("", "Next steps:");
-  // Reconcile cases and a busy state refuse the update, so nothing is left to
-  // reconcile here; only the migration can still apply.
-  if (
-    lstatOrNull(join(options.dataRoot, "state", "identifier-salt")) === null
-  ) {
-    lines.push(
-      "  The identifier migration has not run for this installation; run it as the",
-      "  service identity before starting:",
-      "    systemd-run --pipe --wait --uid=mountain-agent --gid=mountain-agent \\",
-      "      -p EnvironmentFile=/etc/mountain-runners-agent/agent.env -p UMask=0077 \\",
-      `      /usr/bin/node ${join(options.installRoot, agentDirectory, "commands/migrate-identifiers/cli.mjs")}`,
-    );
+    lines.push("", "Operator actions before starting:", ...operatorActions);
   }
   lines.push(
-    "  Start the service:",
-    "    systemctl start mountain-agent",
-    "  Then check it:",
-    "    systemctl is-active mountain-agent",
-    "    journalctl -u mountain-agent -n 100",
-    "  and ask the topic a question that creates no branch.",
-    `  Roll back with the backup ${names.agent} ("Tornar enrere" in docs/operations/agent.md).`,
+    "",
+    'Next: start and check the service ("Actualitzar" in docs/operations/agent.md).',
+    `Roll back with the backup ${backup} ("Tornar enrere").`,
+    "",
+    "The service was not started.",
   );
-  if (!stateBackedUp) {
-    lines.push(
-      "  The state directory was not present: there is no state backup.",
-    );
-  }
-  lines.push("", "The service was not started.");
   write(`${lines.join("\n")}\n`);
 }
 
-function update(
-  options,
-  { run, stream, statfs, now, write, realpath, getuid, statFile },
-) {
-  const repository = checkedRepository({
-    repository: options.repository,
-    dataRoot: options.dataRoot,
-    realpath,
-    getuid,
-    statFile,
-  });
+function update(options, { run, statfs, now, write, getuid, statFile }) {
+  const repository = checkedRepository(options, { getuid, statFile });
+  const { installRoot, backupsRoot, commit: target } = options;
   const statePath = join(options.dataRoot, "state");
 
-  // 1. The target commit is a commit of the checkout and is on `main`.
-  const target = resolveCommit({
-    run,
-    repository,
-    revision: options.commit,
-    name: "--commit",
-  });
+  const git = ["-C", repository];
   runOrRefuse(
     run,
     "git",
-    [
-      ...gitConfiguration,
-      "-C",
-      repository,
-      "rev-parse",
-      "--verify",
-      "--quiet",
-      "refs/remotes/origin/main",
-    ],
-    `refs/remotes/origin/main of ${repository}`,
+    [...git, "merge-base", "--is-ancestor", target, "refs/remotes/origin/main"],
+    `${target} is not reachable from refs/remotes/origin/main of ${repository}: the check`,
   );
-  const ancestry = run("git", [
-    ...gitConfiguration,
-    "-C",
-    repository,
-    "merge-base",
-    "--is-ancestor",
-    target,
-    "refs/remotes/origin/main",
-  ]);
-  if (ancestry.status !== 0) {
-    refuse(
-      `${target} is not reachable from refs/remotes/origin/main of ${repository}.`,
-    );
-  }
   write(`${target} is reachable from origin/main.\n`);
 
-  // 2. The installed tree must be the recorded revision, or the declared one
-  // on the first run of the command.
-  const recorded = readRecordedRevision(options.installRoot);
-  const declared =
-    options.installed === undefined
-      ? null
-      : resolveCommit({
-          run,
-          repository,
-          revision: options.installed,
-          name: "--installed",
-        });
-  if (recorded === null && declared === null) {
+  const revisionPath = join(installRoot, "agent.REVISION");
+  const recorded = existsSync(revisionPath)
+    ? readFileSync(revisionPath, "utf8").trim()
+    : undefined;
+  if (recorded === undefined && options.installed === undefined) {
     refuse(
-      `There is no ${join(options.installRoot, revisionFile)} yet: pass --installed with the commit the installed tree must match.`,
+      `There is no ${revisionPath} yet: pass --installed with the commit the installed tree must match.`,
     );
   }
-  if (recorded !== null && declared !== null && declared !== recorded) {
+  if (
+    recorded !== undefined &&
+    options.installed !== undefined &&
+    options.installed !== recorded
+  ) {
     refuse(
-      `${join(options.installRoot, revisionFile)} records ${recorded}, and --installed says ${declared}.`,
+      `${revisionPath} records ${recorded}, and --installed says ${options.installed}.`,
     );
   }
-  const installed = recorded ?? declared;
+  const installed = recorded ?? options.installed;
 
   const workRoot = mkdtempSync(join(tmpdir(), "mr-agent-update-"));
   try {
-    const installedTree = archiveTree({
-      run,
-      repository,
-      commit: installed,
-      workRoot,
+    const release = (commit) =>
+      releaseTree({ run, repository, commit, workRoot });
+    assertSameTree({
+      expected: treeDigests(release(installed)),
+      installRoot,
+      message: `The installed tree does not match ${installed}`,
     });
-    const installedDifferences = compareTrees(
-      archiveDigests(installedTree),
-      installedDigests(options.installRoot),
-    );
-    if (installedDifferences.length > 0) {
-      refuse(
-        `The installed tree does not match ${installed}:\n${describeDifferences(installedDifferences)}`,
-      );
-    }
     write(`The installed tree matches ${installed}.\n`);
 
-    // The state layout is checked before the service is stopped, and before
-    // any read resolves a path through it.
-    const stateDirectory = checkedStateDirectory(options.dataRoot);
-
-    // 3. Nothing is in flight and no external result is unknown. The databases
-    // open read-only while the service still runs.
-    const busy = busyLines(statePath);
-    if (busy.length > 0) {
-      refuse(
-        `The service is busy; reconcile the cases and repeat:\n${busy.join("\n")}`,
-      );
-    }
+    // Everything that can refuse runs while the service still works.
+    assertIdle(statePath, "The service is busy");
     write("The service is idle.\n");
 
-    // 4. The sandbox image is checked before anything is stopped.
     const changed = runOrRefuse(
       run,
       "git",
-      [
-        ...gitConfiguration,
-        "-C",
-        repository,
-        "diff",
-        "--name-only",
-        "--no-renames",
-        "--no-ext-diff",
-        "--no-textconv",
-        `${installed}..${target}`,
-        "--",
-      ],
+      [...git, "diff", "--name-only", "--no-renames", installed, target, "--"],
       `git diff ${installed}..${target}`,
     )
-      .stdout.split("\n")
+      .split("\n")
       .filter((path) => path !== "");
-    const imageChanges = changed.filter((path) => imageInputSet.has(path));
+    const imageChanges = changed.filter((path) => imageInputs.includes(path));
     if (imageChanges.length > 0 && !options.imageRebuilt) {
       refuse(
-        `The sandbox image inputs changed:\n${imageChanges.map((path) => `  ${path}`).join("\n")}\n` +
+        `The sandbox image inputs changed:\n  ${imageChanges.join("\n  ")}\n` +
           'Rebuild the image ("Reconstruir la imatge del sandbox" in docs/operations/agent.md) ' +
           "and repeat with --image-rebuilt.",
       );
     }
-    const operatorActions = changed
-      .filter((path) => path.startsWith("tools/server/systemd/"))
-      .map((path) => `${path} changed: reinstall it from ${target}.`);
-    if (changed.includes(".env.example")) {
-      operatorActions.push(
-        ".env.example changed: compare it with agent.env and add the new variables.",
+
+    // `export-subst` makes the archive differ from the reviewed bytes. `git
+    // grep` exits 1 only when no attributes file of the commit mentions it.
+    const substitution = run("git", [
+      ...git,
+      ...["grep", "--quiet", "export-subst", target],
+      ...["--", ":(glob)**/.gitattributes"],
+    ]);
+    if (substitution.status !== 1) {
+      refuse(`Refusing ${target}: its .gitattributes carry export-subst.`);
+    }
+    const targetSource = release(target);
+    const expected = treeDigests(targetSource);
+
+    // The backups hold private state: only root enters this directory.
+    mkdirSync(backupsRoot, { recursive: true });
+    chmodSync(backupsRoot, 0o700);
+    const { bsize, bavail } = statfs(backupsRoot);
+    if (bsize * bavail < minimumBackupBytes) {
+      refuse(
+        `The backup needs ${minimumBackupBytes} free bytes in ${backupsRoot}; free space first ("Retenció" in docs/operations/agent.md).`,
       );
     }
 
-    // The archive of the target is extracted and checked before the service is
-    // stopped: a commit whose archive holds a link or substituted content is
-    // refused with nothing written.
-    const targetTree = archiveTree({
-      run,
-      repository,
-      commit: target,
-      workRoot,
-    });
-    const expected = archiveDigests(targetTree);
-
-    // 5. Stop the service and confirm that it is not active.
     runOrRefuse(
       run,
       "systemctl",
@@ -1240,57 +576,35 @@ function update(
         `systemctl is-active reports ${JSON.stringify(activeState)} after the stop: the service may still work.`,
       );
     }
-    // A turn that started while the service was stopping still counts: nothing
-    // is backed up or replaced while any row is in flight.
-    const busyAfterStop = busyLines(statePath);
-    if (busyAfterStop.length > 0) {
-      refuse(
-        `The service is busy after the stop; reconcile the cases and repeat:\n${busyAfterStop.join("\n")}`,
-      );
-    }
+    // A turn may have started while the service was stopping.
+    assertIdle(statePath, "The service is busy after the stop");
     write("mountain-agent is stopped.\n");
 
-    // 6. Back up the trees, the state and the previous revision.
-    const names = backupNames({
+    const names = createBackups({
+      run,
+      options,
       installed,
       target,
-      timestamp: utcTimestamp(now()),
-    });
-    const { stateBackedUp } = createBackups({
-      run,
-      stream,
-      statfs,
-      options,
-      names,
-      installed,
-      stateDirectory,
+      timestamp: now()
+        .toISOString()
+        .replace(/[-:]|\.\d+/gu, ""),
       write,
     });
 
-    // 7. Install from the checked archive, replacing both trees whole.
-    installTree({ run, tree: targetTree, installRoot: options.installRoot });
-
-    // 8. Every installed file must be the archive file, and only then is the
-    // revision recorded.
-    const differences = compareTrees(
+    installTree({ run, sourceOf: targetSource, installRoot });
+    // The revision is recorded only for a verified tree.
+    assertSameTree({
       expected,
-      installedDigests(options.installRoot),
-    );
-    if (differences.length > 0) {
-      refuse(
-        `The installed tree does not match ${target} after the install:\n${describeDifferences(differences)}\n` +
-          `Restore the backup in ${options.backupsRoot} if the mismatch is not resolved.`,
-      );
-    }
-    const revisionPath = writeRevision(options.installRoot, target);
+      installRoot,
+      message: `Restore the backup in ${backupsRoot} if this is not resolved. The installed tree does not match ${target} after the install`,
+    });
+    writeFileSync(revisionPath, `${target}\n`);
+    chmodSync(revisionPath, 0o644);
 
     report({
-      options,
-      names,
       target,
-      imageChanges,
-      operatorActions,
-      stateBackedUp,
+      changed,
+      backup: names.agent,
       revisionPath,
       write,
     });
@@ -1300,28 +614,24 @@ function update(
 }
 
 /**
- * Run the command and return its exit code. The programs it calls, the roots it
- * works on and the identity checks are injectable, so a test runs it against
- * temporary directories with a fake `systemctl`, `chown`, `runuser` and stream.
+ * Run the command and return its exit code. The programs it calls and the
+ * identity checks are injectable for the tests.
  */
 export function runUpdateCommand({
-  argv = process.argv.slice(2),
+  argv,
   run = runProcess,
-  stream = runProcessToFile,
   statfs = statfsSync,
   now = () => new Date(),
-  roots = defaultRoots,
-  realpath = realpathSync,
   getuid = () => process.getuid(),
   statFile = statSync,
   write = (text) => process.stdout.write(text),
   warn = (message) => process.stderr.write(`${message}\n`),
-} = {}) {
+}) {
   let options;
   try {
-    options = parseArguments(argv, roots);
+    options = parseArguments(argv);
   } catch (error) {
-    warn(`${messageOf(error)}\n\n${usage}`);
+    warn(`${error.message}\n\n${usage}`);
     return 2;
   }
   if (options.help) {
@@ -1329,19 +639,10 @@ export function runUpdateCommand({
     return 0;
   }
   try {
-    update(options, {
-      run,
-      stream,
-      statfs,
-      now,
-      write,
-      realpath,
-      getuid,
-      statFile,
-    });
+    update(options, { run, statfs, now, write, getuid, statFile });
     return 0;
   } catch (error) {
-    warn(messageOf(error));
+    warn(error.message);
     return 1;
   }
 }

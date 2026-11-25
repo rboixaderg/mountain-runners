@@ -11,6 +11,7 @@
 // generated dependency directories are stripped from kept archives and closed
 // topics.
 
+import { spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
@@ -36,6 +37,14 @@ const usage = `Usage: node storage/prune-worktrees.mjs [--dry-run]
 Report or apply archived and finished worktree retention. Stop
 mountain-agent.service before running without --dry-run.
 `;
+
+// Fails closed: only a unit systemd reports as stopped is safe to prune under.
+function serviceState() {
+  const result = spawnSync("systemctl", ["is-active", "mountain-agent"], {
+    encoding: "utf8",
+  });
+  return result.stdout?.trim() ?? "";
+}
 
 function querySingleCount(databasePath, sql) {
   if (!existsSync(databasePath)) {
@@ -104,6 +113,13 @@ async function main() {
   const dryRun = values["dry-run"] === true;
   const config = readAgentConfig(process.env);
   if (!dryRun) {
+    const state = serviceState();
+    if (state !== "inactive" && state !== "failed") {
+      process.stderr.write(
+        `Refusing to prune while systemctl is-active mountain-agent reports ${JSON.stringify(state)}. Stop mountain-agent.service first.\n`,
+      );
+      return 1;
+    }
     const active = activeOrUncertainWorkCount(config.paths.state);
     if (active > 0) {
       process.stderr.write(
