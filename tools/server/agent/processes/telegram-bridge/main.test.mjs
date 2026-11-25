@@ -2,16 +2,9 @@ import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
 import {
   existsSync,
-  linkSync,
-  lstatSync,
   mkdirSync,
   mkdtempSync,
-  readFileSync,
-  readdirSync,
-  realpathSync,
   rmSync,
-  statSync,
-  symlinkSync,
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
@@ -41,45 +34,6 @@ import {
 } from "./main.mjs";
 
 const executeFile = promisify(execFile);
-
-/** A clone with an initial commit, plus the legacy worktree of one topic. */
-async function repositoryWithLegacyWorktree(environment) {
-  const repository = environment.MOUNTAIN_AGENT_REPOSITORY_PATH;
-  const worktreeRoot = environment.MOUNTAIN_AGENT_WORKTREE_PATH;
-  const origin = `${repository}-origin.git`;
-  await executeFile("git", ["init", "--bare", "--initial-branch=main", origin]);
-  await executeFile("git", ["clone", origin, repository]);
-  writeFileSync(join(repository, "README.md"), "synthetic\n");
-  await executeFile("git", [
-    "-C",
-    repository,
-    "-c",
-    "user.name=Synthetic",
-    "-c",
-    "user.email=synthetic@example.test",
-    "add",
-    "README.md",
-  ]);
-  await executeFile("git", [
-    "-C",
-    repository,
-    "-c",
-    "user.name=Synthetic",
-    "-c",
-    "user.email=synthetic@example.test",
-    "commit",
-    "-m",
-    "chore: initial",
-  ]);
-  await executeFile("git", ["-C", repository, "push", "origin", "main"]);
-  const worktree = await ensureSessionWorktree({
-    repositoryPath: repository,
-    worktreeRoot,
-    name: "topic_n1001234567890_7",
-  });
-  writeFileSync(join(worktree.path, "pending.txt"), "preserved\n");
-  return worktree;
-}
 
 /** A stand-in for the Pi command that only answers `--version`. */
 function fakePi(directory, version) {
@@ -720,65 +674,6 @@ test("resumes a preview awaiting the publisher after a restart", async (context)
   assert.equal(trace.author_identifier, 555);
 });
 
-test("starts with finished and legacy preview requests it no longer reads", async (context) => {
-  const { environment, statePath } = environmentFor(context);
-  mkdirSync(statePath, { recursive: true });
-  const path = join(statePath, "preview-request.sqlite");
-  new PreviewRequestStore(path).close();
-  // The rows the current service ends with and a row left by the service that
-  // still posted `/preview`: the schema keeps them all, the service no longer
-  // reads the legacy row and no row blocks the start.
-  const rows = [
-    [30, "uncertain"],
-    [31, "confirmed"],
-    [32, "timed_out"],
-    [33, "failed"],
-  ];
-  const database = new DatabaseSync(path);
-  const insert = database.prepare(
-    `INSERT INTO preview_requests
-     (update_identifier, session_key, author_identifier, pull_request_number,
-      commit_sha, state, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-  );
-  for (const [updateIdentifier, state] of rows) {
-    insert.run(
-      updateIdentifier,
-      "-1001234567890:7",
-      555,
-      200,
-      "a".repeat(40),
-      state,
-      "2026-11-14T10:00:00.000Z",
-      "2026-11-14T10:00:00.000Z",
-    );
-  }
-  database.close();
-
-  const service = await startService({
-    environment,
-    telegram: telegramStub(),
-    github: {},
-    runner: async () => ({}),
-  });
-  context.after(() => {
-    service.previewRequests.close();
-    service.ciWatches.close();
-    service.queue.close();
-  });
-
-  for (const [updateIdentifier, state] of rows) {
-    assert.equal(service.previewRequests.state(updateIdentifier), state);
-  }
-  assert.deepEqual(service.previewRequests.awaiting(), []);
-  assert.equal(
-    service.queue
-      .traceEntries()
-      .some((entry) => entry.action === "preview_uncertain"),
-    false,
-  );
-});
-
 test("runs the preview watcher beside the bridge and stops it with the service", async () => {
   const controller = new AbortController();
   let stopped = false;
@@ -1238,7 +1133,6 @@ test("refuses the merge while the topic has another instruction waiting", async 
 test("keeps the older notice blocked after reconciling a publication without a watch", async (context) => {
   const { directory, environment, statePath } = environmentFor(context);
   mkdirSync(statePath, { recursive: true });
-  // The installation already ran the identifier migration.
   openIdentifierNames(statePath);
   const topic = "-1001234567890:7";
   const greenCommit = "a".repeat(40);
@@ -1551,203 +1445,6 @@ test("verifies the membership again when the preview request runs", async (conte
     { chatIdentifier: "-1001234567890", userIdentifier: 555 },
     { chatIdentifier: "-1001234567890", userIdentifier: 555 },
   ]);
-});
-
-test("renames a legacy worktree and creates the private salt before serving", async (context) => {
-  const { directory, environment, statePath } = environmentFor(context);
-  const legacy = await repositoryWithLegacyWorktree(environment);
-  const service = await startService({
-    environment,
-    signal: new AbortController().signal,
-    telegram: telegramStub(),
-    github: {},
-    runner: async () => ({ outcome: "answered", report: "ok" }),
-  });
-
-  try {
-    const names = openIdentifierNames(statePath);
-    const migrated = join(
-      environment.MOUNTAIN_AGENT_WORKTREE_PATH,
-      names.worktreeName("-1001234567890:7"),
-    );
-    assert.equal(existsSync(migrated), true);
-    assert.equal(existsSync(legacy.path), false);
-    assert.equal(
-      existsSync(join(migrated, "pending.txt")),
-      true,
-      "the worktree keeps its work",
-    );
-    const worktreeName = names.worktreeName("-1001234567890:7");
-    assert.equal(
-      readFileSync(join(migrated, ".git"), "utf8"),
-      `gitdir: ${join(
-        realpathSync(environment.MOUNTAIN_AGENT_REPOSITORY_PATH),
-        ".git",
-        "worktrees",
-        worktreeName,
-      )}\n`,
-      "the marker the sandbox reads names the opaque administrative directory",
-    );
-    assert.deepEqual(
-      readdirSync(
-        join(environment.MOUNTAIN_AGENT_REPOSITORY_PATH, ".git", "worktrees"),
-      ),
-      [worktreeName],
-    );
-    const saltPath = join(statePath, "identifier-salt");
-    assert.equal((statSync(saltPath).mode & 0o777).toString(8), "600");
-    assert.equal(
-      readFileSync(saltPath, "utf8").includes("1001234567890"),
-      false,
-      "the salt is random and carries no identifier",
-    );
-    assert.equal(directory.includes("topic_"), false);
-  } finally {
-    service.ciWatches.close();
-    service.previewRequests.close();
-    service.mergeRequests.close();
-    service.queue.close();
-  }
-});
-
-test("refuses to start when a legacy worktree cannot be renamed", async (context) => {
-  const { environment, statePath } = environmentFor(context);
-  await repositoryWithLegacyWorktree(environment);
-  const names = openIdentifierNames(statePath);
-  mkdirSync(
-    join(
-      environment.MOUNTAIN_AGENT_WORKTREE_PATH,
-      names.worktreeName("-1001234567890:7"),
-    ),
-    { recursive: true },
-  );
-  const events = [];
-
-  await assert.rejects(
-    startService({
-      environment,
-      signal: new AbortController().signal,
-      logger: (event) => events.push(event),
-      telegram: telegramStub(),
-      github: {},
-      runner: async () => ({ outcome: "answered", report: "ok" }),
-    }),
-    { message: /could not be renamed/u },
-  );
-  assert.deepEqual(events, ["worktree_migration_failed"]);
-});
-
-test("refuses to start when a worktree Git marker is a symbolic link", async (context) => {
-  const { directory, environment, statePath } = environmentFor(context);
-  const worktree = await repositoryWithLegacyWorktree(environment);
-  const witness = join(directory, "private-state.sqlite");
-  writeFileSync(witness, "private\n");
-  rmSync(join(worktree.path, ".git"));
-  symlinkSync(witness, join(worktree.path, ".git"));
-  const events = [];
-  const details = [];
-
-  await assert.rejects(
-    startService({
-      environment,
-      signal: new AbortController().signal,
-      logger: (event, detail) => {
-        events.push(event);
-        details.push(detail);
-      },
-      telegram: telegramStub(),
-      github: {},
-      runner: async () => ({ outcome: "answered", report: "ok" }),
-    }),
-    { message: /could not be renamed/u },
-  );
-  const names = openIdentifierNames(statePath);
-  assert.deepEqual(events, [
-    "worktree_marker_untrusted",
-    "worktree_migration_failed",
-  ]);
-  assert.equal(details[0], names.worktreeName("-1001234567890:7"));
-  assert.match(details[1], /not a regular file/u);
-  assert.equal(readFileSync(witness, "utf8"), "private\n");
-  assert.equal(lstatSync(join(worktree.path, ".git")).isSymbolicLink(), true);
-  assert.equal(
-    existsSync(
-      join(environment.MOUNTAIN_AGENT_WORKTREE_PATH, "topic_n1001234567890_7"),
-    ),
-    true,
-    "nothing is renamed",
-  );
-});
-
-/** The start refusal shared by an untrusted marker and an untrusted gitdir. */
-async function assertStartRefused({ environment, statePath, events, details }) {
-  await assert.rejects(
-    startService({
-      environment,
-      signal: new AbortController().signal,
-      logger: (event, detail) => {
-        events.push(event);
-        details.push(detail);
-      },
-      telegram: telegramStub(),
-      github: {},
-      runner: async () => ({ outcome: "answered", report: "ok" }),
-    }),
-    { message: /could not be renamed/u },
-  );
-  const names = openIdentifierNames(statePath);
-  assert.deepEqual(events, [
-    "worktree_marker_untrusted",
-    "worktree_migration_failed",
-  ]);
-  assert.equal(details[0], names.worktreeName("-1001234567890:7"));
-  assert.match(details[1], /not a regular file with one link/u);
-  assert.equal(
-    existsSync(
-      join(environment.MOUNTAIN_AGENT_WORKTREE_PATH, "topic_n1001234567890_7"),
-    ),
-    true,
-    "nothing is renamed",
-  );
-}
-
-test("refuses to start when the worktree Git marker is a hard link", async (context) => {
-  const { directory, environment, statePath } = environmentFor(context);
-  const worktree = await repositoryWithLegacyWorktree(environment);
-  const markerPath = join(worktree.path, ".git");
-  const witness = join(directory, "private-state.sqlite");
-  writeFileSync(witness, `gitdir: ${worktree.gitDirectory}\n`);
-  rmSync(markerPath);
-  linkSync(witness, markerPath);
-  const events = [];
-  const details = [];
-
-  await assertStartRefused({ environment, statePath, events, details });
-
-  assert.equal(
-    readFileSync(witness, "utf8"),
-    `gitdir: ${worktree.gitDirectory}\n`,
-  );
-  assert.equal(statSync(markerPath).nlink, 2);
-  assert.equal(lstatSync(markerPath).isFile(), true);
-});
-
-test("refuses to start when the administrative gitdir file is a hard link", async (context) => {
-  const { directory, environment, statePath } = environmentFor(context);
-  const worktree = await repositoryWithLegacyWorktree(environment);
-  const gitdirPath = join(worktree.gitDirectory, "gitdir");
-  const registration = readFileSync(gitdirPath, "utf8");
-  const witness = join(directory, "private-state.sqlite");
-  writeFileSync(witness, registration);
-  rmSync(gitdirPath);
-  linkSync(witness, gitdirPath);
-  const events = [];
-  const details = [];
-
-  await assertStartRefused({ environment, statePath, events, details });
-
-  assert.equal(readFileSync(witness, "utf8"), registration);
-  assert.equal(statSync(gitdirPath).nlink, 2);
 });
 
 test("prunes a finished topic worktree when idle and skips it while an instruction is running", async (context) => {

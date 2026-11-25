@@ -1077,47 +1077,6 @@ test("keeps an unconfirmed sandbox stop uncertain even if inventory cleanup fail
   assert.equal(existsSync(directory), true);
 });
 
-test("stops an ambiguous legacy topic before the model or any publication", async (context) => {
-  const paths = await fixture(context);
-  mkdirSync(paths.state, { recursive: true });
-  const topicJobs = new TopicJobStore(join(paths.state, "topic-jobs.sqlite"));
-  const ciWatches = new CiWatchStore(join(paths.state, "ci-watch.sqlite"));
-  context.after(() => {
-    topicJobs.close();
-    ciWatches.close();
-  });
-  for (const number of [200, 201]) {
-    ciWatches.add({
-      updateIdentifier: number,
-      sessionKey: topicSessionKey,
-      pullRequestNumber: number,
-      commitSha: "a".repeat(40),
-    });
-  }
-  const github = githubStub();
-  github.getPullRequest = async ({ number }) => ({
-    state: "open",
-    baseRef: "main",
-    headRepository: "rboixaderg/mountain-runners",
-    headRef: `feat/agent-change-${number}`,
-  });
-  const runner = createProjectRunner({
-    config: configFor(paths),
-    github,
-    ciWatches,
-    topicJobs,
-    classifyRequest: async () => assert.fail("classification must not run"),
-    runModel: async () => assert.fail("model must not run"),
-  });
-
-  const result = await runner(request());
-  assert.equal(result.outcome, "failed");
-  assert.match(result.report, /persona que manté el servei/u);
-  assert.equal(topicJobs.bindingOf(topicSessionKey), null);
-  assert.deepEqual(github.pushes, []);
-  assert.equal(existsSync(topicWorktreePath(paths)), false);
-});
-
 async function runMainSync(
   context,
   {
@@ -3039,7 +2998,7 @@ test("gives the sandbox an opaque name that carries no chat or topic", async (co
   assert.doesNotMatch(gitMarker, /1001234567890/u);
   assert.doesNotMatch(gitMarker, /topic_n/u);
   // `git worktree add` names the administrative directory after the worktree,
-  // so a worktree created after the migration is opaque from the start.
+  // so a new worktree is opaque from the start.
   assert.equal(
     gitMarker.trim(),
     `gitdir: ${join(paths.repository, ".git", "worktrees", opaqueName)}`,

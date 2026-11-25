@@ -115,55 +115,6 @@ test("keeps the pending watch of another pull request", (context) => {
   store.close();
 });
 
-test("widens the state check of a store created before superseding", (context) => {
-  const path = fixture(context);
-  // The previous schema could not hold a superseded watch: opening it rebuilds
-  // the table once and keeps its rows.
-  const previous = new DatabaseSync(path);
-  previous.exec(`
-    CREATE TABLE ci_watches (
-      update_identifier INTEGER PRIMARY KEY,
-      session_key TEXT NOT NULL,
-      pull_request_number INTEGER NOT NULL,
-      commit_sha TEXT NOT NULL,
-      state TEXT NOT NULL CHECK (state IN ('pending', 'sending', 'sent', 'uncertain')),
-      result TEXT,
-      created_at TEXT NOT NULL,
-      updated_at TEXT NOT NULL
-    );
-    INSERT INTO ci_watches
-      (update_identifier, session_key, pull_request_number, commit_sha, state,
-       result, created_at, updated_at)
-    VALUES (12, '-100123:7', 123, '${"a".repeat(40)}', 'pending', NULL,
-            '2026-11-14T10:00:00Z', '2026-11-14T10:00:00Z');
-  `);
-  previous.close();
-
-  const store = new CiWatchStore(path);
-  store.add({ ...request, updateIdentifier: 13, commitSha: "b".repeat(40) });
-  assert.equal(store.state(12), "superseded");
-  assert.deepEqual(
-    store.pending().map((row) => row.update_identifier),
-    [13],
-  );
-  store.close();
-
-  // The indexes of the rebuilt table were created in the same transaction.
-  const database = new DatabaseSync(path, { readOnly: true });
-  const indexes = database
-    .prepare(
-      `SELECT name FROM sqlite_master
-       WHERE type = 'index' AND tbl_name = 'ci_watches' ORDER BY name`,
-    )
-    .all()
-    .map((row) => row.name);
-  database.close();
-  assert.deepEqual(indexes, [
-    "ci_watches_pull_request",
-    "ci_watches_topic_state",
-  ]);
-});
-
 test("does not send a successfully recorded notification twice", (context) => {
   const path = fixture(context);
   const store = new CiWatchStore(path);

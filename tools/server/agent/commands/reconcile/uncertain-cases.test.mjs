@@ -61,8 +61,8 @@ async function fixture(context) {
   const worktreeRoot = join(directory, "worktrees");
   const state = join(directory, "state");
   mkdirSync(state);
-  // The installation already ran the identifier migration: instruction cases
-  // can be attributed without the command creating anything.
+  // The installation has its salt: instruction cases can be attributed without
+  // the command creating anything.
   openIdentifierNames(state);
 
   await executeFile("git", ["init", "--bare", "--initial-branch=main", origin]);
@@ -113,7 +113,6 @@ async function topicWorktree({ config, sessionKey, updateIdentifier }) {
     repositoryPath: config.paths.repository,
     worktreeRoot: config.paths.worktrees,
     name: names.worktreeName(sessionKey),
-    newTaskSuffix: names.changeSuffix(updateIdentifier),
   });
   const branch = `feat/agent-change-${names.changeSuffix(updateIdentifier)}`;
   await createBranch({ worktree, branch });

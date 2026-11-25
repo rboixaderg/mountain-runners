@@ -96,7 +96,6 @@ test("an awaiting request survives a restart with its deadline reference", (cont
 
   store = new PreviewRequestStore(path);
   const [row] = store.awaiting();
-  assert.equal(row.commented_at, null);
   assert.equal(row.updated_at, "2026-11-14T10:00:01.000Z");
   store.close();
 });
@@ -164,43 +163,41 @@ test("ends a request only in a terminal state and never without its origin", (co
   store.close();
 });
 
-test("adds the confirmed origin and the notice identifier to a store created before they were kept", (context) => {
+test("opens a deployed store that keeps an older column and state check", (context) => {
   const path = fixture(context);
-  const previous = new DatabaseSync(path);
-  previous.exec(`
+  const deployed = new DatabaseSync(path);
+  deployed.exec(`
     CREATE TABLE preview_requests (
       update_identifier INTEGER PRIMARY KEY,
       session_key TEXT NOT NULL,
       author_identifier INTEGER NOT NULL,
       pull_request_number INTEGER NOT NULL,
       commit_sha TEXT NOT NULL,
-      state TEXT NOT NULL,
+      state TEXT NOT NULL CHECK (state IN ('commenting', 'awaiting', 'confirmed', 'timed_out', 'failed', 'uncertain')),
       commented_at TEXT,
+      confirmed_origin TEXT,
+      notice_message_identifier INTEGER,
+      merge_synchronization INTEGER NOT NULL DEFAULT 0,
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL
     );
-    INSERT INTO preview_requests
-      (update_identifier, session_key, author_identifier, pull_request_number,
-       commit_sha, state, created_at, updated_at)
-    VALUES (1, '-100123:7', 555, 42, '${"a".repeat(40)}', 'confirmed',
-            '2026-11-14T10:00:00Z', '2026-11-14T10:00:00Z');
+    CREATE INDEX preview_requests_state_commented
+      ON preview_requests (state, commented_at);
   `);
-  previous.close();
+  deployed.close();
 
   const store = new PreviewRequestStore(path);
-  const row = readRequest(path, 1);
-  assert.equal(row.confirmed_origin, null);
-  assert.equal(row.notice_message_identifier, null);
+  context.after(() => store.close());
+  assert.equal(store.begin(request), previewBeginResults.begun);
+  store.track({ ...request, updateIdentifier: 2, commitSha: newerCommit });
   assert.equal(
-    store.deliveredPublicationPreview({
-      sessionKey: "-100123:7",
-      updateIdentifier: 1,
-      pullRequestNumber: 42,
-      commitSha: "a".repeat(40),
-    }),
-    null,
+    store.finish(1, request.commitSha, previewStates.confirmed, previewOrigin),
+    true,
   );
-  store.close();
+  assert.deepEqual(
+    store.awaiting().map((row) => row.update_identifier),
+    [2],
+  );
 });
 
 test("follows a publication of the service as an awaiting request", (context) => {

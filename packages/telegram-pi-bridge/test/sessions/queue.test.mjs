@@ -215,66 +215,6 @@ test("creates the indexes that back the queue queries", (context) => {
   }
 });
 
-test("rolls the migration back when it fails", (context) => {
-  const path = databasePath(context);
-  const database = new DatabaseSync(path);
-  database.exec(`
-    CREATE TABLE instructions (
-      sequence INTEGER PRIMARY KEY,
-      update_identifier INTEGER NOT NULL UNIQUE,
-      message_identifier INTEGER NOT NULL,
-      session_key TEXT NOT NULL,
-      author_identifier INTEGER NOT NULL,
-      instruction TEXT NOT NULL,
-      attachment TEXT,
-      status TEXT NOT NULL CHECK (status IN ('pending', 'running', 'uncertain', 'done', 'rejected')),
-      outcome TEXT,
-      created_at TEXT NOT NULL
-    );
-    CREATE TRIGGER refuse_migration BEFORE UPDATE ON instructions
-    BEGIN SELECT RAISE(ABORT, 'synthetic migration failure'); END;
-  `);
-  database
-    .prepare(
-      `INSERT INTO instructions
-         (update_identifier, message_identifier, session_key, author_identifier, instruction, attachment, status, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-    )
-    .run(
-      1,
-      1001,
-      "-1001234567890:7",
-      42,
-      "instruction 1",
-      "{}",
-      "pending",
-      "2026-01-01T00:00:00.000Z",
-    );
-  database.close();
-
-  assert.throws(
-    () => new AdmissionQueue(path, { maxPending: 10 }),
-    /synthetic migration failure/u,
-  );
-
-  const check = new DatabaseSync(path);
-  try {
-    const columns = check.prepare("PRAGMA table_info(instructions)").all();
-    assert.equal(
-      columns.some((column) => column.name === "attachments"),
-      false,
-      "the failed migration left the old schema",
-    );
-    assert.equal(
-      columns.some((column) => column.name === "reply_message_identifier"),
-      false,
-      "the failed migration left no partial reply column",
-    );
-  } finally {
-    check.close();
-  }
-});
-
 test("persists the Telegram offset and appends private trace entries", (context) => {
   const path = databasePath(context);
   let queue = new AdmissionQueue(path, { maxPending: 10 });
@@ -401,36 +341,6 @@ test("only stores a strict true marker with a reply identifier", (context) => {
   queue.close();
 });
 
-test("migrates existing reply identifiers without inferring exact text", (context) => {
-  const path = databasePath(context);
-  const database = new DatabaseSync(path);
-  database.exec(`
-    CREATE TABLE instructions (
-      sequence INTEGER PRIMARY KEY,
-      update_identifier INTEGER NOT NULL UNIQUE,
-      message_identifier INTEGER NOT NULL,
-      session_key TEXT NOT NULL,
-      author_identifier INTEGER NOT NULL,
-      instruction TEXT NOT NULL,
-      attachments TEXT,
-      reply_message_identifier INTEGER,
-      status TEXT NOT NULL,
-      outcome TEXT,
-      created_at TEXT NOT NULL
-    );
-    INSERT INTO instructions
-      (update_identifier, message_identifier, session_key, author_identifier,
-       instruction, reply_message_identifier, status, created_at)
-    VALUES (1, 1001, '-1001234567890:7', 42, 'Sí, envia-ho', 49, 'pending', '2026-01-01');
-  `);
-  database.close();
-  const queue = new AdmissionQueue(path, { maxPending: 10 });
-  const admitted = queue.next();
-  assert.equal(admitted.replyMessageIdentifier, 49);
-  assert.equal(admitted.exactDirectReply, false);
-  queue.close();
-});
-
 test("tells whether the same topic has intervening instructions", (context) => {
   const queue = new AdmissionQueue(databasePath(context), { maxPending: 10 });
   const sessionKey = "-1001234567890:7";
@@ -517,135 +427,16 @@ test("tells whether the same topic has intervening instructions", (context) => {
   queue.close();
 });
 
-test("migrates the single attachment column into a list", (context) => {
+test("opens a deployed database that keeps the old attachment column", (context) => {
   const path = databasePath(context);
-  const database = new DatabaseSync(path);
-  database.exec(`
-    CREATE TABLE instructions (
-      sequence INTEGER PRIMARY KEY,
-      update_identifier INTEGER NOT NULL UNIQUE,
-      message_identifier INTEGER NOT NULL,
-      session_key TEXT NOT NULL,
-      author_identifier INTEGER NOT NULL,
-      instruction TEXT NOT NULL,
-      attachment TEXT,
-      status TEXT NOT NULL CHECK (status IN ('pending', 'running', 'uncertain', 'done', 'rejected')),
-      outcome TEXT,
-      created_at TEXT NOT NULL
-    );
-  `);
-  database
-    .prepare(
-      `INSERT INTO instructions
-         (update_identifier, message_identifier, session_key, author_identifier, instruction, attachment, status, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-    )
-    .run(
-      1,
-      1001,
-      "-1001234567890:7",
-      42,
-      "instruction 1",
-      JSON.stringify({
-        fileIdentifier: "telegram-file",
-        fileUniqueIdentifier: "telegram-unique-file",
-        fileName: "portada.png",
-        mimeType: "image/png",
-        fileSize: 1200000,
-        origin: "message",
-      }),
-      "pending",
-      "2026-01-01T00:00:00.000Z",
-    );
-  database.close();
+  new AdmissionQueue(path, { maxPending: 10 }).close();
+  const deployed = new DatabaseSync(path);
+  deployed.exec("ALTER TABLE instructions ADD COLUMN attachment TEXT");
+  deployed.close();
 
   const queue = new AdmissionQueue(path, { maxPending: 10 });
-  const migrated = queue.next();
-  assert.deepEqual(migrated.attachments, [
-    {
-      fileIdentifier: "telegram-file",
-      fileUniqueIdentifier: "telegram-unique-file",
-      fileName: "portada.png",
-      mimeType: "image/png",
-      fileSize: 1200000,
-      origin: "message",
-    },
-  ]);
-  assert.equal(migrated.replyMessageIdentifier, null);
-  assert.equal(migrated.exactDirectReply, false);
-  queue.complete(1, "answered");
-
-  const attachments = [
-    {
-      fileIdentifier: "telegram-file",
-      fileUniqueIdentifier: "telegram-unique-file",
-      fileName: "foto.jpg",
-      mimeType: "image/jpeg",
-      fileSize: 900000,
-      origin: "reply",
-    },
-  ];
-  assert.equal(queue.admit(request(2, { attachments })), "accepted");
-  assert.deepEqual(queue.next().attachments, attachments);
-  queue.close();
-});
-
-test("migrates a deployed database that has attachments but no reply column", (context) => {
-  const path = databasePath(context);
-  const database = new DatabaseSync(path);
-  database.exec(`
-    CREATE TABLE instructions (
-      sequence INTEGER PRIMARY KEY,
-      update_identifier INTEGER NOT NULL UNIQUE,
-      message_identifier INTEGER NOT NULL,
-      session_key TEXT NOT NULL,
-      author_identifier INTEGER NOT NULL,
-      instruction TEXT NOT NULL,
-      attachments TEXT,
-      status TEXT NOT NULL CHECK (status IN ('pending', 'running', 'uncertain', 'done', 'rejected')),
-      outcome TEXT,
-      created_at TEXT NOT NULL
-    );
-  `);
-  const existingAttachments = [
-    {
-      fileIdentifier: "telegram-file",
-      fileUniqueIdentifier: "telegram-unique-file",
-      fileName: "portada.png",
-      mimeType: "image/png",
-      fileSize: 1200000,
-      origin: "message",
-    },
-  ];
-  database
-    .prepare(
-      `INSERT INTO instructions
-         (update_identifier, message_identifier, session_key, author_identifier, instruction, attachments, status, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-    )
-    .run(
-      1,
-      1001,
-      "-1001234567890:7",
-      42,
-      "instruction 1",
-      JSON.stringify(existingAttachments),
-      "pending",
-      "2026-01-01T00:00:00.000Z",
-    );
-  database.close();
-
-  const queue = new AdmissionQueue(path, { maxPending: 10 });
-  const migrated = queue.next();
-  assert.deepEqual(migrated.attachments, existingAttachments);
-  assert.equal(migrated.replyMessageIdentifier, null);
-  queue.complete(1, "answered");
-
-  assert.equal(
-    queue.admit(request(2, { replyMessageIdentifier: 90 })),
-    "accepted",
-  );
-  assert.equal(queue.next().replyMessageIdentifier, 90);
+  assert.equal(queue.admit(request(1)), "accepted");
+  assert.deepEqual(queue.next().attachments, []);
   queue.close();
 });
 

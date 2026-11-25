@@ -7,7 +7,6 @@ import {
   createIdentifierNames,
   identifierSaltPath,
   openIdentifierNames,
-  parseLegacyWorktreeName,
   readOrCreateIdentifierSalt,
 } from "./identifiers.mjs";
 
@@ -48,17 +47,6 @@ test("derives a stable opaque branch suffix that changes with the salt", () => {
   );
 });
 
-test("names an archive with an opaque suffix instead of the update identifier", () => {
-  const identifiers = createIdentifierNames({ salt });
-  const archive = identifiers.archiveName(
-    identifiers.worktreeName(sessionKey),
-    1001,
-  );
-
-  assert.match(archive, /^topic-[0-9a-f]{16}-before-[0-9a-f]{8}$/u);
-  assert.equal(archive.includes("1001"), false);
-});
-
 test("rejects an invalid salt and an invalid update identifier", () => {
   assert.throws(
     () => createIdentifierNames({ salt: "synthetic" }),
@@ -91,32 +79,4 @@ test("creates the salt once in the private state directory", (context) => {
     openIdentifierNames(stateDirectory).worktreeName(sessionKey),
     createIdentifierNames({ salt: first }).worktreeName(sessionKey),
   );
-});
-
-test("reads back the private key a pre-migration worktree name encodes", () => {
-  assert.deepEqual(parseLegacyWorktreeName("topic_n1001234567890_7"), {
-    sessionKey,
-    updateIdentifier: null,
-  });
-  assert.deepEqual(
-    parseLegacyWorktreeName("topic_n1001234567890_7-before-1001"),
-    { sessionKey, updateIdentifier: 1001 },
-  );
-  assert.deepEqual(parseLegacyWorktreeName("topic_1001234567890_7"), {
-    sessionKey: "1001234567890:7",
-    updateIdentifier: null,
-  });
-  assert.equal(parseLegacyWorktreeName("topic-0123456789abcdef"), null);
-  assert.equal(parseLegacyWorktreeName("synthetic"), null);
-});
-
-test("rejects a legacy name that mixes the negative prefix with digits", () => {
-  for (const name of [
-    "topic_nn1001234567890_7",
-    "topic_12n34_7",
-    "topic_n_7",
-    "topic_n-1001234567890_7",
-  ]) {
-    assert.equal(parseLegacyWorktreeName(name), null, name);
-  }
 });

@@ -22,21 +22,16 @@ const saltPattern = /^[0-9a-f]{64}$/u;
 const worktreeNameLength = 16;
 // The public branch suffix keeps a branch name short and greppable.
 const changeSuffixLength = 8;
-// The one naming scheme this service wrote before the opaque names. Only the
-// startup migration reads it.
-const legacyWorktreePattern = /^topic_(n?\d+)_(\d+)(?:-before-(\d+))?$/u;
 
 export function identifierSaltPath(stateDirectory) {
   return join(stateDirectory, identifierSaltFileName);
 }
 
-/** Read the installation salt; a missing file means the migration never ran. */
+/** Read the installation salt without ever creating it. */
 export function readIdentifierSalt(stateDirectory) {
   const saltPath = identifierSaltPath(stateDirectory);
   if (!existsSync(saltPath)) {
-    throw new Error(
-      `The identifier salt ${saltPath} is missing; run the identifier migration first.`,
-    );
+    throw new Error(`The identifier salt ${saltPath} is missing.`);
   }
   return checkedSalt(saltPath);
 }
@@ -77,8 +72,7 @@ function digest(salt, value) {
 
 /**
  * The naming helpers of one installation. Every place that needs the name of a
- * topic worktree, of an archived worktree or of a public branch asks here, so a
- * single salt and a single derivation rule produce them all.
+ * topic worktree or of a public branch asks here, so a single salt and a single derivation rule produce them all.
  */
 export function createIdentifierNames({ salt }) {
   if (!saltPattern.test(salt ?? "")) {
@@ -101,12 +95,7 @@ export function createIdentifierNames({ salt }) {
     return digest(salt, String(updateIdentifier)).slice(0, changeSuffixLength);
   }
 
-  /** The directory name of the worktree a new task archived. */
-  function archiveName(name, updateIdentifier) {
-    return `${name}-before-${changeSuffix(updateIdentifier)}`;
-  }
-
-  return { worktreeName, changeSuffix, archiveName };
+  return { worktreeName, changeSuffix };
 }
 
 /** The naming helpers of the installation that owns `stateDirectory`. */
@@ -114,23 +103,4 @@ export function openIdentifierNames(stateDirectory) {
   return createIdentifierNames({
     salt: readOrCreateIdentifierSalt(stateDirectory),
   });
-}
-
-/**
- * The private session key a pre-migration worktree name encodes, or null. This
- * is the only reader of the old scheme, used once to rename what it names.
- */
-export function parseLegacyWorktreeName(name) {
-  const parsed = legacyWorktreePattern.exec(name);
-  if (parsed === null) {
-    return null;
-  }
-  const chatPart = parsed[1];
-  const chatIdentifier = chatPart.startsWith("n")
-    ? `-${chatPart.slice(1)}`
-    : chatPart;
-  return {
-    sessionKey: `${chatIdentifier}:${parsed[2]}`,
-    updateIdentifier: parsed[3] === undefined ? null : Number(parsed[3]),
-  };
 }

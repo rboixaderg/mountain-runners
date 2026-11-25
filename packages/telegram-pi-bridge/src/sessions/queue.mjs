@@ -66,43 +66,8 @@ export class AdmissionQueue {
     this.#database = new DatabaseSync(path);
     this.#database.exec(`PRAGMA busy_timeout = ${busyTimeoutMilliseconds}`);
     this.#database.exec(schema);
-    this.#migrate();
     this.#maxPending = maxPending;
     this.#now = now;
-  }
-
-  // An existing database predates the attachment and reply columns. The
-  // migration is idempotent: it adds each column when it is missing and copies
-  // a single image into the list the queue now stores.
-  #migrate() {
-    // One transaction: a migration that fails leaves the old schema and the old
-    // rows exactly as they were.
-    this.#transaction(() => {
-      const columns = this.#database
-        .prepare("PRAGMA table_info(instructions)")
-        .all()
-        .map((column) => column.name);
-      if (!columns.includes("attachments")) {
-        this.#database.exec(
-          "ALTER TABLE instructions ADD COLUMN attachments TEXT",
-        );
-        if (columns.includes("attachment")) {
-          this.#database.exec(
-            "UPDATE instructions SET attachments = '[' || attachment || ']' WHERE attachment IS NOT NULL",
-          );
-        }
-      }
-      if (!columns.includes("reply_message_identifier")) {
-        this.#database.exec(
-          "ALTER TABLE instructions ADD COLUMN reply_message_identifier INTEGER",
-        );
-      }
-      if (!columns.includes("exact_direct_reply")) {
-        this.#database.exec(
-          "ALTER TABLE instructions ADD COLUMN exact_direct_reply INTEGER NOT NULL DEFAULT 0 CHECK (exact_direct_reply IN (0, 1))",
-        );
-      }
-    });
   }
 
   #transaction(callback) {

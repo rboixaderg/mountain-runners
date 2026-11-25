@@ -14,7 +14,7 @@
 
 import { openDatabase, runTransaction } from "./sqlite.mjs";
 
-const watchesTable = `
+const schema = `
   CREATE TABLE IF NOT EXISTS ci_watches (
     update_identifier INTEGER PRIMARY KEY,
     session_key TEXT NOT NULL,
@@ -25,47 +25,11 @@ const watchesTable = `
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL
   );
-`;
-
-const watchesIndexes = `
   CREATE INDEX IF NOT EXISTS ci_watches_topic_state
     ON ci_watches (session_key, state);
   CREATE INDEX IF NOT EXISTS ci_watches_pull_request
     ON ci_watches (pull_request_number, update_identifier);
 `;
-
-const schema = `${watchesTable}${watchesIndexes}`;
-
-/**
- * A store created before a watch could be superseded still carries the old
- * state check. SQLite cannot widen a check in place, so the table is rebuilt
- * once, keeping every row. The indexes follow the renamed table, so they are
- * created again for the new one.
- */
-function ensureSupersededState(database) {
-  const definition = database
-    .prepare(
-      "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'ci_watches'",
-    )
-    .get()?.sql;
-  if (definition === undefined || definition.includes("'superseded'")) {
-    return;
-  }
-  runTransaction(database, () => {
-    database.exec(`
-      ALTER TABLE ci_watches RENAME TO ci_watches_previous;
-      ${watchesTable}
-      INSERT INTO ci_watches
-        (update_identifier, session_key, pull_request_number, commit_sha, state,
-         result, created_at, updated_at)
-      SELECT update_identifier, session_key, pull_request_number, commit_sha,
-             state, result, created_at, updated_at
-      FROM ci_watches_previous;
-      DROP TABLE ci_watches_previous;
-      ${watchesIndexes}
-    `);
-  });
-}
 
 export class CiWatchStore {
   #database;
@@ -74,7 +38,6 @@ export class CiWatchStore {
   constructor(path, { now = () => new Date() } = {}) {
     this.#database = openDatabase(path);
     this.#database.exec(schema);
-    ensureSupersededState(this.#database);
     this.#now = now;
   }
 

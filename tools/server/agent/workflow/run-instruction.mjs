@@ -136,7 +136,6 @@ export function createInstructionRunner({
   // yet and the last text it received. Without it the service keeps neither.
   sessionNotes,
   topicJobs,
-  migrateTopicJob,
   readBoundPullRequest,
   repositoryName,
   // The pull request the topic published and still owns, or null. Without the
@@ -933,7 +932,7 @@ export function createInstructionRunner({
     // sandbox. Every name the sandbox can read is opaque.
     const piSessionIdentifier = sessionIdentifier(request.sessionKey);
     const worktreeName = identifiers.worktreeName(request.sessionKey);
-    const newTaskSuffix = identifiers.changeSuffix(request.updateIdentifier);
+    const changeSuffix = identifiers.changeSuffix(request.updateIdentifier);
     const attachments = request.attachments ?? [];
     // A merge or preview ignores an attached image and says so.
     const ignoringAttachment = (report) =>
@@ -972,17 +971,6 @@ export function createInstructionRunner({
       }
       const publishReviewed =
         isResearchAffected && request.instruction === "/publica-revisio";
-      if (migrateTopicJob) {
-        const migrationReport = await migrateTopicJob(request.sessionKey, {
-          signal,
-        });
-        if (migrationReport !== null) {
-          return {
-            outcome: "failed",
-            report: ignoringAttachment(migrationReport),
-          };
-        }
-      }
       // A request is classified from its text and from the bounded context of
       // the topic, which the service reads without touching anything.
       const topic = await readTopicWorktree(worktreeName, { signal });
@@ -1265,7 +1253,7 @@ export function createInstructionRunner({
       const existingBranch = await currentBranch(worktree, { signal });
       const branch = existingBranch
         ? assertWorkBranch(existingBranch)
-        : branchNameForChange({ summary, suffix: newTaskSuffix });
+        : branchNameForChange({ summary, suffix: changeSuffix });
       if (!existingBranch) {
         await createBranch({ worktree, branch, signal });
       }

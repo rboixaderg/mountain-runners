@@ -38,12 +38,10 @@ import {
   requestSignal,
 } from "../../repository/request-signal.mjs";
 import {
-  pruneArchivedWorktrees,
   pruneFinishedTopicWorktrees,
   pruneStoredAttachments,
 } from "../../repository/retention.mjs";
 import { openIdentifierNames } from "../../repository/identifiers.mjs";
-import { renameLegacyWorktrees } from "../../repository/worktrees.mjs";
 import { createCiWatchWorker } from "../../workflow/ci-watch.mjs";
 import {
   createMergeRequests,
@@ -123,28 +121,6 @@ export async function startService({
   // The installation salt names every worktree and every public branch suffix.
   // It is created once in the private state directory and never leaves it.
   const identifiers = openIdentifierNames(config.paths.state);
-
-  // A worktree or an archive named after a Telegram chat and topic is renamed
-  // before anything uses it. A failure refuses the start: renaming nothing is
-  // better than half of the volume keeping a private name.
-  try {
-    await renameLegacyWorktrees({
-      repositoryPath: config.paths.repository,
-      worktreeRoot: config.paths.worktrees,
-      identifiers,
-      signal,
-      logger,
-    });
-  } catch (error) {
-    logger(
-      "worktree_migration_failed",
-      error instanceof Error ? error.message : "unknown",
-    );
-    throw new Error(
-      "Refusing to start: the worktrees of the previous naming scheme could not be renamed.",
-      { cause: error },
-    );
-  }
 
   const queue = new AdmissionQueue(
     join(config.paths.state, "admission.sqlite"),
@@ -272,13 +248,13 @@ export async function startService({
       repository: config.github.repository,
     });
 
-  // Worktrees keep an offline copy of `node_modules` each; prune eligible
-  // archives, remove clean published worktrees of merged pull requests when
-  // idle, and strip generated dependencies from kept archives or closed
-  // topics. Attachments stay available until published or for seven days.
-  // Local retention runs at startup; full retention (including GitHub checks
-  // for finished topics) runs exclusively inside `AgentBridge.runWhenIdle` so
-  // it can never overlap with a sandboxed turn or shutdown.
+  // Worktrees keep an offline copy of `node_modules` each; when idle, remove
+  // clean published worktrees of merged pull requests and strip generated
+  // dependencies from other closed topics. Attachments stay available until
+  // published or for seven days. Attachment retention runs at startup; the
+  // checks of finished topics on GitHub run exclusively inside
+  // `AgentBridge.runWhenIdle` so they can never overlap with a sandboxed turn or
+  // shutdown.
   const isServiceIdle = () => !queue.isBlocked();
 
   let retentionDue = true;
@@ -292,31 +268,6 @@ export async function startService({
   } = {}) {
     if (!isServiceIdle()) {
       return;
-    }
-    try {
-      const worktrees = await pruneArchivedWorktrees({
-        repositoryPath: config.paths.repository,
-        worktreeRoot: config.paths.worktrees,
-        signal: retentionSignal,
-        logger,
-      });
-      if (worktrees.removed.length > 0) {
-        logger("worktree_retention_applied", String(worktrees.removed.length));
-      }
-      if (worktrees.cleaned.length > 0) {
-        logger(
-          "worktree_dependencies_retention_applied",
-          String(worktrees.cleaned.length),
-        );
-      }
-    } catch (error) {
-      if (retentionSignal?.aborted) {
-        return;
-      }
-      logger(
-        "worktree_retention_failed",
-        error instanceof Error ? error.message : "unknown",
-      );
     }
     if (
       includeFinishedTopics &&
